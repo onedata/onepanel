@@ -1,0 +1,39 @@
+%% ===================================================================
+%% @author Krzysztof Trzepla
+%% @copyright (C): 2014 ACK CYFRONET AGH
+%% This software is released under the MIT license
+%% cited in 'LICENSE.txt'.
+%% @end
+%% ===================================================================
+%% @doc:
+%% @end
+%% ===================================================================
+{application, spanel, [
+  {description, "Veilcluster installer."},
+  {vsn, "1"},
+  {registered, [spanel_sup]},
+  {applications, [
+    kernel,
+    stdlib,
+    n2o,
+    cowboy,
+    lager,
+    erlydtl,
+    mimetypes
+  ]},
+  {mod, {spanel_app, []}},
+  {env, [
+    {spanel_port, 8888},
+    {gui_port, 9443},
+    {https_acceptors, 100},
+    {socket_timeout, 60000},
+    {max_keepalive, 30},
+    {gui_static_root, "./gui_static"},
+    {ca_cert_file, "./cacerts/ca.crt"},
+    {cert_file, "./cacerts/server.crt"},
+    {key_file, "./cacerts/server.key"},
+    {default_username, "admin"},
+    {default_password, "password"},
+    {multicast_address, {239, 255, 0, 1}}
+  ]}
+]}.
