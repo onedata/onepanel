@@ -27,7 +27,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {status = not_connected}).
+-record(state, {status = connected}).
 
 %%%===================================================================
 %%% API
@@ -65,6 +65,7 @@ start_link() ->
 init([]) ->
   try
     ok = db_logic:create_database(),
+    ok = db_logic:initialize_database(),
     {ok, Address} = application:get_env(?APP_NAME, multicast_address),
     {ok, Port} = application:get_env(?APP_NAME, installer_port),
     {ok, Socket} = gen_udp:open(Port, [binary, {reuseaddr, true}, {ip, Address},
@@ -91,8 +92,10 @@ init([]) ->
   {noreply, NewState :: #state{}, timeout() | hibernate} |
   {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
   {stop, Reason :: term(), NewState :: #state{}}).
-handle_call(_Request, _From, State) ->
-  {reply, ok, State}.
+handle_call({authenticate, Username, Password}, _From, #state{status = connected} = State) ->
+  {reply, user_logic:authenticate(Username, Password), State};
+handle_call({change_password, Username, OldPassword, NewPassword}, _From, #state{status = connected} = State) ->
+  {reply, user_logic:change_password(Username, OldPassword, NewPassword), State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -105,24 +108,22 @@ handle_call(_Request, _From, State) ->
   {noreply, NewState :: #state{}} |
   {noreply, NewState :: #state{}, timeout() | hibernate} |
   {stop, Reason :: term(), NewState :: #state{}}).
-handle_cast({connection_request, Node}, #state{status = not_connected} = State) ->
+handle_cast({connection_request, Node}, #state{status = connected} = State) ->
   lager:info("Connection request from node: ~p", [Node]),
   case db_logic:delete_database() of
     ok ->
       gen_server:cast({?INSTALLER_NAME, Node}, {connection_response, node()}),
-      {noreply, State#state{status = waiting}};
+      {noreply, State#state{status = not_connected}};
     _ ->
       {noreply, State#state{status = banned}}
   end;
-handle_cast({connection_response, Node}, State) ->
+handle_cast({connection_response, Node}, #state{status = connected} = State) ->
   lager:info("Connection response from node: ~p", [Node]),
   case db_logic:add_database_node(Node) of
-    ok ->
-      gen_server:cast({?INSTALLER_NAME, Node}, connection_acknowledgement),
-      {noreply, State#state{status = connected}};
-    _ ->
-      {noreply, State}
-  end;
+    ok -> gen_server:cast({?INSTALLER_NAME, Node}, connection_acknowledgement);
+    _ -> ok
+  end,
+  {noreply, State};
 handle_cast(connection_acknowledgement, State) ->
   lager:info("Connection acknowledgement."),
   {noreply, State#state{status = connected}};
@@ -143,8 +144,7 @@ handle_cast(_Request, State) ->
   {noreply, NewState :: #state{}} |
   {noreply, NewState :: #state{}, timeout() | hibernate} |
   {stop, Reason :: term(), NewState :: #state{}}).
-handle_info({udp, _Socket, _Address, _Port, <<Host/binary>>}, #state{status = Status} = State)
-  when Status =:= connected orelse Status =:= not_connected ->
+handle_info({udp, _Socket, _Address, _Port, <<Host/binary>>}, #state{status = connected} = State) ->
   Node = binary_to_atom(<<"spanel@", Host/binary>>, latin1),
   case net_kernel:connect_node(Node) of
     true -> gen_server:cast({?INSTALLER_NAME, Node}, {connection_request, node()});

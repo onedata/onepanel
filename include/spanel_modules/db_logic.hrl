@@ -14,7 +14,7 @@
 
 -define(DATABASE_TABELS, [users, configurations]).
 
--record(user, {login, password}).
+-record(user, {username, password}).
 -record(configuration, {id, ccm, ccms, workers, databases, storages}).
 
 -endif.

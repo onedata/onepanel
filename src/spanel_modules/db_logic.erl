@@ -10,10 +10,28 @@
 %% ===================================================================
 -module(db_logic).
 
+-include("registered_names.hrl").
 -include("spanel_modules/db_logic.hrl").
 
 %% API
--export([create_database/0, delete_database/0, add_database_node/1, save_record/2, get_record/2]).
+-export([initialize_database/0, create_database/0, delete_database/0, add_database_node/1, save_record/2, get_record/2, exist_record/2]).
+
+%% init/0
+%% ====================================================================
+%% @doc Initialize users table with default user (admin, password)
+%% @end
+-spec initialize_database() -> ok | error.
+%% ====================================================================
+initialize_database() ->
+  try
+    {ok, Username} = application:get_env(?APP_NAME, default_username),
+    {ok, Password} = application:get_env(?APP_NAME, default_password),
+    PasswordHash = user_logic:hash_password(Password),
+    lager:info("U: ~p, P: ~p, H: ~p", [Username, Password, PasswordHash]),
+    ok = save_record(users, #user{username = Username, password = PasswordHash})
+  catch
+    _:_ -> error
+  end.
 
 %% create_database/0
 %% ====================================================================
@@ -104,9 +122,24 @@ save_record(Table, Record) ->
 get_record(Table, Key) ->
   Transaction = fun() ->
     case mnesia:read(Table, Key) of
-      [Record] -> Record;
+      [Record] -> {ok, Record};
       [] -> not_found;
       _ -> error
+    end
+  end,
+  mnesia:activity(transaction, Transaction).
+
+%% exist_record/2
+%% ====================================================================
+%% @doc Checks whether record exist in database table
+%% @end
+-spec exist_record(Table :: atom(), Key :: term()) -> {ok, Record :: record()} | not_found | error.
+%% ====================================================================
+exist_record(Table, Key) ->
+  Transaction = fun() ->
+    case mnesia:read(Table, Key) of
+      [_] -> true;
+      _ -> false
     end
   end,
   mnesia:activity(transaction, Transaction).
