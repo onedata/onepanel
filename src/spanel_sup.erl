@@ -12,7 +12,7 @@
 
 -behaviour(supervisor).
 
--include("common.hrl").
+-include("registered_names.hrl").
 
 %% API
 -export([start_link/0]).
@@ -69,10 +69,10 @@ init([]) ->
   Shutdown = 2000,
   Type = worker,
 
-  Veilinstaller = {?INSTALLER_NAME, {?INSTALLER_NAME, start_link, []},
+  Installer = {?INSTALLER_NAME, {?INSTALLER_NAME, start_link, []},
     Restart, Shutdown, Type, [?INSTALLER_NAME]},
 
-  {ok, {SupFlags, [Veilinstaller]}}.
+  {ok, {SupFlags, [Installer]}}.
 
 %%%===================================================================
 %%% Internal functions

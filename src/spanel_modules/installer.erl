@@ -8,9 +8,11 @@
 %% @doc: This file contains n2o website code
 %% @end
 %% ===================================================================
--module(veilinstaller).
+-module(installer).
 
 -behaviour(gen_server).
+
+-include("common.hrl").
 
 %% API
 -export([start_link/0]).
@@ -25,7 +27,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {}).
+-record(state, {status = not_connected}).
 
 %%%===================================================================
 %%% API
@@ -61,7 +63,18 @@ start_link() ->
   {ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
   {stop, Reason :: term()} | ignore).
 init([]) ->
-  {ok, #state{}}.
+  try
+    ok = dao:init(),
+    {ok, Address} = application:get_env(?APP_NAME, multicast_address),
+    {ok, Port} = application:get_env(?APP_NAME, installer_port),
+    {ok, Socket} = gen_udp:open(Port, [binary, {reuseaddr, true}, {ip, Address},
+      {multicast_loop, false}, {add_membership, {Address, {0, 0, 0, 0}}}]),
+    ok = gen_udp:controlling_process(Socket, self()),
+    ok = gen_udp:send(Socket, Address, Port, net_adm:localhost()),
+    {ok, #state{}}
+  catch
+    _:_ -> {stop, initialization_error}
+  end.
 
 %%--------------------------------------------------------------------
 %% @private

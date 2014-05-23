@@ -9,7 +9,7 @@
 %% @end
 %% ===================================================================
 {application, spanel, [
-  {description, "Veilcluster installer."},
+  {description, "Veilcluster management tool."},
   {vsn, "1"},
   {registered, [spanel_sup]},
   {applications, [
@@ -23,7 +23,7 @@
   ]},
   {mod, {spanel_app, []}},
   {env, [
-    {spanel_port, 8888},
+    {installer_port, 8888},
     {gui_port, 9443},
     {https_acceptors, 100},
     {socket_timeout, 60000},

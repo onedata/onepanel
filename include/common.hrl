@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This file contains common macros and records for veilinstaller modules
+%% @doc: This file contains common macros and records for spanel modules
 %% @end
 %% ===================================================================
 
@@ -13,7 +13,7 @@
 -define(COMMON_HRL, 1).
 
 -include_lib("n2o/include/wf.hrl").
--include("custom_elements.hrl").
+-include("gui_modules/custom_elements.hrl").
 -include("registered_names.hrl").
 
 -endif.
