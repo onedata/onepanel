@@ -64,7 +64,7 @@ start_link() ->
   {stop, Reason :: term()} | ignore).
 init([]) ->
   try
-    ok = dao:init(),
+    ok = db_logic:create_database(),
     {ok, Address} = application:get_env(?APP_NAME, multicast_address),
     {ok, Port} = application:get_env(?APP_NAME, installer_port),
     {ok, Socket} = gen_udp:open(Port, [binary, {reuseaddr, true}, {ip, Address},
@@ -105,6 +105,27 @@ handle_call(_Request, _From, State) ->
   {noreply, NewState :: #state{}} |
   {noreply, NewState :: #state{}, timeout() | hibernate} |
   {stop, Reason :: term(), NewState :: #state{}}).
+handle_cast({connection_request, Node}, #state{status = not_connected} = State) ->
+  lager:info("Connection request from node: ~p", [Node]),
+  case db_logic:delete_database() of
+    ok ->
+      gen_server:cast({?INSTALLER_NAME, Node}, {connection_response, node()}),
+      {noreply, State#state{status = waiting}};
+    _ ->
+      {noreply, State#state{status = banned}}
+  end;
+handle_cast({connection_response, Node}, State) ->
+  lager:info("Connection response from node: ~p", [Node]),
+  case db_logic:add_database_node(Node) of
+    ok ->
+      gen_server:cast({?INSTALLER_NAME, Node}, connection_acknowledgement),
+      {noreply, State#state{status = connected}};
+    _ ->
+      {noreply, State}
+  end;
+handle_cast(connection_acknowledgement, State) ->
+  lager:info("Connection acknowledgement."),
+  {noreply, State#state{status = connected}};
 handle_cast(_Request, State) ->
   {noreply, State}.
 
@@ -122,7 +143,18 @@ handle_cast(_Request, State) ->
   {noreply, NewState :: #state{}} |
   {noreply, NewState :: #state{}, timeout() | hibernate} |
   {stop, Reason :: term(), NewState :: #state{}}).
-handle_info(_Info, State) ->
+handle_info({udp, _Socket, _Address, _Port, <<Host/binary>>}, #state{status = Status} = State)
+  when Status =:= connected orelse Status =:= not_connected ->
+  Node = binary_to_atom(<<"spanel@", Host/binary>>, latin1),
+  case net_kernel:connect_node(Node) of
+    true -> gen_server:cast({?INSTALLER_NAME, Node}, {connection_request, node()});
+    _ -> lager:error("Can not connect SPanel node: ~p.", [Node])
+  end,
+  {noreply, State};
+handle_info({udp, _Socket, _Address, _Port, <<_Host/binary>>}, State) ->
+  {noreply, State};
+handle_info(Info, State) ->
+  lager:error("Wrong info: ~p", [Info]),
   {noreply, State}.
 
 %%--------------------------------------------------------------------
