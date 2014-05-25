@@ -20,10 +20,13 @@ add_database_nodes_to_cluster(ClusterNode, Nodes) ->
   lists:foldl(fun(Node, AdditionFailed) ->
       "spanel@" ++ NodeHostname = atom_to_list(Node),
     Url = "http://" ++ ClusterNodeHostname ++ ":" ++ ?DEFAULT_PORT ++ "/nodes/" ++ ?DEFAULT_DB_NAME ++ "@" ++ NodeHostname,
-    {ok, _Status, _ResponseHeaders, ResponseBody} = ibrowse:send_req(Url, [{content_type, "application/json"}], put, "{}", ?CURL_OPTS),
-    case string:str(ResponseBody, "\"ok\":true") of
-      0 -> [Node, AdditionFailed];
-      _ -> AdditionFailed
+    case ibrowse:send_req(Url, [{content_type, "application/json"}], put, "{}", ?CURL_OPTS) of
+      {ok, _Status, _ResponseHeaders, ResponseBody} ->
+        case string:str(ResponseBody, "\"ok\":true") of
+          0 -> [Node, AdditionFailed];
+          _ -> AdditionFailed
+        end;
+      _ -> [Node | AdditionFailed]
     end
   end, [], Nodes).
 
