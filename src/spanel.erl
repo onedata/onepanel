@@ -13,6 +13,7 @@
 -behaviour(gen_server).
 
 -include("registered_names.hrl").
+-include("spanel_modules/db_logic.hrl").
 
 %% API
 -export([start_link/0]).
@@ -95,10 +96,20 @@ handle_call({authenticate, Username, Password}, _From, #state{status = connected
   {reply, user_logic:authenticate(Username, Password), State};
 handle_call({change_password, Username, OldPassword, NewPassword}, _From, #state{status = connected} = State) ->
   {reply, user_logic:change_password(Username, OldPassword, NewPassword), State};
+handle_call(set_ulimits, _From, #state{status = connected} = State) ->
+  {reply, install_storage:set_ulimits(), State};
+handle_call({set_ulimits, OpenFiles, Processes}, _From, #state{status = connected} = State) ->
+  {reply, install_storage:set_ulimits(OpenFiles, Processes), State};
 handle_call({check_storage, Path}, _From, #state{status = connected} = State) ->
-  {reply, install_logic:check_storage_on_nodes(Path), State};
+  {reply, install_storage:check_storage_on_nodes(Path), State};
 handle_call({check_storage, FilePath, Content}, _From, #state{status = connected} = State) ->
-  {reply, install_logic:check_storage_on_node(FilePath, Content), State};
+  {reply, install_storage:check_storage_on_node(FilePath, Content), State};
+handle_call({install_ccm_nodes, Configuration}, _From, #state{status = connected} = State) ->
+  {reply, install_ccm:install_ccm_nodes(Configuration), State};
+handle_call({install_worker_nodes, Configuration}, _From, #state{status = connected} = State) ->
+  {reply, install_worker:install_worker_nodes(Configuration), State};
+handle_call({install_database_nodes, Nodes}, _From, State) ->
+  {reply, install_db:install_database_nodes(Nodes), State};
 handle_call(_Request, _From, State) ->
   {reply, {wrong_request, State}, State}.
 
@@ -198,29 +209,3 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-%% apply_on_nodes/5
-%% ====================================================================
-%% @doc Applies function on specified nodes with timeout in miliseconds.
-%% If 'Timeout' equals 'infinity' function waits as long as result is not
-%% available. Returns ok if function was successful on all nodes
-%% or list of nodes where function failed. Function result must be of form
-%% {Node :: node(), ok | error}.
-%% @end
--spec apply_on_nodes(Nodes, Module, Function, Arguments, Timeout) -> ok | {error, [Nodes]} when
-  Nodes :: [node()],
-  Module :: module(),
-  Function :: atom(),
-  Arguments :: [term()],
-  Timeout :: integer() | infinity.
-%% ====================================================================
-apply_on_nodes(Nodes, Module, Function, Arguments, Timeout) ->
-  {Results, FailedNodes} = rpc:multicall(Nodes, Module, Function, Arguments, Timeout),
-  ErrorNodes = lists:foldl(fun
-    ({Node, error}, Acc) -> [Node | Acc];
-    (_, Acc) -> Acc
-  end, [], Results),
-  case FailedNodes ++ ErrorNodes of
-    [] -> ok;
-    NonEmptyList -> lists:sort(NonEmptyList)
-  end.

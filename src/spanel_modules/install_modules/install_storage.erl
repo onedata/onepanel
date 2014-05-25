@@ -5,16 +5,16 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This file contains installation logic functions
+%% @doc: This file contains storage installation functions
 %% @end
 %% ===================================================================
--module(install_logic).
+-module(install_storage).
 
 -include("registered_names.hrl").
--include("spanel_modules/install_logic.hrl").
+-include("spanel_modules/install_common.hrl").
 
 %% API
--export([create_storage_test_file/1, delete_storage_test_file/1, check_storage_on_node/2, check_storage_on_nodes/1]).
+-export([create_storage_test_file/1, delete_storage_test_file/1, check_storage_on_node/2, check_storage_on_nodes/1, set_ulimits/0]).
 
 -define(STORAGE_TEST_FILE_PREFIX, "storage_test_").
 
@@ -30,7 +30,7 @@ create_storage_test_file(_, 0) ->
 create_storage_test_file(Path, Attempts) ->
   {A, B, C} = now(),
   random:seed(A, B, C),
-  Filename = random_ascii_lowercase_sequence(8),
+  Filename = install_utils:random_ascii_lowercase_sequence(8),
   FilePath = Path ++ "/" ++ ?STORAGE_TEST_FILE_PREFIX ++ Filename,
   try
     {ok, Fd} = file:open(FilePath, [write, exclusive]),
@@ -92,7 +92,7 @@ check_storage_on_node(FilePath, Content) ->
     {ok, Content} = file:read_line(FdRead),
     ok = file:close(FdRead),
     {ok, FdWrite} = file:open(FilePath, [write]),
-    NewContent = atom_to_list(node()),
+    NewContent = install_utils:random_ascii_lowercase_sequence(20),
     ok = file:write(FdWrite, NewContent),
     ok = file:close(FdWrite),
     {ok, NewContent}
@@ -100,10 +100,29 @@ check_storage_on_node(FilePath, Content) ->
     _:_ -> error
   end.
 
-%% random_ascii_lowercase_sequence
+%% set_ulimit/0
 %% ====================================================================
-%% @doc Create random sequence consisting of lowercase ASCII letters.
--spec random_ascii_lowercase_sequence(Length :: integer()) -> list().
+%% @doc Sets default system limits
+%% @end
+-spec set_ulimits() -> ok | error.
 %% ====================================================================
-random_ascii_lowercase_sequence(Length) ->
-  lists:foldl(fun(_, Acc) -> [random:uniform(26) + 96 | Acc] end, [], lists:seq(1, Length)).
+set_ulimits() ->
+  set_ulimits(?DEFAULT_OPEN_FILES, ?DEFAULT_PROCESSES).
+
+%% set_ulimit/2
+%% ====================================================================
+%% @doc Sets system limits
+%% @end
+-spec set_ulimits(OpenFiles :: integer(), Processes :: integer()) -> ok | error.
+%% ====================================================================
+set_ulimits(OpenFiles, Processes) ->
+  case file:consult(?ULIMITS_CONFIG_PATH) of
+    {ok, []} ->
+      file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n~p.\n", [{open_files, OpenFiles}, {process_limit, Processes}]), [append]),
+      ok;
+    {ok, _} ->
+      ok;
+    Error ->
+      lager:error("Cannot parse file ~p, error: ~p", [?ULIMITS_CONFIG_PATH, Error]),
+      error
+  end.

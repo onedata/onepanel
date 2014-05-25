@@ -19,7 +19,8 @@
     cowboy,
     lager,
     erlydtl,
-    mimetypes
+    mimetypes,
+    ibrowse
   ]},
   {mod, {spanel_app, []}},
   {env, [

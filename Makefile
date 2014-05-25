@@ -9,6 +9,7 @@ compile:
 	@./rebar compile
 
 generate:
+	@sed -i s/"-name .*"/"-name spanel@"`hostname`/g rel/files/vm.args
 	@./rebar generate
 
 clean:
