@@ -10,9 +10,7 @@
 %% ===================================================================
 
 -ifndef(DB_LOGIC_HRL).
--define(DB_LOGIC, 1).
-
--define(DATABASE_TABELS, [users, configurations]).
+-define(DB_LOGIC_HRL, 1).
 
 -record(user, {username, password}).
 -record(configuration, {id, ccm, ccms, workers, databases, storages}).

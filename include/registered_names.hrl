@@ -18,6 +18,6 @@
 
 %% Local name (name and node is used to identify it) of gen_server that 
 %% coordinates node life cycle.
--define(INSTALLER_NAME, installer).
+-define(SPANEL_NAME, spanel).
 
 -endif.

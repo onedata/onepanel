@@ -10,7 +10,8 @@
 %% ===================================================================
 
 -module(element_custom_checkbox).
--include_lib("common.hrl").
+-include_lib("n2o/include/wf.hrl").
+-include("gui_modules/custom_elements.hrl").
 -compile(export_all).
 
 reflect() -> record_info(fields, custom_checkbox).

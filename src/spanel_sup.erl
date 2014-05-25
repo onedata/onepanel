@@ -69,8 +69,8 @@ init([]) ->
   Shutdown = 2000,
   Type = worker,
 
-  Installer = {?INSTALLER_NAME, {?INSTALLER_NAME, start_link, []},
-    Restart, Shutdown, Type, [?INSTALLER_NAME]},
+  Installer = {?SPANEL_NAME, {?SPANEL_NAME, start_link, []},
+    Restart, Shutdown, Type, [?SPANEL_NAME]},
 
   {ok, {SupFlags, [Installer]}}.
 

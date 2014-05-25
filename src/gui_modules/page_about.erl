@@ -11,7 +11,8 @@
 
 -module(page_about).
 -compile(export_all).
--include("common.hrl").
+-include_lib("n2o/include/wf.hrl").
+-include("registered_names.hrl").
 
 -define(LICENSE_FILE, "LICENSE.txt").
 -define(CONTACT_EMAIL, "support@onedata.org").

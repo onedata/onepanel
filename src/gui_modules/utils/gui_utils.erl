@@ -10,7 +10,8 @@
 %% ===================================================================
 
 -module(gui_utils).
--include("common.hrl").
+-include_lib("n2o/include/wf.hrl").
+-include("gui_modules/custom_elements.hrl").
 
 -export([get_requested_page/0]).
 -export([user_logged_in/0]).

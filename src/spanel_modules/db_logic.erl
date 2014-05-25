@@ -14,24 +14,26 @@
 -include("spanel_modules/db_logic.hrl").
 
 %% API
--export([initialize_database/0, create_database/0, delete_database/0, add_database_node/1, save_record/2, get_record/2, exist_record/2]).
+-export([initialize_table/1, create_database/0, delete_database/0, add_database_node/1, get_database_nodes/0]).
+-export([save_record/2, get_record/2, exist_record/2]).
 
 %% init/0
 %% ====================================================================
 %% @doc Initialize users table with default user (admin, password)
 %% @end
--spec initialize_database() -> ok | error.
+-spec initialize_table(Table :: atom()) -> ok | error.
 %% ====================================================================
-initialize_database() ->
+initialize_table(users) ->
   try
     {ok, Username} = application:get_env(?APP_NAME, default_username),
     {ok, Password} = application:get_env(?APP_NAME, default_password),
     PasswordHash = user_logic:hash_password(Password),
-    lager:info("U: ~p, P: ~p, H: ~p", [Username, Password, PasswordHash]),
     ok = save_record(users, #user{username = Username, password = PasswordHash})
   catch
     _:_ -> error
-  end.
+  end;
+initialize_table(configurations) ->
+  ok.
 
 %% create_database/0
 %% ====================================================================
@@ -41,25 +43,37 @@ initialize_database() ->
 %% ====================================================================
 create_database() ->
   try
-    mnesia:delete_schema([node()]),
-    ok = mnesia:create_schema([node()]),
+    Node = node(),
+    case mnesia:create_schema([node()]) of
+      ok -> ok;
+      {error, {Node, {already_exists, Node}}} -> ok;
+      {error, Reason} -> throw(Reason)
+    end,
     ok = application:start(mnesia),
-    {atomic, ok} = mnesia:create_table(users, [
+    case mnesia:create_table(users, [
       {attributes, record_info(fields, user)},
       {record_name, user},
       {disc_copies, [node()]}
-    ]),
-    {atomic, ok} = mnesia:create_table(configurations, [
+    ]) of
+      {atomic, ok} -> initialize_table(users);
+      {aborted, {already_exists, users}} -> ok;
+      {aborted, UsersError} -> throw(UsersError)
+    end,
+    case mnesia:create_table(configurations, [
       {attributes, record_info(fields, configuration)},
       {record_name, configuration},
       {disc_copies, [node()]}
-    ]),
+    ]) of
+      {atomic, ok} -> initialize_table(configurations);
+      {aborted, {already_exists, configurations}} -> ok;
+      {aborted, ConfigurationError} -> throw(ConfigurationError)
+    end,
     ok
   catch
     _:_ -> error
   end.
 
-%% create_database/0
+%% delete_database/0
 %% ====================================================================
 %% @doc Deletes database schema and tabels on single node
 %% @end
@@ -87,16 +101,26 @@ delete_database() ->
 %% ====================================================================
 add_database_node(Node) ->
   try
-    {ok, DbNodes} = mnesia:change_config(extra_db_nodes, [Node]),
-    true = lists:any(fun(DbNode) -> DbNode =:= Node end, DbNodes),
+    {ok, [Node]} = mnesia:change_config(extra_db_nodes, [Node]),
     {atomic, ok} = mnesia:change_table_copy_type(schema, Node, disc_copies),
-    [{atomic, ok} = mnesia:add_table_copy(TableCopy, Node, Type)
-      || {TableCopy, [{_, Type}]} <- [{Table, mnesia:table_info(Table, where_to_commit)}
-      || Table <- mnesia:system_info(tables)]],
+    Tables = lists:filter(fun(Table) -> Table =/= schema end, mnesia:system_info(tables)),
+    lists:foreach(fun(Table) ->
+      Type = mnesia:table_info(Table, storage_type),
+      {atomic, ok} = mnesia:add_table_copy(Table, Node, Type)
+    end, Tables),
     ok
   catch
     _:_ -> error
   end.
+
+%% get_database_nodes/0
+%% ====================================================================
+%% @doc Returns list of database nodes
+%% @end
+-spec get_database_nodes() -> [node()].
+%% ====================================================================
+get_database_nodes() ->
+  mnesia:system_info(db_nodes).
 
 %% save_record/2
 %% ====================================================================

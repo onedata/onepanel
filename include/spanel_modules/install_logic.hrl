@@ -1,19 +1,19 @@
 %% ===================================================================
 %% @author Krzysztof Trzepla
 %% @copyright (C): 2014 ACK CYFRONET AGH
-%% This software is released under the MIT license 
+%% This software is released under the MIT license
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This file contains common macros and records for spanel modules
+%% @doc: This file contains common macros and records for dao module
 %% @end
 %% ===================================================================
 
--ifndef(COMMON_HRL).
--define(COMMON_HRL, 1).
+-ifndef(INSTALL_LOGIC_HRL).
+-define(INSTALL_LOGIC_HRL, 1).
 
--include_lib("n2o/include/wf.hrl").
--include("gui_modules/custom_elements.hrl").
--include("registered_names.hrl").
+-define(INSTALL_LOGIC, install_logic).
+-define(RPC_TIMEOUT, 30000).
+-define(GEN_SERVER_TIMEOUT, 5000).
 
 -endif.

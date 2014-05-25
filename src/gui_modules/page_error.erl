@@ -11,7 +11,8 @@
 
 -module(page_error).
 -compile(export_all).
--include("common.hrl").
+-include_lib("n2o/include/wf.hrl").
+-include("registered_names.hrl").
 
 %% Template points to the template file, which will be filled with content
 main() -> #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}]}.

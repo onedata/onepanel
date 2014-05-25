@@ -10,7 +10,8 @@
 %% ===================================================================
 
 -module(action_jquery).
--include_lib("common.hrl").
+-include_lib("n2o/include/wf.hrl").
+-include("gui_modules/custom_elements.hrl").
 -export([render_action/1]).
 
 render_action(Record = #jquery{property = undefined, target = Target, method = Methods, args = Args1}) ->
