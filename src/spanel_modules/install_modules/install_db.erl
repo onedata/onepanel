@@ -13,22 +13,34 @@
 -include("spanel_modules/install_common.hrl").
 
 %% API
--export([install_database_node/0, uninstall_database_node/0, install_database_nodes/1]).
+-export([install_database_node/0, uninstall_database_node/0, install_database_nodes/1, add_database_node/1, add_database_nodes/2]).
 
-add_database_nodes_to_cluster(ClusterNode, Nodes) ->
-    "spanel@" ++ ClusterNodeHostname = atom_to_list(ClusterNode),
-  lists:foldl(fun(Node, AdditionFailed) ->
-      "spanel@" ++ NodeHostname = atom_to_list(Node),
+add_database_node(ClusterNode) ->
+  try
+      "spanel@" ++ ClusterNodeHostname = atom_to_list(ClusterNode),
+      "spanel@" ++ NodeHostname = atom_to_list(node()),
     Url = "http://" ++ ClusterNodeHostname ++ ":" ++ ?DEFAULT_PORT ++ "/nodes/" ++ ?DEFAULT_DB_NAME ++ "@" ++ NodeHostname,
-    case ibrowse:send_req(Url, [{content_type, "application/json"}], put, "{}", ?CURL_OPTS) of
-      {ok, _Status, _ResponseHeaders, ResponseBody} ->
-        case string:str(ResponseBody, "\"ok\":true") of
-          0 -> [Node, AdditionFailed];
-          _ -> AdditionFailed
-        end;
-      _ -> [Node | AdditionFailed]
-    end
-  end, [], Nodes).
+    ok = send_http_request(Url, 0),
+    {node(), ok}
+  catch
+    _:_ -> {node(), error}
+  end.
+
+send_http_request(_, 10) ->
+  error;
+send_http_request(Url, Attempts) ->
+  try
+    timer:sleep(1000),
+    {ok, "201", _ResponseHeaders, ResponseBody} = ibrowse:send_req(Url, [{content_type, "application/json"}], put, "{}", ?CURL_OPTS),
+    false = (0 =:= string:str(ResponseBody, "\"ok\":true")),
+    ok
+  catch
+    _:_ -> send_http_request(Url, Attempts + 1)
+  end.
+
+add_database_nodes(ClusterNode, Nodes) ->
+  {_, FailedNodes} = install_utils:apply_on_nodes(Nodes, ?MODULE, add_database_node, [ClusterNode], ?RPC_TIMEOUT),
+  FailedNodes.
 
 install_database_node() ->
   lager:info("Installing database node..."),
@@ -61,7 +73,7 @@ uninstall_database_node() ->
 install_database_nodes(Nodes) ->
   {InstallationOk, InstallationFailed} = install_utils:apply_on_nodes(Nodes, ?MODULE, install_database_node, [], ?RPC_TIMEOUT),
   AdditionFailed = case InstallationOk of
-                     [PrimaryNode | NodesToAdd] -> add_database_nodes_to_cluster(PrimaryNode, NodesToAdd);
+                     [PrimaryNode | NodesToAdd] -> add_database_nodes(PrimaryNode, NodesToAdd);
                      _ -> []
                    end,
   case {InstallationFailed, AdditionFailed} of

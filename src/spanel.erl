@@ -96,10 +96,10 @@ handle_call({authenticate, Username, Password}, _From, #state{status = connected
   {reply, user_logic:authenticate(Username, Password), State};
 handle_call({change_password, Username, OldPassword, NewPassword}, _From, #state{status = connected} = State) ->
   {reply, user_logic:change_password(Username, OldPassword, NewPassword), State};
-handle_call(set_ulimits, _From, #state{status = connected} = State) ->
-  {reply, install_storage:set_ulimits(), State};
-handle_call({set_ulimits, OpenFiles, Processes}, _From, #state{status = connected} = State) ->
-  {reply, install_storage:set_ulimits(OpenFiles, Processes), State};
+handle_call({set_ulimits, Nodes}, _From, #state{status = connected} = State) ->
+  {reply, install_storage:set_ulimits_on_nodes(Nodes), State};
+handle_call({set_ulimits, Nodes, OpenFiles, Processes}, _From, #state{status = connected} = State) ->
+  {reply, install_storage:set_ulimits_on_nodes(Nodes, OpenFiles, Processes), State};
 handle_call({check_storage, Path}, _From, #state{status = connected} = State) ->
   {reply, install_storage:check_storage_on_nodes(Path), State};
 handle_call({check_storage, FilePath, Content}, _From, #state{status = connected} = State) ->

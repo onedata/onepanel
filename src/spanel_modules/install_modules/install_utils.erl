@@ -31,8 +31,10 @@ random_ascii_lowercase_sequence(Length) ->
 %% available. Pair of list where first list contains nodes on which function
 %% call was successful. Second list contains remaining nodes.
 %% @end
--spec apply_on_nodes(Nodes, Module, Function, Arguments, Timeout) -> ok | {error, [Nodes]} when
+-spec apply_on_nodes(Nodes, Module, Function, Arguments, Timeout) -> {SuccessfulNodes, FailedNodes} when
   Nodes :: [node()],
+  SuccessfulNodes :: [node()],
+  FailedNodes :: [node()],
   Module :: module(),
   Function :: atom(),
   Arguments :: [term()],

@@ -14,7 +14,8 @@
 -include("spanel_modules/install_common.hrl").
 
 %% API
--export([create_storage_test_file/1, delete_storage_test_file/1, check_storage_on_node/2, check_storage_on_nodes/1, set_ulimits/0]).
+-export([create_storage_test_file/1, delete_storage_test_file/1, check_storage_on_node/2, check_storage_on_nodes/1]).
+-export([set_ulimits_on_node/2, set_ulimits_on_nodes/1, set_ulimits_on_nodes/3]).
 
 -define(STORAGE_TEST_FILE_PREFIX, "storage_test_").
 
@@ -100,29 +101,42 @@ check_storage_on_node(FilePath, Content) ->
     _:_ -> error
   end.
 
-%% set_ulimit/0
+%% set_ulimit_on_nodes/1
 %% ====================================================================
-%% @doc Sets default system limits
+%% @doc Sets default system limits on nodes
 %% @end
--spec set_ulimits() -> ok | error.
+-spec set_ulimits_on_nodes(Nodes :: [node()]) -> ok | error.
 %% ====================================================================
-set_ulimits() ->
-  set_ulimits(?DEFAULT_OPEN_FILES, ?DEFAULT_PROCESSES).
+set_ulimits_on_nodes(Nodes) ->
+  set_ulimits_on_nodes(Nodes, ?DEFAULT_OPEN_FILES, ?DEFAULT_PROCESSES).
 
-%% set_ulimit/2
+%% set_ulimit_on_nodes/3
 %% ====================================================================
-%% @doc Sets system limits
+%% @doc Sets system limits on nodes
 %% @end
--spec set_ulimits(OpenFiles :: integer(), Processes :: integer()) -> ok | error.
+-spec set_ulimits_on_nodes(Nodes :: [node()], OpenFiles :: integer(), Processes :: integer()) -> ok | error.
 %% ====================================================================
-set_ulimits(OpenFiles, Processes) ->
+set_ulimits_on_nodes(Nodes, OpenFiles, Processes) ->
+  {_, FailedNodes} = install_utils:apply_on_nodes(Nodes, ?MODULE, set_ulimits_on_node, [OpenFiles, Processes], ?RPC_TIMEOUT),
+  case FailedNodes of
+    [] -> ok;
+    _ -> {error, FailedNodes}
+  end.
+
+%% set_ulimit_on_node/2
+%% ====================================================================
+%% @doc Sets system limits on node
+%% @end
+-spec set_ulimits_on_node(OpenFiles :: integer(), Processes :: integer()) -> ok | error.
+%% ====================================================================
+set_ulimits_on_node(OpenFiles, Processes) ->
   case file:consult(?ULIMITS_CONFIG_PATH) of
     {ok, []} ->
       file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n~p.\n", [{open_files, OpenFiles}, {process_limit, Processes}]), [append]),
-      ok;
+      {node(), ok};
     {ok, _} ->
-      ok;
+      {node(), ok};
     Error ->
       lager:error("Cannot parse file ~p, error: ~p", [?ULIMITS_CONFIG_PATH, Error]),
-      error
+      {node(), error}
   end.
