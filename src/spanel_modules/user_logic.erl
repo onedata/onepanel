@@ -11,6 +11,7 @@
 -module(user_logic).
 
 -include("spanel_modules/db_logic.hrl").
+-include("spanel_modules/errors.hrl").
 
 %% API
 -export([hash_password/1, authenticate/2, change_password/3]).
@@ -30,13 +31,13 @@ hash_password(Password) ->
 %% ====================================================================
 %% @doc Check whether user exists and whether it is a valid password
 %% @end
--spec authenticate(Username :: string(), Password :: string()) -> ok | error.
+-spec authenticate(Username :: string(), Password :: string()) -> ok | {error, Reason :: string()}.
 %% ====================================================================
 authenticate(Username, Password) ->
   PasswordHash = hash_password(Password),
   case db_logic:get_record(users, Username) of
     {ok, #user{username = Username, password = PasswordHash}} -> ok;
-    _ -> error
+    _ -> {error, ?AUTHENTICATION_ERROR}
   end.
 
 
@@ -44,11 +45,15 @@ authenticate(Username, Password) ->
 %% ====================================================================
 %% @doc Changes user's password if authenticated
 %% @end
--spec change_password(Username :: string(), OldPassword :: string(), NewPassword :: string()) -> ok | error.
+-spec change_password(Username :: string(), OldPassword :: string(), NewPassword :: string()) -> ok | {error, Reason :: string()}.
 %% ====================================================================
 change_password(Username, OldPassword, NewPassword) ->
   PasswordHash = user_logic:hash_password(NewPassword),
   case authenticate(Username, OldPassword) of
-    ok -> db_logic:save_record(users, #user{username = Username, password = PasswordHash});
-    _ -> error
+    ok ->
+      case db_logic:save_record(users, #user{username = Username, password = PasswordHash}) of
+        ok -> ok;
+        _ -> {error, ?INTERNAL_ERROR}
+      end;
+    _ -> {error, ?AUTHENTICATION_ERROR}
   end.

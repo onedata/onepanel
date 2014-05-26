@@ -19,6 +19,7 @@
 -export([top_menu/1, top_menu/2, logotype_footer/1]).
 -export([update/2, insert_bottom/2, insert_before/2]).
 -export([to_list/1]).
+-export([script_for_enter_submission/2]).
 -export([comet/1, init_comet/2, comet_supervisor/2, is_comet_process/0, flush/0]).
 
 %% ====================================================================
@@ -156,6 +157,16 @@ logotype_footer(MarginTop) ->
       ]}
     ]}
   ].
+
+%% script_for_enter_submission/2
+%% ====================================================================
+%% @doc Generates snippet of javascript, which can be directly used with wf:wire.
+%% It intercepts enter keypresses on given input element and performs a click() on given submit button.
+%% @end
+-spec script_for_enter_submission(string(), string()) -> string().
+%% ====================================================================
+script_for_enter_submission(InputID, ButtonToClickID) ->
+  wf:f("$('#~s').bind('keydown', function (e){ if (e.which == 13) { e.preventDefault(); $('#~s').click(); } });", [InputID, ButtonToClickID]).
 
 %% update/2
 %% ====================================================================
