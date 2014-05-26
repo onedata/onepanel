@@ -104,12 +104,12 @@ handle_call({check_storage, Path}, _From, #state{status = connected} = State) ->
   {reply, install_storage:check_storage_on_nodes(Path), State};
 handle_call({check_storage, FilePath, Content}, _From, #state{status = connected} = State) ->
   {reply, install_storage:check_storage_on_node(FilePath, Content), State};
-handle_call({install_ccm_nodes, Configuration}, _From, #state{status = connected} = State) ->
-  {reply, install_ccm:install_ccm_nodes(Configuration), State};
-handle_call({install_worker_nodes, Configuration}, _From, #state{status = connected} = State) ->
-  {reply, install_worker:install_worker_nodes(Configuration), State};
-handle_call({install_database_nodes, Nodes}, _From, State) ->
-  {reply, install_db:install_database_nodes(Nodes), State};
+handle_call({install_ccm_nodes, CCM, CCMs, Databases}, _From, #state{status = connected} = State) ->
+  {reply, install_ccm:install_ccm_nodes(CCM, CCMs, Databases), State};
+handle_call({install_worker_nodes, CCM, CCMs, Workers, Databases}, _From, #state{status = connected} = State) ->
+  {reply, install_worker:install_worker_nodes(CCM, CCMs, Workers, Databases), State};
+handle_call({install_database_nodes, Hostnames}, _From, State) ->
+  {reply, install_db:install_database_nodes(Hostnames), State};
 handle_call(_Request, _From, State) ->
   {reply, {wrong_request, State}, State}.
 

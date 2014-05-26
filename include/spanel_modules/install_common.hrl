@@ -31,6 +31,10 @@
 % Location of configured_nodes.cfg
 -define(CONFIGURED_NODES_PATH, ?PREFIX ++ "scripts/configured_nodes.cfg").
 
+%Paths relative to database_node release
+-define(DB_START_COMMAND_SUFFIX,"bin/bigcouch").
+-define (NOHUP_OUTPUT,"var/log/nohup.out").
+
 % System limit values
 -define(ULIMITS_CONFIG_PATH, ?PREFIX ++ "scripts/ulimits.cfg").
 -define(DEFAULT_OPEN_FILES, "65535").
@@ -57,5 +61,6 @@
 -define(CONFIG_ARGS_PATH, "bin/config.args").
 -define(VEIL_CLUSTER_SCRIPT_PATH, "bin/veil_cluster").
 -define(STORAGE_CONFIG_PATH, "bin/storage_info.cfg").
+-define(START_COMMAND_SUFFIX, "bin/veil_cluster_node start").
 
 -endif.

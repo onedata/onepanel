@@ -13,6 +13,6 @@
 -define(DB_LOGIC_HRL, 1).
 
 -record(user, {username, password}).
--record(configuration, {id, ccm, ccms, workers, databases, storages}).
+-record(configuration, {id, ccm, ccms, workers, databases, storages, ulimits}).
 
 -endif.

@@ -11,11 +11,12 @@
 -module(db_logic).
 
 -include("registered_names.hrl").
+-include("spanel_modules/install_common.hrl").
 -include("spanel_modules/db_logic.hrl").
 
 %% API
 -export([initialize_table/1, create_database/0, delete_database/0, add_database_node/1, get_database_nodes/0]).
--export([save_record/2, get_record/2, exist_record/2]).
+-export([save_record/2, update_record/2, get_record/2, exist_record/2]).
 
 %% init/0
 %% ====================================================================
@@ -33,7 +34,7 @@ initialize_table(users) ->
     _:_ -> error
   end;
 initialize_table(configurations) ->
-  ok.
+  ok = save_record(configurations, #configuration{id = last, ulimits = {?DEFAULT_OPEN_FILES, ?DEFAULT_PROCESSES}}).
 
 %% create_database/0
 %% ====================================================================
@@ -136,6 +137,23 @@ save_record(Table, Record) ->
     end
   end,
   mnesia:activity(transaction, Transaction).
+
+%% update_record/2
+%% ====================================================================
+%% @doc Updates record in database table
+%% @end
+-spec update_record(Table :: atom(), Record :: record()) -> ok | error.
+%% ====================================================================
+update_record(Table, NewRecord) ->
+  case get_record(Table, element(2, NewRecord)) of
+    {ok, OldRecord} ->
+      List = lists:map(fun
+        ({Old, undefined}) -> Old;
+        ({_, New}) -> New
+      end, lists:zip(tuple_to_list(OldRecord), tuple_to_list(NewRecord))),
+      save_record(Table, list_to_tuple(List));
+    _ -> save_record(Table, NewRecord)
+  end.
 
 %% get_record/2
 %% ====================================================================
