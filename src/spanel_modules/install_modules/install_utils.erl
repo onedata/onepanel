@@ -119,7 +119,7 @@ get_ulimits_cmd() ->
     {ok, #configuration{ulimits = {OpenFiles, Processes}}} = dao:get_record(configurations, last),
     "ulimit -n " ++ OpenFiles ++ " ; ulimit -u " ++ Processes
   catch
-    _:_ -> ""
+    _:_ -> "ulimit -n " ++ ?DEFAULT_OPEN_FILES ++ " ; ulimit -u " ++ ?DEFAULT_PROCESSES
   end.
 
 %% add_node_to_config/3
