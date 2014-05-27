@@ -16,6 +16,9 @@
 %% Name of the application.
 -define(APP_NAME, spanel).
 
+%% String version of applicaton name
+-define(APP_STR, atom_to_list(?APP_NAME)).
+
 %% Local name (name and node is used to identify it) of gen_server that 
 %% coordinates node life cycle.
 -define(SPANEL_NAME, spanel).

@@ -11,16 +11,17 @@
 -module(install_utils).
 
 -include("registered_names.hrl").
--include("spanel_modules/db_logic.hrl").
--include("spanel_modules/install_common.hrl").
+-include("spanel_modules/db.hrl").
+-include("spanel_modules/install.hrl").
 
 %% API
--export([random_ascii_lowercase_sequence/1, apply_on_hosts/5]).
--export([get_nodes_from_config/1, add_node_to_config/3, remove_node_from_config/1, install_veil_node/7, get_hostname/1, get_ulimit_cmd/0]).
+-export([random_ascii_lowercase_sequence/1, apply_on_hosts/5, get_node/1, get_host/1, get_hosts/0]).
+-export([set_ulimits_on_hosts/3, set_ulimits/2, get_ulimits_cmd/0]).
+-export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/3]).
 
-%% random_ascii_lowercase_sequence
+%% random_ascii_lowercase_sequence/1
 %% ====================================================================
-%% @doc Create random sequence consisting of lowercase ASCII letters.
+%% @doc Creates random sequence consisting of lowercase ASCII letters.
 -spec random_ascii_lowercase_sequence(Length :: integer()) -> string().
 %% ====================================================================
 random_ascii_lowercase_sequence(Length) ->
@@ -28,99 +29,104 @@ random_ascii_lowercase_sequence(Length) ->
 
 %% apply_on_nodes/5
 %% ====================================================================
-%% @doc Applies function on specified nodes with timeout in miliseconds.
+%% @doc Applies function on specified hosts with timeout in miliseconds.
 %% If 'Timeout' equals 'infinity' function waits as long as result is not
-%% available. Pair of list where first list contains nodes on which function
-%% call was successful. Second list contains remaining nodes.
+%% available. Pair of list where first list contains hosts on which function
+%% call was successful. Second list contains remaining hosts.
 %% @end
--spec apply_on_hosts(Hostnames, Module, Function, Arguments, Timeout) -> {SuccessfulHosts, FailedHosts} when
-  Hostnames :: [node()],
-  SuccessfulHosts :: [node()],
-  FailedHosts :: [node()],
+-spec apply_on_hosts(Hosts, Module, Function, Arguments, Timeout) -> {HostsOk, HostsError} when
+  Hosts :: [string()],
+  HostsOk :: [string()],
+  HostsError :: [string()],
   Module :: module(),
   Function :: atom(),
   Arguments :: [term()],
   Timeout :: integer() | infinity.
 %% ====================================================================
-apply_on_hosts(Hostnames, Module, Function, Arguments, Timeout) ->
-  Nodes = lists:map(fun(Hostname) -> list_to_atom("spanel@" ++ Hostname) end, Hostnames),
-  {OperationResults, OperationErrors} = rpc:multicall(Nodes, Module, Function, Arguments, Timeout),
-  {OperationOk, OperationFailed} = lists:foldl(fun
-    ({Node, ok}, {Success, Failure}) -> {[install_utils:get_hostname(Node) | Success], Failure};
-    ({Node, _}, {Success, Failure}) -> {Success, [install_utils:get_hostname(Node) | Failure]}
-  end, {[], []}, OperationResults),
-  {OperationOk, OperationFailed ++ lists:map(fun(OperationError) ->
-    install_utils:get_hostname(OperationError) end, OperationErrors)}.
+apply_on_hosts(Hosts, Module, Function, Arguments, Timeout) ->
+  Nodes = lists:map(fun(Host) -> get_node(Host) end, Hosts),
+  {Results, ErrorNodes} = rpc:multicall(Nodes, Module, Function, Arguments, Timeout),
+  OkNodes = lists:dropwhile(fun(Node) -> lists:member(Node, ErrorNodes) end, Nodes),
+  lists:foldl(fun
+    ({ok, Node}, {HostsOk, HostsError}) -> {[get_host(Node) | HostsOk], HostsError};
+    ({_, Node}, {HostsOk, HostsError}) -> {HostsOk, [get_host(Node) | HostsError]}
+  end, {[], lists:map(fun(ErrorNode) -> get_host(ErrorNode) end, ErrorNodes)}, lists:zip(Results, OkNodes)).
 
-install_veil_node(Type, Name, Hostname, Path, CCM, CCMs, Databases) ->
+%% get_node/1
+%% ====================================================================
+%% @doc Returns node from host.
+-spec get_node(Host :: string()) -> Node :: node().
+%% ====================================================================
+get_node(Host) ->
+  list_to_atom(?APP_STR ++ "@" ++ Host).
+
+%% get_host/1
+%% ====================================================================
+%% @doc Returns host from node.
+-spec get_host(Node :: node()) -> Host :: string().
+%% ====================================================================
+get_host(Node) ->
+  NodeString = atom_to_list(Node),
+  string:substr(NodeString, length(?APP_STR) + 2).
+
+%% get_hosts/0
+%% ====================================================================
+%% @doc Returns list of hosts' ip addresses.
+-spec get_hosts() -> [Host :: string()].
+%% ====================================================================
+get_hosts() ->
+  lists:map(fun(Node) -> install_utils:get_host(Node) end, [node() | nodes(hidden)]).
+
+%% set_ulimits_on_hosts/3
+%% ====================================================================
+%% @doc Sets system limits for open files and processes on hosts.
+%% @end
+-spec set_ulimits_on_hosts(Hosts :: [string()], OpenFiles :: integer(), Processes :: integer()) -> ok | error.
+%% ====================================================================
+set_ulimits_on_hosts(Hosts, OpenFiles, Processes) ->
+  {_, HostsError} = apply_on_hosts(Hosts, ?MODULE, set_ulimits, [OpenFiles, Processes], ?RPC_TIMEOUT),
+  case HostsError of
+    [] -> ok;
+    _ -> {error, HostsError}
+  end.
+
+%% set_ulimits/2
+%% ====================================================================
+%% @doc Sets system limits for open files and processes on node.
+%% @end
+-spec set_ulimits(OpenFiles :: integer(), Processes :: integer()) -> ok | error.
+%% ====================================================================
+set_ulimits(OpenFiles, Processes) ->
+  case file:consult(?ULIMITS_CONFIG_PATH) of
+    {ok, []} ->
+      file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n~p.\n", [{open_files, OpenFiles}, {process_limit, Processes}]), [append]),
+      dao:save_record(configurations, #configuration{id = last, ulimits = {OpenFiles, Processes}});
+    {ok, _} ->
+      ok;
+    Error ->
+      lager:error("Cannot parse file ~p, error: ~p", [?ULIMITS_CONFIG_PATH, Error]),
+      error
+  end.
+
+%% get_ulimits_cmd/0
+%% ====================================================================
+%% @doc Returns ulimits command required during database or veil node installation.
+%% @end
+-spec get_ulimits_cmd() -> ok | error.
+%% ====================================================================
+get_ulimits_cmd() ->
   try
-    LongName = Name ++ "@" ++ Hostname,
-    lager:info("Installing " ++ LongName ++ "..."),
-    "" = os:cmd("mkdir -p " ++ Path ++ Name),
-    "" = os:cmd("cp -R " ++ ?VEIL_RELEASE ++ "/* " ++ Path ++ Name),
-
-    MainCCM = ?DEFAULT_CCM_NAME ++ "@" ++ CCM,
-    OptCCMs = lists:foldl(fun(CCMHostname, Acc) -> Acc ++ ?DEFAULT_CCM_NAME ++ "@" ++ CCMHostname ++ " " end, [], CCMs),
-    DbNodes = lists:foldl(fun(DbHostname, Acc) ->
-      Acc ++ ?DEFAULT_DB_NAME ++ "@" ++ DbHostname ++ " " end, [], Databases),
-    StorageConfigPath = Path ++ Name ++ "/" ++ ?STORAGE_CONFIG_PATH,
-
-    ok = overwrite_config_args(Path ++ Name ++ "/" ++ ?CONFIG_ARGS_PATH, "name", LongName),
-    ok = overwrite_config_args(Path ++ Name ++ "/" ++ ?CONFIG_ARGS_PATH, "main_ccm", MainCCM),
-    ok = overwrite_config_args(Path ++ Name ++ "/" ++ ?CONFIG_ARGS_PATH, "opt_ccms", OptCCMs),
-    ok = overwrite_config_args(Path ++ Name ++ "/" ++ ?CONFIG_ARGS_PATH, "db_nodes", DbNodes),
-    ok = overwrite_config_args(Path ++ Name ++ "/" ++ ?CONFIG_ARGS_PATH, "storage_config_path", StorageConfigPath),
-
-    Ans = os:cmd(Path ++ Name ++ "/" ++ ?VEIL_CLUSTER_SCRIPT_PATH),
-    lager:info("Ans: ~p", [Ans]),
-    ok = add_node_to_config(Type, list_to_atom(Name), Path),
-    ok
+    {ok, #configuration{ulimits = {OpenFiles, Processes}}} = dao:get_record(configurations, last),
+    "ulimit -n " ++ OpenFiles ++ " ; ulimit -u " ++ Processes
   catch
-    _:_ -> error
+    _:_ -> ""
   end.
 
-get_hostname(Node) ->
-    "spanel@" ++ Hostname = atom_to_list(Node),
-  Hostname.
-
-get_ulimit_cmd() ->
-  {ok, #configuration{ulimits = {OpenFiles, Processes}}} = db_logic:get_record(configurations, last),
-  "ulimit -n " ++ OpenFiles ++ " ; ulimit -u " ++ Processes.
-
-% Read contigured_nodes.cfg
-% WhichCluster = veil | database
-get_nodes_from_config(WhichCluster) ->
-  try
-    {ok, Entries} = file:consult(?CONFIGURED_NODES_PATH),
-    case WhichCluster of
-      database -> get_database_node_from_config(Entries);
-      veil -> get_veil_nodes_from_config(Entries)
-    end
-  catch _:_ ->
-    lager:error("Error while reading ~s", [?CONFIGURED_NODES_PATH])
-  end.
-
-
-% Do not use directly
-get_database_node_from_config(Entries) ->
-  case lists:keyfind(db_node, 1, Entries) of
-    false -> {none, []};
-    Node -> {db_node, Node}
-  end.
-
-
-% Do not use directly
-get_veil_nodes_from_config(Entries) ->
-  case lists:keyfind(worker, 1, Entries) of
-    false -> {none, []};
-    Worker ->
-      case lists:keyfind(ccm, 1, Entries) of
-        false -> {worker, Worker};
-        CCM -> {ccm_plus_worker, {CCM, Worker}}
-      end
-  end.
-
-% Add a node to configured_nodes.cfg
+%% add_node_to_config/3
+%% ====================================================================
+%% @doc Adds a node to configured_nodes.cfg.
+-spec add_node_to_config(Type :: atom(), Name :: string(), Path :: string()) -> ok | error.
+%% ====================================================================
 add_node_to_config(Type, Name, Path) ->
   try
     {ok, Entries} = file:consult(?CONFIGURED_NODES_PATH),
@@ -130,7 +136,11 @@ add_node_to_config(Type, Name, Path) ->
     error
   end.
 
-% Remove a node from configured_nodes.cfg
+%% remove_node_from_config/1
+%% ====================================================================
+%% @doc Removes a node from configured_nodes.cfg.
+-spec remove_node_from_config(Name :: string()) -> ok | error.
+%% ====================================================================
 remove_node_from_config(Name) ->
   try
     {ok, Entries} = file:consult(?CONFIGURED_NODES_PATH),
@@ -138,13 +148,17 @@ remove_node_from_config(Name) ->
                  false -> lager:error("Node ~p not found among configured nodes.", [Name]);
                  Term -> Term
                end,
-
     save_nodes_in_config(Entries -- [ToDelete])
   catch _:_ ->
-    lager:error("Error while deleting ~p from ~s", [Name, ?CONFIGURED_NODES_PATH])
+    lager:error("Error while deleting ~p from ~s", [Name, ?CONFIGURED_NODES_PATH]),
+    error
   end.
 
-% Save list of nodes in configured_nodes.cfg
+%% save_nodes_in_config/1
+%% ====================================================================
+%% @doc Saves list of nodes in configured_nodes.cfg.
+-spec save_nodes_in_config(Name :: string()) -> ok | error.
+%% ====================================================================
 save_nodes_in_config(NodeList) ->
   try
     file:write_file(?CONFIGURED_NODES_PATH, ""),
@@ -158,7 +172,11 @@ save_nodes_in_config(NodeList) ->
     error
   end.
 
-% Overwrite a parameter in config.args
+%% overwrite_config_args/3
+%% ====================================================================
+%% @doc Overwrites a parameter in config.args.
+-spec overwrite_config_args(Path :: string(), Parameter :: string(), NewValue :: string()) -> ok | error.
+%% ====================================================================
 overwrite_config_args(Path, Parameter, NewValue) ->
   try
     FileContent = case file:read_file(Path) of

@@ -9,8 +9,8 @@
 %% @end
 %% ===================================================================
 
--ifndef(INSTALL_LOGIC_HRL).
--define(INSTALL_LOGIC_HRL, 1).
+-ifndef(INSTALL_HRL).
+-define(INSTALL_HRL, 1).
 
 -define(INSTALL_LOGIC, install_logic).
 -define(RPC_TIMEOUT, 30000).

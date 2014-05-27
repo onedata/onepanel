@@ -11,13 +11,13 @@
 -module(install_storage).
 
 -include("registered_names.hrl").
--include("spanel_modules/install_common.hrl").
+-include("spanel_modules/install.hrl").
 
 %% API
 -export([create_storage_test_file/1, delete_storage_test_file/1, check_storage_on_node/2, check_storage_on_nodes/1]).
--export([set_ulimits_on_node/2, set_ulimits_on_nodes/1, set_ulimits_on_nodes/3]).
 
 -define(STORAGE_TEST_FILE_PREFIX, "storage_test_").
+-define(STORAGE_TEST_FILE_LENGTH, 20).
 
 %% ====================================================================
 %% @doc Creates new path for storage test file. If path already exists new one is generated.
@@ -35,7 +35,7 @@ create_storage_test_file(Path, Attempts) ->
   FilePath = Path ++ "/" ++ ?STORAGE_TEST_FILE_PREFIX ++ Filename,
   try
     {ok, Fd} = file:open(FilePath, [write, exclusive]),
-    Content = atom_to_list(node()),
+    Content = install_utils:random_ascii_lowercase_sequence(?STORAGE_TEST_FILE_LENGTH),
     ok = file:write(Fd, Content),
     ok = file:close(Fd),
     {ok, FilePath, Content}
@@ -65,12 +65,12 @@ check_storage_on_nodes(Path) ->
   case create_storage_test_file(Path) of
     {ok, FilePath, Content} ->
       try
-        {ok, Content} = check_storage_on_node(FilePath, Content),
+        {ok, NextContent} = check_storage_on_node(FilePath, Content),
         {ok, _} = lists:foldl(fun
           (Node, {ok, NewContent}) ->
             gen_server:call({?SPANEL_NAME, Node}, {check_storage, FilePath, NewContent}, ?GEN_SERVER_TIMEOUT);
           (_, Other) -> Other
-        end, {ok, Content}, nodes(hidden)),
+        end, {ok, NextContent}, nodes(hidden)),
         delete_storage_test_file(FilePath),
         ok
       catch
@@ -93,7 +93,7 @@ check_storage_on_node(FilePath, Content) ->
     {ok, Content} = file:read_line(FdRead),
     ok = file:close(FdRead),
     {ok, FdWrite} = file:open(FilePath, [write]),
-    NewContent = install_utils:random_ascii_lowercase_sequence(20),
+    NewContent = install_utils:random_ascii_lowercase_sequence(?STORAGE_TEST_FILE_LENGTH),
     ok = file:write(FdWrite, NewContent),
     ok = file:close(FdWrite),
     {ok, NewContent}
@@ -101,42 +101,3 @@ check_storage_on_node(FilePath, Content) ->
     _:_ -> error
   end.
 
-%% set_ulimit_on_nodes/1
-%% ====================================================================
-%% @doc Sets default system limits on nodes
-%% @end
--spec set_ulimits_on_nodes(Nodes :: [node()]) -> ok | error.
-%% ====================================================================
-set_ulimits_on_nodes(Nodes) ->
-  set_ulimits_on_nodes(Nodes, ?DEFAULT_OPEN_FILES, ?DEFAULT_PROCESSES).
-
-%% set_ulimit_on_nodes/3
-%% ====================================================================
-%% @doc Sets system limits on nodes
-%% @end
--spec set_ulimits_on_nodes(Nodes :: [node()], OpenFiles :: integer(), Processes :: integer()) -> ok | error.
-%% ====================================================================
-set_ulimits_on_nodes(Nodes, OpenFiles, Processes) ->
-  {_, FailedNodes} = install_utils:apply_on_nodes(Nodes, ?MODULE, set_ulimits_on_node, [OpenFiles, Processes], ?RPC_TIMEOUT),
-  case FailedNodes of
-    [] -> ok;
-    _ -> {error, FailedNodes}
-  end.
-
-%% set_ulimit_on_node/2
-%% ====================================================================
-%% @doc Sets system limits on node
-%% @end
--spec set_ulimits_on_node(OpenFiles :: integer(), Processes :: integer()) -> ok | error.
-%% ====================================================================
-set_ulimits_on_node(OpenFiles, Processes) ->
-  case file:consult(?ULIMITS_CONFIG_PATH) of
-    {ok, []} ->
-      file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n~p.\n", [{open_files, OpenFiles}, {process_limit, Processes}]), [append]),
-      {node(), ok};
-    {ok, _} ->
-      {node(), ok};
-    Error ->
-      lager:error("Cannot parse file ~p, error: ~p", [?ULIMITS_CONFIG_PATH, Error]),
-      {node(), error}
-  end.

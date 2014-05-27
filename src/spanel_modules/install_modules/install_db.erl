@@ -10,89 +10,101 @@
 %% ===================================================================
 -module(install_db).
 
--include("spanel_modules/db_logic.hrl").
--include("spanel_modules/install_common.hrl").
+-include("spanel_modules/db.hrl").
+-include("spanel_modules/install.hrl").
 
 %% API
--export([install_database_node/0, uninstall_database_node/0, install_database_nodes/1, add_database_node/1, add_database_nodes/2]).
+-export([install_db/0, uninstall_db/0, install_dbs/1, add_db_to_cluster/1]).
 
-add_database_node(ClusterNodeHostname) ->
-  try
-    NodeHostname = install_utils:get_hostname(node()),
-    Url = "http://" ++ ClusterNodeHostname ++ ":" ++ ?DEFAULT_PORT ++ "/nodes/" ++ ?DEFAULT_DB_NAME ++ "@" ++ NodeHostname,
-    ok = send_http_request(Url, 0),
-    {node(), ok}
-  catch
-    _:_ -> {node(), error}
-  end.
+%% add_db_to_cluster/0
+%% ====================================================================
+%% @doc Adds database node on host to cluster
+%% @end
+-spec add_db_to_cluster(ClusterHost :: string()) -> ok | error.
+%% ====================================================================
+add_db_to_cluster(ClusterHost) ->
+  add_db_to_cluster(ClusterHost, 0).
 
-send_http_request(_, 10) ->
+add_db_to_cluster(_, 10) ->
   error;
-send_http_request(Url, Attempts) ->
+add_db_to_cluster(ClusterHost, Attempts) ->
   try
     timer:sleep(1000),
+    Host = install_utils:get_host(node()),
+    Url = "http://" ++ ClusterHost ++ ":" ++ ?DEFAULT_PORT ++ "/nodes/" ++ ?DEFAULT_DB_NAME ++ "@" ++ Host,
     {ok, "201", _ResponseHeaders, ResponseBody} = ibrowse:send_req(Url, [{content_type, "application/json"}], put, "{}", ?CURL_OPTS),
     false = (0 =:= string:str(ResponseBody, "\"ok\":true")),
     ok
   catch
-    _:_ ->
-      lager:error("Adding database node failed. Retring."),
-      send_http_request(Url, Attempts + 1)
+    _:_ -> add_db_to_cluster(ClusterHost, Attempts + 1)
   end.
 
-add_database_nodes(ClusterNodeHostname, NodeHostnames) ->
-  install_utils:apply_on_hosts(NodeHostnames, ?MODULE, add_database_node, [ClusterNodeHostname], ?RPC_TIMEOUT).
-
-install_database_node() ->
+%% install_db/0
+%% ====================================================================
+%% @doc Installs database node on host
+%% @end
+-spec install_db() -> ok | error.
+%% ====================================================================
+install_db() ->
   try
-    Hostname = install_utils:get_hostname(node()),
-    lager:info("Installing db@~s...", [Hostname]),
+    Host = install_utils:get_host(node()),
+    lager:info("Installing db@~s...", [Host]),
     Path = ?DEFAULT_BIGCOUCH_INSTALL_PATH,
     "" = os:cmd("mkdir -p " ++ Path),
     "" = os:cmd("cp -R " ++ ?DB_RELEASE ++ "/* " ++ Path),
     "" = os:cmd("sed -i -e \"s/^\\-setcookie .*/\\-setcookie " ++ atom_to_list(?DEFAULT_COOKIE) ++ "/g\" " ++ Path ++ "/etc/vm.args"),
-    "" = os:cmd("sed -i -e \"s/^\\-name .*/\\-name " ++ ?DEFAULT_DB_NAME ++ "@" ++ Hostname ++ "/g\" " ++ Path ++ "/etc/vm.args"),
+    "" = os:cmd("sed -i -e \"s/^\\-name .*/\\-name " ++ ?DEFAULT_DB_NAME ++ "@" ++ Host ++ "/g\" " ++ Path ++ "/etc/vm.args"),
     BigcouchStartScript = Path ++ "/" ++ ?DB_START_COMMAND_SUFFIX,
     NohupOut = Path ++ "/" ++ ?NOHUP_OUTPUT,
-    SetUlimitCmd = install_utils:get_ulimit_cmd(),
-    open_port({spawn, "sh -c \"" ++ SetUlimitCmd ++ " ; " ++ "nohup " ++ BigcouchStartScript ++ " > " ++ NohupOut ++ " 2>&1 &" ++ "\" 2>&1 &"}, [out]),
-    {node(), ok}
+    SetUlimitsCmd = install_utils:get_ulimits_cmd(),
+    ok = install_utils:add_node_to_config(db_node, list_to_atom(?DEFAULT_DB_NAME), Path),
+    open_port({spawn, "sh -c \"" ++ SetUlimitsCmd ++ " ; " ++ "nohup " ++ BigcouchStartScript ++ " > " ++ NohupOut ++ " 2>&1 &" ++ "\" 2>&1 &"}, [out]),
+    ok
   catch
-    Type:Error ->
-      lager:error("Database installation error: ~p, ~p", [Type, Error]),
-      {node(), error}
+    _:_ -> error
   end.
 
-uninstall_database_node() ->
+%% uninstall_db/0
+%% ====================================================================
+%% @doc Uninstalls database node on host
+%% @end
+-spec uninstall_db() -> ok | error.
+%% ====================================================================
+uninstall_db() ->
   try
     Path = ?DEFAULT_BIGCOUCH_INSTALL_PATH,
     os:cmd("kill -TERM `ps aux | grep beam | grep " ++ Path ++ " | cut -d'\t' -f2 | awk '{print $2}'`"),
     os:cmd("rm -rf " ++ Path),
-    {node(), ok}
+    ok
   catch
-    _:_ -> {node(), error}
+    _:_ -> error
   end.
 
-install_database_nodes([]) ->
-  ok;
-install_database_nodes(Hostnames) ->
-  try
-    {[ClusterNodeHostname | NodeHostnames], InstallationFailed} = install_utils:apply_on_hosts(Hostnames, ?MODULE, install_database_node, [], ?RPC_TIMEOUT),
-    {AdditionOk, AdditionFailed} = add_database_nodes(ClusterNodeHostname, NodeHostnames),
-    case db_logic:update_record(configurations, #configuration{id = last, databases = [ClusterNodeHostname | AdditionOk]}) of
-      ok ->
-        lager:info("Database configuration successfully updated."),
-        case {InstallationFailed, AdditionFailed} of
-          {[], []} -> ok;
-          _ ->
-            rpc:multicall(AdditionFailed, ?MODULE, uninstall_database_node, [], ?RPC_TIMEOUT),
-            {error, InstallationFailed, AdditionFailed}
-        end;
-      _ ->
-        lager:error("Error while updating database configuration."),
-        rpc:multicall([ClusterNodeHostname | NodeHostnames], ?MODULE, uninstall_database_node, [], ?RPC_TIMEOUT),
-        {error, Hostnames, []}
-    end
-  catch
-    _:_ -> {error, Hostnames, []}
+%% install_dbs/1
+%% ====================================================================
+%% @doc Installs database nodes on hosts
+%% @end
+-spec install_dbs(Hosts :: [string()]) -> ok | {error, HostsError} when
+  HostsError :: [string()].
+%% ====================================================================
+install_dbs(Hosts) ->
+  {InstallationOk, InstallationError} = install_utils:apply_on_hosts(Hosts, ?MODULE, install_db, [], ?RPC_TIMEOUT),
+  {HostsOk, HostsError} = case InstallationOk of
+                            [ClusterHost | NodesToAdd] ->
+                              {AdditionOk, AdditionError} = install_utils:apply_on_hosts(NodesToAdd, ?MODULE, add_db_to_cluster, [ClusterHost], ?RPC_TIMEOUT),
+                              {[ClusterHost | AdditionOk], AdditionError ++ InstallationError};
+                            _ -> {InstallationOk, InstallationError}
+                          end,
+  case dao:update_record(configurations, #configuration{id = last, dbs = HostsOk}) of
+    ok ->
+      case HostsError of
+        [] -> ok;
+        _ ->
+          rpc:multicall(HostsError, ?MODULE, uninstall_db, [], ?RPC_TIMEOUT),
+          {error, HostsError}
+      end;
+    _ ->
+      lager:error("Error while updating database configuration."),
+      rpc:multicall(Hosts, ?MODULE, uninstall_db, [], ?RPC_TIMEOUT),
+      {error, Hosts}
   end.

@@ -9,10 +9,10 @@
 %% @end
 %% ===================================================================
 
--ifndef(DB_LOGIC_HRL).
--define(DB_LOGIC_HRL, 1).
+-ifndef(DB_HRL).
+-define(DB_HRL, 1).
 
 -record(user, {username, password}).
--record(configuration, {id, ccm, ccms, workers, databases, storages, ulimits}).
+-record(configuration, {id, main_ccm, opt_ccms = [], workers = [], dbs = [], storage_paths = [], ulimits}).
 
 -endif.

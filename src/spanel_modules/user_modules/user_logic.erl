@@ -10,7 +10,7 @@
 %% ===================================================================
 -module(user_logic).
 
--include("spanel_modules/db_logic.hrl").
+-include("spanel_modules/db.hrl").
 -include("spanel_modules/errors.hrl").
 
 %% API
@@ -35,7 +35,7 @@ hash_password(Password) ->
 %% ====================================================================
 authenticate(Username, Password) ->
   PasswordHash = hash_password(Password),
-  case db_logic:get_record(users, Username) of
+  case dao:get_record(users, Username) of
     {ok, #user{username = Username, password = PasswordHash}} -> ok;
     _ -> {error, ?AUTHENTICATION_ERROR}
   end.
@@ -51,7 +51,7 @@ change_password(Username, OldPassword, NewPassword) ->
   PasswordHash = user_logic:hash_password(NewPassword),
   case authenticate(Username, OldPassword) of
     ok ->
-      case db_logic:save_record(users, #user{username = Username, password = PasswordHash}) of
+      case dao:save_record(users, #user{username = Username, password = PasswordHash}) of
         ok -> ok;
         _ -> {error, ?INTERNAL_ERROR}
       end;

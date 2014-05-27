@@ -13,7 +13,7 @@
 -behaviour(gen_server).
 
 -include("registered_names.hrl").
--include("spanel_modules/db_logic.hrl").
+-include("spanel_modules/db.hrl").
 
 %% API
 -export([start_link/0]).
@@ -65,7 +65,7 @@ start_link() ->
   {stop, Reason :: term()} | ignore).
 init([]) ->
   try
-    ok = db_logic:create_database(),
+    ok = db_logic:create(),
     {ok, Address} = application:get_env(?APP_NAME, multicast_address),
     {ok, Port} = application:get_env(?APP_NAME, spanel_port),
     {ok, Socket} = gen_udp:open(Port, [binary, {reuseaddr, true}, {ip, Address},
@@ -92,26 +92,26 @@ init([]) ->
   {noreply, NewState :: #state{}, timeout() | hibernate} |
   {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
   {stop, Reason :: term(), NewState :: #state{}}).
+handle_call(get_hostnames, _From, #state{status = connected} = State) ->
+  {reply, install_utils:get_hosts(), State};
 handle_call({authenticate, Username, Password}, _From, #state{status = connected} = State) ->
   {reply, user_logic:authenticate(Username, Password), State};
 handle_call({change_password, Username, OldPassword, NewPassword}, _From, #state{status = connected} = State) ->
   {reply, user_logic:change_password(Username, OldPassword, NewPassword), State};
-handle_call({set_ulimits, Nodes}, _From, #state{status = connected} = State) ->
-  {reply, install_storage:set_ulimits_on_nodes(Nodes), State};
-handle_call({set_ulimits, Nodes, OpenFiles, Processes}, _From, #state{status = connected} = State) ->
-  {reply, install_storage:set_ulimits_on_nodes(Nodes, OpenFiles, Processes), State};
+handle_call({set_ulimits, Hosts, OpenFiles, Processes}, _From, #state{status = connected} = State) ->
+  {reply, install_utils:set_ulimits_on_hosts(Hosts, OpenFiles, Processes), State};
 handle_call({check_storage, Path}, _From, #state{status = connected} = State) ->
   {reply, install_storage:check_storage_on_nodes(Path), State};
 handle_call({check_storage, FilePath, Content}, _From, #state{status = connected} = State) ->
   {reply, install_storage:check_storage_on_node(FilePath, Content), State};
-handle_call({install_ccm_nodes, CCM, CCMs, Databases}, _From, #state{status = connected} = State) ->
-  {reply, install_ccm:install_ccm_nodes(CCM, CCMs, Databases), State};
-handle_call({install_worker_nodes, CCM, CCMs, Workers, Databases}, _From, #state{status = connected} = State) ->
-  {reply, install_worker:install_worker_nodes(CCM, CCMs, Workers, Databases), State};
-handle_call({install_database_nodes, Hostnames}, _From, State) ->
-  {reply, install_db:install_database_nodes(Hostnames), State};
+handle_call({install_ccms, MainCCM, OptCCMs, Dbs}, _From, #state{status = connected} = State) ->
+  {reply, install_veil:install_veil_nodes([MainCCM | OptCCMs], ccm, MainCCM, OptCCMs, Dbs), State};
+handle_call({install_workers, MainCCM, OptCCMs, Workers, Dbs}, _From, #state{status = connected} = State) ->
+  {reply, install_veil:install_veil_nodes(Workers, worker, MainCCM, OptCCMs, Dbs), State};
+handle_call({install_dbs, Hostnames}, _From, State) ->
+  {reply, install_db:install_dbs(Hostnames), State};
 handle_call(_Request, _From, State) ->
-  {reply, {wrong_request, State}, State}.
+  {reply, {error, wrong_request}, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -126,8 +126,8 @@ handle_call(_Request, _From, State) ->
   {stop, Reason :: term(), NewState :: #state{}}).
 handle_cast({connection_request, Node}, #state{status = connected} = State) ->
   lager:info("Connection request from node: ~p", [Node]),
-  case db_logic:get_database_nodes() of
-    [_] -> case db_logic:delete_database() of
+  case db_logic:get_nodes() of
+    [_] -> case db_logic:delete() of
              ok ->
                gen_server:cast({?SPANEL_NAME, Node}, {connection_response, node()}),
                {noreply, State#state{status = not_connected}};
@@ -138,7 +138,7 @@ handle_cast({connection_request, Node}, #state{status = connected} = State) ->
   end;
 handle_cast({connection_response, Node}, #state{status = connected} = State) ->
   lager:info("Connection response from node: ~p", [Node]),
-  case db_logic:add_database_node(Node) of
+  case db_logic:add_node(Node) of
     ok -> gen_server:cast({?SPANEL_NAME, Node}, connection_acknowledgement);
     _ -> ok
   end,
