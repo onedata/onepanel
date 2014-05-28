@@ -110,8 +110,8 @@ handle_call({install_ccms, MainCCM, OptCCMs, Dbs}, _From, #state{status = connec
   {reply, install_veil:install_veil_nodes([MainCCM | OptCCMs], ccm, MainCCM, OptCCMs, Dbs), State};
 handle_call({install_workers, MainCCM, OptCCMs, Workers, Dbs}, _From, #state{status = connected} = State) ->
   {reply, install_veil:install_veil_nodes(Workers, worker, MainCCM, OptCCMs, Dbs), State};
-handle_call({install_dbs, Hostnames}, _From, State) ->
-  {reply, install_db:install_dbs(Hostnames), State};
+handle_call({install_dbs, Hosts}, _From, State) ->
+  {reply, install_db:install_dbs(Hosts), State};
 handle_call(_Request, _From, State) ->
   {reply, {error, wrong_request}, State}.
 
