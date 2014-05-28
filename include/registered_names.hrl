@@ -23,4 +23,9 @@
 %% coordinates node life cycle.
 -define(SPANEL_NAME, spanel).
 
+-define(SERVER_SUP, spanel_sup).
+
+
+-define(UPDATE_SERVICE, update_service).
+
 -endif.
