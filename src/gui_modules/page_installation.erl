@@ -323,7 +323,7 @@ body() ->
 %%
 % Renders nodes table in first step of installation
 nodes_table_body() ->
-  case db_logic:get_record(configurations, last) of
+  case dao:get_record(configurations, last) of
     {ok, #configuration{main_ccm = undefined, opt_ccms = OptCCMs, workers = Workers, dbs = Dbs}} ->
       nodes_table_body(sets:from_list(OptCCMs), sets:from_list(Workers), sets:from_list(Dbs));
     {ok, #configuration{main_ccm = MainCCM, opt_ccms = OptCCMs, workers = Workers, dbs = Dbs}} ->
@@ -331,10 +331,7 @@ nodes_table_body() ->
     _ -> nodes_table_body(sets:new(), sets:new(), sets:new())
   end.
 nodes_table_body(CCMs, Workers, Databases) ->
-  Hostnames = case gen_server:call(?SPANEL_NAME, get_hostnames, ?GEN_SERVER_TIMEOUT) of
-                {ok, Answer} -> Answer;
-                _ -> []
-              end,
+  Hostnames = gen_server:call(?SPANEL_NAME, get_hosts, ?GEN_SERVER_TIMEOUT),
   Header = #tr{cells = [
     #th{body = <<"Node">>, style = <<?COLUMN_STYLE>>},
     #th{body = <<"CCM">>, style = <<?COLUMN_STYLE>>},
