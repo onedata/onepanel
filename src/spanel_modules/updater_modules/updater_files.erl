@@ -8,33 +8,28 @@
 %% @doc: Write me !
 %% @end
 %% ===================================================================
--module(updater_repos).
+-module(updater_files).
 -author("Rafal Slota").
 
--include("spanel_modules/updater_module/common.hrl").
+-include("spanel_modules/install.hrl").
 
 %% API
--export([get_package/1, install_package/1, install_package/2]).
+-export([backup_instalation/1, revert_instalation/1, move_file/2]).
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
 
-get_package(#version{} = Version) ->
-    #package{}.
-
-install_package(#package{type = rpm, binary = Bin}) ->
+backup_instalation(Node) ->
     ok.
 
-install_package(Node, #package{type = rpm, binary = Bin}) ->
-    ok;
-install_package(Node, #package{type = Type}) ->
-    lager:warning("Unsupported package type: ~p", [Type]),
-    {error, unsupported_package}.
+revert_instalation(Node) ->
+    ok.
 
--spec list_packages(URL :: string()) -> [{URI :: string(), #version{}}].
-list_packages(URL) ->
-    [].
+move_file(Nodes, File) when is_list(Nodes) ->
+    lists:map(fun(Node) -> move_file(Node, File) end, Nodes);
+move_file(Node, File) ->
+    ok.
 
 
 %% ====================================================================
