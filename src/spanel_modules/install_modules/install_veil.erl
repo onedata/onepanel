@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This file contains ccm installation functions
+%% @doc: This file contains VeilCluster nodes installation functions
 %% @end
 %% ===================================================================
 -module(install_veil).

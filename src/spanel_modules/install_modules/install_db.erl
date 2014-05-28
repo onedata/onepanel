@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This file contains database installation functions
+%% @doc: This file contains database nodes installation functions
 %% @end
 %% ===================================================================
 -module(install_db).

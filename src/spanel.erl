@@ -92,7 +92,7 @@ init([]) ->
   {noreply, NewState :: #state{}, timeout() | hibernate} |
   {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
   {stop, Reason :: term(), NewState :: #state{}}).
-handle_call(get_hostnames, _From, #state{status = connected} = State) ->
+handle_call(get_hosts, _From, #state{status = connected} = State) ->
   {reply, install_utils:get_hosts(), State};
 handle_call({authenticate, Username, Password}, _From, #state{status = connected} = State) ->
   {reply, user_logic:authenticate(Username, Password), State};
@@ -101,15 +101,17 @@ handle_call({change_password, Username, OldPassword, NewPassword}, _From, #state
 handle_call({set_ulimits, Hosts, OpenFiles, Processes}, _From, #state{status = connected} = State) ->
   {reply, install_utils:set_ulimits_on_hosts(Hosts, OpenFiles, Processes), State};
 handle_call({check_storage, Path}, _From, #state{status = connected} = State) ->
-  {reply, install_storage:check_storage_on_nodes(Path), State};
+  {reply, install_storage:check_storage_on_hosts(Path), State};
 handle_call({check_storage, FilePath, Content}, _From, #state{status = connected} = State) ->
-  {reply, install_storage:check_storage_on_node(FilePath, Content), State};
+  {reply, install_storage:check_storage_on_host(FilePath, Content), State};
+handle_call({add_storage, Paths}, _From, #state{status = connected} = State) ->
+  {reply, install_storage:add_storage_paths_on_hosts(Paths), State};
 handle_call({install_ccms, MainCCM, OptCCMs, Dbs}, _From, #state{status = connected} = State) ->
   {reply, install_veil:install_veil_nodes([MainCCM | OptCCMs], ccm, MainCCM, OptCCMs, Dbs), State};
 handle_call({install_workers, MainCCM, OptCCMs, Workers, Dbs}, _From, #state{status = connected} = State) ->
   {reply, install_veil:install_veil_nodes(Workers, worker, MainCCM, OptCCMs, Dbs), State};
-handle_call({install_dbs, Hostnames}, _From, State) ->
-  {reply, install_db:install_dbs(Hostnames), State};
+handle_call({install_dbs, Hosts}, _From, State) ->
+  {reply, install_db:install_dbs(Hosts), State};
 handle_call(_Request, _From, State) ->
   {reply, {error, wrong_request}, State}.
 
