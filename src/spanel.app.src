@@ -33,6 +33,12 @@
     {ca_cert_file, "./cacerts/ca.crt"},
     {cert_file, "./cacerts/server.crt"},
     {key_file, "./cacerts/server.key"},
+    {grp_dir, "./certs"},
+    {grpkey_file, "./certs/grppriv.pem"},
+    {grpcsr_file, "./certs/grpcsr.pem"},
+    {grpcert_file, "./certs/grpcert.pem"},
+    {grpcert_name, "grpcert.pem"},
+    {global_registry_url, "https://onedata.org:8443"},
     {default_username, "admin"},
     {default_password, "password"},
     {multicast_address, {239, 255, 0, 1}}

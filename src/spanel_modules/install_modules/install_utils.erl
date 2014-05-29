@@ -18,6 +18,7 @@
 -export([random_ascii_lowercase_sequence/1, apply_on_hosts/5, get_node/1, get_host/1, get_hosts/0]).
 -export([set_ulimits_on_hosts/3, set_ulimits/2, get_ulimits_cmd/0]).
 -export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/3]).
+-export([save_cert_on_host/1, save_cert_on_hosts/1]).
 
 %% random_ascii_lowercase_sequence/1
 %% ====================================================================
@@ -191,6 +192,34 @@ overwrite_config_args(Path, Parameter, NewValue) ->
     Beginning = string:substr(FileContent, 1, From),
     End = string:substr(FileContent, From + Through, length(FileContent) - From - Through + 1),
     file:write_file(Path, list_to_binary(Beginning ++ Parameter ++ ": " ++ NewValue ++ End)),
+    ok
+  catch
+    _:_ -> error
+  end.
+
+%% save_cert_on_hosts/1
+%% ====================================================================
+%% @doc Saves global registry certificate cert on host.
+-spec save_cert_on_hosts(Cert :: string() | binary()) -> ok | {error, ErrorHosts :: [string()]}.
+%% ====================================================================
+save_cert_on_hosts(Cert) ->
+  {_, HostsError} = apply_on_hosts(get_hosts(), ?MODULE, save_cert_on_host, [Cert], ?RPC_TIMEOUT),
+  case HostsError of
+    [] -> ok;
+    _ -> {error, HostsError}
+  end.
+
+%% save_cert_on_host/1
+%% ====================================================================
+%% @doc Saves global registry certificate cert on all hosts.
+-spec save_cert_on_host(Cert :: string() | binary()) -> ok | error.
+%% ====================================================================
+save_cert_on_host(Cert) ->
+  try
+    Path = ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME ++ "/certs",
+    {ok, CertName} = application:get_env(?APP_NAME, grpcert_name),
+    file:make_dir(Path),
+    ok = file:write_file(Path ++ "/" ++ CertName, Cert),
     ok
   catch
     _:_ -> error

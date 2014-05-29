@@ -118,6 +118,8 @@ handle_call({install_dbs, Hosts}, _From, State) ->
   {reply, install_db:install_dbs(Hosts), State};
 handle_call({start_dbs, Hosts}, _From, State) ->
   {reply, install_db:start_dbs(Hosts), State};
+handle_call(register_in_global_registry, _From, #state{status = connected} = State) ->
+  {relpy, user_logic:register_in_global_registry(), State};
 handle_call(_Request, _From, State) ->
   {reply, {error, wrong_request}, State}.
 
