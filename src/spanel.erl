@@ -116,6 +116,8 @@ handle_call({start_workers, Hosts}, _From, #state{status = connected} = State) -
   {reply, install_veil:start_veil_nodes(Hosts, worker), State};
 handle_call({install_dbs, Hosts}, _From, State) ->
   {reply, install_db:install_dbs(Hosts), State};
+handle_call({start_dbs, Hosts}, _From, State) ->
+  {reply, install_db:start_dbs(Hosts), State};
 handle_call(_Request, _From, State) ->
   {reply, {error, wrong_request}, State}.
 

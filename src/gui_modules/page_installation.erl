@@ -93,22 +93,6 @@ comet_loop(#page_state{counter = Counter, main_ccm = MainCCM, ccms = CCMs, worke
   lager:info("Storages: ~p~n~n", [sets:to_list(StoragePaths)]),
   try
     receive
-%%       {update_progress_bar, Window, Window} ->
-%%         wf:wire(#jquery{target = "bar", method = ["width"], args = ["\"0%\""]}),
-%%         wf:wire(#jquery{target = "progress_text", method = ["text"], args = ["\"\""]}),
-%%         wf:wire(#jquery{target = "progress", method = ["hide"], args = []}),
-%%         gui_utils:flush(),
-%%         comet_loop(PageState);
-%%       {update_progress_bar, 0, Text} ->
-%%         wf:wire(#jquery{target = "progress_text", method = ["text"], args = ["\"" ++ Text ++ "\""]}),
-%%         wf:wire(#jquery{target = "progress", method = ["show"], args = []}),
-%%         comet_loop(PageState);
-%%       {update_progress_bar, Elapsed, Window} ->
-%%         Progress = "\"" ++ integer_to_list(round(Elapsed / Window * 100)) ++ "%\"",
-%%         wf:wire(#jquery{target = "bar", method = ["width"], args = [Progress]}),
-%%         gui_utils:flush(),
-%%         comet_loop(PageState);
-
       {ccm_checkbox_toggled, Host, HostId} ->
         case sets:is_element(Host, CCMs) of
           true ->
@@ -434,12 +418,21 @@ check_storage(Hosts, [StoragePath | StoragePaths]) ->
 % Main installation function
 install(#page_state{main_ccm = undefined}, {MainCCM, OptCCMs, Workers, Dbs, StoragePaths}) ->
   try
+    update_progress_bar(0, 7, "Installing database nodes..."),
     install_dbs(Dbs),
+    update_progress_bar(1, 7, "Starting database nodes..."),
+    start_dbs(Dbs),
+    update_progress_bar(2, 7, "Installing CCM nodes..."),
     install_ccms(MainCCM, OptCCMs, Dbs),
+    update_progress_bar(3, 7, "Starting CCM nodes..."),
     start_ccms([MainCCM | OptCCMs]),
+    update_progress_bar(4, 7, "Installing worker nodes..."),
     install_workers(MainCCM, OptCCMs, Workers, Dbs),
+    update_progress_bar(5, 7, "Adding storage configuration..."),
     add_storage(Workers, StoragePaths),
+    update_progress_bar(6, 7, "Starting worker nodes..."),
     start_workers(Workers),
+    update_progress_bar(7, 7, "Done"),
     ok
   catch
     _:_ -> error
@@ -447,9 +440,13 @@ install(#page_state{main_ccm = undefined}, {MainCCM, OptCCMs, Workers, Dbs, Stor
 install(#page_state{workers = InstalledWorkers}, {MainCCM, OptCCMs, Workers, Dbs, StoragePaths}) ->
   WorkersToInstall = lists:filter(fun(Worker) -> not sets:is_element(Worker, InstalledWorkers) end, Workers),
   try
+    update_progress_bar(0, 3, "Installing worker nodes..."),
     install_workers(MainCCM, OptCCMs, WorkersToInstall, Dbs),
+    update_progress_bar(1, 3, "Adding storage configuration..."),
     add_storage(Workers, StoragePaths),
+    update_progress_bar(2, 3, "Starting worker nodes..."),
     start_workers(WorkersToInstall),
+    update_progress_bar(3, 3, "Done"),
     ok
   catch
     _:_ -> error
@@ -461,6 +458,15 @@ install_dbs(Dbs) ->
     ok -> ok;
     {error, ErrorHosts} ->
       error_message(<<"Database nodes were not installed on following hosts: ", (format_error_message(ErrorHosts))/binary>>),
+      throw(error)
+  end.
+
+% Starts database nodes on hosts
+start_dbs(Dbs) ->
+  case gen_server:call(?SPANEL_NAME, {start_dbs, Dbs}, infinity) of
+    ok -> ok;
+    {error, ErrorHosts} ->
+      error_message(<<"Database nodes were not started on following hosts: ", (format_error_message(ErrorHosts))/binary>>),
       throw(error)
   end.
 
@@ -508,6 +514,21 @@ add_storage(Hosts, StoragePaths) ->
       error_message(<<"Storage paths were not added on following hosts: ", (format_error_message(ErrorHosts))/binary>>),
       throw(error)
   end.
+
+update_progress_bar(Window, Window, _) ->
+  wf:wire(#jquery{target = "bar", method = ["width"], args = ["\"0%\""]}),
+  wf:wire(#jquery{target = "progress_text", method = ["text"], args = ["\"\""]}),
+  wf:wire(#jquery{target = "progress", method = ["hide"], args = []}),
+  gui_utils:flush();
+update_progress_bar(0, _, Text) ->
+  wf:wire(#jquery{target = "progress_text", method = ["text"], args = ["\"" ++ Text ++ "\""]}),
+  wf:wire(#jquery{target = "progress", method = ["show"], args = []}),
+  gui_utils:flush();
+update_progress_bar(Elapsed, Window, Text) ->
+  Progress = "\"" ++ integer_to_list(round(Elapsed / Window * 100)) ++ "%\"",
+  wf:wire(#jquery{target = "progress_text", method = ["text"], args = ["\"" ++ Text ++ "\""]}),
+  wf:wire(#jquery{target = "bar", method = ["width"], args = [Progress]}),
+  gui_utils:flush().
 
 % =====================
 % Event handling

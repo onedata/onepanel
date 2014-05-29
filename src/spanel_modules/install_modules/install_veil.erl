@@ -142,8 +142,8 @@ install_veil_nodes(Hosts, Type, MainCCM, OptCCMs, Dbs) ->
 -spec start_veil_nodes(Hosts :: [string()], Type :: ccm | worker) -> ok | {error, HostsError :: [string()]}.
 %% ====================================================================
 start_veil_nodes(Hosts, Type) ->
-  {_, HostsFailed} = install_utils:apply_on_hosts(Hosts, ?MODULE, start_veil_node, [Type], ?RPC_TIMEOUT),
-  case HostsFailed of
+  {_, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, start_veil_node, [Type], ?RPC_TIMEOUT),
+  case HostsError of
     [] -> ok;
-    _ -> {error, HostsFailed}
+    _ -> {error, HostsError}
   end.

@@ -14,7 +14,7 @@
 -include("spanel_modules/install.hrl").
 
 %% API
--export([install_db/0, uninstall_db/0, install_dbs/1, add_db_to_cluster/1]).
+-export([install_db/0, start_db/0, uninstall_db/0, install_dbs/1, start_dbs/1, add_db_to_cluster/1]).
 
 %% add_db_to_cluster/0
 %% ====================================================================
@@ -64,6 +64,26 @@ install_db() ->
     _:_ -> error
   end.
 
+%% start_db/0
+%% ====================================================================
+%% @doc Starts database node on host
+%% @end
+-spec start_db() -> ok | error.
+%% ====================================================================
+start_db() ->
+  try
+    Host = install_utils:get_host(node()),
+    lager:info("Starting db@~s...", [Host]),
+    Path = ?DEFAULT_BIGCOUCH_INSTALL_PATH,
+    BigcouchStartScript = Path ++ "/" ++ ?DB_START_COMMAND_SUFFIX,
+    NohupOut = Path ++ "/" ++ ?NOHUP_OUTPUT,
+    SetUlimitsCmd = install_utils:get_ulimits_cmd(),
+    open_port({spawn, "sh -c \"" ++ SetUlimitsCmd ++ " ; " ++ "nohup " ++ BigcouchStartScript ++ " > " ++ NohupOut ++ " 2>&1 &" ++ "\" 2>&1 &"}, [out]),
+    ok
+  catch
+    _:_ -> error
+  end.
+
 %% uninstall_db/0
 %% ====================================================================
 %% @doc Uninstalls database node on host
@@ -107,4 +127,17 @@ install_dbs(Hosts) ->
       lager:error("Error while updating database configuration."),
       rpc:multicall(Hosts, ?MODULE, uninstall_db, [], ?RPC_TIMEOUT),
       {error, Hosts}
+  end.
+
+%% start_dbs/2
+%% ====================================================================
+%% @doc Starts database nodes of specified type on hosts.
+%% @end
+-spec start_dbs(Hosts :: [string()]) -> ok | {error, HostsError :: [string()]}.
+%% ====================================================================
+start_dbs(Hosts) ->
+  {_, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, start_db, [], ?RPC_TIMEOUT),
+  case HostsError of
+    [] -> ok;
+    _ -> {error, HostsError}
   end.
