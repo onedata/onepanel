@@ -14,7 +14,7 @@
 -include("spanel_modules/db.hrl").
 
 %% API
--export([install_veil_node/4, uninstall_veil_node/1, install_veil_nodes/5]).
+-export([install_veil_node/4, start_veil_node/1, uninstall_veil_node/1, install_veil_nodes/5, start_veil_nodes/2]).
 
 %% install_veil_node/4
 %% ====================================================================
@@ -53,6 +53,27 @@ install_veil_node(Type, MainCCM, OptCCMs, Dbs) ->
 
     os:cmd(Path ++ Name ++ "/" ++ ?VEIL_CLUSTER_SCRIPT_PATH),
     ok = install_utils:add_node_to_config(Type, list_to_atom(Name), Path),
+    ok
+  catch
+    _:_ -> error
+  end.
+
+%% start_veil_node/4
+%% ====================================================================
+%% @doc Starts veil node of specified type on host.
+%% @end
+-spec start_veil_node(Type :: ccm | worker) -> ok | error.
+%% ====================================================================
+start_veil_node(Type) ->
+  try
+    Name = case Type of
+             ccm -> ?DEFAULT_CCM_NAME;
+             worker -> ?DEFAULT_WORKER_NAME
+           end,
+    Host = install_utils:get_host(node()),
+    LongName = Name ++ "@" ++ Host,
+    Path = ?DEFAULT_NODES_INSTALL_PATH,
+    lager:info("Starting " ++ LongName ++ "..."),
     SetUlimitsCmd = install_utils:get_ulimits_cmd(),
     "" = os:cmd(SetUlimitsCmd ++ " ; " ++ Path ++ Name ++ "/" ++ ?START_COMMAND_SUFFIX),
     ok
@@ -112,4 +133,17 @@ install_veil_nodes(Hosts, Type, MainCCM, OptCCMs, Dbs) ->
       lager:error("Error while updating ~p configuration.", [Type]),
       rpc:multicall(Hosts, ?MODULE, uninstall_veil_node, [Type], ?RPC_TIMEOUT),
       {error, Hosts}
+  end.
+
+%% start_veil_nodes/2
+%% ====================================================================
+%% @doc Starts veil nodes of specified type on hosts.
+%% @end
+-spec start_veil_nodes(Hosts :: [string()], Type :: ccm | worker) -> ok | {error, HostsError :: [string()]}.
+%% ====================================================================
+start_veil_nodes(Hosts, Type) ->
+  {_, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, start_veil_node, [Type], ?RPC_TIMEOUT),
+  case HostsError of
+    [] -> ok;
+    _ -> {error, HostsError}
   end.

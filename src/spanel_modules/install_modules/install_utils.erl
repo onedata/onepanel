@@ -18,6 +18,7 @@
 -export([random_ascii_lowercase_sequence/1, apply_on_hosts/5, get_node/1, get_host/1, get_hosts/0]).
 -export([set_ulimits_on_hosts/3, set_ulimits/2, get_ulimits_cmd/0]).
 -export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/3]).
+-export([save_file_on_host/3, save_file_on_hosts/3]).
 
 %% random_ascii_lowercase_sequence/1
 %% ====================================================================
@@ -191,6 +192,32 @@ overwrite_config_args(Path, Parameter, NewValue) ->
     Beginning = string:substr(FileContent, 1, From),
     End = string:substr(FileContent, From + Through, length(FileContent) - From - Through + 1),
     file:write_file(Path, list_to_binary(Beginning ++ Parameter ++ ": " ++ NewValue ++ End)),
+    ok
+  catch
+    _:_ -> error
+  end.
+
+%% save_file_on_hosts/3
+%% ====================================================================
+%% @doc Saves global registry certificate cert on host.
+-spec save_file_on_hosts(Path :: string(), Filename :: string(), Content :: string() | binary()) -> ok | {error, ErrorHosts :: [string()]}.
+%% ====================================================================
+save_file_on_hosts(Path, Filename, Content) ->
+  {_, HostsError} = apply_on_hosts(get_hosts(), ?MODULE, save_file_on_host, [Path, Filename, Content], ?RPC_TIMEOUT),
+  case HostsError of
+    [] -> ok;
+    _ -> {error, HostsError}
+  end.
+
+%% save_file_on_host/3
+%% ====================================================================
+%% @doc Saves global registry certificate cert on all hosts.
+-spec save_file_on_host(Path :: string(), Filename :: string(), Content :: string() | binary()) -> ok | error.
+%% ====================================================================
+save_file_on_host(Path, Filename, Content) ->
+  try
+    file:make_dir(Path),
+    ok = file:write_file(filename:join(Path, Filename), Content),
     ok
   catch
     _:_ -> error
