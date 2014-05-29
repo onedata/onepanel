@@ -26,10 +26,10 @@
 -define(STAGE_NODE_RESTART, node_restart).
 -define(STAGE_ROLLBACK, rollback).
 
--record(u_state, {stage = ?STAGE_IDLE, stage_state, stage_history = [], error_stack = [], linked_procs = [], data, nodes = []}).
-
-
 -record(version, {major = 0, minor = 0, patch = 0}).
+
+-record(u_state, {stage = ?STAGE_IDLE, stage_state, stage_history = [], error_stack = [], linked_procs = [], data, nodes = [], version = #version{}}).
+
 
 -record(package, {type = rpm, binary = <<>>}).
 

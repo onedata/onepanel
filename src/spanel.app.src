@@ -35,6 +35,6 @@
     {key_file, "./cacerts/server.key"},
     {default_username, "admin"},
     {default_password, "password"},
-    {multicast_address, {239, 255, 0, 1}}
+    {multicast_address, {239, 255, 0, 2}}
   ]}
 ]}.

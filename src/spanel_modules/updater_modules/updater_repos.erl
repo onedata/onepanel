@@ -14,7 +14,7 @@
 -include("spanel_modules/updater_module/common.hrl").
 
 %% API
--export([get_package/1, install_package/2]).
+-export([get_package/1]).
 
 %% ====================================================================
 %% API functions
@@ -30,19 +30,6 @@ get_package(#version{major = MJ, minor = MI, patch = PA} = Version) ->
             {error, Reason}
     end.
 
-
-install_package(Node, #package{type = rpm, binary = Bin}) ->
-    rpc:call(Node, erlang, apply, [
-        fun() ->
-            file:write_file("/tmp/veil.rpm", Bin),
-            case os:cmd("rpm -ivh /tmp/veil.rpm --force") of
-                "" -> ok;
-                Reason -> {error, Reason}
-            end
-        end, []]);
-install_package(Node, #package{type = Type}) ->
-    lager:error("Unsupported package type: ~p", [Type]),
-    {error, unsupported_package}.
 
 -spec list_packages(URL :: string()) -> [{URI :: string(), #version{}}].
 list_packages(URL) ->
