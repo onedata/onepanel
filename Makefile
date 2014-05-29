@@ -5,10 +5,10 @@ all: deps compile
 deps:
 	@./rebar get-deps
 
-compile:
+compile: deps
 	@./rebar compile
 
-generate:
+generate: compile
 	@sed -i s/"-name .*"/"-name spanel@"`hostname`/g rel/files/vm.args
 	@./rebar generate
 
