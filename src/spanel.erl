@@ -28,7 +28,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {status = connected}).
+-record(state, {status = connected, ip_address}).
 
 %%%===================================================================
 %%% API
@@ -119,7 +119,9 @@ handle_call({install_dbs, Hosts}, _From, State) ->
 handle_call({start_dbs, Hosts}, _From, State) ->
   {reply, install_db:start_dbs(Hosts), State};
 handle_call(register_in_global_registry, _From, #state{status = connected} = State) ->
-  {relpy, user_logic:register_in_global_registry(), State};
+  {relpy, global_registry:register(), State};
+handle_call(get_ip_address, _From, #state{status = connected, ip_address = Address} = State) ->
+  {reply, Address, State};
 handle_call(_Request, _From, State) ->
   {reply, {error, wrong_request}, State}.
 
@@ -159,6 +161,9 @@ handle_cast(connection_acknowledgement, State) ->
 handle_cast({delete_storage_test_file, Path}, #state{status = connected} = State) ->
   install_storage:delete_storage_test_file(Path),
   {noreply, State};
+handle_cast(check_ip_address, #state{status = connected} = State) ->
+  Address = global_registry:check_ip_address(),
+  {noreply, State#state{ip_address = Address}};
 handle_cast(_Request, State) ->
   {noreply, State}.
 
