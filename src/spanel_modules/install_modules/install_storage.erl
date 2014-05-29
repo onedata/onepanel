@@ -62,7 +62,7 @@ delete_storage_test_file(FilePath) ->
 %% @doc Checks storage availability on hosts. Returns ok or first host for which
 %% storage is not available.
 %% @end
--spec check_storage_on_hosts(Hosts :: [string()], Path :: string()) -> ok | {error, Hosts :: [string()]}.
+-spec check_storage_on_hosts(Hosts :: [string()], Path :: string()) -> ok | {error, ErrorHosts :: [string()]}.
 %% ====================================================================
 check_storage_on_hosts([], _) ->
   ok;
@@ -74,7 +74,7 @@ check_storage_on_hosts([Host | Hosts], Path) ->
           (H, {NewContent, ErrorHosts}) ->
             case gen_server:call({?SPANEL_NAME, install_utils:get_node(H)}, {check_storage, FilePath, NewContent}, ?GEN_SERVER_TIMEOUT) of
               {ok, NextContent} -> {NextContent, ErrorHosts};
-              {error, ErrorHost} -> {NewContent, [ErrorHost | ErrorHosts]};
+              {error, ErrorHost} -> {NewContent, [ErrorHost | ErrorHosts]}
             end
         end, {Content, []}, [Host | Hosts]),
         gen_server:cast({?SPANEL_NAME, install_utils:get_node(Host)}, {delete_storage_test_file, FilePath}),
