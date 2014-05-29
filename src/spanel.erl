@@ -100,12 +100,12 @@ handle_call({change_password, Username, OldPassword, NewPassword}, _From, #state
   {reply, user_logic:change_password(Username, OldPassword, NewPassword), State};
 handle_call({set_ulimits, Hosts, OpenFiles, Processes}, _From, #state{status = connected} = State) ->
   {reply, install_utils:set_ulimits_on_hosts(Hosts, OpenFiles, Processes), State};
-handle_call({check_storage, Path}, _From, #state{status = connected} = State) ->
-  {reply, install_storage:check_storage_on_hosts(Path), State};
+handle_call({create_storage_test_file, Path}, _From, #state{status = connected} = State) ->
+  {reply, install_storage:create_storage_test_file(Path), State};
 handle_call({check_storage, FilePath, Content}, _From, #state{status = connected} = State) ->
   {reply, install_storage:check_storage_on_host(FilePath, Content), State};
-handle_call({add_storage, Paths}, _From, #state{status = connected} = State) ->
-  {reply, install_storage:add_storage_paths_on_hosts(Paths), State};
+handle_call({add_storage, Hosts, Paths}, _From, #state{status = connected} = State) ->
+  {reply, install_storage:add_storage_paths_on_hosts(Hosts, Paths), State};
 handle_call({install_ccms, MainCCM, OptCCMs, Dbs}, _From, #state{status = connected} = State) ->
   {reply, install_veil:install_veil_nodes([MainCCM | OptCCMs], ccm, MainCCM, OptCCMs, Dbs), State};
 handle_call({install_workers, MainCCM, OptCCMs, Workers, Dbs}, _From, #state{status = connected} = State) ->
@@ -148,6 +148,9 @@ handle_cast({connection_response, Node}, #state{status = connected} = State) ->
 handle_cast(connection_acknowledgement, State) ->
   lager:info("Connection acknowledgement."),
   {noreply, State#state{status = connected}};
+handle_cast({delete_storage_test_file, Path}, #state{status = connected} = State) ->
+  install_storage:delete_storage_test_file(Path),
+  {noreply, State};
 handle_cast(_Request, State) ->
   {noreply, State}.
 

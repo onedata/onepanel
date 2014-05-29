@@ -46,7 +46,7 @@ random_ascii_lowercase_sequence(Length) ->
 apply_on_hosts(Hosts, Module, Function, Arguments, Timeout) ->
   Nodes = lists:map(fun(Host) -> get_node(Host) end, Hosts),
   {Results, ErrorNodes} = rpc:multicall(Nodes, Module, Function, Arguments, Timeout),
-  OkNodes = lists:dropwhile(fun(Node) -> lists:member(Node, ErrorNodes) end, Nodes),
+  OkNodes = sets:to_list(sets:subtract(sets:from_list(Nodes), sets:from_list(ErrorNodes))),
   lists:foldl(fun
     ({ok, Node}, {HostsOk, HostsError}) -> {[get_host(Node) | HostsOk], HostsError};
     ({_, Node}, {HostsOk, HostsError}) -> {HostsOk, [get_host(Node) | HostsError]}

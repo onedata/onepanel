@@ -15,8 +15,8 @@
 -include("spanel_modules/db.hrl").
 
 %% API
--export([create_storage_test_file/1, delete_storage_test_file/1, check_storage_on_host/2, check_storage_on_hosts/1]).
--export([add_storage_paths/1, remove_storage_paths/1, add_storage_paths_on_hosts/1]).
+-export([create_storage_test_file/1, delete_storage_test_file/1, check_storage_on_host/2, check_storage_on_hosts/2]).
+-export([add_storage_paths/1, remove_storage_paths/1, add_storage_paths_on_hosts/2]).
 
 -define(STORAGE_TEST_FILE_PREFIX, "storage_test_").
 -define(STORAGE_TEST_FILE_LENGTH, 20).
@@ -59,25 +59,32 @@ delete_storage_test_file(FilePath) ->
 
 %% check_storage_on_hosts/1
 %% ====================================================================
-%% @doc Checks storage availability on all nodes
+%% @doc Checks storage availability on hosts. Returns ok or first host for which
+%% storage is not available.
 %% @end
--spec check_storage_on_hosts(Path :: string()) -> ok | error.
+-spec check_storage_on_hosts(Hosts :: [string()], Path :: string()) -> ok | {error, ErrorHosts :: [string()]}.
 %% ====================================================================
-check_storage_on_hosts(Path) ->
-  case create_storage_test_file(Path) of
+check_storage_on_hosts([], _) ->
+  ok;
+check_storage_on_hosts([Host | Hosts], Path) ->
+  case gen_server:call({?SPANEL_NAME, install_utils:get_node(Host)}, {create_storage_test_file, Path}, ?GEN_SERVER_TIMEOUT) of
     {ok, FilePath, Content} ->
       try
-        {ok, NextContent} = check_storage_on_host(FilePath, Content),
-        {ok, _} = lists:foldl(fun
-          (Node, {ok, NewContent}) ->
-            gen_server:call({?SPANEL_NAME, Node}, {check_storage, FilePath, NewContent}, ?GEN_SERVER_TIMEOUT);
-          (_, Other) -> Other
-        end, {ok, NextContent}, nodes(hidden)),
-        delete_storage_test_file(FilePath),
-        ok
+        Answer = lists:foldl(fun
+          (H, {NewContent, ErrorHosts}) ->
+            case gen_server:call({?SPANEL_NAME, install_utils:get_node(H)}, {check_storage, FilePath, NewContent}, ?GEN_SERVER_TIMEOUT) of
+              {ok, NextContent} -> {NextContent, ErrorHosts};
+              {error, ErrorHost} -> {NewContent, [ErrorHost | ErrorHosts]}
+            end
+        end, {Content, []}, [Host | Hosts]),
+        gen_server:cast({?SPANEL_NAME, install_utils:get_node(Host)}, {delete_storage_test_file, FilePath}),
+        case Answer of
+          {_, []} -> ok;
+          {_, EHosts} -> {error, EHosts}
+        end
       catch
         _:_ ->
-          delete_storage_test_file(FilePath),
+          gen_server:cast({?SPANEL_NAME, install_utils:get_node(Host)}, {delete_storage_test_file, FilePath}),
           error
       end;
     _ -> error
@@ -87,7 +94,7 @@ check_storage_on_hosts(Path) ->
 %% ====================================================================
 %% @doc Checks storage availability on node
 %% @end
--spec check_storage_on_host(FilePath :: string(), Content :: string()) -> {ok, NewContent :: string()} | error.
+-spec check_storage_on_host(FilePath :: string(), Content :: string()) -> {ok, NewContent :: string()} | {error, Host :: string()}.
 %% ====================================================================
 check_storage_on_host(FilePath, Content) ->
   try
@@ -100,7 +107,7 @@ check_storage_on_host(FilePath, Content) ->
     ok = file:close(FdWrite),
     {ok, NewContent}
   catch
-    _:_ -> error
+    _:_ -> {error, install_utils:get_host(node())}
   end.
 
 %% add_storage_paths/1
@@ -133,6 +140,7 @@ remove_storage_paths(Paths) ->
 -spec add_storage_paths(Paths :: [string()]) -> ok | error.
 %% ====================================================================
 add_storage_paths(Paths) ->
+  lager:info("Adding storage paths..."),
   StorageConfig = ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME ++ "/" ++ ?STORAGE_CONFIG_PATH,
   try
     {ok, Fd} = file:open(StorageConfig, [append]),
@@ -147,10 +155,9 @@ add_storage_paths(Paths) ->
 %% ====================================================================
 %% @doc Adds storage configuration on hosts
 %% @end
--spec add_storage_paths_on_hosts(Paths :: [string()]) -> ok | {error, ErrorHosts :: [string()]}.
+-spec add_storage_paths_on_hosts(Hosts :: [string()], Paths :: [string()]) -> ok | {error, ErrorHosts :: [string()]}.
 %% ====================================================================
-add_storage_paths_on_hosts(Paths) ->
-  Hosts = install_utils:get_hosts(),
+add_storage_paths_on_hosts(Hosts, Paths) ->
   {HostsOk, HostsFailed} = install_utils:apply_on_hosts(Hosts, ?MODULE, add_storage_paths, [Paths], ?RPC_TIMEOUT),
   StoragePaths = case dao:get_record(configurations, last) of
                    #configuration{storage_paths = InstalledStoragePaths} -> InstalledStoragePaths;
