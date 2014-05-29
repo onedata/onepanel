@@ -63,6 +63,12 @@ register() ->
     _:_ -> error
   end.
 
+%% check_ip_address/0
+%% ====================================================================
+%% @doc Returns ip address that is visible for global registry
+%% @end
+-spec check_ip_address() -> IpAddress :: string() | undefined.
+%% ====================================================================
 check_ip_address() ->
   try
     {ok, Url} = application:get_env(?APP_NAME, global_registry_url),

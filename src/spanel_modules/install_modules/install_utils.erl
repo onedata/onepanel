@@ -16,7 +16,7 @@
 
 %% API
 -export([random_ascii_lowercase_sequence/1, apply_on_hosts/5, get_node/1, get_host/1, get_hosts/0]).
--export([set_ulimits_on_hosts/3, set_ulimits/2, get_ulimits_cmd/0]).
+-export([set_ulimits_on_hosts/3, set_ulimits/2, get_ulimits_cmd/0, get_ports_to_check/1]).
 -export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/3]).
 -export([save_file_on_host/3, save_file_on_hosts/3]).
 
@@ -219,6 +219,21 @@ save_file_on_host(Path, Filename, Content) ->
     file:make_dir(Path),
     ok = file:write_file(filename:join(Path, Filename), Content),
     ok
+  catch
+    _:_ -> error
+  end.
+
+%% get_ports_to_check/3
+%% ====================================================================
+%% @doc Returns list of ports to check by global registry read from veilcluster env variables
+-spec get_ports_to_check(CCMHosts :: string()) -> {ok, [{PortType :: string(), Port :: integer()}]} | error.
+%% ====================================================================
+get_ports_to_check(CCMHost) ->
+  try
+    Node = list_to_atom("ccm@" ++ CCMHost),
+    {ok, ControlPanelPort} = rpc:call(Node, application, get_env, [veil_cluster_node, control_panel_port]),
+    {ok, RestPort} = rpc:call(Node, application, get_env, [veil_cluster_node, rest_port]),
+    {ok, [{"gui", ControlPanelPort}, {"rest", RestPort}, {"db", ?DEFAULT_PORT}]}
   catch
     _:_ -> error
   end.
