@@ -13,7 +13,7 @@
 -define(INSTALL_HRL, 1).
 
 -define(INSTALL_LOGIC, install_logic).
--define(RPC_TIMEOUT, 30000).
+-define(RPC_TIMEOUT, 60000).
 -define(GEN_SERVER_TIMEOUT, 5000).
 
 % Default cookie used for communication with cluster

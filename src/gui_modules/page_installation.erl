@@ -112,7 +112,10 @@ comet_loop(#page_state{counter = Counter, main_ccm = MainCCM, ccms = CCMs, worke
       {ccm_checkbox_toggled, Host, HostId} ->
         case sets:is_element(Host, CCMs) of
           true ->
-            comet_loop(PageState#page_state{ccms = sets:del_element(Host, CCMs)});
+            case Host of
+              MainCCM -> comet_loop(PageState#page_state{main_ccm = undefined, ccms = sets:del_element(Host, CCMs)});
+              _ -> comet_loop(PageState#page_state{ccms = sets:del_element(Host, CCMs)})
+            end;
           false ->
             case sets:is_element(Host, Workers) of
               true -> ok;
@@ -156,7 +159,7 @@ comet_loop(#page_state{counter = Counter, main_ccm = MainCCM, ccms = CCMs, worke
             error_message(<<"Storage already added.">>),
             comet_loop(PageState);
           _ ->
-            case gen_server:call(?SPANEL_NAME, {check_storage, StoragePath}, infinity) of
+            case install_storage:check_storage_on_hosts(sets:to_list(Workers), StoragePath) of
               ok ->
                 wf:wire(#jquery{target = "error_message", method = ["hide"], args = []}),
                 wf:wire(#jquery{target = "add_storage_row_" ++ integer_to_list(Id), method = ["hide"], args = []}),
@@ -165,8 +168,8 @@ comet_loop(#page_state{counter = Counter, main_ccm = MainCCM, ccms = CCMs, worke
                 gui_utils:insert_bottom("storage_table", storage_table_row(<<"">>, Counter + 1, undefined)),
                 gui_utils:flush(),
                 comet_loop(PageState#page_state{counter = Counter + 1, storage_paths = sets:add_element(StoragePath, StoragePaths)});
-              _ ->
-                error_message(<<"Storage not available.">>),
+              {error, Hosts} ->
+                error_message(<<"Storage is not available on hosts: ", (format_error_message(Hosts))/binary>>),
                 comet_loop(PageState)
             end
         end;
@@ -201,16 +204,21 @@ comet_loop(#page_state{counter = Counter, main_ccm = MainCCM, ccms = CCMs, worke
       {next, 3} ->
         case sets:size(StoragePaths) > 0 of
           true ->
-            change_step(3, 1),
-            gui_utils:update("summary_table", summary_table_body(PageState)),
-            gui_utils:flush();
+            case check_storage(sets:to_list(Workers), sets:to_list(StoragePaths)) of
+              ok ->
+                change_step(3, 1),
+                gui_utils:update("summary_table", summary_table_body(PageState)),
+                gui_utils:flush();
+              _ -> error
+            end;
           _ ->
             error_message(<<"Please add at least one storage.">>)
         end,
         comet_loop(PageState);
 
       install ->
-        case install(get_page_state_diff(get_page_state(), PageState), PageState) of
+        case install(get_saved_page_state(), {MainCCM, sets:to_list(sets:del_element(MainCCM, CCMs)), sets:to_list(Workers),
+          sets:to_list(Dbs), sets:to_list(StoragePaths)}) of
           ok ->
             wf:redirect(<<"/installation?x=success">>),
             gui_utils:flush();
@@ -240,7 +248,7 @@ format_error_message([Host | Hosts]) ->
 
 % Renders hosts table bidy in first step of installation
 hosts_table_body() ->
-  #page_state{ccms = CCMs, workers = Workers, dbs = Dbs} = get_page_state(),
+  #page_state{ccms = CCMs, workers = Workers, dbs = Dbs} = get_saved_page_state(),
   hosts_table_body(CCMs, Workers, Dbs).
 
 hosts_table_body(CCMs, Workers, Dbs) ->
@@ -277,7 +285,7 @@ hosts_table_body(CCMs, Workers, Dbs) ->
 
 % Renders main ccm dropdown body and highlights current choice in second step of installation
 main_ccm_dropdown_body() ->
-  #page_state{main_ccm = MainCCM, ccms = CCMs} = get_page_state(),
+  #page_state{main_ccm = MainCCM, ccms = CCMs} = get_saved_page_state(),
   main_ccm_dropdown_body(MainCCM, sets:to_list(CCMs), MainCCM =/= undefined).
 
 main_ccm_dropdown_body(MainCCM, CCMs, Disabled) ->
@@ -317,7 +325,7 @@ update_main_ccm_dropdown(MainCCM, CCMs) ->
 
 % Renders storage table body
 storage_table_body() ->
-  #page_state{main_ccm = MainCCM, storage_paths = StoragePaths} = get_page_state(),
+  #page_state{main_ccm = MainCCM, storage_paths = StoragePaths} = get_saved_page_state(),
   lists:map(fun({StoragePath, Id}) ->
     storage_table_row(StoragePath, Id, true)
   end, lists:zip(lists:sort(sets:to_list(StoragePaths)), lists:seq(1, sets:size(StoragePaths))))
@@ -345,9 +353,9 @@ storage_table_row(StoragePath, Id, Disabled) ->
 
 % Renders summary teble body
 summary_table_body() ->
-  summary_table_body(get_page_state()).
+  summary_table_body(get_saved_page_state()).
 summary_table_body(PageState) ->
-  PrevPageState = get_page_state(),
+  PrevPageState = get_saved_page_state(),
   #page_state{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs, storage_paths = StoragePaths} =
     get_page_state_diff(PrevPageState, PageState),
   [
@@ -359,7 +367,7 @@ summary_table_body(PageState) ->
         case MainCCM of undefined -> <<"-">>; _ -> list_to_binary(MainCCM) end
         }}
     ]},
-    summary_table_row(<<"summary_ccms">>, <<"Optional CCM hosts">>, format_sets_items(CCMs)),
+    summary_table_row(<<"summary_ccms">>, <<"Optional CCM hosts">>, format_sets_items(sets:del_element(MainCCM, CCMs))),
     summary_table_row(<<"summary_workers">>, <<"Worker hosts">>, format_sets_items(Workers)),
     summary_table_row(<<"summary_Dbs">>, <<"Database hosts">>, format_sets_items(Dbs)),
     summary_table_row(<<"summary_storages">>, <<"Storage paths">>, format_sets_items(StoragePaths))
@@ -394,7 +402,7 @@ change_step(Step, Diff) ->
   wf:wire(#jquery{target = ShowId, method = ["slideDown"], args = ["\"slow\""]}).
 
 % Create page state using configuration loaded from Db
-get_page_state() ->
+get_saved_page_state() ->
   case dao:get_record(configurations, last) of
     {ok, #configuration{main_ccm = undefined, opt_ccms = OptCCMs, workers = Workers, dbs = Dbs, storage_paths = StoragePaths}} ->
       #page_state{ccms = sets:from_list(OptCCMs), workers = sets:from_list(Workers),
@@ -412,21 +420,31 @@ get_page_state_diff(#page_state{main_ccm = undefined}, PageState) ->
 get_page_state_diff(#page_state{workers = PrevWorkers}, #page_state{workers = CurrWorkers}) ->
   #page_state{workers = sets:subtract(CurrWorkers, PrevWorkers)}.
 
+% Checks wheter all storage paths are available for all workers
+check_storage(_, []) ->
+  ok;
+check_storage(Hosts, [StoragePath | StoragePaths]) ->
+  case install_storage:check_storage_on_hosts(Hosts, StoragePath) of
+    ok -> check_storage(Hosts, StoragePaths);
+    {error, ErrorHosts} ->
+      error_message(<<"Storage: ", (list_to_binary(StoragePath))/binary, ", is not available on hosts: ", (format_error_message(ErrorHosts))/binary>>),
+      error
+  end.
+
 % Main installation function
-install(#page_state{main_ccm = undefined}, #page_state{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs, storage_paths = StoragePaths}) ->
-  OptCCMs = lists:filter(fun(CCM) -> CCM =:= MainCCM end, sets:to_list(CCMs)),
-  try
-    install_workers(Workers, MainCCM, OptCCMs, Dbs, StoragePaths),
-    ok
-  catch
-    _:_ -> error
-  end;
-install(_, #page_state{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs, storage_paths = StoragePaths}) ->
-  OptCCMs = lists:filter(fun(CCM) -> CCM =:= MainCCM end, sets:to_list(CCMs)),
+install(#page_state{main_ccm = undefined}, {MainCCM, OptCCMs, Workers, Dbs, StoragePaths}) ->
   try
     install_dbs(Dbs),
     install_ccms(MainCCM, OptCCMs, Dbs),
     install_workers(MainCCM, OptCCMs, Workers, Dbs, StoragePaths),
+    ok
+  catch
+    _:_ -> error
+  end;
+install(#page_state{workers = InstalledWorkers}, {MainCCM, OptCCMs, Workers, Dbs, StoragePaths}) ->
+  WorkersToInstall = lists:filter(fun(Worker) -> not sets:is_element(Worker, InstalledWorkers) end, Workers),
+  try
+    install_workers(MainCCM, OptCCMs, WorkersToInstall, Dbs, StoragePaths),
     ok
   catch
     _:_ -> error
@@ -452,7 +470,7 @@ install_ccms(MainCCM, OptCCMs, Dbs) ->
 
 % Installs worker nodes on hosts
 install_workers(MainCCM, OptCCMs, Workers, Dbs, StoragePaths) ->
-  add_storage(StoragePaths),
+  add_storage(Workers, StoragePaths),
   case gen_server:call(?SPANEL_NAME, {install_workers, MainCCM, OptCCMs, Workers, Dbs}, infinity) of
     ok -> ok;
     {error, ErrorHosts} ->
@@ -461,8 +479,8 @@ install_workers(MainCCM, OptCCMs, Workers, Dbs, StoragePaths) ->
   end.
 
 % Adds storage on hosts
-add_storage(StoragePaths) ->
-  case gen_server:call(?SPANEL_NAME, {add_storage, StoragePaths}, infinity) of
+add_storage(Hosts, StoragePaths) ->
+  case gen_server:call(?SPANEL_NAME, {add_storage, Hosts, StoragePaths}, infinity) of
     ok -> ok;
     {error, ErrorHosts} ->
       error_message(<<"Storage paths were not added on following hosts: ", (format_error_message(ErrorHosts))/binary>>),
@@ -473,7 +491,7 @@ add_storage(StoragePaths) ->
 % Event handling
 
 event(init) ->
-  PageState = get_page_state(),
+  PageState = get_saved_page_state(),
   {ok, Pid} = gui_utils:comet(fun() -> comet_loop(PageState) end),
   put(comet_pid, Pid);
 

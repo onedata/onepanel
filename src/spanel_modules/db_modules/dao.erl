@@ -39,6 +39,7 @@ update_record(Table, NewRecord) ->
     {ok, OldRecord} ->
       List = lists:map(fun
         ({Old, undefined}) -> Old;
+        ({Old, []}) -> Old;
         ({_, New}) -> New
       end, lists:zip(tuple_to_list(OldRecord), tuple_to_list(NewRecord))),
       save_record(Table, list_to_tuple(List));
