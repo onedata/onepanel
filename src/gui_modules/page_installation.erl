@@ -436,7 +436,10 @@ install(#page_state{main_ccm = undefined}, {MainCCM, OptCCMs, Workers, Dbs, Stor
   try
     install_dbs(Dbs),
     install_ccms(MainCCM, OptCCMs, Dbs),
-    install_workers(MainCCM, OptCCMs, Workers, Dbs, StoragePaths),
+    start_ccms([MainCCM | OptCCMs]),
+    install_workers(MainCCM, OptCCMs, Workers, Dbs),
+    add_storage(Workers, StoragePaths),
+    start_workers(Workers),
     ok
   catch
     _:_ -> error
@@ -444,7 +447,9 @@ install(#page_state{main_ccm = undefined}, {MainCCM, OptCCMs, Workers, Dbs, Stor
 install(#page_state{workers = InstalledWorkers}, {MainCCM, OptCCMs, Workers, Dbs, StoragePaths}) ->
   WorkersToInstall = lists:filter(fun(Worker) -> not sets:is_element(Worker, InstalledWorkers) end, Workers),
   try
-    install_workers(MainCCM, OptCCMs, WorkersToInstall, Dbs, StoragePaths),
+    install_workers(MainCCM, OptCCMs, WorkersToInstall, Dbs),
+    add_storage(Workers, StoragePaths),
+    start_workers(WorkersToInstall),
     ok
   catch
     _:_ -> error
@@ -468,13 +473,30 @@ install_ccms(MainCCM, OptCCMs, Dbs) ->
       throw(error)
   end.
 
+% Starts CCM nodes on hosts
+start_ccms(Hosts) ->
+  case gen_server:call(?SPANEL_NAME, {start_ccms, Hosts}, infinity) of
+    ok -> ok;
+    {error, ErrorHosts} ->
+      error_message(<<"CCM nodes were not started on following hosts: ", (format_error_message(ErrorHosts))/binary>>),
+      throw(error)
+  end.
+
 % Installs worker nodes on hosts
-install_workers(MainCCM, OptCCMs, Workers, Dbs, StoragePaths) ->
-  add_storage(Workers, StoragePaths),
+install_workers(MainCCM, OptCCMs, Workers, Dbs) ->
   case gen_server:call(?SPANEL_NAME, {install_workers, MainCCM, OptCCMs, Workers, Dbs}, infinity) of
     ok -> ok;
     {error, ErrorHosts} ->
       error_message(<<"Worker nodes were not installed on following hosts: ", (format_error_message(ErrorHosts))/binary>>),
+      throw(error)
+  end.
+
+% Installs worker nodes on hosts
+start_workers(Hosts) ->
+  case gen_server:call(?SPANEL_NAME, {start_workers, Hosts}, infinity) of
+    ok -> ok;
+    {error, ErrorHosts} ->
+      error_message(<<"Worker nodes were not started on following hosts: ", (format_error_message(ErrorHosts))/binary>>),
       throw(error)
   end.
 
