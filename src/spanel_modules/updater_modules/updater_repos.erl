@@ -14,22 +14,34 @@
 -include("spanel_modules/updater_module/common.hrl").
 
 %% API
--export([get_package/1, install_package/1, install_package/2]).
+-export([get_package/1, install_package/2]).
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
 
-get_package(#version{} = Version) ->
-    #package{}.
+get_package(#version{major = MJ, minor = MI, patch = PA} = Version) ->
+    case httpc:request(get, {"http://onedata.org/repository/VeilCluster-Linux-" ++ integer_to_list(MJ) ++ "." ++ integer_to_list(MI) ++ "." ++ integer_to_list(PA) ++ ".rpm", []}, [{timeout, 10000}], [{body_format, binary}, {full_result, false}]) of
+        {ok, {200, Binary}} ->
+            #package{type = rpm, binary = Binary};
+        {ok, {Status, _}} ->
+            {error, {invalid_http, Status}};
+        {error, Reason} ->
+            {error, Reason}
+    end.
 
-install_package(#package{type = rpm, binary = Bin}) ->
-    ok.
 
 install_package(Node, #package{type = rpm, binary = Bin}) ->
-    ok;
+    rpc:call(Node, erlang, apply, [
+        fun() ->
+            file:write_file("/tmp/veil.rpm", Bin),
+            case os:cmd("rpm -ivh /tmp/veil.rpm --force") of
+                "" -> ok;
+                Reason -> {error, Reason}
+            end
+        end, []]);
 install_package(Node, #package{type = Type}) ->
-    lager:warning("Unsupported package type: ~p", [Type]),
+    lager:error("Unsupported package type: ~p", [Type]),
     {error, unsupported_package}.
 
 -spec list_packages(URL :: string()) -> [{URI :: string(), #version{}}].
