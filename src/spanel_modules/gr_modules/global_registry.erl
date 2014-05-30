@@ -12,9 +12,10 @@
 
 -include("registered_names.hrl").
 -include("spanel_modules/install.hrl").
+-include("spanel_modules/db.hrl").
 
 %% API
--export([register/0, check_ip_address/0]).
+-export([register/0, check_ip_address/0, check_port/3]).
 
 %% register_in_global_registry/0
 %% ====================================================================
@@ -46,6 +47,11 @@ register() ->
     Body = "{\"urls\" : " ++ Urls ++ ", \"csr\" : \"" ++ binary_to_list(Csr) ++ "\", \"redirectionPoint\" : \"https://127.0.0.1:8080\"}",
     {ok, "200", _ResponseHeaders, ResponseBody} = ibrowse:send_req(Url ++ "/provider", [{content_type, "application/json"}], post, Body),
     List = mochijson2:decode(ResponseBody, [{format, proplist}]),
+    ProviderId = proplists:get_value(<<"providerId">>, List),
+    case ProviderId of
+      undefined -> throw(error);
+      _ -> ok = dao:update_record(configurations, #configuration{id = last, providerId = ProviderId})
+    end,
     Cert = proplists:get_value(<<"certificate">>, List),
     case Cert of
       undefined -> throw(error);
@@ -76,4 +82,28 @@ check_ip_address() ->
     binary_to_list(mochijson2:decode(ResponseBody))
   catch
     _:_ -> undefined
+  end.
+
+%% check_port/0
+%% ====================================================================
+%% @doc Checks port availability on host
+%% @end
+-spec check_port(Host :: string(), Port :: integer(), Type :: string()) -> ok | error.
+%% ====================================================================
+check_port(Host, Port, Type) ->
+  try
+    Node = install_utils:get_node(Host),
+    {ok, IpAddress} = gen_server:call({?SPANEL_NAME, Node}, get_ip_address, ?GEN_SERVER_TIMEOUT),
+    {ok, Url} = application:get_env(?APP_NAME, global_registry_url),
+    Body = case Type of
+             "gui" -> "{\"gui\" : \"https://" ++ IpAddress ++ ":" ++ integer_to_list(Port) ++ "/connection_check\"}";
+             "rest" ->
+               "{\"rest\" : \"https://" ++ IpAddress ++ ":" ++ integer_to_list(Port) ++ "/rest/latest/connection_check\"}";
+             _ -> throw(error)
+           end,
+    {ok, "200", _ResponseHeaders, ResponseBody} = ibrowse:send_req(Url ++ "/provider/test/check_my_ports", [{content_type, "application/json"}], get, Body),
+    [{_, <<"ok">>}] = mochijson2:decode(ResponseBody, [{format, proplist}]),
+    ok
+  catch
+    _:_ -> error
   end.

@@ -15,7 +15,7 @@
 -include("spanel_modules/db.hrl").
 
 %% API
--export([create/0, delete/0, add_node/1, get_nodes/0]).
+-export([create/0, delete/0, add_node/1, get_nodes/0, initialize_ports_table/1]).
 
 %% initialize/0
 %% ====================================================================
@@ -72,6 +72,15 @@ create() ->
       {aborted, {already_exists, configurations}} -> ok;
       {aborted, ConfigurationError} -> throw(ConfigurationError)
     end,
+    case mnesia:create_table(ports, [
+      {attributes, record_info(fields, port)},
+      {record_name, port},
+      {disc_copies, [node()]}
+    ]) of
+      {atomic, ok} -> ok;
+      {aborted, {already_exists, ports}} -> ok;
+      {aborted, PortsError} -> throw(PortsError)
+    end,
     ok
   catch
     _:_ -> error
@@ -125,3 +134,19 @@ add_node(Node) ->
 %% ====================================================================
 get_nodes() ->
   mnesia:system_info(db_nodes).
+
+%% initialize_ports_table/1
+%% ====================================================================
+%% @doc Initialize ports table with default veilcluster ports
+%% @end
+-spec initialize_ports_table(MainCCM :: string()) -> ok | error.
+%% ====================================================================
+initialize_ports_table(MainCCM) ->
+  try
+    {ok, Hosts} = install_utils:get_control_panel_hosts(MainCCM),
+    {ok, [{_, Gui}, {_, Rest}]} = install_utils:get_ports_to_check(MainCCM),
+    lists:foreach(fun(Host) -> ok = dao:save_record(ports, #port{host = Host, gui = Gui, rest = Rest}) end, Hosts),
+    ok
+  catch
+    _:_ -> error
+  end.
