@@ -52,10 +52,10 @@
 
 % Install path for nodes
 -define(DEFAULT_NODES_INSTALL_PATH, ?PREFIX ++ "nodes/").
--define(DEFAULT_BIGCOUCH_INSTALL_PATH, "/opt/bigcouch"). %should not be changed, unless you've configured bigcouch realease properly (the one from files/database_node)
+-define(DEFAULT_DB_INSTALL_PATH, "/opt/bigcouch"). %should not be changed, unless you've configured bigcouch realease properly (the one from files/database_node)
 -define(DEFAULT_CCM_NAME, "ccm").
 -define(DEFAULT_WORKER_NAME, "worker").
--define(DEFAULT_DB_NAME, "db").
+-define(DEFAULT_DB_NAME, "db_logic").
 
 % Paths relative to veil_cluster_node release
 -define(CONFIG_ARGS_PATH, "bin/config.args").

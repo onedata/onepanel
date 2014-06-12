@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This file contains storage installation functions
+%% @doc: This file contains storage install_logic functions
 %% @end
 %% ===================================================================
 -module(install_storage).

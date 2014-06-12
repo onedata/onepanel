@@ -25,7 +25,7 @@ init(State, Ctx) ->
   {ok, State, Ctx#context{path = Path, module = route(RequestedPage)}}.
 
 route(<<"/">>) -> page_installation;
-route(<<"/installation">>) -> page_installation;
+route(<<"/install_logic">>) -> page_installation;
 route(<<"/login">>) -> page_login;
 route(<<"/logout">>) -> page_logout;
 route(<<"/error">>) -> page_error;

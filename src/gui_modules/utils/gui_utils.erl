@@ -99,7 +99,7 @@ top_menu(ActiveTabID, SubMenuBody) ->
   MenuCaptions =
     [
       {installation_tab, #li{body = [
-        #link{style = <<"padding: 18px;">>, url = <<"/installation">>, body = <<"Installation">>}
+        #link{style = <<"padding: 18px;">>, url = <<"/install_logic">>, body = <<"Installation">>}
       ]}}
     ],
 
