@@ -111,7 +111,6 @@ start(Hosts, _) ->
   {StartOk, StartError} = install_utils:apply_on_hosts(Hosts, ?MODULE, start, [], ?RPC_TIMEOUT),
   {_, JoinError} = case StartOk of
                      [First | Rest] ->
-                       lager:info("Joining cluster: ~p, ~p", [First, Rest]),
                        install_utils:apply_on_hosts(Rest, ?MODULE, join_cluster, [First], ?RPC_TIMEOUT);
                      _ -> {StartOk, []}
                    end,
@@ -294,9 +293,7 @@ join_cluster(ClusterHost, Attempts) ->
     Url = "http://" ++ ClusterHost ++ ":" ++ ?DEFAULT_PORT ++ "/nodes/" ++ ?DEFAULT_DB_NAME ++ "@" ++ Host,
     lager:info("Adding database node to cluster on host: ~s.", [Host]),
 
-    Ans = ibrowse:send_req(Url, [{content_type, "application/json"}], put, "{}", ?CURL_OPTS),
-    lager:info("Ans:~n~p~n", [Ans]),
-    {ok, "201", _ResponseHeaders, ResponseBody} = Ans,
+    {ok, "201", _ResponseHeaders, ResponseBody} = ibrowse:send_req(Url, [{content_type, "application/json"}], put, "{}", ?CURL_OPTS),
     false = (0 =:= string:str(ResponseBody, "\"ok\":true")),
 
     ok

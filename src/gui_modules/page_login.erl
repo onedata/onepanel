@@ -51,7 +51,7 @@ event(init) ->
 event(login) ->
   Username = wf:q(username),
   Password = wf:q(password),
-  case gen_server:call(?SPANEL_NAME, {authenticate, Username, Password}, ?GEN_SERVER_TIMEOUT) of
+  case user_logic:authenticate(Username, Password) of
     ok ->
       wf:user(Username),
       gui_utils:redirect_from_login();

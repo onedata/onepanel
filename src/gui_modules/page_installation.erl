@@ -269,7 +269,7 @@ hosts_table_body() ->
   hosts_table_body(CCMs, Workers, Dbs).
 
 hosts_table_body(CCMs, Workers, Dbs) ->
-  Hosts = gen_server:call(?SPANEL_NAME, get_hosts, ?GEN_SERVER_TIMEOUT),
+  Hosts = install_utils:get_hosts(),
   ColumnStyle = <<"text-align: center; vertical-align: inherit;">>,
   Header = #tr{cells = [
     #th{body = <<"Host">>, style = ColumnStyle},
@@ -542,8 +542,8 @@ install(#page_state{main_ccm = undefined}, {MainCCM, OptCCMs, Workers, Dbs, Stor
     start_workers(Workers),
     update_progress_bar(7, 8, "Finalizing installation..."),
     finalize_installation(MainCCM),
-    update_progress_bar(8, 8, "Done"),
     gui_utils:update("ports_table", ports_table_body(MainCCM)),
+    update_progress_bar(8, 8, "Done"),
     gui_utils:flush(),
     change_step(4, 1),
     gui_utils:flush()
@@ -584,7 +584,7 @@ finalize_installation(MainCCM) ->
 
 % Installs database nodes on hosts
 install_dbs(Dbs) ->
-  case gen_server:call(?SPANEL_NAME, {install_dbs, Dbs}, infinity) of
+  case install_db:install(Dbs, []) of
     ok -> ok;
     {error, ErrorHosts} ->
       error_message(<<"Database nodes were not installed on following hosts: ", (format_error_message(ErrorHosts))/binary>>),
@@ -593,7 +593,7 @@ install_dbs(Dbs) ->
 
 % Starts database nodes on hosts
 start_dbs(Dbs) ->
-  case gen_server:call(?SPANEL_NAME, {start_dbs, Dbs}, infinity) of
+  case install_db:start(Dbs, []) of
     ok -> ok;
     {error, ErrorHosts} ->
       error_message(<<"Database nodes were not started on following hosts: ", (format_error_message(ErrorHosts))/binary>>),
@@ -602,7 +602,7 @@ start_dbs(Dbs) ->
 
 % Installs CCM nodes on hosts
 install_ccms(MainCCM, OptCCMs, Dbs) ->
-  case gen_server:call(?SPANEL_NAME, {install_ccms, MainCCM, OptCCMs, Dbs}, infinity) of
+  case install_ccm:install([MainCCM | OptCCMs], [{main_ccm, MainCCM}, {opt_ccms, OptCCMs}, {dbs, Dbs}]) of
     ok -> ok;
     {error, ErrorHosts} ->
       error_message(<<"CCM nodes were not installed on following hosts: ", (format_error_message(ErrorHosts))/binary>>),
@@ -611,7 +611,7 @@ install_ccms(MainCCM, OptCCMs, Dbs) ->
 
 % Starts CCM nodes on hosts
 start_ccms(Hosts) ->
-  case gen_server:call(?SPANEL_NAME, {start_ccms, Hosts}, infinity) of
+  case install_ccm:start(Hosts, []) of
     ok -> ok;
     {error, ErrorHosts} ->
       error_message(<<"CCM nodes were not started on following hosts: ", (format_error_message(ErrorHosts))/binary>>),
@@ -620,7 +620,7 @@ start_ccms(Hosts) ->
 
 % Installs worker nodes on hosts
 install_workers(MainCCM, OptCCMs, Workers, Dbs) ->
-  case gen_server:call(?SPANEL_NAME, {install_workers, MainCCM, OptCCMs, Workers, Dbs}, infinity) of
+  case install_worker:install(Workers, [{main_ccm, MainCCM}, {opt_ccms, OptCCMs}, {dbs, Dbs}]) of
     ok -> ok;
     {error, ErrorHosts} ->
       error_message(<<"Worker nodes were not installed on following hosts: ", (format_error_message(ErrorHosts))/binary>>),
@@ -629,7 +629,7 @@ install_workers(MainCCM, OptCCMs, Workers, Dbs) ->
 
 % Installs worker nodes on hosts
 start_workers(Hosts) ->
-  case gen_server:call(?SPANEL_NAME, {start_workers, Hosts}, infinity) of
+  case install_worker:start(Hosts, []) of
     ok -> ok;
     {error, ErrorHosts} ->
       error_message(<<"Worker nodes were not started on following hosts: ", (format_error_message(ErrorHosts))/binary>>),
@@ -638,7 +638,7 @@ start_workers(Hosts) ->
 
 % Adds storage on hosts
 add_storage(Hosts, StoragePaths) ->
-  case gen_server:call(?SPANEL_NAME, {add_storage, Hosts, StoragePaths}, infinity) of
+  case install_storage:add_storage_paths_on_hosts(Hosts, StoragePaths) of
     ok -> ok;
     {error, ErrorHosts} ->
       error_message(<<"Storage paths were not added on following hosts: ", (format_error_message(ErrorHosts))/binary>>),

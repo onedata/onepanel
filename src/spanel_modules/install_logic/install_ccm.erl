@@ -50,13 +50,16 @@ install(Hosts, Args) ->
     end,
 
     case dao:get_record(configurations, last) of
-      {ok, #configuration{main_ccm = undefined}} -> ok;
+      {ok, #configuration{main_ccm = undefined, opt_ccms = []}} -> ok;
       _ -> throw(<<"CCMs already installed.">>)
     end,
 
     {InstallOk, InstallError} = install_utils:apply_on_hosts(Hosts, ?MODULE, install, [MainCCM, OptCCMs, Dbs], ?RPC_TIMEOUT),
 
-    case dao:update_record(configurations, #configuration{id = last, dbs = InstallOk}) of
+    NewMainCCM = case lists:member(MainCCM, InstallOk) of true -> MainCCM; _ -> undefined end,
+    NewOptCCMs = lists:filter(fun(OptCCM) -> lists:member(OptCCM, InstallOk) end, OptCCMs),
+
+    case dao:update_record(configurations, #configuration{id = last, main_ccm = NewMainCCM, opt_ccms = NewOptCCMs}) of
       ok ->
         case InstallError of
           [] -> ok;

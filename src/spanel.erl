@@ -117,7 +117,7 @@ handle_call({install_ccms, MainCCM, OptCCMs, Dbs}, _From, #state{status = connec
   {reply, install_ccm:install([MainCCM | OptCCMs], [{main_ccm, MainCCM}, {opt_ccms, OptCCMs}, {dbs, Dbs}]), State};
 
 handle_call({start_ccms, Hosts}, _From, #state{status = connected} = State) ->
-  {reply, install_ccm:start([Hosts], []), State};
+  {reply, install_ccm:start(Hosts, []), State};
 
 handle_call({install_workers, MainCCM, OptCCMs, Workers, Dbs}, _From, #state{status = connected} = State) ->
   {reply, install_worker:install(Workers, [{main_ccm, MainCCM}, {opt_ccms, OptCCMs}, {dbs, Dbs}]), State};
