@@ -223,7 +223,9 @@ comet_loop(#page_state{counter = Counter, main_ccm = MainCCM, ccms = CCMs, worke
             ok = global_registry:check_port(Host, Rest, "rest")
           end, Hosts),
           case global_registry:register() of
-            ok -> ok;
+            ok ->
+              gui_utils:update("registration", registration_body()),
+              gui_utils:flush();
             _ -> error_message(<<"Registration failure. Please reinstall VeilCluster.">>)
           end,
           change_step(5, 1),
@@ -459,7 +461,7 @@ registration_body() ->
     {ok, #configuration{providerId = ProviderId}} when ProviderId =/= undefined ->
       #panel{class = <<"alert alert-success login-page">>, body = [
         #h3{class = <<"">>, body = <<"Successful registration.">>},
-        #p{class = <<"login-info">>, body = <<"Your provider ID:", ProviderId/binary>>},
+        #p{class = <<"login-info">>, body = <<"Your provider ID: ", ProviderId/binary>>},
         #button{postback = finish, class = <<"btn btn-primary btn-block">>, body = <<"Finish">>}
       ]};
     _ ->

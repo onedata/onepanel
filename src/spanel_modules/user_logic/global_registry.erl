@@ -66,7 +66,9 @@ register() ->
     end,
     ok
   catch
-    _:_ -> error
+    _:Error ->
+      lager:error("Can not register in global registry: ~p", [Error]),
+      error
   end.
 
 %% check_ip_address/0
@@ -81,7 +83,9 @@ check_ip_address() ->
     {ok, "200", _ResponseHeaders, ResponseBody} = ibrowse:send_req(Url ++ "/provider/test/check_my_ip", [{content_type, "application/json"}], get),
     binary_to_list(mochijson2:decode(ResponseBody))
   catch
-    _:_ -> undefined
+    _:Error ->
+      lager:error("Can not get ip address: ~p", [Error]),
+      undefined
   end.
 
 %% check_port/0
