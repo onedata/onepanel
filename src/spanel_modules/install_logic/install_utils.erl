@@ -15,7 +15,7 @@
 -include("spanel_modules/install.hrl").
 
 %% API
--export([random_ascii_lowercase_sequence/1, apply_on_hosts/5, get_node/1, get_host/1, get_hosts/0]).
+-export([random_ascii_lowercase_sequence/1, apply_on_hosts/5, get_node/1, get_host/1, get_hosts/0, get_installed_hosts/0]).
 -export([set_ulimits_on_hosts/3, set_ulimits/2, get_ulimits_cmd/0, get_ports_to_check/1, get_control_panel_hosts/1]).
 -export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/3]).
 -export([save_file_on_host/3, save_file_on_hosts/3]).
@@ -78,7 +78,7 @@ get_host(Node) ->
 get_hosts() ->
   lists:foldl(fun(Node, Acc) ->
     NodeString = atom_to_list(Node),
-    case string:equal(?APP_STR, string:left(NodeString, length(?APP_STR))) of
+    case string:equal(?APP_STR ++ "@", string:left(NodeString, length(?APP_STR) + 1)) of
       true -> [get_host(Node) | Acc];
       _ -> Acc
     end
@@ -260,4 +260,16 @@ get_control_panel_hosts(MainCCM) ->
     {ok, ControlPanelHosts}
   catch
     _:_ -> error
+  end.
+
+%% get_installed_hosts/1
+%% ====================================================================
+%% @doc Returns list of installed components on hosts
+-spec get_installed_hosts() -> list().
+%% ====================================================================
+get_installed_hosts() ->
+  case dao:get_record(configurations, last) of
+    {ok, #configuration{main_ccm = MainCCM, opt_ccms = OptCCMs, workers = Workers, dbs = Dbs, storage_paths = Paths}} ->
+      [{main_ccm, MainCCM}, {opt_ccms, OptCCMs}, {workers, Workers}, {dbs, Dbs}, {storage_paths, Paths}];
+    _ -> []
   end.

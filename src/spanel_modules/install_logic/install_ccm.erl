@@ -92,6 +92,8 @@ uninstall(Hosts, _) ->
           _ -> {undefined, []}
         end,
 
+    lager:info("Installed Main CCM: ~p, Installed Opt CCMs: ~p", [InstalledMainCCM, InstalledOptCCMs]),
+
     lists:foreach(fun(Host) ->
       case lists:member(Host, [InstalledMainCCM | InstalledOptCCMs]) of
         true -> ok;
@@ -101,10 +103,12 @@ uninstall(Hosts, _) ->
 
     {UninstallOk, UninstallError} = install_utils:apply_on_hosts(Hosts, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
 
+    lager:info("UninstallOk: ~p, UninstallError: ~p", [UninstallOk, UninstallError]),
+
     NewMainCCM = case lists:member(InstalledMainCCM, UninstallOk) of true -> undefined; _ -> InstalledMainCCM end,
     NewOptCCMs = lists:filter(fun(OptCCM) -> not lists:member(OptCCM, UninstallOk) end, InstalledOptCCMs),
 
-    case dao:update_record(configurations, #configuration{id = last, main_ccm = NewMainCCM, opt_ccms = NewOptCCMs}) of
+    case dao:update_record(configurations, #configuration{id = last, main_ccm = {force, NewMainCCM}, opt_ccms = {force, NewOptCCMs}}) of
       ok ->
         case UninstallError of
           [] -> ok;

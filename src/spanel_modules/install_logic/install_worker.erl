@@ -106,7 +106,7 @@ uninstall(Hosts, _) ->
 
     NewWorkers = lists:filter(fun(Worker) -> not lists:member(Worker, UninstallOk) end, InstalledWorkers),
 
-    case dao:update_record(configurations, #configuration{id = last, workers = NewWorkers}) of
+    case dao:update_record(configurations, #configuration{id = last, workers = {force, NewWorkers}}) of
       ok ->
         case UninstallError of
           [] -> ok;

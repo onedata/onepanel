@@ -16,7 +16,7 @@
 
 %% API
 -export([create_storage_test_file/1, delete_storage_test_file/1, check_storage_on_host/2, check_storage_on_hosts/2]).
--export([add_storage_paths/1, remove_storage_paths/1, add_storage_paths_on_hosts/2]).
+-export([add_storage_paths/1, remove_storage_paths/1, add_storage_paths_on_hosts/2, remove_storage_paths_on_hosts/2]).
 
 -define(STORAGE_TEST_FILE_PREFIX, "storage_test_").
 -define(STORAGE_TEST_FILE_LENGTH, 20).
@@ -110,7 +110,46 @@ check_storage_on_host(FilePath, Content) ->
     _:_ -> {error, install_utils:get_host(node())}
   end.
 
-%% add_storage_paths/1
+%% remove_storage_paths_on_hosts/1
+%% ====================================================================
+%% @doc Removes storage configuration on hosts
+%% @end
+-spec remove_storage_paths_on_hosts(Hosts :: [string()], Paths :: [string()]) -> ok | {error, ErrorHosts :: [string()]}.
+%% ====================================================================
+remove_storage_paths_on_hosts(Hosts, Paths) ->
+  try
+    InstalledStorage = case dao:get_record(configurations, last) of
+                         {ok, #configuration{storage_paths = StoragePaths}} -> StoragePaths;
+                         _ -> []
+                       end,
+
+    lists:foreach(fun(Path) ->
+      case lists:member(Path, InstalledStorage) of
+        true -> ok;
+        _ -> throw(<<"Path: ", (list_to_binary(Path))/binary, " is not configured.">>)
+      end
+    end, Paths),
+
+    {UninstallOk, UninstallError} = install_utils:apply_on_hosts(Hosts, ?MODULE, remove_storage_paths, [Paths], ?RPC_TIMEOUT),
+
+    NewStoragePaths = lists:filter(fun(StoragePath) ->
+      not lists:member(StoragePath, Paths) end, InstalledStorage),
+
+    case dao:update_record(configurations, #configuration{id = last, storage_paths = {force, NewStoragePaths}}) of
+      ok ->
+        case UninstallError of
+          [] -> ok;
+          _ -> {error, UninstallError}
+        end;
+      _ ->
+        lager:error("Error while updating storage configuration."),
+        {error, Hosts}
+    end
+  catch
+    _:Reason -> {error, Reason}
+  end.
+
+%% remove_storage_paths/1
 %% ====================================================================
 %% @doc Removes storage configuration on host
 %% @end

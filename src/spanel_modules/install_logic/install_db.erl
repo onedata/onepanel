@@ -85,7 +85,7 @@ uninstall(Hosts, _) ->
 
     NewDbs = lists:filter(fun(Db) -> not lists:member(Db, UninstallOk) end, InstalledDbs),
 
-    case dao:update_record(configurations, #configuration{id = last, dbs = NewDbs}) of
+    case dao:update_record(configurations, #configuration{id = last, dbs = {force, NewDbs}}) of
       ok ->
         case UninstallError of
           [] -> ok;
@@ -196,7 +196,7 @@ uninstall() ->
   try
     lager:info("Uninstalling database node on host: ~s.", [Host]),
 
-    ok = install_utils:remove_node_from_config(db_node),
+    ok = install_utils:remove_node_from_config(db),
     "" = os:cmd("rm -rf " ++ ?DEFAULT_DB_INSTALL_PATH),
 
     ok
