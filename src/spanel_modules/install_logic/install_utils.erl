@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This file contains utility install_logic functions
+%% @doc: This file contains utility installation functions
 %% @end
 %% ===================================================================
 -module(install_utils).
@@ -117,7 +117,7 @@ set_ulimits(OpenFiles, Processes) ->
 
 %% get_ulimits_cmd/0
 %% ====================================================================
-%% @doc Returns ulimits command required during database or veil node install_logic.
+%% @doc Returns ulimits command required during database or veil node installation.
 %% @end
 -spec get_ulimits_cmd() -> ok | error.
 %% ====================================================================

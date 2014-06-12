@@ -12,7 +12,6 @@
 -ifndef(INSTALL_HRL).
 -define(INSTALL_HRL, 1).
 
--define(INSTALL_LOGIC, install_logic).
 -define(RPC_TIMEOUT, 60000).
 -define(GEN_SERVER_TIMEOUT, 5000).
 
@@ -23,7 +22,7 @@
 -define(DEFAULT_PORT, "5986").
 
 % Curl options
--define(CURL_OPTS, [{connect_timeout, 5000}, {basic_auth, {"admin", "password"}}]).
+-define(CURL_OPTS, [{connect_timeout, 5000}]).%, {basic_auth, {"admin", "password"}}]).
 
 % Installation directory of veil RPM
 -define(PREFIX, "/opt/veil/").
@@ -32,8 +31,8 @@
 -define(CONFIGURED_NODES_PATH, ?PREFIX ++ "scripts/configured_nodes.cfg").
 
 %Paths relative to database_node release
--define(DB_START_COMMAND_SUFFIX,"bin/bigcouch").
--define (NOHUP_OUTPUT,"var/log/nohup.out").
+-define(DB_START_COMMAND_SUFFIX, "bin/bigcouch").
+-define(NOHUP_OUTPUT, "var/log/nohup.out").
 
 % System limit values
 -define(ULIMITS_CONFIG_PATH, ?PREFIX ++ "scripts/ulimits.cfg").

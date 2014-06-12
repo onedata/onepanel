@@ -41,19 +41,14 @@ install(Hosts, _) ->
     end,
 
     {InstallOk, InstallError} = install_utils:apply_on_hosts(Hosts, ?MODULE, install, [], ?RPC_TIMEOUT),
-    {HostsOk, HostsError} = case InstallOk of
-                              [ClusterHost | NodesToAdd] ->
-                                {JoinOk, JoinError} = install_utils:apply_on_hosts(NodesToAdd, ?MODULE, join_cluster, [ClusterHost], ?RPC_TIMEOUT),
-                                {[ClusterHost | JoinOk], JoinError ++ InstallError};
-                              _ -> {InstallOk, InstallError}
-                            end,
-    case dao:update_record(configurations, #configuration{id = last, dbs = HostsOk}) of
+
+    case dao:update_record(configurations, #configuration{id = last, dbs = InstallOk}) of
       ok ->
-        case HostsError of
+        case InstallError of
           [] -> ok;
           _ ->
-            rpc:multicall(HostsError, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
-            {error, HostsError}
+            rpc:multicall(InstallError, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
+            {error, InstallError}
         end;
       _ ->
         lager:error("Error while updating database configuration."),
@@ -116,13 +111,20 @@ start(Hosts, _) ->
   {StartOk, StartError} = install_utils:apply_on_hosts(Hosts, ?MODULE, start, [], ?RPC_TIMEOUT),
   {_, JoinError} = case StartOk of
                      [First | Rest] ->
+                       lager:info("Joining cluster: ~p, ~p", [First, Rest]),
                        install_utils:apply_on_hosts(Rest, ?MODULE, join_cluster, [First], ?RPC_TIMEOUT);
                      _ -> {StartOk, []}
                    end,
+
+  case JoinError of
+    [] -> ok;
+    _ -> lager:error("Can not add following hosts to database cluster: ~p", [JoinError])
+  end,
+
   case StartError ++ JoinError of
     [] -> ok;
     _ ->
-      install_utils:apply_on_hosts(JoinError, ?MODULE, start, [], ?RPC_TIMEOUT),
+      install_utils:apply_on_hosts(JoinError, ?MODULE, stop, [], ?RPC_TIMEOUT),
       {error, StartError ++ JoinError}
   end.
 
@@ -279,24 +281,25 @@ join_cluster(ClusterNode) ->
 %% database cluster nodes. Should not be used directly, use join_cluster/1
 %% instead.
 %% @end
--spec join_cluster(ClusterNode :: node(), Attempts :: integer()) -> ok | {error, Reason :: term()}.
+-spec join_cluster(ClusterHost :: string(), Attempts :: integer()) -> ok | {error, Reason :: term()}.
 %% ====================================================================
 join_cluster(_, 10) ->
   Host = install_utils:get_host(node()),
   {error, <<"Can not add database node to cluster on host: ", (list_to_binary(Host))/binary, ".">>};
 
-join_cluster(ClusterNode, Attempts) ->
-  timer:sleep(1000),
-  Host = install_utils:get_host(node()),
+join_cluster(ClusterHost, Attempts) ->
   try
-    ClusterHost = install_utils:get_host(ClusterNode),
+    timer:sleep(1000),
+    Host = install_utils:get_host(node()),
     Url = "http://" ++ ClusterHost ++ ":" ++ ?DEFAULT_PORT ++ "/nodes/" ++ ?DEFAULT_DB_NAME ++ "@" ++ Host,
     lager:info("Adding database node to cluster on host: ~s.", [Host]),
 
-    {ok, "201", _ResponseHeaders, ResponseBody} = ibrowse:send_req(Url, [{content_type, "application/json"}], put, "{}", ?CURL_OPTS),
+    Ans = ibrowse:send_req(Url, [{content_type, "application/json"}], put, "{}", ?CURL_OPTS),
+    lager:info("Ans:~n~p~n", [Ans]),
+    {ok, "201", _ResponseHeaders, ResponseBody} = Ans,
     false = (0 =:= string:str(ResponseBody, "\"ok\":true")),
 
     ok
   catch
-    _:_ -> join_cluster(ClusterNode, Attempts + 1)
+    _:_ -> join_cluster(ClusterHost, Attempts + 1)
   end.
