@@ -40,7 +40,7 @@ install(Hosts, _) ->
       _ -> throw(<<"Database already installed.">>)
     end,
 
-    {InstallOk, InstallError} = install_utils:apply_on_hosts(Hosts, ?MODULE, install_db, [], ?RPC_TIMEOUT),
+    {InstallOk, InstallError} = install_utils:apply_on_hosts(Hosts, ?MODULE, install, [], ?RPC_TIMEOUT),
     {HostsOk, HostsError} = case InstallOk of
                               [ClusterHost | NodesToAdd] ->
                                 {JoinOk, JoinError} = install_utils:apply_on_hosts(NodesToAdd, ?MODULE, join_cluster, [ClusterHost], ?RPC_TIMEOUT),
@@ -102,15 +102,15 @@ uninstall(Hosts, _) ->
     end
   catch
     _:Reason -> {error, Reason}
-  end
+  end.
 
 
 %% start/2
 %% ====================================================================
 %% @doc Starts database nodes on hosts.
 %% @end
-    - spec start(Hosts :: [string()], Args) -> ok | {error, Error :: [string()]} when
-Args :: [{Name :: atom(), Value :: term()}].
+-spec start(Hosts :: [string()], Args) -> ok | {error, Error :: [string()]} when
+  Args :: [{Name :: atom(), Value :: term()}].
 %% ====================================================================
 start(Hosts, _) ->
   {StartOk, StartError} = install_utils:apply_on_hosts(Hosts, ?MODULE, start, [], ?RPC_TIMEOUT),

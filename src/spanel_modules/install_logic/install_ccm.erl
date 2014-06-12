@@ -231,6 +231,7 @@ start() ->
   try
     lager:info("Starting ccm node on host: ~p.", [Host]),
 
+    os:cmd(?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME ++ "/" ++ ?VEIL_CLUSTER_SCRIPT_PATH),
     SetUlimitsCmd = install_utils:get_ulimits_cmd(),
     "" = os:cmd(SetUlimitsCmd ++ " ; " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME ++ "/" ++ ?START_COMMAND_SUFFIX),
 

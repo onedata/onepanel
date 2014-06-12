@@ -180,9 +180,9 @@ install(MainCCM, OptCCMs, Dbs) ->
   Host = install_utils:get_host(node()),
   try
     LongName = ?DEFAULT_WORKER_NAME ++ "@" ++ Host,
-    MainCCMLongName = ?DEFAULT_WORKER_NAME ++ "@" ++ MainCCM,
+    MainCCMLongName = ?DEFAULT_CCM_NAME ++ "@" ++ MainCCM,
     OptCCMsLongNames = lists:foldl(fun(OptCCM, Acc) ->
-      Acc ++ ?DEFAULT_WORKER_NAME ++ "@" ++ OptCCM ++ " " end, [], OptCCMs),
+      Acc ++ ?DEFAULT_CCM_NAME ++ "@" ++ OptCCM ++ " " end, [], OptCCMs),
     DbsLongNames = lists:foldl(fun(Db, Acc) -> Acc ++ ?DEFAULT_DB_NAME ++ "@" ++ Db ++ " " end, [], Dbs),
     ConfigPath = ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME ++ "/" ++ ?CONFIG_ARGS_PATH,
     StorageConfigPath = ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME ++ "/" ++ ?STORAGE_CONFIG_PATH,
@@ -235,6 +235,7 @@ start() ->
   try
     lager:info("Starting worker node on host: ~p.", [Host]),
 
+    os:cmd(?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME ++ "/" ++ ?VEIL_CLUSTER_SCRIPT_PATH),
     SetUlimitsCmd = install_utils:get_ulimits_cmd(),
     "" = os:cmd(SetUlimitsCmd ++ " ; " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME ++ "/" ++ ?START_COMMAND_SUFFIX),
 
