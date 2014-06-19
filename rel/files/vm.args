@@ -1,5 +1,5 @@
 ## Name of the node
--name spanel@127.0.0.1
+-name spanel@veildev_199.local
 
 ## Cookie for distributed erlang
 -setcookie veil_cluster_node

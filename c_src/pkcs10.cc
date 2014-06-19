@@ -25,8 +25,8 @@ int create_csr(char* password, char* key_path, char* csr_path)
 
         opts.common_name = "CN";
         opts.country = "PL";
-        opts.organization = "ACK";
-        opts.email = "DASDAS";
+        opts.organization = "";
+        opts.email = "";
 
         PKCS10_Request req = X509::create_cert_req(opts, priv_key, "SHA-256", rng);
 

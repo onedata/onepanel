@@ -4,4 +4,6 @@ spanel.iml
 deps
 ebin
 rel/spanel
+
+c_lib
 c_src/*.o
