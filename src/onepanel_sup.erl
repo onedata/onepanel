@@ -5,10 +5,11 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc:
+%% @doc: This module implements supervisor behaviour. It starts onepanel
+%% gen_server as a child.
 %% @end
 %% ===================================================================
--module(spanel_sup).
+-module(onepanel_sup).
 
 -behaviour(supervisor).
 
@@ -22,42 +23,41 @@
 
 -define(SERVER, ?MODULE).
 
-%%%===================================================================
-%%% API functions
-%%%===================================================================
+%% ====================================================================
+%% API functions
+%% ====================================================================
 
-%%--------------------------------------------------------------------
-%% @doc
-%% Starts the supervisor
-%%
+%% start_link/0
+%% ====================================================================
+%% @doc Starts the supervisor
 %% @end
-%%--------------------------------------------------------------------
--spec(start_link() ->
-  {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
+-spec start_link() -> Result when
+  Result :: {ok, Pid :: pid()} | ignore | {error, Reason :: term()}.
+%% ====================================================================
 start_link() ->
   supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
-%%%===================================================================
-%%% Supervisor callbacks
-%%%===================================================================
 
-%%--------------------------------------------------------------------
-%% @private
+%% ====================================================================
+%% Supervisor callbacks
+%% ====================================================================
+
+%% init/1
+%% ====================================================================
 %% @doc
 %% Whenever a supervisor is started using supervisor:start_link/[2,3],
 %% this function is called by the new process to find out about
 %% restart strategy, maximum restart frequency and child
 %% specifications.
-%%
 %% @end
-%%--------------------------------------------------------------------
--spec(init(Args :: term()) ->
-  {ok, {SupFlags :: {RestartStrategy :: supervisor:strategy(),
+-spec init(Args :: term()) -> Result when
+  Result :: {ok, {SupFlags :: {RestartStrategy :: supervisor:strategy(),
     MaxR :: non_neg_integer(), MaxT :: non_neg_integer()},
     [ChildSpec :: supervisor:child_spec()]
   }} |
   ignore |
-  {error, Reason :: term()}).
+  {error, Reason :: term()}.
+%% ====================================================================
 init([]) ->
   RestartStrategy = one_for_one,
   MaxRestarts = 1000,
@@ -69,11 +69,8 @@ init([]) ->
   Shutdown = 2000,
   Type = worker,
 
-  Installer = {?SPANEL_NAME, {?SPANEL_NAME, start_link, []},
-    Restart, Shutdown, Type, [?SPANEL_NAME]},
+  Children = [
+    {?GEN_SERVER_NAME, {?GEN_SERVER_NAME, start_link, []}, Restart, Shutdown, Type, [?GEN_SERVER_NAME]}
+  ],
 
-  {ok, {SupFlags, [Installer]}}.
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
+  {ok, {SupFlags, Children}}.

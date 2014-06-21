@@ -5,13 +5,11 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: It is the behaviour of all installable components.
+%% @doc: This module defines the behaviour of all installable components.
 %% @end
 %% ===================================================================
 
 -module(install_behaviour).
--author("Krzysztof Trzepla").
-
 
 %% install/2
 %% ====================================================================
@@ -21,7 +19,8 @@
 %% configuration file and database.
 %% @end
 %% ====================================================================
--callback install(Hosts :: [string()], Args) -> ok | {error, Error :: term()} when
+-callback install(Hosts :: [string()], Args) -> Result when
+  Result :: ok | {error, Reason :: term()},
   Args :: [{Name :: atom(), Value :: term()}].
 
 
@@ -33,7 +32,8 @@
 %% configuration file and database.
 %% @end
 %% ====================================================================
--callback uninstall(Hosts :: [string()], Args) -> ok | {error, Error :: term()} when
+-callback uninstall(Hosts :: [string()], Args) -> Result when
+  Result :: ok | {error, Reason :: term()},
   Args :: [{Name :: atom(), Value :: term()}].
 
 
@@ -45,7 +45,8 @@
 %% configuration file and database.
 %% @end
 %% ====================================================================
--callback start(Hosts :: [string()], Args) -> ok | {error, Error :: term()} when
+-callback start(Hosts :: [string()], Args) -> Result when
+  Result :: ok | {error, Reason :: term()},
   Args :: [{Name :: atom(), Value :: term()}].
 
 
@@ -57,7 +58,8 @@
 %% configuration file and database.
 %% @end
 %% ====================================================================
--callback stop(Hosts :: [string()], Args) -> ok | {error, Error :: term()} when
+-callback stop(Hosts :: [string()], Args) -> Result when
+  Result :: ok | {error, Reason :: term()},
   Args :: [{Name :: atom(), Value :: term()}].
 
 
@@ -69,5 +71,6 @@
 %% configuration file and database.
 %% @end
 %% ====================================================================
--callback restart(Hosts :: [string()], Args) -> ok | {error, Error :: term()} when
+-callback restart(Hosts :: [string()], Args) -> Result when
+  Result :: ok | {error, Reason :: term()},
   Args :: [{Name :: atom(), Value :: term()}].

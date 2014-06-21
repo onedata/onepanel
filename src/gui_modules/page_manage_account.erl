@@ -12,7 +12,7 @@
 -module(page_manage_account).
 -compile(export_all).
 -include("gui_modules/common.hrl").
--include("spanel_modules/errors.hrl").
+-include("onepanel_modules/errors.hrl").
 
 %% Template points to the template file, which will be filled with content
 main() -> case gui_utils:user_logged_in() of

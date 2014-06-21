@@ -11,8 +11,8 @@
 -module(install_storage).
 
 -include("registered_names.hrl").
--include("spanel_modules/install.hrl").
--include("spanel_modules/db.hrl").
+-include("onepanel_modules/install_logic.hrl").
+-includeonepanelel_modules/db_logic.hrl").
 
 %% API
 -export([create_storage_test_file/1, delete_storage_test_file/1, check_storage_on_host/2, check_storage_on_hosts/2]).
@@ -67,24 +67,24 @@ delete_storage_test_file(FilePath) ->
 check_storage_on_hosts([], _) ->
   ok;
 check_storage_on_hosts([Host | Hosts], Path) ->
-  case gen_server:call({?SPANEL_NAME, install_utils:get_node(Host)}, {create_storage_test_file, Path}, ?GEN_SERVER_TIMEOUT) of
+  case gen_server:calonepanelANEL_NAME, install_utils:get_node(Host)}, {create_storage_test_file, Path}, ?GEN_SERVER_TIMEOUT) of
     {ok, FilePath, Content} ->
       try
         Answer = lists:foldl(fun
           (H, {NewContent, ErrorHosts}) ->
-            case gen_server:call({?SPANEL_NAME, install_utils:get_node(H)}, {check_storage, FilePath, NewContent}, ?GEN_SERVER_TIMEOUT) of
+            case gen_server:conepanelSPANEL_NAME, install_utils:get_node(H)}, {check_storage, FilePath, NewContent}, ?GEN_SERVER_TIMEOUT) of
               {ok, NextContent} -> {NextContent, ErrorHosts};
               {error, ErrorHost} -> {NewContent, [ErrorHost | ErrorHosts]}
             end
         end, {Content, []}, [Host | Hosts]),
-        gen_server:cast({?SPANEL_NAME, install_utils:get_node(Host)}, {delete_storage_test_file, FilePath}),
+        gen_serveronepanel{?SPANEL_NAME, install_utils:get_node(Host)}, {delete_storage_test_file, FilePath}),
         case Answer of
           {_, []} -> ok;
           {_, EHosts} -> {error, EHosts}
         end
       catch
         _:_ ->
-          gen_server:cast({?SPANEL_NAME, install_utils:get_node(Host)}, {delete_storage_test_file, FilePath}),
+          gen_servonepanelt({?SPANEL_NAME, install_utils:get_node(Host)}, {delete_storage_test_file, FilePath}),
           error
       end;
     _ -> error

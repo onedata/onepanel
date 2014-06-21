@@ -12,7 +12,7 @@
 -module(page_login).
 -compile(export_all).
 -include("gui_modules/common.hrl").
--include("spanel_modules/errors.hrl").
+-include("onepanel_modules/errors.hrl").
 
 %% Template points to the template file, which will be filled with content
 main() -> #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}]}.
@@ -33,7 +33,7 @@ body() ->
         #panel{id = <<"error_message">>, style = ErrorPanelStyle, class = <<"dialog dialog-danger">>,
           body = <<"Session error or session expired. Please log in again.">>},
         #panel{class = <<"alert alert-success login-page">>, body = [
-          #h3{body = <<"Welcome to SPanel">>},
+          #h3{body = <<"Welcome tonepanelel">>},
           #panel{style = <<"width: 50%; margin: 0 auto; padding-top: 20px; float: center">>, body = [
             #textbox{id = username, placeholder = <<"Username">>, class = <<"flat">>},
             #password{id = password, placeholder = <<"Password">>, class = <<"flat">>}

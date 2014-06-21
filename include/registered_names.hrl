@@ -14,13 +14,13 @@
 -define(REGISTERED_NAMES_HRL, 1).
 
 %% Name of the application.
--define(APP_NAME, spanel).
+-define(APP_NAME, onepanel).
 
 %% String version of applicaton name
 -define(APP_STR, atom_to_list(?APP_NAME)).
 
 %% Local name (name and node is used to identify it) of gen_server that 
 %% coordinates node life cycle.
--define(SPANEL_NAME, spanel).
+-define(GEN_SERVER_NAME, onepanel).
 
 -endif.

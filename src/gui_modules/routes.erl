@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module provides mapping of spanel paths to modules
+%% @doc: This module provides mapping of onepanel paths to modules
 %% that will render the pages.
 %% @end
 %% ===================================================================

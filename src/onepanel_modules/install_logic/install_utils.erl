@@ -11,8 +11,8 @@
 -module(install_utils).
 
 -include("registered_names.hrl").
--include("spanel_modules/db.hrl").
--include("spanel_modules/install.hrl").
+-include("onepanel_modules/db_logic.hrl").
+-includeonepanelel_modules/install_logic.hrl").
 
 %% API
 -export([random_ascii_lowercase_sequence/1, apply_on_hosts/5, get_node/1, get_host/1, get_hosts/0]).

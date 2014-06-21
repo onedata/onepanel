@@ -12,7 +12,7 @@
 -module(page_installation).
 -compile(export_all).
 -include("gui_modules/common.hrl").
--include("spanel_modules/db.hrl").
+-include("onepanel_modules/db_logic.hrl").
 
 -record(page_state, {counter = 1, main_ccm = undefined, ccms = sets:new(), workers = sets:new(), dbs = sets:new(), storage_paths = sets:new()}).
 

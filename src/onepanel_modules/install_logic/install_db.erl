@@ -13,8 +13,8 @@
 -behaviour(install_behaviour).
 -author("Krzysztof Trzepla").
 
--include("spanel_modules/db.hrl").
--include("spanel_modules/install.hrl").
+-include("onepanel_modules/db_logic.hrl").
+-includeonepanelel_modules/install_logic.hrl").
 
 % install_behaviour callbacks
 -export([install/2, uninstall/2, start/2, stop/2, restart/2]).
