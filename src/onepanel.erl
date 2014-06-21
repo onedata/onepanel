@@ -94,7 +94,7 @@ handle_call({check_storage, FilePath, Content}, _From, State) ->
   {reply, install_storage:check_storage_on_host(FilePath, Content), State};
 
 handle_call(get_ip_address, _From, State) ->
-  Address = global_registry:check_ip_address(),
+  Address = gr_adapter:check_ip_address(),
   {reply, {ok, Address}, State};
 
 handle_call(_Request, _From, State) ->

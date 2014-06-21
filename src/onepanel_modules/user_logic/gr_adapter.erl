@@ -10,7 +10,7 @@
 %% Global Registry.
 %% @end
 %% ===================================================================
--module(global_registry).
+-module(gr_adapter).
 
 -include("registered_names.hrl").
 -include("onepanel_modules/install_logic.hrl").

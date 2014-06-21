@@ -59,14 +59,14 @@ update_record(Table, Key, Update) ->
     case get_record(Table, Key) of
       {ok, OldRecord} ->
         [RecordName, OldValues] = tuple_to_list(OldRecord),
-        Fields = record_info(fields, ?USER_TABLE),
+        Columns = get_table_columns(Table),
         NewValues = lists:map(fun
-          (Field, OldValue) ->
-            case proplists:get_value(Field, Update) of
+          (Column, OldValue) ->
+            case proplists:get_value(Column, Update) of
               undefined -> OldValue;
               NewValue -> NewValue
             end
-        end, lists:zip(Fields, OldValues)),
+        end, lists:zip(Columns, OldValues)),
         NewRecord = list_to_tuple([RecordName, NewValues]),
         save_record(Table, NewRecord);
       Other -> Other
@@ -124,3 +124,22 @@ exist_record(Table, Key) ->
       lager:error("Cannot check record exists in table ~p using key ~p: ~p", [Table, Key, Reason]),
       {error, Reason}
   end.
+
+
+%% ====================================================================
+%% Internal functions
+%% ====================================================================
+
+%% get_table_columns/1
+%% ====================================================================
+%% @doc Returns list of database table columns as atoms.
+%% @end
+-spec get_table_columns(Table :: atom()) -> Result when
+  Result :: [atom()].
+%% ====================================================================
+get_table_columns(?USER_TABLE) ->
+  record_info(fields, ?USER_TABLE);
+get_table_columns(?CONFIG_TABLE) ->
+  record_info(fields, ?CONFIG_TABLE);
+get_table_columns(?PORT_TABLE) ->
+  record_info(fields, ?PORT_TABLE).

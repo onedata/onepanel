@@ -38,4 +38,4 @@ static ErlNifFunc nif_funcs[] = {
     {"create_csr", 3, create_csr_nif}
 };
 
-ERL_NIF_INIT(pkcs10, nif_funcs, NULL, NULL, NULL, NULL)
+ERL_NIF_INIT(gr_adapter, nif_funcs, NULL, NULL, NULL, NULL)
