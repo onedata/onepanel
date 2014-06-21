@@ -12,13 +12,17 @@
 
 -include("registered_names.hrl").
 -include("onepanel_modules/db_logic.hrl").
--includeonepanelel_modules/install_logic.hrl").
+-include("onepanel_modules/install_logic.hrl").
 
 %% API
 -export([random_ascii_lowercase_sequence/1, apply_on_hosts/5, get_node/1, get_host/1, get_hosts/0]).
 -export([set_ulimits_on_hosts/3, set_ulimits/2, get_ulimits_cmd/0, get_ports_to_check/1, get_control_panel_hosts/1]).
 -export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/3]).
 -export([save_file_on_host/3, save_file_on_hosts/3]).
+
+%% ====================================================================
+%% API functions
+%% ====================================================================
 
 %% random_ascii_lowercase_sequence/1
 %% ====================================================================
@@ -28,6 +32,7 @@
 random_ascii_lowercase_sequence(Length) ->
   lists:foldl(fun(_, Acc) -> [random:uniform(26) + 96 | Acc] end, [], lists:seq(1, Length)).
 
+
 %% apply_on_nodes/5
 %% ====================================================================
 %% @doc Applies function on specified hosts with timeout in miliseconds.
@@ -35,7 +40,8 @@ random_ascii_lowercase_sequence(Length) ->
 %% available. Pair of list where first list contains hosts on which function
 %% call was successful. Second list contains remaining hosts.
 %% @end
--spec apply_on_hosts(Hosts, Module, Function, Arguments, Timeout) -> {HostsOk, HostsError} when
+-spec apply_on_hosts(Hosts, Module, Function, Arguments, Timeout) -> Result when
+  Result :: {HostsOk, HostsError},
   Hosts :: [string()],
   HostsOk :: [string()],
   HostsError :: [string()],
@@ -53,27 +59,33 @@ apply_on_hosts(Hosts, Module, Function, Arguments, Timeout) ->
     ({_, Node}, {HostsOk, HostsError}) -> {HostsOk, [get_host(Node) | HostsError]}
   end, {[], lists:map(fun(ErrorNode) -> get_host(ErrorNode) end, ErrorNodes)}, lists:zip(Results, OkNodes)).
 
+
 %% get_node/1
 %% ====================================================================
 %% @doc Returns node from host.
--spec get_node(Host :: string()) -> Node :: node().
+-spec get_node(Host :: string()) -> Result when
+  Result :: node().
 %% ====================================================================
 get_node(Host) ->
   list_to_atom(?APP_STR ++ "@" ++ Host).
 
+
 %% get_host/1
 %% ====================================================================
 %% @doc Returns host from node.
--spec get_host(Node :: node()) -> Host :: string().
+-spec get_host(Node :: node()) -> Result when
+  Result :: string().
 %% ====================================================================
 get_host(Node) ->
   NodeString = atom_to_list(Node),
   string:substr(NodeString, length(?APP_STR) + 2).
 
+
 %% get_hosts/0
 %% ====================================================================
 %% @doc Returns list of hosts' ip addresses.
--spec get_hosts() -> [Host :: string()].
+-spec get_hosts() -> Result when
+  Result :: [Host :: string()].
 %% ====================================================================
 get_hosts() ->
   lists:foldl(fun(Node, Acc) ->
@@ -84,30 +96,36 @@ get_hosts() ->
     end
   end, [], [node() | nodes(hidden)]).
 
+
 %% set_ulimits_on_hosts/3
 %% ====================================================================
 %% @doc Sets system limits for open files and processes on hosts.
 %% @end
--spec set_ulimits_on_hosts(Hosts :: [string()], OpenFiles :: integer(), Processes :: integer()) -> ok | error.
+-spec set_ulimits_on_hosts(Hosts :: [string()], OpenFiles :: integer(), Processes :: integer()) -> Result when
+  Result :: ok | {error, ErrorHosts :: [string()]}.
 %% ====================================================================
 set_ulimits_on_hosts(Hosts, OpenFiles, Processes) ->
   {_, HostsError} = apply_on_hosts(Hosts, ?MODULE, set_ulimits, [OpenFiles, Processes], ?RPC_TIMEOUT),
   case HostsError of
     [] -> ok;
-    _ -> {error, HostsError}
+    _ ->
+      lager:error("Cannot set ulimits on hosts: ~p", [HostsError]),
+      {error, HostsError}
   end.
+
 
 %% set_ulimits/2
 %% ====================================================================
 %% @doc Sets system limits for open files and processes on node.
 %% @end
--spec set_ulimits(OpenFiles :: integer(), Processes :: integer()) -> ok | error.
+-spec set_ulimits(OpenFiles :: integer(), Processes :: integer()) -> Result when
+  Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 set_ulimits(OpenFiles, Processes) ->
   case file:consult(?ULIMITS_CONFIG_PATH) of
     {ok, []} ->
       file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n~p.\n", [{open_files, OpenFiles}, {process_limit, Processes}]), [append]),
-      dao:save_record(configurations, #configuration{id = last, ulimits = {OpenFiles, Processes}});
+      dao:save_record(configurations, #?CONFIG_TABLE{id = last, ulimits = {OpenFiles, Processes}});
     {ok, _} ->
       ok;
     Error ->
@@ -115,38 +133,47 @@ set_ulimits(OpenFiles, Processes) ->
       error
   end.
 
+
 %% get_ulimits_cmd/0
 %% ====================================================================
 %% @doc Returns ulimits command required during database or veil node installation.
 %% @end
--spec get_ulimits_cmd() -> ok | error.
+-spec get_ulimits_cmd() -> Result when
+  Result :: string().
 %% ====================================================================
 get_ulimits_cmd() ->
   try
-    {ok, #configuration{ulimits = {OpenFiles, Processes}}} = dao:get_record(configurations, last),
+    {ok, #?CONFIG_TABLE{ulimits = {OpenFiles, Processes}}} = dao:get_record(?CONFIG_TABLE, ?CONFIG_ID),
     "ulimit -n " ++ OpenFiles ++ " ; ulimit -u " ++ Processes
   catch
-    _:_ -> "ulimit -n " ++ ?DEFAULT_OPEN_FILES ++ " ; ulimit -u " ++ ?DEFAULT_PROCESSES
+    _:Reason ->
+      lager:error("Cannot get ulimits configuration: ~p. Returning default values.", [Reason]),
+      "ulimit -n " ++ ?DEFAULT_OPEN_FILES ++ " ; ulimit -u " ++ ?DEFAULT_PROCESSES
   end.
+
 
 %% add_node_to_config/3
 %% ====================================================================
 %% @doc Adds a node to configured_nodes.cfg.
--spec add_node_to_config(Type :: atom(), Name :: string(), Path :: string()) -> ok | error.
+-spec add_node_to_config(Type :: atom(), Name :: string(), Path :: string()) -> Result when
+  Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 add_node_to_config(Type, Name, Path) ->
   try
     {ok, Entries} = file:consult(?CONFIGURED_NODES_PATH),
     save_nodes_in_config(Entries ++ [{Type, Name, Path}])
-  catch _:_ ->
-    lager:error("Error while adding ~p to ~s", [Name, ?CONFIGURED_NODES_PATH]),
-    error
+  catch
+    _:Reason ->
+      lager:error("Cannot add ~p node to ~s: ~p", [Name, ?CONFIGURED_NODES_PATH, Reason]),
+      {error, Reason}
   end.
+
 
 %% remove_node_from_config/1
 %% ====================================================================
 %% @doc Removes a node from configured_nodes.cfg.
--spec remove_node_from_config(Name :: string()) -> ok | error.
+-spec remove_node_from_config(Name :: string()) -> Result when
+  Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 remove_node_from_config(Name) ->
   try
@@ -156,15 +183,18 @@ remove_node_from_config(Name) ->
                  Term -> Term
                end,
     save_nodes_in_config(Entries -- [ToDelete])
-  catch _:_ ->
-    lager:error("Error while deleting ~p from ~s", [Name, ?CONFIGURED_NODES_PATH]),
-    error
+  catch
+    _:Reason ->
+      lager:error("Cannot delete ~p node from ~s: ~p", [Name, ?CONFIGURED_NODES_PATH, Reason]),
+      {error, Reason}
   end.
+
 
 %% save_nodes_in_config/1
 %% ====================================================================
 %% @doc Saves list of nodes in configured_nodes.cfg.
--spec save_nodes_in_config(Name :: string()) -> ok | error.
+-spec save_nodes_in_config(Name :: string()) -> Result when
+  Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 save_nodes_in_config(NodeList) ->
   try
@@ -174,15 +204,18 @@ save_nodes_in_config(NodeList) ->
         file:write_file(?CONFIGURED_NODES_PATH, io_lib:fwrite("~p.\n", [Node]), [append])
       end, NodeList),
     ok
-  catch _:_ ->
-    lager:error("Error while writing to ~s", [?CONFIGURED_NODES_PATH]),
-    error
+  catch
+    _:Reason ->
+      lager:error("Cannot write to ~s: ~p", [?CONFIGURED_NODES_PATH, Reason]),
+      {error, Reason}
   end.
+
 
 %% overwrite_config_args/3
 %% ====================================================================
 %% @doc Overwrites a parameter in config.args.
--spec overwrite_config_args(Path :: string(), Parameter :: string(), NewValue :: string()) -> ok | error.
+-spec overwrite_config_args(Path :: string(), Parameter :: string(), NewValue :: string()) -> Result when
+  Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 overwrite_config_args(Path, Parameter, NewValue) ->
   try
@@ -190,8 +223,7 @@ overwrite_config_args(Path, Parameter, NewValue) ->
                     {ok, DataRead} ->
                       binary_to_list(DataRead);
                     _ ->
-                      lager:error("Could not read config.args file"),
-                      throw(error)
+                      throw("Could not read config.args file")
                   end,
 
     {match, [{From, Through}]} = re:run(FileContent, Parameter ++ ":.*\n"),
@@ -200,25 +232,33 @@ overwrite_config_args(Path, Parameter, NewValue) ->
     file:write_file(Path, list_to_binary(Beginning ++ Parameter ++ ": " ++ NewValue ++ End)),
     ok
   catch
-    _:_ -> error
+    _:Reason ->
+      lager:error("Cannot overwrite config args: ~p", [Reason]),
+      {error, Reason}
   end.
+
 
 %% save_file_on_hosts/3
 %% ====================================================================
 %% @doc Saves global registry certificate cert on host.
--spec save_file_on_hosts(Path :: string(), Filename :: string(), Content :: string() | binary()) -> ok | {error, ErrorHosts :: [string()]}.
+-spec save_file_on_hosts(Path :: string(), Filename :: string(), Content :: string() | binary()) -> Result when
+  Result :: ok | {error, ErrorHosts :: [string()]}.
 %% ====================================================================
 save_file_on_hosts(Path, Filename, Content) ->
   {_, HostsError} = apply_on_hosts(get_hosts(), ?MODULE, save_file_on_host, [Path, Filename, Content], ?RPC_TIMEOUT),
   case HostsError of
     [] -> ok;
-    _ -> {error, HostsError}
+    _ ->
+      lager:error("Cannot save file ~p at directory ~p on following hosts: ~p", [Filename, Path, HostsError]),
+      {error, HostsError}
   end.
+
 
 %% save_file_on_host/3
 %% ====================================================================
 %% @doc Saves global registry certificate cert on all hosts.
--spec save_file_on_host(Path :: string(), Filename :: string(), Content :: string() | binary()) -> ok | error.
+-spec save_file_on_host(Path :: string(), Filename :: string(), Content :: string() | binary()) -> Result when
+  Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 save_file_on_host(Path, Filename, Content) ->
   try
@@ -226,13 +266,17 @@ save_file_on_host(Path, Filename, Content) ->
     ok = file:write_file(filename:join(Path, Filename), Content),
     ok
   catch
-    _:_ -> error
+    _:Reason ->
+      lager:error("Cannot save file ~p at directory ~p: ~p", [Filename, Path, Reason]),
+      {error, Reason}
   end.
+
 
 %% get_ports_to_check/1
 %% ====================================================================
 %% @doc Returns default veilcluster ports that will be checked by global registry
--spec get_ports_to_check(MainCCM :: string()) -> {ok, [{Type :: string(), Port :: integer()}]} | error.
+-spec get_ports_to_check(MainCCM :: string()) -> Result when
+  Result :: {ok, [{Type :: string(), Port :: integer()}]} | {error, Reason :: term()}.
 %% ====================================================================
 get_ports_to_check(MainCCM) ->
   try
@@ -241,13 +285,17 @@ get_ports_to_check(MainCCM) ->
     {ok, RestPort} = rpc:call(Node, application, get_env, [veil_cluster_node, rest_port]),
     {ok, [{"gui", GuiPort}, {"rest", RestPort}]}
   catch
-    _:_ -> error
+    _:Reason ->
+      lager:error("Cannot get ports to check: ~p", [Reason]),
+      {error, Reason}
   end.
+
 
 %% get_control_panel_hosts/1
 %% ====================================================================
 %% @doc Returns list of control panel hosts
--spec get_control_panel_hosts(MainCCM :: string()) -> {ok, Hosts :: [string()]} | error.
+-spec get_control_panel_hosts(MainCCM :: string()) -> Result when
+  Result :: {ok, Hosts :: [string()]} | {error, Reason :: term()}.
 %% ====================================================================
 get_control_panel_hosts(MainCCM) ->
   try
@@ -259,5 +307,7 @@ get_control_panel_hosts(MainCCM) ->
     end, [], Workers),
     {ok, ControlPanelHosts}
   catch
-    _:_ -> error
+    _:Reason ->
+      lager:error("Cannot get control panel hosts: ~p", [Reason]),
+      {error, Reason}
   end.

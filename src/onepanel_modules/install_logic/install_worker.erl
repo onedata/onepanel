@@ -11,10 +11,9 @@
 %% ===================================================================
 -module(install_worker).
 -behaviour(install_behaviour).
--author("Krzysztof Trzepla").
 
 -include("onepanel_modules/install_logic.hrl").
--includeonepanelel_modules/db_logic.hrl").
+-include("onepanel_modules/db_logic.hrl").
 
 % install_behaviour callbacks
 -export([install/2, uninstall/2, start/2, stop/2, restart/2]).
@@ -22,15 +21,16 @@
 % API
 -export([install/3, uninstall/0, start/0, stop/0, restart/0]).
 
-%% ===================================================================
+%% ====================================================================
 %% Behaviour callback functions
-%% ===================================================================
+%% ====================================================================
 
 %% install/2
 %% ====================================================================
 %% @doc Installs worker nodes.
 %% @end
--spec install(Hosts :: [string()], Args) -> ok | {error, Hosts :: [string()] | binary()} when
+-spec install(Hosts :: [string()], Args) -> Result when
+  Result :: ok | {error, Hosts :: [string()] | binary()},
   Args :: [{Name :: atom(), Value :: term()}].
 %% ====================================================================
 install(Hosts, Args) ->
@@ -40,44 +40,46 @@ install(Hosts, Args) ->
     Dbs = proplists:get_value(dbs, Args),
 
     case MainCCM of
-      undefined -> throw(<<"Main CCM node not found in arguments list.">>);
+      undefined -> throw("Main CCM node not found in arguments list.");
       _ -> ok
     end,
 
     case Dbs of
-      undefined -> throw(<<"Database nodes not found in arguments list.">>);
+      undefined -> throw("Database nodes not found in arguments list.");
       _ -> ok
     end,
 
-    InstalledWorkers = case dao:get_record(configurations, last) of
-                         {ok, #configuration{workers = Workers}} -> Workers;
+    InstalledWorkers = case dao:get_record(?CONFIG_TABLE, ?CONFIG_ID) of
+                         {ok, #?CONFIG_TABLE{workers = Workers}} -> Workers;
                          _ -> []
                        end,
 
     lists:foreach(fun(Host) ->
       case lists:member(Host, InstalledWorkers) of
-        true -> throw(<<"Host: ", (list_to_binary(Host))/binary, " is already installed.">>);
+        true -> throw("Host: " ++ Host ++ " is already installed.");
         _ -> ok
       end
     end, Hosts),
 
-    {InstallOk, InstallError} = install_utils:apply_on_hosts(Hosts, ?MODULE, install, [MainCCM, OptCCMs, Dbs], ?RPC_TIMEOUT),
+    {HostsOk, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, install, [MainCCM, OptCCMs, Dbs], ?RPC_TIMEOUT),
 
-    case dao:update_record(configurations, #configuration{id = last, workers = InstalledWorkers ++ InstallOk}) of
+    case dao:update_record(?CONFIG_TABLE, ?CONFIG_ID, [{workers, InstalledWorkers ++ HostsOk}]) of
       ok ->
-        case InstallError of
+        case HostsError of
           [] -> ok;
           _ ->
-            rpc:multicall(InstallError, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
-            {error, InstallError}
+            lager:error("Cannot install worker nodes on following hosts: ~p", [HostsError]),
+            {error, HostsError}
         end;
-      _ ->
-        lager:error("Error while updating worker configuration."),
+      Other ->
+        lager:error("Cannot update worker nodes configuration: ~p", Other),
         rpc:multicall(Hosts, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
         {error, Hosts}
     end
   catch
-    _:Reason -> {error, Reason}
+    _:Reason ->
+      lager:error("Cannot install worker nodes: ~p", [Reason]),
+      {error, Reason}
   end.
 
 
@@ -85,39 +87,46 @@ install(Hosts, Args) ->
 %% ====================================================================
 %% @doc Uninstalls worker nodes.
 %% @end
--spec uninstall(Hosts :: [string()], Args) -> ok | {error, Hosts :: [string()] | binary()} when
+-spec uninstall(Hosts :: [string()], Args) -> Result when
+  Result :: ok | {error, Reason :: term()},
   Args :: [{Name :: atom(), Value :: term()}].
 %% ====================================================================
 uninstall(Hosts, _) ->
   try
-    InstalledWorkers = case dao:get_record(configurations, last) of
-                         {ok, #configuration{workers = Workers}} -> Workers;
-                         _ -> []
+    InstalledWorkers = case dao:get_record(?CONFIG_TABLE, ?CONFIG_ID) of
+                         {ok, #?CONFIG_TABLE{workers = Workers}} -> Workers;
+                         _ -> throw("Cannot get worker nodes configuration.")
                        end,
 
     lists:foreach(fun(Host) ->
       case lists:member(Host, InstalledWorkers) of
         true -> ok;
-        _ -> throw(<<"Host: ", (list_to_binary(Host))/binary, " is not installed.">>)
+        _ -> throw("Host: " ++ Host ++ " is not installed.")
       end
     end, Hosts),
 
-    {UninstallOk, UninstallError} = install_utils:apply_on_hosts(Hosts, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
+    {HostsOk, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
 
-    NewWorkers = lists:filter(fun(Worker) -> not lists:member(Worker, UninstallOk) end, InstalledWorkers),
+    NewWorkers = lists:filter(fun(Worker) ->
+      not lists:member(Worker, HostsOk)
+    end, InstalledWorkers),
 
-    case dao:update_record(configurations, #configuration{id = last, workers = NewWorkers}) of
+    case dao:update_record(?CONFIG_TABLE, ?CONFIG_ID, [{workers, NewWorkers}]) of
       ok ->
-        case UninstallError of
+        case HostsError of
           [] -> ok;
-          _ -> {error, UninstallError}
+          _ ->
+            lager:error("Cannot uninstall worker nodes on following hosts: ~p", [HostsError]),
+            {error, HostsError}
         end;
-      _ ->
-        lager:error("Error while updating worker configuration."),
+      Other ->
+        lager:error("Cannot update worker nodes configuration: ~p", Other),
         {error, Hosts}
     end
   catch
-    _:Reason -> {error, Reason}
+    _:Reason ->
+      lager:error("Cannot uninstall worker nodes: ~p", [Reason]),
+      {error, Reason}
   end.
 
 
@@ -125,14 +134,17 @@ uninstall(Hosts, _) ->
 %% ====================================================================
 %% @doc Starts worker nodes.
 %% @end
--spec start(Hosts :: [string()], Args) -> ok | {error, Hosts :: [string()]} when
+-spec start(Hosts :: [string()], Args) -> Result when
+  Result :: ok | {error, Reason :: term()},
   Args :: [{Name :: atom(), Value :: term()}].
 %% ====================================================================
 start(Hosts, _) ->
-  {_, StartError} = install_utils:apply_on_hosts(Hosts, ?MODULE, start, [], ?RPC_TIMEOUT),
-  case StartError of
+  {_, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, start, [], ?RPC_TIMEOUT),
+  case HostsError of
     [] -> ok;
-    _ -> {error, StartError}
+    _ ->
+      lager:error("Cannot start worker nodes on following hosts: ~p", [HostsError]),
+      {error, HostsError}
   end.
 
 
@@ -140,41 +152,49 @@ start(Hosts, _) ->
 %% ====================================================================
 %% @doc Stops worker nodes.
 %% @end
--spec stop(Hosts :: [string()], Args) -> ok | {error, Hosts :: [string()]} when
+-spec stop(Hosts :: [string()], Args) -> Result when
+  Result :: ok | {error, Reason :: term()},
   Args :: [{Name :: atom(), Value :: term()}].
 %% ====================================================================
 stop(Hosts, _) ->
-  {_, StartError} = install_utils:apply_on_hosts(Hosts, ?MODULE, stop, [], ?RPC_TIMEOUT),
-  case StartError of
+  {_, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, stop, [], ?RPC_TIMEOUT),
+  case HostsError of
     [] -> ok;
-    _ -> {error, StartError}
+    _ ->
+      lager:error("Cannot stop worker nodes on following hosts: ~p", [HostsError]),
+      {error, HostsError}
   end.
+
 
 %% restart/2
 %% ====================================================================
 %% @doc Restarts worker nodes.
 %% @end
--spec restart(Hosts :: [string()], Args) -> ok | {error, Hosts :: [string()]} when
+-spec restart(Hosts :: [string()], Args) -> Result when
+  Result :: ok | {error, Reason :: term()},
   Args :: [{Name :: atom(), Value :: term()}].
 %% ====================================================================
 restart(Hosts, _) ->
-  {_, StartError} = install_utils:apply_on_hosts(Hosts, ?MODULE, restart, [], ?RPC_TIMEOUT),
-  case StartError of
+  {_, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, restart, [], ?RPC_TIMEOUT),
+  case HostsError of
     [] -> ok;
-    _ -> {error, StartError}
+    _ ->
+      lager:error("Cannot restart worker nodes on following hosts: ~p", [HostsError]),
+      {error, HostsError}
   end.
 
 
-%% ===================================================================
+%% ====================================================================
 %% API functions
-%% ===================================================================
+%% ====================================================================
 
 %% install/3
 %% ====================================================================
 %% @doc Installs worker node. All function arguments are string form of
 %% hostname, eg. "127.0.0.1".
 %% @end
--spec install(MainCCM :: string(), OptCCMs :: [string()], Dbs :: [string()]) -> ok | {error, Reason :: term()}.
+-spec install(MainCCM :: string(), OptCCMs :: [string()], Dbs :: [string()]) -> Result when
+  Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 install(MainCCM, OptCCMs, Dbs) ->
   Host = install_utils:get_host(node()),
@@ -190,7 +210,7 @@ install(MainCCM, OptCCMs, Dbs) ->
     lager:info("Installing worker node on host: ~p.", [Host]),
 
     "" = os:cmd("mkdir -p " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME),
-    "" = os:cmd("cp -R " ++ ?VEIL_RELEASE ++ "/* " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME),
+    "" = os:cmd("cp -R " ++ ?VEIL_RELEASE ++ "/ * " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME),
     ok = install_utils:overwrite_config_args(ConfigPath, "name", LongName),
     ok = install_utils:overwrite_config_args(ConfigPath, "main_ccm", MainCCMLongName),
     ok = install_utils:overwrite_config_args(ConfigPath, "opt_ccms", OptCCMsLongNames),
@@ -200,7 +220,9 @@ install(MainCCM, OptCCMs, Dbs) ->
 
     ok
   catch
-    _:_ -> {error, <<"Can not install worker node on host: ", (list_to_binary(Host))/binary, ".">>}
+    _:Reason ->
+      lager:error("Cannot install worker node on host ~s: ~p.", [Host, Reason]),
+      {error, Reason}
   end.
 
 
@@ -208,7 +230,8 @@ install(MainCCM, OptCCMs, Dbs) ->
 %% ====================================================================
 %% @doc Uninstalls worker node.
 %% @end
--spec uninstall() -> ok | {error, Reason :: term()}.
+-spec uninstall() -> Result when
+  Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 uninstall() ->
   Host = install_utils:get_host(node()),
@@ -220,7 +243,9 @@ uninstall() ->
 
     ok
   catch
-    _:_ -> {error, <<"Can not uninstall worker node on host: ", (list_to_binary(Host))/binary, ".">>}
+    _:Reason ->
+      lager:error("Cannot uninstall worker node on host ~s: ~p.", [Host, Reason]),
+      {error, Reason}
   end.
 
 
@@ -228,7 +253,8 @@ uninstall() ->
 %% ====================================================================
 %% @doc Starts worker node.
 %% @end
--spec start() -> ok | {error, Reason :: term()}.
+-spec start() -> Result when
+  Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 start() ->
   Host = install_utils:get_host(node()),
@@ -237,11 +263,13 @@ start() ->
 
     os:cmd(?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME ++ "/" ++ ?VEIL_CLUSTER_SCRIPT_PATH),
     SetUlimitsCmd = install_utils:get_ulimits_cmd(),
-    "" = os:cmd(SetUlimitsCmd ++ " ; " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME ++ "/" ++ ?START_COMMAND_SUFFIX),
+    "" = os:cmd(SetUlimitsCmd ++ "; " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME ++ "/" ++ ?START_COMMAND_SUFFIX),
 
     ok
   catch
-    _:_ -> {error, <<"Can not start worker node on host: ", (list_to_binary(Host))/binary, ".">>}
+    _:Reason ->
+      lager:error("Cannot start worker node on host ~s: ~p.", [Host, Reason]),
+      {error, Reason}
   end.
 
 
@@ -249,7 +277,8 @@ start() ->
 %% ====================================================================
 %% @doc Stops worker node.
 %% @end
--spec stop() -> ok | {error, Reason :: term()}.
+-spec stop() -> Result when
+  Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 stop() ->
   Host = install_utils:get_host(node()),
@@ -257,7 +286,9 @@ stop() ->
 
   case os:cmd("kill -TERM `ps aux | grep beam | grep " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME ++ " | cut -d'\t' -f2 | awk '{print $2}'`") of
     "" -> ok;
-    _ -> {error, <<"Can not stop worker node on host: ", (list_to_binary(Host))/binary, ".">>}
+    Other ->
+      lager:error("Cannot stop worker node on host ~s: ~p.", [Host, Other]),
+      {error, Other}
   end.
 
 
@@ -265,7 +296,8 @@ stop() ->
 %% ====================================================================
 %% @doc Restarts worker node.
 %% @end
--spec restart() -> ok | {error, Reason :: term()}.
+-spec restart() -> Result when
+  Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 restart() ->
   Host = install_utils:get_host(node()),
@@ -277,5 +309,7 @@ restart() ->
 
     ok
   catch
-    _:_ -> {error, <<"Can not restart worker node on host: ", (list_to_binary(Host))/binary, ".">>}
+    _:Reason ->
+      lager:error("Cannot restart worker node on host ~s: ~p.", [Host, Reason]),
+      {error, Reason}
   end.

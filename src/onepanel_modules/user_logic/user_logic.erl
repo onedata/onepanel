@@ -39,7 +39,7 @@ authenticate(Username, Password) ->
       end;
     {error, not_found} -> {error, "Invaild username or password."};
     Other ->
-      lager:error("Can not authenticate user: ~p", [Other]),
+      lager:error("Cannot authenticate user: ~p", [Other]),
       {error, "Internal server error."}
   end.
 
@@ -57,7 +57,7 @@ change_password(Username, OldPassword, NewPassword) ->
       case dao:save_record(?USER_TABLE, #?USER_TABLE{username = Username, password = PasswordHash}) of
         ok -> ok;
         Other ->
-          lager:error("Can not change user password: ~p", [Other]),
+          lager:error("Cannot change user password: ~p", [Other]),
           {error, "Internal server error."}
       end;
     _ -> {error, "Invaild username or password."}

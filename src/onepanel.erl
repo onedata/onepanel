@@ -151,7 +151,7 @@ handle_info({udp, _Socket, _Address, _Port, Host}, #state{status = Status} = Sta
   Node = binary_to_atom(<<?APP_STR, "@", Host/binary>>, latin1),
   case net_kernel:connect_node(Node) of
     true -> gen_server:cast({?GEN_SERVER_NAME, Node}, {connection_request, node()});
-    Other -> lager:error("Can not connect node ~p: ~p", [Node, Other])
+    Other -> lager:error("Cannot connect node ~p: ~p", [Node, Other])
   end,
   case Status of
     connected -> {noreply, State};

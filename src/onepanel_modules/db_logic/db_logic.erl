@@ -107,7 +107,7 @@ create() ->
     ok
   catch
     _:Reason ->
-      lager:error("Can not create database tables: ~p", [Reason]),
+      lager:error("Cannot create database tables: ~p", [Reason]),
       {error, Reason}
   end.
 
@@ -131,7 +131,7 @@ delete() ->
     ok
   catch
     _:Reason ->
-      lager:error("Can not delete database tables: ~p", [Reason]),
+      lager:error("Cannot delete database tables: ~p", [Reason]),
       {error, Reason}
   end.
 
@@ -155,7 +155,7 @@ add_node(Node) ->
     ok
   catch
     _:Reason ->
-      lager:error("Can not add database node to cluster: ~p", [Reason]),
+      lager:error("Cannot add database node to cluster: ~p", [Reason]),
       {error, Reason}
   end.
 

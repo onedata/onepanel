@@ -5,7 +5,8 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This file contains common macros and records for dao module
+%% @doc: This header file contains common macros and records for
+%% db_logic module.
 %% @end
 %% ===================================================================
 

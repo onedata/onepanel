@@ -36,7 +36,7 @@ save_record(Table, Record) ->
     mnesia:activity(transaction, Transaction)
   catch
     _:Reason ->
-      lager:error("Can not save record ~p in table ~p: ~p", [Record, Table, Reason]),
+      lager:error("Cannot save record ~p in table ~p: ~p", [Record, Table, Reason]),
       {error, Reason}
   end.
 
@@ -71,7 +71,7 @@ update_record(Table, Key, Update) ->
     end
   catch
     _:Reason ->
-      lager:error("Can not update record in table ~p using key ~p and update ~p: ~p", [Table, Key, Update, Reason]),
+      lager:error("Cannot update record in table ~p using key ~p and update ~p: ~p", [Table, Key, Update, Reason]),
       {error, Reason}
   end.
 
@@ -96,7 +96,7 @@ get_record(Table, Key) ->
     mnesia:activity(transaction, Transaction)
   catch
     _:Reason ->
-      lager:error("Can not get record from table ~p using key ~p: ~p", [Table, Key, Reason]),
+      lager:error("Cannot get record from table ~p using key ~p: ~p", [Table, Key, Reason]),
       {error, Reason}
   end.
 
@@ -119,6 +119,6 @@ exist_record(Table, Key) ->
     mnesia:activity(transaction, Transaction)
   catch
     _:Reason ->
-      lager:error("Can not check record exists in table ~p using key ~p: ~p", [Table, Key, Reason]),
+      lager:error("Cannot check record exists in table ~p using key ~p: ~p", [Table, Key, Reason]),
       {error, Reason}
   end.

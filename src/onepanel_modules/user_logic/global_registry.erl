@@ -27,7 +27,7 @@
 
 %% init/0
 %% ====================================================================
-%% @doc Initializes NIF used to create Certificate Signing Request.
+%% @doc Initializes NIF library used to create Certificate Signing Request.
 %% @end
 -spec init() -> ok | no_return().
 %% ====================================================================
@@ -46,7 +46,7 @@ init() ->
   Result :: 0 | 1 | no_return().
 %% ====================================================================
 create_csr(_, _, _) ->
-  exit(nif_library_not_loaded).
+  throw("NIF library not loaded").
 
 
 %% register/0
@@ -83,7 +83,7 @@ register() ->
     {ok, ProviderId}
   catch
     _:Reason ->
-      lager:error("Can not register in Global Registry: ~p", [Reason]),
+      lager:error("Cannot register in Global Registry: ~p", [Reason]),
       {error, Reason}
   end.
 
@@ -102,7 +102,7 @@ check_ip_address() ->
     {ok, binary_to_list(mochijson2:decode(ResBody))}
   catch
     _:Reason ->
-      lager:error("Can not get ip address that is visible for Global Registry: ~p", [Reason]),
+      lager:error("Cannot get ip address that is visible for Global Registry: ~p", [Reason]),
       {error, Reason}
   end.
 
@@ -117,7 +117,7 @@ check_ip_address() ->
 check_port(Host, Port, Type) ->
   try
     Node = install_utils:get_node(Host),
-    {ok, IpAddress} = gen_server:call({?SPANEL_NAME, Node}, get_ip_address, ?GEN_SERVER_TIMEOUT),
+    {ok, IpAddress} = gen_server:call({?GEN_SERVER_NAME, Node}, get_ip_address, ?GEN_SERVER_TIMEOUT),
     {ok, Url} = application:get_env(?APP_NAME, global_registry_url),
     TestUrl = Url ++ "/provider/test/check_my_ports",
     Resource = case Type of
@@ -133,7 +133,7 @@ check_port(Host, Port, Type) ->
     ok
   catch
     _:Reason ->
-      lager:error("Can not check port ~p on host ~p: ~p", [Port, Host, Reason]),
+      lager:error("Cannot check port ~p on host ~p: ~p", [Port, Host, Reason]),
       {error, Reason}
   end.
 
@@ -155,7 +155,10 @@ send_csr(CsrPath) ->
   {ok, Url} = application:get_env(?APP_NAME, global_registry_url),
   Urls = install_utils:get_hosts(),
   {ok, Csr} = file:read_file(CsrPath),
-  GuiUrl = "https://127.0.0.1:8080",
+  {ok, #?CONFIG_TABLE{main_ccm = MainCCM}} = dao:get_record(?CONFIG_TABLE, ?CONFIG_ID),
+  {ok, [ControlPanelHost | _]} = install_utils:get_control_panel_hosts(MainCCM),
+  {ok, #?PORT_TABLE{gui = GuiPort}} = dao:get_record(?PORT_TABLE, ControlPanelHost),
+  GuiUrl = "https://" ++ ControlPanelHost ++ ":" ++ integer_to_list(GuiPort),
   ReqBody = iolist_to_binary(mochijson2:encode({struct, [{urls, Urls}, {csr, Csr}, {redirectionPoint, GuiUrl}]})),
 
   {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(Url ++ "/provider", [{content_type, "application/json"}], post, ReqBody),

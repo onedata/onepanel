@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This file contains custom n2o elements
+%% @doc: This header file contains custom n2o elements.
 %% @end
 %% ===================================================================
 
@@ -22,8 +22,8 @@
 
 % Custom checkbox element
 -record(custom_checkbox, {?ELEMENT_BASE(element_custom_checkbox),
-  checked=false,
-  value="on",
+  checked = false,
+  value = "on",
   postback,
   delegate,
   disabled,
