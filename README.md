@@ -1,7 +1,7 @@
 About
 =====
 
-onepanel enables interactive installation of Veilcluster using Web GUI.
+Onepanel enables interactive installation of Veilcluster using Web GUI.
 
 Goals
 -----

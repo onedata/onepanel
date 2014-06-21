@@ -74,7 +74,7 @@ create() ->
     case mnesia:create_schema([Node]) of
       ok -> ok;
       {error, {Node, {already_exists, Node}}} -> ok;
-      {error, Reason} -> throw(Reason)
+      {error, CreateError} -> throw(CreateError)
     end,
     ok = application:start(mnesia),
     case mnesia:create_table(?USER_TABLE, [

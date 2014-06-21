@@ -11,6 +11,8 @@
 %% ===================================================================
 -module(dao).
 
+-include("onepanel_modules/db_logic.hrl").
+
 %% API
 -export([save_record/2, update_record/3, get_record/2, exist_record/2]).
 
@@ -57,7 +59,7 @@ update_record(Table, Key, Update) ->
     case get_record(Table, Key) of
       {ok, OldRecord} ->
         [RecordName, OldValues] = tuple_to_list(OldRecord),
-        Fields = record_info(fields, Table),
+        Fields = record_info(fields, ?USER_TABLE),
         NewValues = lists:map(fun
           (Field, OldValue) ->
             case proplists:get_value(Field, Update) of
