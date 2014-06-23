@@ -1,4 +1,4 @@
-.PHONY: test deps generate
+.PHONY: deps generate
 
 all: deps compile
 
@@ -20,5 +20,3 @@ distclean: clean
 
 rel: deps compile generate
 
-relclean:
-	rm -rf rel/onepanel
