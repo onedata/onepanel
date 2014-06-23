@@ -20,8 +20,8 @@
 %% @end
 %% ====================================================================
 -callback install(Hosts :: [string()], Args) -> Result when
-  Result :: ok | {error, Reason :: term()},
-  Args :: [{Name :: atom(), Value :: term()}].
+    Result :: ok | {error, Reason :: term()},
+    Args :: [{Name :: atom(), Value :: term()}].
 
 
 %% uninstall/2
@@ -33,8 +33,8 @@
 %% @end
 %% ====================================================================
 -callback uninstall(Hosts :: [string()], Args) -> Result when
-  Result :: ok | {error, Reason :: term()},
-  Args :: [{Name :: atom(), Value :: term()}].
+    Result :: ok | {error, Reason :: term()},
+    Args :: [{Name :: atom(), Value :: term()}].
 
 
 %% start/2
@@ -46,8 +46,8 @@
 %% @end
 %% ====================================================================
 -callback start(Hosts :: [string()], Args) -> Result when
-  Result :: ok | {error, Reason :: term()},
-  Args :: [{Name :: atom(), Value :: term()}].
+    Result :: ok | {error, Reason :: term()},
+    Args :: [{Name :: atom(), Value :: term()}].
 
 
 %% stop/2
@@ -59,8 +59,8 @@
 %% @end
 %% ====================================================================
 -callback stop(Hosts :: [string()], Args) -> Result when
-  Result :: ok | {error, Reason :: term()},
-  Args :: [{Name :: atom(), Value :: term()}].
+    Result :: ok | {error, Reason :: term()},
+    Args :: [{Name :: atom(), Value :: term()}].
 
 
 %% restart/2
@@ -72,5 +72,5 @@
 %% @end
 %% ====================================================================
 -callback restart(Hosts :: [string()], Args) -> Result when
-  Result :: ok | {error, Reason :: term()},
-  Args :: [{Name :: atom(), Value :: term()}].
+    Result :: ok | {error, Reason :: term()},
+    Args :: [{Name :: atom(), Value :: term()}].

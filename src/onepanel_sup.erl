@@ -32,10 +32,10 @@
 %% @doc Starts the supervisor
 %% @end
 -spec start_link() -> Result when
-  Result :: {ok, Pid :: pid()} | ignore | {error, Reason :: term()}.
+    Result :: {ok, Pid :: pid()} | ignore | {error, Reason :: term()}.
 %% ====================================================================
 start_link() ->
-  supervisor:start_link({local, ?SERVER}, ?MODULE, []).
+    supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
 
 %% ====================================================================
@@ -51,26 +51,26 @@ start_link() ->
 %% specifications.
 %% @end
 -spec init(Args :: term()) -> Result when
-  Result :: {ok, {SupFlags :: {RestartStrategy :: supervisor:strategy(),
-    MaxR :: non_neg_integer(), MaxT :: non_neg_integer()},
-    [ChildSpec :: supervisor:child_spec()]
-  }} |
-  ignore |
-  {error, Reason :: term()}.
+    Result :: {ok, {SupFlags :: {RestartStrategy :: supervisor:strategy(),
+        MaxR :: non_neg_integer(), MaxT :: non_neg_integer()},
+        [ChildSpec :: supervisor:child_spec()]
+    }} |
+    ignore |
+    {error, Reason :: term()}.
 %% ====================================================================
 init([]) ->
-  RestartStrategy = one_for_one,
-  MaxRestarts = 1000,
-  MaxSecondsBetweenRestarts = 3600,
+    RestartStrategy = one_for_one,
+    MaxRestarts = 1000,
+    MaxSecondsBetweenRestarts = 3600,
 
-  SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
+    SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
 
-  Restart = permanent,
-  Shutdown = 2000,
-  Type = worker,
+    Restart = permanent,
+    Shutdown = 2000,
+    Type = worker,
 
-  Children = [
-    {?GEN_SERVER_NAME, {?GEN_SERVER_NAME, start_link, []}, Restart, Shutdown, Type, [?GEN_SERVER_NAME]}
-  ],
+    Children = [
+        {?GEN_SERVER_NAME, {?GEN_SERVER_NAME, start_link, []}, Restart, Shutdown, Type, [?GEN_SERVER_NAME]}
+    ],
 
-  {ok, {SupFlags, Children}}.
+    {ok, {SupFlags, Children}}.

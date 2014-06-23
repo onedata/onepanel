@@ -10,40 +10,40 @@
 %% ===================================================================
 
 {application, onepanel, [
-  {description, "Veilcluster management tool."},
-  {vsn, "1.0"},
-  {registered, [onepanel_sup]},
-  {applications, [
-    kernel,
-    stdlib,
-    n2o,
-    cowboy,
-    lager,
-    erlydtl,
-    mimetypes,
-    ibrowse
-  ]},
-  {mod, {onepanel_app, []}},
-  {env, [
-    {onepanel_port, 8888},
-    {gui_port, 9443},
-    {https_acceptors, 100},
-    {socket_timeout, 60000},
-    {max_keepalive, 30},
-    {connection_ping_period, 5},
-    {gui_static_root, "./gui_static"},
-    {ca_cert_file, "./cacerts/ca.crt"},
-    {cert_file, "./cacerts/server.crt"},
-    {key_file, "./cacerts/server.key"},
-    {grp_dir, "./certs"},
-    {grpkey_name, "grpkey.pem"},
-    {grpkey_file, "./certs/grpkey.pem"},
-    {grpcsr_file, "./certs/grpcsr.pem"},
-    {grpcert_name, "grpcert.pem"},
-    {grpcert_file, "./certs/grpcert.pem"},
-    {global_registry_url, "https://onedata.org:8443"},
-    {default_username, "admin"},
-    {default_password, "password"},
-    {multicast_address, {239, 255, 0, 1}}
-  ]}
+    {description, "Veilcluster management tool."},
+    {vsn, "1.0"},
+    {registered, [onepanel_sup]},
+    {applications, [
+        kernel,
+        stdlib,
+        n2o,
+        cowboy,
+        lager,
+        erlydtl,
+        mimetypes,
+        ibrowse
+    ]},
+    {mod, {onepanel_app, []}},
+    {env, [
+        {onepanel_port, 8888},
+        {gui_port, 9443},
+        {https_acceptors, 100},
+        {socket_timeout, 60000},
+        {max_keepalive, 30},
+        {connection_ping_period, 5},
+        {gui_static_root, "./gui_static"},
+        {ca_cert_file, "./cacerts/ca.crt"},
+        {cert_file, "./cacerts/server.crt"},
+        {key_file, "./cacerts/server.key"},
+        {grp_dir, "./certs"},
+        {grpkey_name, "grpkey.pem"},
+        {grpkey_file, "./certs/grpkey.pem"},
+        {grpcsr_file, "./certs/grpcsr.pem"},
+        {grpcert_name, "grpcert.pem"},
+        {grpcert_file, "./certs/grpcert.pem"},
+        {global_registry_url, "https://onedata.org:8443"},
+        {default_username, "admin"},
+        {default_password, "password"},
+        {multicast_address, {239, 255, 0, 1}}
+    ]}
 ]}.

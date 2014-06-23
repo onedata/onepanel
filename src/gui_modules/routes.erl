@@ -17,12 +17,12 @@
 finish(State, Ctx) -> {ok, State, Ctx}.
 
 init(State, Ctx) ->
-  Path = wf:path(Ctx#context.req),
-  RequestedPage = case Path of
-                    <<"/ws", Rest/binary>> -> Rest;
-                    Other -> Other
-                  end,
-  {ok, State, Ctx#context{path = Path, module = route(RequestedPage)}}.
+    Path = wf:path(Ctx#context.req),
+    RequestedPage = case Path of
+                        <<"/ws", Rest/binary>> -> Rest;
+                        Other -> Other
+                    end,
+    {ok, State, Ctx#context{path = Path, module = route(RequestedPage)}}.
 
 route(<<"/">>) -> page_installation;
 route(<<"/installation">>) -> page_installation;

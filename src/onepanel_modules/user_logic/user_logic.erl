@@ -27,21 +27,21 @@
 %% @doc Check whether user exists and whether it is a valid password
 %% @end
 -spec authenticate(Username :: string(), Password :: string()) -> Result when
-  Result :: ok | {error, Reason :: string()}.
+    Result :: ok | {error, Reason :: string()}.
 %% ====================================================================
 authenticate(Username, Password) ->
-  PasswordHash = hash_password(Password),
-  case dao:get_record(?USER_TABLE, Username) of
-    {ok, #?USER_TABLE{username = Username, password = ValidPasswordHash}} ->
-      case ValidPasswordHash of
-        PasswordHash -> ok;
-        _ -> {error, "Invaild username or password."}
-      end;
-    {error, not_found} -> {error, "Invaild username or password."};
-    Other ->
-      lager:error("Cannot authenticate user: ~p", [Other]),
-      {error, "Internal server error."}
-  end.
+    PasswordHash = hash_password(Password),
+    case dao:get_record(?USER_TABLE, Username) of
+        {ok, #?USER_TABLE{username = Username, password = ValidPasswordHash}} ->
+            case ValidPasswordHash of
+                PasswordHash -> ok;
+                _ -> {error, "Invaild username or password."}
+            end;
+        {error, not_found} -> {error, "Invaild username or password."};
+        Other ->
+            lager:error("Cannot authenticate user: ~p", [Other]),
+            {error, "Internal server error."}
+    end.
 
 
 %% change_password/3
@@ -51,17 +51,17 @@ authenticate(Username, Password) ->
 -spec change_password(Username :: string(), OldPassword :: string(), NewPassword :: string()) -> ok | {error, Reason :: string()}.
 %% ====================================================================
 change_password(Username, OldPassword, NewPassword) ->
-  PasswordHash = user_logic:hash_password(NewPassword),
-  case authenticate(Username, OldPassword) of
-    ok ->
-      case dao:save_record(?USER_TABLE, #?USER_TABLE{username = Username, password = PasswordHash}) of
-        ok -> ok;
-        Other ->
-          lager:error("Cannot change user password: ~p", [Other]),
-          {error, "Internal server error."}
-      end;
-    _ -> {error, "Invaild username or password."}
-  end.
+    PasswordHash = user_logic:hash_password(NewPassword),
+    case authenticate(Username, OldPassword) of
+        ok ->
+            case dao:save_record(?USER_TABLE, #?USER_TABLE{username = Username, password = PasswordHash}) of
+                ok -> ok;
+                Other ->
+                    lager:error("Cannot change user password: ~p", [Other]),
+                    {error, "Internal server error."}
+            end;
+        _ -> {error, "Invaild username or password."}
+    end.
 
 
 %% ====================================================================
@@ -73,8 +73,8 @@ change_password(Username, OldPassword, NewPassword) ->
 %% @doc Returns md5 hash of given password.
 %% @end
 -spec hash_password(Password :: string()) -> Result when
-  Result :: string().
+    Result :: string().
 %% ====================================================================
 hash_password(Password) ->
-  Hash = crypto:hash_update(crypto:hash_init(md5), Password),
-  integer_to_list(binary:decode_unsigned(crypto:hash_final(Hash)), 16).
+    Hash = crypto:hash_update(crypto:hash_init(md5), Password),
+    integer_to_list(binary:decode_unsigned(crypto:hash_final(Hash)), 16).

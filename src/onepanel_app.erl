@@ -37,48 +37,48 @@
 %% top supervisor of the tree.
 %% @end
 -spec start(StartType :: normal | {takeover, node()} | {failover, node()}, StartArgs :: term()) -> Result when
-  Result :: {ok, pid()} | {ok, pid(), State :: term()} | {error, Reason :: term()}.
+    Result :: {ok, pid()} | {ok, pid(), State :: term()} | {error, Reason :: term()}.
 %% ====================================================================
 start(_StartType, _StartArgs) ->
-  {ok, Port} = application:get_env(?APP_NAME, gui_port),
-  {ok, HttpsAcceptors} = application:get_env(?APP_NAME, https_acceptors),
-  {ok, Timeout} = application:get_env(?APP_NAME, socket_timeout),
-  {ok, MaxKeepalive} = application:get_env(?APP_NAME, max_keepalive),
-  {ok, GuiStaticRoot} = application:get_env(?APP_NAME, gui_static_root),
-  {ok, CACertFile} = application:get_env(?APP_NAME, ca_cert_file),
-  {ok, CertFile} = application:get_env(?APP_NAME, cert_file),
-  {ok, KeyFile} = application:get_env(?APP_NAME, key_file),
+    {ok, Port} = application:get_env(?APP_NAME, gui_port),
+    {ok, HttpsAcceptors} = application:get_env(?APP_NAME, https_acceptors),
+    {ok, Timeout} = application:get_env(?APP_NAME, socket_timeout),
+    {ok, MaxKeepalive} = application:get_env(?APP_NAME, max_keepalive),
+    {ok, GuiStaticRoot} = application:get_env(?APP_NAME, gui_static_root),
+    {ok, CACertFile} = application:get_env(?APP_NAME, ca_cert_file),
+    {ok, CertFile} = application:get_env(?APP_NAME, cert_file),
+    {ok, KeyFile} = application:get_env(?APP_NAME, key_file),
 
-  % Set envs needed by n2o
-  % Transition port - the same as ?APP_NAME port
-  ok = application:set_env(n2o, transition_port, Port),
-  % Custom route handler
-  ok = application:set_env(n2o, route, routes),
+    % Set envs needed by n2o
+    % Transition port - the same as ?APP_NAME port
+    ok = application:set_env(n2o, transition_port, Port),
+    % Custom route handler
+    ok = application:set_env(n2o, route, routes),
 
-  % Ets table needed by n2o
-  ets:insert(globals, {onlineusers, 0}),
+    % Ets table needed by n2o
+    ets:insert(globals, {onlineusers, 0}),
 
-  Dispatch = cowboy_router:compile(
-    [{'_',
-        static_dispatches(GuiStaticRoot, ?STATIC_PATHS) ++ [
-        {"/ws/[...]", bullet_handler, [{handler, n2o_bullet}]},
-        {'_', n2o_cowboy, []}
-      ]}
-    ]),
+    Dispatch = cowboy_router:compile(
+        [{'_',
+                static_dispatches(GuiStaticRoot, ?STATIC_PATHS) ++ [
+                {"/ws/[...]", bullet_handler, [{handler, n2o_bullet}]},
+                {'_', n2o_cowboy, []}
+            ]}
+        ]),
 
-  {ok, _} = cowboy:start_https(?HTTPS_LISTENER, HttpsAcceptors,
-    [
-      {port, Port},
-      {cacertfile, CACertFile},
-      {certfile, CertFile},
-      {keyfile, KeyFile}
-    ],
-    [
-      {env, [{dispatch, Dispatch}]},
-      {max_keepalive, MaxKeepalive},
-      {timeout, Timeout}
-    ]),
-  onepanel_sup:start_link().
+    {ok, _} = cowboy:start_https(?HTTPS_LISTENER, HttpsAcceptors,
+        [
+            {port, Port},
+            {cacertfile, CACertFile},
+            {certfile, CertFile},
+            {keyfile, KeyFile}
+        ],
+        [
+            {env, [{dispatch, Dispatch}]},
+            {max_keepalive, MaxKeepalive},
+            {timeout, Timeout}
+        ]),
+    onepanel_sup:start_link().
 
 
 %% stop/2
@@ -88,11 +88,11 @@ start(_StartType, _StartArgs) ->
 %% any necessary cleaning up. The return value is ignored.
 %% @end
 -spec stop(State :: term()) -> Result when
-  Result :: term().
+    Result :: term().
 %% ====================================================================
 stop(_State) ->
-  cowboy:stop_listener(?HTTPS_LISTENER),
-  ok.
+    cowboy:stop_listener(?HTTPS_LISTENER),
+    ok.
 
 
 %% ====================================================================
@@ -104,13 +104,13 @@ stop(_State) ->
 %% @doc Generates static file routing for cowboy.
 %% @end
 -spec static_dispatches(DocRoot :: string(), StaticPaths :: [string()]) -> Result when
-  Result :: [term()].
+    Result :: [term()].
 %% ====================================================================
 static_dispatches(DocRoot, StaticPaths) ->
-  _StaticDispatches = lists:map(fun(Dir) ->
-    Opts = [
-      {mimetypes, {fun mimetypes:path_to_mimes/2, default}},
-      {directory, DocRoot ++ Dir}
-    ],
-    {Dir ++ "[...]", cowboy_static, Opts}
-  end, StaticPaths).
+    _StaticDispatches = lists:map(fun(Dir) ->
+        Opts = [
+            {mimetypes, {fun mimetypes:path_to_mimes/2, default}},
+            {directory, DocRoot ++ Dir}
+        ],
+        {Dir ++ "[...]", cowboy_static, Opts}
+    end, StaticPaths).

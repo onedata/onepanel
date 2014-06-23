@@ -32,7 +32,7 @@
 -spec init() -> ok | no_return().
 %% ====================================================================
 init() ->
-  ok = erlang:load_nif("c_lib/pkcs10_drv", 0).
+    ok = erlang:load_nif("c_lib/pkcs10_drv", 0).
 
 
 %% create_csr/3
@@ -43,10 +43,10 @@ init() ->
 %% Can throw an exception if nif was not properly loaded.
 %% @end
 -spec create_csr(Password :: string(), KeyPath :: string(), CsrPath :: string()) -> Result when
-  Result :: 0 | 1 | no_return().
+    Result :: 0 | 1 | no_return().
 %% ====================================================================
 create_csr(_, _, _) ->
-  throw("NIF library not loaded").
+    throw("NIF library not loaded").
 
 
 %% register/0
@@ -56,36 +56,36 @@ create_csr(_, _, _) ->
 %% hosts. Returns provider ID or an error.
 %% @end
 -spec register() -> Result when
-  Result :: {ok, ProviderId :: binary()} | {error, Reason :: term()}.
+    Result :: {ok, ProviderId :: binary()} | {error, Reason :: term()}.
 %% ====================================================================
 register() ->
-  try
-    {ok, Dir} = application:get_env(?APP_NAME, grp_dir),
-    {ok, KeyPath} = application:get_env(?APP_NAME, grpkey_file),
-    {ok, KeyName} = application:get_env(?APP_NAME, grpkey_name),
-    {ok, CsrPath} = application:get_env(?APP_NAME, grpcsr_file),
-    {ok, CertName} = application:get_env(?APP_NAME, grpcert_name),
-    Path = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, "certs"]),
+    try
+        {ok, Dir} = application:get_env(?APP_NAME, grp_dir),
+        {ok, KeyPath} = application:get_env(?APP_NAME, grpkey_file),
+        {ok, KeyName} = application:get_env(?APP_NAME, grpkey_name),
+        {ok, CsrPath} = application:get_env(?APP_NAME, grpcsr_file),
+        {ok, CertName} = application:get_env(?APP_NAME, grpcert_name),
+        Path = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, "certs"]),
 
-    file:make_dir(Dir),
-    0 = create_csr("", KeyPath, CsrPath),
+        file:make_dir(Dir),
+        0 = create_csr("", KeyPath, CsrPath),
 
-    %% Save private key on all hosts
-    {ok, Key} = file:read_file(KeyPath),
-    ok = install_utils:save_file_on_hosts(Path, KeyName, Key),
-    ok = file:delete(KeyPath),
+        %% Save private key on all hosts
+        {ok, Key} = file:read_file(KeyPath),
+        ok = install_utils:save_file_on_hosts(Path, KeyName, Key),
+        ok = file:delete(KeyPath),
 
-    {ok, ProviderId, Cert} = send_csr(CsrPath),
+        {ok, ProviderId, Cert} = send_csr(CsrPath),
 
-    %% Save provider ID and certifiacte on all hosts
-    ok = dao:update_record(?CONFIG_TABLE, ?CONFIG_ID, [{providerId, ProviderId}]),
-    ok = install_utils:save_file_on_hosts(Path, CertName, Cert),
-    {ok, ProviderId}
-  catch
-    _:Reason ->
-      lager:error("Cannot register in Global Registry: ~p", [Reason]),
-      {error, Reason}
-  end.
+        %% Save provider ID and certifiacte on all hosts
+        ok = dao:update_record(?CONFIG_TABLE, ?CONFIG_ID, [{providerId, ProviderId}]),
+        ok = install_utils:save_file_on_hosts(Path, CertName, Cert),
+        {ok, ProviderId}
+    catch
+        _:Reason ->
+            lager:error("Cannot register in Global Registry: ~p", [Reason]),
+            {error, Reason}
+    end.
 
 
 %% check_ip_address/0
@@ -93,18 +93,18 @@ register() ->
 %% @doc Returns ip address that is visible for global registry.
 %% @end
 -spec check_ip_address() -> Result when
-  Result :: {ok, IpAddress :: string()} | {error, Reason :: term()}.
+    Result :: {ok, IpAddress :: string()} | {error, Reason :: term()}.
 %% ====================================================================
 check_ip_address() ->
-  try
-    {ok, Url} = application:get_env(?APP_NAME, global_registry_url),
-    {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(Url ++ "/provider/test/check_my_ip", [{content_type, "application/json"}], get),
-    {ok, binary_to_list(mochijson2:decode(ResBody))}
-  catch
-    _:Reason ->
-      lager:error("Cannot get ip address that is visible for Global Registry: ~p", [Reason]),
-      {error, Reason}
-  end.
+    try
+        {ok, Url} = application:get_env(?APP_NAME, global_registry_url),
+        {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(Url ++ "/provider/test/check_my_ip", [{content_type, "application/json"}], get),
+        {ok, binary_to_list(mochijson2:decode(ResBody))}
+    catch
+        _:Reason ->
+            lager:error("Cannot get ip address that is visible for Global Registry: ~p", [Reason]),
+            {error, Reason}
+    end.
 
 
 %% check_port/0
@@ -112,30 +112,30 @@ check_ip_address() ->
 %% @doc Checks port availability on host.
 %% @end
 -spec check_port(Host :: string(), Port :: integer(), Type :: string()) -> Result when
-  Result :: ok | {error, Reason :: term()}.
+    Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 check_port(Host, Port, Type) ->
-  try
-    Node = install_utils:get_node(Host),
-    {ok, IpAddress} = gen_server:call({?GEN_SERVER_NAME, Node}, get_ip_address, ?GEN_SERVER_TIMEOUT),
-    {ok, Url} = application:get_env(?APP_NAME, global_registry_url),
-    TestUrl = Url ++ "/provider/test/check_my_ports",
-    Resource = case Type of
-                 gui -> "/connection_check";
-                 rest -> "/rest/latest/connection_check"
-               end,
-    CheckUrl = "https://" ++ IpAddress ++ ":" ++ integer_to_list(Port) ++ Resource,
-    ReqBody = iolist_to_binary(mochijson2:encode({struct, [{Type, CheckUrl}]})),
+    try
+        Node = install_utils:get_node(Host),
+        {ok, IpAddress} = gen_server:call({?GEN_SERVER_NAME, Node}, get_ip_address, ?GEN_SERVER_TIMEOUT),
+        {ok, Url} = application:get_env(?APP_NAME, global_registry_url),
+        TestUrl = Url ++ "/provider/test/check_my_ports",
+        Resource = case Type of
+                       gui -> "/connection_check";
+                       rest -> "/rest/latest/connection_check"
+                   end,
+        CheckUrl = "https://" ++ IpAddress ++ ":" ++ integer_to_list(Port) ++ Resource,
+        ReqBody = iolist_to_binary(mochijson2:encode({struct, [{Type, CheckUrl}]})),
 
-    {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(TestUrl, [{content_type, "application/json"}], get, ReqBody),
+        {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(TestUrl, [{content_type, "application/json"}], get, ReqBody),
 
-    [{_, <<"ok">>}] = mochijson2:decode(ResBody, [{format, proplist}]),
-    ok
-  catch
-    _:Reason ->
-      lager:error("Cannot check port ~p on host ~p: ~p", [Port, Host, Reason]),
-      {error, Reason}
-  end.
+        [{_, <<"ok">>}] = mochijson2:decode(ResBody, [{format, proplist}]),
+        ok
+    catch
+        _:Reason ->
+            lager:error("Cannot check port ~p on host ~p: ~p", [Port, Host, Reason]),
+            {error, Reason}
+    end.
 
 
 %% ====================================================================
@@ -149,26 +149,26 @@ check_port(Host, Port, Type) ->
 %% successful or an error.
 %% @end
 -spec send_csr(CsrPath :: string()) -> Result when
-  Result :: {ok, ProviderId :: binary(), Cert :: binary()} | {error, Reason :: term()}.
+    Result :: {ok, ProviderId :: binary(), Cert :: binary()} | {error, Reason :: term()}.
 %% ====================================================================
 send_csr(CsrPath) ->
-  {ok, Url} = application:get_env(?APP_NAME, global_registry_url),
-  Urls = install_utils:get_hosts(),
-  {ok, Csr} = file:read_file(CsrPath),
-  {ok, #?CONFIG_TABLE{main_ccm = MainCCM}} = dao:get_record(?CONFIG_TABLE, ?CONFIG_ID),
-  {ok, [ControlPanelHost | _]} = install_utils:get_control_panel_hosts(MainCCM),
-  {ok, #?PORT_TABLE{gui = GuiPort}} = dao:get_record(?PORT_TABLE, ControlPanelHost),
-  GuiUrl = "https://" ++ ControlPanelHost ++ ":" ++ integer_to_list(GuiPort),
-  ReqBody = iolist_to_binary(mochijson2:encode({struct, [{urls, Urls}, {csr, Csr}, {redirectionPoint, GuiUrl}]})),
+    {ok, Url} = application:get_env(?APP_NAME, global_registry_url),
+    Urls = install_utils:get_hosts(),
+    {ok, Csr} = file:read_file(CsrPath),
+    {ok, #?CONFIG_TABLE{main_ccm = MainCCM}} = dao:get_record(?CONFIG_TABLE, ?CONFIG_ID),
+    {ok, [ControlPanelHost | _]} = install_utils:get_control_panel_hosts(MainCCM),
+    {ok, #?PORT_TABLE{gui = GuiPort}} = dao:get_record(?PORT_TABLE, ControlPanelHost),
+    GuiUrl = "https://" ++ ControlPanelHost ++ ":" ++ integer_to_list(GuiPort),
+    ReqBody = iolist_to_binary(mochijson2:encode({struct, [{urls, Urls}, {csr, Csr}, {redirectionPoint, GuiUrl}]})),
 
-  {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(Url ++ "/provider", [{content_type, "application/json"}], post, ReqBody),
+    {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(Url ++ "/provider", [{content_type, "application/json"}], post, ReqBody),
 
-  List = mochijson2:decode(ResBody, [{format, proplist}]),
-  ProviderId = proplists:get_value(<<"providerId">>, List),
-  Cert = proplists:get_value(<<"certificate">>, List),
+    List = mochijson2:decode(ResBody, [{format, proplist}]),
+    ProviderId = proplists:get_value(<<"providerId">>, List),
+    Cert = proplists:get_value(<<"certificate">>, List),
 
-  case {ProviderId, Cert} of
-    {undefined, _} -> {error, "Provider ID not found in response body."};
-    {_, undefined} -> {error, "Certificate not found in response body."};
-    {_, _} -> {ok, ProviderId, Cert}
-  end.
+    case {ProviderId, Cert} of
+        {undefined, _} -> {error, "Provider ID not found in response body."};
+        {_, undefined} -> {error, "Certificate not found in response body."};
+        {_, _} -> {ok, ProviderId, Cert}
+    end.

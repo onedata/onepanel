@@ -18,6 +18,5 @@
 -include("custom_elements.hrl").
 
 -define(GEN_SERVER_TIMEOUT, 5000).
--define(MIN_PASSWORD_LENGTH, 8).
 
 -endif.
