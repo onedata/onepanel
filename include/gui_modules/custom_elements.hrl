@@ -14,19 +14,19 @@
 
 % Custom jquery action
 -record(jquery, {?ACTION_BASE(action_jquery),
-  property,
-  method,
-  args = [],
-  right,
-  format = "~s"}).
+    property,
+    method,
+    args = [],
+    right,
+    format = "~s"}).
 
 % Custom checkbox element
 -record(custom_checkbox, {?ELEMENT_BASE(element_custom_checkbox),
-  checked = false,
-  value = "on",
-  postback,
-  delegate,
-  disabled,
-  name}).
+    checked = false,
+    value = "on",
+    postback,
+    delegate,
+    disabled,
+    name}).
 
 -endif.
