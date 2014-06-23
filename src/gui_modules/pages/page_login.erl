@@ -54,7 +54,7 @@ body() ->
                 #panel{id = <<"error_message">>, style = ErrorPanelStyle, class = <<"dialog dialog-danger">>,
                     body = <<"Session error or session expired. Please log in again.">>},
                 #panel{class = <<"alert alert-success login-page">>, body = [
-                    #h3{body = <<"Welcome tonepanelel">>},
+                    #h3{body = <<"Welcome to Onepanel">>},
                     #panel{style = <<"width: 50%; margin: 0 auto; padding-top: 20px; float: center">>, body = [
                         #textbox{id = username, placeholder = <<"Username">>, class = <<"flat">>},
                         #password{id = password, placeholder = <<"Password">>, class = <<"flat">>}
@@ -89,7 +89,8 @@ event(login) ->
         {error, Reason} when is_list(Reason) ->
             gui_utils:update("error_message", Reason),
             wf:wire(#jquery{target = "error_message", method = ["fadeIn"], args = [300]});
-        _ ->
-            gui_utils:update("error_message", ?INTERNAL_ERROR),
+        Other ->
+            lager:error("Cannot authenticate user: ~p", [Other]),
+            gui_utils:update("error_message", "Internal server error."),
             wf:wire(#jquery{target = "error_message", method = ["fadeIn"], args = [300]})
     end.
