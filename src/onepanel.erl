@@ -5,7 +5,8 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This file contains n2o website code
+%% @doc: This module is a gen_server that connects separate onepanel
+%% nodes to create a cluster.
 %% @end
 %% ===================================================================
 -module(onepanel).
@@ -14,16 +15,13 @@
 
 -include("registered_names.hrl").
 -include("onepanel_modules/db_logic.hrl").
+-include("onepanel_modules/onepanel.hrl").
 
 %% API
 -export([start_link/0]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
-
--define(SERVER, ?MODULE).
-
--record(state, {status, socket, address, port}).
 
 %% ====================================================================
 %% API functions

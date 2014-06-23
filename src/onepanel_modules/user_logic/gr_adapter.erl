@@ -32,7 +32,7 @@
 -spec init() -> ok | no_return().
 %% ====================================================================
 init() ->
-    ok = erlang:load_nif("c_lib/pkcs10_drv", 0).
+    ok = erlang:load_nif("c_lib/gr_adapter_drv", 0).
 
 
 %% create_csr/3

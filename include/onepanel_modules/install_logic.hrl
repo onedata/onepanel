@@ -10,8 +10,8 @@
 %% @end
 %% ===================================================================
 
--ifndef(INSTALL_HRL).
--define(INSTALL_HRL, 1).
+-ifndef(INSTALL_LOGIC_HRL).
+-define(INSTALL_LOGIC_HRL, 1).
 
 -define(RPC_TIMEOUT, 60000).
 -define(GEN_SERVER_TIMEOUT, 5000).

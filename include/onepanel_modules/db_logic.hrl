@@ -10,8 +10,8 @@
 %% @end
 %% ===================================================================
 
--ifndef(DB_HRL).
--define(DB_HRL, 1).
+-ifndef(DB_LOGIC_HRL).
+-define(DB_LOGIC_HRL, 1).
 
 %% Names of database tables
 -define(USER_TABLE, users).
