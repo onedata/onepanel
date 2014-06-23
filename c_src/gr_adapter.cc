@@ -1,3 +1,16 @@
+/*********************************************************************
+*  @author Krzysztof Trzepla
+*  @copyright (C): 2014 ACK CYFRONET AGH
+*  This software is released under the MIT license
+*  cited in 'LICENSE.txt'.
+*  @end
+**********************************************************************
+*  @doc This is an implementation of of Erlang NIF library described
+*  in gr_adapter_nif interface. CSR fields are set to default values
+*  which than will be overwritten by Global Registry.
+*  @end
+*********************************************************************/
+
 #include <botan/init.h>
 #include <botan/auto_rng.h>
 #include <botan/x509self.h>
@@ -23,10 +36,10 @@ int create_csr(char* password, char* key_path, char* csr_path)
 
         X509_Cert_Options opts;
 
-        opts.common_name = "CN";
-        opts.country = "PL";
-        opts.organization = "";
-        opts.email = "";
+        opts.common_name = "common name";
+        opts.country = "country";
+        opts.organization = "organization";
+        opts.email = "email";
 
         PKCS10_Request req = X509::create_cert_req(opts, priv_key, "SHA-256", rng);
 

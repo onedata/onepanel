@@ -1,10 +1,23 @@
+/*********************************************************************
+*  @author Krzysztof Trzepla
+*  @copyright (C): 2014 ACK CYFRONET AGH
+*  This software is released under the MIT license
+*  cited in 'LICENSE.txt'.
+*  @end
+**********************************************************************
+*  @doc This is an interface for Erlang NIF library. It contains one
+*  method that allows to create private key and Certificate Signing
+*  Request using Botan library.
+*  @end
+*********************************************************************/
+
 #include "erl_nif.h"
 
 #define MAX_STRING_SIZE 2048
 
 extern int create_csr(char* password, char* key_path, char* csr_path);
 
-static ERL_NIF_TERM create_csr_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+ERL_NIF_TERM create_csr_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     if(argc != 3)
     {
