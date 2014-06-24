@@ -58,7 +58,7 @@ update_record(Table, Key, Update) ->
     try
         case get_record(Table, Key) of
             {ok, OldRecord} ->
-                [RecordName, OldValues] = tuple_to_list(OldRecord),
+                [RecordName | OldValues] = tuple_to_list(OldRecord),
                 Columns = get_table_columns(Table),
                 NewValues = lists:map(fun
                     (Column, OldValue) ->
@@ -73,7 +73,7 @@ update_record(Table, Key, Update) ->
         end
     catch
         _:Reason ->
-            lager:error("Cannot update record in table ~p using key ~p and update ~p: ~p", [Table, Key, Update, Reason]),
+            lager:error("Cannot update record in table ~p using key ~p and value ~p: ~p", [Table, Key, Update, Reason]),
             {error, Reason}
     end.
 

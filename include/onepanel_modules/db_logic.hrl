@@ -14,9 +14,9 @@
 -define(DB_LOGIC_HRL, 1).
 
 %% Names of database tables
--define(USER_TABLE, users).
--define(CONFIG_TABLE, configurations).
--define(PORT_TABLE, ports).
+-define(USER_TABLE, user).
+-define(CONFIG_TABLE, configuration).
+-define(PORT_TABLE, port).
 
 %% Id of current installation state saved in database
 -define(CONFIG_ID, current).

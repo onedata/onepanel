@@ -66,9 +66,7 @@ install(Hosts, Args) ->
 
         case HostsError of
             [] -> ok;
-            _ ->
-                lager:error("Cannot add storage paths on following hosts: ~p", [HostsError]),
-                throw(HostsError)
+            _ -> throw(HostsError)
         end,
 
         case dao:update_record(?CONFIG_TABLE, ?CONFIG_ID, [{storage_paths, InstalledStoragePaths ++ Paths}]) of
@@ -259,7 +257,7 @@ check_storage_on_host(FilePath, Content) ->
     catch
         _:Reason ->
             Host = install_utils:get_host(node()),
-            lager:error("Storage is not available on host ~p: ~p", [Host, Reason]),
+            lager:error("Storage ~s is not available on host ~p: ~p", [FilePath, Host, Reason]),
             {error, Host}
     end.
 
