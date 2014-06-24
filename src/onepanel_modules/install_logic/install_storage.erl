@@ -200,7 +200,8 @@ install(Paths) ->
     try
         {ok, Fd} = file:open(StorageConfig, [append]),
         lists:foreach(fun(Path) ->
-            file:write(Fd, "[[{name, cluster_fuse_id}, {root, \"" ++ Path ++ "\"}]].\n") end, Paths),
+            file:write(Fd, "[[{name, cluster_fuse_id}, {root, \"" ++ Path ++ "\"}]].\n")
+        end, Paths),
         ok = file:close(Fd),
         ok
     catch
@@ -326,7 +327,7 @@ check_storage_on_hosts([Host | Hosts], Path) ->
             try
                 Answer = lists:foldl(fun
                     (H, {NewContent, ErrorHosts}) ->
-                        case rpc:call(install_utils:get_node(H), ?MODULE, check_storage, [FilePath, NewContent], ?RPC_TIMEOUT) of
+                        case rpc:call(install_utils:get_node(H), ?MODULE, check_storage_on_host, [FilePath, NewContent], ?RPC_TIMEOUT) of
                             {ok, NextContent} -> {NextContent, ErrorHosts};
                             {error, ErrorHost} -> {NewContent, [ErrorHost | ErrorHosts]}
                         end
