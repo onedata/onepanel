@@ -157,14 +157,13 @@ handle_info({udp, _Socket, _Address, _Port, HostBinary}, #state{status = Status}
         _ -> {noreply, State#state{status = waiting}}
     end;
 
-handle_info(connection_ping, #state{status = connected} = State) ->
-    {noreply, State};
-
 handle_info(connection_ping, #state{status = not_connected, socket = Socket, address = Address, port = Port} = State) ->
-    lager:info("Sending connection ping..."),
     {ok, Period} = application:get_env(?APP_NAME, connection_ping_period),
     gen_udp:send(Socket, Address, Port, net_adm:localhost()),
     erlang:send_after(Period * 1000, self(), connection_ping),
+    {noreply, State};
+
+handle_info(connection_ping, State) ->
     {noreply, State};
 
 handle_info(Info, State) ->

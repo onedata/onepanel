@@ -47,7 +47,7 @@ ERL_NIF_TERM create_csr_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     return enif_make_int(env, ret);
 }
 
-static ErlNifFunc nif_funcs[] = {
+ErlNifFunc nif_funcs[] = {
     {"create_csr", 3, create_csr_nif}
 };
 

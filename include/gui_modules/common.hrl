@@ -17,6 +17,4 @@
 -include("registered_names.hrl").
 -include("custom_elements.hrl").
 
--define(GEN_SERVER_TIMEOUT, 5000).
-
 -endif.

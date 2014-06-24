@@ -51,8 +51,8 @@ install(Hosts, _) ->
                         lager:error("Cannot install database nodes on following hosts: ~p", [HostsError]),
                         {error, HostsError}
                 end;
-            Other ->
-                lager:error("Cannot update database nodes configuration: ~p", Other),
+            UpdateError ->
+                lager:error("Cannot update database nodes configuration: ~p", UpdateError),
                 rpc:multicall(Hosts, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
                 {error, Hosts}
         end
@@ -97,8 +97,8 @@ uninstall(Hosts, _) ->
                         lager:error("Cannot uninstall database nodes on following hosts: ~p", [HostsError]),
                         {error, HostsError}
                 end;
-            Other ->
-                lager:error("Cannot update database nodes configuration: ~p", Other),
+            UpdateError ->
+                lager:error("Cannot update database nodes configuration: ~p", UpdateError),
                 {error, Hosts}
         end
     catch

@@ -117,7 +117,7 @@ check_ip_address() ->
 check_port(Host, Port, Type) ->
     try
         Node = install_utils:get_node(Host),
-        {ok, IpAddress} = gen_server:call({?GEN_SERVER_NAME, Node}, get_ip_address, ?GEN_SERVER_TIMEOUT),
+        {ok, IpAddress} = rpc:call(Node, ?MODULE, check_ip_address, [], ?RPC_TIMEOUT),
         {ok, Url} = application:get_env(?APP_NAME, global_registry_url),
         TestUrl = Url ++ "/provider/test/check_my_ports",
         Resource = case Type of

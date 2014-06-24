@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This file contains utility installation functions
+%% @doc: This file contains utility installation functions.
 %% @end
 %% ===================================================================
 -module(install_utils).

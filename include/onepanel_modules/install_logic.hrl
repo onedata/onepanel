@@ -14,7 +14,6 @@
 -define(INSTALL_LOGIC_HRL, 1).
 
 -define(RPC_TIMEOUT, 60000).
--define(GEN_SERVER_TIMEOUT, 5000).
 
 % Default cookie used for communication with cluster
 -define(DEFAULT_COOKIE, veil_cluster_node).

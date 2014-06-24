@@ -36,8 +36,9 @@ int create_csr(char* password, char* key_path, char* csr_path)
 
         X509_Cert_Options opts;
 
+        // default values for certificate fields, which will be later overwritten by Global Registry
         opts.common_name = "common name";
-        opts.country = "country";
+        opts.country = "PL";
         opts.organization = "organization";
         opts.email = "email";
 
