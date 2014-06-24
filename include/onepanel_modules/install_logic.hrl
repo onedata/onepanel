@@ -22,7 +22,7 @@
 -define(DEFAULT_PORT, "5986").
 
 % Curl options
--define(CURL_OPTS, [{connect_timeout, 5000}]).%, {basic_auth, {"admin", "password"}}]).
+-define(CURL_OPTS, [{connect_timeout, 5000}, {basic_auth, {"admin", "password"}}]).
 
 % Installation directory of veil RPM
 -define(PREFIX, "/opt/veil/").
