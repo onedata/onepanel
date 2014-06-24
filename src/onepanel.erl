@@ -147,7 +147,7 @@ handle_cast(_Request, State) ->
 %% ====================================================================
 handle_info({udp, _Socket, _Address, _Port, HostBinary}, #state{status = Status} = State) ->
     Host = binary_to_list(HostBinary),
-    Node = list_to_atom(?APP_NAME ++ "@" ++ Host),
+    Node = list_to_atom(?APP_STR ++ "@" ++ Host),
     case net_kernel:connect_node(Node) of
         true -> gen_server:cast({?GEN_SERVER_NAME, Node}, {connection_request, node()});
         Other -> lager:error("Cannot connect node ~p: ~p", [Node, Other])
@@ -161,6 +161,7 @@ handle_info(connection_ping, #state{status = connected} = State) ->
     {noreply, State};
 
 handle_info(connection_ping, #state{status = not_connected, socket = Socket, address = Address, port = Port} = State) ->
+    lager:info("Sending connection ping..."),
     {ok, Period} = application:get_env(?APP_NAME, connection_ping_period),
     gen_udp:send(Socket, Address, Port, net_adm:localhost()),
     erlang:send_after(Period * 1000, self(), connection_ping),

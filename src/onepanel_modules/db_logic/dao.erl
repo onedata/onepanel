@@ -5,8 +5,8 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains database access functions. It allows to
-%% save, update and retrieve records from database.
+%% @doc: This module contains access functions to Mnesia database.
+%% It allows to save, update and retrieve records from database.
 %% @end
 %% ===================================================================
 -module(dao).

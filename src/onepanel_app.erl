@@ -66,7 +66,7 @@ start(_StartType, _StartArgs) ->
             ]}
         ]),
 
-    {ok, _} = cowboy:start_https(?HTTPS_LISTENER, HttpsAcceptors,
+    case cowboy:start_https(?HTTPS_LISTENER, HttpsAcceptors,
         [
             {port, Port},
             {cacertfile, CACertFile},
@@ -77,8 +77,11 @@ start(_StartType, _StartArgs) ->
             {env, [{dispatch, Dispatch}]},
             {max_keepalive, MaxKeepalive},
             {timeout, Timeout}
-        ]),
-    onepanel_sup:start_link().
+        ])
+    of
+        {ok, _} -> onepanel_sup:start_link();
+        {error, Reason} -> {error, Reason}
+    end.
 
 
 %% stop/2
