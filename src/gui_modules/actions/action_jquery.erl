@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This file handles rendering jquery actions to javascript.
+%% @doc: This module handles rendering jquery actions to javascript.
 %% @end
 %% ===================================================================
 

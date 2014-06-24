@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This file contains n2o website code.
+%% @doc: This module contains n2o website code.
 %% The page is displayed when client asks for not existing resource.
 %% @end
 %% ===================================================================

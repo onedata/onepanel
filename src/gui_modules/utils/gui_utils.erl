@@ -5,7 +5,8 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This file contains useful functions commonly used in control_panel modules.
+%% @doc: This module contains useful functions commonly used in
+%% control_panel modules.
 %% @end
 %% ===================================================================
 
