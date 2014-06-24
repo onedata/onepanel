@@ -146,7 +146,11 @@ delete() ->
 add_node(Node) ->
     try
         {ok, [Node]} = mnesia:change_config(extra_db_nodes, [Node]),
-        {atomic, ok} = mnesia:change_table_copy_type(schema, Node, disc_copies),
+        case mnesia:change_table_copy_type(schema, Node, disc_copies) of
+            {atomic, ok} -> ok;
+            {aborted, {already_exists, schema, Node, _}} -> ok;
+            ChangeTypeError -> throw(ChangeTypeError)
+        end,
         Tables = lists:filter(fun(Table) -> Table =/= schema end, mnesia:system_info(tables)),
         lists:foreach(fun(Table) ->
             Type = mnesia:table_info(Table, storage_type),

@@ -85,17 +85,8 @@ init([]) ->
 handle_call(get_status, _From, #state{status = Status} = State) ->
     {reply, Status, State};
 
-handle_call({create_storage_test_file, Path}, _From, State) ->
-    {reply, install_storage:create_storage_test_file(Path), State};
-
-handle_call({check_storage, FilePath, Content}, _From, State) ->
-    {reply, install_storage:check_storage_on_host(FilePath, Content), State};
-
-handle_call(get_ip_address, _From, State) ->
-    Address = gr_adapter:check_ip_address(),
-    {reply, {ok, Address}, State};
-
-handle_call(_Request, _From, State) ->
+handle_call(Request, _From, State) ->
+    lager:error("Wrong call: ~p", [Request]),
     {reply, {error, wrong_request}, State}.
 
 
@@ -128,11 +119,8 @@ handle_cast(connection_acknowledgement, State) ->
     lager:info("Connection acknowledgement."),
     {noreply, State#state{status = connected}};
 
-handle_cast({delete_storage_test_file, Path}, State) ->
-    install_storage:delete_storage_test_file(Path),
-    {noreply, State};
-
-handle_cast(_Request, State) ->
+handle_cast(Request, State) ->
+    lager:error("Wrong cast: ~p", [Request]),
     {noreply, State}.
 
 
