@@ -16,7 +16,7 @@
 
 %% API
 -export([random_ascii_lowercase_sequence/1, apply_on_hosts/5, get_node/1, get_host/1, get_hosts/0]).
--export([set_ulimits_on_hosts/3, set_ulimits/2, get_ulimits_cmd/0]).
+-export([set_ulimits_on_hosts/3, set_ulimits/2, get_ulimits_cmd/0, get_ports_to_check/1, get_control_panel_hosts/1]).
 -export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/3]).
 -export([save_file_on_host/3, save_file_on_hosts/3]).
 
@@ -76,7 +76,13 @@ get_host(Node) ->
 -spec get_hosts() -> [Host :: string()].
 %% ====================================================================
 get_hosts() ->
-  lists:map(fun(Node) -> install_utils:get_host(Node) end, [node() | nodes(hidden)]).
+  lists:foldl(fun(Node, Acc) ->
+    NodeString = atom_to_list(Node),
+    case string:equal(?APP_STR, string:left(NodeString, length(?APP_STR))) of
+      true -> [get_host(Node) | Acc];
+      _ -> Acc
+    end
+  end, [], [node() | nodes(hidden)]).
 
 %% set_ulimits_on_hosts/3
 %% ====================================================================
@@ -219,6 +225,39 @@ save_file_on_host(Path, Filename, Content) ->
     file:make_dir(Path),
     ok = file:write_file(filename:join(Path, Filename), Content),
     ok
+  catch
+    _:_ -> error
+  end.
+
+%% get_ports_to_check/1
+%% ====================================================================
+%% @doc Returns default veilcluster ports that will be checked by global registry
+-spec get_ports_to_check(MainCCM :: string()) -> {ok, [{Type :: string(), Port :: integer()}]} | error.
+%% ====================================================================
+get_ports_to_check(MainCCM) ->
+  try
+    Node = list_to_atom("ccm@" ++ MainCCM),
+    {ok, GuiPort} = rpc:call(Node, application, get_env, [veil_cluster_node, control_panel_port]),
+    {ok, RestPort} = rpc:call(Node, application, get_env, [veil_cluster_node, rest_port]),
+    {ok, [{"gui", GuiPort}, {"rest", RestPort}]}
+  catch
+    _:_ -> error
+  end.
+
+%% get_control_panel_hosts/1
+%% ====================================================================
+%% @doc Returns list of control panel hosts
+-spec get_control_panel_hosts(MainCCM :: string()) -> {ok, Hosts :: [string()]} | error.
+%% ====================================================================
+get_control_panel_hosts(MainCCM) ->
+  try
+    Node = list_to_atom("ccm@" ++ MainCCM),
+    {Workers, _} = rpc:call(Node, gen_server, call, [{global, central_cluster_manager}, get_workers, 1000]),
+    ControlPanelHosts = lists:foldl(fun
+      ({WorkerNode, control_panel}, Acc) -> [get_host(WorkerNode) | Acc];
+      (_, Acc) -> Acc
+    end, [], Workers),
+    {ok, ControlPanelHosts}
   catch
     _:_ -> error
   end.

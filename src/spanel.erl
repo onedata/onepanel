@@ -28,7 +28,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {status = connected}).
+-record(state, {status = connected, ip_address}).
 
 %%%===================================================================
 %%% API
@@ -94,32 +94,53 @@ init([]) ->
   {stop, Reason :: term(), NewState :: #state{}}).
 handle_call(get_hosts, _From, #state{status = connected} = State) ->
   {reply, install_utils:get_hosts(), State};
+
 handle_call({authenticate, Username, Password}, _From, #state{status = connected} = State) ->
   {reply, user_logic:authenticate(Username, Password), State};
+
 handle_call({change_password, Username, OldPassword, NewPassword}, _From, #state{status = connected} = State) ->
   {reply, user_logic:change_password(Username, OldPassword, NewPassword), State};
+
 handle_call({set_ulimits, Hosts, OpenFiles, Processes}, _From, #state{status = connected} = State) ->
   {reply, install_utils:set_ulimits_on_hosts(Hosts, OpenFiles, Processes), State};
+
 handle_call({create_storage_test_file, Path}, _From, #state{status = connected} = State) ->
   {reply, install_storage:create_storage_test_file(Path), State};
+
 handle_call({check_storage, FilePath, Content}, _From, #state{status = connected} = State) ->
   {reply, install_storage:check_storage_on_host(FilePath, Content), State};
+
 handle_call({add_storage, Hosts, Paths}, _From, #state{status = connected} = State) ->
   {reply, install_storage:add_storage_paths_on_hosts(Hosts, Paths), State};
+
 handle_call({install_ccms, MainCCM, OptCCMs, Dbs}, _From, #state{status = connected} = State) ->
-  {reply, install_veil:install_veil_nodes([MainCCM | OptCCMs], ccm, MainCCM, OptCCMs, Dbs), State};
+  {reply, install_ccm:install([MainCCM | OptCCMs], [{main_ccm, MainCCM}, {opt_ccms, OptCCMs}, {dbs, Dbs}]), State};
+
 handle_call({start_ccms, Hosts}, _From, #state{status = connected} = State) ->
-  {reply, install_veil:start_veil_nodes(Hosts, ccm), State};
+  {reply, install_ccm:start(Hosts, []), State};
+
 handle_call({install_workers, MainCCM, OptCCMs, Workers, Dbs}, _From, #state{status = connected} = State) ->
-  {reply, install_veil:install_veil_nodes(Workers, worker, MainCCM, OptCCMs, Dbs), State};
+  {reply, install_worker:install(Workers, [{main_ccm, MainCCM}, {opt_ccms, OptCCMs}, {dbs, Dbs}]), State};
+
 handle_call({start_workers, Hosts}, _From, #state{status = connected} = State) ->
-  {reply, install_veil:start_veil_nodes(Hosts, worker), State};
+  {reply, install_worker:start(Hosts, []), State};
+
 handle_call({install_dbs, Hosts}, _From, State) ->
-  {reply, install_db:install_dbs(Hosts), State};
+  {reply, install_db:install(Hosts, []), State};
+
 handle_call({start_dbs, Hosts}, _From, State) ->
-  {reply, install_db:start_dbs(Hosts), State};
+  {reply, install_db:start(Hosts, []), State};
+
 handle_call(register_in_global_registry, _From, #state{status = connected} = State) ->
-  {relpy, user_logic:register_in_global_registry(), State};
+  {relpy, global_registry:register(), State};
+
+handle_call(get_ip_address, _From, #state{status = connected, ip_address = undefined} = State) ->
+  Address = global_registry:check_ip_address(),
+  {reply, {ok, Address}, State#state{ip_address = Address}};
+
+handle_call(get_ip_address, _From, #state{status = connected, ip_address = Address} = State) ->
+  {reply, {ok, Address}, State};
+
 handle_call(_Request, _From, State) ->
   {reply, {error, wrong_request}, State}.
 

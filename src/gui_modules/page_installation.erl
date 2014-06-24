@@ -81,6 +81,20 @@ body() ->
         #button{id = <<"back_button">>, postback = {prev, 4}, class = <<"btn btn-inverse btn-small">>, style = <<"width: 80px; font-weight: bold; margin-right: 200px;">>, body = <<"Back">>},
         #button{id = <<"install_button">>, postback = install, class = <<"btn btn-inverse btn-small">>, style = <<"width: 80px; font-weight: bold; margin-left: 200px;">>, body = <<"Install">>}
       ]}
+    ]},
+
+    #panel{id = <<"step_5">>, style = <<"margin-top: 150px; text-align: center; display: none;">>, body = [
+      #h6{style = <<"font-size: 18px;">>, body = <<"Step 5: Connectivity checkup.">>},
+      #table{class = <<"table table-bordered">>, style = <<"width: 50%; margin: 0 auto; margin-top: 20px; margin-bottom: 50px;">>, body = [
+        #tbody{id = <<"ports_table">>, body = ports_table_body()}
+      ]},
+      #panel{style = <<"margin-top: 30px; margin-bottom: 30px;">>, body = [
+        #button{postback = {next, 5}, class = <<"btn btn-inverse btn-small">>, style = <<"width: 80px; font-weight: bold;">>, body = <<"Next">>}
+      ]}
+    ]},
+
+    #panel{id = <<"step_6">>, style = <<"margin-top: 150px; text-align: center; display: none;">>, body = [
+      #panel{id = <<"registration">>, body = registration_body()}
     ]}
 
   ]}.
@@ -200,14 +214,35 @@ comet_loop(#page_state{counter = Counter, main_ccm = MainCCM, ccms = CCMs, worke
         end,
         comet_loop(PageState);
 
-      install ->
-        case install(get_saved_page_state(), {MainCCM, sets:to_list(sets:del_element(MainCCM, CCMs)), sets:to_list(Workers),
-          sets:to_list(Dbs), sets:to_list(StoragePaths)}) of
-          ok ->
-            wf:redirect(<<"/installation?x=success">>),
-            gui_utils:flush();
-          _ -> error
+      {next, 5} ->
+        try
+          {ok, Hosts} = install_utils:get_control_panel_hosts(MainCCM),
+          lists:foreach(fun(Host) ->
+            {ok, #port{gui = Gui, rest = Rest}} = dao:get_record(ports, Host),
+            ok = global_registry:check_port(Host, Gui, "gui"),
+            ok = global_registry:check_port(Host, Rest, "rest")
+          end, Hosts),
+          case global_registry:register() of
+            ok ->
+              gui_utils:update("registration", registration_body()),
+              gui_utils:flush();
+            _ -> error_message(<<"Registration failure. Please reinstall VeilCluster.">>)
+          end,
+          change_step(5, 1),
+          gui_utils:flush()
+        catch
+          _:_ -> error_message(<<"Some ports are not available. Please change configuration.">>)
         end,
+        comet_loop(PageState);
+
+      {next, 6} ->
+        wf:redirect(<<"/installation">>),
+        gui_utils:flush(),
+        comet_loop(PageState);
+
+      install ->
+        install(get_saved_page_state(), {MainCCM, sets:to_list(sets:del_element(MainCCM, CCMs)), sets:to_list(Workers),
+          sets:to_list(Dbs), sets:to_list(StoragePaths)}),
         comet_loop(PageState);
 
       Other ->
@@ -236,7 +271,7 @@ hosts_table_body() ->
   hosts_table_body(CCMs, Workers, Dbs).
 
 hosts_table_body(CCMs, Workers, Dbs) ->
-  Hosts = gen_server:call(?SPANEL_NAME, get_hosts, ?GEN_SERVER_TIMEOUT),
+  Hosts = install_utils:get_hosts(),
   ColumnStyle = <<"text-align: center; vertical-align: inherit;">>,
   Header = #tr{cells = [
     #th{body = <<"Host">>, style = ColumnStyle},
@@ -365,6 +400,81 @@ summary_table_row(Id, Description, Details) ->
     #th{style = <<"width: 50%; vertical-align: inherit; padding: 0;">>, body = Details}
   ]}.
 
+% Renders ports table bidy in fifth step of installation
+ports_table_body() ->
+  ColumnStyle = <<"text-align: center; vertical-align: inherit;">>,
+  [
+    #tr{cells = [
+      #th{body = <<"Host">>, style = ColumnStyle},
+      #th{body = <<"Port">>, style = ColumnStyle},
+      #th{body = <<"Description">>, style = ColumnStyle},
+      #th{body = <<"Status">>, style = ColumnStyle}
+    ]}
+  ].
+
+ports_table_body(MainCCM) ->
+  [Header] = ports_table_body(),
+  Body = case install_utils:get_control_panel_hosts(MainCCM) of
+           {ok, []} -> [];
+           {ok, Hosts} -> lists:foldl(fun({Host, Id}, Acc) ->
+             Acc ++ ports_table_rows(Host, Id) end, [], lists:zip(Hosts, lists:seq(1, length(Hosts))));
+           _ -> []
+         end,
+  [Header | Body].
+
+ports_table_rows(Host, Start) ->
+  ColumnStyle = <<"text-align: center; vertical-align: inherit;">>,
+  {ok, #port{gui = GuiPort, rest = RestPort}} = dao:get_record(ports, Host),
+  lists:map(fun({{Type, Port}, Id}) ->
+    Active = global_registry:check_port(Host, Port, Type),
+    #tr{cells = [
+      #th{body = list_to_binary(Host), style = ColumnStyle},
+      #th{body = case Active of
+                   ok ->
+                     #textbox{maxlength = 6, value = integer_to_binary(Port), disabled = true,
+                       style = <<"width: 60px; margin-bottom: 0px; text-align: center;">>};
+                   _ ->
+                     BId = <<"port_button_", (integer_to_binary(Start + Id))/binary>>,
+                     TBId = list_to_atom("port_textbox_" ++ integer_to_list(Start + Id)),
+                     #panel{body = [
+                       #textbox{id = TBId, maxlength = 6, placeholder = integer_to_binary(Port),
+                         style = <<"width: 60px; margin-bottom: 0px; margin-right: 20px; text-align: center;">>},
+                       #button{id = BId, postback = {check_port, Host, Type, Start + Id}, source = [TBId],
+                         class = <<"btn btn-inverse btn-small">>,
+                         style = <<"font-weight: bold;">>, body = <<"Check">>}
+                     ]}
+                 end, style = ColumnStyle},
+      #th{body = case Type of "gui" -> "GUI"; _ -> "REST" end, style = ColumnStyle},
+      #th{body = case Active of
+                   ok ->
+                     #button{id = <<"port_status_", (integer_to_binary(Start + Id))/binary>>, class = <<"btn btn-primary btn-small">>,
+                       disabled = true, style = <<"font-weight: bold;">>, body = <<"OK">>};
+                   _ ->
+                     #button{id = <<"port_status_", (integer_to_binary(Start + Id))/binary>>, class = <<"btn btn-danger btn-small btn-primary">>,
+                       disabled = true, style = <<"font-weight: bold;">>, body = <<"Error">>}
+                 end, style = ColumnStyle}
+    ]}
+  end, [{{"gui", GuiPort}, 0}, {{"rest", RestPort}, 1}]).
+
+registration_body() ->
+  case dao:get_record(configurations, last) of
+    {ok, #configuration{providerId = ProviderId}} when ProviderId =/= undefined ->
+      #panel{class = <<"alert alert-success login-page">>, body = [
+        #h3{class = <<"">>, body = <<"Successful registration.">>},
+        #p{class = <<"login-info">>, body = <<"Your provider ID: ", ProviderId/binary>>},
+        #button{postback = finish, class = <<"btn btn-primary btn-block">>, body = <<"Finish">>}
+      ]};
+    _ ->
+      #panel{class = <<"alert alert-danger login-page">>, body = [
+        #h3{body = <<"Error">>},
+        #p{class = <<"login-info">>, style = <<"font-weight: bold;">>, body =
+        <<"Registration failed. Please reinstall VeilCluster and try again.">>
+        },
+        #p{class = <<"login-info">>, body = wf:q(<<"details">>)},
+        #button{postback = finish, class = <<"btn btn-warning btn-block">>, body = <<"Finish">>}
+      ]}
+  end.
+
 % Returns set items as a comma-delimited binary
 format_sets_items(Set) ->
   case sets:to_list(Set) of
@@ -418,28 +528,39 @@ check_storage(Hosts, [StoragePath | StoragePaths]) ->
 % Main installation function
 install(#page_state{main_ccm = undefined}, {MainCCM, OptCCMs, Workers, Dbs, StoragePaths}) ->
   try
-    update_progress_bar(0, 7, "Installing database nodes..."),
+    update_progress_bar(0, 8, "Installing database nodes..."),
     install_dbs(Dbs),
-    update_progress_bar(1, 7, "Starting database nodes..."),
+    update_progress_bar(1, 8, "Starting database nodes..."),
     start_dbs(Dbs),
-    update_progress_bar(2, 7, "Installing CCM nodes..."),
+    update_progress_bar(2, 8, "Installing CCM nodes..."),
     install_ccms(MainCCM, OptCCMs, Dbs),
-    update_progress_bar(3, 7, "Starting CCM nodes..."),
+    update_progress_bar(3, 8, "Starting CCM nodes..."),
     start_ccms([MainCCM | OptCCMs]),
-    update_progress_bar(4, 7, "Installing worker nodes..."),
+    update_progress_bar(4, 8, "Installing worker nodes..."),
     install_workers(MainCCM, OptCCMs, Workers, Dbs),
-    update_progress_bar(5, 7, "Adding storage configuration..."),
+    update_progress_bar(5, 8, "Adding storage configuration..."),
     add_storage(Workers, StoragePaths),
-    update_progress_bar(6, 7, "Starting worker nodes..."),
+    update_progress_bar(6, 8, "Starting worker nodes..."),
     start_workers(Workers),
-    update_progress_bar(7, 7, "Done"),
-    ok
+    update_progress_bar(7, 8, "Finalizing installation..."),
+    finalize_installation(MainCCM),
+    gui_utils:update("ports_table", ports_table_body(MainCCM)),
+    update_progress_bar(8, 8, "Done"),
+    gui_utils:flush(),
+    change_step(4, 1),
+    gui_utils:flush()
   catch
     _:_ -> error
   end;
 install(#page_state{workers = InstalledWorkers}, {MainCCM, OptCCMs, Workers, Dbs, StoragePaths}) ->
   WorkersToInstall = lists:filter(fun(Worker) -> not sets:is_element(Worker, InstalledWorkers) end, Workers),
   try
+    case WorkersToInstall of
+      [] ->
+        error_message(<<"Nothing to install.">>),
+        throw(error);
+      _ -> ok
+    end,
     update_progress_bar(0, 3, "Installing worker nodes..."),
     install_workers(MainCCM, OptCCMs, WorkersToInstall, Dbs),
     update_progress_bar(1, 3, "Adding storage configuration..."),
@@ -447,14 +568,25 @@ install(#page_state{workers = InstalledWorkers}, {MainCCM, OptCCMs, Workers, Dbs
     update_progress_bar(2, 3, "Starting worker nodes..."),
     start_workers(WorkersToInstall),
     update_progress_bar(3, 3, "Done"),
+    wf:redirect(<<"/installation?x=success">>),
+    gui_utils:flush(),
     ok
   catch
     _:_ -> error
   end.
 
+finalize_installation(MainCCM) ->
+  case install_utils:get_control_panel_hosts(MainCCM) of
+    {ok, [_ | _]} ->
+      db_logic:initialize_ports_table(MainCCM);
+    _ ->
+      timer:sleep(1000),
+      finalize_installation(MainCCM)
+  end.
+
 % Installs database nodes on hosts
 install_dbs(Dbs) ->
-  case gen_server:call(?SPANEL_NAME, {install_dbs, Dbs}, infinity) of
+  case install_db:install(Dbs, []) of
     ok -> ok;
     {error, ErrorHosts} ->
       error_message(<<"Database nodes were not installed on following hosts: ", (format_error_message(ErrorHosts))/binary>>),
@@ -463,7 +595,7 @@ install_dbs(Dbs) ->
 
 % Starts database nodes on hosts
 start_dbs(Dbs) ->
-  case gen_server:call(?SPANEL_NAME, {start_dbs, Dbs}, infinity) of
+  case install_db:start(Dbs, []) of
     ok -> ok;
     {error, ErrorHosts} ->
       error_message(<<"Database nodes were not started on following hosts: ", (format_error_message(ErrorHosts))/binary>>),
@@ -472,7 +604,7 @@ start_dbs(Dbs) ->
 
 % Installs CCM nodes on hosts
 install_ccms(MainCCM, OptCCMs, Dbs) ->
-  case gen_server:call(?SPANEL_NAME, {install_ccms, MainCCM, OptCCMs, Dbs}, infinity) of
+  case install_ccm:install([MainCCM | OptCCMs], [{main_ccm, MainCCM}, {opt_ccms, OptCCMs}, {dbs, Dbs}]) of
     ok -> ok;
     {error, ErrorHosts} ->
       error_message(<<"CCM nodes were not installed on following hosts: ", (format_error_message(ErrorHosts))/binary>>),
@@ -481,7 +613,7 @@ install_ccms(MainCCM, OptCCMs, Dbs) ->
 
 % Starts CCM nodes on hosts
 start_ccms(Hosts) ->
-  case gen_server:call(?SPANEL_NAME, {start_ccms, Hosts}, infinity) of
+  case install_ccm:start(Hosts, []) of
     ok -> ok;
     {error, ErrorHosts} ->
       error_message(<<"CCM nodes were not started on following hosts: ", (format_error_message(ErrorHosts))/binary>>),
@@ -490,7 +622,7 @@ start_ccms(Hosts) ->
 
 % Installs worker nodes on hosts
 install_workers(MainCCM, OptCCMs, Workers, Dbs) ->
-  case gen_server:call(?SPANEL_NAME, {install_workers, MainCCM, OptCCMs, Workers, Dbs}, infinity) of
+  case install_worker:install(Workers, [{main_ccm, MainCCM}, {opt_ccms, OptCCMs}, {dbs, Dbs}]) of
     ok -> ok;
     {error, ErrorHosts} ->
       error_message(<<"Worker nodes were not installed on following hosts: ", (format_error_message(ErrorHosts))/binary>>),
@@ -499,7 +631,7 @@ install_workers(MainCCM, OptCCMs, Workers, Dbs) ->
 
 % Installs worker nodes on hosts
 start_workers(Hosts) ->
-  case gen_server:call(?SPANEL_NAME, {start_workers, Hosts}, infinity) of
+  case install_worker:start(Hosts, []) of
     ok -> ok;
     {error, ErrorHosts} ->
       error_message(<<"Worker nodes were not started on following hosts: ", (format_error_message(ErrorHosts))/binary>>),
@@ -508,7 +640,7 @@ start_workers(Hosts) ->
 
 % Adds storage on hosts
 add_storage(Hosts, StoragePaths) ->
-  case gen_server:call(?SPANEL_NAME, {add_storage, Hosts, StoragePaths}, infinity) of
+  case install_storage:add_storage_paths_on_hosts(Hosts, StoragePaths) of
     ok -> ok;
     {error, ErrorHosts} ->
       error_message(<<"Storage paths were not added on following hosts: ", (format_error_message(ErrorHosts))/binary>>),
@@ -550,6 +682,9 @@ event({db_checkbox_toggled, HostName, HostId}) ->
 event({next, Step}) ->
   get(comet_pid) ! {next, Step};
 
+event({prev, Step}) ->
+  change_step(Step, -1);
+
 event({set_main_ccm, CCM, CCMs}) ->
   update_main_ccm_dropdown(CCM, CCMs),
   get(comet_pid) ! {set_main_ccm, CCM};
@@ -565,5 +700,26 @@ event({delete_storage, Id, StorageId}) ->
 event(install) ->
   get(comet_pid) ! install;
 
-event({prev, Step}) ->
-  change_step(Step, -1).
+event({check_port, Host, Type, Id}) ->
+  TextboxId = "port_textbox_" ++ integer_to_list(Id),
+  Port = wf:q(list_to_atom(TextboxId)),
+  case Port of
+    [] -> ok;
+    _ -> case global_registry:check_port(Host, list_to_integer(Port), Type) of
+           ok ->
+             Record = case Type of
+                        "gui" -> #port{host = Host, gui = list_to_integer(Port)};
+                        _ -> #port{host = Host, rest = list_to_integer(Port)}
+                      end,
+             dao:update_record(ports, Record),
+             wf:wire(#jquery{target = "port_button_" ++ integer_to_list(Id), method = ["hide"], args = []}),
+             wf:wire(#jquery{target = "port_status_" ++ integer_to_list(Id), method = ["toggleClass"], args = ["\"btn-danger\""]}),
+             wf:wire(#jquery{target = "port_status_" ++ integer_to_list(Id), method = ["text"], args = ["\"OK\""]}),
+             wf:wire(#jquery{target = TextboxId, method = ["prop"], args = ["\"disabled\"", "\"disabled\""]}),
+             wf:wire(#jquery{target = TextboxId, method = ["css"], args = ["\"margin-right\"", "\"\""]});
+           _ -> ok
+         end
+  end;
+
+event(finish) ->
+  wf:redirect(<<"/installation">>).

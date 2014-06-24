@@ -13,6 +13,7 @@
 -define(DB_HRL, 1).
 
 -record(user, {username, password}).
--record(configuration, {id, main_ccm, opt_ccms = [], workers = [], dbs = [], storage_paths = [], ulimits}).
+-record(configuration, {id, main_ccm, opt_ccms = [], workers = [], dbs = [], storage_paths = [], ulimits, providerId}).
+-record(port, {host, gui, rest}).
 
 -endif.

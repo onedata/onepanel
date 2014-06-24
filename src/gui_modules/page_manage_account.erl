@@ -67,7 +67,7 @@ event(change_password) ->
   ConfirmPassword = wf:q(confirm_password),
   case verify_new_password(NewPassword, ConfirmPassword) of
     ok ->
-      case gen_server:call(?SPANEL_NAME, {change_password, Username, OldPassword, NewPassword}, ?GEN_SERVER_TIMEOUT) of
+      case user_logic:change_password(Username, OldPassword, NewPassword) of
         ok ->
           gui_utils:update("ok_message", "Password changed."),
           wf:wire(#jquery{target = "error_message", method = ["fadeOut"], args = [300]}),
