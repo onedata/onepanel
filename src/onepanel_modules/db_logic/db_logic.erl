@@ -121,12 +121,13 @@ create() ->
 %% ====================================================================
 delete() ->
     try
+        Node = node(),
         Tables = lists:filter(fun(Table) -> Table =/= schema end, mnesia:system_info(tables)),
         lists:foreach(fun(Table) ->
-            {atomic, ok} = mnesia:delete_table(Table)
+            {atomic, ok} = mnesia:del_table_copy(Table, Node)
         end, Tables),
         ok = application:stop(mnesia),
-        ok = mnesia:delete_schema([node()]),
+        ok = mnesia:delete_schema([Node]),
         ok = application:start(mnesia),
         ok
     catch
