@@ -67,7 +67,7 @@ update_record(Table, Key, Update) ->
                             NewValue -> NewValue
                         end
                 end, lists:zip(Columns, OldValues)),
-                NewRecord = list_to_tuple([RecordName, NewValues]),
+                NewRecord = list_to_tuple([RecordName | NewValues]),
                 save_record(Table, NewRecord);
             Other -> Other
         end
