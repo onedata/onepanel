@@ -60,14 +60,12 @@ create_csr(_, _, _) ->
 %% ====================================================================
 register() ->
     try
-        {ok, Dir} = application:get_env(?APP_NAME, grp_dir),
         {ok, KeyPath} = application:get_env(?APP_NAME, grpkey_file),
         {ok, KeyName} = application:get_env(?APP_NAME, grpkey_name),
         {ok, CsrPath} = application:get_env(?APP_NAME, grpcsr_file),
         {ok, CertName} = application:get_env(?APP_NAME, grpcert_name),
         Path = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, "certs"]),
 
-        file:make_dir(Dir),
         0 = create_csr("", KeyPath, CsrPath),
 
         %% Save private key on all hosts

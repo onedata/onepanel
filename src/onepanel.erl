@@ -101,14 +101,18 @@ handle_call(Request, _From, State) ->
 %% ====================================================================
 handle_cast({connection_request, Node}, #state{status = not_connected} = State) ->
     lager:info("Connection request from node: ~p", [Node]),
+    lager:info("Mnesia before deletion:~n~n~p~n", [mnesia:info()]),
     db_logic:delete(),
+    lager:info("Mnesia after deletion:~n~n~p~n", [mnesia:info()]),
     gen_server:cast({?GEN_SERVER_NAME, Node}, {connection_response, node()}),
     {noreply, State#state{status = waiting}};
 
 handle_cast({connection_response, Node}, State) ->
     lager:info("Connection response from node: ~p", [Node]),
+    lager:info("Mnesia before adding node:~n~n~p~n", [mnesia:info()]),
     case db_logic:add_node(Node) of
         ok ->
+            lager:info("Mnesia after adding node:~n~n~p~n", [mnesia:info()]),
             gen_server:cast({?GEN_SERVER_NAME, Node}, connection_acknowledgement),
             {noreply, State#state{status = connected}};
         _ ->
@@ -117,6 +121,7 @@ handle_cast({connection_response, Node}, State) ->
 
 handle_cast(connection_acknowledgement, State) ->
     lager:info("Connection acknowledgement."),
+    lager:info("Mnesia after acknowledgement node:~n~n~p~n", [mnesia:info()]),
     {noreply, State#state{status = connected}};
 
 handle_cast(Request, State) ->
