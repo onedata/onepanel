@@ -61,7 +61,7 @@ update_record(Table, Key, Update) ->
                 [RecordName | OldValues] = tuple_to_list(OldRecord),
                 Columns = get_table_columns(Table),
                 NewValues = lists:map(fun
-                    (Column, OldValue) ->
+                    ({Column, OldValue}) ->
                         case proplists:get_value(Column, Update) of
                             undefined -> OldValue;
                             NewValue -> NewValue

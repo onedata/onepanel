@@ -46,8 +46,7 @@ install(Hosts, Args) ->
 
         case Dbs of
             undefined -> throw("Database nodes not found in arguments list.");
-            _ when is_list(Dbs) -> ok;
-            _ -> throw("Database nodes should be a list.")
+            _ -> ok
         end,
 
         InstalledWorkers = case dao:get_record(?CONFIG_TABLE, ?CONFIG_ID) of
@@ -72,12 +71,12 @@ install(Hosts, Args) ->
                     [] -> ok;
                     _ ->
                         lager:error("Cannot install worker nodes on following hosts: ~p", [HostsError]),
-                        {error, HostsError}
+                        {error, {hosts, HostsError}}
                 end;
             UpdateError ->
-                lager:error("Cannot update worker nodes configuration: ~p", UpdateError),
+                lager:error("Cannot update worker nodes configuration: ~p", [UpdateError]),
                 rpc:multicall(Hosts, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
-                {error, Hosts}
+                {error, UpdateError}
         end
     catch
         _:Reason ->
@@ -120,11 +119,11 @@ uninstall(Hosts, _) ->
                     [] -> ok;
                     _ ->
                         lager:error("Cannot uninstall worker nodes on following hosts: ~p", [HostsError]),
-                        {error, HostsError}
+                        {error, {hosts, HostsError}}
                 end;
             UpdateError ->
-                lager:error("Cannot update worker nodes configuration: ~p", UpdateError),
-                {error, Hosts}
+                lager:error("Cannot update worker nodes configuration: ~p", [UpdateError]),
+                {error, UpdateError}
         end
     catch
         _:Reason ->

@@ -19,7 +19,7 @@
 -export([install/2, uninstall/2, start/2, stop/2, restart/2]).
 
 %% API
--export([install/1, uninstall/1, create_storage_test_file/1, delete_storage_test_file/1, check_storage_on_host/2]).
+-export([install/1, uninstall/1, create_storage_test_file/1, delete_storage_test_file/1, check_storage_on_hosts/2, check_storage_on_host/2]).
 
 -define(STORAGE_TEST_FILE_PREFIX, "storage_test_").
 -define(STORAGE_TEST_FILE_LENGTH, 20).
@@ -38,12 +38,11 @@
 %% ====================================================================
 install(Hosts, Args) ->
     try
-        Paths = proplists:get_value(paths, Args),
+        Path = proplists:get_value(path, Args),
 
-        case Paths of
+        case Path of
             undefined -> throw("Storage paths not found in arguments list.");
-            _ when is_list(Paths) -> ok;
-            _ -> throw("Storage paths should be a list.")
+            _ -> ok
         end,
 
         InstalledStoragePaths = case dao:get_record(?CONFIG_TABLE, ?CONFIG_ID) of
@@ -53,28 +52,24 @@ install(Hosts, Args) ->
                                         throw("Cannot get configured storage paths.")
                                 end,
 
-        lists:foreach(fun(Path) ->
-            case lists:member(Path, InstalledStoragePaths) of
-                true -> throw("Path: " ++ Path ++ " is already installed.");
-                _ -> ok
-            end
-        end, Paths),
+        case lists:member(Path, InstalledStoragePaths) of
+            true -> throw("Path: " ++ Path ++ " is already added.");
+            _ -> ok
+        end,
 
-        ok = check_storage_on_hosts(Hosts, Paths),
-
-        {_, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, install, [Paths], ?RPC_TIMEOUT),
+        {_, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, install, [Path], ?RPC_TIMEOUT),
 
         case HostsError of
             [] -> ok;
-            _ -> throw(HostsError)
+            _ -> throw({hosts, HostsError})
         end,
 
-        case dao:update_record(?CONFIG_TABLE, ?CONFIG_ID, [{storage_paths, InstalledStoragePaths ++ Paths}]) of
+        case dao:update_record(?CONFIG_TABLE, ?CONFIG_ID, [{storage_paths, [Path | InstalledStoragePaths]}]) of
             ok -> ok;
             UpdateError ->
-                lager:error("Cannot update storage paths configuration: ~p", UpdateError),
+                lager:error("Cannot update storage paths configuration: ~p", [UpdateError]),
                 rpc:multicall(Hosts, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
-                {error, Hosts}
+                {error, UpdateError}
         end
     catch
         _:Reason ->
@@ -93,12 +88,11 @@ install(Hosts, Args) ->
 %% ====================================================================
 uninstall(Hosts, Args) ->
     try
-        Paths = proplists:get_value(paths, Args),
+        Path = proplists:get_value(path, Args),
 
-        case Paths of
+        case Path of
             undefined -> throw("Storage paths not found in arguments list.");
-            _ when is_list(Paths) -> ok;
-            _ -> throw("Storage paths should be a list.")
+            _ -> ok
         end,
 
         InstalledStoragePaths = case dao:get_record(?CONFIG_TABLE, ?CONFIG_ID) of
@@ -108,32 +102,30 @@ uninstall(Hosts, Args) ->
                                         throw("Cannot get configured storage paths.")
                                 end,
 
-        lists:foreach(fun(Path) ->
-            case lists:member(Path, InstalledStoragePaths) of
-                true -> ok;
-                _ -> throw("Path: " ++ Path ++ " is not addded.")
-            end
-        end, Paths),
+        case lists:member(Path, InstalledStoragePaths) of
+            true -> ok;
+            _ -> throw("Path: " ++ Path ++ " was not addded.")
+        end,
 
-        {_, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, uninstall, [Paths], ?RPC_TIMEOUT),
+        {_, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, uninstall, [Path], ?RPC_TIMEOUT),
 
         case HostsError of
             [] -> ok;
             _ ->
-                lager:error("Cannot remove storage paths on following hosts: ~p", [HostsError]),
-                throw(HostsError)
+                lager:error("Cannot remove storage path ~s on following hosts: ~p", [Path, HostsError]),
+                throw({hosts, HostsError})
         end,
 
         NewStoragePaths = lists:filter(fun(StoragePath) ->
-            not lists:member(StoragePath, Paths)
+            StoragePath =/= Path
         end, InstalledStoragePaths),
 
         case dao:update_record(?CONFIG_TABLE, ?CONFIG_ID, [{storage_paths, NewStoragePaths}]) of
             ok -> ok;
             UpdateError ->
-                lager:error("Cannot update storage paths configuration: ~p", UpdateError),
+                lager:error("Cannot update storage paths configuration: ~p", [UpdateError]),
                 rpc:multicall(Hosts, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
-                {error, Hosts}
+                {error, UpdateError}
         end
     catch
         _:Reason ->
@@ -237,6 +229,45 @@ uninstall(Paths) ->
     end.
 
 
+%% check_storage_on_hosts/1
+%% ====================================================================
+%% @doc Checks storage availability on hosts. Returns ok or first host for which
+%% storage is not available.
+%% @end
+-spec check_storage_on_hosts(Hosts :: [string()], Path :: string()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+check_storage_on_hosts([], _) ->
+    ok;
+check_storage_on_hosts([Host | Hosts], Path) ->
+    Node = install_utils:get_node(Host),
+    case rpc:call(Node, ?MODULE, create_storage_test_file, [Path], ?RPC_TIMEOUT) of
+        {ok, FilePath, Content} ->
+            try
+                Answer = lists:foldl(fun
+                    (H, {NewContent, ErrorHosts}) ->
+                        case rpc:call(install_utils:get_node(H), ?MODULE, check_storage_on_host, [FilePath, NewContent], ?RPC_TIMEOUT) of
+                            {ok, NextContent} -> {NextContent, ErrorHosts};
+                            {error, ErrorHost} -> {NewContent, [ErrorHost | ErrorHosts]}
+                        end
+                end, {Content, []}, [Host | Hosts]),
+                rpc:call(Node, ?MODULE, delete_storage_test_file, [FilePath], ?RPC_TIMEOUT),
+                case Answer of
+                    {_, []} -> ok;
+                    {_, EHosts} -> {error, {not_available, EHosts}}
+                end
+            catch
+                _:Reason ->
+                    lager:error("Cannot check storage ~p availability on hosts ~p: ~p", [Path, [Host | Hosts], Reason]),
+                    rpc:call(Node, ?MODULE, delete_storage_test_file, [FilePath], ?RPC_TIMEOUT),
+                    {error, Reason}
+            end;
+        Other ->
+            lager:error("Cannot create storage test file ~s: ~p", [Path, Other]),
+            {error, Other}
+    end.
+
+
 %% check_storage_on_host/2
 %% ====================================================================
 %% @doc Checks storage availability on node.
@@ -278,7 +309,7 @@ create_storage_test_file(Path, Attempts) ->
     {A, B, C} = now(),
     random:seed(A, B, C),
     Filename = install_utils:random_ascii_lowercase_sequence(8),
-    FilePath = Path ++ "/" ++ ?STORAGE_TEST_FILE_PREFIX ++ Filename,
+    FilePath = filename:join([Path, ?STORAGE_TEST_FILE_PREFIX ++ Filename]),
     try
         {ok, Fd} = file:open(FilePath, [write, exclusive]),
         Content = install_utils:random_ascii_lowercase_sequence(?STORAGE_TEST_FILE_LENGTH),
@@ -286,7 +317,9 @@ create_storage_test_file(Path, Attempts) ->
         ok = file:close(Fd),
         {ok, FilePath, Content}
     catch
-        _:_ -> create_storage_test_file(Path, Attempts - 1)
+        _:Reason ->
+            lager:error("Cannot create storage test file: ~p.", [Reason]),
+            create_storage_test_file(Path, Attempts - 1)
     end.
 
 
@@ -302,48 +335,6 @@ delete_storage_test_file(FilePath) ->
             lager:error("Cannot delete storage test file: ~p", [Reason]),
             {error, Reason}
     end.
-
-
-%% ====================================================================
-%% Internal functions
-%% ====================================================================
-
-%% check_storage_on_hosts/1
-%% ====================================================================
-%% @doc Checks storage availability on hosts. Returns ok or first host for which
-%% storage is not available.
-%% @end
--spec check_storage_on_hosts(Hosts :: [string()], Path :: string()) -> Result when
-    Result :: ok | {error, ErrorHosts :: string()}.
-%% ====================================================================
-check_storage_on_hosts([], _) ->
-    ok;
-check_storage_on_hosts([Host | Hosts], Path) ->
-    Node = install_utils:get_node(Host),
-    case rpc:call(Node, ?MODULE, create_storage_test_file, [Path], ?RPC_TIMEOUT) of
-        {ok, FilePath, Content} ->
-            try
-                Answer = lists:foldl(fun
-                    (H, {NewContent, ErrorHosts}) ->
-                        case rpc:call(install_utils:get_node(H), ?MODULE, check_storage_on_host, [FilePath, NewContent], ?RPC_TIMEOUT) of
-                            {ok, NextContent} -> {NextContent, ErrorHosts};
-                            {error, ErrorHost} -> {NewContent, [ErrorHost | ErrorHosts]}
-                        end
-                end, {Content, []}, [Host | Hosts]),
-                rpc:call(Node, ?MODULE, delete_storage_test_file, [FilePath], ?RPC_TIMEOUT),
-                case Answer of
-                    {_, []} -> ok;
-                    {_, EHosts} -> {error, {not_available, EHosts}}
-                end
-            catch
-                _:Reason ->
-                    lager:error("Cannot check storage ~p availability on hosts ~p: ~p", [Path, [Host | Hosts], Reason]),
-                    rpc:call(Node, ?MODULE, delete_storage_test_file, [FilePath], ?RPC_TIMEOUT),
-                    error
-            end;
-        Other -> Other
-    end.
-
 
 
 
