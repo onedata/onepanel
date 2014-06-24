@@ -125,7 +125,7 @@ set_ulimits(OpenFiles, Processes) ->
     case file:consult(?ULIMITS_CONFIG_PATH) of
         {ok, []} ->
             file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n~p.\n", [{open_files, OpenFiles}, {process_limit, Processes}]), [append]),
-            dao:save_record(configurations, #?CONFIG_TABLE{id = last, ulimits = {OpenFiles, Processes}});
+            dao:update_record(?CONFIG_TABLE, ?CONFIG_ID, [{ulimits, {OpenFiles, Processes}}]);
         {ok, _} ->
             ok;
         Error ->

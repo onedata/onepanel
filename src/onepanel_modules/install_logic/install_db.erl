@@ -35,7 +35,7 @@
 %% ====================================================================
 install(Hosts, _) ->
     try
-        case dao:get_record(configurations, last) of
+        case dao:get_record(?CONFIG_TABLE, ?CONFIG_ID) of
             {ok, #?CONFIG_TABLE{dbs = []}} -> ok;
             {ok, #?CONFIG_TABLE{dbs = _}} -> throw("Database already installed.");
             _ -> throw("Cannot get database nodes configuration.")

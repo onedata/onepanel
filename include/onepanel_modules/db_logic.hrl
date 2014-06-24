@@ -24,7 +24,7 @@
 %% User table contains name and hashed password of each user
 -record(?USER_TABLE, {username, password}).
 
-%% Config table describes current installation state, id equals 'last'
+%% Config table describes current installation state, id equals CONFIG_ID
 -record(?CONFIG_TABLE, {id, main_ccm, opt_ccms = [], workers = [], dbs = [], storage_paths = [], ulimits, providerId}).
 
 %% Port table contains gui and rest port of VeilCluster on given host, that is accessible for outer world
