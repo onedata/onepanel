@@ -16,7 +16,7 @@
 
 %% API
 -export([random_ascii_lowercase_sequence/1, apply_on_hosts/5, get_node/1, get_host/1, get_hosts/0]).
--export([set_ulimits_on_hosts/3, set_ulimits/2, get_ulimits_cmd/0, get_ports_to_check/1, get_control_panel_hosts/1]).
+-export([set_ulimits_on_hosts/3, set_ulimits/3, get_ulimits_cmd/1, get_ports_to_check/1, get_control_panel_hosts/1]).
 -export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/3]).
 -export([save_file_on_host/3, save_file_on_hosts/3]).
 
@@ -39,6 +39,8 @@ random_ascii_lowercase_sequence(Length) ->
 %% If 'Timeout' equals 'infinity' function waits as long as result is not
 %% available. Pair of list where first list contains hosts on which function
 %% call was successful. Second list contains remaining hosts.
+%% IMPORTANT! Called function must return either {ok, Host} for successful
+%% execution or {error, Host} for faulty execution.
 %% @end
 -spec apply_on_hosts(Hosts, Module, Function, Arguments, Timeout) -> Result when
     Result :: {HostsOk, HostsError},
@@ -53,11 +55,10 @@ random_ascii_lowercase_sequence(Length) ->
 apply_on_hosts(Hosts, Module, Function, Arguments, Timeout) ->
     Nodes = lists:map(fun(Host) -> get_node(Host) end, Hosts),
     {Results, ErrorNodes} = rpc:multicall(Nodes, Module, Function, Arguments, Timeout),
-    OkNodes = sets:to_list(sets:subtract(sets:from_list(Nodes), sets:from_list(ErrorNodes))),
     lists:foldl(fun
-        ({ok, Node}, {HostsOk, HostsError}) -> {[get_host(Node) | HostsOk], HostsError};
-        ({_, Node}, {HostsOk, HostsError}) -> {HostsOk, [get_host(Node) | HostsError]}
-    end, {[], lists:map(fun(ErrorNode) -> get_host(ErrorNode) end, ErrorNodes)}, lists:zip(Results, OkNodes)).
+        ({ok, Host}, {HostsOk, HostsError}) -> {[Host, HostsOk], HostsError};
+        ({_, Host}, {HostsOk, HostsError}) -> {HostsOk, [Host | HostsError]}
+    end, {[], lists:map(fun(Node) -> get_host(Node) end, ErrorNodes)}, Results).
 
 
 %% get_node/1
@@ -116,16 +117,16 @@ set_ulimits_on_hosts(Hosts, OpenFiles, Processes) ->
 
 %% set_ulimits/2
 %% ====================================================================
-%% @doc Sets system limits for open files and processes on node.
+%% @doc Sets system limits for open files and processes on host.
 %% @end
--spec set_ulimits(OpenFiles :: integer(), Processes :: integer()) -> Result when
+-spec set_ulimits(Host :: string(), OpenFiles :: integer(), Processes :: integer()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-set_ulimits(OpenFiles, Processes) ->
+set_ulimits(Host, OpenFiles, Processes) ->
     case file:consult(?ULIMITS_CONFIG_PATH) of
         {ok, []} ->
             file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n~p.\n", [{open_files, OpenFiles}, {process_limit, Processes}]), [append]),
-            dao:update_record(?CONFIG_TABLE, ?CONFIG_ID, [{ulimits, {OpenFiles, Processes}}]);
+            dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{open_files_limit, OpenFiles}, {processes_limit, Processes}]);
         {ok, _} ->
             ok;
         Error ->
@@ -138,12 +139,12 @@ set_ulimits(OpenFiles, Processes) ->
 %% ====================================================================
 %% @doc Returns ulimits command required during database or veil node installation.
 %% @end
--spec get_ulimits_cmd() -> Result when
+-spec get_ulimits_cmd(Host :: string()) -> Result when
     Result :: string().
 %% ====================================================================
-get_ulimits_cmd() ->
+get_ulimits_cmd(Host) ->
     try
-        {ok, #?CONFIG_TABLE{ulimits = {OpenFiles, Processes}}} = dao:get_record(?CONFIG_TABLE, ?CONFIG_ID),
+        {ok, #?LOCAL_CONFIG_RECORD{open_files_limit = OpenFiles, processes_limit = Processes}} = dao:get_record(?LOCAL_CONFIG_TABLE, Host),
         "ulimit -n " ++ OpenFiles ++ " ; ulimit -u " ++ Processes
     catch
         _:Reason ->

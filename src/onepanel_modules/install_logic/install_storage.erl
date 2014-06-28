@@ -5,222 +5,159 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains storage installation functions.
+%% @doc: This module contains storage management functions.
 %% @end
 %% ===================================================================
 -module(install_storage).
--behaviour(install_behaviour).
 
 -include("registered_names.hrl").
 -include("onepanel_modules/install_logic.hrl").
 -include("onepanel_modules/db_logic.hrl").
 
-% install_behaviour callbacks
--export([install/2, uninstall/2, start/2, stop/2, restart/2]).
 
 %% API
--export([install/1, uninstall/1, create_storage_test_file/1, delete_storage_test_file/1, check_storage_on_hosts/2, check_storage_on_host/2]).
+-export([add_storage_path/2, add_storage_path/1, remove_storage_path/2, remove_storage_path/1]).
+-export([check_storage_path_on_hosts/2, check_storage_path_on_host/2, create_storage_test_file/1, remove_storage_test_file/1]).
 
 -define(STORAGE_TEST_FILE_PREFIX, "storage_test_").
 -define(STORAGE_TEST_FILE_LENGTH, 20).
 
 %% ====================================================================
-%% Behaviour callback functions
+%% API functions
 %% ====================================================================
 
-%% install/2
+%% add_storage_path/2
 %% ====================================================================
-%% @doc Adds configured storage paths on hosts.
+%% @doc Adds configured storage path on given hosts.
 %% @end
--spec install(Hosts :: [string()], Args) -> Result when
-    Result :: ok | {error, Reason :: term()},
-    Args :: [{Name :: atom(), Value :: term()}].
+-spec add_storage_path(Hosts :: [string()], Path :: string()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-install(Hosts, Args) ->
+add_storage_path(Hosts, Path) ->
     try
-        Path = proplists:get_value(path, Args),
+        StoragePaths =
+            case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+                {ok, #?GLOBAL_CONFIG_TABLE{storage_paths = StoragePaths}} -> StoragePaths;
+                _ -> throw("Cannot get configured storage paths.")
+            end,
 
-        case Path of
-            undefined -> throw("Storage paths not found in arguments list.");
-            _ -> ok
-        end,
-
-        InstalledStoragePaths = case dao:get_record(?CONFIG_TABLE, ?CONFIG_ID) of
-                                    {ok, #?CONFIG_TABLE{storage_paths = StoragePaths}} -> StoragePaths;
-                                    Other ->
-                                        lager:error("Cannot get configured storage paths: ~p", [Other]),
-                                        throw("Cannot get configured storage paths.")
-                                end,
-
-        case lists:member(Path, InstalledStoragePaths) of
+        case lists:member(Path, StoragePaths) of
             true -> throw("Path: " ++ Path ++ " is already added.");
             _ -> ok
         end,
 
-        {_, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, install, [Path], ?RPC_TIMEOUT),
+        {HostsOk, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, add_storage_path, [Path], ?RPC_TIMEOUT),
 
         case HostsError of
-            [] -> ok;
-            _ -> throw({hosts, HostsError})
-        end,
-
-        case dao:update_record(?CONFIG_TABLE, ?CONFIG_ID, [{storage_paths, [Path | InstalledStoragePaths]}]) of
-            ok -> ok;
-            UpdateError ->
-                lager:error("Cannot update storage paths configuration: ~p", [UpdateError]),
-                rpc:multicall(Hosts, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
-                {error, UpdateError}
-        end
-    catch
-        _:Reason ->
-            lager:error("Cannot add storage paths: ~p", [Reason]),
-            {error, Reason}
-    end.
-
-
-%% uninstall/2
-%% ====================================================================
-%% @doc Removes configured storage paths on hosts.
-%% @end
--spec uninstall(Hosts :: [string()], Args) -> Result when
-    Result :: ok | {error, Reason :: term()},
-    Args :: [{Name :: atom(), Value :: term()}].
-%% ====================================================================
-uninstall(Hosts, Args) ->
-    try
-        Path = proplists:get_value(path, Args),
-
-        case Path of
-            undefined -> throw("Storage paths not found in arguments list.");
-            _ -> ok
-        end,
-
-        InstalledStoragePaths = case dao:get_record(?CONFIG_TABLE, ?CONFIG_ID) of
-                                    {ok, #?CONFIG_TABLE{storage_paths = StoragePaths}} -> StoragePaths;
-                                    Other ->
-                                        lager:error("Cannot get configured storage paths: ~p", [Other]),
-                                        throw("Cannot get configured storage paths.")
-                                end,
-
-        case lists:member(Path, InstalledStoragePaths) of
-            true -> ok;
-            _ -> throw("Path: " ++ Path ++ " was not addded.")
-        end,
-
-        {_, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, uninstall, [Path], ?RPC_TIMEOUT),
-
-        case HostsError of
-            [] -> ok;
+            [] ->
+                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{storage_paths, [Path | StoragePaths]}]) of
+                    ok -> ok;
+                    Other ->
+                        lager:error("Cannot update storage path configuration: ~p", [Other]),
+                        install_utils:apply_on_hosts(Hosts, ?MODULE, remove_storage_path, [Path], ?RPC_TIMEOUT),
+                        {error, {hosts, Hosts}}
+                end;
             _ ->
-                lager:error("Cannot remove storage path ~s on following hosts: ~p", [Path, HostsError]),
-                throw({hosts, HostsError})
-        end,
-
-        NewStoragePaths = lists:filter(fun(StoragePath) ->
-            StoragePath =/= Path
-        end, InstalledStoragePaths),
-
-        case dao:update_record(?CONFIG_TABLE, ?CONFIG_ID, [{storage_paths, NewStoragePaths}]) of
-            ok -> ok;
-            UpdateError ->
-                lager:error("Cannot update storage paths configuration: ~p", [UpdateError]),
-                rpc:multicall(Hosts, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
-                {error, UpdateError}
+                lager:error("Cannot add storage path on following hosts: ~p", [HostsError]),
+                install_utils:apply_on_hosts(HostsOk, ?MODULE, remove_storage_path, [Path], ?RPC_TIMEOUT),
+                {error, {hosts, HostsError}}
         end
     catch
         _:Reason ->
-            lager:error("Cannot remove storage paths: ~p", [Reason]),
+            lager:error("Cannot add storage path: ~p", [Reason]),
             {error, Reason}
     end.
 
 
-%% start/2
+%% remove_storage_path/2
 %% ====================================================================
-%% @doc install_behaviour not applicable for this module.
-%% Returns ok for any arguments.
+%% @doc Removes configured storage path on given hosts.
 %% @end
--spec start(Hosts :: [string()], Args) -> Result when
-    Result :: ok,
-    Args :: [{Name :: atom(), Value :: term()}].
-%% ====================================================================
-start(_, _) ->
-    ok.
-
-
-%% stop/2
-%% ====================================================================
-%% @doc install_behaviour not applicable for this module.
-%% Returns ok for any arguments.
-%% @end
--spec stop(Hosts :: [string()], Args) -> Result when
-    Result :: ok,
-    Args :: [{Name :: atom(), Value :: term()}].
-%% ====================================================================
-stop(_, _) ->
-    ok.
-
-
-%% restart/2
-%% ====================================================================
-%% @doc install_behaviour not applicable for this module.
-%% Returns ok for any arguments.
-%% @end
--spec restart(Hosts :: [string()], Args) -> Result when
-    Result :: ok,
-    Args :: [{Name :: atom(), Value :: term()}].
-%% ====================================================================
-restart(_, _) ->
-    ok.
-
-
-%% ====================================================================
-%% API functions
-%% ====================================================================
-
-%% install/1
-%% ====================================================================
-%% @doc Adds configured storage paths on host.
-%% @end
--spec install(Paths :: [string()]) -> Result when
+-spec remove_storage_path(Hosts :: [string()], Path :: string()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-install(Paths) ->
-    lager:info("Adding storage paths..."),
-    StorageConfig = ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME ++ "/" ++ ?STORAGE_CONFIG_PATH,
+remove_storage_path(Hosts, Path) ->
     try
-        {ok, Fd} = file:open(StorageConfig, [append]),
-        lists:foreach(fun(Path) ->
-            file:write(Fd, "[[{name, cluster_fuse_id}, {root, \"" ++ Path ++ "\"}]].\n")
-        end, Paths),
+        StoragePaths = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+                           {ok, #?GLOBAL_CONFIG_RECORD{storage_paths = Paths}} -> Paths;
+                           _ -> throw("Cannot get configured storage paths.")
+                       end,
+
+        case lists:member(Path, StoragePaths) of
+            true -> ok;
+            _ -> throw("Path: " ++ Path ++ " is not configured.")
+        end,
+
+        {HostsOk, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, remove_storage_path, [Path], ?RPC_TIMEOUT),
+
+        case HostsError of
+            [] ->
+                NewStoragePaths = lists:filter(fun(StoragePath) ->
+                    StoragePath =/= Path
+                end, StoragePaths),
+                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{storage_paths, NewStoragePaths}]) of
+                    ok -> ok;
+                    Other ->
+                        lager:error("Cannot update storage path configuration: ~p", [Other]),
+                        install_utils:apply_on_hosts(Hosts, ?MODULE, add_storage_path, [Path], ?RPC_TIMEOUT),
+                        {error, {hosts, Hosts}}
+                end;
+            _ ->
+                lager:error("Cannot remove storage path on following hosts: ~p", [HostsError]),
+                install_utils:apply_on_hosts(HostsOk, ?MODULE, add_storage_path, [Path], ?RPC_TIMEOUT),
+                {error, {hosts, HostsError}}
+        end
+    catch
+        _:Reason ->
+            lager:error("Cannot remove storage path: ~p", [Reason]),
+            {error, Reason}
+    end.
+
+
+%% add_storage_path/1
+%% ====================================================================
+%% @doc Adds configured storage path on local host.
+%% @end
+-spec add_storage_path(Path :: string()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+add_storage_path(Path) ->
+    try
+        lager:debug("Adding storage path ~s.", [Path]),
+        StorageConfigPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, ?STORAGE_CONFIG_PATH]),
+
+        {ok, Fd} = file:open(StorageConfigPath, [append]),
+        file:write(Fd, <<(term_to_binary([[{name, cluster_fuse_id}, {root, Path}]]))/binary, ".\n">>),
         ok = file:close(Fd),
         ok
     catch
         _:Reason ->
-            lager:error("Cannot add storage paths on host ~p: ~p", [install_utils:get_host(node()), Reason]),
+            lager:error("Cannot add storage path ~s: ~p", [Path, Reason]),
             {error, Reason}
     end.
 
 
-%% uninstall/1
+%% remove_storage_path/1
 %% ====================================================================
-%% @doc Removes configured storage paths on host.
+%% @doc Removes configured storage path on local host.
 %% @end
--spec uninstall(Paths :: [string()]) -> Result when
+-spec remove_storage_path(Path :: string()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-uninstall(Paths) ->
-    lager:info("Removing storage paths..."),
-    StorageConfig = ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME ++ "/" ++ ?STORAGE_CONFIG_PATH,
+remove_storage_path(Path) ->
     try
-        {ok, StorageInfo} = file:consult(StorageConfig),
-        NewPaths = lists:foldl(fun([[{name, cluster_fuse_id}, {root, Path}]], Acc) ->
-            case lists:member(Path, Paths) of
-                true -> Acc;
-                false -> [Path | Acc]
-            end
+        lager:debug("Removing storage path ~s.", [Path]),
+        StorageConfigPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, ?STORAGE_CONFIG_PATH]),
+
+        {ok, StorageInfo} = file:consult(StorageConfigPath),
+        NewPaths = lists:foldl(fun
+            ([[{name, cluster_fuse_id}, {root, Path}]], Acc) -> Acc;
+            ([[{name, cluster_fuse_id}, {root, Other}]], Acc) -> [Other | Acc]
         end, [], StorageInfo),
-        ok = file:delete(StorageConfig),
-        ok = install(NewPaths),
+        ok = file:delete(StorageConfigPath),
+        lists:foreach(fun(NewPath) ->
+            ok = add_storage_path(NewPath)
+        end, NewPaths),
         ok
     catch
         _:Reason ->
@@ -229,24 +166,24 @@ uninstall(Paths) ->
     end.
 
 
-%% check_storage_on_hosts/1
+%% check_storage_path_on_hosts/1
 %% ====================================================================
 %% @doc Checks storage availability on hosts. Returns ok or first host for which
 %% storage is not available.
 %% @end
--spec check_storage_on_hosts(Hosts :: [string()], Path :: string()) -> Result when
+-spec check_storage_path_on_hosts(Hosts :: [string()], Path :: string()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-check_storage_on_hosts([], _) ->
+check_storage_path_on_hosts([], _) ->
     ok;
-check_storage_on_hosts([Host | Hosts], Path) ->
+check_storage_path_on_hosts([Host | Hosts], Path) ->
     Node = install_utils:get_node(Host),
     case rpc:call(Node, ?MODULE, create_storage_test_file, [Path], ?RPC_TIMEOUT) of
         {ok, FilePath, Content} ->
             try
                 Answer = lists:foldl(fun
                     (H, {NewContent, ErrorHosts}) ->
-                        case rpc:call(install_utils:get_node(H), ?MODULE, check_storage_on_host, [FilePath, NewContent], ?RPC_TIMEOUT) of
+                        case rpc:call(install_utils:get_node(H), ?MODULE, check_storage_path_on_host, [FilePath, NewContent], ?RPC_TIMEOUT) of
                             {ok, NextContent} -> {NextContent, ErrorHosts};
                             {error, ErrorHost} -> {NewContent, [ErrorHost | ErrorHosts]}
                         end
@@ -268,14 +205,14 @@ check_storage_on_hosts([Host | Hosts], Path) ->
     end.
 
 
-%% check_storage_on_host/2
+%% check_storage_path_on_host/2
 %% ====================================================================
 %% @doc Checks storage availability on node.
 %% @end
--spec check_storage_on_host(FilePath :: string(), Content :: string()) -> Result when
+-spec check_storage_path_on_host(FilePath :: string(), Content :: string()) -> Result when
     Result :: {ok, NewContent :: string()} | {error, Host :: string()}.
 %% ====================================================================
-check_storage_on_host(FilePath, Content) ->
+check_storage_path_on_host(FilePath, Content) ->
     try
         {ok, FdRead} = file:open(FilePath, [read]),
         {ok, Content} = file:read_line(FdRead),
@@ -294,8 +231,7 @@ check_storage_on_host(FilePath, Content) ->
 
 
 %% ====================================================================
-%% @doc Creates new path for storage test file.
-%% If path already exists new one is generated.
+%% @doc Creates storage test file. If file already exists new one is generated.
 -spec create_storage_test_file(Path :: string()) -> Result when
     Result :: {ok, FilePath :: string(), Content :: string} | {error, Reason :: term()}.
 %% ====================================================================
@@ -324,11 +260,11 @@ create_storage_test_file(Path, Attempts) ->
 
 
 %% ====================================================================
-%% @doc Deletes storage test file.
--spec delete_storage_test_file(FilePath :: string()) -> Result when
+%% @doc Removes storage test file.
+-spec remove_storage_test_file(FilePath :: string()) -> Result when
     Result :: ok | {error, Error :: term()}.
 %% ====================================================================
-delete_storage_test_file(FilePath) ->
+remove_storage_test_file(FilePath) ->
     case file:delete(FilePath) of
         ok -> ok;
         {error, Reason} ->

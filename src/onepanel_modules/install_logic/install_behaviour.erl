@@ -14,63 +14,53 @@
 %% install/2
 %% ====================================================================
 %% @doc Installs component on specified hosts. Returns ok if operation
-%% completes successfully on all hosts or an error if operation failes
-%% on any host. Moreover it saves list of successful hosts in 
-%% configuration file and database.
+%% completes successfully on all hosts or an error message if operation
+%% fails on any host.
 %% @end
 %% ====================================================================
--callback install(Hosts :: [string()], Args) -> Result when
-    Result :: ok | {error, Reason :: term()},
-    Args :: [{Name :: atom(), Value :: term()}].
+-callback install(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
+    Result :: ok | {error, Reason :: term()}.
 
 
 %% uninstall/2
 %% ====================================================================
 %% @doc Uninstalls component on specified hosts. Returns ok if operation
-%% completes successfully on all hosts or an error if operation failes
-%% on any host. Moreover it saves list of successful hosts in 
-%% configuration file and database.
+%% completes successfully on all hosts or an error message if operation
+%% fails on any host.
 %% @end
 %% ====================================================================
--callback uninstall(Hosts :: [string()], Args) -> Result when
-    Result :: ok | {error, Reason :: term()},
-    Args :: [{Name :: atom(), Value :: term()}].
+-callback uninstall(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
+    Result :: ok | {error, Reason :: term()}.
 
 
 %% start/2
 %% ====================================================================
 %% @doc Starts component on specified hosts. Returns ok if operation
-%% completes successfully on all hosts or an error if operation failes
-%% on any host. Moreover it saves list of successful hosts in
-%% configuration file and database.
+%% completes successfully on all hosts or an error message if operation
+%% fails on any host.
 %% @end
 %% ====================================================================
--callback start(Hosts :: [string()], Args) -> Result when
-    Result :: ok | {error, Reason :: term()},
-    Args :: [{Name :: atom(), Value :: term()}].
+-callback start(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
+    Result :: ok | {error, Reason :: term()}.
 
 
 %% stop/2
 %% ====================================================================
 %% @doc Stops component on specified hosts. Returns ok if operation
-%% completes successfully on all hosts or an error if operation failes
-%% on any host. Moreover it saves list of successful hosts in
-%% configuration file and database.
+%% completes successfully on all hosts or an error message if operation
+%% fails on any host.
 %% @end
 %% ====================================================================
--callback stop(Hosts :: [string()], Args) -> Result when
-    Result :: ok | {error, Reason :: term()},
-    Args :: [{Name :: atom(), Value :: term()}].
+-callback stop(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
+    Result :: ok | {error, Reason :: term()}.
 
 
 %% restart/2
 %% ====================================================================
 %% @doc Restarts component on specified hosts. Returns ok if operation
-%% completes successfully on all hosts or an error if operation failes
-%% on any host. Moreover it saves list of successful hosts in
-%% configuration file and database.
+%% completes successfully on all hosts or an error message if operation
+%% fails on any host.
 %% @end
 %% ====================================================================
--callback restart(Hosts :: [string()], Args) -> Result when
-    Result :: ok | {error, Reason :: term()},
-    Args :: [{Name :: atom(), Value :: term()}].
+-callback restart(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
+    Result :: ok | {error, Reason :: term()}.

@@ -23,7 +23,7 @@
 %% API functions
 %% ====================================================================
 
-%% initialize/0
+%% initialize/1
 %% ====================================================================
 %% @doc Initializes table with default values.
 %% @end
@@ -35,28 +35,10 @@ initialize(?USER_TABLE) ->
         {ok, Username} = application:get_env(?APP_NAME, default_username),
         {ok, Password} = application:get_env(?APP_NAME, default_password),
         PasswordHash = user_logic:hash_password(Password),
-        ok = dao:save_record(?USER_TABLE, #?USER_TABLE{username = Username, password = PasswordHash})
-    catch
-        _:Reason -> {error, Reason}
-    end;
-initialize(?CONFIG_TABLE) ->
-    try
-        ok = dao:save_record(?CONFIG_TABLE, #?CONFIG_TABLE{id = ?CONFIG_ID, ulimits = {?DEFAULT_OPEN_FILES, ?DEFAULT_PROCESSES}})
-    catch
-        _:Reason -> {error, Reason}
-    end;
-initialize(?PORT_TABLE) ->
-    try
-        {ok, #?CONFIG_TABLE{main_ccm = MainCCM}} = dao:get_record(?CONFIG_TABLE, ?CONFIG_ID),
-        {ok, Hosts} = install_utils:get_control_panel_hosts(MainCCM),
-        {ok, [{_, GuiPort}, {_, RestPort}]} = install_utils:get_ports_to_check(MainCCM),
-        lists:foreach(fun(Host) ->
-            ok = dao:save_record(ports, #?PORT_TABLE{host = Host, gui = GuiPort, rest = RestPort})
-        end, Hosts),
-        ok
+        ok = dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username, password = PasswordHash})
     catch
         _:Reason ->
-
+            lager:error("Cannot initialize user table: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -78,31 +60,31 @@ create() ->
         end,
         ok = application:start(mnesia),
         case mnesia:create_table(?USER_TABLE, [
-            {attributes, record_info(fields, ?USER_TABLE)},
-            {record_name, ?USER_TABLE},
+            {attributes, record_info(fields, ?USER_RECORD)},
+            {record_name, ?USER_RECORD},
             {disc_copies, [Node]}
         ]) of
             {atomic, ok} -> initialize(?USER_TABLE);
             {aborted, {already_exists, ?USER_TABLE}} -> ok;
             {aborted, UserError} -> throw(UserError)
         end,
-        case mnesia:create_table(?CONFIG_TABLE, [
-            {attributes, record_info(fields, ?CONFIG_TABLE)},
-            {record_name, ?CONFIG_TABLE},
-            {disc_copies, [Node]}
-        ]) of
-            {atomic, ok} -> initialize(?CONFIG_TABLE);
-            {aborted, {already_exists, ?CONFIG_TABLE}} -> ok;
-            {aborted, ConfigurationError} -> throw(ConfigurationError)
-        end,
-        case mnesia:create_table(?PORT_TABLE, [
-            {attributes, record_info(fields, ?PORT_TABLE)},
-            {record_name, ?PORT_TABLE},
+        case mnesia:create_table(?LOCAL_CONFIG_TABLE, [
+            {attributes, record_info(fields, ?LOCAL_CONFIG_RECORD)},
+            {record_name, ?LOCAL_CONFIG_RECORD},
             {disc_copies, [Node]}
         ]) of
             {atomic, ok} -> ok;
-            {aborted, {already_exists, ?PORT_TABLE}} -> ok;
-            {aborted, PortError} -> throw(PortError)
+            {aborted, {already_exists, ?LOCAL_CONFIG_TABLE}} -> ok;
+            {aborted, LocalConfigError} -> throw(LocalConfigError)
+        end,
+        case mnesia:create_table(?GLOBAL_CONFIG_TABLE, [
+            {attributes, record_info(fields, ?GLOBAL_CONFIG_RECORD)},
+            {record_name, ?GLOBAL_CONFIG_RECORD},
+            {disc_copies, [Node]}
+        ]) of
+            {atomic, ok} -> ok;
+            {aborted, {already_exists, ?GLOBAL_CONFIG_TABLE}} -> ok;
+            {aborted, GlobalConfigError} -> throw(GlobalConfigError)
         end,
         ok
     catch

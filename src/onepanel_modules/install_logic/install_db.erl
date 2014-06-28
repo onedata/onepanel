@@ -15,162 +15,175 @@
 -include("onepanel_modules/db_logic.hrl").
 -include("onepanel_modules/install_logic.hrl").
 
-% install_behaviour callbacks
--export([install/2, uninstall/2, start/2, stop/2, restart/2]).
+%% install_behaviour callbacks
+-export([install/1, uninstall/1, start/1, stop/1, restart/1]).
 
-% API
--export([install/0, uninstall/0, start/0, stop/0, restart/0, join_cluster/1]).
+%% API
+-export([install/0, uninstall/0, start/0, stop/0, add_to_cluster/1]).
 
 %% ====================================================================
 %% Behaviour callback functions
 %% ====================================================================
 
-%% install/2
+%% install/1
 %% ====================================================================
-%% @doc Installs database nodes on hosts.
+%% @doc Installs database nodes on given hosts.
 %% @end
--spec install(Hosts :: [string()], Args) -> Result when
-    Result :: ok | {error, Reason :: term()},
-    Args :: [{Name :: atom(), Value :: term()}].
+-spec install(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
+    Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-install(Hosts, _) ->
-    try
-        case dao:get_record(?CONFIG_TABLE, ?CONFIG_ID) of
-            {ok, #?CONFIG_TABLE{dbs = []}} -> ok;
-            {ok, #?CONFIG_TABLE{dbs = _}} -> throw("Database already installed.");
-            _ -> throw("Cannot get database nodes configuration.")
-        end,
+install(Args) ->
+    Hosts = proplists:get_value(hosts, Args, []),
 
-        {HostsOk, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, install, [], ?RPC_TIMEOUT),
+    {HostsOk, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, install, [], ?RPC_TIMEOUT),
 
-        case dao:update_record(?CONFIG_TABLE, ?CONFIG_ID, [{dbs, HostsOk}]) of
-            ok ->
-                case HostsError of
-                    [] -> ok;
-                    _ ->
-                        lager:error("Cannot install database nodes on following hosts: ~p", [HostsError]),
-                        {error, {hosts, HostsError}}
-                end;
-            UpdateError ->
-                lager:error("Cannot update database nodes configuration: ~p", [UpdateError]),
-                rpc:multicall(Hosts, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
-                {error, UpdateError}
-        end
-    catch
-        _:Reason -> {error, Reason}
+    case HostsError of
+        [] -> ok;
+        _ ->
+            lager:error("Cannot install database nodes on following hosts: ~p", [HostsError]),
+            install_utils:apply_on_hosts(HostsOk, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
+            {error, {hosts, HostsError}}
     end.
 
 
-%% uninstall/2
+%% uninstall/1
 %% ====================================================================
-%% @doc Uninstalls database nodes on hosts.
+%% @doc Uninstalls database nodes on given hosts.
 %% @end
--spec uninstall(Hosts :: [string()], Args) -> Result when
-    Result :: ok | {error, Reason :: term()},
-    Args :: [{Name :: atom(), Value :: term()}].
+-spec uninstall(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
+    Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-uninstall(Hosts, _) ->
+uninstall(Args) ->
+    Hosts = proplists:get_value(hosts, Args, []),
+
+    {HostsOk, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
+
+    case HostsError of
+        [] -> ok;
+        _ ->
+            lager:error("Cannot uninstall database nodes on following hosts: ~p", [HostsError]),
+            install_utils:apply_on_hosts(HostsOk, ?MODULE, install, [], ?RPC_TIMEOUT),
+            {error, {hosts, HostsError}}
+    end.
+
+
+%% start/1
+%% ====================================================================
+%% @doc Starts database nodes on given hosts. Argument list should contain
+%% database nodes.
+%% @end
+-spec start(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+start(Args) ->
     try
-        InstalledDbs = case dao:get_record(?CONFIG_TABLE, ?CONFIG_ID) of
-                           {ok, #?CONFIG_TABLE{dbs = Dbs}} -> Dbs;
-                           _ -> throw("Cannot get database nodes configuration.")
-                       end,
+        case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> ok;
+            {ok, #?GLOBAL_CONFIG_RECORD{dbs = _}} -> throw("Database nodes already configured.");
+            _ -> throw("Cannot get database nodes configuration.")
+        end,
 
-        lists:foreach(fun(Host) ->
-            case lists:member(Host, InstalledDbs) of
-                true -> ok;
-                _ -> throw("Host: " ++ Host ++ " is not installed.")
-            end
-        end, Hosts),
+        Dbs = proplists:get_value(dbs, Args, []),
 
-        {HostsOk, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
+        {StartOk, StartError} = install_utils:apply_on_hosts(Dbs, ?MODULE, start, [], ?RPC_TIMEOUT),
 
-        NewDbs = lists:filter(fun(Db) ->
-            not lists:member(Db, HostsOk)
-        end, InstalledDbs),
-
-        case dao:update_record(?CONFIG_TABLE, ?CONFIG_ID, [{dbs, NewDbs}]) of
-            ok ->
-                case HostsError of
-                    [] -> ok;
+        case StartError of
+            [] ->
+                {_, JoinError} = case StartOk of
+                                     [First | Rest] ->
+                                         install_utils:apply_on_hosts(Rest, ?MODULE, add_to_cluster, [First], ?RPC_TIMEOUT);
+                                     _ -> {StartOk, []}
+                                 end,
+                case JoinError of
+                    [] ->
+                        case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{dbs, Dbs}]) of
+                            ok -> ok;
+                            Other ->
+                                lager:error("Cannot update database nodes configuration: ~p", [Other]),
+                                install_utils:apply_on_hosts(Dbs, ?MODULE, stop, [], ?RPC_TIMEOUT),
+                                {error, {hosts, Dbs}}
+                        end;
                     _ ->
-                        lager:error("Cannot uninstall database nodes on following hosts: ~p", [HostsError]),
-                        {error, {hosts, HostsError}}
+                        lager:error("Cannot add following hosts: ~p to database cluster", [StartError]),
+                        {error, {hosts, StartError}}
                 end;
-            UpdateError ->
-                lager:error("Cannot update database nodes configuration: ~p", [UpdateError]),
-                {error, UpdateError}
+            _ ->
+                lager:error("Cannot start database nodes on following hosts: ~p", [StartError]),
+                install_utils:apply_on_hosts(StartOk, ?MODULE, stop, [], ?RPC_TIMEOUT),
+                {error, {hosts, StartError}}
         end
     catch
         _:Reason ->
-            lager:error("Cannot uninstall ccm nodes: ~p", [Reason]),
+            lager:error("Cannot start database nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
 
-%% start/2
+%% stop/1
 %% ====================================================================
-%% @doc Starts database nodes on hosts.
+%% @doc Stops database nodes on given hosts.
 %% @end
--spec start(Hosts :: [string()], Args) -> Result when
-    Result :: ok | {error, Reason :: term()},
-    Args :: [{Name :: atom(), Value :: term()}].
+-spec stop(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
+    Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-start(Hosts, _) ->
-    {StartOk, StartError} = install_utils:apply_on_hosts(Hosts, ?MODULE, start, [], ?RPC_TIMEOUT),
-    {_, JoinError} = case StartOk of
-                         [First | Rest] ->
-                             install_utils:apply_on_hosts(Rest, ?MODULE, join_cluster, [First], ?RPC_TIMEOUT);
-                         _ -> {StartOk, []}
-                     end,
+stop(_) ->
+    try
+        Dbs = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+                  {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} ->
+                      throw("Database nodes not configured.");
+                  {ok, #?GLOBAL_CONFIG_RECORD{dbs = Hosts}} ->
+                      Hosts;
+                  _ -> throw("Cannot get database nodes configuration.")
+              end,
 
-    case JoinError of
-        [] -> ok;
-        _ -> lager:error("Cannot add following hosts to database cluster: ~p", [JoinError])
-    end,
+        {HostsOk, HostsError} = install_utils:apply_on_hosts(Dbs, ?MODULE, stop, [], ?RPC_TIMEOUT),
 
-    case StartError ++ JoinError of
-        [] -> ok;
-        _ ->
-            lager:error("Cannot start database nodes on following hosts: ~p", [StartError]),
-            install_utils:apply_on_hosts(JoinError, ?MODULE, stop, [], ?RPC_TIMEOUT),
-            {error, StartError ++ JoinError}
+        case HostsError of
+            [] ->
+                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{dbs, []}]) of
+                    ok -> ok;
+                    Other ->
+                        lager:error("Cannot update database nodes configuration: ~p", [Other]),
+                        install_utils:apply_on_hosts(Dbs, ?MODULE, start, [], ?RPC_TIMEOUT),
+                        {error, {hosts, Dbs}}
+                end;
+            _ ->
+                lager:error("Cannot stop database nodes on following hosts: ~p", [HostsError]),
+                install_utils:apply_on_hosts(HostsOk, ?MODULE, start, [], ?RPC_TIMEOUT),
+                {error, {hosts, HostsError}}
+        end
+    catch
+        _:Reason ->
+            lager:error("Cannot stop database nodes: ~p", [Reason]),
+            {error, Reason}
     end.
 
 
-%% stop/2
+%% restart/1
 %% ====================================================================
-%% @doc Stops database nodes on hosts.
+%% @doc Restarts database nodes on given hosts.
 %% @end
--spec stop(Hosts :: [string()], Args) -> Result when
-    Result :: ok | {error, Reason :: term()},
-    Args :: [{Name :: atom(), Value :: term()}].
+-spec restart(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
+    Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-stop(Hosts, _) ->
-    {_, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, stop, [], ?RPC_TIMEOUT),
-    case HostsError of
-        [] -> ok;
-        _ ->
-            lager:error("Cannot stop database nodes on following hosts: ~p", [HostsError]),
-            {error, HostsError}
-    end.
+restart(_) ->
+    try
+        Dbs = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+                  {ok, #?GLOBAL_CONFIG_RECORD{dbs = undefined}} ->
+                      throw("Database nodes not configured.");
+                  {ok, #?GLOBAL_CONFIG_RECORD{dbs = Hosts}} ->
+                      Hosts;
+                  _ -> throw("Cannot get database nodes configuration.")
+              end,
 
-
-%% restart/2
-%% ====================================================================
-%% @doc Restarts database nodes on hosts.
-%% @end
--spec restart(Hosts :: [string()], Args) -> Result when
-    Result :: ok | {error, Reason :: term()},
-    Args :: [{Name :: atom(), Value :: term()}].
-%% ====================================================================
-restart(Hosts, _) ->
-    {_, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, restart, [], ?RPC_TIMEOUT),
-    case HostsError of
-        [] -> ok;
-        _ ->
-            lager:error("Cannot restart database nodes on following hosts: ~p", [HostsError]),
-            {error, HostsError}
+        case stop([]) of
+            ok -> start([{dbs, Dbs}]);
+            Other -> Other
+        end
+    catch
+        _:Reason ->
+            lager:error("Cannot restart database nodes: ~p", [Reason]),
+            {error, Reason}
     end.
 
 
@@ -180,157 +193,119 @@ restart(Hosts, _) ->
 
 %% install/0
 %% ====================================================================
-%% @doc Installs database node.
+%% @doc Installs database node on local host.
 %% @end
 -spec install() -> Result when
-    Result :: ok | {error, Reason :: term()}.
+    Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 install() ->
     Host = install_utils:get_host(node()),
     try
-        lager:info("Installing database node on host: ~s.", [Host]),
+        lager:debug("Installing database node."),
 
         "" = os:cmd("mkdir -p " ++ ?DEFAULT_DB_INSTALL_PATH),
-        "" = os:cmd("cp -R " ++ ?DB_RELEASE ++ "/ * " ++ ?DEFAULT_DB_INSTALL_PATH),
-        "" = os:cmd("sed -i -e \"s/^\\-setcookie .*/\\-setcookie " ++ atom_to_list(?DEFAULT_COOKIE) ++ "/g\" " ++ ?DEFAULT_DB_INSTALL_PATH ++ "/etc/vm.args"),
-        "" = os:cmd("sed -i -e \"s/^\\-name .*/\\-name " ++ ?DEFAULT_DB_NAME ++ "@" ++ Host ++ "/g\" " ++ ?DEFAULT_DB_INSTALL_PATH ++ "/etc/vm.args"),
-        ok = install_utils:add_node_to_config(db_node, list_to_atom(?DEFAULT_DB_NAME), ?DEFAULT_DB_INSTALL_PATH),
+        "" = os:cmd("cp -R " ++ ?DB_RELEASE ++ "/* " ++ ?DEFAULT_DB_INSTALL_PATH),
 
-        ok
+        {ok, Host}
     catch
         _:Reason ->
-            lager:error("Cannot install database node on host ~s: ~p.", [Host, Reason]),
-            {error, Reason}
+            lager:error("Cannot install database node: ~p.", [Reason]),
+            {error, Host}
     end.
 
 
 %% uninstall/0
 %% ====================================================================
-%% @doc Uninstalls database node.
+%% @doc Uninstalls database node on local host.
 %% @end
 -spec uninstall() -> Result when
-    Result :: ok | {error, Reason :: term()}.
+    Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 uninstall() ->
     Host = install_utils:get_host(node()),
     try
-        lager:info("Uninstalling database node on host: ~s.", [Host]),
+        lager:debug("Uninstalling database node."),
 
-        ok = install_utils:remove_node_from_config(db_node),
         "" = os:cmd("rm -rf " ++ ?DEFAULT_DB_INSTALL_PATH),
 
-        ok
+        {ok, Host}
     catch
         _:Reason ->
             lager:error("Cannot uninstall database node on host ~s: ~p.", [Host, Reason]),
-            {error, Reason}
+            {error, Host}
     end.
 
 
 %% start/0
 %% ====================================================================
-%% @doc Starts database node.
+%% @doc Starts database node on local host.
 %% @end
 -spec start() -> Result when
-    Result :: ok | {error, Reason :: term()}.
+    Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 start() ->
     Host = install_utils:get_host(node()),
     try
-        BigcouchStartScript = ?DEFAULT_DB_INSTALL_PATH ++ "/" ++ ?DB_START_COMMAND_SUFFIX,
-        NohupOut = ?DEFAULT_DB_INSTALL_PATH ++ "/" ++ ?NOHUP_OUTPUT,
-        SetUlimitsCmd = install_utils:get_ulimits_cmd(),
-        lager:info("Starting database node on host: ~s.", [Host]),
+        lager:debug("Starting database node."),
+        BigcouchStartScript = filename:join([?DEFAULT_DB_INSTALL_PATH, ?DB_START_COMMAND_SUFFIX]),
+        NohupOut = filename:join([?DEFAULT_DB_INSTALL_PATH, ?NOHUP_OUTPUT]),
+        SetUlimitsCmd = install_utils:get_ulimits_cmd(Host),
 
+        "" = os:cmd("sed -i -e \"s/^\\-setcookie .*/\\-setcookie " ++ atom_to_list(?DEFAULT_COOKIE) ++ "/g\" " ++ ?DEFAULT_DB_INSTALL_PATH ++ "/etc/vm.args"),
+        "" = os:cmd("sed -i -e \"s/^\\-name .*/\\-name " ++ ?DEFAULT_DB_NAME ++ "@" ++ Host ++ "/g\" " ++ ?DEFAULT_DB_INSTALL_PATH ++ "/etc/vm.args"),
+        ok = install_utils:add_node_to_config(db_node, list_to_atom(?DEFAULT_DB_NAME), ?DEFAULT_DB_INSTALL_PATH),
         open_port({spawn, "sh -c \"" ++ SetUlimitsCmd ++ " ; " ++ "nohup " ++ BigcouchStartScript ++ " > " ++ NohupOut ++ " 2>&1 &" ++ "\" 2>&1 &"}, [out]),
 
-        ok
+        {ok, Host}
     catch
         _:Reason ->
-            lager:error("Cannot start database node on host ~s: ~p.", [Host, Reason]),
-            {error, Reason}
+            lager:error("Cannot start database node: ~p", [Reason]),
+            {error, Host}
     end.
 
 
 %% stop/0
 %% ====================================================================
-%% @doc Stops database node.
+%% @doc Stops database node on local host.
 %% @end
 -spec stop() -> Result when
-    Result :: ok | {error, Reason :: term()}.
+    Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 stop() ->
     Host = install_utils:get_host(node()),
-    lager:info("Stopping database node on host: ~s.", [Host]),
-
-    case os:cmd("kill -TERM `ps aux | grep beam | grep " ++ ?DEFAULT_DB_INSTALL_PATH ++ " | cut -d'\t' -f2 | awk '{print $2}'`") of
-        "" -> ok;
-        Other ->
-            lager:error("Cannot stop database node on host ~s: ~p.", [Host, Other]),
-            {error, Other}
-    end.
-
-
-%% restart/0
-%% ====================================================================
-%% @doc Restarts database node.
-%% @end
--spec restart() -> Result when
-    Result :: ok | {error, Reason :: term()}.
-%% ====================================================================
-restart() ->
-    Host = install_utils:get_host(node()),
     try
-        lager:info("Restarting database node on host: ~s.", [Host]),
+        lager:debug("Stopping database node."),
 
-        ok = stop(),
-        ok = start(),
+        "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ ?DEFAULT_DB_INSTALL_PATH ++ " | cut -d'\t' -f2 | awk '{print $2}'`"),
+        ok = install_utils:remove_node_from_config(db_node),
 
-        ok
+        {ok, Host}
     catch
         _:Reason ->
-            lager:error("Cannot start database node on host ~s: ~p.", [Host, Reason]),
-            {error, Reason}
+            lager:error("Cannot stop database node: ~p", [Reason]),
+            {error, Host}
     end.
 
 
-%% join_cluster/2
 %% ====================================================================
 %% @doc Adds database node to cluster. ClusterNode is one of current
 %% database cluster nodes.
 %% @end
--spec join_cluster(ClusterNode :: node()) -> Result when
+-spec add_to_cluster(ClusterNode :: node()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-join_cluster(ClusterNode) ->
-    join_cluster(ClusterNode, 0).
-
-
-%% join_cluster/2
-%% ====================================================================
-%% @doc Adds database node to cluster. ClusterNode is one of current
-%% database cluster nodes. Should not be used directly, use join_cluster/1
-%% instead.
-%% @end
--spec join_cluster(ClusterHost :: string(), Attempts :: integer()) -> Result when
-    Result :: ok | {error, Reason :: term()}.
-%% ====================================================================
-join_cluster(_, 10) ->
+add_to_cluster(ClusterHost) ->
     Host = install_utils:get_host(node()),
-    lager:error("Cannot add database node to cluster on host ~s: attempts limit exceeded.", [Host]),
-    {error, "Cannot add database node to cluster: attempts limit exceeded."};
-
-join_cluster(ClusterHost, Attempts) ->
     try
-        timer:sleep(1000),
-        Host = install_utils:get_host(node()),
         Url = "http://" ++ ClusterHost ++ ":" ++ ?DEFAULT_PORT ++ "/nodes/" ++ ?DEFAULT_DB_NAME ++ "@" ++ Host,
-        lager:info("Adding database node to cluster on host: ~s.", [Host]),
+        lager:debug("Adding database node to cluster on host: ~s.", [Host]),
 
         {ok, "201", _ResponseHeaders, ResponseBody} = ibrowse:send_req(Url, [{content_type, "application/json"}], put, "{}", ?CURL_OPTS),
         false = (0 =:= string:str(ResponseBody, "\"ok\":true")),
 
         ok
     catch
-        _:_ -> join_cluster(ClusterHost, Attempts + 1)
+        _:Reason ->
+            lager:error("Cannot add host ~s to database cluster: ~p", [Host, Reason]),
+            add_to_cluster(ClusterHost)
     end.

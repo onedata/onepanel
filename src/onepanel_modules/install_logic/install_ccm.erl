@@ -6,7 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc: This module implements {@link install_behaviour} callbacks and
-%% provides API methods for ccm nodes installation.
+%% provides API methods for CCM nodes installation.
 %% @end
 %% ===================================================================
 -module(install_ccm).
@@ -16,180 +16,175 @@
 -include("onepanel_modules/install_logic.hrl").
 -include("onepanel_modules/db_logic.hrl").
 
-% install_behaviour callbacks
--export([install/2, uninstall/2, start/2, stop/2, restart/2]).
+%% install_behaviour callbacks
+-export([install/1, uninstall/1, start/1, stop/1, restart/1]).
 
-% API
--export([install/3, uninstall/0, start/0, stop/0, restart/0]).
+%% API
+-export([install/0, uninstall/0, start/3, stop/0]).
 
 %% ====================================================================
 %% Behaviour callback functions
 %% ====================================================================
 
-%% install/2
+%% install/1
 %% ====================================================================
-%% @doc Installs ccm nodes on given hosts. Argument list should contain
-%% main ccm node and database nodes.
+%% @doc Installs CCM nodes on given hosts.
 %% @end
--spec install(Hosts :: [string()], Args) -> Result when
-    Result :: ok | {error, Reason :: term()},
-    Args :: [{Name :: atom(), Value :: term()}].
+-spec install(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
+    Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-install(Hosts, Args) ->
-    try
-        MainCCM = proplists:get_value(main_ccm, Args),
-        OptCCMs = proplists:get_value(opt_ccms, Args, []),
-        Dbs = proplists:get_value(dbs, Args),
+install(Args) ->
+    Hosts = proplists:get_value(hosts, Args, []),
 
-        case MainCCM of
-            undefined -> throw("Main CCM node not found in arguments list.");
-            _ -> ok
-        end,
+    {HostsOk, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, install, [], ?RPC_TIMEOUT),
 
-        case Dbs of
-            undefined -> throw("Database nodes not found in arguments list.");
-            _ -> ok
-        end,
-
-        case dao:get_record(?CONFIG_TABLE, ?CONFIG_ID) of
-            {ok, #?CONFIG_TABLE{main_ccm = undefined, opt_ccms = []}} -> ok;
-            {ok, #?CONFIG_TABLE{main_ccm = _, opt_ccms = _}} -> throw("CCMs already installed.");
-            _ -> throw("Cannot get ccm nodes configuration.")
-        end,
-
-        {HostsOk, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, install, [MainCCM, OptCCMs, Dbs], ?RPC_TIMEOUT),
-
-        NewMainCCM = case lists:member(MainCCM, HostsOk) of
-                         true -> MainCCM;
-                         _ -> undefined
-                     end,
-        NewOptCCMs = lists:filter(fun(OptCCM) ->
-            lists:member(OptCCM, HostsOk)
-        end, OptCCMs),
-
-        case dao:update_record(?CONFIG_TABLE, ?CONFIG_ID, [{main_ccm, NewMainCCM}, {opt_ccms, NewOptCCMs}]) of
-            ok ->
-                case HostsError of
-                    [] -> ok;
-                    _ ->
-                        lager:error("Cannot install ccm nodes on following hosts: ~p", [HostsError]),
-                        {error, {hosts, HostsError}}
-                end;
-            UpdateError ->
-                lager:error("Cannot update ccm nodes configuration: ~p", [UpdateError]),
-                rpc:multicall(Hosts, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
-                {error, UpdateError}
-        end
-    catch
-        _:Reason ->
-            lager:error("Cannot install ccm nodes: ~p", [Reason]),
-            {error, Reason}
+    case HostsError of
+        [] -> ok;
+        _ ->
+            lager:error("Cannot install CCM nodes on following hosts: ~p", [HostsError]),
+            install_utils:apply_on_hosts(HostsOk, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
+            {error, {hosts, HostsError}}
     end.
 
 
-%% uninstall/2
+%% uninstall/1
 %% ====================================================================
-%% @doc Uninstalls ccm nodes on given hosts.
+%% @doc Uninstalls CCM nodes on given hosts.
 %% @end
--spec uninstall(Hosts :: [string()], Args) -> Result when
-    Result :: ok | {error, Reason :: term()},
-    Args :: [{Name :: atom(), Value :: term()}].
+-spec uninstall(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
+    Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-uninstall(Hosts, _) ->
+uninstall(Args) ->
+    Hosts = proplists:get_value(hosts, Args, []),
+
+    {HostsOk, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
+
+    case HostsError of
+        [] -> ok;
+        _ ->
+            lager:error("Cannot uninstall CCM nodes on following hosts: ~p", [HostsError]),
+            install_utils:apply_on_hosts(HostsOk, ?MODULE, install, [], ?RPC_TIMEOUT),
+            {error, {hosts, HostsError}}
+    end.
+
+
+%% start/1
+%% ====================================================================
+%% @doc Starts CCM nodes on given hosts. Argument list should contain
+%% main CCM node and database nodes.
+%% @end
+-spec start(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+start(Args) ->
     try
-        {InstalledMainCCM, InstalledOptCCMs}
-            = case dao:get_record(?CONFIG_TABLE, ?CONFIG_ID) of
-                  {ok, #?CONFIG_TABLE{main_ccm = MainCCM, opt_ccms = OptCCMs}} -> {MainCCM, OptCCMs};
-                  _ -> throw("Cannot get ccm nodes configuration.")
+        case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> throw("Database nodes not configured.");
+            {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = undefined}} -> ok;
+            {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = _}} -> throw("CCM nodes already configured.");
+            _ -> throw("Cannot get CCM nodes configuration.")
+        end,
+
+        MainCCM = case proplists:get_value(main_ccm, Args) of
+                      undefined -> throw("Main CCM node not found in arguments list.");
+                      Host -> Host
+                  end,
+        OptCCMs = proplists:get_value(opt_ccms, Args, []),
+        Dbs = case proplists:get_value(dbs, Args) of
+                  undefined -> throw("Database nodes not found in arguments list.");
+                  Hosts -> Hosts
               end,
 
-        lists:foreach(fun(Host) ->
-            case lists:member(Host, [InstalledMainCCM | InstalledOptCCMs]) of
-                true -> ok;
-                _ -> throw("Host: " ++ Host ++ " is not installed.")
-            end
-        end, Hosts),
+        {HostsOk, HostsError} = install_utils:apply_on_hosts([MainCCM | OptCCMs], ?MODULE, start, [MainCCM, OptCCMs, Dbs], ?RPC_TIMEOUT),
 
-        {HostsOk, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
-
-        NewMainCCM = case lists:member(InstalledMainCCM, HostsOk) of
-                         true -> undefined;
-                         _ -> InstalledMainCCM
-                     end,
-        NewOptCCMs = lists:filter(fun(OptCCM) ->
-            not lists:member(OptCCM, HostsOk)
-        end, InstalledOptCCMs),
-
-        case dao:update_record(?CONFIG_TABLE, ?CONFIG_ID, [{main_ccm, NewMainCCM}, {opt_ccms, NewOptCCMs}]) of
-            ok ->
-                case HostsError of
-                    [] -> ok;
-                    _ ->
-                        lager:error("Cannot uninstall ccm nodes on following hosts: ~p", [HostsError]),
-                        {error, {hosts, HostsError}}
+        case HostsError of
+            [] ->
+                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{main_ccm, MainCCM}, {opt_ccms, OptCCMs}]) of
+                    ok -> ok;
+                    Other ->
+                        lager:error("Cannot update CCM nodes configuration: ~p", [Other]),
+                        install_utils:apply_on_hosts([MainCCM | OptCCMs], ?MODULE, stop, [], ?RPC_TIMEOUT),
+                        {error, {hosts, [MainCCM | OptCCMs]}}
                 end;
-            UpdateError ->
-                lager:error("Cannot update ccm nodes configuration: ~p", [UpdateError]),
-                {error, UpdateError}
+            _ ->
+                lager:error("Cannot start CCM nodes on following hosts: ~p", [HostsError]),
+                install_utils:apply_on_hosts(HostsOk, ?MODULE, stop, [], ?RPC_TIMEOUT),
+                {error, {hosts, HostsError}}
         end
     catch
         _:Reason ->
-            lager:error("Cannot uninstall ccm nodes: ~p", [Reason]),
+            lager:error("Cannot start CCM nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
 
-%% start/2
+%% stop/1
 %% ====================================================================
-%% @doc Starts ccm nodes on given hosts.
+%% @doc Stops CCM nodes on given hosts.
 %% @end
--spec start(Hosts :: [string()], Args) -> Result when
-    Result :: ok | {error, Reason :: term()},
-    Args :: [{Name :: atom(), Value :: term()}].
+-spec stop(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
+    Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-start(Hosts, _) ->
-    {_, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, start, [], ?RPC_TIMEOUT),
-    case HostsError of
-        [] -> ok;
-        _ ->
-            lager:error("Cannot start ccm nodes on following hosts: ~p", [HostsError]),
-            {error, HostsError}
+stop(_) ->
+    try
+        {MainCCM, OptCCMs, Dbs} =
+            case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = undefined}} ->
+                    throw("CCM nodes not configured.");
+                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCMHost, opt_ccms = OptCCMHosts, dbs = DbHosts}} ->
+                    {MainCCMHost, OptCCMHosts, DbHosts};
+                _ -> throw("Cannot get CCM nodes configuration.")
+            end,
+
+        {HostsOk, HostsError} = install_utils:apply_on_hosts([MainCCM | OptCCMs], ?MODULE, stop, [], ?RPC_TIMEOUT),
+
+        case HostsError of
+            [] ->
+                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{main_ccm, undefined}, {opt_ccms, []}]) of
+                    ok -> ok;
+                    Other ->
+                        lager:error("Cannot update CCM nodes configuration: ~p", [Other]),
+                        install_utils:apply_on_hosts([MainCCM | OptCCMs], ?MODULE, start, [MainCCM, OptCCMs, Dbs], ?RPC_TIMEOUT),
+                        {error, {hosts, [MainCCM | OptCCMs]}}
+                end;
+            _ ->
+                lager:error("Cannot stop CCM nodes on following hosts: ~p", [HostsError]),
+                install_utils:apply_on_hosts(HostsOk, ?MODULE, start, [MainCCM, OptCCMs, Dbs], ?RPC_TIMEOUT),
+                {error, {hosts, HostsError}}
+        end
+    catch
+        _:Reason ->
+            lager:error("Cannot stop CCM nodes: ~p", [Reason]),
+            {error, Reason}
     end.
 
 
-%% stop/2
+%% restart/1
 %% ====================================================================
-%% @doc Stops ccm nodes on given hosts.
+%% @doc Restarts CCM nodes on given hosts.
 %% @end
--spec stop(Hosts :: [string()], Args) -> Result when
-    Result :: ok | {error, Reason :: term()},
-    Args :: [{Name :: atom(), Value :: term()}].
+-spec restart(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
+    Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-stop(Hosts, _) ->
-    {_, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, stop, [], ?RPC_TIMEOUT),
-    case HostsError of
-        [] -> ok;
-        _ ->
-            lager:error("Cannot stop ccm nodes on following hosts: ~p", [HostsError]),
-            {error, HostsError}
-    end.
+restart(_) ->
+    try
+        {MainCCM, OptCCMs, Dbs} =
+            case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = undefined}} ->
+                    throw("CCM nodes not configured.");
+                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCMHost, opt_ccms = OptCCMHosts, dbs = DbHosts}} ->
+                    {MainCCMHost, OptCCMHosts, DbHosts};
+                _ -> throw("Cannot get CCM nodes configuration.")
+            end,
 
-
-%% restart/2
-%% ====================================================================
-%% @doc Restarts ccm nodes.
-%% @end
--spec restart(Hosts :: [string()], Args) -> Result when
-    Result :: ok | {error, Reason :: term()},
-    Args :: [{Name :: atom(), Value :: term()}].
-%% ====================================================================
-restart(Hosts, _) ->
-    {_, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, restart, [], ?RPC_TIMEOUT),
-    case HostsError of
-        [] -> ok;
-        _ ->
-            lager:error("Cannot restart ccm nodes on following hosts: ~p", [HostsError]),
-            {error, HostsError}
+        case stop([]) of
+            ok -> start([{main_ccm, MainCCM}, {opt_ccms, OptCCMs}, {dbs, Dbs}]);
+            Other -> Other
+        end
+    catch
+        _:Reason ->
+            lager:error("Cannot restart CCM nodes: ~p", [Reason]),
+            {error, Reason}
     end.
 
 
@@ -197,123 +192,117 @@ restart(Hosts, _) ->
 %% API functions
 %% ====================================================================
 
-%% install/3
+%% install/0
 %% ====================================================================
-%% @doc Installs ccm node. All function arguments are string form of
-%% hostname, eg. "127.0.0.1".
+%% @doc Installs CCM node on local host.
 %% @end
--spec install(MainCCM :: string(), OptCCMs :: [string()], Dbs :: [string()]) -> ok | {error, Reason :: term()}.
+-spec install() -> Result when
+    Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-install(MainCCM, OptCCMs, Dbs) ->
+install() ->
     Host = install_utils:get_host(node()),
     try
-        LongName = ?DEFAULT_CCM_NAME ++ "@" ++ Host,
-        MainCCMLongName = ?DEFAULT_CCM_NAME ++ "@" ++ MainCCM,
-        OptCCMsLongNames = lists:foldl(fun(OptCCM, Acc) ->
-            Acc ++ ?DEFAULT_CCM_NAME ++ "@" ++ OptCCM ++ " " end, [], OptCCMs),
-        DbsLongNames = lists:foldl(fun(Db, Acc) -> Acc ++ ?DEFAULT_DB_NAME ++ "@" ++ Db ++ " " end, [], Dbs),
-        ConfigPath = ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME ++ "/" ++ ?CONFIG_ARGS_PATH,
-        StorageConfigPath = ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME ++ "/" ++ ?STORAGE_CONFIG_PATH,
-
-        lager:info("Installing ccm node on host: ~s.", [Host]),
+        lager:debug("Installing CCM node."),
 
         "" = os:cmd("mkdir -p " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME),
         "" = os:cmd("cp -R " ++ ?VEIL_RELEASE ++ "/* " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME),
-        ok = install_utils:overwrite_config_args(ConfigPath, "name", LongName),
-        ok = install_utils:overwrite_config_args(ConfigPath, "main_ccm", MainCCMLongName),
-        ok = install_utils:overwrite_config_args(ConfigPath, "opt_ccms", OptCCMsLongNames),
-        ok = install_utils:overwrite_config_args(ConfigPath, "db_nodes", DbsLongNames),
-        ok = install_utils:overwrite_config_args(ConfigPath, "storage_config_path", StorageConfigPath),
-        ok = install_utils:add_node_to_config(ccm, list_to_atom(?DEFAULT_CCM_NAME), ?DEFAULT_NODES_INSTALL_PATH),
 
-        ok
+        {ok, Host}
     catch
         _:Reason ->
-            lager:error("Cannot install ccm node on host ~s: ~p.", [Host, Reason]),
-            {error, Reason}
+            lager:error("Cannot install CCM node: ~p.", [Reason]),
+            {error, Host}
     end.
 
 
 %% uninstall/0
 %% ====================================================================
-%% @doc Uninstalls ccm node.
+%% @doc Uninstalls CCM node on local host.
 %% @end
--spec uninstall() -> ok | {error, Reason :: term()}.
+-spec uninstall() -> Result when
+    Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 uninstall() ->
     Host = install_utils:get_host(node()),
     try
-        lager:info("Uninstalling ccm node on host: ~s.", [Host]),
+        lager:debug("Uninstalling CCM node."),
 
-        ok = install_utils:remove_node_from_config(ccm),
         "" = os:cmd("rm -rf " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME),
 
-        ok
+        {ok, Host}
     catch
         _:Reason ->
-            lager:error("Cannot uninstall ccm node on host ~s: ~p.", [Host, Reason]),
-            {error, Reason}
+            lager:error("Cannot uninstall CCM node: ~p.", [Reason]),
+            {error, Host}
     end.
 
 
-%% start/0
+%% start/3
 %% ====================================================================
-%% @doc Starts ccm node.
+%% @doc Starts CCM node on local host.
 %% @end
--spec start() -> ok | {error, Reason :: term()}.
+-spec start(MainCCM :: string(), OptCCMs :: [string()], Dbs :: [string()]) -> Result when
+    Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-start() ->
+start(MainCCM, OptCCMs, Dbs) ->
     Host = install_utils:get_host(node()),
     try
-        lager:info("Starting ccm node on host: ~p.", [Host]),
+        lager:debug("Starting CCM node: ~p."),
 
-        os:cmd(?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME ++ "/" ++ ?VEIL_CLUSTER_SCRIPT_PATH),
-        SetUlimitsCmd = install_utils:get_ulimits_cmd(),
-        "" = os:cmd(SetUlimitsCmd ++ " ; " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME ++ "/" ++ ?START_COMMAND_SUFFIX),
+        Name = ?DEFAULT_CCM_NAME ++ "@" ++ Host,
 
-        ok
+        MainCCMName = ?DEFAULT_CCM_NAME ++ "@" ++ MainCCM,
+
+        OptCCMNames = lists:foldl(fun(OptCCM, Acc) ->
+            Acc ++ ?DEFAULT_CCM_NAME ++ "@" ++ OptCCM ++ " "
+        end, [], OptCCMs),
+
+        DbNames = lists:foldl(fun(Db, Acc) ->
+            Acc ++ ?DEFAULT_DB_NAME ++ "@" ++ Db ++ " "
+        end, [], Dbs),
+
+        NodeConfigPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME, ?CONFIG_ARGS_PATH]),
+        StorageConfigPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME, ?STORAGE_CONFIG_PATH]),
+        OverwriteCommand = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME, ?VEIL_CLUSTER_SCRIPT_PATH]),
+        StartCommand = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME, ?START_COMMAND_SUFFIX]),
+
+        ok = install_utils:overwrite_config_args(NodeConfigPath, "name", Name),
+        ok = install_utils:overwrite_config_args(NodeConfigPath, "main_ccm", MainCCMName),
+        ok = install_utils:overwrite_config_args(NodeConfigPath, "opt_ccms", OptCCMNames),
+        ok = install_utils:overwrite_config_args(NodeConfigPath, "db_nodes", DbNames),
+        ok = install_utils:overwrite_config_args(NodeConfigPath, "storage_config_path", StorageConfigPath),
+        ok = install_utils:add_node_to_config(ccm, list_to_atom(?DEFAULT_CCM_NAME), ?DEFAULT_NODES_INSTALL_PATH),
+
+        os:cmd(OverwriteCommand),
+        SetUlimitsCmd = install_utils:get_ulimits_cmd(Host),
+        "" = os:cmd(SetUlimitsCmd ++ " ; " ++ StartCommand),
+
+        {ok, Host}
     catch
         _:Reason ->
-            lager:error("Cannot start ccm node on host ~s: ~p.", [Host, Reason]),
-            {error, Reason}
+            lager:error("Cannot start CCM node: ~p", [Reason]),
+            {error, Host}
     end.
 
 
 %% stop/0
 %% ====================================================================
-%% @doc Stops ccm node.
+%% @doc Stops CCM node on local host.
 %% @end
--spec stop() -> ok | {error, Reason :: term()}.
+-spec stop() -> Result when
+    Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 stop() ->
     Host = install_utils:get_host(node()),
-    lager:info("Stopping cmm node on host: ~p.", [Host]),
-
-    case os:cmd("kill -TERM `ps aux | grep beam | grep " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME ++ " | cut -d'\t' -f2 | awk '{print $2}'`") of
-        "" -> ok;
-        Other ->
-            lager:error("Cannot stop ccm node on host ~s: ~p.", [Host, Other]),
-            {error, Other}
-    end.
-
-
-%% restart/0
-%% ====================================================================
-%% @doc Restarts ccm node.
-%% @end
--spec restart() -> ok | {error, Reason :: term()}.
-%% ====================================================================
-restart() ->
-    Host = install_utils:get_host(node()),
     try
-        lager:info("Restarting ccm node on host: ~p.", [Host]),
+        lager:debug("Stopping CCM node."),
 
-        ok = stop(),
-        ok = start(),
+        "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME ++ " | cut -d'\t' -f2 | awk '{print $2}'`"),
+        ok = install_utils:remove_node_from_config(ccm),
 
-        ok
+        {ok, Host}
     catch
         _:Reason ->
-            lager:error("Cannot restart ccm node on host ~s: ~p.", [Host, Reason]),
-            {error, Reason}
+            lager:error("Cannot stop CCM node: ~p", [Reason]),
+            {error, Host}
     end.

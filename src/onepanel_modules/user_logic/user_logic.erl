@@ -32,7 +32,7 @@
 authenticate(Username, Password) ->
     PasswordHash = hash_password(Password),
     case dao:get_record(?USER_TABLE, Username) of
-        {ok, #?USER_TABLE{username = Username, password = ValidPasswordHash}} ->
+        {ok, #?USER_RECORD{username = Username, password = ValidPasswordHash}} ->
             case ValidPasswordHash of
                 PasswordHash -> ok;
                 _ -> {error, "Invaild username or password."}
@@ -54,7 +54,7 @@ change_password(Username, OldPassword, NewPassword) ->
     PasswordHash = user_logic:hash_password(NewPassword),
     case authenticate(Username, OldPassword) of
         ok ->
-            case dao:save_record(?USER_TABLE, #?USER_TABLE{username = Username, password = PasswordHash}) of
+            case dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username, password = PasswordHash}) of
                 ok -> ok;
                 Other ->
                     lager:error("Cannot change user password: ~p", [Other]),

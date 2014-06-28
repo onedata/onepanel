@@ -50,30 +50,37 @@ save_record(Table, Record) ->
 %% change and second element is a substitution value. If record does not
 %% exist in database an error is returned.
 %% @end
--spec update_record(Table :: atom(), Key :: term(), Update) -> Result when
+-spec update_record(Table :: atom(), Key :: term(), Values) -> Result when
     Result :: ok | {error, Reason :: term()},
-    Update :: [{Field :: atom(), Value :: term()}].
+    Values :: [{Field :: atom(), Value :: term()}].
 %% ====================================================================
-update_record(Table, Key, Update) ->
+update_record(Table, Key, Values) ->
     try
-        case get_record(Table, Key) of
-            {ok, OldRecord} ->
-                [RecordName | OldValues] = tuple_to_list(OldRecord),
-                Columns = get_table_columns(Table),
-                NewValues = lists:map(fun
-                    ({Column, OldValue}) ->
-                        case proplists:get_value(Column, Update) of
-                            undefined -> OldValue;
-                            NewValue -> NewValue
-                        end
-                end, lists:zip(Columns, OldValues)),
-                NewRecord = list_to_tuple([RecordName | NewValues]),
-                save_record(Table, NewRecord);
-            Other -> Other
-        end
+        Transaction = fun() ->
+            case mnesia:read(Table, Key) of
+                [OldRecord] ->
+                    [RecordName | OldValues] = tuple_to_list(OldRecord),
+                    Columns = get_table_columns(Table),
+                    NewValues = lists:map(fun
+                        ({Column, OldValue}) ->
+                            case proplists:get_value(Column, Values) of
+                                undefined -> OldValue;
+                                NewValue -> NewValue
+                            end
+                    end, lists:zip(Columns, OldValues)),
+                    NewRecord = list_to_tuple([RecordName | NewValues]),
+                    case mnesia:write(Table, NewRecord, write) of
+                        ok -> ok;
+                        Other -> mnesia:abort(Other)
+                    end;
+                Other ->
+                    mnesia:abort(Other)
+            end
+        end,
+        mnesia:activity(transaction, Transaction)
     catch
         _:Reason ->
-            lager:error("Cannot update record in table ~p using key ~p and value ~p: ~p", [Table, Key, Update, Reason]),
+            lager:error("Cannot update record in table ~p using key ~p and substitution values ~p: ~p", [Table, Key, Values, Reason]),
             {error, Reason}
     end.
 
@@ -91,7 +98,7 @@ get_record(Table, Key) ->
         Transaction = fun() ->
             case mnesia:read(Table, Key) of
                 [Record] -> {ok, Record};
-                [] -> {error, not_found};
+                [] -> {error, "Record not found."};
                 Other -> {error, Other}
             end
         end,
@@ -138,8 +145,8 @@ exist_record(Table, Key) ->
     Result :: [atom()].
 %% ====================================================================
 get_table_columns(?USER_TABLE) ->
-    record_info(fields, ?USER_TABLE);
-get_table_columns(?CONFIG_TABLE) ->
-    record_info(fields, ?CONFIG_TABLE);
-get_table_columns(?PORT_TABLE) ->
-    record_info(fields, ?PORT_TABLE).
+    record_info(fields, ?USER_RECORD);
+get_table_columns(?LOCAL_CONFIG_TABLE) ->
+    record_info(fields, ?LOCAL_CONFIG_RECORD);
+get_table_columns(?GLOBAL_CONFIG_TABLE) ->
+    record_info(fields, ?GLOBAL_CONFIG_RECORD).
