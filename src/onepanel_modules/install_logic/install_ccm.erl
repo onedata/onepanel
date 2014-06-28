@@ -71,7 +71,8 @@ uninstall(Args) ->
 %% start/1
 %% ====================================================================
 %% @doc Starts CCM nodes on given hosts. Argument list should contain
-%% main CCM node and database nodes.
+%% host where main CCM node was installed and also list of hosts where
+%% database nodes where installed.
 %% @end
 -spec start(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.

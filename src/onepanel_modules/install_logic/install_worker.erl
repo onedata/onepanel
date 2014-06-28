@@ -70,7 +70,8 @@ uninstall(Args) ->
 %% start/1
 %% ====================================================================
 %% @doc Starts worker nodes on given hosts. Argument list should contain
-%% main worker node and database nodes.
+%% host where main CCM node was installed and also list of hosts where
+%% database and worker nodes where installed.
 %% @end
 -spec start(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.

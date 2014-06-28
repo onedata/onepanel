@@ -40,8 +40,15 @@ initialize(?USER_TABLE) ->
         _:Reason ->
             lager:error("Cannot initialize user table: ~p", [Reason]),
             {error, Reason}
+    end;
+initialize(?GLOBAL_CONFIG_TABLE) ->
+    try
+        ok = dao:save_record(?GLOBAL_CONFIG_TABLE, #?GLOBAL_CONFIG_RECORD{id = ?CONFIG_ID})
+    catch
+        _:Reason ->
+            lager:error("Cannot initialize global configuration table: ~p", [Reason]),
+            {error, Reason}
     end.
-
 
 %% create/0
 %% ====================================================================
@@ -82,7 +89,7 @@ create() ->
             {record_name, ?GLOBAL_CONFIG_RECORD},
             {disc_copies, [Node]}
         ]) of
-            {atomic, ok} -> ok;
+            {atomic, ok} -> initialize(?GLOBAL_CONFIG_TABLE);
             {aborted, {already_exists, ?GLOBAL_CONFIG_TABLE}} -> ok;
             {aborted, GlobalConfigError} -> throw(GlobalConfigError)
         end,

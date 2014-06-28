@@ -24,7 +24,7 @@
 -define(LOCAL_CONFIG_TABLE, local_configurations).
 
 %% Id of overall installation state saved in database
--define(CONFIG_ID, global).
+-define(CONFIG_ID, current).
 
 %% User table contains name and hashed password of each user
 -record(?USER_RECORD, {username, password}).

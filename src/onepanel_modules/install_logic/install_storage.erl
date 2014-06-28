@@ -37,7 +37,7 @@ add_storage_path(Hosts, Path) ->
     try
         StoragePaths =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                {ok, #?GLOBAL_CONFIG_TABLE{storage_paths = StoragePaths}} -> StoragePaths;
+                {ok, #?GLOBAL_CONFIG_RECORD{storage_paths = Paths}} -> Paths;
                 _ -> throw("Cannot get configured storage paths.")
             end,
 
@@ -119,21 +119,22 @@ remove_storage_path(Hosts, Path) ->
 %% @doc Adds configured storage path on local host.
 %% @end
 -spec add_storage_path(Path :: string()) -> Result when
-    Result :: ok | {error, Reason :: term()}.
+    Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 add_storage_path(Path) ->
+    Host = install_utils:get_host(node()),
     try
         lager:debug("Adding storage path ~s.", [Path]),
         StorageConfigPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, ?STORAGE_CONFIG_PATH]),
 
         {ok, Fd} = file:open(StorageConfigPath, [append]),
-        file:write(Fd, <<(term_to_binary([[{name, cluster_fuse_id}, {root, Path}]]))/binary, ".\n">>),
+        file:write(Fd, lists:flatten(io_lib:format("~p.~n", [[[{name, cluster_fuse_id}, {root, Path}]]]))),
         ok = file:close(Fd),
-        ok
+        {ok, Host}
     catch
         _:Reason ->
             lager:error("Cannot add storage path ~s: ~p", [Path, Reason]),
-            {error, Reason}
+            {error, Host}
     end.
 
 
@@ -142,27 +143,30 @@ add_storage_path(Path) ->
 %% @doc Removes configured storage path on local host.
 %% @end
 -spec remove_storage_path(Path :: string()) -> Result when
-    Result :: ok | {error, Reason :: term()}.
+    Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 remove_storage_path(Path) ->
+    Host = install_utils:get_host(node()),
     try
         lager:debug("Removing storage path ~s.", [Path]),
         StorageConfigPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, ?STORAGE_CONFIG_PATH]),
 
         {ok, StorageInfo} = file:consult(StorageConfigPath),
-        NewPaths = lists:foldl(fun
-            ([[{name, cluster_fuse_id}, {root, Path}]], Acc) -> Acc;
-            ([[{name, cluster_fuse_id}, {root, Other}]], Acc) -> [Other | Acc]
+        NewPaths = lists:foldl(fun([[{name, cluster_fuse_id}, {root, StoragePath}]], StoragePaths) ->
+            case StoragePath of
+                Path -> StoragePaths;
+                _ -> [StoragePath | StoragePaths]
+            end
         end, [], StorageInfo),
         ok = file:delete(StorageConfigPath),
         lists:foreach(fun(NewPath) ->
             ok = add_storage_path(NewPath)
         end, NewPaths),
-        ok
+        {ok, Host}
     catch
         _:Reason ->
             lager:error("Cannot remove storage paths on host ~p: ~p", [install_utils:get_host(node()), Reason]),
-            {error, Reason}
+            {error, Host}
     end.
 
 
@@ -188,7 +192,7 @@ check_storage_path_on_hosts([Host | Hosts], Path) ->
                             {error, ErrorHost} -> {NewContent, [ErrorHost | ErrorHosts]}
                         end
                 end, {Content, []}, [Host | Hosts]),
-                rpc:call(Node, ?MODULE, delete_storage_test_file, [FilePath], ?RPC_TIMEOUT),
+                rpc:call(Node, ?MODULE, remove_storage_test_file, [FilePath], ?RPC_TIMEOUT),
                 case Answer of
                     {_, []} -> ok;
                     {_, EHosts} -> {error, {not_available, EHosts}}
@@ -196,12 +200,12 @@ check_storage_path_on_hosts([Host | Hosts], Path) ->
             catch
                 _:Reason ->
                     lager:error("Cannot check storage ~p availability on hosts ~p: ~p", [Path, [Host | Hosts], Reason]),
-                    rpc:call(Node, ?MODULE, delete_storage_test_file, [FilePath], ?RPC_TIMEOUT),
+                    rpc:call(Node, ?MODULE, remove_storage_test_file, [FilePath], ?RPC_TIMEOUT),
                     {error, Reason}
             end;
         Other ->
-            lager:error("Cannot create storage test file ~s: ~p", [Path, Other]),
-            {error, Other}
+            lager:error("Cannot create test file for storage path ~s: ~p", [Path, Other]),
+            {error, "Cannot create storage test file."}
     end.
 
 
@@ -253,8 +257,7 @@ create_storage_test_file(Path, Attempts) ->
         ok = file:close(Fd),
         {ok, FilePath, Content}
     catch
-        _:Reason ->
-            lager:error("Cannot create storage test file: ~p.", [Reason]),
+        _:_ ->
             create_storage_test_file(Path, Attempts - 1)
     end.
 
@@ -268,7 +271,7 @@ remove_storage_test_file(FilePath) ->
     case file:delete(FilePath) of
         ok -> ok;
         {error, Reason} ->
-            lager:error("Cannot delete storage test file: ~p", [Reason]),
+            lager:error("Cannot remove storage test file: ~p", [Reason]),
             {error, Reason}
     end.
 

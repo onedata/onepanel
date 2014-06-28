@@ -48,7 +48,7 @@ save_record(Table, Record) ->
 %% @doc Updates given record fields in database table. Update is a list
 %% of tuples, where first element indicates name of a record field to be
 %% change and second element is a substitution value. If record does not
-%% exist in database an error is returned.
+%% exist new is created.
 %% @end
 -spec update_record(Table :: atom(), Key :: term(), Values) -> Result when
     Result :: ok | {error, Reason :: term()},
@@ -57,24 +57,24 @@ save_record(Table, Record) ->
 update_record(Table, Key, Values) ->
     try
         Transaction = fun() ->
-            case mnesia:read(Table, Key) of
-                [OldRecord] ->
-                    [RecordName | OldValues] = tuple_to_list(OldRecord),
-                    Columns = get_table_columns(Table),
-                    NewValues = lists:map(fun
-                        ({Column, OldValue}) ->
-                            case proplists:get_value(Column, Values) of
-                                undefined -> OldValue;
-                                NewValue -> NewValue
-                            end
-                    end, lists:zip(Columns, OldValues)),
-                    NewRecord = list_to_tuple([RecordName | NewValues]),
-                    case mnesia:write(Table, NewRecord, write) of
-                        ok -> ok;
-                        Other -> mnesia:abort(Other)
-                    end;
-                Other ->
-                    mnesia:abort(Other)
+            OldRecord = case mnesia:read(Table, Key) of
+                            [Record] -> Record;
+                            [] -> get_table_record(Table, Key);
+                            ReadError -> mnesia:abort(ReadError)
+                        end,
+            [RecordName | OldValues] = tuple_to_list(OldRecord),
+            Columns = get_table_columns(Table),
+            NewValues = lists:map(fun
+                ({Column, OldValue}) ->
+                    case proplists:get_value(Column, Values, not_found) of
+                        not_found -> OldValue;
+                        NewValue -> NewValue
+                    end
+            end, lists:zip(Columns, OldValues)),
+            NewRecord = list_to_tuple([RecordName | NewValues]),
+            case mnesia:write(Table, NewRecord, write) of
+                ok -> ok;
+                WriteError -> mnesia:abort(WriteError)
             end
         end,
         mnesia:activity(transaction, Transaction)
@@ -150,3 +150,18 @@ get_table_columns(?LOCAL_CONFIG_TABLE) ->
     record_info(fields, ?LOCAL_CONFIG_RECORD);
 get_table_columns(?GLOBAL_CONFIG_TABLE) ->
     record_info(fields, ?GLOBAL_CONFIG_RECORD).
+
+
+%% get_table_record/1
+%% ====================================================================
+%% @doc Returns default (empty) record for a table with given primary key.
+%% @end
+-spec get_table_record(Table :: atom(), Key :: term()) -> Result when
+    Result :: [atom()].
+%% ====================================================================
+get_table_record(?USER_TABLE, Key) ->
+    #?USER_RECORD{username = Key};
+get_table_record(?LOCAL_CONFIG_TABLE, Key) ->
+    #?LOCAL_CONFIG_RECORD{host = Key};
+get_table_record(?GLOBAL_CONFIG_TABLE, Key) ->
+    #?GLOBAL_CONFIG_RECORD{id = Key}.

@@ -16,7 +16,7 @@
 
 %% API
 -export([random_ascii_lowercase_sequence/1, apply_on_hosts/5, get_node/1, get_host/1, get_hosts/0]).
--export([set_ulimits_on_hosts/3, set_ulimits/3, get_ulimits_cmd/1, get_ports_to_check/1, get_control_panel_hosts/1]).
+-export([set_ulimits/2, get_ulimits_cmd/1, get_ports_to_check/1, get_control_panel_hosts/1]).
 -export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/3]).
 -export([save_file_on_host/3, save_file_on_hosts/3]).
 
@@ -56,7 +56,7 @@ apply_on_hosts(Hosts, Module, Function, Arguments, Timeout) ->
     Nodes = lists:map(fun(Host) -> get_node(Host) end, Hosts),
     {Results, ErrorNodes} = rpc:multicall(Nodes, Module, Function, Arguments, Timeout),
     lists:foldl(fun
-        ({ok, Host}, {HostsOk, HostsError}) -> {[Host, HostsOk], HostsError};
+        ({ok, Host}, {HostsOk, HostsError}) -> {[Host | HostsOk], HostsError};
         ({_, Host}, {HostsOk, HostsError}) -> {HostsOk, [Host | HostsError]}
     end, {[], lists:map(fun(Node) -> get_host(Node) end, ErrorNodes)}, Results).
 
@@ -98,40 +98,22 @@ get_hosts() ->
     end, [], [node() | nodes(hidden)]).
 
 
-%% set_ulimits_on_hosts/3
-%% ====================================================================
-%% @doc Sets system limits for open files and processes on hosts.
-%% @end
--spec set_ulimits_on_hosts(Hosts :: [string()], OpenFiles :: integer(), Processes :: integer()) -> Result when
-    Result :: ok | {error, ErrorHosts :: [string()]}.
-%% ====================================================================
-set_ulimits_on_hosts(Hosts, OpenFiles, Processes) ->
-    {_, HostsError} = apply_on_hosts(Hosts, ?MODULE, set_ulimits, [OpenFiles, Processes], ?RPC_TIMEOUT),
-    case HostsError of
-        [] -> ok;
-        _ ->
-            lager:error("Cannot set ulimits on hosts: ~p", [HostsError]),
-            {error, HostsError}
-    end.
-
-
 %% set_ulimits/2
 %% ====================================================================
-%% @doc Sets system limits for open files and processes on host.
+%% @doc Sets system limits for open files and processes on local host.
 %% @end
--spec set_ulimits(Host :: string(), OpenFiles :: integer(), Processes :: integer()) -> Result when
+-spec set_ulimits(OpenFiles :: string(), Processes :: string()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-set_ulimits(Host, OpenFiles, Processes) ->
-    case file:consult(?ULIMITS_CONFIG_PATH) of
-        {ok, []} ->
-            file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n~p.\n", [{open_files, OpenFiles}, {process_limit, Processes}]), [append]),
-            dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{open_files_limit, OpenFiles}, {processes_limit, Processes}]);
-        {ok, _} ->
-            ok;
-        Error ->
-            lager:error("Cannot parse file ~p, error: ~p", [?ULIMITS_CONFIG_PATH, Error]),
-            error
+set_ulimits(OpenFiles, Processes) ->
+    try
+        Host = install_utils:get_host(node()),
+        ok = file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n~p.\n", [{open_files, OpenFiles}, {process_limit, Processes}])),
+        ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{open_files_limit, OpenFiles}, {processes_limit, Processes}])
+    catch
+        _:Reason ->
+            lager:error("Cannot set ulimits: ~p", [Reason]),
+            {error, Reason}
     end.
 
 
@@ -179,8 +161,8 @@ add_node_to_config(Type, Name, Path) ->
 remove_node_from_config(Name) ->
     try
         {ok, Entries} = file:consult(?CONFIGURED_NODES_PATH),
-        ToDelete = case lists:keyfind(Name, 2, Entries) of
-                       false -> lager:error("Node ~p not found among configured nodes.", [Name]);
+        ToDelete = case lists:keyfind(Name, 1, Entries) of
+                       false -> lager:warning("Node ~p not found among configured nodes.", [Name]);
                        Term -> Term
                    end,
         save_nodes_in_config(Entries -- [ToDelete])

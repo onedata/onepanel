@@ -70,7 +70,7 @@ uninstall(Args) ->
 %% start/1
 %% ====================================================================
 %% @doc Starts database nodes on given hosts. Argument list should contain
-%% database nodes.
+%% list of host where database nodes where installed.
 %% @end
 -spec start(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
@@ -83,7 +83,7 @@ start(Args) ->
             _ -> throw("Cannot get database nodes configuration.")
         end,
 
-        Dbs = proplists:get_value(dbs, Args, []),
+        Dbs = proplists:get_value(hosts, Args, []),
 
         {StartOk, StartError} = install_utils:apply_on_hosts(Dbs, ?MODULE, start, [], ?RPC_TIMEOUT),
 
@@ -104,8 +104,8 @@ start(Args) ->
                                 {error, {hosts, Dbs}}
                         end;
                     _ ->
-                        lager:error("Cannot add following hosts: ~p to database cluster", [StartError]),
-                        {error, {hosts, StartError}}
+                        lager:error("Cannot add following hosts: ~p to database cluster", [JoinError]),
+                        {error, {hosts, JoinError}}
                 end;
             _ ->
                 lager:error("Cannot start database nodes on following hosts: ~p", [StartError]),
@@ -177,7 +177,7 @@ restart(_) ->
               end,
 
         case stop([]) of
-            ok -> start([{dbs, Dbs}]);
+            ok -> start([{hosts, Dbs}]);
             Other -> Other
         end
     catch
@@ -227,6 +227,7 @@ uninstall() ->
         lager:debug("Uninstalling database node."),
 
         "" = os:cmd("rm -rf " ++ ?DEFAULT_DB_INSTALL_PATH),
+        ok = file:delete(?ULIMITS_CONFIG_PATH),
 
         {ok, Host}
     catch
