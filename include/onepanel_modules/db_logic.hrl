@@ -31,10 +31,10 @@
 
 %% Global config record describes installation configuration that is:
 %% - ID which equals CONFIG_ID
-%% - hostname of machine where main CCM node is running
-%% - list of hostnames of machines where CCM nodes are running
-%% - list of hostnames of machines where worker nodes are running
-%% - list of hostnames of machines where database nodes are running
+%% - hostname of machine where main CCM node is configured
+%% - list of hostnames of machines where CCM nodes are configured
+%% - list of hostnames of machines where worker nodes are configured
+%% - list of hostnames of machines where database nodes are configured
 %% - list of paths to storages on every worker node
 %% - provider ID returned from Global Registry
 -record(?GLOBAL_CONFIG_RECORD, {id, main_ccm, opt_ccms = [], workers = [], dbs = [], storage_paths = [], providerId}).
@@ -43,8 +43,8 @@
 %% - hostname
 %% - GUI port that is visible by Global Registry
 %% - REST port that is visible by Global Registry
-%% - limit for open files for Bigcouch database
-%% - limit for running processes for Bigcouch database
+%% - limit of open files for Bigcouch database
+%% - limit of processes for Bigcouch database
 -record(?LOCAL_CONFIG_RECORD, {host, gui_port, rest_port, open_files_limit, processes_limit}).
 
 -endif.

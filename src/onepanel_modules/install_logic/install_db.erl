@@ -288,25 +288,43 @@ stop() ->
     end.
 
 
+%% add_to_cluster/1
 %% ====================================================================
 %% @doc Adds database node to cluster. ClusterNode is one of current
 %% database cluster nodes.
 %% @end
 -spec add_to_cluster(ClusterNode :: node()) -> Result when
-    Result :: ok | {error, Reason :: term()}.
+    Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-add_to_cluster(ClusterHost) ->
+add_to_cluster(ClusterNode) ->
+    add_to_cluster(ClusterNode, 0).
+
+
+%% add_to_cluster/2
+%% ====================================================================
+%% @doc Adds database node to cluster. ClusterNode is one of current
+%% database cluster nodes. Should not be used directly, use add_to_cluster/1
+%% instead.
+%% @end
+-spec add_to_cluster(ClusterHost :: string(), Attempts :: integer()) -> Result when
+    Result :: {ok, Host :: string()} | {error, Host :: string()}.
+%% ====================================================================
+add_to_cluster(_, 10) ->
+    lager:error("Can not add database node to cluster: attempts limit exceeded."),
+    Host = install_utils:get_host(node()),
+    {error, Host};
+
+add_to_cluster(ClusterHost, Attempts) ->
     Host = install_utils:get_host(node()),
     try
+        lager:debug("Adding database node to cluster."),
+        timer:sleep(1000),
         Url = "http://" ++ ClusterHost ++ ":" ++ ?DEFAULT_PORT ++ "/nodes/" ++ ?DEFAULT_DB_NAME ++ "@" ++ Host,
-        lager:debug("Adding database node to cluster on host: ~s.", [Host]),
 
         {ok, "201", _ResponseHeaders, ResponseBody} = ibrowse:send_req(Url, [{content_type, "application/json"}], put, "{}", ?CURL_OPTS),
         false = (0 =:= string:str(ResponseBody, "\"ok\":true")),
 
-        ok
+        {ok, Host}
     catch
-        _:Reason ->
-            lager:error("Cannot add host ~s to database cluster: ~p", [Host, Reason]),
-            add_to_cluster(ClusterHost)
+        _:_ -> add_to_cluster(ClusterHost, Attempts + 1)
     end.

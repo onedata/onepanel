@@ -195,7 +195,7 @@ check_storage_path_on_hosts([Host | Hosts], Path) ->
                 rpc:call(Node, ?MODULE, remove_storage_test_file, [FilePath], ?RPC_TIMEOUT),
                 case Answer of
                     {_, []} -> ok;
-                    {_, EHosts} -> {error, {not_available, EHosts}}
+                    {_, EHosts} -> {error, {hosts, EHosts}}
                 end
             catch
                 _:Reason ->
@@ -205,7 +205,7 @@ check_storage_path_on_hosts([Host | Hosts], Path) ->
             end;
         Other ->
             lager:error("Cannot create test file for storage path ~s: ~p", [Path, Other]),
-            {error, "Cannot create storage test file."}
+            {error, {hosts, [Host]}}
     end.
 
 
