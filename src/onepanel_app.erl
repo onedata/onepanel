@@ -21,6 +21,12 @@
 % Cowboy listener reference
 -define(HTTPS_LISTENER, https).
 
+% Session logic module
+-define(SESSION_LOGIC_MODULE, session_logic).
+
+% GUI routing module
+-define(GUI_ROUTING_MODULE, routes).
+
 % Paths in gui static directory
 -define(STATIC_PATHS, ["/css/", "/fonts/", "/images/", "/js/", "/n2o/"]).
 
@@ -49,14 +55,7 @@ start(_StartType, _StartArgs) ->
     {ok, CertFile} = application:get_env(?APP_NAME, cert_file),
     {ok, KeyFile} = application:get_env(?APP_NAME, key_file),
 
-    % Set envs needed by n2o
-    % Transition port - the same as ?APP_NAME port
-    ok = application:set_env(n2o, transition_port, Port),
-    % Custom route handler
-    ok = application:set_env(n2o, route, routes),
-
-    % Ets table needed by n2o
-    ets:insert(globals, {onlineusers, 0}),
+    gui_utils:init_n2o_ets_and_envs(Port, ?GUI_ROUTING_MODULE, ?SESSION_LOGIC_MODULE),
 
     Dispatch = cowboy_router:compile(
         [{'_',
@@ -95,6 +94,8 @@ start(_StartType, _StartArgs) ->
 %% ====================================================================
 stop(_State) ->
     cowboy:stop_listener(?HTTPS_LISTENER),
+    % Clean up after n2o.
+    gui_utils:cleanup_n2o(?SESSION_LOGIC_MODULE),
     ok.
 
 
