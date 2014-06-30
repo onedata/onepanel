@@ -30,13 +30,14 @@
 -spec main() -> Result when
     Result :: #dtl{}.
 %% ====================================================================
-main() -> case gui_utils:user_logged_in() of
-              true ->
-                  #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}]};
-              false ->
-                  gui_utils:redirect_to_login(true),
-                  #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}]}
-          end.
+main() ->
+    case gui_ctx:user_logged_in() of
+        true ->
+            #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]};
+        false ->
+            gui_jq:redirect_to_login(true),
+            #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
+    end.
 
 
 %% title/0
@@ -56,7 +57,7 @@ title() -> <<"About">>.
 %% ====================================================================
 body() ->
     #panel{style = <<"position: relative;">>, body = [
-        gui_utils:top_menu(about_tab),
+        onepanel_gui_utils:top_menu(about_tab),
         #panel{style = <<"margin-top: 60px; padding: 20px;">>, body = [
             #panel{id = <<"about_table">>, body = about_table()}
         ]}

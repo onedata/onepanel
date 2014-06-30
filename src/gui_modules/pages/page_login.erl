@@ -87,10 +87,10 @@ event(login) ->
             wf:user(Username),
             gui_utils:redirect_from_login();
         {error, Reason} when is_list(Reason) ->
-            gui_utils:update("error_message", Reason),
-            wf:wire(#jquery{target = "error_message", method = ["fadeIn"], args = [300]});
+            gui_utils:update("error_message", Reason);
+%%             wf:wire(#jquery{target = "error_message", method = ["fadeIn"], args = [300]});
         Other ->
             lager:error("Cannot authenticate user: ~p", [Other]),
-            gui_utils:update("error_message", "Internal server error."),
-            wf:wire(#jquery{target = "error_message", method = ["fadeIn"], args = [300]})
+            gui_utils:update("error_message", "Internal server error.")
+%%             wf:wire(#jquery{target = "error_message", method = ["fadeIn"], args = [300]})
     end.

@@ -109,22 +109,22 @@ event(change_password) ->
         ok ->
             case user_logic:change_password(Username, OldPassword, NewPassword) of
                 ok ->
-                    gui_utils:update("ok_message", "Password changed."),
-                    wf:wire(#jquery{target = "error_message", method = ["fadeOut"], args = [300]}),
-                    wf:wire(#jquery{target = "ok_message", method = ["fadeIn"], args = [300]}),
-                    lists:foreach(fun(PasswordBox) ->
-                        wf:wire(#jquery{target = PasswordBox, method = ["val"], args = ["\"\""]})
-                    end, ["old_password", "new_password", "confirm_password"]);
+                    gui_utils:update("ok_message", "Password changed.");
+%%                     wf:wire(#jquery{target = "error_message", method = ["fadeOut"], args = [300]}),
+%%                     wf:wire(#jquery{target = "ok_message", method = ["fadeIn"], args = [300]}),
+%%                     lists:foreach(fun(PasswordBox) ->
+%%                         wf:wire(#jquery{target = PasswordBox, method = ["val"], args = ["\"\""]})
+%%                     end, ["old_password", "new_password", "confirm_password"]);
                 {error, Reason} when is_list(Reason) ->
                     lager:error("Cannot change user password: ~p", [Reason]),
-                    gui_utils:update("error_message", Reason),
-                    wf:wire(#jquery{target = "error_message", method = ["fadeIn"], args = [300]});
+                    gui_utils:update("error_message", Reason);
+%%                     wf:wire(#jquery{target = "error_message", method = ["fadeIn"], args = [300]});
                 Other ->
                     lager:error("Cannot change user password: ~p", [Other]),
-                    gui_utils:update("error_message", "Internal server error."),
-                    wf:wire(#jquery{target = "error_message", method = ["fadeIn"], args = [300]})
+                    gui_utils:update("error_message", "Internal server error.")
+%%                     wf:wire(#jquery{target = "error_message", method = ["fadeIn"], args = [300]})
             end;
         {error, Reason} ->
-            gui_utils:update("error_message", Reason),
-            wf:wire(#jquery{target = "error_message", method = ["fadeIn"], args = [300]})
+            gui_utils:update("error_message", Reason)
+%%             wf:wire(#jquery{target = "error_message", method = ["fadeIn"], args = [300]})
     end.

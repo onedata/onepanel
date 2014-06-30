@@ -13,6 +13,7 @@
 -module(page_404).
 -export([main/0, event/1]).
 -include("gui_modules/common.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% ====================================================================
 %% API functions
@@ -24,7 +25,7 @@
 -spec main() -> Result when
     Result :: #dtl{}.
 %% ====================================================================
-main() -> #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}]}.
+main() -> #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]}.
 
 
 %% title/0
@@ -49,7 +50,7 @@ body() ->
             #p{class = <<"login-info">>, body = <<"Requested page could not be found on the server.">>},
             #button{postback = to_login, class = <<"btn btn-warning btn-block">>, body = <<"Login page">>}
         ]}
-    ] ++ gui_utils:logotype_footer(120)}.
+    ] ++ onepanel_gui_utils:logotype_footer(120)}.
 
 
 %% ====================================================================
@@ -63,4 +64,6 @@ body() ->
 %% ====================================================================
 event(init) -> ok;
 
-event(to_login) -> gui_utils:redirect_to_login(false).
+event(to_login) -> gui_jq:redirect_to_login(false);
+
+event(terminate) -> ok.

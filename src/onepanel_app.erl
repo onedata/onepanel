@@ -20,6 +20,7 @@
 
 % Cowboy listener reference
 -define(HTTPS_LISTENER, https).
+-define(HTTP_REDIRECTOR_LISTENER, http).
 
 % Session logic module
 -define(SESSION_LOGIC_MODULE, session_logic).
@@ -46,7 +47,7 @@
     Result :: {ok, pid()} | {ok, pid(), State :: term()} | {error, Reason :: term()}.
 %% ====================================================================
 start(_StartType, _StartArgs) ->
-    {ok, Port} = application:get_env(?APP_NAME, gui_port),
+    {ok, GuiPort} = application:get_env(?APP_NAME, gui_port),
     {ok, HttpsAcceptors} = application:get_env(?APP_NAME, https_acceptors),
     {ok, Timeout} = application:get_env(?APP_NAME, socket_timeout),
     {ok, MaxKeepalive} = application:get_env(?APP_NAME, max_keepalive),
@@ -55,7 +56,7 @@ start(_StartType, _StartArgs) ->
     {ok, CertFile} = application:get_env(?APP_NAME, cert_file),
     {ok, KeyFile} = application:get_env(?APP_NAME, key_file),
 
-    gui_utils:init_n2o_ets_and_envs(Port, ?GUI_ROUTING_MODULE, ?SESSION_LOGIC_MODULE),
+    gui_utils:init_n2o_ets_and_envs(GuiPort, ?GUI_ROUTING_MODULE, ?SESSION_LOGIC_MODULE),
 
     Dispatch = cowboy_router:compile(
         [{'_',
@@ -67,7 +68,7 @@ start(_StartType, _StartArgs) ->
 
     case cowboy:start_https(?HTTPS_LISTENER, HttpsAcceptors,
         [
-            {port, Port},
+            {port, GuiPort},
             {cacertfile, CACertFile},
             {certfile, CertFile},
             {keyfile, KeyFile}
@@ -112,9 +113,6 @@ stop(_State) ->
 %% ====================================================================
 static_dispatches(DocRoot, StaticPaths) ->
     _StaticDispatches = lists:map(fun(Dir) ->
-        Opts = [
-            {mimetypes, {fun mimetypes:path_to_mimes/2, default}},
-            {directory, DocRoot ++ Dir}
-        ],
-        {Dir ++ "[...]", cowboy_static, Opts}
+        {Dir ++ "[...]", cowboy_static, {dir, DocRoot ++ Dir}}
     end, StaticPaths).
+

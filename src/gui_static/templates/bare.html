@@ -1,16 +1,3 @@
-<!-- *********************************************************************
-*  @author Krzysztof Trzepla
-*  @copyright (C): 2014 ACK CYFRONET AGH
-*  This software is released under the MIT license
-*  cited in 'LICENSE.txt'.
-*  @end
-**********************************************************************
-*  @doc This file contains html page template which is later used by
-*  erlydtl module (an Erlang implementation of the Django Template Language)
-*  to render web page.
-*  @end
-********************************************************************* -->
-
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="pl">
 <head>
@@ -54,7 +41,8 @@
     <script src='/n2o/n2o.js' type='text/javascript' charset='utf-8'></script>
     <script src='/n2o/bert.js' type='text/javascript' charset='utf-8'></script>
 
-    <!-- Custom file upload script based on Nitrogen's -->
-    <script src='/js/veil_upload.js' type='text/javascript' charset='utf-8'></script>
+    <!-- page dependent scripts -->
+    {{custom}}
+
 </body>
 </html>
