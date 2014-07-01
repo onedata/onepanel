@@ -11,7 +11,7 @@
 -module(updater_versions).
 -author("Rafal Slota").
 
--include("spanel_modules/updater_module/common.hrl").
+-include("spanel_modules/updater/common.hrl").
 
 %% API
 -export([get_current/0, get_newest/0, cmp/2]).
@@ -25,6 +25,15 @@ get_current() ->
 
 get_newest() ->
     #version{}.
+
+%% Yea...
+%% cmp(#version{} = A, #version{} = A) ->
+%%     0;
+%% cmp(#version{} = A, #version{} = B) when A < B ->
+%%     -1;
+%% cmp(#version{}, #version{}) ->
+%%     1.
+
 
 cmp(#version{major = MJ1}, #version{major = MJ2}) when
     MJ1 < MJ2 -> -1;

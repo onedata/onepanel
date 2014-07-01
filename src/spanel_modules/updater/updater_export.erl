@@ -10,7 +10,7 @@
 %% ===================================================================
 -module(updater_export).
 -author("Rafal Slota").
--include("spanel_modules/updater_module/common.hrl").
+-include("spanel_modules/updater/common.hrl").
 -include("spanel_modules/install.hrl").
 
 %% API
@@ -18,10 +18,14 @@
 -export([backup_instalation/0, revert_instalation/0, move_file/1, move_all_files/0]).
 -export([force_reload_module/1, soft_reload_all_modules/0, force_reload_all_modules/0]).
 -export([install_views/0, refresh_view/1, install_view_sources/0, run_pre_update/1]).
+-export([runner/3]).
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
+
+runner(RespondTo, Fun, Args) ->
+    RespondTo ! {self(), apply(?MODULE, Fun, Args)}.
 
 install_package(#package{type = rpm, binary = Bin}) ->
     file:write_file("/tmp/veil.rpm", Bin),
@@ -69,7 +73,7 @@ move_file(File) ->
 
 
 move_all_files() ->
-    Targets = string:tokens( os:cmd("cd " ++ ?VEIL_RELEASE ++ "; find . -type f | grep -v vm.args | grep -v config.args | grep -v storage_info.cfg"), [10] ),
+    Targets = string:tokens( os:cmd("cd " ++ ?VEIL_RELEASE ++ "; find . -type f | grep -v sys.config | grep -v vm.args | grep -v config.args | grep -v storage_info.cfg"), [10] ),
     lists:foreach(
         fun(File) ->
             Target = filename:join([?DEFAULT_NODES_INSTALL_PATH, get_node_subpath(), File]),
@@ -107,7 +111,7 @@ get_node_subpath() ->
     atom_to_list(Type).
 
 purge() ->
-    Modules = [Module || {Module, _} <- code:all_loaded()],
+    Modules = [Module || {Module, _} <- get_all_loaded()],
     lists:foreach(fun(Module) -> code:purge(Module) end, Modules).
 
 purge(Module) ->
@@ -116,26 +120,29 @@ purge(Module) ->
 
 soft_reload_all_modules() ->
     ok = fix_code_path(),
-    Modules = [Module || {Module, _} <- code:all_loaded()],
+    Modules = [Module || {Module, _} <- get_all_loaded()], %%, Module =/= crypto, Module =/= asn1rt_nif],
+
     ModMap =
         lists:map(
             fun(Mod) ->
                 purge(Mod),
+                lager:info("Mod2: ~p", [Mod]),
                 code:load_file(Mod),
                 {Mod, code:soft_purge(Mod)}
             end, Modules),
+
     {ok, ModMap}.
 
 force_reload_all_modules() ->
     ok = fix_code_path(),
-    Modules = [Module || {Module, _} <- code:all_loaded()],
+    Modules = [Module || {Module, _} <- get_all_loaded()],%%, Module =/= crypto, Module =/= asn1rt_nif],
     ModMap =
         lists:map(
             fun(Mod) ->
-                purge(Mod),
-                code:load_file(Mod),
-                purge(Mod),
-                {Mod, code:soft_purge(Mod)}
+                lager:info("Mod2: ~p", [Mod]),
+                %%purge(Mod),
+                %%code:load_file(Mod),
+                {Mod, purge(Mod)}
             end, Modules),
     {ok, ModMap}.
 
@@ -152,15 +159,26 @@ install_views() ->
     end.
 
 
+get_all_loaded() ->
+    lists:foldl(
+        fun({_Module, Path}, Acc) when is_atom(Path) ->
+            Acc;
+            ({Module, Path}, Acc) ->
+            case string:str(Path, "kernel") + string:str(Path, "stdlib") of
+                0 -> [{Module, Path} | Acc];
+                _ -> Acc
+            end
+        end, [], code:all_loaded()).
+
 install_view_sources() ->
-    "" = os:cmd("cp -rf " ++ filename:join(?VEIL_RELEASE, "views") ++ " " ++ filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME])),
-    ok.
+    case os:cmd("cp -rf " ++ filename:join(?VEIL_RELEASE, "views") ++ " " ++ filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME])) of
+        "" -> ok;
+        Reason -> {error, Reason}
+    end.
 
 
 refresh_view(View) ->
-    Res = dao_lib:apply(update, update_view, [View], 1),
-    lager:info("Fail: ~p", [Res]),
-    Res.
+    dao_lib:apply(update, update_view, [View], 1).
 
 get_release_name() ->
     os:cmd("basename `find " ++ filename:join(?VEIL_RELEASE, "lib") ++ " -name 'veil_cluster_node*' -type d -printf '%T@ %p\n' | sort -nr | cut -d ' ' -f 2- | head -1`") -- [10].
