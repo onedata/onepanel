@@ -602,21 +602,23 @@ install(#page_state{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Db
         WorkersList = sets:to_list(Workers),
         DbsList = sets:to_list(Dbs),
         StoragePathsList = sets:to_list(StoragePaths),
-        update_progress_bar(0, 7, <<"Installing database nodes...">>),
+        update_progress_bar(0, 8, <<"Installing database nodes...">>),
         install_dbs(DbsList),
-        update_progress_bar(1, 7, <<"Starting database nodes...">>),
+        update_progress_bar(1, 8, <<"Starting database nodes...">>),
         start_dbs(DbsList),
-        update_progress_bar(2, 7, <<"Installing CCM nodes...">>),
+        update_progress_bar(2, 8, <<"Installing CCM nodes...">>),
         install_ccms([MainCCM | OptCCMsList]),
-        update_progress_bar(3, 7, <<"Starting CCM nodes...">>),
+        update_progress_bar(3, 8, <<"Starting CCM nodes...">>),
         start_ccms(MainCCM, OptCCMsList),
-        update_progress_bar(4, 7, <<"Installing worker nodes...">>),
+        update_progress_bar(4, 8, <<"Installing worker nodes...">>),
         install_workers(WorkersList),
-        update_progress_bar(5, 7, <<"Adding storage configuration...">>),
+        update_progress_bar(5, 8, <<"Adding storage configuration...">>),
         add_storage(WorkersList, StoragePathsList),
-        update_progress_bar(6, 7, <<"Starting worker nodes...">>),
+        update_progress_bar(6, 8, <<"Starting worker nodes...">>),
         start_workers(WorkersList),
-        update_progress_bar(7, 7, <<"Done">>),
+        update_progress_bar(7, 8, <<"Finalizing installation...">>),
+        finalize_installation(MainCCM),
+        update_progress_bar(8, 8, <<"Done">>),
         onepanel_gui_utils:change_step(4, 1),
         gui_comet:flush(),
         ok
@@ -758,6 +760,22 @@ add_storage(Hosts, StoragePaths) ->
                 throw(error)
         end
     end, StoragePaths).
+
+
+%% finalize_installation/2
+%% ====================================================================
+%% @doc Waits until cluster control panel nodes are up and running.
+-spec finalize_installation(MainCCM :: string()) -> Result when
+    Result :: ok.
+%% ====================================================================
+finalize_installation(MainCCM) ->
+    case install_utils:get_control_panel_hosts(MainCCM) of
+        {ok, [_ | _]} ->
+            ok;
+        _ ->
+            timer:sleep(1000),
+            finalize_installation(MainCCM)
+    end.
 
 
 %% update_progress_bar/3

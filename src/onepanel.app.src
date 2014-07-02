@@ -41,7 +41,7 @@
         {grpcsr_file, "./certs/grpcsr.pem"},
         {grpcert_name, "grpcert.pem"},
         {grpcert_file, "./certs/grpcert.pem"},
-        {global_registry_url, "https://onedata.org:8443"},
+        {global_registry_url, "https://globalregistry.org:8443"},
         {default_username, <<"admin">>},
         {default_password, <<"password">>},
         {multicast_address, {239, 255, 0, 2}},
