@@ -584,7 +584,9 @@ install(#page_state{main_ccm = undefined, workers = Workers, storage_paths = Sto
         WorkersList = sets:to_list(Workers),
         StoragePathsList = sets:to_list(StoragePaths),
         case sets:size(Workers) =:= 0 of
-            true -> error_message(<<"Nothing to install.">>);
+            true ->
+                error_message(<<"Nothing to install.">>),
+                throw(error);
             _ -> ok
         end,
         update_progress_bar(0, 3, <<"Installing worker nodes...">>),
