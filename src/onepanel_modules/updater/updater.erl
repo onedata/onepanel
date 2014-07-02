@@ -12,7 +12,7 @@
 -author("Rafal Slota").
 
 -include("registered_names.hrl").
--include("spanel_modules/updater/common.hrl").
+-include("onepanel_modules/updater/common.hrl").
 
 %% API
 -export([start/0, get_state/0, update_to/1, update_to/2, is_abortable/0, abort/0]).

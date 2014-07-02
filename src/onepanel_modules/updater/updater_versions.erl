@@ -11,7 +11,7 @@
 -module(updater_versions).
 -author("Rafal Slota").
 
--include("spanel_modules/updater/common.hrl").
+-include("onepanel_modules/updater/common.hrl").
 
 %% API
 -export([get_current/0, get_newest/0, cmp/2]).

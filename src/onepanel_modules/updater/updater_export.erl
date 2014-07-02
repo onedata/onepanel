@@ -10,8 +10,8 @@
 %% ===================================================================
 -module(updater_export).
 -author("Rafal Slota").
--include("spanel_modules/updater/common.hrl").
--include("spanel_modules/install.hrl").
+-include("onepanel_modules/updater/common.hrl").
+-include("onepanel_modules/install_logic.hrl").
 
 %% API
 -export([install_package/1]).

@@ -13,9 +13,9 @@
 -author("Rafal Slota").
 
 -include("registered_names.hrl").
--include("spanel_modules/db.hrl").
--include("spanel_modules/install.hrl").
--include("spanel_modules/updater/common.hrl").
+-include("onepanel_modules/db_logic.hrl").
+-include("onepanel_modules/install_logic.hrl").
+-include("onepanel_modules/updater/common.hrl").
 
 
 

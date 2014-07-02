@@ -8,32 +8,30 @@
 %% @doc: Write me !
 %% @end
 %% ===================================================================
--module(updater_repos).
+-module(updater_state).
 -author("Rafal Slota").
 
--include("spanel_modules/updater/common.hrl").
+-include("onepanel_modules/updater/common.hrl").
 
 %% API
--export([get_package/1]).
+-export([is_abortable/1, get_stage/1, get_all_stages/0, get_object_count/1]).
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
 
-get_package(#version{major = MJ, minor = MI, patch = PA} = Version) ->
-    case httpc:request(get, {"http://onedata.org/repository/VeilCluster-Linux-" ++ integer_to_list(MJ) ++ "." ++ integer_to_list(MI) ++ "." ++ integer_to_list(PA) ++ ".rpm", []}, [{timeout, 10000}], [{body_format, binary}, {full_result, false}]) of
-        {ok, {200, Binary}} ->
-            {ok, #package{type = rpm, binary = Binary}};
-        {ok, {Status, _}} ->
-            {error, {invalid_http, Status}};
-        {error, Reason} ->
-            {error, Reason}
-    end.
+is_abortable(#u_state{}) ->
+    true.
 
 
--spec list_packages(URL :: string()) -> [{URI :: string(), #version{}}].
-list_packages(URL) ->
-    [].
+get_stage(#u_state{stage = Stage, job = Job}) ->
+    {Stage, Job}.
+
+get_all_stages() ->
+    ?STAGES.
+
+get_object_count(#u_state{objects = Objects}) ->
+    maps:size(Objects).
 
 
 %% ====================================================================
