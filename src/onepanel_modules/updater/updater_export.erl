@@ -16,7 +16,7 @@
 %% API
 -export([install_package/1]).
 -export([backup_instalation/0, revert_instalation/0, move_file/1, move_all_files/0]).
--export([force_reload_module/1, soft_reload_all_modules/0, force_reload_all_modules/0]).
+-export([force_reload_module/1, soft_reload_all_modules/0, force_reload_modules/2]).
 -export([install_views/0, refresh_view/1, install_view_sources/0, run_pre_update/1]).
 -export([runner/3]).
 
@@ -85,19 +85,36 @@ move_file(File) ->
 
 move_all_files() ->
     Targets = string:tokens( os:cmd("cd " ++ ?VEIL_RELEASE ++ "; find . -type f | grep -v sys.config | grep -v vm.args | grep -v config.args | grep -v storage_info.cfg"), [10] ),
-    lists:foreach(
-        fun(File) ->
-            Target = filename:join([?DEFAULT_NODES_INSTALL_PATH, get_node_subpath(), File]),
-            TargetDir = filename:dirname(Target),
-            lists:foldl(
-                fun(Elem, Acc) ->
-                    NewDir = filename:join(Acc, Elem),
-                    file:make_dir(NewDir),
-                    NewDir
-                end,[], filename:split(TargetDir)),
-            "" = os:cmd("cp -fr " ++ filename:join([?VEIL_RELEASE, File]) ++ " " ++ Target )
-        end, Targets),
-    ok.
+    IsRebootRequired =
+        lists:foldl(
+            fun(File, RebootRequired) ->
+                Target = filename:join([?DEFAULT_NODES_INSTALL_PATH, get_node_subpath(), File]),
+                TargetDir = filename:dirname(Target),
+                lists:foldl(
+                    fun(Elem, Acc) ->
+                        NewDir = filename:join(Acc, Elem),
+                        file:make_dir(NewDir),
+                        NewDir
+                    end,[], filename:split(TargetDir)),
+                Source = filename:join([?VEIL_RELEASE, File]),
+                {ok, SourceBin} = file:read_file(Source),
+                TargetBin =
+                    case file:read_file(Source) of
+                        {ok, Bin} -> Bin;
+                        _         -> <<>>
+                    end,
+                SourceMD5 = crypto:hash(md5, SourceBin),
+                TargetMD5 = crypto:hash(md5, TargetBin),
+
+                case SourceMD5 =:= TargetMD5 of
+                    true ->
+                        false;
+                    false ->
+                        "" = os:cmd("cp -fr " ++ Source ++ " " ++ Target ),
+                        RebootRequired orelse is_reboot_only_lib(Target)
+                end
+            end, false, Targets),
+    {ok, IsRebootRequired}.
 
 force_reload_module(Module) ->
     ok = fix_code_path(),
@@ -137,16 +154,17 @@ soft_reload_all_modules() ->
         lists:map(
             fun(Mod) ->
                 purge(Mod),
-                lager:info("Mod2: ~p", [Mod]),
+                lager:info("Mod1: ~p", [Mod]),
                 code:load_file(Mod),
                 {Mod, code:soft_purge(Mod)}
             end, Modules),
 
     {ok, ModMap}.
 
-force_reload_all_modules() ->
+force_reload_modules(Modules, WaitFor) ->
+    timer:sleep(WaitFor),
     ok = fix_code_path(),
-    Modules = [Module || {Module, _} <- get_all_loaded(), Module =/= crypto, Module =/= asn1rt_nif],
+    % Modules = [Module || {Module, _} <- get_all_loaded(), Module =/= crypto, Module =/= asn1rt_nif],
     ModMap =
         lists:map(
             fun(Mod) ->
@@ -161,7 +179,7 @@ force_reload_all_modules() ->
 install_views() ->
     Struct = dao_update:get_db_structure(),
     Views = dao_update:get_all_views(),
-    dao_lib:apply(update, remove_broken_views, [], 1),
+    %dao_lib:apply(update, remove_broken_views, [], 1),
     case dao_lib:apply(update, setup_views, [Struct], 1) of
         ok -> {ok, Views};
         {ok, _} -> {ok, Views};
@@ -175,9 +193,9 @@ get_all_loaded() ->
         fun({_Module, Path}, Acc) when is_atom(Path) ->
             Acc;
             ({Module, Path}, Acc) ->
-            case string:str(Path, "kernel") + string:str(Path, "stdlib") of
-                0 -> [{Module, Path} | Acc];
-                _ -> Acc
+            case is_reboot_only_lib(Path) of
+                false -> [{Module, Path} | Acc];
+                true -> Acc
             end
         end, [], code:all_loaded()).
 
@@ -193,6 +211,9 @@ refresh_view(View) ->
 
 get_release_name() ->
     os:cmd("basename `find " ++ filename:join(?VEIL_RELEASE, "lib") ++ " -name 'veil_cluster_node*' -type d -printf '%T@ %p\n' | sort -nr | cut -d ' ' -f 2- | head -1`") -- [10].
+
+is_reboot_only_lib(FilePath) ->
+    lists:foldl(fun(Package, Acc) -> Acc + string:str(FilePath, Package) end, 0, ?REBOOT_ONLY_MODULES) =/= 0.
 
 %% ====================================================================
 %% Internal functions

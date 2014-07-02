@@ -15,7 +15,7 @@
 -include("onepanel_modules/updater/common.hrl").
 
 %% API
--export([start/0, get_state/0, update_to/1, update_to/2, is_abortable/0, abort/0]).
+-export([start/0, get_state/0, update_to/1, update_to/2, update_to/3, is_abortable/0, abort/0]).
 
 %% ====================================================================
 %% API functions
@@ -40,12 +40,14 @@ start() ->
     end.
 
 update_to(#version{} = Vsn) ->
-    update_to(Vsn, fun(Event, _State) -> ok end).
+    update_to(#version{} = Vsn, false).
+update_to(#version{} = Vsn, ForceNodeReboot) ->
+    update_to(Vsn, ForceNodeReboot, fun(Event, _State) -> ok end).
 
-%% CallbackFun(Event :: enter_stage | atom(), State :: #u_state{})
-update_to(#version{} = Vsn, CallbackFun) ->
+%% CallbackFun(Event :: enter_stage | update_objects | rollback_stage | error | atom(), State :: #u_state{})
+update_to(#version{} = Vsn, ForceNodeReboot, CallbackFun) ->
     start(),
-    gen_server:call({global, ?UPDATE_SERVICE}, {update_to, Vsn, CallbackFun}).
+    gen_server:call({global, ?UPDATE_SERVICE}, {update_to, Vsn, ForceNodeReboot, CallbackFun}).
 
 get_state() ->
     start(),

@@ -13,6 +13,8 @@
 -ifndef(UPDATER_COMMON_HRL).
 -define(UPDATER_COMMON_HRL, 1).
 
+-define(REBOOT_ONLY_MODULES, ["kernel", "stdlib", "crypto"]).
+
 %% Update stages
 -define(STAGE_IDLE, idle).
 -define(STAGE_INIT, init).
@@ -40,20 +42,21 @@
 -define(JOB_DEPLOY, deploy).
 
 -define(STAGES, [
-    {?STAGE_INIT, [?JOB_DOWNLOAD_BINARY, ?JOB_LOAD_EXPORTS, ?JOB_INSTALL_PACKAGE]},
+    {?STAGE_INIT, [?JOB_DOWNLOAD_BINARY, ?JOB_LOAD_EXPORTS, ?JOB_INSTALL_PACKAGE, ?JOB_LOAD_EXPORTS]},
     {?STAGE_DAO_UPDATER_LOAD, [?JOB_MOVE_BEAMS, ?JOB_LOAD_BEAMS, ?JOB_PRE_UPDATE]},
     {?STAGE_DAO_SETUP_VIEWS, [?JOB_INSTALL_VIEW_SOURCES, ?JOB_INSTALL_VIEWS]},
     {?STAGE_DAO_REFRESH_VIEWS, [?JOB_DEFAULT]},
     {?STAGE_DEPLOY_FILES, [?JOB_BACKUP, ?JOB_DEPLOY]},
     {?STAGE_SOFT_RELOAD, [?JOB_DEFAULT]},
-    {?STAGE_FORCE_RELOAD, [?JOB_DEFAULT]}
+    {?STAGE_FORCE_RELOAD, [?JOB_DEFAULT]},
+    {?STAGE_NODE_RESTART, []} %% Dynamic job list (known after STAGE_DEPLOY_FILES) !
 ]).
 
 
 
 -record(version, {major = 0, minor = 0, patch = 0}).
 
--record(u_state, {callback, stage = ?STAGE_IDLE, job, objects = [], object_data = #{}, previous_data = [], error_stack = [],
+-record(u_state, {force_node_restart = false, callback, stage = ?STAGE_IDLE, job, objects = [], object_data = #{}, previous_data = [], error_stack = [],
     package, nodes = [], installed_views = [], error_counter = #{}, not_reloaded_modules = [], version = #version{}}).
 
 

@@ -44,10 +44,12 @@ finalize_stage(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, #u_state{previous_dat
     lager:info("Installed views: ~p ?!?!", [Views]),
     State#u_state{installed_views = Views, previous_data = maps:remove(views, PData)};
 finalize_stage(?STAGE_SOFT_RELOAD, ?JOB_DEFAULT, #u_state{previous_data = PData} = State) ->
-    #{mod_map := ModMap} = PData,
+    ModMap = maps:to_list(PData),
+    NotReloaded = [{Node, [Module || {Module, false} <- IModMap]} || {Node, IModMap} <- ModMap],
     lager:info("ModMap: ~p ?!?!", [ModMap]),
-    State#u_state{not_reloaded_modules = ModMap, previous_data = maps:remove(mod_mapa, PData)};
-finalize_stage(_, _, State) ->
+    State#u_state{not_reloaded_modules = maps:from_list(NotReloaded)};
+finalize_stage(Stage, Job, State) ->
+    lager:info("Unknown finalize: ~p:~p", [Stage, Job]),
     State.
 
 
@@ -99,9 +101,14 @@ dispatch(?STAGE_SOFT_RELOAD, ?JOB_DEFAULT, Obj, #u_state{}) ->
     Node = Obj,
     cast(Node, soft_reload_all_modules, []);
 
-dispatch(?STAGE_FORCE_RELOAD, ?JOB_DEFAULT, Obj, #u_state{}) ->
+dispatch(?STAGE_FORCE_RELOAD, ?JOB_DEFAULT, Obj, #u_state{not_reloaded_modules = NotReloaded}) ->
     Node = Obj,
-    cast(Node, force_reload_all_modules, []);
+    WaitTime =
+        case length(maps:get(Node, NotReloaded)) of
+            0 -> 0;
+            _ -> 2 * 60 * 1000
+        end,
+    cast(Node, force_reload_modules, [maps:get(Node, NotReloaded), WaitTime]);
 
 dispatch(Stage, Job, Obj, #u_state{}) ->
     throw({unknown_dispatch, {Stage, Job, Obj}}).
@@ -174,7 +181,7 @@ next_stage(Stage, Job) ->
 enter_stage({Stage, Job}, #u_state{object_data = ObjData, callback = CFun} = State) ->
     lager:info("Entering stage ~p:~p...", [Stage, Job]),
     NewState0 = finalize_stage(State#u_state{previous_data = ObjData}),
-    NewState1 = NewState0#u_state{stage = Stage, job = Job, objects = #{}, error_stack = [], error_counter = #{}},
+    NewState1 = NewState0#u_state{stage = Stage, job = Job, objects = #{}, error_stack = [], error_counter = #{}, object_data = #{}},
     NewState2 = NewState1#u_state{objects = maps:from_list( lists:flatten( [handle_stage(NewState1)] ) )},
     CFun(enter_stage, NewState2),
     NewState2.
@@ -204,7 +211,7 @@ handle_call(get_state, _From, State) ->
 handle_call(abort, _From, State) ->
     {reply, ok, State};
 
-handle_call({update_to, #version{} = Vsn, CallbackFun}, _From, #u_state{stage = ?STAGE_IDLE} = State) ->
+handle_call({update_to, #version{} = Vsn, ForceNodeRestart, CallbackFun}, _From, #u_state{stage = ?STAGE_IDLE} = State) ->
 
     {WorkerHosts, CCMHosts} =
         case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
@@ -218,14 +225,14 @@ handle_call({update_to, #version{} = Vsn, CallbackFun}, _From, #u_state{stage = 
     lager:info("Installed workers ~p", [Workers]),
     lager:info("Installed CCMs ~p", [CCMs]),
 
-    NewState0 = State#u_state{nodes = Workers ++ CCMs, version = Vsn, callback = CallbackFun},
+    NewState0 = State#u_state{error_stack = [], nodes = Workers ++ CCMs, version = Vsn, callback = CallbackFun, force_node_restart = ForceNodeRestart},
 
     NewState2 = enter_stage(next_stage(State), NewState0),
 
     {reply, ok, NewState2};
 
 
-handle_call({update_to, #version{}}, _From, #u_state{stage = _Stage} = State) ->
+handle_call({update_to, #version{}, _, _}, _From, #u_state{stage = _Stage} = State) ->
     {reply, {error, update_already_in_progress}, State};
 
 handle_call(Info, _From, State) ->
@@ -237,8 +244,9 @@ handle_cast(Info, State) ->
     {noreply, State}.
 
 
-handle_info({Pid, ok}, #u_state{objects = Objects} = State) ->
+handle_info({Pid, ok}, #u_state{objects = Objects, callback = CallbackFun} = State) ->
     NObjects = maps:remove(Pid, Objects),
+    CallbackFun(update_objects, State),
     NState =
         case {maps:size(NObjects), maps:size(Objects)} of
             {0, 1}  -> enter_stage(next_stage(State), State);
@@ -292,15 +300,17 @@ handle_info(Unknown, #u_state{} = State) ->
     lager:info("Unknown info ~p", [Unknown]),
     {noreply, State}.
 
-handle_error(_, Obj, _Reason, #u_state{error_counter = EC, objects = Objects} = State) ->
+handle_error(_, Obj, Reason, #u_state{error_counter = EC, objects = Objects, error_stack = EStack, callback = CallbackFun} = State) ->
     ErrorCount = maps:get(Obj, EC),
     if
         ErrorCount < 3 ->
             {NewPid, Obj} = dispatch(Obj, State),
             State#u_state{objects = maps:put(NewPid, Obj, Objects)};
         true ->
-            lager:error("Critical error ~p: ~p", [Obj, _Reason]),
-            State#u_state{stage = ?STAGE_IDLE, job = ?JOB_DEFAULT, objects = #{}}
+            lager:error("Critical error ~p: ~p", [Obj, Reason]),
+            NewState = State#u_state{stage = ?STAGE_IDLE, job = ?JOB_DEFAULT, objects = #{}, error_stack = [Reason | EStack]},
+            CallbackFun(error, NewState),
+            NewState
     end.
 
 
