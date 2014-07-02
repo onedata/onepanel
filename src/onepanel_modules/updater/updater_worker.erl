@@ -207,8 +207,8 @@ handle_call(abort, _From, State) ->
 handle_call({update_to, #version{} = Vsn, CallbackFun}, _From, #u_state{stage = ?STAGE_IDLE} = State) ->
 
     {WorkerHosts, CCMHosts} =
-        case dao:get_record(configurations, last) of
-            {ok, #configuration{workers = InstalledWorkers, opt_ccms = OptCCM, main_ccm = MCCM}} ->
+        case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+            {ok, #?GLOBAL_CONFIG_RECORD{workers = InstalledWorkers, opt_ccms = OptCCM, main_ccm = MCCM}} ->
                 {InstalledWorkers, OptCCM ++ [MCCM]};
             _ -> []
         end,
