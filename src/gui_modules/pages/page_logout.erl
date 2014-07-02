@@ -24,7 +24,8 @@
 -spec main() -> Result when
     Result :: #dtl{}.
 %% ====================================================================
-main() -> #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}]}.
+main() ->
+    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]}.
 
 
 %% title/0
@@ -33,7 +34,8 @@ main() -> #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {bo
 -spec title() -> Result when
     Result :: binary().
 %% ====================================================================
-title() -> <<"Logout page">>.
+title() ->
+    <<"Logout page">>.
 
 
 %% body/0
@@ -43,16 +45,14 @@ title() -> <<"Logout page">>.
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    wf:user(undefined),
-    wf:session(user_doc, undefined),
-    %wf:logout(), % Not yet implemented in n2o stable realease
+    gui_ctx:clear_session(),
     #panel{style = <<"position: relative;">>, body = [
         #panel{class = <<"alert alert-success login-page">>, body = [
             #h3{class = <<"">>, body = <<"Logout successful">>},
             #p{class = <<"login-info">>, body = <<"Come back soon.">>},
             #button{postback = to_login, class = <<"btn btn-primary btn-block">>, body = <<"Login page">>}
         ]}
-    ] ++ gui_utils:logotype_footer(120)}.
+    ] ++ onepanel_gui_utils:logotype_footer(120)}.
 
 
 %% ====================================================================
@@ -66,4 +66,8 @@ body() ->
 %% ====================================================================
 event(init) -> ok;
 
-event(to_login) -> gui_utils:redirect_to_login(false).
+event(to_login) ->
+    gui_jq:redirect_to_login(false);
+
+event(terminate) ->
+    ok.

@@ -1,5 +1,5 @@
 %% ===================================================================
-%% @author Lukasz Opiola
+%% @author Krzysztof Trzepla
 %% @copyright (C): 2014 ACK CYFRONET AGH
 %% This software is released under the MIT license
 %% cited in 'LICENSE.txt'.
@@ -12,7 +12,7 @@
 
 -module(session_logic).
 -behaviour(session_logic_behaviour).
--include("registered_names.hrl").
+-include("gui_modules/common.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% session_logic_behaviour API
@@ -67,7 +67,7 @@ save_session(SessionID, Props, TillArg) ->
                        [{SessionID, _, CurrentTill}] ->
                            CurrentTill;
                        _ ->
-                           throw("session expiration not specified")
+                           throw("Session expiration not specified.")
                    end;
                _ ->
                    TillArg
@@ -153,8 +153,8 @@ clear_expired_sessions() ->
 %% ====================================================================
 get_cookie_ttl() ->
     case application:get_env(?APP_NAME, onepanel_sessions_cookie_ttl) of
-        {ok, Val} when is_integer(Val)->
+        {ok, Val} when is_integer(Val) ->
             Val;
         _ ->
-            throw("No cookie TTL specified in env")
+            throw("No cookie TTL specified in env.")
     end.

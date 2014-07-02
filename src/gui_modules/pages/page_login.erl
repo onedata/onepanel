@@ -24,7 +24,8 @@
 -spec main() -> Result when
     Result :: #dtl{}.
 %% ====================================================================
-main() -> #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}]}.
+main() ->
+    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]}.
 
 
 %% title/0
@@ -33,7 +34,8 @@ main() -> #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {bo
 -spec title() -> Result when
     Result :: binary().
 %% ====================================================================
-title() -> <<"Login page">>.
+title() ->
+    <<"Login page">>.
 
 
 %% body/0
@@ -43,26 +45,38 @@ title() -> <<"Login page">>.
     Result :: #panel{} | no_return().
 %% ====================================================================
 body() ->
-    case gui_utils:user_logged_in() of
-        true -> wf:redirect(<<"/">>);
+    case gui_ctx:user_logged_in() of
+        true -> gui_jq:redirect(<<"/">>);
         false ->
-            ErrorPanelStyle = case wf:q(<<"x">>) of
-                                  undefined -> <<"position: fixed; top: 0; width: 100%; display: none;">>;
-                                  _ -> <<"position: fixed; top: 0; width: 100%;">>
-                              end,
+            {ErrorPanelStyle, ErrorMessage} =
+                case gui_ctx:url_param(<<"x">>) of
+                    undefined ->
+                        case gui_ctx:url_param(<<"id">>) of
+                            undefined -> {<<"position: fixed; top: 0; width: 100%; display: none;">>, <<"">>};
+                            ErrorId -> {<<"position: fixed; top: 0; width: 100%;">>,
+                                onepanel_gui_utils:get_error_message(binary_to_atom(gui_str:to_binary(ErrorId), latin1))}
+                        end;
+                    _ ->
+                        {<<"position: fixed; top: 0; width: 100%;">>, <<"No session or session expired. Please log in.">>}
+                end,
             #panel{style = <<"position: relative;">>, body = [
-                #panel{id = <<"error_message">>, style = ErrorPanelStyle, class = <<"dialog dialog-danger">>,
-                    body = <<"Session error or session expired. Please log in again.">>},
+                #panel{id = <<"error_message">>, style = ErrorPanelStyle, class = <<"dialog dialog-danger">>, body = #p{
+                    body = ErrorMessage}},
                 #panel{class = <<"alert alert-success login-page">>, body = [
                     #h3{body = <<"Welcome to Onepanel">>},
-                    #panel{style = <<"width: 50%; margin: 0 auto; padding-top: 20px; float: center">>, body = [
-                        #textbox{id = username, placeholder = <<"Username">>, class = <<"flat">>},
-                        #password{id = password, placeholder = <<"Password">>, class = <<"flat">>}
-                    ]},
-                    #button{id = "login_button", postback = login, source = [username, password], class = <<"btn btn-primary btn-block">>,
-                        style = <<"width: 50%; margin: 0 auto;">>, body = <<"Login">>}
+                    #form{id = <<"login_form">>, method = <<"POST">>,
+                        action = case gui_ctx:url_param(<<"x">>) of
+                                     undefined -> <<"/validate_login">>;
+                                     SourcePage -> <<"/validate_login?x=", SourcePage/binary>>
+                                 end,
+                        style = <<"width: 50%; margin: 0 auto; padding-top: 20px; float: center">>, body = [
+                            #textbox{id = <<"username">>, name = <<"username">>, placeholder = <<"Username">>, class = <<"flat">>},
+                            #password{id = <<"password">>, name = <<"password">>, placeholder = <<"Password">>, class = <<"flat">>},
+                            #button{id = <<"login_button">>, type = <<"submit">>,
+                                class = <<"btn btn-primary btn-block">>, style = <<"width: 50%; margin: 0 auto;">>, body = <<"Login">>}
+                        ]}
                 ]}
-            ] ++ gui_utils:logotype_footer(120)}
+            ] ++ onepanel_gui_utils:logotype_footer(120)}
     end.
 
 
@@ -76,21 +90,9 @@ body() ->
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->
-    wf:wire(gui_utils:script_for_enter_submission("password", "login_button")),
+    onepanel_gui_utils:bind_enter_to_change_focus(<<"username">>, <<"password">>),
+    gui_jq:bind_enter_to_submit_button(<<"password">>, <<"login_button">>),
     ok;
 
-event(login) ->
-    Username = wf:q(username),
-    Password = wf:q(password),
-    case user_logic:authenticate(Username, Password) of
-        ok ->
-            wf:user(Username),
-            gui_utils:redirect_from_login();
-        {error, Reason} when is_list(Reason) ->
-            gui_utils:update("error_message", Reason);
-%%             wf:wire(#jquery{target = "error_message", method = ["fadeIn"], args = [300]});
-        Other ->
-            lager:error("Cannot authenticate user: ~p", [Other]),
-            gui_utils:update("error_message", "Internal server error.")
-%%             wf:wire(#jquery{target = "error_message", method = ["fadeIn"], args = [300]})
-    end.
+event(terminate) ->
+    ok.

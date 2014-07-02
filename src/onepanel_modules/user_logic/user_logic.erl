@@ -13,7 +13,7 @@
 
 -include("onepanel_modules/db_logic.hrl").
 -include("onepanel_modules/install_logic.hrl").
--include("registered_names.hrl").
+-include("gui_modules/common.hrl").
 
 %% API
 -export([hash_password/1, authenticate/2, change_password/3]).
@@ -26,8 +26,8 @@
 %% ====================================================================
 %% @doc Check whether user exists and whether it is a valid password
 %% @end
--spec authenticate(Username :: string(), Password :: string()) -> Result when
-    Result :: ok | {error, Reason :: string()}.
+-spec authenticate(Username :: binary(), Password :: binary()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 authenticate(Username, Password) ->
     PasswordHash = hash_password(Password),
@@ -35,12 +35,12 @@ authenticate(Username, Password) ->
         {ok, #?USER_RECORD{username = Username, password = ValidPasswordHash}} ->
             case ValidPasswordHash of
                 PasswordHash -> ok;
-                _ -> {error, "Invaild username or password."}
+                _ -> {error, ?AUTHENTICATION_ERROR}
             end;
-        {error, not_found} -> {error, "Invaild username or password."};
+        {error, "Record not found."} -> {error, ?AUTHENTICATION_ERROR};
         Other ->
             lager:error("Cannot authenticate user: ~p", [Other]),
-            {error, "Internal server error."}
+            {error, ?INTERNAL_SERVER_ERROR}
     end.
 
 
@@ -48,7 +48,8 @@ authenticate(Username, Password) ->
 %% ====================================================================
 %% @doc Changes user's password if authenticated
 %% @end
--spec change_password(Username :: string(), OldPassword :: string(), NewPassword :: string()) -> ok | {error, Reason :: string()}.
+-spec change_password(Username :: binary(), OldPassword :: binary(), NewPassword :: binary()) -> Result
+    when Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 change_password(Username, OldPassword, NewPassword) ->
     PasswordHash = user_logic:hash_password(NewPassword),
@@ -58,9 +59,9 @@ change_password(Username, OldPassword, NewPassword) ->
                 ok -> ok;
                 Other ->
                     lager:error("Cannot change user password: ~p", [Other]),
-                    {error, "Internal server error."}
+                    {error, ?INTERNAL_SERVER_ERROR}
             end;
-        _ -> {error, "Invaild username or password."}
+        _ -> {error, ?AUTHENTICATION_ERROR}
     end.
 
 
@@ -72,9 +73,9 @@ change_password(Username, OldPassword, NewPassword) ->
 %% ====================================================================
 %% @doc Returns md5 hash of given password.
 %% @end
--spec hash_password(Password :: string()) -> Result when
-    Result :: string().
+-spec hash_password(Password :: binary()) -> Result when
+    Result :: binary().
 %% ====================================================================
 hash_password(Password) ->
     Hash = crypto:hash_update(crypto:hash_init(md5), Password),
-    integer_to_list(binary:decode_unsigned(crypto:hash_final(Hash)), 16).
+    integer_to_binary(binary:decode_unsigned(crypto:hash_final(Hash)), 16).

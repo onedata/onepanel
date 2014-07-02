@@ -15,7 +15,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 % Functions to generate page elements
--export([top_menu/1, top_menu/2, logotype_footer/1]).
+-export([top_menu/1, top_menu/2, logotype_footer/1, bind_enter_to_change_focus/2, get_error_message/1]).
 
 
 %% ====================================================================
@@ -52,6 +52,7 @@ logotype_footer(MarginTop) ->
 top_menu(ActiveTabID) ->
     top_menu(ActiveTabID, []).
 
+
 %% top_menu/2
 %% ====================================================================
 %% @doc Convienience function to render top menu in GUI pages.
@@ -72,8 +73,9 @@ top_menu(ActiveTabID, SubMenuBody) ->
 
     MenuIcons =
         [
+            %TODO Change to real user... - list_to_binary(wf:user())
             {manage_account_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Manage account">>,
-                url = <<"/manage_account">>, body = [list_to_binary(wf:user()), #span{class = <<"fui-user">>,
+                url = <<"/manage_account">>, body = [<<"admin">>, #span{class = <<"fui-user">>,
                     style = <<"margin-left: 10px;">>}]}}},
             {about_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"About">>,
                 url = <<"/about">>, body = #span{class = <<"fui-info">>}}}},
@@ -106,5 +108,31 @@ top_menu(ActiveTabID, SubMenuBody) ->
         ]}
     ] ++ SubMenuBody}.
 
+
+%% bind_enter_to_submit_button/2
+%% ====================================================================
+%% @doc Makes any enter keypresses on InputID (whenever it is focused)
+%% change focus to selected target. This way, it allows
+%% easy switch submission with enter key.
+%% @end
+-spec bind_enter_to_change_focus(InputID :: binary(), TargetID :: binary()) -> string().
+%% ====================================================================
+bind_enter_to_change_focus(InputID, TargetID) ->
+    Script = <<"$('#", InputID/binary, "').bind('keydown', function (e){",
+    "if (e.which == 13) { e.preventDefault(); document.getElementById('", TargetID/binary, "').focus(); } });">>,
+    gui_jq:wire(Script, false).
+
+
+%% get_error_message/1
+%% ====================================================================
+%% @doc Returns error message for given error id, that will be displayed
+%% on page.
+-spec get_error_message(ErrorId :: atom()) -> Result when
+    Result :: binary().
+%% ====================================================================
+get_error_message(?AUTHENTICATION_ERROR) ->
+    <<"Invalid username or password.">>;
+get_error_message(_) ->
+    <<"Internal server error.">>.
 
 

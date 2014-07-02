@@ -79,22 +79,18 @@ uninstall(Args) ->
 %% ====================================================================
 start(Args) ->
     try
-        case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> throw("Database nodes not configured.");
-            {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = undefined}} -> ok;
-            {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = _}} -> throw("CCM nodes already configured.");
-            _ -> throw("Cannot get CCM nodes configuration.")
-        end,
+        Dbs = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+                  {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> throw("Database nodes not configured.");
+                  {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = undefined, dbs = Hosts}} -> Hosts;
+                  {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = _}} -> throw("CCM nodes already configured.");
+                  _ -> throw("Cannot get CCM nodes configuration.")
+              end,
 
         MainCCM = case proplists:get_value(main_ccm, Args) of
                       undefined -> throw("Main CCM node not found in arguments list.");
                       Host -> Host
                   end,
         OptCCMs = proplists:get_value(opt_ccms, Args, []),
-        Dbs = case proplists:get_value(dbs, Args) of
-                  undefined -> throw("Database nodes not found in arguments list.");
-                  Hosts -> Hosts
-              end,
 
         {HostsOk, HostsError} = install_utils:apply_on_hosts([MainCCM | OptCCMs], ?MODULE, start, [MainCCM, OptCCMs, Dbs], ?RPC_TIMEOUT),
 

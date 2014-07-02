@@ -13,10 +13,10 @@
 
 -behaviour(application).
 
--include("registered_names.hrl").
+-include("gui_modules/common.hrl").
 
 %% Application callbacks
--export([start/2, stop/1]).
+-export([start/2, stop/1, gui_adjust_headers/1]).
 
 % Cowboy listener reference
 -define(HTTPS_LISTENER, https).
@@ -52,7 +52,6 @@ start(_StartType, _StartArgs) ->
     {ok, Timeout} = application:get_env(?APP_NAME, socket_timeout),
     {ok, MaxKeepalive} = application:get_env(?APP_NAME, max_keepalive),
     {ok, GuiStaticRoot} = application:get_env(?APP_NAME, gui_static_root),
-    {ok, CACertFile} = application:get_env(?APP_NAME, ca_cert_file),
     {ok, CertFile} = application:get_env(?APP_NAME, cert_file),
     {ok, KeyFile} = application:get_env(?APP_NAME, key_file),
 
@@ -69,14 +68,14 @@ start(_StartType, _StartArgs) ->
     case cowboy:start_https(?HTTPS_LISTENER, HttpsAcceptors,
         [
             {port, GuiPort},
-            {cacertfile, CACertFile},
             {certfile, CertFile},
             {keyfile, KeyFile}
         ],
         [
             {env, [{dispatch, Dispatch}]},
             {max_keepalive, MaxKeepalive},
-            {timeout, Timeout}
+            {timeout, Timeout},
+            {onrequest, fun onepanel_app:gui_adjust_headers/1}
         ])
     of
         {ok, _} -> onepanel_sup:start_link();
@@ -100,6 +99,17 @@ stop(_State) ->
     ok.
 
 
+%% gui_adjust_headers/1
+%% ====================================================================
+%% @doc Callback hook for cowboy to modify response headers for HTTPS GUI.
+%% @end
+-spec gui_adjust_headers(Req :: req()) -> req().
+%% ====================================================================
+gui_adjust_headers(Req) ->
+    Req2 = cowboy_req:set_resp_header(<<"Strict-Transport-Security">>, <<"max-age=31536000; includeSubDomains">>, Req),
+    cowboy_req:set_resp_header(<<"X-Frame-Options">>, <<"SAMEORIGIN">>, Req2).
+
+
 %% ====================================================================
 %% Internal functions
 %% ====================================================================
@@ -115,4 +125,3 @@ static_dispatches(DocRoot, StaticPaths) ->
     _StaticDispatches = lists:map(fun(Dir) ->
         {Dir ++ "[...]", cowboy_static, {dir, DocRoot ++ Dir}}
     end, StaticPaths).
-

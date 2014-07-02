@@ -16,9 +16,9 @@
 
 -define(LICENSE_FILE, "LICENSE.txt").
 -define(CONTACT_EMAIL, "support@onedata.org").
--define(MEMBERS, [<<"Łukasz Dutka">>, <<"Jacek Kitowski">>, <<"Dariusz Król">>, <<"Tomasz Lichoń">>, <<"Darin Nikolow">>,
-    <<"Łukasz Opioła">>, <<"Tomasz Pałys">>, <<"Bartosz Polnik">>, <<"Paweł Salata">>, <<"Michał Sitko">>,
-    <<"Rafał Słota">>, <<"Renata Słota">>, <<"Beata Skiba">>, <<"Krzysztof Trzepla">>, <<"Michał Wrzeszcz">>]).
+-define(MEMBERS, [<<"Łukasz Dutka"/utf8>>, <<"Jacek Kitowski"/utf8>>, <<"Dariusz Król"/utf8>>, <<"Tomasz Lichoń"/utf8>>, <<"Darin Nikolow"/utf8>>,
+    <<"Łukasz Opioła"/utf8>>, <<"Tomasz Pałys"/utf8>>, <<"Bartosz Polnik"/utf8>>, <<"Paweł Salata"/utf8>>, <<"Michał Sitko"/utf8>>,
+    <<"Rafał Słota"/utf8>>, <<"Renata Słota"/utf8>>, <<"Beata Skiba"/utf8>>, <<"Krzysztof Trzepla"/utf8>>, <<"Michał Wrzeszcz"/utf8>>]).
 
 %% ====================================================================
 %% API functions
@@ -34,7 +34,7 @@ main() ->
     case gui_ctx:user_logged_in() of
         true ->
             #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]};
-        false ->
+        _ ->
             gui_jq:redirect_to_login(true),
             #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
     end.
@@ -46,7 +46,8 @@ main() ->
 -spec title() -> Result when
     Result :: binary().
 %% ====================================================================
-title() -> <<"About">>.
+title() ->
+    <<"About">>.
 
 
 %% body/0
@@ -139,4 +140,8 @@ get_team() ->
 %% @doc Handles page events.
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
-event(init) -> ok.
+event(init) ->
+    ok;
+
+event(terminate) ->
+    ok.

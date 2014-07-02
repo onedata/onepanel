@@ -1,18 +1,19 @@
 %% ===================================================================
-%% @author Krzysztof
-%% @copyright (C): 2014 ACK CYFRONET AGH
+%% @author Lukasz Opiola
+%% @copyright (C): 2013 ACK CYFRONET AGH
 %% This software is released under the MIT license
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains n2o website code.
-%% The page is displayed whenever an error occurs.
+%% @doc: This file contains n2o website code.
+%% The page handles user validation via OpenID.
 %% @end
 %% ===================================================================
 
--module(page_error).
+-module(page_validate_login).
 -export([main/0, event/1]).
 -include("gui_modules/common.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% ====================================================================
 %% API functions
@@ -24,7 +25,8 @@
 -spec main() -> Result when
     Result :: #dtl{}.
 %% ====================================================================
-main() -> #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}]}.
+main() ->
+    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]}.
 
 
 %% title/0
@@ -33,24 +35,31 @@ main() -> #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {bo
 -spec title() -> Result when
     Result :: binary().
 %% ====================================================================
-title() -> <<"Error">>.
+title() -> <<"Login page">>.
 
 
 %% body/0
 %% ====================================================================
 %% @doc This will be placed instead of {{body}} tag in template.
 -spec body() -> Result when
-    Result :: #panel{}.
+    Result :: no_return().
 %% ====================================================================
 body() ->
-    #panel{style = <<"position: relative;">>, body = [
-        #panel{class = <<"alert alert-danger login-page">>, body = [
-            #h3{body = <<"Error">>},
-            #p{class = <<"login-info">>, style = <<"font-weight: bold;">>, body = wf:q(<<"reason">>)},
-            #p{class = <<"login-info">>, body = wf:q(<<"details">>)},
-            #button{postback = to_login, class = <<"btn btn-warning btn-block">>, body = <<"Login page">>}
-        ]}
-    ] ++ gui_utils:logotype_footer(120)}.
+    case gui_ctx:user_logged_in() of
+        true -> gui_jq:redirect(<<"/">>);
+        false ->
+            {ok, Params} = gui_ctx:form_params(),
+            Username = proplists:get_value(<<"username">>, Params),
+            Password = proplists:get_value(<<"password">>, Params),
+            case user_logic:authenticate(Username, Password) of
+                ok ->
+                    gui_ctx:create_session(),
+                    gui_ctx:set_user_id(Username),
+                    gui_jq:redirect_from_login();
+                {error, Reason} ->
+                    gui_jq:redirect(<<"/login?id=", (gui_str:to_binary(Reason))/binary>>)
+            end
+    end.
 
 
 %% ====================================================================
@@ -64,4 +73,4 @@ body() ->
 %% ====================================================================
 event(init) -> ok;
 
-event(to_login) -> gui_utils:redirect_to_login(false).
+event(terminate) -> ok.

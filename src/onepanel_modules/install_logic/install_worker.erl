@@ -87,15 +87,6 @@ start(Args) ->
                 _ -> throw("Cannot get CCM nodes configuration.")
             end,
 
-        MainCCM = case proplists:get_value(main_ccm, Args) of
-                      undefined -> throw("Main CCM node not found in arguments list.");
-                      Host -> Host
-                  end,
-        OptCCMs = proplists:get_value(opt_ccms, Args, []),
-        Dbs = case proplists:get_value(dbs, Args) of
-                  undefined -> throw("Database nodes not found in arguments list.");
-                  Hosts -> Hosts
-              end,
         NewWorkers = proplists:get_value(workers, Args, []),
 
         lists:foreach(fun(Worker) ->

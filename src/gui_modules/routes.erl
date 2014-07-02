@@ -56,7 +56,7 @@ route(<<"/">>) -> page_installation;
 route(<<"/installation">>) -> page_installation;
 route(<<"/login">>) -> page_login;
 route(<<"/logout">>) -> page_logout;
-route(<<"/error">>) -> page_error;
 route(<<"/about">>) -> page_about;
 route(<<"/manage_account">>) -> page_manage_account;
+route(<<"/validate_login">>) -> page_validate_login;
 route(_) -> page_404.

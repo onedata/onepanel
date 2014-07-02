@@ -25,7 +25,8 @@
 -spec main() -> Result when
     Result :: #dtl{}.
 %% ====================================================================
-main() -> #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]}.
+main() ->
+    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]}.
 
 
 %% title/0
@@ -34,7 +35,8 @@ main() -> #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {bo
 -spec title() -> Result when
     Result :: binary().
 %% ====================================================================
-title() -> <<"Error 404">>.
+title() ->
+    <<"Error 404">>.
 
 
 %% body/0
@@ -62,8 +64,11 @@ body() ->
 %% @doc Handles page events.
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
-event(init) -> ok;
+event(init) ->
+    ok;
 
-event(to_login) -> gui_jq:redirect_to_login(false);
+event(to_login) ->
+    gui_jq:redirect_to_login(false);
 
-event(terminate) -> ok.
+event(terminate) ->
+    ok.

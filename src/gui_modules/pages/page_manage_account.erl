@@ -25,13 +25,14 @@
 -spec main() -> Result when
     Result :: #dtl{}.
 %% ====================================================================
-main() -> case gui_utils:user_logged_in() of
-              true ->
-                  #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}]};
-              false ->
-                  gui_utils:redirect_to_login(true),
-                  #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}]}
-          end.
+main() ->
+    case gui_ctx:user_logged_in() of
+        true ->
+            #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]};
+        _ ->
+            gui_jq:redirect_to_login(true),
+            #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
+    end.
 
 
 %% title/0
@@ -40,7 +41,8 @@ main() -> case gui_utils:user_logged_in() of
 -spec title() -> Result when
     Result :: binary().
 %% ====================================================================
-title() -> <<"Manage account">>.
+title() ->
+    <<"Manage account">>.
 
 
 %% body/0
@@ -51,7 +53,7 @@ title() -> <<"Manage account">>.
 %% ====================================================================
 body() ->
     #panel{style = <<"position: relative;">>, body = [
-        gui_utils:top_menu(manage_account_tab),
+        onepanel_gui_utils:top_menu(manage_account_tab),
         #panel{id = <<"ok_message">>, style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
             class = <<"dialog dialog-success">>},
         #panel{id = <<"error_message">>, style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
@@ -59,15 +61,16 @@ body() ->
         #panel{style = <<"position: relative;">>, body = [
             #panel{class = <<"alert alert-success login-page">>, body = [
                 #panel{style = <<"width: 50%; margin: 0 auto; float: center">>, body = [
-                    #password{id = old_password, placeholder = <<"Old password">>, class = <<"flat">>},
-                    #password{id = new_password, placeholder = <<"New password">>, class = <<"flat">>},
-                    #password{id = confirm_password, placeholder = <<"Confirm password">>, class = <<"flat">>}
+                    #password{id = <<"old_password">>, placeholder = <<"Old password">>, class = <<"flat">>},
+                    #password{id = <<"new_password">>, placeholder = <<"New password">>, class = <<"flat">>},
+                    #password{id = <<"confirm_password">>, placeholder = <<"Confirm password">>, class = <<"flat">>}
                 ]},
-                #button{id = "change_button", postback = change_password, source = [old_password, new_password, confirm_password], class = <<"btn btn-primary btn-block">>,
-                    style = <<"width: 50%; margin: 0 auto;">>, body = <<"Change password">>}
+                #button{id = <<"change_password_button">>, actions = gui_jq:form_submit_action(<<"change_password_button">>,
+                    change_password, [<<"old_password">>, <<"new_password">>, <<"confirm_password">>]),
+                    class = <<"btn btn-primary btn-block">>, style = <<"width: 50%; margin: 0 auto;">>, body = <<"Change password">>}
             ]}
         ]}
-    ]}.
+    ] ++ onepanel_gui_utils:logotype_footer(120)}.
 
 
 %% verify_new_password/2
@@ -75,14 +78,15 @@ body() ->
 %% @doc Checks whether password can be changed, that is new password and
 %% confirmed password match and new password is at least ?MIN_PASSWORD_LENGTH
 %% characters long.
--spec verify_new_password(NewPassword :: string(), ConfirmedPassword :: string()) -> Result when
+-spec verify_new_password(NewPassword :: binary(), ConfirmedPassword :: binary()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 verify_new_password(Password, Password) ->
-    case length(Password) >= ?MIN_PASSWORD_LENGTH of
+    case size(Password) >= ?MIN_PASSWORD_LENGTH of
         true -> ok;
         _ -> {error, "Password should have at least " ++ integer_to_list(?MIN_PASSWORD_LENGTH) ++ " characters long."}
     end;
+
 verify_new_password(_, _) ->
     {error, "Passwords does not match."}.
 
@@ -97,34 +101,33 @@ verify_new_password(_, _) ->
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->
-    wf:wire(gui_utils:script_for_enter_submission("confirm_password", "change_button")),
+    onepanel_gui_utils:bind_enter_to_change_focus(<<"old_password">>, <<"new_password">>),
+    onepanel_gui_utils:bind_enter_to_change_focus(<<"new_password">>, <<"confirm_password">>),
+    gui_jq:bind_enter_to_submit_button(<<"confirm_password">>, <<"change_password_button">>),
     ok;
 
 event(change_password) ->
-    Username = wf:user(),
-    OldPassword = wf:q(old_password),
-    NewPassword = wf:q(new_password),
-    ConfirmedPassword = wf:q(confirm_password),
-    case verify_new_password(NewPassword, ConfirmedPassword) of
+    Username = gui_ctx:get_user_id(),
+    OldPassword = gui_ctx:postback_param(<<"old_password">>),
+    NewPassword = gui_ctx:postback_param(<<"new_password">>),
+    ConfirmPassword = gui_ctx:postback_param(<<"confirm_password">>),
+    case verify_new_password(NewPassword, ConfirmPassword) of
         ok ->
             case user_logic:change_password(Username, OldPassword, NewPassword) of
                 ok ->
-                    gui_utils:update("ok_message", "Password changed.");
-%%                     wf:wire(#jquery{target = "error_message", method = ["fadeOut"], args = [300]}),
-%%                     wf:wire(#jquery{target = "ok_message", method = ["fadeIn"], args = [300]}),
-%%                     lists:foreach(fun(PasswordBox) ->
-%%                         wf:wire(#jquery{target = PasswordBox, method = ["val"], args = ["\"\""]})
-%%                     end, ["old_password", "new_password", "confirm_password"]);
-                {error, Reason} when is_list(Reason) ->
-                    lager:error("Cannot change user password: ~p", [Reason]),
-                    gui_utils:update("error_message", Reason);
-%%                     wf:wire(#jquery{target = "error_message", method = ["fadeIn"], args = [300]});
-                Other ->
-                    lager:error("Cannot change user password: ~p", [Other]),
-                    gui_utils:update("error_message", "Internal server error.")
-%%                     wf:wire(#jquery{target = "error_message", method = ["fadeIn"], args = [300]})
+                    gui_jq:update(<<"ok_message">>, "Password changed."),
+                    gui_jq:fade_out(<<"error_message">>, 300),
+                    gui_jq:fade_in(<<"ok_message">>, 300),
+                    lists:foreach(fun(PasswordBoxId) ->
+                        gui_jq:set_value(PasswordBoxId, <<"">>)
+                    end, [<<"old_password">>, <<"new_password">>, <<"confirm_password">>]);
+                {error, ErrorId} ->
+                    gui_jq:update(<<"error_message">>, onepanel_gui_utils:get_error_message(binary_to_atom(gui_str:to_binary(ErrorId), latin1))),
+                    gui_jq:fade_in(<<"error_message">>, 300)
             end;
         {error, Reason} ->
-            gui_utils:update("error_message", Reason)
-%%             wf:wire(#jquery{target = "error_message", method = ["fadeIn"], args = [300]})
-    end.
+            gui_jq:update(<<"error_message">>, Reason),
+            gui_jq:fade_in(<<"error_message">>, 300)
+    end;
+
+event(terminate) -> ok.
