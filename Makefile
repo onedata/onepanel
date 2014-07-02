@@ -1,4 +1,4 @@
-.PHONY: test deps generate
+.PHONY: deps generate
 
 all: deps compile
 
@@ -9,7 +9,7 @@ compile: deps
 	@./rebar compile
 
 generate: compile
-	@sed -i s/"-name .*"/"-name spanel@"`hostname`/g rel/files/vm.args
+	@sed -i.bak s/"-name .*"/"-name onepanel@"`hostname`/g rel/files/vm.args
 	@./rebar generate
 
 clean:
@@ -20,5 +20,3 @@ distclean: clean
 
 rel: deps compile generate
 
-relclean:
-	rm -rf rel/spanel
