@@ -25,7 +25,18 @@
 %% ====================================================================
 
 runner(RespondTo, Fun, Args) ->
-    RespondTo ! {self(), apply(?MODULE, Fun, Args)}.
+    lager:info("Apply ~p ~p", [Fun, Args]),
+    Response =
+        try apply(?MODULE, Fun, Args) of
+            ok -> ok;
+            {ok, Data} -> {ok, Data};
+            {error, Reason} -> {error, Reason};
+            Other -> {error, Other}
+        catch
+            Type:Error ->
+                {error, {Type, Error, erlang:get_stacktrace()}}
+        end,
+    RespondTo ! {self(), Response}.
 
 install_package(#package{type = rpm, binary = Bin}) ->
     file:write_file("/tmp/veil.rpm", Bin),
@@ -120,7 +131,7 @@ purge(Module) ->
 
 soft_reload_all_modules() ->
     ok = fix_code_path(),
-    Modules = [Module || {Module, _} <- get_all_loaded()], %%, Module =/= crypto, Module =/= asn1rt_nif],
+    Modules = [Module || {Module, _} <- get_all_loaded(), Module =/= crypto, Module =/= asn1rt_nif],
 
     ModMap =
         lists:map(
@@ -135,13 +146,13 @@ soft_reload_all_modules() ->
 
 force_reload_all_modules() ->
     ok = fix_code_path(),
-    Modules = [Module || {Module, _} <- get_all_loaded()],%%, Module =/= crypto, Module =/= asn1rt_nif],
+    Modules = [Module || {Module, _} <- get_all_loaded(), Module =/= crypto, Module =/= asn1rt_nif],
     ModMap =
         lists:map(
             fun(Mod) ->
                 lager:info("Mod2: ~p", [Mod]),
                 %%purge(Mod),
-                %%code:load_file(Mod),
+                code:load_file(Mod),
                 {Mod, purge(Mod)}
             end, Modules),
     {ok, ModMap}.

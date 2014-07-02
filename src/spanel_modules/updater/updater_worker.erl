@@ -126,7 +126,7 @@ handle_stage(?STAGE_INIT, ?JOB_INSTALL_PACKAGE, #u_state{nodes = Nodes} = State)
     default_dispatch_to_all_nodes(select_only_workers(Nodes), State);
 
 handle_stage(?STAGE_DAO_UPDATER_LOAD, _, #u_state{nodes = Nodes} = State) ->
-    default_dispatch_to_all_nodes(select_only_workers(Nodes), State);
+    default_dispatch_to_all_nodes(Nodes, State);
 
 handle_stage(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, #u_state{nodes = Nodes} = State) ->
     [dispatch(views, State)];
@@ -240,8 +240,8 @@ handle_cast(Info, State) ->
 handle_info({Pid, ok}, #u_state{objects = Objects} = State) ->
     NObjects = maps:remove(Pid, Objects),
     NState =
-        case maps:size(NObjects) of
-            0  -> enter_stage(next_stage(State), State);
+        case {maps:size(NObjects), maps:size(Objects)} of
+            {0, 1}  -> enter_stage(next_stage(State), State);
             _  -> State#u_state{objects = NObjects}
         end,
     {noreply, NState};
@@ -340,6 +340,7 @@ call(Node, Fun, Args) ->
 
 
 cast(Node, Fun, Args) ->
+    lager:info("Cast: ~p ~p ~p", [Node, Fun, Args]),
     Host = self(),
     spawn_link(Node, updater_export, runner, [Host, Fun, Args]).
 
@@ -347,6 +348,7 @@ multicast(Nodes, Fun, Args) ->
     lists:foreach(fun(Node) -> cast(Node, Fun, Args) end, Nodes).
 
 anycast(Nodes, Fun, Args) ->
+    lager:info("Anycast: ~p ~p ~p", [Nodes, Fun, Args]),
     Node = lists:nth(crypto:rand_uniform(1, length(Nodes) + 1), Nodes),
     cast(Node, Fun, Args).
 
