@@ -148,8 +148,8 @@ change_step(CurrentStep, Diff) ->
     HideId = <<"step_", (integer_to_binary(CurrentStep))/binary>>,
     ShowId = <<"step_", (integer_to_binary(CurrentStep + Diff))/binary>>,
     gui_jq:hide(<<"error_message">>),
-    gui_jq:slide_up(HideId, 1000),
-    gui_jq:delay(ShowId, integer_to_binary(1000)),
-    gui_jq:slide_down(ShowId, 1000).
+    gui_jq:slide_up(HideId, 800),
+    gui_jq:delay(ShowId, integer_to_binary(500)),
+    gui_jq:slide_down(ShowId, 800).
 
 
