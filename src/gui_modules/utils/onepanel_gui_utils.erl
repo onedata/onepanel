@@ -15,7 +15,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 % Functions to generate page elements
--export([top_menu/1, top_menu/2, logotype_footer/1, bind_enter_to_change_focus/2, get_error_message/1]).
+-export([top_menu/1, top_menu/2, logotype_footer/1, bind_enter_to_change_focus/2, get_error_message/1, change_step/2]).
 
 
 %% ====================================================================
@@ -68,14 +68,16 @@ top_menu(ActiveTabID, SubMenuBody) ->
         [
             {installation_tab, #li{body = [
                 #link{style = <<"padding: 18px;">>, url = <<"/installation">>, body = <<"Installation">>}
+            ]}},
+            {registration_tab, #li{body = [
+                #link{style = <<"padding: 18px;">>, url = <<"/registration">>, body = <<"Registration">>}
             ]}}
         ],
 
     MenuIcons =
         [
-            %TODO Change to real user... - list_to_binary(wf:user())
             {manage_account_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Manage account">>,
-                url = <<"/manage_account">>, body = [<<"admin">>, #span{class = <<"fui-user">>,
+                url = <<"/manage_account">>, body = [gui_ctx:get_user_id(), #span{class = <<"fui-user">>,
                     style = <<"margin-left: 10px;">>}]}}},
             {about_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"About">>,
                 url = <<"/about">>, body = #span{class = <<"fui-info">>}}}},
@@ -134,5 +136,20 @@ get_error_message(?AUTHENTICATION_ERROR) ->
     <<"Invalid username or password.">>;
 get_error_message(_) ->
     <<"Internal server error.">>.
+
+
+%% change_step/2
+%% ====================================================================
+%% @doc Hides current installation step and displays next ('Diff' equals 1)
+%% or previous ('Diff' equals -1) installaton step.
+-spec change_step(CurrentStep :: integer(), Diff :: -1 | 1) -> no_return().
+%% ====================================================================
+change_step(CurrentStep, Diff) ->
+    HideId = <<"step_", (integer_to_binary(CurrentStep))/binary>>,
+    ShowId = <<"step_", (integer_to_binary(CurrentStep + Diff))/binary>>,
+    gui_jq:hide(<<"error_message">>),
+    gui_jq:slide_up(HideId, 1000),
+    gui_jq:delay(ShowId, integer_to_binary(1000)),
+    gui_jq:slide_down(ShowId, 1000).
 
 

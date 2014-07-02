@@ -89,7 +89,7 @@ register() ->
 
 %% check_ip_address/0
 %% ====================================================================
-%% @doc Returns ip address that is visible for global registry.
+%% @doc Returns ip address that is visible for Global Registry.
 %% @end
 -spec check_ip_address() -> Result when
     Result :: {ok, IpAddress :: string()} | {error, Reason :: term()}.
@@ -108,7 +108,8 @@ check_ip_address() ->
 
 %% check_port/0
 %% ====================================================================
-%% @doc Checks port availability on host.
+%% @doc Checks port availability on host, that is that port is visible
+%% for Global Registry.
 %% @end
 -spec check_port(Host :: string(), Port :: integer(), Type :: string()) -> Result when
     Result :: ok | {error, Reason :: term()}.
@@ -120,11 +121,15 @@ check_port(Host, Port, Type) ->
         {ok, Url} = application:get_env(?APP_NAME, global_registry_url),
         TestUrl = Url ++ "/provider/test/check_my_ports",
         Resource = case Type of
-                       gui -> "/connection_check";
-                       rest -> "/rest/latest/connection_check"
+                       "gui" -> "/connection_check";
+                       "rest" -> "/rest/latest/connection_check"
                    end,
-        CheckUrl = "https://" ++ IpAddress ++ ":" ++ integer_to_list(Port) ++ Resource,
+        CheckUrl = list_to_binary("https://" ++ IpAddress ++ ":" ++ integer_to_list(Port) ++ Resource),
         ReqBody = iolist_to_binary(mochijson2:encode({struct, [{Type, CheckUrl}]})),
+
+        ?info("TestUrl: ~p", [TestUrl]),
+        ?info("CheckUrl: ~p", [CheckUrl]),
+        ?info("ReqBody: ~p", [ReqBody]),
 
         {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(TestUrl, [{content_type, "application/json"}], get, ReqBody),
 

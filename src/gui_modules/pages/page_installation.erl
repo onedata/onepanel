@@ -10,13 +10,13 @@
 %% ===================================================================
 
 -module(page_installation).
--compile(export_all).
+-export([main/0, event/1]).
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/db_logic.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% Record that holds current page state, that is installation configuration saved in database and user preferences from web page
--record(page_state, {counter = 1, main_ccm = undefined, ccms = sets:new(), workers = sets:new(), dbs = sets:new(), storage_paths = sets:new(), status}).
+-record(page_state, {counter = 1, main_ccm = undefined, ccms = sets:new(), workers = sets:new(), dbs = sets:new(), storage_paths = sets:new()}).
 
 %% ====================================================================
 %% API functions
@@ -107,7 +107,7 @@ body() ->
             #panel{style = <<"width: 50%; margin: 0 auto;">>, body = registration_body()}
         ]}
 
-    ]}.
+    ] ++ onepanel_gui_utils:logotype_footer(120)}.
 
 
 %% comet_loop/1
@@ -115,7 +115,7 @@ body() ->
 %% @doc Handles messages that change installation preferences.
 -spec comet_loop(PageState :: #page_state{}) -> no_return().
 %% ====================================================================
-comet_loop(#page_state{counter = Counter, main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs, storage_paths = StoragePaths, status = Status} = PageState) ->
+comet_loop(#page_state{counter = Counter, main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs, storage_paths = StoragePaths} = PageState) ->
     ?debug("Main CCM: ~p", [MainCCM]),
     ?debug("CCMs: ~p", [sets:to_list(CCMs)]),
     ?debug("Workers: ~p", [sets:to_list(Workers)]),
@@ -207,7 +207,7 @@ comet_loop(#page_state{counter = Counter, main_ccm = MainCCM, ccms = CCMs, worke
                 comet_loop(PageState#page_state{storage_paths = sets:del_element(StoragePath, StoragePaths)});
 
             {next, 1} ->
-                case Status =:= installed orelse ((sets:size(CCMs) > 0) andalso (sets:size(Dbs) > 0)) of
+                case (sets:size(CCMs) > 0) andalso (sets:size(Dbs) > 0) of
                     true ->
                         CCMsList = sets:to_list(CCMs),
                         NewMainCCM = case MainCCM of
@@ -215,7 +215,7 @@ comet_loop(#page_state{counter = Counter, main_ccm = MainCCM, ccms = CCMs, worke
                                          _ -> MainCCM
                                      end,
                         update_main_ccm_dropdown(NewMainCCM, CCMsList),
-                        change_step(1, 1),
+                        onepanel_gui_utils:change_step(1, 1),
                         gui_comet:flush(),
                         comet_loop(PageState#page_state{main_ccm = NewMainCCM});
                     _ ->
@@ -224,11 +224,11 @@ comet_loop(#page_state{counter = Counter, main_ccm = MainCCM, ccms = CCMs, worke
                 end;
 
             {next, 3} ->
-                case Status =:= installed orelse sets:size(StoragePaths) > 0 of
+                case sets:size(StoragePaths) > 0 of
                     true ->
                         case check_storage_paths(sets:to_list(Workers), sets:to_list(StoragePaths)) of
                             ok ->
-                                change_step(3, 1),
+                                onepanel_gui_utils:change_step(3, 1),
                                 gui_jq:update(<<"summary_table">>, summary_table_body(get_page_state_diff(get_prev_page_state(), PageState))),
                                 gui_comet:flush();
                             _ -> error
@@ -239,10 +239,8 @@ comet_loop(#page_state{counter = Counter, main_ccm = MainCCM, ccms = CCMs, worke
                 comet_loop(PageState);
 
             install ->
-                case install(get_page_state_diff(get_prev_page_state(), PageState)) of
-                    ok -> comet_loop(PageState#page_state{status = installed});
-                    _ -> comet_loop(PageState)
-                end;
+                install(get_page_state_diff(get_prev_page_state(), PageState)),
+                comet_loop(PageState);
 
             Other ->
                 ?error("Comet process received unknown message: ~p", [Other]),
@@ -267,7 +265,7 @@ error_message(Message) ->
 
 %% hosts_table_body/0
 %% ====================================================================
-%% @doc Renders hosts table bidy in first step of installation
+%% @doc Renders hosts table body in first step of installation
 -spec hosts_table_body() -> Result when
     Result :: [#tr{}].
 %% ====================================================================
@@ -457,19 +455,29 @@ summary_table_row(Id, Description, Details) ->
 
 %% registration_body/0
 %% ====================================================================
-%% @doc Renders registratin body in fifth step of installation.
+%% @doc Renders registration body in fifth step of installation.
 -spec registration_body() -> Result
     when Result :: [#panel{}].
 %% ====================================================================
 registration_body() ->
-    [
-        #panel{class = <<"alert alert-success">>, body = [
-            #h3{body = <<"Successful installation.">>},
-            #p{body = <<"Would you like to register as a provider?">>},
-            #link{postback = finish, class = <<"btn btn-info">>, body = <<"Not now">>},
-            #link{postback = register, class = <<"btn btn-primary">>, body = <<"Register">>}
-        ]}
-    ].
+    case install_utils:get_provider_id() of
+        undefined ->
+            [
+                #panel{class = <<"alert alert-success">>, body = [
+                    #h3{body = <<"Successful installation.">>},
+                    #p{body = <<"Would you like to register as a provider?">>},
+                    #link{postback = finish, style = <<"width: 80px;">>, class = <<"btn btn-info">>, body = <<"Not now">>},
+                    #link{postback = register, style = <<"width: 80px;">>, class = <<"btn btn-primary">>, body = <<"Register">>}
+                ]}
+            ];
+        _ ->
+            [
+                #panel{class = <<"alert alert-success">>, body = [
+                    #h3{body = <<"Successful installation.">>},
+                    #link{postback = finish, style = <<"width: 80px;">>, class = <<"btn btn-primary">>, body = <<"OK">>}
+                ]}
+            ]
+    end.
 
 
 %% format_list/1
@@ -498,21 +506,6 @@ format_set(Set) ->
                 [#p{body = list_to_binary(Item), style = <<"text-align: center; margin-bottom: 0; font-weight: 400;">>} | Acc]
             end, [], List)
     end.
-
-
-%% change_step/2
-%% ====================================================================
-%% @doc Hides current installation step and displays next ('Diff' equals 1)
-%% or previous ('Diff' equals -1) installaton step.
--spec change_step(CurrentStep :: integer(), Diff :: -1 | 1) -> no_return().
-%% ====================================================================
-change_step(CurrentStep, Diff) ->
-    HideId = <<"step_", (integer_to_binary(CurrentStep))/binary>>,
-    ShowId = <<"step_", (integer_to_binary(CurrentStep + Diff))/binary>>,
-    gui_jq:hide(<<"error_message">>),
-    gui_jq:slide_up(HideId, 1000),
-    gui_jq:delay(ShowId, integer_to_binary(1000)),
-    gui_jq:slide_down(ShowId, 1000).
 
 
 %% get_prev_page_state/0
@@ -596,7 +589,7 @@ install(#page_state{main_ccm = undefined, workers = Workers, storage_paths = Sto
         update_progress_bar(2, 3, <<"Starting worker nodes...">>),
         start_workers(WorkersList),
         update_progress_bar(3, 3, <<"Done">>),
-        change_step(4, 1),
+        onepanel_gui_utils:change_step(4, 1),
         gui_comet:flush(),
         ok
     catch
@@ -624,7 +617,7 @@ install(#page_state{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Db
         update_progress_bar(6, 7, <<"Starting worker nodes...">>),
         start_workers(WorkersList),
         update_progress_bar(7, 7, <<"Done">>),
-        change_step(4, 1),
+        onepanel_gui_utils:change_step(4, 1),
         gui_comet:flush(),
         ok
     catch
@@ -823,13 +816,13 @@ event({db_checkbox_toggled, HostName, HostId, _}) ->
     get(comet_pid) ! {db_checkbox_toggled, HostName, HostId};
 
 event({next, 2}) ->
-    change_step(2, 1);
+    onepanel_gui_utils:change_step(2, 1);
 
 event({next, Step}) ->
     get(comet_pid) ! {next, Step};
 
 event({prev, Step}) ->
-    change_step(Step, -1);
+    onepanel_gui_utils:change_step(Step, -1);
 
 event({set_main_ccm, CCM, CCMs}) ->
     update_main_ccm_dropdown(CCM, CCMs),
@@ -850,4 +843,7 @@ event(finish) ->
     gui_jq:redirect(<<"/">>);
 
 event(register) ->
-    gui_jq:redirect(<<"/registration">>).
+    gui_jq:redirect(<<"/registration">>);
+
+event(terminate) ->
+    ok.

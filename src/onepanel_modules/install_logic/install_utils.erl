@@ -17,7 +17,7 @@
 
 %% API
 -export([random_ascii_lowercase_sequence/1, apply_on_hosts/5, get_node/1, get_host/1, get_hosts/0]).
--export([set_ulimits/2, get_ulimits_cmd/1, get_ports_to_check/1, get_control_panel_hosts/1]).
+-export([set_ulimits/2, get_ulimits_cmd/1, get_ports_to_check/1, get_control_panel_hosts/1, get_provider_id/0]).
 -export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/3]).
 -export([save_file_on_host/3, save_file_on_hosts/3]).
 
@@ -79,8 +79,8 @@ get_node(Host) ->
     Result :: string().
 %% ====================================================================
 get_host(Node) ->
-    NodeString = atom_to_list(Node),
-    string:substr(NodeString, length(?APP_STR) + 2).
+    [_, Host] = string:tokens(atom_to_list(Node), "@"),
+    Host.
 
 
 %% get_hosts/0
@@ -294,4 +294,19 @@ get_control_panel_hosts(MainCCM) ->
         _:Reason ->
             ?error("Cannot get control panel hosts: ~p", [Reason]),
             {error, Reason}
+    end.
+
+
+%% get_provider_id/0
+%% ====================================================================
+%% @doc Returns provider ID.
+-spec get_provider_id() -> Result when
+    Result :: undefined | binary().
+%% ====================================================================
+get_provider_id() ->
+    case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+        {ok, #?GLOBAL_CONFIG_RECORD{providerId = ProviderId}} ->
+            ProviderId;
+        _ ->
+            undefined
     end.
