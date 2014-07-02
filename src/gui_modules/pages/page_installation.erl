@@ -296,7 +296,7 @@ hosts_table_body(CCMs, Workers, Dbs) ->
             lists:map(fun({Prefix, Checked, Disabled}) ->
                 #td{body = #label{id = <<Prefix/binary, HostId/binary>>, class = <<"checkbox no-label">>, for = <<Prefix/binary, HostId/binary>>,
                     style = <<"width: 20px; margin: 0 auto;">>,
-                    actions = gui_jq:postback_action(<<Prefix/binary, HostId/binary>>, {binary_to_atom(<<Prefix/binary, "toggled">>, latin1), Host, HostId}),
+                    actions = gui_jq:postback_action(<<Prefix/binary, HostId/binary>>, {binary_to_atom(<<Prefix/binary, "toggled">>, latin1), Host, HostId, Disabled}),
                     body = [
                         #span{class = <<"icons">>},
                         #custom_checkbox{id = <<Prefix/binary, HostId/binary>>, data_fields = [{<<"data-toggle">>, <<"checkbox">>}],
@@ -804,13 +804,22 @@ event(init) ->
     {ok, Pid} = gui_comet:spawn(fun() -> comet_loop(get_prev_page_state()) end),
     put(comet_pid, Pid);
 
-event({ccm_checkbox_toggled, HostName, HostId}) ->
+event({ccm_checkbox_toggled, _, _, true}) ->
+    ok;
+
+event({ccm_checkbox_toggled, HostName, HostId, _}) ->
     get(comet_pid) ! {ccm_checkbox_toggled, HostName, HostId};
 
-event({worker_checkbox_toggled, HostName, HostId}) ->
+event({worker_checkbox_toggled, _, _, true}) ->
+    ok;
+
+event({worker_checkbox_toggled, HostName, HostId, _}) ->
     get(comet_pid) ! {worker_checkbox_toggled, HostName, HostId};
 
-event({db_checkbox_toggled, HostName, HostId}) ->
+event({db_checkbox_toggled, _, _, true}) ->
+    ok;
+
+event({db_checkbox_toggled, HostName, HostId, _}) ->
     get(comet_pid) ! {db_checkbox_toggled, HostName, HostId};
 
 event({next, 2}) ->
