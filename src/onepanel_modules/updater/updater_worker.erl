@@ -37,19 +37,18 @@ finalize_stage(#u_state{stage = Stage, job = Job} = State) ->
 
 finalize_stage(?STAGE_INIT, ?JOB_DOWNLOAD_BINARY, #u_state{previous_data = PData} = State) ->
     #{package := #package{} = Pkg} = PData,
-    lager:info("Package ~p ?!?!", [Pkg]),
     State#u_state{package = Pkg, previous_data = maps:remove(package, PData)};
 finalize_stage(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, #u_state{previous_data = PData} = State) ->
     #{views := Views} = PData,
-    lager:info("Installed views: ~p ?!?!", [Views]),
+    lager:info("Installed views: ~p", [Views]),
     State#u_state{installed_views = Views, previous_data = maps:remove(views, PData)};
 finalize_stage(?STAGE_SOFT_RELOAD, ?JOB_DEFAULT, #u_state{previous_data = PData} = State) ->
     ModMap = maps:to_list(PData),
     NotReloaded = [{Node, [Module || {Module, false} <- IModMap]} || {Node, IModMap} <- ModMap],
-    lager:info("ModMap: ~p ?!?!", [ModMap]),
+    lager:info("Not-reloaded modules: ~p", [ModMap]),
     State#u_state{not_reloaded_modules = maps:from_list(NotReloaded)};
 finalize_stage(Stage, Job, State) ->
-    lager:info("Unknown finalize: ~p:~p", [Stage, Job]),
+    lager:debug("Unknown finalize: ~p:~p", [Stage, Job]),
     State.
 
 
@@ -331,7 +330,7 @@ call(Node, Fun, Args) ->
 
 
 cast(Node, Fun, Args) ->
-    lager:info("Cast: ~p ~p ~p", [Node, Fun, Args]),
+    lager:debug("Cast: ~p ~p ~p", [Node, Fun, Args]),
     Host = self(),
     spawn_link(Node, updater_export, runner, [Host, Fun, Args]).
 
@@ -339,7 +338,7 @@ multicast(Nodes, Fun, Args) ->
     lists:foreach(fun(Node) -> cast(Node, Fun, Args) end, Nodes).
 
 anycast(Nodes, Fun, Args) ->
-    lager:info("Anycast: ~p ~p ~p", [Nodes, Fun, Args]),
+    lager:debug("Anycast: ~p ~p ~p", [Nodes, Fun, Args]),
     Node = lists:nth(crypto:rand_uniform(1, length(Nodes) + 1), Nodes),
     cast(Node, Fun, Args).
 
