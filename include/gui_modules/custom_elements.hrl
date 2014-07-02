@@ -5,28 +5,19 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This file contains custom n2o elements
+%% @doc: This header file contains custom n2o elements.
 %% @end
 %% ===================================================================
 
 -ifndef(CUSTOM_ELEMENTS_HRL).
 -define(CUSTOM_ELEMENTS_HRL, 1).
 
-% Custom jquery action
--record(jquery, {?ACTION_BASE(action_jquery),
-  property,
-  method,
-  args = [],
-  right,
-  format = "~s"}).
-
 % Custom checkbox element
 -record(custom_checkbox, {?ELEMENT_BASE(element_custom_checkbox),
-  checked=false,
-  value="on",
-  postback,
-  delegate,
-  disabled,
-  name}).
+    checked = false,
+    value = "on",
+    postback,
+    disabled,
+    name}).
 
 -endif.
