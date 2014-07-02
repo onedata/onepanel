@@ -326,25 +326,6 @@ code_change(OldVsn, State, Extra) ->
 %% Internal functions
 %% ====================================================================
 
-%% set_stage(Stage, {StageState, Data}, #u_state{stage = CurrStage, stage_history = History} = State) ->
-%%     lager:info("[Updater] Entering stage ~p -> ~p with data: ~p", [Stage, StageState, Data]),
-%%     State#u_state{stage = Stage, stage_history = History ++ [CurrStage], stage_state = StageState, linked_procs = [], data = Data};
-%% set_stage(Stage, StageState, #u_state{} = State) ->
-%%     set_stage(Stage, {StageState, undefined}, State).
-%%
-%% on_error(Error, #u_state{stage = Stage, error_stack = Stack} = State) ->
-%%     lager:error("[Updater] Error while processing stage ~p, reason ~p", [Stage, Error]),
-%%     State#u_state{error_stack = [#stage_error{stage = Stage, error = Error} | Stack]}.
-%%
-%% add_linked_procs(Pids, #u_state{linked_procs = Procs} = State) ->
-%%     State#u_state{linked_procs = Procs ++ Pids}.
-%%
-%% set_linked_procs(Pids, #u_state{} = State) ->
-%%     State#u_state{linked_procs = Pids}.
-%%
-%% remove_linked_procs(Pids, #u_state{linked_procs = Procs} = State) ->
-%%     State#u_state{linked_procs = Procs -- Pids}.
-
 call(Node, Fun, Args) ->
     rpc:call(Node, updater_export, Fun, Args).
 
@@ -363,7 +344,9 @@ anycast(Nodes, Fun, Args) ->
     cast(Node, Fun, Args).
 
 load_module_to_remote(Node, Module) ->
-    {Module, Bin, FileName} = code:get_object_code(Module),
+    code:load_file(Module),
+    code:purge(Module),
+    {Module, Bin, _FileName} = code:get_object_code(Module),
     rpc:call(Node, code, purge, [Module]),
     case rpc:call(Node, code, load_binary, [Module, preloaded, Bin]) of
         {module, _} -> ok;
