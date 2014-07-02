@@ -15,9 +15,19 @@
 -include("onepanel_modules/db_logic.hrl").
 -include_lib("ctool/include/logging.hrl").
 
+%% Record that holds current page state, that is installation configuration saved in database and user preferences from web page
 -record(page_state, {counter = 1, main_ccm = undefined, ccms = sets:new(), workers = sets:new(), dbs = sets:new(), storage_paths = sets:new(), status}).
 
-%% Template points to the template file, which will be filled with content
+%% ====================================================================
+%% API functions
+%% ====================================================================
+
+%% main/0
+%% ====================================================================
+%% @doc Template points to the template file, which will be filled with content.
+-spec main() -> Result when
+    Result :: #dtl{}.
+%% ====================================================================
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
@@ -27,11 +37,23 @@ main() ->
             #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
     end.
 
-%% Page title
+
+%% title/0
+%% ====================================================================
+%% @doc Page title.
+-spec title() -> Result when
+    Result :: binary().
+%% ====================================================================
 title() ->
     <<"Installation">>.
 
-%% This will be placed in the template instead of {{body}} tag
+
+%% body/0
+%% ====================================================================
+%% @doc This will be placed instead of {{body}} tag in template.
+-spec body() -> Result when
+    Result :: #panel{}.
+%% ====================================================================
 body() ->
     #panel{style = <<"position: relative;">>, body = [
         onepanel_gui_utils:top_menu(installation_tab),
@@ -79,7 +101,7 @@ body() ->
                 #button{postback = {prev, 4}, class = <<"btn btn-inverse btn-small">>, style = <<"width: 80px; font-weight: bold; margin-right: 200px;">>, body = <<"Back">>},
                 #button{id = <<"install_button">>, postback = install, class = <<"btn btn-inverse btn-small">>, style = <<"width: 80px; font-weight: bold; margin-left: 200px;">>, body = <<"Install">>}
             ]}
-        ]}
+        ]},
 
         #panel{id = <<"step_5">>, style = <<"margin-top: 150px; text-align: center; display: none;">>, body = [
             #panel{style = <<"width: 50%; margin: 0 auto;">>, body = registration_body()}
@@ -87,12 +109,18 @@ body() ->
 
     ]}.
 
+
+%% comet_loop/1
+%% ====================================================================
+%% @doc Handles messages that change installation preferences.
+-spec comet_loop(PageState :: #page_state{}) -> no_return().
+%% ====================================================================
 comet_loop(#page_state{counter = Counter, main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs, storage_paths = StoragePaths, status = Status} = PageState) ->
-    lager:info("CCM: ~p", [MainCCM]),
-    lager:info("CCMs: ~p", [sets:to_list(CCMs)]),
-    lager:info("Workers: ~p", [sets:to_list(Workers)]),
-    lager:info("Dbs: ~p~n", [sets:to_list(Dbs)]),
-    lager:info("Storages: ~p~n~n", [sets:to_list(StoragePaths)]),
+    ?debug("Main CCM: ~p", [MainCCM]),
+    ?debug("CCMs: ~p", [sets:to_list(CCMs)]),
+    ?debug("Workers: ~p", [sets:to_list(Workers)]),
+    ?debug("Dbs: ~p", [sets:to_list(Dbs)]),
+    ?debug("Storages: ~p", [sets:to_list(StoragePaths)]),
     try
         receive
             {ccm_checkbox_toggled, Host, HostId} ->
@@ -217,7 +245,7 @@ comet_loop(#page_state{counter = Counter, main_ccm = MainCCM, ccms = CCMs, worke
                 end;
 
             Other ->
-                lager:error("Comet process received unknown message: ~p", [Other]),
+                ?error("Comet process received unknown message: ~p", [Other]),
                 comet_loop(PageState)
         end
     catch Type:Reason ->
@@ -225,19 +253,24 @@ comet_loop(#page_state{counter = Counter, main_ccm = MainCCM, ccms = CCMs, worke
         error_message(<<"There has been an error in comet process. Please refresh the page.">>)
     end.
 
-% Displays error message
+
+%% error_message/1
+%% ====================================================================
+%% @doc Renders an error message on top of a page.
+-spec error_message(Message :: binary()) -> no_return().
+%% ====================================================================
 error_message(Message) ->
     gui_jq:update(<<"error_message">>, Message),
     gui_jq:fade_in(<<"error_message">>, 300),
     gui_comet:flush().
 
-% Returns elements of list as a comma-delimited string
-format_list([]) ->
-    <<"">>;
-format_list([Host | Hosts]) ->
-    list_to_binary(lists:foldl(fun(Item, Acc) -> Acc ++ ", " ++ Item end, Host, Hosts)).
 
-% Renders hosts table bidy in first step of installation
+%% hosts_table_body/0
+%% ====================================================================
+%% @doc Renders hosts table bidy in first step of installation
+-spec hosts_table_body() -> Result when
+    Result :: [#tr{}].
+%% ====================================================================
 hosts_table_body() ->
     #page_state{ccms = CCMs, workers = Workers, dbs = Dbs} = get_prev_page_state(),
     hosts_table_body(CCMs, Workers, Dbs).
@@ -274,7 +307,14 @@ hosts_table_body(CCMs, Workers, Dbs) ->
     end, lists:zip(lists:sort(Hosts), lists:seq(1, length(Hosts)))),
     [Header | Rows].
 
-% Renders main ccm dropdown body and highlights current choice in second step of installation
+
+%% main_ccm_dropdown_body/0
+%% ====================================================================
+%% @doc Renders main CCM dropdown body and highlights current choice
+%% in second step of installation.
+-spec main_ccm_dropdown_body() -> Result when
+    Result :: #panel{}.
+%% ====================================================================
 main_ccm_dropdown_body() ->
     #page_state{main_ccm = MainCCM, ccms = CCMs} = get_prev_page_state(),
     main_ccm_dropdown_body(MainCCM, sets:to_list(CCMs), MainCCM =/= undefined).
@@ -291,7 +331,13 @@ main_ccm_dropdown_body(MainCCM, CCMs, Disabled) ->
             style = <<"overflow-y: auto; max-height: 200px;">>, body = ccms_list_body(MainCCM, CCMs)}
     ]}.
 
-% Renders ccms' list body
+
+%% ccms_list_body/2
+%% ====================================================================
+%% @doc Renders CCMs' list body in second step of installation.
+-spec ccms_list_body(MainCCM :: string(), CCMs :: [string()]) -> Result when
+    Result :: [#li{}].
+%% ====================================================================
 ccms_list_body(_, []) ->
     [];
 ccms_list_body(MainCCM, CCMs) ->
@@ -306,11 +352,23 @@ ccms_list_body(MainCCM, CCMs) ->
                 class = Class, body = #link{style = <<"text-align: left;">>, body = CCM}}
         end, lists:zip(lists:sort(CCMs), lists:seq(1, length(CCMs)))).
 
+
+%% update_main_ccm_dropdown/2
+%% ====================================================================
+%% @doc Updates main CCM dropdown body in second step of installation.
+-spec update_main_ccm_dropdown(MainCCM :: string(), CCMs :: [string()]) -> no_return().
+%% ====================================================================
 update_main_ccm_dropdown(MainCCM, CCMs) ->
     gui_jq:update(<<"ccms_label">>, <<"Primary CCM host: <b>", (list_to_binary(MainCCM))/binary, "</b>">>),
     gui_jq:update(<<"ccms_dropdown">>, ccms_list_body(MainCCM, CCMs)).
 
-% Renders storage table body
+
+%% storage_paths_table_body/0
+%% ====================================================================
+%% @doc Renders storage table body in third step of installation.
+-spec storage_paths_table_body() -> Result
+    when Result :: [#tr{}].
+%% ====================================================================
 storage_paths_table_body() ->
     #page_state{storage_paths = StoragePaths} = get_prev_page_state(),
     storage_paths_table_body(sets:size(StoragePaths) =/= 0, sets:to_list(StoragePaths)).
@@ -324,7 +382,16 @@ storage_paths_table_body(Disabled, StoragePaths) ->
     end, lists:zip(lists:sort(StoragePaths), lists:seq(1, length(StoragePaths))))
     ++ case Disabled of true -> []; _ -> [storage_paths_table_row(<<"">>, length(StoragePaths) + 1, undefined)] end.
 
-% Renders storage table row
+
+%% storage_paths_table_row/3
+%% ====================================================================
+%% @doc Renders storage table row in third step of installation.
+%% 'StoragePath' is a value that will be place in textbox with suffix
+%% id equals 'Id'. When 'Disabled' equals true user cannot write in
+%% textbox.
+-spec storage_paths_table_row(StoragePath :: string() | binary(), Id :: integer(), Disabled :: true | undefined) -> Result
+    when Result :: #tr{}.
+%% ====================================================================
 storage_paths_table_row(StoragePath, Id, Disabled) ->
     BinaryId = integer_to_binary(Id),
     TextboxId = <<"storage_path_textbox_", BinaryId/binary>>,
@@ -349,7 +416,13 @@ storage_paths_table_row(StoragePath, Id, Disabled) ->
             style = <<"text-align: center; vertical-align: inherit; padding: 0; width: 20px;", DeleteStoragePathDisplay/binary>>}
     ]}.
 
-% Renders summary teble body
+
+%% summary_table_body/1
+%% ====================================================================
+%% @doc Renders summary table body in fourth step of installation.
+-spec summary_table_body(PageState :: #page_state{}) -> Result
+    when Result :: [#tr{}].
+%% ====================================================================
 summary_table_body(#page_state{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs, storage_paths = StoragePaths}) ->
     [
         #tr{id = <<"summary_ccm">>, cells = [
@@ -366,7 +439,14 @@ summary_table_body(#page_state{main_ccm = MainCCM, ccms = CCMs, workers = Worker
         summary_table_row(<<"summary_storages">>, <<"Storage paths">>, format_set(StoragePaths))
     ].
 
-% Renders summary table row
+
+%% summary_table_row/3
+%% ====================================================================
+%% @doc Renders summary table row in fourth step of installation.
+%% 'Description' is showed in first column and 'Details' in second one.
+-spec summary_table_row(Id :: binary(), Description :: binary(), Details :: binary()) -> Result
+    when Result :: #tr{}.
+%% ====================================================================
 summary_table_row(Id, Description, Details) ->
     #tr{id = Id, cells = [
         #th{style = <<"width: 50%; vertical-align: inherit; padding: 0;">>,
@@ -374,6 +454,13 @@ summary_table_row(Id, Description, Details) ->
         #th{style = <<"width: 50%; vertical-align: inherit; padding: 0;">>, body = Details}
     ]}.
 
+
+%% registration_body/0
+%% ====================================================================
+%% @doc Renders registratin body in fifth step of installation.
+-spec registration_body() -> Result
+    when Result :: [#panel{}].
+%% ====================================================================
 registration_body() ->
     [
         #panel{class = <<"alert alert-success">>, body = [
@@ -384,7 +471,25 @@ registration_body() ->
         ]}
     ].
 
-% Returns set items as a comma-delimited binary
+
+%% format_list/1
+%% ====================================================================
+%% @doc Returns list elements as a comma-delimited binary.
+-spec format_list(List :: [string()]) -> Result when
+    Result :: no_return().
+%% ====================================================================
+format_list([]) ->
+    <<"">>;
+format_list([Host | Hosts]) ->
+    list_to_binary(lists:foldl(fun(Item, Acc) -> Acc ++ ", " ++ Item end, Host, Hosts)).
+
+
+%% format_set/1
+%% ====================================================================
+%% @doc Returns set elements as a comma-delimited binary.
+-spec format_set(Set :: sets:set()) -> Result when
+    Result :: binary().
+%% ====================================================================
 format_set(Set) ->
     case sets:to_list(Set) of
         [] -> #p{body = <<"-">>, style = <<"text-align: center; margin-bottom: 0; font-weight: 400;">>};
@@ -394,16 +499,28 @@ format_set(Set) ->
             end, [], List)
     end.
 
-% Displays hides current installation step and displays next or previous one
-change_step(Step, Diff) ->
-    HideId = <<"step_", (integer_to_binary(Step))/binary>>,
-    ShowId = <<"step_", (integer_to_binary(Step + Diff))/binary>>,
+
+%% change_step/2
+%% ====================================================================
+%% @doc Hides current installation step and displays next ('Diff' equals 1)
+%% or previous ('Diff' equals -1) installaton step.
+-spec change_step(CurrentStep :: integer(), Diff :: -1 | 1) -> no_return().
+%% ====================================================================
+change_step(CurrentStep, Diff) ->
+    HideId = <<"step_", (integer_to_binary(CurrentStep))/binary>>,
+    ShowId = <<"step_", (integer_to_binary(CurrentStep + Diff))/binary>>,
     gui_jq:hide(<<"error_message">>),
     gui_jq:slide_up(HideId, 1000),
     gui_jq:delay(ShowId, integer_to_binary(1000)),
     gui_jq:slide_down(ShowId, 1000).
 
-% Create page state using configuration loaded from Db
+
+%% get_prev_page_state/0
+%% ====================================================================
+%% @doc Helper function that retrieves installation configuration from database.
+-spec get_prev_page_state() -> Result when
+    Result :: #page_state{}.
+%% ====================================================================
 get_prev_page_state() ->
     case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
         {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = undefined, opt_ccms = OptCCMs, workers = Workers, dbs = Dbs, storage_paths = StoragePaths}} ->
@@ -414,7 +531,14 @@ get_prev_page_state() ->
             #page_state{}
     end.
 
-% Returns page state difference
+
+%% get_page_state_diff/2
+%% ====================================================================
+%% @doc Returns page state difference, that is difference between installation
+%% configuration saved in database and current user's installation preferences.
+-spec get_page_state_diff(PrevPageState :: #page_state{}, CurrPageState :: #page_state{}) -> Result when
+    Result :: #page_state{}.
+%% ====================================================================
 get_page_state_diff(PrevPageState, CurrPageState) ->
     MainCCM = case PrevPageState#page_state.main_ccm =:= CurrPageState#page_state.main_ccm of
                   true -> undefined;
@@ -426,7 +550,13 @@ get_page_state_diff(PrevPageState, CurrPageState) ->
     StoragePaths = sets:subtract(CurrPageState#page_state.storage_paths, PrevPageState#page_state.storage_paths),
     #page_state{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs, storage_paths = StoragePaths}.
 
-% Checks wheter all storage paths are available for all workers
+
+%% check_storage_paths/2
+%% ====================================================================
+%% @doc Checks wheter all storage paths are available for all workers.
+-spec check_storage_paths(Hosts :: [string()], StoragePath :: [string()]) -> Result when
+    Result :: ok | error.
+%% ====================================================================
 check_storage_paths(_, []) ->
     ok;
 check_storage_paths(Hosts, [StoragePath | StoragePaths]) ->
@@ -441,7 +571,14 @@ check_storage_paths(Hosts, [StoragePath | StoragePaths]) ->
             error
     end.
 
-% Main installation function
+
+%% install/1
+%% ====================================================================
+%% @doc Template installation method. Runs necessary installation
+%% installation steps one by one.
+-spec install(PageState :: #page_state{}) -> Result when
+    Result :: ok | error.
+%% ====================================================================
 install(#page_state{main_ccm = undefined, workers = Workers, storage_paths = StoragePaths}) ->
     try
         WorkersList = sets:to_list(Workers),
@@ -458,7 +595,8 @@ install(#page_state{main_ccm = undefined, workers = Workers, storage_paths = Sto
         start_workers(WorkersList),
         update_progress_bar(3, 3, <<"Done">>),
         change_step(4, 1),
-        gui_comet:flush()
+        gui_comet:flush(),
+        ok
     catch
         _:_ -> error
     end;
@@ -485,12 +623,20 @@ install(#page_state{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Db
         start_workers(WorkersList),
         update_progress_bar(7, 7, <<"Done">>),
         change_step(4, 1),
-        gui_comet:flush()
+        gui_comet:flush(),
+        ok
     catch
         _:_ -> error
     end.
 
-% Installs database nodes on hosts
+
+%% install_dbs/1
+%% ====================================================================
+%% @doc Calls underlying installation function and in case of an error
+%% renders appropriate message and throws exception.
+-spec install_dbs(Dbs :: [string()]) -> Result when
+    Result :: ok | no_return().
+%% ====================================================================
 install_dbs(Dbs) ->
     case install_db:install([{hosts, Dbs}]) of
         ok -> ok;
@@ -502,7 +648,14 @@ install_dbs(Dbs) ->
             throw(error)
     end.
 
-% Starts database nodes on hosts
+
+%% start_dbs/1
+%% ====================================================================
+%% @doc Calls underlying installation function and in case of an error
+%% renders appropriate message and throws exception.
+-spec start_dbs(Dbs :: [string()]) -> Result when
+    Result :: ok | no_return().
+%% ====================================================================
 start_dbs(Dbs) ->
     case install_db:start([{hosts, Dbs}]) of
         ok -> ok;
@@ -514,7 +667,14 @@ start_dbs(Dbs) ->
             throw(error)
     end.
 
-% Installs CCM nodes on hosts
+
+%% install_ccms/1
+%% ====================================================================
+%% @doc Calls underlying installation function and in case of an error
+%% renders appropriate message and throws exception.
+-spec install_ccms(CCMs :: [string()]) -> Result when
+    Result :: ok | no_return().
+%% ====================================================================
 install_ccms(CCMs) ->
     case install_ccm:install([{hosts, CCMs}]) of
         ok -> ok;
@@ -526,7 +686,14 @@ install_ccms(CCMs) ->
             throw(error)
     end.
 
-% Starts CCM nodes on hosts
+
+%% start_ccms/2
+%% ====================================================================
+%% @doc Calls underlying installation function and in case of an error
+%% renders appropriate message and throws exception.
+-spec start_ccms(MainCCM :: string(), OptCCMs :: [string()]) -> Result when
+    Result :: ok | no_return().
+%% ====================================================================
 start_ccms(MainCCM, OptCCMs) ->
     case install_ccm:start([{main_ccm, MainCCM}, {opt_ccms, OptCCMs}]) of
         ok -> ok;
@@ -538,7 +705,14 @@ start_ccms(MainCCM, OptCCMs) ->
             throw(error)
     end.
 
-% Installs worker nodes on hosts
+
+%% install_workers/1
+%% ====================================================================
+%% @doc Calls underlying installation function and in case of an error
+%% renders appropriate message and throws exception.
+-spec install_workers(Workers :: [string()]) -> Result when
+    Result :: ok | no_return().
+%% ====================================================================
 install_workers(Workers) ->
     case install_worker:install([{hosts, Workers}]) of
         ok -> ok;
@@ -550,7 +724,14 @@ install_workers(Workers) ->
             throw(error)
     end.
 
-% Installs worker nodes on hosts
+
+%% start_workers/1
+%% ====================================================================
+%% @doc Calls underlying installation function and in case of an error
+%% renders appropriate message and throws exception.
+-spec start_workers(Workers :: [string()]) -> Result when
+    Result :: ok | no_return().
+%% ====================================================================
 start_workers(Workers) ->
     case install_worker:start([{workers, Workers}]) of
         ok -> ok;
@@ -562,7 +743,14 @@ start_workers(Workers) ->
             throw(error)
     end.
 
-% Adds storage on hosts
+
+%% add_storage/2
+%% ====================================================================
+%% @doc Calls underlying installation function and in case of an error
+%% renders appropriate message and throws exception.
+-spec add_storage(Hosts :: [string()], StoragePaths :: [string()]) -> Result when
+    Result :: ok | no_return().
+%% ====================================================================
 add_storage(Hosts, StoragePaths) ->
     lists:foreach(fun(StoragePath) ->
         case install_storage:add_storage_path(Hosts, StoragePath) of
@@ -576,6 +764,15 @@ add_storage(Hosts, StoragePaths) ->
         end
     end, StoragePaths).
 
+
+%% update_progress_bar/3
+%% ====================================================================
+%% @doc Updates installation progress bar. Parameter 'Elapsed' equals
+%% amount of completed installation steps, 'Window' equals amount of
+%% all installation steps. This function displays also text asociated
+%% with progress bar.
+-spec update_progress_bar(Elapsed :: integer(), Window :: integer(), Text :: binary()) -> no_return().
+%% ====================================================================
 update_progress_bar(Window, Window, _) ->
     gui_jq:wire(<<"$('#bar').width('0%');">>),
     gui_jq:wire(<<"$('#progress_text').text('');">>),
@@ -591,9 +788,16 @@ update_progress_bar(Elapsed, Window, Text) ->
     gui_jq:wire(<<"$('#bar').width(", Progress/binary, ");">>),
     gui_comet:flush().
 
-% =====================
-% Event handling
 
+%% ====================================================================
+%% Events handling
+%% ====================================================================
+
+%% event/1
+%% ====================================================================
+%% @doc Handles page events.
+-spec event(Event :: term()) -> no_return().
+%% ====================================================================
 event(init) ->
     {ok, Pid} = gui_comet:spawn(fun() -> comet_loop(get_prev_page_state()) end),
     put(comet_pid, Pid);

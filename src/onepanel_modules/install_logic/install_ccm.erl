@@ -15,6 +15,7 @@
 
 -include("onepanel_modules/install_logic.hrl").
 -include("onepanel_modules/db_logic.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% install_behaviour callbacks
 -export([install/1, uninstall/1, start/1, stop/1, restart/1]).
@@ -41,7 +42,7 @@ install(Args) ->
     case HostsError of
         [] -> ok;
         _ ->
-            lager:error("Cannot install CCM nodes on following hosts: ~p", [HostsError]),
+            ?error("Cannot install CCM nodes on following hosts: ~p", [HostsError]),
             install_utils:apply_on_hosts(HostsOk, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
             {error, {hosts, HostsError}}
     end.
@@ -62,7 +63,7 @@ uninstall(Args) ->
     case HostsError of
         [] -> ok;
         _ ->
-            lager:error("Cannot uninstall CCM nodes on following hosts: ~p", [HostsError]),
+            ?error("Cannot uninstall CCM nodes on following hosts: ~p", [HostsError]),
             install_utils:apply_on_hosts(HostsOk, ?MODULE, install, [], ?RPC_TIMEOUT),
             {error, {hosts, HostsError}}
     end.
@@ -99,18 +100,18 @@ start(Args) ->
                 case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{main_ccm, MainCCM}, {opt_ccms, OptCCMs}]) of
                     ok -> ok;
                     Other ->
-                        lager:error("Cannot update CCM nodes configuration: ~p", [Other]),
+                        ?error("Cannot update CCM nodes configuration: ~p", [Other]),
                         install_utils:apply_on_hosts([MainCCM | OptCCMs], ?MODULE, stop, [], ?RPC_TIMEOUT),
                         {error, {hosts, [MainCCM | OptCCMs]}}
                 end;
             _ ->
-                lager:error("Cannot start CCM nodes on following hosts: ~p", [HostsError]),
+                ?error("Cannot start CCM nodes on following hosts: ~p", [HostsError]),
                 install_utils:apply_on_hosts(HostsOk, ?MODULE, stop, [], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
         _:Reason ->
-            lager:error("Cannot start CCM nodes: ~p", [Reason]),
+            ?error("Cannot start CCM nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -140,18 +141,18 @@ stop(_) ->
                 case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{main_ccm, undefined}, {opt_ccms, []}]) of
                     ok -> ok;
                     Other ->
-                        lager:error("Cannot update CCM nodes configuration: ~p", [Other]),
+                        ?error("Cannot update CCM nodes configuration: ~p", [Other]),
                         install_utils:apply_on_hosts([MainCCM | OptCCMs], ?MODULE, start, [MainCCM, OptCCMs, Dbs], ?RPC_TIMEOUT),
                         {error, {hosts, [MainCCM | OptCCMs]}}
                 end;
             _ ->
-                lager:error("Cannot stop CCM nodes on following hosts: ~p", [HostsError]),
+                ?error("Cannot stop CCM nodes on following hosts: ~p", [HostsError]),
                 install_utils:apply_on_hosts(HostsOk, ?MODULE, start, [MainCCM, OptCCMs, Dbs], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
         _:Reason ->
-            lager:error("Cannot stop CCM nodes: ~p", [Reason]),
+            ?error("Cannot stop CCM nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -180,7 +181,7 @@ restart(_) ->
         end
     catch
         _:Reason ->
-            lager:error("Cannot restart CCM nodes: ~p", [Reason]),
+            ?error("Cannot restart CCM nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -199,7 +200,7 @@ restart(_) ->
 install() ->
     Host = install_utils:get_host(node()),
     try
-        lager:debug("Installing CCM node."),
+        ?debug("Installing CCM node."),
 
         "" = os:cmd("mkdir -p " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME),
         "" = os:cmd("cp -R " ++ ?VEIL_RELEASE ++ "/* " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME),
@@ -207,7 +208,7 @@ install() ->
         {ok, Host}
     catch
         _:Reason ->
-            lager:error("Cannot install CCM node: ~p.", [Reason]),
+            ?error("Cannot install CCM node: ~p.", [Reason]),
             {error, Host}
     end.
 
@@ -222,14 +223,14 @@ install() ->
 uninstall() ->
     Host = install_utils:get_host(node()),
     try
-        lager:debug("Uninstalling CCM node."),
+        ?debug("Uninstalling CCM node."),
 
         "" = os:cmd("rm -rf " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME),
 
         {ok, Host}
     catch
         _:Reason ->
-            lager:error("Cannot uninstall CCM node: ~p.", [Reason]),
+            ?error("Cannot uninstall CCM node: ~p.", [Reason]),
             {error, Host}
     end.
 
@@ -244,7 +245,7 @@ uninstall() ->
 start(MainCCM, OptCCMs, Dbs) ->
     Host = install_utils:get_host(node()),
     try
-        lager:debug("Starting CCM node: ~p."),
+        ?debug("Starting CCM node: ~p."),
 
         Name = ?DEFAULT_CCM_NAME ++ "@" ++ Host,
 
@@ -277,7 +278,7 @@ start(MainCCM, OptCCMs, Dbs) ->
         {ok, Host}
     catch
         _:Reason ->
-            lager:error("Cannot start CCM node: ~p", [Reason]),
+            ?error("Cannot start CCM node: ~p", [Reason]),
             {error, Host}
     end.
 
@@ -292,7 +293,7 @@ start(MainCCM, OptCCMs, Dbs) ->
 stop() ->
     Host = install_utils:get_host(node()),
     try
-        lager:debug("Stopping CCM node."),
+        ?debug("Stopping CCM node."),
 
         "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME ++ " | cut -d'\t' -f2 | awk '{print $2}'`"),
         ok = install_utils:remove_node_from_config(ccm),
@@ -300,6 +301,6 @@ stop() ->
         {ok, Host}
     catch
         _:Reason ->
-            lager:error("Cannot stop CCM node: ~p", [Reason]),
+            ?error("Cannot stop CCM node: ~p", [Reason]),
             {error, Host}
     end.

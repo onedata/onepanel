@@ -15,6 +15,7 @@
 -include("registered_names.hrl").
 -include("onepanel_modules/install_logic.hrl").
 -include("onepanel_modules/db_logic.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([create/0, initialize/1, delete/0, add_node/1, get_nodes/0]).
@@ -38,7 +39,7 @@ initialize(?USER_TABLE) ->
         ok = dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username, password = PasswordHash})
     catch
         _:Reason ->
-            lager:error("Cannot initialize user table: ~p", [Reason]),
+            ?error("Cannot initialize user table: ~p", [Reason]),
             {error, Reason}
     end;
 initialize(?GLOBAL_CONFIG_TABLE) ->
@@ -46,7 +47,7 @@ initialize(?GLOBAL_CONFIG_TABLE) ->
         ok = dao:save_record(?GLOBAL_CONFIG_TABLE, #?GLOBAL_CONFIG_RECORD{id = ?CONFIG_ID})
     catch
         _:Reason ->
-            lager:error("Cannot initialize global configuration table: ~p", [Reason]),
+            ?error("Cannot initialize global configuration table: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -96,7 +97,7 @@ create() ->
         ok
     catch
         _:Reason ->
-            lager:error("Cannot create database tables: ~p", [Reason]),
+            ?error("Cannot create database tables: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -121,7 +122,7 @@ delete() ->
         ok
     catch
         _:Reason ->
-            lager:error("Cannot delete database tables: ~p", [Reason]),
+            ?error("Cannot delete database tables: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -149,7 +150,7 @@ add_node(Node) ->
         ok
     catch
         _:Reason ->
-            lager:error("Cannot add database node to cluster: ~p", [Reason]),
+            ?error("Cannot add database node to cluster: ~p", [Reason]),
             {error, Reason}
     end.
 

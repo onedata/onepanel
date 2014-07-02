@@ -15,6 +15,7 @@
 -include("registered_names.hrl").
 -include("onepanel_modules/install_logic.hrl").
 -include("onepanel_modules/db_logic.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([register/0, create_csr/3, check_ip_address/0, check_port/3]).
@@ -81,7 +82,7 @@ register() ->
         {ok, ProviderId}
     catch
         _:Reason ->
-            lager:error("Cannot register in Global Registry: ~p", [Reason]),
+            ?error("Cannot register in Global Registry: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -100,7 +101,7 @@ check_ip_address() ->
         {ok, binary_to_list(mochijson2:decode(ResBody))}
     catch
         _:Reason ->
-            lager:error("Cannot get ip address that is visible for Global Registry: ~p", [Reason]),
+            ?error("Cannot get ip address that is visible for Global Registry: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -131,7 +132,7 @@ check_port(Host, Port, Type) ->
         ok
     catch
         _:Reason ->
-            lager:error("Cannot check port ~p on host ~p: ~p", [Port, Host, Reason]),
+            ?error("Cannot check port ~p on host ~p: ~p", [Port, Host, Reason]),
             {error, Reason}
     end.
 

@@ -12,6 +12,7 @@
 -module(dao).
 
 -include("onepanel_modules/db_logic.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([save_record/2, update_record/3, get_record/2, exist_record/2]).
@@ -38,7 +39,7 @@ save_record(Table, Record) ->
         mnesia:activity(transaction, Transaction)
     catch
         _:Reason ->
-            lager:error("Cannot save record ~p in table ~p: ~p", [Record, Table, Reason]),
+            ?error("Cannot save record ~p in table ~p: ~p", [Record, Table, Reason]),
             {error, Reason}
     end.
 
@@ -80,7 +81,7 @@ update_record(Table, Key, Values) ->
         mnesia:activity(transaction, Transaction)
     catch
         _:Reason ->
-            lager:error("Cannot update record in table ~p using key ~p and substitution values ~p: ~p", [Table, Key, Values, Reason]),
+            ?error("Cannot update record in table ~p using key ~p and substitution values ~p: ~p", [Table, Key, Values, Reason]),
             {error, Reason}
     end.
 
@@ -105,7 +106,7 @@ get_record(Table, Key) ->
         mnesia:activity(transaction, Transaction)
     catch
         _:Reason ->
-            lager:error("Cannot get record from table ~p using key ~p: ~p", [Table, Key, Reason]),
+            ?error("Cannot get record from table ~p using key ~p: ~p", [Table, Key, Reason]),
             {error, Reason}
     end.
 
@@ -128,7 +129,7 @@ exist_record(Table, Key) ->
         mnesia:activity(transaction, Transaction)
     catch
         _:Reason ->
-            lager:error("Cannot check record exists in table ~p using key ~p: ~p", [Table, Key, Reason]),
+            ?error("Cannot check record exists in table ~p using key ~p: ~p", [Table, Key, Reason]),
             {error, Reason}
     end.
 

@@ -13,6 +13,7 @@
 -include("registered_names.hrl").
 -include("onepanel_modules/db_logic.hrl").
 -include("onepanel_modules/install_logic.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([random_ascii_lowercase_sequence/1, apply_on_hosts/5, get_node/1, get_host/1, get_hosts/0]).
@@ -112,7 +113,7 @@ set_ulimits(OpenFiles, Processes) ->
         ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{open_files_limit, OpenFiles}, {processes_limit, Processes}])
     catch
         _:Reason ->
-            lager:error("Cannot set ulimits: ~p", [Reason]),
+            ?error("Cannot set ulimits: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -130,7 +131,7 @@ get_ulimits_cmd(Host) ->
         "ulimit -n " ++ OpenFiles ++ " ; ulimit -u " ++ Processes
     catch
         _:Reason ->
-            lager:error("Cannot get ulimits configuration: ~p. Returning default values.", [Reason]),
+            ?error("Cannot get ulimits configuration: ~p. Returning default values.", [Reason]),
             "ulimit -n " ++ ?DEFAULT_OPEN_FILES ++ " ; ulimit -u " ++ ?DEFAULT_PROCESSES
     end.
 
@@ -147,7 +148,7 @@ add_node_to_config(Type, Name, Path) ->
         save_nodes_in_config(Entries ++ [{Type, Name, Path}])
     catch
         _:Reason ->
-            lager:error("Cannot add ~p node to ~s: ~p", [Name, ?CONFIGURED_NODES_PATH, Reason]),
+            ?error("Cannot add ~p node to ~s: ~p", [Name, ?CONFIGURED_NODES_PATH, Reason]),
             {error, Reason}
     end.
 
@@ -162,13 +163,13 @@ remove_node_from_config(Name) ->
     try
         {ok, Entries} = file:consult(?CONFIGURED_NODES_PATH),
         ToDelete = case lists:keyfind(Name, 1, Entries) of
-                       false -> lager:warning("Node ~p not found among configured nodes.", [Name]);
+                       false -> ?warning("Node ~p not found among configured nodes.", [Name]);
                        Term -> Term
                    end,
         save_nodes_in_config(Entries -- [ToDelete])
     catch
         _:Reason ->
-            lager:error("Cannot delete ~p node from ~s: ~p", [Name, ?CONFIGURED_NODES_PATH, Reason]),
+            ?error("Cannot delete ~p node from ~s: ~p", [Name, ?CONFIGURED_NODES_PATH, Reason]),
             {error, Reason}
     end.
 
@@ -189,7 +190,7 @@ save_nodes_in_config(NodeList) ->
         ok
     catch
         _:Reason ->
-            lager:error("Cannot write to ~s: ~p", [?CONFIGURED_NODES_PATH, Reason]),
+            ?error("Cannot write to ~s: ~p", [?CONFIGURED_NODES_PATH, Reason]),
             {error, Reason}
     end.
 
@@ -216,7 +217,7 @@ overwrite_config_args(Path, Parameter, NewValue) ->
         ok
     catch
         _:Reason ->
-            lager:error("Cannot overwrite config args: ~p", [Reason]),
+            ?error("Cannot overwrite config args: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -232,7 +233,7 @@ save_file_on_hosts(Path, Filename, Content) ->
     case HostsError of
         [] -> ok;
         _ ->
-            lager:error("Cannot save file ~p at directory ~p on following hosts: ~p", [Filename, Path, HostsError]),
+            ?error("Cannot save file ~p at directory ~p on following hosts: ~p", [Filename, Path, HostsError]),
             {error, HostsError}
     end.
 
@@ -250,7 +251,7 @@ save_file_on_host(Path, Filename, Content) ->
         ok
     catch
         _:Reason ->
-            lager:error("Cannot save file ~p at directory ~p: ~p", [Filename, Path, Reason]),
+            ?error("Cannot save file ~p at directory ~p: ~p", [Filename, Path, Reason]),
             {error, Reason}
     end.
 
@@ -269,7 +270,7 @@ get_ports_to_check(MainCCM) ->
         {ok, [{"gui", GuiPort}, {"rest", RestPort}]}
     catch
         _:Reason ->
-            lager:error("Cannot get ports to check: ~p", [Reason]),
+            ?error("Cannot get ports to check: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -291,6 +292,6 @@ get_control_panel_hosts(MainCCM) ->
         {ok, ControlPanelHosts}
     catch
         _:Reason ->
-            lager:error("Cannot get control panel hosts: ~p", [Reason]),
+            ?error("Cannot get control panel hosts: ~p", [Reason]),
             {error, Reason}
     end.

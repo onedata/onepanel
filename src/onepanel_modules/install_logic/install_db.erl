@@ -14,6 +14,7 @@
 
 -include("onepanel_modules/db_logic.hrl").
 -include("onepanel_modules/install_logic.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% install_behaviour callbacks
 -export([install/1, uninstall/1, start/1, stop/1, restart/1]).
@@ -40,7 +41,7 @@ install(Args) ->
     case HostsError of
         [] -> ok;
         _ ->
-            lager:error("Cannot install database nodes on following hosts: ~p", [HostsError]),
+            ?error("Cannot install database nodes on following hosts: ~p", [HostsError]),
             install_utils:apply_on_hosts(HostsOk, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
             {error, {hosts, HostsError}}
     end.
@@ -61,7 +62,7 @@ uninstall(Args) ->
     case HostsError of
         [] -> ok;
         _ ->
-            lager:error("Cannot uninstall database nodes on following hosts: ~p", [HostsError]),
+            ?error("Cannot uninstall database nodes on following hosts: ~p", [HostsError]),
             install_utils:apply_on_hosts(HostsOk, ?MODULE, install, [], ?RPC_TIMEOUT),
             {error, {hosts, HostsError}}
     end.
@@ -99,22 +100,22 @@ start(Args) ->
                         case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{dbs, Dbs}]) of
                             ok -> ok;
                             Other ->
-                                lager:error("Cannot update database nodes configuration: ~p", [Other]),
+                                ?error("Cannot update database nodes configuration: ~p", [Other]),
                                 install_utils:apply_on_hosts(Dbs, ?MODULE, stop, [], ?RPC_TIMEOUT),
                                 {error, {hosts, Dbs}}
                         end;
                     _ ->
-                        lager:error("Cannot add following hosts: ~p to database cluster", [JoinError]),
+                        ?error("Cannot add following hosts: ~p to database cluster", [JoinError]),
                         {error, {hosts, JoinError}}
                 end;
             _ ->
-                lager:error("Cannot start database nodes on following hosts: ~p", [StartError]),
+                ?error("Cannot start database nodes on following hosts: ~p", [StartError]),
                 install_utils:apply_on_hosts(StartOk, ?MODULE, stop, [], ?RPC_TIMEOUT),
                 {error, {hosts, StartError}}
         end
     catch
         _:Reason ->
-            lager:error("Cannot start database nodes: ~p", [Reason]),
+            ?error("Cannot start database nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -143,18 +144,18 @@ stop(_) ->
                 case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{dbs, []}]) of
                     ok -> ok;
                     Other ->
-                        lager:error("Cannot update database nodes configuration: ~p", [Other]),
+                        ?error("Cannot update database nodes configuration: ~p", [Other]),
                         install_utils:apply_on_hosts(Dbs, ?MODULE, start, [], ?RPC_TIMEOUT),
                         {error, {hosts, Dbs}}
                 end;
             _ ->
-                lager:error("Cannot stop database nodes on following hosts: ~p", [HostsError]),
+                ?error("Cannot stop database nodes on following hosts: ~p", [HostsError]),
                 install_utils:apply_on_hosts(HostsOk, ?MODULE, start, [], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
         _:Reason ->
-            lager:error("Cannot stop database nodes: ~p", [Reason]),
+            ?error("Cannot stop database nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -182,7 +183,7 @@ restart(_) ->
         end
     catch
         _:Reason ->
-            lager:error("Cannot restart database nodes: ~p", [Reason]),
+            ?error("Cannot restart database nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -201,7 +202,7 @@ restart(_) ->
 install() ->
     Host = install_utils:get_host(node()),
     try
-        lager:debug("Installing database node."),
+        ?debug("Installing database node."),
 
         "" = os:cmd("mkdir -p " ++ ?DEFAULT_DB_INSTALL_PATH),
         "" = os:cmd("cp -R " ++ ?DB_RELEASE ++ "/* " ++ ?DEFAULT_DB_INSTALL_PATH),
@@ -209,7 +210,7 @@ install() ->
         {ok, Host}
     catch
         _:Reason ->
-            lager:error("Cannot install database node: ~p.", [Reason]),
+            ?error("Cannot install database node: ~p.", [Reason]),
             {error, Host}
     end.
 
@@ -224,7 +225,7 @@ install() ->
 uninstall() ->
     Host = install_utils:get_host(node()),
     try
-        lager:debug("Uninstalling database node."),
+        ?debug("Uninstalling database node."),
 
         "" = os:cmd("rm -rf " ++ ?DEFAULT_DB_INSTALL_PATH),
         ok = file:delete(?ULIMITS_CONFIG_PATH),
@@ -232,7 +233,7 @@ uninstall() ->
         {ok, Host}
     catch
         _:Reason ->
-            lager:error("Cannot uninstall database node on host ~s: ~p.", [Host, Reason]),
+            ?error("Cannot uninstall database node on host ~s: ~p.", [Host, Reason]),
             {error, Host}
     end.
 
@@ -247,7 +248,7 @@ uninstall() ->
 start() ->
     Host = install_utils:get_host(node()),
     try
-        lager:debug("Starting database node."),
+        ?debug("Starting database node."),
         BigcouchStartScript = filename:join([?DEFAULT_DB_INSTALL_PATH, ?DB_START_COMMAND_SUFFIX]),
         NohupOut = filename:join([?DEFAULT_DB_INSTALL_PATH, ?NOHUP_OUTPUT]),
         SetUlimitsCmd = install_utils:get_ulimits_cmd(Host),
@@ -260,7 +261,7 @@ start() ->
         {ok, Host}
     catch
         _:Reason ->
-            lager:error("Cannot start database node: ~p", [Reason]),
+            ?error("Cannot start database node: ~p", [Reason]),
             {error, Host}
     end.
 
@@ -275,7 +276,7 @@ start() ->
 stop() ->
     Host = install_utils:get_host(node()),
     try
-        lager:debug("Stopping database node."),
+        ?debug("Stopping database node."),
 
         "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ ?DEFAULT_DB_INSTALL_PATH ++ " | cut -d'\t' -f2 | awk '{print $2}'`"),
         ok = install_utils:remove_node_from_config(db_node),
@@ -283,7 +284,7 @@ stop() ->
         {ok, Host}
     catch
         _:Reason ->
-            lager:error("Cannot stop database node: ~p", [Reason]),
+            ?error("Cannot stop database node: ~p", [Reason]),
             {error, Host}
     end.
 
@@ -310,14 +311,14 @@ add_to_cluster(ClusterNode) ->
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 add_to_cluster(_, 10) ->
-    lager:error("Can not add database node to cluster: attempts limit exceeded."),
+    ?error("Can not add database node to cluster: attempts limit exceeded."),
     Host = install_utils:get_host(node()),
     {error, Host};
 
 add_to_cluster(ClusterHost, Attempts) ->
     Host = install_utils:get_host(node()),
     try
-        lager:debug("Adding database node to cluster."),
+        ?debug("Adding database node to cluster."),
         timer:sleep(1000),
         Url = "http://" ++ ClusterHost ++ ":" ++ ?DEFAULT_PORT ++ "/nodes/" ++ ?DEFAULT_DB_NAME ++ "@" ++ Host,
 

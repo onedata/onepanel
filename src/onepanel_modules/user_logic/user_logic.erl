@@ -14,6 +14,7 @@
 -include("onepanel_modules/db_logic.hrl").
 -include("onepanel_modules/install_logic.hrl").
 -include("gui_modules/common.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([hash_password/1, authenticate/2, change_password/3]).
@@ -39,7 +40,7 @@ authenticate(Username, Password) ->
             end;
         {error, "Record not found."} -> {error, ?AUTHENTICATION_ERROR};
         Other ->
-            lager:error("Cannot authenticate user: ~p", [Other]),
+            ?error("Cannot authenticate user: ~p", [Other]),
             {error, ?INTERNAL_SERVER_ERROR}
     end.
 
@@ -58,7 +59,7 @@ change_password(Username, OldPassword, NewPassword) ->
             case dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username, password = PasswordHash}) of
                 ok -> ok;
                 Other ->
-                    lager:error("Cannot change user password: ~p", [Other]),
+                    ?error("Cannot change user password: ~p", [Other]),
                     {error, ?INTERNAL_SERVER_ERROR}
             end;
         _ -> {error, ?AUTHENTICATION_ERROR}

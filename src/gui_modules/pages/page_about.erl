@@ -13,6 +13,7 @@
 -module(page_about).
 -export([main/0, event/1]).
 -include("gui_modules/common.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 -define(LICENSE_FILE, "LICENSE.txt").
 -define(CONTACT_EMAIL, "support@onedata.org").
@@ -112,7 +113,7 @@ get_license() ->
     case file:read_file(?LICENSE_FILE) of
         {ok, File} -> File;
         {error, Reason} ->
-            lager:error("Cannot get license file ~s: ~p", [?LICENSE_FILE, Reason]),
+            ?error("Cannot get license file ~s: ~p", [?LICENSE_FILE, Reason]),
             <<"">>
     end.
 

@@ -13,7 +13,7 @@
 -include("registered_names.hrl").
 -include("onepanel_modules/install_logic.hrl").
 -include("onepanel_modules/db_logic.hrl").
-
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([add_storage_path/2, add_storage_path/1, remove_storage_path/2, remove_storage_path/1]).
@@ -53,18 +53,18 @@ add_storage_path(Hosts, Path) ->
                 case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{storage_paths, [Path | StoragePaths]}]) of
                     ok -> ok;
                     Other ->
-                        lager:error("Cannot update storage path configuration: ~p", [Other]),
+                        ?error("Cannot update storage path configuration: ~p", [Other]),
                         install_utils:apply_on_hosts(Hosts, ?MODULE, remove_storage_path, [Path], ?RPC_TIMEOUT),
                         {error, {hosts, Hosts}}
                 end;
             _ ->
-                lager:error("Cannot add storage path on following hosts: ~p", [HostsError]),
+                ?error("Cannot add storage path on following hosts: ~p", [HostsError]),
                 install_utils:apply_on_hosts(HostsOk, ?MODULE, remove_storage_path, [Path], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
         _:Reason ->
-            lager:error("Cannot add storage path: ~p", [Reason]),
+            ?error("Cannot add storage path: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -98,18 +98,18 @@ remove_storage_path(Hosts, Path) ->
                 case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{storage_paths, NewStoragePaths}]) of
                     ok -> ok;
                     Other ->
-                        lager:error("Cannot update storage path configuration: ~p", [Other]),
+                        ?error("Cannot update storage path configuration: ~p", [Other]),
                         install_utils:apply_on_hosts(Hosts, ?MODULE, add_storage_path, [Path], ?RPC_TIMEOUT),
                         {error, {hosts, Hosts}}
                 end;
             _ ->
-                lager:error("Cannot remove storage path on following hosts: ~p", [HostsError]),
+                ?error("Cannot remove storage path on following hosts: ~p", [HostsError]),
                 install_utils:apply_on_hosts(HostsOk, ?MODULE, add_storage_path, [Path], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
         _:Reason ->
-            lager:error("Cannot remove storage path: ~p", [Reason]),
+            ?error("Cannot remove storage path: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -124,7 +124,7 @@ remove_storage_path(Hosts, Path) ->
 add_storage_path(Path) ->
     Host = install_utils:get_host(node()),
     try
-        lager:debug("Adding storage path ~s.", [Path]),
+        ?debug("Adding storage path ~s.", [Path]),
         StorageConfigPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, ?STORAGE_CONFIG_PATH]),
 
         {ok, Fd} = file:open(StorageConfigPath, [append]),
@@ -133,7 +133,7 @@ add_storage_path(Path) ->
         {ok, Host}
     catch
         _:Reason ->
-            lager:error("Cannot add storage path ~s: ~p", [Path, Reason]),
+            ?error("Cannot add storage path ~s: ~p", [Path, Reason]),
             {error, Host}
     end.
 
@@ -148,7 +148,7 @@ add_storage_path(Path) ->
 remove_storage_path(Path) ->
     Host = install_utils:get_host(node()),
     try
-        lager:debug("Removing storage path ~s.", [Path]),
+        ?debug("Removing storage path ~s.", [Path]),
         StorageConfigPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, ?STORAGE_CONFIG_PATH]),
 
         {ok, StorageInfo} = file:consult(StorageConfigPath),
@@ -165,7 +165,7 @@ remove_storage_path(Path) ->
         {ok, Host}
     catch
         _:Reason ->
-            lager:error("Cannot remove storage paths on host ~p: ~p", [install_utils:get_host(node()), Reason]),
+            ?error("Cannot remove storage paths on host ~p: ~p", [install_utils:get_host(node()), Reason]),
             {error, Host}
     end.
 
@@ -199,12 +199,12 @@ check_storage_path_on_hosts([Host | Hosts], Path) ->
                 end
             catch
                 _:Reason ->
-                    lager:error("Cannot check storage ~p availability on hosts ~p: ~p", [Path, [Host | Hosts], Reason]),
+                    ?error("Cannot check storage ~p availability on hosts ~p: ~p", [Path, [Host | Hosts], Reason]),
                     rpc:call(Node, ?MODULE, remove_storage_test_file, [FilePath], ?RPC_TIMEOUT),
                     {error, Reason}
             end;
         Other ->
-            lager:error("Cannot create test file for storage path ~s: ~p", [Path, Other]),
+            ?error("Cannot create test file for storage path ~s: ~p", [Path, Other]),
             {error, {hosts, [Host]}}
     end.
 
@@ -229,7 +229,7 @@ check_storage_path_on_host(FilePath, Content) ->
     catch
         _:Reason ->
             Host = install_utils:get_host(node()),
-            lager:error("Storage ~s is not available on host ~p: ~p", [FilePath, Host, Reason]),
+            ?error("Storage ~s is not available on host ~p: ~p", [FilePath, Host, Reason]),
             {error, Host}
     end.
 
@@ -243,7 +243,7 @@ create_storage_test_file(Path) ->
     create_storage_test_file(Path, 20).
 
 create_storage_test_file(_, 0) ->
-    lager:error("Cannot create storage test file: attempts limit exceeded."),
+    ?error("Cannot create storage test file: attempts limit exceeded."),
     {error, "Attempts limit exceeded."};
 create_storage_test_file(Path, Attempts) ->
     {A, B, C} = now(),
@@ -271,7 +271,7 @@ remove_storage_test_file(FilePath) ->
     case file:delete(FilePath) of
         ok -> ok;
         {error, Reason} ->
-            lager:error("Cannot remove storage test file: ~p", [Reason]),
+            ?error("Cannot remove storage test file: ~p", [Reason]),
             {error, Reason}
     end.
 

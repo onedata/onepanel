@@ -16,6 +16,7 @@
 -include("registered_names.hrl").
 -include("onepanel_modules/db_logic.hrl").
 -include("onepanel_modules/onepanel.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([start_link/0]).
@@ -86,7 +87,7 @@ handle_call(get_status, _From, #state{status = Status} = State) ->
     {reply, Status, State};
 
 handle_call(Request, _From, State) ->
-    lager:error("Wrong call: ~p", [Request]),
+    ?error("Wrong call: ~p", [Request]),
     {reply, {error, wrong_request}, State}.
 
 
@@ -100,13 +101,13 @@ handle_call(Request, _From, State) ->
     {stop, Reason :: term(), NewState :: #state{}}.
 %% ====================================================================
 handle_cast({connection_request, Node}, #state{status = not_connected} = State) ->
-    lager:info("Connection request from node: ~p", [Node]),
+    ?info("Connection request from node: ~p", [Node]),
     db_logic:delete(),
     gen_server:cast({?GEN_SERVER_NAME, Node}, {connection_response, node()}),
     {noreply, State#state{status = waiting}};
 
 handle_cast({connection_response, Node}, State) ->
-    lager:info("Connection response from node: ~p", [Node]),
+    ?info("Connection response from node: ~p", [Node]),
     case db_logic:add_node(Node) of
         ok ->
             gen_server:cast({?GEN_SERVER_NAME, Node}, connection_acknowledgement),
@@ -116,11 +117,11 @@ handle_cast({connection_response, Node}, State) ->
     end;
 
 handle_cast(connection_acknowledgement, State) ->
-    lager:info("Connection acknowledgement."),
+    ?info("Connection acknowledgement."),
     {noreply, State#state{status = connected}};
 
 handle_cast(Request, State) ->
-    lager:error("Wrong cast: ~p", [Request]),
+    ?error("Wrong cast: ~p", [Request]),
     {noreply, State}.
 
 
@@ -138,7 +139,7 @@ handle_info({udp, _Socket, _Address, _Port, HostBinary}, #state{status = Status}
     Node = list_to_atom(?APP_STR ++ "@" ++ Host),
     case net_kernel:connect_node(Node) of
         true -> gen_server:cast({?GEN_SERVER_NAME, Node}, {connection_request, node()});
-        Other -> lager:error("Cannot connect node ~p: ~p", [Node, Other])
+        Other -> ?error("Cannot connect node ~p: ~p", [Node, Other])
     end,
     case Status of
         connected -> {noreply, State};
@@ -155,7 +156,7 @@ handle_info(connection_ping, State) ->
     {noreply, State};
 
 handle_info(Info, State) ->
-    lager:error("Wrong info: ~p", [Info]),
+    ?error("Wrong info: ~p", [Info]),
     {noreply, State}.
 
 

@@ -14,6 +14,7 @@
 
 -include("onepanel_modules/install_logic.hrl").
 -include("onepanel_modules/db_logic.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% install_behaviour callbacks
 -export([install/1, uninstall/1, start/1, stop/1, restart/1]).
@@ -40,7 +41,7 @@ install(Args) ->
     case HostsError of
         [] -> ok;
         _ ->
-            lager:error("Cannot install worker nodes on following hosts: ~p", [HostsError]),
+            ?error("Cannot install worker nodes on following hosts: ~p", [HostsError]),
             install_utils:apply_on_hosts(HostsOk, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
             {error, {hosts, HostsError}}
     end.
@@ -61,7 +62,7 @@ uninstall(Args) ->
     case HostsError of
         [] -> ok;
         _ ->
-            lager:error("Cannot uninstall worker nodes on following hosts: ~p", [HostsError]),
+            ?error("Cannot uninstall worker nodes on following hosts: ~p", [HostsError]),
             install_utils:apply_on_hosts(HostsOk, ?MODULE, install, [], ?RPC_TIMEOUT),
             {error, {hosts, HostsError}}
     end.
@@ -103,18 +104,18 @@ start(Args) ->
                 case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{workers, Workers ++ NewWorkers}]) of
                     ok -> ok;
                     Other ->
-                        lager:error("Cannot update worker nodes configuration: ~p", [Other]),
+                        ?error("Cannot update worker nodes configuration: ~p", [Other]),
                         install_utils:apply_on_hosts(NewWorkers, ?MODULE, stop, [], ?RPC_TIMEOUT),
                         {error, {hosts, NewWorkers}}
                 end;
             _ ->
-                lager:error("Cannot start worker nodes on following hosts: ~p", [HostsError]),
+                ?error("Cannot start worker nodes on following hosts: ~p", [HostsError]),
                 install_utils:apply_on_hosts(HostsOk, ?MODULE, stop, [], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
         _:Reason ->
-            lager:error("Cannot start worker nodes: ~p", [Reason]),
+            ?error("Cannot start worker nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -144,18 +145,18 @@ stop(_) ->
                 case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{workers, []}]) of
                     ok -> ok;
                     Other ->
-                        lager:error("Cannot update worker nodes configuration: ~p", [Other]),
+                        ?error("Cannot update worker nodes configuration: ~p", [Other]),
                         install_utils:apply_on_hosts(Workers, ?MODULE, start, [MainCCM, OptCCMs, Dbs], ?RPC_TIMEOUT),
                         {error, {hosts, Workers}}
                 end;
             _ ->
-                lager:error("Cannot stop worker nodes on following hosts: ~p", [HostsError]),
+                ?error("Cannot stop worker nodes on following hosts: ~p", [HostsError]),
                 install_utils:apply_on_hosts(HostsOk, ?MODULE, start, [MainCCM, OptCCMs, Dbs], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
         _:Reason ->
-            lager:error("Cannot stop worker nodes: ~p", [Reason]),
+            ?error("Cannot stop worker nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -184,7 +185,7 @@ restart(_) ->
         end
     catch
         _:Reason ->
-            lager:error("Cannot restart worker nodes: ~p", [Reason]),
+            ?error("Cannot restart worker nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -203,7 +204,7 @@ restart(_) ->
 install() ->
     Host = install_utils:get_host(node()),
     try
-        lager:debug("Installing worker node."),
+        ?debug("Installing worker node."),
 
         "" = os:cmd("mkdir -p " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME),
         "" = os:cmd("cp -R " ++ ?VEIL_RELEASE ++ "/* " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME),
@@ -211,7 +212,7 @@ install() ->
         {ok, Host}
     catch
         _:Reason ->
-            lager:error("Cannot install worker node: ~p.", [Reason]),
+            ?error("Cannot install worker node: ~p.", [Reason]),
             {error, Host}
     end.
 
@@ -226,14 +227,14 @@ install() ->
 uninstall() ->
     Host = install_utils:get_host(node()),
     try
-        lager:debug("Uninstalling worker node."),
+        ?debug("Uninstalling worker node."),
 
         "" = os:cmd("rm -rf " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME),
 
         {ok, Host}
     catch
         _:Reason ->
-            lager:error("Cannot uninstall worker node: ~p.", [Reason]),
+            ?error("Cannot uninstall worker node: ~p.", [Reason]),
             {error, Host}
     end.
 
@@ -248,7 +249,7 @@ uninstall() ->
 start(MainCCM, OptCCMs, Dbs) ->
     Host = install_utils:get_host(node()),
     try
-        lager:debug("Starting worker node: ~p."),
+        ?debug("Starting worker node: ~p."),
 
         Name = ?DEFAULT_WORKER_NAME ++ "@" ++ Host,
 
@@ -281,7 +282,7 @@ start(MainCCM, OptCCMs, Dbs) ->
         {ok, Host}
     catch
         _:Reason ->
-            lager:error("Cannot start worker node: ~p", [Reason]),
+            ?error("Cannot start worker node: ~p", [Reason]),
             {error, Host}
     end.
 
@@ -296,7 +297,7 @@ start(MainCCM, OptCCMs, Dbs) ->
 stop() ->
     Host = install_utils:get_host(node()),
     try
-        lager:debug("Stopping worker node on host: ~p.", [Host]),
+        ?debug("Stopping worker node on host: ~p.", [Host]),
 
         "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME ++ " | cut -d'\t' -f2 | awk '{print $2}'`"),
         ok = install_utils:remove_node_from_config(worker),
@@ -304,6 +305,6 @@ stop() ->
         {ok, Host}
     catch
         _:Reason ->
-            lager:error("Cannot stop worker node: ~p", [Reason]),
+            ?error("Cannot stop worker node: ~p", [Reason]),
             {error, Host}
     end.
