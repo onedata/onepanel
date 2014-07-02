@@ -15,7 +15,14 @@
 
 -include_lib("ctool/include/gui/common.hrl").
 -include("registered_names.hrl").
--include("custom_elements.hrl").
+
+% Custom checkbox element
+-record(custom_checkbox, {?ELEMENT_BASE(element_custom_checkbox),
+    checked = false,
+    value = "on",
+    postback,
+    disabled,
+    name}).
 
 %% Macros used as ids of errors that can appear on GUI pages
 -define(AUTHENTICATION_ERROR, authentication_error).

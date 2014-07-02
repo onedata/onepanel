@@ -63,7 +63,7 @@ body() ->
         #panel{style = <<"margin-top: 60px; padding: 20px;">>, body = [
             #panel{id = <<"about_table">>, body = about_table()}
         ]}
-    ]}.
+    ] ++ onepanel_gui_utils:logotype_footer(120)}.
 
 
 %% about_table/0

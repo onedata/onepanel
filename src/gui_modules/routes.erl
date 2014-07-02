@@ -59,4 +59,5 @@ route(<<"/logout">>) -> page_logout;
 route(<<"/about">>) -> page_about;
 route(<<"/manage_account">>) -> page_manage_account;
 route(<<"/validate_login">>) -> page_validate_login;
+route(<<"/registration">>) -> page_registration;
 route(_) -> page_404.

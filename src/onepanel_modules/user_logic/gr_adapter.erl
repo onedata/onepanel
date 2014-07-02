@@ -79,6 +79,7 @@ register() ->
         %% Save provider ID and certifiacte on all hosts
         ok = dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{providerId, ProviderId}]),
         ok = install_utils:save_file_on_hosts(Path, CertName, Cert),
+
         {ok, ProviderId}
     catch
         _:Reason ->
@@ -89,7 +90,7 @@ register() ->
 
 %% check_ip_address/0
 %% ====================================================================
-%% @doc Returns ip address that is visible for global registry.
+%% @doc Returns ip address that is visible for Global Registry.
 %% @end
 -spec check_ip_address() -> Result when
     Result :: {ok, IpAddress :: string()} | {error, Reason :: term()}.
@@ -108,7 +109,8 @@ check_ip_address() ->
 
 %% check_port/0
 %% ====================================================================
-%% @doc Checks port availability on host.
+%% @doc Checks port availability on host, that is that port is visible
+%% for Global Registry.
 %% @end
 -spec check_port(Host :: string(), Port :: integer(), Type :: string()) -> Result when
     Result :: ok | {error, Reason :: term()}.
@@ -120,10 +122,10 @@ check_port(Host, Port, Type) ->
         {ok, Url} = application:get_env(?APP_NAME, global_registry_url),
         TestUrl = Url ++ "/provider/test/check_my_ports",
         Resource = case Type of
-                       gui -> "/connection_check";
-                       rest -> "/rest/latest/connection_check"
+                       "gui" -> "/connection_check";
+                       "rest" -> "/rest/latest/connection_check"
                    end,
-        CheckUrl = "https://" ++ IpAddress ++ ":" ++ integer_to_list(Port) ++ Resource,
+        CheckUrl = list_to_binary("https://" ++ IpAddress ++ ":" ++ integer_to_list(Port) ++ Resource),
         ReqBody = iolist_to_binary(mochijson2:encode({struct, [{Type, CheckUrl}]})),
 
         {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(TestUrl, [{content_type, "application/json"}], get, ReqBody),
@@ -152,12 +154,12 @@ check_port(Host, Port, Type) ->
 %% ====================================================================
 send_csr(CsrPath) ->
     {ok, Url} = application:get_env(?APP_NAME, global_registry_url),
-    Urls = install_utils:get_hosts(),
+    Urls = lists:map(fun(U) -> list_to_binary(U) end, install_utils:get_hosts()),
     {ok, Csr} = file:read_file(CsrPath),
     {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
     {ok, [ControlPanelHost | _]} = install_utils:get_control_panel_hosts(MainCCM),
     {ok, #?LOCAL_CONFIG_RECORD{gui_port = GuiPort}} = dao:get_record(?LOCAL_CONFIG_TABLE, ControlPanelHost),
-    GuiUrl = "https://" ++ ControlPanelHost ++ ":" ++ integer_to_list(GuiPort),
+    GuiUrl = <<"https://", (list_to_binary(ControlPanelHost))/binary, ":", (integer_to_binary(GuiPort))/binary>>,
     ReqBody = iolist_to_binary(mochijson2:encode({struct, [{urls, Urls}, {csr, Csr}, {redirectionPoint, GuiUrl}]})),
 
     {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(Url ++ "/provider", [{content_type, "application/json"}], post, ReqBody),
