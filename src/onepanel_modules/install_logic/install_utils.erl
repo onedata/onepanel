@@ -17,7 +17,7 @@
 
 %% API
 -export([random_ascii_lowercase_sequence/1, apply_on_hosts/5, get_node/1, get_host/1, get_hosts/0]).
--export([set_ulimits/2, get_ulimits_cmd/1, get_ports_to_check/1, get_control_panel_hosts/1, get_provider_id/0]).
+-export([set_ulimits/2, get_ulimits_cmd/1, get_ports_to_check/1, get_control_panel_hosts/1, get_provider_id/0, get_main_ccm/0]).
 -export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/3]).
 -export([save_file_on_host/3, save_file_on_hosts/3]).
 
@@ -234,7 +234,7 @@ save_file_on_hosts(Path, Filename, Content) ->
         [] -> ok;
         _ ->
             ?error("Cannot save file ~p at directory ~p on following hosts: ~p", [Filename, Path, HostsError]),
-            {error, HostsError}
+            {error, {hosts, HostsError}}
     end.
 
 
@@ -245,14 +245,15 @@ save_file_on_hosts(Path, Filename, Content) ->
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 save_file_on_host(Path, Filename, Content) ->
+    Host = get_host(node()),
     try
         file:make_dir(Path),
         ok = file:write_file(filename:join(Path, Filename), Content),
-        ok
+        {ok, Host}
     catch
         _:Reason ->
             ?error("Cannot save file ~p at directory ~p: ~p", [Filename, Path, Reason]),
-            {error, Reason}
+            {error, Host}
     end.
 
 
@@ -307,6 +308,21 @@ get_provider_id() ->
     case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
         {ok, #?GLOBAL_CONFIG_RECORD{providerId = ProviderId}} ->
             ProviderId;
+        _ ->
+            undefined
+    end.
+
+
+%% get_main_ccm/0
+%% ====================================================================
+%% @doc Returns configured main CCM.
+-spec get_main_ccm() -> Result when
+    Result :: undefined | string().
+%% ====================================================================
+get_main_ccm() ->
+    case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+        {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM}} ->
+            MainCCM;
         _ ->
             undefined
     end.
