@@ -20,7 +20,7 @@
 
 
 %% API
--export([]).
+-export([flatten_stages/1]).
 
 %% gen_server callbacks
 -export([start_link/0]).
@@ -35,21 +35,24 @@ finalize_stage(#u_state{stage = Stage, job = Job} = State) ->
     finalize_stage(Stage, Job, State).
 
 
-finalize_stage(?STAGE_INIT, ?JOB_DOWNLOAD_BINARY, #u_state{previous_data = [{_, #package{} = Pkg} | _]} = State) ->
-    lager:info("Finalize?!?!"),
-    State#u_state{package = Pkg};
-finalize_stage(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, #u_state{previous_data = [{_, Views} | _]} = State) ->
-    lager:info("Installed views: ~p?!?!", [Views]),
-    State#u_state{installed_views = Views};
-finalize_stage(?STAGE_SOFT_RELOAD, _, #u_state{previous_data = [{_, ModMap} | _]} = State) ->
-    lager:info("ModMap: ~p?!?!", [ModMap]),
-    State#u_state{not_reloaded_modules = ModMap};
+finalize_stage(?STAGE_INIT, ?JOB_DOWNLOAD_BINARY, #u_state{previous_data = PData} = State) ->
+    #{package := #package{} = Pkg} = PData,
+    lager:info("Package ~p ?!?!", [Pkg]),
+    State#u_state{package = Pkg, previous_data = maps:remove(package, PData)};
+finalize_stage(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, #u_state{previous_data = PData} = State) ->
+    #{views := Views} = PData,
+    lager:info("Installed views: ~p ?!?!", [Views]),
+    State#u_state{installed_views = Views, previous_data = maps:remove(views, PData)};
+finalize_stage(?STAGE_SOFT_RELOAD, ?JOB_DEFAULT, #u_state{previous_data = PData} = State) ->
+    #{mod_map := ModMap} = PData,
+    lager:info("ModMap: ~p ?!?!", [ModMap]),
+    State#u_state{not_reloaded_modules = ModMap, previous_data = maps:remove(mod_mapa, PData)};
 finalize_stage(_, _, State) ->
     State.
 
 
 dispatch(Obj, #u_state{stage = Stage, job = Job} = State) ->
-    lager:info("Dispatching ~p ~p obj: ~p", [Stage, Job, Obj]),
+    lager:info("Dispatching ~p:~p obj: ~p", [Stage, Job, Obj]),
     {dispatch(Stage, Job, Obj, State), Obj}.
 
 dispatch(?STAGE_INIT, ?JOB_LOAD_EXPORTS, Obj, #u_state{}) ->
@@ -77,9 +80,8 @@ dispatch(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEW_SOURCES, Obj, #u_state{}) ->
     Node = Obj,
     cast(Node, install_view_sources, []);
 
-dispatch(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, Obj, #u_state{}) ->
-    Node = Obj,
-    cast(Node, install_views, []);
+dispatch(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, _Obj, #u_state{nodes = Nodes}) ->
+    anycast(Nodes, install_views, []);
 
 dispatch(?STAGE_DAO_REFRESH_VIEWS, ?JOB_DEFAULT, Obj, #u_state{nodes = Nodes}) ->
     View = Obj,
@@ -118,7 +120,7 @@ handle_stage(?STAGE_INIT, ?JOB_LOAD_EXPORTS, #u_state{nodes = Nodes} = State) ->
 
 handle_stage(?STAGE_INIT, ?JOB_DOWNLOAD_BINARY, #u_state{version = Vsn} = State) ->
     Pid = local_cast(fun() -> updater_repos:get_package(Vsn) end),
-    [{Pid, def}];
+    [{Pid, package}];
 
 handle_stage(?STAGE_INIT, ?JOB_INSTALL_PACKAGE, #u_state{nodes = Nodes} = State) ->
     default_dispatch_to_all_nodes(select_only_workers(Nodes), State);
@@ -127,8 +129,7 @@ handle_stage(?STAGE_DAO_UPDATER_LOAD, _, #u_state{nodes = Nodes} = State) ->
     default_dispatch_to_all_nodes(select_only_workers(Nodes), State);
 
 handle_stage(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, #u_state{nodes = Nodes} = State) ->
-    [Worker | _] = select_only_workers(Nodes),
-    default_dispatch_to_all_nodes([Worker], State);
+    [dispatch(views, State)];
 
 handle_stage(?STAGE_DAO_SETUP_VIEWS, _, #u_state{nodes = Nodes} = State) ->
     default_dispatch_to_all_nodes(select_only_workers(Nodes), State);
@@ -162,7 +163,7 @@ next_stage(?STAGE_IDLE, _) ->
     [{Stage, Job} | _] = flatten_stages(?STAGES),
     {Stage, Job};
 next_stage(Stage, Job) ->
-    [{NStage, NJob} | _] =
+    [_, {NStage, NJob} | _] =
         lists:dropwhile(
             fun({CStage, CJob}) ->
                 {CStage, CJob} =/= {Stage, Job}
@@ -170,12 +171,12 @@ next_stage(Stage, Job) ->
     {NStage, NJob}.
 
 
-enter_stage({Stage, Job}, #u_state{object_data = ObjData} = State) ->
-    lager:info("Entering stage ~p:~p... ~p", [Stage, Job, ObjData]),
+enter_stage({Stage, Job}, #u_state{object_data = ObjData, callback = CFun} = State) ->
+    lager:info("Entering stage ~p:~p...", [Stage, Job]),
     NewState0 = finalize_stage(State#u_state{previous_data = ObjData}),
-    NewState1 = NewState0#u_state{stage = Stage, job = Job, objects = [], error_stack = [], object_data = []},
-    NewState2 = NewState1#u_state{objects = handle_stage(NewState1)},
-    lager:info("Objects for stage ~p:~p: ~p", [Stage, Job, NewState2#u_state.objects]),
+    NewState1 = NewState0#u_state{stage = Stage, job = Job, objects = #{}, error_stack = [], error_counter = #{}},
+    NewState2 = NewState1#u_state{objects = maps:from_list( lists:flatten( [handle_stage(NewState1)] ) )},
+    CFun(enter_stage, NewState2),
     NewState2.
 
 
@@ -200,7 +201,10 @@ init(_Args) ->
 handle_call(get_state, _From, State) ->
     {reply, State, State};
 
-handle_call({update_to, #version{} = Vsn}, _From, #u_state{stage = ?STAGE_IDLE} = State) ->
+handle_call(abort, _From, State) ->
+    {reply, ok, State};
+
+handle_call({update_to, #version{} = Vsn, CallbackFun}, _From, #u_state{stage = ?STAGE_IDLE} = State) ->
 
     {WorkerHosts, CCMHosts} =
         case dao:get_record(configurations, last) of
@@ -214,9 +218,9 @@ handle_call({update_to, #version{} = Vsn}, _From, #u_state{stage = ?STAGE_IDLE} 
     lager:info("Installed workers ~p", [Workers]),
     lager:info("Installed CCMs ~p", [CCMs]),
 
-    NewState0 = State#u_state{nodes = Workers ++ CCMs, workers = Workers, ccms = CCMs, version = Vsn},
+    NewState0 = State#u_state{nodes = Workers ++ CCMs, version = Vsn, callback = CallbackFun},
 
-    NewState2 = enter_stage({?STAGE_INIT, ?JOB_LOAD_EXPORTS}, NewState0),
+    NewState2 = enter_stage(next_stage(State), NewState0),
 
     {reply, ok, NewState2};
 
@@ -234,34 +238,47 @@ handle_cast(Info, State) ->
 
 
 handle_info({Pid, ok}, #u_state{objects = Objects} = State) ->
-    NObjects = lists:keydelete(Pid, 1, Objects),
+    NObjects = maps:remove(Pid, Objects),
     NState =
-        case NObjects of
-            []  -> enter_stage(next_stage(State), State);
-            _   -> State#u_state{objects = NObjects}
+        case maps:size(NObjects) of
+            0  -> enter_stage(next_stage(State), State);
+            _  -> State#u_state{objects = NObjects}
         end,
     {noreply, NState};
 
 handle_info({Pid, {ok, Data}}, #u_state{objects = Objects, object_data = ObjData} = State) ->
     lager:info("Result form ~p: ~p", [Pid, Data]),
     NState =
-        case lists:keyfind(Pid, 1, Objects) of
-            {_, Obj} ->
-                {_, NState0} = handle_info({Pid, ok}, State#u_state{object_data = ObjData ++ [{Obj, Data}]}),
+        case maps:is_key(Pid, Objects) of
+            true ->
+                Obj = maps:get(Pid, Objects),
+                {_, NState0} = handle_info({Pid, ok}, State#u_state{object_data = maps:put(Obj, Data, ObjData)}),
                 NState0;
-            false ->
+            _ ->
                 State
         end,
     {noreply, NState};
 
 
-handle_info({Pid, {error, Reason}}, #u_state{objects = Objects, object_data = _ObjData} = State) ->
+handle_info({Pid, {error, Reason}}, #u_state{objects = Objects, object_data = _ObjData, error_counter = EC} = State) ->
     lager:error("Error form ~p: ~p", [Pid, Reason]),
+    MapsGetOrDefault =
+        fun(Key, Map, Default) ->
+            case maps:is_key(Key, Map) of
+                true -> maps:get(Key, Map);
+                _    -> Default
+            end
+        end,
     NState =
-        case lists:keyfind(Pid, 1, Objects) of
-            {_, Obj} ->
-                handle_error(Pid, Obj, Reason, State);
-            false ->
+        case maps:is_key(Pid, Objects) of
+            true ->
+                Obj = maps:get(Pid, Objects),
+                handle_error(Pid, Obj, Reason,
+                    State#u_state{
+                        objects = maps:remove(Pid, Objects),
+                        error_counter = maps:put(Obj, MapsGetOrDefault(Obj, EC, 0) + 1, EC)
+                    });
+            _ ->
                 State
         end,
     {noreply, NState};
@@ -272,295 +289,20 @@ handle_info({'EXIT', _Pid, normal}, #u_state{} = State) ->
 handle_info({'EXIT', Pid, Reason}, #u_state{} = State) ->
     handle_info({Pid, {error, {exit, Reason}}}, State);
 handle_info(Unknown, #u_state{} = State) ->
-    lager:info("Unknown info ~p (state ~p)", [Unknown, State]),
+    lager:info("Unknown info ~p", [Unknown]),
     {noreply, State}.
 
-handle_error(_, _, _, State) ->
-    State.
+handle_error(_, Obj, _Reason, #u_state{error_counter = EC, objects = Objects} = State) ->
+    ErrorCount = maps:get(Obj, EC),
+    if
+        ErrorCount < 3 ->
+            {NewPid, Obj} = dispatch(Obj, State),
+            State#u_state{objects = maps:put(NewPid, Obj, Objects)};
+        true ->
+            lager:error("Critical error ~p: ~p", [Obj, _Reason]),
+            State#u_state{stage = ?STAGE_IDLE, job = ?JOB_DEFAULT, objects = #{}}
+    end.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-%%
-%%
-%%
-%% handle_info({{_Pid, Node}, {error, Reason}}, #u_state{stage = ?STAGE_INIT, stage_state = load_exports} = State) ->
-%%     NewState0 = on_error({Node, Reason}, State),
-%%     {noreply, NewState0};
-%% handle_info({{_Pid, Node}, ok}, #u_state{stage = ?STAGE_INIT, stage_state = load_exports, data = Installed, nodes = All, version = Vsn} = State) ->
-%%     NewInstalled = Installed ++ [Node],
-%%     NewState0 = State#u_state{data = NewInstalled},
-%%     NewState1 =
-%%         case All -- NewInstalled of
-%%             [] ->
-%%                 Self = self(),
-%%                 Pid = spawn_link(fun() -> Self ! {self(), updater_repos:get_package(Vsn)} end),
-%%                 State0 = set_stage(?STAGE_INIT, downloading_package, NewState0),
-%%                 set_linked_procs(Pid, State0);
-%%             _ ->
-%%                 NewState0
-%%         end,
-%%     {noreply, NewState1};
-%%
-%%
-%% handle_info({Pid, #package{} = Pkg}, #u_state{stage = ?STAGE_INIT, stage_state = downloading_package, nodes = All} = State) ->
-%%
-%%     NewState0 = set_stage(?STAGE_INIT, {installing_package, {Pkg, [], select_only_workers(All)}}, State),
-%%     NewState2 = remove_linked_procs([Pid], NewState0),
-%%
-%%     Self = self(),
-%%     Pids = lists:map(fun(Node) -> spawn_link(fun() -> Self ! {{self(), Node}, call(Node, install_package, [Pkg])} end) end, select_only_workers(All)),
-%%     NewState3 = add_linked_procs(Pids, NewState2),
-%%
-%%     {noreply, NewState3};
-%%
-%% handle_info({{_Pid, Node}, {error, Reason}}, #u_state{stage = ?STAGE_INIT, stage_state = installing_package} = State) ->
-%%     NewState0 = on_error({Node, Reason}, State),
-%%     {noreply, NewState0};
-%% handle_info({{_Pid, Node}, ok}, #u_state{stage = ?STAGE_INIT, stage_state = installing_package, data = {Pkg, Installed, All}, nodes = Nodes} = State) ->
-%%     NewInstalled = Installed ++ [Node],
-%%     NewState0 = State#u_state{data = {Pkg, NewInstalled, All}},
-%%     NewState1 =
-%%         case All -- NewInstalled of
-%%             [] ->
-%%                 Self = self(),
-%%                 Pids = lists:map(fun(Node) -> spawn_link(fun() -> Self ! {{self(), Node}, call(Node, move_file, ["dao_update.beam"])} end) end, Nodes),
-%%                 State0 = set_stage(?STAGE_DAO_UPDATER_LOAD, {copy_beams, []}, NewState0),
-%%                 set_linked_procs(Pids, State0);
-%%             _ ->
-%%                 NewState0
-%%         end,
-%%     {noreply, NewState1};
-%%
-%%
-%% handle_info({{_Pid, Node}, {error, Reason}}, #u_state{stage = ?STAGE_DAO_UPDATER_LOAD, stage_state = copy_beams} = State) ->
-%%     NewState0 = on_error({Node, Reason}, State),
-%%     {noreply, NewState0};
-%% handle_info({{_Pid, Node}, ok}, #u_state{stage = ?STAGE_DAO_UPDATER_LOAD, stage_state = copy_beams, data = Installed, nodes = All} = State) ->
-%%     NewInstalled = Installed ++ [Node],
-%%     NewState0 = State#u_state{data = NewInstalled},
-%%     NewState1 =
-%%         case All -- NewInstalled of
-%%             [] ->
-%%                 Self = self(),
-%%                 Pids = lists:map(fun(Node) -> spawn_link(fun() -> Self ! {{self(), Node}, call(Node, force_reload_module, [dao_update])} end) end, All),
-%%                 State0 = set_stage(?STAGE_DAO_UPDATER_LOAD, {load_beams, []}, NewState0),
-%%                 set_linked_procs(Pids, State0);
-%%             _ ->
-%%                 NewState0
-%%         end,
-%%     {noreply, NewState1};
-%%
-%%
-%% handle_info({{_Pid, Node}, {error, Reason}}, #u_state{stage = ?STAGE_DAO_UPDATER_LOAD, stage_state = load_beams} = State) ->
-%%     NewState0 = on_error({Node, Reason}, State),
-%%     {noreply, NewState0};
-%% handle_info({{_Pid, Node}, ok}, #u_state{stage = ?STAGE_DAO_UPDATER_LOAD, stage_state = load_beams, data = Installed, nodes = All, version = Vsn} = State) ->
-%%     NewInstalled = Installed ++ [Node],
-%%     NewState0 = State#u_state{data = NewInstalled},
-%%     NewState1 =
-%%         case All -- NewInstalled of
-%%             [] ->
-%%                 Self = self(),
-%%                 Pids = lists:map(fun(Node) -> spawn_link(fun() -> Self ! {{self(), Node}, call(Node, run_pre_update, [Vsn])} end) end, All),
-%%                 State0 = set_stage(?STAGE_DAO_UPDATER_LOAD, {pre_update, []}, NewState0),
-%%                 set_linked_procs(Pids, State0);
-%%             _ ->
-%%                 NewState0
-%%         end,
-%%     {noreply, NewState1};
-%%
-%%
-%% handle_info({{_Pid, Node}, {error, Reason}}, #u_state{stage = ?STAGE_DAO_UPDATER_LOAD, stage_state = pre_update} = State) ->
-%%     NewState0 = on_error({Node, Reason}, State),
-%%     {noreply, NewState0};
-%% handle_info({{_Pid, Node}, ok}, #u_state{stage = ?STAGE_DAO_UPDATER_LOAD, stage_state = pre_update, data = Installed, nodes = All} = State) ->
-%%     NewInstalled = Installed ++ [Node],
-%%     NewState0 = State#u_state{data = NewInstalled},
-%%     NewState1 =
-%%         case All -- NewInstalled of
-%%             [] ->
-%%                 Self = self(),
-%%                 Pids = lists:map(fun(Node) -> spawn_link(fun() -> Self ! {{self(), Node}, call(Node, install_view_sources, [])} end) end, All),
-%%                 State0 = set_stage(?STAGE_DAO_SETUP_VIEWS, {view_sources, []}, NewState0),
-%%                 set_linked_procs(Pids, State0);
-%%             _ ->
-%%                 NewState0
-%%         end,
-%%     {noreply, NewState1};
-%%
-%%
-%% handle_info({{_Pid, Node}, {error, Reason}}, #u_state{stage = ?STAGE_DAO_SETUP_VIEWS, stage_state = view_sources} = State) ->
-%%     NewState0 = on_error({Node, Reason}, State),
-%%     {noreply, NewState0};
-%% handle_info({{_Pid, Node}, ok}, #u_state{stage = ?STAGE_DAO_SETUP_VIEWS, stage_state = view_sources, data = Installed, nodes = All} = State) ->
-%%     NewInstalled = Installed ++ [Node],
-%%     NewState0 = State#u_state{data = NewInstalled},
-%%     NewState1 =
-%%         case All -- NewInstalled of
-%%             [] ->
-%%                 Self = self(),
-%%                 [TNode | _] = All,
-%%                 Pids = spawn_link(fun() -> Self ! {{self(), TNode}, call(TNode, install_views, [])} end),
-%%                 State0 = set_stage(?STAGE_DAO_SETUP_VIEWS, install_views, NewState0),
-%%                 set_linked_procs(Pids, State0);
-%%             _ ->
-%%                 NewState0
-%%         end,
-%%     {noreply, NewState1};
-%%
-%%
-%% handle_info({{_Pid, Node}, {error, Reason}}, #u_state{stage = ?STAGE_DAO_SETUP_VIEWS, stage_state = install_views} = State) ->
-%%     NewState0 = on_error({Node, Reason}, State),
-%%     {noreply, NewState0};
-%% handle_info({{_Pid, Node}, {ok, Views}}, #u_state{stage = ?STAGE_DAO_SETUP_VIEWS, stage_state = install_views, nodes = All} = State) ->
-%%     Self = self(),
-%%     [TNode | _] = All,
-%%     Pids = lists:map(fun(View) -> spawn_link(fun() -> Self ! {{self(), View}, call(TNode, refresh_view, [View])} end) end, Views),
-%%     State0 = set_stage(?STAGE_DAO_REFRESH_VIEWS, {none, {[], Views}}, State),
-%%     NewState = set_linked_procs(Pids, State0),
-%%
-%%     {noreply, NewState};
-%%
-%%
-%% handle_info({{_Pid, View}, {error, Reason}}, #u_state{stage = ?STAGE_DAO_REFRESH_VIEWS} = State) ->
-%%     NewState0 = on_error({View, Reason}, State),
-%%     self() ! {{_Pid, View}, ok},
-%%     {noreply, NewState0};
-%% handle_info({{_Pid, View}, ok}, #u_state{stage = ?STAGE_DAO_REFRESH_VIEWS, data = {Installed, All}, nodes = Nodes} = State) ->
-%%     NewInstalled = Installed ++ [View],
-%%     NewState0 = State#u_state{data = {NewInstalled, All}},
-%%     NewState1 =
-%%         case All -- NewInstalled of
-%%             [] ->
-%%                 Self = self(),
-%%                 Pids = lists:map(fun(Node) -> spawn_link(fun() -> Self ! {{self(), Node}, call(Node, backup_instalation, [])} end) end, Nodes),
-%%                 State0 = set_stage(?STAGE_DEPLOY_FILES, {backup, []}, NewState0),
-%%                 set_linked_procs(Pids, State0);
-%%             _ ->
-%%                 NewState0
-%%         end,
-%%     {noreply, NewState1};
-%%
-%%
-%% handle_info({{_Pid, Node}, {error, Reason}}, #u_state{stage = ?STAGE_DEPLOY_FILES} = State) ->
-%%     NewState0 = on_error({Node, Reason}, State),
-%%     {noreply, NewState0};
-%% handle_info({{_Pid, Node}, ok}, #u_state{stage = ?STAGE_DEPLOY_FILES, stage_state = backup, data = Installed, nodes = All} = State) ->
-%%     NewInstalled = Installed ++ [Node],
-%%     NewState0 = State#u_state{data = NewInstalled},
-%%     NewState1 =
-%%         case All -- NewInstalled of
-%%             [] ->
-%%                 Self = self(),
-%%                 Pids = lists:map(fun(Node) -> spawn_link(fun() -> Self ! {{self(), Node}, call(Node, move_all_files, [])} end) end, All),
-%%                 State0 = set_stage(?STAGE_DEPLOY_FILES, {do_delpoy, []}, NewState0),
-%%                 set_linked_procs(Pids, State0);
-%%             _ ->
-%%                 NewState0
-%%         end,
-%%     {noreply, NewState1};
-%%
-%%
-%% handle_info({{_Pid, Node}, {error, Reason}}, #u_state{stage = ?STAGE_DEPLOY_FILES} = State) ->
-%%     NewState0 = on_error({Node, Reason}, State),
-%%     {noreply, NewState0};
-%% handle_info({{_Pid, Node}, ok}, #u_state{stage = ?STAGE_DEPLOY_FILES, stage_state = do_delpoy, data = Installed, nodes = All} = State) ->
-%%     NewInstalled = Installed ++ [Node],
-%%     NewState0 = State#u_state{data = NewInstalled},
-%%     NewState1 =
-%%         case All -- NewInstalled of
-%%             [] ->
-%%                 Self = self(),
-%%                 Pids = lists:map(fun(Node) -> spawn_link(fun() -> Self ! {{self(), Node}, spawn(Node, updater_export, soft_reload_all_modules, [])} end) end, All),
-%%                 State0 = set_stage(?STAGE_SOFT_RELOAD, {none, []}, NewState0),
-%%                 set_linked_procs(Pids, State0);
-%%             _ ->
-%%                 NewState0
-%%         end,
-%%     {noreply, NewState1};
-%%
-%%
-%% handle_info({{_Pid, Node}, {error, Reason}}, #u_state{stage = ?STAGE_SOFT_RELOAD} = State) ->
-%%     NewState0 = on_error({Node, Reason}, State),
-%%     {noreply, NewState0};
-%% handle_info({{_Pid, Node}, {ok, ModMap}}, #u_state{stage = ?STAGE_SOFT_RELOAD, data = Installed, nodes = All} = State) ->
-%%     lager:info("ModMap on node ~p: ~p", [Node, ModMap]),
-%%     NewInstalled = Installed ++ [Node],
-%%     NewState0 = State#u_state{data = NewInstalled},
-%%     NewState1 =
-%%         case All -- NewInstalled of
-%%             [] ->
-%%                 Self = self(),
-%%                 Pids = lists:map(fun(Node) -> spawn_link(fun() -> Self ! {{self(), Node}, spawn(Node, updater_export, force_reload_all_modules, [])} end) end, select_only_workers(All)),
-%%                 State0 = set_stage(?STAGE_FORCE_RELOAD, {none, [], select_only_workers(All)}, NewState0),
-%%                 set_linked_procs(Pids, State0);
-%%             _ ->
-%%                 NewState0
-%%         end,
-%%     {noreply, NewState1};
-%%
-%%
-%% handle_info({{_Pid, Node}, {error, Reason}}, #u_state{stage = ?STAGE_FORCE_RELOAD} = State) ->
-%%     NewState0 = on_error({Node, Reason}, State),
-%%     {noreply, NewState0};
-%% handle_info({{_Pid, Node}, {ok, ModMap}}, #u_state{stage = ?STAGE_FORCE_RELOAD, data = {Installed, All}} = State) ->
-%%     NewInstalled = Installed ++ [Node],
-%%     NewState0 = State#u_state{data = {NewInstalled, All}},
-%%     NewState1 =
-%%         case All -- NewInstalled of
-%%             [] ->
-%%                 State0 = set_stage(?STAGE_IDLE, none, NewState0),
-%%                 set_linked_procs([], State0);
-%%             _ ->
-%%                 NewState0
-%%         end,
-%%     {noreply, NewState1};
-%%
-%% handle_info({'EXIT', _Pid, normal}, #u_state{} = State) ->
-%%     {noreply, State};
-%% handle_info({'EXIT', _Pid, Reason}, #u_state{} = State) ->
-%%     NewState = on_error(Reason, State),
-%%     {noreply, NewState};
-%% handle_info({_Pid, {error, Reason}}, #u_state{} = State) ->
-%%     NewState = on_error(Reason, State),
-%%     {noreply, NewState};
-%%
-%% handle_info(Info, State) ->
-%%     lager:info("[Updater] Unknown info: ~p", [Info]),
-%%     {noreply, State}.
 
 terminate(Reason, State) ->
     lager:info("[Updater] terminate: ~p", [Reason]),
@@ -574,24 +316,24 @@ code_change(OldVsn, State, Extra) ->
 %% Internal functions
 %% ====================================================================
 
-set_stage(Stage, {StageState, Data}, #u_state{stage = CurrStage, stage_history = History} = State) ->
-    lager:info("[Updater] Entering stage ~p -> ~p with data: ~p", [Stage, StageState, Data]),
-    State#u_state{stage = Stage, stage_history = History ++ [CurrStage], stage_state = StageState, linked_procs = [], data = Data};
-set_stage(Stage, StageState, #u_state{} = State) ->
-    set_stage(Stage, {StageState, undefined}, State).
-
-on_error(Error, #u_state{stage = Stage, error_stack = Stack} = State) ->
-    lager:error("[Updater] Error while processing stage ~p, reason ~p", [Stage, Error]),
-    State#u_state{error_stack = [#stage_error{stage = Stage, error = Error} | Stack]}.
-
-add_linked_procs(Pids, #u_state{linked_procs = Procs} = State) ->
-    State#u_state{linked_procs = Procs ++ Pids}.
-
-set_linked_procs(Pids, #u_state{} = State) ->
-    State#u_state{linked_procs = Pids}.
-
-remove_linked_procs(Pids, #u_state{linked_procs = Procs} = State) ->
-    State#u_state{linked_procs = Procs -- Pids}.
+%% set_stage(Stage, {StageState, Data}, #u_state{stage = CurrStage, stage_history = History} = State) ->
+%%     lager:info("[Updater] Entering stage ~p -> ~p with data: ~p", [Stage, StageState, Data]),
+%%     State#u_state{stage = Stage, stage_history = History ++ [CurrStage], stage_state = StageState, linked_procs = [], data = Data};
+%% set_stage(Stage, StageState, #u_state{} = State) ->
+%%     set_stage(Stage, {StageState, undefined}, State).
+%%
+%% on_error(Error, #u_state{stage = Stage, error_stack = Stack} = State) ->
+%%     lager:error("[Updater] Error while processing stage ~p, reason ~p", [Stage, Error]),
+%%     State#u_state{error_stack = [#stage_error{stage = Stage, error = Error} | Stack]}.
+%%
+%% add_linked_procs(Pids, #u_state{linked_procs = Procs} = State) ->
+%%     State#u_state{linked_procs = Procs ++ Pids}.
+%%
+%% set_linked_procs(Pids, #u_state{} = State) ->
+%%     State#u_state{linked_procs = Pids}.
+%%
+%% remove_linked_procs(Pids, #u_state{linked_procs = Procs} = State) ->
+%%     State#u_state{linked_procs = Procs -- Pids}.
 
 call(Node, Fun, Args) ->
     rpc:call(Node, updater_export, Fun, Args).
@@ -601,17 +343,10 @@ cast(Node, Fun, Args) ->
     Host = self(),
     spawn_link(Node, updater_export, runner, [Host, Fun, Args]).
 
-%% cast(Node, Fun, Args) ->
-%%     lager:info("Cast ~p ~p ~p", [Node, Fun, Args]),
-%%     Host = self(),
-%%     spawn_link(Node, fun() -> Host ! apply(updater_export, Fun, Args) end).
-
-
 multicast(Nodes, Fun, Args) ->
     lists:foreach(fun(Node) -> cast(Node, Fun, Args) end, Nodes).
 
 anycast(Nodes, Fun, Args) ->
-    Host = self(),
     Node = lists:nth(crypto:rand_uniform(1, length(Nodes) + 1), Nodes),
     cast(Node, Fun, Args).
 

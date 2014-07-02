@@ -15,7 +15,7 @@
 -include("spanel_modules/updater/common.hrl").
 
 %% API
--export([start/0, get_state/0, update_to/1]).
+-export([start/0, get_state/0, update_to/1, update_to/2, is_abortable/0, abort/0]).
 
 %% ====================================================================
 %% API functions
@@ -39,13 +39,26 @@ start() ->
             ok
     end.
 
+update_to(#version{} = Vsn) ->
+    update_to(Vsn, fun(Event, _State) -> ok end).
+
+%% CallbackFun(Event :: enter_stage | atom(), State :: #u_state{})
+update_to(#version{} = Vsn, CallbackFun) ->
+    start(),
+    gen_server:call({global, ?UPDATE_SERVICE}, {update_to, Vsn, CallbackFun}).
 
 get_state() ->
+    start(),
     gen_server:call({global, ?UPDATE_SERVICE}, get_state).
 
-update_to(#version{} = Vsn) ->
+abort() ->
     start(),
-    gen_server:call({global, ?UPDATE_SERVICE}, {update_to, Vsn}).
+    gen_server:call({global, ?UPDATE_SERVICE}, abort).
+
+
+is_abortable() ->
+    start(),
+    updater_state:is_abortable( gen_server:call({global, ?UPDATE_SERVICE}, get_state) ) .
 
 
 %% ====================================================================

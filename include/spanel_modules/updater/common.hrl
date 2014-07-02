@@ -53,8 +53,8 @@
 
 -record(version, {major = 0, minor = 0, patch = 0}).
 
--record(u_state, {stage = ?STAGE_IDLE, job, objects = [], object_data = [], previous_data = [], stage_state, stage_history = [], error_stack = [], linked_procs = [],
-    data, package, nodes = [], installed_views = [], not_reloaded_modules = [], workers = [], ccms = [], version = #version{}}).
+-record(u_state, {callback, stage = ?STAGE_IDLE, job, objects = [], object_data = #{}, previous_data = [], error_stack = [],
+    package, nodes = [], installed_views = [], error_counter = #{}, not_reloaded_modules = [], version = #version{}}).
 
 
 -record(package, {type = rpm, binary = <<>>}).
