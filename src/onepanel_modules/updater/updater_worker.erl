@@ -56,6 +56,8 @@ dispatch(Obj, #u_state{stage = Stage, job = Job} = State) ->
     lager:info("Dispatching ~p:~p obj: ~p", [Stage, Job, Obj]),
     {dispatch(Stage, Job, Obj, State), Obj}.
 
+dispatch(?STAGE_INIT, ?JOB_RELOAD_EXPORTS, Obj, State) ->
+    dispatch(?STAGE_INIT, ?JOB_LOAD_EXPORTS, Obj, State);
 dispatch(?STAGE_INIT, ?JOB_LOAD_EXPORTS, Obj, #u_state{}) ->
     Host = self(),
     Node = Obj,
@@ -124,10 +126,12 @@ handle_stage(#u_state{stage = Stage, job = Job} = State) ->
 handle_stage(?STAGE_IDLE, _, #u_state{} = _State) ->
     [];
 
+handle_stage(?STAGE_INIT, ?JOB_RELOAD_EXPORTS, #u_state{nodes = _Nodes} = State) ->
+    handle_stage(?STAGE_INIT, ?JOB_LOAD_EXPORTS, State);
 handle_stage(?STAGE_INIT, ?JOB_LOAD_EXPORTS, #u_state{nodes = Nodes} = State) ->
     default_dispatch_to_all_nodes(Nodes, State);
 
-handle_stage(?STAGE_INIT, ?JOB_DOWNLOAD_BINARY, #u_state{version = Vsn} = State) ->
+handle_stage(?STAGE_INIT, ?JOB_DOWNLOAD_BINARY, #u_state{version = Vsn} = _State) ->
     Pid = local_cast(fun() -> updater_repos:get_package(Vsn) end),
     [{Pid, package}];
 
@@ -137,13 +141,13 @@ handle_stage(?STAGE_INIT, ?JOB_INSTALL_PACKAGE, #u_state{nodes = Nodes} = State)
 handle_stage(?STAGE_DAO_UPDATER_LOAD, _, #u_state{nodes = Nodes} = State) ->
     default_dispatch_to_all_nodes(Nodes, State);
 
-handle_stage(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, #u_state{nodes = Nodes} = State) ->
+handle_stage(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, #u_state{nodes = _Nodes} = State) ->
     [dispatch(views, State)];
 
 handle_stage(?STAGE_DAO_SETUP_VIEWS, _, #u_state{nodes = Nodes} = State) ->
     default_dispatch_to_all_nodes(select_only_workers(Nodes), State);
 
-handle_stage(?STAGE_DAO_REFRESH_VIEWS, _, #u_state{nodes = Nodes, installed_views = Views} = State) ->
+handle_stage(?STAGE_DAO_REFRESH_VIEWS, _, #u_state{nodes = _Nodes, installed_views = Views} = State) ->
     Objects = Views,
     lists:map(fun(Obj) -> dispatch(Obj, State) end, Objects);
 
@@ -349,6 +353,7 @@ anycast(Nodes, Fun, Args) ->
     cast(Node, Fun, Args).
 
 load_module_to_remote(Node, Module) ->
+    code:purge(Module),
     code:load_file(Module),
     code:purge(Module),
     {Module, Bin, _FileName} = code:get_object_code(Module),
