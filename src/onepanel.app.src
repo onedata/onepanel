@@ -44,7 +44,7 @@
         {global_registry_url, "https://globalregistry.org:8443"},
         {default_username, <<"admin">>},
         {default_password, <<"password">>},
-        {multicast_address, {239, 255, 0, 5}},
+        {multicast_address, {239, 255, 0, 6}},
         {onepanel_sessions_cookie_ttl, 2592000} % 30 days
     ]}
 ]}.

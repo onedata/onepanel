@@ -545,7 +545,8 @@ veil_restart(Node) ->
     Mod = list_to_atom("install_" ++ NodeType),
     case rpc:call(OnePanelNode, Mod, restart, []) of
         {ok, _} ->
-            wait_for_node(Node, 30 * 1000);
+            wait_for_node(Node, 10 * 1000),
+            timer:sleep(30 * 1000);
         {error, _Reason} ->
             {error, {restart_fail, Node}}
     end.
@@ -554,6 +555,7 @@ veil_restart(Node) ->
 wait_for_node(_, Timeout) when Timeout < 0 ->
     {error, timeout};
 wait_for_node(Node, Timeout) when Timeout >= 0 ->
+    timer:sleep(100),
     case ping(Node, 100) of
         pong -> ok;
         _    -> wait_for_node(Node, Timeout - 100)
