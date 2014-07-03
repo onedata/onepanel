@@ -51,7 +51,7 @@ update_to(#version{} = Vsn, ForceNodeReboot, CallbackFun) ->
     gen_server:call({global, ?UPDATE_SERVICE}, {update_to, Vsn, ForceNodeReboot, CallbackFun}).
 
 
-set_callback(Fun) ->
+set_callback(Fun) when is_function(Fun) ->
     start(),
     gen_server:call({global, ?UPDATE_SERVICE}, {set_callback, Fun}).
 
