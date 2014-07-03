@@ -137,8 +137,8 @@ dispatch_object(?STAGE_DAO_POST_SETUP_VIEWS, ?JOB_CLEANUP_VIEWS, _Obj, #u_state{
     anycast(Nodes, remove_outdated_views, []);
 
 dispatch_object(?STAGE_NODE_RESTART, _, Obj, #u_state{}) ->
-    Host = Obj,
-    local_cast(fun() -> veil_restart(atom_to_list(Host)) end);
+    Node = Obj,
+    local_cast(fun() -> veil_restart(Node) end);
 
 dispatch_object(Stage, Job, Obj, #u_state{}) ->
     throw({unknown_dispatch, {Stage, Job, Obj}}).
@@ -153,8 +153,8 @@ rollback_object(?STAGE_DEPLOY_FILES, ?JOB_DEPLOY, Obj, #u_state{}) ->
     cast(Node, restore_instalation, []);
 
 rollback_object(?STAGE_REPAIR_NODES, _, Obj, #u_state{}) ->
-    Host = Obj,
-    local_cast(fun() -> veil_restart(atom_to_list(Host)) end);
+    Node = Obj,
+    local_cast(fun() -> veil_restart(Node) end);
 
 rollback_object(Stage, Job, Obj, #u_state{}) ->
     throw({unknown_dispatch, {Stage, Job, Obj}}).
@@ -215,8 +215,8 @@ handle_stage(?STAGE_FORCE_RELOAD, _, #u_state{nodes = Nodes} = _State) ->
 handle_stage(?STAGE_DAO_POST_SETUP_VIEWS, _, #u_state{} = _State) ->
     views_cleanup;
 
-handle_stage(?STAGE_NODE_RESTART, RestartHost, #u_state{} = _State) ->
-    RestartHost;
+handle_stage(?STAGE_NODE_RESTART, RestartNode, #u_state{} = _State) ->
+    RestartNode;
 
 handle_stage(Stage, Job, #u_state{}) ->
     throw({invalid_stage, {Stage, Job}}).
@@ -232,8 +232,8 @@ handle_rollback(#u_state{stage = Stage, job = Job} = State) ->
         Objects -> {Objects, State}
     end.
 
-handle_rollback(?STAGE_REPAIR_NODES, RepairHost, #u_state{}) ->
-    RepairHost;
+handle_rollback(?STAGE_REPAIR_NODES, RepairNode, #u_state{}) ->
+    RepairNode;
 
 handle_rollback(?STAGE_DEPLOY_FILES, ?JOB_DEPLOY, #u_state{nodes = Nodes} = State) ->
     {Nodes, State#u_state{nodes_to_repair = Nodes}};
@@ -331,7 +331,7 @@ handle_call({update_to, #version{} = Vsn, ForceNodeRestart, CallbackFun}, _From,
 
             NewState0 = State#u_state{action_type = install, warning_stack = [], error_stack = [], nodes = Workers ++ CCMs, version = Vsn, callback = CallbackFun, force_node_restart = ForceNodeRestart},
 
-            NewState2 = enter_stage(next_stage(State), NewState0),
+            NewState2 = enter_stage(next_stage(NewState0), NewState0),
 
             {reply, ok, NewState2};
         _ ->
@@ -518,7 +518,31 @@ normalize_error_reason(Reason) ->
     Reason.
 
 
-veil_restart(Host) ->
-    OnePanelNode = install_utils:get_node(Host),
+veil_restart(Node) ->
+    [NodeType, _] = string:tokens(atom_to_list(Node), "@"),
+    OnePanelNode = install_utils:get_node(install_utils:get_host(Node)),
+    Mod = list_to_atom("install_" ++ atom_to_list(NodeType)),
+    case rpc:call(OnePanelNode, Mod, restart, []) of
+        {ok, _} ->
+            wait_for_node(Node, 30 * 1000);
+        {error, _Reason} ->
+            {error, {restart_fail, Node}}
+    end.
 
-    ok.
+
+wait_for_node(_, Timeout) when Timeout < 0 ->
+    {error, timeout};
+wait_for_node(Node, Timeout) when Timeout >= 0 ->
+    case ping(Node, 100) of
+        pong -> ok;
+        _    -> wait_for_node(Node, Timeout - 100)
+    end.
+
+ping(Node, Timeout) ->
+    Host = self(),
+    Pid = spawn(fun() -> Host ! {self(), Node, net_adm:ping(Node)} end),
+    receive
+        {Pid, Node, Resp} -> Resp
+    after Timeout ->
+        pang
+    end.

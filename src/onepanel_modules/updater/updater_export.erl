@@ -146,7 +146,7 @@ purge() ->
 
 purge(Module) ->
     Modules = [Module],
-    lists:foreach(fun(Module) -> code:purge(Module) end, Modules).
+    lists:foreach(fun(Mod) -> code:purge(Mod) end, Modules).
 
 soft_reload_all_modules() ->
     ok = fix_code_path(),
@@ -156,7 +156,7 @@ soft_reload_all_modules() ->
         lists:map(
             fun(Mod) ->
                 purge(Mod),
-                lager:info("Mod1: ~p", [Mod]),
+                %lager:info("Mod1: ~p", [Mod]),
                 code:load_file(Mod),
                 {Mod, code:soft_purge(Mod)}
             end, Modules),
@@ -170,7 +170,7 @@ force_reload_modules(Modules, WaitFor) ->
     ModMap =
         lists:map(
             fun(Mod) ->
-                lager:info("Mod2: ~p", [Mod]),
+                %lager:info("Mod2: ~p", [Mod]),
                 %%purge(Mod),
                 code:load_file(Mod),
                 {Mod, purge(Mod)}
