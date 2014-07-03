@@ -91,14 +91,14 @@ install(Config) ->
 
         io:format("Checking configuration...       "),
         check_hosts(Node, Hosts),
-        io:format("\t[ OK ]\n"),
+        print_ok(),
 
         case StoragePaths of
             [] -> ok;
             _ ->
                 io:format("Checking storage availability..."),
                 check_storage_paths(Node, StoragePaths, Workers),
-                io:format("\t[ OK ]\n")
+                print_ok()
         end,
 
         io:format("Setting ulimits...              "),
@@ -107,18 +107,18 @@ install(Config) ->
             HostProcesses = proplists:get_value(Host, Processes, ?DEFAULT_PROCESSES),
             rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), install_utils, set_ulimits, [HostOpenFiles, HostProcesses])
         end, Hosts),
-        io:format("\t[ OK ]\n"),
+        print_ok(),
 
         case Dbs of
             [] -> ok;
             _ ->
                 io:format("Installing database nodes...    "),
                 execute(Node, install_db, install, [[{hosts, Dbs}]]),
-                io:format("\t[ OK ]\n"),
+                print_ok(),
 
                 io:format("Starting database nodes...      "),
                 execute(Node, install_db, start, [[{hosts, Dbs}]]),
-                io:format("\t[ OK ]\n")
+                print_ok()
         end,
 
         case MainCCM ++ OptCCMs of
@@ -126,7 +126,7 @@ install(Config) ->
             _ ->
                 io:format("Installing ccm nodes...         "),
                 execute(Node, install_ccm, install, [[{hosts, MainCCM ++ OptCCMs}]]),
-                io:format("\t[ OK ]\n"),
+                print_ok(),
 
                 io:format("Starting ccm nodes...           "),
                 case MainCCM of
@@ -135,7 +135,7 @@ install(Config) ->
                     _ ->
                         execute(Node, install_ccm, start, [[{main_ccm, erlang:hd(MainCCM)}, {opt_ccms, OptCCMs}]])
                 end,
-                io:format("\t[ OK ]\n")
+                print_ok()
         end,
 
         case Workers of
@@ -143,30 +143,34 @@ install(Config) ->
             _ ->
                 io:format("Installing worker nodes...      "),
                 execute(Node, install_worker, install, [[{hosts, Workers}]]),
-                io:format("\t[ OK ]\n"),
+                print_ok(),
 
                 io:format("Adding storage paths...         "),
                 lists:foreach(fun(StoragePath) ->
                     execute(Node, install_storage, add_storage_path, [Workers, StoragePath])
                 end, StoragePaths),
-                io:format("\t[ OK ]\n"),
+                print_ok(),
 
                 io:format("Starting worker nodes...        "),
                 execute(Node, install_worker, start, [[{workers, Workers}]]),
-                io:format("\t[ OK ]\n")
+                print_ok()
         end
     catch
         _:{config, Reason} when is_list(Reason) ->
-            io:format("\t[FAIL]\nConfiguration error: ~s\n", [Reason]),
+            print_error(),
+            io:format("Configuration error: ~s\n", [Reason]),
             halt(?EXIT_FAILURE);
         _:{hosts, ErrorHosts} when is_list(ErrorHosts) ->
-            io:format("\t[FAIL]\Operation failed on following hosts: ~s\n", [ErrorHosts]),
+            print_error(),
+            io:format("Operation failed on following hosts: ~s\n", [ErrorHosts]),
             halt(?EXIT_FAILURE);
         _:{exec, Reason} when is_list(Reason) ->
-            io:format("\t[FAIL]\Operation error: ~s\n", [Reason]),
+            print_error(),
+            io:format("Operation error: ~s\n", [Reason]),
             halt(?EXIT_FAILURE);
         _:_ ->
-            io:format("\t[FAIL]\nAn error occurred during operation.\n"),
+            print_error(),
+            io:format("An error occurred during operation.\n"),
             halt(?EXIT_FAILURE)
     end.
 
@@ -221,17 +225,17 @@ uninstall() ->
             _ ->
                 io:format("Stopping worker nodes...      "),
                 execute(Node, install_worker, stop, [[]]),
-                io:format("\t[ OK ]\n"),
+                print_ok(),
 
                 io:format("Removing storage paths...     "),
                 lists:foreach(fun(StoragePath) ->
                     execute(Node, install_storage, remove_storage_path, [Workers, StoragePath])
                 end, StoragePaths),
-                io:format("\t[ OK ]\n"),
+                print_ok(),
 
                 io:format("Uninstalling worker nodes...  "),
                 execute(Node, install_worker, uninstall, [[{hosts, Workers}]]),
-                io:format("\t[ OK ]\n")
+                print_ok()
         end,
 
         case CCMs of
@@ -239,11 +243,11 @@ uninstall() ->
             _ ->
                 io:format("Stopping ccm nodes...         "),
                 execute(Node, install_ccm, stop, [[]]),
-                io:format("\t[ OK ]\n"),
+                print_ok(),
 
                 io:format("Uninstalling ccm nodes...     "),
                 execute(Node, install_ccm, uninstall, [[{hosts, CCMs}]]),
-                io:format("\t[ OK ]\n")
+                print_ok()
         end,
 
         case Dbs of
@@ -251,21 +255,24 @@ uninstall() ->
             _ ->
                 io:format("Stopping database nodes...    "),
                 execute(Node, install_db, stop, [[]]),
-                io:format("\t[ OK ]\n"),
+                print_ok(),
 
                 io:format("Uninstalling database nodes..."),
                 execute(Node, install_db, uninstall, [[{hosts, Dbs}]]),
-                io:format("\t[ OK ]\n")
+                print_ok()
         end
     catch
         _:{hosts, Hosts} when is_list(Hosts) ->
-            io:format("\t[FAIL]\Operation failed on following hosts: ~s\n", [Hosts]),
+            print_error(),
+            io:format("Operation failed on following hosts: ~s\n", [Hosts]),
             halt(?EXIT_FAILURE);
         _:{exec, Reason} when is_list(Reason) ->
-            io:format("\t[FAIL]\Operation error: ~s\n", [Reason]),
+            print_error(),
+            io:format("Operation error: ~s\n", [Reason]),
             halt(?EXIT_FAILURE);
         _:_ ->
-            io:format("\t[FAIL]\nAn error occurred during operation.\n"),
+            print_error(),
+            io:format("An error occurred during operation.\n"),
             halt(?EXIT_FAILURE)
     end.
 
@@ -384,3 +391,23 @@ print_usage() ->
     io:format("\t--install <config file>\n"),
     io:format("\t--info\n"),
     io:format("\t--uninstall\n").
+
+
+%% print_ok/0
+%% ====================================================================
+%% @doc Prints ok information for given step.
+%% @end
+-spec print_ok() -> ok.
+%% ====================================================================
+print_ok() ->
+    io:format("\t[ OK ]\n").
+
+
+%% print_error/0
+%% ====================================================================
+%% @doc Prints error information for given step.
+%% @end
+-spec print_error() -> ok.
+%% ====================================================================
+print_error() ->
+    io:format("\t[FAIL]\n").
