@@ -69,14 +69,12 @@ dispatch_object(Obj, #u_state{stage = Stage, job = Job} = State) ->
 dispatch_object(?STAGE_INIT, ?JOB_RELOAD_EXPORTS, Obj, State) ->
     dispatch_object(?STAGE_INIT, ?JOB_LOAD_EXPORTS, Obj, State);
 dispatch_object(?STAGE_INIT, ?JOB_LOAD_EXPORTS, Obj, #u_state{}) ->
-    Host = self(),
     Node = Obj,
-    spawn_link(fun() -> Host ! {self(), load_module_to_remote(Node, updater_export)} end);
+    local_cast(fun() -> load_module_to_remote(Node, updater_export) end);
 
 dispatch_object(?STAGE_INIT, ?JOB_CHECK_CONNECTIVITY, Obj, #u_state{}) ->
-    Host = self(),
     Node = Obj,
-    spawn_link(fun() -> Host ! {self(), check_connectivity(Node)} end);
+    local_cast(fun() -> check_connectivity(Node) end);
 
 dispatch_object(?STAGE_INIT, ?JOB_DOWNLOAD_BINARY, _Obj, #u_state{version = Vsn}) ->
     local_cast(fun() -> updater_repos:get_package(Vsn) end);
