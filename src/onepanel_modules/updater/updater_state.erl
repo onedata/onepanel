@@ -11,7 +11,7 @@
 -module(updater_state).
 -author("Rafal Slota").
 
--include("onepanel_modules/updater/common.hrl").
+-include("onepanel_modules/updater/state.hrl").
 
 %% API
 -export([is_abortable/1, get_stage_and_job/1, get_all_stages/0, get_object_count/1, get_all_stages/1, get_error_stack/1]).
@@ -20,13 +20,13 @@
 %% API functions
 %% ====================================================================
 
-is_abortable(#u_state{}) ->
+is_abortable(#?u_state{}) ->
     true.
 
-get_stage_and_job(#u_state{stage = Stage, job = Job}) ->
+get_stage_and_job(#?u_state{stage = Stage, job = Job}) ->
     {Stage, Job}.
 
-get_all_stages(#u_state{nodes = Nodes, force_node_restart = ForceRestart, nodes_to_restart = NodesToRestart, nodes_to_repair = NodesToRepair}) ->
+get_all_stages(#?u_state{nodes = Nodes, force_node_restart = ForceRestart, nodes_to_restart = NodesToRestart, nodes_to_repair = NodesToRepair}) ->
 
     RestartJobs =
         case ForceRestart of
@@ -41,15 +41,15 @@ get_all_stages(#u_state{nodes = Nodes, force_node_restart = ForceRestart, nodes_
 get_all_stages() ->
     ?STAGES.
 
-get_object_count(#u_state{objects = Objects}) ->
+get_object_count(#?u_state{objects = Objects}) ->
     maps:size(Objects).
 
 
 %% Head is the latest error
 -type updater_error() :: {{Stage :: atom(), Job :: atom(), ActionType :: install | rollback}, Object :: any(), Reason :: any()}.
--spec get_error_stack(State :: #u_state{}) ->
+-spec get_error_stack(State :: #?u_state{}) ->
     {Errors :: [updater_error()], Warnings :: [updater_error()]}.
-get_error_stack(#u_state{error_stack = Errors, warning_stack = Warnings}) ->
+get_error_stack(#?u_state{error_stack = Errors, warning_stack = Warnings}) ->
     {lists:flatten([Errors]), lists:flatten([Warnings])}.
 
 

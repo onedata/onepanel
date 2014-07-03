@@ -11,6 +11,7 @@
 -module(updater_export).
 -author("Rafal Slota").
 -include("onepanel_modules/updater/common.hrl").
+-include("onepanel_modules/updater/internals.hrl").
 -include("onepanel_modules/install_logic.hrl").
 
 %% API

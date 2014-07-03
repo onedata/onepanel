@@ -15,6 +15,7 @@
 -include("registered_names.hrl").
 -include("onepanel_modules/install_logic.hrl").
 -include("onepanel_modules/db_logic.hrl").
+-include("onepanel_modules/updater/state.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
@@ -49,7 +50,9 @@ initialize(?GLOBAL_CONFIG_TABLE) ->
         _:Reason ->
             ?error("Cannot initialize global configuration table: ~p", [Reason]),
             {error, Reason}
-    end.
+    end;
+initialize(?UPDATER_STATE_TABLE) ->
+    ok.
 
 %% create/0
 %% ====================================================================
@@ -93,6 +96,15 @@ create() ->
             {atomic, ok} -> initialize(?GLOBAL_CONFIG_TABLE);
             {aborted, {already_exists, ?GLOBAL_CONFIG_TABLE}} -> ok;
             {aborted, GlobalConfigError} -> throw(GlobalConfigError)
+        end,
+        case mnesia:create_table(?UPDATER_STATE_TABLE, [
+            {attributes, record_info(fields, ?u_state)},
+            {record_name, ?u_state},
+            {disc_copies, [Node]}
+        ]) of
+            {atomic, ok} -> initialize(?UPDATER_STATE_TABLE);
+            {aborted, {already_exists, ?UPDATER_STATE_TABLE}} -> ok;
+            {aborted, UpdaterError} -> throw(UpdaterError)
         end,
         ok
     catch
