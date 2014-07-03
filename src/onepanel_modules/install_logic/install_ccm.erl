@@ -295,7 +295,7 @@ stop() ->
     try
         ?debug("Stopping CCM node."),
 
-        "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME ++ " | cut -d'\t' -f2 | awk '{print $2}'`"),
+        "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME ++ " | awk '{print $2}'`"),
         ok = install_utils:remove_node_from_config(ccm),
 
         {ok, Host}

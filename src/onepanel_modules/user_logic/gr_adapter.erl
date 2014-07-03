@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains global registry interaction functions.
+%% @doc: This module contains Global Registry interaction functions.
 %% It allows to create Certificate Signing Request and register in
 %% Global Registry.
 %% @end
@@ -52,7 +52,7 @@ create_csr(_, _, _) ->
 
 %% register/0
 %% ====================================================================
-%% @doc Registers provider in global registry. In case of successful
+%% @doc Registers provider in Global Registry. In case of successful
 %% registration generated private key and certificate are save on all
 %% hosts. Returns provider ID or an error.
 %% @end
