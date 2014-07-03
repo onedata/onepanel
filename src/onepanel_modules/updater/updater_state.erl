@@ -39,9 +39,9 @@ get_object_count(#u_state{objects = Objects}) ->
 
 
 %% Head is the latest error
--spec get_error_stack(State :: #u_state{}) -> [Reason :: any()].
+-spec get_error_stack(State :: #u_state{}) -> {CriticalErrors :: [Reason :: any()], Errors :: [Reason :: any()], Warnings :: [Reason :: any()]}.
 get_error_stack(#u_state{error_stack = Stack}) ->
-    lists:flatten([Stack]).
+    {lists:flatten([Stack]), [], []}.
 
 
 %% ====================================================================
