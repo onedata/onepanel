@@ -6,6 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc: This module contains n2o website code
+%% The page handles VeilCluster installation.
 %% @end
 %% ===================================================================
 
