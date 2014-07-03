@@ -119,7 +119,7 @@ event(change_password) ->
                     gui_jq:fade_out(<<"error_message">>, 300),
                     gui_jq:fade_in(<<"ok_message">>, 300),
                     lists:foreach(fun(PasswordBoxId) ->
-                        gui_jq:set_value(PasswordBoxId, <<"">>)
+                        gui_jq:set_value(PasswordBoxId, <<"''">>)
                     end, [<<"old_password">>, <<"new_password">>, <<"confirm_password">>]);
                 {error, ErrorId} ->
                     gui_jq:update(<<"error_message">>, onepanel_gui_utils:get_error_message(binary_to_atom(gui_str:to_binary(ErrorId), latin1))),
