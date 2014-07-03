@@ -32,6 +32,12 @@
 %% API functions
 %% ====================================================================
 
+get_error_level(?STAGE_NODE_RESTART, _Job, _Object, _Reason, _State) ->
+    warning;
+get_error_level(_Stage, _Job, _Object, _Reason, _State) ->
+    error.
+
+
 finalize_stage(#u_state{stage = Stage, job = Job} = State) ->
     finalize_stage(Stage, Job, State).
 
@@ -164,7 +170,7 @@ handle_stage(?STAGE_INIT, ?JOB_CHECK_CONNECTIVITY, #u_state{nodes = Nodes} = _St
     OnePanelNodes = [install_utils:get_node(Host) || Host <- Hostnames],
     Nodes ++ OnePanelNodes;
 
-handle_stage(?STAGE_INIT, ?JOB_DOWNLOAD_BINARY, #u_state{version = Vsn} = _State) ->
+handle_stage(?STAGE_INIT, ?JOB_DOWNLOAD_BINARY, #u_state{} = _State) ->
     package;
 
 handle_stage(?STAGE_INIT, ?JOB_INSTALL_PACKAGE, #u_state{nodes = Nodes} = _State) ->
@@ -300,7 +306,7 @@ handle_call({update_to, #version{} = Vsn, ForceNodeRestart, CallbackFun}, _From,
             %%?info("Installed workers ~p", [Workers]),
             %%?info("Installed CCMs ~p", [CCMs]),
 
-            NewState0 = State#u_state{action_type = install, error_stack = [], nodes = Workers ++ CCMs, version = Vsn, callback = CallbackFun, force_node_restart = ForceNodeRestart},
+            NewState0 = State#u_state{action_type = install, warning_stack = [], error_stack = [], nodes = Workers ++ CCMs, version = Vsn, callback = CallbackFun, force_node_restart = ForceNodeRestart},
 
             NewState2 = enter_stage(next_stage(State), NewState0),
 
@@ -385,20 +391,28 @@ handle_info(Unknown, #u_state{} = State) ->
     ?info("Unknown info ~p", [Unknown]),
     {noreply, State}.
 
-handle_error(_, Obj, Reason, #u_state{error_counter = EC, objects = Objects, error_stack = EStack, callback = CallbackFun} = State) ->
+handle_error(Pid, Obj, Reason, #u_state{error_counter = EC, objects = Objects,
+                                callback = CallbackFun,
+                                stage = Stage, job = Job, action_type = ActionType} = State) ->
     ErrorCount = maps:get(Obj, EC),
     if
         ErrorCount < 3 ->
             {NewPid, Obj} = dispatch_object(Obj, State),
             State#u_state{objects = maps:put(NewPid, Obj, Objects)};
         true ->
-            ?error("Critical error ~p: ~p", [Obj, Reason]),
-
-            NewState0 = State#u_state{objects = #{}, error_stack = [Reason | EStack]},
-            NewState1 = init_rollback(NewState0),
-            NewState2 = insert_error(critical, Reason, NewState1),
-            CallbackFun(error, NewState2),
-            enter_stage(updater_state:get_stage_and_job(NewState2), NewState2)
+            ErrorLevel = get_error_level(Stage, Job, Obj, Reason, State),
+            case ActionType =:= rollback orelse ErrorLevel =:= warning of
+                true ->
+                    NewState0 = insert_warning(Obj, Reason, State),
+                    handle_info({Pid, ok}, NewState0);
+                false ->
+                    ?error("Critical error ~p: ~p", [Obj, Reason]),
+                    NewState0 = State,
+                    NewState1 = init_rollback(NewState0),
+                    NewState2 = insert_error(Obj, Reason, NewState1),
+                    CallbackFun(error, NewState2),
+                    enter_stage(updater_state:get_stage_and_job(NewState2), NewState2)
+            end
     end.
 
 
@@ -468,7 +482,17 @@ check_connectivity(Node) ->
     end.
 
 init_rollback(#u_state{} = State) ->
-    State#u_state{action_type = rollback}.
+    State#u_state{action_type = rollback, objects = #{}}.
 
-insert_error(critical, Reason, #u_state{stage = Stage, job = Job, action_type = ActionType, error_stack = EC} = State)  ->
-    State#u_state{error_stack = [{{Stage, Job, ActionType}, Reason} | EC]}.
+
+insert_error(Obj, Reason, #u_state{stage = Stage, job = Job, action_type = ActionType, error_stack = EC} = State)  ->
+    State#u_state{error_stack = [{{Stage, Job, ActionType}, Obj, normalize_error_reason(Reason)} | EC]}.
+
+insert_warning(Obj, Reason, #u_state{stage = Stage, job = Job, action_type = ActionType, warning_stack = EC} = State)  ->
+    State#u_state{warning_stack = [{{Stage, Job, ActionType}, Obj, normalize_error_reason(Reason)} | EC]}.
+
+
+normalize_error_reason({error, Reason}) ->
+    normalize_error_reason(Reason);
+normalize_error_reason(Reason) ->
+    Reason.

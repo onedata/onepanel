@@ -28,6 +28,7 @@
 -define(STAGE_NODE_RESTART, node_restart).
 -define(STAGE_ROLLBACK, rollback).
 -define(STAGE_DAO_POST_SETUP_VIEWS, dao_post_setup_views).
+-define(STAGE_REPAIR_NODES, repair_nodes).
 
 
 -define(JOB_DOWNLOAD_BINARY, download_binary).
@@ -46,6 +47,7 @@
 -define(JOB_CHECK_CONNECTIVITY, check_connectivity).
 
 -define(STAGES, [
+    {?STAGE_REPAIR_NODES, []}, %% Dynamic job list (known after STAGE_DEPLOY_FILES) !
     {?STAGE_INIT, [?JOB_CHECK_CONNECTIVITY, ?JOB_DOWNLOAD_BINARY, ?JOB_LOAD_EXPORTS, ?JOB_INSTALL_PACKAGE, ?JOB_RELOAD_EXPORTS]},
     {?STAGE_DAO_UPDATER_LOAD, [?JOB_MOVE_BEAMS, ?JOB_LOAD_BEAMS, ?JOB_PRE_UPDATE]},
     {?STAGE_DAO_SETUP_VIEWS, [?JOB_INSTALL_VIEW_SOURCES, ?JOB_INSTALL_VIEWS]},
@@ -62,7 +64,7 @@
 -record(version, {major = 0, minor = 0, patch = 0}).
 
 -record(u_state, {action_type = install, nodes_to_restart = [], force_node_restart = false, callback, stage = ?STAGE_IDLE, job, objects = [], object_data = #{}, previous_data = [], error_stack = [],
-    package, nodes = [], installed_views = [], error_counter = #{}, not_reloaded_modules = [], version = #version{}}).
+    warning_stack = [], package, nodes = [], installed_views = [], error_counter = #{}, not_reloaded_modules = [], version = #version{}}).
 
 
 -record(package, {type = rpm, binary = <<>>}).
