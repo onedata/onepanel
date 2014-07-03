@@ -64,6 +64,9 @@ init([]) ->
         ok = gen_udp:controlling_process(Socket, self()),
         ok = gen_udp:send(Socket, Address, Port, net_adm:localhost()),
         erlang:send_after(Period * 1000, self(), connection_ping),
+
+        timer:send_after(1000, start_updater),
+
         {ok, #state{status = not_connected, socket = Socket, address = Address, port = Port}}
     catch
         _:_ -> {stop, initialization_error}
@@ -153,6 +156,11 @@ handle_info(connection_ping, #state{status = not_connected, socket = Socket, add
     {noreply, State};
 
 handle_info(connection_ping, State) ->
+    {noreply, State};
+
+handle_info(start_updater, State) ->
+    updater:start(),
+    timer:send_after(60 * 1000, start_updater),
     {noreply, State};
 
 handle_info(Info, State) ->

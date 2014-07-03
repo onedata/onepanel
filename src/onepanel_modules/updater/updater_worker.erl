@@ -45,64 +45,73 @@ finalize_stage(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, #u_state{previous_dat
 finalize_stage(?STAGE_SOFT_RELOAD, ?JOB_DEFAULT, #u_state{previous_data = PData} = State) ->
     ModMap = maps:to_list(PData),
     NotReloaded = [{Node, [Module || {Module, false} <- IModMap]} || {Node, IModMap} <- ModMap],
-    lager:info("Not-reloaded modules: ~p", [ModMap]),
+    lager:info("Not-reloaded modules: ~p", [NotReloaded]),
     State#u_state{not_reloaded_modules = maps:from_list(NotReloaded)};
+finalize_stage(?STAGE_DEPLOY_FILES, ?JOB_DEPLOY, #u_state{nodes = Nodes, previous_data = PData, force_node_restart = ForceRestart} = State) ->
+    LMap = maps:to_list(PData),
+    ToRestart =
+        case ForceRestart of
+            true -> Nodes;
+            _    -> [Node || {Node, true} <- LMap]
+        end,
+    lager:info("Nodes to restart: ~p", [ToRestart]),
+    State#u_state{nodes_to_restart = ToRestart};
 finalize_stage(Stage, Job, State) ->
     lager:debug("Unknown finalize: ~p:~p", [Stage, Job]),
     State.
 
 
-dispatch(Obj, #u_state{stage = Stage, job = Job} = State) ->
+dispatch_object(Obj, #u_state{stage = Stage, job = Job} = State) ->
     lager:info("Dispatching ~p:~p obj: ~p", [Stage, Job, Obj]),
-    {dispatch(Stage, Job, Obj, State), Obj}.
+    {dispatch_object(Stage, Job, Obj, State), Obj}.
 
-dispatch(?STAGE_INIT, ?JOB_RELOAD_EXPORTS, Obj, State) ->
-    dispatch(?STAGE_INIT, ?JOB_LOAD_EXPORTS, Obj, State);
-dispatch(?STAGE_INIT, ?JOB_LOAD_EXPORTS, Obj, #u_state{}) ->
+dispatch_object(?STAGE_INIT, ?JOB_RELOAD_EXPORTS, Obj, State) ->
+    dispatch_object(?STAGE_INIT, ?JOB_LOAD_EXPORTS, Obj, State);
+dispatch_object(?STAGE_INIT, ?JOB_LOAD_EXPORTS, Obj, #u_state{}) ->
     Host = self(),
     Node = Obj,
     spawn_link(fun() -> Host ! {self(), load_module_to_remote(Node, updater_export)} end);
 
-dispatch(?STAGE_INIT, ?JOB_INSTALL_PACKAGE, Obj, #u_state{package = Pkg}) ->
+dispatch_object(?STAGE_INIT, ?JOB_INSTALL_PACKAGE, Obj, #u_state{package = Pkg}) ->
     Node = Obj,
     cast(Node, install_package, [Pkg]);
 
-dispatch(?STAGE_DAO_UPDATER_LOAD, ?JOB_MOVE_BEAMS, Obj, #u_state{}) ->
+dispatch_object(?STAGE_DAO_UPDATER_LOAD, ?JOB_MOVE_BEAMS, Obj, #u_state{}) ->
     Node = Obj,
     cast(Node, move_file, ["dao_update.beam"]);
 
-dispatch(?STAGE_DAO_UPDATER_LOAD, ?JOB_LOAD_BEAMS, Obj, #u_state{}) ->
+dispatch_object(?STAGE_DAO_UPDATER_LOAD, ?JOB_LOAD_BEAMS, Obj, #u_state{}) ->
     Node = Obj,
     cast(Node, force_reload_module, [dao_update]);
 
-dispatch(?STAGE_DAO_UPDATER_LOAD, ?JOB_PRE_UPDATE, Obj, #u_state{version = Vsn}) ->
+dispatch_object(?STAGE_DAO_UPDATER_LOAD, ?JOB_PRE_UPDATE, Obj, #u_state{version = Vsn}) ->
     Node = Obj,
     cast(Node, run_pre_update, [Vsn]);
 
-dispatch(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEW_SOURCES, Obj, #u_state{}) ->
+dispatch_object(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEW_SOURCES, Obj, #u_state{}) ->
     Node = Obj,
     cast(Node, install_view_sources, []);
 
-dispatch(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, _Obj, #u_state{nodes = Nodes}) ->
+dispatch_object(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, _Obj, #u_state{nodes = Nodes}) ->
     anycast(Nodes, install_views, []);
 
-dispatch(?STAGE_DAO_REFRESH_VIEWS, ?JOB_DEFAULT, Obj, #u_state{nodes = Nodes}) ->
+dispatch_object(?STAGE_DAO_REFRESH_VIEWS, ?JOB_DEFAULT, Obj, #u_state{nodes = Nodes}) ->
     View = Obj,
     anycast(Nodes, refresh_view, [View]);
 
-dispatch(?STAGE_DEPLOY_FILES, ?JOB_BACKUP, Obj, #u_state{}) ->
+dispatch_object(?STAGE_DEPLOY_FILES, ?JOB_BACKUP, Obj, #u_state{}) ->
     Node = Obj,
     cast(Node, backup_instalation, []);
 
-dispatch(?STAGE_DEPLOY_FILES, ?JOB_DEPLOY, Obj, #u_state{}) ->
+dispatch_object(?STAGE_DEPLOY_FILES, ?JOB_DEPLOY, Obj, #u_state{}) ->
     Node = Obj,
     cast(Node, move_all_files, []);
 
-dispatch(?STAGE_SOFT_RELOAD, ?JOB_DEFAULT, Obj, #u_state{}) ->
+dispatch_object(?STAGE_SOFT_RELOAD, ?JOB_DEFAULT, Obj, #u_state{}) ->
     Node = Obj,
     cast(Node, soft_reload_all_modules, []);
 
-dispatch(?STAGE_FORCE_RELOAD, ?JOB_DEFAULT, Obj, #u_state{not_reloaded_modules = NotReloaded}) ->
+dispatch_object(?STAGE_FORCE_RELOAD, ?JOB_DEFAULT, Obj, #u_state{not_reloaded_modules = NotReloaded}) ->
     Node = Obj,
     WaitTime =
         case length(maps:get(Node, NotReloaded)) of
@@ -111,12 +120,23 @@ dispatch(?STAGE_FORCE_RELOAD, ?JOB_DEFAULT, Obj, #u_state{not_reloaded_modules =
         end,
     cast(Node, force_reload_modules, [maps:get(Node, NotReloaded), WaitTime]);
 
-dispatch(?STAGE_DAO_POST_SETUP_VIEWS, ?JOB_CLEANUP_VIEWS, _Obj, #u_state{nodes = Nodes}) ->
+dispatch_object(?STAGE_DAO_POST_SETUP_VIEWS, ?JOB_CLEANUP_VIEWS, _Obj, #u_state{nodes = Nodes}) ->
     anycast(Nodes, remove_outdated_views, []);
 
-dispatch(Stage, Job, Obj, #u_state{}) ->
+dispatch_object(Stage, Job, Obj, #u_state{}) ->
     throw({unknown_dispatch, {Stage, Job, Obj}}).
 
+
+rollback_object(Obj, #u_state{stage = Stage, job = Job} = State) ->
+    lager:info("Rollbacking ~p:~p obj: ~p", [Stage, Job, Obj]),
+    {rollback_object(Stage, Job, Obj, State), Obj}.
+
+rollback_object(?STAGE_DEPLOY_FILES, ?JOB_BACKUP, Obj, #u_state{}) ->
+    Node = Obj,
+    cast(Node, restore_instalation, []);
+
+rollback_object(Stage, Job, Obj, #u_state{}) ->
+    throw({unknown_dispatch, {Stage, Job, Obj}}).
 
 
 handle_stage(#u_state{stage = Stage, job = Job} = State) ->
@@ -129,61 +149,82 @@ handle_stage(?STAGE_IDLE, _, #u_state{} = _State) ->
 handle_stage(?STAGE_INIT, ?JOB_RELOAD_EXPORTS, #u_state{nodes = _Nodes} = State) ->
     handle_stage(?STAGE_INIT, ?JOB_LOAD_EXPORTS, State);
 handle_stage(?STAGE_INIT, ?JOB_LOAD_EXPORTS, #u_state{nodes = Nodes} = State) ->
-    default_dispatch_to_all_nodes(Nodes, State);
+    default_dispatch_to_all_nodes(Nodes, State, fun dispatch_object/2);
 
 handle_stage(?STAGE_INIT, ?JOB_DOWNLOAD_BINARY, #u_state{version = Vsn} = _State) ->
     Pid = local_cast(fun() -> updater_repos:get_package(Vsn) end),
     [{Pid, package}];
 
 handle_stage(?STAGE_INIT, ?JOB_INSTALL_PACKAGE, #u_state{nodes = Nodes} = State) ->
-    default_dispatch_to_all_nodes(select_only_workers(Nodes), State);
+    default_dispatch_to_all_nodes(select_only_workers(Nodes), State, fun dispatch_object/2);
 
 handle_stage(?STAGE_DAO_UPDATER_LOAD, _, #u_state{nodes = Nodes} = State) ->
-    default_dispatch_to_all_nodes(Nodes, State);
+    default_dispatch_to_all_nodes(Nodes, State, fun dispatch_object/2);
 
 handle_stage(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, #u_state{nodes = _Nodes} = State) ->
-    [dispatch(views, State)];
+    [dispatch_object(views, State)];
 
 handle_stage(?STAGE_DAO_SETUP_VIEWS, _, #u_state{nodes = Nodes} = State) ->
-    default_dispatch_to_all_nodes(select_only_workers(Nodes), State);
+    default_dispatch_to_all_nodes(select_only_workers(Nodes), State, fun dispatch_object/2);
 
 handle_stage(?STAGE_DAO_REFRESH_VIEWS, _, #u_state{nodes = _Nodes, installed_views = Views} = State) ->
     Objects = Views,
-    lists:map(fun(Obj) -> dispatch(Obj, State) end, Objects);
+    lists:map(fun(Obj) -> dispatch_object(Obj, State) end, Objects);
 
 handle_stage(?STAGE_DEPLOY_FILES, _, #u_state{nodes = Nodes} = State) ->
-    default_dispatch_to_all_nodes(Nodes, State);
+    default_dispatch_to_all_nodes(Nodes, State, fun dispatch_object/2);
 
 handle_stage(?STAGE_SOFT_RELOAD, _, #u_state{nodes = Nodes} = State) ->
-    default_dispatch_to_all_nodes(Nodes, State);
+    default_dispatch_to_all_nodes(Nodes, State, fun dispatch_object/2);
 
 handle_stage(?STAGE_FORCE_RELOAD, _, #u_state{nodes = Nodes} = State) ->
-    default_dispatch_to_all_nodes(Nodes, State);
+    default_dispatch_to_all_nodes(Nodes, State, fun dispatch_object/2);
 
 handle_stage(?STAGE_DAO_POST_SETUP_VIEWS, _, #u_state{} = State) ->
-    [dispatch(views_cleanup, State)];
+    [dispatch_object(views_cleanup, State)];
+
+handle_stage(?STAGE_NODE_RESTART, _, #u_state{} = State) ->
+    [dispatch_object(restart, State)];
 
 handle_stage(Stage, Job, #u_state{}) ->
     throw({invalid_stage, {Stage, Job}}).
 
+handle_rollback(#u_state{stage = Stage, job = Job} = State) ->
+    handle_rollback(Stage, Job, State).
 
-default_dispatch_to_all_nodes(Nodes, #u_state{} = State) ->
+handle_rollback(?STAGE_DEPLOY_FILES, ?JOB_BACKUP, #u_state{nodes = Nodes} = State) ->
+    default_dispatch_to_all_nodes(Nodes, State, fun rollback_object/2);
+
+handle_rollback(_Stage, _Job, #u_state{}) ->
+    [].
+
+
+
+default_dispatch_to_all_nodes(Nodes, #u_state{} = State, DispatchFun) ->
     Objects = Nodes,
-    lists:map(fun(Obj) -> dispatch(Obj, State) end, Objects).
+    lists:map(fun(Obj) -> DispatchFun(Obj, State) end, Objects).
+
+previous_stage(#u_state{stage = ?STAGE_IDLE, job = _}) ->
+    {?STAGE_IDLE, ?JOB_DEFAULT};
+previous_stage(#u_state{stage = Stage, job = Job} = State) ->
+    Stages = [{?STAGE_IDLE, ?JOB_DEFAULT}] ++ flatten_stages(updater_state:get_all_stages(State)),
+    PrevStages =
+        lists:takewhile(
+            fun({CStage, CJob}) ->
+                {CStage, CJob} =/= {Stage, Job}
+            end, Stages),
+    lists:last(PrevStages).
 
 
-next_stage(#u_state{stage = Stage, job = Job}) ->
-    next_stage(Stage, Job).
-
-next_stage(?STAGE_IDLE, _) ->
-    [{Stage, Job} | _] = flatten_stages(?STAGES),
+next_stage(#u_state{stage = ?STAGE_IDLE, job = _} = State) ->
+    [{Stage, Job} | _] = flatten_stages(updater_state:get_all_stages(State)),
     {Stage, Job};
-next_stage(Stage, Job) ->
+next_stage(#u_state{stage = Stage, job = Job} = State) ->
     [_, {NStage, NJob} | _] =
         lists:dropwhile(
             fun({CStage, CJob}) ->
                 {CStage, CJob} =/= {Stage, Job}
-            end, flatten_stages(?STAGES) ++ [{?STAGE_IDLE, ?JOB_DEFAULT}]),
+            end, flatten_stages(updater_state:get_all_stages(State)) ++ [{?STAGE_IDLE, ?JOB_DEFAULT}]),
     {NStage, NJob}.
 
 
@@ -193,7 +234,20 @@ enter_stage({Stage, Job}, #u_state{object_data = ObjData, callback = CFun} = Sta
     NewState1 = NewState0#u_state{stage = Stage, job = Job, objects = #{}, error_stack = [], error_counter = #{}, object_data = #{}},
     NewState2 = NewState1#u_state{objects = maps:from_list( lists:flatten( [handle_stage(NewState1)] ) )},
     CFun(enter_stage, NewState2),
-    NewState2.
+    case maps:size(NewState2#u_state.objects) =:= 0 andalso Stage =/= ?STAGE_IDLE of
+        true -> enter_stage(next_stage(State), State);
+        _    -> NewState2
+    end.
+
+rollback_stage({Stage, Job}, #u_state{callback = CFun} = State) ->
+    lager:info("Rollbacking stage ~p:~p...", [Stage, Job]),
+    NewState0 = State#u_state{stage = Stage, job = Job, objects = #{}, error_stack = [], error_counter = #{}, object_data = #{}},
+    NewState1 = NewState0#u_state{objects = maps:from_list( lists:flatten( [handle_rollback(NewState0)] ) )},
+    CFun(rollback_stage, NewState1),
+    case maps:size(NewState1#u_state.objects) =:= 0 andalso Stage =/= ?STAGE_IDLE of
+        true -> rollback_stage(previous_stage(State), State);
+        _    -> NewState1
+    end.
 
 
 local_cast(Fun) ->
@@ -221,24 +275,29 @@ handle_call(abort, _From, State) ->
     {reply, ok, State};
 
 handle_call({update_to, #version{} = Vsn, ForceNodeRestart, CallbackFun}, _From, #u_state{stage = ?STAGE_IDLE} = State) ->
+    case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+        {ok, #?GLOBAL_CONFIG_RECORD{workers = InstalledWorkers, opt_ccms = OptCCM, main_ccm = MCCM}} ->
+            {WorkerHosts, CCMHosts} = {InstalledWorkers, OptCCM ++ [MCCM]},
+            Workers = [list_to_atom(?DEFAULT_WORKER_NAME ++ "@" ++ Host) || Host <- WorkerHosts],
+            CCMs = [list_to_atom(?DEFAULT_CCM_NAME ++ "@" ++ Host) || Host <- CCMHosts],
 
-    {WorkerHosts, CCMHosts} =
-        case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-            {ok, #?GLOBAL_CONFIG_RECORD{workers = InstalledWorkers, opt_ccms = OptCCM, main_ccm = MCCM}} ->
-                {InstalledWorkers, OptCCM ++ [MCCM]};
-            _ -> []
-        end,
-    Workers = [list_to_atom(?DEFAULT_WORKER_NAME ++ "@" ++ Host) || Host <- WorkerHosts],
-    CCMs = [list_to_atom(?DEFAULT_CCM_NAME ++ "@" ++ Host) || Host <- CCMHosts],
+            lager:info("Installed workers ~p", [Workers]),
+            lager:info("Installed CCMs ~p", [CCMs]),
 
-    lager:info("Installed workers ~p", [Workers]),
-    lager:info("Installed CCMs ~p", [CCMs]),
+            NewState0 = State#u_state{stage_runner = fun enter_stage/2, error_stack = [], nodes = Workers ++ CCMs, version = Vsn, callback = CallbackFun, force_node_restart = ForceNodeRestart},
 
-    NewState0 = State#u_state{error_stack = [], nodes = Workers ++ CCMs, version = Vsn, callback = CallbackFun, force_node_restart = ForceNodeRestart},
+            NewState2 = enter_stage(next_stage(State), NewState0),
 
-    NewState2 = enter_stage(next_stage(State), NewState0),
+            {reply, ok, NewState2};
+        _ ->
+            {reply, {error, no_nodes}, State}
+    end;
 
-    {reply, ok, NewState2};
+handle_call(abort, _From, #u_state{stage = ?STAGE_IDLE} = State) ->
+    {reply, ok, State};
+handle_call(abort, _From, #u_state{stage = Stage, job = Job} = State) ->
+    NewState = State#u_state{stage_runner = fun rollback_stage/2, objects = #{}},
+    {reply, ok, rollback_stage({Stage, Job}, NewState)};
 
 
 handle_call({update_to, #version{}, _, _}, _From, #u_state{stage = _Stage} = State) ->
@@ -253,12 +312,12 @@ handle_cast(Info, State) ->
     {noreply, State}.
 
 
-handle_info({Pid, ok}, #u_state{objects = Objects, callback = CallbackFun} = State) ->
+handle_info({Pid, ok}, #u_state{objects = Objects, callback = CallbackFun, stage_runner = Runner} = State) ->
     NObjects = maps:remove(Pid, Objects),
     CallbackFun(update_objects, State),
     NState =
         case {maps:size(NObjects), maps:size(Objects)} of
-            {0, 1}  -> enter_stage(next_stage(State), State);
+            {0, 1}  -> Runner(next_stage(State), State);
             _  -> State#u_state{objects = NObjects}
         end,
     {noreply, NState};
@@ -313,13 +372,14 @@ handle_error(_, Obj, Reason, #u_state{error_counter = EC, objects = Objects, err
     ErrorCount = maps:get(Obj, EC),
     if
         ErrorCount < 3 ->
-            {NewPid, Obj} = dispatch(Obj, State),
+            {NewPid, Obj} = dispatch_object(Obj, State),
             State#u_state{objects = maps:put(NewPid, Obj, Objects)};
         true ->
             lager:error("Critical error ~p: ~p", [Obj, Reason]),
-            NewState = State#u_state{stage = ?STAGE_IDLE, job = ?JOB_DEFAULT, objects = #{}, error_stack = [Reason | EStack]},
+            Runner = fun rollback_stage/2,
+            NewState = State#u_state{stage_runner = Runner, objects = #{}, error_stack = [Reason | EStack]},
             CallbackFun(error, NewState),
-            NewState
+            Runner(updater_state:get_stage_and_job(State), State)
     end.
 
 

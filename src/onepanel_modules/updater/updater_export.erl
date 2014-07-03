@@ -62,10 +62,18 @@ run_pre_update(Version) ->
 %% ====================================================================
 
 backup_instalation() ->
-    ok.
+    NodeRoot = filename:join([?DEFAULT_NODES_INSTALL_PATH, get_node_subpath()]),
+    case os:cmd("cp -rf " ++ NodeRoot ++ " " ++ NodeRoot ++ ".bak") of
+        "" -> ok;
+        Reason -> {error, Reason}
+    end.
 
 revert_instalation() ->
-    ok.
+    NodeRoot = filename:join([?DEFAULT_NODES_INSTALL_PATH, get_node_subpath()]),
+    case os:cmd("cp -rf " ++ NodeRoot ++ ".bak" ++ " " ++ NodeRoot) of
+        "" -> ok;
+        Reason -> {error, Reason}
+    end.
 
 move_file(File) ->
     RelPrivPath = filename:join([?VEIL_RELEASE, "lib", get_release_name()]),
