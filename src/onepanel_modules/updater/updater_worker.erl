@@ -284,7 +284,7 @@ enter_stage({Stage, Job}, #?u_state{object_data = ObjData, callback = CFun, acti
 
     NewState1 = NewState0#?u_state{stage = Stage, job = Job, objects = #{}, error_counter = #{}, object_data = #{}},
 
-    dao:save_record(?UPDATER_STATE_TABLE, NewState1),
+    dao:save_record(?UPDATER_STATE_TABLE, NewState1#?u_state{package = #package{}}),
 
     {ObjectList0, NewState2} = HandleFun(NewState1),
     ObjectList1 = lists:flatten( [ ObjectList0 ] ),
@@ -320,7 +320,12 @@ init(_Args) ->
     State =
         case dao:get_record(?UPDATER_STATE_TABLE, ?UPDATER_STATE_ID) of
             {ok, #?u_state{stage = Stage} = SavedState} when Stage =/= ?STAGE_IDLE ->
-                enter_stage(updater_state:get_stage_and_job(SavedState), SavedState);
+                case Stage of
+                    ?STAGE_INIT ->
+                        enter_stage(next_stage(SavedState#?u_state{stage = ?STAGE_IDLE}), SavedState);
+                    _ ->
+                        enter_stage(updater_state:get_stage_and_job(SavedState), SavedState)
+                end;
             {ok, Unk} ->
                 ?warning("Unknown updater state in DB: ~p", Unk),
                 #?u_state{};
