@@ -396,8 +396,9 @@ handle_error(_, Obj, Reason, #u_state{error_counter = EC, objects = Objects, err
 
             NewState0 = State#u_state{objects = #{}, error_stack = [Reason | EStack]},
             NewState1 = init_rollback(NewState0),
-            CallbackFun(error, NewState1),
-            enter_stage(updater_state:get_stage_and_job(NewState1), NewState1)
+            NewState2 = insert_error(critical, Reason, NewState1),
+            CallbackFun(error, NewState2),
+            enter_stage(updater_state:get_stage_and_job(NewState2), NewState2)
     end.
 
 
@@ -468,3 +469,6 @@ check_connectivity(Node) ->
 
 init_rollback(#u_state{} = State) ->
     State#u_state{action_type = rollback}.
+
+insert_error(critical, Reason, #u_state{stage = Stage, job = Job, action_type = ActionType, error_stack = EC} = State)  ->
+    State#u_state{error_stack = [{{Stage, Job, ActionType}, Reason} | EC]}.
