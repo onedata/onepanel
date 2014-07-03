@@ -14,7 +14,7 @@
 -include("onepanel_modules/updater/common.hrl").
 
 %% API
--export([is_abortable/1, get_stage_and_job/1, get_all_stages/0, get_object_count/1, get_all_stages/1]).
+-export([is_abortable/1, get_stage_and_job/1, get_all_stages/0, get_object_count/1, get_all_stages/1, get_error_stack/1]).
 
 %% ====================================================================
 %% API functions
@@ -36,6 +36,12 @@ get_all_stages() ->
 
 get_object_count(#u_state{objects = Objects}) ->
     maps:size(Objects).
+
+
+%% Head is the latest error
+-spec get_error_stack(State :: #u_state{}) -> [Reason :: any()].
+get_error_stack(#u_state{error_stack = Stack}) ->
+    lists:flatten([Stack]).
 
 
 %% ====================================================================

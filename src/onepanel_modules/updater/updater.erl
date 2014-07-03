@@ -43,7 +43,7 @@ start() ->
 update_to(#version{} = Vsn) ->
     update_to(#version{} = Vsn, false).
 update_to(#version{} = Vsn, ForceNodeReboot) ->
-    update_to(Vsn, ForceNodeReboot, fun(Event, _State) -> ?info("Omg: ~p", [Event]) end).
+    update_to(Vsn, ForceNodeReboot, fun(_Event, _State) -> ok end).
 
 %% CallbackFun(Event :: enter_stage | update_objects | rollback_stage | error | atom(), State :: #u_state{})
 update_to(#version{} = Vsn, ForceNodeReboot, CallbackFun) ->

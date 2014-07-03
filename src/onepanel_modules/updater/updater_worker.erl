@@ -73,6 +73,14 @@ dispatch_object(?STAGE_INIT, ?JOB_LOAD_EXPORTS, Obj, #u_state{}) ->
     Node = Obj,
     spawn_link(fun() -> Host ! {self(), load_module_to_remote(Node, updater_export)} end);
 
+dispatch_object(?STAGE_INIT, ?JOB_CHECK_CONNECTIVITY, Obj, #u_state{}) ->
+    Host = self(),
+    Node = Obj,
+    spawn_link(fun() -> Host ! {self(), check_connectivity(Node)} end);
+
+dispatch_object(?STAGE_INIT, ?JOB_DOWNLOAD_BINARY, _Obj, #u_state{version = Vsn}) ->
+    local_cast(fun() -> updater_repos:get_package(Vsn) end);
+
 dispatch_object(?STAGE_INIT, ?JOB_INSTALL_PACKAGE, Obj, #u_state{package = Pkg}) ->
     Node = Obj,
     cast(Node, install_package, [Pkg]);
@@ -132,7 +140,7 @@ rollback_object(Obj, #u_state{stage = Stage, job = Job} = State) ->
     ?info("Rollbacking ~p:~p obj: ~p", [Stage, Job, Obj]),
     {rollback_object(Stage, Job, Obj, State), Obj}.
 
-rollback_object(?STAGE_DEPLOY_FILES, ?JOB_BACKUP, Obj, #u_state{}) ->
+rollback_object(?STAGE_DEPLOY_FILES, ?JOB_DEPLOY, Obj, #u_state{}) ->
     Node = Obj,
     cast(Node, restore_instalation, []);
 
@@ -150,65 +158,84 @@ handle_stage(?STAGE_IDLE, _, #u_state{} = _State) ->
 
 handle_stage(?STAGE_INIT, ?JOB_RELOAD_EXPORTS, #u_state{nodes = _Nodes} = State) ->
     handle_stage(?STAGE_INIT, ?JOB_LOAD_EXPORTS, State);
-handle_stage(?STAGE_INIT, ?JOB_LOAD_EXPORTS, #u_state{nodes = Nodes} = State) ->
-    default_dispatch_to_all_nodes(Nodes, State, fun dispatch_object/2);
+
+handle_stage(?STAGE_INIT, ?JOB_LOAD_EXPORTS, #u_state{nodes = Nodes} = _State) ->
+    Nodes;
+handle_stage(?STAGE_INIT, ?JOB_CHECK_CONNECTIVITY, #u_state{nodes = Nodes} = _State) ->
+    Hostnames = lists:usort([ install_utils:get_host(Node) || Node <- Nodes ]),
+    OnePanelNodes = [install_utils:get_node(Host) || Host <- Hostnames],
+    Nodes ++ OnePanelNodes;
 
 handle_stage(?STAGE_INIT, ?JOB_DOWNLOAD_BINARY, #u_state{version = Vsn} = _State) ->
-    Pid = local_cast(fun() -> updater_repos:get_package(Vsn) end),
-    [{Pid, package}];
+    package;
 
-handle_stage(?STAGE_INIT, ?JOB_INSTALL_PACKAGE, #u_state{nodes = Nodes} = State) ->
-    default_dispatch_to_all_nodes(select_only_workers(Nodes), State, fun dispatch_object/2);
+handle_stage(?STAGE_INIT, ?JOB_INSTALL_PACKAGE, #u_state{nodes = Nodes} = _State) ->
+    select_only_workers(Nodes);
 
-handle_stage(?STAGE_DAO_UPDATER_LOAD, _, #u_state{nodes = Nodes} = State) ->
-    default_dispatch_to_all_nodes(Nodes, State, fun dispatch_object/2);
+handle_stage(?STAGE_DAO_UPDATER_LOAD, _, #u_state{nodes = Nodes} = _State) ->
+    Nodes;
 
-handle_stage(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, #u_state{nodes = _Nodes} = State) ->
-    [dispatch_object(views, State)];
+handle_stage(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, #u_state{nodes = _Nodes} = _State) ->
+    views;
 
-handle_stage(?STAGE_DAO_SETUP_VIEWS, _, #u_state{nodes = Nodes} = State) ->
-    default_dispatch_to_all_nodes(select_only_workers(Nodes), State, fun dispatch_object/2);
+handle_stage(?STAGE_DAO_SETUP_VIEWS, _, #u_state{nodes = Nodes} = _State) ->
+    select_only_workers(Nodes);
 
-handle_stage(?STAGE_DAO_REFRESH_VIEWS, _, #u_state{nodes = _Nodes, installed_views = Views} = State) ->
-    Objects = Views,
-    lists:map(fun(Obj) -> dispatch_object(Obj, State) end, Objects);
+handle_stage(?STAGE_DAO_REFRESH_VIEWS, _, #u_state{nodes = _Nodes, installed_views = Views} = _State) ->
+    Views;
 
-handle_stage(?STAGE_DEPLOY_FILES, _, #u_state{nodes = Nodes} = State) ->
-    default_dispatch_to_all_nodes(Nodes, State, fun dispatch_object/2);
+handle_stage(?STAGE_DEPLOY_FILES, _, #u_state{nodes = Nodes} = _State) ->
+    Nodes;
 
-handle_stage(?STAGE_SOFT_RELOAD, _, #u_state{nodes = Nodes} = State) ->
-    default_dispatch_to_all_nodes(Nodes, State, fun dispatch_object/2);
+handle_stage(?STAGE_SOFT_RELOAD, _, #u_state{nodes = Nodes} = _State) ->
+    Nodes;
 
-handle_stage(?STAGE_FORCE_RELOAD, _, #u_state{nodes = Nodes} = State) ->
-    default_dispatch_to_all_nodes(Nodes, State, fun dispatch_object/2);
+handle_stage(?STAGE_FORCE_RELOAD, _, #u_state{nodes = Nodes} = _State) ->
+    Nodes;
 
-handle_stage(?STAGE_DAO_POST_SETUP_VIEWS, _, #u_state{} = State) ->
-    [dispatch_object(views_cleanup, State)];
+handle_stage(?STAGE_DAO_POST_SETUP_VIEWS, _, #u_state{} = _State) ->
+    views_cleanup;
 
-handle_stage(?STAGE_NODE_RESTART, _, #u_state{} = State) ->
-    [dispatch_object(restart, State)];
+handle_stage(?STAGE_NODE_RESTART, _, #u_state{} = _State) ->
+    restart;
 
 handle_stage(Stage, Job, #u_state{}) ->
     throw({invalid_stage, {Stage, Job}}).
 
+
+
+
+
 handle_rollback(#u_state{stage = Stage, job = Job} = State) ->
     handle_rollback(Stage, Job, State).
 
-handle_rollback(?STAGE_DEPLOY_FILES, ?JOB_BACKUP, #u_state{nodes = Nodes} = State) ->
-    default_dispatch_to_all_nodes(Nodes, State, fun rollback_object/2);
+handle_rollback(?STAGE_DEPLOY_FILES, ?JOB_DEPLOY, #u_state{nodes = Nodes} = State) ->
+    Nodes;
 
 handle_rollback(_Stage, _Job, #u_state{}) ->
     [].
 
 
 
-default_dispatch_to_all_nodes(Nodes, #u_state{} = State, DispatchFun) ->
-    Objects = Nodes,
+dispatch_all(Objects, #u_state{} = State, DispatchFun) ->
     lists:map(fun(Obj) -> DispatchFun(Obj, State) end, Objects).
 
-previous_stage(#u_state{stage = ?STAGE_IDLE, job = _}) ->
+
+next_stage(#u_state{stage = ?STAGE_IDLE, job = _, action_type = install} = State) ->
+    ?info("next_stage ~p", [das]),
+    [{Stage, Job} | _] = flatten_stages(updater_state:get_all_stages(State)),
+    {Stage, Job};
+next_stage(#u_state{stage = Stage, job = Job, action_type = install} = State) ->
+    ?info("next_stage ~p:~p", [Stage, Job]),
+    [_, {NStage, NJob} | _] =
+        lists:dropwhile(
+            fun({CStage, CJob}) ->
+                {CStage, CJob} =/= {Stage, Job}
+            end, flatten_stages(updater_state:get_all_stages(State)) ++ [{?STAGE_IDLE, ?JOB_DEFAULT}]),
+    {NStage, NJob};
+next_stage(#u_state{stage = ?STAGE_IDLE, job = _, action_type = rollback}) ->
     {?STAGE_IDLE, ?JOB_DEFAULT};
-previous_stage(#u_state{stage = Stage, job = Job} = State) ->
+next_stage(#u_state{stage = Stage, job = Job, action_type = rollback} = State) ->
     ?info("previous_stage ~p:~p", [Stage, Job]),
     Stages = [{?STAGE_IDLE, ?JOB_DEFAULT}] ++ flatten_stages(updater_state:get_all_stages(State)),
     PrevStages =
@@ -220,43 +247,27 @@ previous_stage(#u_state{stage = Stage, job = Job} = State) ->
     lists:last(PrevStages).
 
 
-next_stage(#u_state{stage = ?STAGE_IDLE, job = _} = State) ->
-    ?info("next_stage ~p", [das]),
-    [{Stage, Job} | _] = flatten_stages(updater_state:get_all_stages(State)),
-    {Stage, Job};
-next_stage(#u_state{stage = Stage, job = Job} = State) ->
-    ?info("next_stage ~p:~p", [Stage, Job]),
-    [_, {NStage, NJob} | _] =
-        lists:dropwhile(
-            fun({CStage, CJob}) ->
-                {CStage, CJob} =/= {Stage, Job}
-            end, flatten_stages(updater_state:get_all_stages(State)) ++ [{?STAGE_IDLE, ?JOB_DEFAULT}]),
-    {NStage, NJob}.
+enter_stage({Stage, Job}, #u_state{object_data = ObjData, callback = CFun, action_type = ActionType} = State) ->
+    {DispatchFun, HandleFun, EventName, NewState0} =
+        case ActionType of
+            install  -> {fun dispatch_object/2, fun handle_stage/1, enter_stage, finalize_stage(State#u_state{previous_data = ObjData})};
+            rollback -> {fun rollback_object/2, fun handle_rollback/1, rollback_stage, State}
+        end,
 
+    ?info("Entering stage ~p:~p...", [Stage, Job]),
 
-enter_stage({Stage, Job}, #u_state{object_data = ObjData, callback = CFun} = State) ->
-    %%?info("Entering stage ~p:~p...", [Stage, Job]),
-    NewState0 = finalize_stage(State#u_state{previous_data = ObjData}),
-    %%?info("Entering stage1 ~p:~p...", [Stage, Job]),
-    NewState1 = NewState0#u_state{stage = Stage, job = Job, objects = #{}, error_stack = [], error_counter = #{}, object_data = #{}},
-    %%?info("Entering stage2 ~p:~p...", [Stage, Job]),
-    NewState2 = NewState1#u_state{objects = maps:from_list( lists:flatten( [handle_stage(NewState1)] ) )},
-    %%?info("Entering stage3 ~p:~p...", [Stage, Job]),
-    CFun(enter_stage, NewState2),
-    %%?info("Entering stage4 ~p:~p...", [Stage, Job]),
+    NewState1 = NewState0#u_state{stage = Stage, job = Job, objects = #{}, error_counter = #{}, object_data = #{}},
+
+    ObjectList = lists:flatten( [ HandleFun(NewState1) ] ),
+    Dispatch = dispatch_all(ObjectList, NewState1, DispatchFun),
+
+    NewState2 = NewState1#u_state{objects = maps:from_list( Dispatch )},
+
+    CFun(EventName, NewState2),
+
     case maps:size(NewState2#u_state.objects) =:= 0 andalso Stage =/= ?STAGE_IDLE of
-        true -> enter_stage(next_stage(State), State);
+        true -> enter_stage(next_stage(NewState2), NewState2);
         _    -> NewState2
-    end.
-
-rollback_stage({Stage, Job}, #u_state{callback = CFun} = State) ->
-    ?info("Rollbacking stage ~p:~p...", [Stage, Job]),
-    NewState0 = State#u_state{stage = Stage, job = Job, objects = #{}, error_stack = [], error_counter = #{}, object_data = #{}},
-    NewState1 = NewState0#u_state{objects = maps:from_list( lists:flatten( [handle_rollback(NewState0)] ) )},
-    CFun(rollback_stage, NewState1),
-    case maps:size(NewState1#u_state.objects) =:= 0 andalso Stage =/= ?STAGE_IDLE of
-        true -> rollback_stage(previous_stage(NewState1), NewState1);
-        _    -> NewState1
     end.
 
 
@@ -304,31 +315,28 @@ handle_call(abort, _From, #u_state{stage = ?STAGE_IDLE} = State) ->
     {reply, ok, State};
 handle_call(abort, _From, #u_state{stage = Stage, job = Job} = State) ->
     NewState = State#u_state{action_type = rollback, objects = #{}},
-    {reply, ok, rollback_stage({Stage, Job}, NewState)};
+    {reply, ok, enter_stage({Stage, Job}, NewState)};
 
 
 handle_call({update_to, #version{}, _, _}, _From, #u_state{stage = _Stage} = State) ->
     {reply, {error, update_already_in_progress}, State};
 
 handle_call(Info, _From, State) ->
-    %%?info("[Updater] Unknown call: ~p", [Info]),
+    ?info("[Updater] Unknown call: ~p", [Info]),
     {noreply, State}.
 
 handle_cast(Info, State) ->
-    %%?info("[Updater] Unknown cast: ~p", [Info]),
+    ?info("[Updater] Unknown cast: ~p", [Info]),
     {noreply, State}.
 
 
 handle_info({Pid, ok}, #u_state{objects = Objects, callback = CallbackFun} = State) ->
     NObjects = maps:remove(Pid, Objects),
     CallbackFun(update_objects, State),
-    ?info("Action type: ~p", [State#u_state.action_type]),
     NState =
         case {maps:size(NObjects), maps:size(Objects)} of
             {0, 1}  ->
-                Runner = get_runner_fun(State),
-                Successor = get_successor_fun(State),
-                Runner(Successor(State), State);
+                enter_stage(next_stage(State), State);
             _  -> State#u_state{objects = NObjects}
         end,
     {noreply, NState};
@@ -348,7 +356,7 @@ handle_info({Pid, {ok, Data}}, #u_state{objects = Objects, object_data = ObjData
 
 
 handle_info({Pid, {error, Reason}}, #u_state{objects = Objects, object_data = _ObjData, error_counter = EC} = State) ->
-    %%?error("Error form ~p: ~p", [Pid, Reason]),
+    ?error("Error form ~p: ~p", [Pid, Reason]),
     MapsGetOrDefault =
         fun(Key, Map, Default) ->
             case maps:is_key(Key, Map) of
@@ -376,7 +384,7 @@ handle_info({'EXIT', _Pid, normal}, #u_state{} = State) ->
 handle_info({'EXIT', Pid, Reason}, #u_state{} = State) ->
     handle_info({Pid, {error, {exit, Reason}}}, State);
 handle_info(Unknown, #u_state{} = State) ->
-    %%?info("Unknown info ~p", [Unknown]),
+    ?info("Unknown info ~p", [Unknown]),
     {noreply, State}.
 
 handle_error(_, Obj, Reason, #u_state{error_counter = EC, objects = Objects, error_stack = EStack, callback = CallbackFun} = State) ->
@@ -388,10 +396,10 @@ handle_error(_, Obj, Reason, #u_state{error_counter = EC, objects = Objects, err
         true ->
             ?error("Critical error ~p: ~p", [Obj, Reason]),
 
-            NewState = State#u_state{action_type = rollback, objects = #{}, error_stack = [Reason | EStack]},
-            Runner = get_runner_fun(NewState),
-            CallbackFun(error, NewState),
-            Runner(updater_state:get_stage_and_job(NewState), NewState)
+            NewState0 = State#u_state{objects = #{}, error_stack = [Reason | EStack]},
+            NewState1 = init_rollback(NewState0),
+            CallbackFun(error, NewState1),
+            enter_stage(updater_state:get_stage_and_job(NewState1), NewState1)
     end.
 
 
@@ -454,12 +462,11 @@ flatten_stages(Stages) ->
             end, Stages)).
 
 
-get_runner_fun(#u_state{action_type = install}) ->
-    fun enter_stage/2;
-get_runner_fun(#u_state{action_type = rollback}) ->
-    fun rollback_stage/2.
+check_connectivity(Node) ->
+    case net_adm:ping(Node) of
+        pong -> ok;
+        pang -> {error, {node_down, Node}}
+    end.
 
-get_successor_fun(#u_state{action_type = install}) ->
-    fun next_stage/1;
-get_successor_fun(#u_state{action_type = rollback}) ->
-    fun previous_stage/1.
+init_rollback(#u_state{} = State) ->
+    State#u_state{action_type = rollback}.
