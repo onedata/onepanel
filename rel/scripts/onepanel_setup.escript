@@ -157,20 +157,16 @@ install(Config) ->
         end
     catch
         _:{config, Reason} when is_list(Reason) ->
-            print_error(),
-            io:format("Configuration error: ~s\n", [Reason]),
+            print_error("Configuration error: ~s\n", [Reason]),
             halt(?EXIT_FAILURE);
         _:{hosts, ErrorHosts} when is_list(ErrorHosts) ->
-            print_error(),
-            io:format("Operation failed on following hosts: ~s\n", [ErrorHosts]),
+            print_error("Operation failed on following hosts: ~s\n", [ErrorHosts]),
             halt(?EXIT_FAILURE);
         _:{exec, Reason} when is_list(Reason) ->
-            print_error(),
-            io:format("Operation error: ~s\n", [Reason]),
+            print_error("Operation error: ~s\n", [Reason]),
             halt(?EXIT_FAILURE);
         _:_ ->
-            print_error(),
-            io:format("An error occurred during operation.\n"),
+            print_error("An error occurred during operation.\n", []),
             halt(?EXIT_FAILURE)
     end.
 
@@ -263,16 +259,13 @@ uninstall() ->
         end
     catch
         _:{hosts, Hosts} when is_list(Hosts) ->
-            print_error(),
-            io:format("Operation failed on following hosts: ~s\n", [Hosts]),
+            print_error("Operation failed on following hosts: ~s\n", [Hosts]),
             halt(?EXIT_FAILURE);
         _:{exec, Reason} when is_list(Reason) ->
-            print_error(),
-            io:format("Operation error: ~s\n", [Reason]),
+            print_error("Operation error: ~s\n", [Reason]),
             halt(?EXIT_FAILURE);
         _:_ ->
-            print_error(),
-            io:format("An error occurred during operation.\n"),
+            print_error("An error occurred during operation.\n", []),
             halt(?EXIT_FAILURE)
     end.
 
@@ -407,7 +400,8 @@ print_ok() ->
 %% ====================================================================
 %% @doc Prints error information for given step.
 %% @end
--spec print_error() -> ok.
+-spec print_error(Format :: string(), Args :: [term()]) -> ok.
 %% ====================================================================
-print_error() ->
-    io:format("\t[FAIL]\n").
+print_error(Format, Args) ->
+    io:format("\t[FAIL]\n"),
+    io:format(Format, Args).
