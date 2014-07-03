@@ -31,9 +31,9 @@
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 authenticate(Username, Password) ->
-    PasswordHash = hash_password(Password),
     case dao:get_record(?USER_TABLE, Username) of
-        {ok, #?USER_RECORD{username = Username, password = ValidPasswordHash}} ->
+        {ok, #?USER_RECORD{username = Username, password = ValidPasswordHash, salt = Salt}} ->
+            PasswordHash = hash_password(Password ++ Salt),
             case ValidPasswordHash of
                 PasswordHash -> ok;
                 _ -> {error, ?AUTHENTICATION_ERROR}
@@ -53,10 +53,11 @@ authenticate(Username, Password) ->
     when Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 change_password(Username, OldPassword, NewPassword) ->
-    PasswordHash = user_logic:hash_password(NewPassword),
+    NewSalt = install_utils:random_ascii_lowercase_sequence(?SALT_LENGTH),
+    PasswordHash = user_logic:hash_password(NewPassword ++ NewSalt),
     case authenticate(Username, OldPassword) of
         ok ->
-            case dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username, password = PasswordHash}) of
+            case dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username, password = PasswordHash, salt = NewSalt}) of
                 ok -> ok;
                 Other ->
                     ?error("Cannot change user password: ~p", [Other]),

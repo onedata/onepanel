@@ -35,8 +35,9 @@ initialize(?USER_TABLE) ->
     try
         {ok, Username} = application:get_env(?APP_NAME, default_username),
         {ok, Password} = application:get_env(?APP_NAME, default_password),
-        PasswordHash = user_logic:hash_password(Password),
-        ok = dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username, password = PasswordHash})
+        Salt = install_utils:random_ascii_lowercase_sequence(?SALT_LENGTH),
+        PasswordHash = user_logic:hash_password(Password ++ Salt),
+        ok = dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username, password = PasswordHash, salt = Salt})
     catch
         _:Reason ->
             ?error("Cannot initialize user table: ~p", [Reason]),

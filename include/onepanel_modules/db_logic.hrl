@@ -27,7 +27,7 @@
 -define(CONFIG_ID, current).
 
 %% User table contains name and hashed password of each user
--record(?USER_RECORD, {username, password}).
+-record(?USER_RECORD, {username, password, salt}).
 
 %% Global config record describes installation configuration that is:
 %% - ID which equals CONFIG_ID
