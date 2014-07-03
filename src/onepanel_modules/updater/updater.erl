@@ -16,7 +16,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([start/0, get_state/0, update_to/1, update_to/2, update_to/3, is_abortable/0, abort/0]).
+-export([start/0, get_state/0, update_to/1, update_to/2, update_to/3, is_abortable/0, abort/0, set_callback/1]).
 
 %% ====================================================================
 %% API functions
@@ -49,6 +49,11 @@ update_to(#version{} = Vsn, ForceNodeReboot) ->
 update_to(#version{} = Vsn, ForceNodeReboot, CallbackFun) ->
     start(),
     gen_server:call({global, ?UPDATE_SERVICE}, {update_to, Vsn, ForceNodeReboot, CallbackFun}).
+
+
+set_callback(Fun) ->
+    start(),
+    gen_server:call({global, ?UPDATE_SERVICE}, {set_callback, Fun}).
 
 get_state() ->
     start(),

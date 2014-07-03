@@ -357,6 +357,8 @@ handle_call(abort, _From, #?u_state{stage = ?STAGE_IDLE} = State) ->
 handle_call(abort, _From, #?u_state{stage = Stage, job = Job} = State) ->
     NewState = State#?u_state{action_type = rollback, objects = #{}},
     {reply, ok, enter_stage({Stage, Job}, NewState)};
+handle_call({set_callback, Fun}, _From, #?u_state{} = State) ->
+    {reply, ok, State#?u_state{callback = Fun}}.
 
 
 handle_call({update_to, #version{}, _, _}, _From, #?u_state{stage = _Stage} = State) ->
@@ -535,7 +537,7 @@ normalize_error_reason(Reason) ->
 veil_restart(Node) ->
     [NodeType, _] = string:tokens(atom_to_list(Node), "@"),
     OnePanelNode = install_utils:get_node(install_utils:get_host(Node)),
-    Mod = list_to_atom("install_" ++ atom_to_list(NodeType)),
+    Mod = list_to_atom("install_" ++ NodeType),
     case rpc:call(OnePanelNode, Mod, restart, []) of
         {ok, _} ->
             wait_for_node(Node, 30 * 1000);
