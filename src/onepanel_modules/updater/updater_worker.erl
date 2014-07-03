@@ -454,7 +454,7 @@ handle_error(Pid, Obj, Reason, #?u_state{error_counter = EC, objects = Objects,
                     NewState0 = State,
                     NewState1 = init_rollback(NewState0),
                     NewState2 = insert_error(Obj, Reason, NewState1),
-                    CallbackFun(error, NewState2),
+                    CallbackFun(ErrorLevel, NewState2),
                     enter_stage(updater_state:get_stage_and_job(NewState2), NewState2)
             end
     end.
