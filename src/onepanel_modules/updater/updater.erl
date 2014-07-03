@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: Write me !
+%% @doc: Updater service entry point (main API).
 %% @end
 %% ===================================================================
 -module(updater).

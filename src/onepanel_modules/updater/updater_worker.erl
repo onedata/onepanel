@@ -34,6 +34,8 @@
 
 get_error_level(?STAGE_NODE_RESTART, _Job, _Object, _Reason, _State) ->
     warning;
+get_error_level(?STAGE_DAO_POST_SETUP_VIEWS, ?JOB_CLEANUP_VIEWS, _Object, _Reason, _State) ->
+    warning;
 get_error_level(_Stage, _Job, _Object, _Reason, _State) ->
     error.
 

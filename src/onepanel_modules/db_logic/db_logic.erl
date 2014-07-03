@@ -62,6 +62,7 @@ initialize(?UPDATER_STATE_TABLE) ->
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 create() ->
+    application:stop(mnesia),
     try
         Node = node(),
         case mnesia:create_schema([Node]) of
