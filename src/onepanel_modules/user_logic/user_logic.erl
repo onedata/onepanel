@@ -33,7 +33,7 @@
 authenticate(Username, Password) ->
     case dao:get_record(?USER_TABLE, Username) of
         {ok, #?USER_RECORD{username = Username, password = ValidPasswordHash, salt = Salt}} ->
-            PasswordHash = hash_password(Password ++ Salt),
+            PasswordHash = hash_password(<<Password/binary, Salt/binary>>),
             case ValidPasswordHash of
                 PasswordHash -> ok;
                 _ -> {error, ?AUTHENTICATION_ERROR}
@@ -53,8 +53,8 @@ authenticate(Username, Password) ->
     when Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 change_password(Username, OldPassword, NewPassword) ->
-    NewSalt = install_utils:random_ascii_lowercase_sequence(?SALT_LENGTH),
-    PasswordHash = user_logic:hash_password(NewPassword ++ NewSalt),
+    NewSalt = list_to_binary(install_utils:random_ascii_lowercase_sequence(?SALT_LENGTH)),
+    PasswordHash = user_logic:hash_password(<<NewPassword/binary, NewSalt/binary>>),
     case authenticate(Username, OldPassword) of
         ok ->
             case dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username, password = PasswordHash, salt = NewSalt}) of
