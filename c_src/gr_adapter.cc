@@ -5,7 +5,7 @@
 *  cited in 'LICENSE.txt'.
 *  @end
 **********************************************************************
-*  @doc This is an implementation of of Erlang NIF library described
+*  @doc This is an implementation of Erlang NIF library described
 *  in gr_adapter_nif interface. CSR fields are set to default values
 *  which than will be overwritten by Global Registry.
 *  @end

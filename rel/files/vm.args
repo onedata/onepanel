@@ -1,5 +1,5 @@
 ## Name of the node
--name onepanel@MacBookPro
+-name onepanel@127.0.0.1
 
 ## Cookie for distributed erlang
 -setcookie veil_cluster_node

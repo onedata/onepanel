@@ -72,11 +72,11 @@ change_password(Username, OldPassword, NewPassword) ->
 
 %% hash_password/1
 %% ====================================================================
-%% @doc Returns md5 hash of given password.
+%% @doc Returns sha512 hash of given password.
 %% @end
 -spec hash_password(Password :: binary()) -> Result when
     Result :: binary().
 %% ====================================================================
 hash_password(Password) ->
-    Hash = crypto:hash_update(crypto:hash_init(md5), Password),
+    Hash = crypto:hash_update(crypto:hash_init(sha512), Password),
     integer_to_binary(binary:decode_unsigned(crypto:hash_final(Hash)), 16).

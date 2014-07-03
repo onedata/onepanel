@@ -18,8 +18,8 @@
 -define(LICENSE_FILE, "LICENSE.txt").
 -define(CONTACT_EMAIL, "support@onedata.org").
 -define(MEMBERS, [<<"Łukasz Dutka"/utf8>>, <<"Jacek Kitowski"/utf8>>, <<"Dariusz Król"/utf8>>, <<"Tomasz Lichoń"/utf8>>, <<"Darin Nikolow"/utf8>>,
-    <<"Łukasz Opioła"/utf8>>, <<"Tomasz Pałys"/utf8>>, <<"Bartosz Polnik"/utf8>>, <<"Paweł Salata"/utf8>>, <<"Michał Sitko"/utf8>>,
-    <<"Rafał Słota"/utf8>>, <<"Renata Słota"/utf8>>, <<"Beata Skiba"/utf8>>, <<"Krzysztof Trzepla"/utf8>>, <<"Michał Wrzeszcz"/utf8>>]).
+    <<"Łukasz Opioła"/utf8>>, <<"Bartosz Polnik"/utf8>>, <<"Paweł Salata"/utf8>>, <<"Michał Sitko"/utf8>>, <<"Rafał Słota"/utf8>>,
+    <<"Renata Słota"/utf8>>, <<"Beata Skiba"/utf8>>, <<"Krzysztof Trzepla"/utf8>>, <<"Michał Wrzeszcz"/utf8>>, <<"Konrad Zemek"/utf8>>]).
 
 %% ====================================================================
 %% API functions
