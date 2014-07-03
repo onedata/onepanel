@@ -26,10 +26,15 @@ is_abortable(#u_state{}) ->
 get_stage_and_job(#u_state{stage = Stage, job = Job}) ->
     {Stage, Job}.
 
-get_all_stages(#u_state{nodes_to_restart = Nodes}) ->
-    Hostnames = lists:usort([install_utils:get_host(Node) || Node <- Nodes]),
-    RestartJobs = [list_to_atom("restart_" ++ Hostname) || Hostname <- Hostnames],
-    lists:keyreplace(?STAGE_NODE_RESTART, 1, ?STAGES, {?STAGE_NODE_RESTART, [RestartJobs]}).
+get_all_stages(#u_state{nodes_to_restart = Nodes, nodes_to_repair = NodesToRepair}) ->
+    Hostnames0 = lists:usort([install_utils:get_host(Node) || Node <- Nodes]),
+    RestartJobs = [list_to_atom(Hostname) || Hostname <- Hostnames0],
+
+    Hostnames1 = lists:usort([install_utils:get_host(Node) || Node <- NodesToRepair]),
+    RepairJobs = [list_to_atom(Hostname) || Hostname <- Hostnames1],
+
+    Stages0 = lists:keyreplace(?STAGE_NODE_RESTART, 1, ?STAGES, {?STAGE_NODE_RESTART, [RestartJobs]}),
+    lists:keyreplace(?STAGE_REPAIR_NODES, 1, Stages0, {?STAGE_REPAIR_NODES, [RepairJobs]}).
 
 get_all_stages() ->
     ?STAGES.

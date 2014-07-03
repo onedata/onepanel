@@ -136,6 +136,10 @@ dispatch_object(?STAGE_FORCE_RELOAD, ?JOB_DEFAULT, Obj, #u_state{not_reloaded_mo
 dispatch_object(?STAGE_DAO_POST_SETUP_VIEWS, ?JOB_CLEANUP_VIEWS, _Obj, #u_state{nodes = Nodes}) ->
     anycast(Nodes, remove_outdated_views, []);
 
+dispatch_object(?STAGE_NODE_RESTART, _, Obj, #u_state{}) ->
+    Host = Obj,
+    local_cast(fun() -> veil_restart(atom_to_list(Host)) end);
+
 dispatch_object(Stage, Job, Obj, #u_state{}) ->
     throw({unknown_dispatch, {Stage, Job, Obj}}).
 
@@ -148,16 +152,27 @@ rollback_object(?STAGE_DEPLOY_FILES, ?JOB_DEPLOY, Obj, #u_state{}) ->
     Node = Obj,
     cast(Node, restore_instalation, []);
 
+rollback_object(?STAGE_REPAIR_NODES, _, Obj, #u_state{}) ->
+    Host = Obj,
+    local_cast(fun() -> veil_restart(atom_to_list(Host)) end);
+
 rollback_object(Stage, Job, Obj, #u_state{}) ->
     throw({unknown_dispatch, {Stage, Job, Obj}}).
 
 
 handle_stage(#u_state{stage = Stage, job = Job} = State) ->
     ?info("Handle stage ~p:~p", [Stage, Job]),
-    handle_stage(Stage, Job, State).
+    case handle_stage(Stage, Job, State) of
+        {Objects, #u_state{} = NewState} ->
+            {Objects, NewState};
+        Objects -> {Objects, State}
+    end.
 
 
 handle_stage(?STAGE_IDLE, _, #u_state{} = _State) ->
+    [];
+
+handle_stage(?STAGE_REPAIR_NODES, _, #u_state{}) ->
     [];
 
 handle_stage(?STAGE_INIT, ?JOB_RELOAD_EXPORTS, #u_state{nodes = _Nodes} = State) ->
@@ -200,8 +215,8 @@ handle_stage(?STAGE_FORCE_RELOAD, _, #u_state{nodes = Nodes} = _State) ->
 handle_stage(?STAGE_DAO_POST_SETUP_VIEWS, _, #u_state{} = _State) ->
     views_cleanup;
 
-handle_stage(?STAGE_NODE_RESTART, _, #u_state{} = _State) ->
-    restart;
+handle_stage(?STAGE_NODE_RESTART, RestartHost, #u_state{} = _State) ->
+    RestartHost;
 
 handle_stage(Stage, Job, #u_state{}) ->
     throw({invalid_stage, {Stage, Job}}).
@@ -211,10 +226,17 @@ handle_stage(Stage, Job, #u_state{}) ->
 
 
 handle_rollback(#u_state{stage = Stage, job = Job} = State) ->
-    handle_rollback(Stage, Job, State).
+    case handle_rollback(Stage, Job, State) of
+        {Objects, #u_state{} = NewState} ->
+            {Objects, NewState};
+        Objects -> {Objects, State}
+    end.
+
+handle_rollback(?STAGE_REPAIR_NODES, RepairHost, #u_state{}) ->
+    RepairHost;
 
 handle_rollback(?STAGE_DEPLOY_FILES, ?JOB_DEPLOY, #u_state{nodes = Nodes} = State) ->
-    Nodes;
+    {Nodes, State#u_state{nodes_to_repair = Nodes}};
 
 handle_rollback(_Stage, _Job, #u_state{}) ->
     [].
@@ -262,16 +284,17 @@ enter_stage({Stage, Job}, #u_state{object_data = ObjData, callback = CFun, actio
 
     NewState1 = NewState0#u_state{stage = Stage, job = Job, objects = #{}, error_counter = #{}, object_data = #{}},
 
-    ObjectList = lists:flatten( [ HandleFun(NewState1) ] ),
-    Dispatch = dispatch_all(ObjectList, NewState1, DispatchFun),
+    {ObjectList0, NewState2} = HandleFun(NewState1),
+    ObjectList1 = lists:flatten( [ ObjectList0 ] ),
+    Dispatch = dispatch_all(ObjectList1, NewState2, DispatchFun),
 
-    NewState2 = NewState1#u_state{objects = maps:from_list( Dispatch )},
+    NewState3 = NewState1#u_state{objects = maps:from_list( Dispatch )},
 
-    CFun(EventName, NewState2),
+    CFun(EventName, NewState3),
 
-    case maps:size(NewState2#u_state.objects) =:= 0 andalso Stage =/= ?STAGE_IDLE of
-        true -> enter_stage(next_stage(NewState2), NewState2);
-        _    -> NewState2
+    case maps:size(NewState3#u_state.objects) =:= 0 andalso Stage =/= ?STAGE_IDLE of
+        true -> enter_stage(next_stage(NewState3), NewState3);
+        _    -> NewState3
     end.
 
 
@@ -428,9 +451,6 @@ code_change(OldVsn, State, Extra) ->
 %% Internal functions
 %% ====================================================================
 
-call(Node, Fun, Args) ->
-    rpc:call(Node, updater_export, Fun, Args).
-
 
 cast(Node, Fun, Args) ->
     ?debug("Cast: ~p ~p ~p", [Node, Fun, Args]),
@@ -496,3 +516,9 @@ normalize_error_reason({error, Reason}) ->
     normalize_error_reason(Reason);
 normalize_error_reason(Reason) ->
     Reason.
+
+
+veil_restart(Host) ->
+    OnePanelNode = install_utils:get_node(Host),
+
+    ok.

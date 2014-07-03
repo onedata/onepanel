@@ -63,7 +63,7 @@
 
 -record(version, {major = 0, minor = 0, patch = 0}).
 
--record(u_state, {action_type = install, nodes_to_restart = [], force_node_restart = false, callback, stage = ?STAGE_IDLE, job, objects = [], object_data = #{}, previous_data = [], error_stack = [],
+-record(u_state, {action_type = install, nodes_to_restart = [], nodes_to_repair = [], force_node_restart = false, callback, stage = ?STAGE_IDLE, job, objects = [], object_data = #{}, previous_data = [], error_stack = [],
     warning_stack = [], package, nodes = [], installed_views = [], error_counter = #{}, not_reloaded_modules = [], version = #version{}}).
 
 
