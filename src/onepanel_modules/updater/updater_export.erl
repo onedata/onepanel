@@ -25,7 +25,6 @@
 %% ====================================================================
 
 runner(RespondTo, Fun, Args) ->
-    lager:info("Apply ~p ~p", [Fun, Args]),
     Response =
         try apply(?MODULE, Fun, Args) of
             ok -> ok;
@@ -48,7 +47,6 @@ install_package(#package{type = Type}) ->
 run_pre_update(Version) ->
     dao_update:pre_update(Version),
     Modules = dao_update:pre_reload_modules(Version),
-    lager:info("TEST ~p", [Modules]),
     lists:foreach(
         fun(Module) ->
             move_file(atom_to_list(Module) ++ ".beam"),
@@ -84,8 +82,6 @@ move_file(File) ->
     file:make_dir(WorkerTargetDir1),
 
     From = os:cmd("find " ++ RelPrivPath ++ " -name \"" ++ File  ++ "\" ") -- [10],
-
-    lager:info("Moving file ~p to ~p", [From, WorkerTargetDir1]),
 
     "" = os:cmd("cp -f " ++ From ++ " " ++ WorkerTargetDir1),
     ok.
@@ -127,7 +123,6 @@ move_all_files() ->
 force_reload_module(Module) ->
     ok = fix_code_path(),
     ok = purge(Module),
-    lager:info("Reload: ~p", [Module]),
     code:load_file(Module),
     ok = purge(Module).
 
@@ -139,7 +134,6 @@ fix_code_path() ->
     code:add_paths(Paths),
     code:add_patha(NewReleasePath),
 
-    lager:info("New code path ~p", [code:get_path()]),
     ok.
 
 get_node_subpath() ->

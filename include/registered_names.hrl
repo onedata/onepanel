@@ -23,7 +23,7 @@
 %% coordinates node life cycle.
 -define(GEN_SERVER_NAME, onepanel).
 
--define(SERVER_SUP, spanel_sup).
+-define(SERVER_SUP, onepanel_sup).
 
 
 -define(UPDATE_SERVICE, update_service).
