@@ -391,7 +391,7 @@ handle_error(_, Obj, Reason, #u_state{error_counter = EC, objects = Objects, err
             NewState = State#u_state{action_type = rollback, objects = #{}, error_stack = [Reason | EStack]},
             Runner = get_runner_fun(NewState),
             CallbackFun(error, NewState),
-            Runner(updater_state:get_stage_and_job(State), State)
+            Runner(updater_state:get_stage_and_job(NewState), NewState)
     end.
 
 
