@@ -568,7 +568,7 @@ check_storage_paths(Hosts, [StoragePath | StoragePaths]) ->
 %% install/1
 %% ====================================================================
 %% @doc Template installation method. Runs necessary installation
-%% installation steps one by one.
+%% steps one by one.
 -spec install(PageState :: #page_state{}) -> Result when
     Result :: ok | error.
 %% ====================================================================

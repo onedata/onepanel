@@ -2,12 +2,12 @@
 
 #####################################################################
 #  @author Rafal Slota
-#  @copyright (C): 2013 ACK CYFRONET AGH
+#  @copyright (C): 2014 ACK CYFRONET AGH
 #  This software is released under the MIT license
 #  cited in 'LICENSE.txt'.
 #####################################################################
 #  This script is used to include given as first argument
-#  dynamic libraries into veil_cluster release package based on ldd 
+#  dynamic libraries into Onepanel release package based on ldd
 #  output from file given as second agrument. 
 #####################################################################
 

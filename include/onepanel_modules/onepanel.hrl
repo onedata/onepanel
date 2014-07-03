@@ -6,7 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc: This header file contains common macros and records for
-%% onepanel module.
+%% Onepanel module.
 %% @end
 %% ===================================================================
 

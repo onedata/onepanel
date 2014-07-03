@@ -36,7 +36,7 @@
 -define(EXIT_SUCCESS, 0).
 -define(EXIT_FAILURE, 1).
 
-%% Local onepanel node
+%% Local Onepanel node
 -define(NODE, local_node).
 
 
