@@ -71,7 +71,7 @@ update_to(#version{} = Vsn, ForceNodeReboot) ->
 %% ====================================================================
 %% @doc Same as update_to/2, but also allow to provide callback function.
 %%      CallbackFun :: function(Event :: enter_stage | update_objects | rollback_stage | error | warning, State :: #u_state{})
--spec update_to(Version :: #version{}, ForceNodeReboot :: boolean(), CallbackFun) ->
+-spec update_to(Version :: #version{}, ForceNodeReboot :: boolean(), CallbackFun :: function()) ->
     ok | {error, update_already_in_progress} | {error, any()}.
 %% ====================================================================
 update_to(#version{} = Vsn, ForceNodeReboot, CallbackFun) ->
@@ -83,7 +83,7 @@ update_to(#version{} = Vsn, ForceNodeReboot, CallbackFun) ->
 %% ====================================================================
 %% @doc Sets callback function for current update process.
 %%      CallbackFun :: function(Event :: enter_stage | update_objects | rollback_stage | error | warning, State :: #u_state{})
--spec set_callback(CallbackFun) -> ok.
+-spec set_callback(CallbackFun :: function()) -> ok.
 %% ====================================================================
 set_callback(Fun) when is_function(Fun) ->
     start(),
