@@ -278,7 +278,7 @@ stop() ->
     try
         ?debug("Stopping database node."),
 
-        "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ ?DEFAULT_DB_INSTALL_PATH ++ " | cut -d'\t' -f2 | awk '{print $2}'`"),
+        "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ ?DEFAULT_DB_INSTALL_PATH ++ " | awk '{print $2}'`"),
         ok = install_utils:remove_node_from_config(db_node),
 
         {ok, Host}

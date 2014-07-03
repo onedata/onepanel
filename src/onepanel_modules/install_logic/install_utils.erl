@@ -17,7 +17,8 @@
 
 %% API
 -export([random_ascii_lowercase_sequence/1, apply_on_hosts/5, get_node/1, get_host/1, get_hosts/0]).
--export([set_ulimits/2, get_ulimits_cmd/1, get_ports_to_check/1, get_control_panel_hosts/1, get_provider_id/0, get_main_ccm/0]).
+-export([set_ulimits/2, get_ulimits_cmd/1, get_ports_to_check/1]).
+-export([get_control_panel_hosts/1, get_provider_id/0, get_main_ccm/0, get_global_config/0]).
 -export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/3]).
 -export([save_file_on_host/3, save_file_on_hosts/3]).
 
@@ -109,8 +110,8 @@ get_hosts() ->
 set_ulimits(OpenFiles, Processes) ->
     try
         Host = install_utils:get_host(node()),
-        ok = file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n~p.\n", [{open_files, OpenFiles}, {process_limit, Processes}])),
-        ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{open_files_limit, OpenFiles}, {processes_limit, Processes}])
+        ok = file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n~p.\n", [{open_files, integer_to_list(OpenFiles)}, {process_limit, integer_to_list(Processes)}])),
+        ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{open_files_limit, integer_to_list(OpenFiles)}, {processes_limit, integer_to_list(Processes)}])
     catch
         _:Reason ->
             ?error("Cannot set ulimits: ~p", [Reason]),
@@ -224,7 +225,7 @@ overwrite_config_args(Path, Parameter, NewValue) ->
 
 %% save_file_on_hosts/3
 %% ====================================================================
-%% @doc Saves global registry certificate cert on host.
+%% @doc Saves Global Registry certificate cert on host.
 -spec save_file_on_hosts(Path :: string(), Filename :: string(), Content :: string() | binary()) -> Result when
     Result :: ok | {error, ErrorHosts :: [string()]}.
 %% ====================================================================
@@ -240,7 +241,7 @@ save_file_on_hosts(Path, Filename, Content) ->
 
 %% save_file_on_host/3
 %% ====================================================================
-%% @doc Saves global registry certificate cert on all hosts.
+%% @doc Saves Global Registry certificate cert on all hosts.
 -spec save_file_on_host(Path :: string(), Filename :: string(), Content :: string() | binary()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
@@ -259,7 +260,7 @@ save_file_on_host(Path, Filename, Content) ->
 
 %% get_ports_to_check/1
 %% ====================================================================
-%% @doc Returns default veilcluster ports that will be checked by global registry
+%% @doc Returns default veilcluster ports that will be checked by Global Registry
 -spec get_ports_to_check(MainCCM :: string()) -> Result when
     Result :: {ok, [{Type :: string(), Port :: integer()}]} | {error, Reason :: term()}.
 %% ====================================================================
@@ -325,4 +326,19 @@ get_main_ccm() ->
             MainCCM;
         _ ->
             undefined
+    end.
+
+
+%% get_global_config/0
+%% ====================================================================
+%% @doc Returns global installation configuration.
+-spec get_global_config() -> list().
+%% ====================================================================
+get_global_config() ->
+    case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+        {ok, Record} ->
+            Fields = record_info(fields, ?GLOBAL_CONFIG_RECORD),
+            [_ | Values] = tuple_to_list(Record),
+            lists:zip(Fields, Values);
+        _ -> []
     end.

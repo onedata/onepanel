@@ -24,6 +24,9 @@
 % Curl options
 -define(CURL_OPTS, [{connect_timeout, 5000}, {basic_auth, {"admin", "password"}}]).
 
+% Location of erl_launcher
+-define(ERL_LAUNCHER_SCRIPT_PATH, ?PREFIX ++ "scripts/erl_launcher").
+
 % Installation directory of veil RPM
 -define(PREFIX, "/opt/veil/").
 

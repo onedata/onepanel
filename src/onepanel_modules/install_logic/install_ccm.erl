@@ -21,7 +21,7 @@
 -export([install/1, uninstall/1, start/1, stop/1, restart/1]).
 
 %% API
--export([install/0, uninstall/0, start/3, stop/0]).
+-export([install/0, uninstall/0, start/3, stop/0, restart/0]).
 
 %% ====================================================================
 %% Behaviour callback functions
@@ -295,12 +295,42 @@ stop() ->
     try
         ?debug("Stopping CCM node."),
 
-        "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME ++ " | cut -d'\t' -f2 | awk '{print $2}'`"),
+        "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME ++ " | awk '{print $2}'`"),
         ok = install_utils:remove_node_from_config(ccm),
 
         {ok, Host}
     catch
         _:Reason ->
             ?error("Cannot stop CCM node: ~p", [Reason]),
+            {error, Host}
+    end.
+
+
+%% restart/0
+%% ====================================================================
+%% @doc Restarts CCM node on local host.
+%% @end
+-spec restart() -> Result when
+    Result :: {ok, Host :: string()} | {error, Reason :: term()}.
+%% ====================================================================
+restart() ->
+    Host = install_utils:get_host(node()),
+    try
+        {MainCCM, OptCCMs, Dbs} =
+            case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = undefined}} ->
+                    throw("CCM nodes not configured.");
+                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCMHost, opt_ccms = OptCCMHosts, dbs = DbHosts}} ->
+                    {MainCCMHost, OptCCMHosts, DbHosts};
+                _ -> throw("Cannot get CCM nodes configuration.")
+            end,
+
+        case stop() of
+            {ok, _} -> start(MainCCM, OptCCMs, Dbs);
+            Other -> Other
+        end
+    catch
+        _:Reason ->
+            ?error("Cannot restart CCM node: ~p", [Reason]),
             {error, Host}
     end.
