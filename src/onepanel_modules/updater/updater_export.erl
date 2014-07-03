@@ -17,7 +17,7 @@
 -export([install_package/1]).
 -export([backup_instalation/0, revert_instalation/0, move_file/1, move_all_files/0]).
 -export([force_reload_module/1, soft_reload_all_modules/0, force_reload_modules/2]).
--export([install_views/0, refresh_view/1, install_view_sources/0, run_pre_update/1]).
+-export([install_views/0, refresh_view/1, install_view_sources/0, run_pre_update/1, remove_outdated_views/0]).
 -export([runner/3]).
 
 %% ====================================================================
@@ -204,6 +204,10 @@ install_view_sources() ->
         "" -> ok;
         Reason -> {error, Reason}
     end.
+
+
+remove_outdated_views() ->
+    dao_lib:apply(update, remove_outdated_views, [], 1).
 
 
 refresh_view(View) ->

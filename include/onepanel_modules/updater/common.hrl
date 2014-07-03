@@ -27,6 +27,7 @@
 -define(STAGE_FORCE_RELOAD, force_reload).
 -define(STAGE_NODE_RESTART, node_restart).
 -define(STAGE_ROLLBACK, rollback).
+-define(STAGE_DAO_POST_SETUP_VIEWS, dao_post_setup_views).
 
 
 -define(JOB_DOWNLOAD_BINARY, download_binary).
@@ -40,6 +41,7 @@
 -define(JOB_INSTALL_VIEWS, install_views).
 -define(JOB_BACKUP, backup).
 -define(JOB_DEPLOY, deploy).
+-define(JOB_CLEANUP_VIEWS, cleanup_views).
 
 -define(STAGES, [
     {?STAGE_INIT, [?JOB_DOWNLOAD_BINARY, ?JOB_LOAD_EXPORTS, ?JOB_INSTALL_PACKAGE, ?JOB_LOAD_EXPORTS]},
@@ -49,6 +51,7 @@
     {?STAGE_DEPLOY_FILES, [?JOB_BACKUP, ?JOB_DEPLOY]},
     {?STAGE_SOFT_RELOAD, [?JOB_DEFAULT]},
     {?STAGE_FORCE_RELOAD, [?JOB_DEFAULT]},
+    {?STAGE_DAO_POST_SETUP_VIEWS, [?JOB_CLEANUP_VIEWS]},
     {?STAGE_NODE_RESTART, []} %% Dynamic job list (known after STAGE_DEPLOY_FILES) !
 ]).
 

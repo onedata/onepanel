@@ -109,6 +109,9 @@ dispatch(?STAGE_FORCE_RELOAD, ?JOB_DEFAULT, Obj, #u_state{not_reloaded_modules =
         end,
     cast(Node, force_reload_modules, [maps:get(Node, NotReloaded), WaitTime]);
 
+dispatch(?STAGE_DAO_POST_SETUP_VIEWS, ?JOB_CLEANUP_VIEWS, _Obj, #u_state{nodes = Nodes}) ->
+    anycast(Nodes, remove_outdated_views, []);
+
 dispatch(Stage, Job, Obj, #u_state{}) ->
     throw({unknown_dispatch, {Stage, Job, Obj}}).
 
@@ -152,6 +155,9 @@ handle_stage(?STAGE_SOFT_RELOAD, _, #u_state{nodes = Nodes} = State) ->
 
 handle_stage(?STAGE_FORCE_RELOAD, _, #u_state{nodes = Nodes} = State) ->
     default_dispatch_to_all_nodes(Nodes, State);
+
+handle_stage(?STAGE_DAO_POST_SETUP_VIEWS, _, #u_state{} = State) ->
+    [dispatch(views_cleanup, State)];
 
 handle_stage(Stage, Job, #u_state{}) ->
     throw({invalid_stage, {Stage, Job}}).
