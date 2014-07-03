@@ -1,0 +1,9 @@
+.idea
+onepanel.iml
+
+deps
+ebin
+rel/onepanel
+
+c_lib
+c_src/*.o
