@@ -39,7 +39,7 @@ get_object_count(#u_state{objects = Objects}) ->
 
 
 %% Head is the latest error
--type updater_error() :: {{Stage :: atom(), Job :: atom(), ActionType :: install | rollback}, Reason :: any}.
+-type updater_error() :: {{Stage :: atom(), Job :: atom(), ActionType :: install | rollback}, Reason :: any()}.
 -spec get_error_stack(State :: #u_state{}) ->
     {CriticalErrors :: [updater_error()], Errors :: [updater_error()], Warnings :: [updater_error()]}.
 get_error_stack(#u_state{error_stack = Stack}) ->
