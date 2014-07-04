@@ -5,7 +5,8 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: Write me !
+%% @doc: Active elements of updater_engine based on gen_server.
+%%       This gen_server has presistent state which makes updater immune to node restarts/crashes.
 %% @end
 %% ===================================================================
 -module(updater_worker).
@@ -120,7 +121,7 @@ handle_call({update_to, #version{}, _, _}, _From, #?u_state{stage = _Stage} = St
     {reply, {error, update_already_in_progress}, State};
 
 handle_call(Info, _From, State) ->
-    ?info("[Updater] Unknown call: ~p", [Info]),
+    ?warning("[Updater] Unknown call: ~p", [Info]),
     {noreply, State}.
 
 
@@ -134,7 +135,7 @@ handle_call(Info, _From, State) ->
     {stop, Reason :: term(), NewState :: #?u_state{}}.
 %% ====================================================================
 handle_cast(Info, State) ->
-    ?info("[Updater] Unknown cast: ~p", [Info]),
+    ?warning("[Updater] Unknown cast: ~p", [Info]),
     {noreply, State}.
 
 
@@ -200,7 +201,7 @@ handle_info({'EXIT', _Pid, normal}, #?u_state{} = State) ->
 handle_info({'EXIT', Pid, Reason}, #?u_state{} = State) ->
     handle_info({Pid, {error, {exit, Reason}}}, State);
 handle_info(Unknown, #?u_state{} = State) ->
-    ?info("Unknown info ~p", [Unknown]),
+    ?warning("Unknown info ~p", [Unknown]),
     {noreply, State}.
 
 

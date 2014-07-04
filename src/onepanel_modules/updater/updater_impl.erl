@@ -289,7 +289,7 @@ veil_restart(Node) ->
     case rpc:call(OnePanelNode, Mod, restart, []) of
         {ok, _} ->
             updater_utils:wait_for_node(Node, ?NODE_STARTUP_TIMEOUT),
-            timer:sleep(30 * 1000);
+            timer:sleep(?DELAY_BETWEEN_NODE_RESTARTS);
         {error, _Reason} ->
             {error, {restart_fail, Node}}
     end.

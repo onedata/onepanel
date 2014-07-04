@@ -23,6 +23,9 @@
 -define(ABORT_AVAILABLE, true).
 
 %% Timeout for node startup
--define(NODE_STARTUP_TIMEOUT,  10 * 1000).
+-define(NODE_STARTUP_TIMEOUT,  10 * 1000). %% 10sec
+
+%% Minimum delay between node restarts
+-define(DELAY_BETWEEN_NODE_RESTARTS, 30 * 1000). %% 30sec
 
 -endif.
