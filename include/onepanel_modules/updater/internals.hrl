@@ -16,5 +16,6 @@
 -include("onepanel_modules/updater/state.hrl").
 
 -define(REBOOT_ONLY_MODULES, ["kernel", "stdlib", "crypto"]).
+-define(ABORT_AVAILABLE, true).
 
 -endif.
