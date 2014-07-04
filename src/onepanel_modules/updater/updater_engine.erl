@@ -107,21 +107,21 @@ handle_error(Pid, Obj, Reason, #?u_state{error_counter = EC, objects = Objects,
     ErrorCount = maps:get(Obj, EC),
     if
         ErrorCount < 3 ->
-            {NewPid, Obj} = updater_engine:dispatch_object(Obj, State),
+            {NewPid, Obj} = dispatch_object(Obj, State),
             State#?u_state{objects = maps:put(NewPid, Obj, Objects)};
         true ->
             ErrorLevel = updater_impl:get_error_level(Stage, Job, Obj, Reason, State),
             case ActionType =:= rollback orelse ErrorLevel =:= warning of
                 true ->
-                    NewState0 = updater_engine:insert_warning(Obj, Reason, State),
+                    NewState0 = insert_warning(Obj, Reason, State),
                     updater_worker:handle_info({Pid, ok}, NewState0);
                 false ->
                     ?error("Critical error ~p: ~p", [Obj, Reason]),
                     NewState0 = State,
-                    NewState1 = updater_engine:init_rollback(NewState0),
-                    NewState2 = updater_engine:insert_error(Obj, Reason, NewState1),
+                    NewState1 = init_rollback(NewState0),
+                    NewState2 = insert_error(Obj, Reason, NewState1),
                     CallbackFun(ErrorLevel, NewState2),
-                    updater_engine:enter_stage(updater_state:get_stage_and_job(NewState2), NewState2)
+                    enter_stage(updater_state:get_stage_and_job(NewState2), NewState2)
             end
     end.
 
