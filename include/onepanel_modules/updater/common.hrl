@@ -13,6 +13,8 @@
 -ifndef(UPDATER_COMMON_HRL).
 -define(UPDATER_COMMON_HRL, 1).
 
+-define(PACKAGE_REPOSITORY_BASE_URL, "http://onedata.org/repository").
+
 -record(version, {major = 0, minor = 0, patch = 0}).
 
 -record(package, {type = rpm, binary = <<>>}).
