@@ -108,8 +108,9 @@ handle_call({update_to, #version{} = Vsn, ForceNodeRestart, CallbackFun}, _From,
 
 handle_call(abort, _From, #?u_state{stage = ?STAGE_IDLE} = State) ->
     {reply, ok, State};
-handle_call(abort, _From, #?u_state{stage = Stage, job = Job} = State) ->
+handle_call(abort, _From, #?u_state{stage = Stage, job = Job, callback = CallbackFun} = State) ->
     NewState = State#?u_state{action_type = rollback, objects = #{}},
+    CallbackFun(abort, NewState),
     {reply, ok, updater_engine:enter_stage({Stage, Job}, NewState)};
 handle_call({set_callback, Fun}, _From, #?u_state{} = State) ->
     {reply, ok, State#?u_state{callback = Fun}};
