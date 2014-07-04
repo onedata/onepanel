@@ -169,9 +169,10 @@ move_all_files() ->
 %% ====================================================================
 force_reload_module(Module) ->
     ok = fix_code_path(),
-    ok = code:purge(Module),
+    code:purge(Module),
     code:load_file(Module),
-    ok = code:purge(Module).
+    code:purge(Module),
+    ok.
 
 
 %% fix_code_path/0

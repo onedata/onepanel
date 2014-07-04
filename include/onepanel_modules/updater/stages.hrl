@@ -1,11 +1,11 @@
 %% ===================================================================
 %% @author Rafal Slota
-%% @copyright (C): 2013, ACK CYFRONET AGH
+%% @copyright (C): 2014, ACK CYFRONET AGH
 %% This software is released under the MIT license 
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: Write me !
+%% @doc: Updater Stages and Jobs definitions
 %% @end
 %% ===================================================================
 -author("Rafal Slota").
@@ -29,6 +29,7 @@
 -define(STAGE_REPAIR_NODES, repair_nodes).
 
 
+%% Update jobs
 -define(JOB_DOWNLOAD_BINARY, download_binary).
 -define(JOB_LOAD_EXPORTS, load_exports).
 -define(JOB_RELOAD_EXPORTS, reload_exports).
@@ -44,8 +45,10 @@
 -define(JOB_CLEANUP_VIEWS, cleanup_views).
 -define(JOB_CHECK_CONNECTIVITY, check_connectivity).
 
+
+%% Static Stage -> Job mapping
 -define(STAGES, [
-    {?STAGE_REPAIR_NODES, []}, %% Dynamic job list (known after STAGE_DEPLOY_FILES) !
+    {?STAGE_REPAIR_NODES, []}, %% Dynamic job list (known after STAGE_DEPLOY_FILES rollback) !
     {?STAGE_INIT, [?JOB_CHECK_CONNECTIVITY, ?JOB_DOWNLOAD_BINARY, ?JOB_LOAD_EXPORTS, ?JOB_INSTALL_PACKAGE, ?JOB_RELOAD_EXPORTS]},
     {?STAGE_DAO_UPDATER_LOAD, [?JOB_MOVE_BEAMS, ?JOB_LOAD_BEAMS, ?JOB_PRE_UPDATE]},
     {?STAGE_DAO_SETUP_VIEWS, [?JOB_INSTALL_VIEW_SOURCES, ?JOB_INSTALL_VIEWS]},

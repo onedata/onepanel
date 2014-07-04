@@ -24,303 +24,48 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 %% ====================================================================
-%% API functions
-%% ====================================================================
-
-get_error_level(?STAGE_NODE_RESTART, _Job, _Object, _Reason, _State) ->
-    warning;
-get_error_level(?STAGE_DAO_POST_SETUP_VIEWS, ?JOB_CLEANUP_VIEWS, _Object, _Reason, _State) ->
-    warning;
-get_error_level(_Stage, _Job, _Object, _Reason, _State) ->
-    error.
-
-
-finalize_stage(#?u_state{ stage = Stage, job = Job} = State) ->
-    finalize_stage(Stage, Job, State).
-
-
-finalize_stage(?STAGE_INIT, ?JOB_DOWNLOAD_BINARY, #?u_state{previous_data = PData} = State) ->
-    #{package := #package{} = Pkg} = PData,
-    State#?u_state{package = Pkg, previous_data = maps:remove(package, PData)};
-finalize_stage(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, #?u_state{previous_data = PData} = State) ->
-    #{views := Views} = PData,
-    ?info("Installed views: ~p", [Views]),
-    State#?u_state{installed_views = Views, previous_data = maps:remove(views, PData)};
-finalize_stage(?STAGE_SOFT_RELOAD, ?JOB_DEFAULT, #?u_state{previous_data = PData} = State) ->
-    ModMap = maps:to_list(PData),
-    NotReloaded = [{Node, [Module || {Module, false} <- IModMap]} || {Node, IModMap} <- ModMap],
-    ?info("Not-reloaded modules: ~p", [NotReloaded]),
-    State#?u_state{not_reloaded_modules = maps:from_list(NotReloaded)};
-finalize_stage(?STAGE_DEPLOY_FILES, ?JOB_DEPLOY, #?u_state{nodes = Nodes, previous_data = PData, force_node_restart = ForceRestart} = State) ->
-    LMap = maps:to_list(PData),
-    ToRestart =
-        case ForceRestart of
-            true -> Nodes;
-            _    -> [Node || {Node, true} <- LMap]
-        end,
-    ?info("Nodes to restart: ~p", [ToRestart]),
-    State#?u_state{nodes_to_restart = ToRestart};
-finalize_stage(Stage, Job, State) ->
-    ?debug("Unknown finalize: ~p:~p", [Stage, Job]),
-    State.
-
-
-dispatch_object(Obj, #?u_state{stage = Stage, job = Job} = State) ->
-    ?info("Dispatching ~p:~p obj: ~p", [Stage, Job, Obj]),
-    {dispatch_object(Stage, Job, Obj, State), Obj}.
-
-dispatch_object(?STAGE_INIT, ?JOB_RELOAD_EXPORTS, Obj, State) ->
-    dispatch_object(?STAGE_INIT, ?JOB_LOAD_EXPORTS, Obj, State);
-dispatch_object(?STAGE_INIT, ?JOB_LOAD_EXPORTS, Obj, #?u_state{}) ->
-    Node = Obj,
-    updater_utils:local_cast(fun() -> load_module_to_remote(Node, updater_export) end);
-
-dispatch_object(?STAGE_INIT, ?JOB_CHECK_CONNECTIVITY, Obj, #?u_state{}) ->
-    Node = Obj,
-    updater_utils:local_cast(fun() -> check_connectivity(Node) end);
-
-dispatch_object(?STAGE_INIT, ?JOB_DOWNLOAD_BINARY, _Obj, #?u_state{version = Vsn}) ->
-    updater_utils:local_cast(fun() -> updater_repos:get_package(Vsn) end);
-
-dispatch_object(?STAGE_INIT, ?JOB_INSTALL_PACKAGE, Obj, #?u_state{package = Pkg}) ->
-    Node = Obj,
-    updater_utils:cast(Node, install_package, [Pkg]);
-
-dispatch_object(?STAGE_DAO_UPDATER_LOAD, ?JOB_MOVE_BEAMS, Obj, #?u_state{}) ->
-    Node = Obj,
-    updater_utils:cast(Node, move_file, ["dao_update.beam"]);
-
-dispatch_object(?STAGE_DAO_UPDATER_LOAD, ?JOB_LOAD_BEAMS, Obj, #?u_state{}) ->
-    Node = Obj,
-    updater_utils:cast(Node, force_reload_module, [dao_update]);
-
-dispatch_object(?STAGE_DAO_UPDATER_LOAD, ?JOB_PRE_UPDATE, Obj, #?u_state{version = Vsn}) ->
-    Node = Obj,
-    updater_utils:cast(Node, run_pre_update, [Vsn]);
-
-dispatch_object(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEW_SOURCES, Obj, #?u_state{}) ->
-    Node = Obj,
-    updater_utils:cast(Node, install_view_sources, []);
-
-dispatch_object(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, _Obj, #?u_state{nodes = Nodes}) ->
-    updater_utils:anycast(Nodes, install_views, []);
-
-dispatch_object(?STAGE_DAO_REFRESH_VIEWS, ?JOB_DEFAULT, Obj, #?u_state{nodes = Nodes}) ->
-    View = Obj,
-    updater_utils:anycast(Nodes, refresh_view, [View]);
-
-dispatch_object(?STAGE_DEPLOY_FILES, ?JOB_BACKUP, Obj, #?u_state{}) ->
-    Node = Obj,
-    updater_utils:cast(Node, backup_instalation, []);
-
-dispatch_object(?STAGE_DEPLOY_FILES, ?JOB_DEPLOY, Obj, #?u_state{}) ->
-    Node = Obj,
-    updater_utils:cast(Node, move_all_files, []);
-
-dispatch_object(?STAGE_SOFT_RELOAD, ?JOB_DEFAULT, Obj, #?u_state{}) ->
-    Node = Obj,
-    updater_utils:cast(Node, soft_reload_all_modules, []);
-
-dispatch_object(?STAGE_FORCE_RELOAD, ?JOB_DEFAULT, Obj, #?u_state{not_reloaded_modules = NotReloaded}) ->
-    Node = Obj,
-    WaitTime =
-        case length(maps:get(Node, NotReloaded)) of
-            0 -> 0;
-            _ -> 2 * 60 * 1000
-        end,
-    updater_utils:cast(Node, force_reload_modules, [maps:get(Node, NotReloaded), WaitTime]);
-
-dispatch_object(?STAGE_DAO_POST_SETUP_VIEWS, ?JOB_CLEANUP_VIEWS, _Obj, #?u_state{nodes = Nodes}) ->
-    updater_utils:anycast(Nodes, remove_outdated_views, []);
-
-dispatch_object(?STAGE_NODE_RESTART, _, Obj, #?u_state{}) ->
-    Node = Obj,
-    updater_utils:local_cast(fun() -> veil_restart(Node) end);
-
-dispatch_object(Stage, Job, Obj, #?u_state{}) ->
-    throw({unknown_dispatch, {Stage, Job, Obj}}).
-
-
-rollback_object(Obj, #?u_state{stage = Stage, job = Job} = State) ->
-    ?info("Rollbacking ~p:~p obj: ~p", [Stage, Job, Obj]),
-    {rollback_object(Stage, Job, Obj, State), Obj}.
-
-rollback_object(?STAGE_DEPLOY_FILES, ?JOB_DEPLOY, Obj, #?u_state{}) ->
-    Node = Obj,
-    updater_utils:cast(Node, restore_instalation, []);
-
-rollback_object(?STAGE_REPAIR_NODES, _, Obj, #?u_state{}) ->
-    Node = Obj,
-    updater_utils:local_cast(fun() -> veil_restart(Node) end);
-
-rollback_object(Stage, Job, Obj, #?u_state{}) ->
-    throw({unknown_dispatch, {Stage, Job, Obj}}).
-
-
-handle_stage(#?u_state{stage = Stage, job = Job} = State) ->
-    ?info("Handle stage ~p:~p", [Stage, Job]),
-    case handle_stage(Stage, Job, State) of
-        {Objects, #?u_state{} = NewState} ->
-            {Objects, NewState};
-        Objects -> {Objects, State}
-    end.
-
-
-handle_stage(?STAGE_IDLE, _, #?u_state{} = _State) ->
-    [];
-
-handle_stage(?STAGE_REPAIR_NODES, _, #?u_state{}) ->
-    [];
-
-handle_stage(?STAGE_INIT, ?JOB_RELOAD_EXPORTS, #?u_state{nodes = _Nodes} = State) ->
-    handle_stage(?STAGE_INIT, ?JOB_LOAD_EXPORTS, State);
-
-handle_stage(?STAGE_INIT, ?JOB_LOAD_EXPORTS, #?u_state{nodes = Nodes} = _State) ->
-    Nodes;
-handle_stage(?STAGE_INIT, ?JOB_CHECK_CONNECTIVITY, #?u_state{nodes = Nodes} = _State) ->
-    Hostnames = lists:usort([ install_utils:get_host(Node) || Node <- Nodes ]),
-    OnePanelNodes = [install_utils:get_node(Host) || Host <- Hostnames],
-    Nodes ++ OnePanelNodes;
-
-handle_stage(?STAGE_INIT, ?JOB_DOWNLOAD_BINARY, #?u_state{} = _State) ->
-    package;
-
-handle_stage(?STAGE_INIT, ?JOB_INSTALL_PACKAGE, #?u_state{nodes = Nodes} = _State) ->
-    updater_utils:select_only_workers(Nodes);
-
-handle_stage(?STAGE_DAO_UPDATER_LOAD, _, #?u_state{nodes = Nodes} = _State) ->
-    Nodes;
-
-handle_stage(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, #?u_state{nodes = _Nodes} = _State) ->
-    views;
-
-handle_stage(?STAGE_DAO_SETUP_VIEWS, _, #?u_state{nodes = Nodes} = _State) ->
-    updater_utils:select_only_workers(Nodes);
-
-handle_stage(?STAGE_DAO_REFRESH_VIEWS, _, #?u_state{nodes = _Nodes, installed_views = Views} = _State) ->
-    Views;
-
-handle_stage(?STAGE_DEPLOY_FILES, _, #?u_state{nodes = Nodes} = _State) ->
-    Nodes;
-
-handle_stage(?STAGE_SOFT_RELOAD, _, #?u_state{nodes = Nodes} = _State) ->
-    Nodes;
-
-handle_stage(?STAGE_FORCE_RELOAD, _, #?u_state{nodes = Nodes} = _State) ->
-    Nodes;
-
-handle_stage(?STAGE_DAO_POST_SETUP_VIEWS, _, #?u_state{} = _State) ->
-    views_cleanup;
-
-handle_stage(?STAGE_NODE_RESTART, RestartNode, #?u_state{} = _State) ->
-    RestartNode;
-
-handle_stage(Stage, Job, #?u_state{}) ->
-    throw({invalid_stage, {Stage, Job}}).
-
-
-
-
-
-handle_rollback(#?u_state{stage = Stage, job = Job} = State) ->
-    case handle_rollback(Stage, Job, State) of
-        {Objects, #?u_state{} = NewState} ->
-            {Objects, NewState};
-        Objects -> {Objects, State}
-    end.
-
-handle_rollback(?STAGE_REPAIR_NODES, RepairNode, #?u_state{}) ->
-    RepairNode;
-
-handle_rollback(?STAGE_DEPLOY_FILES, ?JOB_DEPLOY, #?u_state{nodes = Nodes} = State) ->
-    {Nodes, State#?u_state{nodes_to_repair = Nodes}};
-
-handle_rollback(_Stage, _Job, #?u_state{}) ->
-    [].
-
-
-
-dispatch_all(Objects, #?u_state{} = State, DispatchFun) ->
-    lists:map(fun(Obj) -> DispatchFun(Obj, State) end, Objects).
-
-
-next_stage(#?u_state{stage = ?STAGE_IDLE, job = _, action_type = install} = State) ->
-    ?info("next_stage ~p", [das]),
-    [{Stage, Job} | _] = updater_utils:flatten_stages(updater_state:get_all_stages(State)),
-    {Stage, Job};
-next_stage(#?u_state{stage = Stage, job = Job, action_type = install} = State) ->
-    ?info("next_stage ~p:~p", [Stage, Job]),
-    [_, {NStage, NJob} | _] =
-        lists:dropwhile(
-            fun({CStage, CJob}) ->
-                {CStage, CJob} =/= {Stage, Job}
-            end, updater_utils:flatten_stages(updater_state:get_all_stages(State)) ++ [{?STAGE_IDLE, ?JOB_DEFAULT}]),
-    {NStage, NJob};
-next_stage(#?u_state{stage = ?STAGE_IDLE, job = _, action_type = rollback}) ->
-    {?STAGE_IDLE, ?JOB_DEFAULT};
-next_stage(#?u_state{stage = Stage, job = Job, action_type = rollback} = State) ->
-    ?info("previous_stage ~p:~p", [Stage, Job]),
-    Stages = [{?STAGE_IDLE, ?JOB_DEFAULT}] ++ updater_utils:flatten_stages(updater_state:get_all_stages(State)),
-    PrevStages =
-        lists:takewhile(
-            fun({CStage, CJob}) ->
-                {CStage, CJob} =/= {Stage, Job}
-            end, Stages),
-    ?info("previous_stage ~p:~p ~p", [Stage, Job, PrevStages]),
-    lists:last(PrevStages).
-
-
-enter_stage({Stage, Job}, #?u_state{object_data = ObjData, callback = CFun, action_type = ActionType} = State) ->
-    {DispatchFun, HandleFun, EventName, NewState0} =
-        case ActionType of
-            install  -> {fun dispatch_object/2, fun handle_stage/1, enter_stage, finalize_stage(State#?u_state{previous_data = ObjData})};
-            rollback -> {fun rollback_object/2, fun handle_rollback/1, rollback_stage, State}
-        end,
-
-    ?info("Entering stage ~p:~p...", [Stage, Job]),
-
-    NewState1 = NewState0#?u_state{stage = Stage, job = Job, objects = #{}, error_counter = #{}, object_data = #{}},
-
-    dao:save_record(?UPDATER_STATE_TABLE, NewState1#?u_state{package = #package{}}),
-
-    {ObjectList0, NewState2} = HandleFun(NewState1),
-    ObjectList1 = lists:flatten( [ ObjectList0 ] ),
-    Dispatch = dispatch_all(ObjectList1, NewState2, DispatchFun),
-
-    NewState3 = NewState1#?u_state{objects = maps:from_list( Dispatch )},
-
-    CFun(EventName, NewState3),
-
-    case maps:size(NewState3#?u_state.objects) =:= 0 andalso Stage =/= ?STAGE_IDLE of
-        true -> enter_stage(next_stage(NewState3), NewState3);
-        _    -> NewState3
-    end.
-
-
-%% ====================================================================
-%% Callback functions
+%% gen_server callbacks
 %% ====================================================================
 
 
+%% start_link/0
+%% ====================================================================
+%% @doc Starts the server
+%% @end
+-spec start_link() -> Result when
+    Result :: {ok, Pid :: pid()} | ignore | {error, Reason :: term()}.
+%% ====================================================================
 start_link() ->
     gen_server:start_link({global, ?UPDATE_SERVICE}, ?MODULE, [], []).
 
+
+%% init/1
+%% ====================================================================
+%% @doc Initializes the server
+%% @end
+-spec init(Args :: term()) -> Result when
+    Result :: {ok, State :: #?u_state{}} |
+    {ok, State :: #?u_state{}, timeout() | hibernate} |
+    {stop, Reason :: term()} |
+    ignore.
+%% ====================================================================
 init(_Args) ->
     process_flag(trap_exit, true),
     inets:start(),
-    %%?info("[Updater] Initialized."),
+    ?info("[Updater] Initialized."),
 
     State =
         case dao:get_record(?UPDATER_STATE_TABLE, ?UPDATER_STATE_ID) of
             {ok, #?u_state{stage = Stage} = SavedState} when Stage =/= ?STAGE_IDLE ->
+                %% Restart interrupted update process
                 case Stage of
                     ?STAGE_INIT ->
-                        enter_stage(next_stage(SavedState#?u_state{stage = ?STAGE_IDLE}), SavedState);
+                        updater_engine:enter_stage(updater_engine:next_stage(SavedState#?u_state{stage = ?STAGE_IDLE}), SavedState);
                     _ ->
-                        enter_stage(updater_state:get_stage_and_job(SavedState), SavedState)
+                        updater_engine:enter_stage(updater_state:get_stage_and_job(SavedState), SavedState)
                 end;
-            {ok, Unk} ->
-                ?warning("Unknown updater state in DB: ~p", Unk),
+            {ok, _Unk} ->
+                ?warning("Unknown updater state in DB, ignoring."),
                 #?u_state{};
             _ ->
                 #?u_state{}
@@ -328,6 +73,20 @@ init(_Args) ->
 
     {ok, State}.
 
+
+%% handle_call/3
+%% ====================================================================
+%% @doc Handling call messages
+%% @end
+-spec handle_call(Request :: term(), From :: {pid(), Tag :: term()},
+    State :: #?u_state{}) -> Result when
+    Result :: {reply, Reply :: term(), NewState :: #?u_state{}} |
+    {reply, Reply :: term(), NewState :: #?u_state{}, timeout() | hibernate} |
+    {noreply, NewState :: #?u_state{}} |
+    {noreply, NewState :: #?u_state{}, timeout() | hibernate} |
+    {stop, Reason :: term(), Reply :: term(), NewState :: #?u_state{}} |
+    {stop, Reason :: term(), NewState :: #?u_state{}}.
+%% ====================================================================
 handle_call(get_state, _From, State) ->
     {reply, State, State};
 
@@ -338,12 +97,9 @@ handle_call({update_to, #version{} = Vsn, ForceNodeRestart, CallbackFun}, _From,
             Workers = [list_to_atom(?DEFAULT_WORKER_NAME ++ "@" ++ Host) || Host <- WorkerHosts],
             CCMs = [list_to_atom(?DEFAULT_CCM_NAME ++ "@" ++ Host) || Host <- CCMHosts],
 
-            %%?info("Installed workers ~p", [Workers]),
-            %%?info("Installed CCMs ~p", [CCMs]),
-
             NewState0 = State#?u_state{action_type = install, warning_stack = [], error_stack = [], nodes = Workers ++ CCMs, version = Vsn, callback = CallbackFun, force_node_restart = ForceNodeRestart},
 
-            NewState2 = enter_stage(next_stage(NewState0), NewState0),
+            NewState2 = updater_engine:enter_stage(updater_engine:next_stage(NewState0), NewState0),
 
             {reply, ok, NewState2};
         _ ->
@@ -354,7 +110,7 @@ handle_call(abort, _From, #?u_state{stage = ?STAGE_IDLE} = State) ->
     {reply, ok, State};
 handle_call(abort, _From, #?u_state{stage = Stage, job = Job} = State) ->
     NewState = State#?u_state{action_type = rollback, objects = #{}},
-    {reply, ok, enter_stage({Stage, Job}, NewState)};
+    {reply, ok, updater_engine:enter_stage({Stage, Job}, NewState)};
 handle_call({set_callback, Fun}, _From, #?u_state{} = State) ->
     {reply, ok, State#?u_state{callback = Fun}};
 
@@ -366,24 +122,42 @@ handle_call(Info, _From, State) ->
     ?info("[Updater] Unknown call: ~p", [Info]),
     {noreply, State}.
 
+
+%% handle_cast/2
+%% ====================================================================
+%% @doc Handling cast messages
+%% @end
+-spec handle_cast(Request :: term(), State :: #?u_state{}) -> Result when
+    Result :: {noreply, NewState :: #?u_state{}} |
+    {noreply, NewState :: #?u_state{}, timeout() | hibernate} |
+    {stop, Reason :: term(), NewState :: #?u_state{}}.
+%% ====================================================================
 handle_cast(Info, State) ->
     ?info("[Updater] Unknown cast: ~p", [Info]),
     {noreply, State}.
 
 
+%% handle_info/2
+%% ====================================================================
+%% @doc Handling all non call/cast messages
+%% @end
+-spec handle_info(Info :: timeout() | term(), State :: #?u_state{}) -> Result when
+    Result :: {noreply, NewState :: #?u_state{}} |
+    {noreply, NewState :: #?u_state{}, timeout() | hibernate} |
+    {stop, Reason :: term(), NewState :: #?u_state{}}.
+%% ====================================================================
 handle_info({Pid, ok}, #?u_state{objects = Objects, callback = CallbackFun} = State) ->
     NObjects = maps:remove(Pid, Objects),
-    CallbackFun(update_objects, State),
+    CallbackFun(update_objects, State#?u_state{objects = NObjects}),
     NState =
         case {maps:size(NObjects), maps:size(Objects)} of
             {0, 1}  ->
-                enter_stage(next_stage(State), State);
+                updater_engine:enter_stage(updater_engine:next_stage(State), State);
             _  -> State#?u_state{objects = NObjects}
         end,
     {noreply, NState};
 
 handle_info({Pid, {ok, Data}}, #?u_state{objects = Objects, object_data = ObjData} = State) ->
-    %%?info("Result form ~p: ~p", [Pid, Data]),
     NState =
         case maps:is_key(Pid, Objects) of
             true ->
@@ -397,7 +171,7 @@ handle_info({Pid, {ok, Data}}, #?u_state{objects = Objects, object_data = ObjDat
 
 
 handle_info({Pid, {error, Reason}}, #?u_state{objects = Objects, object_data = _ObjData, error_counter = EC} = State) ->
-    ?error("Error form ~p: ~p", [Pid, Reason]),
+    ?error("Error form ~p: ~p", [Pid, updater_utils:normalize_error_reason(Reason)]),
     MapsGetOrDefault =
         fun(Key, Map, Default) ->
             case maps:is_key(Key, Map) of
@@ -409,7 +183,7 @@ handle_info({Pid, {error, Reason}}, #?u_state{objects = Objects, object_data = _
         case maps:is_key(Pid, Objects) of
             true ->
                 Obj = maps:get(Pid, Objects),
-                handle_error(Pid, Obj, Reason,
+                updater_engine:handle_error(Pid, Obj, Reason,
                     State#?u_state{
                         objects = maps:remove(Pid, Objects),
                         error_counter = maps:put(Obj, MapsGetOrDefault(Obj, EC, 0) + 1, EC)
@@ -428,35 +202,29 @@ handle_info(Unknown, #?u_state{} = State) ->
     ?info("Unknown info ~p", [Unknown]),
     {noreply, State}.
 
-handle_error(Pid, Obj, Reason, #?u_state{error_counter = EC, objects = Objects,
-                                callback = CallbackFun,
-                                stage = Stage, job = Job, action_type = ActionType} = State) ->
-    ErrorCount = maps:get(Obj, EC),
-    if
-        ErrorCount < 3 ->
-            {NewPid, Obj} = dispatch_object(Obj, State),
-            State#?u_state{objects = maps:put(NewPid, Obj, Objects)};
-        true ->
-            ErrorLevel = get_error_level(Stage, Job, Obj, Reason, State),
-            case ActionType =:= rollback orelse ErrorLevel =:= warning of
-                true ->
-                    NewState0 = insert_warning(Obj, Reason, State),
-                    handle_info({Pid, ok}, NewState0);
-                false ->
-                    ?error("Critical error ~p: ~p", [Obj, Reason]),
-                    NewState0 = State,
-                    NewState1 = init_rollback(NewState0),
-                    NewState2 = insert_error(Obj, Reason, NewState1),
-                    CallbackFun(ErrorLevel, NewState2),
-                    enter_stage(updater_state:get_stage_and_job(NewState2), NewState2)
-            end
-    end.
 
-
+%% terminate/2
+%% ====================================================================
+%% @doc This function is called by a gen_server when it is about to
+%% terminate. It should be the opposite of Module:init/1 and do any
+%% necessary cleaning up. When it returns, the gen_server terminates
+%% with Reason. The return value is ignored.
+%% @end
+-spec terminate(Reason :: (normal | shutdown | {shutdown, term()} | term()), State :: #?u_state{}) -> Result when
+    Result :: term().
+%% ====================================================================
 terminate(Reason, _State) ->
     ?info("[Updater] terminate: ~p", [Reason]),
     ok.
 
+
+%% code_change/3
+%% ====================================================================
+%% @doc Convert process state when code is changed
+%% @end
+-spec code_change(OldVsn :: term() | {down, term()}, State :: #?u_state{}, Extra :: term()) -> Result when
+    Result :: {ok, NewState :: #?u_state{}} | {error, Reason :: term()}.
+%% ====================================================================
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
@@ -468,47 +236,10 @@ code_change(_OldVsn, State, _Extra) ->
 
 
 
-load_module_to_remote(Node, Module) ->
-    code:purge(Module),
-    code:load_file(Module),
-    code:purge(Module),
-    {Module, Bin, _FileName} = code:get_object_code(Module),
-    rpc:call(Node, code, purge, [Module]),
-    case rpc:call(Node, code, load_binary, [Module, preloaded, Bin]) of
-        {module, _} -> ok;
-        {error, Reason} ->
-            {error, Reason}
-    end.
-
-
-check_connectivity(Node) ->
-    case net_adm:ping(Node) of
-        pong -> ok;
-        pang -> {error, {node_down, Node}}
-    end.
-
-init_rollback(#?u_state{} = State) ->
-    State#?u_state{action_type = rollback, objects = #{}}.
-
-
-insert_error(Obj, Reason, #?u_state{stage = Stage, job = Job, action_type = ActionType, error_stack = EC} = State)  ->
-    State#?u_state{error_stack = [{{Stage, Job, ActionType}, Obj, updater_utils:normalize_error_reason(Reason)} | EC]}.
-
-insert_warning(Obj, Reason, #?u_state{stage = Stage, job = Job, action_type = ActionType, warning_stack = EC} = State)  ->
-    State#?u_state{warning_stack = [{{Stage, Job, ActionType}, Obj, updater_utils:normalize_error_reason(Reason)} | EC]}.
 
 
 
-veil_restart(Node) ->
-    [NodeType, _] = string:tokens(atom_to_list(Node), "@"),
-    OnePanelNode = install_utils:get_node(install_utils:get_host(Node)),
-    Mod = list_to_atom("install_" ++ NodeType),
-    case rpc:call(OnePanelNode, Mod, restart, []) of
-        {ok, _} ->
-            updater_utils:wait_for_node(Node, 10 * 1000),
-            timer:sleep(30 * 1000);
-        {error, _Reason} ->
-            {error, {restart_fail, Node}}
-    end.
+
+
 
 
