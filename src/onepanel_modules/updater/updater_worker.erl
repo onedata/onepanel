@@ -19,14 +19,9 @@
 -include_lib("ctool/include/logging.hrl").
 
 
-
-%% API
--export([flatten_stages/1]).
-
 %% gen_server callbacks
 -export([start_link/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
--export([cast/3]).
 
 %% ====================================================================
 %% API functions
@@ -78,53 +73,53 @@ dispatch_object(?STAGE_INIT, ?JOB_RELOAD_EXPORTS, Obj, State) ->
     dispatch_object(?STAGE_INIT, ?JOB_LOAD_EXPORTS, Obj, State);
 dispatch_object(?STAGE_INIT, ?JOB_LOAD_EXPORTS, Obj, #?u_state{}) ->
     Node = Obj,
-    local_cast(fun() -> load_module_to_remote(Node, updater_export) end);
+    updater_utils:local_cast(fun() -> load_module_to_remote(Node, updater_export) end);
 
 dispatch_object(?STAGE_INIT, ?JOB_CHECK_CONNECTIVITY, Obj, #?u_state{}) ->
     Node = Obj,
-    local_cast(fun() -> check_connectivity(Node) end);
+    updater_utils:local_cast(fun() -> check_connectivity(Node) end);
 
 dispatch_object(?STAGE_INIT, ?JOB_DOWNLOAD_BINARY, _Obj, #?u_state{version = Vsn}) ->
-    local_cast(fun() -> updater_repos:get_package(Vsn) end);
+    updater_utils:local_cast(fun() -> updater_repos:get_package(Vsn) end);
 
 dispatch_object(?STAGE_INIT, ?JOB_INSTALL_PACKAGE, Obj, #?u_state{package = Pkg}) ->
     Node = Obj,
-    cast(Node, install_package, [Pkg]);
+    updater_utils:cast(Node, install_package, [Pkg]);
 
 dispatch_object(?STAGE_DAO_UPDATER_LOAD, ?JOB_MOVE_BEAMS, Obj, #?u_state{}) ->
     Node = Obj,
-    cast(Node, move_file, ["dao_update.beam"]);
+    updater_utils:cast(Node, move_file, ["dao_update.beam"]);
 
 dispatch_object(?STAGE_DAO_UPDATER_LOAD, ?JOB_LOAD_BEAMS, Obj, #?u_state{}) ->
     Node = Obj,
-    cast(Node, force_reload_module, [dao_update]);
+    updater_utils:cast(Node, force_reload_module, [dao_update]);
 
 dispatch_object(?STAGE_DAO_UPDATER_LOAD, ?JOB_PRE_UPDATE, Obj, #?u_state{version = Vsn}) ->
     Node = Obj,
-    cast(Node, run_pre_update, [Vsn]);
+    updater_utils:cast(Node, run_pre_update, [Vsn]);
 
 dispatch_object(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEW_SOURCES, Obj, #?u_state{}) ->
     Node = Obj,
-    cast(Node, install_view_sources, []);
+    updater_utils:cast(Node, install_view_sources, []);
 
 dispatch_object(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, _Obj, #?u_state{nodes = Nodes}) ->
-    anycast(Nodes, install_views, []);
+    updater_utils:anycast(Nodes, install_views, []);
 
 dispatch_object(?STAGE_DAO_REFRESH_VIEWS, ?JOB_DEFAULT, Obj, #?u_state{nodes = Nodes}) ->
     View = Obj,
-    anycast(Nodes, refresh_view, [View]);
+    updater_utils:anycast(Nodes, refresh_view, [View]);
 
 dispatch_object(?STAGE_DEPLOY_FILES, ?JOB_BACKUP, Obj, #?u_state{}) ->
     Node = Obj,
-    cast(Node, backup_instalation, []);
+    updater_utils:cast(Node, backup_instalation, []);
 
 dispatch_object(?STAGE_DEPLOY_FILES, ?JOB_DEPLOY, Obj, #?u_state{}) ->
     Node = Obj,
-    cast(Node, move_all_files, []);
+    updater_utils:cast(Node, move_all_files, []);
 
 dispatch_object(?STAGE_SOFT_RELOAD, ?JOB_DEFAULT, Obj, #?u_state{}) ->
     Node = Obj,
-    cast(Node, soft_reload_all_modules, []);
+    updater_utils:cast(Node, soft_reload_all_modules, []);
 
 dispatch_object(?STAGE_FORCE_RELOAD, ?JOB_DEFAULT, Obj, #?u_state{not_reloaded_modules = NotReloaded}) ->
     Node = Obj,
@@ -133,14 +128,14 @@ dispatch_object(?STAGE_FORCE_RELOAD, ?JOB_DEFAULT, Obj, #?u_state{not_reloaded_m
             0 -> 0;
             _ -> 2 * 60 * 1000
         end,
-    cast(Node, force_reload_modules, [maps:get(Node, NotReloaded), WaitTime]);
+    updater_utils:cast(Node, force_reload_modules, [maps:get(Node, NotReloaded), WaitTime]);
 
 dispatch_object(?STAGE_DAO_POST_SETUP_VIEWS, ?JOB_CLEANUP_VIEWS, _Obj, #?u_state{nodes = Nodes}) ->
-    anycast(Nodes, remove_outdated_views, []);
+    updater_utils:anycast(Nodes, remove_outdated_views, []);
 
 dispatch_object(?STAGE_NODE_RESTART, _, Obj, #?u_state{}) ->
     Node = Obj,
-    local_cast(fun() -> veil_restart(Node) end);
+    updater_utils:local_cast(fun() -> veil_restart(Node) end);
 
 dispatch_object(Stage, Job, Obj, #?u_state{}) ->
     throw({unknown_dispatch, {Stage, Job, Obj}}).
@@ -152,11 +147,11 @@ rollback_object(Obj, #?u_state{stage = Stage, job = Job} = State) ->
 
 rollback_object(?STAGE_DEPLOY_FILES, ?JOB_DEPLOY, Obj, #?u_state{}) ->
     Node = Obj,
-    cast(Node, restore_instalation, []);
+    updater_utils:cast(Node, restore_instalation, []);
 
 rollback_object(?STAGE_REPAIR_NODES, _, Obj, #?u_state{}) ->
     Node = Obj,
-    local_cast(fun() -> veil_restart(Node) end);
+    updater_utils:local_cast(fun() -> veil_restart(Node) end);
 
 rollback_object(Stage, Job, Obj, #?u_state{}) ->
     throw({unknown_dispatch, {Stage, Job, Obj}}).
@@ -191,7 +186,7 @@ handle_stage(?STAGE_INIT, ?JOB_DOWNLOAD_BINARY, #?u_state{} = _State) ->
     package;
 
 handle_stage(?STAGE_INIT, ?JOB_INSTALL_PACKAGE, #?u_state{nodes = Nodes} = _State) ->
-    select_only_workers(Nodes);
+    updater_utils:select_only_workers(Nodes);
 
 handle_stage(?STAGE_DAO_UPDATER_LOAD, _, #?u_state{nodes = Nodes} = _State) ->
     Nodes;
@@ -200,7 +195,7 @@ handle_stage(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, #?u_state{nodes = _Node
     views;
 
 handle_stage(?STAGE_DAO_SETUP_VIEWS, _, #?u_state{nodes = Nodes} = _State) ->
-    select_only_workers(Nodes);
+    updater_utils:select_only_workers(Nodes);
 
 handle_stage(?STAGE_DAO_REFRESH_VIEWS, _, #?u_state{nodes = _Nodes, installed_views = Views} = _State) ->
     Views;
@@ -251,7 +246,7 @@ dispatch_all(Objects, #?u_state{} = State, DispatchFun) ->
 
 next_stage(#?u_state{stage = ?STAGE_IDLE, job = _, action_type = install} = State) ->
     ?info("next_stage ~p", [das]),
-    [{Stage, Job} | _] = flatten_stages(updater_state:get_all_stages(State)),
+    [{Stage, Job} | _] = updater_utils:flatten_stages(updater_state:get_all_stages(State)),
     {Stage, Job};
 next_stage(#?u_state{stage = Stage, job = Job, action_type = install} = State) ->
     ?info("next_stage ~p:~p", [Stage, Job]),
@@ -259,13 +254,13 @@ next_stage(#?u_state{stage = Stage, job = Job, action_type = install} = State) -
         lists:dropwhile(
             fun({CStage, CJob}) ->
                 {CStage, CJob} =/= {Stage, Job}
-            end, flatten_stages(updater_state:get_all_stages(State)) ++ [{?STAGE_IDLE, ?JOB_DEFAULT}]),
+            end, updater_utils:flatten_stages(updater_state:get_all_stages(State)) ++ [{?STAGE_IDLE, ?JOB_DEFAULT}]),
     {NStage, NJob};
 next_stage(#?u_state{stage = ?STAGE_IDLE, job = _, action_type = rollback}) ->
     {?STAGE_IDLE, ?JOB_DEFAULT};
 next_stage(#?u_state{stage = Stage, job = Job, action_type = rollback} = State) ->
     ?info("previous_stage ~p:~p", [Stage, Job]),
-    Stages = [{?STAGE_IDLE, ?JOB_DEFAULT}] ++ flatten_stages(updater_state:get_all_stages(State)),
+    Stages = [{?STAGE_IDLE, ?JOB_DEFAULT}] ++ updater_utils:flatten_stages(updater_state:get_all_stages(State)),
     PrevStages =
         lists:takewhile(
             fun({CStage, CJob}) ->
@@ -301,10 +296,6 @@ enter_stage({Stage, Job}, #?u_state{object_data = ObjData, callback = CFun, acti
         _    -> NewState3
     end.
 
-
-local_cast(Fun) ->
-    Host = self(),
-    spawn_link(fun() -> Host ! {self(), Fun()} end).
 
 %% ====================================================================
 %% Callback functions
@@ -462,11 +453,11 @@ handle_error(Pid, Obj, Reason, #?u_state{error_counter = EC, objects = Objects,
     end.
 
 
-terminate(Reason, State) ->
+terminate(Reason, _State) ->
     ?info("[Updater] terminate: ~p", [Reason]),
     ok.
 
-code_change(OldVsn, State, Extra) ->
+code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 
@@ -475,18 +466,7 @@ code_change(OldVsn, State, Extra) ->
 %% ====================================================================
 
 
-cast(Node, Fun, Args) ->
-    ?debug("Cast: ~p ~p ~p", [Node, Fun, Args]),
-    Host = self(),
-    spawn_link(Node, updater_export, runner, [Host, Fun, Args]).
 
-multicast(Nodes, Fun, Args) ->
-    lists:foreach(fun(Node) -> cast(Node, Fun, Args) end, Nodes).
-
-anycast(Nodes, Fun, Args) ->
-    ?debug("Anycast: ~p ~p ~p", [Nodes, Fun, Args]),
-    Node = lists:nth(crypto:rand_uniform(1, length(Nodes) + 1), Nodes),
-    cast(Node, Fun, Args).
 
 load_module_to_remote(Node, Module) ->
     code:purge(Module),
@@ -500,23 +480,6 @@ load_module_to_remote(Node, Module) ->
             {error, Reason}
     end.
 
-select_only_workers([]) ->
-    [];
-select_only_workers(Node) when is_atom(Node) ->
-    case string:tokens(atom_to_list(Node), "@") of
-        [?DEFAULT_WORKER_NAME, _] -> [Node];
-        _ -> []
-    end;
-select_only_workers([Node | T]) ->
-    select_only_workers(Node) ++ select_only_workers(T).
-
-flatten_stages(Stages) ->
-    lists:flatten(
-        lists:map(
-            fun({Stage, Jobs}) ->
-                lists:map(fun(Job) -> {Stage, Job} end, Jobs)
-            end, Stages)).
-
 
 check_connectivity(Node) ->
     case net_adm:ping(Node) of
@@ -529,16 +492,11 @@ init_rollback(#?u_state{} = State) ->
 
 
 insert_error(Obj, Reason, #?u_state{stage = Stage, job = Job, action_type = ActionType, error_stack = EC} = State)  ->
-    State#?u_state{error_stack = [{{Stage, Job, ActionType}, Obj, normalize_error_reason(Reason)} | EC]}.
+    State#?u_state{error_stack = [{{Stage, Job, ActionType}, Obj, updater_utils:normalize_error_reason(Reason)} | EC]}.
 
 insert_warning(Obj, Reason, #?u_state{stage = Stage, job = Job, action_type = ActionType, warning_stack = EC} = State)  ->
-    State#?u_state{warning_stack = [{{Stage, Job, ActionType}, Obj, normalize_error_reason(Reason)} | EC]}.
+    State#?u_state{warning_stack = [{{Stage, Job, ActionType}, Obj, updater_utils:normalize_error_reason(Reason)} | EC]}.
 
-
-normalize_error_reason({error, Reason}) ->
-    normalize_error_reason(Reason);
-normalize_error_reason(Reason) ->
-    Reason.
 
 
 veil_restart(Node) ->
@@ -547,27 +505,10 @@ veil_restart(Node) ->
     Mod = list_to_atom("install_" ++ NodeType),
     case rpc:call(OnePanelNode, Mod, restart, []) of
         {ok, _} ->
-            wait_for_node(Node, 10 * 1000),
+            updater_utils:wait_for_node(Node, 10 * 1000),
             timer:sleep(30 * 1000);
         {error, _Reason} ->
             {error, {restart_fail, Node}}
     end.
 
 
-wait_for_node(_, Timeout) when Timeout < 0 ->
-    {error, timeout};
-wait_for_node(Node, Timeout) when Timeout >= 0 ->
-    timer:sleep(100),
-    case ping(Node, 100) of
-        pong -> ok;
-        _    -> wait_for_node(Node, Timeout - 100)
-    end.
-
-ping(Node, Timeout) ->
-    Host = self(),
-    Pid = spawn(fun() -> Host ! {self(), Node, net_adm:ping(Node)} end),
-    receive
-        {Pid, Node, Resp} -> Resp
-    after Timeout ->
-        pang
-    end.
