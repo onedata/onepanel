@@ -23,9 +23,10 @@
 %% coordinates node life cycle.
 -define(GEN_SERVER_NAME, onepanel).
 
+%% Application's supervisor name
 -define(SERVER_SUP, onepanel_sup).
 
-
+%% Updater gen_server's name
 -define(UPDATE_SERVICE, update_service).
 
 -endif.
