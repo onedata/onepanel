@@ -105,8 +105,8 @@ handle_stage(?STAGE_INIT, ?JOB_LOAD_EXPORTS, #?u_state{nodes = Nodes} = _State) 
     Nodes;
 
 handle_stage(?STAGE_INIT, ?JOB_CHECK_CONNECTIVITY, #?u_state{nodes = Nodes} = _State) ->
-    Hostnames = lists:usort([ install_utils:get_host(Node) || Node <- Nodes ]),
-    OnePanelNodes = [install_utils:get_node(Host) || Host <- Hostnames],
+    Hostnames = lists:usort([ installer_utils:get_host(Node) || Node <- Nodes ]),
+    OnePanelNodes = [installer_utils:get_node(Host) || Host <- Hostnames],
     Nodes ++ OnePanelNodes;
 
 handle_stage(?STAGE_INIT, ?JOB_DOWNLOAD_BINARY, #?u_state{} = _State) ->
@@ -284,7 +284,7 @@ rollback_object(Stage, Job, Obj, #?u_state{}) ->
 %% ====================================================================
 veil_restart(Node) ->
     [NodeType, _] = string:tokens(atom_to_list(Node), "@"),
-    OnePanelNode = install_utils:get_node(install_utils:get_host(Node)),
+    OnePanelNode = installer_utils:get_node(installer_utils:get_host(Node)),
     Mod = list_to_atom("install_" ++ NodeType),
     case rpc:call(OnePanelNode, Mod, restart, []) of
         {ok, _} ->

@@ -13,8 +13,8 @@
 -module(db_logic).
 
 -include("registered_names.hrl").
--include("onepanel_modules/install_logic.hrl").
--include("onepanel_modules/db_logic.hrl").
+-include("onepanel_modules/db/common.hrl").
+%% TODO: move state to db logic
 -include("onepanel_modules/updater/state.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -36,9 +36,7 @@ initialize(?USER_TABLE) ->
     try
         {ok, Username} = application:get_env(?APP_NAME, default_username),
         {ok, Password} = application:get_env(?APP_NAME, default_password),
-        Salt = list_to_binary(install_utils:random_ascii_lowercase_sequence(?SALT_LENGTH)),
-        PasswordHash = user_logic:hash_password(<<Password/binary, Salt/binary>>),
-        ok = dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username, password = PasswordHash, salt = Salt})
+        ok = user_logic:create_user(Username, Password)
     catch
         _:Reason ->
             ?error("Cannot initialize user table: ~p", [Reason]),

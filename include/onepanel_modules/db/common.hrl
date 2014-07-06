@@ -6,12 +6,12 @@
 %% @end
 %% ===================================================================
 %% @doc: This header file contains common macros and records for
-%% db_logic module.
+%% database management modules.
 %% @end
 %% ===================================================================
 
--ifndef(DB_LOGIC_HRL).
--define(DB_LOGIC_HRL, 1).
+-ifndef(DB_COMMON_HRL).
+-define(DB_COMMON_HRL, 1).
 
 %% Names of database records
 -define(USER_RECORD, user).

@@ -6,26 +6,16 @@
 %% @end
 %% ===================================================================
 %% @doc: This header file contains common macros and records for
-%% gui modules.
+%% onepanel module.
 %% @end
 %% ===================================================================
 
--ifndef(COMMON_HRL).
--define(COMMON_HRL, 1).
+-ifndef(ONEPANEL_HRL).
+-define(ONEPANEL_HRL, 1).
 
--include_lib("ctool/include/gui/common.hrl").
 -include("registered_names.hrl").
 
-% Custom checkbox element
--record(custom_checkbox, {?ELEMENT_BASE(element_custom_checkbox),
-    checked = false,
-    value = "on",
-    postback,
-    disabled,
-    name}).
-
-%% Macros used as ids of errors that can appear on GUI pages
--define(AUTHENTICATION_ERROR, authentication_error).
--define(INTERNAL_SERVER_ERROR, internal_server_error).
+%% Onepanel gen_server state
+-record(state, {status, socket, address, port}).
 
 -endif.

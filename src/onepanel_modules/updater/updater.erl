@@ -34,7 +34,7 @@ start() ->
             ok;
         undefined ->
             {ok, _Pid} =
-                supervisor:start_child(?SERVER_SUP,
+                supervisor:start_child(?ONEPANEL_SUP,
                 {
                     updater,
                     {updater_worker, start_link, []},

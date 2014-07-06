@@ -13,7 +13,7 @@
 -module(page_installation).
 -export([main/0, event/1]).
 -include("gui_modules/common.hrl").
--include("onepanel_modules/db_logic.hrl").
+-include("onepanel_modules/common.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% Record that holds current page state, that is installation configuration saved in database and user preferences from web page
@@ -182,7 +182,7 @@ comet_loop(#page_state{counter = Counter, main_ccm = MainCCM, ccms = CCMs, worke
                         error_message(<<"Storage path already added.">>),
                         comet_loop(PageState);
                     _ ->
-                        case install_storage:check_storage_path_on_hosts(sets:to_list(Workers), StoragePath) of
+                        case installer_storage:check_storage_path_on_hosts(sets:to_list(Workers), StoragePath) of
                             ok ->
                                 gui_jq:hide(<<"error_message">>),
                                 gui_jq:hide(<<"add_storage_path_th_", BinaryId/binary>>),
@@ -275,7 +275,7 @@ hosts_table_body() ->
     hosts_table_body(CCMs, Workers, Dbs).
 
 hosts_table_body(CCMs, Workers, Dbs) ->
-    Hosts = lists:sort(install_utils:get_hosts()),
+    Hosts = lists:sort(installer_utils:get_hosts()),
     ColumnStyle = <<"text-align: center; vertical-align: inherit;">>,
     Header = #tr{cells = [
         #th{body = <<"Host">>, style = ColumnStyle},
@@ -461,7 +461,7 @@ summary_table_row(Id, Description, Details) ->
     when Result :: [#panel{}].
 %% ====================================================================
 registration_body() ->
-    case install_utils:get_provider_id() of
+    case installer_utils:get_provider_id() of
         undefined ->
             [
                 #panel{class = <<"alert alert-success">>, body = [
@@ -554,7 +554,7 @@ get_page_state_diff(PrevPageState, CurrPageState) ->
 check_storage_paths(_, []) ->
     ok;
 check_storage_paths(Hosts, [StoragePath | StoragePaths]) ->
-    case install_storage:check_storage_path_on_hosts(Hosts, StoragePath) of
+    case installer_storage:check_storage_path_on_hosts(Hosts, StoragePath) of
         ok ->
             check_storage_paths(Hosts, StoragePaths);
         {error, {hosts, ErrorHosts}} ->
@@ -636,7 +636,7 @@ install(#page_state{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Db
     Result :: ok | no_return().
 %% ====================================================================
 install_dbs(Dbs) ->
-    case install_db:install([{hosts, Dbs}]) of
+    case installer_db:install([{hosts, Dbs}]) of
         ok -> ok;
         {error, {hosts, ErrorHosts}} ->
             error_message(<<"Database nodes were not installed on following hosts: ", (format_list(ErrorHosts))/binary>>),
@@ -655,7 +655,7 @@ install_dbs(Dbs) ->
     Result :: ok | no_return().
 %% ====================================================================
 start_dbs(Dbs) ->
-    case install_db:start([{hosts, Dbs}]) of
+    case installer_db:start([{hosts, Dbs}]) of
         ok -> ok;
         {error, {hosts, ErrorHosts}} ->
             error_message(<<"Database nodes were not started on following hosts: ", (format_list(ErrorHosts))/binary>>),
@@ -674,7 +674,7 @@ start_dbs(Dbs) ->
     Result :: ok | no_return().
 %% ====================================================================
 install_ccms(CCMs) ->
-    case install_ccm:install([{hosts, CCMs}]) of
+    case installer_ccm:install([{hosts, CCMs}]) of
         ok -> ok;
         {error, {hosts, ErrorHosts}} ->
             error_message(<<"CCM nodes were not installed on following hosts: ", (format_list(ErrorHosts))/binary>>),
@@ -693,7 +693,7 @@ install_ccms(CCMs) ->
     Result :: ok | no_return().
 %% ====================================================================
 start_ccms(MainCCM, OptCCMs) ->
-    case install_ccm:start([{main_ccm, MainCCM}, {opt_ccms, OptCCMs}]) of
+    case installer_ccm:start([{main_ccm, MainCCM}, {opt_ccms, OptCCMs}]) of
         ok -> ok;
         {error, {hosts, ErrorHosts}} ->
             error_message(<<"CCM nodes were not started on following hosts: ", (format_list(ErrorHosts))/binary>>),
@@ -712,7 +712,7 @@ start_ccms(MainCCM, OptCCMs) ->
     Result :: ok | no_return().
 %% ====================================================================
 install_workers(Workers) ->
-    case install_worker:install([{hosts, Workers}]) of
+    case installer_worker:install([{hosts, Workers}]) of
         ok -> ok;
         {error, {hosts, ErrorHosts}} ->
             error_message(<<"Worker nodes were not installed on following hosts: ", (format_list(ErrorHosts))/binary>>),
@@ -731,7 +731,7 @@ install_workers(Workers) ->
     Result :: ok | no_return().
 %% ====================================================================
 start_workers(Workers) ->
-    case install_worker:start([{workers, Workers}]) of
+    case installer_worker:start([{workers, Workers}]) of
         ok -> ok;
         {error, {hosts, ErrorHosts}} ->
             error_message(<<"Worker nodes were not started on following hosts: ", (format_list(ErrorHosts))/binary>>),
@@ -751,7 +751,7 @@ start_workers(Workers) ->
 %% ====================================================================
 add_storage(Hosts, StoragePaths) ->
     lists:foreach(fun(StoragePath) ->
-        case install_storage:add_storage_path(Hosts, StoragePath) of
+        case installer_storage:add_storage_path(Hosts, StoragePath) of
             ok -> ok;
             {error, {hosts, ErrorHosts}} ->
                 error_message(<<"Storage path ", (list_to_binary(StoragePath))/binary, " were not added on following hosts: ", (format_list(ErrorHosts))/binary>>),
@@ -770,7 +770,7 @@ add_storage(Hosts, StoragePaths) ->
     Result :: ok.
 %% ====================================================================
 finalize_installation(MainCCM) ->
-    case install_utils:get_control_panel_hosts(MainCCM) of
+    case installer_utils:get_control_panel_hosts(MainCCM) of
         {ok, [_ | _]} ->
             ok;
         _ ->

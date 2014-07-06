@@ -8,11 +8,11 @@
 %% @doc: This module contains utility installation functions.
 %% @end
 %% ===================================================================
--module(install_utils).
+-module(installer_utils).
 
 -include("registered_names.hrl").
--include("onepanel_modules/db_logic.hrl").
--include("onepanel_modules/install_logic.hrl").
+-include("onepanel_modules/db/common.hrl").
+-include("onepanel_modules/installer/common.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
@@ -109,7 +109,7 @@ get_hosts() ->
 %% ====================================================================
 set_ulimits(OpenFiles, Processes) ->
     try
-        Host = install_utils:get_host(node()),
+        Host = installer_utils:get_host(node()),
         ok = file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n~p.\n", [{open_files, integer_to_list(OpenFiles)}, {process_limit, integer_to_list(Processes)}])),
         ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{open_files_limit, integer_to_list(OpenFiles)}, {processes_limit, integer_to_list(Processes)}])
     catch

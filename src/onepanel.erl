@@ -13,9 +13,8 @@
 
 -behaviour(gen_server).
 
--include("registered_names.hrl").
--include("onepanel_modules/db_logic.hrl").
--include("onepanel_modules/onepanel.hrl").
+-include("onepanel.hrl").
+-include("onepanel_modules/common.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
@@ -36,7 +35,7 @@
     Result :: {ok, Pid :: pid()} | ignore | {error, Reason :: term()}.
 %% ====================================================================
 start_link() ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+    gen_server:start_link({local, ?ONEPANEL_SERVER}, ?MODULE, [], []).
 
 
 %% ====================================================================
@@ -63,8 +62,8 @@ init([]) ->
             {multicast_loop, false}, {add_membership, {Address, {0, 0, 0, 0}}}]),
         ok = gen_udp:controlling_process(Socket, self()),
         ok = gen_udp:send(Socket, Address, Port, net_adm:localhost()),
-        erlang:send_after(Period * 1000, self(), connection_ping),
 
+        timer:send_after(1000 * Period, connection_ping),
         timer:send_after(1000, start_updater),
 
         {ok, #state{status = not_connected, socket = Socket, address = Address, port = Port}}
@@ -106,14 +105,14 @@ handle_call(Request, _From, State) ->
 handle_cast({connection_request, Node}, #state{status = not_connected} = State) ->
     ?info("Connection request from node: ~p", [Node]),
     db_logic:delete(),
-    gen_server:cast({?GEN_SERVER_NAME, Node}, {connection_response, node()}),
+    gen_server:cast({?ONEPANEL_SERVER, Node}, {connection_response, node()}),
     {noreply, State#state{status = waiting}};
 
 handle_cast({connection_response, Node}, State) ->
     ?info("Connection response from node: ~p", [Node]),
     case db_logic:add_node(Node) of
         ok ->
-            gen_server:cast({?GEN_SERVER_NAME, Node}, connection_acknowledgement),
+            gen_server:cast({?ONEPANEL_SERVER, Node}, connection_acknowledgement),
             {noreply, State#state{status = connected}};
         _ ->
             {noreply, State}
@@ -141,7 +140,7 @@ handle_info({udp, _Socket, _Address, _Port, HostBinary}, #state{status = Status}
     Host = binary_to_list(HostBinary),
     Node = list_to_atom(?APP_STR ++ "@" ++ Host),
     case net_kernel:connect_node(Node) of
-        true -> gen_server:cast({?GEN_SERVER_NAME, Node}, {connection_request, node()});
+        true -> gen_server:cast({?ONEPANEL_SERVER, Node}, {connection_request, node()});
         Other -> ?error("Cannot connect node ~p: ~p", [Node, Other])
     end,
     case Status of

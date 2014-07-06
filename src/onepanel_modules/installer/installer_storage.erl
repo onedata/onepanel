@@ -8,19 +8,16 @@
 %% @doc: This module contains storage management functions.
 %% @end
 %% ===================================================================
--module(install_storage).
+-module(installer_storage).
 
--include("registered_names.hrl").
--include("onepanel_modules/install_logic.hrl").
--include("onepanel_modules/db_logic.hrl").
+-include("onepanel_modules/db/common.hrl").
+-include("onepanel_modules/installer/installer_storage.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([add_storage_path/2, add_storage_path/1, remove_storage_path/2, remove_storage_path/1]).
 -export([check_storage_path_on_hosts/2, check_storage_path_on_host/2, create_storage_test_file/1, remove_storage_test_file/1]).
 
--define(STORAGE_TEST_FILE_PREFIX, "storage_test_").
--define(STORAGE_TEST_FILE_LENGTH, 20).
 
 %% ====================================================================
 %% API functions
@@ -46,7 +43,7 @@ add_storage_path(Hosts, Path) ->
             _ -> ok
         end,
 
-        {HostsOk, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, add_storage_path, [Path], ?RPC_TIMEOUT),
+        {HostsOk, HostsError} = installer_utils:apply_on_hosts(Hosts, ?MODULE, add_storage_path, [Path], ?RPC_TIMEOUT),
 
         case HostsError of
             [] ->
@@ -54,12 +51,12 @@ add_storage_path(Hosts, Path) ->
                     ok -> ok;
                     Other ->
                         ?error("Cannot update storage path configuration: ~p", [Other]),
-                        install_utils:apply_on_hosts(Hosts, ?MODULE, remove_storage_path, [Path], ?RPC_TIMEOUT),
+                        installer_utils:apply_on_hosts(Hosts, ?MODULE, remove_storage_path, [Path], ?RPC_TIMEOUT),
                         {error, {hosts, Hosts}}
                 end;
             _ ->
                 ?error("Cannot add storage path on following hosts: ~p", [HostsError]),
-                install_utils:apply_on_hosts(HostsOk, ?MODULE, remove_storage_path, [Path], ?RPC_TIMEOUT),
+                installer_utils:apply_on_hosts(HostsOk, ?MODULE, remove_storage_path, [Path], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
@@ -88,7 +85,7 @@ remove_storage_path(Hosts, Path) ->
             _ -> throw("Path: " ++ Path ++ " is not configured.")
         end,
 
-        {HostsOk, HostsError} = install_utils:apply_on_hosts(Hosts, ?MODULE, remove_storage_path, [Path], ?RPC_TIMEOUT),
+        {HostsOk, HostsError} = installer_utils:apply_on_hosts(Hosts, ?MODULE, remove_storage_path, [Path], ?RPC_TIMEOUT),
 
         case HostsError of
             [] ->
@@ -99,12 +96,12 @@ remove_storage_path(Hosts, Path) ->
                     ok -> ok;
                     Other ->
                         ?error("Cannot update storage path configuration: ~p", [Other]),
-                        install_utils:apply_on_hosts(Hosts, ?MODULE, add_storage_path, [Path], ?RPC_TIMEOUT),
+                        installer_utils:apply_on_hosts(Hosts, ?MODULE, add_storage_path, [Path], ?RPC_TIMEOUT),
                         {error, {hosts, Hosts}}
                 end;
             _ ->
                 ?error("Cannot remove storage path on following hosts: ~p", [HostsError]),
-                install_utils:apply_on_hosts(HostsOk, ?MODULE, add_storage_path, [Path], ?RPC_TIMEOUT),
+                installer_utils:apply_on_hosts(HostsOk, ?MODULE, add_storage_path, [Path], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
@@ -122,7 +119,7 @@ remove_storage_path(Hosts, Path) ->
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 add_storage_path(Path) ->
-    Host = install_utils:get_host(node()),
+    Host = installer_utils:get_host(node()),
     try
         ?debug("Adding storage path ~s.", [Path]),
         StorageConfigPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, ?STORAGE_CONFIG_PATH]),
@@ -146,7 +143,7 @@ add_storage_path(Path) ->
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 remove_storage_path(Path) ->
-    Host = install_utils:get_host(node()),
+    Host = installer_utils:get_host(node()),
     try
         ?debug("Removing storage path ~s.", [Path]),
         StorageConfigPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, ?STORAGE_CONFIG_PATH]),
@@ -165,7 +162,7 @@ remove_storage_path(Path) ->
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot remove storage paths on host ~p: ~p", [install_utils:get_host(node()), Reason]),
+            ?error("Cannot remove storage paths on host ~p: ~p", [installer_utils:get_host(node()), Reason]),
             {error, Host}
     end.
 
@@ -181,13 +178,13 @@ remove_storage_path(Path) ->
 check_storage_path_on_hosts([], _) ->
     ok;
 check_storage_path_on_hosts([Host | Hosts], Path) ->
-    Node = install_utils:get_node(Host),
+    Node = installer_utils:get_node(Host),
     case rpc:call(Node, ?MODULE, create_storage_test_file, [Path], ?RPC_TIMEOUT) of
         {ok, FilePath, Content} ->
             try
                 Answer = lists:foldl(fun
                     (H, {NewContent, ErrorHosts}) ->
-                        case rpc:call(install_utils:get_node(H), ?MODULE, check_storage_path_on_host, [FilePath, NewContent], ?RPC_TIMEOUT) of
+                        case rpc:call(installer_utils:get_node(H), ?MODULE, check_storage_path_on_host, [FilePath, NewContent], ?RPC_TIMEOUT) of
                             {ok, NextContent} -> {NextContent, ErrorHosts};
                             {error, ErrorHost} -> {NewContent, [ErrorHost | ErrorHosts]}
                         end
@@ -222,13 +219,13 @@ check_storage_path_on_host(FilePath, Content) ->
         {ok, Content} = file:read_line(FdRead),
         ok = file:close(FdRead),
         {ok, FdWrite} = file:open(FilePath, [write]),
-        NewContent = install_utils:random_ascii_lowercase_sequence(?STORAGE_TEST_FILE_LENGTH),
+        NewContent = installer_utils:random_ascii_lowercase_sequence(?STORAGE_TEST_FILE_SIZE),
         ok = file:write(FdWrite, NewContent),
         ok = file:close(FdWrite),
         {ok, NewContent}
     catch
         _:Reason ->
-            Host = install_utils:get_host(node()),
+            Host = installer_utils:get_host(node()),
             ?error("Storage ~s is not available on host ~p: ~p", [FilePath, Host, Reason]),
             {error, Host}
     end.
@@ -248,11 +245,11 @@ create_storage_test_file(_, 0) ->
 create_storage_test_file(Path, Attempts) ->
     {A, B, C} = now(),
     random:seed(A, B, C),
-    Filename = install_utils:random_ascii_lowercase_sequence(8),
+    Filename = installer_utils:random_ascii_lowercase_sequence(8),
     FilePath = filename:join([Path, ?STORAGE_TEST_FILE_PREFIX ++ Filename]),
     try
         {ok, Fd} = file:open(FilePath, [write, exclusive]),
-        Content = install_utils:random_ascii_lowercase_sequence(?STORAGE_TEST_FILE_LENGTH),
+        Content = installer_utils:random_ascii_lowercase_sequence(?STORAGE_TEST_FILE_SIZE),
         ok = file:write(Fd, Content),
         ok = file:close(Fd),
         {ok, FilePath, Content}

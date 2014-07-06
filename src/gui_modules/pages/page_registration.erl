@@ -13,7 +13,7 @@
 -module(page_registration).
 -export([main/0, event/1]).
 -include("gui_modules/common.hrl").
--include("onepanel_modules/db_logic.hrl").
+-include("onepanel_modules/common.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% ====================================================================
@@ -142,11 +142,11 @@ installation_failure() ->
 %% ====================================================================
 ports_body() ->
     {ControlPanelHosts, {ok, PortsToCheck}} =
-        case install_utils:get_main_ccm() of
+        case installer_utils:get_main_ccm() of
             undefined -> {[], {ok, []}};
-            MainCCM -> case install_utils:get_control_panel_hosts(MainCCM) of
+            MainCCM -> case installer_utils:get_control_panel_hosts(MainCCM) of
                            {ok, Hosts} ->
-                               {Hosts, install_utils:get_ports_to_check(MainCCM)};
+                               {Hosts, installer_utils:get_ports_to_check(MainCCM)};
                            _ -> {[], {ok, []}}
                        end
         end,
@@ -269,12 +269,12 @@ event(init) ->
     {ok, Pid} = gui_comet:spawn(fun() -> comet_loop() end),
     put(comet_pid, Pid),
 
-    case install_utils:get_main_ccm() of
+    case installer_utils:get_main_ccm() of
         undefined ->
             gui_jq:update(<<"registration_info">>, installation_failure()),
             onepanel_gui_utils:change_step(0, 2);
         _ ->
-            case install_utils:get_provider_id() of
+            case installer_utils:get_provider_id() of
                 undefined ->
                     timer:sleep(2000),
                     case gr_adapter:check_ip_address() of

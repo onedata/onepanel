@@ -11,7 +11,7 @@
 %% ===================================================================
 -module(dao).
 
--include("onepanel_modules/db_logic.hrl").
+-include("onepanel_modules/db/common.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API

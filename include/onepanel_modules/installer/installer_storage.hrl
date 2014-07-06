@@ -5,17 +5,20 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This header file contains common macros and records for
-%% Onepanel module.
+%% @doc: This header file contains macros and records for
+%% VeilCluster storage management module.
 %% @end
 %% ===================================================================
 
--ifndef(ONEPANEL_HRL).
--define(ONEPANEL_HRL, 1).
+-ifndef(INSTALLER_STORAGE_HRL).
+-define(INSTALLER_STORAGE_HRL, 1).
 
--define(SERVER, ?MODULE).
+-include("installer_veil.hrl").
 
-%% Onepanel gen_server state
--record(state, {status, socket, address, port}).
+%% Storage test file prefix
+-define(STORAGE_TEST_FILE_PREFIX, "storage_test_").
+
+%% Size of storage test file in bytes
+-define(STORAGE_TEST_FILE_SIZE, 20).
 
 -endif.
