@@ -35,7 +35,7 @@ main() ->
     Result :: binary().
 %% ====================================================================
 title() ->
-    <<"Login page">>.
+    <<"Login">>.
 
 
 %% body/0
@@ -48,8 +48,10 @@ body() ->
     case gui_ctx:user_logged_in() of
         true -> gui_jq:redirect(<<"/">>);
         false ->
+            SourcePage = gui_ctx:url_param(<<"x">>),
+
             {ErrorPanelStyle, ErrorMessage} =
-                case gui_ctx:url_param(<<"x">>) of
+                case SourcePage of
                     undefined ->
                         case gui_ctx:url_param(<<"id">>) of
                             undefined -> {<<"position: fixed; top: 0; width: 100%; display: none;">>, <<"">>};
@@ -59,24 +61,58 @@ body() ->
                     _ ->
                         {<<"position: fixed; top: 0; width: 100%;">>, <<"No session or session expired. Please log in.">>}
                 end,
-            #panel{style = <<"position: relative;">>, body = [
-                #panel{id = <<"error_message">>, style = ErrorPanelStyle, class = <<"dialog dialog-danger">>, body = #p{
-                    body = ErrorMessage}},
-                #panel{class = <<"alert alert-success login-page">>, body = [
-                    #h3{body = <<"Welcome to Onepanel">>},
-                    #form{id = <<"login_form">>, method = <<"POST">>,
-                        action = case gui_ctx:url_param(<<"x">>) of
-                                     undefined -> <<"/validate_login">>;
-                                     SourcePage -> <<"/validate_login?x=", SourcePage/binary>>
-                                 end,
-                        style = <<"width: 50%; margin: 0 auto; padding-top: 20px; float: center">>, body = [
-                            #textbox{id = <<"username">>, name = <<"username">>, placeholder = <<"Username">>, class = <<"flat">>},
-                            #password{id = <<"password">>, name = <<"password">>, placeholder = <<"Password">>, class = <<"flat">>},
-                            #button{id = <<"login_button">>, type = <<"submit">>,
-                                class = <<"btn btn-primary btn-block">>, style = <<"width: 50%; margin: 0 auto;">>, body = <<"Login">>}
-                        ]}
-                ]}
-            ] ++ onepanel_gui_utils:logotype_footer(120)}
+
+            #panel{
+                style = <<"position: relative;">>,
+                body = [
+                    #panel{
+                        id = <<"error_message">>,
+                        style = ErrorPanelStyle,
+                        class = <<"dialog dialog-danger">>,
+                        body = #p{
+                            body = ErrorMessage
+                        }
+                    },
+                    #panel{
+                        class = <<"alert alert-success login-page">>,
+                        body = [
+                            #h3{
+                                body = <<"Welcome to OnePanel">>
+                            },
+                            #form{
+                                id = <<"login_form">>,
+                                method = <<"POST">>,
+                                action = case SourcePage of
+                                             undefined -> <<"/validate_login">>;
+                                             _ -> <<"/validate_login?x=", SourcePage/binary>>
+                                         end,
+                                style = <<"width: 50%; margin: 0 auto; padding-top: 20px; float: center">>,
+                                body = [
+                                    #textbox{
+                                        id = <<"username">>,
+                                        name = <<"username">>,
+                                        placeholder = <<"Username">>,
+                                        class = <<"span2">>
+                                    },
+                                    #password{
+                                        id = <<"password">>,
+                                        name = <<"password">>,
+                                        placeholder = <<"Password">>,
+                                        class = <<"span2">>
+                                    },
+                                    #button{
+                                        id = <<"login_button">>,
+                                        type = <<"submit">>,
+                                        class = <<"btn btn-primary btn-block">>,
+                                        style = <<"width: 50%; margin: 0 auto;">>,
+                                        body = <<"Login">>
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ] ++ onepanel_gui_utils:logotype_footer(120)
+            }
     end.
 
 
@@ -90,7 +126,7 @@ body() ->
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->
-    onepanel_gui_utils:bind_enter_to_change_focus(<<"username">>, <<"password">>),
+    gui_jq:bind_enter_to_change_focus(<<"username">>, <<"password">>),
     gui_jq:bind_enter_to_submit_button(<<"password">>, <<"login_button">>),
     ok;
 

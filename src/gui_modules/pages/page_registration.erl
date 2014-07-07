@@ -13,7 +13,7 @@
 -module(page_registration).
 -export([main/0, event/1]).
 -include("gui_modules/common.hrl").
--include("onepanel_modules/common.hrl").
+-include("onepanel_modules/db/common.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% ====================================================================
@@ -228,8 +228,7 @@ comet_loop() ->
                         erlang:send_after(1000, self(), register);
                     _ ->
                         gui_jq:fade_out(<<"ok_message">>, 300),
-                        gui_jq:update(<<"error_message">>, <<"Some ports are not available for Global Registry. Please change them and try again.">>),
-                        gui_jq:fade_in(<<"error_message">>, 300)
+                        onepanel_gui_utils:message(<<"error_message">>, <<"Some ports are not available for Global Registry. Please change them and try again.">>)
                 end,
                 gui_comet:flush(),
                 comet_loop();

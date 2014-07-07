@@ -1,0 +1,257 @@
+%% ===================================================================
+%% @author Krzysztof Trzepla
+%% @copyright (C): 2014 ACK CYFRONET AGH
+%% This software is released under the MIT license
+%% cited in 'LICENSE.txt'.
+%% @end
+%% ===================================================================
+%% @doc: This module contains n2o website code.
+%% This page allows to set system ulimits in third step of VeilCluster
+%% nodes installation.
+%% @end
+%% ===================================================================
+
+-module(page_ulimits).
+-export([main/0, event/1]).
+
+-include("gui_modules/common.hrl").
+-include("onepanel_modules/db/common.hrl").
+-include("onepanel_modules/installer/common.hrl").
+
+-define(CONFIG, ?GLOBAL_CONFIG_RECORD).
+
+%% ====================================================================
+%% API functions
+%% ====================================================================
+
+%% main/0
+%% ====================================================================
+%% @doc Template points to the template file, which will be filled with content.
+-spec main() -> Result when
+    Result :: #dtl{}.
+%% ====================================================================
+main() ->
+    case gui_ctx:user_logged_in() of
+        true ->
+            case onepanel_gui_utils:maybe_redirect("/ulimits") of
+                true ->
+                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
+                _ ->
+                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]}
+            end;
+        false ->
+            gui_jq:redirect_to_login(true),
+            #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
+    end.
+
+
+%% title/0
+%% ====================================================================
+%% @doc Page title.
+-spec title() -> Result when
+    Result :: binary().
+%% ====================================================================
+title() ->
+    <<"Ulimits">>.
+
+
+%% body/0
+%% ====================================================================
+%% @doc This will be placed instead of {{body}} tag in template.
+-spec body() -> Result when
+    Result :: #panel{}.
+%% ====================================================================
+body() ->
+    #?CONFIG{main_ccm = MainCCM, opt_ccms = OptCCMs, workers = Workers, dbs = Dbs} = gui_ctx:get(?CONFIG_ID),
+    Hosts = lists:usort([MainCCM | OptCCMs] ++ Workers ++ Dbs),
+    {TextboxIds, _} = lists:foldl(fun(_, {Ids, Id}) ->
+        HostId = integer_to_binary(Id),
+        {[<<"open_files_textbox_", HostId/binary>>, <<"processes_textbox_", HostId/binary>> | Ids], Id + 1}
+    end, {[], 1}, Hosts),
+
+    #panel{
+        style = <<"position: relative;">>,
+        body = [
+            onepanel_gui_utils:top_menu(installation_tab),
+
+            #panel{
+                id = <<"error_message">>,
+                style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
+                class = <<"dialog dialog-danger">>
+            },
+            #panel{
+                style = <<"margin-top: 150px; text-align: center;">>,
+                body = [
+                    #h6{
+                        style = <<"font-size: 18px;">>,
+                        body = <<"Step 3: Set system limits.">>
+                    },
+                    #table{
+                        class = <<"table table-bordered">>,
+                        style = <<"width: 50%; margin: 0 auto; margin-top: 20px;">>,
+                        body = ulimits_table_body(Hosts)
+                    },
+                    #panel{
+                        style = <<"width: 50%; margin: 0 auto; margin-top: 30px; margin-bottom: 30px;">>,
+                        body = [
+                            #button{
+                                id = <<"prev_button">>,
+                                postback = back,
+                                class = <<"btn btn-inverse btn-small">>,
+                                style = <<"float: left; width: 80px; font-weight: bold;">>,
+                                body = <<"Back">>},
+
+                            #button{
+                                id = <<"next_button">>,
+                                actions = gui_jq:form_submit_action(<<"next_button">>, {set_ulimits, Hosts}, TextboxIds),
+                                class = <<"btn btn-inverse btn-small">>,
+                                style = <<"float: right; width: 80px; font-weight: bold;">>,
+                                body = <<"Next">>
+                            }
+                        ]
+                    }
+                ]
+            }
+        ] ++ onepanel_gui_utils:logotype_footer(120)
+    }.
+
+
+%% ulimits_table_body/1
+%% ====================================================================
+%% @doc Renders system limits table body.
+-spec ulimits_table_body(Hosts :: [string()]) -> Result
+    when Result :: [#tr{}].
+%% ====================================================================
+ulimits_table_body(Hosts) ->
+    ColumnStyle = <<"text-align: center; vertical-align: inherit;">>,
+    Header = #tr{
+        cells = [
+            #th{
+                body = <<"Host">>,
+                style = ColumnStyle
+            },
+            #th{
+                body = <<"Open files limit">>,
+                style = ColumnStyle
+            },
+            #th{
+                body = <<"Processes limit">>,
+                style = ColumnStyle
+            }
+        ]
+    },
+    try
+        Rows = lists:map(fun({Host, Id}) ->
+            HostId = integer_to_binary(Id),
+            {OpenFilesLimit, ProcessesLimit} =
+                case dao:get_record(?LOCAL_CONFIG_TABLE, Host) of
+                    {ok, #?LOCAL_CONFIG_RECORD{open_files_limit = undefined, processes_limit = undefined}} ->
+                        {?DEFAULT_OPEN_FILES, ?DEFAULT_PROCESSES};
+                    {ok, #?LOCAL_CONFIG_RECORD{open_files_limit = Limit, processes_limit = undefined}} ->
+                        {Limit, ?DEFAULT_PROCESSES};
+                    {ok, #?LOCAL_CONFIG_RECORD{open_files_limit = undefined, processes_limit = Limit}} ->
+                        {?DEFAULT_OPEN_FILES, Limit};
+                    {ok, #?LOCAL_CONFIG_RECORD{open_files_limit = Limit1, processes_limit = Limit2}} ->
+                        {Limit1, Limit2};
+                    _ ->
+                        {?DEFAULT_OPEN_FILES, ?DEFAULT_PROCESSES}
+                end,
+            Textboxes = [
+                {
+                    <<"open_files_textbox_">>,
+                    OpenFilesLimit
+                },
+                {
+                    <<"processes_textbox_">>,
+                    ProcessesLimit
+                }
+            ],
+
+            #tr{
+                id = <<"row_", HostId/binary>>,
+                cells = [
+                    #td{
+                        body = <<"<b>", (list_to_binary(Host))/binary, "</b>">>,
+                        style = ColumnStyle
+                    } | lists:map(fun({Prefix, Text}) ->
+                        #td{
+                            style = ColumnStyle,
+                            body = #textbox{
+                                id = <<Prefix/binary, HostId/binary>>,
+                                style = <<"text-align: center;">>,
+                                class = <<"span1">>,
+                                value = list_to_binary(Text)
+                            }
+                        }
+                    end, Textboxes)
+                ]
+            }
+        end, lists:zip(lists:sort(Hosts), lists:seq(1, length(Hosts)))),
+
+        [Header | Rows]
+    catch
+        _:_ -> [Header]
+    end.
+
+
+%% validate_limit/1
+%% ====================================================================
+%% @doc Checks whether given limit is a positive number.
+-spec validate_limit(Limit :: string()) -> Result
+    when Result :: ok | error.
+%% ====================================================================
+validate_limit(Limit) ->
+    Regex = "[1-9][0-9]*",
+    case re:run(Limit, Regex) of
+        {match, _} -> ok;
+        _ -> error
+    end.
+
+
+%% ====================================================================
+%% Events handling
+%% ====================================================================
+
+%% event/1
+%% ====================================================================
+%% @doc Handles page events.
+-spec event(Event :: term()) -> no_return().
+%% ====================================================================
+event(init) ->
+    gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),
+    ok;
+
+event(back) ->
+    onepanel_gui_utils:change_page(?INSTALL_STEP, "/main_ccm_selection");
+
+event({set_ulimits, Hosts}) ->
+    case lists:foldl(fun(Host, {WrongLimits, Id}) ->
+        HostId = integer_to_binary(Id),
+        Textboxes = [
+            {open_files_limit, <<"open_files_textbox_", HostId/binary>>},
+            {processes_limit, <<"processes_textbox_", HostId/binary>>}
+        ],
+        {
+            lists:filter(fun({Field, TextboxId}) ->
+                Limit = gui_str:to_list(gui_ctx:postback_param(TextboxId)),
+                case validate_limit(Limit) of
+                    ok ->
+                        dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{Field, Limit}]),
+                        gui_jq:css(TextboxId, <<"border-color">>, <<"green">>),
+                        false;
+                    _ ->
+                        gui_jq:css(TextboxId, <<"border-color">>, <<"red">>),
+                        true
+                end
+            end, Textboxes) ++ WrongLimits,
+            Id + 1
+        }
+    end, {[], 1}, Hosts) of
+        {[], _} ->
+            onepanel_gui_utils:change_page(?INSTALL_STEP, "/add_storage");
+        _ ->
+            onepanel_gui_utils:message(<<"error_message">>, <<"System limit should be a positive number.">>)
+    end;
+
+event(terminate) ->
+    ok.

@@ -12,10 +12,12 @@
 
 -module(onepanel_gui_utils).
 -include("gui_modules/common.hrl").
+-include("onepanel_modules/db/common.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 % Functions to generate page elements
--export([top_menu/1, top_menu/2, logotype_footer/1, bind_enter_to_change_focus/2, get_error_message/1, change_step/2]).
+-export([top_menu/1, top_menu/2, logotype_footer/1, bind_enter_to_change_focus/2, bind_key_to_click/2]).
+-export([get_error_message/1, get_installation_state/0, change_page/2, maybe_redirect/1, format_list/1, message/2]).
 
 
 %% ====================================================================
@@ -111,7 +113,7 @@ top_menu(ActiveTabID, SubMenuBody) ->
     ] ++ SubMenuBody}.
 
 
-%% bind_enter_to_submit_button/2
+%% bind_enter_to_change_focus/2
 %% ====================================================================
 %% @doc Makes any enter keypresses on InputID (whenever it is focused)
 %% change focus to selected target. This way, it allows
@@ -122,6 +124,18 @@ top_menu(ActiveTabID, SubMenuBody) ->
 bind_enter_to_change_focus(InputID, TargetID) ->
     Script = <<"$('#", InputID/binary, "').bind('keydown', function (e){",
     "if (e.which == 13) { e.preventDefault(); document.getElementById('", TargetID/binary, "').focus(); } });">>,
+    gui_jq:wire(Script, false).
+
+
+%% bind_key_to_click/2
+%% ====================================================================
+%% @doc Makes any enter keypresses on page to click on selected target.
+%% @end
+-spec bind_key_to_click(KeyCode :: binary(), TargetID :: binary()) -> string().
+%% ====================================================================
+bind_key_to_click(KeyCode, TargetID) ->
+    Script = <<"$(document).bind('keydown', function (e){",
+    "if (e.which == ", KeyCode/binary, ") { e.preventDefault(); document.getElementById('", TargetID/binary, "').click(); } });">>,
     gui_jq:wire(Script, false).
 
 
@@ -138,18 +152,71 @@ get_error_message(_) ->
     <<"Internal server error.">>.
 
 
-%% change_step/2
+%% get_installation_state/0
 %% ====================================================================
-%% @doc Hides current installation step and displays next ('Diff' equals 1)
-%% or previous ('Diff' equals -1) installaton step.
--spec change_step(CurrentStep :: integer(), Diff :: -1 | 1) -> no_return().
+%% @doc Returns current installation state read in first place from session
+%% and in second place from database.
+-spec get_installation_state() -> Result when
+    Result :: #?GLOBAL_CONFIG_RECORD{} | undefined.
 %% ====================================================================
-change_step(CurrentStep, Diff) ->
-    HideId = <<"step_", (integer_to_binary(CurrentStep))/binary>>,
-    ShowId = <<"step_", (integer_to_binary(CurrentStep + Diff))/binary>>,
-    gui_jq:hide(<<"error_message">>),
-    gui_jq:slide_up(HideId, 800),
-    gui_jq:delay(ShowId, integer_to_binary(500)),
-    gui_jq:slide_down(ShowId, 800).
+get_installation_state() ->
+    case gui_ctx:get(?CONFIG_ID) of
+        undefined ->
+            case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+                {ok, Record} -> {ok, Record};
+                _ -> undefined
+            end;
+        Record -> {ok, Record}
+    end.
 
+change_step(_, _) -> ok.
+
+%% change_page/2
+%% ====================================================================
+%% @doc Redirects to given page and saves it in user session.
+-spec change_page(Env :: atom(), Page :: string()) -> no_return().
+%% ====================================================================
+change_page(Env, Page) ->
+    gui_ctx:put(Env, Page),
+    gui_jq:redirect(Page).
+
+
+%% maybe_redirect/1
+%% ====================================================================
+%% @doc Redirects to current installation step read from user session.
+-spec maybe_redirect(Page :: string()) -> true | false.
+%% ====================================================================
+maybe_redirect(CurrentPage) ->
+    case gui_ctx:get(?INSTALL_STEP) of
+        CurrentPage ->
+            false;
+        undefined ->
+            gui_jq:redirect("/hosts_selection"),
+            true;
+        InstallStep ->
+            gui_jq:redirect(InstallStep),
+            true
+    end.
+
+
+%% format_list/1
+%% ====================================================================
+%% @doc Returns list elements as a comma-delimited binary.
+-spec format_list(List :: [string()]) -> Result when
+    Result :: binary().
+%% ====================================================================
+format_list([]) ->
+    <<"">>;
+format_list(Hosts) ->
+    list_to_binary(string:join(Hosts, ", ")).
+
+
+%% message/2
+%% ====================================================================
+%% @doc Renders a message in given element.
+-spec message(Id :: binary(), Message :: binary()) -> no_return().
+%% ====================================================================
+message(Id, Message) ->
+    gui_jq:update(Id, Message),
+    gui_jq:fade_in(Id, 300).
 

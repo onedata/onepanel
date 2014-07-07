@@ -14,7 +14,6 @@
 -behaviour(gen_server).
 
 -include("onepanel.hrl").
--include("onepanel_modules/common.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
@@ -89,7 +88,7 @@ handle_call(get_status, _From, #state{status = Status} = State) ->
     {reply, Status, State};
 
 handle_call(Request, _From, State) ->
-    ?error("Wrong call: ~p", [Request]),
+    ?warning("Wrong call: ~p", [Request]),
     {reply, {error, wrong_request}, State}.
 
 
@@ -123,7 +122,7 @@ handle_cast(connection_acknowledgement, State) ->
     {noreply, State#state{status = connected}};
 
 handle_cast(Request, State) ->
-    ?error("Wrong cast: ~p", [Request]),
+    ?warning("Wrong cast: ~p", [Request]),
     {noreply, State}.
 
 
@@ -163,7 +162,7 @@ handle_info(start_updater, State) ->
     {noreply, State};
 
 handle_info(Info, State) ->
-    ?error("Wrong info: ~p", [Info]),
+    ?warning("Wrong info: ~p", [Info]),
     {noreply, State}.
 
 

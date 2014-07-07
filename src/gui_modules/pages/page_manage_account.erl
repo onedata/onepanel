@@ -52,25 +52,61 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    #panel{style = <<"position: relative;">>, body = [
-        onepanel_gui_utils:top_menu(manage_account_tab),
-        #panel{id = <<"ok_message">>, style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
-            class = <<"dialog dialog-success">>},
-        #panel{id = <<"error_message">>, style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
-            class = <<"dialog dialog-danger">>},
-        #panel{style = <<"position: relative;">>, body = [
-            #panel{class = <<"alert alert-success login-page">>, body = [
-                #panel{style = <<"width: 50%; margin: 0 auto; float: center">>, body = [
-                    #password{id = <<"old_password">>, placeholder = <<"Old password">>, class = <<"flat">>},
-                    #password{id = <<"new_password">>, placeholder = <<"New password">>, class = <<"flat">>},
-                    #password{id = <<"confirm_password">>, placeholder = <<"Confirm password">>, class = <<"flat">>}
-                ]},
-                #button{id = <<"change_password_button">>, actions = gui_jq:form_submit_action(<<"change_password_button">>,
-                    change_password, [<<"old_password">>, <<"new_password">>, <<"confirm_password">>]),
-                    class = <<"btn btn-primary btn-block">>, style = <<"width: 50%; margin: 0 auto;">>, body = <<"Change password">>}
-            ]}
-        ]}
-    ] ++ onepanel_gui_utils:logotype_footer(120)}.
+    #panel{
+        style = <<"position: relative;">>,
+        body = [
+            onepanel_gui_utils:top_menu(manage_account_tab),
+
+            #panel{
+                id = <<"ok_message">>,
+                style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
+                class = <<"dialog dialog-success">>
+            },
+            #panel{
+                id = <<"error_message">>,
+                style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
+                class = <<"dialog dialog-danger">>
+            },
+            #panel{
+                style = <<"position: relative;">>,
+                body = [
+                    #panel{
+                        class = <<"alert alert-success login-page">>,
+                        body = [
+                            #panel{
+                                style = <<"width: 50%; margin: 0 auto; float: center">>,
+                                body = [
+                                    #password{
+                                        id = <<"old_password">>,
+                                        placeholder = <<"Old password">>,
+                                        class = <<"span2">>
+                                    },
+                                    #password{
+                                        id = <<"new_password">>,
+                                        placeholder = <<"New password">>,
+                                        class = <<"span2">>
+                                    },
+                                    #password{
+                                        id = <<"confirm_password">>,
+                                        placeholder = <<"Confirm password">>,
+                                        class = <<"span2">>
+                                    }
+                                ]
+                            },
+                            #button{
+                                id = <<"change_password_button">>,
+                                actions = gui_jq:form_submit_action(<<"change_password_button">>,
+                                    change_password, [<<"old_password">>, <<"new_password">>, <<"confirm_password">>]),
+                                class = <<"btn btn-primary btn-block">>,
+                                style = <<"width: 50%; margin: 0 auto;">>,
+                                body = <<"Change password">>
+                            }
+                        ]
+                    }
+                ]
+            }
+        ] ++ onepanel_gui_utils:logotype_footer(120)
+    }.
 
 
 %% verify_new_password/2
@@ -101,8 +137,8 @@ verify_new_password(_, _) ->
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->
-    onepanel_gui_utils:bind_enter_to_change_focus(<<"old_password">>, <<"new_password">>),
-    onepanel_gui_utils:bind_enter_to_change_focus(<<"new_password">>, <<"confirm_password">>),
+    gui_jq:bind_enter_to_change_focus(<<"old_password">>, <<"new_password">>),
+    gui_jq:bind_enter_to_change_focus(<<"new_password">>, <<"confirm_password">>),
     gui_jq:bind_enter_to_submit_button(<<"confirm_password">>, <<"change_password_button">>),
     ok;
 
@@ -115,19 +151,17 @@ event(change_password) ->
         ok ->
             case user_logic:change_password(Username, OldPassword, NewPassword) of
                 ok ->
-                    gui_jq:update(<<"ok_message">>, "Password changed."),
                     gui_jq:fade_out(<<"error_message">>, 300),
-                    gui_jq:fade_in(<<"ok_message">>, 300),
+                    onepanel_gui_utils:message(<<"ok_message">>, "Password changed."),
                     lists:foreach(fun(PasswordBoxId) ->
                         gui_jq:set_value(PasswordBoxId, <<"''">>)
                     end, [<<"old_password">>, <<"new_password">>, <<"confirm_password">>]);
                 {error, ErrorId} ->
-                    gui_jq:update(<<"error_message">>, onepanel_gui_utils:get_error_message(binary_to_atom(gui_str:to_binary(ErrorId), latin1))),
-                    gui_jq:fade_in(<<"error_message">>, 300)
+                    onepanel_gui_utils:message(<<"error_message">>,
+                        onepanel_gui_utils:get_error_message(binary_to_atom(gui_str:to_binary(ErrorId), latin1)))
             end;
         {error, Reason} ->
-            gui_jq:update(<<"error_message">>, Reason),
-            gui_jq:fade_in(<<"error_message">>, 300)
+            onepanel_gui_utils:message(<<"error_message">>, Reason)
     end;
 
 event(terminate) -> ok.

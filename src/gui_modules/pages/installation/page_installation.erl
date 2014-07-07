@@ -6,11 +6,11 @@
 %% @end
 %% ===================================================================
 %% @doc: This module contains n2o website code.
-%% The page is displayed when client asks for not existing resource.
+%% This page is a starting point for VeilCluster nodes installation.
 %% @end
 %% ===================================================================
 
--module(page_404).
+-module(page_installation).
 -export([main/0, event/1]).
 -include("gui_modules/common.hrl").
 
@@ -25,7 +25,19 @@
     Result :: #dtl{}.
 %% ====================================================================
 main() ->
-    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]}.
+    case gui_ctx:user_logged_in() of
+        true ->
+            case gui_ctx:get(?INSTALL_STEP) of
+                undefined ->
+                    onepanel_gui_utils:change_page(?INSTALL_STEP, "/hosts_selection");
+                Step ->
+                    gui_jq:redirect(Step)
+            end,
+            #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, <<"">>}, {custom, <<"">>}]};
+        false ->
+            gui_jq:redirect_to_login(true),
+            #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
+    end.
 
 
 %% title/0
@@ -35,37 +47,7 @@ main() ->
     Result :: binary().
 %% ====================================================================
 title() ->
-    <<"Error 404">>.
-
-
-%% body/0
-%% ====================================================================
-%% @doc This will be placed instead of {{body}} tag in template.
--spec body() -> Result when
-    Result :: #panel{}.
-%% ====================================================================
-body() ->
-    #panel{
-        style = <<"position: relative;">>,
-        body = [
-            #panel{
-                class = <<"alert alert-danger login-page">>,
-                body = [
-                    #h3{
-                        body = <<"Error 404">>
-                    },
-                    #p{
-                        class = <<"login-info">>,
-                        body = <<"Requested page could not be found on the server.">>
-                    },
-                    #button{
-                        postback = to_login,
-                        class = <<"btn btn-warning btn-block">>,
-                        body = <<"Login page">>
-                    }
-                ]
-            }
-        ] ++ onepanel_gui_utils:logotype_footer(120)}.
+    <<"Installation">>.
 
 
 %% ====================================================================
@@ -79,9 +61,6 @@ body() ->
 %% ====================================================================
 event(init) ->
     ok;
-
-event(to_login) ->
-    gui_jq:redirect_to_login(false);
 
 event(terminate) ->
     ok.

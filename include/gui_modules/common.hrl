@@ -28,4 +28,10 @@
 -define(AUTHENTICATION_ERROR, authentication_error).
 -define(INTERNAL_SERVER_ERROR, internal_server_error).
 
+%% Current installation step saved in user session
+-define(INSTALL_STEP, install_step).
+
+%% Number of added storage paths
+-define(STORAGE_PATHS_SIZE, storage_paths_size).
+
 -endif.

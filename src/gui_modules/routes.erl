@@ -54,6 +54,12 @@ finish(State, Ctx) -> {ok, State, Ctx}.
 %% ====================================================================
 route(<<"/">>) -> page_installation;
 route(<<"/installation">>) -> page_installation;
+route(<<"/hosts_selection">>) -> page_hosts_selection;
+route(<<"/main_ccm_selection">>) -> page_main_ccm_selection;
+route(<<"/ulimits">>) -> page_ulimits;
+route(<<"/add_storage">>) -> page_add_storage;
+route(<<"/installation_summary">>) -> page_installation_summary;
+route(<<"/installation_success">>) -> page_installation_success;
 route(<<"/login">>) -> page_login;
 route(<<"/logout">>) -> page_logout;
 route(<<"/about">>) -> page_about;
