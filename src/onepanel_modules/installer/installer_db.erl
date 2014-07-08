@@ -20,7 +20,7 @@
 -export([install/1, uninstall/1, start/1, stop/1, restart/1]).
 
 %% API
--export([install/0, uninstall/0, start/0, stop/0, add_to_cluster/1]).
+-export([local_install/0, local_uninstall/0, local_start/0, local_stop/0, add_to_cluster/1]).
 
 %% ====================================================================
 %% Behaviour callback functions
@@ -28,68 +28,67 @@
 
 %% install/1
 %% ====================================================================
-%% @doc Installs database nodes on given hosts.
+%% @doc Installs database nodes on given hosts. Arguments list should
+%% contain list of hosts where to install database nodes.
 %% @end
 -spec install(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 install(Args) ->
-    Hosts = proplists:get_value(hosts, Args, []),
+    Dbs = proplists:get_value(dbs, Args, []),
 
-    {HostsOk, HostsError} = installer_utils:apply_on_hosts(Hosts, ?MODULE, install, [], ?RPC_TIMEOUT),
+    {HostsOk, HostsError} = installer_utils:apply_on_hosts(Dbs, ?MODULE, local_install, [], ?RPC_TIMEOUT),
 
     case HostsError of
         [] -> ok;
         _ ->
             ?error("Cannot install database nodes on following hosts: ~p", [HostsError]),
-            installer_utils:apply_on_hosts(HostsOk, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
+            installer_utils:apply_on_hosts(HostsOk, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
             {error, {hosts, HostsError}}
     end.
 
 
 %% uninstall/1
 %% ====================================================================
-%% @doc Uninstalls database nodes on given hosts.
+%% @doc Uninstalls database nodes on given hosts. Arguments list should
+%% contain list of hosts where database nodes where installed.
 %% @end
 -spec uninstall(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 uninstall(Args) ->
-    Hosts = proplists:get_value(hosts, Args, []),
+    Dbs = proplists:get_value(dbs, Args, []),
 
-    {HostsOk, HostsError} = installer_utils:apply_on_hosts(Hosts, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
+    {HostsOk, HostsError} = installer_utils:apply_on_hosts(Dbs, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
 
     case HostsError of
         [] -> ok;
         _ ->
             ?error("Cannot uninstall database nodes on following hosts: ~p", [HostsError]),
-            installer_utils:apply_on_hosts(HostsOk, ?MODULE, install, [], ?RPC_TIMEOUT),
+            installer_utils:apply_on_hosts(HostsOk, ?MODULE, local_install, [], ?RPC_TIMEOUT),
             {error, {hosts, HostsError}}
     end.
 
 
 %% start/1
 %% ====================================================================
-%% @doc Starts database nodes on given hosts. Argument list should contain
-%% list of host where database nodes where installed.
+%% @doc Starts database nodes on given hosts. Arguments list should
+%% contain list of hosts where database nodes where installed.
 %% @end
 -spec start(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 start(Args) ->
     try
-        Dbs = proplists:get_value(hosts, Args, []),
-
         case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
             {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> ok;
-            {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} -> throw(ok);
-            {ok, #?GLOBAL_CONFIG_RECORD{dbs = _}} ->
-                throw("Database nodes already started with different configuration.");
-            _ -> throw("Cannot get database nodes configuration.")
+            {ok, #?GLOBAL_CONFIG_RECORD{dbs = _}} -> throw("Database nodes already configured");
+            _ -> throw("Cannot get database nodes configuration")
         end,
 
+        Dbs = proplists:get_value(dbs, Args, []),
 
-        {StartOk, StartError} = installer_utils:apply_on_hosts(Dbs, ?MODULE, start, [], ?RPC_TIMEOUT),
+        {StartOk, StartError} = installer_utils:apply_on_hosts(Dbs, ?MODULE, local_start, [], ?RPC_TIMEOUT),
 
         case StartError of
             [] ->
@@ -104,7 +103,7 @@ start(Args) ->
                             ok -> ok;
                             Other ->
                                 ?error("Cannot update database nodes configuration: ~p", [Other]),
-                                installer_utils:apply_on_hosts(Dbs, ?MODULE, stop, [], ?RPC_TIMEOUT),
+                                installer_utils:apply_on_hosts(Dbs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
                                 {error, {hosts, Dbs}}
                         end;
                     _ ->
@@ -113,11 +112,10 @@ start(Args) ->
                 end;
             _ ->
                 ?error("Cannot start database nodes on following hosts: ~p", [StartError]),
-                installer_utils:apply_on_hosts(StartOk, ?MODULE, stop, [], ?RPC_TIMEOUT),
+                installer_utils:apply_on_hosts(StartOk, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
                 {error, {hosts, StartError}}
         end
     catch
-        _:ok -> ok;
         _:Reason ->
             ?error("Cannot start database nodes: ~p", [Reason]),
             {error, Reason}
@@ -126,20 +124,20 @@ start(Args) ->
 
 %% stop/1
 %% ====================================================================
-%% @doc Stops database nodes on given hosts.
+%% @doc Stops all database nodes.
 %% @end
 -spec stop(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 stop(_) ->
     try
-        Dbs = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                  {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> throw("Database nodes not configured.");
-                  {ok, #?GLOBAL_CONFIG_RECORD{dbs = Hosts}} -> Hosts;
-                  _ -> throw("Cannot get database nodes configuration.")
-              end,
+        ConfiguredDbs = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> throw("Database nodes not configured");
+                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} -> Dbs;
+                            _ -> throw("Cannot get database nodes configuration")
+                        end,
 
-        {HostsOk, HostsError} = installer_utils:apply_on_hosts(Dbs, ?MODULE, stop, [], ?RPC_TIMEOUT),
+        {HostsOk, HostsError} = installer_utils:apply_on_hosts(ConfiguredDbs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
 
         case HostsError of
             [] ->
@@ -147,12 +145,12 @@ stop(_) ->
                     ok -> ok;
                     Other ->
                         ?error("Cannot update database nodes configuration: ~p", [Other]),
-                        installer_utils:apply_on_hosts(Dbs, ?MODULE, start, [], ?RPC_TIMEOUT),
-                        {error, {hosts, Dbs}}
+                        installer_utils:apply_on_hosts(ConfiguredDbs, ?MODULE, local_start, [], ?RPC_TIMEOUT),
+                        {error, {hosts, ConfiguredDbs}}
                 end;
             _ ->
                 ?error("Cannot stop database nodes on following hosts: ~p", [HostsError]),
-                installer_utils:apply_on_hosts(HostsOk, ?MODULE, start, [], ?RPC_TIMEOUT),
+                installer_utils:apply_on_hosts(HostsOk, ?MODULE, local_start, [], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
@@ -164,21 +162,21 @@ stop(_) ->
 
 %% restart/1
 %% ====================================================================
-%% @doc Restarts database nodes on given hosts.
+%% @doc Restarts all database nodes.
 %% @end
 -spec restart(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 restart(_) ->
     try
-        Dbs = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                  {ok, #?GLOBAL_CONFIG_RECORD{dbs = undefined}} -> throw("Database nodes not configured.");
-                  {ok, #?GLOBAL_CONFIG_RECORD{dbs = Hosts}} -> Hosts;
-                  _ -> throw("Cannot get database nodes configuration.")
-              end,
+        ConfiguredDbs = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> throw("Database nodes not configured");
+                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} -> Dbs;
+                            _ -> throw("Cannot get database nodes configuration")
+                        end,
 
         case stop([]) of
-            ok -> start([{hosts, Dbs}]);
+            ok -> start([{dbs, ConfiguredDbs}]);
             Other -> Other
         end
     catch
@@ -192,40 +190,40 @@ restart(_) ->
 %% API functions
 %% ====================================================================
 
-%% install/0
+%% local_install/0
 %% ====================================================================
 %% @doc Installs database node on local host.
 %% @end
--spec install() -> Result when
+-spec local_install() -> Result when
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-install() ->
+local_install() ->
     Host = installer_utils:get_host(node()),
     try
-        ?debug("Installing database node."),
+        ?debug("Installing database node"),
 
         "" = os:cmd("mkdir -p " ++ ?DEFAULT_DB_INSTALL_PATH),
-        "" = os:cmd("cp -R " ++ ?DB_RELEASE ++ "/* " ++ ?DEFAULT_DB_INSTALL_PATH),
+        "" = os:cmd("cp -R " ++ filename:join([?DB_RELEASE, "* "]) ++ ?DEFAULT_DB_INSTALL_PATH),
 
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot install database node: ~p.", [Reason]),
+            ?error("Cannot install database node: ~p", [Reason]),
             {error, Host}
     end.
 
 
-%% uninstall/0
+%% local_uninstall/0
 %% ====================================================================
 %% @doc Uninstalls database node on local host.
 %% @end
--spec uninstall() -> Result when
+-spec local_uninstall() -> Result when
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-uninstall() ->
+local_uninstall() ->
     Host = installer_utils:get_host(node()),
     try
-        ?debug("Uninstalling database node."),
+        ?debug("Uninstalling database node"),
 
         "" = os:cmd("rm -rf " ++ ?DEFAULT_DB_INSTALL_PATH),
         ok = file:delete(?ULIMITS_CONFIG_PATH),
@@ -233,28 +231,29 @@ uninstall() ->
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot uninstall database node on host ~s: ~p.", [Host, Reason]),
+            ?error("Cannot uninstall database node on host ~s: ~p", [Host, Reason]),
             {error, Host}
     end.
 
 
-%% start/0
+%% local_start/0
 %% ====================================================================
 %% @doc Starts database node on local host.
 %% @end
--spec start() -> Result when
+-spec local_start() -> Result when
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-start() ->
+local_start() ->
     Host = installer_utils:get_host(node()),
     try
-        ?debug("Starting database node."),
+        ?debug("Starting database node"),
         BigcouchStartScript = filename:join([?DEFAULT_DB_INSTALL_PATH, ?DB_START_COMMAND_SUFFIX]),
         NohupOut = filename:join([?DEFAULT_DB_INSTALL_PATH, ?NOHUP_OUTPUT]),
         SetUlimitsCmd = installer_utils:get_ulimits_cmd(Host),
+        VmArgs = filename:join([?DEFAULT_DB_INSTALL_PATH, "etc", "vm.args"]),
 
-        "" = os:cmd("sed -i -e \"s/^\\-setcookie .*/\\-setcookie " ++ atom_to_list(?DEFAULT_COOKIE) ++ "/g\" " ++ ?DEFAULT_DB_INSTALL_PATH ++ "/etc/vm.args"),
-        "" = os:cmd("sed -i -e \"s/^\\-name .*/\\-name " ++ ?DEFAULT_DB_NAME ++ "@" ++ Host ++ "/g\" " ++ ?DEFAULT_DB_INSTALL_PATH ++ "/etc/vm.args"),
+        "" = os:cmd("sed -i -e \"s/^\\-setcookie .*/\\-setcookie " ++ atom_to_list(?DEFAULT_COOKIE) ++ "/g\" " ++ VmArgs),
+        "" = os:cmd("sed -i -e \"s/^\\-name .*/\\-name " ++ ?DEFAULT_DB_NAME ++ "@" ++ Host ++ "/g\" " ++ VmArgs),
         ok = installer_utils:add_node_to_config(db_node, list_to_atom(?DEFAULT_DB_NAME), ?DEFAULT_DB_INSTALL_PATH),
         open_port({spawn, "sh -c \"" ++ SetUlimitsCmd ++ " ; " ++ "nohup " ++ BigcouchStartScript ++ " > " ++ NohupOut ++ " 2>&1 &" ++ "\" 2>&1 &"}, [out]),
 
@@ -266,17 +265,17 @@ start() ->
     end.
 
 
-%% stop/0
+%% local_stop/0
 %% ====================================================================
 %% @doc Stops database node on local host.
 %% @end
--spec stop() -> Result when
+-spec local_stop() -> Result when
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-stop() ->
+local_stop() ->
     Host = installer_utils:get_host(node()),
     try
-        ?debug("Stopping database node."),
+        ?debug("Stopping database node"),
 
         "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ ?DEFAULT_DB_INSTALL_PATH ++ " | awk '{print $2}'`"),
         ok = installer_utils:remove_node_from_config(db_node),
@@ -311,20 +310,21 @@ add_to_cluster(ClusterNode) ->
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 add_to_cluster(_, 10) ->
-    ?error("Can not add database node to cluster: attempts limit exceeded."),
+    ?error("Can not add database node to cluster: attempts limit exceeded"),
     Host = installer_utils:get_host(node()),
     {error, Host};
 
 add_to_cluster(ClusterHost, Attempts) ->
     Host = installer_utils:get_host(node()),
     try
-        ?debug("Adding database node to cluster."),
+        ?debug("Adding database node to cluster"),
         timer:sleep(1000),
         Url = "http://" ++ ClusterHost ++ ":" ++ ?DEFAULT_PORT ++ "/nodes/" ++ ?DEFAULT_DB_NAME ++ "@" ++ Host,
         %% TODO: database password changing
         Options = [{connect_timeout, ?CONNECTION_TIMEOUT}, {basic_auth, {"admin", "password"}}],
 
         {ok, "201", _ResponseHeaders, ResponseBody} = ibrowse:send_req(Url, [{content_type, "application/json"}], put, "{}", Options),
+        %% TODO: change to mochijson
         false = (0 =:= string:str(ResponseBody, "\"ok\":true")),
 
         {ok, Host}

@@ -120,11 +120,11 @@ body() ->
 verify_new_password(Password, Password) ->
     case size(Password) >= ?MIN_PASSWORD_LENGTH of
         true -> ok;
-        _ -> {error, "Password should have at least " ++ integer_to_list(?MIN_PASSWORD_LENGTH) ++ " characters long."}
+        _ -> {error, "Password should be at least " ++ integer_to_list(?MIN_PASSWORD_LENGTH) ++ " characters long."}
     end;
 
 verify_new_password(_, _) ->
-    {error, "Passwords does not match."}.
+    {error, "Passwords do not match."}.
 
 
 %% ====================================================================

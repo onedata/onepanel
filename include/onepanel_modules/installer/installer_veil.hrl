@@ -16,17 +16,17 @@
 -include("common.hrl").
 
 %% Location of release packages
--define(VEIL_RELEASE, ?PREFIX ++ "files/veil_cluster_node").
+-define(VEIL_RELEASE, filename:join([?PREFIX, "files", "veil_cluster_node"])).
 
 %% Install path for nodes
--define(DEFAULT_NODES_INSTALL_PATH, ?PREFIX ++ "nodes/").
+-define(DEFAULT_NODES_INSTALL_PATH, filename:join([?PREFIX, "nodes"])).
 
 %% Paths relative to veil_cluster_node release
--define(CONFIG_ARGS_PATH, "bin/config.args").
--define(VEIL_CLUSTER_SCRIPT_PATH, "bin/veil_cluster").
--define(START_COMMAND_SUFFIX, "bin/veil_cluster_node start").
+-define(CONFIG_ARGS_PATH, filename:join(["bin", "config.args"])).
+-define(VEIL_CLUSTER_SCRIPT_PATH, filename:join(["bin", "veil_cluster"])).
+-define(START_COMMAND_SUFFIX, filename:join(["bin", "veil_cluster_node start"])).
 
 %% Relative path to storage configuration file
--define(STORAGE_CONFIG_PATH, "bin/storage_info.cfg").
+-define(STORAGE_CONFIG_PATH, filename:join(["bin", "storage_info.cfg"])).
 
 -endif.

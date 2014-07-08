@@ -15,7 +15,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([add_storage_path/2, add_storage_path/1, remove_storage_path/2, remove_storage_path/1]).
+-export([add_storage_paths_to_db/1, remove_storage_paths_from_db/1, add_storage_paths_on_host/1, remove_storage_paths_on_host/1]).
 -export([check_storage_path_on_hosts/2, check_storage_path_on_host/2, create_storage_test_file/1, remove_storage_test_file/1]).
 
 
@@ -23,41 +23,33 @@
 %% API functions
 %% ====================================================================
 
-%% add_storage_path/2
+%% add_storage_paths_to_db/1
 %% ====================================================================
-%% @doc Adds configured storage path on given hosts.
+%% @doc Adds storage paths to database.
 %% @end
--spec add_storage_path(Hosts :: [string()], Path :: string()) -> Result when
+-spec add_storage_paths_to_db(Paths :: [string()]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-add_storage_path(Hosts, Path) ->
+add_storage_paths_to_db(Paths) ->
     try
-        StoragePaths =
+        ConfiguredPaths =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
                 {ok, #?GLOBAL_CONFIG_RECORD{storage_paths = Paths}} -> Paths;
-                _ -> throw("Cannot get configured storage paths.")
+                _ -> throw("Cannot get configured storage paths")
             end,
 
-        case lists:member(Path, StoragePaths) of
-            true -> throw("Path: " ++ Path ++ " is already added.");
-            _ -> ok
-        end,
+        lists:foreach(fun(Path) ->
+            case lists:member(Path, ConfiguredPaths) of
+                true -> throw("Path: " ++ Path ++ " is already added");
+                _ -> ok
+            end
+        end, Paths),
 
-        {HostsOk, HostsError} = installer_utils:apply_on_hosts(Hosts, ?MODULE, add_storage_path, [Path], ?RPC_TIMEOUT),
-
-        case HostsError of
-            [] ->
-                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{storage_paths, [Path | StoragePaths]}]) of
-                    ok -> ok;
-                    Other ->
-                        ?error("Cannot update storage path configuration: ~p", [Other]),
-                        installer_utils:apply_on_hosts(Hosts, ?MODULE, remove_storage_path, [Path], ?RPC_TIMEOUT),
-                        {error, {hosts, Hosts}}
-                end;
-            _ ->
-                ?error("Cannot add storage path on following hosts: ~p", [HostsError]),
-                installer_utils:apply_on_hosts(HostsOk, ?MODULE, remove_storage_path, [Path], ?RPC_TIMEOUT),
-                {error, {hosts, HostsError}}
+        case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{storage_paths, ConfiguredPaths ++ Paths}]) of
+            ok -> ok;
+            Other ->
+                ?error("Cannot update storage path configuration: ~p", [Other]),
+                {error, Other}
         end
     catch
         _:Reason ->
@@ -66,43 +58,33 @@ add_storage_path(Hosts, Path) ->
     end.
 
 
-%% remove_storage_path/2
+%% remove_storage_paths_from_db/1
 %% ====================================================================
-%% @doc Removes configured storage path on given hosts.
+%% @doc Removes storage paths from database.
 %% @end
--spec remove_storage_path(Hosts :: [string()], Path :: string()) -> Result when
+-spec remove_storage_paths_from_db(Paths :: [string()]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-remove_storage_path(Hosts, Path) ->
+remove_storage_paths_from_db(Paths) ->
     try
-        StoragePaths = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                           {ok, #?GLOBAL_CONFIG_RECORD{storage_paths = Paths}} -> Paths;
-                           _ -> throw("Cannot get configured storage paths.")
-                       end,
+        ConfiguredPaths =
+            case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+                {ok, #?GLOBAL_CONFIG_RECORD{storage_paths = Paths}} -> Paths;
+                _ -> throw("Cannot get configured storage paths")
+            end,
 
-        case lists:member(Path, StoragePaths) of
-            true -> ok;
-            _ -> throw("Path: " ++ Path ++ " is not configured.")
-        end,
+        lists:foreach(fun(Path) ->
+            case lists:member(Path, ConfiguredPaths) of
+                false -> throw("Path: " ++ Path ++ " is not added");
+                _ -> ok
+            end
+        end, Paths),
 
-        {HostsOk, HostsError} = installer_utils:apply_on_hosts(Hosts, ?MODULE, remove_storage_path, [Path], ?RPC_TIMEOUT),
-
-        case HostsError of
-            [] ->
-                NewStoragePaths = lists:filter(fun(StoragePath) ->
-                    StoragePath =/= Path
-                end, StoragePaths),
-                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{storage_paths, NewStoragePaths}]) of
-                    ok -> ok;
-                    Other ->
-                        ?error("Cannot update storage path configuration: ~p", [Other]),
-                        installer_utils:apply_on_hosts(Hosts, ?MODULE, add_storage_path, [Path], ?RPC_TIMEOUT),
-                        {error, {hosts, Hosts}}
-                end;
-            _ ->
-                ?error("Cannot remove storage path on following hosts: ~p", [HostsError]),
-                installer_utils:apply_on_hosts(HostsOk, ?MODULE, add_storage_path, [Path], ?RPC_TIMEOUT),
-                {error, {hosts, HostsError}}
+        case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{storage_paths, ConfiguredPaths -- Paths}]) of
+            ok -> ok;
+            Other ->
+                ?error("Cannot update storage path configuration: ~p", [Other]),
+                {error, Other}
         end
     catch
         _:Reason ->
@@ -111,59 +93,59 @@ remove_storage_path(Hosts, Path) ->
     end.
 
 
-%% add_storage_path/1
+%% add_storage_paths_on_host/1
 %% ====================================================================
-%% @doc Adds configured storage path on local host.
+%% @doc Adds storage paths on local host.
 %% @end
--spec add_storage_path(Path :: string()) -> Result when
-    Result :: {ok, Host :: string()} | {error, Host :: string()}.
+-spec add_storage_paths_on_host(Paths :: [string()]) -> Result when
+    Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-add_storage_path(Path) ->
-    Host = installer_utils:get_host(node()),
+add_storage_paths_on_host(Paths) ->
     try
-        ?debug("Adding storage path ~s.", [Path]),
+        ?debug("Adding storage paths ~p", [Paths]),
         StorageConfigPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, ?STORAGE_CONFIG_PATH]),
 
         {ok, Fd} = file:open(StorageConfigPath, [append]),
-        file:write(Fd, lists:flatten(io_lib:format("~p.~n", [[[{name, cluster_fuse_id}, {root, Path}]]]))),
+        lists:foreach(fun(Path) ->
+            file:write(Fd, lists:flatten(io_lib:format("~p.~n", [[[{name, cluster_fuse_id}, {root, Path}]]])))
+        end, Paths),
         ok = file:close(Fd),
-        {ok, Host}
+
+        ok
     catch
         _:Reason ->
-            ?error("Cannot add storage path ~s: ~p", [Path, Reason]),
-            {error, Host}
+            ?error("Cannot add storage paths ~p: ~p", [Paths, Reason]),
+            {error, Reason}
     end.
 
 
-%% remove_storage_path/1
+%% remove_storage_paths_on_host/1
 %% ====================================================================
 %% @doc Removes configured storage path on local host.
 %% @end
--spec remove_storage_path(Path :: string()) -> Result when
-    Result :: {ok, Host :: string()} | {error, Host :: string()}.
+-spec remove_storage_paths_on_host(Paths :: [string()]) -> Result when
+    Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-remove_storage_path(Path) ->
-    Host = installer_utils:get_host(node()),
+remove_storage_paths_on_host(Paths) ->
     try
-        ?debug("Removing storage path ~s.", [Path]),
+        ?debug("Removing storage path ~p", [Paths]),
         StorageConfigPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, ?STORAGE_CONFIG_PATH]),
 
         {ok, StorageInfo} = file:consult(StorageConfigPath),
-        NewPaths = lists:foldl(fun([[{name, cluster_fuse_id}, {root, StoragePath}]], StoragePaths) ->
-            case StoragePath of
-                Path -> StoragePaths;
-                _ -> [StoragePath | StoragePaths]
+
+        NewPaths = lists:foldl(fun([[{name, cluster_fuse_id}, {root, Path}]], Acc) ->
+            case lists:member(Path, Paths) of
+                true -> Acc;
+                _ -> [Path | Acc]
             end
         end, [], StorageInfo),
+
         ok = file:delete(StorageConfigPath),
-        lists:foreach(fun(NewPath) ->
-            ok = add_storage_path(NewPath)
-        end, NewPaths),
-        {ok, Host}
+        ok = add_storage_paths_on_host(NewPaths)
     catch
         _:Reason ->
-            ?error("Cannot remove storage paths on host ~p: ~p", [installer_utils:get_host(node()), Reason]),
-            {error, Host}
+            ?error("Cannot remove storage paths ~p: ~p", [Paths, Reason]),
+            {error, Reason}
     end.
 
 
@@ -240,8 +222,8 @@ create_storage_test_file(Path) ->
     create_storage_test_file(Path, 20).
 
 create_storage_test_file(_, 0) ->
-    ?error("Cannot create storage test file: attempts limit exceeded."),
-    {error, "Attempts limit exceeded."};
+    ?error("Cannot create storage test file: attempts limit exceeded"),
+    {error, "Attempts limit exceeded"};
 create_storage_test_file(Path, Attempts) ->
     {A, B, C} = now(),
     random:seed(A, B, C),

@@ -37,7 +37,7 @@
 %% - list of hostnames of machines where database nodes are configured
 %% - list of paths to storages on every worker node
 %% - provider ID returned from Global Registry
--record(?GLOBAL_CONFIG_RECORD, {id, main_ccm, opt_ccms = [], workers = [], dbs = [], storage_paths = [], providerId}).
+-record(?GLOBAL_CONFIG_RECORD, {id, main_ccm, ccms = [], workers = [], dbs = [], storage_paths = [], providerId}).
 
 %% Local config record describes host configuration that is:
 %% - hostname

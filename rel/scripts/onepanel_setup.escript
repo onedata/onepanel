@@ -85,9 +85,9 @@ init() ->
 %% ====================================================================
 install(Config) ->
     try
-        {MainCCM, OptCCMs, Workers, Dbs, StoragePaths, OpenFiles, Processes} = parse(Config),
+        {MainCCM, CCMs, Workers, Dbs, StoragePaths, OpenFiles, Processes} = parse(Config),
         Node = get(?NODE),
-        Hosts = lists:usort(MainCCM ++ OptCCMs ++ Workers ++ Dbs),
+        Hosts = lists:usort(CCMs ++ Workers ++ Dbs),
 
         io:format("Checking configuration...       "),
         check_hosts(Node, Hosts),
@@ -105,7 +105,7 @@ install(Config) ->
         lists:foreach(fun(Host) ->
             HostOpenFiles = proplists:get_value(Host, OpenFiles, ?DEFAULT_OPEN_FILES),
             HostProcesses = proplists:get_value(Host, Processes, ?DEFAULT_PROCESSES),
-            rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), install_utils, set_ulimits, [HostOpenFiles, HostProcesses])
+            rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_ulimits, [HostOpenFiles, HostProcesses])
         end, Hosts),
         print_ok(),
 
@@ -113,28 +113,23 @@ install(Config) ->
             [] -> ok;
             _ ->
                 io:format("Installing database nodes...    "),
-                execute(Node, install_db, install, [[{hosts, Dbs}]]),
+                execute(Node, installer_db, install, [[{dbs, Dbs}]]),
                 print_ok(),
 
                 io:format("Starting database nodes...      "),
-                execute(Node, install_db, start, [[{hosts, Dbs}]]),
+                execute(Node, installer_db, start, [[{dbs, Dbs}]]),
                 print_ok()
         end,
 
-        case MainCCM ++ OptCCMs of
+        case CCMs of
             [] -> ok;
             _ ->
                 io:format("Installing ccm nodes...         "),
-                execute(Node, install_ccm, install, [[{hosts, MainCCM ++ OptCCMs}]]),
+                execute(Node, installer_ccm, install, [[{ccms, CCMs}]]),
                 print_ok(),
 
                 io:format("Starting ccm nodes...           "),
-                case MainCCM of
-                    [] ->
-                        execute(Node, install_ccm, start, [[{opt_ccms, OptCCMs}]]);
-                    _ ->
-                        execute(Node, install_ccm, start, [[{main_ccm, erlang:hd(MainCCM)}, {opt_ccms, OptCCMs}]])
-                end,
+                execute(Node, installer_ccm, start, [[{main_ccm, MainCCM}, {ccms, CCMs}]]),
                 print_ok()
         end,
 
@@ -142,17 +137,15 @@ install(Config) ->
             [] -> ok;
             _ ->
                 io:format("Installing worker nodes...      "),
-                execute(Node, install_worker, install, [[{hosts, Workers}]]),
+                execute(Node, installer_worker, install, [[{workers, Workers}]]),
                 print_ok(),
 
                 io:format("Adding storage paths...         "),
-                lists:foreach(fun(StoragePath) ->
-                    execute(Node, install_storage, add_storage_path, [Workers, StoragePath])
-                end, StoragePaths),
+                execute(Node, installer_storage, add_storage_paths_to_db, [StoragePaths]),
                 print_ok(),
 
                 io:format("Starting worker nodes...        "),
-                execute(Node, install_worker, start, [[{workers, Workers}]]),
+                execute(Node, installer_worker, start, [[{workers, Workers}]]),
                 print_ok()
         end
     catch
@@ -181,10 +174,10 @@ info() ->
     try
         Node = get(?NODE),
 
-        Terms = rpc:call(Node, install_utils, get_global_config, []),
+        Terms = rpc:call(Node, installer_utils, get_global_config, []),
 
         io:format("Main CCM node:         ~s\n", [format(proplists:get_value(main_ccm, Terms))]),
-        io:format("Optional CCM nodes:    ~s\n", [format({hosts, proplists:get_value(opt_ccms, Terms)})]),
+        io:format("CCM nodes:             ~s\n", [format({hosts, proplists:get_value(ccms, Terms)})]),
         io:format("Worker nodes:          ~s\n", [format({hosts, proplists:get_value(workers, Terms)})]),
         io:format("Database nodes:        ~s\n", [format({hosts, proplists:get_value(dbs, Terms)})]),
         io:format("Storage paths:         ~s\n", [format({hosts, proplists:get_value(storage_paths, Terms)})])
@@ -205,7 +198,7 @@ uninstall() ->
     try
         Node = get(?NODE),
 
-        Terms = rpc:call(Node, install_utils, get_global_config, []),
+        Terms = rpc:call(Node, installer_utils, get_global_config, []),
 
         CCMs = proplists:get_value(opt_ccms, Terms, []) ++
             case proplists:get_value(main_ccm, Terms) of
@@ -220,17 +213,15 @@ uninstall() ->
             [] -> ok;
             _ ->
                 io:format("Stopping worker nodes...      "),
-                execute(Node, install_worker, stop, [[]]),
+                execute(Node, installer_worker, stop, [[]]),
                 print_ok(),
 
                 io:format("Removing storage paths...     "),
-                lists:foreach(fun(StoragePath) ->
-                    execute(Node, install_storage, remove_storage_path, [Workers, StoragePath])
-                end, StoragePaths),
+                execute(Node, installer_storage, remove_storage_paths_from_db, [StoragePaths]),
                 print_ok(),
 
                 io:format("Uninstalling worker nodes...  "),
-                execute(Node, install_worker, uninstall, [[{hosts, Workers}]]),
+                execute(Node, installer_worker, uninstall, [[{workers, Workers}]]),
                 print_ok()
         end,
 
@@ -238,11 +229,11 @@ uninstall() ->
             [] -> ok;
             _ ->
                 io:format("Stopping ccm nodes...         "),
-                execute(Node, install_ccm, stop, [[]]),
+                execute(Node, installer_ccm, stop, [[]]),
                 print_ok(),
 
                 io:format("Uninstalling ccm nodes...     "),
-                execute(Node, install_ccm, uninstall, [[{hosts, CCMs}]]),
+                execute(Node, installer_ccm, uninstall, [[{ccms, CCMs}]]),
                 print_ok()
         end,
 
@@ -250,11 +241,11 @@ uninstall() ->
             [] -> ok;
             _ ->
                 io:format("Stopping database nodes...    "),
-                execute(Node, install_db, stop, [[]]),
+                execute(Node, installer_db, stop, [[]]),
                 print_ok(),
 
                 io:format("Uninstalling database nodes..."),
-                execute(Node, install_db, uninstall, [[{hosts, Dbs}]]),
+                execute(Node, installer_db, uninstall, [[{dbs, Dbs}]]),
                 print_ok()
         end
     catch
@@ -311,14 +302,14 @@ parse(Config) ->
                   undefined -> [];
                   Host -> [Host]
               end,
-    OptCCMs = proplists:get_value("Optional CCM hosts", Terms, []),
+    CCMs = proplists:get_value("CCM hosts", Terms, []),
     Workers = proplists:get_value("Worker hosts", Terms, []),
     Dbs = proplists:get_value("Database hosts", Terms, []),
     StoragePaths = proplists:get_value("Storage paths", Terms, []),
     OpenFiles = proplists:get_value("Open files limit", Terms, []),
     Processes = proplists:get_value("Processes limit", Terms, []),
 
-    {MainCCM, OptCCMs, Workers, Dbs, StoragePaths, OpenFiles, Processes}.
+    {MainCCM, CCMs, Workers, Dbs, StoragePaths, OpenFiles, Processes}.
 
 
 %% execute/4
@@ -345,7 +336,7 @@ execute(Node, Module, Function, Args) ->
 -spec check_hosts(Node :: atom(), Hosts :: [string()]) -> ok | no_return().
 %% ====================================================================
 check_hosts(Node, Hosts) ->
-    ValidHosts = rpc:call(Node, install_utils, get_hosts, []),
+    ValidHosts = rpc:call(Node, installer_utils, get_hosts, []),
     lists:foreach(fun(Host) ->
         case lists:member(Host, ValidHosts) of
             true -> ok;
@@ -362,7 +353,7 @@ check_hosts(Node, Hosts) ->
 %% ====================================================================
 check_storage_paths(Node, StoragePaths, Workers) when is_list(StoragePaths) ->
     lists:foreach(fun(StoragePath) ->
-        case rpc:call(Node, install_storage, check_storage_path_on_hosts, [Workers, StoragePath]) of
+        case rpc:call(Node, installer_storage, check_storage_path_on_hosts, [Workers, StoragePath]) of
             ok -> ok;
             {error, Hosts} ->
                 throw({config, io_lib:fwrite("Storage ~p in not available on following hosts: ~s", [StoragePath, string:join(Hosts, ", ")])})

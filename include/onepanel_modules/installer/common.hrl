@@ -20,13 +20,13 @@
 -define(DEFAULT_COOKIE, veil_cluster_node).
 
 %% Installation directory of veil RPM
--define(PREFIX, "/opt/veil/").
+-define(PREFIX, filename:join([filename:absname("/"), "opt", "veil"])).
 
 %% Location of configured_nodes.cfg
--define(CONFIGURED_NODES_PATH, ?PREFIX ++ "scripts/configured_nodes.cfg").
+-define(CONFIGURED_NODES_PATH, filename:join([?PREFIX, "scripts", "configured_nodes.cfg"])).
 
 %% System limit values
--define(ULIMITS_CONFIG_PATH, ?PREFIX ++ "scripts/ulimits.cfg").
+-define(ULIMITS_CONFIG_PATH, filename:join([?PREFIX, "scripts", "ulimits.cfg"])).
 -define(DEFAULT_OPEN_FILES, "65535").
 -define(DEFAULT_PROCESSES, "65535").
 

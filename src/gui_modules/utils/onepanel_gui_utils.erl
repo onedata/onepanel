@@ -169,7 +169,6 @@ get_installation_state() ->
         Record -> {ok, Record}
     end.
 
-change_step(_, _) -> ok.
 
 %% change_page/2
 %% ====================================================================

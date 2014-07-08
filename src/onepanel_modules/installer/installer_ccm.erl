@@ -21,7 +21,7 @@
 -export([install/1, uninstall/1, start/1, stop/1, restart/1]).
 
 %% API
--export([install/0, uninstall/0, start/3, stop/0, restart/0]).
+-export([local_install/0, local_uninstall/0, local_start/3, local_stop/0, local_restart/0]).
 
 %% ====================================================================
 %% Behaviour callback functions
@@ -29,86 +29,92 @@
 
 %% install/1
 %% ====================================================================
-%% @doc Installs CCM nodes on given hosts.
+%% @doc Installs CCM nodes on given hosts. Arguments list should contain
+%% list of hosts where to install CCM nodes.
 %% @end
 -spec install(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 install(Args) ->
-    Hosts = proplists:get_value(hosts, Args, []),
+    CCMs = proplists:get_value(ccms, Args, []),
 
-    {HostsOk, HostsError} = installer_utils:apply_on_hosts(Hosts, ?MODULE, install, [], ?RPC_TIMEOUT),
+    {HostsOk, HostsError} = installer_utils:apply_on_hosts(CCMs, ?MODULE, local_install, [], ?RPC_TIMEOUT),
 
     case HostsError of
         [] -> ok;
         _ ->
             ?error("Cannot install CCM nodes on following hosts: ~p", [HostsError]),
-            installer_utils:apply_on_hosts(HostsOk, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
+            installer_utils:apply_on_hosts(HostsOk, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
             {error, {hosts, HostsError}}
     end.
 
 
 %% uninstall/1
 %% ====================================================================
-%% @doc Uninstalls CCM nodes on given hosts.
+%% @doc Uninstalls CCM nodes on given hosts. Arguments list should 
+%% contain list of hosts where CCM nodes where installed.
 %% @end
 -spec uninstall(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 uninstall(Args) ->
-    Hosts = proplists:get_value(hosts, Args, []),
+    CCMs = proplists:get_value(ccms, Args, []),
 
-    {HostsOk, HostsError} = installer_utils:apply_on_hosts(Hosts, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
+    {HostsOk, HostsError} = installer_utils:apply_on_hosts(CCMs, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
 
     case HostsError of
         [] -> ok;
         _ ->
             ?error("Cannot uninstall CCM nodes on following hosts: ~p", [HostsError]),
-            installer_utils:apply_on_hosts(HostsOk, ?MODULE, install, [], ?RPC_TIMEOUT),
+            installer_utils:apply_on_hosts(HostsOk, ?MODULE, local_install, [], ?RPC_TIMEOUT),
             {error, {hosts, HostsError}}
     end.
 
 
 %% start/1
 %% ====================================================================
-%% @doc Starts CCM nodes on given hosts. Argument list should contain
-%% host where main CCM node was installed and also list of hosts where
-%% database nodes where installed.
+%% @doc Starts CCM nodes on given hosts. Arguments list should contain
+%% host where to start main CCM node, list of hosts where to start CCM
+%% nodes and list of hosts where database nodes were configured.
 %% @end
 -spec start(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 start(Args) ->
     try
+        ConfiguredDbs = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> throw("Database nodes not configured");
+                            {ok, #?GLOBAL_CONFIG_RECORD{ccms = [], dbs = Dbs}} -> Dbs;
+                            {ok, #?GLOBAL_CONFIG_RECORD{ccms = _}} -> throw("CCM nodes already configured");
+                            _ -> throw("Cannot get CCM nodes configuration")
+                        end,
+
+        CCMs = proplists:get_value(ccms, Args, []),
+
         MainCCM = case proplists:get_value(main_ccm, Args) of
-                      undefined -> throw("Main CCM node not found in arguments list.");
+                      undefined -> throw("Main CCM node not found in arguments list");
                       Host -> Host
                   end,
-        OptCCMs = proplists:get_value(opt_ccms, Args, []),
 
-        Dbs = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                  {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> throw("Database nodes not configured.");
-                  {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = undefined, opt_ccms = [], dbs = Hosts}} -> Hosts;
-                  {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM, opt_ccms = OptCCMs}} -> throw(ok);
-                  {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = _, opt_ccms = _}} ->
-                      throw("CCM nodes already started with different configuration.");
-                  _ -> throw("Cannot get CCM nodes configuration.")
-              end,
+        OptCCMs = case lists:member(MainCCM, CCMs) of
+                      true -> lists:delete(MainCCM, CCMs);
+                      _ -> throw("Main CCM node not found among CCM nodes")
+                  end,
 
-        {HostsOk, HostsError} = installer_utils:apply_on_hosts([MainCCM | OptCCMs], ?MODULE, start, [MainCCM, OptCCMs, Dbs], ?RPC_TIMEOUT),
+        {HostsOk, HostsError} = installer_utils:apply_on_hosts(CCMs, ?MODULE, local_start, [MainCCM, OptCCMs, ConfiguredDbs], ?RPC_TIMEOUT),
 
         case HostsError of
             [] ->
-                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{main_ccm, MainCCM}, {opt_ccms, OptCCMs}]) of
+                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{main_ccm, MainCCM}, {ccms, CCMs}]) of
                     ok -> ok;
                     Other ->
                         ?error("Cannot update CCM nodes configuration: ~p", [Other]),
-                        installer_utils:apply_on_hosts([MainCCM | OptCCMs], ?MODULE, stop, [], ?RPC_TIMEOUT),
-                        {error, {hosts, [MainCCM | OptCCMs]}}
+                        installer_utils:apply_on_hosts(CCMs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
+                        {error, {hosts, CCMs}}
                 end;
             _ ->
                 ?error("Cannot start CCM nodes on following hosts: ~p", [HostsError]),
-                installer_utils:apply_on_hosts(HostsOk, ?MODULE, stop, [], ?RPC_TIMEOUT),
+                installer_utils:apply_on_hosts(HostsOk, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
@@ -121,36 +127,36 @@ start(Args) ->
 
 %% stop/1
 %% ====================================================================
-%% @doc Stops CCM nodes on given hosts.
+%% @doc Stops all CCM nodes.
 %% @end
 -spec stop(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 stop(_) ->
     try
-        {MainCCM, OptCCMs, Dbs} =
+        {ConfiguredMainCCM, ConfiguredCCMs, ConfiguredDbs} =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = undefined, opt_ccms = []}} ->
-                    throw("CCM nodes not configured.");
-                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCMHost, opt_ccms = OptCCMHosts, dbs = DbHosts}} ->
-                    {MainCCMHost, OptCCMHosts, DbHosts};
-                _ -> throw("Cannot get CCM nodes configuration.")
+                {ok, #?GLOBAL_CONFIG_RECORD{ccms = []}} -> throw("CCM nodes not configured");
+                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM, ccms = CCMs, dbs = Dbs}} -> {MainCCM, CCMs, Dbs};
+                _ -> throw("Cannot get CCM nodes configuration")
             end,
 
-        {HostsOk, HostsError} = installer_utils:apply_on_hosts([MainCCM | OptCCMs], ?MODULE, stop, [], ?RPC_TIMEOUT),
+        ConfiguredOptCCMs = lists:delete(ConfiguredMainCCM, ConfiguredCCMs),
+
+        {HostsOk, HostsError} = installer_utils:apply_on_hosts(ConfiguredCCMs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
 
         case HostsError of
             [] ->
-                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{main_ccm, undefined}, {opt_ccms, []}]) of
+                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{main_ccm, undefined}, {ccms, []}]) of
                     ok -> ok;
                     Other ->
                         ?error("Cannot update CCM nodes configuration: ~p", [Other]),
-                        installer_utils:apply_on_hosts([MainCCM | OptCCMs], ?MODULE, start, [MainCCM, OptCCMs, Dbs], ?RPC_TIMEOUT),
-                        {error, {hosts, [MainCCM | OptCCMs]}}
+                        installer_utils:apply_on_hosts(ConfiguredCCMs, ?MODULE, local_start, [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredDbs], ?RPC_TIMEOUT),
+                        {error, {hosts, ConfiguredCCMs}}
                 end;
             _ ->
                 ?error("Cannot stop CCM nodes on following hosts: ~p", [HostsError]),
-                installer_utils:apply_on_hosts(HostsOk, ?MODULE, start, [MainCCM, OptCCMs, Dbs], ?RPC_TIMEOUT),
+                installer_utils:apply_on_hosts(HostsOk, ?MODULE, local_start, [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredDbs], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
@@ -162,24 +168,24 @@ stop(_) ->
 
 %% restart/1
 %% ====================================================================
-%% @doc Restarts CCM nodes on given hosts.
+%% @doc Restarts all CCM nodes.
 %% @end
 -spec restart(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 restart(_) ->
     try
-        {MainCCM, OptCCMs, Dbs} =
+        {ConfiguredMainCCM, ConfiguredCCMs} =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = undefined}} ->
-                    throw("CCM nodes not configured.");
-                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCMHost, opt_ccms = OptCCMHosts, dbs = DbHosts}} ->
-                    {MainCCMHost, OptCCMHosts, DbHosts};
-                _ -> throw("Cannot get CCM nodes configuration.")
+                {ok, #?GLOBAL_CONFIG_RECORD{ccms = []}} -> throw("CCM nodes not configured");
+                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM, ccms = CCMs}} -> {MainCCM, CCMs};
+                _ -> throw("Cannot get CCM nodes configuration")
             end,
 
+        ConfiguredOptCCMs = lists:delete(ConfiguredMainCCM, ConfiguredCCMs),
+
         case stop([]) of
-            ok -> start([{main_ccm, MainCCM}, {opt_ccms, OptCCMs}, {dbs, Dbs}]);
+            ok -> start([{main_ccm, ConfiguredMainCCM}, {ccms, ConfiguredOptCCMs}]);
             Other -> Other
         end
     catch
@@ -193,62 +199,64 @@ restart(_) ->
 %% API functions
 %% ====================================================================
 
-%% install/0
+%% local_install/0
 %% ====================================================================
 %% @doc Installs CCM node on local host.
 %% @end
--spec install() -> Result when
+-spec local_install() -> Result when
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-install() ->
+local_install() ->
     Host = installer_utils:get_host(node()),
     try
-        ?debug("Installing CCM node."),
+        ?debug("Installing CCM node"),
+        CCMPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME]),
 
-        "" = os:cmd("mkdir -p " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME),
-        "" = os:cmd("cp -R " ++ ?VEIL_RELEASE ++ "/* " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME),
+        "" = os:cmd("mkdir -p " ++ CCMPath),
+        "" = os:cmd("cp -R " ++ filename:join([?VEIL_RELEASE, "* "]) ++ CCMPath),
 
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot install CCM node: ~p.", [Reason]),
+            ?error("Cannot install CCM node: ~p", [Reason]),
             {error, Host}
     end.
 
 
-%% uninstall/0
+%% local_uninstall/0
 %% ====================================================================
 %% @doc Uninstalls CCM node on local host.
 %% @end
--spec uninstall() -> Result when
+-spec local_uninstall() -> Result when
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-uninstall() ->
+local_uninstall() ->
     Host = installer_utils:get_host(node()),
     try
-        ?debug("Uninstalling CCM node."),
+        ?debug("Uninstalling CCM node"),
+        CCMPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME]),
 
-        "" = os:cmd("rm -rf " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME),
+        "" = os:cmd("rm -rf " ++ CCMPath),
 
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot uninstall CCM node: ~p.", [Reason]),
+            ?error("Cannot uninstall CCM node: ~p", [Reason]),
             {error, Host}
     end.
 
 
-%% start/3
+%% local_start/3
 %% ====================================================================
 %% @doc Starts CCM node on local host.
 %% @end
--spec start(MainCCM :: string(), OptCCMs :: [string()], Dbs :: [string()]) -> Result when
+-spec local_start(MainCCM :: string(), OptCCMs :: [string()], Dbs :: [string()]) -> Result when
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-start(MainCCM, OptCCMs, Dbs) ->
+local_start(MainCCM, OptCCMs, Dbs) ->
     Host = installer_utils:get_host(node()),
     try
-        ?debug("Starting CCM node: ~p."),
+        ?debug("Starting CCM node: ~p"),
 
         Name = ?DEFAULT_CCM_NAME ++ "@" ++ Host,
 
@@ -286,19 +294,20 @@ start(MainCCM, OptCCMs, Dbs) ->
     end.
 
 
-%% stop/0
+%% local_stop/0
 %% ====================================================================
 %% @doc Stops CCM node on local host.
 %% @end
--spec stop() -> Result when
+-spec local_stop() -> Result when
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-stop() ->
+local_stop() ->
     Host = installer_utils:get_host(node()),
     try
-        ?debug("Stopping CCM node."),
+        ?debug("Stopping CCM node"),
+        CCMPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME]),
 
-        "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_CCM_NAME ++ " | awk '{print $2}'`"),
+        "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ CCMPath ++ " | awk '{print $2}'`"),
         ok = installer_utils:remove_node_from_config(ccm),
 
         {ok, Host}
@@ -309,27 +318,28 @@ stop() ->
     end.
 
 
-%% restart/0
+%% local_restart/0
 %% ====================================================================
 %% @doc Restarts CCM node on local host.
 %% @end
--spec restart() -> Result when
+-spec local_restart() -> Result when
     Result :: {ok, Host :: string()} | {error, Reason :: term()}.
 %% ====================================================================
-restart() ->
+local_restart() ->
     Host = installer_utils:get_host(node()),
     try
-        {MainCCM, OptCCMs, Dbs} =
+        {ConfiguredMainCCM, ConfiguredCCMs, ConfiguredDbs} =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = undefined}} ->
-                    throw("CCM nodes not configured.");
-                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCMHost, opt_ccms = OptCCMHosts, dbs = DbHosts}} ->
-                    {MainCCMHost, OptCCMHosts, DbHosts};
-                _ -> throw("Cannot get CCM nodes configuration.")
+                {ok, #?GLOBAL_CONFIG_RECORD{ccms = []}} -> throw("CCM nodes not configured");
+                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM, ccms = CCMs, dbs = Dbs}} -> {MainCCM, CCMs, Dbs};
+                _ -> throw("Cannot get CCM nodes configuration")
             end,
 
+        ConfiguredOptCCMs = lists:delete(ConfiguredMainCCM, ConfiguredCCMs),
+
+
         case stop() of
-            {ok, _} -> start(MainCCM, OptCCMs, Dbs);
+            {ok, _} -> start(ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredDbs);
             Other -> Other
         end
     catch

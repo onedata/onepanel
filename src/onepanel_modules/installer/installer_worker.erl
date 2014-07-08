@@ -20,7 +20,7 @@
 -export([install/1, uninstall/1, start/1, stop/1, restart/1]).
 
 %% API
--export([install/0, uninstall/0, start/3, stop/0, restart/0]).
+-export([local_install/0, local_uninstall/0, local_start/4, local_stop/1, local_restart/0]).
 
 %% ====================================================================
 %% Behaviour callback functions
@@ -34,15 +34,15 @@
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 install(Args) ->
-    Hosts = proplists:get_value(hosts, Args, []),
+    Workers = proplists:get_value(workers, Args, []),
 
-    {HostsOk, HostsError} = installer_utils:apply_on_hosts(Hosts, ?MODULE, install, [], ?RPC_TIMEOUT),
+    {HostsOk, HostsError} = installer_utils:apply_on_hosts(Workers, ?MODULE, local_install, [], ?RPC_TIMEOUT),
 
     case HostsError of
         [] -> ok;
         _ ->
             ?error("Cannot install worker nodes on following hosts: ~p", [HostsError]),
-            installer_utils:apply_on_hosts(HostsOk, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
+            installer_utils:apply_on_hosts(HostsOk, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
             {error, {hosts, HostsError}}
     end.
 
@@ -55,15 +55,15 @@ install(Args) ->
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 uninstall(Args) ->
-    Hosts = proplists:get_value(hosts, Args, []),
+    Workers = proplists:get_value(workers, Args, []),
 
-    {HostsOk, HostsError} = installer_utils:apply_on_hosts(Hosts, ?MODULE, uninstall, [], ?RPC_TIMEOUT),
+    {HostsOk, HostsError} = installer_utils:apply_on_hosts(Workers, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
 
     case HostsError of
         [] -> ok;
         _ ->
             ?error("Cannot uninstall worker nodes on following hosts: ~p", [HostsError]),
-            installer_utils:apply_on_hosts(HostsOk, ?MODULE, install, [], ?RPC_TIMEOUT),
+            installer_utils:apply_on_hosts(HostsOk, ?MODULE, local_install, [], ?RPC_TIMEOUT),
             {error, {hosts, HostsError}}
     end.
 
@@ -71,41 +71,48 @@ uninstall(Args) ->
 %% start/1
 %% ====================================================================
 %% @doc Starts worker nodes on given hosts. Argument list should contain
-%% host where main CCM node was installed and also list of hosts where
-%% database and worker nodes where installed.
+%% host where main CCM node was configured and also list of hosts where
+%% database configured and worker nodes installed.
 %% @end
 -spec start(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 start(Args) ->
     try
-        {MainCCM, OptCCMs, Dbs, Workers} =
+        {ConfiguredMainCCM, ConfiguredCCMs, ConfiguredDbs, ConfiguredWorkers, ConfiguredStoragePaths} =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = undefined, opt_ccms = []}} ->
-                    throw("CCM nodes not configured.");
-                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCMHost, opt_ccms = OptCCMHosts, dbs = DbHosts, workers = WorkerHosts}} ->
-                    {MainCCMHost, OptCCMHosts, DbHosts, WorkerHosts};
-                _ -> throw("Cannot get CCM nodes configuration.")
+                {ok, #?GLOBAL_CONFIG_RECORD{ccms = []}} -> throw("CCM nodes not configured");
+                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM, ccms = CCMs, dbs = Dbs, workers = Workers, storage_paths = StoragePaths}} ->
+                    {MainCCM, CCMs, Dbs, Workers, StoragePaths};
+                _ -> throw("Cannot get CCM nodes configuration")
             end,
 
-        NewWorkers = lists:filter(fun(Worker) ->
-            not lists:member(Worker, Workers)
-        end, proplists:get_value(workers, Args, [])),
+        Workers = proplists:get_value(workers, Args, []),
 
-        {HostsOk, HostsError} = installer_utils:apply_on_hosts(NewWorkers, ?MODULE, start, [MainCCM, OptCCMs, Dbs], ?RPC_TIMEOUT),
+        lists:foreach(fun(Worker) ->
+            case lists:member(Worker, ConfiguredWorkers) of
+                true -> throw("Worker " ++ Worker ++ " already configured");
+                _ -> ok
+            end
+        end, Workers),
+
+        ConfiguredOptCCMs = lists:delete(ConfiguredMainCCM, ConfiguredCCMs),
+
+        {HostsOk, HostsError} = installer_utils:apply_on_hosts(Workers, ?MODULE, local_start,
+            [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredDbs, ConfiguredStoragePaths], ?RPC_TIMEOUT),
 
         case HostsError of
             [] ->
-                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{workers, Workers ++ NewWorkers}]) of
+                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{workers, ConfiguredWorkers ++ Workers}]) of
                     ok -> ok;
                     Other ->
                         ?error("Cannot update worker nodes configuration: ~p", [Other]),
-                        installer_utils:apply_on_hosts(NewWorkers, ?MODULE, stop, [], ?RPC_TIMEOUT),
-                        {error, {hosts, NewWorkers}}
+                        installer_utils:apply_on_hosts(Workers, ?MODULE, local_stop, [ConfiguredStoragePaths], ?RPC_TIMEOUT),
+                        {error, {hosts, Workers}}
                 end;
             _ ->
                 ?error("Cannot start worker nodes on following hosts: ~p", [HostsError]),
-                installer_utils:apply_on_hosts(HostsOk, ?MODULE, stop, [], ?RPC_TIMEOUT),
+                installer_utils:apply_on_hosts(HostsOk, ?MODULE, local_stop, [ConfiguredStoragePaths], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
@@ -122,31 +129,44 @@ start(Args) ->
 -spec stop(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-stop(_) ->
+stop(Args) ->
     try
-        {MainCCM, OptCCMs, Dbs, Workers} =
+        {ConfiguredMainCCM, ConfiguredCCMs, ConfiguredDbs, ConfiguredWorkers, ConfiguredStoragePaths} =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                {ok, #?GLOBAL_CONFIG_RECORD{workers = []}} ->
-                    throw("Worker nodes not configured.");
-                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCMHost, opt_ccms = OptCCMHosts, dbs = DbHosts, workers = WorkerHosts}} ->
-                    {MainCCMHost, OptCCMHosts, DbHosts, WorkerHosts};
-                _ -> throw("Cannot get worker nodes configuration.")
+                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM, ccms = CCMs, dbs = Dbs, workers = Workers, storage_paths = StoragePaths}} ->
+                    {MainCCM, CCMs, Dbs, Workers, StoragePaths};
+                _ -> throw("Cannot get CCM nodes configuration")
             end,
 
-        {HostsOk, HostsError} = installer_utils:apply_on_hosts(Workers, ?MODULE, stop, [], ?RPC_TIMEOUT),
+        Workers = case proplists:get_value(workers, Args, []) of
+                      [] -> ConfiguredWorkers;
+                      Hosts ->
+                          lists:foreach(fun(Host) ->
+                              case lists:member(Host, ConfiguredWorkers) of
+                                  true -> throw("Worker " ++ Host ++ " is not configured");
+                                  _ -> ok
+                              end
+                          end, Hosts)
+                  end,
+
+        ConfiguredOptCCMs = lists:delete(ConfiguredMainCCM, ConfiguredCCMs),
+
+        {HostsOk, HostsError} = installer_utils:apply_on_hosts(Workers, ?MODULE, local_stop, [ConfiguredStoragePaths], ?RPC_TIMEOUT),
 
         case HostsError of
             [] ->
-                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{workers, []}]) of
+                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{workers, ConfiguredWorkers -- Workers}]) of
                     ok -> ok;
                     Other ->
                         ?error("Cannot update worker nodes configuration: ~p", [Other]),
-                        installer_utils:apply_on_hosts(Workers, ?MODULE, start, [MainCCM, OptCCMs, Dbs], ?RPC_TIMEOUT),
+                        installer_utils:apply_on_hosts(Workers, ?MODULE, local_start,
+                            [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredDbs, ConfiguredStoragePaths], ?RPC_TIMEOUT),
                         {error, {hosts, Workers}}
                 end;
             _ ->
                 ?error("Cannot stop worker nodes on following hosts: ~p", [HostsError]),
-                installer_utils:apply_on_hosts(HostsOk, ?MODULE, start, [MainCCM, OptCCMs, Dbs], ?RPC_TIMEOUT),
+                installer_utils:apply_on_hosts(HostsOk, ?MODULE, local_start,
+                    [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredDbs, ConfiguredStoragePaths], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
@@ -163,19 +183,12 @@ stop(_) ->
 -spec restart(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-restart(_) ->
+restart(Args) ->
     try
-        {MainCCM, OptCCMs, Dbs, Workers} =
-            case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                {ok, #?GLOBAL_CONFIG_RECORD{workers = []}} ->
-                    throw("Worker nodes not configured.");
-                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCMHost, opt_ccms = OptCCMHosts, dbs = DbHosts, workers = WorkerHosts}} ->
-                    {MainCCMHost, OptCCMHosts, DbHosts, WorkerHosts};
-                _ -> throw("Cannot get worker nodes configuration.")
-            end,
+        Workers = proplists:get_value(workers, Args, []),
 
-        case stop([]) of
-            ok -> start([{main_ccm, MainCCM}, {opt_ccms, OptCCMs}, {dbs, Dbs}, {workers, Workers}]);
+        case stop([{workers, Workers}]) of
+            ok -> start([{workers, Workers}]);
             Other -> Other
         end
     catch
@@ -189,62 +202,64 @@ restart(_) ->
 %% API functions
 %% ====================================================================
 
-%% install/0
+%% local_install/0
 %% ====================================================================
 %% @doc Installs worker node on local host.
 %% @end
--spec install() -> Result when
+-spec local_install() -> Result when
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-install() ->
+local_install() ->
     Host = installer_utils:get_host(node()),
     try
-        ?debug("Installing worker node."),
+        ?debug("Installing worker node"),
+        WorkerPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME]),
 
-        "" = os:cmd("mkdir -p " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME),
-        "" = os:cmd("cp -R " ++ ?VEIL_RELEASE ++ "/* " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME),
+        "" = os:cmd("mkdir -p " ++ WorkerPath),
+        "" = os:cmd("cp -R " ++ filename:join([?VEIL_RELEASE, "* "]) ++ WorkerPath),
 
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot install worker node: ~p.", [Reason]),
+            ?error("Cannot install worker node: ~p", [Reason]),
             {error, Host}
     end.
 
 
-%% uninstall/0
+%% local_uninstall/0
 %% ====================================================================
 %% @doc Uninstalls worker node on local host.
 %% @end
--spec uninstall() -> Result when
+-spec local_uninstall() -> Result when
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-uninstall() ->
+local_uninstall() ->
     Host = installer_utils:get_host(node()),
     try
-        ?debug("Uninstalling worker node."),
+        ?debug("Uninstalling worker node"),
+        WorkerPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME]),
 
-        "" = os:cmd("rm -rf " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME),
+        "" = os:cmd("rm -rf " ++ WorkerPath),
 
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot uninstall worker node: ~p.", [Reason]),
+            ?error("Cannot uninstall worker node: ~p", [Reason]),
             {error, Host}
     end.
 
 
-%% start/3
+%% local_start/4
 %% ====================================================================
 %% @doc Starts worker node on local host.
 %% @end
--spec start(MainCCM :: string(), OptCCMs :: [string()], Dbs :: [string()]) -> Result when
+-spec local_start(MainCCM :: string(), OptCCMs :: [string()], Dbs :: [string()], StoragePaths :: [string()]) -> Result when
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-start(MainCCM, OptCCMs, Dbs) ->
+local_start(MainCCM, OptCCMs, Dbs, StoragePaths) ->
     Host = installer_utils:get_host(node()),
     try
-        ?debug("Starting worker node: ~p."),
+        ?debug("Starting worker node: ~p"),
 
         Name = ?DEFAULT_WORKER_NAME ++ "@" ++ Host,
 
@@ -269,6 +284,7 @@ start(MainCCM, OptCCMs, Dbs) ->
         ok = installer_utils:overwrite_config_args(NodeConfigPath, "db_nodes", DbNames),
         ok = installer_utils:overwrite_config_args(NodeConfigPath, "storage_config_path", StorageConfigPath),
         ok = installer_utils:add_node_to_config(worker, list_to_atom(?DEFAULT_WORKER_NAME), ?DEFAULT_NODES_INSTALL_PATH),
+        ok = installer_storage:add_storage_paths_on_host(StoragePaths),
 
         os:cmd(OverwriteCommand),
         SetUlimitsCmd = installer_utils:get_ulimits_cmd(Host),
@@ -282,20 +298,22 @@ start(MainCCM, OptCCMs, Dbs) ->
     end.
 
 
-%% stop/0
+%% local_stop/1
 %% ====================================================================
 %% @doc Stops worker node on local host.
 %% @end
--spec stop() -> Result when
+-spec local_stop(StoragePaths :: [string()]) -> Result when
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-stop() ->
+local_stop(StoragePaths) ->
     Host = installer_utils:get_host(node()),
     try
-        ?debug("Stopping worker node on host: ~p.", [Host]),
+        ?debug("Stopping worker node on host: ~p", [Host]),
+        WorkerPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME]),
 
-        "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ ?DEFAULT_NODES_INSTALL_PATH ++ ?DEFAULT_WORKER_NAME ++ " | awk '{print $2}'`"),
+        "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ WorkerPath ++ " | awk '{print $2}'`"),
         ok = installer_utils:remove_node_from_config(worker),
+        ok = installer_storage:remove_storage_paths_on_host(StoragePaths),
 
         {ok, Host}
     catch
@@ -305,31 +323,13 @@ stop() ->
     end.
 
 
-%% restart/0
+%% local_restart/0
 %% ====================================================================
 %% @doc Restarts worker node on local host.
 %% @end
--spec restart() -> Result when
+-spec local_restart() -> Result when
     Result :: {ok, Host :: string()} | {error, Reason :: term()}.
 %% ====================================================================
-restart() ->
+local_restart() ->
     Host = installer_utils:get_host(node()),
-    try
-        {MainCCM, OptCCMs, Dbs} =
-            case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = undefined}} ->
-                    throw("CCM nodes not configured.");
-                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCMHost, opt_ccms = OptCCMHosts, dbs = DbHosts}} ->
-                    {MainCCMHost, OptCCMHosts, DbHosts};
-                _ -> throw("Cannot get CCM nodes configuration.")
-            end,
-
-        case stop() of
-            {ok, _} -> start(MainCCM, OptCCMs, Dbs);
-            Other -> Other
-        end
-    catch
-        _:Reason ->
-            ?error("Cannot restart worker node: ~p", [Reason]),
-            {error, Host}
-    end.
+    restart([{workers, Host}]).
