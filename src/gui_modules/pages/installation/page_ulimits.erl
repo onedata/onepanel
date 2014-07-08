@@ -62,8 +62,8 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    #?CONFIG{main_ccm = MainCCM, opt_ccms = OptCCMs, workers = Workers, dbs = Dbs} = gui_ctx:get(?CONFIG_ID),
-    Hosts = lists:usort([MainCCM | OptCCMs] ++ Workers ++ Dbs),
+    #?CONFIG{ccms = CCMs, workers = Workers, dbs = Dbs} = gui_ctx:get(?CONFIG_ID),
+    Hosts = lists:usort(CCMs ++ Workers ++ Dbs),
     {TextboxIds, _} = lists:foldl(fun(_, {Ids, Id}) ->
         HostId = integer_to_binary(Id),
         {[<<"open_files_textbox_", HostId/binary>>, <<"processes_textbox_", HostId/binary>> | Ids], Id + 1}
@@ -232,18 +232,18 @@ event({set_ulimits, Hosts}) ->
             {processes_limit, <<"processes_textbox_", HostId/binary>>}
         ],
         {
-            lists:filter(fun({Field, TextboxId}) ->
-                Limit = gui_str:to_list(gui_ctx:postback_param(TextboxId)),
-                case validate_limit(Limit) of
-                    ok ->
-                        dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{Field, Limit}]),
-                        gui_jq:css(TextboxId, <<"border-color">>, <<"green">>),
-                        false;
-                    _ ->
-                        gui_jq:css(TextboxId, <<"border-color">>, <<"red">>),
-                        true
-                end
-            end, Textboxes) ++ WrongLimits,
+                lists:filter(fun({Field, TextboxId}) ->
+                    Limit = gui_str:to_list(gui_ctx:postback_param(TextboxId)),
+                    case validate_limit(Limit) of
+                        ok ->
+                            dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{Field, Limit}]),
+                            gui_jq:css(TextboxId, <<"border-color">>, <<"green">>),
+                            false;
+                        _ ->
+                            gui_jq:css(TextboxId, <<"border-color">>, <<"red">>),
+                            true
+                    end
+                end, Textboxes) ++ WrongLimits,
             Id + 1
         }
     end, {[], 1}, Hosts) of

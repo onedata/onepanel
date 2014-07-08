@@ -32,20 +32,20 @@
 %% ====================================================================
 add_storage_paths_to_db(Paths) ->
     try
-        ConfiguredPaths =
+        ConfiguredStoragePaths =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                {ok, #?GLOBAL_CONFIG_RECORD{storage_paths = Paths}} -> Paths;
+                {ok, #?GLOBAL_CONFIG_RECORD{storage_paths = StoragePaths}} -> StoragePaths;
                 _ -> throw("Cannot get configured storage paths")
             end,
 
         lists:foreach(fun(Path) ->
-            case lists:member(Path, ConfiguredPaths) of
+            case lists:member(Path, ConfiguredStoragePaths) of
                 true -> throw("Path: " ++ Path ++ " is already added");
                 _ -> ok
             end
         end, Paths),
 
-        case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{storage_paths, ConfiguredPaths ++ Paths}]) of
+        case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{storage_paths, ConfiguredStoragePaths ++ Paths}]) of
             ok -> ok;
             Other ->
                 ?error("Cannot update storage path configuration: ~p", [Other]),
@@ -67,20 +67,20 @@ add_storage_paths_to_db(Paths) ->
 %% ====================================================================
 remove_storage_paths_from_db(Paths) ->
     try
-        ConfiguredPaths =
+        ConfiguredStoragePaths =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                {ok, #?GLOBAL_CONFIG_RECORD{storage_paths = Paths}} -> Paths;
+                {ok, #?GLOBAL_CONFIG_RECORD{storage_paths = StoragePaths}} -> StoragePaths;
                 _ -> throw("Cannot get configured storage paths")
             end,
 
         lists:foreach(fun(Path) ->
-            case lists:member(Path, ConfiguredPaths) of
+            case lists:member(Path, ConfiguredStoragePaths) of
                 false -> throw("Path: " ++ Path ++ " is not added");
                 _ -> ok
             end
         end, Paths),
 
-        case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{storage_paths, ConfiguredPaths -- Paths}]) of
+        case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{storage_paths, ConfiguredStoragePaths -- Paths}]) of
             ok -> ok;
             Other ->
                 ?error("Cannot update storage path configuration: ~p", [Other]),

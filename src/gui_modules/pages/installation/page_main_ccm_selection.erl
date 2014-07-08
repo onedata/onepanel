@@ -141,7 +141,7 @@ main_ccm_body() ->
                 id = <<"ccms_dropdown">>,
                 class = <<"dropdown-menu dropdown-inverse">>,
                 style = <<"overflow-y: auto; max-height: 200px;">>,
-                body = ccms_list_body(Session#?CONFIG.main_ccm, [Session#?CONFIG.main_ccm | Session#?CONFIG.opt_ccms])
+                body = ccms_list_body(Session#?CONFIG.main_ccm, Session#?CONFIG.ccms)
             }
         ]
     catch
@@ -198,7 +198,7 @@ event(next) ->
 
 event({set_main_ccm, MainCCM, CCMs}) ->
     Config = gui_ctx:get(?CONFIG_ID),
-    gui_ctx:put(?CONFIG_ID, Config#?CONFIG{main_ccm = MainCCM, opt_ccms = lists:delete(MainCCM, CCMs)}),
+    gui_ctx:put(?CONFIG_ID, Config#?CONFIG{main_ccm = MainCCM}),
     gui_jq:update(<<"ccms_label">>, <<"Primary CCM host: <b>", (list_to_binary(MainCCM))/binary, "</b>">>),
     gui_jq:update(<<"ccms_dropdown">>, ccms_list_body(MainCCM, CCMs));
 

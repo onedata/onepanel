@@ -87,28 +87,28 @@ start(Args) ->
                 _ -> throw("Cannot get CCM nodes configuration")
             end,
 
-        Workers = proplists:get_value(workers, Args, []),
+        NewWorkers = proplists:get_value(workers, Args, []),
 
         lists:foreach(fun(Worker) ->
             case lists:member(Worker, ConfiguredWorkers) of
                 true -> throw("Worker " ++ Worker ++ " already configured");
                 _ -> ok
             end
-        end, Workers),
+        end, NewWorkers),
 
         ConfiguredOptCCMs = lists:delete(ConfiguredMainCCM, ConfiguredCCMs),
 
-        {HostsOk, HostsError} = installer_utils:apply_on_hosts(Workers, ?MODULE, local_start,
+        {HostsOk, HostsError} = installer_utils:apply_on_hosts(NewWorkers, ?MODULE, local_start,
             [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredDbs, ConfiguredStoragePaths], ?RPC_TIMEOUT),
 
         case HostsError of
             [] ->
-                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{workers, ConfiguredWorkers ++ Workers}]) of
+                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{workers, ConfiguredWorkers ++ NewWorkers}]) of
                     ok -> ok;
                     Other ->
                         ?error("Cannot update worker nodes configuration: ~p", [Other]),
-                        installer_utils:apply_on_hosts(Workers, ?MODULE, local_stop, [ConfiguredStoragePaths], ?RPC_TIMEOUT),
-                        {error, {hosts, Workers}}
+                        installer_utils:apply_on_hosts(NewWorkers, ?MODULE, local_stop, [ConfiguredStoragePaths], ?RPC_TIMEOUT),
+                        {error, {hosts, NewWorkers}}
                 end;
             _ ->
                 ?error("Cannot start worker nodes on following hosts: ~p", [HostsError]),
@@ -138,30 +138,30 @@ stop(Args) ->
                 _ -> throw("Cannot get CCM nodes configuration")
             end,
 
-        Workers = case proplists:get_value(workers, Args, []) of
-                      [] -> ConfiguredWorkers;
-                      Hosts ->
-                          lists:foreach(fun(Host) ->
-                              case lists:member(Host, ConfiguredWorkers) of
-                                  true -> throw("Worker " ++ Host ++ " is not configured");
-                                  _ -> ok
-                              end
-                          end, Hosts)
-                  end,
+        WorkersToStop = case proplists:get_value(workers, Args) of
+                            undefined -> ConfiguredWorkers;
+                            Hosts ->
+                                lists:foreach(fun(Host) ->
+                                    case lists:member(Host, ConfiguredWorkers) of
+                                        false -> throw("Worker " ++ Host ++ " is not configured");
+                                        _ -> ok
+                                    end
+                                end, Hosts)
+                        end,
 
         ConfiguredOptCCMs = lists:delete(ConfiguredMainCCM, ConfiguredCCMs),
 
-        {HostsOk, HostsError} = installer_utils:apply_on_hosts(Workers, ?MODULE, local_stop, [ConfiguredStoragePaths], ?RPC_TIMEOUT),
+        {HostsOk, HostsError} = installer_utils:apply_on_hosts(WorkersToStop, ?MODULE, local_stop, [ConfiguredStoragePaths], ?RPC_TIMEOUT),
 
         case HostsError of
             [] ->
-                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{workers, ConfiguredWorkers -- Workers}]) of
+                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{workers, ConfiguredWorkers -- WorkersToStop}]) of
                     ok -> ok;
                     Other ->
                         ?error("Cannot update worker nodes configuration: ~p", [Other]),
-                        installer_utils:apply_on_hosts(Workers, ?MODULE, local_start,
+                        installer_utils:apply_on_hosts(WorkersToStop, ?MODULE, local_start,
                             [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredDbs, ConfiguredStoragePaths], ?RPC_TIMEOUT),
-                        {error, {hosts, Workers}}
+                        {error, {hosts, WorkersToStop}}
                 end;
             _ ->
                 ?error("Cannot stop worker nodes on following hosts: ~p", [HostsError]),
@@ -185,10 +185,18 @@ stop(Args) ->
 %% ====================================================================
 restart(Args) ->
     try
-        Workers = proplists:get_value(workers, Args, []),
+        ConfiguredWorkers = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+                                {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} -> Workers;
+                                _ -> throw("Cannot get CCM nodes configuration")
+                            end,
 
-        case stop([{workers, Workers}]) of
-            ok -> start([{workers, Workers}]);
+        WorkersToRestart = case proplists:get_value(workers, Args) of
+                               undefined -> ConfiguredWorkers;
+                               Hosts -> Hosts
+                           end,
+
+        case stop([{workers, WorkersToRestart}]) of
+            ok -> start([{workers, WorkersToRestart}]);
             Other -> Other
         end
     catch
@@ -332,4 +340,4 @@ local_stop(StoragePaths) ->
 %% ====================================================================
 local_restart() ->
     Host = installer_utils:get_host(node()),
-    restart([{workers, Host}]).
+    restart([{workers, [Host]}]).

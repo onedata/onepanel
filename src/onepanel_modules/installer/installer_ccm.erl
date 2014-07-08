@@ -74,8 +74,8 @@ uninstall(Args) ->
 %% start/1
 %% ====================================================================
 %% @doc Starts CCM nodes on given hosts. Arguments list should contain
-%% host where to start main CCM node, list of hosts where to start CCM
-%% nodes and list of hosts where database nodes were configured.
+%% list of hosts where CCM nodes where installed with main CCM node
+%% pointed out.
 %% @end
 -spec start(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
@@ -338,8 +338,8 @@ local_restart() ->
         ConfiguredOptCCMs = lists:delete(ConfiguredMainCCM, ConfiguredCCMs),
 
 
-        case stop() of
-            {ok, _} -> start(ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredDbs);
+        case local_stop() of
+            {ok, _} -> local_start(ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredDbs);
             Other -> Other
         end
     catch

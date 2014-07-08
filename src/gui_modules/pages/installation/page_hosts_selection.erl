@@ -132,7 +132,7 @@ hosts_table_body() ->
         {ok, Session} = onepanel_gui_utils:get_installation_state(),
 
         NewSession = case Hosts of
-                         [_] -> Session#?CONFIG{main_ccm = undefined, opt_ccms = Hosts, workers = Hosts, dbs = Hosts};
+                         [_] -> Session#?CONFIG{main_ccm = hd(Hosts), ccms = Hosts, workers = Hosts, dbs = Hosts};
                          _ -> Session
                      end,
         gui_ctx:put(?CONFIG_ID, NewSession),
@@ -142,7 +142,7 @@ hosts_table_body() ->
             Checkboxes = [
                 {
                     <<"ccm_checkbox_">>,
-                    lists:member(Host, [NewSession#?CONFIG.main_ccm | NewSession#?CONFIG.opt_ccms]),
+                    lists:member(Host, NewSession#?CONFIG.ccms),
                     Db#?CONFIG.main_ccm =/= undefined
                 },
                 {
@@ -215,23 +215,23 @@ event({ccm_checkbox_toggled, _, _, true}) ->
     ok;
 
 event({ccm_checkbox_toggled, Host, HostId, _}) ->
-    #?CONFIG{main_ccm = MainCCM, opt_ccms = OptCCMs, workers = Workers} = Config = gui_ctx:get(?CONFIG_ID),
-    case lists:member(Host, [MainCCM | OptCCMs]) of
+    #?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers} = Config = gui_ctx:get(?CONFIG_ID),
+    case lists:member(Host, CCMs) of
         true ->
             case Host of
                 MainCCM ->
-                    gui_ctx:put(?CONFIG_ID, Config#?CONFIG{main_ccm = undefined});
+                    gui_ctx:put(?CONFIG_ID, Config#?CONFIG{main_ccm = undefined, ccms = lists:delete(Host, CCMs)});
                 _ ->
-                    gui_ctx:put(?CONFIG_ID, Config#?CONFIG{opt_ccms = lists:delete(Host, OptCCMs)})
+                    gui_ctx:put(?CONFIG_ID, Config#?CONFIG{ccms = lists:delete(Host, CCMs)})
             end;
         false ->
             case lists:member(Host, Workers) of
                 true ->
-                    gui_ctx:put(?CONFIG_ID, Config#?CONFIG{opt_ccms = [Host | OptCCMs]});
+                    gui_ctx:put(?CONFIG_ID, Config#?CONFIG{ccms = [Host | CCMs]});
                 false ->
                     WorkerCheckboxId = <<"worker_checkbox_", HostId/binary>>,
                     gui_jq:click(WorkerCheckboxId),
-                    gui_ctx:put(?CONFIG_ID, Config#?CONFIG{opt_ccms = [Host | OptCCMs], workers = [Host | Workers]})
+                    gui_ctx:put(?CONFIG_ID, Config#?CONFIG{ccms = [Host | CCMs], workers = [Host | Workers]})
             end
     end;
 
@@ -239,19 +239,20 @@ event({worker_checkbox_toggled, _, _, true}) ->
     ok;
 
 event({worker_checkbox_toggled, Host, HostId, _}) ->
-    #?CONFIG{main_ccm = MainCCM, opt_ccms = OptCCMs, workers = Workers} = Config = gui_ctx:get(?CONFIG_ID),
+    #?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers} = Config = gui_ctx:get(?CONFIG_ID),
     case lists:member(Host, Workers) of
         true ->
-            case lists:member(Host, [MainCCM | OptCCMs]) of
+            case lists:member(Host, CCMs) of
                 true ->
                     CCMCheckboxId = <<"ccm_checkbox_", HostId/binary>>,
                     gui_jq:click(CCMCheckboxId),
-                    gui_comet:flush(),
                     case Host of
                         MainCCM ->
-                            gui_ctx:put(?CONFIG_ID, Config#?CONFIG{main_ccm = undefined, workers = lists:delete(Host, Workers)});
+                            gui_ctx:put(?CONFIG_ID, Config#?CONFIG{main_ccm = undefined,
+                                ccms = lists:delete(Host, CCMs), workers = lists:delete(Host, Workers)});
                         _ ->
-                            gui_ctx:put(?CONFIG_ID, Config#?CONFIG{opt_ccms = lists:delete(Host, OptCCMs), workers = lists:delete(Host, Workers)})
+                            gui_ctx:put(?CONFIG_ID, Config#?CONFIG{ccms = lists:delete(Host, CCMs),
+                                workers = lists:delete(Host, Workers)})
                     end;
                 false ->
                     gui_ctx:put(?CONFIG_ID, Config#?CONFIG{workers = lists:delete(Host, Workers)})
@@ -273,16 +274,16 @@ event({db_checkbox_toggled, Host, _, _}) ->
     end;
 
 event(next) ->
-    #?CONFIG{main_ccm = MainCCM, opt_ccms = OptCCMs, dbs = Dbs} = Config = gui_ctx:get(?CONFIG_ID),
+    #?CONFIG{main_ccm = MainCCM, ccms = CCMs, dbs = Dbs} = Config = gui_ctx:get(?CONFIG_ID),
     case Dbs of
         [] ->
             onepanel_gui_utils:message(<<"error_message">>, <<"Please select at least one host for database node.">>);
         _ ->
             case MainCCM of
                 undefined ->
-                    case OptCCMs of
-                        [NewMainCCM | NewOptCCMs] ->
-                            gui_ctx:put(?CONFIG_ID, Config#?CONFIG{main_ccm = NewMainCCM, opt_ccms = NewOptCCMs}),
+                    case CCMs of
+                        [NewMainCCM | _] ->
+                            gui_ctx:put(?CONFIG_ID, Config#?CONFIG{main_ccm = NewMainCCM}),
                             onepanel_gui_utils:change_page(?INSTALL_STEP, "/main_ccm_selection");
                         _ ->
                             onepanel_gui_utils:message(<<"error_message">>, <<"Please select at least one host for CCM node.">>)

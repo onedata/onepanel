@@ -142,7 +142,7 @@ body() ->
     when Result :: [#tr{}].
 %% ====================================================================
 summary_table_body() ->
-    #?CONFIG{main_ccm = MainCCM, opt_ccms = OptCCMs, workers = Workers, dbs = Dbs, storage_paths = StoragePaths} = to_install(),
+    #?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs, storage_paths = StoragePaths} = to_install(),
     [
         #tr{
             id = <<"summary_main_ccm">>,
@@ -164,7 +164,7 @@ summary_table_body() ->
                                end
                     }}
             ]},
-        summary_table_row(<<"summary_opt_ccms">>, <<"Optional CCM hosts">>, format(OptCCMs)),
+        summary_table_row(<<"summary_ccms">>, <<"CCM hosts">>, format(CCMs)),
         summary_table_row(<<"summary_workers">>, <<"Worker hosts">>, format(Workers)),
         summary_table_row(<<"summary_Dbs">>, <<"Database hosts">>, format(Dbs)),
         summary_table_row(<<"summary_storages">>, <<"Storage paths">>, format(StoragePaths))
@@ -234,12 +234,12 @@ to_install() ->
                       true -> undefined;
                       _ -> Session#?CONFIG.main_ccm
                   end,
-        OptCCMs = Session#?CONFIG.opt_ccms -- Db#?CONFIG.opt_ccms,
+        CCMs = Session#?CONFIG.ccms -- Db#?CONFIG.ccms,
         Workers = Session#?CONFIG.workers -- Db#?CONFIG.workers,
         Dbs = Session#?CONFIG.dbs -- Db#?CONFIG.dbs,
         StoragePaths = Session#?CONFIG.storage_paths -- Db#?CONFIG.storage_paths,
 
-        #?CONFIG{main_ccm = MainCCM, opt_ccms = OptCCMs, workers = Workers, dbs = Dbs, storage_paths = StoragePaths}
+        #?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs, storage_paths = StoragePaths}
     catch
         _:_ -> #?CONFIG{}
     end.
@@ -286,7 +286,7 @@ install(#?CONFIG{main_ccm = undefined, workers = Workers, storage_paths = Storag
             (onepanel_gui_utils:format_list(Hosts))/binary, ". Please try again.">>)
     end;
 
-install(#?CONFIG{main_ccm = MainCCM, opt_ccms = OptCCMs, dbs = Dbs} = Config, _, Pid) ->
+install(#?CONFIG{main_ccm = MainCCM, ccms = CCMs, dbs = Dbs} = Config, _, Pid) ->
     try
         ?info("Pid: ~p", [Pid]),
         Pid ! {init, 8, 1000, <<"Installing database nodes...">>},

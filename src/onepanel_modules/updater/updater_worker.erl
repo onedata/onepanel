@@ -93,8 +93,7 @@ handle_call(get_state, _From, State) ->
 
 handle_call({update_to, #version{} = Vsn, ForceNodeRestart, CallbackFun}, _From, #?u_state{stage = ?STAGE_IDLE} = State) ->
     case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-        {ok, #?GLOBAL_CONFIG_RECORD{workers = InstalledWorkers, opt_ccms = OptCCM, main_ccm = MCCM}} ->
-            {WorkerHosts, CCMHosts} = {InstalledWorkers, OptCCM ++ [MCCM]},
+        {ok, #?GLOBAL_CONFIG_RECORD{ccms = CCMHosts, workers = WorkerHosts}} ->
             Workers = [list_to_atom(?DEFAULT_WORKER_NAME ++ "@" ++ Host) || Host <- WorkerHosts],
             CCMs = [list_to_atom(?DEFAULT_CCM_NAME ++ "@" ++ Host) || Host <- CCMHosts],
 
@@ -153,9 +152,9 @@ handle_info({Pid, ok}, #?u_state{objects = Objects, callback = CallbackFun} = St
     CallbackFun(update_objects, State#?u_state{objects = NObjects}),
     NState =
         case {maps:size(NObjects), maps:size(Objects)} of
-            {0, 1}  ->
+            {0, 1} ->
                 updater_engine:enter_stage(updater_engine:next_stage(State), State);
-            _  -> State#?u_state{objects = NObjects}
+            _ -> State#?u_state{objects = NObjects}
         end,
     {noreply, NState};
 
@@ -178,7 +177,7 @@ handle_info({Pid, {error, Reason}}, #?u_state{objects = Objects, object_data = _
         fun(Key, Map, Default) ->
             case maps:is_key(Key, Map) of
                 true -> maps:get(Key, Map);
-                _    -> Default
+                _ -> Default
             end
         end,
     NState =
