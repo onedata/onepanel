@@ -31,6 +31,9 @@
 %% Current installation step saved in user session
 -define(INSTALL_STEP, install_step).
 
+%% Current registration step saved in user session
+-define(REGISTER_STEP, register_step).
+
 %% Number of added storage paths
 -define(STORAGE_PATHS_SIZE, storage_paths_size).
 

@@ -52,7 +52,6 @@ start_link() ->
 %% ====================================================================
 init(_Args) ->
     process_flag(trap_exit, true),
-    inets:start(),
     ?info("[Updater] Initialized."),
 
     State =

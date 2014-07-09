@@ -16,88 +16,13 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([random_ascii_lowercase_sequence/1, apply_on_hosts/5, get_node/1, get_host/1, get_hosts/0]).
--export([set_ulimits/2, get_ulimits_cmd/1, get_ports_to_check/1]).
--export([get_control_panel_hosts/1, get_provider_id/0, get_main_ccm/0, get_global_config/0]).
+-export([set_ulimits/2, get_ulimits_cmd/1]).
+-export([get_main_ccm/0, get_global_config/0]).
 -export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/3]).
--export([save_file_on_host/3, save_file_on_hosts/3]).
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
-
-%% random_ascii_lowercase_sequence/1
-%% ====================================================================
-%% @doc Creates random sequence consisting of lowercase ASCII letters.
--spec random_ascii_lowercase_sequence(Length :: integer()) -> string().
-%% ====================================================================
-random_ascii_lowercase_sequence(Length) ->
-    lists:foldl(fun(_, Acc) -> [random:uniform(26) + 96 | Acc] end, [], lists:seq(1, Length)).
-
-
-%% apply_on_nodes/5
-%% ====================================================================
-%% @doc Applies function on specified hosts with timeout in miliseconds.
-%% If 'Timeout' equals 'infinity' function waits as long as result is not
-%% available. Pair of list where first list contains hosts on which function
-%% call was successful. Second list contains remaining hosts.
-%% IMPORTANT! Called function must return either {ok, Host} for successful
-%% execution or {error, Host} for faulty execution.
-%% @end
--spec apply_on_hosts(Hosts, Module, Function, Arguments, Timeout) -> Result when
-    Result :: {HostsOk, HostsError},
-    Hosts :: [string()],
-    HostsOk :: [string()],
-    HostsError :: [string()],
-    Module :: module(),
-    Function :: atom(),
-    Arguments :: [term()],
-    Timeout :: integer() | infinity.
-%% ====================================================================
-apply_on_hosts(Hosts, Module, Function, Arguments, Timeout) ->
-    Nodes = lists:map(fun(Host) -> get_node(Host) end, Hosts),
-    {Results, ErrorNodes} = rpc:multicall(Nodes, Module, Function, Arguments, Timeout),
-    lists:foldl(fun
-        ({ok, Host}, {HostsOk, HostsError}) -> {[Host | HostsOk], HostsError};
-        ({_, Host}, {HostsOk, HostsError}) -> {HostsOk, [Host | HostsError]}
-    end, {[], lists:map(fun(Node) -> get_host(Node) end, ErrorNodes)}, Results).
-
-
-%% get_node/1
-%% ====================================================================
-%% @doc Returns node from host.
--spec get_node(Host :: string()) -> Result when
-    Result :: node().
-%% ====================================================================
-get_node(Host) ->
-    list_to_atom(?APP_STR ++ "@" ++ Host).
-
-
-%% get_host/1
-%% ====================================================================
-%% @doc Returns host from node.
--spec get_host(Node :: node()) -> Result when
-    Result :: string().
-%% ====================================================================
-get_host(Node) ->
-    [_, Host] = string:tokens(atom_to_list(Node), "@"),
-    Host.
-
-
-%% get_hosts/0
-%% ====================================================================
-%% @doc Returns list of hosts' ip addresses.
--spec get_hosts() -> Result when
-    Result :: [Host :: string()].
-%% ====================================================================
-get_hosts() ->
-    lists:foldl(fun(Node, Acc) ->
-        NodeString = atom_to_list(Node),
-        case string:equal(?APP_STR, string:left(NodeString, length(?APP_STR))) of
-            true -> [get_host(Node) | Acc];
-            _ -> Acc
-        end
-    end, [], [node() | nodes(hidden)]).
 
 
 %% set_ulimits/2
@@ -109,7 +34,7 @@ get_hosts() ->
 %% ====================================================================
 set_ulimits(OpenFiles, Processes) ->
     try
-        Host = installer_utils:get_host(node()),
+        Host = onepanel_utils:get_host(node()),
         ok = file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n~p.\n", [{open_files, integer_to_list(OpenFiles)}, {process_limit, integer_to_list(Processes)}])),
         ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{open_files_limit, integer_to_list(OpenFiles)}, {processes_limit, integer_to_list(Processes)}])
     catch
@@ -220,97 +145,6 @@ overwrite_config_args(Path, Parameter, NewValue) ->
         _:Reason ->
             ?error("Cannot overwrite config args: ~p", [Reason]),
             {error, Reason}
-    end.
-
-
-%% save_file_on_hosts/3
-%% ====================================================================
-%% @doc Saves Global Registry certificate cert on host.
--spec save_file_on_hosts(Path :: string(), Filename :: string(), Content :: string() | binary()) -> Result when
-    Result :: ok | {error, ErrorHosts :: [string()]}.
-%% ====================================================================
-save_file_on_hosts(Path, Filename, Content) ->
-    {_, HostsError} = apply_on_hosts(get_hosts(), ?MODULE, save_file_on_host, [Path, Filename, Content], ?RPC_TIMEOUT),
-    case HostsError of
-        [] -> ok;
-        _ ->
-            ?error("Cannot save file ~p at directory ~p on following hosts: ~p", [Filename, Path, HostsError]),
-            {error, {hosts, HostsError}}
-    end.
-
-
-%% save_file_on_host/3
-%% ====================================================================
-%% @doc Saves Global Registry certificate cert on all hosts.
--spec save_file_on_host(Path :: string(), Filename :: string(), Content :: string() | binary()) -> Result when
-    Result :: ok | {error, Reason :: term()}.
-%% ====================================================================
-save_file_on_host(Path, Filename, Content) ->
-    Host = get_host(node()),
-    try
-        file:make_dir(Path),
-        ok = file:write_file(filename:join(Path, Filename), Content),
-        {ok, Host}
-    catch
-        _:Reason ->
-            ?error("Cannot save file ~p at directory ~p: ~p", [Filename, Path, Reason]),
-            {error, Host}
-    end.
-
-
-%% get_ports_to_check/1
-%% ====================================================================
-%% @doc Returns default veilcluster ports that will be checked by Global Registry
--spec get_ports_to_check(MainCCM :: string()) -> Result when
-    Result :: {ok, [{Type :: string(), Port :: integer()}]} | {error, Reason :: term()}.
-%% ====================================================================
-get_ports_to_check(MainCCM) ->
-    try
-        Node = list_to_atom("ccm@" ++ MainCCM),
-        {ok, GuiPort} = rpc:call(Node, application, get_env, [veil_cluster_node, control_panel_port]),
-        {ok, RestPort} = rpc:call(Node, application, get_env, [veil_cluster_node, rest_port]),
-        {ok, [{"gui", GuiPort}, {"rest", RestPort}]}
-    catch
-        _:Reason ->
-            ?error("Cannot get ports to check: ~p", [Reason]),
-            {error, Reason}
-    end.
-
-
-%% get_control_panel_hosts/1
-%% ====================================================================
-%% @doc Returns list of control panel hosts
--spec get_control_panel_hosts(MainCCM :: string()) -> Result when
-    Result :: {ok, Hosts :: [string()]} | {error, Reason :: term()}.
-%% ====================================================================
-get_control_panel_hosts(MainCCM) ->
-    try
-        Node = list_to_atom("ccm@" ++ MainCCM),
-        {Workers, _} = rpc:call(Node, gen_server, call, [{global, central_cluster_manager}, get_workers, 1000]),
-        ControlPanelHosts = lists:foldl(fun
-            ({WorkerNode, control_panel}, Acc) -> [get_host(WorkerNode) | Acc];
-            (_, Acc) -> Acc
-        end, [], Workers),
-        {ok, ControlPanelHosts}
-    catch
-        _:Reason ->
-            ?error("Cannot get control panel hosts: ~p", [Reason]),
-            {error, Reason}
-    end.
-
-
-%% get_provider_id/0
-%% ====================================================================
-%% @doc Returns provider ID.
--spec get_provider_id() -> Result when
-    Result :: undefined | binary().
-%% ====================================================================
-get_provider_id() ->
-    case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-        {ok, #?GLOBAL_CONFIG_RECORD{providerId = ProviderId}} ->
-            ProviderId;
-        _ ->
-            undefined
     end.
 
 
