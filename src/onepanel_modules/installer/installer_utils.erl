@@ -11,7 +11,7 @@
 -module(installer_utils).
 
 -include("registered_names.hrl").
--include("onepanel_modules/db/common.hrl").
+-include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 

@@ -14,7 +14,7 @@
 -export([main/0, event/1]).
 
 -include("gui_modules/common.hrl").
--include("onepanel_modules/db/common.hrl").
+-include("onepanel_modules/installer/state.hrl").
 
 %% ====================================================================
 %% API functions
@@ -29,7 +29,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect("/installation_success") of
+            case onepanel_gui_utils:maybe_redirect(?INSTALL_PAGE, "/installation_success", "/hosts_selection") of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
@@ -141,11 +141,11 @@ event(init) ->
     ok;
 
 event(to_main_page) ->
-    gui_ctx:put(?INSTALL_STEP, undefined),
+    gui_ctx:put(?INSTALL_PAGE, undefined),
     gui_jq:redirect("/");
 
 event(register) ->
-    gui_ctx:put(?INSTALL_STEP, undefined),
+    gui_ctx:put(?INSTALL_PAGE, undefined),
     gui_jq:redirect("/registration");
 
 event(terminate) ->

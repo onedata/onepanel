@@ -12,7 +12,7 @@
 -module(installer_db).
 -behaviour(installer_behaviour).
 
--include("onepanel_modules/db/common.hrl").
+-include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -37,13 +37,13 @@
 install(Args) ->
     Dbs = proplists:get_value(dbs, Args, []),
 
-    {HostsOk, HostsError} = installer_utils:apply_on_hosts(Dbs, ?MODULE, local_install, [], ?RPC_TIMEOUT),
+    {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(Dbs, ?MODULE, local_install, [], ?RPC_TIMEOUT),
 
     case HostsError of
         [] -> ok;
         _ ->
             ?error("Cannot install database nodes on following hosts: ~p", [HostsError]),
-            installer_utils:apply_on_hosts(HostsOk, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
+            onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
             {error, {hosts, HostsError}}
     end.
 
@@ -59,13 +59,13 @@ install(Args) ->
 uninstall(Args) ->
     Dbs = proplists:get_value(dbs, Args, []),
 
-    {HostsOk, HostsError} = installer_utils:apply_on_hosts(Dbs, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
+    {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(Dbs, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
 
     case HostsError of
         [] -> ok;
         _ ->
             ?error("Cannot uninstall database nodes on following hosts: ~p", [HostsError]),
-            installer_utils:apply_on_hosts(HostsOk, ?MODULE, local_install, [], ?RPC_TIMEOUT),
+            onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_install, [], ?RPC_TIMEOUT),
             {error, {hosts, HostsError}}
     end.
 
@@ -91,13 +91,13 @@ start(Args) ->
             _ -> throw("Cannot get database nodes configuration")
         end,
 
-        {StartOk, StartError} = installer_utils:apply_on_hosts(Dbs, ?MODULE, local_start, [], ?RPC_TIMEOUT),
+        {StartOk, StartError} = onepanel_utils:apply_on_hosts(Dbs, ?MODULE, local_start, [], ?RPC_TIMEOUT),
 
         case StartError of
             [] ->
                 {_, JoinError} = case StartOk of
                                      [First | Rest] ->
-                                         installer_utils:apply_on_hosts(Rest, ?MODULE, add_to_cluster, [First], ?RPC_TIMEOUT);
+                                         onepanel_utils:apply_on_hosts(Rest, ?MODULE, add_to_cluster, [First], ?RPC_TIMEOUT);
                                      _ -> {StartOk, []}
                                  end,
                 case JoinError of
@@ -106,7 +106,7 @@ start(Args) ->
                             ok -> ok;
                             Other ->
                                 ?error("Cannot update database nodes configuration: ~p", [Other]),
-                                installer_utils:apply_on_hosts(Dbs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
+                                onepanel_utils:apply_on_hosts(Dbs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
                                 {error, {hosts, Dbs}}
                         end;
                     _ ->
@@ -115,7 +115,7 @@ start(Args) ->
                 end;
             _ ->
                 ?error("Cannot start database nodes on following hosts: ~p", [StartError]),
-                installer_utils:apply_on_hosts(StartOk, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
+                onepanel_utils:apply_on_hosts(StartOk, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
                 {error, {hosts, StartError}}
         end
     catch
@@ -141,7 +141,7 @@ stop(_) ->
                             _ -> throw("Cannot get database nodes configuration")
                         end,
 
-        {HostsOk, HostsError} = installer_utils:apply_on_hosts(ConfiguredDbs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
+        {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(ConfiguredDbs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
 
         case HostsError of
             [] ->
@@ -149,12 +149,12 @@ stop(_) ->
                     ok -> ok;
                     Other ->
                         ?error("Cannot update database nodes configuration: ~p", [Other]),
-                        installer_utils:apply_on_hosts(ConfiguredDbs, ?MODULE, local_start, [], ?RPC_TIMEOUT),
+                        onepanel_utils:apply_on_hosts(ConfiguredDbs, ?MODULE, local_start, [], ?RPC_TIMEOUT),
                         {error, {hosts, ConfiguredDbs}}
                 end;
             _ ->
                 ?error("Cannot stop database nodes on following hosts: ~p", [HostsError]),
-                installer_utils:apply_on_hosts(HostsOk, ?MODULE, local_start, [], ?RPC_TIMEOUT),
+                onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_start, [], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
@@ -202,7 +202,7 @@ restart(_) ->
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 local_install() ->
-    Host = installer_utils:get_host(node()),
+    Host = onepanel_utils:get_host(node()),
     try
         ?debug("Installing database node"),
 
@@ -225,7 +225,7 @@ local_install() ->
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 local_uninstall() ->
-    Host = installer_utils:get_host(node()),
+    Host = onepanel_utils:get_host(node()),
     try
         ?debug("Uninstalling database node"),
 
@@ -248,7 +248,7 @@ local_uninstall() ->
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 local_start() ->
-    Host = installer_utils:get_host(node()),
+    Host = onepanel_utils:get_host(node()),
     try
         ?debug("Starting database node"),
         BigcouchStartScript = filename:join([?DEFAULT_DB_INSTALL_PATH, ?DB_START_COMMAND_SUFFIX]),
@@ -277,7 +277,7 @@ local_start() ->
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 local_stop() ->
-    Host = installer_utils:get_host(node()),
+    Host = onepanel_utils:get_host(node()),
     try
         ?debug("Stopping database node"),
 
@@ -315,11 +315,11 @@ add_to_cluster(ClusterNode) ->
 %% ====================================================================
 add_to_cluster(_, 10) ->
     ?error("Can not add database node to cluster: attempts limit exceeded"),
-    Host = installer_utils:get_host(node()),
+    Host = onepanel_utils:get_host(node()),
     {error, Host};
 
 add_to_cluster(ClusterHost, Attempts) ->
-    Host = installer_utils:get_host(node()),
+    Host = onepanel_utils:get_host(node()),
     try
         ?debug("Adding database node to cluster"),
         timer:sleep(1000),

@@ -11,7 +11,7 @@
 -module(gr_utils).
 
 -include("registered_names.hrl").
--include("onepanel_modules/db/common.hrl").
+-include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -52,7 +52,7 @@ get_control_panel_hosts(MainCCM) ->
         Node = list_to_atom("ccm@" ++ MainCCM),
         {Workers, _} = rpc:call(Node, gen_server, call, [{global, central_cluster_manager}, get_workers, 1000]),
         ControlPanelHosts = lists:foldl(fun
-            ({WorkerNode, control_panel}, Acc) -> [get_host(WorkerNode) | Acc];
+            ({WorkerNode, control_panel}, Acc) -> [onepanel_utils:get_host(WorkerNode) | Acc];
             (_, Acc) -> Acc
         end, [], Workers),
         {ok, ControlPanelHosts}

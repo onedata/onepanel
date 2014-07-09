@@ -10,7 +10,7 @@
 %% ===================================================================
 -module(installer_storage).
 
--include("onepanel_modules/db/common.hrl").
+-include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -172,13 +172,13 @@ remove_storage_paths_on_host(Paths) ->
 check_storage_path_on_hosts([], _) ->
     ok;
 check_storage_path_on_hosts([Host | Hosts], Path) ->
-    Node = installer_utils:get_node(Host),
+    Node = onepanel_utils:get_node(Host),
     case rpc:call(Node, ?MODULE, create_storage_test_file, [Path], ?RPC_TIMEOUT) of
         {ok, FilePath, Content} ->
             try
                 Answer = lists:foldl(fun
                     (H, {NewContent, ErrorHosts}) ->
-                        case rpc:call(installer_utils:get_node(H), ?MODULE, check_storage_path_on_host, [FilePath, NewContent], ?RPC_TIMEOUT) of
+                        case rpc:call(onepanel_utils:get_node(H), ?MODULE, check_storage_path_on_host, [FilePath, NewContent], ?RPC_TIMEOUT) of
                             {ok, NextContent} -> {NextContent, ErrorHosts};
                             {error, ErrorHost} -> {NewContent, [ErrorHost | ErrorHosts]}
                         end
@@ -213,13 +213,13 @@ check_storage_path_on_host(FilePath, Content) ->
         {ok, Content} = file:read_line(FdRead),
         ok = file:close(FdRead),
         {ok, FdWrite} = file:open(FilePath, [write]),
-        NewContent = installer_utils:random_ascii_lowercase_sequence(?STORAGE_TEST_FILE_SIZE),
+        NewContent = onepanel_utils:random_ascii_lowercase_sequence(?STORAGE_TEST_FILE_SIZE),
         ok = file:write(FdWrite, NewContent),
         ok = file:close(FdWrite),
         {ok, NewContent}
     catch
         _:Reason ->
-            Host = installer_utils:get_host(node()),
+            Host = onepanel_utils:get_host(node()),
             ?error("Storage ~s is not available on host ~p: ~p", [FilePath, Host, Reason]),
             {error, Host}
     end.
@@ -239,11 +239,11 @@ create_storage_test_file(_, 0) ->
 create_storage_test_file(Path, Attempts) ->
     {A, B, C} = now(),
     random:seed(A, B, C),
-    Filename = installer_utils:random_ascii_lowercase_sequence(8),
+    Filename = onepanel_utils:random_ascii_lowercase_sequence(8),
     FilePath = filename:join([Path, ?STORAGE_TEST_FILE_PREFIX ++ Filename]),
     try
         {ok, Fd} = file:open(FilePath, [write, exclusive]),
-        Content = installer_utils:random_ascii_lowercase_sequence(?STORAGE_TEST_FILE_SIZE),
+        Content = onepanel_utils:random_ascii_lowercase_sequence(?STORAGE_TEST_FILE_SIZE),
         ok = file:write(Fd, Content),
         ok = file:close(Fd),
         {ok, FilePath, Content}

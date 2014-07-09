@@ -13,7 +13,7 @@
 
 -behaviour(installer_behaviour).
 
--include("onepanel_modules/db/common.hrl").
+-include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -38,13 +38,13 @@
 install(Args) ->
     CCMs = proplists:get_value(ccms, Args, []),
 
-    {HostsOk, HostsError} = installer_utils:apply_on_hosts(CCMs, ?MODULE, local_install, [], ?RPC_TIMEOUT),
+    {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(CCMs, ?MODULE, local_install, [], ?RPC_TIMEOUT),
 
     case HostsError of
         [] -> ok;
         _ ->
             ?error("Cannot install CCM nodes on following hosts: ~p", [HostsError]),
-            installer_utils:apply_on_hosts(HostsOk, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
+            onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
             {error, {hosts, HostsError}}
     end.
 
@@ -60,13 +60,13 @@ install(Args) ->
 uninstall(Args) ->
     CCMs = proplists:get_value(ccms, Args, []),
 
-    {HostsOk, HostsError} = installer_utils:apply_on_hosts(CCMs, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
+    {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(CCMs, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
 
     case HostsError of
         [] -> ok;
         _ ->
             ?error("Cannot uninstall CCM nodes on following hosts: ~p", [HostsError]),
-            installer_utils:apply_on_hosts(HostsOk, ?MODULE, local_install, [], ?RPC_TIMEOUT),
+            onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_install, [], ?RPC_TIMEOUT),
             {error, {hosts, HostsError}}
     end.
 
@@ -104,7 +104,7 @@ start(Args) ->
                             _ -> throw("Cannot get CCM nodes configuration")
                         end,
 
-        {HostsOk, HostsError} = installer_utils:apply_on_hosts(CCMs, ?MODULE, local_start, [MainCCM, OptCCMs, ConfiguredDbs], ?RPC_TIMEOUT),
+        {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(CCMs, ?MODULE, local_start, [MainCCM, OptCCMs, ConfiguredDbs], ?RPC_TIMEOUT),
 
         case HostsError of
             [] ->
@@ -112,12 +112,12 @@ start(Args) ->
                     ok -> ok;
                     Other ->
                         ?error("Cannot update CCM nodes configuration: ~p", [Other]),
-                        installer_utils:apply_on_hosts(CCMs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
+                        onepanel_utils:apply_on_hosts(CCMs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
                         {error, {hosts, CCMs}}
                 end;
             _ ->
                 ?error("Cannot start CCM nodes on following hosts: ~p", [HostsError]),
-                installer_utils:apply_on_hosts(HostsOk, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
+                onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
@@ -146,7 +146,7 @@ stop(_) ->
 
         ConfiguredOptCCMs = lists:delete(ConfiguredMainCCM, ConfiguredCCMs),
 
-        {HostsOk, HostsError} = installer_utils:apply_on_hosts(ConfiguredCCMs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
+        {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(ConfiguredCCMs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
 
         case HostsError of
             [] ->
@@ -154,12 +154,12 @@ stop(_) ->
                     ok -> ok;
                     Other ->
                         ?error("Cannot update CCM nodes configuration: ~p", [Other]),
-                        installer_utils:apply_on_hosts(ConfiguredCCMs, ?MODULE, local_start, [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredDbs], ?RPC_TIMEOUT),
+                        onepanel_utils:apply_on_hosts(ConfiguredCCMs, ?MODULE, local_start, [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredDbs], ?RPC_TIMEOUT),
                         {error, {hosts, ConfiguredCCMs}}
                 end;
             _ ->
                 ?error("Cannot stop CCM nodes on following hosts: ~p", [HostsError]),
-                installer_utils:apply_on_hosts(HostsOk, ?MODULE, local_start, [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredDbs], ?RPC_TIMEOUT),
+                onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_start, [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredDbs], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
@@ -210,7 +210,7 @@ restart(_) ->
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 local_install() ->
-    Host = installer_utils:get_host(node()),
+    Host = onepanel_utils:get_host(node()),
     try
         ?debug("Installing CCM node"),
         CCMPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME]),
@@ -234,7 +234,7 @@ local_install() ->
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 local_uninstall() ->
-    Host = installer_utils:get_host(node()),
+    Host = onepanel_utils:get_host(node()),
     try
         ?debug("Uninstalling CCM node"),
         CCMPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME]),
@@ -257,7 +257,7 @@ local_uninstall() ->
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 local_start(MainCCM, OptCCMs, Dbs) ->
-    Host = installer_utils:get_host(node()),
+    Host = onepanel_utils:get_host(node()),
     try
         ?debug("Starting CCM node: ~p"),
 
@@ -305,7 +305,7 @@ local_start(MainCCM, OptCCMs, Dbs) ->
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 local_stop() ->
-    Host = installer_utils:get_host(node()),
+    Host = onepanel_utils:get_host(node()),
     try
         ?debug("Stopping CCM node"),
         CCMPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME]),
@@ -329,7 +329,7 @@ local_stop() ->
     Result :: {ok, Host :: string()} | {error, Reason :: term()}.
 %% ====================================================================
 local_restart() ->
-    Host = installer_utils:get_host(node()),
+    Host = onepanel_utils:get_host(node()),
     try
         {ConfiguredMainCCM, ConfiguredCCMs, ConfiguredDbs} =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of

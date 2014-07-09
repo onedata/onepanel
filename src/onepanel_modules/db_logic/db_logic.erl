@@ -13,8 +13,8 @@
 -module(db_logic).
 
 -include("registered_names.hrl").
--include("onepanel_modules/db/common.hrl").
-%% TODO: move state to db logic
+-include("onepanel_modules/user_logic.erl").
+-include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/updater/state.hrl").
 -include_lib("ctool/include/logging.hrl").
 

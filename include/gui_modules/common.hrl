@@ -29,10 +29,10 @@
 -define(INTERNAL_SERVER_ERROR, internal_server_error).
 
 %% Current installation step saved in user session
--define(INSTALL_STEP, install_step).
+-define(INSTALL_PAGE, install_page).
 
 %% Current registration step saved in user session
--define(REGISTER_STEP, register_step).
+-define(REGISTER_PAGE, register_page).
 
 %% Number of added storage paths
 -define(STORAGE_PATHS_SIZE, storage_paths_size).

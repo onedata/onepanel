@@ -15,7 +15,7 @@
 -export([main/0, event/1]).
 
 -include("gui_modules/common.hrl").
--include("onepanel_modules/db/common.hrl").
+-include("onepanel_modules/installer/state.hrl").
 
 -define(CONFIG, ?GLOBAL_CONFIG_RECORD).
 
@@ -32,7 +32,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect("/main_ccm_selection") of
+            case onepanel_gui_utils:maybe_redirect(?INSTALL_PAGE, "/main_ccm_selection", "/hosts_selection") of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
@@ -91,7 +91,8 @@ body() ->
                                 postback = back,
                                 class = <<"btn btn-inverse btn-small">>,
                                 style = <<"float: left; width: 80px; font-weight: bold;">>,
-                                body = <<"Back">>},
+                                body = <<"Back">>
+                            },
                             #button{
                                 id = <<"next_button">>,
                                 postback = next,
@@ -191,10 +192,10 @@ event(init) ->
     ok;
 
 event(back) ->
-    onepanel_gui_utils:change_page(?INSTALL_STEP, "/hosts_selection");
+    onepanel_gui_utils:change_page(?INSTALL_PAGE, "/hosts_selection");
 
 event(next) ->
-    onepanel_gui_utils:change_page(?INSTALL_STEP, "/ulimits");
+    onepanel_gui_utils:change_page(?INSTALL_PAGE, "/ulimits");
 
 event({set_main_ccm, MainCCM, CCMs}) ->
     Config = gui_ctx:get(?CONFIG_ID),

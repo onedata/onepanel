@@ -27,11 +27,11 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case gui_ctx:get(?INSTALL_STEP) of
+            case gui_ctx:get(?INSTALL_PAGE) of
                 undefined ->
-                    onepanel_gui_utils:change_page(?INSTALL_STEP, "/hosts_selection");
-                Step ->
-                    gui_jq:redirect(Step)
+                    onepanel_gui_utils:change_page(?INSTALL_PAGE, "/hosts_selection");
+                Page ->
+                    gui_jq:redirect(Page)
             end,
             #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, <<"">>}, {custom, <<"">>}]};
         false ->

@@ -15,10 +15,9 @@
 -include("onepanel_modules/db/common.hrl").
 -include_lib("ctool/include/logging.hrl").
 
-% Functions to generate page elements
--export([top_menu/1, top_menu/2, logotype_footer/1, bind_enter_to_change_focus/2, bind_key_to_click/2]).
--export([get_error_message/1, get_installation_state/0, change_page/2, maybe_redirect/1, format_list/1, message/2]).
-
+-export([top_menu/1, top_menu/2, logotype_footer/1]).
+-export([get_error_message/1, get_installation_state/0, format_list/1, message/2]).
+-export([change_page/2, maybe_redirect/3]).
 
 %% ====================================================================
 %% API functions
@@ -113,32 +112,6 @@ top_menu(ActiveTabID, SubMenuBody) ->
     ] ++ SubMenuBody}.
 
 
-%% bind_enter_to_change_focus/2
-%% ====================================================================
-%% @doc Makes any enter keypresses on InputID (whenever it is focused)
-%% change focus to selected target. This way, it allows
-%% easy switch submission with enter key.
-%% @end
--spec bind_enter_to_change_focus(InputID :: binary(), TargetID :: binary()) -> string().
-%% ====================================================================
-bind_enter_to_change_focus(InputID, TargetID) ->
-    Script = <<"$('#", InputID/binary, "').bind('keydown', function (e){",
-    "if (e.which == 13) { e.preventDefault(); document.getElementById('", TargetID/binary, "').focus(); } });">>,
-    gui_jq:wire(Script, false).
-
-
-%% bind_key_to_click/2
-%% ====================================================================
-%% @doc Makes any enter keypresses on page to click on selected target.
-%% @end
--spec bind_key_to_click(KeyCode :: binary(), TargetID :: binary()) -> string().
-%% ====================================================================
-bind_key_to_click(KeyCode, TargetID) ->
-    Script = <<"$(document).bind('keydown', function (e){",
-    "if (e.which == ", KeyCode/binary, ") { e.preventDefault(); document.getElementById('", TargetID/binary, "').click(); } });">>,
-    gui_jq:wire(Script, false).
-
-
 %% get_error_message/1
 %% ====================================================================
 %% @doc Returns error message for given error id, that will be displayed
@@ -180,20 +153,20 @@ change_page(Env, Page) ->
     gui_jq:redirect(Page).
 
 
-%% maybe_redirect/1
+%% maybe_redirect/3
 %% ====================================================================
-%% @doc Redirects to current installation step read from user session.
--spec maybe_redirect(Page :: string()) -> true | false.
+%% @doc Redirects to appropriate page read from user session.
+-spec maybe_redirect(Env :: atom(), Page :: string(), DefaultPage :: string()) -> true | false.
 %% ====================================================================
-maybe_redirect(CurrentPage) ->
-    case gui_ctx:get(?INSTALL_STEP) of
+maybe_redirect(Env, CurrentPage, DefaultPage) ->
+    case gui_ctx:get(Env) of
         CurrentPage ->
             false;
         undefined ->
-            gui_jq:redirect("/hosts_selection"),
+            gui_jq:redirect(DefaultPage),
             true;
-        InstallStep ->
-            gui_jq:redirect(InstallStep),
+        Page ->
+            gui_jq:redirect(Page),
             true
     end.
 

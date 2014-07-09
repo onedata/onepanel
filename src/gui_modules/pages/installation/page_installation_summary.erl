@@ -15,7 +15,6 @@
 -export([main/0, event/1]).
 
 -include("gui_modules/common.hrl").
--include("onepanel_modules/db/common.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/stages.hrl").
 -include_lib("ctool/include/logging.hrl").
@@ -39,7 +38,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect("/installation_summary") of
+            case onepanel_gui_utils:maybe_redirect(?INSTALL_PAGE, "/installation_summary", "/hosts_selection") of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
@@ -122,7 +121,8 @@ body() ->
                                 postback = back,
                                 class = <<"btn btn-inverse btn-small">>,
                                 style = <<"float: left; width: 80px; font-weight: bold;">>,
-                                body = <<"Back">>},
+                                body = <<"Back">>
+                            },
                             #button{
                                 id = <<"install_button">>,
                                 postback = install,
@@ -290,7 +290,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
             finish ->
                 gui_jq:set_text(<<"progress_text">>, <<"Done.">>),
                 gui_jq:set_width(<<"bar">>, <<"100%">>),
-                onepanel_gui_utils:change_page(?INSTALL_STEP, "/installation_success"),
+                onepanel_gui_utils:change_page(?INSTALL_PAGE, "/installation_success"),
                 gui_comet:flush(),
                 comet_loop(State#?STATE{step = undefined});
 
@@ -376,14 +376,14 @@ event(init) ->
     put(comet_pid, Pid);
 
 event(back) ->
-    onepanel_gui_utils:change_page(?INSTALL_STEP, "/add_storage");
+    onepanel_gui_utils:change_page(?INSTALL_PAGE, "/add_storage");
 
 event(install) ->
     ToInstall = to_install(),
     case ToInstall#?CONFIG.workers of
         [] ->
             onepanel_gui_utils:message(<<"error_message">>, <<"Nothing to install.">>),
-            gui_ctx:put(?INSTALL_STEP, "/hosts_selection");
+            gui_ctx:put(?INSTALL_PAGE, "/hosts_selection");
         _ ->
             Pid = get(comet_pid),
             Pid ! {init, length(installer:get_flatten_stages()), <<"">>},

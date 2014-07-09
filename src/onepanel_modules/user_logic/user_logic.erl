@@ -12,7 +12,7 @@
 -module(user_logic).
 
 -include("gui_modules/common.hrl").
--include("onepanel_modules/db/common.hrl").
+-include("onepanel_modules/user_logic.erl").
 -include_lib("ctool/include/logging.hrl").
 
 %% Length of salt added to user password
@@ -34,9 +34,9 @@
 %% ====================================================================
 create_user(Username, Password) ->
     try
-        Salt = list_to_binary(installer_utils:random_ascii_lowercase_sequence(?SALT_LENGTH)),
+        Salt = list_to_binary(onepanel_utils:random_ascii_lowercase_sequence(?SALT_LENGTH)),
         PasswordHash = user_logic:hash_password(<<Password/binary, Salt/binary>>),
-        ok = dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username, password = PasswordHash, salt = Salt})
+        ok = dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username, hash = PasswordHash, salt = Salt})
     catch
         _:Reason ->
             ?error("Cannot create user ~p: ~p", [Username, Reason]),
@@ -53,7 +53,7 @@ create_user(Username, Password) ->
 %% ====================================================================
 authenticate(Username, Password) ->
     case dao:get_record(?USER_TABLE, Username) of
-        {ok, #?USER_RECORD{username = Username, password = ValidPasswordHash, salt = Salt}} ->
+        {ok, #?USER_RECORD{username = Username, hash = ValidPasswordHash, salt = Salt}} ->
             PasswordHash = hash_password(<<Password/binary, Salt/binary>>),
             case ValidPasswordHash of
                 PasswordHash -> ok;

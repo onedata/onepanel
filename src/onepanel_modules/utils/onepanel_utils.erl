@@ -5,13 +5,12 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains utility onepanel functions.
+%% @doc: This module contains utility Onepanel functions.
 %% @end
 %% ===================================================================
 -module(onepanel_utils).
 
 -include("registered_names.hrl").
--include("onepanel_modules/db/common.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 

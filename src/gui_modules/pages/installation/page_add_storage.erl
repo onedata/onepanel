@@ -15,7 +15,7 @@
 -export([main/0, event/1]).
 
 -include("gui_modules/common.hrl").
--include("onepanel_modules/db/common.hrl").
+-include("onepanel_modules/installer/state.hrl").
 
 -define(CONFIG, ?GLOBAL_CONFIG_RECORD).
 
@@ -32,7 +32,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect("/add_storage") of
+            case onepanel_gui_utils:maybe_redirect(?INSTALL_PAGE, "/add_storage", "/hosts_selection") of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
@@ -95,8 +95,8 @@ body() ->
                                 postback = back,
                                 class = <<"btn btn-inverse btn-small">>,
                                 style = <<"float: left; width: 80px; font-weight: bold;">>,
-                                body = <<"Back">>},
-
+                                body = <<"Back">>
+                            },
                             #button{
                                 id = <<"next_button">>,
                                 postback = next,
@@ -252,7 +252,7 @@ event(init) ->
     ok;
 
 event(back) ->
-    onepanel_gui_utils:change_page(?INSTALL_STEP, "/ulimits");
+    onepanel_gui_utils:change_page(?INSTALL_PAGE, "/ulimits");
 
 event({add_storage_path, BinaryId}) ->
     #?CONFIG{workers = Workers, storage_paths = StoragePaths} = Config = gui_ctx:get(?CONFIG_ID),
@@ -298,7 +298,7 @@ event(next) ->
         _ ->
             case check_storage_paths(Workers, StoragePaths) of
                 ok ->
-                    onepanel_gui_utils:change_page(?INSTALL_STEP, "/installation_summary");
+                    onepanel_gui_utils:change_page(?INSTALL_PAGE, "/installation_summary");
                 _ ->
                     error
             end
