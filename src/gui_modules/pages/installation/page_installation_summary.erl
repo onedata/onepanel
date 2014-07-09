@@ -16,10 +16,13 @@
 
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/db/common.hrl").
+-include("onepanel_modules/installer/state.hrl").
+-include("onepanel_modules/installer/stages.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 -define(CONFIG, ?GLOBAL_CONFIG_RECORD).
 -define(STATE, state).
+-define(DEFAULT_NEXT_UPDATE, 1000).
 
 -record(?STATE, {step, steps, step_progress, next_update}).
 
@@ -245,151 +248,37 @@ to_install() ->
     end.
 
 
-install(#?CONFIG{main_ccm = undefined, workers = Workers, storage_paths = StoragePaths}, State, Pid) ->
-    try
-        Step = case State of
-                   init ->
-                       Pid ! {init, 1, 1000, <<"Installing worker nodes...">>},
-                       1;
-                   _ ->
-                       Pid ! {change_step, 5, 1000, <<"Installing worker nodes...">>},
-                       5
-               end,
-%%         {worker_install, ok} = {worker_install, installer_worker:install([{hosts, Workers}])},
-        ?info("Worker"),
-        timer:sleep(5000),
-
-        Pid ! {change_step, Step + 1, 1000, <<"Adding storage paths...">>},
-%%         lists:foreach(fun(StoragePath) ->
-%%             {storage_paths, ok, _} = {storage_paths, installer_storage:add_storage_path(Workers, StoragePath), StoragePath}
-%%         end, StoragePaths),
-        ?info("Storage"),
-        timer:sleep(5000),
-
-        Pid ! {change_step, Step + 2, 10, <<"Starting worker nodes...">>},
-%%         {worker_start, ok} = {worker_start, installer_worker:start([{workers, Workers}])},
-        ?info("Worker"),
-        timer:sleep(5000),
-
-        ok
-    catch
-        _:{badmatch, {worker_install, {error, {hosts, Hosts}}}} ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"Worker nodes were not installed on following hosts: ",
-            (onepanel_gui_utils:format_list(Hosts))/binary, ". Please try again.">>);
-
-        _:{badmatch, {storage_paths, {error, {hosts, Hosts}}, StoragePath}} ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"Storage path ", (list_to_binary(StoragePath))/binary,
-            " was not added on following hosts: ", (onepanel_gui_utils:format_list(Hosts))/binary, ". Please try again.">>);
-
-        _:{badmatch, {worker_start, {error, {hosts, Hosts}}}} ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"CCM nodes were not installed on following hosts: ",
-            (onepanel_gui_utils:format_list(Hosts))/binary, ". Please try again.">>)
-    end;
-
-install(#?CONFIG{main_ccm = MainCCM, ccms = CCMs, dbs = Dbs} = Config, _, Pid) ->
-    try
-        ?info("Pid: ~p", [Pid]),
-        Pid ! {init, 8, 1000, <<"Installing database nodes...">>},
-%%         {db_install, ok} = {db_install, installer_db:install([{hosts, Dbs}])},
-        ?info("Db"),
-        timer:sleep(5000),
-
-        Pid ! {change_step, 2, 10, <<"Starting database nodes...">>},
-%%         {db_start, ok} = {db_start, installer_db:start([{hosts, Dbs}])},
-        ?info("Db"),
-        timer:sleep(5000),
-
-        Pid ! {change_step, 3, 1000, <<"Installing CCM nodes...">>},
-%%         {ccm_install, ok} = {ccm_install, installer_ccm:install([{hosts, [MainCCM | OptCCMs]}])},
-        ?info("CCM"),
-        timer:sleep(5000),
-
-        Pid ! {change_step, 4, 10, <<"Starting CCM nodes...">>},
-%%         {ccm_start, ok} = {ccm_start, installer_ccm:start([{main_ccm, MainCCM}, {opt_ccms, OptCCMs}])},
-        ?info("CCM"),
-        timer:sleep(5000),
-
-        {workers, ok} = {workers, install(Config#?CONFIG{main_ccm = undefined}, continue, Pid)},
-
-        Pid ! {change_step, 8, 1000, <<"Finalizing installation...">>},
-%%         ok = finalize_installation(MainCCM),
-        timer:sleep(5000),
-
-        Pid ! {finish, <<"Done">>},
-        timer:sleep(5000),
-
-        ok
-    catch
-        _:{badmatch, {db_install, {error, {hosts, Hosts}}}} ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"Database nodes were not installed on following hosts: ",
-            (onepanel_gui_utils:format_list(Hosts))/binary, ". Please try again.">>);
-
-        _:{badmatch, {db_start, {error, {hosts, Hosts}}}} ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"Database nodes were not started on following hosts: ",
-            (onepanel_gui_utils:format_list(Hosts))/binary, ". Please try again.">>);
-
-        _:{badmatch, {ccm_install, {error, {hosts, Hosts}}}} ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"CCM nodes were not installed on following hosts: ",
-            (onepanel_gui_utils:format_list(Hosts))/binary, ". Please try again.">>);
-
-        _:{badmatch, {ccm_start, {error, {hosts, Hosts}}}} ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"CCM nodes were not started on following hosts: ",
-            (onepanel_gui_utils:format_list(Hosts))/binary, ". Please try again.">>);
-
-        _:{badmatch, {workers, _}} ->
-            ok;
-
-        _:Reason ->
-            ?error("Installation failure: ~p", [Reason]),
-            onepanel_gui_utils:message(<<"error_message">>, <<"An error occurred during installation. Please try again.">>)
-    end.
-
-
-%% finalize_installation/2
-%% ====================================================================
-%% @doc Waits until cluster control panel nodes are up and running.
--spec finalize_installation(MainCCM :: string()) -> Result when
-    Result :: ok.
-%% ====================================================================
-finalize_installation(MainCCM) ->
-    case installer_utils:get_control_panel_hosts(MainCCM) of
-        {ok, [_ | _]} ->
-            ok;
-        _ ->
-            timer:sleep(1000),
-            finalize_installation(MainCCM)
-    end.
-
-
 %% comet_loop/1
 %% ====================================================================
 %% @doc Handles installation process and updates progress bar.
 -spec comet_loop(State :: atom()) -> no_return().
 %% ====================================================================
 comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, next_update = NextUpdate} = State) ->
-    ?info("LOOP"),
     try
         receive
-            {init, InitSteps, InitNextUpdate, Text} ->
-                ?info("INIT"),
+            {init, InitSteps, Text} ->
+                gui_jq:hide(<<"error_message">>),
+                gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"disabled">>),
+                gui_jq:prop(<<"prev_button">>, <<"disabled">>, <<"disabled">>),
                 gui_jq:set_text(<<"progress_text">>, Text),
                 gui_jq:set_width(<<"bar">>, <<"0%">>),
                 gui_jq:show(<<"progress">>),
                 gui_comet:flush(),
-                timer:send_after(InitNextUpdate, {update, 1}),
-                comet_loop(State#?STATE{step = 1, steps = InitSteps, step_progress = 0, next_update = InitNextUpdate});
+                timer:send_after(?DEFAULT_NEXT_UPDATE, {update, 0}),
+                comet_loop(State#?STATE{step = 0, steps = InitSteps, step_progress = 0, next_update = ?DEFAULT_NEXT_UPDATE});
 
-            {change_step, NewStep, InitNextUpdate, Text} ->
+            {change_step, NewStep, Text} ->
+                gui_jq:show(<<"progress">>),
                 gui_jq:set_text(<<"progress_text">>, Text),
-                Progress = <<(integer_to_binary(round(100 * Step / Steps)))/binary, "%">>,
+                Progress = <<(integer_to_binary(round(100 * NewStep / Steps)))/binary, "%">>,
                 gui_jq:set_width(<<"bar">>, Progress),
                 gui_comet:flush(),
-                timer:send_after(InitNextUpdate, {update, NewStep}),
-                comet_loop(State#?STATE{step = NewStep, step_progress = 0, next_update = InitNextUpdate});
+                timer:send_after(?DEFAULT_NEXT_UPDATE, {update, NewStep}),
+                comet_loop(State#?STATE{step = NewStep, step_progress = 0, next_update = ?DEFAULT_NEXT_UPDATE});
 
             {update, Step} ->
                 NewStepProgress = StepProgress + (1 - StepProgress) / 2,
-                Progress = <<(integer_to_binary(round(100 * (Step + NewStepProgress - 1) / Steps)))/binary, "%">>,
+                Progress = <<(integer_to_binary(round(100 * (Step + NewStepProgress) / Steps)))/binary, "%">>,
                 gui_jq:set_width(<<"bar">>, Progress),
                 gui_comet:flush(),
                 timer:send_after(NextUpdate, {update, Step}),
@@ -398,22 +287,76 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
             {update, _} ->
                 comet_loop(State);
 
-            {finish, Text} ->
-                gui_jq:set_text(<<"progress_text">>, Text),
+            finish ->
+                gui_jq:set_text(<<"progress_text">>, <<"Done.">>),
                 gui_jq:set_width(<<"bar">>, <<"100%">>),
-                gui_jq:hide(<<"progress">>),
+                onepanel_gui_utils:change_page(?INSTALL_STEP, "/installation_success"),
                 gui_comet:flush(),
                 comet_loop(State#?STATE{step = undefined});
 
-            {disable_button, ButtonId} ->
-                ?info("Disable button"),
-                gui_jq:prop(ButtonId, <<"disabled">>, <<"disabled">>),
+            {error, Text} ->
+                gui_jq:update(<<"summary_table">>, summary_table_body()),
+                onepanel_gui_utils:message(<<"error_message">>, Text),
                 gui_comet:flush(),
                 comet_loop(State)
         end
     catch Type:Reason ->
         ?error("Comet process exception: ~p:~p", [Type, Reason]),
         onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>)
+    end.
+
+
+%% get_error_message/1
+%% ====================================================================
+%% @doc Returns error message for given stage and job of installation.
+-spec get_error_message({State :: atom(), Job :: atom()}) -> binary().
+%% ====================================================================
+get_error_message({?STAGE_DB, ?JOB_INSTALL}) -> <<"Database nodes were not installed on following hosts: ">>;
+get_error_message({?STAGE_DB, ?JOB_START}) -> <<"Database nodes were not started on following hosts: ">>;
+get_error_message({?STAGE_CCM, ?JOB_INSTALL}) -> <<"CCM nodes were not installed on following hosts: ">>;
+get_error_message({?STAGE_CCM, ?JOB_START}) -> <<"CCM nodes were not started on following hosts: ">>;
+get_error_message({?STAGE_WORKER, ?JOB_INSTALL}) -> <<"Worker nodes were not installed on following hosts: ">>;
+get_error_message({?STAGE_WORKER, ?JOB_START}) -> <<"Worker nodes were not started on following hosts: ">>;
+get_error_message({?STAGE_STORAGE, ?JOB_ADD_STORAGE_PATHS}) -> <<"Cannot add storage paths on following hosts: ">>;
+get_error_message(_) -> <<"">>.
+
+
+%% get_info_message/1
+%% ====================================================================
+%% @doc Returns information for given stage and job of installation which
+%% will be displayed above installation progress bar.
+-spec get_info_message({State :: atom(), Job :: atom()}) -> Result when
+    Result :: binary().
+%% ====================================================================
+get_info_message({?STAGE_DB, ?JOB_INSTALL}) -> <<"Installing database nodes...">>;
+get_info_message({?STAGE_DB, ?JOB_START}) -> <<"Starting database nodes...">>;
+get_info_message({?STAGE_CCM, ?JOB_INSTALL}) -> <<"Installing Central Cluster Manager nodes...">>;
+get_info_message({?STAGE_CCM, ?JOB_START}) -> <<"Starting Central Cluster Manager nodes...">>;
+get_info_message({?STAGE_WORKER, ?JOB_INSTALL}) -> <<"Installing worker nodes...">>;
+get_info_message({?STAGE_WORKER, ?JOB_START}) -> <<"Starting worker nodes...">>;
+get_info_message({?STAGE_STORAGE, ?JOB_ADD_STORAGE_PATHS}) -> <<"Adding storage paths...">>;
+get_info_message(_) -> <<"">>.
+
+
+%% installation_progress/1
+%% ====================================================================
+%% @doc Callback function called by installer gen_server which updates
+%% installation progress bar.
+-spec installation_progress(Event :: atom(), State :: #?i_state{}, Pid :: pid()) -> no_return().
+%% ====================================================================
+installation_progress(?EVENT_ERROR, State, Pid) ->
+    case installer:get_error(State) of
+        {error, {hosts, Hosts}} ->
+            Pid ! {error, <<(get_error_message(installer:get_stage_and_job(State)))/binary, (onepanel_gui_utils:format_list(Hosts))/binary, ". Please try again.">>};
+        _ ->
+            Pid ! {error, <<"An error occurred during installation. Please try again.">>}
+    end;
+
+installation_progress(?EVENT_STATE_CHANGED, State, Pid) ->
+    {Stage, Job} = installer:get_stage_and_job(State),
+    case Stage of
+        ?STAGE_IDLE -> Pid ! finish;
+        _ -> Pid ! {change_step, installer:get_job_index(Stage, Job) - 1, get_info_message({Stage, Job})}
     end.
 
 
@@ -429,26 +372,25 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
 event(init) ->
     gui_jq:bind_key_to_click(<<"13">>, <<"install_button">>),
     {ok, Pid} = gui_comet:spawn(fun() -> comet_loop(#?STATE{}) end),
+    installer:set_callback(fun(Event, State) -> installation_progress(Event, State, Pid) end),
     put(comet_pid, Pid);
 
 event(back) ->
     onepanel_gui_utils:change_page(?INSTALL_STEP, "/add_storage");
 
 event(install) ->
-    ?info("Install"),
     ToInstall = to_install(),
-    {ok, #?CONFIG{storage_paths = StoragePaths}} = onepanel_gui_utils:get_installation_state(),
-    ?info("Here"),
     case ToInstall#?CONFIG.workers of
         [] ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"Nothing to install.">>);
+            onepanel_gui_utils:message(<<"error_message">>, <<"Nothing to install.">>),
+            gui_ctx:put(?INSTALL_STEP, "/hosts_selection");
         _ ->
-            gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"disabled">>),
-            gui_jq:prop(<<"prev_button">>, <<"disabled">>, <<"disabled">>),
-            ?info("HERE"),
             Pid = get(comet_pid),
-            Ans = spawn(fun() -> install(ToInstall#?CONFIG{storage_paths = StoragePaths}, init, Pid) end),
-            ?info("Ans: ~p", [Ans])
+            Pid ! {init, length(installer:get_flatten_stages()), <<"">>},
+            Fields = record_info(fields, ?CONFIG),
+            [_ | Values] = tuple_to_list(ToInstall),
+            Config = lists:zip(Fields, Values),
+            installer:install(Config, fun(Event, State) -> installation_progress(Event, State, Pid) end)
     end;
 
 event(terminate) ->

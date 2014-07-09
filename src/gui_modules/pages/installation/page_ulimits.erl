@@ -62,6 +62,10 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
+    Disabled = case installer_utils:get_main_ccm() of
+                   undefined -> undefined;
+                   _ -> true
+               end,
     #?CONFIG{ccms = CCMs, workers = Workers, dbs = Dbs} = gui_ctx:get(?CONFIG_ID),
     Hosts = lists:usort(CCMs ++ Workers ++ Dbs),
     {TextboxIds, _} = lists:foldl(fun(_, {Ids, Id}) ->
@@ -89,7 +93,7 @@ body() ->
                     #table{
                         class = <<"table table-bordered">>,
                         style = <<"width: 50%; margin: 0 auto; margin-top: 20px;">>,
-                        body = ulimits_table_body(Hosts)
+                        body = ulimits_table_body(Hosts, Disabled)
                     },
                     #panel{
                         style = <<"width: 50%; margin: 0 auto; margin-top: 30px; margin-bottom: 30px;">>,
@@ -103,7 +107,7 @@ body() ->
 
                             #button{
                                 id = <<"next_button">>,
-                                actions = gui_jq:form_submit_action(<<"next_button">>, {set_ulimits, Hosts}, TextboxIds),
+                                actions = gui_jq:form_submit_action(<<"next_button">>, {set_ulimits, Hosts, Disabled}, TextboxIds),
                                 class = <<"btn btn-inverse btn-small">>,
                                 style = <<"float: right; width: 80px; font-weight: bold;">>,
                                 body = <<"Next">>
@@ -119,10 +123,10 @@ body() ->
 %% ulimits_table_body/1
 %% ====================================================================
 %% @doc Renders system limits table body.
--spec ulimits_table_body(Hosts :: [string()]) -> Result
+-spec ulimits_table_body(Hosts :: [string()], Disabled :: true | undefined) -> Result
     when Result :: [#tr{}].
 %% ====================================================================
-ulimits_table_body(Hosts) ->
+ulimits_table_body(Hosts, Disabled) ->
     ColumnStyle = <<"text-align: center; vertical-align: inherit;">>,
     Header = #tr{
         cells = [
@@ -180,7 +184,8 @@ ulimits_table_body(Hosts) ->
                                 id = <<Prefix/binary, HostId/binary>>,
                                 style = <<"text-align: center;">>,
                                 class = <<"span1">>,
-                                value = list_to_binary(Text)
+                                value = list_to_binary(Text),
+                                disabled = Disabled
                             }
                         }
                     end, Textboxes)
@@ -198,13 +203,13 @@ ulimits_table_body(Hosts) ->
 %% ====================================================================
 %% @doc Checks whether given limit is a positive number.
 -spec validate_limit(Limit :: string()) -> Result
-    when Result :: ok | error.
+    when Result :: true | false.
 %% ====================================================================
 validate_limit(Limit) ->
     Regex = "[1-9][0-9]*",
     case re:run(Limit, Regex) of
-        {match, _} -> ok;
-        _ -> error
+        {match, _} -> true;
+        _ -> false
     end.
 
 
@@ -224,30 +229,27 @@ event(init) ->
 event(back) ->
     onepanel_gui_utils:change_page(?INSTALL_STEP, "/main_ccm_selection");
 
-event({set_ulimits, Hosts}) ->
-    case lists:foldl(fun(Host, {WrongLimits, Id}) ->
+event({set_ulimits, _, true}) ->
+    onepanel_gui_utils:change_page(?INSTALL_STEP, "/add_storage");
+
+event({set_ulimits, Hosts, _}) ->
+    case lists:foldl(fun(Host, {Status, Id}) ->
         HostId = integer_to_binary(Id),
-        Textboxes = [
-            {open_files_limit, <<"open_files_textbox_", HostId/binary>>},
-            {processes_limit, <<"processes_textbox_", HostId/binary>>}
-        ],
+        OpenFilesLimit = gui_str:to_list(gui_ctx:postback_param(<<"open_files_textbox_", HostId/binary>>)),
+        ProcessesLimit = gui_str:to_list(gui_ctx:postback_param(<<"processes_textbox_", HostId/binary>>)),
         {
-                lists:filter(fun({Field, TextboxId}) ->
-                    Limit = gui_str:to_list(gui_ctx:postback_param(TextboxId)),
-                    case validate_limit(Limit) of
-                        ok ->
-                            dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{Field, Limit}]),
-                            gui_jq:css(TextboxId, <<"border-color">>, <<"green">>),
-                            false;
-                        _ ->
-                            gui_jq:css(TextboxId, <<"border-color">>, <<"red">>),
-                            true
-                    end
-                end, Textboxes) ++ WrongLimits,
+            case validate_limit(OpenFilesLimit) andalso validate_limit(ProcessesLimit) of
+                true ->
+                    rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_ulimits,
+                        [list_to_integer(OpenFilesLimit), list_to_integer(ProcessesLimit)]),
+                    Status;
+                _ ->
+                    error
+            end,
             Id + 1
         }
-    end, {[], 1}, Hosts) of
-        {[], _} ->
+    end, {ok, 1}, Hosts) of
+        {ok, _} ->
             onepanel_gui_utils:change_page(?INSTALL_STEP, "/add_storage");
         _ ->
             onepanel_gui_utils:message(<<"error_message">>, <<"System limit should be a positive number.">>)

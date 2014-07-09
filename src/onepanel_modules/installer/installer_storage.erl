@@ -27,11 +27,16 @@
 %% ====================================================================
 %% @doc Adds storage paths to database.
 %% @end
--spec add_storage_paths_to_db(Paths :: [string()]) -> Result when
+-spec add_storage_paths_to_db(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-add_storage_paths_to_db(Paths) ->
+add_storage_paths_to_db(Args) ->
     try
+        Paths = case proplists:get_value(storage_paths, Args, []) of
+                    [] -> throw(nothing_to_add);
+                    PathsToAdd -> PathsToAdd
+                end,
+
         ConfiguredStoragePaths =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
                 {ok, #?GLOBAL_CONFIG_RECORD{storage_paths = StoragePaths}} -> StoragePaths;
@@ -52,6 +57,7 @@ add_storage_paths_to_db(Paths) ->
                 {error, Other}
         end
     catch
+        _:nothing_to_add -> ok;
         _:Reason ->
             ?error("Cannot add storage path: ~p", [Reason]),
             {error, Reason}
@@ -62,11 +68,16 @@ add_storage_paths_to_db(Paths) ->
 %% ====================================================================
 %% @doc Removes storage paths from database.
 %% @end
--spec remove_storage_paths_from_db(Paths :: [string()]) -> Result when
+-spec remove_storage_paths_from_db(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-remove_storage_paths_from_db(Paths) ->
+remove_storage_paths_from_db(Args) ->
     try
+        Paths = case proplists:get_value(storage_paths, Args, []) of
+                    [] -> throw(nothing_to_remove);
+                    PathsToRemove -> PathsToRemove
+                end,
+
         ConfiguredStoragePaths =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
                 {ok, #?GLOBAL_CONFIG_RECORD{storage_paths = StoragePaths}} -> StoragePaths;
@@ -87,6 +98,7 @@ remove_storage_paths_from_db(Paths) ->
                 {error, Other}
         end
     catch
+        _:nothing_to_remove -> ok;
         _:Reason ->
             ?error("Cannot remove storage path: ~p", [Reason]),
             {error, Reason}

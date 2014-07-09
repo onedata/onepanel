@@ -104,7 +104,7 @@ get_hosts() ->
 %% ====================================================================
 %% @doc Sets system limits for open files and processes on local host.
 %% @end
--spec set_ulimits(OpenFiles :: string(), Processes :: string()) -> Result when
+-spec set_ulimits(OpenFiles :: integer(), Processes :: integer()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 set_ulimits(OpenFiles, Processes) ->

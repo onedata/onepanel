@@ -53,7 +53,7 @@ body() ->
             Password = proplists:get_value(<<"password">>, Params),
             case user_logic:authenticate(Username, Password) of
                 ok ->
-                    ?info("Successful login of user: ~p", [Username]),
+                    ?info("Successful login of user: ~p", [gui_str:to_list(Username)]),
                     gui_ctx:create_session(),
                     gui_ctx:set_user_id(Username),
                     gui_jq:redirect_from_login();

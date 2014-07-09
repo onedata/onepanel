@@ -79,6 +79,11 @@ uninstall(Args) ->
 %% ====================================================================
 start(Args) ->
     try
+        NewWorkers = case proplists:get_value(workers, Args, []) of
+                         [] -> throw(nothing_to_start);
+                         Hosts -> Hosts
+                     end,
+
         {ConfiguredMainCCM, ConfiguredCCMs, ConfiguredDbs, ConfiguredWorkers, ConfiguredStoragePaths} =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
                 {ok, #?GLOBAL_CONFIG_RECORD{ccms = []}} -> throw("CCM nodes not configured");
@@ -86,8 +91,6 @@ start(Args) ->
                     {MainCCM, CCMs, Dbs, Workers, StoragePaths};
                 _ -> throw("Cannot get CCM nodes configuration")
             end,
-
-        NewWorkers = proplists:get_value(workers, Args, []),
 
         lists:foreach(fun(Worker) ->
             case lists:member(Worker, ConfiguredWorkers) of
@@ -116,6 +119,7 @@ start(Args) ->
                 {error, {hosts, HostsError}}
         end
     catch
+        _:nothing_to_start -> ok;
         _:Reason ->
             ?error("Cannot start worker nodes: ~p", [Reason]),
             {error, Reason}

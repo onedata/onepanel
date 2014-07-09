@@ -80,13 +80,16 @@ uninstall(Args) ->
 %% ====================================================================
 start(Args) ->
     try
+        Dbs = case proplists:get_value(dbs, Args, []) of
+                  [] -> throw(nothing_to_start);
+                  Hosts -> Hosts
+              end,
+
         case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
             {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> ok;
             {ok, #?GLOBAL_CONFIG_RECORD{dbs = _}} -> throw("Database nodes already configured");
             _ -> throw("Cannot get database nodes configuration")
         end,
-
-        Dbs = proplists:get_value(dbs, Args, []),
 
         {StartOk, StartError} = installer_utils:apply_on_hosts(Dbs, ?MODULE, local_start, [], ?RPC_TIMEOUT),
 
@@ -116,6 +119,7 @@ start(Args) ->
                 {error, {hosts, StartError}}
         end
     catch
+        _:nothing_to_start -> ok;
         _:Reason ->
             ?error("Cannot start database nodes: ~p", [Reason]),
             {error, Reason}

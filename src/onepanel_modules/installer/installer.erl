@@ -20,7 +20,7 @@
 
 %% API
 -export([install/1, install/2, start_link/0]).
--export([get_stages/0, get_stage_and_job/1, get_error/1, set_callback/1, get_next_state/1]).
+-export([get_stages/0, get_job_index/2, get_flatten_stages/0, get_stage_and_job/1, get_error/1, set_callback/1, get_next_state/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -68,15 +68,44 @@ get_stage_and_job(#?i_state{stage = Stage, job = Job}) ->
     {Stage, Job}.
 
 
-%% get_stages/1
+%% get_stages/0
 %% ====================================================================
-%% @doc Returns all stages and jobs.
+%% @doc Returns all stages and associated jobs.
 %% @end
 -spec get_stages() -> Result when
     Result :: [{State :: atom(), Jobs :: [atom()]}].
 %% ====================================================================
 get_stages() ->
     ?STAGES.
+
+
+%% get_flatten_stages/0
+%% ====================================================================
+%% @doc Returns all stages and jobs as a list of tuples.
+%% @end
+-spec get_flatten_stages() -> Result when
+    Result :: integer().
+%% ====================================================================
+get_flatten_stages() ->
+    lists:foldl(fun({Stage, Jobs}, FlatStages) ->
+        FlatStages ++ lists:zip(lists:duplicate(length(Jobs), Stage), Jobs)
+    end, [], get_stages()).
+
+
+%% get_job_index/2
+%% ====================================================================
+%% @doc Returns overall position of job in all jobs and stages.
+%% @end
+-spec get_job_index(Stage :: atom(), Job :: atom()) -> Result when
+    Result :: integer().
+%% ====================================================================
+get_job_index(Stage, Job) ->
+    FlattenStages = get_flatten_stages(),
+    length(FlattenStages) - length(
+        lists:dropwhile(fun(FlattenStage) ->
+            FlattenStage =/= {Stage, Job}
+        end, FlattenStages)
+    ) + 1.
 
 
 %% get_error/1
@@ -170,17 +199,18 @@ handle_call(Request, _From, State) ->
     {noreply, NewState :: #?i_state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #?i_state{}}.
 %% ====================================================================
-handle_cast({execute, _}, #?i_state{stage = ?STAGE_IDLE} = State) ->
+handle_cast({execute, _}, #?i_state{stage = ?STAGE_IDLE, callback = Callback} = State) ->
+    Callback(?EVENT_STATE_CHANGED, State),
     terminate(normal, State),
     {noreply, State};
 
 handle_cast({execute, Config}, #?i_state{stage = Stage, job = Job, callback = Callback} = State) ->
-    Callback(state_changed, State),
+    Callback(?EVENT_STATE_CHANGED, State),
     NextState = case Stage:Job(Config) of
                     ok ->
                         get_next_state(State);
                     Error ->
-                        Callback(error, State#?i_state{stage = ?STAGE_IDLE, error = Error}),
+                        Callback(?EVENT_ERROR, State#?i_state{stage = ?STAGE_IDLE, error = Error}),
                         State#?i_state{stage = ?STAGE_IDLE, error = Error}
                 end,
     gen_server:cast({global, ?INSTALL_SERVICE}, {execute, Config}),

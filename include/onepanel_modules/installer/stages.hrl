@@ -22,6 +22,7 @@
 -define(STAGE_CCM, installer_ccm).
 -define(STAGE_WORKER, installer_worker).
 -define(STAGE_STORAGE, installer_storage).
+-define(STAGE_FINAL, installer_utils).
 
 %% ====================================================================
 %% Installer jobs
@@ -30,6 +31,7 @@
 -define(JOB_INSTALL, install).
 -define(JOB_START, start).
 -define(JOB_ADD_STORAGE_PATHS, add_storage_paths_to_db).
+-define(JOB_FINALIZE_INSTALLATION, finalize_installation).
 
 %% ====================================================================
 %% Description of stages in terms of jobs

@@ -82,14 +82,10 @@ uninstall(Args) ->
 %% ====================================================================
 start(Args) ->
     try
-        ConfiguredDbs = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> throw("Database nodes not configured");
-                            {ok, #?GLOBAL_CONFIG_RECORD{ccms = [], dbs = Dbs}} -> Dbs;
-                            {ok, #?GLOBAL_CONFIG_RECORD{ccms = _}} -> throw("CCM nodes already configured");
-                            _ -> throw("Cannot get CCM nodes configuration")
-                        end,
-
-        CCMs = proplists:get_value(ccms, Args, []),
+        CCMs = case proplists:get_value(ccms, Args, []) of
+                   [] -> throw(nothing_to_start);
+                   Hosts -> Hosts
+               end,
 
         MainCCM = case proplists:get_value(main_ccm, Args) of
                       undefined -> throw("Main CCM node not found in arguments list");
@@ -100,6 +96,13 @@ start(Args) ->
                       true -> lists:delete(MainCCM, CCMs);
                       _ -> throw("Main CCM node not found among CCM nodes")
                   end,
+
+        ConfiguredDbs = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> throw("Database nodes not configured");
+                            {ok, #?GLOBAL_CONFIG_RECORD{ccms = [], dbs = Dbs}} -> Dbs;
+                            {ok, #?GLOBAL_CONFIG_RECORD{ccms = _}} -> throw("CCM nodes already configured");
+                            _ -> throw("Cannot get CCM nodes configuration")
+                        end,
 
         {HostsOk, HostsError} = installer_utils:apply_on_hosts(CCMs, ?MODULE, local_start, [MainCCM, OptCCMs, ConfiguredDbs], ?RPC_TIMEOUT),
 
@@ -118,7 +121,7 @@ start(Args) ->
                 {error, {hosts, HostsError}}
         end
     catch
-        _:ok -> ok;
+        _:nothing_to_start -> ok;
         _:Reason ->
             ?error("Cannot start CCM nodes: ~p", [Reason]),
             {error, Reason}

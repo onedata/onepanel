@@ -20,8 +20,8 @@
 -define(DEFAULT_COOKIE, veil_cluster_node).
 
 % Default system limit values
--define(DEFAULT_OPEN_FILES, "65535").
--define(DEFAULT_PROCESSES, "65535").
+-define(DEFAULT_OPEN_FILES, 65535).
+-define(DEFAULT_PROCESSES, 65535).
 
 % Installation directory of veil RPM
 -define(PREFIX, "/opt/veil/").
@@ -87,73 +87,58 @@ install(Config) ->
     try
         {MainCCM, CCMs, Workers, Dbs, StoragePaths, OpenFiles, Processes} = parse(Config),
         Node = get(?NODE),
-        Hosts = lists:usort(CCMs ++ Workers ++ Dbs),
+        AllHosts = lists:usort(CCMs ++ Workers ++ Dbs),
 
         print_info("Checking configuration..."),
-        check_hosts(Node, Hosts),
+        check_hosts(Node, AllHosts),
         print_ok(),
 
-        case StoragePaths of
-            [] -> ok;
-            _ ->
-                print_info("Checking storage availability..."),
-                check_storage_paths(Node, StoragePaths, Workers),
-                print_ok()
-        end,
+        print_info("Checking storage availability..."),
+        check_storage_paths(Node, StoragePaths, Workers),
+        print_ok(),
 
         print_info("Setting ulimits..."),
         lists:foreach(fun(Host) ->
             HostOpenFiles = proplists:get_value(Host, OpenFiles, ?DEFAULT_OPEN_FILES),
             HostProcesses = proplists:get_value(Host, Processes, ?DEFAULT_PROCESSES),
             rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_ulimits, [HostOpenFiles, HostProcesses])
-        end, Hosts),
+        end, AllHosts),
         print_ok(),
 
-        case Dbs of
-            [] -> ok;
-            _ ->
-                print_info("Installing database nodes..."),
-                execute(Node, installer_db, install, [[{dbs, Dbs}]]),
-                print_ok(),
+        print_info("Installing database nodes..."),
+        execute(Node, installer_db, install, [[{dbs, Dbs}]]),
+        print_ok(),
 
-                print_info("Starting database nodes..."),
-                execute(Node, installer_db, start, [[{dbs, Dbs}]]),
-                print_ok()
-        end,
+        print_info("Starting database nodes..."),
+        execute(Node, installer_db, start, [[{dbs, Dbs}]]),
+        print_ok(),
 
-        case CCMs of
-            [] -> ok;
-            _ ->
-                print_info("Installing ccm nodes..."),
-                execute(Node, installer_ccm, install, [[{ccms, CCMs}]]),
-                print_ok(),
+        print_info("Installing ccm nodes..."),
+        execute(Node, installer_ccm, install, [[{ccms, CCMs}]]),
+        print_ok(),
 
-                print_info("Starting ccm nodes..."),
-                execute(Node, installer_ccm, start, [[{main_ccm, MainCCM}, {ccms, CCMs}]]),
-                print_ok()
-        end,
+        print_info("Starting ccm nodes..."),
+        execute(Node, installer_ccm, start, [[{main_ccm, MainCCM}, {ccms, CCMs}]]),
+        print_ok(),
 
-        case Workers of
-            [] -> ok;
-            _ ->
-                print_info("Installing worker nodes..."),
-                execute(Node, installer_worker, install, [[{workers, Workers}]]),
-                print_ok(),
+        print_info("Installing worker nodes..."),
+        execute(Node, installer_worker, install, [[{workers, Workers}]]),
+        print_ok(),
 
-                print_info("Adding storage paths..."),
-                execute(Node, installer_storage, add_storage_paths_to_db, [StoragePaths]),
-                print_ok(),
+        print_info("Adding storage paths..."),
+        execute(Node, installer_storage, add_storage_paths_to_db, [[{storage_paths, StoragePaths}]]),
+        print_ok(),
 
-                print_info("Starting worker nodes..."),
-                execute(Node, installer_worker, start, [[{workers, Workers}]]),
-                print_ok()
-        end
+        print_info("Starting worker nodes..."),
+        execute(Node, installer_worker, start, [[{workers, Workers}]]),
+        print_ok()
     catch
         _:{config, Reason} when is_list(Reason) ->
             print_error("Configuration error: ~s\n", [Reason]),
             halt(?EXIT_FAILURE);
-        _:{hosts, ErrorHosts} when is_list(ErrorHosts) ->
-            print_error("Operation failed on following hosts: ~s\n", [ErrorHosts]),
+        _:{hosts, Hosts} when is_list(Hosts) ->
+            io:format("[FAIL]\n"),
+            format_hosts("Operation failed on following hosts:", Hosts),
             halt(?EXIT_FAILURE);
         _:{exec, Reason} when is_list(Reason) ->
             print_error("Operation error: ~s\n", [Reason]),
@@ -200,57 +185,42 @@ uninstall() ->
 
         Terms = rpc:call(Node, installer_utils, get_global_config, []),
 
-        CCMs = proplists:get_value(opt_ccms, Terms, []) ++
-            case proplists:get_value(main_ccm, Terms) of
-                undefined -> [];
-                MainCCM -> [MainCCM]
-            end,
+        CCMs = proplists:get_value(ccms, Terms, []),
         Workers = proplists:get_value(workers, Terms, []),
         Dbs = proplists:get_value(dbs, Terms, []),
         StoragePaths = proplists:get_value(storage_paths, Terms, []),
 
-        case Workers of
-            [] -> ok;
-            _ ->
-                print_info("Stopping worker nodes..."),
-                execute(Node, installer_worker, stop, [[]]),
-                print_ok(),
+        print_info("Stopping worker nodes..."),
+        execute(Node, installer_worker, stop, [[]]),
+        print_ok(),
 
-                print_info("Removing storage paths..."),
-                execute(Node, installer_storage, remove_storage_paths_from_db, [StoragePaths]),
-                print_ok(),
+        print_info("Removing storage paths..."),
+        execute(Node, installer_storage, remove_storage_paths_from_db, [[{storage_paths, StoragePaths}]]),
+        print_ok(),
 
-                print_info("Uninstalling worker nodes..."),
-                execute(Node, installer_worker, uninstall, [[{workers, Workers}]]),
-                print_ok()
-        end,
+        print_info("Uninstalling worker nodes..."),
+        execute(Node, installer_worker, uninstall, [[{workers, Workers}]]),
+        print_ok(),
 
-        case CCMs of
-            [] -> ok;
-            _ ->
-                print_info("Stopping ccm nodes..."),
-                execute(Node, installer_ccm, stop, [[]]),
-                print_ok(),
+        print_info("Stopping ccm nodes..."),
+        execute(Node, installer_ccm, stop, [[]]),
+        print_ok(),
 
-                print_info("Uninstalling ccm nodes..."),
-                execute(Node, installer_ccm, uninstall, [[{ccms, CCMs}]]),
-                print_ok()
-        end,
+        print_info("Uninstalling ccm nodes..."),
+        execute(Node, installer_ccm, uninstall, [[{ccms, CCMs}]]),
+        print_ok(),
 
-        case Dbs of
-            [] -> ok;
-            _ ->
-                print_info("Stopping database nodes..."),
-                execute(Node, installer_db, stop, [[]]),
-                print_ok(),
+        print_info("Stopping database nodes..."),
+        execute(Node, installer_db, stop, [[]]),
+        print_ok(),
 
-                print_info("Uninstalling database nodes..."),
-                execute(Node, installer_db, uninstall, [[{dbs, Dbs}]]),
-                print_ok()
-        end
+        print_info("Uninstalling database nodes..."),
+        execute(Node, installer_db, uninstall, [[{dbs, Dbs}]]),
+        print_ok()
     catch
         _:{hosts, Hosts} when is_list(Hosts) ->
-            print_error("Operation failed on following hosts: ~s\n", [Hosts]),
+            io:format("[FAIL]\n"),
+            format_hosts("Operation failed on following hosts:", Hosts),
             halt(?EXIT_FAILURE);
         _:{exec, Reason} when is_list(Reason) ->
             print_error("Operation error: ~s\n", [Reason]),
@@ -300,7 +270,7 @@ parse(Config) ->
 execute(Node, Module, Function, Args) ->
     case rpc:call(Node, Module, Function, Args, ?RPC_TIMEOUT) of
         ok -> ok;
-        {error, {hosts, Hosts}} -> throw({hosts, string:join(Hosts, ", ")});
+        {error, {hosts, Hosts}} -> throw({hosts, Hosts});
         {error, Error} when is_list(Error) -> throw({exec, Error});
         _ -> throw({exec, "Unknow error."})
     end.

@@ -14,7 +14,7 @@
 
 %% Callback events
 -define(EVENT_ERROR, error).
--define(EVENT_STATE_CHANGED, state_change).
+-define(EVENT_STATE_CHANGED, state_changed).
 
 -define(i_state, i_state).
 
