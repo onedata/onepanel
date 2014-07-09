@@ -16,7 +16,7 @@
 
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/db/common.hrl").
--include("onepanel_modules/installer/common.hrl").
+-include("onepanel_modules/installer/internals.hrl").
 
 -define(CONFIG, ?GLOBAL_CONFIG_RECORD).
 

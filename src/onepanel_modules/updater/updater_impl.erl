@@ -285,8 +285,8 @@ rollback_object(Stage, Job, Obj, #?u_state{}) ->
 veil_restart(Node) ->
     [NodeType, _] = string:tokens(atom_to_list(Node), "@"),
     OnePanelNode = installer_utils:get_node(installer_utils:get_host(Node)),
-    Mod = list_to_atom("install_" ++ NodeType),
-    case rpc:call(OnePanelNode, Mod, restart, []) of
+    Mod = list_to_atom("installer_" ++ NodeType),
+    case rpc:call(OnePanelNode, Mod, local_restart, []) of
         {ok, _} ->
             updater_utils:wait_for_node(Node, ?NODE_STARTUP_TIMEOUT),
             timer:sleep(?DELAY_BETWEEN_NODE_RESTARTS);

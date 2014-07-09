@@ -26,6 +26,9 @@
 %% Application's supervisor name
 -define(ONEPANEL_SUP, onepanel_sup).
 
+%% Installer gen_server's name
+-define(INSTALL_SERVICE, install_service).
+
 %% Updater gen_server's name
 -define(UPDATE_SERVICE, update_service).
 

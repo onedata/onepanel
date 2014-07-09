@@ -88,7 +88,7 @@ handle_call(get_status, _From, #state{status = Status} = State) ->
     {reply, Status, State};
 
 handle_call(Request, _From, State) ->
-    ?warning("Wrong call: ~p", [Request]),
+    ?warning("[Onepanel] Wrong call: ~p", [Request]),
     {reply, {error, wrong_request}, State}.
 
 
@@ -102,13 +102,13 @@ handle_call(Request, _From, State) ->
     {stop, Reason :: term(), NewState :: #state{}}.
 %% ====================================================================
 handle_cast({connection_request, Node}, #state{status = not_connected} = State) ->
-    ?info("Connection request from node: ~p", [Node]),
+    ?info("[Onepanel] Connection request from node: ~p", [Node]),
     db_logic:delete(),
     gen_server:cast({?ONEPANEL_SERVER, Node}, {connection_response, node()}),
     {noreply, State#state{status = waiting}};
 
 handle_cast({connection_response, Node}, State) ->
-    ?info("Connection response from node: ~p", [Node]),
+    ?info("[Onepanel] Connection response from node: ~p", [Node]),
     case db_logic:add_node(Node) of
         ok ->
             gen_server:cast({?ONEPANEL_SERVER, Node}, connection_acknowledgement),
@@ -118,11 +118,11 @@ handle_cast({connection_response, Node}, State) ->
     end;
 
 handle_cast(connection_acknowledgement, State) ->
-    ?info("Connection acknowledgement."),
+    ?info("[Onepanel] Connection acknowledgement."),
     {noreply, State#state{status = connected}};
 
 handle_cast(Request, State) ->
-    ?warning("Wrong cast: ~p", [Request]),
+    ?warning("[Onepanel] Wrong cast: ~p", [Request]),
     {noreply, State}.
 
 
@@ -140,7 +140,7 @@ handle_info({udp, _Socket, _Address, _Port, HostBinary}, #state{status = Status}
     Node = list_to_atom(?APP_STR ++ "@" ++ Host),
     case net_kernel:connect_node(Node) of
         true -> gen_server:cast({?ONEPANEL_SERVER, Node}, {connection_request, node()});
-        Other -> ?error("Cannot connect node ~p: ~p", [Node, Other])
+        Other -> ?error("[Onepanel] Cannot connect node ~p: ~p", [Node, Other])
     end,
     case Status of
         connected -> {noreply, State};
@@ -162,7 +162,7 @@ handle_info(start_updater, State) ->
     {noreply, State};
 
 handle_info(Info, State) ->
-    ?warning("Wrong info: ~p", [Info]),
+    ?warning("[Onepanel] Wrong info: ~p", [Info]),
     {noreply, State}.
 
 

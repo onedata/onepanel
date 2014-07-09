@@ -13,7 +13,7 @@
 -behaviour(installer_behaviour).
 
 -include("onepanel_modules/db/common.hrl").
--include("onepanel_modules/installer/installer_db.hrl").
+-include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% install_behaviour callbacks

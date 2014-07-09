@@ -23,7 +23,7 @@
 %% ====================================================================
 
 
-%% get_all_views/0
+%% start/0
 %% ====================================================================
 %% @doc Asynchronously starts updater gen_server or just ensures that it's already running.
 -spec start() -> ok.

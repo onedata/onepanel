@@ -12,7 +12,7 @@
 -author("Rafal Slota").
 -include("onepanel_modules/updater/common.hrl").
 -include("onepanel_modules/updater/internals.hrl").
--include("onepanel_modules/installer/installer_veil.hrl").
+-include("onepanel_modules/installer/internals.hrl").
 
 %% API
 -export([install_package/1]).
