@@ -20,9 +20,10 @@
 -define(USER_TABLE, users).
 
 %% User record contains following fields:
-%% * username   - name of user as a primary key in database
-%% * hash       - SHA 512 password hash
-%% * salt       - random characters sequence added to password before hashing
--record(?USER_RECORD, {username, hash, salt}).
+%% * username       - name of user as a primary key in database
+%% * hash           - SHA 512 password hash
+%% * db_password    - password for all database nodes at port 5986
+%% * salt           - random characters sequence added to password before hashing
+-record(?USER_RECORD, {username, hash, db_password, salt}).
 
 -endif.

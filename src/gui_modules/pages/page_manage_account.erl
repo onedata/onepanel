@@ -12,6 +12,7 @@
 -module(page_manage_account).
 -export([main/0, event/1]).
 -include("gui_modules/common.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 -define(MIN_PASSWORD_LENGTH, 8).
 
@@ -68,37 +69,80 @@ body() ->
                 class = <<"dialog dialog-danger">>
             },
             #panel{
-                style = <<"position: relative;">>,
+                style = <<"margin-top: 150px; text-align: center;">>,
                 body = [
                     #panel{
-                        class = <<"alert alert-success login-page">>,
+                        style = <<"width: 300px; margin: 0 auto;">>,
                         body = [
-                            #panel{
-                                style = <<"width: 50%; margin: 0 auto; float: center">>,
-                                body = [
-                                    #password{
-                                        id = <<"old_password">>,
-                                        placeholder = <<"Old password">>,
-                                        class = <<"span2">>
-                                    },
-                                    #password{
-                                        id = <<"new_password">>,
-                                        placeholder = <<"New password">>,
-                                        class = <<"span2">>
-                                    },
-                                    #password{
-                                        id = <<"confirm_password">>,
-                                        placeholder = <<"Confirm password">>,
-                                        class = <<"span2">>
-                                    }
-                                ]
+                            #h6{
+                                style = <<"font-size: 18px;">>,
+                                body = <<"Change Onepanel password">>
+                            },
+                            #password{
+                                style = <<"width: 200px; margin: 0 auto; margin-top: 10px;">>,
+                                id = <<"onepanel_old_password">>,
+                                placeholder = <<"Old password">>,
+                                class = <<"span2">>
+                            },
+                            #password{
+                                style = <<"width: 200px; margin: 0 auto; margin-top: 10px;">>,
+                                id = <<"onepanel_new_password">>,
+                                placeholder = <<"New password">>,
+                                class = <<"span2">>
+                            },
+                            #password{
+                                style = <<"width: 200px; margin: 0 auto; margin-top: 10px;">>,
+                                id = <<"onepanel_confirm_password">>,
+                                placeholder = <<"Confirm password">>,
+                                class = <<"span2">>
                             },
                             #button{
-                                id = <<"change_password_button">>,
-                                actions = gui_jq:form_submit_action(<<"change_password_button">>,
-                                    change_password, [<<"old_password">>, <<"new_password">>, <<"confirm_password">>]),
-                                class = <<"btn btn-primary btn-block">>,
-                                style = <<"width: 50%; margin: 0 auto;">>,
+                                id = <<"onepanel_change_password_button">>,
+                                actions = gui_jq:form_submit_action(
+                                    <<"onepanel_change_password_button">>,
+                                    onepanel_change_password,
+                                    [<<"onepanel_old_password">>, <<"onepanel_new_password">>, <<"onepanel_confirm_password">>]
+                                ),
+                                style = <<"margin-top: 10px;">>,
+                                class = <<"btn btn-info">>,
+                                body = <<"Change password">>
+                            }
+                        ]
+                    },
+                    #panel{
+                        style = <<"width: 300px; margin: 0 auto; margin-top: 30px;">>,
+                        body = [
+                            #h6{
+                                style = <<"font-size: 18px;">>,
+                                body = <<"Change database password">>
+                            },
+                            #password{
+                                style = <<"width: 200px; margin: 0 auto; margin-top: 10px;">>,
+                                id = <<"db_old_password">>,
+                                placeholder = <<"Old password">>,
+                                class = <<"span2">>
+                            },
+                            #password{
+                                style = <<"width: 200px; margin: 0 auto; margin-top: 10px;">>,
+                                id = <<"db_new_password">>,
+                                placeholder = <<"New password">>,
+                                class = <<"span2">>
+                            },
+                            #password{
+                                style = <<"width: 200px; margin: 0 auto; margin-top: 10px;">>,
+                                id = <<"db_confirm_password">>,
+                                placeholder = <<"Confirm password">>,
+                                class = <<"span2">>
+                            },
+                            #button{
+                                id = <<"db_change_password_button">>,
+                                actions = gui_jq:form_submit_action(
+                                    <<"db_change_password_button">>,
+                                    db_change_password,
+                                    [<<"db_old_password">>, <<"db_new_password">>, <<"db_confirm_password">>]
+                                ),
+                                style = <<"margin-top: 10px;">>,
+                                class = <<"btn btn-info">>,
                                 body = <<"Change password">>
                             }
                         ]
@@ -120,11 +164,12 @@ body() ->
 verify_new_password(Password, Password) ->
     case size(Password) >= ?MIN_PASSWORD_LENGTH of
         true -> ok;
-        _ -> {error, "Password should be at least " ++ integer_to_list(?MIN_PASSWORD_LENGTH) ++ " characters long."}
+        _ ->
+            {error, <<"Password should be at least ", (integer_to_binary(?MIN_PASSWORD_LENGTH))/binary, " characters long.">>}
     end;
 
 verify_new_password(_, _) ->
-    {error, "Passwords do not match."}.
+    {error, <<"Passwords do not match.">>}.
 
 
 %% ====================================================================
@@ -137,16 +182,22 @@ verify_new_password(_, _) ->
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->
-    gui_jq:bind_enter_to_change_focus(<<"old_password">>, <<"new_password">>),
-    gui_jq:bind_enter_to_change_focus(<<"new_password">>, <<"confirm_password">>),
-    gui_jq:bind_enter_to_submit_button(<<"confirm_password">>, <<"change_password_button">>),
+    gui_jq:focus(<<"onepanel_old_password">>),
+
+    gui_jq:bind_enter_to_change_focus(<<"onepanel_old_password">>, <<"onepanel_new_password">>),
+    gui_jq:bind_enter_to_change_focus(<<"onepanel_new_password">>, <<"onepanel_confirm_password">>),
+    gui_jq:bind_enter_to_submit_button(<<"onepanel_confirm_password">>, <<"onepanel_change_password_button">>),
+
+    gui_jq:bind_enter_to_change_focus(<<"db_old_password">>, <<"db_new_password">>),
+    gui_jq:bind_enter_to_change_focus(<<"db_new_password">>, <<"db_confirm_password">>),
+    gui_jq:bind_enter_to_submit_button(<<"db_confirm_password">>, <<"db_change_password_button">>),
     ok;
 
-event(change_password) ->
+event(onepanel_change_password) ->
     Username = gui_ctx:get_user_id(),
-    OldPassword = gui_ctx:postback_param(<<"old_password">>),
-    NewPassword = gui_ctx:postback_param(<<"new_password">>),
-    ConfirmPassword = gui_ctx:postback_param(<<"confirm_password">>),
+    OldPassword = gui_ctx:postback_param(<<"onepanel_old_password">>),
+    NewPassword = gui_ctx:postback_param(<<"onepanel_new_password">>),
+    ConfirmPassword = gui_ctx:postback_param(<<"onepanel_confirm_password">>),
     case verify_new_password(NewPassword, ConfirmPassword) of
         ok ->
             case user_logic:change_password(Username, OldPassword, NewPassword) of
@@ -155,10 +206,38 @@ event(change_password) ->
                     onepanel_gui_utils:message(<<"ok_message">>, "Password changed."),
                     lists:foreach(fun(PasswordBoxId) ->
                         gui_jq:set_value(PasswordBoxId, <<"''">>)
-                    end, [<<"old_password">>, <<"new_password">>, <<"confirm_password">>]);
+                    end, [<<"onepanel_old_password">>, <<"onepanel_new_password">>, <<"onepanel_confirm_password">>]),
+                    gui_jq:focus(<<"db_old_password">>);
                 {error, ErrorId} ->
                     onepanel_gui_utils:message(<<"error_message">>,
                         onepanel_gui_utils:get_error_message(binary_to_atom(gui_str:to_binary(ErrorId), latin1)))
+            end;
+        {error, Reason} ->
+            onepanel_gui_utils:message(<<"error_message">>, Reason)
+    end;
+
+event(db_change_password) ->
+    Username = gui_ctx:get_user_id(),
+    OldPassword = gui_ctx:postback_param(<<"db_old_password">>),
+    NewPassword = gui_ctx:postback_param(<<"db_new_password">>),
+    ConfirmPassword = gui_ctx:postback_param(<<"db_confirm_password">>),
+    case verify_new_password(NewPassword, ConfirmPassword) of
+        ok ->
+            case db_logic:change_password(Username, OldPassword, NewPassword) of
+                ok ->
+                    gui_jq:fade_out(<<"error_message">>, 300),
+                    onepanel_gui_utils:message(<<"ok_message">>, "Password changed."),
+                    lists:foreach(fun(PasswordBoxId) ->
+                        gui_jq:set_value(PasswordBoxId, <<"''">>)
+                    end, [<<"db_old_password">>, <<"db_new_password">>, <<"db_confirm_password">>]),
+                    gui_jq:focus(<<"onepanel_old_password">>);
+                {error, Error} when is_list(Error) ->
+                    onepanel_gui_utils:message(<<"error_message">>, gui_str:to_binary(Error));
+                {error, {host, Host}} ->
+                    onepanel_gui_utils:message(<<"error_message">>,
+                        <<"Cannot change database password on host: ", (gui_str:to_binary(Host))/binary>>);
+                _ ->
+                    onepanel_gui_utils:message(<<"error_message">>, <<"Cannot change database password">>)
             end;
         {error, Reason} ->
             onepanel_gui_utils:message(<<"error_message">>, Reason)

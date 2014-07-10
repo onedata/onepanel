@@ -17,7 +17,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 -define(STATE, state).
--define(UPDATE_TIME, 100).
+-define(UPDATE_TIME, 500).
 
 -record(?STATE, {step, steps, status}).
 
@@ -108,7 +108,7 @@ body() ->
                                        body = [
                                            #p{
                                                style = <<"font-weight: 300;">>,
-                                               body = <<"Checking connection...">>
+                                               body = <<"Connecting...">>
                                            },
                                            #panel{
                                                class = <<"progress">>,
@@ -157,26 +157,38 @@ comet_loop(#?STATE{step = Step, steps = Steps, status = Status} = State) ->
 
             update ->
                 Progress = <<(integer_to_binary(round(100 * Step / Steps)))/binary, "%">>,
+                ?info("Progress: ~p", [Progress]),
                 gui_jq:set_width(<<"bar">>, Progress),
                 gui_comet:flush(),
-                case Status of
-                    connecting -> timer:send_after(?UPDATE_TIME, update);
-                    _ -> ok
-                end,
-                comet_loop(State#?STATE{step = Step + 1});
+                case Step of
+                    Steps ->
+                        case Status of
+                            connection_success ->
+                                timer:sleep(?UPDATE_TIME),
+                                gui_jq:set_width(<<"bar">>, <<"100%">>),
+                                onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_PORTS_CHECK),
+                                gui_comet:flush();
+                            connection_error ->
+                                gui_jq:hide(<<"progress">>),
+                                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
+                                onepanel_gui_utils:message(<<"error_message">>, <<"Cannot connect to Global Registry.<br>
+                                Please check your network configuration and try again later.">>),
+                                gui_comet:flush(),
+                                comet_loop(State#?STATE{status = idle});
+                            connecting ->
+                                timer:send_after(?UPDATE_TIME, update),
+                                comet_loop(State);
+                            _ ->
+                                comet_loop(State)
+                        end;
+                    _ ->
+                        gui_comet:flush(),
+                        timer:send_after(?UPDATE_TIME, update),
+                        comet_loop(State#?STATE{step = Step + 1})
+                end;
 
-            connection_success ->
-                gui_jq:set_width(<<"bar">>, <<"100%">>),
-                onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_PORTS_CHECK),
-                gui_comet:flush();
-
-            connection_error ->
-                gui_jq:hide(<<"progress">>),
-                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
-                onepanel_gui_utils:message(<<"error_message">>, <<"Cannot connect to Global Registry.<br>
-                Please check your network configuration and try again later.">>),
-                gui_comet:flush(),
-                comet_loop(State#?STATE{status = idle})
+            {set_status, NewStatus} ->
+                comet_loop(State#?STATE{status = NewStatus})
         end
     catch Type:Reason ->
         ?error("Comet process exception: ~p:~p", [Type, Reason]),
@@ -206,8 +218,8 @@ event(next) ->
     spawn(fun() ->
         Pid ! {init, round(?CONNECTION_TIMEOUT / ?UPDATE_TIME)},
         case gr_adapter:check_ip_address() of
-            {ok, _} -> Pid ! connection_success;
-            _ -> Pid ! connection_error
+            {ok, _} -> Pid ! {set_status, connection_success};
+            _ -> Pid ! {set_status, connection_error}
         end
     end);
 

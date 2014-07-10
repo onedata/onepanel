@@ -12,6 +12,7 @@
 -module(installer_db).
 -behaviour(installer_behaviour).
 
+-include("onepanel_modules/user_logic.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
@@ -20,7 +21,7 @@
 -export([install/1, uninstall/1, start/1, stop/1, restart/1]).
 
 %% API
--export([local_install/0, local_uninstall/0, local_start/0, local_stop/0, add_to_cluster/1]).
+-export([local_install/0, local_uninstall/0, local_start/0, local_stop/0, add_to_cluster/2]).
 
 %% ====================================================================
 %% Behaviour callback functions
@@ -91,13 +92,18 @@ start(Args) ->
             _ -> throw("Cannot get database nodes configuration")
         end,
 
+        DbPassword = case dao:get_record(?USER_TABLE, "admin") of
+                         {ok, #?USER_RECORD{db_password = Password}} -> binary_to_list(Password);
+                         _ -> throw("Cannot get database password")
+                     end,
+
         {StartOk, StartError} = onepanel_utils:apply_on_hosts(Dbs, ?MODULE, local_start, [], ?RPC_TIMEOUT),
 
         case StartError of
             [] ->
                 {_, JoinError} = case StartOk of
                                      [First | Rest] ->
-                                         onepanel_utils:apply_on_hosts(Rest, ?MODULE, add_to_cluster, [First], ?RPC_TIMEOUT);
+                                         onepanel_utils:apply_on_hosts(Rest, ?MODULE, add_to_cluster, [First, DbPassword], ?RPC_TIMEOUT);
                                      _ -> {StartOk, []}
                                  end,
                 case JoinError of
@@ -297,11 +303,11 @@ local_stop() ->
 %% @doc Adds database node to cluster. ClusterNode is one of current
 %% database cluster nodes.
 %% @end
--spec add_to_cluster(ClusterNode :: node()) -> Result when
+-spec add_to_cluster(ClusterNode :: node(), Password :: string()) -> Result when
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-add_to_cluster(ClusterNode) ->
-    add_to_cluster(ClusterNode, 0).
+add_to_cluster(ClusterNode, Password) ->
+    add_to_cluster(ClusterNode, binary_to_list(Password), 0).
 
 
 %% add_to_cluster/2
@@ -310,27 +316,26 @@ add_to_cluster(ClusterNode) ->
 %% database cluster nodes. Should not be used directly, use add_to_cluster/1
 %% instead.
 %% @end
--spec add_to_cluster(ClusterHost :: string(), Attempts :: integer()) -> Result when
+-spec add_to_cluster(ClusterHost :: string(), Password :: string(), Attempts :: integer()) -> Result when
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-add_to_cluster(_, 10) ->
+add_to_cluster(_, _, 10) ->
     ?error("Can not add database node to cluster: attempts limit exceeded"),
     Host = onepanel_utils:get_host(node()),
     {error, Host};
 
-add_to_cluster(ClusterHost, Attempts) ->
+add_to_cluster(ClusterHost, Password, Attempts) ->
     Host = onepanel_utils:get_host(node()),
     try
         ?debug("Adding database node to cluster"),
         timer:sleep(1000),
         Url = "http://" ++ ClusterHost ++ ":" ++ ?DEFAULT_PORT ++ "/nodes/" ++ ?DEFAULT_DB_NAME ++ "@" ++ Host,
-        %% TODO: database password changing
-        Options = [{connect_timeout, ?CONNECTION_TIMEOUT}, {basic_auth, {"admin", "password"}}],
+        Options = [{connect_timeout, ?CONNECTION_TIMEOUT}, {basic_auth, {"admin", Password}}],
 
         {ok, "201", _ResHeaders, ResBody} = ibrowse:send_req(Url, [{content_type, "application/json"}], put, "{}", Options),
         true = proplists:get_value(<<"ok">>, mochijson2:decode(ResBody, [{format, proplist}])),
 
         {ok, Host}
     catch
-        _:_ -> add_to_cluster(ClusterHost, Attempts + 1)
+        _:_ -> add_to_cluster(ClusterHost, Password, Attempts + 1)
     end.
