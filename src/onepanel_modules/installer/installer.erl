@@ -202,10 +202,14 @@ handle_call(Request, _From, State) ->
     {noreply, NewState :: #?i_state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #?i_state{}}.
 %% ====================================================================
-handle_cast({execute, _}, #?i_state{stage = ?STAGE_IDLE, callback = Callback} = State) ->
-    Callback(?EVENT_STATE_CHANGED, State),
-    terminate(normal, State),
-    {noreply, State};
+handle_cast({execute, _}, #?i_state{stage = ?STAGE_IDLE, error = Error, callback = Callback} = State) ->
+    case Error of
+        undefined ->
+            Callback(?EVENT_STATE_CHANGED, State),
+            {stop, normal, State};
+        _ ->
+            {stop, shutdown, State}
+    end;
 
 handle_cast({execute, Config}, #?i_state{stage = Stage, job = Job, callback = Callback} = State) ->
     Callback(?EVENT_STATE_CHANGED, State),
@@ -213,7 +217,7 @@ handle_cast({execute, Config}, #?i_state{stage = Stage, job = Job, callback = Ca
                     ok ->
                         get_next_state(State);
                     Error ->
-                        Callback(?EVENT_ERROR, State#?i_state{stage = ?STAGE_IDLE, error = Error}),
+                        Callback(?EVENT_ERROR, State#?i_state{error = Error}),
                         State#?i_state{stage = ?STAGE_IDLE, error = Error}
                 end,
     gen_server:cast({global, ?INSTALL_SERVICE}, {execute, Config}),
@@ -249,7 +253,7 @@ handle_info(Info, State) ->
     Result :: term().
 %% ====================================================================
 terminate(Reason, _State) ->
-    ?info("[Installer] Terminate: ~p", [Reason]),
+    ?warning("[Installer] Terminate: ~p", [Reason]),
     ok.
 
 
@@ -280,6 +284,7 @@ code_change(_OldVsn, State, _Extra) ->
 start() ->
     case global:whereis_name(?INSTALL_SERVICE) of
         undefined ->
+            supervisor:delete_child(?ONEPANEL_SUP, installer),
             case supervisor:start_child(?ONEPANEL_SUP,
                 {
                     installer,

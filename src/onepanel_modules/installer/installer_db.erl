@@ -327,10 +327,8 @@ add_to_cluster(ClusterHost, Attempts) ->
         %% TODO: database password changing
         Options = [{connect_timeout, ?CONNECTION_TIMEOUT}, {basic_auth, {"admin", "password"}}],
 
-        {ok, "201", _ResponseHeaders, ResponseBody} = ibrowse:send_req(Url, [{content_type, "application/json"}], put, "{}", Options),
-        %% TODO: change to mochijson
-        ?info("Response body: ~p", [ResponseBody]),
-        false = (0 =:= string:str(ResponseBody, "\"ok\":true")),
+        {ok, "201", _ResHeaders, ResBody} = ibrowse:send_req(Url, [{content_type, "application/json"}], put, "{}", Options),
+        true = proplists:get_value(<<"ok">>, mochijson2:decode(ResBody, [{format, proplist}])),
 
         {ok, Host}
     catch

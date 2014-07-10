@@ -13,6 +13,13 @@
 -module(page_connection_check).
 -export([main/0, event/1]).
 -include("gui_modules/common.hrl").
+-include("onepanel_modules/installer/internals.hrl").
+-include_lib("ctool/include/logging.hrl").
+
+-define(STATE, state).
+-define(UPDATE_TIME, 100).
+
+-record(?STATE, {step, steps, status}).
 
 %% ====================================================================
 %% API functions
@@ -96,6 +103,24 @@ body() ->
                                        body = <<"Step 1: Check your connection to Global Registry.">>
                                    },
                                    #panel{
+                                       id = <<"progress">>,
+                                       style = <<"margin-top: 30px; width: 50%; margin: 0 auto; margin-top: 30px; display: none;">>,
+                                       body = [
+                                           #p{
+                                               style = <<"font-weight: 300;">>,
+                                               body = <<"Checking connection...">>
+                                           },
+                                           #panel{
+                                               class = <<"progress">>,
+                                               body = #panel{
+                                                   id = <<"bar">>,
+                                                   class = <<"bar">>,
+                                                   style = <<"width: 0%;">>
+                                               }
+                                           }
+                                       ]
+                                   },
+                                   #panel{
                                        style = <<"margin-top: 30px; margin-bottom: 30px;">>,
                                        body = #button{
                                            id = <<"next_button">>,
@@ -113,6 +138,52 @@ body() ->
     }.
 
 
+%% comet_loop/1
+%% ====================================================================
+%% @doc Handles connection process and updates progress bar.
+-spec comet_loop(State :: #?STATE{}) -> no_return().
+%% ====================================================================
+comet_loop(#?STATE{step = Step, steps = Steps, status = Status} = State) ->
+    try
+        receive
+            {init, InitSteps} ->
+                gui_jq:hide(<<"error_message">>),
+                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"disabled">>),
+                gui_jq:set_width(<<"bar">>, <<"0%">>),
+                gui_jq:show(<<"progress">>),
+                gui_comet:flush(),
+                timer:send_after(?UPDATE_TIME, update),
+                comet_loop(State#?STATE{step = 1, steps = InitSteps, status = connecting});
+
+            update ->
+                Progress = <<(integer_to_binary(round(100 * Step / Steps)))/binary, "%">>,
+                gui_jq:set_width(<<"bar">>, Progress),
+                gui_comet:flush(),
+                case Status of
+                    connecting -> timer:send_after(?UPDATE_TIME, update);
+                    _ -> ok
+                end,
+                comet_loop(State#?STATE{step = Step + 1});
+
+            connection_success ->
+                gui_jq:set_width(<<"bar">>, <<"100%">>),
+                onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_PORTS_CHECK),
+                gui_comet:flush();
+
+            connection_error ->
+                gui_jq:hide(<<"progress">>),
+                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
+                onepanel_gui_utils:message(<<"error_message">>, <<"Cannot connect to Global Registry.<br>
+                Please check your network configuration and try again later.">>),
+                gui_comet:flush(),
+                comet_loop(State#?STATE{status = idle})
+        end
+    catch Type:Reason ->
+        ?error("Comet process exception: ~p:~p", [Type, Reason]),
+        onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>)
+    end.
+
+
 %% ====================================================================
 %% Events handling
 %% ====================================================================
@@ -124,17 +195,21 @@ body() ->
 %% ====================================================================
 event(init) ->
     gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),
-    ok;
+    {ok, Pid} = gui_comet:spawn(fun() -> comet_loop(#?STATE{}) end),
+    put(comet_pid, Pid);
 
 event(to_main_page) ->
     gui_jq:redirect(?PAGE_ROOT);
 
 event(next) ->
-    case gr_adapter:check_ip_address() of
-        {ok, _} -> onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_PORTS_CHECK);
-        _ -> onepanel_gui_utils:message(<<"error_message">>, <<"Cannot connect to Global Registry.<br>
-        Please check your network configuration or try again later.">>)
-    end;
+    Pid = get(comet_pid),
+    spawn(fun() ->
+        Pid ! {init, round(?CONNECTION_TIMEOUT / ?UPDATE_TIME)},
+        case gr_adapter:check_ip_address() of
+            {ok, _} -> Pid ! connection_success;
+            _ -> Pid ! connection_error
+        end
+    end);
 
 event(terminate) ->
     ok.

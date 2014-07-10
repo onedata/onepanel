@@ -237,10 +237,10 @@ to_install() ->
                       true -> undefined;
                       _ -> Session#?CONFIG.main_ccm
                   end,
-        CCMs = Session#?CONFIG.ccms -- Db#?CONFIG.ccms,
-        Workers = Session#?CONFIG.workers -- Db#?CONFIG.workers,
-        Dbs = Session#?CONFIG.dbs -- Db#?CONFIG.dbs,
-        StoragePaths = Session#?CONFIG.storage_paths -- Db#?CONFIG.storage_paths,
+        CCMs = lists:sort(Session#?CONFIG.ccms -- Db#?CONFIG.ccms),
+        Workers = lists:sort(Session#?CONFIG.workers -- Db#?CONFIG.workers),
+        Dbs = lists:sort(Session#?CONFIG.dbs -- Db#?CONFIG.dbs),
+        StoragePaths = lists:sort(Session#?CONFIG.storage_paths -- Db#?CONFIG.storage_paths),
 
         #?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs, storage_paths = StoragePaths}
     catch
@@ -251,7 +251,7 @@ to_install() ->
 %% comet_loop/1
 %% ====================================================================
 %% @doc Handles installation process and updates progress bar.
--spec comet_loop(State :: atom()) -> no_return().
+-spec comet_loop(State :: #?STATE{}) -> no_return().
 %% ====================================================================
 comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, next_update = NextUpdate} = State) ->
     try
@@ -297,8 +297,11 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
             {error, Text} ->
                 gui_jq:update(<<"summary_table">>, summary_table_body()),
                 onepanel_gui_utils:message(<<"error_message">>, Text),
+                gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"">>),
+                gui_jq:prop(<<"prev_button">>, <<"disabled">>, <<"">>),
+                gui_jq:hide(<<"progress">>),
                 gui_comet:flush(),
-                comet_loop(State)
+                comet_loop(State#?STATE{step = -1})
         end
     catch Type:Reason ->
         ?error("Comet process exception: ~p:~p", [Type, Reason]),
@@ -348,9 +351,9 @@ get_info_message(_) -> <<"">>.
 installation_progress(?EVENT_ERROR, State, Pid) ->
     case installer:get_error(State) of
         {error, {hosts, Hosts}} ->
-            Pid ! {error, <<(get_error_message(installer:get_stage_and_job(State)))/binary, (onepanel_gui_utils:format_list(Hosts))/binary, ". Please try again.">>};
+            Pid ! {error, <<(get_error_message(installer:get_stage_and_job(State)))/binary, (onepanel_gui_utils:format_list(Hosts))/binary, ".<br>Please try again.">>};
         _ ->
-            Pid ! {error, <<"An error occurred during installation. Please try again.">>}
+            Pid ! {error, <<"An error occurred during installation.<br>Please try again.">>}
     end;
 
 installation_progress(?EVENT_STATE_CHANGED, State, Pid) ->

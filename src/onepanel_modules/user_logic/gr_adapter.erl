@@ -98,7 +98,9 @@ register() ->
 check_ip_address() ->
     try
         {ok, Url} = application:get_env(?APP_NAME, global_registry_url),
-        {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(Url ++ "/provider/test/check_my_ip", [{content_type, "application/json"}], get),
+        Options = [{connect_timeout, ?CONNECTION_TIMEOUT}],
+        {ok, "200", _ResHeaders, ResBody} =
+            ibrowse:send_req(Url ++ "/provider/test/check_my_ip", [{content_type, "application/json"}], get, "{}", Options),
         {ok, binary_to_list(mochijson2:decode(ResBody))}
     catch
         _:Reason ->

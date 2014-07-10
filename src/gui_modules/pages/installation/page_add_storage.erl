@@ -142,7 +142,9 @@ storage_paths_table_body() ->
         gui_ctx:put(?STORAGE_PATHS_SIZE, Size + 1),
 
         case State of
-            none -> Body;
+            none ->
+                gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),
+                Body;
             _ -> Body ++ [storage_paths_table_row(<<"">>, Size + 1, undefined, addable)]
         end
     catch

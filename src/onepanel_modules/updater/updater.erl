@@ -33,16 +33,17 @@ start() ->
         Pid when is_pid(Pid) ->
             ok;
         undefined ->
+            supervisor:delete_child(?ONEPANEL_SUP, updater),
             {ok, _Pid} =
                 supervisor:start_child(?ONEPANEL_SUP,
-                {
-                    updater,
-                    {updater_worker, start_link, []},
-                    transient,
-                    10000,
-                    worker,
-                    [updater_worker]
-                }),
+                    {
+                        updater,
+                        {updater_worker, start_link, []},
+                        transient,
+                        10000,
+                        worker,
+                        [updater_worker]
+                    }),
             ok
     end.
 
@@ -117,7 +118,7 @@ abort() ->
 %% ====================================================================
 is_abortable() ->
     start(),
-    updater_state:is_abortable( gen_server:call({global, ?UPDATE_SERVICE}, get_state) ) .
+    updater_state:is_abortable(gen_server:call({global, ?UPDATE_SERVICE}, get_state)).
 
 
 %% ====================================================================
