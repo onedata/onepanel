@@ -35,7 +35,7 @@ main() ->
                         Page ->
                             gui_jq:redirect(Page)
                     end,
-                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
+                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, <<"">>}, {custom, <<"">>}]};
                 ProviderId ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body(ProviderId)}, {custom, <<"">>}]}
             end;
@@ -79,7 +79,7 @@ body(ProviderId) ->
                                     body = <<"You are registered in Global Registry.">>
                                 },
                                 #p{
-                                    body = <<"Your provider ID: ", ProviderId/binary>>
+                                    body = <<"Your provider ID: <b>", ProviderId/binary, "</b>">>
                                 },
                                 #link{
                                     id = <<"ok_button">>,

@@ -62,10 +62,11 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Disabled = case installer_utils:get_workers() of
-                   [] -> undefined;
-                   _ -> true
-               end,
+    InstalledHosts = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+                         {ok, #?GLOBAL_CONFIG_RECORD{ccms = InstalledCCMs, workers = InstalledWorkers, dbs = InstalledDbs}} ->
+                             InstalledCCMs ++ InstalledWorkers ++ InstalledDbs;
+                         _ -> []
+                     end,
     #?CONFIG{ccms = CCMs, workers = Workers, dbs = Dbs} = gui_ctx:get(?CONFIG_ID),
     Hosts = lists:usort(CCMs ++ Workers ++ Dbs),
     {TextboxIds, _} = lists:foldl(fun(_, {Ids, Id}) ->
@@ -93,7 +94,7 @@ body() ->
                     #table{
                         class = <<"table table-bordered">>,
                         style = <<"width: 50%; margin: 0 auto; margin-top: 20px;">>,
-                        body = ulimits_table_body(Hosts, Disabled)
+                        body = ulimits_table_body(Hosts, InstalledHosts)
                     },
                     #panel{
                         style = <<"width: 50%; margin: 0 auto; margin-top: 30px; margin-bottom: 30px;">>,
@@ -107,7 +108,7 @@ body() ->
                             },
                             #button{
                                 id = <<"next_button">>,
-                                actions = gui_jq:form_submit_action(<<"next_button">>, {set_ulimits, Hosts, Disabled}, TextboxIds),
+                                actions = gui_jq:form_submit_action(<<"next_button">>, {set_ulimits, Hosts}, TextboxIds),
                                 class = <<"btn btn-inverse btn-small">>,
                                 style = <<"float: right; width: 80px; font-weight: bold;">>,
                                 body = <<"Next">>
@@ -123,10 +124,10 @@ body() ->
 %% ulimits_table_body/2
 %% ====================================================================
 %% @doc Renders system limits table body.
--spec ulimits_table_body(Hosts :: [string()], Disabled :: true | undefined) -> Result
+-spec ulimits_table_body(Hosts :: [string()], InstalledHosts :: [string()]) -> Result
     when Result :: [#tr{}].
 %% ====================================================================
-ulimits_table_body(Hosts, Disabled) ->
+ulimits_table_body(Hosts, InstalledHosts) ->
     ColumnStyle = <<"text-align: center; vertical-align: inherit;">>,
     Header = #tr{
         cells = [
@@ -185,7 +186,10 @@ ulimits_table_body(Hosts, Disabled) ->
                                 style = <<"text-align: center;">>,
                                 class = <<"span1">>,
                                 value = list_to_binary(Text),
-                                disabled = Disabled
+                                disabled = case lists:member(Host, InstalledHosts) of
+                                               true -> true;
+                                               _ -> undefined
+                                           end
                             }
                         }
                     end, Textboxes)
@@ -229,10 +233,7 @@ event(init) ->
 event(back) ->
     onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_MAIN_CCM_SELECTION);
 
-event({set_ulimits, _, true}) ->
-    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_ADD_STORAGE);
-
-event({set_ulimits, Hosts, _}) ->
+event({set_ulimits, Hosts}) ->
     case lists:foldl(fun(Host, {Status, Id}) ->
         HostId = integer_to_binary(Id),
         OpenFilesId = <<"open_files_textbox_", HostId/binary>>,

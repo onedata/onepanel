@@ -107,25 +107,26 @@ body() ->
 %% ====================================================================
 hosts_table_body() ->
     ColumnStyle = <<"text-align: center; vertical-align: inherit;">>,
-    Header = #tr{cells = [
-        #th{
-            body = <<"Host">>,
-            style = ColumnStyle
-        },
-        #th{
-            body = <<"CCM">>,
-            style = ColumnStyle
-        },
-        #th{
-            body = <<"Worker">>,
-            style = ColumnStyle
-        },
-        #th{
-            body = <<"Database">>,
-            style = ColumnStyle
-        }
-    ]},
-
+    Header = #tr{
+        cells = [
+            #th{
+                body = <<"Host">>,
+                style = ColumnStyle
+            },
+            #th{
+                body = <<"CCM">>,
+                style = ColumnStyle
+            },
+            #th{
+                body = <<"Worker">>,
+                style = ColumnStyle
+            },
+            #th{
+                body = <<"Database">>,
+                style = ColumnStyle
+            }
+        ]
+    },
     try
         Hosts = lists:sort(onepanel_utils:get_hosts()),
 

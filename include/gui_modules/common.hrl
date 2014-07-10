@@ -35,4 +35,10 @@
 %% Current registration step saved in user session
 -define(CURRENT_REGISTRATION_PAGE, register_page).
 
+%% Current update step saved in user session
+-define(CURRENT_UPDATE_PAGE, update_page).
+
+%% Currently selected version
+-define(CURRENT_VERSION, current_version).
+
 -endif.

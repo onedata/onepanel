@@ -80,7 +80,7 @@ body() ->
                                                class = <<"alert alert-success">>,
                                                body = [
                                                    #h3{
-                                                       body = <<"Successful installation.">>
+                                                       body = <<"Successful installation">>
                                                    },
                                                    #p{
                                                        body = <<"Would you like to register as a provider?">>
@@ -107,7 +107,7 @@ body() ->
                                                class = <<"alert alert-success">>,
                                                body = [
                                                    #h3{
-                                                       body = <<"Successful installation.">>
+                                                       body = <<"Successful installation">>
                                                    },
                                                    #link{
                                                        id = <<"next_button">>,

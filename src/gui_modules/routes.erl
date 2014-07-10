@@ -78,5 +78,11 @@ route(?PAGE_CONNECTION_CHECK) -> page_connection_check;
 route(?PAGE_PORTS_CHECK) -> page_ports_check;
 route(?PAGE_REGISTRATION_SUCCESS) -> page_registration_success;
 
+%% Update pages
+route(?PAGE_UPDATE) -> page_update;
+route(?PAGE_CHOOSE_VERSION) -> page_choose_version;
+route(?PAGE_UPDATE_SUMMARY) -> page_update_summary;
+route(?PAGE_UPDATE_SUCCESS) -> page_update_success;
+
 %% Undefined pages
 route(_) -> page_404.

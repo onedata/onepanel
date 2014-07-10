@@ -30,6 +30,12 @@
 -define(PAGE_PORTS_CHECK, <<"/ports_check">>).
 -define(PAGE_REGISTRATION_SUCCESS, <<"/registration_success">>).
 
+%% Update pages
+-define(PAGE_UPDATE, <<"/update">>).
+-define(PAGE_CHOOSE_VERSION, <<"/choose_version">>).
+-define(PAGE_UPDATE_SUMMARY, <<"/update_summary">>).
+-define(PAGE_UPDATE_SUCCESS, <<"/update_success">>).
+
 %% Management pages
 -define(PAGE_LOGIN, <<"/login">>).
 -define(PAGE_LOGOUT, <<"/logout">>).

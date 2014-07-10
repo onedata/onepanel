@@ -207,7 +207,7 @@ event(onepanel_change_password) ->
                     lists:foreach(fun(PasswordBoxId) ->
                         gui_jq:set_value(PasswordBoxId, <<"''">>)
                     end, [<<"onepanel_old_password">>, <<"onepanel_new_password">>, <<"onepanel_confirm_password">>]),
-                    gui_jq:focus(<<"db_old_password">>);
+                    gui_jq:focus(<<"onepanel_old_password">>);
                 {error, ErrorId} ->
                     onepanel_gui_utils:message(<<"error_message">>,
                         onepanel_gui_utils:get_error_message(binary_to_atom(gui_str:to_binary(ErrorId), latin1)))
@@ -230,7 +230,7 @@ event(db_change_password) ->
                     lists:foreach(fun(PasswordBoxId) ->
                         gui_jq:set_value(PasswordBoxId, <<"''">>)
                     end, [<<"db_old_password">>, <<"db_new_password">>, <<"db_confirm_password">>]),
-                    gui_jq:focus(<<"onepanel_old_password">>);
+                    gui_jq:focus(<<"db_old_password">>);
                 {error, Error} when is_list(Error) ->
                     onepanel_gui_utils:message(<<"error_message">>, gui_str:to_binary(Error));
                 {error, {host, Host}} ->

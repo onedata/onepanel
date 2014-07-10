@@ -157,7 +157,6 @@ comet_loop(#?STATE{step = Step, steps = Steps, status = Status} = State) ->
 
             update ->
                 Progress = <<(integer_to_binary(round(100 * Step / Steps)))/binary, "%">>,
-                ?info("Progress: ~p", [Progress]),
                 gui_jq:set_width(<<"bar">>, Progress),
                 gui_comet:flush(),
                 case Step of

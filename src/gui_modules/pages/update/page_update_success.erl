@@ -6,14 +6,15 @@
 %% @end
 %% ===================================================================
 %% @doc: This module contains n2o website code.
-%% This page is displayed in case of successful registration.
+%% This page is displayed in case of successful update.
 %% @end
 %% ===================================================================
 
--module(page_registration_success).
+-module(page_update_success).
 -export([main/0, event/1]).
 
 -include("gui_modules/common.hrl").
+-include("onepanel_modules/updater/common.hrl").
 
 %% ====================================================================
 %% API functions
@@ -28,7 +29,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect(?CURRENT_REGISTRATION_PAGE, ?PAGE_REGISTRATION_SUCCESS, ?PAGE_REGISTRATION) of
+            case onepanel_gui_utils:maybe_redirect(?CURRENT_UPDATE_PAGE, ?PAGE_UPDATE_SUCCESS, ?PAGE_UPDATE) of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
@@ -47,7 +48,7 @@ main() ->
     Result :: binary().
 %% ====================================================================
 title() ->
-    <<"Successful registration">>.
+    <<"Successful update">>.
 
 
 %% body/0
@@ -57,10 +58,12 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
+    #version{major = Major, minor = Minor, patch = Patch} = gui_ctx:get(?CURRENT_VERSION),
+    Version = <<(integer_to_binary(Major))/binary, ".", (integer_to_binary(Minor))/binary, ".", (integer_to_binary(Patch))/binary>>,
     #panel{
         style = <<"position: relative;">>,
         body = [
-            onepanel_gui_utils:top_menu(registration_tab),
+            onepanel_gui_utils:top_menu(update_tab),
 
             #panel{
                 style = <<"margin-top: 150px; text-align: center;">>,
@@ -72,14 +75,11 @@ body() ->
                                 class = <<"alert alert-success">>,
                                 body = [
                                     #h3{
-                                        body = <<"Successful registration">>
+                                        body = <<"Successful update">>
                                     },
-                                    case gr_utils:get_provider_id() of
-                                        undefined -> #p{};
-                                        ProviderId -> #p{
-                                            body = <<"Your provider ID: <b>", ProviderId/binary, "</b>">>
-                                        }
-                                    end,
+                                    #p{
+                                        body = <<"Current software version: <b>", Version/binary, "</b>">>
+                                    },
                                     #link{
                                         id = <<"ok_button">>,
                                         postback = to_main_page,
@@ -111,7 +111,7 @@ event(init) ->
     ok;
 
 event(to_main_page) ->
-    gui_ctx:put(?CURRENT_REGISTRATION_PAGE, undefined),
+    gui_ctx:put(?CURRENT_UPDATE_PAGE, undefined),
     gui_jq:redirect(?PAGE_ROOT);
 
 event(terminate) ->
