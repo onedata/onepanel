@@ -329,6 +329,7 @@ add_to_cluster(ClusterHost, Attempts) ->
 
         {ok, "201", _ResponseHeaders, ResponseBody} = ibrowse:send_req(Url, [{content_type, "application/json"}], put, "{}", Options),
         %% TODO: change to mochijson
+        ?info("Response body: ~p", [ResponseBody]),
         false = (0 =:= string:str(ResponseBody, "\"ok\":true")),
 
         {ok, Host}

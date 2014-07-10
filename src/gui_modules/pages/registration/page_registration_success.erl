@@ -6,12 +6,13 @@
 %% @end
 %% ===================================================================
 %% @doc: This module contains n2o website code.
-%% This page is a starting point for registration in Global Registry.
+%% This page is displayed in case of successful registration.
 %% @end
 %% ===================================================================
 
--module(page_registration).
+-module(page_registration_success).
 -export([main/0, event/1]).
+
 -include("gui_modules/common.hrl").
 
 %% ====================================================================
@@ -27,17 +28,11 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case gr_utils:get_provider_id() of
-                undefined ->
-                    case gui_ctx:get(?CURRENT_REGISTRATION_PAGE) of
-                        undefined ->
-                            onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_CONNECTION_CHECK);
-                        Page ->
-                            gui_jq:redirect(Page)
-                    end,
+            case onepanel_gui_utils:maybe_redirect(?CURRENT_REGISTRATION_PAGE, ?PAGE_REGISTRATION_SUCCESS, ?PAGE_REGISTRATION) of
+                true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
-                ProviderId ->
-                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body(ProviderId)}, {custom, <<"">>}]}
+                _ ->
+                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]}
             end;
         false ->
             gui_jq:redirect_to_login(true),
@@ -52,16 +47,16 @@ main() ->
     Result :: binary().
 %% ====================================================================
 title() ->
-    <<"Registration">>.
+    <<"Successful registration">>.
 
 
-%% body/1
+%% body/0
 %% ====================================================================
 %% @doc This will be placed instead of {{body}} tag in template.
--spec body(ProviderId :: binary()) -> Result when
+-spec body() -> Result when
     Result :: #panel{}.
 %% ====================================================================
-body(ProviderId) ->
+body() ->
     #panel{
         style = <<"position: relative;">>,
         body = [
@@ -72,24 +67,29 @@ body(ProviderId) ->
                 body = [
                     #panel{
                         style = <<"width: 50%; margin: 0 auto;">>,
-                        body = #panel{
-                            class = <<"alert alert-info">>,
-                            body = [
-                                #h3{
-                                    body = <<"You are registered in Global Registry.">>
-                                },
-                                #p{
-                                    body = <<"Your provider ID: ", ProviderId/binary>>
-                                },
-                                #link{
-                                    id = <<"ok_button">>,
-                                    postback = to_main_page,
-                                    class = <<"btn btn-info">>,
-                                    style = <<"width: 80px; font-weight: bold;">>,
-                                    body = <<"OK">>
-                                }
-                            ]
-                        }
+                        body = [
+                            #panel{
+                                class = <<"alert alert-success">>,
+                                body = [
+                                    #h3{
+                                        body = <<"Successful registration.">>
+                                    },
+                                    case gr_utils:get_provider_id() of
+                                        undefined -> #p{};
+                                        ProviderId -> #p{
+                                            body = <<"Your provider ID: ", ProviderId/binary>>
+                                        }
+                                    end,
+                                    #link{
+                                        id = <<"ok_button">>,
+                                        postback = to_main_page,
+                                        style = <<"width: 80px;">>,
+                                        class = <<"btn btn-primary">>,
+                                        body = <<"OK">>
+                                    }
+                                ]
+                            }
+                        ]
                     }
                 ]
             }
@@ -111,6 +111,7 @@ event(init) ->
     ok;
 
 event(to_main_page) ->
+    gui_ctx:put(?CURRENT_REGISTRATION_PAGE, undefined),
     gui_jq:redirect(?PAGE_ROOT);
 
 event(terminate) ->

@@ -177,11 +177,11 @@ ulimits_table_body(Hosts, Disabled) ->
                     #td{
                         body = <<"<b>", (list_to_binary(Host))/binary, "</b>">>,
                         style = ColumnStyle
-                    } | lists:map(fun({Id, Text}) ->
+                    } | lists:map(fun({TextboxId, Text}) ->
                         #td{
                             style = ColumnStyle,
                             body = #textbox{
-                                id = Id,
+                                id = TextboxId,
                                 style = <<"text-align: center;">>,
                                 class = <<"span1">>,
                                 value = list_to_binary(Text),

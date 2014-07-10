@@ -76,6 +76,7 @@ route(?PAGE_VALIDATE_LOGIN) -> page_validate_login;
 route(?PAGE_REGISTRATION) -> page_registration;
 route(?PAGE_CONNECTION_CHECK) -> page_connection_check;
 route(?PAGE_PORTS_CHECK) -> page_ports_check;
+route(?PAGE_REGISTRATION_SUCCESS) -> page_registration_success;
 
 %% Undefined pages
 route(_) -> page_404.

@@ -31,7 +31,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect(?CURRENT_INSTALLATION_PAGE, ?PAGE_PORTS_CHECK, ?PAGE_REGISTRATION) of
+            case onepanel_gui_utils:maybe_redirect(?CURRENT_REGISTRATION_PAGE, ?PAGE_PORTS_CHECK, ?PAGE_REGISTRATION) of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
@@ -107,7 +107,7 @@ body() ->
                             },
                             #button{
                                 id = <<"next_button">>,
-                                actions = gui_jq:form_submit_action(<<"next_button">>, {check_ports, Hosts}, TextboxIds),
+                                actions = gui_jq:form_submit_action(<<"next_button">>, {check_ports, ControlPanelHosts}, TextboxIds),
                                 class = <<"btn btn-inverse btn-small">>,
                                 style = <<"float: right; width: 80px; font-weight: bold;">>,
                                 body = <<"Next">>
@@ -126,7 +126,7 @@ body() ->
 -spec ports_table_body(Hosts :: [string()], DefaultGuiPort :: integer(), DefaultRestPort :: integer()) -> Result
     when Result :: [#tr{}].
 %% ====================================================================
-ulimits_table_body(Hosts, DefaultGuiPort, DefaultRestPort) ->
+ports_table_body(Hosts, DefaultGuiPort, DefaultRestPort) ->
     ColumnStyle = <<"text-align: center; vertical-align: inherit;">>,
     Header = #tr{
         cells = [
@@ -226,34 +226,40 @@ event(init) ->
     ok;
 
 event(back) ->
-    onepanel_gui_utils:change_page(?CURRENT, ?PAGE_CONNECTION_CHECK);
+    onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_CONNECTION_CHECK);
 
 event({check_ports, Hosts}) ->
     case lists:foldl(fun(Host, {PortsErrors, Id}) ->
         HostId = integer_to_binary(Id),
         Textboxes = [
-            {<<"gui_port_textbox_", HostId/binary>>, "gui"},
-            {<<"rest_port_textbox_", HostId/binary>>, "rest"}
+            {<<"gui_port_textbox_", HostId/binary>>, "gui", gui_port},
+            {<<"rest_port_textbox_", HostId/binary>>, "rest", rest_port}
         ],
         {
-            lists:filter(fun({Id, Type}) ->
-                Port = gui_str:to_list(gui_ctx:postback_param(Id)),
-                try
-                    true = validate_port(Port),
-                    ok = gr_adapter:check_port(Host, list_to_integer(Port), Type),
-                    gui_jq:css(Id, <<"border-color">>, <<"green">>),
-                    false
-                catch
-                    _:_ ->
-                        gui_jq:css(Id, <<"border-color">>, <<"red">>),
-                        true
-                end
-            end, Textboxes) ++ PortsErrors,
+                lists:filter(fun({TextboxId, Type, Field}) ->
+                    try
+                        Port = gui_str:to_list(gui_ctx:postback_param(TextboxId)),
+                        true = validate_port(Port),
+                        ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{Field, list_to_integer(Port)}]),
+                        ok = gr_adapter:check_port(Host, list_to_integer(Port), Type),
+                        gui_jq:css(TextboxId, <<"border-color">>, <<"green">>),
+                        false
+                    catch
+                        _:_ ->
+                            gui_jq:css(TextboxId, <<"border-color">>, <<"red">>),
+                            true
+                    end
+                end, Textboxes) ++ PortsErrors,
             Id + 1
         }
     end, {[], 1}, Hosts) of
         {[], _} ->
-            onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_REGISTRATION_SUCCESS);
+            case gr_adapter:register() of
+                {ok, _} ->
+                    onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_REGISTRATION_SUCCESS);
+                _ ->
+                    onepanel_gui_utils:message(<<"error_message">>, <<"Cannot register in Global Registry. Please try again later.">>)
+            end;
         _ ->
             onepanel_gui_utils:message(<<"error_message">>, <<"Some ports are not available for Global Registry.
             Please change them and try again.">>)

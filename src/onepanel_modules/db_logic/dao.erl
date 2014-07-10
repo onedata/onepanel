@@ -14,7 +14,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([save_record/2, update_record/3, get_record/2, exist_record/2]).
+-export([save_record/2, update_record/3, get_record/2, exist_record/2, get_table_record/2]).
 
 %% ====================================================================
 %% API functions
@@ -147,4 +147,4 @@ exist_record(Table, Key) ->
 get_table_record(Table, Key) ->
     Arity = mnesia:table_info(Table, arity),
     RecordName = mnesia:table_info(Table, record_name),
-    list_to_tuple([RecordName, Key | lists:duplicate(Arity - 1, undefined)]).
+    list_to_tuple([RecordName, Key | lists:duplicate(Arity - 2, undefined)]).

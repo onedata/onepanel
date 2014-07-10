@@ -180,7 +180,7 @@ init([]) ->
 handle_call({set_callback, Callback}, _From, State) ->
     {reply, ok, State#?i_state{callback = Callback}};
 
-handle_call({install, Config, Callback}, _From, State#?i_state{stage = ?STAGE_INIT}) ->
+handle_call({install, Config, Callback}, _From, #?i_state{stage = ?STAGE_INIT} = State) ->
     NextState = get_next_state(State),
     gen_server:cast({global, ?INSTALL_SERVICE}, {execute, Config}),
     {reply, ok, NextState#?i_state{callback = Callback}};

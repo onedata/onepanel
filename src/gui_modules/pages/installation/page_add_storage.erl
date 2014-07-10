@@ -139,7 +139,7 @@ storage_paths_table_body() ->
         end, Session#?CONFIG.storage_paths)),
 
         Size = length(Session#?CONFIG.storage_paths),
-        put(?STORAGE_PATHS_SIZE, Size + 1),
+        gui_ctx:put(?STORAGE_PATHS_SIZE, Size + 1),
 
         case State of
             none -> Body;
@@ -249,7 +249,7 @@ check_storage_paths(Hosts, [StoragePath | StoragePaths]) ->
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->
-    Counter = get(?STORAGE_PATHS_SIZE),
+    Counter = gui_ctx:get(?STORAGE_PATHS_SIZE),
     gui_jq:focus(<<"storage_path_textbox_", (integer_to_binary(Counter))/binary>>),
     ok;
 
@@ -267,8 +267,8 @@ event({add_storage_path, BinaryId}) ->
                 _ ->
                     case installer_storage:check_storage_path_on_hosts(Workers, StoragePath) of
                         ok ->
-                            Counter = get(?STORAGE_PATHS_SIZE),
-                            put(?STORAGE_PATHS_SIZE, Counter + 1),
+                            Counter = gui_ctx:get(?STORAGE_PATHS_SIZE),
+                            gui_ctx:put(?STORAGE_PATHS_SIZE, Counter + 1),
                             gui_jq:hide(<<"error_message">>),
                             gui_jq:hide(<<"add_storage_path_th_", BinaryId/binary>>),
                             gui_jq:show(<<"delete_storage_path_th_", BinaryId/binary>>),
