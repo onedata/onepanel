@@ -27,9 +27,9 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case gui_ctx:get(?INSTALL_PAGE) of
+            case gui_ctx:get(?CURRENT_INSTALLATION_PAGE) of
                 undefined ->
-                    onepanel_gui_utils:change_page(?INSTALL_PAGE, "/hosts_selection");
+                    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION);
                 Page ->
                     gui_jq:redirect(Page)
             end,

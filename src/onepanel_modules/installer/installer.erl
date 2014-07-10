@@ -180,10 +180,13 @@ init([]) ->
 handle_call({set_callback, Callback}, _From, State) ->
     {reply, ok, State#?i_state{callback = Callback}};
 
-handle_call({install, Config, Callback}, _From, State) ->
+handle_call({install, Config, Callback}, _From, State#?i_state{stage = ?STAGE_INIT}) ->
     NextState = get_next_state(State),
     gen_server:cast({global, ?INSTALL_SERVICE}, {execute, Config}),
     {reply, ok, NextState#?i_state{callback = Callback}};
+
+handle_call({install, _, _}, _From, State) ->
+    {reply, {error, installation_already_in_progress}, State};
 
 handle_call(Request, _From, State) ->
     ?warning("[Installer] Wrong call: ~p", [Request]),
@@ -307,23 +310,13 @@ get_next_state(#?i_state{stage = ?STAGE_IDLE} = State) ->
     State;
 
 get_next_state(#?i_state{stage = ?STAGE_INIT} = State) ->
-    case get_stages() of
+    case get_flatten_stages() of
         [] -> State#?i_state{stage = ?STAGE_IDLE};
-        [{_, []} | _] -> State#?i_state{stage = ?STAGE_IDLE};
-        [{FirstStage, [FirstJob | _]} | _] -> State#?i_state{stage = FirstStage, job = FirstJob}
+        [{FirstStage, FirstJob} | _] -> State#?i_state{stage = FirstStage, job = FirstJob}
     end;
 
 get_next_state(#?i_state{stage = Stage, job = Job} = State) ->
-    Stages = get_stages(),
-    Jobs = proplists:get_value(Stage, Stages),
-    [_ | NextJobs] = lists:dropwhile(fun(J) -> J =/= Job end, Jobs),
-    case NextJobs of
-        [] ->
-            [_ | NextStages] = lists:dropwhile(fun({S, _}) -> S =/= Stage end, Stages),
-            case NextStages of
-                [] -> State#?i_state{stage = ?STAGE_IDLE, job = undefined};
-                [{NextStage, [FirstJob | _]} | _] -> State#?i_state{stage = NextStage, job = FirstJob}
-            end;
-        [NextJob | _] ->
-            State#?i_state{stage = Stage, job = NextJob}
+    case tl(lists:dropwhile(fun(FlattenStage) -> FlattenStage =/= {Stage, Job} end, get_flatten_stages())) of
+        [] -> State#?i_state{stage = ?STAGE_IDLE, job = undefined};
+        [{NextStage, NextJob} | _] -> State#?i_state{stage = NextStage, job = NextJob}
     end.

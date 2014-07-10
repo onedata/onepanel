@@ -10,8 +10,8 @@
 %% ===================================================================
 -author("Rafal Slota").
 
--ifndef(UPDATER_INTERNALS_HRL).
--define(UPDATER_INTERNALS_HRL, 1).
+-ifndef(ONEPANEL_UPDATER_INTERNALS_HRL).
+-define(ONEPANEL_UPDATER_INTERNALS_HRL, 1).
 
 -include("onepanel_modules/updater/state.hrl").
 

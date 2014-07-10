@@ -6,7 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc: This module contains n2o website code.
-%% This page is a starting point for VeilCluster nodes installation.
+%% This page is a starting point for registration in Global Registry.
 %% @end
 %% ===================================================================
 
@@ -29,9 +29,9 @@ main() ->
         true ->
             case gr_utils:get_provider_id() of
                 undefined ->
-                    case gui_ctx:get(?REGISTER_PAGE) of
+                    case gui_ctx:get(?CURRENT_REGISTRATION_PAGE) of
                         undefined ->
-                            onepanel_gui_utils:change_page(?REGISTER_PAGE, "/connection_check");
+                            onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_CONNECTION_CHECK);
                         Page ->
                             gui_jq:redirect(Page)
                     end,
@@ -73,7 +73,7 @@ body(ProviderId) ->
                     #panel{
                         style = <<"width: 50%; margin: 0 auto;">>,
                         body = #panel{
-                            class = <<"alert alert-success">>,
+                            class = <<"alert alert-info">>,
                             body = [
                                 #h3{
                                     body = <<"You are registered in Global Registry.">>
@@ -83,7 +83,8 @@ body(ProviderId) ->
                                 },
                                 #link{
                                     postback = to_main_page,
-                                    class = <<"btn btn-primary">>,
+                                    class = <<"btn btn-info">>,
+                                    style = <<"width: 80px; font-weight: bold;">>,
                                     body = <<"OK">>
                                 }
                             ]
@@ -108,7 +109,7 @@ event(init) ->
     ok;
 
 event(to_main_page) ->
-    gui_jq:redirect("/").
+    gui_jq:redirect(?PAGE_ROOT);
 
 event(terminate) ->
     ok.

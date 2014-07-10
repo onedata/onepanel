@@ -29,7 +29,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect(?INSTALL_PAGE, "/installation_success", "/hosts_selection") of
+            case onepanel_gui_utils:maybe_redirect(?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUCCESS, ?PAGE_INSTALLATION) of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
@@ -141,12 +141,12 @@ event(init) ->
     ok;
 
 event(to_main_page) ->
-    gui_ctx:put(?INSTALL_PAGE, undefined),
-    gui_jq:redirect("/");
+    gui_ctx:put(?CURRENT_INSTALLATION_PAGE, undefined),
+    gui_jq:redirect(?PAGE_ROOT);
 
 event(register) ->
-    gui_ctx:put(?INSTALL_PAGE, undefined),
-    gui_jq:redirect("/registration");
+    gui_ctx:put(?CURRENT_INSTALLATION_PAGE, undefined),
+    gui_jq:redirect(?PAGE_REGISTRATION);
 
 event(terminate) ->
     ok.

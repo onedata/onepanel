@@ -9,8 +9,8 @@
 %% @end
 %% ===================================================================
 
--ifndef(INSTALLER_INTERNALS_HRL).
--define(INSTALLER_INTERNALS_HRL, 1).
+-ifndef(ONEPANEL_INSTALLER_INTERNALS_HRL).
+-define(ONEPANEL_INSTALLER_INTERNALS_HRL, 1).
 
 %% ====================================================================
 %% Common macros

@@ -9,8 +9,8 @@
 %% @end
 %% ===================================================================
 
--ifndef(INSTALLER_STATE_HRL).
--define(INSTALLER_STATE_HRL, 1).
+-ifndef(ONEPANEL_INSTALLER_STATE_HRL).
+-define(ONEPANEL_INSTALLER_STATE_HRL, 1).
 
 %% Names of database records
 -define(GLOBAL_CONFIG_RECORD, global_configuration).
@@ -30,13 +30,13 @@
 %% * workers            - list of hostnames of machines where worker nodes are configured
 %% * dbs                - list of hostnames of machines where database nodes are configured
 %% * storage_paths      - list of paths to storages on every worker node
-%% * providerId         - provider ID returned from Global Registry
+%% * providerId         - provider ID returned from Global Registry after registration
 -record(?GLOBAL_CONFIG_RECORD, {id, main_ccm, ccms = [], workers = [], dbs = [], storage_paths = [], providerId}).
 
 %% Local config record describes host configuration that is:
 %% * host               - machine hostname as a primary key in database
-%% * gui_port           - GUI port that is visible by Global Registry
-%% * rest_port          - REST port that is visible by Global Registry
+%% * gui_port           - GUI port that is available for Global Registry
+%% * rest_port          - REST port that is available for Global Registry
 %% * open_files_limit   - limit of open files for Bigcouch database
 %% * processes_limit    - limit of processes for Bigcouch database
 -record(?LOCAL_CONFIG_RECORD, {host, gui_port, rest_port, open_files_limit, processes_limit}).

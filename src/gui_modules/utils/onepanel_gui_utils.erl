@@ -12,7 +12,7 @@
 
 -module(onepanel_gui_utils).
 -include("gui_modules/common.hrl").
--include("onepanel_modules/db/common.hrl").
+-include("onepanel_modules/installer/state.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 -export([top_menu/1, top_menu/2, logotype_footer/1]).
@@ -68,22 +68,22 @@ top_menu(ActiveTabID, SubMenuBody) ->
     MenuCaptions =
         [
             {installation_tab, #li{body = [
-                #link{style = <<"padding: 18px;">>, url = <<"/installation">>, body = <<"Installation">>}
+                #link{style = <<"padding: 18px;">>, url = ?PAGE_INSTALLATION, body = <<"Installation">>}
             ]}},
             {registration_tab, #li{body = [
-                #link{style = <<"padding: 18px;">>, url = <<"/registration">>, body = <<"Registration">>}
+                #link{style = <<"padding: 18px;">>, url = ?PAGE_REGISTRATION, body = <<"Registration">>}
             ]}}
         ],
 
     MenuIcons =
         [
             {manage_account_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Manage account">>,
-                url = <<"/manage_account">>, body = [gui_ctx:get_user_id(), #span{class = <<"fui-user">>,
+                url = ?PAGE_MANAGE_ACCOUNT, body = [gui_ctx:get_user_id(), #span{class = <<"fui-user">>,
                     style = <<"margin-left: 10px;">>}]}}},
             {about_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"About">>,
-                url = <<"/about">>, body = #span{class = <<"fui-info">>}}}},
+                url = ?PAGE_ABOUT, body = #span{class = <<"fui-info">>}}}},
             {logout_button, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Log out">>,
-                url = <<"/logout">>, body = #span{class = <<"fui-power">>}}}}
+                url = ?PAGE_LOGOUT, body = #span{class = <<"fui-power">>}}}}
         ],
 
     MenuCaptionsProcessed = lists:map(

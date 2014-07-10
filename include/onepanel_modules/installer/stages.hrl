@@ -9,8 +9,8 @@
 %% @end
 %% ===================================================================
 
--ifndef(INSTALLER_STAGES_HRL).
--define(INSTALLER_STAGES_HRL, 1).
+-ifndef(ONEPANEL_INSTALLER_STAGES_HRL).
+-define(ONEPANEL_INSTALLER_STAGES_HRL, 1).
 
 %% Callback events
 -define(EVENT_ERROR, error).
@@ -36,7 +36,8 @@
     {?STAGE_DB, [?JOB_INSTALL, ?JOB_START]},
     {?STAGE_CCM, [?JOB_INSTALL, ?JOB_START]},
     {?STAGE_STORAGE, [?JOB_ADD_STORAGE_PATHS]},
-    {?STAGE_WORKER, [?JOB_INSTALL, ?JOB_START]}
+    {?STAGE_WORKER, [?JOB_INSTALL, ?JOB_START]},
+    {?STAGE_FINAL, [?JOB_FINALIZE_INSTALLATION]}
 ]).
 
 -endif.

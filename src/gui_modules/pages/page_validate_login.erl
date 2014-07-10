@@ -46,7 +46,7 @@ title() -> <<"Login validation">>.
 %% ====================================================================
 body() ->
     case gui_ctx:user_logged_in() of
-        true -> gui_jq:redirect(<<"/">>);
+        true -> gui_jq:redirect(?PAGE_ROOT);
         false ->
             {ok, Params} = gui_ctx:form_params(),
             Username = proplists:get_value(<<"username">>, Params),
@@ -59,7 +59,7 @@ body() ->
                     gui_jq:redirect_from_login();
                 {error, Reason} ->
                     ?error("Invalid login attemp, user ~p: ~p", [Username, Reason]),
-                    gui_jq:redirect(<<"/login?id=", (gui_str:to_binary(Reason))/binary>>)
+                    gui_jq:redirect(<<(?PAGE_LOGIN)/binary,"?id=", (gui_str:to_binary(Reason))/binary>>)
             end
     end.
 

@@ -6,19 +6,17 @@
 %% @end
 %% ===================================================================
 %% @doc: This module contains n2o website code.
-%% This page allows to set system ulimits in third step of VeilCluster
+%% This page allows to check whether all VeilCluster ports are available
+%% for Global Registry.
 %% nodes installation.
 %% @end
 %% ===================================================================
 
--module(page_ulimits).
+-module(page_ports_check).
 -export([main/0, event/1]).
 
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/installer/state.hrl").
--include("onepanel_modules/installer/internals.hrl").
-
--define(CONFIG, ?GLOBAL_CONFIG_RECORD).
 
 %% ====================================================================
 %% API functions
@@ -33,7 +31,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect(?CURRENT_INSTALLATION_PAGE, ?PAGE_ULIMITS, ?PAGE_INSTALLATION) of
+            case onepanel_gui_utils:maybe_redirect(?CURRENT_INSTALLATION_PAGE, ?PAGE_PORTS_CHECK, ?PAGE_REGISTRATION) of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
@@ -52,7 +50,7 @@ main() ->
     Result :: binary().
 %% ====================================================================
 title() ->
-    <<"Ulimits">>.
+    <<"Ports check">>.
 
 
 %% body/0
@@ -62,21 +60,23 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Disabled = case installer_utils:get_workers() of
-                   [] -> undefined;
-                   _ -> true
-               end,
-    #?CONFIG{ccms = CCMs, workers = Workers, dbs = Dbs} = gui_ctx:get(?CONFIG_ID),
-    Hosts = lists:usort(CCMs ++ Workers ++ Dbs),
+    ControlPanelHosts = case gr_utils:get_control_panel_hosts() of
+                            {ok, Hosts} -> Hosts;
+                            _ -> []
+                        end,
+    {DefaultGuiPort, DefaultRestPort} = case gr_utils:get_ports_to_check() of
+                                            {ok, [{"gui", GuiPort}, {"rest", RestPort}]} -> {GuiPort, RestPort};
+                                            _ -> {0, 0}
+                                        end,
     {TextboxIds, _} = lists:foldl(fun(_, {Ids, Id}) ->
         HostId = integer_to_binary(Id),
-        {[<<"open_files_textbox_", HostId/binary>>, <<"processes_textbox_", HostId/binary>> | Ids], Id + 1}
-    end, {[], 1}, Hosts),
+        {[<<"gui_port_textbox_", HostId/binary>>, <<"rest_port_textbox_", HostId/binary>> | Ids], Id + 1}
+    end, {[], 1}, ControlPanelHosts),
 
     #panel{
         style = <<"position: relative;">>,
         body = [
-            onepanel_gui_utils:top_menu(installation_tab),
+            onepanel_gui_utils:top_menu(registration_tab),
 
             #panel{
                 id = <<"error_message">>,
@@ -88,12 +88,12 @@ body() ->
                 body = [
                     #h6{
                         style = <<"font-size: 18px;">>,
-                        body = <<"Step 3: Set system limits.">>
+                        body = <<"Step 2: Check VeilCluster ports availability for Global Registry.">>
                     },
                     #table{
                         class = <<"table table-bordered">>,
                         style = <<"width: 50%; margin: 0 auto; margin-top: 20px;">>,
-                        body = ulimits_table_body(Hosts, Disabled)
+                        body = ports_table_body(ControlPanelHosts, DefaultGuiPort, DefaultRestPort)
                     },
                     #panel{
                         style = <<"width: 50%; margin: 0 auto; margin-top: 30px; margin-bottom: 30px;">>,
@@ -107,7 +107,7 @@ body() ->
                             },
                             #button{
                                 id = <<"next_button">>,
-                                actions = gui_jq:form_submit_action(<<"next_button">>, {set_ulimits, Hosts, Disabled}, TextboxIds),
+                                actions = gui_jq:form_submit_action(<<"next_button">>, {check_ports, Hosts}, TextboxIds),
                                 class = <<"btn btn-inverse btn-small">>,
                                 style = <<"float: right; width: 80px; font-weight: bold;">>,
                                 body = <<"Next">>
@@ -120,13 +120,13 @@ body() ->
     }.
 
 
-%% ulimits_table_body/2
+%% ports_table_body/3
 %% ====================================================================
 %% @doc Renders system limits table body.
--spec ulimits_table_body(Hosts :: [string()], Disabled :: true | undefined) -> Result
+-spec ports_table_body(Hosts :: [string()], DefaultGuiPort :: integer(), DefaultRestPort :: integer()) -> Result
     when Result :: [#tr{}].
 %% ====================================================================
-ulimits_table_body(Hosts, Disabled) ->
+ulimits_table_body(Hosts, DefaultGuiPort, DefaultRestPort) ->
     ColumnStyle = <<"text-align: center; vertical-align: inherit;">>,
     Header = #tr{
         cells = [
@@ -135,11 +135,11 @@ ulimits_table_body(Hosts, Disabled) ->
                 style = ColumnStyle
             },
             #th{
-                body = <<"Open files limit">>,
+                body = <<"GUI port">>,
                 style = ColumnStyle
             },
             #th{
-                body = <<"Processes limit">>,
+                body = <<"REST port">>,
                 style = ColumnStyle
             }
         ]
@@ -147,27 +147,27 @@ ulimits_table_body(Hosts, Disabled) ->
     try
         Rows = lists:map(fun({Host, Id}) ->
             HostId = integer_to_binary(Id),
-            {OpenFilesLimit, ProcessesLimit} =
+            {GuiPort, RestPort} =
                 case dao:get_record(?LOCAL_CONFIG_TABLE, Host) of
-                    {ok, #?LOCAL_CONFIG_RECORD{open_files_limit = undefined, processes_limit = undefined}} ->
-                        {?DEFAULT_OPEN_FILES, ?DEFAULT_PROCESSES};
-                    {ok, #?LOCAL_CONFIG_RECORD{open_files_limit = Limit, processes_limit = undefined}} ->
-                        {Limit, ?DEFAULT_PROCESSES};
-                    {ok, #?LOCAL_CONFIG_RECORD{open_files_limit = undefined, processes_limit = Limit}} ->
-                        {?DEFAULT_OPEN_FILES, Limit};
-                    {ok, #?LOCAL_CONFIG_RECORD{open_files_limit = Limit1, processes_limit = Limit2}} ->
-                        {Limit1, Limit2};
+                    {ok, #?LOCAL_CONFIG_RECORD{gui_port = undefined, rest_port = undefined}} ->
+                        {DefaultGuiPort, DefaultRestPort};
+                    {ok, #?LOCAL_CONFIG_RECORD{gui_port = Port, rest_port = undefined}} ->
+                        {Port, DefaultRestPort};
+                    {ok, #?LOCAL_CONFIG_RECORD{gui_port = undefined, rest_port = Port}} ->
+                        {DefaultGuiPort, Port};
+                    {ok, #?LOCAL_CONFIG_RECORD{gui_port = Port1, rest_port = Port2}} ->
+                        {Port1, Port2};
                     _ ->
-                        {?DEFAULT_OPEN_FILES, ?DEFAULT_PROCESSES}
+                        {DefaultGuiPort, DefaultRestPort}
                 end,
             Textboxes = [
                 {
-                    <<"open_files_textbox_", HostId/binary>>,
-                    OpenFilesLimit
+                    <<"gui_port_textbox_">>,
+                    GuiPort
                 },
                 {
-                    <<"processes_textbox_", HostId/binary>>,
-                    ProcessesLimit
+                    <<"rest_port_textbox_">>,
+                    RestPort
                 }
             ],
 
@@ -177,15 +177,14 @@ ulimits_table_body(Hosts, Disabled) ->
                     #td{
                         body = <<"<b>", (list_to_binary(Host))/binary, "</b>">>,
                         style = ColumnStyle
-                    } | lists:map(fun({Id, Text}) ->
+                    } | lists:map(fun({Prefix, Port}) ->
                         #td{
                             style = ColumnStyle,
                             body = #textbox{
-                                id = Id,
+                                id = <<Prefix/binary, HostId/binary>>,
                                 style = <<"text-align: center;">>,
                                 class = <<"span1">>,
-                                value = list_to_binary(Text),
-                                disabled = Disabled
+                                value = integer_to_binary(Port)
                             }
                         }
                     end, Textboxes)
@@ -199,15 +198,15 @@ ulimits_table_body(Hosts, Disabled) ->
     end.
 
 
-%% validate_limit/1
+%% validate_port/1
 %% ====================================================================
-%% @doc Checks whether given limit is a positive number.
--spec validate_limit(Limit :: string()) -> Result
+%% @doc Checks whether given port is a positive number.
+-spec validate_port(Port :: string()) -> Result
     when Result :: true | false.
 %% ====================================================================
-validate_limit(Limit) ->
+validate_port(Port) ->
     Regex = "[1-9][0-9]*",
-    case re:run(Limit, Regex) of
+    case re:run(Port, Regex) of
         {match, _} -> true;
         _ -> false
     end.
@@ -227,52 +226,37 @@ event(init) ->
     ok;
 
 event(back) ->
-    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_MAIN_CCM_SELECTION);
+    onepanel_gui_utils:change_page(?CURRENT, ?PAGE_CONNECTION_CHECK);
 
-event({set_ulimits, _, true}) ->
-    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_ADD_STORAGE);
-
-event({set_ulimits, Hosts, _}) ->
-    case lists:foldl(fun(Host, {Status, Id}) ->
+event({check_ports, Hosts}) ->
+    case lists:foldl(fun(Host, {PortsErrors, Id}) ->
         HostId = integer_to_binary(Id),
-        OpenFilesId = <<"open_files_textbox_", HostId/binary>>,
-        ProcessesId = <<"processes_textbox_", HostId/binary>>,
-        OpenFilesLimit = gui_str:to_list(gui_ctx:postback_param(OpenFilesId)),
-        ProcessesLimit = gui_str:to_list(gui_ctx:postback_param(ProcessesId)),
+        Textboxes = [
+            {<<"gui_port_textbox_", HostId/binary>>, "gui"},
+            {<<"rest_port_textbox_", HostId/binary>>, "rest"}
+        ],
         {
-            case validate_limit(OpenFilesLimit) of
-                true ->
-                    gui_jq:css(OpenFilesId, <<"border-color">>, <<"green">>),
-                    dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{open_files_limit, OpenFilesLimit}]),
-                    case validate_limit(ProcessesLimit) of
-                        true ->
-                            gui_jq:css(ProcessesId, <<"border-color">>, <<"green">>),
-                            rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_ulimits,
-                                [list_to_integer(OpenFilesLimit), list_to_integer(ProcessesLimit)]),
-                            Status;
-                        _ ->
-                            gui_jq:css(ProcessesId, <<"border-color">>, <<"red">>),
-                            error
-                    end;
-                _ ->
-                    gui_jq:css(OpenFilesId, <<"border-color">>, <<"red">>),
-                    case validate_limit(ProcessesLimit) of
-                        true ->
-                            gui_jq:css(ProcessesId, <<"border-color">>, <<"green">>),
-                            dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{processes_limit, ProcessesLimit}]),
-                            error;
-                        _ ->
-                            gui_jq:css(ProcessesId, <<"border-color">>, <<"red">>),
-                            error
-                    end
-            end,
+            lists:filter(fun({Id, Type}) ->
+                Port = gui_str:to_list(gui_ctx:postback_param(Id)),
+                try
+                    true = validate_port(Port),
+                    ok = gr_adapter:check_port(Host, list_to_integer(Port), Type),
+                    gui_jq:css(Id, <<"border-color">>, <<"green">>),
+                    false
+                catch
+                    _:_ ->
+                        gui_jq:css(Id, <<"border-color">>, <<"red">>),
+                        true
+                end
+            end, Textboxes) ++ PortsErrors,
             Id + 1
         }
-    end, {ok, 1}, Hosts) of
-        {ok, _} ->
-            onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_ADD_STORAGE);
+    end, {[], 1}, Hosts) of
+        {[], _} ->
+            onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_REGISTRATION_SUCCESS);
         _ ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"System limit should be a positive number.">>)
+            onepanel_gui_utils:message(<<"error_message">>, <<"Some ports are not available for Global Registry.
+            Please change them and try again.">>)
     end;
 
 event(terminate) ->

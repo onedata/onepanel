@@ -10,8 +10,8 @@
 %% @end
 %% ===================================================================
 
--ifndef(USER_LOGIC_HRL).
--define(USER_LOGIC_HRL, 1).
+-ifndef(ONEPANEL_USER_LOGIC_HRL).
+-define(ONEPANEL_USER_LOGIC_HRL, 1).
 
 %% Name of database records
 -define(USER_RECORD, user).

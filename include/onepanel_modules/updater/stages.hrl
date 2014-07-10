@@ -10,8 +10,8 @@
 %% ===================================================================
 -author("Rafal Slota").
 
--ifndef(UPDATER_STAGES_HRL).
--define(UPDATER_STAGES_HRL, 1).
+-ifndef(ONEPANEL_UPDATER_STAGES_HRL).
+-define(ONEPANEL_UPDATER_STAGES_HRL, 1).
 
 %% Update stages
 -define(STAGE_IDLE, idle).

@@ -17,6 +17,8 @@
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/installer/state.hrl").
 
+%% Number of added storage paths
+-define(STORAGE_PATHS_SIZE, storage_paths_size).
 -define(CONFIG, ?GLOBAL_CONFIG_RECORD).
 
 %% ====================================================================
@@ -32,7 +34,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect(?INSTALL_PAGE, "/add_storage", "/hosts_selection") of
+            case onepanel_gui_utils:maybe_redirect(?CURRENT_INSTALLATION_PAGE, ?PAGE_ADD_STORAGE, ?PAGE_INSTALLATION) of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
@@ -137,7 +139,7 @@ storage_paths_table_body() ->
         end, Session#?CONFIG.storage_paths)),
 
         Size = length(Session#?CONFIG.storage_paths),
-        gui_ctx:put(?STORAGE_PATHS_SIZE, Size + 1),
+        put(?STORAGE_PATHS_SIZE, Size + 1),
 
         case State of
             none -> Body;
@@ -247,12 +249,12 @@ check_storage_paths(Hosts, [StoragePath | StoragePaths]) ->
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->
-    Counter = gui_ctx:get(?STORAGE_PATHS_SIZE),
+    Counter = get(?STORAGE_PATHS_SIZE),
     gui_jq:focus(<<"storage_path_textbox_", (integer_to_binary(Counter))/binary>>),
     ok;
 
 event(back) ->
-    onepanel_gui_utils:change_page(?INSTALL_PAGE, "/ulimits");
+    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_ULIMITS);
 
 event({add_storage_path, BinaryId}) ->
     #?CONFIG{workers = Workers, storage_paths = StoragePaths} = Config = gui_ctx:get(?CONFIG_ID),
@@ -265,8 +267,8 @@ event({add_storage_path, BinaryId}) ->
                 _ ->
                     case installer_storage:check_storage_path_on_hosts(Workers, StoragePath) of
                         ok ->
-                            Counter = gui_ctx:get(?STORAGE_PATHS_SIZE),
-                            gui_ctx:put(?STORAGE_PATHS_SIZE, Counter + 1),
+                            Counter = get(?STORAGE_PATHS_SIZE),
+                            put(?STORAGE_PATHS_SIZE, Counter + 1),
                             gui_jq:hide(<<"error_message">>),
                             gui_jq:hide(<<"add_storage_path_th_", BinaryId/binary>>),
                             gui_jq:show(<<"delete_storage_path_th_", BinaryId/binary>>),
@@ -298,7 +300,7 @@ event(next) ->
         _ ->
             case check_storage_paths(Workers, StoragePaths) of
                 ok ->
-                    onepanel_gui_utils:change_page(?INSTALL_PAGE, "/installation_summary");
+                    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUMMARY);
                 _ ->
                     error
             end

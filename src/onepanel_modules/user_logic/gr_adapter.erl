@@ -109,8 +109,8 @@ check_ip_address() ->
 
 %% check_port/0
 %% ====================================================================
-%% @doc Checks port availability on host, that is that port is visible
-%% for Global Registry.
+%% @doc Checks VeilCluster port availability for Global Registry on
+%% given host.
 %% @end
 -spec check_port(Host :: string(), Port :: integer(), Type :: string()) -> Result when
     Result :: ok | {error, Reason :: term()}.

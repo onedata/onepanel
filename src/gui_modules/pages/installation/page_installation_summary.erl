@@ -38,7 +38,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect(?INSTALL_PAGE, "/installation_summary", "/hosts_selection") of
+            case onepanel_gui_utils:maybe_redirect(?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUMMARY, ?PAGE_INSTALLATION) of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
@@ -290,7 +290,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
             finish ->
                 gui_jq:set_text(<<"progress_text">>, <<"Done.">>),
                 gui_jq:set_width(<<"bar">>, <<"100%">>),
-                onepanel_gui_utils:change_page(?INSTALL_PAGE, "/installation_success"),
+                onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUCCESS),
                 gui_comet:flush(),
                 comet_loop(State#?STATE{step = undefined});
 
@@ -335,6 +335,7 @@ get_info_message({?STAGE_CCM, ?JOB_START}) -> <<"Starting Central Cluster Manage
 get_info_message({?STAGE_WORKER, ?JOB_INSTALL}) -> <<"Installing worker nodes...">>;
 get_info_message({?STAGE_WORKER, ?JOB_START}) -> <<"Starting worker nodes...">>;
 get_info_message({?STAGE_STORAGE, ?JOB_ADD_STORAGE_PATHS}) -> <<"Adding storage paths...">>;
+get_info_message({?STAGE_FINAL, ?JOB_FINALIZE_INSTALLATION}) -> <<"Finalizing installation...">>;
 get_info_message(_) -> <<"">>.
 
 
@@ -376,14 +377,14 @@ event(init) ->
     put(comet_pid, Pid);
 
 event(back) ->
-    onepanel_gui_utils:change_page(?INSTALL_PAGE, "/add_storage");
+    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_ADD_STORAGE);
 
 event(install) ->
     ToInstall = to_install(),
     case ToInstall#?CONFIG.workers of
         [] ->
             onepanel_gui_utils:message(<<"error_message">>, <<"Nothing to install.">>),
-            gui_ctx:put(?INSTALL_PAGE, "/hosts_selection");
+            gui_ctx:put(?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION);
         _ ->
             Pid = get(comet_pid),
             Pid ! {init, length(installer:get_flatten_stages()), <<"">>},

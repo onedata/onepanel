@@ -10,8 +10,8 @@
 %% @end
 %% ===================================================================
 
--ifndef(REGISTERED_NAMES_HRL).
--define(REGISTERED_NAMES_HRL, 1).
+-ifndef(ONEPANEL_REGISTERED_NAMES_HRL).
+-define(ONEPANEL_REGISTERED_NAMES_HRL, 1).
 
 %% Name of the application.
 -define(APP_NAME, onepanel).

@@ -32,7 +32,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect(?INSTALL_PAGE, "/hosts_selection", "/hosts_selection") of
+            case onepanel_gui_utils:maybe_redirect(?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION, ?PAGE_INSTALLATION) of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
@@ -285,12 +285,12 @@ event(next) ->
                     case CCMs of
                         [NewMainCCM | _] ->
                             gui_ctx:put(?CONFIG_ID, Config#?CONFIG{main_ccm = NewMainCCM}),
-                            onepanel_gui_utils:change_page(?INSTALL_PAGE, "/main_ccm_selection");
+                            onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_MAIN_CCM_SELECTION);
                         _ ->
                             onepanel_gui_utils:message(<<"error_message">>, <<"Please select at least one host for CCM node.">>)
                     end;
                 _ ->
-                    onepanel_gui_utils:change_page(?INSTALL_PAGE, "/main_ccm_selection")
+                    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_MAIN_CCM_SELECTION)
             end
     end;
 

@@ -16,20 +16,21 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([get_ports_to_check/1, get_control_panel_hosts/1, get_provider_id/0]).
+-export([get_ports_to_check/0, get_control_panel_hosts/0, get_provider_id/0]).
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
 
-%% get_ports_to_check/1
+%% get_ports_to_check/0
 %% ====================================================================
 %% @doc Returns default veilcluster ports that will be checked by Global Registry
--spec get_ports_to_check(MainCCM :: string()) -> Result when
-    Result :: {ok, [{Type :: string(), Port :: integer()}]} | {error, Reason :: term()}.
+-spec get_ports_to_check() -> Result when
+    Result :: {ok, Ports :: [{Type :: string(), Port :: integer()}]} | {error, Reason :: term()}.
 %% ====================================================================
-get_ports_to_check(MainCCM) ->
+get_ports_to_check() ->
     try
+        {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
         Node = list_to_atom("ccm@" ++ MainCCM),
         {ok, GuiPort} = rpc:call(Node, application, get_env, [veil_cluster_node, control_panel_port]),
         {ok, RestPort} = rpc:call(Node, application, get_env, [veil_cluster_node, rest_port]),
@@ -41,14 +42,15 @@ get_ports_to_check(MainCCM) ->
     end.
 
 
-%% get_control_panel_hosts/1
+%% get_control_panel_hosts/0
 %% ====================================================================
 %% @doc Returns list of control panel hosts
--spec get_control_panel_hosts(MainCCM :: string()) -> Result when
+-spec get_control_panel_hosts() -> Result when
     Result :: {ok, Hosts :: [string()]} | {error, Reason :: term()}.
 %% ====================================================================
-get_control_panel_hosts(MainCCM) ->
+get_control_panel_hosts() ->
     try
+        {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
         Node = list_to_atom("ccm@" ++ MainCCM),
         {Workers, _} = rpc:call(Node, gen_server, call, [{global, central_cluster_manager}, get_workers, 1000]),
         ControlPanelHosts = lists:foldl(fun

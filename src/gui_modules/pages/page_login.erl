@@ -46,7 +46,7 @@ title() ->
 %% ====================================================================
 body() ->
     case gui_ctx:user_logged_in() of
-        true -> gui_jq:redirect(<<"/">>);
+        true -> gui_jq:redirect(?PAGE_ROOT);
         false ->
             SourcePage = gui_ctx:url_param(<<"x">>),
 
@@ -83,8 +83,8 @@ body() ->
                                 id = <<"login_form">>,
                                 method = <<"POST">>,
                                 action = case SourcePage of
-                                             undefined -> <<"/validate_login">>;
-                                             _ -> <<"/validate_login?x=", SourcePage/binary>>
+                                             undefined -> ?PAGE_VALIDATE_LOGIN;
+                                             _ -> <<(?PAGE_VALIDATE_LOGIN)/binary, "?x=", SourcePage/binary>>
                                          end,
                                 style = <<"width: 50%; margin: 0 auto; padding-top: 20px; float: center">>,
                                 body = [
@@ -126,6 +126,7 @@ body() ->
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->
+    gui_jq:focus(<<"username">>),
     gui_jq:bind_enter_to_change_focus(<<"username">>, <<"password">>),
     gui_jq:bind_enter_to_submit_button(<<"password">>, <<"login_button">>),
     ok;

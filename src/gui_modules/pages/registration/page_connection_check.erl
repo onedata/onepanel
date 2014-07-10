@@ -6,7 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc: This module contains n2o website code.
-%% This page is a starting point for VeilCluster nodes installation.
+%% This page allows to check connection to Global Registry.
 %% @end
 %% ===================================================================
 
@@ -27,7 +27,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect(?REGISTER_PAGE, "/connection_check", "/connection_check") of
+            case onepanel_gui_utils:maybe_redirect(?CURRENT_REGISTRATION_PAGE, ?PAGE_CONNECTION_CHECK, ?PAGE_REGISTRATION) of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
@@ -68,24 +68,45 @@ body() ->
             },
             #panel{
                 style = <<"margin-top: 150px; text-align: center;">>,
-                body = [
-                    #h6{
-                        style = <<"font-size: 18px;">>,
-                        body = <<"Step 1: Check your connection to Global Registry.">>
-                    }
-                    #panel{
-                        style = <<"width: 50%; margin: 0 auto; margin-top: 30px; margin-bottom: 30px;">>,
-                        body = [
-                            #button{
-                                id = <<"next_button">>,
-                                postback = check_connection,
-                                class = <<"btn btn-inverse btn-small">>,
-                                style = <<"float: right; width: 80px; font-weight: bold;">>,
-                                body = <<"Next">>
-                            }
-                        ]
-                    }
-                ]
+                body = case installer_utils:get_workers() of
+                           [] ->
+                               #panel{
+                                   style = <<"width: 50%; margin: 0 auto;">>,
+                                   class = <<"alert alert-info">>,
+                                   body = [
+                                       #h3{
+                                           body = <<"Software is not installed.">>
+                                       },
+                                       #p{
+                                           body = <<"Please complete installation process in order to register in Global Registry as a provider.">>
+                                       },
+                                       #link{
+                                           postback = to_main_page,
+                                           class = <<"btn btn-info">>,
+                                           style = <<"width: 80px; font-weight: bold;">>,
+                                           body = <<"OK">>
+                                       }
+                                   ]
+                               };
+                           _ ->
+                               [
+                                   #h6{
+                                       style = <<"font-size: 18px;">>,
+                                       body = <<"Step 1: Check your connection to Global Registry.">>
+                                   },
+                                   #panel{
+                                       style = <<"margin-top: 30px; margin-bottom: 30px;">>,
+                                       body = #button{
+                                           id = <<"next_button">>,
+                                           postback = next,
+                                           class = <<"btn btn-inverse btn-small">>,
+                                           style = <<"width: 80px; font-weight: bold;">>,
+                                           body = <<"Next">>
+                                       }
+                                   }
+                               ]
+                       end
+
             }
         ] ++ onepanel_gui_utils:logotype_footer(120)
     }.
@@ -101,11 +122,15 @@ body() ->
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->
+    gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),
     ok;
 
-event(check_connection) ->
+event(to_main_page) ->
+    gui_jq:redirect(?PAGE_ROOT);
+
+event(next) ->
     case gr_adapter:check_ip_address() of
-        {ok, _} -> onepanel_gui_utils:change_page(?REGISTER_PAGE, "/ports_check");
+        {ok, _} -> onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_PORTS_CHECK);
         _ -> onepanel_gui_utils:message(<<"error_message">>, <<"Cannot connect to Global Registry.<br>
         Please check your network configuration or try again later.">>)
     end;
