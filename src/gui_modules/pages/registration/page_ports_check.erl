@@ -92,7 +92,7 @@ body() ->
                     },
                     #table{
                         class = <<"table table-bordered">>,
-                        style = <<"width: 50%; margin: 0 auto; margin-top: 20px;">>,
+                        style = <<"width: 50%; margin: 0 auto; margin-top: 30px;">>,
                         body = ports_table_body(ControlPanelHosts, DefaultGuiPort, DefaultRestPort)
                     },
                     #panel{

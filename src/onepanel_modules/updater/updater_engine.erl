@@ -106,7 +106,7 @@ handle_error(Pid, Obj, Reason, #?u_state{error_counter = EC, objects = Objects,
     stage = Stage, job = Job, action_type = ActionType} = State) ->
     ErrorCount = maps:get(Obj, EC),
     if
-        ErrorCount < 3 ->
+        ErrorCount < 3 andalso ActionType =/= rollback ->
             {NewPid, Obj} = dispatch_object(Obj, State),
             State#?u_state{objects = maps:put(NewPid, Obj, Objects)};
         true ->

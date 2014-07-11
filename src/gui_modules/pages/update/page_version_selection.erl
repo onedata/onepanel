@@ -10,7 +10,7 @@
 %% @end
 %% ===================================================================
 
--module(page_choose_version).
+-module(page_version_selection).
 -export([main/0, event/1]).
 
 -include("gui_modules/common.hrl").
@@ -18,9 +18,6 @@
 -include("onepanel_modules/installer/internals.hrl").
 -include("onepanel_modules/updater/common.hrl").
 -include_lib("ctool/include/logging.hrl").
-
-%% Currently selected version's checkbox ID
--define(CHOSEN_VERSION_ID, chosen_version_id).
 
 %% ====================================================================
 %% API functions
@@ -35,7 +32,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect(?CURRENT_UPDATE_PAGE, ?PAGE_CHOOSE_VERSION, ?PAGE_UPDATE) of
+            case onepanel_gui_utils:maybe_redirect(?CURRENT_UPDATE_PAGE, ?PAGE_VERSION_SELECTION, ?PAGE_UPDATE) of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
@@ -54,7 +51,7 @@ main() ->
     Result :: binary().
 %% ====================================================================
 title() ->
-    <<"Choose version">>.
+    <<"Select version">>.
 
 
 %% body/0
@@ -111,10 +108,10 @@ body() ->
                                                       <<"Current software version: <b>", (list_to_binary(Version))/binary, "</b>">>
                                               end
                                    },
-                                   #table{
-                                       class = <<"table table-bordered">>,
-                                       style = <<"width: 300px; margin: 0 auto; margin-top: 30px;">>,
-                                       body = versions_table_body()
+                                   #panel{
+                                       class = <<"btn-group">>,
+                                       style = <<"margin: 12px 15px;">>,
+                                       body = version_body()
                                    },
                                    #panel{
                                        style = <<"margin-top: 30px; margin-bottom: 30px;">>,
@@ -134,85 +131,88 @@ body() ->
     }.
 
 
-%% versions_table_body/0
+%% version_body/0
 %% ====================================================================
-%% @doc Renders versions table body.
--spec versions_table_body() -> Result when
-    Result :: [#tr{}].
+%% @doc Renders software version dropdown body and highlights current choice.
+-spec version_body() -> Result when
+    Result :: [term()].
 %% ====================================================================
-versions_table_body() ->
-    VersionColumnStyle = <<"text-align: center; vertical-align: inherit; width: 80%;">>,
-    CheckboxColumnStyle = <<"text-align: center; vertical-align: inherit; width: 20%;">>,
-
-    Header = #tr{
-        cells = [
-            #th{
-                body = <<"Available versions">>,
-                style = VersionColumnStyle
-            },
-            #th{
-                body = <<"">>,
-                style = CheckboxColumnStyle
-            }
-        ]
-    },
-
+version_body() ->
     try
-        GetVersionName = fun(#version{major = Major, minor = Minor, patch = Patch}) ->
-            <<(integer_to_binary(Major))/binary, ".", (integer_to_binary(Minor))/binary, ".", (integer_to_binary(Patch))/binary>>
-        end,
-
-        GetVersionId = fun(#version{major = Major, minor = Minor, patch = Patch}) ->
-            <<"version_", (integer_to_binary(Major))/binary, "_", (integer_to_binary(Minor))/binary, "_", (integer_to_binary(Patch))/binary>>
-        end,
-
         AvailableVersions = get_available_versions(),
         SortedAvailableVersions = sort_versions(AvailableVersions),
 
-        ChosenVersionId = case gui_ctx:get(?CHOSEN_VERSION_ID) of
-                              undefined ->
-                                  gui_ctx:put(?CHOSEN_VERSION, hd(SortedAvailableVersions)),
-                                  gui_ctx:put(?CHOSEN_VERSION_ID, GetVersionId(hd(SortedAvailableVersions))),
-                                  GetVersionId(hd(SortedAvailableVersions));
-                              Version -> Version
-                          end,
+        ChosenVersion = case gui_ctx:get(?CHOSEN_VERSION) of
+                            undefined -> hd(SortedAvailableVersions);
+                            Version -> Version
+                        end,
 
-        Rows = lists:map(fun(Version) ->
-            VersionId = GetVersionId(Version),
-            #tr{cells = [
-                #td{
-                    body = <<"<b>", (GetVersionName(Version))/binary, "</b>">>,
-                    style = VersionColumnStyle
-                },
-                #td{
-                    style = CheckboxColumnStyle,
-                    body = #label{
-                        id = VersionId,
-                        class = <<"checkbox no-label">>,
-                        for = VersionId,
-                        style = <<"width: 20px; margin: 0 auto;">>,
-                        actions = gui_jq:postback_action(VersionId, {version_toggled, Version, VersionId}),
-                        body = [
-                            #span{
-                                class = <<"icons">>
-                            },
-                            #custom_checkbox{
-                                id = VersionId,
-                                data_fields = [{<<"data-toggle">>, <<"checkbox">>}],
-                                value = <<"">>,
-                                checked = ChosenVersionId =:= VersionId
-                            }
-                        ]
+        [
+            <<"<i class=\"dropdown-arrow dropdown-arrow-inverse\"></i>">>,
+            #button{
+                id = <<"version_button">>,
+                class = <<"btn btn-inverse btn-small dropdown-toggle">>,
+                style = <<"width: 180px;">>,
+                data_fields = [{<<"data-toggle">>, <<"dropdown">>}],
+                body = [
+                    #span{
+                        id = <<"version_label">>,
+                        class = <<"filter-option pull-left">>,
+                        body = <<"Version: <b>", (get_version_name(ChosenVersion))/binary, "</b>">>
+                    },
+                    #span{
+                        class = <<"caret pull-right">>
                     }
-                }
-            ]
+                ]
+            },
+            #list{
+                id = <<"version_dropdown">>,
+                class = <<"dropdown-menu dropdown-inverse">>,
+                style = <<"overflow-y: auto; max-height: 200px;">>,
+                body = version_list_body(ChosenVersion, lists:reverse(SortedAvailableVersions))
             }
-        end, SortedAvailableVersions),
-
-        [Header | Rows]
+        ]
     catch
-        _:_ -> [Header]
+        _:_ -> []
     end.
+
+
+%% version_list_body/2
+%% ====================================================================
+%% @doc Renders software versions list body.
+-spec version_list_body(MainCCM :: string(), CCMs :: [string()]) -> Result when
+    Result :: [#li{}].
+%% ====================================================================
+version_list_body(ChosenVersion, Versions) ->
+    {Body, _} = lists:foldl(fun(Version, {List, Id}) ->
+        VersionId = <<"version_li_", (integer_to_binary(Id))/binary>>,
+        {
+            [#li{
+                id = VersionId,
+                actions = gui_jq:postback_action(VersionId, {set_version, Version, Versions}),
+                class = case Version of
+                            ChosenVersion -> <<"active">>;
+                            _ -> <<"">>
+                        end,
+                body = #link{
+                    style = <<"text-align: left;">>,
+                    body = get_version_name(Version)
+                }
+            }, List],
+            Id + 1
+        }
+    end, {[], 1}, Versions),
+    Body.
+
+
+%% get_version_name/1
+%% ====================================================================
+%% @doc Returns version in binary form.
+-spec get_version_name(Version :: #version{}) -> Result when
+    Result :: binary().
+%% ====================================================================
+get_version_name(#version{major = Major, minor = Minor, patch = Patch}) ->
+    <<(integer_to_binary(Major))/binary, ".", (integer_to_binary(Minor))/binary, ".", (integer_to_binary(Patch))/binary>>.
 
 
 %% get_version_record/0
@@ -286,11 +286,10 @@ event(init) ->
     gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),
     ok;
 
-event({version_toggled, Version, VersionId}) ->
-    PreviousVersionId = gui_ctx:get(?CHOSEN_VERSION_ID),
-    gui_jq:click(PreviousVersionId),
-    gui_ctx:put(?CHOSEN_VERSION, Version),
-    gui_ctx:put(?CHOSEN_VERSION_ID, VersionId);
+event({set_version, ChosenVersion, Versions}) ->
+    gui_ctx:put(?CHOSEN_VERSION, ChosenVersion),
+    gui_jq:update(<<"version_label">>, <<"Version: <b>", (get_version_name(ChosenVersion))/binary, "</b>">>),
+    gui_jq:update(<<"version_dropdown">>, version_list_body(ChosenVersion, Versions));
 
 event(next) ->
     #version{major = Major, minor = Minor, patch = Patch} = gui_ctx:get(?CHOSEN_VERSION),

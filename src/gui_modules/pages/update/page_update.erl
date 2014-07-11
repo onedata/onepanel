@@ -34,7 +34,7 @@ main() ->
                     State = updater:get_state(),
                     case updater_state:get_stage_and_job(State) of
                         {?STAGE_IDLE, _} ->
-                            onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_CHOOSE_VERSION);
+                            onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_VERSION_SELECTION);
                         _ ->
                             onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_UPDATE_SUMMARY)
                     end;

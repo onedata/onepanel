@@ -92,7 +92,7 @@ body() ->
                     },
                     #table{
                         class = <<"table table-striped">>,
-                        style = <<"width: 50%; margin: 0 auto; margin-top: 20px;">>,
+                        style = <<"width: 50%; margin: 0 auto; margin-top: 30px; margin-bottom: 30px;">>,
                         body = [
                             #tbody{
                                 id = <<"summary_table">>,
@@ -102,12 +102,12 @@ body() ->
                     },
                     #panel{
                         id = <<"progress">>,
-                        style = <<"margin-top: 30px; width: 50%; margin: 0 auto; margin-top: 30px; display: none;">>,
+                        style = <<"text-align: left; margin-top: 30px; width: 50%; margin: 0 auto; display: none;">>,
                         body = [
                             #p{
                                 id = <<"progress_text">>,
                                 style = <<"font-weight: 300;">>,
-                                body = <<"">>
+                                body = <<"Current stage">>
                             },
                             #panel{
                                 class = <<"progress">>,
@@ -262,11 +262,10 @@ to_install() ->
 comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, next_update = NextUpdate} = State) ->
     try
         receive
-            {init, InitSteps, Text} ->
+            {init, InitSteps} ->
                 gui_jq:hide(<<"error_message">>),
                 gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"disabled">>),
                 gui_jq:prop(<<"prev_button">>, <<"disabled">>, <<"disabled">>),
-                gui_jq:set_text(<<"progress_text">>, Text),
                 gui_jq:set_width(<<"bar">>, <<"0%">>),
                 gui_jq:show(<<"progress">>),
                 gui_comet:flush(),
@@ -275,7 +274,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
 
             {change_step, NewStep, Text} ->
                 gui_jq:show(<<"progress">>),
-                gui_jq:set_text(<<"progress_text">>, Text),
+                gui_jq:update(<<"progress_text">>, Text),
                 Progress = <<(integer_to_binary(round(100 * NewStep / Steps)))/binary, "%">>,
                 gui_jq:set_width(<<"bar">>, Progress),
                 gui_comet:flush(),
@@ -294,7 +293,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                 comet_loop(State);
 
             finish ->
-                gui_jq:set_text(<<"progress_text">>, <<"Done.">>),
+                gui_jq:update(<<"progress_text">>, <<"Current stage">>),
                 gui_jq:set_width(<<"bar">>, <<"100%">>),
                 onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUCCESS),
                 gui_comet:flush(),
@@ -337,15 +336,15 @@ get_error_message(_) -> <<"">>.
 -spec get_info_message({State :: atom(), Job :: atom()}) -> Result when
     Result :: binary().
 %% ====================================================================
-get_info_message({?STAGE_DB, ?JOB_INSTALL}) -> <<"Installing database nodes...">>;
-get_info_message({?STAGE_DB, ?JOB_START}) -> <<"Starting database nodes...">>;
-get_info_message({?STAGE_CCM, ?JOB_INSTALL}) -> <<"Installing Central Cluster Manager nodes...">>;
-get_info_message({?STAGE_CCM, ?JOB_START}) -> <<"Starting Central Cluster Manager nodes...">>;
-get_info_message({?STAGE_WORKER, ?JOB_INSTALL}) -> <<"Installing worker nodes...">>;
-get_info_message({?STAGE_WORKER, ?JOB_START}) -> <<"Starting worker nodes...">>;
-get_info_message({?STAGE_STORAGE, ?JOB_ADD_STORAGE_PATHS}) -> <<"Adding storage paths...">>;
-get_info_message({?STAGE_FINAL, ?JOB_FINALIZE_INSTALLATION}) -> <<"Finalizing installation...">>;
-get_info_message(_) -> <<"">>.
+get_info_message({?STAGE_DB, ?JOB_INSTALL}) -> <<"Current stage: <b>Installing database nodes</b>">>;
+get_info_message({?STAGE_DB, ?JOB_START}) -> <<"Current stage: <b>Starting database nodes</b>">>;
+get_info_message({?STAGE_CCM, ?JOB_INSTALL}) -> <<"Current stage: <b>Installing Central Cluster Manager nodes</b>">>;
+get_info_message({?STAGE_CCM, ?JOB_START}) -> <<"Current stage: <b>Starting Central Cluster Manager nodes</b>">>;
+get_info_message({?STAGE_WORKER, ?JOB_INSTALL}) -> <<"Current stage: <b>Installing worker nodes</b>">>;
+get_info_message({?STAGE_WORKER, ?JOB_START}) -> <<"Current stage: <b>Starting worker nodes</b>">>;
+get_info_message({?STAGE_STORAGE, ?JOB_ADD_STORAGE_PATHS}) -> <<"Current stage: <b>Adding storage paths</b>">>;
+get_info_message({?STAGE_FINAL, ?JOB_FINALIZE_INSTALLATION}) -> <<"Current stage: <b>Finalizing installation</b>">>;
+get_info_message(_) -> <<"Current stage">>.
 
 
 %% installation_progress/1
@@ -396,7 +395,7 @@ event(install) ->
             gui_ctx:put(?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION);
         _ ->
             Pid = get(?COMET_PID),
-            Pid ! {init, length(installer:get_flatten_stages()), <<"">>},
+            Pid ! {init, length(installer:get_flatten_stages())},
             Fields = record_info(fields, ?CONFIG),
             [_ | Values] = tuple_to_list(ToInstall),
             Config = lists:zip(Fields, Values),

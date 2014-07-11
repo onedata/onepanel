@@ -113,6 +113,7 @@ event(init) ->
     ok;
 
 event(to_main_page) ->
+    gui_ctx:put(?CHOSEN_VERSION, undefined),
     gui_ctx:put(?CURRENT_UPDATE_PAGE, undefined),
     gui_jq:redirect(?PAGE_ROOT);
 

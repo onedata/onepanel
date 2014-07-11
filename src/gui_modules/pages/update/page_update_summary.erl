@@ -30,7 +30,7 @@
 
 %% Comet process state
 -define(STATE, state).
--record(?STATE, {action_type}).
+-record(?STATE, {stage_index, job_index, job_progress, stages_count, action_type, update_time}).
 
 %% ====================================================================
 %% API functions
@@ -103,7 +103,7 @@ body() ->
                         body = <<"Software version to update to: <b>", ChosenVersionName/binary, "</b>">>
                     },
                     #panel{
-                        id = <<"update_pannel">>,
+                        id = <<"update_panel">>,
                         style = UpdatePanelDisplay,
                         body = [
                             #panel{
@@ -168,7 +168,7 @@ body() ->
                                         body = #panel{
                                             id = <<"stage_bar">>,
                                             class = <<"bar">>,
-                                            style = <<"width: 0%;">>
+                                            style = <<"width: 0%; background-color: darkcyan;">>
                                         }
                                     }
                                 ]
@@ -187,7 +187,8 @@ body() ->
                                         body = #panel{
                                             id = <<"job_bar">>,
                                             class = <<"bar">>,
-                                            style = <<"width: 0%;">>
+                                            style = <<"transition-property: none; -moz-transition-property: none;",
+                                            "-webkit-transition-property: none; -o-transition-property: none; width: 0%;">>
                                         }
                                     }
                                 ]
@@ -239,14 +240,14 @@ translate_job(?JOB_DOWNLOAD_BINARY) -> <<"Downloading binary">>;
 translate_job(?JOB_LOAD_EXPORTS) -> <<"Loading exports">>;
 translate_job(?JOB_RELOAD_EXPORTS) -> <<"Reloading exports">>;
 translate_job(?JOB_INSTALL_PACKAGE) -> <<"Installing package">>;
-translate_job(?JOB_DEFAULT) -> <<"Updating">>;
+translate_job(?JOB_DEFAULT) -> <<"Default job">>;
 translate_job(?JOB_MOVE_BEAMS) -> <<"Moving beam files">>;
 translate_job(?JOB_LOAD_BEAMS) -> <<"Loading beam files">>;
 translate_job(?JOB_PRE_UPDATE) -> <<"Applying preupdate">>;
-translate_job(?JOB_INSTALL_VIEW_SOURCES) -> <<"Installing view sources">>;
+translate_job(?JOB_INSTALL_VIEW_SOURCES) -> <<"Installing views sources">>;
 translate_job(?JOB_INSTALL_VIEWS) -> <<"Installing database views">>;
-translate_job(?JOB_BACKUP) -> <<"Backuping">>;
-translate_job(?JOB_DEPLOY) -> <<"Deploying">>;
+translate_job(?JOB_BACKUP) -> <<"Backuping files">>;
+translate_job(?JOB_DEPLOY) -> <<"Deploying files">>;
 translate_job(?JOB_CLEANUP_VIEWS) -> <<"Cleaning up database views">>;
 translate_job(?JOB_CHECK_CONNECTIVITY) -> <<"Checking connectivity">>;
 translate_job(_) -> <<"">>.
@@ -258,16 +259,30 @@ translate_job(_) -> <<"">>.
 -spec get_stage_index(Job :: atom(), State :: #?u_state{}) -> Result when
     Result :: integer().
 %% ====================================================================
-get_stage_index(Stage, State) -> 0.
+get_stage_index(Stage, State) ->
+    Stages = updater_state:get_all_stages(State),
+    length(Stages) - length(lists:dropwhile(fun({S, _}) -> S =/= Stage end, Stages)) + 1.
 
 
-%% get_job_index/2
+%% get_job_index_and_jobs_count/3
 %% ====================================================================
 %% @doc Returns index of current update job.
--spec get_job_index(Job :: atom(), State :: #?u_state{}) -> Result when
-    Result :: integer().
+-spec get_job_index_and_jobs_count(Stage :: atom(), Job :: atom(), State :: #?u_state{}) -> Result when
+    Result :: {JobIndex :: integer(), JobsCount :: integer()}.
 %% ====================================================================
-get_job_index(Job, State) -> 0.
+get_job_index_and_jobs_count(Stage, Job, State) ->
+    Stages = updater_state:get_all_stages(State),
+    [{_, Jobs} | _] = lists:dropwhile(fun({S, _}) -> S =/= Stage end, Stages),
+    JobsCount = length(Jobs),
+    {JobsCount - length(lists:dropwhile(fun(J) -> J =/= Job end, Jobs)) + 1, JobsCount}.
+
+
+get_job_progress(JobProgress, JobIndex, JobsCount, install) ->
+    NewProgress = (JobProgress + 1) / 2,
+    {100 * (JobIndex + JobProgress - 1) / JobsCount, NewProgress};
+get_job_progress(JobProgress, JobIndex, JobsCount, _) ->
+    NewProgress = JobProgress / 2,
+    {100 * (JobIndex + JobProgress - 1) / JobsCount, NewProgress}.
 
 
 %% update_progress/3
@@ -287,14 +302,17 @@ update_progress(Pid, Event, State) ->
         _ -> ok
     end,
 
-    case State of
-        ?STAGE_IDLE -> Pid ! {finish, State};
+    Pid ! {set_abortable, updater_state:is_abortable(State)},
+
+    case Stage of
+        ?STAGE_IDLE ->
+            Pid ! {finish, State};
         _ ->
             StageName = translate_stage(Stage),
             StageIndex = get_stage_index(Stage, State),
             JobName = translate_job(Job),
-            JobIndex = get_job_index(Job, State),
-            Pid ! {set_stage_and_job, StageIndex, StageName, JobIndex, JobName}
+            {JobIndex, JobsCount} = get_job_index_and_jobs_count(Stage, Job, State),
+            Pid ! {set_stage_and_job, StageIndex, StageName, JobIndex, JobsCount, JobName}
     end.
 
 
@@ -303,46 +321,109 @@ update_progress(Pid, Event, State) ->
 %% @doc Handles updater process messages and updates progress bar.
 -spec comet_loop(State :: #?STATE{}) -> no_return().
 %% ====================================================================
-comet_loop(#?STATE{action_type = ActionType} = State) ->
-    try
+comet_loop({error, Reason}) ->
+    {error, Reason};
+comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JProgress, stages_count = SCount, action_type = AType, update_time = UTime} = State) ->
+    NewState = try
         receive
-            {set_action_type, NewActionType} ->
-                comet_loop(State#?STATE{action_type = NewActionType});
+            {set_action_type, NewAType} ->
+                State#?STATE{action_type = NewAType};
 
-            {set_stage_and_job, StageIndex, StageName, JobIndex, JobName} ->
-                gui_jq:update(<<"job_progress_text">>, <<"Current job: <b>", (JobName)/binary, "</b>">>),
-                gui_jq:update(<<"stage_progress_text">>, <<"Current stage: <b>", (StageName)/binary, "</b>">>),
-                ?info(StageIndex),
-                ?info(JobIndex),
+            {set_stages_count, NewSCount} ->
+                State#?STATE{stages_count = NewSCount};
+
+            {set_abortable, true} ->
+                gui_jq:prop(<<"update_button">>, <<"disabled">>, <<"">>),
                 gui_comet:flush(),
-                comet_loop(State);
+                State;
+
+            {set_abortable, false} ->
+                gui_jq:prop(<<"update_button">>, <<"disabled">>, <<"disabled">>),
+                gui_comet:flush(),
+                State;
+
+            {set_stage_and_job, StageIndex, StageName, JobIndex, JobsCount, JobName} ->
+                case StageIndex of
+                    SIndex -> ok;
+                    _ ->
+                        gui_jq:set_width(<<"job_bar">>, <<"100%">>),
+                        gui_comet:flush()
+                end,
+
+                {StagePrefix, JobPrefix} = case AType of
+                                               install -> {<<"Current stage: ">>, <<"Current job: ">>};
+                                               _ -> {<<"Stage rollback: ">>, <<"Job rollback: ">>}
+                                           end,
+
+                gui_jq:update(<<"stage_progress_text">>, <<StagePrefix/binary, "<b>", (StageName)/binary, "</b>">>),
+                gui_jq:update(<<"job_progress_text">>, <<JobPrefix/binary, "<b>", (JobName)/binary, "</b>">>),
+
+                StageProgress = 100 * (StageIndex * JobsCount - JobsCount + JobIndex) / (SCount * JobsCount),
+                StageProgressBinary = <<(integer_to_binary(round(StageProgress)))/binary, "%">>,
+                gui_jq:set_width(<<"stage_bar">>, StageProgressBinary),
+
+                JobProgress = 100 * (JobIndex - 1) / JobsCount,
+                JobProgressBinary = <<(integer_to_binary(round(JobProgress)))/binary, "%">>,
+                gui_jq:set_width(<<"job_bar">>, JobProgressBinary),
+
+                timer:send_after(?DEFAULT_NEXT_UPDATE, {update, StageIndex, JobIndex, JobsCount}),
+                gui_comet:flush(),
+                case AType of
+                    install ->
+                        State#?STATE{stage_index = StageIndex, job_index = JobIndex, job_progress = 0, update_time = ?DEFAULT_NEXT_UPDATE};
+                    _ ->
+                        State#?STATE{stage_index = StageIndex, job_index = JobIndex, job_progress = 1, update_time = ?DEFAULT_NEXT_UPDATE}
+                end;
+
+            {update, SIndex, JIndex, JobsCount} ->
+                {JobsProgress, NewJProgress} = get_job_progress(JProgress, JIndex, JobsCount, AType),
+                JobsProgressBinary = <<(integer_to_binary(round(JobsProgress)))/binary, "%">>,
+                gui_jq:set_width(<<"job_bar">>, JobsProgressBinary),
+
+                timer:send_after(2 * UTime, {update, SIndex, JIndex, JobsCount}),
+                gui_comet:flush(),
+                State#?STATE{job_progress = NewJProgress, update_time = 2 * UTime};
+
+            {update, _, _, _} ->
+                State;
 
             abort ->
+                updater:abort(),
                 onepanel_gui_utils:message(<<"error_message">>, <<"Aborting update process.<br>Please wait while rollbacking changes...">>),
                 gui_comet:flush(),
-                comet_loop(State);
+                State;
 
             error ->
                 onepanel_gui_utils:message(<<"error_message">>, <<"An error occurred during update process.<br>Rollbacking changes.">>),
                 gui_comet:flush(),
-                comet_loop(State);
+                State;
 
-            {finish, State} ->
-                case updater_state:get_error_stack(State) of
+            {finish, UpdaterState} ->
+                gui_jq:update(<<"job_progress_text">>, <<"">>),
+                gui_jq:update(<<"stage_progress_text">>, <<"">>),
+                case updater_state:get_error_stack(UpdaterState) of
                     {[], _} ->
+                        gui_jq:set_width(<<"job_bar">>, <<"100%">>),
+                        gui_jq:set_width(<<"stage_bar">>, <<"100%">>),
+                        gui_comet:flush(),
                         onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_UPDATE_SUCCESS),
                         gui_comet:flush();
                     _ ->
                         onepanel_gui_utils:message(<<"error_message">>, <<"An error occurred during update process.">>),
+                        gui_jq:set_width(<<"job_bar">>, <<"0%">>),
+                        gui_jq:set_width(<<"stage_bar">>, <<"0%">>),
                         gui_jq:show(<<"update_panel">>),
                         gui_jq:hide(<<"update_progress">>),
                         gui_comet:flush()
-                end
+                end,
+                State
         end
-    catch Type:Reason ->
-        ?error("Comet process exception: ~p:~p", [Type, Reason]),
-        onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>)
-    end.
+               catch Type:Reason ->
+                   ?error("Comet process exception: ~p:~p", [Type, Reason]),
+                   onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
+                   {error, Reason}
+               end,
+    comet_loop(NewState).
 
 
 %% ====================================================================
@@ -358,15 +439,23 @@ event(init) ->
     gui_jq:bind_key_to_click(<<"13">>, <<"update_button">>),
 
     {ok, Pid} = gui_comet:spawn(fun() -> comet_loop(#?STATE{}) end),
-    State = updater:get_state(),
-    ActionType = updater_state:get_action_type(State),
-    Pid ! {set_action_type, ActionType},
     updater:set_callback(fun(Event, State) -> update_progress(Pid, Event, State) end),
     put(?COMET_PID, Pid),
 
-    case updater_state:get_error_stack(State) of
-        {[], _} -> ok;
-        _ -> onepanel_gui_utils:message(<<"error_message">>, <<"An error occurred during update process.">>)
+    State = updater:get_state(),
+    ActionType = updater_state:get_action_type(State),
+    Pid ! {set_action_type, ActionType},
+    Pid ! {set_stages_count, length(updater_state:get_all_stages(State))},
+
+    case updater_state:get_stage_and_job(State) of
+        {?STAGE_IDLE, _} ->
+            case updater_state:get_error_stack(State) of
+                {[], _} -> ok;
+                _ -> onepanel_gui_utils:message(<<"error_message">>, <<"An error occurred during update process.">>)
+            end;
+        _ ->
+            gui_jq:hide(<<"update_panel">>),
+            gui_jq:show(<<"update_progress">>)
     end,
 
     put(?FORCE_RELOAD, false),
@@ -377,7 +466,10 @@ event(force_reload_checkbox_toggled) ->
     put(?FORCE_RELOAD, not ForceReload);
 
 event(back) ->
-    onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_CHOOSE_VERSION);
+    onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_VERSION_SELECTION);
+
+event(abort) ->
+    get(?COMET_PID) ! abort;
 
 event({update, Version}) ->
     gui_jq:hide(<<"update_panel">>),

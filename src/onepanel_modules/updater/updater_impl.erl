@@ -259,7 +259,7 @@ handle_rollback(_Stage, _Job, #?u_state{}) ->
 %% ====================================================================
 rollback_object(?STAGE_DEPLOY_FILES, ?JOB_DEPLOY, Obj, #?u_state{}) ->
     Node = Obj,
-    updater_utils:cast(Node, restore_instalation, []);
+    updater_utils:cast(Node, revert_instalation, []);
 
 rollback_object(?STAGE_REPAIR_NODES, _, Obj, #?u_state{}) ->
     Node = Obj,

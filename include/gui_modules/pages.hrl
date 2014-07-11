@@ -32,7 +32,7 @@
 
 %% Update pages
 -define(PAGE_UPDATE, <<"/update">>).
--define(PAGE_CHOOSE_VERSION, <<"/choose_version">>).
+-define(PAGE_VERSION_SELECTION, <<"/version_selection">>).
 -define(PAGE_UPDATE_SUMMARY, <<"/update_summary">>).
 -define(PAGE_UPDATE_SUCCESS, <<"/update_success">>).
 

@@ -80,7 +80,7 @@ route(?PAGE_REGISTRATION_SUCCESS) -> page_registration_success;
 
 %% Update pages
 route(?PAGE_UPDATE) -> page_update;
-route(?PAGE_CHOOSE_VERSION) -> page_choose_version;
+route(?PAGE_VERSION_SELECTION) -> page_version_selection;
 route(?PAGE_UPDATE_SUMMARY) -> page_update_summary;
 route(?PAGE_UPDATE_SUCCESS) -> page_update_success;
 

@@ -84,7 +84,7 @@ body() ->
                     },
                     #table{
                         class = <<"table table-striped">>,
-                        style = <<"width: 50%; margin: 0 auto; margin-top: 20px;">>,
+                        style = <<"width: 50%; margin: 0 auto; margin-top: 30px;">>,
                         body = [
                             #tbody{
                                 id = <<"storage_paths_table">>,
