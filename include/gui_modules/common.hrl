@@ -38,7 +38,7 @@
 %% Current update step saved in user session
 -define(CURRENT_UPDATE_PAGE, update_page).
 
-%% Currently selected version
--define(CURRENT_VERSION, current_version).
+%% Currently selected version in update process
+-define(CHOSEN_VERSION, chosen_version).
 
 -endif.

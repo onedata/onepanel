@@ -6,8 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc: This module contains n2o website code.
-%% This page displays summary of VeilCluster nodes installation and
-%% executes installation steps.
+%% This page displays installation summary and starts installer process.
 %% @end
 %% ===================================================================
 

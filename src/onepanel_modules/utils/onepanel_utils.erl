@@ -11,12 +11,13 @@
 -module(onepanel_utils).
 
 -include("registered_names.hrl").
+-include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([random_ascii_lowercase_sequence/1]).
--export([get_node/1, get_host/1, get_hosts/0]).
+-export([get_node/1, get_host/1, get_hosts/0, get_software_version/0]).
 -export([apply_on_hosts/5, save_file_on_host/3, save_file_on_hosts/3]).
 
 %% ====================================================================
@@ -131,3 +132,19 @@ save_file_on_host(Path, Filename, Content) ->
             {error, Host}
     end.
 
+
+%% get_software_version/0
+%% ====================================================================
+%% @doc Returns current software version.
+-spec get_software_version() -> Result when
+    Result :: string() | undefined.
+%% ====================================================================
+get_software_version() ->
+    try
+        {ok, #?GLOBAL_CONFIG_RECORD{workers = [Worker | _]}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        rpc:call(list_to_atom("worker@" ++ Worker), node_manager, check_vsn, [], ?RPC_TIMEOUT)
+    catch
+        _:Reason ->
+            ?error("Cannot get current software version: ~p", [Reason]),
+            undefined
+    end.

@@ -58,8 +58,6 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    #version{major = Major, minor = Minor, patch = Patch} = gui_ctx:get(?CURRENT_VERSION),
-    Version = <<(integer_to_binary(Major))/binary, ".", (integer_to_binary(Minor))/binary, ".", (integer_to_binary(Patch))/binary>>,
     #panel{
         style = <<"position: relative;">>,
         body = [
@@ -77,9 +75,13 @@ body() ->
                                     #h3{
                                         body = <<"Successful update">>
                                     },
-                                    #p{
-                                        body = <<"Current software version: <b>", Version/binary, "</b>">>
-                                    },
+                                    case onepanel_utils:get_software_version() of
+                                        undefined -> #p{};
+                                        Version ->
+                                            #p{
+                                                body = <<"Current software version: <b>", (list_to_binary(Version))/binary, "</b>">>
+                                            }
+                                    end,
                                     #link{
                                         id = <<"ok_button">>,
                                         postback = to_main_page,

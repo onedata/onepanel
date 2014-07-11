@@ -202,26 +202,22 @@ handle_call(Request, _From, State) ->
     {noreply, NewState :: #?i_state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #?i_state{}}.
 %% ====================================================================
-handle_cast({execute, _}, #?i_state{stage = ?STAGE_IDLE, error = Error, callback = Callback} = State) ->
-    case Error of
-        undefined ->
-            Callback(?EVENT_STATE_CHANGED, State),
-            {stop, normal, State};
-        _ ->
-            {stop, shutdown, State}
-    end;
+handle_cast({execute, _}, #?i_state{stage = ?STAGE_IDLE, callback = Callback} = State) ->
+    Callback(?EVENT_STATE_CHANGED, State),
+    {stop, normal, State};
 
 handle_cast({execute, Config}, #?i_state{stage = Stage, job = Job, callback = Callback} = State) ->
     Callback(?EVENT_STATE_CHANGED, State),
-    NextState = case Stage:Job(Config) of
-                    ok ->
-                        get_next_state(State);
-                    Error ->
-                        Callback(?EVENT_ERROR, State#?i_state{error = Error}),
-                        State#?i_state{stage = ?STAGE_IDLE, error = Error}
-                end,
-    gen_server:cast({global, ?INSTALL_SERVICE}, {execute, Config}),
-    {noreply, NextState};
+    case Stage:Job(Config) of
+        ok ->
+            NextState = get_next_state(State),
+            gen_server:cast({global, ?INSTALL_SERVICE}, {execute, Config}),
+            {noreply, NextState};
+        Error ->
+            NextState = State#?i_state{error = Error},
+            Callback(?EVENT_ERROR, NextState),
+            {stop, shutdown, NextState}
+    end;
 
 handle_cast(Request, State) ->
     ?warning("[Installer] Wrong cast: ~p", [Request]),

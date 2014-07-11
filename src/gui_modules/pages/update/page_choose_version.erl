@@ -20,7 +20,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% Currently selected version's checkbox ID
--define(CURRENT_VERSION_ID, current_version_id).
+-define(CHOSEN_VERSION_ID, chosen_version_id).
 
 %% ====================================================================
 %% API functions
@@ -105,7 +105,7 @@ body() ->
                                    },
                                    #h6{
                                        style = <<"font-size: 16px; margin-top: 30px;">>,
-                                       body = case get_software_version() of
+                                       body = case onepanel_utils:get_software_version() of
                                                   undefined -> [];
                                                   Version ->
                                                       <<"Current software version: <b>", (list_to_binary(Version))/binary, "</b>">>
@@ -169,13 +169,13 @@ versions_table_body() ->
         AvailableVersions = get_available_versions(),
         SortedAvailableVersions = sort_versions(AvailableVersions),
 
-        CurrentVersionId = case gui_ctx:get(?CURRENT_VERSION_ID) of
-                               undefined ->
-                                   gui_ctx:put(?CURRENT_VERSION, hd(SortedAvailableVersions)),
-                                   gui_ctx:put(?CURRENT_VERSION_ID, GetVersionId(hd(SortedAvailableVersions))),
-                                   GetVersionId(hd(SortedAvailableVersions));
-                               Version -> Version
-                           end,
+        ChosenVersionId = case gui_ctx:get(?CHOSEN_VERSION_ID) of
+                              undefined ->
+                                  gui_ctx:put(?CHOSEN_VERSION, hd(SortedAvailableVersions)),
+                                  gui_ctx:put(?CHOSEN_VERSION_ID, GetVersionId(hd(SortedAvailableVersions))),
+                                  GetVersionId(hd(SortedAvailableVersions));
+                              Version -> Version
+                          end,
 
         Rows = lists:map(fun(Version) ->
             VersionId = GetVersionId(Version),
@@ -200,7 +200,7 @@ versions_table_body() ->
                                 id = VersionId,
                                 data_fields = [{<<"data-toggle">>, <<"checkbox">>}],
                                 value = <<"">>,
-                                checked = CurrentVersionId =:= VersionId
+                                checked = ChosenVersionId =:= VersionId
                             }
                         ]
                     }
@@ -254,23 +254,6 @@ sort_versions(Versions) ->
     end, Versions)).
 
 
-%% get_software_version/0
-%% ====================================================================
-%% @doc Returns current software version.
--spec get_software_version() -> Result when
-    Result :: string() | undefined.
-%% ====================================================================
-get_software_version() ->
-    try
-        {ok, #?GLOBAL_CONFIG_RECORD{workers = [Worker | _]}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        rpc:call(list_to_atom("worker@" ++ Worker), node_manager, check_vsn, [], ?RPC_TIMEOUT)
-    catch
-        _:Reason ->
-            ?error("Cannot get current software version: ~p", [Reason]),
-            undefined
-    end.
-
-
 %% get_available_versions/0
 %% ====================================================================
 %% @doc Returns available software versions read from repository.
@@ -304,13 +287,19 @@ event(init) ->
     ok;
 
 event({version_toggled, Version, VersionId}) ->
-    PreviousVersionId = gui_ctx:get(?CURRENT_VERSION_ID),
+    PreviousVersionId = gui_ctx:get(?CHOSEN_VERSION_ID),
     gui_jq:click(PreviousVersionId),
-    gui_ctx:put(?CURRENT_VERSION, Version),
-    gui_ctx:put(?CURRENT_VERSION_ID, VersionId);
+    gui_ctx:put(?CHOSEN_VERSION, Version),
+    gui_ctx:put(?CHOSEN_VERSION_ID, VersionId);
 
 event(next) ->
-    onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_UPDATE_SUCCESS);
+    #version{major = Major, minor = Minor, patch = Patch} = gui_ctx:get(?CHOSEN_VERSION),
+    ChosenVersionName = integer_to_list(Major) ++ "." ++ integer_to_list(Minor) ++ "." ++ integer_to_list(Patch),
+    case onepanel_utils:get_software_version() of
+        ChosenVersionName -> onepanel_gui_utils:message(<<"error_message">>,
+            <<"Nothing to do.<br>This software version is currently installed.">>);
+        _ -> onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_UPDATE_SUMMARY)
+    end;
 
 event(to_main_page) ->
     gui_jq:redirect(?PAGE_ROOT);
