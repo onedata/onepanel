@@ -16,9 +16,14 @@
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 
--define(STATE, state).
--define(UPDATE_TIME, 500).
+%% Default time in miliseconds for next progress bar update
+-define(DEFAULT_NEXT_UPDATE, 500).
 
+%% Comet process pid
+-define(COMET_PID, comet_pid).
+
+%% Comet process state
+-define(STATE, state).
 -record(?STATE, {step, steps, status}).
 
 %% ====================================================================
@@ -85,7 +90,7 @@ body() ->
                                            body = <<"Software is not installed.">>
                                        },
                                        #p{
-                                           body = <<"Please complete installation process in order to register in Global Registry as a provider.">>
+                                           body = <<"Please complete installation process before registering in Global Registry as a provider.">>
                                        },
                                        #link{
                                            id = <<"next_button">>,
@@ -152,7 +157,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, status = Status} = State) ->
                 gui_jq:set_width(<<"bar">>, <<"0%">>),
                 gui_jq:show(<<"progress">>),
                 gui_comet:flush(),
-                timer:send_after(?UPDATE_TIME, update),
+                timer:send_after(?DEFAULT_NEXT_UPDATE, update),
                 comet_loop(State#?STATE{step = 1, steps = InitSteps, status = connecting});
 
             update ->
@@ -163,7 +168,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, status = Status} = State) ->
                     Steps ->
                         case Status of
                             connection_success ->
-                                timer:sleep(?UPDATE_TIME),
+                                timer:sleep(?DEFAULT_NEXT_UPDATE),
                                 gui_jq:set_width(<<"bar">>, <<"100%">>),
                                 onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_PORTS_CHECK),
                                 gui_comet:flush();
@@ -175,14 +180,14 @@ comet_loop(#?STATE{step = Step, steps = Steps, status = Status} = State) ->
                                 gui_comet:flush(),
                                 comet_loop(State#?STATE{status = idle});
                             connecting ->
-                                timer:send_after(?UPDATE_TIME, update),
+                                timer:send_after(?DEFAULT_NEXT_UPDATE, update),
                                 comet_loop(State);
                             _ ->
                                 comet_loop(State)
                         end;
                     _ ->
                         gui_comet:flush(),
-                        timer:send_after(?UPDATE_TIME, update),
+                        timer:send_after(?DEFAULT_NEXT_UPDATE, update),
                         comet_loop(State#?STATE{step = Step + 1})
                 end;
 
@@ -207,15 +212,15 @@ comet_loop(#?STATE{step = Step, steps = Steps, status = Status} = State) ->
 event(init) ->
     gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),
     {ok, Pid} = gui_comet:spawn(fun() -> comet_loop(#?STATE{}) end),
-    put(comet_pid, Pid);
+    put(?COMET_PID, Pid);
 
 event(to_main_page) ->
     gui_jq:redirect(?PAGE_ROOT);
 
 event(next) ->
-    Pid = get(comet_pid),
+    Pid = get(?COMET_PID),
     spawn(fun() ->
-        Pid ! {init, round(?CONNECTION_TIMEOUT / ?UPDATE_TIME)},
+        Pid ! {init, round(?CONNECTION_TIMEOUT / ?DEFAULT_NEXT_UPDATE)},
         case gr_adapter:check_ip_address() of
             {ok, _} -> Pid ! {set_status, connection_success};
             _ -> Pid ! {set_status, connection_error}
