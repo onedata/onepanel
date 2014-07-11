@@ -110,16 +110,24 @@ revert_instalation() ->
 -spec move_file(File :: string()) -> ok | {error, any()}.
 %% ====================================================================
 move_file(File) ->
-    RelPrivPath = filename:join([?VEIL_RELEASE, "lib", get_release_name()]),
-    WorkerTargetDir = filename:join([?DEFAULT_NODES_INSTALL_PATH, get_node_subpath(), "lib", get_release_name()]),
-    WorkerTargetDir1 = filename:join(WorkerTargetDir, "ebin"),
+    RelPrivPath = filename:join([?VEIL_RELEASE, "lib"]),
+    WorkerTargetDir = filename:join([?DEFAULT_NODES_INSTALL_PATH, get_node_subpath(), "lib"]),
 
-    file:make_dir(WorkerTargetDir),
-    file:make_dir(WorkerTargetDir1),
+    From = os:cmd("find " ++ RelPrivPath ++ " -name \"" ++ File  ++ "\" | head -1") -- [10],
 
-    From = os:cmd("find " ++ RelPrivPath ++ " -name \"" ++ File  ++ "\" ") -- [10],
+    case From of 
+        "" -> ignore;
+        _  ->   
+            From1 = filename:split(From),
+            [_ | [Rel | _]] = lists:dropwhile(fun(Elem) -> Elem =/= "lib" end, From1),
 
-    "" = os:cmd("cp -f " ++ From ++ " " ++ WorkerTargetDir1),
+            WorkerTargetDir1 = filename:join([WorkerTargetDir, Rel]),
+            WorkerTargetDir2 = filename:join([WorkerTargetDir1, "ebin"]),
+            file:make_dir(WorkerTargetDir1),
+            file:make_dir(WorkerTargetDir2),
+
+            "" = os:cmd("cp -f " ++ From ++ " " ++ WorkerTargetDir2)
+    end,
     ok.
 
 
@@ -181,7 +189,7 @@ force_reload_module(Module) ->
 -spec fix_code_path() -> ok | {error, any()}.
 %% ====================================================================
 fix_code_path() ->
-    Paths = string:tokens( os:cmd("find " ++ filename:join([?DEFAULT_NODES_INSTALL_PATH, get_node_subpath(), "lib"]) ++ " -name ebin -type d") ,[10]),
+    Paths = string:tokens( os:cmd("find " ++ filename:join([?DEFAULT_NODES_INSTALL_PATH, get_node_subpath(), "lib"]) ++ " -name ebin -type d | sort -bdfr") ,[10]),
     NewReleasePath = filename:join([?DEFAULT_NODES_INSTALL_PATH, get_node_subpath(), "lib", get_release_name(), "ebin"]),
 
     code:add_paths(Paths),
