@@ -64,6 +64,8 @@ init(_Args) ->
                     _ ->
                         updater_engine:enter_stage(updater_state:get_stage_and_job(SavedState), SavedState)
                 end;
+            {ok, #?u_state{error_stack = ES, warning_stack = WS}} ->
+                #?u_state{error_stack = ES, warning_stack = WS};
             {ok, _Unk} ->
                 ?warning("Unknown updater state in DB, ignoring."),
                 #?u_state{};
