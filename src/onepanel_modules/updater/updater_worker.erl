@@ -64,8 +64,8 @@ init(_Args) ->
                     _ ->
                         updater_engine:enter_stage(updater_state:get_stage_and_job(SavedState), SavedState)
                 end;
-            {ok, #?u_state{error_stack = ES, warning_stack = WS}} ->
-                #?u_state{error_stack = ES, warning_stack = WS};
+            {ok, #?u_state{error_stack = ES, warning_stack = WS, action_type = ActionType}} ->
+                #?u_state{error_stack = ES, warning_stack = WS, action_type = ActionType};
             {ok, _Unk} ->
                 ?warning("Unknown updater state in DB, ignoring."),
                 #?u_state{};
@@ -108,6 +108,8 @@ handle_call({update_to, #version{} = Vsn, ForceNodeRestart, CallbackFun}, _From,
     end;
 
 handle_call(abort, _From, #?u_state{stage = ?STAGE_IDLE} = State) ->
+    {reply, ok, State};
+handle_call(abort, _From, #?u_state{action_type = rollback} = State) ->
     {reply, ok, State};
 handle_call(abort, _From, #?u_state{stage = Stage, job = Job, callback = CallbackFun} = State) ->
     NewState = State#?u_state{action_type = rollback, objects = #{}},
