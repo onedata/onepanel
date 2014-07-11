@@ -150,7 +150,8 @@ stop(Args) ->
                                         false -> throw("Worker " ++ Host ++ " is not configured");
                                         _ -> ok
                                     end
-                                end, Hosts)
+                                end, Hosts),
+                                Hosts
                         end,
 
         ConfiguredOptCCMs = lists:delete(ConfiguredMainCCM, ConfiguredCCMs),
@@ -344,4 +345,7 @@ local_stop(StoragePaths) ->
 %% ====================================================================
 local_restart() ->
     Host = onepanel_utils:get_host(node()),
-    restart([{workers, [Host]}]).
+    case restart([{workers, [Host]}]) of
+        ok -> {ok, Host};
+        _ -> {error, Host}
+    end.

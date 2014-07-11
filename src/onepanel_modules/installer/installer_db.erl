@@ -92,7 +92,7 @@ start(Args) ->
             _ -> throw("Cannot get database nodes configuration")
         end,
 
-        DbPassword = case dao:get_record(?USER_TABLE, "admin") of
+        DbPassword = case dao:get_record(?USER_TABLE, <<"admin">>) of
                          {ok, #?USER_RECORD{db_password = Password}} -> binary_to_list(Password);
                          _ -> throw("Cannot get database password")
                      end,
