@@ -15,7 +15,7 @@
 -include("onepanel_modules/updater/internals.hrl").
 
 %% API
--export([is_abortable/1, get_stage_and_job/1, get_all_stages/0, get_object_count/1, get_all_stages/1, get_error_stack/1]).
+-export([is_abortable/1, get_stage_and_job/1, get_all_stages/0, get_object_count/1, get_all_stages/1, get_error_stack/1, get_action_type/1]).
 
 %% ====================================================================
 %% API functions
@@ -93,6 +93,16 @@ get_object_count(#?u_state{objects = Objects}) ->
 get_error_stack(#?u_state{error_stack = Errors, warning_stack = Warnings}) ->
     {lists:flatten([Errors]), lists:flatten([Warnings])}.
 
+
+%% get_action_type/1
+%% ====================================================================
+%% @doc Returns current action type.
+%% @end
+-spec get_action_type(State :: #?u_state{}) ->
+    ActionType :: atom().
+%% ====================================================================
+get_action_type(#?u_state{action_type = ActionType}) ->
+    ActionType.
 
 %% ====================================================================
 %% Internal functions

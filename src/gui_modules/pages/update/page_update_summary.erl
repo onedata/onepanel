@@ -19,6 +19,9 @@
 -include("onepanel_modules/updater/stages.hrl").
 -include_lib("ctool/include/logging.hrl").
 
+%% Default time in miliseconds for next progress bar update
+-define(DEFAULT_NEXT_UPDATE, 1000).
+
 %% Current 'force_reload_checkbox' state
 -define(FORCE_RELOAD, force_reload).
 
@@ -27,7 +30,7 @@
 
 %% Comet process state
 -define(STATE, state).
--record(?STATE, {}).
+-record(?STATE, {action_type}).
 
 %% ====================================================================
 %% API functions
@@ -137,6 +140,13 @@ body() ->
                                         ]
                                     }
                                 ]
+                            },
+                            #button{
+                                id = <<"back_button">>,
+                                class = <<"btn btn-inverse">>,
+                                postback = back,
+                                style = <<"width: 80px; margin-top: 30px;">>,
+                                body = <<"Back">>
                             }
                         ]
                     },
@@ -200,7 +210,8 @@ body() ->
 %% translate_stage/1
 %% ====================================================================
 %% @doc Translates stage ID to human-readable version
--spec translate_stage(StageId :: atom()) -> binary().
+-spec translate_stage(StageId :: atom()) -> Result when
+    Result :: binary().
 %% ====================================================================
 translate_stage(?STAGE_IDLE) -> <<"Idle">>;
 translate_stage(?STAGE_INIT) -> <<"Initializing">>;
@@ -221,7 +232,8 @@ translate_stage(_) -> <<"">>.
 %% translate_job/1
 %% ====================================================================
 %% @doc Translates job ID to human-readable version
--spec translate_job(JobId :: atom()) -> binary().
+-spec translate_job(JobId :: atom()) -> Result when
+    Result :: binary().
 %% ====================================================================
 translate_job(?JOB_DOWNLOAD_BINARY) -> <<"Downloading binary">>;
 translate_job(?JOB_LOAD_EXPORTS) -> <<"Loading exports">>;
@@ -240,29 +252,92 @@ translate_job(?JOB_CHECK_CONNECTIVITY) -> <<"Checking connectivity">>;
 translate_job(_) -> <<"">>.
 
 
+%% get_stage_index/2
+%% ====================================================================
+%% @doc Returns index of current update stage.
+-spec get_stage_index(Job :: atom(), State :: #?u_state{}) -> Result when
+    Result :: integer().
+%% ====================================================================
+get_stage_index(Stage, State) -> 0.
+
+
+%% get_job_index/2
+%% ====================================================================
+%% @doc Returns index of current update job.
+-spec get_job_index(Job :: atom(), State :: #?u_state{}) -> Result when
+    Result :: integer().
+%% ====================================================================
+get_job_index(Job, State) -> 0.
+
+
 %% update_progress/3
 %% ====================================================================
 %% @doc Updater callback.
 -spec update_progress(Pid :: pid(), Event :: atom(), State :: atom()) -> no_return().
 %% ====================================================================
-update_progress(_Pid, Event, State) ->
-    ?info("Update progress!"),
+update_progress(Pid, Event, State) ->
     {Stage, Job} = updater_state:get_stage_and_job(State),
-    ?info("Event: ~p", [Event]),
-    ?info("Job: ~p", [translate_job(Job)]),
-    ?info("Stage: ~p", [translate_stage(Stage)]).
-%%     Pid ! {update, Job, Stage}.
+
+    case Event of
+        error -> Pid ! error;
+        abort -> Pid ! abort;
+        rollback_stage ->
+            ActionType = updater_state:get_action_type(State),
+            Pid ! {set_action_type, ActionType};
+        _ -> ok
+    end,
+
+    case State of
+        ?STAGE_IDLE -> Pid ! {finish, State};
+        _ ->
+            StageName = translate_stage(Stage),
+            StageIndex = get_stage_index(Stage, State),
+            JobName = translate_job(Job),
+            JobIndex = get_job_index(Job, State),
+            Pid ! {set_stage_and_job, StageIndex, StageName, JobIndex, JobName}
+    end.
 
 
 %% comet_loop/1
 %% ====================================================================
-%% @doc Handles installation process and updates progress bar.
+%% @doc Handles updater process messages and updates progress bar.
 -spec comet_loop(State :: #?STATE{}) -> no_return().
 %% ====================================================================
-comet_loop(#?STATE{} = _State) ->
+comet_loop(#?STATE{action_type = ActionType} = State) ->
     try
         receive
-            ok -> ok
+            {set_action_type, NewActionType} ->
+                comet_loop(State#?STATE{action_type = NewActionType});
+
+            {set_stage_and_job, StageIndex, StageName, JobIndex, JobName} ->
+                gui_jq:update(<<"job_progress_text">>, <<"Current job: <b>", (JobName)/binary, "</b>">>),
+                gui_jq:update(<<"stage_progress_text">>, <<"Current stage: <b>", (StageName)/binary, "</b>">>),
+                ?info(StageIndex),
+                ?info(JobIndex),
+                gui_comet:flush(),
+                comet_loop(State);
+
+            abort ->
+                onepanel_gui_utils:message(<<"error_message">>, <<"Aborting update process.<br>Please wait while rollbacking changes...">>),
+                gui_comet:flush(),
+                comet_loop(State);
+
+            error ->
+                onepanel_gui_utils:message(<<"error_message">>, <<"An error occurred during update process.<br>Rollbacking changes.">>),
+                gui_comet:flush(),
+                comet_loop(State);
+
+            {finish, State} ->
+                case updater_state:get_error_stack(State) of
+                    {[], _} ->
+                        onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_UPDATE_SUCCESS),
+                        gui_comet:flush();
+                    _ ->
+                        onepanel_gui_utils:message(<<"error_message">>, <<"An error occurred during update process.">>),
+                        gui_jq:show(<<"update_panel">>),
+                        gui_jq:hide(<<"update_progress">>),
+                        gui_comet:flush()
+                end
         end
     catch Type:Reason ->
         ?error("Comet process exception: ~p:~p", [Type, Reason]),
@@ -283,25 +358,34 @@ event(init) ->
     gui_jq:bind_key_to_click(<<"13">>, <<"update_button">>),
 
     {ok, Pid} = gui_comet:spawn(fun() -> comet_loop(#?STATE{}) end),
+    State = updater:get_state(),
+    ActionType = updater_state:get_action_type(State),
+    Pid ! {set_action_type, ActionType},
     updater:set_callback(fun(Event, State) -> update_progress(Pid, Event, State) end),
     put(?COMET_PID, Pid),
+
+    case updater_state:get_error_stack(State) of
+        {[], _} -> ok;
+        _ -> onepanel_gui_utils:message(<<"error_message">>, <<"An error occurred during update process.">>)
+    end,
 
     put(?FORCE_RELOAD, false),
     ok;
 
 event(force_reload_checkbox_toggled) ->
     ForceReload = get(?FORCE_RELOAD),
-    ?info("Force reload: ~p", [ForceReload]),
     put(?FORCE_RELOAD, not ForceReload);
 
+event(back) ->
+    onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_CHOOSE_VERSION);
+
 event({update, Version}) ->
-    gui_jq:prop(<<"update_button">>, <<"disabled">>, <<"disabled">>),
-    gui_jq:prop(<<"force_reload_checkbox">>, <<"disabled">>, <<"disabled">>),
+    gui_jq:hide(<<"update_panel">>),
+    gui_jq:hide(<<"error_message">>),
     gui_jq:show(<<"update_progress">>),
     ForceReload = get(?FORCE_RELOAD),
-    ?info("Version: ~p", [Version]),
-    ?info("Force reload: ~p", [ForceReload]),
-    updater:update_to(Version, ForceReload);
+    Pid = get(?COMET_PID),
+    updater:update_to(Version, ForceReload, fun(Event, State) -> update_progress(Pid, Event, State) end);
 
 event(terminate) ->
     ok.
