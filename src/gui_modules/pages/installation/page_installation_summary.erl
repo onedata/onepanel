@@ -18,10 +18,17 @@
 -include("onepanel_modules/installer/stages.hrl").
 -include_lib("ctool/include/logging.hrl").
 
+%% Convenience record abbreviation
 -define(CONFIG, ?GLOBAL_CONFIG_RECORD).
--define(STATE, state).
+
+%% Default time in miliseconds for next progress bar update
 -define(DEFAULT_NEXT_UPDATE, 1000).
 
+%% Comet process pid
+-define(COMET_PID, comet_pid).
+
+%% Comet process state
+-define(STATE, state).
 -record(?STATE, {step, steps, step_progress, next_update}).
 
 %% ====================================================================
@@ -376,7 +383,7 @@ event(init) ->
     gui_jq:bind_key_to_click(<<"13">>, <<"install_button">>),
     {ok, Pid} = gui_comet:spawn(fun() -> comet_loop(#?STATE{}) end),
     installer:set_callback(fun(Event, State) -> installation_progress(Event, State, Pid) end),
-    put(comet_pid, Pid);
+    put(?COMET_PID, Pid);
 
 event(back) ->
     onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_ADD_STORAGE);
@@ -388,7 +395,7 @@ event(install) ->
             onepanel_gui_utils:message(<<"error_message">>, <<"Nothing to install.">>),
             gui_ctx:put(?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION);
         _ ->
-            Pid = get(comet_pid),
+            Pid = get(?COMET_PID),
             Pid ! {init, length(installer:get_flatten_stages()), <<"">>},
             Fields = record_info(fields, ?CONFIG),
             [_ | Values] = tuple_to_list(ToInstall),

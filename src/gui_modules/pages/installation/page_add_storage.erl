@@ -19,6 +19,8 @@
 
 %% Number of added storage paths
 -define(STORAGE_PATHS_SIZE, storage_paths_size).
+
+%% Convenience record abbreviation
 -define(CONFIG, ?GLOBAL_CONFIG_RECORD).
 
 %% ====================================================================

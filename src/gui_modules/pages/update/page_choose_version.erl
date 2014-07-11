@@ -86,7 +86,7 @@ body() ->
                                            body = <<"Software is not installed.">>
                                        },
                                        #p{
-                                           body = <<"Please complete installation process to proceed with update.">>
+                                           body = <<"Please complete installation process before proceeding with update.">>
                                        },
                                        #link{
                                            id = <<"next_button">>,

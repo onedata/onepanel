@@ -18,6 +18,7 @@
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 
+%% Convenience record abbreviation
 -define(CONFIG, ?GLOBAL_CONFIG_RECORD).
 
 %% ====================================================================

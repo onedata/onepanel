@@ -101,34 +101,39 @@ body() ->
                     },
                     #panel{
                         id = <<"update_pannel">>,
-                        style = <<"margin-top: 30px; width: 260px; height: 100px; margin: 0 auto;", UpdatePanelDisplay/binary>>,
+                        style = UpdatePanelDisplay,
                         body = [
-                            #button{
-                                id = <<"update_button">>,
-                                class = <<"btn btn-primary">>,
-                                postback = {update, Version},
-                                style = <<"float: left; width: 80px;">>,
-                                body = <<"Update">>
-                            },
                             #panel{
-                                class = <<"btn-group pull-right">>,
-                                style = <<"float: right; padding: 7px 14px 0px;">>,
+                                style = <<"margin-top: 30px; width: 260px; height: 100px; margin: 0 auto;">>,
                                 body = [
-                                    #label{
-                                        id = <<"force_reload_checkbox">>,
-                                        class = <<"checkbox">>,
-                                        for = <<"force_reload_checkbox">>,
-                                        style = <<"display: block; font-weight: bold;">>,
-                                        actions = gui_jq:postback_action(<<"force_reload_checkbox">>, force_reload_checkbox_toggled),
+                                    #button{
+                                        id = <<"update_button">>,
+                                        class = <<"btn btn-primary">>,
+                                        postback = {update, Version},
+                                        style = <<"float: left; width: 80px;">>,
+                                        body = <<"Update">>
+                                    },
+                                    #panel{
+                                        class = <<"btn-group pull-right">>,
+                                        style = <<"float: right; padding: 7px 14px 0px;">>,
                                         body = [
-                                            #span{
-                                                class = <<"icons">>
-                                            },
-                                            #checkbox{
+                                            #label{
                                                 id = <<"force_reload_checkbox">>,
-                                                data_fields = [{<<"data-toggle">>, <<"checkbox">>}]
-                                            },
-                                            <<"Force node reload">>
+                                                class = <<"checkbox">>,
+                                                for = <<"force_reload_checkbox">>,
+                                                style = <<"display: block; font-weight: bold;">>,
+                                                actions = gui_jq:postback_action(<<"force_reload_checkbox">>, force_reload_checkbox_toggled),
+                                                body = [
+                                                    #span{
+                                                        class = <<"icons">>
+                                                    },
+                                                    #checkbox{
+                                                        id = <<"force_reload_checkbox">>,
+                                                        data_fields = [{<<"data-toggle">>, <<"checkbox">>}]
+                                                    },
+                                                    <<"Force node reload">>
+                                                ]
+                                            }
                                         ]
                                     }
                                 ]
