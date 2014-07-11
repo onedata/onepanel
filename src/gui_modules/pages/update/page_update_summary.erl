@@ -388,7 +388,6 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
                 State;
 
             abort ->
-                updater:abort(),
                 onepanel_gui_utils:message(<<"error_message">>, <<"Aborting update process.<br>Please wait while rollbacking changes...">>),
                 gui_comet:flush(),
                 State;
@@ -469,7 +468,7 @@ event(back) ->
     onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_VERSION_SELECTION);
 
 event(abort) ->
-    get(?COMET_PID) ! abort;
+    updater:abort();
 
 event({update, Version}) ->
     gui_jq:hide(<<"update_panel">>),
