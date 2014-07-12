@@ -25,10 +25,10 @@ export HOME=/
 PREFIX=/opt/veil/files/onepanel_node
 
 start() {
-	${PREFIX}/bin/onepanel ping ; status=$?
+	${PREFIX}/bin/onepanel ping > /dev/null 2>&1 ; status=$?
 	if [ $status -eq 1 ]; then
 		echo -n "Starting onepanel: "
-		${PREFIX}/bin/onepanel start
+		${PREFIX}/bin/onepanel start > /dev/null 2>&1
 		ret=$?
 		[ $ret -eq 0 ] && success || failure
 		echo
@@ -37,10 +37,10 @@ start() {
 }
 
 stop() {
-	${PREFIX}/bin/onepanel ping ; status=$?
+	${PREFIX}/bin/onepanel ping > /dev/null 2>&1 ; status=$?
 	if [ $status -eq 0 ]; then
 		echo -n "Stopping onepanel: "
-		${PREFIX}/bin/onepanel stop
+		${PREFIX}/bin/onepanel stop > /dev/null 2>&1
 		ret=$?
 		[ $ret -eq 0 ] && success || failure
 		echo
@@ -54,7 +54,7 @@ restart() {
 }
 
 status() {
-	${PREFIX}/bin/onepanel ping ; status=$?
+	${PREFIX}/bin/onepanel ping > /dev/null 2>&1 ; status=$?
 	echo -n "onepanel: "
 	if [ $status -eq 0 ]; then
 		 echo "Running."
