@@ -307,7 +307,7 @@ local_stop() ->
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 add_to_cluster(ClusterNode, Password) ->
-    add_to_cluster(ClusterNode, binary_to_list(Password), 0).
+    add_to_cluster(ClusterNode, Password, 0).
 
 
 %% add_to_cluster/2

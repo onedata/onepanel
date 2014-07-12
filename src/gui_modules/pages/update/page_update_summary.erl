@@ -92,6 +92,11 @@ body() ->
                 class = <<"dialog dialog-danger">>
             },
             #panel{
+                id = <<"ok_message">>,
+                style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
+                class = <<"dialog dialog-success">>
+            },
+            #panel{
                 style = <<"margin-top: 150px; text-align: center;">>,
                 body = [
                     #h6{
@@ -277,6 +282,13 @@ get_job_index_and_jobs_count(Stage, Job, State) ->
     {JobsCount - length(lists:dropwhile(fun(J) -> J =/= Job end, Jobs)) + 1, JobsCount}.
 
 
+%% get_job_progress/4
+%% ====================================================================
+%% @doc Returns overall jobs progress in current stage and also progress
+%% of current job.
+-spec get_job_progress(JobProgress :: float(), JobIndex :: integer(), JobsCount :: integer(), ActionType :: atom()) -> Result
+    when Result :: {JobsProgress :: float(), NewJobProgress :: float()}.
+%% ====================================================================
 get_job_progress(JobProgress, JobIndex, JobsCount, install) ->
     NewProgress = (JobProgress + 1) / 2,
     {100 * (JobIndex + JobProgress - 1) / JobsCount, NewProgress};
@@ -319,10 +331,12 @@ update_progress(Pid, Event, State) ->
 %% comet_loop/1
 %% ====================================================================
 %% @doc Handles updater process messages and updates progress bar.
--spec comet_loop(State :: #?STATE{}) -> no_return().
+-spec comet_loop(State :: #?STATE{}) -> Result when
+    Result :: {error, Reason :: term()}.
 %% ====================================================================
 comet_loop({error, Reason}) ->
     {error, Reason};
+
 comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JProgress, stages_count = SCount, action_type = AType, update_time = UTime} = State) ->
     NewState = try
         receive
@@ -333,12 +347,12 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
                 State#?STATE{stages_count = NewSCount};
 
             {set_abortable, true} ->
-                gui_jq:prop(<<"update_button">>, <<"disabled">>, <<"">>),
+                gui_jq:prop(<<"abort_button">>, <<"disabled">>, <<"">>),
                 gui_comet:flush(),
                 State;
 
             {set_abortable, false} ->
-                gui_jq:prop(<<"update_button">>, <<"disabled">>, <<"disabled">>),
+                gui_jq:prop(<<"abort_button">>, <<"disabled">>, <<"disabled">>),
                 gui_comet:flush(),
                 State;
 
@@ -388,7 +402,6 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
                 State;
 
             abort ->
-                updater:abort(),
                 onepanel_gui_utils:message(<<"error_message">>, <<"Aborting update process.<br>Please wait while rollbacking changes...">>),
                 gui_comet:flush(),
                 State;
@@ -401,21 +414,26 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
             {finish, UpdaterState} ->
                 gui_jq:update(<<"job_progress_text">>, <<"">>),
                 gui_jq:update(<<"stage_progress_text">>, <<"">>),
-                case updater_state:get_error_stack(UpdaterState) of
-                    {[], _} ->
+                case AType of
+                    install ->
                         gui_jq:set_width(<<"job_bar">>, <<"100%">>),
                         gui_jq:set_width(<<"stage_bar">>, <<"100%">>),
                         gui_comet:flush(),
-                        onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_UPDATE_SUCCESS),
-                        gui_comet:flush();
+                        onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_UPDATE_SUCCESS);
                     _ ->
-                        onepanel_gui_utils:message(<<"error_message">>, <<"An error occurred during update process.">>),
                         gui_jq:set_width(<<"job_bar">>, <<"0%">>),
                         gui_jq:set_width(<<"stage_bar">>, <<"0%">>),
-                        gui_jq:show(<<"update_panel">>),
                         gui_jq:hide(<<"update_progress">>),
-                        gui_comet:flush()
+                        gui_jq:show(<<"update_panel">>),
+                        case updater_state:get_error_stack(UpdaterState) of
+                            {[], _} ->
+                                gui_jq:hide(<<"error_message">>),
+                                onepanel_gui_utils:message(<<"ok_message">>, <<"Update process aborted successfully.">>);
+                            _ ->
+                                onepanel_gui_utils:message(<<"error_message">>, <<"An error occurred during update process.">>)
+                        end
                 end,
+                gui_comet:flush(),
                 State
         end
                catch Type:Reason ->
@@ -437,6 +455,8 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
 %% ====================================================================
 event(init) ->
     gui_jq:bind_key_to_click(<<"13">>, <<"update_button">>),
+    gui_jq:hide(<<"ok_message">>),
+    gui_jq:hide(<<"error_message">>),
 
     {ok, Pid} = gui_comet:spawn(fun() -> comet_loop(#?STATE{}) end),
     updater:set_callback(fun(Event, State) -> update_progress(Pid, Event, State) end),
@@ -449,9 +469,15 @@ event(init) ->
 
     case updater_state:get_stage_and_job(State) of
         {?STAGE_IDLE, _} ->
-            case updater_state:get_error_stack(State) of
-                {[], _} -> ok;
-                _ -> onepanel_gui_utils:message(<<"error_message">>, <<"An error occurred during update process.">>)
+            case ActionType of
+                install -> ok;
+                _ ->
+                    case updater_state:get_error_stack(State) of
+                        {[], _} ->
+                            onepanel_gui_utils:message(<<"ok_message">>, <<"Update process aborted successfully.">>);
+                        _ ->
+                            onepanel_gui_utils:message(<<"error_message">>, <<"An error occurred during update process.">>)
+                    end
             end;
         _ ->
             gui_jq:hide(<<"update_panel">>),
@@ -469,11 +495,12 @@ event(back) ->
     onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_VERSION_SELECTION);
 
 event(abort) ->
-    get(?COMET_PID) ! abort;
+    updater:abort();
 
 event({update, Version}) ->
     gui_jq:hide(<<"update_panel">>),
     gui_jq:hide(<<"error_message">>),
+    gui_jq:hide(<<"ok_message">>),
     gui_jq:show(<<"update_progress">>),
     ForceReload = get(?FORCE_RELOAD),
     Pid = get(?COMET_PID),

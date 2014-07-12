@@ -17,6 +17,7 @@
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% Convenience record abbreviation
 -define(CONFIG, ?GLOBAL_CONFIG_RECORD).
@@ -212,8 +213,9 @@ ulimits_table_body(Hosts, InstalledHosts) ->
 %% ====================================================================
 validate_limit(Limit) ->
     Regex = "[1-9][0-9]*",
+    Length = length(Limit),
     case re:run(Limit, Regex) of
-        {match, _} -> true;
+        {match, [{0, Length}]} -> true;
         _ -> false
     end.
 
@@ -249,7 +251,7 @@ event({set_ulimits, Hosts}) ->
                     case validate_limit(ProcessesLimit) of
                         true ->
                             gui_jq:css(ProcessesId, <<"border-color">>, <<"green">>),
-                            rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_ulimits,
+                            rpc:call(list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_ulimits,
                                 [list_to_integer(OpenFilesLimit), list_to_integer(ProcessesLimit)]),
                             Status;
                         _ ->

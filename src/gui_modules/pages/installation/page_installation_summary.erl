@@ -256,11 +256,15 @@ to_install() ->
 
 %% comet_loop/1
 %% ====================================================================
-%% @doc Handles installation process and updates progress bar.
--spec comet_loop(State :: #?STATE{}) -> no_return().
+%% @doc Handles installer process messages and updates progress bar.
+-spec comet_loop(State :: #?STATE{}) -> Result when
+    Result :: {error, Reason :: term()}.
 %% ====================================================================
+comet_loop({error, Reason}) ->
+    {error, Reason};
+
 comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, next_update = NextUpdate} = State) ->
-    try
+    NewState = try
         receive
             {init, InitSteps} ->
                 gui_jq:hide(<<"error_message">>),
@@ -270,7 +274,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                 gui_jq:show(<<"progress">>),
                 gui_comet:flush(),
                 timer:send_after(?DEFAULT_NEXT_UPDATE, {update, 0}),
-                comet_loop(State#?STATE{step = 0, steps = InitSteps, step_progress = 0, next_update = ?DEFAULT_NEXT_UPDATE});
+                State#?STATE{step = 0, steps = InitSteps, step_progress = 0, next_update = ?DEFAULT_NEXT_UPDATE};
 
             {change_step, NewStep, Text} ->
                 gui_jq:show(<<"progress">>),
@@ -279,7 +283,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                 gui_jq:set_width(<<"bar">>, Progress),
                 gui_comet:flush(),
                 timer:send_after(?DEFAULT_NEXT_UPDATE, {update, NewStep}),
-                comet_loop(State#?STATE{step = NewStep, step_progress = 0, next_update = ?DEFAULT_NEXT_UPDATE});
+                State#?STATE{step = NewStep, step_progress = 0, next_update = ?DEFAULT_NEXT_UPDATE};
 
             {update, Step} ->
                 NewStepProgress = StepProgress + (1 - StepProgress) / 2,
@@ -287,17 +291,17 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                 gui_jq:set_width(<<"bar">>, Progress),
                 gui_comet:flush(),
                 timer:send_after(NextUpdate, {update, Step}),
-                comet_loop(State#?STATE{step_progress = NewStepProgress, next_update = 2 * NextUpdate});
+                State#?STATE{step_progress = NewStepProgress, next_update = 2 * NextUpdate};
 
             {update, _} ->
-                comet_loop(State);
+                State;
 
             finish ->
                 gui_jq:update(<<"progress_text">>, <<"Current stage">>),
                 gui_jq:set_width(<<"bar">>, <<"100%">>),
                 onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUCCESS),
                 gui_comet:flush(),
-                comet_loop(State#?STATE{step = undefined});
+                State#?STATE{step = undefined};
 
             {error, Text} ->
                 gui_jq:update(<<"summary_table">>, summary_table_body()),
@@ -306,12 +310,14 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                 gui_jq:prop(<<"prev_button">>, <<"disabled">>, <<"">>),
                 gui_jq:hide(<<"progress">>),
                 gui_comet:flush(),
-                comet_loop(State#?STATE{step = -1})
+                State#?STATE{step = -1}
         end
-    catch Type:Reason ->
-        ?error("Comet process exception: ~p:~p", [Type, Reason]),
-        onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>)
-    end.
+               catch Type:Reason ->
+                   ?error("Comet process exception: ~p:~p", [Type, Reason]),
+                   onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
+                   {error, Reason}
+               end,
+    comet_loop(NewState).
 
 
 %% get_error_message/1
