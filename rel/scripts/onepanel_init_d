@@ -22,7 +22,7 @@
 export HOME=/
 
 # Default installation path
-PREFIX=/opt/veil/files/onepanel
+PREFIX=/opt/veil/files/onepanel_node
 
 start() {
 	${PREFIX}/bin/onepanel ping ; status=$?
