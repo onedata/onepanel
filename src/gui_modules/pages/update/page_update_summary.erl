@@ -356,6 +356,9 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
                 gui_comet:flush(),
                 State;
 
+            {set_stage_and_job, SIndex, _, JIndex, _, _} ->
+                State;
+
             {set_stage_and_job, StageIndex, StageName, JobIndex, JobsCount, JobName} ->
                 case StageIndex of
                     SIndex -> ok;
@@ -369,36 +372,31 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
                                                _ -> {<<"Stage rollback: ">>, <<"Job rollback: ">>}
                                            end,
 
-                gui_jq:update(<<"stage_progress_text">>, <<StagePrefix/binary, "<b>", (StageName)/binary, "</b>">>),
-                gui_jq:update(<<"job_progress_text">>, <<JobPrefix/binary, "<b>", (JobName)/binary, "</b>">>),
-
                 StageProgress = 100 * (StageIndex * JobsCount - JobsCount + JobIndex) / (SCount * JobsCount),
                 StageProgressBinary = <<(integer_to_binary(round(StageProgress)))/binary, "%">>,
+                gui_jq:update(<<"stage_progress_text">>, <<StagePrefix/binary, "<b>", StageName/binary, " ( ", StageProgressBinary/binary, " )</b>">>),
                 gui_jq:set_width(<<"stage_bar">>, StageProgressBinary),
 
-                JobProgress = 100 * (JobIndex - 1) / JobsCount,
-                JobProgressBinary = <<(integer_to_binary(round(JobProgress)))/binary, "%">>,
-                gui_jq:set_width(<<"job_bar">>, JobProgressBinary),
-
-                timer:send_after(?DEFAULT_NEXT_UPDATE, {update, StageIndex, JobIndex, JobsCount}),
-                gui_comet:flush(),
-                case AType of
-                    install ->
-                        State#?STATE{stage_index = StageIndex, job_index = JobIndex, job_progress = 0, update_time = ?DEFAULT_NEXT_UPDATE};
-                    _ ->
-                        State#?STATE{stage_index = StageIndex, job_index = JobIndex, job_progress = 1, update_time = ?DEFAULT_NEXT_UPDATE}
-                end;
-
-            {update, SIndex, JIndex, JobsCount} ->
-                {JobsProgress, NewJProgress} = get_job_progress(JProgress, JIndex, JobsCount, AType),
+                JobsProgress = 100 * (JobIndex - 1) / JobsCount,
                 JobsProgressBinary = <<(integer_to_binary(round(JobsProgress)))/binary, "%">>,
+                gui_jq:update(<<"job_progress_text">>, <<JobPrefix/binary, "<b>", JobName/binary, " ( ", JobsProgressBinary/binary, " )</b>">>),
                 gui_jq:set_width(<<"job_bar">>, JobsProgressBinary),
 
-                timer:send_after(2 * UTime, {update, SIndex, JIndex, JobsCount}),
+                timer:send_after(?DEFAULT_NEXT_UPDATE, {update, StageIndex, JobIndex, JobPrefix, JobName, JobsCount}),
+                gui_comet:flush(),
+                State#?STATE{stage_index = StageIndex, job_index = JobIndex, job_progress = 0.5, update_time = ?DEFAULT_NEXT_UPDATE};
+
+            {update, SIndex, JIndex, JobPrefix, JobName, JobsCount} ->
+                {JobsProgress, NewJProgress} = get_job_progress(JProgress, JIndex, JobsCount, AType),
+                JobsProgressBinary = <<(integer_to_binary(round(JobsProgress)))/binary, "%">>,
+                gui_jq:update(<<"job_progress_text">>, <<JobPrefix/binary, "<b>", JobName/binary, " ( ", JobsProgressBinary/binary, " )</b>">>),
+                gui_jq:set_width(<<"job_bar">>, JobsProgressBinary),
+
+                timer:send_after(2 * UTime, {update, SIndex, JIndex, JobPrefix, JobName, JobsCount}),
                 gui_comet:flush(),
                 State#?STATE{job_progress = NewJProgress, update_time = 2 * UTime};
 
-            {update, _, _, _} ->
+            {update, _, _, _, _, _} ->
                 State;
 
             abort ->
@@ -474,9 +472,9 @@ event(init) ->
                 _ ->
                     case updater_state:get_error_stack(State) of
                         {[], _} ->
-                            onepanel_gui_utils:message(<<"ok_message">>, <<"Update process aborted successfully.">>);
+                            onepanel_gui_utils:message(<<"ok_message">>, <<"Previous update process aborted successfully.">>);
                         _ ->
-                            onepanel_gui_utils:message(<<"error_message">>, <<"An error occurred during update process.">>)
+                            onepanel_gui_utils:message(<<"error_message">>, <<"An error occurred during previous update process.">>)
                     end
             end;
         _ ->

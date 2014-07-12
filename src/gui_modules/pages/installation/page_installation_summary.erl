@@ -278,22 +278,23 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
 
             {change_step, NewStep, Text} ->
                 gui_jq:show(<<"progress">>),
-                gui_jq:update(<<"progress_text">>, Text),
                 Progress = <<(integer_to_binary(round(100 * NewStep / Steps)))/binary, "%">>,
+                gui_jq:update(<<"progress_text">>, <<Text/binary, " <b>( ", Progress/binary, " )</b>">>),
                 gui_jq:set_width(<<"bar">>, Progress),
                 gui_comet:flush(),
-                timer:send_after(?DEFAULT_NEXT_UPDATE, {update, NewStep}),
+                timer:send_after(?DEFAULT_NEXT_UPDATE, {update, NewStep, Text}),
                 State#?STATE{step = NewStep, step_progress = 0, next_update = ?DEFAULT_NEXT_UPDATE};
 
-            {update, Step} ->
+            {update, Step, Text} ->
                 NewStepProgress = StepProgress + (1 - StepProgress) / 2,
                 Progress = <<(integer_to_binary(round(100 * (Step + NewStepProgress) / Steps)))/binary, "%">>,
+                gui_jq:update(<<"progress_text">>, <<Text/binary, " <b>( ", Progress/binary, " )</b>">>),
                 gui_jq:set_width(<<"bar">>, Progress),
                 gui_comet:flush(),
-                timer:send_after(NextUpdate, {update, Step}),
+                timer:send_after(NextUpdate, {update, Step, Text}),
                 State#?STATE{step_progress = NewStepProgress, next_update = 2 * NextUpdate};
 
-            {update, _} ->
+            {update, _, _} ->
                 State;
 
             finish ->

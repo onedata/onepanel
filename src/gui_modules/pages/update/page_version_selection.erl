@@ -173,7 +173,9 @@ version_body() ->
             }
         ]
     catch
-        _:_ -> []
+        _:_ ->
+            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch available software versions from remote repository.">>),
+            []
     end.
 
 
@@ -263,7 +265,8 @@ sort_versions(Versions) ->
 get_available_versions() ->
     try
         {ok, Url} = application:get_env(?APP_NAME, get_versions_url),
-        {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(Url, [{content_type, "application/json"}], get),
+        Options = [{connect_timeout, ?CONNECTION_TIMEOUT}],
+        {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(Url, [{content_type, "application/json"}], get, "{}", Options),
         {_, List} = mochijson2:decode(ResBody),
         proplists:get_value(<<"VeilCluster-Linux.rpm">>, List)
     catch
