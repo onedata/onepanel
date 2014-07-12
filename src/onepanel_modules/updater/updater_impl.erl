@@ -188,11 +188,11 @@ dispatch_object(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEW_SOURCES, Obj, #?u_stat
     updater_utils:cast(Node, install_view_sources, []);
 
 dispatch_object(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, _Obj, #?u_state{nodes = Nodes}) ->
-    updater_utils:anycast(Nodes, install_views, []);
+    updater_utils:anycast(updater_utils:select_only_workers(Nodes), install_views, []);
 
 dispatch_object(?STAGE_DAO_REFRESH_VIEWS, ?JOB_DEFAULT, Obj, #?u_state{nodes = Nodes}) ->
     View = Obj,
-    updater_utils:anycast(Nodes, refresh_view, [View]);
+    updater_utils:anycast(updater_utils:select_only_workers(Nodes), refresh_view, [View]);
 
 dispatch_object(?STAGE_DEPLOY_FILES, ?JOB_BACKUP, Obj, #?u_state{}) ->
     Node = Obj,
