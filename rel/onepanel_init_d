@@ -1,0 +1,92 @@
+#!/bin/sh
+#
+# chkconfig: 2345 80 30
+# description: Onepanel service
+
+### BEGIN INIT INFO
+# Provides:		    onepanel_init
+# Required-Start:	$local_fs $remote_fs $network $time
+# Required-Stop:	$local_fs $remote_fs $network $time
+# Should-Start:		$syslog
+# Should-Stop:		$syslog
+# Default-Start:	2 3 4 5
+# Default-Stop:		0 1 6
+# Short-Description:	Onepanel service
+# Description:	Manages Onepanel node that is configured on this machine.
+### END INIT INFO
+
+# Source function library.
+. /etc/init.d/functions
+
+# Needed for erlexec to run
+export HOME=/
+
+# Default installation path
+PREFIX=/opt/veil/files/onepanel
+
+start() {
+	${PREFIX}/bin/onepanel ping ; status=$?
+	if [ $status -eq 1 ]; then
+		echo -n "Starting onepanel: "
+		${PREFIX}/bin/onepanel start
+		ret=$?
+		[ $ret -eq 0 ] && success || failure
+		echo
+		return $ret
+	fi
+}
+
+stop() {
+	${PREFIX}/bin/onepanel ping ; status=$?
+	if [ $status -eq 0 ]; then
+		echo -n "Stopping onepanel: "
+		${PREFIX}/bin/onepanel stop
+		ret=$?
+		[ $ret -eq 0 ] && success || failure
+		echo
+		return $ret
+	fi
+}
+
+restart() {
+	stop
+	start
+}
+
+status() {
+	${PREFIX}/bin/onepanel ping ; status=$?
+	echo -n "onepanel: "
+	if [ $status -eq 0 ]; then
+		 echo "Running."
+	else
+		echo "Not running."
+	fi
+	return $ret
+}
+
+case "$1" in
+    start)
+		# Execute function and create a lock file (required by red-hat based systems)
+		$1 && touch /var/lock/subsys/onepanel
+		;;
+
+	restart|force-reload)
+		restart && touch /var/lock/subsys/onepanel
+		;;
+
+    stop)
+		$1
+		status || rm -f /var/lock/subsys/onepanel
+		;;
+
+	status)
+		$1
+		;;
+
+    *)
+        echo "Usage: $0 {start|stop|restart|force-reload|status}"
+        exit 1
+		;;
+esac
+
+exit $?
