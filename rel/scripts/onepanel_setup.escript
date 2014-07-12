@@ -162,10 +162,10 @@ config() ->
         Terms = rpc:call(Node, installer_utils, get_global_config, []),
 
         format_host("Main CCM node:", proplists:get_value(main_ccm, Terms)),
-        format_hosts("CCM nodes:", proplists:get_value(ccms, Terms)),
-        format_hosts("Worker nodes:", proplists:get_value(workers, Terms)),
-        format_hosts("Database nodes:", proplists:get_value(dbs, Terms)),
-        format_hosts("Storage paths:", proplists:get_value(storage_paths, Terms))
+        format_hosts("CCM nodes:", lists:sort(proplists:get_value(ccms, Terms, []))),
+        format_hosts("Worker nodes:", lists:sort(proplists:get_value(workers, Terms, []))),
+        format_hosts("Database nodes:", lists:sort(proplists:get_value(dbs, Terms, []))),
+        format_hosts("Storage paths:", lists:sort(proplists:get_value(storage_paths, Terms, [])))
     catch
         _:_ ->
             io:format("Cannot get current installation configuration.\n"),
@@ -284,7 +284,7 @@ execute(Node, Module, Function, Args) ->
 -spec check_hosts(Node :: atom(), Hosts :: [string()]) -> ok | no_return().
 %% ====================================================================
 check_hosts(Node, Hosts) ->
-    ValidHosts = rpc:call(Node, installer_utils, get_hosts, []),
+    ValidHosts = rpc:call(Node, onepanel_utils, get_hosts, []),
     lists:foreach(fun(Host) ->
         case lists:member(Host, ValidHosts) of
             true -> ok;
