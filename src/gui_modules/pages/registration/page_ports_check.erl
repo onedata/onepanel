@@ -206,8 +206,9 @@ ports_table_body(Hosts, DefaultGuiPort, DefaultRestPort) ->
 %% ====================================================================
 validate_port(Port) ->
     Regex = "[1-9][0-9]*",
+    Length = length(Port),
     case re:run(Port, Regex) of
-        {match, _} -> true;
+        {match, [{0, Length}]} -> true;
         _ -> false
     end.
 

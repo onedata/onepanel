@@ -285,8 +285,8 @@ event(next) ->
             case MainCCM of
                 undefined ->
                     case CCMs of
-                        [NewMainCCM | _] ->
-                            gui_ctx:put(?CONFIG_ID, Config#?CONFIG{main_ccm = NewMainCCM}),
+                        [_ | _] ->
+                            gui_ctx:put(?CONFIG_ID, Config#?CONFIG{main_ccm = hd(lists:sort(CCMs))}),
                             onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_MAIN_CCM_SELECTION);
                         _ ->
                             onepanel_gui_utils:message(<<"error_message">>, <<"Please select at least one host for CCM node.">>)
