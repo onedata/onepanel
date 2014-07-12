@@ -331,10 +331,12 @@ update_progress(Pid, Event, State) ->
 %% comet_loop/1
 %% ====================================================================
 %% @doc Handles updater process messages and updates progress bar.
--spec comet_loop(State :: #?STATE{}) -> no_return().
+-spec comet_loop(State :: #?STATE{}) -> Result when
+    Result :: {error, Reason :: term()}.
 %% ====================================================================
 comet_loop({error, Reason}) ->
     {error, Reason};
+
 comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JProgress, stages_count = SCount, action_type = AType, update_time = UTime} = State) ->
     NewState = try
         receive

@@ -145,11 +145,15 @@ body() ->
 
 %% comet_loop/1
 %% ====================================================================
-%% @doc Handles connection process and updates progress bar.
--spec comet_loop(State :: #?STATE{}) -> no_return().
+%% @doc Handles connection process messages and updates progress bar.
+-spec comet_loop(State :: #?STATE{}) -> Result when
+    Result :: {error, Reason :: term()}.
 %% ====================================================================
+comet_loop({error, Reason}) ->
+    {error, Reason};
+
 comet_loop(#?STATE{step = Step, steps = Steps, status = Status} = State) ->
-    try
+    NewState = try
         receive
             {init, InitSteps} ->
                 gui_jq:hide(<<"error_message">>),
@@ -158,7 +162,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, status = Status} = State) ->
                 gui_jq:show(<<"progress">>),
                 gui_comet:flush(),
                 timer:send_after(?DEFAULT_NEXT_UPDATE, update),
-                comet_loop(State#?STATE{step = 1, steps = InitSteps, status = connecting});
+                State#?STATE{step = 1, steps = InitSteps, status = connecting};
 
             update ->
                 Progress = <<(integer_to_binary(round(100 * Step / Steps)))/binary, "%">>,
@@ -178,26 +182,28 @@ comet_loop(#?STATE{step = Step, steps = Steps, status = Status} = State) ->
                                 onepanel_gui_utils:message(<<"error_message">>, <<"Cannot connect to Global Registry.<br>
                                 Please check your network configuration and try again later.">>),
                                 gui_comet:flush(),
-                                comet_loop(State#?STATE{status = idle});
+                                State#?STATE{status = idle};
                             connecting ->
                                 timer:send_after(?DEFAULT_NEXT_UPDATE, update),
-                                comet_loop(State);
+                                State;
                             _ ->
-                                comet_loop(State)
+                                State
                         end;
                     _ ->
                         gui_comet:flush(),
                         timer:send_after(?DEFAULT_NEXT_UPDATE, update),
-                        comet_loop(State#?STATE{step = Step + 1})
+                        State#?STATE{step = Step + 1}
                 end;
 
             {set_status, NewStatus} ->
-                comet_loop(State#?STATE{status = NewStatus})
+                State#?STATE{status = NewStatus}
         end
-    catch Type:Reason ->
-        ?error("Comet process exception: ~p:~p", [Type, Reason]),
-        onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>)
-    end.
+               catch Type:Reason ->
+                   ?error("Comet process exception: ~p:~p", [Type, Reason]),
+                   onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
+                   {error, Reason}
+               end,
+    comet_loop(NewState).
 
 
 %% ====================================================================
