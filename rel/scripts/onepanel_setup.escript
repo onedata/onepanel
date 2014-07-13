@@ -366,7 +366,7 @@ format_hosts(Prefix, [Host | Hosts]) ->
 -spec print_usage() -> ok.
 %% ====================================================================
 print_usage() ->
-    io:format("Usage: onepanel_setup.escript [options]\n", []),
+    io:format("Usage: onepanel_setup [options]\n", []),
     io:format("Options:\n"),
     io:format("\t--install <config file>\n"),
     io:format("\t--config\n"),
