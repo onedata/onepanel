@@ -18,33 +18,34 @@
 # Source function library.
 . /etc/init.d/functions
 
-# Needed for erlexec to run
-export HOME=/
+# Service name
+ONEPANEL=onepanel
+
+# Lock file (required by red-hat based systems)
+VAR_SUBSYS_ONEPANEL=/var/lock/subsys/$ONEPANEL
 
 # Default installation path
-PREFIX=/opt/veil/files/onepanel_node
+PREFIX=/opt/veil/nodes/$ONEPANEL
 
 start() {
-	${PREFIX}/bin/onepanel ping > /dev/null 2>&1 ; status=$?
-	if [ $status -eq 1 ]; then
-		echo -n "Starting onepanel: "
-		${PREFIX}/bin/onepanel start > /dev/null 2>&1
-		ret=$?
-		[ $ret -eq 0 ] && success || failure
-		echo
-		return $ret
+	status_silent ; status=$?
+	if [ $status -ne 0 ]; then
+		echo -n $"Starting ${ONEPANEL}: "
+	    ${PREFIX}/bin/${ONEPANEL} start > /dev/null 2>&1 ; ret=$?
+        [ $ret -eq 0 ] && success || failure
+        echo
+	    return $ret
 	fi
 }
 
 stop() {
-	${PREFIX}/bin/onepanel ping > /dev/null 2>&1 ; status=$?
+	status_silent ; status=$?
 	if [ $status -eq 0 ]; then
-		echo -n "Stopping onepanel: "
-		${PREFIX}/bin/onepanel stop > /dev/null 2>&1
-		ret=$?
-		[ $ret -eq 0 ] && success || failure
-		echo
-		return $ret
+		echo -n $"Stopping ${ONEPANEL}: "
+	    ${PREFIX}/bin/${ONEPANEL} stop > /dev/null 2>&1 ; ret=$?
+        [ $ret -eq 0 ] && success || failure
+        echo
+	    return $ret
 	fi
 }
 
@@ -54,40 +55,43 @@ restart() {
 }
 
 status() {
-	${PREFIX}/bin/onepanel ping > /dev/null 2>&1 ; status=$?
-	echo -n "onepanel: "
+    status_silent ; status=$?
+    echo -n $"${ONEPANEL}: "
 	if [ $status -eq 0 ]; then
-		 echo "Running."
+		 echo "running"
 		 return 0
 	else
-		echo "Not running."
+		echo "not running"
 		return 3
 	fi
 }
 
+status_silent() {
+    ${PREFIX}/bin/${ONEPANEL} ping > /dev/null 2>&1 ; ret=$?
+    return $ret
+}
+
 case "$1" in
     start)
-		# Execute function and create a lock file (required by red-hat based systems)
-		$1 && touch /var/lock/subsys/onepanel
-		;;
-
-	restart|force-reload)
-		restart && touch /var/lock/subsys/onepanel
-		;;
+        start && touch $VAR_SUBSYS_ONEPANEL
+        ;;
 
     stop)
-		$1
-		status || rm -f /var/lock/subsys/onepanel
-		;;
+        stop && rm -f $VAR_SUBSYS_ONEPANEL
+	    ;;
 
-	status)
-		$1
-		;;
+    restart|force-reload)
+	    restart
+	    ;;
+
+    status)
+	    status
+	    ;;
 
     *)
-        echo "Usage: $0 {start|stop|restart|force-reload|status}"
-        exit 1
-		;;
+	    echo $"Usage: $0 {start|stop|restart|force-reload|status}"
+	    exit 2
+	    ;;
 esac
 
 exit $?
