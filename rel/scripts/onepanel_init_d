@@ -58,10 +58,11 @@ status() {
 	echo -n "onepanel: "
 	if [ $status -eq 0 ]; then
 		 echo "Running."
+		 return 0
 	else
 		echo "Not running."
+		return 3
 	fi
-	return $ret
 }
 
 case "$1" in
