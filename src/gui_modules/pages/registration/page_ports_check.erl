@@ -99,7 +99,7 @@ body() ->
                         style = <<"width: 50%; margin: 0 auto; margin-top: 30px; margin-bottom: 30px;">>,
                         body = [
                             #button{
-                                id = <<"prev_button">>,
+                                id = <<"back_button">>,
                                 postback = back,
                                 class = <<"btn btn-inverse btn-small">>,
                                 style = <<"float: left; width: 80px; font-weight: bold;">>,
@@ -255,12 +255,7 @@ event({check_ports, Hosts}) ->
         }
     end, {[], 1}, Hosts) of
         {[], _} ->
-            case gr_adapter:register() of
-                {ok, _} ->
-                    onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_REGISTRATION_SUCCESS);
-                _ ->
-                    onepanel_gui_utils:message(<<"error_message">>, <<"Cannot register in Global Registry. Please try again later.">>)
-            end;
+            onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_REGISTRATION_SUMMARY);
         _ ->
             onepanel_gui_utils:message(<<"error_message">>, <<"Some ports are not available for Global Registry.
             Please change them and try again.">>)

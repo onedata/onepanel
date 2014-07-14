@@ -222,8 +222,9 @@ event(to_main_page) ->
 
 event(next) ->
     Pid = get(?COMET_PID),
+    Pid ! {init, round(?CONNECTION_TIMEOUT / ?DEFAULT_NEXT_UPDATE)},
     spawn(fun() ->
-        Pid ! {init, round(?CONNECTION_TIMEOUT / ?DEFAULT_NEXT_UPDATE)},
+        timer:sleep(1000),
         case gr_adapter:check_ip_address() of
             {ok, _} -> Pid ! {set_status, connection_success};
             _ -> Pid ! {set_status, connection_error}

@@ -28,6 +28,7 @@
 -define(PAGE_REGISTRATION, <<"/registration">>).
 -define(PAGE_CONNECTION_CHECK, <<"/connection_check">>).
 -define(PAGE_PORTS_CHECK, <<"/ports_check">>).
+-define(PAGE_REGISTRATION_SUMMARY, <<"/registration_summary">>).
 -define(PAGE_REGISTRATION_SUCCESS, <<"/registration_success">>).
 
 %% Update pages

@@ -102,7 +102,7 @@ body() ->
                         style = <<"width: 50%; margin: 0 auto; margin-top: 30px; margin-bottom: 30px;">>,
                         body = [
                             #button{
-                                id = <<"prev_button">>,
+                                id = <<"back_button">>,
                                 postback = back,
                                 class = <<"btn btn-inverse btn-small">>,
                                 style = <<"float: left; width: 80px; font-weight: bold;">>,

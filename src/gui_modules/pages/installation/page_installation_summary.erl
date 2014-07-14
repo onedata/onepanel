@@ -123,7 +123,7 @@ body() ->
                         style = <<"width: 50%; margin: 0 auto; margin-top: 30px; margin-bottom: 30px;">>,
                         body = [
                             #button{
-                                id = <<"prev_button">>,
+                                id = <<"back_button">>,
                                 postback = back,
                                 class = <<"btn btn-inverse btn-small">>,
                                 style = <<"float: left; width: 80px; font-weight: bold;">>,
@@ -269,7 +269,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
             {init, InitSteps} ->
                 gui_jq:hide(<<"error_message">>),
                 gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"disabled">>),
-                gui_jq:prop(<<"prev_button">>, <<"disabled">>, <<"disabled">>),
+                gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
                 gui_jq:set_width(<<"bar">>, <<"0%">>),
                 gui_jq:show(<<"progress">>),
                 gui_comet:flush(),
@@ -308,7 +308,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                 gui_jq:update(<<"summary_table">>, summary_table_body()),
                 onepanel_gui_utils:message(<<"error_message">>, Text),
                 gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"">>),
-                gui_jq:prop(<<"prev_button">>, <<"disabled">>, <<"">>),
+                gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
                 gui_jq:hide(<<"progress">>),
                 gui_comet:flush(),
                 State#?STATE{step = -1}
