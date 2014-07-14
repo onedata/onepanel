@@ -107,7 +107,7 @@ body() ->
                             #p{
                                 id = <<"progress_text">>,
                                 style = <<"font-weight: 300;">>,
-                                body = <<"Current stage">>
+                                body = <<"">>
                             },
                             #panel{
                                 class = <<"progress">>,
@@ -298,7 +298,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                 State;
 
             finish ->
-                gui_jq:update(<<"progress_text">>, <<"Current stage">>),
+                gui_jq:update(<<"progress_text">>, <<"">>),
                 gui_jq:set_width(<<"bar">>, <<"100%">>),
                 onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUCCESS),
                 gui_comet:flush(),
@@ -351,7 +351,7 @@ get_info_message({?STAGE_WORKER, ?JOB_INSTALL}) -> <<"Current stage: <b>Installi
 get_info_message({?STAGE_WORKER, ?JOB_START}) -> <<"Current stage: <b>Starting worker nodes</b>">>;
 get_info_message({?STAGE_STORAGE, ?JOB_ADD_STORAGE_PATHS}) -> <<"Current stage: <b>Adding storage paths</b>">>;
 get_info_message({?STAGE_FINAL, ?JOB_FINALIZE_INSTALLATION}) -> <<"Current stage: <b>Finalizing installation</b>">>;
-get_info_message(_) -> <<"Current stage">>.
+get_info_message(_) -> <<"">>.
 
 
 %% installation_progress/1

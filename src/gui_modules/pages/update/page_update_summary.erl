@@ -22,7 +22,7 @@
 %% Default time in miliseconds for next progress bar update
 -define(DEFAULT_NEXT_UPDATE, 1000).
 
-%% Current 'force_reload_checkbox' state
+%% Current 'force_restart_checkbox' state
 -define(FORCE_RELOAD, force_reload).
 
 %% Comet process pid
@@ -30,7 +30,7 @@
 
 %% Comet process state
 -define(STATE, state).
--record(?STATE, {stage_index, job_index, job_progress, stages_count, action_type, update_time}).
+-record(?STATE, {stage_index = 1, job_index, job_progress, stages_count, action_type = install, update_time}).
 
 %% ====================================================================
 %% API functions
@@ -112,7 +112,7 @@ body() ->
                         style = UpdatePanelDisplay,
                         body = [
                             #panel{
-                                style = <<"margin-top: 30px; width: 260px; height: 100px; margin: 0 auto;">>,
+                                style = <<"margin-top: 30px; width: 270px; height: 100px; margin: 0 auto;">>,
                                 body = [
                                     #button{
                                         id = <<"update_button">>,
@@ -126,20 +126,20 @@ body() ->
                                         style = <<"float: right; padding: 7px 14px 0px;">>,
                                         body = [
                                             #label{
-                                                id = <<"force_reload_checkbox">>,
+                                                id = <<"force_restart_checkbox">>,
                                                 class = <<"checkbox">>,
-                                                for = <<"force_reload_checkbox">>,
+                                                for = <<"force_restart_checkbox">>,
                                                 style = <<"display: block; font-weight: bold;">>,
-                                                actions = gui_jq:postback_action(<<"force_reload_checkbox">>, force_reload_checkbox_toggled),
+                                                actions = gui_jq:postback_action(<<"force_restart_checkbox">>, force_restart_checkbox_toggled),
                                                 body = [
                                                     #span{
                                                         class = <<"icons">>
                                                     },
                                                     #checkbox{
-                                                        id = <<"force_reload_checkbox">>,
+                                                        id = <<"force_restart_checkbox">>,
                                                         data_fields = [{<<"data-toggle">>, <<"checkbox">>}]
                                                     },
-                                                    <<"Force node reload">>
+                                                    <<"Force nodes restart">>
                                                 ]
                                             }
                                         ]
@@ -166,7 +166,7 @@ body() ->
                                     #p{
                                         id = <<"stage_progress_text">>,
                                         style = <<"font-weight: 300;">>,
-                                        body = <<"Current stage">>
+                                        body = <<"">>
                                     },
                                     #panel{
                                         class = <<"progress">>,
@@ -185,15 +185,14 @@ body() ->
                                     #p{
                                         id = <<"job_progress_text">>,
                                         style = <<"font-weight: 300;">>,
-                                        body = <<"Current job">>
+                                        body = <<"">>
                                     },
                                     #panel{
                                         class = <<"progress">>,
                                         body = #panel{
                                             id = <<"job_bar">>,
                                             class = <<"bar">>,
-                                            style = <<"transition-property: none; -moz-transition-property: none;",
-                                            "-webkit-transition-property: none; -o-transition-property: none; width: 0%;">>
+                                            style = <<"width: 0%;">>
                                         }
                                     }
                                 ]
@@ -225,13 +224,13 @@ translate_stage(?STAGE_DAO_UPDATER_LOAD) -> <<"Loading database updater">>;
 translate_stage(?STAGE_DAO_SETUP_VIEWS) -> <<"Setting up database views">>;
 translate_stage(?STAGE_DAO_REFRESH_VIEWS) -> <<"Refreshing database views">>;
 translate_stage(?STAGE_DEPLOY_FILES) -> <<"Deploying files">>;
-translate_stage(?STAGE_SOFT_RELOAD) -> <<"Applying soft reload">>;
-translate_stage(?STAGE_HARD_RELOAD) -> <<"Applying hard reload">>;
-translate_stage(?STAGE_FORCE_RELOAD) -> <<"Applying force reload">>;
-translate_stage(?STAGE_NODE_RESTART) -> <<"Restarting nodes">>;
+translate_stage(?STAGE_SOFT_RELOAD) -> <<"Applying soft reload on remote nodes">>;
+translate_stage(?STAGE_HARD_RELOAD) -> <<"Applying hard reload on remote nodes">>;
+translate_stage(?STAGE_FORCE_RELOAD) -> <<"Applying force reload on remote nodes">>;
+translate_stage(?STAGE_NODE_RESTART) -> <<"Restarting remote nodes">>;
 translate_stage(?STAGE_ROLLBACK) -> <<"Rollbacking">>;
-translate_stage(?STAGE_DAO_POST_SETUP_VIEWS) -> <<"Applying post update database views setup">>;
-translate_stage(?STAGE_REPAIR_NODES) -> <<"Repairing nodes">>;
+translate_stage(?STAGE_DAO_POST_SETUP_VIEWS) -> <<"Applying post-update database views setup">>;
+translate_stage(?STAGE_REPAIR_NODES) -> <<"Repairing remote nodes">>;
 translate_stage(_) -> <<"">>.
 
 
@@ -241,20 +240,20 @@ translate_stage(_) -> <<"">>.
 -spec translate_job(JobId :: atom()) -> Result when
     Result :: binary().
 %% ====================================================================
-translate_job(?JOB_DOWNLOAD_BINARY) -> <<"Downloading binary">>;
-translate_job(?JOB_LOAD_EXPORTS) -> <<"Loading exports">>;
-translate_job(?JOB_RELOAD_EXPORTS) -> <<"Reloading exports">>;
+translate_job(?JOB_DOWNLOAD_BINARY) -> <<"Downloading package">>;
+translate_job(?JOB_LOAD_EXPORTS) -> <<"Loading updater modules to remote nodes">>;
+translate_job(?JOB_RELOAD_EXPORTS) -> <<"Reloading updater modules">>;
 translate_job(?JOB_INSTALL_PACKAGE) -> <<"Installing package">>;
-translate_job(?JOB_DEFAULT) -> <<"Default job">>;
-translate_job(?JOB_MOVE_BEAMS) -> <<"Moving beam files">>;
-translate_job(?JOB_LOAD_BEAMS) -> <<"Loading beam files">>;
-translate_job(?JOB_PRE_UPDATE) -> <<"Applying preupdate">>;
-translate_job(?JOB_INSTALL_VIEW_SOURCES) -> <<"Installing views sources">>;
-translate_job(?JOB_INSTALL_VIEWS) -> <<"Installing database views">>;
-translate_job(?JOB_BACKUP) -> <<"Backuping files">>;
+translate_job(?JOB_DEFAULT) -> <<"Default">>;
+translate_job(?JOB_MOVE_BEAMS) -> <<"Moving binary files">>;
+translate_job(?JOB_LOAD_BEAMS) -> <<"Loading binary files">>;
+translate_job(?JOB_PRE_UPDATE) -> <<"Performing pre-update tasks">>;
+translate_job(?JOB_INSTALL_VIEW_SOURCES) -> <<"Preparing database views sources">>;
+translate_job(?JOB_INSTALL_VIEWS) -> <<"Installing database views sources">>;
+translate_job(?JOB_BACKUP) -> <<"Backing up files">>;
 translate_job(?JOB_DEPLOY) -> <<"Deploying files">>;
 translate_job(?JOB_CLEANUP_VIEWS) -> <<"Cleaning up database views">>;
-translate_job(?JOB_CHECK_CONNECTIVITY) -> <<"Checking connectivity">>;
+translate_job(?JOB_CHECK_CONNECTIVITY) -> <<"Checking connection to remote nodes">>;
 translate_job(_) -> <<"">>.
 
 
@@ -277,9 +276,13 @@ get_stage_index(Stage, State) ->
 %% ====================================================================
 get_job_index_and_jobs_count(Stage, Job, State) ->
     Stages = updater_state:get_all_stages(State),
-    [{_, Jobs} | _] = lists:dropwhile(fun({S, _}) -> S =/= Stage end, Stages),
-    JobsCount = length(Jobs),
-    {JobsCount - length(lists:dropwhile(fun(J) -> J =/= Job end, Jobs)) + 1, JobsCount}.
+    case lists:dropwhile(fun({S, _}) -> S =/= Stage end, Stages) of
+        [{_, Jobs} | _] ->
+            JobsCount = length(Jobs),
+            {JobsCount - length(lists:dropwhile(fun(J) -> J =/= Job end, Jobs)) + 1, JobsCount};
+        _ ->
+            {1, 1}
+    end.
 
 
 %% get_job_progress/4
@@ -293,8 +296,8 @@ get_job_progress(JobProgress, JobIndex, JobsCount, install) ->
     NewProgress = (JobProgress + 1) / 2,
     {100 * (JobIndex + JobProgress - 1) / JobsCount, NewProgress};
 get_job_progress(JobProgress, JobIndex, JobsCount, _) ->
-    NewProgress = JobProgress / 2,
-    {100 * (JobIndex + JobProgress - 1) / JobsCount, NewProgress}.
+    NewProgress = (JobProgress + 1) / 2,
+    {100 * (JobIndex - JobProgress) / JobsCount, NewProgress}.
 
 
 %% update_progress/3
@@ -304,6 +307,9 @@ get_job_progress(JobProgress, JobIndex, JobsCount, _) ->
 %% ====================================================================
 update_progress(Pid, Event, State) ->
     {Stage, Job} = updater_state:get_stage_and_job(State),
+
+    StageIndex = get_stage_index(Stage, State),
+    {JobIndex, JobsCount} = get_job_index_and_jobs_count(Stage, Job, State),
 
     case Event of
         error -> Pid ! error;
@@ -321,9 +327,11 @@ update_progress(Pid, Event, State) ->
             Pid ! {finish, State};
         _ ->
             StageName = translate_stage(Stage),
-            StageIndex = get_stage_index(Stage, State),
-            JobName = translate_job(Job),
-            {JobIndex, JobsCount} = get_job_index_and_jobs_count(Stage, Job, State),
+            JobName = case Stage of
+                          ?STAGE_NODE_RESTART ->
+                              <<"Restarting node ", (atom_to_binary(Job, latin1))/binary>>;
+                          _ -> translate_job(Job)
+                      end,
             Pid ! {set_stage_and_job, StageIndex, StageName, JobIndex, JobsCount, JobName}
     end.
 
@@ -360,12 +368,20 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
                 State;
 
             {set_stage_and_job, StageIndex, StageName, JobIndex, JobsCount, JobName} ->
+                gui_jq:hide(<<"ok_message">>),
                 case StageIndex of
-                    SIndex -> ok;
+                    SIndex ->
+                        gui_jq:css(<<"job_bar">>, <<"transition-property">>, <<"">>),
+                        gui_jq:css(<<"job_bar">>, <<"-moz-transition-property">>, <<"">>),
+                        gui_jq:css(<<"job_bar">>, <<"-webkit-transition-property">>, <<"">>),
+                        gui_jq:css(<<"job_bar">>, <<"-o-transition-property">>, <<"">>);
                     _ ->
-                        gui_jq:set_width(<<"job_bar">>, <<"100%">>),
-                        gui_comet:flush()
+                        gui_jq:css(<<"job_bar">>, <<"transition-property">>, <<"none">>),
+                        gui_jq:css(<<"job_bar">>, <<"-moz-transition-property">>, <<"none">>),
+                        gui_jq:css(<<"job_bar">>, <<"-webkit-transition-property">>, <<"none">>),
+                        gui_jq:css(<<"job_bar">>, <<"-o-transition-property">>, <<"none">>)
                 end,
+                gui_comet:flush(),
 
                 {StagePrefix, JobPrefix} = case AType of
                                                install -> {<<"Current stage: ">>, <<"Current job: ">>};
@@ -377,16 +393,21 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
                 gui_jq:update(<<"stage_progress_text">>, <<StagePrefix/binary, "<b>", StageName/binary, " ( ", StageProgressBinary/binary, " )</b>">>),
                 gui_jq:set_width(<<"stage_bar">>, StageProgressBinary),
 
-                JobsProgress = 100 * (JobIndex - 1) / JobsCount,
+                {JobsProgress, NewJProgress} = get_job_progress(0, JobIndex, JobsCount, AType),
                 JobsProgressBinary = <<(integer_to_binary(round(JobsProgress)))/binary, "%">>,
                 gui_jq:update(<<"job_progress_text">>, <<JobPrefix/binary, "<b>", JobName/binary, " ( ", JobsProgressBinary/binary, " )</b>">>),
                 gui_jq:set_width(<<"job_bar">>, JobsProgressBinary),
 
                 timer:send_after(?DEFAULT_NEXT_UPDATE, {update, StageIndex, JobIndex, JobPrefix, JobName, JobsCount}),
                 gui_comet:flush(),
-                State#?STATE{stage_index = StageIndex, job_index = JobIndex, job_progress = 0.5, update_time = ?DEFAULT_NEXT_UPDATE};
+                State#?STATE{stage_index = StageIndex, job_index = JobIndex, job_progress = NewJProgress, update_time = ?DEFAULT_NEXT_UPDATE};
 
             {update, SIndex, JIndex, JobPrefix, JobName, JobsCount} ->
+                gui_jq:css(<<"job_bar">>, <<"transition-property">>, <<"">>),
+                gui_jq:css(<<"job_bar">>, <<"-moz-transition-property">>, <<"">>),
+                gui_jq:css(<<"job_bar">>, <<"-webkit-transition-property">>, <<"">>),
+                gui_jq:css(<<"job_bar">>, <<"-o-transition-property">>, <<"">>),
+
                 {JobsProgress, NewJProgress} = get_job_progress(JProgress, JIndex, JobsCount, AType),
                 JobsProgressBinary = <<(integer_to_binary(round(JobsProgress)))/binary, "%">>,
                 gui_jq:update(<<"job_progress_text">>, <<JobPrefix/binary, "<b>", JobName/binary, " ( ", JobsProgressBinary/binary, " )</b>">>),
@@ -400,6 +421,7 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
                 State;
 
             abort ->
+                gui_jq:prop(<<"abort_button">>, <<"disabled">>, <<"disabled">>),
                 onepanel_gui_utils:message(<<"error_message">>, <<"Aborting update process.<br>Please wait while rollbacking changes...">>),
                 gui_comet:flush(),
                 State;
@@ -432,7 +454,7 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
                         end
                 end,
                 gui_comet:flush(),
-                State
+                #?STATE{stages_count = SCount, action_type = install}
         end
                catch Type:Reason ->
                    ?error("Comet process exception: ~p:~p", [Type, Reason]),
@@ -462,11 +484,11 @@ event(init) ->
 
     State = updater:get_state(),
     ActionType = updater_state:get_action_type(State),
-    Pid ! {set_action_type, ActionType},
     Pid ! {set_stages_count, length(updater_state:get_all_stages(State))},
 
     case updater_state:get_stage_and_job(State) of
         {?STAGE_IDLE, _} ->
+            Pid ! {set_action_type, install},
             case ActionType of
                 install -> ok;
                 _ ->
@@ -478,6 +500,7 @@ event(init) ->
                     end
             end;
         _ ->
+            onepanel_gui_utils:message(<<"ok_message">>, <<"Getting update process state. Please wait.">>),
             gui_jq:hide(<<"update_panel">>),
             gui_jq:show(<<"update_progress">>)
     end,
@@ -485,7 +508,7 @@ event(init) ->
     put(?FORCE_RELOAD, false),
     ok;
 
-event(force_reload_checkbox_toggled) ->
+event(force_restart_checkbox_toggled) ->
     ForceReload = get(?FORCE_RELOAD),
     put(?FORCE_RELOAD, not ForceReload);
 

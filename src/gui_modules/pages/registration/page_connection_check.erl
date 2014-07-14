@@ -170,24 +170,21 @@ comet_loop(#?STATE{step = Step, steps = Steps, status = Status} = State) ->
                 gui_comet:flush(),
                 case Step of
                     Steps ->
+                        gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
                         case Status of
                             connection_success ->
                                 timer:sleep(?DEFAULT_NEXT_UPDATE),
                                 gui_jq:set_width(<<"bar">>, <<"100%">>),
                                 onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_PORTS_CHECK),
-                                gui_comet:flush();
-                            connection_error ->
+                                gui_comet:flush(),
+                                State;
+                            _ ->
                                 gui_jq:hide(<<"progress">>),
                                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
                                 onepanel_gui_utils:message(<<"error_message">>, <<"Cannot connect to Global Registry.<br>
                                 Please check your network configuration and try again later.">>),
                                 gui_comet:flush(),
-                                State#?STATE{status = idle};
-                            connecting ->
-                                timer:send_after(?DEFAULT_NEXT_UPDATE, update),
-                                State;
-                            _ ->
-                                State
+                                State#?STATE{status = idle}
                         end;
                     _ ->
                         gui_comet:flush(),
@@ -231,7 +228,8 @@ event(next) ->
             {ok, _} -> Pid ! {set_status, connection_success};
             _ -> Pid ! {set_status, connection_error}
         end
-    end);
+    end),
+    gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"disabled">>);
 
 event(terminate) ->
     ok.
