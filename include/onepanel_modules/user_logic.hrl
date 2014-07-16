@@ -6,7 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc: This header file contains common macros and records for
-%% database management modules.
+%% users management module.
 %% @end
 %% ===================================================================
 
