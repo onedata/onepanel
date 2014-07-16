@@ -6,8 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc: This module contains n2o website code.
-%% This page allows to select hosts in first step of VeilCluster nodes
-%% installation.
+%% This page allows to select hosts during VeilCluster nodes installation.
 %% @end
 %% ===================================================================
 

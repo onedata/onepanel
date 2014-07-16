@@ -6,8 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc: This module contains n2o website code.
-%% This page allows to add storage in fourth step of VeilCluster
-%% nodes installation.
+%% This page allows to add storage during VeilCluster nodes installation.
 %% @end
 %% ===================================================================
 

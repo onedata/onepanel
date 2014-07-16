@@ -7,7 +7,7 @@
 %% ===================================================================
 %% @doc: This module contains Global Registry interaction functions.
 %% It allows to create Certificate Signing Request and register in
-%% Global Registry.
+%% Global Registry (gr for short).
 %% @end
 %% ===================================================================
 -module(gr_adapter).

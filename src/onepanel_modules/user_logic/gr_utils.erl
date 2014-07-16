@@ -5,7 +5,8 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains utility registration functions.
+%% @doc: This module contains utility function for registration
+%% in Global Registry (gr for short).
 %% @end
 %% ===================================================================
 -module(gr_utils).

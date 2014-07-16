@@ -8,7 +8,6 @@
 %% @doc: This module contains n2o website code.
 %% This page allows to check whether all VeilCluster ports are available
 %% for Global Registry.
-%% nodes installation.
 %% @end
 %% ===================================================================
 

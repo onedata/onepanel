@@ -6,8 +6,8 @@
 %% @end
 %% ===================================================================
 %% @doc: This module contains n2o website code.
-%% This page allows to set system ulimits in third step of VeilCluster
-%% nodes installation.
+%% This page allows to set system ulimits during VeilCluster nodes
+%% installation.
 %% @end
 %% ===================================================================
 
