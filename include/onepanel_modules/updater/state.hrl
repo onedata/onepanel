@@ -10,8 +10,8 @@
 %% ===================================================================
 -author("Rafal Slota").
 
--ifndef(UPDATER_STATE_HRL).
--define(UPDATER_STATE_HRL, 1).
+-ifndef(ONEPANEL_UPDATER_STATE_HRL).
+-define(ONEPANEL_UPDATER_STATE_HRL, 1).
 
 -include("onepanel_modules/updater/common.hrl").
 -include("onepanel_modules/updater/stages.hrl").

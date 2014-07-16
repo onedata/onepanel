@@ -7,14 +7,14 @@
 %% ===================================================================
 %% @doc: This module contains Global Registry interaction functions.
 %% It allows to create Certificate Signing Request and register in
-%% Global Registry.
+%% Global Registry (gr for short).
 %% @end
 %% ===================================================================
 -module(gr_adapter).
 
 -include("registered_names.hrl").
--include("onepanel_modules/install_logic.hrl").
--include("onepanel_modules/db_logic.hrl").
+-include("onepanel_modules/installer/state.hrl").
+-include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
@@ -71,14 +71,14 @@ register() ->
 
         %% Save private key on all hosts
         {ok, Key} = file:read_file(KeyPath),
-        ok = install_utils:save_file_on_hosts(Path, KeyName, Key),
+        ok = onepanel_utils:save_file_on_hosts(Path, KeyName, Key),
         ok = file:delete(KeyPath),
 
         {ok, ProviderId, Cert} = send_csr(CsrPath),
 
         %% Save provider ID and certifiacte on all hosts
         ok = dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{providerId, ProviderId}]),
-        ok = install_utils:save_file_on_hosts(Path, CertName, Cert),
+        ok = onepanel_utils:save_file_on_hosts(Path, CertName, Cert),
 
         {ok, ProviderId}
     catch
@@ -98,7 +98,9 @@ register() ->
 check_ip_address() ->
     try
         {ok, Url} = application:get_env(?APP_NAME, global_registry_url),
-        {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(Url ++ "/provider/test/check_my_ip", [{content_type, "application/json"}], get),
+        Options = [{connect_timeout, ?CONNECTION_TIMEOUT}],
+        {ok, "200", _ResHeaders, ResBody} =
+            ibrowse:send_req(Url ++ "/provider/test/check_my_ip", [{content_type, "application/json"}], get, "{}", Options),
         {ok, binary_to_list(mochijson2:decode(ResBody))}
     catch
         _:Reason ->
@@ -109,15 +111,15 @@ check_ip_address() ->
 
 %% check_port/0
 %% ====================================================================
-%% @doc Checks port availability on host, that is that port is visible
-%% for Global Registry.
+%% @doc Checks VeilCluster port availability for Global Registry on
+%% given host.
 %% @end
 -spec check_port(Host :: string(), Port :: integer(), Type :: string()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 check_port(Host, Port, Type) ->
     try
-        Node = install_utils:get_node(Host),
+        Node = onepanel_utils:get_node(Host),
         {ok, IpAddress} = rpc:call(Node, ?MODULE, check_ip_address, [], ?RPC_TIMEOUT),
         {ok, Url} = application:get_env(?APP_NAME, global_registry_url),
         TestUrl = Url ++ "/provider/test/check_my_ports",
@@ -154,10 +156,9 @@ check_port(Host, Port, Type) ->
 %% ====================================================================
 send_csr(CsrPath) ->
     {ok, Url} = application:get_env(?APP_NAME, global_registry_url),
-    Urls = lists:map(fun(U) -> list_to_binary(U) end, install_utils:get_hosts()),
+    Urls = lists:map(fun(U) -> list_to_binary(U) end, onepanel_utils:get_hosts()),
     {ok, Csr} = file:read_file(CsrPath),
-    {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-    {ok, [ControlPanelHost | _]} = install_utils:get_control_panel_hosts(MainCCM),
+    {ok, [ControlPanelHost | _]} = gr_utils:get_control_panel_hosts(),
     {ok, #?LOCAL_CONFIG_RECORD{gui_port = GuiPort}} = dao:get_record(?LOCAL_CONFIG_TABLE, ControlPanelHost),
     GuiUrl = <<"https://", (list_to_binary(ControlPanelHost))/binary, ":", (integer_to_binary(GuiPort))/binary>>,
     ReqBody = iolist_to_binary(mochijson2:encode({struct, [{urls, Urls}, {csr, Csr}, {redirectionPoint, GuiUrl}]})),

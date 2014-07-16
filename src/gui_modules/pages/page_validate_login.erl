@@ -35,7 +35,7 @@ main() ->
 -spec title() -> Result when
     Result :: binary().
 %% ====================================================================
-title() -> <<"Login page">>.
+title() -> <<"Login validation">>.
 
 
 %% body/0
@@ -46,18 +46,20 @@ title() -> <<"Login page">>.
 %% ====================================================================
 body() ->
     case gui_ctx:user_logged_in() of
-        true -> gui_jq:redirect(<<"/">>);
+        true -> gui_jq:redirect(?PAGE_ROOT);
         false ->
             {ok, Params} = gui_ctx:form_params(),
             Username = proplists:get_value(<<"username">>, Params),
             Password = proplists:get_value(<<"password">>, Params),
             case user_logic:authenticate(Username, Password) of
                 ok ->
+                    ?info("Successful login of user: ~p", [Username]),
                     gui_ctx:create_session(),
                     gui_ctx:set_user_id(Username),
                     gui_jq:redirect_from_login();
                 {error, Reason} ->
-                    gui_jq:redirect(<<"/login?id=", (gui_str:to_binary(Reason))/binary>>)
+                    ?error("Invalid login attemp, user ~p: ~p", [Username, Reason]),
+                    gui_jq:redirect(<<(?PAGE_LOGIN)/binary, "?id=", (gui_str:to_binary(Reason))/binary>>)
             end
     end.
 

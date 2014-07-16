@@ -11,11 +11,10 @@
 %% ===================================================================
 -module(dao).
 
--include("onepanel_modules/db_logic.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([save_record/2, update_record/3, get_record/2, exist_record/2]).
+-export([save_record/2, update_record/3, get_record/2, exist_record/2, get_table_record/2]).
 
 %% ====================================================================
 %% API functions
@@ -64,14 +63,14 @@ update_record(Table, Key, Values) ->
                             ReadError -> mnesia:abort(ReadError)
                         end,
             [RecordName | OldValues] = tuple_to_list(OldRecord),
-            Columns = get_table_columns(Table),
+            Attributes = mnesia:table_info(Table, attributes),
             NewValues = lists:map(fun
                 ({Column, OldValue}) ->
                     case proplists:get_value(Column, Values, not_found) of
                         not_found -> OldValue;
                         NewValue -> NewValue
                     end
-            end, lists:zip(Columns, OldValues)),
+            end, lists:zip(Attributes, OldValues)),
             NewRecord = list_to_tuple([RecordName | NewValues]),
             case mnesia:write(Table, NewRecord, write) of
                 ok -> ok;
@@ -138,31 +137,14 @@ exist_record(Table, Key) ->
 %% Internal functions
 %% ====================================================================
 
-%% get_table_columns/1
-%% ====================================================================
-%% @doc Returns list of database table columns as atoms.
-%% @end
--spec get_table_columns(Table :: atom()) -> Result when
-    Result :: [atom()].
-%% ====================================================================
-get_table_columns(?USER_TABLE) ->
-    record_info(fields, ?USER_RECORD);
-get_table_columns(?LOCAL_CONFIG_TABLE) ->
-    record_info(fields, ?LOCAL_CONFIG_RECORD);
-get_table_columns(?GLOBAL_CONFIG_TABLE) ->
-    record_info(fields, ?GLOBAL_CONFIG_RECORD).
-
-
 %% get_table_record/1
 %% ====================================================================
 %% @doc Returns default (empty) record for a table with given primary key.
 %% @end
 -spec get_table_record(Table :: atom(), Key :: term()) -> Result when
-    Result :: [atom()].
+    Result :: record().
 %% ====================================================================
-get_table_record(?USER_TABLE, Key) ->
-    #?USER_RECORD{username = Key};
-get_table_record(?LOCAL_CONFIG_TABLE, Key) ->
-    #?LOCAL_CONFIG_RECORD{host = Key};
-get_table_record(?GLOBAL_CONFIG_TABLE, Key) ->
-    #?GLOBAL_CONFIG_RECORD{id = Key}.
+get_table_record(Table, Key) ->
+    Arity = mnesia:table_info(Table, arity),
+    RecordName = mnesia:table_info(Table, record_name),
+    list_to_tuple([RecordName, Key | lists:duplicate(Arity - 2, undefined)]).

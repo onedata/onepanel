@@ -11,17 +11,38 @@
 %% ===================================================================
 -module(user_logic).
 
--include("onepanel_modules/db_logic.hrl").
--include("onepanel_modules/install_logic.hrl").
 -include("gui_modules/common.hrl").
+-include("onepanel_modules/user_logic.hrl").
 -include_lib("ctool/include/logging.hrl").
 
+%% Length of salt added to user password
+-define(SALT_LENGTH, 10).
+
 %% API
--export([hash_password/1, authenticate/2, change_password/3]).
+-export([create_user/2, hash_password/1, authenticate/2, change_password/3]).
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
+
+%% create_user/2
+%% ====================================================================
+%% @doc Creates user in database.
+%% @end
+-spec create_user(Username :: binary(), Password :: binary()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+create_user(Username, Password) ->
+    try
+        Salt = list_to_binary(onepanel_utils:random_ascii_lowercase_sequence(?SALT_LENGTH)),
+        PasswordHash = hash_password(<<Password/binary, Salt/binary>>),
+        ok = dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username, hash = PasswordHash, salt = Salt})
+    catch
+        _:Reason ->
+            ?error("Cannot create user ~p: ~p", [Username, Reason]),
+            {error, Reason}
+    end.
+
 
 %% authenticate/2
 %% ====================================================================
@@ -32,7 +53,7 @@
 %% ====================================================================
 authenticate(Username, Password) ->
     case dao:get_record(?USER_TABLE, Username) of
-        {ok, #?USER_RECORD{username = Username, password = ValidPasswordHash, salt = Salt}} ->
+        {ok, #?USER_RECORD{username = Username, hash = ValidPasswordHash, salt = Salt}} ->
             PasswordHash = hash_password(<<Password/binary, Salt/binary>>),
             case ValidPasswordHash of
                 PasswordHash -> ok;
@@ -53,11 +74,9 @@ authenticate(Username, Password) ->
     when Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 change_password(Username, OldPassword, NewPassword) ->
-    NewSalt = list_to_binary(install_utils:random_ascii_lowercase_sequence(?SALT_LENGTH)),
-    PasswordHash = user_logic:hash_password(<<NewPassword/binary, NewSalt/binary>>),
     case authenticate(Username, OldPassword) of
         ok ->
-            case dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username, password = PasswordHash, salt = NewSalt}) of
+            case create_user(Username, NewPassword) of
                 ok -> ok;
                 Other ->
                     ?error("Cannot change user password: ~p", [Other]),

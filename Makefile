@@ -9,7 +9,6 @@ compile: deps
 	@./rebar compile
 
 generate: compile
-	@sed -i.bak s/"-name .*"/"-name onepanel@"`hostname`/g rel/files/vm.args
 	@./rebar generate
 
 clean:

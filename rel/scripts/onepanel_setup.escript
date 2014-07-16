@@ -20,8 +20,8 @@
 -define(DEFAULT_COOKIE, veil_cluster_node).
 
 % Default system limit values
--define(DEFAULT_OPEN_FILES, "65535").
--define(DEFAULT_PROCESSES, "65535").
+-define(DEFAULT_OPEN_FILES, 65535).
+-define(DEFAULT_PROCESSES, 65535).
 
 % Installation directory of veil RPM
 -define(PREFIX, "/opt/veil/").
@@ -54,7 +54,7 @@ main(Args) ->
     init(),
     case Args of
         ["--install", Config] -> install(Config);
-        ["--info"] -> info();
+        ["--config"] -> config();
         ["--uninstall"] -> uninstall();
         _ -> print_usage()
     end,
@@ -85,82 +85,60 @@ init() ->
 %% ====================================================================
 install(Config) ->
     try
-        {MainCCM, OptCCMs, Workers, Dbs, StoragePaths, OpenFiles, Processes} = parse(Config),
+        {MainCCM, CCMs, Workers, Dbs, StoragePaths, OpenFiles, Processes} = parse(Config),
         Node = get(?NODE),
-        Hosts = lists:usort(MainCCM ++ OptCCMs ++ Workers ++ Dbs),
+        AllHosts = lists:usort(CCMs ++ Workers ++ Dbs),
 
-        io:format("Checking configuration...       "),
-        check_hosts(Node, Hosts),
+        print_info("Checking configuration..."),
+        check_hosts(Node, AllHosts),
         print_ok(),
 
-        case StoragePaths of
-            [] -> ok;
-            _ ->
-                io:format("Checking storage availability..."),
-                check_storage_paths(Node, StoragePaths, Workers),
-                print_ok()
-        end,
+        print_info("Checking storage availability..."),
+        check_storage_paths(Node, StoragePaths, Workers),
+        print_ok(),
 
-        io:format("Setting ulimits...              "),
+        print_info("Setting ulimits..."),
         lists:foreach(fun(Host) ->
             HostOpenFiles = proplists:get_value(Host, OpenFiles, ?DEFAULT_OPEN_FILES),
             HostProcesses = proplists:get_value(Host, Processes, ?DEFAULT_PROCESSES),
-            rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), install_utils, set_ulimits, [HostOpenFiles, HostProcesses])
-        end, Hosts),
+            rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_ulimits, [HostOpenFiles, HostProcesses])
+        end, AllHosts),
         print_ok(),
 
-        case Dbs of
-            [] -> ok;
-            _ ->
-                io:format("Installing database nodes...    "),
-                execute(Node, install_db, install, [[{hosts, Dbs}]]),
-                print_ok(),
+        print_info("Installing database nodes..."),
+        execute(Node, installer_db, install, [[{dbs, Dbs}]]),
+        print_ok(),
 
-                io:format("Starting database nodes...      "),
-                execute(Node, install_db, start, [[{hosts, Dbs}]]),
-                print_ok()
-        end,
+        print_info("Starting database nodes..."),
+        execute(Node, installer_db, start, [[{dbs, Dbs}]]),
+        print_ok(),
 
-        case MainCCM ++ OptCCMs of
-            [] -> ok;
-            _ ->
-                io:format("Installing ccm nodes...         "),
-                execute(Node, install_ccm, install, [[{hosts, MainCCM ++ OptCCMs}]]),
-                print_ok(),
+        print_info("Installing ccm nodes..."),
+        execute(Node, installer_ccm, install, [[{ccms, CCMs}]]),
+        print_ok(),
 
-                io:format("Starting ccm nodes...           "),
-                case MainCCM of
-                    [] ->
-                        execute(Node, install_ccm, start, [[{opt_ccms, OptCCMs}]]);
-                    _ ->
-                        execute(Node, install_ccm, start, [[{main_ccm, erlang:hd(MainCCM)}, {opt_ccms, OptCCMs}]])
-                end,
-                print_ok()
-        end,
+        print_info("Starting ccm nodes..."),
+        execute(Node, installer_ccm, start, [[{main_ccm, MainCCM}, {ccms, CCMs}]]),
+        print_ok(),
 
-        case Workers of
-            [] -> ok;
-            _ ->
-                io:format("Installing worker nodes...      "),
-                execute(Node, install_worker, install, [[{hosts, Workers}]]),
-                print_ok(),
+        print_info("Installing worker nodes..."),
+        execute(Node, installer_worker, install, [[{workers, Workers}]]),
+        print_ok(),
 
-                io:format("Adding storage paths...         "),
-                lists:foreach(fun(StoragePath) ->
-                    execute(Node, install_storage, add_storage_path, [Workers, StoragePath])
-                end, StoragePaths),
-                print_ok(),
+        print_info("Adding storage paths..."),
+        execute(Node, installer_storage, add_storage_paths_to_db, [[{storage_paths, StoragePaths}]]),
+        print_ok(),
 
-                io:format("Starting worker nodes...        "),
-                execute(Node, install_worker, start, [[{workers, Workers}]]),
-                print_ok()
-        end
+        print_info("Starting worker nodes..."),
+        execute(Node, installer_worker, start, [[{workers, Workers}]]),
+        print_ok()
     catch
         _:{config, Reason} when is_list(Reason) ->
             print_error("Configuration error: ~s\n", [Reason]),
             halt(?EXIT_FAILURE);
-        _:{hosts, ErrorHosts} when is_list(ErrorHosts) ->
-            print_error("Operation failed on following hosts: ~s\n", [ErrorHosts]),
+        _:{hosts, Hosts} when is_list(Hosts) ->
+            io:format("[FAIL]\n"),
+            format_hosts("Operation failed on following hosts:", Hosts),
             halt(?EXIT_FAILURE);
         _:{exec, Reason} when is_list(Reason) ->
             print_error("Operation error: ~s\n", [Reason]),
@@ -171,26 +149,26 @@ install(Config) ->
     end.
 
 
-%% info/0
+%% config/0
 %% ====================================================================
 %% @doc Displays current installation configuration.
 %% @end
--spec info() -> ok.
+-spec config() -> ok.
 %% ====================================================================
-info() ->
+config() ->
     try
         Node = get(?NODE),
 
-        Terms = rpc:call(Node, install_utils, get_global_config, []),
+        Terms = rpc:call(Node, installer_utils, get_global_config, []),
 
-        io:format("Main CCM node:         ~s\n", [format(proplists:get_value(main_ccm, Terms))]),
-        io:format("Optional CCM nodes:    ~s\n", [format({hosts, proplists:get_value(opt_ccms, Terms)})]),
-        io:format("Worker nodes:          ~s\n", [format({hosts, proplists:get_value(workers, Terms)})]),
-        io:format("Database nodes:        ~s\n", [format({hosts, proplists:get_value(dbs, Terms)})]),
-        io:format("Storage paths:         ~s\n", [format({hosts, proplists:get_value(storage_paths, Terms)})])
+        format_host("Main CCM node:", proplists:get_value(main_ccm, Terms)),
+        format_hosts("CCM nodes:", lists:sort(proplists:get_value(ccms, Terms, []))),
+        format_hosts("Worker nodes:", lists:sort(proplists:get_value(workers, Terms, []))),
+        format_hosts("Database nodes:", lists:sort(proplists:get_value(dbs, Terms, []))),
+        format_hosts("Storage paths:", lists:sort(proplists:get_value(storage_paths, Terms, [])))
     catch
         _:_ ->
-            io:format("An error occurred during information gathering.\n"),
+            io:format("Cannot get current installation configuration.\n"),
             halt(?EXIT_FAILURE)
     end.
 
@@ -205,61 +183,44 @@ uninstall() ->
     try
         Node = get(?NODE),
 
-        Terms = rpc:call(Node, install_utils, get_global_config, []),
+        Terms = rpc:call(Node, installer_utils, get_global_config, []),
 
-        CCMs = proplists:get_value(opt_ccms, Terms, []) ++
-            case proplists:get_value(main_ccm, Terms) of
-                undefined -> [];
-                MainCCM -> [MainCCM]
-            end,
+        CCMs = proplists:get_value(ccms, Terms, []),
         Workers = proplists:get_value(workers, Terms, []),
         Dbs = proplists:get_value(dbs, Terms, []),
         StoragePaths = proplists:get_value(storage_paths, Terms, []),
 
-        case Workers of
-            [] -> ok;
-            _ ->
-                io:format("Stopping worker nodes...      "),
-                execute(Node, install_worker, stop, [[]]),
-                print_ok(),
+        print_info("Stopping worker nodes..."),
+        execute(Node, installer_worker, stop, [[]]),
+        print_ok(),
 
-                io:format("Removing storage paths...     "),
-                lists:foreach(fun(StoragePath) ->
-                    execute(Node, install_storage, remove_storage_path, [Workers, StoragePath])
-                end, StoragePaths),
-                print_ok(),
+        print_info("Removing storage paths..."),
+        execute(Node, installer_storage, remove_storage_paths_from_db, [[{storage_paths, StoragePaths}]]),
+        print_ok(),
 
-                io:format("Uninstalling worker nodes...  "),
-                execute(Node, install_worker, uninstall, [[{hosts, Workers}]]),
-                print_ok()
-        end,
+        print_info("Uninstalling worker nodes..."),
+        execute(Node, installer_worker, uninstall, [[{workers, Workers}]]),
+        print_ok(),
 
-        case CCMs of
-            [] -> ok;
-            _ ->
-                io:format("Stopping ccm nodes...         "),
-                execute(Node, install_ccm, stop, [[]]),
-                print_ok(),
+        print_info("Stopping ccm nodes..."),
+        execute(Node, installer_ccm, stop, [[]]),
+        print_ok(),
 
-                io:format("Uninstalling ccm nodes...     "),
-                execute(Node, install_ccm, uninstall, [[{hosts, CCMs}]]),
-                print_ok()
-        end,
+        print_info("Uninstalling ccm nodes..."),
+        execute(Node, installer_ccm, uninstall, [[{ccms, CCMs}]]),
+        print_ok(),
 
-        case Dbs of
-            [] -> ok;
-            _ ->
-                io:format("Stopping database nodes...    "),
-                execute(Node, install_db, stop, [[]]),
-                print_ok(),
+        print_info("Stopping database nodes..."),
+        execute(Node, installer_db, stop, [[]]),
+        print_ok(),
 
-                io:format("Uninstalling database nodes..."),
-                execute(Node, install_db, uninstall, [[{hosts, Dbs}]]),
-                print_ok()
-        end
+        print_info("Uninstalling database nodes..."),
+        execute(Node, installer_db, uninstall, [[{dbs, Dbs}]]),
+        print_ok()
     catch
         _:{hosts, Hosts} when is_list(Hosts) ->
-            print_error("Operation failed on following hosts: ~s\n", [Hosts]),
+            io:format("[FAIL]\n"),
+            format_hosts("Operation failed on following hosts:", Hosts),
             halt(?EXIT_FAILURE);
         _:{exec, Reason} when is_list(Reason) ->
             print_error("Operation error: ~s\n", [Reason]),
@@ -268,25 +229,6 @@ uninstall() ->
             print_error("An error occurred during operation.\n", []),
             halt(?EXIT_FAILURE)
     end.
-
-
-%% format/1
-%% ====================================================================
-%% @doc Helper function for info/0. In case of list of hosts, converts
-%% it comma-delimited string. In case of string returns it. For other
-%% cases return "undefined".
-%% @end
--spec format(Term :: term()) -> ok.
-%% ====================================================================
-format({hosts, Hosts}) when is_list(Hosts) ->
-    case string:join(Hosts, ", ") of
-        "" -> "undefined";
-        String -> String
-    end;
-format(Other) when is_list(Other) ->
-    Other;
-format(_) ->
-    "undefined".
 
 
 %% parse/1
@@ -307,18 +249,15 @@ format(_) ->
 parse(Config) ->
     {ok, Terms} = file:consult(Config),
 
-    MainCCM = case proplists:get_value("Main CCM host", Terms) of
-                  undefined -> [];
-                  Host -> [Host]
-              end,
-    OptCCMs = proplists:get_value("Optional CCM hosts", Terms, []),
+    MainCCM = proplists:get_value("Main CCM host", Terms),
+    CCMs = proplists:get_value("CCM hosts", Terms, []),
     Workers = proplists:get_value("Worker hosts", Terms, []),
     Dbs = proplists:get_value("Database hosts", Terms, []),
     StoragePaths = proplists:get_value("Storage paths", Terms, []),
     OpenFiles = proplists:get_value("Open files limit", Terms, []),
     Processes = proplists:get_value("Processes limit", Terms, []),
 
-    {MainCCM, OptCCMs, Workers, Dbs, StoragePaths, OpenFiles, Processes}.
+    {MainCCM, CCMs, Workers, Dbs, StoragePaths, OpenFiles, Processes}.
 
 
 %% execute/4
@@ -331,8 +270,8 @@ parse(Config) ->
 execute(Node, Module, Function, Args) ->
     case rpc:call(Node, Module, Function, Args, ?RPC_TIMEOUT) of
         ok -> ok;
-        {error, {hosts, Hosts}} -> throw({hosts, string:join(Hosts, ", ")});
-        Other when is_list(Other) -> throw({exec, Other});
+        {error, {hosts, Hosts}} -> throw({hosts, Hosts});
+        {error, Error} when is_list(Error) -> throw({exec, Error});
         _ -> throw({exec, "Unknow error."})
     end.
 
@@ -345,7 +284,7 @@ execute(Node, Module, Function, Args) ->
 -spec check_hosts(Node :: atom(), Hosts :: [string()]) -> ok | no_return().
 %% ====================================================================
 check_hosts(Node, Hosts) ->
-    ValidHosts = rpc:call(Node, install_utils, get_hosts, []),
+    ValidHosts = rpc:call(Node, onepanel_utils, get_hosts, []),
     lists:foreach(fun(Host) ->
         case lists:member(Host, ValidHosts) of
             true -> ok;
@@ -362,7 +301,7 @@ check_hosts(Node, Hosts) ->
 %% ====================================================================
 check_storage_paths(Node, StoragePaths, Workers) when is_list(StoragePaths) ->
     lists:foreach(fun(StoragePath) ->
-        case rpc:call(Node, install_storage, check_storage_path_on_hosts, [Workers, StoragePath]) of
+        case rpc:call(Node, installer_storage, check_storage_path_on_hosts, [Workers, StoragePath]) of
             ok -> ok;
             {error, Hosts} ->
                 throw({config, io_lib:fwrite("Storage ~p in not available on following hosts: ~s", [StoragePath, string:join(Hosts, ", ")])})
@@ -372,6 +311,54 @@ check_storage_paths(_, _, _) ->
     throw({config, "Wrong storage paths format."}).
 
 
+%% format/2
+%% ====================================================================
+%% @doc Prints indented string message with given prefix.
+%% @end
+-spec format(Prefix :: string(), String :: string()) -> ok.
+%% ====================================================================
+format(Prefix, String) ->
+    io:format("~-40s~s", [Prefix, String]).
+
+
+%% formatln/2
+%% ====================================================================
+%% @doc Same as format/2, but adds new line add the end of string.
+%% @end
+-spec formatln(Prefix :: string(), String :: string()) -> ok.
+%% ====================================================================
+formatln(Prefix, String) ->
+    format(Prefix, String),
+    io:format("~n", []).
+
+
+%% format_host/2
+%% ====================================================================
+%% @doc Formats information about host.
+%% @end
+-spec format_host(Prefix :: string(), String :: string()) -> ok.
+%% ====================================================================
+format_host(Prefix, undefined) ->
+    formatln(Prefix, "undefined");
+format_host(Prefix, Host) ->
+    formatln(Prefix, Host).
+
+
+%% format_hosts/2
+%% ====================================================================
+%% @doc Formats information about hosts.
+%% @end
+-spec format_hosts(Prefix :: string(), String :: string()) -> ok.
+%% ====================================================================
+format_hosts(Prefix, []) ->
+    format_host(Prefix, undefined);
+format_hosts(Prefix, [Host | Hosts]) ->
+    format_host(Prefix, Host),
+    lists:foreach(fun(H) ->
+        format_host("", H)
+    end, Hosts).
+
+
 %% print_usage/0
 %% ====================================================================
 %% @doc Prints available script options.
@@ -379,29 +366,39 @@ check_storage_paths(_, _, _) ->
 -spec print_usage() -> ok.
 %% ====================================================================
 print_usage() ->
-    io:format("Usage: onepanel_setup.escript [options]\n", []),
+    io:format("Usage: onepanel_setup [options]\n", []),
     io:format("Options:\n"),
     io:format("\t--install <config file>\n"),
-    io:format("\t--info\n"),
+    io:format("\t--config\n"),
     io:format("\t--uninstall\n").
+
+
+%% print_info/1
+%% ====================================================================
+%% @doc Prints information for given step.
+%% @end
+-spec print_info(Message :: string()) -> ok.
+%% ====================================================================
+print_info(Message) ->
+    format(Message, "").
 
 
 %% print_ok/0
 %% ====================================================================
-%% @doc Prints ok information for given step.
+%% @doc Prints 'ok' for given step.
 %% @end
 -spec print_ok() -> ok.
 %% ====================================================================
 print_ok() ->
-    io:format("\t[ OK ]\n").
+    io:format("[ OK ]\n").
 
 
 %% print_error/0
 %% ====================================================================
-%% @doc Prints error information for given step.
+%% @doc Prints error message for given step.
 %% @end
 -spec print_error(Format :: string(), Args :: [term()]) -> ok.
 %% ====================================================================
 print_error(Format, Args) ->
-    io:format("\t[FAIL]\n"),
+    io:format("[FAIL]\n"),
     io:format(Format, Args).

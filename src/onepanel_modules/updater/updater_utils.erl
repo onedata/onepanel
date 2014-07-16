@@ -11,7 +11,7 @@
 -module(updater_utils).
 -author("Rafal Slota").
 
--include("onepanel_modules/install_logic.hrl").
+-include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API

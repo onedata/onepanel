@@ -13,13 +13,15 @@
 -module(db_logic).
 
 -include("registered_names.hrl").
--include("onepanel_modules/install_logic.hrl").
--include("onepanel_modules/db_logic.hrl").
+-include("onepanel_modules/user_logic.hrl").
+-include("onepanel_modules/installer/state.hrl").
+-include("onepanel_modules/installer/internals.hrl").
 -include("onepanel_modules/updater/state.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([create/0, initialize/1, delete/0, add_node/1, get_nodes/0]).
+-export([get_password/1, change_password/3]).
 
 %% ====================================================================
 %% API functions
@@ -35,10 +37,10 @@
 initialize(?USER_TABLE) ->
     try
         {ok, Username} = application:get_env(?APP_NAME, default_username),
-        {ok, Password} = application:get_env(?APP_NAME, default_password),
-        Salt = list_to_binary(install_utils:random_ascii_lowercase_sequence(?SALT_LENGTH)),
-        PasswordHash = user_logic:hash_password(<<Password/binary, Salt/binary>>),
-        ok = dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username, password = PasswordHash, salt = Salt})
+        {ok, UserPassword} = application:get_env(?APP_NAME, default_user_password),
+        {ok, DbPassword} = application:get_env(?APP_NAME, default_db_password),
+        ok = user_logic:create_user(Username, UserPassword),
+        ok = set_password(Username, DbPassword)
     catch
         _:Reason ->
             ?error("Cannot initialize user table: ~p", [Reason]),
@@ -178,3 +180,93 @@ add_node(Node) ->
 %% ====================================================================
 get_nodes() ->
     mnesia:system_info(db_nodes).
+
+
+%% get_password/1
+%% ====================================================================
+%% @doc Returns current database nodes password.
+%% @end
+-spec get_password(Username :: binary()) -> Result when
+    Result :: {ok, Password :: binary()} | {error, Reason :: term()}.
+%% ====================================================================
+get_password(Username) ->
+    case dao:get_record(?USER_TABLE, Username) of
+        {ok, #?USER_RECORD{db_password = Password}} -> {ok, Password};
+        Other -> {error, Other}
+    end.
+
+
+%% change_password/3
+%% ====================================================================
+%% @doc Changes password for all database nodes. Returns 'ok' in case of
+%% successful operation on all nodes or host for which password could not
+%% be changed.
+%% @end
+-spec change_password(Username :: binary(), OldPassword :: binary(), NewPassword :: binary()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+change_password(Username, OldPassword, NewPassword) ->
+    try
+        {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        case Dbs of
+            [] -> throw("Database nodes not configured");
+            _ -> ok
+        end,
+        {SuccessfulChange, ErrorHost} = lists:foldl(fun
+            (Db, {Acc, undefined}) ->
+                case change_password(Db, Username, OldPassword, NewPassword) of
+                    ok -> {[Db | Acc], undefined};
+                    _ -> {Acc, Db}
+                end;
+            (_, {Acc, Host}) ->
+                {Acc, Host}
+        end, {[], undefined}, Dbs),
+        case ErrorHost of
+            undefined ->
+                set_password(Username, NewPassword);
+            _ ->
+                lists:foreach(fun(Db) ->
+                    change_password(Db, Username, NewPassword, OldPassword)
+                end, SuccessfulChange),
+                {error, {host, ErrorHost}}
+        end
+    catch
+        _:Reason ->
+            ?error("Cannot change database password: ~p", [Reason]),
+            {error, Reason}
+    end.
+
+
+%% ====================================================================
+%% Internal functions
+%% ====================================================================
+
+%% change_password/4
+%% ====================================================================
+%% @doc Changes password for database node on given host.
+%% @end
+-spec change_password(Db :: string(), Username :: binary(), OldPassword :: binary(), NewPassword :: binary()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+change_password(Db, Username, OldPassword, NewPassword) ->
+    Url = "http://" ++ Db ++ ":" ++ ?DEFAULT_PORT ++ "/_config/admins/" ++ binary_to_list(Username),
+    Headers = [{content_type, "application/json"}],
+    Body = mochijson2:encode(NewPassword),
+    Options = [{basic_auth, {binary_to_list(Username), binary_to_list(OldPassword)}}],
+    case ibrowse:send_req(Url, Headers, put, Body, Options) of
+        {ok, "200", _ResHeaders, _ResBody} -> ok;
+        Other ->
+            ?error("Cannot change password for database node at host ~s: ~p", [Db, Other]),
+            {error, Other}
+    end.
+
+
+%% set_password/2
+%% ====================================================================
+%% @doc Set database nodes passwords in database.
+%% @end
+-spec set_password(Username :: binary(), Password :: binary()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+set_password(Username, Password) ->
+    dao:update_record(?USER_TABLE, Username, [{db_password, Password}]).

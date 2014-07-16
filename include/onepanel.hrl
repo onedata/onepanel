@@ -6,14 +6,14 @@
 %% @end
 %% ===================================================================
 %% @doc: This header file contains common macros and records for
-%% Onepanel module.
+%% onepanel module.
 %% @end
 %% ===================================================================
 
 -ifndef(ONEPANEL_HRL).
 -define(ONEPANEL_HRL, 1).
 
--define(SERVER, ?MODULE).
+-include("registered_names.hrl").
 
 %% Onepanel gen_server state
 -record(state, {status, socket, address, port}).

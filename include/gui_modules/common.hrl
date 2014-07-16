@@ -10,11 +10,12 @@
 %% @end
 %% ===================================================================
 
--ifndef(COMMON_HRL).
--define(COMMON_HRL, 1).
+-ifndef(ONEPANEL_GUI_COMMON_HRL).
+-define(ONEPANEL_GUI_COMMON_HRL, 1).
 
 -include_lib("ctool/include/gui/common.hrl").
 -include("registered_names.hrl").
+-include("pages.hrl").
 
 % Custom checkbox element
 -record(custom_checkbox, {?ELEMENT_BASE(element_custom_checkbox),
@@ -28,7 +29,16 @@
 -define(AUTHENTICATION_ERROR, authentication_error).
 -define(INTERNAL_SERVER_ERROR, internal_server_error).
 
--define(INSTALL_STATE, installation_state).
--record(?INSTALL_STATE, {page, main_ccm, ccms, workers, dbs, storage_paths}).
+%% Current installation step saved in user session
+-define(CURRENT_INSTALLATION_PAGE, install_page).
+
+%% Current registration step saved in user session
+-define(CURRENT_REGISTRATION_PAGE, register_page).
+
+%% Current update step saved in user session
+-define(CURRENT_UPDATE_PAGE, update_page).
+
+%% Currently selected version in update process
+-define(CHOSEN_VERSION, chosen_version).
 
 -endif.

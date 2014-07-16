@@ -10,8 +10,8 @@
 %% @end
 %% ===================================================================
 
--ifndef(REGISTERED_NAMES_HRL).
--define(REGISTERED_NAMES_HRL, 1).
+-ifndef(ONEPANEL_REGISTERED_NAMES_HRL).
+-define(ONEPANEL_REGISTERED_NAMES_HRL, 1).
 
 %% Name of the application.
 -define(APP_NAME, onepanel).
@@ -21,10 +21,13 @@
 
 %% Local name (name and node is used to identify it) of gen_server that 
 %% coordinates node life cycle.
--define(GEN_SERVER_NAME, onepanel).
+-define(ONEPANEL_SERVER, onepanel).
 
 %% Application's supervisor name
--define(SERVER_SUP, onepanel_sup).
+-define(ONEPANEL_SUP, onepanel_sup).
+
+%% Installer gen_server's name
+-define(INSTALL_SERVICE, install_service).
 
 %% Updater gen_server's name
 -define(UPDATE_SERVICE, update_service).

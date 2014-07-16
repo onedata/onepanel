@@ -106,7 +106,7 @@ handle_error(Pid, Obj, Reason, #?u_state{error_counter = EC, objects = Objects,
     stage = Stage, job = Job, action_type = ActionType} = State) ->
     ErrorCount = maps:get(Obj, EC),
     if
-        ErrorCount < 3 ->
+        ErrorCount < 3 andalso ActionType =/= rollback ->
             {NewPid, Obj} = dispatch_object(Obj, State),
             State#?u_state{objects = maps:put(NewPid, Obj, Objects)};
         true ->
@@ -114,7 +114,8 @@ handle_error(Pid, Obj, Reason, #?u_state{error_counter = EC, objects = Objects,
             case ActionType =:= rollback orelse ErrorLevel =:= warning of
                 true ->
                     NewState0 = insert_warning(Obj, Reason, State),
-                    updater_worker:handle_info({Pid, ok}, NewState0);
+                    {_, NewState1} = updater_worker:handle_info({Pid, ok}, NewState0#?u_state{objects = maps:put(Pid, Obj, Objects)}),
+                    NewState1;
                 false ->
                     ?error("Critical error ~p: ~p", [Obj, Reason]),
                     NewState0 = State,

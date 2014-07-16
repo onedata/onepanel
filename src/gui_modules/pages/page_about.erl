@@ -58,12 +58,21 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    #panel{style = <<"position: relative;">>, body = [
-        onepanel_gui_utils:top_menu(about_tab),
-        #panel{style = <<"margin-top: 60px; padding: 20px;">>, body = [
-            #panel{id = <<"about_table">>, body = about_table()}
-        ]}
-    ] ++ onepanel_gui_utils:logotype_footer(120)}.
+    #panel{
+        style = <<"position: relative;">>,
+        body = [
+            onepanel_gui_utils:top_menu(about_tab),
+
+            #panel{
+                style = <<"margin-top: 60px; padding: 20px;">>,
+                body = [
+                    #panel{
+                        id = <<"about_table">>,
+                        body = about_table()
+                    }
+                ]
+            }
+        ] ++ onepanel_gui_utils:logotype_footer(120)}.
 
 
 %% about_table/0
@@ -73,34 +82,83 @@ body() ->
     Result :: #table{}.
 %% ====================================================================
 about_table() ->
-    #table{style = <<"border-width: 0px; width: auto">>, body = [
-        #tr{cells = [
-            #td{style = <<"border-width: 0px; padding: 10px 10px">>, body =
-            #label{class = <<"label label-large label-inverse">>, style = <<"cursor: auto;">>, body = <<"Contact">>}},
-            #td{style = <<"border-width: 0px; padding: 10px 10px">>, body =
-            #link{style = <<"font-size: 18px; padding: 5px 0;">>, body = <<?CONTACT_EMAIL>>, url = <<"mailto:", ?CONTACT_EMAIL>>}}
-        ]},
-
-        #tr{cells = [
-            #td{style = <<"border-width: 0px; padding: 10px 10px">>, body =
-            #label{class = <<"label label-large label-inverse">>, style = <<"cursor: auto;">>, body = <<"Acknowledgements">>}},
-            #td{style = <<"border-width: 0px; padding: 10px 10px">>, body =
-            #p{body = <<"This research was supported in part by PL-Grid Infrastructure.">>}}
-        ]},
-
-        #tr{cells = [
-            #td{style = <<"border-width: 0px; padding: 10px 10px">>, body =
-            #label{class = <<"label label-large label-inverse">>, style = <<"cursor: auto;">>, body = <<"License">>}},
-            #td{style = <<"border-width: 0px; padding: 10px 10px">>,
-                body = #p{style = <<"white-space: pre; font-size: 100%; line-height: normal">>, body = get_license()}}
-        ]},
-
-        #tr{cells = [
-            #td{style = <<"border-width: 0px; padding: 10px 10px">>, body =
-            #label{class = <<"label label-large label-inverse">>, style = <<"cursor: auto;">>, body = <<"Team">>}},
-            #td{style = <<"border-width: 0px; padding: 10px 10px">>, body = get_team()}
-        ]}
-    ]}.
+    #table{
+        style = <<"border-width: 0px; width: auto">>, body = [
+            #tr{
+                cells = [
+                    #td{
+                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        body = #label{
+                            class = <<"label label-large label-inverse">>,
+                            style = <<"cursor: auto;">>,
+                            body = <<"Contact">>
+                        }
+                    },
+                    #td{
+                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        body = #link{
+                            style = <<"font-size: 18px; padding: 5px 0;">>,
+                            body = <<?CONTACT_EMAIL>>,
+                            url = <<"mailto:", ?CONTACT_EMAIL>>
+                        }
+                    }
+                ]
+            },
+            #tr{
+                cells = [
+                    #td{
+                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        body = #label{
+                            class = <<"label label-large label-inverse">>,
+                            style = <<"cursor: auto;">>,
+                            body = <<"Acknowledgements">>
+                        }
+                    },
+                    #td{
+                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        body = #p{
+                            body = <<"This research was supported in part by PL-Grid Infrastructure.">>
+                        }
+                    }
+                ]
+            },
+            #tr{
+                cells = [
+                    #td{
+                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        body = #label{
+                            class = <<"label label-large label-inverse">>,
+                            style = <<"cursor: auto;">>,
+                            body = <<"License">>
+                        }
+                    },
+                    #td{
+                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        body = #p{
+                            style = <<"white-space: pre; font-size: 100%; line-height: normal">>,
+                            body = get_license()
+                        }
+                    }
+                ]
+            },
+            #tr{
+                cells = [
+                    #td{
+                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        body = #label{
+                            class = <<"label label-large label-inverse">>,
+                            style = <<"cursor: auto;">>,
+                            body = <<"Team">>
+                        }
+                    },
+                    #td{
+                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        body = get_team()
+                    }
+                ]
+            }
+        ]
+    }.
 
 
 %% get_license/0

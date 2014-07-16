@@ -14,8 +14,8 @@
 -author("Rafal Slota").
 
 -include("registered_names.hrl").
--include("onepanel_modules/db_logic.hrl").
--include("onepanel_modules/install_logic.hrl").
+-include("onepanel_modules/installer/state.hrl").
+-include("onepanel_modules/installer/internals.hrl").
 -include("onepanel_modules/updater/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -52,7 +52,6 @@ start_link() ->
 %% ====================================================================
 init(_Args) ->
     process_flag(trap_exit, true),
-    inets:start(),
     ?info("[Updater] Initialized."),
 
     State =
@@ -65,6 +64,8 @@ init(_Args) ->
                     _ ->
                         updater_engine:enter_stage(updater_state:get_stage_and_job(SavedState), SavedState)
                 end;
+            {ok, #?u_state{error_stack = ES, warning_stack = WS, action_type = ActionType}} ->
+                #?u_state{error_stack = ES, warning_stack = WS, action_type = ActionType};
             {ok, _Unk} ->
                 ?warning("Unknown updater state in DB, ignoring."),
                 #?u_state{};
@@ -93,8 +94,7 @@ handle_call(get_state, _From, State) ->
 
 handle_call({update_to, #version{} = Vsn, ForceNodeRestart, CallbackFun}, _From, #?u_state{stage = ?STAGE_IDLE} = State) ->
     case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-        {ok, #?GLOBAL_CONFIG_RECORD{workers = InstalledWorkers, opt_ccms = OptCCM, main_ccm = MCCM}} ->
-            {WorkerHosts, CCMHosts} = {InstalledWorkers, OptCCM ++ [MCCM]},
+        {ok, #?GLOBAL_CONFIG_RECORD{ccms = CCMHosts, workers = WorkerHosts}} ->
             Workers = [list_to_atom(?DEFAULT_WORKER_NAME ++ "@" ++ Host) || Host <- WorkerHosts],
             CCMs = [list_to_atom(?DEFAULT_CCM_NAME ++ "@" ++ Host) || Host <- CCMHosts],
 
@@ -108,6 +108,8 @@ handle_call({update_to, #version{} = Vsn, ForceNodeRestart, CallbackFun}, _From,
     end;
 
 handle_call(abort, _From, #?u_state{stage = ?STAGE_IDLE} = State) ->
+    {reply, ok, State};
+handle_call(abort, _From, #?u_state{action_type = rollback} = State) ->
     {reply, ok, State};
 handle_call(abort, _From, #?u_state{stage = Stage, job = Job, callback = CallbackFun} = State) ->
     NewState = State#?u_state{action_type = rollback, objects = #{}},
@@ -153,9 +155,9 @@ handle_info({Pid, ok}, #?u_state{objects = Objects, callback = CallbackFun} = St
     CallbackFun(update_objects, State#?u_state{objects = NObjects}),
     NState =
         case {maps:size(NObjects), maps:size(Objects)} of
-            {0, 1}  ->
+            {0, 1} ->
                 updater_engine:enter_stage(updater_engine:next_stage(State), State);
-            _  -> State#?u_state{objects = NObjects}
+            _ -> State#?u_state{objects = NObjects}
         end,
     {noreply, NState};
 
@@ -178,7 +180,7 @@ handle_info({Pid, {error, Reason}}, #?u_state{objects = Objects, object_data = _
         fun(Key, Map, Default) ->
             case maps:is_key(Key, Map) of
                 true -> maps:get(Key, Map);
-                _    -> Default
+                _ -> Default
             end
         end,
     NState =

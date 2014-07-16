@@ -10,8 +10,8 @@
 %% ===================================================================
 -author("Rafal Slota").
 
--ifndef(UPDATER_COMMON_HRL).
--define(UPDATER_COMMON_HRL, 1).
+-ifndef(ONEPANEL_UPDATER_COMMON_HRL).
+-define(ONEPANEL_UPDATER_COMMON_HRL, 1).
 
 %% Package repository's URL
 -define(PACKAGE_REPOSITORY_BASE_URL, "http://onedata.org/repository").

@@ -10,8 +10,8 @@
 %% ===================================================================
 -author("Rafal Slota").
 
--ifndef(UPDATER_INTERNALS_HRL).
--define(UPDATER_INTERNALS_HRL, 1).
+-ifndef(ONEPANEL_UPDATER_INTERNALS_HRL).
+-define(ONEPANEL_UPDATER_INTERNALS_HRL, 1).
 
 -include("onepanel_modules/updater/state.hrl").
 
@@ -23,7 +23,7 @@
 -define(ABORT_AVAILABLE, true).
 
 %% Timeout for node startup
--define(NODE_STARTUP_TIMEOUT,  10 * 1000). %% 10sec
+-define(NODE_STARTUP_TIMEOUT, 10 * 1000). %% 10sec
 
 %% Minimum delay between node restarts
 -define(DELAY_BETWEEN_NODE_RESTARTS, 30 * 1000). %% 30sec

@@ -11,6 +11,7 @@
 %% ===================================================================
 
 -module(routes).
+-include("gui_modules/pages.hrl").
 -include_lib("n2o/include/wf.hrl").
 -export([init/2, finish/2]).
 
@@ -52,12 +53,37 @@ finish(State, Ctx) -> {ok, State, Ctx}.
 -spec route(Resource :: string()) -> Result when
     Result :: module().
 %% ====================================================================
-route(<<"/">>) -> page_installation;
-route(<<"/installation">>) -> page_installation;
-route(<<"/login">>) -> page_login;
-route(<<"/logout">>) -> page_logout;
-route(<<"/about">>) -> page_about;
-route(<<"/manage_account">>) -> page_manage_account;
-route(<<"/validate_login">>) -> page_validate_login;
-route(<<"/registration">>) -> page_registration;
+%% Root page
+route(?PAGE_ROOT) -> page_installation;
+
+%% Installation pages
+route(?PAGE_INSTALLATION) -> page_installation;
+route(?PAGE_HOST_SELECTION) -> page_hosts_selection;
+route(?PAGE_MAIN_CCM_SELECTION) -> page_main_ccm_selection;
+route(?PAGE_ULIMITS) -> page_ulimits;
+route(?PAGE_ADD_STORAGE) -> page_add_storage;
+route(?PAGE_INSTALLATION_SUMMARY) -> page_installation_summary;
+route(?PAGE_INSTALLATION_SUCCESS) -> page_installation_success;
+
+%% Management pages
+route(?PAGE_LOGIN) -> page_login;
+route(?PAGE_LOGOUT) -> page_logout;
+route(?PAGE_ABOUT) -> page_about;
+route(?PAGE_MANAGE_ACCOUNT) -> page_manage_account;
+route(?PAGE_VALIDATE_LOGIN) -> page_validate_login;
+
+%% Registration pages
+route(?PAGE_REGISTRATION) -> page_registration;
+route(?PAGE_CONNECTION_CHECK) -> page_connection_check;
+route(?PAGE_PORTS_CHECK) -> page_ports_check;
+route(?PAGE_REGISTRATION_SUMMARY) -> page_registration_summary;
+route(?PAGE_REGISTRATION_SUCCESS) -> page_registration_success;
+
+%% Update pages
+route(?PAGE_UPDATE) -> page_update;
+route(?PAGE_VERSION_SELECTION) -> page_version_selection;
+route(?PAGE_UPDATE_SUMMARY) -> page_update_summary;
+route(?PAGE_UPDATE_SUCCESS) -> page_update_success;
+
+%% Undefined pages
 route(_) -> page_404.

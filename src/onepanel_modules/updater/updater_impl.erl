@@ -105,8 +105,8 @@ handle_stage(?STAGE_INIT, ?JOB_LOAD_EXPORTS, #?u_state{nodes = Nodes} = _State) 
     Nodes;
 
 handle_stage(?STAGE_INIT, ?JOB_CHECK_CONNECTIVITY, #?u_state{nodes = Nodes} = _State) ->
-    Hostnames = lists:usort([ install_utils:get_host(Node) || Node <- Nodes ]),
-    OnePanelNodes = [install_utils:get_node(Host) || Host <- Hostnames],
+    Hostnames = lists:usort([ onepanel_utils:get_host(Node) || Node <- Nodes ]),
+    OnePanelNodes = [onepanel_utils:get_node(Host) || Host <- Hostnames],
     Nodes ++ OnePanelNodes;
 
 handle_stage(?STAGE_INIT, ?JOB_DOWNLOAD_BINARY, #?u_state{} = _State) ->
@@ -188,11 +188,11 @@ dispatch_object(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEW_SOURCES, Obj, #?u_stat
     updater_utils:cast(Node, install_view_sources, []);
 
 dispatch_object(?STAGE_DAO_SETUP_VIEWS, ?JOB_INSTALL_VIEWS, _Obj, #?u_state{nodes = Nodes}) ->
-    updater_utils:anycast(Nodes, install_views, []);
+    updater_utils:anycast(updater_utils:select_only_workers(Nodes), install_views, []);
 
 dispatch_object(?STAGE_DAO_REFRESH_VIEWS, ?JOB_DEFAULT, Obj, #?u_state{nodes = Nodes}) ->
     View = Obj,
-    updater_utils:anycast(Nodes, refresh_view, [View]);
+    updater_utils:anycast(updater_utils:select_only_workers(Nodes), refresh_view, [View]);
 
 dispatch_object(?STAGE_DEPLOY_FILES, ?JOB_BACKUP, Obj, #?u_state{}) ->
     Node = Obj,
@@ -259,7 +259,7 @@ handle_rollback(_Stage, _Job, #?u_state{}) ->
 %% ====================================================================
 rollback_object(?STAGE_DEPLOY_FILES, ?JOB_DEPLOY, Obj, #?u_state{}) ->
     Node = Obj,
-    updater_utils:cast(Node, restore_instalation, []);
+    updater_utils:cast(Node, revert_instalation, []);
 
 rollback_object(?STAGE_REPAIR_NODES, _, Obj, #?u_state{}) ->
     Node = Obj,
@@ -284,9 +284,9 @@ rollback_object(Stage, Job, Obj, #?u_state{}) ->
 %% ====================================================================
 veil_restart(Node) ->
     [NodeType, _] = string:tokens(atom_to_list(Node), "@"),
-    OnePanelNode = install_utils:get_node(install_utils:get_host(Node)),
-    Mod = list_to_atom("install_" ++ NodeType),
-    case rpc:call(OnePanelNode, Mod, restart, []) of
+    OnePanelNode = onepanel_utils:get_node(onepanel_utils:get_host(Node)),
+    Mod = list_to_atom("installer_" ++ NodeType),
+    case rpc:call(OnePanelNode, Mod, local_restart, []) of
         {ok, _} ->
             updater_utils:wait_for_node(Node, ?NODE_STARTUP_TIMEOUT),
             timer:sleep(?DELAY_BETWEEN_NODE_RESTARTS);

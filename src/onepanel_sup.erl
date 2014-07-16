@@ -33,7 +33,7 @@
     Result :: {ok, Pid :: pid()} | ignore | {error, Reason :: term()}.
 %% ====================================================================
 start_link() ->
-    supervisor:start_link({local, ?SERVER_SUP}, ?MODULE, []).
+    supervisor:start_link({local, ?ONEPANEL_SUP}, ?MODULE, []).
 
 
 %% ====================================================================
@@ -68,7 +68,7 @@ init([]) ->
     Type = worker,
 
     Children = [
-        {?GEN_SERVER_NAME, {?GEN_SERVER_NAME, start_link, []}, Restart, Shutdown, Type, [?GEN_SERVER_NAME]}
+        {?ONEPANEL_SERVER, {?ONEPANEL_SERVER, start_link, []}, Restart, Shutdown, Type, [?ONEPANEL_SERVER]}
     ],
 
     {ok, {SupFlags, Children}}.

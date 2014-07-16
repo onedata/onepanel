@@ -12,11 +12,12 @@
 
 -module(onepanel_gui_utils).
 -include("gui_modules/common.hrl").
+-include("onepanel_modules/installer/state.hrl").
 -include_lib("ctool/include/logging.hrl").
 
-% Functions to generate page elements
--export([top_menu/1, top_menu/2, logotype_footer/1, bind_enter_to_change_focus/2, get_error_message/1, change_step/2]).
-
+-export([top_menu/1, top_menu/2, logotype_footer/1]).
+-export([get_error_message/1, get_installation_state/0, format_list/1, message/2]).
+-export([change_page/2, maybe_redirect/3]).
 
 %% ====================================================================
 %% API functions
@@ -67,22 +68,25 @@ top_menu(ActiveTabID, SubMenuBody) ->
     MenuCaptions =
         [
             {installation_tab, #li{body = [
-                #link{style = <<"padding: 18px;">>, url = <<"/installation">>, body = <<"Installation">>}
+                #link{style = <<"padding: 18px;">>, url = ?PAGE_INSTALLATION, body = <<"Installation">>}
             ]}},
             {registration_tab, #li{body = [
-                #link{style = <<"padding: 18px;">>, url = <<"/registration">>, body = <<"Registration">>}
+                #link{style = <<"padding: 18px;">>, url = ?PAGE_REGISTRATION, body = <<"Registration">>}
+            ]}},
+            {update_tab, #li{body = [
+                #link{style = <<"padding: 18px;">>, url = ?PAGE_UPDATE, body = <<"Update">>}
             ]}}
         ],
 
     MenuIcons =
         [
             {manage_account_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Manage account">>,
-                url = <<"/manage_account">>, body = [gui_ctx:get_user_id(), #span{class = <<"fui-user">>,
+                url = ?PAGE_MANAGE_ACCOUNT, body = [gui_ctx:get_user_id(), #span{class = <<"fui-user">>,
                     style = <<"margin-left: 10px;">>}]}}},
             {about_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"About">>,
-                url = <<"/about">>, body = #span{class = <<"fui-info">>}}}},
+                url = ?PAGE_ABOUT, body = #span{class = <<"fui-info">>}}}},
             {logout_button, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Log out">>,
-                url = <<"/logout">>, body = #span{class = <<"fui-power">>}}}}
+                url = ?PAGE_LOGOUT, body = #span{class = <<"fui-power">>}}}}
         ],
 
     MenuCaptionsProcessed = lists:map(
@@ -111,20 +115,6 @@ top_menu(ActiveTabID, SubMenuBody) ->
     ] ++ SubMenuBody}.
 
 
-%% bind_enter_to_submit_button/2
-%% ====================================================================
-%% @doc Makes any enter keypresses on InputID (whenever it is focused)
-%% change focus to selected target. This way, it allows
-%% easy switch submission with enter key.
-%% @end
--spec bind_enter_to_change_focus(InputID :: binary(), TargetID :: binary()) -> string().
-%% ====================================================================
-bind_enter_to_change_focus(InputID, TargetID) ->
-    Script = <<"$('#", InputID/binary, "').bind('keydown', function (e){",
-    "if (e.which == 13) { e.preventDefault(); document.getElementById('", TargetID/binary, "').focus(); } });">>,
-    gui_jq:wire(Script, false).
-
-
 %% get_error_message/1
 %% ====================================================================
 %% @doc Returns error message for given error id, that will be displayed
@@ -138,18 +128,70 @@ get_error_message(_) ->
     <<"Internal server error.">>.
 
 
-%% change_step/2
+%% get_installation_state/0
 %% ====================================================================
-%% @doc Hides current installation step and displays next ('Diff' equals 1)
-%% or previous ('Diff' equals -1) installaton step.
--spec change_step(CurrentStep :: integer(), Diff :: -1 | 1) -> no_return().
+%% @doc Returns current installation state read in first place from session
+%% and in second place from database.
+-spec get_installation_state() -> Result when
+    Result :: #?GLOBAL_CONFIG_RECORD{} | undefined.
 %% ====================================================================
-change_step(CurrentStep, Diff) ->
-    HideId = <<"step_", (integer_to_binary(CurrentStep))/binary>>,
-    ShowId = <<"step_", (integer_to_binary(CurrentStep + Diff))/binary>>,
-    gui_jq:hide(<<"error_message">>),
-    gui_jq:slide_up(HideId, 800),
-    gui_jq:delay(ShowId, integer_to_binary(500)),
-    gui_jq:slide_down(ShowId, 800).
+get_installation_state() ->
+    case gui_ctx:get(?CONFIG_ID) of
+        undefined ->
+            case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+                {ok, Record} -> {ok, Record};
+                _ -> undefined
+            end;
+        Record -> {ok, Record}
+    end.
 
+
+%% change_page/2
+%% ====================================================================
+%% @doc Redirects to given page and saves it in user session.
+-spec change_page(Env :: atom(), Page :: string()) -> no_return().
+%% ====================================================================
+change_page(Env, Page) ->
+    gui_ctx:put(Env, Page),
+    gui_jq:redirect(Page).
+
+
+%% maybe_redirect/3
+%% ====================================================================
+%% @doc Redirects to appropriate page read from user session.
+-spec maybe_redirect(Env :: atom(), Page :: string(), DefaultPage :: string()) -> true | false.
+%% ====================================================================
+maybe_redirect(Env, CurrentPage, DefaultPage) ->
+    case gui_ctx:get(Env) of
+        CurrentPage ->
+            false;
+        undefined ->
+            gui_jq:redirect(DefaultPage),
+            true;
+        Page ->
+            gui_jq:redirect(Page),
+            true
+    end.
+
+
+%% format_list/1
+%% ====================================================================
+%% @doc Returns list elements as a comma-delimited binary.
+-spec format_list(List :: [string()]) -> Result when
+    Result :: binary().
+%% ====================================================================
+format_list([]) ->
+    <<"">>;
+format_list(Hosts) ->
+    list_to_binary(string:join(Hosts, ", ")).
+
+
+%% message/2
+%% ====================================================================
+%% @doc Renders a message in given element.
+-spec message(Id :: binary(), Message :: binary()) -> no_return().
+%% ====================================================================
+message(Id, Message) ->
+    gui_jq:update(Id, Message),
+    gui_jq:fade_in(Id, 300).
 
