@@ -257,7 +257,7 @@ event(init) ->
     ok;
 
 event(back) ->
-    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_ULIMITS);
+    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS);
 
 event({add_storage_path, BinaryId}) ->
     #?CONFIG{workers = Workers, storage_paths = StoragePaths} = Config = gui_ctx:get(?CONFIG_ID),

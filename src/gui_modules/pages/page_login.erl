@@ -83,8 +83,8 @@ body() ->
                                 id = <<"login_form">>,
                                 method = <<"POST">>,
                                 action = case SourcePage of
-                                             undefined -> ?PAGE_VALIDATE_LOGIN;
-                                             _ -> <<(?PAGE_VALIDATE_LOGIN)/binary, "?x=", SourcePage/binary>>
+                                             undefined -> ?PAGE_LOGIN_VALIDATION;
+                                             _ -> <<(?PAGE_LOGIN_VALIDATION)/binary, "?x=", SourcePage/binary>>
                                          end,
                                 style = <<"width: 50%; margin: 0 auto; padding-top: 20px; float: center">>,
                                 body = [

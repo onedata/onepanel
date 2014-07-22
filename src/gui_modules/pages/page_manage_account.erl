@@ -29,7 +29,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]};
+            #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, custom()}]};
         _ ->
             gui_jq:redirect_to_login(true),
             #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
@@ -44,6 +44,25 @@ main() ->
 %% ====================================================================
 title() ->
     <<"Manage account">>.
+
+
+%% custom/0
+%% ====================================================================
+%% @doc This will be placed instead of {{custom}} tag in template.
+-spec custom() -> binary().
+%% ====================================================================
+custom() ->
+    <<"<script src='/js/bootbox.min.js' type='text/javascript' charset='utf-8'></script>",
+    "<script type='text/javascript' charset='utf-8'> $(document).ready(function() {
+        $('body').on('show', '.modal', function () {
+            $(this).css({
+                'top': '50%',
+                'margin-top': function () {
+                    return -($(this).height() / 2);
+                }
+            });
+        });
+    });</script>">>.
 
 
 %% body/0

@@ -42,6 +42,7 @@
         {grpcsr_file, "./certs/grpcsr.pem"},
         {grpcert_name, "grpcert.pem"},
         {grpcert_file, "./certs/grpcert.pem"},
+        {grpca_file, "./certs/grpca.pem"},
         {global_registry_url, "https://globalregistry.org:8443"},
         {get_versions_url, "http://onedata.org/repository/get_versions.php"},
         {default_username, <<"admin">>},

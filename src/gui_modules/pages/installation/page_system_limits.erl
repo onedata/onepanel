@@ -11,7 +11,7 @@
 %% @end
 %% ===================================================================
 
--module(page_ulimits).
+-module(page_system_limits).
 -export([main/0, event/1]).
 
 -include("gui_modules/common.hrl").
@@ -35,7 +35,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect(?CURRENT_INSTALLATION_PAGE, ?PAGE_ULIMITS, ?PAGE_INSTALLATION) of
+            case onepanel_gui_utils:maybe_redirect(?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS, ?PAGE_INSTALLATION) of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->

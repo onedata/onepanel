@@ -65,6 +65,7 @@ register() ->
         {ok, KeyName} = application:get_env(?APP_NAME, grpkey_name),
         {ok, CsrPath} = application:get_env(?APP_NAME, grpcsr_file),
         {ok, CertName} = application:get_env(?APP_NAME, grpcert_name),
+        {ok, CertPath} = application:get_env(?APP_NAME, grpcert_file),
         Path = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, "certs"]),
 
         0 = create_csr("", KeyPath, CsrPath),
@@ -72,12 +73,12 @@ register() ->
         %% Save private key on all hosts
         {ok, Key} = file:read_file(KeyPath),
         ok = onepanel_utils:save_file_on_hosts(Path, KeyName, Key),
-        ok = file:delete(KeyPath),
 
         {ok, ProviderId, Cert} = send_csr(CsrPath),
 
         %% Save provider ID and certifiacte on all hosts
         ok = dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{providerId, ProviderId}]),
+        ok = file:write_file(CertPath, Cert),
         ok = onepanel_utils:save_file_on_hosts(Path, CertName, Cert),
 
         {ok, ProviderId}
