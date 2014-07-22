@@ -10,7 +10,7 @@
 %% @end
 %% ===================================================================
 
--module(page_validate_login).
+-module(page_login_validation).
 -export([main/0, event/1]).
 -include("gui_modules/common.hrl").
 -include_lib("ctool/include/logging.hrl").

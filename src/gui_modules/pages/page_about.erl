@@ -82,12 +82,14 @@ body() ->
     Result :: #table{}.
 %% ====================================================================
 about_table() ->
+    DescriptionStyle = <<"border-width: 0px; vertical-align: top; text-align: right; padding: 10px 10px;">>,
+    ContentStyle = <<"border-width: 0px; padding: 10px 10px">>,
     #table{
         style = <<"border-width: 0px; width: auto">>, body = [
             #tr{
                 cells = [
                     #td{
-                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        style = DescriptionStyle,
                         body = #label{
                             class = <<"label label-large label-inverse">>,
                             style = <<"cursor: auto;">>,
@@ -95,7 +97,7 @@ about_table() ->
                         }
                     },
                     #td{
-                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        style = ContentStyle,
                         body = #link{
                             style = <<"font-size: 18px; padding: 5px 0;">>,
                             body = <<?CONTACT_EMAIL>>,
@@ -107,7 +109,7 @@ about_table() ->
             #tr{
                 cells = [
                     #td{
-                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        style = DescriptionStyle,
                         body = #label{
                             class = <<"label label-large label-inverse">>,
                             style = <<"cursor: auto;">>,
@@ -115,7 +117,7 @@ about_table() ->
                         }
                     },
                     #td{
-                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        style = ContentStyle,
                         body = #p{
                             body = <<"This research was supported in part by PL-Grid Infrastructure.">>
                         }
@@ -125,7 +127,7 @@ about_table() ->
             #tr{
                 cells = [
                     #td{
-                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        style = DescriptionStyle,
                         body = #label{
                             class = <<"label label-large label-inverse">>,
                             style = <<"cursor: auto;">>,
@@ -133,7 +135,7 @@ about_table() ->
                         }
                     },
                     #td{
-                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        style = ContentStyle,
                         body = #p{
                             style = <<"white-space: pre; font-size: 100%; line-height: normal">>,
                             body = get_license()
@@ -144,7 +146,7 @@ about_table() ->
             #tr{
                 cells = [
                     #td{
-                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        style = DescriptionStyle,
                         body = #label{
                             class = <<"label label-large label-inverse">>,
                             style = <<"cursor: auto;">>,
@@ -152,7 +154,7 @@ about_table() ->
                         }
                     },
                     #td{
-                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        style = ContentStyle,
                         body = get_team()
                     }
                 ]

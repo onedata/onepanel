@@ -64,7 +64,7 @@ route(?PAGE_ABOUT) -> page_about;
 route(?PAGE_MANAGE_ACCOUNT) -> page_manage_account;
 
 %% Installation pages
-route(?PAGE_INSTALLATION) -> page_installation;
+route(?PAGE_SOFTWARE_INSTALLATION) -> page_installation;
 route(?PAGE_HOST_SELECTION) -> page_hosts_selection;
 route(?PAGE_MAIN_CCM_SELECTION) -> page_main_ccm_selection;
 route(?PAGE_SYSTEM_LIMITS) -> page_system_limits;
@@ -73,7 +73,7 @@ route(?PAGE_INSTALLATION_SUMMARY) -> page_installation_summary;
 route(?PAGE_INSTALLATION_SUCCESS) -> page_installation_success;
 
 %% Update pages
-route(?PAGE_UPDATE) -> page_update;
+route(?PAGE_SOFTWARE_UPDATE) -> page_update;
 route(?PAGE_VERSION_SELECTION) -> page_version_selection;
 route(?PAGE_UPDATE_SUMMARY) -> page_update_summary;
 route(?PAGE_UPDATE_SUCCESS) -> page_update_success;

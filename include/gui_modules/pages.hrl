@@ -16,7 +16,7 @@
 -define(PAGE_ROOT, <<"/">>).
 
 %% Installation pages
--define(PAGE_INSTALLATION, <<"/software/installation">>).
+-define(PAGE_SOFTWARE_INSTALLATION, <<"/software/installation">>).
 -define(PAGE_HOST_SELECTION, <<"/software/installation/hosts_selection">>).
 -define(PAGE_MAIN_CCM_SELECTION, <<"/software/installation/main_ccm_selection">>).
 -define(PAGE_SYSTEM_LIMITS, <<"/software/installation/system_limits">>).
@@ -25,10 +25,13 @@
 -define(PAGE_INSTALLATION_SUCCESS, <<"/software/installation/success">>).
 
 %% Update pages
--define(PAGE_UPDATE, <<"/software/update">>).
+-define(PAGE_SOFTWARE_UPDATE, <<"/software/update">>).
 -define(PAGE_VERSION_SELECTION, <<"/software/update/version_selection">>).
 -define(PAGE_UPDATE_SUMMARY, <<"/software/update/summary">>).
 -define(PAGE_UPDATE_SUCCESS, <<"/software/update/success">>).
+
+%% Software settings
+-define(PAGE_SOFTWARE_SETTINGS, <<"/software/settings">>).
 
 %% Registration pages
 -define(PAGE_REGISTRATION, <<"/spaces/registration">>).
@@ -36,6 +39,10 @@
 -define(PAGE_PORTS_CHECK, <<"/spaces/registration/ports_check">>).
 -define(PAGE_REGISTRATION_SUMMARY, <<"/spaces/registration/summary">>).
 -define(PAGE_REGISTRATION_SUCCESS, <<"/spaces/registration/success">>).
+
+%% Spaces pages
+-define(PAGE_SPACES_ACCOUNT, <<"/spaces/account">>).
+-define(PAGE_SPACES_SETTINGS, <<"/spaces/settings">>).
 
 %% Management pages
 -define(PAGE_LOGIN, <<"/login">>).

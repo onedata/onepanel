@@ -30,17 +30,15 @@
 -spec logotype_footer(MarginTop :: integer()) -> list().
 %% ====================================================================
 logotype_footer(MarginTop) ->
-    Height = integer_to_binary(MarginTop + 82),
-    Margin = integer_to_binary(MarginTop),
-    [
-        #panel{style = <<"position: relative; height: ", Height/binary, "px;">>, body = [
-            #panel{style = <<"text-align: center; z-index: -1; margin-top: ", Margin/binary, "px;">>, body = [
+    #panel{class = <<"footer">>, body = [
+        #panel{style = <<"position: relative; height: 100px;">>, body = [
+            #panel{style = <<"text-align: center; z-index: -1; margin-top: ", (integer_to_binary(MarginTop))/binary, "px;">>, body = [
                 #image{style = <<"margin: 10px 100px;">>, image = <<"/images/innow-gosp-logo.png">>},
                 #image{style = <<"margin: 10px 100px;">>, image = <<"/images/plgrid-plus-logo.png">>},
                 #image{style = <<"margin: 10px 100px;">>, image = <<"/images/unia-logo.png">>}
             ]}
         ]}
-    ].
+    ]}.
 
 
 %% top_menu/1
@@ -64,17 +62,22 @@ top_menu(ActiveTabID) ->
 %% ====================================================================
 top_menu(ActiveTabID, SubMenuBody) ->
     % Define menu items with ids, so that proper tab can be made active via function parameter
-    % see old_menu_captions()
     MenuCaptions =
         [
-            {installation_tab, #li{body = [
-                #link{style = <<"padding: 18px;">>, url = ?PAGE_INSTALLATION, body = <<"Installation">>}
+            {software_tab, #li{body = [
+                #link{style = "padding: 18px;", body = "Software"},
+                #list{style = "top: 37px; width: 120px;", body = [
+                    #li{body = #link{url = ?PAGE_SOFTWARE_INSTALLATION, body = "Installation"}},
+                    #li{body = #link{url = ?PAGE_SOFTWARE_UPDATE, body = "Update"}},
+                    #li{body = #link{url = ?PAGE_SOFTWARE_SETTINGS, body = "Settings"}}
+                ]}
             ]}},
-            {registration_tab, #li{body = [
-                #link{style = <<"padding: 18px;">>, url = ?PAGE_REGISTRATION, body = <<"Registration">>}
-            ]}},
-            {update_tab, #li{body = [
-                #link{style = <<"padding: 18px;">>, url = ?PAGE_UPDATE, body = <<"Update">>}
+            {spaces_tab, #li{body = [
+                #link{style = "padding: 18px;", body = "Spaces"},
+                #list{style = "top: 37px; width: 120px;", body = [
+                    #li{body = #link{url = ?PAGE_SPACES_ACCOUNT, body = "Account"}},
+                    #li{body = #link{url = ?PAGE_SPACES_SETTINGS, body = "Settings"}}
+                ]}
             ]}}
         ],
 
