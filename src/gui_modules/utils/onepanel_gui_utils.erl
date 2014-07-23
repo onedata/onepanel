@@ -15,7 +15,7 @@
 -include("onepanel_modules/installer/state.hrl").
 -include_lib("ctool/include/logging.hrl").
 
--export([top_menu/1, top_menu/2, logotype_footer/1]).
+-export([body/1, body/2, body/3, top_menu/1, top_menu/2, logotype_footer/0]).
 -export([get_error_message/1, get_installation_state/0, format_list/1, message/2]).
 -export([change_page/2, maybe_redirect/3]).
 
@@ -23,21 +23,56 @@
 %% API functions
 %% ====================================================================
 
-%% logotype_footer/1
+%% body/1
+%% ====================================================================
+%% @doc Template function to render page body, without header and with
+%% default page footer.
+%% @end
+-spec body(Content :: term()) -> Result when
+    Result :: list().
+%% ====================================================================
+body(Content) ->
+    body([], Content).
+
+
+%% body/2
+%% ====================================================================
+%% @doc Template function to render page body, with default page footer.
+%% @end
+-spec body(Header :: term(), Content :: term()) -> Result when
+    Result :: list().
+%% ====================================================================
+body(Header, Content) ->
+    body(Header, Content, logotype_footer()).
+
+
+%% body/3
+%% ====================================================================
+%% @doc Template function to render page body.
+%% @end
+-spec body(Header :: term(), Content :: term(), Footer :: term()) -> Result when
+    Result :: list().
+%% ====================================================================
+body(Header, Content, Footer) ->
+    [
+        #header{class = <<"page-row">>, body = Header},
+        #main{class = <<"page-row page-row-expanded">>, body = Content},
+        #footer{class = <<"page-row">>, body = Footer}
+    ].
+
+
+%% logotype_footer/0
 %% ====================================================================
 %% @doc Convienience function to render logotype footer, coming after page content.
 %% @end
--spec logotype_footer(MarginTop :: integer()) -> list().
+-spec logotype_footer() -> Result when
+    Result :: #panel{}.
 %% ====================================================================
-logotype_footer(MarginTop) ->
-    #panel{class = <<"footer">>, body = [
-        #panel{style = <<"position: relative; height: 100px;">>, body = [
-            #panel{style = <<"text-align: center; z-index: -1; margin-top: ", (integer_to_binary(MarginTop))/binary, "px;">>, body = [
-                #image{style = <<"margin: 10px 100px;">>, image = <<"/images/innow-gosp-logo.png">>},
-                #image{style = <<"margin: 10px 100px;">>, image = <<"/images/plgrid-plus-logo.png">>},
-                #image{style = <<"margin: 10px 100px;">>, image = <<"/images/unia-logo.png">>}
-            ]}
-        ]}
+logotype_footer() ->
+    #panel{style = <<"text-align: center; display: flex; justify-content: space-around; padding: 10px; margin-top: 30px;">>, body = [
+        #image{class = <<"pull-left">>, image = <<"/images/innow-gosp-logo.png">>},
+        #image{image = <<"/images/plgrid-plus-logo.png">>},
+        #image{class = <<"pull-right">>, image = <<"/images/unia-logo.png">>}
     ]}.
 
 
@@ -46,7 +81,8 @@ logotype_footer(MarginTop) ->
 %% @doc Convienience function to render top menu in GUI pages.
 %% Item with ActiveTabID will be highlighted as active.
 %% @end
--spec top_menu(ActiveTabID :: any()) -> list().
+-spec top_menu(ActiveTabID :: any()) -> Result when
+    Result :: #panel{}.
 %% ====================================================================
 top_menu(ActiveTabID) ->
     top_menu(ActiveTabID, []).
@@ -58,12 +94,19 @@ top_menu(ActiveTabID) ->
 %% Item with ActiveTabID will be highlighted as active.
 %% Submenu body (list of n2o elements) will be concatenated below the main menu.
 %% @end
--spec top_menu(ActiveTabID :: any(), SubMenuBody :: any()) -> list().
+-spec top_menu(ActiveTabID :: atom(), SubMenuBody :: term()) -> Result when
+    Result :: #panel{}.
 %% ====================================================================
 top_menu(ActiveTabID, SubMenuBody) ->
     % Define menu items with ids, so that proper tab can be made active via function parameter
     MenuCaptions =
         [
+            {brand_tab, #li{body = #link{style = <<"padding: 18px;">>, url = ?PAGE_ROOT,
+                body = [
+                    #span{class = <<"fui-gear">>},
+                    #b{style = <<"font-size: 20px;">>, body = <<"OnePanel">>}
+                ]}
+            }},
             {software_tab, #li{body = [
                 #link{style = "padding: 18px;", body = "Software"},
                 #list{style = "top: 37px; width: 120px;", body = [
@@ -83,9 +126,9 @@ top_menu(ActiveTabID, SubMenuBody) ->
 
     MenuIcons =
         [
-            {manage_account_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Manage account">>,
-                url = ?PAGE_MANAGE_ACCOUNT, body = [gui_ctx:get_user_id(), #span{class = <<"fui-user">>,
-                    style = <<"margin-left: 10px;">>}]}}},
+%%             {manage_account_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Manage account">>,
+%%                 url = ?PAGE_MANAGE_ACCOUNT, body = [gui_ctx:get_user_id(), #span{class = <<"fui-user">>,
+%%                     style = <<"margin-left: 10px;">>}]}}},
             {about_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"About">>,
                 url = ?PAGE_ABOUT, body = #span{class = <<"fui-info">>}}}},
             {logout_button, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Log out">>,
@@ -152,7 +195,8 @@ get_installation_state() ->
 %% change_page/2
 %% ====================================================================
 %% @doc Redirects to given page and saves it in user session.
--spec change_page(Env :: atom(), Page :: string()) -> no_return().
+-spec change_page(Env :: atom(), Page :: string()) -> Result when
+    Result :: ok.
 %% ====================================================================
 change_page(Env, Page) ->
     gui_ctx:put(Env, Page),
@@ -162,7 +206,8 @@ change_page(Env, Page) ->
 %% maybe_redirect/3
 %% ====================================================================
 %% @doc Redirects to appropriate page read from user session.
--spec maybe_redirect(Env :: atom(), Page :: string(), DefaultPage :: string()) -> true | false.
+-spec maybe_redirect(Env :: atom(), Page :: string(), DefaultPage :: string()) -> Result when
+    Result :: true | false.
 %% ====================================================================
 maybe_redirect(Env, CurrentPage, DefaultPage) ->
     case gui_ctx:get(Env) of
@@ -192,7 +237,8 @@ format_list(Hosts) ->
 %% message/2
 %% ====================================================================
 %% @doc Renders a message in given element.
--spec message(Id :: binary(), Message :: binary()) -> no_return().
+-spec message(Id :: binary(), Message :: binary()) -> Result when
+    Result :: ok.
 %% ====================================================================
 message(Id, Message) ->
     gui_jq:update(Id, Message),

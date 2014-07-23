@@ -35,7 +35,7 @@ main() ->
     Result :: binary().
 %% ====================================================================
 title() ->
-    <<"Logout">>.
+    <<"Log out">>.
 
 
 %% body/0
@@ -47,29 +47,24 @@ title() ->
 body() ->
     gui_ctx:clear_session(),
     session_logic:clear_expired_sessions(),
-    #panel{
-        style = <<"position: relative;">>,
+    Content = #panel{
+        class = <<"alert alert-success">>,
+        style = <<"width: 30em; margin: 0 auto; text-align: center; margin-top: 10em;">>,
         body = [
-            #panel{
-                class = <<"alert alert-success login-page">>,
-                body = [
-                    #h3{
-                        class = <<"">>,
-                        body = <<"Logout successful">>
-                    },
-                    #p{
-                        class = <<"login-info">>,
-                        body = <<"Come back soon.">>
-                    },
-                    #button{
-                        postback = to_login,
-                        class = <<"btn btn-primary btn-block">>,
-                        body = <<"Login page">>
-                    }
-                ]
+            #h3{
+                body = <<"Successful logout">>
+            },
+            #p{
+                body = <<"Come back soon.">>
+            },
+            #button{
+                postback = to_login,
+                class = <<"btn btn-primary btn-block">>,
+                body = <<"Login page">>
             }
-        ] ++ onepanel_gui_utils:logotype_footer(120)
-    }.
+        ]
+    },
+    onepanel_gui_utils:body(Content).
 
 
 %% ====================================================================
