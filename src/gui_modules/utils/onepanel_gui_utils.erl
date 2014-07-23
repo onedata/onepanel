@@ -81,81 +81,84 @@ logotype_footer() ->
 %% @doc Convienience function to render top menu in GUI pages.
 %% Item with ActiveTabID will be highlighted as active.
 %% @end
--spec top_menu(ActiveTabID :: any()) -> Result when
+-spec top_menu(ActiveTabID :: atom()) -> Result when
     Result :: #panel{}.
 %% ====================================================================
 top_menu(ActiveTabID) ->
-    top_menu(ActiveTabID, []).
+    top_menu(ActiveTabID, undefined).
 
 
 %% top_menu/2
 %% ====================================================================
 %% @doc Convienience function to render top menu in GUI pages.
-%% Item with ActiveTabID will be highlighted as active.
-%% Submenu body (list of n2o elements) will be concatenated below the main menu.
+%% Item with ActiveTabID and ActiveLinkID will be highlighted as active.
 %% @end
--spec top_menu(ActiveTabID :: atom(), SubMenuBody :: term()) -> Result when
+-spec top_menu(ActiveTabID :: atom(), ActiveLinkID :: atom()) -> Result when
     Result :: #panel{}.
 %% ====================================================================
-top_menu(ActiveTabID, SubMenuBody) ->
+top_menu(ActiveTabID, ActiveLinkID) ->
+    top_menu(ActiveTabID, ActiveLinkID, []).
+
+
+%% top_menu/2
+%% ====================================================================
+%% @doc Convienience function to render top menu in GUI pages.
+%% Item with ActiveTabID and ActiveLinkID will be highlighted as active.
+%% Submenu body (list of n2o elements) will be concatenated below the main menu.
+%% @end
+-spec top_menu(ActiveTabID :: atom(), ActiveLinkID :: atom(), SubMenuBody :: term()) -> Result when
+    Result :: #panel{}.
+%% ====================================================================
+top_menu(ActiveTabID, ActiveLinkID, SubMenuBody) ->
+    Process = fun(ActiveItem, List) ->
+        lists:map(fun({ItemID, ListItem}) ->
+            case ItemID of
+                ActiveItem -> ListItem#li{class = <<"active">>};
+                _ -> ListItem
+            end
+        end, List)
+    end,
+
     % Define menu items with ids, so that proper tab can be made active via function parameter
-    MenuCaptions =
-        [
-            {brand_tab, #li{body = #link{style = <<"padding: 18px;">>, url = ?PAGE_ROOT,
-                body = [
-                    #span{class = <<"fui-gear">>},
-                    #b{style = <<"font-size: 20px;">>, body = <<"OnePanel">>}
-                ]}
-            }},
-            {software_tab, #li{body = [
-                #link{style = "padding: 18px;", body = "Software"},
-                #list{style = "top: 37px; width: 120px;", body = [
-                    #li{body = #link{url = ?PAGE_SOFTWARE_INSTALLATION, body = "Installation"}},
-                    #li{body = #link{url = ?PAGE_SOFTWARE_UPDATE, body = "Update"}},
-                    #li{body = #link{url = ?PAGE_SOFTWARE_SETTINGS, body = "Settings"}}
-                ]}
-            ]}},
-            {spaces_tab, #li{body = [
-                #link{style = "padding: 18px;", body = "Spaces"},
-                #list{style = "top: 37px; width: 120px;", body = [
-                    #li{body = #link{url = ?PAGE_SPACES_ACCOUNT, body = "Account"}},
-                    #li{body = #link{url = ?PAGE_SPACES_SETTINGS, body = "Settings"}}
-                ]}
-            ]}}
-        ],
+    MenuCaptions = Process(ActiveTabID, [
+        {brand_tab, #li{body = #link{style = <<"padding: 18px;">>, url = ?PAGE_ROOT,
+            body = [
+                #span{class = <<"fui-gear">>},
+                #b{style = <<"font-size: x-large;">>, body = <<"OnePanel">>}
+            ]}
+        }},
+        {software_tab, #li{body = [
+            #link{style = "padding: 18px;", body = "Software"},
+            #list{style = "top: 37px; width: 120px;", body = Process(ActiveLinkID, [
+                {installation_link, #li{body = #link{url = ?PAGE_INSTALLATION, body = "Installation"}}},
+                {update_link, #li{body = #link{url = ?PAGE_UPDATE, body = "Update"}}},
+                {software_settings_link, #li{body = #link{url = ?PAGE_SOFTWARE_SETTINGS, body = "Settings"}}}
+            ])}
+        ]}},
+        {spaces_tab, #li{body = [
+            #link{style = "padding: 18px;", body = "Spaces"},
+            #list{style = "top: 37px; width: 120px;", body = Process(ActiveLinkID, [
+                {spaces_account_link, #li{body = #link{url = ?PAGE_SPACES_ACCOUNT, body = "Account"}}},
+                {spaces_settings_link, #li{body = #link{url = ?PAGE_SPACES_SETTINGS, body = "Settings"}}}
+            ])}
+        ]}}
+    ]),
 
-    MenuIcons =
-        [
-            {manage_account_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Manage account">>,
-                url = ?PAGE_MANAGE_ACCOUNT, body = [gui_ctx:get_user_id(), #span{class = <<"fui-user">>,
-                    style = <<"margin-left: 10px;">>}]}}},
-            {about_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"About">>,
-                url = ?PAGE_ABOUT, body = #span{class = <<"fui-info">>}}}},
-            {logout_button, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Log out">>,
-                url = ?PAGE_LOGOUT, body = #span{class = <<"fui-power">>}}}}
-        ],
-
-    MenuCaptionsProcessed = lists:map(
-        fun({TabID, ListItem}) ->
-            case TabID of
-                ActiveTabID -> ListItem#li{class = <<"active">>};
-                _ -> ListItem
-            end
-        end, MenuCaptions),
-
-    MenuIconsProcessed = lists:map(
-        fun({TabID, ListItem}) ->
-            case TabID of
-                ActiveTabID -> ListItem#li{class = <<"active">>};
-                _ -> ListItem
-            end
-        end, MenuIcons),
+    MenuIcons = Process(ActiveTabID, [
+        {manage_account_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Manage account">>,
+            url = ?PAGE_MANAGE_ACCOUNT, body = [gui_ctx:get_user_id(), #span{class = <<"fui-user">>,
+                style = <<"margin-left: 10px;">>}]}}},
+        {about_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"About">>,
+            url = ?PAGE_ABOUT, body = #span{class = <<"fui-info">>}}}},
+        {logout_button, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Log out">>,
+            url = ?PAGE_LOGOUT, body = #span{class = <<"fui-power">>}}}}
+    ]),
 
     #panel{class = <<"navbar navbar-fixed-top">>, body = [
         #panel{class = <<"navbar-inner">>, style = <<"border-bottom: 2px solid gray;">>, body = [
             #panel{class = <<"container">>, body = [
-                #list{class = <<"nav pull-left">>, body = MenuCaptionsProcessed},
-                #list{class = <<"nav pull-right">>, body = MenuIconsProcessed}
+                #list{class = <<"nav pull-left">>, body = MenuCaptions},
+                #list{class = <<"nav pull-right">>, body = MenuIcons}
             ]}
         ]}
     ] ++ SubMenuBody}.

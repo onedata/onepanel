@@ -68,6 +68,10 @@ body() ->
                 style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
                 class = <<"dialog dialog-danger">>
             },
+            #h6{
+                style = <<"margin: 0 auto; width: 0; font-size: x-large; margin-bottom: 3em;">>,
+                body = <<"Account">>
+            },
             account_table()
         ]
     },
@@ -136,6 +140,7 @@ username(Username) ->
         body = [
             Username,
             #link{
+                title = <<"Edit">>,
                 style = <<"margin-left: 1em;">>,
                 postback = change_username,
                 body = #span{
@@ -163,6 +168,7 @@ change_username() ->
             id = <<"new_username_submit">>,
             class = <<"glyph-link">>,
             style = <<"margin-left: 1em;">>,
+            title = <<"Submit">>,
             actions = gui_jq:form_submit_action(<<"new_username_submit">>, submit_new_username, <<"new_username_textbox">>),
             body = #span{
                 class = <<"fui-check-inverted">>,
@@ -172,6 +178,7 @@ change_username() ->
         #link{
             class = <<"glyph-link">>,
             style = <<"margin-left: 10px;">>,
+            title = <<"Cancel">>,
             postback = cancel_new_username_submit,
             body = #span{
                 class = <<"fui-cross-inverted">>,
@@ -193,6 +200,7 @@ password() ->
         body = [
             <<"&#9679&#9679&#9679&#9679&#9679&#9679&#9679&#9679">>,
             #link{
+                title = <<"Edit">>,
                 style = <<"margin-left: 1em;">>,
                 postback = change_password,
                 body = #span{
@@ -222,6 +230,7 @@ change_password() ->
                 id = <<"new_password_submit">>,
                 class = <<"glyph-link">>,
                 style = <<"margin-left: 1em;">>,
+                title = <<"Submit">>,
                 actions = gui_jq:form_submit_action(<<"new_password_submit">>, submit_new_password,
                     [<<"current_password_textbox">>, <<"new_password_textbox">>, <<"confirm_password_textbox">>]),
                 body = #span{
@@ -232,6 +241,7 @@ change_password() ->
             #link{
                 class = <<"glyph-link">>,
                 style = <<"margin-left: 10px;">>,
+                title = <<"Cancel">>,
                 postback = cancel_new_password_submit,
                 body = #span{
                     class = <<"fui-cross-inverted">>,

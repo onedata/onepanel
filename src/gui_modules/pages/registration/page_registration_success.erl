@@ -28,7 +28,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect(?CURRENT_REGISTRATION_PAGE, ?PAGE_REGISTRATION_SUCCESS, ?PAGE_REGISTRATION) of
+            case onepanel_gui_utils:maybe_redirect(?CURRENT_REGISTRATION_PAGE, ?PAGE_REGISTRATION_SUCCESS, ?PAGE_SPACES_ACCOUNT) of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
@@ -57,44 +57,35 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    #panel{
-        style = <<"position: relative;">>,
-        body = [
-            onepanel_gui_utils:top_menu(registration_tab),
-
-            #panel{
-                style = <<"margin-top: 150px; text-align: center;">>,
+    Header = onepanel_gui_utils:top_menu(spaces_tab, spaces_account_link),
+    Content = #panel{
+        style = <<"margin-top: 10em; text-align: center;">>,
+        body = #panel{
+            style = <<"width: 50%; margin: 0 auto;">>,
+            body = #panel{
+                class = <<"alert alert-success">>,
                 body = [
-                    #panel{
-                        style = <<"width: 50%; margin: 0 auto;">>,
-                        body = [
-                            #panel{
-                                class = <<"alert alert-success">>,
-                                body = [
-                                    #h3{
-                                        body = <<"Successful registration">>
-                                    },
-                                    case gr_utils:get_provider_id() of
-                                        undefined -> #p{};
-                                        ProviderId -> #p{
-                                            body = <<"Your provider ID: <b>", ProviderId/binary, "</b>">>
-                                        }
-                                    end,
-                                    #link{
-                                        id = <<"ok_button">>,
-                                        postback = to_main_page,
-                                        style = <<"width: 80px;">>,
-                                        class = <<"btn btn-primary">>,
-                                        body = <<"OK">>
-                                    }
-                                ]
-                            }
-                        ]
+                    #h3{
+                        body = <<"Successful registration">>
+                    },
+                    case gr_utils:get_provider_id() of
+                        undefined -> #p{};
+                        ProviderId -> #p{
+                            body = <<"Your provider ID: <b>", ProviderId/binary, "</b>">>
+                        }
+                    end,
+                    #link{
+                        id = <<"ok_button">>,
+                        postback = to_main_page,
+                        style = <<"width: 80px;">>,
+                        class = <<"btn btn-primary">>,
+                        body = <<"OK">>
                     }
                 ]
             }
-        ] ++ onepanel_gui_utils:logotype_footer(120)
-    }.
+        }
+    },
+    onepanel_gui_utils:body(Header, Content).
 
 
 %% ====================================================================

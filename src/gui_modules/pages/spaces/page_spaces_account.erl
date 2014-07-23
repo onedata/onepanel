@@ -10,7 +10,7 @@
 %% @end
 %% ===================================================================
 
--module(page_registration).
+-module(page_spaces_account).
 -export([main/0, event/1]).
 -include("gui_modules/common.hrl").
 
@@ -27,17 +27,22 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case gr_utils:get_provider_id() of
-                undefined ->
-                    case gui_ctx:get(?CURRENT_REGISTRATION_PAGE) of
+            case installer_utils:get_workers() of
+                [] ->
+                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]};
+                _ ->
+                    case gr_utils:get_provider_id() of
                         undefined ->
-                            onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_CONNECTION_CHECK);
-                        Page ->
-                            gui_jq:redirect(Page)
-                    end,
-                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, <<"">>}, {custom, <<"">>}]};
-                ProviderId ->
-                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body(ProviderId)}, {custom, <<"">>}]}
+                            case gui_ctx:get(?CURRENT_REGISTRATION_PAGE) of
+                                undefined ->
+                                    onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_CONNECTION_CHECK);
+                                Page ->
+                                    gui_jq:redirect(Page)
+                            end,
+                            #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, <<"">>}, {custom, <<"">>}]};
+                        ProviderId ->
+                            #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body(ProviderId)}, {custom, <<"">>}]}
+                    end
             end;
         false ->
             gui_jq:redirect_to_login(true),
@@ -52,7 +57,40 @@ main() ->
     Result :: binary().
 %% ====================================================================
 title() ->
-    <<"Registration">>.
+    <<"Settings">>.
+
+
+%% body/0
+%% ====================================================================
+%% @doc This will be placed instead of {{body}} tag in template.
+-spec body() -> Result when
+    Result :: #panel{}.
+%% ====================================================================
+body() ->
+    Header = onepanel_gui_utils:top_menu(spaces_tab, spaces_account_link),
+    Content = #panel{
+        style = <<"margin-top: 10em; text-align: center;">>,
+        body = #panel{
+            style = <<"width: 50%; margin: 0 auto;">>,
+            class = <<"alert alert-info">>,
+            body = [
+                #h3{
+                    body = <<"Software is not installed">>
+                },
+                #p{
+                    body = <<"Please complete installation process before registering in Global Registry as a provider.">>
+                },
+                #link{
+                    id = <<"next_button">>,
+                    postback = to_main_page,
+                    class = <<"btn btn-info">>,
+                    style = <<"width: 80px; font-weight: bold;">>,
+                    body = <<"OK">>
+                }
+            ]
+        }
+    },
+    onepanel_gui_utils:body(Header, Content).
 
 
 %% body/1

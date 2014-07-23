@@ -29,7 +29,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect(?CURRENT_UPDATE_PAGE, ?PAGE_UPDATE_SUCCESS, ?PAGE_SOFTWARE_UPDATE) of
+            case onepanel_gui_utils:maybe_redirect(?CURRENT_UPDATE_PAGE, ?PAGE_UPDATE_SUCCESS, ?PAGE_UPDATE) of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
@@ -58,45 +58,35 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    #panel{
-        style = <<"position: relative;">>,
-        body = [
-            onepanel_gui_utils:top_menu(update_tab),
-
-            #panel{
-                style = <<"margin-top: 150px; text-align: center;">>,
+    Header = onepanel_gui_utils:top_menu(software_tab, update_link),
+    Content = #panel{
+        style = <<"margin-top: 10em; text-align: center;">>,
+        body = #panel{
+            style = <<"width: 50%; margin: 0 auto;">>,
+            body = #panel{
+                class = <<"alert alert-success">>,
                 body = [
-                    #panel{
-                        style = <<"width: 50%; margin: 0 auto;">>,
-                        body = [
-                            #panel{
-                                class = <<"alert alert-success">>,
-                                body = [
-                                    #h3{
-                                        body = <<"Successful update">>
-                                    },
-                                    case onepanel_utils:get_software_version() of
-                                        undefined -> #p{};
-                                        Version ->
-                                            #p{
-                                                body = <<"Current software version: <b>", (list_to_binary(Version))/binary, "</b>">>
-                                            }
-                                    end,
-                                    #link{
-                                        id = <<"ok_button">>,
-                                        postback = to_main_page,
-                                        style = <<"width: 80px;">>,
-                                        class = <<"btn btn-primary">>,
-                                        body = <<"OK">>
-                                    }
-                                ]
-                            }
-                        ]
+                    #h3{
+                        body = <<"Successful update">>
+                    },
+                    case onepanel_utils:get_software_version() of
+                        undefined -> #p{};
+                        Version -> #p{
+                            body = <<"Current software version: <b>", (list_to_binary(Version))/binary, "</b>">>
+                        }
+                    end,
+                    #link{
+                        id = <<"ok_button">>,
+                        postback = to_main_page,
+                        style = <<"width: 80px;">>,
+                        class = <<"btn btn-primary">>,
+                        body = <<"OK">>
                     }
                 ]
             }
-        ] ++ onepanel_gui_utils:logotype_footer(120)
-    }.
+        }
+    },
+    onepanel_gui_utils:body(Header, Content).
 
 
 %% ====================================================================

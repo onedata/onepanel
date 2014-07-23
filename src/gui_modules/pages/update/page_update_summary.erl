@@ -45,7 +45,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect(?CURRENT_UPDATE_PAGE, ?PAGE_UPDATE_SUMMARY, ?PAGE_SOFTWARE_UPDATE) of
+            case onepanel_gui_utils:maybe_redirect(?CURRENT_UPDATE_PAGE, ?PAGE_UPDATE_SUMMARY, ?PAGE_UPDATE) of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
@@ -81,20 +81,19 @@ body() ->
                                                       {?STAGE_IDLE, _} -> {<<"">>, <<" display: none;">>};
                                                       _ -> {<<" display: none;">>, <<"">>}
                                                   end,
-    #panel{
-        style = <<"position: relative;">>,
+    Header = onepanel_gui_utils:top_menu(software_tab, update_link),
+    Content = #panel{
+        style = <<"margin-top: 10em; text-align: center;">>,
         body = [
-            onepanel_gui_utils:top_menu(update_tab),
-
-            #panel{
-                id = <<"error_message">>,
-                style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
-                class = <<"dialog dialog-danger">>
-            },
             #panel{
                 id = <<"ok_message">>,
                 style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
                 class = <<"dialog dialog-success">>
+            },
+            #panel{
+                id = <<"error_message">>,
+                style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
+                class = <<"dialog dialog-danger">>
             },
             #panel{
                 style = <<"margin-top: 150px; text-align: center;">>,
@@ -208,8 +207,9 @@ body() ->
                     }
                 ]
             }
-        ] ++ onepanel_gui_utils:logotype_footer(120)
-    }.
+        ]
+    },
+    onepanel_gui_utils:body(Header, Content).
 
 
 %% translate_stage/1

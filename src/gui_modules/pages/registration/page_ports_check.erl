@@ -30,7 +30,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect(?CURRENT_REGISTRATION_PAGE, ?PAGE_PORTS_CHECK, ?PAGE_REGISTRATION) of
+            case onepanel_gui_utils:maybe_redirect(?CURRENT_REGISTRATION_PAGE, ?PAGE_PORTS_CHECK, ?PAGE_SPACES_ACCOUNT) of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
@@ -72,51 +72,46 @@ body() ->
         {[<<"gui_port_textbox_", HostId/binary>>, <<"rest_port_textbox_", HostId/binary>> | Ids], Id + 1}
     end, {[], 1}, ControlPanelHosts),
 
-    #panel{
-        style = <<"position: relative;">>,
+    Header = onepanel_gui_utils:top_menu(spaces_tab, spaces_account_link),
+    Content = #panel{
+        style = <<"margin-top: 10em; text-align: center;">>,
         body = [
-            onepanel_gui_utils:top_menu(registration_tab),
-
             #panel{
                 id = <<"error_message">>,
                 style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
                 class = <<"dialog dialog-danger">>
             },
+            #h6{
+                style = <<"font-size: x-large; margin-bottom: 3em;">>,
+                body = <<"Step 2: Check VeilCluster ports availability for Global Registry.">>
+            },
+            #table{
+                class = <<"table table-bordered">>,
+                style = <<"width: 50%; margin: 0 auto;">>,
+                body = ports_table_body(ControlPanelHosts, DefaultGuiPort, DefaultRestPort)
+            },
             #panel{
-                style = <<"margin-top: 150px; text-align: center;">>,
+                style = <<"width: 50%; margin: 0 auto; margin-top: 3em;">>,
                 body = [
-                    #h6{
-                        style = <<"font-size: 18px;">>,
-                        body = <<"Step 2: Check VeilCluster ports availability for Global Registry.">>
+                    #button{
+                        id = <<"back_button">>,
+                        postback = back,
+                        class = <<"btn btn-inverse btn-small">>,
+                        style = <<"float: left; width: 80px; font-weight: bold;">>,
+                        body = <<"Back">>
                     },
-                    #table{
-                        class = <<"table table-bordered">>,
-                        style = <<"width: 50%; margin: 0 auto; margin-top: 30px;">>,
-                        body = ports_table_body(ControlPanelHosts, DefaultGuiPort, DefaultRestPort)
-                    },
-                    #panel{
-                        style = <<"width: 50%; margin: 0 auto; margin-top: 30px; margin-bottom: 30px;">>,
-                        body = [
-                            #button{
-                                id = <<"back_button">>,
-                                postback = back,
-                                class = <<"btn btn-inverse btn-small">>,
-                                style = <<"float: left; width: 80px; font-weight: bold;">>,
-                                body = <<"Back">>
-                            },
-                            #button{
-                                id = <<"next_button">>,
-                                actions = gui_jq:form_submit_action(<<"next_button">>, {check_ports, ControlPanelHosts}, TextboxIds),
-                                class = <<"btn btn-inverse btn-small">>,
-                                style = <<"float: right; width: 80px; font-weight: bold;">>,
-                                body = <<"Next">>
-                            }
-                        ]
+                    #button{
+                        id = <<"next_button">>,
+                        actions = gui_jq:form_submit_action(<<"next_button">>, {check_ports, ControlPanelHosts}, TextboxIds),
+                        class = <<"btn btn-inverse btn-small">>,
+                        style = <<"float: right; width: 80px; font-weight: bold;">>,
+                        body = <<"Next">>
                     }
                 ]
             }
-        ] ++ onepanel_gui_utils:logotype_footer(120)
-    }.
+        ]
+    },
+    onepanel_gui_utils:body(Header, Content).
 
 
 %% ports_table_body/3

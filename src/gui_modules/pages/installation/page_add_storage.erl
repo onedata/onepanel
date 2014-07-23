@@ -35,7 +35,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect(?CURRENT_INSTALLATION_PAGE, ?PAGE_ADD_STORAGE, ?PAGE_SOFTWARE_INSTALLATION) of
+            case onepanel_gui_utils:maybe_redirect(?CURRENT_INSTALLATION_PAGE, ?PAGE_ADD_STORAGE, ?PAGE_INSTALLATION) of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
@@ -64,55 +64,50 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    #panel{
-        style = <<"position: relative;">>,
+    Header = onepanel_gui_utils:top_menu(software_tab, installation_link),
+    Content = #panel{
+        style = <<"margin-top: 10em; text-align: center;">>,
         body = [
-            onepanel_gui_utils:top_menu(installation_tab),
-
             #panel{
                 id = <<"error_message">>,
                 style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
                 class = <<"dialog dialog-danger">>
             },
-            #panel{
-                style = <<"margin-top: 150px; text-align: center;">>,
+            #h6{
+                style = <<"font-size: x-large; margin-bottom: 3em;">>,
+                body = <<"Step 4: Add storage paths.">>
+            },
+            #table{
+                class = <<"table table-striped">>,
+                style = <<"width: 50%; margin: 0 auto;">>,
                 body = [
-                    #h6{
-                        style = <<"font-size: 18px;">>,
-                        body = <<"Step 4: Add storage paths.">>
+                    #tbody{
+                        id = <<"storage_paths_table">>,
+                        body = storage_paths_table_body()}
+                ]
+            },
+            #panel{
+                style = <<"width: 50%; margin: 0 auto; margin-top: 3em;">>,
+                body = [
+                    #button{
+                        id = <<"back_button">>,
+                        postback = back,
+                        class = <<"btn btn-inverse btn-small">>,
+                        style = <<"float: left; width: 8em; font-weight: bold;">>,
+                        body = <<"Back">>
                     },
-                    #table{
-                        class = <<"table table-striped">>,
-                        style = <<"width: 50%; margin: 0 auto; margin-top: 30px;">>,
-                        body = [
-                            #tbody{
-                                id = <<"storage_paths_table">>,
-                                body = storage_paths_table_body()}
-                        ]
-                    },
-                    #panel{
-                        style = <<"width: 50%; margin: 0 auto; margin-top: 30px; margin-bottom: 30px;">>,
-                        body = [
-                            #button{
-                                id = <<"back_button">>,
-                                postback = back,
-                                class = <<"btn btn-inverse btn-small">>,
-                                style = <<"float: left; width: 80px; font-weight: bold;">>,
-                                body = <<"Back">>
-                            },
-                            #button{
-                                id = <<"next_button">>,
-                                postback = next,
-                                class = <<"btn btn-inverse btn-small">>,
-                                style = <<"float: right; width: 80px; font-weight: bold;">>,
-                                body = <<"Next">>
-                            }
-                        ]
+                    #button{
+                        id = <<"next_button">>,
+                        postback = next,
+                        class = <<"btn btn-inverse btn-small">>,
+                        style = <<"float: right; width: 8em; font-weight: bold;">>,
+                        body = <<"Next">>
                     }
                 ]
             }
-        ] ++ onepanel_gui_utils:logotype_footer(120)
-    }.
+        ]
+    },
+    onepanel_gui_utils:body(Header, Content).
 
 
 %% storage_paths_table_body/0
@@ -189,7 +184,7 @@ storage_paths_table_row(StoragePath, Id, Disabled, Deletable) ->
             },
             #th{
                 id = <<"add_storage_path_th_", BinaryId/binary>>,
-                style = <<"text-align: center; vertical-align: inherit; padding: 0; width: 20px;", AddStoragePathDisplay/binary>>,
+                style = <<"text-align: center; vertical-align: inherit; padding: 0; width: 2em;", AddStoragePathDisplay/binary>>,
                 body = #link{
                     id = <<"add_storage_path_", BinaryId/binary>>,
                     actions = gui_jq:form_submit_action(<<"add_storage_path_", BinaryId/binary>>,
@@ -197,13 +192,13 @@ storage_paths_table_row(StoragePath, Id, Disabled, Deletable) ->
                     class = <<"glyph-link">>,
                     body = #span{
                         class = <<"fui-plus">>,
-                        style = <<"font-size: 20px;">>
+                        style = <<"font-size: large;">>
                     }
                 }
             },
             #th{
                 id = <<"delete_storage_path_th_", BinaryId/binary>>,
-                style = <<"text-align: center; vertical-align: inherit; padding: 0; width: 20px;", DeleteStoragePathDisplay/binary>>,
+                style = <<"text-align: center; vertical-align: inherit; padding: 0; width: 2em;", DeleteStoragePathDisplay/binary>>,
                 body = #link{
                     id = <<"delete_storage_path_", BinaryId/binary>>,
                     actions = gui_jq:form_submit_action(<<"delete_storage_path_", BinaryId/binary>>,
@@ -211,7 +206,7 @@ storage_paths_table_row(StoragePath, Id, Disabled, Deletable) ->
                     class = <<"glyph-link">>,
                     body = #span{
                         class = <<"fui-cross">>,
-                        style = <<"font-size: 20px;">>
+                        style = <<"font-size: large;">>
                     }
                 }
             }

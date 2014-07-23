@@ -61,7 +61,13 @@ body() ->
     Header = onepanel_gui_utils:top_menu(about_tab),
     Content = #panel{
         style = <<"margin-top: 10em;">>,
-        body = about_table()
+        body = [
+            #h6{
+                style = <<"margin: 0 auto; width: 0; font-size: x-large; margin-bottom: 3em;">>,
+                body = <<"About">>
+            },
+            about_table()
+        ]
     },
     onepanel_gui_utils:body(Header, Content).
 
@@ -76,7 +82,7 @@ about_table() ->
     DescriptionStyle = <<"border-width: 0; vertical-align: top; text-align: right; padding: 1em 1em;">>,
     ContentStyle = <<"border-width: 0; padding: 1em 1em">>,
     #table{
-        style = <<"border-width: 0; width: auto">>, body = [
+        style = <<"border-width: 0;">>, body = [
             #tr{
                 cells = [
                     #td{

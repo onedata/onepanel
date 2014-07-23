@@ -44,7 +44,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect(?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUMMARY, ?PAGE_SOFTWARE_INSTALLATION) of
+            case onepanel_gui_utils:maybe_redirect(?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUMMARY, ?PAGE_INSTALLATION) of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
@@ -73,75 +73,70 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    #panel{
-        style = <<"position: relative;">>,
+    Header = onepanel_gui_utils:top_menu(software_tab, installation_link),
+    Content = #panel{
+        style = <<"margin-top: 10em; text-align: center;">>,
         body = [
-            onepanel_gui_utils:top_menu(installation_tab),
-
             #panel{
                 id = <<"error_message">>,
                 style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
                 class = <<"dialog dialog-danger">>
             },
-            #panel{
-                style = <<"margin-top: 150px; text-align: center;">>,
+            #h6{
+                style = <<"font-size: x-large; margin-bottom: 3em;">>,
+                body = <<"Step 5: Installation summary.">>
+            },
+            #table{
+                class = <<"table table-striped">>,
+                style = <<"width: 50%; margin: 0 auto;">>,
                 body = [
-                    #h6{
-                        style = <<"font-size: 18px;">>,
-                        body = <<"Step 5: Installation summary.">>
-                    },
-                    #table{
-                        class = <<"table table-striped">>,
-                        style = <<"width: 50%; margin: 0 auto; margin-top: 30px; margin-bottom: 30px;">>,
-                        body = [
-                            #tbody{
-                                id = <<"summary_table">>,
-                                body = summary_table_body()
-                            }
-                        ]
-                    },
-                    #panel{
-                        id = <<"progress">>,
-                        style = <<"text-align: left; margin-top: 30px; width: 50%; margin: 0 auto; display: none;">>,
-                        body = [
-                            #p{
-                                id = <<"progress_text">>,
-                                style = <<"font-weight: 300;">>,
-                                body = <<"">>
-                            },
-                            #panel{
-                                class = <<"progress">>,
-                                body = #panel{
-                                    id = <<"bar">>,
-                                    class = <<"bar">>,
-                                    style = <<"width: 0%;">>
-                                }
-                            }
-                        ]
+                    #tbody{
+                        id = <<"summary_table">>,
+                        body = summary_table_body()
+                    }
+                ]
+            },
+            #panel{
+                id = <<"progress">>,
+                style = <<"text-align: left; margin-top: 3em; width: 50%; margin: 0 auto; margin-top: 3em; display: none;">>,
+                body = [
+                    #p{
+                        id = <<"progress_text">>,
+                        style = <<"font-weight: 300;">>,
+                        body = <<"">>
                     },
                     #panel{
-                        style = <<"width: 50%; margin: 0 auto; margin-top: 30px; margin-bottom: 30px;">>,
-                        body = [
-                            #button{
-                                id = <<"back_button">>,
-                                postback = back,
-                                class = <<"btn btn-inverse btn-small">>,
-                                style = <<"float: left; width: 80px; font-weight: bold;">>,
-                                body = <<"Back">>
-                            },
-                            #button{
-                                id = <<"install_button">>,
-                                postback = install,
-                                class = <<"btn btn-inverse btn-small">>,
-                                style = <<"float: right; width: 80px; font-weight: bold;">>,
-                                body = <<"Install">>
-                            }
-                        ]
+                        class = <<"progress">>,
+                        body = #panel{
+                            id = <<"bar">>,
+                            class = <<"bar">>,
+                            style = <<"width: 0%;">>
+                        }
+                    }
+                ]
+            },
+            #panel{
+                style = <<"width: 50%; margin: 0 auto; margin-top: 3em;">>,
+                body = [
+                    #button{
+                        id = <<"back_button">>,
+                        postback = back,
+                        class = <<"btn btn-inverse btn-small">>,
+                        style = <<"float: left; width: 8em; font-weight: bold;">>,
+                        body = <<"Back">>
+                    },
+                    #button{
+                        id = <<"install_button">>,
+                        postback = install,
+                        class = <<"btn btn-inverse btn-small">>,
+                        style = <<"float: right; width: 8em; font-weight: bold;">>,
+                        body = <<"Install">>
                     }
                 ]
             }
-        ] ++ onepanel_gui_utils:logotype_footer(120)
-    }.
+        ]
+    },
+    onepanel_gui_utils:body(Header, Content).
 
 
 %% summary_table_body/1
