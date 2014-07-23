@@ -70,11 +70,13 @@ body() ->
                             #textbox{
                                 id = <<"username">>,
                                 name = <<"username">>,
+                                class = <<"span">>,
                                 placeholder = <<"Username">>
                             },
                             #password{
                                 id = <<"password">>,
                                 name = <<"password">>,
+                                class = <<"span">>,
                                 placeholder = <<"Password">>
                             },
                             #button{

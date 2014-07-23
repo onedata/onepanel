@@ -55,9 +55,9 @@ body(Header, Content) ->
 %% ====================================================================
 body(Header, Content, Footer) ->
     [
-        #header{class = <<"page-row">>, body = Header},
-        #main{class = <<"page-row page-row-expanded">>, body = Content},
-        #footer{class = <<"page-row">>, body = Footer}
+        #header{id = <<"page-header">>, class = <<"page-row">>, body = Header},
+        #main{id = <<"page-main">>, class = <<"page-row page-row-expanded">>, body = Content},
+        #footer{id = <<"page-footer">>, class = <<"page-row">>, body = Footer}
     ].
 
 
@@ -69,7 +69,7 @@ body(Header, Content, Footer) ->
     Result :: #panel{}.
 %% ====================================================================
 logotype_footer() ->
-    #panel{style = <<"text-align: center; display: flex; justify-content: space-around; padding: 10px; margin-top: 30px;">>, body = [
+    #panel{style = <<"text-align: center; display: flex; justify-content: space-around; padding: 2em; margin-top: 3em;">>, body = [
         #image{class = <<"pull-left">>, image = <<"/images/innow-gosp-logo.png">>},
         #image{image = <<"/images/plgrid-plus-logo.png">>},
         #image{class = <<"pull-right">>, image = <<"/images/unia-logo.png">>}
@@ -126,9 +126,9 @@ top_menu(ActiveTabID, SubMenuBody) ->
 
     MenuIcons =
         [
-%%             {manage_account_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Manage account">>,
-%%                 url = ?PAGE_MANAGE_ACCOUNT, body = [gui_ctx:get_user_id(), #span{class = <<"fui-user">>,
-%%                     style = <<"margin-left: 10px;">>}]}}},
+            {manage_account_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Manage account">>,
+                url = ?PAGE_MANAGE_ACCOUNT, body = [gui_ctx:get_user_id(), #span{class = <<"fui-user">>,
+                    style = <<"margin-left: 10px;">>}]}}},
             {about_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"About">>,
                 url = ?PAGE_ABOUT, body = #span{class = <<"fui-info">>}}}},
             {logout_button, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Log out">>,

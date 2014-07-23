@@ -45,27 +45,24 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    #panel{
-        style = <<"position: relative;">>,
+    Content = #panel{
+        class = <<"alert alert-danger">>,
+        style = <<"width: 30em; margin: 0 auto; text-align: center; margin-top: 10em;">>,
         body = [
-            #panel{
-                class = <<"alert alert-danger login-page">>,
-                body = [
-                    #h3{
-                        body = <<"Error 404">>
-                    },
-                    #p{
-                        class = <<"login-info">>,
-                        body = <<"Requested page could not be found on the server.">>
-                    },
-                    #button{
-                        postback = to_login,
-                        class = <<"btn btn-warning btn-block">>,
-                        body = <<"Login page">>
-                    }
-                ]
+            #h3{
+                body = <<"Error 404">>
+            },
+            #p{
+                body = <<"Requested page could not be found on the server.">>
+            },
+            #button{
+                postback = to_login,
+                class = <<"btn btn-warning btn-block">>,
+                body = <<"Login page">>
             }
-        ] ++ onepanel_gui_utils:logotype_footer(120)}.
+        ]
+    },
+    onepanel_gui_utils:body(Content).
 
 
 %% ====================================================================

@@ -14,7 +14,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([save_record/2, update_record/3, get_record/2, exist_record/2, get_table_record/2]).
+-export([save_record/2, delete_record/2, update_record/3, get_record/2, exist_record/2, get_table_record/2]).
 
 %% ====================================================================
 %% API functions
@@ -39,6 +39,29 @@ save_record(Table, Record) ->
     catch
         _:Reason ->
             ?error("Cannot save record ~p in table ~p: ~p", [Record, Table, Reason]),
+            {error, Reason}
+    end.
+
+
+%% delete_record/2
+%% ====================================================================
+%% @doc Deletes record from database table.
+%% @end
+-spec delete_record(Table :: atom(), Key :: term()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+delete_record(Table, Key) ->
+    try
+        Transaction = fun() ->
+            case mnesia:delete({Table, Key}) of
+                ok -> ok;
+                Other -> {error, Other}
+            end
+        end,
+        mnesia:activity(transaction, Transaction)
+    catch
+        _:Reason ->
+            ?error("Cannot delete record from table ~p using key ~p: ~p", [Table, Key, Reason]),
             {error, Reason}
     end.
 
