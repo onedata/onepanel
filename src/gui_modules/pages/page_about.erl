@@ -59,7 +59,7 @@ title() ->
 %% ====================================================================
 body() ->
     Header = onepanel_gui_utils:top_menu(about_tab),
-    Content = #panel{
+    Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
             #h6{
@@ -69,7 +69,7 @@ body() ->
             about_table()
         ]
     },
-    onepanel_gui_utils:body(Header, Content).
+    onepanel_gui_utils:body(Header, Main).
 
 
 %% about_table/0
@@ -80,7 +80,7 @@ body() ->
 %% ====================================================================
 about_table() ->
     DescriptionStyle = <<"border-width: 0; vertical-align: top; text-align: right; padding: 1em 1em; width: 50%;">>,
-    ContentStyle = <<"border-width: 0;  text-align: left; padding: 1em 1em;">>,
+    MainStyle = <<"border-width: 0;  text-align: left; padding: 1em 1em;">>,
     #table{
         style = <<"border-width: 0; width: 100%;">>, body = [
             #tr{
@@ -93,7 +93,7 @@ about_table() ->
                         }
                     },
                     #td{
-                        style = ContentStyle,
+                        style = MainStyle,
                         body = #link{
                             style = <<"font-size: large;">>,
                             body = <<?CONTACT_EMAIL>>,
@@ -112,7 +112,7 @@ about_table() ->
                         }
                     },
                     #td{
-                        style = ContentStyle,
+                        style = MainStyle,
                         body = #p{
                             body = <<"This research was supported in part by PL-Grid Infrastructure.">>
                         }
@@ -129,7 +129,7 @@ about_table() ->
                         }
                     },
                     #td{
-                        style = ContentStyle,
+                        style = MainStyle,
                         body = #p{
                             style = <<"white-space: pre; font-size: initial; line-height: initial">>,
                             body = get_license()
@@ -147,7 +147,7 @@ about_table() ->
                         }
                     },
                     #td{
-                        style = ContentStyle,
+                        style = MainStyle,
                         body = get_team()
                     }
                 ]

@@ -47,7 +47,7 @@ title() ->
 body() ->
     gui_ctx:clear_session(),
     session_logic:clear_expired_sessions(),
-    Content = #panel{
+    Main = #panel{
         class = <<"alert alert-success">>,
         style = <<"width: 30em; margin: 0 auto; text-align: center; margin-top: 10em;">>,
         body = [
@@ -64,7 +64,7 @@ body() ->
             }
         ]
     },
-    onepanel_gui_utils:body(Content).
+    onepanel_gui_utils:body(Main).
 
 
 %% ====================================================================

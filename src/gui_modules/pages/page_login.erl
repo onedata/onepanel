@@ -51,7 +51,7 @@ body() ->
             SourcePage = gui_ctx:url_param(<<"x">>),
             ErrorId = gui_ctx:url_param(<<"id">>),
             Header = error_message(SourcePage, ErrorId),
-            Content = #panel{
+            Main = #panel{
                 class = <<"alert alert-success">>,
                 style = <<"width: 30em; margin: 0 auto; text-align: center; margin-top: 10em;">>,
                 body = [
@@ -90,7 +90,7 @@ body() ->
                     }
                 ]
             },
-            onepanel_gui_utils:body(Header, Content)
+            onepanel_gui_utils:body(Header, Main)
     end.
 
 

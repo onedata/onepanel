@@ -59,7 +59,7 @@ title() ->
 %% ====================================================================
 body() ->
     Header = onepanel_gui_utils:top_menu(software_tab, update_link),
-    Content = #panel{
+    Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = #panel{
             style = <<"width: 50%; margin: 0 auto;">>,
@@ -86,7 +86,7 @@ body() ->
             }
         }
     },
-    onepanel_gui_utils:body(Header, Content).
+    onepanel_gui_utils:body(Header, Main).
 
 
 %% ====================================================================

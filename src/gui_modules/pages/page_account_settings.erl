@@ -55,7 +55,7 @@ title() ->
 %% ====================================================================
 body() ->
     Header = onepanel_gui_utils:top_menu(account_settings_tab),
-    Content = #panel{
+    Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
             #panel{
@@ -75,7 +75,7 @@ body() ->
             settings_table()
         ]
     },
-    onepanel_gui_utils:body(Header, Content).
+    onepanel_gui_utils:body(Header, Main).
 
 
 %% settings_table/0
@@ -87,7 +87,7 @@ body() ->
 settings_table() ->
     RowStyle = <<"line-height: 4em;">>,
     DescriptionStyle = <<"border-width: 0; text-align: right; padding: 1em 1em; width: 50%;">>,
-    ContentStyle = <<"border-width: 0;  text-align: left; padding: 1em 1em;">>,
+    MainStyle = <<"border-width: 0;  text-align: left; padding: 1em 1em;">>,
     #table{
         style = <<"border-width: 0; width: 100%;">>, body = [
             #tr{
@@ -102,7 +102,7 @@ settings_table() ->
                     },
                     #td{
                         id = <<"username">>,
-                        style = ContentStyle,
+                        style = MainStyle,
                         body = username(gui_ctx:get_user_id())
                     }
                 ]
@@ -119,7 +119,7 @@ settings_table() ->
                     },
                     #td{
                         id = <<"password">>,
-                        style = ContentStyle,
+                        style = MainStyle,
                         body = password()
                     }
                 ]

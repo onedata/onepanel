@@ -71,7 +71,7 @@ title() ->
 %% ====================================================================
 body() ->
     Header = onepanel_gui_utils:top_menu(spaces_tab, spaces_account_link),
-    Content = #panel{
+    Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
             #panel{
@@ -124,7 +124,7 @@ body() ->
             }
         ]
     },
-    onepanel_gui_utils:body(Header, Content).
+    onepanel_gui_utils:body(Header, Main).
 
 
 %% comet_loop/1

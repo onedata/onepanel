@@ -62,7 +62,7 @@ title() ->
 %% ====================================================================
 body() ->
     Header = onepanel_gui_utils:top_menu(software_tab, installation_link),
-    Content = #panel{
+    Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
             #panel{
@@ -91,7 +91,7 @@ body() ->
             }
         ]
     },
-    onepanel_gui_utils:body(Header, Content).
+    onepanel_gui_utils:body(Header, Main).
 
 
 %% hosts_table_body/0

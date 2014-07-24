@@ -28,35 +28,35 @@
 %% @doc Template function to render page body, without header and with
 %% default page footer.
 %% @end
--spec body(Content :: term()) -> Result when
+-spec body(Main :: term()) -> Result when
     Result :: list().
 %% ====================================================================
-body(Content) ->
-    body([], Content).
+body(Main) ->
+    body([], Main).
 
 
 %% body/2
 %% ====================================================================
 %% @doc Template function to render page body, with default page footer.
 %% @end
--spec body(Header :: term(), Content :: term()) -> Result when
+-spec body(Header :: term(), Main :: term()) -> Result when
     Result :: list().
 %% ====================================================================
-body(Header, Content) ->
-    body(Header, Content, logotype_footer()).
+body(Header, Main) ->
+    body(Header, Main, logotype_footer()).
 
 
 %% body/3
 %% ====================================================================
 %% @doc Template function to render page body.
 %% @end
--spec body(Header :: term(), Content :: term(), Footer :: term()) -> Result when
+-spec body(Header :: term(), Main :: term(), Footer :: term()) -> Result when
     Result :: list().
 %% ====================================================================
-body(Header, Content, Footer) ->
+body(Header, Main, Footer) ->
     [
         #header{id = <<"page-header">>, class = <<"page-row">>, body = Header},
-        #main{id = <<"page-main">>, class = <<"page-row page-row-expanded">>, body = Content},
+        #main{id = <<"page-main">>, class = <<"page-row page-row-expanded">>, body = Main},
         #footer{id = <<"page-footer">>, class = <<"page-row">>, body = Footer}
     ].
 

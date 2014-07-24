@@ -59,7 +59,7 @@ title() ->
 %% ====================================================================
 body() ->
     Header = onepanel_gui_utils:top_menu(software_tab, installation_link),
-    Content = #panel{
+    Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = #panel{
             style = <<"width: 50%; margin: 0 auto;">>,
@@ -112,7 +112,7 @@ body() ->
                    end
         }
     },
-    onepanel_gui_utils:body(Header, Content).
+    onepanel_gui_utils:body(Header, Main).
 
 
 %% ====================================================================
@@ -134,6 +134,7 @@ event(to_main_page) ->
 
 event(register) ->
     gui_ctx:put(?CURRENT_INSTALLATION_PAGE, undefined),
+    gui_ctx:put(?CURRENT_REGISTRATION_PAGE, ?PAGE_CONNECTION_CHECK),
     gui_jq:redirect(?PAGE_SPACES_ACCOUNT);
 
 event(terminate) ->

@@ -82,7 +82,7 @@ body() ->
                                                       _ -> {<<" display: none;">>, <<"">>}
                                                   end,
     Header = onepanel_gui_utils:top_menu(software_tab, update_link),
-    Content = #panel{
+    Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
             #panel{
@@ -209,7 +209,7 @@ body() ->
             }
         ]
     },
-    onepanel_gui_utils:body(Header, Content).
+    onepanel_gui_utils:body(Header, Main).
 
 
 %% translate_stage/1

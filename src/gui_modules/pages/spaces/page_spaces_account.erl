@@ -44,7 +44,8 @@ main() ->
                                         {body, body(undefined, [], undefined)}, {custom, custom()}]}
                             end;
                         Page ->
-                            gui_jq:redirect(Page)
+                            gui_jq:redirect(Page),
+                            #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
                     end
             end;
         false ->
@@ -80,7 +81,7 @@ custom() ->
 %% ====================================================================
 body() ->
     Header = onepanel_gui_utils:top_menu(spaces_tab, spaces_account_link),
-    Content = #panel{
+    Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = #panel{
             style = <<"width: 50%; margin: 0 auto;">>,
@@ -102,7 +103,7 @@ body() ->
             ]
         }
     },
-    onepanel_gui_utils:body(Header, Content).
+    onepanel_gui_utils:body(Header, Main).
 
 
 %% body/3
@@ -113,7 +114,7 @@ body() ->
 %% ====================================================================
 body(ProviderId, Urls, RedirectionPoint) ->
     Header = onepanel_gui_utils:top_menu(spaces_tab, spaces_account_link),
-    Content = #panel{
+    Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
             #panel{
@@ -133,7 +134,7 @@ body(ProviderId, Urls, RedirectionPoint) ->
             settings_table(ProviderId, Urls, RedirectionPoint)
         ]
     },
-    onepanel_gui_utils:body(Header, Content).
+    onepanel_gui_utils:body(Header, Main).
 
 
 %% settings_table/0
@@ -144,7 +145,7 @@ body(ProviderId, Urls, RedirectionPoint) ->
 %% ====================================================================
 settings_table(ProviderId, Urls, RedirectionPoint) ->
     DescriptionStyle = <<"border-width: 0; text-align: right; padding: 1em 1em; width: 50%;">>,
-    ContentStyle = <<"border-width: 0;  text-align: left; padding: 1em 1em;">>,
+    MainStyle = <<"border-width: 0;  text-align: left; padding: 1em 1em;">>,
     #table{
         style = <<"border-width: 0; width: 100%;">>, body = [
             #tr{
@@ -158,7 +159,7 @@ settings_table(ProviderId, Urls, RedirectionPoint) ->
                     },
                     #td{
                         id = <<"providerId">>,
-                        style = ContentStyle,
+                        style = MainStyle,
                         body = providerId(ProviderId)
                     }
                 ]
@@ -174,7 +175,7 @@ settings_table(ProviderId, Urls, RedirectionPoint) ->
                     },
                     #td{
                         id = <<"urls">>,
-                        style = ContentStyle,
+                        style = MainStyle,
                         body = urls(Urls)
                     }
                 ]
@@ -190,7 +191,7 @@ settings_table(ProviderId, Urls, RedirectionPoint) ->
                     },
                     #td{
                         id = <<"redirectionPoint">>,
-                        style = ContentStyle,
+                        style = MainStyle,
                         body = redirectionPoint(RedirectionPoint)
                     }
                 ]
@@ -250,9 +251,11 @@ urls([]) ->
     #p{body = <<"&#8212&#8212&#8212&#8212&#8212&#8212&#8212&#8212">>};
 
 urls(Urls) ->
-    #list{body = lists:map(fun(Url) ->
-        #li{body = #p{body = Url}}
-    end, Urls)
+    #list{
+        style = <<"list-style-type: none; margin: 0 auto;">>,
+        body = lists:map(fun(Url) ->
+            #li{body = #p{body = Url}}
+        end, Urls)
     }.
 
 
