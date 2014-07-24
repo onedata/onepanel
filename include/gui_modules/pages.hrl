@@ -30,9 +30,6 @@
 -define(PAGE_UPDATE_SUMMARY, <<"/software/update/summary">>).
 -define(PAGE_UPDATE_SUCCESS, <<"/software/update/success">>).
 
-%% Software settings
--define(PAGE_SOFTWARE_SETTINGS, <<"/software/settings">>).
-
 %% Registration pages
 -define(PAGE_CONNECTION_CHECK, <<"/spaces/registration/connection_check">>).
 -define(PAGE_PORTS_CHECK, <<"/spaces/registration/ports_check">>).
@@ -48,6 +45,7 @@
 -define(PAGE_LOGIN_VALIDATION, <<"/login_validation">>).
 -define(PAGE_LOGOUT, <<"/logout">>).
 -define(PAGE_ABOUT, <<"/about">>).
--define(PAGE_MANAGE_ACCOUNT, <<"/manage_account">>).
+-define(PAGE_ACCOUNT_SETTINGS, <<"/account/settings">>).
+-define(PAGE_SOFTWARE_SETTINGS, <<"/software/settings">>).
 
 -endif.

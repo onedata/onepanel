@@ -6,10 +6,10 @@
 %% @end
 %% ===================================================================
 %% @doc: This module contains n2o website code.
-%% The page allows user to change password.
+%% The page allows user to change username and password.
 %% @end
 %% ===================================================================
--module(page_manage_account).
+-module(page_account_settings).
 -export([main/0, event/1]).
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/user_logic.hrl").
@@ -44,7 +44,7 @@ main() ->
     Result :: binary().
 %% ====================================================================
 title() ->
-    <<"Manage account">>.
+    <<"Account settings">>.
 
 
 %% body/0
@@ -54,9 +54,9 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(manage_account_tab),
+    Header = onepanel_gui_utils:top_menu(account_settings_tab),
     Content = #panel{
-        style = <<"margin-top: 10em;">>,
+        style = <<"margin-top: 10em; text-align: center;">>,
         body = [
             #panel{
                 id = <<"ok_message">>,
@@ -69,25 +69,25 @@ body() ->
                 class = <<"dialog dialog-danger">>
             },
             #h6{
-                style = <<"margin: 0 auto; width: 0; font-size: x-large; margin-bottom: 3em;">>,
-                body = <<"Account">>
+                style = <<"font-size: x-large; margin-bottom: 3em;">>,
+                body = <<"Account settings">>
             },
-            account_table()
+            settings_table()
         ]
     },
     onepanel_gui_utils:body(Header, Content).
 
 
-%% account_table/0
+%% settings_table/0
 %% ====================================================================
-%% @doc Renders the body of account table.
--spec account_table() -> Result when
+%% @doc Renders the body of settings table.
+-spec settings_table() -> Result when
     Result :: #table{}.
 %% ====================================================================
-account_table() ->
+settings_table() ->
     RowStyle = <<"line-height: 4em;">>,
     DescriptionStyle = <<"border-width: 0; text-align: right; padding: 1em 1em; width: 50%;">>,
-    ContentStyle = <<"border-width: 0;  padding: 1em 1em;">>,
+    ContentStyle = <<"border-width: 0;  text-align: left; padding: 1em 1em;">>,
     #table{
         style = <<"border-width: 0; width: 100%;">>, body = [
             #tr{
@@ -142,6 +142,7 @@ username(Username) ->
             #link{
                 title = <<"Edit">>,
                 style = <<"margin-left: 1em;">>,
+                class = <<"glyph-link">>,
                 postback = change_username,
                 body = #span{
                     class = <<"fui-new">>
@@ -202,6 +203,7 @@ password() ->
             #link{
                 title = <<"Edit">>,
                 style = <<"margin-left: 1em;">>,
+                class = <<"glyph-link">>,
                 postback = change_password,
                 body = #span{
                     class = <<"fui-new">>
@@ -327,7 +329,7 @@ event(submit_new_username) ->
             case user_logic:change_username(Username, NewUsername) of
                 ok ->
                     gui_ctx:set_user_id(NewUsername),
-                    gui_jq:update(<<"page-header">>, onepanel_gui_utils:top_menu(manage_account_tab)),
+                    gui_jq:update(<<"page-header">>, onepanel_gui_utils:top_menu(account_settings_tab)),
                     onepanel_gui_utils:message(<<"ok_message">>, "Username changed."),
                     gui_jq:update(<<"username">>, username(NewUsername));
                 {error, ErrorId} ->

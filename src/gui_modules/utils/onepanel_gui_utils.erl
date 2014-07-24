@@ -145,8 +145,8 @@ top_menu(ActiveTabID, ActiveLinkID, SubMenuBody) ->
     ]),
 
     MenuIcons = Process(ActiveTabID, [
-        {manage_account_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Manage account">>,
-            url = ?PAGE_MANAGE_ACCOUNT, body = [gui_ctx:get_user_id(), #span{class = <<"fui-user">>,
+        {account_settings_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Account settings">>,
+            url = ?PAGE_ACCOUNT_SETTINGS, body = [gui_ctx:get_user_id(), #span{class = <<"fui-user">>,
                 style = <<"margin-left: 10px;">>}]}}},
         {about_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"About">>,
             url = ?PAGE_ABOUT, body = #span{class = <<"fui-info">>}}}},

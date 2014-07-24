@@ -136,7 +136,7 @@ overwrite_config_args(Path, Parameter, NewValue) ->
                           {ok, DataRead} ->
                               binary_to_list(DataRead);
                           _ ->
-                              throw("Could not read config.args file")
+                              throw("Could not read config.args file.")
                       end,
 
         {match, [{From, Through}]} = re:run(FileContent, Parameter ++ ":.*\n"),

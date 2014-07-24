@@ -61,7 +61,8 @@ route(?PAGE_LOGIN) -> page_login;
 route(?PAGE_LOGIN_VALIDATION) -> page_login_validation;
 route(?PAGE_LOGOUT) -> page_logout;
 route(?PAGE_ABOUT) -> page_about;
-route(?PAGE_MANAGE_ACCOUNT) -> page_manage_account;
+route(?PAGE_ACCOUNT_SETTINGS) -> page_account_settings;
+route(?PAGE_SOFTWARE_SETTINGS) -> page_software_settings;
 
 %% Installation pages
 route(?PAGE_INSTALLATION) -> page_installation;

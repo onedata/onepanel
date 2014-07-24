@@ -48,7 +48,7 @@ init() ->
     Result :: 0 | 1 | no_return().
 %% ====================================================================
 create_csr(_, _, _) ->
-    throw("NIF library not loaded").
+    throw("NIF library not loaded.").
 
 
 %% register/0

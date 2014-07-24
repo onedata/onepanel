@@ -40,12 +40,12 @@ add_storage_paths_to_db(Args) ->
         ConfiguredStoragePaths =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
                 {ok, #?GLOBAL_CONFIG_RECORD{storage_paths = StoragePaths}} -> StoragePaths;
-                _ -> throw("Cannot get configured storage paths")
+                _ -> throw("Cannot get configured storage paths.")
             end,
 
         lists:foreach(fun(Path) ->
             case lists:member(Path, ConfiguredStoragePaths) of
-                true -> throw("Path: " ++ Path ++ " is already added");
+                true -> throw("Path: " ++ Path ++ " is already added.");
                 _ -> ok
             end
         end, Paths),
@@ -81,12 +81,12 @@ remove_storage_paths_from_db(Args) ->
         ConfiguredStoragePaths =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
                 {ok, #?GLOBAL_CONFIG_RECORD{storage_paths = StoragePaths}} -> StoragePaths;
-                _ -> throw("Cannot get configured storage paths")
+                _ -> throw("Cannot get configured storage paths.")
             end,
 
         lists:foreach(fun(Path) ->
             case lists:member(Path, ConfiguredStoragePaths) of
-                false -> throw("Path: " ++ Path ++ " is not added");
+                false -> throw("Path: " ++ Path ++ " is not added.");
                 _ -> ok
             end
         end, Paths),
