@@ -76,7 +76,7 @@ body() ->
                                            body = <<"Would you like to register as a provider?">>
                                        },
                                        #link{
-                                           postback = to_main_page,
+                                           postback = to_root_page,
                                            style = <<"width: 8em;">>,
                                            class = <<"btn btn-info">>,
                                            body = <<"Not now">>
@@ -101,7 +101,7 @@ body() ->
                                        },
                                        #link{
                                            id = <<"next_button">>,
-                                           postback = to_main_page,
+                                           postback = to_root_page,
                                            style = <<"width: 8em;">>,
                                            class = <<"btn btn-primary">>,
                                            body = <<"OK">>
@@ -128,7 +128,7 @@ event(init) ->
     gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),
     ok;
 
-event(to_main_page) ->
+event(to_root_page) ->
     gui_ctx:put(?CURRENT_INSTALLATION_PAGE, undefined),
     gui_jq:redirect(?PAGE_ROOT);
 

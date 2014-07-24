@@ -12,7 +12,7 @@
 -module(gr_utils).
 
 -include("registered_names.hrl").
--include("onepanel_modules/user_logic.hrl").
+-include("onepanel_modules/space_logic.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").

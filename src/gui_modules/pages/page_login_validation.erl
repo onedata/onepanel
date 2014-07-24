@@ -6,7 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc: This file contains n2o website code.
-%% The page handles user validation via OpenID.
+%% This page handles user validation via OpenID.
 %% @end
 %% ===================================================================
 

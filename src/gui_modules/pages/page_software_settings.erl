@@ -6,7 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc: This module contains n2o website code.
-%% The page allows user to change database password.
+%% This page allows user to change database password.
 %% @end
 %% ===================================================================
 -module(page_software_settings).

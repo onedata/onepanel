@@ -81,6 +81,7 @@ route(?PAGE_UPDATE_SUCCESS) -> page_update_success;
 
 %% Spaces pages
 route(?PAGE_SPACES_ACCOUNT) -> page_spaces_account;
+route(?PAGE_SPACES_SETTINGS) -> page_spaces_settings;
 
 %% Registration pages
 route(?PAGE_CONNECTION_CHECK) -> page_connection_check;

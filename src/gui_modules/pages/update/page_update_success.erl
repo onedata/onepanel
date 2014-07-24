@@ -77,7 +77,7 @@ body() ->
                     end,
                     #link{
                         id = <<"ok_button">>,
-                        postback = to_main_page,
+                        postback = to_root_page,
                         style = <<"width: 80px;">>,
                         class = <<"btn btn-primary">>,
                         body = <<"OK">>
@@ -102,7 +102,7 @@ event(init) ->
     gui_jq:bind_key_to_click(<<"13">>, <<"ok_button">>),
     ok;
 
-event(to_main_page) ->
+event(to_root_page) ->
     gui_ctx:put(?CHOSEN_VERSION, undefined),
     gui_ctx:put(?CURRENT_UPDATE_PAGE, undefined),
     gui_jq:redirect(?PAGE_ROOT);

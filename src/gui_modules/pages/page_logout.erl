@@ -6,7 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc: This module contains n2o website code.
-%% The page handles users' logging out.
+%% This page handles users' logging out.
 %% @end
 %% ===================================================================
 

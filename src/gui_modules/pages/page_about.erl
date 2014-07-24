@@ -6,7 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc: This module contains n2o website code.
-%% The page contains information about the project, licence and contact for support.
+%% This page contains information about the project, licence and contact for support.
 %% @end
 %% ===================================================================
 

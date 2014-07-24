@@ -6,7 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc: This module contains n2o website code.
-%% The page allows user to change username and password.
+%% This page allows user to change username and password.
 %% @end
 %% ===================================================================
 -module(page_account_settings).

@@ -76,7 +76,7 @@ body() ->
                     end,
                     #link{
                         id = <<"ok_button">>,
-                        postback = to_main_page,
+                        postback = to_account_page,
                         style = <<"width: 80px;">>,
                         class = <<"btn btn-primary">>,
                         body = <<"OK">>
@@ -101,7 +101,7 @@ event(init) ->
     gui_jq:bind_key_to_click(<<"13">>, <<"ok_button">>),
     ok;
 
-event(to_main_page) ->
+event(to_account_page) ->
     gui_ctx:put(?CURRENT_REGISTRATION_PAGE, undefined),
     gui_jq:redirect(?PAGE_SPACES_ACCOUNT);
 

@@ -13,13 +13,16 @@
 -module(gr_adapter).
 
 -include("registered_names.hrl").
--include("onepanel_modules/user_logic.hrl").
+-include("onepanel_modules/space_logic.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([register/0, unregister/0, create_csr/3, check_ip_address/0, check_port/3]).
+-export([get_provider_spaces/0, get_space_details/1]).
+-export([get_space_providers/1, get_provider_details/2]).
+-export([get_space_users/1, get_user_details/2]).
 
 -on_load(init/0).
 
@@ -158,6 +161,139 @@ check_port(Host, Port, Type) ->
     catch
         _:Reason ->
             ?error("Cannot check port ~p on host ~p: ~p", [Port, Host, Reason]),
+            {error, Reason}
+    end.
+
+
+%% get_provider_spaces/0
+%% ====================================================================
+%% @doc Returns ids of all provider's spaces.
+%% @end
+-spec get_provider_spaces() -> Result when
+    Result :: {ok, [SpaceId :: binary()]} | {error, Reason :: term()}.
+%% ====================================================================
+get_provider_spaces() ->
+    try
+        Uri = "/provider/spaces",
+        {ok, "200", _ResHeaders, ResBody} = gr_utils:send_req(Uri, get),
+        List = mochijson2:decode(ResBody, [{format, proplist}]),
+        Spaces = proplists:get_value(<<"spaces">>, List),
+        true = (Spaces =/= undefiend),
+        {ok, Spaces}
+    catch
+        _:Reason ->
+            ?error("Cannot get provider spaces: ~p", [Reason]),
+            {error, Reason}
+    end.
+
+
+%% get_space_details/1
+%% ====================================================================
+%% @doc Returns space's details.
+%% @end
+-spec get_space_details(SpaceId :: binary()) -> Result when
+    Result :: {ok, #?SPACE_DETAILS{}} | {error, Reason :: term()}.
+%% ====================================================================
+get_space_details(SpaceId) ->
+    try
+        Uri = "/provider/spaces/" ++ binary_to_list(SpaceId),
+        {ok, "200", _ResHeaders, ResBody} = gr_utils:send_req(Uri, get),
+        List = mochijson2:decode(ResBody, [{format, proplist}]),
+        Name = proplists:get_value(<<"name">>, List),
+        true = (Name =/= undefiend),
+        {ok, #?SPACE_DETAILS{id = SpaceId, name = Name}}
+    catch
+        _:Reason ->
+            ?error("Cannot get details of space with ID ~p: ~p", [SpaceId, Reason]),
+            {error, Reason}
+    end.
+
+
+%% get_space_providers/1
+%% ====================================================================
+%% @doc Returns ids of all spaces providers.
+%% @end
+-spec get_space_providers(SpaceId :: binary()) -> Result when
+    Result :: {ok, [ProviderId :: binary()]} | {error, Reason :: term()}.
+%% ====================================================================
+get_space_providers(SpaceId) ->
+    try
+        Uri = "/spaces/" ++ binary_to_list(SpaceId) ++ "/providers",
+        {ok, "200", _ResHeaders, ResBody} = gr_utils:send_req(Uri, get),
+        List = mochijson2:decode(ResBody, [{format, proplist}]),
+        Providers = proplists:get_value(<<"providers">>, List),
+        true = (Providers =/= undefiend),
+        {ok, Providers}
+    catch
+        _:Reason ->
+            ?error("Cannot get providers of space with ID ~p: ~p", [SpaceId, Reason]),
+            {error, Reason}
+    end.
+
+
+%% get_provider_details/1
+%% ====================================================================
+%% @doc Returns provider's details for given space.
+%% @end
+-spec get_provider_details(SpaceId :: binary(), ProviderId :: binary()) -> Result when
+    Result :: {ok, #?PROVIDER_DETAILS{}} | {error, Reason :: term()}.
+%% ====================================================================
+get_provider_details(SpaceId, ProviderId) ->
+    try
+        Uri = "/spaces/" ++ binary_to_list(SpaceId) ++ "/providers/" ++ binary_to_list(ProviderId),
+        {ok, "200", _ResHeaders, ResBody} = gr_utils:send_req(Uri, get),
+        List = mochijson2:decode(ResBody, [{format, proplist}]),
+        Urls = proplists:get_value(<<"urls">>, List),
+        true = (Urls =/= undefiend),
+        RedirectionPoint = proplists:get_value(<<"redirectionPoint">>, List),
+        true = (RedirectionPoint =/= undefiend),
+        {ok, #?PROVIDER_DETAILS{id = ProviderId, urls = Urls, redirectionPoint = RedirectionPoint}}
+    catch
+        _:Reason ->
+            ?error("Cannot get provider's details for provider with ID ~p: ~p", [ProviderId, Reason]),
+            {error, Reason}
+    end.
+
+
+%% get_space_users/1
+%% ====================================================================
+%% @doc Returns ids of all spaces users.
+%% @end
+-spec get_space_users(SpaceId :: binary()) -> Result when
+    Result :: {ok, [UserId :: binary()]} | {error, Reason :: term()}.
+%% ====================================================================
+get_space_users(SpaceId) ->
+    try
+        Uri = "/spaces/" ++ binary_to_list(SpaceId) ++ "/users",
+        {ok, "200", _ResHeaders, ResBody} = gr_utils:send_req(Uri, get),
+        List = mochijson2:decode(ResBody, [{format, proplist}]),
+        Providers = proplists:get_value(<<"users">>, List),
+        true = (Providers =/= undefiend),
+        {ok, Providers}
+    catch
+        _:Reason ->
+            ?error("Cannot get users of space with ID ~p: ~p", [SpaceId, Reason]),
+            {error, Reason}
+    end.
+
+
+%% get_user_details/1
+%% ====================================================================
+%% @doc Returns user's details for given space.
+%% @end
+-spec get_user_details(SpaceId :: binary(), UserId :: binary()) -> Result when
+    Result :: {ok, #?USER_DETAILS{}} | {error, Reason :: term()}.
+%% ====================================================================
+get_user_details(SpaceId, UserId) ->
+    try
+        Uri = "/spaces/" ++ binary_to_list(SpaceId) ++ "/users/" ++ binary_to_list(UserId),
+        {ok, "200", _ResHeaders, ResBody} = gr_utils:send_req(Uri, get),
+        Name = proplists:get_value(<<"name">>, mochijson2:decode(ResBody, [{format, proplist}])),
+        true = (Name =/= undefiend),
+        {ok, #?USER_DETAILS{id = UserId, name = Name}}
+    catch
+        _:Reason ->
+            ?error("Cannot get provider's details for user with ID ~p: ~p", [UserId, Reason]),
             {error, Reason}
     end.
 
