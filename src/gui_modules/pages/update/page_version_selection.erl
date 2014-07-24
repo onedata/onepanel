@@ -280,8 +280,5 @@ event(next) ->
             onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_UPDATE_SUMMARY)
     end;
 
-event(to_main_page) ->
-    gui_jq:redirect(?PAGE_ROOT);
-
 event(terminate) ->
     ok.

@@ -13,6 +13,7 @@
 -module(gr_adapter).
 
 -include("registered_names.hrl").
+-include("onepanel_modules/user_logic.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
@@ -77,7 +78,6 @@ register() ->
         {ok, ProviderId, Cert} = send_csr(CsrPath),
 
         %% Save provider ID and certifiacte on all hosts
-        ok = dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{providerId, ProviderId}]),
         ok = file:write_file(CertPath, Cert),
         ok = onepanel_utils:save_file_on_hosts(Path, CertName, Cert),
 
@@ -94,7 +94,7 @@ register() ->
 %% @doc Returns ip address that is visible for Global Registry.
 %% @end
 -spec check_ip_address() -> Result when
-    Result :: {ok, IpAddress :: string()} | {error, Reason :: term()}.
+    Result :: {ok, IpAddress :: binary()} | {error, Reason :: term()}.
 %% ====================================================================
 check_ip_address() ->
     try
@@ -102,7 +102,7 @@ check_ip_address() ->
         Options = [{connect_timeout, ?CONNECTION_TIMEOUT}],
         {ok, "200", _ResHeaders, ResBody} =
             ibrowse:send_req(Url ++ "/provider/test/check_my_ip", [{content_type, "application/json"}], get, "{}", Options),
-        {ok, binary_to_list(mochijson2:decode(ResBody))}
+        {ok, mochijson2:decode(ResBody)}
     catch
         _:Reason ->
             ?error("Cannot get ip address that is visible for Global Registry: ~p", [Reason]),
@@ -115,7 +115,7 @@ check_ip_address() ->
 %% @doc Checks VeilCluster port availability for Global Registry on
 %% given host.
 %% @end
--spec check_port(Host :: string(), Port :: integer(), Type :: string()) -> Result when
+-spec check_port(Host :: string(), Port :: integer(), Type :: binary()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 check_port(Host, Port, Type) ->
@@ -125,10 +125,10 @@ check_port(Host, Port, Type) ->
         {ok, Url} = application:get_env(?APP_NAME, global_registry_url),
         TestUrl = Url ++ "/provider/test/check_my_ports",
         Resource = case Type of
-                       "gui" -> "/connection_check";
-                       "rest" -> "/rest/latest/connection_check"
+                       <<"gui">> -> <<"/connection_check">>;
+                       <<"rest">> -> <<"/rest/latest/connection_check">>
                    end,
-        CheckUrl = list_to_binary("https://" ++ IpAddress ++ ":" ++ integer_to_list(Port) ++ Resource),
+        CheckUrl = <<"https://", IpAddress/binary, ":", (integer_to_binary(Port))/binary, Resource/binary>>,
         ReqBody = iolist_to_binary(mochijson2:encode({struct, [{Type, CheckUrl}]})),
 
         {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(TestUrl, [{content_type, "application/json"}], get, ReqBody),
@@ -157,18 +157,24 @@ check_port(Host, Port, Type) ->
 %% ====================================================================
 send_csr(CsrPath) ->
     {ok, Url} = application:get_env(?APP_NAME, global_registry_url),
-    Urls = lists:map(fun(U) -> list_to_binary(U) end, onepanel_utils:get_hosts()),
+    Urls = lists:map(fun(Host) ->
+        {ok, IpAddress} = rpc:call(onepanel_utils:get_node(Host), ?MODULE, check_ip_address, [], ?RPC_TIMEOUT),
+        IpAddress
+    end, onepanel_utils:get_hosts()),
     {ok, Csr} = file:read_file(CsrPath),
     {ok, [ControlPanelHost | _]} = gr_utils:get_control_panel_hosts(),
+    {ok, ControlPanelHostIpAddress} = rpc:call(onepanel_utils:get_node(ControlPanelHost), ?MODULE, check_ip_address, []),
     {ok, #?LOCAL_CONFIG_RECORD{gui_port = GuiPort}} = dao:get_record(?LOCAL_CONFIG_TABLE, ControlPanelHost),
-    GuiUrl = <<"https://", (list_to_binary(ControlPanelHost))/binary, ":", (integer_to_binary(GuiPort))/binary>>,
-    ReqBody = iolist_to_binary(mochijson2:encode({struct, [{urls, Urls}, {csr, Csr}, {redirectionPoint, GuiUrl}]})),
+    RedirectionPoint = <<"https://", ControlPanelHostIpAddress/binary, ":", (integer_to_binary(GuiPort))/binary>>,
+    ReqBody = iolist_to_binary(mochijson2:encode({struct, [{urls, Urls}, {csr, Csr}, {redirectionPoint, RedirectionPoint}]})),
 
     {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(Url ++ "/provider", [{content_type, "application/json"}], post, ReqBody),
 
     List = mochijson2:decode(ResBody, [{format, proplist}]),
     ProviderId = proplists:get_value(<<"providerId">>, List),
     Cert = proplists:get_value(<<"certificate">>, List),
+
+    ok = dao:save_record(?PROVIDER_TABLE, #?PROVIDER_RECORD{id = ProviderId, urls = Urls, redirectionPoint = RedirectionPoint}),
 
     case {ProviderId, Cert} of
         {undefined, _} -> {error, "Provider ID not found in response body."};

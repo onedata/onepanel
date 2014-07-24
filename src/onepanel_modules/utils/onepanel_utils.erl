@@ -17,7 +17,7 @@
 
 %% API
 -export([random_ascii_lowercase_sequence/1]).
--export([get_node/1, get_host/1, get_hosts/0, get_software_version/0]).
+-export([get_node/1, get_nodes/0, get_host/1, get_hosts/0, get_software_version/0]).
 -export([apply_on_hosts/5, save_file_on_host/3, save_file_on_hosts/3]).
 
 %% ====================================================================
@@ -71,6 +71,16 @@ get_node(Host) ->
     list_to_atom(?APP_STR ++ "@" ++ Host).
 
 
+%% get_nodes/0
+%% ====================================================================
+%% @doc Returns list of all application nodes.
+-spec get_nodes() -> Result when
+    Result :: node().
+%% ====================================================================
+get_nodes() ->
+    [node() | nodes(hidden)].
+
+
 %% get_host/1
 %% ====================================================================
 %% @doc Returns host from node.
@@ -84,7 +94,7 @@ get_host(Node) ->
 
 %% get_hosts/0
 %% ====================================================================
-%% @doc Returns list of hosts' ip addresses.
+%% @doc Returns list of hostnames.
 -spec get_hosts() -> Result when
     Result :: [Host :: string()].
 %% ====================================================================
@@ -95,7 +105,7 @@ get_hosts() ->
             true -> [get_host(Node) | Acc];
             _ -> Acc
         end
-    end, [], [node() | nodes(hidden)]).
+    end, [], get_nodes()).
 
 
 %% save_file_on_hosts/3

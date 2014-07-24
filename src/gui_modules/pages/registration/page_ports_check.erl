@@ -227,8 +227,8 @@ event({check_ports, Hosts}) ->
     case lists:foldl(fun(Host, {PortsErrors, Id}) ->
         HostId = integer_to_binary(Id),
         Textboxes = [
-            {<<"gui_port_textbox_", HostId/binary>>, "gui", gui_port},
-            {<<"rest_port_textbox_", HostId/binary>>, "rest", rest_port}
+            {<<"gui_port_textbox_", HostId/binary>>, <<"gui">>, gui_port},
+            {<<"rest_port_textbox_", HostId/binary>>, <<"rest">>, rest_port}
         ],
         {
                 lists:filter(fun({TextboxId, Type, Field}) ->

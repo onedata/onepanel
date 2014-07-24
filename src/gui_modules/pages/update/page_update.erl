@@ -84,7 +84,7 @@ body() ->
                     body = <<"Please complete installation process before proceeding with update.">>
                 },
                 #link{
-                    id = <<"next_button">>,
+                    id = <<"ok_button">>,
                     postback = to_main_page,
                     class = <<"btn btn-info">>,
                     style = <<"width: 80px; font-weight: bold;">>,
@@ -106,7 +106,11 @@ body() ->
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->
+    gui_jq:bind_key_to_click(<<"13">>, <<"ok_button">>),
     ok;
+
+event(to_main_page) ->
+    gui_jq:redirect(?PAGE_ROOT);
 
 event(terminate) ->
     ok.

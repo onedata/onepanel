@@ -187,9 +187,6 @@ event(init) ->
     {ok, Pid} = gui_comet:spawn(fun() -> comet_loop(#?STATE{}) end),
     put(?COMET_PID, Pid);
 
-event(to_main_page) ->
-    gui_jq:redirect(?PAGE_ROOT);
-
 event(next) ->
     Pid = get(?COMET_PID),
     Pid ! {init, round(?CONNECTION_TIMEOUT / ?DEFAULT_NEXT_UPDATE)},

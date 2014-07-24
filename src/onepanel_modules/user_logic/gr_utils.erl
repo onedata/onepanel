@@ -12,6 +12,7 @@
 -module(gr_utils).
 
 -include("registered_names.hrl").
+-include("onepanel_modules/user_logic.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
@@ -73,8 +74,8 @@ get_control_panel_hosts() ->
     Result :: undefined | binary().
 %% ====================================================================
 get_provider_id() ->
-    case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-        {ok, #?GLOBAL_CONFIG_RECORD{providerId = ProviderId}} ->
+    case dao:get_records(?PROVIDER_TABLE) of
+        {ok, [#?PROVIDER_RECORD{id = ProviderId} | _]} ->
             ProviderId;
         _ ->
             undefined

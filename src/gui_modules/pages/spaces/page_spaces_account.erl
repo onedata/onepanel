@@ -81,7 +81,7 @@ body() ->
                     body = <<"Please complete installation process before registering in Global Registry as a provider.">>
                 },
                 #link{
-                    id = <<"next_button">>,
+                    id = <<"ok_button">>,
                     postback = to_main_page,
                     class = <<"btn btn-info">>,
                     style = <<"width: 80px; font-weight: bold;">>,
