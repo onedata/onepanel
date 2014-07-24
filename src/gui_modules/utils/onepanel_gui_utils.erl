@@ -17,7 +17,7 @@
 
 -export([body/1, body/2, body/3, top_menu/1, top_menu/2, logotype_footer/0]).
 -export([get_error_message/1, get_installation_state/0, format_list/1, message/2]).
--export([change_page/2, maybe_redirect/3]).
+-export([change_page/2, maybe_redirect/3, confirm_popup/2]).
 
 %% ====================================================================
 %% API functions
@@ -247,3 +247,12 @@ message(Id, Message) ->
     gui_jq:update(Id, Message),
     gui_jq:fade_in(Id, 300).
 
+
+%% confirm_popup/2
+%% ====================================================================
+%% @doc Displays confirm popup.
+-spec confirm_popup(Message :: binary(), Script :: binary()) -> binary().
+%% ====================================================================
+confirm_popup(Message, Script) ->
+    gui_jq:wire(<<"bootbox.confirm('", Message/binary, "', function(result) {
+    if(result) {", Script/binary, "} });">>).

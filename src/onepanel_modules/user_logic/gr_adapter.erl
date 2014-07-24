@@ -19,7 +19,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([register/0, create_csr/3, check_ip_address/0, check_port/3]).
+-export([register/0, unregister/0, create_csr/3, check_ip_address/0, check_port/3]).
 
 -on_load(init/0).
 
@@ -44,7 +44,7 @@ init() ->
 %% Returns 0 in case of success and 1 in case of failure.
 %% Can throw an exception if nif was not properly loaded.
 %% @end
--spec create_csr(Password :: string(), KeyPath :: string(), CsrPath :: string()) -> Result when
+-spec create_csr(Password :: string(), KeyFile :: string(), CsrPath :: string()) -> Result when
     Result :: 0 | 1 | no_return().
 %% ====================================================================
 create_csr(_, _, _) ->
@@ -62,29 +62,49 @@ create_csr(_, _, _) ->
 %% ====================================================================
 register() ->
     try
-        {ok, KeyPath} = application:get_env(?APP_NAME, grpkey_file),
+        {ok, KeyFile} = application:get_env(?APP_NAME, grpkey_file),
         {ok, KeyName} = application:get_env(?APP_NAME, grpkey_name),
         {ok, CsrPath} = application:get_env(?APP_NAME, grpcsr_file),
         {ok, CertName} = application:get_env(?APP_NAME, grpcert_name),
-        {ok, CertPath} = application:get_env(?APP_NAME, grpcert_file),
+        {ok, CertFile} = application:get_env(?APP_NAME, grpcert_file),
         Path = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, "certs"]),
 
-        0 = create_csr("", KeyPath, CsrPath),
+        0 = create_csr("", KeyFile, CsrPath),
 
         %% Save private key on all hosts
-        {ok, Key} = file:read_file(KeyPath),
+        {ok, Key} = file:read_file(KeyFile),
         ok = onepanel_utils:save_file_on_hosts(Path, KeyName, Key),
 
         {ok, ProviderId, Cert} = send_csr(CsrPath),
 
         %% Save provider ID and certifiacte on all hosts
-        ok = file:write_file(CertPath, Cert),
+        ok = file:write_file(CertFile, Cert),
         ok = onepanel_utils:save_file_on_hosts(Path, CertName, Cert),
 
         {ok, ProviderId}
     catch
         _:Reason ->
             ?error("Cannot register in Global Registry: ~p", [Reason]),
+            {error, Reason}
+    end.
+
+
+%% unregister/0
+%% ====================================================================
+%% @doc Unregisters provider from Global Registry and removes his details
+%% from database.
+%% @end
+-spec unregister() -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+unregister() ->
+    try
+        ProviderId = gr_utils:get_provider_id(),
+        {ok, "204", _ResHeaders, _ResBody} = gr_utils:send_req("/provider", delete),
+        ok = dao:delete_record(?PROVIDER_TABLE, ProviderId)
+    catch
+        _:Reason ->
+            ?error("Cannot unregister from Global Registry: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -157,14 +177,14 @@ check_port(Host, Port, Type) ->
 %% ====================================================================
 send_csr(CsrPath) ->
     {ok, Url} = application:get_env(?APP_NAME, global_registry_url),
-    Urls = lists:map(fun(Host) ->
-        {ok, IpAddress} = rpc:call(onepanel_utils:get_node(Host), ?MODULE, check_ip_address, [], ?RPC_TIMEOUT),
-        IpAddress
-    end, onepanel_utils:get_hosts()),
     {ok, Csr} = file:read_file(CsrPath),
     {ok, [ControlPanelHost | _]} = gr_utils:get_control_panel_hosts(),
     {ok, ControlPanelHostIpAddress} = rpc:call(onepanel_utils:get_node(ControlPanelHost), ?MODULE, check_ip_address, []),
     {ok, #?LOCAL_CONFIG_RECORD{gui_port = GuiPort}} = dao:get_record(?LOCAL_CONFIG_TABLE, ControlPanelHost),
+    Urls = lists:map(fun(Host) ->
+        {ok, IpAddress} = rpc:call(onepanel_utils:get_node(Host), ?MODULE, check_ip_address, [], ?RPC_TIMEOUT),
+        <<"https://", IpAddress/binary, ":", (integer_to_binary(GuiPort))/binary>>
+    end, onepanel_utils:get_hosts()),
     RedirectionPoint = <<"https://", ControlPanelHostIpAddress/binary, ":", (integer_to_binary(GuiPort))/binary>>,
     ReqBody = iolist_to_binary(mochijson2:encode({struct, [{urls, Urls}, {csr, Csr}, {redirectionPoint, RedirectionPoint}]})),
 

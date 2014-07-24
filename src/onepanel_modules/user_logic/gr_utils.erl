@@ -18,11 +18,50 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
+-export([send_req/2, send_req/3, send_req/4]).
 -export([get_ports_to_check/0, get_control_panel_hosts/0, get_provider_id/0]).
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
+
+
+%% send_req/2
+%% ====================================================================
+%% @doc Sends given request to Global Registry with default options
+%% and empty body using REST API.
+-spec send_req(Uri :: string(), Method :: atom()) -> Result when
+    Result :: {ok, Status :: string(), ResponseHeaders :: binary(), ResponseBody :: binary()} | {error, Reason :: term()}.
+%% ====================================================================
+send_req(Uri, Method) ->
+    send_req(Uri, Method, []).
+
+
+%% send_req/3
+%% ====================================================================
+%% @doc Sends given request to Global Registry with default options
+%% using REST API.
+-spec send_req(Uri :: string(), Method :: atom(), Body :: binary()) -> Result when
+    Result :: {ok, Status :: string(), ResponseHeaders :: binary(), ResponseBody :: binary()} | {error, Reason :: term()}.
+%% ====================================================================
+send_req(Uri, Method, Body) ->
+    send_req(Uri, Method, Body, []).
+
+
+%% send_req/4
+%% ====================================================================
+%% @doc Sends given request to Global Registry using REST API.
+-spec send_req(Uri :: string(), Method :: atom(), Body :: binary(), Options :: list()) -> Result when
+    Result :: {ok, Status :: string(), ResponseHeaders :: binary(), ResponseBody :: binary()} | {error, Reason :: term()}.
+%% ====================================================================
+send_req(Uri, Method, Body, Options) ->
+    {ok, Url} = application:get_env(?APP_NAME, global_registry_url),
+    {ok, KeyFile} = application:get_env(?APP_NAME, grpkey_file),
+    {ok, CertFile} = application:get_env(?APP_NAME, grpcert_file),
+    {ok, CACertFile} = application:get_env(?APP_NAME, grpcacert_file),
+    SSLOptions = {ssl_options, [{cacertfile, CACertFile}, {keyfile, KeyFile}, {certfile, CertFile}]},
+    ibrowse:send_req(Url ++ Uri, [{content_type, "application/json"}], Method, Body, [SSLOptions | Options]).
+
 
 %% get_ports_to_check/0
 %% ====================================================================

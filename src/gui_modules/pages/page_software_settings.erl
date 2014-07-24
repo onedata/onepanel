@@ -115,7 +115,7 @@ settings_table() ->
 %% ====================================================================
 %% @doc Renders hypothetic user password as sequence od dots.
 -spec password() -> Result when
-    Result :: #table{}.
+    Result :: #span{}.
 %% ====================================================================
 password() ->
     #span{

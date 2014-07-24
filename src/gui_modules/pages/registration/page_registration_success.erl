@@ -103,7 +103,7 @@ event(init) ->
 
 event(to_main_page) ->
     gui_ctx:put(?CURRENT_REGISTRATION_PAGE, undefined),
-    gui_jq:redirect(?PAGE_ROOT);
+    gui_jq:redirect(?PAGE_SPACES_ACCOUNT);
 
 event(terminate) ->
     ok.

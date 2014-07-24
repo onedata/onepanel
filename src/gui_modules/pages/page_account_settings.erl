@@ -156,7 +156,7 @@ username(Username) ->
 %% ====================================================================
 %% @doc Renders change username input field.
 -spec change_username() -> Result when
-    Result :: #panel{}.
+    Result :: list().
 %% ====================================================================
 change_username() ->
     [
@@ -193,7 +193,7 @@ change_username() ->
 %% ====================================================================
 %% @doc Renders hypothetic user password as sequence od dots.
 -spec password() -> Result when
-    Result :: #table{}.
+    Result :: #span{}.
 %% ====================================================================
 password() ->
     #span{
