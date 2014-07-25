@@ -19,7 +19,8 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([register/0, unregister/0, create_csr/3, check_ip_address/0, check_port/3]).
+-export([register/0, unregister/0, create_csr/3, create_space/2, support_space/1]).
+-export([check_ip_address/0, check_port/3]).
 -export([get_provider_spaces/0, get_space_details/1]).
 -export([get_space_providers/1, get_provider_details/2]).
 -export([get_space_users/1, get_user_details/2]).
@@ -103,11 +104,54 @@ register() ->
 unregister() ->
     try
         ProviderId = gr_utils:get_provider_id(),
-        {ok, "204", _ResHeaders, _ResBody} = gr_utils:send_req("/provider", delete),
+        Uri = "/provider",
+        {ok, "204", _ResHeaders, _ResBody} = gr_utils:send_req(Uri, delete),
         ok = dao:delete_record(?PROVIDER_TABLE, ProviderId)
     catch
         _:Reason ->
             ?error("Cannot unregister from Global Registry: ~p", [Reason]),
+            {error, Reason}
+    end.
+
+
+%% create_space/2
+%% ====================================================================
+%% @doc Creates new space.
+%% @end
+-spec create_space(Name :: binary(), Token :: binary()) -> Result when
+    Result :: {ok, SpaceId :: binary()} | {error, Reason :: term()}.
+%% ====================================================================
+create_space(Name, Token) ->
+    try
+        Uri = "/provider/spaces",
+        Body = iolist_to_binary(mochijson2:encode({struct, [{<<"name">>, Name}, {<<"token">>, Token}]})),
+        {ok, "201", ResHeaders, ResBody} = gr_utils:send_req(Uri, post, Body),
+        <<"/provider/spaces/", SpaceId/binary>> = list_to_binary(proplists:get_value("location", ResHeaders)),
+        {ok, SpaceId}
+    catch
+        _:Reason ->
+            ?error("Cannot create space with name ~p and token ~p: ~p", [Name, Token, Reason]),
+            {error, Reason}
+    end.
+
+
+%% support_space/1
+%% ====================================================================
+%% @doc Supports space.
+%% @end
+-spec support_space(Token :: binary()) -> Result when
+    Result :: {ok, SpaceId :: binary()} | {error, Reason :: term()}.
+%% ====================================================================
+support_space(Token) ->
+    try
+        Uri = "/provider/spaces/support",
+        Body = iolist_to_binary(mochijson2:encode({struct, [{<<"token">>, Token}]})),
+        {ok, "201", ResHeaders, _ResBody} = gr_utils:send_req(Uri, post, Body),
+        <<"/provider/spaces/", SpaceId/binary>> = list_to_binary(proplists:get_value("location", ResHeaders)),
+        {ok, SpaceId}
+    catch
+        _:Reason ->
+            ?error("Cannot support space with token ~p: ~p", [Token, Reason]),
             {error, Reason}
     end.
 
@@ -201,7 +245,7 @@ get_space_details(SpaceId) ->
         List = mochijson2:decode(ResBody, [{format, proplist}]),
         Name = proplists:get_value(<<"name">>, List),
         true = (Name =/= undefiend),
-        {ok, #?SPACE_DETAILS{id = SpaceId, name = Name}}
+        {ok, #?SPACE_DETAILS{spaceId = SpaceId, name = Name}}
     catch
         _:Reason ->
             ?error("Cannot get details of space with ID ~p: ~p", [SpaceId, Reason]),
@@ -247,7 +291,7 @@ get_provider_details(SpaceId, ProviderId) ->
         true = (Urls =/= undefiend),
         RedirectionPoint = proplists:get_value(<<"redirectionPoint">>, List),
         true = (RedirectionPoint =/= undefiend),
-        {ok, #?PROVIDER_DETAILS{id = ProviderId, urls = Urls, redirectionPoint = RedirectionPoint}}
+        {ok, #?PROVIDER_DETAILS{providerId = ProviderId, urls = Urls, redirectionPoint = RedirectionPoint}}
     catch
         _:Reason ->
             ?error("Cannot get provider's details for provider with ID ~p: ~p", [ProviderId, Reason]),
@@ -290,7 +334,7 @@ get_user_details(SpaceId, UserId) ->
         {ok, "200", _ResHeaders, ResBody} = gr_utils:send_req(Uri, get),
         Name = proplists:get_value(<<"name">>, mochijson2:decode(ResBody, [{format, proplist}])),
         true = (Name =/= undefiend),
-        {ok, #?USER_DETAILS{id = UserId, name = Name}}
+        {ok, #?USER_DETAILS{userId = UserId, name = Name}}
     catch
         _:Reason ->
             ?error("Cannot get provider's details for user with ID ~p: ~p", [UserId, Reason]),
@@ -330,7 +374,7 @@ send_csr(CsrPath) ->
     ProviderId = proplists:get_value(<<"providerId">>, List),
     Cert = proplists:get_value(<<"certificate">>, List),
 
-    ok = dao:save_record(?PROVIDER_TABLE, #?PROVIDER_RECORD{id = ProviderId, urls = Urls, redirectionPoint = RedirectionPoint}),
+    ok = dao:save_record(?PROVIDER_TABLE, #?PROVIDER_RECORD{providerId = ProviderId, urls = Urls, redirectionPoint = RedirectionPoint}),
 
     case {ProviderId, Cert} of
         {undefined, _} -> {error, "Provider ID not found in response body."};

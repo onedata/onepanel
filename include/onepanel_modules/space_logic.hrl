@@ -27,17 +27,17 @@
 %% Space details record contains following fields:
 %% * id     - unique Space ID assigned by Global Registry
 %% * name   - Space name
--record(?SPACE_DETAILS, {id, name}).
+-record(?SPACE_DETAILS, {spaceId, name}).
 
 %% Provider details record contains following fields:
 %% * id                 - unique provider ID assigned by Global Registry
 %% * urls               - URL addresses of all VeilCluster nodes
 %% * redirectionPoint   - URL address where VeilCluster GUI is available of all VeilCluster nodes
--record(?PROVIDER_DETAILS, {id, urls, redirectionPoint}).
+-record(?PROVIDER_DETAILS, {providerId, urls, redirectionPoint}).
 
 %% User details record contains following fields:
 %% * id     - unique user ID assigned by Global Registry
 %% * name   - username
--record(?USER_DETAILS, {id, name}).
+-record(?USER_DETAILS, {userId, name}).
 
 -endif.

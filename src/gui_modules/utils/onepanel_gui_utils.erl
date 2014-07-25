@@ -17,7 +17,7 @@
 
 -export([body/1, body/2, body/3, top_menu/1, top_menu/2, logotype_footer/0]).
 -export([get_error_message/1, get_installation_state/0, format_list/1, message/2]).
--export([change_page/2, maybe_redirect/3, confirm_popup/2]).
+-export([change_page/2, maybe_redirect/3, confirm_popup/2, dialog_popup/3, bind_key_to_click/2]).
 
 %% ====================================================================
 %% API functions
@@ -254,5 +254,42 @@ message(Id, Message) ->
 -spec confirm_popup(Message :: binary(), Script :: binary()) -> binary().
 %% ====================================================================
 confirm_popup(Message, Script) ->
-    gui_jq:wire(<<"bootbox.confirm('", Message/binary, "', function(result) {
-    if(result) {", Script/binary, "} });">>).
+    gui_jq:wire(<<"bootbox.confirm(
+        '", Message/binary, "',
+        function(result) {
+            if(result) {", Script/binary, "}
+        }
+    );">>).
+
+
+%% dialog_popup/3
+%% ====================================================================
+%% @doc Displays custom dialog popup.
+-spec dialog_popup(Title :: binary(), Message :: binary(), Script :: binary()) -> binary().
+%% ====================================================================
+dialog_popup(Title, Message, Script) ->
+    gui_jq:wire(<<"var box = bootbox.dialog({
+        title: '", Title/binary, "',
+        message: '", Message/binary, "',
+        buttons: {
+            'Cancel': {
+                className: 'cancel'
+            },
+            'OK': {
+                className: 'btn-primary confirm',
+                callback: function() {", Script/binary, "}
+            }
+        }
+    });">>).
+
+
+%% bind_key_to_click/2
+%% ====================================================================
+%% @doc Makes any keypresses of given key to click on selected class.
+%% @end
+-spec bind_key_to_click(KeyCode :: binary(), TargetID :: binary()) -> string().
+%% ====================================================================
+bind_key_to_click(KeyCode, TargetID) ->
+    Script = <<"$(document).bind('keydown', function (e){",
+    "if (e.which == ", KeyCode/binary, ") { e.preventDefault(); $('", TargetID/binary, "').click(); } });">>,
+    gui_jq:wire(Script, false).

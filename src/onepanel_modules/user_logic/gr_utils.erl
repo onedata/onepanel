@@ -59,7 +59,13 @@ send_req(Uri, Method, Body, Options) ->
     {ok, KeyFile} = application:get_env(?APP_NAME, grpkey_file),
     {ok, CertFile} = application:get_env(?APP_NAME, grpcert_file),
     {ok, CACertFile} = application:get_env(?APP_NAME, grpcacert_file),
-    SSLOptions = {ssl_options, [{cacertfile, CACertFile}, {keyfile, KeyFile}, {certfile, CertFile}]},
+    {ok, Key} = file:read_file(KeyFile),
+    {ok, Cert} = file:read_file(CertFile),
+    {ok, CACert} = file:read_file(CACertFile),
+    [{KeyType, KeyEncoded, _} | _] = public_key:pem_decode(Key),
+    [{_, CertEncoded, _} | _] = public_key:pem_decode(Cert),
+    [{_, CACertEncoded, _} | _] = public_key:pem_decode(CACert),
+    SSLOptions = {ssl_options, [{cacerts, [CACertEncoded]}, {key, {KeyType, KeyEncoded}}, {cert, CertEncoded}]},
     ibrowse:send_req(Url ++ Uri, [{content_type, "application/json"}], Method, Body, [SSLOptions | Options]).
 
 
@@ -114,7 +120,7 @@ get_control_panel_hosts() ->
 %% ====================================================================
 get_provider_id() ->
     case dao:get_records(?PROVIDER_TABLE) of
-        {ok, [#?PROVIDER_RECORD{id = ProviderId} | _]} ->
+        {ok, [#?PROVIDER_RECORD{providerId = ProviderId} | _]} ->
             ProviderId;
         _ ->
             undefined

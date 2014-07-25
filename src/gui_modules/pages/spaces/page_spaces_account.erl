@@ -36,9 +36,10 @@ main() ->
                     case gui_ctx:get(?CURRENT_REGISTRATION_PAGE) of
                         undefined ->
                             case dao:get_records(?PROVIDER_TABLE) of
-                                {ok, [#?PROVIDER_RECORD{id = Id, urls = Urls, redirectionPoint = RedirectionPoint} | _]} when Id =/= undefined ->
+                                {ok, [#?PROVIDER_RECORD{providerId = ProviderId, urls = Urls, redirectionPoint = RedirectionPoint} | _]}
+                                    when ProviderId =/= undefined ->
                                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()},
-                                        {body, body(Id, Urls, RedirectionPoint)}, {custom, custom()}]};
+                                        {body, body(ProviderId, Urls, RedirectionPoint)}, {custom, custom()}]};
                                 _ ->
                                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()},
                                         {body, body(undefined, [], undefined)}, {custom, custom()}]}
