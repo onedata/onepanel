@@ -92,15 +92,14 @@ body(undefined) ->
             class = <<"alert alert-info">>,
             body = [
                 #h3{
-                    body = <<"Your are not registered">>
+                    body = <<"You are not registered">>
                 },
                 #p{
                     body = <<"Please complete registration process in Global Registry.">>
                 },
-                #link{
-                    id = <<"ok_button">>,
+                #button{
                     postback = to_account_page,
-                    class = <<"btn btn-info">>,
+                    class = <<"btn btn-info confirm">>,
                     style = <<"width: 80px; font-weight: bold;">>,
                     body = <<"OK">>
                 }
@@ -1011,8 +1010,7 @@ event(init) ->
     gui_jq:wire(#api{name = "createSpace", tag = "createSpace"}, false),
     gui_jq:wire(#api{name = "supportSpace", tag = "supportSpace"}, false),
     gui_jq:wire(#api{name = "cancelSpaceSupport", tag = "cancelSpaceSupport"}, false),
-    onepanel_gui_utils:bind_key_to_click(<<"13">>, <<"button.confirm">>),
-    ok;
+    onepanel_gui_utils:bind_key_to_click(<<"13">>, <<"button.confirm">>);
 
 event(to_account_page) ->
     gui_jq:redirect(?PAGE_SPACES_ACCOUNT);
