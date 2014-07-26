@@ -294,9 +294,12 @@ event(register) ->
     onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_CONNECTION_CHECK);
 
 event(unregister) ->
-    Message = <<"Are you sure you want to unregister from Global Registry?<br>This operation cannot be undone.">>,
+    Message = <<"Are you sure you want to unregister from Global Registry?">>,
     Script = <<"unregister();">>,
     onepanel_gui_utils:confirm_popup(Message, Script);
+
+event({close_message, MessageId}) ->
+    gui_jq:hide(MessageId);
 
 event(terminate) ->
     ok.
@@ -313,7 +316,9 @@ api_event("unregister", _, _) ->
             gui_jq:update(<<"providerId">>, providerId(undefined)),
             gui_jq:update(<<"urls">>, urls([])),
             gui_jq:update(<<"redirectionPoint">>, redirectionPoint(undefined)),
-            onepanel_gui_utils:message(<<"ok_message">>, <<"You have been successfully unregistered from Global Registry.">>);
+            onepanel_gui_utils:message(<<"ok_message">>, <<"You have been successfully unregistered from Global Registry.">>,
+                {close_message, <<"ok_message">>});
         _ ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot unregister from Global Registry.">>)
+            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot unregister from Global Registry.">>,
+                {close_message, <<"error_message">>})
     end.

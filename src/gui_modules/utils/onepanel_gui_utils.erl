@@ -16,7 +16,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 -export([body/1, body/2, body/3, top_menu/1, top_menu/2, logotype_footer/0]).
--export([get_error_message/1, get_installation_state/0, format_list/1, message/2]).
+-export([get_error_message/1, get_installation_state/0, format_list/1, message/2, message/3]).
 -export([change_page/2, maybe_redirect/3, confirm_popup/2, dialog_popup/3, bind_key_to_click/2]).
 
 %% ====================================================================
@@ -245,6 +245,29 @@ format_list(Hosts) ->
 %% ====================================================================
 message(Id, Message) ->
     gui_jq:update(Id, Message),
+    gui_jq:fade_in(Id, 300).
+
+
+%% message/3
+%% ====================================================================
+%% @doc Renders a message in given element and allows to hide this message.
+-spec message(Id :: binary(), Message :: binary(), Postback :: term()) -> Result when
+    Result :: ok.
+%% ====================================================================
+message(Id, Message, Postback) ->
+    Body = [
+        Message,
+        #link{
+            title = <<"Close">>,
+            style = <<"position: absolute; right: 1em;">>,
+            class = <<"glyph-link">>,
+            postback = Postback,
+            body = #span{
+                class = <<"fui-cross">>
+            }
+        }
+    ],
+    gui_jq:update(Id, Body),
     gui_jq:fade_in(Id, 300).
 
 

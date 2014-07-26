@@ -27,6 +27,9 @@
 -define(PARAGRAPH_STYLE, <<"margin: 0 auto;">>).
 -define(TABLE_STYLE, <<"border-width: 0; width: 100%; border-collapse: inherit;">>).
 
+%% ID of table row of last added space
+-define(ID, id).
+
 %% Comet process pid
 -define(COMET_PID, comet_pid).
 
@@ -129,12 +132,19 @@ body(_) ->
                 style = <<"margin-bottom: 3em;">>,
                 body = [
                     #button{
+                        id = <<"create_space_button">>,
                         postback = create_space,
                         class = <<"btn btn-inverse btn-small">>,
                         style = <<"font-weight: bold; margin-right: 1em;">>,
                         body = <<"Create Space">>
                     },
+                    #image{
+                        id = <<"settings_spinner">>,
+                        image = <<"/images/spinner.gif">>,
+                        style = <<"width: 1.5em; visibility: hidden;">>
+                    },
                     #button{
+                        id = <<"support_space_button">>,
                         postback = support_space,
                         class = <<"btn btn-inverse btn-small">>,
                         style = <<"font-weight: bold; margin-left: 1em">>,
@@ -184,10 +194,11 @@ spaces_table_collapsed(TableId) ->
                 cells = space_row_collapsed(SpaceId, RowId)
             }
         end, lists:zip(SpaceIds, tl(lists:seq(0, length(SpaceIds))))),
+        gui_ctx:put(?ID, length(Rows)),
         [Header | Rows]
     catch
         _:_ ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch supported Spaces.<br>Please try again later.">>),
+            message(<<"error_message">>, <<"Cannot fetch supported Spaces.<br>Please try again later.">>),
             [Header]
     end.
 
@@ -221,10 +232,11 @@ spaces_table_expanded(TableId) ->
                 cells = space_row_expanded(SpaceId, RowId)
             }
         end, lists:zip(SpaceIds, tl(lists:seq(0, length(SpaceIds))))),
+        gui_ctx:put(?ID, length(Rows)),
         [Header | Rows]
     catch
         _:_ ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch supported Spaces.<br>Please try again later.">>),
+            message(<<"error_message">>, <<"Cannot fetch supported Spaces.<br>Please try again later.">>),
             [Header]
     end.
 
@@ -285,6 +297,8 @@ space_row_expanded(SpaceId, RowId) ->
         SpinnerId = <<RowId/binary, "_spinner">>,
         ProvidersTableId = <<RowId/binary, "_providers">>,
         UsersTableId = <<RowId/binary, "_users">>,
+        CancelSupportButtonId = <<RowId/binary, "_cancel_button">>,
+        CancelSupportSpinnerId = <<RowId/binary, "_cancel_spinner">>,
         [
             #td{
                 style = ?CONTENT_COLUMN_STYLE,
@@ -323,11 +337,23 @@ space_row_expanded(SpaceId, RowId) ->
                     },
                     #table{
                         class = <<"table table-bordered table-striped">>,
-                        style = <<"width: 100%; margin: 0 auto; table-layout: fixed;">>,
+                        style = <<"width: 100%; margin: 0 auto; margin-bottom: 1em; table-layout: fixed;">>,
                         body = #tbody{
                             id = UsersTableId,
                             body = users_table_collapsed(SpaceId, UsersTableId)
                         }
+                    },
+                    #button{
+                        id = CancelSupportButtonId,
+                        postback = {cancel_space_support, SpaceId, RowId, CancelSupportButtonId, CancelSupportSpinnerId},
+                        class = <<"btn btn-danger btn-small">>,
+                        style = <<"font-weight: bold;">>,
+                        body = <<"Cancel Support">>
+                    },
+                    #image{
+                        id = CancelSupportSpinnerId,
+                        image = <<"/images/spinner.gif">>,
+                        style = <<"width: 2em; padding-left: 1em; display: none;">>
                     }
                 ]
             },
@@ -339,9 +365,23 @@ space_row_expanded(SpaceId, RowId) ->
         ]
     catch
         _:_ ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch Space details.<br>Please try again later.">>),
+            message(<<"error_message">>, <<"Cannot fetch Space details.<br>Please try again later.">>),
             space_row_collapsed(SpaceId, RowId)
     end.
+
+
+%% add_space_row/2
+%% ====================================================================
+%% @doc Adds collapsed Space settings row to Spaces settings table.
+-spec add_space_row(SpaceId :: binary(), RowId :: binary()) -> Result when
+    Result :: ok.
+%% ====================================================================
+add_space_row(SpaceId, RowId) ->
+    Row = #tr{
+        id = RowId,
+        cells = space_row_collapsed(SpaceId, RowId)
+    },
+    gui_jq:insert_bottom(<<"spaces">>, Row).
 
 
 %% providers_table_collapsed/2
@@ -377,7 +417,7 @@ providers_table_collapsed(SpaceId, TableId) ->
         [Header | Rows]
     catch
         _:_ ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch Space's providers.<br>Please try again later.">>),
+            message(<<"error_message">>, <<"Cannot fetch Space's providers.<br>Please try again later.">>),
             [Header]
     end.
 
@@ -415,7 +455,7 @@ providers_table_expanded(SpaceId, TableId) ->
         [Header | Rows]
     catch
         _:_ ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch Space's providers.<br>Please try again later.">>),
+            message(<<"error_message">>, <<"Cannot fetch Space's providers.<br>Please try again later.">>),
             [Header]
     end.
 
@@ -555,7 +595,7 @@ provider_row_expanded(SpaceId, ProviderId, RowId) ->
         ]
     catch
         _:_ ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch Space's provider details.<br>Please try again later.">>),
+            message(<<"error_message">>, <<"Cannot fetch Space's provider details.<br>Please try again later.">>),
             provider_row_collapsed(SpaceId, ProviderId, RowId)
     end.
 
@@ -593,7 +633,7 @@ users_table_collapsed(SpaceId, TableId) ->
         [Header | Rows]
     catch
         _:_ ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch Space's users.<br>Please try again later.">>),
+            message(<<"error_message">>, <<"Cannot fetch Space's users.<br>Please try again later.">>),
             [Header]
     end.
 
@@ -631,7 +671,7 @@ users_table_expanded(SpaceId, TableId) ->
         [Header | Rows]
     catch
         _:_ ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch Space's users.<br>Please try again later.">>),
+            message(<<"error_message">>, <<"Cannot fetch Space's users.<br>Please try again later.">>),
             [Header]
     end.
 
@@ -747,7 +787,7 @@ user_row_expanded(SpaceId, UserId, RowId) ->
         ]
     catch
         _:_ ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch Space's user details.<br>Please try again later.">>),
+            message(<<"error_message">>, <<"Cannot fetch Space's user details.<br>Please try again later.">>),
             user_row_collapsed(SpaceId, UserId, RowId)
     end.
 
@@ -815,7 +855,20 @@ expand_button(Title, Postback) ->
     Result :: #image{}.
 %% ====================================================================
 spinner() ->
-    #image{image = <<"/images/spinner.gif">>, style = <<"width: 1.5em;">>}.
+    #image{
+        image = <<"/images/spinner.gif">>,
+        style = <<"width: 1.5em;">>
+    }.
+
+
+%% message/2
+%% ====================================================================
+%% @doc Renders closeable message at top of a screen.
+-spec message(MessageId :: binary(), Message :: binary()) -> Result when
+    Result :: ok.
+%% ====================================================================
+message(MessageId, Message) ->
+    onepanel_gui_utils:message(MessageId, Message, {close_message, MessageId}).
 
 
 %% comet_loop/1
@@ -830,6 +883,51 @@ comet_loop({error, Reason}) ->
 comet_loop(#?STATE{} = State) ->
     NewState = try
         receive
+            {create_space, Name, Token, RowId} ->
+                gui_jq:css(<<"settings_spinner">>, <<"visibility">>, <<"visible">>),
+                gui_comet:flush(),
+                case gr_adapter:create_space(Name, Token) of
+                    {ok, SpaceId} ->
+                        message(<<"ok_message">>, <<"Created Space ID: <b>", SpaceId/binary, "</b>">>),
+                        add_space_row(SpaceId, RowId);
+                    _ ->
+                        message(<<"error_message">>, <<"Operation failed.<br>Please try again later.">>)
+                end,
+                gui_jq:css(<<"settings_spinner">>, <<"visibility">>, <<"hidden">>),
+                gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"">>),
+                gui_comet:flush(),
+                State;
+
+            {support_space, Token, RowId} ->
+                gui_jq:css(<<"settings_spinner">>, <<"visibility">>, <<"visible">>),
+                gui_comet:flush(),
+                case gr_adapter:support_space(Token) of
+                    {ok, SpaceId} ->
+                        message(<<"ok_message">>, <<"Supported Space ID: <b>", SpaceId/binary, "</b>">>),
+                        add_space_row(SpaceId, RowId);
+                    _ ->
+                        message(<<"error_message">>, <<"Operation failed.<br>Please try again later.">>)
+                end,
+                gui_jq:css(<<"settings_spinner">>, <<"visibility">>, <<"hidden">>),
+                gui_jq:prop(<<"support_space_button">>, <<"disabled">>, <<"">>),
+                gui_comet:flush(),
+                State;
+
+            {cancel_space_support, SpaceId, RowId, ButtonId, SpinnerId} ->
+                gui_jq:show(SpinnerId),
+                gui_comet:flush(),
+                case gr_adapter:cancel_space_support(SpaceId) of
+                    ok ->
+                        message(<<"ok_message">>, <<"Space: <b>", SpaceId/binary, "</b> is no longer supported.">>),
+                        gui_jq:remove(RowId);
+                    _ ->
+                        message(<<"error_message">>, <<"Operation failed.<br>Please try again later.">>)
+                end,
+                gui_jq:hide(SpinnerId),
+                gui_jq:prop(ButtonId, <<"disabled">>, <<"">>),
+                gui_comet:flush(),
+                State;
+
             {spaces_table_collapse, TableId} ->
                 gui_jq:update(TableId, spaces_table_collapsed(TableId)),
                 gui_comet:flush(),
@@ -892,7 +990,7 @@ comet_loop(#?STATE{} = State) ->
         end
                catch Type:Reason ->
                    ?error("Comet process exception: ~p:~p", [Type, Reason]),
-                   onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
+                   message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Reason}
                end,
     comet_loop(NewState).
@@ -912,6 +1010,7 @@ event(init) ->
     put(?COMET_PID, Pid),
     gui_jq:wire(#api{name = "createSpace", tag = "createSpace"}, false),
     gui_jq:wire(#api{name = "supportSpace", tag = "supportSpace"}, false),
+    gui_jq:wire(#api{name = "cancelSpaceSupport", tag = "cancelSpaceSupport"}, false),
     onepanel_gui_utils:bind_key_to_click(<<"13">>, <<"button.confirm">>),
     ok;
 
@@ -946,6 +1045,11 @@ event(support_space) ->
     "else { supportSpace([token]); return true; }">>,
     onepanel_gui_utils:dialog_popup(Title, Message, Script),
     gui_jq:wire(<<"box.on('shown',function(){ $(\"#support_space_token\").focus(); });">>);
+
+event({cancel_space_support, SpaceId, RowId, ButtonId, SpinnerId}) ->
+    Message = <<"Are you sure you want to stop supporting Space: <b>", SpaceId/binary, "</b>?">>,
+    Script = <<"cancelSpaceSupport(['", SpaceId/binary, "','", RowId/binary, "','", ButtonId/binary, "','", SpinnerId/binary, "']);">>,
+    onepanel_gui_utils:confirm_popup(Message, Script);
 
 event({spaces_table_collapse, TableId, SpinnerId}) ->
     get(?COMET_PID) ! {spaces_table_collapse, TableId},
@@ -995,6 +1099,9 @@ event({user_row_expand, SpaceId, ProviderId, RowId, SpinnerId}) ->
     get(?COMET_PID) ! {user_row_expand, SpaceId, ProviderId, RowId},
     gui_jq:update(SpinnerId, spinner());
 
+event({close_message, MessageId}) ->
+    gui_jq:hide(MessageId);
+
 event(terminate) ->
     ok.
 
@@ -1006,18 +1113,19 @@ event(terminate) ->
 %% ====================================================================
 api_event("createSpace", Args, _) ->
     [Name, Token] = mochijson2:decode(Args),
-    case gr_adapter:create_space(Name, Token) of
-        {ok, SpaceId} ->
-            onepanel_gui_utils:message(<<"ok_message">>, <<"Operation success.<br>Created Space ID: ", SpaceId/binary>>);
-        _ ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"Operation failure.<br>Please try again later.">>)
-    end;
+    Id = gui_ctx:get(?ID),
+    gui_ctx:put(?ID, Id + 1),
+    get(?COMET_PID) ! {create_space, Name, Token, <<"space_", (integer_to_binary(Id + 1))/binary>>},
+    gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"disabled">>);
 
 api_event("supportSpace", Args, _) ->
     [Token] = mochijson2:decode(Args),
-    case gr_adapter:support_space(Token) of
-        {ok, SpaceId} ->
-            onepanel_gui_utils:message(<<"ok_message">>, <<"Operation success.<br>Supporting Space ID: ", SpaceId/binary>>);
-        _ ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"Operation failure.<br>Please try again later.">>)
-    end.
+    Id = gui_ctx:get(?ID),
+    gui_ctx:put(?ID, Id + 1),
+    get(?COMET_PID) ! {support_space, Token, <<"space_", (integer_to_binary(Id + 1))/binary>>},
+    gui_jq:prop(<<"support_space_button">>, <<"disabled">>, <<"disabled">>);
+
+api_event("cancelSpaceSupport", Args, _) ->
+    [SpaceId, RowId, ButtonId, SpinnerId] = mochijson2:decode(Args),
+    get(?COMET_PID) ! {cancel_space_support, SpaceId, RowId, ButtonId, SpinnerId},
+    gui_jq:prop(ButtonId, <<"disabled">>, <<"disabled">>).

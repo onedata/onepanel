@@ -19,7 +19,8 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([register/0, unregister/0, create_csr/3, create_space/2, support_space/1]).
+-export([register/0, unregister/0, create_csr/3]).
+-export([create_space/2, support_space/1, cancel_space_support/1]).
 -export([check_ip_address/0, check_port/3]).
 -export([get_provider_spaces/0, get_space_details/1]).
 -export([get_space_providers/1, get_provider_details/2]).
@@ -116,7 +117,7 @@ unregister() ->
 
 %% create_space/2
 %% ====================================================================
-%% @doc Creates new space.
+%% @doc Creates new Space.
 %% @end
 -spec create_space(Name :: binary(), Token :: binary()) -> Result when
     Result :: {ok, SpaceId :: binary()} | {error, Reason :: term()}.
@@ -130,14 +131,14 @@ create_space(Name, Token) ->
         {ok, SpaceId}
     catch
         _:Reason ->
-            ?error("Cannot create space with name ~p and token ~p: ~p", [Name, Token, Reason]),
+            ?error("Cannot create Space with name ~p and token ~p: ~p", [Name, Token, Reason]),
             {error, Reason}
     end.
 
 
 %% support_space/1
 %% ====================================================================
-%% @doc Supports space.
+%% @doc Supports Space.
 %% @end
 -spec support_space(Token :: binary()) -> Result when
     Result :: {ok, SpaceId :: binary()} | {error, Reason :: term()}.
@@ -151,7 +152,26 @@ support_space(Token) ->
         {ok, SpaceId}
     catch
         _:Reason ->
-            ?error("Cannot support space with token ~p: ~p", [Token, Reason]),
+            ?error("Cannot support Space with token ~p: ~p", [Token, Reason]),
+            {error, Reason}
+    end.
+
+
+%% cancel_space_support/1
+%% ====================================================================
+%% @doc Cancels support for given Space.
+%% @end
+-spec cancel_space_support(SpaceId :: binary()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+cancel_space_support(SpaceId) ->
+    try
+        Uri = binary_to_list(<<"/provider/spaces/", SpaceId/binary>>),
+        {ok, "204", _ResHeaders, _ResBody} = gr_utils:send_req(Uri, delete),
+        ok
+    catch
+        _:Reason ->
+            ?error("Cannot cancel support for Space with ID ~p: ~p", [SpaceId, Reason]),
             {error, Reason}
     end.
 
@@ -211,7 +231,7 @@ check_port(Host, Port, Type) ->
 
 %% get_provider_spaces/0
 %% ====================================================================
-%% @doc Returns ids of all provider's spaces.
+%% @doc Returns ids of all provider's Spaces.
 %% @end
 -spec get_provider_spaces() -> Result when
     Result :: {ok, [SpaceId :: binary()]} | {error, Reason :: term()}.
@@ -226,14 +246,14 @@ get_provider_spaces() ->
         {ok, SpaceIds}
     catch
         _:Reason ->
-            ?error("Cannot get provider spaces: ~p", [Reason]),
+            ?error("Cannot get provider Spaces: ~p", [Reason]),
             {error, Reason}
     end.
 
 
 %% get_space_details/1
 %% ====================================================================
-%% @doc Returns space's details.
+%% @doc Returns Space's details.
 %% @end
 -spec get_space_details(SpaceId :: binary()) -> Result when
     Result :: {ok, #?SPACE_DETAILS{}} | {error, Reason :: term()}.
@@ -248,14 +268,14 @@ get_space_details(SpaceId) ->
         {ok, #?SPACE_DETAILS{spaceId = SpaceId, name = Name}}
     catch
         _:Reason ->
-            ?error("Cannot get details of space with ID ~p: ~p", [SpaceId, Reason]),
+            ?error("Cannot get details of Space with ID ~p: ~p", [SpaceId, Reason]),
             {error, Reason}
     end.
 
 
 %% get_space_providers/1
 %% ====================================================================
-%% @doc Returns ids of all spaces providers.
+%% @doc Returns ids of all Spaces providers.
 %% @end
 -spec get_space_providers(SpaceId :: binary()) -> Result when
     Result :: {ok, [ProviderId :: binary()]} | {error, Reason :: term()}.
@@ -270,14 +290,14 @@ get_space_providers(SpaceId) ->
         {ok, Providers}
     catch
         _:Reason ->
-            ?error("Cannot get providers of space with ID ~p: ~p", [SpaceId, Reason]),
+            ?error("Cannot get providers of Space with ID ~p: ~p", [SpaceId, Reason]),
             {error, Reason}
     end.
 
 
 %% get_provider_details/1
 %% ====================================================================
-%% @doc Returns provider's details for given space.
+%% @doc Returns provider's details for given Space.
 %% @end
 -spec get_provider_details(SpaceId :: binary(), ProviderId :: binary()) -> Result when
     Result :: {ok, #?PROVIDER_DETAILS{}} | {error, Reason :: term()}.
@@ -301,7 +321,7 @@ get_provider_details(SpaceId, ProviderId) ->
 
 %% get_space_users/1
 %% ====================================================================
-%% @doc Returns ids of all spaces users.
+%% @doc Returns ids of all Spaces users.
 %% @end
 -spec get_space_users(SpaceId :: binary()) -> Result when
     Result :: {ok, [UserId :: binary()]} | {error, Reason :: term()}.
@@ -316,14 +336,14 @@ get_space_users(SpaceId) ->
         {ok, Providers}
     catch
         _:Reason ->
-            ?error("Cannot get users of space with ID ~p: ~p", [SpaceId, Reason]),
+            ?error("Cannot get users of Space with ID ~p: ~p", [SpaceId, Reason]),
             {error, Reason}
     end.
 
 
 %% get_user_details/1
 %% ====================================================================
-%% @doc Returns user's details for given space.
+%% @doc Returns user's details for given Space.
 %% @end
 -spec get_user_details(SpaceId :: binary(), UserId :: binary()) -> Result when
     Result :: {ok, #?USER_DETAILS{}} | {error, Reason :: term()}.
