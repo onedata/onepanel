@@ -221,9 +221,9 @@ get_provider_spaces() ->
         Uri = "/provider/spaces",
         {ok, "200", _ResHeaders, ResBody} = gr_utils:send_req(Uri, get),
         List = mochijson2:decode(ResBody, [{format, proplist}]),
-        Spaces = proplists:get_value(<<"spaces">>, List),
-        true = (Spaces =/= undefiend),
-        {ok, Spaces}
+        SpaceIds = proplists:get_value(<<"spaces">>, List),
+        true = (SpaceIds =/= undefiend),
+        {ok, SpaceIds}
     catch
         _:Reason ->
             ?error("Cannot get provider spaces: ~p", [Reason]),
