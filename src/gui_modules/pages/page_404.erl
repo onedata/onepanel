@@ -45,23 +45,26 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Main = #panel{
-        class = <<"alert alert-danger">>,
-        style = <<"width: 30em; margin: 0 auto; text-align: center; margin-top: 10em;">>,
-        body = [
-            #h3{
-                body = <<"Error 404">>
-            },
-            #p{
-                body = <<"Requested page could not be found on the server.">>
-            },
-            #button{
-                postback = to_login,
-                class = <<"btn btn-warning btn-block">>,
-                body = <<"Login page">>
-            }
-        ]
-    },
+    Main = [
+        #panel{
+            class = <<"alert alert-danger">>,
+            style = <<"width: 30em; margin: 0 auto; text-align: center; margin-top: 10em;">>,
+            body = [
+                #h3{
+                    body = <<"Error 404">>
+                },
+                #p{
+                    body = <<"Requested page could not be found on the server.">>
+                },
+                #button{
+                    postback = to_login,
+                    class = <<"btn btn-warning btn-block">>,
+                    body = <<"Login page">>
+                }
+            ]
+        },
+        gui_utils:cookie_policy_popup_body(?PAGE_PRIVACY_POLICY)
+    ],
     onepanel_gui_utils:body(Main).
 
 

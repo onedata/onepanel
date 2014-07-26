@@ -63,6 +63,7 @@ route(?PAGE_LOGOUT) -> page_logout;
 route(?PAGE_ABOUT) -> page_about;
 route(?PAGE_ACCOUNT_SETTINGS) -> page_account_settings;
 route(?PAGE_SOFTWARE_SETTINGS) -> page_software_settings;
+route(?PAGE_PRIVACY_POLICY) -> page_privacy_policy;
 
 %% Installation pages
 route(?PAGE_INSTALLATION) -> page_installation;

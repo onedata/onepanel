@@ -47,23 +47,26 @@ title() ->
 body() ->
     gui_ctx:clear_session(),
     session_logic:clear_expired_sessions(),
-    Main = #panel{
-        class = <<"alert alert-success">>,
-        style = <<"width: 30em; margin: 0 auto; text-align: center; margin-top: 10em;">>,
-        body = [
-            #h3{
-                body = <<"Successful logout">>
-            },
-            #p{
-                body = <<"Come back soon.">>
-            },
-            #button{
-                postback = to_login,
-                class = <<"btn btn-primary btn-block">>,
-                body = <<"Login page">>
-            }
-        ]
-    },
+    Main = [
+        #panel{
+            class = <<"alert alert-success">>,
+            style = <<"width: 30em; margin: 0 auto; text-align: center; margin-top: 10em;">>,
+            body = [
+                #h3{
+                    body = <<"Successful logout">>
+                },
+                #p{
+                    body = <<"Come back soon.">>
+                },
+                #button{
+                    postback = to_login,
+                    class = <<"btn btn-primary btn-block">>,
+                    body = <<"Login page">>
+                }
+            ]
+        },
+        gui_utils:cookie_policy_popup_body(?PAGE_PRIVACY_POLICY)
+    ],
     onepanel_gui_utils:body(Main).
 
 

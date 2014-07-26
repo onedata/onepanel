@@ -154,14 +154,16 @@ top_menu(ActiveTabID, ActiveLinkID, SubMenuBody) ->
             url = ?PAGE_LOGOUT, body = #span{class = <<"fui-power">>}}}}
     ]),
 
-    #panel{class = <<"navbar navbar-fixed-top">>, body = [
-        #panel{class = <<"navbar-inner">>, style = <<"border-bottom: 2px solid gray;">>, body = [
-            #panel{class = <<"container">>, body = [
-                #list{class = <<"nav pull-left">>, body = MenuCaptions},
-                #list{class = <<"nav pull-right">>, body = MenuIcons}
+    [
+        #panel{class = <<"navbar navbar-fixed-top">>, body = [
+            #panel{class = <<"navbar-inner">>, style = <<"border-bottom: 2px solid gray;">>, body = [
+                #panel{class = <<"container">>, body = [
+                    #list{class = <<"nav pull-left">>, body = MenuCaptions},
+                    #list{class = <<"nav pull-right">>, body = MenuIcons}
+                ]}
             ]}
-        ]}
-    ] ++ SubMenuBody}.
+        ] ++ SubMenuBody}
+    ] ++ gui_utils:cookie_policy_popup_body(?PAGE_PRIVACY_POLICY).
 
 
 %% get_error_message/1

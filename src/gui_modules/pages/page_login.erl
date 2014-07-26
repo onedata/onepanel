@@ -51,45 +51,48 @@ body() ->
             SourcePage = gui_ctx:url_param(<<"x">>),
             ErrorId = gui_ctx:url_param(<<"id">>),
             Header = error_message(SourcePage, ErrorId),
-            Main = #panel{
-                class = <<"alert alert-success">>,
-                style = <<"width: 30em; margin: 0 auto; text-align: center; margin-top: 10em;">>,
-                body = [
-                    #h3{
-                        body = <<"Welcome to OnePanel">>
-                    },
-                    #form{
-                        id = <<"login_form">>,
-                        method = <<"POST">>,
-                        action = case SourcePage of
-                                     undefined -> ?PAGE_LOGIN_VALIDATION;
-                                     _ -> <<(?PAGE_LOGIN_VALIDATION)/binary, "?x=", SourcePage/binary>>
-                                 end,
-                        style = <<"width: 15em; margin: 0 auto; padding-top: 1em; float: center">>,
-                        body = [
-                            #textbox{
-                                id = <<"username">>,
-                                name = <<"username">>,
-                                class = <<"span">>,
-                                placeholder = <<"Username">>
-                            },
-                            #password{
-                                id = <<"password">>,
-                                name = <<"password">>,
-                                class = <<"span">>,
-                                placeholder = <<"Password">>
-                            },
-                            #button{
-                                id = <<"login_button">>,
-                                type = <<"submit">>,
-                                class = <<"btn btn-primary btn-block">>,
-                                style = <<"margin: 0 auto;">>,
-                                body = <<"Log in">>
-                            }
-                        ]
-                    }
-                ]
-            },
+            Main = [
+                #panel{
+                    class = <<"alert alert-success">>,
+                    style = <<"width: 30em; margin: 0 auto; text-align: center; margin-top: 10em;">>,
+                    body = [
+                        #h3{
+                            body = <<"Welcome to OnePanel">>
+                        },
+                        #form{
+                            id = <<"login_form">>,
+                            method = <<"POST">>,
+                            action = case SourcePage of
+                                         undefined -> ?PAGE_LOGIN_VALIDATION;
+                                         _ -> <<(?PAGE_LOGIN_VALIDATION)/binary, "?x=", SourcePage/binary>>
+                                     end,
+                            style = <<"width: 15em; margin: 0 auto; padding-top: 1em; float: center">>,
+                            body = [
+                                #textbox{
+                                    id = <<"username">>,
+                                    name = <<"username">>,
+                                    class = <<"span">>,
+                                    placeholder = <<"Username">>
+                                },
+                                #password{
+                                    id = <<"password">>,
+                                    name = <<"password">>,
+                                    class = <<"span">>,
+                                    placeholder = <<"Password">>
+                                },
+                                #button{
+                                    id = <<"login_button">>,
+                                    type = <<"submit">>,
+                                    class = <<"btn btn-primary btn-block">>,
+                                    style = <<"margin: 0 auto;">>,
+                                    body = <<"Log in">>
+                                }
+                            ]
+                        }
+                    ]
+                },
+                gui_utils:cookie_policy_popup_body(?PAGE_PRIVACY_POLICY)
+            ],
             onepanel_gui_utils:body(Header, Main)
     end.
 
