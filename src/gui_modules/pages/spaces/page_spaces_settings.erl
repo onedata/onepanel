@@ -347,7 +347,7 @@ space_row_expanded(SpaceId, RowId) ->
                         postback = {cancel_space_support, SpaceId, RowId, CancelSupportButtonId, CancelSupportSpinnerId},
                         class = <<"btn btn-danger btn-small">>,
                         style = <<"font-weight: bold;">>,
-                        body = <<"Cancel Support">>
+                        body = <<"Cancel support">>
                     },
                     #image{
                         id = CancelSupportSpinnerId,
