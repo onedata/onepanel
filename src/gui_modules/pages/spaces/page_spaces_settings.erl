@@ -902,7 +902,7 @@ cacheable_call(Module, Function, Args) ->
 %% clear_call/3
 %% ====================================================================
 %% @doc Clears cache for given function call.
--spec clear_call(Module :: module(), Function :: fun(), Args :: [term()]) -> Result when
+-spec clear_call(Module :: module(), Function :: atom(), Args :: [term()]) -> Result when
     Result :: term().
 %% ====================================================================
 clear_call(Module, Function, Args) ->
