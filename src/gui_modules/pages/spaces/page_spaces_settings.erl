@@ -889,7 +889,7 @@ message(MessageId, Message) ->
     Result :: term().
 %% ====================================================================
 cacheable_call(Module, Function, Args) ->
-    case get({Function, Args}) of
+    case get({Module, Function, Args}) of
         undefined ->
             Result = apply(Module, Function, Args),
             put({Module, Function, Args}, Result),
