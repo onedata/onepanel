@@ -1,18 +1,19 @@
 %% ===================================================================
-%% @author Krzysztof Trzepla
-%% @copyright (C): 2014 ACK CYFRONET AGH
+%% @author Lukasz Opiola
+%% @copyright (C): 2013 ACK CYFRONET AGH
 %% This software is released under the MIT license
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains n2o website code.
-%% This page handles users' logging out.
+%% @doc: This file contains n2o website code.
+%% This page handles user validation via OpenID.
 %% @end
 %% ===================================================================
 
--module(page_logout).
+-module(page_login_validation).
 -export([main/0, event/1]).
 -include("gui_modules/common.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% ====================================================================
 %% API functions
@@ -34,40 +35,33 @@ main() ->
 -spec title() -> Result when
     Result :: binary().
 %% ====================================================================
-title() ->
-    <<"Log out">>.
+title() -> <<"Login validation">>.
 
 
 %% body/0
 %% ====================================================================
 %% @doc This will be placed instead of {{body}} tag in template.
 -spec body() -> Result when
-    Result :: #panel{}.
+    Result :: no_return().
 %% ====================================================================
 body() ->
-    gui_ctx:clear_session(),
-    session_logic:clear_expired_sessions(),
-    Main = [
-        #panel{
-            class = <<"alert alert-success">>,
-            style = <<"width: 30em; margin: 0 auto; text-align: center; margin-top: 10em;">>,
-            body = [
-                #h3{
-                    body = <<"Successful logout">>
-                },
-                #p{
-                    body = <<"Come back soon.">>
-                },
-                #button{
-                    postback = to_login,
-                    class = <<"btn btn-primary btn-block">>,
-                    body = <<"Login page">>
-                }
-            ]
-        },
-        gui_utils:cookie_policy_popup_body(?PAGE_PRIVACY_POLICY)
-    ],
-    onepanel_gui_utils:body(Main).
+    case gui_ctx:user_logged_in() of
+        true -> gui_jq:redirect(?PAGE_ROOT);
+        false ->
+            Params = gui_ctx:form_params(),
+            Username = proplists:get_value(<<"username">>, Params),
+            Password = proplists:get_value(<<"password">>, Params),
+            case user_logic:authenticate(Username, Password) of
+                ok ->
+                    ?info("Successful login of user: ~p", [Username]),
+                    gui_ctx:create_session(),
+                    gui_ctx:set_user_id(Username),
+                    gui_jq:redirect_from_login();
+                {error, Reason} ->
+                    ?error("Invalid login attemp, user ~p: ~p", [Username, Reason]),
+                    gui_jq:redirect(<<(?PAGE_LOGIN)/binary, "?id=", (gui_str:to_binary(Reason))/binary>>)
+            end
+    end.
 
 
 %% ====================================================================
@@ -81,8 +75,4 @@ body() ->
 %% ====================================================================
 event(init) -> ok;
 
-event(to_login) ->
-    gui_jq:redirect_to_login(false);
-
-event(terminate) ->
-    ok.
+event(terminate) -> ok.

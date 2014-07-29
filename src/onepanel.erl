@@ -118,7 +118,7 @@ handle_cast({connection_response, Node}, State) ->
     end;
 
 handle_cast(connection_acknowledgement, State) ->
-    ?info("[Onepanel] Connection acknowledgement."),
+    ?info("[Onepanel] Connection acknowledgement"),
     {noreply, State#state{status = connected}};
 
 handle_cast(Request, State) ->

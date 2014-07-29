@@ -81,20 +81,19 @@ body() ->
                                                       {?STAGE_IDLE, _} -> {<<"">>, <<" display: none;">>};
                                                       _ -> {<<" display: none;">>, <<"">>}
                                                   end,
-    #panel{
-        style = <<"position: relative;">>,
+    Header = onepanel_gui_utils:top_menu(software_tab, update_link),
+    Main = #panel{
+        style = <<"margin-top: 10em; text-align: center;">>,
         body = [
-            onepanel_gui_utils:top_menu(update_tab),
-
-            #panel{
-                id = <<"error_message">>,
-                style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
-                class = <<"dialog dialog-danger">>
-            },
             #panel{
                 id = <<"ok_message">>,
                 style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
                 class = <<"dialog dialog-success">>
+            },
+            #panel{
+                id = <<"error_message">>,
+                style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
+                class = <<"dialog dialog-danger">>
             },
             #panel{
                 style = <<"margin-top: 150px; text-align: center;">>,
@@ -208,8 +207,9 @@ body() ->
                     }
                 ]
             }
-        ] ++ onepanel_gui_utils:logotype_footer(120)
-    }.
+        ]
+    },
+    onepanel_gui_utils:body(Header, Main).
 
 
 %% translate_stage/1

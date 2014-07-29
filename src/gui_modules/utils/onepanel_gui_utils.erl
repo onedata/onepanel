@@ -15,32 +15,65 @@
 -include("onepanel_modules/installer/state.hrl").
 -include_lib("ctool/include/logging.hrl").
 
--export([top_menu/1, top_menu/2, logotype_footer/1]).
--export([get_error_message/1, get_installation_state/0, format_list/1, message/2]).
--export([change_page/2, maybe_redirect/3]).
+-export([body/1, body/2, body/3, top_menu/1, top_menu/2, logotype_footer/0]).
+-export([get_error_message/1, get_installation_state/0, format_list/1, message/2, message/3]).
+-export([change_page/2, maybe_redirect/3, confirm_popup/2, dialog_popup/3, bind_key_to_click/2]).
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
 
-%% logotype_footer/1
+%% body/1
+%% ====================================================================
+%% @doc Template function to render page body, without header and with
+%% default page footer.
+%% @end
+-spec body(Main :: term()) -> Result when
+    Result :: list().
+%% ====================================================================
+body(Main) ->
+    body([], Main).
+
+
+%% body/2
+%% ====================================================================
+%% @doc Template function to render page body, with default page footer.
+%% @end
+-spec body(Header :: term(), Main :: term()) -> Result when
+    Result :: list().
+%% ====================================================================
+body(Header, Main) ->
+    body(Header, Main, logotype_footer()).
+
+
+%% body/3
+%% ====================================================================
+%% @doc Template function to render page body.
+%% @end
+-spec body(Header :: term(), Main :: term(), Footer :: term()) -> Result when
+    Result :: list().
+%% ====================================================================
+body(Header, Main, Footer) ->
+    [
+        #header{id = <<"page-header">>, class = <<"page-row">>, body = Header},
+        #main{id = <<"page-main">>, class = <<"page-row page-row-expanded">>, body = Main},
+        #footer{id = <<"page-footer">>, class = <<"page-row">>, body = Footer}
+    ].
+
+
+%% logotype_footer/0
 %% ====================================================================
 %% @doc Convienience function to render logotype footer, coming after page content.
 %% @end
--spec logotype_footer(MarginTop :: integer()) -> list().
+-spec logotype_footer() -> Result when
+    Result :: #panel{}.
 %% ====================================================================
-logotype_footer(MarginTop) ->
-    Height = integer_to_binary(MarginTop + 82),
-    Margin = integer_to_binary(MarginTop),
-    [
-        #panel{style = <<"position: relative; height: ", Height/binary, "px;">>, body = [
-            #panel{style = <<"text-align: center; z-index: -1; margin-top: ", Margin/binary, "px;">>, body = [
-                #image{style = <<"margin: 10px 100px;">>, image = <<"/images/innow-gosp-logo.png">>},
-                #image{style = <<"margin: 10px 100px;">>, image = <<"/images/plgrid-plus-logo.png">>},
-                #image{style = <<"margin: 10px 100px;">>, image = <<"/images/unia-logo.png">>}
-            ]}
-        ]}
-    ].
+logotype_footer() ->
+    #panel{style = <<"text-align: center; display: flex; justify-content: space-around; padding: 2em; margin-top: 3em;">>, body = [
+        #image{class = <<"pull-left">>, image = <<"/images/innow-gosp-logo.png">>},
+        #image{image = <<"/images/plgrid-plus-logo.png">>},
+        #image{class = <<"pull-right">>, image = <<"/images/unia-logo.png">>}
+    ]}.
 
 
 %% top_menu/1
@@ -48,71 +81,89 @@ logotype_footer(MarginTop) ->
 %% @doc Convienience function to render top menu in GUI pages.
 %% Item with ActiveTabID will be highlighted as active.
 %% @end
--spec top_menu(ActiveTabID :: any()) -> list().
+-spec top_menu(ActiveTabID :: atom()) -> Result when
+    Result :: #panel{}.
 %% ====================================================================
 top_menu(ActiveTabID) ->
-    top_menu(ActiveTabID, []).
+    top_menu(ActiveTabID, undefined).
 
 
 %% top_menu/2
 %% ====================================================================
 %% @doc Convienience function to render top menu in GUI pages.
-%% Item with ActiveTabID will be highlighted as active.
+%% Item with ActiveTabID and ActiveLinkID will be highlighted as active.
+%% @end
+-spec top_menu(ActiveTabID :: atom(), ActiveLinkID :: atom()) -> Result when
+    Result :: #panel{}.
+%% ====================================================================
+top_menu(ActiveTabID, ActiveLinkID) ->
+    top_menu(ActiveTabID, ActiveLinkID, []).
+
+
+%% top_menu/2
+%% ====================================================================
+%% @doc Convienience function to render top menu in GUI pages.
+%% Item with ActiveTabID and ActiveLinkID will be highlighted as active.
 %% Submenu body (list of n2o elements) will be concatenated below the main menu.
 %% @end
--spec top_menu(ActiveTabID :: any(), SubMenuBody :: any()) -> list().
+-spec top_menu(ActiveTabID :: atom(), ActiveLinkID :: atom(), SubMenuBody :: term()) -> Result when
+    Result :: #panel{}.
 %% ====================================================================
-top_menu(ActiveTabID, SubMenuBody) ->
+top_menu(ActiveTabID, ActiveLinkID, SubMenuBody) ->
+    Process = fun(ActiveItem, List) ->
+        lists:map(fun({ItemID, ListItem}) ->
+            case ItemID of
+                ActiveItem -> ListItem#li{class = <<"active">>};
+                _ -> ListItem
+            end
+        end, List)
+    end,
+
     % Define menu items with ids, so that proper tab can be made active via function parameter
-    % see old_menu_captions()
-    MenuCaptions =
-        [
-            {installation_tab, #li{body = [
-                #link{style = <<"padding: 18px;">>, url = ?PAGE_INSTALLATION, body = <<"Installation">>}
-            ]}},
-            {registration_tab, #li{body = [
-                #link{style = <<"padding: 18px;">>, url = ?PAGE_REGISTRATION, body = <<"Registration">>}
-            ]}},
-            {update_tab, #li{body = [
-                #link{style = <<"padding: 18px;">>, url = ?PAGE_UPDATE, body = <<"Update">>}
-            ]}}
-        ],
-
-    MenuIcons =
-        [
-            {manage_account_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Manage account">>,
-                url = ?PAGE_MANAGE_ACCOUNT, body = [gui_ctx:get_user_id(), #span{class = <<"fui-user">>,
-                    style = <<"margin-left: 10px;">>}]}}},
-            {about_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"About">>,
-                url = ?PAGE_ABOUT, body = #span{class = <<"fui-info">>}}}},
-            {logout_button, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Log out">>,
-                url = ?PAGE_LOGOUT, body = #span{class = <<"fui-power">>}}}}
-        ],
-
-    MenuCaptionsProcessed = lists:map(
-        fun({TabID, ListItem}) ->
-            case TabID of
-                ActiveTabID -> ListItem#li{class = <<"active">>};
-                _ -> ListItem
-            end
-        end, MenuCaptions),
-
-    MenuIconsProcessed = lists:map(
-        fun({TabID, ListItem}) ->
-            case TabID of
-                ActiveTabID -> ListItem#li{class = <<"active">>};
-                _ -> ListItem
-            end
-        end, MenuIcons),
-
-    #panel{class = <<"navbar navbar-fixed-top">>, body = [
-        #panel{class = <<"navbar-inner">>, style = <<"border-bottom: 2px solid gray;">>, body = [
-            #panel{class = <<"container">>, body = [
-                #list{class = <<"nav pull-left">>, body = MenuCaptionsProcessed},
-                #list{class = <<"nav pull-right">>, body = MenuIconsProcessed}
+    MenuCaptions = Process(ActiveTabID, [
+        {brand_tab, #li{body = #link{style = <<"padding: 18px;">>, url = ?PAGE_ROOT,
+            body = [
+                #span{class = <<"fui-gear">>},
+                #b{style = <<"font-size: x-large;">>, body = <<"OnePanel">>}
             ]}
-        ]}
-    ] ++ SubMenuBody}.
+        }},
+        {software_tab, #li{body = [
+            #link{style = "padding: 18px;", body = "Software"},
+            #list{style = "top: 37px; width: 120px;", body = Process(ActiveLinkID, [
+                {installation_link, #li{body = #link{url = ?PAGE_INSTALLATION, body = "Installation"}}},
+                {update_link, #li{body = #link{url = ?PAGE_UPDATE, body = "Update"}}},
+                {software_settings_link, #li{body = #link{url = ?PAGE_SOFTWARE_SETTINGS, body = "Settings"}}}
+            ])}
+        ]}},
+        {spaces_tab, #li{body = [
+            #link{style = "padding: 18px;", body = "Spaces"},
+            #list{style = "top: 37px; width: 120px;", body = Process(ActiveLinkID, [
+                {spaces_account_link, #li{body = #link{url = ?PAGE_SPACES_ACCOUNT, body = "Account"}}},
+                {spaces_settings_link, #li{body = #link{url = ?PAGE_SPACES_SETTINGS, body = "Settings"}}}
+            ])}
+        ]}}
+    ]),
+
+    MenuIcons = Process(ActiveTabID, [
+        {account_settings_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Account settings">>,
+            url = ?PAGE_ACCOUNT_SETTINGS, body = [gui_ctx:get_user_id(), #span{class = <<"fui-user">>,
+                style = <<"margin-left: 10px;">>}]}}},
+        {about_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"About">>,
+            url = ?PAGE_ABOUT, body = #span{class = <<"fui-info">>}}}},
+        {logout_button, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Log out">>,
+            url = ?PAGE_LOGOUT, body = #span{class = <<"fui-power">>}}}}
+    ]),
+
+    [
+        #panel{class = <<"navbar navbar-fixed-top">>, body = [
+            #panel{class = <<"navbar-inner">>, style = <<"border-bottom: 2px solid gray;">>, body = [
+                #panel{class = <<"container">>, body = [
+                    #list{class = <<"nav pull-left">>, body = MenuCaptions},
+                    #list{class = <<"nav pull-right">>, body = MenuIcons}
+                ]}
+            ]}
+        ] ++ SubMenuBody}
+    ] ++ gui_utils:cookie_policy_popup_body(?PAGE_PRIVACY_POLICY).
 
 
 %% get_error_message/1
@@ -149,7 +200,8 @@ get_installation_state() ->
 %% change_page/2
 %% ====================================================================
 %% @doc Redirects to given page and saves it in user session.
--spec change_page(Env :: atom(), Page :: string()) -> no_return().
+-spec change_page(Env :: atom(), Page :: string()) -> Result when
+    Result :: ok.
 %% ====================================================================
 change_page(Env, Page) ->
     gui_ctx:put(Env, Page),
@@ -159,7 +211,8 @@ change_page(Env, Page) ->
 %% maybe_redirect/3
 %% ====================================================================
 %% @doc Redirects to appropriate page read from user session.
--spec maybe_redirect(Env :: atom(), Page :: string(), DefaultPage :: string()) -> true | false.
+-spec maybe_redirect(Env :: atom(), Page :: string(), DefaultPage :: string()) -> Result when
+    Result :: true | false.
 %% ====================================================================
 maybe_redirect(Env, CurrentPage, DefaultPage) ->
     case gui_ctx:get(Env) of
@@ -189,9 +242,79 @@ format_list(Hosts) ->
 %% message/2
 %% ====================================================================
 %% @doc Renders a message in given element.
--spec message(Id :: binary(), Message :: binary()) -> no_return().
+-spec message(Id :: binary(), Message :: binary()) -> Result when
+    Result :: ok.
 %% ====================================================================
 message(Id, Message) ->
     gui_jq:update(Id, Message),
     gui_jq:fade_in(Id, 300).
 
+
+%% message/3
+%% ====================================================================
+%% @doc Renders a message in given element and allows to hide this message.
+-spec message(Id :: binary(), Message :: binary(), Postback :: term()) -> Result when
+    Result :: ok.
+%% ====================================================================
+message(Id, Message, Postback) ->
+    Body = [
+        Message,
+        #link{
+            title = <<"Close">>,
+            style = <<"position: absolute; right: 1em;">>,
+            class = <<"glyph-link">>,
+            postback = Postback,
+            body = #span{
+                class = <<"fui-cross">>
+            }
+        }
+    ],
+    gui_jq:update(Id, Body),
+    gui_jq:fade_in(Id, 300).
+
+
+%% confirm_popup/2
+%% ====================================================================
+%% @doc Displays confirm popup.
+-spec confirm_popup(Message :: binary(), Script :: binary()) -> binary().
+%% ====================================================================
+confirm_popup(Message, Script) ->
+    gui_jq:wire(<<"bootbox.confirm(
+        '", Message/binary, "',
+        function(result) {
+            if(result) {", Script/binary, "}
+        }
+    );">>).
+
+
+%% dialog_popup/3
+%% ====================================================================
+%% @doc Displays custom dialog popup.
+-spec dialog_popup(Title :: binary(), Message :: binary(), Script :: binary()) -> binary().
+%% ====================================================================
+dialog_popup(Title, Message, Script) ->
+    gui_jq:wire(<<"var box = bootbox.dialog({
+        title: '", Title/binary, "',
+        message: '", Message/binary, "',
+        buttons: {
+            'Cancel': {
+                className: 'cancel'
+            },
+            'OK': {
+                className: 'btn-primary confirm',
+                callback: function() {", Script/binary, "}
+            }
+        }
+    });">>).
+
+
+%% bind_key_to_click/2
+%% ====================================================================
+%% @doc Makes any keypresses of given key to click on selected class.
+%% @end
+-spec bind_key_to_click(KeyCode :: binary(), TargetID :: binary()) -> string().
+%% ====================================================================
+bind_key_to_click(KeyCode, TargetID) ->
+    Script = <<"$(document).bind('keydown', function (e){",
+    "if (e.which == ", KeyCode/binary, ") { e.preventDefault(); $('", TargetID/binary, "').click(); } });">>,
+    gui_jq:wire(Script, false).

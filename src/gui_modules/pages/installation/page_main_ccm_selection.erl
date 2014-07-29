@@ -62,51 +62,45 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    #panel{
-        style = <<"position: relative;">>,
+    Header = onepanel_gui_utils:top_menu(software_tab, installation_link),
+    Main = #panel{
+        style = <<"margin-top: 10em; text-align: center;">>,
         body = [
-            onepanel_gui_utils:top_menu(installation_tab),
-
             #panel{
                 id = <<"error_message">>,
                 style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
                 class = <<"dialog dialog-danger">>
             },
+            #h6{
+                style = <<"font-size: x-large; margin-bottom: 3em;">>,
+                body = <<"Step 2: Select main Central Cluster Manager host.">>
+            },
             #panel{
-                style = <<"margin-top: 150px; text-align: center;">>,
+                class = <<"btn-group">>,
+                body = main_ccm_body()
+            },
+            #panel{
+                style = <<"width: 50%; margin: 0 auto; margin-top: 3em;">>,
                 body = [
-                    #h6{
-                        style = <<"font-size: 18px;">>,
-                        body = <<"Step 2: Select main Central Cluster Manager host.">>
+                    #button{
+                        id = <<"back_button">>,
+                        postback = back,
+                        class = <<"btn btn-inverse btn-small">>,
+                        style = <<"float: left; width: 8em; font-weight: bold;">>,
+                        body = <<"Back">>
                     },
-                    #panel{
-                        class = <<"btn-group">>,
-                        style = <<"margin: 12px 15px;">>,
-                        body = main_ccm_body()
-                    },
-                    #panel{
-                        style = <<"width: 50%; margin: 0 auto; margin-top: 30px; margin-bottom: 30px;">>,
-                        body = [
-                            #button{
-                                id = <<"back_button">>,
-                                postback = back,
-                                class = <<"btn btn-inverse btn-small">>,
-                                style = <<"float: left; width: 80px; font-weight: bold;">>,
-                                body = <<"Back">>
-                            },
-                            #button{
-                                id = <<"next_button">>,
-                                postback = next,
-                                class = <<"btn btn-inverse btn-small">>,
-                                style = <<"float: right; width: 80px; font-weight: bold;">>,
-                                body = <<"Next">>
-                            }
-                        ]
+                    #button{
+                        id = <<"next_button">>,
+                        postback = next,
+                        class = <<"btn btn-inverse btn-small">>,
+                        style = <<"float: right; width: 8em; font-weight: bold;">>,
+                        body = <<"Next">>
                     }
                 ]
             }
-        ] ++ onepanel_gui_utils:logotype_footer(120)
-    }.
+        ]
+    },
+    onepanel_gui_utils:body(Header, Main).
 
 
 %% main_ccm_body/0
@@ -126,7 +120,7 @@ main_ccm_body() ->
                 id = <<"ccms_button">>,
                 disabled = Db#?CONFIG.main_ccm =/= undefined,
                 class = <<"btn btn-inverse btn-small dropdown-toggle">>,
-                style = <<"width: 280px;">>,
+                style = <<"width: 22em;">>,
                 data_fields = [{<<"data-toggle">>, <<"dropdown">>}],
                 body = [
                     #span{
@@ -142,7 +136,7 @@ main_ccm_body() ->
             #list{
                 id = <<"ccms_dropdown">>,
                 class = <<"dropdown-menu dropdown-inverse">>,
-                style = <<"overflow-y: auto; max-height: 200px;">>,
+                style = <<"overflow-y: auto; max-height: 20em;">>,
                 body = ccms_list_body(Session#?CONFIG.main_ccm, Session#?CONFIG.ccms)
             }
         ]
@@ -196,7 +190,7 @@ event(back) ->
     onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION);
 
 event(next) ->
-    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_ULIMITS);
+    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS);
 
 event({set_main_ccm, MainCCM, CCMs}) ->
     Config = gui_ctx:get(?CONFIG_ID),

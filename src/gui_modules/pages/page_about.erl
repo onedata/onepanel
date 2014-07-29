@@ -6,7 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc: This module contains n2o website code.
-%% The page contains information about the project, licence and contact for support.
+%% This page contains information about the project, licence and contact for support.
 %% @end
 %% ===================================================================
 
@@ -58,21 +58,18 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    #panel{
-        style = <<"position: relative;">>,
+    Header = onepanel_gui_utils:top_menu(about_tab),
+    Main = #panel{
+        style = <<"margin-top: 10em; text-align: center;">>,
         body = [
-            onepanel_gui_utils:top_menu(about_tab),
-
-            #panel{
-                style = <<"margin-top: 60px; padding: 20px;">>,
-                body = [
-                    #panel{
-                        id = <<"about_table">>,
-                        body = about_table()
-                    }
-                ]
-            }
-        ] ++ onepanel_gui_utils:logotype_footer(120)}.
+            #h6{
+                style = <<"font-size: x-large; margin-bottom: 3em;">>,
+                body = <<"About">>
+            },
+            about_table()
+        ]
+    },
+    onepanel_gui_utils:body(Header, Main).
 
 
 %% about_table/0
@@ -82,22 +79,23 @@ body() ->
     Result :: #table{}.
 %% ====================================================================
 about_table() ->
+    DescriptionStyle = <<"border-width: 0; vertical-align: top; text-align: right; padding: 1em 1em; width: 50%;">>,
+    MainStyle = <<"border-width: 0;  text-align: left; padding: 1em 1em;">>,
     #table{
-        style = <<"border-width: 0px; width: auto">>, body = [
+        style = <<"border-width: 0; width: 100%;">>, body = [
             #tr{
                 cells = [
                     #td{
-                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        style = DescriptionStyle,
                         body = #label{
                             class = <<"label label-large label-inverse">>,
-                            style = <<"cursor: auto;">>,
                             body = <<"Contact">>
                         }
                     },
                     #td{
-                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        style = MainStyle,
                         body = #link{
-                            style = <<"font-size: 18px; padding: 5px 0;">>,
+                            style = <<"font-size: large;">>,
                             body = <<?CONTACT_EMAIL>>,
                             url = <<"mailto:", ?CONTACT_EMAIL>>
                         }
@@ -107,15 +105,14 @@ about_table() ->
             #tr{
                 cells = [
                     #td{
-                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        style = DescriptionStyle,
                         body = #label{
                             class = <<"label label-large label-inverse">>,
-                            style = <<"cursor: auto;">>,
                             body = <<"Acknowledgements">>
                         }
                     },
                     #td{
-                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        style = MainStyle,
                         body = #p{
                             body = <<"This research was supported in part by PL-Grid Infrastructure.">>
                         }
@@ -125,17 +122,16 @@ about_table() ->
             #tr{
                 cells = [
                     #td{
-                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        style = DescriptionStyle,
                         body = #label{
                             class = <<"label label-large label-inverse">>,
-                            style = <<"cursor: auto;">>,
                             body = <<"License">>
                         }
                     },
                     #td{
-                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        style = MainStyle,
                         body = #p{
-                            style = <<"white-space: pre; font-size: 100%; line-height: normal">>,
+                            style = <<"white-space: pre; font-size: initial; line-height: initial">>,
                             body = get_license()
                         }
                     }
@@ -144,15 +140,14 @@ about_table() ->
             #tr{
                 cells = [
                     #td{
-                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        style = DescriptionStyle,
                         body = #label{
                             class = <<"label label-large label-inverse">>,
-                            style = <<"cursor: auto;">>,
                             body = <<"Team">>
                         }
                     },
                     #td{
-                        style = <<"border-width: 0px; padding: 10px 10px">>,
+                        style = MainStyle,
                         body = get_team()
                     }
                 ]
@@ -185,7 +180,7 @@ get_license() ->
 get_team() ->
     #list{numbered = false, body = lists:map(
         fun(Member) ->
-            #li{style = <<"font-size: 18px; padding: 5px 0;">>, body = Member}
+            #li{style = <<"font-size: large; line-height: 1.5em">>, body = Member}
         end, ?MEMBERS)
     }.
 

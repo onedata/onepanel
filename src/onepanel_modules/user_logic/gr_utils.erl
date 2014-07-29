@@ -12,16 +12,62 @@
 -module(gr_utils).
 
 -include("registered_names.hrl").
+-include("onepanel_modules/space_logic.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
+-export([send_req/2, send_req/3, send_req/4]).
 -export([get_ports_to_check/0, get_control_panel_hosts/0, get_provider_id/0]).
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
+
+
+%% send_req/2
+%% ====================================================================
+%% @doc Sends given request to Global Registry with default options
+%% and empty body using REST API.
+-spec send_req(Uri :: string(), Method :: atom()) -> Result when
+    Result :: {ok, Status :: string(), ResponseHeaders :: binary(), ResponseBody :: binary()} | {error, Reason :: term()}.
+%% ====================================================================
+send_req(Uri, Method) ->
+    send_req(Uri, Method, []).
+
+
+%% send_req/3
+%% ====================================================================
+%% @doc Sends given request to Global Registry with default options
+%% using REST API.
+-spec send_req(Uri :: string(), Method :: atom(), Body :: binary()) -> Result when
+    Result :: {ok, Status :: string(), ResponseHeaders :: binary(), ResponseBody :: binary()} | {error, Reason :: term()}.
+%% ====================================================================
+send_req(Uri, Method, Body) ->
+    send_req(Uri, Method, Body, []).
+
+
+%% send_req/4
+%% ====================================================================
+%% @doc Sends given request to Global Registry using REST API.
+-spec send_req(Uri :: string(), Method :: atom(), Body :: binary(), Options :: list()) -> Result when
+    Result :: {ok, Status :: string(), ResponseHeaders :: binary(), ResponseBody :: binary()} | {error, Reason :: term()}.
+%% ====================================================================
+send_req(Uri, Method, Body, Options) ->
+    {ok, Url} = application:get_env(?APP_NAME, global_registry_url),
+    {ok, KeyFile} = application:get_env(?APP_NAME, grpkey_file),
+    {ok, CertFile} = application:get_env(?APP_NAME, grpcert_file),
+    {ok, CACertFile} = application:get_env(?APP_NAME, grpcacert_file),
+    {ok, Key} = file:read_file(KeyFile),
+    {ok, Cert} = file:read_file(CertFile),
+    {ok, CACert} = file:read_file(CACertFile),
+    [{KeyType, KeyEncoded, _} | _] = public_key:pem_decode(Key),
+    [{_, CertEncoded, _} | _] = public_key:pem_decode(Cert),
+    [{_, CACertEncoded, _} | _] = public_key:pem_decode(CACert),
+    SSLOptions = {ssl_options, [{cacerts, [CACertEncoded]}, {key, {KeyType, KeyEncoded}}, {cert, CertEncoded}]},
+    ibrowse:send_req(Url ++ Uri, [{content_type, "application/json"}], Method, Body, [SSLOptions | Options]).
+
 
 %% get_ports_to_check/0
 %% ====================================================================
@@ -73,8 +119,8 @@ get_control_panel_hosts() ->
     Result :: undefined | binary().
 %% ====================================================================
 get_provider_id() ->
-    case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-        {ok, #?GLOBAL_CONFIG_RECORD{providerId = ProviderId}} ->
+    case dao:get_records(?PROVIDER_TABLE) of
+        {ok, [#?PROVIDER_RECORD{providerId = ProviderId} | _]} ->
             ProviderId;
         _ ->
             undefined

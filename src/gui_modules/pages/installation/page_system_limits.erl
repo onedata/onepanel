@@ -11,7 +11,7 @@
 %% @end
 %% ===================================================================
 
--module(page_ulimits).
+-module(page_system_limits).
 -export([main/0, event/1]).
 
 -include("gui_modules/common.hrl").
@@ -35,7 +35,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect(?CURRENT_INSTALLATION_PAGE, ?PAGE_ULIMITS, ?PAGE_INSTALLATION) of
+            case onepanel_gui_utils:maybe_redirect(?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS, ?PAGE_INSTALLATION) of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
@@ -76,51 +76,46 @@ body() ->
         {[<<"open_files_textbox_", HostId/binary>>, <<"processes_textbox_", HostId/binary>> | Ids], Id + 1}
     end, {[], 1}, Hosts),
 
-    #panel{
-        style = <<"position: relative;">>,
+    Header = onepanel_gui_utils:top_menu(software_tab, installation_link),
+    Main = #panel{
+        style = <<"margin-top: 10em; text-align: center;">>,
         body = [
-            onepanel_gui_utils:top_menu(installation_tab),
-
             #panel{
                 id = <<"error_message">>,
                 style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
                 class = <<"dialog dialog-danger">>
             },
+            #h6{
+                style = <<"font-size: x-large; margin-bottom: 3em;">>,
+                body = <<"Step 3: Set system limits.">>
+            },
+            #table{
+                class = <<"table table-bordered">>,
+                style = <<"width: 50%; margin: 0 auto;">>,
+                body = ulimits_table_body(Hosts, InstalledHosts)
+            },
             #panel{
-                style = <<"margin-top: 150px; text-align: center;">>,
+                style = <<"width: 50%; margin: 0 auto; margin-top: 3em;">>,
                 body = [
-                    #h6{
-                        style = <<"font-size: 18px;">>,
-                        body = <<"Step 3: Set system limits.">>
+                    #button{
+                        id = <<"back_button">>,
+                        postback = back,
+                        class = <<"btn btn-inverse btn-small">>,
+                        style = <<"float: left; width: 8em; font-weight: bold;">>,
+                        body = <<"Back">>
                     },
-                    #table{
-                        class = <<"table table-bordered">>,
-                        style = <<"width: 50%; margin: 0 auto; margin-top: 30px;">>,
-                        body = ulimits_table_body(Hosts, InstalledHosts)
-                    },
-                    #panel{
-                        style = <<"width: 50%; margin: 0 auto; margin-top: 30px; margin-bottom: 30px;">>,
-                        body = [
-                            #button{
-                                id = <<"back_button">>,
-                                postback = back,
-                                class = <<"btn btn-inverse btn-small">>,
-                                style = <<"float: left; width: 80px; font-weight: bold;">>,
-                                body = <<"Back">>
-                            },
-                            #button{
-                                id = <<"next_button">>,
-                                actions = gui_jq:form_submit_action(<<"next_button">>, {set_ulimits, Hosts}, TextboxIds),
-                                class = <<"btn btn-inverse btn-small">>,
-                                style = <<"float: right; width: 80px; font-weight: bold;">>,
-                                body = <<"Next">>
-                            }
-                        ]
+                    #button{
+                        id = <<"next_button">>,
+                        actions = gui_jq:form_submit_action(<<"next_button">>, {set_ulimits, Hosts}, TextboxIds),
+                        class = <<"btn btn-inverse btn-small">>,
+                        style = <<"float: right; width: 8em; font-weight: bold;">>,
+                        body = <<"Next">>
                     }
                 ]
             }
-        ] ++ onepanel_gui_utils:logotype_footer(120)
-    }.
+        ]
+    },
+    onepanel_gui_utils:body(Header, Main).
 
 
 %% ulimits_table_body/2
@@ -185,7 +180,7 @@ ulimits_table_body(Hosts, InstalledHosts) ->
                             style = ColumnStyle,
                             body = #textbox{
                                 id = TextboxId,
-                                style = <<"text-align: center;">>,
+                                style = <<"text-align: center; margin: 0 auto;">>,
                                 class = <<"span1">>,
                                 value = list_to_binary(Text),
                                 disabled = case lists:member(Host, InstalledHosts) of
