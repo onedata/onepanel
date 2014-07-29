@@ -1,0 +1,100 @@
+#!/bin/sh
+#
+# chkconfig: 2345 80 30
+# description: Onepanel service
+
+### BEGIN INIT INFO
+# Provides:		        onepanel_init
+# Required-Start:	    $local_fs $remote_fs $network $time
+# Required-Stop:	    $local_fs $remote_fs $network $time
+# Should-Start:		    $syslog
+# Should-Stop:		    $syslog
+# Default-Start:	    3 4 5
+# Default-Stop:		    0 1 2 6
+# Short-Description:	Onepanel service
+# Description:          This service starts up the Onepanel node as a daemon.
+### END INIT INFO
+
+# Source function library.
+. /etc/init.d/functions
+
+# Needed for erlexec to run
+export HOME=/
+
+# Service name
+ONEPANEL=onepanel
+
+# Lock file (required by red-hat based systems)
+VAR_SUBSYS_ONEPANEL=/var/lock/subsys/$ONEPANEL
+
+# Default installation path
+PREFIX=/opt/veil/nodes/$ONEPANEL
+
+start() {
+	status_silent ; status=$?
+	if [ $status -ne 0 ]; then
+		echo -n $"Starting ${ONEPANEL}: "
+	    ${PREFIX}/bin/${ONEPANEL} start > /dev/null 2>&1 ; ret=$?
+        [ $ret -eq 0 ] && success || failure
+        echo
+	    return $ret
+	fi
+}
+
+stop() {
+	status_silent ; status=$?
+	if [ $status -eq 0 ]; then
+	    echo -n $"Stopping ${ONEPANEL}: "
+	    ${PREFIX}/bin/${ONEPANEL} stop > /dev/null 2>&1 ; ret=$?
+        [ $ret -eq 0 ] && success || failure
+        echo
+	    return $ret
+	fi
+}
+
+restart() {
+	stop
+	start
+}
+
+status() {
+    status_silent ; status=$?
+    echo -n $"${ONEPANEL}: "
+	if [ $status -eq 0 ]; then
+        echo "running"
+	    return 0
+	else
+		echo "not running"
+		return 3
+	fi
+}
+
+status_silent() {
+    ${PREFIX}/bin/${ONEPANEL} ping > /dev/null 2>&1 ; ret=$?
+    return $ret
+}
+
+case "$1" in
+    start)
+        start && touch $VAR_SUBSYS_ONEPANEL
+        ;;
+
+    stop)
+        stop && rm -f $VAR_SUBSYS_ONEPANEL
+	    ;;
+
+    restart|force-reload)
+	    restart
+	    ;;
+
+    status)
+	    status
+	    ;;
+
+    *)
+	    echo $"Usage: $0 {start|stop|restart|force-reload|status}"
+	    exit 2
+	    ;;
+esac
+
+exit $?
