@@ -22,4 +22,4 @@
 ##-env ERL_FULLSWEEP_AFTER 10
 
 ## Onepanel multicast address that can be overwritten during RPM package generation
--onepanel multicast_address {239, 255, 0, 1}
+-onepanel multicast_address "\{239, 255, 0, 1\}"
