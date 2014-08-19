@@ -296,7 +296,7 @@ local_start(MainCCM, OptCCMs, Dbs, StoragePaths) ->
         ok = installer_utils:overwrite_config_args(NodeConfigPath, "opt_ccms", OptCCMNames),
         ok = installer_utils:overwrite_config_args(NodeConfigPath, "db_nodes", DbNames),
         ok = installer_utils:overwrite_config_args(NodeConfigPath, "storage_config_path", StorageConfigPath),
-        ok = installer_utils:add_node_to_config(worker, list_to_atom(?DEFAULT_WORKER_NAME), ?DEFAULT_NODES_INSTALL_PATH),
+        ok = installer_utils:add_node_to_config(worker_node, list_to_atom(?DEFAULT_WORKER_NAME), ?DEFAULT_NODES_INSTALL_PATH),
         ok = installer_storage:add_storage_paths_on_host(StoragePaths),
 
         os:cmd(OverwriteCommand),
@@ -325,7 +325,7 @@ local_stop(StoragePaths) ->
         WorkerPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME]),
 
         "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ WorkerPath ++ " | awk '{print $2}'`"),
-        ok = installer_utils:remove_node_from_config(worker),
+        ok = installer_utils:remove_node_from_config(worker_node),
         ok = installer_storage:remove_storage_paths_on_host(StoragePaths),
 
         {ok, Host}
