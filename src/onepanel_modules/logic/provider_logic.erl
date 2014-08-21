@@ -15,10 +15,12 @@
 -include("registered_names.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
+-include("onepanel_modules/logic/provider_logic.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([register/0, create_csr/3, get_ports_to_check/0]).
+-export([register/0, unregister/0, create_csr/3]).
+-export([get_ports_to_check/0, get_provider_id/0]).
 
 -on_load(init/0).
 
@@ -90,11 +92,32 @@ register() ->
         %% Save provider ID and certifiacte on all hosts
         ok = file:write_file(CertFile, Cert),
         ok = onepanel_utils:save_file_on_hosts(Path, CertName, Cert),
+        ok = dao:save_record(?PROVIDER_TABLE, #?PROVIDER_RECORD{id = ProviderId, urls = URLs, redirectionPoint = RedirectionPoint}),
 
         {ok, ProviderId}
     catch
         _:Reason ->
             ?error("Cannot register in Global Registry: ~p", [Reason]),
+            {error, Reason}
+    end.
+
+
+%% unregister/0
+%% ====================================================================
+%% @doc Unregisters provider from Global Registry and removes his details
+%% from database.
+%% @end
+-spec unregister() -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+unregister() ->
+    try
+        ProviderId = get_provider_id(),
+        ok = gr_providers:unregister(provider),
+        ok = dao:delete_record(?PROVIDER_TABLE, ProviderId)
+    catch
+        _:Reason ->
+            ?error("Cannot unregister from Global Registry: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -116,4 +139,19 @@ get_ports_to_check() ->
         _:Reason ->
             ?error("Cannot get ports to check: ~p", [Reason]),
             {error, Reason}
+    end.
+
+
+%% get_provider_id/0
+%% ====================================================================
+%% @doc Returns provider ID.
+-spec get_provider_id() -> Result when
+    Result :: undefined | binary().
+%% ====================================================================
+get_provider_id() ->
+    case dao:get_records(?PROVIDER_TABLE) of
+        {ok, [#?PROVIDER_RECORD{id = ProviderId} | _]} ->
+            ProviderId;
+        _ ->
+            undefined
     end.

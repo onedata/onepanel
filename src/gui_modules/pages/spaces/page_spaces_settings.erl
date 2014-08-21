@@ -14,8 +14,10 @@
 -export([main/0, event/1, api_event/3]).
 
 -include("gui_modules/common.hrl").
--include("onepanel_modules/space_logic.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/global_registry/gr_users.hrl").
+-include_lib("ctool/include/global_registry/gr_spaces.hrl").
+-include_lib("ctool/include/global_registry/gr_providers.hrl").
 
 %% Common page CCS styles
 -define(MESSAGE_STYLE, <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>).
@@ -50,7 +52,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            ProviderId = gr_utils:get_provider_id(),
+            ProviderId = provider_logic:get_provider_id(),
             #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body(ProviderId)}, {custom, custom()}]};
         false ->
             gui_jq:redirect_to_login(true),
@@ -185,7 +187,7 @@ spaces_table_collapsed(TableId) ->
         ]
     },
     try
-        {ok, SpaceIds} = cacheable_call(provider_logic, get_provider_spaces, []),
+        {ok, SpaceIds} = cacheable_call(gr_providers, get_spaces, [provider]),
         Rows = lists:map(fun({SpaceId, Counter}) ->
             RowId = <<"space_", (integer_to_binary(Counter))/binary>>,
             #tr{
@@ -224,7 +226,7 @@ spaces_table_expanded(TableId) ->
         ]
     },
     try
-        {ok, SpaceIds} = cacheable_call(provider_logic, get_provider_spaces, []),
+        {ok, SpaceIds} = cacheable_call(gr_providers, get_spaces, [provider]),
         Rows = lists:map(fun({SpaceId, Counter}) ->
             RowId = <<"space_", (integer_to_binary(Counter))/binary>>,
             #tr{
@@ -294,7 +296,7 @@ space_row_collapsed(SpaceId, RowId) ->
 %% ====================================================================
 space_row_expanded(SpaceId, RowId) ->
     try
-        {ok, #?SPACE_DETAILS{name = Name}} = cacheable_call(provider_logic, get_space_details, [SpaceId]),
+        {ok, #space_info{name = Name}} = cacheable_call(gr_providers, get_space_info, [provider, SpaceId]),
         SpinnerId = <<RowId/binary, "_spinner">>,
         ProvidersTableId = <<RowId/binary, "_providers">>,
         UsersTableId = <<RowId/binary, "_users">>,
@@ -408,7 +410,7 @@ providers_table_collapsed(SpaceId, TableId) ->
         ]
     },
     try
-        {ok, ProviderIds} = cacheable_call(provider_logic, get_space_providers, [SpaceId]),
+        {ok, ProviderIds} = cacheable_call(gr_spaces, get_providers, [provider, SpaceId]),
         Rows = lists:map(fun({ProviderId, Counter}) ->
             RowId = <<TableId/binary, "_", (integer_to_binary(Counter))/binary>>,
             #tr{
@@ -447,7 +449,7 @@ providers_table_expanded(SpaceId, TableId) ->
         ]
     },
     try
-        {ok, ProviderIds} = cacheable_call(provider_logic, get_space_providers, [SpaceId]),
+        {ok, ProviderIds} = cacheable_call(gr_spaces, get_providers, [provider, SpaceId]),
         Rows = lists:map(fun({ProviderId, Counter}) ->
             RowId = <<TableId/binary, "_", (integer_to_binary(Counter))/binary>>,
             #tr{
@@ -516,8 +518,8 @@ provider_row_collapsed(SpaceId, ProviderId, RowId) ->
 %% ====================================================================
 provider_row_expanded(SpaceId, ProviderId, RowId) ->
     try
-        {ok, #?PROVIDER_DETAILS{urls = Urls, redirectionPoint = RedirectionPoint}} =
-            cacheable_call(provider_logic, get_provider_details, [SpaceId, ProviderId]),
+        {ok, #provider_info{urls = Urls, redirectionPoint = RedirectionPoint}} =
+            cacheable_call(gr_spaces, get_provider_info, [provider, SpaceId, ProviderId]),
         SpinnerId = <<RowId/binary, "_spinner">>,
         [
             #td{
@@ -628,7 +630,7 @@ users_table_collapsed(SpaceId, TableId) ->
         ]
     },
     try
-        {ok, UserIds} = cacheable_call(provider_logic, get_space_users, [SpaceId]),
+        {ok, UserIds} = cacheable_call(gr_spaces, get_users, [provider, SpaceId]),
         Rows = lists:map(fun({UserId, Counter}) ->
             RowId = <<TableId/binary, "_", (integer_to_binary(Counter))/binary>>,
             #tr{
@@ -667,7 +669,7 @@ users_table_expanded(SpaceId, TableId) ->
         ]
     },
     try
-        {ok, UserIds} = cacheable_call(provider_logic, get_space_users, [SpaceId]),
+        {ok, UserIds} = cacheable_call(gr_spaces, get_users, [provider, SpaceId]),
         Rows = lists:map(fun({UserId, Counter}) ->
             RowId = <<TableId/binary, "_", (integer_to_binary(Counter))/binary>>,
             #tr{
@@ -736,7 +738,7 @@ user_row_collapsed(SpaceId, UserId, RowId) ->
 %% ====================================================================
 user_row_expanded(SpaceId, UserId, RowId) ->
     try
-        {ok, #?USER_DETAILS{name = Name}} = cacheable_call(provider_logic, get_user_details, [SpaceId, UserId]),
+        {ok, #user_info{name = Name}} = cacheable_call(gr_spaces, get_user_info, [provider, SpaceId, UserId]),
         SpinnerId = <<RowId/binary, "_spinner">>,
         [
             #td{

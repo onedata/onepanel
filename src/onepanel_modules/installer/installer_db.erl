@@ -12,7 +12,7 @@
 -module(installer_db).
 -behaviour(installer_behaviour).
 
--include("onepanel_modules/user_logic.hrl").
+-include("onepanel_modules/logic/user_logic.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").

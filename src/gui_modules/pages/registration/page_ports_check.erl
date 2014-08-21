@@ -16,6 +16,7 @@
 
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/installer/state.hrl").
+-include("onepanel_modules/installer/internals.hrl").
 
 %% ====================================================================
 %% API functions

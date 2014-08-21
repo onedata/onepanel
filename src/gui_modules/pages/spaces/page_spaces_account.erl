@@ -12,8 +12,9 @@
 
 -module(page_spaces_account).
 -export([main/0, event/1, api_event/3]).
+
 -include("gui_modules/common.hrl").
--include("onepanel_modules/space_logic.hrl").
+-include("onepanel_modules/logic/provider_logic.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% ====================================================================
@@ -36,7 +37,7 @@ main() ->
                     case gui_ctx:get(?CURRENT_REGISTRATION_PAGE) of
                         undefined ->
                             case dao:get_records(?PROVIDER_TABLE) of
-                                {ok, [#?PROVIDER_RECORD{providerId = ProviderId, urls = Urls, redirectionPoint = RedirectionPoint} | _]}
+                                {ok, [#?PROVIDER_RECORD{id = ProviderId, urls = Urls, redirectionPoint = RedirectionPoint} | _]}
                                     when ProviderId =/= undefined ->
                                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()},
                                         {body, body(ProviderId, Urls, RedirectionPoint)}, {custom, custom()}]};

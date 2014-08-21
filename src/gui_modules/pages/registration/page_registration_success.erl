@@ -68,7 +68,7 @@ body() ->
                     #h3{
                         body = <<"Successful registration">>
                     },
-                    case gr_utils:get_provider_id() of
+                    case provider_logic:get_provider_id() of
                         undefined -> #p{};
                         ProviderId -> #p{
                             body = <<"Your provider ID: <b>", ProviderId/binary, "</b>">>

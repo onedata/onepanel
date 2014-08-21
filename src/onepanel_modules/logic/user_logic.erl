@@ -12,7 +12,7 @@
 -module(user_logic).
 
 -include("gui_modules/common.hrl").
--include("onepanel_modules/user_logic.hrl").
+-include("onepanel_modules/logic/user_logic.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% Length of salt added to user password
