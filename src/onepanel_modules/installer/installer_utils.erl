@@ -216,7 +216,7 @@ finalize_installation(_, 0) ->
     {error, attempts_limit_exceeded};
 
 finalize_installation(MainCCM, Attempts) ->
-    case gr_utils:get_control_panel_hosts() of
+    case onepanel_utils:get_control_panel_hosts() of
         {ok, [_ | _]} ->
             ok;
         _ ->

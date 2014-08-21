@@ -60,11 +60,11 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    ControlPanelHosts = case gr_utils:get_control_panel_hosts() of
+    ControlPanelHosts = case onepanel_utils:get_control_panel_hosts() of
                             {ok, Hosts} -> Hosts;
                             _ -> []
                         end,
-    {DefaultGuiPort, DefaultRestPort} = case gr_utils:get_ports_to_check() of
+    {DefaultGuiPort, DefaultRestPort} = case provider_logic:get_ports_to_check() of
                                             {ok, [{"gui", GuiPort}, {"rest", RestPort}]} -> {GuiPort, RestPort};
                                             _ -> {0, 0}
                                         end,
@@ -238,7 +238,7 @@ event({check_ports, Hosts}) ->
                         true = validate_port(Port),
                         ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{Field, list_to_integer(Port)}]),
                         Node = onepanel_utils:get_node(Host),
-                        {ok, IpAddress} = rpc:call(Node, ?MODULE, check_ip_address, [], ?RPC_TIMEOUT),
+                        {ok, IpAddress} = rpc:call(Node, gr_providers, check_ip_address, [provider, ?CONNECTION_TIMEOUT]),
                         ok = gr_providers:check_port(provider, IpAddress, list_to_integer(Port), Type),
                         gui_jq:css(TextboxId, <<"border-color">>, <<"green">>),
                         false
