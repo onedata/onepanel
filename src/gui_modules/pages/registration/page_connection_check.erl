@@ -192,7 +192,7 @@ event(next) ->
     Pid ! {init, round(?CONNECTION_TIMEOUT / ?DEFAULT_NEXT_UPDATE)},
     spawn(fun() ->
         timer:sleep(1000),
-        case gr_adapter:check_ip_address() of
+        case provider_logic:check_ip_address() of
             {ok, _} -> Pid ! {set_status, connection_success};
             _ -> Pid ! {set_status, connection_error}
         end

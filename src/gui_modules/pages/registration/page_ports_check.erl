@@ -236,7 +236,9 @@ event({check_ports, Hosts}) ->
                         Port = gui_str:to_list(gui_ctx:postback_param(TextboxId)),
                         true = validate_port(Port),
                         ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{Field, list_to_integer(Port)}]),
-                        ok = gr_adapter:check_port(Host, list_to_integer(Port), Type),
+                        Node = onepanel_utils:get_node(Host),
+                        {ok, IpAddress} = rpc:call(Node, ?MODULE, check_ip_address, [], ?RPC_TIMEOUT),
+                        ok = gr_providers:check_port(provider, IpAddress, list_to_integer(Port), Type),
                         gui_jq:css(TextboxId, <<"border-color">>, <<"green">>),
                         false
                     catch

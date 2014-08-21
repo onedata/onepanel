@@ -185,7 +185,7 @@ spaces_table_collapsed(TableId) ->
         ]
     },
     try
-        {ok, SpaceIds} = cacheable_call(gr_adapter, get_provider_spaces, []),
+        {ok, SpaceIds} = cacheable_call(provider_logic, get_provider_spaces, []),
         Rows = lists:map(fun({SpaceId, Counter}) ->
             RowId = <<"space_", (integer_to_binary(Counter))/binary>>,
             #tr{
@@ -198,7 +198,7 @@ spaces_table_collapsed(TableId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch supported Spaces.<br>Please try again later.">>),
-            clear_call(gr_adapter, get_provider_spaces, []),
+            clear_call(provider_logic, get_provider_spaces, []),
             [Header]
     end.
 
@@ -224,7 +224,7 @@ spaces_table_expanded(TableId) ->
         ]
     },
     try
-        {ok, SpaceIds} = cacheable_call(gr_adapter, get_provider_spaces, []),
+        {ok, SpaceIds} = cacheable_call(provider_logic, get_provider_spaces, []),
         Rows = lists:map(fun({SpaceId, Counter}) ->
             RowId = <<"space_", (integer_to_binary(Counter))/binary>>,
             #tr{
@@ -237,7 +237,7 @@ spaces_table_expanded(TableId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch supported Spaces.<br>Please try again later.">>),
-            clear_call(gr_adapter, get_provider_spaces, []),
+            clear_call(provider_logic, get_provider_spaces, []),
             [Header]
     end.
 
@@ -294,7 +294,7 @@ space_row_collapsed(SpaceId, RowId) ->
 %% ====================================================================
 space_row_expanded(SpaceId, RowId) ->
     try
-        {ok, #?SPACE_DETAILS{name = Name}} = cacheable_call(gr_adapter, get_space_details, [SpaceId]),
+        {ok, #?SPACE_DETAILS{name = Name}} = cacheable_call(provider_logic, get_space_details, [SpaceId]),
         SpinnerId = <<RowId/binary, "_spinner">>,
         ProvidersTableId = <<RowId/binary, "_providers">>,
         UsersTableId = <<RowId/binary, "_users">>,
@@ -367,7 +367,7 @@ space_row_expanded(SpaceId, RowId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch Space details.<br>Please try again later.">>),
-            clear_call(gr_adapter, get_space_details, [SpaceId]),
+            clear_call(provider_logic, get_space_details, [SpaceId]),
             space_row_collapsed(SpaceId, RowId)
     end.
 
@@ -408,7 +408,7 @@ providers_table_collapsed(SpaceId, TableId) ->
         ]
     },
     try
-        {ok, ProviderIds} = cacheable_call(gr_adapter, get_space_providers, [SpaceId]),
+        {ok, ProviderIds} = cacheable_call(provider_logic, get_space_providers, [SpaceId]),
         Rows = lists:map(fun({ProviderId, Counter}) ->
             RowId = <<TableId/binary, "_", (integer_to_binary(Counter))/binary>>,
             #tr{
@@ -420,7 +420,7 @@ providers_table_collapsed(SpaceId, TableId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch Space's providers.<br>Please try again later.">>),
-            clear_call(gr_adapter, get_space_providers, [SpaceId]),
+            clear_call(provider_logic, get_space_providers, [SpaceId]),
             [Header]
     end.
 
@@ -447,7 +447,7 @@ providers_table_expanded(SpaceId, TableId) ->
         ]
     },
     try
-        {ok, ProviderIds} = cacheable_call(gr_adapter, get_space_providers, [SpaceId]),
+        {ok, ProviderIds} = cacheable_call(provider_logic, get_space_providers, [SpaceId]),
         Rows = lists:map(fun({ProviderId, Counter}) ->
             RowId = <<TableId/binary, "_", (integer_to_binary(Counter))/binary>>,
             #tr{
@@ -459,7 +459,7 @@ providers_table_expanded(SpaceId, TableId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch Space's providers.<br>Please try again later.">>),
-            clear_call(gr_adapter, get_space_providers, [SpaceId]),
+            clear_call(provider_logic, get_space_providers, [SpaceId]),
             [Header]
     end.
 
@@ -517,7 +517,7 @@ provider_row_collapsed(SpaceId, ProviderId, RowId) ->
 provider_row_expanded(SpaceId, ProviderId, RowId) ->
     try
         {ok, #?PROVIDER_DETAILS{urls = Urls, redirectionPoint = RedirectionPoint}} =
-            cacheable_call(gr_adapter, get_provider_details, [SpaceId, ProviderId]),
+            cacheable_call(provider_logic, get_provider_details, [SpaceId, ProviderId]),
         SpinnerId = <<RowId/binary, "_spinner">>,
         [
             #td{
@@ -601,7 +601,7 @@ provider_row_expanded(SpaceId, ProviderId, RowId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch Space's provider details.<br>Please try again later.">>),
-            clear_call(gr_adapter, get_provider_details, [SpaceId, ProviderId]),
+            clear_call(provider_logic, get_provider_details, [SpaceId, ProviderId]),
             provider_row_collapsed(SpaceId, ProviderId, RowId)
     end.
 
@@ -628,7 +628,7 @@ users_table_collapsed(SpaceId, TableId) ->
         ]
     },
     try
-        {ok, UserIds} = cacheable_call(gr_adapter, get_space_users, [SpaceId]),
+        {ok, UserIds} = cacheable_call(provider_logic, get_space_users, [SpaceId]),
         Rows = lists:map(fun({UserId, Counter}) ->
             RowId = <<TableId/binary, "_", (integer_to_binary(Counter))/binary>>,
             #tr{
@@ -640,7 +640,7 @@ users_table_collapsed(SpaceId, TableId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch Space's users.<br>Please try again later.">>),
-            clear_call(gr_adapter, get_space_users, [SpaceId]),
+            clear_call(provider_logic, get_space_users, [SpaceId]),
             [Header]
     end.
 
@@ -667,7 +667,7 @@ users_table_expanded(SpaceId, TableId) ->
         ]
     },
     try
-        {ok, UserIds} = cacheable_call(gr_adapter, get_space_users, [SpaceId]),
+        {ok, UserIds} = cacheable_call(provider_logic, get_space_users, [SpaceId]),
         Rows = lists:map(fun({UserId, Counter}) ->
             RowId = <<TableId/binary, "_", (integer_to_binary(Counter))/binary>>,
             #tr{
@@ -679,7 +679,7 @@ users_table_expanded(SpaceId, TableId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch Space's users.<br>Please try again later.">>),
-            clear_call(gr_adapter, get_space_users, [SpaceId]),
+            clear_call(provider_logic, get_space_users, [SpaceId]),
             [Header]
     end.
 
@@ -736,7 +736,7 @@ user_row_collapsed(SpaceId, UserId, RowId) ->
 %% ====================================================================
 user_row_expanded(SpaceId, UserId, RowId) ->
     try
-        {ok, #?USER_DETAILS{name = Name}} = cacheable_call(gr_adapter, get_user_details, [SpaceId, UserId]),
+        {ok, #?USER_DETAILS{name = Name}} = cacheable_call(provider_logic, get_user_details, [SpaceId, UserId]),
         SpinnerId = <<RowId/binary, "_spinner">>,
         [
             #td{
@@ -796,7 +796,7 @@ user_row_expanded(SpaceId, UserId, RowId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch Space's user details.<br>Please try again later.">>),
-            clear_call(gr_adapter, get_user_details, [SpaceId, UserId]),
+            clear_call(provider_logic, get_user_details, [SpaceId, UserId]),
             user_row_collapsed(SpaceId, UserId, RowId)
     end.
 
@@ -924,7 +924,7 @@ comet_loop(#?STATE{} = State) ->
             {create_space, Name, Token, RowId} ->
                 gui_jq:css(<<"settings_spinner">>, <<"visibility">>, <<"visible">>),
                 gui_comet:flush(),
-                case gr_adapter:create_space(Name, Token) of
+                case provider_logic:create_space(Name, Token) of
                     {ok, SpaceId} ->
                         message(<<"ok_message">>, <<"Created Space ID: <b>", SpaceId/binary, "</b>">>),
                         add_space_row(SpaceId, RowId);
@@ -939,7 +939,7 @@ comet_loop(#?STATE{} = State) ->
             {support_space, Token, RowId} ->
                 gui_jq:css(<<"settings_spinner">>, <<"visibility">>, <<"visible">>),
                 gui_comet:flush(),
-                case gr_adapter:support_space(Token) of
+                case provider_logic:support_space(Token) of
                     {ok, SpaceId} ->
                         message(<<"ok_message">>, <<"Supported Space ID: <b>", SpaceId/binary, "</b>">>),
                         add_space_row(SpaceId, RowId);
@@ -954,7 +954,7 @@ comet_loop(#?STATE{} = State) ->
             {cancel_space_support, SpaceId, RowId, ButtonId, SpinnerId} ->
                 gui_jq:show(SpinnerId),
                 gui_comet:flush(),
-                case gr_adapter:cancel_space_support(SpaceId) of
+                case provider_logic:cancel_space_support(SpaceId) of
                     ok ->
                         message(<<"ok_message">>, <<"Space: <b>", SpaceId/binary, "</b> is no longer supported.">>),
                         gui_jq:remove(RowId);

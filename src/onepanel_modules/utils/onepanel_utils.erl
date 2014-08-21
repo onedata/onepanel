@@ -17,7 +17,7 @@
 
 %% API
 -export([random_ascii_lowercase_sequence/1]).
--export([get_node/1, get_nodes/0, get_host/1, get_hosts/0, get_software_version/0]).
+-export([get_node/1, get_nodes/0, get_host/1, get_hosts/0, get_software_version/0, get_control_panel_hosts/0]).
 -export([apply_on_hosts/5, save_file_on_host/3, save_file_on_hosts/3]).
 
 %% ====================================================================
@@ -157,4 +157,27 @@ get_software_version() ->
         _:Reason ->
             ?error("Cannot get current software version: ~p", [Reason]),
             undefined
+    end.
+
+
+%% get_control_panel_hosts/0
+%% ====================================================================
+%% @doc Returns list of control panel hosts
+-spec get_control_panel_hosts() -> Result when
+    Result :: {ok, Hosts :: [string()]} | {error, Reason :: term()}.
+%% ====================================================================
+get_control_panel_hosts() ->
+    try
+        {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        Node = list_to_atom("ccm@" ++ MainCCM),
+        {Workers, _} = rpc:call(Node, gen_server, call, [{global, central_cluster_manager}, get_workers, 1000]),
+        ControlPanelHosts = lists:foldl(fun
+            ({WorkerNode, control_panel}, Acc) -> [onepanel_utils:get_host(WorkerNode) | Acc];
+            (_, Acc) -> Acc
+        end, [], Workers),
+        {ok, ControlPanelHosts}
+    catch
+        _:Reason ->
+            ?error("Cannot get control panel hosts: ~p", [Reason]),
+            {error, Reason}
     end.

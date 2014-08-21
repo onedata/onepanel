@@ -311,7 +311,7 @@ event(terminate) ->
 -spec api_event(Name :: string(), Args :: string(), Req :: string()) -> no_return().
 %% ====================================================================
 api_event("unregister", _, _) ->
-    case gr_adapter:unregister() of
+    case provider_logic:unregister() of
         ok ->
             gui_jq:update(<<"providerId">>, providerId(undefined)),
             gui_jq:update(<<"urls">>, urls([])),
