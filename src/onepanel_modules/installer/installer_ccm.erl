@@ -283,7 +283,7 @@ local_start(MainCCM, OptCCMs, Dbs) ->
         ok = installer_utils:overwrite_config_args(NodeConfigPath, "opt_ccms", OptCCMNames),
         ok = installer_utils:overwrite_config_args(NodeConfigPath, "db_nodes", DbNames),
         ok = installer_utils:overwrite_config_args(NodeConfigPath, "storage_config_path", StorageConfigPath),
-        ok = installer_utils:add_node_to_config(ccm, list_to_atom(?DEFAULT_CCM_NAME), ?DEFAULT_NODES_INSTALL_PATH),
+        ok = installer_utils:add_node_to_config(ccm_node, list_to_atom(?DEFAULT_CCM_NAME), ?DEFAULT_NODES_INSTALL_PATH),
 
         os:cmd(OverwriteCommand),
         SetUlimitsCmd = installer_utils:get_ulimits_cmd(Host),
@@ -311,7 +311,7 @@ local_stop() ->
         CCMPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME]),
 
         "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ CCMPath ++ " | awk '{print $2}'`"),
-        ok = installer_utils:remove_node_from_config(ccm),
+        ok = installer_utils:remove_node_from_config(ccm_node),
 
         {ok, Host}
     catch

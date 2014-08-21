@@ -85,20 +85,20 @@ add_node_to_config(Type, Name, Path) ->
 %% remove_node_from_config/1
 %% ====================================================================
 %% @doc Removes a node from configured_nodes.cfg.
--spec remove_node_from_config(Name :: string()) -> Result when
+-spec remove_node_from_config(Type :: atom()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-remove_node_from_config(Name) ->
+remove_node_from_config(Type) ->
     try
         {ok, Entries} = file:consult(?CONFIGURED_NODES_PATH),
-        ToDelete = case lists:keyfind(Name, 1, Entries) of
-                       false -> ?warning("Node ~p not found among configured nodes.", [Name]);
+        ToDelete = case lists:keyfind(Type, 1, Entries) of
+                       false -> ?warning("Node ~p not found among configured nodes.", [Type]);
                        Term -> Term
                    end,
         save_nodes_in_config(Entries -- [ToDelete])
     catch
         _:Reason ->
-            ?error("Cannot delete ~p node from ~s: ~p", [Name, ?CONFIGURED_NODES_PATH, Reason]),
+            ?error("Cannot delete ~p from ~s: ~p", [Type, ?CONFIGURED_NODES_PATH, Reason]),
             {error, Reason}
     end.
 
