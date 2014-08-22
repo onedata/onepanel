@@ -200,7 +200,7 @@ spaces_table_collapsed(TableId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch supported Spaces.<br>Please try again later.">>),
-            clear_call(provider_logic, get_provider_spaces, []),
+            clear_call(gr_providers, get_spaces, [provider]),
             [Header]
     end.
 
@@ -239,7 +239,7 @@ spaces_table_expanded(TableId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch supported Spaces.<br>Please try again later.">>),
-            clear_call(provider_logic, get_provider_spaces, []),
+            clear_call(gr_providers, get_spaces, [provider]),
             [Header]
     end.
 
@@ -251,41 +251,84 @@ spaces_table_expanded(TableId) ->
     Result :: [#td{}].
 %% ====================================================================
 space_row_collapsed(SpaceId, RowId) ->
-    SpinnerId = <<RowId/binary, "_spinner">>,
-    [
-        #td{
-            style = ?CONTENT_COLUMN_STYLE,
-            body = #table{
-                style = ?TABLE_STYLE,
-                body = [
-                    #tr{
-                        cells = [
-                            #td{
-                                style = ?DESCRIPTION_STYLE,
-                                body = #label{
-                                    style = ?LABEL_STYLE,
-                                    class = <<"label label-large label-inverse">>,
-                                    body = <<"Space ID">>
+    try
+        {ok, #space_info{name = Name}} = cacheable_call(gr_providers, get_space_info, [provider, SpaceId]),
+        SpinnerId = <<RowId/binary, "_spinner">>,
+        [
+            #td{
+                style = ?CONTENT_COLUMN_STYLE,
+                body = #table{
+                    style = ?TABLE_STYLE,
+                    body = [
+                        #tr{
+                            cells = [
+                                #td{
+                                    style = ?DESCRIPTION_STYLE,
+                                    body = #label{
+                                        style = ?LABEL_STYLE,
+                                        class = <<"label label-large label-inverse">>,
+                                        body = <<"Name">>
+                                    }
+                                },
+                                #td{
+                                    style = ?MAIN_STYLE,
+                                    body = #p{
+                                        style = ?PARAGRAPH_STYLE,
+                                        body = Name
+                                    }
                                 }
-                            },
-                            #td{
-                                style = ?MAIN_STYLE,
-                                body = #p{
-                                    style = ?PARAGRAPH_STYLE,
-                                    body = SpaceId
-                                }
-                            }
-                        ]
-                    }
-                ]
+                            ]
+                        }
+                    ]
+                }
+            },
+            #td{
+                id = SpinnerId,
+                style = ?NAVIGATION_COLUMN_STYLE,
+                body = expand_button({space_row_expand, SpaceId, RowId, SpinnerId})
             }
-        },
-        #td{
-            id = SpinnerId,
-            style = ?NAVIGATION_COLUMN_STYLE,
-            body = expand_button({space_row_expand, SpaceId, RowId, SpinnerId})
-        }
-    ].
+        ]
+    catch
+        _:_ ->
+            message(<<"error_message">>, <<"Cannot fetch Space details.<br>Please try again later.">>),
+            clear_call(gr_providers, get_space_info, [provider, SpaceId]),
+            space_row_collapsed(SpaceId, RowId)
+    end.
+%%     SpinnerId = <<RowId/binary, "_spinner">>,
+%%     [
+%%         #td{
+%%             style = ?CONTENT_COLUMN_STYLE,
+%%             body = #table{
+%%                 style = ?TABLE_STYLE,
+%%                 body = [
+%%                     #tr{
+%%                         cells = [
+%%                             #td{
+%%                                 style = ?DESCRIPTION_STYLE,
+%%                                 body = #label{
+%%                                     style = ?LABEL_STYLE,
+%%                                     class = <<"label label-large label-inverse">>,
+%%                                     body = <<"Space ID">>
+%%                                 }
+%%                             },
+%%                             #td{
+%%                                 style = ?MAIN_STYLE,
+%%                                 body = #p{
+%%                                     style = ?PARAGRAPH_STYLE,
+%%                                     body = SpaceId
+%%                                 }
+%%                             }
+%%                         ]
+%%                     }
+%%                 ]
+%%             }
+%%         },
+%%         #td{
+%%             id = SpinnerId,
+%%             style = ?NAVIGATION_COLUMN_STYLE,
+%%             body = expand_button({space_row_expand, SpaceId, RowId, SpinnerId})
+%%         }
+%%     ].
 
 
 %% space_row_expanded/2
@@ -328,7 +371,7 @@ space_row_expanded(SpaceId, RowId) ->
                                     }
                                 ]
                             }
-                        end, [{<<"Space ID">>, SpaceId}, {<<"Name">>, Name}])
+                        end, [{<<"Name">>, Name}, {<<"Space ID">>, SpaceId}])
                     },
                     #table{
                         class = <<"table table-bordered table-striped">>,
@@ -369,7 +412,7 @@ space_row_expanded(SpaceId, RowId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch Space details.<br>Please try again later.">>),
-            clear_call(provider_logic, get_space_details, [SpaceId]),
+            clear_call(gr_providers, get_space_info, [provider, SpaceId]),
             space_row_collapsed(SpaceId, RowId)
     end.
 
@@ -422,7 +465,7 @@ providers_table_collapsed(SpaceId, TableId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch Space's providers.<br>Please try again later.">>),
-            clear_call(provider_logic, get_space_providers, [SpaceId]),
+            clear_call(gr_spaces, get_providers, [provider, SpaceId]),
             [Header]
     end.
 
@@ -461,7 +504,7 @@ providers_table_expanded(SpaceId, TableId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch Space's providers.<br>Please try again later.">>),
-            clear_call(provider_logic, get_space_providers, [SpaceId]),
+            clear_call(gr_spaces, get_providers, [provider, SpaceId]),
             [Header]
     end.
 
@@ -603,7 +646,7 @@ provider_row_expanded(SpaceId, ProviderId, RowId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch Space's provider details.<br>Please try again later.">>),
-            clear_call(provider_logic, get_provider_details, [SpaceId, ProviderId]),
+            clear_call(gr_spaces, get_provider_info, [provider, SpaceId, ProviderId]),
             provider_row_collapsed(SpaceId, ProviderId, RowId)
     end.
 
@@ -642,7 +685,7 @@ users_table_collapsed(SpaceId, TableId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch Space's users.<br>Please try again later.">>),
-            clear_call(provider_logic, get_space_users, [SpaceId]),
+            clear_call(gr_spaces, get_users, [provider, SpaceId]),
             [Header]
     end.
 
@@ -681,7 +724,7 @@ users_table_expanded(SpaceId, TableId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch Space's users.<br>Please try again later.">>),
-            clear_call(provider_logic, get_space_users, [SpaceId]),
+            clear_call(gr_spaces, get_users, [provider, SpaceId]),
             [Header]
     end.
 
@@ -693,41 +736,49 @@ users_table_expanded(SpaceId, TableId) ->
     Result :: [#td{}].
 %% ====================================================================
 user_row_collapsed(SpaceId, UserId, RowId) ->
-    SpinnerId = <<RowId/binary, "_spinner">>,
-    [
-        #td{
-            style = ?CONTENT_COLUMN_STYLE,
-            body = #table{
-                style = ?TABLE_STYLE,
-                body = [
-                    #tr{
-                        cells = [
-                            #td{
-                                style = ?DESCRIPTION_STYLE,
-                                body = #label{
-                                    style = ?LABEL_STYLE,
-                                    class = <<"label label-large label-inverse">>,
-                                    body = <<"User ID">>
+    try
+        {ok, #user_info{name = Name}} = cacheable_call(gr_spaces, get_user_info, [provider, SpaceId, UserId]),
+        SpinnerId = <<RowId/binary, "_spinner">>,
+        [
+            #td{
+                style = ?CONTENT_COLUMN_STYLE,
+                body = #table{
+                    style = ?TABLE_STYLE,
+                    body = [
+                        #tr{
+                            cells = [
+                                #td{
+                                    style = ?DESCRIPTION_STYLE,
+                                    body = #label{
+                                        style = ?LABEL_STYLE,
+                                        class = <<"label label-large label-inverse">>,
+                                        body = <<"Name">>
+                                    }
+                                },
+                                #td{
+                                    style = ?MAIN_STYLE,
+                                    body = #p{
+                                        style = ?PARAGRAPH_STYLE,
+                                        body = Name
+                                    }
                                 }
-                            },
-                            #td{
-                                style = ?MAIN_STYLE,
-                                body = #p{
-                                    style = ?PARAGRAPH_STYLE,
-                                    body = UserId
-                                }
-                            }
-                        ]
-                    }
-                ]
+                            ]
+                        }
+                    ]
+                }
+            },
+            #td{
+                id = SpinnerId,
+                style = ?NAVIGATION_COLUMN_STYLE,
+                body = expand_button({user_row_expand, SpaceId, UserId, RowId, SpinnerId})
             }
-        },
-        #td{
-            id = SpinnerId,
-            style = ?NAVIGATION_COLUMN_STYLE,
-            body = expand_button({user_row_expand, SpaceId, UserId, RowId, SpinnerId})
-        }
-    ].
+        ]
+    catch
+        _:_ ->
+            message(<<"error_message">>, <<"Cannot fetch Space's user details.<br>Please try again later.">>),
+            clear_call(gr_spaces, get_user_info, [provider, SpaceId, UserId]),
+            user_row_collapsed(SpaceId, UserId, RowId)
+    end.
 
 
 %% user_row_expanded/3
@@ -746,7 +797,7 @@ user_row_expanded(SpaceId, UserId, RowId) ->
                 body = [
                     #table{
                         style = ?TABLE_STYLE,
-                        body = [
+                        body = lists:map(fun({Description, Main}) ->
                             #tr{
                                 cells = [
                                     #td{
@@ -754,38 +805,19 @@ user_row_expanded(SpaceId, UserId, RowId) ->
                                         body = #label{
                                             style = ?LABEL_STYLE,
                                             class = <<"label label-large label-inverse">>,
-                                            body = <<"User ID">>
+                                            body = Description
                                         }
                                     },
                                     #td{
                                         style = ?MAIN_STYLE,
                                         body = #p{
                                             style = ?PARAGRAPH_STYLE,
-                                            body = UserId
-                                        }
-                                    }
-                                ]
-                            },
-                            #tr{
-                                cells = [
-                                    #td{
-                                        style = ?DESCRIPTION_STYLE,
-                                        body = #label{
-                                            style = ?LABEL_STYLE,
-                                            class = <<"label label-large label-inverse">>,
-                                            body = <<"Name">>
-                                        }
-                                    },
-                                    #td{
-                                        style = ?MAIN_STYLE,
-                                        body = #p{
-                                            style = ?PARAGRAPH_STYLE,
-                                            body = Name
+                                            body = Main
                                         }
                                     }
                                 ]
                             }
-                        ]
+                        end, [{<<"Name">>, Name}, {<<"User ID">>, UserId}])
                     }
                 ]
             },
@@ -798,7 +830,7 @@ user_row_expanded(SpaceId, UserId, RowId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch Space's user details.<br>Please try again later.">>),
-            clear_call(provider_logic, get_user_details, [SpaceId, UserId]),
+            clear_call(gr_spaces, get_user_info, [provider, SpaceId, UserId]),
             user_row_collapsed(SpaceId, UserId, RowId)
     end.
 
@@ -926,11 +958,12 @@ comet_loop(#?STATE{} = State) ->
             {create_space, Name, Token, RowId} ->
                 gui_jq:css(<<"settings_spinner">>, <<"visibility">>, <<"visible">>),
                 gui_comet:flush(),
-                case provider_logic:create_space(Name, Token) of
+                case gr_providers:create_space(provider, [{<<"name">>, Name}, {<<"token">>, Token}]) of
                     {ok, SpaceId} ->
                         message(<<"ok_message">>, <<"Created Space ID: <b>", SpaceId/binary, "</b>">>),
                         add_space_row(SpaceId, RowId);
-                    _ ->
+                    Other ->
+                        ?error("Cannot create Space ~p associated with token ~p: ~p", [Name, Token, Other]),
                         message(<<"error_message">>, <<"Operation failed.<br>Please try again later.">>)
                 end,
                 gui_jq:css(<<"settings_spinner">>, <<"visibility">>, <<"hidden">>),
@@ -941,11 +974,12 @@ comet_loop(#?STATE{} = State) ->
             {support_space, Token, RowId} ->
                 gui_jq:css(<<"settings_spinner">>, <<"visibility">>, <<"visible">>),
                 gui_comet:flush(),
-                case provider_logic:support_space(Token) of
+                case gr_providers:support_space(provider, [{<<"token">>, Token}]) of
                     {ok, SpaceId} ->
                         message(<<"ok_message">>, <<"Supported Space ID: <b>", SpaceId/binary, "</b>">>),
                         add_space_row(SpaceId, RowId);
-                    _ ->
+                    Other ->
+                        ?error("Cannot support Space associated with token ~p: ~p", [Token, Other]),
                         message(<<"error_message">>, <<"Operation failed.<br>Please try again later.">>)
                 end,
                 gui_jq:css(<<"settings_spinner">>, <<"visibility">>, <<"hidden">>),
@@ -956,11 +990,13 @@ comet_loop(#?STATE{} = State) ->
             {cancel_space_support, SpaceId, RowId, ButtonId, SpinnerId} ->
                 gui_jq:show(SpinnerId),
                 gui_comet:flush(),
-                case provider_logic:cancel_space_support(SpaceId) of
+                case gr_providers:cancel_space_support(provider, SpaceId) of
                     ok ->
                         message(<<"ok_message">>, <<"Space: <b>", SpaceId/binary, "</b> is no longer supported.">>),
-                        gui_jq:remove(RowId);
-                    _ ->
+                        gui_jq:remove(RowId),
+                        clear_call(gr_providers, get_spaces, [provider]);
+                    Other ->
+                        ?error("Cannot cancel support for Space ~p: ~p", [SpaceId, Other]),
                         message(<<"error_message">>, <<"Operation failed.<br>Please try again later.">>)
                 end,
                 gui_jq:hide(SpinnerId),
@@ -1086,7 +1122,7 @@ event(support_space) ->
     gui_jq:wire(<<"box.on('shown',function(){ $(\"#support_space_token\").focus(); });">>);
 
 event({cancel_space_support, SpaceId, RowId, ButtonId, SpinnerId}) ->
-    Message = <<"Are you sure you want to stop supporting Space: <b>", SpaceId/binary, "</b>?">>,
+    Message = <<"Are you sure you want to stop supporting Space: <b>", SpaceId/binary, "</b>?<br>This operation cannot be undone.">>,
     Script = <<"cancelSpaceSupport(['", SpaceId/binary, "','", RowId/binary, "','", ButtonId/binary, "','", SpinnerId/binary, "']);">>,
     onepanel_gui_utils:confirm_popup(Message, Script);
 

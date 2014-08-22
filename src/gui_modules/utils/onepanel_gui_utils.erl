@@ -261,7 +261,7 @@ message(Id, Message, Postback) ->
         Message,
         #link{
             title = <<"Close">>,
-            style = <<"position: absolute; right: 1em;">>,
+            style = <<"position: absolute; top: 1em; right: 1em;">>,
             class = <<"glyph-link">>,
             postback = Postback,
             body = #span{
