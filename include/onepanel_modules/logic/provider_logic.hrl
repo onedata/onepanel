@@ -16,7 +16,7 @@
 -include_lib("ctool/include/global_registry/gr_providers.hrl").
 
 %% Names of database records
--define(PROVIDER_RECORD, provider_info).
+-define(PROVIDER_RECORD, provider_details).
 
 %% Names of database tables
 -define(PROVIDER_TABLE, providers).

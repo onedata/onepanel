@@ -252,7 +252,7 @@ spaces_table_expanded(TableId) ->
 %% ====================================================================
 space_row_collapsed(SpaceId, RowId) ->
     try
-        {ok, #space_info{name = Name}} = cacheable_call(gr_providers, get_space_info, [provider, SpaceId]),
+        {ok, #space_details{name = Name}} = cacheable_call(gr_providers, get_space_details, [provider, SpaceId]),
         SpinnerId = <<RowId/binary, "_spinner">>,
         [
             #td{
@@ -291,7 +291,7 @@ space_row_collapsed(SpaceId, RowId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch Space details.<br>Please try again later.">>),
-            clear_call(gr_providers, get_space_info, [provider, SpaceId]),
+            clear_call(gr_providers, get_space_details, [provider, SpaceId]),
             space_row_collapsed(SpaceId, RowId)
     end.
 %%     SpinnerId = <<RowId/binary, "_spinner">>,
@@ -339,7 +339,7 @@ space_row_collapsed(SpaceId, RowId) ->
 %% ====================================================================
 space_row_expanded(SpaceId, RowId) ->
     try
-        {ok, #space_info{name = Name}} = cacheable_call(gr_providers, get_space_info, [provider, SpaceId]),
+        {ok, #space_details{name = Name}} = cacheable_call(gr_providers, get_space_details, [provider, SpaceId]),
         SpinnerId = <<RowId/binary, "_spinner">>,
         ProvidersTableId = <<RowId/binary, "_providers">>,
         UsersTableId = <<RowId/binary, "_users">>,
@@ -412,7 +412,7 @@ space_row_expanded(SpaceId, RowId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch Space details.<br>Please try again later.">>),
-            clear_call(gr_providers, get_space_info, [provider, SpaceId]),
+            clear_call(gr_providers, get_space_details, [provider, SpaceId]),
             space_row_collapsed(SpaceId, RowId)
     end.
 
@@ -561,8 +561,8 @@ provider_row_collapsed(SpaceId, ProviderId, RowId) ->
 %% ====================================================================
 provider_row_expanded(SpaceId, ProviderId, RowId) ->
     try
-        {ok, #provider_info{urls = Urls, redirectionPoint = RedirectionPoint}} =
-            cacheable_call(gr_spaces, get_provider_info, [provider, SpaceId, ProviderId]),
+        {ok, #provider_details{urls = Urls, redirectionPoint = RedirectionPoint}} =
+            cacheable_call(gr_spaces, get_provider_details, [provider, SpaceId, ProviderId]),
         SpinnerId = <<RowId/binary, "_spinner">>,
         [
             #td{
@@ -646,7 +646,7 @@ provider_row_expanded(SpaceId, ProviderId, RowId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch Space's provider details.<br>Please try again later.">>),
-            clear_call(gr_spaces, get_provider_info, [provider, SpaceId, ProviderId]),
+            clear_call(gr_spaces, get_provider_details, [provider, SpaceId, ProviderId]),
             provider_row_collapsed(SpaceId, ProviderId, RowId)
     end.
 
@@ -737,7 +737,7 @@ users_table_expanded(SpaceId, TableId) ->
 %% ====================================================================
 user_row_collapsed(SpaceId, UserId, RowId) ->
     try
-        {ok, #user_info{name = Name}} = cacheable_call(gr_spaces, get_user_info, [provider, SpaceId, UserId]),
+        {ok, #user_details{name = Name}} = cacheable_call(gr_spaces, get_user_details, [provider, SpaceId, UserId]),
         SpinnerId = <<RowId/binary, "_spinner">>,
         [
             #td{
@@ -776,7 +776,7 @@ user_row_collapsed(SpaceId, UserId, RowId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch Space's user details.<br>Please try again later.">>),
-            clear_call(gr_spaces, get_user_info, [provider, SpaceId, UserId]),
+            clear_call(gr_spaces, get_user_details, [provider, SpaceId, UserId]),
             user_row_collapsed(SpaceId, UserId, RowId)
     end.
 
@@ -789,7 +789,7 @@ user_row_collapsed(SpaceId, UserId, RowId) ->
 %% ====================================================================
 user_row_expanded(SpaceId, UserId, RowId) ->
     try
-        {ok, #user_info{name = Name}} = cacheable_call(gr_spaces, get_user_info, [provider, SpaceId, UserId]),
+        {ok, #user_details{name = Name}} = cacheable_call(gr_spaces, get_user_details, [provider, SpaceId, UserId]),
         SpinnerId = <<RowId/binary, "_spinner">>,
         [
             #td{
@@ -830,7 +830,7 @@ user_row_expanded(SpaceId, UserId, RowId) ->
     catch
         _:_ ->
             message(<<"error_message">>, <<"Cannot fetch Space's user details.<br>Please try again later.">>),
-            clear_call(gr_spaces, get_user_info, [provider, SpaceId, UserId]),
+            clear_call(gr_spaces, get_user_details, [provider, SpaceId, UserId]),
             user_row_collapsed(SpaceId, UserId, RowId)
     end.
 
