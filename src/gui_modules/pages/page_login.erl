@@ -61,7 +61,7 @@ body() ->
                         },
                         #form{
                             id = <<"login_form">>,
-                            method = <<"POST">>,
+                            method = "post",
                             action = case SourcePage of
                                          undefined -> ?PAGE_LOGIN_VALIDATION;
                                          _ -> <<(?PAGE_LOGIN_VALIDATION)/binary, "?x=", SourcePage/binary>>
