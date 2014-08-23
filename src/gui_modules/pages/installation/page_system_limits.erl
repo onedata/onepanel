@@ -274,5 +274,8 @@ event({set_ulimits, Hosts}) ->
             onepanel_gui_utils:message(<<"error_message">>, <<"System limit should be a positive number.">>)
     end;
 
+event({close_message, MessageId}) ->
+    gui_jq:hide(MessageId);
+
 event(terminate) ->
     ok.

@@ -199,5 +199,8 @@ event(next) ->
     end),
     gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"disabled">>);
 
+event({close_message, MessageId}) ->
+    gui_jq:hide(MessageId);
+
 event(terminate) ->
     ok.

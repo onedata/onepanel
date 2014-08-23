@@ -258,5 +258,8 @@ event({check_ports, Hosts}) ->
             Please change them and try again.">>)
     end;
 
+event({close_message, MessageId}) ->
+    gui_jq:hide(MessageId);
+
 event(terminate) ->
     ok.

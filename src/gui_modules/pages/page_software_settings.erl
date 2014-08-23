@@ -250,4 +250,8 @@ event(submit_new_password) ->
             onepanel_gui_utils:message(<<"error_message">>, Reason)
     end;
 
-event(terminate) -> ok.
+event({close_message, MessageId}) ->
+    gui_jq:hide(MessageId);
+
+event(terminate) ->
+    ok.

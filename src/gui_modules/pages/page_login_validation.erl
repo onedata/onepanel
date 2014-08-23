@@ -73,6 +73,8 @@ body() ->
 %% @doc Handles page events.
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
-event(init) -> ok;
+event(init) ->
+    ok;
 
-event(terminate) -> ok.
+event(terminate) ->
+    ok.

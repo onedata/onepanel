@@ -218,5 +218,8 @@ event(register) ->
     gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
     gui_jq:prop(<<"register_button">>, <<"disabled">>, <<"disabled">>);
 
+event({close_message, MessageId}) ->
+    gui_jq:hide(MessageId);
+
 event(terminate) ->
     ok.
