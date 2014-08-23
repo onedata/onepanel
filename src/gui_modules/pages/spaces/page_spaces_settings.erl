@@ -1069,7 +1069,7 @@ event(create_space) ->
     "if(name.length == 0) { alert.html(\"Please provide Space name.\"); alert.fadeIn(300); return false; }",
     "else if(token.length == 0) { alert.html(\"Please provide Space token.\"); alert.fadeIn(300); return false; }",
     "else { createSpace([name, token]); return true; }">>,
-    onepanel_gui_utils:dialog_popup(Title, Message, Script),
+    gui_jq:dialog_popup(Title, Message, Script),
     gui_jq:wire(<<"box.on('shown',function(){ $(\"#create_space_name\").focus(); });">>);
 
 event(support_space) ->
@@ -1082,13 +1082,13 @@ event(support_space) ->
     "var token = $.trim($(\"#support_space_token\").val());",
     "if(token.length == 0) { alert.html(\"Please provide Space token.\"); alert.fadeIn(300); return false; }",
     "else { supportSpace([token]); return true; }">>,
-    onepanel_gui_utils:dialog_popup(Title, Message, Script),
+    gui_jq:dialog_popup(Title, Message, Script),
     gui_jq:wire(<<"box.on('shown',function(){ $(\"#support_space_token\").focus(); });">>);
 
 event({cancel_space_support, SpaceId, RowId, ButtonId, SpinnerId}) ->
     Message = <<"Are you sure you want to stop supporting Space: <b>", SpaceId/binary, "</b>?<br>This operation cannot be undone.">>,
     Script = <<"cancelSpaceSupport(['", SpaceId/binary, "','", RowId/binary, "','", ButtonId/binary, "','", SpinnerId/binary, "']);">>,
-    onepanel_gui_utils:confirm_popup(Message, Script);
+    gui_jq:confirm_popup(Message, Script);
 
 event({spaces_table_collapse, TableId, SpinnerId}) ->
     get(?COMET_PID) ! {spaces_table_collapse, TableId},

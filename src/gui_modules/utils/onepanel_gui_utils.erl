@@ -243,7 +243,7 @@ format_list(Hosts) ->
 %% ====================================================================
 %% @doc Renders a message in given element and allows to hide it with
 %% default postback.
--spec message(Id :: binary(), Message :: binary(), Postback :: term()) -> Result when
+-spec message(Id :: binary(), Message :: binary()) -> Result when
     Result :: ok.
 %% ====================================================================
 message(Id, Message) ->

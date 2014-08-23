@@ -297,7 +297,7 @@ event(register) ->
 event(unregister) ->
     Message = <<"Are you sure you want to unregister from Global Registry?">>,
     Script = <<"unregister();">>,
-    onepanel_gui_utils:confirm_popup(Message, Script);
+    gui_jq:confirm_popup(Message, Script);
 
 event({close_message, MessageId}) ->
     gui_jq:hide(MessageId);
