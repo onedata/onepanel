@@ -123,7 +123,7 @@ top_menu(ActiveTabID, ActiveLinkID, SubMenuBody) ->
     MenuCaptions = Process(ActiveTabID, [
         {brand_tab, #li{body = #link{style = <<"padding: 18px;">>, url = ?PAGE_ROOT,
             body = [
-                #span{class = <<"fui-gear">>},
+                #span{style = <<"font-size: xx-large;">>, class = <<"fui-gear">>},
                 #b{style = <<"font-size: x-large;">>, body = <<"OnePanel">>}
             ]}
         }},
