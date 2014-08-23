@@ -1051,7 +1051,7 @@ event(init) ->
     gui_jq:wire(#api{name = "createSpace", tag = "createSpace"}, false),
     gui_jq:wire(#api{name = "supportSpace", tag = "supportSpace"}, false),
     gui_jq:wire(#api{name = "cancelSpaceSupport", tag = "cancelSpaceSupport"}, false),
-    gui_jq:bind_key_to_click(<<"13">>, <<"button.confirm">>);
+    gui_jq:bind_key_to_click_on_class(<<"13">>, <<"button.confirm">>);
 
 event(to_account_page) ->
     gui_jq:redirect(?PAGE_SPACES_ACCOUNT);
