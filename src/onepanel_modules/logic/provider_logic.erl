@@ -92,7 +92,7 @@ register() ->
         %% Save provider ID and certifiacte on all hosts
         ok = file:write_file(CertFile, Cert),
         ok = onepanel_utils:save_file_on_hosts(Path, CertName, Cert),
-        ok = dao:save_record(?PROVIDER_TABLE, #?PROVIDER_RECORD{id = ProviderId, urls = URLs, redirectionPoint = RedirectionPoint}),
+        ok = dao:save_record(?PROVIDER_TABLE, #?PROVIDER_RECORD{id = ProviderId, urls = URLs, redirection_point = RedirectionPoint}),
 
         {ok, ProviderId}
     catch

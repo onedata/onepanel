@@ -561,7 +561,7 @@ provider_row_collapsed(SpaceId, ProviderId, RowId) ->
 %% ====================================================================
 provider_row_expanded(SpaceId, ProviderId, RowId) ->
     try
-        {ok, #provider_details{urls = Urls, redirectionPoint = RedirectionPoint}} =
+        {ok, #provider_details{urls = URLs, redirection_point = RedirectionPoint}} =
             cacheable_call(gr_spaces, get_provider_details, [provider, SpaceId, ProviderId]),
         SpinnerId = <<RowId/binary, "_spinner">>,
         [
@@ -604,12 +604,12 @@ provider_row_expanded(SpaceId, ProviderId, RowId) ->
                                         style = ?MAIN_STYLE,
                                         body = #list{
                                             style = <<"list-style-type: none; margin: 0 auto;">>,
-                                            body = lists:map(fun(Url) ->
+                                            body = lists:map(fun(URL) ->
                                                 #li{body = #p{
                                                     style = ?PARAGRAPH_STYLE,
-                                                    body = Url}
+                                                    body = URL}
                                                 }
-                                            end, Urls)
+                                            end, URLs)
                                         }
                                     }
                                 ]
