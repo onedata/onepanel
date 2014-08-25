@@ -198,7 +198,8 @@ spaces_table_collapsed(TableId) ->
         gui_ctx:put(?ID, length(Rows)),
         [Header | Rows]
     catch
-        _:_ ->
+        _:Reason ->
+            ?error("Cannot fetch supported Spaces: ~p", [Reason]),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch supported Spaces.<br>Please try again later.">>),
             clear_call(gr_providers, get_spaces, [provider]),
             [Header]
@@ -237,7 +238,8 @@ spaces_table_expanded(TableId) ->
         gui_ctx:put(?ID, length(Rows)),
         [Header | Rows]
     catch
-        _:_ ->
+        _:Reason ->
+            ?error("Cannot fetch supported Spaces: ~p", [Reason]),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch supported Spaces.<br>Please try again later.">>),
             clear_call(gr_providers, get_spaces, [provider]),
             [Header]
@@ -289,7 +291,8 @@ space_row_collapsed(SpaceId, RowId) ->
             }
         ]
     catch
-        _:_ ->
+        _:Reason ->
+            ?error("Cannot fetch details of Space with ID ~p: ~p", [SpaceId, Reason]),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch details of Space with ID: <b>", SpaceId/binary, "</b>."
             "<br>Please try again later.">>),
             clear_call(gr_providers, get_space_details, [provider, SpaceId]),
@@ -376,7 +379,8 @@ space_row_expanded(SpaceId, RowId) ->
             }
         ]
     catch
-        _:_ ->
+        _:Reason ->
+            ?error("Cannot fetch details of Space with ID ~p: ~p", [SpaceId, Reason]),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch details of Space with ID: <b>", SpaceId/binary, "</b>."
             "<br>Please try again later.">>),
             clear_call(gr_providers, get_space_details, [provider, SpaceId]),
@@ -430,7 +434,8 @@ providers_table_collapsed(SpaceId, TableId) ->
         end, lists:zip(ProviderIds, tl(lists:seq(0, length(ProviderIds))))),
         [Header | Rows]
     catch
-        _:_ ->
+        _:Reason ->
+            ?error("Cannot fetch providers of Space with ID ~p: ~p", [SpaceId, Reason]),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch providers of Space with ID: <b>", SpaceId/binary, "</b>."
             "<br>Please try again later.">>),
             clear_call(gr_spaces, get_providers, [provider, SpaceId]),
@@ -470,7 +475,8 @@ providers_table_expanded(SpaceId, TableId) ->
         end, lists:zip(ProviderIds, tl(lists:seq(0, length(ProviderIds))))),
         [Header | Rows]
     catch
-        _:_ ->
+        _:Reason ->
+            ?error("Cannot fetch providers of Space with ID ~p: ~p", [SpaceId, Reason]),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch providers of Space with ID: <b>", SpaceId/binary, "</b>."
             "<br>Please try again later.">>),
             clear_call(gr_spaces, get_providers, [provider, SpaceId]),
@@ -613,7 +619,8 @@ provider_row_expanded(SpaceId, ProviderId, RowId) ->
             }
         ]
     catch
-        _:_ ->
+        _:Reason ->
+            ?error("Cannot fetch details of provider with ID ~p: ~p", [ProviderId, Reason]),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch details of provider with ID: <b>", ProviderId/binary, "</b>."
             "<br>Please try again later.">>),
             clear_call(gr_spaces, get_provider_details, [provider, SpaceId, ProviderId]),
@@ -653,7 +660,8 @@ users_table_collapsed(SpaceId, TableId) ->
         end, lists:zip(UserIds, tl(lists:seq(0, length(UserIds))))),
         [Header | Rows]
     catch
-        _:_ ->
+        _:Reason ->
+            ?error("Cannot fetch users of Space with ID ~p: ~p", [SpaceId, Reason]),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch users of Space with ID: <b>", SpaceId/binary, "</b>."
             "<br>Please try again later.">>),
             clear_call(gr_spaces, get_users, [provider, SpaceId]),
@@ -693,7 +701,8 @@ users_table_expanded(SpaceId, TableId) ->
         end, lists:zip(UserIds, tl(lists:seq(0, length(UserIds))))),
         [Header | Rows]
     catch
-        _:_ ->
+        _:Reason ->
+            ?error("Cannot fetch users of Space with ID ~p: ~p", [SpaceId, Reason]),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch users of Space with ID: <b>", SpaceId/binary, "</b>."
             "<br>Please try again later.">>),
             clear_call(gr_spaces, get_users, [provider, SpaceId]),
@@ -746,7 +755,8 @@ user_row_collapsed(SpaceId, UserId, RowId) ->
             }
         ]
     catch
-        _:_ ->
+        _:Reason ->
+            ?error("Cannot fetch details of user with ID ~p: ~p", [UserId, Reason]),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch details of user with ID: <b>", UserId/binary, "</b>."
             "<br>Please try again later.">>),
             clear_call(gr_spaces, get_user_details, [provider, SpaceId, UserId]),
@@ -801,7 +811,8 @@ user_row_expanded(SpaceId, UserId, RowId) ->
             }
         ]
     catch
-        _:_ ->
+        _:Reason ->
+            ?error("Cannot fetch details of user with ID ~p: ~p", [UserId, Reason]),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch details of user with ID: <b>", UserId/binary, "</b>."
             "<br>Please try again later.">>),
             clear_call(gr_spaces, get_user_details, [provider, SpaceId, UserId]),
