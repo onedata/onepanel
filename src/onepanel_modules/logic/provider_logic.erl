@@ -131,7 +131,7 @@ unregister() ->
 get_ports_to_check() ->
     try
         {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        Node = list_to_atom("ccm@" ++ MainCCM),
+        Node = onepanel_utils:get_node(?DEFAULT_CCM_NAME, MainCCM),
         {ok, GuiPort} = rpc:call(Node, application, get_env, [veil_cluster_node, control_panel_port]),
         {ok, RestPort} = rpc:call(Node, application, get_env, [veil_cluster_node, rest_port]),
         {ok, [{"gui", GuiPort}, {"rest", RestPort}]}
