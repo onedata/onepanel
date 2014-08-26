@@ -188,16 +188,8 @@ get_global_config() ->
 -spec finalize_installation(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-finalize_installation(Args) ->
-    case proplists:get_value(main_ccm, Args) of
-        undefined ->
-            case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM}} ->
-                    finalize_installation(MainCCM, ?FINALIZE_INSTALLATION_ATTEMPTS);
-                _ -> finalize_installation(Args)
-            end;
-        MainCCM -> finalize_installation(MainCCM, ?FINALIZE_INSTALLATION_ATTEMPTS)
-    end.
+finalize_installation(_Args) ->
+    finalize_installation_loop(?FINALIZE_INSTALLATION_ATTEMPTS).
 
 
 %% ====================================================================
@@ -209,17 +201,18 @@ finalize_installation(Args) ->
 %% @doc Waits until cluster control panel nodes are up and running.
 %% Returns an error after ?FINALIZE_INSTALLATION_ATTEMPTS limit.
 %% Should not be used directly, use finalize_installation/1 instead.
--spec finalize_installation(MainCCM :: string(), Attempts :: integer()) -> Result when
+-spec finalize_installation_loop(Attempts :: integer()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-finalize_installation(_, 0) ->
-    {error, attempts_limit_exceeded};
+finalize_installation_loop(0) ->
+    ?error("Finalize installation attempts limit exceeded."),
+    {error, "Finalize installation attempts limit exceeded."};
 
-finalize_installation(MainCCM, Attempts) ->
+finalize_installation_loop(Attempts) ->
     case onepanel_utils:get_control_panel_hosts() of
         {ok, [_ | _]} ->
             ok;
         _ ->
             timer:sleep(1000),
-            finalize_installation(MainCCM, Attempts - 1)
+            finalize_installation_loop(Attempts - 1)
     end.

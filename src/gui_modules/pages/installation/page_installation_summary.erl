@@ -358,7 +358,10 @@ get_info_message(_) -> <<"">>.
 installation_progress(?EVENT_ERROR, State, Pid) ->
     case installer:get_error(State) of
         {error, {hosts, Hosts}} ->
-            Pid ! {error, <<(get_error_message(installer:get_stage_and_job(State)))/binary, (onepanel_gui_utils:format_list(Hosts))/binary, ".<br>Please try again.">>};
+            Pid ! {error, <<(get_error_message(installer:get_stage_and_job(State)))/binary, (onepanel_gui_utils:format_list(Hosts))/binary,
+            ".<br>Please try again.">>};
+        {error, Reason} when is_list(Reason) ->
+            Pid ! {error, list_to_binary(Reason)};
         _ ->
             Pid ! {error, <<"An error occurred during installation.<br>Please try again.">>}
     end;

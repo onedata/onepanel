@@ -360,7 +360,7 @@ space_row_expanded(SpaceId, RowId) ->
                     },
                     #button{
                         id = CancelSupportButtonId,
-                        postback = {cancel_space_support, SpaceId, RowId, CancelSupportButtonId, CancelSupportSpinnerId},
+                        postback = {revoke_space_support, SpaceId, RowId, CancelSupportButtonId, CancelSupportSpinnerId},
                         class = <<"btn btn-danger btn-small">>,
                         style = <<"font-weight: bold;">>,
                         body = <<"Cancel support">>
@@ -962,10 +962,10 @@ comet_loop(#?STATE{} = State) ->
                 gui_comet:flush(),
                 State;
 
-            {cancel_space_support, SpaceId, RowId, ButtonId, SpinnerId} ->
+            {revoke_space_support, SpaceId, RowId, ButtonId, SpinnerId} ->
                 gui_jq:show(SpinnerId),
                 gui_comet:flush(),
-                case gr_providers:cancel_space_support(provider, SpaceId) of
+                case gr_providers:revoke_space_support(provider, SpaceId) of
                     ok ->
                         onepanel_gui_utils:message(<<"ok_message">>, <<"Space: <b>", SpaceId/binary, "</b> is no longer supported.">>),
                         gui_jq:remove(RowId),
@@ -1096,7 +1096,7 @@ event(support_space) ->
     gui_jq:dialog_popup(Title, Message, Script),
     gui_jq:wire(<<"box.on('shown',function(){ $(\"#support_space_token\").focus(); });">>);
 
-event({cancel_space_support, SpaceId, RowId, ButtonId, SpinnerId}) ->
+event({revoke_space_support, SpaceId, RowId, ButtonId, SpinnerId}) ->
     Message = <<"Are you sure you want to stop supporting Space: <b>", SpaceId/binary, "</b>?<br>This operation cannot be undone.">>,
     Script = <<"cancelSpaceSupport(['", SpaceId/binary, "','", RowId/binary, "','", ButtonId/binary, "','", SpinnerId/binary, "']);">>,
     gui_jq:confirm_popup(Message, Script);
@@ -1177,5 +1177,5 @@ api_event("supportSpace", Args, _) ->
 
 api_event("cancelSpaceSupport", Args, _) ->
     [SpaceId, RowId, ButtonId, SpinnerId] = mochijson2:decode(Args),
-    get(?COMET_PID) ! {cancel_space_support, SpaceId, RowId, ButtonId, SpinnerId},
+    get(?COMET_PID) ! {revoke_space_support, SpaceId, RowId, ButtonId, SpinnerId},
     gui_jq:prop(ButtonId, <<"disabled">>, <<"disabled">>).
