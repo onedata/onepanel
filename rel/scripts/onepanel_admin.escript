@@ -32,6 +32,9 @@
 %% Timeout for each RPC call
 -define(RPC_TIMEOUT, 60000).
 
+%% Timeout for connection to Global Registry
+-define(CONNECTION_TIMEOUT, 5000).
+
 %% Exit codes
 -define(EXIT_SUCCESS, 0).
 -define(EXIT_FAILURE, 1).
@@ -39,6 +42,19 @@
 %% Local Onepanel node
 -define(NODE, local_node).
 
+%% config record contains following fields:
+%% * main_ccm           - hostname of machine where main CCM node is configured
+%% * ccms               - list of hostnames of machines where CCM nodes are configured
+%% * workers            - list of hostnames of machines where worker nodes are configured
+%% * dbs                - list of hostnames of machines where database nodes are configured
+%% * storage_paths      - list of paths to storages on every worker node
+%% * open_files         - list of pairs hostname and open files limit on this host
+%% * processes          - list of pairs hostname and processes limit on this host
+%% * register           - boolean value that describes whether register provider in Global Registry
+-record(config, {main_ccm, ccms = [], workers = [], dbs = [], storage_paths = [], open_files = [], processes = [], register = false}).
+
+%% API
+-export([main/1]).
 
 %% ====================================================================
 %% API functions
@@ -53,7 +69,7 @@
 main(Args) ->
     init(),
     case Args of
-        ["--install", Config] -> install(Config);
+        ["--install", Path] -> install(Path);
         ["--config"] -> config();
         ["--uninstall"] -> uninstall();
         _ -> print_usage()
@@ -81,12 +97,21 @@ init() ->
 %% ====================================================================
 %% @doc Applies installation preferences read from configuration file.
 %% @end
--spec install(Config :: string()) -> ok.
+-spec install(Path :: string()) -> ok.
 %% ====================================================================
-install(Config) ->
+install(Path) ->
     try
-        {MainCCM, CCMs, Workers, Dbs, StoragePaths, OpenFiles, Processes} = parse(Config),
         Node = get(?NODE),
+        #config{
+            main_ccm = MainCCM,
+            ccms = CCMs,
+            workers = Workers,
+            dbs = Dbs,
+            storage_paths = StoragePaths,
+            open_files = OpenFiles,
+            processes = Processes,
+            register = Register
+        } = parse({config, Path}),
         AllHosts = lists:usort(CCMs ++ Workers ++ Dbs),
 
         print_info("Checking configuration..."),
@@ -131,7 +156,28 @@ install(Config) ->
 
         print_info("Starting worker nodes..."),
         execute(Node, installer_worker, start, [[{workers, Workers}]]),
-        print_ok()
+        print_ok(),
+
+        print_info("Finalizing installation..."),
+        execute(Node, installer_utils, finalize_installation, [[]]),
+        print_ok(),
+
+        case Register of
+            true ->
+                print_info("Connecting to Global Registry..."),
+                {ok, _} = rpc:call(Node, gr_providers, check_ip_address, [provider, ?CONNECTION_TIMEOUT]),
+                print_ok(),
+
+                print_info("Checking ports availability..."),
+                check_ports(Node),
+                print_ok(),
+
+                print_info("Registering..."),
+                {ok, _} = rpc:call(Node, provider_logic, register, [], ?RPC_TIMEOUT),
+                print_ok();
+            _ ->
+                ok
+        end
     catch
         _:{config, Reason} when is_list(Reason) ->
             print_error("Configuration error: ~s\n", [Reason]),
@@ -158,14 +204,20 @@ install(Config) ->
 config() ->
     try
         Node = get(?NODE),
-
         Terms = rpc:call(Node, installer_utils, get_global_config, []),
+        #config{
+            main_ccm = MainCCM,
+            ccms = CCMs,
+            workers = Workers,
+            dbs = Dbs,
+            storage_paths = StoragePaths
+        } = parse({terms, Terms}),
 
-        format_host("Main CCM node:", proplists:get_value(main_ccm, Terms)),
-        format_hosts("CCM nodes:", lists:sort(proplists:get_value(ccms, Terms, []))),
-        format_hosts("Worker nodes:", lists:sort(proplists:get_value(workers, Terms, []))),
-        format_hosts("Database nodes:", lists:sort(proplists:get_value(dbs, Terms, []))),
-        format_hosts("Storage paths:", lists:sort(proplists:get_value(storage_paths, Terms, [])))
+        format_host("Main CCM node:", MainCCM),
+        format_hosts("CCM nodes:", lists:sort(CCMs)),
+        format_hosts("Worker nodes:", lists:sort(Workers)),
+        format_hosts("Database nodes:", lists:sort(Dbs)),
+        format_hosts("Storage paths:", lists:sort(StoragePaths))
     catch
         _:_ ->
             io:format("Cannot get current installation configuration.\n"),
@@ -182,13 +234,13 @@ config() ->
 uninstall() ->
     try
         Node = get(?NODE),
-
         Terms = rpc:call(Node, installer_utils, get_global_config, []),
-
-        CCMs = proplists:get_value(ccms, Terms, []),
-        Workers = proplists:get_value(workers, Terms, []),
-        Dbs = proplists:get_value(dbs, Terms, []),
-        StoragePaths = proplists:get_value(storage_paths, Terms, []),
+        #config{
+            ccms = CCMs,
+            workers = Workers,
+            dbs = Dbs,
+            storage_paths = StoragePaths
+        } = parse({terms, Terms}),
 
         print_info("Stopping worker nodes..."),
         execute(Node, installer_worker, stop, [[]]),
@@ -235,29 +287,30 @@ uninstall() ->
 %% ====================================================================
 %% @doc Parses installation preferences read from configuration file.
 %% @end
--spec parse(Config :: string()) -> Result when
-    Result :: {
-        MainCCM :: string(),
-        OptCCMs :: [string()],
-        Workers :: [string()],
-        Dbs :: [string()],
-        StoragePaths :: [string()],
-        OpenFiles :: [{Host :: string(), Value :: integer()}],
-        Processes :: [{Host :: string(), Value :: integer()}]
-    }.
+-spec parse({config, Path :: string()} | {terms, Terms :: [term()]}) -> Result when
+    Result :: #config{}.
 %% ====================================================================
-parse(Config) ->
-    {ok, Terms} = file:consult(Config),
+parse({config, Path}) ->
+    {ok, Terms} = file:consult(Path),
+    #config{
+        main_ccm = proplists:get_value("Main CCM host", Terms),
+        ccms = proplists:get_value("CCM hosts", Terms, []),
+        workers = proplists:get_value("Worker hosts", Terms, []),
+        dbs = proplists:get_value("Database hosts", Terms, []),
+        storage_paths = proplists:get_value("Storage paths", Terms, []),
+        open_files = proplists:get_value("Open files limit", Terms, []),
+        processes = proplists:get_value("Processes limit", Terms, []),
+        register = proplists:get_value("Register in Global Registry", Terms, false)
+    };
 
-    MainCCM = proplists:get_value("Main CCM host", Terms),
-    CCMs = proplists:get_value("CCM hosts", Terms, []),
-    Workers = proplists:get_value("Worker hosts", Terms, []),
-    Dbs = proplists:get_value("Database hosts", Terms, []),
-    StoragePaths = proplists:get_value("Storage paths", Terms, []),
-    OpenFiles = proplists:get_value("Open files limit", Terms, []),
-    Processes = proplists:get_value("Processes limit", Terms, []),
-
-    {MainCCM, CCMs, Workers, Dbs, StoragePaths, OpenFiles, Processes}.
+parse({terms, Terms}) ->
+    #config{
+        main_ccm = proplists:get_value(main_ccm, Terms),
+        ccms = proplists:get_value(ccms, Terms, []),
+        workers = proplists:get_value(workers, Terms, []),
+        dbs = proplists:get_value(dbs, Terms, []),
+        storage_paths = proplists:get_value(storage_paths, Terms, [])
+    }.
 
 
 %% execute/4
@@ -309,6 +362,31 @@ check_storage_paths(Node, StoragePaths, Workers) when is_list(StoragePaths) ->
     end, StoragePaths);
 check_storage_paths(_, _, _) ->
     throw({config, "Wrong storage paths format."}).
+
+
+%% check_ports/1
+%% ====================================================================
+%% @doc Checks whether default ports of all control panel nodes are
+%% available for Global Registry.
+%% @end
+-spec check_ports(Node :: atom()) -> ok | no_return().
+%% ====================================================================
+check_ports(Node) ->
+    ControlPanelHosts = case rpc:call(Node, onepanel_utils, get_control_panel_hosts, [], ?RPC_TIMEOUT) of
+                            {ok, Hosts} -> Hosts;
+                            _ -> []
+                        end,
+    {DefaultGuiPort, DefaultRestPort} = case rpc:call(Node, provider_logic, get_ports_to_check, [], ?RPC_TIMEOUT) of
+                                            {ok, [{<<"gui">>, GuiPort}, {<<"rest">>, RestPort}]} -> {GuiPort, RestPort};
+                                            _ -> {0, 0}
+                                        end,
+    lists:foreach(fun(ControlPanelHost) ->
+        ControlPanelNode = list_to_atom("onepanel@" ++ ControlPanelHost),
+        {ok, IpAddress} = rpc:call(ControlPanelNode, gr_providers, check_ip_address, [provider, ?CONNECTION_TIMEOUT], ?RPC_TIMEOUT),
+        ok = rpc:call(Node, gr_providers, check_port, [provider, IpAddress, list_to_integer(DefaultGuiPort), <<"gui">>]),
+        ok = rpc:call(Node, gr_providers, check_port, [provider, IpAddress, list_to_integer(DefaultRestPort), <<"rest">>])
+    end, ControlPanelHosts),
+    ok.
 
 
 %% format/2
