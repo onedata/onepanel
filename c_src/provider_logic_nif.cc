@@ -51,4 +51,4 @@ ErlNifFunc nif_funcs[] = {
     {"create_csr", 3, create_csr_nif}
 };
 
-ERL_NIF_INIT(gr_adapter, nif_funcs, NULL, NULL, NULL, NULL)
+ERL_NIF_INIT(provider_logic, nif_funcs, NULL, NULL, NULL, NULL)

@@ -240,9 +240,9 @@ sort_versions(Versions) ->
 %% ====================================================================
 get_available_versions() ->
     try
-        {ok, Url} = application:get_env(?APP_NAME, get_versions_url),
+        {ok, URL} = application:get_env(?APP_NAME, get_versions_url),
         Options = [{connect_timeout, ?CONNECTION_TIMEOUT}],
-        {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(Url, [{content_type, "application/json"}], get, "{}", Options),
+        {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(URL, [{content_type, "application/json"}], get, "{}", Options),
         {_, List} = mochijson2:decode(ResBody),
         proplists:get_value(<<"VeilCluster-Linux.rpm">>, List)
     catch
@@ -279,6 +279,9 @@ event(next) ->
         _ ->
             onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_UPDATE_SUMMARY)
     end;
+
+event({close_message, MessageId}) ->
+    gui_jq:hide(MessageId);
 
 event(terminate) ->
     ok.

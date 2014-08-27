@@ -6,7 +6,7 @@
 *  @end
 **********************************************************************
 *  @doc This is an implementation of Erlang NIF library described
-*  in gr_adapter_nif interface. CSR fields are set to default values
+*  in provider_logic_nif interface. CSR fields are set to default values
 *  which than will be overwritten by Global Registry.
 *  @end
 *********************************************************************/

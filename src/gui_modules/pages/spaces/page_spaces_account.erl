@@ -12,8 +12,9 @@
 
 -module(page_spaces_account).
 -export([main/0, event/1, api_event/3]).
+
 -include("gui_modules/common.hrl").
--include("onepanel_modules/space_logic.hrl").
+-include("onepanel_modules/logic/provider_logic.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% ====================================================================
@@ -36,10 +37,10 @@ main() ->
                     case gui_ctx:get(?CURRENT_REGISTRATION_PAGE) of
                         undefined ->
                             case dao:get_records(?PROVIDER_TABLE) of
-                                {ok, [#?PROVIDER_RECORD{providerId = ProviderId, urls = Urls, redirectionPoint = RedirectionPoint} | _]}
+                                {ok, [#?PROVIDER_RECORD{id = ProviderId, urls = URLs, redirection_point = RedirectionPoint} | _]}
                                     when ProviderId =/= undefined ->
                                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()},
-                                        {body, body(ProviderId, Urls, RedirectionPoint)}, {custom, custom()}]};
+                                        {body, body(ProviderId, URLs, RedirectionPoint)}, {custom, custom()}]};
                                 _ ->
                                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()},
                                         {body, body(undefined, [], undefined)}, {custom, custom()}]}
@@ -110,10 +111,10 @@ body() ->
 %% body/3
 %% ====================================================================
 %% @doc This will be placed instead of {{body}} tag in template.
--spec body(ProviderId :: binary() | undefined, Urls :: [binary()], RedirectionPoint :: binary()| undefined) -> Result when
+-spec body(ProviderId :: binary() | undefined, URLs :: [binary()], RedirectionPoint :: binary()| undefined) -> Result when
     Result :: #panel{}.
 %% ====================================================================
-body(ProviderId, Urls, RedirectionPoint) ->
+body(ProviderId, URLs, RedirectionPoint) ->
     Header = onepanel_gui_utils:top_menu(spaces_tab, spaces_account_link),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
@@ -132,7 +133,7 @@ body(ProviderId, Urls, RedirectionPoint) ->
                 style = <<"font-size: x-large; margin-bottom: 3em;">>,
                 body = <<"Account settings">>
             },
-            settings_table(ProviderId, Urls, RedirectionPoint)
+            settings_table(ProviderId, URLs, RedirectionPoint)
         ]
     },
     onepanel_gui_utils:body(Header, Main).
@@ -141,10 +142,10 @@ body(ProviderId, Urls, RedirectionPoint) ->
 %% settings_table/0
 %% ====================================================================
 %% @doc Renders the body of settings table.
--spec settings_table(ProviderId :: binary()| undefined, Urls :: [binary()], RedirectionPoint :: binary()| undefined) -> Result when
+-spec settings_table(ProviderId :: binary()| undefined, URLs :: [binary()], RedirectionPoint :: binary()| undefined) -> Result when
     Result :: #table{}.
 %% ====================================================================
-settings_table(ProviderId, Urls, RedirectionPoint) ->
+settings_table(ProviderId, URLs, RedirectionPoint) ->
     DescriptionStyle = <<"border-width: 0; text-align: right; padding: 1em 1em; width: 50%;">>,
     MainStyle = <<"border-width: 0;  text-align: left; padding: 1em 1em;">>,
     #table{
@@ -177,7 +178,7 @@ settings_table(ProviderId, Urls, RedirectionPoint) ->
                     #td{
                         id = <<"urls">>,
                         style = MainStyle,
-                        body = urls(Urls)
+                        body = urls(URLs)
                     }
                 ]
             },
@@ -245,18 +246,18 @@ providerId(ProviderId) ->
 %% urls/1
 %% ====================================================================
 %% @doc Renders urls.
--spec urls(Urls :: [binary()]) -> Result when
+-spec urls(URLs :: [binary()]) -> Result when
     Result :: #p{}.
 %% ====================================================================
 urls([]) ->
     #p{body = <<"&#8212&#8212&#8212&#8212&#8212&#8212&#8212&#8212">>};
 
-urls(Urls) ->
+urls(URLs) ->
     #list{
         style = <<"list-style-type: none; margin: 0 auto;">>,
-        body = lists:map(fun(Url) ->
-            #li{body = #p{body = Url}}
-        end, Urls)
+        body = lists:map(fun(URL) ->
+            #li{body = #p{body = URL}}
+        end, URLs)
     }.
 
 
@@ -296,7 +297,7 @@ event(register) ->
 event(unregister) ->
     Message = <<"Are you sure you want to unregister from Global Registry?">>,
     Script = <<"unregister();">>,
-    onepanel_gui_utils:confirm_popup(Message, Script);
+    gui_jq:confirm_popup(Message, Script);
 
 event({close_message, MessageId}) ->
     gui_jq:hide(MessageId);
@@ -311,7 +312,7 @@ event(terminate) ->
 -spec api_event(Name :: string(), Args :: string(), Req :: string()) -> no_return().
 %% ====================================================================
 api_event("unregister", _, _) ->
-    case gr_adapter:unregister() of
+    case provider_logic:unregister() of
         ok ->
             gui_jq:update(<<"providerId">>, providerId(undefined)),
             gui_jq:update(<<"urls">>, urls([])),

@@ -12,7 +12,7 @@
 -module(page_software_settings).
 -export([main/0, event/1]).
 -include("gui_modules/common.hrl").
--include("onepanel_modules/user_logic.hrl").
+-include("onepanel_modules/logic/user_logic.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 -define(MIN_PASSWORD_LENGTH, 8).
@@ -250,4 +250,8 @@ event(submit_new_password) ->
             onepanel_gui_utils:message(<<"error_message">>, Reason)
     end;
 
-event(terminate) -> ok.
+event({close_message, MessageId}) ->
+    gui_jq:hide(MessageId);
+
+event(terminate) ->
+    ok.

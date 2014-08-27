@@ -527,5 +527,8 @@ event({update, Version}) ->
     Pid = get(?COMET_PID),
     updater:update_to(Version, ForceReload, fun(Event, State) -> update_progress(Pid, Event, State) end);
 
+event({close_message, MessageId}) ->
+    gui_jq:hide(MessageId);
+
 event(terminate) ->
     ok.

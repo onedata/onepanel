@@ -63,7 +63,7 @@ body() ->
         style = <<"margin-top: 10em; text-align: center;">>,
         body = #panel{
             style = <<"width: 50%; margin: 0 auto;">>,
-            body = case gr_utils:get_provider_id() of
+            body = case provider_logic:get_provider_id() of
                        undefined ->
                            [
                                #panel{

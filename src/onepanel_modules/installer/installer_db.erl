@@ -12,7 +12,7 @@
 -module(installer_db).
 -behaviour(installer_behaviour).
 
--include("onepanel_modules/user_logic.hrl").
+-include("onepanel_modules/logic/user_logic.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
@@ -325,10 +325,10 @@ add_to_cluster(ClusterHost, Password, Attempts) ->
     try
         ?debug("Adding database node to cluster"),
         timer:sleep(1000),
-        Url = "http://" ++ ClusterHost ++ ":" ++ ?DEFAULT_PORT ++ "/nodes/" ++ ?DEFAULT_DB_NAME ++ "@" ++ Host,
+        URL = "http://" ++ ClusterHost ++ ":" ++ ?DEFAULT_PORT ++ "/nodes/" ++ ?DEFAULT_DB_NAME ++ "@" ++ Host,
         Options = [{connect_timeout, ?CONNECTION_TIMEOUT}, {basic_auth, {"admin", Password}}],
 
-        {ok, "201", _ResHeaders, ResBody} = ibrowse:send_req(Url, [{content_type, "application/json"}], put, "{}", Options),
+        {ok, "201", _ResHeaders, ResBody} = ibrowse:send_req(URL, [{content_type, "application/json"}], put, "{}", Options),
         true = proplists:get_value(<<"ok">>, mochijson2:decode(ResBody, [{format, proplist}])),
 
         {ok, Host}
@@ -391,11 +391,11 @@ change_password(CurrentPassword, NewPassword) ->
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 change_password(Db, Username, CurrentPassword, NewPassword) ->
-    Url = "http://" ++ Db ++ ":" ++ ?DEFAULT_PORT ++ "/_config/admins/" ++ binary_to_list(Username),
+    URL = "http://" ++ Db ++ ":" ++ ?DEFAULT_PORT ++ "/_config/admins/" ++ binary_to_list(Username),
     Headers = [{content_type, "application/json"}],
     Body = mochijson2:encode(NewPassword),
     Options = [{basic_auth, {binary_to_list(Username), binary_to_list(CurrentPassword)}}],
-    case ibrowse:send_req(Url, Headers, put, Body, Options) of
+    case ibrowse:send_req(URL, Headers, put, Body, Options) of
         {ok, "200", _ResHeaders, _ResBody} -> ok;
         Other ->
             ?error("Cannot change password for database node at host ~s: ~p", [Db, Other]),

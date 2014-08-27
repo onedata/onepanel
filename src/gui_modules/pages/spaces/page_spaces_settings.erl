@@ -14,8 +14,10 @@
 -export([main/0, event/1, api_event/3]).
 
 -include("gui_modules/common.hrl").
--include("onepanel_modules/space_logic.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/global_registry/gr_users.hrl").
+-include_lib("ctool/include/global_registry/gr_spaces.hrl").
+-include_lib("ctool/include/global_registry/gr_providers.hrl").
 
 %% Common page CCS styles
 -define(MESSAGE_STYLE, <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>).
@@ -50,7 +52,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            ProviderId = gr_utils:get_provider_id(),
+            ProviderId = provider_logic:get_provider_id(),
             #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body(ProviderId)}, {custom, custom()}]};
         false ->
             gui_jq:redirect_to_login(true),
@@ -133,7 +135,7 @@ body(_) ->
                     #button{
                         id = <<"create_space_button">>,
                         postback = create_space,
-                        class = <<"btn btn-inverse btn-small">>,
+                        class = <<"btn btn-primary btn-small">>,
                         style = <<"font-weight: bold; margin-right: 1em;">>,
                         body = <<"Create Space">>
                     },
@@ -145,7 +147,7 @@ body(_) ->
                     #button{
                         id = <<"support_space_button">>,
                         postback = support_space,
-                        class = <<"btn btn-inverse btn-small">>,
+                        class = <<"btn btn-primary btn-small">>,
                         style = <<"font-weight: bold; margin-left: 1em">>,
                         body = <<"Support Space">>
                     }
@@ -185,7 +187,7 @@ spaces_table_collapsed(TableId) ->
         ]
     },
     try
-        {ok, SpaceIds} = cacheable_call(gr_adapter, get_provider_spaces, []),
+        {ok, SpaceIds} = cacheable_call(gr_providers, get_spaces, [provider]),
         Rows = lists:map(fun({SpaceId, Counter}) ->
             RowId = <<"space_", (integer_to_binary(Counter))/binary>>,
             #tr{
@@ -196,9 +198,10 @@ spaces_table_collapsed(TableId) ->
         gui_ctx:put(?ID, length(Rows)),
         [Header | Rows]
     catch
-        _:_ ->
-            message(<<"error_message">>, <<"Cannot fetch supported Spaces.<br>Please try again later.">>),
-            clear_call(gr_adapter, get_provider_spaces, []),
+        _:Reason ->
+            ?error("Cannot fetch supported Spaces: ~p", [Reason]),
+            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch supported Spaces.<br>Please try again later.">>),
+            clear_call(gr_providers, get_spaces, [provider]),
             [Header]
     end.
 
@@ -224,7 +227,7 @@ spaces_table_expanded(TableId) ->
         ]
     },
     try
-        {ok, SpaceIds} = cacheable_call(gr_adapter, get_provider_spaces, []),
+        {ok, SpaceIds} = cacheable_call(gr_providers, get_spaces, [provider]),
         Rows = lists:map(fun({SpaceId, Counter}) ->
             RowId = <<"space_", (integer_to_binary(Counter))/binary>>,
             #tr{
@@ -235,9 +238,10 @@ spaces_table_expanded(TableId) ->
         gui_ctx:put(?ID, length(Rows)),
         [Header | Rows]
     catch
-        _:_ ->
-            message(<<"error_message">>, <<"Cannot fetch supported Spaces.<br>Please try again later.">>),
-            clear_call(gr_adapter, get_provider_spaces, []),
+        _:Reason ->
+            ?error("Cannot fetch supported Spaces: ~p", [Reason]),
+            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch supported Spaces.<br>Please try again later.">>),
+            clear_call(gr_providers, get_spaces, [provider]),
             [Header]
     end.
 
@@ -249,41 +253,51 @@ spaces_table_expanded(TableId) ->
     Result :: [#td{}].
 %% ====================================================================
 space_row_collapsed(SpaceId, RowId) ->
-    SpinnerId = <<RowId/binary, "_spinner">>,
-    [
-        #td{
-            style = ?CONTENT_COLUMN_STYLE,
-            body = #table{
-                style = ?TABLE_STYLE,
-                body = [
-                    #tr{
-                        cells = [
-                            #td{
-                                style = ?DESCRIPTION_STYLE,
-                                body = #label{
-                                    style = ?LABEL_STYLE,
-                                    class = <<"label label-large label-inverse">>,
-                                    body = <<"Space ID">>
+    try
+        {ok, #space_details{name = Name}} = cacheable_call(gr_providers, get_space_details, [provider, SpaceId]),
+        SpinnerId = <<RowId/binary, "_spinner">>,
+        [
+            #td{
+                style = ?CONTENT_COLUMN_STYLE,
+                body = #table{
+                    style = ?TABLE_STYLE,
+                    body = [
+                        #tr{
+                            cells = [
+                                #td{
+                                    style = ?DESCRIPTION_STYLE,
+                                    body = #label{
+                                        style = ?LABEL_STYLE,
+                                        class = <<"label label-large label-inverse">>,
+                                        body = <<"Name">>
+                                    }
+                                },
+                                #td{
+                                    style = ?MAIN_STYLE,
+                                    body = #p{
+                                        style = ?PARAGRAPH_STYLE,
+                                        body = Name
+                                    }
                                 }
-                            },
-                            #td{
-                                style = ?MAIN_STYLE,
-                                body = #p{
-                                    style = ?PARAGRAPH_STYLE,
-                                    body = SpaceId
-                                }
-                            }
-                        ]
-                    }
-                ]
+                            ]
+                        }
+                    ]
+                }
+            },
+            #td{
+                id = SpinnerId,
+                style = ?NAVIGATION_COLUMN_STYLE,
+                body = expand_button({space_row_expand, SpaceId, RowId, SpinnerId})
             }
-        },
-        #td{
-            id = SpinnerId,
-            style = ?NAVIGATION_COLUMN_STYLE,
-            body = expand_button({space_row_expand, SpaceId, RowId, SpinnerId})
-        }
-    ].
+        ]
+    catch
+        _:Reason ->
+            ?error("Cannot fetch details of Space with ID ~p: ~p", [SpaceId, Reason]),
+            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch details of Space with ID: <b>", SpaceId/binary, "</b>."
+            "<br>Please try again later.">>),
+            clear_call(gr_providers, get_space_details, [provider, SpaceId]),
+            space_row_collapsed(SpaceId, RowId)
+    end.
 
 
 %% space_row_expanded/2
@@ -294,7 +308,7 @@ space_row_collapsed(SpaceId, RowId) ->
 %% ====================================================================
 space_row_expanded(SpaceId, RowId) ->
     try
-        {ok, #?SPACE_DETAILS{name = Name}} = cacheable_call(gr_adapter, get_space_details, [SpaceId]),
+        {ok, #space_details{name = Name}} = cacheable_call(gr_providers, get_space_details, [provider, SpaceId]),
         SpinnerId = <<RowId/binary, "_spinner">>,
         ProvidersTableId = <<RowId/binary, "_providers">>,
         UsersTableId = <<RowId/binary, "_users">>,
@@ -326,7 +340,7 @@ space_row_expanded(SpaceId, RowId) ->
                                     }
                                 ]
                             }
-                        end, [{<<"Space ID">>, SpaceId}, {<<"Name">>, Name}])
+                        end, [{<<"Name">>, Name}, {<<"Space ID">>, SpaceId}])
                     },
                     #table{
                         class = <<"table table-bordered table-striped">>,
@@ -346,7 +360,7 @@ space_row_expanded(SpaceId, RowId) ->
                     },
                     #button{
                         id = CancelSupportButtonId,
-                        postback = {cancel_space_support, SpaceId, RowId, CancelSupportButtonId, CancelSupportSpinnerId},
+                        postback = {revoke_space_support, SpaceId, RowId, CancelSupportButtonId, CancelSupportSpinnerId},
                         class = <<"btn btn-danger btn-small">>,
                         style = <<"font-weight: bold;">>,
                         body = <<"Cancel support">>
@@ -365,9 +379,11 @@ space_row_expanded(SpaceId, RowId) ->
             }
         ]
     catch
-        _:_ ->
-            message(<<"error_message">>, <<"Cannot fetch Space details.<br>Please try again later.">>),
-            clear_call(gr_adapter, get_space_details, [SpaceId]),
+        _:Reason ->
+            ?error("Cannot fetch details of Space with ID ~p: ~p", [SpaceId, Reason]),
+            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch details of Space with ID: <b>", SpaceId/binary, "</b>."
+            "<br>Please try again later.">>),
+            clear_call(gr_providers, get_space_details, [provider, SpaceId]),
             space_row_collapsed(SpaceId, RowId)
     end.
 
@@ -408,7 +424,7 @@ providers_table_collapsed(SpaceId, TableId) ->
         ]
     },
     try
-        {ok, ProviderIds} = cacheable_call(gr_adapter, get_space_providers, [SpaceId]),
+        {ok, ProviderIds} = cacheable_call(gr_spaces, get_providers, [provider, SpaceId]),
         Rows = lists:map(fun({ProviderId, Counter}) ->
             RowId = <<TableId/binary, "_", (integer_to_binary(Counter))/binary>>,
             #tr{
@@ -418,9 +434,11 @@ providers_table_collapsed(SpaceId, TableId) ->
         end, lists:zip(ProviderIds, tl(lists:seq(0, length(ProviderIds))))),
         [Header | Rows]
     catch
-        _:_ ->
-            message(<<"error_message">>, <<"Cannot fetch Space's providers.<br>Please try again later.">>),
-            clear_call(gr_adapter, get_space_providers, [SpaceId]),
+        _:Reason ->
+            ?error("Cannot fetch providers of Space with ID ~p: ~p", [SpaceId, Reason]),
+            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch providers of Space with ID: <b>", SpaceId/binary, "</b>."
+            "<br>Please try again later.">>),
+            clear_call(gr_spaces, get_providers, [provider, SpaceId]),
             [Header]
     end.
 
@@ -447,7 +465,7 @@ providers_table_expanded(SpaceId, TableId) ->
         ]
     },
     try
-        {ok, ProviderIds} = cacheable_call(gr_adapter, get_space_providers, [SpaceId]),
+        {ok, ProviderIds} = cacheable_call(gr_spaces, get_providers, [provider, SpaceId]),
         Rows = lists:map(fun({ProviderId, Counter}) ->
             RowId = <<TableId/binary, "_", (integer_to_binary(Counter))/binary>>,
             #tr{
@@ -457,9 +475,11 @@ providers_table_expanded(SpaceId, TableId) ->
         end, lists:zip(ProviderIds, tl(lists:seq(0, length(ProviderIds))))),
         [Header | Rows]
     catch
-        _:_ ->
-            message(<<"error_message">>, <<"Cannot fetch Space's providers.<br>Please try again later.">>),
-            clear_call(gr_adapter, get_space_providers, [SpaceId]),
+        _:Reason ->
+            ?error("Cannot fetch providers of Space with ID ~p: ~p", [SpaceId, Reason]),
+            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch providers of Space with ID: <b>", SpaceId/binary, "</b>."
+            "<br>Please try again later.">>),
+            clear_call(gr_spaces, get_providers, [provider, SpaceId]),
             [Header]
     end.
 
@@ -516,8 +536,8 @@ provider_row_collapsed(SpaceId, ProviderId, RowId) ->
 %% ====================================================================
 provider_row_expanded(SpaceId, ProviderId, RowId) ->
     try
-        {ok, #?PROVIDER_DETAILS{urls = Urls, redirectionPoint = RedirectionPoint}} =
-            cacheable_call(gr_adapter, get_provider_details, [SpaceId, ProviderId]),
+        {ok, #provider_details{urls = URLs, redirection_point = RedirectionPoint}} =
+            cacheable_call(gr_spaces, get_provider_details, [provider, SpaceId, ProviderId]),
         SpinnerId = <<RowId/binary, "_spinner">>,
         [
             #td{
@@ -559,12 +579,12 @@ provider_row_expanded(SpaceId, ProviderId, RowId) ->
                                         style = ?MAIN_STYLE,
                                         body = #list{
                                             style = <<"list-style-type: none; margin: 0 auto;">>,
-                                            body = lists:map(fun(Url) ->
+                                            body = lists:map(fun(URL) ->
                                                 #li{body = #p{
                                                     style = ?PARAGRAPH_STYLE,
-                                                    body = Url}
+                                                    body = URL}
                                                 }
-                                            end, Urls)
+                                            end, URLs)
                                         }
                                     }
                                 ]
@@ -599,9 +619,11 @@ provider_row_expanded(SpaceId, ProviderId, RowId) ->
             }
         ]
     catch
-        _:_ ->
-            message(<<"error_message">>, <<"Cannot fetch Space's provider details.<br>Please try again later.">>),
-            clear_call(gr_adapter, get_provider_details, [SpaceId, ProviderId]),
+        _:Reason ->
+            ?error("Cannot fetch details of provider with ID ~p: ~p", [ProviderId, Reason]),
+            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch details of provider with ID: <b>", ProviderId/binary, "</b>."
+            "<br>Please try again later.">>),
+            clear_call(gr_spaces, get_provider_details, [provider, SpaceId, ProviderId]),
             provider_row_collapsed(SpaceId, ProviderId, RowId)
     end.
 
@@ -628,7 +650,7 @@ users_table_collapsed(SpaceId, TableId) ->
         ]
     },
     try
-        {ok, UserIds} = cacheable_call(gr_adapter, get_space_users, [SpaceId]),
+        {ok, UserIds} = cacheable_call(gr_spaces, get_users, [provider, SpaceId]),
         Rows = lists:map(fun({UserId, Counter}) ->
             RowId = <<TableId/binary, "_", (integer_to_binary(Counter))/binary>>,
             #tr{
@@ -638,9 +660,11 @@ users_table_collapsed(SpaceId, TableId) ->
         end, lists:zip(UserIds, tl(lists:seq(0, length(UserIds))))),
         [Header | Rows]
     catch
-        _:_ ->
-            message(<<"error_message">>, <<"Cannot fetch Space's users.<br>Please try again later.">>),
-            clear_call(gr_adapter, get_space_users, [SpaceId]),
+        _:Reason ->
+            ?error("Cannot fetch users of Space with ID ~p: ~p", [SpaceId, Reason]),
+            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch users of Space with ID: <b>", SpaceId/binary, "</b>."
+            "<br>Please try again later.">>),
+            clear_call(gr_spaces, get_users, [provider, SpaceId]),
             [Header]
     end.
 
@@ -667,7 +691,7 @@ users_table_expanded(SpaceId, TableId) ->
         ]
     },
     try
-        {ok, UserIds} = cacheable_call(gr_adapter, get_space_users, [SpaceId]),
+        {ok, UserIds} = cacheable_call(gr_spaces, get_users, [provider, SpaceId]),
         Rows = lists:map(fun({UserId, Counter}) ->
             RowId = <<TableId/binary, "_", (integer_to_binary(Counter))/binary>>,
             #tr{
@@ -677,9 +701,11 @@ users_table_expanded(SpaceId, TableId) ->
         end, lists:zip(UserIds, tl(lists:seq(0, length(UserIds))))),
         [Header | Rows]
     catch
-        _:_ ->
-            message(<<"error_message">>, <<"Cannot fetch Space's users.<br>Please try again later.">>),
-            clear_call(gr_adapter, get_space_users, [SpaceId]),
+        _:Reason ->
+            ?error("Cannot fetch users of Space with ID ~p: ~p", [SpaceId, Reason]),
+            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch users of Space with ID: <b>", SpaceId/binary, "</b>."
+            "<br>Please try again later.">>),
+            clear_call(gr_spaces, get_users, [provider, SpaceId]),
             [Header]
     end.
 
@@ -691,41 +717,51 @@ users_table_expanded(SpaceId, TableId) ->
     Result :: [#td{}].
 %% ====================================================================
 user_row_collapsed(SpaceId, UserId, RowId) ->
-    SpinnerId = <<RowId/binary, "_spinner">>,
-    [
-        #td{
-            style = ?CONTENT_COLUMN_STYLE,
-            body = #table{
-                style = ?TABLE_STYLE,
-                body = [
-                    #tr{
-                        cells = [
-                            #td{
-                                style = ?DESCRIPTION_STYLE,
-                                body = #label{
-                                    style = ?LABEL_STYLE,
-                                    class = <<"label label-large label-inverse">>,
-                                    body = <<"User ID">>
+    try
+        {ok, #user_details{name = Name}} = cacheable_call(gr_spaces, get_user_details, [provider, SpaceId, UserId]),
+        SpinnerId = <<RowId/binary, "_spinner">>,
+        [
+            #td{
+                style = ?CONTENT_COLUMN_STYLE,
+                body = #table{
+                    style = ?TABLE_STYLE,
+                    body = [
+                        #tr{
+                            cells = [
+                                #td{
+                                    style = ?DESCRIPTION_STYLE,
+                                    body = #label{
+                                        style = ?LABEL_STYLE,
+                                        class = <<"label label-large label-inverse">>,
+                                        body = <<"Name">>
+                                    }
+                                },
+                                #td{
+                                    style = ?MAIN_STYLE,
+                                    body = #p{
+                                        style = ?PARAGRAPH_STYLE,
+                                        body = Name
+                                    }
                                 }
-                            },
-                            #td{
-                                style = ?MAIN_STYLE,
-                                body = #p{
-                                    style = ?PARAGRAPH_STYLE,
-                                    body = UserId
-                                }
-                            }
-                        ]
-                    }
-                ]
+                            ]
+                        }
+                    ]
+                }
+            },
+            #td{
+                id = SpinnerId,
+                style = ?NAVIGATION_COLUMN_STYLE,
+                body = expand_button({user_row_expand, SpaceId, UserId, RowId, SpinnerId})
             }
-        },
-        #td{
-            id = SpinnerId,
-            style = ?NAVIGATION_COLUMN_STYLE,
-            body = expand_button({user_row_expand, SpaceId, UserId, RowId, SpinnerId})
-        }
-    ].
+        ]
+    catch
+        _:Reason ->
+            ?error("Cannot fetch details of user with ID ~p: ~p", [UserId, Reason]),
+            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch details of user with ID: <b>", UserId/binary, "</b>."
+            "<br>Please try again later.">>),
+            clear_call(gr_spaces, get_user_details, [provider, SpaceId, UserId]),
+            user_row_collapsed(SpaceId, UserId, RowId)
+    end.
 
 
 %% user_row_expanded/3
@@ -736,7 +772,7 @@ user_row_collapsed(SpaceId, UserId, RowId) ->
 %% ====================================================================
 user_row_expanded(SpaceId, UserId, RowId) ->
     try
-        {ok, #?USER_DETAILS{name = Name}} = cacheable_call(gr_adapter, get_user_details, [SpaceId, UserId]),
+        {ok, #user_details{name = Name}} = cacheable_call(gr_spaces, get_user_details, [provider, SpaceId, UserId]),
         SpinnerId = <<RowId/binary, "_spinner">>,
         [
             #td{
@@ -744,7 +780,7 @@ user_row_expanded(SpaceId, UserId, RowId) ->
                 body = [
                     #table{
                         style = ?TABLE_STYLE,
-                        body = [
+                        body = lists:map(fun({Description, Main}) ->
                             #tr{
                                 cells = [
                                     #td{
@@ -752,38 +788,19 @@ user_row_expanded(SpaceId, UserId, RowId) ->
                                         body = #label{
                                             style = ?LABEL_STYLE,
                                             class = <<"label label-large label-inverse">>,
-                                            body = <<"User ID">>
+                                            body = Description
                                         }
                                     },
                                     #td{
                                         style = ?MAIN_STYLE,
                                         body = #p{
                                             style = ?PARAGRAPH_STYLE,
-                                            body = UserId
-                                        }
-                                    }
-                                ]
-                            },
-                            #tr{
-                                cells = [
-                                    #td{
-                                        style = ?DESCRIPTION_STYLE,
-                                        body = #label{
-                                            style = ?LABEL_STYLE,
-                                            class = <<"label label-large label-inverse">>,
-                                            body = <<"Name">>
-                                        }
-                                    },
-                                    #td{
-                                        style = ?MAIN_STYLE,
-                                        body = #p{
-                                            style = ?PARAGRAPH_STYLE,
-                                            body = Name
+                                            body = Main
                                         }
                                     }
                                 ]
                             }
-                        ]
+                        end, [{<<"Name">>, Name}, {<<"User ID">>, UserId}])
                     }
                 ]
             },
@@ -794,9 +811,11 @@ user_row_expanded(SpaceId, UserId, RowId) ->
             }
         ]
     catch
-        _:_ ->
-            message(<<"error_message">>, <<"Cannot fetch Space's user details.<br>Please try again later.">>),
-            clear_call(gr_adapter, get_user_details, [SpaceId, UserId]),
+        _:Reason ->
+            ?error("Cannot fetch details of user with ID ~p: ~p", [UserId, Reason]),
+            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch details of user with ID: <b>", UserId/binary, "</b>."
+            "<br>Please try again later.">>),
+            clear_call(gr_spaces, get_user_details, [provider, SpaceId, UserId]),
             user_row_collapsed(SpaceId, UserId, RowId)
     end.
 
@@ -870,16 +889,6 @@ spinner() ->
     }.
 
 
-%% message/2
-%% ====================================================================
-%% @doc Renders closeable message at top of a screen.
--spec message(MessageId :: binary(), Message :: binary()) -> Result when
-    Result :: ok.
-%% ====================================================================
-message(MessageId, Message) ->
-    onepanel_gui_utils:message(MessageId, Message, {close_message, MessageId}).
-
-
 %% cacheable_call/3
 %% ====================================================================
 %% @doc Calls given function with given arguments and returns result.
@@ -924,12 +933,13 @@ comet_loop(#?STATE{} = State) ->
             {create_space, Name, Token, RowId} ->
                 gui_jq:css(<<"settings_spinner">>, <<"visibility">>, <<"visible">>),
                 gui_comet:flush(),
-                case gr_adapter:create_space(Name, Token) of
+                case gr_providers:create_space(provider, [{<<"name">>, Name}, {<<"token">>, Token}]) of
                     {ok, SpaceId} ->
-                        message(<<"ok_message">>, <<"Created Space ID: <b>", SpaceId/binary, "</b>">>),
+                        onepanel_gui_utils:message(<<"ok_message">>, <<"Created Space ID: <b>", SpaceId/binary, "</b>">>),
                         add_space_row(SpaceId, RowId);
-                    _ ->
-                        message(<<"error_message">>, <<"Operation failed.<br>Please try again later.">>)
+                    Other ->
+                        ?error("Cannot create Space ~p associated with token ~p: ~p", [Name, Token, Other]),
+                        onepanel_gui_utils:message(<<"error_message">>, <<"Operation failed.<br>Please try again later.">>)
                 end,
                 gui_jq:css(<<"settings_spinner">>, <<"visibility">>, <<"hidden">>),
                 gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"">>),
@@ -939,27 +949,30 @@ comet_loop(#?STATE{} = State) ->
             {support_space, Token, RowId} ->
                 gui_jq:css(<<"settings_spinner">>, <<"visibility">>, <<"visible">>),
                 gui_comet:flush(),
-                case gr_adapter:support_space(Token) of
+                case gr_providers:support_space(provider, [{<<"token">>, Token}]) of
                     {ok, SpaceId} ->
-                        message(<<"ok_message">>, <<"Supported Space ID: <b>", SpaceId/binary, "</b>">>),
+                        onepanel_gui_utils:message(<<"ok_message">>, <<"Supported Space ID: <b>", SpaceId/binary, "</b>">>),
                         add_space_row(SpaceId, RowId);
-                    _ ->
-                        message(<<"error_message">>, <<"Operation failed.<br>Please try again later.">>)
+                    Other ->
+                        ?error("Cannot support Space associated with token ~p: ~p", [Token, Other]),
+                        onepanel_gui_utils:message(<<"error_message">>, <<"Operation failed.<br>Please try again later.">>)
                 end,
                 gui_jq:css(<<"settings_spinner">>, <<"visibility">>, <<"hidden">>),
                 gui_jq:prop(<<"support_space_button">>, <<"disabled">>, <<"">>),
                 gui_comet:flush(),
                 State;
 
-            {cancel_space_support, SpaceId, RowId, ButtonId, SpinnerId} ->
+            {revoke_space_support, SpaceId, RowId, ButtonId, SpinnerId} ->
                 gui_jq:show(SpinnerId),
                 gui_comet:flush(),
-                case gr_adapter:cancel_space_support(SpaceId) of
+                case gr_providers:revoke_space_support(provider, SpaceId) of
                     ok ->
-                        message(<<"ok_message">>, <<"Space: <b>", SpaceId/binary, "</b> is no longer supported.">>),
-                        gui_jq:remove(RowId);
-                    _ ->
-                        message(<<"error_message">>, <<"Operation failed.<br>Please try again later.">>)
+                        onepanel_gui_utils:message(<<"ok_message">>, <<"Space: <b>", SpaceId/binary, "</b> is no longer supported.">>),
+                        gui_jq:remove(RowId),
+                        clear_call(gr_providers, get_spaces, [provider]);
+                    Other ->
+                        ?error("Cannot cancel support for Space ~p: ~p", [SpaceId, Other]),
+                        onepanel_gui_utils:message(<<"error_message">>, <<"Operation failed.<br>Please try again later.">>)
                 end,
                 gui_jq:hide(SpinnerId),
                 gui_jq:prop(ButtonId, <<"disabled">>, <<"">>),
@@ -1028,7 +1041,7 @@ comet_loop(#?STATE{} = State) ->
         end
                catch Type:Reason ->
                    ?error("Comet process exception: ~p:~p", [Type, Reason]),
-                   message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
+                   onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Reason}
                end,
     comet_loop(NewState).
@@ -1049,7 +1062,7 @@ event(init) ->
     gui_jq:wire(#api{name = "createSpace", tag = "createSpace"}, false),
     gui_jq:wire(#api{name = "supportSpace", tag = "supportSpace"}, false),
     gui_jq:wire(#api{name = "cancelSpaceSupport", tag = "cancelSpaceSupport"}, false),
-    onepanel_gui_utils:bind_key_to_click(<<"13">>, <<"button.confirm">>);
+    gui_jq:bind_key_to_click_on_class(<<"13">>, <<"confirm">>);
 
 event(to_account_page) ->
     gui_jq:redirect(?PAGE_SPACES_ACCOUNT);
@@ -1067,7 +1080,7 @@ event(create_space) ->
     "if(name.length == 0) { alert.html(\"Please provide Space name.\"); alert.fadeIn(300); return false; }",
     "else if(token.length == 0) { alert.html(\"Please provide Space token.\"); alert.fadeIn(300); return false; }",
     "else { createSpace([name, token]); return true; }">>,
-    onepanel_gui_utils:dialog_popup(Title, Message, Script),
+    gui_jq:dialog_popup(Title, Message, Script),
     gui_jq:wire(<<"box.on('shown',function(){ $(\"#create_space_name\").focus(); });">>);
 
 event(support_space) ->
@@ -1080,13 +1093,13 @@ event(support_space) ->
     "var token = $.trim($(\"#support_space_token\").val());",
     "if(token.length == 0) { alert.html(\"Please provide Space token.\"); alert.fadeIn(300); return false; }",
     "else { supportSpace([token]); return true; }">>,
-    onepanel_gui_utils:dialog_popup(Title, Message, Script),
+    gui_jq:dialog_popup(Title, Message, Script),
     gui_jq:wire(<<"box.on('shown',function(){ $(\"#support_space_token\").focus(); });">>);
 
-event({cancel_space_support, SpaceId, RowId, ButtonId, SpinnerId}) ->
-    Message = <<"Are you sure you want to stop supporting Space: <b>", SpaceId/binary, "</b>?">>,
+event({revoke_space_support, SpaceId, RowId, ButtonId, SpinnerId}) ->
+    Message = <<"Are you sure you want to stop supporting Space: <b>", SpaceId/binary, "</b>?<br>This operation cannot be undone.">>,
     Script = <<"cancelSpaceSupport(['", SpaceId/binary, "','", RowId/binary, "','", ButtonId/binary, "','", SpinnerId/binary, "']);">>,
-    onepanel_gui_utils:confirm_popup(Message, Script);
+    gui_jq:confirm_popup(Message, Script);
 
 event({spaces_table_collapse, TableId, SpinnerId}) ->
     get(?COMET_PID) ! {spaces_table_collapse, TableId},
@@ -1164,5 +1177,5 @@ api_event("supportSpace", Args, _) ->
 
 api_event("cancelSpaceSupport", Args, _) ->
     [SpaceId, RowId, ButtonId, SpinnerId] = mochijson2:decode(Args),
-    get(?COMET_PID) ! {cancel_space_support, SpaceId, RowId, ButtonId, SpinnerId},
+    get(?COMET_PID) ! {revoke_space_support, SpaceId, RowId, ButtonId, SpinnerId},
     gui_jq:prop(ButtonId, <<"disabled">>, <<"disabled">>).

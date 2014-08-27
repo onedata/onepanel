@@ -246,7 +246,7 @@ event({set_ulimits, Hosts}) ->
                     case validate_limit(ProcessesLimit) of
                         true ->
                             gui_jq:css(ProcessesId, <<"border-color">>, <<"green">>),
-                            rpc:call(list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_ulimits,
+                            rpc:call(onepanel_utils:get_node(Host), installer_utils, set_ulimits,
                                 [list_to_integer(OpenFilesLimit), list_to_integer(ProcessesLimit)]),
                             Status;
                         _ ->
@@ -273,6 +273,9 @@ event({set_ulimits, Hosts}) ->
         _ ->
             onepanel_gui_utils:message(<<"error_message">>, <<"System limit should be a positive number.">>)
     end;
+
+event({close_message, MessageId}) ->
+    gui_jq:hide(MessageId);
 
 event(terminate) ->
     ok.

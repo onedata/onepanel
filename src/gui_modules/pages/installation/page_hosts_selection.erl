@@ -290,5 +290,8 @@ event(next) ->
             end
     end;
 
+event({close_message, MessageId}) ->
+    gui_jq:hide(MessageId);
+
 event(terminate) ->
     ok.

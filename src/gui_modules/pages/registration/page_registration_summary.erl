@@ -210,13 +210,16 @@ event(register) ->
     Pid ! init,
     spawn(fun() ->
         timer:sleep(2000),
-        case gr_adapter:register() of
+        case provider_logic:register() of
             {ok, _} -> Pid ! registration_success;
             _ -> Pid ! registration_failure
         end
     end),
     gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
     gui_jq:prop(<<"register_button">>, <<"disabled">>, <<"disabled">>);
+
+event({close_message, MessageId}) ->
+    gui_jq:hide(MessageId);
 
 event(terminate) ->
     ok.

@@ -192,12 +192,15 @@ event(next) ->
     Pid ! {init, round(?CONNECTION_TIMEOUT / ?DEFAULT_NEXT_UPDATE)},
     spawn(fun() ->
         timer:sleep(1000),
-        case gr_adapter:check_ip_address() of
+        case gr_providers:check_ip_address(provider, ?CONNECTION_TIMEOUT) of
             {ok, _} -> Pid ! {set_status, connection_success};
             _ -> Pid ! {set_status, connection_error}
         end
     end),
     gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"disabled">>);
+
+event({close_message, MessageId}) ->
+    gui_jq:hide(MessageId);
 
 event(terminate) ->
     ok.
