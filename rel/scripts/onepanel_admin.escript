@@ -50,8 +50,8 @@
 %% * storage_paths      - list of paths to storages on every worker node
 %% * open_files         - list of pairs hostname and open files limit on this host
 %% * processes          - list of pairs hostname and processes limit on this host
-%% * register           - boolean value that describes whether register provider in Global Registry
--record(config, {main_ccm, ccms = [], workers = [], dbs = [], storage_paths = [], open_files = [], processes = [], register = false}).
+%% * register           - yes/no value that describes whether register provider in Global Registry
+-record(config, {main_ccm, ccms = [], workers = [], dbs = [], storage_paths = [], open_files = [], processes = [], register = no}).
 
 %% API
 -export([main/1]).
@@ -88,7 +88,7 @@ init() ->
     put(?NODE, erlang:list_to_atom(?APP_STR ++ Hostname)),
     os:cmd(?ERL_LAUNCHER_SCRIPT_PATH ++ " epmd"),
     {A, B, C} = erlang:now(),
-    NodeName = "onepanel_setup_" ++ integer_to_list(A, 32) ++ integer_to_list(B, 32) ++ integer_to_list(C, 32) ++ "@127.0.0.1",
+    NodeName = "onepanel_admin_" ++ integer_to_list(A, 32) ++ integer_to_list(B, 32) ++ integer_to_list(C, 32) ++ "@127.0.0.1",
     net_kernel:start([list_to_atom(NodeName), longnames]),
     erlang:set_cookie(node(), ?DEFAULT_COOKIE).
 
@@ -163,7 +163,7 @@ install(Path) ->
         print_ok(),
 
         case Register of
-            true ->
+            yes ->
                 print_info("Connecting to Global Registry..."),
                 {ok, _} = rpc:call(Node, gr_providers, check_ip_address, [provider, ?CONNECTION_TIMEOUT]),
                 print_ok(),
@@ -300,7 +300,7 @@ parse({config, Path}) ->
         storage_paths = proplists:get_value("Storage paths", Terms, []),
         open_files = proplists:get_value("Open files limit", Terms, []),
         processes = proplists:get_value("Processes limit", Terms, []),
-        register = proplists:get_value("Register in Global Registry", Terms, false)
+        register = proplists:get_value("Register in Global Registry", Terms, no)
     };
 
 parse({terms, Terms}) ->
@@ -383,8 +383,10 @@ check_ports(Node) ->
     lists:foreach(fun(ControlPanelHost) ->
         ControlPanelNode = list_to_atom("onepanel@" ++ ControlPanelHost),
         {ok, IpAddress} = rpc:call(ControlPanelNode, gr_providers, check_ip_address, [provider, ?CONNECTION_TIMEOUT], ?RPC_TIMEOUT),
-        ok = rpc:call(Node, gr_providers, check_port, [provider, IpAddress, list_to_integer(DefaultGuiPort), <<"gui">>]),
-        ok = rpc:call(Node, gr_providers, check_port, [provider, IpAddress, list_to_integer(DefaultRestPort), <<"rest">>])
+        ok = rpc:call(Node, gr_providers, check_port, [provider, IpAddress, DefaultGuiPort, <<"gui">>]),
+        ok = rpc:call(Node, gr_providers, check_port, [provider, IpAddress, DefaultRestPort, <<"rest">>]),
+        ok = rpc:call(Node, dao, update_record,
+            [local_configurations, ControlPanelHost, [{gui_port, DefaultGuiPort}, {rest_port, DefaultGuiPort}]], ?RPC_TIMEOUT)
     end, ControlPanelHosts),
     ok.
 
@@ -444,7 +446,7 @@ format_hosts(Prefix, [Host | Hosts]) ->
 -spec print_usage() -> ok.
 %% ====================================================================
 print_usage() ->
-    io:format("Usage: onepanel_setup [options]\n", []),
+    io:format("Usage: onepanel_admin [options]\n", []),
     io:format("Options:\n"),
     io:format("\t--install <config file>\n"),
     io:format("\t--config\n"),
