@@ -147,9 +147,9 @@ get_host(Node) ->
 %% ====================================================================
 get_hosts() ->
     lists:foldl(fun(Node, Acc) ->
-        NodeString = atom_to_list(Node),
-        case string:equal(?APP_STR, string:left(NodeString, length(?APP_STR))) of
-            true -> [get_host(Node) | Acc];
+        [Name | _] = string:tokens(atom_to_list(Node), "@"),
+        case ?APP_STR of
+            Name -> [get_host(Node) | Acc];
             _ -> Acc
         end
     end, [], get_nodes()).

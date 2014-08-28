@@ -126,7 +126,7 @@ unregister() ->
 %% ====================================================================
 %% @doc Returns default veilcluster ports that will be checked by Global Registry
 -spec get_ports_to_check() -> Result when
-    Result :: {ok, Ports :: [{Type :: string(), Port :: integer()}]} | {error, Reason :: term()}.
+    Result :: {ok, Ports :: [{Type :: binary(), Port :: integer()}]} | {error, Reason :: term()}.
 %% ====================================================================
 get_ports_to_check() ->
     try
@@ -134,7 +134,7 @@ get_ports_to_check() ->
         Node = onepanel_utils:get_node(?DEFAULT_CCM_NAME, MainCCM),
         {ok, GuiPort} = rpc:call(Node, application, get_env, [veil_cluster_node, control_panel_port]),
         {ok, RestPort} = rpc:call(Node, application, get_env, [veil_cluster_node, rest_port]),
-        {ok, [{"gui", GuiPort}, {"rest", RestPort}]}
+        {ok, [{<<"gui">>, GuiPort}, {<<"rest">>, RestPort}]}
     catch
         _:Reason ->
             ?error("Cannot get ports to check: ~p", [Reason]),

@@ -65,7 +65,7 @@ body() ->
                             _ -> []
                         end,
     {DefaultGuiPort, DefaultRestPort} = case provider_logic:get_ports_to_check() of
-                                            {ok, [{"gui", GuiPort}, {"rest", RestPort}]} -> {GuiPort, RestPort};
+                                            {ok, [{<<"gui">>, GuiPort}, {<<"rest">>, RestPort}]} -> {GuiPort, RestPort};
                                             _ -> {0, 0}
                                         end,
     {TextboxIds, _} = lists:foldl(fun(_, {Ids, Id}) ->
