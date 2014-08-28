@@ -24,13 +24,6 @@
 -define(PAGE_INSTALLATION_SUMMARY, <<"/installation_summary">>).
 -define(PAGE_INSTALLATION_SUCCESS, <<"/installation_success">>).
 
-%% Registration pages
--define(PAGE_REGISTRATION, <<"/registration">>).
--define(PAGE_CONNECTION_CHECK, <<"/connection_check">>).
--define(PAGE_PORTS_CHECK, <<"/ports_check">>).
--define(PAGE_REGISTRATION_SUMMARY, <<"/registration_summary">>).
--define(PAGE_REGISTRATION_SUCCESS, <<"/registration_success">>).
-
 %% Update pages
 -define(PAGE_UPDATE, <<"/update">>).
 -define(PAGE_VERSION_SELECTION, <<"/version_selection">>).

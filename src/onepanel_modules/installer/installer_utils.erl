@@ -19,9 +19,6 @@
 -export([set_ulimits/2, get_ulimits_cmd/1]).
 -export([get_workers/0, get_global_config/0]).
 -export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/3]).
--export([finalize_installation/1]).
-
--define(FINALIZE_INSTALLATION_ATTEMPTS, 120).
 
 %% ====================================================================
 %% API functions
@@ -85,20 +82,20 @@ add_node_to_config(Type, Name, Path) ->
 %% remove_node_from_config/1
 %% ====================================================================
 %% @doc Removes a node from configured_nodes.cfg.
--spec remove_node_from_config(Name :: string()) -> Result when
+-spec remove_node_from_config(Type :: atom()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-remove_node_from_config(Name) ->
+remove_node_from_config(Type) ->
     try
         {ok, Entries} = file:consult(?CONFIGURED_NODES_PATH),
-        ToDelete = case lists:keyfind(Name, 1, Entries) of
-                       false -> ?warning("Node ~p not found among configured nodes.", [Name]);
+        ToDelete = case lists:keyfind(Type, 1, Entries) of
+                       false -> ?warning("Node ~p not found among configured nodes.", [Type]);
                        Term -> Term
                    end,
         save_nodes_in_config(Entries -- [ToDelete])
     catch
         _:Reason ->
-            ?error("Cannot delete ~p node from ~s: ~p", [Name, ?CONFIGURED_NODES_PATH, Reason]),
+            ?error("Cannot delete ~p from ~s: ~p", [Type, ?CONFIGURED_NODES_PATH, Reason]),
             {error, Reason}
     end.
 
@@ -181,45 +178,3 @@ get_global_config() ->
     end.
 
 
-%% finalize_installation/1
-%% ====================================================================
-%% @doc Waits until cluster control panel nodes are up and running.
-%% Returns an error after ?FINALIZE_INSTALLATION_ATTEMPTS limit.
--spec finalize_installation(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
-    Result :: ok | {error, Reason :: term()}.
-%% ====================================================================
-finalize_installation(Args) ->
-    case proplists:get_value(main_ccm, Args) of
-        undefined ->
-            case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM}} ->
-                    finalize_installation(MainCCM, ?FINALIZE_INSTALLATION_ATTEMPTS);
-                _ -> finalize_installation(Args)
-            end;
-        MainCCM -> finalize_installation(MainCCM, ?FINALIZE_INSTALLATION_ATTEMPTS)
-    end.
-
-
-%% ====================================================================
-%% Internal functions
-%% ====================================================================
-
-%% finalize_installation/2
-%% ====================================================================
-%% @doc Waits until cluster control panel nodes are up and running.
-%% Returns an error after ?FINALIZE_INSTALLATION_ATTEMPTS limit.
-%% Should not be used directly, use finalize_installation/1 instead.
--spec finalize_installation(MainCCM :: string(), Attempts :: integer()) -> Result when
-    Result :: ok | {error, Reason :: term()}.
-%% ====================================================================
-finalize_installation(_, 0) ->
-    {error, attempts_limit_exceeded};
-
-finalize_installation(MainCCM, Attempts) ->
-    case gr_utils:get_control_panel_hosts() of
-        {ok, [_ | _]} ->
-            ok;
-        _ ->
-            timer:sleep(1000),
-            finalize_installation(MainCCM, Attempts - 1)
-    end.
