@@ -72,13 +72,6 @@ route(?PAGE_ABOUT) -> page_about;
 route(?PAGE_MANAGE_ACCOUNT) -> page_manage_account;
 route(?PAGE_VALIDATE_LOGIN) -> page_validate_login;
 
-%% Registration pages
-route(?PAGE_REGISTRATION) -> page_registration;
-route(?PAGE_CONNECTION_CHECK) -> page_connection_check;
-route(?PAGE_PORTS_CHECK) -> page_ports_check;
-route(?PAGE_REGISTRATION_SUMMARY) -> page_registration_summary;
-route(?PAGE_REGISTRATION_SUCCESS) -> page_registration_success;
-
 %% Update pages
 route(?PAGE_UPDATE) -> page_update;
 route(?PAGE_VERSION_SELECTION) -> page_version_selection;
