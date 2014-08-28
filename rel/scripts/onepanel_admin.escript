@@ -30,7 +30,7 @@
 -define(ERL_LAUNCHER_SCRIPT_PATH, ?PREFIX ++ "scripts/erl_launcher").
 
 %% Timeout for each RPC call
--define(RPC_TIMEOUT, 60000).
+-define(RPC_TIMEOUT, 120000).
 
 %% Timeout for connection to Global Registry
 -define(CONNECTION_TIMEOUT, 5000).
