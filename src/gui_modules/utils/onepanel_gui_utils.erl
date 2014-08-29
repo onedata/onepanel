@@ -70,9 +70,6 @@ top_menu(ActiveTabID, SubMenuBody) ->
             {installation_tab, #li{body = [
                 #link{style = <<"padding: 18px;">>, url = ?PAGE_INSTALLATION, body = <<"Installation">>}
             ]}},
-            {registration_tab, #li{body = [
-                #link{style = <<"padding: 18px;">>, url = ?PAGE_REGISTRATION, body = <<"Registration">>}
-            ]}},
             {update_tab, #li{body = [
                 #link{style = <<"padding: 18px;">>, url = ?PAGE_UPDATE, body = <<"Update">>}
             ]}}
