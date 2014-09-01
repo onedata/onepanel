@@ -228,12 +228,13 @@ event(cancel_new_password_submit) ->
     gui_jq:update(<<"password">>, password());
 
 event(submit_new_password) ->
+    Username = gui_ctx:get_user_id(),
     CurrentPassword = gui_ctx:postback_param(<<"current_password_textbox">>),
     NewPassword = gui_ctx:postback_param(<<"new_password_textbox">>),
     ConfirmPassword = gui_ctx:postback_param(<<"confirm_password_textbox">>),
     case verify_new_password(NewPassword, ConfirmPassword) of
         ok ->
-            case installer_db:change_password(CurrentPassword, NewPassword) of
+            case installer_db:change_password(Username, CurrentPassword, NewPassword) of
                 ok ->
                     gui_jq:fade_out(<<"error_message">>, 300),
                     onepanel_gui_utils:message(<<"ok_message">>, "Password changed."),

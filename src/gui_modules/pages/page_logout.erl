@@ -12,6 +12,7 @@
 
 -module(page_logout).
 -export([main/0, event/1]).
+-include("onepanel.hrl").
 -include("gui_modules/common.hrl").
 
 %% ====================================================================
@@ -45,6 +46,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
+    gen_server:cast(?ONEPANEL_SERVER, {remove_password, gui_ctx:get_user_id()}),
     gui_ctx:clear_session(),
     session_logic:clear_expired_sessions(),
     Main = [

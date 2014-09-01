@@ -12,6 +12,7 @@
 -module(installer_db).
 -behaviour(installer_behaviour).
 
+-include("onepanel.hrl").
 -include("onepanel_modules/logic/user_logic.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
@@ -22,7 +23,7 @@
 
 %% API
 -export([local_install/0, local_uninstall/0, local_start/0, local_stop/0]).
--export([add_to_cluster/2, change_password/2]).
+-export([add_to_cluster/2, change_password/3]).
 
 %% ====================================================================
 %% Behaviour callback functions
@@ -87,10 +88,17 @@ start(Args) ->
                   Hosts -> Hosts
               end,
 
-        DbPassword = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                         {ok, #?GLOBAL_CONFIG_RECORD{dbs = [], db_password = Password}} -> Password;
-                         {ok, #?GLOBAL_CONFIG_RECORD{dbs = _}} -> throw("Database nodes already configured.");
-                         _ -> throw("Cannot get database nodes configuration.")
+        case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> ok;
+            {ok, #?GLOBAL_CONFIG_RECORD{dbs = _}} -> throw("Database nodes already configured.");
+            _ -> throw("Cannot get database nodes configuration.")
+        end,
+
+        Username = proplists:get_value(username, Args),
+        DbPassword = case gen_server:call(?ONEPANEL_SERVER, {get_password, Username}, ?GEN_SERVER_TIMEOUT) of
+                         {ok, Password} when is_binary(Password) -> Password;
+                         _ ->
+                             throw("Cannot get password to administration database for user: " ++ binary_to_list(Username))
                      end,
 
         {StartOk, StartError} = onepanel_utils:apply_on_hosts(Dbs, ?MODULE, local_start, [], ?RPC_TIMEOUT),
@@ -343,12 +351,11 @@ add_to_cluster(ClusterHost, Password, Attempts) ->
 %% successful operation on all nodes or host for which password could not
 %% be changed.
 %% @end
--spec change_password(CurrentPassword :: binary(), NewPassword :: binary()) -> Result when
+-spec change_password(Username :: binary(), CurrentPassword :: binary(), NewPassword :: binary()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-change_password(CurrentPassword, NewPassword) ->
+change_password(Username, CurrentPassword, NewPassword) ->
     try
-        Username = <<"admin">>,
         {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
         case Dbs of
             [] -> throw("Database nodes not configured.");
@@ -365,7 +372,7 @@ change_password(CurrentPassword, NewPassword) ->
         end, {[], undefined}, Dbs),
         case ErrorHost of
             undefined ->
-                ok = dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{db_password, NewPassword}]);
+                ok = gen_server:call(?ONEPANEL_SERVER, {set_password, Username, NewPassword});
             _ ->
                 lists:foreach(fun(Db) ->
                     change_password(Db, Username, NewPassword, CurrentPassword)

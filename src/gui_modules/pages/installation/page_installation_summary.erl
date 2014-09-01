@@ -403,7 +403,7 @@ event(install) ->
             Pid ! {init, length(installer:get_flatten_stages())},
             Fields = record_info(fields, ?CONFIG),
             [_ | Values] = tuple_to_list(ToInstall),
-            Config = lists:zip(Fields, Values),
+            Config = [{username, gui_ctx:get_user_id()} | lists:zip(Fields, Values)],
             installer:install(Config, fun(Event, State) -> installation_progress(Event, State, Pid) end)
     end;
 

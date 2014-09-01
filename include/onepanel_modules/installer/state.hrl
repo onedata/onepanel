@@ -30,8 +30,7 @@
 %% * workers            - list of hostnames of machines where worker nodes are configured
 %% * dbs                - list of hostnames of machines where database nodes are configured
 %% * storage_paths      - list of paths to storages on every worker node
-%% * db_password        - password for all database nodes
--record(?GLOBAL_CONFIG_RECORD, {id, main_ccm, ccms = [], workers = [], dbs = [], storage_paths = [], db_password}).
+-record(?GLOBAL_CONFIG_RECORD, {id, main_ccm, ccms = [], workers = [], dbs = [], storage_paths = []}).
 
 %% Local config record describes host configuration that is:
 %% * host               - machine hostname as a primary key in database

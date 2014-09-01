@@ -84,8 +84,11 @@ init([]) ->
     {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
     {stop, Reason :: term(), NewState :: #state{}}.
 %% ====================================================================
-handle_call(get_status, _From, #state{status = Status} = State) ->
-    {reply, Status, State};
+handle_call({get_password, Username}, _From, #state{status = Status} = State) ->
+    {reply, {ok, proplists:get_value(Username, Status#state.passwords)}, State};
+
+handle_call({set_password, Username, Password}, _From, State) ->
+    {reply, ok, [{Username, Password} | proplists:delete(Username, State#state.passwords)]};
 
 handle_call(Request, _From, State) ->
     ?warning("[Onepanel] Wrong call: ~p", [Request]),
@@ -101,6 +104,9 @@ handle_call(Request, _From, State) ->
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}.
 %% ====================================================================
+handle_cast({remove_password, Username}, State) ->
+    {noreply, proplists:delete(Username, State#state.passwords)};
+
 handle_cast({connection_request, Node}, #state{status = not_connected} = State) ->
     ?info("[Onepanel] Connection request from node: ~p", [Node]),
     db_logic:delete(),

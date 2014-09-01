@@ -15,7 +15,10 @@
 
 -include("registered_names.hrl").
 
+%% Timeout for gen_server calls (5 seconds)
+-define(GEN_SERVER_TIMEOUT, 5000).
+
 %% Onepanel gen_server state
--record(state, {status, socket, address, port}).
+-record(state, {status, socket, address, port, passwords = []}).
 
 -endif.

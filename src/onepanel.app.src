@@ -46,8 +46,7 @@
         {global_registry_url, "https://onedata.org:8443"},
         {get_versions_url, "http://onedata.com/repository/get_versions.php"},
         {default_username, <<"admin">>},
-        {default_user_password, <<"password">>},
-        {default_db_password, <<"password">>},
+        {default_password, <<"password">>},
         {multicast_address, {239, 255, 0, 1}},
         {onepanel_sessions_cookie_ttl, 2592000} % 30 days
     ]}
