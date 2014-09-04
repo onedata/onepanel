@@ -23,6 +23,9 @@
 %% * username       - name of user as a primary key in database
 %% * hash           - SHA 512 password hash
 %% * salt           - random characters sequence added to password before hashing
--record(?USER_RECORD, {username, hash, salt}).
+-record(?USER_RECORD, {username, password_hash, salt}).
+
+%% Minimum length of user's password
+-define(MIN_PASSWORD_LENGTH, 8).
 
 -endif.

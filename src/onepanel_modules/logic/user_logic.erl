@@ -12,6 +12,7 @@
 -module(user_logic).
 
 -include("gui_modules/common.hrl").
+-include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/logic/user_logic.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -19,7 +20,7 @@
 -define(SALT_LENGTH, 10).
 
 %% API
--export([create_user/2, change_username/2, hash_password/1, authenticate/2, change_password/3]).
+-export([create_user/2, change_username/2, hash_password/1, authenticate/2, change_password/4]).
 
 %% ====================================================================
 %% API functions
@@ -34,35 +35,17 @@
 %% ====================================================================
 create_user(Username, Password) ->
     try
-        Salt = list_to_binary(onepanel_utils:random_ascii_lowercase_sequence(?SALT_LENGTH)),
-        PasswordHash = hash_password(<<Password/binary, Salt/binary>>),
-        ok = dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username, hash = PasswordHash, salt = Salt})
-    catch
-        _:Reason ->
-            ?error("Cannot create user ~p: ~p", [Username, Reason]),
-            {error, Reason}
-    end.
-
-
-%% change_username/2
-%% ====================================================================
-%% @doc Changes user's name in database.
-%% @end
--spec change_username(Username :: binary(), NewUsername :: binary()) -> Result when
-    Result :: ok | {error, Reason :: term()}.
-%% ====================================================================
-change_username(Username, NewUsername) ->
-    try
         Transaction = fun() ->
-            {ok, User} = dao:get_record(?USER_TABLE, Username),
-            ok = dao:save_record(?USER_TABLE, User#?USER_RECORD{username = NewUsername}),
-            ok = dao:delete_record(?USER_TABLE, Username)
+            {error, <<"Record not found.">>} = dao:get_record(?USER_TABLE, Username),
+            Salt = list_to_binary(onepanel_utils:random_ascii_lowercase_sequence(?SALT_LENGTH)),
+            PasswordHash = hash_password(<<Password/binary, Salt/binary>>),
+            ok = dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username, password_hash = PasswordHash, salt = Salt})
         end,
         mnesia:activity(transaction, Transaction)
     catch
         _:Reason ->
-            ?error("Cannot change name of user ~p: ~p", [Username, Reason]),
-            {error, ?INTERNAL_SERVER_ERROR}
+            ?error("Cannot create user ~p: ~p", [Username, Reason]),
+            {error, Reason}
     end.
 
 
@@ -75,16 +58,47 @@ change_username(Username, NewUsername) ->
 %% ====================================================================
 authenticate(Username, Password) ->
     case dao:get_record(?USER_TABLE, Username) of
-        {ok, #?USER_RECORD{username = Username, hash = ValidPasswordHash, salt = Salt}} ->
+        {ok, #?USER_RECORD{username = Username, password_hash = ValidPasswordHash, salt = Salt}} ->
             PasswordHash = hash_password(<<Password/binary, Salt/binary>>),
             case ValidPasswordHash of
                 PasswordHash -> ok;
                 _ -> {error, ?AUTHENTICATION_ERROR}
             end;
-        {error, "Record not found."} -> {error, ?AUTHENTICATION_ERROR};
+        {error, <<"Record not found.">>} -> {error, ?AUTHENTICATION_ERROR};
         Other ->
             ?error("Cannot authenticate user: ~p", [Other]),
             {error, ?INTERNAL_SERVER_ERROR}
+    end.
+
+
+%% change_username/2
+%% ====================================================================
+%% @doc Changes user's name in database.
+%% @end
+-spec change_username(Username :: binary(), NewUsername :: binary()) -> Result when
+    Result :: ok | {error, Reason :: binary()}.
+%% ====================================================================
+change_username(_, <<>>) ->
+    {error, <<"Username cannot be empty.">>};
+change_username(Username, Username) ->
+    {error, <<"New username is the same as current username.">>};
+change_username(Username, NewUsername) ->
+    try
+        Transaction = fun() ->
+            {error, <<"Record not found.">>} = dao:get_record(?USER_TABLE, NewUsername),
+            ok = dao:update_record(?USER_TABLE, Username, [{username, NewUsername}]),
+            {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+            ok = installer_db:change_username(Dbs, Username, NewUsername)
+        end,
+        mnesia:activity(transaction, Transaction)
+    catch
+        error:{badmatch, {ok, Record}} when is_record(Record, ?USER_RECORD) ->
+            {error, <<"Username is not available.">>};
+        error:{badmatch, {error, Reason}} when is_binary(Reason) ->
+            {error, Reason};
+        _:Reason ->
+            ?error("Cannot change name of user ~p: ~p", [Username, Reason]),
+            {error, <<"Internal server error.">>}
     end.
 
 
@@ -92,20 +106,34 @@ authenticate(Username, Password) ->
 %% ====================================================================
 %% @doc Changes user's password if authenticated
 %% @end
--spec change_password(Username :: binary(), CurrentPassword :: binary(), NewPassword :: binary()) -> Result
+-spec change_password(Username :: binary(), CurrentPassword :: binary(), NewPassword :: binary(), ConfirmedNewPassword :: binary()) -> Result
     when Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-change_password(Username, CurrentPassword, NewPassword) ->
+change_password(_, _, NewPassword, NewPassword) when size(NewPassword) < ?MIN_PASSWORD_LENGTH ->
+    {error, <<"Password should be at least ", (integer_to_binary(?MIN_PASSWORD_LENGTH))/binary, " characters long.">>};
+change_password(Username, CurrentPassword, NewPassword, NewPassword) ->
     case authenticate(Username, CurrentPassword) of
         ok ->
-            case create_user(Username, NewPassword) of
-                ok -> ok;
-                Other ->
-                    ?error("Cannot change user password: ~p", [Other]),
-                    {error, ?INTERNAL_SERVER_ERROR}
+            Salt = list_to_binary(onepanel_utils:random_ascii_lowercase_sequence(?SALT_LENGTH)),
+            PasswordHash = hash_password(<<NewPassword/binary, Salt/binary>>),
+            try
+                ok = dao:update_record(?USER_TABLE, Username, [{hash, PasswordHash}, {salt, Salt}]),
+                {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+                ok = installer_db:change_password(Dbs, Username, CurrentPassword, NewPassword)
+            catch
+                error:{badmatch, {error, Reason}} when is_binary(Reason) ->
+                    {error, Reason};
+                _:Reason ->
+                    ?error("Cannot change password for user ~p: ~p", [Username, Reason]),
+                    {error, <<"Internal server error">>}
             end;
-        _ -> {error, ?AUTHENTICATION_ERROR}
-    end.
+        {error, ?AUTHENTICATION_ERROR} ->
+            {error, <<"Invalid username or password.">>};
+        _ ->
+            {error, <<"Internal server error">>}
+    end;
+change_password(_, _, _, _) ->
+    {error, <<"Passwords do not match.">>}.
 
 
 %% ====================================================================

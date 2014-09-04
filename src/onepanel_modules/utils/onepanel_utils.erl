@@ -16,6 +16,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
+-export([get_version/0]).
 -export([random_ascii_lowercase_sequence/1]).
 -export([get_node/1, get_node/2, get_nodes/0, get_nodes/2, get_host/1, get_hosts/0, get_software_version/0, get_control_panel_hosts/0]).
 -export([apply_on_hosts/5, dropwhile_failure/5, save_file_on_host/3, save_file_on_hosts/3]).
@@ -24,10 +25,27 @@
 %% API functions
 %% ====================================================================
 
+%% get_version/0
+%% ====================================================================
+%% @doc Returns application version read from reltool.config file.
+-spec get_version() -> Result when
+    Result :: binary().
+%% ====================================================================
+get_version() ->
+    case lists:dropwhile(fun
+        ({?APP_NAME, _, _}) -> false;
+        (_) -> true
+    end, application:which_applications()) of
+        [{?APP_NAME, _, Version} | _] -> list_to_binary(Version);
+        _ -> <<"undefined">>
+    end.
+
+
 %% random_ascii_lowercase_sequence/1
 %% ====================================================================
 %% @doc Creates random sequence consisting of lowercase ASCII letters.
--spec random_ascii_lowercase_sequence(Length :: integer()) -> string().
+-spec random_ascii_lowercase_sequence(Length :: integer()) -> Result when
+    Result :: string().
 %% ====================================================================
 random_ascii_lowercase_sequence(Length) ->
     lists:foldl(fun(_, Acc) -> [random:uniform(26) + 96 | Acc] end, [], lists:seq(1, Length)).
@@ -141,7 +159,7 @@ get_host(Node) ->
 
 %% get_hosts/0
 %% ====================================================================
-%% @doc Returns list of hostnames.
+%% @doc Returns list of hostnames of onepanel cluster nodes.
 -spec get_hosts() -> Result when
     Result :: [Host :: string()].
 %% ====================================================================

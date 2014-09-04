@@ -15,7 +15,12 @@
 -include("onepanel_modules/logic/user_logic.hrl").
 -include_lib("ctool/include/logging.hrl").
 
--define(MIN_PASSWORD_LENGTH, 8).
+%% Comet process pid
+-define(COMET_PID, comet_pid).
+
+%% Comet process state
+-define(STATE, state).
+-record(?STATE, {step, steps, step_progress, next_update}).
 
 %% ====================================================================
 %% API functions
@@ -54,7 +59,18 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(account_settings_tab),
+    Header = #panel{
+        body = [
+            #panel{
+                id = <<"main_spinner">>,
+                style = <<"position: absolute; top: 12px; left: 17px; z-index: 1234; width: 32px; display: none;">>,
+                body = #image{
+                    image = <<"/images/spinner.gif">>
+                }
+            },
+            onepanel_gui_utils:top_menu(account_settings_tab)
+        ]
+    },
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
@@ -264,45 +280,54 @@ change_password() ->
     }.
 
 
-%% verify_new_username/2
-%% ====================================================================
-%% @doc Checks whether username can be changed, that is new username is
-%% not empty and is different from current username.
--spec verify_new_username(Username :: binary(), NewUsername :: binary()) -> Result when
-    Result :: ok | {error, Reason :: term()}.
-%% ====================================================================
-verify_new_username(Username, Username) ->
-    {error, <<"New username is the same as current username.">>};
-
-verify_new_username(_, NewUsername) ->
-    case size(NewUsername) > 0 of
-        true -> ok;
-        _ -> {error, <<"Username cannot be empty.">>}
-    end.
-
-
-%% verify_new_password/2
-%% ====================================================================
-%% @doc Checks whether password can be changed, that is new password and
-%% confirmed password match and new password is at least ?MIN_PASSWORD_LENGTH
-%% characters long.
--spec verify_new_password(NewPassword :: binary(), ConfirmedPassword :: binary()) -> Result when
-    Result :: ok | {error, Reason :: term()}.
-%% ====================================================================
-verify_new_password(Password, Password) ->
-    case size(Password) >= ?MIN_PASSWORD_LENGTH of
-        true -> ok;
-        _ ->
-            {error, <<"Password should be at least ", (integer_to_binary(?MIN_PASSWORD_LENGTH))/binary, " characters long.">>}
-    end;
-
-verify_new_password(_, _) ->
-    {error, <<"Passwords do not match.">>}.
-
-
 %% ====================================================================
 %% Events handling
 %% ====================================================================
+
+%% comet_loop/1
+%% ====================================================================
+%% @doc Handles user's account management actions.
+-spec comet_loop(State :: #?STATE{}) -> Result when
+    Result :: {error, Reason :: term()}.
+%% ====================================================================
+comet_loop({error, Reason}) ->
+    {error, Reason};
+
+comet_loop(#?STATE{} = State) ->
+    NewState = try
+        receive
+            {submit_new_username, Username, NewUsername} ->
+                case user_logic:change_username(Username, NewUsername) of
+                    ok ->
+                        gui_ctx:set_user_id(NewUsername),
+                        gui_jq:update(<<"page-header">>, onepanel_gui_utils:top_menu(account_settings_tab)),
+                        onepanel_gui_utils:message(<<"ok_message">>, "Username changed."),
+                        gui_jq:update(<<"username">>, username(NewUsername));
+                    {error, Reason} ->
+                        onepanel_gui_utils:message(<<"error_message">>, Reason),
+                        gui_jq:update(<<"username">>, username(Username))
+                end,
+                gui_comet:flush(),
+                State;
+
+            {submit_new_password, Username, CurrentPassword, NewPassword, ConfirmedPassword} ->
+                case user_logic:change_password(Username, CurrentPassword, NewPassword, ConfirmedPassword) of
+                    ok ->
+                        onepanel_gui_utils:message(<<"ok_message">>, "Password changed."),
+                        gui_jq:update(<<"password">>, password());
+                    {error, Reason} ->
+                        onepanel_gui_utils:message(<<"error_message">>, Reason)
+                end,
+                gui_comet:flush(),
+                State
+        end
+               catch Type:Reason ->
+                   ?error("Comet process exception: ~p:~p", [Type, Reason]),
+                   onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
+                   {error, Reason}
+               end,
+    ?MODULE:comet_loop(NewState).
+
 
 %% event/1
 %% ====================================================================
@@ -310,6 +335,8 @@ verify_new_password(_, _) ->
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->
+    {ok, Pid} = gui_comet:spawn(fun() -> comet_loop(#?STATE{}) end),
+    put(?COMET_PID, Pid),
     ok;
 
 event(change_username) ->
@@ -324,23 +351,8 @@ event(cancel_new_username_submit) ->
 event(submit_new_username) ->
     Username = gui_ctx:get_user_id(),
     NewUsername = gui_ctx:postback_param(<<"new_username_textbox">>),
-    case verify_new_username(Username, NewUsername) of
-        ok ->
-            case user_logic:change_username(Username, NewUsername) of
-                ok ->
-                    gui_ctx:set_user_id(NewUsername),
-                    gui_jq:update(<<"page-header">>, onepanel_gui_utils:top_menu(account_settings_tab)),
-                    onepanel_gui_utils:message(<<"ok_message">>, "Username changed."),
-                    gui_jq:update(<<"username">>, username(NewUsername));
-                {error, ErrorId} ->
-                    onepanel_gui_utils:message(<<"error_message">>,
-                        onepanel_gui_utils:get_error_message(binary_to_atom(gui_str:to_binary(ErrorId), latin1))),
-                    gui_jq:update(<<"username">>, username(Username))
-            end;
-        {error, Reason} ->
-            onepanel_gui_utils:message(<<"error_message">>, Reason),
-            gui_jq:update(<<"username">>, username(Username))
-    end;
+    get(?COMET_PID) ! {submit_new_username, Username, NewUsername},
+    gui_jq:show(<<"main_spinner">>);
 
 event(change_password) ->
     gui_jq:update(<<"password">>, change_password()),
@@ -356,21 +368,9 @@ event(submit_new_password) ->
     Username = gui_ctx:get_user_id(),
     CurrentPassword = gui_ctx:postback_param(<<"current_password_textbox">>),
     NewPassword = gui_ctx:postback_param(<<"new_password_textbox">>),
-    ConfirmPassword = gui_ctx:postback_param(<<"confirm_password_textbox">>),
-    case verify_new_password(NewPassword, ConfirmPassword) of
-        ok ->
-            case user_logic:change_password(Username, CurrentPassword, NewPassword) of
-                ok ->
-                    gui_jq:fade_out(<<"error_message">>, 300),
-                    onepanel_gui_utils:message(<<"ok_message">>, "Password changed."),
-                    gui_jq:update(<<"password">>, password());
-                {error, ErrorId} ->
-                    onepanel_gui_utils:message(<<"error_message">>,
-                        onepanel_gui_utils:get_error_message(binary_to_atom(gui_str:to_binary(ErrorId), latin1)))
-            end;
-        {error, Reason} ->
-            onepanel_gui_utils:message(<<"error_message">>, Reason)
-    end;
+    ConfirmedPassword = gui_ctx:postback_param(<<"confirm_password_textbox">>),
+    get(?COMET_PID) ! {submit_new_password, Username, CurrentPassword, NewPassword, ConfirmedPassword},
+    gui_jq:show(<<"main_spinner">>);
 
 event({close_message, MessageId}) ->
     gui_jq:hide(MessageId);

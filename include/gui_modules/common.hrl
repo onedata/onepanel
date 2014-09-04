@@ -28,6 +28,8 @@
 %% Macros used as ids of errors that can appear on GUI pages
 -define(AUTHENTICATION_ERROR, <<"authentication_error">>).
 -define(INTERNAL_SERVER_ERROR, <<"internal_server_error">>).
+-define(PASSWORDS_DONT_MATCH_ERROR, <<"passwords_dont_match_error">>).
+-define(PASSWORD_TO_SHORT_ERROR, <<"password_to_short_error">>).
 
 %% Current installation step saved in user session
 -define(CURRENT_INSTALLATION_PAGE, install_page).

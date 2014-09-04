@@ -37,15 +37,13 @@
 initialize(?USER_TABLE) ->
     try
         {ok, Username} = application:get_env(?APP_NAME, default_username),
-        {ok, UserPassword} = application:get_env(?APP_NAME, default_password),
-        ok = user_logic:create_user(Username, UserPassword)
+        {ok, Password} = application:get_env(?APP_NAME, default_password),
+        ok = user_logic:create_user(Username, Password)
     catch
         _:Reason ->
             ?error("Cannot initialize user table: ~p", [Reason]),
             {error, Reason}
     end;
-initialize(?PROVIDER_TABLE) ->
-    ok;
 initialize(?GLOBAL_CONFIG_TABLE) ->
     try
         ok = dao:save_record(?GLOBAL_CONFIG_TABLE, #?GLOBAL_CONFIG_RECORD{id = ?CONFIG_ID})
@@ -54,7 +52,7 @@ initialize(?GLOBAL_CONFIG_TABLE) ->
             ?error("Cannot initialize global configuration table: ~p", [Reason]),
             {error, Reason}
     end;
-initialize(?UPDATER_STATE_TABLE) ->
+initialize(_) ->
     ok.
 
 %% create/0

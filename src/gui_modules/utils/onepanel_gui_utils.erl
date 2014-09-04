@@ -124,15 +124,14 @@ top_menu(ActiveTabID, ActiveLinkID, SubMenuBody) ->
         {brand_tab, #li{body = #link{style = <<"padding: 18px;">>, url = ?PAGE_ROOT,
             body = [
                 #span{style = <<"font-size: xx-large;">>, class = <<"fui-gear">>},
-                #b{style = <<"font-size: x-large;">>, body = <<"OnePanel">>}
+                #b{style = <<"font-size: x-large;">>, body = <<"onepanel">>}
             ]}
         }},
         {software_tab, #li{body = [
             #link{style = "padding: 18px;", url = ?PAGE_INSTALLATION, body = <<"Software">>},
             #list{style = "top: 37px; width: 120px;", body = Process(ActiveLinkID, [
                 {installation_link, #li{body = #link{url = ?PAGE_INSTALLATION, body = <<"Installation">>}}},
-                {update_link, #li{body = #link{url = ?PAGE_UPDATE, body = <<"Update">>}}},
-                {software_settings_link, #li{body = #link{url = ?PAGE_SOFTWARE_SETTINGS, body = <<"Settings">>}}}
+                {update_link, #li{body = #link{url = ?PAGE_UPDATE, body = <<"Update">>}}}
             ])}
         ]}},
         {spaces_tab, #li{body = [

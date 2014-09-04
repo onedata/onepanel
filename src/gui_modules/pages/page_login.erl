@@ -57,7 +57,7 @@ body() ->
                     style = <<"width: 30em; margin: 0 auto; text-align: center; margin-top: 10em;">>,
                     body = [
                         #h3{
-                            body = <<"Welcome to OnePanel">>
+                            body = <<"Welcome to onepanel">>
                         },
                         #form{
                             id = <<"login_form">>,
@@ -105,16 +105,19 @@ body() ->
 %% ====================================================================
 error_message(undefined, undefined) ->
     #panel{
+        style = <<"margin: 0;">>,
         class = <<"hidden dialog dialog-danger">>
     };
 error_message(undefined, ErrorId) ->
-    ErrorMessage = onepanel_gui_utils:get_error_message(binary_to_atom(gui_str:to_binary(ErrorId), latin1)),
+    ErrorMessage = onepanel_gui_utils:get_error_message(ErrorId),
     #panel{
+        style = <<"margin: 0;">>,
         class = <<"dialog dialog-danger">>,
         body = ErrorMessage
     };
 error_message(_, _) ->
     #panel{
+        style = <<"margin: 0;">>,
         class = <<"dialog dialog-danger">>,
         body = <<"No session or session expired.">>
     }.

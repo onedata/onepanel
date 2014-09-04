@@ -46,7 +46,6 @@
 -define(PAGE_LOGOUT, <<"/logout">>).
 -define(PAGE_ABOUT, <<"/about">>).
 -define(PAGE_ACCOUNT_SETTINGS, <<"/account/settings">>).
--define(PAGE_SOFTWARE_SETTINGS, <<"/software/settings">>).
 -define(PAGE_PRIVACY_POLICY, <<"/privacy_policy">>).
 
 -endif.

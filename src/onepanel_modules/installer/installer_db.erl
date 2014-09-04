@@ -23,7 +23,7 @@
 
 %% API
 -export([local_install/0, local_uninstall/0, local_start/0, local_stop/0]).
--export([add_to_cluster/2, change_password/3]).
+-export([add_to_cluster/2, change_username/3, local_change_username/3, change_password/4, local_change_password/3]).
 
 %% ====================================================================
 %% Behaviour callback functions
@@ -96,7 +96,8 @@ start(Args) ->
 
         Username = proplists:get_value(username, Args),
         DbPassword = case gen_server:call(?ONEPANEL_SERVER, {get_password, Username}, ?GEN_SERVER_TIMEOUT) of
-                         {ok, Password} when is_binary(Password) -> Password;
+                         {ok, Password} when is_binary(Password) ->
+                             binary_to_list(Password);
                          _ ->
                              throw("Cannot get password to administration database for user: " ++ binary_to_list(Username))
                      end,
@@ -345,66 +346,85 @@ add_to_cluster(ClusterHost, Password, Attempts) ->
     end.
 
 
-%% change_password/2
+%% change_username/3
 %% ====================================================================
-%% @doc Changes password for all database nodes. Returns 'ok' in case of
-%% successful operation on all nodes or host for which password could not
-%% be changed.
+%% @doc Changes username in administration database on given hosts.
 %% @end
--spec change_password(Username :: binary(), CurrentPassword :: binary(), NewPassword :: binary()) -> Result when
+-spec change_username(Hosts :: [string()], Username :: binary(), NewUsername :: binary()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-change_password(Username, CurrentPassword, NewPassword) ->
+change_username(Hosts, Username, NewUsername) ->
+    case gen_server:call(?ONEPANEL_SERVER, {get_password, Username}, ?GEN_SERVER_TIMEOUT) of
+        {ok, Password} when is_binary(Password) ->
+            {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(Hosts, ?MODULE, local_change_username, [Username, NewUsername, Password], ?RPC_TIMEOUT),
+            case HostsError of
+                [] -> ok;
+                _ ->
+                    ?error("Cannot change username in administration database for user ~p on hosts: ~p", [Username, HostsError]),
+                    onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_change_username, [NewUsername, Username], ?RPC_TIMEOUT),
+                    {error, <<"Cannot change username in administration database.">>}
+            end;
+        _ ->
+            {error, <<"Cannot get password to administration database for user: ", Username/binary>>}
+    end.
+
+
+%% local_change_username/3
+%% ====================================================================
+%% @doc Changes username in administration database on local hosts.
+%% @end
+-spec local_change_username(Username :: binary(), NewUsername :: binary(), Password :: binary()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+local_change_username(Username, NewUsername, Password) ->
     try
-        {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        case Dbs of
-            [] -> throw("Database nodes not configured.");
-            _ -> ok
-        end,
-        {SuccessfulChange, ErrorHost} = lists:foldl(fun
-            (Db, {Acc, undefined}) ->
-                case change_password(Db, Username, CurrentPassword, NewPassword) of
-                    ok -> {[Db | Acc], undefined};
-                    _ -> {Acc, Db}
-                end;
-            (_, {Acc, Host}) ->
-                {Acc, Host}
-        end, {[], undefined}, Dbs),
-        case ErrorHost of
-            undefined ->
-                ok = gen_server:call(?ONEPANEL_SERVER, {set_password, Username, NewPassword});
-            _ ->
-                lists:foreach(fun(Db) ->
-                    change_password(Db, Username, NewPassword, CurrentPassword)
-                end, SuccessfulChange),
-                {error, {host, ErrorHost}}
-        end
+        URL = "http://" ++ onepanel_utils:get_host(node()) ++ ":" ++ ?DEFAULT_PORT ++ "/_config/admins/",
+        Headers = [{"content-type", "application/json"}],
+        Options = [{connect_timeout, ?CONNECTION_TIMEOUT}, {basic_auth, {binary_to_list(Username), binary_to_list(Password)}}],
+        {ok, "200", _ResponseHeaders, ResponseBody} = ibrowse:send_req(URL ++ binary_to_list(NewUsername), Headers, get, [], Options),
+        <<"not_found">> = proplists:get_value(<<"error">>, mochijson2:decode(ResponseBody, [{format, proplist}])),
+        {ok, "200", _ResponseHeaders, _ResponseBody} = ibrowse:send_req(URL ++ binary_to_list(NewUsername), Headers, put, mochijson2:encode(Password), Options),
+        {ok, "204", _ResponseHeaders, _ResponseBody} = ibrowse:send_req(URL ++ binary_to_list(Username), Headers, delete, [], Options),
+        ok
     catch
         _:Reason ->
-            ?error("Cannot change database password: ~p", [Reason]),
+            ?error("Cannot change username in administration database for user ~p: ~p", [Username, Reason]),
             {error, Reason}
     end.
 
 
-%% ====================================================================
-%% Internal functions
-%% ====================================================================
-
 %% change_password/4
 %% ====================================================================
-%% @doc Changes password for database node on given host.
+%% @doc Changes password to administration database on given hosts.
 %% @end
--spec change_password(Db :: string(), Username :: binary(), CurrentPassword :: binary(), NewPassword :: binary()) -> Result when
+-spec change_password(Hosts :: [string()], Username :: binary(), CurrentPassword :: binary(), NewPassword :: binary()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-change_password(Db, Username, CurrentPassword, NewPassword) ->
-    URL = "http://" ++ Db ++ ":" ++ ?DEFAULT_PORT ++ "/_config/admins/" ++ binary_to_list(Username),
-    Headers = [{content_type, "application/json"}],
-    Body = mochijson2:encode(NewPassword),
-    Options = [{basic_auth, {binary_to_list(Username), binary_to_list(CurrentPassword)}}],
-    case ibrowse:send_req(URL, Headers, put, Body, Options) of
-        {ok, "200", _ResHeaders, _ResBody} -> ok;
+change_password(Hosts, Username, CurrentPassword, NewPassword) ->
+    {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(Hosts, ?MODULE, local_change_password, [Username, CurrentPassword, NewPassword], ?RPC_TIMEOUT),
+    case HostsError of
+        [] -> ok;
+        _ ->
+            ?error("Cannot change password to administration database for user ~p on hosts: ~p", [Username, HostsError]),
+            onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_change_password, [Username, CurrentPassword, NewPassword], ?RPC_TIMEOUT),
+            {error, <<"Cannot change password to administration database.">>}
+    end.
+
+
+%% change_password/3
+%% ====================================================================
+%% @doc Changes password to administration database on local host.
+%% @end
+-spec local_change_password(Username :: binary(), CurrentPassword :: binary(), NewPassword :: binary()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+local_change_password(Username, CurrentPassword, NewPassword) ->
+    URL = "http://" ++ onepanel_utils:get_host(node()) ++ ":" ++ ?DEFAULT_PORT ++ "/_config/admins/" ++ binary_to_list(Username),
+    Headers = [{"content-type", "application/json"}],
+    Options = [{connect_timeout, ?CONNECTION_TIMEOUT}, {basic_auth, {binary_to_list(Username), binary_to_list(CurrentPassword)}}],
+    case ibrowse:send_req(URL, Headers, put, mochijson2:encode(NewPassword), Options) of
+        {ok, "200", _ResponseHeaders, _ResponseBody} -> ok;
         Other ->
-            ?error("Cannot change password for database node at host ~s: ~p", [Db, Other]),
+            ?error("Cannot change password to administration database for user ~p: ~p", [Username, Other]),
             {error, Other}
     end.

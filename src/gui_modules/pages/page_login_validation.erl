@@ -65,7 +65,7 @@ body() ->
                             gui_jq:redirect(<<(?PAGE_LOGIN)/binary, "?id=", (?INTERNAL_SERVER_ERROR)/binary>>)
                     end;
                 {error, Reason} ->
-                    ?error("Invalid login attemp, user ~p: ~p", [Username, Reason]),
+                    ?error("Invalid login attempt, user ~p: ~p", [Username, Reason]),
                     gui_jq:redirect(<<(?PAGE_LOGIN)/binary, "?id=", Reason/binary>>)
             end
     end.

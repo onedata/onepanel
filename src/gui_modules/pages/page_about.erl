@@ -79,18 +79,30 @@ body() ->
     Result :: #table{}.
 %% ====================================================================
 about_table() ->
-    DescriptionStyle = <<"border-width: 0; vertical-align: top; text-align: right; padding: 1em 1em; width: 50%;">>,
+    DescriptionStyle = <<"border-width: 0; vertical-align: top; text-align: right; padding: 1em 1em;">>,
     MainStyle = <<"border-width: 0;  text-align: left; padding: 1em 1em;">>,
     #table{
-        style = <<"border-width: 0; width: 100%;">>, body = [
+        style = <<"border-width: 0; width: auto;">>, body = [
             #tr{
                 cells = [
                     #td{
                         style = DescriptionStyle,
-                        body = #label{
-                            class = <<"label label-large label-inverse">>,
-                            body = <<"Contact">>
+                        body = label(<<"Version">>)
+                    },
+                    #td{
+                        style = MainStyle,
+                        body = #p{
+                            style = <<"margin: 0;">>,
+                            body = onepanel_utils:get_version()
                         }
+                    }
+                ]
+            },
+            #tr{
+                cells = [
+                    #td{
+                        style = DescriptionStyle,
+                        body = label(<<"Contact">>)
                     },
                     #td{
                         style = MainStyle,
@@ -106,14 +118,28 @@ about_table() ->
                 cells = [
                     #td{
                         style = DescriptionStyle,
-                        body = #label{
-                            class = <<"label label-large label-inverse">>,
-                            body = <<"Acknowledgements">>
+                        body = label(<<"Privacy policy">>)
+                    },
+                    #td{
+                        style = MainStyle,
+                        body = #link{
+                            style = <<"font-size: large;">>,
+                            body = <<"Learn about privacy policy">>,
+                            url = ?PAGE_PRIVACY_POLICY
                         }
+                    }
+                ]
+            },
+            #tr{
+                cells = [
+                    #td{
+                        style = DescriptionStyle,
+                        body = label(<<"Acknowledgements">>)
                     },
                     #td{
                         style = MainStyle,
                         body = #p{
+                            style = <<"margin: 0;">>,
                             body = <<"This research was supported in part by PL-Grid Infrastructure.">>
                         }
                     }
@@ -123,15 +149,12 @@ about_table() ->
                 cells = [
                     #td{
                         style = DescriptionStyle,
-                        body = #label{
-                            class = <<"label label-large label-inverse">>,
-                            body = <<"License">>
-                        }
+                        body = label(<<"License">>)
                     },
                     #td{
                         style = MainStyle,
                         body = #p{
-                            style = <<"white-space: pre; font-size: initial; line-height: initial">>,
+                            style = <<"margin: 0; white-space: pre; font-size: initial; line-height: initial">>,
                             body = get_license()
                         }
                     }
@@ -141,10 +164,7 @@ about_table() ->
                 cells = [
                     #td{
                         style = DescriptionStyle,
-                        body = #label{
-                            class = <<"label label-large label-inverse">>,
-                            body = <<"Team">>
-                        }
+                        body = label(<<"Team">>)
                     },
                     #td{
                         style = MainStyle,
@@ -153,6 +173,20 @@ about_table() ->
                 ]
             }
         ]
+    }.
+
+
+%% label/1
+%% ====================================================================
+%% @doc Renders label.
+-spec label(Body :: term()) -> Result when
+    Result :: #label{}.
+%% ====================================================================
+label(Body) ->
+    #label{
+        class = <<"label label-large label-inverse">>,
+        style = <<"cursor: auto;">>,
+        body = Body
     }.
 
 

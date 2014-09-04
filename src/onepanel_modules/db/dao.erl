@@ -121,7 +121,7 @@ get_record(Table, Key) ->
         Transaction = fun() ->
             case mnesia:read(Table, Key) of
                 [Record] -> {ok, Record};
-                [] -> {error, "Record not found."};
+                [] -> {error, <<"Record not found.">>};
                 Other -> {error, Other}
             end
         end,
