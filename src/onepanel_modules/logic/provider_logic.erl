@@ -35,7 +35,7 @@
 -spec init() -> ok | no_return().
 %% ====================================================================
 init() ->
-    ok = erlang:load_nif("c_lib/provider_logic_drv", 0).
+    erlang:load_nif("c_lib/provider_logic_drv", 0).
 
 
 %% create_csr/3

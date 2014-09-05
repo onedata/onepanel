@@ -22,8 +22,7 @@
 %% User record contains following fields:
 %% * username       - name of user as a primary key in database
 %% * hash           - SHA 512 password hash
-%% * salt           - random characters sequence added to password before hashing
--record(?USER_RECORD, {username, password_hash, salt}).
+-record(?USER_RECORD, {username, password_hash}).
 
 %% Minimum length of user's password
 -define(MIN_PASSWORD_LENGTH, 8).

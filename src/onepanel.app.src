@@ -24,7 +24,8 @@
         % to make sure they are started before the application.
         cowboy,
         lager,
-        ibrowse
+        ibrowse,
+        bcrypt
     ]},
     {mod, {onepanel_app, []}},
     {env, [

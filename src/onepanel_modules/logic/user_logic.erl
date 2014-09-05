@@ -19,7 +19,7 @@
 -define(SALT_LENGTH, 10).
 
 %% API
--export([create_user/2, change_username/2, hash_password/1, authenticate/2, change_password/4]).
+-export([create_user/2, change_username/2, authenticate/2, change_password/4]).
 
 %% ====================================================================
 %% API functions
@@ -36,9 +36,9 @@ create_user(Username, Password) ->
     try
         Transaction = fun() ->
             {error, <<"Record not found.">>} = dao:get_record(?USER_TABLE, Username),
-            Salt = list_to_binary(onepanel_utils:random_ascii_lowercase_sequence(?SALT_LENGTH)),
-            PasswordHash = hash_password(<<Password/binary, Salt/binary>>),
-            ok = dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username, password_hash = PasswordHash, salt = Salt})
+            {ok, Salt} = bcrypt:gen_salt(),
+            {ok, PasswordHash} = bcrypt:hashpw(Password, Salt),
+            ok = dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username, password_hash = PasswordHash})
         end,
         mnesia:activity(transaction, Transaction)
     catch
@@ -57,10 +57,10 @@ create_user(Username, Password) ->
 %% ====================================================================
 authenticate(Username, Password) ->
     case dao:get_record(?USER_TABLE, Username) of
-        {ok, #?USER_RECORD{username = Username, password_hash = ValidPasswordHash, salt = Salt}} ->
-            PasswordHash = hash_password(<<Password/binary, Salt/binary>>),
-            case ValidPasswordHash of
-                PasswordHash -> ok;
+        {ok, #?USER_RECORD{username = Username, password_hash = ValidPasswordHash}} ->
+            {ok, PasswordHash} = bcrypt:hashpw(Password, ValidPasswordHash),
+            case PasswordHash of
+                ValidPasswordHash -> ok;
                 _ -> {error, ?AUTHENTICATION_ERROR}
             end;
         {error, <<"Record not found.">>} -> {error, ?AUTHENTICATION_ERROR};
@@ -118,8 +118,8 @@ change_password(_, _, NewPassword, NewPassword) when size(NewPassword) < ?MIN_PA
 change_password(Username, CurrentPassword, NewPassword, NewPassword) ->
     case authenticate(Username, CurrentPassword) of
         ok ->
-            Salt = list_to_binary(onepanel_utils:random_ascii_lowercase_sequence(?SALT_LENGTH)),
-            PasswordHash = hash_password(<<NewPassword/binary, Salt/binary>>),
+            {ok, Salt} = bcrypt:gen_salt(),
+            {ok, PasswordHash} = bcrypt:hashpw(NewPassword, Salt),
             try
                 ok = dao:update_record(?USER_TABLE, Username, [{password_hash, PasswordHash}, {salt, Salt}]),
                 {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
@@ -140,19 +140,3 @@ change_password(Username, CurrentPassword, NewPassword, NewPassword) ->
 
 change_password(_, _, _, _) ->
     {error, <<"Passwords do not match.">>}.
-
-
-%% ====================================================================
-%% Internal functions
-%% ====================================================================
-
-%% hash_password/1
-%% ====================================================================
-%% @doc Returns sha512 hash of given password.
-%% @end
--spec hash_password(Password :: binary()) -> Result when
-    Result :: binary().
-%% ====================================================================
-hash_password(Password) ->
-    Hash = crypto:hash_update(crypto:hash_init(sha512), Password),
-    integer_to_binary(binary:decode_unsigned(crypto:hash_final(Hash)), 16).
