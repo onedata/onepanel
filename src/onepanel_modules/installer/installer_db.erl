@@ -22,7 +22,7 @@
 -export([install/1, uninstall/1, start/1, stop/1, restart/1]).
 
 %% API
--export([local_install/0, local_uninstall/0, local_start/3, local_stop/0]).
+-export([local_install/0, local_uninstall/0, local_start/2, local_stop/0, join_cluster/3]).
 -export([change_username/3, local_change_username/3, change_password/4, local_change_password/3]).
 
 %% Defines how many times onepanel will try to verify database node start
@@ -103,16 +103,23 @@ start(Args) ->
         Username = proplists:get_value(username, Args),
         Password = proplists:get_value(password, Args),
 
-        {StartOk, StartError} = onepanel_utils:apply_on_hosts(Dbs, ?MODULE, local_start, [Username, Password, hd(Dbs)], ?RPC_TIMEOUT),
+        {StartOk, StartError} = onepanel_utils:apply_on_hosts(Dbs, ?MODULE, local_start, [Username, Password], ?RPC_TIMEOUT),
 
         case StartError of
             [] ->
-                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{dbs, Dbs}]) of
-                    ok -> ok;
-                    Other ->
-                        ?error("Cannot update database nodes configuration: ~p", [Other]),
-                        onepanel_utils:apply_on_hosts(Dbs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
-                        {error, {hosts, Dbs}}
+                {_, JoinError} = onepanel_utils:apply_on_hosts(Dbs, ?MODULE, join_cluster, [Username, Password, hd(Dbs)], ?RPC_TIMEOUT),
+                case JoinError of
+                    [] ->
+                        case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{dbs, Dbs}]) of
+                            ok -> ok;
+                            Other ->
+                                ?error("Cannot update database nodes configuration: ~p", [Other]),
+                                onepanel_utils:apply_on_hosts(Dbs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
+                                {error, {hosts, Dbs}}
+                        end;
+                    _ ->
+                        ?error("Cannot add following hosts: ~p to database cluster", [JoinError]),
+                        {error, {hosts, JoinError}}
                 end;
             _ ->
                 ?error("Cannot start database nodes on following hosts: ~p", [StartError]),
@@ -245,10 +252,10 @@ local_uninstall() ->
 %% ====================================================================
 %% @doc Starts database node on local host.
 %% @end
--spec local_start(Username :: binary(), Password :: binary(), ClusterHost :: string()) -> Result when
+-spec local_start(Username :: binary(), Password :: binary()) -> Result when
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-local_start(Username, Password, ClusterHost) ->
+local_start(Username, Password) ->
     Host = onepanel_utils:get_host(node()),
     try
         ?debug("Starting database node"),
@@ -267,7 +274,6 @@ local_start(Username, Password, ClusterHost) ->
         ok = finalize_local_start(DefaultUsername, DefaultPassword, ?FINALIZE_START_ATTEMPTS),
         {ok, _} = local_change_username(DefaultUsername, Username, DefaultPassword),
         {ok, _} = local_change_password(Username, DefaultPassword, Password),
-        ok = join_cluster(Username, Password, Host, ClusterHost),
 
         {ok, Host}
     catch
@@ -296,6 +302,36 @@ local_stop() ->
     catch
         _:Reason ->
             ?error("Cannot stop database node: ~p", [Reason]),
+            {error, Host}
+    end.
+
+
+%% join_cluster/3
+%% ====================================================================
+%% @doc Adds database host to cluster. ClusterHost is one of current
+%% database cluster hosts.
+%% @end
+-spec join_cluster(Username :: binary(), Password :: binary(), ClusterHost :: string()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+join_cluster(Username, Password, ClusterHost) ->
+    Host = onepanel_utils:get_host(node()),
+    try
+        case ClusterHost of
+            Host -> throw(cluster_host);
+            _ -> ok
+        end,
+        URL = "http://" ++ ClusterHost ++ ":" ++ ?DEFAULT_PORT ++ "/nodes/" ++ ?DEFAULT_DB_NAME ++ "@" ++ Host,
+
+        {ok, "201", _, ResponseBody} = request(Username, Password, URL, put, []),
+        true = proplists:get_value(<<"ok">>, mochijson2:decode(ResponseBody, [{format, proplist}])),
+
+        {ok, Host}
+    catch
+        _:cluster_host ->
+            {ok, Host};
+        _:Reason ->
+            ?error("Cannot join database cluster: ~p", [Reason]),
             {error, Host}
     end.
 
@@ -416,32 +452,6 @@ finalize_local_start(Username, Password, Attempts) ->
         _ ->
             timer:sleep(?NEXT_ATTEMPT_DELAY),
             finalize_local_start(Username, Password, Attempts - 1)
-    end.
-
-
-%% join_cluster/4
-%% ====================================================================
-%% @doc Adds database host to cluster. ClusterHost is one of current
-%% database cluster hosts and Host is supposed to join database cluster.
-%% @end
--spec join_cluster(Username :: binary(), Password :: binary(), Host :: string(), ClusterHost :: string()) -> Result when
-    Result :: ok | {error, Reason :: term()}.
-%% ====================================================================
-join_cluster(_, _, Host, Host) ->
-    ok;
-
-join_cluster(Username, Password, Host, ClusterHost) ->
-    try
-        URL = "http://" ++ ClusterHost ++ ":" ++ ?DEFAULT_PORT ++ "/nodes/" ++ ?DEFAULT_DB_NAME ++ "@" ++ Host,
-
-        {ok, "201", _, ResponseBody} = request(Username, Password, URL, put, []),
-        true = proplists:get_value(<<"ok">>, mochijson2:decode(ResponseBody, [{format, proplist}])),
-
-        ok
-    catch
-        _:Reason ->
-            ?error("Cannot join database cluster: ~p", [Reason]),
-            {error, Reason}
     end.
 
 
