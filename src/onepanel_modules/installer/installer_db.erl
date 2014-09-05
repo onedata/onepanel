@@ -323,7 +323,7 @@ join_cluster(Username, Password, ClusterHost) ->
         end,
         URL = "http://" ++ ClusterHost ++ ":" ++ ?DEFAULT_PORT ++ "/nodes/" ++ ?DEFAULT_DB_NAME ++ "@" ++ Host,
 
-        {ok, "201", _, ResponseBody} = request(Username, Password, URL, put, []),
+        {ok, "201", _, ResponseBody} = request(Username, Password, URL, put, <<"{}">>),
         true = proplists:get_value(<<"ok">>, mochijson2:decode(ResponseBody, [{format, proplist}])),
 
         {ok, Host}
