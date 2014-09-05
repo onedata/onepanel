@@ -21,7 +21,11 @@
 -export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/3]).
 -export([finalize_installation/1]).
 
+%% Defines how many times onepanel will try to verify software start
 -define(FINALIZE_INSTALLATION_ATTEMPTS, 120).
+
+%% Defines how long onepanel will wait before next attempt to verify software start
+-define(NEXT_ATTEMPT_DELAY, 1000).
 
 %% ====================================================================
 %% API functions
@@ -205,14 +209,14 @@ finalize_installation(_Args) ->
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 finalize_installation_loop(0) ->
-    ?error("Finalize installation attempts limit exceeded."),
-    {error, "Finalize installation attempts limit exceeded."};
+    ?error("Cannot finalize installation: attempts limit exceeded."),
+    {error, <<"Attempts limit exceeded.">>};
 
 finalize_installation_loop(Attempts) ->
     case onepanel_utils:get_control_panel_hosts() of
         {ok, [_ | _]} ->
             ok;
         _ ->
-            timer:sleep(1000),
+            timer:sleep(?NEXT_ATTEMPT_DELAY),
             finalize_installation_loop(Attempts - 1)
     end.

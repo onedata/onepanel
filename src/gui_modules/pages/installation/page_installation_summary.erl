@@ -308,10 +308,10 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                 gui_comet:flush(),
                 State#?STATE{step = -1}
         end
-               catch Type:Reason ->
-                   ?error("Comet process exception: ~p:~p", [Type, Reason]),
+               catch Type:Message ->
+                   ?error("Comet process exception: ~p:~p", [Type, Message]),
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
-                   {error, Reason}
+                   {error, Message}
                end,
     comet_loop(NewState).
 
@@ -393,18 +393,25 @@ event(back) ->
     onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_ADD_STORAGE);
 
 event(install) ->
+    Username = gui_ctx:get_user_id(),
     ToInstall = to_install(),
     case ToInstall#?CONFIG.workers of
         [] ->
             onepanel_gui_utils:message(<<"error_message">>, <<"Nothing to install.">>),
             gui_ctx:put(?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION);
         _ ->
-            Pid = get(?COMET_PID),
-            Pid ! {init, length(installer:get_flatten_stages())},
-            Fields = record_info(fields, ?CONFIG),
-            [_ | Values] = tuple_to_list(ToInstall),
-            Config = [{username, gui_ctx:get_user_id()} | lists:zip(Fields, Values)],
-            installer:install(Config, fun(Event, State) -> installation_progress(Event, State, Pid) end)
+            case gen_server:call(?ONEPANEL_SERVER, {get_password, gui_ctx:get_user_id()}) of
+                {ok, Password} when is_binary(Password) ->
+                    Pid = get(?COMET_PID),
+                    Pid ! {init, length(installer:get_flatten_stages())},
+                    Fields = record_info(fields, ?CONFIG),
+                    [_ | Values] = tuple_to_list(ToInstall),
+                    Config = [{username, Username}, {password, Password} | lists:zip(Fields, Values)],
+                    installer:install(Config, fun(Event, State) -> installation_progress(Event, State, Pid) end);
+                Other ->
+                    ?error("Cannot get password to administration database for user ~p: ~p", [Username, Other]),
+                    onepanel_gui_utils:message(<<"error_message">>, <<"Cannot get password to administration database for user: ", Username/binary>>)
+            end
     end;
 
 event({close_message, MessageId}) ->

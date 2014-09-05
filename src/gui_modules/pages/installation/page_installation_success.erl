@@ -125,15 +125,15 @@ body() ->
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->
+    gui_ctx:put(?CONFIG_ID, undefined),
+    gui_ctx:put(?CURRENT_INSTALLATION_PAGE, undefined),
     gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),
     ok;
 
 event(to_root_page) ->
-    gui_ctx:put(?CURRENT_INSTALLATION_PAGE, undefined),
     gui_jq:redirect(?PAGE_ROOT);
 
 event(register) ->
-    gui_ctx:put(?CURRENT_INSTALLATION_PAGE, undefined),
     gui_ctx:put(?CURRENT_REGISTRATION_PAGE, ?PAGE_CONNECTION_CHECK),
     gui_jq:redirect(?PAGE_SPACES_ACCOUNT);
 

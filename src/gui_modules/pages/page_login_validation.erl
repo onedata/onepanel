@@ -12,7 +12,6 @@
 
 -module(page_login_validation).
 -export([main/0, event/1]).
--include("onepanel.hrl").
 -include("gui_modules/common.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -54,7 +53,7 @@ body() ->
             Password = proplists:get_value(<<"password">>, Params),
             case user_logic:authenticate(Username, Password) of
                 ok ->
-                    case gen_server:call(?ONEPANEL_SERVER, {set_password, Username, Password}, ?GEN_SERVER_TIMEOUT) of
+                    case gen_server:call(?ONEPANEL_SERVER, {set_password, Username, Password}) of
                         ok ->
                             ?info("Successful login of user: ~p", [Username]),
                             gui_ctx:create_session(),

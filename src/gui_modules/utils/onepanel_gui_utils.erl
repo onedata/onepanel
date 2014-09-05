@@ -15,7 +15,7 @@
 -include("onepanel_modules/installer/state.hrl").
 -include_lib("ctool/include/logging.hrl").
 
--export([body/1, body/2, body/3, top_menu/1, top_menu/2, logotype_footer/0]).
+-export([body/1, body/2, body/3, top_menu/1, top_menu/2, account_settings_tab/1, logotype_footer/0]).
 -export([get_error_message/1, get_installation_state/0, format_list/1, message/2, message/3]).
 -export([change_page/2, maybe_redirect/3]).
 
@@ -69,11 +69,13 @@ body(Header, Main, Footer) ->
     Result :: #panel{}.
 %% ====================================================================
 logotype_footer() ->
-    #panel{style = <<"text-align: center; display: flex; justify-content: space-around; padding: 2em; margin-top: 3em;">>, body = [
-        #image{class = <<"pull-left">>, image = <<"/images/innow-gosp-logo.png">>},
-        #image{image = <<"/images/plgrid-plus-logo.png">>},
-        #image{class = <<"pull-right">>, image = <<"/images/unia-logo.png">>}
-    ]}.
+    #panel{style = <<"text-align: center; display: flex; justify-content: space-around; padding: 2em; margin-top: 3em;">>,
+        body = [
+            #image{class = <<"pull-left">>, image = <<"/images/innow-gosp-logo.png">>},
+            #image{image = <<"/images/plgrid-plus-logo.png">>},
+            #image{class = <<"pull-right">>, image = <<"/images/unia-logo.png">>}
+        ]
+    }.
 
 
 %% top_menu/1
@@ -144,9 +146,7 @@ top_menu(ActiveTabID, ActiveLinkID, SubMenuBody) ->
     ]),
 
     MenuIcons = Process(ActiveTabID, [
-        {account_settings_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Account settings">>,
-            url = ?PAGE_ACCOUNT_SETTINGS, body = [gui_ctx:get_user_id(), #span{class = <<"fui-user">>,
-                style = <<"margin-left: 10px;">>}]}}},
+        {account_settings_tab, #li{id = <<"account_settings_tab">>, body = account_settings_tab(gui_ctx:get_user_id())}},
         {about_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"About">>,
             url = ?PAGE_ABOUT, body = #span{class = <<"fui-info">>}}}},
         {logout_button, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Log out">>,
@@ -154,6 +154,13 @@ top_menu(ActiveTabID, ActiveLinkID, SubMenuBody) ->
     ]),
 
     [
+        #panel{
+            id = <<"main_spinner">>,
+            style = <<"position: absolute; top: 15px; left: 15px; z-index: 1234; width: 32px; display: none;">>,
+            body = #image{
+                image = <<"/images/spinner.gif">>
+            }
+        },
         #panel{class = <<"navbar navbar-fixed-top">>, body = [
             #panel{class = <<"navbar-inner">>, style = <<"border-bottom: 2px solid gray;">>, body = [
                 #panel{class = <<"container">>, body = [
@@ -163,6 +170,27 @@ top_menu(ActiveTabID, ActiveLinkID, SubMenuBody) ->
             ]}
         ] ++ SubMenuBody}
     ] ++ gui_utils:cookie_policy_popup_body(?PAGE_PRIVACY_POLICY).
+
+
+%% account_settings_tab/1
+%% ====================================================================
+%% @doc Renders body of account settings tab.
+-spec account_settings_tab(Username :: binary()) -> Result when
+    Result :: #link{}.
+%% ====================================================================
+account_settings_tab(Username) ->
+    #link{
+        style = <<"padding: 18px;">>,
+        title = <<"Account settings">>,
+        url = ?PAGE_ACCOUNT_SETTINGS,
+        body = [
+            Username,
+            #span{
+                class = <<"fui-user">>,
+                style = <<"margin-left: 10px;">>
+            }
+        ]
+    }.
 
 
 %% get_error_message/1

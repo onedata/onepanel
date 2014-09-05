@@ -10,17 +10,20 @@
 %% @end
 %% ===================================================================
 -module(page_account_settings).
--export([main/0, event/1]).
+
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/logic/user_logic.hrl").
 -include_lib("ctool/include/logging.hrl").
+
+%% API
+-export([main/0, event/1, comet_loop/1]).
 
 %% Comet process pid
 -define(COMET_PID, comet_pid).
 
 %% Comet process state
 -define(STATE, state).
--record(?STATE, {step, steps, step_progress, next_update}).
+-record(?STATE, {}).
 
 %% ====================================================================
 %% API functions
@@ -59,29 +62,18 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = #panel{
-        body = [
-            #panel{
-                id = <<"main_spinner">>,
-                style = <<"position: absolute; top: 12px; left: 17px; z-index: 1234; width: 32px; display: none;">>,
-                body = #image{
-                    image = <<"/images/spinner.gif">>
-                }
-            },
-            onepanel_gui_utils:top_menu(account_settings_tab)
-        ]
-    },
+    Header = onepanel_gui_utils:top_menu(account_settings_tab),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
             #panel{
                 id = <<"ok_message">>,
-                style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
+                style = <<"position: fixed; width: 100%; top: 55px; display: none;">>,
                 class = <<"dialog dialog-success">>
             },
             #panel{
                 id = <<"error_message">>,
-                style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
+                style = <<"position: fixed; width: 100%; top: 55px; display: none;">>,
                 class = <<"dialog dialog-danger">>
             },
             #h6{
@@ -179,7 +171,8 @@ change_username() ->
         #textbox{
             id = <<"new_username_textbox">>,
             class = <<"span">>,
-            placeholder = <<"New username">>
+            placeholder = <<"New username">>,
+            autofocus = true
         },
         #link{
             id = <<"new_username_submit">>,
@@ -242,7 +235,8 @@ change_password() ->
             #password{
                 id = <<"current_password_textbox">>,
                 class = <<"span">>,
-                placeholder = <<"Current password">>
+                placeholder = <<"Current password">>,
+                autofocus = true
             },
             #link{
                 id = <<"new_password_submit">>,
@@ -250,7 +244,7 @@ change_password() ->
                 style = <<"margin-left: 1em;">>,
                 title = <<"Submit">>,
                 actions = gui_jq:form_submit_action(<<"new_password_submit">>, submit_new_password,
-                    [<<"current_password_textbox">>, <<"new_password_textbox">>, <<"confirm_password_textbox">>]),
+                    [<<"current_password_textbox">>, <<"new_password_textbox">>, <<"confirmed_password_textbox">>]),
                 body = #span{
                     class = <<"fui-check-inverted">>,
                     style = <<"font-size: large;">>
@@ -272,7 +266,7 @@ change_password() ->
                 placeholder = <<"New password">>
             },
             #password{
-                id = <<"confirm_password_textbox">>,
+                id = <<"confirmed_password_textbox">>,
                 class = <<"span">>,
                 placeholder = <<"Confirm password">>
             }
@@ -300,13 +294,13 @@ comet_loop(#?STATE{} = State) ->
                 case user_logic:change_username(Username, NewUsername) of
                     ok ->
                         gui_ctx:set_user_id(NewUsername),
-                        gui_jq:update(<<"page-header">>, onepanel_gui_utils:top_menu(account_settings_tab)),
-                        onepanel_gui_utils:message(<<"ok_message">>, "Username changed."),
+                        gui_jq:update(<<"account_settings_tab">>, onepanel_gui_utils:account_settings_tab(NewUsername)),
+                        onepanel_gui_utils:message(<<"ok_message">>, <<"Username changed.">>),
                         gui_jq:update(<<"username">>, username(NewUsername));
                     {error, Reason} ->
-                        onepanel_gui_utils:message(<<"error_message">>, Reason),
-                        gui_jq:update(<<"username">>, username(Username))
+                        onepanel_gui_utils:message(<<"error_message">>, Reason)
                 end,
+                gui_jq:hide(<<"main_spinner">>),
                 gui_comet:flush(),
                 State;
 
@@ -318,13 +312,14 @@ comet_loop(#?STATE{} = State) ->
                     {error, Reason} ->
                         onepanel_gui_utils:message(<<"error_message">>, Reason)
                 end,
+                gui_jq:hide(<<"main_spinner">>),
                 gui_comet:flush(),
                 State
         end
-               catch Type:Reason ->
-                   ?error("Comet process exception: ~p:~p", [Type, Reason]),
+               catch Type:Message ->
+                   ?error("Comet process exception: ~p:~p", [Type, Message]),
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
-                   {error, Reason}
+                   {error, Message}
                end,
     ?MODULE:comet_loop(NewState).
 
@@ -341,8 +336,7 @@ event(init) ->
 
 event(change_username) ->
     gui_jq:update(<<"username">>, change_username()),
-    gui_jq:bind_enter_to_submit_button(<<"new_username_textbox">>, <<"new_username_submit">>),
-    gui_jq:focus(<<"new_username_textbox">>);
+    gui_jq:bind_enter_to_submit_button(<<"new_username_textbox">>, <<"new_username_submit">>);
 
 event(cancel_new_username_submit) ->
     Username = gui_ctx:get_user_id(),
@@ -357,9 +351,8 @@ event(submit_new_username) ->
 event(change_password) ->
     gui_jq:update(<<"password">>, change_password()),
     gui_jq:bind_enter_to_change_focus(<<"current_password_textbox">>, <<"new_password_textbox">>),
-    gui_jq:bind_enter_to_change_focus(<<"new_password_textbox">>, <<"confirm_password_textbox">>),
-    gui_jq:bind_enter_to_submit_button(<<"confirm_password_textbox">>, <<"new_password_submit">>),
-    gui_jq:focus(<<"current_password_textbox">>);
+    gui_jq:bind_enter_to_change_focus(<<"new_password_textbox">>, <<"confirmed_password_textbox">>),
+    gui_jq:bind_enter_to_submit_button(<<"confirmed_password_textbox">>, <<"new_password_submit">>);
 
 event(cancel_new_password_submit) ->
     gui_jq:update(<<"password">>, password());
@@ -368,7 +361,7 @@ event(submit_new_password) ->
     Username = gui_ctx:get_user_id(),
     CurrentPassword = gui_ctx:postback_param(<<"current_password_textbox">>),
     NewPassword = gui_ctx:postback_param(<<"new_password_textbox">>),
-    ConfirmedPassword = gui_ctx:postback_param(<<"confirm_password_textbox">>),
+    ConfirmedPassword = gui_ctx:postback_param(<<"confirmed_password_textbox">>),
     get(?COMET_PID) ! {submit_new_password, Username, CurrentPassword, NewPassword, ConfirmedPassword},
     gui_jq:show(<<"main_spinner">>);
 

@@ -10,7 +10,6 @@
 %% @end
 %% ===================================================================
 -module(user_logic).
-
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/logic/user_logic.hrl").
@@ -80,13 +79,17 @@ authenticate(Username, Password) ->
 %% ====================================================================
 change_username(_, <<>>) ->
     {error, <<"Username cannot be empty.">>};
+
 change_username(Username, Username) ->
-    {error, <<"New username is the same as current username.">>};
+    ok;
+
 change_username(Username, NewUsername) ->
     try
         Transaction = fun() ->
             {error, <<"Record not found.">>} = dao:get_record(?USER_TABLE, NewUsername),
-            ok = dao:update_record(?USER_TABLE, Username, [{username, NewUsername}]),
+            {ok, User} = dao:get_record(?USER_TABLE, Username),
+            ok = dao:delete_record(?USER_TABLE, Username),
+            ok = dao:save_record(?USER_TABLE, User#?USER_RECORD{username = NewUsername}),
             {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
             ok = installer_db:change_username(Dbs, Username, NewUsername)
         end,
@@ -111,15 +114,17 @@ change_username(Username, NewUsername) ->
 %% ====================================================================
 change_password(_, _, NewPassword, NewPassword) when size(NewPassword) < ?MIN_PASSWORD_LENGTH ->
     {error, <<"Password should be at least ", (integer_to_binary(?MIN_PASSWORD_LENGTH))/binary, " characters long.">>};
+
 change_password(Username, CurrentPassword, NewPassword, NewPassword) ->
     case authenticate(Username, CurrentPassword) of
         ok ->
             Salt = list_to_binary(onepanel_utils:random_ascii_lowercase_sequence(?SALT_LENGTH)),
             PasswordHash = hash_password(<<NewPassword/binary, Salt/binary>>),
             try
-                ok = dao:update_record(?USER_TABLE, Username, [{hash, PasswordHash}, {salt, Salt}]),
+                ok = dao:update_record(?USER_TABLE, Username, [{password_hash, PasswordHash}, {salt, Salt}]),
                 {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-                ok = installer_db:change_password(Dbs, Username, CurrentPassword, NewPassword)
+                ok = installer_db:change_password(Dbs, Username, CurrentPassword, NewPassword),
+                ok = gen_server:call(?ONEPANEL_SERVER, {set_password, Username, NewPassword})
             catch
                 error:{badmatch, {error, Reason}} when is_binary(Reason) ->
                     {error, Reason};
@@ -132,6 +137,7 @@ change_password(Username, CurrentPassword, NewPassword, NewPassword) ->
         _ ->
             {error, <<"Internal server error">>}
     end;
+
 change_password(_, _, _, _) ->
     {error, <<"Passwords do not match.">>}.
 

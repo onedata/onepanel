@@ -88,8 +88,8 @@ update_record(Table, Key, Values) ->
             [RecordName | OldValues] = tuple_to_list(OldRecord),
             Attributes = mnesia:table_info(Table, attributes),
             NewValues = lists:map(fun
-                ({Column, OldValue}) ->
-                    case proplists:get_value(Column, Values, not_found) of
+                ({Attribute, OldValue}) ->
+                    case proplists:get_value(Attribute, Values, not_found) of
                         not_found -> OldValue;
                         NewValue -> NewValue
                     end

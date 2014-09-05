@@ -12,7 +12,6 @@
 
 -module(page_logout).
 -export([main/0, event/1]).
--include("onepanel.hrl").
 -include("gui_modules/common.hrl").
 
 %% ====================================================================

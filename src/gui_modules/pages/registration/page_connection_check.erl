@@ -165,10 +165,10 @@ comet_loop(#?STATE{step = Step, steps = Steps, status = Status} = State) ->
             {set_status, NewStatus} ->
                 State#?STATE{status = NewStatus}
         end
-               catch Type:Reason ->
-                   ?error("Comet process exception: ~p:~p", [Type, Reason]),
+               catch Type:Message ->
+                   ?error("Comet process exception: ~p:~p", [Type, Message]),
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
-                   {error, Reason}
+                   {error, Message}
                end,
     comet_loop(NewState).
 

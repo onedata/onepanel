@@ -456,10 +456,10 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
                 gui_comet:flush(),
                 #?STATE{stages_count = SCount, action_type = install}
         end
-               catch Type:Reason ->
-                   ?error("Comet process exception: ~p:~p", [Type, Reason]),
+               catch Type:Message ->
+                   ?error("Comet process exception: ~p:~p", [Type, Message]),
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
-                   {error, Reason}
+                   {error, Message}
                end,
     comet_loop(NewState).
 

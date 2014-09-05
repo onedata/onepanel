@@ -36,9 +36,9 @@
 %% ====================================================================
 initialize(?USER_TABLE) ->
     try
-        {ok, Username} = application:get_env(?APP_NAME, default_username),
-        {ok, Password} = application:get_env(?APP_NAME, default_password),
-        ok = user_logic:create_user(Username, Password)
+        {ok, DefaultUsername} = application:get_env(?APP_NAME, default_username),
+        {ok, DefaultPassword} = application:get_env(?APP_NAME, default_password),
+        ok = user_logic:create_user(DefaultUsername, DefaultPassword)
     catch
         _:Reason ->
             ?error("Cannot initialize user table: ~p", [Reason]),
