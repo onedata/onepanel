@@ -11,7 +11,7 @@
 %% @end
 %% ===================================================================
 
--module(page_main_ccm_selection).
+-module(page_primary_ccm_selection).
 -export([main/0, event/1]).
 
 -include("gui_modules/common.hrl").
@@ -34,7 +34,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect(?CURRENT_INSTALLATION_PAGE, ?PAGE_MAIN_CCM_SELECTION, ?PAGE_INSTALLATION) of
+            case onepanel_gui_utils:maybe_redirect(?CURRENT_INSTALLATION_PAGE, ?PAGE_MAIN_PRIMARY_SELECTION, ?PAGE_INSTALLATION) of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
@@ -54,7 +54,7 @@ main() ->
     Result :: binary().
 %% ====================================================================
 title() ->
-    <<"Main CCM selection">>.
+    <<"Primary CCM selection">>.
 
 
 %% body/0
@@ -75,8 +75,16 @@ body() ->
                 class = <<"dialog dialog-danger">>
             },
             #h6{
-                style = <<"font-size: x-large; margin-bottom: 3em;">>,
-                body = <<"Step 2: Select main Central Cluster Manager host.">>
+                style = <<"font-size: x-large; margin-bottom: 1em;">>,
+                body = <<"Step 2: Primary Central Cluster Manager selection.">>
+            },
+            #p{
+                style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
+                body = <<"<i>Central Cluster Manager</i> components control and organize work of other"
+                " application components. However, it is not possible for more than one <i>CCM</i> component"
+                " to run simultaneously. Therefore, it is required to select primary <i>CCM</i> component"
+                " which will execute aforementioned tasks, while other <i>CCM</i> components will wait"
+                " and in case of primary <i>CCM</i> breakdown take over it's duties.">>
             },
             #panel{
                 class = <<"btn-group">>,
@@ -130,7 +138,7 @@ main_ccm_body() ->
                     #span{
                         id = <<"ccms_label">>,
                         class = <<"filter-option pull-left">>,
-                        body = <<"Primary CCM host: <b>", (list_to_binary(Session#?CONFIG.main_ccm))/binary, "</b>">>
+                        body = <<"Primary CCM host: <b>", (gui_str:html_encode(Session#?CONFIG.main_ccm))/binary, "</b>">>
                     },
                     #span{
                         class = <<"caret pull-right">>
@@ -169,7 +177,7 @@ ccms_list_body(MainCCM, CCMs) ->
                         end,
                 body = #link{
                     style = <<"text-align: left;">>,
-                    body = CCM
+                    body = gui_str:html_encode(CCM)
                 }
             }, List],
             Id + 1
@@ -201,7 +209,7 @@ event(next) ->
 event({set_main_ccm, MainCCM, CCMs}) ->
     Config = gui_ctx:get(?CONFIG_ID),
     gui_ctx:put(?CONFIG_ID, Config#?CONFIG{main_ccm = MainCCM}),
-    gui_jq:update(<<"ccms_label">>, <<"Primary CCM host: <b>", (list_to_binary(MainCCM))/binary, "</b>">>),
+    gui_jq:update(<<"ccms_label">>, <<"Primary CCM host: <b>", (gui_str:html_encode(MainCCM))/binary, "</b>">>),
     gui_jq:update(<<"ccms_dropdown">>, ccms_list_body(MainCCM, CCMs));
 
 event(terminate) ->

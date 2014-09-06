@@ -80,8 +80,12 @@ body() ->
                 class = <<"dialog dialog-danger">>
             },
             #h6{
-                style = <<"font-size: x-large; margin-bottom: 3em;">>,
+                style = <<"font-size: x-large; margin-bottom: 1em;">>,
                 body = <<"Account settings">>
+            },
+            #p{
+                style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
+                body = <<"Any change to username or password is also done for account in administration database.">>
             },
             settings_table()
         ]
@@ -151,7 +155,7 @@ username(Username) ->
     #span{
         style = <<"font-size: large;">>,
         body = [
-            Username,
+            gui_str:html_encode(Username),
             #link{
                 title = <<"Edit">>,
                 style = <<"margin-left: 1em;">>,

@@ -74,8 +74,15 @@ body() ->
                 class = <<"dialog dialog-danger">>
             },
             #h6{
-                style = <<"font-size: x-large; margin-bottom: 3em;">>,
-                body = <<"Step 1: Select cluster and database hosts.">>
+                style = <<"font-size: x-large; margin-bottom: 1em;">>,
+                body = <<"Step 1: Hosts selection.">>
+            },
+            #p{
+                style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
+                body = <<"The table below presents a list of hosts where software package installation has been detected.<br>"
+                " To configure application please distribute software components throughout available hosts by selecting"
+                " corresponding checkboxes. To ensure that application is highly available and partition tolerant, it is"
+                " recommended to configure <i>Central Cluster Manager</i> and <i>database</i> components on at least two hosts.">>
             },
             #table{
                 class = <<"table table-bordered">>,
@@ -162,7 +169,7 @@ hosts_table_body() ->
                 id = <<"row_", HostId/binary>>,
                 cells = [
                     #td{
-                        body = <<"<b>", (list_to_binary(Host))/binary, "</b>">>,
+                        body = <<"<b>", (gui_str:html_encode(Host))/binary, "</b>">>,
                         style = ColumnStyle
                     } | lists:map(fun({Prefix, Checked, Disabled}) ->
                         #td{
@@ -286,12 +293,12 @@ event(next) ->
                     case CCMs of
                         [_ | _] ->
                             gui_ctx:put(?CONFIG_ID, Config#?CONFIG{main_ccm = hd(lists:sort(CCMs))}),
-                            onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_MAIN_CCM_SELECTION);
+                            onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_MAIN_PRIMARY_SELECTION);
                         _ ->
                             onepanel_gui_utils:message(<<"error_message">>, <<"Please select at least one host for CCM node.">>)
                     end;
                 _ ->
-                    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_MAIN_CCM_SELECTION)
+                    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_MAIN_PRIMARY_SELECTION)
             end
     end;
 

@@ -10,7 +10,7 @@
 %% @end
 %% ===================================================================
 
--module(page_add_storage).
+-module(page_storage).
 -export([main/0, event/1]).
 
 -include("gui_modules/common.hrl").
@@ -36,7 +36,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect(?CURRENT_INSTALLATION_PAGE, ?PAGE_ADD_STORAGE, ?PAGE_INSTALLATION) of
+            case onepanel_gui_utils:maybe_redirect(?CURRENT_INSTALLATION_PAGE, ?PAGE_STORAGE, ?PAGE_INSTALLATION) of
                 true ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
@@ -56,7 +56,7 @@ main() ->
     Result :: binary().
 %% ====================================================================
 title() ->
-    <<"Add storage">>.
+    <<"Storage configuration">>.
 
 
 %% body/0
@@ -77,8 +77,15 @@ body() ->
                 class = <<"dialog dialog-danger">>
             },
             #h6{
-                style = <<"font-size: x-large; margin-bottom: 3em;">>,
-                body = <<"Step 4: Add storage paths.">>
+                style = <<"font-size: x-large; margin-bottom: 1em;">>,
+                body = <<"Step 4: Storage configuration.">>
+            },
+            #p{
+                style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
+                body = <<"<i>Worker</i> components save and retrieve user's data from network file system"
+                " storages. To configure application's storage please provide paths to storages"
+                " below. It is required, that each storge is available for all <i>worker</i> components"
+                " at the same absolute path in file system.">>
             },
             #table{
                 class = <<"table table-striped">>,
@@ -181,7 +188,7 @@ storage_paths_table_row(StoragePath, Id, Disabled, Deletable) ->
                 style = <<"text-align: center; vertical-align: inherit; padding-bottom: 0;">>,
                 body = #textbox{
                     id = TextboxId,
-                    value = StoragePath,
+                    value = gui_str:html_encode(StoragePath),
                     disabled = Disabled,
                     placeholder = <<"Storage path">>,
                     style = <<"width: 100%;">>

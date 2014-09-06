@@ -70,9 +70,9 @@ route(?PAGE_PRIVACY_POLICY) -> page_privacy_policy;
 %% Installation pages
 route(?PAGE_INSTALLATION) -> page_installation;
 route(?PAGE_HOST_SELECTION) -> page_hosts_selection;
-route(?PAGE_MAIN_CCM_SELECTION) -> page_main_ccm_selection;
+route(?PAGE_MAIN_PRIMARY_SELECTION) -> page_primary_ccm_selection;
 route(?PAGE_SYSTEM_LIMITS) -> page_system_limits;
-route(?PAGE_ADD_STORAGE) -> page_add_storage;
+route(?PAGE_STORAGE) -> page_storage;
 route(?PAGE_INSTALLATION_SUMMARY) -> page_installation_summary;
 route(?PAGE_INSTALLATION_SUCCESS) -> page_installation_success;
 

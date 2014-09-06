@@ -86,8 +86,15 @@ body() ->
                 class = <<"dialog dialog-danger">>
             },
             #h6{
-                style = <<"font-size: x-large; margin-bottom: 3em;">>,
+                style = <<"font-size: x-large; margin-bottom: 1em;">>,
                 body = <<"Step 5: Installation summary.">>
+            },
+            #p{
+                style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
+                body = <<"Current application configuration is summarised in the table below."
+                " <b>After accepting presented configuration it is not possible to change it without"
+                " complete software uninstallation!</b> Only addition of new <i>worker</i> components"
+                " will be possible.">>
             },
             #table{
                 class = <<"table table-striped">>,
@@ -168,7 +175,7 @@ summary_table_body() ->
                         style = <<"text-align: center; margin-bottom: 0; font-weight: 400;">>,
                         body = case MainCCM of
                                    undefined -> <<"-">>;
-                                   _ -> list_to_binary(MainCCM)
+                                   _ -> gui_str:html_encode(MainCCM)
                                end
                     }}
             ]},
@@ -222,7 +229,7 @@ format([]) ->
 format(Hosts) ->
     lists:map(fun(Host) ->
         #p{
-            body = list_to_binary(Host),
+            body = gui_str:html_encode(Host),
             style = <<"text-align: center; margin-bottom: 0; font-weight: 400;">>
         }
     end, Hosts).
@@ -402,7 +409,7 @@ event(init) ->
     put(?COMET_PID, Pid);
 
 event(back) ->
-    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_ADD_STORAGE);
+    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_STORAGE);
 
 event(install) ->
     Username = gui_ctx:get_user_id(),

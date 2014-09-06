@@ -56,7 +56,7 @@ main() ->
     Result :: binary().
 %% ====================================================================
 title() ->
-    <<"Ulimits">>.
+    <<"System limits">>.
 
 
 %% body/0
@@ -89,8 +89,14 @@ body() ->
                 class = <<"dialog dialog-danger">>
             },
             #h6{
-                style = <<"font-size: x-large; margin-bottom: 3em;">>,
-                body = <<"Step 3: Set system limits.">>
+                style = <<"font-size: x-large; margin-bottom: 1em;">>,
+                body = <<"Step 3: System limits configuration.">>
+            },
+            #p{
+                style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
+                body = <<"Proper system limits configuration is essential for <i>database</i> components to"
+                " work correctly. Therefore, unless necessary, it is recommended not to change"
+                " default values.">>
             },
             #table{
                 class = <<"table table-bordered">>,
@@ -109,7 +115,7 @@ body() ->
                     },
                     #button{
                         id = <<"next_button">>,
-                        actions = gui_jq:form_submit_action(<<"next_button">>, {set_ulimits, Hosts}, TextboxIds),
+                        actions = gui_jq:form_submit_action(<<"next_button">>, {set_ulimits, Hosts -- InstalledHosts}, TextboxIds),
                         class = <<"btn btn-inverse btn-small">>,
                         style = <<"float: right; width: 8em; font-weight: bold;">>,
                         body = <<"Next">>
@@ -212,10 +218,9 @@ ulimits_table_body(Hosts, InstalledHosts) ->
     when Result :: true | false.
 %% ====================================================================
 validate_limit(Limit) ->
-    Regex = "[1-9][0-9]*",
-    Length = length(Limit),
-    case re:run(Limit, Regex) of
-        {match, [{0, Length}]} -> true;
+    Regex = <<"[1-9][0-9]*">>,
+    case re:run(Limit, Regex, [{capture, first, binary}]) of
+        {match, [Limit]} -> true;
         _ -> false
     end.
 
@@ -235,15 +240,15 @@ event(init) ->
     ok;
 
 event(back) ->
-    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_MAIN_CCM_SELECTION);
+    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_MAIN_PRIMARY_SELECTION);
 
 event({set_ulimits, Hosts}) ->
     case lists:foldl(fun(Host, {Status, Id}) ->
         HostId = integer_to_binary(Id),
         OpenFilesId = <<"open_files_textbox_", HostId/binary>>,
         ProcessesId = <<"processes_textbox_", HostId/binary>>,
-        OpenFilesLimit = gui_str:to_list(gui_ctx:postback_param(OpenFilesId)),
-        ProcessesLimit = gui_str:to_list(gui_ctx:postback_param(ProcessesId)),
+        OpenFilesLimit = gui_ctx:postback_param(OpenFilesId),
+        ProcessesLimit = gui_ctx:postback_param(ProcessesId),
         {
             case validate_limit(OpenFilesLimit) of
                 true ->
@@ -253,7 +258,7 @@ event({set_ulimits, Hosts}) ->
                         true ->
                             gui_jq:css(ProcessesId, <<"border-color">>, <<"green">>),
                             rpc:call(onepanel_utils:get_node(Host), installer_utils, set_ulimits,
-                                [list_to_integer(OpenFilesLimit), list_to_integer(ProcessesLimit)]),
+                                [binary_to_integer(OpenFilesLimit), binary_to_integer(ProcessesLimit)]),
                             Status;
                         _ ->
                             gui_jq:css(ProcessesId, <<"border-color">>, <<"red">>),
@@ -275,7 +280,7 @@ event({set_ulimits, Hosts}) ->
         }
     end, {ok, 1}, Hosts) of
         {ok, _} ->
-            onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_ADD_STORAGE);
+            onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_STORAGE);
         _ ->
             onepanel_gui_utils:message(<<"error_message">>, <<"System limit should be a positive number.">>)
     end;

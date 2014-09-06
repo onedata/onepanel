@@ -98,7 +98,7 @@ body(undefined) ->
             class = <<"alert alert-info">>,
             body = [
                 #h3{
-                    body = <<"You are not registered">>
+                    body = <<"Unregistered">>
                 },
                 #p{
                     body = <<"Please complete registration process in Global Registry.">>
