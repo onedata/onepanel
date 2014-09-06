@@ -54,7 +54,6 @@ start_link() ->
 init([]) ->
     try
         ok = db_logic:create(),
-        {ok, Regex} = re:compile(?IP_ADDRESS_REGEX),
         {ok, UpdaterStartDelay} = application:get_env(?APP_NAME, updater_start_delay),
         {ok, Address} = application:get_env(?APP_NAME, multicast_address),
         {ok, Port} = application:get_env(?APP_NAME, onepanel_port),
@@ -65,7 +64,7 @@ init([]) ->
         self() ! connection_ping,
         timer:send_after(UpdaterStartDelay, start_updater),
 
-        {ok, #state{socket = Socket, address = Address, port = Port, regex = Regex}}
+        {ok, #state{socket = Socket, address = Address, port = Port}}
     catch
         _:_ -> {stop, initialization_error}
     end.
@@ -148,27 +147,30 @@ handle_cast(Request, State) ->
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}.
 %% ====================================================================
-handle_info({udp, _Socket, _Address, _Port, HostBinary}, #state{regex = Regex} = State) ->
-    case re:run(HostBinary, Regex, [{capture, first, binary}]) of
-        HostBinary ->
-            Node = onepanel_utils:get_node(binary_to_list(HostBinary)),
+handle_info({udp, _Socket, _Address, _Port, HostBinary}, State) ->
+    Host = binary_to_list(HostBinary),
+    case inet:getaddr(Host, inet) of
+        {ok, _} ->
+            Node = onepanel_utils:get_node(Host),
             case lists:filter(fun(DbNode) -> DbNode =:= Node end, db_logic:get_nodes()) of
                 [] ->
                     case net_kernel:connect_node(Node) of
                         true -> gen_server:cast({?ONEPANEL_SERVER, Node}, {connection_request, node()});
                         Other -> ?error("[onepanel] Cannot connect node ~p: ~p", [Node, Other])
                     end;
-                _ -> ok
+                _ ->
+                    ?info("Already in db cluster: ~p, ~p", [db_logic:get_nodes(), Node]),
+                    ok
             end;
-        _ ->
+        Other ->
+            ?info("Wrong ip address: ~p", [Other]),
             ok
     end,
     {noreply, State};
 
 handle_info(connection_ping, #state{socket = Socket, address = Address, port = Port} = State) ->
     {ok, Delay} = application:get_env(?APP_NAME, connection_ping_delay),
-    {ok, IpAddress} = inet:getaddr(net_adm:localhost(), inet),
-    gen_udp:send(Socket, Address, Port, inet:ntoa(IpAddress)),
+    gen_udp:send(Socket, Address, Port, net_adm:localhost()),
     erlang:send_after(Delay, self(), connection_ping),
     {noreply, State};
 

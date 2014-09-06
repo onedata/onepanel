@@ -15,9 +15,7 @@
 
 -include("registered_names.hrl").
 
--define(IP_ADDRESS_REGEX, "(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}").
-
 %% Onepanel gen_server state
--record(state, {socket, address, port, regex, passwords = []}).
+-record(state, {socket, address, port, passwords = []}).
 
 -endif.
