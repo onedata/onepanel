@@ -159,11 +159,9 @@ handle_info({udp, _Socket, _Address, _Port, HostBinary}, State) ->
                         Other -> ?error("[onepanel] Cannot connect node ~p: ~p", [Node, Other])
                     end;
                 _ ->
-                    ?info("Already in db cluster: ~p, ~p", [db_logic:get_nodes(), Node]),
                     ok
             end;
-        Other ->
-            ?info("Wrong ip address: ~p", [Other]),
+        _ ->
             ok
     end,
     {noreply, State};
