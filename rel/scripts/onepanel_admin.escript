@@ -8,7 +8,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This script interacts with Onepanel nodes and provides
+%% @doc This script interacts with Onepanel nodes and provides
 %% management functions for VeilCluster nodes.
 %% @end
 %% ===================================================================

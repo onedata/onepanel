@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module implements gr_plugin_behaviour in order
+%% @doc This module implements gr_plugin_behaviour in order
 %% to customize connection settings to Global Registry.
 %% @end
 %% ===================================================================

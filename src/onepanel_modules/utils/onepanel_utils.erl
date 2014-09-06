@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains utility Onepanel functions.
+%% @doc This module contains utility Onepanel functions.
 %% @end
 %% ===================================================================
 -module(onepanel_utils).
@@ -28,6 +28,7 @@
 %% get_version/0
 %% ====================================================================
 %% @doc Returns application version read from reltool.config file.
+%% @end
 -spec get_version() -> Result when
     Result :: binary().
 %% ====================================================================
@@ -44,6 +45,7 @@ get_version() ->
 %% random_ascii_lowercase_sequence/1
 %% ====================================================================
 %% @doc Creates random sequence consisting of lowercase ASCII letters.
+%% @end
 -spec random_ascii_lowercase_sequence(Length :: integer()) -> Result when
     Result :: string().
 %% ====================================================================
@@ -107,6 +109,7 @@ dropwhile_failure([Node | Nodes], Module, Function, Arguments, Timeout) ->
 %% get_node/1
 %% ====================================================================
 %% @doc Returns node from host.
+%% @end
 -spec get_node(Host :: string()) -> Result when
     Result :: node().
 %% ====================================================================
@@ -117,6 +120,7 @@ get_node(Host) ->
 %% get_node/2
 %% ====================================================================
 %% @doc Returns node of given type on provided host.
+%% @end
 -spec get_node(Type :: string(), Host :: string()) -> Result when
     Result :: node().
 %% ====================================================================
@@ -127,6 +131,7 @@ get_node(Type, Host) ->
 %% get_nodes/0
 %% ====================================================================
 %% @doc Returns list of all application nodes.
+%% @end
 -spec get_nodes() -> Result when
     Result :: node().
 %% ====================================================================
@@ -137,6 +142,7 @@ get_nodes() ->
 %% get_nodes/2
 %% ====================================================================
 %% @doc Returns list of nodes of given type on provided hosts.
+%% @end
 -spec get_nodes(Type :: string(), Hosts :: [string()]) -> Result when
     Result :: node().
 %% ====================================================================
@@ -149,6 +155,7 @@ get_nodes(Type, Hosts) ->
 %% get_host/1
 %% ====================================================================
 %% @doc Returns host from node.
+%% @end
 -spec get_host(Node :: node()) -> Result when
     Result :: string().
 %% ====================================================================
@@ -160,6 +167,7 @@ get_host(Node) ->
 %% get_hosts/0
 %% ====================================================================
 %% @doc Returns list of hostnames of onepanel cluster nodes.
+%% @end
 -spec get_hosts() -> Result when
     Result :: [Host :: string()].
 %% ====================================================================
@@ -176,6 +184,7 @@ get_hosts() ->
 %% save_file_on_hosts/3
 %% ====================================================================
 %% @doc Saves Global Registry certificate cert on all hosts.
+%% @end
 -spec save_file_on_hosts(Path :: string(), Filename :: string(), Content :: string() | binary()) -> Result when
     Result :: ok | {error, ErrorHosts :: [string()]}.
 %% ====================================================================
@@ -192,6 +201,7 @@ save_file_on_hosts(Path, Filename, Content) ->
 %% save_file_on_host/3
 %% ====================================================================
 %% @doc Saves Global Registry certificate cert on host.
+%% @end
 -spec save_file_on_host(Path :: string(), Filename :: string(), Content :: string() | binary()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
@@ -211,6 +221,7 @@ save_file_on_host(Path, Filename, Content) ->
 %% get_software_version/0
 %% ====================================================================
 %% @doc Returns current software version.
+%% @end
 -spec get_software_version() -> Result when
     Result :: string() | undefined.
 %% ====================================================================
@@ -228,6 +239,7 @@ get_software_version() ->
 %% get_control_panel_hosts/0
 %% ====================================================================
 %% @doc Returns list of control panel hosts
+%% @end
 -spec get_control_panel_hosts() -> Result when
     Result :: {ok, Hosts :: [string()]} | {error, Reason :: term()}.
 %% ====================================================================

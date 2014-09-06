@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains element definition for HTML custom checkbox.
+%% @doc This module contains element definition for HTML custom checkbox.
 %% @end
 %% ===================================================================
 

@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains Global Registry interaction functions.
+%% @doc This module contains Global Registry interaction functions.
 %% It allows to create Certificate Signing Request and register in
 %% Global Registry (gr for short).
 %% @end
@@ -125,6 +125,7 @@ unregister() ->
 %% get_ports_to_check/0
 %% ====================================================================
 %% @doc Returns default veilcluster ports that will be checked by Global Registry
+%% @end
 -spec get_ports_to_check() -> Result when
     Result :: {ok, Ports :: [{Type :: binary(), Port :: integer()}]} | {error, Reason :: term()}.
 %% ====================================================================
@@ -145,6 +146,7 @@ get_ports_to_check() ->
 %% get_provider_id/0
 %% ====================================================================
 %% @doc Returns provider ID.
+%% @end
 -spec get_provider_id() -> Result when
     Result :: undefined | binary().
 %% ====================================================================

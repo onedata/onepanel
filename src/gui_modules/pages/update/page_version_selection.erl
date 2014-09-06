@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains n2o website code.
+%% @doc This module contains n2o website code.
 %% This page allows to select VeilCluster update version.
 %% @end
 %% ===================================================================
@@ -26,6 +26,7 @@
 %% main/0
 %% ====================================================================
 %% @doc Template points to the template file, which will be filled with content.
+%% @end
 -spec main() -> Result when
     Result :: #dtl{}.
 %% ====================================================================
@@ -47,6 +48,7 @@ main() ->
 %% title/0
 %% ====================================================================
 %% @doc Page title.
+%% @end
 -spec title() -> Result when
     Result :: binary().
 %% ====================================================================
@@ -57,6 +59,7 @@ title() ->
 %% body/0
 %% ====================================================================
 %% @doc This will be placed instead of {{body}} tag in template.
+%% @end
 -spec body() -> Result when
     Result :: #panel{}.
 %% ====================================================================
@@ -109,6 +112,7 @@ body() ->
 %% version_body/0
 %% ====================================================================
 %% @doc Renders software version dropdown body and highlights current choice.
+%% @end
 -spec version_body() -> Result when
     Result :: [term()].
 %% ====================================================================
@@ -158,6 +162,7 @@ version_body() ->
 %% version_list_body/2
 %% ====================================================================
 %% @doc Renders software versions list body.
+%% @end
 -spec version_list_body(MainCCM :: string(), CCMs :: [string()]) -> Result when
     Result :: [#li{}].
 %% ====================================================================
@@ -186,6 +191,7 @@ version_list_body(ChosenVersion, Versions) ->
 %% get_version_name/1
 %% ====================================================================
 %% @doc Returns version in binary form.
+%% @end
 -spec get_version_name(Version :: #version{}) -> Result when
     Result :: binary().
 %% ====================================================================
@@ -196,6 +202,7 @@ get_version_name(#version{major = Major, minor = Minor, patch = Patch}) ->
 %% get_version_record/0
 %% ====================================================================
 %% @doc Returns version in record form.
+%% @end
 -spec get_version_record(Version :: binary()) -> Result when
     Result :: #version{}.
 %% ====================================================================
@@ -207,6 +214,7 @@ get_version_record(Version) ->
 %% sort_versions/0
 %% ====================================================================
 %% @doc Sorts versions in descending order and eliminates duplicates.
+%% @end
 -spec sort_versions(Versions :: [#version{}]) -> Result when
     Result :: [#version{}].
 %% ====================================================================
@@ -235,6 +243,7 @@ sort_versions(Versions) ->
 %% get_available_versions/0
 %% ====================================================================
 %% @doc Returns available software versions read from repository.
+%% @end
 -spec get_available_versions() -> Result when
     Result :: [binary()] | undefined.
 %% ====================================================================
@@ -259,6 +268,7 @@ get_available_versions() ->
 %% event/1
 %% ====================================================================
 %% @doc Handles page events.
+%% @end
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->

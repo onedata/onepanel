@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains n2o website code.
+%% @doc This module contains n2o website code.
 %% This page displays installation summary and starts installer process.
 %% @end
 %% ===================================================================
@@ -38,6 +38,7 @@
 %% main/0
 %% ====================================================================
 %% @doc Template points to the template file, which will be filled with content.
+%% @end
 -spec main() -> Result when
     Result :: #dtl{}.
 %% ====================================================================
@@ -59,6 +60,7 @@ main() ->
 %% title/0
 %% ====================================================================
 %% @doc Page title.
+%% @end
 -spec title() -> Result when
     Result :: binary().
 %% ====================================================================
@@ -69,6 +71,7 @@ title() ->
 %% body/0
 %% ====================================================================
 %% @doc This will be placed instead of {{body}} tag in template.
+%% @end
 -spec body() -> Result when
     Result :: #panel{}.
 %% ====================================================================
@@ -142,6 +145,7 @@ body() ->
 %% summary_table_body/1
 %% ====================================================================
 %% @doc Renders summary table body.
+%% @end
 -spec summary_table_body() -> Result
     when Result :: [#tr{}].
 %% ====================================================================
@@ -179,6 +183,7 @@ summary_table_body() ->
 %% ====================================================================
 %% @doc Renders summary table row. 'Description' is showed in first
 %% column and 'Details' in second one.
+%% @end
 -spec summary_table_row(Id :: binary(), Description :: binary(), Details :: binary()) -> Result
     when Result :: #tr{}.
 %% ====================================================================
@@ -205,6 +210,7 @@ summary_table_row(Id, Description, Details) ->
 %% ====================================================================
 %% @doc Formats list of hosts, which will be displayed in 'Details'
 %% column of installation summary tabel.
+%% @end
 -spec format(Hosts :: [string()]) -> Result
     when Result :: #p{} | [#p{}].
 %% ====================================================================
@@ -226,6 +232,7 @@ format(Hosts) ->
 %% ====================================================================
 %% @doc Returns components to be installed. It is a difference between
 %% configuration saved in user session and database.
+%% @end
 -spec to_install() -> Result
     when Result :: #?CONFIG{}.
 %% ====================================================================
@@ -252,6 +259,7 @@ to_install() ->
 %% comet_loop/1
 %% ====================================================================
 %% @doc Handles installer process messages and updates progress bar.
+%% @end
 -spec comet_loop(State :: #?STATE{}) -> Result when
     Result :: {error, Reason :: term()}.
 %% ====================================================================
@@ -319,6 +327,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
 %% get_error_message/1
 %% ====================================================================
 %% @doc Returns error message for given stage and job of installation.
+%% @end
 -spec get_error_message({State :: atom(), Job :: atom()}) -> binary().
 %% ====================================================================
 get_error_message({?STAGE_DB, ?JOB_INSTALL}) -> <<"Database nodes were not installed on following hosts: ">>;
@@ -335,6 +344,7 @@ get_error_message(_) -> <<"">>.
 %% ====================================================================
 %% @doc Returns information for given stage and job of installation which
 %% will be displayed above installation progress bar.
+%% @end
 -spec get_info_message({State :: atom(), Job :: atom()}) -> Result when
     Result :: binary().
 %% ====================================================================
@@ -353,6 +363,7 @@ get_info_message(_) -> <<"">>.
 %% ====================================================================
 %% @doc Callback function called by installer gen_server which updates
 %% installation progress bar.
+%% @end
 -spec installation_progress(Event :: atom(), State :: #?i_state{}, Pid :: pid()) -> no_return().
 %% ====================================================================
 installation_progress(?EVENT_ERROR, State, Pid) ->
@@ -381,6 +392,7 @@ installation_progress(?EVENT_STATE_CHANGED, State, Pid) ->
 %% event/1
 %% ====================================================================
 %% @doc Handles page events.
+%% @end
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->

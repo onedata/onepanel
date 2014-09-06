@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains n2o website code.
+%% @doc This module contains n2o website code.
 %% This page allows to manage provider account.
 %% @end
 %% ===================================================================
@@ -24,6 +24,7 @@
 %% main/0
 %% ====================================================================
 %% @doc Template points to the template file, which will be filled with content.
+%% @end
 -spec main() -> Result when
     Result :: #dtl{}.
 %% ====================================================================
@@ -59,6 +60,7 @@ main() ->
 %% title/0
 %% ====================================================================
 %% @doc Page title.
+%% @end
 -spec title() -> Result when
     Result :: binary().
 %% ====================================================================
@@ -69,6 +71,7 @@ title() ->
 %% custom/0
 %% ====================================================================
 %% @doc This will be placed instead of {{custom}} tag in template.
+%% @end
 -spec custom() -> binary().
 %% ====================================================================
 custom() ->
@@ -78,6 +81,7 @@ custom() ->
 %% body/0
 %% ====================================================================
 %% @doc This will be placed instead of {{body}} tag in template.
+%% @end
 -spec body() -> Result when
     Result :: #panel{}.
 %% ====================================================================
@@ -111,6 +115,7 @@ body() ->
 %% body/3
 %% ====================================================================
 %% @doc This will be placed instead of {{body}} tag in template.
+%% @end
 -spec body(ProviderId :: binary() | undefined, URLs :: [binary()], RedirectionPoint :: binary()| undefined) -> Result when
     Result :: #panel{}.
 %% ====================================================================
@@ -142,6 +147,7 @@ body(ProviderId, URLs, RedirectionPoint) ->
 %% settings_table/0
 %% ====================================================================
 %% @doc Renders the body of settings table.
+%% @end
 -spec settings_table(ProviderId :: binary()| undefined, URLs :: [binary()], RedirectionPoint :: binary()| undefined) -> Result when
     Result :: #table{}.
 %% ====================================================================
@@ -205,6 +211,7 @@ settings_table(ProviderId, URLs, RedirectionPoint) ->
 %% providerId/1
 %% ====================================================================
 %% @doc Renders provider ID.
+%% @end
 -spec providerId(ProviderId :: binary() | undefined) -> Result when
     Result :: #span{}.
 %% ====================================================================
@@ -246,6 +253,7 @@ providerId(ProviderId) ->
 %% urls/1
 %% ====================================================================
 %% @doc Renders urls.
+%% @end
 -spec urls(URLs :: [binary()]) -> Result when
     Result :: #p{}.
 %% ====================================================================
@@ -264,6 +272,7 @@ urls(URLs) ->
 %% redirectionPoint/1
 %% ====================================================================
 %% @doc Renders redirection point.
+%% @end
 -spec redirectionPoint(RedirectionPoint :: binary() | undefined) -> Result when
     Result :: #p{}.
 %% ====================================================================
@@ -281,6 +290,7 @@ redirectionPoint(RedirectionPoint) ->
 %% event/1
 %% ====================================================================
 %% @doc Handles page events.
+%% @end
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->
@@ -309,6 +319,7 @@ event(terminate) ->
 %% api_event/3
 %% ====================================================================
 %% @doc Handles page events.
+%% @end
 -spec api_event(Name :: string(), Args :: string(), Req :: string()) -> no_return().
 %% ====================================================================
 api_event("unregister", _, _) ->

@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains n2o website code.
+%% @doc This module contains n2o website code.
 %% This page allows to check whether all VeilCluster ports are available
 %% for Global Registry.
 %% @end
@@ -25,6 +25,7 @@
 %% main/0
 %% ====================================================================
 %% @doc Template points to the template file, which will be filled with content.
+%% @end
 -spec main() -> Result when
     Result :: #dtl{}.
 %% ====================================================================
@@ -46,6 +47,7 @@ main() ->
 %% title/0
 %% ====================================================================
 %% @doc Page title.
+%% @end
 -spec title() -> Result when
     Result :: binary().
 %% ====================================================================
@@ -56,6 +58,7 @@ title() ->
 %% body/0
 %% ====================================================================
 %% @doc This will be placed instead of {{body}} tag in template.
+%% @end
 -spec body() -> Result when
     Result :: #panel{}.
 %% ====================================================================
@@ -118,6 +121,7 @@ body() ->
 %% ports_table_body/3
 %% ====================================================================
 %% @doc Renders system limits table body.
+%% @end
 -spec ports_table_body(Hosts :: [string()], DefaultGuiPort :: integer(), DefaultRestPort :: integer()) -> Result
     when Result :: [#tr{}].
 %% ====================================================================
@@ -196,6 +200,7 @@ ports_table_body(Hosts, DefaultGuiPort, DefaultRestPort) ->
 %% validate_port/1
 %% ====================================================================
 %% @doc Checks whether given port is a positive number.
+%% @end
 -spec validate_port(Port :: string()) -> Result
     when Result :: true | false.
 %% ====================================================================
@@ -215,6 +220,7 @@ validate_port(Port) ->
 %% event/1
 %% ====================================================================
 %% @doc Handles page events.
+%% @end
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->

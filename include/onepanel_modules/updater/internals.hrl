@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: Updater internal-only definitions
+%% @doc Updater internal-only definitions
 %% @end
 %% ===================================================================
 -author("Rafal Slota").

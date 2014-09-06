@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: Updater common defines.
+%% @doc Updater common defines.
 %% @end
 %% ===================================================================
 -author("Rafal Slota").

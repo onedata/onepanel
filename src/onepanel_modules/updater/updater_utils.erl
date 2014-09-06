@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: Utility functions for updater module.
+%% @doc Utility functions for updater module.
 %% @end
 %% ===================================================================
 -module(updater_utils).

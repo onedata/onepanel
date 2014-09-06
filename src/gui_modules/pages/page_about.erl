@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains n2o website code.
+%% @doc This module contains n2o website code.
 %% This page contains information about the project, licence and contact for support.
 %% @end
 %% ===================================================================
@@ -28,6 +28,7 @@
 %% main/0
 %% ====================================================================
 %% @doc Template points to the template file, which will be filled with content.
+%% @end
 -spec main() -> Result when
     Result :: #dtl{}.
 %% ====================================================================
@@ -44,6 +45,7 @@ main() ->
 %% title/0
 %% ====================================================================
 %% @doc Page title.
+%% @end
 -spec title() -> Result when
     Result :: binary().
 %% ====================================================================
@@ -54,6 +56,7 @@ title() ->
 %% body/0
 %% ====================================================================
 %% @doc This will be placed instead of {{body}} tag in template.
+%% @end
 -spec body() -> Result when
     Result :: #panel{}.
 %% ====================================================================
@@ -75,6 +78,7 @@ body() ->
 %% about_table/0
 %% ====================================================================
 %% @doc Renders the body of about table
+%% @end
 -spec about_table() -> Result when
     Result :: #table{}.
 %% ====================================================================
@@ -179,6 +183,7 @@ about_table() ->
 %% label/1
 %% ====================================================================
 %% @doc Renders label.
+%% @end
 -spec label(Body :: term()) -> Result when
     Result :: #label{}.
 %% ====================================================================
@@ -193,6 +198,7 @@ label(Body) ->
 %% get_license/0
 %% ====================================================================
 %% @doc Returns content of LICENSE.txt file
+%% @end
 -spec get_license() -> Result when
     Result :: binary().
 %% ====================================================================
@@ -208,6 +214,7 @@ get_license() ->
 %% get_team/0
 %% ====================================================================
 %% @doc Returns HTML list with team members
+%% @end
 -spec get_team() -> Result when
     Result :: list().
 %% ====================================================================
@@ -226,6 +233,7 @@ get_team() ->
 %% event/1
 %% ====================================================================
 %% @doc Handles page events.
+%% @end
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->

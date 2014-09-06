@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module implements session_logic_behaviour and exports an
+%% @doc This module implements session_logic_behaviour and exports an
 %% API for persisting GUI sessions.
 %% @end
 %% ===================================================================

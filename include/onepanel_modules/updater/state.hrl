@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: Updater state records & definitions
+%% @doc Updater state records & definitions
 %% @end
 %% ===================================================================
 -author("Rafal Slota").

@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This header file contains installer stages and jobs definitions.
+%% @doc This header file contains installer stages and jobs definitions.
 %% @end
 %% ===================================================================
 

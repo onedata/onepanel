@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This header file contains definitions of names used to
+%% @doc This header file contains definitions of names used to
 %% identify different parts of application (or whole application).
 %% @end
 %% ===================================================================

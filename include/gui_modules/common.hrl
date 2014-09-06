@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This header file contains common macros and records for
+%% @doc This header file contains common macros and records for
 %% gui modules.
 %% @end
 %% ===================================================================

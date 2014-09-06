@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains n2o website code.
+%% @doc This module contains n2o website code.
 %% This page allows user to change username and password.
 %% @end
 %% ===================================================================
@@ -32,6 +32,7 @@
 %% main/0
 %% ====================================================================
 %% @doc Template points to the template file, which will be filled with content.
+%% @end
 -spec main() -> Result when
     Result :: #dtl{}.
 %% ====================================================================
@@ -48,6 +49,7 @@ main() ->
 %% title/0
 %% ====================================================================
 %% @doc Page title.
+%% @end
 -spec title() -> Result when
     Result :: binary().
 %% ====================================================================
@@ -58,6 +60,7 @@ title() ->
 %% body/0
 %% ====================================================================
 %% @doc This will be placed instead of {{body}} tag in template.
+%% @end
 -spec body() -> Result when
     Result :: #panel{}.
 %% ====================================================================
@@ -89,6 +92,7 @@ body() ->
 %% settings_table/0
 %% ====================================================================
 %% @doc Renders the body of settings table.
+%% @end
 -spec settings_table() -> Result when
     Result :: #table{}.
 %% ====================================================================
@@ -139,6 +143,7 @@ settings_table() ->
 %% username/1
 %% ====================================================================
 %% @doc Renders user's current name.
+%% @end
 -spec username(Username :: binary()) -> Result when
     Result :: #span{}.
 %% ====================================================================
@@ -163,6 +168,7 @@ username(Username) ->
 %% change_username/0
 %% ====================================================================
 %% @doc Renders change username input field.
+%% @end
 -spec change_username() -> Result when
     Result :: list().
 %% ====================================================================
@@ -201,6 +207,7 @@ change_username() ->
 %% password/0
 %% ====================================================================
 %% @doc Renders hypothetic user password as sequence od dots.
+%% @end
 -spec password() -> Result when
     Result :: #span{}.
 %% ====================================================================
@@ -225,6 +232,7 @@ password() ->
 %% change_password/0
 %% ====================================================================
 %% @doc Renders change password input fields.
+%% @end
 -spec change_password() -> Result when
     Result :: #panel{}.
 %% ====================================================================
@@ -281,6 +289,7 @@ change_password() ->
 %% comet_loop/1
 %% ====================================================================
 %% @doc Handles user's account management actions.
+%% @end
 -spec comet_loop(State :: #?STATE{}) -> Result when
     Result :: {error, Reason :: term()}.
 %% ====================================================================
@@ -327,6 +336,7 @@ comet_loop(#?STATE{} = State) ->
 %% event/1
 %% ====================================================================
 %% @doc Handles page events.
+%% @end
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->

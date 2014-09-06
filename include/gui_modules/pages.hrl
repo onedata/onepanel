@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This header file contains all web pages definitions.
+%% @doc This header file contains all web pages definitions.
 %% @end
 %% ===================================================================
 

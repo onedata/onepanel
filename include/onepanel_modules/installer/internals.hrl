@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This header file contains common definitions for installer modules.
+%% @doc This header file contains common definitions for installer modules.
 %% @end
 %% ===================================================================
 

@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This file contains n2o website code.
+%% @doc This file contains n2o website code.
 %% This page contains the privacy policy.
 %% @end
 %% ===================================================================
@@ -23,6 +23,7 @@
 %% main/0
 %% ====================================================================
 %% @doc Template points to the template file, which will be filled with content.
+%% @end
 -spec main() -> Result when
     Result :: #dtl{}.
 %% ====================================================================
@@ -33,6 +34,7 @@ main() ->
 %% title/0
 %% ====================================================================
 %% @doc Page title.
+%% @end
 -spec title() -> Result when
     Result :: binary().
 %% ====================================================================
@@ -42,6 +44,7 @@ title() -> <<"Privacy policy">>.
 %% body/0
 %% ====================================================================
 %% @doc This will be placed instead of {{body}} tag in template.
+%% @end
 -spec body() -> Result when
     Result :: #panel{}.
 %% ====================================================================
@@ -70,6 +73,7 @@ body() ->
 %% privacy_policy_file/1
 %% ====================================================================
 %% @doc Returns content of PRIVACY_POLICY.html file.
+%% @end
 -spec privacy_policy_file() -> Result when
     Result :: binary().
 %% ====================================================================
@@ -87,6 +91,7 @@ privacy_policy_file() ->
 %% event/1
 %% ====================================================================
 %% @doc Handles page events.
+%% @end
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->

@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module is a gen_server that executes installation
+%% @doc This module is a gen_server that executes installation
 %% operations.
 %% @end
 %% ===================================================================

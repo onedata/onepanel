@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module is a gen_server that connects separate Onepanel
+%% @doc This module is a gen_server that connects separate Onepanel
 %% nodes to create a cluster.
 %% @end
 %% ===================================================================
@@ -84,7 +84,7 @@ init([]) ->
     {stop, Reason :: term(), NewState :: #state{}}.
 %% ====================================================================
 handle_call(get_timestamp, _From, State) ->
-    Timestamp = db_logic:get_timestamp(),
+    Timestamp = installer_utils:get_timestamp(),
     {reply, Timestamp, State};
 
 handle_call({get_password, Username}, _From, #state{passwords = Passwords} = State) ->
@@ -112,7 +112,7 @@ handle_cast({remove_password, Username}, #state{passwords = Passwords} = State) 
 
 handle_cast({connection_request, Node}, State) ->
     ?info("[onepanel] Connection request from node: ~p", [Node]),
-    LocalTimestamp = db_logic:get_timestamp(),
+    LocalTimestamp = installer_utils:get_timestamp(),
     RemoteTimestamp = gen_server:call({?ONEPANEL_SERVER, Node}, get_timestamp),
     case RemoteTimestamp >= LocalTimestamp of
         true ->
@@ -152,8 +152,8 @@ handle_info({udp, _Socket, _Address, _Port, HostBinary}, State) ->
     case inet:getaddr(Host, inet) of
         {ok, _} ->
             Node = onepanel_utils:get_node(Host),
-            case lists:filter(fun(DbNode) -> DbNode =:= Node end, db_logic:get_nodes()) of
-                [] ->
+            case lists:member(Node, db_logic:get_nodes()) of
+                false ->
                     case net_kernel:connect_node(Node) of
                         true -> gen_server:cast({?ONEPANEL_SERVER, Node}, {connection_request, node()});
                         Other -> ?error("[onepanel] Cannot connect node ~p: ~p", [Node, Other])

@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains user management functions. It allows
+%% @doc This module contains user management functions. It allows
 %% to authenticate user and change his password.
 %% @end
 %% ===================================================================

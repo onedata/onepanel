@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains n2o website code.
+%% @doc This module contains n2o website code.
 %% This page allows to manage provider spaces.
 %% @end
 %% ===================================================================
@@ -46,6 +46,7 @@
 %% main/0
 %% ====================================================================
 %% @doc Template points to the template file, which will be filled with content.
+%% @end
 -spec main() -> Result when
     Result :: #dtl{}.
 %% ====================================================================
@@ -63,6 +64,7 @@ main() ->
 %% title/0
 %% ====================================================================
 %% @doc Page title.
+%% @end
 -spec title() -> Result when
     Result :: binary().
 %% ====================================================================
@@ -73,6 +75,7 @@ title() ->
 %% custom/0
 %% ====================================================================
 %% @doc This will be placed instead of {{custom}} tag in template.
+%% @end
 -spec custom() -> binary().
 %% ====================================================================
 custom() ->
@@ -82,6 +85,7 @@ custom() ->
 %% body/1
 %% ====================================================================
 %% @doc This will be placed instead of {{body}} tag in template.
+%% @end
 -spec body(ProviderId :: binary() | undefined) -> Result when
     Result :: #panel{}.
 %% ====================================================================
@@ -169,6 +173,7 @@ body(_) ->
 %% spaces_table_collapsed/1
 %% ====================================================================
 %% @doc Renders collapsed Spaces settings table.
+%% @end
 -spec spaces_table_collapsed(TableId :: binary()) -> Result when
     Result :: [#tr{}].
 %% ====================================================================
@@ -209,6 +214,7 @@ spaces_table_collapsed(TableId) ->
 %% spaces_table_expanded/1
 %% ====================================================================
 %% @doc Renders expanded Spaces settings table.
+%% @end
 -spec spaces_table_expanded(TableId :: binary()) -> Result when
     Result :: [#tr{}].
 %% ====================================================================
@@ -249,6 +255,7 @@ spaces_table_expanded(TableId) ->
 %% space_row_collapsed/2
 %% ====================================================================
 %% @doc Renders collapsed Space settings row.
+%% @end
 -spec space_row_collapsed(SpaceId :: binary(), RowId :: binary()) -> Result when
     Result :: [#td{}].
 %% ====================================================================
@@ -303,6 +310,7 @@ space_row_collapsed(SpaceId, RowId) ->
 %% space_row_expanded/2
 %% ====================================================================
 %% @doc Renders expanded Space settings row.
+%% @end
 -spec space_row_expanded(SpaceId :: binary(), RowId :: binary()) -> Result when
     Result :: [#td{}].
 %% ====================================================================
@@ -391,6 +399,7 @@ space_row_expanded(SpaceId, RowId) ->
 %% add_space_row/2
 %% ====================================================================
 %% @doc Adds collapsed Space settings row to Spaces settings table.
+%% @end
 -spec add_space_row(SpaceId :: binary(), RowId :: binary()) -> Result when
     Result :: ok.
 %% ====================================================================
@@ -405,6 +414,7 @@ add_space_row(SpaceId, RowId) ->
 %% providers_table_collapsed/2
 %% ====================================================================
 %% @doc Renders collapsed providers table for given Space.
+%% @end
 -spec providers_table_collapsed(SpaceId :: binary(), TableId :: binary()) -> Result when
     Result :: [#tr{}].
 %% ====================================================================
@@ -446,6 +456,7 @@ providers_table_collapsed(SpaceId, TableId) ->
 %% providers_table_expanded/1
 %% ====================================================================
 %% @doc Renders expanded providers table for given Space.
+%% @end
 -spec providers_table_expanded(SpaceId :: binary(), TableId :: binary()) -> Result when
     Result :: [#tr{}].
 %% ====================================================================
@@ -487,6 +498,7 @@ providers_table_expanded(SpaceId, TableId) ->
 %% provider_row_collapsed/3
 %% ====================================================================
 %% @doc Renders collapsed provider row for given Space.
+%% @end
 -spec provider_row_collapsed(SpaceId :: binary(), ProviderId :: binary(), RowId :: binary()) -> Result when
     Result :: [#td{}].
 %% ====================================================================
@@ -531,6 +543,7 @@ provider_row_collapsed(SpaceId, ProviderId, RowId) ->
 %% provider_row_expanded/3
 %% ====================================================================
 %% @doc Renders expanded provider row for given Space.
+%% @end
 -spec provider_row_expanded(SpaceId :: binary(), ProviderId :: binary(), RowId :: binary()) -> Result when
     Result :: [#td{}].
 %% ====================================================================
@@ -631,6 +644,7 @@ provider_row_expanded(SpaceId, ProviderId, RowId) ->
 %% users_table_collapsed/2
 %% ====================================================================
 %% @doc Renders collapsed users table for given Space.
+%% @end
 -spec users_table_collapsed(SpaceId :: binary(), TableId :: binary()) -> Result when
     Result :: [#tr{}].
 %% ====================================================================
@@ -672,6 +686,7 @@ users_table_collapsed(SpaceId, TableId) ->
 %% users_table_expanded/1
 %% ====================================================================
 %% @doc Renders expanded users table for given Space.
+%% @end
 -spec users_table_expanded(SpaceId :: binary(), TableId :: binary()) -> Result when
     Result :: [#tr{}].
 %% ====================================================================
@@ -713,6 +728,7 @@ users_table_expanded(SpaceId, TableId) ->
 %% user_row_collapsed/3
 %% ====================================================================
 %% @doc Renders collapsed user row for given Space.
+%% @end
 -spec user_row_collapsed(SpaceId :: binary(), UserId :: binary(), RowId :: binary()) -> Result when
     Result :: [#td{}].
 %% ====================================================================
@@ -767,6 +783,7 @@ user_row_collapsed(SpaceId, UserId, RowId) ->
 %% user_row_expanded/3
 %% ====================================================================
 %% @doc Renders expanded user row for given Space.
+%% @end
 -spec user_row_expanded(SpaceId :: binary(), UserId :: binary(), RowId :: binary()) -> Result when
     Result :: [#td{}].
 %% ====================================================================
@@ -823,6 +840,7 @@ user_row_expanded(SpaceId, UserId, RowId) ->
 %% collapse_button/1
 %% ====================================================================
 %% @doc Renders collapse button.
+%% @end
 -spec collapse_button(Postback :: term()) -> Result when
     Result :: #link{}.
 %% ====================================================================
@@ -833,6 +851,7 @@ collapse_button(Postback) ->
 %% collapse_button/2
 %% ====================================================================
 %% @doc Renders collapse button.
+%% @end
 -spec collapse_button(Title :: binary(), Postback :: term()) -> Result when
     Result :: #link{}.
 %% ====================================================================
@@ -851,6 +870,7 @@ collapse_button(Title, Postback) ->
 %% expand_button/1
 %% ====================================================================
 %% @doc Renders expand button.
+%% @end
 -spec expand_button(Postback :: term()) -> Result when
     Result :: #link{}.
 %% ====================================================================
@@ -861,6 +881,7 @@ expand_button(Postback) ->
 %% expand_button/2
 %% ====================================================================
 %% @doc Renders expand button.
+%% @end
 -spec expand_button(Title :: binary(), Postback :: term()) -> Result when
     Result :: #link{}.
 %% ====================================================================
@@ -879,6 +900,7 @@ expand_button(Title, Postback) ->
 %% spinner/0
 %% ====================================================================
 %% @doc Renders spinner GIF.
+%% @end
 -spec spinner() -> Result when
     Result :: #image{}.
 %% ====================================================================
@@ -894,6 +916,7 @@ spinner() ->
 %% @doc Calls given function with given arguments and returns result.
 %% If given function was previously called with same arguments and cache
 %% has not been cleared it returns previous function call result.
+%% @end
 -spec cacheable_call(Module :: module(), Function :: atom(), Args :: [term()]) -> Result when
     Result :: term().
 %% ====================================================================
@@ -911,6 +934,7 @@ cacheable_call(Module, Function, Args) ->
 %% clear_call/3
 %% ====================================================================
 %% @doc Clears cache for given function call.
+%% @end
 -spec clear_call(Module :: module(), Function :: atom(), Args :: [term()]) -> Result when
     Result :: term().
 %% ====================================================================
@@ -921,6 +945,7 @@ clear_call(Module, Function, Args) ->
 %% comet_loop/1
 %% ====================================================================
 %% @doc Handles spaces management actions.
+%% @end
 -spec comet_loop(State :: #?STATE{}) -> Result when
     Result :: {error, Reason :: term()}.
 %% ====================================================================
@@ -1054,6 +1079,7 @@ comet_loop(#?STATE{} = State) ->
 %% event/1
 %% ====================================================================
 %% @doc Handles page events.
+%% @end
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->
@@ -1159,6 +1185,7 @@ event(terminate) ->
 %% api_event/3
 %% ====================================================================
 %% @doc Handles page events.
+%% @end
 -spec api_event(Name :: string(), Args :: string(), Req :: string()) -> no_return().
 %% ====================================================================
 api_event("createSpace", Args, _) ->

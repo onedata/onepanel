@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: Updater generic engine. Handles stage/job/objects logic.
+%% @doc Updater generic engine. Handles stage/job/objects logic.
 %% @end
 %% ===================================================================
 -module(updater_engine).

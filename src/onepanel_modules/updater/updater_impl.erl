@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: Passive implementation of update procedures. This module behaves as callback provider
+%% @doc Passive implementation of update procedures. This module behaves as callback provider
 %%       for updater_engine.
 %% @end
 %% ===================================================================

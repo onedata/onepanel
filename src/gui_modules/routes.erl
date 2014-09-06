@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module provides mapping of Onepanel paths to modules
+%% @doc This module provides mapping of Onepanel paths to modules
 %% that will render the pages.
 %% @end
 %% ===================================================================
@@ -22,6 +22,7 @@
 %% init/2
 %% ====================================================================
 %% @doc Initializes routing state and context.
+%% @end
 -spec init(State :: term(), Ctx :: #context{}) -> Result when
     Result :: {ok, State :: term(), Ctx :: #context{}}.
 %% ====================================================================
@@ -37,6 +38,7 @@ init(State, Ctx) ->
 %% finish/2
 %% ====================================================================
 %% @doc Finalizes routing state and context.
+%% @end
 -spec finish(State :: term(), Ctx :: #context{}) -> Result when
     Result :: {ok, State :: term(), Ctx :: #context{}}.
 %% ====================================================================
@@ -50,6 +52,7 @@ finish(State, Ctx) -> {ok, State, Ctx}.
 %% route/1
 %% ====================================================================
 %% @doc Returns modules that renders pages for given resource.
+%% @end
 -spec route(Resource :: string()) -> Result when
     Result :: module().
 %% ====================================================================

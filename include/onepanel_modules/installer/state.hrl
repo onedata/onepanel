@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This header file contains installer state record and definition.
+%% @doc This header file contains installer state record and definition.
 %% @end
 %% ===================================================================
 

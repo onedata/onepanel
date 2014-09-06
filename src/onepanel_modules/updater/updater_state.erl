@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module gives tools for updater's state interpretation.
+%% @doc This module gives tools for updater's state interpretation.
 %% @end
 %% ===================================================================
 -module(updater_state).

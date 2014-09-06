@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains utility installation functions.
+%% @doc This module contains utility installation functions.
 %% @end
 %% ===================================================================
 -module(installer_utils).
@@ -17,7 +17,7 @@
 
 %% API
 -export([set_ulimits/2, get_ulimits_cmd/1]).
--export([get_workers/0, get_global_config/0]).
+-export([get_workers/0, get_global_config/0, get_timestamp/0, set_timestamp/0]).
 -export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/3]).
 -export([finalize_installation/1]).
 
@@ -72,6 +72,7 @@ get_ulimits_cmd(Host) ->
 %% add_node_to_config/3
 %% ====================================================================
 %% @doc Adds a node to configured_nodes.cfg.
+%% @end
 -spec add_node_to_config(Type :: atom(), Name :: string(), Path :: string()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
@@ -89,6 +90,7 @@ add_node_to_config(Type, Name, Path) ->
 %% remove_node_from_config/1
 %% ====================================================================
 %% @doc Removes a node from configured_nodes.cfg.
+%% @end
 -spec remove_node_from_config(Type :: atom()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
@@ -110,6 +112,7 @@ remove_node_from_config(Type) ->
 %% save_nodes_in_config/1
 %% ====================================================================
 %% @doc Saves list of nodes in configured_nodes.cfg.
+%% @end
 -spec save_nodes_in_config(Name :: string()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
@@ -131,6 +134,7 @@ save_nodes_in_config(NodeList) ->
 %% overwrite_config_args/3
 %% ====================================================================
 %% @doc Overwrites a parameter in config.args.
+%% @end
 -spec overwrite_config_args(Path :: string(), Parameter :: string(), NewValue :: string()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
@@ -158,6 +162,7 @@ overwrite_config_args(Path, Parameter, NewValue) ->
 %% get_workers/0
 %% ====================================================================
 %% @doc Returns configured workers list.
+%% @end
 -spec get_workers() -> Result when
     Result :: [string()].
 %% ====================================================================
@@ -173,6 +178,7 @@ get_workers() ->
 %% get_global_config/0
 %% ====================================================================
 %% @doc Returns global installation configuration.
+%% @end
 -spec get_global_config() -> list().
 %% ====================================================================
 get_global_config() ->
@@ -189,12 +195,44 @@ get_global_config() ->
 %% ====================================================================
 %% @doc Waits until cluster control panel nodes are up and running.
 %% Returns an error after ?FINALIZE_INSTALLATION_ATTEMPTS limit.
+%% @end
 -spec finalize_installation(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 finalize_installation(_Args) ->
-    db_logic:set_timestamp(),
+    set_timestamp(),
     finalize_installation_loop(?FINALIZE_INSTALLATION_ATTEMPTS).
+
+
+%% get_timestamp/0
+%% ====================================================================
+%% @doc Returns timestamp (microseconds since epoch) of last global 
+%% configuration change.
+%% @end
+-spec get_timestamp() -> Result when
+    Result :: integer().
+%% ====================================================================
+get_timestamp() ->
+    case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+        #?GLOBAL_CONFIG_RECORD{timestamp = Timestamp} ->
+            Timestamp;
+        _ ->
+            0
+    end.
+
+
+%% set_timestamp/0
+%% ====================================================================
+%% @doc Sets timestamp for global configuration to microsecond since 
+%% epoch.
+%% @end
+-spec set_timestamp() -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+set_timestamp() ->
+    {MegaSecs, Secs, MicroSecs} = now(),
+    Timestamp = 1000000000000 * MegaSecs + 1000000 * Secs + MicroSecs,
+    dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{timestamp, Timestamp}]).
 
 
 %% ====================================================================
@@ -206,6 +244,7 @@ finalize_installation(_Args) ->
 %% @doc Waits until cluster control panel nodes are up and running.
 %% Returns an error after ?FINALIZE_INSTALLATION_ATTEMPTS limit.
 %% Should not be used directly, use finalize_installation/1 instead.
+%% @end
 -spec finalize_installation_loop(Attempts :: integer()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================

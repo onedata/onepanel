@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains database management functions. It allows
+%% @doc This module contains database management functions. It allows
 %% to create, initialize and delete database tables. Moreover it allows
 %% to add node to database cluster and list available nodes.
 %% @end
@@ -20,7 +20,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([create/0, initialize/1, delete/0, add_node/1, get_nodes/0, get_timestamp/0, set_timestamp/0]).
+-export([create/0, initialize/1, delete/0, add_node/1, get_nodes/0]).
 
 %% ====================================================================
 %% API functions
@@ -186,18 +186,3 @@ add_node(Node) ->
 %% ====================================================================
 get_nodes() ->
     mnesia:system_info(db_nodes).
-
-
-get_timestamp() ->
-    case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-        #?GLOBAL_CONFIG_RECORD{timestamp = Timestamp} ->
-            Timestamp;
-        _ ->
-            0
-    end.
-
-
-set_timestamp() ->
-    {MegaSecs, Secs, MicroSecs} = now(),
-    Timestamp = 1000000000000 * MegaSecs + 1000000 * Secs + MicroSecs,
-    dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{timestamp, Timestamp}]).

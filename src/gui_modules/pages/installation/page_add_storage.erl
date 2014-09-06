@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains n2o website code.
+%% @doc This module contains n2o website code.
 %% This page allows to add storage during VeilCluster nodes installation.
 %% @end
 %% ===================================================================
@@ -29,6 +29,7 @@
 %% main/0
 %% ====================================================================
 %% @doc Template points to the template file, which will be filled with content.
+%% @end
 -spec main() -> Result when
     Result :: #dtl{}.
 %% ====================================================================
@@ -50,6 +51,7 @@ main() ->
 %% title/0
 %% ====================================================================
 %% @doc Page title.
+%% @end
 -spec title() -> Result when
     Result :: binary().
 %% ====================================================================
@@ -60,6 +62,7 @@ title() ->
 %% body/0
 %% ====================================================================
 %% @doc This will be placed instead of {{body}} tag in template.
+%% @end
 -spec body() -> Result when
     Result :: #panel{}.
 %% ====================================================================
@@ -113,6 +116,7 @@ body() ->
 %% storage_paths_table_body/0
 %% ====================================================================
 %% @doc Renders storage table body.
+%% @end
 -spec storage_paths_table_body() -> Result
     when Result :: [#tr{}].
 %% ====================================================================
@@ -153,6 +157,7 @@ storage_paths_table_body() ->
 %% @doc Renders storage table row. 'StoragePath' is a value that will
 %% be placed in textbox with suffix id equals 'Id'. When 'Disabled'
 %% equals true user cannot write in textbox.
+%% @end
 -spec storage_paths_table_row(StoragePath, Id, Disabled, State) -> Result when
     StoragePath :: string() | binary(),
     Id :: integer(),
@@ -217,6 +222,7 @@ storage_paths_table_row(StoragePath, Id, Disabled, Deletable) ->
 %% check_storage_paths/2
 %% ====================================================================
 %% @doc Checks wheter all storage paths are available for all workers.
+%% @end
 -spec check_storage_paths(Hosts :: [string()], StoragePath :: [string()]) -> Result when
     Result :: ok | error.
 %% ====================================================================
@@ -244,6 +250,7 @@ check_storage_paths(Hosts, [StoragePath | StoragePaths]) ->
 %% event/1
 %% ====================================================================
 %% @doc Handles page events.
+%% @end
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->

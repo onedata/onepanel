@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module implements {@link installer_behaviour} callbacks and
+%% @doc This module implements {@link installer_behaviour} callbacks and
 %% provides API methods for CCM nodes installation.
 %% @end
 %% ===================================================================

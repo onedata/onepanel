@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: Remote module used to execute/inject code onto VeilCluster node.
+%% @doc Remote module used to execute/inject code onto VeilCluster node.
 %% @end
 %% ===================================================================
 -module(updater_export).
@@ -31,6 +31,7 @@
 %% ====================================================================
 %% @doc This function is meant to be used for newly spawned processes,
 %%      as wrapper that executes Fun from this module and sends result back to given pid - RespondTo.
+%% @end
 -spec runner(RespondTo :: pid(), Fun :: atom(), Args :: list()) -> {pid(), any()}.
 %% ====================================================================
 runner(RespondTo, Fun, Args) ->
@@ -50,6 +51,7 @@ runner(RespondTo, Fun, Args) ->
 %% install_package/1
 %% ====================================================================
 %% @doc Installs given package in OS (currently only RPM packages are supported).
+%% @end
 -spec install_package(Package :: #package{}) -> ok | {error, any()}.
 %% ====================================================================
 install_package(#package{type = rpm, binary = Bin}) ->
@@ -65,6 +67,7 @@ install_package(#package{type = _Type}) ->
 %% run_pre_update/1
 %% ====================================================================
 %% @doc Runs dao_update:pre_update function and reloads modules that DAO wants to be reloaded.
+%% @end
 -spec run_pre_update(Version :: #version{}) -> ok | {error, any()}.
 %% ====================================================================
 run_pre_update(Version) ->
@@ -81,6 +84,7 @@ run_pre_update(Version) ->
 %% backup_instalation/0
 %% ====================================================================
 %% @doc Backups current node installation (files only).
+%% @end
 -spec backup_instalation() -> ok | {error, any()}.
 %% ====================================================================
 backup_instalation() ->
@@ -94,6 +98,7 @@ backup_instalation() ->
 %% revert_instalation/0
 %% ====================================================================
 %% @doc Reverts current node installation (files only) from backup created with revert_instalation/0.
+%% @end
 -spec revert_instalation() -> ok | {error, any()}.
 %% ====================================================================
 revert_instalation() ->
@@ -107,6 +112,7 @@ revert_instalation() ->
 %% move_file/1
 %% ====================================================================
 %% @doc Copies file (given filename) from rpm install path to node install path.
+%% @end
 -spec move_file(File :: string()) -> ok | {error, any()}.
 %% ====================================================================
 move_file(File) ->
@@ -134,6 +140,7 @@ move_file(File) ->
 %% move_all_files/0
 %% ====================================================================
 %% @doc Same as move_file/1 only that works for all files with exception for configuration files.
+%% @end
 -spec move_all_files() -> ok | {error, any()}.
 %% ====================================================================
 move_all_files() ->
@@ -172,7 +179,8 @@ move_all_files() ->
 
 %% force_reload_module/1
 %% ====================================================================
-%% @doc Force reloads given module (full code purge & reload).
+%% @doc Force reloads given module (full code purge and reload).
+%% @end
 -spec force_reload_module(Module :: atom()) -> ok | {error, any()}.
 %% ====================================================================
 force_reload_module(Module) ->
@@ -186,6 +194,7 @@ force_reload_module(Module) ->
 %% fix_code_path/0
 %% ====================================================================
 %% @doc Rewrites code path using new release numbers.
+%% @end
 -spec fix_code_path() -> ok | {error, any()}.
 %% ====================================================================
 fix_code_path() ->
@@ -201,6 +210,7 @@ fix_code_path() ->
 %% soft_reload_all_modules/0
 %% ====================================================================
 %% @doc Softly reloads all modules and returns tuple list that says which module needs force realod.
+%% @end
 -spec soft_reload_all_modules() -> {ok, [{Module :: atom(), IsReloaded :: boolean()}]} | {error, any()}.
 %% ====================================================================
 soft_reload_all_modules() ->
@@ -223,6 +233,7 @@ soft_reload_all_modules() ->
 %% ====================================================================
 %% @doc Hardly reloads given modules and returns tuple list that says which module triggered process kill.
 %%      WaitFor specifies delay before executing this function.
+%% @end
 -spec force_reload_modules(Modules :: [atom()], WaitFor :: non_neg_integer()) -> {ok, [{Module :: atom(), WasKilled :: boolean()}]} | {error, any()}.
 %% ====================================================================
 force_reload_modules(Modules, WaitFor) ->
@@ -242,6 +253,7 @@ force_reload_modules(Modules, WaitFor) ->
 %% install_views/2
 %% ====================================================================
 %% @doc Install/updates views code in DB (based on code from files).
+%% @end
 -spec install_views() -> ok | {error, any()}.
 %% ====================================================================
 install_views() ->
@@ -258,6 +270,7 @@ install_views() ->
 %% get_all_loaded/0
 %% ====================================================================
 %% @doc Returns all loaded modules without modules that need node restart after reload.
+%% @end
 -spec get_all_loaded() -> [Mod :: atom()].
 %% ====================================================================
 get_all_loaded() ->
@@ -275,6 +288,7 @@ get_all_loaded() ->
 %% install_view_sources/0
 %% ====================================================================
 %% @doc Installs new view sources (rpm -> node install dir)
+%% @end
 -spec install_view_sources() -> ok | {error, any()}.
 %% ====================================================================
 install_view_sources() ->
@@ -287,6 +301,7 @@ install_view_sources() ->
 %% remove_outdated_views/0
 %% ====================================================================
 %% @doc Removes outdated views.
+%% @end
 -spec remove_outdated_views() -> ok | {error, any()}.
 %% ====================================================================
 remove_outdated_views() ->
@@ -296,6 +311,7 @@ remove_outdated_views() ->
 %% refresh_view/1
 %% ====================================================================
 %% @doc Refreshes view index. 'View' type shall match the one currently used by DAO.
+%% @end
 -spec refresh_view(View :: tuple()) -> ok | {error, any()}.
 %% ====================================================================
 refresh_view(View) ->
@@ -309,6 +325,7 @@ refresh_view(View) ->
 %% get_release_name/0
 %% ====================================================================
 %% @doc Returns veil_cluster_node's release lib directory name.
+%% @end
 -spec get_release_name() -> ReleaseName :: string().
 %% ====================================================================
 get_release_name() ->
@@ -318,6 +335,7 @@ get_release_name() ->
 %% is_reboot_only_lib/1
 %% ====================================================================
 %% @doc For given module's file name, checks if the module requires node restart in order to reload.
+%% @end
 -spec is_reboot_only_lib(FileName :: string()) -> boolean().
 %% ====================================================================
 is_reboot_only_lib(FilePath) ->
@@ -327,6 +345,7 @@ is_reboot_only_lib(FilePath) ->
 %% get_node_subpath/0
 %% ====================================================================
 %% @doc Returns node root directory (relative to node install path).
+%% @end
 -spec get_node_subpath() -> ok | {error, any()}.
 %% ====================================================================
 get_node_subpath() ->

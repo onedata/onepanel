@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains n2o website code.
+%% @doc This module contains n2o website code.
 %% This page displays update summary and starts updater process.
 %% @end
 %% ===================================================================
@@ -39,6 +39,7 @@
 %% main/0
 %% ====================================================================
 %% @doc Template points to the template file, which will be filled with content.
+%% @end
 -spec main() -> Result when
     Result :: #dtl{}.
 %% ====================================================================
@@ -60,6 +61,7 @@ main() ->
 %% title/0
 %% ====================================================================
 %% @doc Page title.
+%% @end
 -spec title() -> Result when
     Result :: binary().
 %% ====================================================================
@@ -70,6 +72,7 @@ title() ->
 %% body/0
 %% ====================================================================
 %% @doc This will be placed instead of {{body}} tag in template.
+%% @end
 -spec body() -> Result when
     Result :: #panel{}.
 %% ====================================================================
@@ -215,6 +218,7 @@ body() ->
 %% translate_stage/1
 %% ====================================================================
 %% @doc Translates stage ID to human-readable version
+%% @end
 -spec translate_stage(StageId :: atom()) -> Result when
     Result :: binary().
 %% ====================================================================
@@ -237,6 +241,7 @@ translate_stage(_) -> <<"">>.
 %% translate_job/1
 %% ====================================================================
 %% @doc Translates job ID to human-readable version
+%% @end
 -spec translate_job(JobId :: atom()) -> Result when
     Result :: binary().
 %% ====================================================================
@@ -260,6 +265,7 @@ translate_job(_) -> <<"">>.
 %% get_stage_index/2
 %% ====================================================================
 %% @doc Returns index of current update stage.
+%% @end
 -spec get_stage_index(Job :: atom(), State :: #?u_state{}) -> Result when
     Result :: integer().
 %% ====================================================================
@@ -271,6 +277,7 @@ get_stage_index(Stage, State) ->
 %% get_job_index_and_jobs_count/3
 %% ====================================================================
 %% @doc Returns index of current update job.
+%% @end
 -spec get_job_index_and_jobs_count(Stage :: atom(), Job :: atom(), State :: #?u_state{}) -> Result when
     Result :: {JobIndex :: integer(), JobsCount :: integer()}.
 %% ====================================================================
@@ -289,6 +296,7 @@ get_job_index_and_jobs_count(Stage, Job, State) ->
 %% ====================================================================
 %% @doc Returns overall jobs progress in current stage and also progress
 %% of current job.
+%% @end
 -spec get_job_progress(JobProgress :: float(), JobIndex :: integer(), JobsCount :: integer(), ActionType :: atom()) -> Result
     when Result :: {JobsProgress :: float(), NewJobProgress :: float()}.
 %% ====================================================================
@@ -303,6 +311,7 @@ get_job_progress(JobProgress, JobIndex, JobsCount, _) ->
 %% update_progress/3
 %% ====================================================================
 %% @doc Updater callback.
+%% @end
 -spec update_progress(Pid :: pid(), Event :: atom(), State :: atom()) -> no_return().
 %% ====================================================================
 update_progress(Pid, Event, State) ->
@@ -339,6 +348,7 @@ update_progress(Pid, Event, State) ->
 %% comet_loop/1
 %% ====================================================================
 %% @doc Handles updater process messages and updates progress bar.
+%% @end
 -spec comet_loop(State :: #?STATE{}) -> Result when
     Result :: {error, Reason :: term()}.
 %% ====================================================================
@@ -471,6 +481,7 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
 %% event/1
 %% ====================================================================
 %% @doc Handles page events.
+%% @end
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->

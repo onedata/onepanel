@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This file contains useful functions commonly used in
+%% @doc This file contains useful functions commonly used in
 %% Onepanel GUI modules.
 %% @end
 %% ===================================================================
@@ -175,6 +175,7 @@ top_menu(ActiveTabID, ActiveLinkID, SubMenuBody) ->
 %% account_settings_tab/1
 %% ====================================================================
 %% @doc Renders body of account settings tab.
+%% @end
 -spec account_settings_tab(Username :: binary()) -> Result when
     Result :: #link{}.
 %% ====================================================================
@@ -197,6 +198,7 @@ account_settings_tab(Username) ->
 %% ====================================================================
 %% @doc Returns error message for given error id, that will be displayed
 %% on page.
+%% @end
 -spec get_error_message(ErrorId :: atom()) -> Result when
     Result :: binary().
 %% ====================================================================
@@ -210,6 +212,7 @@ get_error_message(_) ->
 %% ====================================================================
 %% @doc Returns current installation state read in first place from session
 %% and in second place from database.
+%% @end
 -spec get_installation_state() -> Result when
     Result :: #?GLOBAL_CONFIG_RECORD{} | undefined.
 %% ====================================================================
@@ -227,6 +230,7 @@ get_installation_state() ->
 %% change_page/2
 %% ====================================================================
 %% @doc Redirects to given page and saves it in user session.
+%% @end
 -spec change_page(Env :: atom(), Page :: string()) -> Result when
     Result :: ok.
 %% ====================================================================
@@ -238,6 +242,7 @@ change_page(Env, Page) ->
 %% maybe_redirect/3
 %% ====================================================================
 %% @doc Redirects to appropriate page read from user session.
+%% @end
 -spec maybe_redirect(Env :: atom(), Page :: string(), DefaultPage :: string()) -> Result when
     Result :: true | false.
 %% ====================================================================
@@ -257,6 +262,7 @@ maybe_redirect(Env, CurrentPage, DefaultPage) ->
 %% format_list/1
 %% ====================================================================
 %% @doc Returns list elements as a comma-delimited binary.
+%% @end
 -spec format_list(List :: [string()]) -> Result when
     Result :: binary().
 %% ====================================================================
@@ -270,6 +276,7 @@ format_list(Hosts) ->
 %% ====================================================================
 %% @doc Renders a message in given element and allows to hide it with
 %% default postback.
+%% @end
 -spec message(Id :: binary(), Message :: binary()) -> Result when
     Result :: ok.
 %% ====================================================================
@@ -281,6 +288,7 @@ message(Id, Message) ->
 %% ====================================================================
 %% @doc Renders a message in given element and allows to hide it with
 %% custom postback.
+%% @end
 -spec message(Id :: binary(), Message :: binary(), Postback :: term()) -> Result when
     Result :: ok.
 %% ====================================================================
