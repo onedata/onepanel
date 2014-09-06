@@ -113,11 +113,11 @@ move_file(File) ->
     RelPrivPath = filename:join([?VEIL_RELEASE, "lib"]),
     WorkerTargetDir = filename:join([?DEFAULT_NODES_INSTALL_PATH, get_node_subpath(), "lib"]),
 
-    From = os:cmd("find " ++ RelPrivPath ++ " -name \"" ++ File  ++ "\" | head -1") -- [10],
+    From = os:cmd("find " ++ RelPrivPath ++ " -name \"" ++ File ++ "\" | head -1") -- [10],
 
-    case From of 
+    case From of
         "" -> ignore;
-        _  ->   
+        _ ->
             From1 = filename:split(From),
             [_ | [Rel | _]] = lists:dropwhile(fun(Elem) -> Elem =/= "lib" end, From1),
 
@@ -137,7 +137,7 @@ move_file(File) ->
 -spec move_all_files() -> ok | {error, any()}.
 %% ====================================================================
 move_all_files() ->
-    Targets = string:tokens( os:cmd("cd " ++ ?VEIL_RELEASE ++ "; find . -type f | grep -v sys.config | grep -v vm.args | grep -v config.args | grep -v storage_info.cfg"), [10] ),
+    Targets = string:tokens(os:cmd("cd " ++ ?VEIL_RELEASE ++ "; find . -type f | grep -v sys.config | grep -v vm.args | grep -v config.args | grep -v storage_info.cfg"), [10]),
     IsRebootRequired =
         lists:foldl(
             fun(File, RebootRequired) ->
@@ -148,13 +148,13 @@ move_all_files() ->
                         NewDir = filename:join(Acc, Elem),
                         file:make_dir(NewDir),
                         NewDir
-                    end,[], filename:split(TargetDir)),
+                    end, [], filename:split(TargetDir)),
                 Source = filename:join([?VEIL_RELEASE, File]),
                 {ok, SourceBin} = file:read_file(Source),
                 TargetBin =
                     case file:read_file(Source) of
                         {ok, Bin} -> Bin;
-                        _         -> <<>>
+                        _ -> <<>>
                     end,
                 SourceMD5 = crypto:hash(md5, SourceBin),
                 TargetMD5 = crypto:hash(md5, TargetBin),
@@ -163,7 +163,7 @@ move_all_files() ->
                     true ->
                         false;
                     false ->
-                        "" = os:cmd("cp -fr " ++ Source ++ " " ++ Target ),
+                        "" = os:cmd("cp -fr " ++ Source ++ " " ++ Target),
                         RebootRequired orelse is_reboot_only_lib(Target)
                 end
             end, false, Targets),
@@ -189,7 +189,7 @@ force_reload_module(Module) ->
 -spec fix_code_path() -> ok | {error, any()}.
 %% ====================================================================
 fix_code_path() ->
-    Paths = string:tokens( os:cmd("find " ++ filename:join([?DEFAULT_NODES_INSTALL_PATH, get_node_subpath(), "lib"]) ++ " -name ebin -type d | sort -bdfr") ,[10]),
+    Paths = string:tokens(os:cmd("find " ++ filename:join([?DEFAULT_NODES_INSTALL_PATH, get_node_subpath(), "lib"]) ++ " -name ebin -type d | sort -bdfr"), [10]),
     NewReleasePath = filename:join([?DEFAULT_NODES_INSTALL_PATH, get_node_subpath(), "lib", get_release_name(), "ebin"]),
 
     code:add_paths(Paths),
@@ -239,7 +239,6 @@ force_reload_modules(Modules, WaitFor) ->
     {ok, ModMap}.
 
 
-
 %% install_views/2
 %% ====================================================================
 %% @doc Install/updates views code in DB (based on code from files).
@@ -266,10 +265,10 @@ get_all_loaded() ->
         fun({_Module, Path}, Acc) when is_atom(Path) ->
             Acc;
             ({Module, Path}, Acc) ->
-            case is_reboot_only_lib(Path) of
-                false -> [{Module, Path} | Acc];
-                true -> Acc
-            end
+                case is_reboot_only_lib(Path) of
+                    false -> [{Module, Path} | Acc];
+                    true -> Acc
+                end
         end, [], code:all_loaded()).
 
 

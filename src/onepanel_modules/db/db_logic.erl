@@ -16,12 +16,11 @@
 -include("onepanel_modules/logic/user_logic.hrl").
 -include("onepanel_modules/logic/provider_logic.hrl").
 -include("onepanel_modules/installer/state.hrl").
--include("onepanel_modules/installer/internals.hrl").
 -include("onepanel_modules/updater/state.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([create/0, initialize/1, delete/0, add_node/1, get_nodes/0]).
+-export([create/0, initialize/1, delete/0, add_node/1, get_nodes/0, get_timestamp/0, set_timestamp/0]).
 
 %% ====================================================================
 %% API functions
@@ -46,7 +45,7 @@ initialize(?USER_TABLE) ->
     end;
 initialize(?GLOBAL_CONFIG_TABLE) ->
     try
-        ok = dao:save_record(?GLOBAL_CONFIG_TABLE, #?GLOBAL_CONFIG_RECORD{id = ?CONFIG_ID})
+        ok = dao:save_record(?GLOBAL_CONFIG_TABLE, #?GLOBAL_CONFIG_RECORD{id = ?CONFIG_ID, timestamp = 0})
     catch
         _:Reason ->
             ?error("Cannot initialize global configuration table: ~p", [Reason]),
@@ -187,3 +186,18 @@ add_node(Node) ->
 %% ====================================================================
 get_nodes() ->
     mnesia:system_info(db_nodes).
+
+
+get_timestamp() ->
+    case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+        #?GLOBAL_CONFIG_RECORD{timestamp = Timestamp} ->
+            Timestamp;
+        _ ->
+            0
+    end.
+
+
+set_timestamp() ->
+    {MegaSecs, Secs, MicroSecs} = now(),
+    Timestamp = 1000000000000 * MegaSecs + 1000000 * Secs + MicroSecs,
+    dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{timestamp, Timestamp}]).

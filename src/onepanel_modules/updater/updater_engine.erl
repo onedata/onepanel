@@ -35,7 +35,8 @@ enter_stage({Stage, Job}, #?u_state{object_data = ObjData, callback = CFun, acti
     %% Set behaviour (install / rollback) dependent actions
     {DispatchFun, HandleFun, EventName, NewState0} =
         case ActionType of
-            install  -> {fun dispatch_object/2, fun handle_stage/1, enter_stage, finalize_stage(State#?u_state{previous_data = ObjData})};
+            install ->
+                {fun dispatch_object/2, fun handle_stage/1, enter_stage, finalize_stage(State#?u_state{previous_data = ObjData})};
             rollback -> {fun rollback_object/2, fun handle_rollback/1, rollback_stage, State}
         end,
 
@@ -48,11 +49,11 @@ enter_stage({Stage, Job}, #?u_state{object_data = ObjData, callback = CFun, acti
 
     %% Generate objects
     {ObjectList0, NewState2} = HandleFun(NewState1),
-    ObjectList1 = lists:flatten( [ ObjectList0 ] ),
+    ObjectList1 = lists:flatten([ObjectList0]),
 
     %% Dispatch objects
     Dispatch = dispatch_all(ObjectList1, NewState2, DispatchFun),
-    NewState3 = NewState1#?u_state{objects = maps:from_list( Dispatch )},
+    NewState3 = NewState1#?u_state{objects = maps:from_list(Dispatch)},
 
     %% Notify
     CFun(EventName, NewState3),
@@ -60,7 +61,7 @@ enter_stage({Stage, Job}, #?u_state{object_data = ObjData, callback = CFun, acti
     %% Skip stage if empty
     case maps:size(NewState3#?u_state.objects) =:= 0 andalso Stage =/= ?STAGE_IDLE of
         true -> enter_stage(next_stage(NewState3), NewState3);
-        _    -> NewState3
+        _ -> NewState3
     end.
 
 
@@ -148,7 +149,7 @@ dispatch_object(Obj, #?u_state{stage = Stage, job = Job} = State) ->
 %% @end
 -spec finalize_stage(State :: #?u_state{}) -> NewState :: #?u_state{}.
 %% ====================================================================
-finalize_stage(#?u_state{ stage = Stage, job = Job} = State) ->
+finalize_stage(#?u_state{stage = Stage, job = Job} = State) ->
     updater_impl:finalize_stage(Stage, Job, State).
 
 
@@ -224,7 +225,7 @@ init_rollback(#?u_state{} = State) ->
 -spec insert_error(Object :: term(), Reason :: term(), State :: #?u_state{}) ->
     NewState :: #?u_state{}.
 %% ====================================================================
-insert_error(Obj, Reason, #?u_state{stage = Stage, job = Job, action_type = ActionType, error_stack = EC} = State)  ->
+insert_error(Obj, Reason, #?u_state{stage = Stage, job = Job, action_type = ActionType, error_stack = EC} = State) ->
     State#?u_state{error_stack = [{{Stage, Job, ActionType}, Obj, updater_utils:normalize_error_reason(Reason)} | EC]}.
 
 
@@ -235,6 +236,6 @@ insert_error(Obj, Reason, #?u_state{stage = Stage, job = Job, action_type = Acti
 -spec insert_warning(Object :: term(), Reason :: term(), State :: #?u_state{}) ->
     NewState :: #?u_state{}.
 %% ====================================================================
-insert_warning(Obj, Reason, #?u_state{stage = Stage, job = Job, action_type = ActionType, warning_stack = EC} = State)  ->
+insert_warning(Obj, Reason, #?u_state{stage = Stage, job = Job, action_type = ActionType, warning_stack = EC} = State) ->
     State#?u_state{warning_stack = [{{Stage, Job, ActionType}, Obj, updater_utils:normalize_error_reason(Reason)} | EC]}.
 

@@ -193,6 +193,7 @@ get_global_config() ->
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 finalize_installation(_Args) ->
+    db_logic:set_timestamp(),
     finalize_installation_loop(?FINALIZE_INSTALLATION_ATTEMPTS).
 
 
