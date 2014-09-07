@@ -124,7 +124,7 @@ body() ->
 main_ccm_body() ->
     try
         {ok, Db} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        {ok, Session} = onepanel_gui_utils:get_installation_state(),
+        {ok, Session} = onepanel_gui_utils:get_session_config(),
 
         [
             <<"<i class=\"dropdown-arrow dropdown-arrow-inverse\"></i>">>,

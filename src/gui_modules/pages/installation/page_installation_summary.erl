@@ -29,7 +29,7 @@
 
 %% Comet process state
 -define(STATE, comet_state).
--record(?STATE, {step = 0, steps = 0, step_progress = 0, next_update = ?NEXT_UPDATE_DELAY}).
+-record(?STATE, {step = 0, steps = 0, step_progress = 0, next_update = ?NEXT_UPDATE_DELAY, config = #?CONFIG{}}).
 
 %% ====================================================================
 %% API functions
@@ -101,8 +101,7 @@ body() ->
                 style = <<"width: 50%; margin: 0 auto;">>,
                 body = [
                     #tbody{
-                        id = <<"summary_table">>,
-                        body = summary_table_body()
+                        id = <<"summary_table">>
                     }
                 ]
             },
@@ -153,64 +152,34 @@ body() ->
 %% ====================================================================
 %% @doc Renders summary table body.
 %% @end
--spec summary_table_body() -> Result
+-spec summary_table_body(Config :: #?CONFIG{}) -> Result
     when Result :: [#tr{}].
 %% ====================================================================
-summary_table_body() ->
-    #?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs, storage_paths = StoragePaths} = to_install(),
-    [
+summary_table_body(#?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs, storage_paths = StoragePaths}) ->
+    lists:map(fun({Id, Description, Details}) ->
         #tr{
-            id = <<"summary_main_ccm">>,
+            id = Id,
             cells = [
                 #th{
                     style = <<"width: 50%; vertical-align: inherit; padding: 0;">>,
                     body = #p{
                         style = <<"text-align: center; margin-bottom: 0;">>,
-                        body = <<"Primary CCM host">>
+                        body = Description
                     }
                 },
                 #th{
                     style = <<"width: 50%; vertical-align: inherit; padding: 0;">>,
-                    body = #p{
-                        style = <<"text-align: center; margin-bottom: 0; font-weight: 400;">>,
-                        body = case MainCCM of
-                                   undefined -> <<"-">>;
-                                   _ -> gui_str:html_encode(MainCCM)
-                               end
-                    }}
-            ]},
-        summary_table_row(<<"summary_ccms">>, <<"CCM hosts">>, format(CCMs)),
-        summary_table_row(<<"summary_workers">>, <<"Worker hosts">>, format(Workers)),
-        summary_table_row(<<"summary_Dbs">>, <<"Database hosts">>, format(Dbs)),
-        summary_table_row(<<"summary_storages">>, <<"Storage paths">>, format(StoragePaths))
-    ].
-
-
-%% summary_table_row/3
-%% ====================================================================
-%% @doc Renders summary table row. 'Description' is showed in first
-%% column and 'Details' in second one.
-%% @end
--spec summary_table_row(Id :: binary(), Description :: binary(), Details :: binary()) -> Result
-    when Result :: #tr{}.
-%% ====================================================================
-summary_table_row(Id, Description, Details) ->
-    #tr{
-        id = Id,
-        cells = [
-            #th{
-                style = <<"width: 50%; vertical-align: inherit; padding: 0;">>,
-                body = #p{
-                    style = <<"text-align: center; margin-bottom: 0;">>,
-                    body = Description
+                    body = Details
                 }
-            },
-            #th{
-                style = <<"width: 50%; vertical-align: inherit; padding: 0;">>,
-                body = Details
-            }
-        ]
-    }.
+            ]
+        }
+    end, [
+        {<<"summary_main_ccm">>, <<"Primary CCM host">>, format(MainCCM)},
+        {<<"summary_ccms">>, <<"CCM hosts">>, format(CCMs)},
+        {<<"summary_workers">>, <<"Worker hosts">>, format(Workers)},
+        {<<"summary_Dbs">>, <<"Database hosts">>, format(Dbs)},
+        {<<"summary_storages">>, <<"Storage paths">>, format(StoragePaths)}
+    ]).
 
 
 %% format/1
@@ -235,33 +204,71 @@ format(Hosts) ->
     end, Hosts).
 
 
-%% to_install/0
+%% get_error_message/1
 %% ====================================================================
-%% @doc Returns components to be installed. It is a difference between
-%% configuration saved in user session and database.
+%% @doc Returns error message for given stage and job of installation.
 %% @end
--spec to_install() -> Result
-    when Result :: #?CONFIG{}.
+-spec get_error_message({State :: atom(), Job :: atom()}) -> binary().
 %% ====================================================================
-to_install() ->
-    try
-        {ok, Db} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        {ok, Session} = onepanel_gui_utils:get_installation_state(),
+get_error_message({?STAGE_DB, ?JOB_INSTALL}) -> <<"Database components were not installed on following hosts: ">>;
+get_error_message({?STAGE_DB, ?JOB_START}) -> <<"Database components were not started on following hosts: ">>;
+get_error_message({?STAGE_CCM, ?JOB_INSTALL}) -> <<"CCM components were not installed on following hosts: ">>;
+get_error_message({?STAGE_CCM, ?JOB_START}) -> <<"CCM components were not started on following hosts: ">>;
+get_error_message({?STAGE_WORKER, ?JOB_INSTALL}) -> <<"Worker components were not installed on following hosts: ">>;
+get_error_message({?STAGE_WORKER, ?JOB_START}) -> <<"Worker components were not started on following hosts: ">>;
+get_error_message({?STAGE_STORAGE, ?JOB_ADD_STORAGE_PATHS}) -> <<"Cannot add storage paths on following hosts: ">>;
+get_error_message(_) -> <<"">>.
 
-        MainCCM = case Db#?CONFIG.main_ccm =:= Session#?CONFIG.main_ccm of
-                      true -> undefined;
-                      _ -> Session#?CONFIG.main_ccm
-                  end,
-        CCMs = lists:sort(Session#?CONFIG.ccms -- Db#?CONFIG.ccms),
-        Workers = lists:sort(Session#?CONFIG.workers -- Db#?CONFIG.workers),
-        Dbs = lists:sort(Session#?CONFIG.dbs -- Db#?CONFIG.dbs),
-        StoragePaths = lists:sort(Session#?CONFIG.storage_paths -- Db#?CONFIG.storage_paths),
 
-        #?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs, storage_paths = StoragePaths}
-    catch
-        _:_ -> #?CONFIG{}
+%% get_info_message/1
+%% ====================================================================
+%% @doc Returns information for given stage and job of installation which
+%% will be displayed above installation progress bar.
+%% @end
+-spec get_info_message({State :: atom(), Job :: atom()}) -> Result when
+    Result :: binary().
+%% ====================================================================
+get_info_message({?STAGE_DB, ?JOB_INSTALL}) -> <<"Current stage: <b>Installing database components</b>">>;
+get_info_message({?STAGE_DB, ?JOB_START}) -> <<"Current stage: <b>Starting database components</b>">>;
+get_info_message({?STAGE_CCM, ?JOB_INSTALL}) ->
+    <<"Current stage: <b>Installing Central Cluster Manager components</b>">>;
+get_info_message({?STAGE_CCM, ?JOB_START}) -> <<"Current stage: <b>Starting Central Cluster Manager components</b>">>;
+get_info_message({?STAGE_WORKER, ?JOB_INSTALL}) -> <<"Current stage: <b>Installing worker components</b>">>;
+get_info_message({?STAGE_WORKER, ?JOB_START}) -> <<"Current stage: <b>Starting worker components</b>">>;
+get_info_message({?STAGE_STORAGE, ?JOB_ADD_STORAGE_PATHS}) -> <<"Current stage: <b>Adding storage paths</b>">>;
+get_info_message({?STAGE_FINAL, ?JOB_FINALIZE_INSTALLATION}) -> <<"Current stage: <b>Finalizing installation</b>">>;
+get_info_message(_) -> <<"">>.
+
+
+%% installation_progress/1
+%% ====================================================================
+%% @doc Callback function called by installer gen_server which updates
+%% installation progress bar.
+%% @end
+-spec installation_progress(Event :: atom(), State :: #?i_state{}, Pid :: pid()) -> no_return().
+%% ====================================================================
+installation_progress(?EVENT_ERROR, State, Pid) ->
+    case installer:get_error(State) of
+        {error, {hosts, Hosts}} ->
+            Pid ! {error, <<(get_error_message(installer:get_stage_and_job(State)))/binary, (onepanel_gui_utils:format_list(Hosts))/binary,
+            ".<br>Please try again later.">>};
+        {error, Reason} when is_list(Reason) ->
+            Pid ! {error, list_to_binary(Reason)};
+        _ ->
+            Pid ! {error, <<"An error occurred during installation.<br>Please try again later.">>}
+    end;
+
+installation_progress(?EVENT_STATE_CHANGED, State, Pid) ->
+    {Stage, Job} = installer:get_stage_and_job(State),
+    case Stage of
+        ?STAGE_IDLE -> Pid ! finish;
+        _ -> Pid ! {change_step, installer:get_job_index(Stage, Job) - 1, get_info_message({Stage, Job})}
     end.
 
+
+%% ====================================================================
+%% Events handling
+%% ====================================================================
 
 %% comet_loop/1
 %% ====================================================================
@@ -273,9 +280,42 @@ to_install() ->
 comet_loop({error, Reason}) ->
     {error, Reason};
 
-comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, next_update = NextUpdate} = State) ->
+comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, next_update = NextUpdate, config = Config} = State) ->
     NewState = try
         receive
+            render_summary_table ->
+                gui_jq:update(<<"summary_table">>, summary_table_body(Config)),
+                gui_comet:flush(),
+                State;
+
+            install when Config#?CONFIG.workers =:= [] ->
+                onepanel_gui_utils:message(<<"error_message">>, <<"Nothing to install.">>),
+                gui_ctx:put(?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION),
+                gui_comet:flush(),
+                State;
+
+            install ->
+                Username = gui_ctx:get_user_id(),
+                case gen_server:call(?ONEPANEL_SERVER, {get_password, Username}) of
+                    {ok, Password} when is_binary(Password) ->
+                        self() ! {init, <<"Current stage:">>},
+                        Fields = record_info(fields, ?CONFIG),
+                        [_ | Values] = tuple_to_list(Config#?CONFIG{main_ccm = case Config#?CONFIG.main_ccm of
+                                                                                   [] -> undefined;
+                                                                                   [MainCCM | _] -> MainCCM
+                                                                               end}),
+                        NewConfig = [{username, Username}, {password, Password} | lists:zip(Fields, Values)],
+                        Pid = self(),
+                        installer:install(NewConfig, fun(Event, InstallerState) ->
+                            installation_progress(Event, InstallerState, Pid)
+                        end);
+                    Other ->
+                        ?error("Cannot get password to administration database for user ~p: ~p", [Username, Other]),
+                        onepanel_gui_utils:message(<<"error_message">>, <<"Cannot get password to administration database for user: ", Username/binary>>)
+                end,
+                gui_comet:flush(),
+                State;
+
             {init, Text} ->
                 gui_jq:hide(<<"error_message">>),
                 gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"disabled">>),
@@ -318,7 +358,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                 State#?STATE{step = undefined};
 
             {error, Text} ->
-                gui_jq:update(<<"summary_table">>, summary_table_body()),
+                gui_jq:update(<<"summary_table">>, summary_table_body(Config)),
                 onepanel_gui_utils:message(<<"error_message">>, Text),
                 gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
@@ -334,71 +374,6 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
     comet_loop(NewState).
 
 
-%% get_error_message/1
-%% ====================================================================
-%% @doc Returns error message for given stage and job of installation.
-%% @end
--spec get_error_message({State :: atom(), Job :: atom()}) -> binary().
-%% ====================================================================
-get_error_message({?STAGE_DB, ?JOB_INSTALL}) -> <<"Database nodes were not installed on following hosts: ">>;
-get_error_message({?STAGE_DB, ?JOB_START}) -> <<"Database nodes were not started on following hosts: ">>;
-get_error_message({?STAGE_CCM, ?JOB_INSTALL}) -> <<"CCM nodes were not installed on following hosts: ">>;
-get_error_message({?STAGE_CCM, ?JOB_START}) -> <<"CCM nodes were not started on following hosts: ">>;
-get_error_message({?STAGE_WORKER, ?JOB_INSTALL}) -> <<"Worker nodes were not installed on following hosts: ">>;
-get_error_message({?STAGE_WORKER, ?JOB_START}) -> <<"Worker nodes were not started on following hosts: ">>;
-get_error_message({?STAGE_STORAGE, ?JOB_ADD_STORAGE_PATHS}) -> <<"Cannot add storage paths on following hosts: ">>;
-get_error_message(_) -> <<"">>.
-
-
-%% get_info_message/1
-%% ====================================================================
-%% @doc Returns information for given stage and job of installation which
-%% will be displayed above installation progress bar.
-%% @end
--spec get_info_message({State :: atom(), Job :: atom()}) -> Result when
-    Result :: binary().
-%% ====================================================================
-get_info_message({?STAGE_DB, ?JOB_INSTALL}) -> <<"Current stage: <b>Installing database nodes</b>">>;
-get_info_message({?STAGE_DB, ?JOB_START}) -> <<"Current stage: <b>Starting database nodes</b>">>;
-get_info_message({?STAGE_CCM, ?JOB_INSTALL}) -> <<"Current stage: <b>Installing Central Cluster Manager nodes</b>">>;
-get_info_message({?STAGE_CCM, ?JOB_START}) -> <<"Current stage: <b>Starting Central Cluster Manager nodes</b>">>;
-get_info_message({?STAGE_WORKER, ?JOB_INSTALL}) -> <<"Current stage: <b>Installing worker nodes</b>">>;
-get_info_message({?STAGE_WORKER, ?JOB_START}) -> <<"Current stage: <b>Starting worker nodes</b>">>;
-get_info_message({?STAGE_STORAGE, ?JOB_ADD_STORAGE_PATHS}) -> <<"Current stage: <b>Adding storage paths</b>">>;
-get_info_message({?STAGE_FINAL, ?JOB_FINALIZE_INSTALLATION}) -> <<"Current stage: <b>Finalizing installation</b>">>;
-get_info_message(_) -> <<"">>.
-
-
-%% installation_progress/1
-%% ====================================================================
-%% @doc Callback function called by installer gen_server which updates
-%% installation progress bar.
-%% @end
--spec installation_progress(Event :: atom(), State :: #?i_state{}, Pid :: pid()) -> no_return().
-%% ====================================================================
-installation_progress(?EVENT_ERROR, State, Pid) ->
-    case installer:get_error(State) of
-        {error, {hosts, Hosts}} ->
-            Pid ! {error, <<(get_error_message(installer:get_stage_and_job(State)))/binary, (onepanel_gui_utils:format_list(Hosts))/binary,
-            ".<br>Please try again.">>};
-        {error, Reason} when is_list(Reason) ->
-            Pid ! {error, list_to_binary(Reason)};
-        _ ->
-            Pid ! {error, <<"An error occurred during installation.<br>Please try again.">>}
-    end;
-
-installation_progress(?EVENT_STATE_CHANGED, State, Pid) ->
-    {Stage, Job} = installer:get_stage_and_job(State),
-    case Stage of
-        ?STAGE_IDLE -> Pid ! finish;
-        _ -> Pid ! {change_step, installer:get_job_index(Stage, Job) - 1, get_info_message({Stage, Job})}
-    end.
-
-
-%% ====================================================================
-%% Events handling
-%% ====================================================================
-
 %% event/1
 %% ====================================================================
 %% @doc Handles page events.
@@ -407,39 +382,40 @@ installation_progress(?EVENT_STATE_CHANGED, State, Pid) ->
 %% ====================================================================
 event(init) ->
     gui_jq:bind_key_to_click(<<"13">>, <<"install_button">>),
-    {ok, Pid} = gui_comet:spawn(fun() -> comet_loop(#?STATE{steps = length(installer:get_flatten_stages())}) end),
-    put(?COMET_PID, Pid),
-    InstallerState = installer:get_state(),
-    case installer:get_stage_and_job(InstallerState) of
-        {?STAGE_INIT, _} -> ok;
-        _ -> Pid ! {init, <<"Getting installation progress...">>}
-    end,
-    installer:set_callback(fun(Event, State) -> installation_progress(Event, State, Pid) end);
+    try
+        {ok, DbConfig} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        {ok, SessionConfig} = onepanel_gui_utils:get_session_config(),
+
+        Config = #?CONFIG{
+            main_ccm = [SessionConfig#?CONFIG.main_ccm] -- [DbConfig#?CONFIG.main_ccm],
+            ccms = lists:sort(SessionConfig#?CONFIG.ccms -- DbConfig#?CONFIG.ccms),
+            workers = lists:sort(SessionConfig#?CONFIG.workers -- DbConfig#?CONFIG.workers),
+            dbs = lists:sort(SessionConfig#?CONFIG.dbs -- DbConfig#?CONFIG.dbs),
+            storage_paths = lists:sort(SessionConfig#?CONFIG.storage_paths -- DbConfig#?CONFIG.storage_paths)
+        },
+
+        {ok, Pid} = gui_comet:spawn(fun() ->
+            comet_loop(#?STATE{config = Config, steps = length(installer:get_flatten_stages())})
+        end),
+        put(?COMET_PID, Pid),
+        Pid ! render_summary_table,
+
+        case installer:get_stage_and_job(installer:get_state()) of
+            {?STAGE_INIT, _} -> ok;
+            _ -> Pid ! {init, <<"Getting installation progress...">>}
+        end,
+        installer:set_callback(fun(Event, State) -> installation_progress(Event, State, Pid) end)
+    catch
+        _:Reason ->
+            ?error("Cannot fetch current application configuration: ~p", [Reason]),
+            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch current application configuration.<br>Please try again later.">>)
+    end;
 
 event(back) ->
     onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_STORAGE);
 
 event(install) ->
-    Username = gui_ctx:get_user_id(),
-    ToInstall = to_install(),
-    case ToInstall#?CONFIG.workers of
-        [] ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"Nothing to install.">>),
-            gui_ctx:put(?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION);
-        _ ->
-            case gen_server:call(?ONEPANEL_SERVER, {get_password, gui_ctx:get_user_id()}) of
-                {ok, Password} when is_binary(Password) ->
-                    Pid = get(?COMET_PID),
-                    Pid ! {init, <<"Current stage:">>},
-                    Fields = record_info(fields, ?CONFIG),
-                    [_ | Values] = tuple_to_list(ToInstall),
-                    Config = [{username, Username}, {password, Password} | lists:zip(Fields, Values)],
-                    installer:install(Config, fun(Event, State) -> installation_progress(Event, State, Pid) end);
-                Other ->
-                    ?error("Cannot get password to administration database for user ~p: ~p", [Username, Other]),
-                    onepanel_gui_utils:message(<<"error_message">>, <<"Cannot get password to administration database for user: ", Username/binary>>)
-            end
-    end;
+    get(?COMET_PID) ! install;
 
 event({close_message, MessageId}) ->
     gui_jq:hide(MessageId);

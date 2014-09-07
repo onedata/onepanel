@@ -50,7 +50,7 @@ main() ->
     Result :: binary().
 %% ====================================================================
 title() ->
-    <<"Successful installtion">>.
+    <<"Successful installation">>.
 
 
 %% body/0

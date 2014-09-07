@@ -25,7 +25,7 @@
 
 %% Comet process state
 -define(STATE, comet_state).
--record(?STATE, {hosts = [], db_config = #?CONFIG{}, page_config = #?CONFIG{}}).
+-record(?STATE, {hosts = [], db_config = #?CONFIG{}, session_config = #?CONFIG{}}).
 
 %% ====================================================================
 %% API functions
@@ -185,17 +185,16 @@ hosts_table_body(Hosts, DbConfig, PageConfig) ->
 comet_loop({error, Reason}) ->
     {error, Reason};
 
-comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, page_config = #?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs} = PageConfig} = State) ->
+comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs} = SessionConfig} = State) ->
     NewState = try
         receive
             render_hosts_table ->
-                gui_jq:update(<<"hosts_table">>, hosts_table_body(Hosts, DbConfig, PageConfig)),
+                gui_jq:update(<<"hosts_table">>, hosts_table_body(Hosts, DbConfig, SessionConfig)),
                 gui_jq:hide(<<"main_spinner">>),
                 gui_comet:flush(),
                 State;
 
             next ->
-                SessionConfig = gui_ctx:get(?CONFIG_ID),
                 case Dbs of
                     [] ->
                         onepanel_gui_utils:message(<<"error_message">>, <<"Please select at least one host for database component.">>);
@@ -222,18 +221,18 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, page_config = #?CONFIG{m
                     true ->
                         case Host of
                             MainCCM ->
-                                State#?STATE{page_config = PageConfig#?CONFIG{main_ccm = undefined, ccms = lists:delete(Host, CCMs)}};
+                                State#?STATE{session_config = SessionConfig#?CONFIG{main_ccm = undefined, ccms = lists:delete(Host, CCMs)}};
                             _ ->
-                                State#?STATE{page_config = PageConfig#?CONFIG{ccms = lists:delete(Host, CCMs)}}
+                                State#?STATE{session_config = SessionConfig#?CONFIG{ccms = lists:delete(Host, CCMs)}}
                         end;
                     false ->
                         case lists:member(Host, Workers) of
                             true ->
-                                State#?STATE{page_config = PageConfig#?CONFIG{ccms = [Host | CCMs]}};
+                                State#?STATE{session_config = SessionConfig#?CONFIG{ccms = [Host | CCMs]}};
                             false ->
                                 gui_jq:click(<<"worker_checkbox_", HostId/binary>>),
                                 gui_comet:flush(),
-                                State#?STATE{page_config = PageConfig#?CONFIG{ccms = [Host | CCMs], workers = [Host | Workers]}}
+                                State#?STATE{session_config = SessionConfig#?CONFIG{ccms = [Host | CCMs], workers = [Host | Workers]}}
                         end
                 end;
 
@@ -246,23 +245,23 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, page_config = #?CONFIG{m
                                 gui_comet:flush(),
                                 case Host of
                                     MainCCM ->
-                                        State#?STATE{page_config = PageConfig#?CONFIG{main_ccm = undefined, ccms = lists:delete(Host, CCMs), workers = lists:delete(Host, Workers)}};
+                                        State#?STATE{session_config = SessionConfig#?CONFIG{main_ccm = undefined, ccms = lists:delete(Host, CCMs), workers = lists:delete(Host, Workers)}};
                                     _ ->
-                                        State#?STATE{page_config = PageConfig#?CONFIG{ccms = lists:delete(Host, CCMs), workers = lists:delete(Host, Workers)}}
+                                        State#?STATE{session_config = SessionConfig#?CONFIG{ccms = lists:delete(Host, CCMs), workers = lists:delete(Host, Workers)}}
                                 end;
                             false ->
-                                State#?STATE{page_config = PageConfig#?CONFIG{workers = lists:delete(Host, Workers)}}
+                                State#?STATE{session_config = SessionConfig#?CONFIG{workers = lists:delete(Host, Workers)}}
                         end;
                     _ ->
-                        State#?STATE{page_config = PageConfig#?CONFIG{workers = [Host | Workers]}}
+                        State#?STATE{session_config = SessionConfig#?CONFIG{workers = [Host | Workers]}}
                 end;
 
             {db_checkbox_toggled, Host, _, false} ->
                 case lists:member(Host, Dbs) of
                     true ->
-                        State#?STATE{page_config = PageConfig#?CONFIG{dbs = lists:delete(Host, Dbs)}};
+                        State#?STATE{session_config = SessionConfig#?CONFIG{dbs = lists:delete(Host, Dbs)}};
                     _ ->
-                        State#?STATE{page_config = PageConfig#?CONFIG{dbs = [Host | Dbs]}}
+                        State#?STATE{session_config = SessionConfig#?CONFIG{dbs = [Host | Dbs]}}
                 end;
 
             _ ->
@@ -285,17 +284,17 @@ event(init) ->
     try
         Hosts = onepanel_utils:get_hosts(),
         {ok, DbConfig} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        {ok, PageConfig} = onepanel_gui_utils:get_installation_state(),
-        NewPageConfig = case {PageConfig#?CONFIG.main_ccm, Hosts} of
-                            {undefined, [_]} ->
-                                PageConfig#?CONFIG{main_ccm = hd(Hosts), ccms = Hosts, workers = Hosts, dbs = Hosts};
-                            _ ->
-                                PageConfig
-                        end,
+        {ok, SessionConfig} = onepanel_gui_utils:get_session_config(),
+        NewSessionConfig = case {SessionConfig#?CONFIG.main_ccm, Hosts} of
+                               {undefined, [_]} ->
+                                   SessionConfig#?CONFIG{main_ccm = hd(Hosts), ccms = Hosts, workers = Hosts, dbs = Hosts};
+                               _ ->
+                                   SessionConfig
+                           end,
         gui_jq:show(<<"main_spinner">>),
         gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),
         {ok, Pid} = gui_comet:spawn(fun() ->
-            comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, page_config = NewPageConfig})
+            comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = NewSessionConfig})
         end),
         put(?COMET_PID, Pid),
         Pid ! render_hosts_table

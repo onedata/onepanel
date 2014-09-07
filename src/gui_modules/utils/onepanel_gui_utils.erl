@@ -16,7 +16,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 -export([body/1, body/2, body/3, top_menu/1, top_menu/2, account_settings_tab/1, logotype_footer/0]).
--export([get_error_message/1, get_installation_state/0, format_list/1, message/2, message/3]).
+-export([get_error_message/1, get_session_config/0, format_list/1, message/2, message/3]).
 -export([change_page/2, maybe_redirect/3]).
 
 %% ====================================================================
@@ -205,26 +205,22 @@ get_error_message(_) ->
     <<"Internal server error.">>.
 
 
-%% get_installation_state/0
+%% get_session_config/0
 %% ====================================================================
 %% @doc Returns current installation state read in first place from session
 %% and in second place from database.
 %% @end
--spec get_installation_state() -> Result when
+-spec get_session_config() -> Result when
     Result :: #?GLOBAL_CONFIG_RECORD{} | undefined.
 %% ====================================================================
-get_installation_state() ->
+get_session_config() ->
     case gui_ctx:get(?CONFIG_ID) of
         undefined ->
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                {ok, Record} ->
-                    gui_ctx:put(?CONFIG_ID, Record),
-                    {ok, Record};
-                _ ->
-                    undefined
+                {ok, Record} -> {ok, Record};
+                _ -> undefined
             end;
-        Record ->
-            {ok, Record}
+        Record -> {ok, Record}
     end.
 
 

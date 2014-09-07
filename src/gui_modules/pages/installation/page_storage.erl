@@ -130,7 +130,7 @@ body() ->
 storage_paths_table_body() ->
     try
         {ok, Db} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        {ok, Session} = onepanel_gui_utils:get_installation_state(),
+        {ok, Session} = onepanel_gui_utils:get_session_config(),
         State = case Db#?CONFIG.storage_paths of
                     [] -> deletable;
                     _ -> none
