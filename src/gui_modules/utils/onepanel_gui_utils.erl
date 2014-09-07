@@ -99,19 +99,6 @@ top_menu(ActiveTabID) ->
     Result :: #panel{}.
 %% ====================================================================
 top_menu(ActiveTabID, ActiveLinkID) ->
-    top_menu(ActiveTabID, ActiveLinkID, []).
-
-
-%% top_menu/2
-%% ====================================================================
-%% @doc Convienience function to render top menu in GUI pages.
-%% Item with ActiveTabID and ActiveLinkID will be highlighted as active.
-%% Submenu body (list of n2o elements) will be concatenated below the main menu.
-%% @end
--spec top_menu(ActiveTabID :: atom(), ActiveLinkID :: atom(), SubMenuBody :: term()) -> Result when
-    Result :: #panel{}.
-%% ====================================================================
-top_menu(ActiveTabID, ActiveLinkID, SubMenuBody) ->
     Process = fun(ActiveItem, List) ->
         lists:map(fun({ItemID, ListItem}) ->
             case ItemID of
@@ -168,7 +155,17 @@ top_menu(ActiveTabID, ActiveLinkID, SubMenuBody) ->
                     #list{class = <<"nav pull-right">>, body = MenuIcons}
                 ]}
             ]}
-        ] ++ SubMenuBody}
+        ]},
+        #panel{
+            id = <<"ok_message">>,
+            style = <<"position: fixed; width: 100%; top: 55px; display: none;">>,
+            class = <<"dialog dialog-success">>
+        },
+        #panel{
+            id = <<"error_message">>,
+            style = <<"position: fixed; width: 100%; top: 55px; display: none;">>,
+            class = <<"dialog dialog-danger">>
+        }
     ] ++ gui_utils:cookie_policy_popup_body(?PAGE_PRIVACY_POLICY).
 
 
@@ -220,10 +217,14 @@ get_installation_state() ->
     case gui_ctx:get(?CONFIG_ID) of
         undefined ->
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                {ok, Record} -> {ok, Record};
-                _ -> undefined
+                {ok, Record} ->
+                    gui_ctx:put(?CONFIG_ID, Record),
+                    {ok, Record};
+                _ ->
+                    undefined
             end;
-        Record -> {ok, Record}
+        Record ->
+            {ok, Record}
     end.
 
 

@@ -22,14 +22,14 @@
 -define(CONFIG, ?GLOBAL_CONFIG_RECORD).
 
 %% Default time in miliseconds for next progress bar update
--define(DEFAULT_NEXT_UPDATE, 1000).
+-define(NEXT_UPDATE_DELAY, 1000).
 
 %% Comet process pid
 -define(COMET_PID, comet_pid).
 
 %% Comet process state
--define(STATE, state).
--record(?STATE, {step, steps, step_progress, next_update}).
+-define(STATE, comet_state).
+-record(?STATE, {step = 0, steps = 0, step_progress = 0, next_update = ?NEXT_UPDATE_DELAY}).
 
 %% ====================================================================
 %% API functions
@@ -276,24 +276,27 @@ comet_loop({error, Reason}) ->
 comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, next_update = NextUpdate} = State) ->
     NewState = try
         receive
-            {init, InitSteps} ->
+            {init, Text} ->
                 gui_jq:hide(<<"error_message">>),
                 gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"disabled">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
+                gui_jq:update(<<"progress_text">>, Text),
                 gui_jq:set_width(<<"bar">>, <<"0%">>),
                 gui_jq:show(<<"progress">>),
                 gui_comet:flush(),
-                timer:send_after(?DEFAULT_NEXT_UPDATE, {update, 0}),
-                State#?STATE{step = 0, steps = InitSteps, step_progress = 0, next_update = ?DEFAULT_NEXT_UPDATE};
+                timer:send_after(?NEXT_UPDATE_DELAY, {update, 0}),
+                State;
 
             {change_step, NewStep, Text} ->
                 gui_jq:show(<<"progress">>),
+                gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"disabled">>),
+                gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
                 Progress = <<(integer_to_binary(round(100 * NewStep / Steps)))/binary, "%">>,
                 gui_jq:update(<<"progress_text">>, <<Text/binary, " <b>( ", Progress/binary, " )</b>">>),
                 gui_jq:set_width(<<"bar">>, Progress),
                 gui_comet:flush(),
-                timer:send_after(?DEFAULT_NEXT_UPDATE, {update, NewStep, Text}),
-                State#?STATE{step = NewStep, step_progress = 0, next_update = ?DEFAULT_NEXT_UPDATE};
+                timer:send_after(?NEXT_UPDATE_DELAY, {update, NewStep, Text}),
+                State#?STATE{step = NewStep, step_progress = 0, next_update = ?NEXT_UPDATE_DELAY};
 
             {update, Step, Text} ->
                 NewStepProgress = StepProgress + (1 - StepProgress) / 2,
@@ -404,9 +407,14 @@ installation_progress(?EVENT_STATE_CHANGED, State, Pid) ->
 %% ====================================================================
 event(init) ->
     gui_jq:bind_key_to_click(<<"13">>, <<"install_button">>),
-    {ok, Pid} = gui_comet:spawn(fun() -> comet_loop(#?STATE{}) end),
-    installer:set_callback(fun(Event, State) -> installation_progress(Event, State, Pid) end),
-    put(?COMET_PID, Pid);
+    {ok, Pid} = gui_comet:spawn(fun() -> comet_loop(#?STATE{steps = length(installer:get_flatten_stages())}) end),
+    put(?COMET_PID, Pid),
+    InstallerState = installer:get_state(),
+    case installer:get_stage_and_job(InstallerState) of
+        {?STAGE_INIT, _} -> ok;
+        _ -> Pid ! {init, <<"Getting installation progress...">>}
+    end,
+    installer:set_callback(fun(Event, State) -> installation_progress(Event, State, Pid) end);
 
 event(back) ->
     onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_STORAGE);
@@ -422,7 +430,7 @@ event(install) ->
             case gen_server:call(?ONEPANEL_SERVER, {get_password, gui_ctx:get_user_id()}) of
                 {ok, Password} when is_binary(Password) ->
                     Pid = get(?COMET_PID),
-                    Pid ! {init, length(installer:get_flatten_stages())},
+                    Pid ! {init, <<"Current stage:">>},
                     Fields = record_info(fields, ?CONFIG),
                     [_ | Values] = tuple_to_list(ToInstall),
                     Config = [{username, Username}, {password, Password} | lists:zip(Fields, Values)],

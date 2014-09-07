@@ -13,17 +13,19 @@
 -ifndef(ONEPANEL_GUI_COMMON_HRL).
 -define(ONEPANEL_GUI_COMMON_HRL, 1).
 
--include_lib("ctool/include/gui/common.hrl").
--include("registered_names.hrl").
 -include("pages.hrl").
+-include("registered_names.hrl").
+-include_lib("ctool/include/gui/common.hrl").
 
-% Custom checkbox element
--record(custom_checkbox, {?ELEMENT_BASE(element_custom_checkbox),
+-record(custom_checkbox, {
+    ?ELEMENT_BASE(element_custom_checkbox),
+    autofocus,
     checked = false,
-    value = "on",
-    postback,
     disabled,
-    name}).
+    name,
+    value,
+    postback
+}).
 
 %% Macros used as ids of errors that can appear on GUI pages
 -define(AUTHENTICATION_ERROR, <<"authentication_error">>).

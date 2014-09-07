@@ -49,6 +49,6 @@
 %% * stage              - currently executing stage
 %% * callback           - function called each time installer state changes
 %% * error              - error message sent via callback before terminating
--record(?i_state, {job, stage, error, callback}).
+-record(?i_state, {job, stage, config, error, callback}).
 
 -endif.

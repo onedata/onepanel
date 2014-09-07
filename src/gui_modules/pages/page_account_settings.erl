@@ -22,7 +22,7 @@
 -define(COMET_PID, comet_pid).
 
 %% Comet process state
--define(STATE, state).
+-define(STATE, comet_state).
 -record(?STATE, {}).
 
 %% ====================================================================
@@ -69,16 +69,6 @@ body() ->
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
-            #panel{
-                id = <<"ok_message">>,
-                style = <<"position: fixed; width: 100%; top: 55px; display: none;">>,
-                class = <<"dialog dialog-success">>
-            },
-            #panel{
-                id = <<"error_message">>,
-                style = <<"position: fixed; width: 100%; top: 55px; display: none;">>,
-                class = <<"dialog dialog-danger">>
-            },
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
                 body = <<"Account settings">>

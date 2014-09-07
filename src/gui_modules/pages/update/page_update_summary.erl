@@ -29,7 +29,7 @@
 -define(COMET_PID, comet_pid).
 
 %% Comet process state
--define(STATE, state).
+-define(STATE, comet_state).
 -record(?STATE, {stage_index = 1, job_index, job_progress, stages_count, action_type = install, update_time}).
 
 %% ====================================================================

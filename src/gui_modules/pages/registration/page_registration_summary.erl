@@ -25,7 +25,7 @@
 -define(COMET_PID, comet_pid).
 
 %% Comet process state
--define(STATE, state).
+-define(STATE, comet_state).
 -record(?STATE, {counter = 0, progress, next_update}).
 
 %% ====================================================================
