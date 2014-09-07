@@ -28,6 +28,9 @@
 % GUI routing module
 -define(GUI_ROUTING_MODULE, routes).
 
+% Custom cowboy bridge module
+-define(COWBOY_BRIDGE_MODULE, n2o_handler).
+
 % Paths in gui static directory
 -define(STATIC_PATHS, ["/css/", "/fonts/", "/images/", "/js/", "/n2o/"]).
 
@@ -55,7 +58,7 @@ start(_StartType, _StartArgs) ->
     {ok, CertFile} = application:get_env(?APP_NAME, cert_file),
     {ok, KeyFile} = application:get_env(?APP_NAME, key_file),
 
-    gui_utils:init_n2o_ets_and_envs(GuiPort, ?GUI_ROUTING_MODULE, ?SESSION_LOGIC_MODULE),
+    gui_utils:init_n2o_ets_and_envs(GuiPort, ?GUI_ROUTING_MODULE, ?SESSION_LOGIC_MODULE, ?COWBOY_BRIDGE_MODULE),
 
     Dispatch = cowboy_router:compile(
         [{'_',
