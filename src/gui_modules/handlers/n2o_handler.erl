@@ -78,7 +78,7 @@ cookies(Req) ->
     element(1, cowboy_req:cookies(Req)).
 
 cookie(Cookie, Req) ->
-    gui_ctx:cookie(gui_str:to_binary(Cookie), Req).  % cowboy_req:cookie has a bug
+    gui_ctx:cookie(gui_str:to_binary(Cookie), Req).
 
 cookie(Cookie, Value, Req) ->
     cookie(Cookie, Value, <<"/">>, 0, Req).

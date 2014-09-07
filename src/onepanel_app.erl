@@ -64,7 +64,7 @@ start(_StartType, _StartArgs) ->
         [{'_',
                 static_dispatches(GuiStaticRoot, ?STATIC_PATHS) ++ [
                 {"/ws/[...]", bullet_handler, [{handler, n2o_bullet}]},
-                {'_', n2o_cowboy, []}
+                {'_', ?COWBOY_BRIDGE_MODULE, []}
             ]}
         ]),
 
