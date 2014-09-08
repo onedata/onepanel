@@ -69,11 +69,6 @@ body() ->
         style = <<"margin-top: 10em;">>,
         body = [
             #panel{
-                id = <<"error_message">>,
-                style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
-                class = <<"dialog dialog-danger">>
-            },
-            #panel{
                 style = <<"text-align: center;">>,
                 body = [
                     #h6{

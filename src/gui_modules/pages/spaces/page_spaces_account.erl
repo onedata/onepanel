@@ -124,16 +124,6 @@ body(ProviderId, URLs, RedirectionPoint) ->
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
-            #panel{
-                id = <<"ok_message">>,
-                style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
-                class = <<"dialog dialog-success">>
-            },
-            #panel{
-                id = <<"error_message">>,
-                style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
-                class = <<"dialog dialog-danger">>
-            },
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 3em;">>,
                 body = <<"Account settings">>

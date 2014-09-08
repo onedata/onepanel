@@ -119,16 +119,6 @@ body(_) ->
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
-            #panel{
-                id = <<"ok_message">>,
-                style = ?MESSAGE_STYLE,
-                class = <<"dialog dialog-success">>
-            },
-            #panel{
-                id = <<"error_message">>,
-                style = ?MESSAGE_STYLE,
-                class = <<"dialog dialog-danger">>
-            },
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 3em;">>,
                 body = <<"Spaces settings">>

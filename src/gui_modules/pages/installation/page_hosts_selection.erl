@@ -6,7 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc This module contains n2o website code.
-%% This page allows to select hosts during VeilCluster nodes installation.
+%% This page allows to select hosts during software components installation.
 %% @end
 %% ===================================================================
 
@@ -93,16 +93,7 @@ body() ->
                 style = <<"width: 50%; margin: 0 auto;">>,
                 body = hosts_table_body([], #?CONFIG{}, #?CONFIG{})
             },
-            #panel{
-                style = <<"margin-top: 3em;">>,
-                body = #button{
-                    id = <<"next_button">>,
-                    postback = {action, next},
-                    class = <<"btn btn-inverse btn-small">>,
-                    style = <<"width: 8em; font-weight: bold;">>,
-                    body = <<"Next">>
-                }
-            }
+            onepanel_gui_utils:nav_buttons([{<<"next_button">>, {postback, {message, next}}, <<"Next">>}])
         ]
     },
     onepanel_gui_utils:body(Header, Main).
@@ -160,7 +151,7 @@ hosts_table_body(Hosts, DbConfig, PageConfig) ->
                             class = <<"checkbox no-label">>,
                             checked = Checked,
                             disabled = Disabled,
-                            postback = {action, {binary_to_atom(<<Prefix/binary, "toggled">>, latin1), Host, HostId, Disabled}}
+                            postback = {message, {binary_to_atom(<<Prefix/binary, "toggled">>, latin1), Host, HostId, Disabled}}
                         }
                     }
                 end, Checkboxes)
@@ -304,8 +295,8 @@ event(init) ->
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch current application configuration.<br>Please try again later.">>)
     end;
 
-event({action, Action}) ->
-    get(?COMET_PID) ! Action;
+event({message, Message}) ->
+    get(?COMET_PID) ! Message;
 
 event({close_message, MessageId}) ->
     gui_jq:hide(MessageId);

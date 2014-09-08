@@ -39,7 +39,7 @@
 -define(DEFAULT_WORKER_NAME, "worker").
 
 %% ====================================================================
-%% Database nodes macros
+%% Database components macros
 %% ====================================================================
 
 %% Default bigcouch port
@@ -60,7 +60,7 @@
 -define(DEFAULT_DB_INSTALL_PATH, filename:join([filename:absname("/"), "opt", "bigcouch"])).
 
 %% ====================================================================
-%% VeilCluster nodes macros
+%% Software components macros
 %% ====================================================================
 
 %% Location of release packages

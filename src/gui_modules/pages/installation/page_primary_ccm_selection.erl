@@ -16,6 +16,7 @@
 
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/installer/state.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% Convenience record abbreviation
 -define(CONFIG, ?GLOBAL_CONFIG_RECORD).
@@ -69,11 +70,6 @@ body() ->
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
-            #panel{
-                id = <<"error_message">>,
-                style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
-                class = <<"dialog dialog-danger">>
-            },
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
                 body = <<"Step 2: Primary Central Cluster Manager selection.">>
@@ -90,25 +86,10 @@ body() ->
                 class = <<"btn-group">>,
                 body = main_ccm_body()
             },
-            #panel{
-                style = <<"width: 50%; margin: 0 auto; margin-top: 3em;">>,
-                body = [
-                    #button{
-                        id = <<"back_button">>,
-                        postback = back,
-                        class = <<"btn btn-inverse btn-small">>,
-                        style = <<"float: left; width: 8em; font-weight: bold;">>,
-                        body = <<"Back">>
-                    },
-                    #button{
-                        id = <<"next_button">>,
-                        postback = next,
-                        class = <<"btn btn-inverse btn-small">>,
-                        style = <<"float: right; width: 8em; font-weight: bold;">>,
-                        body = <<"Next">>
-                    }
-                ]
-            }
+            onepanel_gui_utils:nav_buttons([
+                {<<"back_button">>, {postback, back}, <<"Back">>},
+                {<<"next_button">>, {postback, next}, <<"Next">>}
+            ])
         ]
     },
     onepanel_gui_utils:body(Header, Main).
@@ -123,22 +104,21 @@ body() ->
 %% ====================================================================
 main_ccm_body() ->
     try
-        {ok, Db} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        {ok, Session} = onepanel_gui_utils:get_session_config(),
+        {ok, DbConfig} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        {ok, SessionConfig} = onepanel_gui_utils:get_session_config(),
 
         [
             <<"<i class=\"dropdown-arrow dropdown-arrow-inverse\"></i>">>,
             #button{
-                id = <<"ccms_button">>,
-                disabled = Db#?CONFIG.main_ccm =/= undefined,
+                disabled = DbConfig#?CONFIG.main_ccm =/= undefined,
                 class = <<"btn btn-inverse btn-small dropdown-toggle">>,
-                style = <<"width: 22em;">>,
                 data_fields = [{<<"data-toggle">>, <<"dropdown">>}],
                 body = [
                     #span{
                         id = <<"ccms_label">>,
+                        style = <<"padding-right: 1em;">>,
                         class = <<"filter-option pull-left">>,
-                        body = <<"Primary CCM host: <b>", (gui_str:html_encode(Session#?CONFIG.main_ccm))/binary, "</b>">>
+                        body = <<"Primary CCM host: <b>", (gui_str:html_encode(SessionConfig#?CONFIG.main_ccm))/binary, "</b>">>
                     },
                     #span{
                         class = <<"caret pull-right">>
@@ -149,11 +129,14 @@ main_ccm_body() ->
                 id = <<"ccms_dropdown">>,
                 class = <<"dropdown-menu dropdown-inverse">>,
                 style = <<"overflow-y: auto; max-height: 20em;">>,
-                body = ccms_list_body(Session#?CONFIG.main_ccm, Session#?CONFIG.ccms)
+                body = ccms_list_body(SessionConfig#?CONFIG.main_ccm, SessionConfig#?CONFIG.ccms)
             }
         ]
     catch
-        _:_ -> []
+        _:Reason ->
+            ?error("Cannot fetch current application configuration: ~p", [Reason]),
+            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch current application configuration.<br>Please try again later.">>),
+            []
     end.
 
 

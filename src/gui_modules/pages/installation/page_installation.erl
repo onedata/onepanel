@@ -6,7 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc This module contains n2o website code.
-%% This page is a starting point for VeilCluster nodes installation.
+%% This page is a starting point for software components installation.
 %% @end
 %% ===================================================================
 

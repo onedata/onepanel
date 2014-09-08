@@ -77,11 +77,6 @@ body() ->
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
-            #panel{
-                id = <<"error_message">>,
-                style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
-                class = <<"dialog dialog-danger">>
-            },
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 3em;">>,
                 body = <<"Step 3: Registration summary.">>

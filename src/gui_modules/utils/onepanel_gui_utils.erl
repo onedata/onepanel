@@ -15,7 +15,7 @@
 -include("onepanel_modules/installer/state.hrl").
 -include_lib("ctool/include/logging.hrl").
 
--export([body/1, body/2, body/3, top_menu/1, top_menu/2, account_settings_tab/1, logotype_footer/0]).
+-export([body/1, body/2, body/3, top_menu/1, top_menu/2, account_settings_tab/1, logotype_footer/0, nav_buttons/1]).
 -export([get_error_message/1, get_session_config/0, format_list/1, message/2, message/3]).
 -export([change_page/2, maybe_redirect/3]).
 
@@ -75,6 +75,50 @@ logotype_footer() ->
             #image{image = <<"/images/plgrid-plus-logo.png">>},
             #image{class = <<"pull-right">>, image = <<"/images/unia-logo.png">>}
         ]
+    }.
+
+
+%% nav_buttons/1
+%% ====================================================================
+%% @doc Convienience function to render navigation buttons.
+%% @end
+-spec nav_buttons(Buttons :: [{Id :: binary(), Event :: {postback, term()} | {actions, term()} | undefined, Body :: binary()}]) -> Result when
+    Result :: #panel{}.
+%% ====================================================================
+nav_buttons(Buttons) ->
+    JustifyContent = case Buttons of
+                         [_, _ | _] -> <<"space-between">>;
+                         _ -> <<"center">>
+                     end,
+    #panel{
+        style = <<"width: 50%; margin: 0 auto; margin-top: 3em; display: flex; justify-content: ", JustifyContent/binary, ";">>,
+        body = lists:map(fun
+            ({Id, {postback, Postback}, Body}) ->
+                #button{
+                    id = Id,
+                    postback = Postback,
+                    class = <<"btn btn-inverse btn-small">>,
+                    style = <<"width: 8em; font-weight: bold;">>,
+                    body = Body
+                };
+            ({Id, {actions, Actions}, Body}) ->
+                #button{
+                    id = Id,
+                    actions = Actions,
+                    class = <<"btn btn-inverse btn-small">>,
+                    style = <<"width: 8em; font-weight: bold;">>,
+                    body = Body
+                };
+            ({Id, _, Body}) ->
+                #button{
+                    id = Id,
+                    class = <<"btn btn-inverse btn-small">>,
+                    style = <<"width: 8em; font-weight: bold;">>,
+                    body = Body
+                };
+            (_) ->
+                #button{}
+        end, Buttons)
     }.
 
 

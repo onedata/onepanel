@@ -9,7 +9,7 @@
 %% @end
 %% ===================================================================
 %% @doc This script interacts with Onepanel nodes and provides
-%% management functions for VeilCluster nodes.
+%% management functions for software components.
 %% @end
 %% ===================================================================
 

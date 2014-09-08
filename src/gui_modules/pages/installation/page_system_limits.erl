@@ -6,7 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc This module contains n2o website code.
-%% This page allows to set system ulimits during VeilCluster nodes
+%% This page allows to set system ulimits during software components
 %% installation.
 %% @end
 %% ===================================================================
@@ -83,11 +83,6 @@ body() ->
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
-            #panel{
-                id = <<"error_message">>,
-                style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
-                class = <<"dialog dialog-danger">>
-            },
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
                 body = <<"Step 3: System limits configuration.">>
@@ -103,25 +98,10 @@ body() ->
                 style = <<"width: 50%; margin: 0 auto;">>,
                 body = ulimits_table_body(Hosts, InstalledHosts)
             },
-            #panel{
-                style = <<"width: 50%; margin: 0 auto; margin-top: 3em;">>,
-                body = [
-                    #button{
-                        id = <<"back_button">>,
-                        postback = back,
-                        class = <<"btn btn-inverse btn-small">>,
-                        style = <<"float: left; width: 8em; font-weight: bold;">>,
-                        body = <<"Back">>
-                    },
-                    #button{
-                        id = <<"next_button">>,
-                        actions = gui_jq:form_submit_action(<<"next_button">>, {set_ulimits, Hosts -- InstalledHosts}, TextboxIds),
-                        class = <<"btn btn-inverse btn-small">>,
-                        style = <<"float: right; width: 8em; font-weight: bold;">>,
-                        body = <<"Next">>
-                    }
-                ]
-            }
+            onepanel_gui_utils:nav_buttons([
+                {<<"back_button">>, {postback, back}, <<"Back">>},
+                {<<"next_button">>, {actions, gui_jq:form_submit_action(<<"next_button">>, {set_ulimits, Hosts}, TextboxIds)}, <<"Next">>}
+            ])
         ]
     },
     onepanel_gui_utils:body(Header, Main).
