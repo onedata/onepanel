@@ -15,15 +15,51 @@
 -include("onepanel_modules/logic/user_logic.hrl").
 -include_lib("ctool/include/logging.hrl").
 
-%% Length of salt added to user password
--define(SALT_LENGTH, 10).
-
 %% API
+-export([hash_password/2, check_password/2]).
 -export([create_user/2, change_username/2, authenticate/2, change_password/4]).
+
+-on_load(init/0).
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
+
+%% init/0
+%% ====================================================================
+%% @doc Initializes NIF library.
+%% @end
+-spec init() -> ok | no_return().
+%% ====================================================================
+init() ->
+    erlang:load_nif("c_lib/user_logic_drv", 0).
+
+
+%% hash_password/2
+%% ====================================================================
+%% @doc Call underlying NIF function. Hashes password using bcrypt
+%% algorithm with custom work factor. Can throw an exception if nif
+%% was not properly loaded.
+%% @end
+-spec hash_password(Password :: string(), WorkFactor :: integer()) -> Result when
+    Result :: string() | no_return().
+%% ====================================================================
+hash_password(_, _) ->
+    throw("NIF library not loaded.").
+
+
+%% check_password/2
+%% ====================================================================
+%% @doc Call underlying NIF function. Checks whether password matches
+%% hash. Returns 0 in case of successful match and 1 otherwise.
+%% Can throw an exception if nif was not properly loaded.
+%% @end
+-spec check_password(Password :: string(), Hash :: string()) -> Result when
+    Result :: 0 | 1 | no_return().
+%% ====================================================================
+check_password(_, _) ->
+    throw("NIF library not loaded.").
+
 
 %% create_user/2
 %% ====================================================================
@@ -36,8 +72,8 @@ create_user(Username, Password) ->
     try
         Transaction = fun() ->
             {error, <<"Record not found.">>} = dao:get_record(?USER_TABLE, Username),
-            {ok, Salt} = bcrypt:gen_salt(),
-            {ok, PasswordHash} = bcrypt:hashpw(Password, Salt),
+            {ok, WorkFactor} = application:get_env(?APP_NAME, bcrypt_work_factor),
+            PasswordHash = hash_password(binary_to_list(Password), WorkFactor),
             ok = dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username, password_hash = PasswordHash})
         end,
         mnesia:activity(transaction, Transaction)
@@ -57,11 +93,16 @@ create_user(Username, Password) ->
 %% ====================================================================
 authenticate(Username, Password) ->
     case dao:get_record(?USER_TABLE, Username) of
-        {ok, #?USER_RECORD{username = Username, password_hash = ValidPasswordHash}} ->
-            {ok, PasswordHash} = bcrypt:hashpw(Password, ValidPasswordHash),
-            case PasswordHash of
-                ValidPasswordHash -> ok;
-                _ -> {error, ?AUTHENTICATION_ERROR}
+        {ok, #?USER_RECORD{username = Username, password_hash = PasswordHash}} ->
+            try
+                0 = check_password(binary_to_list(Password), PasswordHash),
+                ok
+            catch
+                _:{badmatch, 1} ->
+                    {error, ?AUTHENTICATION_ERROR};
+                _:Reason ->
+                    ?error("Cannot authenticate user: ~p", [Reason]),
+                    {error, ?INTERNAL_SERVER_ERROR}
             end;
         {error, <<"Record not found.">>} -> {error, ?AUTHENTICATION_ERROR};
         Other ->
@@ -118,10 +159,10 @@ change_password(_, _, NewPassword, NewPassword) when size(NewPassword) < ?MIN_PA
 change_password(Username, CurrentPassword, NewPassword, NewPassword) ->
     case authenticate(Username, CurrentPassword) of
         ok ->
-            {ok, Salt} = bcrypt:gen_salt(),
-            {ok, PasswordHash} = bcrypt:hashpw(NewPassword, Salt),
             try
-                ok = dao:update_record(?USER_TABLE, Username, [{password_hash, PasswordHash}, {salt, Salt}]),
+                {ok, WorkFactor} = application:get_env(?APP_NAME, bcrypt_work_factor),
+                PasswordHash = hash_password(binary_to_list(NewPassword), WorkFactor),
+                ok = dao:update_record(?USER_TABLE, Username, [{password_hash, PasswordHash}]),
                 {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
                 ok = installer_db:change_password(Dbs, Username, CurrentPassword, NewPassword),
                 ok = gen_server:call(?ONEPANEL_SERVER, {set_password, Username, NewPassword})

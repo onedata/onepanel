@@ -30,7 +30,7 @@
 
 %% init/0
 %% ====================================================================
-%% @doc Initializes NIF library used to create Certificate Signing Request.
+%% @doc Initializes NIF library.
 %% @end
 -spec init() -> ok | no_return().
 %% ====================================================================
