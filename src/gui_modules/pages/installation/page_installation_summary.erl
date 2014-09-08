@@ -94,11 +94,9 @@ body() ->
             #table{
                 class = <<"table table-striped">>,
                 style = <<"width: 50%; margin: 0 auto;">>,
-                body = [
-                    #tbody{
-                        id = <<"summary_table">>
-                    }
-                ]
+                body = #tbody{
+                    id = <<"summary_table">>
+                }
             },
             #panel{
                 id = <<"progress">>,
@@ -349,7 +347,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
-    comet_loop(NewState).
+    ?MODULE:comet_loop(NewState).
 
 
 %% event/1

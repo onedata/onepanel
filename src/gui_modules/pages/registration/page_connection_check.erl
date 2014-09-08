@@ -169,7 +169,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, status = Status} = State) ->
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
-    comet_loop(NewState).
+    ?MODULE:comet_loop(NewState).
 
 
 %% ====================================================================
