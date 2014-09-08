@@ -184,7 +184,7 @@ ports_table_body(Hosts, DefaultGuiPort, DefaultRestPort) ->
                     end, Textboxes)
                 ]
             }
-        end, lists:zip(lists:sort(Hosts), lists:seq(1, length(Hosts)))),
+        end, lists:zip(lists:sort(Hosts), tl(lists:seq(0, length(Hosts))))),
 
         [Header | Rows]
     catch

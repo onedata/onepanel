@@ -16,7 +16,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([set_ulimits/2, get_ulimits_cmd/1]).
+-export([set_system_limits/2, get_system_limits_cmd/1]).
 -export([get_workers/0, get_global_config/0, get_timestamp/0, set_timestamp/0]).
 -export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/3]).
 -export([finalize_installation/1]).
@@ -32,18 +32,18 @@
 %% ====================================================================
 
 
-%% set_ulimits/2
+%% set_system_limits/2
 %% ====================================================================
 %% @doc Sets system limits for open files and processes on local host.
 %% @end
--spec set_ulimits(OpenFiles :: integer(), Processes :: integer()) -> Result when
+-spec set_system_limits(OpenFiles :: integer(), Processes :: integer()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-set_ulimits(OpenFiles, Processes) ->
+set_system_limits(OpenFiles, Processes) ->
     try
         Host = onepanel_utils:get_host(node()),
-        ok = file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n~p.\n", [{open_files, integer_to_list(OpenFiles)}, {process_limit, integer_to_list(Processes)}])),
-        ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{open_files_limit, integer_to_list(OpenFiles)}, {processes_limit, integer_to_list(Processes)}])
+        ok = file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n~p.\n", [{open_files, OpenFiles}, {process_limit, Processes}])),
+        ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{open_files_limit, OpenFiles}, {processes_limit, Processes}])
     catch
         _:Reason ->
             ?error("Cannot set ulimits: ~p", [Reason]),
@@ -51,21 +51,21 @@ set_ulimits(OpenFiles, Processes) ->
     end.
 
 
-%% get_ulimits_cmd/0
+%% get_system_limits_cmd/0
 %% ====================================================================
 %% @doc Returns ulimits command required during database or veil node installation.
 %% @end
--spec get_ulimits_cmd(Host :: string()) -> Result when
+-spec get_system_limits_cmd(Host :: string()) -> Result when
     Result :: string().
 %% ====================================================================
-get_ulimits_cmd(Host) ->
+get_system_limits_cmd(Host) ->
     try
         {ok, #?LOCAL_CONFIG_RECORD{open_files_limit = OpenFiles, processes_limit = Processes}} = dao:get_record(?LOCAL_CONFIG_TABLE, Host),
-        "ulimit -n " ++ OpenFiles ++ " ; ulimit -u " ++ Processes
+        "ulimit -n " ++ integer_to_list(OpenFiles) ++ " ; ulimit -u " ++ integer_to_list(Processes)
     catch
         _:Reason ->
             ?error("Cannot get ulimits configuration: ~p. Returning default values.", [Reason]),
-            "ulimit -n " ++ ?DEFAULT_OPEN_FILES ++ " ; ulimit -u " ++ ?DEFAULT_PROCESSES
+            "ulimit -n " ++ integer_to_list(?DEFAULT_OPEN_FILES) ++ " ; ulimit -u " ++ integer_to_list(?DEFAULT_PROCESSES)
     end.
 
 

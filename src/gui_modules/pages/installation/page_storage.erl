@@ -11,10 +11,11 @@
 %% ===================================================================
 
 -module(page_storage).
--export([main/0, event/1]).
+-export([main/0, event/1, comet_loop/1]).
 
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/installer/state.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% Convenience record abbreviation
 -define(CONFIG, ?GLOBAL_CONFIG_RECORD).
@@ -111,7 +112,7 @@ body() ->
 %% ====================================================================
 storage_paths_table_body(#?CONFIG{storage_paths = DbStoragePaths}, #?CONFIG{storage_paths = SessionStoragePaths}) ->
     State = case DbStoragePaths of
-                [] -> deletable;
+                [] -> removable;
                 _ -> none
             end,
 
@@ -125,8 +126,11 @@ storage_paths_table_body(#?CONFIG{storage_paths = DbStoragePaths}, #?CONFIG{stor
     end, SessionStoragePaths)),
 
     case State of
-        none -> Body;
-        _ -> Body ++ [storage_paths_table_row(<<"">>, length(SessionStoragePaths) + 1, undefined, addable)]
+        none ->
+            gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),
+            Body;
+        _ ->
+            Body ++ [storage_paths_table_row(<<"">>, length(SessionStoragePaths) + 1, undefined, addable)]
     end.
 
 
@@ -140,7 +144,7 @@ storage_paths_table_body(#?CONFIG{storage_paths = DbStoragePaths}, #?CONFIG{stor
     StoragePath :: string() | binary(),
     Id :: integer(),
     Disabled :: true | undefined,
-    State :: addable | deletable | none,
+    State :: addable | removable | none,
     Result :: #tr{}.
 %% ====================================================================
 storage_paths_table_row(StoragePath, Id, Disabled, Deletable) ->
@@ -148,7 +152,7 @@ storage_paths_table_row(StoragePath, Id, Disabled, Deletable) ->
     TextboxId = <<"storage_path_textbox_", BinaryId/binary>>,
     {AddStoragePathDisplay, RemoveStoragePathDisplay} = case Deletable of
                                                             addable -> {<<"">>, <<" display: none;">>};
-                                                            deletable -> {<<" display: none;">>, <<"">>};
+                                                            removable -> {<<" display: none;">>, <<"">>};
                                                             _ -> {<<" display: none;">>, <<" display: none;">>}
                                                         end,
     gui_jq:bind_enter_to_submit_button(TextboxId, <<"add_storage_path_", BinaryId/binary>>),
@@ -171,12 +175,11 @@ storage_paths_table_row(StoragePath, Id, Disabled, Deletable) ->
                     title = Title,
                     style = <<"text-align: center; vertical-align: inherit; padding: 0; width: 2em;", Display/binary>>,
                     body = #link{
-                        id = <<Prefix/binary, BinaryId/binary>>,
                         title = Title,
-                        actions = gui_jq:form_submit_action(<<Prefix/binary, BinaryId/binary>>,
-                            Postback, [TextboxId]),
+                        actions = gui_jq:form_submit_action(<<Prefix/binary, BinaryId/binary>>, Postback, [TextboxId]),
                         class = <<"glyph-link">>,
                         body = #span{
+                            id = <<Prefix/binary, BinaryId/binary>>,
                             class = Label,
                             style = <<"font-size: large;">>
                         }
@@ -233,7 +236,7 @@ comet_loop(#?STATE{counter = Counter, db_config = DbConfig, session_config = #?C
         receive
             render_storage_paths_table ->
                 gui_jq:update(<<"storage_paths_table">>, storage_paths_table_body(DbConfig, SessionConfig)),
-                gui_jq:focus(<<"storage_path_textbox_", (integer_to_binary(length(StoragePaths) + 1))/binary>>),
+                gui_jq:focus(<<"storage_path_textbox_", (integer_to_binary(Counter + 1))/binary>>),
                 gui_jq:hide(<<"main_spinner">>),
                 gui_comet:flush(),
                 State;
@@ -246,6 +249,7 @@ comet_loop(#?STATE{counter = Counter, db_config = DbConfig, session_config = #?C
                                 _ ->
                                     case check_storage_paths(Workers, StoragePaths) of
                                         ok ->
+                                            gui_ctx:put(?CONFIG_ID, SessionConfig),
                                             onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUMMARY),
                                             State;
                                         _ ->
@@ -253,10 +257,18 @@ comet_loop(#?STATE{counter = Counter, db_config = DbConfig, session_config = #?C
                                     end
                             end,
                 gui_jq:hide(<<"main_spinner">>),
+                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
+                gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
                 gui_comet:flush(),
                 NextState;
 
-            {add_storage_path, StoragePath} ->
+            back ->
+                gui_ctx:put(?CONFIG_ID, SessionConfig),
+                onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS),
+                gui_comet:flush(),
+                State;
+
+            {add_storage_path, StorageId, StoragePath} ->
                 NextState = case lists:member(StoragePath, StoragePaths) of
                                 true ->
                                     onepanel_gui_utils:message(<<"error_message">>, <<"Storage path already added.">>),
@@ -264,11 +276,11 @@ comet_loop(#?STATE{counter = Counter, db_config = DbConfig, session_config = #?C
                                 _ ->
                                     case installer_storage:check_storage_path_on_hosts(Workers, StoragePath) of
                                         ok ->
-                                            gui_jq:hide(<<"add_storage_path_th_", BinaryId/binary>>),
-                                            gui_jq:show(<<"remove_storage_path_th_", BinaryId/binary>>),
-                                            gui_jq:prop(<<"storage_path_textbox_", BinaryId/binary>>, <<"disabled">>, <<"disabled">>),
-                                            gui_jq:insert_bottom(<<"storage_paths_table">>, storage_paths_table_row(<<"">>, Counter + 1, undefined, addable)),
-                                            gui_jq:focus(<<"storage_path_textbox_", (integer_to_binary(Counter + 1))/binary>>),
+                                            gui_jq:hide(<<"add_storage_path_th_", StorageId/binary>>),
+                                            gui_jq:show(<<"remove_storage_path_th_", StorageId/binary>>),
+                                            gui_jq:prop(<<"storage_path_textbox_", StorageId/binary>>, <<"disabled">>, <<"disabled">>),
+                                            gui_jq:insert_bottom(<<"storage_paths_table">>, storage_paths_table_row(<<"">>, Counter + 2, undefined, addable)),
+                                            gui_jq:focus(<<"storage_path_textbox_", (integer_to_binary(Counter + 2))/binary>>),
                                             State#?STATE{counter = Counter + 1, session_config = SessionConfig#?CONFIG{storage_paths = [StoragePath | StoragePaths]}};
                                         {error, {hosts, Hosts}} ->
                                             onepanel_gui_utils:message(<<"error_message">>, <<"Storage is not available on hosts: ",
@@ -284,7 +296,8 @@ comet_loop(#?STATE{counter = Counter, db_config = DbConfig, session_config = #?C
                 NextState;
 
             {remove_storage_path, StorageId, StoragePath} ->
-                gui_jq:remove(<<"storage_path_row_", BinaryId/binary>>),
+                gui_jq:remove(<<"storage_path_row_", StorageId/binary>>),
+                gui_jq:focus(<<"storage_path_textbox_", (integer_to_binary(Counter + 1))/binary>>),
                 gui_jq:hide(<<"main_spinner">>),
                 gui_comet:flush(),
                 State#?STATE{session_config = SessionConfig#?CONFIG{storage_paths = lists:delete(StoragePath, StoragePaths)}}
@@ -309,7 +322,6 @@ event(init) ->
         {ok, SessionConfig} = onepanel_gui_utils:get_session_config(),
 
         gui_jq:show(<<"main_spinner">>),
-        gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),
 
         {ok, Pid} = gui_comet:spawn(fun() ->
             comet_loop(#?STATE{counter = length(SessionConfig#?CONFIG.storage_paths), db_config = DbConfig, session_config = SessionConfig})
@@ -318,29 +330,31 @@ event(init) ->
         Pid ! render_storage_paths_table
     catch
         _:Reason ->
-            ?error("Cannot fetch current application configuration: ~p", [Reason]),
-            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch current application configuration.<br>Please try again later.">>)
-    end.
+            ?error("Cannot fetch application configuration: ~p", [Reason]),
+            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch application configuration.<br>Please try again later.">>)
+    end;
 
-event({add_storage_path, BinaryId}) ->
-    StoragePath = binary_to_list(gui_ctx:postback_param(<<"storage_path_textbox_", BinaryId/binary>>)),
+event({add_storage_path, StorageId}) ->
+    StoragePath = binary_to_list(gui_ctx:postback_param(<<"storage_path_textbox_", StorageId/binary>>)),
     gui_jq:show(<<"main_spinner">>),
     case StoragePath of
         "" -> get(?COMET_PID) ! next;
-        _ -> get(?COMET_PID) ! {add_storage_path, StoragePath}
+        _ -> get(?COMET_PID) ! {add_storage_path, StorageId, StoragePath}
     end;
 
-event({remove_storage_path, BinaryId}) ->
-    StoragePath = binary_to_list(gui_ctx:postback_param(<<"storage_path_textbox_", BinaryId/binary>>)),
+event({remove_storage_path, StorageId}) ->
+    StoragePath = binary_to_list(gui_ctx:postback_param(<<"storage_path_textbox_", StorageId/binary>>)),
     gui_jq:show(<<"main_spinner">>),
-    get(?COMET_PID) ! {remove_storage_path, <<"storage_path_row_", BinaryId/binary>>, StoragePath};
+    get(?COMET_PID) ! {remove_storage_path, StorageId, StoragePath};
 
 event(next) ->
     gui_jq:show(<<"main_spinner">>),
+    gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"disabled">>),
+    gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
     get(?COMET_PID) ! next;
 
 event(back) ->
-    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS);
+    get(?COMET_PID) ! back;
 
 event({close_message, MessageId}) ->
     gui_jq:hide(MessageId);

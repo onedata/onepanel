@@ -11,7 +11,7 @@
 %% ===================================================================
 
 -module(page_spaces_settings).
--export([main/0, event/1, api_event/3]).
+-export([main/0, event/1, api_event/3, comet_loop/1]).
 
 -include("gui_modules/common.hrl").
 -include_lib("ctool/include/logging.hrl").

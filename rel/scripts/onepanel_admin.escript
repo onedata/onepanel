@@ -126,7 +126,7 @@ install(Path) ->
         lists:foreach(fun(Host) ->
             HostOpenFiles = proplists:get_value(Host, OpenFiles, ?DEFAULT_OPEN_FILES),
             HostProcesses = proplists:get_value(Host, Processes, ?DEFAULT_PROCESSES),
-            rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_ulimits, [HostOpenFiles, HostProcesses])
+            rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_system_limits, [HostOpenFiles, HostProcesses])
         end, AllHosts),
         print_ok(),
 

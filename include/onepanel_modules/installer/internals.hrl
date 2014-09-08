@@ -30,8 +30,8 @@
 
 %% System limit values
 -define(ULIMITS_CONFIG_PATH, filename:join([?PREFIX, "scripts", "ulimits.cfg"])).
--define(DEFAULT_OPEN_FILES, "65535").
--define(DEFAULT_PROCESSES, "65535").
+-define(DEFAULT_OPEN_FILES, 65535).
+-define(DEFAULT_PROCESSES, 65535).
 
 %% Default names of installable components
 -define(DEFAULT_DB_NAME, "db").

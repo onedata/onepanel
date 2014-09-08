@@ -261,7 +261,7 @@ local_start(Username, Password) ->
         ?debug("Starting database node"),
         BigcouchStartScript = filename:join([?DEFAULT_DB_INSTALL_PATH, ?DB_START_COMMAND_SUFFIX]),
         NohupOut = filename:join([?DEFAULT_DB_INSTALL_PATH, ?NOHUP_OUTPUT]),
-        SetUlimitsCmd = installer_utils:get_ulimits_cmd(Host),
+        SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
         VmArgs = filename:join([?DEFAULT_DB_INSTALL_PATH, "etc", "vm.args"]),
 
         "" = os:cmd("sed -i -e \"s/^\\-setcookie .*/\\-setcookie " ++ atom_to_list(?DEFAULT_COOKIE) ++ "/g\" " ++ VmArgs),

@@ -11,7 +11,7 @@
 %% ===================================================================
 
 -module(page_installation_summary).
--export([main/0, event/1]).
+-export([main/0, event/1, comet_loop/1]).
 
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/installer/state.hrl").
@@ -384,8 +384,8 @@ event(init) ->
         installer:set_callback(fun(Event, State) -> installation_progress(Event, State, Pid) end)
     catch
         _:Reason ->
-            ?error("Cannot fetch current application configuration: ~p", [Reason]),
-            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch current application configuration.<br>Please try again later.">>)
+            ?error("Cannot fetch application configuration: ~p", [Reason]),
+            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch application configuration.<br>Please try again later.">>)
     end;
 
 event(back) ->

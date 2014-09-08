@@ -134,8 +134,8 @@ main_ccm_body() ->
         ]
     catch
         _:Reason ->
-            ?error("Cannot fetch current application configuration: ~p", [Reason]),
-            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch current application configuration.<br>Please try again later.">>),
+            ?error("Cannot fetch application configuration: ~p", [Reason]),
+            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch application configuration.<br>Please try again later.">>),
             []
     end.
 

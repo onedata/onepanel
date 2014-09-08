@@ -22,7 +22,7 @@
 -export([init/3, handle/2, terminate/3]).
 
 % Bridge abstraction
--export([params/1, form/1, path/1, request_body/1, headers/1, header/3, response/2, reply/2]).
+-export([params/1, path/1, request_body/1, headers/1, header/3, response/2, reply/2]).
 -export([cookies/1, cookie/2, cookie/3, cookie/5, delete_cookie/2, peer/1]).
 
 % Handler state record
@@ -48,16 +48,11 @@ terminate(_Reason, _Req, _State) ->
 %% Cowboy Bridge Abstraction
 %% ====================================================================
 
-params(Req) ->
-    cowboy_req:qs_vals(Req).
-
-form(Req) ->
-    {ok, Params, NewReq} = cowboy_req:body_qs(Req),
-    {Params, NewReq}.
+params(Req) -> {Params, _NewReq} =
+    cowboy_req:qs_vals(Req), Params.
 
 path(Req) ->
-    {Path, _NewReq} = cowboy_req:path(Req),
-    Path.
+    {Path, _NewReq} = cowboy_req:path(Req), Path.
 
 request_body(Req) ->
     cowboy_req:body(Req).
@@ -90,6 +85,5 @@ cookie(Name, Value, Path, TTL, Req) ->
 delete_cookie(Cookie, Req) ->
     cookie(Cookie, <<"">>, <<"/">>, 0, Req).
 
-peer(Req) ->
-    {{Ip, Port}, Req} = cowboy_req:peer(Req),
-    {Ip, Port}.
+peer(Req) -> {{Ip, Port}, Req} =
+    cowboy_req:peer(Req), {Ip, Port}.
