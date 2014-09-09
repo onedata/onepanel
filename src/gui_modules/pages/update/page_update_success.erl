@@ -9,12 +9,12 @@
 %% This page is displayed in case of successful update.
 %% @end
 %% ===================================================================
-
 -module(page_update_success).
--export([main/0, event/1]).
 
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/updater/common.hrl").
+
+-export([main/0, event/1]).
 
 %% ====================================================================
 %% API functions
@@ -75,7 +75,7 @@ body() ->
                     case onepanel_utils:get_software_version() of
                         undefined -> #p{};
                         Version -> #p{
-                            body = <<"Current software version: <b>", (list_to_binary(Version))/binary, "</b>">>
+                            body = <<"Current software version: <b>", Version/binary, "</b>">>
                         }
                     end,
                     #link{

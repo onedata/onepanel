@@ -11,10 +11,11 @@
 %% ===================================================================
 -module(page_registration_summary).
 
--export([main/0, event/1, comet_loop/1]).
-
 -include("gui_modules/common.hrl").
 -include_lib("ctool/include/logging.hrl").
+
+-export([main/0, event/1, comet_loop/1]).
+
 
 %% Time in miliseconds after which an error message will be displayed if registration process has not returned result
 -define(REGISTRATION_TIMEOUT, 30000).

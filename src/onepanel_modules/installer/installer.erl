@@ -10,7 +10,6 @@
 %% @end
 %% ===================================================================
 -module(installer).
-
 -behaviour(gen_server).
 
 -include("registered_names.hrl").

@@ -9,15 +9,15 @@
 %% This page allows to manage provider spaces.
 %% @end
 %% ===================================================================
-
 -module(page_spaces_settings).
--export([main/0, event/1, api_event/3, comet_loop/1]).
 
 -include("gui_modules/common.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/global_registry/gr_users.hrl").
 -include_lib("ctool/include/global_registry/gr_spaces.hrl").
 -include_lib("ctool/include/global_registry/gr_providers.hrl").
+
+-export([main/0, event/1, api_event/3, comet_loop/1]).
 
 %% Common page CCS styles
 -define(MESSAGE_STYLE, <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>).

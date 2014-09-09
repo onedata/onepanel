@@ -9,12 +9,13 @@
 %% This page is a starting point for software update.
 %% @end
 %% ===================================================================
-
 -module(page_update).
--export([main/0, event/1]).
+
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/updater/state.hrl").
 -include("onepanel_modules/updater/stages.hrl").
+
+-export([main/0, event/1]).
 
 %% ====================================================================
 %% API functions

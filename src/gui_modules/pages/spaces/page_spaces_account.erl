@@ -11,11 +11,11 @@
 %% ===================================================================
 -module(page_spaces_account).
 
--export([main/0, event/1, api_event/3]).
-
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/logic/provider_logic.hrl").
 -include_lib("ctool/include/logging.hrl").
+
+-export([main/0, event/1, api_event/3]).
 
 %% ====================================================================
 %% API functions

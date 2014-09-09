@@ -9,9 +9,9 @@
 %% API for persisting GUI sessions.
 %% @end
 %% ===================================================================
-
 -module(session_logic).
 -behaviour(session_logic_behaviour).
+
 -include("gui_modules/common.hrl").
 -include_lib("ctool/include/logging.hrl").
 

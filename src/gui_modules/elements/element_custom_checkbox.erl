@@ -8,9 +8,10 @@
 %% @doc: This module contains element definition for HTML custom checkbox.
 %% @end
 %% ===================================================================
-
 -module(element_custom_checkbox).
+
 -include("gui_modules/common.hrl").
+
 -compile(export_all).
 
 reflect() -> record_info(fields, custom_checkbox).

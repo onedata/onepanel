@@ -9,11 +9,12 @@
 %% This page contains information about the project, licence and contact for support.
 %% @end
 %% ===================================================================
-
 -module(page_about).
--export([main/0, event/1]).
+
 -include("gui_modules/common.hrl").
 -include_lib("ctool/include/logging.hrl").
+
+-export([main/0, event/1]).
 
 -define(LICENSE_FILE, "LICENSE.txt").
 -define(CONTACT_EMAIL, "support@onedata.org").
@@ -97,7 +98,7 @@ about_table() ->
                         style = MainStyle,
                         body = #p{
                             style = <<"margin: 0;">>,
-                            body = onepanel_utils:get_version()
+                            body = onepanel_utils:get_software_version()
                         }
                     }
                 ]

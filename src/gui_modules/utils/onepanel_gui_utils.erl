@@ -9,8 +9,8 @@
 %% Onepanel GUI modules.
 %% @end
 %% ===================================================================
-
 -module(onepanel_gui_utils).
+
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include_lib("ctool/include/logging.hrl").

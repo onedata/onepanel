@@ -11,10 +11,10 @@
 %% ===================================================================
 -module(page_installation_success).
 
--export([main/0, event/1]).
-
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/installer/state.hrl").
+
+-export([main/0, event/1]).
 
 %% ====================================================================
 %% API functions

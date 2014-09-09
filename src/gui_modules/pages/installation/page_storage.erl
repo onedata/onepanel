@@ -11,11 +11,11 @@
 %% ===================================================================
 -module(page_storage).
 
--export([main/0, event/1, comet_loop/1]).
-
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include_lib("ctool/include/logging.hrl").
+
+-export([main/0, event/1, comet_loop/1]).
 
 %% Convenience record abbreviation
 -define(CONFIG, ?GLOBAL_CONFIG_RECORD).

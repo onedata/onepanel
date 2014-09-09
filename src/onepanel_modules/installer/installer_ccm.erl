@@ -10,7 +10,6 @@
 %% @end
 %% ===================================================================
 -module(installer_ccm).
-
 -behaviour(installer_behaviour).
 
 -include("onepanel_modules/installer/state.hrl").

@@ -9,11 +9,12 @@
 %% This page handles user validation via OpenID.
 %% @end
 %% ===================================================================
-
 -module(page_login_validation).
--export([main/0, event/1]).
+
 -include("gui_modules/common.hrl").
 -include_lib("ctool/include/logging.hrl").
+
+-export([main/0, event/1]).
 
 %% ====================================================================
 %% API functions

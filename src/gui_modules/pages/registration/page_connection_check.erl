@@ -11,11 +11,11 @@
 %% ===================================================================
 -module(page_connection_check).
 
--export([main/0, event/1, comet_loop/1]).
-
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
+
+-export([main/0, event/1, comet_loop/1]).
 
 %% Comet process pid
 -define(COMET_PID, comet_pid).

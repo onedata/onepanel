@@ -10,6 +10,7 @@
 %% @end
 %% ===================================================================
 -module(user_logic).
+
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/logic/user_logic.hrl").

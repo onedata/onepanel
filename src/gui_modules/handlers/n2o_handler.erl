@@ -12,7 +12,6 @@
 %% - reply/2
 %% @end
 %% ===================================================================
-
 -module(n2o_handler).
 -behaviour(cowboy_http_handler).
 

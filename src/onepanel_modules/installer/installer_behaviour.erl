@@ -8,7 +8,6 @@
 %% @doc: This module defines the behaviour of all installable components.
 %% @end
 %% ===================================================================
-
 -module(installer_behaviour).
 
 %% install/2

@@ -9,10 +9,11 @@
 %% This page is displayed when client asks for not existing resource.
 %% @end
 %% ===================================================================
-
 -module(page_404).
--export([main/0, event/1]).
+
 -include("gui_modules/common.hrl").
+
+-export([main/0, event/1]).
 
 %% ====================================================================
 %% API functions
