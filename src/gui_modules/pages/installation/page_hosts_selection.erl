@@ -90,10 +90,9 @@ body() ->
             #table{
                 id = <<"hosts_table">>,
                 class = <<"table table-bordered">>,
-                style = <<"width: 50%; margin: 0 auto;">>,
-                body = hosts_table_body([], #?CONFIG{}, #?CONFIG{})
+                style = <<"width: 50%; margin: 0 auto; display: none;">>
             },
-            onepanel_gui_utils:nav_buttons([{<<"next_button">>, {postback, {message, next}}, <<"Next">>}])
+            onepanel_gui_utils:nav_buttons([{<<"next_button">>, {postback, {message, next}}, true, <<"Next">>}])
         ]
     },
     onepanel_gui_utils:body(Header, Main).
@@ -120,23 +119,6 @@ hosts_table_body(Hosts, DbConfig, PageConfig) ->
 
     Rows = lists:map(fun({Host, Id}) ->
         HostId = integer_to_binary(Id),
-        Checkboxes = [
-            {
-                <<"ccm_checkbox_">>,
-                lists:member(Host, PageConfig#?CONFIG.ccms),
-                DbConfig#?CONFIG.main_ccm =/= undefined
-            },
-            {
-                <<"worker_checkbox_">>,
-                lists:member(Host, PageConfig#?CONFIG.workers),
-                lists:member(Host, DbConfig#?CONFIG.workers)
-            },
-            {
-                <<"db_checkbox_">>,
-                lists:member(Host, PageConfig#?CONFIG.dbs),
-                DbConfig#?CONFIG.dbs =/= []
-            }
-        ],
         #tr{
             cells = [
                 #td{
@@ -154,7 +136,11 @@ hosts_table_body(Hosts, DbConfig, PageConfig) ->
                             postback = {message, {binary_to_atom(<<Prefix/binary, "toggled">>, latin1), Host, HostId, Disabled}}
                         }
                     }
-                end, Checkboxes)
+                end, [
+                    {<<"ccm_checkbox_">>, lists:member(Host, PageConfig#?CONFIG.ccms), DbConfig#?CONFIG.main_ccm =/= undefined},
+                    {<<"worker_checkbox_">>, lists:member(Host, PageConfig#?CONFIG.workers), lists:member(Host, DbConfig#?CONFIG.workers)},
+                    {<<"db_checkbox_">>, lists:member(Host, PageConfig#?CONFIG.dbs), DbConfig#?CONFIG.dbs =/= []}
+                ])
             ]
         }
     end, lists:zip(lists:sort(Hosts), tl(lists:seq(0, length(Hosts))))),
@@ -181,7 +167,9 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFI
         receive
             render_hosts_table ->
                 gui_jq:update(<<"hosts_table">>, hosts_table_body(Hosts, DbConfig, SessionConfig)),
-                gui_jq:hide(<<"main_spinner">>),
+                gui_jq:fade_in(<<"hosts_table">>, 500),
+                gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
+                gui_jq:wire(<<"$('#next_button').delay(500).queue(function() { $(this).prop('disabled', '').dequeue(); })">>, false),
                 gui_comet:flush(),
                 State;
 

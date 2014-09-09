@@ -95,7 +95,8 @@ body() ->
                 class = <<"table table-striped">>,
                 style = <<"width: 50%; margin: 0 auto;">>,
                 body = #tbody{
-                    id = <<"summary_table">>
+                    id = <<"summary_table">>,
+                    style = <<"display: none;">>
                 }
             },
             #panel{
@@ -118,8 +119,8 @@ body() ->
                 ]
             },
             onepanel_gui_utils:nav_buttons([
-                {<<"back_button">>, {postback, back}, <<"Back">>},
-                {<<"install_button">>, {postback, install}, <<"Install">>}
+                {<<"back_button">>, {postback, back}, false, <<"Back">>},
+                {<<"install_button">>, {postback, install}, true, <<"Install">>}
             ])
         ]
     },
@@ -263,11 +264,14 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
         receive
             render_summary_table ->
                 gui_jq:update(<<"summary_table">>, summary_table_body(Config)),
+                gui_jq:fade_in(<<"summary_table">>, 500),
+                gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
                 case Config#?CONFIG.workers of
-                    [] -> gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"disabled">>);
-                    _ -> ok
+                    [] ->
+                        ok;
+                    _ ->
+                        gui_jq:wire(<<"$('#install_button').delay(500).queue(function() { $(this).prop('disabled', '').dequeue(); })">>, false)
                 end,
-                gui_jq:hide(<<"main_spinner">>),
                 gui_comet:flush(),
                 State;
 

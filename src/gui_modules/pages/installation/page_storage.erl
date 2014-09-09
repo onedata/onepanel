@@ -91,12 +91,13 @@ body() ->
                 class = <<"table table-striped">>,
                 style = <<"width: 50%; margin: 0 auto;">>,
                 body = #tbody{
-                    id = <<"storage_paths_table">>
+                    id = <<"storage_paths_table">>,
+                    style = <<"display: none;">>
                 }
             },
             onepanel_gui_utils:nav_buttons([
-                {<<"back_button">>, {postback, back}, <<"Back">>},
-                {<<"next_button">>, {postback, next}, <<"Next">>}
+                {<<"back_button">>, {postback, back}, false, <<"Back">>},
+                {<<"next_button">>, {postback, next}, true, <<"Next">>}
             ])
         ]
     },
@@ -236,8 +237,10 @@ comet_loop(#?STATE{counter = Counter, db_config = DbConfig, session_config = #?C
         receive
             render_storage_paths_table ->
                 gui_jq:update(<<"storage_paths_table">>, storage_paths_table_body(DbConfig, SessionConfig)),
+                gui_jq:fade_in(<<"storage_paths_table">>, 500),
+                gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
                 gui_jq:focus(<<"storage_path_textbox_", (integer_to_binary(Counter + 1))/binary>>),
-                gui_jq:hide(<<"main_spinner">>),
+                gui_jq:wire(<<"$('#next_button').delay(500).queue(function() { $(this).prop('disabled', '').dequeue(); })">>, false),
                 gui_comet:flush(),
                 State;
 

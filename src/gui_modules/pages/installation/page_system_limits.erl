@@ -91,7 +91,7 @@ body() ->
             #table{
                 id = <<"system_limits_table">>,
                 class = <<"table table-bordered">>,
-                style = <<"width: 50%; margin: 0 auto;">>
+                style = <<"width: 50%; margin: 0 auto; display: none;">>
             },
             #panel{
                 id = <<"nav_buttons">>
@@ -222,37 +222,44 @@ comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimit
                 end, [], SystemLimits),
                 gui_jq:update(<<"system_limits_table">>, system_limits_table_body(InstalledHosts, SystemLimits)),
                 gui_jq:update(<<"nav_buttons">>, onepanel_gui_utils:nav_buttons([
-                    {<<"back_button">>, {postback, back}, <<"Back">>},
-                    {<<"next_button">>, {actions, gui_jq:form_submit_action(<<"next_button">>, {set_system_limits, SystemLimits}, TextboxIds)}, <<"Next">>}
+                    {<<"back_button">>, {postback, back}, false, <<"Back">>},
+                    {<<"next_button">>, {actions, gui_jq:form_submit_action(<<"next_button">>, {set_system_limits, SystemLimits}, TextboxIds)}, true, <<"Next">>}
                 ])),
-                gui_jq:hide(<<"main_spinner">>),
+                gui_jq:fade_in(<<"system_limits_table">>, 500),
+                gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
+                gui_jq:wire(<<"$('#next_button').delay(500).queue(function() { $(this).prop('disabled', '').dequeue(); })">>, false),
                 gui_comet:flush(),
                 State;
 
             {set_system_limits, NewSystemLimits} ->
                 case lists:foldl(fun({Host, OpenFilesId, OpenFilesLimit, ProcessesId, ProcessesLimit}, {OpenFilesStatus, ProcessesStatus}) ->
-                    {
-                        try
-                            true = validate_limit(OpenFilesLimit),
-                            ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{open_files_limit, open_files_limit_value(OpenFilesLimit)}]),
-                            gui_jq:css(OpenFilesId, <<"border-color">>, <<"green">>),
-                            OpenFilesStatus
-                        catch
-                            _:_ ->
-                                gui_jq:css(OpenFilesId, <<"border-color">>, <<"red">>),
-                                error
-                        end,
-                        try
-                            true = validate_limit(ProcessesLimit),
-                            ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{processes_limit, processes_limit_value(ProcessesLimit)}]),
-                            gui_jq:css(ProcessesId, <<"border-color">>, <<"green">>),
-                            ProcessesStatus
-                        catch
-                            _:_ ->
-                                gui_jq:css(ProcessesId, <<"border-color">>, <<"red">>),
-                                error
-                        end
-                    }
+                    case lists:member(Host, InstalledHosts) of
+                        true ->
+                            {OpenFilesStatus, ProcessesStatus};
+                        _ ->
+                            {
+                                try
+                                    true = validate_limit(OpenFilesLimit),
+                                    ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{open_files_limit, open_files_limit_value(OpenFilesLimit)}]),
+                                    gui_jq:css(OpenFilesId, <<"border-color">>, <<"green">>),
+                                    OpenFilesStatus
+                                catch
+                                    _:_ ->
+                                        gui_jq:css(OpenFilesId, <<"border-color">>, <<"red">>),
+                                        error
+                                end,
+                                try
+                                    true = validate_limit(ProcessesLimit),
+                                    ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{processes_limit, processes_limit_value(ProcessesLimit)}]),
+                                    gui_jq:css(ProcessesId, <<"border-color">>, <<"green">>),
+                                    ProcessesStatus
+                                catch
+                                    _:_ ->
+                                        gui_jq:css(ProcessesId, <<"border-color">>, <<"red">>),
+                                        error
+                                end
+                            }
+                    end
                 end, {ok, ok}, NewSystemLimits) of
                     {ok, ok} ->
                         onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_STORAGE);

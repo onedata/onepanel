@@ -87,8 +87,8 @@ body() ->
                 body = main_ccm_body()
             },
             onepanel_gui_utils:nav_buttons([
-                {<<"back_button">>, {postback, back}, <<"Back">>},
-                {<<"next_button">>, {postback, next}, <<"Next">>}
+                {<<"back_button">>, {postback, back}, false, <<"Back">>},
+                {<<"next_button">>, {postback, next}, false, <<"Next">>}
             ])
         ]
     },

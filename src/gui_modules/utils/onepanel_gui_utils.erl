@@ -82,7 +82,11 @@ logotype_footer() ->
 %% ====================================================================
 %% @doc Convienience function to render navigation buttons.
 %% @end
--spec nav_buttons(Buttons :: [{Id :: binary(), Event :: {postback, term()} | {actions, term()} | undefined, Body :: binary()}]) -> Result when
+-spec nav_buttons(Buttons :: [{Id, Event, Disabled, Body}]) -> Result when
+    Id :: binary(),
+    Event :: {postback, term()} | {actions, term()} | undefined,
+    Disabled :: boolean(),
+    Body :: binary(),
     Result :: #panel{}.
 %% ====================================================================
 nav_buttons(Buttons) ->
@@ -93,27 +97,30 @@ nav_buttons(Buttons) ->
     #panel{
         style = <<"width: 50%; margin: 0 auto; margin-top: 3em; display: flex; justify-content: ", JustifyContent/binary, ";">>,
         body = lists:map(fun
-            ({Id, {postback, Postback}, Body}) ->
+            ({Id, {postback, Postback}, Disabled, Body}) ->
                 #button{
                     id = Id,
                     postback = Postback,
                     class = <<"btn btn-inverse btn-small">>,
                     style = <<"width: 8em; font-weight: bold;">>,
+                    disabled = Disabled,
                     body = Body
                 };
-            ({Id, {actions, Actions}, Body}) ->
+            ({Id, {actions, Actions}, Disabled, Body}) ->
                 #button{
                     id = Id,
                     actions = Actions,
                     class = <<"btn btn-inverse btn-small">>,
                     style = <<"width: 8em; font-weight: bold;">>,
+                    disabled = Disabled,
                     body = Body
                 };
-            ({Id, _, Body}) ->
+            ({Id, _, Disabled, Body}) ->
                 #button{
                     id = Id,
                     class = <<"btn btn-inverse btn-small">>,
                     style = <<"width: 8em; font-weight: bold;">>,
+                    disabled = Disabled,
                     body = Body
                 };
             (_) ->
