@@ -9,8 +9,8 @@
 %% This page allows to select hosts during software components installation.
 %% @end
 %% ===================================================================
-
 -module(page_hosts_selection).
+
 -export([main/0, event/1, comet_loop/1]).
 
 -include("gui_modules/common.hrl").

@@ -9,8 +9,8 @@
 %% This page allows to manage provider account.
 %% @end
 %% ===================================================================
-
 -module(page_spaces_account).
+
 -export([main/0, event/1, api_event/3]).
 
 -include("gui_modules/common.hrl").
@@ -211,6 +211,7 @@ providerId(undefined) ->
         body = [
             <<"&#8212&#8212&#8212&#8212&#8212&#8212&#8212&#8212">>,
             #link{
+                id = <<"register_link">>,
                 title = <<"Register">>,
                 style = <<"margin-left: 1em;">>,
                 class = <<"glyph-link">>,

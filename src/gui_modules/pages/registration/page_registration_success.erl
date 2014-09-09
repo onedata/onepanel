@@ -9,8 +9,8 @@
 %% This page is displayed in case of successful registration.
 %% @end
 %% ===================================================================
-
 -module(page_registration_success).
+
 -export([main/0, event/1]).
 
 -include("gui_modules/common.hrl").

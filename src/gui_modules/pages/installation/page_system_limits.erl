@@ -10,8 +10,8 @@
 %% installation.
 %% @end
 %% ===================================================================
-
 -module(page_system_limits).
+
 -export([main/0, event/1, comet_loop/1]).
 
 -include("gui_modules/common.hrl").
@@ -166,38 +166,22 @@ validate_limit(Limit) ->
     end.
 
 
-%% open_files_limit_value/1
+%% limit_value/1
 %% ====================================================================
-%% @doc Returns default open files limit in case of unsupported value.
+%% @doc Returns default limit in case of unsupported value.
 %% @end
--spec open_files_limit_value(OpenFilesLimit :: term()) -> Result
+-spec limit_value(Limit :: term(), DefaultLimit :: integer()) -> Result
     when Result :: integer().
 %% ====================================================================
-open_files_limit_value(OpenFilesLimit) when is_integer(OpenFilesLimit) ->
-    OpenFilesLimit;
+limit_value(Limit, _) when is_integer(Limit) ->
+    Limit;
 
-open_files_limit_value(OpenFilesLimit) when is_binary(OpenFilesLimit) ->
-    binary_to_integer(OpenFilesLimit);
+limit_value(Limit, _) when is_binary(Limit) ->
+    binary_to_integer(Limit);
 
-open_files_limit_value(_) ->
-    ?DEFAULT_OPEN_FILES.
+limit_value(_, DefaultLimit) ->
+    DefaultLimit.
 
-
-%% processes_limit_value/1
-%% ====================================================================
-%% @doc Returns default processes limit in case of unsupported value.
-%% @end
--spec processes_limit_value(ProcessesLimit :: term()) -> Result
-    when Result :: integer().
-%% ====================================================================
-processes_limit_value(ProcessesLimit) when is_integer(ProcessesLimit) ->
-    ProcessesLimit;
-
-processes_limit_value(ProcessesLimit) when is_binary(ProcessesLimit) ->
-    binary_to_integer(ProcessesLimit);
-
-processes_limit_value(_) ->
-    ?DEFAULT_PROCESSES.
 
 %% ====================================================================
 %% Events handling
@@ -232,36 +216,29 @@ comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimit
                 State;
 
             {set_system_limits, NewSystemLimits} ->
-                case lists:foldl(fun({Host, OpenFilesId, OpenFilesLimit, ProcessesId, ProcessesLimit}, {OpenFilesStatus, ProcessesStatus}) ->
+                case lists:foldl(fun({Host, OpenFilesId, OpenFilesLimit, ProcessesId, ProcessesLimit}, Status) ->
                     case lists:member(Host, InstalledHosts) of
                         true ->
-                            {OpenFilesStatus, ProcessesStatus};
+                            Status;
                         _ ->
-                            {
+                            lists:foldl(fun({LimitId, Limit, Type}, HostStatus) ->
                                 try
-                                    true = validate_limit(OpenFilesLimit),
-                                    ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{open_files_limit, open_files_limit_value(OpenFilesLimit)}]),
-                                    gui_jq:css(OpenFilesId, <<"border-color">>, <<"green">>),
-                                    OpenFilesStatus
+                                    true = validate_limit(Limit),
+                                    ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{Type, binary_to_integer(Limit)}]),
+                                    gui_jq:css(LimitId, <<"border-color">>, <<"green">>),
+                                    HostStatus
                                 catch
                                     _:_ ->
-                                        gui_jq:css(OpenFilesId, <<"border-color">>, <<"red">>),
-                                        error
-                                end,
-                                try
-                                    true = validate_limit(ProcessesLimit),
-                                    ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{processes_limit, processes_limit_value(ProcessesLimit)}]),
-                                    gui_jq:css(ProcessesId, <<"border-color">>, <<"green">>),
-                                    ProcessesStatus
-                                catch
-                                    _:_ ->
-                                        gui_jq:css(ProcessesId, <<"border-color">>, <<"red">>),
+                                        gui_jq:css(LimitId, <<"border-color">>, <<"red">>),
                                         error
                                 end
-                            }
+                            end, Status, [
+                                {OpenFilesId, OpenFilesLimit, open_files_limit},
+                                {ProcessesId, ProcessesLimit, processes_limit}
+                            ])
                     end
-                end, {ok, ok}, NewSystemLimits) of
-                    {ok, ok} ->
+                end, ok, NewSystemLimits) of
+                    ok ->
                         onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_STORAGE);
                     _ ->
                         onepanel_gui_utils:message(<<"error_message">>, <<"Cannot set system limits for some hosts.<br>Remember that system limit should be a positive number.">>)
@@ -302,7 +279,7 @@ event(init) ->
                                                    _ ->
                                                        throw("Cannot get local configuration for host: " ++ Host)
                                                end,
-            {Host, integer_to_binary(Id), open_files_limit_value(OpenFilesLimit), processes_limit_value(ProcessesLimit)}
+            {Host, integer_to_binary(Id), limit_value(OpenFilesLimit, ?DEFAULT_OPEN_FILES), limit_value(ProcessesLimit, ?DEFAULT_PROCESSES)}
         end, lists:zip(SessionHosts, tl(lists:seq(0, length(SessionHosts))))),
 
         gui_jq:show(<<"main_spinner">>),

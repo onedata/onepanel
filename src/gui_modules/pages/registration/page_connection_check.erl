@@ -9,22 +9,20 @@
 %% This page allows to check connection to Global Registry.
 %% @end
 %% ===================================================================
-
 -module(page_connection_check).
+
 -export([main/0, event/1, comet_loop/1]).
+
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
-
-%% Default time in miliseconds for next progress bar update
--define(DEFAULT_NEXT_UPDATE, 500).
 
 %% Comet process pid
 -define(COMET_PID, comet_pid).
 
 %% Comet process state
 -define(STATE, comet_state).
--record(?STATE, {step, steps, status}).
+-record(?STATE, {pid}).
 
 %% ====================================================================
 %% API functions
@@ -76,39 +74,49 @@ body() ->
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
             #h6{
-                style = <<"font-size: x-large; margin-bottom: 3em;">>,
-                body = <<"Step 1: Check your connection to Global Registry.">>
+                style = <<"font-size: x-large; margin-bottom: 1em;">>,
+                body = <<"Step 1: Connection check">>
+            },
+            #p{
+                style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
+                body = <<"To establish test connection to <i>Global Registry</i> please press <i>Next</i> button.">>
             },
             #panel{
                 id = <<"progress">>,
-                style = <<"width: 50%; margin: 0 auto; display: none;">>,
+                style = <<"width: 50%; margin: 0 auto; display: none; justify-content: center;">>,
                 body = [
-                    #p{
-                        body = <<"Connecting...">>
-                    },
                     #panel{
-                        class = <<"progress">>,
-                        body = #panel{
-                            id = <<"bar">>,
-                            class = <<"bar">>,
-                            style = <<"width: 0%;">>
+                        body = #image{
+                            style = <<"width: 2em;">>,
+                            image = <<"/images/spinner.gif">>
                         }
+                    },
+                    #p{
+                        style = <<"margin-left: 1em;">>,
+                        body = <<"Connecting...">>
                     }
                 ]
             },
-            #panel{
-                style = <<"margin-top: 3em;">>,
-                body = #button{
-                    id = <<"next_button">>,
-                    postback = next,
-                    class = <<"btn btn-inverse btn-small">>,
-                    style = <<"width: 8em; font-weight: bold;">>,
-                    body = <<"Next">>
-                }
-            }
+            onepanel_gui_utils:nav_buttons([{<<"next_button">>, {postback, connect}, false, <<"Next">>}])
         ]
     },
     onepanel_gui_utils:body(Header, Main).
+
+
+%% ====================================================================
+%% Events handling
+%% ====================================================================
+
+%% comet_loop_init/0
+%% ====================================================================
+%% @doc Initializes comet loop.
+%% @end
+-spec comet_loop_init() -> Result when
+    Result :: {error, Reason :: term()}.
+%% ====================================================================
+comet_loop_init() ->
+    process_flag(trap_exit, true),
+    comet_loop(#?STATE{}).
 
 
 %% comet_loop/1
@@ -121,48 +129,35 @@ body() ->
 comet_loop({error, Reason}) ->
     {error, Reason};
 
-comet_loop(#?STATE{step = Step, steps = Steps, status = Status} = State) ->
+comet_loop(#?STATE{pid = Pid} = State) ->
     NewState = try
         receive
-            {init, InitSteps} ->
-                gui_jq:hide(<<"error_message">>),
-                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"disabled">>),
-                gui_jq:set_width(<<"bar">>, <<"0%">>),
-                gui_jq:show(<<"progress">>),
-                gui_comet:flush(),
-                timer:send_after(?DEFAULT_NEXT_UPDATE, update),
-                State#?STATE{step = 1, steps = InitSteps, status = connecting};
+            connect ->
+                NewPid = spawn_link(fun() ->
+                    {ok, _} = gr_providers:check_ip_address(provider, ?CONNECTION_TIMEOUT)
+                end),
+                erlang:send_after(?CONNECTION_TIMEOUT, self(), connection_failure),
+                State#?STATE{pid = NewPid};
 
-            update ->
-                Progress = <<(integer_to_binary(round(100 * Step / Steps)))/binary, "%">>,
-                gui_jq:set_width(<<"bar">>, Progress),
+            connection_failure ->
+                onepanel_gui_utils:message(<<"error_message">>, <<"Cannot connect to Global Registry.<br>
+                Please check your network configuration and try again later.">>),
+                gui_jq:hide(<<"progress">>),
+                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
                 gui_comet:flush(),
-                case Step of
-                    Steps ->
-                        gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
-                        case Status of
-                            connection_success ->
-                                timer:sleep(?DEFAULT_NEXT_UPDATE),
-                                gui_jq:set_width(<<"bar">>, <<"100%">>),
-                                onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_PORTS_CHECK),
-                                gui_comet:flush(),
-                                State;
-                            _ ->
-                                gui_jq:hide(<<"progress">>),
-                                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
-                                onepanel_gui_utils:message(<<"error_message">>, <<"Cannot connect to Global Registry.<br>
-                                Please check your network configuration and try again later.">>),
-                                gui_comet:flush(),
-                                State#?STATE{status = idle}
-                        end;
-                    _ ->
-                        gui_comet:flush(),
-                        timer:send_after(?DEFAULT_NEXT_UPDATE, update),
-                        State#?STATE{step = Step + 1}
-                end;
+                State;
 
-            {set_status, NewStatus} ->
-                State#?STATE{status = NewStatus}
+            {'EXIT', Pid, normal} ->
+                onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_PORTS_CHECK),
+                gui_comet:flush(),
+                State;
+
+            {'EXIT', Pid, _} ->
+                self() ! connection_failure,
+                State;
+
+            _ ->
+                State
         end
                catch Type:Message ->
                    ?error("Comet process exception: ~p:~p", [Type, Message]),
@@ -172,10 +167,6 @@ comet_loop(#?STATE{step = Step, steps = Steps, status = Status} = State) ->
     ?MODULE:comet_loop(NewState).
 
 
-%% ====================================================================
-%% Events handling
-%% ====================================================================
-
 %% event/1
 %% ====================================================================
 %% @doc Handles page events.
@@ -184,19 +175,12 @@ comet_loop(#?STATE{step = Step, steps = Steps, status = Status} = State) ->
 %% ====================================================================
 event(init) ->
     gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),
-    {ok, Pid} = gui_comet:spawn(fun() -> comet_loop(#?STATE{}) end),
+    {ok, Pid} = gui_comet:spawn(fun() -> comet_loop_init() end),
     put(?COMET_PID, Pid);
 
-event(next) ->
-    Pid = get(?COMET_PID),
-    Pid ! {init, round(?CONNECTION_TIMEOUT / ?DEFAULT_NEXT_UPDATE)},
-    spawn(fun() ->
-        timer:sleep(1000),
-        case gr_providers:check_ip_address(provider, ?CONNECTION_TIMEOUT) of
-            {ok, _} -> Pid ! {set_status, connection_success};
-            _ -> Pid ! {set_status, connection_error}
-        end
-    end),
+event(connect) ->
+    get(?COMET_PID) ! connect,
+    gui_jq:css(<<"progress">>, <<"display">>, <<"flex">>),
     gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"disabled">>);
 
 event({close_message, MessageId}) ->

@@ -9,8 +9,8 @@
 %% This page is displayed in case of successful installation.
 %% @end
 %% ===================================================================
-
 -module(page_installation_success).
+
 -export([main/0, event/1]).
 
 -include("gui_modules/common.hrl").
