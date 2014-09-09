@@ -38,7 +38,7 @@ render_element(Record) ->
         ]
     },
 
-    Input = wf_tags:emit_tag(<<"input">>, [], [
+    Input = [wf_tags:emit_tag(<<"input">>, [], [
         {<<"id">>, Id},
         {<<"title">>, Record#custom_checkbox.title},
         {<<"autofocus">>, Record#custom_checkbox.autofocus},
@@ -48,7 +48,7 @@ render_element(Record) ->
         {<<"name">>, Record#custom_checkbox.name},
         {<<"type">>, <<"checkbox">>},
         {<<"value">>, Record#custom_checkbox.value} | Record#custom_checkbox.data_fields
-    ]),
+    ]), case Record#custom_checkbox.body of undefined -> []; Body -> Body end],
 
     Checked = case Record#custom_checkbox.checked of
                   true -> <<" checked">>;

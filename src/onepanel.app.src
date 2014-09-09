@@ -48,7 +48,7 @@
         {grpcert_path, "./certs/grpcert.pem"},
         {grpcacert_path, "./certs/grpca.pem"},
         {global_registry_url, "https://onedata.org:8443"},
-        {get_software_versions_url, "http://onedata.com/repository/get_versions.php"},
+        {get_software_versions_url, "http://www.onedata.org/repository/get_versions.php"},
         {default_username, <<"admin">>},
         {default_password, <<"password">>},
         {onepanel_sessions_cookie_ttl, 2592000} % 30 days
