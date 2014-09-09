@@ -53,8 +53,13 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            ProviderId = provider_logic:get_provider_id(),
-            #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body(ProviderId)}, {custom, custom()}]};
+            case provider_logic:get_provider_id() of
+                undefined ->
+                    page_error:redirect_with_error(?UNREGISTERED_PROVIDER_ERROR),
+                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
+                _ ->
+                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, custom()}]}
+            end;
         false ->
             gui_jq:redirect_to_login(true),
             #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
@@ -82,39 +87,14 @@ custom() ->
     <<"<script src='/js/bootbox.min.js' type='text/javascript' charset='utf-8'></script>">>.
 
 
-%% body/1
+%% body/0
 %% ====================================================================
 %% @doc This will be placed instead of {{body}} tag in template.
 %% @end
--spec body(ProviderId :: binary() | undefined) -> Result when
+-spec body() -> Result when
     Result :: #panel{}.
 %% ====================================================================
-body(undefined) ->
-    Header = onepanel_gui_utils:top_menu(spaces_tab, spaces_settings_link),
-    Main = #panel{
-        style = <<"margin-top: 10em; text-align: center;">>,
-        body = #panel{
-            style = <<"width: 50%; margin: 0 auto;">>,
-            class = <<"alert alert-info">>,
-            body = [
-                #h3{
-                    body = <<"Unregistered">>
-                },
-                #p{
-                    body = <<"Please complete registration process in Global Registry.">>
-                },
-                #button{
-                    postback = to_account_page,
-                    class = <<"btn btn-info confirm">>,
-                    style = <<"width: 80px; font-weight: bold;">>,
-                    body = <<"OK">>
-                }
-            ]
-        }
-    },
-    onepanel_gui_utils:body(Header, Main);
-
-body(_) ->
+body() ->
     Header = onepanel_gui_utils:top_menu(spaces_tab, spaces_settings_link),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,

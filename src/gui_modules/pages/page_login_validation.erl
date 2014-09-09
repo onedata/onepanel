@@ -65,11 +65,11 @@ body() ->
                             gui_jq:redirect_from_login();
                         Other ->
                             ?error("Cannot set password for user ~p: ~p", [Username, Other]),
-                            gui_jq:redirect(<<(?PAGE_LOGIN)/binary, "?id=", (?INTERNAL_SERVER_ERROR)/binary>>)
+                            page_error:redirect_with_error(?INTERNAL_SERVER_ERROR)
                     end;
-                {error, Reason} ->
-                    ?error("Invalid login attempt, user ~p: ~p", [Username, Reason]),
-                    gui_jq:redirect(<<(?PAGE_LOGIN)/binary, "?id=", Reason/binary>>)
+                {error, ErrorId} ->
+                    ?error("Invalid login attempt, user ~p: ~p", [Username, ErrorId]),
+                    page_error:redirect_with_error(ErrorId)
             end
     end.
 

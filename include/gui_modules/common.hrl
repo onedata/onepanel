@@ -30,6 +30,10 @@
 %% Macros used as ids of errors that can appear on GUI pages
 -define(AUTHENTICATION_ERROR, <<"authentication_error">>).
 -define(INTERNAL_SERVER_ERROR, <<"internal_server_error">>).
+-define(SOFTWARE_NOT_INSTALLED_ERROR, <<"software_not_installed_error">>).
+-define(UNREGISTERED_PROVIDER_ERROR, <<"unregistered_provider_error">>).
+-define(SPACE_PERMISSION_DENIED_ERROR, <<"space_permission_denied_error">>).
+-define(SPACE_NOT_FOUND_ERROR, <<"space_not_found_error">>).
 
 %% Current installation step saved in user session
 -define(CURRENT_INSTALLATION_PAGE, install_page).

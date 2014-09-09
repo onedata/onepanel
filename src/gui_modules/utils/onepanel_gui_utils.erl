@@ -16,7 +16,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 -export([body/1, body/2, body/3, top_menu/1, top_menu/2, account_settings_tab/1, logotype_footer/0, nav_buttons/1]).
--export([get_error_message/1, get_session_config/0, format_list/1, message/2, message/3]).
+-export([get_session_config/0, format_list/1, message/2, message/3]).
 -export([change_page/2, maybe_redirect/3]).
 
 %% ====================================================================
@@ -240,20 +240,6 @@ account_settings_tab(Username) ->
             }
         ]
     }.
-
-
-%% get_error_message/1
-%% ====================================================================
-%% @doc Returns error message for given error id, that will be displayed
-%% on page.
-%% @end
--spec get_error_message(ErrorId :: atom()) -> Result when
-    Result :: binary().
-%% ====================================================================
-get_error_message(?AUTHENTICATION_ERROR) ->
-    <<"Invalid username or password.">>;
-get_error_message(_) ->
-    <<"Internal server error.">>.
 
 
 %% get_session_config/0

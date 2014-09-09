@@ -37,6 +37,7 @@
 -define(PAGE_REGISTRATION_SUCCESS, <<"/spaces/registration/success">>).
 
 %% Spaces pages
+-define(PAGE_SPACE_SETTINGS, <<"/spaces">>).
 -define(PAGE_SPACES_ACCOUNT, <<"/spaces/account">>).
 -define(PAGE_SPACES_SETTINGS, <<"/spaces/settings">>).
 
@@ -45,6 +46,7 @@
 -define(PAGE_LOGIN_VALIDATION, <<"/login_validation">>).
 -define(PAGE_LOGOUT, <<"/logout">>).
 -define(PAGE_ABOUT, <<"/about">>).
+-define(PAGE_ERROR, <<"/error">>).
 -define(PAGE_ACCOUNT_SETTINGS, <<"/account/settings">>).
 -define(PAGE_PRIVACY_POLICY, <<"/privacy_policy">>).
 

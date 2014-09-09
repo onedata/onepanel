@@ -53,8 +53,16 @@ body() ->
         true -> gui_jq:redirect(?PAGE_ROOT);
         false ->
             SourcePage = gui_ctx:url_param(<<"x">>),
-            ErrorId = gui_ctx:url_param(<<"id">>),
-            Header = error_message(SourcePage, ErrorId),
+            Header = case SourcePage of
+                         undefined ->
+                             <<"">>;
+                         _ ->
+                             #panel{
+                                 style = <<"position: fixed;top: 0; width: 100%;">>,
+                                 class = <<"dialog dialog-danger">>,
+                                 body = <<"No session or session expired.">>
+                             }
+                     end,
             Main = [
                 #panel{
                     class = <<"alert alert-success">>,
@@ -99,33 +107,6 @@ body() ->
             ],
             onepanel_gui_utils:body(Header, Main)
     end.
-
-
-%% error_message/2
-%% ====================================================================
-%% @doc Handles page events.
-%% @end
--spec error_message(SourcePage :: binary() | undefined, ErrorId :: binary() | undefined) -> Result when
-    Result :: #panel{}.
-%% ====================================================================
-error_message(undefined, undefined) ->
-    #panel{
-        style = <<"margin: 0;">>,
-        class = <<"hidden dialog dialog-danger">>
-    };
-error_message(undefined, ErrorId) ->
-    ErrorMessage = onepanel_gui_utils:get_error_message(ErrorId),
-    #panel{
-        style = <<"margin: 0;">>,
-        class = <<"dialog dialog-danger">>,
-        body = ErrorMessage
-    };
-error_message(_, _) ->
-    #panel{
-        style = <<"margin: 0;">>,
-        class = <<"dialog dialog-danger">>,
-        body = <<"No session or session expired.">>
-    }.
 
 
 %% ====================================================================

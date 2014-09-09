@@ -90,7 +90,7 @@ create_user(Username, Password) ->
 %% @doc Check whether user exists and whether it is a valid password
 %% @end
 -spec authenticate(Username :: binary(), Password :: binary()) -> Result when
-    Result :: ok | {error, Reason :: term()}.
+    Result :: ok | {error, ErrorId :: binary()}.
 %% ====================================================================
 authenticate(Username, Password) ->
     case dao:get_record(?USER_TABLE, Username) of

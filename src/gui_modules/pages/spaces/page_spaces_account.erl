@@ -33,7 +33,8 @@ main() ->
         true ->
             case installer_utils:get_workers() of
                 [] ->
-                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]};
+                    page_error:redirect_with_error(?SOFTWARE_NOT_INSTALLED_ERROR),
+                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
                     case gui_ctx:get(?CURRENT_REGISTRATION_PAGE) of
                         undefined ->
@@ -76,40 +77,6 @@ title() ->
 %% ====================================================================
 custom() ->
     <<"<script src='/js/bootbox.min.js' type='text/javascript' charset='utf-8'></script>">>.
-
-
-%% body/0
-%% ====================================================================
-%% @doc This will be placed instead of {{body}} tag in template.
-%% @end
--spec body() -> Result when
-    Result :: #panel{}.
-%% ====================================================================
-body() ->
-    Header = onepanel_gui_utils:top_menu(spaces_tab, spaces_account_link),
-    Main = #panel{
-        style = <<"margin-top: 10em; text-align: center;">>,
-        body = #panel{
-            style = <<"width: 50%; margin: 0 auto;">>,
-            class = <<"alert alert-info">>,
-            body = [
-                #h3{
-                    body = <<"Software is not installed">>
-                },
-                #p{
-                    body = <<"Please complete installation process before registering in Global Registry as a provider.">>
-                },
-                #link{
-                    id = <<"ok_button">>,
-                    postback = to_root_page,
-                    class = <<"btn btn-info">>,
-                    style = <<"width: 80px; font-weight: bold;">>,
-                    body = <<"OK">>
-                }
-            ]
-        }
-    },
-    onepanel_gui_utils:body(Header, Main).
 
 
 %% body/3
