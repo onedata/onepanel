@@ -142,7 +142,7 @@ spaces_table_expanded(SpacesDetails) ->
 
 %% spaces_table/3
 %% ====================================================================
-%% @doc Renders expanded Spaces settings table.
+%% @doc Renders Spaces settings table.
 %% @end
 -spec spaces_table(SpacesDetails :: [{Id :: binary(), SpaceDetails :: #space_details{}}], NavigationBody :: #link{}, RenderRowFunction :: function()) -> Result when
     Result :: [#tr{}].
@@ -344,7 +344,7 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                 gui_comet:flush(),
                 NextState;
 
-            render_spaces_table_body ->
+            render_spaces_table ->
                 gui_jq:update(<<"spaces_table">>, spaces_table_collapsed(SpacesDetails)),
                 gui_jq:fade_in(<<"spaces_table">>, 500),
                 gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
@@ -404,7 +404,7 @@ event(init) ->
             comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails})
         end),
         put(?COMET_PID, Pid),
-        Pid ! render_spaces_table_body
+        Pid ! render_spaces_table
     catch
         _:Reason ->
             ?error("Cannot fetch supported Spaces: ~p", [Reason]),
