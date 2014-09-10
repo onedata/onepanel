@@ -32,6 +32,9 @@
 %% Current installation step saved in user session
 -define(CURRENT_INSTALLATION_PAGE, install_page).
 
+%% Current registration step saved in user session
+-define(CURRENT_REGISTRATION_PAGE, register_page).
+
 %% Current update step saved in user session
 -define(CURRENT_UPDATE_PAGE, update_page).
 

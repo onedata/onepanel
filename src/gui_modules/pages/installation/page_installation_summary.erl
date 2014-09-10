@@ -345,6 +345,7 @@ get_info_message({?STAGE_CCM, ?JOB_START}) -> <<"Current stage: <b>Starting Cent
 get_info_message({?STAGE_WORKER, ?JOB_INSTALL}) -> <<"Current stage: <b>Installing worker nodes</b>">>;
 get_info_message({?STAGE_WORKER, ?JOB_START}) -> <<"Current stage: <b>Starting worker nodes</b>">>;
 get_info_message({?STAGE_STORAGE, ?JOB_ADD_STORAGE_PATHS}) -> <<"Current stage: <b>Adding storage paths</b>">>;
+get_info_message({?STAGE_FINAL, ?JOB_FINALIZE_INSTALLATION}) -> <<"Current stage: <b>Finalizing installation</b>">>;
 get_info_message(_) -> <<"">>.
 
 
