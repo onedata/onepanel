@@ -118,7 +118,7 @@ handle_cast({connection_response, Node}, State) ->
     end;
 
 handle_cast(connection_acknowledgement, State) ->
-    ?info("[Onepanel] Connection acknowledgement."),
+    ?info("[Onepanel] Connection acknowledgement"),
     {noreply, State#state{status = connected}};
 
 handle_cast(Request, State) ->
@@ -136,8 +136,7 @@ handle_cast(Request, State) ->
     {stop, Reason :: term(), NewState :: #state{}}.
 %% ====================================================================
 handle_info({udp, _Socket, _Address, _Port, HostBinary}, #state{status = Status} = State) ->
-    Host = binary_to_list(HostBinary),
-    Node = list_to_atom(?APP_STR ++ "@" ++ Host),
+    Node = onepanel_utils:get_node(binary_to_list(HostBinary)),
     case net_kernel:connect_node(Node) of
         true -> gen_server:cast({?ONEPANEL_SERVER, Node}, {connection_request, node()});
         Other -> ?error("[Onepanel] Cannot connect node ~p: ~p", [Node, Other])

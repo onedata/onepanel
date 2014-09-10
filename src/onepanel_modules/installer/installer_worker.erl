@@ -86,15 +86,15 @@ start(Args) ->
 
         {ConfiguredMainCCM, ConfiguredCCMs, ConfiguredDbs, ConfiguredWorkers, ConfiguredStoragePaths} =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                {ok, #?GLOBAL_CONFIG_RECORD{ccms = []}} -> throw("CCM nodes not configured");
+                {ok, #?GLOBAL_CONFIG_RECORD{ccms = []}} -> throw("CCM nodes not configured.");
                 {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM, ccms = CCMs, dbs = Dbs, workers = Workers, storage_paths = StoragePaths}} ->
                     {MainCCM, CCMs, Dbs, Workers, StoragePaths};
-                _ -> throw("Cannot get CCM nodes configuration")
+                _ -> throw("Cannot get CCM nodes configuration.")
             end,
 
         lists:foreach(fun(Worker) ->
             case lists:member(Worker, ConfiguredWorkers) of
-                true -> throw("Worker " ++ Worker ++ " already configured");
+                true -> throw("Worker " ++ Worker ++ " already configured.");
                 _ -> ok
             end
         end, NewWorkers),
@@ -139,7 +139,7 @@ stop(Args) ->
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
                 {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM, ccms = CCMs, dbs = Dbs, workers = Workers, storage_paths = StoragePaths}} ->
                     {MainCCM, CCMs, Dbs, Workers, StoragePaths};
-                _ -> throw("Cannot get CCM nodes configuration")
+                _ -> throw("Cannot get CCM nodes configuration.")
             end,
 
         WorkersToStop = case proplists:get_value(workers, Args) of
@@ -147,7 +147,7 @@ stop(Args) ->
                             Hosts ->
                                 lists:foreach(fun(Host) ->
                                     case lists:member(Host, ConfiguredWorkers) of
-                                        false -> throw("Worker " ++ Host ++ " is not configured");
+                                        false -> throw("Worker " ++ Host ++ " is not configured.");
                                         _ -> ok
                                     end
                                 end, Hosts),
@@ -192,7 +192,7 @@ restart(Args) ->
     try
         ConfiguredWorkers = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
                                 {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} -> Workers;
-                                _ -> throw("Cannot get CCM nodes configuration")
+                                _ -> throw("Cannot get CCM nodes configuration.")
                             end,
 
         WorkersToRestart = case proplists:get_value(workers, Args) of

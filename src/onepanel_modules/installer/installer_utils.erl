@@ -19,6 +19,9 @@
 -export([set_ulimits/2, get_ulimits_cmd/1]).
 -export([get_workers/0, get_global_config/0]).
 -export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/3]).
+-export([finalize_installation/1]).
+
+-define(FINALIZE_INSTALLATION_ATTEMPTS, 120).
 
 %% ====================================================================
 %% API functions
@@ -133,7 +136,7 @@ overwrite_config_args(Path, Parameter, NewValue) ->
                           {ok, DataRead} ->
                               binary_to_list(DataRead);
                           _ ->
-                              throw("Could not read config.args file")
+                              throw("Could not read config.args file.")
                       end,
 
         {match, [{From, Through}]} = re:run(FileContent, Parameter ++ ":.*\n"),
@@ -178,3 +181,38 @@ get_global_config() ->
     end.
 
 
+%% finalize_installation/1
+%% ====================================================================
+%% @doc Waits until cluster control panel nodes are up and running.
+%% Returns an error after ?FINALIZE_INSTALLATION_ATTEMPTS limit.
+-spec finalize_installation(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+finalize_installation(_Args) ->
+    finalize_installation_loop(?FINALIZE_INSTALLATION_ATTEMPTS).
+
+
+%% ====================================================================
+%% Internal functions
+%% ====================================================================
+
+%% finalize_installation/2
+%% ====================================================================
+%% @doc Waits until cluster control panel nodes are up and running.
+%% Returns an error after ?FINALIZE_INSTALLATION_ATTEMPTS limit.
+%% Should not be used directly, use finalize_installation/1 instead.
+-spec finalize_installation_loop(Attempts :: integer()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+finalize_installation_loop(0) ->
+    ?error("Finalize installation attempts limit exceeded."),
+    {error, "Finalize installation attempts limit exceeded."};
+
+finalize_installation_loop(Attempts) ->
+    case onepanel_utils:get_control_panel_hosts() of
+        {ok, [_ | _]} ->
+            ok;
+        _ ->
+            timer:sleep(1000),
+            finalize_installation_loop(Attempts - 1)
+    end.

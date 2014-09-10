@@ -73,75 +73,70 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    #panel{
-        style = <<"position: relative;">>,
+    Header = onepanel_gui_utils:top_menu(software_tab, installation_link),
+    Main = #panel{
+        style = <<"margin-top: 10em; text-align: center;">>,
         body = [
-            onepanel_gui_utils:top_menu(installation_tab),
-
             #panel{
                 id = <<"error_message">>,
                 style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
                 class = <<"dialog dialog-danger">>
             },
-            #panel{
-                style = <<"margin-top: 150px; text-align: center;">>,
+            #h6{
+                style = <<"font-size: x-large; margin-bottom: 3em;">>,
+                body = <<"Step 5: Installation summary.">>
+            },
+            #table{
+                class = <<"table table-striped">>,
+                style = <<"width: 50%; margin: 0 auto;">>,
                 body = [
-                    #h6{
-                        style = <<"font-size: 18px;">>,
-                        body = <<"Step 5: Installation summary.">>
-                    },
-                    #table{
-                        class = <<"table table-striped">>,
-                        style = <<"width: 50%; margin: 0 auto; margin-top: 30px; margin-bottom: 30px;">>,
-                        body = [
-                            #tbody{
-                                id = <<"summary_table">>,
-                                body = summary_table_body()
-                            }
-                        ]
-                    },
-                    #panel{
-                        id = <<"progress">>,
-                        style = <<"text-align: left; margin-top: 30px; width: 50%; margin: 0 auto; display: none;">>,
-                        body = [
-                            #p{
-                                id = <<"progress_text">>,
-                                style = <<"font-weight: 300;">>,
-                                body = <<"">>
-                            },
-                            #panel{
-                                class = <<"progress">>,
-                                body = #panel{
-                                    id = <<"bar">>,
-                                    class = <<"bar">>,
-                                    style = <<"width: 0%;">>
-                                }
-                            }
-                        ]
+                    #tbody{
+                        id = <<"summary_table">>,
+                        body = summary_table_body()
+                    }
+                ]
+            },
+            #panel{
+                id = <<"progress">>,
+                style = <<"text-align: left; margin-top: 3em; width: 50%; margin: 0 auto; margin-top: 3em; display: none;">>,
+                body = [
+                    #p{
+                        id = <<"progress_text">>,
+                        style = <<"font-weight: 300;">>,
+                        body = <<"">>
                     },
                     #panel{
-                        style = <<"width: 50%; margin: 0 auto; margin-top: 30px; margin-bottom: 30px;">>,
-                        body = [
-                            #button{
-                                id = <<"back_button">>,
-                                postback = back,
-                                class = <<"btn btn-inverse btn-small">>,
-                                style = <<"float: left; width: 80px; font-weight: bold;">>,
-                                body = <<"Back">>
-                            },
-                            #button{
-                                id = <<"install_button">>,
-                                postback = install,
-                                class = <<"btn btn-inverse btn-small">>,
-                                style = <<"float: right; width: 80px; font-weight: bold;">>,
-                                body = <<"Install">>
-                            }
-                        ]
+                        class = <<"progress">>,
+                        body = #panel{
+                            id = <<"bar">>,
+                            class = <<"bar">>,
+                            style = <<"width: 0%;">>
+                        }
+                    }
+                ]
+            },
+            #panel{
+                style = <<"width: 50%; margin: 0 auto; margin-top: 3em;">>,
+                body = [
+                    #button{
+                        id = <<"back_button">>,
+                        postback = back,
+                        class = <<"btn btn-inverse btn-small">>,
+                        style = <<"float: left; width: 8em; font-weight: bold;">>,
+                        body = <<"Back">>
+                    },
+                    #button{
+                        id = <<"install_button">>,
+                        postback = install,
+                        class = <<"btn btn-inverse btn-small">>,
+                        style = <<"float: right; width: 8em; font-weight: bold;">>,
+                        body = <<"Install">>
                     }
                 ]
             }
-        ] ++ onepanel_gui_utils:logotype_footer(120)
-    }.
+        ]
+    },
+    onepanel_gui_utils:body(Header, Main).
 
 
 %% summary_table_body/1
@@ -362,7 +357,10 @@ get_info_message(_) -> <<"">>.
 installation_progress(?EVENT_ERROR, State, Pid) ->
     case installer:get_error(State) of
         {error, {hosts, Hosts}} ->
-            Pid ! {error, <<(get_error_message(installer:get_stage_and_job(State)))/binary, (onepanel_gui_utils:format_list(Hosts))/binary, ".<br>Please try again.">>};
+            Pid ! {error, <<(get_error_message(installer:get_stage_and_job(State)))/binary, (onepanel_gui_utils:format_list(Hosts))/binary,
+            ".<br>Please try again.">>};
+        {error, Reason} when is_list(Reason) ->
+            Pid ! {error, list_to_binary(Reason)};
         _ ->
             Pid ! {error, <<"An error occurred during installation.<br>Please try again.">>}
     end;
@@ -407,6 +405,9 @@ event(install) ->
             Config = lists:zip(Fields, Values),
             installer:install(Config, fun(Event, State) -> installation_progress(Event, State, Pid) end)
     end;
+
+event({close_message, MessageId}) ->
+    gui_jq:hide(MessageId);
 
 event(terminate) ->
     ok.

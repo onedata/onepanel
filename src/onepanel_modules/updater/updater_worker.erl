@@ -95,8 +95,8 @@ handle_call(get_state, _From, State) ->
 handle_call({update_to, #version{} = Vsn, ForceNodeRestart, CallbackFun}, _From, #?u_state{stage = ?STAGE_IDLE} = State) ->
     case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
         {ok, #?GLOBAL_CONFIG_RECORD{ccms = CCMHosts, workers = WorkerHosts}} ->
-            Workers = [list_to_atom(?DEFAULT_WORKER_NAME ++ "@" ++ Host) || Host <- WorkerHosts],
-            CCMs = [list_to_atom(?DEFAULT_CCM_NAME ++ "@" ++ Host) || Host <- CCMHosts],
+            Workers = [onepanel_utils:get_node(?DEFAULT_WORKER_NAME, Host) || Host <- WorkerHosts],
+            CCMs = [onepanel_utils:get_node(?DEFAULT_CCM_NAME, Host) || Host <- CCMHosts],
 
             NewState0 = State#?u_state{action_type = install, warning_stack = [], error_stack = [], nodes = Workers ++ CCMs, version = Vsn, callback = CallbackFun, force_node_restart = ForceNodeRestart},
 

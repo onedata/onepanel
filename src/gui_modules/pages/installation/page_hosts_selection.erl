@@ -61,42 +61,37 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    #panel{
-        style = <<"position: relative;">>,
+    Header = onepanel_gui_utils:top_menu(software_tab, installation_link),
+    Main = #panel{
+        style = <<"margin-top: 10em; text-align: center;">>,
         body = [
-            onepanel_gui_utils:top_menu(installation_tab),
-
             #panel{
                 id = <<"error_message">>,
                 style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
                 class = <<"dialog dialog-danger">>
             },
+            #h6{
+                style = <<"font-size: x-large; margin-bottom: 3em;">>,
+                body = <<"Step 1: Select cluster and database hosts.">>
+            },
+            #table{
+                class = <<"table table-bordered">>,
+                style = <<"width: 50%; margin: 0 auto;">>,
+                body = hosts_table_body()
+            },
             #panel{
-                style = <<"margin-top: 150px; text-align: center;">>,
-                body = [
-                    #h6{
-                        style = <<"font-size: 18px;">>,
-                        body = <<"Step 1: Select cluster and database hosts.">>
-                    },
-                    #table{
-                        class = <<"table table-bordered">>,
-                        style = <<"width: 50%; margin: 0 auto; margin-top: 30px;">>,
-                        body = hosts_table_body()
-                    },
-                    #panel{
-                        style = <<"margin-top: 30px; margin-bottom: 30px;">>,
-                        body = #button{
-                            id = <<"next_button">>,
-                            postback = next,
-                            class = <<"btn btn-inverse btn-small">>,
-                            style = <<"width: 80px; font-weight: bold;">>,
-                            body = <<"Next">>
-                        }
-                    }
-                ]
+                style = <<"margin-top: 3em;">>,
+                body = #button{
+                    id = <<"next_button">>,
+                    postback = next,
+                    class = <<"btn btn-inverse btn-small">>,
+                    style = <<"width: 8em; font-weight: bold;">>,
+                    body = <<"Next">>
+                }
             }
-        ] ++ onepanel_gui_utils:logotype_footer(120)
-    }.
+        ]
+    },
+    onepanel_gui_utils:body(Header, Main).
 
 
 %% hosts_table_body/0
@@ -172,7 +167,7 @@ hosts_table_body() ->
                                 id = <<Prefix/binary, HostId/binary>>,
                                 class = <<"checkbox no-label">>,
                                 for = <<Prefix/binary, HostId/binary>>,
-                                style = <<"width: 20px; margin: 0 auto;">>,
+                                style = <<"width: 2em; margin: 0 auto;">>,
                                 actions = gui_jq:postback_action(<<Prefix/binary, HostId/binary>>,
                                     {binary_to_atom(<<Prefix/binary, "toggled">>, latin1), Host, HostId, Disabled}),
                                 body = [
@@ -294,6 +289,9 @@ event(next) ->
                     onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_MAIN_CCM_SELECTION)
             end
     end;
+
+event({close_message, MessageId}) ->
+    gui_jq:hide(MessageId);
 
 event(terminate) ->
     ok.

@@ -88,20 +88,20 @@ start(Args) ->
                end,
 
         MainCCM = case proplists:get_value(main_ccm, Args) of
-                      undefined -> throw("Main CCM node not found in arguments list");
+                      undefined -> throw("Main CCM node not found in arguments list.");
                       Host -> Host
                   end,
 
         OptCCMs = case lists:member(MainCCM, CCMs) of
                       true -> lists:delete(MainCCM, CCMs);
-                      _ -> throw("Main CCM node not found among CCM nodes")
+                      _ -> throw("Main CCM node not found among CCM nodes.")
                   end,
 
         ConfiguredDbs = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> throw("Database nodes not configured");
+                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> throw("Database nodes not configured.");
                             {ok, #?GLOBAL_CONFIG_RECORD{ccms = [], dbs = Dbs}} -> Dbs;
-                            {ok, #?GLOBAL_CONFIG_RECORD{ccms = _}} -> throw("CCM nodes already configured");
-                            _ -> throw("Cannot get CCM nodes configuration")
+                            {ok, #?GLOBAL_CONFIG_RECORD{ccms = _}} -> throw("CCM nodes already configured.");
+                            _ -> throw("Cannot get CCM nodes configuration.")
                         end,
 
         {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(CCMs, ?MODULE, local_start, [MainCCM, OptCCMs, ConfiguredDbs], ?RPC_TIMEOUT),
@@ -139,9 +139,9 @@ stop(_) ->
     try
         {ConfiguredMainCCM, ConfiguredCCMs, ConfiguredDbs} =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                {ok, #?GLOBAL_CONFIG_RECORD{ccms = []}} -> throw("CCM nodes not configured");
+                {ok, #?GLOBAL_CONFIG_RECORD{ccms = []}} -> throw("CCM nodes not configured.");
                 {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM, ccms = CCMs, dbs = Dbs}} -> {MainCCM, CCMs, Dbs};
-                _ -> throw("Cannot get CCM nodes configuration")
+                _ -> throw("Cannot get CCM nodes configuration.")
             end,
 
         ConfiguredOptCCMs = lists:delete(ConfiguredMainCCM, ConfiguredCCMs),
@@ -180,9 +180,9 @@ restart(_) ->
     try
         {ConfiguredMainCCM, ConfiguredCCMs} =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                {ok, #?GLOBAL_CONFIG_RECORD{ccms = []}} -> throw("CCM nodes not configured");
+                {ok, #?GLOBAL_CONFIG_RECORD{ccms = []}} -> throw("CCM nodes not configured.");
                 {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM, ccms = CCMs}} -> {MainCCM, CCMs};
-                _ -> throw("Cannot get CCM nodes configuration")
+                _ -> throw("Cannot get CCM nodes configuration.")
             end,
 
         ConfiguredOptCCMs = lists:delete(ConfiguredMainCCM, ConfiguredCCMs),
@@ -333,9 +333,9 @@ local_restart() ->
     try
         {ConfiguredMainCCM, ConfiguredCCMs, ConfiguredDbs} =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                {ok, #?GLOBAL_CONFIG_RECORD{ccms = []}} -> throw("CCM nodes not configured");
+                {ok, #?GLOBAL_CONFIG_RECORD{ccms = []}} -> throw("CCM nodes not configured.");
                 {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM, ccms = CCMs, dbs = Dbs}} -> {MainCCM, CCMs, Dbs};
-                _ -> throw("Cannot get CCM nodes configuration")
+                _ -> throw("Cannot get CCM nodes configuration.")
             end,
 
         ConfiguredOptCCMs = lists:delete(ConfiguredMainCCM, ConfiguredCCMs),

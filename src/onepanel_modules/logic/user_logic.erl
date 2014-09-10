@@ -12,14 +12,14 @@
 -module(user_logic).
 
 -include("gui_modules/common.hrl").
--include("onepanel_modules/user_logic.hrl").
+-include("onepanel_modules/logic/user_logic.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% Length of salt added to user password
 -define(SALT_LENGTH, 10).
 
 %% API
--export([create_user/2, hash_password/1, authenticate/2, change_password/3]).
+-export([create_user/2, change_username/2, hash_password/1, authenticate/2, change_password/3]).
 
 %% ====================================================================
 %% API functions
@@ -41,6 +41,28 @@ create_user(Username, Password) ->
         _:Reason ->
             ?error("Cannot create user ~p: ~p", [Username, Reason]),
             {error, Reason}
+    end.
+
+
+%% change_username/2
+%% ====================================================================
+%% @doc Changes user's name in database.
+%% @end
+-spec change_username(Username :: binary(), NewUsername :: binary()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+change_username(Username, NewUsername) ->
+    try
+        Transaction = fun() ->
+            {ok, User} = dao:get_record(?USER_TABLE, Username),
+            ok = dao:save_record(?USER_TABLE, User#?USER_RECORD{username = NewUsername}),
+            ok = dao:delete_record(?USER_TABLE, Username)
+        end,
+        mnesia:activity(transaction, Transaction)
+    catch
+        _:Reason ->
+            ?error("Cannot change name of user ~p: ~p", [Username, Reason]),
+            {error, ?INTERNAL_SERVER_ERROR}
     end.
 
 
@@ -70,11 +92,11 @@ authenticate(Username, Password) ->
 %% ====================================================================
 %% @doc Changes user's password if authenticated
 %% @end
--spec change_password(Username :: binary(), OldPassword :: binary(), NewPassword :: binary()) -> Result
+-spec change_password(Username :: binary(), CurrentPassword :: binary(), NewPassword :: binary()) -> Result
     when Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-change_password(Username, OldPassword, NewPassword) ->
-    case authenticate(Username, OldPassword) of
+change_password(Username, CurrentPassword, NewPassword) ->
+    case authenticate(Username, CurrentPassword) of
         ok ->
             case create_user(Username, NewPassword) of
                 ok -> ok;

@@ -56,27 +56,39 @@ finish(State, Ctx) -> {ok, State, Ctx}.
 %% Root page
 route(?PAGE_ROOT) -> page_installation;
 
+%% Management pages
+route(?PAGE_LOGIN) -> page_login;
+route(?PAGE_LOGIN_VALIDATION) -> page_login_validation;
+route(?PAGE_LOGOUT) -> page_logout;
+route(?PAGE_ABOUT) -> page_about;
+route(?PAGE_ACCOUNT_SETTINGS) -> page_account_settings;
+route(?PAGE_SOFTWARE_SETTINGS) -> page_software_settings;
+route(?PAGE_PRIVACY_POLICY) -> page_privacy_policy;
+
 %% Installation pages
 route(?PAGE_INSTALLATION) -> page_installation;
 route(?PAGE_HOST_SELECTION) -> page_hosts_selection;
 route(?PAGE_MAIN_CCM_SELECTION) -> page_main_ccm_selection;
-route(?PAGE_ULIMITS) -> page_ulimits;
+route(?PAGE_SYSTEM_LIMITS) -> page_system_limits;
 route(?PAGE_ADD_STORAGE) -> page_add_storage;
 route(?PAGE_INSTALLATION_SUMMARY) -> page_installation_summary;
 route(?PAGE_INSTALLATION_SUCCESS) -> page_installation_success;
-
-%% Management pages
-route(?PAGE_LOGIN) -> page_login;
-route(?PAGE_LOGOUT) -> page_logout;
-route(?PAGE_ABOUT) -> page_about;
-route(?PAGE_MANAGE_ACCOUNT) -> page_manage_account;
-route(?PAGE_VALIDATE_LOGIN) -> page_validate_login;
 
 %% Update pages
 route(?PAGE_UPDATE) -> page_update;
 route(?PAGE_VERSION_SELECTION) -> page_version_selection;
 route(?PAGE_UPDATE_SUMMARY) -> page_update_summary;
 route(?PAGE_UPDATE_SUCCESS) -> page_update_success;
+
+%% Spaces pages
+route(?PAGE_SPACES_ACCOUNT) -> page_spaces_account;
+route(?PAGE_SPACES_SETTINGS) -> page_spaces_settings;
+
+%% Registration pages
+route(?PAGE_CONNECTION_CHECK) -> page_connection_check;
+route(?PAGE_PORTS_CHECK) -> page_ports_check;
+route(?PAGE_REGISTRATION_SUMMARY) -> page_registration_summary;
+route(?PAGE_REGISTRATION_SUCCESS) -> page_registration_success;
 
 %% Undefined pages
 route(_) -> page_404.

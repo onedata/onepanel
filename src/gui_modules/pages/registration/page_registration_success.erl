@@ -6,15 +6,14 @@
 %% @end
 %% ===================================================================
 %% @doc: This module contains n2o website code.
-%% This page is a starting point for software update.
+%% This page is displayed in case of successful registration.
 %% @end
 %% ===================================================================
 
--module(page_update).
+-module(page_registration_success).
 -export([main/0, event/1]).
+
 -include("gui_modules/common.hrl").
--include("onepanel_modules/updater/state.hrl").
--include("onepanel_modules/updater/stages.hrl").
 
 %% ====================================================================
 %% API functions
@@ -29,23 +28,11 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case installer_utils:get_workers() of
-                [] ->
-                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]};
+            case onepanel_gui_utils:maybe_redirect(?CURRENT_REGISTRATION_PAGE, ?PAGE_REGISTRATION_SUCCESS, ?PAGE_SPACES_ACCOUNT) of
+                true ->
+                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
-                    case gui_ctx:get(?CURRENT_UPDATE_PAGE) of
-                        undefined ->
-                            State = updater:get_state(),
-                            case updater_state:get_stage_and_job(State) of
-                                {?STAGE_IDLE, _} ->
-                                    onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_VERSION_SELECTION);
-                                _ ->
-                                    onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_UPDATE_SUMMARY)
-                            end;
-                        Page ->
-                            gui_jq:redirect(Page)
-                    end,
-                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
+                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]}
             end;
         false ->
             gui_jq:redirect_to_login(true),
@@ -60,7 +47,7 @@ main() ->
     Result :: binary().
 %% ====================================================================
 title() ->
-    <<"Update">>.
+    <<"Successful registration">>.
 
 
 %% body/0
@@ -70,27 +57,32 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(software_tab, update_link),
+    Header = onepanel_gui_utils:top_menu(spaces_tab, spaces_account_link),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = #panel{
             style = <<"width: 50%; margin: 0 auto;">>,
-            class = <<"alert alert-info">>,
-            body = [
-                #h3{
-                    body = <<"Software is not installed">>
-                },
-                #p{
-                    body = <<"Please complete installation process before proceeding with update.">>
-                },
-                #link{
-                    id = <<"ok_button">>,
-                    postback = to_root_page,
-                    class = <<"btn btn-info">>,
-                    style = <<"width: 80px; font-weight: bold;">>,
-                    body = <<"OK">>
-                }
-            ]
+            body = #panel{
+                class = <<"alert alert-success">>,
+                body = [
+                    #h3{
+                        body = <<"Successful registration">>
+                    },
+                    case provider_logic:get_provider_id() of
+                        undefined -> #p{};
+                        ProviderId -> #p{
+                            body = <<"Your provider ID: <b>", ProviderId/binary, "</b>">>
+                        }
+                    end,
+                    #link{
+                        id = <<"ok_button">>,
+                        postback = to_account_page,
+                        style = <<"width: 80px;">>,
+                        class = <<"btn btn-primary">>,
+                        body = <<"OK">>
+                    }
+                ]
+            }
         }
     },
     onepanel_gui_utils:body(Header, Main).
@@ -109,8 +101,9 @@ event(init) ->
     gui_jq:bind_key_to_click(<<"13">>, <<"ok_button">>),
     ok;
 
-event(to_root_page) ->
-    gui_jq:redirect(?PAGE_ROOT);
+event(to_account_page) ->
+    gui_ctx:put(?CURRENT_REGISTRATION_PAGE, undefined),
+    gui_jq:redirect(?PAGE_SPACES_ACCOUNT);
 
 event(terminate) ->
     ok.

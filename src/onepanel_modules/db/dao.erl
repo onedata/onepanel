@@ -14,7 +14,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([save_record/2, update_record/3, get_record/2, exist_record/2, get_table_record/2]).
+-export([save_record/2, delete_record/2, update_record/3, get_record/2, get_records/1, exist_record/2]).
 
 %% ====================================================================
 %% API functions
@@ -39,6 +39,29 @@ save_record(Table, Record) ->
     catch
         _:Reason ->
             ?error("Cannot save record ~p in table ~p: ~p", [Record, Table, Reason]),
+            {error, Reason}
+    end.
+
+
+%% delete_record/2
+%% ====================================================================
+%% @doc Deletes record from database table.
+%% @end
+-spec delete_record(Table :: atom(), Key :: term()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+delete_record(Table, Key) ->
+    try
+        Transaction = fun() ->
+            case mnesia:delete({Table, Key}) of
+                ok -> ok;
+                Other -> {error, Other}
+            end
+        end,
+        mnesia:activity(transaction, Transaction)
+    catch
+        _:Reason ->
+            ?error("Cannot delete record from table ~p using key ~p: ~p", [Table, Key, Reason]),
             {error, Reason}
     end.
 
@@ -106,6 +129,29 @@ get_record(Table, Key) ->
     catch
         _:Reason ->
             ?error("Cannot get record from table ~p using key ~p: ~p", [Table, Key, Reason]),
+            {error, Reason}
+    end.
+
+
+%% get_records/1
+%% ====================================================================
+%% @doc Gets all records from database table.
+%% @end
+-spec get_records(Table :: atom()) -> Result when
+    Result :: {ok, Record :: record()} | {error, Reason :: term()}.
+%% ====================================================================
+get_records(Table) ->
+    try
+        Transaction = fun() ->
+            case mnesia:select(Table, [{'_', [], ['$_']}]) of
+                Records when is_list(Records) -> {ok, Records};
+                Other -> {error, Other}
+            end
+        end,
+        mnesia:activity(transaction, Transaction)
+    catch
+        _:Reason ->
+            ?error("Cannot get all records from table ~p: ~p", [Table, Reason]),
             {error, Reason}
     end.
 
