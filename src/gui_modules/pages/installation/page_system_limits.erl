@@ -74,7 +74,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(software_tab, installation_link),
+    Header = onepanel_gui_utils:top_menu(software_tab, installation_link, true),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
@@ -211,7 +211,7 @@ comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimit
                 ])),
                 gui_jq:fade_in(<<"system_limits_table">>, 500),
                 gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
-                gui_jq:wire(<<"$('#next_button').delay(500).queue(function() { $(this).prop('disabled', '').dequeue(); })">>, false),
+                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
                 gui_comet:flush(),
                 State;
 
@@ -282,7 +282,6 @@ event(init) ->
             {Host, integer_to_binary(Id), limit_value(OpenFilesLimit, ?DEFAULT_OPEN_FILES), limit_value(ProcessesLimit, ?DEFAULT_PROCESSES)}
         end, lists:zip(SessionHosts, tl(lists:seq(0, length(SessionHosts))))),
 
-        gui_jq:show(<<"main_spinner">>),
         gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),
 
         {ok, Pid} = gui_comet:spawn(fun() ->

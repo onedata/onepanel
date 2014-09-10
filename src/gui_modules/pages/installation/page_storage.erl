@@ -72,7 +72,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(software_tab, installation_link),
+    Header = onepanel_gui_utils:top_menu(software_tab, installation_link, true),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
@@ -240,7 +240,7 @@ comet_loop(#?STATE{counter = Counter, db_config = DbConfig, session_config = #?C
                 gui_jq:fade_in(<<"storage_paths_table">>, 500),
                 gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
                 gui_jq:focus(<<"storage_path_textbox_", (integer_to_binary(Counter + 1))/binary>>),
-                gui_jq:wire(<<"$('#next_button').delay(500).queue(function() { $(this).prop('disabled', '').dequeue(); })">>, false),
+                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
                 gui_comet:flush(),
                 State;
 
@@ -323,8 +323,6 @@ event(init) ->
     try
         {ok, DbConfig} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
         {ok, SessionConfig} = onepanel_gui_utils:get_session_config(),
-
-        gui_jq:show(<<"main_spinner">>),
 
         {ok, Pid} = gui_comet:spawn(fun() ->
             comet_loop(#?STATE{counter = length(SessionConfig#?CONFIG.storage_paths), db_config = DbConfig, session_config = SessionConfig})

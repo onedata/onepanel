@@ -71,7 +71,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(spaces_tab, spaces_account_link),
+    Header = onepanel_gui_utils:top_menu(spaces_tab, spaces_account_link, true),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
@@ -203,7 +203,7 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                 ])),
                 gui_jq:fade_in(<<"ports_table">>, 500),
                 gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
-                gui_jq:wire(<<"$('#next_button').delay(500).queue(function() { $(this).prop('disabled', '').dequeue(); })">>, false),
+                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
                 gui_comet:flush(),
                 State;
 
@@ -271,7 +271,6 @@ event(init) ->
             {Host, integer_to_binary(Id), port_value(GuiPort, DefaultGuiPort), port_value(RestPort, DefaultRestPort)}
         end, lists:zip(Hosts, tl(lists:seq(0, length(Hosts))))),
 
-        gui_jq:show(<<"main_spinner">>),
         gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),
 
         {ok, Pid} = gui_comet:spawn(fun() ->

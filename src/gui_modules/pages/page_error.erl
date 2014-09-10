@@ -43,7 +43,14 @@ main() ->
 %% ====================================================================
 title() -> <<"Error">>.
 
-%% This will be placed in the template instead of {{body}} tag
+
+%% body/0
+%% ====================================================================
+%% @doc This will be placed instead of {{body}} tag in template.
+%% @end
+-spec body() -> Result when
+    Result :: #panel{}.
+%% ====================================================================
 body() ->
     {Reason, Description} = get_reason_and_description(),
     Header = [],

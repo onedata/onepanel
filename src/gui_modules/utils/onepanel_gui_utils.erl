@@ -15,7 +15,8 @@
 -include("onepanel_modules/installer/state.hrl").
 -include_lib("ctool/include/logging.hrl").
 
--export([body/1, body/2, body/3, top_menu/1, top_menu/2, account_settings_tab/1, logotype_footer/0, nav_buttons/1]).
+-export([body/1, body/2, body/3, top_menu/1, top_menu/2, top_menu/3, account_settings_tab/1, logotype_footer/0, nav_buttons/1, nav_buttons/2]).
+-export([collapse_button/1, collapse_button/2, expand_button/1, expand_button/2]).
 -export([get_session_config/0, format_list/1, message/2, message/3]).
 -export([change_page/2, maybe_redirect/3]).
 
@@ -90,19 +91,35 @@ logotype_footer() ->
     Result :: #panel{}.
 %% ====================================================================
 nav_buttons(Buttons) ->
+    nav_buttons(Buttons, <<"50%">>).
+
+
+%% nav_buttons/2
+%% ====================================================================
+%% @doc Convienience function to render navigation buttons with custom
+%% width.
+%% @end
+-spec nav_buttons(Buttons :: [{Id, Event, Disabled, Body}], Width :: binary()) -> Result when
+    Id :: binary(),
+    Event :: {postback, term()} | {actions, term()} | undefined,
+    Disabled :: boolean(),
+    Body :: binary(),
+    Result :: #panel{}.
+%% ====================================================================
+nav_buttons(Buttons, Width) ->
     JustifyContent = case Buttons of
                          [_, _ | _] -> <<"space-between">>;
                          _ -> <<"center">>
                      end,
     #panel{
-        style = <<"width: 50%; margin: 0 auto; margin-top: 3em; display: flex; justify-content: ", JustifyContent/binary, ";">>,
+        style = <<"width: ", Width/binary, "; margin: 0 auto; margin-top: 3em; display: flex; justify-content: ", JustifyContent/binary, ";">>,
         body = lists:map(fun
             ({Id, {postback, Postback}, Disabled, Body}) ->
                 #button{
                     id = Id,
                     postback = Postback,
                     class = <<"btn btn-inverse btn-small">>,
-                    style = <<"width: 8em; font-weight: bold;">>,
+                    style = <<"font-weight: bold;">>,
                     disabled = Disabled,
                     body = Body
                 };
@@ -111,7 +128,7 @@ nav_buttons(Buttons) ->
                     id = Id,
                     actions = Actions,
                     class = <<"btn btn-inverse btn-small">>,
-                    style = <<"width: 8em; font-weight: bold;">>,
+                    style = <<"font-weight: bold;">>,
                     disabled = Disabled,
                     body = Body
                 };
@@ -119,13 +136,73 @@ nav_buttons(Buttons) ->
                 #button{
                     id = Id,
                     class = <<"btn btn-inverse btn-small">>,
-                    style = <<"width: 8em; font-weight: bold;">>,
+                    style = <<"font-weight: bold;">>,
                     disabled = Disabled,
                     body = Body
                 };
             (_) ->
                 #button{}
         end, Buttons)
+    }.
+
+
+%% collapse_button/1
+%% ====================================================================
+%% @doc Renders collapse button.
+%% @end
+-spec collapse_button(Postback :: term()) -> Result when
+    Result :: #link{}.
+%% ====================================================================
+collapse_button(Postback) ->
+    collapse_button(<<"Collapse">>, Postback).
+
+
+%% collapse_button/2
+%% ====================================================================
+%% @doc Renders collapse button.
+%% @end
+-spec collapse_button(Title :: binary(), Postback :: term()) -> Result when
+    Result :: #link{}.
+%% ====================================================================
+collapse_button(Title, Postback) ->
+    #link{
+        title = Title,
+        class = <<"glyph-link">>,
+        postback = Postback,
+        body = #span{
+            style = <<"font-size: large; vertical-align: top;">>,
+            class = <<"fui-triangle-up">>
+        }
+    }.
+
+
+%% expand_button/1
+%% ====================================================================
+%% @doc Renders expand button.
+%% @end
+-spec expand_button(Postback :: term()) -> Result when
+    Result :: #link{}.
+%% ====================================================================
+expand_button(Postback) ->
+    expand_button(<<"Expand">>, Postback).
+
+
+%% expand_button/2
+%% ====================================================================
+%% @doc Renders expand button.
+%% @end
+-spec expand_button(Title :: binary(), Postback :: term()) -> Result when
+    Result :: #link{}.
+%% ====================================================================
+expand_button(Title, Postback) ->
+    #link{
+        title = Title,
+        class = <<"glyph-link">>,
+        postback = Postback,
+        body = #span{
+            style = <<"font-size: large;  vertical-align: top;">>,
+            class = <<"fui-triangle-down">>
+        }
     }.
 
 
@@ -145,11 +222,25 @@ top_menu(ActiveTabID) ->
 %% ====================================================================
 %% @doc Convienience function to render top menu in GUI pages.
 %% Item with ActiveTabID and ActiveLinkID will be highlighted as active.
+%% Main page spinner will not be shown.
 %% @end
 -spec top_menu(ActiveTabID :: atom(), ActiveLinkID :: atom()) -> Result when
     Result :: #panel{}.
 %% ====================================================================
 top_menu(ActiveTabID, ActiveLinkID) ->
+    top_menu(ActiveTabID, ActiveLinkID, false).
+
+
+%% top_menu/2
+%% ====================================================================
+%% @doc Convienience function to render top menu in GUI pages.
+%% Item with ActiveTabID and ActiveLinkID will be highlighted as active.
+%% It allows to show or hide main page spinner.
+%% @end
+-spec top_menu(ActiveTabID :: atom(), ActiveLinkID :: atom(), Spinner :: boolean()) -> Result when
+    Result :: #panel{}.
+%% ====================================================================
+top_menu(ActiveTabID, ActiveLinkID, Spinner) ->
     Process = fun(ActiveItem, List) ->
         lists:map(fun({ItemID, ListItem}) ->
             case ItemID of
@@ -191,10 +282,15 @@ top_menu(ActiveTabID, ActiveLinkID) ->
             url = ?PAGE_LOGOUT, body = #span{class = <<"fui-power">>}}}}
     ]),
 
+    SpinnerDisplay = case Spinner of
+                         true -> <<"">>;
+                         _ -> <<" display: none;">>
+                     end,
+
     [
         #panel{
             id = <<"main_spinner">>,
-            style = <<"position: absolute; top: 15px; left: 15px; z-index: 1234; width: 32px; display: none;">>,
+            style = <<"position: absolute; top: 15px; left: 15px; z-index: 1234; width: 32px;", SpinnerDisplay/binary>>,
             body = #image{
                 image = <<"/images/spinner.gif">>
             }

@@ -76,7 +76,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(software_tab, installation_link),
+    Header = onepanel_gui_utils:top_menu(software_tab, installation_link, true),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
@@ -270,7 +270,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                     [] ->
                         ok;
                     _ ->
-                        gui_jq:wire(<<"$('#install_button').delay(500).queue(function() { $(this).prop('disabled', '').dequeue(); })">>, false)
+                        gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"">>)
                 end,
                 gui_comet:flush(),
                 State;
@@ -378,7 +378,6 @@ event(init) ->
             comet_loop(#?STATE{config = Config, steps = length(installer:get_flatten_stages())})
         end),
         put(?COMET_PID, Pid),
-        gui_jq:show(<<"main_spinner">>),
         Pid ! render_summary_table,
 
         case installer:get_stage_and_job(installer:get_state()) of

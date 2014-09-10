@@ -72,7 +72,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(software_tab, installation_link),
+    Header = onepanel_gui_utils:top_menu(software_tab, installation_link, true),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
@@ -169,7 +169,7 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFI
                 gui_jq:update(<<"hosts_table">>, hosts_table_body(Hosts, DbConfig, SessionConfig)),
                 gui_jq:fade_in(<<"hosts_table">>, 500),
                 gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
-                gui_jq:wire(<<"$('#next_button').delay(500).queue(function() { $(this).prop('disabled', '').dequeue(); })">>, false),
+                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
                 gui_comet:flush(),
                 State;
 
@@ -272,7 +272,6 @@ event(init) ->
                                    SessionConfig
                            end,
 
-        gui_jq:show(<<"main_spinner">>),
         gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),
 
         {ok, Pid} = gui_comet:spawn(fun() ->
