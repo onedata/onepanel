@@ -84,7 +84,7 @@ body() ->
             },
             #panel{
                 class = <<"btn-group">>,
-                body = main_ccm_body()
+                body = main_ccm()
             },
             onepanel_gui_utils:nav_buttons([
                 {<<"back_button">>, {postback, back}, false, <<"Back">>},
@@ -95,14 +95,14 @@ body() ->
     onepanel_gui_utils:body(Header, Main).
 
 
-%% main_ccm_body/0
+%% main_ccm/0
 %% ====================================================================
 %% @doc Renders main CCM dropdown body and highlights current choice.
 %% @end
--spec main_ccm_body() -> Result when
+-spec main_ccm() -> Result when
     Result :: [term()].
 %% ====================================================================
-main_ccm_body() ->
+main_ccm() ->
     try
         {ok, DbConfig} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
         {ok, SessionConfig} = onepanel_gui_utils:get_session_config(),
@@ -129,7 +129,7 @@ main_ccm_body() ->
                 id = <<"ccms_dropdown">>,
                 class = <<"dropdown-menu dropdown-inverse">>,
                 style = <<"overflow-y: auto; max-height: 20em;">>,
-                body = ccms_list_body(SessionConfig#?CONFIG.main_ccm, SessionConfig#?CONFIG.ccms)
+                body = ccms_list(SessionConfig#?CONFIG.main_ccm, SessionConfig#?CONFIG.ccms)
             }
         ]
     catch
@@ -140,14 +140,14 @@ main_ccm_body() ->
     end.
 
 
-%% ccms_list_body/2
+%% ccms_list/2
 %% ====================================================================
 %% @doc Renders CCMs' list body.
 %% @end
--spec ccms_list_body(MainCCM :: string(), CCMs :: [string()]) -> Result when
+-spec ccms_list(MainCCM :: string(), CCMs :: [string()]) -> Result when
     Result :: [#li{}].
 %% ====================================================================
-ccms_list_body(MainCCM, CCMs) ->
+ccms_list(MainCCM, CCMs) ->
     {Body, _} = lists:foldl(fun(CCM, {List, Id}) ->
         CCMId = <<"ccm_li_", (integer_to_binary(Id))/binary>>,
         {
@@ -193,7 +193,7 @@ event({set_main_ccm, MainCCM, CCMs}) ->
     Config = gui_ctx:get(?CONFIG_ID),
     gui_ctx:put(?CONFIG_ID, Config#?CONFIG{main_ccm = MainCCM}),
     gui_jq:update(<<"ccms_label">>, <<"Primary CCM host: <b>", (gui_str:html_encode(MainCCM))/binary, "</b>">>),
-    gui_jq:update(<<"ccms_dropdown">>, ccms_list_body(MainCCM, CCMs));
+    gui_jq:update(<<"ccms_dropdown">>, ccms_list(MainCCM, CCMs));
 
 event(terminate) ->
     ok.

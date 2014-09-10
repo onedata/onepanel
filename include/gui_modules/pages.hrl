@@ -37,7 +37,7 @@
 -define(PAGE_REGISTRATION_SUCCESS, <<"/spaces/registration/success">>).
 
 %% Spaces pages
--define(PAGE_SPACE_SETTINGS, <<"/spaces">>).
+-define(PAGE_SPACE_DETAILS, <<"/spaces">>).
 -define(PAGE_SPACES_ACCOUNT, <<"/spaces/account">>).
 -define(PAGE_SPACES_SETTINGS, <<"/spaces/settings">>).
 

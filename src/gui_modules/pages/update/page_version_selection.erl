@@ -87,7 +87,7 @@ body() ->
                     },
                     #panel{
                         class = <<"btn-group">>,
-                        body = versions_body()
+                        body = versions()
                     },
                     onepanel_gui_utils:nav_buttons([{<<"next_button">>, {postback, next}, false, <<"Next">>}])
                 ]
@@ -97,14 +97,14 @@ body() ->
     onepanel_gui_utils:body(Header, Main).
 
 
-%% versions_body/0
+%% versions/0
 %% ====================================================================
 %% @doc Renders software version dropdown body and highlights current choice.
 %% @end
--spec versions_body() -> Result when
+-spec versions() -> Result when
     Result :: [term()].
 %% ====================================================================
-versions_body() ->
+versions() ->
     try
         AvailableVersions = onepanel_utils:get_available_software_versions(),
         ChosenVersion = case gui_ctx:get(?CHOSEN_VERSION) of
@@ -134,7 +134,7 @@ versions_body() ->
                 id = <<"version_dropdown">>,
                 class = <<"dropdown-menu dropdown-inverse">>,
                 style = <<"overflow-y: auto; max-height: 20em;">>,
-                body = version_list_body(ChosenVersion, lists:reverse(AvailableVersions))
+                body = versions_list(ChosenVersion, lists:reverse(AvailableVersions))
             }
         ]
     catch
@@ -145,14 +145,14 @@ versions_body() ->
     end.
 
 
-%% version_list_body/2
+%% versions_list/2
 %% ====================================================================
 %% @doc Renders software versions list body.
 %% @end
--spec version_list_body(MainCCM :: string(), CCMs :: [string()]) -> Result when
+-spec versions_list(MainCCM :: string(), CCMs :: [string()]) -> Result when
     Result :: [#li{}].
 %% ====================================================================
-version_list_body(ChosenVersion, Versions) ->
+versions_list(ChosenVersion, Versions) ->
     {Body, _} = lists:foldl(fun(Version, {List, Id}) ->
         VersionId = <<"version_li_", (integer_to_binary(Id))/binary>>,
         {
@@ -191,7 +191,7 @@ event(init) ->
 event({set_version, ChosenVersion, Versions}) ->
     gui_ctx:put(?CHOSEN_VERSION, ChosenVersion),
     gui_jq:update(<<"version_label">>, <<"Version: <b>", (onepanel_utils:get_software_version_name(ChosenVersion))/binary, "</b>">>),
-    gui_jq:update(<<"version_dropdown">>, version_list_body(ChosenVersion, Versions));
+    gui_jq:update(<<"version_dropdown">>, versions_list(ChosenVersion, Versions));
 
 event(next) ->
     ChosenVersion = gui_ctx:get(?CHOSEN_VERSION),

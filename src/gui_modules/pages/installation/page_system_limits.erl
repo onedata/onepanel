@@ -101,14 +101,14 @@ body() ->
     onepanel_gui_utils:body(Header, Main).
 
 
-%% system_limits_table_body/2
+%% system_limits_table/2
 %% ====================================================================
 %% @doc Renders system limits table body.
 %% @end
--spec system_limits_table_body(InstalledHosts :: [string()], SystemLimits :: [{Host :: string(), Id :: binary(), OpenFilesLimit :: integer(), ProcessesLimit :: integer()}]) -> Result
+-spec system_limits_table(InstalledHosts :: [string()], SystemLimits :: [{Host :: string(), Id :: binary(), OpenFilesLimit :: integer(), ProcessesLimit :: integer()}]) -> Result
     when Result :: [#tr{}].
 %% ====================================================================
-system_limits_table_body(InstalledHosts, SystemLimits) ->
+system_limits_table(InstalledHosts, SystemLimits) ->
     ColumnStyle = <<"text-align: center; vertical-align: inherit;">>,
 
     Header = #tr{
@@ -204,7 +204,7 @@ comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimit
                 TextboxIds = lists:foldl(fun({_, Id, _, _}, TextboxIdsAcc) ->
                     [<<"open_files_textbox_", Id/binary>>, <<"processes_textbox_", Id/binary>> | TextboxIdsAcc]
                 end, [], SystemLimits),
-                gui_jq:update(<<"system_limits_table">>, system_limits_table_body(InstalledHosts, SystemLimits)),
+                gui_jq:update(<<"system_limits_table">>, system_limits_table(InstalledHosts, SystemLimits)),
                 gui_jq:update(<<"nav_buttons">>, onepanel_gui_utils:nav_buttons([
                     {<<"back_button">>, {postback, back}, false, <<"Back">>},
                     {<<"next_button">>, {actions, gui_jq:form_submit_action(<<"next_button">>, {set_system_limits, SystemLimits}, TextboxIds)}, true, <<"Next">>}
@@ -224,7 +224,7 @@ comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimit
                             lists:foldl(fun({LimitId, Limit, Type}, HostStatus) ->
                                 try
                                     true = validate_limit(Limit),
-                                    ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{Type, binary_to_integer(Limit)}]),
+                                    ok = installer_utils:set_system_limit(Type, binary_to_integer(Limit)),
                                     gui_jq:css(LimitId, <<"border-color">>, <<"green">>),
                                     HostStatus
                                 catch
@@ -233,8 +233,8 @@ comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimit
                                         error
                                 end
                             end, Status, [
-                                {OpenFilesId, OpenFilesLimit, open_files_limit},
-                                {ProcessesId, ProcessesLimit, processes_limit}
+                                {OpenFilesId, OpenFilesLimit, open_files},
+                                {ProcessesId, ProcessesLimit, process_limit}
                             ])
                     end
                 end, ok, NewSystemLimits) of
@@ -272,7 +272,7 @@ event(init) ->
 
         SystemLimits = lists:map(fun({Host, Id}) ->
             {OpenFilesLimit, ProcessesLimit} = case dao:get_record(?LOCAL_CONFIG_TABLE, Host) of
-                                                   {ok, #?LOCAL_CONFIG_RECORD{open_files_limit = Limit1, processes_limit = Limit2}} ->
+                                                   {ok, #?LOCAL_CONFIG_RECORD{open_files = Limit1, process_limit = Limit2}} ->
                                                        {Limit1, Limit2};
                                                    {error, <<"Record not found.">>} ->
                                                        {?DEFAULT_OPEN_FILES, ?DEFAULT_PROCESSES};

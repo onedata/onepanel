@@ -127,14 +127,14 @@ body() ->
     onepanel_gui_utils:body(Header, Main).
 
 
-%% summary_table_body/1
+%% summary_table/1
 %% ====================================================================
 %% @doc Renders summary table body.
 %% @end
--spec summary_table_body(Config :: #?CONFIG{}) -> Result
+-spec summary_table(Config :: #?CONFIG{}) -> Result
     when Result :: [#tr{}].
 %% ====================================================================
-summary_table_body(#?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs, storage_paths = StoragePaths}) ->
+summary_table(#?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs, storage_paths = StoragePaths}) ->
     lists:map(fun({Id, Description, Details}) ->
         #tr{
             id = Id,
@@ -263,7 +263,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
     NewState = try
         receive
             render_summary_table ->
-                gui_jq:update(<<"summary_table">>, summary_table_body(Config)),
+                gui_jq:update(<<"summary_table">>, summary_table(Config)),
                 gui_jq:fade_in(<<"summary_table">>, 500),
                 gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
                 case Config#?CONFIG.workers of
@@ -338,7 +338,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                 State#?STATE{step = undefined};
 
             {error, Text} ->
-                gui_jq:update(<<"summary_table">>, summary_table_body(Config)),
+                gui_jq:update(<<"summary_table">>, summary_table(Config)),
                 onepanel_gui_utils:message(<<"error_message">>, Text),
                 gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),

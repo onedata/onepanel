@@ -104,14 +104,14 @@ body() ->
     onepanel_gui_utils:body(Header, Main).
 
 
-%% storage_paths_table_body/2
+%% storage_paths_table/2
 %% ====================================================================
 %% @doc Renders storage table body.
 %% @end
--spec storage_paths_table_body(DbConfig :: #?CONFIG{}, SessionConfig :: #?CONFIG{}) -> Result
+-spec storage_paths_table(DbConfig :: #?CONFIG{}, SessionConfig :: #?CONFIG{}) -> Result
     when Result :: [#tr{}].
 %% ====================================================================
-storage_paths_table_body(#?CONFIG{storage_paths = DbStoragePaths}, #?CONFIG{storage_paths = SessionStoragePaths}) ->
+storage_paths_table(#?CONFIG{storage_paths = DbStoragePaths}, #?CONFIG{storage_paths = SessionStoragePaths}) ->
     State = case DbStoragePaths of
                 [] -> removable;
                 _ -> none
@@ -236,7 +236,7 @@ comet_loop(#?STATE{counter = Counter, db_config = DbConfig, session_config = #?C
     NewState = try
         receive
             render_storage_paths_table ->
-                gui_jq:update(<<"storage_paths_table">>, storage_paths_table_body(DbConfig, SessionConfig)),
+                gui_jq:update(<<"storage_paths_table">>, storage_paths_table(DbConfig, SessionConfig)),
                 gui_jq:fade_in(<<"storage_paths_table">>, 500),
                 gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
                 gui_jq:focus(<<"storage_path_textbox_", (integer_to_binary(Counter + 1))/binary>>),

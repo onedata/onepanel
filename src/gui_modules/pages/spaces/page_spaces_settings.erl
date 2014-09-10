@@ -213,8 +213,8 @@ space_row_expanded(RowId, #space_details{id = SpaceId, name = SpaceName} = Space
             }
         }
     end, [
-        {<<"Manage Space">>, {manage_space, SpaceDetails}, <<"fui-gear">>},
-        {<<"Revoke Space support">>, {revoke_space_support, RowId, SpaceDetails}, <<"fui-trash">>}
+        {<<"Details">>, {get_details, SpaceDetails}, <<"fui-info">>},
+        {<<"Revoke support">>, {revoke_space_support, RowId, SpaceDetails}, <<"fui-trash">>}
     ]),
     [
         #td{
@@ -293,6 +293,7 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                         {ok, SpaceId} = gr_providers:create_space(provider, [{<<"name">>, Name}, {<<"token">>, Token}]),
                         {ok, SpaceDetails} = gr_providers:get_space_details(provider, SpaceId),
                         add_space_row(RowId, SpaceDetails),
+                        onepanel_gui_utils:message(<<"ok_message">>, <<"Created Space's ID: <b>", SpaceId/binary, "</b>">>),
                         State#?STATE{counter = Counter + 1, spaces_details = [{RowId, SpaceDetails} | SpacesDetails]}
                     catch
                         _:Reason ->
@@ -313,6 +314,7 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                         {ok, SpaceId} = gr_providers:support_space(provider, [{<<"token">>, Token}]),
                         {ok, SpaceDetails} = gr_providers:get_space_details(provider, SpaceId),
                         add_space_row(RowId, SpaceDetails),
+                        onepanel_gui_utils:message(<<"ok_message">>, <<"Supported Space's ID: <b>", SpaceId/binary, "</b>">>),
                         State#?STATE{counter = Counter + 1, spaces_details = [{RowId, SpaceDetails} | SpacesDetails]}
                     catch
                         _:Reason ->
@@ -444,7 +446,7 @@ event({revoke_space_support, RowId, #space_details{id = SpaceId}}) ->
     Script = <<"revokeSpaceSupport(['", SpaceId/binary, "','", RowId/binary, "']);">>,
     gui_jq:dialog_popup(Title, Message, Script);
 
-event({manage_space, #space_details{id = SpaceId}}) ->
+event({get_details, #space_details{id = SpaceId}}) ->
     gui_jq:redirect(<<"/spaces?id=", SpaceId/binary>>);
 
 event({message, Message}) ->

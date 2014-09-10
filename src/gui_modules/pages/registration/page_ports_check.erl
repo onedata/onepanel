@@ -97,14 +97,14 @@ body() ->
     onepanel_gui_utils:body(Header, Main).
 
 
-%% ports_table_body/3
+%% ports_table/3
 %% ====================================================================
 %% @doc Renders system ports table body.
 %% @end
--spec ports_table_body(Ports :: [{Host :: string(), Id :: binary(), GuiPort :: integer(), RestPort :: integer()}]) -> Result
+-spec ports_table(Ports :: [{Host :: string(), Id :: binary(), GuiPort :: integer(), RestPort :: integer()}]) -> Result
     when Result :: [#tr{}].
 %% ====================================================================
-ports_table_body(Ports) ->
+ports_table(Ports) ->
     ColumnStyle = <<"text-align: center; vertical-align: inherit;">>,
 
     Header = #tr{
@@ -196,7 +196,7 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                 TextboxIds = lists:foldl(fun({_, Id, _, _}, TextboxIdsAcc) ->
                     [<<"gui_port_textbox_", Id/binary>>, <<"rest_port_textbox_", Id/binary>> | TextboxIdsAcc]
                 end, [], Ports),
-                gui_jq:update(<<"ports_table">>, ports_table_body(Ports)),
+                gui_jq:update(<<"ports_table">>, ports_table(Ports)),
                 gui_jq:update(<<"nav_buttons">>, onepanel_gui_utils:nav_buttons([
                     {<<"back_button">>, {postback, back}, false, <<"Back">>},
                     {<<"next_button">>, {actions, gui_jq:form_submit_action(<<"next_button">>, {set_ports, Ports}, TextboxIds)}, true, <<"Next">>}

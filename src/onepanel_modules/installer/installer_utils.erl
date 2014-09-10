@@ -16,7 +16,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([set_system_limits/2, get_system_limits_cmd/1]).
+-export([set_system_limit/2, get_system_limits_cmd/1]).
 -export([get_workers/0, get_global_config/0, get_timestamp/0, set_timestamp/0]).
 -export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/3]).
 -export([finalize_installation/1]).
@@ -32,18 +32,28 @@
 %% ====================================================================
 
 
-%% set_system_limits/2
+%% set_system_limit/2
 %% ====================================================================
-%% @doc Sets system limits for open files and processes on local host.
+%% @doc Sets system limit on local host.
 %% @end
--spec set_system_limits(OpenFiles :: integer(), Processes :: integer()) -> Result when
+-spec set_system_limit(Type :: atom(), Value :: integer()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-set_system_limits(OpenFiles, Processes) ->
+set_system_limit(Type, Value) ->
     try
         Host = onepanel_utils:get_host(node()),
-        ok = file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n~p.\n", [{open_files, OpenFiles}, {process_limit, Processes}])),
-        ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{open_files_limit, OpenFiles}, {processes_limit, Processes}])
+        case file:consult(?ULIMITS_CONFIG_PATH) of
+            {ok, Limits} ->
+                case proplists:get_value(Type, Limits) of
+                    undefined ->
+                        ok = file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n", [{Type, integer_to_list(Value)}]), [append]);
+                    _ ->
+                        ok
+                end;
+            _ ->
+                ok = file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n", [{Type, integer_to_list(Value)}]), [append])
+        end,
+        ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{Type, Value}])
     catch
         _:Reason ->
             ?error("Cannot set ulimits: ~p", [Reason]),
@@ -60,7 +70,7 @@ set_system_limits(OpenFiles, Processes) ->
 %% ====================================================================
 get_system_limits_cmd(Host) ->
     try
-        {ok, #?LOCAL_CONFIG_RECORD{open_files_limit = OpenFiles, processes_limit = Processes}} = dao:get_record(?LOCAL_CONFIG_TABLE, Host),
+        {ok, #?LOCAL_CONFIG_RECORD{open_files = OpenFiles, process_limit = Processes}} = dao:get_record(?LOCAL_CONFIG_TABLE, Host),
         "ulimit -n " ++ integer_to_list(OpenFiles) ++ " ; ulimit -u " ++ integer_to_list(Processes)
     catch
         _:Reason ->

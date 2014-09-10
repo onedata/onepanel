@@ -98,14 +98,14 @@ body() ->
     onepanel_gui_utils:body(Header, Main).
 
 
-%% hosts_table_body/3
+%% hosts_table/3
 %% ====================================================================
 %% @doc Renders hosts table body.
 %% @end
--spec hosts_table_body(Hosts :: [string()], DbConfig :: #?CONFIG{}, PageConfig :: #?CONFIG{}) -> Result when
+-spec hosts_table(Hosts :: [string()], DbConfig :: #?CONFIG{}, PageConfig :: #?CONFIG{}) -> Result when
     Result :: [#tr{}].
 %% ====================================================================
-hosts_table_body(Hosts, DbConfig, PageConfig) ->
+hosts_table(Hosts, DbConfig, PageConfig) ->
     ColumnStyle = <<"text-align: center; vertical-align: inherit;">>,
 
     Header = #tr{
@@ -166,7 +166,7 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFI
     NewState = try
         receive
             render_hosts_table ->
-                gui_jq:update(<<"hosts_table">>, hosts_table_body(Hosts, DbConfig, SessionConfig)),
+                gui_jq:update(<<"hosts_table">>, hosts_table(Hosts, DbConfig, SessionConfig)),
                 gui_jq:fade_in(<<"hosts_table">>, 500),
                 gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
