@@ -8,12 +8,12 @@
 #####################################################################
 #  This script is used to include given as first argument
 #  dynamic libraries into Onepanel release package based on ldd
-#  output from file given as second agrument. 
+#  output from file given as second agrument.
 #####################################################################
 
 if [ $# -lt 2 ]
 then
-    echo "Usage: $0 libname file1 [file2...]" 
+    echo "Usage: $0 libname file1 [file2...]"
     exit 1
 fi
 
