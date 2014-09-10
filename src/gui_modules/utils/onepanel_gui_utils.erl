@@ -108,19 +108,17 @@ nav_buttons(Buttons) ->
     Result :: #panel{}.
 %% ====================================================================
 nav_buttons(Buttons, Width) ->
-    JustifyContent = case Buttons of
-                         [_, _ | _] -> <<"space-between">>;
-                         _ -> <<"center">>
-                     end,
+    ButtonClass = <<"btn btn-inverse btn-small">>,
+    ButtonStyle = <<"min-width: 8em; margin-left: 1em; margin-right: 1em; font-weight: bold;">>,
     #panel{
-        style = <<"width: ", Width/binary, "; margin: 0 auto; margin-top: 3em; display: flex; justify-content: ", JustifyContent/binary, ";">>,
+        style = <<"width: ", Width/binary, "; margin: 0 auto; margin-top: 3em;">>,
         body = lists:map(fun
             ({Id, {postback, Postback}, Disabled, Body}) ->
                 #button{
                     id = Id,
                     postback = Postback,
-                    class = <<"btn btn-inverse btn-small">>,
-                    style = <<"min-width: 8em; font-weight: bold;">>,
+                    class = ButtonClass,
+                    style = ButtonStyle,
                     disabled = Disabled,
                     body = Body
                 };
@@ -128,16 +126,16 @@ nav_buttons(Buttons, Width) ->
                 #button{
                     id = Id,
                     actions = Actions,
-                    class = <<"btn btn-inverse btn-small">>,
-                    style = <<"min-width: 8em; font-weight: bold;">>,
+                    class = ButtonClass,
+                    style = ButtonStyle,
                     disabled = Disabled,
                     body = Body
                 };
             ({Id, _, Disabled, Body}) ->
                 #button{
                     id = Id,
-                    class = <<"btn btn-inverse btn-small">>,
-                    style = <<"min-width: 8em; font-weight: bold;">>,
+                    class = ButtonClass,
+                    style = ButtonStyle,
                     disabled = Disabled,
                     body = Body
                 };

@@ -171,8 +171,7 @@ change_username() ->
         #textbox{
             id = <<"new_username_textbox">>,
             class = <<"span">>,
-            placeholder = <<"New username">>,
-            autofocus = true
+            placeholder = <<"New username">>
         },
         #link{
             id = <<"new_username_submit">>,
@@ -237,8 +236,7 @@ change_password() ->
             #password{
                 id = <<"current_password_textbox">>,
                 class = <<"span">>,
-                placeholder = <<"Current password">>,
-                autofocus = true
+                placeholder = <<"Current password">>
             },
             #link{
                 id = <<"new_password_submit">>,
@@ -340,6 +338,7 @@ event(init) ->
 
 event(change_username) ->
     gui_jq:update(<<"username">>, change_username()),
+    gui_jq:focus(<<"new_username_textbox">>),
     gui_jq:bind_enter_to_submit_button(<<"new_username_textbox">>, <<"new_username_submit">>);
 
 event(cancel_new_username_submit) ->
@@ -354,6 +353,7 @@ event(submit_new_username) ->
 
 event(change_password) ->
     gui_jq:update(<<"password">>, change_password()),
+    gui_jq:focus(<<"current_password_textbox">>),
     gui_jq:bind_enter_to_change_focus(<<"current_password_textbox">>, <<"new_password_textbox">>),
     gui_jq:bind_enter_to_change_focus(<<"new_password_textbox">>, <<"confirmed_password_textbox">>),
     gui_jq:bind_enter_to_submit_button(<<"confirmed_password_textbox">>, <<"new_password_submit">>);
