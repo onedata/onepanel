@@ -85,7 +85,7 @@ custom() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(spaces_tab, spaces_settings_link, true),
+    Header = onepanel_gui_utils:top_menu(spaces_tab, spaces_settings_link, [], true),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
@@ -439,9 +439,10 @@ event(support_space) ->
     gui_jq:wire(<<"box.on('shown',function(){ $(\"#support_space_token\").focus(); });">>);
 
 event({revoke_space_support, RowId, #space_details{id = SpaceId}}) ->
+    Title = <<"Revoke Space support">>,
     Message = <<"Are you sure you want to stop supporting Space: <b>", SpaceId/binary, "</b>?<br>This operation cannot be undone.">>,
     Script = <<"revokeSpaceSupport(['", SpaceId/binary, "','", RowId/binary, "']);">>,
-    gui_jq:confirm_popup(Message, Script);
+    gui_jq:dialog_popup(Title, Message, Script);
 
 event({manage_space, #space_details{id = SpaceId}}) ->
     gui_jq:redirect(<<"/spaces?id=", SpaceId/binary>>);

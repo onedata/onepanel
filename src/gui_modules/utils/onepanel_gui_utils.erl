@@ -15,7 +15,8 @@
 -include("onepanel_modules/installer/state.hrl").
 -include_lib("ctool/include/logging.hrl").
 
--export([body/1, body/2, body/3, top_menu/1, top_menu/2, top_menu/3, account_settings_tab/1, logotype_footer/0, nav_buttons/1, nav_buttons/2]).
+-export([body/1, body/2, body/3, top_menu/1, top_menu/2, top_menu/3, top_menu/4, account_settings_tab/1,
+    logotype_footer/0, nav_buttons/1, nav_buttons/2]).
 -export([collapse_button/1, collapse_button/2, expand_button/1, expand_button/2]).
 -export([get_session_config/0, format_list/1, message/2, message/3]).
 -export([change_page/2, maybe_redirect/3]).
@@ -119,7 +120,7 @@ nav_buttons(Buttons, Width) ->
                     id = Id,
                     postback = Postback,
                     class = <<"btn btn-inverse btn-small">>,
-                    style = <<"font-weight: bold;">>,
+                    style = <<"min-width: 8em; font-weight: bold;">>,
                     disabled = Disabled,
                     body = Body
                 };
@@ -128,7 +129,7 @@ nav_buttons(Buttons, Width) ->
                     id = Id,
                     actions = Actions,
                     class = <<"btn btn-inverse btn-small">>,
-                    style = <<"font-weight: bold;">>,
+                    style = <<"min-width: 8em; font-weight: bold;">>,
                     disabled = Disabled,
                     body = Body
                 };
@@ -136,7 +137,7 @@ nav_buttons(Buttons, Width) ->
                 #button{
                     id = Id,
                     class = <<"btn btn-inverse btn-small">>,
-                    style = <<"font-weight: bold;">>,
+                    style = <<"min-width: 8em; font-weight: bold;">>,
                     disabled = Disabled,
                     body = Body
                 };
@@ -228,19 +229,32 @@ top_menu(ActiveTabID) ->
     Result :: #panel{}.
 %% ====================================================================
 top_menu(ActiveTabID, ActiveLinkID) ->
-    top_menu(ActiveTabID, ActiveLinkID, false).
+    top_menu(ActiveTabID, ActiveLinkID, []).
 
 
-%% top_menu/2
+%% top_menu/3
 %% ====================================================================
 %% @doc Convienience function to render top menu in GUI pages.
 %% Item with ActiveTabID and ActiveLinkID will be highlighted as active.
-%% It allows to show or hide main page spinner.
+%% It allows to add submenu. Main page spinner will not be shown.
 %% @end
--spec top_menu(ActiveTabID :: atom(), ActiveLinkID :: atom(), Spinner :: boolean()) -> Result when
+-spec top_menu(ActiveTabID :: atom(), ActiveLinkID :: atom(), Submenu :: term()) -> Result when
     Result :: #panel{}.
 %% ====================================================================
-top_menu(ActiveTabID, ActiveLinkID, Spinner) ->
+top_menu(ActiveTabID, ActiveLinkID, Submenu) ->
+    top_menu(ActiveTabID, ActiveLinkID, Submenu, false).
+
+
+%% top_menu/4
+%% ====================================================================
+%% @doc Convienience function to render top menu in GUI pages.
+%% Item with ActiveTabID and ActiveLinkID will be highlighted as active.
+%% It allows to show or hide main page spinner and add submenu.
+%% @end
+-spec top_menu(ActiveTabID :: atom(), ActiveLinkID :: atom(), Submenu :: term(), Spinner :: boolean()) -> Result when
+    Result :: #panel{}.
+%% ====================================================================
+top_menu(ActiveTabID, ActiveLinkID, Submenu, Spinner) ->
     Process = fun(ActiveItem, List) ->
         lists:map(fun({ItemID, ListItem}) ->
             case ItemID of
@@ -287,6 +301,11 @@ top_menu(ActiveTabID, ActiveLinkID, Spinner) ->
                          _ -> <<" display: none;">>
                      end,
 
+    MessagesTop = case Submenu of
+                      [] -> <<"55px">>;
+                      _ -> <<"110px">>
+                  end,
+
     [
         #panel{
             id = <<"main_spinner">>,
@@ -302,15 +321,15 @@ top_menu(ActiveTabID, ActiveLinkID, Spinner) ->
                     #list{class = <<"nav pull-right">>, body = MenuIcons}
                 ]}
             ]}
-        ]},
+        ] ++ Submenu},
         #panel{
             id = <<"ok_message">>,
-            style = <<"position: fixed; width: 100%; top: 55px; display: none;">>,
+            style = <<"position: fixed; width: 100%; top: ", MessagesTop/binary, "; display: none;">>,
             class = <<"dialog dialog-success">>
         },
         #panel{
             id = <<"error_message">>,
-            style = <<"position: fixed; width: 100%; top: 55px; display: none;">>,
+            style = <<"position: fixed; width: 100%; top: ", MessagesTop/binary, "; display: none;">>,
             class = <<"dialog dialog-danger">>
         }
     ] ++ gui_utils:cookie_policy_popup_body(?PAGE_PRIVACY_POLICY).

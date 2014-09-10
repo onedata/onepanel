@@ -111,6 +111,8 @@ body(ProviderId, URLs, RedirectionPoint) ->
 settings_table(ProviderId, URLs, RedirectionPoint) ->
     DescriptionStyle = <<"border-width: 0; text-align: right; padding: 1em 1em; width: 50%;">>,
     MainStyle = <<"border-width: 0;  text-align: left; padding: 1em 1em;">>,
+    LabelClass = <<"label label-large label-inverse">>,
+    LabelStyle = <<"cursor: auto;">>,
     #table{
         style = <<"border-width: 0; width: 100%;">>, body = [
             #tr{
@@ -118,7 +120,8 @@ settings_table(ProviderId, URLs, RedirectionPoint) ->
                     #td{
                         style = DescriptionStyle,
                         body = #label{
-                            class = <<"label label-large label-inverse">>,
+                            class = LabelClass,
+                            style = LabelStyle,
                             body = <<"Provider ID">>
                         }
                     },
@@ -134,7 +137,8 @@ settings_table(ProviderId, URLs, RedirectionPoint) ->
                     #td{
                         style = <<DescriptionStyle/binary, " vertical-align: top;">>,
                         body = #label{
-                            class = <<"label label-large label-inverse">>,
+                            class = LabelClass,
+                            style = LabelStyle,
                             body = <<"URLs">>
                         }
                     },
@@ -150,7 +154,8 @@ settings_table(ProviderId, URLs, RedirectionPoint) ->
                     #td{
                         style = DescriptionStyle,
                         body = #label{
-                            class = <<"label label-large label-inverse">>,
+                            class = LabelClass,
+                            style = LabelStyle,
                             body = <<"Redirection point">>
                         }
                     },
@@ -263,9 +268,10 @@ event(register) ->
     onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_CONNECTION_CHECK);
 
 event(unregister) ->
+    Title = <<"Unregister">>,
     Message = <<"Are you sure you want to unregister from Global Registry?">>,
     Script = <<"unregister();">>,
-    gui_jq:confirm_popup(Message, Script);
+    gui_jq:dialog_popup(Title, Message, Script);
 
 event({close_message, MessageId}) ->
     gui_jq:hide(MessageId);
