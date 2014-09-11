@@ -651,6 +651,8 @@ comet_loop(#?STATE{counter = Counter, nodes = Nodes, node = Node, time_range = T
                 gui_jq:wire(<<"deleteChart(\"", (integer_to_binary(Id))/binary, "\");">>),
                 PageState#?STATE{charts = proplists:delete(Id, Charts)}
 
+        after ?COMET_PROCESS_RELOAD_DELAY ->
+            PageState
         end
                    catch Type:Msg ->
                        ?error("Comet process exception: ~p:~p", [Type, Msg]),

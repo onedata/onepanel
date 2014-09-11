@@ -410,6 +410,9 @@ comet_loop(Counter, PageState = #page_state{first_log = FirstLog, auto_scroll = 
                 Other ->
                     ?debug("Unrecognized comet message in page_logs: ~p", [Other]),
                     {Counter, PageState}
+
+                after ?COMET_PROCESS_RELOAD_DELAY ->
+                    {Counter, PageState}
             end
         catch _Type:_Msg ->
             ?error_stacktrace("Error in page_logs comet_loop - ~p: ~p", [_Type, _Msg]),
