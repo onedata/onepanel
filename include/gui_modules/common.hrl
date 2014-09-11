@@ -47,4 +47,7 @@
 %% Currently selected version in update process
 -define(CHOSEN_VERSION, chosen_version).
 
+%% Delay in miliseconds after which comet process will reload it's code
+-define(COMET_PROCESS_RELOAD_DELAY, 5000).
+
 -endif.

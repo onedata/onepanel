@@ -154,30 +154,33 @@ change_username(Username, NewUsername) ->
 -spec change_password(Username :: binary(), CurrentPassword :: binary(), NewPassword :: binary(), ConfirmedNewPassword :: binary()) -> Result
     when Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-change_password(_, _, NewPassword, NewPassword) when size(NewPassword) < ?MIN_PASSWORD_LENGTH ->
-    {error, <<"Password should be at least ", (integer_to_binary(?MIN_PASSWORD_LENGTH))/binary, " characters long.">>};
-
 change_password(Username, CurrentPassword, NewPassword, NewPassword) ->
-    case authenticate(Username, CurrentPassword) of
-        ok ->
-            try
-                {ok, WorkFactor} = application:get_env(?APP_NAME, bcrypt_work_factor),
-                PasswordHash = hash_password(binary_to_list(NewPassword), WorkFactor),
-                ok = dao:update_record(?USER_TABLE, Username, [{password_hash, PasswordHash}]),
-                {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-                ok = installer_db:change_password(Dbs, Username, CurrentPassword, NewPassword),
-                ok = gen_server:call(?ONEPANEL_SERVER, {set_password, Username, NewPassword})
-            catch
-                error:{badmatch, {error, Reason}} when is_binary(Reason) ->
-                    {error, Reason};
-                _:Reason ->
-                    ?error("Cannot change password for user ~p: ~p", [Username, Reason]),
-                    {error, <<"Internal server error">>}
-            end;
-        {error, ?AUTHENTICATION_ERROR} ->
-            {error, <<"Invalid username or password.">>};
+    {ok, MinimumPasswordLength} = application:get_env(?APP_NAME, min_user_password_length),
+    case size(NewPassword) < MinimumPasswordLength of
+        true ->
+            {error, <<"Password should be at least ", (integer_to_binary(MinimumPasswordLength))/binary, " characters long.">>};
         _ ->
-            {error, <<"Internal server error">>}
+            case authenticate(Username, CurrentPassword) of
+                ok ->
+                    try
+                        {ok, WorkFactor} = application:get_env(?APP_NAME, bcrypt_work_factor),
+                        PasswordHash = hash_password(binary_to_list(NewPassword), WorkFactor),
+                        ok = dao:update_record(?USER_TABLE, Username, [{password_hash, PasswordHash}]),
+                        {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+                        ok = installer_db:change_password(Dbs, Username, CurrentPassword, NewPassword),
+                        ok = gen_server:call(?ONEPANEL_SERVER, {set_password, Username, NewPassword})
+                    catch
+                        error:{badmatch, {error, Reason}} when is_binary(Reason) ->
+                            {error, Reason};
+                        _:Reason ->
+                            ?error("Cannot change password for user ~p: ~p", [Username, Reason]),
+                            {error, <<"Internal server error">>}
+                    end;
+                {error, ?AUTHENTICATION_ERROR} ->
+                    {error, <<"Invalid username or password.">>};
+                _ ->
+                    {error, <<"Internal server error">>}
+            end
     end;
 
 change_password(_, _, _, _) ->

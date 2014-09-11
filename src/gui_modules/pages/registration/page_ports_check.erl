@@ -238,6 +238,9 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
                 gui_comet:flush(),
                 State
+
+        after ?COMET_PROCESS_RELOAD_DELAY ->
+            State
         end
                catch Type:Message ->
                    ?error("Comet process exception: ~p:~p", [Type, Message]),

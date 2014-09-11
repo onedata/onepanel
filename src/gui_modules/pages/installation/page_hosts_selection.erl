@@ -245,6 +245,9 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFI
 
             _ ->
                 State
+
+        after ?COMET_PROCESS_RELOAD_DELAY ->
+            State
         end
                catch Type:Message ->
                    ?error("Comet process exception: ~p:~p", [Type, Message]),

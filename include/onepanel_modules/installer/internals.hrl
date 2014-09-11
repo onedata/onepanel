@@ -43,7 +43,7 @@
 %% ====================================================================
 
 %% Default bigcouch port
--define(DEFAULT_PORT, "5986").
+-define(DEFAULT_PORT, 5986).
 
 %% Timeout for database nodes addition to cluster
 -define(CONNECTION_TIMEOUT, 5000).
