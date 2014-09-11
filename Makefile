@@ -4,9 +4,13 @@ all: deps compile
 
 deps:
 	@./rebar get-deps
+	@git submodule init
+	@git submodule update
 
 compile: deps
+	cp -r veilprotocol/proto src
 	@./rebar compile
+	rm -rf src/proto
 
 generate: compile
 	@./rebar generate
