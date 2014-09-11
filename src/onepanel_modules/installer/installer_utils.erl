@@ -44,11 +44,11 @@ set_system_limit(Type, Value) ->
         Host = onepanel_utils:get_host(node()),
         case file:consult(?ULIMITS_CONFIG_PATH) of
             {ok, Limits} ->
-                case proplists:get_value(Type, Limits) of
-                    undefined ->
-                        ok = file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n", [{Type, integer_to_list(Value)}]), [append]);
+                case lists:keymember(Type, 1, Limits) of
+                    true ->
+                        ok;
                     _ ->
-                        ok
+                        ok = file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n", [{Type, integer_to_list(Value)}]), [append])
                 end;
             _ ->
                 ok = file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n", [{Type, integer_to_list(Value)}]), [append])
