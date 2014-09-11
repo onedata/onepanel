@@ -316,6 +316,9 @@ comet_loop(#?STATE{} = State) ->
                 gui_jq:hide(<<"main_spinner">>),
                 gui_comet:flush(),
                 State
+
+        after ?COMET_PROCESS_RELOAD_DELAY ->
+            State
         end
                catch Type:Message ->
                    ?error("Comet process exception: ~p:~p", [Type, Message]),

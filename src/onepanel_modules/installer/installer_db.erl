@@ -312,7 +312,7 @@ local_stop() ->
 %% database cluster hosts.
 %% @end
 -spec join_cluster(Username :: binary(), Password :: binary(), ClusterHost :: string()) -> Result when
-    Result :: ok | {error, Reason :: term()}.
+    Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 join_cluster(Username, Password, ClusterHost) ->
     Host = onepanel_utils:get_host(node()),
@@ -321,7 +321,7 @@ join_cluster(Username, Password, ClusterHost) ->
             Host -> throw(cluster_host);
             _ -> ok
         end,
-        URL = "http://" ++ ClusterHost ++ ":" ++ ?DEFAULT_PORT ++ "/nodes/" ++ ?DEFAULT_DB_NAME ++ "@" ++ Host,
+        URL = "http://" ++ ClusterHost ++ ":" ++ integer_to_list(?DEFAULT_PORT) ++ "/nodes/" ++ ?DEFAULT_DB_NAME ++ "@" ++ Host,
 
         {ok, "201", _, ResponseBody} = request(Username, Password, URL, put, <<"{}">>),
         true = proplists:get_value(<<"ok">>, mochijson2:decode(ResponseBody, [{format, proplist}])),
@@ -357,7 +357,8 @@ change_username(Hosts, Username, NewUsername) ->
                     onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_change_username, [NewUsername, Username, Password], ?RPC_TIMEOUT),
                     {error, <<"Cannot change username in administration database.">>}
             end;
-        _ ->
+        Other ->
+            ?error("Cannot get password to administration database for user ~p: ~p", [Username, Other]),
             {error, <<"Cannot get password to administration database for user: ", Username/binary>>}
     end.
 
@@ -376,7 +377,7 @@ local_change_username(Username, Username, _) ->
 local_change_username(Username, NewUsername, Password) ->
     Host = onepanel_utils:get_host(node()),
     try
-        URL = "http://" ++ Host ++ ":" ++ ?DEFAULT_PORT ++ "/_config/admins/",
+        URL = "http://" ++ Host ++ ":" ++ integer_to_list(?DEFAULT_PORT) ++ "/_config/admins/",
 
         {ok, "404", _, ResponseBody} = request(Username, Password, URL ++ binary_to_list(NewUsername), get, []),
         <<"not_found">> = proplists:get_value(<<"error">>, mochijson2:decode(ResponseBody, [{format, proplist}])),
@@ -418,7 +419,7 @@ change_password(Hosts, Username, CurrentPassword, NewPassword) ->
 %% ====================================================================
 local_change_password(Username, CurrentPassword, NewPassword) ->
     Host = onepanel_utils:get_host(node()),
-    URL = "http://" ++ Host ++ ":" ++ ?DEFAULT_PORT ++ "/_config/admins/" ++ binary_to_list(Username),
+    URL = "http://" ++ Host ++ ":" ++ integer_to_list(?DEFAULT_PORT) ++ "/_config/admins/" ++ binary_to_list(Username),
     case request(Username, CurrentPassword, URL, put, mochijson2:encode(NewPassword)) of
         {ok, "200", _, _} -> {ok, Host};
         Other ->
@@ -445,7 +446,7 @@ finalize_local_start(_, _, 0) ->
 
 finalize_local_start(Username, Password, Attempts) ->
     Host = onepanel_utils:get_host(node()),
-    URL = "http://" ++ Host ++ ":" ++ ?DEFAULT_PORT,
+    URL = "http://" ++ Host ++ ":" ++ integer_to_list(?DEFAULT_PORT),
     case request(Username, Password, URL, get, []) of
         {ok, "200", _, _} ->
             ok;
@@ -455,7 +456,7 @@ finalize_local_start(Username, Password, Attempts) ->
     end.
 
 
-%% request/3
+%% request/5
 %% ====================================================================
 %% @doc Sends request to database node with default headers and options
 %% using REST API.

@@ -24,7 +24,4 @@
 %% * password_hash  - SHA 512 password hash
 -record(?USER_RECORD, {username, password_hash}).
 
-%% Minimum length of user's password
--define(MIN_PASSWORD_LENGTH, 8).
-
 -endif.

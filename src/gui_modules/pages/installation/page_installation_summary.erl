@@ -345,6 +345,9 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                 gui_jq:hide(<<"progress">>),
                 gui_comet:flush(),
                 State#?STATE{step = -1}
+
+        after ?COMET_PROCESS_RELOAD_DELAY ->
+            State
         end
                catch Type:Message ->
                    ?error("Comet process exception: ~p:~p", [Type, Message]),

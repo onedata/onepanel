@@ -304,6 +304,9 @@ comet_loop(#?STATE{counter = Counter, db_config = DbConfig, session_config = #?C
                 gui_jq:hide(<<"main_spinner">>),
                 gui_comet:flush(),
                 State#?STATE{session_config = SessionConfig#?CONFIG{storage_paths = lists:delete(StoragePath, StoragePaths)}}
+
+        after ?COMET_PROCESS_RELOAD_DELAY ->
+            State
         end
                catch Type:Message ->
                    ?error("Comet process exception: ~p:~p", [Type, Message]),

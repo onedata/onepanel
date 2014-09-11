@@ -51,6 +51,7 @@
         {get_software_versions_url, "http://www.onedata.org/repository/get_versions.php"},
         {default_username, <<"admin">>},
         {default_password, <<"password">>},
+        {min_user_password_length, 8},
         {onepanel_sessions_cookie_ttl, 2592000} % 30 days
     ]}
 ]}.

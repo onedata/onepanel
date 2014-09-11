@@ -413,6 +413,9 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
                 end,
                 gui_comet:flush(),
                 #?STATE{stages_count = SCount, action_type = install}
+
+        after ?COMET_PROCESS_RELOAD_DELAY ->
+            State
         end
                catch Type:Message ->
                    ?error("Comet process exception: ~p:~p", [Type, Message]),

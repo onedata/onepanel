@@ -28,7 +28,5 @@ int check_password(char* password, char* hash)
         return 1;
     }
 
-    int res = !check_bcrypt(password, hash);
-
-    return res;
+    return !check_bcrypt(password, hash);
 }

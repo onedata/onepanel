@@ -164,6 +164,9 @@ comet_loop(#?STATE{pid = Pid} = State) ->
 
             _ ->
                 State
+
+        after ?COMET_PROCESS_RELOAD_DELAY ->
+            State
         end
                catch Type:Message ->
                    ?error("Comet process exception: ~p:~p", [Type, Message]),
