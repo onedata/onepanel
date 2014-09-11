@@ -104,6 +104,7 @@ apply_on_worker(Module, Function, Arguments) ->
 dropwhile_failure([], Module, Function, Arguments, _) ->
     ?error("dropwhile_failure function called as ~p:~p(~p) failed on all nodes.", [Module, Function, Arguments]),
     {error, "Failure on all nodes."};
+
 dropwhile_failure([Node | Nodes], Module, Function, Arguments, Timeout) ->
     case rpc:call(Node, Module, Function, Arguments, Timeout) of
         {badrpc, Reason} ->
