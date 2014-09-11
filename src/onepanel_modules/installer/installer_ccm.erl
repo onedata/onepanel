@@ -5,12 +5,11 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module implements {@link installer_behaviour} callbacks and
+%% @doc This module implements {@link installer_behaviour} callbacks and
 %% provides API methods for CCM nodes installation.
 %% @end
 %% ===================================================================
 -module(installer_ccm).
-
 -behaviour(installer_behaviour).
 
 -include("onepanel_modules/installer/state.hrl").
@@ -286,7 +285,7 @@ local_start(MainCCM, OptCCMs, Dbs) ->
         ok = installer_utils:add_node_to_config(ccm_node, list_to_atom(?DEFAULT_CCM_NAME), ?DEFAULT_NODES_INSTALL_PATH),
 
         os:cmd(OverwriteCommand),
-        SetUlimitsCmd = installer_utils:get_ulimits_cmd(Host),
+        SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
         "" = os:cmd(SetUlimitsCmd ++ " ; " ++ StartCommand),
 
         {ok, Host}

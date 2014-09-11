@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: Active elements of updater_engine based on gen_server.
+%% @doc Active elements of updater_engine based on gen_server.
 %%       This gen_server has presistent state which makes updater immune to node restarts/crashes.
 %% @end
 %% ===================================================================

@@ -5,16 +5,17 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains n2o website code.
+%% @doc This module contains n2o website code.
 %% This page is a starting point for software update.
 %% @end
 %% ===================================================================
-
 -module(page_update).
--export([main/0, event/1]).
+
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/updater/state.hrl").
 -include("onepanel_modules/updater/stages.hrl").
+
+-export([main/0, event/1]).
 
 %% ====================================================================
 %% API functions
@@ -23,6 +24,7 @@
 %% main/0
 %% ====================================================================
 %% @doc Template points to the template file, which will be filled with content.
+%% @end
 -spec main() -> Result when
     Result :: #dtl{}.
 %% ====================================================================
@@ -31,7 +33,8 @@ main() ->
         true ->
             case installer_utils:get_workers() of
                 [] ->
-                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]};
+                    page_error:redirect_with_error(?SOFTWARE_NOT_INSTALLED_ERROR),
+                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
                     case gui_ctx:get(?CURRENT_UPDATE_PAGE) of
                         undefined ->
@@ -53,49 +56,6 @@ main() ->
     end.
 
 
-%% title/0
-%% ====================================================================
-%% @doc Page title.
--spec title() -> Result when
-    Result :: binary().
-%% ====================================================================
-title() ->
-    <<"Update">>.
-
-
-%% body/0
-%% ====================================================================
-%% @doc This will be placed instead of {{body}} tag in template.
--spec body() -> Result when
-    Result :: #panel{}.
-%% ====================================================================
-body() ->
-    Header = onepanel_gui_utils:top_menu(software_tab, update_link),
-    Main = #panel{
-        style = <<"margin-top: 10em; text-align: center;">>,
-        body = #panel{
-            style = <<"width: 50%; margin: 0 auto;">>,
-            class = <<"alert alert-info">>,
-            body = [
-                #h3{
-                    body = <<"Software is not installed">>
-                },
-                #p{
-                    body = <<"Please complete installation process before proceeding with update.">>
-                },
-                #link{
-                    id = <<"ok_button">>,
-                    postback = to_root_page,
-                    class = <<"btn btn-info">>,
-                    style = <<"width: 80px; font-weight: bold;">>,
-                    body = <<"OK">>
-                }
-            ]
-        }
-    },
-    onepanel_gui_utils:body(Header, Main).
-
-
 %% ====================================================================
 %% Events handling
 %% ====================================================================
@@ -103,14 +63,11 @@ body() ->
 %% event/1
 %% ====================================================================
 %% @doc Handles page events.
+%% @end
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->
-    gui_jq:bind_key_to_click(<<"13">>, <<"ok_button">>),
     ok;
-
-event(to_root_page) ->
-    gui_jq:redirect(?PAGE_ROOT);
 
 event(terminate) ->
     ok.

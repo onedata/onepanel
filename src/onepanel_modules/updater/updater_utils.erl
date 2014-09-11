@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: Utility functions for updater module.
+%% @doc Utility functions for updater module.
 %% @end
 %% ===================================================================
 -module(updater_utils).
@@ -35,7 +35,7 @@ wait_for_node(Node, Timeout) when Timeout >= 0 ->
     timer:sleep(100),
     case ping(Node, 100) of
         pong -> ok;
-        _    -> wait_for_node(Node, Timeout - 100)
+        _ -> wait_for_node(Node, Timeout - 100)
     end.
 
 
@@ -79,7 +79,6 @@ flatten_stages(Stages) ->
             fun({Stage, Jobs}) ->
                 lists:map(fun(Job) -> {Stage, Job} end, Jobs)
             end, Stages)).
-
 
 
 %% select_only_workers/1

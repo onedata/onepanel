@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: Updater common defines.
+%% @doc Updater common defines.
 %% @end
 %% ===================================================================
 -author("Rafal Slota").
@@ -14,7 +14,7 @@
 -define(ONEPANEL_UPDATER_COMMON_HRL, 1).
 
 %% Package repository's URL
--define(PACKAGE_REPOSITORY_BASE_URL, "http://onedata.org/repository").
+-define(PACKAGE_REPOSITORY_BASE_URL, "http://www.onedata.org/repository").
 
 %% Common version holder
 -record(version, {major = 0, minor = 0, patch = 0}).

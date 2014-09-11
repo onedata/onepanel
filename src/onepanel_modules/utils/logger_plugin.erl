@@ -5,8 +5,8 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module implements logger_plugin_behaviour in order
-%% to customize logging in Onepanel application.
+%% @doc This module implements logger_plugin_behaviour in order
+%% to customize logging in onepanel application.
 %% @end
 %% ===================================================================
 -module(logger_plugin).

@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module is a gen_server that connects separate Onepanel
+%% @doc This module is a gen_server that connects separate onepanel
 %% nodes to create a cluster.
 %% @end
 %% ===================================================================
@@ -14,6 +14,7 @@
 -behaviour(gen_server).
 
 -include("onepanel.hrl").
+-include("onepanel_modules/installer/state.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
@@ -36,7 +37,6 @@
 start_link() ->
     gen_server:start_link({local, ?ONEPANEL_SERVER}, ?MODULE, [], []).
 
-
 %% ====================================================================
 %% gen_server callbacks
 %% ====================================================================
@@ -54,18 +54,17 @@ start_link() ->
 init([]) ->
     try
         ok = db_logic:create(),
-        {ok, Period} = application:get_env(?APP_NAME, connection_ping_period),
+        {ok, UpdaterStartDelay} = application:get_env(?APP_NAME, updater_start_delay),
         {ok, Address} = application:get_env(?APP_NAME, multicast_address),
         {ok, Port} = application:get_env(?APP_NAME, onepanel_port),
         {ok, Socket} = gen_udp:open(Port, [binary, {reuseaddr, true}, {ip, Address},
             {multicast_loop, false}, {add_membership, {Address, {0, 0, 0, 0}}}]),
         ok = gen_udp:controlling_process(Socket, self()),
-        ok = gen_udp:send(Socket, Address, Port, net_adm:localhost()),
 
-        timer:send_after(1000 * Period, connection_ping),
-        timer:send_after(1000, start_updater),
+        self() ! connection_ping,
+        timer:send_after(UpdaterStartDelay, start_updater),
 
-        {ok, #state{status = not_connected, socket = Socket, address = Address, port = Port}}
+        {ok, #state{socket = Socket, address = Address, port = Port}}
     catch
         _:_ -> {stop, initialization_error}
     end.
@@ -84,11 +83,18 @@ init([]) ->
     {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
     {stop, Reason :: term(), NewState :: #state{}}.
 %% ====================================================================
-handle_call(get_status, _From, #state{status = Status} = State) ->
-    {reply, Status, State};
+handle_call(get_timestamp, _From, State) ->
+    Timestamp = installer_utils:get_timestamp(),
+    {reply, Timestamp, State};
+
+handle_call({get_password, Username}, _From, #state{passwords = Passwords} = State) ->
+    {reply, {ok, proplists:get_value(Username, Passwords)}, State};
+
+handle_call({set_password, Username, Password}, _From, #state{passwords = Passwords} = State) ->
+    {reply, ok, State#state{passwords = [{Username, Password} | proplists:delete(Username, Passwords)]}};
 
 handle_call(Request, _From, State) ->
-    ?warning("[Onepanel] Wrong call: ~p", [Request]),
+    ?warning("[onepanel] Wrong call: ~p", [Request]),
     {reply, {error, wrong_request}, State}.
 
 
@@ -101,28 +107,34 @@ handle_call(Request, _From, State) ->
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}.
 %% ====================================================================
-handle_cast({connection_request, Node}, #state{status = not_connected} = State) ->
-    ?info("[Onepanel] Connection request from node: ~p", [Node]),
-    db_logic:delete(),
-    gen_server:cast({?ONEPANEL_SERVER, Node}, {connection_response, node()}),
-    {noreply, State#state{status = waiting}};
+handle_cast({remove_password, Username}, #state{passwords = Passwords} = State) ->
+    {noreply, State#state{passwords = proplists:delete(Username, Passwords)}};
+
+handle_cast({connection_request, Node}, State) ->
+    ?info("[onepanel] Connection request from node: ~p", [Node]),
+    LocalTimestamp = installer_utils:get_timestamp(),
+    RemoteTimestamp = gen_server:call({?ONEPANEL_SERVER, Node}, get_timestamp),
+    case RemoteTimestamp >= LocalTimestamp of
+        true ->
+            db_logic:delete(),
+            gen_server:cast({?ONEPANEL_SERVER, Node}, {connection_response, node()});
+        _ ->
+            ok
+    end,
+    {noreply, State};
 
 handle_cast({connection_response, Node}, State) ->
-    ?info("[Onepanel] Connection response from node: ~p", [Node]),
+    ?info("[onepanel] Connection response from node: ~p", [Node]),
     case db_logic:add_node(Node) of
         ok ->
-            gen_server:cast({?ONEPANEL_SERVER, Node}, connection_acknowledgement),
-            {noreply, State#state{status = connected}};
-        _ ->
-            {noreply, State}
-    end;
-
-handle_cast(connection_acknowledgement, State) ->
-    ?info("[Onepanel] Connection acknowledgement"),
-    {noreply, State#state{status = connected}};
+            ?info("[onepanel] Node ~p successfully added to database cluster", [Node]);
+        Other ->
+            ?error("[onepanel] Cannot add node ~p to database cluster: ~p", [Node, Other])
+    end,
+    {noreply, State};
 
 handle_cast(Request, State) ->
-    ?warning("[Onepanel] Wrong cast: ~p", [Request]),
+    ?warning("[onepanel] Wrong cast: ~p", [Request]),
     {noreply, State}.
 
 
@@ -135,33 +147,39 @@ handle_cast(Request, State) ->
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}.
 %% ====================================================================
-handle_info({udp, _Socket, _Address, _Port, HostBinary}, #state{status = Status} = State) ->
-    Node = onepanel_utils:get_node(binary_to_list(HostBinary)),
-    case net_kernel:connect_node(Node) of
-        true -> gen_server:cast({?ONEPANEL_SERVER, Node}, {connection_request, node()});
-        Other -> ?error("[Onepanel] Cannot connect node ~p: ~p", [Node, Other])
+handle_info({udp, _Socket, _Address, _Port, HostBinary}, State) ->
+    Host = binary_to_list(HostBinary),
+    case inet:getaddr(Host, inet) of
+        {ok, _} ->
+            Node = onepanel_utils:get_node(Host),
+            case lists:member(Node, db_logic:get_nodes()) of
+                false ->
+                    case net_kernel:connect_node(Node) of
+                        true -> gen_server:cast({?ONEPANEL_SERVER, Node}, {connection_request, node()});
+                        Other -> ?error("[onepanel] Cannot connect node ~p: ~p", [Node, Other])
+                    end;
+                _ ->
+                    ok
+            end;
+        _ ->
+            ok
     end,
-    case Status of
-        connected -> {noreply, State};
-        _ -> {noreply, State#state{status = waiting}}
-    end;
-
-handle_info(connection_ping, #state{status = not_connected, socket = Socket, address = Address, port = Port} = State) ->
-    {ok, Period} = application:get_env(?APP_NAME, connection_ping_period),
-    gen_udp:send(Socket, Address, Port, net_adm:localhost()),
-    erlang:send_after(Period * 1000, self(), connection_ping),
     {noreply, State};
 
-handle_info(connection_ping, State) ->
+handle_info(connection_ping, #state{socket = Socket, address = Address, port = Port} = State) ->
+    {ok, Delay} = application:get_env(?APP_NAME, connection_ping_delay),
+    gen_udp:send(Socket, Address, Port, net_adm:localhost()),
+    erlang:send_after(Delay, self(), connection_ping),
     {noreply, State};
 
 handle_info(start_updater, State) ->
     updater:start(),
-    timer:send_after(60 * 1000, start_updater),
+    {ok, Delay} = application:get_env(?APP_NAME, updater_lookup_delay),
+    timer:send_after(Delay, start_updater),
     {noreply, State};
 
 handle_info(Info, State) ->
-    ?warning("[Onepanel] Wrong info: ~p", [Info]),
+    ?warning("[onepanel] Wrong info: ~p", [Info]),
     {noreply, State}.
 
 

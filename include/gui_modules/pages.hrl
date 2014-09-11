@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This header file contains all web pages definitions.
+%% @doc This header file contains all web pages definitions.
 %% @end
 %% ===================================================================
 
@@ -18,9 +18,9 @@
 %% Installation pages
 -define(PAGE_INSTALLATION, <<"/software/installation">>).
 -define(PAGE_HOST_SELECTION, <<"/software/installation/hosts_selection">>).
--define(PAGE_MAIN_CCM_SELECTION, <<"/software/installation/main_ccm_selection">>).
+-define(PAGE_PRIMARY_CCM_SELECTION, <<"/software/installation/primary_ccm_selection">>).
 -define(PAGE_SYSTEM_LIMITS, <<"/software/installation/system_limits">>).
--define(PAGE_ADD_STORAGE, <<"/software/installation/add_storage">>).
+-define(PAGE_STORAGE, <<"/software/installation/storage">>).
 -define(PAGE_INSTALLATION_SUMMARY, <<"/software/installation/summary">>).
 -define(PAGE_INSTALLATION_SUCCESS, <<"/software/installation/success">>).
 
@@ -37,6 +37,7 @@
 -define(PAGE_REGISTRATION_SUCCESS, <<"/spaces/registration/success">>).
 
 %% Spaces pages
+-define(PAGE_SPACE_DETAILS, <<"/spaces">>).
 -define(PAGE_SPACES_ACCOUNT, <<"/spaces/account">>).
 -define(PAGE_SPACES_SETTINGS, <<"/spaces/settings">>).
 
@@ -45,8 +46,8 @@
 -define(PAGE_LOGIN_VALIDATION, <<"/login_validation">>).
 -define(PAGE_LOGOUT, <<"/logout">>).
 -define(PAGE_ABOUT, <<"/about">>).
+-define(PAGE_ERROR, <<"/error">>).
 -define(PAGE_ACCOUNT_SETTINGS, <<"/account/settings">>).
--define(PAGE_SOFTWARE_SETTINGS, <<"/software/settings">>).
 -define(PAGE_PRIVACY_POLICY, <<"/privacy_policy">>).
 
 -endif.

@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: Updater service entry point (main API).
+%% @doc Updater service entry point (main API).
 %% @end
 %% ===================================================================
 -module(updater).
@@ -26,6 +26,7 @@
 %% start/0
 %% ====================================================================
 %% @doc Asynchronously starts updater gen_server or just ensures that it's already running.
+%% @end
 -spec start() -> ok.
 %% ====================================================================
 start() ->
@@ -51,6 +52,7 @@ start() ->
 %% update_to/1
 %% ====================================================================
 %% @doc Starts update process for specified VeilCluster version.
+%% @end
 -spec update_to(Version :: #version{}) -> ok | {error, update_already_in_progress} | {error, any()}.
 %% ====================================================================
 update_to(#version{} = Vsn) ->
@@ -61,6 +63,7 @@ update_to(#version{} = Vsn) ->
 %% ====================================================================
 %% @doc Starts update process for specified VeilCluster version.
 %%      Allows to force nodes reload after update.
+%% @end
 -spec update_to(Version :: #version{}, ForceNodeReboot :: boolean()) -> ok | {error, update_already_in_progress} | {error, any()}.
 %% ====================================================================
 update_to(#version{} = Vsn, ForceNodeReboot) ->
@@ -72,6 +75,7 @@ update_to(#version{} = Vsn, ForceNodeReboot) ->
 %% ====================================================================
 %% @doc Same as update_to/2, but also allow to provide callback function.
 %%      CallbackFun :: function(Event :: enter_stage | update_objects | rollback_stage | error | warning | abort, State :: #u_state{})
+%% @end
 -spec update_to(Version :: #version{}, ForceNodeReboot :: boolean(), CallbackFun :: function()) ->
     ok | {error, update_already_in_progress} | {error, any()}.
 %% ====================================================================
@@ -84,6 +88,7 @@ update_to(#version{} = Vsn, ForceNodeReboot, CallbackFun) ->
 %% ====================================================================
 %% @doc Sets callback function for current update process.
 %%      CallbackFun - see update_to/3
+%% @end
 -spec set_callback(CallbackFun :: function()) -> ok.
 %% ====================================================================
 set_callback(Fun) when is_function(Fun) ->
@@ -94,6 +99,7 @@ set_callback(Fun) when is_function(Fun) ->
 %% get_state/0
 %% ====================================================================
 %% @doc Returns current state of updater service. See 'updater_state' module for state manipulation functions.
+%% @end
 -spec get_state() -> #?u_state{}.
 %% ====================================================================
 get_state() ->
@@ -104,6 +110,7 @@ get_state() ->
 %% abort/0
 %% ====================================================================
 %% @doc Stops current update process if possible.
+%% @end
 -spec abort() -> ok | {error, any()}.
 %% ====================================================================
 abort() ->
@@ -114,6 +121,7 @@ abort() ->
 %% is_abortable/0
 %% ====================================================================
 %% @doc Checks if abort is possible at this moment.
+%% @end
 -spec is_abortable() -> ok | {error, any()}.
 %% ====================================================================
 is_abortable() ->

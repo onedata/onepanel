@@ -21,6 +21,9 @@ distclean: clean
 ## Release targets
 ##
 
+doc:
+	@./rebar doc skip_deps=true
+
 rel: deps compile generate
 
 relclean:

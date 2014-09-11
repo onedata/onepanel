@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains storage management functions.
+%% @doc This module contains storage management functions.
 %% @end
 %% ===================================================================
 -module(installer_storage).
@@ -227,6 +227,7 @@ check_storage_path_on_host(FilePath, Content) ->
 
 %% ====================================================================
 %% @doc Creates storage test file. If file already exists new one is generated.
+%% @end
 -spec create_storage_test_file(Path :: string()) -> Result when
     Result :: {ok, FilePath :: string(), Content :: string} | {error, Reason :: term()}.
 %% ====================================================================
@@ -255,6 +256,7 @@ create_storage_test_file(Path, Attempts) ->
 
 %% ====================================================================
 %% @doc Removes storage test file.
+%% @end
 -spec remove_storage_test_file(FilePath :: string()) -> Result when
     Result :: ok | {error, Error :: term()}.
 %% ====================================================================

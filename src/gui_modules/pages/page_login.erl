@@ -5,14 +5,15 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains n2o website code.
+%% @doc This module contains n2o website code.
 %% This page handles users' logging in.
 %% @end
 %% ===================================================================
-
 -module(page_login).
--export([main/0, event/1]).
+
 -include("gui_modules/common.hrl").
+
+-export([main/0, event/1]).
 
 %% ====================================================================
 %% API functions
@@ -21,6 +22,7 @@
 %% main/0
 %% ====================================================================
 %% @doc Template points to the template file, which will be filled with content.
+%% @end
 -spec main() -> Result when
     Result :: #dtl{}.
 %% ====================================================================
@@ -31,6 +33,7 @@ main() ->
 %% title/0
 %% ====================================================================
 %% @doc Page title.
+%% @end
 -spec title() -> Result when
     Result :: binary().
 %% ====================================================================
@@ -41,6 +44,7 @@ title() ->
 %% body/0
 %% ====================================================================
 %% @doc This will be placed instead of {{body}} tag in template.
+%% @end
 -spec body() -> Result when
     Result :: #panel{} | no_return().
 %% ====================================================================
@@ -49,15 +53,23 @@ body() ->
         true -> gui_jq:redirect(?PAGE_ROOT);
         false ->
             SourcePage = gui_ctx:url_param(<<"x">>),
-            ErrorId = gui_ctx:url_param(<<"id">>),
-            Header = error_message(SourcePage, ErrorId),
+            Header = case SourcePage of
+                         undefined ->
+                             <<"">>;
+                         _ ->
+                             #panel{
+                                 style = <<"position: fixed;top: 0; width: 100%;">>,
+                                 class = <<"dialog dialog-danger">>,
+                                 body = <<"No session or session expired.">>
+                             }
+                     end,
             Main = [
                 #panel{
                     class = <<"alert alert-success">>,
                     style = <<"width: 30em; margin: 0 auto; text-align: center; margin-top: 10em;">>,
                     body = [
                         #h3{
-                            body = <<"Welcome to OnePanel">>
+                            body = <<"Welcome to onepanel">>
                         },
                         #form{
                             id = <<"login_form">>,
@@ -97,29 +109,6 @@ body() ->
     end.
 
 
-%% error_message/2
-%% ====================================================================
-%% @doc Handles page events.
--spec error_message(SourcePage :: binary() | undefined, ErrorId :: binary() | undefined) -> Result when
-    Result :: #panel{}.
-%% ====================================================================
-error_message(undefined, undefined) ->
-    #panel{
-        class = <<"hidden dialog dialog-danger">>
-    };
-error_message(undefined, ErrorId) ->
-    ErrorMessage = onepanel_gui_utils:get_error_message(binary_to_atom(gui_str:to_binary(ErrorId), latin1)),
-    #panel{
-        class = <<"dialog dialog-danger">>,
-        body = ErrorMessage
-    };
-error_message(_, _) ->
-    #panel{
-        class = <<"dialog dialog-danger">>,
-        body = <<"No session or session expired.">>
-    }.
-
-
 %% ====================================================================
 %% Events handling
 %% ====================================================================
@@ -127,6 +116,7 @@ error_message(_, _) ->
 %% event/1
 %% ====================================================================
 %% @doc Handles page events.
+%% @end
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->

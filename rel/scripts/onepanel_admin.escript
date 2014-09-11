@@ -8,8 +8,8 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This script interacts with Onepanel nodes and provides
-%% management functions for VeilCluster nodes.
+%% @doc This script interacts with onepanel nodes and provides
+%% management functions for software components.
 %% @end
 %% ===================================================================
 
@@ -39,7 +39,7 @@
 -define(EXIT_SUCCESS, 0).
 -define(EXIT_FAILURE, 1).
 
-%% Local Onepanel node
+%% Local onepanel node
 -define(NODE, local_node).
 
 %% config record contains following fields:
@@ -126,7 +126,7 @@ install(Path) ->
         lists:foreach(fun(Host) ->
             HostOpenFiles = proplists:get_value(Host, OpenFiles, ?DEFAULT_OPEN_FILES),
             HostProcesses = proplists:get_value(Host, Processes, ?DEFAULT_PROCESSES),
-            rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_ulimits, [HostOpenFiles, HostProcesses])
+            rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_system_limits, [HostOpenFiles, HostProcesses])
         end, AllHosts),
         print_ok(),
 

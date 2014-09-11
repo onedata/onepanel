@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module gives access to VeilClusters package repository.
+%% @doc This module gives access to VeilClusters package repository.
 %% @end
 %% ===================================================================
 -module(updater_repos).

@@ -5,14 +5,15 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module provides mapping of Onepanel paths to modules
+%% @doc This module provides mapping of onepanel paths to modules
 %% that will render the pages.
 %% @end
 %% ===================================================================
-
 -module(routes).
+
 -include("gui_modules/pages.hrl").
 -include_lib("n2o/include/wf.hrl").
+
 -export([init/2, finish/2]).
 
 %% ====================================================================
@@ -22,6 +23,7 @@
 %% init/2
 %% ====================================================================
 %% @doc Initializes routing state and context.
+%% @end
 -spec init(State :: term(), Ctx :: #context{}) -> Result when
     Result :: {ok, State :: term(), Ctx :: #context{}}.
 %% ====================================================================
@@ -37,6 +39,7 @@ init(State, Ctx) ->
 %% finish/2
 %% ====================================================================
 %% @doc Finalizes routing state and context.
+%% @end
 -spec finish(State :: term(), Ctx :: #context{}) -> Result when
     Result :: {ok, State :: term(), Ctx :: #context{}}.
 %% ====================================================================
@@ -50,6 +53,7 @@ finish(State, Ctx) -> {ok, State, Ctx}.
 %% route/1
 %% ====================================================================
 %% @doc Returns modules that renders pages for given resource.
+%% @end
 -spec route(Resource :: string()) -> Result when
     Result :: module().
 %% ====================================================================
@@ -61,16 +65,16 @@ route(?PAGE_LOGIN) -> page_login;
 route(?PAGE_LOGIN_VALIDATION) -> page_login_validation;
 route(?PAGE_LOGOUT) -> page_logout;
 route(?PAGE_ABOUT) -> page_about;
+route(?PAGE_ERROR) -> page_error;
 route(?PAGE_ACCOUNT_SETTINGS) -> page_account_settings;
-route(?PAGE_SOFTWARE_SETTINGS) -> page_software_settings;
 route(?PAGE_PRIVACY_POLICY) -> page_privacy_policy;
 
 %% Installation pages
 route(?PAGE_INSTALLATION) -> page_installation;
 route(?PAGE_HOST_SELECTION) -> page_hosts_selection;
-route(?PAGE_MAIN_CCM_SELECTION) -> page_main_ccm_selection;
+route(?PAGE_PRIMARY_CCM_SELECTION) -> page_primary_ccm_selection;
 route(?PAGE_SYSTEM_LIMITS) -> page_system_limits;
-route(?PAGE_ADD_STORAGE) -> page_add_storage;
+route(?PAGE_STORAGE) -> page_storage;
 route(?PAGE_INSTALLATION_SUMMARY) -> page_installation_summary;
 route(?PAGE_INSTALLATION_SUCCESS) -> page_installation_success;
 
@@ -81,6 +85,7 @@ route(?PAGE_UPDATE_SUMMARY) -> page_update_summary;
 route(?PAGE_UPDATE_SUCCESS) -> page_update_success;
 
 %% Spaces pages
+route(?PAGE_SPACE_DETAILS) -> page_space_details;
 route(?PAGE_SPACES_ACCOUNT) -> page_spaces_account;
 route(?PAGE_SPACES_SETTINGS) -> page_spaces_settings;
 

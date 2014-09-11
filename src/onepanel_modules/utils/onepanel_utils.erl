@@ -5,19 +5,21 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains utility Onepanel functions.
+%% @doc This module contains utility onepanel functions.
 %% @end
 %% ===================================================================
 -module(onepanel_utils).
 
 -include("registered_names.hrl").
+-include("onepanel_modules/updater/common.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([random_ascii_lowercase_sequence/1]).
--export([get_node/1, get_node/2, get_nodes/0, get_nodes/2, get_host/1, get_hosts/0, get_software_version/0, get_control_panel_hosts/0]).
+-export([get_application_version/0, get_software_version/0, get_available_software_versions/0, get_software_version_name/1, get_software_version_record/1]).
+-export([get_node/1, get_node/2, get_nodes/0, get_nodes/2, get_host/1, get_hosts/0, get_control_panel_hosts/0]).
 -export([apply_on_hosts/5, dropwhile_failure/5, save_file_on_host/3, save_file_on_hosts/3]).
 
 %% ====================================================================
@@ -27,7 +29,9 @@
 %% random_ascii_lowercase_sequence/1
 %% ====================================================================
 %% @doc Creates random sequence consisting of lowercase ASCII letters.
--spec random_ascii_lowercase_sequence(Length :: integer()) -> string().
+%% @end
+-spec random_ascii_lowercase_sequence(Length :: integer()) -> Result when
+    Result :: string().
 %% ====================================================================
 random_ascii_lowercase_sequence(Length) ->
     lists:foldl(fun(_, Acc) -> [random:uniform(26) + 96 | Acc] end, [], lists:seq(1, Length)).
@@ -89,6 +93,7 @@ dropwhile_failure([Node | Nodes], Module, Function, Arguments, Timeout) ->
 %% get_node/1
 %% ====================================================================
 %% @doc Returns node from host.
+%% @end
 -spec get_node(Host :: string()) -> Result when
     Result :: node().
 %% ====================================================================
@@ -99,6 +104,7 @@ get_node(Host) ->
 %% get_node/2
 %% ====================================================================
 %% @doc Returns node of given type on provided host.
+%% @end
 -spec get_node(Type :: string(), Host :: string()) -> Result when
     Result :: node().
 %% ====================================================================
@@ -109,6 +115,7 @@ get_node(Type, Host) ->
 %% get_nodes/0
 %% ====================================================================
 %% @doc Returns list of all application nodes.
+%% @end
 -spec get_nodes() -> Result when
     Result :: node().
 %% ====================================================================
@@ -119,6 +126,7 @@ get_nodes() ->
 %% get_nodes/2
 %% ====================================================================
 %% @doc Returns list of nodes of given type on provided hosts.
+%% @end
 -spec get_nodes(Type :: string(), Hosts :: [string()]) -> Result when
     Result :: node().
 %% ====================================================================
@@ -131,6 +139,7 @@ get_nodes(Type, Hosts) ->
 %% get_host/1
 %% ====================================================================
 %% @doc Returns host from node.
+%% @end
 -spec get_host(Node :: node()) -> Result when
     Result :: string().
 %% ====================================================================
@@ -141,7 +150,8 @@ get_host(Node) ->
 
 %% get_hosts/0
 %% ====================================================================
-%% @doc Returns list of hostnames.
+%% @doc Returns list of hostnames of onepanel cluster nodes.
+%% @end
 -spec get_hosts() -> Result when
     Result :: [Host :: string()].
 %% ====================================================================
@@ -158,6 +168,7 @@ get_hosts() ->
 %% save_file_on_hosts/3
 %% ====================================================================
 %% @doc Saves Global Registry certificate cert on all hosts.
+%% @end
 -spec save_file_on_hosts(Path :: string(), Filename :: string(), Content :: string() | binary()) -> Result when
     Result :: ok | {error, ErrorHosts :: [string()]}.
 %% ====================================================================
@@ -174,6 +185,7 @@ save_file_on_hosts(Path, Filename, Content) ->
 %% save_file_on_host/3
 %% ====================================================================
 %% @doc Saves Global Registry certificate cert on host.
+%% @end
 -spec save_file_on_host(Path :: string(), Filename :: string(), Content :: string() | binary()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
@@ -190,16 +202,36 @@ save_file_on_host(Path, Filename, Content) ->
     end.
 
 
+%% get_application_version/0
+%% ====================================================================
+%% @doc Returns version of onepanel application read from reltool.config
+%% file.
+%% @end
+-spec get_application_version() -> Result when
+    Result :: binary().
+%% ====================================================================
+get_application_version() ->
+    case lists:dropwhile(fun
+        ({?APP_NAME, _, _}) -> false;
+        (_) -> true
+    end, application:which_applications()) of
+        [{?APP_NAME, _, Version} | _] -> list_to_binary(Version);
+        _ -> <<"undefined">>
+    end.
+
+
 %% get_software_version/0
 %% ====================================================================
-%% @doc Returns current software version.
+%% @doc Returns installed software version.
+%% @end
 -spec get_software_version() -> Result when
-    Result :: string() | undefined.
+    Result :: binary() | undefined.
 %% ====================================================================
 get_software_version() ->
     try
         {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        dropwhile_failure(get_nodes(?DEFAULT_WORKER_NAME, Workers), node_manager, check_vsn, [], ?RPC_TIMEOUT)
+        Version = dropwhile_failure(get_nodes(?DEFAULT_WORKER_NAME, Workers), node_manager, check_vsn, [], ?RPC_TIMEOUT),
+        list_to_binary(Version)
     catch
         _:Reason ->
             ?error("Cannot get current software version: ~p", [Reason]),
@@ -207,9 +239,54 @@ get_software_version() ->
     end.
 
 
+%% get_software_version_name/1
+%% ====================================================================
+%% @doc Returns version in binary form.
+%% @end
+-spec get_software_version_name(Version :: #version{}) -> Result when
+    Result :: binary().
+%% ====================================================================
+get_software_version_name(#version{major = Major, minor = Minor, patch = Patch}) ->
+    <<(integer_to_binary(Major))/binary, ".", (integer_to_binary(Minor))/binary, ".", (integer_to_binary(Patch))/binary>>.
+
+
+%% get_software_version_record/1
+%% ====================================================================
+%% @doc Returns version in record form.
+%% @end
+-spec get_software_version_record(Version :: binary()) -> Result when
+    Result :: #version{}.
+%% ====================================================================
+get_software_version_record(Version) ->
+    [Major, Minor, Patch | _] = binary:split(Version, <<".">>, [global]),
+    #version{major = binary_to_integer(Major), minor = binary_to_integer(Minor), patch = binary_to_integer(Patch)}.
+
+
+%% get_available_software_versions/0
+%% ====================================================================
+%% @doc Returns available software versions read from remote repository.
+%% @end
+-spec get_available_software_versions() -> Result when
+    Result :: [binary()] | undefined.
+%% ====================================================================
+get_available_software_versions() ->
+    try
+        {ok, URL} = application:get_env(?APP_NAME, get_software_versions_url),
+        Options = [{connect_timeout, ?CONNECTION_TIMEOUT}],
+        {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(URL, [{content_type, "application/json"}], get, [], Options),
+        {_, List} = mochijson2:decode(ResBody),
+        sort_versions(proplists:get_value(<<"VeilCluster-Linux.rpm">>, List))
+    catch
+        _:Reason ->
+            ?error("Cannot get available software versions from repository: ~p", [Reason]),
+            undefined
+    end.
+
+
 %% get_control_panel_hosts/0
 %% ====================================================================
 %% @doc Returns list of control panel hosts
+%% @end
 -spec get_control_panel_hosts() -> Result when
     Result :: {ok, Hosts :: [string()]} | {error, Reason :: term()}.
 %% ====================================================================
@@ -228,3 +305,36 @@ get_control_panel_hosts() ->
             ?error("Cannot get control panel hosts: ~p", [Reason]),
             {error, Reason}
     end.
+
+
+%% ====================================================================
+%% Internal functions
+%% ====================================================================
+
+%% sort_versions/1
+%% ====================================================================
+%% @doc Sorts versions in descending order and eliminates duplicates.
+%% @end
+-spec sort_versions(Versions :: [#version{}]) -> Result when
+    Result :: [#version{}].
+%% ====================================================================
+sort_versions(Versions) ->
+    CmpPatch = fun
+        (#version{patch = PatchA}, #version{patch = PatchB}) ->
+            PatchA >= PatchB
+    end,
+    CmpMinor = fun
+        (#version{minor = Minor} = A, #version{minor = Minor} = B) ->
+            CmpPatch(A, B);
+        (#version{minor = MinorA}, #version{minor = MinorB}) ->
+            MinorA > MinorB
+    end,
+    CmpMajor = fun
+        (#version{major = Major} = A, #version{major = Major} = B) ->
+            CmpMinor(A, B);
+        (#version{major = MajorA}, #version{major = MajorB}) ->
+            MajorA > MajorB
+    end,
+    lists:usort(CmpMajor, lists:map(fun(Version) ->
+        get_software_version_record(Version)
+    end, Versions)).

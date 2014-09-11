@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module gives tools for updater's state interpretation.
+%% @doc This module gives tools for updater's state interpretation.
 %% @end
 %% ===================================================================
 -module(updater_state).
@@ -53,7 +53,7 @@ get_all_stages(#?u_state{nodes = Nodes, force_node_restart = ForceRestart, nodes
 
     RestartJobs =
         case ForceRestart of
-            true  -> lists:usort(Nodes);
+            true -> lists:usort(Nodes);
             false -> lists:usort(NodesToRestart)
         end,
     RepairJobs = lists:usort(NodesToRepair),

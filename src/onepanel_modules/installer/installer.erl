@@ -5,12 +5,11 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module is a gen_server that executes installation
+%% @doc This module is a gen_server that executes installation
 %% operations.
 %% @end
 %% ===================================================================
 -module(installer).
-
 -behaviour(gen_server).
 
 -include("registered_names.hrl").
@@ -20,7 +19,7 @@
 
 %% API
 -export([install/1, install/2, start_link/0]).
--export([get_stages/0, get_job_index/2, get_flatten_stages/0, get_stage_and_job/1, get_error/1, set_callback/1, get_next_state/1]).
+-export([get_state/0, get_stages/0, get_job_index/2, get_flatten_stages/0, get_stage_and_job/1, get_error/1, set_callback/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -53,6 +52,20 @@ install(Config) ->
 install(Config, Callback) ->
     case start() of
         ok -> gen_server:call({global, ?INSTALL_SERVICE}, {install, Config, Callback});
+        {error, Reason} -> {error, Reason}
+    end.
+
+
+%% get_state/0
+%% ====================================================================
+%% @doc Returns current state of installer service.
+%% @end
+-spec get_state() -> Result when
+    Result :: #?i_state{}.
+%% ====================================================================
+get_state() ->
+    case start() of
+        ok -> gen_server:call({global, ?INSTALL_SERVICE}, get_state);
         {error, Reason} -> {error, Reason}
     end.
 
@@ -177,16 +190,29 @@ init([]) ->
     {stop, Reason :: term(), Reply :: term(), NewState :: #?i_state{}} |
     {stop, Reason :: term(), NewState :: #?i_state{}}.
 %% ====================================================================
+handle_call(get_state, _From, State) ->
+    {reply, State, State};
+
 handle_call({set_callback, Callback}, _From, State) ->
     {reply, ok, State#?i_state{callback = Callback}};
 
 handle_call({install, Config, Callback}, _From, #?i_state{stage = ?STAGE_INIT} = State) ->
     NextState = get_next_state(State),
-    gen_server:cast({global, ?INSTALL_SERVICE}, {execute, Config}),
-    {reply, ok, NextState#?i_state{callback = Callback}};
+    gen_server:cast({global, ?INSTALL_SERVICE}, next_state),
+    {reply, ok, NextState#?i_state{config = Config, callback = Callback}};
 
 handle_call({install, _, _}, _From, State) ->
-    {reply, {error, installation_already_in_progress}, State};
+    {reply, {error, <<"Installation already in progress">>}, State};
+
+handle_call({result, ok}, _From, State) ->
+    NextState = get_next_state(State),
+    gen_server:cast({global, ?INSTALL_SERVICE}, next_state),
+    {reply, ok, NextState};
+
+handle_call({result, Error}, _From, #?i_state{callback = Callback} = State) ->
+    NextState = State#?i_state{error = Error},
+    Callback(?EVENT_ERROR, NextState),
+    {stop, shutdown, NextState};
 
 handle_call(Request, _From, State) ->
     ?warning("[Installer] Wrong call: ~p", [Request]),
@@ -202,22 +228,17 @@ handle_call(Request, _From, State) ->
     {noreply, NewState :: #?i_state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #?i_state{}}.
 %% ====================================================================
-handle_cast({execute, _}, #?i_state{stage = ?STAGE_IDLE, callback = Callback} = State) ->
+handle_cast(next_state, #?i_state{stage = ?STAGE_IDLE, callback = Callback} = State) ->
     Callback(?EVENT_STATE_CHANGED, State),
     {stop, normal, State};
 
-handle_cast({execute, Config}, #?i_state{stage = Stage, job = Job, callback = Callback} = State) ->
+handle_cast(next_state, #?i_state{stage = Stage, job = Job, config = Config, callback = Callback} = State) ->
     Callback(?EVENT_STATE_CHANGED, State),
-    case Stage:Job(Config) of
-        ok ->
-            NextState = get_next_state(State),
-            gen_server:cast({global, ?INSTALL_SERVICE}, {execute, Config}),
-            {noreply, NextState};
-        Error ->
-            NextState = State#?i_state{error = Error},
-            Callback(?EVENT_ERROR, NextState),
-            {stop, shutdown, NextState}
-    end;
+    spawn_link(fun() ->
+        Result = Stage:Job(Config),
+        gen_server:call({global, ?INSTALL_SERVICE}, {result, Result})
+    end),
+    {noreply, State};
 
 handle_cast(Request, State) ->
     ?warning("[Installer] Wrong cast: ~p", [Request]),
@@ -233,6 +254,14 @@ handle_cast(Request, State) ->
     {noreply, NewState :: #?i_state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #?i_state{}}.
 %% ====================================================================
+handle_info({'EXIT', _Pid, normal}, State) ->
+    {noreply, State};
+
+handle_info({'EXIT', _Pid, Error}, #?i_state{callback = Callback} = State) ->
+    NextState = State#?i_state{error = Error},
+    Callback(?EVENT_ERROR, NextState),
+    {stop, Error, NextState};
+
 handle_info(Info, State) ->
     ?warning("[Installer] Wrong info: ~p", [Info]),
     {noreply, State}.

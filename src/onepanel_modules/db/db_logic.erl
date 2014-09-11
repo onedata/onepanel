@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains database management functions. It allows
+%% @doc This module contains database management functions. It allows
 %% to create, initialize and delete database tables. Moreover it allows
 %% to add node to database cluster and list available nodes.
 %% @end
@@ -16,7 +16,6 @@
 -include("onepanel_modules/logic/user_logic.hrl").
 -include("onepanel_modules/logic/provider_logic.hrl").
 -include("onepanel_modules/installer/state.hrl").
--include("onepanel_modules/installer/internals.hrl").
 -include("onepanel_modules/updater/state.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -36,26 +35,23 @@
 %% ====================================================================
 initialize(?USER_TABLE) ->
     try
-        {ok, Username} = application:get_env(?APP_NAME, default_username),
-        {ok, UserPassword} = application:get_env(?APP_NAME, default_user_password),
-        ok = user_logic:create_user(Username, UserPassword)
+        {ok, DefaultUsername} = application:get_env(?APP_NAME, default_username),
+        {ok, DefaultPassword} = application:get_env(?APP_NAME, default_password),
+        ok = user_logic:create_user(DefaultUsername, DefaultPassword)
     catch
         _:Reason ->
             ?error("Cannot initialize user table: ~p", [Reason]),
             {error, Reason}
     end;
-initialize(?PROVIDER_TABLE) ->
-    ok;
 initialize(?GLOBAL_CONFIG_TABLE) ->
     try
-        {ok, DbPassword} = application:get_env(?APP_NAME, default_db_password),
-        ok = dao:save_record(?GLOBAL_CONFIG_TABLE, #?GLOBAL_CONFIG_RECORD{id = ?CONFIG_ID, db_password = DbPassword})
+        ok = dao:save_record(?GLOBAL_CONFIG_TABLE, #?GLOBAL_CONFIG_RECORD{id = ?CONFIG_ID, timestamp = 0})
     catch
         _:Reason ->
             ?error("Cannot initialize global configuration table: ~p", [Reason]),
             {error, Reason}
     end;
-initialize(?UPDATER_STATE_TABLE) ->
+initialize(_) ->
     ok.
 
 %% create/0

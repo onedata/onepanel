@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module implements {@link installer_behaviour} callbacks and
+%% @doc This module implements {@link installer_behaviour} callbacks and
 %% provides API methods for worker nodes installation.
 %% @end
 %% ===================================================================
@@ -300,7 +300,7 @@ local_start(MainCCM, OptCCMs, Dbs, StoragePaths) ->
         ok = installer_storage:add_storage_paths_on_host(StoragePaths),
 
         os:cmd(OverwriteCommand),
-        SetUlimitsCmd = installer_utils:get_ulimits_cmd(Host),
+        SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
         "" = os:cmd(SetUlimitsCmd ++ " ; " ++ StartCommand),
 
         {ok, Host}

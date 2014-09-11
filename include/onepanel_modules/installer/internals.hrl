@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This header file contains common definitions for installer modules.
+%% @doc This header file contains common definitions for installer modules.
 %% @end
 %% ===================================================================
 
@@ -30,8 +30,8 @@
 
 %% System limit values
 -define(ULIMITS_CONFIG_PATH, filename:join([?PREFIX, "scripts", "ulimits.cfg"])).
--define(DEFAULT_OPEN_FILES, "65535").
--define(DEFAULT_PROCESSES, "65535").
+-define(DEFAULT_OPEN_FILES, 65535).
+-define(DEFAULT_PROCESSES, 65535).
 
 %% Default names of installable components
 -define(DEFAULT_DB_NAME, "db").
@@ -39,11 +39,11 @@
 -define(DEFAULT_WORKER_NAME, "worker").
 
 %% ====================================================================
-%% Database nodes macros
+%% Database components macros
 %% ====================================================================
 
 %% Default bigcouch port
--define(DEFAULT_PORT, "5986").
+-define(DEFAULT_PORT, 5986).
 
 %% Timeout for database nodes addition to cluster
 -define(CONNECTION_TIMEOUT, 5000).
@@ -60,7 +60,7 @@
 -define(DEFAULT_DB_INSTALL_PATH, filename:join([filename:absname("/"), "opt", "bigcouch"])).
 
 %% ====================================================================
-%% VeilCluster nodes macros
+%% Software components macros
 %% ====================================================================
 
 %% Location of release packages

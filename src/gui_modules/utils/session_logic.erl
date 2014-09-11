@@ -5,13 +5,13 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module implements session_logic_behaviour and exports an
+%% @doc This module implements session_logic_behaviour and exports an
 %% API for persisting GUI sessions.
 %% @end
 %% ===================================================================
-
 -module(session_logic).
 -behaviour(session_logic_behaviour).
+
 -include("gui_modules/common.hrl").
 -include_lib("ctool/include/logging.hrl").
 

@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: Passive implementation of update procedures. This module behaves as callback provider
+%% @doc Passive implementation of update procedures. This module behaves as callback provider
 %%       for updater_engine.
 %% @end
 %% ===================================================================
@@ -41,7 +41,6 @@ get_error_level(_Stage, _Job, _Object, _Reason, _State) ->
     error.
 
 
-
 %% ====================================================================
 %% Install callbacks
 %% ====================================================================
@@ -73,7 +72,7 @@ finalize_stage(?STAGE_DEPLOY_FILES, ?JOB_DEPLOY, #?u_state{nodes = Nodes, previo
     ToRestart =
         case ForceRestart of
             true -> Nodes;
-            _    -> [Node || {Node, true} <- LMap]
+            _ -> [Node || {Node, true} <- LMap]
         end,
     ?info("Nodes to restart: ~p", [ToRestart]),
     State#?u_state{nodes_to_restart = ToRestart};
@@ -81,7 +80,6 @@ finalize_stage(?STAGE_DEPLOY_FILES, ?JOB_DEPLOY, #?u_state{nodes = Nodes, previo
 finalize_stage(Stage, Job, State) ->
     ?debug("Unknown finalize: ~p:~p", [Stage, Job]),
     State.
-
 
 
 %% handle_stage/3
@@ -105,7 +103,7 @@ handle_stage(?STAGE_INIT, ?JOB_LOAD_EXPORTS, #?u_state{nodes = Nodes} = _State) 
     Nodes;
 
 handle_stage(?STAGE_INIT, ?JOB_CHECK_CONNECTIVITY, #?u_state{nodes = Nodes} = _State) ->
-    Hostnames = lists:usort([ onepanel_utils:get_host(Node) || Node <- Nodes ]),
+    Hostnames = lists:usort([onepanel_utils:get_host(Node) || Node <- Nodes]),
     OnePanelNodes = [onepanel_utils:get_node(Host) || Host <- Hostnames],
     Nodes ++ OnePanelNodes;
 
@@ -144,7 +142,6 @@ handle_stage(?STAGE_NODE_RESTART, RestartNode, #?u_state{} = _State) ->
 
 handle_stage(Stage, Job, #?u_state{}) ->
     throw({invalid_stage, {Stage, Job}}).
-
 
 
 %% dispatch_object/4
@@ -226,7 +223,6 @@ dispatch_object(Stage, Job, Obj, #?u_state{}) ->
     throw({unknown_dispatch, {Stage, Job, Obj}}).
 
 
-
 %% ====================================================================
 %% Rollback callbacks
 %% ====================================================================
@@ -267,7 +263,6 @@ rollback_object(?STAGE_REPAIR_NODES, _, Obj, #?u_state{}) ->
 
 rollback_object(Stage, Job, Obj, #?u_state{}) ->
     throw({unknown_rollback, {Stage, Job, Obj}}).
-
 
 
 %% ====================================================================

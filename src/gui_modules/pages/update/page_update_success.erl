@@ -5,16 +5,16 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains n2o website code.
+%% @doc This module contains n2o website code.
 %% This page is displayed in case of successful update.
 %% @end
 %% ===================================================================
-
 -module(page_update_success).
--export([main/0, event/1]).
 
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/updater/common.hrl").
+
+-export([main/0, event/1]).
 
 %% ====================================================================
 %% API functions
@@ -23,6 +23,7 @@
 %% main/0
 %% ====================================================================
 %% @doc Template points to the template file, which will be filled with content.
+%% @end
 -spec main() -> Result when
     Result :: #dtl{}.
 %% ====================================================================
@@ -44,6 +45,7 @@ main() ->
 %% title/0
 %% ====================================================================
 %% @doc Page title.
+%% @end
 -spec title() -> Result when
     Result :: binary().
 %% ====================================================================
@@ -54,6 +56,7 @@ title() ->
 %% body/0
 %% ====================================================================
 %% @doc This will be placed instead of {{body}} tag in template.
+%% @end
 -spec body() -> Result when
     Result :: #panel{}.
 %% ====================================================================
@@ -72,7 +75,7 @@ body() ->
                     case onepanel_utils:get_software_version() of
                         undefined -> #p{};
                         Version -> #p{
-                            body = <<"Current software version: <b>", (list_to_binary(Version))/binary, "</b>">>
+                            body = <<"Current software version: <b>", Version/binary, "</b>">>
                         }
                     end,
                     #link{
@@ -96,6 +99,7 @@ body() ->
 %% event/1
 %% ====================================================================
 %% @doc Handles page events.
+%% @end
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->

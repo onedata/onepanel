@@ -7,8 +7,8 @@
 #  cited in 'LICENSE.txt'.
 #####################################################################
 #  This script is used to include given as first argument
-#  dynamic libraries into Onepanel release package based on ldd
-#  output from file given as second agrument.
+#  dynamic libraries into onepanel release package based on ldd
+#  output from file given as second agrument. 
 #####################################################################
 
 if [ $# -lt 2 ]
@@ -40,9 +40,11 @@ do
     for file in $libs_list
     do
         # Copy and link shared library
-        cp -L $file ./$BIN_DIR
         link="`basename $file`"
         target="$BIN_DIR/`basename $(echo $file | sed 's/\.so\..*/\.so/' | sed 's/\.[0-9.]*\.dylib.*/\.dylib/')`"
+        if [ ! -f "$BIN_DIR/$link" ]; then
+            cp -L $file $BIN_DIR
+        fi
         if [ `basename $link` != `basename $target` ]; then
             ln -sf $link $target
         fi

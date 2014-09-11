@@ -5,13 +5,11 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains n2o website code.
+%% @doc This module contains n2o website code.
 %% This page displays update summary and starts updater process.
 %% @end
 %% ===================================================================
-
 -module(page_update_summary).
--export([main/0, event/1]).
 
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/updater/common.hrl").
@@ -19,18 +17,17 @@
 -include("onepanel_modules/updater/stages.hrl").
 -include_lib("ctool/include/logging.hrl").
 
+-export([main/0, event/1, comet_loop/1]).
+
 %% Default time in miliseconds for next progress bar update
 -define(DEFAULT_NEXT_UPDATE, 1000).
-
-%% Current 'force_restart_checkbox' state
--define(FORCE_RELOAD, force_reload).
 
 %% Comet process pid
 -define(COMET_PID, comet_pid).
 
 %% Comet process state
--define(STATE, state).
--record(?STATE, {stage_index = 1, job_index, job_progress, stages_count, action_type = install, update_time}).
+-define(STATE, comet_state).
+-record(?STATE, {stage_index = 1, job_index, job_progress, stages_count, action_type = install, update_time, force_restart = false}).
 
 %% ====================================================================
 %% API functions
@@ -39,6 +36,7 @@
 %% main/0
 %% ====================================================================
 %% @doc Template points to the template file, which will be filled with content.
+%% @end
 -spec main() -> Result when
     Result :: #dtl{}.
 %% ====================================================================
@@ -60,6 +58,7 @@ main() ->
 %% title/0
 %% ====================================================================
 %% @doc Page title.
+%% @end
 -spec title() -> Result when
     Result :: binary().
 %% ====================================================================
@@ -70,12 +69,13 @@ title() ->
 %% body/0
 %% ====================================================================
 %% @doc This will be placed instead of {{body}} tag in template.
+%% @end
 -spec body() -> Result when
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    #version{major = Major, minor = Minor, patch = Patch} = Version = gui_ctx:get(?CHOSEN_VERSION),
-    ChosenVersionName = <<(integer_to_binary(Major))/binary, ".", (integer_to_binary(Minor))/binary, ".", (integer_to_binary(Patch))/binary>>,
+    ChosenVersion = gui_ctx:get(?CHOSEN_VERSION),
+    ChosenVersionName = onepanel_utils:get_software_version_name(ChosenVersion),
     State = updater:get_state(),
     {UpdatePanelDisplay, UpdateProgressDisplay} = case updater_state:get_stage_and_job(State) of
                                                       {?STAGE_IDLE, _} -> {<<"">>, <<" display: none;">>};
@@ -85,125 +85,62 @@ body() ->
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
-            #panel{
-                id = <<"ok_message">>,
-                style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
-                class = <<"dialog dialog-success">>
+            #h6{
+                style = <<"font-size: x-large; margin-bottom: 1em;">>,
+                body = <<"Step 2: Update summary.">>
+            },
+            #p{
+                style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
+                body = <<"Software version to update to: <b>", ChosenVersionName/binary, "</b>">>
             },
             #panel{
-                id = <<"error_message">>,
-                style = <<"position: fixed; width: 100%; top: 55px; z-index: 1; display: none;">>,
-                class = <<"dialog dialog-danger">>
-            },
-            #panel{
-                style = <<"margin-top: 150px; text-align: center;">>,
+                id = <<"update_panel">>,
+                style = UpdatePanelDisplay,
                 body = [
-                    #h6{
-                        style = <<"font-size: 18px;">>,
-                        body = <<"Step 2: Update summary.">>
+                    #custom_checkbox{
+                        style = <<"width: 20px; margin: 0 auto;">>,
+                        class = <<"checkbox">>,
+                        postback = force_restart_checkbox_toggled,
+                        body = <<"Force software components restart">>
                     },
-                    #h6{
-                        style = <<"font-size: 16px; margin-top: 30px; margin-bottom: 30px;">>,
-                        body = <<"Software version to update to: <b>", ChosenVersionName/binary, "</b>">>
-                    },
+                    onepanel_gui_utils:nav_buttons([
+                        {<<"back_button">>, {postback, back}, false, <<"Back">>},
+                        {<<"update_button">>, {postback, {update_to, ChosenVersion}}, false, <<"Update">>}
+                    ])
+                ]
+            },
+            #panel{
+                id = <<"update_progress">>,
+                style = UpdateProgressDisplay,
+                body = lists:map(fun({TextId, BarId, BarStyle}) ->
                     #panel{
-                        id = <<"update_panel">>,
-                        style = UpdatePanelDisplay,
+                        style = <<"text-align: left; margin-top: 3em; width: 50%; margin: 0 auto;">>,
                         body = [
-                            #panel{
-                                style = <<"margin-top: 30px; width: 270px; height: 100px; margin: 0 auto;">>,
-                                body = [
-                                    #button{
-                                        id = <<"update_button">>,
-                                        class = <<"btn btn-primary">>,
-                                        postback = {update, Version},
-                                        style = <<"float: left; width: 80px;">>,
-                                        body = <<"Update">>
-                                    },
-                                    #panel{
-                                        class = <<"btn-group pull-right">>,
-                                        style = <<"float: right; padding: 7px 14px 0px;">>,
-                                        body = [
-                                            #label{
-                                                id = <<"force_restart_checkbox">>,
-                                                class = <<"checkbox">>,
-                                                for = <<"force_restart_checkbox">>,
-                                                style = <<"display: block; font-weight: bold;">>,
-                                                actions = gui_jq:postback_action(<<"force_restart_checkbox">>, force_restart_checkbox_toggled),
-                                                body = [
-                                                    #span{
-                                                        class = <<"icons">>
-                                                    },
-                                                    #checkbox{
-                                                        id = <<"force_restart_checkbox">>,
-                                                        data_fields = [{<<"data-toggle">>, <<"checkbox">>}]
-                                                    },
-                                                    <<"Force nodes restart">>
-                                                ]
-                                            }
-                                        ]
-                                    }
-                                ]
+                            #p{
+                                id = TextId,
+                                style = <<"font-weight: 300;">>,
+                                body = <<"">>
                             },
-                            #button{
-                                id = <<"back_button">>,
-                                class = <<"btn btn-inverse">>,
-                                postback = back,
-                                style = <<"width: 80px; margin-top: 30px;">>,
-                                body = <<"Back">>
+                            #panel{
+                                class = <<"progress">>,
+                                body = #panel{
+                                    id = BarId,
+                                    class = <<"bar">>,
+                                    style = BarStyle
+                                }
                             }
                         ]
-                    },
-                    #panel{
-                        id = <<"update_progress">>,
-                        style = UpdateProgressDisplay,
-                        body = [
-                            #panel{
-                                id = <<"stage_progress">>,
-                                style = <<"text-align: left; margin-top: 30px; width: 50%; margin: 0 auto;">>,
-                                body = [
-                                    #p{
-                                        id = <<"stage_progress_text">>,
-                                        style = <<"font-weight: 300;">>,
-                                        body = <<"">>
-                                    },
-                                    #panel{
-                                        class = <<"progress">>,
-                                        body = #panel{
-                                            id = <<"stage_bar">>,
-                                            class = <<"bar">>,
-                                            style = <<"width: 0%; background-color: darkcyan;">>
-                                        }
-                                    }
-                                ]
-                            },
-                            #panel{
-                                id = <<"job_progress">>,
-                                style = <<"text-align: left; margin-top: 30px; width: 50%; margin: 0 auto;">>,
-                                body = [
-                                    #p{
-                                        id = <<"job_progress_text">>,
-                                        style = <<"font-weight: 300;">>,
-                                        body = <<"">>
-                                    },
-                                    #panel{
-                                        class = <<"progress">>,
-                                        body = #panel{
-                                            id = <<"job_bar">>,
-                                            class = <<"bar">>,
-                                            style = <<"width: 0%;">>
-                                        }
-                                    }
-                                ]
-                            },
-                            #button{
-                                id = <<"abort_button">>,
-                                class = <<"btn btn-danger">>,
-                                postback = abort,
-                                style = <<"width: 80px; margin-top: 30px;">>,
-                                body = <<"Abort">>
-                            }
-                        ]
+                    }
+                end, [
+                    {<<"stage_progress_text">>, <<"stage_bar">>, <<"width: 0%;">>},
+                    {<<"job_progress_text">>, <<"job_bar">>, <<"width: 0%; background-color: darkcyan;">>}
+                ]) ++ [
+                    #button{
+                        id = <<"abort_button">>,
+                        class = <<"btn btn-danger btn-small">>,
+                        style = <<"width: 8em; font-weight: bold; margin-top: 3em;">>,
+                        postback = abort,
+                        body = <<"Abort">>
                     }
                 ]
             }
@@ -215,6 +152,7 @@ body() ->
 %% translate_stage/1
 %% ====================================================================
 %% @doc Translates stage ID to human-readable version
+%% @end
 -spec translate_stage(StageId :: atom()) -> Result when
     Result :: binary().
 %% ====================================================================
@@ -237,6 +175,7 @@ translate_stage(_) -> <<"">>.
 %% translate_job/1
 %% ====================================================================
 %% @doc Translates job ID to human-readable version
+%% @end
 -spec translate_job(JobId :: atom()) -> Result when
     Result :: binary().
 %% ====================================================================
@@ -260,6 +199,7 @@ translate_job(_) -> <<"">>.
 %% get_stage_index/2
 %% ====================================================================
 %% @doc Returns index of current update stage.
+%% @end
 -spec get_stage_index(Job :: atom(), State :: #?u_state{}) -> Result when
     Result :: integer().
 %% ====================================================================
@@ -271,6 +211,7 @@ get_stage_index(Stage, State) ->
 %% get_job_index_and_jobs_count/3
 %% ====================================================================
 %% @doc Returns index of current update job.
+%% @end
 -spec get_job_index_and_jobs_count(Stage :: atom(), Job :: atom(), State :: #?u_state{}) -> Result when
     Result :: {JobIndex :: integer(), JobsCount :: integer()}.
 %% ====================================================================
@@ -289,6 +230,7 @@ get_job_index_and_jobs_count(Stage, Job, State) ->
 %% ====================================================================
 %% @doc Returns overall jobs progress in current stage and also progress
 %% of current job.
+%% @end
 -spec get_job_progress(JobProgress :: float(), JobIndex :: integer(), JobsCount :: integer(), ActionType :: atom()) -> Result
     when Result :: {JobsProgress :: float(), NewJobProgress :: float()}.
 %% ====================================================================
@@ -303,6 +245,7 @@ get_job_progress(JobProgress, JobIndex, JobsCount, _) ->
 %% update_progress/3
 %% ====================================================================
 %% @doc Updater callback.
+%% @end
 -spec update_progress(Pid :: pid(), Event :: atom(), State :: atom()) -> no_return().
 %% ====================================================================
 update_progress(Pid, Event, State) ->
@@ -336,18 +279,33 @@ update_progress(Pid, Event, State) ->
     end.
 
 
+%% ====================================================================
+%% Events handling
+%% ====================================================================
+
 %% comet_loop/1
 %% ====================================================================
 %% @doc Handles updater process messages and updates progress bar.
+%% @end
 -spec comet_loop(State :: #?STATE{}) -> Result when
     Result :: {error, Reason :: term()}.
 %% ====================================================================
 comet_loop({error, Reason}) ->
     {error, Reason};
 
-comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JProgress, stages_count = SCount, action_type = AType, update_time = UTime} = State) ->
+comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JProgress, stages_count = SCount, action_type = AType, update_time = UTime, force_restart = ForceRestart} = State) ->
     NewState = try
         receive
+            force_restart_checkbox_toggled ->
+                State#?STATE{force_restart = not ForceRestart};
+
+            {update_to, Version} ->
+                Pid = self(),
+                updater:update_to(Version, ForceRestart, fun(Event, UpdaterState) ->
+                    update_progress(Pid, Event, UpdaterState)
+                end),
+                State;
+
             {set_action_type, NewAType} ->
                 State#?STATE{action_type = NewAType};
 
@@ -455,22 +413,22 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
                 end,
                 gui_comet:flush(),
                 #?STATE{stages_count = SCount, action_type = install}
+
+        after ?COMET_PROCESS_RELOAD_DELAY ->
+            State
         end
-               catch Type:Reason ->
-                   ?error("Comet process exception: ~p:~p", [Type, Reason]),
+               catch Type:Message ->
+                   ?error("Comet process exception: ~p:~p", [Type, Message]),
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
-                   {error, Reason}
+                   {error, Message}
                end,
-    comet_loop(NewState).
+    ?MODULE:comet_loop(NewState).
 
-
-%% ====================================================================
-%% Events handling
-%% ====================================================================
 
 %% event/1
 %% ====================================================================
 %% @doc Handles page events.
+%% @end
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->
@@ -503,14 +461,10 @@ event(init) ->
             onepanel_gui_utils:message(<<"ok_message">>, <<"Getting update process state. Please wait.">>),
             gui_jq:hide(<<"update_panel">>),
             gui_jq:show(<<"update_progress">>)
-    end,
-
-    put(?FORCE_RELOAD, false),
-    ok;
+    end;
 
 event(force_restart_checkbox_toggled) ->
-    ForceReload = get(?FORCE_RELOAD),
-    put(?FORCE_RELOAD, not ForceReload);
+    get(?COMET_PID) ! force_restart_checkbox_toggled;
 
 event(back) ->
     onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_VERSION_SELECTION);
@@ -518,14 +472,12 @@ event(back) ->
 event(abort) ->
     updater:abort();
 
-event({update, Version}) ->
+event({update_to, Version}) ->
     gui_jq:hide(<<"update_panel">>),
     gui_jq:hide(<<"error_message">>),
     gui_jq:hide(<<"ok_message">>),
     gui_jq:show(<<"update_progress">>),
-    ForceReload = get(?FORCE_RELOAD),
-    Pid = get(?COMET_PID),
-    updater:update_to(Version, ForceReload, fun(Event, State) -> update_progress(Pid, Event, State) end);
+    get(?COMET_PID) ! {update_to, Version};
 
 event({close_message, MessageId}) ->
     gui_jq:hide(MessageId);

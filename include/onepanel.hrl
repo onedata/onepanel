@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This header file contains common macros and records for
+%% @doc This header file contains common macros and records for
 %% onepanel module.
 %% @end
 %% ===================================================================
@@ -15,7 +15,7 @@
 
 -include("registered_names.hrl").
 
-%% Onepanel gen_server state
--record(state, {status, socket, address, port}).
+%% onepanel gen_server state
+-record(state, {socket, address, port, passwords = []}).
 
 -endif.

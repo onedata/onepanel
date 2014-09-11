@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains Global Registry interaction functions.
+%% @doc This module contains Global Registry interaction functions.
 %% It allows to create Certificate Signing Request and register in
 %% Global Registry (gr for short).
 %% @end
@@ -20,7 +20,7 @@
 
 %% API
 -export([register/0, unregister/0, create_csr/3]).
--export([get_ports_to_check/0, get_provider_id/0]).
+-export([get_default_ports/0, get_provider_id/0]).
 
 -on_load(init/0).
 
@@ -30,7 +30,7 @@
 
 %% init/0
 %% ====================================================================
-%% @doc Initializes NIF library used to create Certificate Signing Request.
+%% @doc Initializes NIF library.
 %% @end
 -spec init() -> ok | no_return().
 %% ====================================================================
@@ -122,13 +122,14 @@ unregister() ->
     end.
 
 
-%% get_ports_to_check/0
+%% get_default_ports/0
 %% ====================================================================
 %% @doc Returns default veilcluster ports that will be checked by Global Registry
--spec get_ports_to_check() -> Result when
+%% @end
+-spec get_default_ports() -> Result when
     Result :: {ok, Ports :: [{Type :: binary(), Port :: integer()}]} | {error, Reason :: term()}.
 %% ====================================================================
-get_ports_to_check() ->
+get_default_ports() ->
     try
         {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
         Node = onepanel_utils:get_node(?DEFAULT_CCM_NAME, MainCCM),
@@ -145,6 +146,7 @@ get_ports_to_check() ->
 %% get_provider_id/0
 %% ====================================================================
 %% @doc Returns provider ID.
+%% @end
 -spec get_provider_id() -> Result when
     Result :: undefined | binary().
 %% ====================================================================

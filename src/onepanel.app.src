@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This file contains the description of application.
+%% @doc This file contains the description of application.
 %% @end
 %% ===================================================================
 
@@ -22,9 +22,10 @@
         % ctool already requires those apps below, but they are here
         % for awareness of them being used in the project and
         % to make sure they are started before the application.
-        cowboy,
+        gproc,
         lager,
-        ibrowse
+        ibrowse,
+        cowboy
     ]},
     {mod, {onepanel_app, []}},
     {env, [
@@ -33,7 +34,10 @@
         {https_acceptors, 100},
         {socket_timeout, 60000},
         {max_keepalive, 30},
-        {connection_ping_period, 5},
+        {connection_ping_delay, 5000},
+        {updater_start_delay, 1000},
+        {updater_lookup_delay, 60000},
+        {bcrypt_work_factor, 12},
         {gui_static_root, "./gui_static"},
         {cert_file, "./certs/server.crt"},
         {key_file, "./certs/server.key"},
@@ -44,11 +48,10 @@
         {grpcert_path, "./certs/grpcert.pem"},
         {grpcacert_path, "./certs/grpca.pem"},
         {global_registry_url, "https://onedata.org:8443"},
-        {get_versions_url, "http://onedata.com/repository/get_versions.php"},
+        {get_software_versions_url, "http://www.onedata.org/repository/get_versions.php"},
         {default_username, <<"admin">>},
-        {default_user_password, <<"password">>},
-        {default_db_password, <<"password">>},
-        {multicast_address, {239, 255, 0, 1}},
+        {default_password, <<"password">>},
+        {min_user_password_length, 8},
         {onepanel_sessions_cookie_ttl, 2592000} % 30 days
     ]}
 ]}.
