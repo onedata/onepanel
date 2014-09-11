@@ -84,7 +84,7 @@ body() ->
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
                 body = <<"<i>Worker</i> components save and retrieve user's data from network file system"
                 " storages. To configure application's storage please provide paths to storages"
-                " below. It is required, that each storge is available for all <i>worker</i> components"
+                " below. It is required that each storage is available for all <i>worker</i> components"
                 " at the same absolute path in file system.">>
             },
             #table{

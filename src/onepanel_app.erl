@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc This is the main module of application. It lunches
+%% @doc This is the main module of application. It launches
 %% supervisor which then initializes appropriate components of node.
 %% @end
 %% ===================================================================

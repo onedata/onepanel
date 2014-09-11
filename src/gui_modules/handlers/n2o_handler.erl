@@ -8,7 +8,7 @@
 %% @doc: Copy of n2o_cowboy.erl from n2o.
 %% This is a cowboy handler module for handling HTTP request with n2o engine.
 %% Compared to original, this module has slight changes in the function
-%% cookie/2 - now it's implementation uses custom session handler
+%% cookie/2 - now its implementation uses custom session handler
 %% (gui_session_handler from ctool project).
 %% @end
 %% ===================================================================
