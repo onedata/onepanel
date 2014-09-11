@@ -1,6 +1,6 @@
 %% ===================================================================
 %% @author Krzysztof Trzepla
-%% @copyright (C): 2014 ACK CYFRONET AGH
+%% @copyright (C) 2014 ACK CYFRONET AGH
 %% This software is released under the MIT license
 %% cited in 'LICENSE.txt'.
 %% @end
@@ -343,7 +343,7 @@ get_json_data(Id, Node, Target, Command, TimeRange, ChartType, UpdatePeriod) ->
     {MegaSecs, Secs, _} = erlang:now(),
     EndTime = trunc(((1000000 * MegaSecs + Secs - 2 * UpdatePeriod) / UpdatePeriod) * UpdatePeriod),
     StartTime = EndTime - time_range_to_integer(TimeRange),
-    {ok, {Header, Body}} = gen_server:call(Target, {Command, StartTime, EndTime, chart_type_to_columns(ChartType)}),
+    {ok, {Header, Body}} = onepanel_utils:apply_on_worker(gen_server, call, [Target, {Command, StartTime, EndTime, chart_type_to_columns(ChartType)}]),
     HeaderJSON = "{ cols: [{label: 'Time', type: 'string'}, " ++
         string:join(lists:map(fun(Column) ->
             header_to_json(Column)
@@ -670,7 +670,7 @@ comet_loop(#?STATE{counter = Counter, nodes = Nodes, node = Node, time_range = T
 %% ====================================================================
 event(init) ->
     try
-        [_ | _] = Nodes = gen_server:call({global, ?CCM}, get_nodes),
+        [_ | _] = Nodes = onepanel_utils:apply_on_worker(gen_server, call, [{global, ?CCM}, get_nodes]),
         gui_jq:prop(<<"add_chart_button">>, <<"disabled">>, <<"">>),
         gui_jq:update(<<"node_dropdown">>, node_dropdown(undefined, [summary | Nodes])),
         {ok, Pid} = gui_comet:spawn(fun() -> comet_loop(#?STATE{counter = 1, nodes = [summary | Nodes]}) end),

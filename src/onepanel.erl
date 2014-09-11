@@ -55,7 +55,6 @@ init([]) ->
     try
         ok = db_logic:create(),
         {ok, UpdaterStartDelay} = application:get_env(?APP_NAME, updater_start_delay),
-        {ok, JoinSoftwareClusterDelay} = application:get_env(?APP_NAME, join_software_cluster_delay),
         {ok, Address} = application:get_env(?APP_NAME, multicast_address),
         {ok, Port} = application:get_env(?APP_NAME, onepanel_port),
         {ok, Socket} = gen_udp:open(Port, [binary, {reuseaddr, true}, {ip, Address},
@@ -64,7 +63,6 @@ init([]) ->
 
         self() ! connection_ping,
         timer:send_after(UpdaterStartDelay, start_updater),
-        timer:send_after(JoinSoftwareClusterDelay, join_software_cluster),
 
         {ok, #state{socket = Socket, address = Address, port = Port}}
     catch
@@ -178,10 +176,6 @@ handle_info(start_updater, State) ->
     updater:start(),
     {ok, Delay} = application:get_env(?APP_NAME, updater_lookup_delay),
     timer:send_after(Delay, start_updater),
-    {noreply, State};
-
-handle_info(join_software_cluster, State) ->
-    onepanel_utils:join_software_cluster(),
     {noreply, State};
 
 handle_info(Info, State) ->

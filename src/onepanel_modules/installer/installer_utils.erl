@@ -301,9 +301,8 @@ get_nagios_report() ->
 %% ====================================================================
 finalize_installation(_Args) ->
     try
-        set_timestamp(),
+        ok = set_timestamp(),
         ok = finalize_installation_loop(?FINALIZE_INSTALLATION_ATTEMPTS),
-        ok = onepanel_utils:join_software_cluster(),
         ok
     catch
         _:Reason ->

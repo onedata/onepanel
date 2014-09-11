@@ -1,16 +1,17 @@
 %% ===================================================================
 %% @author Lukasz Opiola
 %% @copyright (C): 2014 ACK CYFRONET AGH
-%% This software is released under the MIT license
+%% This software is released under the MIT license 
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
 %% @doc This file contains n2o website code.
-%% This page allows live viewing of cluster logs in the system.
+%% The page (available for admins only) allows live viewing of logs sent from clients.
 %% @end
 %% ===================================================================
--module(page_server_logs).
+-module(page_clients_logs).
 
+-include("logging_pb.hrl").
 -include("registered_names.hrl").
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/installer/state.hrl").
@@ -20,6 +21,16 @@
 % n2o API and comet
 -export([main/0, event/1, api_event/3, comet_loop/2]).
 
+%% This record contains environmental variables send by FUSE client
+%% Variables are stored in 'env_vars' list. Entry format: {Name :: atom(), Value :: string()}
+-record(fuse_session, {uid, hostname = "", env_vars = [], client_storage_info = [], valid_to = 0}).
+
+%% Record-wrapper for regular records that needs to be saved in DB. Adds UUID and Revision info to each record.
+%% `uuid` is document UUID, `rev_info` is documents' current revision number
+%% `record` is an record representing this document (its data), `force_update` is a flag
+%% that forces dao:save_record/1 to update this document even if rev_info isn't valid or up to date.
+-record(veil_document, {uuid = "", rev_info = 0, record = none, force_update = false}).
+
 % Record used to store user preferences. One instance is kept in comet process, another one
 % is remembered in page state for filter options to be persistent
 -record(page_state, {
@@ -28,16 +39,14 @@
     first_log = 1,
     max_logs = 200,
     message_filter = undefined,
-    node_filter = undefined,
-    module_filter = undefined,
-    function_filter = undefined
+    file_filter = undefined
 }).
 
 % Widths of columns
 -define(SEVERITY_COLUMN_STYLE, "width: 90px; padding: 6px 12px;").
--define(TIME_COLUMN_STYLE, "width: 180px; padding: 6px 12px;").
+-define(TIME_COLUMN_STYLE, "width: 150px; padding: 6px 12px;").
 -define(MESSAGE_COLUMN_STYLE, "padding: 6px 12px;").
--define(METADATA_COLUMN_STYLE, "width: 300px; padding: 6px 12px;").
+-define(METADATA_COLUMN_STYLE, "width: 340px; padding: 6px 12px;").
 
 % Prefixes used to generate IDs for logs
 -define(COLLAPSED_LOG_ROW_ID_PREFIX, "clr").
@@ -46,6 +55,7 @@
 % Available options of max log count
 -define(MAX_LOGS_OPTIONS, [20, 50, 200, 500, 1000, 2000]).
 
+-define(INFINITY, 10000000000000000000).
 
 %% Template points to the template file, which will be filled with content
 main() ->
@@ -65,13 +75,13 @@ main() ->
 
 
 %% Page title
-title() -> <<"Server logs">>.
+title() -> <<"Clients logs">>.
 
 
 % This will be placed instead of [[[body()]]] tag in template
 body() ->
     gui_jq:register_escape_event("escape_pressed"),
-    Header = onepanel_gui_utils:top_menu(diagnostics_tab, server_logs_link, logs_submenu()),
+    Header = onepanel_gui_utils:top_menu(diagnostics_tab, clients_logs_link, logs_submenu()),
     Main = [
         #panel{style = <<"margin-top: 114px; z-index: -1;">>, body = main_table()},
         footer_popup()
@@ -124,40 +134,43 @@ logs_submenu() ->
                         <<"max_logs_label">>, <<"Max logs: <b>200</b>">>, <<"max_logs_dropdown">>, max_logs_dropdown_body(200)
                     }
                 ])] ++
-
-            [
-                #panel{
-                    class = <<"btn-group">>,
-                    style = MarginStyle,
-                    body = #button{
-                        id = <<"show_filters_button">>,
-                        class = <<"btn btn-inverse btn-small">>,
-                        style = <<"font-weight: bold;">>,
-                        postback = show_filters_popup,
-                        body = <<"Edit filters">>
+                lists:map(fun({Postback, Body}) ->
+                    #panel{
+                        class = <<"btn-group">>,
+                        style = MarginStyle,
+                        body = #button{
+                            class = <<"btn btn-inverse btn-small">>,
+                            style = <<"font-weight: bold;">>,
+                            postback = Postback,
+                            body = Body
+                        }
                     }
-                },
-                #list{class = <<"nav pull-right">>, body = [
-                    #li{body = #link{title = <<"Clear all logs">>, style = <<"padding: 18px 14px;">>,
-                        body = #span{class = <<"fui-trash">>}, postback = clear_all_logs}}
-                ]},
-                #custom_checkbox{
-                    style = <<"margin-top: 20px;">>,
-                    class = <<"checkbox pull-right">>,
-                    checked = true,
-                    body = <<"Auto scroll">>,
-                    postback = toggle_auto_scroll
-                }
-            ]}
+                end, [
+                    {show_filters_popup, <<"Edit filters">>},
+                    {show_manage_clients_popup, <<"Manage clients">>}
+                ]) ++
+                [
+                    #list{class = <<"nav pull-right">>, body = [
+                        #li{body = #link{title = <<"Clear all logs">>, style = <<"padding: 18px 14px;">>,
+                            body = #span{class = <<"fui-trash">>}, postback = clear_all_logs}}
+                    ]},
+                    #custom_checkbox{
+                        style = <<"margin-top: 20px;">>,
+                        class = <<"checkbox pull-right">>,
+                        checked = true,
+                        body = <<"Auto scroll">>,
+                        postback = toggle_auto_scroll
+                    }
+                ]}
         ]}
     ].
 
 
 % Main table displaying logs
 main_table() ->
-    #table{id = <<"main_table">>, class = <<"table table-stripped">>,
+    #table{id = <<"main_table">>, class = <<"table">>,
         style = <<"border-radius: 0; margin-bottom: 0; table-layout: fixed; width: 100%;">>,
-        body = [
+        header = [
             #tr{cells = [
                 #th{body = <<"Severity">>, style = <<?SEVERITY_COLUMN_STYLE>>},
                 #th{body = <<"Time">>, style = <<?TIME_COLUMN_STYLE>>},
@@ -184,14 +197,122 @@ filters_panel() ->
         #panel{style = <<"margin: 0 40px; overflow:hidden; position: relative;">>, body = [
             #panel{style = <<"float: left; position: relative;">>, body = [
                 filter_form(message_filter),
-                filter_form(node_filter)
-            ]},
-            #panel{style = <<"float: left; position: relative; clear: both;">>, body = [
-                filter_form(module_filter),
-                filter_form(function_filter)
+                filter_form(file_filter)
             ]}
         ]}
     ].
+
+
+% This will be placed in footer_popup after user selects to edit logs
+manage_clients_panel() ->
+    CloseButton = #link{postback = hide_filters_popup, title = <<"Hide">>, class = <<"glyph-link">>,
+        style = <<"position: absolute; top: 8px; right: 8px; z-index: 3;">>,
+        body = #span{class = <<"fui-cross">>, style = <<"font-size: 20px;">>}},
+
+    {ClientListBody, Identifiers} =
+        case get_connected_clients() of
+            empty ->
+                Row = #tr{cells = [
+                    #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"--">>},
+                    #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"No clients are connected">>},
+                    #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"">>}
+                ]},
+                {Row, []};
+            error ->
+                Row = #tr{cells = [
+                    #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"--">>},
+                    #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"Error: cannot list fuse sessions">>},
+                    #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"">>}
+                ]},
+                {Row, []};
+            Clients ->
+                {ClientList, {_, Ids}} = lists:mapfoldl(
+                    fun({UserName, FuseID}, {Counter, Idents}) ->
+                        {Row, Identifier} = client_row(<<"client_row_", (integer_to_binary(Counter))/binary>>, false, UserName, FuseID),
+                        {Row, {Counter + 1, Idents ++ Identifier}}
+                    end, {1, []}, Clients),
+                {ClientList, Ids}
+        end,
+
+    gui_jq:bind_enter_to_submit_button(<<"search_textbox">>, <<"search_button">>),
+    [
+        CloseButton,
+        #panel{style = <<"margin: 0 40px; position: relative;">>, body = [
+            #panel{style = <<"text-align: left; position: relative;">>, body = [
+                #p{style = <<"margin-top: -5px; display: inline-block; margin-right: 170px;">>, body = <<"Change loglevels for chosen clients:">>},
+                #panel{class = <<"input-append">>, style = <<"margin-bottom: 10px;">>, body = [
+                    #textbox{id = <<"search_textbox">>, class = <<"span2">>,
+                        style = <<"width: 150px;">>, placeholder = <<"Search users">>},
+                    #panel{class = <<"btn-group">>, body = [
+                        #button{id = <<"search_button">>, class = <<"btn">>, type = <<"button">>,
+                            actions = gui_jq:form_submit_action(<<"search_button">>, {search_clients, Identifiers}, <<"search_textbox">>),
+                            body = #span{class = <<"fui-search">>}}
+                    ]}
+                ]}
+            ]},
+            #panel{id = <<"client_table_viewport">>, style = <<"width: 650px; min-height: 200px; max-height: 200px; overflow-y: scroll;",
+            "background-color: white; border-radius: 4px; border: 2px solid rgb(82, 100, 118); float: left; position: relative;">>, body = [
+                #table{id = <<"client_table">>, class = <<"table table-stripped">>, style = <<"margin-bottom: 0;">>,
+                    header = [
+                        #tr{cells = [
+                            #th{style = <<"border-color: rgb(82, 100, 118);">>, body = [
+                                #link{postback = {toggle_clients, true, Identifiers}, title = <<"Hide">>, class = <<"glyph-link-gray">>,
+                                    style = <<"position: absolute; top: 10px; left: 11px;">>,
+                                    body = #span{class = <<"fui-checkbox-checked">>, style = <<"font-size: 20px;">>}
+                                },
+                                #link{postback = {toggle_clients, false, Identifiers}, title = <<"Hide">>, class = <<"glyph-link-gray">>,
+                                    style = <<"position: absolute; top: 10px; left: 38px;">>,
+                                    body = #span{class = <<"fui-checkbox-unchecked">>, style = <<"font-size: 20px;">>}
+                                }
+                            ]},
+                            #th{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"User">>},
+                            #th{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"Fuse ID">>}
+                        ]}
+                    ],
+                    body = #tbody{body = ClientListBody}
+                }
+            ]},
+            #panel{id = <<"loglevel_buttons_panel">>, style = <<"float: left; margin-left: 25px; ">>, body = loglevel_buttons_panel_body(Identifiers)}
+        ]}
+    ].
+
+
+loglevel_buttons_panel_body(ClientIdentifiers) ->
+    [
+        #button{class = <<"btn btn-block btn-small btn-danger">>, style = <<"padding: 4px 13px 5px; width: 90px; font-weight: bold;">>,
+            id = <<"lb_fatal">>, postback = {set_clients_loglevel, fatal, <<"lb_fatal">>, ClientIdentifiers}, body = <<"fatal">>},
+        #button{class = <<"btn btn-block btn-small btn-danger">>, style = <<"padding: 4px 13px 5px; width: 90px; font-weight: bold;">>,
+            id = <<"lb_error">>, postback = {set_clients_loglevel, error, <<"lb_error">>, ClientIdentifiers}, body = <<"error">>},
+        #button{class = <<"btn btn-block btn-small btn-warning">>, style = <<"padding: 4px 13px 5px; width: 90px; font-weight: bold;">>,
+            id = <<"lb_warning">>, postback = {set_clients_loglevel, warning, <<"lb_warning">>, ClientIdentifiers}, body = <<"warning">>},
+        #button{class = <<"btn btn-block btn-small btn-success">>, style = <<"padding: 4px 13px 5px; width: 90px; font-weight: bold;">>,
+            id = <<"lb_info">>, postback = {set_clients_loglevel, info, <<"lb_info">>, ClientIdentifiers}, body = <<"info">>},
+        #button{class = <<"btn btn-block btn-small">>, style = <<"padding: 4px 13px 5px; width: 90px; font-weight: bold;">>,
+            id = <<"lb_debug">>, postback = {set_clients_loglevel, debug, <<"lb_debug">>, ClientIdentifiers}, body = <<"debug">>},
+        #button{class = <<"btn btn-block btn-small btn-inverse">>, style = <<"padding: 4px 13px 5px; width: 90px; font-weight: bold;">>,
+            id = <<"lb_none">>, postback = {set_clients_loglevel, ?CLIENT_LOGLEVEL_NONE, <<"lb_none">>, ClientIdentifiers}, body = <<"none">>}
+    ].
+
+
+client_row(ID, Selected, UserName, FuseID) ->
+    {RowClass, LinkClass, GlyphClass} =
+        case Selected of
+            true -> {<<"selected-item">>, <<"glyph-link-active">>, <<"fui-checkbox-checked">>};
+            false -> {<<"">>, <<"glyph-link-gray">>, <<"fui-checkbox-unchecked">>}
+        end,
+    Identifier = [{ID, UserName, FuseID}],
+    Row = #tr{class = RowClass, id = ID, cells = [
+        #td{style = <<"border-color: rgb(82, 100, 118);">>, body = [
+            #panel{style = <<"position: relative;">>, body = [
+                #link{id = <<"link_", ID/binary>>, postback = {toggle_clients, not Selected, Identifier}, title = <<"Toggle this client">>,
+                    class = LinkClass, style = <<"position: absolute; top: 0px;">>,
+                    body = #span{class = GlyphClass, style = <<"font-size: 20px;">>}
+                }]}
+        ]},
+        #td{style = <<"border-color: rgb(82, 100, 118);">>, body = gui_str:unicode_list_to_binary(UserName)},
+        #td{style = <<"border-color: rgb(82, 100, 118);">>, body = gui_str:unicode_list_to_binary(FuseID)}
+    ]},
+    {Row, Identifier}.
 
 
 % Creates a set of elements used to edit filter preferences of a single filter
@@ -212,6 +333,41 @@ filter_form(FilterType) ->
             ]}
         ]}
     ]}.
+
+
+% Listing available clients - returns a list or one of two atoms: empty, error
+get_connected_clients() ->
+    try
+        {ok, List} = onepanel_utils:apply_on_worker(dao_cluster, list_fuse_sessions, [{by_valid_to, ?INFINITY}]),
+        ClientList = lists:foldl(
+            fun(#veil_document{uuid = UUID, record = #fuse_session{uid = UserID}} = SessionDoc, Acc) ->
+                case onepanel_utils:apply_on_worker(dao_cluster, check_session, [SessionDoc]) of
+                    ok ->
+                        {ok, UserDoc} = onepanel_utils:apply_on_worker(user_logic, get_user, [{uuid, UserID}]),
+                        Acc ++ [{onepanel_utils:apply_on_worker(user_logic, get_login, [UserDoc]), UUID}];
+                    _ ->
+                        Acc
+                end
+            end, [], List),
+        case ClientList of
+            [] -> empty;
+            _ -> ClientList
+        end
+    catch T:M ->
+        ?error_stacktrace("Cannot list fuse sessions: ~p:~p", [T, M]),
+        error
+    end.
+
+
+% Remebering which clients are selected on the list
+set_selected_clients(List) ->
+    put(selected_clients, List).
+
+get_selected_clients() ->
+    case get(selected_clients) of
+        undefined -> [];
+        List -> List
+    end.
 
 
 % Initialization of comet loop - trap_exit=true so we can control when a session terminates and
@@ -240,6 +396,9 @@ comet_loop(Counter, PageState = #page_state{first_log = FirstLog, auto_scroll = 
                     {Counter, PageState#page_state{max_logs = MaxLogs, first_log = NewFirstLog}};
                 {set_filter, FilterName, Filter} ->
                     {Counter, set_filter(PageState, FilterName, Filter)};
+                {set_clients_loglevel, ClientList, Level, ButtonID} ->
+                    set_clients_loglevel(ClientList, Level, ButtonID),
+                    {Counter, PageState};
                 display_error ->
                     onepanel_utils:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, self()}}]),
                     gui_jq:insert_bottom(<<"main_table">>, comet_error()),
@@ -273,16 +432,11 @@ process_log(Counter, {Message, Timestamp, Severity, Metadata},
         first_log = FirstLog,
         max_logs = MaxLogs,
         message_filter = MessageFilter,
-        node_filter = NodeFilter,
-        module_filter = ModuleFilter,
-        function_filter = FunctionFilter}) ->
+        file_filter = FileFilter}) ->
 
-    Node = proplists:get_value(node, Metadata, ""),
-    Module = proplists:get_value(module, Metadata, ""),
-    Function = proplists:get_value(function, Metadata, ""),
+    Filename = proplists:get_value(file, Metadata, ""),
 
-    ShouldLog = filter_loglevel(Severity, Loglevel) and filter_contains(Message, MessageFilter) and filter_contains(Node, NodeFilter)
-        and filter_contains(Module, ModuleFilter) and filter_contains(Function, FunctionFilter),
+    ShouldLog = filter_loglevel(Severity, Loglevel) and filter_contains(Message, MessageFilter) and filter_contains(Filename, FileFilter),
 
     {_NewCounter, _NewPageState} = case ShouldLog of
                                        false ->
@@ -326,7 +480,7 @@ render_row(Counter, {Message, Timestamp, Severity, Metadata}) ->
             #td{body = format_severity(Severity), style = <<?SEVERITY_COLUMN_STYLE>>},
             #td{body = format_time(Timestamp), style = <<?TIME_COLUMN_STYLE>>},
             #td{body = gui_str:to_binary(Message), style = <<?MESSAGE_COLUMN_STYLE, " text-wrap:normal; word-wrap:break-word; white-space: nowrap; overflow: hidden;">>},
-            #td{body = CollapsedMetadata, style = <<?METADATA_COLUMN_STYLE, "white-space: nowrap; overflow: hidden;">>}
+            #td{body = CollapsedMetadata, style = <<?METADATA_COLUMN_STYLE, " white-space: nowrap; overflow: hidden;">>}
         ]},
 
     ExpandedRow = #tr{class = <<"log_row">>, style = <<"background-color: rgba(26, 188, 156, 0.05);">>, id = ExpandedId,
@@ -339,6 +493,7 @@ render_row(Counter, {Message, Timestamp, Severity, Metadata}) ->
 
     [CollapsedRow, ExpandedRow].
 
+
 % Render the body of loglevel dropdown, so it highlights the current choice
 loglevel_dropdown_body(Active) ->
     lists:map(
@@ -350,7 +505,7 @@ loglevel_dropdown_body(Active) ->
             ID = <<"loglevel_li_", (atom_to_binary(Loglevel, latin1))/binary>>,
             #li{id = ID, actions = gui_jq:postback_action(ID, {set_loglevel, Loglevel}),
                 class = Class, body = #link{body = atom_to_binary(Loglevel, latin1)}}
-        end, ?CLUSTER_LOGLEVELS).
+        end, ?CLIENT_LOGLEVELS).
 
 
 % Render the body of max logs dropdown, so it highlights the current choice
@@ -370,7 +525,7 @@ max_logs_dropdown_body(Active) ->
 % Render a row in table informing about error in comet loop
 comet_error() ->
     _TableRow = #tr{cells = [
-        #td{body = <<"Error">>, style = <<?SEVERITY_COLUMN_STYLE, "color: red;">>},
+        #td{body = <<"Error">>, style = <<?SEVERITY_COLUMN_STYLE, " color: red;">>},
         #td{body = format_time(now()), style = <<?TIME_COLUMN_STYLE, "color: red;">>},
         #td{body = <<"There has been an error in comet process. Please refresh the page.">>,
             style = <<?MESSAGE_COLUMN_STYLE, " body-wrap:normal; word-wrap:break-word; white-space: nowrap; overflow: hidden; color: red;">>},
@@ -383,47 +538,45 @@ format_severity(debug) ->
     #label{class = <<"label">>, body = <<"debug">>, style = <<"display: block; font-weight: bold;">>};
 format_severity(info) ->
     #label{class = <<"label label-success">>, body = <<"info">>, style = <<"display: block; font-weight: bold;">>};
-format_severity(notice) ->
-    #label{class = <<"label label-warning">>, body = <<"notice">>, style = <<"display: block; font-weight: bold;">>};
 format_severity(warning) ->
     #label{class = <<"label label-warning">>, body = <<"warning">>, style = <<"display: block; font-weight: bold;">>};
 format_severity(error) ->
     #label{class = <<"label label-important">>, body = <<"error">>, style = <<"display: block; font-weight: bold;">>};
-format_severity(critical) ->
-    #label{class = <<"label label-important">>, body = <<"critical">>, style = <<"display: block; font-weight: bold;">>};
-format_severity(alert) ->
-    #label{class = <<"label label-important">>, body = <<"alert">>, style = <<"display: block; font-weight: bold;">>};
-format_severity(emergency) ->
-    #label{class = <<"label label-important">>, body = <<"emergency">>, style = <<"display: block; font-weight: bold;">>}.
+format_severity(fatal) ->
+    #label{class = <<"label label-important">>, body = <<"fatal">>, style = <<"display: block; font-weight: bold;">>}.
 
 
 % Format time in logs
 format_time(Timestamp) ->
-    {_, _, Micros} = Timestamp,
     {{YY, MM, DD}, {Hour, Min, Sec}} = calendar:now_to_local_time(Timestamp),
-    TimeString = io_lib:format("~2..0w-~2..0w-~2..0w | ~2..0w:~2..0w:~2..0w.~3..0w",
-        [YY rem 100, MM, DD, Hour, Min, Sec, Micros div 1000]),
+    TimeString = io_lib:format("~2..0w-~2..0w-~2..0w | ~2..0w:~2..0w:~2..0w",
+        [YY rem 100, MM, DD, Hour, Min, Sec]),
     list_to_binary(TimeString).
 
 
 % Format metadata in logs, for collapsed and expanded logs
 format_metadata(Tags) ->
-    Collapsed = case lists:keyfind(node, 1, Tags) of
-                    {node, Value} ->
-                        <<"<b>node:</b> ", (gui_str:to_binary(Value))/binary, " ...">>;
+    Collapsed = case lists:keyfind(user, 1, Tags) of
+                    {user, Value} ->
+                        <<"<b>user:</b> ", (gui_str:unicode_list_to_binary(Value))/binary, " ...">>;
                     _ ->
-                        <<"<b>unknown node</b> ...">>
+                        <<"<b>unknown user</b> ...">>
                 end,
     Expanded = lists:foldl(
         fun({Key, Value}, Acc) ->
-            <<Acc/binary, "<b>", (gui_str:to_binary(Key))/binary, ":</b> ", (gui_str:to_binary(Value))/binary, "<br />">>
+            ValBinary = case is_integer(Value) of
+                            true -> integer_to_binary(Value);
+                            false -> gui_str:unicode_list_to_binary(Value)
+                        end,
+            <<Acc/binary, "<b>", (gui_str:to_binary(Key))/binary, ":</b> ", ValBinary/binary, "<br />">>
         end, <<"">>, Tags),
     {Collapsed, Expanded}.
 
 
 % Return true if log should be displayed based on its severity and loglevel
 filter_loglevel(LogSeverity, Loglevel) ->
-    logger:loglevel_atom_to_int(LogSeverity) >= logger:loglevel_atom_to_int(Loglevel).
+    onepanel_utils:apply_on_worker(central_logger, client_loglevel_atom_to_int, [LogSeverity]) >=
+        onepanel_utils:apply_on_worker(central_logger, client_loglevel_atom_to_int, [Loglevel]).
 
 
 % Return true if given string satisfies given filter
@@ -447,7 +600,7 @@ event(init) ->
     {ok, Pid} = gui_comet:spawn(fun() -> comet_loop_init() end),
     put(comet_pid, Pid),
     % Subscribe for logs at central_logger
-    case onepanel_utils:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {subscribe, cluster, Pid}}]) of
+    case onepanel_utils:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {subscribe, client, Pid}}]) of
         ok ->
             ok;
         Other ->
@@ -459,6 +612,53 @@ event(init) ->
 
 event(terminate) ->
     ok;
+
+
+event({toggle_clients, Selected, ClientList}) ->
+    lists:foreach(
+        fun({ID, UserName, FuseID}) ->
+            SelectedClients = get_selected_clients() -- [FuseID],
+            case Selected of
+                true -> set_selected_clients([FuseID | SelectedClients]);
+                false -> set_selected_clients(SelectedClients)
+            end,
+            {NewRow, _} = client_row(ID, Selected, UserName, FuseID),
+            gui_jq:replace(ID, NewRow)
+        end, ClientList);
+
+event({set_clients_loglevel, Level, ButtonID, ClientIdentifiers}) ->
+    case get_selected_clients() of
+        [] ->
+            ok;
+        Clients ->
+            set_selected_clients([]),
+            event({toggle_clients, false, ClientIdentifiers}),
+            gui_jq:update(ButtonID, #image{image = <<"/images/spinner.gif">>, style = <<"width: 16px;">>}),
+            get(comet_pid) ! {set_clients_loglevel, Clients, Level, ButtonID}
+    end;
+
+
+event({search_clients, ClientList}) ->
+    % Deselect all
+    case gui_ctx:postback_param(<<"search_textbox">>) of
+        <<"">> ->
+            ok;
+        Query ->
+            {Select, Deselect} = lists:partition(
+                fun({_, UserName, _}) ->
+                    binary:match(gui_str:unicode_list_to_binary(UserName), Query) =/= nomatch
+                end, ClientList),
+            event({toggle_clients, true, Select}),
+            event({toggle_clients, false, Deselect}),
+            case Select of
+                [] ->
+                    ok;
+                [{FirstRow, _, _} | _] ->
+                    gui_jq:wire(<<"$('#client_table_viewport').animate({scrollTop: $('#", FirstRow/binary, "').offset().top - ",
+                    "$('#client_table_viewport').offset().top + $('#client_table_viewport').scrollTop()}, 50);">>)
+            end
+    end;
+
 
 
 event(toggle_auto_scroll) ->
@@ -490,6 +690,13 @@ event(show_filters_popup) ->
             gui_jq:bind_enter_to_submit_button(get_filter_textbox(FilterType), get_filter_submit_button(FilterType)),
             event({show_filter, FilterType})
         end, get_filter_types()),
+    gui_jq:remove_class(<<"footer_popup">>, <<"hidden">>);
+
+
+% Show client management panel
+event(show_manage_clients_popup) ->
+    gui_jq:add_class(<<"footer_popup">>, <<"hidden">>),
+    gui_jq:update(<<"footer_popup">>, manage_clients_panel()),
     gui_jq:remove_class(<<"footer_popup">>, <<"hidden">>);
 
 
@@ -558,51 +765,55 @@ event({update_filter, FilterName}) ->
     end.
 
 
+set_clients_loglevel(ClientList, Level, ButtonID) ->
+    LoglevelInt = onepanel_utils:apply_on_worker(central_logger, client_loglevel_atom_to_int, [Level]),
+    Result =
+        try
+            lists:foldl(
+                fun(FuseID, Acc) ->
+                    case onepanel_utils:apply_on_worker(request_dispatcher, send_to_fuse, [FuseID, #changeremoteloglevel{level = logging_pb:int_to_enum(loglevel, LoglevelInt)}, "logging"]) of
+                        ok -> Acc;
+                        _ -> error
+                    end
+                end, ok, ClientList)
+        catch _:_ ->
+            error
+        end,
+    case Result of
+        ok -> gui_jq:update(ButtonID, <<"success!">>);
+        error -> gui_jq:update(ButtonID, <<"failed!">>)
+    end,
+    gui_jq:wire(<<"setTimeout(function f() {$('#", ButtonID/binary, "').html('", (gui_str:to_binary(Level))/binary, "')}, 1000);">>),
+    gui_comet:flush().
+
+
 % =====================
 % Define types of filters and elements connected to them
-get_filter_types() -> [message_filter, node_filter, module_filter, function_filter].
+get_filter_types() -> [message_filter, file_filter].
 
 set_filter(PageState, message_filter, Filter) -> PageState#page_state{message_filter = Filter};
-set_filter(PageState, node_filter, Filter) -> PageState#page_state{node_filter = Filter};
-set_filter(PageState, module_filter, Filter) -> PageState#page_state{module_filter = Filter};
-set_filter(PageState, function_filter, Filter) -> PageState#page_state{function_filter = Filter}.
+set_filter(PageState, file_filter, Filter) -> PageState#page_state{file_filter = Filter}.
 
 get_filter(#page_state{message_filter = Filter}, message_filter) -> Filter;
-get_filter(#page_state{node_filter = Filter}, node_filter) -> Filter;
-get_filter(#page_state{module_filter = Filter}, module_filter) -> Filter;
-get_filter(#page_state{function_filter = Filter}, function_filter) -> Filter.
+get_filter(#page_state{file_filter = Filter}, file_filter) -> Filter.
 
 get_filter_name(message_filter) -> <<"Toggle message filter">>;
-get_filter_name(node_filter) -> <<"Toggle node filter">>;
-get_filter_name(module_filter) -> <<"Toggle module filter">>;
-get_filter_name(function_filter) -> <<"Toggle function filter">>.
+get_filter_name(file_filter) -> <<"Toggle file filter">>.
 
 get_filter_placeholder(message_filter) -> <<"Message contains">>;
-get_filter_placeholder(node_filter) -> <<"Node contains">>;
-get_filter_placeholder(module_filter) -> <<"Module contains">>;
-get_filter_placeholder(function_filter) -> <<"Function contains">>.
+get_filter_placeholder(file_filter) -> <<"File name contains">>.
 
 get_filter_label(message_filter) -> <<"message_filter_label">>;
-get_filter_label(node_filter) -> <<"node_filter_label">>;
-get_filter_label(module_filter) -> <<"module_filter_label">>;
-get_filter_label(function_filter) -> <<"function_filter_label">>.
+get_filter_label(file_filter) -> <<"file_filter_label">>.
 
 get_filter_none(message_filter) -> <<"message_filter_none">>;
-get_filter_none(node_filter) -> <<"node_filter_none">>;
-get_filter_none(module_filter) -> <<"module_filter_none">>;
-get_filter_none(function_filter) -> <<"function_filter_none">>.
+get_filter_none(file_filter) -> <<"file_filter_none">>.
 
 get_filter_panel(message_filter) -> <<"message_filter_panel">>;
-get_filter_panel(node_filter) -> <<"node_filter_panel">>;
-get_filter_panel(module_filter) -> <<"module_filter_panel">>;
-get_filter_panel(function_filter) -> <<"function_filter_panel">>.
+get_filter_panel(file_filter) -> <<"file_filter_panel">>.
 
 get_filter_textbox(message_filter) -> <<"message_filter_textbox">>;
-get_filter_textbox(node_filter) -> <<"node_filter_textbox">>;
-get_filter_textbox(module_filter) -> <<"module_filter_textbox">>;
-get_filter_textbox(function_filter) -> <<"function_filter_textbox">>.
+get_filter_textbox(file_filter) -> <<"file_filter_textbox">>.
 
 get_filter_submit_button(message_filter) -> <<"message_filter_button">>;
-get_filter_submit_button(node_filter) -> <<"node_filter_button">>;
-get_filter_submit_button(module_filter) -> <<"module_filter_button">>;
-get_filter_submit_button(function_filter) -> <<"function_filter_button">>.
+get_filter_submit_button(file_filter) -> <<"file_filter_button">>.

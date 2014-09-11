@@ -37,7 +37,6 @@
         {connection_ping_delay, 5000},
         {updater_start_delay, 1000},
         {updater_lookup_delay, 60000},
-        {join_software_cluster_delay, 5000},
         {summary_chart_update_delay, 60},
         {host_chart_update_delay, 10},
         {bcrypt_work_factor, 12},

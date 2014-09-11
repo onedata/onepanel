@@ -20,7 +20,7 @@
 -export([random_ascii_lowercase_sequence/1]).
 -export([get_application_version/0, get_software_version/0, get_available_software_versions/0, get_software_version_name/1, get_software_version_record/1]).
 -export([get_node/1, get_node/2, get_nodes/0, get_nodes/2, get_host/1, get_hosts/0, get_control_panel_hosts/0]).
--export([apply_on_hosts/5, join_software_cluster/0, save_file_on_host/3, save_file_on_hosts/3]).
+-export([apply_on_hosts/5, apply_on_worker/3, dropwhile_failure/5, save_file_on_host/3, save_file_on_hosts/3]).
 
 %% ====================================================================
 %% API functions
@@ -65,36 +65,51 @@ apply_on_hosts(Hosts, Module, Function, Arguments, Timeout) ->
     end, {[], lists:map(fun(Node) -> get_host(Node) end, ErrorNodes)}, Results).
 
 
-%% join_software_cluster/0
+%% apply_on_worker/3
 %% ====================================================================
-%% @doc Tries to connect local host to software cluster if it is installed.
+%% @doc Applies function sequentially on worker components as long as
+%% rpc calls fail with error "badrpc".
 %% @end
--spec join_software_cluster() -> Result when
-    Result :: ok | {error, Reason :: term()}.
+-spec apply_on_worker(Module, Function, Arguments) -> Result when
+    Result :: term(),
+    Module :: module(),
+    Function :: atom(),
+    Arguments :: [term()].
 %% ====================================================================
-join_software_cluster() ->
+apply_on_worker(Module, Function, Arguments) ->
     try
         {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        case Workers of
-            [] -> throw(software_not_installed);
-            _ -> ok
-        end,
-        connected = lists:foldl(fun
-            (_, connected) ->
-                connected;
-            (Worker, Status) ->
-                case net_kernel:connect_node(onepanel_utils:get_node(?DEFAULT_WORKER_NAME, Worker)) of
-                    true -> connected;
-                    _ -> Status
-                end
-        end, not_connected, Workers),
-        ok
+        WorkerNodes = get_nodes(?DEFAULT_WORKER_NAME, Workers),
+        dropwhile_failure(WorkerNodes, Module, Function, Arguments, ?RPC_TIMEOUT)
     catch
-        _:software_not_installed ->
-            ok;
         _:Reason ->
-            ?error("Cannot join software cluster: ~p", [Reason]),
+            ?error("Cannot apply ~p on worker: ~p", [{Module, Function, Arguments}, Reason]),
             {error, Reason}
+    end.
+
+
+%% dropwhile_failure/5
+%% ====================================================================
+%% @doc Applies function sequentially on nodes as long as rpc calls fail
+%% with error "badrpc".
+%% @end
+-spec dropwhile_failure(Nodes, Module, Function, Arguments, Timeout) -> Result when
+    Result :: term(),
+    Nodes :: [atom()],
+    Module :: module(),
+    Function :: atom(),
+    Arguments :: [term()],
+    Timeout :: integer() | infinity.
+%% ====================================================================
+dropwhile_failure([], Module, Function, Arguments, _) ->
+    ?error("dropwhile_failure function called as ~p:~p(~p) failed on all nodes.", [Module, Function, Arguments]),
+    {error, "Failure on all nodes."};
+dropwhile_failure([Node | Nodes], Module, Function, Arguments, Timeout) ->
+    case rpc:call(Node, Module, Function, Arguments, Timeout) of
+        {badrpc, Reason} ->
+            ?error("Cannot execute ~p:~p(~p) on node ~p: ~p", [Module, Function, Arguments, Node, Reason]),
+            dropwhile_failure(Nodes, Module, Function, Arguments, Timeout);
+        Result -> Result
     end.
 
 
@@ -236,11 +251,13 @@ get_application_version() ->
     Result :: binary() | undefined.
 %% ====================================================================
 get_software_version() ->
-    case gen_server:call({global, ?CCM}, get_version) of
-        {ok, _Version} ->
-            undefined;
-        Other ->
-            ?error("Cannot get current software version: ~p", [Other]),
+    try
+        {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        Version = dropwhile_failure(get_nodes(?DEFAULT_WORKER_NAME, Workers), node_manager, check_vsn, [], ?RPC_TIMEOUT),
+        list_to_binary(Version)
+    catch
+        _:Reason ->
+            ?error("Cannot get current software version: ~p", [Reason]),
             undefined
     end.
 
