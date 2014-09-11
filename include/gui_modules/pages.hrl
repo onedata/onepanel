@@ -18,7 +18,7 @@
 %% Installation pages
 -define(PAGE_INSTALLATION, <<"/software/installation">>).
 -define(PAGE_HOST_SELECTION, <<"/software/installation/hosts_selection">>).
--define(PAGE_MAIN_PRIMARY_SELECTION, <<"/software/installation/primary_ccm_selection">>).
+-define(PAGE_PRIMARY_CCM_SELECTION, <<"/software/installation/primary_ccm_selection">>).
 -define(PAGE_SYSTEM_LIMITS, <<"/software/installation/system_limits">>).
 -define(PAGE_STORAGE, <<"/software/installation/storage">>).
 -define(PAGE_INSTALLATION_SUMMARY, <<"/software/installation/summary">>).

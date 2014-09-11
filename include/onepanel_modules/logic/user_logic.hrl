@@ -21,7 +21,7 @@
 
 %% User record contains following fields:
 %% * username       - name of user as a primary key in database
-%% * hash           - SHA 512 password hash
+%% * password_hash  - SHA 512 password hash
 -record(?USER_RECORD, {username, password_hash}).
 
 %% Minimum length of user's password

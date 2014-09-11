@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc This module implements supervisor behaviour. It starts Onepanel
+%% @doc This module implements supervisor behaviour. It starts onepanel
 %% gen_server as a child.
 %% @end
 %% ===================================================================

@@ -7,9 +7,8 @@
 %% ===================================================================
 %% @doc: Copy of n2o_cowboy.erl from n2o.
 %% This is a cowboy handler module for handling HTTP request with n2o engine.
-%% Compared to original, this module has slight changes in the following functions:
-%% - request_body/1
-%% - reply/2
+%% Compared to original, this module has slight changes in the function
+%% cookie/2.
 %% @end
 %% ===================================================================
 -module(n2o_handler).

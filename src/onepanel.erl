@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc This module is a gen_server that connects separate Onepanel
+%% @doc This module is a gen_server that connects separate onepanel
 %% nodes to create a cluster.
 %% @end
 %% ===================================================================

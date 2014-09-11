@@ -15,7 +15,7 @@
 
 -include("registered_names.hrl").
 
-%% Onepanel gen_server state
+%% onepanel gen_server state
 -record(state, {socket, address, port, passwords = []}).
 
 -endif.
