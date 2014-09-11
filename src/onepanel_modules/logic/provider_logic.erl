@@ -133,8 +133,8 @@ get_default_ports() ->
     try
         {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
         Node = onepanel_utils:get_node(?DEFAULT_CCM_NAME, MainCCM),
-        {ok, GuiPort} = rpc:call(Node, application, get_env, [veil_cluster_node, control_panel_port]),
-        {ok, RestPort} = rpc:call(Node, application, get_env, [veil_cluster_node, rest_port]),
+        {ok, GuiPort} = rpc:call(Node, application, get_env, [?SOFTWARE_NAME, control_panel_port]),
+        {ok, RestPort} = rpc:call(Node, application, get_env, [?SOFTWARE_NAME, rest_port]),
         {ok, [{<<"gui">>, GuiPort}, {<<"rest">>, RestPort}]}
     catch
         _:Reason ->

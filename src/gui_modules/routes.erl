@@ -86,6 +86,8 @@ route(?PAGE_UPDATE_SUCCESS) -> page_update_success;
 
 %% Diagnostic pages
 route(?PAGE_MONITORING) -> page_monitoring;
+route(?PAGE_CLIENTS_LOGS) -> page_clients_logs;
+route(?PAGE_SERVER_LOGS) -> page_server_logs;
 
 %% Registration pages
 route(?PAGE_CONNECTION_CHECK) -> page_connection_check;

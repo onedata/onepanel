@@ -41,6 +41,8 @@
 
 %% Diagnostic pages
 -define(PAGE_MONITORING, <<"/software/diagnostics/monitoring">>).
+-define(PAGE_CLIENTS_LOGS, <<"/software/diagnostics/clients_logs">>).
+-define(PAGE_SERVER_LOGS, <<"/software/diagnostics/server_logs">>).
 
 %% Registration pages
 -define(PAGE_CONNECTION_CHECK, <<"/spaces/registration/connection_check">>).

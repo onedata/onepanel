@@ -29,6 +29,10 @@
 %% coordinates node life cycle of installed software
 -define(NODE_MANAGER_NAME, node_manager).
 
+%% Local name (name and node is used to identify it) of gen_server that
+%% works as a dispatcher in installed software
+-define(DISPATCHER_NAME, request_dispatcher).
+
 %% Local name (name and node is used to identify it) of gen_server that 
 %% coordinates node life cycle.
 -define(ONEPANEL_SERVER, onepanel).

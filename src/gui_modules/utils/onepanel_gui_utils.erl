@@ -287,7 +287,9 @@ top_menu(ActiveTabID, ActiveLinkID, Submenu, Spinner) ->
         {diagnostics_tab, #li{body = [
             #link{style = "padding: 18px;", url = ?PAGE_MONITORING, body = <<"Diagnostics">>},
             #list{style = "top: 37px; width: 120px;", body = Process(ActiveLinkID, [
-                {monitoring_link, #li{body = #link{url = ?PAGE_MONITORING, body = <<"Monitoring">>}}}
+                {monitoring_link, #li{body = #link{url = ?PAGE_MONITORING, body = <<"Monitoring">>}}},
+                {server_logs_link, #li{body = #link{url = ?PAGE_SERVER_LOGS, body = <<"Server logs">>}}},
+                {clients_logs_link, #li{body = #link{url = ?PAGE_CLIENTS_LOGS, body = <<"Clients logs">>}}}
             ])}
         ]}}
     ]),
