@@ -292,14 +292,8 @@ get_available_software_versions() ->
 %% ====================================================================
 get_control_panel_hosts() ->
     try
-        {ok, #?GLOBAL_CONFIG_RECORD{ccms = CCMs}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        Nodes = get_nodes(?DEFAULT_CCM_NAME, CCMs),
-        {Workers, _} = dropwhile_failure(Nodes, gen_server, call, [{global, central_cluster_manager}, get_workers, 1000], ?RPC_TIMEOUT),
-        ControlPanelHosts = lists:foldl(fun
-            ({WorkerNode, control_panel}, Acc) -> [onepanel_utils:get_host(WorkerNode) | Acc];
-            (_, Acc) -> Acc
-        end, [], Workers),
-        {ok, ControlPanelHosts}
+        {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        {ok, Workers}
     catch
         _:Reason ->
             ?error("Cannot get control panel hosts: ~p", [Reason]),

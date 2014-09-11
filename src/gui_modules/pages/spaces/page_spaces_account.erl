@@ -109,64 +109,31 @@ body(ProviderId, URLs, RedirectionPoint) ->
     Result :: #table{}.
 %% ====================================================================
 settings_table(ProviderId, URLs, RedirectionPoint) ->
-    DescriptionStyle = <<"border-width: 0; text-align: right; padding: 1em 1em; width: 50%;">>,
-    MainStyle = <<"border-width: 0;  text-align: left; padding: 1em 1em;">>,
-    LabelClass = <<"label label-large label-inverse">>,
-    LabelStyle = <<"cursor: auto;">>,
     #table{
-        style = <<"border-width: 0; width: 100%;">>, body = [
+        style = <<"border-width: 0; width: 100%;">>,
+        body = lists:map(fun({DetailName, DetailId, DetailBody}) ->
             #tr{
                 cells = [
                     #td{
-                        style = DescriptionStyle,
+                        style = <<"border-width: 0; text-align: right; padding: 1em 1em; width: 50%; vertical-align: top;">>,
                         body = #label{
-                            class = LabelClass,
-                            style = LabelStyle,
-                            body = <<"Provider ID">>
+                            style = <<"margin: 0 auto; cursor: auto;">>,
+                            class = <<"label label-large label-inverse">>,
+                            body = DetailName
                         }
                     },
                     #td{
-                        id = <<"providerId">>,
-                        style = MainStyle,
-                        body = providerId(ProviderId)
-                    }
-                ]
-            },
-            #tr{
-                cells = [
-                    #td{
-                        style = <<DescriptionStyle/binary, " vertical-align: top;">>,
-                        body = #label{
-                            class = LabelClass,
-                            style = LabelStyle,
-                            body = <<"URLs">>
-                        }
-                    },
-                    #td{
-                        id = <<"urls">>,
-                        style = MainStyle,
-                        body = urls(URLs)
-                    }
-                ]
-            },
-            #tr{
-                cells = [
-                    #td{
-                        style = DescriptionStyle,
-                        body = #label{
-                            class = LabelClass,
-                            style = LabelStyle,
-                            body = <<"Redirection point">>
-                        }
-                    },
-                    #td{
-                        id = <<"redirectionPoint">>,
-                        style = MainStyle,
-                        body = redirectionPoint(RedirectionPoint)
+                        id = DetailId,
+                        style = <<"border-width: 0;  text-align: left; padding: 1em 1em;">>,
+                        body = DetailBody
                     }
                 ]
             }
-        ]
+        end, [
+            {<<"Provider ID">>, <<"provider_id">>, providerId(ProviderId)},
+            {<<"URLs">>, <<"urls">>, urls(URLs)},
+            {<<"Redirection point">>, <<"redirection_point">>, redirectionPoint(RedirectionPoint)}
+        ])
     }.
 
 
@@ -228,7 +195,7 @@ urls(URLs) ->
         style = <<"list-style-type: none; margin: 0 auto;">>,
         body = lists:map(fun(URL) ->
             #li{body = #p{body = URL}}
-        end, URLs)
+        end, lists:sort(URLs))
     }.
 
 
@@ -289,9 +256,9 @@ event(terminate) ->
 api_event("unregister", _, _) ->
     case provider_logic:unregister() of
         ok ->
-            gui_jq:update(<<"providerId">>, providerId(undefined)),
+            gui_jq:update(<<"provider_id">>, providerId(undefined)),
             gui_jq:update(<<"urls">>, urls([])),
-            gui_jq:update(<<"redirectionPoint">>, redirectionPoint(undefined)),
+            gui_jq:update(<<"redirection_point">>, redirectionPoint(undefined)),
             onepanel_gui_utils:message(<<"ok_message">>, <<"You have been successfully unregistered from Global Registry.">>,
                 {close_message, <<"ok_message">>});
         _ ->

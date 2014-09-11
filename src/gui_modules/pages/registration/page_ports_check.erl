@@ -212,8 +212,7 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                     lists:foldl(fun({PortId, Port, Type, Field}, HostStatus) ->
                         try
                             true = validate_port(Port),
-                            Node = onepanel_utils:get_node(Host),
-                            {ok, IpAddress} = rpc:call(Node, gr_providers, check_ip_address, [provider, ?CONNECTION_TIMEOUT]),
+                            {ok, #?LOCAL_CONFIG_RECORD{ip_address = IpAddress}} = dao:get_record(?LOCAL_CONFIG_TABLE, Host),
                             ok = gr_providers:check_port(provider, IpAddress, binary_to_integer(Port), Type),
                             ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{Field, binary_to_integer(Port)}]),
                             gui_jq:css(PortId, <<"border-color">>, <<"green">>),

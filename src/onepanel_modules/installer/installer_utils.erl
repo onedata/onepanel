@@ -19,7 +19,7 @@
 -export([set_system_limit/2, get_system_limits_cmd/1]).
 -export([get_workers/0, get_global_config/0, get_timestamp/0, set_timestamp/0]).
 -export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/3]).
--export([finalize_installation/1]).
+-export([check_ip_address/0, check_ip_addresses/0, finalize_installation/1]).
 
 %% Defines how many times onepanel will try to verify software start
 -define(FINALIZE_INSTALLATION_ATTEMPTS, 120).
@@ -189,7 +189,8 @@ get_workers() ->
 %% ====================================================================
 %% @doc Returns global installation configuration.
 %% @end
--spec get_global_config() -> list().
+-spec get_global_config() -> Result when
+    Result :: list().
 %% ====================================================================
 get_global_config() ->
     case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
@@ -198,6 +199,49 @@ get_global_config() ->
             [_ | Values] = tuple_to_list(Record),
             lists:zip(Fields, Values);
         _ -> []
+    end.
+
+
+%% check_ip_address/0
+%% ====================================================================
+%% @doc Checks local host IP address that is visible for Global Registry
+%% and saves it in database.
+%% @end
+-spec check_ip_address() -> Result when
+    Result :: {ok, Host :: string()} | {error, Host :: string()}.
+%% ====================================================================
+check_ip_address() ->
+    Host = onepanel_utils:get_host(node()),
+    try
+        {ok, IpAddress} = gr_providers:check_ip_address(provider, ?CONNECTION_TIMEOUT),
+        ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{ip_address, IpAddress}]),
+        {ok, Host}
+    catch
+        _:Reason ->
+            ?error("Cannot check IP address: ~p", [Reason]),
+            {error, Host}
+    end.
+
+
+%% check_ip_addresses/0
+%% ====================================================================
+%% @doc Checks IP addresses of all worker hosts.
+%% @end
+-spec check_ip_addresses() -> Result when
+    Result :: ok| {error, Reason :: term()}.
+%% ====================================================================
+check_ip_addresses() ->
+    try
+        {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        {_, HostsError} = onepanel_utils:apply_on_hosts(Workers, ?MODULE, check_ip_address, [], ?RPC_TIMEOUT),
+        case HostsError of
+            [] -> ok;
+            _ -> {error, {hosts, HostsError}}
+        end
+    catch
+        _:Reason ->
+            ?error("Cannot check IP addresses: ~p", [Reason]),
+            {error, Reason}
     end.
 
 

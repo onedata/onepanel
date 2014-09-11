@@ -271,7 +271,7 @@ provider_row_expanded(RowId, #provider_details{id = ProviderId, redirection_poin
                     style = ?PARAGRAPH_STYLE,
                     body = URL}
                 }
-            end, URLs)
+            end, lists:sort(URLs))
         }},
         {<<"Redirection point">>, #p{style = ?PARAGRAPH_STYLE, body = RedirectionPoint}}
     ],

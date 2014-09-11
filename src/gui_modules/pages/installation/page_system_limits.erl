@@ -224,7 +224,8 @@ comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimit
                             lists:foldl(fun({LimitId, Limit, Type}, HostStatus) ->
                                 try
                                     true = validate_limit(Limit),
-                                    ok = installer_utils:set_system_limit(Type, binary_to_integer(Limit)),
+                                    Node = onepanel_utils:get_node(Host),
+                                    ok = rpc:call(Node, installer_utils, set_system_limit, [Type, binary_to_integer(Limit)]),
                                     gui_jq:css(LimitId, <<"border-color">>, <<"green">>),
                                     HostStatus
                                 catch
