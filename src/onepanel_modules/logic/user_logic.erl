@@ -33,7 +33,7 @@
 -spec init() -> ok | no_return().
 %% ====================================================================
 init() ->
-    erlang:load_nif("c_lib/user_logic_drv", 0).
+    ok = erlang:load_nif("c_lib/user_logic_drv", 0).
 
 
 %% hash_password/2

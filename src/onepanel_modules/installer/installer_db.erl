@@ -410,7 +410,7 @@ change_password(Hosts, Username, CurrentPassword, NewPassword) ->
     end.
 
 
-%% change_password/3
+%% local_change_password/3
 %% ====================================================================
 %% @doc Changes password to administration database on local host.
 %% @end
