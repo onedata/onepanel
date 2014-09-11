@@ -5,8 +5,8 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This file contains n2o website code.
-%% The page allows live viewing of cluster logs in the system.
+%% @doc This file contains n2o website code.
+%% This page allows live viewing of cluster logs in the system.
 %% @end
 %% ===================================================================
 
