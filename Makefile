@@ -8,9 +8,9 @@ deps:
 	@git submodule update
 
 compile: deps
-	cp -r veilprotocol/proto src
+	@cp -r veilprotocol/proto src
 	@./rebar compile
-	rm -rf src/proto
+	@rm -rf src/proto
 
 generate: compile
 	@./rebar generate
