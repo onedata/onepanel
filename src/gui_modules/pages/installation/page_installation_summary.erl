@@ -241,7 +241,10 @@ installation_progress(?EVENT_STATE_CHANGED, State, Pid) ->
     {Stage, Job} = installer:get_stage_and_job(State),
     case Stage of
         ?STAGE_IDLE -> Pid ! finish;
-        _ -> Pid ! {change_step, installer:get_job_index(Stage, Job) - 1, get_info_message({Stage, Job})}
+        ?STAGE_FINAL ->
+            Pid ! {change_step, installer:get_job_index(Stage, Job) - 1, get_info_message({Stage, Job}), 5 * ?NEXT_UPDATE_DELAY};
+        _ ->
+            Pid ! {change_step, installer:get_job_index(Stage, Job) - 1, get_info_message({Stage, Job}), ?NEXT_UPDATE_DELAY}
     end.
 
 
@@ -307,20 +310,20 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                 gui_comet:flush(),
                 State;
 
-            {change_step, NewStep, Text} ->
+            {change_step, NewStep, Text, NewNextUpdate} ->
                 gui_jq:show(<<"progress">>),
                 gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"disabled">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
-                Progress = <<(integer_to_binary(round(100 * NewStep / Steps)))/binary, "%">>,
+                Progress = <<(integer_to_binary(round(99 * NewStep / Steps)))/binary, "%">>,
                 gui_jq:update(<<"progress_text">>, <<Text/binary, " <b>( ", Progress/binary, " )</b>">>),
                 gui_jq:set_width(<<"bar">>, Progress),
                 gui_comet:flush(),
-                timer:send_after(?NEXT_UPDATE_DELAY, {update, NewStep, Text}),
-                State#?STATE{step = NewStep, step_progress = 0, next_update = ?NEXT_UPDATE_DELAY};
+                timer:send_after(NextUpdate, {update, NewStep, Text}),
+                State#?STATE{step = NewStep, step_progress = 0, next_update = NewNextUpdate};
 
             {update, Step, Text} ->
                 NewStepProgress = StepProgress + (1 - StepProgress) / 2,
-                Progress = <<(integer_to_binary(round(100 * (Step + NewStepProgress) / Steps)))/binary, "%">>,
+                Progress = <<(integer_to_binary(round(99 * (Step + NewStepProgress) / Steps)))/binary, "%">>,
                 gui_jq:update(<<"progress_text">>, <<Text/binary, " <b>( ", Progress/binary, " )</b>">>),
                 gui_jq:set_width(<<"bar">>, Progress),
                 gui_comet:flush(),

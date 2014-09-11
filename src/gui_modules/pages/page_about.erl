@@ -101,10 +101,7 @@ about_table() ->
                     },
                     #td{
                         style = MainStyle,
-                        body = #p{
-                            style = <<"margin: 0;">>,
-                            body = MainBody
-                        }
+                        body = MainBody
                     }
                 ]
             }
@@ -127,8 +124,8 @@ about_table() ->
     Result :: #p{}.
 %% ====================================================================
 version() ->
-    #p{
-        style = <<"margin: 0;">>,
+    #span{
+        style = <<"font-size: large;">>,
         body = onepanel_utils:get_software_version()
     }.
 
@@ -171,8 +168,8 @@ privacy_policy() ->
     Result :: #link{}.
 %% ====================================================================
 acknowledgements() ->
-    #p{
-        style = <<"margin: 0;">>,
+    #span{
+        style = <<"font-size: large;">>,
         body = <<"This research was supported in part by PL-Grid Infrastructure.">>
     }.
 
@@ -186,13 +183,15 @@ acknowledgements() ->
 %% ====================================================================
 license() ->
     Content = case file:read_file(?LICENSE_FILE) of
-                  {ok, File} -> File;
+                  {ok, File} ->
+                      File;
                   {error, Reason} ->
                       ?error("Cannot get license file ~s: ~p", [?LICENSE_FILE, Reason]),
                       <<"">>
               end,
-    #p{
-        style = <<"margin: 0; white-space: pre; font-size: initial; line-height: initial">>,
+    #span{
+        style = <<"white-space: pre; font-size: large; line-height: initial">>,
+%%         style = <<"margin: 0; white-space: pre; font-size: initial; line-height: initial">>,
         body = Content
     }.
 
@@ -210,8 +209,10 @@ team() ->
         body = lists:map(
             fun(Member) ->
                 #li{
-                    style = <<"font-size: large; line-height: 1.5em">>,
-                    body = Member
+                    body = #span{
+                        style = <<"font-size: large; line-height: 1.5em">>,
+                        body = Member
+                    }
                 }
             end, ?MEMBERS)
     }.

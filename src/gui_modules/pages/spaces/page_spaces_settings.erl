@@ -213,7 +213,7 @@ space_row_expanded(RowId, #space_details{id = SpaceId, name = SpaceName} = Space
             }
         }
     end, [
-        {<<"Details">>, {get_details, SpaceDetails}, <<"fui-info">>},
+        {<<"Get details">>, {get_details, SpaceDetails}, <<"fui-info">>},
         {<<"Revoke support">>, {revoke_space_support, RowId, SpaceDetails}, <<"fui-trash">>}
     ]),
     [
@@ -424,7 +424,8 @@ event(create_space) ->
     "if(name.length == 0) { alert.html(\"Please provide Space name.\"); alert.fadeIn(300); return false; }",
     "else if(token.length == 0) { alert.html(\"Please provide Space token.\"); alert.fadeIn(300); return false; }",
     "else { createSpace([name, token]); return true; }">>,
-    gui_jq:dialog_popup(Title, Message, Script),
+    ConfirmButtonClass = <<"btn-inverse">>,
+    gui_jq:dialog_popup(Title, Message, Script, ConfirmButtonClass),
     gui_jq:wire(<<"box.on('shown',function(){ $(\"#create_space_name\").focus(); });">>);
 
 event(support_space) ->
@@ -437,14 +438,16 @@ event(support_space) ->
     "var token = $.trim($(\"#support_space_token\").val());",
     "if(token.length == 0) { alert.html(\"Please provide Space token.\"); alert.fadeIn(300); return false; }",
     "else { supportSpace([token]); return true; }">>,
-    gui_jq:dialog_popup(Title, Message, Script),
+    ConfirmButtonClass = <<"btn-inverse">>,
+    gui_jq:dialog_popup(Title, Message, Script, ConfirmButtonClass),
     gui_jq:wire(<<"box.on('shown',function(){ $(\"#support_space_token\").focus(); });">>);
 
 event({revoke_space_support, RowId, #space_details{id = SpaceId}}) ->
     Title = <<"Revoke Space support">>,
     Message = <<"Are you sure you want to stop supporting Space: <b>", SpaceId/binary, "</b>?<br>This operation cannot be undone.">>,
     Script = <<"revokeSpaceSupport(['", SpaceId/binary, "','", RowId/binary, "']);">>,
-    gui_jq:dialog_popup(Title, Message, Script);
+    ConfirmButtonClass = <<"btn-inverse">>,
+    gui_jq:dialog_popup(Title, Message, Script, ConfirmButtonClass);
 
 event({get_details, #space_details{id = SpaceId}}) ->
     gui_jq:redirect(<<"/spaces?id=", SpaceId/binary>>);

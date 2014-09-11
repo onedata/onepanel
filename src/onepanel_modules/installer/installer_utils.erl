@@ -13,19 +13,20 @@
 -include("registered_names.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
+-include_lib("xmerl/include/xmerl.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([set_system_limit/2, get_system_limits_cmd/1]).
 -export([get_workers/0, get_global_config/0, get_timestamp/0, set_timestamp/0]).
 -export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/3]).
--export([check_ip_address/0, check_ip_addresses/0, finalize_installation/1]).
+-export([check_ip_address/0, check_ip_addresses/0, get_nagios_report/0, finalize_installation/1]).
 
 %% Defines how many times onepanel will try to verify software start
 -define(FINALIZE_INSTALLATION_ATTEMPTS, 120).
 
 %% Defines how long onepanel will wait before next attempt to verify software start
--define(NEXT_ATTEMPT_DELAY, 1000).
+-define(NEXT_ATTEMPT_DELAY, 5000).
 
 %% ====================================================================
 %% API functions
@@ -245,6 +246,51 @@ check_ip_addresses() ->
     end.
 
 
+%% get_nagios_report/0
+%% ====================================================================
+%% @doc Returns results of software nagios health check
+%% @end
+-spec get_nagios_report() -> Result when
+    Result :: {ok, Status, NodesReport :: {Name, Status}, WorkersReport :: [{Node, Name, Status}]} | {error, Reason :: term()},
+    Node :: binary(),
+    Name :: binary(),
+    Status :: binary().
+%% ====================================================================
+get_nagios_report() ->
+    try
+        {ok, #?GLOBAL_CONFIG_RECORD{workers = [Worker | _]}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        URL = "https://" ++ Worker ++ "/nagios",
+        Headers = [{"content-type", "application/json"}],
+        {ok, "200", _ResponseHeaders, ResponseBody} = ibrowse:send_req(URL, Headers, get),
+        {Xml, _} = xmerl_scan:string(ResponseBody),
+        [Status] = [X#xmlAttribute.value || X <- Xml#xmlElement.attributes, X#xmlAttribute.name == status],
+
+        GetDetails = fun
+            (veil_cluster_node, X) ->
+                [NodeName] = [Y#xmlAttribute.value || Y <- X, Y#xmlAttribute.name == name],
+                [NodeStatus] = [Y#xmlAttribute.value || Y <- X, Y#xmlAttribute.name == status],
+                {list_to_binary(NodeName), list_to_binary(NodeStatus)};
+            (worker, X) ->
+                [WorkerName] = [Y#xmlAttribute.value || Y <- X, Y#xmlAttribute.name == name],
+                [WorkerNode] = [Y#xmlAttribute.value || Y <- X, Y#xmlAttribute.name == node],
+                [WorkerStatus] = [Y#xmlAttribute.value || Y <- X, Y#xmlAttribute.name == status],
+                {list_to_binary(WorkerName), list_to_binary(WorkerNode), list_to_binary(WorkerStatus)}
+        end,
+
+        GetReport = fun(Name) ->
+            [GetDetails(Name, X#xmlElement.attributes) || X <- Xml#xmlElement.content, X#xmlElement.name == Name]
+        end,
+
+        NodesReport = GetReport(veil_cluster_node),
+        WorkersReport = GetReport(worker),
+        {ok, list_to_binary(Status), NodesReport, WorkersReport}
+    catch
+        _:Reason ->
+            ?error("Cannot get nagios details: ~p", [Reason]),
+            {error, Reason}
+    end.
+
+
 %% finalize_installation/1
 %% ====================================================================
 %% @doc Waits until cluster control panel nodes are up and running.
@@ -307,8 +353,8 @@ finalize_installation_loop(0) ->
     {error, <<"Attempts limit exceeded.">>};
 
 finalize_installation_loop(Attempts) ->
-    case onepanel_utils:get_control_panel_hosts() of
-        {ok, [_ | _]} ->
+    case get_nagios_report() of
+        {ok, <<"ok">>, _, _} ->
             ok;
         _ ->
             timer:sleep(?NEXT_ATTEMPT_DELAY),

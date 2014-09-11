@@ -188,13 +188,21 @@ providerId(ProviderId) ->
     Result :: #p{}.
 %% ====================================================================
 urls([]) ->
-    #p{body = <<"&#8212&#8212&#8212&#8212&#8212&#8212&#8212&#8212">>};
+    #span{
+        style = <<"font-size: large;">>,
+        body = <<"&#8212&#8212&#8212&#8212&#8212&#8212&#8212&#8212">>
+    };
 
 urls(URLs) ->
     #list{
         style = <<"list-style-type: none; margin: 0 auto;">>,
         body = lists:map(fun(URL) ->
-            #li{body = #p{body = URL}}
+            #li{
+                body = #span{
+                    style = <<"font-size: large;">>,
+                    body = URL
+                }
+            }
         end, lists:sort(URLs))
     }.
 
@@ -207,10 +215,16 @@ urls(URLs) ->
     Result :: #p{}.
 %% ====================================================================
 redirectionPoint(undefined) ->
-    #p{body = <<"&#8212&#8212&#8212&#8212&#8212&#8212&#8212&#8212">>};
+    #span{
+        style = <<"font-size: large;">>,
+        body = <<"&#8212&#8212&#8212&#8212&#8212&#8212&#8212&#8212">>
+    };
 
 redirectionPoint(RedirectionPoint) ->
-    #p{body = RedirectionPoint}.
+    #span{
+        style = <<"font-size: large;">>,
+        body = RedirectionPoint
+    }.
 
 
 %% ====================================================================
@@ -238,7 +252,8 @@ event(unregister) ->
     Title = <<"Unregister">>,
     Message = <<"Are you sure you want to unregister from Global Registry?">>,
     Script = <<"unregister();">>,
-    gui_jq:dialog_popup(Title, Message, Script);
+    ConfirmButtonClass = <<"btn-inverse">>,
+    gui_jq:dialog_popup(Title, Message, Script, ConfirmButtonClass);
 
 event({close_message, MessageId}) ->
     gui_jq:hide(MessageId);
