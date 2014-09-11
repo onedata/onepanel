@@ -37,6 +37,9 @@
         {connection_ping_delay, 5000},
         {updater_start_delay, 1000},
         {updater_lookup_delay, 60000},
+        {join_software_cluster_delay, 5000},
+        {summary_chart_update_delay, 60},
+        {host_chart_update_delay, 10},
         {bcrypt_work_factor, 12},
         {gui_static_root, "./gui_static"},
         {cert_file, "./certs/server.crt"},
@@ -48,7 +51,7 @@
         {grpcert_path, "./certs/grpcert.pem"},
         {grpcacert_path, "./certs/grpca.pem"},
         {global_registry_url, "https://onedata.org:8443"},
-        {get_software_versions_url, "http://www.onedata.org/repository/get_versions.php"},
+        {get_software_versions_url, "http://packages.onedata.org/get_versions.php"},
         {default_username, <<"admin">>},
         {default_password, <<"password">>},
         {onepanel_sessions_cookie_ttl, 2592000} % 30 days

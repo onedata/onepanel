@@ -300,8 +300,16 @@ get_nagios_report() ->
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 finalize_installation(_Args) ->
-    set_timestamp(),
-    finalize_installation_loop(?FINALIZE_INSTALLATION_ATTEMPTS).
+    try
+        set_timestamp(),
+        ok = finalize_installation_loop(?FINALIZE_INSTALLATION_ATTEMPTS),
+        ok = onepanel_utils:join_software_cluster(),
+        ok
+    catch
+        _:Reason ->
+            ?error("Cannot finalize installation: ~p", [Reason]),
+            {error, Reason}
+    end.
 
 
 %% get_timestamp/0

@@ -74,7 +74,7 @@ main() ->
 
 %% title/0
 %% ====================================================================
-%% @doc Page title.
+%% @doc This will be placed instead of {{title}} tag in template.
 %% @end
 -spec title() -> Result when
     Result :: binary().

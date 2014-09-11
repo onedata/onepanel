@@ -55,7 +55,7 @@ main() ->
 
 %% title/0
 %% ====================================================================
-%% @doc Page title.
+%% @doc This will be placed instead of {{title}} tag in template.
 %% @end
 -spec title() -> Result when
     Result :: binary().
@@ -281,7 +281,7 @@ event(init) ->
         Pid ! render_hosts_table
     catch
         _:Reason ->
-            ?error("Cannot fetch application configuration: ~p", [Reason]),
+            ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch application configuration.<br>Please try again later.">>)
     end;
 
