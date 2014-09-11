@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc This module provides mapping of Onepanel paths to modules
+%% @doc This module provides mapping of onepanel paths to modules
 %% that will render the pages.
 %% @end
 %% ===================================================================
@@ -72,7 +72,7 @@ route(?PAGE_PRIVACY_POLICY) -> page_privacy_policy;
 %% Installation pages
 route(?PAGE_INSTALLATION) -> page_installation;
 route(?PAGE_HOST_SELECTION) -> page_hosts_selection;
-route(?PAGE_MAIN_PRIMARY_SELECTION) -> page_primary_ccm_selection;
+route(?PAGE_PRIMARY_CCM_SELECTION) -> page_primary_ccm_selection;
 route(?PAGE_SYSTEM_LIMITS) -> page_system_limits;
 route(?PAGE_STORAGE) -> page_storage;
 route(?PAGE_INSTALLATION_SUMMARY) -> page_installation_summary;

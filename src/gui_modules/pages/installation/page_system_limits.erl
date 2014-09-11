@@ -297,7 +297,7 @@ event(init) ->
     end;
 
 event(back) ->
-    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_MAIN_PRIMARY_SELECTION);
+    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION);
 
 event({set_system_limits, SystemLimits}) ->
     NewSystemLimits = lists:map(fun({Host, Id, _, _}) ->

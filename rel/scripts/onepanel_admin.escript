@@ -8,7 +8,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc This script interacts with Onepanel nodes and provides
+%% @doc This script interacts with onepanel nodes and provides
 %% management functions for software components.
 %% @end
 %% ===================================================================
@@ -39,7 +39,7 @@
 -define(EXIT_SUCCESS, 0).
 -define(EXIT_FAILURE, 1).
 
-%% Local Onepanel node
+%% Local onepanel node
 -define(NODE, local_node).
 
 %% config record contains following fields:

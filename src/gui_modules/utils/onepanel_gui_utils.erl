@@ -6,7 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc This file contains useful functions commonly used in
-%% Onepanel GUI modules.
+%% onepanel GUI modules.
 %% @end
 %% ===================================================================
 -module(onepanel_gui_utils).

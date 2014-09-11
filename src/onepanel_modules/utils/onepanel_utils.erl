@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc This module contains utility Onepanel functions.
+%% @doc This module contains utility onepanel functions.
 %% @end
 %% ===================================================================
 -module(onepanel_utils).

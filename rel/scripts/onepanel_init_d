@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # chkconfig: 2345 80 30
-# description: Onepanel service
+# description: onepanel service
 
 ### BEGIN INIT INFO
 # Provides:		        onepanel_init
@@ -11,8 +11,8 @@
 # Should-Stop:		    $syslog
 # Default-Start:	    3 4 5
 # Default-Stop:		    0 1 2 6
-# Short-Description:	Onepanel service
-# Description:          This service starts up the Onepanel node as a daemon.
+# Short-Description:	onepanel service
+# Description:          This service starts up the onepanel node as a daemon.
 ### END INIT INFO
 
 # Source function library.

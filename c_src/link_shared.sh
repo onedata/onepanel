@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 #####################################################################
 #  @author Rafal Slota
@@ -13,7 +13,7 @@
 
 if [ $# -lt 2 ]
 then
-    echo "Usage: $0 libname file1 [file2...]" 
+    echo "Usage: $0 libname file1 [file2...]"
     exit 1
 fi
 
