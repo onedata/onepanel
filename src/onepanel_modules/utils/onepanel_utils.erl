@@ -19,7 +19,7 @@
 %% API
 -export([random_ascii_lowercase_sequence/1]).
 -export([get_application_version/0, get_software_version/0, get_available_software_versions/0, get_software_version_name/1, get_software_version_record/1]).
--export([get_node/1, get_node/2, get_nodes/0, get_nodes/2, get_host/1, get_hosts/0, get_control_panel_hosts/0]).
+-export([get_node/1, get_node/2, get_nodes/0, get_nodes/2, get_host/1, get_hosts/0]).
 -export([apply_on_hosts/5, apply_on_worker/3, dropwhile_failure/5, save_file_on_host/3, save_file_on_hosts/3]).
 
 %% ====================================================================
@@ -304,24 +304,6 @@ get_available_software_versions() ->
         _:Reason ->
             ?error("Cannot get available software versions from repository: ~p", [Reason]),
             undefined
-    end.
-
-
-%% get_control_panel_hosts/0
-%% ====================================================================
-%% @doc Returns list of control panel hosts
-%% @end
--spec get_control_panel_hosts() -> Result when
-    Result :: {ok, Hosts :: [string()]} | {error, Reason :: term()}.
-%% ====================================================================
-get_control_panel_hosts() ->
-    try
-        {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        {ok, Workers}
-    catch
-        _:Reason ->
-            ?error("Cannot get control panel hosts: ~p", [Reason]),
-            {error, Reason}
     end.
 
 

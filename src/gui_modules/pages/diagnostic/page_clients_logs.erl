@@ -11,7 +11,6 @@
 %% ===================================================================
 -module(page_clients_logs).
 
--include("logging_pb.hrl").
 -include("registered_names.hrl").
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/installer/state.hrl").
@@ -21,16 +20,6 @@
 % n2o API and comet
 -export([main/0, event/1, api_event/3, comet_loop/2]).
 
-%% This record contains environmental variables send by FUSE client
-%% Variables are stored in 'env_vars' list. Entry format: {Name :: atom(), Value :: string()}
--record(fuse_session, {uid, hostname = "", env_vars = [], client_storage_info = [], valid_to = 0}).
-
-%% Record-wrapper for regular records that needs to be saved in DB. Adds UUID and Revision info to each record.
-%% `uuid` is document UUID, `rev_info` is documents' current revision number
-%% `record` is an record representing this document (its data), `force_update` is a flag
-%% that forces dao:save_record/1 to update this document even if rev_info isn't valid or up to date.
--record(veil_document, {uuid = "", rev_info = 0, record = none, force_update = false}).
-
 % Record used to store user preferences. One instance is kept in comet process, another one
 % is remembered in page state for filter options to be persistent
 -record(page_state, {
@@ -39,7 +28,8 @@
     first_log = 1,
     max_logs = 200,
     message_filter = undefined,
-    file_filter = undefined
+    file_filter = undefined,
+    pid
 }).
 
 % Widths of columns
@@ -210,28 +200,29 @@ manage_clients_panel() ->
         body = #span{class = <<"fui-cross">>, style = <<"font-size: 20px;">>}},
 
     {ClientListBody, Identifiers} =
-        case get_connected_clients() of
-            empty ->
+        case onepanel_utils:apply_on_worker(request_dispatcher, get_connected_fuses, []) of
+            {ok, no_fuses_connected} ->
                 Row = #tr{cells = [
                     #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"--">>},
                     #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"No clients are connected">>},
                     #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"">>}
                 ]},
                 {Row, []};
-            error ->
-                Row = #tr{cells = [
-                    #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"--">>},
-                    #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"Error: cannot list fuse sessions">>},
-                    #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"">>}
-                ]},
-                {Row, []};
-            Clients ->
+            {ok, Clients} ->
                 {ClientList, {_, Ids}} = lists:mapfoldl(
                     fun({UserName, FuseID}, {Counter, Idents}) ->
                         {Row, Identifier} = client_row(<<"client_row_", (integer_to_binary(Counter))/binary>>, false, UserName, FuseID),
                         {Row, {Counter + 1, Idents ++ Identifier}}
                     end, {1, []}, Clients),
-                {ClientList, Ids}
+                {ClientList, Ids};
+            {error, Reason} ->
+                ?error("Cannot get connected fuses: ~p", [Reason]),
+                Row = #tr{cells = [
+                    #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"--">>},
+                    #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"Error: cannot list fuse sessions">>},
+                    #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"">>}
+                ]},
+                {Row, []}
         end,
 
     gui_jq:bind_enter_to_submit_button(<<"search_textbox">>, <<"search_button">>),
@@ -335,30 +326,6 @@ filter_form(FilterType) ->
     ]}.
 
 
-% Listing available clients - returns a list or one of two atoms: empty, error
-get_connected_clients() ->
-    try
-        {ok, List} = onepanel_utils:apply_on_worker(dao_cluster, list_fuse_sessions, [{by_valid_to, ?INFINITY}]),
-        ClientList = lists:foldl(
-            fun(#veil_document{uuid = UUID, record = #fuse_session{uid = UserID}} = SessionDoc, Acc) ->
-                case onepanel_utils:apply_on_worker(dao_cluster, check_session, [SessionDoc]) of
-                    ok ->
-                        {ok, UserDoc} = onepanel_utils:apply_on_worker(user_logic, get_user, [{uuid, UserID}]),
-                        Acc ++ [{onepanel_utils:apply_on_worker(user_logic, get_login, [UserDoc]), UUID}];
-                    _ ->
-                        Acc
-                end
-            end, [], List),
-        case ClientList of
-            [] -> empty;
-            _ -> ClientList
-        end
-    catch T:M ->
-        ?error_stacktrace("Cannot list fuse sessions: ~p:~p", [T, M]),
-        error
-    end.
-
-
 % Remebering which clients are selected on the list
 set_selected_clients(List) ->
     put(selected_clients, List).
@@ -374,10 +341,11 @@ get_selected_clients() ->
 % the process should be removed from central_logger subscribers
 comet_loop_init() ->
     process_flag(trap_exit, true),
-    comet_loop(1, #page_state{}).
+    Pid = self(),
+    comet_loop(1, #page_state{pid = Pid}).
 
 % Comet loop - waits for new logs, updates the page and repeats. Handles messages that change logging preferences.
-comet_loop(Counter, PageState = #page_state{first_log = FirstLog, auto_scroll = AutoScroll}) ->
+comet_loop(Counter, PageState = #page_state{first_log = FirstLog, auto_scroll = AutoScroll, pid = Pid}) ->
     Result =
         try
             receive
@@ -400,23 +368,23 @@ comet_loop(Counter, PageState = #page_state{first_log = FirstLog, auto_scroll = 
                     set_clients_loglevel(ClientList, Level, ButtonID),
                     {Counter, PageState};
                 display_error ->
-                    onepanel_utils:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, self()}}]),
+                    onepanel_utils:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, Pid}}]),
                     gui_jq:insert_bottom(<<"main_table">>, comet_error()),
                     gui_comet:flush(),
                     error;
                 {'EXIT', _, _Reason} ->
-                    onepanel_utils:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, self()}}]),
+                    onepanel_utils:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, Pid}}]),
                     error;
                 Other ->
                     ?debug("Unrecognized comet message in page_logs: ~p", [Other]),
                     {Counter, PageState}
 
-                after ?COMET_PROCESS_RELOAD_DELAY ->
-                    {Counter, PageState}
+            after ?COMET_PROCESS_RELOAD_DELAY ->
+                {Counter, PageState}
             end
         catch _Type:_Msg ->
             ?error_stacktrace("Error in page_logs comet_loop - ~p: ~p", [_Type, _Msg]),
-            onepanel_utils:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, self()}}]),
+            onepanel_utils:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, Pid}}]),
             gui_jq:insert_bottom(<<"main_table">>, comet_error()),
             gui_comet:flush(),
             error
@@ -768,13 +736,12 @@ event({update_filter, FilterName}) ->
     end.
 
 
-set_clients_loglevel(ClientList, Level, ButtonID) ->
-    LoglevelInt = onepanel_utils:apply_on_worker(central_logger, client_loglevel_atom_to_int, [Level]),
+set_clients_loglevel(ClientList, LogLevel, ButtonID) ->
     Result =
         try
             lists:foldl(
                 fun(FuseID, Acc) ->
-                    case onepanel_utils:apply_on_worker(request_dispatcher, send_to_fuse, [FuseID, #changeremoteloglevel{level = logging_pb:int_to_enum(loglevel, LoglevelInt)}, "logging"]) of
+                    case onepanel_utils:apply_on_worker(central_logger, change_remote_log_level, [FuseID, LogLevel]) of
                         ok -> Acc;
                         _ -> error
                     end
@@ -786,7 +753,7 @@ set_clients_loglevel(ClientList, Level, ButtonID) ->
         ok -> gui_jq:update(ButtonID, <<"success!">>);
         error -> gui_jq:update(ButtonID, <<"failed!">>)
     end,
-    gui_jq:wire(<<"setTimeout(function f() {$('#", ButtonID/binary, "').html('", (gui_str:to_binary(Level))/binary, "')}, 1000);">>),
+    gui_jq:wire(<<"setTimeout(function f() {$('#", ButtonID/binary, "').html('", (gui_str:to_binary(LogLevel))/binary, "')}, 1000);">>),
     gui_comet:flush().
 
 

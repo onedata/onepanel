@@ -22,7 +22,7 @@
 
 %% Comet process state
 -define(STATE, comet_state).
--record(?STATE, {pid}).
+-record(?STATE, {attempt = 1, pid}).
 
 %% ====================================================================
 %% API functions
@@ -83,7 +83,7 @@ body() ->
             },
             #panel{
                 id = <<"progress">>,
-                style = <<"width: 50%; margin: 0 auto; display: none; justify-content: center;">>,
+                style = <<"width: 50%; margin: 0 auto; display: none;">>,
                 body = [
                     #panel{
                         body = #image{
@@ -129,23 +129,23 @@ comet_loop_init() ->
 comet_loop({error, Reason}) ->
     {error, Reason};
 
-comet_loop(#?STATE{pid = Pid} = State) ->
+comet_loop(#?STATE{attempt = Attempt, pid = Pid} = State) ->
     NewState = try
         receive
             connect ->
                 NewPid = spawn_link(fun() ->
                     ok = installer_utils:check_ip_addresses()
                 end),
-                erlang:send_after(?CONNECTION_TIMEOUT, self(), connection_failure),
+                erlang:send_after(?CONNECTION_TIMEOUT, self(), {connection_failure, Attempt}),
                 State#?STATE{pid = NewPid};
 
-            connection_failure ->
+            {connection_failure, Attempt} ->
                 onepanel_gui_utils:message(<<"error_message">>, <<"Cannot connect to Global Registry.<br>
                 Please check your network configuration and try again later.">>),
                 gui_jq:hide(<<"progress">>),
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
                 gui_comet:flush(),
-                State;
+                State#?STATE{attempt = Attempt + 1};
 
             {'EXIT', Pid, normal} ->
                 onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_PORTS_CHECK),
@@ -183,7 +183,7 @@ event(init) ->
 
 event(connect) ->
     get(?COMET_PID) ! connect,
-    gui_jq:css(<<"progress">>, <<"display">>, <<"flex">>),
+    gui_jq:show(<<"progress">>),
     gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"disabled">>);
 
 event({close_message, MessageId}) ->

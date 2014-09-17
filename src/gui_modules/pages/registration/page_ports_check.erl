@@ -258,7 +258,7 @@ comet_loop(#?STATE{ports = Ports} = State) ->
 %% ====================================================================
 event(init) ->
     try
-        {ok, Hosts} = onepanel_utils:get_control_panel_hosts(),
+        {ok, #?GLOBAL_CONFIG_RECORD{workers = Hosts}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
         {ok, [{<<"gui">>, DefaultGuiPort}, {<<"rest">>, DefaultRestPort}]} = provider_logic:get_default_ports(),
 
         Ports = lists:map(fun({Host, Id}) ->

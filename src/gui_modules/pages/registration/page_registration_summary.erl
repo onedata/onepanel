@@ -86,7 +86,7 @@ body() ->
             },
             #panel{
                 id = <<"progress">>,
-                style = <<"width: 50%; margin: 0 auto; display: none; justify-content: center;">>,
+                style = <<"width: 50%; margin: 0 auto; display: none;">>,
                 body = [
                     #panel{
                         body = #image{
@@ -192,7 +192,7 @@ event(back) ->
 
 event(register) ->
     get(?COMET_PID) ! register,
-    gui_jq:css(<<"progress">>, <<"display">>, <<"flex">>),
+    gui_jq:show(<<"progress">>),
     gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
     gui_jq:prop(<<"register_button">>, <<"disabled">>, <<"disabled">>);
 
