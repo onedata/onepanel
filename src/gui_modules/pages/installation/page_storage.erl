@@ -241,7 +241,6 @@ comet_loop(#?STATE{counter = Counter, db_config = DbConfig, session_config = #?C
                 gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
                 gui_jq:focus(<<"storage_path_textbox_", (integer_to_binary(Counter + 1))/binary>>),
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
-                gui_comet:flush(),
                 State;
 
             next ->
@@ -262,13 +261,11 @@ comet_loop(#?STATE{counter = Counter, db_config = DbConfig, session_config = #?C
                 gui_jq:hide(<<"main_spinner">>),
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
-                gui_comet:flush(),
                 NextState;
 
             back ->
                 gui_ctx:put(?CONFIG_ID, SessionConfig),
                 onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS),
-                gui_comet:flush(),
                 State;
 
             {add_storage_path, StorageId, StoragePath} ->
@@ -295,14 +292,12 @@ comet_loop(#?STATE{counter = Counter, db_config = DbConfig, session_config = #?C
                                     end
                             end,
                 gui_jq:hide(<<"main_spinner">>),
-                gui_comet:flush(),
                 NextState;
 
             {remove_storage_path, StorageId, StoragePath} ->
                 gui_jq:remove(<<"storage_path_row_", StorageId/binary>>),
                 gui_jq:focus(<<"storage_path_textbox_", (integer_to_binary(Counter + 1))/binary>>),
                 gui_jq:hide(<<"main_spinner">>),
-                gui_comet:flush(),
                 State#?STATE{session_config = SessionConfig#?CONFIG{storage_paths = lists:delete(StoragePath, StoragePaths)}}
 
         after ?COMET_PROCESS_RELOAD_DELAY ->
@@ -313,6 +308,7 @@ comet_loop(#?STATE{counter = Counter, db_config = DbConfig, session_config = #?C
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 
 

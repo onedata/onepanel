@@ -126,7 +126,7 @@ about_table() ->
 version() ->
     #span{
         style = <<"font-size: large;">>,
-        body = onepanel_utils:get_software_version()
+        body = onepanel_utils:get_application_version()
     }.
 
 

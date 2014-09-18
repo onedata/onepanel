@@ -371,7 +371,6 @@ comet_loop(#?STATE{providers_details = ProvidersDetails, users_details = UsersDe
                 gui_jq:update(<<"users_table">>, users_table_collapsed(UsersDetails)),
                 gui_jq:fade_in(<<"users_table">>, 500),
                 gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
-                gui_comet:flush(),
                 State;
 
             Event ->
@@ -396,7 +395,6 @@ comet_loop(#?STATE{providers_details = ProvidersDetails, users_details = UsersDe
                         ok
                 end,
                 gui_jq:hide(<<"main_spinner">>),
-                gui_comet:flush(),
                 State
 
         after ?COMET_PROCESS_RELOAD_DELAY ->
@@ -407,6 +405,7 @@ comet_loop(#?STATE{providers_details = ProvidersDetails, users_details = UsersDe
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 
 

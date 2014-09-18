@@ -314,12 +314,10 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
 
             {set_abortable, true} ->
                 gui_jq:prop(<<"abort_button">>, <<"disabled">>, <<"">>),
-                gui_comet:flush(),
                 State;
 
             {set_abortable, false} ->
                 gui_jq:prop(<<"abort_button">>, <<"disabled">>, <<"disabled">>),
-                gui_comet:flush(),
                 State;
 
             {set_stage_and_job, SIndex, _, JIndex, _, _} ->
@@ -339,7 +337,6 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
                         gui_jq:css(<<"job_bar">>, <<"-webkit-transition-property">>, <<"none">>),
                         gui_jq:css(<<"job_bar">>, <<"-o-transition-property">>, <<"none">>)
                 end,
-                gui_comet:flush(),
 
                 {StagePrefix, JobPrefix} = case AType of
                                                install -> {<<"Current stage: ">>, <<"Current job: ">>};
@@ -357,7 +354,6 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
                 gui_jq:set_width(<<"job_bar">>, JobsProgressBinary),
 
                 timer:send_after(?DEFAULT_NEXT_UPDATE, {update, StageIndex, JobIndex, JobPrefix, JobName, JobsCount}),
-                gui_comet:flush(),
                 State#?STATE{stage_index = StageIndex, job_index = JobIndex, job_progress = NewJProgress, update_time = ?DEFAULT_NEXT_UPDATE};
 
             {update, SIndex, JIndex, JobPrefix, JobName, JobsCount} ->
@@ -372,7 +368,6 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
                 gui_jq:set_width(<<"job_bar">>, JobsProgressBinary),
 
                 timer:send_after(2 * UTime, {update, SIndex, JIndex, JobPrefix, JobName, JobsCount}),
-                gui_comet:flush(),
                 State#?STATE{job_progress = NewJProgress, update_time = 2 * UTime};
 
             {update, _, _, _, _, _} ->
@@ -381,12 +376,10 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
             abort ->
                 gui_jq:prop(<<"abort_button">>, <<"disabled">>, <<"disabled">>),
                 onepanel_gui_utils:message(<<"error_message">>, <<"Aborting update process.<br>Please wait while rollbacking changes...">>),
-                gui_comet:flush(),
                 State;
 
             error ->
                 onepanel_gui_utils:message(<<"error_message">>, <<"An error occurred during update process.<br>Rollbacking changes.">>),
-                gui_comet:flush(),
                 State;
 
             {finish, UpdaterState} ->
@@ -396,7 +389,6 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
                     install ->
                         gui_jq:set_width(<<"job_bar">>, <<"100%">>),
                         gui_jq:set_width(<<"stage_bar">>, <<"100%">>),
-                        gui_comet:flush(),
                         onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_UPDATE_SUCCESS);
                     _ ->
                         gui_jq:set_width(<<"job_bar">>, <<"0%">>),
@@ -411,7 +403,6 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
                                 onepanel_gui_utils:message(<<"error_message">>, <<"An error occurred during update process.">>)
                         end
                 end,
-                gui_comet:flush(),
                 #?STATE{stages_count = SCount, action_type = install}
 
         after ?COMET_PROCESS_RELOAD_DELAY ->
@@ -422,6 +413,7 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 
 

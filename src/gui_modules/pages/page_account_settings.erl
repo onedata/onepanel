@@ -302,7 +302,6 @@ comet_loop(#?STATE{} = State) ->
                         onepanel_gui_utils:message(<<"error_message">>, Reason)
                 end,
                 gui_jq:hide(<<"main_spinner">>),
-                gui_comet:flush(),
                 State;
 
             {submit_new_password, Username, CurrentPassword, NewPassword, ConfirmedPassword} ->
@@ -314,7 +313,6 @@ comet_loop(#?STATE{} = State) ->
                         onepanel_gui_utils:message(<<"error_message">>, Reason)
                 end,
                 gui_jq:hide(<<"main_spinner">>),
-                gui_comet:flush(),
                 State
 
         after ?COMET_PROCESS_RELOAD_DELAY ->
@@ -325,6 +323,7 @@ comet_loop(#?STATE{} = State) ->
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 
 

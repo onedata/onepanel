@@ -144,12 +144,10 @@ comet_loop(#?STATE{attempt = Attempt, pid = Pid} = State) ->
                 Please check your network configuration and try again later.">>),
                 gui_jq:hide(<<"progress">>),
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
-                gui_comet:flush(),
                 State#?STATE{attempt = Attempt + 1};
 
             {'EXIT', Pid, normal} ->
                 onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_PORTS_CHECK),
-                gui_comet:flush(),
                 State;
 
             {'EXIT', Pid, _} ->
@@ -167,6 +165,7 @@ comet_loop(#?STATE{attempt = Attempt, pid = Pid} = State) ->
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 
 

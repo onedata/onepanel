@@ -25,7 +25,7 @@
 
 %% Comet process state
 -define(STATE, comet_state).
--record(?STATE, {pid}).
+-record(?STATE, {attempt = 1, pid}).
 
 %% ====================================================================
 %% API functions
@@ -135,27 +135,25 @@ comet_loop_init() ->
 comet_loop({error, Reason}) ->
     {error, Reason};
 
-comet_loop(#?STATE{pid = Pid} = State) ->
+comet_loop(#?STATE{attempt = Attempt, pid = Pid} = State) ->
     NewState = try
         receive
             register ->
                 NewPid = spawn_link(fun() ->
                     {ok, _} = provider_logic:register()
                 end),
-                erlang:send_after(?REGISTRATION_TIMEOUT, self(), registration_failure),
+                erlang:send_after(?REGISTRATION_TIMEOUT, self(), {registration_failure, Attempt}),
                 State#?STATE{pid = NewPid};
 
-            registration_failure ->
+            {registration_failure, Attempt} ->
                 onepanel_gui_utils:message(<<"error_message">>, <<"Cannot register in <i>Global Registry</i>.<br>Please try again later.">>),
                 gui_jq:hide(<<"progress">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
                 gui_jq:prop(<<"register_button">>, <<"disabled">>, <<"">>),
-                gui_comet:flush(),
-                State;
+                State#?STATE{attempt = Attempt + 1};
 
             {'EXIT', Pid, normal} ->
                 onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_REGISTRATION_SUCCESS),
-                gui_comet:flush(),
                 State;
 
             {'EXIT', Pid, _} ->
@@ -173,6 +171,7 @@ comet_loop(#?STATE{pid = Pid} = State) ->
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 
 

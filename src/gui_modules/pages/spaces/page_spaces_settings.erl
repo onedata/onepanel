@@ -304,7 +304,6 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                     end,
                 gui_jq:hide(<<"main_spinner">>),
                 gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"">>),
-                gui_comet:flush(),
                 NextState;
 
             {support_space, Token} ->
@@ -325,7 +324,6 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                     end,
                 gui_jq:hide(<<"main_spinner">>),
                 gui_jq:prop(<<"support_space_button">>, <<"disabled">>, <<"">>),
-                gui_comet:flush(),
                 NextState;
 
             {revoke_space_support, RowId, SpaceId} ->
@@ -341,7 +339,6 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                             State
                     end,
                 gui_jq:hide(<<"main_spinner">>),
-                gui_comet:flush(),
                 NextState;
 
             render_spaces_table ->
@@ -350,7 +347,6 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                 gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
                 gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"">>),
                 gui_jq:prop(<<"support_space_button">>, <<"disabled">>, <<"">>),
-                gui_comet:flush(),
                 State;
 
             Event ->
@@ -367,7 +363,6 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                         ok
                 end,
                 gui_jq:hide(<<"main_spinner">>),
-                gui_comet:flush(),
                 State
 
         after ?COMET_PROCESS_RELOAD_DELAY ->
@@ -378,6 +373,7 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 
 

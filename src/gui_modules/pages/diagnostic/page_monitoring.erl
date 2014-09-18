@@ -613,7 +613,6 @@ comet_loop(#?STATE{counter = Counter, nodes = Nodes, node = Node, time_range = T
 
             add_chart ->
                 gui_jq:remove(<<"error_message">>),
-                gui_comet:flush(),
                 case validate_page_state(PageState) of
                     ok ->
                         case validate_chart(Node, TimeRange, ChartType, Charts) of

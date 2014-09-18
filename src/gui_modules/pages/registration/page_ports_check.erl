@@ -204,7 +204,6 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                 gui_jq:fade_in(<<"ports_table">>, 500),
                 gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
-                gui_comet:flush(),
                 State;
 
             {set_ports, NewPorts} ->
@@ -236,7 +235,6 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                 gui_jq:hide(<<"main_spinner">>),
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
-                gui_comet:flush(),
                 State
 
         after ?COMET_PROCESS_RELOAD_DELAY ->
@@ -247,6 +245,7 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 
 
