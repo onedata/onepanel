@@ -39,7 +39,7 @@
 -define(PAGE_UPDATE_SUMMARY, <<"/software/update/summary">>).
 -define(PAGE_UPDATE_SUCCESS, <<"/software/update/success">>).
 
-%% Diagnostic pages
+%% Diagnostics pages
 -define(PAGE_MONITORING, <<"/software/diagnostics/monitoring">>).
 -define(PAGE_CLIENTS_LOGS, <<"/software/diagnostics/clients_logs">>).
 -define(PAGE_SERVER_LOGS, <<"/software/diagnostics/server_logs">>).
