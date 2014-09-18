@@ -741,7 +741,7 @@ set_clients_loglevel(ClientList, LogLevel, ButtonID) ->
         try
             lists:foldl(
                 fun(FuseID, Acc) ->
-                    case onepanel_utils:apply_on_worker(central_logger, change_remote_log_level, [FuseID, LogLevel]) of
+                    case onepanel_utils:apply_on_worker(central_logger, change_remote_loglevel, [FuseID, LogLevel]) of
                         ok -> Acc;
                         _ -> error
                     end
