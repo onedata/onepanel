@@ -3,26 +3,26 @@
 all: deps compile
 
 deps:
-	@./rebar get-deps
+	@./rebar --config provider.config get-deps
 
 compile: deps
-	@./rebar compile
+	@./rebar --config provider.config compile
 
 generate: compile
-	@./rebar generate
+	@./rebar --config provider.config generate
 
 clean:
-	@./rebar clean
+	@./rebar --config provider.config clean
 
 distclean: clean
-	@./rebar delete-deps
+	@./rebar --config provider.config delete-deps
 
 ##
 ## Release targets
 ##
 
 doc:
-	@./rebar doc skip_deps=true
+	@./rebar --config provider.config doc skip_deps=true
 
 rel: deps compile generate
 

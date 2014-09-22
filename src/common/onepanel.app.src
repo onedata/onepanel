@@ -38,7 +38,7 @@
         {updater_start_delay, 1000},
         {updater_lookup_delay, 60000},
         {bcrypt_work_factor, 12},
-        {gui_static_root, "./gui_static"},
+        {gui_static_root, "./common/gui_static"},
         {cert_file, "./certs/server.crt"},
         {key_file, "./certs/server.key"},
         {grpkey_name, "grpkey.pem"},
