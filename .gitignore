@@ -7,3 +7,7 @@ rel/onepanel
 
 c_lib
 c_src/*.o
+
+src/common/gui_static/flatui
+src/common/gui_static/fonts
+src/common/gui_static/n2o
