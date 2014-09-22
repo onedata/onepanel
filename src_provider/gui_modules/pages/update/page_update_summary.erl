@@ -11,7 +11,7 @@
 %% ===================================================================
 -module(page_update_summary).
 
--include("gui_modules/common.hrl").
+-include("gui_modules/provider.hrl").
 -include("onepanel_modules/updater/common.hrl").
 -include("onepanel_modules/updater/state.hrl").
 -include("onepanel_modules/updater/stages.hrl").
@@ -81,7 +81,7 @@ body() ->
                                                       {?STAGE_IDLE, _} -> {<<"">>, <<" display: none;">>};
                                                       _ -> {<<" display: none;">>, <<"">>}
                                                   end,
-    Header = onepanel_gui_utils:top_menu(software_tab, update_link),
+    Header = provider_gui_utils:top_menu(software_tab, update_link),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [

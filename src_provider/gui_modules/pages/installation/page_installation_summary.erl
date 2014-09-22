@@ -11,7 +11,7 @@
 %% ===================================================================
 -module(page_installation_summary).
 
--include("gui_modules/common.hrl").
+-include("gui_modules/provider.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/stages.hrl").
 -include_lib("ctool/include/logging.hrl").
@@ -76,7 +76,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(software_tab, installation_link, [], true),
+    Header = provider_gui_utils:top_menu(software_tab, installation_link, [], true),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
@@ -367,7 +367,7 @@ event(init) ->
     gui_jq:bind_key_to_click(<<"13">>, <<"install_button">>),
     try
         {ok, DbConfig} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        {ok, SessionConfig} = onepanel_gui_utils:get_session_config(),
+        {ok, SessionConfig} = provider_gui_utils:get_session_config(),
 
         Config = #?CONFIG{
             main_ccm = [SessionConfig#?CONFIG.main_ccm] -- [DbConfig#?CONFIG.main_ccm],

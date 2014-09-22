@@ -5,24 +5,33 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc This header file contains all web pages definitions.
+%% @doc This header file contains common macros and records for
+%% provider web pages.
 %% @end
 %% ===================================================================
 
--ifndef(ONEPANEL_GUI_PAGES_HRL).
--define(ONEPANEL_GUI_PAGES_HRL, 1).
+-ifndef(ONEPANEL_GUI_PROVIDER_HRL).
+-define(ONEPANEL_GUI_PROVIDER_HRL, 1).
 
-%% Root page
--define(PAGE_ROOT, <<"/">>).
+-include("common.hrl").
 
-%% Installation pages
--define(PAGE_INSTALLATION, <<"/software/installation">>).
--define(PAGE_HOST_SELECTION, <<"/software/installation/hosts_selection">>).
--define(PAGE_PRIMARY_CCM_SELECTION, <<"/software/installation/primary_ccm_selection">>).
--define(PAGE_SYSTEM_LIMITS, <<"/software/installation/system_limits">>).
--define(PAGE_STORAGE, <<"/software/installation/storage">>).
--define(PAGE_INSTALLATION_SUMMARY, <<"/software/installation/summary">>).
--define(PAGE_INSTALLATION_SUCCESS, <<"/software/installation/success">>).
+%% Macros used as ids of errors that can appear on GUI pages
+-define(SOFTWARE_NOT_INSTALLED_ERROR, <<"software_not_installed_error">>).
+-define(UNREGISTERED_PROVIDER_ERROR, <<"unregistered_provider_error">>).
+-define(SPACE_PERMISSION_DENIED_ERROR, <<"space_permission_denied_error">>).
+-define(SPACE_NOT_FOUND_ERROR, <<"space_not_found_error">>).
+
+%% Current installation step saved in user session
+-define(CURRENT_INSTALLATION_PAGE, install_page).
+
+%% Current registration step saved in user session
+-define(CURRENT_REGISTRATION_PAGE, register_page).
+
+%% Current update step saved in user session
+-define(CURRENT_UPDATE_PAGE, update_page).
+
+%% Currently selected version in update process
+-define(CHOSEN_VERSION, chosen_version).
 
 %% Update pages
 -define(PAGE_UPDATE, <<"/software/update">>).

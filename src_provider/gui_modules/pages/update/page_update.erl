@@ -11,7 +11,7 @@
 %% ===================================================================
 -module(page_update).
 
--include("gui_modules/common.hrl").
+-include("gui_modules/provider.hrl").
 -include("onepanel_modules/updater/state.hrl").
 -include("onepanel_modules/updater/stages.hrl").
 

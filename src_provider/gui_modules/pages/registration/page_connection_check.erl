@@ -11,7 +11,7 @@
 %% ===================================================================
 -module(page_connection_check).
 
--include("gui_modules/common.hrl").
+-include("gui_modules/provider.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -69,7 +69,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(spaces_tab, spaces_account_link),
+    Header = provider_gui_utils:top_menu(spaces_tab, spaces_account_link),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [

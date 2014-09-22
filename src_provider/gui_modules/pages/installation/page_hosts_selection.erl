@@ -11,7 +11,7 @@
 %% ===================================================================
 -module(page_hosts_selection).
 
--include("gui_modules/common.hrl").
+-include("gui_modules/provider.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -72,7 +72,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(software_tab, installation_link, [], true),
+    Header = provider_gui_utils:top_menu(software_tab, installation_link, [], true),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
@@ -267,7 +267,7 @@ event(init) ->
     try
         Hosts = onepanel_utils:get_hosts(),
         {ok, DbConfig} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        {ok, SessionConfig} = onepanel_gui_utils:get_session_config(),
+        {ok, SessionConfig} = provider_gui_utils:get_session_config(),
         NewSessionConfig = case {SessionConfig#?CONFIG.main_ccm, Hosts} of
                                {undefined, [_]} ->
                                    SessionConfig#?CONFIG{main_ccm = hd(Hosts), ccms = Hosts, workers = Hosts, dbs = Hosts};
