@@ -36,13 +36,13 @@
 %% Root page
 -define(PAGE_ROOT, <<"/">>).
 
-%% Installation pages
--define(PAGE_INSTALLATION, <<"/software/installation">>).
--define(PAGE_HOST_SELECTION, <<"/software/installation/hosts_selection">>).
--define(PAGE_PRIMARY_CCM_SELECTION, <<"/software/installation/primary_ccm_selection">>).
--define(PAGE_SYSTEM_LIMITS, <<"/software/installation/system_limits">>).
--define(PAGE_STORAGE, <<"/software/installation/storage">>).
--define(PAGE_INSTALLATION_SUMMARY, <<"/software/installation/summary">>).
--define(PAGE_INSTALLATION_SUCCESS, <<"/software/installation/success">>).
+%% Management pages
+-define(PAGE_LOGIN, <<"/login">>).
+-define(PAGE_LOGIN_VALIDATION, <<"/login_validation">>).
+-define(PAGE_LOGOUT, <<"/logout">>).
+-define(PAGE_ABOUT, <<"/about">>).
+-define(PAGE_ERROR, <<"/error">>).
+-define(PAGE_ACCOUNT_SETTINGS, <<"/account/settings">>).
+-define(PAGE_PRIVACY_POLICY, <<"/privacy_policy">>).
 
 -endif.

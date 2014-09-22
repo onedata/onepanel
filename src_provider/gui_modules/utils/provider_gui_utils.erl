@@ -104,7 +104,8 @@ top_menu(ActiveTabID, ActiveLinkID, Submenu, Spinner) ->
     ]),
 
     MenuIcons = Process(ActiveTabID, [
-        {account_settings_tab, #li{id = <<"account_settings_tab">>, body = account_settings_tab(gui_ctx:get_user_id())}},
+        {account_settings_tab, #li{id = <<"account_settings_tab">>,
+            body = onepanel_gui_utils:account_settings_tab(gui_ctx:get_user_id())}},
         {about_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"About">>,
             url = ?PAGE_ABOUT, body = #span{class = <<"fui-info">>}}}},
         {logout_button, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Log out">>,

@@ -11,7 +11,7 @@
 %% ===================================================================
 -module(routes).
 
--include("gui_modules/pages.hrl").
+-include("gui_modules/provider.hrl").
 -include_lib("n2o/include/wf.hrl").
 
 -export([init/2, finish/2]).
