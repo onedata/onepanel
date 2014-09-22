@@ -2,7 +2,7 @@
 
 deps
 ebin
-rel/onepanel
+rel_provider/onepanel
 
 c_lib
 c_src/*.o
