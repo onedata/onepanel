@@ -62,7 +62,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = provider_gui_utils:top_menu(about_tab),
+    Header = onepanel_gui_utils:top_menu(about_tab),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
@@ -129,7 +129,7 @@ about_table() ->
 version() ->
     #p{
         style = <<"margin: 0;">>,
-        body = onepanel_utils:get_software_version()
+        body = onepanel_utils:get_application_version()
     }.
 
 

@@ -11,7 +11,7 @@
 %% ===================================================================
 -module(page_update_success).
 
--include("gui_modules/provider.hrl").
+-include("gui_modules/common.hrl").
 -include("onepanel_modules/updater/common.hrl").
 
 -export([main/0, event/1]).
@@ -61,7 +61,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = provider_gui_utils:top_menu(software_tab, update_link),
+    Header = onepanel_gui_utils:top_menu(software_tab, update_link),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = #panel{

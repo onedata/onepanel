@@ -11,7 +11,7 @@
 %% ===================================================================
 -module(page_registration_summary).
 
--include("gui_modules/provider.hrl").
+-include("gui_modules/common.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 -export([main/0, event/1, comet_loop/1]).
@@ -72,7 +72,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = provider_gui_utils:top_menu(spaces_tab, spaces_account_link),
+    Header = onepanel_gui_utils:top_menu(spaces_tab, spaces_account_link),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [

@@ -1,28 +1,30 @@
+CONFIG=provider.config
+
 .PHONY: deps generate
 
 all: deps compile
 
 deps:
-	@./rebar --config provider.config get-deps
+	@./rebar --config $(CONFIG) get-deps
 
 compile: deps
-	@./rebar --config provider.config compile
+	@./rebar --config $(CONFIG) compile
 
 generate: compile
-	@./rebar --config provider.config generate
+	@./rebar --config $(CONFIG) generate
 
 clean:
-	@./rebar --config provider.config clean
+	@./rebar --config $(CONFIG) clean
 
 distclean: clean
-	@./rebar --config provider.config delete-deps
+	@./rebar --config $(CONFIG) delete-deps
 
 ##
 ## Release targets
 ##
 
 doc:
-	@./rebar --config provider.config doc skip_deps=true
+	@./rebar --config $(CONFIG) doc skip_deps=true
 
 rel: deps compile generate
 

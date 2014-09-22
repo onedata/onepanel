@@ -12,6 +12,8 @@
 -ifndef(ONEPANEL_INSTALLER_STATE_HRL).
 -define(ONEPANEL_INSTALLER_STATE_HRL, 1).
 
+-ifdef(provider).
+
 %% Names of database records
 -define(GLOBAL_CONFIG_RECORD, global_configuration).
 -define(LOCAL_CONFIG_RECORD, local_configuration).
@@ -40,6 +42,35 @@
 %% * open_files         - limit of open files for Bigcouch database
 %% * process_limit      - limit of processes for Bigcouch database
 -record(?LOCAL_CONFIG_RECORD, {host, gui_port, rest_port, open_files, process_limit}).
+
+-endif.
+
+-ifdef(global_registry).
+
+%% Names of database records
+-define(GLOBAL_CONFIG_RECORD, global_configuration).
+-define(LOCAL_CONFIG_RECORD, local_configuration).
+
+%% Names of database tables
+-define(GLOBAL_CONFIG_TABLE, global_configurations).
+-define(LOCAL_CONFIG_TABLE, local_configurations).
+
+%% Id of current installation configuration saved in database
+-define(CONFIG_ID, current).
+
+%% Global config record contains following fields:
+%% * id                 - ID which equals CONFIG_ID as a primary key in database
+%% * dbs                - list of hostnames of machines where database nodes are configured
+%% * timestamp          - table creation timestamp as elapsed microseconds since epoch
+-record(?GLOBAL_CONFIG_RECORD, {id, dbs = [], timestamp = 0}).
+
+%% Local config record describes host configuration that is:
+%% * host               - machine hostname as a primary key in database
+%% * open_files         - limit of open files for Bigcouch database
+%% * process_limit      - limit of processes for Bigcouch database
+-record(?LOCAL_CONFIG_RECORD, {host, open_files, process_limit}).
+
+-endif.
 
 %% Name of installer state
 -define(i_state, i_state).

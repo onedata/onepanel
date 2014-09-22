@@ -13,16 +13,29 @@
 -ifndef(ONEPANEL_GUI_PROVIDER_HRL).
 -define(ONEPANEL_GUI_PROVIDER_HRL, 1).
 
--include("common.hrl").
+%% Root page
+-define(PAGE_ROOT, <<"/">>).
 
-%% Macros used as ids of errors that can appear on GUI pages
--define(SOFTWARE_NOT_INSTALLED_ERROR, <<"software_not_installed_error">>).
--define(UNREGISTERED_PROVIDER_ERROR, <<"unregistered_provider_error">>).
--define(SPACE_PERMISSION_DENIED_ERROR, <<"space_permission_denied_error">>).
--define(SPACE_NOT_FOUND_ERROR, <<"space_not_found_error">>).
+%% Management pages
+-define(PAGE_LOGIN, <<"/login">>).
+-define(PAGE_LOGIN_VALIDATION, <<"/login_validation">>).
+-define(PAGE_LOGOUT, <<"/logout">>).
+-define(PAGE_ABOUT, <<"/about">>).
+-define(PAGE_ERROR, <<"/error">>).
+-define(PAGE_ACCOUNT_SETTINGS, <<"/account/settings">>).
+-define(PAGE_PRIVACY_POLICY, <<"/privacy_policy">>).
+
+%% Installation pages
+-define(PAGE_INSTALLATION, <<"/software/installation">>).
+-define(PAGE_HOST_SELECTION, <<"/software/installation/hosts_selection">>).
+-define(PAGE_SYSTEM_LIMITS, <<"/software/installation/system_limits">>).
+-define(PAGE_INSTALLATION_SUMMARY, <<"/software/installation/summary">>).
+-define(PAGE_INSTALLATION_SUCCESS, <<"/software/installation/success">>).
 
 %% Current installation step saved in user session
 -define(CURRENT_INSTALLATION_PAGE, install_page).
+
+-ifdef(provider).
 
 %% Current registration step saved in user session
 -define(CURRENT_REGISTRATION_PAGE, register_page).
@@ -34,13 +47,8 @@
 -define(CHOSEN_VERSION, chosen_version).
 
 %% Installation pages
--define(PAGE_INSTALLATION, <<"/software/installation">>).
--define(PAGE_HOST_SELECTION, <<"/software/installation/hosts_selection">>).
 -define(PAGE_PRIMARY_CCM_SELECTION, <<"/software/installation/primary_ccm_selection">>).
--define(PAGE_SYSTEM_LIMITS, <<"/software/installation/system_limits">>).
 -define(PAGE_STORAGE, <<"/software/installation/storage">>).
--define(PAGE_INSTALLATION_SUMMARY, <<"/software/installation/summary">>).
--define(PAGE_INSTALLATION_SUCCESS, <<"/software/installation/success">>).
 
 %% Update pages
 -define(PAGE_UPDATE, <<"/software/update">>).
@@ -58,5 +66,7 @@
 -define(PAGE_SPACE_DETAILS, <<"/spaces">>).
 -define(PAGE_SPACES_ACCOUNT, <<"/spaces/account">>).
 -define(PAGE_SPACES_SETTINGS, <<"/spaces/settings">>).
+
+-endif.
 
 -endif.

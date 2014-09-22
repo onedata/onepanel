@@ -65,7 +65,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = provider_gui_utils:top_menu(account_settings_tab),
+    Header = onepanel_gui_utils:top_menu(account_settings_tab),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [

@@ -11,7 +11,7 @@
 %% ===================================================================
 -module(page_spaces_account).
 
--include("gui_modules/provider.hrl").
+-include("gui_modules/common.hrl").
 -include("onepanel_modules/logic/provider_logic.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -87,7 +87,7 @@ custom() ->
     Result :: #panel{}.
 %% ====================================================================
 body(ProviderId, URLs, RedirectionPoint) ->
-    Header = provider_gui_utils:top_menu(spaces_tab, spaces_account_link),
+    Header = onepanel_gui_utils:top_menu(spaces_tab, spaces_account_link),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [

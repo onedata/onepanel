@@ -11,7 +11,8 @@
 %% ===================================================================
 -module(user_logic).
 
--include("gui_modules/common.hrl").
+-include("registered_names.hrl").
+-include("gui_modules/errors.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/logic/user_logic.hrl").
 -include_lib("ctool/include/logging.hrl").

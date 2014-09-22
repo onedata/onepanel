@@ -13,6 +13,8 @@
 -ifndef(ONEPANEL_GUI_COMMON_HRL).
 -define(ONEPANEL_GUI_COMMON_HRL, 1).
 
+-include("pages.hrl").
+-include("errors.hrl").
 -include("registered_names.hrl").
 -include_lib("ctool/include/gui/common.hrl").
 
@@ -26,23 +28,7 @@
     postback
 }).
 
-%% Macros used as ids of errors that can appear on GUI pages
--define(AUTHENTICATION_ERROR, <<"authentication_error">>).
--define(INTERNAL_SERVER_ERROR, <<"internal_server_error">>).
-
 %% Delay in miliseconds after which comet process will reload it's code
 -define(COMET_PROCESS_RELOAD_DELAY, 5000).
-
-%% Root page
--define(PAGE_ROOT, <<"/">>).
-
-%% Management pages
--define(PAGE_LOGIN, <<"/login">>).
--define(PAGE_LOGIN_VALIDATION, <<"/login_validation">>).
--define(PAGE_LOGOUT, <<"/logout">>).
--define(PAGE_ABOUT, <<"/about">>).
--define(PAGE_ERROR, <<"/error">>).
--define(PAGE_ACCOUNT_SETTINGS, <<"/account/settings">>).
--define(PAGE_PRIVACY_POLICY, <<"/privacy_policy">>).
 
 -endif.

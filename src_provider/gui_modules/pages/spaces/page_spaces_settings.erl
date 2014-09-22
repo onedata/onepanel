@@ -11,7 +11,7 @@
 %% ===================================================================
 -module(page_spaces_settings).
 
--include("gui_modules/provider.hrl").
+-include("gui_modules/common.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/global_registry/gr_spaces.hrl").
 
@@ -85,7 +85,7 @@ custom() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = provider_gui_utils:top_menu(spaces_tab, spaces_settings_link, [], true),
+    Header = onepanel_gui_utils:top_menu(spaces_tab, spaces_settings_link, [], true),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [

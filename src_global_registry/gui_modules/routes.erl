@@ -72,28 +72,9 @@ route(?PAGE_PRIVACY_POLICY) -> page_privacy_policy;
 %% Installation pages
 route(?PAGE_INSTALLATION) -> page_installation;
 route(?PAGE_HOST_SELECTION) -> page_hosts_selection;
-route(?PAGE_PRIMARY_CCM_SELECTION) -> page_primary_ccm_selection;
 route(?PAGE_SYSTEM_LIMITS) -> page_system_limits;
-route(?PAGE_STORAGE) -> page_storage;
 route(?PAGE_INSTALLATION_SUMMARY) -> page_installation_summary;
 route(?PAGE_INSTALLATION_SUCCESS) -> page_installation_success;
-
-%% Update pages
-route(?PAGE_UPDATE) -> page_update;
-route(?PAGE_VERSION_SELECTION) -> page_version_selection;
-route(?PAGE_UPDATE_SUMMARY) -> page_update_summary;
-route(?PAGE_UPDATE_SUCCESS) -> page_update_success;
-
-%% Spaces pages
-route(?PAGE_SPACE_DETAILS) -> page_space_details;
-route(?PAGE_SPACES_ACCOUNT) -> page_spaces_account;
-route(?PAGE_SPACES_SETTINGS) -> page_spaces_settings;
-
-%% Registration pages
-route(?PAGE_CONNECTION_CHECK) -> page_connection_check;
-route(?PAGE_PORTS_CHECK) -> page_ports_check;
-route(?PAGE_REGISTRATION_SUMMARY) -> page_registration_summary;
-route(?PAGE_REGISTRATION_SUCCESS) -> page_registration_success;
 
 %% Undefined pages
 route(_) -> page_404.

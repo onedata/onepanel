@@ -12,7 +12,7 @@
 %% ===================================================================
 -module(page_primary_ccm_selection).
 
--include("gui_modules/provider.hrl").
+-include("gui_modules/common.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -66,7 +66,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = provider_gui_utils:top_menu(software_tab, installation_link),
+    Header = onepanel_gui_utils:top_menu(software_tab, installation_link),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
@@ -105,7 +105,7 @@ body() ->
 main_ccm() ->
     try
         {ok, DbConfig} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        {ok, SessionConfig} = provider_gui_utils:get_session_config(),
+        {ok, SessionConfig} = onepanel_gui_utils:get_session_config(),
 
         [
             <<"<i class=\"dropdown-arrow dropdown-arrow-inverse\"></i>">>,

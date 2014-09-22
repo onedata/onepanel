@@ -11,7 +11,7 @@
 %% ===================================================================
 -module(page_version_selection).
 
--include("gui_modules/provider.hrl").
+-include("gui_modules/common.hrl").
 -include("onepanel_modules/updater/common.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
@@ -64,7 +64,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = provider_gui_utils:top_menu(software_tab, update_link),
+    Header = onepanel_gui_utils:top_menu(software_tab, update_link),
     Main = #panel{
         style = <<"margin-top: 10em;">>,
         body = [

@@ -11,7 +11,7 @@
 %% ===================================================================
 -module(page_error).
 
--include("gui_modules/provider.hrl").
+-include("gui_modules/common.hrl").
 
 %% n2o API
 -export([main/0, event/1]).
