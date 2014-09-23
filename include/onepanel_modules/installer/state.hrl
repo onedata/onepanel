@@ -41,7 +41,8 @@
 %% * rest_port          - REST port that is available for Global Registry
 %% * open_files         - limit of open files for Bigcouch database
 %% * process_limit      - limit of processes for Bigcouch database
--record(?LOCAL_CONFIG_RECORD, {host, gui_port, rest_port, open_files, process_limit}).
+%% * ip_address         - machine IP address that is visible for Global Registry
+-record(?LOCAL_CONFIG_RECORD, {host, gui_port, rest_port, open_files, process_limit, ip_address}).
 
 -endif.
 

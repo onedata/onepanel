@@ -57,7 +57,7 @@ main() ->
 
 %% title/0
 %% ====================================================================
-%% @doc Page title.
+%% @doc This will be placed instead of {{title}} tag in template.
 %% @end
 -spec title() -> Result when
     Result :: binary().
@@ -212,7 +212,6 @@ comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimit
                 gui_jq:fade_in(<<"system_limits_table">>, 500),
                 gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
-                gui_comet:flush(),
                 State;
 
             {set_system_limits, NewSystemLimits} ->
@@ -224,7 +223,8 @@ comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimit
                             lists:foldl(fun({LimitId, Limit, Type}, HostStatus) ->
                                 try
                                     true = validate_limit(Limit),
-                                    ok = installer_utils:set_system_limit(Type, binary_to_integer(Limit)),
+                                    Node = onepanel_utils:get_node(Host),
+                                    ok = rpc:call(Node, installer_utils, set_system_limit, [Type, binary_to_integer(Limit)]),
                                     gui_jq:css(LimitId, <<"border-color">>, <<"green">>),
                                     HostStatus
                                 catch
@@ -246,7 +246,6 @@ comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimit
                 gui_jq:hide(<<"main_spinner">>),
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
-                gui_comet:flush(),
                 State
 
         after ?COMET_PROCESS_RELOAD_DELAY ->
@@ -257,6 +256,7 @@ comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimit
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 
 
@@ -294,7 +294,7 @@ event(init) ->
         Pid ! render_system_limits_table
     catch
         _:Reason ->
-            ?error("Cannot fetch application configuration: ~p", [Reason]),
+            ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch application configuration.<br>Please try again later.">>)
     end;
 

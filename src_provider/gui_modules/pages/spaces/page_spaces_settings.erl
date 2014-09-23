@@ -58,7 +58,7 @@ main() ->
 
 %% title/0
 %% ====================================================================
-%% @doc Page title.
+%% @doc This will be placed instead of {{title}} tag in template.
 %% @end
 -spec title() -> Result when
     Result :: binary().
@@ -213,7 +213,7 @@ space_row_expanded(RowId, #space_details{id = SpaceId, name = SpaceName} = Space
             }
         }
     end, [
-        {<<"Details">>, {get_details, SpaceDetails}, <<"fui-info">>},
+        {<<"Get details">>, {get_details, SpaceDetails}, <<"fui-info">>},
         {<<"Revoke support">>, {revoke_space_support, RowId, SpaceDetails}, <<"fui-trash">>}
     ]),
     [
@@ -304,7 +304,6 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                     end,
                 gui_jq:hide(<<"main_spinner">>),
                 gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"">>),
-                gui_comet:flush(),
                 NextState;
 
             {support_space, Token} ->
@@ -325,7 +324,6 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                     end,
                 gui_jq:hide(<<"main_spinner">>),
                 gui_jq:prop(<<"support_space_button">>, <<"disabled">>, <<"">>),
-                gui_comet:flush(),
                 NextState;
 
             {revoke_space_support, RowId, SpaceId} ->
@@ -341,7 +339,6 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                             State
                     end,
                 gui_jq:hide(<<"main_spinner">>),
-                gui_comet:flush(),
                 NextState;
 
             render_spaces_table ->
@@ -350,7 +347,6 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                 gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
                 gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"">>),
                 gui_jq:prop(<<"support_space_button">>, <<"disabled">>, <<"">>),
-                gui_comet:flush(),
                 State;
 
             Event ->
@@ -367,7 +363,6 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                         ok
                 end,
                 gui_jq:hide(<<"main_spinner">>),
-                gui_comet:flush(),
                 State
 
         after ?COMET_PROCESS_RELOAD_DELAY ->
@@ -378,6 +373,7 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 
 
@@ -427,7 +423,8 @@ event(create_space) ->
     "if(name.length == 0) { alert.html(\"Please provide Space name.\"); alert.fadeIn(300); return false; }",
     "else if(token.length == 0) { alert.html(\"Please provide Space token.\"); alert.fadeIn(300); return false; }",
     "else { createSpace([name, token]); return true; }">>,
-    gui_jq:dialog_popup(Title, Message, Script),
+    ConfirmButtonClass = <<"btn-inverse">>,
+    gui_jq:dialog_popup(Title, Message, Script, ConfirmButtonClass),
     gui_jq:wire(<<"box.on('shown',function(){ $(\"#create_space_name\").focus(); });">>);
 
 event(support_space) ->
@@ -440,14 +437,16 @@ event(support_space) ->
     "var token = $.trim($(\"#support_space_token\").val());",
     "if(token.length == 0) { alert.html(\"Please provide Space token.\"); alert.fadeIn(300); return false; }",
     "else { supportSpace([token]); return true; }">>,
-    gui_jq:dialog_popup(Title, Message, Script),
+    ConfirmButtonClass = <<"btn-inverse">>,
+    gui_jq:dialog_popup(Title, Message, Script, ConfirmButtonClass),
     gui_jq:wire(<<"box.on('shown',function(){ $(\"#support_space_token\").focus(); });">>);
 
 event({revoke_space_support, RowId, #space_details{id = SpaceId}}) ->
     Title = <<"Revoke Space support">>,
     Message = <<"Are you sure you want to stop supporting Space: <b>", SpaceId/binary, "</b>?<br>This operation cannot be undone.">>,
     Script = <<"revokeSpaceSupport(['", SpaceId/binary, "','", RowId/binary, "']);">>,
-    gui_jq:dialog_popup(Title, Message, Script);
+    ConfirmButtonClass = <<"btn-inverse">>,
+    gui_jq:dialog_popup(Title, Message, Script, ConfirmButtonClass);
 
 event({get_details, #space_details{id = SpaceId}}) ->
     gui_jq:redirect(<<"/spaces?id=", SpaceId/binary>>);

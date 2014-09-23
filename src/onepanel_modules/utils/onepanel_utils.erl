@@ -63,6 +63,29 @@ apply_on_hosts(Hosts, Module, Function, Arguments, Timeout) ->
     end, {[], lists:map(fun(Node) -> get_host(Node) end, ErrorNodes)}, Results).
 
 
+%% apply_on_worker/3
+%% ====================================================================
+%% @doc Applies function sequentially on worker components as long as
+%% rpc calls fail with error "badrpc".
+%% @end
+-spec apply_on_worker(Module, Function, Arguments) -> Result when
+    Result :: term(),
+    Module :: module(),
+    Function :: atom(),
+    Arguments :: [term()].
+%% ====================================================================
+apply_on_worker(Module, Function, Arguments) ->
+    try
+        {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        WorkerNodes = get_nodes(?DEFAULT_WORKER_NAME, Workers),
+        dropwhile_failure(WorkerNodes, Module, Function, Arguments, ?RPC_TIMEOUT)
+    catch
+        _:Reason ->
+            ?error("Cannot apply ~p on worker: ~p", [{Module, Function, Arguments}, Reason]),
+            {error, Reason}
+    end.
+
+
 %% dropwhile_failure/5
 %% ====================================================================
 %% @doc Applies function sequentially on nodes as long as rpc calls fail

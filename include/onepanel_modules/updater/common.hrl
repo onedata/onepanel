@@ -13,9 +13,6 @@
 -ifndef(ONEPANEL_UPDATER_COMMON_HRL).
 -define(ONEPANEL_UPDATER_COMMON_HRL, 1).
 
-%% Package repository's URL
--define(PACKAGE_REPOSITORY_BASE_URL, "http://www.onedata.org/repository").
-
 %% Common version holder
 -record(version, {major = 0, minor = 0, patch = 0}).
 

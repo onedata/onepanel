@@ -89,7 +89,7 @@ get_session_config() ->
     Result :: #panel{}.
 %% ====================================================================
 logotype_footer() ->
-    #panel{style = <<"text-align: center; display: flex; justify-content: space-around; padding: 2em; margin-top: 3em;">>,
+    #panel{style = <<"text-align: center; margin: 2em;">>,
         body = [
             #image{class = <<"pull-left">>, image = <<"/images/innow-gosp-logo.png">>},
             #image{image = <<"/images/plgrid-plus-logo.png">>},

@@ -5,13 +5,12 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc This header file contains common macros and records for
-%% provider web pages.
+%% @doc This header file contains all web pages definitions.
 %% @end
 %% ===================================================================
 
--ifndef(ONEPANEL_GUI_PROVIDER_HRL).
--define(ONEPANEL_GUI_PROVIDER_HRL, 1).
+-ifndef(ONEPANEL_GUI_PAGES_HRL).
+-define(ONEPANEL_GUI_PAGES_HRL, 1).
 
 %% Root page
 -define(PAGE_ROOT, <<"/">>).
@@ -55,6 +54,11 @@
 -define(PAGE_VERSION_SELECTION, <<"/software/update/version_selection">>).
 -define(PAGE_UPDATE_SUMMARY, <<"/software/update/summary">>).
 -define(PAGE_UPDATE_SUCCESS, <<"/software/update/success">>).
+
+%% Diagnostics pages
+-define(PAGE_MONITORING, <<"/software/diagnostics/monitoring">>).
+-define(PAGE_CLIENTS_LOGS, <<"/software/diagnostics/clients_logs">>).
+-define(PAGE_SERVER_LOGS, <<"/software/diagnostics/server_logs">>).
 
 %% Registration pages
 -define(PAGE_CONNECTION_CHECK, <<"/spaces/registration/connection_check">>).

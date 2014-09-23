@@ -11,6 +11,7 @@
 -module(updater_repos).
 -author("Rafal Slota").
 
+-include("registered_names.hrl").
 -include("onepanel_modules/updater/common.hrl").
 
 %% API
@@ -50,4 +51,5 @@ get_package(#version{} = Version) ->
 -spec gen_package_url(Version :: #version{}, PackageType :: rpm | deb) -> {ok, #package{}} | {error, any()}.
 %% ====================================================================
 gen_package_url(#version{major = MJ, minor = MI, patch = PA} = _Version, PackageType) ->
-    ?PACKAGE_REPOSITORY_BASE_URL ++ "/VeilCluster-Linux-" ++ integer_to_list(MJ) ++ "." ++ integer_to_list(MI) ++ "." ++ integer_to_list(PA) ++ "." ++ atom_to_list(PackageType).
+    {ok, URL} = application:get_env(?APP_NAME, software_repository_url),
+    URL ++ "/VeilCluster-Linux-" ++ integer_to_list(MJ) ++ "." ++ integer_to_list(MI) ++ "." ++ integer_to_list(PA) ++ "." ++ atom_to_list(PackageType).
