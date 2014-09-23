@@ -17,7 +17,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([get_control_panel_hosts/0]).
+-export([apply_on_worker/3]).
 -export([get_software_version/0, get_available_software_versions/0, get_software_version_name/1, get_software_version_record/1]).
 
 
@@ -25,26 +25,25 @@
 %% API functions
 %% ====================================================================
 
-%% get_control_panel_hosts/0
+%% apply_on_worker/3
 %% ====================================================================
-%% @doc Returns list of control panel hosts
+%% @doc Applies function sequentially on worker components as long as
+%% rpc calls fail with error "badrpc".
 %% @end
--spec get_control_panel_hosts() -> Result when
-    Result :: {ok, Hosts :: [string()]} | {error, Reason :: term()}.
+-spec apply_on_worker(Module, Function, Arguments) -> Result when
+    Result :: term(),
+    Module :: module(),
+    Function :: atom(),
+    Arguments :: [term()].
 %% ====================================================================
-get_control_panel_hosts() ->
+apply_on_worker(Module, Function, Arguments) ->
     try
-        {ok, #?GLOBAL_CONFIG_RECORD{ccms = CCMs}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        Nodes = onepanel_utils:get_nodes(?DEFAULT_CCM_NAME, CCMs),
-        {Workers, _} = onepanel_utils:dropwhile_failure(Nodes, gen_server, call, [{global, central_cluster_manager}, get_workers, 1000], ?RPC_TIMEOUT),
-        ControlPanelHosts = lists:foldl(fun
-            ({WorkerNode, control_panel}, Acc) -> [onepanel_utils:get_host(WorkerNode) | Acc];
-            (_, Acc) -> Acc
-        end, [], Workers),
-        {ok, ControlPanelHosts}
+        {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        WorkerNodes = onepanel_utils:get_nodes(?DEFAULT_WORKER_NAME, Workers),
+        onepanel_utils:dropwhile_failure(WorkerNodes, Module, Function, Arguments, ?RPC_TIMEOUT)
     catch
         _:Reason ->
-            ?error("Cannot get control panel hosts: ~p", [Reason]),
+            ?error("Cannot apply ~p on worker: ~p", [{Module, Function, Arguments}, Reason]),
             {error, Reason}
     end.
 

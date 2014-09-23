@@ -86,10 +86,7 @@ body() ->
             },
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
-                body = <<"Current application configuration is summarised in the table below."
-                " <b>After accepting presented configuration it is not possible to change it without"
-                " complete software uninstallation!</b> Only addition of new <i>worker</i> components"
-                " will be possible.">>
+                body = <<"Current application configuration is summarised in the table below.">>
             },
             #table{
                 class = <<"table table-striped">>,

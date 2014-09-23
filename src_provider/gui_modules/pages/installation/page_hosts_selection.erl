@@ -84,8 +84,7 @@ body() ->
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
                 body = <<"The table below presents a list of hosts where software package installation has been detected.<br>"
                 " To configure application please distribute software components throughout available hosts by selecting"
-                " corresponding checkboxes. To ensure that application is highly available and partition tolerant, it is"
-                " recommended to configure <i>Central Cluster Manager</i> and <i>database</i> components on at least two hosts.">>
+                " corresponding checkboxes.">>
             },
             #table{
                 id = <<"hosts_table">>,
