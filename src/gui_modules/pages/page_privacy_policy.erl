@@ -12,6 +12,7 @@
 -module(page_privacy_policy).
 
 -include("gui_modules/common.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 -export([main/0, event/1]).
 
@@ -29,12 +30,12 @@
     Result :: #dtl{}.
 %% ====================================================================
 main() ->
-    #dtl{file = "bare", app = veil_cluster_node, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]}.
+    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]}.
 
 
 %% title/0
 %% ====================================================================
-%% @doc Page title.
+%% @doc This will be placed instead of {{title}} tag in template.
 %% @end
 -spec title() -> Result when
     Result :: binary().
@@ -61,7 +62,7 @@ body() ->
                 body = privacy_policy_file()
             },
             #link{
-                class = <<"btn btn-success btn-wide">>,
+                class = <<"btn btn-inverse btn-wide">>,
                 style = <<"float: right; margin: 3em 0 1.5em;">>,
                 url = ?PAGE_ROOT,
                 body =
@@ -80,8 +81,11 @@ body() ->
 %% ====================================================================
 privacy_policy_file() ->
     case file:read_file(?PRIVACY_POLICY_FILE) of
-        {ok, File} -> File;
-        {error, _Error} -> <<"">>
+        {ok, File} ->
+            File;
+        {error, Reason} ->
+            ?error("Cannot get privacy policy file ~s: ~p", [?PRIVACY_POLICY_FILE, Reason]),
+            <<"">>
     end.
 
 

@@ -15,6 +15,15 @@
 %% Root page
 -define(PAGE_ROOT, <<"/">>).
 
+%% Management pages
+-define(PAGE_LOGIN, <<"/login">>).
+-define(PAGE_LOGIN_VALIDATION, <<"/login_validation">>).
+-define(PAGE_LOGOUT, <<"/logout">>).
+-define(PAGE_ABOUT, <<"/about">>).
+-define(PAGE_ERROR, <<"/error">>).
+-define(PAGE_ACCOUNT_SETTINGS, <<"/account/settings">>).
+-define(PAGE_PRIVACY_POLICY, <<"/privacy_policy">>).
+
 %% Installation pages
 -define(PAGE_INSTALLATION, <<"/software/installation">>).
 -define(PAGE_HOST_SELECTION, <<"/software/installation/hosts_selection">>).
@@ -30,6 +39,11 @@
 -define(PAGE_UPDATE_SUMMARY, <<"/software/update/summary">>).
 -define(PAGE_UPDATE_SUCCESS, <<"/software/update/success">>).
 
+%% Diagnostics pages
+-define(PAGE_MONITORING, <<"/software/diagnostics/monitoring">>).
+-define(PAGE_CLIENTS_LOGS, <<"/software/diagnostics/clients_logs">>).
+-define(PAGE_SERVER_LOGS, <<"/software/diagnostics/server_logs">>).
+
 %% Registration pages
 -define(PAGE_CONNECTION_CHECK, <<"/spaces/registration/connection_check">>).
 -define(PAGE_PORTS_CHECK, <<"/spaces/registration/ports_check">>).
@@ -40,14 +54,5 @@
 -define(PAGE_SPACE_DETAILS, <<"/spaces">>).
 -define(PAGE_SPACES_ACCOUNT, <<"/spaces/account">>).
 -define(PAGE_SPACES_SETTINGS, <<"/spaces/settings">>).
-
-%% Management pages
--define(PAGE_LOGIN, <<"/login">>).
--define(PAGE_LOGIN_VALIDATION, <<"/login_validation">>).
--define(PAGE_LOGOUT, <<"/logout">>).
--define(PAGE_ABOUT, <<"/about">>).
--define(PAGE_ERROR, <<"/error">>).
--define(PAGE_ACCOUNT_SETTINGS, <<"/account/settings">>).
--define(PAGE_PRIVACY_POLICY, <<"/privacy_policy">>).
 
 -endif.

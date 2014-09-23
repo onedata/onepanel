@@ -71,7 +71,7 @@ body(Header, Main, Footer) ->
     Result :: #panel{}.
 %% ====================================================================
 logotype_footer() ->
-    #panel{style = <<"text-align: center; display: flex; justify-content: space-around; padding: 2em; margin-top: 3em;">>,
+    #panel{style = <<"text-align: center; margin: 2em;">>,
         body = [
             #image{class = <<"pull-left">>, image = <<"/images/innow-gosp-logo.png">>},
             #image{image = <<"/images/plgrid-plus-logo.png">>},
@@ -283,6 +283,14 @@ top_menu(ActiveTabID, ActiveLinkID, Submenu, Spinner) ->
                 {spaces_account_link, #li{body = #link{url = ?PAGE_SPACES_ACCOUNT, body = <<"Account">>}}},
                 {spaces_settings_link, #li{body = #link{url = ?PAGE_SPACES_SETTINGS, body = <<"Settings">>}}}
             ])}
+        ]}},
+        {diagnostics_tab, #li{body = [
+            #link{style = "padding: 18px;", url = ?PAGE_MONITORING, body = <<"Diagnostics">>},
+            #list{style = "top: 37px; width: 120px;", body = Process(ActiveLinkID, [
+                {monitoring_link, #li{body = #link{url = ?PAGE_MONITORING, body = <<"Monitoring">>}}},
+                {server_logs_link, #li{body = #link{url = ?PAGE_SERVER_LOGS, body = <<"Server logs">>}}},
+                {clients_logs_link, #li{body = #link{url = ?PAGE_CLIENTS_LOGS, body = <<"Clients logs">>}}}
+            ])}
         ]}}
     ]),
 
@@ -313,7 +321,7 @@ top_menu(ActiveTabID, ActiveLinkID, Submenu, Spinner) ->
             }
         },
         #panel{class = <<"navbar navbar-fixed-top">>, body = [
-            #panel{class = <<"navbar-inner">>, style = <<"border-bottom: 2px solid gray;">>, body = [
+            #panel{class = <<"navbar-inner">>, style = <<"border-bottom: 1px solid gray;">>, body = [
                 #panel{class = <<"container">>, body = [
                     #list{class = <<"nav pull-left">>, body = MenuCaptions},
                     #list{class = <<"nav pull-right">>, body = MenuIcons}

@@ -13,19 +13,20 @@
 -include("registered_names.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
+-include_lib("xmerl/include/xmerl.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([set_system_limit/2, get_system_limits_cmd/1]).
 -export([get_workers/0, get_global_config/0, get_timestamp/0, set_timestamp/0]).
 -export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/3]).
--export([finalize_installation/1]).
+-export([check_ip_address/0, check_ip_addresses/0, get_nagios_report/0, finalize_installation/1]).
 
 %% Defines how many times onepanel will try to verify software start
 -define(FINALIZE_INSTALLATION_ATTEMPTS, 120).
 
 %% Defines how long onepanel will wait before next attempt to verify software start
--define(NEXT_ATTEMPT_DELAY, 1000).
+-define(NEXT_ATTEMPT_DELAY, 5000).
 
 %% ====================================================================
 %% API functions
@@ -189,7 +190,8 @@ get_workers() ->
 %% ====================================================================
 %% @doc Returns global installation configuration.
 %% @end
--spec get_global_config() -> list().
+-spec get_global_config() -> Result when
+    Result :: list().
 %% ====================================================================
 get_global_config() ->
     case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
@@ -198,6 +200,94 @@ get_global_config() ->
             [_ | Values] = tuple_to_list(Record),
             lists:zip(Fields, Values);
         _ -> []
+    end.
+
+
+%% check_ip_address/0
+%% ====================================================================
+%% @doc Checks local host IP address that is visible for Global Registry
+%% and saves it in database.
+%% @end
+-spec check_ip_address() -> Result when
+    Result :: {ok, Host :: string()} | {error, Host :: string()}.
+%% ====================================================================
+check_ip_address() ->
+    Host = onepanel_utils:get_host(node()),
+    try
+        {ok, IpAddress} = gr_providers:check_ip_address(provider, ?CONNECTION_TIMEOUT),
+        ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{ip_address, IpAddress}]),
+        {ok, Host}
+    catch
+        _:Reason ->
+            ?error("Cannot check IP address: ~p", [Reason]),
+            {error, Host}
+    end.
+
+
+%% check_ip_addresses/0
+%% ====================================================================
+%% @doc Checks IP addresses of all worker hosts.
+%% @end
+-spec check_ip_addresses() -> Result when
+    Result :: ok| {error, Reason :: term()}.
+%% ====================================================================
+check_ip_addresses() ->
+    try
+        {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        {_, HostsError} = onepanel_utils:apply_on_hosts(Workers, ?MODULE, check_ip_address, [], ?RPC_TIMEOUT),
+        case HostsError of
+            [] -> ok;
+            _ -> {error, {hosts, HostsError}}
+        end
+    catch
+        _:Reason ->
+            ?error("Cannot check IP addresses: ~p", [Reason]),
+            {error, Reason}
+    end.
+
+
+%% get_nagios_report/0
+%% ====================================================================
+%% @doc Returns results of software nagios health check
+%% @end
+-spec get_nagios_report() -> Result when
+    Result :: {ok, Status, NodesReport :: {Name, Status}, WorkersReport :: [{Node, Name, Status}]} | {error, Reason :: term()},
+    Node :: binary(),
+    Name :: binary(),
+    Status :: binary().
+%% ====================================================================
+get_nagios_report() ->
+    try
+        {ok, #?GLOBAL_CONFIG_RECORD{workers = [Worker | _]}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        URL = "https://" ++ Worker ++ "/nagios",
+        Headers = [{"content-type", "application/json"}],
+        {ok, "200", _ResponseHeaders, ResponseBody} = ibrowse:send_req(URL, Headers, get),
+        {Xml, _} = xmerl_scan:string(ResponseBody),
+        [Status] = [X#xmlAttribute.value || X <- Xml#xmlElement.attributes, X#xmlAttribute.name == status],
+
+        GetDetails = fun
+            (veil_cluster_node, X) ->
+                [NodeName] = [Y#xmlAttribute.value || Y <- X, Y#xmlAttribute.name == name],
+                [NodeStatus] = [Y#xmlAttribute.value || Y <- X, Y#xmlAttribute.name == status],
+                {list_to_binary(NodeName), list_to_binary(NodeStatus)};
+            (worker, X) ->
+                [WorkerName] = [Y#xmlAttribute.value || Y <- X, Y#xmlAttribute.name == name],
+                [WorkerNode] = [Y#xmlAttribute.value || Y <- X, Y#xmlAttribute.name == node],
+                [WorkerStatus] = [Y#xmlAttribute.value || Y <- X, Y#xmlAttribute.name == status],
+                {list_to_binary(WorkerName), list_to_binary(WorkerNode), list_to_binary(WorkerStatus)}
+        end,
+
+        GetReport = fun(Name) ->
+            [GetDetails(Name, X#xmlElement.attributes) || X <- Xml#xmlElement.content, X#xmlElement.name == Name]
+        end,
+
+        NodesReport = GetReport(veil_cluster_node),
+        WorkersReport = GetReport(worker),
+        {ok, list_to_binary(Status), NodesReport, WorkersReport}
+    catch
+        _:Reason ->
+            ?error("Cannot get nagios details: ~p", [Reason]),
+            {error, Reason}
     end.
 
 
@@ -210,8 +300,15 @@ get_global_config() ->
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 finalize_installation(_Args) ->
-    set_timestamp(),
-    finalize_installation_loop(?FINALIZE_INSTALLATION_ATTEMPTS).
+    try
+        ok = set_timestamp(),
+        ok = finalize_installation_loop(?FINALIZE_INSTALLATION_ATTEMPTS),
+        ok
+    catch
+        _:Reason ->
+            ?error("Cannot finalize installation: ~p", [Reason]),
+            {error, Reason}
+    end.
 
 
 %% get_timestamp/0
@@ -263,8 +360,8 @@ finalize_installation_loop(0) ->
     {error, <<"Attempts limit exceeded.">>};
 
 finalize_installation_loop(Attempts) ->
-    case onepanel_utils:get_control_panel_hosts() of
-        {ok, [_ | _]} ->
+    case get_nagios_report() of
+        {ok, <<"ok">>, _, _} ->
             ok;
         _ ->
             timer:sleep(?NEXT_ATTEMPT_DELAY),

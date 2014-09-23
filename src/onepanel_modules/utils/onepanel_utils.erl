@@ -19,8 +19,8 @@
 %% API
 -export([random_ascii_lowercase_sequence/1]).
 -export([get_application_version/0, get_software_version/0, get_available_software_versions/0, get_software_version_name/1, get_software_version_record/1]).
--export([get_node/1, get_node/2, get_nodes/0, get_nodes/2, get_host/1, get_hosts/0, get_control_panel_hosts/0]).
--export([apply_on_hosts/5, dropwhile_failure/5, save_file_on_host/3, save_file_on_hosts/3]).
+-export([get_node/1, get_node/2, get_nodes/0, get_nodes/2, get_host/1, get_hosts/0]).
+-export([apply_on_hosts/5, apply_on_worker/3, dropwhile_failure/5, save_file_on_host/3, save_file_on_hosts/3]).
 
 %% ====================================================================
 %% API functions
@@ -65,6 +65,29 @@ apply_on_hosts(Hosts, Module, Function, Arguments, Timeout) ->
     end, {[], lists:map(fun(Node) -> get_host(Node) end, ErrorNodes)}, Results).
 
 
+%% apply_on_worker/3
+%% ====================================================================
+%% @doc Applies function sequentially on worker components as long as
+%% rpc calls fail with error "badrpc".
+%% @end
+-spec apply_on_worker(Module, Function, Arguments) -> Result when
+    Result :: term(),
+    Module :: module(),
+    Function :: atom(),
+    Arguments :: [term()].
+%% ====================================================================
+apply_on_worker(Module, Function, Arguments) ->
+    try
+        {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        WorkerNodes = get_nodes(?DEFAULT_WORKER_NAME, Workers),
+        dropwhile_failure(WorkerNodes, Module, Function, Arguments, ?RPC_TIMEOUT)
+    catch
+        _:Reason ->
+            ?error("Cannot apply ~p on worker: ~p", [{Module, Function, Arguments}, Reason]),
+            {error, Reason}
+    end.
+
+
 %% dropwhile_failure/5
 %% ====================================================================
 %% @doc Applies function sequentially on nodes as long as rpc calls fail
@@ -81,6 +104,7 @@ apply_on_hosts(Hosts, Module, Function, Arguments, Timeout) ->
 dropwhile_failure([], Module, Function, Arguments, _) ->
     ?error("dropwhile_failure function called as ~p:~p(~p) failed on all nodes.", [Module, Function, Arguments]),
     {error, "Failure on all nodes."};
+
 dropwhile_failure([Node | Nodes], Module, Function, Arguments, Timeout) ->
     case rpc:call(Node, Module, Function, Arguments, Timeout) of
         {badrpc, Reason} ->
@@ -271,39 +295,15 @@ get_software_version_record(Version) ->
 %% ====================================================================
 get_available_software_versions() ->
     try
-        {ok, URL} = application:get_env(?APP_NAME, get_software_versions_url),
+        {ok, URL} = application:get_env(?APP_NAME, software_repository_url),
         Options = [{connect_timeout, ?CONNECTION_TIMEOUT}],
-        {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(URL, [{content_type, "application/json"}], get, [], Options),
+        {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(URL ++ "/get_versions.php", [{content_type, "application/json"}], get, [], Options),
         {_, List} = mochijson2:decode(ResBody),
         sort_versions(proplists:get_value(<<"VeilCluster-Linux.rpm">>, List))
     catch
         _:Reason ->
             ?error("Cannot get available software versions from repository: ~p", [Reason]),
             undefined
-    end.
-
-
-%% get_control_panel_hosts/0
-%% ====================================================================
-%% @doc Returns list of control panel hosts
-%% @end
--spec get_control_panel_hosts() -> Result when
-    Result :: {ok, Hosts :: [string()]} | {error, Reason :: term()}.
-%% ====================================================================
-get_control_panel_hosts() ->
-    try
-        {ok, #?GLOBAL_CONFIG_RECORD{ccms = CCMs}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        Nodes = get_nodes(?DEFAULT_CCM_NAME, CCMs),
-        {Workers, _} = dropwhile_failure(Nodes, gen_server, call, [{global, central_cluster_manager}, get_workers, 1000], ?RPC_TIMEOUT),
-        ControlPanelHosts = lists:foldl(fun
-            ({WorkerNode, control_panel}, Acc) -> [onepanel_utils:get_host(WorkerNode) | Acc];
-            (_, Acc) -> Acc
-        end, [], Workers),
-        {ok, ControlPanelHosts}
-    catch
-        _:Reason ->
-            ?error("Cannot get control panel hosts: ~p", [Reason]),
-            {error, Reason}
     end.
 
 

@@ -55,7 +55,7 @@ main() ->
 
 %% title/0
 %% ====================================================================
-%% @doc Page title.
+%% @doc This will be placed instead of {{title}} tag in template.
 %% @end
 -spec title() -> Result when
     Result :: binary().
@@ -170,7 +170,6 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFI
                 gui_jq:fade_in(<<"hosts_table">>, 500),
                 gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
-                gui_comet:flush(),
                 State;
 
             next ->
@@ -192,7 +191,6 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFI
                                 onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION)
                         end
                 end,
-                gui_comet:flush(),
                 State;
 
             {ccm_checkbox_toggled, Host, HostId, false} ->
@@ -210,7 +208,6 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFI
                                 State#?STATE{session_config = SessionConfig#?CONFIG{ccms = [Host | CCMs]}};
                             false ->
                                 gui_jq:click(<<"worker_checkbox_", HostId/binary>>),
-                                gui_comet:flush(),
                                 State#?STATE{session_config = SessionConfig#?CONFIG{ccms = [Host | CCMs], workers = [Host | Workers]}}
                         end
                 end;
@@ -221,7 +218,6 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFI
                         case lists:member(Host, CCMs) of
                             true ->
                                 gui_jq:click(<<"ccm_checkbox_", HostId/binary>>),
-                                gui_comet:flush(),
                                 case Host of
                                     MainCCM ->
                                         State#?STATE{session_config = SessionConfig#?CONFIG{main_ccm = undefined, ccms = lists:delete(Host, CCMs), workers = lists:delete(Host, Workers)}};
@@ -254,6 +250,7 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFI
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 
 
@@ -284,7 +281,7 @@ event(init) ->
         Pid ! render_hosts_table
     catch
         _:Reason ->
-            ?error("Cannot fetch application configuration: ~p", [Reason]),
+            ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch application configuration.<br>Please try again later.">>)
     end;
 

@@ -78,14 +78,13 @@ register() ->
 
         %% Register in Global Registry
         {ok, CSR} = file:read_file(CsrPath),
-        {ok, [ControlPanelHost | _]} = onepanel_utils:get_control_panel_hosts(),
-        {ok, ControlPanelHostIpAddress} = rpc:call(onepanel_utils:get_node(ControlPanelHost), gr_providers, check_ip_address, [provider, ?CONNECTION_TIMEOUT]),
-        {ok, #?LOCAL_CONFIG_RECORD{gui_port = GuiPort}} = dao:get_record(?LOCAL_CONFIG_TABLE, ControlPanelHost),
+        {ok, #?GLOBAL_CONFIG_RECORD{workers = [Worker | _] = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        {ok, #?LOCAL_CONFIG_RECORD{ip_address = IpAddress, gui_port = GuiPort}} = dao:get_record(?LOCAL_CONFIG_TABLE, Worker),
         URLs = lists:map(fun(Host) ->
-            {ok, IpAddress} = rpc:call(onepanel_utils:get_node(Host), gr_providers, check_ip_address, [provider, ?CONNECTION_TIMEOUT]),
-            IpAddress
-        end, onepanel_utils:get_hosts()),
-        RedirectionPoint = <<"https://", ControlPanelHostIpAddress/binary, ":", (integer_to_binary(GuiPort))/binary>>,
+            {ok, #?LOCAL_CONFIG_RECORD{ip_address = URL}} = dao:get_record(?LOCAL_CONFIG_TABLE, Host),
+            URL
+        end, Workers),
+        RedirectionPoint = <<"https://", IpAddress/binary, ":", (integer_to_binary(GuiPort))/binary>>,
         Parameters = [{<<"urls">>, URLs}, {<<"csr">>, CSR}, {<<"redirectionPoint">>, RedirectionPoint}],
         {ok, ProviderId, Cert} = gr_providers:register(provider, Parameters),
 
@@ -131,10 +130,8 @@ unregister() ->
 %% ====================================================================
 get_default_ports() ->
     try
-        {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        Node = onepanel_utils:get_node(?DEFAULT_CCM_NAME, MainCCM),
-        {ok, GuiPort} = rpc:call(Node, application, get_env, [veil_cluster_node, control_panel_port]),
-        {ok, RestPort} = rpc:call(Node, application, get_env, [veil_cluster_node, rest_port]),
+        {ok, GuiPort} = onepanel_utils:apply_on_worker(application, get_env, [?SOFTWARE_NAME, control_panel_port]),
+        {ok, RestPort} = onepanel_utils:apply_on_worker(application, get_env, [?SOFTWARE_NAME, rest_port]),
         {ok, [{<<"gui">>, GuiPort}, {<<"rest">>, RestPort}]}
     catch
         _:Reason ->

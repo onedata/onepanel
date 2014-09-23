@@ -54,7 +54,7 @@ main() ->
 
 %% title/0
 %% ====================================================================
-%% @doc Page title.
+%% @doc This will be placed instead of {{title}} tag in template.
 %% @end
 -spec title() -> Result when
     Result :: binary().
@@ -204,7 +204,6 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                 gui_jq:fade_in(<<"ports_table">>, 500),
                 gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
-                gui_comet:flush(),
                 State;
 
             {set_ports, NewPorts} ->
@@ -212,8 +211,7 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                     lists:foldl(fun({PortId, Port, Type, Field}, HostStatus) ->
                         try
                             true = validate_port(Port),
-                            Node = onepanel_utils:get_node(Host),
-                            {ok, IpAddress} = rpc:call(Node, gr_providers, check_ip_address, [provider, ?CONNECTION_TIMEOUT]),
+                            {ok, #?LOCAL_CONFIG_RECORD{ip_address = IpAddress}} = dao:get_record(?LOCAL_CONFIG_TABLE, Host),
                             ok = gr_providers:check_port(provider, IpAddress, binary_to_integer(Port), Type),
                             ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{Field, binary_to_integer(Port)}]),
                             gui_jq:css(PortId, <<"border-color">>, <<"green">>),
@@ -237,7 +235,6 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                 gui_jq:hide(<<"main_spinner">>),
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
-                gui_comet:flush(),
                 State
 
         after ?COMET_PROCESS_RELOAD_DELAY ->
@@ -248,6 +245,7 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 
 
@@ -259,7 +257,7 @@ comet_loop(#?STATE{ports = Ports} = State) ->
 %% ====================================================================
 event(init) ->
     try
-        {ok, Hosts} = onepanel_utils:get_control_panel_hosts(),
+        {ok, #?GLOBAL_CONFIG_RECORD{workers = Hosts}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
         {ok, [{<<"gui">>, DefaultGuiPort}, {<<"rest">>, DefaultRestPort}]} = provider_logic:get_default_ports(),
 
         Ports = lists:map(fun({Host, Id}) ->
@@ -283,7 +281,7 @@ event(init) ->
         Pid ! render_ports_table
     catch
         _:Reason ->
-            ?error("Cannot fetch application configuration: ~p", [Reason]),
+            ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch application configuration.<br>Please try again later.">>)
     end;
 

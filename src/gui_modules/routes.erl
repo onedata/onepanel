@@ -84,16 +84,21 @@ route(?PAGE_VERSION_SELECTION) -> page_version_selection;
 route(?PAGE_UPDATE_SUMMARY) -> page_update_summary;
 route(?PAGE_UPDATE_SUCCESS) -> page_update_success;
 
-%% Spaces pages
-route(?PAGE_SPACE_DETAILS) -> page_space_details;
-route(?PAGE_SPACES_ACCOUNT) -> page_spaces_account;
-route(?PAGE_SPACES_SETTINGS) -> page_spaces_settings;
+%% Diagnostic pages
+route(?PAGE_MONITORING) -> page_monitoring;
+route(?PAGE_CLIENTS_LOGS) -> page_clients_logs;
+route(?PAGE_SERVER_LOGS) -> page_server_logs;
 
 %% Registration pages
 route(?PAGE_CONNECTION_CHECK) -> page_connection_check;
 route(?PAGE_PORTS_CHECK) -> page_ports_check;
 route(?PAGE_REGISTRATION_SUMMARY) -> page_registration_summary;
 route(?PAGE_REGISTRATION_SUCCESS) -> page_registration_success;
+
+%% Spaces pages
+route(?PAGE_SPACE_DETAILS) -> page_space_details;
+route(?PAGE_SPACES_ACCOUNT) -> page_spaces_account;
+route(?PAGE_SPACES_SETTINGS) -> page_spaces_settings;
 
 %% Undefined pages
 route(_) -> page_404.
