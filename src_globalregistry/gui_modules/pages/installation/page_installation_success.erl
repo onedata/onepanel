@@ -61,58 +61,26 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(software_tab, installation_link),
+    Header = onepanel_gui_utils_adapter:top_menu(installation_tab),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = #panel{
             style = <<"width: 50%; margin: 0 auto;">>,
-            body = case provider_logic:get_provider_id() of
-                       undefined ->
-                           [
-                               #panel{
-                                   class = <<"alert alert-success">>,
-                                   body = [
-                                       #h3{
-                                           body = <<"Successful installation">>
-                                       },
-                                       #p{
-                                           body = <<"Would you like to register as a provider?">>
-                                       },
-                                       #link{
-                                           postback = to_root_page,
-                                           style = <<"width: 8em;">>,
-                                           class = <<"btn btn-info">>,
-                                           body = <<"Not now">>
-                                       },
-                                       #link{
-                                           id = <<"next_button">>,
-                                           postback = register,
-                                           style = <<"width: 8em;">>,
-                                           class = <<"btn btn-primary">>,
-                                           body = <<"Register">>
-                                       }
-                                   ]
-                               }
-                           ];
-                       _ ->
-                           [
-                               #panel{
-                                   class = <<"alert alert-success">>,
-                                   body = [
-                                       #h3{
-                                           body = <<"Successful installation">>
-                                       },
-                                       #link{
-                                           id = <<"next_button">>,
-                                           postback = to_root_page,
-                                           style = <<"width: 8em;">>,
-                                           class = <<"btn btn-primary">>,
-                                           body = <<"OK">>
-                                       }
-                                   ]
-                               }
-                           ]
-                   end
+            body = #panel{
+                class = <<"alert alert-success">>,
+                body = [
+                    #h3{
+                        body = <<"Successful installation">>
+                    },
+                    #link{
+                        id = <<"next_button">>,
+                        postback = to_root_page,
+                        style = <<"width: 8em;">>,
+                        class = <<"btn btn-primary">>,
+                        body = <<"OK">>
+                    }
+                ]
+            }
         }
     },
     onepanel_gui_utils:body(Header, Main).
@@ -136,10 +104,6 @@ event(init) ->
 
 event(to_root_page) ->
     gui_jq:redirect(?PAGE_ROOT);
-
-event(register) ->
-    gui_ctx:put(?CURRENT_REGISTRATION_PAGE, ?PAGE_CONNECTION_CHECK),
-    gui_jq:redirect(?PAGE_SPACES_ACCOUNT);
 
 event(terminate) ->
     ok.

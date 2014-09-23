@@ -74,13 +74,13 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(software_tab, installation_link, [], true),
+    Header = onepanel_gui_utils_adapter:top_menu(installation_tab, [], true),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
-                body = <<"Step 3: System limits configuration.">>
+                body = <<"Step 2: System limits configuration.">>
             },
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
@@ -212,7 +212,6 @@ comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimit
                 gui_jq:fade_in(<<"system_limits_table">>, 500),
                 gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
-                gui_comet:flush(),
                 State;
 
             {set_system_limits, NewSystemLimits} ->
@@ -239,14 +238,13 @@ comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimit
                     end
                 end, ok, NewSystemLimits) of
                     ok ->
-                        onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_STORAGE);
+                        onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUMMARY);
                     _ ->
                         onepanel_gui_utils:message(<<"error_message">>, <<"Cannot set system limits for some hosts.<br>Remember that system limit should be a positive number.">>)
                 end,
                 gui_jq:hide(<<"main_spinner">>),
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
-                gui_comet:flush(),
                 State
 
         after ?COMET_PROCESS_RELOAD_DELAY ->
@@ -257,6 +255,7 @@ comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimit
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 
 
@@ -269,9 +268,9 @@ comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimit
 event(init) ->
     try
         {ok, DbConfig} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        InstalledHosts = DbConfig#?CONFIG.ccms ++ DbConfig#?CONFIG.workers ++ DbConfig#?CONFIG.dbs,
+        InstalledHosts = [DbConfig#?CONFIG.gr | DbConfig#?CONFIG.dbs],
         {ok, SessionConfig} = onepanel_gui_utils:get_session_config(),
-        SessionHosts = lists:usort(SessionConfig#?CONFIG.ccms ++ SessionConfig#?CONFIG.workers ++ SessionConfig#?CONFIG.dbs),
+        SessionHosts = lists:usort([SessionConfig#?CONFIG.gr | SessionConfig#?CONFIG.dbs]),
 
         SystemLimits = lists:map(fun({Host, Id}) ->
             {OpenFilesLimit, ProcessesLimit} = case dao:get_record(?LOCAL_CONFIG_TABLE, Host) of
@@ -299,7 +298,7 @@ event(init) ->
     end;
 
 event(back) ->
-    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION);
+    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION);
 
 event({set_system_limits, SystemLimits}) ->
     NewSystemLimits = lists:map(fun({Host, Id, _, _}) ->

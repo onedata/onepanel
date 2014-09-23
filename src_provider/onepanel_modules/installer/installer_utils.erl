@@ -263,7 +263,7 @@ finalize_installation_loop(0) ->
     {error, <<"Attempts limit exceeded.">>};
 
 finalize_installation_loop(Attempts) ->
-    case onepanel_utils:get_control_panel_hosts() of
+    case onepanel_utils_adapter:get_control_panel_hosts() of
         {ok, [_ | _]} ->
             ok;
         _ ->

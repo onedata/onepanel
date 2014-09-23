@@ -25,7 +25,7 @@
 
 %% Comet process state
 -define(STATE, comet_state).
--record(?STATE, {hosts = [], db_config = #?CONFIG{}, session_config = #?CONFIG{}}).
+-record(?STATE, {hosts = [], gr_checkbox_id, db_config = #?CONFIG{}, session_config = #?CONFIG{}}).
 
 %% ====================================================================
 %% API functions
@@ -72,7 +72,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(software_tab, installation_link, [], true),
+    Header = onepanel_gui_utils_adapter:top_menu(installation_tab, [], true),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
@@ -83,9 +83,8 @@ body() ->
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
                 body = <<"The table below presents a list of hosts where software package installation has been detected.<br>"
-                " To configure application please distribute software components throughout available hosts by selecting"
-                " corresponding checkboxes. To ensure that application is highly available and partition tolerant, it is"
-                " recommended to configure <i>Central Cluster Manager</i> and <i>database</i> components on at least two hosts.">>
+                " In order to configure application please distribute software components throughout available hosts by selecting"
+                " corresponding checkboxes.">>
             },
             #table{
                 id = <<"hosts_table">>,
@@ -114,7 +113,7 @@ hosts_table(Hosts, DbConfig, PageConfig) ->
                 body = ColumnName,
                 style = ColumnStyle
             }
-        end, [<<"Host">>, <<"CCM">>, <<"Worker">>, <<"Database">>])
+        end, [<<"Host">>, <<"Global Registry">>, <<"Database">>])
     },
 
     Rows = lists:map(fun({Host, Id}) ->
@@ -137,8 +136,7 @@ hosts_table(Hosts, DbConfig, PageConfig) ->
                         }
                     }
                 end, [
-                    {<<"ccm_checkbox_">>, lists:member(Host, PageConfig#?CONFIG.ccms), DbConfig#?CONFIG.main_ccm =/= undefined},
-                    {<<"worker_checkbox_">>, lists:member(Host, PageConfig#?CONFIG.workers), lists:member(Host, DbConfig#?CONFIG.workers)},
+                    {<<"gr_checkbox_">>, lists:member(Host, PageConfig#?CONFIG.gr), DbConfig#?CONFIG.gr =/= undefined},
                     {<<"db_checkbox_">>, lists:member(Host, PageConfig#?CONFIG.dbs), DbConfig#?CONFIG.dbs =/= []}
                 ])
             ]
@@ -162,7 +160,7 @@ hosts_table(Hosts, DbConfig, PageConfig) ->
 comet_loop({error, Reason}) ->
     {error, Reason};
 
-comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs} = SessionConfig} = State) ->
+comet_loop(#?STATE{hosts = Hosts, gr_checkbox_id = GrId, db_config = DbConfig, session_config = #?CONFIG{gr = GR, dbs = Dbs} = SessionConfig} = State) ->
     NewState = try
         receive
             render_hosts_table ->
@@ -170,7 +168,6 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFI
                 gui_jq:fade_in(<<"hosts_table">>, 500),
                 gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
-                gui_comet:flush(),
                 State;
 
             next ->
@@ -178,62 +175,25 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFI
                     [] ->
                         onepanel_gui_utils:message(<<"error_message">>, <<"Please select at least one host for database component.">>);
                     _ ->
-                        case MainCCM of
+                        case GR of
                             undefined ->
-                                case CCMs of
-                                    [_ | _] ->
-                                        gui_ctx:put(?CONFIG_ID, SessionConfig#?CONFIG{main_ccm = hd(lists:sort(CCMs)), ccms = CCMs, workers = Workers, dbs = Dbs}),
-                                        onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION);
-                                    _ ->
-                                        onepanel_gui_utils:message(<<"error_message">>, <<"Please select at least one host for CCM component.">>)
-                                end;
+                                onepanel_gui_utils:message(<<"error_message">>, <<"Please select host for Global Registry component.">>);
                             _ ->
-                                gui_ctx:put(?CONFIG_ID, SessionConfig#?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs}),
-                                onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION)
+                                gui_ctx:put(?CONFIG_ID, SessionConfig#?CONFIG{gr = GR, dbs = Dbs}),
+                                onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS)
                         end
                 end,
-                gui_comet:flush(),
                 State;
 
-            {ccm_checkbox_toggled, Host, HostId, false} ->
-                case lists:member(Host, CCMs) of
-                    true ->
-                        case Host of
-                            MainCCM ->
-                                State#?STATE{session_config = SessionConfig#?CONFIG{main_ccm = undefined, ccms = lists:delete(Host, CCMs)}};
-                            _ ->
-                                State#?STATE{session_config = SessionConfig#?CONFIG{ccms = lists:delete(Host, CCMs)}}
-                        end;
-                    false ->
-                        case lists:member(Host, Workers) of
-                            true ->
-                                State#?STATE{session_config = SessionConfig#?CONFIG{ccms = [Host | CCMs]}};
-                            false ->
-                                gui_jq:click(<<"worker_checkbox_", HostId/binary>>),
-                                gui_comet:flush(),
-                                State#?STATE{session_config = SessionConfig#?CONFIG{ccms = [Host | CCMs], workers = [Host | Workers]}}
-                        end
-                end;
+            {gr_checkbox_toggled, GR, _, false} ->
+                State#?STATE{gr_checkbox_id = undefined, session_config = SessionConfig#?CONFIG{gr = undefined}};
 
-            {worker_checkbox_toggled, Host, HostId, false} ->
-                case lists:member(Host, Workers) of
-                    true ->
-                        case lists:member(Host, CCMs) of
-                            true ->
-                                gui_jq:click(<<"ccm_checkbox_", HostId/binary>>),
-                                gui_comet:flush(),
-                                case Host of
-                                    MainCCM ->
-                                        State#?STATE{session_config = SessionConfig#?CONFIG{main_ccm = undefined, ccms = lists:delete(Host, CCMs), workers = lists:delete(Host, Workers)}};
-                                    _ ->
-                                        State#?STATE{session_config = SessionConfig#?CONFIG{ccms = lists:delete(Host, CCMs), workers = lists:delete(Host, Workers)}}
-                                end;
-                            false ->
-                                State#?STATE{session_config = SessionConfig#?CONFIG{workers = lists:delete(Host, Workers)}}
-                        end;
-                    _ ->
-                        State#?STATE{session_config = SessionConfig#?CONFIG{workers = [Host | Workers]}}
-                end;
+            {gr_checkbox_toggled, Host, HostId, false} ->
+                case GrId of
+                    undefined -> ok;
+                    _ -> gui_jq:click(<<"gr_checkbox_", GrId/binary>>)
+                end,
+                State#?STATE{gr_checkbox_id = HostId, session_config = SessionConfig#?CONFIG{gr = Host}};
 
             {db_checkbox_toggled, Host, _, false} ->
                 case lists:member(Host, Dbs) of
@@ -254,6 +214,7 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFI
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 
 
@@ -268,23 +229,24 @@ event(init) ->
         Hosts = onepanel_utils:get_hosts(),
         {ok, DbConfig} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
         {ok, SessionConfig} = onepanel_gui_utils:get_session_config(),
-        NewSessionConfig = case {SessionConfig#?CONFIG.main_ccm, Hosts} of
-                               {undefined, [_]} ->
-                                   SessionConfig#?CONFIG{main_ccm = hd(Hosts), ccms = Hosts, workers = Hosts, dbs = Hosts};
-                               _ ->
-                                   SessionConfig
-                           end,
+        State = case {SessionConfig#?CONFIG.gr, Hosts} of
+                    {undefined, [_]} ->
+                        #?STATE{hosts = Hosts, gr_checkbox_id = <<"gr_checkbox_1">>,
+                            db_config = DbConfig, session_config = SessionConfig#?CONFIG{gr = hd(Hosts), dbs = hd(Hosts)}};
+                    _ ->
+                        #?STATE{hosts = Hosts, db_config = DbConfig, session_config = SessionConfig}
+                end,
 
         gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),
 
         {ok, Pid} = gui_comet:spawn(fun() ->
-            comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = NewSessionConfig})
+            comet_loop(State)
         end),
         put(?COMET_PID, Pid),
         Pid ! render_hosts_table
     catch
         _:Reason ->
-            ?error("Cannot fetch application configuration: ~p", [Reason]),
+            ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch application configuration.<br>Please try again later.">>)
     end;
 

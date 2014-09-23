@@ -54,7 +54,6 @@ start_link() ->
 init([]) ->
     try
         ok = db_logic:create(),
-        {ok, UpdaterStartDelay} = application:get_env(?APP_NAME, updater_start_delay),
         {ok, Address} = application:get_env(?APP_NAME, multicast_address),
         {ok, Port} = application:get_env(?APP_NAME, onepanel_port),
         {ok, Socket} = gen_udp:open(Port, [binary, {reuseaddr, true}, {ip, Address},
@@ -62,7 +61,9 @@ init([]) ->
         ok = gen_udp:controlling_process(Socket, self()),
 
         self() ! connection_ping,
-        timer:send_after(UpdaterStartDelay, start_updater),
+        lists:foreach(fun({Message, Delay}) ->
+            timer:send_after(Delay, Message)
+        end, ?INIT_MESSAGES),
 
         {ok, #state{socket = Socket, address = Address, port = Port}}
     catch

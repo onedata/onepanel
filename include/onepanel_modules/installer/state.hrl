@@ -45,7 +45,7 @@
 
 -endif.
 
--ifdef(global_registry).
+-ifdef(globalregistry).
 
 %% Names of database records
 -define(GLOBAL_CONFIG_RECORD, global_configuration).
@@ -62,7 +62,7 @@
 %% * id                 - ID which equals CONFIG_ID as a primary key in database
 %% * dbs                - list of hostnames of machines where database nodes are configured
 %% * timestamp          - table creation timestamp as elapsed microseconds since epoch
--record(?GLOBAL_CONFIG_RECORD, {id, dbs = [], timestamp = 0}).
+-record(?GLOBAL_CONFIG_RECORD, {id, gr, dbs = [], timestamp = 0}).
 
 %% Local config record describes host configuration that is:
 %% * host               - machine hostname as a primary key in database

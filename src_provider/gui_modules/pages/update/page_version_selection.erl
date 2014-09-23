@@ -64,7 +64,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(software_tab, update_link),
+    Header = onepanel_gui_utils_adapter:top_menu(software_tab, update_link),
     Main = #panel{
         style = <<"margin-top: 10em;">>,
         body = [
@@ -77,7 +77,7 @@ body() ->
                     },
                     #p{
                         style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 1em;">>,
-                        body = case onepanel_utils:get_software_version() of
+                        body = case onepanel_utils_adapter:get_software_version() of
                                    undefined ->
                                        <<"Please select software version to update to.">>;
                                    Version ->
@@ -106,7 +106,7 @@ body() ->
 %% ====================================================================
 versions() ->
     try
-        AvailableVersions = onepanel_utils:get_available_software_versions(),
+        AvailableVersions = onepanel_utils_adapter:get_available_software_versions(),
         ChosenVersion = case gui_ctx:get(?CHOSEN_VERSION) of
                             undefined -> hd(AvailableVersions);
                             Version -> Version
@@ -123,7 +123,7 @@ versions() ->
                         id = <<"version_label">>,
                         style = <<"padding-right: 1em;">>,
                         class = <<"filter-option pull-left">>,
-                        body = <<"Version: <b>", (onepanel_utils:get_software_version_name(ChosenVersion))/binary, "</b>">>
+                        body = <<"Version: <b>", (onepanel_utils_adapter:get_software_version_name(ChosenVersion))/binary, "</b>">>
                     },
                     #span{
                         class = <<"caret pull-right">>
@@ -165,7 +165,7 @@ versions_list(ChosenVersion, Versions) ->
                         end,
                 body = #link{
                     style = <<"text-align: left;">>,
-                    body = onepanel_utils:get_software_version_name(Version)
+                    body = onepanel_utils_adapter:get_software_version_name(Version)
                 }
             }, List],
             Id + 1
@@ -190,13 +190,13 @@ event(init) ->
 
 event({set_version, ChosenVersion, Versions}) ->
     gui_ctx:put(?CHOSEN_VERSION, ChosenVersion),
-    gui_jq:update(<<"version_label">>, <<"Version: <b>", (onepanel_utils:get_software_version_name(ChosenVersion))/binary, "</b>">>),
+    gui_jq:update(<<"version_label">>, <<"Version: <b>", (onepanel_utils_adapter:get_software_version_name(ChosenVersion))/binary, "</b>">>),
     gui_jq:update(<<"version_dropdown">>, versions_list(ChosenVersion, Versions));
 
 event(next) ->
     ChosenVersion = gui_ctx:get(?CHOSEN_VERSION),
-    ChosenVersionName = onepanel_utils:get_software_version_name(ChosenVersion),
-    case onepanel_utils:get_software_version() of
+    ChosenVersionName = onepanel_utils_adapter:get_software_version_name(ChosenVersion),
+    case onepanel_utils_adapter:get_software_version() of
         ChosenVersionName -> onepanel_gui_utils:message(<<"error_message">>,
             <<"Nothing to do.<br>This software version is currently installed.">>);
         _ ->

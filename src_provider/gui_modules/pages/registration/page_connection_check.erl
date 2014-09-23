@@ -69,7 +69,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(spaces_tab, spaces_account_link),
+    Header = onepanel_gui_utils_adapter:top_menu(spaces_tab, spaces_account_link),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [

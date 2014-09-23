@@ -28,7 +28,7 @@
 -spec get_gr_url() -> string().
 %% ====================================================================
 get_gr_url() ->
-    {ok, URL} = application:get_env(?APP_NAME, global_registry_url),
+    {ok, URL} = application:get_env(?APP_NAME, globalregistry_url),
     URL.
 
 

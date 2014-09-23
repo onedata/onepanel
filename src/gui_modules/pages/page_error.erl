@@ -114,47 +114,12 @@ get_reason_and_description() ->
 -spec id_to_reason_and_message(ErrorId :: binary()) -> Result when
     Result :: {Reason :: binary(), Description :: binary()}.
 %% ====================================================================
-id_to_reason_and_message(?INTERNAL_SERVER_ERROR) ->
-    {
-        <<"Internal server error">>,
-        <<"Server encountered an unexpected error. Please contact the site administrator if the problem persists.">>
-    };
-
-id_to_reason_and_message(?SOFTWARE_NOT_INSTALLED_ERROR) ->
-    {
-        <<"Software is not installed">>,
-        <<"Please complete software installation process.">>
-    };
-
-id_to_reason_and_message(?UNREGISTERED_PROVIDER_ERROR) ->
-    {
-        <<"Unregistered provider">>,
-        <<"Please complete registration process in <i>Global Registry</i>.">>
-    };
-
-id_to_reason_and_message(?AUTHENTICATION_ERROR) ->
-    {
-        <<"Authentication error">>,
-        <<"Server could not authenticate you. Please try again to log in or contact the site administrator if the problem persists.">>
-    };
-
-id_to_reason_and_message(?SPACE_PERMISSION_DENIED_ERROR) ->
-    {
-        <<"Permission denied">>,
-        <<"You don't have permission to manage this Space.">>
-    };
-
-id_to_reason_and_message(?SPACE_NOT_FOUND_ERROR) ->
-    {
-        <<"Space not found">>,
-        <<"Requested Space could not be found on the server.">>
-    };
-
-id_to_reason_and_message(_) ->
-    {
+id_to_reason_and_message(ErrorId) ->
+    UnknownError = {
         <<"Unknown error">>,
         <<"">>
-    }.
+    },
+    proplists:get_value(ErrorId, ?ERROR_MESSAGES, UnknownError).
 
 
 %% ====================================================================

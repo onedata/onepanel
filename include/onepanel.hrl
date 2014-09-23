@@ -18,4 +18,20 @@
 %% onepanel gen_server state
 -record(state, {socket, address, port, passwords = []}).
 
+-ifdef(provider).
+
+%% Messages that will be sent to onepanel server after initialization
+%% Format {Message :: term(), DelayInMiliseconds :: integer()}
+-define(INIT_MESSAGES, [{start_updater, application:get_env(?APP_NAME, updater_start_delay, 5000)}]).
+
+-endif.
+
+-ifdef(globalregistry).
+
+%% Messages that will be sent to onepanel server after initialization
+%% Format {Message :: term(), DelayInMiliseconds :: integer()}
+-define(INIT_MESSAGES, []).
+
+-endif.
+
 -endif.

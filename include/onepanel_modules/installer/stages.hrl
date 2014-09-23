@@ -44,7 +44,7 @@
 
 -endif.
 
--ifdef(global_registry).
+-ifdef(globalregistry).
 
 %% Installer stages
 -define(STAGE_IDLE, idle).

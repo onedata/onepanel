@@ -11,6 +11,9 @@
 -module(updater_utils).
 -author("Rafal Slota").
 
+-include("registered_names.hrl").
+-include("onepanel_modules/updater/common.hrl").
+-include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -145,7 +148,3 @@ anycast(Nodes, Fun, Args) ->
 local_cast(Fun) ->
     Host = self(),
     spawn_link(fun() -> Host ! {self(), Fun()} end).
-
-%% ====================================================================
-%% Internal functions
-%% ====================================================================

@@ -75,13 +75,13 @@ title() ->
 %% ====================================================================
 body() ->
     ChosenVersion = gui_ctx:get(?CHOSEN_VERSION),
-    ChosenVersionName = onepanel_utils:get_software_version_name(ChosenVersion),
+    ChosenVersionName = onepanel_utils_adapter:get_software_version_name(ChosenVersion),
     State = updater:get_state(),
     {UpdatePanelDisplay, UpdateProgressDisplay} = case updater_state:get_stage_and_job(State) of
                                                       {?STAGE_IDLE, _} -> {<<"">>, <<" display: none;">>};
                                                       _ -> {<<" display: none;">>, <<"">>}
                                                   end,
-    Header = onepanel_gui_utils:top_menu(software_tab, update_link),
+    Header = onepanel_gui_utils_adapter:top_menu(software_tab, update_link),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [

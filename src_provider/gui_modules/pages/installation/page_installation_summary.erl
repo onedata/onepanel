@@ -76,7 +76,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(software_tab, installation_link, [], true),
+    Header = onepanel_gui_utils_adapter:top_menu(software_tab, installation_link, [], true),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
@@ -156,7 +156,7 @@ summary_table(#?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs =
         {<<"summary_main_ccm">>, <<"Primary CCM host">>, format(MainCCM)},
         {<<"summary_ccms">>, <<"CCM hosts">>, format(CCMs)},
         {<<"summary_workers">>, <<"Worker hosts">>, format(Workers)},
-        {<<"summary_Dbs">>, <<"Database hosts">>, format(Dbs)},
+        {<<"summary_dbs">>, <<"Database hosts">>, format(Dbs)},
         {<<"summary_storages">>, <<"Storage paths">>, format(StoragePaths)}
     ]).
 

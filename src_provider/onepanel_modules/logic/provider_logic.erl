@@ -78,7 +78,7 @@ register() ->
 
         %% Register in Global Registry
         {ok, CSR} = file:read_file(CsrPath),
-        {ok, [ControlPanelHost | _]} = onepanel_utils:get_control_panel_hosts(),
+        {ok, [ControlPanelHost | _]} = onepanel_utils_adapter:get_control_panel_hosts(),
         {ok, ControlPanelHostIpAddress} = rpc:call(onepanel_utils:get_node(ControlPanelHost), gr_providers, check_ip_address, [provider, ?CONNECTION_TIMEOUT]),
         {ok, #?LOCAL_CONFIG_RECORD{gui_port = GuiPort}} = dao:get_record(?LOCAL_CONFIG_TABLE, ControlPanelHost),
         URLs = lists:map(fun(Host) ->

@@ -85,7 +85,7 @@ custom() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(spaces_tab, spaces_settings_link, [], true),
+    Header = onepanel_gui_utils_adapter:top_menu(spaces_tab, spaces_settings_link, [], true),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [

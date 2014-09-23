@@ -76,7 +76,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(software_tab, installation_link, [], true),
+    Header = onepanel_gui_utils_adapter:top_menu(installation_tab, [], true),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
@@ -86,10 +86,7 @@ body() ->
             },
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
-                body = <<"Current application configuration is summarised in the table below."
-                " <b>After accepting presented configuration it is not possible to change it without"
-                " complete software uninstallation!</b> Only addition of new <i>worker</i> components"
-                " will be possible.">>
+                body = <<"Current application configuration is summarised in the table below.">>
             },
             #table{
                 class = <<"table table-striped">>,
@@ -134,7 +131,7 @@ body() ->
 -spec summary_table(Config :: #?CONFIG{}) -> Result
     when Result :: [#tr{}].
 %% ====================================================================
-summary_table(#?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs, storage_paths = StoragePaths}) ->
+summary_table(#?CONFIG{gr = GR, dbs = Dbs}) ->
     lists:map(fun({Id, Description, Details}) ->
         #tr{
             id = Id,
@@ -153,11 +150,8 @@ summary_table(#?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs =
             ]
         }
     end, [
-        {<<"summary_main_ccm">>, <<"Primary CCM host">>, format(MainCCM)},
-        {<<"summary_ccms">>, <<"CCM hosts">>, format(CCMs)},
-        {<<"summary_workers">>, <<"Worker hosts">>, format(Workers)},
-        {<<"summary_Dbs">>, <<"Database hosts">>, format(Dbs)},
-        {<<"summary_storages">>, <<"Storage paths">>, format(StoragePaths)}
+        {<<"summary_gr">>, <<"Global Registry host">>, format(GR)},
+        {<<"summary_dbs">>, <<"Database hosts">>, format(Dbs)}
     ]).
 
 
@@ -191,11 +185,6 @@ format(Hosts) ->
 %% ====================================================================
 get_error_message({?STAGE_DB, ?JOB_INSTALL}) -> <<"Database components were not installed on following hosts: ">>;
 get_error_message({?STAGE_DB, ?JOB_START}) -> <<"Database components were not started on following hosts: ">>;
-get_error_message({?STAGE_CCM, ?JOB_INSTALL}) -> <<"CCM components were not installed on following hosts: ">>;
-get_error_message({?STAGE_CCM, ?JOB_START}) -> <<"CCM components were not started on following hosts: ">>;
-get_error_message({?STAGE_WORKER, ?JOB_INSTALL}) -> <<"Worker components were not installed on following hosts: ">>;
-get_error_message({?STAGE_WORKER, ?JOB_START}) -> <<"Worker components were not started on following hosts: ">>;
-get_error_message({?STAGE_STORAGE, ?JOB_ADD_STORAGE_PATHS}) -> <<"Cannot add storage paths on following hosts: ">>;
 get_error_message(_) -> <<"">>.
 
 
@@ -209,12 +198,6 @@ get_error_message(_) -> <<"">>.
 %% ====================================================================
 get_info_message({?STAGE_DB, ?JOB_INSTALL}) -> <<"Current stage: <b>Installing database components</b>">>;
 get_info_message({?STAGE_DB, ?JOB_START}) -> <<"Current stage: <b>Starting database components</b>">>;
-get_info_message({?STAGE_CCM, ?JOB_INSTALL}) ->
-    <<"Current stage: <b>Installing Central Cluster Manager components</b>">>;
-get_info_message({?STAGE_CCM, ?JOB_START}) -> <<"Current stage: <b>Starting Central Cluster Manager components</b>">>;
-get_info_message({?STAGE_WORKER, ?JOB_INSTALL}) -> <<"Current stage: <b>Installing worker components</b>">>;
-get_info_message({?STAGE_WORKER, ?JOB_START}) -> <<"Current stage: <b>Starting worker components</b>">>;
-get_info_message({?STAGE_STORAGE, ?JOB_ADD_STORAGE_PATHS}) -> <<"Current stage: <b>Adding storage paths</b>">>;
 get_info_message({?STAGE_FINAL, ?JOB_FINALIZE_INSTALLATION}) -> <<"Current stage: <b>Finalizing installation</b>">>;
 get_info_message(_) -> <<"">>.
 
@@ -266,13 +249,12 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                 gui_jq:update(<<"summary_table">>, summary_table(Config)),
                 gui_jq:fade_in(<<"summary_table">>, 500),
                 gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
-                case Config#?CONFIG.workers of
+                case Config#?CONFIG.gr of
                     [] ->
                         ok;
                     _ ->
                         gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"">>)
                 end,
-                gui_comet:flush(),
                 State;
 
             install ->
@@ -281,10 +263,10 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                     {ok, Password} when is_binary(Password) ->
                         self() ! {init, <<"Current stage:">>},
                         Fields = record_info(fields, ?CONFIG),
-                        [_ | Values] = tuple_to_list(Config#?CONFIG{main_ccm = case Config#?CONFIG.main_ccm of
-                                                                                   [] -> undefined;
-                                                                                   [MainCCM | _] -> MainCCM
-                                                                               end}),
+                        [_ | Values] = tuple_to_list(Config#?CONFIG{gr = case Config#?CONFIG.gr of
+                                                                             [] -> undefined;
+                                                                             [GR | _] -> GR
+                                                                         end}),
                         NewConfig = [{username, Username}, {password, Password} | lists:zip(Fields, Values)],
                         Pid = self(),
                         installer:install(NewConfig, fun(Event, InstallerState) ->
@@ -294,7 +276,6 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                         ?error("Cannot get password to administration database for user ~p: ~p", [Username, Other]),
                         onepanel_gui_utils:message(<<"error_message">>, <<"Cannot get password to administration database for user: ", Username/binary>>)
                 end,
-                gui_comet:flush(),
                 State;
 
             {init, Text} ->
@@ -304,26 +285,23 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                 gui_jq:update(<<"progress_text">>, Text),
                 gui_jq:set_width(<<"bar">>, <<"0%">>),
                 gui_jq:show(<<"progress">>),
-                gui_comet:flush(),
                 State;
 
             {change_step, NewStep, Text} ->
                 gui_jq:show(<<"progress">>),
                 gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"disabled">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
-                Progress = <<(integer_to_binary(round(100 * NewStep / Steps)))/binary, "%">>,
+                Progress = <<(integer_to_binary(round(99 * NewStep / Steps)))/binary, "%">>,
                 gui_jq:update(<<"progress_text">>, <<Text/binary, " <b>( ", Progress/binary, " )</b>">>),
                 gui_jq:set_width(<<"bar">>, Progress),
-                gui_comet:flush(),
                 timer:send_after(?NEXT_UPDATE_DELAY, {update, NewStep, Text}),
                 State#?STATE{step = NewStep, step_progress = 0, next_update = ?NEXT_UPDATE_DELAY};
 
             {update, Step, Text} ->
                 NewStepProgress = StepProgress + (1 - StepProgress) / 2,
-                Progress = <<(integer_to_binary(round(100 * (Step + NewStepProgress) / Steps)))/binary, "%">>,
+                Progress = <<(integer_to_binary(round(99 * (Step + NewStepProgress) / Steps)))/binary, "%">>,
                 gui_jq:update(<<"progress_text">>, <<Text/binary, " <b>( ", Progress/binary, " )</b>">>),
                 gui_jq:set_width(<<"bar">>, Progress),
-                gui_comet:flush(),
                 timer:send_after(NextUpdate, {update, Step, Text}),
                 State#?STATE{step_progress = NewStepProgress, next_update = 2 * NextUpdate};
 
@@ -334,7 +312,6 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                 gui_jq:update(<<"progress_text">>, <<"">>),
                 gui_jq:set_width(<<"bar">>, <<"100%">>),
                 onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUCCESS),
-                gui_comet:flush(),
                 State#?STATE{step = undefined};
 
             {error, Text} ->
@@ -343,7 +320,6 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                 gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
                 gui_jq:hide(<<"progress">>),
-                gui_comet:flush(),
                 State#?STATE{step = -1}
 
         after ?COMET_PROCESS_RELOAD_DELAY ->
@@ -354,6 +330,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 
 
@@ -370,11 +347,8 @@ event(init) ->
         {ok, SessionConfig} = onepanel_gui_utils:get_session_config(),
 
         Config = #?CONFIG{
-            main_ccm = [SessionConfig#?CONFIG.main_ccm] -- [DbConfig#?CONFIG.main_ccm],
-            ccms = lists:sort(SessionConfig#?CONFIG.ccms -- DbConfig#?CONFIG.ccms),
-            workers = lists:sort(SessionConfig#?CONFIG.workers -- DbConfig#?CONFIG.workers),
-            dbs = lists:sort(SessionConfig#?CONFIG.dbs -- DbConfig#?CONFIG.dbs),
-            storage_paths = lists:sort(SessionConfig#?CONFIG.storage_paths -- DbConfig#?CONFIG.storage_paths)
+            gr = [SessionConfig#?CONFIG.gr] -- [DbConfig#?CONFIG.gr],
+            dbs = lists:sort(SessionConfig#?CONFIG.dbs -- DbConfig#?CONFIG.dbs)
         },
 
         {ok, Pid} = gui_comet:spawn(fun() ->
@@ -395,7 +369,7 @@ event(init) ->
     end;
 
 event(back) ->
-    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_STORAGE);
+    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS);
 
 event(install) ->
     get(?COMET_PID) ! install;

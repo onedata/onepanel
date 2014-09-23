@@ -71,7 +71,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(spaces_tab, spaces_account_link, [], true),
+    Header = onepanel_gui_utils_adapter:top_menu(spaces_tab, spaces_account_link, [], true),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
@@ -259,7 +259,7 @@ comet_loop(#?STATE{ports = Ports} = State) ->
 %% ====================================================================
 event(init) ->
     try
-        {ok, Hosts} = onepanel_utils:get_control_panel_hosts(),
+        {ok, Hosts} = onepanel_utils_adapter:get_control_panel_hosts(),
         {ok, [{<<"gui">>, DefaultGuiPort}, {<<"rest">>, DefaultRestPort}]} = provider_logic:get_default_ports(),
 
         Ports = lists:map(fun({Host, Id}) ->

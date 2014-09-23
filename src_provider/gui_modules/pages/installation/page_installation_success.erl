@@ -61,7 +61,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(software_tab, installation_link),
+    Header = onepanel_gui_utils_adapter:top_menu(software_tab, installation_link),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = #panel{
@@ -95,23 +95,21 @@ body() ->
                                }
                            ];
                        _ ->
-                           [
-                               #panel{
-                                   class = <<"alert alert-success">>,
-                                   body = [
-                                       #h3{
-                                           body = <<"Successful installation">>
-                                       },
-                                       #link{
-                                           id = <<"next_button">>,
-                                           postback = to_root_page,
-                                           style = <<"width: 8em;">>,
-                                           class = <<"btn btn-primary">>,
-                                           body = <<"OK">>
-                                       }
-                                   ]
-                               }
-                           ]
+                           #panel{
+                               class = <<"alert alert-success">>,
+                               body = [
+                                   #h3{
+                                       body = <<"Successful installation">>
+                                   },
+                                   #link{
+                                       id = <<"next_button">>,
+                                       postback = to_root_page,
+                                       style = <<"width: 8em;">>,
+                                       class = <<"btn btn-primary">>,
+                                       body = <<"OK">>
+                                   }
+                               ]
+                           }
                    end
         }
     },

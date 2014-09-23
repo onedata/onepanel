@@ -29,7 +29,11 @@ doc:
 rel: deps compile generate
 
 relclean:
-	rm -rf rel/onepanel
+ifeq ($(CONFIG),globalregistry.config)
+	rm -rf rel_globalregistry/onepanel
+else
+	rm -rf rel_provider/onepanel
+endif
 
 ##
 ## Dialyzer

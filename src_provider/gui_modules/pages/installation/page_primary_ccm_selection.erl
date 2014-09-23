@@ -66,7 +66,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(software_tab, installation_link),
+    Header = onepanel_gui_utils_adapter:top_menu(software_tab, installation_link),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [

@@ -62,7 +62,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(about_tab),
+    Header = onepanel_gui_utils_adapter:top_menu(about_tab),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [

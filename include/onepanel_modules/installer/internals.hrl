@@ -79,6 +79,9 @@
 
 -ifdef(globalregistry).
 
+%% Default cookie used for communication with application
+-define(DEFAULT_COOKIE, globalregistry).
+
 %% Location of release packages
 -define(DB_RELEASE, filename:join(["var", "lib", "globalregistry", "bigcouchdb", "database_node"])).
 
