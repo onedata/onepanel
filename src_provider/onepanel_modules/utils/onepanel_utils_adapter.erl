@@ -100,9 +100,9 @@ get_software_version_record(Version) ->
 %% ====================================================================
 get_available_software_versions() ->
     try
-        {ok, URL} = application:get_env(?APP_NAME, get_software_versions_url),
+        {ok, URL} = application:get_env(?APP_NAME, onedata_repository_url),
         Options = [{connect_timeout, ?CONNECTION_TIMEOUT}],
-        {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(URL, [{content_type, "application/json"}], get, [], Options),
+        {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(URL ++ "/get_versions.php", [{content_type, "application/json"}], get, [], Options),
         {_, List} = mochijson2:decode(ResBody),
         sort_versions(proplists:get_value(<<"VeilCluster-Linux.rpm">>, List))
     catch

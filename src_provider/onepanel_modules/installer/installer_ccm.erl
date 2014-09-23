@@ -260,28 +260,28 @@ local_start(MainCCM, OptCCMs, Dbs) ->
     try
         ?debug("Starting CCM node: ~p"),
 
-        Name = ?DEFAULT_CCM_NAME ++ "@" ++ Host,
+        Name = <<(list_to_binary(?DEFAULT_CCM_NAME))/binary, "@", (list_to_binary(Host))/binary>>,
 
-        MainCCMName = ?DEFAULT_CCM_NAME ++ "@" ++ MainCCM,
+        MainCCMName = <<(list_to_binary(?DEFAULT_CCM_NAME))/binary, "@", (list_to_binary(MainCCM))/binary>>,
 
         OptCCMNames = lists:foldl(fun(OptCCM, Acc) ->
-            Acc ++ ?DEFAULT_CCM_NAME ++ "@" ++ OptCCM ++ " "
-        end, [], OptCCMs),
+            <<Acc/binary, (list_to_binary(?DEFAULT_CCM_NAME))/binary, "@", (list_to_binary(OptCCM))/binary, " ">>
+        end, <<>>, OptCCMs),
 
         DbNames = lists:foldl(fun(Db, Acc) ->
-            Acc ++ ?DEFAULT_DB_NAME ++ "@" ++ Db ++ " "
-        end, [], Dbs),
+            <<Acc/binary, (list_to_binary(?DEFAULT_DB_NAME))/binary, "@", (list_to_binary(Db))/binary, " ">>
+        end, <<>>, Dbs),
 
         NodeConfigPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME, ?CONFIG_ARGS_PATH]),
         StorageConfigPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME, ?STORAGE_CONFIG_PATH]),
         OverwriteCommand = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME, ?VEIL_CLUSTER_SCRIPT_PATH]),
         StartCommand = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME, ?START_COMMAND_SUFFIX]),
 
-        ok = installer_utils:overwrite_config_args(NodeConfigPath, "name", Name),
-        ok = installer_utils:overwrite_config_args(NodeConfigPath, "main_ccm", MainCCMName),
-        ok = installer_utils:overwrite_config_args(NodeConfigPath, "opt_ccms", OptCCMNames),
-        ok = installer_utils:overwrite_config_args(NodeConfigPath, "db_nodes", DbNames),
-        ok = installer_utils:overwrite_config_args(NodeConfigPath, "storage_config_path", StorageConfigPath),
+        ok = installer_utils:overwrite_config_args(NodeConfigPath, <<"name: ">>, <<"[^\n]*">>, Name),
+        ok = installer_utils:overwrite_config_args(NodeConfigPath, <<"main_ccm: ">>, <<"[^\n]*">>, MainCCMName),
+        ok = installer_utils:overwrite_config_args(NodeConfigPath, <<"opt_ccms: ">>, <<"[^\n]*">>, OptCCMNames),
+        ok = installer_utils:overwrite_config_args(NodeConfigPath, <<"db_nodes: ">>, <<"[^\n]*">>, DbNames),
+        ok = installer_utils:overwrite_config_args(NodeConfigPath, <<"storage_config_path: ">>, <<"[^\n]*">>, StorageConfigPath),
         ok = installer_utils:add_node_to_config(ccm_node, list_to_atom(?DEFAULT_CCM_NAME), ?DEFAULT_NODES_INSTALL_PATH),
 
         os:cmd(OverwriteCommand),

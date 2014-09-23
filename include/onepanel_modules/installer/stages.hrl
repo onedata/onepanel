@@ -25,7 +25,7 @@
 -define(STAGE_CCM, installer_ccm).
 -define(STAGE_WORKER, installer_worker).
 -define(STAGE_STORAGE, installer_storage).
--define(STAGE_FINAL, installer_utils).
+-define(STAGE_FINAL, installer_utils_adapter).
 
 %% Installer jobs
 -define(JOB_INSTALL, install).
@@ -50,7 +50,8 @@
 -define(STAGE_IDLE, idle).
 -define(STAGE_INIT, init).
 -define(STAGE_DB, installer_db).
--define(STAGE_FINAL, installer_utils).
+-define(STAGE_GLOBALREGISTRY, installer_globalregistry).
+-define(STAGE_FINAL, installer_utils_adapter).
 
 %% Installer jobs
 -define(JOB_INSTALL, install).
@@ -60,6 +61,7 @@
 %% Description of stages in terms of jobs
 -define(STAGES, [
     {?STAGE_DB, [?JOB_INSTALL, ?JOB_START]},
+    {?STAGE_GLOBALREGISTRY, [?JOB_INSTALL, ?JOB_START]},
     {?STAGE_FINAL, [?JOB_FINALIZE_INSTALLATION]}
 ]).
 

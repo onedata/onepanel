@@ -82,7 +82,7 @@ body() ->
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
-                body = <<"Step 5: Installation summary.">>
+                body = <<"Step 3: Installation summary.">>
             },
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
@@ -185,6 +185,8 @@ format(Hosts) ->
 %% ====================================================================
 get_error_message({?STAGE_DB, ?JOB_INSTALL}) -> <<"Database components were not installed on following hosts: ">>;
 get_error_message({?STAGE_DB, ?JOB_START}) -> <<"Database components were not started on following hosts: ">>;
+get_error_message({?STAGE_GLOBALREGISTRY, ?JOB_INSTALL}) -> <<"Global Registry components were not installed on following hosts: ">>;
+get_error_message({?STAGE_GLOBALREGISTRY, ?JOB_START}) -> <<"Global Registry components were not started on following hosts: ">>;
 get_error_message(_) -> <<"">>.
 
 
@@ -198,6 +200,8 @@ get_error_message(_) -> <<"">>.
 %% ====================================================================
 get_info_message({?STAGE_DB, ?JOB_INSTALL}) -> <<"Current stage: <b>Installing database components</b>">>;
 get_info_message({?STAGE_DB, ?JOB_START}) -> <<"Current stage: <b>Starting database components</b>">>;
+get_info_message({?STAGE_GLOBALREGISTRY, ?JOB_INSTALL}) -> <<"Current stage: <b>Installing Global Registry component</b>">>;
+get_info_message({?STAGE_GLOBALREGISTRY, ?JOB_START}) -> <<"Current stage: <b>Starting Global Registry component</b>">>;
 get_info_message({?STAGE_FINAL, ?JOB_FINALIZE_INSTALLATION}) -> <<"Current stage: <b>Finalizing installation</b>">>;
 get_info_message(_) -> <<"">>.
 

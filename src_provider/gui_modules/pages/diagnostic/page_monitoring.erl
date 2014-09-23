@@ -46,7 +46,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case installer_utils:get_workers() of
+            case installer_utils_adapter:get_workers() of
                 [] ->
                     page_error:redirect_with_error(?SOFTWARE_NOT_INSTALLED_ERROR),
                     #dtl{file = "bare", app = ?SOFTWARE_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};

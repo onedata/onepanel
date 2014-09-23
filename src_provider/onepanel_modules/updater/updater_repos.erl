@@ -51,5 +51,5 @@ get_package(#version{} = Version) ->
 -spec gen_package_url(Version :: #version{}, PackageType :: rpm | deb) -> {ok, #package{}} | {error, any()}.
 %% ====================================================================
 gen_package_url(#version{major = MJ, minor = MI, patch = PA} = _Version, PackageType) ->
-    {ok, URL} = application:get_env(?APP_NAME, software_repository_url),
+    {ok, URL} = application:get_env(?APP_NAME, onedata_repository_url),
     URL ++ "/VeilCluster-Linux-" ++ integer_to_list(MJ) ++ "." ++ integer_to_list(MI) ++ "." ++ integer_to_list(PA) ++ "." ++ atom_to_list(PackageType).

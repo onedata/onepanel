@@ -134,7 +134,7 @@ comet_loop(#?STATE{attempt = Attempt, pid = Pid} = State) ->
         receive
             connect ->
                 NewPid = spawn_link(fun() ->
-                    ok = installer_utils:check_ip_addresses()
+                    ok = installer_utils_adapter:check_ip_addresses()
                 end),
                 erlang:send_after(?CONNECTION_TIMEOUT, self(), {connection_failure, Attempt}),
                 State#?STATE{pid = NewPid};

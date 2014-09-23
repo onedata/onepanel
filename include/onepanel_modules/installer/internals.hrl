@@ -50,8 +50,6 @@
 
 %% Location of release packages
 -define(DB_RELEASE, filename:join([?PREFIX, "files", "database_node"])).
-
-%% Location of release packages
 -define(VEIL_RELEASE, filename:join([?PREFIX, "files", "veil_cluster_node"])).
 
 %% Install path for nodes
@@ -82,14 +80,27 @@
 %% Default cookie used for communication with application
 -define(DEFAULT_COOKIE, globalregistry).
 
-%% Location of release packages
--define(DB_RELEASE, filename:join(["var", "lib", "globalregistry", "bigcouchdb", "database_node"])).
+-define(RESOURCES_PREFIX, filename:join(["/", "var", "lib", "globalregistry"])).
+
+%% Location of database packages
+-define(DB_RELEASE, filename:join([?RESOURCES_PREFIX, "bigcouchdb", "database_node"])).
 
 %% Location of configured_nodes.cfg file
--define(CONFIGURED_NODES_PATH, filename:join(["var", "lib", "globalregistry", "configured_nodes.cfg"])).
+-define(CONFIGURED_NODES_PATH, filename:join([?RESOURCES_PREFIX, "configured_nodes.cfg"])).
 
 %% Location of ulimits.cfg file
--define(ULIMITS_CONFIG_PATH, filename:join(["var", "lib", "globalregistry", "ulimits.cfg"])).
+-define(ULIMITS_CONFIG_PATH, filename:join([?RESOURCES_PREFIX, "ulimits.cfg"])).
+
+%% Default names of installable components
+-define(DEFAULT_GLOBALREGISTRY_NAME, "globalregistry").
+
+%% Install path for nodes
+-define(DEFAULT_NODES_INSTALL_PATH, filename:join(["/", "usr", "lib64", "globalregistry"])).
+
+%% Location of config files
+-define(CONFIG_PREFIX, filename:join(["/", "etc", "globalregistry"])).
+-define(APP_CONFIG_PATH, filename:join([?CONFIG_PREFIX, "app.config"])).
+-define(VM_CONFIG_PATH, filename:join([?CONFIG_PREFIX, "vm.args"])).
 
 -endif.
 

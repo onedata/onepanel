@@ -136,7 +136,7 @@ hosts_table(Hosts, DbConfig, PageConfig) ->
                         }
                     }
                 end, [
-                    {<<"gr_checkbox_">>, lists:member(Host, PageConfig#?CONFIG.gr), DbConfig#?CONFIG.gr =/= undefined},
+                    {<<"gr_checkbox_">>, Host =:= PageConfig#?CONFIG.gr, DbConfig#?CONFIG.gr =/= undefined},
                     {<<"db_checkbox_">>, lists:member(Host, PageConfig#?CONFIG.dbs), DbConfig#?CONFIG.dbs =/= []}
                 ])
             ]
@@ -232,7 +232,7 @@ event(init) ->
         State = case {SessionConfig#?CONFIG.gr, Hosts} of
                     {undefined, [_]} ->
                         #?STATE{hosts = Hosts, gr_checkbox_id = <<"gr_checkbox_1">>,
-                            db_config = DbConfig, session_config = SessionConfig#?CONFIG{gr = hd(Hosts), dbs = hd(Hosts)}};
+                            db_config = DbConfig, session_config = SessionConfig#?CONFIG{gr = hd(Hosts), dbs = Hosts}};
                     _ ->
                         #?STATE{hosts = Hosts, db_config = DbConfig, session_config = SessionConfig}
                 end,

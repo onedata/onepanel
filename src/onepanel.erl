@@ -149,15 +149,20 @@ handle_cast(Request, State) ->
     {stop, Reason :: term(), NewState :: #state{}}.
 %% ====================================================================
 handle_info({udp, _Socket, _Address, _Port, HostBinary}, State) ->
-    Host = binary_to_list(HostBinary),
-    case inet:getaddr(Host, inet) of
-        {ok, _} ->
-            Node = onepanel_utils:get_node(Host),
-            case lists:member(Node, db_logic:get_nodes()) of
-                false ->
-                    case net_kernel:connect_node(Node) of
-                        true -> gen_server:cast({?ONEPANEL_SERVER, Node}, {connection_request, node()});
-                        Other -> ?error("[onepanel] Cannot connect node ~p: ~p", [Node, Other])
+    case re:run(HostBinary, ?MULTICAST_MESSAGE_PREFIX, [{capture, first, binary}]) of
+        {match, [?MULTICAST_MESSAGE_PREFIX]} ->
+            Host = binary_to_list(binary:replace(HostBinary, ?MULTICAST_MESSAGE_PREFIX, <<"">>, [global])),
+            case inet:getaddr(Host, inet) of
+                {ok, _} ->
+                    Node = onepanel_utils:get_node(Host),
+                    case lists:member(Node, db_logic:get_nodes()) of
+                        false ->
+                            case net_kernel:connect_node(Node) of
+                                true -> gen_server:cast({?ONEPANEL_SERVER, Node}, {connection_request, node()});
+                                Other -> ?error("[onepanel] Cannot connect node ~p: ~p", [Node, Other])
+                            end;
+                        _ ->
+                            ok
                     end;
                 _ ->
                     ok
@@ -169,7 +174,7 @@ handle_info({udp, _Socket, _Address, _Port, HostBinary}, State) ->
 
 handle_info(connection_ping, #state{socket = Socket, address = Address, port = Port} = State) ->
     {ok, Delay} = application:get_env(?APP_NAME, connection_ping_delay),
-    gen_udp:send(Socket, Address, Port, net_adm:localhost()),
+    gen_udp:send(Socket, Address, Port, <<(?MULTICAST_MESSAGE_PREFIX)/binary, (list_to_binary(net_adm:localhost()))/binary>>),
     erlang:send_after(Delay, self(), connection_ping),
     {noreply, State};
 
