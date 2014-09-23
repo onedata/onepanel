@@ -9,7 +9,7 @@
 %% provides API methods for Global Registry node installation.
 %% @end
 %% ===================================================================
--module(installer_globalregistry).
+-module(installer_gr).
 -behaviour(installer_behaviour).
 
 -include("onepanel_modules/installer/state.hrl").

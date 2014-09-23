@@ -28,7 +28,7 @@ ONEPANEL=onepanel
 VAR_SUBSYS_ONEPANEL=/var/lock/subsys/$ONEPANEL
 
 # Default installation path
-PREFIX=/opt/veil/nodes/$ONEPANEL
+PREFIX=/var/lib/globalregistry/$ONEPANEL
 
 start() {
 	status_silent ; status=$?

@@ -16,7 +16,7 @@
 
 -export([main/0, event/1]).
 
--define(PRIVACY_POLICY_FILE, "PRIVACY_POLICY.html").
+-define(PRIVACY_POLICY_FILE, "gui_static/PRIVACY_POLICY.html").
 
 %% ====================================================================
 %% API functions

@@ -26,9 +26,6 @@
 % Installation directory of veil RPM
 -define(PREFIX, "/opt/veil/").
 
-%% Location of erl_launcher
--define(ERL_LAUNCHER_SCRIPT_PATH, ?PREFIX ++ "scripts/erl_launcher").
-
 %% Timeout for each RPC call
 -define(RPC_TIMEOUT, 120000).
 
@@ -40,7 +37,7 @@
 -define(EXIT_FAILURE, 1).
 
 %% Local onepanel node
--define(NODE, local_node).
+-define(NODE, setup_node).
 
 %% config record contains following fields:
 %% * main_ccm           - hostname of machine where main CCM node is configured
@@ -86,7 +83,6 @@ main(Args) ->
 init() ->
     Hostname = "@" ++ os:cmd("hostname -f") -- "\n",
     put(?NODE, erlang:list_to_atom(?APP_STR ++ Hostname)),
-    os:cmd(?ERL_LAUNCHER_SCRIPT_PATH ++ " epmd"),
     {A, B, C} = erlang:now(),
     NodeName = "onepanel_admin_" ++ integer_to_list(A, 32) ++ integer_to_list(B, 32) ++ integer_to_list(C, 32) ++ "@127.0.0.1",
     net_kernel:start([list_to_atom(NodeName), longnames]),
@@ -126,41 +122,21 @@ install(Path) ->
         lists:foreach(fun(Host) ->
             HostOpenFiles = proplists:get_value(Host, OpenFiles, ?DEFAULT_OPEN_FILES),
             HostProcesses = proplists:get_value(Host, Processes, ?DEFAULT_PROCESSES),
-            rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_system_limits, [HostOpenFiles, HostProcesses])
+            ok = rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_system_limit, [open_files, HostOpenFiles]),
+            ok = rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_system_limit, [process_limit, HostProcesses])
         end, AllHosts),
         print_ok(),
 
-        print_info("Installing database nodes..."),
-        execute(Node, installer_db, install, [[{dbs, Dbs}]]),
-        print_ok(),
-
-        print_info("Starting database nodes..."),
-        execute(Node, installer_db, start, [[{dbs, Dbs}]]),
-        print_ok(),
-
-        print_info("Installing ccm nodes..."),
-        execute(Node, installer_ccm, install, [[{ccms, CCMs}]]),
-        print_ok(),
-
-        print_info("Starting ccm nodes..."),
-        execute(Node, installer_ccm, start, [[{main_ccm, MainCCM}, {ccms, CCMs}]]),
-        print_ok(),
-
-        print_info("Installing worker nodes..."),
-        execute(Node, installer_worker, install, [[{workers, Workers}]]),
-        print_ok(),
-
-        print_info("Adding storage paths..."),
-        execute(Node, installer_storage, add_storage_paths_to_db, [[{storage_paths, StoragePaths}]]),
-        print_ok(),
-
-        print_info("Starting worker nodes..."),
-        execute(Node, installer_worker, start, [[{workers, Workers}]]),
-        print_ok(),
-
-        print_info("Finalizing installation..."),
-        execute(Node, installer_utils, finalize_installation, [[]]),
-        print_ok(),
+        ok = execute([
+            {Node, installer_db, install, [[{dbs, Dbs}]], "Installing database nodes..."},
+            {Node, installer_db, start, [[{dbs, Dbs}]], "Starting database nodes..."},
+            {Node, installer_ccm, install, [[{ccms, CCMs}]], "Installing ccm nodes..."},
+            {Node, installer_ccm, start, [[{main_ccm, MainCCM}, {ccms, CCMs}]], "Starting ccm nodes..."},
+            {Node, installer_worker, install, [[{workers, Workers}]], "Installing worker nodes..."},
+            {Node, installer_storage, add_storage_paths_to_db, [[{storage_paths, StoragePaths}]], "Adding storage paths..."},
+            {Node, installer_worker, start, [[{workers, Workers}]], "Starting worker nodes..."},
+            {Node, installer_utils_adapter, finalize_installation, [[]], "Finalizing installation..."}
+        ]),
 
         case Register of
             yes ->
@@ -242,33 +218,15 @@ uninstall() ->
             storage_paths = StoragePaths
         } = parse({terms, Terms}),
 
-        print_info("Stopping worker nodes..."),
-        execute(Node, installer_worker, stop, [[]]),
-        print_ok(),
-
-        print_info("Removing storage paths..."),
-        execute(Node, installer_storage, remove_storage_paths_from_db, [[{storage_paths, StoragePaths}]]),
-        print_ok(),
-
-        print_info("Uninstalling worker nodes..."),
-        execute(Node, installer_worker, uninstall, [[{workers, Workers}]]),
-        print_ok(),
-
-        print_info("Stopping ccm nodes..."),
-        execute(Node, installer_ccm, stop, [[]]),
-        print_ok(),
-
-        print_info("Uninstalling ccm nodes..."),
-        execute(Node, installer_ccm, uninstall, [[{ccms, CCMs}]]),
-        print_ok(),
-
-        print_info("Stopping database nodes..."),
-        execute(Node, installer_db, stop, [[]]),
-        print_ok(),
-
-        print_info("Uninstalling database nodes..."),
-        execute(Node, installer_db, uninstall, [[{dbs, Dbs}]]),
-        print_ok()
+        ok = execute([
+            {Node, installer_worker, stop, [[]], "Stopping worker nodes..."},
+            {Node, installer_storage, remove_storage_paths_from_db, [[{storage_paths, StoragePaths}]], "Removing storage paths..."},
+            {Node, installer_worker, uninstall, [[{workers, Workers}]], "Uninstalling worker nodes..."},
+            {Node, installer_ccm, stop, [[]], "Stopping ccm nodes..."},
+            {Node, installer_ccm, uninstall, [[{ccms, CCMs}]], "Uninstalling ccm nodes..."},
+            {Node, installer_db, stop, [[]], "Stopping database nodes..."},
+            {Node, installer_db, uninstall, [[{dbs, Dbs}]], "Uninstalling database nodes..."}
+        ])
     catch
         _:{hosts, Hosts} when is_list(Hosts) ->
             io:format("[FAIL]\n"),
@@ -318,14 +276,23 @@ parse({terms, Terms}) ->
 %% @doc Executes given function on given node via RPC call. Returns 'ok'
 %% if function returns 'ok', otherwise throws an exception.
 %% @end
--spec execute(Node :: atom(), Module :: module(), Function :: atom(), Args :: term()) -> ok | no_return().
+-spec execute([{Node :: atom(), Module :: module(), Function :: atom(), Args :: term(), Description :: string()}]) -> ok | no_return().
 %% ====================================================================
-execute(Node, Module, Function, Args) ->
+execute([]) ->
+    ok;
+
+execute([{Node, Module, Function, Args, Description} | Tasks]) ->
+    print_info(Description),
     case rpc:call(Node, Module, Function, Args, ?RPC_TIMEOUT) of
-        ok -> ok;
-        {error, {hosts, Hosts}} -> throw({hosts, Hosts});
-        {error, Error} when is_list(Error) -> throw({exec, Error});
-        _ -> throw({exec, "Unknow error."})
+        ok ->
+            print_ok(),
+            execute(Tasks);
+        {error, {hosts, Hosts}} ->
+            throw({hosts, Hosts});
+        {error, Error} when is_list(Error) ->
+            throw({exec, Error});
+        _ ->
+            throw({exec, "Unknown error."})
     end.
 
 
@@ -470,7 +437,7 @@ print_info(Message) ->
 -spec print_ok() -> ok.
 %% ====================================================================
 print_ok() ->
-    io:format("[ OK ]\n").
+    io:format("[  OK  ]\n").
 
 
 %% print_error/0
@@ -480,5 +447,5 @@ print_ok() ->
 -spec print_error(Format :: string(), Args :: [term()]) -> ok.
 %% ====================================================================
 print_error(Format, Args) ->
-    io:format("[FAIL]\n"),
+    io:format("[FAILED]\n"),
     io:format(Format, Args).
