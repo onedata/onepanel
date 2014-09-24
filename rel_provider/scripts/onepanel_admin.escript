@@ -269,8 +269,8 @@ parse({config, Path}) ->
         open_files = proplists:get_value("Open files limit", Terms, []),
         processes = proplists:get_value("Processes limit", Terms, []),
         register = proplists:get_value("Register in Global Registry", Terms, no),
-        username = proplists:get_value("Username", Terms, "admin"),
-        password = proplists:get_value("Password", Terms, "password")
+        username = proplists:get_value("Username", Terms, <<"admin">>),
+        password = proplists:get_value("Password", Terms, <<"password">>)
     };
 
 parse({terms, Terms}) ->
