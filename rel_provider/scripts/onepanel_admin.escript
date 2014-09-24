@@ -37,7 +37,7 @@
 -define(EXIT_FAILURE, 1).
 
 %% Error logs filename
--define(LOG_FILE, "onepanel_admin.logs").
+-define(LOG_FILE, "onepanel_admin.log").
 
 %% Local onepanel node
 -define(NODE, setup_node).
