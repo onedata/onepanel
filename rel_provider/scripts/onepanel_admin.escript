@@ -36,6 +36,9 @@
 -define(EXIT_SUCCESS, 0).
 -define(EXIT_FAILURE, 1).
 
+%% Error logs filename
+-define(LOG_FILE, "onepanel_admin.logs").
+
 %% Local onepanel node
 -define(NODE, setup_node).
 
@@ -170,8 +173,10 @@ install(Path) ->
         _:{exec, Reason} when is_list(Reason) ->
             print_error("Operation error: ~s\n", [Reason]),
             halt(?EXIT_FAILURE);
-        _:_ ->
-            print_error("An error occurred during operation.\n", []),
+        Error:Reason ->
+            Log = io_lib:fwrite("Error: ~p~nReason: ~p~nStacktrace: ~p~n", [Error, Reason, erlang:get_stacktrace()]),
+            file:write_file(?LOG_FILE, Log),
+            io:format("An error occured. See ~s for more information.~n", [?LOG_FILE]),
             halt(?EXIT_FAILURE)
     end.
 
