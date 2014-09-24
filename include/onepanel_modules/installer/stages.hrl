@@ -50,7 +50,7 @@
 -define(STAGE_IDLE, idle).
 -define(STAGE_INIT, init).
 -define(STAGE_DB, installer_db).
--define(STAGE_GLOBALREGISTRY, installer_globalregistry).
+-define(STAGE_GLOBALREGISTRY, installer_gr).
 -define(STAGE_FINAL, installer_utils_adapter).
 
 %% Installer jobs

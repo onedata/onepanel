@@ -48,7 +48,10 @@
 %% * open_files         - list of pairs hostname and open files limit on this host
 %% * processes          - list of pairs hostname and processes limit on this host
 %% * register           - yes/no value that describes whether register provider in Global Registry
--record(config, {main_ccm, ccms = [], workers = [], dbs = [], storage_paths = [], open_files = [], processes = [], register = no}).
+%% * username           - user's name
+%% * password           - user's password
+-record(config, {main_ccm, ccms = [], workers = [], dbs = [], storage_paths = [],
+    open_files = [], processes = [], register = no, username = <<"admin">>, password = <<"password">>}).
 
 %% API
 -export([main/1]).
@@ -106,7 +109,9 @@ install(Path) ->
             storage_paths = StoragePaths,
             open_files = OpenFiles,
             processes = Processes,
-            register = Register
+            register = Register,
+            username = Username,
+            password = Password
         } = parse({config, Path}),
         AllHosts = lists:usort(CCMs ++ Workers ++ Dbs),
 
@@ -129,7 +134,7 @@ install(Path) ->
 
         ok = execute([
             {Node, installer_db, install, [[{dbs, Dbs}]], "Installing database nodes..."},
-            {Node, installer_db, start, [[{dbs, Dbs}]], "Starting database nodes..."},
+            {Node, installer_db, start, [[{dbs, Dbs}, {username, Username}, {password, Password}]], "Starting database nodes..."},
             {Node, installer_ccm, install, [[{ccms, CCMs}]], "Installing ccm nodes..."},
             {Node, installer_ccm, start, [[{main_ccm, MainCCM}, {ccms, CCMs}]], "Starting ccm nodes..."},
             {Node, installer_worker, install, [[{workers, Workers}]], "Installing worker nodes..."},
@@ -159,7 +164,7 @@ install(Path) ->
             print_error("Configuration error: ~s\n", [Reason]),
             halt(?EXIT_FAILURE);
         _:{hosts, Hosts} when is_list(Hosts) ->
-            io:format("[FAIL]\n"),
+            io:format("[FAILED]\n"),
             format_hosts("Operation failed on following hosts:", Hosts),
             halt(?EXIT_FAILURE);
         _:{exec, Reason} when is_list(Reason) ->
@@ -229,7 +234,7 @@ uninstall() ->
         ])
     catch
         _:{hosts, Hosts} when is_list(Hosts) ->
-            io:format("[FAIL]\n"),
+            io:format("[FAILED]\n"),
             format_hosts("Operation failed on following hosts:", Hosts),
             halt(?EXIT_FAILURE);
         _:{exec, Reason} when is_list(Reason) ->
@@ -258,7 +263,9 @@ parse({config, Path}) ->
         storage_paths = proplists:get_value("Storage paths", Terms, []),
         open_files = proplists:get_value("Open files limit", Terms, []),
         processes = proplists:get_value("Processes limit", Terms, []),
-        register = proplists:get_value("Register in Global Registry", Terms, no)
+        register = proplists:get_value("Register in Global Registry", Terms, no),
+        username = proplists:get_value("Username", Terms, "admin"),
+        password = proplists:get_value("Password", Terms, "password")
     };
 
 parse({terms, Terms}) ->

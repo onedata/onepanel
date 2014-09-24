@@ -98,7 +98,7 @@ create() ->
 delete() ->
     try
         Node = node(),
-        Tables = lists:filter(fun({Table, _}) -> Table =/= schema end, ?TABLES),
+        Tables = lists:map(fun({Table, _, _}) -> Table end, ?TABLES),
         lists:foreach(fun(Table) ->
             {atomic, ok} = mnesia:del_table_copy(Table, Node)
         end, Tables),
@@ -128,7 +128,7 @@ add_node(Node) ->
             {aborted, {already_exists, schema, Node, disc_copies}} -> ok;
             ChangeTypeError -> throw(ChangeTypeError)
         end,
-        Tables = lists:filter(fun(Table) -> Table =/= schema end, mnesia:system_info(tables)),
+        Tables = lists:map(fun({Table, _, _}) -> Table end, ?TABLES),
         lists:foreach(fun(Table) ->
             Type = mnesia:table_info(Table, storage_type),
             {atomic, ok} = mnesia:add_table_copy(Table, Node, Type)
@@ -136,7 +136,7 @@ add_node(Node) ->
         ok
     catch
         _:Reason ->
-            ?error("Cannot add database node to cluster: ~p", [Reason]),
+            ?error("Cannot add node ~p to database cluster: ~p", [Node, Reason]),
             {error, Reason}
     end.
 

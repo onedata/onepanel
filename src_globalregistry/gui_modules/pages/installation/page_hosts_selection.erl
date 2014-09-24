@@ -231,10 +231,17 @@ event(init) ->
         {ok, SessionConfig} = onepanel_gui_utils:get_session_config(),
         State = case {SessionConfig#?CONFIG.gr, Hosts} of
                     {undefined, [_]} ->
-                        #?STATE{hosts = Hosts, gr_checkbox_id = <<"gr_checkbox_1">>,
+                        #?STATE{hosts = Hosts, gr_checkbox_id = <<"1">>,
                             db_config = DbConfig, session_config = SessionConfig#?CONFIG{gr = hd(Hosts), dbs = Hosts}};
                     _ ->
-                        #?STATE{hosts = Hosts, db_config = DbConfig, session_config = SessionConfig}
+                        Map = lists:zip(lists:sort(Hosts), tl(lists:seq(0, length(Hosts)))),
+                        case lists:keyfind(SessionConfig#?CONFIG.gr, 1, Map) of
+                            {_, Index} ->
+                                #?STATE{gr_checkbox_id = integer_to_binary(Index), hosts = Hosts,
+                                    db_config = DbConfig, session_config = SessionConfig};
+                            _ ->
+                                #?STATE{hosts = Hosts, db_config = DbConfig, session_config = SessionConfig}
+                        end
                 end,
 
         gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),

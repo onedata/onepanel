@@ -38,7 +38,9 @@
 %% * dbs        - list of hostnames of machines where database nodes are configured
 %% * open_files - list of pairs hostname and open files limit on this host
 %% * processes  - list of pairs hostname and processes limit on this host
--record(config, {gr, dbs = [], open_files = [], processes = []}).
+%% * username   - user's name
+%% * password   - user's password
+-record(config, {gr, dbs = [], open_files = [], processes = [], username = <<"admin">>, password = <<"password">>}).
 
 %% API
 -export([main/1]).
@@ -92,7 +94,9 @@ install(Path) ->
             gr = GR,
             dbs = Dbs,
             open_files = OpenFiles,
-            processes = Processes
+            processes = Processes,
+            username = Username,
+            password = Password
         } = parse({config, Path}),
         AllHosts = lists:usort([GR | Dbs]),
 
@@ -111,7 +115,7 @@ install(Path) ->
 
         ok = execute([
             {Node, installer_db, install, [[{dbs, Dbs}]], "Installing database nodes..."},
-            {Node, installer_db, start, [[{dbs, Dbs}]], "Starting database nodes..."},
+            {Node, installer_db, start, [[{dbs, Dbs}, {username, Username}, {password, Password}]], "Starting database nodes..."},
             {Node, installer_gr, install, [[{gr, GR}]], "Installing Global Registry node..."},
             {Node, installer_gr, start, [[{gr, GR}]], "Starting Global Registry node..."},
             {Node, installer_utils_adapter, finalize_installation, [[]], "Finalizing installation..."}
@@ -121,7 +125,7 @@ install(Path) ->
             print_error("Configuration error: ~s\n", [Reason]),
             halt(?EXIT_FAILURE);
         _:{hosts, Hosts} when is_list(Hosts) ->
-            io:format("[FAIL]\n"),
+            io:format("[FAILED]\n"),
             format_hosts("Operation failed on following hosts:", Hosts),
             halt(?EXIT_FAILURE);
         _:{exec, Reason} when is_list(Reason) ->
@@ -180,7 +184,7 @@ uninstall() ->
         ])
     catch
         _:{hosts, Hosts} when is_list(Hosts) ->
-            io:format("[FAIL]\n"),
+            io:format("[FAILED]\n"),
             format_hosts("Operation failed on following hosts:", Hosts),
             halt(?EXIT_FAILURE);
         _:{exec, Reason} when is_list(Reason) ->
@@ -205,7 +209,9 @@ parse({config, Path}) ->
         gr = proplists:get_value("Global Registry host", Terms),
         dbs = proplists:get_value("Database hosts", Terms, []),
         open_files = proplists:get_value("Open files limit", Terms, []),
-        processes = proplists:get_value("Processes limit", Terms, [])
+        processes = proplists:get_value("Processes limit", Terms, []),
+        username = proplists:get_value("Username", Terms, "admin"),
+        password = proplists:get_value("Password", Terms, "password")
     };
 
 parse({terms, Terms}) ->
