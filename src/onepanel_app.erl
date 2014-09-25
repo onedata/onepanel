@@ -32,7 +32,7 @@
 -define(COWBOY_BRIDGE_MODULE, n2o_handler).
 
 % Paths in gui static directory
--define(STATIC_PATHS, ["/css/", "/fonts/", "/images/", "/n2o/", "/flatui/"]).
+-define(STATIC_PATHS, ["/css/", "/fonts/", "/images/", "/n2o/", "/flatui/", "/js/"]).
 
 %% ====================================================================
 %% Application callbacks

@@ -226,8 +226,7 @@ comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimit
                                     gui_jq:css(LimitId, <<"border-color">>, <<"green">>),
                                     HostStatus
                                 catch
-                                    _:A ->
-                                        ?dump(A),
+                                    _:_ ->
                                         gui_jq:css(LimitId, <<"border-color">>, <<"red">>),
                                         error
                                 end

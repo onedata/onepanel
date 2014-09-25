@@ -196,7 +196,7 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                     [<<"gui_port_textbox_", Id/binary>>, <<"rest_port_textbox_", Id/binary>> | TextboxIdsAcc]
                 end, [], Ports),
                 gui_jq:update(<<"ports_message">>, <<"By default provider's GUI Web pages are served on <b>",
-                DefaultGuiPort/binary, "</b> port<br>. REST API endpoints are available on <b>", DefaultRestPort/binary, "</b> port.<br>"
+                DefaultGuiPort/binary, "</b> port.<br>REST API endpoints are available on <b>", DefaultRestPort/binary, "</b> port.<br>"
                 "If your network configuration differs please provide port translations in the table below.">>),
                 gui_jq:update(<<"ports_table">>, ports_table(Ports)),
                 gui_jq:update(<<"nav_buttons">>, onepanel_gui_utils:nav_buttons([

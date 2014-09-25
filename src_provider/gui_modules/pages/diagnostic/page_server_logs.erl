@@ -59,7 +59,7 @@ main() ->
                     #dtl{file = "bare", app = ?SOFTWARE_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]}
             end;
         false ->
-            gui_jq:redirect_to_login(true),
+            gui_jq:redirect_to_login(),
             #dtl{file = "bare", app = ?SOFTWARE_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
     end.
 
@@ -71,7 +71,7 @@ title() -> <<"Server logs">>.
 % This will be placed instead of [[[body()]]] tag in template
 body() ->
     gui_jq:register_escape_event("escape_pressed"),
-    Header = onepanel_gui_utils:top_menu(diagnostics_tab, server_logs_link, logs_submenu()),
+    Header = onepanel_gui_utils_adapter:top_menu(diagnostics_tab, server_logs_link, logs_submenu()),
     Main = [
         #panel{style = <<"margin-top: 114px; z-index: -1;">>, body = main_table()},
         footer_popup()
@@ -142,8 +142,8 @@ logs_submenu() ->
                         body = #span{class = <<"fui-trash">>}, postback = clear_all_logs}}
                 ]},
                 #flatui_checkbox{
-                    style = <<"margin-top: 20px;">>,
-                    class = <<"checkbox pull-right">>,
+                    label_style = <<"margin: 18px 15px;">>,
+                    label_class = <<"checkbox pull-right">>,
                     checked = true,
                     body = <<"Auto scroll">>,
                     delegate = ?MODULE,

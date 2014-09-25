@@ -95,7 +95,7 @@ body() ->
             },
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
-                body = <<"The list below presents supported <i>Spaces</i>.">>
+                body = <<"Supported <i>Spaces</i> are presented in the table below.">>
             },
             onepanel_gui_utils:nav_buttons([
                 {<<"create_space_button">>, {postback, create_space}, true, <<"Create Space">>},

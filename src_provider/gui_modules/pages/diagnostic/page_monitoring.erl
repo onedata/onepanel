@@ -54,7 +54,7 @@ main() ->
                     #dtl{file = "bare", app = ?SOFTWARE_NAME, bindings = [{title, title()}, {body, body()}, {custom, custom()}]}
             end;
         false ->
-            gui_jq:redirect_to_login(true),
+            gui_jq:redirect_to_login(),
             #dtl{file = "bare", app = ?SOFTWARE_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
     end.
 
@@ -76,7 +76,7 @@ title() -> <<"Monitoring">>.
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(diagnostics_tab, monitoring_link, monitoring_submenu()),
+    Header = onepanel_gui_utils_adapter:top_menu(diagnostics_tab, monitoring_link, monitoring_submenu()),
     Main = #panel{
         style = <<"margin-top: 114px;">>,
         body = #table{

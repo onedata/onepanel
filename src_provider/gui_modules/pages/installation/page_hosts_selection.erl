@@ -249,7 +249,6 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFI
         end
                catch Type:Message ->
                    ?error("Comet process exception: ~p:~p", [Type, Message]),
-                   ?dump(erlang:get_stacktrace()),
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,

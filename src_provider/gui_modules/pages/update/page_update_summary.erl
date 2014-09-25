@@ -98,8 +98,8 @@ body() ->
                 style = UpdatePanelDisplay,
                 body = [
                     #flatui_checkbox{
-                        style = <<"width: 20px; margin: 0 auto;">>,
-                        class = <<"checkbox">>,
+                        label_style = <<"width: 20px; margin: 0 auto;">>,
+                        label_class = <<"checkbox">>,
                         delegate = ?MODULE,
                         postback = force_restart_checkbox_toggled,
                         body = <<"Force software components restart">>

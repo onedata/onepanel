@@ -111,29 +111,49 @@ body(ProviderId, URLs, RedirectionPoint) ->
 settings_table(ProviderId, URLs, RedirectionPoint) ->
     #table{
         style = <<"border-width: 0; width: 100%;">>,
-        body = lists:map(fun({DetailName, DetailTitle, DetailId, DetailBody}) ->
+        body = lists:map(fun({TooltipId, TooltipStyle, TooltipBody, LabelId, LabelBody, CellId, CellBody}) ->
             #tr{
                 cells = [
                     #td{
-                        style = <<"border-width: 0; text-align: right; padding: 1em 1em; width: 50%; vertical-align: top;">>,
-                        body = #flatui_label{
-                            style = <<"margin: 0 auto; cursor: auto;">>,
-                            class = <<"label label-large label-inverse">>,
-                            body = DetailName,
-                            title = DetailTitle
-                        }
+                        style = <<"border-width: 0; text-align: right; padding: 1em 1em; width: 50%; vertical-align: top; position: relative;">>,
+                        body = [
+                            #panel{
+                                id = TooltipId,
+                                class = <<"tooltip left in tooltip-light">>,
+                                style = TooltipStyle,
+                                body = [
+                                    #panel{
+                                        class = <<"tooltip-arrow">>
+                                    },
+                                    #panel{
+                                        class = <<"tooltip-inner">>,
+                                        style = <<"font-size: small; width: 200px;">>,
+                                        body = TooltipBody
+                                    }
+                                ]
+                            },
+                            #flatui_label{
+                                id = LabelId,
+                                style = <<"margin: 0 auto; cursor: auto;">>,
+                                class = <<"label label-large label-inverse label-tooltip">>,
+                                body = LabelBody
+                            }
+                        ]
                     },
                     #td{
-                        id = DetailId,
+                        id = CellId,
                         style = <<"border-width: 0;  text-align: left; padding: 1em 1em;">>,
-                        body = DetailBody
+                        body = CellBody
                     }
                 ]
             }
         end, [
-            {<<"Provider ID">>, <<"Globally unique identifier assigned by Global Registry.">>, <<"provider_id">>, providerId(ProviderId)},
-            {<<"URLs">>, <<"List of <i>worker</i> components' IP addresses visible for Global Registry.">>, <<"urls">>, urls(URLs)},
-            {<<"Redirection point">>, <<"Web address used by Global Registry to redirect users to provider.">>, <<"redirection_point">>, redirectionPoint(RedirectionPoint)}
+            {<<"provider_tooltip">>, <<"top: 0px; right: 110px; display: none;">>, <<"Globally unique identifier assigned by Global Registry.">>,
+                <<"provider_label">>, <<"Provider ID">>, <<"provider_id">>, providerId(ProviderId)},
+            {<<"urls_tooltip">>, <<"top: -10px; right: 73px; display: none;">>, <<"List of <i>worker</i> components' IP addresses visible for Global Registry.">>,
+                <<"urls_label">>, <<"URLs">>, <<"urls">>, urls(URLs)},
+            {<<"redirection_point_tooltip">>, <<"top: -10px; right: 143px; display: none;">>, <<"Web address used by Global Registry to redirect users to provider.">>,
+                <<"redirection_point_label">>, <<"Redirection point">>, <<"redirection_point">>, redirectionPoint(RedirectionPoint)}
         ])
     }.
 
@@ -241,6 +261,18 @@ redirectionPoint(RedirectionPoint) ->
 event(init) ->
     gui_jq:wire(#api{name = "unregister", tag = "unregister"}, false),
     gui_jq:bind_key_to_click(<<"13">>, <<"ok_button">>),
+    lists:foreach(fun({LabelId, TooltipId}) ->
+        gui_jq:wire(<<"$('#", LabelId/binary, "').hover(function() {"
+        "       $('#", TooltipId/binary, "').show();"
+        "   }, function() {"
+        "       $('#", TooltipId/binary, "').hide();"
+        "   }"
+        ");">>)
+    end, [
+        {<<"provider_label">>, <<"provider_tooltip">>},
+        {<<"urls_label">>, <<"urls_tooltip">>},
+        {<<"redirection_point_label">>, <<"redirection_point_tooltip">>}
+    ]),
     ok;
 
 event(to_root_page) ->
