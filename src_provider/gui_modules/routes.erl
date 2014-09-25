@@ -98,7 +98,7 @@ route(?PAGE_REGISTRATION_SUCCESS) -> page_registration_success;
 %% Spaces pages
 route(?PAGE_SPACE_DETAILS) -> page_space_details;
 route(?PAGE_SPACES_ACCOUNT) -> page_spaces_account;
-route(?PAGE_SPACES_DASHBOARD) -> page_spaces_dashboard;
+route(?PAGE_SPACES_MANAGEMENT) -> page_spaces_management;
 
 %% Undefined pages
 route(_) -> page_404.

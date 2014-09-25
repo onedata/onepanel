@@ -88,27 +88,21 @@ save_session(SessionID, Props, TillArg) ->
 -spec lookup_session(SessionID :: binary()) -> Props :: [tuple()] | undefined.
 %% ====================================================================
 lookup_session(SessionID) ->
-    case SessionID of
-        undefined ->
-            undefined;
-        _ ->
-            case ets:lookup(?SESSION_ETS, SessionID) of
-                [{SessionID, Props, Till}] ->
-                    % Check if the session isn't outdated
-                    {Megaseconds, Seconds, _} = now(),
-                    Now = Megaseconds * 1000000 + Seconds,
-                    case Till > Now of
-                        true ->
-                            Props;
-                        false ->
-                            delete_session(SessionID),
-                            undefined
-                    end;
-                _ ->
+    case ets:lookup(?SESSION_ETS, SessionID) of
+        [{SessionID, Props, Till}] ->
+            % Check if the session isn't outdated
+            {Megaseconds, Seconds, _} = now(),
+            Now = Megaseconds * 1000000 + Seconds,
+            case Till > Now of
+                true ->
+                    Props;
+                false ->
+                    delete_session(SessionID),
                     undefined
-            end
+            end;
+        _ ->
+            undefined
     end.
-
 
 %% delete_session/1
 %% ====================================================================

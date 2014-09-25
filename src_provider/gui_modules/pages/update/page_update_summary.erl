@@ -97,7 +97,7 @@ body() ->
                 id = <<"update_panel">>,
                 style = UpdatePanelDisplay,
                 body = [
-                    #custom_checkbox{
+                    #flatui_checkbox{
                         style = <<"width: 20px; margin: 0 auto;">>,
                         class = <<"checkbox">>,
                         postback = force_restart_checkbox_toggled,

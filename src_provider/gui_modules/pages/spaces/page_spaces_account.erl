@@ -111,15 +111,16 @@ body(ProviderId, URLs, RedirectionPoint) ->
 settings_table(ProviderId, URLs, RedirectionPoint) ->
     #table{
         style = <<"border-width: 0; width: 100%;">>,
-        body = lists:map(fun({DetailName, DetailId, DetailBody}) ->
+        body = lists:map(fun({DetailName, DetailTitle, DetailId, DetailBody}) ->
             #tr{
                 cells = [
                     #td{
                         style = <<"border-width: 0; text-align: right; padding: 1em 1em; width: 50%; vertical-align: top;">>,
-                        body = #label{
+                        body = #flatui_label{
                             style = <<"margin: 0 auto; cursor: auto;">>,
                             class = <<"label label-large label-inverse">>,
-                            body = DetailName
+                            body = DetailName,
+                            title = DetailTitle
                         }
                     },
                     #td{
@@ -130,9 +131,9 @@ settings_table(ProviderId, URLs, RedirectionPoint) ->
                 ]
             }
         end, [
-            {<<"Provider ID">>, <<"provider_id">>, providerId(ProviderId)},
-            {<<"URLs">>, <<"urls">>, urls(URLs)},
-            {<<"Redirection point">>, <<"redirection_point">>, redirectionPoint(RedirectionPoint)}
+            {<<"Provider ID">>, <<"Globally unique identifier assigned by Global Registry.">>, <<"provider_id">>, providerId(ProviderId)},
+            {<<"URLs">>, <<"List of <i>worker</i> components' IP addresses visible for Global Registry.">>, <<"urls">>, urls(URLs)},
+            {<<"Redirection point">>, <<"Web address used by Global Registry to redirect users to provider.">>, <<"redirection_point">>, redirectionPoint(RedirectionPoint)}
         ])
     }.
 

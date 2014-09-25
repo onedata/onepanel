@@ -9,7 +9,7 @@
 %% This page allows to manage provider spaces.
 %% @end
 %% ===================================================================
--module(page_spaces_dashboard).
+-module(page_spaces_management).
 
 -include("gui_modules/common.hrl").
 -include_lib("ctool/include/logging.hrl").
@@ -64,7 +64,7 @@ main() ->
     Result :: binary().
 %% ====================================================================
 title() ->
-    <<"Spaces setting">>.
+    <<"Spaces management">>.
 
 
 %% custom/0

@@ -144,7 +144,7 @@ logs_submenu() ->
                         #li{body = #link{title = <<"Clear all logs">>, style = <<"padding: 18px 14px;">>,
                             body = #span{class = <<"fui-trash">>}, postback = clear_all_logs}}
                     ]},
-                    #custom_checkbox{
+                    #flatui_checkbox{
                         style = <<"margin-top: 20px;">>,
                         class = <<"checkbox pull-right">>,
                         checked = true,

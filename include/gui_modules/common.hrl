@@ -18,16 +18,6 @@
 -include("registered_names.hrl").
 -include_lib("ctool/include/gui/common.hrl").
 
--record(custom_checkbox, {
-    ?ELEMENT_BASE(element_custom_checkbox),
-    autofocus,
-    checked = false,
-    disabled,
-    name,
-    value,
-    postback
-}).
-
 %% Delay in miliseconds after which comet process will reload it's code
 -define(COMET_PROCESS_RELOAD_DELAY, 5000).
 

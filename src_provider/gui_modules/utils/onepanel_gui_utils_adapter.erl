@@ -96,7 +96,7 @@ top_menu(ActiveTabID, ActiveLinkID, Submenu, Spinner) ->
             #link{style = "padding: 18px;", url = ?PAGE_SPACES_ACCOUNT, body = <<"Spaces">>},
             #list{style = "top: 37px; width: 120px;", body = Process(ActiveLinkID, [
                 {spaces_account_link, #li{body = #link{url = ?PAGE_SPACES_ACCOUNT, body = <<"Account">>}}},
-                {spaces_dashboard_link, #li{body = #link{url = ?PAGE_SPACES_DASHBOARD, body = <<"Dashboard">>}}}
+                {spaces_dashboard_link, #li{body = #link{url = ?PAGE_SPACES_MANAGEMENT, body = <<"Management">>}}}
             ])}
         ]}}
     ]),

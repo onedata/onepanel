@@ -124,9 +124,10 @@ hosts_table(Hosts, DbConfig, PageConfig) ->
                     body = <<"<b>", (gui_str:html_encode(Host))/binary, "</b>">>,
                     style = ColumnStyle
                 } | lists:map(fun({Prefix, Checked, Disabled}) ->
+                    flatui_checkbox:init_checkbox(<<Prefix/binary, HostId/binary>>),
                     #td{
                         style = ColumnStyle,
-                        body = #custom_checkbox{
+                        body = #flatui_checkbox{
                             id = <<Prefix/binary, HostId/binary>>,
                             style = <<"width: 20px; margin: 0 auto;">>,
                             class = <<"checkbox no-label">>,
