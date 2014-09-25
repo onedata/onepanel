@@ -133,6 +133,7 @@ hosts_table(Hosts, DbConfig, PageConfig) ->
                             class = <<"checkbox no-label">>,
                             checked = Checked,
                             disabled = Disabled,
+                            delegate = ?MODULE,
                             postback = {message, {binary_to_atom(<<Prefix/binary, "toggled">>, latin1), Host, HostId, Disabled}}
                         }
                     }

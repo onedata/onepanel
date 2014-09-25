@@ -129,10 +129,11 @@ hosts_table(Hosts, DbConfig, PageConfig) ->
                         style = ColumnStyle,
                         body = #flatui_checkbox{
                             id = <<Prefix/binary, HostId/binary>>,
-                            style = <<"width: 20px; margin: 0 auto;">>,
-                            class = <<"checkbox no-label">>,
+                            label_style = <<"width: 20px; margin: 0 auto;">>,
+                            label_class = <<"checkbox no-label">>,
                             checked = Checked,
                             disabled = Disabled,
+                            delegate = ?MODULE,
                             postback = {message, {binary_to_atom(<<Prefix/binary, "toggled">>, latin1), Host, HostId, Disabled}}
                         }
                     }
@@ -207,7 +208,7 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFI
                             true ->
                                 State#?STATE{session_config = SessionConfig#?CONFIG{ccms = [Host | CCMs]}};
                             false ->
-                                gui_jq:click(<<"worker_checkbox_", HostId/binary>>),
+                                gui_jq:wire(<<"worker_checkbox_", HostId/binary>>, <<"trigger">>, <<"click">>,false),
                                 State#?STATE{session_config = SessionConfig#?CONFIG{ccms = [Host | CCMs], workers = [Host | Workers]}}
                         end
                 end;
@@ -217,7 +218,7 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFI
                     true ->
                         case lists:member(Host, CCMs) of
                             true ->
-                                gui_jq:click(<<"ccm_checkbox_", HostId/binary>>),
+                                gui_jq:wire(<<"ccm_checkbox_", HostId/binary>>, <<"trigger">>, <<"click">>,false),
                                 case Host of
                                     MainCCM ->
                                         State#?STATE{session_config = SessionConfig#?CONFIG{main_ccm = undefined, ccms = lists:delete(Host, CCMs), workers = lists:delete(Host, Workers)}};
@@ -247,6 +248,7 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFI
         end
                catch Type:Message ->
                    ?error("Comet process exception: ~p:~p", [Type, Message]),
+                   ?dump(erlang:get_stacktrace()),
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,

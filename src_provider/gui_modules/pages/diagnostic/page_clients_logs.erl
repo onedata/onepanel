@@ -149,6 +149,7 @@ logs_submenu() ->
                         class = <<"checkbox pull-right">>,
                         checked = true,
                         body = <<"Auto scroll">>,
+                        delegate = ?MODULE,
                         postback = toggle_auto_scroll
                     }
                 ]}
