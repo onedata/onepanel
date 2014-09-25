@@ -76,7 +76,10 @@ body() ->
                                            body = <<"Successful installation">>
                                        },
                                        #p{
-                                           body = <<"Would you like to register as a provider?">>
+                                           body = <<"Would you like to register as a provider?<br>"
+                                           "<strong>Provider</strong> in <strong>onedata</strong> ",
+                                           "is anyone who decides to support storage spaces for onedata users."
+                                           >>
                                        },
                                        #link{
                                            postback = to_root_page,

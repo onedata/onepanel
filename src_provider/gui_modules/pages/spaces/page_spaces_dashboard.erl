@@ -9,7 +9,7 @@
 %% This page allows to manage provider spaces.
 %% @end
 %% ===================================================================
--module(page_spaces_settings).
+-module(page_spaces_dashboard).
 
 -include("gui_modules/common.hrl").
 -include_lib("ctool/include/logging.hrl").
@@ -85,7 +85,7 @@ custom() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils_adapter:top_menu(spaces_tab, spaces_settings_link, [], true),
+    Header = onepanel_gui_utils_adapter:top_menu(spaces_tab, spaces_dashboard_link, [], true),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [

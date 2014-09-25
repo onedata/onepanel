@@ -83,8 +83,8 @@ body() ->
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
                 body = <<"The table below presents a list of hosts where software package installation has been detected.<br>"
-                " To configure application please distribute software components throughout available hosts by selecting"
-                " corresponding checkboxes.">>
+                " In order to configure application please distribute software components over available hosts by selecting"
+                " checkboxes.">>
             },
             #table{
                 id = <<"hosts_table">>,

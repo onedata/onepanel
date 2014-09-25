@@ -368,7 +368,7 @@ event(init) ->
         installer:set_callback(fun(Event, State) -> installation_progress(Event, State, Pid) end)
     catch
         _:Reason ->
-            ?error("Cannot fetch application configuration: ~p", [Reason]),
+            ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch application configuration.<br>Please try again later.">>)
     end;
 

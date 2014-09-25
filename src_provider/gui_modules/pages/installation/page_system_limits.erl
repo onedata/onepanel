@@ -85,7 +85,7 @@ body() ->
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
                 body = <<"Proper system limits configuration is essential for <i>database</i> components to"
-                " work correctly.">>
+                " work correctly. It is not recommended to change the default values.">>
             },
             #table{
                 id = <<"system_limits_table">>,

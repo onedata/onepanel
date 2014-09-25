@@ -85,7 +85,7 @@ body() ->
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
                 body = <<"Proper system limits configuration is essential for <i>database</i> components to"
-                " work correctly.">>
+                " work correctly. It is not recommended to change the default values.">>
             },
             #table{
                 id = <<"system_limits_table">>,
@@ -293,7 +293,7 @@ event(init) ->
         Pid ! render_system_limits_table
     catch
         _:Reason ->
-            ?error("Cannot fetch application configuration: ~p", [Reason]),
+            ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch application configuration.<br>Please try again later.">>)
     end;
 

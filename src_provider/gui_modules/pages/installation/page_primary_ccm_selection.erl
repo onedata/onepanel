@@ -80,7 +80,7 @@ body() ->
                 " application components. However, it is not possible for more than one <i>CCM</i> component"
                 " to run simultaneously. Therefore, it is required to select primary <i>CCM</i> component"
                 " which will execute aforementioned tasks, while other <i>CCM</i> components will wait"
-                " and in case of primary <i>CCM</i> breakdown take over it's duties.">>
+                " and in case of primary <i>CCM</i> breakdown take over its duties.">>
             },
             #panel{
                 class = <<"btn-group">>,

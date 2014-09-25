@@ -69,7 +69,7 @@
 %% Spaces pages
 -define(PAGE_SPACE_DETAILS, <<"/spaces">>).
 -define(PAGE_SPACES_ACCOUNT, <<"/spaces/account">>).
--define(PAGE_SPACES_SETTINGS, <<"/spaces/settings">>).
+-define(PAGE_SPACES_DASHBOARD, <<"/spaces/dashboard">>).
 
 -endif.
 
