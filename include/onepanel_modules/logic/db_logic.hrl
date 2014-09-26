@@ -26,7 +26,7 @@
     {?PROVIDER_TABLE, ?PROVIDER_RECORD, record_info(fields, ?PROVIDER_RECORD)},
     {?GLOBAL_CONFIG_TABLE, ?GLOBAL_CONFIG_RECORD, record_info(fields, ?GLOBAL_CONFIG_RECORD)},
     {?LOCAL_CONFIG_TABLE, ?LOCAL_CONFIG_RECORD, record_info(fields, ?LOCAL_CONFIG_RECORD)},
-    {?UPDATER_STATE_TABLE, ?u_state, record_info(fields, ?u_state)}
+    {?UPDATER_STATE_TABLE, ?U_STATE, record_info(fields, ?U_STATE)}
 ]).
 
 -endif.

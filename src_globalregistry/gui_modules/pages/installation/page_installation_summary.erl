@@ -211,7 +211,7 @@ get_info_message(_) -> <<"">>.
 %% @doc Callback function called by installer gen_server which updates
 %% installation progress bar.
 %% @end
--spec installation_progress(Event :: atom(), State :: #?i_state{}, Pid :: pid()) -> no_return().
+-spec installation_progress(Event :: atom(), State :: #?I_STATE{}, Pid :: pid()) -> no_return().
 %% ====================================================================
 installation_progress(?EVENT_ERROR, State, Pid) ->
     case installer:get_error(State) of
@@ -277,8 +277,8 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                             installation_progress(Event, InstallerState, Pid)
                         end);
                     Other ->
-                        ?error("Cannot get password to administration database for user ~p: ~p", [Username, Other]),
-                        onepanel_gui_utils:message(<<"error_message">>, <<"Cannot get password to administration database for user: ", Username/binary>>)
+                        ?error("Cannot get password to administrative database for user ~p: ~p", [Username, Other]),
+                        onepanel_gui_utils:message(<<"error_message">>, <<"Cannot get password to administrative database for user: ", Username/binary>>)
                 end,
                 State;
 

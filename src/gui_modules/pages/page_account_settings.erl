@@ -75,7 +75,7 @@ body() ->
             },
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
-                body = <<"Any change to username or password is also done for account in administration database.">>
+                body = <<"Any change to username or password is also done for account in administrative database.">>
             },
             settings_table()
         ]
