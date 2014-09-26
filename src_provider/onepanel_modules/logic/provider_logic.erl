@@ -19,7 +19,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([register/0, unregister/0, create_csr/3]).
+-export([register/1, unregister/0, create_csr/3]).
 -export([get_default_ports/0, get_provider_id/0]).
 
 -on_load(init/0).
@@ -52,16 +52,16 @@ create_csr(_, _, _) ->
     throw("NIF library not loaded.").
 
 
-%% register/0
+%% register/1
 %% ====================================================================
 %% @doc Registers provider in Global Registry. In case of successful
 %% registration generated private key and certificate are save on all
 %% hosts. Returns provider ID or an error.
 %% @end
--spec register() -> Result when
+-spec register(ClientName :: binary()) -> Result when
     Result :: {ok, ProviderId :: binary()} | {error, Reason :: term()}.
 %% ====================================================================
-register() ->
+register(ClientName) ->
     try
         {ok, KeyFile} = application:get_env(?APP_NAME, grpkey_path),
         {ok, KeyName} = application:get_env(?APP_NAME, grpkey_name),
@@ -85,7 +85,7 @@ register() ->
             URL
         end, Workers),
         RedirectionPoint = <<"https://", IpAddress/binary, ":", (integer_to_binary(GuiPort))/binary>>,
-        Parameters = [{<<"urls">>, URLs}, {<<"csr">>, CSR}, {<<"redirectionPoint">>, RedirectionPoint}],
+        Parameters = [{<<"urls">>, URLs}, {<<"csr">>, CSR}, {<<"redirectionPoint">>, RedirectionPoint}, {<<"clientName">>, ClientName}],
         {ok, ProviderId, Cert} = gr_providers:register(provider, Parameters),
 
         %% Save provider ID and certifiacte on all hosts

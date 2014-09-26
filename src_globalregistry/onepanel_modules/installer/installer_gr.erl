@@ -180,7 +180,7 @@ local_start([FirstDb | Dbs]) ->
 
         DbNames = lists:foldl(fun(Db, Acc) ->
             <<"'", (list_to_binary(?DEFAULT_DB_NAME))/binary, "@", (list_to_binary(Db))/binary, "', ", Acc/binary>>
-        end, <<"'", (list_to_binary(FirstDb))/binary, "'">>, Dbs),
+        end, <<"'", (list_to_binary(?DEFAULT_DB_NAME))/binary, "@", (list_to_binary(FirstDb))/binary, "'">>, Dbs),
 
         ok = installer_utils:overwrite_config_args(?APP_CONFIG_PATH, <<"db_nodes, ">>, <<"[^\]]*">>, <<"[", DbNames/binary>>),
         ok = installer_utils:overwrite_config_args(?APP_CONFIG_PATH, <<"rest_cert_domain, \"">>, <<"[^\"]*">>, <<"onedata.org">>),

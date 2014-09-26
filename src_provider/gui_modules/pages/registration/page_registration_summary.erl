@@ -82,7 +82,13 @@ body() ->
             },
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
-                body = <<"You software configuration has been successfully verified.">>
+                body = <<"Your software configuration has been successfully verified.<br>"
+                "Please enter your <i>onedata</i> provider name.">>
+            },
+            #textbox{
+                id = <<"client_name">>,
+                placeholder = <<"Provider name">>,
+                style = <<"margin: 0 auto; width: 25%;">>
             },
             #panel{
                 id = <<"progress">>,
@@ -102,7 +108,7 @@ body() ->
             },
             onepanel_gui_utils:nav_buttons([
                 {<<"back_button">>, {postback, back}, false, <<"Back">>},
-                {<<"register_button">>, {postback, register}, false, <<"Register">>}
+                {<<"register_button">>, {actions, gui_jq:form_submit_action(<<"register_button">>, register, [<<"client_name">>])}, false, <<"Register">>}
             ])
         ]
     },
@@ -138,9 +144,9 @@ comet_loop({error, Reason}) ->
 comet_loop(#?STATE{attempt = Attempt, pid = Pid} = State) ->
     NewState = try
         receive
-            register ->
+            {register, ClientName} ->
                 NewPid = spawn_link(fun() ->
-                    {ok, _} = provider_logic:register()
+                    {ok, _} = provider_logic:register(ClientName)
                 end),
                 erlang:send_after(?REGISTRATION_TIMEOUT, self(), {registration_failure, Attempt}),
                 State#?STATE{pid = NewPid};
@@ -148,6 +154,7 @@ comet_loop(#?STATE{attempt = Attempt, pid = Pid} = State) ->
             {registration_failure, Attempt} ->
                 onepanel_gui_utils:message(<<"error_message">>, <<"Cannot register in <i>Global Registry</i>.<br>Please try again later.">>),
                 gui_jq:hide(<<"progress">>),
+                gui_jq:show(<<"client_name">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
                 gui_jq:prop(<<"register_button">>, <<"disabled">>, <<"">>),
                 State#?STATE{attempt = Attempt + 1};
@@ -182,6 +189,7 @@ comet_loop(#?STATE{attempt = Attempt, pid = Pid} = State) ->
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->
+    gui_jq:focus(<<"client_name">>),
     gui_jq:bind_key_to_click(<<"13">>, <<"register_button">>),
     {ok, Pid} = gui_comet:spawn(fun() -> comet_loop_init() end),
     put(?COMET_PID, Pid);
@@ -190,10 +198,16 @@ event(back) ->
     onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_PORTS_CHECK);
 
 event(register) ->
-    get(?COMET_PID) ! register,
-    gui_jq:show(<<"progress">>),
-    gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
-    gui_jq:prop(<<"register_button">>, <<"disabled">>, <<"disabled">>);
+    case gui_ctx:postback_param(<<"client_name">>) of
+        <<>> ->
+            onepanel_gui_utils:message(<<"error_message">>, <<"Please enter provider name.">>);
+        ClientName ->
+            get(?COMET_PID) ! {register, ClientName},
+            gui_jq:hide(<<"client_name">>),
+            gui_jq:show(<<"progress">>),
+            gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
+            gui_jq:prop(<<"register_button">>, <<"disabled">>, <<"disabled">>)
+    end;
 
 event({close_message, MessageId}) ->
     gui_jq:hide(MessageId);
