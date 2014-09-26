@@ -17,14 +17,14 @@
 
 -include_lib("gui_modules/common.hrl").
 
-% Cowboy API
+%% Cowboy API
 -export([init/3, handle/2, terminate/3]).
 
-% Bridge abstraction
+%% Bridge abstraction
 -export([params/1, path/1, request_body/1, headers/1, header/3, response/2, reply/2]).
 -export([cookies/1, cookie/2, cookie/3, cookie/5, delete_cookie/2, peer/1]).
 
-% Handler state record
+%% Handler state record
 -record(state, {headers, body}).
 
 

@@ -17,11 +17,11 @@
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 
-% n2o API and comet
+%% n2o API and comet
 -export([main/0, event/1, api_event/3, comet_loop/2]).
 
-% Record used to store user preferences. One instance is kept in comet process, another one
-% is remembered in page state for filter options to be persistent
+%% Record used to store user preferences. One instance is kept in comet process, another one
+%% is remembered in page state for filter options to be persistent
 -record(page_state, {
     loglevel = debug,
     auto_scroll = true,
@@ -32,17 +32,17 @@
     pid
 }).
 
-% Widths of columns
+%% Widths of columns
 -define(SEVERITY_COLUMN_STYLE, "width: 90px; padding: 6px 12px;").
 -define(TIME_COLUMN_STYLE, "width: 150px; padding: 6px 12px;").
 -define(MESSAGE_COLUMN_STYLE, "padding: 6px 12px;").
 -define(METADATA_COLUMN_STYLE, "width: 340px; padding: 6px 12px;").
 
-% Prefixes used to generate IDs for logs
+%% Prefixes used to generate IDs for logs
 -define(COLLAPSED_LOG_ROW_ID_PREFIX, "clr").
 -define(EXPANDED_LOG_ROW_ID_PREFIX, "elr").
 
-% Available options of max log count
+%% Available options of max log count
 -define(MAX_LOGS_OPTIONS, [20, 50, 200, 500, 1000, 2000]).
 
 -define(INFINITY, 10000000000000000000).
@@ -68,7 +68,7 @@ main() ->
 title() -> <<"Clients logs">>.
 
 
-% This will be placed instead of [[[body()]]] tag in template
+%% This will be placed instead of [[[body()]]] tag in template
 body() ->
     gui_jq:register_escape_event("escape_pressed"),
     Header = onepanel_gui_utils_adapter:top_menu(diagnostics_tab, clients_logs_link, logs_submenu()),
@@ -79,7 +79,7 @@ body() ->
     onepanel_gui_utils:body(Header, Main).
 
 
-% Submenu that will end up concatenated to top menu
+%% Submenu that will end up concatenated to top menu
 logs_submenu() ->
     MarginStyle = <<"margin: 10px 15px;">>,
     [
@@ -157,7 +157,7 @@ logs_submenu() ->
     ].
 
 
-% Main table displaying logs
+%% Main table displaying logs
 main_table() ->
     #table{id = <<"main_table">>, class = <<"table">>,
         style = <<"border-radius: 0; margin-bottom: 0; table-layout: fixed; width: 100%;">>,
@@ -171,14 +171,14 @@ main_table() ->
         ]}.
 
 
-% Footer popup panel containing filter preferences
+%% Footer popup panel containing filter preferences
 footer_popup() ->
     #panel{class = <<"dialog success-dialog wide hidden">>,
         style = <<"z-index: 2; position:fixed; bottom: 0; margin-bottom: 0px; padding: 20px 0px; width: 100%;">>,
         id = <<"footer_popup">>, body = []}.
 
 
-% This will be placed in footer_popup after user selects to edit logs
+%% This will be placed in footer_popup after user selects to edit logs
 filters_panel() ->
     CloseButton = #link{postback = hide_filters_popup, title = <<"Hide">>, class = <<"glyph-link">>,
         style = <<"position: absolute; top: 8px; right: 8px; z-index: 3;">>,
@@ -194,7 +194,7 @@ filters_panel() ->
     ].
 
 
-% This will be placed in footer_popup after user selects to edit logs
+%% This will be placed in footer_popup after user selects to edit logs
 manage_clients_panel() ->
     CloseButton = #link{postback = hide_filters_popup, title = <<"Hide">>, class = <<"glyph-link">>,
         style = <<"position: absolute; top: 8px; right: 8px; z-index: 3;">>,
@@ -307,7 +307,7 @@ client_row(ID, Selected, UserName, FuseID) ->
     {Row, Identifier}.
 
 
-% Creates a set of elements used to edit filter preferences of a single filter
+%% Creates a set of elements used to edit filter preferences of a single filter
 filter_form(FilterType) ->
     #span{style = <<"display: inline-block; position: relative; height: 42px; margin-bottom: 15px; width: 410px; text-align: left;">>, body = [
         #label{id = get_filter_label(FilterType), style = <<"display: inline; margin: 9px 14px;">>,
@@ -327,7 +327,7 @@ filter_form(FilterType) ->
     ]}.
 
 
-% Remebering which clients are selected on the list
+%% Remebering which clients are selected on the list
 set_selected_clients(List) ->
     put(selected_clients, List).
 
@@ -338,14 +338,14 @@ get_selected_clients() ->
     end.
 
 
-% Initialization of comet loop - trap_exit=true so we can control when a session terminates and
-% the process should be removed from central_logger subscribers
+%% Initialization of comet loop - trap_exit=true so we can control when a session terminates and
+%% the process should be removed from central_logger subscribers
 comet_loop_init() ->
     process_flag(trap_exit, true),
     Pid = self(),
     comet_loop(1, #page_state{pid = Pid}).
 
-% Comet loop - waits for new logs, updates the page and repeats. Handles messages that change logging preferences.
+%% Comet loop - waits for new logs, updates the page and repeats. Handles messages that change logging preferences.
 comet_loop(Counter, PageState = #page_state{first_log = FirstLog, auto_scroll = AutoScroll, pid = Pid}) ->
     Result =
         try
@@ -396,7 +396,7 @@ comet_loop(Counter, PageState = #page_state{first_log = FirstLog, auto_scroll = 
     end.
 
 
-% Check if log should be displayed, do if so and remove old logs if needed
+%% Check if log should be displayed, do if so and remove old logs if needed
 process_log(Counter, {Message, Timestamp, Severity, Metadata},
     PageState = #page_state{
         loglevel = Loglevel,
@@ -428,7 +428,7 @@ process_log(Counter, {Message, Timestamp, Severity, Metadata},
                                    end.
 
 
-% Remove old logs until max_logs preference is satisfied
+%% Remove old logs until max_logs preference is satisfied
 remove_old_logs(Counter, FirstLog, MaxLogs) ->
     case FirstLog + MaxLogs =< Counter of
         false ->
@@ -441,7 +441,7 @@ remove_old_logs(Counter, FirstLog, MaxLogs) ->
     end.
 
 
-% Render a single row of logs - one collapsed and one expanded - they will be toggled with mouse clicks
+%% Render a single row of logs - one collapsed and one expanded - they will be toggled with mouse clicks
 render_row(Counter, {Message, Timestamp, Severity, Metadata}) ->
     CollapsedId = <<?COLLAPSED_LOG_ROW_ID_PREFIX, (integer_to_binary(Counter))/binary>>,
     ExpandedId = <<?EXPANDED_LOG_ROW_ID_PREFIX, (integer_to_binary(Counter))/binary>>,
@@ -466,7 +466,7 @@ render_row(Counter, {Message, Timestamp, Severity, Metadata}) ->
     [CollapsedRow, ExpandedRow].
 
 
-% Render the body of loglevel dropdown, so it highlights the current choice
+%% Render the body of loglevel dropdown, so it highlights the current choice
 loglevel_dropdown_body(Active) ->
     lists:map(
         fun(Loglevel) ->
@@ -480,7 +480,7 @@ loglevel_dropdown_body(Active) ->
         end, ?CLIENT_LOGLEVELS).
 
 
-% Render the body of max logs dropdown, so it highlights the current choice
+%% Render the body of max logs dropdown, so it highlights the current choice
 max_logs_dropdown_body(Active) ->
     lists:map(
         fun(Number) ->
@@ -494,7 +494,7 @@ max_logs_dropdown_body(Active) ->
         end, ?MAX_LOGS_OPTIONS).
 
 
-% Render a row in table informing about error in comet loop
+%% Render a row in table informing about error in comet loop
 comet_error() ->
     _TableRow = #tr{cells = [
         #td{body = <<"Error">>, style = <<?SEVERITY_COLUMN_STYLE, " color: red;">>},
@@ -505,7 +505,7 @@ comet_error() ->
     ]}.
 
 
-% Format severity in logs
+%% Format severity in logs
 format_severity(debug) ->
     #label{class = <<"label">>, body = <<"debug">>, style = <<"display: block; font-weight: bold;">>};
 format_severity(info) ->
@@ -518,7 +518,7 @@ format_severity(fatal) ->
     #label{class = <<"label label-important">>, body = <<"fatal">>, style = <<"display: block; font-weight: bold;">>}.
 
 
-% Format time in logs
+%% Format time in logs
 format_time(Timestamp) ->
     {{YY, MM, DD}, {Hour, Min, Sec}} = calendar:now_to_local_time(Timestamp),
     TimeString = io_lib:format("~2..0w-~2..0w-~2..0w | ~2..0w:~2..0w:~2..0w",
@@ -526,7 +526,7 @@ format_time(Timestamp) ->
     list_to_binary(TimeString).
 
 
-% Format metadata in logs, for collapsed and expanded logs
+%% Format metadata in logs, for collapsed and expanded logs
 format_metadata(Tags) ->
     Collapsed = case lists:keyfind(user, 1, Tags) of
                     {user, Value} ->
@@ -545,13 +545,13 @@ format_metadata(Tags) ->
     {Collapsed, Expanded}.
 
 
-% Return true if log should be displayed based on its severity and loglevel
+%% Return true if log should be displayed based on its severity and loglevel
 filter_loglevel(LogSeverity, Loglevel) ->
     onepanel_utils_adapter:apply_on_worker(central_logger, client_loglevel_atom_to_int, [LogSeverity]) >=
         onepanel_utils_adapter:apply_on_worker(central_logger, client_loglevel_atom_to_int, [Loglevel]).
 
 
-% Return true if given string satisfies given filter
+%% Return true if given string satisfies given filter
 filter_contains(String, Filter) ->
     case Filter of
         undefined -> true;
@@ -560,8 +560,8 @@ filter_contains(String, Filter) ->
     end.
 
 
-% =====================
-% Event handling
+%% =====================
+%% Event handling
 api_event("escape_pressed", _, _) ->
     event(hide_filters_popup).
 
@@ -641,7 +641,7 @@ event(clear_all_logs) ->
     get(comet_pid) ! clear_all_logs;
 
 
-% Collapse or expand a log
+%% Collapse or expand a log
 event({toggle_log, Id, ShowAll}) ->
     case ShowAll of
         true ->
@@ -653,7 +653,7 @@ event({toggle_log, Id, ShowAll}) ->
     end;
 
 
-% Show filters edition panel
+%% Show filters edition panel
 event(show_filters_popup) ->
     gui_jq:add_class(<<"footer_popup">>, <<"hidden">>),
     gui_jq:update(<<"footer_popup">>, filters_panel()),
@@ -665,33 +665,33 @@ event(show_filters_popup) ->
     gui_jq:remove_class(<<"footer_popup">>, <<"hidden">>);
 
 
-% Show client management panel
+%% Show client management panel
 event(show_manage_clients_popup) ->
     gui_jq:add_class(<<"footer_popup">>, <<"hidden">>),
     gui_jq:update(<<"footer_popup">>, manage_clients_panel()),
     gui_jq:remove_class(<<"footer_popup">>, <<"hidden">>);
 
 
-% Hide filters edition panel
+%% Hide filters edition panel
 event(hide_filters_popup) ->
     gui_jq:add_class(<<"footer_popup">>, <<"hidden">>);
 
 
-% Change loglevel
+%% Change loglevel
 event({set_loglevel, Loglevel}) ->
     gui_jq:update(<<"loglevel_label">>, <<"Loglevel: <b>", (atom_to_binary(Loglevel, latin1))/binary, "</b>">>),
     gui_jq:update(<<"loglevel_dropdown">>, loglevel_dropdown_body(Loglevel)),
     get(comet_pid) ! {set_loglevel, Loglevel};
 
 
-% Change displayed log limit
+%% Change displayed log limit
 event({set_max_logs, Number}) ->
     gui_jq:update(<<"max_logs_label">>, <<"Max logs: <b>", (integer_to_binary(Number))/binary, "</b>">>),
     gui_jq:update(<<"max_logs_dropdown">>, max_logs_dropdown_body(Number)),
     get(comet_pid) ! {set_max_logs, Number};
 
 
-% Show patricular filter form
+%% Show patricular filter form
 event({show_filter, FilterName}) ->
     Filter = get_filter(get(filters), FilterName),
     case (Filter =:= undefined) orelse (Filter =:= <<"">>) of
@@ -705,7 +705,7 @@ event({show_filter, FilterName}) ->
     end;
 
 
-% Toggle patricular filter on/off
+%% Toggle patricular filter on/off
 event({toggle_filter, FilterName}) ->
     Filter = get_filter(get(filters), FilterName),
     case Filter of
@@ -723,7 +723,7 @@ event({toggle_filter, FilterName}) ->
     end;
 
 
-% Update patricular filter
+%% Update patricular filter
 event({update_filter, FilterName}) ->
     Filter = gui_ctx:postback_param(get_filter_textbox(FilterName)),
     case Filter of
@@ -758,8 +758,8 @@ set_clients_loglevel(ClientList, LogLevel, ButtonID) ->
     gui_comet:flush().
 
 
-% =====================
-% Define types of filters and elements connected to them
+%% =====================
+%% Define types of filters and elements connected to them
 get_filter_types() -> [message_filter, file_filter].
 
 set_filter(PageState, message_filter, Filter) -> PageState#page_state{message_filter = Filter};

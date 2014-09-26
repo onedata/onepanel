@@ -18,20 +18,20 @@
 %% Application callbacks
 -export([start/2, stop/1, gui_adjust_headers/1]).
 
-% Cowboy listener reference
+%% Cowboy listener reference
 -define(HTTPS_LISTENER, https).
 -define(HTTP_REDIRECTOR_LISTENER, http).
 
-% Session logic module
+%% Session logic module
 -define(SESSION_LOGIC_MODULE, session_logic).
 
-% GUI routing module
+%% GUI routing module
 -define(GUI_ROUTING_MODULE, routes).
 
-% Custom cowboy bridge module
+%% Custom cowboy bridge module
 -define(COWBOY_BRIDGE_MODULE, n2o_handler).
 
-% Paths in gui static directory
+%% Paths in gui static directory
 -define(STATIC_PATHS, ["/css/", "/fonts/", "/images/", "/n2o/", "/flatui/", "/js/"]).
 
 %% ====================================================================

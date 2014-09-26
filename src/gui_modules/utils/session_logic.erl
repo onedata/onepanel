@@ -20,7 +20,7 @@
 -export([save_session/3, lookup_session/1, delete_session/1, clear_expired_sessions/0]).
 -export([get_cookie_ttl/0]).
 
-% ETS name for cookies
+%% ETS name for cookies
 -define(SESSION_ETS, cookies).
 
 %% ====================================================================
