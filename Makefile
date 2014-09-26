@@ -2,15 +2,15 @@ CONFIG=config/provider.config
 
 .PHONY: deps generate
 
-all: deps compile
+all: rel
 
 deps:
 	@./rebar --config $(CONFIG) get-deps
 
-compile: deps
+compile:
 	@./rebar --config $(CONFIG) compile
 
-generate: compile
+generate:
 	@./rebar --config $(CONFIG) generate
 
 clean:

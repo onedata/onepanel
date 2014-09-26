@@ -76,7 +76,7 @@ title() ->
 -spec custom() -> binary().
 %% ====================================================================
 custom() ->
-    <<"<script src='/js/bootbox.min.js' type='text/javascript' charset='utf-8'></script>">>.
+    <<"<script src='/flatui/bootbox.min.js' type='text/javascript' charset='utf-8'></script>">>.
 
 
 %% body/3
