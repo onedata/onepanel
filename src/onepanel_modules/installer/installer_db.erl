@@ -338,7 +338,7 @@ join_cluster(Username, Password, ClusterHost) ->
 
 %% change_username/3
 %% ====================================================================
-%% @doc Changes username in administration database on given hosts.
+%% @doc Changes username in administrative database on given hosts.
 %% @end
 -spec change_username(Hosts :: [string()], Username :: binary(), NewUsername :: binary()) -> Result when
     Result :: ok | {error, Reason :: term()}.
@@ -353,19 +353,19 @@ change_username(Hosts, Username, NewUsername) ->
             case HostsError of
                 [] -> ok;
                 _ ->
-                    ?error("Cannot change username in administration database for user ~p on hosts: ~p", [Username, HostsError]),
+                    ?error("Cannot change username in administrative database for user ~p on hosts: ~p", [Username, HostsError]),
                     onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_change_username, [NewUsername, Username, Password], ?RPC_TIMEOUT),
-                    {error, <<"Cannot change username in administration database.">>}
+                    {error, <<"Cannot change username in administrative database.">>}
             end;
         Other ->
-            ?error("Cannot get password to administration database for user ~p: ~p", [Username, Other]),
-            {error, <<"Cannot get password to administration database for user: ", Username/binary>>}
+            ?error("Cannot get password to administrative database for user ~p: ~p", [Username, Other]),
+            {error, <<"Cannot get password to administrative database for user: ", Username/binary>>}
     end.
 
 
 %% local_change_username/3
 %% ====================================================================
-%% @doc Changes username in administration database on local hosts.
+%% @doc Changes username in administrative database on local hosts.
 %% @end
 -spec local_change_username(Username :: binary(), NewUsername :: binary(), Password :: binary()) -> Result when
     Result :: ok | {error, Reason :: term()}.
@@ -387,14 +387,14 @@ local_change_username(Username, NewUsername, Password) ->
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot change username in administration database for user ~p: ~p", [Username, Reason]),
+            ?error("Cannot change username in administrative database for user ~p: ~p", [Username, Reason]),
             {error, Reason}
     end.
 
 
 %% change_password/4
 %% ====================================================================
-%% @doc Changes password to administration database on given hosts.
+%% @doc Changes password to administrative database on given hosts.
 %% @end
 -spec change_password(Hosts :: [string()], Username :: binary(), CurrentPassword :: binary(), NewPassword :: binary()) -> Result when
     Result :: ok | {error, Reason :: term()}.
@@ -404,15 +404,15 @@ change_password(Hosts, Username, CurrentPassword, NewPassword) ->
     case HostsError of
         [] -> ok;
         _ ->
-            ?error("Cannot change password to administration database for user ~p on hosts: ~p", [Username, HostsError]),
+            ?error("Cannot change password to administrative database for user ~p on hosts: ~p", [Username, HostsError]),
             onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_change_password, [Username, NewPassword, CurrentPassword], ?RPC_TIMEOUT),
-            {error, <<"Cannot change password to administration database.">>}
+            {error, <<"Cannot change password to administrative database.">>}
     end.
 
 
 %% local_change_password/3
 %% ====================================================================
-%% @doc Changes password to administration database on local host.
+%% @doc Changes password to administrative database on local host.
 %% @end
 -spec local_change_password(Username :: binary(), CurrentPassword :: binary(), NewPassword :: binary()) -> Result when
     Result :: ok | {error, Reason :: term()}.
@@ -423,7 +423,7 @@ local_change_password(Username, CurrentPassword, NewPassword) ->
     case request(Username, CurrentPassword, URL, put, mochijson2:encode(NewPassword)) of
         {ok, "200", _, _} -> {ok, Host};
         Other ->
-            ?error("Cannot change password to administration database for user ~p: ~p", [Username, Other]),
+            ?error("Cannot change password to administrative database for user ~p: ~p", [Username, Other]),
             {error, Host}
     end.
 

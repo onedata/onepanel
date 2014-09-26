@@ -45,8 +45,8 @@ start_link() ->
 %% @doc Initializes the server
 %% @end
 -spec init(Args :: term()) -> Result when
-    Result :: {ok, State :: #?u_state{}} |
-    {ok, State :: #?u_state{}, timeout() | hibernate} |
+    Result :: {ok, State :: #?U_STATE{}} |
+    {ok, State :: #?U_STATE{}, timeout() | hibernate} |
     {stop, Reason :: term()} |
     ignore.
 %% ====================================================================
@@ -56,21 +56,21 @@ init(_Args) ->
 
     State =
         case dao:get_record(?UPDATER_STATE_TABLE, ?UPDATER_STATE_ID) of
-            {ok, #?u_state{stage = Stage} = SavedState} when Stage =/= ?STAGE_IDLE ->
+            {ok, #?U_STATE{stage = Stage} = SavedState} when Stage =/= ?STAGE_IDLE ->
                 %% Restart interrupted update process
                 case Stage of
                     ?STAGE_INIT ->
-                        updater_engine:enter_stage(updater_engine:next_stage(SavedState#?u_state{stage = ?STAGE_IDLE}), SavedState);
+                        updater_engine:enter_stage(updater_engine:next_stage(SavedState#?U_STATE{stage = ?STAGE_IDLE}), SavedState);
                     _ ->
                         updater_engine:enter_stage(updater_state:get_stage_and_job(SavedState), SavedState)
                 end;
-            {ok, #?u_state{error_stack = ES, warning_stack = WS, action_type = ActionType}} ->
-                #?u_state{error_stack = ES, warning_stack = WS, action_type = ActionType};
+            {ok, #?U_STATE{error_stack = ES, warning_stack = WS, action_type = ActionType}} ->
+                #?U_STATE{error_stack = ES, warning_stack = WS, action_type = ActionType};
             {ok, _Unk} ->
                 ?warning("Unknown updater state in DB, ignoring."),
-                #?u_state{};
+                #?U_STATE{};
             _ ->
-                #?u_state{}
+                #?U_STATE{}
         end,
 
     {ok, State}.
@@ -81,24 +81,24 @@ init(_Args) ->
 %% @doc Handling call messages
 %% @end
 -spec handle_call(Request :: term(), From :: {pid(), Tag :: term()},
-    State :: #?u_state{}) -> Result when
-    Result :: {reply, Reply :: term(), NewState :: #?u_state{}} |
-    {reply, Reply :: term(), NewState :: #?u_state{}, timeout() | hibernate} |
-    {noreply, NewState :: #?u_state{}} |
-    {noreply, NewState :: #?u_state{}, timeout() | hibernate} |
-    {stop, Reason :: term(), Reply :: term(), NewState :: #?u_state{}} |
-    {stop, Reason :: term(), NewState :: #?u_state{}}.
+    State :: #?U_STATE{}) -> Result when
+    Result :: {reply, Reply :: term(), NewState :: #?U_STATE{}} |
+    {reply, Reply :: term(), NewState :: #?U_STATE{}, timeout() | hibernate} |
+    {noreply, NewState :: #?U_STATE{}} |
+    {noreply, NewState :: #?U_STATE{}, timeout() | hibernate} |
+    {stop, Reason :: term(), Reply :: term(), NewState :: #?U_STATE{}} |
+    {stop, Reason :: term(), NewState :: #?U_STATE{}}.
 %% ====================================================================
 handle_call(get_state, _From, State) ->
     {reply, State, State};
 
-handle_call({update_to, #version{} = Vsn, ForceNodeRestart, CallbackFun}, _From, #?u_state{stage = ?STAGE_IDLE} = State) ->
+handle_call({update_to, #version{} = Vsn, ForceNodeRestart, CallbackFun}, _From, #?U_STATE{stage = ?STAGE_IDLE} = State) ->
     case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
         {ok, #?GLOBAL_CONFIG_RECORD{ccms = CCMHosts, workers = WorkerHosts}} ->
             Workers = [onepanel_utils:get_node(?DEFAULT_WORKER_NAME, Host) || Host <- WorkerHosts],
             CCMs = [onepanel_utils:get_node(?DEFAULT_CCM_NAME, Host) || Host <- CCMHosts],
 
-            NewState0 = State#?u_state{action_type = install, warning_stack = [], error_stack = [], nodes = Workers ++ CCMs, version = Vsn, callback = CallbackFun, force_node_restart = ForceNodeRestart},
+            NewState0 = State#?U_STATE{action_type = install, warning_stack = [], error_stack = [], nodes = Workers ++ CCMs, version = Vsn, callback = CallbackFun, force_node_restart = ForceNodeRestart},
 
             NewState2 = updater_engine:enter_stage(updater_engine:next_stage(NewState0), NewState0),
 
@@ -107,19 +107,19 @@ handle_call({update_to, #version{} = Vsn, ForceNodeRestart, CallbackFun}, _From,
             {reply, {error, no_nodes}, State}
     end;
 
-handle_call(abort, _From, #?u_state{stage = ?STAGE_IDLE} = State) ->
+handle_call(abort, _From, #?U_STATE{stage = ?STAGE_IDLE} = State) ->
     {reply, ok, State};
-handle_call(abort, _From, #?u_state{action_type = rollback} = State) ->
+handle_call(abort, _From, #?U_STATE{action_type = rollback} = State) ->
     {reply, ok, State};
-handle_call(abort, _From, #?u_state{stage = Stage, job = Job, callback = CallbackFun} = State) ->
-    NewState = State#?u_state{action_type = rollback, objects = #{}},
+handle_call(abort, _From, #?U_STATE{stage = Stage, job = Job, callback = CallbackFun} = State) ->
+    NewState = State#?U_STATE{action_type = rollback, objects = #{}},
     CallbackFun(abort, NewState),
     {reply, ok, updater_engine:enter_stage({Stage, Job}, NewState)};
-handle_call({set_callback, Fun}, _From, #?u_state{} = State) ->
-    {reply, ok, State#?u_state{callback = Fun}};
+handle_call({set_callback, Fun}, _From, #?U_STATE{} = State) ->
+    {reply, ok, State#?U_STATE{callback = Fun}};
 
 
-handle_call({update_to, #version{}, _, _}, _From, #?u_state{stage = _Stage} = State) ->
+handle_call({update_to, #version{}, _, _}, _From, #?U_STATE{stage = _Stage} = State) ->
     {reply, {error, update_already_in_progress}, State};
 
 handle_call(Info, _From, State) ->
@@ -131,10 +131,10 @@ handle_call(Info, _From, State) ->
 %% ====================================================================
 %% @doc Handling cast messages
 %% @end
--spec handle_cast(Request :: term(), State :: #?u_state{}) -> Result when
-    Result :: {noreply, NewState :: #?u_state{}} |
-    {noreply, NewState :: #?u_state{}, timeout() | hibernate} |
-    {stop, Reason :: term(), NewState :: #?u_state{}}.
+-spec handle_cast(Request :: term(), State :: #?U_STATE{}) -> Result when
+    Result :: {noreply, NewState :: #?U_STATE{}} |
+    {noreply, NewState :: #?U_STATE{}, timeout() | hibernate} |
+    {stop, Reason :: term(), NewState :: #?U_STATE{}}.
 %% ====================================================================
 handle_cast(Info, State) ->
     ?warning("[Updater] Unknown cast: ~p", [Info]),
@@ -145,28 +145,28 @@ handle_cast(Info, State) ->
 %% ====================================================================
 %% @doc Handling all non call/cast messages
 %% @end
--spec handle_info(Info :: timeout() | term(), State :: #?u_state{}) -> Result when
-    Result :: {noreply, NewState :: #?u_state{}} |
-    {noreply, NewState :: #?u_state{}, timeout() | hibernate} |
-    {stop, Reason :: term(), NewState :: #?u_state{}}.
+-spec handle_info(Info :: timeout() | term(), State :: #?U_STATE{}) -> Result when
+    Result :: {noreply, NewState :: #?U_STATE{}} |
+    {noreply, NewState :: #?U_STATE{}, timeout() | hibernate} |
+    {stop, Reason :: term(), NewState :: #?U_STATE{}}.
 %% ====================================================================
-handle_info({Pid, ok}, #?u_state{objects = Objects, callback = CallbackFun} = State) ->
+handle_info({Pid, ok}, #?U_STATE{objects = Objects, callback = CallbackFun} = State) ->
     NObjects = maps:remove(Pid, Objects),
-    CallbackFun(update_objects, State#?u_state{objects = NObjects}),
+    CallbackFun(update_objects, State#?U_STATE{objects = NObjects}),
     NState =
         case {maps:size(NObjects), maps:size(Objects)} of
             {0, 1} ->
                 updater_engine:enter_stage(updater_engine:next_stage(State), State);
-            _ -> State#?u_state{objects = NObjects}
+            _ -> State#?U_STATE{objects = NObjects}
         end,
     {noreply, NState};
 
-handle_info({Pid, {ok, Data}}, #?u_state{objects = Objects, object_data = ObjData} = State) ->
+handle_info({Pid, {ok, Data}}, #?U_STATE{objects = Objects, object_data = ObjData} = State) ->
     NState =
         case maps:is_key(Pid, Objects) of
             true ->
                 Obj = maps:get(Pid, Objects),
-                {_, NState0} = handle_info({Pid, ok}, State#?u_state{object_data = maps:put(Obj, Data, ObjData)}),
+                {_, NState0} = handle_info({Pid, ok}, State#?U_STATE{object_data = maps:put(Obj, Data, ObjData)}),
                 NState0;
             _ ->
                 State
@@ -174,7 +174,7 @@ handle_info({Pid, {ok, Data}}, #?u_state{objects = Objects, object_data = ObjDat
     {noreply, NState};
 
 
-handle_info({Pid, {error, Reason}}, #?u_state{objects = Objects, object_data = _ObjData, error_counter = EC} = State) ->
+handle_info({Pid, {error, Reason}}, #?U_STATE{objects = Objects, object_data = _ObjData, error_counter = EC} = State) ->
     ?error("Error form ~p: ~p", [Pid, updater_utils:normalize_error_reason(Reason)]),
     MapsGetOrDefault =
         fun(Key, Map, Default) ->
@@ -188,7 +188,7 @@ handle_info({Pid, {error, Reason}}, #?u_state{objects = Objects, object_data = _
             true ->
                 Obj = maps:get(Pid, Objects),
                 updater_engine:handle_error(Pid, Obj, Reason,
-                    State#?u_state{
+                    State#?U_STATE{
                         objects = maps:remove(Pid, Objects),
                         error_counter = maps:put(Obj, MapsGetOrDefault(Obj, EC, 0) + 1, EC)
                     });
@@ -198,11 +198,11 @@ handle_info({Pid, {error, Reason}}, #?u_state{objects = Objects, object_data = _
     {noreply, NState};
 
 
-handle_info({'EXIT', _Pid, normal}, #?u_state{} = State) ->
+handle_info({'EXIT', _Pid, normal}, #?U_STATE{} = State) ->
     {noreply, State};
-handle_info({'EXIT', Pid, Reason}, #?u_state{} = State) ->
+handle_info({'EXIT', Pid, Reason}, #?U_STATE{} = State) ->
     handle_info({Pid, {error, {exit, Reason}}}, State);
-handle_info(Unknown, #?u_state{} = State) ->
+handle_info(Unknown, #?U_STATE{} = State) ->
     ?warning("Unknown info ~p", [Unknown]),
     {noreply, State}.
 
@@ -214,7 +214,7 @@ handle_info(Unknown, #?u_state{} = State) ->
 %% necessary cleaning up. When it returns, the gen_server terminates
 %% with Reason. The return value is ignored.
 %% @end
--spec terminate(Reason :: (normal | shutdown | {shutdown, term()} | term()), State :: #?u_state{}) -> Result when
+-spec terminate(Reason :: (normal | shutdown | {shutdown, term()} | term()), State :: #?U_STATE{}) -> Result when
     Result :: term().
 %% ====================================================================
 terminate(Reason, _State) ->
@@ -226,8 +226,8 @@ terminate(Reason, _State) ->
 %% ====================================================================
 %% @doc Convert process state when code is changed
 %% @end
--spec code_change(OldVsn :: term() | {down, term()}, State :: #?u_state{}, Extra :: term()) -> Result when
-    Result :: {ok, NewState :: #?u_state{}} | {error, Reason :: term()}.
+-spec code_change(OldVsn :: term() | {down, term()}, State :: #?U_STATE{}, Extra :: term()) -> Result when
+    Result :: {ok, NewState :: #?U_STATE{}} | {error, Reason :: term()}.
 %% ====================================================================
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.

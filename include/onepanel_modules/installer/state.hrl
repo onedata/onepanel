@@ -24,14 +24,14 @@
 -define(CONFIG_ID, current).
 
 %% Name of installer state
--define(i_state, i_state).
+-define(I_STATE, i_state).
 
 %% Installer state where
 %% * job                - currently executing job
 %% * stage              - currently executing stage
 %% * callback           - function called each time installer state changes
 %% * error              - error message sent via callback before terminating
--record(?i_state, {job, stage, config, error, callback}).
+-record(?I_STATE, {job, stage, config, error, callback}).
 
 -ifdef(provider).
 

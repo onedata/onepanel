@@ -68,14 +68,14 @@ body(Header, Main, Footer) ->
 %% and in second place from database.
 %% @end
 -spec get_session_config() -> Result when
-    Result :: #?GLOBAL_CONFIG_RECORD{} | undefined.
+    Result :: #?GLOBAL_CONFIG_RECORD{} | {error, undefined}.
 %% ====================================================================
 get_session_config() ->
     case gui_ctx:get(?CONFIG_ID) of
         undefined ->
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
                 {ok, Record} -> {ok, Record};
-                _ -> undefined
+                _ -> {error, undefined}
             end;
         Record -> {ok, Record}
     end.

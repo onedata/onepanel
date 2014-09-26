@@ -201,7 +201,7 @@ translate_job(_) -> <<"">>.
 %% ====================================================================
 %% @doc Returns index of current update stage.
 %% @end
--spec get_stage_index(Job :: atom(), State :: #?u_state{}) -> Result when
+-spec get_stage_index(Job :: atom(), State :: #?U_STATE{}) -> Result when
     Result :: integer().
 %% ====================================================================
 get_stage_index(Stage, State) ->
@@ -213,7 +213,7 @@ get_stage_index(Stage, State) ->
 %% ====================================================================
 %% @doc Returns index of current update job.
 %% @end
--spec get_job_index_and_jobs_count(Stage :: atom(), Job :: atom(), State :: #?u_state{}) -> Result when
+-spec get_job_index_and_jobs_count(Stage :: atom(), Job :: atom(), State :: #?U_STATE{}) -> Result when
     Result :: {JobIndex :: integer(), JobsCount :: integer()}.
 %% ====================================================================
 get_job_index_and_jobs_count(Stage, Job, State) ->

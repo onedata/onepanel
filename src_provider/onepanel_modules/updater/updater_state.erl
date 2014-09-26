@@ -26,9 +26,9 @@
 %% ====================================================================
 %% @doc Checks if 'abort' command is available.
 %% @end
--spec is_abortable(#?u_state{}) -> boolean().
+-spec is_abortable(#?U_STATE{}) -> boolean().
 %% ====================================================================
-is_abortable(#?u_state{}) ->
+is_abortable(#?U_STATE{}) ->
     %% @todo: implement 'is_abortable' logic
     true andalso ?ABORT_AVAILABLE.
 
@@ -37,9 +37,9 @@ is_abortable(#?u_state{}) ->
 %% ====================================================================
 %% @doc Extracts stage and job from the state.
 %% @end
--spec get_stage_and_job(#?u_state{}) -> {Stage :: atom(), Job :: atom()}.
+-spec get_stage_and_job(#?U_STATE{}) -> {Stage :: atom(), Job :: atom()}.
 %% ====================================================================
-get_stage_and_job(#?u_state{stage = Stage, job = Job}) ->
+get_stage_and_job(#?U_STATE{stage = Stage, job = Job}) ->
     {Stage, Job}.
 
 
@@ -47,9 +47,9 @@ get_stage_and_job(#?u_state{stage = Stage, job = Job}) ->
 %% ====================================================================
 %% @doc Generates dynamic Stage -> Job map.
 %% @end
--spec get_all_stages(#?u_state{}) -> [Stage :: {StageName :: atom(), [JobName :: atom()]}].
+-spec get_all_stages(#?U_STATE{}) -> [Stage :: {StageName :: atom(), [JobName :: atom()]}].
 %% ====================================================================
-get_all_stages(#?u_state{nodes = Nodes, force_node_restart = ForceRestart, nodes_to_restart = NodesToRestart, nodes_to_repair = NodesToRepair}) ->
+get_all_stages(#?U_STATE{nodes = Nodes, force_node_restart = ForceRestart, nodes_to_restart = NodesToRestart, nodes_to_repair = NodesToRepair}) ->
 
     RestartJobs =
         case ForceRestart of
@@ -77,9 +77,9 @@ get_all_stages() ->
 %% ====================================================================
 %% @doc Extracts pending 'object' count.
 %% @end
--spec get_object_count(#?u_state{}) -> integer().
+-spec get_object_count(#?U_STATE{}) -> integer().
 %% ====================================================================
-get_object_count(#?u_state{objects = Objects}) ->
+get_object_count(#?U_STATE{objects = Objects}) ->
     maps:size(Objects).
 
 
@@ -87,10 +87,10 @@ get_object_count(#?u_state{objects = Objects}) ->
 %% ====================================================================
 %% @doc Returns all accumulated errors and warnings. Lists are sorted from most recent.
 %% @end
--spec get_error_stack(State :: #?u_state{}) ->
+-spec get_error_stack(State :: #?U_STATE{}) ->
     {Errors :: [updater_error()], Warnings :: [updater_error()]}.
 %% ====================================================================
-get_error_stack(#?u_state{error_stack = Errors, warning_stack = Warnings}) ->
+get_error_stack(#?U_STATE{error_stack = Errors, warning_stack = Warnings}) ->
     {lists:flatten([Errors]), lists:flatten([Warnings])}.
 
 
@@ -98,10 +98,10 @@ get_error_stack(#?u_state{error_stack = Errors, warning_stack = Warnings}) ->
 %% ====================================================================
 %% @doc Returns current action type.
 %% @end
--spec get_action_type(State :: #?u_state{}) ->
+-spec get_action_type(State :: #?U_STATE{}) ->
     ActionType :: atom().
 %% ====================================================================
-get_action_type(#?u_state{action_type = ActionType}) ->
+get_action_type(#?U_STATE{action_type = ActionType}) ->
     ActionType.
 
 %% ====================================================================

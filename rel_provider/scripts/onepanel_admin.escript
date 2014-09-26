@@ -23,6 +23,10 @@
 -define(DEFAULT_OPEN_FILES, 65535).
 -define(DEFAULT_PROCESSES, 65535).
 
+%% Default username and password for administrative database
+-define(DEFAULT_USERNAME, <<"admin">>).
+-define(DEFAULT_PASSWORD, <<"password">>).
+
 % Installation directory of veil RPM
 -define(PREFIX, "/opt/veil/").
 
@@ -54,7 +58,7 @@
 %% * username           - user's name
 %% * password           - user's password
 -record(config, {main_ccm, ccms = [], workers = [], dbs = [], storage_paths = [],
-    open_files = [], processes = [], register = no, username = <<"admin">>, password = <<"password">>}).
+    open_files = [], processes = [], register = no, username = ?DEFAULT_USERNAME, password = ?DEFAULT_PASSWORD}).
 
 %% API
 -export([main/1]).
@@ -269,8 +273,8 @@ parse({config, Path}) ->
         open_files = proplists:get_value("Open files limit", Terms, []),
         processes = proplists:get_value("Processes limit", Terms, []),
         register = proplists:get_value("Register in Global Registry", Terms, no),
-        username = proplists:get_value("Username", Terms, "admin"),
-        password = proplists:get_value("Password", Terms, "password")
+        username = proplists:get_value("Username", Terms, ?DEFAULT_USERNAME),
+        password = proplists:get_value("Password", Terms, ?DEFAULT_PASSWORD)
     };
 
 parse({terms, Terms}) ->

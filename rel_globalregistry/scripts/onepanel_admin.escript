@@ -19,9 +19,13 @@
 %% Default cookie used for communication with cluster
 -define(DEFAULT_COOKIE, globalregistry).
 
-% Default system limit values
+%% Default system limit values
 -define(DEFAULT_OPEN_FILES, 65535).
 -define(DEFAULT_PROCESSES, 65535).
+
+%% Default username and password for administrative database
+-define(DEFAULT_USERNAME, <<"admin">>).
+-define(DEFAULT_PASSWORD, <<"password">>).
 
 %% Timeout for each RPC call
 -define(RPC_TIMEOUT, 120000).
@@ -43,7 +47,7 @@
 %% * processes  - list of pairs hostname and processes limit on this host
 %% * username   - user's name
 %% * password   - user's password
--record(config, {gr, dbs = [], open_files = [], processes = [], username = <<"admin">>, password = <<"password">>}).
+-record(config, {gr, dbs = [], open_files = [], processes = [], username = ?DEFAULT_USERNAME, password = <<"password">>}).
 
 %% API
 -export([main/1]).
@@ -177,7 +181,7 @@ uninstall() ->
         Node = get(?NODE),
         Terms = rpc:call(Node, installer_utils, get_global_config, []),
         #config{
-            gr = GR,
+            gr = _GR,
             dbs = Dbs
         } = parse({terms, Terms}),
 
@@ -215,8 +219,8 @@ parse({config, Path}) ->
         dbs = proplists:get_value("Database hosts", Terms, []),
         open_files = proplists:get_value("Open files limit", Terms, []),
         processes = proplists:get_value("Processes limit", Terms, []),
-        username = proplists:get_value("Username", Terms, "admin"),
-        password = proplists:get_value("Password", Terms, "password")
+        username = proplists:get_value("Username", Terms, ?DEFAULT_USERNAME),
+        password = proplists:get_value("Password", Terms, <<"password">>)
     };
 
 parse({terms, Terms}) ->

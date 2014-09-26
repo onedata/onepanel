@@ -100,7 +100,7 @@ set_callback(Fun) when is_function(Fun) ->
 %% ====================================================================
 %% @doc Returns current state of updater service. See 'updater_state' module for state manipulation functions.
 %% @end
--spec get_state() -> #?u_state{}.
+-spec get_state() -> #?U_STATE{}.
 %% ====================================================================
 get_state() ->
     start(),
