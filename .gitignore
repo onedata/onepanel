@@ -1,9 +1,12 @@
 .idea
-onepanel.iml
 
 deps
 ebin
-rel/onepanel
+rel_provider/onepanel
 
 c_lib
 c_src/*.o
+
+src/gui_static/flatui
+src/gui_static/fonts
+src/gui_static/n2o

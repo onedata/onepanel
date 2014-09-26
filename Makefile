@@ -1,33 +1,39 @@
+CONFIG=config/provider.config
+
 .PHONY: deps generate
 
 all: deps compile
 
 deps:
-	@./rebar get-deps
+	@./rebar --config $(CONFIG) get-deps
 
 compile: deps
-	@./rebar compile
+	@./rebar --config $(CONFIG) compile
 
 generate: compile
-	@./rebar generate
+	@./rebar --config $(CONFIG) generate
 
 clean:
-	@./rebar clean
+	@./rebar --config $(CONFIG) clean
 
 distclean: clean
-	@./rebar delete-deps
+	@./rebar --config $(CONFIG) delete-deps
 
 ##
 ## Release targets
 ##
 
 doc:
-	@./rebar doc skip_deps=true
+	@./rebar --config $(CONFIG) doc skip_deps=true
 
 rel: deps compile generate
 
 relclean:
-	rm -rf rel/onepanel
+ifeq ($(CONFIG),config/globalregistry.config)
+	rm -rf rel_globalregistry/onepanel
+else
+	rm -rf rel_provider/onepanel
+endif
 
 ##
 ## Dialyzer

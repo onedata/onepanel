@@ -93,7 +93,7 @@ event(init) ->
     ok;
 
 event(to_login) ->
-    gui_jq:redirect_to_login(false);
+    gui_jq:redirect_to_login();
 
 event(terminate) ->
     ok.

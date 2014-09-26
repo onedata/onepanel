@@ -12,11 +12,7 @@
 %% ===================================================================
 -module(db_logic).
 
--include("registered_names.hrl").
--include("onepanel_modules/logic/user_logic.hrl").
--include("onepanel_modules/logic/provider_logic.hrl").
--include("onepanel_modules/installer/state.hrl").
--include("onepanel_modules/updater/state.hrl").
+-include("onepanel_modules/logic/db_logic.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
@@ -71,51 +67,19 @@ create() ->
             {error, CreateError} -> throw(CreateError)
         end,
         ok = application:start(mnesia),
-        case mnesia:create_table(?USER_TABLE, [
-            {attributes, record_info(fields, ?USER_RECORD)},
-            {record_name, ?USER_RECORD},
-            {disc_copies, [Node]}
-        ]) of
-            {atomic, ok} -> initialize(?USER_TABLE);
-            {aborted, {already_exists, ?USER_TABLE}} -> ok;
-            {aborted, UserError} -> throw(UserError)
-        end,
-        case mnesia:create_table(?PROVIDER_TABLE, [
-            {attributes, record_info(fields, ?PROVIDER_RECORD)},
-            {record_name, ?PROVIDER_RECORD},
-            {disc_copies, [Node]}
-        ]) of
-            {atomic, ok} -> initialize(?PROVIDER_TABLE);
-            {aborted, {already_exists, ?PROVIDER_TABLE}} -> ok;
-            {aborted, ProviderError} -> throw(ProviderError)
-        end,
-        case mnesia:create_table(?LOCAL_CONFIG_TABLE, [
-            {attributes, record_info(fields, ?LOCAL_CONFIG_RECORD)},
-            {record_name, ?LOCAL_CONFIG_RECORD},
-            {disc_copies, [Node]}
-        ]) of
-            {atomic, ok} -> ok;
-            {aborted, {already_exists, ?LOCAL_CONFIG_TABLE}} -> ok;
-            {aborted, LocalConfigError} -> throw(LocalConfigError)
-        end,
-        case mnesia:create_table(?GLOBAL_CONFIG_TABLE, [
-            {attributes, record_info(fields, ?GLOBAL_CONFIG_RECORD)},
-            {record_name, ?GLOBAL_CONFIG_RECORD},
-            {disc_copies, [Node]}
-        ]) of
-            {atomic, ok} -> initialize(?GLOBAL_CONFIG_TABLE);
-            {aborted, {already_exists, ?GLOBAL_CONFIG_TABLE}} -> ok;
-            {aborted, GlobalConfigError} -> throw(GlobalConfigError)
-        end,
-        case mnesia:create_table(?UPDATER_STATE_TABLE, [
-            {attributes, record_info(fields, ?u_state)},
-            {record_name, ?u_state},
-            {disc_copies, [Node]}
-        ]) of
-            {atomic, ok} -> initialize(?UPDATER_STATE_TABLE);
-            {aborted, {already_exists, ?UPDATER_STATE_TABLE}} -> ok;
-            {aborted, UpdaterError} -> throw(UpdaterError)
-        end,
+
+        lists:foreach(fun({Table, Record, Fields}) ->
+            case mnesia:create_table(Table, [
+                {attributes, Fields},
+                {record_name, Record},
+                {disc_copies, [Node]}
+            ]) of
+                {atomic, ok} -> initialize(Table);
+                {aborted, {already_exists, Table}} -> ok;
+                {aborted, Error} -> throw(Error)
+            end
+        end, ?TABLES),
+
         ok
     catch
         _:Reason ->
@@ -134,7 +98,7 @@ create() ->
 delete() ->
     try
         Node = node(),
-        Tables = lists:filter(fun(Table) -> Table =/= schema end, mnesia:system_info(tables)),
+        Tables = lists:map(fun({Table, _, _}) -> Table end, ?TABLES),
         lists:foreach(fun(Table) ->
             {atomic, ok} = mnesia:del_table_copy(Table, Node)
         end, Tables),
@@ -164,7 +128,7 @@ add_node(Node) ->
             {aborted, {already_exists, schema, Node, disc_copies}} -> ok;
             ChangeTypeError -> throw(ChangeTypeError)
         end,
-        Tables = lists:filter(fun(Table) -> Table =/= schema end, mnesia:system_info(tables)),
+        Tables = lists:map(fun({Table, _, _}) -> Table end, ?TABLES),
         lists:foreach(fun(Table) ->
             Type = mnesia:table_info(Table, storage_type),
             {atomic, ok} = mnesia:add_table_copy(Table, Node, Type)
@@ -172,7 +136,7 @@ add_node(Node) ->
         ok
     catch
         _:Reason ->
-            ?error("Cannot add database node to cluster: ~p", [Reason]),
+            ?error("Cannot add node ~p to database cluster: ~p", [Node, Reason]),
             {error, Reason}
     end.
 

@@ -10,7 +10,7 @@
 %% ===================================================================
 
 {application, onepanel, [
-    {description, "Veilcluster management tool."},
+    {description, "Onedata management tool."},
     {vsn, "1.0"},
     {registered, [onepanel_sup]},
     {applications, [
@@ -35,22 +35,10 @@
         {socket_timeout, 60000},
         {max_keepalive, 30},
         {connection_ping_delay, 5000},
-        {updater_start_delay, 1000},
-        {updater_lookup_delay, 60000},
-        {summary_chart_update_delay, 60},
-        {host_chart_update_delay, 10},
         {bcrypt_work_factor, 12},
         {gui_static_root, "./gui_static"},
         {cert_file, "./certs/server.crt"},
         {key_file, "./certs/server.key"},
-        {grpkey_name, "grpkey.pem"},
-        {grpkey_path, "./certs/grpkey.pem"},
-        {grpcsr_file, "./certs/grpcsr.pem"},
-        {grpcert_name, "grpcert.pem"},
-        {grpcert_path, "./certs/grpcert.pem"},
-        {grpcacert_path, "./certs/grpca.pem"},
-        {global_registry_url, "https://onedata.org:8443"},
-        {software_repository_url, "http://packages.onedata.org"},
         {default_username, <<"admin">>},
         {default_password, <<"password">>},
         {min_user_password_length, 8},

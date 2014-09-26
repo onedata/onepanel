@@ -37,7 +37,7 @@ main() ->
             end,
             #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, <<"">>}, {custom, <<"">>}]};
         false ->
-            gui_jq:redirect_to_login(true),
+            gui_jq:redirect_to_login(),
             #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
     end.
 

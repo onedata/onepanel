@@ -27,11 +27,27 @@
 %% Installation pages
 -define(PAGE_INSTALLATION, <<"/software/installation">>).
 -define(PAGE_HOST_SELECTION, <<"/software/installation/hosts_selection">>).
--define(PAGE_PRIMARY_CCM_SELECTION, <<"/software/installation/primary_ccm_selection">>).
 -define(PAGE_SYSTEM_LIMITS, <<"/software/installation/system_limits">>).
--define(PAGE_STORAGE, <<"/software/installation/storage">>).
 -define(PAGE_INSTALLATION_SUMMARY, <<"/software/installation/summary">>).
 -define(PAGE_INSTALLATION_SUCCESS, <<"/software/installation/success">>).
+
+%% Current installation step saved in user session
+-define(CURRENT_INSTALLATION_PAGE, install_page).
+
+-ifdef(provider).
+
+%% Current registration step saved in user session
+-define(CURRENT_REGISTRATION_PAGE, register_page).
+
+%% Current update step saved in user session
+-define(CURRENT_UPDATE_PAGE, update_page).
+
+%% Currently selected version in update process
+-define(CHOSEN_VERSION, chosen_version).
+
+%% Installation pages
+-define(PAGE_PRIMARY_CCM_SELECTION, <<"/software/installation/primary_ccm_selection">>).
+-define(PAGE_STORAGE, <<"/software/installation/storage">>).
 
 %% Update pages
 -define(PAGE_UPDATE, <<"/software/update">>).
@@ -54,5 +70,7 @@
 -define(PAGE_SPACE_DETAILS, <<"/spaces">>).
 -define(PAGE_SPACES_ACCOUNT, <<"/spaces/account">>).
 -define(PAGE_SPACES_SETTINGS, <<"/spaces/settings">>).
+
+-endif.
 
 -endif.

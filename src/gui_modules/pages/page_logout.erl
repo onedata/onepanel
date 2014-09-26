@@ -12,6 +12,7 @@
 -module(page_logout).
 
 -include("gui_modules/common.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 -export([main/0, event/1]).
 
@@ -49,6 +50,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
+    ?info("Successful logout of user: ~p", [gui_ctx:get_user_id()]),
     gen_server:cast(?ONEPANEL_SERVER, {remove_password, gui_ctx:get_user_id()}),
     gui_ctx:clear_session(),
     session_logic:clear_expired_sessions(),
@@ -88,7 +90,7 @@ body() ->
 event(init) -> ok;
 
 event(to_login) ->
-    gui_jq:redirect_to_login(false);
+    gui_jq:redirect_to_login();
 
 event(terminate) ->
     ok.

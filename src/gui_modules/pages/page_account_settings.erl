@@ -41,7 +41,7 @@ main() ->
         true ->
             #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]};
         _ ->
-            gui_jq:redirect_to_login(true),
+            gui_jq:redirect_to_login(),
             #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
     end.
 
@@ -65,7 +65,7 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils:top_menu(account_settings_tab),
+    Header = onepanel_gui_utils_adapter:top_menu(account_settings_tab),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
@@ -75,7 +75,7 @@ body() ->
             },
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
-                body = <<"Any change to username or password is also done for account in administration database.">>
+                body = <<"Any change to username or password is also done for account in administrative database.">>
             },
             settings_table()
         ]

@@ -43,7 +43,11 @@
 %% Installer gen_server's name
 -define(INSTALL_SERVICE, install_service).
 
+-ifdef(provider).
+
 %% Updater gen_server's name
 -define(UPDATE_SERVICE, update_service).
+
+-endif.
 
 -endif.

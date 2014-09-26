@@ -52,17 +52,7 @@ body() ->
     case gui_ctx:user_logged_in() of
         true -> gui_jq:redirect(?PAGE_ROOT);
         false ->
-            SourcePage = gui_ctx:url_param(<<"x">>),
-            Header = case SourcePage of
-                         undefined ->
-                             <<"">>;
-                         _ ->
-                             #panel{
-                                 style = <<"position: fixed;top: 0; width: 100%;">>,
-                                 class = <<"dialog dialog-danger">>,
-                                 body = <<"No session or session expired.">>
-                             }
-                     end,
+            Header = [],
             Main = [
                 #panel{
                     class = <<"alert alert-success">>,
@@ -74,10 +64,7 @@ body() ->
                         #form{
                             id = <<"login_form">>,
                             method = "post",
-                            action = case SourcePage of
-                                         undefined -> ?PAGE_LOGIN_VALIDATION;
-                                         _ -> <<(?PAGE_LOGIN_VALIDATION)/binary, "?x=", SourcePage/binary>>
-                                     end,
+                            action = ?PAGE_LOGIN_VALIDATION,
                             style = <<"width: 15em; margin: 0 auto; padding-top: 1em; float: center">>,
                             body = [
                                 #textbox{
