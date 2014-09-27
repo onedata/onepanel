@@ -265,7 +265,6 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
             render_summary_table ->
                 gui_jq:update(<<"summary_table">>, summary_table(Config)),
                 gui_jq:fade_in(<<"summary_table">>, 500),
-                gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
                 case Config#?CONFIG.workers of
                     [] ->
                         ok;
@@ -343,10 +342,11 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
             State
         end
                catch Type:Message ->
-                   ?error("Comet process exception: ~p:~p", [Type, Message]),
+                   ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
     gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 

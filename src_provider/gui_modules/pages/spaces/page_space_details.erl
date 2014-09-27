@@ -248,10 +248,9 @@ table(Details, TableName, NavigationBody, RenderRowFunction) ->
 -spec provider_row_collapsed(RowId :: binary(), ProviderDetails :: #provider_details{}) -> Result when
     Result :: [#td{}].
 %% ====================================================================
-provider_row_collapsed(RowId, #provider_details{id = ProviderId} = ProviderDetails) ->
-    Details = [{<<"ProviderId">>, #p{style = ?PARAGRAPH_STYLE, body = ProviderId}}],
-    NavigationBody = onepanel_gui_utils:expand_button({message, {expand_provider_row, RowId, ProviderDetails}}),
-    row(Details, NavigationBody).
+provider_row_collapsed(RowId, #provider_details{id = ProviderId, name = ProviderName} = ProviderDetails) ->
+    NavigationBody = vcn_gui_utils:expand_button({message, {collapse_provider_row, RowId, ProviderDetails}}),
+    row_collapsed(ProviderId, ProviderName, NavigationBody).
 
 
 %% provider_row_expanded/2
@@ -261,8 +260,9 @@ provider_row_collapsed(RowId, #provider_details{id = ProviderId} = ProviderDetai
 -spec provider_row_expanded(RowId :: binary(), ProviderDetails :: #provider_details{}) -> Result when
     Result :: [#td{}].
 %% ====================================================================
-provider_row_expanded(RowId, #provider_details{id = ProviderId, redirection_point = RedirectionPoint, urls = URLs} = ProviderDetails) ->
+provider_row_expanded(RowId, #provider_details{id = ProviderId, name = ProviderName, redirection_point = RedirectionPoint, urls = URLs} = ProviderDetails) ->
     Details = [
+        {<<"Name">>, #p{style = ?PARAGRAPH_STYLE, body = ProviderName}},
         {<<"Provider ID">>, #p{style = ?PARAGRAPH_STYLE, body = ProviderId}},
         {<<"URLs">>, #list{
             style = <<"list-style-type: none; margin: 0 auto;">>,
@@ -276,7 +276,7 @@ provider_row_expanded(RowId, #provider_details{id = ProviderId, redirection_poin
         {<<"Redirection point">>, #p{style = ?PARAGRAPH_STYLE, body = RedirectionPoint}}
     ],
     NavigationBody = onepanel_gui_utils:collapse_button({message, {collapse_provider_row, RowId, ProviderDetails}}),
-    row(Details, NavigationBody).
+    row_expanded(Details, NavigationBody).
 
 
 %% user_row_collapsed/2
@@ -286,10 +286,9 @@ provider_row_expanded(RowId, #provider_details{id = ProviderId, redirection_poin
 -spec user_row_collapsed(RowId :: binary(), UserDetails :: #user_details{}) -> Result when
     Result :: [#td{}].
 %% ====================================================================
-user_row_collapsed(RowId, #user_details{name = UserName} = UserDetails) ->
-    Details = [{<<"Name">>, #p{style = ?PARAGRAPH_STYLE, body = UserName}}],
-    NavigationBody = onepanel_gui_utils:expand_button({message, {expand_user_row, RowId, UserDetails}}),
-    row(Details, NavigationBody).
+user_row_collapsed(RowId, #user_details{id = UserId, name = UserName} = UserDetails) ->
+    NavigationBody = vcn_gui_utils:expand_button({message, {expand_user_row, RowId, UserDetails}}),
+    row_collapsed(UserId, UserName, NavigationBody).
 
 
 %% user_row_expanded/2
@@ -305,17 +304,40 @@ user_row_expanded(RowId, #user_details{id = UserId, name = UserName} = UserDetai
         {<<"User ID">>, #p{style = ?PARAGRAPH_STYLE, body = UserId}}
     ],
     NavigationBody = onepanel_gui_utils:collapse_button({message, {collapse_user_row, RowId, UserDetails}}),
-    row(Details, NavigationBody).
+    row_expanded(Details, NavigationBody).
 
 
-%% row/2
+%% row_collapsed/2
 %% ====================================================================
-%% @doc Renders details row.
+%% @doc Renders collapsed details row.
 %% @end
--spec row([{DetailName :: binary(), DetailBody :: term()}], NavigationBody :: term()) -> Result when
+-spec row_collapsed(Id :: binary(), Name :: binary(), NavigationBody :: term()) -> Result when
     Result :: [#td{}].
 %% ====================================================================
-row(Details, NavigationBody) ->
+row_collapsed(Id, Name, NavigationBody) ->
+    [
+        #td{
+            style = ?CONTENT_COLUMN_STYLE,
+            body = #p{
+                style = ?PARAGRAPH_STYLE,
+                body = <<"<b>", Name/binary, "</b> (", Id/binary, ")">>
+            }
+        },
+        #td{
+            style = ?NAVIGATION_COLUMN_STYLE,
+            body = NavigationBody
+        }
+    ].
+
+
+%% row_expanded/2
+%% ====================================================================
+%% @doc Renders expanded details row.
+%% @end
+-spec row_expanded([{DetailName :: binary(), DetailBody :: term()}], NavigationBody :: term()) -> Result when
+    Result :: [#td{}].
+%% ====================================================================
+row_expanded(Details, NavigationBody) ->
     [
         #td{
             style = ?CONTENT_COLUMN_STYLE,
@@ -364,47 +386,46 @@ comet_loop({error, Reason}) ->
 
 comet_loop(#?STATE{providers_details = ProvidersDetails, users_details = UsersDetails} = State) ->
     NewState = try
-        receive
-            render_tables ->
-                gui_jq:update(<<"providers_table">>, providers_table_collapsed(ProvidersDetails)),
-                gui_jq:fade_in(<<"providers_table">>, 500),
-                gui_jq:update(<<"users_table">>, users_table_collapsed(UsersDetails)),
-                gui_jq:fade_in(<<"users_table">>, 500),
-                gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
-                State;
+                   receive
+                       render_tables ->
+                           gui_jq:update(<<"providers_table">>, providers_table_collapsed(ProvidersDetails)),
+                           gui_jq:fade_in(<<"providers_table">>, 500),
+                           gui_jq:update(<<"users_table">>, users_table_collapsed(UsersDetails)),
+                           gui_jq:fade_in(<<"users_table">>, 500),
+                           State;
 
-            Event ->
-                case Event of
-                    collapse_providers_table ->
-                        gui_jq:update(<<"providers_table">>, providers_table_collapsed(ProvidersDetails));
-                    expand_providers_table ->
-                        gui_jq:update(<<"providers_table">>, providers_table_expanded(ProvidersDetails));
-                    {collapse_provider_row, RowId, ProviderDetails} ->
-                        gui_jq:update(RowId, provider_row_collapsed(RowId, ProviderDetails));
-                    {expand_provider_row, RowId, ProviderDetails} ->
-                        gui_jq:update(RowId, provider_row_expanded(RowId, ProviderDetails));
-                    collapse_users_table ->
-                        gui_jq:update(<<"users_table">>, users_table_collapsed(UsersDetails));
-                    expand_users_table ->
-                        gui_jq:update(<<"users_table">>, users_table_expanded(UsersDetails));
-                    {collapse_user_row, RowId, UserDetails} ->
-                        gui_jq:update(RowId, user_row_collapsed(RowId, UserDetails));
-                    {expand_user_row, RowId, UserDetails} ->
-                        gui_jq:update(RowId, user_row_expanded(RowId, UserDetails));
-                    _ ->
-                        ok
-                end,
-                gui_jq:hide(<<"main_spinner">>),
-                State
+                       Event ->
+                           case Event of
+                               collapse_providers_table ->
+                                   gui_jq:update(<<"providers_table">>, providers_table_collapsed(ProvidersDetails));
+                               expand_providers_table ->
+                                   gui_jq:update(<<"providers_table">>, providers_table_expanded(ProvidersDetails));
+                               {collapse_provider_row, RowId, ProviderDetails} ->
+                                   gui_jq:update(RowId, provider_row_collapsed(RowId, ProviderDetails));
+                               {expand_provider_row, RowId, ProviderDetails} ->
+                                   gui_jq:update(RowId, provider_row_expanded(RowId, ProviderDetails));
+                               collapse_users_table ->
+                                   gui_jq:update(<<"users_table">>, users_table_collapsed(UsersDetails));
+                               expand_users_table ->
+                                   gui_jq:update(<<"users_table">>, users_table_expanded(UsersDetails));
+                               {collapse_user_row, RowId, UserDetails} ->
+                                   gui_jq:update(RowId, user_row_collapsed(RowId, UserDetails));
+                               {expand_user_row, RowId, UserDetails} ->
+                                   gui_jq:update(RowId, user_row_expanded(RowId, UserDetails));
+                               _ ->
+                                   ok
+                           end,
+                           State
 
-        after ?COMET_PROCESS_RELOAD_DELAY ->
-            State
-        end
+                   after ?COMET_PROCESS_RELOAD_DELAY ->
+                       State
+                   end
                catch Type:Message ->
-                   ?error("Comet process exception: ~p:~p", [Type, Message]),
+                   ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
     gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 
@@ -419,23 +440,20 @@ event(init) ->
     try
         SpaceId = gui_str:to_binary(gui_ctx:url_param(<<"id">>)),
 
-        {ok, ProviderIds} = gr_spaces:get_providers(provider, SpaceId),
-        {ProvidersDetails, ProvidersCounter} = lists:foldl(fun(ProviderId, {ProvidersDetailsAcc, Id}) ->
-            {ok, ProviderDetails} = gr_spaces:get_provider_details(provider, SpaceId, ProviderId),
-            {
-                [{<<"provider_", (integer_to_binary(Id + 1))/binary>>, ProviderDetails} | ProvidersDetailsAcc],
-                Id + 1
-            }
-        end, {[], 0}, ProviderIds),
+        GetDetailsFun = fun(Ids, Function, RowPrefix) ->
+            lists:foldl(fun(Id, {Rows, It}) ->
+                {ok, Details} = gr_spaces:Function(provider, SpaceId, Id),
+                {
+                    [{<<RowPrefix/binary, (integer_to_binary(It + 1))/binary>>, Details} | Rows],
+                    It + 1
+                }
+            end, {[], 0}, Ids)
+        end,
 
+        {ok, ProviderIds} = gr_spaces:get_providers(provider, SpaceId),
+        {ProvidersDetails, _} = GetDetailsFun(ProviderIds, get_provider_details, <<"provider_">>),
         {ok, UserIds} = gr_spaces:get_users(provider, SpaceId),
-        {UsersDetails, UsersCounter} = lists:foldl(fun(UserId, {UsersDetailsAcc, Id}) ->
-            {ok, UserDetails} = gr_spaces:get_user_details(provider, SpaceId, UserId),
-            {
-                [{<<"user_", (integer_to_binary(Id + 1))/binary>>, UserDetails} | UsersDetailsAcc],
-                Id + 1
-            }
-        end, {[], 0}, UserIds),
+        {UsersDetails, _} = GetDetailsFun(UserIds, get_user_details, <<"user_">>),
 
         {ok, Pid} = gui_comet:spawn(fun() ->
             comet_loop(#?STATE{providers_details = ProvidersDetails, users_details = UsersDetails})
@@ -444,7 +462,7 @@ event(init) ->
         Pid ! render_tables
     catch
         _:Reason ->
-            ?error("Cannot fetch Space details: ~p", [Reason]),
+            ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch Space details.<br>Please try again later.">>)
     end;
 

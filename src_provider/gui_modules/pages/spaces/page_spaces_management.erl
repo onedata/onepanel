@@ -302,7 +302,6 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                             Please try again later.">>),
                             State
                     end,
-                gui_jq:hide(<<"main_spinner">>),
                 gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"">>),
                 NextState;
 
@@ -322,7 +321,6 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                             Please try again later.">>),
                             State
                     end,
-                gui_jq:hide(<<"main_spinner">>),
                 gui_jq:prop(<<"support_space_button">>, <<"disabled">>, <<"">>),
                 NextState;
 
@@ -338,13 +336,11 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot revoke support for Space <b>", SpaceId/binary, "</b>.<br>Please try again later.">>),
                             State
                     end,
-                gui_jq:hide(<<"main_spinner">>),
                 NextState;
 
             render_spaces_table ->
                 gui_jq:update(<<"spaces_table">>, spaces_table_collapsed(SpacesDetails)),
                 gui_jq:fade_in(<<"spaces_table">>, 500),
-                gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
                 gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"">>),
                 gui_jq:prop(<<"support_space_button">>, <<"disabled">>, <<"">>),
                 State;
@@ -362,17 +358,17 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                     _ ->
                         ok
                 end,
-                gui_jq:hide(<<"main_spinner">>),
                 State
 
         after ?COMET_PROCESS_RELOAD_DELAY ->
             State
         end
                catch Type:Message ->
-                   ?error("Comet process exception: ~p:~p", [Type, Message]),
+                   ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
     gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 
@@ -406,7 +402,7 @@ event(init) ->
         Pid ! render_spaces_table
     catch
         _:Reason ->
-            ?error("Cannot fetch supported Spaces: ~p", [Reason]),
+            ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch supported Spaces.<br>Please try again later.">>)
     end;
 
