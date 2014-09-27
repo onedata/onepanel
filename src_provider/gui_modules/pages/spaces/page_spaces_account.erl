@@ -39,13 +39,13 @@ main() ->
                     case gui_ctx:get(?CURRENT_REGISTRATION_PAGE) of
                         undefined ->
                             case dao:get_records(?PROVIDER_TABLE) of
-                                {ok, [#?PROVIDER_RECORD{id = ProviderId, urls = URLs, redirection_point = RedirectionPoint} | _]}
+                                {ok, [#?PROVIDER_RECORD{id = ProviderId, name = ProviderName, urls = URLs, redirection_point = RedirectionPoint} | _]}
                                     when ProviderId =/= undefined ->
                                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()},
-                                        {body, body(ProviderId, URLs, RedirectionPoint)}, {custom, custom()}]};
+                                        {body, body(ProviderId, ProviderName, URLs, RedirectionPoint)}, {custom, custom()}]};
                                 _ ->
                                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()},
-                                        {body, body(undefined, [], undefined)}, {custom, custom()}]}
+                                        {body, body(undefined, undefined, [], undefined)}, {custom, custom()}]}
                             end;
                         Page ->
                             gui_jq:redirect(Page),
@@ -83,10 +83,10 @@ custom() ->
 %% ====================================================================
 %% @doc This will be placed instead of {{body}} tag in template.
 %% @end
--spec body(ProviderId :: binary() | undefined, URLs :: [binary()], RedirectionPoint :: binary()| undefined) -> Result when
+-spec body(ProviderId :: binary() | undefined, ProviderName :: binary(), URLs :: [binary()], RedirectionPoint :: binary()| undefined) -> Result when
     Result :: #panel{}.
 %% ====================================================================
-body(ProviderId, URLs, RedirectionPoint) ->
+body(ProviderId, ProviderName, URLs, RedirectionPoint) ->
     Header = onepanel_gui_utils_adapter:top_menu(spaces_tab, spaces_account_link),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
@@ -95,7 +95,7 @@ body(ProviderId, URLs, RedirectionPoint) ->
                 style = <<"font-size: x-large; margin-bottom: 3em;">>,
                 body = <<"Account settings">>
             },
-            settings_table(ProviderId, URLs, RedirectionPoint)
+            settings_table(ProviderId, ProviderName, URLs, RedirectionPoint)
         ]
     },
     onepanel_gui_utils:body(Header, Main).
@@ -105,10 +105,10 @@ body(ProviderId, URLs, RedirectionPoint) ->
 %% ====================================================================
 %% @doc Renders the body of settings table.
 %% @end
--spec settings_table(ProviderId :: binary()| undefined, URLs :: [binary()], RedirectionPoint :: binary()| undefined) -> Result when
+-spec settings_table(ProviderId :: binary()| undefined, ProviderName :: binary(), URLs :: [binary()], RedirectionPoint :: binary()| undefined) -> Result when
     Result :: #table{}.
 %% ====================================================================
-settings_table(ProviderId, URLs, RedirectionPoint) ->
+settings_table(ProviderId, ProviderName, URLs, RedirectionPoint) ->
     #table{
         style = <<"border-width: 0; width: 100%;">>,
         body = lists:map(fun({TooltipId, TooltipStyle, TooltipBody, LabelId, LabelBody, CellId, CellBody}) ->
@@ -148,8 +148,10 @@ settings_table(ProviderId, URLs, RedirectionPoint) ->
                 ]
             }
         end, [
-            {<<"provider_tooltip">>, <<"top: 0px; right: 110px; display: none;">>, <<"Globally unique identifier assigned by Global Registry.">>,
-                <<"provider_label">>, <<"Provider ID">>, <<"provider_id">>, providerId(ProviderId)},
+            {<<"provider_id_tooltip">>, <<"top: 0px; right: 110px; display: none;">>, <<"Globally unique identifier assigned by Global Registry.">>,
+                <<"provider_id_label">>, <<"Provider ID">>, <<"provider_id">>, providerId(ProviderId)},
+            {<<"provider_name_tooltip">>, <<"top: 5px; right: 77px; display: none;">>, <<"Provider's name in <i>onedata</i>.">>,
+                <<"provider_name_label">>, <<"Name">>, <<"name">>, providerName(ProviderName)},
             {<<"urls_tooltip">>, <<"top: -10px; right: 73px; display: none;">>, <<"List of <i>worker</i> components' IP addresses visible for Global Registry.">>,
                 <<"urls_label">>, <<"URLs">>, <<"urls">>, urls(URLs)},
             {<<"redirection_point_tooltip">>, <<"top: -10px; right: 143px; display: none;">>, <<"Web address used by Global Registry to redirect users to provider.">>,
@@ -198,6 +200,26 @@ providerId(ProviderId) ->
                 }
             }
         ]
+    }.
+
+
+%% providerName/1
+%% ====================================================================
+%% @doc Renders provider's name.
+%% @end
+-spec providerName(ProviderName :: binary() | undefined) -> Result when
+    Result :: #p{}.
+%% ====================================================================
+providerName(undefined) ->
+    #span{
+        style = <<"font-size: large;">>,
+        body = <<"&#8212&#8212&#8212&#8212&#8212&#8212&#8212&#8212">>
+    };
+
+providerName(ProviderName) ->
+    #span{
+        style = <<"font-size: large;">>,
+        body = ProviderName
     }.
 
 
@@ -269,7 +291,8 @@ event(init) ->
         "   }"
         ");">>)
     end, [
-        {<<"provider_label">>, <<"provider_tooltip">>},
+        {<<"provider_id_label">>, <<"provider_id_tooltip">>},
+        {<<"provider_name_label">>, <<"provider_name_tooltip">>},
         {<<"urls_label">>, <<"urls_tooltip">>},
         {<<"redirection_point_label">>, <<"redirection_point_tooltip">>}
     ]),
@@ -305,6 +328,7 @@ api_event("unregister", _, _) ->
     case provider_logic:unregister() of
         ok ->
             gui_jq:update(<<"provider_id">>, providerId(undefined)),
+            gui_jq:update(<<"provider_name">>, providerName(undefined)),
             gui_jq:update(<<"urls">>, urls([])),
             gui_jq:update(<<"redirection_point">>, redirectionPoint(undefined)),
             onepanel_gui_utils:message(<<"ok_message">>, <<"You have been successfully unregistered from Global Registry.">>,

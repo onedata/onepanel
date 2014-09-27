@@ -249,7 +249,7 @@ table(Details, TableName, NavigationBody, RenderRowFunction) ->
     Result :: [#td{}].
 %% ====================================================================
 provider_row_collapsed(RowId, #provider_details{id = ProviderId, name = ProviderName} = ProviderDetails) ->
-    NavigationBody = vcn_gui_utils:expand_button({message, {collapse_provider_row, RowId, ProviderDetails}}),
+    NavigationBody = onepanel_gui_utils:expand_button({message, {collapse_provider_row, RowId, ProviderDetails}}),
     row_collapsed(ProviderId, ProviderName, NavigationBody).
 
 
@@ -287,7 +287,7 @@ provider_row_expanded(RowId, #provider_details{id = ProviderId, name = ProviderN
     Result :: [#td{}].
 %% ====================================================================
 user_row_collapsed(RowId, #user_details{id = UserId, name = UserName} = UserDetails) ->
-    NavigationBody = vcn_gui_utils:expand_button({message, {expand_user_row, RowId, UserDetails}}),
+    NavigationBody = onepanel_gui_utils:expand_button({message, {expand_user_row, RowId, UserDetails}}),
     row_collapsed(UserId, UserName, NavigationBody).
 
 
