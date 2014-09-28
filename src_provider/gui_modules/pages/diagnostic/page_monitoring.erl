@@ -658,7 +658,7 @@ comet_loop(#?STATE{counter = Counter, nodes = Nodes, node = Node, time_range = T
                        error_message(<<"There has been an error in comet process. Please refresh the page.">>),
                        {error, Msg}
                    end,
-    gui_jq:hide(<<"main_spinner">>),
+    gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
     gui_comet:flush(),
     ?MODULE:comet_loop(NewPageState).
 

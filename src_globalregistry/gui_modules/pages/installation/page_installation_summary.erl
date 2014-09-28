@@ -252,7 +252,6 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
             render_summary_table ->
                 gui_jq:update(<<"summary_table">>, summary_table(Config)),
                 gui_jq:fade_in(<<"summary_table">>, 500),
-                gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
                 case Config#?CONFIG.gr of
                     [] ->
                         ok;
@@ -296,7 +295,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                 gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"disabled">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
                 Progress = <<(integer_to_binary(round(99 * NewStep / Steps)))/binary, "%">>,
-                gui_jq:update(<<"progress_text">>, <<Text/binary, " <b>( ", Progress/binary, " )</b>">>),
+                gui_jq:update(<<"progress_text">>, <<Text/binary, " <b>(", Progress/binary, ")</b>">>),
                 gui_jq:set_width(<<"bar">>, Progress),
                 timer:send_after(?NEXT_UPDATE_DELAY, {update, NewStep, Text}),
                 State#?STATE{step = NewStep, step_progress = 0, next_update = ?NEXT_UPDATE_DELAY};
@@ -304,7 +303,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
             {update, Step, Text} ->
                 NewStepProgress = StepProgress + (1 - StepProgress) / 2,
                 Progress = <<(integer_to_binary(round(99 * (Step + NewStepProgress) / Steps)))/binary, "%">>,
-                gui_jq:update(<<"progress_text">>, <<Text/binary, " <b>( ", Progress/binary, " )</b>">>),
+                gui_jq:update(<<"progress_text">>, <<Text/binary, " <b>(", Progress/binary, ")</b>">>),
                 gui_jq:set_width(<<"bar">>, Progress),
                 timer:send_after(NextUpdate, {update, Step, Text}),
                 State#?STATE{step_progress = NewStepProgress, next_update = 2 * NextUpdate};
@@ -330,10 +329,11 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
             State
         end
                catch Type:Message ->
-                   ?error("Comet process exception: ~p:~p", [Type, Message]),
+                   ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
     gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 

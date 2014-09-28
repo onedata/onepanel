@@ -238,7 +238,6 @@ comet_loop(#?STATE{counter = Counter, db_config = DbConfig, session_config = #?C
             render_storage_paths_table ->
                 gui_jq:update(<<"storage_paths_table">>, storage_paths_table(DbConfig, SessionConfig)),
                 gui_jq:fade_in(<<"storage_paths_table">>, 500),
-                gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
                 gui_jq:focus(<<"storage_path_textbox_", (integer_to_binary(Counter + 1))/binary>>),
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
                 State;
@@ -258,7 +257,6 @@ comet_loop(#?STATE{counter = Counter, db_config = DbConfig, session_config = #?C
                                             State
                                     end
                             end,
-                gui_jq:hide(<<"main_spinner">>),
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
                 NextState;
@@ -291,23 +289,22 @@ comet_loop(#?STATE{counter = Counter, db_config = DbConfig, session_config = #?C
                                             State
                                     end
                             end,
-                gui_jq:hide(<<"main_spinner">>),
                 NextState;
 
             {remove_storage_path, StorageId, StoragePath} ->
                 gui_jq:remove(<<"storage_path_row_", StorageId/binary>>),
                 gui_jq:focus(<<"storage_path_textbox_", (integer_to_binary(Counter + 1))/binary>>),
-                gui_jq:hide(<<"main_spinner">>),
                 State#?STATE{session_config = SessionConfig#?CONFIG{storage_paths = lists:delete(StoragePath, StoragePaths)}}
 
         after ?COMET_PROCESS_RELOAD_DELAY ->
             State
         end
                catch Type:Message ->
-                   ?error("Comet process exception: ~p:~p", [Type, Message]),
+                   ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
     gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 

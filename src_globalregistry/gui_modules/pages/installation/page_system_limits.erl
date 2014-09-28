@@ -209,7 +209,6 @@ comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimit
                     {<<"next_button">>, {actions, gui_jq:form_submit_action(<<"next_button">>, {set_system_limits, SystemLimits}, TextboxIds)}, true, <<"Next">>}
                 ])),
                 gui_jq:fade_in(<<"system_limits_table">>, 500),
-                gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
                 State;
 
@@ -241,7 +240,6 @@ comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimit
                     _ ->
                         onepanel_gui_utils:message(<<"error_message">>, <<"Cannot set system limits for some hosts.<br>Remember that system limit should be a positive number.">>)
                 end,
-                gui_jq:hide(<<"main_spinner">>),
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
                 State
@@ -250,10 +248,11 @@ comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimit
             State
         end
                catch Type:Message ->
-                   ?error("Comet process exception: ~p:~p", [Type, Message]),
+                   ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
     gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 

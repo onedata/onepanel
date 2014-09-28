@@ -204,7 +204,6 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                     {<<"next_button">>, {actions, gui_jq:form_submit_action(<<"next_button">>, {set_ports, Ports}, TextboxIds)}, true, <<"Next">>}
                 ])),
                 gui_jq:fade_in(<<"ports_table">>, 500),
-                gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
                 State;
 
@@ -234,7 +233,6 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                         onepanel_gui_utils:message(<<"error_message">>, <<"Some ports are not available for <i>Global Registry</i>.<br>
                         Please change them and try again.">>)
                 end,
-                gui_jq:hide(<<"main_spinner">>),
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
                 State
@@ -243,10 +241,11 @@ comet_loop(#?STATE{ports = Ports} = State) ->
             State
         end
                catch Type:Message ->
-                   ?error("Comet process exception: ~p:~p", [Type, Message]),
+                   ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
     gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 

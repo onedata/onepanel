@@ -170,7 +170,6 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFI
             render_hosts_table ->
                 gui_jq:update(<<"hosts_table">>, hosts_table(Hosts, DbConfig, SessionConfig)),
                 gui_jq:fade_in(<<"hosts_table">>, 500),
-                gui_jq:wire(<<"$('#main_spinner').delay(500).hide(0);">>, false),
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
                 State;
 
@@ -248,10 +247,11 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFI
             State
         end
                catch Type:Message ->
-                   ?error("Comet process exception: ~p:~p", [Type, Message]),
+                   ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
+    gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
     gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 
