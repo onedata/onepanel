@@ -72,9 +72,7 @@ finalize_installation_loop(GRNode, Attempts) ->
         {started, _} = rpc:call(GRNode, init, get_status, []),
         ok
     catch
-        _:R ->
-            ?dump(R),
-            ?dump(GRNode),
+        _:_ ->
             timer:sleep(?NEXT_ATTEMPT_DELAY),
             finalize_installation_loop(GRNode, Attempts - 1)
     end.

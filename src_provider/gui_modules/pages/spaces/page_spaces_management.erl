@@ -9,7 +9,7 @@
 %% This page allows to manage provider spaces.
 %% @end
 %% ===================================================================
--module(page_spaces_settings).
+-module(page_spaces_management).
 
 -include("gui_modules/common.hrl").
 -include_lib("ctool/include/logging.hrl").
@@ -64,7 +64,7 @@ main() ->
     Result :: binary().
 %% ====================================================================
 title() ->
-    <<"Spaces setting">>.
+    <<"Spaces management">>.
 
 
 %% custom/0
@@ -85,7 +85,7 @@ custom() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils_adapter:top_menu(spaces_tab, spaces_settings_link, [], true),
+    Header = onepanel_gui_utils_adapter:top_menu(spaces_tab, spaces_dashboard_link, [], true),
     Main = #panel{
         style = <<"margin-top: 10em; text-align: center;">>,
         body = [
@@ -95,7 +95,7 @@ body() ->
             },
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
-                body = <<"The list below presents supported <i>Spaces</i>.">>
+                body = <<"Supported <i>Spaces</i> are presented in the table below.">>
             },
             onepanel_gui_utils:nav_buttons([
                 {<<"create_space_button">>, {postback, create_space}, true, <<"Create Space">>},

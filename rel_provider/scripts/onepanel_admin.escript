@@ -19,7 +19,7 @@
 %% Default cookie used for communication with cluster
 -define(DEFAULT_COOKIE, veil_cluster_node).
 
-% Default system limit values
+%% Default system limit values
 -define(DEFAULT_OPEN_FILES, 65535).
 -define(DEFAULT_PROCESSES, 65535).
 
@@ -27,7 +27,7 @@
 -define(DEFAULT_USERNAME, <<"admin">>).
 -define(DEFAULT_PASSWORD, <<"password">>).
 
-% Installation directory of veil RPM
+%% Installation directory of veil RPM
 -define(PREFIX, "/opt/veil/").
 
 %% Timeout for each RPC call

@@ -76,12 +76,13 @@ body() ->
                                            body = <<"Successful installation">>
                                        },
                                        #p{
-                                           body = <<"Would you like to register as a provider?">>
+                                           body = <<"Would you like to register as a provider?<br>"
+                                           "<i>Provider</i> is anyone who decides to support storage spaces for <i>onedata</i> users.">>
                                        },
                                        #link{
                                            postback = to_root_page,
                                            style = <<"width: 8em;">>,
-                                           class = <<"btn btn-info">>,
+                                           class = <<"btn btn-inverse">>,
                                            body = <<"Not now">>
                                        },
                                        #link{

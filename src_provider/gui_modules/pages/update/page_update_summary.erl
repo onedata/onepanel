@@ -97,9 +97,10 @@ body() ->
                 id = <<"update_panel">>,
                 style = UpdatePanelDisplay,
                 body = [
-                    #custom_checkbox{
-                        style = <<"width: 20px; margin: 0 auto;">>,
-                        class = <<"checkbox">>,
+                    #flatui_checkbox{
+                        label_style = <<"width: 20px; margin: 0 auto;">>,
+                        label_class = <<"checkbox">>,
+                        delegate = ?MODULE,
                         postback = force_restart_checkbox_toggled,
                         body = <<"Force software components restart">>
                     },

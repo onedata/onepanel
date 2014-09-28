@@ -83,8 +83,8 @@ body() ->
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
                 body = <<"The table below presents a list of hosts where software package installation has been detected.<br>"
-                " To configure application please distribute software components throughout available hosts by selecting"
-                " corresponding checkboxes.">>
+                " In order to configure application please distribute software components over available hosts by selecting"
+                " checkboxes.">>
             },
             #table{
                 id = <<"hosts_table">>,
@@ -124,21 +124,24 @@ hosts_table(Hosts, DbConfig, PageConfig) ->
                     body = <<"<b>", (gui_str:html_encode(Host))/binary, "</b>">>,
                     style = ColumnStyle
                 } | lists:map(fun({Prefix, Checked, Disabled}) ->
+                    flatui_checkbox:init_checkbox(<<Prefix/binary, "checkbox_", HostId/binary>>),
                     #td{
                         style = ColumnStyle,
-                        body = #custom_checkbox{
-                            id = <<Prefix/binary, HostId/binary>>,
-                            style = <<"width: 20px; margin: 0 auto;">>,
-                            class = <<"checkbox no-label">>,
+                        body = #flatui_checkbox{
+                            label_id = <<Prefix/binary, "label_", HostId/binary>>,
+                            label_style = <<"width: 20px; margin: 0 auto;">>,
+                            label_class = <<"checkbox no-label">>,
+                            id = <<Prefix/binary, "checkbox_", HostId/binary>>,
                             checked = Checked,
                             disabled = Disabled,
-                            postback = {message, {binary_to_atom(<<Prefix/binary, "toggled">>, latin1), Host, HostId, Disabled}}
+                            delegate = ?MODULE,
+                            postback = {message, {binary_to_atom(<<Prefix/binary, "checkbox_toggled">>, latin1), Host, HostId}}
                         }
                     }
                 end, [
-                    {<<"ccm_checkbox_">>, lists:member(Host, PageConfig#?CONFIG.ccms), DbConfig#?CONFIG.main_ccm =/= undefined},
-                    {<<"worker_checkbox_">>, lists:member(Host, PageConfig#?CONFIG.workers), lists:member(Host, DbConfig#?CONFIG.workers)},
-                    {<<"db_checkbox_">>, lists:member(Host, PageConfig#?CONFIG.dbs), DbConfig#?CONFIG.dbs =/= []}
+                    {<<"ccm_">>, lists:member(Host, PageConfig#?CONFIG.ccms), DbConfig#?CONFIG.main_ccm =/= undefined},
+                    {<<"worker_">>, lists:member(Host, PageConfig#?CONFIG.workers), lists:member(Host, DbConfig#?CONFIG.workers)},
+                    {<<"db_">>, lists:member(Host, PageConfig#?CONFIG.dbs), DbConfig#?CONFIG.dbs =/= []}
                 ])
             ]
         }
@@ -192,7 +195,7 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFI
                 end,
                 State;
 
-            {ccm_checkbox_toggled, Host, HostId, false} ->
+            {ccm_checkbox_toggled, Host, HostId} ->
                 case lists:member(Host, CCMs) of
                     true ->
                         case Host of
@@ -206,17 +209,17 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFI
                             true ->
                                 State#?STATE{session_config = SessionConfig#?CONFIG{ccms = [Host | CCMs]}};
                             false ->
-                                gui_jq:click(<<"worker_checkbox_", HostId/binary>>),
+                                gui_jq:add_class(<<"worker_label_", HostId/binary>>, <<"checked">>),
                                 State#?STATE{session_config = SessionConfig#?CONFIG{ccms = [Host | CCMs], workers = [Host | Workers]}}
                         end
                 end;
 
-            {worker_checkbox_toggled, Host, HostId, false} ->
+            {worker_checkbox_toggled, Host, HostId} ->
                 case lists:member(Host, Workers) of
                     true ->
                         case lists:member(Host, CCMs) of
                             true ->
-                                gui_jq:click(<<"ccm_checkbox_", HostId/binary>>),
+                                gui_jq:remove_class(<<"ccm_label_", HostId/binary>>, <<"checked">>),
                                 case Host of
                                     MainCCM ->
                                         State#?STATE{session_config = SessionConfig#?CONFIG{main_ccm = undefined, ccms = lists:delete(Host, CCMs), workers = lists:delete(Host, Workers)}};
@@ -230,7 +233,7 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFI
                         State#?STATE{session_config = SessionConfig#?CONFIG{workers = [Host | Workers]}}
                 end;
 
-            {db_checkbox_toggled, Host, _, false} ->
+            {db_checkbox_toggled, Host, _} ->
                 case lists:member(Host, Dbs) of
                     true ->
                         State#?STATE{session_config = SessionConfig#?CONFIG{dbs = lists:delete(Host, Dbs)}};

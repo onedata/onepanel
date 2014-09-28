@@ -80,9 +80,8 @@ body() ->
                 body = <<"Step 2: Ports check.">>
             },
             #p{
-                style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
-                body = <<"To verify that all required application ports are available to <i>Global Registry</i>
-                please press <i>Next</i> button.">>
+                id = <<"ports_message">>,
+                style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>
             },
             #table{
                 id = <<"ports_table">>,
@@ -192,10 +191,13 @@ comet_loop({error, Reason}) ->
 comet_loop(#?STATE{ports = Ports} = State) ->
     NewState = try
         receive
-            render_ports_table ->
+            {render_ports_table, DefaultGuiPort, DefaultRestPort} ->
                 TextboxIds = lists:foldl(fun({_, Id, _, _}, TextboxIdsAcc) ->
                     [<<"gui_port_textbox_", Id/binary>>, <<"rest_port_textbox_", Id/binary>> | TextboxIdsAcc]
                 end, [], Ports),
+                gui_jq:update(<<"ports_message">>, <<"By default provider's GUI Web pages are served on <b>",
+                DefaultGuiPort/binary, "</b> port.<br>REST API endpoints are available on <b>", DefaultRestPort/binary, "</b> port.<br>"
+                "If your network configuration differs please provide port translations in the table below.">>),
                 gui_jq:update(<<"ports_table">>, ports_table(Ports)),
                 gui_jq:update(<<"nav_buttons">>, onepanel_gui_utils:nav_buttons([
                     {<<"back_button">>, {postback, back}, false, <<"Back">>},
@@ -278,7 +280,7 @@ event(init) ->
             comet_loop(#?STATE{ports = Ports})
         end),
         put(?COMET_PID, Pid),
-        Pid ! render_ports_table
+        Pid ! {render_ports_table, integer_to_binary(DefaultGuiPort), integer_to_binary(DefaultRestPort)}
     catch
         _:Reason ->
             ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),

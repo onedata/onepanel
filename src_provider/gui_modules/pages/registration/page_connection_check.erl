@@ -79,7 +79,7 @@ body() ->
             },
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
-                body = <<"To establish test connection to <i>Global Registry</i> please press <i>Next</i> button.">>
+                body = <<"In order to establish test connection to <i>Global Registry</i> please press <i>Next</i> button.">>
             },
             #panel{
                 id = <<"progress">>,

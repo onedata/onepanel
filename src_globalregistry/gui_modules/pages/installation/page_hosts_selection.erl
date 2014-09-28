@@ -83,8 +83,8 @@ body() ->
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
                 body = <<"The table below presents a list of hosts where software package installation has been detected.<br>"
-                " In order to configure application please distribute software components throughout available hosts by selecting"
-                " corresponding checkboxes.">>
+                " In order to configure application please distribute software components over available hosts by selecting"
+                " checkboxes.">>
             },
             #table{
                 id = <<"hosts_table">>,
@@ -124,20 +124,23 @@ hosts_table(Hosts, DbConfig, PageConfig) ->
                     body = <<"<b>", (gui_str:html_encode(Host))/binary, "</b>">>,
                     style = ColumnStyle
                 } | lists:map(fun({Prefix, Checked, Disabled}) ->
+                    flatui_checkbox:init_checkbox(<<Prefix/binary, "checkbox_", HostId/binary>>),
                     #td{
                         style = ColumnStyle,
-                        body = #custom_checkbox{
-                            id = <<Prefix/binary, HostId/binary>>,
-                            style = <<"width: 20px; margin: 0 auto;">>,
-                            class = <<"checkbox no-label">>,
+                        body = #flatui_checkbox{
+                            label_id = <<Prefix/binary, "label_", HostId/binary>>,
+                            label_style = <<"width: 20px; margin: 0 auto;">>,
+                            label_class = <<"checkbox no-label">>,
+                            id = <<Prefix/binary, "checkbox_", HostId/binary>>,
                             checked = Checked,
                             disabled = Disabled,
-                            postback = {message, {binary_to_atom(<<Prefix/binary, "toggled">>, latin1), Host, HostId, Disabled}}
+                            delegate = ?MODULE,
+                            postback = {message, {binary_to_atom(<<Prefix/binary, "checkbox_toggled">>, latin1), Host, HostId}}
                         }
                     }
                 end, [
-                    {<<"gr_checkbox_">>, Host =:= PageConfig#?CONFIG.gr, DbConfig#?CONFIG.gr =/= undefined},
-                    {<<"db_checkbox_">>, lists:member(Host, PageConfig#?CONFIG.dbs), DbConfig#?CONFIG.dbs =/= []}
+                    {<<"gr_">>, Host =:= PageConfig#?CONFIG.gr, DbConfig#?CONFIG.gr =/= undefined},
+                    {<<"db_">>, lists:member(Host, PageConfig#?CONFIG.dbs), DbConfig#?CONFIG.dbs =/= []}
                 ])
             ]
         }
@@ -185,17 +188,17 @@ comet_loop(#?STATE{hosts = Hosts, gr_checkbox_id = GrId, db_config = DbConfig, s
                 end,
                 State;
 
-            {gr_checkbox_toggled, GR, _, false} ->
+            {gr_checkbox_toggled, GR, _} ->
                 State#?STATE{gr_checkbox_id = undefined, session_config = SessionConfig#?CONFIG{gr = undefined}};
 
-            {gr_checkbox_toggled, Host, HostId, false} ->
+            {gr_checkbox_toggled, Host, HostId} ->
                 case GrId of
                     undefined -> ok;
-                    _ -> gui_jq:click(<<"gr_checkbox_", GrId/binary>>)
+                    _ -> gui_jq:remove_class(<<"gr_label_", GrId/binary>>, <<"checked">>)
                 end,
                 State#?STATE{gr_checkbox_id = HostId, session_config = SessionConfig#?CONFIG{gr = Host}};
 
-            {db_checkbox_toggled, Host, _, false} ->
+            {db_checkbox_toggled, Host, _} ->
                 case lists:member(Host, Dbs) of
                     true ->
                         State#?STATE{session_config = SessionConfig#?CONFIG{dbs = lists:delete(Host, Dbs)}};
