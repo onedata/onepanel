@@ -346,12 +346,12 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
 
                 StageProgress = 100 * (StageIndex * JobsCount - JobsCount + JobIndex) / (SCount * JobsCount),
                 StageProgressBinary = <<(integer_to_binary(round(StageProgress)))/binary, "%">>,
-                gui_jq:update(<<"stage_progress_text">>, <<StagePrefix/binary, "<b>", StageName/binary, " ( ", StageProgressBinary/binary, " )</b>">>),
+                gui_jq:update(<<"stage_progress_text">>, <<StagePrefix/binary, "<b>", StageName/binary, " (", StageProgressBinary/binary, ")</b>">>),
                 gui_jq:set_width(<<"stage_bar">>, StageProgressBinary),
 
                 {JobsProgress, NewJProgress} = get_job_progress(0, JobIndex, JobsCount, AType),
                 JobsProgressBinary = <<(integer_to_binary(round(JobsProgress)))/binary, "%">>,
-                gui_jq:update(<<"job_progress_text">>, <<JobPrefix/binary, "<b>", JobName/binary, " ( ", JobsProgressBinary/binary, " )</b>">>),
+                gui_jq:update(<<"job_progress_text">>, <<JobPrefix/binary, "<b>", JobName/binary, " (", JobsProgressBinary/binary, ")</b>">>),
                 gui_jq:set_width(<<"job_bar">>, JobsProgressBinary),
 
                 timer:send_after(?DEFAULT_NEXT_UPDATE, {update, StageIndex, JobIndex, JobPrefix, JobName, JobsCount}),
@@ -365,7 +365,7 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
 
                 {JobsProgress, NewJProgress} = get_job_progress(JProgress, JIndex, JobsCount, AType),
                 JobsProgressBinary = <<(integer_to_binary(round(JobsProgress)))/binary, "%">>,
-                gui_jq:update(<<"job_progress_text">>, <<JobPrefix/binary, "<b>", JobName/binary, " ( ", JobsProgressBinary/binary, " )</b>">>),
+                gui_jq:update(<<"job_progress_text">>, <<JobPrefix/binary, "<b>", JobName/binary, " (", JobsProgressBinary/binary, ")</b>">>),
                 gui_jq:set_width(<<"job_bar">>, JobsProgressBinary),
 
                 timer:send_after(2 * UTime, {update, SIndex, JIndex, JobPrefix, JobName, JobsCount}),

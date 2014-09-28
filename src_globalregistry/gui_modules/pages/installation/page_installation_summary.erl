@@ -295,7 +295,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                 gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"disabled">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
                 Progress = <<(integer_to_binary(round(99 * NewStep / Steps)))/binary, "%">>,
-                gui_jq:update(<<"progress_text">>, <<Text/binary, " <b>( ", Progress/binary, " )</b>">>),
+                gui_jq:update(<<"progress_text">>, <<Text/binary, " <b>(", Progress/binary, ")</b>">>),
                 gui_jq:set_width(<<"bar">>, Progress),
                 timer:send_after(?NEXT_UPDATE_DELAY, {update, NewStep, Text}),
                 State#?STATE{step = NewStep, step_progress = 0, next_update = ?NEXT_UPDATE_DELAY};
@@ -303,7 +303,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
             {update, Step, Text} ->
                 NewStepProgress = StepProgress + (1 - StepProgress) / 2,
                 Progress = <<(integer_to_binary(round(99 * (Step + NewStepProgress) / Steps)))/binary, "%">>,
-                gui_jq:update(<<"progress_text">>, <<Text/binary, " <b>( ", Progress/binary, " )</b>">>),
+                gui_jq:update(<<"progress_text">>, <<Text/binary, " <b>(", Progress/binary, ")</b>">>),
                 gui_jq:set_width(<<"bar">>, Progress),
                 timer:send_after(NextUpdate, {update, Step, Text}),
                 State#?STATE{step_progress = NewStepProgress, next_update = 2 * NextUpdate};
