@@ -20,7 +20,7 @@
 -define(APP_STR, atom_to_list(?APP_NAME)).
 
 %% Name of installed software application.
--define(SOFTWARE_NAME, veil_cluster_node).
+-define(SOFTWARE_NAME, oneprovider_node).
 
 %% Global name of gen_server that provides CCM functionality of installed software
 -define(CCM, central_cluster_manager).

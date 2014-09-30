@@ -6,7 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc This module contains n2o website code.
-%% This page allows to check whether all VeilCluster ports are available
+%% This page allows to check whether all oneprovider ports are available
 %% for Global Registry.
 %% @end
 %% ===================================================================

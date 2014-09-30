@@ -75,7 +75,7 @@ main(Args) ->
 
 %% init/0
 %% ====================================================================
-%% @doc Sets up net kernel and establishes connection to VeilCluster.
+%% @doc Sets up net kernel and establishes connection to oneprovider.
 %% @end
 -spec init() -> ok.
 %% ====================================================================

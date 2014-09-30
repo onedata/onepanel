@@ -16,7 +16,7 @@
 %% Common version holder
 -record(version, {major = 0, minor = 0, patch = 0}).
 
-%% In-memory VeilCluster package
+%% In-memory oneprovider package
 -record(package, {type = rpm, binary = <<>>}).
 
 %% Types

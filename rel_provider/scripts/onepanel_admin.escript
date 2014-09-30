@@ -17,7 +17,7 @@
 -define(APP_STR, "onepanel").
 
 %% Default cookie used for communication with cluster
--define(DEFAULT_COOKIE, veil_cluster_node).
+-define(DEFAULT_COOKIE, oneprovider_node).
 
 %% Default system limit values
 -define(DEFAULT_OPEN_FILES, 65535).
@@ -27,8 +27,8 @@
 -define(DEFAULT_USERNAME, <<"admin">>).
 -define(DEFAULT_PASSWORD, <<"password">>).
 
-%% Installation directory of veil RPM
--define(PREFIX, "/opt/veil/").
+%% Installation directory of oneprovider RPM
+-define(PREFIX, "/opt/oneprovider/").
 
 %% Timeout for each RPC call
 -define(RPC_TIMEOUT, 120000).
@@ -86,7 +86,7 @@ main(Args) ->
 
 %% init/0
 %% ====================================================================
-%% @doc Sets up net kernel and establishes connection to VeilCluster.
+%% @doc Sets up net kernel and establishes connection to oneprovider.
 %% @end
 -spec init() -> ok.
 %% ====================================================================

@@ -217,7 +217,7 @@ dispatch_object(?STAGE_DAO_POST_SETUP_VIEWS, ?JOB_CLEANUP_VIEWS, _Obj, #?U_STATE
 
 dispatch_object(?STAGE_NODE_RESTART, _, Obj, #?U_STATE{}) ->
     Node = Obj,
-    updater_utils:local_cast(fun() -> veil_restart(Node) end);
+    updater_utils:local_cast(fun() -> oneprovider_restart(Node) end);
 
 dispatch_object(Stage, Job, Obj, #?U_STATE{}) ->
     throw({unknown_dispatch, {Stage, Job, Obj}}).
@@ -259,7 +259,7 @@ rollback_object(?STAGE_DEPLOY_FILES, ?JOB_DEPLOY, Obj, #?U_STATE{}) ->
 
 rollback_object(?STAGE_REPAIR_NODES, _, Obj, #?U_STATE{}) ->
     Node = Obj,
-    updater_utils:local_cast(fun() -> veil_restart(Node) end);
+    updater_utils:local_cast(fun() -> oneprovider_restart(Node) end);
 
 rollback_object(Stage, Job, Obj, #?U_STATE{}) ->
     throw({unknown_rollback, {Stage, Job, Obj}}).
@@ -270,14 +270,14 @@ rollback_object(Stage, Job, Obj, #?U_STATE{}) ->
 %% ====================================================================
 
 
-%% veil_restart/1
+%% oneprovider_restart/1
 %% ====================================================================
-%% @doc Restarts given veil_cluster_node, awaits its start up and waits a dozen or so seconds
+%% @doc Restarts given oneprovider_node, awaits its start up and waits a dozen or so seconds
 %%      to generate some time window between successive node restarts.
 %% @end
--spec veil_restart(Node :: atom()) -> ok | {error, {node_down, Node :: atom()}}.
+-spec oneprovider_restart(Node :: atom()) -> ok | {error, {node_down, Node :: atom()}}.
 %% ====================================================================
-veil_restart(Node) ->
+oneprovider_restart(Node) ->
     [NodeType, _] = string:tokens(atom_to_list(Node), "@"),
     OnePanelNode = onepanel_utils:get_node(onepanel_utils:get_host(Node)),
     Mod = list_to_atom("installer_" ++ NodeType),

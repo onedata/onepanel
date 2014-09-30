@@ -33,10 +33,10 @@
 -ifdef(provider).
 
 %% Default cookie used for communication with application
--define(DEFAULT_COOKIE, veil_cluster_node).
+-define(DEFAULT_COOKIE, oneprovider_node).
 
 %% Installation directory of RPM package
--define(PREFIX, filename:join([filename:absname("/"), "opt", "veil"])).
+-define(PREFIX, filename:join([filename:absname("/"), "opt", "oneprovider"])).
 
 %% Location of configured_nodes.cfg file
 -define(CONFIGURED_NODES_PATH, filename:join([?PREFIX, "scripts", "configured_nodes.cfg"])).
@@ -50,15 +50,15 @@
 
 %% Location of release packages
 -define(DB_RELEASE, filename:join([?PREFIX, "files", "database_node"])).
--define(VEIL_RELEASE, filename:join([?PREFIX, "files", "veil_cluster_node"])).
+-define(ONEPROVIDER_RELEASE, filename:join([?PREFIX, "files", "oneprovider_node"])).
 
 %% Install path for nodes
 -define(DEFAULT_NODES_INSTALL_PATH, filename:join([?PREFIX, "nodes"])).
 
-%% Paths relative to veil_cluster_node release
+%% Paths relative to oneprovider_node release
 -define(CONFIG_ARGS_PATH, filename:join(["bin", "config.args"])).
--define(VEIL_CLUSTER_SCRIPT_PATH, filename:join(["bin", "veil_cluster"])).
--define(START_COMMAND_SUFFIX, filename:join(["bin", "veil_cluster_node start"])).
+-define(ONEPROVIDER_SCRIPT_PATH, filename:join(["bin", "oneprovider"])).
+-define(START_COMMAND_SUFFIX, filename:join(["bin", "oneprovider_node start"])).
 
 %% Relative path to storage configuration file
 -define(STORAGE_CONFIG_PATH, filename:join(["bin", "storage_info.cfg"])).

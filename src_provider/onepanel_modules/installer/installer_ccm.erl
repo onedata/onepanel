@@ -215,7 +215,7 @@ local_install() ->
         CCMPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME]),
 
         "" = os:cmd("mkdir -p " ++ CCMPath),
-        "" = os:cmd("cp -R " ++ filename:join([?VEIL_RELEASE, "* "]) ++ CCMPath),
+        "" = os:cmd("cp -R " ++ filename:join([?ONEPROVIDER_RELEASE, "* "]) ++ CCMPath),
 
         {ok, Host}
     catch
@@ -274,7 +274,7 @@ local_start(MainCCM, OptCCMs, Dbs) ->
 
         NodeConfigPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME, ?CONFIG_ARGS_PATH]),
         StorageConfigPath = list_to_binary(filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME, ?STORAGE_CONFIG_PATH])),
-        OverwriteCommand = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME, ?VEIL_CLUSTER_SCRIPT_PATH]),
+        OverwriteCommand = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME, ?ONEPROVIDER_SCRIPT_PATH]),
         StartCommand = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME, ?START_COMMAND_SUFFIX]),
 
         ok = installer_utils:overwrite_config_args(NodeConfigPath, <<"name: ">>, <<"[^\n]*">>, Name),

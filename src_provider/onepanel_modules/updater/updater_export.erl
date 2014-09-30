@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc Remote module used to execute/inject code onto VeilCluster node.
+%% @doc Remote module used to execute/inject code onto oneprovider node.
 %% @end
 %% ===================================================================
 -module(updater_export).
@@ -55,8 +55,8 @@ runner(RespondTo, Fun, Args) ->
 -spec install_package(Package :: #package{}) -> ok | {error, any()}.
 %% ====================================================================
 install_package(#package{type = rpm, binary = Bin}) ->
-    file:write_file("/tmp/veil.rpm", Bin),
-    case os:cmd("rpm -i /tmp/veil.rpm --force --quiet") of
+    file:write_file("/tmp/oneprovider.rpm", Bin),
+    case os:cmd("rpm -i /tmp/oneprovider.rpm --force --quiet") of
         "" -> ok;
         Reason -> {error, {stdout, Reason}}
     end;
@@ -116,7 +116,7 @@ revert_instalation() ->
 -spec move_file(File :: string()) -> ok | {error, any()}.
 %% ====================================================================
 move_file(File) ->
-    RelPrivPath = filename:join([?VEIL_RELEASE, "lib"]),
+    RelPrivPath = filename:join([?ONEPROVIDER_RELEASE, "lib"]),
     WorkerTargetDir = filename:join([?DEFAULT_NODES_INSTALL_PATH, get_node_subpath(), "lib"]),
 
     From = os:cmd("find " ++ RelPrivPath ++ " -name \"" ++ File ++ "\" | head -1") -- [10],
@@ -144,7 +144,7 @@ move_file(File) ->
 -spec move_all_files() -> ok | {error, any()}.
 %% ====================================================================
 move_all_files() ->
-    Targets = string:tokens(os:cmd("cd " ++ ?VEIL_RELEASE ++ "; find . -type f | grep -v sys.config | grep -v vm.args | grep -v config.args | grep -v storage_info.cfg"), [10]),
+    Targets = string:tokens(os:cmd("cd " ++ ?ONEPROVIDER_RELEASE ++ "; find . -type f | grep -v sys.config | grep -v vm.args | grep -v config.args | grep -v storage_info.cfg"), [10]),
     IsRebootRequired =
         lists:foldl(
             fun(File, RebootRequired) ->
@@ -156,7 +156,7 @@ move_all_files() ->
                         file:make_dir(NewDir),
                         NewDir
                     end, [], filename:split(TargetDir)),
-                Source = filename:join([?VEIL_RELEASE, File]),
+                Source = filename:join([?ONEPROVIDER_RELEASE, File]),
                 {ok, SourceBin} = file:read_file(Source),
                 TargetBin =
                     case file:read_file(Source) of
@@ -292,7 +292,7 @@ get_all_loaded() ->
 -spec install_view_sources() -> ok | {error, any()}.
 %% ====================================================================
 install_view_sources() ->
-    case os:cmd("cp -rf " ++ filename:join(?VEIL_RELEASE, "views") ++ " " ++ filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME])) of
+    case os:cmd("cp -rf " ++ filename:join(?ONEPROVIDER_RELEASE, "views") ++ " " ++ filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME])) of
         "" -> ok;
         Reason -> {error, {stdout, Reason}}
     end.
@@ -324,12 +324,12 @@ refresh_view(View) ->
 
 %% get_release_name/0
 %% ====================================================================
-%% @doc Returns veil_cluster_node's release lib directory name.
+%% @doc Returns oneprovider_node's release lib directory name.
 %% @end
 -spec get_release_name() -> ReleaseName :: string().
 %% ====================================================================
 get_release_name() ->
-    os:cmd("basename `find " ++ filename:join(?VEIL_RELEASE, "lib") ++ " -name 'veil_cluster_node*' -type d -printf '%T@ %p\n' | sort -nr | cut -d ' ' -f 2- | head -1`") -- [10].
+    os:cmd("basename `find " ++ filename:join(?ONEPROVIDER_RELEASE, "lib") ++ " -name 'oneprovider_node*' -type d -printf '%T@ %p\n' | sort -nr | cut -d ' ' -f 2- | head -1`") -- [10].
 
 
 %% is_reboot_only_lib/1
@@ -349,5 +349,5 @@ is_reboot_only_lib(FilePath) ->
 -spec get_node_subpath() -> ok | {error, any()}.
 %% ====================================================================
 get_node_subpath() ->
-    {ok, Type} = application:get_env(veil_cluster_node, node_type),
+    {ok, Type} = application:get_env(oneprovider_node, node_type),
     atom_to_list(Type).

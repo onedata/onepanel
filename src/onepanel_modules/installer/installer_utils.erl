@@ -54,7 +54,8 @@ set_system_limit(Type, Value) ->
 
 %% get_system_limits_cmd/0
 %% ====================================================================
-%% @doc Returns ulimits command required during database or veil node installation.
+%% @doc Returns ulimits command required during database or oneprovider
+%% node installation.
 %% @end
 -spec get_system_limits_cmd(Host :: string()) -> Result when
     Result :: string().
