@@ -83,7 +83,7 @@ body() ->
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
                 body = <<"Your software configuration has been successfully verified.<br>"
-                "Please enter your <i>onedata</i> provider name.">>
+                "Please enter your <i>Onedata</i> provider name.">>
             },
             #textbox{
                 id = <<"client_name">>,
