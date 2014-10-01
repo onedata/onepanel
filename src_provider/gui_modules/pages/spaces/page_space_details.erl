@@ -463,6 +463,7 @@ event(init) ->
     catch
         _:Reason ->
             ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
+            gui_jq:hide(<<"main_spinner">>),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch Space details.<br>Please try again later.">>)
     end;
 
