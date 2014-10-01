@@ -151,7 +151,7 @@ settings_table(ProviderId, ProviderName, URLs, RedirectionPoint) ->
             {<<"provider_id_tooltip">>, <<"top: 0px; right: 110px; display: none;">>, <<"Globally unique identifier assigned by Global Registry.">>,
                 <<"provider_id_label">>, <<"Provider ID">>, <<"provider_id">>, providerId(ProviderId)},
             {<<"provider_name_tooltip">>, <<"top: 5px; right: 77px; display: none;">>, <<"Provider's name in <i>onedata</i>.">>,
-                <<"provider_name_label">>, <<"Name">>, <<"name">>, providerName(ProviderName)},
+                <<"provider_name_label">>, <<"Name">>, <<"provider_name">>, providerName(ProviderName)},
             {<<"urls_tooltip">>, <<"top: -10px; right: 73px; display: none;">>, <<"List of <i>worker</i> components' IP addresses visible for Global Registry.">>,
                 <<"urls_label">>, <<"URLs">>, <<"urls">>, urls(URLs)},
             {<<"redirection_point_tooltip">>, <<"top: -10px; right: 143px; display: none;">>, <<"Web address used by Global Registry to redirect users to provider.">>,
