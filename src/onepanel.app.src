@@ -10,7 +10,7 @@
 %% ===================================================================
 
 {application, onepanel, [
-    {description, "Onedata management tool."},
+    {description, "onedata management tool."},
     {vsn, "1.0"},
     {registered, [onepanel_sup]},
     {applications, [

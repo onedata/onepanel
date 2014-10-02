@@ -1,7 +1,7 @@
 About
 =====
 
-*Onepanel* enables interactive installation of *Onedata* components using Web GUI.
+*onepanel* enables interactive installation of *onedata* components using Web GUI.
 
 Goals
 -----

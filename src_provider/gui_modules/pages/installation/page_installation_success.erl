@@ -77,7 +77,7 @@ body() ->
                                        },
                                        #p{
                                            body = <<"Would you like to register as a provider?<br>"
-                                           "<i>Provider</i> is anyone who decides to support storage spaces for <i>Onedata</i> users.">>
+                                           "<i>Provider</i> is anyone who decides to support storage spaces for <i>onedata</i> users.">>
                                        },
                                        #link{
                                            postback = to_root_page,
