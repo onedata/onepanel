@@ -123,7 +123,7 @@ unregister() ->
 
 %% get_default_ports/0
 %% ====================================================================
-%% @doc Returns default veilcluster ports that will be checked by Global Registry
+%% @doc Returns default oneprovider ports that will be checked by Global Registry
 %% @end
 -spec get_default_ports() -> Result when
     Result :: {ok, Ports :: [{Type :: binary(), Port :: integer()}]} | {error, Reason :: term()}.

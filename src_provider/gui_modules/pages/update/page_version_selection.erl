@@ -6,7 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc This module contains n2o website code.
-%% This page allows to select VeilCluster update version.
+%% This page allows to select oneprovider update version.
 %% @end
 %% ===================================================================
 -module(page_version_selection).

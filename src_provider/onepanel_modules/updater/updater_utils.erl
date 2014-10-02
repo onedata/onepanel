@@ -86,7 +86,7 @@ flatten_stages(Stages) ->
 
 %% select_only_workers/1
 %% ====================================================================
-%% @doc For given node list, return only those that looks like VeilClusters worker nodes.
+%% @doc For given node list, return only those that looks like oneproviders worker nodes.
 %% @end
 -spec select_only_workers(Nodes :: [atom()]) -> [Workers :: atom()].
 %% ====================================================================

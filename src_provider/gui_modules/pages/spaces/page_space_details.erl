@@ -249,7 +249,7 @@ table(Details, TableName, NavigationBody, RenderRowFunction) ->
     Result :: [#td{}].
 %% ====================================================================
 provider_row_collapsed(RowId, #provider_details{id = ProviderId, name = ProviderName} = ProviderDetails) ->
-    NavigationBody = onepanel_gui_utils:expand_button({message, {collapse_provider_row, RowId, ProviderDetails}}),
+    NavigationBody = onepanel_gui_utils:expand_button({message, {expand_provider_row, RowId, ProviderDetails}}),
     row_collapsed(ProviderId, ProviderName, NavigationBody).
 
 
@@ -463,6 +463,7 @@ event(init) ->
     catch
         _:Reason ->
             ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
+            gui_jq:hide(<<"main_spinner">>),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch Space details.<br>Please try again later.">>)
     end;
 

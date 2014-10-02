@@ -108,7 +108,7 @@ get_nagios_report() ->
         [Status] = [X#xmlAttribute.value || X <- Xml#xmlElement.attributes, X#xmlAttribute.name == status],
 
         GetDetails = fun
-            (veil_cluster_node, X) ->
+            (oneprovider_node, X) ->
                 [NodeName] = [Y#xmlAttribute.value || Y <- X, Y#xmlAttribute.name == name],
                 [NodeStatus] = [Y#xmlAttribute.value || Y <- X, Y#xmlAttribute.name == status],
                 {list_to_binary(NodeName), list_to_binary(NodeStatus)};
@@ -123,7 +123,7 @@ get_nagios_report() ->
             [GetDetails(Name, X#xmlElement.attributes) || X <- Xml#xmlElement.content, X#xmlElement.name == Name]
         end,
 
-        NodesReport = GetReport(veil_cluster_node),
+        NodesReport = GetReport(oneprovider_node),
         WorkersReport = GetReport(worker),
         {ok, list_to_binary(Status), NodesReport, WorkersReport}
     catch

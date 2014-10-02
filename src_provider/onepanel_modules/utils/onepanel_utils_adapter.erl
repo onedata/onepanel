@@ -104,7 +104,7 @@ get_available_software_versions() ->
         Options = [{connect_timeout, ?CONNECTION_TIMEOUT}],
         {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(URL ++ "/get_versions.php", [{content_type, "application/json"}], get, [], Options),
         {_, List} = mochijson2:decode(ResBody),
-        sort_versions(proplists:get_value(<<"VeilCluster-Linux.rpm">>, List))
+        sort_versions(proplists:get_value(<<"oneprovider-Linux.rpm">>, List))
     catch
         _:Reason ->
             ?error("Cannot get available software versions from repository: ~p", [Reason]),

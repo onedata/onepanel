@@ -51,7 +51,7 @@ start() ->
 
 %% update_to/1
 %% ====================================================================
-%% @doc Starts update process for specified VeilCluster version.
+%% @doc Starts update process for specified oneprovider version.
 %% @end
 -spec update_to(Version :: #version{}) -> ok | {error, update_already_in_progress} | {error, any()}.
 %% ====================================================================
@@ -61,7 +61,7 @@ update_to(#version{} = Vsn) ->
 
 %% update_to/2
 %% ====================================================================
-%% @doc Starts update process for specified VeilCluster version.
+%% @doc Starts update process for specified oneprovider version.
 %%      Allows to force nodes reload after update.
 %% @end
 -spec update_to(Version :: #version{}, ForceNodeReboot :: boolean()) -> ok | {error, update_already_in_progress} | {error, any()}.

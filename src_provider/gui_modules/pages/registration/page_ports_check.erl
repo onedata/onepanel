@@ -6,7 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc This module contains n2o website code.
-%% This page allows to check whether all VeilCluster ports are available
+%% This page allows to check whether all oneprovider ports are available
 %% for Global Registry.
 %% @end
 %% ===================================================================
@@ -283,6 +283,7 @@ event(init) ->
     catch
         _:Reason ->
             ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
+            gui_jq:hide(<<"main_spinner">>),
             onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch application configuration.<br>Please try again later.">>)
     end;
 

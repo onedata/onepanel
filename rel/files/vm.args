@@ -4,7 +4,7 @@
 ## Cookie for distributed erlang
 -setcookie {{cookie}}
 
-## Make node hidden for VeilCluster
+## Make node hidden for oneprovider
 -hidden
 
 ## Heartbeat management; auto-restarts VM if it dies or becomes unresponsive

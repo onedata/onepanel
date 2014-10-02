@@ -2,6 +2,7 @@
 
 deps
 ebin
+rel_globalregistry/onepanel
 rel_provider/onepanel
 
 c_lib

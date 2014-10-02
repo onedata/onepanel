@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc This module gives access to VeilClusters package repository.
+%% @doc This module gives access to oneproviders package repository.
 %% @end
 %% ===================================================================
 -module(updater_repos).
@@ -24,7 +24,7 @@
 
 %% get_package/1
 %% ====================================================================
-%% @doc Downloads VeilCluster's RPM package for given version.
+%% @doc Downloads oneprovider's RPM package for given version.
 %% @end
 -spec get_package(Version :: #version{}) -> {ok, #package{}} | {error, any()}.
 %% ====================================================================
@@ -52,4 +52,4 @@ get_package(#version{} = Version) ->
 %% ====================================================================
 gen_package_url(#version{major = MJ, minor = MI, patch = PA} = _Version, PackageType) ->
     {ok, URL} = application:get_env(?APP_NAME, onedata_repository_url),
-    URL ++ "/VeilCluster-Linux-" ++ integer_to_list(MJ) ++ "." ++ integer_to_list(MI) ++ "." ++ integer_to_list(PA) ++ "." ++ atom_to_list(PackageType).
+    URL ++ "/oneprovider-Linux-" ++ integer_to_list(MJ) ++ "." ++ integer_to_list(MI) ++ "." ++ integer_to_list(PA) ++ "." ++ atom_to_list(PackageType).

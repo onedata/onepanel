@@ -229,7 +229,7 @@ local_install() ->
         WorkerPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME]),
 
         "" = os:cmd("mkdir -p " ++ WorkerPath),
-        "" = os:cmd("cp -R " ++ filename:join([?VEIL_RELEASE, "* "]) ++ WorkerPath),
+        "" = os:cmd("cp -R " ++ filename:join([?ONEPROVIDER_RELEASE, "* "]) ++ WorkerPath),
 
         {ok, Host}
     catch
@@ -288,8 +288,8 @@ local_start(MainCCM, OptCCMs, Dbs, StoragePaths) ->
 
 
         NodeConfigPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, ?CONFIG_ARGS_PATH]),
-        StorageConfigPath = list_to_binary(filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME, ?STORAGE_CONFIG_PATH])),
-        OverwriteCommand = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, ?VEIL_CLUSTER_SCRIPT_PATH]),
+        StorageConfigPath = list_to_binary(filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, ?STORAGE_CONFIG_PATH])),
+        OverwriteCommand = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, ?ONEPROVIDER_SCRIPT_PATH]),
         StartCommand = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, ?START_COMMAND_SUFFIX]),
 
         ok = installer_utils:overwrite_config_args(NodeConfigPath, <<"name: ">>, <<"[^\n]*">>, Name),
