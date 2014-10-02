@@ -7,7 +7,7 @@ Fixed Bugs
 ----------
 
 * Service command may be used after installation through *onepanel*
-* Registration in *GlobalRegistry* hidden (it is feature needed by future releases)
+* Registration in *globalregistry* hidden (it is feature needed by future releases)
 
 onepanel 1.0
 ============
