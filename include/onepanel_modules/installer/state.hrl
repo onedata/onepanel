@@ -33,7 +33,7 @@
 %% * error              - error message sent via callback before terminating
 -record(?I_STATE, {job, stage, config, error, callback}).
 
--ifdef(provider).
+-ifdef(oneprovider).
 
 %% Global config record contains following fields:
 %% * id                 - ID which equals CONFIG_ID as a primary key in database

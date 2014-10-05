@@ -20,7 +20,7 @@
 -export([install/1, uninstall/1, start/1, stop/1, restart/1]).
 
 %% API
--export([local_start/1, local_stop/0, local_restart/0]).
+-export([local_install/0, local_uninstall/0, local_start/1, local_stop/0, local_restart/0]).
 
 %% ====================================================================
 %% Behaviour callback functions
@@ -28,24 +28,48 @@
 
 %% install/1
 %% ====================================================================
-%% @doc This callback is unsupported. Returns always ok.
+%% @doc Installs Global Registry nodes on given hosts. Arguments list
+%% should contain list of hosts where to install Global Registry nodes.
 %% @end
 -spec install(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
-    Result :: ok.
+    Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-install(_Args) ->
-    ok.
+install(Args) ->
+    case proplists:get_value(gr, Args) of
+        undefined -> ok;
+        GR ->
+            {HostsOk, HostsError} = onepanel_utils:apply_on_hosts([GR], ?MODULE, local_install, [], ?RPC_TIMEOUT),
+            case HostsError of
+                [] -> ok;
+                _ ->
+                    ?error("Cannot install Global Registry node on following hosts: ~p", [HostsError]),
+                    onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
+                    {error, {hosts, HostsError}}
+            end
+    end.
 
 
 %% uninstall/1
 %% ====================================================================
-%% @doc This callback is unsupported. Returns always ok.
+%% @doc Uninstalls Global Registry nodes on given hosts. Arguments list
+%% should contain list of hosts where Global Registry nodes where installed.
 %% @end
 -spec uninstall(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
-    Result :: ok.
+    Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-uninstall(_Args) ->
-    ok.
+uninstall(Args) ->
+    case proplists:get_value(gr, Args) of
+        undefined -> ok;
+        GR ->
+            {HostsOk, HostsError} = onepanel_utils:apply_on_hosts([GR], ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
+            case HostsError of
+                [] -> ok;
+                _ ->
+                    ?error("Cannot uninstall Global Registry node on following hosts: ~p", [HostsError]),
+                    onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_install, [], ?RPC_TIMEOUT),
+                    {error, {hosts, HostsError}}
+            end
+    end.
 
 
 %% start/1
@@ -163,6 +187,53 @@ restart(_) ->
 %% ====================================================================
 %% API functions
 %% ====================================================================
+
+%% local_install/0
+%% ====================================================================
+%% @doc Installs Global Registry node on local host.
+%% @end
+-spec local_install() -> Result when
+    Result :: {ok, Host :: string()} | {error, Host :: string()}.
+%% ====================================================================
+local_install() ->
+    Host = onepanel_utils:get_host(node()),
+    try
+        ?debug("Installing Global Registry node"),
+        GRPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_GLOBALREGISTRY_NAME]),
+
+        "" = os:cmd("mkdir -p " ++ GRPath),
+        "" = os:cmd("cp -R " ++ filename:join([?GLOBALREGISTRY_RELEASE, "* "]) ++ GRPath),
+
+        {ok, Host}
+    catch
+        _:Reason ->
+            ?error("Cannot install Global Registry node: ~p", [Reason]),
+            {error, Host}
+    end.
+
+
+%% local_uninstall/0
+%% ====================================================================
+%% @doc Uninstalls Global Registry node on local host.
+%% @end
+-spec local_uninstall() -> Result when
+    Result :: {ok, Host :: string()} | {error, Host :: string()}.
+%% ====================================================================
+local_uninstall() ->
+    Host = onepanel_utils:get_host(node()),
+    try
+        ?debug("Uninstalling Global Registry node"),
+        GRPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_GLOBALREGISTRY_NAME]),
+
+        "" = os:cmd("rm -rf " ++ GRPath),
+
+        {ok, Host}
+    catch
+        _:Reason ->
+            ?error("Cannot uninstall Global Registry node: ~p", [Reason]),
+            {error, Host}
+    end.
+
 
 %% local_start/1
 %% ====================================================================

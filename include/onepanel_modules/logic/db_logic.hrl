@@ -19,7 +19,7 @@
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/updater/state.hrl").
 
--ifdef(provider).
+-ifdef(oneprovider).
 
 -define(TABLES, [
     {?USER_TABLE, ?USER_RECORD, record_info(fields, ?USER_RECORD)},

@@ -16,7 +16,7 @@
 -define(EVENT_ERROR, error).
 -define(EVENT_STATE_CHANGED, state_changed).
 
--ifdef(provider).
+-ifdef(oneprovider).
 
 %% Installer stages
 -define(STAGE_IDLE, idle).

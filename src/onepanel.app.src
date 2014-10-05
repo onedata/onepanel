@@ -10,8 +10,8 @@
 %% ===================================================================
 
 {application, onepanel, [
-    {description, "onedata management tool."},
-    {vsn, "1.0"},
+    {description, "Management tool for onedata components."},
+    {vsn, git},
     {registered, [onepanel_sup]},
     {applications, [
         kernel,
