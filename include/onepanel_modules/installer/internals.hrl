@@ -19,17 +19,23 @@
 -ifdef(oneprovider).
 
 %% Default cookie used for communication with application
--define(DEFAULT_COOKIE, oneprovider_node).
+-define(COOKIE, oneprovider_node).
 
 %% Installation directory of RPM package
 -define(PREFIX, filename:join([filename:absname("/"), "opt", "oneprovider"])).
 
 %% Default names of installable components
--define(DEFAULT_CCM_NAME, "ccm").
--define(DEFAULT_WORKER_NAME, "worker").
+-define(CCM_NAME, "ccm").
+-define(WORKER_NAME, "worker").
 
 %% Location of oneprovider release
 -define(ONEPROVIDER_RELEASE, filename:join([?PREFIX, "files", "oneprovider_node"])).
+
+%% Name of oneprovider service
+-define(ONEPROVIDER_SERVICE, "oneprovider").
+
+%% Name of database service
+-define(DB_SERVICE, ?ONEPROVIDER_SERVICE).
 
 %% Location of config files relative to oneprovider release
 -define(CONFIG_ARGS_PATH, filename:join(["bin", "config.args"])).
@@ -54,21 +60,30 @@
 -ifdef(globalregistry).
 
 %% Default cookie used for communication with application
--define(DEFAULT_COOKIE, globalregistry).
+-define(COOKIE, globalregistry).
 
 %% Installation directory of RPM package
 -define(PREFIX, filename:join([filename:absname("/"), "opt", "globalregistry"])).
 
 %% Default names of installable components
--define(DEFAULT_GLOBALREGISTRY_NAME, "globalregistry").
+-define(GLOBALREGISTRY_NAME, "globalregistry").
 
 %% Location of globalregistry release
 -define(GLOBALREGISTRY_RELEASE, filename:join([?PREFIX, "files", "globalregistry_node"])).
 
+%% Name of Global Registry service
+-define(GLOBALREGISTRY_SERVICE, "globalregistry").
+
+%% Name of database service
+-define(DB_SERVICE, ?GLOBALREGISTRY_SERVICE).
+
 %% Location of config files
--define(CONFIG_PREFIX, filename:join([?PREFIX, "nodes", ?DEFAULT_GLOBALREGISTRY_NAME, "etc"])).
--define(APP_CONFIG_PATH, filename:join([?CONFIG_PREFIX, "app.config"])).
--define(VM_CONFIG_PATH, filename:join([?CONFIG_PREFIX, "vm.args"])).
+-define(CONFIG_PREFIX, filename:join([?PREFIX, "nodes", ?GLOBALREGISTRY_NAME, "etc"])).
+-define(GLOBALREGISTRY_APP_CONFIG, filename:join([?CONFIG_PREFIX, "app.config"])).
+-define(GLOBALREGISTRY_VM_ARGS, filename:join([?CONFIG_PREFIX, "vm.args"])).
+
+%% Domain name for Global Registry REST certificate
+-define(GLOBALREGISTRY_REST_CERT_DOMAIN, "onedata.org").
 
 -endif.
 
@@ -77,24 +92,23 @@
 %% ====================================================================
 
 %% Default bigcouch port
--define(DEFAULT_PORT, 5986).
+-define(DB_PORT, 5986).
 
-%% Timeout for database nodes addition to cluster
--define(CONNECTION_TIMEOUT, 5000).
+%% Install path for database nodes, should not be changed, unless you've
+%% configured bigcouch realease properly (the one from files/database_node)
+-define(DB_PREFIX, filename:join([filename:absname("/"), "opt", "bigcouch"])).
 
 %% Default names database component
--define(DEFAULT_DB_NAME, "db").
+-define(DB_NAME, "db").
 
 %% Location of database release
 -define(DB_RELEASE, filename:join([?PREFIX, "files", "database_node"])).
 
-%%Paths relative to database_node release
--define(DB_START_COMMAND_SUFFIX, filename:join(["bin", "bigcouch"])).
--define(NOHUP_OUTPUT, filename:join(["var", "log", "nohup.out"])).
+%% Location of config files
+-define(DB_VM_ARGS, filename:join([?DB_PREFIX, "etc", "vm.args"])).
 
-%% Install path for database nodes, should not be changed, unless you've
-%% configured bigcouch realease properly (the one from files/database_node)
--define(DEFAULT_DB_INSTALL_PATH, filename:join([filename:absname("/"), "opt", "bigcouch"])).
+%% Timeout request using database REST API
+-define(DB_CONNECTION_TIMEOUT, 5000).
 
 %% ====================================================================
 %% Common macros
@@ -103,9 +117,9 @@
 %% Timeout for RPC calls (1 minute)
 -define(RPC_TIMEOUT, 60000).
 
-%% System limit values
--define(DEFAULT_OPEN_FILES, 65535).
--define(DEFAULT_PROCESSES, 65535).
+%% Default system limit values
+-define(OPEN_FILES, 65535).
+-define(PROCESSES, 65535).
 
 %% Location of configured_nodes.cfg file
 -define(CONFIGURED_NODES_PATH, filename:join([?PREFIX, "scripts", "configured_nodes.cfg"])).
@@ -114,6 +128,6 @@
 -define(ULIMITS_CONFIG_PATH, filename:join([?PREFIX, "scripts", "ulimits.cfg"])).
 
 %% Install path for nodes
--define(DEFAULT_NODES_INSTALL_PATH, filename:join([?PREFIX, "nodes"])).
+-define(NODES_INSTALL_PATH, filename:join([?PREFIX, "nodes"])).
 
 -endif.

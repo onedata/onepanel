@@ -65,7 +65,7 @@ main() ->
     Result :: binary().
 %% ====================================================================
 title() ->
-    <<"Installtion summary">>.
+    <<"Installation summary">>.
 
 
 %% body/0

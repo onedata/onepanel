@@ -276,11 +276,11 @@ event(init) ->
                                                    {ok, #?LOCAL_CONFIG_RECORD{open_files = Limit1, process_limit = Limit2}} ->
                                                        {Limit1, Limit2};
                                                    {error, <<"Record not found.">>} ->
-                                                       {?DEFAULT_OPEN_FILES, ?DEFAULT_PROCESSES};
+                                                       {?OPEN_FILES, ?PROCESSES};
                                                    _ ->
                                                        throw("Cannot get local configuration for host: " ++ Host)
                                                end,
-            {Host, integer_to_binary(Id), limit_value(OpenFilesLimit, ?DEFAULT_OPEN_FILES), limit_value(ProcessesLimit, ?DEFAULT_PROCESSES)}
+            {Host, integer_to_binary(Id), limit_value(OpenFilesLimit, ?OPEN_FILES), limit_value(ProcessesLimit, ?PROCESSES)}
         end, lists:zip(SessionHosts, tl(lists:seq(0, length(SessionHosts))))),
 
         gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),

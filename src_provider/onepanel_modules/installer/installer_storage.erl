@@ -115,7 +115,7 @@ remove_storage_paths_from_db(Args) ->
 add_storage_paths_on_host(Paths) ->
     try
         ?debug("Adding storage paths ~p", [Paths]),
-        StorageConfigPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, ?STORAGE_CONFIG_PATH]),
+        StorageConfigPath = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, ?STORAGE_CONFIG_PATH]),
 
         {ok, Fd} = file:open(StorageConfigPath, [append]),
         lists:foreach(fun(Path) ->
@@ -141,7 +141,7 @@ add_storage_paths_on_host(Paths) ->
 remove_storage_paths_on_host(Paths) ->
     try
         ?debug("Removing storage path ~p", [Paths]),
-        StorageConfigPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, ?STORAGE_CONFIG_PATH]),
+        StorageConfigPath = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, ?STORAGE_CONFIG_PATH]),
 
         {ok, StorageInfo} = file:consult(StorageConfigPath),
 

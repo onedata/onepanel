@@ -68,7 +68,7 @@ register(ClientName) ->
         {ok, CsrPath} = application:get_env(?APP_NAME, grpcsr_file),
         {ok, CertName} = application:get_env(?APP_NAME, grpcert_name),
         {ok, CertFile} = application:get_env(?APP_NAME, grpcert_path),
-        Path = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, "certs"]),
+        Path = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, "certs"]),
 
         0 = create_csr("", KeyFile, CsrPath),
 

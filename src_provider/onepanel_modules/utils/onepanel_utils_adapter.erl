@@ -39,7 +39,7 @@
 apply_on_worker(Module, Function, Arguments) ->
     try
         {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        WorkerNodes = onepanel_utils:get_nodes(?DEFAULT_WORKER_NAME, Workers),
+        WorkerNodes = onepanel_utils:get_nodes(?WORKER_NAME, Workers),
         onepanel_utils:dropwhile_failure(WorkerNodes, Module, Function, Arguments, ?RPC_TIMEOUT)
     catch
         _:Reason ->
@@ -58,7 +58,7 @@ apply_on_worker(Module, Function, Arguments) ->
 get_software_version() ->
     try
         {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        Nodes = onepanel_utils:get_nodes(?DEFAULT_WORKER_NAME, Workers),
+        Nodes = onepanel_utils:get_nodes(?WORKER_NAME, Workers),
         Version = onepanel_utils:dropwhile_failure(Nodes, node_manager, check_vsn, [], ?RPC_TIMEOUT),
         list_to_binary(Version)
     catch
@@ -101,8 +101,7 @@ get_software_version_record(Version) ->
 get_available_software_versions() ->
     try
         {ok, URL} = application:get_env(?APP_NAME, onedata_repository_url),
-        Options = [{connect_timeout, ?CONNECTION_TIMEOUT}],
-        {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(URL ++ "/get_versions.php", [{content_type, "application/json"}], get, [], Options),
+        {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(URL ++ "/get_versions.php", [{content_type, "application/json"}], get, []),
         {_, List} = mochijson2:decode(ResBody),
         sort_versions(proplists:get_value(<<"oneprovider-Linux.rpm">>, List))
     catch

@@ -56,7 +56,7 @@ get_workers() ->
 check_ip_address() ->
     Host = onepanel_utils:get_host(node()),
     try
-        {ok, IpAddress} = gr_providers:check_ip_address(provider, ?CONNECTION_TIMEOUT),
+        {ok, IpAddress} = gr_providers:check_ip_address(provider, 5000),
         ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{ip_address, IpAddress}]),
         {ok, Host}
     catch

@@ -17,11 +17,11 @@
 -define(APP_STR, "onepanel").
 
 %% Default cookie used for communication with cluster
--define(DEFAULT_COOKIE, oneprovider_node).
+-define(COOKIE, oneprovider_node).
 
 %% Default system limit values
--define(DEFAULT_OPEN_FILES, 65535).
--define(DEFAULT_PROCESSES, 65535).
+-define(OPEN_FILES, 65535).
+-define(PROCESSES, 65535).
 
 %% Default username and password for administrative database
 -define(DEFAULT_USERNAME, <<"admin">>).
@@ -32,9 +32,6 @@
 
 %% Timeout for each RPC call
 -define(RPC_TIMEOUT, 120000).
-
-%% Timeout for connection to Global Registry
--define(CONNECTION_TIMEOUT, 5000).
 
 %% Exit codes
 -define(EXIT_SUCCESS, 0).
@@ -96,7 +93,7 @@ init() ->
     {A, B, C} = erlang:now(),
     NodeName = "onepanel_admin_" ++ integer_to_list(A, 32) ++ integer_to_list(B, 32) ++ integer_to_list(C, 32) ++ "@127.0.0.1",
     net_kernel:start([list_to_atom(NodeName), longnames]),
-    erlang:set_cookie(node(), ?DEFAULT_COOKIE).
+    erlang:set_cookie(node(), ?COOKIE).
 
 
 %% install/1
@@ -132,8 +129,8 @@ install(Path) ->
 
         print_info("Setting ulimits..."),
         lists:foreach(fun(Host) ->
-            HostOpenFiles = proplists:get_value(Host, OpenFiles, ?DEFAULT_OPEN_FILES),
-            HostProcesses = proplists:get_value(Host, Processes, ?DEFAULT_PROCESSES),
+            HostOpenFiles = proplists:get_value(Host, OpenFiles, ?OPEN_FILES),
+            HostProcesses = proplists:get_value(Host, Processes, ?PROCESSES),
             ok = rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_system_limit, [open_files, HostOpenFiles]),
             ok = rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_system_limit, [process_limit, HostProcesses])
         end, AllHosts),
@@ -153,7 +150,7 @@ install(Path) ->
         case Register of
             yes ->
                 print_info("Connecting to Global Registry..."),
-                {ok, _} = rpc:call(Node, gr_providers, check_ip_address, [provider, ?CONNECTION_TIMEOUT]),
+                {ok, _} = rpc:call(Node, gr_providers, check_ip_address, [provider, 5000]),
                 print_ok(),
 
                 print_info("Checking ports availability..."),
@@ -365,7 +362,7 @@ check_ports(Node) ->
                                         end,
     lists:foreach(fun(ControlPanelHost) ->
         ControlPanelNode = list_to_atom("onepanel@" ++ ControlPanelHost),
-        {ok, IpAddress} = rpc:call(ControlPanelNode, gr_providers, check_ip_address, [provider, ?CONNECTION_TIMEOUT], ?RPC_TIMEOUT),
+        {ok, IpAddress} = rpc:call(ControlPanelNode, gr_providers, check_ip_address, [provider, 5000], ?RPC_TIMEOUT),
         ok = rpc:call(Node, gr_providers, check_port, [provider, IpAddress, DefaultGuiPort, <<"gui">>]),
         ok = rpc:call(Node, gr_providers, check_port, [provider, IpAddress, DefaultRestPort, <<"rest">>]),
         ok = rpc:call(Node, dao, update_record,

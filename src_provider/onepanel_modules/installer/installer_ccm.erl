@@ -212,7 +212,7 @@ local_install() ->
     Host = onepanel_utils:get_host(node()),
     try
         ?debug("Installing CCM node"),
-        CCMPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME]),
+        CCMPath = filename:join([?NODES_INSTALL_PATH, ?CCM_NAME]),
 
         "" = os:cmd("mkdir -p " ++ CCMPath),
         "" = os:cmd("cp -R " ++ filename:join([?ONEPROVIDER_RELEASE, "* "]) ++ CCMPath),
@@ -236,7 +236,7 @@ local_uninstall() ->
     Host = onepanel_utils:get_host(node()),
     try
         ?debug("Uninstalling CCM node"),
-        CCMPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME]),
+        CCMPath = filename:join([?NODES_INSTALL_PATH, ?CCM_NAME]),
 
         "" = os:cmd("rm -rf " ++ CCMPath),
 
@@ -260,29 +260,29 @@ local_start(MainCCM, OptCCMs, Dbs) ->
     try
         ?debug("Starting CCM node: ~p"),
 
-        Name = <<(list_to_binary(?DEFAULT_CCM_NAME))/binary, "@", (list_to_binary(Host))/binary>>,
+        Name = <<(list_to_binary(?CCM_NAME))/binary, "@", (list_to_binary(Host))/binary>>,
 
-        MainCCMName = <<(list_to_binary(?DEFAULT_CCM_NAME))/binary, "@", (list_to_binary(MainCCM))/binary>>,
+        MainCCMName = <<(list_to_binary(?CCM_NAME))/binary, "@", (list_to_binary(MainCCM))/binary>>,
 
         OptCCMNames = lists:foldl(fun(OptCCM, Acc) ->
-            <<Acc/binary, (list_to_binary(?DEFAULT_CCM_NAME))/binary, "@", (list_to_binary(OptCCM))/binary, " ">>
+            <<Acc/binary, (list_to_binary(?CCM_NAME))/binary, "@", (list_to_binary(OptCCM))/binary, " ">>
         end, <<>>, OptCCMs),
 
         DbNames = lists:foldl(fun(Db, Acc) ->
-            <<Acc/binary, (list_to_binary(?DEFAULT_DB_NAME))/binary, "@", (list_to_binary(Db))/binary, " ">>
+            <<Acc/binary, (list_to_binary(?DB_NAME))/binary, "@", (list_to_binary(Db))/binary, " ">>
         end, <<>>, Dbs),
 
-        NodeConfigPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME, ?CONFIG_ARGS_PATH]),
-        StorageConfigPath = list_to_binary(filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME, ?STORAGE_CONFIG_PATH])),
-        OverwriteCommand = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME, ?ONEPROVIDER_SCRIPT_PATH]),
-        StartCommand = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME, ?START_COMMAND_SUFFIX]),
+        NodeConfigPath = filename:join([?NODES_INSTALL_PATH, ?CCM_NAME, ?CONFIG_ARGS_PATH]),
+        StorageConfigPath = list_to_binary(filename:join([?NODES_INSTALL_PATH, ?CCM_NAME, ?STORAGE_CONFIG_PATH])),
+        OverwriteCommand = filename:join([?NODES_INSTALL_PATH, ?CCM_NAME, ?ONEPROVIDER_SCRIPT_PATH]),
+        StartCommand = filename:join([?NODES_INSTALL_PATH, ?CCM_NAME, ?START_COMMAND_SUFFIX]),
 
         ok = installer_utils:overwrite_config_args(NodeConfigPath, <<"name: ">>, <<"[^\n]*">>, Name),
         ok = installer_utils:overwrite_config_args(NodeConfigPath, <<"main_ccm: ">>, <<"[^\n]*">>, MainCCMName),
         ok = installer_utils:overwrite_config_args(NodeConfigPath, <<"opt_ccms: ">>, <<"[^\n]*">>, OptCCMNames),
         ok = installer_utils:overwrite_config_args(NodeConfigPath, <<"db_nodes: ">>, <<"[^\n]*">>, DbNames),
         ok = installer_utils:overwrite_config_args(NodeConfigPath, <<"storage_config_path: ">>, <<"[^\n]*">>, StorageConfigPath),
-        ok = installer_utils:add_node_to_config(ccm_node, list_to_atom(?DEFAULT_CCM_NAME), ?DEFAULT_NODES_INSTALL_PATH),
+        ok = installer_utils:add_node_to_config(ccm_node, list_to_atom(?CCM_NAME), ?NODES_INSTALL_PATH),
 
         os:cmd(OverwriteCommand),
         SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
@@ -307,7 +307,7 @@ local_stop() ->
     Host = onepanel_utils:get_host(node()),
     try
         ?debug("Stopping CCM node"),
-        CCMPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_CCM_NAME]),
+        CCMPath = filename:join([?NODES_INSTALL_PATH, ?CCM_NAME]),
 
         "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ CCMPath ++ " | awk '{print $2}'`"),
         ok = installer_utils:remove_node_from_config(ccm_node),

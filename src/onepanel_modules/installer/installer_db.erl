@@ -214,8 +214,8 @@ local_install() ->
     try
         ?debug("Installing database node"),
 
-        "" = os:cmd("mkdir -p " ++ ?DEFAULT_DB_INSTALL_PATH),
-        "" = os:cmd("cp -R " ++ filename:join([?DB_RELEASE, "* "]) ++ ?DEFAULT_DB_INSTALL_PATH),
+        "" = os:cmd("mkdir -p " ++ ?DB_PREFIX),
+        "" = os:cmd("cp -R " ++ filename:join([?DB_RELEASE, "* "]) ++ ?DB_PREFIX),
 
         {ok, Host}
     catch
@@ -237,7 +237,7 @@ local_uninstall() ->
     try
         ?debug("Uninstalling database node"),
 
-        "" = os:cmd("rm -rf " ++ ?DEFAULT_DB_INSTALL_PATH),
+        "" = os:cmd("rm -rf " ++ ?DB_PREFIX),
         ok = file:delete(?ULIMITS_CONFIG_PATH),
 
         {ok, Host}
@@ -259,15 +259,15 @@ local_start(Username, Password) ->
     Host = onepanel_utils:get_host(node()),
     try
         ?debug("Starting database node"),
-        BigcouchStartScript = filename:join([?DEFAULT_DB_INSTALL_PATH, ?DB_START_COMMAND_SUFFIX]),
-        NohupOut = filename:join([?DEFAULT_DB_INSTALL_PATH, ?NOHUP_OUTPUT]),
-        SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
-        VmArgs = filename:join([?DEFAULT_DB_INSTALL_PATH, "etc", "vm.args"]),
 
-        "" = os:cmd("sed -i -e \"s/^\\-setcookie .*/\\-setcookie " ++ atom_to_list(?DEFAULT_COOKIE) ++ "/g\" " ++ VmArgs),
-        "" = os:cmd("sed -i -e \"s/^\\-name .*/\\-name " ++ ?DEFAULT_DB_NAME ++ "@" ++ Host ++ "/g\" " ++ VmArgs),
-        ok = installer_utils:add_node_to_config(db_node, list_to_atom(?DEFAULT_DB_NAME), ?DEFAULT_DB_INSTALL_PATH),
-        open_port({spawn, "sh -c \"" ++ SetUlimitsCmd ++ " ; " ++ "nohup " ++ BigcouchStartScript ++ " > " ++ NohupOut ++ " 2>&1 &" ++ "\" 2>&1 &"}, [out]),
+        Name = <<(list_to_binary(?GLOBALREGISTRY_NAME))/binary, "@", (list_to_binary(Host))/binary>>,
+        Cookie = list_to_binary(?COOKIE),
+
+        ok = installer_utils:overwrite_config_args(?DB_VM_ARGS, <<"-name ">>, <<"[^\n]*">>, Name),
+        ok = installer_utils:overwrite_config_args(?DB_VM_ARGS, <<"-setcookie ">>, <<"[^\n]*">>, Cookie),
+        ok = installer_utils:add_node_to_config(db_node, list_to_atom(?DB_NAME), ?DB_PREFIX),
+
+        "0" = os:cmd("service " ++ ?DB_SERVICE ++ " start_db 1>/dev/null 2>&1 ; echo -n $?"),
 
         {ok, DefaultUsername} = application:get_env(?APP_NAME, default_username),
         {ok, DefaultPassword} = application:get_env(?APP_NAME, default_password),
@@ -295,7 +295,7 @@ local_stop() ->
     try
         ?debug("Stopping database node"),
 
-        "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ ?DEFAULT_DB_INSTALL_PATH ++ " | awk '{print $2}'`"),
+        "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ ?DB_PREFIX ++ " | awk '{print $2}'`"),
         ok = installer_utils:remove_node_from_config(db_node),
 
         {ok, Host}
@@ -321,7 +321,7 @@ join_cluster(Username, Password, ClusterHost) ->
             Host -> throw(cluster_host);
             _ -> ok
         end,
-        URL = "http://" ++ ClusterHost ++ ":" ++ integer_to_list(?DEFAULT_PORT) ++ "/nodes/" ++ ?DEFAULT_DB_NAME ++ "@" ++ Host,
+        URL = "http://" ++ ClusterHost ++ ":" ++ integer_to_list(?DB_PORT) ++ "/nodes/" ++ ?DB_NAME ++ "@" ++ Host,
 
         {ok, "201", _, ResponseBody} = request(Username, Password, URL, put, <<"{}">>),
         true = proplists:get_value(<<"ok">>, mochijson2:decode(ResponseBody, [{format, proplist}])),
@@ -377,7 +377,7 @@ local_change_username(Username, Username, _) ->
 local_change_username(Username, NewUsername, Password) ->
     Host = onepanel_utils:get_host(node()),
     try
-        URL = "http://" ++ Host ++ ":" ++ integer_to_list(?DEFAULT_PORT) ++ "/_config/admins/",
+        URL = "http://" ++ Host ++ ":" ++ integer_to_list(?DB_PORT) ++ "/_config/admins/",
 
         {ok, "404", _, ResponseBody} = request(Username, Password, URL ++ binary_to_list(NewUsername), get, []),
         <<"not_found">> = proplists:get_value(<<"error">>, mochijson2:decode(ResponseBody, [{format, proplist}])),
@@ -419,7 +419,7 @@ change_password(Hosts, Username, CurrentPassword, NewPassword) ->
 %% ====================================================================
 local_change_password(Username, CurrentPassword, NewPassword) ->
     Host = onepanel_utils:get_host(node()),
-    URL = "http://" ++ Host ++ ":" ++ integer_to_list(?DEFAULT_PORT) ++ "/_config/admins/" ++ binary_to_list(Username),
+    URL = "http://" ++ Host ++ ":" ++ integer_to_list(?DB_PORT) ++ "/_config/admins/" ++ binary_to_list(Username),
     case request(Username, CurrentPassword, URL, put, mochijson2:encode(NewPassword)) of
         {ok, "200", _, _} -> {ok, Host};
         Other ->
@@ -446,7 +446,7 @@ finalize_local_start(_, _, 0) ->
 
 finalize_local_start(Username, Password, Attempts) ->
     Host = onepanel_utils:get_host(node()),
-    URL = "http://" ++ Host ++ ":" ++ integer_to_list(?DEFAULT_PORT),
+    URL = "http://" ++ Host ++ ":" ++ integer_to_list(?DB_PORT),
     case request(Username, Password, URL, get, []) of
         {ok, "200", _, _} ->
             ok;
@@ -466,5 +466,5 @@ finalize_local_start(Username, Password, Attempts) ->
 %% ====================================================================
 request(Username, Password, URL, Method, Body) ->
     Headers = [{"content-type", "application/json"}],
-    Options = [{connect_timeout, ?CONNECTION_TIMEOUT}, {basic_auth, {binary_to_list(Username), binary_to_list(Password)}}],
+    Options = [{connect_timeout, ?DB_CONNECTION_TIMEOUT}, {basic_auth, {binary_to_list(Username), binary_to_list(Password)}}],
     ibrowse:send_req(URL, Headers, Method, Body, Options).

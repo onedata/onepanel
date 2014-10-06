@@ -88,7 +88,7 @@ run_pre_update(Version) ->
 -spec backup_instalation() -> ok | {error, any()}.
 %% ====================================================================
 backup_instalation() ->
-    NodeRoot = filename:join([?DEFAULT_NODES_INSTALL_PATH, get_node_subpath()]),
+    NodeRoot = filename:join([?NODES_INSTALL_PATH, get_node_subpath()]),
     case os:cmd("cp -rf " ++ NodeRoot ++ " " ++ NodeRoot ++ ".bak") of
         "" -> ok;
         Reason -> {error, {stdout, Reason}}
@@ -102,7 +102,7 @@ backup_instalation() ->
 -spec revert_instalation() -> ok | {error, any()}.
 %% ====================================================================
 revert_instalation() ->
-    NodeRoot = filename:join([?DEFAULT_NODES_INSTALL_PATH, get_node_subpath()]),
+    NodeRoot = filename:join([?NODES_INSTALL_PATH, get_node_subpath()]),
     case os:cmd("cp -rf " ++ NodeRoot ++ ".bak" ++ " " ++ NodeRoot) of
         "" -> ok;
         Reason -> {error, Reason}
@@ -117,7 +117,7 @@ revert_instalation() ->
 %% ====================================================================
 move_file(File) ->
     RelPrivPath = filename:join([?ONEPROVIDER_RELEASE, "lib"]),
-    WorkerTargetDir = filename:join([?DEFAULT_NODES_INSTALL_PATH, get_node_subpath(), "lib"]),
+    WorkerTargetDir = filename:join([?NODES_INSTALL_PATH, get_node_subpath(), "lib"]),
 
     From = os:cmd("find " ++ RelPrivPath ++ " -name \"" ++ File ++ "\" | head -1") -- [10],
 
@@ -148,7 +148,7 @@ move_all_files() ->
     IsRebootRequired =
         lists:foldl(
             fun(File, RebootRequired) ->
-                Target = filename:join([?DEFAULT_NODES_INSTALL_PATH, get_node_subpath(), File]),
+                Target = filename:join([?NODES_INSTALL_PATH, get_node_subpath(), File]),
                 TargetDir = filename:dirname(Target),
                 lists:foldl(
                     fun(Elem, Acc) ->
@@ -198,8 +198,8 @@ force_reload_module(Module) ->
 -spec fix_code_path() -> ok | {error, any()}.
 %% ====================================================================
 fix_code_path() ->
-    Paths = string:tokens(os:cmd("find " ++ filename:join([?DEFAULT_NODES_INSTALL_PATH, get_node_subpath(), "lib"]) ++ " -name ebin -type d | sort -bdfr"), [10]),
-    NewReleasePath = filename:join([?DEFAULT_NODES_INSTALL_PATH, get_node_subpath(), "lib", get_release_name(), "ebin"]),
+    Paths = string:tokens(os:cmd("find " ++ filename:join([?NODES_INSTALL_PATH, get_node_subpath(), "lib"]) ++ " -name ebin -type d | sort -bdfr"), [10]),
+    NewReleasePath = filename:join([?NODES_INSTALL_PATH, get_node_subpath(), "lib", get_release_name(), "ebin"]),
 
     code:add_paths(Paths),
     code:add_patha(NewReleasePath),
@@ -292,7 +292,7 @@ get_all_loaded() ->
 -spec install_view_sources() -> ok | {error, any()}.
 %% ====================================================================
 install_view_sources() ->
-    case os:cmd("cp -rf " ++ filename:join(?ONEPROVIDER_RELEASE, "views") ++ " " ++ filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME])) of
+    case os:cmd("cp -rf " ++ filename:join(?ONEPROVIDER_RELEASE, "views") ++ " " ++ filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME])) of
         "" -> ok;
         Reason -> {error, {stdout, Reason}}
     end.

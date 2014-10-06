@@ -199,7 +199,7 @@ local_install() ->
     Host = onepanel_utils:get_host(node()),
     try
         ?debug("Installing Global Registry node"),
-        GRPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_GLOBALREGISTRY_NAME]),
+        GRPath = filename:join([?NODES_INSTALL_PATH, ?GLOBALREGISTRY_NAME]),
 
         "" = os:cmd("mkdir -p " ++ GRPath),
         "" = os:cmd("cp -R " ++ filename:join([?GLOBALREGISTRY_RELEASE, "* "]) ++ GRPath),
@@ -223,7 +223,7 @@ local_uninstall() ->
     Host = onepanel_utils:get_host(node()),
     try
         ?debug("Uninstalling Global Registry node"),
-        GRPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_GLOBALREGISTRY_NAME]),
+        GRPath = filename:join([?NODES_INSTALL_PATH, ?GLOBALREGISTRY_NAME]),
 
         "" = os:cmd("rm -rf " ++ GRPath),
 
@@ -247,20 +247,19 @@ local_start([FirstDb | Dbs]) ->
     try
         ?debug("Starting Global Registry node: ~p"),
 
-        Name = <<(list_to_binary(?DEFAULT_GLOBALREGISTRY_NAME))/binary, "@", (list_to_binary(Host))/binary>>,
+        Name = <<(list_to_binary(?GLOBALREGISTRY_NAME))/binary, "@", (list_to_binary(Host))/binary>>,
+        RestCertDomain = list_to_binary(?GLOBALREGISTRY_REST_CERT_DOMAIN),
 
         DbNames = lists:foldl(fun(Db, Acc) ->
-            <<"'", (list_to_binary(?DEFAULT_DB_NAME))/binary, "@", (list_to_binary(Db))/binary, "', ", Acc/binary>>
-        end, <<"'", (list_to_binary(?DEFAULT_DB_NAME))/binary, "@", (list_to_binary(FirstDb))/binary, "'">>, Dbs),
+            <<"'", (list_to_binary(?DB_NAME))/binary, "@", (list_to_binary(Db))/binary, "', ", Acc/binary>>
+        end, <<"'", (list_to_binary(?DB_NAME))/binary, "@", (list_to_binary(FirstDb))/binary, "'">>, Dbs),
 
-        ok = installer_utils:overwrite_config_args(?APP_CONFIG_PATH, <<"db_nodes, ">>, <<"[^\]]*">>, <<"[", DbNames/binary>>),
-        ok = installer_utils:overwrite_config_args(?APP_CONFIG_PATH, <<"rest_cert_domain, \"">>, <<"[^\"]*">>, <<"onedata.org">>),
-        ok = installer_utils:overwrite_config_args(?VM_CONFIG_PATH, <<"-name ">>, <<"[^\n]*">>, Name),
-        ok = installer_utils:add_node_to_config(gr_node, list_to_atom(?DEFAULT_GLOBALREGISTRY_NAME), ?DEFAULT_NODES_INSTALL_PATH),
+        ok = installer_utils:overwrite_config_args(?GLOBALREGISTRY_APP_CONFIG, <<"db_nodes, ">>, <<"[^\]]*">>, <<"[", DbNames/binary>>),
+        ok = installer_utils:overwrite_config_args(?GLOBALREGISTRY_APP_CONFIG, <<"rest_cert_domain, \"">>, <<"[^\"]*">>, RestCertDomain),
+        ok = installer_utils:overwrite_config_args(?GLOBALREGISTRY_VM_ARGS, <<"-name ">>, <<"[^\n]*">>, Name),
+        ok = installer_utils:add_node_to_config(gr_node, list_to_atom(?GLOBALREGISTRY_NAME), ?NODES_INSTALL_PATH),
 
-        SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
-        ServiceAnswer = os:cmd(SetUlimitsCmd ++ " ; service globalregistry start"),
-        {match, ["OK"]} = re:run(ServiceAnswer, "OK", [{capture, first, list}]),
+        "0" = os:cmd("service " ++ ?GLOBALREGISTRY_SERVICE ++ " start_globalregistry 1>/dev/null 2>&1 ; echo -n $?"),
 
         {ok, Host}
     catch
@@ -282,7 +281,7 @@ local_stop() ->
     try
         ?debug("Stopping Global Registry node"),
 
-        "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ ?APP_CONFIG_PATH ++ " | awk '{print $2}'`"),
+        "0" = os:cmd("service " ++ ?GLOBALREGISTRY_SERVICE ++ " stop_globalregistry 1>/dev/null 2>&1 ; echo -n $?"),
         ok = installer_utils:remove_node_from_config(gr_node),
 
         {ok, Host}

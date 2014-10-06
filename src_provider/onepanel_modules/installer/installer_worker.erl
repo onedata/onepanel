@@ -226,7 +226,7 @@ local_install() ->
     Host = onepanel_utils:get_host(node()),
     try
         ?debug("Installing worker node"),
-        WorkerPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME]),
+        WorkerPath = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME]),
 
         "" = os:cmd("mkdir -p " ++ WorkerPath),
         "" = os:cmd("cp -R " ++ filename:join([?ONEPROVIDER_RELEASE, "* "]) ++ WorkerPath),
@@ -250,7 +250,7 @@ local_uninstall() ->
     Host = onepanel_utils:get_host(node()),
     try
         ?debug("Uninstalling worker node"),
-        WorkerPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME]),
+        WorkerPath = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME]),
 
         "" = os:cmd("rm -rf " ++ WorkerPath),
 
@@ -274,30 +274,30 @@ local_start(MainCCM, OptCCMs, Dbs, StoragePaths) ->
     try
         ?debug("Starting worker node: ~p"),
 
-        Name = <<(list_to_binary(?DEFAULT_WORKER_NAME))/binary, "@", (list_to_binary(Host))/binary>>,
+        Name = <<(list_to_binary(?WORKER_NAME))/binary, "@", (list_to_binary(Host))/binary>>,
 
-        MainCCMName = <<(list_to_binary(?DEFAULT_CCM_NAME))/binary, "@", (list_to_binary(MainCCM))/binary>>,
+        MainCCMName = <<(list_to_binary(?CCM_NAME))/binary, "@", (list_to_binary(MainCCM))/binary>>,
 
         OptCCMNames = lists:foldl(fun(OptCCM, Acc) ->
-            <<Acc/binary, (list_to_binary(?DEFAULT_CCM_NAME))/binary, "@", (list_to_binary(OptCCM))/binary, " ">>
+            <<Acc/binary, (list_to_binary(?CCM_NAME))/binary, "@", (list_to_binary(OptCCM))/binary, " ">>
         end, <<>>, OptCCMs),
 
         DbNames = lists:foldl(fun(Db, Acc) ->
-            <<Acc/binary, (list_to_binary(?DEFAULT_DB_NAME))/binary, "@", (list_to_binary(Db))/binary, " ">>
+            <<Acc/binary, (list_to_binary(?DB_NAME))/binary, "@", (list_to_binary(Db))/binary, " ">>
         end, <<>>, Dbs),
 
 
-        NodeConfigPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, ?CONFIG_ARGS_PATH]),
-        StorageConfigPath = list_to_binary(filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, ?STORAGE_CONFIG_PATH])),
-        OverwriteCommand = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, ?ONEPROVIDER_SCRIPT_PATH]),
-        StartCommand = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME, ?START_COMMAND_SUFFIX]),
+        NodeConfigPath = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, ?CONFIG_ARGS_PATH]),
+        StorageConfigPath = list_to_binary(filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, ?STORAGE_CONFIG_PATH])),
+        OverwriteCommand = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, ?ONEPROVIDER_SCRIPT_PATH]),
+        StartCommand = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, ?START_COMMAND_SUFFIX]),
 
         ok = installer_utils:overwrite_config_args(NodeConfigPath, <<"name: ">>, <<"[^\n]*">>, Name),
         ok = installer_utils:overwrite_config_args(NodeConfigPath, <<"main_ccm: ">>, <<"[^\n]*">>, MainCCMName),
         ok = installer_utils:overwrite_config_args(NodeConfigPath, <<"opt_ccms: ">>, <<"[^\n]*">>, OptCCMNames),
         ok = installer_utils:overwrite_config_args(NodeConfigPath, <<"db_nodes: ">>, <<"[^\n]*">>, DbNames),
         ok = installer_utils:overwrite_config_args(NodeConfigPath, <<"storage_config_path: ">>, <<"[^\n]*">>, StorageConfigPath),
-        ok = installer_utils:add_node_to_config(worker_node, list_to_atom(?DEFAULT_WORKER_NAME), ?DEFAULT_NODES_INSTALL_PATH),
+        ok = installer_utils:add_node_to_config(worker_node, list_to_atom(?WORKER_NAME), ?NODES_INSTALL_PATH),
         ok = installer_storage:add_storage_paths_on_host(StoragePaths),
 
         os:cmd(OverwriteCommand),
@@ -323,7 +323,7 @@ local_stop(StoragePaths) ->
     Host = onepanel_utils:get_host(node()),
     try
         ?debug("Stopping worker node on host: ~p", [Host]),
-        WorkerPath = filename:join([?DEFAULT_NODES_INSTALL_PATH, ?DEFAULT_WORKER_NAME]),
+        WorkerPath = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME]),
 
         "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ WorkerPath ++ " | awk '{print $2}'`"),
         ok = installer_utils:remove_node_from_config(worker_node),

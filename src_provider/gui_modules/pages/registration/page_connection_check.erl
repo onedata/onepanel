@@ -22,7 +22,7 @@
 
 %% Comet process state
 -define(STATE, comet_state).
--record(?STATE, {attempt = 1, pid}).
+-record(?STATE, {pid}).
 
 %% ====================================================================
 %% API functions
@@ -129,29 +129,24 @@ comet_loop_init() ->
 comet_loop({error, Reason}) ->
     {error, Reason};
 
-comet_loop(#?STATE{attempt = Attempt, pid = Pid} = State) ->
+comet_loop(#?STATE{pid = Pid} = State) ->
     NewState = try
         receive
             connect ->
                 NewPid = spawn_link(fun() ->
                     ok = installer_utils_adapter:check_ip_addresses()
                 end),
-                erlang:send_after(?CONNECTION_TIMEOUT, self(), {connection_failure, Attempt}),
                 State#?STATE{pid = NewPid};
-
-            {connection_failure, Attempt} ->
-                onepanel_gui_utils:message(<<"error_message">>, <<"Cannot connect to Global Registry.<br>
-                Please check your network configuration and try again later.">>),
-                gui_jq:hide(<<"progress">>),
-                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
-                State#?STATE{attempt = Attempt + 1};
 
             {'EXIT', Pid, normal} ->
                 onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_PORTS_CHECK),
                 State;
 
             {'EXIT', Pid, _} ->
-                self() ! connection_failure,
+                onepanel_gui_utils:message(<<"error_message">>, <<"Cannot connect to Global Registry.<br>
+                Please check your network configuration and try again later.">>),
+                gui_jq:hide(<<"progress">>),
+                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
                 State;
 
             _ ->
