@@ -263,8 +263,8 @@ local_start(Username, Password) ->
         Name = <<(list_to_binary(?GLOBALREGISTRY_NAME))/binary, "@", (list_to_binary(Host))/binary>>,
         Cookie = atom_to_binary(?COOKIE, latin1),
 
-        ok = installer_utils:overwrite_config_args(?DB_VM_ARGS, <<"-name ">>, <<"[^\n]*">>, Name),
-        ok = installer_utils:overwrite_config_args(?DB_VM_ARGS, <<"-setcookie ">>, <<"[^\n]*">>, Cookie),
+        ok = installer_utils:overwrite_config_args(?DB_VM_ARGS, <<"\n-name ">>, <<"[^\n]*">>, Name),
+        ok = installer_utils:overwrite_config_args(?DB_VM_ARGS, <<"\n-setcookie ">>, <<"[^\n]*">>, Cookie),
         ok = installer_utils:add_node_to_config(db_node, list_to_atom(?DB_NAME), ?DB_PREFIX),
 
         "0" = os:cmd("service " ++ ?DB_SERVICE ++ " start_db 1>/dev/null 2>&1 ; echo -n $?"),

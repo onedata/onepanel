@@ -256,7 +256,7 @@ local_start([FirstDb | Dbs]) ->
 
         ok = installer_utils:overwrite_config_args(?GLOBALREGISTRY_APP_CONFIG, <<"db_nodes, ">>, <<"[^\]]*">>, <<"[", DbNames/binary>>),
         ok = installer_utils:overwrite_config_args(?GLOBALREGISTRY_APP_CONFIG, <<"rest_cert_domain, \"">>, <<"[^\"]*">>, RestCertDomain),
-        ok = installer_utils:overwrite_config_args(?GLOBALREGISTRY_VM_ARGS, <<"-name ">>, <<"[^\n]*">>, Name),
+        ok = installer_utils:overwrite_config_args(?GLOBALREGISTRY_VM_ARGS, <<"\n-name ">>, <<"[^\n]*">>, Name),
         ok = installer_utils:add_node_to_config(gr_node, list_to_atom(?GLOBALREGISTRY_NAME), ?NODES_INSTALL_PATH),
 
         "0" = os:cmd("service " ++ ?GLOBALREGISTRY_SERVICE ++ " start_globalregistry 1>/dev/null 2>&1 ; echo -n $?"),
