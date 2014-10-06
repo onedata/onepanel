@@ -1,4 +1,4 @@
-CONFIG=config/provider.config
+CONFIG=config/oneprovider.config
 
 .PHONY: deps generate
 
@@ -32,7 +32,7 @@ relclean:
 ifeq ($(CONFIG),config/globalregistry.config)
 	rm -rf rel_globalregistry/onepanel
 else
-	rm -rf rel_provider/onepanel
+	rm -rf rel_oneprovider/onepanel
 endif
 
 ##
