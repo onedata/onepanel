@@ -261,7 +261,7 @@ local_start(Username, Password) ->
         ?debug("Starting database node"),
 
         Name = <<(list_to_binary(?GLOBALREGISTRY_NAME))/binary, "@", (list_to_binary(Host))/binary>>,
-        Cookie = list_to_binary(?COOKIE),
+        Cookie = atom_to_binary(?COOKIE, latin1),
 
         ok = installer_utils:overwrite_config_args(?DB_VM_ARGS, <<"-name ">>, <<"[^\n]*">>, Name),
         ok = installer_utils:overwrite_config_args(?DB_VM_ARGS, <<"-setcookie ">>, <<"[^\n]*">>, Cookie),
