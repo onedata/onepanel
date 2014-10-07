@@ -18,7 +18,7 @@
 %% onepanel gen_server state
 -record(state, {socket, address, port, passwords = []}).
 
--ifdef(provider).
+-ifdef(oneprovider).
 
 %% Message prefix together with host ip address is sent on multicast address
 -define(MULTICAST_MESSAGE_PREFIX, <<"provider_">>).

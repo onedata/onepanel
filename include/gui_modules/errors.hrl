@@ -32,7 +32,7 @@
     }
 ]).
 
--ifdef(provider).
+-ifdef(oneprovider).
 
 -define(SOFTWARE_NOT_INSTALLED_ERROR, <<"software_not_installed_error">>).
 -define(UNREGISTERED_PROVIDER_ERROR, <<"unregistered_provider_error">>).

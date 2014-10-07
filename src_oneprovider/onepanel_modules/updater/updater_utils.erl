@@ -94,7 +94,7 @@ select_only_workers([]) ->
     [];
 select_only_workers(Node) when is_atom(Node) ->
     case string:tokens(atom_to_list(Node), "@") of
-        [?DEFAULT_WORKER_NAME, _] -> [Node];
+        [?WORKER_NAME, _] -> [Node];
         _ -> []
     end;
 select_only_workers([Node | T]) ->

@@ -16,16 +16,12 @@
 
 -export([main/0, event/1, comet_loop/1]).
 
-
-%% Time in miliseconds after which an error message will be displayed if registration process has not returned result
--define(REGISTRATION_TIMEOUT, 30000).
-
 %% Comet process pid
 -define(COMET_PID, comet_pid).
 
 %% Comet process state
 -define(STATE, comet_state).
--record(?STATE, {attempt = 1, pid}).
+-record(?STATE, {pid}).
 
 %% ====================================================================
 %% API functions
@@ -141,30 +137,25 @@ comet_loop_init() ->
 comet_loop({error, Reason}) ->
     {error, Reason};
 
-comet_loop(#?STATE{attempt = Attempt, pid = Pid} = State) ->
+comet_loop(#?STATE{pid = Pid} = State) ->
     NewState = try
         receive
             {register, ClientName} ->
                 NewPid = spawn_link(fun() ->
                     {ok, _} = provider_logic:register(ClientName)
                 end),
-                erlang:send_after(?REGISTRATION_TIMEOUT, self(), {registration_failure, Attempt}),
                 State#?STATE{pid = NewPid};
-
-            {registration_failure, Attempt} ->
-                onepanel_gui_utils:message(<<"error_message">>, <<"Cannot register in <i>Global Registry</i>.<br>Please try again later.">>),
-                gui_jq:hide(<<"progress">>),
-                gui_jq:show(<<"client_name">>),
-                gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
-                gui_jq:prop(<<"register_button">>, <<"disabled">>, <<"">>),
-                State#?STATE{attempt = Attempt + 1};
 
             {'EXIT', Pid, normal} ->
                 onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_REGISTRATION_SUCCESS),
                 State;
 
             {'EXIT', Pid, _} ->
-                self() ! registration_failure,
+                onepanel_gui_utils:message(<<"error_message">>, <<"Cannot register in <i>Global Registry</i>.<br>Please try again later.">>),
+                gui_jq:hide(<<"progress">>),
+                gui_jq:show(<<"client_name">>),
+                gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
+                gui_jq:prop(<<"register_button">>, <<"disabled">>, <<"">>),
                 State;
 
             _ ->

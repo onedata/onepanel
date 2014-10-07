@@ -17,11 +17,11 @@
 -define(APP_STR, "onepanel").
 
 %% Default cookie used for communication with cluster
--define(DEFAULT_COOKIE, globalregistry).
+-define(COOKIE, globalregistry).
 
 %% Default system limit values
--define(DEFAULT_OPEN_FILES, 65535).
--define(DEFAULT_PROCESSES, 65535).
+-define(OPEN_FILES, 65535).
+-define(PROCESSES, 65535).
 
 %% Default username and password for administrative database
 -define(DEFAULT_USERNAME, <<"admin">>).
@@ -85,7 +85,7 @@ init() ->
     {A, B, C} = erlang:now(),
     NodeName = "onepanel_admin_" ++ integer_to_list(A, 32) ++ integer_to_list(B, 32) ++ integer_to_list(C, 32) ++ "@127.0.0.1",
     net_kernel:start([list_to_atom(NodeName), longnames]),
-    erlang:set_cookie(node(), ?DEFAULT_COOKIE).
+    erlang:set_cookie(node(), ?COOKIE).
 
 
 %% install/1
@@ -113,8 +113,8 @@ install(Path) ->
 
         print_info("Setting ulimits..."),
         lists:foreach(fun(Host) ->
-            HostOpenFiles = proplists:get_value(Host, OpenFiles, ?DEFAULT_OPEN_FILES),
-            HostProcesses = proplists:get_value(Host, Processes, ?DEFAULT_PROCESSES),
+            HostOpenFiles = proplists:get_value(Host, OpenFiles, ?OPEN_FILES),
+            HostProcesses = proplists:get_value(Host, Processes, ?PROCESSES),
             ok = rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_system_limit, [open_files, HostOpenFiles]),
             ok = rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_system_limit, [process_limit, HostProcesses])
         end, AllHosts),

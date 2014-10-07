@@ -3,7 +3,7 @@
 deps
 ebin
 rel_globalregistry/onepanel
-rel_provider/onepanel
+rel_oneprovider/onepanel
 
 c_lib
 c_src/*.o

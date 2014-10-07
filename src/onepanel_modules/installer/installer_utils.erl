@@ -67,7 +67,7 @@ get_system_limits_cmd(Host) ->
     catch
         _:Reason ->
             ?error("Cannot get ulimits configuration: ~p. Returning default values.", [Reason]),
-            "ulimit -n " ++ integer_to_list(?DEFAULT_OPEN_FILES) ++ " ; ulimit -u " ++ integer_to_list(?DEFAULT_PROCESSES)
+            "ulimit -n " ++ integer_to_list(?OPEN_FILES) ++ " ; ulimit -u " ++ integer_to_list(?PROCESSES)
     end.
 
 

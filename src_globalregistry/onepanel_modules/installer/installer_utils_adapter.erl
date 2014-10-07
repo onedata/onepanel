@@ -39,7 +39,7 @@
 finalize_installation(_Args) ->
     try
         {ok, #?GLOBAL_CONFIG_RECORD{gr = GR}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        GRNode = onepanel_utils:get_node(?DEFAULT_GLOBALREGISTRY_NAME, GR),
+        GRNode = onepanel_utils:get_node(?GLOBALREGISTRY_NAME, GR),
         ok = installer_utils:set_timestamp(),
         ok = finalize_installation_loop(GRNode, ?FINALIZE_INSTALLATION_ATTEMPTS),
         ok

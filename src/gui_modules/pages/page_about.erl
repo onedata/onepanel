@@ -18,9 +18,6 @@
 
 -define(LICENSE_FILE, "LICENSE.txt").
 -define(CONTACT_EMAIL, "support@onedata.org").
--define(MEMBERS, [<<"Łukasz Dutka"/utf8>>, <<"Jacek Kitowski"/utf8>>, <<"Dariusz Król"/utf8>>, <<"Tomasz Lichoń"/utf8>>, <<"Darin Nikolow"/utf8>>,
-    <<"Łukasz Opioła"/utf8>>, <<"Bartosz Polnik"/utf8>>, <<"Paweł Salata"/utf8>>, <<"Michał Sitko"/utf8>>, <<"Rafał Słota"/utf8>>,
-    <<"Renata Słota"/utf8>>, <<"Beata Skiba"/utf8>>, <<"Krzysztof Trzepla"/utf8>>, <<"Michał Wrzeszcz"/utf8>>, <<"Konrad Zemek"/utf8>>]).
 
 %% ====================================================================
 %% API functions
@@ -110,8 +107,7 @@ about_table() ->
             {<<"Contact">>, contact()},
             {<<"Privacy policy">>, privacy_policy()},
             {<<"Acknowledgements">>, acknowledgements()},
-            {<<"License">>, license()},
-            {<<"Team">>, team()}
+            {<<"License">>, license()}
         ])
     }.
 
@@ -191,30 +187,7 @@ license() ->
               end,
     #span{
         style = <<"white-space: pre; font-size: large; line-height: initial">>,
-%%         style = <<"margin: 0; white-space: pre; font-size: initial; line-height: initial">>,
         body = Content
-    }.
-
-
-%% team/0
-%% ====================================================================
-%% @doc Renders list of applications developers.
-%% @end
--spec team() -> Result when
-    Result :: list().
-%% ====================================================================
-team() ->
-    #list{
-        numbered = false,
-        body = lists:map(
-            fun(Member) ->
-                #li{
-                    body = #span{
-                        style = <<"font-size: large; line-height: 1.5em">>,
-                        body = Member
-                    }
-                }
-            end, ?MEMBERS)
     }.
 
 
