@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains utility Onepanel functions.
+%% @doc This module contains utility onepanel functions.
 %% @end
 %% ===================================================================
 -module(onepanel_utils).
@@ -16,8 +16,8 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([random_ascii_lowercase_sequence/1]).
--export([get_node/1, get_node/2, get_nodes/0, get_nodes/2, get_host/1, get_hosts/0, get_software_version/0, get_control_panel_hosts/0]).
+-export([random_ascii_lowercase_sequence/1, get_application_version/0]).
+-export([get_node/1, get_node/2, get_nodes/0, get_nodes/2, get_host/1, get_hosts/0]).
 -export([apply_on_hosts/5, dropwhile_failure/5, save_file_on_host/3, save_file_on_hosts/3]).
 
 %% ====================================================================
@@ -27,7 +27,9 @@
 %% random_ascii_lowercase_sequence/1
 %% ====================================================================
 %% @doc Creates random sequence consisting of lowercase ASCII letters.
--spec random_ascii_lowercase_sequence(Length :: integer()) -> string().
+%% @end
+-spec random_ascii_lowercase_sequence(Length :: integer()) -> Result when
+    Result :: string().
 %% ====================================================================
 random_ascii_lowercase_sequence(Length) ->
     lists:foldl(fun(_, Acc) -> [random:uniform(26) + 96 | Acc] end, [], lists:seq(1, Length)).
@@ -89,6 +91,7 @@ dropwhile_failure([Node | Nodes], Module, Function, Arguments, Timeout) ->
 %% get_node/1
 %% ====================================================================
 %% @doc Returns node from host.
+%% @end
 -spec get_node(Host :: string()) -> Result when
     Result :: node().
 %% ====================================================================
@@ -99,6 +102,7 @@ get_node(Host) ->
 %% get_node/2
 %% ====================================================================
 %% @doc Returns node of given type on provided host.
+%% @end
 -spec get_node(Type :: string(), Host :: string()) -> Result when
     Result :: node().
 %% ====================================================================
@@ -109,6 +113,7 @@ get_node(Type, Host) ->
 %% get_nodes/0
 %% ====================================================================
 %% @doc Returns list of all application nodes.
+%% @end
 -spec get_nodes() -> Result when
     Result :: node().
 %% ====================================================================
@@ -119,6 +124,7 @@ get_nodes() ->
 %% get_nodes/2
 %% ====================================================================
 %% @doc Returns list of nodes of given type on provided hosts.
+%% @end
 -spec get_nodes(Type :: string(), Hosts :: [string()]) -> Result when
     Result :: node().
 %% ====================================================================
@@ -131,6 +137,7 @@ get_nodes(Type, Hosts) ->
 %% get_host/1
 %% ====================================================================
 %% @doc Returns host from node.
+%% @end
 -spec get_host(Node :: node()) -> Result when
     Result :: string().
 %% ====================================================================
@@ -141,7 +148,8 @@ get_host(Node) ->
 
 %% get_hosts/0
 %% ====================================================================
-%% @doc Returns list of hostnames.
+%% @doc Returns list of hostnames of onepanel cluster nodes.
+%% @end
 -spec get_hosts() -> Result when
     Result :: [Host :: string()].
 %% ====================================================================
@@ -158,6 +166,7 @@ get_hosts() ->
 %% save_file_on_hosts/3
 %% ====================================================================
 %% @doc Saves Global Registry certificate cert on all hosts.
+%% @end
 -spec save_file_on_hosts(Path :: string(), Filename :: string(), Content :: string() | binary()) -> Result when
     Result :: ok | {error, ErrorHosts :: [string()]}.
 %% ====================================================================
@@ -174,6 +183,7 @@ save_file_on_hosts(Path, Filename, Content) ->
 %% save_file_on_host/3
 %% ====================================================================
 %% @doc Saves Global Registry certificate cert on host.
+%% @end
 -spec save_file_on_host(Path :: string(), Filename :: string(), Content :: string() | binary()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
@@ -190,41 +200,19 @@ save_file_on_host(Path, Filename, Content) ->
     end.
 
 
-%% get_software_version/0
+%% get_application_version/0
 %% ====================================================================
-%% @doc Returns current software version.
--spec get_software_version() -> Result when
-    Result :: string() | undefined.
+%% @doc Returns version of onepanel application read from reltool.config
+%% file.
+%% @end
+-spec get_application_version() -> Result when
+    Result :: binary().
 %% ====================================================================
-get_software_version() ->
-    try
-        {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        dropwhile_failure(get_nodes(?DEFAULT_WORKER_NAME, Workers), node_manager, check_vsn, [], ?RPC_TIMEOUT)
-    catch
-        _:Reason ->
-            ?error("Cannot get current software version: ~p", [Reason]),
-            undefined
-    end.
-
-
-%% get_control_panel_hosts/0
-%% ====================================================================
-%% @doc Returns list of control panel hosts
--spec get_control_panel_hosts() -> Result when
-    Result :: {ok, Hosts :: [string()]} | {error, Reason :: term()}.
-%% ====================================================================
-get_control_panel_hosts() ->
-    try
-        {ok, #?GLOBAL_CONFIG_RECORD{ccms = CCMs}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        Nodes = get_nodes(?DEFAULT_CCM_NAME, CCMs),
-        {Workers, _} = dropwhile_failure(Nodes, gen_server, call, [{global, central_cluster_manager}, get_workers, 1000], ?RPC_TIMEOUT),
-        ControlPanelHosts = lists:foldl(fun
-            ({WorkerNode, control_panel}, Acc) -> [onepanel_utils:get_host(WorkerNode) | Acc];
-            (_, Acc) -> Acc
-        end, [], Workers),
-        {ok, ControlPanelHosts}
-    catch
-        _:Reason ->
-            ?error("Cannot get control panel hosts: ~p", [Reason]),
-            {error, Reason}
+get_application_version() ->
+    case lists:dropwhile(fun
+        ({?APP_NAME, _, _}) -> false;
+        (_) -> true
+    end, application:which_applications()) of
+        [{?APP_NAME, _, Version} | _] -> list_to_binary(Version);
+        _ -> <<"undefined">>
     end.

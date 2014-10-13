@@ -5,14 +5,15 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains n2o website code.
-%% This page is a starting point for VeilCluster nodes installation.
+%% @doc This module contains n2o website code.
+%% This page is a starting point for software components installation.
 %% @end
 %% ===================================================================
-
 -module(page_installation).
--export([main/0, event/1]).
+
 -include("gui_modules/common.hrl").
+
+-export([main/0, event/1]).
 
 %% ====================================================================
 %% API functions
@@ -21,6 +22,7 @@
 %% main/0
 %% ====================================================================
 %% @doc Template points to the template file, which will be filled with content.
+%% @end
 -spec main() -> Result when
     Result :: #dtl{}.
 %% ====================================================================
@@ -35,14 +37,15 @@ main() ->
             end,
             #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, <<"">>}, {custom, <<"">>}]};
         false ->
-            gui_jq:redirect_to_login(true),
+            gui_jq:redirect_to_login(),
             #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
     end.
 
 
 %% title/0
 %% ====================================================================
-%% @doc Page title.
+%% @doc This will be placed instead of {{title}} tag in template.
+%% @end
 -spec title() -> Result when
     Result :: binary().
 %% ====================================================================
@@ -57,6 +60,7 @@ title() ->
 %% event/1
 %% ====================================================================
 %% @doc Handles page events.
+%% @end
 -spec event(Event :: term()) -> no_return().
 %% ====================================================================
 event(init) ->

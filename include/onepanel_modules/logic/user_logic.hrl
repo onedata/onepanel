@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This header file contains common macros and records for
+%% @doc This header file contains common macros and records for
 %% users management module.
 %% @end
 %% ===================================================================
@@ -21,8 +21,7 @@
 
 %% User record contains following fields:
 %% * username       - name of user as a primary key in database
-%% * hash           - SHA 512 password hash
-%% * salt           - random characters sequence added to password before hashing
--record(?USER_RECORD, {username, hash, salt}).
+%% * password_hash  - SHA 512 password hash
+-record(?USER_RECORD, {username, password_hash}).
 
 -endif.

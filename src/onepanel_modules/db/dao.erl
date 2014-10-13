@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module contains access functions to Mnesia database.
+%% @doc This module contains access functions to Mnesia database.
 %% It allows to save, update and retrieve records from database.
 %% @end
 %% ===================================================================
@@ -88,8 +88,8 @@ update_record(Table, Key, Values) ->
             [RecordName | OldValues] = tuple_to_list(OldRecord),
             Attributes = mnesia:table_info(Table, attributes),
             NewValues = lists:map(fun
-                ({Column, OldValue}) ->
-                    case proplists:get_value(Column, Values, not_found) of
+                ({Attribute, OldValue}) ->
+                    case proplists:get_value(Attribute, Values, not_found) of
                         not_found -> OldValue;
                         NewValue -> NewValue
                     end
@@ -121,7 +121,7 @@ get_record(Table, Key) ->
         Transaction = fun() ->
             case mnesia:read(Table, Key) of
                 [Record] -> {ok, Record};
-                [] -> {error, "Record not found."};
+                [] -> {error, <<"Record not found.">>};
                 Other -> {error, Other}
             end
         end,

@@ -16,11 +16,11 @@
 #include <botan/x509self.h>
 #include <botan/rsa.h>
 #include <botan/dsa.h>
-using namespace Botan;
-
 #include <iostream>
 #include <fstream>
 #include <memory>
+
+using namespace Botan;
 
 #define KEY_SIZE 4096
 
