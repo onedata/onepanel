@@ -255,6 +255,7 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                                catch
                                    _:Reason ->
                                        ?error("Cannot set redirection point: ~p", [Reason]),
+                                       gui_jq:css(<<"redirection_point_textbox">>, <<"border-color">>, <<"red">>),
                                        error
                                end,
                            case lists:foldl(fun({Host, GuiPortId, GuiPort, RestPortId, RestPort}, Status) ->
