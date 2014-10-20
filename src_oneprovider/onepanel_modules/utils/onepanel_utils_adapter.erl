@@ -17,7 +17,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([apply_on_worker/3]).
+-export([apply_on_worker/3, get_host_and_port/1]).
 -export([get_software_version/0, get_available_software_versions/0, get_software_version_name/1, get_software_version_record/1]).
 
 
@@ -141,3 +141,29 @@ sort_versions(Versions) ->
     lists:usort(CmpMajor, lists:map(fun(Version) ->
         get_software_version_record(Version)
     end, Versions)).
+
+
+%% get_host_and_port/1
+%% ====================================================================
+%% @doc Translates redirection point to pair of host and port.
+-spec get_host_and_port(RedirectionPoint :: binary()) -> Result when
+    Result :: {ok, Host :: binary(), Port :: integer()} | {error, Reason :: term()}.
+%% ====================================================================
+get_host_and_port(<<>>) ->
+    {error, "Redirection point cannot be empty."};
+
+get_host_and_port(RedirectionPoint) ->
+    try
+        case binary:split(RedirectionPoint, [<<"://">>, <<":">>], [global]) of
+            [<<"http">>, Host] -> {ok, Host, 80};
+            [<<"http">>, Host, Port | _] -> {ok, Host, binary_to_integer(Port)};
+            [<<"https">>, Host] -> {ok, Host, 443};
+            [<<"https">>, Host, Port | _] -> {ok, Host, binary_to_integer(Port)};
+            [Host] -> {ok, Host, 443};
+            [Host, Port | _] -> {ok, Host, binary_to_integer(Port)};
+            _ -> {error, {invalid_refirection_point, RedirectionPoint}}
+        end
+    catch
+        _:Reason ->
+            {error, Reason}
+    end.

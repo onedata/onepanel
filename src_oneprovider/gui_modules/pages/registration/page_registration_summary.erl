@@ -138,37 +138,39 @@ comet_loop({error, Reason}) ->
     {error, Reason};
 
 comet_loop(#?STATE{pid = Pid} = State) ->
-    NewState = try
-        receive
-            {register, ClientName} ->
-                NewPid = spawn_link(fun() ->
-                    {ok, _} = provider_logic:register(ClientName)
-                end),
-                State#?STATE{pid = NewPid};
+    NewState =
+        try
+            receive
+                {register, ClientName} ->
+                    RedirectionPoint = gui_ctx:get(redirection_point),
+                    NewPid = spawn_link(fun() ->
+                        {ok, _} = provider_logic:register(RedirectionPoint, ClientName)
+                    end),
+                    State#?STATE{pid = NewPid};
 
-            {'EXIT', Pid, normal} ->
-                onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_REGISTRATION_SUCCESS),
-                State;
+                {'EXIT', Pid, normal} ->
+                    onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_REGISTRATION_SUCCESS),
+                    State;
 
-            {'EXIT', Pid, _} ->
-                onepanel_gui_utils:message(<<"error_message">>, <<"Cannot register in <i>Global Registry</i>.<br>Please try again later.">>),
-                gui_jq:hide(<<"progress">>),
-                gui_jq:show(<<"client_name">>),
-                gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
-                gui_jq:prop(<<"register_button">>, <<"disabled">>, <<"">>),
-                State;
+                {'EXIT', Pid, _} ->
+                    onepanel_gui_utils:message(<<"error_message">>, <<"Cannot register in <i>Global Registry</i>.<br>Please try again later.">>),
+                    gui_jq:hide(<<"progress">>),
+                    gui_jq:show(<<"client_name">>),
+                    gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
+                    gui_jq:prop(<<"register_button">>, <<"disabled">>, <<"">>),
+                    State;
 
-            _ ->
+                _ ->
+                    State
+
+            after ?COMET_PROCESS_RELOAD_DELAY ->
                 State
-
-        after ?COMET_PROCESS_RELOAD_DELAY ->
-            State
-        end
-               catch Type:Message ->
-                   ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
-                   onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
-                   {error, Message}
-               end,
+            end
+        catch Type:Message ->
+            ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
+            onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
+            {error, Message}
+        end,
     gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 
