@@ -327,32 +327,6 @@ change_redirection_point(RedirectionPoint) ->
     ].
 
 
-%% get_host_and_port/1
-%% ====================================================================
-%% @doc Translates redirection point to pair of host and port.
--spec get_host_and_port(RedirectionPoint :: binary()) -> Result when
-    Result :: {ok, Host :: binary(), Port :: integer()} | {error, Reason :: term()}.
-%% ====================================================================
-get_host_and_port(<<>>) ->
-    {error, "Redirection point cannot be empty."};
-
-get_host_and_port(RedirectionPoint) ->
-    try
-        case binary:split(RedirectionPoint, [<<"://">>, <<":">>], [global]) of
-            [<<"http">>, Host] -> {ok, Host, 80};
-            [<<"http">>, Host, Port | _] -> {ok, Host, binary_to_integer(Port)};
-            [<<"https">>, Host] -> {ok, Host, 443};
-            [<<"https">>, Host, Port | _] -> {ok, Host, binary_to_integer(Port)};
-            [Host] -> {ok, Host, 443};
-            [Host, Port | _] -> {ok, Host, binary_to_integer(Port)};
-            _ -> {error, {invalid_refirection_point, RedirectionPoint}}
-        end
-    catch
-        _:Reason ->
-            {error, Reason}
-    end.
-
-
 %% ====================================================================
 %% Events handling
 %% ====================================================================
@@ -385,7 +359,7 @@ comet_loop(#?STATE{id = ProviderId} = State) ->
                 {change_redirection_point, OldRedirectionPoint, RedirectionPoint} ->
                     {NewRedirectionPoint, MessageType, Message} =
                         try
-                            {host_and_port, {ok, Host, Port}} = {host_and_port, get_host_and_port(RedirectionPoint)},
+                            {host_and_port, {ok, Host, Port}} = {host_and_port, onepanel_utils_adapter:get_host_and_port(RedirectionPoint)},
                             {check_redirection_point, ok} = {check_redirection_point, gr_providers:check_port(provider, Host, Port, <<"gui">>)},
                             {modify_refirection_point, ok} = {modify_refirection_point, gr_providers:modify_details(provider, [{<<"redirectionPoint">>, RedirectionPoint}])},
                             {modify_refirection_point, ok} = {modify_refirection_point, dao:update_record(?PROVIDER_TABLE, ProviderId, [{redirection_point, RedirectionPoint}])},

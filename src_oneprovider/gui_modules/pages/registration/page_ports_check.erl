@@ -84,6 +84,10 @@ body() ->
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>
             },
             #table{
+                id = <<"redirection_point_table">>,
+                style = <<"width: 50%; margin: 0 auto; margin-bottom: 3em; border-spacing: 1em; border-collapse: inherit;">>
+            },
+            #table{
                 id = <<"ports_table">>,
                 class = <<"table table-bordered">>,
                 style = <<"width: 50%; margin: 0 auto; display: none;">>
@@ -94,6 +98,40 @@ body() ->
         ]
     },
     onepanel_gui_utils:body(Header, Main).
+
+
+%% redirection_table_row/2
+%% ====================================================================
+%% @doc Renders redirection table row.
+%% @end
+-spec redirection_table_row(IpAddress :: binary(), Port :: integer()) -> Result
+    when Result :: [#tr{}].
+%% ====================================================================
+redirection_table_row(IpAddress, Port) ->
+    [
+        #tr{
+            cells = [
+                #td{
+                    style = <<"border-width: 0; width: 50%; text-align: right;">>,
+                    body = #label{
+                        style = <<"margin: 0 auto; cursor: auto;">>,
+                        class = <<"label label-large label-inverse">>,
+                        body = <<"Redirection point">>
+                    }
+                },
+                #td{
+                    style = <<"border-width: 0; width: 50%; text-align: left;">>,
+                    body = #textbox{
+                        id = <<"redirection_point_textbox">>,
+                        style = <<"margin: 0 auto; padding: 1px;">>,
+                        class = <<"span">>,
+                        placeholder = <<"Redirection point">>,
+                        value = <<"https://", IpAddress/binary, ":", (integer_to_binary(Port))/binary>>
+                    }
+                }
+            ]
+        }
+    ].
 
 
 %% ports_table/3
@@ -190,56 +228,67 @@ comet_loop({error, Reason}) ->
 
 comet_loop(#?STATE{ports = Ports} = State) ->
     NewState = try
-        receive
-            {render_ports_table, DefaultGuiPort, DefaultRestPort} ->
-                TextboxIds = lists:foldl(fun({_, Id, _, _}, TextboxIdsAcc) ->
-                    [<<"gui_port_textbox_", Id/binary>>, <<"rest_port_textbox_", Id/binary>> | TextboxIdsAcc]
-                end, [], Ports),
-                gui_jq:update(<<"ports_message">>, <<"By default provider's GUI Web pages are served on <b>",
-                DefaultGuiPort/binary, "</b> port.<br>REST API endpoints are available on <b>", DefaultRestPort/binary, "</b> port.<br>"
-                "If your network configuration differs please provide port translations in the table below.">>),
-                gui_jq:update(<<"ports_table">>, ports_table(Ports)),
-                gui_jq:update(<<"nav_buttons">>, onepanel_gui_utils:nav_buttons([
-                    {<<"back_button">>, {postback, back}, false, <<"Back">>},
-                    {<<"next_button">>, {actions, gui_jq:form_submit_action(<<"next_button">>, {set_ports, Ports}, TextboxIds)}, true, <<"Next">>}
-                ])),
-                gui_jq:fade_in(<<"ports_table">>, 500),
-                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
-                State;
+                   receive
+                       {render_ports_table, DefaultGuiPort, DefaultRestPort} ->
+                           TextboxIds = [<<"redirection_point_textbox">> | lists:foldl(fun({_, Id, _, _}, TextboxIdsAcc) ->
+                               [<<"gui_port_textbox_", Id/binary>>, <<"rest_port_textbox_", Id/binary>> | TextboxIdsAcc]
+                           end, [], Ports)],
+                           gui_jq:update(<<"ports_message">>, <<"By default provider's GUI Web pages are served on <b>",
+                           DefaultGuiPort/binary, "</b> port.<br>REST API endpoints are available on <b>", DefaultRestPort/binary, "</b> port.<br>"
+                           "If your network configuration differs please provide port translations in the table below.">>),
+                           gui_jq:update(<<"ports_table">>, ports_table(Ports)),
+                           gui_jq:update(<<"nav_buttons">>, onepanel_gui_utils:nav_buttons([
+                               {<<"back_button">>, {postback, back}, false, <<"Back">>},
+                               {<<"next_button">>, {actions, gui_jq:form_submit_action(<<"next_button">>, {set_ports, Ports}, TextboxIds)}, true, <<"Next">>}
+                           ])),
+                           gui_jq:fade_in(<<"ports_table">>, 500),
+                           gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
+                           State;
 
-            {set_ports, NewPorts} ->
-                case lists:foldl(fun({Host, GuiPortId, GuiPort, RestPortId, RestPort}, Status) ->
-                    lists:foldl(fun({PortId, Port, Type, Field}, HostStatus) ->
-                        try
-                            true = validate_port(Port),
-                            {ok, #?LOCAL_CONFIG_RECORD{ip_address = IpAddress}} = dao:get_record(?LOCAL_CONFIG_TABLE, Host),
-                            ok = gr_providers:check_port(provider, IpAddress, binary_to_integer(Port), Type),
-                            ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{Field, binary_to_integer(Port)}]),
-                            gui_jq:css(PortId, <<"border-color">>, <<"green">>),
-                            HostStatus
-                        catch
-                            _:_ ->
-                                gui_jq:css(PortId, <<"border-color">>, <<"red">>),
-                                error
-                        end
-                    end, Status, [
-                        {GuiPortId, GuiPort, <<"gui">>, gui_port},
-                        {RestPortId, RestPort, <<"rest">>, rest_port}
-                    ])
-                end, ok, NewPorts) of
-                    ok ->
-                        onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_REGISTRATION_SUMMARY);
-                    _ ->
-                        onepanel_gui_utils:message(<<"error_message">>, <<"Some ports are not available for <i>Global Registry</i>.<br>
+                       {set_ports, RedirectionPoint, NewPorts} ->
+                           RedirectionPointStatus =
+                               try
+                                   {host_and_port, {ok, RedirectionPointHost, RedirectionPointPort}} = {host_and_port, onepanel_utils_adapter:get_host_and_port(RedirectionPoint)},
+                                   {check_redirection_point, ok} = {check_redirection_point, gr_providers:check_port(provider, RedirectionPointHost, RedirectionPointPort, <<"gui">>)},
+                                   gui_ctx:put(redirection_point, RedirectionPoint),
+                                   ok
+                               catch
+                                   _:Reason ->
+                                       ?error("Cannot set redirection point: ~p", [Reason]),
+                                       error
+                               end,
+                           case lists:foldl(fun({Host, GuiPortId, GuiPort, RestPortId, RestPort}, Status) ->
+                               lists:foldl(fun({PortId, Port, Type, Field}, HostStatus) ->
+                                   try
+                                       true = validate_port(Port),
+                                       {ok, #?LOCAL_CONFIG_RECORD{ip_address = IpAddress}} = dao:get_record(?LOCAL_CONFIG_TABLE, Host),
+                                       ok = gr_providers:check_port(provider, IpAddress, binary_to_integer(Port), Type),
+                                       ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{Field, binary_to_integer(Port)}]),
+                                       gui_jq:css(PortId, <<"border-color">>, <<"green">>),
+                                       HostStatus
+                                   catch
+                                       _:_ ->
+                                           gui_jq:css(PortId, <<"border-color">>, <<"red">>),
+                                           error
+                                   end
+                               end, Status, [
+                                   {GuiPortId, GuiPort, <<"gui">>, gui_port},
+                                   {RestPortId, RestPort, <<"rest">>, rest_port}
+                               ])
+                           end, RedirectionPointStatus, NewPorts) of
+                               ok ->
+                                   onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_REGISTRATION_SUMMARY);
+                               _ ->
+                                   onepanel_gui_utils:message(<<"error_message">>, <<"Some components are not available for <i>Global Registry</i>.<br>
                         Please change them and try again.">>)
-                end,
-                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
-                gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
-                State
+                           end,
+                           gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
+                           gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
+                           State
 
-        after ?COMET_PROCESS_RELOAD_DELAY ->
-            State
-        end
+                   after ?COMET_PROCESS_RELOAD_DELAY ->
+                       State
+                   end
                catch Type:Message ->
                    ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
@@ -258,8 +307,11 @@ comet_loop(#?STATE{ports = Ports} = State) ->
 %% ====================================================================
 event(init) ->
     try
+        Localhost = onepanel_utils:get_host(node()),
         {ok, #?GLOBAL_CONFIG_RECORD{workers = Hosts}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
         {ok, [{<<"gui">>, DefaultGuiPort}, {<<"rest">>, DefaultRestPort}]} = provider_logic:get_default_ports(),
+        {ok, #?LOCAL_CONFIG_RECORD{ip_address = IpAddress}} = dao:get_record(?LOCAL_CONFIG_TABLE, Localhost),
+        gui_jq:update(<<"redirection_point_table">>, redirection_table_row(IpAddress, DefaultGuiPort)),
 
         Ports = lists:map(fun({Host, Id}) ->
             {GuiPort, RestPort} = case dao:get_record(?LOCAL_CONFIG_TABLE, Host) of
@@ -291,6 +343,7 @@ event(back) ->
     onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_CONNECTION_CHECK);
 
 event({set_ports, Ports}) ->
+    RedirectionPoint = gui_ctx:postback_param(<<"redirection_point_textbox">>),
     NewPorts = lists:map(fun({Host, Id, _, _}) ->
         GuiPortId = <<"gui_port_textbox_", Id/binary>>,
         GuiPort = gui_ctx:postback_param(GuiPortId),
@@ -301,7 +354,7 @@ event({set_ports, Ports}) ->
     gui_jq:show(<<"main_spinner">>),
     gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"disabled">>),
     gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
-    get(?COMET_PID) ! {set_ports, NewPorts};
+    get(?COMET_PID) ! {set_ports, RedirectionPoint, NewPorts};
 
 event({close_message, MessageId}) ->
     gui_jq:hide(MessageId);
