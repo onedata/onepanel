@@ -254,6 +254,31 @@ space_row_expanded(RowId, #space_details{id = SpaceId, name = SpaceName} = Space
         }
     ].
 
+
+%% space_size_parameter/2
+%% ====================================================================
+%% @doc Renders space size parameter in window popups.
+%% @end
+-spec space_size_parameter() -> Result when
+    Result :: binary().
+%% ====================================================================
+space_size_parameter() ->
+    <<"<div id=\"space_size_div\" style=\"width: 100%;\">",
+    "   <input id=\"create_space_size\" class=\"pull-left\" type=\"text\" style=\"width: 50%;\" placeholder=\"Size\">",
+    "   <fieldset class=\"pull-right\" style=\"width: 41%; line-height: 40px;\">"
+    "       <label class=\"radio checked\" style=\"display: inline-block; padding-left: 25px; margin-right: 10px;\">",
+    "           <input type=\"radio\" name=\"optionsRadios2\" id=\"optionsRadios1\" value=\"option1\" data-toggle=\"radio\" checked=\"checked\">MB",
+    "       </label>",
+    "       <label class=\"radio\" style=\"display: inline-block; padding-left: 25px; margin-right: 10px;\">",
+    "           <input type=\"radio\" name=\"optionsRadios2\" id=\"optionsRadios2\" value=\"option1\" data-toggle=\"radio\">GB",
+    "       </label>",
+    "       <label class=\"radio\" style=\"display: inline-block; padding-left: 25px; margin-right: 10px;\">",
+    "           <input type=\"radio\" name=\"optionsRadios2\" id=\"optionsRadios3\" value=\"option1\" data-toggle=\"radio\">TB",
+    "       </label>",
+    "   </fieldset>",
+    "</div>">>.
+
+
 %% add_space_row/2
 %% ====================================================================
 %% @doc Adds collapsed Space settings row to Spaces settings table.
@@ -267,6 +292,32 @@ add_space_row(RowId, SpaceDetails) ->
         cells = space_row_collapsed(RowId, SpaceDetails)
     },
     gui_jq:insert_bottom(<<"spaces_table">>, Row).
+
+
+%% initialize_radio_buttons/0
+%% ====================================================================
+%% @doc Initializes radio buttons - required by flatui.
+%% @end
+-spec initialize_radio_buttons() -> Result when
+    Result :: ok.
+%% ====================================================================
+initialize_radio_buttons() ->
+    gui_jq:wire(<<"$('[data-toggle=\"radio\"]').each(function () {
+      var $radio = $(this);
+      $radio.radio();
+    });">>).
+
+
+%% space_size_check/0
+%% ====================================================================
+%% @doc Returns script used to check correctness of space size parameter.
+%% @end
+-spec space_size_check() -> Result when
+    Result :: binary().
+%% ====================================================================
+space_size_check() ->
+    <<"else if(size.length == 0) { alert.html(\"Please provide Space size.\"); alert.fadeIn(300); return false; }",
+    "else if(isNaN(size) || parseInt(size, 10) <= 0) { alert.html(\"Space size should be a positive number.\"); alert.fadeIn(300); return false; }">>.
 
 
 %% ====================================================================
@@ -413,23 +464,7 @@ event(create_space) ->
     "<p id=\"create_space_alert\" style=\"width: 100%; color: red; font-size: medium; text-align: center; display: none;\"></p>",
     "<input id=\"create_space_name\" type=\"text\" style=\"width: 100%;\" placeholder=\"Name\">",
     "<input id=\"create_space_token\" type=\"text\" style=\"width: 100%;\" placeholder=\"Token\">",
-    "<div id=\"space_size_div\" style=\"width: 100%;\">",
-    "   <input id=\"create_space_size\" class=\"pull-left\" type=\"text\" style=\"width: 50%;\" placeholder=\"Size\">",
-    "   <fieldset class=\"pull-right\" style=\"width: 100%;\">"
-    "       <label class=\"radio checked\">",
-    "           <input type=\"radio\" name=\"optionsRadios2\" id=\"optionsRadios1\" value=\"option1\" data-toggle=\"radio\" checked=\"checked\">MB",
-    "       </label>",
-    "       <label class=\"radio\">",
-    "           <input type=\"radio\" name=\"optionsRadios2\" id=\"optionsRadios2\" value=\"option1\" data-toggle=\"radio\">GB",
-    "       </label>",
-%%     "       <input type=\"radio\" name=\"space_size\" value=\"MB\" style=\"display: inline-block;\" checked/>",
-%%     "       <label for=\"MB\" style=\"display: inline-block;\">MB</label>",
-%%     "       <input type=\"radio\" name=\"space_size\" value=\"GB\" style=\"display: inline-block;\"/>",
-%%     "       <label for=\"GB\" style=\"display: inline-block;\">GB</label>",
-%%     "       <input type=\"radio\" name=\"space_size\" value=\"TB\" style=\"display: inline-block;\"/>",
-%%     "       <label for=\"TB\" style=\"display: inline-block;\">TB</label>",
-    "   </fieldset>",
-    "</div>",
+    (space_size_parameter())/binary,
     "</div>">>,
     Script = <<"var alert = $(\"#create_space_alert\");",
     "var name = $.trim($(\"#create_space_name\").val());",
@@ -437,26 +472,30 @@ event(create_space) ->
     "var size = $.trim($(\"#create_space_size\").val());",
     "if(name.length == 0) { alert.html(\"Please provide Space name.\"); alert.fadeIn(300); return false; }",
     "else if(token.length == 0) { alert.html(\"Please provide Space token.\"); alert.fadeIn(300); return false; }",
-    "else if(size.length == 0) { alert.html(\"Please provide Space size.\"); alert.fadeIn(300); return false; }",
-    "else if(isNaN(size) || parseInt(size, 10) <= 0) { alert.html(\"Space size should be a positive number.\"); alert.fadeIn(300); return false; }",
+    (space_size_check())/binary,
     "else { createSpace([name, token]); return true; }">>,
     ConfirmButtonClass = <<"btn-inverse">>,
     gui_jq:dialog_popup(Title, Message, Script, ConfirmButtonClass),
-    gui_jq:wire(<<"box.on('shown',function(){ $(\"#create_space_name\").focus(); });">>);
+    gui_jq:wire(<<"box.on('shown',function(){ $(\"#create_space_name\").focus(); });">>),
+    initialize_radio_buttons();
 
 event(support_space) ->
     Title = <<"Support Space">>,
     Message = <<"<div style=\"margin: 0 auto; width: 80%;\">",
     "<p id=\"support_space_alert\" style=\"width: 100%; color: red; font-size: medium; text-align: center; display: none;\"></p>",
     "<input id=\"support_space_token\" type=\"text\" style=\"width: 100%;\" placeholder=\"Token\">",
+    (space_size_parameter())/binary,
     "</div>">>,
     Script = <<"var alert = $(\"#support_space_alert\");",
     "var token = $.trim($(\"#support_space_token\").val());",
+    "var size = $.trim($(\"#create_space_size\").val());",
     "if(token.length == 0) { alert.html(\"Please provide Space token.\"); alert.fadeIn(300); return false; }",
+    (space_size_check())/binary,
     "else { supportSpace([token]); return true; }">>,
     ConfirmButtonClass = <<"btn-inverse">>,
     gui_jq:dialog_popup(Title, Message, Script, ConfirmButtonClass),
-    gui_jq:wire(<<"box.on('shown',function(){ $(\"#support_space_token\").focus(); });">>);
+    gui_jq:wire(<<"box.on('shown',function(){ $(\"#support_space_token\").focus(); });">>),
+    initialize_radio_buttons();
 
 event({revoke_space_support, RowId, #space_details{id = SpaceId}}) ->
     Title = <<"Revoke Space support">>,
