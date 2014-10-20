@@ -251,6 +251,7 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                                    {host_and_port, {ok, RedirectionPointHost, RedirectionPointPort}} = {host_and_port, onepanel_utils_adapter:get_host_and_port(RedirectionPoint)},
                                    {check_redirection_point, ok} = {check_redirection_point, gr_providers:check_port(provider, RedirectionPointHost, RedirectionPointPort, <<"gui">>)},
                                    gui_ctx:put(redirection_point, RedirectionPoint),
+                                   gui_jq:css(<<"redirection_point_textbox">>, <<"border-color">>, <<"green">>),
                                    ok
                                catch
                                    _:Reason ->
