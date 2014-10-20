@@ -285,84 +285,84 @@ comet_loop({error, Reason}) ->
 
 comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) ->
     NewState = try
-        receive
-            {create_space, Name, Token} ->
-                NextState =
-                    try
-                        RowId = <<"space_", (integer_to_binary(Counter + 1))/binary>>,
-                        {ok, SpaceId} = gr_providers:create_space(provider, [{<<"name">>, Name}, {<<"token">>, Token}]),
-                        {ok, SpaceDetails} = gr_providers:get_space_details(provider, SpaceId),
-                        add_space_row(RowId, SpaceDetails),
-                        onepanel_gui_utils:message(<<"ok_message">>, <<"Created Space's ID: <b>", SpaceId/binary, "</b>">>),
-                        State#?STATE{counter = Counter + 1, spaces_details = [{RowId, SpaceDetails} | SpacesDetails]}
-                    catch
-                        _:Reason ->
-                            ?error("Cannot create Space ~p associated with token ~p: ~p", [Name, Token, Reason]),
-                            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot create Space <b>", Name/binary, "</b> associated with token <b>", Token/binary, "</b>.<br>
+                   receive
+                       {create_space, Name, Token} ->
+                           NextState =
+                               try
+                                   RowId = <<"space_", (integer_to_binary(Counter + 1))/binary>>,
+                                   {ok, SpaceId} = gr_providers:create_space(provider, [{<<"name">>, Name}, {<<"token">>, Token}]),
+                                   {ok, SpaceDetails} = gr_providers:get_space_details(provider, SpaceId),
+                                   add_space_row(RowId, SpaceDetails),
+                                   onepanel_gui_utils:message(<<"ok_message">>, <<"Created Space's ID: <b>", SpaceId/binary, "</b>">>),
+                                   State#?STATE{counter = Counter + 1, spaces_details = [{RowId, SpaceDetails} | SpacesDetails]}
+                               catch
+                                   _:Reason ->
+                                       ?error("Cannot create Space ~p associated with token ~p: ~p", [Name, Token, Reason]),
+                                       onepanel_gui_utils:message(<<"error_message">>, <<"Cannot create Space <b>", Name/binary, "</b> associated with token <b>", Token/binary, "</b>.<br>
                             Please try again later.">>),
-                            State
-                    end,
-                gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"">>),
-                NextState;
+                                       State
+                               end,
+                           gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"">>),
+                           NextState;
 
-            {support_space, Token} ->
-                NextState =
-                    try
-                        RowId = <<"space_", (integer_to_binary(Counter + 1))/binary>>,
-                        {ok, SpaceId} = gr_providers:support_space(provider, [{<<"token">>, Token}]),
-                        {ok, SpaceDetails} = gr_providers:get_space_details(provider, SpaceId),
-                        add_space_row(RowId, SpaceDetails),
-                        onepanel_gui_utils:message(<<"ok_message">>, <<"Supported Space's ID: <b>", SpaceId/binary, "</b>">>),
-                        State#?STATE{counter = Counter + 1, spaces_details = [{RowId, SpaceDetails} | SpacesDetails]}
-                    catch
-                        _:Reason ->
-                            ?error("Cannot support Space associated with token ~p: ~p", [Token, Reason]),
-                            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot support Space associated with token <b>", Token/binary, "</b>.<br>
+                       {support_space, Token} ->
+                           NextState =
+                               try
+                                   RowId = <<"space_", (integer_to_binary(Counter + 1))/binary>>,
+                                   {ok, SpaceId} = gr_providers:support_space(provider, [{<<"token">>, Token}]),
+                                   {ok, SpaceDetails} = gr_providers:get_space_details(provider, SpaceId),
+                                   add_space_row(RowId, SpaceDetails),
+                                   onepanel_gui_utils:message(<<"ok_message">>, <<"Supported Space's ID: <b>", SpaceId/binary, "</b>">>),
+                                   State#?STATE{counter = Counter + 1, spaces_details = [{RowId, SpaceDetails} | SpacesDetails]}
+                               catch
+                                   _:Reason ->
+                                       ?error("Cannot support Space associated with token ~p: ~p", [Token, Reason]),
+                                       onepanel_gui_utils:message(<<"error_message">>, <<"Cannot support Space associated with token <b>", Token/binary, "</b>.<br>
                             Please try again later.">>),
-                            State
-                    end,
-                gui_jq:prop(<<"support_space_button">>, <<"disabled">>, <<"">>),
-                NextState;
+                                       State
+                               end,
+                           gui_jq:prop(<<"support_space_button">>, <<"disabled">>, <<"">>),
+                           NextState;
 
-            {revoke_space_support, RowId, SpaceId} ->
-                NextState =
-                    case gr_providers:revoke_space_support(provider, SpaceId) of
-                        ok ->
-                            onepanel_gui_utils:message(<<"ok_message">>, <<"Space: <b>", SpaceId/binary, "</b> is no longer supported.">>),
-                            gui_jq:remove(RowId),
-                            State#?STATE{spaces_details = proplists:delete(RowId, SpacesDetails)};
-                        Other ->
-                            ?error("Cannot revoke support for Space ~p: ~p", [SpaceId, Other]),
-                            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot revoke support for Space <b>", SpaceId/binary, "</b>.<br>Please try again later.">>),
-                            State
-                    end,
-                NextState;
+                       {revoke_space_support, RowId, SpaceId} ->
+                           NextState =
+                               case gr_providers:revoke_space_support(provider, SpaceId) of
+                                   ok ->
+                                       onepanel_gui_utils:message(<<"ok_message">>, <<"Space: <b>", SpaceId/binary, "</b> is no longer supported.">>),
+                                       gui_jq:remove(RowId),
+                                       State#?STATE{spaces_details = proplists:delete(RowId, SpacesDetails)};
+                                   Other ->
+                                       ?error("Cannot revoke support for Space ~p: ~p", [SpaceId, Other]),
+                                       onepanel_gui_utils:message(<<"error_message">>, <<"Cannot revoke support for Space <b>", SpaceId/binary, "</b>.<br>Please try again later.">>),
+                                       State
+                               end,
+                           NextState;
 
-            render_spaces_table ->
-                gui_jq:update(<<"spaces_table">>, spaces_table_collapsed(SpacesDetails)),
-                gui_jq:fade_in(<<"spaces_table">>, 500),
-                gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"">>),
-                gui_jq:prop(<<"support_space_button">>, <<"disabled">>, <<"">>),
-                State;
+                       render_spaces_table ->
+                           gui_jq:update(<<"spaces_table">>, spaces_table_collapsed(SpacesDetails)),
+                           gui_jq:fade_in(<<"spaces_table">>, 500),
+                           gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"">>),
+                           gui_jq:prop(<<"support_space_button">>, <<"disabled">>, <<"">>),
+                           State;
 
-            Event ->
-                case Event of
-                    collapse_spaces_table ->
-                        gui_jq:update(<<"spaces_table">>, spaces_table_collapsed(SpacesDetails));
-                    expand_spaces_table ->
-                        gui_jq:update(<<"spaces_table">>, spaces_table_expanded(SpacesDetails));
-                    {collapse_space_row, RowId, SpaceDetails} ->
-                        gui_jq:update(RowId, space_row_collapsed(RowId, SpaceDetails));
-                    {expand_space_row, RowId, SpaceDetails} ->
-                        gui_jq:update(RowId, space_row_expanded(RowId, SpaceDetails));
-                    _ ->
-                        ok
-                end,
-                State
+                       Event ->
+                           case Event of
+                               collapse_spaces_table ->
+                                   gui_jq:update(<<"spaces_table">>, spaces_table_collapsed(SpacesDetails));
+                               expand_spaces_table ->
+                                   gui_jq:update(<<"spaces_table">>, spaces_table_expanded(SpacesDetails));
+                               {collapse_space_row, RowId, SpaceDetails} ->
+                                   gui_jq:update(RowId, space_row_collapsed(RowId, SpaceDetails));
+                               {expand_space_row, RowId, SpaceDetails} ->
+                                   gui_jq:update(RowId, space_row_expanded(RowId, SpaceDetails));
+                               _ ->
+                                   ok
+                           end,
+                           State
 
-        after ?COMET_PROCESS_RELOAD_DELAY ->
-            State
-        end
+                   after ?COMET_PROCESS_RELOAD_DELAY ->
+                       State
+                   end
                catch Type:Message ->
                    ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
                    onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
@@ -413,12 +413,32 @@ event(create_space) ->
     "<p id=\"create_space_alert\" style=\"width: 100%; color: red; font-size: medium; text-align: center; display: none;\"></p>",
     "<input id=\"create_space_name\" type=\"text\" style=\"width: 100%;\" placeholder=\"Name\">",
     "<input id=\"create_space_token\" type=\"text\" style=\"width: 100%;\" placeholder=\"Token\">",
+    "<div id=\"space_size_div\" style=\"width: 100%;\">",
+    "   <input id=\"create_space_size\" class=\"pull-left\" type=\"text\" style=\"width: 50%;\" placeholder=\"Size\">",
+    "   <fieldset class=\"pull-right\" style=\"width: 100%;\">"
+    "       <label class=\"radio checked\">",
+    "           <input type=\"radio\" name=\"optionsRadios2\" id=\"optionsRadios1\" value=\"option1\" data-toggle=\"radio\" checked=\"checked\">MB",
+    "       </label>",
+    "       <label class=\"radio\">",
+    "           <input type=\"radio\" name=\"optionsRadios2\" id=\"optionsRadios2\" value=\"option1\" data-toggle=\"radio\">GB",
+    "       </label>",
+%%     "       <input type=\"radio\" name=\"space_size\" value=\"MB\" style=\"display: inline-block;\" checked/>",
+%%     "       <label for=\"MB\" style=\"display: inline-block;\">MB</label>",
+%%     "       <input type=\"radio\" name=\"space_size\" value=\"GB\" style=\"display: inline-block;\"/>",
+%%     "       <label for=\"GB\" style=\"display: inline-block;\">GB</label>",
+%%     "       <input type=\"radio\" name=\"space_size\" value=\"TB\" style=\"display: inline-block;\"/>",
+%%     "       <label for=\"TB\" style=\"display: inline-block;\">TB</label>",
+    "   </fieldset>",
+    "</div>",
     "</div>">>,
     Script = <<"var alert = $(\"#create_space_alert\");",
     "var name = $.trim($(\"#create_space_name\").val());",
     "var token = $.trim($(\"#create_space_token\").val());",
+    "var size = $.trim($(\"#create_space_size\").val());",
     "if(name.length == 0) { alert.html(\"Please provide Space name.\"); alert.fadeIn(300); return false; }",
     "else if(token.length == 0) { alert.html(\"Please provide Space token.\"); alert.fadeIn(300); return false; }",
+    "else if(size.length == 0) { alert.html(\"Please provide Space size.\"); alert.fadeIn(300); return false; }",
+    "else if(isNaN(size) || parseInt(size, 10) <= 0) { alert.html(\"Space size should be a positive number.\"); alert.fadeIn(300); return false; }",
     "else { createSpace([name, token]); return true; }">>,
     ConfirmButtonClass = <<"btn-inverse">>,
     gui_jq:dialog_popup(Title, Message, Script, ConfirmButtonClass),
