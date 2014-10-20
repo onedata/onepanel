@@ -164,7 +164,7 @@ account_table(#?PROVIDER_RECORD{id = ProviderId, name = ProviderName, urls = URL
 %% ====================================================================
 %% @doc Renders provider ID.
 %% @end
--spec providerId(ProviderId :: binary()) -> Result when
+-spec providerId(ProviderId :: binary() | undefined) -> Result when
     Result :: #span{}.
 %% ====================================================================
 providerId(undefined) ->
@@ -207,7 +207,7 @@ providerId(ProviderId) ->
 %% ====================================================================
 %% @doc Renders provider's name.
 %% @end
--spec providerName(ProviderName :: binary()) -> Result when
+-spec providerName(ProviderName :: binary() | undefined) -> Result when
     Result :: #p{}.
 %% ====================================================================
 providerName(undefined) ->
@@ -227,7 +227,7 @@ providerName(ProviderName) ->
 %% ====================================================================
 %% @doc Renders urls.
 %% @end
--spec urls(URLs :: [binary()]) -> Result when
+-spec urls(URLs :: [binary()] | undefined) -> Result when
     Result :: #p{}.
 %% ====================================================================
 urls(undefined) ->
@@ -260,7 +260,7 @@ urls(URLs) ->
 %% ====================================================================
 %% @doc Renders redirection point.
 %% @end
--spec redirection_point(RedirectionPoint :: binary()) -> Result when
+-spec redirection_point(RedirectionPoint :: binary() | undefined) -> Result when
     Result :: #p{}.
 %% ====================================================================
 redirection_point(undefined) ->
