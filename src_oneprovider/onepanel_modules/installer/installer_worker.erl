@@ -302,7 +302,7 @@ local_start(MainCCM, OptCCMs, Dbs, StoragePaths) ->
 
         os:cmd(OverwriteCommand),
         SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
-        "" = os:cmd("bash -c \"" + SetUlimitsCmd ++ " ; " ++ StartCommand + "\""),
+        "" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ StartCommand ++ "\""),
 
         {ok, Host}
     catch
