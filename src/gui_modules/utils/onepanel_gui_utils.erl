@@ -5,148 +5,252 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This file contains useful functions commonly used in
-%% Onepanel GUI modules.
+%% @doc This file contains useful functions commonly used in
+%% onepanel GUI modules.
 %% @end
 %% ===================================================================
-
 -module(onepanel_gui_utils).
+
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include_lib("ctool/include/logging.hrl").
 
--export([top_menu/1, top_menu/2, logotype_footer/1]).
--export([get_error_message/1, get_installation_state/0, format_list/1, message/2]).
+-export([body/1, body/2, body/3, account_settings_tab/1, logotype_footer/0, nav_buttons/1, nav_buttons/2]).
+-export([collapse_button/1, collapse_button/2, expand_button/1, expand_button/2]).
+-export([get_session_config/0, format_list/1, message/2, message/3]).
 -export([change_page/2, maybe_redirect/3]).
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
 
-%% logotype_footer/1
+%% body/1
 %% ====================================================================
-%% @doc Convienience function to render logotype footer, coming after page content.
+%% @doc Template function to render page body, without header and with
+%% default page footer.
 %% @end
--spec logotype_footer(MarginTop :: integer()) -> list().
+-spec body(Main :: term()) -> Result when
+    Result :: list().
 %% ====================================================================
-logotype_footer(MarginTop) ->
-    Height = integer_to_binary(MarginTop + 82),
-    Margin = integer_to_binary(MarginTop),
+body(Main) ->
+    body([], Main).
+
+
+%% body/2
+%% ====================================================================
+%% @doc Template function to render page body, with default page footer.
+%% @end
+-spec body(Header :: term(), Main :: term()) -> Result when
+    Result :: list().
+%% ====================================================================
+body(Header, Main) ->
+    body(Header, Main, logotype_footer()).
+
+
+%% body/3
+%% ====================================================================
+%% @doc Template function to render page body.
+%% @end
+-spec body(Header :: term(), Main :: term(), Footer :: term()) -> Result when
+    Result :: list().
+%% ====================================================================
+body(Header, Main, Footer) ->
     [
-        #panel{style = <<"position: relative; height: ", Height/binary, "px;">>, body = [
-            #panel{style = <<"text-align: center; z-index: -1; margin-top: ", Margin/binary, "px;">>, body = [
-                #image{style = <<"margin: 10px 100px;">>, image = <<"/images/innow-gosp-logo.png">>},
-                #image{style = <<"margin: 10px 100px;">>, image = <<"/images/plgrid-plus-logo.png">>},
-                #image{style = <<"margin: 10px 100px;">>, image = <<"/images/unia-logo.png">>}
-            ]}
-        ]}
+        #header{id = <<"page-header">>, class = <<"page-row">>, body = Header},
+        #main{id = <<"page-main">>, class = <<"page-row page-row-expanded">>, body = Main},
+        #footer{id = <<"page-footer">>, class = <<"page-row">>, body = Footer}
     ].
 
 
-%% top_menu/1
-%% ====================================================================
-%% @doc Convienience function to render top menu in GUI pages.
-%% Item with ActiveTabID will be highlighted as active.
-%% @end
--spec top_menu(ActiveTabID :: any()) -> list().
-%% ====================================================================
-top_menu(ActiveTabID) ->
-    top_menu(ActiveTabID, []).
-
-
-%% top_menu/2
-%% ====================================================================
-%% @doc Convienience function to render top menu in GUI pages.
-%% Item with ActiveTabID will be highlighted as active.
-%% Submenu body (list of n2o elements) will be concatenated below the main menu.
-%% @end
--spec top_menu(ActiveTabID :: any(), SubMenuBody :: any()) -> list().
-%% ====================================================================
-top_menu(ActiveTabID, SubMenuBody) ->
-    % Define menu items with ids, so that proper tab can be made active via function parameter
-    % see old_menu_captions()
-    MenuCaptions =
-        [
-            {installation_tab, #li{body = [
-                #link{style = <<"padding: 18px;">>, url = ?PAGE_INSTALLATION, body = <<"Installation">>}
-            ]}},
-            {update_tab, #li{body = [
-                #link{style = <<"padding: 18px;">>, url = ?PAGE_UPDATE, body = <<"Update">>}
-            ]}}
-        ],
-
-    MenuIcons =
-        [
-            {manage_account_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Manage account">>,
-                url = ?PAGE_MANAGE_ACCOUNT, body = [gui_ctx:get_user_id(), #span{class = <<"fui-user">>,
-                    style = <<"margin-left: 10px;">>}]}}},
-            {about_tab, #li{body = #link{style = <<"padding: 18px;">>, title = <<"About">>,
-                url = ?PAGE_ABOUT, body = #span{class = <<"fui-info">>}}}},
-            {logout_button, #li{body = #link{style = <<"padding: 18px;">>, title = <<"Log out">>,
-                url = ?PAGE_LOGOUT, body = #span{class = <<"fui-power">>}}}}
-        ],
-
-    MenuCaptionsProcessed = lists:map(
-        fun({TabID, ListItem}) ->
-            case TabID of
-                ActiveTabID -> ListItem#li{class = <<"active">>};
-                _ -> ListItem
-            end
-        end, MenuCaptions),
-
-    MenuIconsProcessed = lists:map(
-        fun({TabID, ListItem}) ->
-            case TabID of
-                ActiveTabID -> ListItem#li{class = <<"active">>};
-                _ -> ListItem
-            end
-        end, MenuIcons),
-
-    #panel{class = <<"navbar navbar-fixed-top">>, body = [
-        #panel{class = <<"navbar-inner">>, style = <<"border-bottom: 2px solid gray;">>, body = [
-            #panel{class = <<"container">>, body = [
-                #list{class = <<"nav pull-left">>, body = MenuCaptionsProcessed},
-                #list{class = <<"nav pull-right">>, body = MenuIconsProcessed}
-            ]}
-        ]}
-    ] ++ SubMenuBody}.
-
-
-%% get_error_message/1
-%% ====================================================================
-%% @doc Returns error message for given error id, that will be displayed
-%% on page.
--spec get_error_message(ErrorId :: atom()) -> Result when
-    Result :: binary().
-%% ====================================================================
-get_error_message(?AUTHENTICATION_ERROR) ->
-    <<"Invalid username or password.">>;
-get_error_message(_) ->
-    <<"Internal server error.">>.
-
-
-%% get_installation_state/0
+%% get_session_config/0
 %% ====================================================================
 %% @doc Returns current installation state read in first place from session
 %% and in second place from database.
--spec get_installation_state() -> Result when
-    Result :: #?GLOBAL_CONFIG_RECORD{} | undefined.
+%% @end
+-spec get_session_config() -> Result when
+    Result :: #?GLOBAL_CONFIG_RECORD{} | {error, undefined}.
 %% ====================================================================
-get_installation_state() ->
+get_session_config() ->
     case gui_ctx:get(?CONFIG_ID) of
         undefined ->
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
                 {ok, Record} -> {ok, Record};
-                _ -> undefined
+                _ -> {error, undefined}
             end;
         Record -> {ok, Record}
     end.
 
 
+%% logotype_footer/0
+%% ====================================================================
+%% @doc Convienience function to render logotype footer, coming after page content.
+%% @end
+-spec logotype_footer() -> Result when
+    Result :: #panel{}.
+%% ====================================================================
+logotype_footer() ->
+    #panel{style = <<"text-align: center; margin: 2em;">>,
+        body = [
+            #image{class = <<"pull-left">>, image = <<"/images/innow-gosp-logo.png">>},
+            #image{image = <<"/images/plgrid-plus-logo.png">>},
+            #image{class = <<"pull-right">>, image = <<"/images/unia-logo.png">>}
+        ]
+    }.
+
+
+%% nav_buttons/1
+%% ====================================================================
+%% @doc Convienience function to render navigation buttons.
+%% @end
+-spec nav_buttons(Buttons :: [{Id, Event, Disabled, Body}]) -> Result when
+    Id :: binary(),
+    Event :: {postback, term()} | {actions, term()} | undefined,
+    Disabled :: boolean(),
+    Body :: binary(),
+    Result :: #panel{}.
+%% ====================================================================
+nav_buttons(Buttons) ->
+    nav_buttons(Buttons, <<"50%">>).
+
+
+%% nav_buttons/2
+%% ====================================================================
+%% @doc Convienience function to render navigation buttons with custom
+%% width.
+%% @end
+-spec nav_buttons(Buttons :: [{Id, Event, Disabled, Body}], Width :: binary()) -> Result when
+    Id :: binary(),
+    Event :: {postback, term()} | {actions, term()} | undefined,
+    Disabled :: boolean(),
+    Body :: binary(),
+    Result :: #panel{}.
+%% ====================================================================
+nav_buttons(Buttons, Width) ->
+    ButtonClass = <<"btn btn-inverse btn-small">>,
+    ButtonStyle = <<"min-width: 8em; margin-left: 1em; margin-right: 1em; font-weight: bold;">>,
+    #panel{
+        style = <<"width: ", Width/binary, "; margin: 0 auto; margin-top: 3em;">>,
+        body = lists:map(fun
+            ({Id, {postback, Postback}, Disabled, Body}) ->
+                #button{
+                    id = Id,
+                    postback = Postback,
+                    class = ButtonClass,
+                    style = ButtonStyle,
+                    disabled = Disabled,
+                    body = Body
+                };
+            ({Id, {actions, Actions}, Disabled, Body}) ->
+                #button{
+                    id = Id,
+                    actions = Actions,
+                    class = ButtonClass,
+                    style = ButtonStyle,
+                    disabled = Disabled,
+                    body = Body
+                };
+            ({Id, _, Disabled, Body}) ->
+                #button{
+                    id = Id,
+                    class = ButtonClass,
+                    style = ButtonStyle,
+                    disabled = Disabled,
+                    body = Body
+                };
+            (_) ->
+                #button{}
+        end, Buttons)
+    }.
+
+
+%% collapse_button/1
+%% ====================================================================
+%% @doc Renders collapse button.
+%% @end
+-spec collapse_button(Postback :: term()) -> Result when
+    Result :: #link{}.
+%% ====================================================================
+collapse_button(Postback) ->
+    collapse_button(<<"Collapse">>, Postback).
+
+
+%% collapse_button/2
+%% ====================================================================
+%% @doc Renders collapse button.
+%% @end
+-spec collapse_button(Title :: binary(), Postback :: term()) -> Result when
+    Result :: #link{}.
+%% ====================================================================
+collapse_button(Title, Postback) ->
+    #link{
+        title = Title,
+        class = <<"glyph-link">>,
+        postback = Postback,
+        body = #span{
+            style = <<"font-size: large; vertical-align: top;">>,
+            class = <<"fui-triangle-up">>
+        }
+    }.
+
+
+%% expand_button/1
+%% ====================================================================
+%% @doc Renders expand button.
+%% @end
+-spec expand_button(Postback :: term()) -> Result when
+    Result :: #link{}.
+%% ====================================================================
+expand_button(Postback) ->
+    expand_button(<<"Expand">>, Postback).
+
+
+%% expand_button/2
+%% ====================================================================
+%% @doc Renders expand button.
+%% @end
+-spec expand_button(Title :: binary(), Postback :: term()) -> Result when
+    Result :: #link{}.
+%% ====================================================================
+expand_button(Title, Postback) ->
+    #link{
+        title = Title,
+        class = <<"glyph-link">>,
+        postback = Postback,
+        body = #span{
+            style = <<"font-size: large;  vertical-align: top;">>,
+            class = <<"fui-triangle-down">>
+        }
+    }.
+
+
+%% account_settings_tab/1
+%% ====================================================================
+%% @doc Renders body of account settings tab.
+%% @end
+-spec account_settings_tab(Username :: binary()) -> Result when
+    Result :: #link{}.
+%% ====================================================================
+account_settings_tab(Username) ->
+    #link{
+        style = <<"padding: 18px;">>,
+        title = <<"Account settings">>,
+        url = ?PAGE_ACCOUNT_SETTINGS,
+        body = [
+            Username,
+            #span{
+                class = <<"fui-user">>,
+                style = <<"margin-left: 10px;">>
+            }
+        ]
+    }.
+
+
 %% change_page/2
 %% ====================================================================
 %% @doc Redirects to given page and saves it in user session.
--spec change_page(Env :: atom(), Page :: string()) -> no_return().
+%% @end
+-spec change_page(Env :: atom(), Page :: string()) -> Result when
+    Result :: ok.
 %% ====================================================================
 change_page(Env, Page) ->
     gui_ctx:put(Env, Page),
@@ -156,7 +260,9 @@ change_page(Env, Page) ->
 %% maybe_redirect/3
 %% ====================================================================
 %% @doc Redirects to appropriate page read from user session.
--spec maybe_redirect(Env :: atom(), Page :: string(), DefaultPage :: string()) -> true | false.
+%% @end
+-spec maybe_redirect(Env :: atom(), Page :: string(), DefaultPage :: string()) -> Result when
+    Result :: true | false.
 %% ====================================================================
 maybe_redirect(Env, CurrentPage, DefaultPage) ->
     case gui_ctx:get(Env) of
@@ -174,6 +280,7 @@ maybe_redirect(Env, CurrentPage, DefaultPage) ->
 %% format_list/1
 %% ====================================================================
 %% @doc Returns list elements as a comma-delimited binary.
+%% @end
 -spec format_list(List :: [string()]) -> Result when
     Result :: binary().
 %% ====================================================================
@@ -185,10 +292,36 @@ format_list(Hosts) ->
 
 %% message/2
 %% ====================================================================
-%% @doc Renders a message in given element.
--spec message(Id :: binary(), Message :: binary()) -> no_return().
+%% @doc Renders a message in given element and allows to hide it with
+%% default postback.
+%% @end
+-spec message(Id :: binary(), Message :: binary()) -> Result when
+    Result :: ok.
 %% ====================================================================
 message(Id, Message) ->
-    gui_jq:update(Id, Message),
-    gui_jq:fade_in(Id, 300).
+    message(Id, Message, {close_message, Id}).
 
+
+%% message/3
+%% ====================================================================
+%% @doc Renders a message in given element and allows to hide it with
+%% custom postback.
+%% @end
+-spec message(Id :: binary(), Message :: binary(), Postback :: term()) -> Result when
+    Result :: ok.
+%% ====================================================================
+message(Id, Message, Postback) ->
+    Body = [
+        Message,
+        #link{
+            title = <<"Close">>,
+            style = <<"position: absolute; top: 1em; right: 1em;">>,
+            class = <<"glyph-link">>,
+            postback = Postback,
+            body = #span{
+                class = <<"fui-cross">>
+            }
+        }
+    ],
+    gui_jq:update(Id, Body),
+    gui_jq:fade_in(Id, 300).

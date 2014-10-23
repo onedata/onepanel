@@ -5,13 +5,13 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This module implements session_logic_behaviour and exports an
+%% @doc This module implements session_logic_behaviour and exports an
 %% API for persisting GUI sessions.
 %% @end
 %% ===================================================================
-
 -module(session_logic).
 -behaviour(session_logic_behaviour).
+
 -include("gui_modules/common.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -20,7 +20,7 @@
 -export([save_session/3, lookup_session/1, delete_session/1, clear_expired_sessions/0]).
 -export([get_cookie_ttl/0]).
 
-% ETS name for cookies
+%% ETS name for cookies
 -define(SESSION_ETS, cookies).
 
 %% ====================================================================
@@ -88,27 +88,21 @@ save_session(SessionID, Props, TillArg) ->
 -spec lookup_session(SessionID :: binary()) -> Props :: [tuple()] | undefined.
 %% ====================================================================
 lookup_session(SessionID) ->
-    case SessionID of
-        undefined ->
-            undefined;
-        _ ->
-            case ets:lookup(?SESSION_ETS, SessionID) of
-                [{SessionID, Props, Till}] ->
-                    % Check if the session isn't outdated
-                    {Megaseconds, Seconds, _} = now(),
-                    Now = Megaseconds * 1000000 + Seconds,
-                    case Till > Now of
-                        true ->
-                            Props;
-                        false ->
-                            delete_session(SessionID),
-                            undefined
-                    end;
-                _ ->
+    case ets:lookup(?SESSION_ETS, SessionID) of
+        [{SessionID, Props, Till}] ->
+            % Check if the session isn't outdated
+            {Megaseconds, Seconds, _} = now(),
+            Now = Megaseconds * 1000000 + Seconds,
+            case Till > Now of
+                true ->
+                    Props;
+                false ->
+                    delete_session(SessionID),
                     undefined
-            end
+            end;
+        _ ->
+            undefined
     end.
-
 
 %% delete_session/1
 %% ====================================================================

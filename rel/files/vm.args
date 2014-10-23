@@ -1,10 +1,10 @@
 ## Name of the node
--name onepanel@127.0.0.1
+-name {{node}}
 
 ## Cookie for distributed erlang
--setcookie veil_cluster_node
+-setcookie {{cookie}}
 
-## Make node hidden for VeilCluster
+## Make node hidden for oneprovider
 -hidden
 
 ## Heartbeat management; auto-restarts VM if it dies or becomes unresponsive
@@ -20,6 +20,3 @@
 
 ## Tweak GC to run more often
 ##-env ERL_FULLSWEEP_AFTER 10
-
-## Onepanel multicast address that can be overwritten during RPM package generation
--onepanel multicast_address "\{239, 255, 0, 1\}"

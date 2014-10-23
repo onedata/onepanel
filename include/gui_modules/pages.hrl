@@ -5,7 +5,7 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This header file contains all web pages definitions.
+%% @doc This header file contains all web pages definitions.
 %% @end
 %% ===================================================================
 
@@ -15,26 +15,62 @@
 %% Root page
 -define(PAGE_ROOT, <<"/">>).
 
-%% Installation pages
--define(PAGE_INSTALLATION, <<"/installation">>).
--define(PAGE_HOST_SELECTION, <<"/hosts_selection">>).
--define(PAGE_MAIN_CCM_SELECTION, <<"/main_ccm_selection">>).
--define(PAGE_ULIMITS, <<"/ulimits">>).
--define(PAGE_ADD_STORAGE, <<"/add_storage">>).
--define(PAGE_INSTALLATION_SUMMARY, <<"/installation_summary">>).
--define(PAGE_INSTALLATION_SUCCESS, <<"/installation_success">>).
-
-%% Update pages
--define(PAGE_UPDATE, <<"/update">>).
--define(PAGE_VERSION_SELECTION, <<"/version_selection">>).
--define(PAGE_UPDATE_SUMMARY, <<"/update_summary">>).
--define(PAGE_UPDATE_SUCCESS, <<"/update_success">>).
-
 %% Management pages
 -define(PAGE_LOGIN, <<"/login">>).
+-define(PAGE_LOGIN_VALIDATION, <<"/login_validation">>).
 -define(PAGE_LOGOUT, <<"/logout">>).
 -define(PAGE_ABOUT, <<"/about">>).
--define(PAGE_MANAGE_ACCOUNT, <<"/manage_account">>).
--define(PAGE_VALIDATE_LOGIN, <<"/validate_login">>).
+-define(PAGE_ERROR, <<"/error">>).
+-define(PAGE_ACCOUNT_SETTINGS, <<"/account/settings">>).
+-define(PAGE_PRIVACY_POLICY, <<"/privacy_policy">>).
+
+%% Installation pages
+-define(PAGE_INSTALLATION, <<"/software/installation">>).
+-define(PAGE_HOST_SELECTION, <<"/software/installation/hosts_selection">>).
+-define(PAGE_SYSTEM_LIMITS, <<"/software/installation/system_limits">>).
+-define(PAGE_INSTALLATION_SUMMARY, <<"/software/installation/summary">>).
+-define(PAGE_INSTALLATION_SUCCESS, <<"/software/installation/success">>).
+
+%% Current installation step saved in user session
+-define(CURRENT_INSTALLATION_PAGE, install_page).
+
+-ifdef(oneprovider).
+
+%% Current registration step saved in user session
+-define(CURRENT_REGISTRATION_PAGE, register_page).
+
+%% Current update step saved in user session
+-define(CURRENT_UPDATE_PAGE, update_page).
+
+%% Currently selected version in update process
+-define(CHOSEN_VERSION, chosen_version).
+
+%% Installation pages
+-define(PAGE_PRIMARY_CCM_SELECTION, <<"/software/installation/primary_ccm_selection">>).
+-define(PAGE_STORAGE, <<"/software/installation/storage">>).
+
+%% Update pages
+-define(PAGE_UPDATE, <<"/software/update">>).
+-define(PAGE_VERSION_SELECTION, <<"/software/update/version_selection">>).
+-define(PAGE_UPDATE_SUMMARY, <<"/software/update/summary">>).
+-define(PAGE_UPDATE_SUCCESS, <<"/software/update/success">>).
+
+%% Diagnostics pages
+-define(PAGE_MONITORING, <<"/software/diagnostics/monitoring">>).
+-define(PAGE_CLIENTS_LOGS, <<"/software/diagnostics/clients_logs">>).
+-define(PAGE_SERVER_LOGS, <<"/software/diagnostics/server_logs">>).
+
+%% Registration pages
+-define(PAGE_CONNECTION_CHECK, <<"/spaces/registration/connection_check">>).
+-define(PAGE_PORTS_CHECK, <<"/spaces/registration/ports_check">>).
+-define(PAGE_REGISTRATION_SUMMARY, <<"/spaces/registration/summary">>).
+-define(PAGE_REGISTRATION_SUCCESS, <<"/spaces/registration/success">>).
+
+%% Spaces pages
+-define(PAGE_SPACE_DETAILS, <<"/spaces">>).
+-define(PAGE_SPACES_ACCOUNT, <<"/spaces/account">>).
+-define(PAGE_SPACES_MANAGEMENT, <<"/spaces/management">>).
+
+-endif.
 
 -endif.

@@ -5,13 +5,13 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc: This file contains the description of application.
+%% @doc This file contains the description of application.
 %% @end
 %% ===================================================================
 
 {application, onepanel, [
-    {description, "Veilcluster management tool."},
-    {vsn, "1.0"},
+    {description, "Management tool for onedata components."},
+    {vsn, git},
     {registered, [onepanel_sup]},
     {applications, [
         kernel,
@@ -22,9 +22,10 @@
         % ctool already requires those apps below, but they are here
         % for awareness of them being used in the project and
         % to make sure they are started before the application.
-        cowboy,
+        gproc,
         lager,
-        ibrowse
+        ibrowse,
+        cowboy
     ]},
     {mod, {onepanel_app, []}},
     {env, [
@@ -33,21 +34,14 @@
         {https_acceptors, 100},
         {socket_timeout, 60000},
         {max_keepalive, 30},
-        {connection_ping_period, 5},
+        {connection_ping_delay, 5000},
+        {bcrypt_work_factor, 12},
         {gui_static_root, "./gui_static"},
         {cert_file, "./certs/server.crt"},
         {key_file, "./certs/server.key"},
-        {grpkey_name, "grpkey.pem"},
-        {grpkey_file, "./certs/grpkey.pem"},
-        {grpcsr_file, "./certs/grpcsr.pem"},
-        {grpcert_name, "grpcert.pem"},
-        {grpcert_file, "./certs/grpcert.pem"},
-        {global_registry_url, "https://globalregistry.org:8443"},
-        {get_versions_url, "http://onedata.org/repository/get_versions.php"},
         {default_username, <<"admin">>},
-        {default_user_password, <<"password">>},
-        {default_db_password, <<"password">>},
-        {multicast_address, {239, 255, 0, 1}},
+        {default_password, <<"password">>},
+        {min_user_password_length, 8},
         {onepanel_sessions_cookie_ttl, 2592000} % 30 days
     ]}
 ]}.
