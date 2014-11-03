@@ -292,7 +292,7 @@ format_list(Hosts) ->
 
 %% message/3
 %% ====================================================================
-%% @doc Renders a message in given element and allows to hide it with
+%% @doc Renders a message below given element and allows to hide it with
 %% default postback.
 %% @end
 -spec message(Id :: binary(), Type :: success | error, Message :: binary()) -> Result when
@@ -304,7 +304,7 @@ message(Id, Type, Message) ->
 
 %% message/4
 %% ====================================================================
-%% @doc Renders a message in given element and allows to hide it with
+%% @doc Renders a message below given element and allows to hide it with
 %% custom postback.
 %% @end
 -spec message(Id :: binary(), Type :: success | error, Message :: binary(), Postback :: term()) -> Result when
