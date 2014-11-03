@@ -350,9 +350,9 @@ comet_loop(#?STATE{id = ProviderId} = State) ->
                             lists:foreach(fun(Id) ->
                                 gui_jq:update(Id, providerId(undefined))
                             end, [<<"provider_id">>, <<"provider_name">>, <<"urls">>, <<"redirection_point">>]),
-                            onepanel_gui_utils:message(<<"ok_message">>, <<"You have been successfully unregistered from Global Registry.">>);
+                            onepanel_gui_utils:message(<<"top_menu">>, success, <<"You have been successfully unregistered from Global Registry.">>);
                         _ ->
-                            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot unregister from Global Registry.">>)
+                            onepanel_gui_utils:message(<<"top_menu">>, error, <<"Cannot unregister from Global Registry.">>)
                     end,
                     State;
 

@@ -140,7 +140,7 @@ versions() ->
     catch
         _:Reason ->
             ?error("Cannot fetch available software versions from remote repository: ~p", [Reason]),
-            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch available software versions from remote repository.">>),
+            onepanel_gui_utils:message(<<"top_menu">>, error, <<"Cannot fetch available software versions from remote repository.">>),
             []
     end.
 
@@ -197,7 +197,7 @@ event(next) ->
     ChosenVersion = gui_ctx:get(?CHOSEN_VERSION),
     ChosenVersionName = onepanel_utils_adapter:get_software_version_name(ChosenVersion),
     case onepanel_utils_adapter:get_software_version() of
-        ChosenVersionName -> onepanel_gui_utils:message(<<"error_message">>,
+        ChosenVersionName -> onepanel_gui_utils:message(<<"top_menu">>, error,
             <<"Nothing to do.<br>This software version is currently installed.">>);
         _ ->
             onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_UPDATE_SUMMARY)

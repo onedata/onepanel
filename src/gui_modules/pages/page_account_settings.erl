@@ -296,20 +296,20 @@ comet_loop(#?STATE{} = State) ->
                     ok ->
                         gui_ctx:set_user_id(NewUsername),
                         gui_jq:update(<<"account_settings_tab">>, onepanel_gui_utils:account_settings_tab(NewUsername)),
-                        onepanel_gui_utils:message(<<"ok_message">>, <<"Username changed.">>),
+                        onepanel_gui_utils:message(<<"top_menu">>, success, <<"Username changed.">>),
                         gui_jq:update(<<"username">>, username(NewUsername));
                     {error, Reason} ->
-                        onepanel_gui_utils:message(<<"error_message">>, Reason)
+                        onepanel_gui_utils:message(<<"top_menu">>, error, Reason)
                 end,
                 State;
 
             {submit_new_password, Username, CurrentPassword, NewPassword, ConfirmedPassword} ->
                 case user_logic:change_password(Username, CurrentPassword, NewPassword, ConfirmedPassword) of
                     ok ->
-                        onepanel_gui_utils:message(<<"ok_message">>, "Password changed."),
+                        onepanel_gui_utils:message(<<"top_menu">>, success, "Password changed."),
                         gui_jq:update(<<"password">>, password());
                     {error, Reason} ->
-                        onepanel_gui_utils:message(<<"error_message">>, Reason)
+                        onepanel_gui_utils:message(<<"top_menu">>, error, Reason)
                 end,
                 State
 
@@ -318,7 +318,7 @@ comet_loop(#?STATE{} = State) ->
         end
                catch Type:Message ->
                    ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
-                   onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
+                   onepanel_gui_utils:message(<<"top_menu">>, error, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
     gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),

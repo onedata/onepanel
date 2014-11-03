@@ -17,7 +17,7 @@
 
 -export([body/1, body/2, body/3, account_settings_tab/1, logotype_footer/0, nav_buttons/1, nav_buttons/2]).
 -export([collapse_button/1, collapse_button/2, expand_button/1, expand_button/2]).
--export([get_session_config/0, format_list/1, message/2, message/3]).
+-export([get_session_config/0, format_list/1, message/3, message/4]).
 -export([change_page/2, maybe_redirect/3]).
 
 %% ====================================================================
@@ -290,38 +290,44 @@ format_list(Hosts) ->
     list_to_binary(string:join(Hosts, ", ")).
 
 
-%% message/2
+%% message/3
 %% ====================================================================
 %% @doc Renders a message in given element and allows to hide it with
 %% default postback.
 %% @end
--spec message(Id :: binary(), Message :: binary()) -> Result when
+-spec message(Id :: binary(), Type :: success | error, Message :: binary()) -> Result when
     Result :: ok.
 %% ====================================================================
-message(Id, Message) ->
-    message(Id, Message, {close_message, Id}).
+message(Id, Type, Message) ->
+    message(Id, Type, Message, {close_message, Id}).
 
 
-%% message/3
+%% message/4
 %% ====================================================================
 %% @doc Renders a message in given element and allows to hide it with
 %% custom postback.
 %% @end
--spec message(Id :: binary(), Message :: binary(), Postback :: term()) -> Result when
+-spec message(Id :: binary(), Type :: success | error, Message :: binary(), Postback :: term()) -> Result when
     Result :: ok.
 %% ====================================================================
-message(Id, Message, Postback) ->
-    Body = [
-        Message,
-        #link{
-            title = <<"Close">>,
-            style = <<"position: absolute; top: 1em; right: 1em;">>,
-            class = <<"glyph-link">>,
-            postback = Postback,
-            body = #span{
-                class = <<"fui-cross">>
+message(Id, Type, Message, Postback) ->
+    Body = #panel{
+        id = <<Id/binary, "_message">>,
+        style = <<"width: 100%; padding: 0.5em 0;">>,
+        class = case Type of success -> <<"dialog dialog-success">>; _ -> <<"dialog dialog-danger">> end,
+        body = [
+            Message,
+            #link{
+                title = <<"Close">>,
+                style = <<"position: absolute; top: 0.5em; right: 0.5em;">>,
+                class = <<"glyph-link">>,
+                postback = Postback,
+                body = #span{
+                    class = <<"fui-cross">>
+                }
             }
-        }
-    ],
-    gui_jq:update(Id, Body),
+        ]
+    },
+    gui_jq:insert_bottom(Id, Body),
+    gui_jq:remove(<<Id/binary, "_message">>),
     gui_jq:fade_in(Id, 300).

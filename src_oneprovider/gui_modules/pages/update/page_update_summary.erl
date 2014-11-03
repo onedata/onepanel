@@ -376,11 +376,11 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
 
             abort ->
                 gui_jq:prop(<<"abort_button">>, <<"disabled">>, <<"disabled">>),
-                onepanel_gui_utils:message(<<"error_message">>, <<"Aborting update process.<br>Please wait while rollbacking changes...">>),
+                onepanel_gui_utils:message(<<"top_menu">>, error, <<"Aborting update process.<br>Please wait while rollbacking changes...">>),
                 State;
 
             error ->
-                onepanel_gui_utils:message(<<"error_message">>, <<"An error occurred during update process.<br>Rollbacking changes.">>),
+                onepanel_gui_utils:message(<<"top_menu">>, error, <<"An error occurred during update process.<br>Rollbacking changes.">>),
                 State;
 
             {finish, UpdaterState} ->
@@ -399,9 +399,9 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
                         case updater_state:get_error_stack(UpdaterState) of
                             {[], _} ->
                                 gui_jq:hide(<<"error_message">>),
-                                onepanel_gui_utils:message(<<"ok_message">>, <<"Update process aborted successfully.">>);
+                                onepanel_gui_utils:message(<<"top_menu">>, success, <<"Update process aborted successfully.">>);
                             _ ->
-                                onepanel_gui_utils:message(<<"error_message">>, <<"An error occurred during update process.">>)
+                                onepanel_gui_utils:message(<<"top_menu">>, error, <<"An error occurred during update process.">>)
                         end
                 end,
                 #?STATE{stages_count = SCount, action_type = install}
@@ -411,7 +411,7 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
         end
                catch Type:Message ->
                    ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
-                   onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
+                   onepanel_gui_utils:message(<<"top_menu">>, error, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
     gui_comet:flush(),
@@ -445,13 +445,13 @@ event(init) ->
                 _ ->
                     case updater_state:get_error_stack(State) of
                         {[], _} ->
-                            onepanel_gui_utils:message(<<"ok_message">>, <<"Previous update process aborted successfully.">>);
+                            onepanel_gui_utils:message(<<"top_menu">>, success, <<"Previous update process aborted successfully.">>);
                         _ ->
-                            onepanel_gui_utils:message(<<"error_message">>, <<"An error occurred during previous update process.">>)
+                            onepanel_gui_utils:message(<<"top_menu">>, error, <<"An error occurred during previous update process.">>)
                     end
             end;
         _ ->
-            onepanel_gui_utils:message(<<"ok_message">>, <<"Getting update process state. Please wait.">>),
+            onepanel_gui_utils:message(<<"top_menu">>, success, <<"Getting update process state. Please wait.">>),
             gui_jq:hide(<<"update_panel">>),
             gui_jq:show(<<"update_progress">>)
     end;
