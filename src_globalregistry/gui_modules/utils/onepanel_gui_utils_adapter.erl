@@ -86,7 +86,7 @@ top_menu(ActiveTabID, Submenu, Spinner) ->
                 image = <<"/images/spinner.gif">>
             }
         },
-        #panel{id = <<"top_menu">>, class = <<"navbar navbar-fixed-top">>, body = [
+        #panel{class = <<"navbar navbar-fixed-top">>, body = [
             #panel{class = <<"navbar-inner">>, style = <<"border-bottom: 2px solid gray;">>, body = [
                 #panel{class = <<"container">>, body = [
                     #list{class = <<"nav pull-left">>, body = MenuCaptions},

@@ -123,11 +123,6 @@ top_menu(ActiveTabID, ActiveLinkID, Submenu, Spinner) ->
                          _ -> <<" display: none;">>
                      end,
 
-    MessagesTop = case Submenu of
-                      [] -> <<"55px">>;
-                      _ -> <<"110px">>
-                  end,
-
     [
         #panel{
             id = <<"main_spinner">>,
@@ -138,14 +133,6 @@ top_menu(ActiveTabID, ActiveLinkID, Submenu, Spinner) ->
         },
         #panel{class = <<"navbar navbar-fixed-top">>, body = [
             #panel{class = <<"navbar-inner">>, style = <<"border-bottom: 1px solid gray;">>, body = [
-                #panel{class = <<"container">>, body = [
-                    #list{class = <<"nav pull-left">>, body = MenuCaptions},
-                    #list{class = <<"nav pull-right">>, body = MenuIcons}
-                ]}
-            ]}
-        ] ++ Submenu},
-        #panel{id = <<"top_menu">>, class = <<"navbar navbar-fixed-top">>, body = [
-            #panel{class = <<"navbar-inner">>, style = <<"border-bottom: 2px solid gray;">>, body = [
                 #panel{class = <<"container">>, body = [
                     #list{class = <<"nav pull-left">>, body = MenuCaptions},
                     #list{class = <<"nav pull-right">>, body = MenuIcons}

@@ -78,14 +78,13 @@ title() -> <<"Monitoring">>.
 body() ->
     Header = onepanel_gui_utils_adapter:top_menu(diagnostics_tab, monitoring_link, monitoring_submenu()),
     Main = #panel{
-        style = <<"margin-top: 114px;">>,
         body = #table{
             id = <<"charts_table">>,
             class = <<"table table-stripped">>,
             style = <<"width: 100%;">>
         }
     },
-    onepanel_gui_utils:body(Header, Main).
+    onepanel_gui_utils:body(114, Header, Main, onepanel_gui_utils:logotype_footer()).
 
 
 %% custom/0
@@ -368,15 +367,15 @@ get_json_data(Id, Node, Target, Command, TimeRange, ChartType, UpdatePeriod) ->
 -spec validate_page_state(PageState :: #?STATE{}) -> ok | error.
 %% ====================================================================
 validate_page_state(#?STATE{node = undefined}) ->
-    error_message(<<"Please select host.">>),
+    onepanel_gui_utils:message(error, <<"Please select host.">>),
     error;
 
 validate_page_state(#?STATE{time_range = undefined}) ->
-    error_message(<<"Please select time range.">>),
+    onepanel_gui_utils:message(error, <<"Please select time range.">>),
     error;
 
 validate_page_state(#?STATE{chart_type = undefined}) ->
-    error_message(<<"Please select chart type.">>),
+    onepanel_gui_utils:message(error, <<"Please select chart type.">>),
     error;
 
 validate_page_state(_) ->
@@ -543,34 +542,6 @@ value_to_list(_) ->
     "null".
 
 
-%% error_message/1
-%% ====================================================================
-%% @doc Displays error message before main table.
--spec error_message(Message :: binary()) -> ok.
-%% ====================================================================
-error_message(Message) ->
-    gui_jq:insert_before(<<"charts_table">>, #panel{
-        id = <<"error_message">>,
-        style = <<"width: 100%; margin: 0 auto; position: relative;">>,
-        body = [
-            #panel{
-                style = <<"margin: 0 auto;">>,
-                class = <<"dialog dialog-danger">>,
-                body = Message
-            },
-            #link{
-                title = <<"Close">>,
-                style = <<"position: absolute; top: 1em; right: 1em;">>,
-                class = <<"glyph-link">>,
-                postback = {close_message, <<"error_message">>},
-                body = #span{
-                    class = <<"fui-cross">>
-                }
-            }
-        ]
-    }).
-
-
 %% ====================================================================
 %% Events handling
 %% ====================================================================
@@ -588,74 +559,76 @@ comet_loop({error, Reason}) ->
 
 comet_loop(#?STATE{counter = Counter, nodes = Nodes, node = Node, time_range = TimeRange, chart_type = ChartType, charts = Charts} = PageState) ->
     NewPageState = try
-        receive
-            {set_node, NewNode, ChartTypes} ->
-                case lists:member(ChartType, ChartTypes) of
-                    true -> gui_jq:update(<<"chart_type_dropdown">>, chart_type_dropdown(ChartType, ChartTypes));
-                    _ -> self() ! {set_chart_type, undefined, ChartTypes}
-                end,
-                gui_jq:update(<<"host_label">>, <<"Host: <b>", (get_hostname(NewNode))/binary, "</b>">>),
-                gui_jq:update(<<"node_dropdown">>, node_dropdown(NewNode, Nodes)),
-                PageState#?STATE{node = NewNode};
+                       receive
+                           {set_node, NewNode, ChartTypes} ->
+                               case lists:member(ChartType, ChartTypes) of
+                                   true ->
+                                       gui_jq:update(<<"chart_type_dropdown">>, chart_type_dropdown(ChartType, ChartTypes));
+                                   _ -> self() ! {set_chart_type, undefined, ChartTypes}
+                               end,
+                               gui_jq:update(<<"host_label">>, <<"Host: <b>", (get_hostname(NewNode))/binary, "</b>">>),
+                               gui_jq:update(<<"node_dropdown">>, node_dropdown(NewNode, Nodes)),
+                               PageState#?STATE{node = NewNode};
 
-            {set_time_range, NewTimeRange} ->
-                gui_jq:update(<<"time_range_label">>, <<"Time range: <b>", NewTimeRange/binary, "</b>">>),
-                gui_jq:update(<<"time_range_dropdown">>, time_range_dropdown(NewTimeRange)),
-                PageState#?STATE{time_range = NewTimeRange};
+                           {set_time_range, NewTimeRange} ->
+                               gui_jq:update(<<"time_range_label">>, <<"Time range: <b>", NewTimeRange/binary, "</b>">>),
+                               gui_jq:update(<<"time_range_dropdown">>, time_range_dropdown(NewTimeRange)),
+                               PageState#?STATE{time_range = NewTimeRange};
 
-            {set_chart_type, NewChartType, ChartTypes} ->
-                case NewChartType of
-                    undefined -> gui_jq:update(<<"chart_type_label">>, <<"<b>Chart type</b>">>);
-                    _ -> gui_jq:update(<<"chart_type_label">>, <<"Chart type: <b>", NewChartType/binary, "</b>">>)
-                end,
-                gui_jq:update(<<"chart_type_dropdown">>, chart_type_dropdown(NewChartType, ChartTypes)),
-                PageState#?STATE{chart_type = NewChartType};
+                           {set_chart_type, NewChartType, ChartTypes} ->
+                               case NewChartType of
+                                   undefined -> gui_jq:update(<<"chart_type_label">>, <<"<b>Chart type</b>">>);
+                                   _ ->
+                                       gui_jq:update(<<"chart_type_label">>, <<"Chart type: <b>", NewChartType/binary, "</b>">>)
+                               end,
+                               gui_jq:update(<<"chart_type_dropdown">>, chart_type_dropdown(NewChartType, ChartTypes)),
+                               PageState#?STATE{chart_type = NewChartType};
 
-            add_chart ->
-                gui_jq:remove(<<"error_message">>),
-                case validate_page_state(PageState) of
-                    ok ->
-                        case validate_chart(Node, TimeRange, ChartType, Charts) of
-                            ok ->
-                                case create_chart(Counter, Node, TimeRange, ChartType) of
-                                    {ok, Chart} ->
-                                        reset_dropdowns(Nodes),
-                                        erlang:send_after(1000 * Chart#chart.update_period, self(), {update_chart, Counter}),
-                                        PageState#?STATE{counter = Counter + 1, node = undefined, time_range = undefined, chart_type = undefined, charts = [{Counter, Chart} | Charts]};
-                                    _ ->
-                                        error_message(<<"There has been an error during chart creation. Please try again.">>),
-                                        PageState
-                                end;
-                            _ -> error_message(<<"Chart already added.">>),
-                                PageState
-                        end;
-                    _ -> PageState
-                end;
+                           add_chart ->
+                               case validate_page_state(PageState) of
+                                   ok ->
+                                       case validate_chart(Node, TimeRange, ChartType, Charts) of
+                                           ok ->
+                                               case create_chart(Counter, Node, TimeRange, ChartType) of
+                                                   {ok, Chart} ->
+                                                       reset_dropdowns(Nodes),
+                                                       erlang:send_after(1000 * Chart#chart.update_period, self(), {update_chart, Counter}),
+                                                       PageState#?STATE{counter = Counter + 1, node = undefined, time_range = undefined, chart_type = undefined, charts = [{Counter, Chart} | Charts]};
+                                                   _ ->
+                                                       onepanel_gui_utils:message(error, <<"There has been an error during chart creation. Please try again.">>),
+                                                       PageState
+                                               end;
+                                           _ ->
+                                               onepanel_gui_utils:message(error, <<"Chart already added.">>),
+                                               PageState
+                                       end;
+                                   _ -> PageState
+                               end;
 
-            {update_chart, Id} ->
-                try
-                    case proplists:get_value(Id, Charts) of
-                        undefined ->
-                            ok;
-                        Chart ->
-                            ok = update_chart(Chart),
-                            erlang:send_after(1000 * Chart#chart.update_period, self(), {update_chart, Id})
-                    end
-                catch
-                    _:_ -> ok
-                end,
-                PageState;
+                           {update_chart, Id} ->
+                               try
+                                   case proplists:get_value(Id, Charts) of
+                                       undefined ->
+                                           ok;
+                                       Chart ->
+                                           ok = update_chart(Chart),
+                                           erlang:send_after(1000 * Chart#chart.update_period, self(), {update_chart, Id})
+                                   end
+                               catch
+                                   _:_ -> ok
+                               end,
+                               PageState;
 
-            {delete_chart, Id} ->
-                gui_jq:wire(<<"deleteChart(\"", (integer_to_binary(Id))/binary, "\");">>),
-                PageState#?STATE{charts = proplists:delete(Id, Charts)}
+                           {delete_chart, Id} ->
+                               gui_jq:wire(<<"deleteChart(\"", (integer_to_binary(Id))/binary, "\");">>),
+                               PageState#?STATE{charts = proplists:delete(Id, Charts)}
 
-        after ?COMET_PROCESS_RELOAD_DELAY ->
-            PageState
-        end
+                       after ?COMET_PROCESS_RELOAD_DELAY ->
+                           PageState
+                       end
                    catch Type:Msg ->
-                       ?error("Comet process exception: ~p:~p", [Type, Msg]),
-                       error_message(<<"There has been an error in comet process. Please refresh the page.">>),
+                       ?error_stacktrace("Comet process exception: ~p:~p", [Type, Msg]),
+                       onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
                        {error, Msg}
                    end,
     gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
@@ -678,8 +651,8 @@ event(init) ->
         put(?COMET_PID, Pid)
     catch
         _:Reason ->
-            ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
-            error_message(<<"Cannot fetch application configuration.<br>Please try again later.">>)
+            ?error_stacktrace("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
+            onepanel_gui_utils:message(error, <<"Cannot fetch application configuration.<br>Please try again later.">>)
     end;
 
 event({message, {set_node, summary}}) ->
@@ -693,7 +666,7 @@ event({message, Message}) ->
     gui_jq:show(<<"main_spinner">>);
 
 event({close_message, MessageId}) ->
-    gui_jq:remove(MessageId);
+    gui_jq:hide(MessageId);
 
 event(terminate) ->
     ok.

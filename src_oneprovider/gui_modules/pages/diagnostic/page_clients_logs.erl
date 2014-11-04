@@ -73,10 +73,10 @@ body() ->
     gui_jq:register_escape_event("escape_pressed"),
     Header = onepanel_gui_utils_adapter:top_menu(diagnostics_tab, clients_logs_link, logs_submenu()),
     Main = [
-        #panel{style = <<"margin-top: 56px; z-index: -1;">>, body = main_table()},
+        #panel{style = <<"z-index: -1;">>, body = main_table()},
         footer_popup()
     ],
-    onepanel_gui_utils:body(Header, Main).
+    onepanel_gui_utils:body(114, Header, Main, onepanel_gui_utils:logotype_footer()).
 
 
 %% Submenu that will end up concatenated to top menu
@@ -159,9 +159,9 @@ logs_submenu() ->
 
 %% Main table displaying logs
 main_table() ->
-    #table{id = <<"main_table">>, class = <<"table">>,
+    #table{id = <<"main_table">>, class = <<"table table-stripped">>,
         style = <<"border-radius: 0; margin-bottom: 0; table-layout: fixed; width: 100%;">>,
-        header = [
+        body = [
             #tr{cells = [
                 #th{body = <<"Severity">>, style = <<?SEVERITY_COLUMN_STYLE>>},
                 #th{body = <<"Time">>, style = <<?TIME_COLUMN_STYLE>>},
@@ -169,7 +169,6 @@ main_table() ->
                 #th{body = <<"Metadata">>, style = <<?METADATA_COLUMN_STYLE>>}
             ]}
         ]}.
-
 
 %% Footer popup panel containing filter preferences
 footer_popup() ->

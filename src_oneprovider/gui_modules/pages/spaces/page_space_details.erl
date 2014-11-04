@@ -462,7 +462,7 @@ event(init) ->
         Pid ! render_tables
     catch
         _:Reason ->
-            ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
+            ?error_stacktrace("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
             gui_jq:hide(<<"main_spinner">>),
             onepanel_gui_utils:message(error, <<"Cannot fetch Space details.<br>Please try again later.">>)
     end;

@@ -134,7 +134,7 @@ main_ccm() ->
         ]
     catch
         _:Reason ->
-            ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
+            ?error_stacktrace("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
             onepanel_gui_utils:message(error, <<"Cannot fetch application configuration.<br>Please try again later.">>),
             []
     end.

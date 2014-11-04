@@ -15,7 +15,7 @@
 -include("onepanel_modules/installer/state.hrl").
 -include_lib("ctool/include/logging.hrl").
 
--export([body/1, body/2, body/3, account_settings_tab/1, logotype_footer/0, nav_buttons/1, nav_buttons/2]).
+-export([body/1, body/2, body/3, body/4, account_settings_tab/1, logotype_footer/0, nav_buttons/1, nav_buttons/2]).
 -export([collapse_button/1, collapse_button/2, expand_button/1, expand_button/2]).
 -export([get_session_config/0, format_list/1, message/2, message/4]).
 -export([change_page/2, maybe_redirect/3]).
@@ -26,8 +26,7 @@
 
 %% body/1
 %% ====================================================================
-%% @doc Template function to render page body, without header and with
-%% default page footer.
+%% @equiv body([], Main).
 %% @end
 -spec body(Main :: term()) -> Result when
     Result :: list().
@@ -38,7 +37,7 @@ body(Main) ->
 
 %% body/2
 %% ====================================================================
-%% @doc Template function to render page body, with default page footer.
+%% @equiv body(Header, Main, logotype_footer()).
 %% @end
 -spec body(Header :: term(), Main :: term()) -> Result when
     Result :: list().
@@ -49,21 +48,33 @@ body(Header, Main) ->
 
 %% body/3
 %% ====================================================================
-%% @doc Template function to render page body.
+%% @equiv body(62, Header, Main, logotype_footer()).
 %% @end
 -spec body(Header :: term(), Main :: term(), Footer :: term()) -> Result when
     Result :: list().
 %% ====================================================================
 body(Header, Main, Footer) ->
+    body(62, Header, Main, Footer).
+
+
+%% body/4
+%% ====================================================================
+%% @doc Template function to render page body. 'Top' parameter defines
+%% height where page content should start.
+%% @end
+-spec body(Top :: integer(), Header :: term(), Main :: term(), Footer :: term()) -> Result when
+    Result :: list().
+%% ====================================================================
+body(Top, Header, Main, Footer) ->
     [
         #header{id = <<"page-header">>, class = <<"page-row">>, body = Header},
         #main{id = <<"page-main">>, class = <<"page-row page-row-expanded">>,
             body = #panel{
-                style = <<"top: 62px; position: relative;">>,
+                style = <<"top: ", (integer_to_binary(Top))/binary, "px; position: relative;">>,
                 body = [
                     #panel{
                         id = <<"message">>,
-                        style = <<"width: 100%; padding: 0.5em 0; border: 0; display: none;">>,
+                        style = <<"width: 100%; padding: 0.5em 0; margin: 0 auto; border: 0; display: none;">>,
                         class = <<"dialog">>
                     },
                     Main
