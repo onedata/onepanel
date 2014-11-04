@@ -151,7 +151,7 @@ account_table(#?PROVIDER_RECORD{id = ProviderId, name = ProviderName, urls = URL
             {<<"provider_id_tooltip">>, <<"top: 0px; right: 110px; display: none;">>, <<"Globally unique identifier assigned by Global Registry.">>,
                 <<"provider_id_label">>, <<"Provider ID">>, <<"provider_id">>, providerId(ProviderId)},
             {<<"provider_name_tooltip">>, <<"top: 5px; right: 77px; display: none;">>, <<"Provider's name in <i>onedata</i>.">>,
-                <<"provider_name_label">>, <<"Name">>, <<"provider_name">>, providerName(ProviderName)},
+                <<"provider_name_label">>, <<"Name">>, <<"provider_name">>, provider_name(ProviderName)},
             {<<"urls_tooltip">>, <<"top: -10px; right: 73px; display: none;">>, <<"List of <i>worker</i> components' IP addresses visible for Global Registry.">>,
                 <<"urls_label">>, <<"URLs">>, <<"urls">>, urls(URLs)},
             {<<"redirection_point_tooltip">>, <<"top: -10px; right: 143px; display: none;">>, <<"Web address used by Global Registry to redirect users to provider.">>,
@@ -203,20 +203,20 @@ providerId(ProviderId) ->
     }.
 
 
-%% providerName/1
+%% provider_name/1
 %% ====================================================================
 %% @doc Renders provider's name.
 %% @end
--spec providerName(ProviderName :: binary() | undefined) -> Result when
+-spec provider_name(ProviderName :: binary() | undefined) -> Result when
     Result :: #p{}.
 %% ====================================================================
-providerName(undefined) ->
+provider_name(undefined) ->
     #span{
         style = <<"font-size: large;">>,
         body = <<"&#8212&#8212&#8212&#8212&#8212&#8212&#8212&#8212">>
     };
 
-providerName(ProviderName) ->
+provider_name(ProviderName) ->
     #span{
         style = <<"font-size: large;">>,
         body = ProviderName
@@ -347,13 +347,18 @@ comet_loop(#?STATE{id = ProviderId} = State) ->
                 unregister ->
                     case provider_logic:unregister() of
                         ok ->
-                            lists:foreach(fun(Id) ->
-                                gui_jq:update(Id, providerId(undefined))
-                            end, [<<"provider_id">>, <<"provider_name">>, <<"urls">>, <<"redirection_point">>]),
+                            gui_jq:update(<<"provider_id">>, providerId(undefined)),
+                            gui_jq:update(<<"provider_name">>, provider_name(undefined)),
+                            gui_jq:update(<<"urls">>, urls(undefined)),
+                            gui_jq:update(<<"redirection_point">>, redirection_point(undefined)),
                             onepanel_gui_utils:message(<<"top_menu">>, success, <<"You have been successfully unregistered from Global Registry.">>);
                         _ ->
                             onepanel_gui_utils:message(<<"top_menu">>, error, <<"Cannot unregister from Global Registry.">>)
                     end,
+                    State;
+
+                {change_redirection_point, RedirectionPoint, RedirectionPoint} ->
+                    gui_jq:update(<<"redirection_point">>, redirection_point(RedirectionPoint)),
                     State;
 
                 {change_redirection_point, OldRedirectionPoint, RedirectionPoint} ->
