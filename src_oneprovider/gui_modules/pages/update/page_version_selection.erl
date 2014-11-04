@@ -64,7 +64,10 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils_adapter:top_menu(software_tab, update_link),
+    Breadcrumbs = onepanel_gui_utils:breadcrumbs([
+        {<<"Version selection">>, ?CURRENT_UPDATE_PAGE, ?PAGE_VERSION_SELECTION}
+    ]),
+    Header = onepanel_gui_utils_adapter:top_menu(software_tab, update_link, Breadcrumbs),
     Main = #panel{
         style = <<"margin-top: 2em;">>,
         body = [
@@ -94,7 +97,7 @@ body() ->
             }
         ]
     },
-    onepanel_gui_utils:body(Header, Main).
+    onepanel_gui_utils:body(108, Header, Main, onepanel_gui_utils:logotype_footer()).
 
 
 %% versions/0

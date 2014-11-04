@@ -81,7 +81,11 @@ body() ->
                                                       {?STAGE_IDLE, _} -> {<<"">>, <<" display: none;">>};
                                                       _ -> {<<" display: none;">>, <<"">>}
                                                   end,
-    Header = onepanel_gui_utils_adapter:top_menu(software_tab, update_link),
+    Breadcrumbs = onepanel_gui_utils:breadcrumbs([
+        {<<"Version selection">>, ?CURRENT_UPDATE_PAGE, ?PAGE_VERSION_SELECTION},
+        {<<"Update summary">>, ?CURRENT_UPDATE_PAGE, ?PAGE_UPDATE_SUMMARY}
+    ]),
+    Header = onepanel_gui_utils_adapter:top_menu(software_tab, update_link, Breadcrumbs),
     Main = #panel{
         style = <<"margin-top: 2em; text-align: center;">>,
         body = [
@@ -147,7 +151,7 @@ body() ->
             }
         ]
     },
-    onepanel_gui_utils:body(Header, Main).
+    onepanel_gui_utils:body(108, Header, Main, onepanel_gui_utils:logotype_footer()).
 
 
 %% translate_stage/1

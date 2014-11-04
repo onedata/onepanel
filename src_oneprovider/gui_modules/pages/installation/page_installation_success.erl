@@ -114,7 +114,7 @@ body() ->
                    end
         }
     },
-    onepanel_gui_utils:body(Header, Main).
+    onepanel_gui_utils:body(108, Header, Main, onepanel_gui_utils:logotype_footer()).
 
 
 %% ====================================================================
