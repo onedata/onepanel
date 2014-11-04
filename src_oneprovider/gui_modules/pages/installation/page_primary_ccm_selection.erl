@@ -68,7 +68,7 @@ title() ->
 body() ->
     Header = onepanel_gui_utils_adapter:top_menu(software_tab, installation_link),
     Main = #panel{
-        style = <<"margin-top: 10em; text-align: center;">>,
+        style = <<"margin-top: 2em; text-align: center;">>,
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
@@ -135,7 +135,7 @@ main_ccm() ->
     catch
         _:Reason ->
             ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
-            onepanel_gui_utils:message(<<"top_menu">>, error, <<"Cannot fetch application configuration.<br>Please try again later.">>),
+            onepanel_gui_utils:message(error, <<"Cannot fetch application configuration.<br>Please try again later.">>),
             []
     end.
 

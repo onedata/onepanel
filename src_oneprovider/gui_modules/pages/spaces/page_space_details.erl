@@ -93,7 +93,7 @@ title() ->
 body(SpaceDetails) ->
     Header = onepanel_gui_utils_adapter:top_menu(spaces_tab, spaces_dashboard_link, [], true),
     Main = #panel{
-        style = <<"margin-top: 10em; text-align: center;">>,
+        style = <<"margin-top: 2em; text-align: center;">>,
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 2em;">>,
@@ -422,7 +422,7 @@ comet_loop(#?STATE{providers_details = ProvidersDetails, users_details = UsersDe
                    end
                catch Type:Message ->
                    ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
-                   onepanel_gui_utils:message(<<"top_menu">>, error, <<"There has been an error in comet process. Please refresh the page.">>),
+                   onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
     gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
@@ -464,7 +464,7 @@ event(init) ->
         _:Reason ->
             ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
             gui_jq:hide(<<"main_spinner">>),
-            onepanel_gui_utils:message(<<"top_menu">>, error, <<"Cannot fetch Space details.<br>Please try again later.">>)
+            onepanel_gui_utils:message(error, <<"Cannot fetch Space details.<br>Please try again later.">>)
     end;
 
 event({message, Message}) ->

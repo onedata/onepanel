@@ -73,7 +73,7 @@ title() ->
 body() ->
     Header = onepanel_gui_utils_adapter:top_menu(spaces_tab, spaces_account_link, [], true),
     Main = #panel{
-        style = <<"margin-top: 10em; text-align: center;">>,
+        style = <<"margin-top: 2em; text-align: center;">>,
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
@@ -256,7 +256,7 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                                catch
                                    _:Reason ->
                                        ?error("Cannot set redirection point: ~p", [Reason]),
-                                       onepanel_gui_utils:message(<<"top_menu">>, error, <<"Redirection point is not available for <i>Global Registry</i>.<br>
+                                       onepanel_gui_utils:message(error, <<"Redirection point is not available for <i>Global Registry</i>.<br>
                                        This may occur due to NAT or PAT translation mechanisms. Please check your network configuration or try again later.">>),
                                        gui_jq:css(<<"redirection_point_textbox">>, <<"border-color">>, <<"red">>),
                                        error
@@ -283,7 +283,7 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                                ok ->
                                    onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_REGISTRATION_SUMMARY);
                                _ ->
-                                   onepanel_gui_utils:message(<<"top_menu">>, error, <<"Some ports are not available for <i>Global Registry</i>.<br>
+                                   onepanel_gui_utils:message(error, <<"Some ports are not available for <i>Global Registry</i>.<br>
                                    This may occur due to NAT or PAT translation mechanisms. Please check your network configuration or try again later.">>)
                            end,
                            gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
@@ -295,7 +295,7 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                    end
                catch Type:Message ->
                    ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
-                   onepanel_gui_utils:message(<<"top_menu">>, error, <<"There has been an error in comet process. Please refresh the page.">>),
+                   onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
     gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
@@ -340,7 +340,7 @@ event(init) ->
         _:Reason ->
             ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
             gui_jq:hide(<<"main_spinner">>),
-            onepanel_gui_utils:message(<<"top_menu">>, error, <<"Cannot fetch application configuration.<br>Please try again later.">>)
+            onepanel_gui_utils:message(error, <<"Cannot fetch application configuration.<br>Please try again later.">>)
     end;
 
 event(back) ->

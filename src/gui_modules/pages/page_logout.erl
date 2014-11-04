@@ -57,7 +57,7 @@ body() ->
     Main = [
         #panel{
             class = <<"alert alert-success">>,
-            style = <<"width: 30em; margin: 0 auto; text-align: center; margin-top: 10em;">>,
+            style = <<"width: 30em; margin: 0 auto; text-align: center; margin-top: 2em;">>,
             body = [
                 #h3{
                     body = <<"Successful logout">>

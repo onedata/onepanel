@@ -87,7 +87,7 @@ custom() ->
 body() ->
     Header = onepanel_gui_utils_adapter:top_menu(spaces_tab, spaces_account_link, [], true),
     Main = #panel{
-        style = <<"margin-top: 10em; text-align: center;">>,
+        style = <<"margin-top: 2em; text-align: center;">>,
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 3em;">>,
@@ -351,14 +351,14 @@ comet_loop(#?STATE{id = ProviderId} = State) ->
                             gui_jq:update(<<"provider_name">>, provider_name(undefined)),
                             gui_jq:update(<<"urls">>, urls(undefined)),
                             gui_jq:update(<<"redirection_point">>, redirection_point(undefined)),
-                            onepanel_gui_utils:message(<<"top_menu">>, success, <<"You have been successfully unregistered from Global Registry.">>);
+                            onepanel_gui_utils:message(success, <<"You have been successfully unregistered from Global Registry.">>);
                         _ ->
-                            onepanel_gui_utils:message(<<"top_menu">>, error, <<"Cannot unregister from Global Registry.">>)
+                            onepanel_gui_utils:message(error, <<"Cannot unregister from Global Registry.">>)
                     end,
                     State;
 
                 {change_redirection_point, _, <<>>} ->
-                    onepanel_gui_utils:message(<<"top_menu">>, error, <<"Redirection point cannot be empty.">>),
+                    onepanel_gui_utils:message(error, <<"Redirection point cannot be empty.">>),
                     State;
 
                 {change_redirection_point, RedirectionPoint, RedirectionPoint} ->
@@ -388,12 +388,12 @@ comet_loop(#?STATE{id = ProviderId} = State) ->
                                 {OldRedirectionPoint, error, <<"Cannot change redirection point.<br>Please try again later.">>}
                         end,
                     gui_jq:update(<<"redirection_point">>, redirection_point(NewRedirectionPoint)),
-                    onepanel_gui_utils:message(<<"top_menu">>, MessageType, Message),
+                    onepanel_gui_utils:message(MessageType, Message),
                     State#?STATE{redirection_point = NewRedirectionPoint}
             end
         catch Type:Reason ->
             ?error_stacktrace("Comet process exception: ~p:~p", [Type, Reason]),
-            onepanel_gui_utils:message(<<"top_menu">>, error, <<"There has been an error in comet process. Please refresh the page.">>),
+            onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
             {error, Reason}
         end,
     gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
@@ -437,7 +437,7 @@ event(init) ->
     catch
         _:Reason ->
             ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
-            onepanel_gui_utils:message(<<"top_menu">>, error, <<"Cannot fetch provider details.<br>Please try again later.">>)
+            onepanel_gui_utils:message(error, <<"Cannot fetch provider details.<br>Please try again later.">>)
     end;
 
 event(to_root_page) ->

@@ -55,7 +55,7 @@ body() ->
     {Reason, Description} = get_reason_and_description(),
     Header = [],
     Main = #panel{
-        style = <<"margin-top: 10em; text-align: center;">>,
+        style = <<"margin-top: 2em; text-align: center;">>,
         body = [
             #panel{
                 style = <<"width: 50%; margin: 0 auto;">>,

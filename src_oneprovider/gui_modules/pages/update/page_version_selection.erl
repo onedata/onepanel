@@ -66,7 +66,7 @@ title() ->
 body() ->
     Header = onepanel_gui_utils_adapter:top_menu(software_tab, update_link),
     Main = #panel{
-        style = <<"margin-top: 10em;">>,
+        style = <<"margin-top: 2em;">>,
         body = [
             #panel{
                 style = <<"text-align: center;">>,
@@ -116,6 +116,7 @@ versions() ->
         [
             <<"<i class=\"dropdown-arrow dropdown-arrow-inverse\"></i>">>,
             #button{
+                style = <<"width: 15em">>,
                 class = <<"btn btn-inverse btn-small dropdown-toggle">>,
                 data_fields = [{<<"data-toggle">>, <<"dropdown">>}],
                 body = [
@@ -140,7 +141,7 @@ versions() ->
     catch
         _:Reason ->
             ?error("Cannot fetch available software versions from remote repository: ~p", [Reason]),
-            onepanel_gui_utils:message(<<"top_menu">>, error, <<"Cannot fetch available software versions from remote repository.">>),
+            onepanel_gui_utils:message(error, <<"Cannot fetch available software versions from remote repository.">>),
             []
     end.
 
@@ -197,7 +198,7 @@ event(next) ->
     ChosenVersion = gui_ctx:get(?CHOSEN_VERSION),
     ChosenVersionName = onepanel_utils_adapter:get_software_version_name(ChosenVersion),
     case onepanel_utils_adapter:get_software_version() of
-        ChosenVersionName -> onepanel_gui_utils:message(<<"top_menu">>, error,
+        ChosenVersionName -> onepanel_gui_utils:message(error,
             <<"Nothing to do.<br>This software version is currently installed.">>);
         _ ->
             onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_UPDATE_SUMMARY)

@@ -17,7 +17,7 @@
 
 -export([body/1, body/2, body/3, account_settings_tab/1, logotype_footer/0, nav_buttons/1, nav_buttons/2]).
 -export([collapse_button/1, collapse_button/2, expand_button/1, expand_button/2]).
--export([get_session_config/0, format_list/1, message/3, message/4]).
+-export([get_session_config/0, format_list/1, message/2, message/4]).
 -export([change_page/2, maybe_redirect/3]).
 
 %% ====================================================================
@@ -57,7 +57,19 @@ body(Header, Main) ->
 body(Header, Main, Footer) ->
     [
         #header{id = <<"page-header">>, class = <<"page-row">>, body = Header},
-        #main{id = <<"page-main">>, class = <<"page-row page-row-expanded">>, body = Main},
+        #main{id = <<"page-main">>, class = <<"page-row page-row-expanded">>,
+            body = #panel{
+                style = <<"top: 62px; position: relative;">>,
+                body = [
+                    #panel{
+                        id = <<"message">>,
+                        style = <<"width: 100%; padding: 0.5em 0; border: 0; display: none;">>,
+                        class = <<"dialog">>
+                    },
+                    Main
+                ]
+            }
+        },
         #footer{id = <<"page-footer">>, class = <<"page-row">>, body = Footer}
     ].
 
@@ -89,7 +101,7 @@ get_session_config() ->
     Result :: #panel{}.
 %% ====================================================================
 logotype_footer() ->
-    #panel{style = <<"text-align: center; margin: 2em;">>,
+    #panel{style = <<"text-align: center; margin-top: 8em; margin-bottom: 2em;">>,
         body = [
             #image{class = <<"pull-left">>, image = <<"/images/innow-gosp-logo.png">>},
             #image{image = <<"/images/plgrid-plus-logo.png">>},
@@ -290,16 +302,16 @@ format_list(Hosts) ->
     list_to_binary(string:join(Hosts, ", ")).
 
 
-%% message/3
+%% message/2
 %% ====================================================================
 %% @doc Renders a message below given element and allows to hide it with
 %% default postback.
 %% @end
--spec message(Id :: binary(), Type :: success | error, Message :: binary()) -> Result when
+-spec message(Type :: success | error, Message :: binary()) -> Result when
     Result :: ok.
 %% ====================================================================
-message(Id, Type, Message) ->
-    message(Id, Type, Message, {close_message, Id}).
+message(Type, Message) ->
+    message(<<"message">>, Type, Message, {close_message, <<"message">>}).
 
 
 %% message/4
@@ -311,23 +323,26 @@ message(Id, Type, Message) ->
     Result :: ok.
 %% ====================================================================
 message(Id, Type, Message, Postback) ->
-    Body = #panel{
-        id = <<Id/binary, "_message">>,
-        style = <<"width: 100%; padding: 0.5em 0;">>,
-        class = case Type of success -> <<"dialog dialog-success">>; _ -> <<"dialog dialog-danger">> end,
-        body = [
-            Message,
-            #link{
-                title = <<"Close">>,
-                style = <<"position: absolute; top: 0.5em; right: 0.5em;">>,
-                class = <<"glyph-link">>,
-                postback = Postback,
-                body = #span{
-                    class = <<"fui-cross">>
-                }
+    Body = [
+        Message,
+        #link{
+            id = <<"close_message_button">>,
+            title = <<"Close">>,
+            style = <<"position: absolute; top: 0.5em; right: 0.5em;">>,
+            class = <<"glyph-link">>,
+            postback = Postback,
+            body = #span{
+                class = <<"fui-cross">>
             }
-        ]
-    },
-    gui_jq:insert_bottom(Id, Body),
-    gui_jq:remove(<<Id/binary, "_message">>),
+        }
+    ],
+    case Type of
+        success ->
+            gui_jq:add_class(Id, <<"dialog-success">>),
+            gui_jq:remove_class(Id, <<"dialog-danger">>);
+        _ ->
+            gui_jq:add_class(Id, <<"dialog-danger">>),
+            gui_jq:remove_class(Id, <<"dialog-success">>)
+    end,
+    gui_jq:update(Id, Body),
     gui_jq:fade_in(Id, 300).

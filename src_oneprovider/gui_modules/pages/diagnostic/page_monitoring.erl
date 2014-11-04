@@ -679,7 +679,7 @@ event(init) ->
     catch
         _:Reason ->
             ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
-            onepanel_gui_utils:message(<<"top_menu">>, error, <<"Cannot fetch application configuration.<br>Please try again later.">>)
+            error_message(<<"Cannot fetch application configuration.<br>Please try again later.">>)
     end;
 
 event({message, {set_node, summary}}) ->

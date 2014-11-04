@@ -78,7 +78,7 @@ title() ->
 body() ->
     Header = onepanel_gui_utils_adapter:top_menu(installation_tab, [], true),
     Main = #panel{
-        style = <<"margin-top: 10em; text-align: center;">>,
+        style = <<"margin-top: 2em; text-align: center;">>,
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
@@ -277,7 +277,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                         end);
                     Other ->
                         ?error("Cannot get password to administrative database for user ~p: ~p", [Username, Other]),
-                        onepanel_gui_utils:message(<<"top_menu">>, error, <<"Cannot get password to administrative database for user: ", Username/binary>>)
+                        onepanel_gui_utils:message(error, <<"Cannot get password to administrative database for user: ", Username/binary>>)
                 end,
                 State;
 
@@ -319,7 +319,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
 
             {error, Text} ->
                 gui_jq:update(<<"summary_table">>, summary_table(Config)),
-                onepanel_gui_utils:message(<<"top_menu">>, error, Text),
+                onepanel_gui_utils:message(error, Text),
                 gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
                 gui_jq:hide(<<"progress">>),
@@ -330,7 +330,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
         end
                catch Type:Message ->
                    ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
-                   onepanel_gui_utils:message(<<"top_menu">>, error, <<"There has been an error in comet process. Please refresh the page.">>),
+                   onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
     gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
@@ -370,7 +370,7 @@ event(init) ->
         _:Reason ->
             ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
             gui_jq:hide(<<"main_spinner">>),
-            onepanel_gui_utils:message(<<"top_menu">>, error, <<"Cannot fetch application configuration.<br>Please try again later.">>)
+            onepanel_gui_utils:message(error, <<"Cannot fetch application configuration.<br>Please try again later.">>)
     end;
 
 event(back) ->

@@ -74,7 +74,7 @@ title() ->
 body() ->
     Header = onepanel_gui_utils_adapter:top_menu(installation_tab, [], true),
     Main = #panel{
-        style = <<"margin-top: 10em; text-align: center;">>,
+        style = <<"margin-top: 2em; text-align: center;">>,
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
@@ -175,11 +175,11 @@ comet_loop(#?STATE{hosts = Hosts, gr_checkbox_id = GrId, db_config = DbConfig, s
             next ->
                 case Dbs of
                     [] ->
-                        onepanel_gui_utils:message(<<"top_menu">>, error, <<"Please select at least one host for database component.">>);
+                        onepanel_gui_utils:message(error, <<"Please select at least one host for database component.">>);
                     _ ->
                         case GR of
                             undefined ->
-                                onepanel_gui_utils:message(<<"top_menu">>, error, <<"Please select host for Global Registry component.">>);
+                                onepanel_gui_utils:message(error, <<"Please select host for Global Registry component.">>);
                             _ ->
                                 gui_ctx:put(?CONFIG_ID, SessionConfig#?CONFIG{gr = GR, dbs = Dbs}),
                                 onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS)
@@ -213,7 +213,7 @@ comet_loop(#?STATE{hosts = Hosts, gr_checkbox_id = GrId, db_config = DbConfig, s
         end
                catch Type:Message ->
                    ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
-                   onepanel_gui_utils:message(<<"top_menu">>, error, <<"There has been an error in comet process. Please refresh the page.">>),
+                   onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
     gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
@@ -258,7 +258,7 @@ event(init) ->
         _:Reason ->
             ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
             gui_jq:hide(<<"main_spinner">>),
-            onepanel_gui_utils:message(<<"top_menu">>, error, <<"Cannot fetch application configuration.<br>Please try again later.">>)
+            onepanel_gui_utils:message(error, <<"Cannot fetch application configuration.<br>Please try again later.">>)
     end;
 
 event({message, Message}) ->
