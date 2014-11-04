@@ -282,7 +282,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                 State;
 
             {init, Text} ->
-                gui_jq:hide(<<"error_message">>),
+                gui_jq:remove(<<"top_menu_message">>),
                 gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"disabled">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
                 gui_jq:update(<<"progress_text">>, Text),

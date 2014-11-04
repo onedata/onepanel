@@ -357,6 +357,10 @@ comet_loop(#?STATE{id = ProviderId} = State) ->
                     end,
                     State;
 
+                {change_redirection_point, _, <<>>} ->
+                    onepanel_gui_utils:message(<<"top_menu">>, error, <<"Redirection point cannot be empty.">>),
+                    State;
+
                 {change_redirection_point, RedirectionPoint, RedirectionPoint} ->
                     gui_jq:update(<<"redirection_point">>, redirection_point(RedirectionPoint)),
                     State;
@@ -368,28 +372,28 @@ comet_loop(#?STATE{id = ProviderId} = State) ->
                             {check_redirection_point, ok} = {check_redirection_point, gr_providers:check_port(provider, Host, Port, <<"gui">>)},
                             {modify_refirection_point, ok} = {modify_refirection_point, gr_providers:modify_details(provider, [{<<"redirectionPoint">>, RedirectionPoint}])},
                             {modify_refirection_point, ok} = {modify_refirection_point, dao:update_record(?PROVIDER_TABLE, ProviderId, [{redirection_point, RedirectionPoint}])},
-                            {RedirectionPoint, <<"ok_message">>, <<"Redirection point changed successfully.">>}
+                            {RedirectionPoint, success, <<"Redirection point changed successfully.">>}
                         catch
                             error:{badmatch, {host_and_port, {error, Error}}} when is_list(Error) ->
-                                {OldRedirectionPoint, <<"error_message">>, list_to_binary(Error)};
+                                {OldRedirectionPoint, error, list_to_binary(Error)};
                             error:{badmatch, {host_and_port, _}} ->
-                                {OldRedirectionPoint, <<"error_message">>, <<"Invalid redirection point.">>};
+                                {OldRedirectionPoint, error, <<"Invalid redirection point.">>};
                             error:{badmatch, {check_redirection_point, _}} ->
-                                {OldRedirectionPoint, <<"error_message">>, <<"Redirection point is not available for <i>Global Registry</i>">>};
+                                {OldRedirectionPoint, error, <<"Redirection point is not available for <i>Global Registry</i>">>};
                             error:{badmatch, {modify_refirection_point, Error}} ->
                                 ?error("Cannot change redirection point: ~p", [Error]),
-                                {OldRedirectionPoint, <<"error_message">>, <<"Cannot change redirection point.<br>Please try again later.">>};
+                                {OldRedirectionPoint, error, <<"Cannot change redirection point.<br>Please try again later.">>};
                             _:Other ->
                                 ?error("Cannot change redirection point: ~p", [Other]),
-                                {OldRedirectionPoint, <<"error_message">>, <<"Cannot change redirection point.<br>Please try again later.">>}
+                                {OldRedirectionPoint, error, <<"Cannot change redirection point.<br>Please try again later.">>}
                         end,
                     gui_jq:update(<<"redirection_point">>, redirection_point(NewRedirectionPoint)),
-                    onepanel_gui_utils:message(MessageType, Message),
+                    onepanel_gui_utils:message(<<"top_menu">>, MessageType, Message),
                     State#?STATE{redirection_point = NewRedirectionPoint}
             end
         catch Type:Reason ->
             ?error_stacktrace("Comet process exception: ~p:~p", [Type, Reason]),
-            opn_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
+            onepanel_gui_utils:message(<<"top_menu">>, error, <<"There has been an error in comet process. Please refresh the page.">>),
             {error, Reason}
         end,
     gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
@@ -433,7 +437,7 @@ event(init) ->
     catch
         _:Reason ->
             ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
-            opn_gui_utils:message(<<"error_message">>, <<"Cannot fetch provider details.<br>Please try again later.">>)
+            onepanel_gui_utils:message(<<"top_menu">>, error, <<"Cannot fetch provider details.<br>Please try again later.">>)
     end;
 
 event(to_root_page) ->
