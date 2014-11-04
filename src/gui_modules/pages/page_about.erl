@@ -61,7 +61,7 @@ title() ->
 body() ->
     Header = onepanel_gui_utils_adapter:top_menu(about_tab),
     Main = #panel{
-        style = <<"margin-top: 10em; text-align: center;">>,
+        style = <<"margin-top: 2em; text-align: center;">>,
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 3em;">>,

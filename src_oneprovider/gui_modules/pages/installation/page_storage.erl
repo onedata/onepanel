@@ -74,7 +74,7 @@ title() ->
 body() ->
     Header = onepanel_gui_utils_adapter:top_menu(software_tab, installation_link, [], true),
     Main = #panel{
-        style = <<"margin-top: 10em; text-align: center;">>,
+        style = <<"margin-top: 2em; text-align: center;">>,
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
@@ -208,11 +208,11 @@ check_storage_paths(Hosts, [StoragePath | StoragePaths]) ->
         ok ->
             check_storage_paths(Hosts, StoragePaths);
         {error, {hosts, ErrorHosts}} ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"Storage: ", (list_to_binary(StoragePath))/binary,
+            onepanel_gui_utils:message(error, <<"Storage: ", (list_to_binary(StoragePath))/binary,
             ", is not available on hosts: ", (onepanel_gui_utils:format_list(ErrorHosts))/binary>>),
             error;
         _ ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"Storage: ", (list_to_binary(StoragePath))/binary,
+            onepanel_gui_utils:message(error, <<"Storage: ", (list_to_binary(StoragePath))/binary,
             ", is not available on all hosts">>),
             error
     end.
@@ -245,7 +245,7 @@ comet_loop(#?STATE{counter = Counter, db_config = DbConfig, session_config = #?C
             next ->
                 NextState = case StoragePaths of
                                 [] ->
-                                    onepanel_gui_utils:message(<<"error_message">>, <<"Please add at least one storage.">>),
+                                    onepanel_gui_utils:message(error, <<"Please add at least one storage.">>),
                                     State;
                                 _ ->
                                     case check_storage_paths(Workers, StoragePaths) of
@@ -269,7 +269,7 @@ comet_loop(#?STATE{counter = Counter, db_config = DbConfig, session_config = #?C
             {add_storage_path, StorageId, StoragePath} ->
                 NextState = case lists:member(StoragePath, StoragePaths) of
                                 true ->
-                                    onepanel_gui_utils:message(<<"error_message">>, <<"Storage path already added.">>),
+                                    onepanel_gui_utils:message(error, <<"Storage path already added.">>),
                                     State;
                                 _ ->
                                     case installer_storage:check_storage_path_on_hosts(Workers, StoragePath) of
@@ -281,11 +281,11 @@ comet_loop(#?STATE{counter = Counter, db_config = DbConfig, session_config = #?C
                                             gui_jq:focus(<<"storage_path_textbox_", (integer_to_binary(Counter + 2))/binary>>),
                                             State#?STATE{counter = Counter + 1, session_config = SessionConfig#?CONFIG{storage_paths = [StoragePath | StoragePaths]}};
                                         {error, {hosts, Hosts}} ->
-                                            onepanel_gui_utils:message(<<"error_message">>, <<"Storage is not available on hosts: ",
+                                            onepanel_gui_utils:message(error, <<"Storage is not available on hosts: ",
                                             (onepanel_gui_utils:format_list(Hosts))/binary>>),
                                             State;
                                         _ ->
-                                            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot add storage path.">>),
+                                            onepanel_gui_utils:message(error, <<"Cannot add storage path.">>),
                                             State
                                     end
                             end,
@@ -301,7 +301,7 @@ comet_loop(#?STATE{counter = Counter, db_config = DbConfig, session_config = #?C
         end
                catch Type:Message ->
                    ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
-                   onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
+                   onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
     gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
@@ -327,9 +327,9 @@ event(init) ->
         Pid ! render_storage_paths_table
     catch
         _:Reason ->
-            ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
+            ?error_stacktrace("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
             gui_jq:hide(<<"main_spinner">>),
-            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch application configuration.<br>Please try again later.">>)
+            onepanel_gui_utils:message(error, <<"Cannot fetch application configuration.<br>Please try again later.">>)
     end;
 
 event({add_storage_path, StorageId}) ->

@@ -71,7 +71,7 @@ title() ->
 body() ->
     Header = onepanel_gui_utils_adapter:top_menu(spaces_tab, spaces_account_link),
     Main = #panel{
-        style = <<"margin-top: 10em; text-align: center;">>,
+        style = <<"margin-top: 2em; text-align: center;">>,
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
@@ -130,36 +130,37 @@ comet_loop({error, Reason}) ->
     {error, Reason};
 
 comet_loop(#?STATE{pid = Pid} = State) ->
-    NewState = try
-        receive
-            connect ->
-                NewPid = spawn_link(fun() ->
-                    ok = installer_utils_adapter:check_ip_addresses()
-                end),
-                State#?STATE{pid = NewPid};
+    NewState =
+        try
+            receive
+                connect ->
+                    NewPid = spawn_link(fun() ->
+                        ok = installer_utils_adapter:check_ip_addresses()
+                    end),
+                    State#?STATE{pid = NewPid};
 
-            {'EXIT', Pid, normal} ->
-                onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_PORTS_CHECK),
-                State;
+                {'EXIT', Pid, normal} ->
+                    onepanel_gui_utils:change_page(?CURRENT_REGISTRATION_PAGE, ?PAGE_PORTS_CHECK),
+                    State;
 
-            {'EXIT', Pid, _} ->
-                onepanel_gui_utils:message(<<"error_message">>, <<"Cannot connect to Global Registry.<br>
-                Please check your network configuration and try again later.">>),
-                gui_jq:hide(<<"progress">>),
-                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
-                State;
+                {'EXIT', Pid, _} ->
+                    onepanel_gui_utils:message(error, <<"Cannot connect to Global Registry.<br>
+                    This may occur due to NAT or PAT translation mechanisms. Please check your network configuration or try again later.">>),
+                    gui_jq:hide(<<"progress">>),
+                    gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
+                    State;
 
-            _ ->
+                _ ->
+                    State
+
+            after ?COMET_PROCESS_RELOAD_DELAY ->
                 State
-
-        after ?COMET_PROCESS_RELOAD_DELAY ->
-            State
-        end
-               catch Type:Message ->
-                   ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
-                   onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
-                   {error, Message}
-               end,
+            end
+        catch Type:Message ->
+            ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
+            onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
+            {error, Message}
+        end,
     gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 

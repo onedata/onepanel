@@ -63,7 +63,7 @@ title() ->
 body() ->
     Header = onepanel_gui_utils_adapter:top_menu(installation_tab),
     Main = #panel{
-        style = <<"margin-top: 10em; text-align: center;">>,
+        style = <<"margin-top: 2em; text-align: center;">>,
         body = #panel{
             style = <<"width: 50%; margin: 0 auto;">>,
             body = #panel{

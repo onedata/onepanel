@@ -87,7 +87,7 @@ custom() ->
 body() ->
     Header = onepanel_gui_utils_adapter:top_menu(spaces_tab, spaces_dashboard_link, [], true),
     Main = #panel{
-        style = <<"margin-top: 10em; text-align: center;">>,
+        style = <<"margin-top: 2em; text-align: center;">>,
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
@@ -344,12 +344,12 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                                    {ok, SpaceId} = gr_providers:create_space(provider, [{<<"name">>, Name}, {<<"token">>, Token}]),
                                    {ok, SpaceDetails} = gr_providers:get_space_details(provider, SpaceId),
                                    add_space_row(RowId, SpaceDetails),
-                                   onepanel_gui_utils:message(<<"ok_message">>, <<"Created Space's ID: <b>", SpaceId/binary, "</b>">>),
+                                   onepanel_gui_utils:message(success, <<"Created Space's ID: <b>", SpaceId/binary, "</b>">>),
                                    State#?STATE{counter = Counter + 1, spaces_details = [{RowId, SpaceDetails} | SpacesDetails]}
                                catch
                                    _:Reason ->
                                        ?error("Cannot create Space ~p associated with token ~p: ~p", [Name, Token, Reason]),
-                                       onepanel_gui_utils:message(<<"error_message">>, <<"Cannot create Space <b>", Name/binary, "</b> associated with token <b>", Token/binary, "</b>.<br>
+                                       onepanel_gui_utils:message(error, <<"Cannot create Space <b>", Name/binary, "</b> associated with token <b>", Token/binary, "</b>.<br>
                             Please try again later.">>),
                                        State
                                end,
@@ -363,12 +363,12 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                                    {ok, SpaceId} = gr_providers:support_space(provider, [{<<"token">>, Token}]),
                                    {ok, SpaceDetails} = gr_providers:get_space_details(provider, SpaceId),
                                    add_space_row(RowId, SpaceDetails),
-                                   onepanel_gui_utils:message(<<"ok_message">>, <<"Supported Space's ID: <b>", SpaceId/binary, "</b>">>),
+                                   onepanel_gui_utils:message(success, <<"Supported Space's ID: <b>", SpaceId/binary, "</b>">>),
                                    State#?STATE{counter = Counter + 1, spaces_details = [{RowId, SpaceDetails} | SpacesDetails]}
                                catch
                                    _:Reason ->
                                        ?error("Cannot support Space associated with token ~p: ~p", [Token, Reason]),
-                                       onepanel_gui_utils:message(<<"error_message">>, <<"Cannot support Space associated with token <b>", Token/binary, "</b>.<br>
+                                       onepanel_gui_utils:message(error, <<"Cannot support Space associated with token <b>", Token/binary, "</b>.<br>
                             Please try again later.">>),
                                        State
                                end,
@@ -379,12 +379,12 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                            NextState =
                                case gr_providers:revoke_space_support(provider, SpaceId) of
                                    ok ->
-                                       onepanel_gui_utils:message(<<"ok_message">>, <<"Space: <b>", SpaceId/binary, "</b> is no longer supported.">>),
+                                       onepanel_gui_utils:message(success, <<"Space: <b>", SpaceId/binary, "</b> is no longer supported.">>),
                                        gui_jq:remove(RowId),
                                        State#?STATE{spaces_details = proplists:delete(RowId, SpacesDetails)};
                                    Other ->
                                        ?error("Cannot revoke support for Space ~p: ~p", [SpaceId, Other]),
-                                       onepanel_gui_utils:message(<<"error_message">>, <<"Cannot revoke support for Space <b>", SpaceId/binary, "</b>.<br>Please try again later.">>),
+                                       onepanel_gui_utils:message(error, <<"Cannot revoke support for Space <b>", SpaceId/binary, "</b>.<br>Please try again later.">>),
                                        State
                                end,
                            NextState;
@@ -416,7 +416,7 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                    end
                catch Type:Message ->
                    ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
-                   onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
+                   onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
     gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
@@ -453,9 +453,9 @@ event(init) ->
         Pid ! render_spaces_table
     catch
         _:Reason ->
-            ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
+            ?error_stacktrace("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
             gui_jq:hide(<<"main_spinner">>),
-            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch supported Spaces.<br>Please try again later.">>)
+            onepanel_gui_utils:message(error, <<"Cannot fetch supported Spaces.<br>Please try again later.">>)
     end;
 
 event(create_space) ->

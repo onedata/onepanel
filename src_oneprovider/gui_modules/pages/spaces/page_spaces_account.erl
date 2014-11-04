@@ -87,7 +87,7 @@ custom() ->
 body() ->
     Header = onepanel_gui_utils_adapter:top_menu(spaces_tab, spaces_account_link, [], true),
     Main = #panel{
-        style = <<"margin-top: 10em; text-align: center;">>,
+        style = <<"margin-top: 2em; text-align: center;">>,
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 3em;">>,
@@ -151,7 +151,7 @@ account_table(#?PROVIDER_RECORD{id = ProviderId, name = ProviderName, urls = URL
             {<<"provider_id_tooltip">>, <<"top: 0px; right: 110px; display: none;">>, <<"Globally unique identifier assigned by Global Registry.">>,
                 <<"provider_id_label">>, <<"Provider ID">>, <<"provider_id">>, providerId(ProviderId)},
             {<<"provider_name_tooltip">>, <<"top: 5px; right: 77px; display: none;">>, <<"Provider's name in <i>onedata</i>.">>,
-                <<"provider_name_label">>, <<"Name">>, <<"provider_name">>, providerName(ProviderName)},
+                <<"provider_name_label">>, <<"Name">>, <<"provider_name">>, provider_name(ProviderName)},
             {<<"urls_tooltip">>, <<"top: -10px; right: 73px; display: none;">>, <<"List of <i>worker</i> components' IP addresses visible for Global Registry.">>,
                 <<"urls_label">>, <<"URLs">>, <<"urls">>, urls(URLs)},
             {<<"redirection_point_tooltip">>, <<"top: -10px; right: 143px; display: none;">>, <<"Web address used by Global Registry to redirect users to provider.">>,
@@ -203,20 +203,20 @@ providerId(ProviderId) ->
     }.
 
 
-%% providerName/1
+%% provider_name/1
 %% ====================================================================
 %% @doc Renders provider's name.
 %% @end
--spec providerName(ProviderName :: binary() | undefined) -> Result when
+-spec provider_name(ProviderName :: binary() | undefined) -> Result when
     Result :: #p{}.
 %% ====================================================================
-providerName(undefined) ->
+provider_name(undefined) ->
     #span{
         style = <<"font-size: large;">>,
         body = <<"&#8212&#8212&#8212&#8212&#8212&#8212&#8212&#8212">>
     };
 
-providerName(ProviderName) ->
+provider_name(ProviderName) ->
     #span{
         style = <<"font-size: large;">>,
         body = ProviderName
@@ -347,13 +347,22 @@ comet_loop(#?STATE{id = ProviderId} = State) ->
                 unregister ->
                     case provider_logic:unregister() of
                         ok ->
-                            lists:foreach(fun(Id) ->
-                                gui_jq:update(Id, providerId(undefined))
-                            end, [<<"provider_id">>, <<"provider_name">>, <<"urls">>, <<"redirection_point">>]),
-                            onepanel_gui_utils:message(<<"ok_message">>, <<"You have been successfully unregistered from Global Registry.">>);
+                            gui_jq:update(<<"provider_id">>, providerId(undefined)),
+                            gui_jq:update(<<"provider_name">>, provider_name(undefined)),
+                            gui_jq:update(<<"urls">>, urls(undefined)),
+                            gui_jq:update(<<"redirection_point">>, redirection_point(undefined)),
+                            onepanel_gui_utils:message(success, <<"You have been successfully unregistered from Global Registry.">>);
                         _ ->
-                            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot unregister from Global Registry.">>)
+                            onepanel_gui_utils:message(error, <<"Cannot unregister from Global Registry.">>)
                     end,
+                    State;
+
+                {change_redirection_point, _, <<>>} ->
+                    onepanel_gui_utils:message(error, <<"Redirection point cannot be empty.">>),
+                    State;
+
+                {change_redirection_point, RedirectionPoint, RedirectionPoint} ->
+                    gui_jq:update(<<"redirection_point">>, redirection_point(RedirectionPoint)),
                     State;
 
                 {change_redirection_point, OldRedirectionPoint, RedirectionPoint} ->
@@ -363,20 +372,20 @@ comet_loop(#?STATE{id = ProviderId} = State) ->
                             {check_redirection_point, ok} = {check_redirection_point, gr_providers:check_port(provider, Host, Port, <<"gui">>)},
                             {modify_refirection_point, ok} = {modify_refirection_point, gr_providers:modify_details(provider, [{<<"redirectionPoint">>, RedirectionPoint}])},
                             {modify_refirection_point, ok} = {modify_refirection_point, dao:update_record(?PROVIDER_TABLE, ProviderId, [{redirection_point, RedirectionPoint}])},
-                            {RedirectionPoint, <<"ok_message">>, <<"Redirection point changed successfully.">>}
+                            {RedirectionPoint, success, <<"Redirection point changed successfully.">>}
                         catch
                             error:{badmatch, {host_and_port, {error, Error}}} when is_list(Error) ->
-                                {OldRedirectionPoint, <<"error_message">>, list_to_binary(Error)};
+                                {OldRedirectionPoint, error, list_to_binary(Error)};
                             error:{badmatch, {host_and_port, _}} ->
-                                {OldRedirectionPoint, <<"error_message">>, <<"Invalid redirection point.">>};
+                                {OldRedirectionPoint, error, <<"Invalid redirection point.">>};
                             error:{badmatch, {check_redirection_point, _}} ->
-                                {OldRedirectionPoint, <<"error_message">>, <<"Redirection point is not available for <i>Global Registry</i>">>};
+                                {OldRedirectionPoint, error, <<"Redirection point is not available for <i>Global Registry</i>">>};
                             error:{badmatch, {modify_refirection_point, Error}} ->
                                 ?error("Cannot change redirection point: ~p", [Error]),
-                                {OldRedirectionPoint, <<"error_message">>, <<"Cannot change redirection point.<br>Please try again later.">>};
+                                {OldRedirectionPoint, error, <<"Cannot change redirection point.<br>Please try again later.">>};
                             _:Other ->
                                 ?error("Cannot change redirection point: ~p", [Other]),
-                                {OldRedirectionPoint, <<"error_message">>, <<"Cannot change redirection point.<br>Please try again later.">>}
+                                {OldRedirectionPoint, error, <<"Cannot change redirection point.<br>Please try again later.">>}
                         end,
                     gui_jq:update(<<"redirection_point">>, redirection_point(NewRedirectionPoint)),
                     onepanel_gui_utils:message(MessageType, Message),
@@ -384,7 +393,7 @@ comet_loop(#?STATE{id = ProviderId} = State) ->
             end
         catch Type:Reason ->
             ?error_stacktrace("Comet process exception: ~p:~p", [Type, Reason]),
-            opn_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
+            onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
             {error, Reason}
         end,
     gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
@@ -427,8 +436,8 @@ event(init) ->
         put(?COMET_PID, Pid)
     catch
         _:Reason ->
-            ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
-            opn_gui_utils:message(<<"error_message">>, <<"Cannot fetch provider details.<br>Please try again later.">>)
+            ?error_stacktrace("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
+            onepanel_gui_utils:message(error, <<"Cannot fetch provider details.<br>Please try again later.">>)
     end;
 
 event(to_root_page) ->

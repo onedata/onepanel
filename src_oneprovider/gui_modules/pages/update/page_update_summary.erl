@@ -83,7 +83,7 @@ body() ->
                                                   end,
     Header = onepanel_gui_utils_adapter:top_menu(software_tab, update_link),
     Main = #panel{
-        style = <<"margin-top: 10em; text-align: center;">>,
+        style = <<"margin-top: 2em; text-align: center;">>,
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
@@ -295,125 +295,126 @@ comet_loop({error, Reason}) ->
     {error, Reason};
 
 comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JProgress, stages_count = SCount, action_type = AType, update_time = UTime, force_restart = ForceRestart} = State) ->
-    NewState = try
-        receive
-            force_restart_checkbox_toggled ->
-                State#?STATE{force_restart = not ForceRestart};
+    NewState =
+        try
+            receive
+                force_restart_checkbox_toggled ->
+                    State#?STATE{force_restart = not ForceRestart};
 
-            {update_to, Version} ->
-                Pid = self(),
-                updater:update_to(Version, ForceRestart, fun(Event, UpdaterState) ->
-                    update_progress(Pid, Event, UpdaterState)
-                end),
-                State;
+                {update_to, Version} ->
+                    Pid = self(),
+                    updater:update_to(Version, ForceRestart, fun(Event, UpdaterState) ->
+                        update_progress(Pid, Event, UpdaterState)
+                    end),
+                    State;
 
-            {set_action_type, NewAType} ->
-                State#?STATE{action_type = NewAType};
+                {set_action_type, NewAType} ->
+                    State#?STATE{action_type = NewAType};
 
-            {set_stages_count, NewSCount} ->
-                State#?STATE{stages_count = NewSCount};
+                {set_stages_count, NewSCount} ->
+                    State#?STATE{stages_count = NewSCount};
 
-            {set_abortable, true} ->
-                gui_jq:prop(<<"abort_button">>, <<"disabled">>, <<"">>),
-                State;
+                {set_abortable, true} ->
+                    gui_jq:prop(<<"abort_button">>, <<"disabled">>, <<"">>),
+                    State;
 
-            {set_abortable, false} ->
-                gui_jq:prop(<<"abort_button">>, <<"disabled">>, <<"disabled">>),
-                State;
+                {set_abortable, false} ->
+                    gui_jq:prop(<<"abort_button">>, <<"disabled">>, <<"disabled">>),
+                    State;
 
-            {set_stage_and_job, SIndex, _, JIndex, _, _} ->
-                State;
+                {set_stage_and_job, SIndex, _, JIndex, _, _} ->
+                    State;
 
-            {set_stage_and_job, StageIndex, StageName, JobIndex, JobsCount, JobName} ->
-                gui_jq:hide(<<"ok_message">>),
-                case StageIndex of
-                    SIndex ->
-                        gui_jq:css(<<"job_bar">>, <<"transition-property">>, <<"">>),
-                        gui_jq:css(<<"job_bar">>, <<"-moz-transition-property">>, <<"">>),
-                        gui_jq:css(<<"job_bar">>, <<"-webkit-transition-property">>, <<"">>),
-                        gui_jq:css(<<"job_bar">>, <<"-o-transition-property">>, <<"">>);
-                    _ ->
-                        gui_jq:css(<<"job_bar">>, <<"transition-property">>, <<"none">>),
-                        gui_jq:css(<<"job_bar">>, <<"-moz-transition-property">>, <<"none">>),
-                        gui_jq:css(<<"job_bar">>, <<"-webkit-transition-property">>, <<"none">>),
-                        gui_jq:css(<<"job_bar">>, <<"-o-transition-property">>, <<"none">>)
-                end,
+                {set_stage_and_job, StageIndex, StageName, JobIndex, JobsCount, JobName} ->
+                    gui_jq:remove(<<"top_menu_message">>),
+                    case StageIndex of
+                        SIndex ->
+                            gui_jq:css(<<"job_bar">>, <<"transition-property">>, <<"">>),
+                            gui_jq:css(<<"job_bar">>, <<"-moz-transition-property">>, <<"">>),
+                            gui_jq:css(<<"job_bar">>, <<"-webkit-transition-property">>, <<"">>),
+                            gui_jq:css(<<"job_bar">>, <<"-o-transition-property">>, <<"">>);
+                        _ ->
+                            gui_jq:css(<<"job_bar">>, <<"transition-property">>, <<"none">>),
+                            gui_jq:css(<<"job_bar">>, <<"-moz-transition-property">>, <<"none">>),
+                            gui_jq:css(<<"job_bar">>, <<"-webkit-transition-property">>, <<"none">>),
+                            gui_jq:css(<<"job_bar">>, <<"-o-transition-property">>, <<"none">>)
+                    end,
 
-                {StagePrefix, JobPrefix} = case AType of
-                                               install -> {<<"Current stage: ">>, <<"Current job: ">>};
-                                               _ -> {<<"Stage rollback: ">>, <<"Job rollback: ">>}
-                                           end,
+                    {StagePrefix, JobPrefix} = case AType of
+                                                   install -> {<<"Current stage: ">>, <<"Current job: ">>};
+                                                   _ -> {<<"Stage rollback: ">>, <<"Job rollback: ">>}
+                                               end,
 
-                StageProgress = 100 * (StageIndex * JobsCount - JobsCount + JobIndex) / (SCount * JobsCount),
-                StageProgressBinary = <<(integer_to_binary(round(StageProgress)))/binary, "%">>,
-                gui_jq:update(<<"stage_progress_text">>, <<StagePrefix/binary, "<b>", StageName/binary, " (", StageProgressBinary/binary, ")</b>">>),
-                gui_jq:set_width(<<"stage_bar">>, StageProgressBinary),
+                    StageProgress = 100 * (StageIndex * JobsCount - JobsCount + JobIndex) / (SCount * JobsCount),
+                    StageProgressBinary = <<(integer_to_binary(round(StageProgress)))/binary, "%">>,
+                    gui_jq:update(<<"stage_progress_text">>, <<StagePrefix/binary, "<b>", StageName/binary, " (", StageProgressBinary/binary, ")</b>">>),
+                    gui_jq:set_width(<<"stage_bar">>, StageProgressBinary),
 
-                {JobsProgress, NewJProgress} = get_job_progress(0, JobIndex, JobsCount, AType),
-                JobsProgressBinary = <<(integer_to_binary(round(JobsProgress)))/binary, "%">>,
-                gui_jq:update(<<"job_progress_text">>, <<JobPrefix/binary, "<b>", JobName/binary, " (", JobsProgressBinary/binary, ")</b>">>),
-                gui_jq:set_width(<<"job_bar">>, JobsProgressBinary),
+                    {JobsProgress, NewJProgress} = get_job_progress(0, JobIndex, JobsCount, AType),
+                    JobsProgressBinary = <<(integer_to_binary(round(JobsProgress)))/binary, "%">>,
+                    gui_jq:update(<<"job_progress_text">>, <<JobPrefix/binary, "<b>", JobName/binary, " (", JobsProgressBinary/binary, ")</b>">>),
+                    gui_jq:set_width(<<"job_bar">>, JobsProgressBinary),
 
-                timer:send_after(?DEFAULT_NEXT_UPDATE, {update, StageIndex, JobIndex, JobPrefix, JobName, JobsCount}),
-                State#?STATE{stage_index = StageIndex, job_index = JobIndex, job_progress = NewJProgress, update_time = ?DEFAULT_NEXT_UPDATE};
+                    timer:send_after(?DEFAULT_NEXT_UPDATE, {update, StageIndex, JobIndex, JobPrefix, JobName, JobsCount}),
+                    State#?STATE{stage_index = StageIndex, job_index = JobIndex, job_progress = NewJProgress, update_time = ?DEFAULT_NEXT_UPDATE};
 
-            {update, SIndex, JIndex, JobPrefix, JobName, JobsCount} ->
-                gui_jq:css(<<"job_bar">>, <<"transition-property">>, <<"">>),
-                gui_jq:css(<<"job_bar">>, <<"-moz-transition-property">>, <<"">>),
-                gui_jq:css(<<"job_bar">>, <<"-webkit-transition-property">>, <<"">>),
-                gui_jq:css(<<"job_bar">>, <<"-o-transition-property">>, <<"">>),
+                {update, SIndex, JIndex, JobPrefix, JobName, JobsCount} ->
+                    gui_jq:css(<<"job_bar">>, <<"transition-property">>, <<"">>),
+                    gui_jq:css(<<"job_bar">>, <<"-moz-transition-property">>, <<"">>),
+                    gui_jq:css(<<"job_bar">>, <<"-webkit-transition-property">>, <<"">>),
+                    gui_jq:css(<<"job_bar">>, <<"-o-transition-property">>, <<"">>),
 
-                {JobsProgress, NewJProgress} = get_job_progress(JProgress, JIndex, JobsCount, AType),
-                JobsProgressBinary = <<(integer_to_binary(round(JobsProgress)))/binary, "%">>,
-                gui_jq:update(<<"job_progress_text">>, <<JobPrefix/binary, "<b>", JobName/binary, " (", JobsProgressBinary/binary, ")</b>">>),
-                gui_jq:set_width(<<"job_bar">>, JobsProgressBinary),
+                    {JobsProgress, NewJProgress} = get_job_progress(JProgress, JIndex, JobsCount, AType),
+                    JobsProgressBinary = <<(integer_to_binary(round(JobsProgress)))/binary, "%">>,
+                    gui_jq:update(<<"job_progress_text">>, <<JobPrefix/binary, "<b>", JobName/binary, " (", JobsProgressBinary/binary, ")</b>">>),
+                    gui_jq:set_width(<<"job_bar">>, JobsProgressBinary),
 
-                timer:send_after(2 * UTime, {update, SIndex, JIndex, JobPrefix, JobName, JobsCount}),
-                State#?STATE{job_progress = NewJProgress, update_time = 2 * UTime};
+                    timer:send_after(2 * UTime, {update, SIndex, JIndex, JobPrefix, JobName, JobsCount}),
+                    State#?STATE{job_progress = NewJProgress, update_time = 2 * UTime};
 
-            {update, _, _, _, _, _} ->
-                State;
+                {update, _, _, _, _, _} ->
+                    State;
 
-            abort ->
-                gui_jq:prop(<<"abort_button">>, <<"disabled">>, <<"disabled">>),
-                onepanel_gui_utils:message(<<"error_message">>, <<"Aborting update process.<br>Please wait while rollbacking changes...">>),
-                State;
+                abort ->
+                    gui_jq:prop(<<"abort_button">>, <<"disabled">>, <<"disabled">>),
+                    onepanel_gui_utils:message(error, <<"Aborting update process.<br>Please wait while rollbacking changes...">>),
+                    State;
 
-            error ->
-                onepanel_gui_utils:message(<<"error_message">>, <<"An error occurred during update process.<br>Rollbacking changes.">>),
-                State;
+                error ->
+                    onepanel_gui_utils:message(error, <<"An error occurred during update process.<br>Rollbacking changes.">>),
+                    State;
 
-            {finish, UpdaterState} ->
-                gui_jq:update(<<"job_progress_text">>, <<"">>),
-                gui_jq:update(<<"stage_progress_text">>, <<"">>),
-                case AType of
-                    install ->
-                        gui_jq:set_width(<<"job_bar">>, <<"100%">>),
-                        gui_jq:set_width(<<"stage_bar">>, <<"100%">>),
-                        onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_UPDATE_SUCCESS);
-                    _ ->
-                        gui_jq:set_width(<<"job_bar">>, <<"0%">>),
-                        gui_jq:set_width(<<"stage_bar">>, <<"0%">>),
-                        gui_jq:hide(<<"update_progress">>),
-                        gui_jq:show(<<"update_panel">>),
-                        case updater_state:get_error_stack(UpdaterState) of
-                            {[], _} ->
-                                gui_jq:hide(<<"error_message">>),
-                                onepanel_gui_utils:message(<<"ok_message">>, <<"Update process aborted successfully.">>);
-                            _ ->
-                                onepanel_gui_utils:message(<<"error_message">>, <<"An error occurred during update process.">>)
-                        end
-                end,
-                #?STATE{stages_count = SCount, action_type = install}
+                {finish, UpdaterState} ->
+                    gui_jq:update(<<"job_progress_text">>, <<"">>),
+                    gui_jq:update(<<"stage_progress_text">>, <<"">>),
+                    case AType of
+                        install ->
+                            gui_jq:set_width(<<"job_bar">>, <<"100%">>),
+                            gui_jq:set_width(<<"stage_bar">>, <<"100%">>),
+                            onepanel_gui_utils:change_page(?CURRENT_UPDATE_PAGE, ?PAGE_UPDATE_SUCCESS);
+                        _ ->
+                            gui_jq:set_width(<<"job_bar">>, <<"0%">>),
+                            gui_jq:set_width(<<"stage_bar">>, <<"0%">>),
+                            gui_jq:hide(<<"update_progress">>),
+                            gui_jq:show(<<"update_panel">>),
+                            case updater_state:get_error_stack(UpdaterState) of
+                                {[], _} ->
+                                    gui_jq:remove(<<"top_menu_message">>),
+                                    onepanel_gui_utils:message(success, <<"Update process aborted successfully.">>);
+                                _ ->
+                                    onepanel_gui_utils:message(error, <<"An error occurred during update process.">>)
+                            end
+                    end,
+                    #?STATE{stages_count = SCount, action_type = install}
 
-        after ?COMET_PROCESS_RELOAD_DELAY ->
-            State
-        end
-               catch Type:Message ->
-                   ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
-                   onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
-                   {error, Message}
-               end,
+            after ?COMET_PROCESS_RELOAD_DELAY ->
+                State
+            end
+        catch Type:Message ->
+            ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
+            onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
+            {error, Message}
+        end,
     gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 
@@ -426,8 +427,7 @@ comet_loop(#?STATE{stage_index = SIndex, job_index = JIndex, job_progress = JPro
 %% ====================================================================
 event(init) ->
     gui_jq:bind_key_to_click(<<"13">>, <<"update_button">>),
-    gui_jq:hide(<<"ok_message">>),
-    gui_jq:hide(<<"error_message">>),
+    gui_jq:remove(<<"top_menu_message">>),
 
     {ok, Pid} = gui_comet:spawn(fun() -> comet_loop(#?STATE{}) end),
     updater:set_callback(fun(Event, State) -> update_progress(Pid, Event, State) end),
@@ -445,13 +445,13 @@ event(init) ->
                 _ ->
                     case updater_state:get_error_stack(State) of
                         {[], _} ->
-                            onepanel_gui_utils:message(<<"ok_message">>, <<"Previous update process aborted successfully.">>);
+                            onepanel_gui_utils:message(success, <<"Previous update process aborted successfully.">>);
                         _ ->
-                            onepanel_gui_utils:message(<<"error_message">>, <<"An error occurred during previous update process.">>)
+                            onepanel_gui_utils:message(error, <<"An error occurred during previous update process.">>)
                     end
             end;
         _ ->
-            onepanel_gui_utils:message(<<"ok_message">>, <<"Getting update process state. Please wait.">>),
+            onepanel_gui_utils:message(success, <<"Getting update process state. Please wait.">>),
             gui_jq:hide(<<"update_panel">>),
             gui_jq:show(<<"update_progress">>)
     end;
@@ -467,8 +467,7 @@ event(abort) ->
 
 event({update_to, Version}) ->
     gui_jq:hide(<<"update_panel">>),
-    gui_jq:hide(<<"error_message">>),
-    gui_jq:hide(<<"ok_message">>),
+    gui_jq:remove(<<"top_menu_message">>),
     gui_jq:show(<<"update_progress">>),
     get(?COMET_PID) ! {update_to, Version};
 
