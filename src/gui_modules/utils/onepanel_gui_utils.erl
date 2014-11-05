@@ -54,7 +54,7 @@ body(Header, Main) ->
     Result :: list().
 %% ====================================================================
 body(Header, Main, Footer) ->
-    body(62, Header, Main, Footer).
+    body(61, Header, Main, Footer).
 
 
 %% body/4
@@ -70,7 +70,7 @@ body(Top, Header, Main, Footer) ->
         #header{id = <<"page-header">>, class = <<"page-row">>, body = Header},
         #main{id = <<"page-main">>, class = <<"page-row page-row-expanded">>,
             body = #panel{
-                style = <<"top: ", (integer_to_binary(Top))/binary, "px; position: relative;">>,
+                style = <<"margin-top: ", (integer_to_binary(Top))/binary, "px; padding-top: 1px;">>,
                 body = [
                     #panel{
                         id = <<"message">>,
@@ -156,7 +156,7 @@ get_session_config() ->
     Result :: #panel{}.
 %% ====================================================================
 logotype_footer() ->
-    #panel{style = <<"text-align: center; margin-top: 8em; margin-bottom: 2em;">>,
+    #panel{style = <<"text-align: center; margin-top: 2em; margin-bottom: 2em;">>,
         body = [
             #image{class = <<"pull-left">>, image = <<"/images/innow-gosp-logo.png">>},
             #image{image = <<"/images/plgrid-plus-logo.png">>},

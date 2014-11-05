@@ -97,7 +97,7 @@ body() ->
             onepanel_gui_utils:nav_buttons([{<<"next_button">>, {postback, {message, next}}, true, <<"Next">>}])
         ]
     },
-    onepanel_gui_utils:body(108, Header, Main, onepanel_gui_utils:logotype_footer()).
+    onepanel_gui_utils:body(107, Header, Main, onepanel_gui_utils:logotype_footer()).
 
 
 %% hosts_table/3

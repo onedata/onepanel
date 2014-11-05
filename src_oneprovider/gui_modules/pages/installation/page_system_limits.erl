@@ -102,7 +102,7 @@ body() ->
             }
         ]
     },
-    onepanel_gui_utils:body(108, Header, Main, onepanel_gui_utils:logotype_footer()).
+    onepanel_gui_utils:body(107, Header, Main, onepanel_gui_utils:logotype_footer()).
 
 
 %% system_limits_table/2
