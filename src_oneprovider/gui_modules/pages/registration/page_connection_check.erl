@@ -69,7 +69,10 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils_adapter:top_menu(spaces_tab, spaces_account_link),
+    Breadcrumbs = onepanel_gui_utils:breadcrumbs([
+        {<<"Connection check">>, ?CURRENT_REGISTRATION_PAGE, ?PAGE_CONNECTION_CHECK}
+    ]),
+    Header = onepanel_gui_utils_adapter:top_menu(spaces_tab, spaces_account_link, Breadcrumbs),
     Main = #panel{
         style = <<"margin-top: 2em; text-align: center;">>,
         body = [
@@ -100,7 +103,7 @@ body() ->
             onepanel_gui_utils:nav_buttons([{<<"next_button">>, {postback, connect}, false, <<"Next">>}])
         ]
     },
-    onepanel_gui_utils:body(Header, Main).
+    onepanel_gui_utils:body(?SUBMENU_HEIGHT, Header, Main, onepanel_gui_utils:logotype_footer()).
 
 
 %% ====================================================================

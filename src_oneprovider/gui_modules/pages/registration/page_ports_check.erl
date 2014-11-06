@@ -60,7 +60,7 @@ main() ->
     Result :: binary().
 %% ====================================================================
 title() ->
-    <<"Ports check">>.
+    <<"Ports configuration">>.
 
 
 %% body/0
@@ -71,13 +71,17 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils_adapter:top_menu(spaces_tab, spaces_account_link, [], true),
+    Breadcrumbs = onepanel_gui_utils:breadcrumbs([
+        {<<"Connection check">>, ?CURRENT_REGISTRATION_PAGE, ?PAGE_CONNECTION_CHECK},
+        {<<"Ports configuration">>, ?CURRENT_REGISTRATION_PAGE, ?PAGE_PORTS_CHECK}
+    ]),
+    Header = onepanel_gui_utils_adapter:top_menu(spaces_tab, spaces_account_link, Breadcrumbs, true),
     Main = #panel{
         style = <<"margin-top: 2em; text-align: center;">>,
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
-                body = <<"Step 2: Ports check.">>
+                body = <<"Step 2: Ports configuration.">>
             },
             #p{
                 id = <<"ports_message">>,
@@ -97,7 +101,7 @@ body() ->
             }
         ]
     },
-    onepanel_gui_utils:body(Header, Main).
+    onepanel_gui_utils:body(?SUBMENU_HEIGHT, Header, Main, onepanel_gui_utils:logotype_footer()).
 
 
 %% redirection_table_row/2

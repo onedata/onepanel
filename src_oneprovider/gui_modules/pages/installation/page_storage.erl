@@ -72,7 +72,13 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils_adapter:top_menu(software_tab, installation_link, [], true),
+    Breadcrumbs = onepanel_gui_utils:breadcrumbs([
+        {<<"Hosts selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION},
+        {<<"Primary CCM selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION},
+        {<<"System limits">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS},
+        {<<"Storage configuration">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_STORAGE}
+    ]),
+    Header = onepanel_gui_utils_adapter:top_menu(software_tab, installation_link, Breadcrumbs, true),
     Main = #panel{
         style = <<"margin-top: 2em; text-align: center;">>,
         body = [
@@ -101,7 +107,7 @@ body() ->
             ])
         ]
     },
-    onepanel_gui_utils:body(Header, Main).
+    onepanel_gui_utils:body(?SUBMENU_HEIGHT, Header, Main, onepanel_gui_utils:logotype_footer()).
 
 
 %% storage_paths_table/2

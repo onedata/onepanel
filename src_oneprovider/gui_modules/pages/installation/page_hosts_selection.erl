@@ -72,7 +72,10 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils_adapter:top_menu(software_tab, installation_link, [], true),
+    Breadcrumbs = onepanel_gui_utils:breadcrumbs([
+        {<<"Hosts selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION}
+    ]),
+    Header = onepanel_gui_utils_adapter:top_menu(software_tab, installation_link, Breadcrumbs, true),
     Main = #panel{
         style = <<"margin-top: 2em; text-align: center;">>,
         body = [
@@ -94,7 +97,7 @@ body() ->
             onepanel_gui_utils:nav_buttons([{<<"next_button">>, {postback, {message, next}}, true, <<"Next">>}])
         ]
     },
-    onepanel_gui_utils:body(Header, Main).
+    onepanel_gui_utils:body(?SUBMENU_HEIGHT, Header, Main, onepanel_gui_utils:logotype_footer()).
 
 
 %% hosts_table/3
@@ -166,86 +169,86 @@ comet_loop({error, Reason}) ->
 
 comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs} = SessionConfig} = State) ->
     NewState = try
-        receive
-            render_hosts_table ->
-                gui_jq:update(<<"hosts_table">>, hosts_table(Hosts, DbConfig, SessionConfig)),
-                gui_jq:fade_in(<<"hosts_table">>, 500),
-                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
-                State;
+                   receive
+                       render_hosts_table ->
+                           gui_jq:update(<<"hosts_table">>, hosts_table(Hosts, DbConfig, SessionConfig)),
+                           gui_jq:fade_in(<<"hosts_table">>, 500),
+                           gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
+                           State;
 
-            next ->
-                case Dbs of
-                    [] ->
-                        onepanel_gui_utils:message(error, <<"Please select at least one host for database component.">>);
-                    _ ->
-                        case MainCCM of
-                            undefined ->
-                                case CCMs of
-                                    [_ | _] ->
-                                        gui_ctx:put(?CONFIG_ID, SessionConfig#?CONFIG{main_ccm = hd(lists:sort(CCMs)), ccms = CCMs, workers = Workers, dbs = Dbs}),
-                                        onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION);
-                                    _ ->
-                                        onepanel_gui_utils:message(error, <<"Please select at least one host for CCM component.">>)
-                                end;
-                            _ ->
-                                gui_ctx:put(?CONFIG_ID, SessionConfig#?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs}),
-                                onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION)
-                        end
-                end,
-                State;
+                       next ->
+                           case Dbs of
+                               [] ->
+                                   onepanel_gui_utils:message(error, <<"Please select at least one host for database component.">>);
+                               _ ->
+                                   case MainCCM of
+                                       undefined ->
+                                           case CCMs of
+                                               [_ | _] ->
+                                                   gui_ctx:put(?CONFIG_ID, SessionConfig#?CONFIG{main_ccm = hd(lists:sort(CCMs)), ccms = CCMs, workers = Workers, dbs = Dbs}),
+                                                   onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION);
+                                               _ ->
+                                                   onepanel_gui_utils:message(error, <<"Please select at least one host for CCM component.">>)
+                                           end;
+                                       _ ->
+                                           gui_ctx:put(?CONFIG_ID, SessionConfig#?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs}),
+                                           onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION)
+                                   end
+                           end,
+                           State;
 
-            {ccm_checkbox_toggled, Host, HostId} ->
-                case lists:member(Host, CCMs) of
-                    true ->
-                        case Host of
-                            MainCCM ->
-                                State#?STATE{session_config = SessionConfig#?CONFIG{main_ccm = undefined, ccms = lists:delete(Host, CCMs)}};
-                            _ ->
-                                State#?STATE{session_config = SessionConfig#?CONFIG{ccms = lists:delete(Host, CCMs)}}
-                        end;
-                    false ->
-                        case lists:member(Host, Workers) of
-                            true ->
-                                State#?STATE{session_config = SessionConfig#?CONFIG{ccms = [Host | CCMs]}};
-                            false ->
-                                gui_jq:add_class(<<"worker_label_", HostId/binary>>, <<"checked">>),
-                                State#?STATE{session_config = SessionConfig#?CONFIG{ccms = [Host | CCMs], workers = [Host | Workers]}}
-                        end
-                end;
+                       {ccm_checkbox_toggled, Host, HostId} ->
+                           case lists:member(Host, CCMs) of
+                               true ->
+                                   case Host of
+                                       MainCCM ->
+                                           State#?STATE{session_config = SessionConfig#?CONFIG{main_ccm = undefined, ccms = lists:delete(Host, CCMs)}};
+                                       _ ->
+                                           State#?STATE{session_config = SessionConfig#?CONFIG{ccms = lists:delete(Host, CCMs)}}
+                                   end;
+                               false ->
+                                   case lists:member(Host, Workers) of
+                                       true ->
+                                           State#?STATE{session_config = SessionConfig#?CONFIG{ccms = [Host | CCMs]}};
+                                       false ->
+                                           gui_jq:add_class(<<"worker_label_", HostId/binary>>, <<"checked">>),
+                                           State#?STATE{session_config = SessionConfig#?CONFIG{ccms = [Host | CCMs], workers = [Host | Workers]}}
+                                   end
+                           end;
 
-            {worker_checkbox_toggled, Host, HostId} ->
-                case lists:member(Host, Workers) of
-                    true ->
-                        case lists:member(Host, CCMs) of
-                            true ->
-                                gui_jq:remove_class(<<"ccm_label_", HostId/binary>>, <<"checked">>),
-                                case Host of
-                                    MainCCM ->
-                                        State#?STATE{session_config = SessionConfig#?CONFIG{main_ccm = undefined, ccms = lists:delete(Host, CCMs), workers = lists:delete(Host, Workers)}};
-                                    _ ->
-                                        State#?STATE{session_config = SessionConfig#?CONFIG{ccms = lists:delete(Host, CCMs), workers = lists:delete(Host, Workers)}}
-                                end;
-                            false ->
-                                State#?STATE{session_config = SessionConfig#?CONFIG{workers = lists:delete(Host, Workers)}}
-                        end;
-                    _ ->
-                        State#?STATE{session_config = SessionConfig#?CONFIG{workers = [Host | Workers]}}
-                end;
+                       {worker_checkbox_toggled, Host, HostId} ->
+                           case lists:member(Host, Workers) of
+                               true ->
+                                   case lists:member(Host, CCMs) of
+                                       true ->
+                                           gui_jq:remove_class(<<"ccm_label_", HostId/binary>>, <<"checked">>),
+                                           case Host of
+                                               MainCCM ->
+                                                   State#?STATE{session_config = SessionConfig#?CONFIG{main_ccm = undefined, ccms = lists:delete(Host, CCMs), workers = lists:delete(Host, Workers)}};
+                                               _ ->
+                                                   State#?STATE{session_config = SessionConfig#?CONFIG{ccms = lists:delete(Host, CCMs), workers = lists:delete(Host, Workers)}}
+                                           end;
+                                       false ->
+                                           State#?STATE{session_config = SessionConfig#?CONFIG{workers = lists:delete(Host, Workers)}}
+                                   end;
+                               _ ->
+                                   State#?STATE{session_config = SessionConfig#?CONFIG{workers = [Host | Workers]}}
+                           end;
 
-            {db_checkbox_toggled, Host, _} ->
-                case lists:member(Host, Dbs) of
-                    true ->
-                        State#?STATE{session_config = SessionConfig#?CONFIG{dbs = lists:delete(Host, Dbs)}};
-                    _ ->
-                        State#?STATE{session_config = SessionConfig#?CONFIG{dbs = [Host | Dbs]}}
-                end;
+                       {db_checkbox_toggled, Host, _} ->
+                           case lists:member(Host, Dbs) of
+                               true ->
+                                   State#?STATE{session_config = SessionConfig#?CONFIG{dbs = lists:delete(Host, Dbs)}};
+                               _ ->
+                                   State#?STATE{session_config = SessionConfig#?CONFIG{dbs = [Host | Dbs]}}
+                           end;
 
-            _ ->
-                State
+                       _ ->
+                           State
 
-        after ?COMET_PROCESS_RELOAD_DELAY ->
-            State
-        end
+                   after ?COMET_PROCESS_RELOAD_DELAY ->
+                       State
+                   end
                catch Type:Message ->
                    ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
                    onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),

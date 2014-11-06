@@ -72,7 +72,10 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils_adapter:top_menu(installation_tab, [], true),
+    Breadcrumbs = onepanel_gui_utils:breadcrumbs([
+        {<<"Hosts selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION}
+    ]),
+    Header = onepanel_gui_utils_adapter:top_menu(installation_tab, Breadcrumbs, true),
     Main = #panel{
         style = <<"margin-top: 2em; text-align: center;">>,
         body = [
@@ -94,7 +97,7 @@ body() ->
             onepanel_gui_utils:nav_buttons([{<<"next_button">>, {postback, {message, next}}, true, <<"Next">>}])
         ]
     },
-    onepanel_gui_utils:body(Header, Main).
+    onepanel_gui_utils:body(?SUBMENU_HEIGHT, Header, Main, onepanel_gui_utils:logotype_footer()).
 
 
 %% hosts_table/3

@@ -76,6 +76,11 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
+    Breadcrumbs = onepanel_gui_utils:breadcrumbs([
+        {<<"Hosts selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION},
+        {<<"System limits">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS},
+        {<<"Installation summary">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUMMARY}
+    ]),
     Header = onepanel_gui_utils_adapter:top_menu(installation_tab, [], true),
     Main = #panel{
         style = <<"margin-top: 2em; text-align: center;">>,
@@ -121,7 +126,7 @@ body() ->
             ])
         ]
     },
-    onepanel_gui_utils:body(Header, Main).
+    onepanel_gui_utils:body(?SUBMENU_HEIGHT, Header, Main, onepanel_gui_utils:logotype_footer()).
 
 
 %% summary_table/1
