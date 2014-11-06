@@ -21,4 +21,7 @@
 %% Delay in miliseconds after which comet process will reload it's code
 -define(COMET_PROCESS_RELOAD_DELAY, 5000).
 
+%% Page content starting height
+-define(SUBMENU_HEIGHT, 107).
+
 -endif.

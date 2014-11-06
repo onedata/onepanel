@@ -273,7 +273,7 @@ local_start(MainCCM, OptCCMs, Dbs) ->
         end, <<>>, Dbs),
 
         NodeConfigPath = filename:join([?NODES_INSTALL_PATH, ?CCM_NAME, ?CONFIG_ARGS_PATH]),
-        StorageConfigPath = list_to_binary(filename:join([?NODES_INSTALL_PATH, ?CCM_NAME, ?STORAGE_CONFIG_PATH])),
+        StorageConfigPath = list_to_binary("\"" ++ filename:join([?NODES_INSTALL_PATH, ?CCM_NAME, ?STORAGE_CONFIG_PATH]) ++ "\""),
         OverwriteCommand = filename:join([?NODES_INSTALL_PATH, ?CCM_NAME, ?ONEPROVIDER_SCRIPT_PATH]),
         StartCommand = filename:join([?NODES_INSTALL_PATH, ?CCM_NAME, ?START_COMMAND_SUFFIX]),
 

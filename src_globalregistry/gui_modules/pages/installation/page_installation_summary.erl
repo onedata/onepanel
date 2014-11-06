@@ -76,9 +76,14 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
+    Breadcrumbs = onepanel_gui_utils:breadcrumbs([
+        {<<"Hosts selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION},
+        {<<"System limits">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS},
+        {<<"Installation summary">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUMMARY}
+    ]),
     Header = onepanel_gui_utils_adapter:top_menu(installation_tab, [], true),
     Main = #panel{
-        style = <<"margin-top: 10em; text-align: center;">>,
+        style = <<"margin-top: 2em; text-align: center;">>,
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
@@ -121,7 +126,7 @@ body() ->
             ])
         ]
     },
-    onepanel_gui_utils:body(Header, Main).
+    onepanel_gui_utils:body(?SUBMENU_HEIGHT, Header, Main, onepanel_gui_utils:logotype_footer()).
 
 
 %% summary_table/1
@@ -277,12 +282,12 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
                         end);
                     Other ->
                         ?error("Cannot get password to administrative database for user ~p: ~p", [Username, Other]),
-                        onepanel_gui_utils:message(<<"error_message">>, <<"Cannot get password to administrative database for user: ", Username/binary>>)
+                        onepanel_gui_utils:message(error, <<"Cannot get password to administrative database for user: ", Username/binary>>)
                 end,
                 State;
 
             {init, Text} ->
-                gui_jq:hide(<<"error_message">>),
+                gui_jq:remove(<<"top_menu_message">>),
                 gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"disabled">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
                 gui_jq:update(<<"progress_text">>, Text),
@@ -319,7 +324,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
 
             {error, Text} ->
                 gui_jq:update(<<"summary_table">>, summary_table(Config)),
-                onepanel_gui_utils:message(<<"error_message">>, Text),
+                onepanel_gui_utils:message(error, Text),
                 gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
                 gui_jq:hide(<<"progress">>),
@@ -330,7 +335,7 @@ comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, nex
         end
                catch Type:Message ->
                    ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
-                   onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
+                   onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
     gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
@@ -368,9 +373,9 @@ event(init) ->
         installer:set_callback(fun(Event, State) -> installation_progress(Event, State, Pid) end)
     catch
         _:Reason ->
-            ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
+            ?error_stacktrace("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
             gui_jq:hide(<<"main_spinner">>),
-            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch application configuration.<br>Please try again later.">>)
+            onepanel_gui_utils:message(error, <<"Cannot fetch application configuration.<br>Please try again later.">>)
     end;
 
 event(back) ->

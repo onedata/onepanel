@@ -68,9 +68,14 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils_adapter:top_menu(spaces_tab, spaces_account_link),
+    Breadcrumbs = onepanel_gui_utils:breadcrumbs([
+        {<<"Connection check">>, ?CURRENT_REGISTRATION_PAGE, ?PAGE_CONNECTION_CHECK},
+        {<<"Ports configuration">>, ?CURRENT_REGISTRATION_PAGE, ?PAGE_PORTS_CHECK},
+        {<<"Registration summary">>, ?CURRENT_REGISTRATION_PAGE, ?PAGE_REGISTRATION_SUMMARY}
+    ]),
+    Header = onepanel_gui_utils_adapter:top_menu(spaces_tab, spaces_account_link, Breadcrumbs),
     Main = #panel{
-        style = <<"margin-top: 10em; text-align: center;">>,
+        style = <<"margin-top: 2em; text-align: center;">>,
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
@@ -108,7 +113,7 @@ body() ->
             ])
         ]
     },
-    onepanel_gui_utils:body(Header, Main).
+    onepanel_gui_utils:body(?SUBMENU_HEIGHT, Header, Main, onepanel_gui_utils:logotype_footer()).
 
 
 %% ====================================================================
@@ -153,7 +158,7 @@ comet_loop(#?STATE{pid = Pid} = State) ->
                     State;
 
                 {'EXIT', Pid, _} ->
-                    onepanel_gui_utils:message(<<"error_message">>, <<"Cannot register in <i>Global Registry</i>.<br>Please try again later.">>),
+                    onepanel_gui_utils:message(error, <<"Cannot register in <i>Global Registry</i>.<br>Please try again later.">>),
                     gui_jq:hide(<<"progress">>),
                     gui_jq:show(<<"client_name">>),
                     gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
@@ -168,7 +173,7 @@ comet_loop(#?STATE{pid = Pid} = State) ->
             end
         catch Type:Message ->
             ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
-            onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
+            onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
             {error, Message}
         end,
     gui_comet:flush(),
@@ -193,7 +198,7 @@ event(back) ->
 event(register) ->
     case gui_ctx:postback_param(<<"client_name">>) of
         <<>> ->
-            onepanel_gui_utils:message(<<"error_message">>, <<"Please enter provider name.">>);
+            onepanel_gui_utils:message(error, <<"Please enter provider name.">>);
         ClientName ->
             get(?COMET_PID) ! {register, ClientName},
             gui_jq:hide(<<"client_name">>),
