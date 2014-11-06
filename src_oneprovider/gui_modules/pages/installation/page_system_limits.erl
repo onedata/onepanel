@@ -74,9 +74,14 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Header = onepanel_gui_utils_adapter:top_menu(software_tab, installation_link, [], true),
+    Breadcrumbs = onepanel_gui_utils:breadcrumbs([
+        {<<"Hosts selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION},
+        {<<"Primary CCM selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION},
+        {<<"System limits">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS}
+    ]),
+    Header = onepanel_gui_utils_adapter:top_menu(software_tab, installation_link, Breadcrumbs, true),
     Main = #panel{
-        style = <<"margin-top: 10em; text-align: center;">>,
+        style = <<"margin-top: 2em; text-align: center;">>,
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
@@ -97,7 +102,7 @@ body() ->
             }
         ]
     },
-    onepanel_gui_utils:body(Header, Main).
+    onepanel_gui_utils:body(?SUBMENU_HEIGHT, Header, Main, onepanel_gui_utils:logotype_footer()).
 
 
 %% system_limits_table/2
@@ -239,7 +244,7 @@ comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimit
                     ok ->
                         onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_STORAGE);
                     _ ->
-                        onepanel_gui_utils:message(<<"error_message">>, <<"Cannot set system limits for some hosts.<br>Remember that system limit should be a positive number.">>)
+                        onepanel_gui_utils:message(error, <<"Cannot set system limits for some hosts.<br>Remember that system limit should be a positive number.">>)
                 end,
                 gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
                 gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
@@ -250,7 +255,7 @@ comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimit
         end
                catch Type:Message ->
                    ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
-                   onepanel_gui_utils:message(<<"error_message">>, <<"There has been an error in comet process. Please refresh the page.">>),
+                   onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
                    {error, Message}
                end,
     gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
@@ -292,9 +297,9 @@ event(init) ->
         Pid ! render_system_limits_table
     catch
         _:Reason ->
-            ?error("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
+            ?error_stacktrace("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
             gui_jq:hide(<<"main_spinner">>),
-            onepanel_gui_utils:message(<<"error_message">>, <<"Cannot fetch application configuration.<br>Please try again later.">>)
+            onepanel_gui_utils:message(error, <<"Cannot fetch application configuration.<br>Please try again later.">>)
     end;
 
 event(back) ->

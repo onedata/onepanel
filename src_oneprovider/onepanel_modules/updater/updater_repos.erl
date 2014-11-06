@@ -52,4 +52,4 @@ get_package(#version{} = Version) ->
 %% ====================================================================
 gen_package_url(#version{major = MJ, minor = MI, patch = PA} = _Version, PackageType) ->
     {ok, URL} = application:get_env(?APP_NAME, onedata_repository_url),
-    URL ++ "/oneprovider-Linux-" ++ integer_to_list(MJ) ++ "." ++ integer_to_list(MI) ++ "." ++ integer_to_list(PA) ++ "." ++ atom_to_list(PackageType).
+    URL ++ "/oneprovider-linux-" ++ integer_to_list(MJ) ++ "." ++ integer_to_list(MI) ++ "." ++ integer_to_list(PA) ++ ".x86_64." ++ atom_to_list(PackageType).

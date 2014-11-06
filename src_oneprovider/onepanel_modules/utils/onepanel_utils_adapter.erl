@@ -103,7 +103,7 @@ get_available_software_versions() ->
         {ok, URL} = application:get_env(?APP_NAME, onedata_repository_url),
         {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(URL ++ "/get_versions.php", [{content_type, "application/json"}], get, []),
         {_, List} = mochijson2:decode(ResBody),
-        sort_versions(proplists:get_value(<<"oneprovider-Linux.rpm">>, List))
+        sort_versions(proplists:get_value(<<"oneprovider-linux.x86_64.rpm">>, List))
     catch
         _:Reason ->
             ?error("Cannot get available software versions from repository: ~p", [Reason]),
@@ -127,13 +127,13 @@ sort_versions(Versions) ->
             PatchA >= PatchB
     end,
     CmpMinor = fun
-        (#version{minor = Minor} = A, #version{minor = Minor} = B) ->
+        (#version{minor = MinorA} = A, #version{minor = MinorB} = B) when MinorA =:= MinorB ->
             CmpPatch(A, B);
         (#version{minor = MinorA}, #version{minor = MinorB}) ->
             MinorA > MinorB
     end,
     CmpMajor = fun
-        (#version{major = Major} = A, #version{major = Major} = B) ->
+        (#version{major = MajorA} = A, #version{major = MajorB} = B) when MajorA =:= MajorB ->
             CmpMinor(A, B);
         (#version{major = MajorA}, #version{major = MajorB}) ->
             MajorA > MajorB
