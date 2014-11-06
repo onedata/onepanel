@@ -1,3 +1,18 @@
+onepanel 2.1
+===============
+
+*onepanel 2.1* is a part of *onedata 2.1*. This is mainly a bug-fix release. See further details below.
+
+New features
+------------
+
+* Breadcrumbs added
+
+Fixed Bugs
+----------
+
+* Registration instruction clarified
+
 onepanel 2.0
 ==============
 
