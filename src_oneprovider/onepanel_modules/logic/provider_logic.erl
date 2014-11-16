@@ -90,6 +90,7 @@ register(RedirectionPoint, ClientName) ->
         ok = file:write_file(CertFile, Cert),
         ok = onepanel_utils:save_file_on_hosts(Path, CertName, Cert),
         ok = dao:save_record(?PROVIDER_TABLE, #?PROVIDER_RECORD{id = ProviderId, name = ClientName, urls = URLs, redirection_point = RedirectionPoint}),
+        ok = onepanel_utils_adapter:apply_on_worker(gr_channel, connect, []),
 
         {ok, ProviderId}
     catch
@@ -110,6 +111,7 @@ register(RedirectionPoint, ClientName) ->
 unregister() ->
     try
         ProviderId = get_provider_id(),
+        ok = onepanel_utils_adapter:apply_on_worker(gr_channel, disconnect, []),
         ok = gr_providers:unregister(provider),
         ok = dao:delete_record(?PROVIDER_TABLE, ProviderId)
     catch
