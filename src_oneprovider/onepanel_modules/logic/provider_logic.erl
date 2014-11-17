@@ -78,7 +78,7 @@ register(RedirectionPoint, ClientName) ->
 
         %% Register in Global Registry
         {ok, CSR} = file:read_file(CsrPath),
-        {ok, #?GLOBAL_CONFIG_RECORD{workers = [Worker | _] = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
         URLs = lists:map(fun(Host) ->
             {ok, #?LOCAL_CONFIG_RECORD{ip_address = URL}} = dao:get_record(?LOCAL_CONFIG_TABLE, Host),
             URL
@@ -90,7 +90,10 @@ register(RedirectionPoint, ClientName) ->
         ok = file:write_file(CertFile, Cert),
         ok = onepanel_utils:save_file_on_hosts(Path, CertName, Cert),
         ok = dao:save_record(?PROVIDER_TABLE, #?PROVIDER_RECORD{id = ProviderId, name = ClientName, urls = URLs, redirection_point = RedirectionPoint}),
-        ok = onepanel_utils_adapter:apply_on_worker(gr_channel, connect, []),
+        ok = onepanel_utils_adapter:apply_on_worker(gen_server, call, [{global, central_cluster_manager}, {set_provider_id, ProviderId}]),
+        Nodes = onepanel_utils_adapter:apply_on_worker(gen_server, call, [request_dispatcher, {get_workers, gr_channel}]),
+        {ConnectAnswers, []} = rpc:multicall(Nodes, gr_channel, connect, []),
+        lists:all(fun(ConnectAnswer) -> ConnectAnswer =:= ok end, ConnectAnswers),
 
         {ok, ProviderId}
     catch
@@ -111,8 +114,11 @@ register(RedirectionPoint, ClientName) ->
 unregister() ->
     try
         ProviderId = get_provider_id(),
-        ok = onepanel_utils_adapter:apply_on_worker(gr_channel, disconnect, []),
         ok = gr_providers:unregister(provider),
+        ok = onepanel_utils_adapter:apply_on_worker(gen_server, call, [{global, central_cluster_manager}, {set_provider_id, undefined}]),
+        Nodes = onepanel_utils_adapter:apply_on_worker(gen_server, call, [request_dispatcher, {get_workers, gr_channel}]),
+        {DisconnectAnswers, []} = rpc:multicall(Nodes, gr_channel, disconnect, []),
+        lists:all(fun(DisconnectAnswer) -> DisconnectAnswer =:= ok end, DisconnectAnswers),
         ok = dao:delete_record(?PROVIDER_TABLE, ProviderId)
     catch
         _:Reason ->
