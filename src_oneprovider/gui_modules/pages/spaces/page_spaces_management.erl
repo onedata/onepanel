@@ -266,13 +266,13 @@ space_size_parameter() ->
     <<"<div id=\"space_size_div\" style=\"width: 100%;\">",
     "   <input id=\"create_space_size\" class=\"pull-left\" type=\"text\" style=\"width: 50%;\" placeholder=\"Size\">",
     "   <fieldset class=\"pull-right\" style=\"width: 41%; line-height: 40px;\">"
-    "       <label class=\"radio checked\" style=\"display: inline-block; padding-left: 25px; margin-right: 10px;\">",
+    "       <label id=\"size_mb\" class=\"radio checked\" style=\"display: inline-block; padding-left: 25px; margin-right: 10px;\">",
     "           <input type=\"radio\" name=\"optionsRadios2\" id=\"optionsRadios1\" value=\"option1\" data-toggle=\"radio\" checked=\"checked\">MB",
     "       </label>",
-    "       <label class=\"radio\" style=\"display: inline-block; padding-left: 25px; margin-right: 10px;\">",
+    "       <label id=\"size_gb\" class=\"radio\" style=\"display: inline-block; padding-left: 25px; margin-right: 10px;\">",
     "           <input type=\"radio\" name=\"optionsRadios2\" id=\"optionsRadios2\" value=\"option1\" data-toggle=\"radio\">GB",
     "       </label>",
-    "       <label class=\"radio\" style=\"display: inline-block; padding-left: 25px; margin-right: 10px;\">",
+    "       <label id=\"size_tb\" class=\"radio\" style=\"display: inline-block; padding-left: 25px; margin-right: 10px;\">",
     "           <input type=\"radio\" name=\"optionsRadios2\" id=\"optionsRadios3\" value=\"option1\" data-toggle=\"radio\">TB",
     "       </label>",
     "   </fieldset>",
@@ -320,6 +320,19 @@ space_size_check() ->
     "else if(isNaN(size) || parseInt(size, 10) <= 0) { alert.html(\"Space size should be a positive number.\"); alert.fadeIn(300); return false; }">>.
 
 
+%% space_size_multiply/0
+%% ====================================================================
+%% @doc Returns script used to multiply space size parameter.
+%% @end
+-spec space_size_multiply() -> Result when
+    Result :: binary().
+%% ====================================================================
+space_size_multiply() ->
+    <<"if($(\"#size_mb\").hasClass(\"checked\")) { size = 1000 * size; }",
+    "else if($(\"#size_gb\").hasClass(\"checked\")) { size = 1000000 * size; }",
+    "else { size = 1000000000 * size; }">>.
+
+
 %% ====================================================================
 %% Events handling
 %% ====================================================================
@@ -337,11 +350,12 @@ comet_loop({error, Reason}) ->
 comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) ->
     NewState = try
                    receive
-                       {create_space, Name, Token} ->
+                       {create_space, Name, Token, Size} ->
                            NextState =
                                try
                                    RowId = <<"space_", (integer_to_binary(Counter + 1))/binary>>,
-                                   {ok, SpaceId} = gr_providers:create_space(provider, [{<<"name">>, Name}, {<<"token">>, Token}]),
+                                   {ok, SpaceId} = gr_providers:create_space(provider,
+                                       [{<<"name">>, Name}, {<<"token">>, Token}, {<<"size">>, integer_to_binary(Size)}]),
                                    {ok, SpaceDetails} = gr_providers:get_space_details(provider, SpaceId),
                                    add_space_row(RowId, SpaceDetails),
                                    onepanel_gui_utils:message(success, <<"Created Space's ID: <b>", SpaceId/binary, "</b>">>),
@@ -356,11 +370,12 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                            gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"">>),
                            NextState;
 
-                       {support_space, Token} ->
+                       {support_space, Token, Size} ->
                            NextState =
                                try
                                    RowId = <<"space_", (integer_to_binary(Counter + 1))/binary>>,
-                                   {ok, SpaceId} = gr_providers:support_space(provider, [{<<"token">>, Token}]),
+                                   {ok, SpaceId} = gr_providers:support_space(provider,
+                                       [{<<"token">>, Token}, {<<"size">>, integer_to_binary(Size)}]),
                                    {ok, SpaceDetails} = gr_providers:get_space_details(provider, SpaceId),
                                    add_space_row(RowId, SpaceDetails),
                                    onepanel_gui_utils:message(success, <<"Supported Space's ID: <b>", SpaceId/binary, "</b>">>),
@@ -473,7 +488,9 @@ event(create_space) ->
     "if(name.length == 0) { alert.html(\"Please provide Space name.\"); alert.fadeIn(300); return false; }",
     "else if(token.length == 0) { alert.html(\"Please provide Space token.\"); alert.fadeIn(300); return false; }",
     (space_size_check())/binary,
-    "else { createSpace([name, token]); return true; }">>,
+    "else { ", (space_size_multiply())/binary,
+    "          createSpace([name, token, size]); return true;",
+    "     }">>,
     ConfirmButtonClass = <<"btn-inverse">>,
     gui_jq:dialog_popup(Title, Message, Script, ConfirmButtonClass),
     gui_jq:wire(<<"box.on('shown',function(){ $(\"#create_space_name\").focus(); });">>),
@@ -491,7 +508,9 @@ event(support_space) ->
     "var size = $.trim($(\"#create_space_size\").val());",
     "if(token.length == 0) { alert.html(\"Please provide Space token.\"); alert.fadeIn(300); return false; }",
     (space_size_check())/binary,
-    "else { supportSpace([token]); return true; }">>,
+    "else { ", (space_size_multiply())/binary,
+    "          supportSpace([token, size]); return true;",
+    "     }">>,
     ConfirmButtonClass = <<"btn-inverse">>,
     gui_jq:dialog_popup(Title, Message, Script, ConfirmButtonClass),
     gui_jq:wire(<<"box.on('shown',function(){ $(\"#support_space_token\").focus(); });">>),
@@ -525,14 +544,14 @@ event(terminate) ->
 -spec api_event(Name :: string(), Args :: string(), Req :: string()) -> no_return().
 %% ====================================================================
 api_event("createSpace", Args, _) ->
-    [Name, Token] = mochijson2:decode(Args),
-    get(?COMET_PID) ! {create_space, Name, Token},
+    [Name, Token, Size] = mochijson2:decode(Args),
+    get(?COMET_PID) ! {create_space, Name, Token, Size},
     gui_jq:show(<<"main_spinner">>),
     gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"disabled">>);
 
 api_event("supportSpace", Args, _) ->
-    [Token] = mochijson2:decode(Args),
-    get(?COMET_PID) ! {support_space, Token},
+    [Token, Size] = mochijson2:decode(Args),
+    get(?COMET_PID) ! {support_space, Token, Size},
     gui_jq:show(<<"main_spinner">>),
     gui_jq:prop(<<"support_space_button">>, <<"disabled">>, <<"disabled">>);
 
