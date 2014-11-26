@@ -94,7 +94,9 @@ body() ->
                 class = <<"table table-bordered">>,
                 style = <<"width: 50%; margin: 0 auto; display: none;">>
             },
-            onepanel_gui_utils:nav_buttons([{<<"next_button">>, {postback, {message, next}}, true, <<"Next">>}])
+            #panel{
+                id = <<"nav_buttons">>
+            }
         ]
     },
     onepanel_gui_utils:body(?SUBMENU_HEIGHT, Header, Main, onepanel_gui_utils:logotype_footer()).
@@ -125,7 +127,10 @@ hosts_table(Hosts, DbConfig, PageConfig) ->
             cells = [
                 #td{
                     body = <<"<b>", (gui_str:html_encode(Host))/binary, "</b>">>,
-                    style = ColumnStyle
+                    style = case installer_utils:check_host_domain_name(Host) of
+                                ok -> ColumnStyle;
+                                _ -> <<ColumnStyle/binary, " color: red;">>
+                            end
                 } | lists:map(fun({Prefix, Checked, Disabled}) ->
                     flatui_checkbox:init_checkbox(<<Prefix/binary, "checkbox_", HostId/binary>>),
                     #td{
@@ -167,58 +172,68 @@ comet_loop({error, Reason}) ->
     {error, Reason};
 
 comet_loop(#?STATE{hosts = Hosts, gr_checkbox_id = GrId, db_config = DbConfig, session_config = #?CONFIG{gr = GR, dbs = Dbs} = SessionConfig} = State) ->
-    NewState = try
-        receive
-            render_hosts_table ->
-                gui_jq:update(<<"hosts_table">>, hosts_table(Hosts, DbConfig, SessionConfig)),
-                gui_jq:fade_in(<<"hosts_table">>, 500),
-                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
-                State;
+    NewState =
+        try
+            receive
+                render_hosts_table ->
+                    gui_jq:update(<<"hosts_table">>, hosts_table(Hosts, DbConfig, SessionConfig)),
+                    gui_jq:fade_in(<<"hosts_table">>, 500),
+                    case lists:all(fun(Host) -> installer_utils:check_host_domain_name(Host) =:= ok end, Hosts) of
+                        true ->
+                            gui_jq:update(<<"nav_buttons">>, onepanel_gui_utils:nav_buttons(
+                            [{<<"next_button">>, {postback, {message, next}}, false, <<"Next">>}]));
+                        _ ->
+                            onepanel_gui_utils:message(error, <<"Before proceeding with installation please ensure",
+                            " domain name for each host is fully qualified.">>),
+                            gui_jq:update(<<"nav_buttons">>, onepanel_gui_utils:nav_buttons(
+                            [{<<"next_button">>, {postback, recheck}, false, <<"Recheck">>}]))
+                    end,
+                    State;
 
-            next ->
-                case Dbs of
-                    [] ->
-                        onepanel_gui_utils:message(error, <<"Please select at least one host for database component.">>);
-                    _ ->
-                        case GR of
-                            undefined ->
-                                onepanel_gui_utils:message(error, <<"Please select host for Global Registry component.">>);
-                            _ ->
-                                gui_ctx:put(?CONFIG_ID, SessionConfig#?CONFIG{gr = GR, dbs = Dbs}),
-                                onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS)
-                        end
-                end,
-                State;
+                next ->
+                    case Dbs of
+                        [] ->
+                            onepanel_gui_utils:message(error, <<"Please select at least one host for database component.">>);
+                        _ ->
+                            case GR of
+                                undefined ->
+                                    onepanel_gui_utils:message(error, <<"Please select host for Global Registry component.">>);
+                                _ ->
+                                    gui_ctx:put(?CONFIG_ID, SessionConfig#?CONFIG{gr = GR, dbs = Dbs}),
+                                    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_APP_PORTS_CHECK)
+                            end
+                    end,
+                    State;
 
-            {gr_checkbox_toggled, GR, _} ->
-                State#?STATE{gr_checkbox_id = undefined, session_config = SessionConfig#?CONFIG{gr = undefined}};
+                {gr_checkbox_toggled, GR, _} ->
+                    State#?STATE{gr_checkbox_id = undefined, session_config = SessionConfig#?CONFIG{gr = undefined}};
 
-            {gr_checkbox_toggled, Host, HostId} ->
-                case GrId of
-                    undefined -> ok;
-                    _ -> gui_jq:remove_class(<<"gr_label_", GrId/binary>>, <<"checked">>)
-                end,
-                State#?STATE{gr_checkbox_id = HostId, session_config = SessionConfig#?CONFIG{gr = Host}};
+                {gr_checkbox_toggled, Host, HostId} ->
+                    case GrId of
+                        undefined -> ok;
+                        _ -> gui_jq:remove_class(<<"gr_label_", GrId/binary>>, <<"checked">>)
+                    end,
+                    State#?STATE{gr_checkbox_id = HostId, session_config = SessionConfig#?CONFIG{gr = Host}};
 
-            {db_checkbox_toggled, Host, _} ->
-                case lists:member(Host, Dbs) of
-                    true ->
-                        State#?STATE{session_config = SessionConfig#?CONFIG{dbs = lists:delete(Host, Dbs)}};
-                    _ ->
-                        State#?STATE{session_config = SessionConfig#?CONFIG{dbs = [Host | Dbs]}}
-                end;
+                {db_checkbox_toggled, Host, _} ->
+                    case lists:member(Host, Dbs) of
+                        true ->
+                            State#?STATE{session_config = SessionConfig#?CONFIG{dbs = lists:delete(Host, Dbs)}};
+                        _ ->
+                            State#?STATE{session_config = SessionConfig#?CONFIG{dbs = [Host | Dbs]}}
+                    end;
 
-            _ ->
+                _ ->
+                    State
+
+            after ?COMET_PROCESS_RELOAD_DELAY ->
                 State
-
-        after ?COMET_PROCESS_RELOAD_DELAY ->
-            State
-        end
-               catch Type:Message ->
-                   ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
-                   onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
-                   {error, Message}
-               end,
+            end
+        catch Type:Message ->
+            ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
+            onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
+            {error, Message}
+        end,
     gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
     gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
@@ -266,6 +281,9 @@ event(init) ->
 
 event({message, Message}) ->
     get(?COMET_PID) ! Message;
+
+event(recheck) ->
+    get(?COMET_PID) ! render_hosts_table;
 
 event({close_message, MessageId}) ->
     gui_jq:hide(MessageId);

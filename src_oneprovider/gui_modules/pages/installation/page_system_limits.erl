@@ -77,6 +77,7 @@ body() ->
     Breadcrumbs = onepanel_gui_utils:breadcrumbs([
         {<<"Hosts selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION},
         {<<"Primary CCM selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION},
+        {<<"Application ports check">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_APP_PORTS_CHECK},
         {<<"System limits">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS}
     ]),
     Header = onepanel_gui_utils_adapter:top_menu(software_tab, installation_link, Breadcrumbs, true),
@@ -85,7 +86,7 @@ body() ->
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
-                body = <<"Step 3: System limits configuration.">>
+                body = <<"Step 4: System limits configuration.">>
             },
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
@@ -303,7 +304,7 @@ event(init) ->
     end;
 
 event(back) ->
-    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION);
+    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_APP_PORTS_CHECK);
 
 event({set_system_limits, SystemLimits}) ->
     NewSystemLimits = lists:map(fun({Host, Id, _, _}) ->

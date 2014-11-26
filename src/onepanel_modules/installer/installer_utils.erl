@@ -18,6 +18,7 @@
 -export([set_system_limit/2, get_system_limits_cmd/1]).
 -export([get_global_config/0, get_timestamp/0, set_timestamp/0]).
 -export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/4]).
+-export([check_port/1, check_port/2, check_ports/2, check_host_domain_name/1]).
 
 %% ====================================================================
 %% API functions
@@ -186,6 +187,79 @@ set_timestamp() ->
     {MegaSecs, Secs, MicroSecs} = now(),
     Timestamp = 1000000000000 * MegaSecs + 1000000 * Secs + MicroSecs,
     dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{timestamp, Timestamp}]).
+
+
+%% check_port/0
+%% ====================================================================
+%% @doc Check wheter given port if free on local host.
+%% @end
+-spec check_port(Port :: integer()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+check_port(Port) ->
+    case gen_tcp:listen(Port, [{reuseaddr, true}]) of
+        {ok, Socket} ->
+            gen_tcp:close(Socket),
+            ok;
+        {error, Reason} ->
+            {error, Reason}
+    end.
+
+
+%% check_port/2
+%% ====================================================================
+%% @doc Check wheter given port if free on host.
+%% @end
+-spec check_port(Host :: string(), Port :: integer()) -> Result when
+    Result :: ok | error.
+%% ====================================================================
+check_port(Host, Port) ->
+    case rpc:call(onepanel_utils:get_node(Host), ?MODULE, check_port, [Port]) of
+        ok ->
+            ok;
+        {error, Reason} ->
+            ?error("Port ~p on host ~p is in use: ~p", [Port, Host, Reason]),
+            error
+    end.
+
+
+%% check_ports/2
+%% ====================================================================
+%% @doc Check whether ports on given hosts are free. Returns lists of
+%% pairs: host and status of all ports on this host and overall status,
+%% that is 'ok' if all ports are free on all hosts or 'error' otherwise.
+%% @end
+-spec check_ports(Hosts :: [string()], Ports :: [integer()]) -> Result when
+    Result :: {[{Host :: string(), [PortStatus :: ok | error]}], Status :: ok | error}.
+%% ====================================================================
+check_ports(Hosts, Ports) ->
+    lists:mapfoldl(fun(Host, Status) ->
+        {HostPorts, HostStatus} = lists:mapfoldl(fun(Port, PortStatus) ->
+            case check_port(Host, Port) of
+                ok -> {ok, PortStatus};
+                _ -> {error, error}
+            end
+        end, Status, Ports),
+        {{Host, HostPorts}, HostStatus}
+    end, ok, Hosts).
+
+
+%% check_host_domain_name/1
+%% ====================================================================
+%% @doc Check whether domain name for host is fully qualified. For
+%% host with fully qualified domain name returns 'ok', otherwise 'error'.
+%% @end
+-spec check_host_domain_name(Hosts :: [string()]) -> Result when
+    Result :: {[IsFullyQualified :: ok | error], Status :: ok | error}.
+%% ====================================================================
+check_host_domain_name(Host) ->
+    case string:str(Host, ".") > 0 of
+        true -> ok;
+        _ ->
+            ?error("Host ~p does not have fully qualified domain name.", [Host]),
+            error
+    end.
+
 
 %% ====================================================================
 %% Internal functions

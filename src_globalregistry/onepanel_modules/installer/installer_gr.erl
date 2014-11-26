@@ -201,6 +201,7 @@ local_install() ->
         ?debug("Installing Global Registry node"),
         GRPath = filename:join([?NODES_INSTALL_PATH, ?GLOBALREGISTRY_NAME]),
 
+        "" = os:cmd("rm -rf " ++ GRPath),
         "" = os:cmd("mkdir -p " ++ GRPath),
         "" = os:cmd("cp -R " ++ filename:join([?GLOBALREGISTRY_RELEASE, "* "]) ++ GRPath),
 

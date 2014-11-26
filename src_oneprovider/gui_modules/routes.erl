@@ -58,7 +58,11 @@ finish(State, Ctx) -> {ok, State, Ctx}.
     Result :: module().
 %% ====================================================================
 %% Root page
-route(?PAGE_ROOT) -> page_installation;
+route(?PAGE_ROOT) ->
+    case installer_utils_adapter:get_workers() of
+        [] -> page_installation;
+        _ -> page_spaces_management
+    end;
 
 %% Management pages
 route(?PAGE_LOGIN) -> page_login;
@@ -73,6 +77,7 @@ route(?PAGE_PRIVACY_POLICY) -> page_privacy_policy;
 route(?PAGE_INSTALLATION) -> page_installation;
 route(?PAGE_HOST_SELECTION) -> page_hosts_selection;
 route(?PAGE_PRIMARY_CCM_SELECTION) -> page_primary_ccm_selection;
+route(?PAGE_APP_PORTS_CHECK) -> page_app_ports_check;
 route(?PAGE_SYSTEM_LIMITS) -> page_system_limits;
 route(?PAGE_STORAGE) -> page_storage;
 route(?PAGE_INSTALLATION_SUMMARY) -> page_installation_summary;
