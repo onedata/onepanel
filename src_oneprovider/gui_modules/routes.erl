@@ -61,7 +61,10 @@ finish(State, Ctx) -> {ok, State, Ctx}.
 route(?PAGE_ROOT) ->
     case installer_utils_adapter:get_workers() of
         [] -> page_installation;
-        _ -> page_spaces_management
+        _ -> case provider_logic:get_provider_id() of
+                 undefined -> page_spaces_account;
+                 _ -> page_spaces_management
+             end
     end;
 
 %% Management pages
