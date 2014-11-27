@@ -11,9 +11,6 @@
 -module(onepanel_utils_adapter).
 
 -include("registered_names.hrl").
--include("onepanel_modules/updater/common.hrl").
--include("onepanel_modules/installer/state.hrl").
--include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
