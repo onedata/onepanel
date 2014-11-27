@@ -94,9 +94,7 @@ body() ->
                 class = <<"table table-bordered">>,
                 style = <<"width: 50%; margin: 0 auto; display: none;">>
             },
-            #panel{
-                id = <<"nav_buttons">>
-            }
+            onepanel_gui_utils:nav_buttons([{<<"next_button">>, {postback, {message, next}}, true, <<"Next">>}])
         ]
     },
     onepanel_gui_utils:body(?SUBMENU_HEIGHT, Header, Main, onepanel_gui_utils:logotype_footer()).
@@ -180,13 +178,11 @@ comet_loop(#?STATE{hosts = Hosts, gr_checkbox_id = GrId, db_config = DbConfig, s
                     gui_jq:fade_in(<<"hosts_table">>, 500),
                     case lists:all(fun(Host) -> installer_utils:check_host_domain_name(Host) =:= ok end, Hosts) of
                         true ->
-                            gui_jq:update(<<"nav_buttons">>, onepanel_gui_utils:nav_buttons(
-                            [{<<"next_button">>, {postback, {message, next}}, false, <<"Next">>}]));
+                            gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>);
                         _ ->
                             onepanel_gui_utils:message(error, <<"Before proceeding with installation please ensure",
-                            " domain name for each host is fully qualified.">>),
-                            gui_jq:update(<<"nav_buttons">>, onepanel_gui_utils:nav_buttons(
-                            [{<<"next_button">>, {postback, recheck}, false, <<"Recheck">>}]))
+                            " domain name for each host is fully qualified.<br>Change domain name and reinstall software",
+                            " package on hosts marked in red.">>)
                     end,
                     State;
 
