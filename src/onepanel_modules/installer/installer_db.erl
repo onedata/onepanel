@@ -214,6 +214,7 @@ local_install() ->
     try
         ?debug("Installing database node"),
 
+        "" = os:cmd("rm -rf " ++ ?DB_PREFIX),
         "" = os:cmd("mkdir -p " ++ ?DB_PREFIX),
         "" = os:cmd("cp -R " ++ filename:join([?DB_RELEASE, "* "]) ++ ?DB_PREFIX),
 

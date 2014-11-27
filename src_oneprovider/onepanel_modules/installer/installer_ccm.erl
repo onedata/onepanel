@@ -214,6 +214,7 @@ local_install() ->
         ?debug("Installing CCM node"),
         CCMPath = filename:join([?NODES_INSTALL_PATH, ?CCM_NAME]),
 
+        "" = os:cmd("rm -rf " ++ CCMPath),
         "" = os:cmd("mkdir -p " ++ CCMPath),
         "" = os:cmd("cp -R " ++ filename:join([?ONEPROVIDER_RELEASE, "* "]) ++ CCMPath),
 

@@ -72,6 +72,7 @@ route(?PAGE_PRIVACY_POLICY) -> page_privacy_policy;
 %% Installation pages
 route(?PAGE_INSTALLATION) -> page_installation;
 route(?PAGE_HOST_SELECTION) -> page_hosts_selection;
+route(?PAGE_APP_PORTS_CHECK) -> page_app_ports_check;
 route(?PAGE_SYSTEM_LIMITS) -> page_system_limits;
 route(?PAGE_INSTALLATION_SUMMARY) -> page_installation_summary;
 route(?PAGE_INSTALLATION_SUCCESS) -> page_installation_success;
