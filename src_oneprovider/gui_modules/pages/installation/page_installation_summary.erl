@@ -29,7 +29,7 @@
 
 %% Comet process state
 -define(STATE, comet_state).
--record(?STATE, {step = 0, steps = 0, step_progress = 0, next_update = ?NEXT_UPDATE_DELAY, config = #?CONFIG{}}).
+-record(?STATE, {step = 0, steps = 0, step_progress = 0, next_update = ?NEXT_UPDATE_DELAY, config = #?CONFIG{}, error_state}).
 
 %% ====================================================================
 %% API functions
@@ -79,6 +79,7 @@ body() ->
     Breadcrumbs = onepanel_gui_utils:breadcrumbs([
         {<<"Hosts selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION},
         {<<"Primary CCM selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION},
+        {<<"Application ports check">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_APP_PORTS_CHECK},
         {<<"System limits">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS},
         {<<"Storage configuration">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_STORAGE},
         {<<"Installation summary">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUMMARY}
@@ -89,7 +90,7 @@ body() ->
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
-                body = <<"Step 5: Installation summary.">>
+                body = <<"Step 6: Installation summary.">>
             },
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
@@ -234,11 +235,11 @@ installation_progress(?EVENT_ERROR, State, Pid) ->
     case installer:get_error(State) of
         {error, {hosts, Hosts}} ->
             Pid ! {error, <<(get_error_message(installer:get_stage_and_job(State)))/binary, (onepanel_gui_utils:format_list(Hosts))/binary,
-            ".<br>Please try again later.">>};
+            ".<br>Please try again later.">>, State};
         {error, Reason} when is_list(Reason) ->
-            Pid ! {error, list_to_binary(Reason)};
+            Pid ! {error, list_to_binary(Reason), State};
         _ ->
-            Pid ! {error, <<"An error occurred during installation.<br>Please try again later.">>}
+            Pid ! {error, <<"An error occurred during installation.<br>Please try again later.">>, State}
     end;
 
 installation_progress(?EVENT_STATE_CHANGED, State, Pid) ->
@@ -266,93 +267,95 @@ installation_progress(?EVENT_STATE_CHANGED, State, Pid) ->
 comet_loop({error, Reason}) ->
     {error, Reason};
 
-comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, next_update = NextUpdate, config = Config} = State) ->
-    NewState = try
-                   receive
-                       render_summary_table ->
-                           gui_jq:update(<<"summary_table">>, summary_table(Config)),
-                           gui_jq:fade_in(<<"summary_table">>, 500),
-                           case Config#?CONFIG.workers of
-                               [] ->
-                                   ok;
-                               _ ->
-                                   gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"">>)
-                           end,
-                           State;
+comet_loop(#?STATE{step = Step, steps = Steps, step_progress = StepProgress, next_update = NextUpdate,
+    config = Config, error_state = ErrorState} = State) ->
+    NewState =
+        try
+            receive
+                render_summary_table ->
+                    gui_jq:update(<<"summary_table">>, summary_table(Config)),
+                    gui_jq:fade_in(<<"summary_table">>, 500),
+                    case Config#?CONFIG.workers of
+                        [] ->
+                            ok;
+                        _ ->
+                            gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"">>)
+                    end,
+                    State;
 
-                       install ->
-                           Username = gui_ctx:get_user_id(),
-                           case gen_server:call(?ONEPANEL_SERVER, {get_password, Username}) of
-                               {ok, Password} when is_binary(Password) ->
-                                   self() ! {init, <<"Current stage:">>},
-                                   Fields = record_info(fields, ?CONFIG),
-                                   [_ | Values] = tuple_to_list(Config#?CONFIG{main_ccm = case Config#?CONFIG.main_ccm of
-                                                                                              [] -> undefined;
-                                                                                              [MainCCM | _] -> MainCCM
-                                                                                          end}),
-                                   NewConfig = [{username, Username}, {password, Password} | lists:zip(Fields, Values)],
-                                   Pid = self(),
-                                   installer:install(NewConfig, fun(Event, InstallerState) ->
-                                       installation_progress(Event, InstallerState, Pid)
-                                   end);
-                               Other ->
-                                   ?error("Cannot get password to administrative database for user ~p: ~p", [Username, Other]),
-                                   onepanel_gui_utils:message(error, <<"Cannot get password to administrative database for user: ", Username/binary>>)
-                           end,
-                           State;
+                install ->
+                    Username = gui_ctx:get_user_id(),
+                    case gen_server:call(?ONEPANEL_SERVER, {get_password, Username}) of
+                        {ok, Password} when is_binary(Password) ->
+                            self() ! {init, <<"Current stage:">>},
+                            Fields = record_info(fields, ?CONFIG),
+                            [_ | Values] = tuple_to_list(Config#?CONFIG{main_ccm = case Config#?CONFIG.main_ccm of
+                                                                                       [] -> undefined;
+                                                                                       [MainCCM | _] -> MainCCM
+                                                                                   end}),
+                            NewConfig = [{username, Username}, {password, Password} | lists:zip(Fields, Values)],
+                            Pid = self(),
+                            installer:install(NewConfig, ErrorState, fun(Event, InstallerState) ->
+                                installation_progress(Event, InstallerState, Pid)
+                            end);
+                        Other ->
+                            ?error("Cannot get password to administrative database for user ~p: ~p", [Username, Other]),
+                            onepanel_gui_utils:message(error, <<"Cannot get password to administrative database for user: ", Username/binary>>)
+                    end,
+                    State;
 
-                       {init, Text} ->
-                           gui_jq:remove(<<"top_menu_message">>),
-                           gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"disabled">>),
-                           gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
-                           gui_jq:update(<<"progress_text">>, Text),
-                           gui_jq:set_width(<<"bar">>, <<"0%">>),
-                           gui_jq:show(<<"progress">>),
-                           State;
+                {init, Text} ->
+                    gui_jq:remove(<<"top_menu_message">>),
+                    gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"disabled">>),
+                    gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
+                    gui_jq:update(<<"progress_text">>, Text),
+                    gui_jq:set_width(<<"bar">>, <<"0%">>),
+                    gui_jq:show(<<"progress">>),
+                    State;
 
-                       {change_step, NewStep, Text, NewNextUpdate} ->
-                           gui_jq:show(<<"progress">>),
-                           gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"disabled">>),
-                           gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
-                           Progress = <<(integer_to_binary(round(99 * NewStep / Steps)))/binary, "%">>,
-                           gui_jq:update(<<"progress_text">>, <<Text/binary, " <b>(", Progress/binary, ")</b>">>),
-                           gui_jq:set_width(<<"bar">>, Progress),
-                           timer:send_after(NextUpdate, {update, NewStep, Text}),
-                           State#?STATE{step = NewStep, step_progress = 0, next_update = NewNextUpdate};
+                {change_step, NewStep, Text, NewNextUpdate} ->
+                    gui_jq:show(<<"progress">>),
+                    gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"disabled">>),
+                    gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
+                    Progress = <<(integer_to_binary(round(99 * NewStep / Steps)))/binary, "%">>,
+                    gui_jq:update(<<"progress_text">>, <<Text/binary, " <b>(", Progress/binary, ")</b>">>),
+                    gui_jq:set_width(<<"bar">>, Progress),
+                    timer:send_after(NextUpdate, {update, NewStep, Text}),
+                    State#?STATE{step = NewStep, step_progress = 0, next_update = NewNextUpdate};
 
-                       {update, Step, Text} ->
-                           NewStepProgress = StepProgress + (1 - StepProgress) / 2,
-                           Progress = <<(integer_to_binary(round(99 * (Step + NewStepProgress) / Steps)))/binary, "%">>,
-                           gui_jq:update(<<"progress_text">>, <<Text/binary, " <b>(", Progress/binary, ")</b>">>),
-                           gui_jq:set_width(<<"bar">>, Progress),
-                           timer:send_after(NextUpdate, {update, Step, Text}),
-                           State#?STATE{step_progress = NewStepProgress, next_update = 2 * NextUpdate};
+                {update, Step, Text} ->
+                    NewStepProgress = StepProgress + (1 - StepProgress) / 2,
+                    Progress = <<(integer_to_binary(round(99 * (Step + NewStepProgress) / Steps)))/binary, "%">>,
+                    gui_jq:update(<<"progress_text">>, <<Text/binary, " <b>(", Progress/binary, ")</b>">>),
+                    gui_jq:set_width(<<"bar">>, Progress),
+                    timer:send_after(NextUpdate, {update, Step, Text}),
+                    State#?STATE{step_progress = NewStepProgress, next_update = 2 * NextUpdate};
 
-                       {update, _, _} ->
-                           State;
+                {update, _, _} ->
+                    State;
 
-                       finish ->
-                           gui_jq:update(<<"progress_text">>, <<"">>),
-                           gui_jq:set_width(<<"bar">>, <<"100%">>),
-                           onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUCCESS),
-                           State#?STATE{step = undefined};
+                finish ->
+                    gui_jq:update(<<"progress_text">>, <<"">>),
+                    gui_jq:set_width(<<"bar">>, <<"100%">>),
+                    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUCCESS),
+                    State#?STATE{step = undefined};
 
-                       {error, Text} ->
-                           gui_jq:update(<<"summary_table">>, summary_table(Config)),
-                           onepanel_gui_utils:message(error, Text),
-                           gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"">>),
-                           gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
-                           gui_jq:hide(<<"progress">>),
-                           State#?STATE{step = -1}
+                {error, Text, NewErrorState} ->
+                    gui_jq:update(<<"summary_table">>, summary_table(Config)),
+                    onepanel_gui_utils:message(error, Text),
+                    gui_jq:prop(<<"install_button">>, <<"disabled">>, <<"">>),
+                    gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
+                    gui_jq:hide(<<"progress">>),
+                    State#?STATE{step = -1, error_state = NewErrorState}
 
-                   after ?COMET_PROCESS_RELOAD_DELAY ->
-                       State
-                   end
-               catch Type:Message ->
-                   ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
-                   onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
-                   {error, Message}
-               end,
+            after ?COMET_PROCESS_RELOAD_DELAY ->
+                State
+            end
+        catch Type:Message ->
+            ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
+            onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
+            {error, Message}
+        end,
     gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
     gui_comet:flush(),
     ?MODULE:comet_loop(NewState).

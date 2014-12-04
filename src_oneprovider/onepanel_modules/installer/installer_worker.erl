@@ -228,6 +228,7 @@ local_install() ->
         ?debug("Installing worker node"),
         WorkerPath = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME]),
 
+        "" = os:cmd("rm -rf " ++ WorkerPath),
         "" = os:cmd("mkdir -p " ++ WorkerPath),
         "" = os:cmd("cp -R " ++ filename:join([?ONEPROVIDER_RELEASE, "* "]) ++ WorkerPath),
 

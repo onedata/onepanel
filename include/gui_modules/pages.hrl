@@ -27,6 +27,7 @@
 %% Installation pages
 -define(PAGE_INSTALLATION, <<"/software/installation">>).
 -define(PAGE_HOST_SELECTION, <<"/software/installation/hosts_selection">>).
+-define(PAGE_APP_PORTS_CHECK, <<"/software/installation/ports_check">>).
 -define(PAGE_SYSTEM_LIMITS, <<"/software/installation/system_limits">>).
 -define(PAGE_INSTALLATION_SUMMARY, <<"/software/installation/summary">>).
 -define(PAGE_INSTALLATION_SUCCESS, <<"/software/installation/success">>).

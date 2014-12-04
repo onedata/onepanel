@@ -18,7 +18,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([install/1, install/2, start_link/0]).
+-export([install/1, install/3, start_link/0]).
 -export([get_state/0, get_stages/0, get_job_index/2, get_flatten_stages/0, get_stage_and_job/1, get_error/1, set_callback/1]).
 
 %% gen_server callbacks
@@ -36,7 +36,7 @@
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 install(Config) ->
-    install(Config, fun(_Event, _State) -> ok end).
+    install(Config, undefined, fun(_Event, _State) -> ok end).
 
 
 %% install/2
@@ -46,12 +46,13 @@ install(Config) ->
 %% state or an error occured.
 %% Callback :: function(Event :: state_changed | error, State :: #?I_STATE{})
 %% @end
--spec install(Config :: [{Name :: atom(), Value :: term()}], Callback :: function()) -> Result when
+-spec install(Config :: [{Name :: atom(), Value :: term()}], ErrorState :: undefined | #?I_STATE{},
+    Callback :: function()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-install(Config, Callback) ->
+install(Config, ErrorState, Callback) ->
     case start() of
-        ok -> gen_server:call({global, ?INSTALL_SERVICE}, {install, Config, Callback});
+        ok -> gen_server:call({global, ?INSTALL_SERVICE}, {install, Config, ErrorState, Callback});
         {error, Reason} -> {error, Reason}
     end.
 
@@ -196,10 +197,14 @@ handle_call(get_state, _From, State) ->
 handle_call({set_callback, Callback}, _From, State) ->
     {reply, ok, State#?I_STATE{callback = Callback}};
 
-handle_call({install, Config, Callback}, _From, #?I_STATE{stage = ?STAGE_INIT} = State) ->
+handle_call({install, Config, undefined, Callback}, _From, #?I_STATE{stage = ?STAGE_INIT} = State) ->
     NextState = get_next_state(State),
     gen_server:cast({global, ?INSTALL_SERVICE}, next_state),
     {reply, ok, NextState#?I_STATE{config = Config, callback = Callback}};
+
+handle_call({install, Config, State, Callback}, _From, _) ->
+    gen_server:cast({global, ?INSTALL_SERVICE}, next_state),
+    {reply, ok, State#?I_STATE{config = Config, callback = Callback, error = undefined}};
 
 handle_call({install, _, _}, _From, State) ->
     {reply, {error, <<"Installation already in progress">>}, State};
