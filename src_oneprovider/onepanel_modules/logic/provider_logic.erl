@@ -87,13 +87,10 @@ register(RedirectionPoint, ClientName) ->
         {ok, ProviderId, Cert} = gr_providers:register(provider, Parameters),
 
         %% Save provider ID and certifiacte on all hosts
-        ok = file:write_file(CertFile, Cert),
-        ok = onepanel_utils:save_file_on_hosts(Path, CertName, Cert),
+        ok = file:write_file(CertFile, <<Cert/binary, Key/binary>>),
+        ok = onepanel_utils:save_file_on_hosts(Path, CertName, <<Cert/binary, Key/binary>>),
+
         ok = dao:save_record(?PROVIDER_TABLE, #?PROVIDER_RECORD{id = ProviderId, name = ClientName, urls = URLs, redirection_point = RedirectionPoint}),
-        ok = onepanel_utils_adapter:apply_on_worker(gen_server, call, [{global, central_cluster_manager}, {set_provider_id, ProviderId}]),
-        Nodes = onepanel_utils_adapter:apply_on_worker(gen_server, call, [request_dispatcher, {get_workers, gr_channel}]),
-        {ConnectAnswers, []} = rpc:multicall(Nodes, gr_channel, connect, []),
-        lists:all(fun(ConnectAnswer) -> ConnectAnswer =:= ok end, ConnectAnswers),
 
         {ok, ProviderId}
     catch
@@ -114,11 +111,15 @@ register(RedirectionPoint, ClientName) ->
 unregister() ->
     try
         ProviderId = get_provider_id(),
+        Path = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, "certs"]),
+        {ok, KeyName} = application:get_env(?APP_NAME, grpkey_name),
+        {ok, CertName} = application:get_env(?APP_NAME, grpcert_name),
+
         ok = gr_providers:unregister(provider),
-        ok = onepanel_utils_adapter:apply_on_worker(gen_server, call, [{global, central_cluster_manager}, {set_provider_id, undefined}]),
+        ok = onepanel_utils:delete_file_on_hosts(Path, KeyName),
+        ok = onepanel_utils:delete_file_on_hosts(Path, CertName),
         Nodes = onepanel_utils_adapter:apply_on_worker(gen_server, call, [request_dispatcher, {get_workers, gr_channel}]),
-        {DisconnectAnswers, []} = rpc:multicall(Nodes, gr_channel, disconnect, []),
-        lists:all(fun(DisconnectAnswer) -> DisconnectAnswer =:= ok end, DisconnectAnswers),
+        rpc:multicall(Nodes, gr_channel, disconnect, []),
         ok = dao:delete_record(?PROVIDER_TABLE, ProviderId)
     catch
         _:Reason ->
