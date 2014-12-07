@@ -328,9 +328,9 @@ space_size_check() ->
     Result :: binary().
 %% ====================================================================
 space_size_multiply() ->
-    <<"if($(\"#size_mb\").hasClass(\"checked\")) { size = 1000 * size; }",
-    "else if($(\"#size_gb\").hasClass(\"checked\")) { size = 1000000 * size; }",
-    "else { size = 1000000000 * size; }">>.
+    <<"if($(\"#size_mb\").hasClass(\"checked\")) { size = 1024 * 1024 * size; }",
+    "else if($(\"#size_gb\").hasClass(\"checked\")) { size = 1024 * 1024 * 1024 * size; }",
+    "else { size = 1024 * 1024 * 1024 * 1024 * size; }">>.
 
 
 %% ====================================================================

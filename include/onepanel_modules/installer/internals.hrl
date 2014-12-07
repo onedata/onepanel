@@ -82,8 +82,8 @@
 -define(GLOBALREGISTRY_APP_CONFIG, filename:join([?CONFIG_PREFIX, "app.config"])).
 -define(GLOBALREGISTRY_VM_ARGS, filename:join([?CONFIG_PREFIX, "vm.args"])).
 
-%% Domain name for Global Registry REST certificate
--define(GLOBALREGISTRY_REST_CERT_DOMAIN, "onedata.org").
+%% Domain name for Global Registry certificate
+-define(GLOBALREGISTRY_CERT_DOMAIN, "onedata.org").
 
 -endif.
 

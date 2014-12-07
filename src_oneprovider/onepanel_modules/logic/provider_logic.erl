@@ -20,7 +20,7 @@
 
 %% API
 -export([register/2, unregister/0, create_csr/3]).
--export([get_default_ports/0, get_provider_id/0]).
+-export([get_default_ports/0, get_provider_id/0, get_provider_name/0]).
 
 -on_load(init/0).
 
@@ -78,7 +78,7 @@ register(RedirectionPoint, ClientName) ->
 
         %% Register in Global Registry
         {ok, CSR} = file:read_file(CsrPath),
-        {ok, #?GLOBAL_CONFIG_RECORD{workers = [Worker | _] = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
         URLs = lists:map(fun(Host) ->
             {ok, #?LOCAL_CONFIG_RECORD{ip_address = URL}} = dao:get_record(?LOCAL_CONFIG_TABLE, Host),
             URL
@@ -87,8 +87,9 @@ register(RedirectionPoint, ClientName) ->
         {ok, ProviderId, Cert} = gr_providers:register(provider, Parameters),
 
         %% Save provider ID and certifiacte on all hosts
-        ok = file:write_file(CertFile, Cert),
-        ok = onepanel_utils:save_file_on_hosts(Path, CertName, Cert),
+        ok = file:write_file(CertFile, <<Cert/binary, Key/binary>>),
+        ok = onepanel_utils:save_file_on_hosts(Path, CertName, <<Cert/binary, Key/binary>>),
+
         ok = dao:save_record(?PROVIDER_TABLE, #?PROVIDER_RECORD{id = ProviderId, name = ClientName, urls = URLs, redirection_point = RedirectionPoint}),
 
         {ok, ProviderId}
@@ -110,7 +111,15 @@ register(RedirectionPoint, ClientName) ->
 unregister() ->
     try
         ProviderId = get_provider_id(),
+        Path = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, "certs"]),
+        {ok, KeyName} = application:get_env(?APP_NAME, grpkey_name),
+        {ok, CertName} = application:get_env(?APP_NAME, grpcert_name),
+
         ok = gr_providers:unregister(provider),
+        ok = onepanel_utils:delete_file_on_hosts(Path, KeyName),
+        ok = onepanel_utils:delete_file_on_hosts(Path, CertName),
+        Nodes = onepanel_utils_adapter:apply_on_worker(gen_server, call, [request_dispatcher, {get_workers, gr_channel}]),
+        rpc:multicall(Nodes, gr_channel, disconnect, []),
         ok = dao:delete_record(?PROVIDER_TABLE, ProviderId)
     catch
         _:Reason ->
@@ -151,4 +160,20 @@ get_provider_id() ->
             ProviderId;
         _ ->
             undefined
+    end.
+
+
+%% get_provider_name/0
+%% ====================================================================
+%% @doc Returns provider name if registered or 'onepanel' otherwise.
+%% @end
+-spec get_provider_id() -> Result when
+    Result :: binary().
+%% ====================================================================
+get_provider_name() ->
+    case dao:get_records(?PROVIDER_TABLE) of
+        {ok, [#?PROVIDER_RECORD{name = ProviderName} | _]} ->
+            gui_str:html_encode(ProviderName);
+        _ ->
+            <<"onepanel">>
     end.

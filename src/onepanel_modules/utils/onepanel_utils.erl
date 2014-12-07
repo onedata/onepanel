@@ -18,7 +18,8 @@
 %% API
 -export([random_ascii_lowercase_sequence/1, get_application_version/0]).
 -export([get_node/1, get_node/2, get_nodes/0, get_nodes/2, get_host/1, get_hosts/0]).
--export([apply_on_hosts/5, dropwhile_failure/5, save_file_on_host/3, save_file_on_hosts/3]).
+-export([apply_on_hosts/5, dropwhile_failure/5, save_file_on_host/3, save_file_on_hosts/3,
+    delete_file_on_host/2, delete_file_on_hosts/2]).
 
 %% ====================================================================
 %% API functions
@@ -165,7 +166,7 @@ get_hosts() ->
 
 %% save_file_on_hosts/3
 %% ====================================================================
-%% @doc Saves Global Registry certificate cert on all hosts.
+%% @doc Saves file on all hosts.
 %% @end
 -spec save_file_on_hosts(Path :: string(), Filename :: string(), Content :: string() | binary()) -> Result when
     Result :: ok | {error, ErrorHosts :: [string()]}.
@@ -182,10 +183,10 @@ save_file_on_hosts(Path, Filename, Content) ->
 
 %% save_file_on_host/3
 %% ====================================================================
-%% @doc Saves Global Registry certificate cert on host.
+%% @doc Saves file on local host.
 %% @end
 -spec save_file_on_host(Path :: string(), Filename :: string(), Content :: string() | binary()) -> Result when
-    Result :: ok | {error, Reason :: term()}.
+    Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
 save_file_on_host(Path, Filename, Content) ->
     Host = get_host(node()),
@@ -196,6 +197,42 @@ save_file_on_host(Path, Filename, Content) ->
     catch
         _:Reason ->
             ?error("Cannot save file ~p at directory ~p: ~p", [Filename, Path, Reason]),
+            {error, Host}
+    end.
+
+
+%% delete_file_on_hosts/2
+%% ====================================================================
+%% @doc Deletes file on all hosts.
+%% @end
+-spec delete_file_on_hosts(Path :: string(), Filename :: string()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+delete_file_on_hosts(Path, Filename) ->
+    {_, HostsError} = apply_on_hosts(get_hosts(), ?MODULE, delete_file_on_host, [Path, Filename], ?RPC_TIMEOUT),
+    case HostsError of
+        [] -> ok;
+        _ ->
+            ?error("Cannot delete file ~p at directory ~p on following hosts: ~p", [Filename, Path, HostsError]),
+            {error, {hosts, HostsError}}
+    end.
+
+
+%% delete_file_on_host/2
+%% ====================================================================
+%% @doc Deletes file on local host.
+%% @end
+-spec delete_file_on_host(Path :: string(), Filename :: string()) -> Result when
+    Result :: {ok, Host :: string()} | {error, Host :: string()}.
+%% ====================================================================
+delete_file_on_host(Path, Filename) ->
+    Host = get_host(node()),
+    try
+        ok = file:delete(filename:join(Path, Filename)),
+        {ok, Host}
+    catch
+        _:Reason ->
+            ?error("Cannot delete file ~p at directory ~p: ~p", [Filename, Path, Reason]),
             {error, Host}
     end.
 

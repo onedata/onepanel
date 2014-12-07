@@ -249,14 +249,14 @@ local_start([FirstDb | Dbs]) ->
         ?debug("Starting Global Registry node: ~p"),
 
         Name = <<(list_to_binary(?GLOBALREGISTRY_NAME))/binary, "@", (list_to_binary(Host))/binary>>,
-        RestCertDomain = list_to_binary(?GLOBALREGISTRY_REST_CERT_DOMAIN),
+        CertDomain = list_to_binary(?GLOBALREGISTRY_CERT_DOMAIN),
 
         DbNames = lists:foldl(fun(Db, Acc) ->
             <<"'", (list_to_binary(?DB_NAME))/binary, "@", (list_to_binary(Db))/binary, "', ", Acc/binary>>
         end, <<"'", (list_to_binary(?DB_NAME))/binary, "@", (list_to_binary(FirstDb))/binary, "'">>, Dbs),
 
         ok = installer_utils:overwrite_config_args(?GLOBALREGISTRY_APP_CONFIG, <<"db_nodes, ">>, <<"[^\]]*">>, <<"[", DbNames/binary>>),
-        ok = installer_utils:overwrite_config_args(?GLOBALREGISTRY_APP_CONFIG, <<"rest_cert_domain, \"">>, <<"[^\"]*">>, RestCertDomain),
+        ok = installer_utils:overwrite_config_args(?GLOBALREGISTRY_APP_CONFIG, <<"grpcert_domain, \"">>, <<"[^\"]*">>, CertDomain),
         ok = installer_utils:overwrite_config_args(?GLOBALREGISTRY_VM_ARGS, <<"\n-name ">>, <<"[^\n]*">>, Name),
         ok = installer_utils:add_node_to_config(gr_node, list_to_atom(?GLOBALREGISTRY_NAME), ?NODES_INSTALL_PATH),
 
