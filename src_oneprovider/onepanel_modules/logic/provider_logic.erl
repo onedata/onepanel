@@ -167,7 +167,7 @@ get_provider_id() ->
 %% ====================================================================
 %% @doc Returns provider name if registered or 'onepanel' otherwise.
 %% @end
--spec get_provider_id() -> Result when
+-spec get_provider_name() -> Result when
     Result :: binary().
 %% ====================================================================
 get_provider_name() ->
