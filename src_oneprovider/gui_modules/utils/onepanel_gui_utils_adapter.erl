@@ -82,7 +82,7 @@ top_menu(ActiveTabID, ActiveLinkID, Submenu, Spinner) ->
         {brand_tab, #li{body = #link{style = <<"padding: 18px;">>, url = ?PAGE_ROOT,
             body = [
                 #span{style = <<"font-size: xx-large;">>, class = <<"fui-gear">>},
-                #b{style = <<"font-size: x-large;">>, body = <<"onepanel">>}
+                #b{style = <<"font-size: x-large;">>, body = provider_logic:get_provider_name()}
             ]}
         }},
         {software_tab, #li{body = [
