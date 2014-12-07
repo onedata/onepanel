@@ -20,7 +20,7 @@
 
 %% API
 -export([register/2, unregister/0, create_csr/3]).
--export([get_default_ports/0, get_provider_id/0]).
+-export([get_default_ports/0, get_provider_id/0, get_provider_name/0]).
 
 -on_load(init/0).
 
@@ -160,4 +160,20 @@ get_provider_id() ->
             ProviderId;
         _ ->
             undefined
+    end.
+
+
+%% get_provider_name/0
+%% ====================================================================
+%% @doc Returns provider name if registered or 'onepanel' otherwise.
+%% @end
+-spec get_provider_name() -> Result when
+    Result :: binary().
+%% ====================================================================
+get_provider_name() ->
+    case dao:get_records(?PROVIDER_TABLE) of
+        {ok, [#?PROVIDER_RECORD{name = ProviderName} | _]} ->
+            gui_str:html_encode(ProviderName);
+        _ ->
+            <<"onepanel">>
     end.
