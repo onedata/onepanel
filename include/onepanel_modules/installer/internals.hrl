@@ -19,7 +19,7 @@
 -ifdef(oneprovider).
 
 %% Default cookie used for communication with application
--define(COOKIE, oneprovider_node).
+-define(COOKIE, "oneprovider_node").
 
 %% Installation directory of RPM package
 -define(PREFIX, filename:join([filename:absname("/"), "opt", "oneprovider"])).
@@ -51,6 +51,19 @@
 %% Size of storage test file in bytes
 -define(STORAGE_TEST_FILE_SIZE, 20).
 
+%% ====================================================================
+%% Database components macros
+%% ====================================================================
+
+%% Default names database component
+-define(DB_NAME, "riak").
+
+%% Default Riak database port
+-define(DB_PORT, 49161).
+
+%% Location of config file
+-define(DB_CONFIG, "/etc/riak/riak.conf").
+
 -endif.
 
 %% ====================================================================
@@ -60,7 +73,7 @@
 -ifdef(globalregistry).
 
 %% Default cookie used for communication with application
--define(COOKIE, globalregistry).
+-define(COOKIE, "globalregistry").
 
 %% Installation directory of RPM package
 -define(PREFIX, filename:join([filename:absname("/"), "opt", "globalregistry"])).
@@ -85,30 +98,30 @@
 %% Domain name for Global Registry certificate
 -define(GLOBALREGISTRY_CERT_DOMAIN, "onedata.org").
 
--endif.
-
 %% ====================================================================
 %% Database components macros
 %% ====================================================================
 
-%% Default bigcouch port
+%% Default names database component
+-define(DB_NAME, "db").
+
+%% Default BigCouch database port
 -define(DB_PORT, 5986).
 
 %% Install path for database nodes, should not be changed, unless you've
 %% configured bigcouch realease properly (the one from files/database_node)
 -define(DB_PREFIX, filename:join([filename:absname("/"), "opt", "bigcouch"])).
 
-%% Default names database component
--define(DB_NAME, "db").
-
 %% Location of database release
 -define(DB_RELEASE, filename:join([?PREFIX, "files", "database_node"])).
 
-%% Location of config files
--define(DB_VM_ARGS, filename:join([?DB_PREFIX, "etc", "vm.args"])).
+%% Location of config file
+-define(DB_CONFIG, filename:join([?DB_PREFIX, "etc", "vm.args"])).
 
 %% Timeout request using database REST API
 -define(DB_CONNECTION_TIMEOUT, 5000).
+
+-endif.
 
 %% ====================================================================
 %% Common macros

@@ -19,9 +19,6 @@
 %% String version of applicaton name
 -define(APP_STR, atom_to_list(?APP_NAME)).
 
-%% Name of installed software application.
--define(SOFTWARE_NAME, oneprovider_node).
-
 %% Global name of gen_server that provides CCM functionality of installed software
 -define(CCM, central_cluster_manager).
 
@@ -48,6 +45,17 @@
 %% Updater gen_server's name
 -define(UPDATE_SERVICE, update_service).
 
+%% Name of installed software application.
+-define(SOFTWARE_NAME, oneprovider_node).
+
 -endif.
+
+-ifdef(globalregistry).
+
+%% Name of installed software application.
+-define(SOFTWARE_NAME, globalregistry).
+
+-endif.
+
 
 -endif.

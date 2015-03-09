@@ -34,17 +34,6 @@
 set_system_limit(Type, Value) ->
     try
         Host = onepanel_utils:get_host(node()),
-        case file:consult(?ULIMITS_CONFIG_PATH) of
-            {ok, Limits} ->
-                case lists:keymember(Type, 1, Limits) of
-                    true ->
-                        ok;
-                    _ ->
-                        ok = file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n", [{Type, integer_to_list(Value)}]), [append])
-                end;
-            _ ->
-                ok = file:write_file(?ULIMITS_CONFIG_PATH, io_lib:fwrite("~p.\n", [{Type, integer_to_list(Value)}]), [append])
-        end,
         ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{Type, Value}])
     catch
         _:Reason ->

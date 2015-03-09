@@ -49,13 +49,13 @@ main() ->
             case installer_utils_adapter:get_workers() of
                 [] ->
                     page_error:redirect_with_error(?SOFTWARE_NOT_INSTALLED_ERROR),
-                    #dtl{file = "bare", app = ?SOFTWARE_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
+                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
-                    #dtl{file = "bare", app = ?SOFTWARE_NAME, bindings = [{title, title()}, {body, body()}, {custom, custom()}]}
+                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, custom()}]}
             end;
         false ->
             gui_jq:redirect_to_login(),
-            #dtl{file = "bare", app = ?SOFTWARE_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
+            #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
     end.
 
 
