@@ -244,7 +244,7 @@ local_uninstall() ->
 -spec local_start(Dbs :: [string()]) -> Result when
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-local_start([FirstDb | Dbs]) ->
+local_start(Dbs) ->
     Host = onepanel_utils:get_host(node()),
     try
         ?debug("Starting Global Registry node: ~p"),
@@ -262,7 +262,9 @@ local_start([FirstDb | Dbs]) ->
             ]
         ),
 
-        "0" = os:cmd("service " ++ ?GLOBALREGISTRY_SERVICE ++ " start_globalregistry 1>/dev/null 2>&1 ; echo -n $?"),
+        Daemon = filename:join([?NODES_INSTALL_PATH, ?GLOBALREGISTRY_NAME, ?GLOBALREGISTRY_DAEMON]),
+        SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
+        "" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ Daemon ++ " start\""),
 
         {ok, Host}
     catch

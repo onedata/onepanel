@@ -56,7 +56,6 @@ install(Args) ->
             {error, {hosts, HostsError}}
     end.
 
-
 %% uninstall/1
 %% ====================================================================
 %% @doc Uninstalls database nodes on given hosts. Arguments list should
@@ -78,7 +77,6 @@ uninstall(Args) ->
             {error, {hosts, HostsError}}
     end.
 
-
 %% start/1
 %% ====================================================================
 %% @doc Starts database nodes on given hosts. Arguments list should
@@ -96,7 +94,8 @@ start(Args) ->
 
         case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
             {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> ok;
-            {ok, #?GLOBAL_CONFIG_RECORD{dbs = _}} -> throw("Database nodes already configured.");
+            {ok, #?GLOBAL_CONFIG_RECORD{dbs = _}} ->
+                throw("Database nodes already configured.");
             _ -> throw("Cannot get database nodes configuration.")
         end,
 
@@ -133,7 +132,6 @@ start(Args) ->
             {error, Reason}
     end.
 
-
 %% stop/1
 %% ====================================================================
 %% @doc Stops all database nodes.
@@ -144,9 +142,11 @@ start(Args) ->
 stop(_) ->
     try
         ConfiguredDbs = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> throw("Database nodes not configured.");
+                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} ->
+                                throw("Database nodes not configured.");
                             {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} -> Dbs;
-                            _ -> throw("Cannot get database nodes configuration.")
+                            _ ->
+                                throw("Cannot get database nodes configuration.")
                         end,
 
         {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(ConfiguredDbs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
@@ -171,7 +171,6 @@ stop(_) ->
             {error, Reason}
     end.
 
-
 %% restart/1
 %% ====================================================================
 %% @doc Restarts all database nodes.
@@ -182,9 +181,11 @@ stop(_) ->
 restart(_) ->
     try
         ConfiguredDbs = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> throw("Database nodes not configured.");
+                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} ->
+                                throw("Database nodes not configured.");
                             {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} -> Dbs;
-                            _ -> throw("Cannot get database nodes configuration.")
+                            _ ->
+                                throw("Cannot get database nodes configuration.")
                         end,
 
         case stop([]) of
@@ -196,7 +197,6 @@ restart(_) ->
             ?error("Cannot restart database nodes: ~p", [Reason]),
             {error, Reason}
     end.
-
 
 %% ====================================================================
 %% API functions
@@ -225,7 +225,6 @@ local_install() ->
             {error, Host}
     end.
 
-
 %% local_uninstall/0
 %% ====================================================================
 %% @doc Uninstalls database node on local host.
@@ -248,7 +247,6 @@ local_uninstall() ->
             {error, Host}
     end.
 
-
 %% local_start/2
 %% ====================================================================
 %% @doc Starts database node on local host.
@@ -268,7 +266,9 @@ local_start(Username, Password) ->
         ok = installer_utils:overwrite_config_args(?DB_CONFIG, <<"\n-setcookie ">>, <<"[^\n]*">>, Cookie),
         ok = installer_utils:add_node_to_config(db_node, list_to_atom(?DB_NAME), ?DB_PREFIX),
 
-        "0" = os:cmd("service " ++ ?DB_SERVICE ++ " start_db 1>/dev/null 2>&1 ; echo -n $?"),
+        Daemon = filename:join([?DB_PREFIX, ?DB_DAEMON]),
+        SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
+        "" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; nohup " ++ Daemon ++ " start & 1>/dev/null 2>&1\""),
 
         {ok, DefaultUsername} = application:get_env(?APP_NAME, default_username),
         {ok, DefaultPassword} = application:get_env(?APP_NAME, default_password),
@@ -282,7 +282,6 @@ local_start(Username, Password) ->
             ?error("Cannot start database node: ~p", [Reason]),
             {error, Host}
     end.
-
 
 %% local_stop/0
 %% ====================================================================
@@ -305,7 +304,6 @@ local_stop() ->
             ?error("Cannot stop database node: ~p", [Reason]),
             {error, Host}
     end.
-
 
 %% join_cluster/3
 %% ====================================================================
@@ -336,7 +334,6 @@ join_cluster(Username, Password, ClusterHost) ->
             {error, Host}
     end.
 
-
 %% change_username/3
 %% ====================================================================
 %% @doc Changes username in administrative database on given hosts.
@@ -362,7 +359,6 @@ change_username(Hosts, Username, NewUsername) ->
             ?error("Cannot get password to administrative database for user ~p: ~p", [Username, Other]),
             {error, <<"Cannot get password to administrative database for user: ", Username/binary>>}
     end.
-
 
 %% local_change_username/3
 %% ====================================================================
@@ -392,7 +388,6 @@ local_change_username(Username, NewUsername, Password) ->
             {error, Reason}
     end.
 
-
 %% change_password/4
 %% ====================================================================
 %% @doc Changes password to administrative database on given hosts.
@@ -409,7 +404,6 @@ change_password(Hosts, Username, CurrentPassword, NewPassword) ->
             onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_change_password, [Username, NewPassword, CurrentPassword], ?RPC_TIMEOUT),
             {error, <<"Cannot change password to administrative database.">>}
     end.
-
 
 %% local_change_password/3
 %% ====================================================================
@@ -428,11 +422,9 @@ local_change_password(Username, CurrentPassword, NewPassword) ->
             {error, Host}
     end.
 
-
 %% ====================================================================
 %% Internal functions
 %% ====================================================================
-
 
 %% finalize_local_start/3
 %% ====================================================================
@@ -455,7 +447,6 @@ finalize_local_start(Username, Password, Attempts) ->
             timer:sleep(?NEXT_ATTEMPT_DELAY),
             finalize_local_start(Username, Password, Attempts - 1)
     end.
-
 
 %% request/5
 %% ====================================================================

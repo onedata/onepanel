@@ -227,10 +227,11 @@ local_install() ->
     try
         ?debug("Installing worker node"),
         WorkerPath = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME]),
+        {ok, ReleasePath} = application:get_env(?APP_NAME, application_release_path),
 
         "" = os:cmd("rm -rf " ++ WorkerPath),
         "" = os:cmd("mkdir -p " ++ WorkerPath),
-        "" = os:cmd("cp -R " ++ filename:join([?ONEPROVIDER_RELEASE, "* "]) ++ WorkerPath),
+        "" = os:cmd("cp -R " ++ filename:join([ReleasePath, "* "]) ++ WorkerPath),
 
         {ok, Host}
     catch
@@ -290,9 +291,9 @@ local_start(MainCCM, OptCCMs, Workers, Dbs, StoragePaths) ->
             ]
         ),
 
-        StartCommand = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, ?START_COMMAND_SUFFIX]),
+        Daemon = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, ?ONEPROVIDER_DAEMON]),
         SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
-        "" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ StartCommand ++ "\""),
+        "" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ Daemon ++ " start\""),
 
         {ok, Host}
     catch

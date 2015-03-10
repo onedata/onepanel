@@ -28,9 +28,6 @@
 -define(CCM_NAME, "ccm").
 -define(WORKER_NAME, "worker").
 
-%% Location of oneprovider release
--define(ONEPROVIDER_RELEASE, filename:join([?PREFIX, "files", "oneprovider_node"])).
-
 %% Name of oneprovider service
 -define(ONEPROVIDER_SERVICE, "oneprovider").
 
@@ -40,7 +37,7 @@
 %% Location of config files relative to oneprovider release
 -define(CONFIG_ARGS_PATH, filename:join(["bin", "config.args"])).
 -define(ONEPROVIDER_SCRIPT_PATH, filename:join(["bin", "oneprovider"])).
--define(START_COMMAND_SUFFIX, filename:join(["bin", "oneprovider_node start"])).
+-define(ONEPROVIDER_DAEMON, filename:join(["bin", "oneprovider_node"])).
 
 %% Relative path to storage configuration file
 -define(STORAGE_CONFIG_PATH, filename:join(["bin", "storage_info.cfg"])).
@@ -81,9 +78,6 @@
 %% Default names of installable components
 -define(GLOBALREGISTRY_NAME, "globalregistry").
 
-%% Location of globalregistry release
--define(GLOBALREGISTRY_RELEASE, filename:join([?PREFIX, "files", "globalregistry_node"])).
-
 %% Name of Global Registry service
 -define(GLOBALREGISTRY_SERVICE, "globalregistry").
 
@@ -94,6 +88,7 @@
 -define(CONFIG_PREFIX, filename:join([?PREFIX, "nodes", ?GLOBALREGISTRY_NAME, "etc"])).
 -define(GLOBALREGISTRY_APP_CONFIG, filename:join([?CONFIG_PREFIX, "app.config"])).
 -define(GLOBALREGISTRY_VM_ARGS, filename:join([?CONFIG_PREFIX, "vm.args"])).
+-define(GLOBALREGISTRY_DAEMON, filename:join(["bin", "globalregistry"])).
 
 %% Domain name for Global Registry certificate
 -define(GLOBALREGISTRY_CERT_DOMAIN, "onedata.org").
@@ -114,6 +109,7 @@
 
 %% Location of database release
 -define(DB_RELEASE, filename:join([?PREFIX, "files", "database_node"])).
+-define(DB_DAEMON, filename:join(["bin", "bigcouch"])).
 
 %% Location of config file
 -define(DB_CONFIG, filename:join([?DB_PREFIX, "etc", "vm.args"])).

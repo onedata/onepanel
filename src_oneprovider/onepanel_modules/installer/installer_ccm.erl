@@ -230,10 +230,11 @@ local_install() ->
     try
         ?debug("Installing CCM node"),
         CCMPath = filename:join([?NODES_INSTALL_PATH, ?CCM_NAME]),
+        {ok, ReleasePath} = application:get_env(?APP_NAME, application_release_path),
 
         "" = os:cmd("rm -rf " ++ CCMPath),
         "" = os:cmd("mkdir -p " ++ CCMPath),
-        "" = os:cmd("cp -R " ++ filename:join([?ONEPROVIDER_RELEASE, "* "]) ++ CCMPath),
+        "" = os:cmd("cp -R " ++ filename:join([ReleasePath, "* "]) ++ CCMPath),
 
         {ok, Host}
     catch
@@ -293,9 +294,9 @@ local_start(MainCCM, OptCCMs, Workers, Dbs, StoragePaths) ->
             ]
         ),
 
-        StartCommand = filename:join([?NODES_INSTALL_PATH, ?CCM_NAME, ?START_COMMAND_SUFFIX]),
+        Daemon = filename:join([?NODES_INSTALL_PATH, ?CCM_NAME, ?ONEPROVIDER_DAEMON]),
         SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
-        "" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ StartCommand ++ "\""),
+        "" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ Daemon ++ " start\""),
 
         {ok, Host}
     catch

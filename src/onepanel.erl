@@ -54,7 +54,8 @@ start_link() ->
 init([]) ->
     try
         ok = db_logic:create(),
-        {ok, Address} = application:get_env(?APP_NAME, multicast_address),
+        {ok, IpAddress} = application:get_env(?APP_NAME, multicast_address),
+        {ok, Address} = inet:getaddr(IpAddress, inet),
         {ok, Port} = application:get_env(?APP_NAME, onepanel_port),
         {ok, Socket} = gen_udp:open(Port, [binary, {reuseaddr, true}, {ip, Address},
             {multicast_loop, false}, {add_membership, {Address, {0, 0, 0, 0}}}]),

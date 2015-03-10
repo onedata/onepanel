@@ -10,6 +10,7 @@
 %% ===================================================================
 -module(updater_export).
 -author("Rafal Slota").
+-include("registered_names.hrl").
 -include("onepanel_modules/updater/common.hrl").
 -include("onepanel_modules/updater/internals.hrl").
 -include("onepanel_modules/installer/internals.hrl").
@@ -116,7 +117,8 @@ revert_instalation() ->
 -spec move_file(File :: string()) -> ok | {error, any()}.
 %% ====================================================================
 move_file(File) ->
-    RelPrivPath = filename:join([?ONEPROVIDER_RELEASE, "lib"]),
+    {ok, ReleasePath} = application:get_env(?APP_NAME, application_release_path),
+    RelPrivPath = filename:join([ReleasePath, "lib"]),
     WorkerTargetDir = filename:join([?NODES_INSTALL_PATH, get_node_subpath(), "lib"]),
 
     From = os:cmd("find " ++ RelPrivPath ++ " -name \"" ++ File ++ "\" | head -1") -- [10],
@@ -144,7 +146,8 @@ move_file(File) ->
 -spec move_all_files() -> ok | {error, any()}.
 %% ====================================================================
 move_all_files() ->
-    Targets = string:tokens(os:cmd("cd " ++ ?ONEPROVIDER_RELEASE ++ "; find . -type f | grep -v sys.config | grep -v vm.args | grep -v config.args | grep -v storage_info.cfg"), [10]),
+    {ok, ReleasePath} = application:get_env(?APP_NAME, application_release_path),
+    Targets = string:tokens(os:cmd("cd " ++ ReleasePath ++ "; find . -type f | grep -v sys.config | grep -v vm.args | grep -v config.args | grep -v storage_info.cfg"), [10]),
     IsRebootRequired =
         lists:foldl(
             fun(File, RebootRequired) ->
@@ -156,7 +159,7 @@ move_all_files() ->
                         file:make_dir(NewDir),
                         NewDir
                     end, [], filename:split(TargetDir)),
-                Source = filename:join([?ONEPROVIDER_RELEASE, File]),
+                Source = filename:join([ReleasePath, File]),
                 {ok, SourceBin} = file:read_file(Source),
                 TargetBin =
                     case file:read_file(Source) of
@@ -292,7 +295,8 @@ get_all_loaded() ->
 -spec install_view_sources() -> ok | {error, any()}.
 %% ====================================================================
 install_view_sources() ->
-    case os:cmd("cp -rf " ++ filename:join(?ONEPROVIDER_RELEASE, "views") ++ " " ++ filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME])) of
+    {ok, ReleasePath} = application:get_env(?APP_NAME, application_release_path),
+    case os:cmd("cp -rf " ++ filename:join(ReleasePath, "views") ++ " " ++ filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME])) of
         "" -> ok;
         Reason -> {error, {stdout, Reason}}
     end.
@@ -329,7 +333,8 @@ refresh_view(View) ->
 -spec get_release_name() -> ReleaseName :: string().
 %% ====================================================================
 get_release_name() ->
-    os:cmd("basename `find " ++ filename:join(?ONEPROVIDER_RELEASE, "lib") ++ " -name 'oneprovider_node*' -type d -printf '%T@ %p\n' | sort -nr | cut -d ' ' -f 2- | head -1`") -- [10].
+    {ok, ReleasePath} = application:get_env(?APP_NAME, application_release_path),
+    os:cmd("basename `find " ++ filename:join(ReleasePath, "lib") ++ " -name 'oneprovider_node*' -type d -printf '%T@ %p\n' | sort -nr | cut -d ' ' -f 2- | head -1`") -- [10].
 
 
 %% is_reboot_only_lib/1
