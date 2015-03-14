@@ -22,7 +22,7 @@
 -export([install/1, uninstall/1, start/1, stop/1, restart/1]).
 
 %% API
--export([local_install/0, local_uninstall/0, local_start/2, local_stop/0, join_cluster/3]).
+-export([local_start/2, local_stop/0, join_cluster/3]).
 -export([change_username/3, local_change_username/3, change_password/4, local_change_password/3]).
 
 %% Defines how many times onepanel will try to verify database node start
@@ -43,18 +43,8 @@
 -spec install(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-install(Args) ->
-    Dbs = proplists:get_value(dbs, Args, []),
-
-    {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(Dbs, ?MODULE, local_install, [], ?RPC_TIMEOUT),
-
-    case HostsError of
-        [] -> ok;
-        _ ->
-            ?error("Cannot install database nodes on following hosts: ~p", [HostsError]),
-            onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
-            {error, {hosts, HostsError}}
-    end.
+install(_Args) ->
+    ok.
 
 %% uninstall/1
 %% ====================================================================
@@ -64,18 +54,8 @@ install(Args) ->
 -spec uninstall(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-uninstall(Args) ->
-    Dbs = proplists:get_value(dbs, Args, []),
-
-    {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(Dbs, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
-
-    case HostsError of
-        [] -> ok;
-        _ ->
-            ?error("Cannot uninstall database nodes on following hosts: ~p", [HostsError]),
-            onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_install, [], ?RPC_TIMEOUT),
-            {error, {hosts, HostsError}}
-    end.
+uninstall(_Args) ->
+    ok.
 
 %% start/1
 %% ====================================================================
@@ -202,51 +182,6 @@ restart(_) ->
 %% API functions
 %% ====================================================================
 
-%% local_install/0
-%% ====================================================================
-%% @doc Installs database node on local host.
-%% @end
--spec local_install() -> Result when
-    Result :: {ok, Host :: string()} | {error, Host :: string()}.
-%% ====================================================================
-local_install() ->
-    Host = onepanel_utils:get_host(node()),
-    try
-        ?debug("Installing database node"),
-
-        "" = os:cmd("rm -rf " ++ ?DB_PREFIX),
-        "" = os:cmd("mkdir -p " ++ ?DB_PREFIX),
-        "" = os:cmd("cp -R " ++ filename:join([?DB_RELEASE, "* "]) ++ ?DB_PREFIX),
-
-        {ok, Host}
-    catch
-        _:Reason ->
-            ?error("Cannot install database node: ~p", [Reason]),
-            {error, Host}
-    end.
-
-%% local_uninstall/0
-%% ====================================================================
-%% @doc Uninstalls database node on local host.
-%% @end
--spec local_uninstall() -> Result when
-    Result :: {ok, Host :: string()} | {error, Host :: string()}.
-%% ====================================================================
-local_uninstall() ->
-    Host = onepanel_utils:get_host(node()),
-    try
-        ?debug("Uninstalling database node"),
-
-        "" = os:cmd("rm -rf " ++ ?DB_PREFIX),
-        ok = file:delete(?ULIMITS_CONFIG_PATH),
-
-        {ok, Host}
-    catch
-        _:Reason ->
-            ?error("Cannot uninstall database node on host ~s: ~p", [Host, Reason]),
-            {error, Host}
-    end.
-
 %% local_start/2
 %% ====================================================================
 %% @doc Starts database node on local host.
@@ -264,11 +199,12 @@ local_start(Username, Password) ->
 
         ok = installer_utils:overwrite_config_args(?DB_CONFIG, <<"\n-name ">>, <<"[^\n]*">>, Name),
         ok = installer_utils:overwrite_config_args(?DB_CONFIG, <<"\n-setcookie ">>, <<"[^\n]*">>, Cookie),
-        ok = installer_utils:add_node_to_config(db_node, list_to_atom(?DB_NAME), ?DB_PREFIX),
 
         Daemon = filename:join([?DB_PREFIX, ?DB_DAEMON]),
         SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
-        "" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; nohup " ++ Daemon ++ " start & 1>/dev/null 2>&1\""),
+        Cmd = "bash -c \"" ++ SetUlimitsCmd ++ " ; nohup " ++ Daemon ++ " start 1>/dev/null 2>&1 &\"",
+        ?dump(Cmd),
+        "" = os:cmd(Cmd),
 
         {ok, DefaultUsername} = application:get_env(?APP_NAME, default_username),
         {ok, DefaultPassword} = application:get_env(?APP_NAME, default_password),
@@ -440,10 +376,13 @@ finalize_local_start(_, _, 0) ->
 finalize_local_start(Username, Password, Attempts) ->
     Host = onepanel_utils:get_host(node()),
     URL = "http://" ++ Host ++ ":" ++ integer_to_list(?DB_PORT),
+    ?dump(URL),
     case request(Username, Password, URL, get, []) of
         {ok, "200", _, _} ->
             ok;
-        _ ->
+        Other ->
+            ?dump({Username, Password}),
+            ?dump(Other),
             timer:sleep(?NEXT_ATTEMPT_DELAY),
             finalize_local_start(Username, Password, Attempts - 1)
     end.

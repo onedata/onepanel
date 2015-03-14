@@ -84,14 +84,14 @@
     },
     "onepanel": {
         "config": {
-            "input_dir": "rel_oneprovider/onepanel",
+            "input_dir": "rel_globalregistry/onepanel",
             "target_dir": "rel/test_cluster"
         },
         "nodes": {
             "onepanel1": {
                 "vm.args": {
                     "name": "onepanel@onepanel1",
-                    "setcookie": "oneprovider_node"
+                    "setcookie": "globalregistry"
                 },
                 "sys.config": {
                     "multicast_address": {"string" : "239.255.0.1"}
@@ -100,7 +100,7 @@
             "onepanel2": {
                 "vm.args": {
                     "name": "onepanel@onepanel2",
-                    "setcookie": "oneprovider_node"
+                    "setcookie": "globalregistry"
                 },
                 "sys.config": {
                     "multicast_address": {"string" : "239.255.0.1"}

@@ -203,10 +203,11 @@ local_install() ->
     try
         ?debug("Installing Global Registry node"),
         GRPath = filename:join([?NODES_INSTALL_PATH, ?GLOBALREGISTRY_NAME]),
+        {ok, ReleasePath} = application:get_env(?APP_NAME, application_release_path),
 
         "" = os:cmd("rm -rf " ++ GRPath),
         "" = os:cmd("mkdir -p " ++ GRPath),
-        "" = os:cmd("cp -R " ++ filename:join([?GLOBALREGISTRY_RELEASE, "* "]) ++ GRPath),
+        "" = os:cmd("cp -R " ++ filename:join([ReleasePath, "* "]) ++ GRPath),
 
         {ok, Host}
     catch
