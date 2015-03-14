@@ -203,7 +203,6 @@ local_start(Username, Password) ->
         Daemon = filename:join([?DB_PREFIX, ?DB_DAEMON]),
         SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
         Cmd = "bash -c \"" ++ SetUlimitsCmd ++ " ; nohup " ++ Daemon ++ " start 1>/dev/null 2>&1 &\"",
-        ?dump(Cmd),
         "" = os:cmd(Cmd),
 
         {ok, DefaultUsername} = application:get_env(?APP_NAME, default_username),
@@ -376,13 +375,10 @@ finalize_local_start(_, _, 0) ->
 finalize_local_start(Username, Password, Attempts) ->
     Host = onepanel_utils:get_host(node()),
     URL = "http://" ++ Host ++ ":" ++ integer_to_list(?DB_PORT),
-    ?dump(URL),
     case request(Username, Password, URL, get, []) of
         {ok, "200", _, _} ->
             ok;
         Other ->
-            ?dump({Username, Password}),
-            ?dump(Other),
             timer:sleep(?NEXT_ATTEMPT_DELAY),
             finalize_local_start(Username, Password, Attempts - 1)
     end.

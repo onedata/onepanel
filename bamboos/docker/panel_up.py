@@ -18,12 +18,14 @@ parser.add_argument(
     help='path to the release directory of component to be installed')
 
 parser.add_argument(
-    'storage_path',
-    action='store',
-    help='path to the storage used by installed component')
+    '-sp', '--storage_path',
+    action='append',
+    default=[],
+    help='path to the storage used by installed component',
+    dest='storage_paths')
 
 args = parser.parse_args()
 output = panel.up(args.image, args.bin, args.dns, args.uid, args.config_path,
-                  args.release_path, args.storage_path)
+                  args.release_path, args.storage_paths)
 
 print(json.dumps(output))

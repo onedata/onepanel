@@ -41,7 +41,7 @@ def _tweak_config(config, name, uid):
 
 
 def _node_up(image, bindir, uid, config, dns_servers, release_path,
-             storage_path):
+             storage_paths):
     node_name = config['nodes']['node']['vm.args']['name']
 
     (name, sep, hostname) = node_name.partition('@')
@@ -60,8 +60,10 @@ escript bamboos/gen_dev/gen_dev.escript /tmp/gen_dev_args.json
         gid=os.getegid())
 
     volumes = [(bindir, '/root/build', 'ro'),
-               (release_path, '/root/release', 'ro'),
-               (storage_path, storage_path, 'rw')]
+               (release_path, '/root/release', 'ro')]
+
+    for storage_path in storage_paths:
+        volumes.append((storage_path, storage_path, 'rw'))
 
     container = docker.run(
         image=image,
@@ -83,7 +85,7 @@ escript bamboos/gen_dev/gen_dev.escript /tmp/gen_dev_args.json
     )
 
 
-def up(image, bindir, dns, uid, config_path, release_path, storage_path):
+def up(image, bindir, dns, uid, config_path, release_path, storage_paths):
     config = common.parse_json_file(config_path)['onepanel']
     config['config']['target_dir'] = '/root/bin'
     configs = [_tweak_config(config, node, uid) for node in config['nodes']]
@@ -92,7 +94,7 @@ def up(image, bindir, dns, uid, config_path, release_path, storage_path):
 
     for cfg in configs:
         node_out = _node_up(image, bindir, uid, cfg, dns_servers, release_path,
-                            storage_path)
+                            storage_paths)
         common.merge(output, node_out)
 
     return output
