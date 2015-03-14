@@ -1,13 +1,5 @@
 About
 =====
 
-*onepanel* enables interactive installation of *onedata* components using Web GUI.
-
-Goals
------
-
-Getting Started
----------------
-
-Support
--------
+This repository contains utility functions used by *Bamboo* - Continuous Integration and Build Server - during 
+deployment of *onedata* project's components.
