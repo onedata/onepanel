@@ -1,6 +1,6 @@
 %% ===================================================================
 %% @author Krzysztof Trzepla
-%% @copyright (C): 2014 ACK CYFRONET AGH
+%% @copyright (C): 2015 ACK CYFRONET AGH
 %% This software is released under the MIT license
 %% cited in 'LICENSE.txt'.
 %% @end
@@ -76,7 +76,9 @@ start(Args) ->
             {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> ok;
             {ok, #?GLOBAL_CONFIG_RECORD{dbs = _}} ->
                 throw("Database nodes already configured.");
-            _ -> throw("Cannot get database nodes configuration.")
+            {error, Reason} ->
+                ?error("Cannot get database nodes configuration: ~p", [Reason]),
+                throw("Cannot get database nodes configuration.")
         end,
 
         Username = proplists:get_value(username, Args),
@@ -92,23 +94,23 @@ start(Args) ->
                         case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{dbs, Dbs}]) of
                             ok -> ok;
                             Other ->
-                                ?error("Cannot update database nodes configuration: ~p", [Other]),
+                                ?error_stacktrace("Cannot update database nodes configuration: ~p", [Other]),
                                 onepanel_utils:apply_on_hosts(Dbs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
                                 {error, {hosts, Dbs}}
                         end;
                     _ ->
-                        ?error("Cannot add following hosts: ~p to database cluster", [JoinError]),
+                        ?error_stacktrace("Cannot add following hosts: ~p to database cluster", [JoinError]),
                         {error, {hosts, JoinError}}
                 end;
             _ ->
-                ?error("Cannot start database nodes on following hosts: ~p", [StartError]),
+                ?error_stacktrace("Cannot start database nodes on following hosts: ~p", [StartError]),
                 onepanel_utils:apply_on_hosts(StartOk, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
                 {error, {hosts, StartError}}
         end
     catch
         _:nothing_to_start -> ok;
         _:Reason ->
-            ?error("Cannot start database nodes: ~p", [Reason]),
+            ?error_stacktrace("Cannot start database nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -125,7 +127,8 @@ stop(_) ->
                             {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} ->
                                 throw("Database nodes not configured.");
                             {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} -> Dbs;
-                            _ ->
+                            {error, Reason} ->
+                                ?error("Cannot get database nodes configuration: ~p", [Reason]),
                                 throw("Cannot get database nodes configuration.")
                         end,
 
@@ -136,18 +139,18 @@ stop(_) ->
                 case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{dbs, []}]) of
                     ok -> ok;
                     Other ->
-                        ?error("Cannot update database nodes configuration: ~p", [Other]),
+                        ?error_stacktrace("Cannot update database nodes configuration: ~p", [Other]),
                         onepanel_utils:apply_on_hosts(ConfiguredDbs, ?MODULE, local_start, [], ?RPC_TIMEOUT),
                         {error, {hosts, ConfiguredDbs}}
                 end;
             _ ->
-                ?error("Cannot stop database nodes on following hosts: ~p", [HostsError]),
+                ?error_stacktrace("Cannot stop database nodes on following hosts: ~p", [HostsError]),
                 onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_start, [], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
         _:Reason ->
-            ?error("Cannot stop database nodes: ~p", [Reason]),
+            ?error_stacktrace("Cannot stop database nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -164,7 +167,8 @@ restart(_) ->
                             {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} ->
                                 throw("Database nodes not configured.");
                             {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} -> Dbs;
-                            _ ->
+                            {error, Reason} ->
+                                ?error("Cannot get database nodes configuration: ~p", [Reason]),
                                 throw("Cannot get database nodes configuration.")
                         end,
 
@@ -174,7 +178,7 @@ restart(_) ->
         end
     catch
         _:Reason ->
-            ?error("Cannot restart database nodes: ~p", [Reason]),
+            ?error_stacktrace("Cannot restart database nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -214,7 +218,7 @@ local_start(Username, Password) ->
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot start database node: ~p", [Reason]),
+            ?error_stacktrace("Cannot start database node: ~p", [Reason]),
             {error, Host}
     end.
 
@@ -236,7 +240,7 @@ local_stop() ->
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot stop database node: ~p", [Reason]),
+            ?error_stacktrace("Cannot stop database node: ~p", [Reason]),
             {error, Host}
     end.
 
@@ -265,7 +269,7 @@ join_cluster(Username, Password, ClusterHost) ->
         _:cluster_host ->
             {ok, Host};
         _:Reason ->
-            ?error("Cannot join database cluster: ~p", [Reason]),
+            ?error_stacktrace("Cannot join database cluster: ~p", [Reason]),
             {error, Host}
     end.
 
@@ -286,12 +290,12 @@ change_username(Hosts, Username, NewUsername) ->
             case HostsError of
                 [] -> ok;
                 _ ->
-                    ?error("Cannot change username in administrative database for user ~p on hosts: ~p", [Username, HostsError]),
+                    ?error_stacktrace("Cannot change username in administrative database for user ~p on hosts: ~p", [Username, HostsError]),
                     onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_change_username, [NewUsername, Username, Password], ?RPC_TIMEOUT),
                     {error, <<"Cannot change username in administrative database.">>}
             end;
         Other ->
-            ?error("Cannot get password to administrative database for user ~p: ~p", [Username, Other]),
+            ?error_stacktrace("Cannot get password to administrative database for user ~p: ~p", [Username, Other]),
             {error, <<"Cannot get password to administrative database for user: ", Username/binary>>}
     end.
 
@@ -319,7 +323,7 @@ local_change_username(Username, NewUsername, Password) ->
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot change username in administrative database for user ~p: ~p", [Username, Reason]),
+            ?error_stacktrace("Cannot change username in administrative database for user ~p: ~p", [Username, Reason]),
             {error, Reason}
     end.
 
@@ -335,7 +339,7 @@ change_password(Hosts, Username, CurrentPassword, NewPassword) ->
     case HostsError of
         [] -> ok;
         _ ->
-            ?error("Cannot change password to administrative database for user ~p on hosts: ~p", [Username, HostsError]),
+            ?error_stacktrace("Cannot change password to administrative database for user ~p on hosts: ~p", [Username, HostsError]),
             onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_change_password, [Username, NewPassword, CurrentPassword], ?RPC_TIMEOUT),
             {error, <<"Cannot change password to administrative database.">>}
     end.
@@ -353,7 +357,7 @@ local_change_password(Username, CurrentPassword, NewPassword) ->
     case request(Username, CurrentPassword, URL, put, mochijson2:encode(NewPassword)) of
         {ok, "200", _, _} -> {ok, Host};
         Other ->
-            ?error("Cannot change password to administrative database for user ~p: ~p", [Username, Other]),
+            ?error_stacktrace("Cannot change password to administrative database for user ~p: ~p", [Username, Other]),
             {error, Host}
     end.
 
@@ -369,7 +373,7 @@ local_change_password(Username, CurrentPassword, NewPassword) ->
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 finalize_local_start(_, _, 0) ->
-    ?error("Cannot finalize database node start: attempts limit exceeded."),
+    ?error_stacktrace("Cannot finalize database node start: attempts limit exceeded."),
     {error, <<"Attempts limit exceeded.">>};
 
 finalize_local_start(Username, Password, Attempts) ->
