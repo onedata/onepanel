@@ -74,7 +74,9 @@ start(Args) ->
             {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> ok;
             {ok, #?GLOBAL_CONFIG_RECORD{dbs = _}} ->
                 throw("Database nodes already configured.");
-            _ -> throw("Cannot get database nodes configuration.")
+            {error, Reason} ->
+                ?error("Cannot get database nodes configuration: ~p", [Reason]),
+                throw("Cannot get database nodes configuration.")
         end,
 
         {StartOk, StartError} = onepanel_utils:apply_on_hosts(Dbs, ?MODULE, local_start, [], ?RPC_TIMEOUT),
@@ -102,9 +104,9 @@ start(Args) ->
         end
     catch
         _:nothing_to_start -> ok;
-        _:Reason ->
-            ?error("Cannot start database nodes: ~p", [Reason]),
-            {error, Reason}
+        _:Error ->
+            ?error("Cannot start database nodes: ~p", [Error]),
+            {error, Error}
     end.
 
 %% commit/1

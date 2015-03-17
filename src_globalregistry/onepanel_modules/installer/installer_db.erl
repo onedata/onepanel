@@ -109,9 +109,9 @@ start(Args) ->
         end
     catch
         _:nothing_to_start -> ok;
-        _:Reason ->
-            ?error_stacktrace("Cannot start database nodes: ~p", [Reason]),
-            {error, Reason}
+        _:Error ->
+            ?error_stacktrace("Cannot start database nodes: ~p", [Error]),
+            {error, Error}
     end.
 
 %% stop/1
@@ -149,9 +149,9 @@ stop(_) ->
                 {error, {hosts, HostsError}}
         end
     catch
-        _:Reason ->
-            ?error_stacktrace("Cannot stop database nodes: ~p", [Reason]),
-            {error, Reason}
+        _:Error ->
+            ?error_stacktrace("Cannot stop database nodes: ~p", [Error]),
+            {error, Error}
     end.
 
 %% restart/1
@@ -177,9 +177,9 @@ restart(_) ->
             Other -> Other
         end
     catch
-        _:Reason ->
-            ?error_stacktrace("Cannot restart database nodes: ~p", [Reason]),
-            {error, Reason}
+        _:Error ->
+            ?error_stacktrace("Cannot restart database nodes: ~p", [Error]),
+            {error, Error}
     end.
 
 %% ====================================================================
@@ -382,7 +382,7 @@ finalize_local_start(Username, Password, Attempts) ->
     case request(Username, Password, URL, get, []) of
         {ok, "200", _, _} ->
             ok;
-        Other ->
+        _ ->
             timer:sleep(?NEXT_ATTEMPT_DELAY),
             finalize_local_start(Username, Password, Attempts - 1)
     end.
