@@ -68,7 +68,9 @@ init([]) ->
 
         {ok, #state{socket = Socket, address = Address, port = Port}}
     catch
-        _:_ -> {stop, initialization_error}
+        _:Reason ->
+            ?error_stacktrace(Reason),
+            {stop, initialization_error}
     end.
 
 
