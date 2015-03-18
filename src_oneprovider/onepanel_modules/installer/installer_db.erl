@@ -105,7 +105,7 @@ start(Args) ->
     catch
         _:nothing_to_start -> ok;
         _:Error ->
-            ?error("Cannot start database nodes: ~p", [Error]),
+            ?error_stacktrace("Cannot start database nodes: ~p", [Error]),
             {error, Error}
     end.
 
@@ -175,7 +175,7 @@ local_start() ->
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot start database node: ~p", [Reason]),
+            ?error_stacktrace("Cannot start database node: ~p", [Reason]),
             {error, Host}
     end.
 
@@ -198,7 +198,7 @@ local_commit() ->
         ok
     catch
         _:Reason ->
-            ?error("Cannot commit database cluster: ~p", [Reason]),
+            ?error_stacktrace("Cannot commit database cluster: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -227,7 +227,7 @@ join_cluster(ClusterHost) ->
         _:cluster_host ->
             {ok, Host};
         _:Reason ->
-            ?error("Cannot join database cluster: ~p", [Reason]),
+            ?error_stacktrace("Cannot join database cluster: ~p", [Reason]),
             {error, Host}
     end.
 
