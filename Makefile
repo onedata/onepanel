@@ -30,6 +30,9 @@ compile:
 	@./rebar --config $(CONFIG) compile
 
 generate:
+	echo "????" $(shell echo $(REL_TYPE))
+	echo "????" ${REL_TYPE}
+	echo ${CXX}
 	@./rebar --config $(CONFIG) generate ${OVERLAY_VARS}
 
 clean:
@@ -46,9 +49,6 @@ doc:
 	@./rebar --config $(CONFIG) doc skip_deps=true
 
 rel: deps compile generate
-	echo "????" $(shell echo $(REL_TYPE))
-	echo "????" ${REL_TYPE}
-	echo ${CXX}
 ifeq ($(REL_TYPE),globalregistry)
 	rm -rf rel/gr_onepanel
 	mv rel_globalregistry/gr_onepanel rel/
