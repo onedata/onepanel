@@ -30,9 +30,6 @@ compile:
 	@./rebar --config $(CONFIG) compile
 
 generate:
-	$(warning $(REL_TYPE) $(origin REL_TYPE))
-	echo "????" $(REL_TYPE)
-	echo $(CXX)
 	@./rebar --config $(CONFIG) generate ${OVERLAY_VARS}
 
 clean:
