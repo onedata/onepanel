@@ -64,12 +64,13 @@ create_csr(_, _, _) ->
 %% ====================================================================
 register(RedirectionPoint, ClientName) ->
     try
+        {ok, PlatformData} = application:get_env(?APP_NAME, platform_data_dir),
         {ok, KeyFile} = application:get_env(?APP_NAME, grpkey_path),
         {ok, KeyName} = application:get_env(?APP_NAME, grpkey_name),
         {ok, CsrPath} = application:get_env(?APP_NAME, grpcsr_file),
         {ok, CertName} = application:get_env(?APP_NAME, grpcert_name),
         {ok, CertFile} = application:get_env(?APP_NAME, grpcert_path),
-        Path = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, "certs"]), %todo change paths
+        Path = filename:join([PlatformData, ?SOFTWARE_NAME, "certs"]),
 
         0 = create_csr("", KeyFile, CsrPath),
 
@@ -111,10 +112,11 @@ register(RedirectionPoint, ClientName) ->
 %% ====================================================================
 unregister() ->
     try
-        ProviderId = get_provider_id(),
-        Path = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, "certs"]), %todo change paths
+        {ok, PlatformData} = application:get_env(?APP_NAME, platform_data_dir),
         {ok, KeyName} = application:get_env(?APP_NAME, grpkey_name),
         {ok, CertName} = application:get_env(?APP_NAME, grpcert_name),
+        Path = filename:join([PlatformData, ?SOFTWARE_NAME, "certs"]),
+        ProviderId = get_provider_id(),
 
         ok = gr_providers:unregister(provider),
         ok = onepanel_utils:delete_file_on_hosts(Path, KeyName),

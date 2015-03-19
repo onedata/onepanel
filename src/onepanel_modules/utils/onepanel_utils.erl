@@ -249,10 +249,17 @@ get_application_version() ->
     Result :: [Port :: integer()].
 %% ====================================================================
 get_application_ports() ->
-    {ok, ReleasePath} = application:get_env(?APP_NAME, application_release_path),
-    {ok, [Releases]} = file:consult(filename:join([ReleasePath, "releases", "RELEASES"])),
-    Version = element(3, lists:keyfind(atom_to_list(?SOFTWARE_NAME), 2, Releases)),
-    {ok, [Config]} = file:consult(filename:join([ReleasePath, "releases", Version, "sys.config"])),
+    {ok, EtcDir} = application:get_env(?APP_NAME, platform_etc_dir),
+    Config =
+        case file:consult(filename:join([EtcDir, ?SOFTWARE_NAME, "app.config"])) of
+            {ok, [Cfg]} -> Cfg;
+            _ -> %todo delete sys.config part, after gr integration with node_package
+                {ok, ReleasePath} = application:get_env(?APP_NAME, application_release_path),
+                {ok, [Releases]} = file:consult(filename:join([ReleasePath, "releases", "RELEASES"])),
+                Version = element(3, lists:keyfind(atom_to_list(?SOFTWARE_NAME), 2, Releases)),
+                {ok, [Cfg]} = file:consult(filename:join([ReleasePath, "releases", Version, "sys.config"])),
+                Cfg
+        end,
     SysConfig = proplists:get_value(?SOFTWARE_NAME, Config, []),
     Ports = lists:map(fun(Port) ->
         proplists:get_value(Port, SysConfig)

@@ -107,6 +107,7 @@ remove_storage_paths_from_db(Args) ->
 
 %% add_storage_paths_on_host/1
 %% ====================================================================
+%% @todo remove, it should be in app.config
 %% @doc Adds storage paths on local host.
 %% @end
 -spec add_storage_paths_on_host(Paths :: [string()]) -> Result when
@@ -115,14 +116,6 @@ remove_storage_paths_from_db(Args) ->
 add_storage_paths_on_host(Paths) ->
     try
         ?debug("Adding storage paths ~p", [Paths]),
-        StorageConfigPath = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, ?STORAGE_CONFIG_PATH]),
-
-        {ok, Fd} = file:open(StorageConfigPath, [append]),
-        lists:foreach(fun(Path) ->
-            file:write(Fd, lists:flatten(io_lib:format("~p.~n", [[[{name, cluster_fuse_id}, {root, Path}]]])))
-        end, Paths),
-        ok = file:close(Fd),
-
         ok
     catch
         _:Reason ->
@@ -133,6 +126,7 @@ add_storage_paths_on_host(Paths) ->
 
 %% remove_storage_paths_on_host/1
 %% ====================================================================
+%% @todo remove, it should be in app.config
 %% @doc Removes configured storage path on local host.
 %% @end
 -spec remove_storage_paths_on_host(Paths :: [string()]) -> Result when
@@ -141,19 +135,7 @@ add_storage_paths_on_host(Paths) ->
 remove_storage_paths_on_host(Paths) ->
     try
         ?debug("Removing storage path ~p", [Paths]),
-        StorageConfigPath = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, ?STORAGE_CONFIG_PATH]),
-
-        {ok, StorageInfo} = file:consult(StorageConfigPath),
-
-        NewPaths = lists:foldl(fun([[{name, cluster_fuse_id}, {root, Path}]], Acc) ->
-            case lists:member(Path, Paths) of
-                true -> Acc;
-                _ -> [Path | Acc]
-            end
-        end, [], StorageInfo),
-
-        ok = file:delete(StorageConfigPath),
-        ok = add_storage_paths_on_host(NewPaths)
+        ok
     catch
         _:Reason ->
             ?error("Cannot remove storage paths ~p: ~p", [Paths, Reason]),

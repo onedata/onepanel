@@ -20,7 +20,7 @@
 -define(APP_STR, atom_to_list(?APP_NAME)).
 
 %% Global name of gen_server that provides CCM functionality of installed software
--define(CCM, central_cluster_manager).
+-define(CCM, cluster_manager).
 
 %% Local name (name and node is used to identify it) of gen_server that
 %% coordinates node life cycle of installed software
@@ -47,6 +47,9 @@
 
 %% Name of installed software application.
 -define(SOFTWARE_NAME, oneprovider_node).
+
+%% Ccm application name
+-define(CCM_APP_NAME, op_ccm).
 
 -endif.
 

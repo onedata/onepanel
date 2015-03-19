@@ -220,6 +220,7 @@ restart(_) ->
 
 %% local_install/0
 %% ====================================================================
+%% @todo remove
 %% @doc Installs CCM node on local host.
 %% @end
 -spec local_install() -> Result when
@@ -229,13 +230,6 @@ local_install() ->
     Host = onepanel_utils:get_host(node()),
     try
         ?debug("Installing CCM node"),
-        CCMPath = filename:join([?NODES_INSTALL_PATH, ?CCM_NAME]),
-        {ok, ReleasePath} = application:get_env(?APP_NAME, application_release_path),
-
-        "" = os:cmd("rm -rf " ++ CCMPath),
-        "" = os:cmd("mkdir -p " ++ CCMPath),
-        "" = os:cmd("cp -R " ++ filename:join([ReleasePath, "* "]) ++ CCMPath),
-
         {ok, Host}
     catch
         _:Reason ->
@@ -245,6 +239,7 @@ local_install() ->
 
 %% local_uninstall/0
 %% ====================================================================
+%% @todo remove
 %% @doc Uninstalls CCM node on local host.
 %% @end
 -spec local_uninstall() -> Result when
@@ -253,11 +248,6 @@ local_install() ->
 local_uninstall() ->
     Host = onepanel_utils:get_host(node()),
     try
-        ?debug("Uninstalling CCM node"),
-        CCMPath = filename:join([?NODES_INSTALL_PATH, ?CCM_NAME]),
-
-        "" = os:cmd("rm -rf " ++ CCMPath),
-
         {ok, Host}
     catch
         _:Reason ->
@@ -279,8 +269,8 @@ local_start(MainCCM, OptCCMs, Workers, Dbs, StoragePaths) ->
         ?debug("Starting CCM node: ~p"),
 
         release_configurator:configure_release(
-            ?SOFTWARE_NAME,
-            filename:join([?NODES_INSTALL_PATH, ?CCM_NAME]),
+            ?CCM_APP_NAME,
+            default,
             [
                 {node_type, ccm},
                 {ccm_nodes, [list_to_atom(?CCM_NAME ++ "@" ++ CCM) || CCM <- [MainCCM | OptCCMs]]},
@@ -294,9 +284,9 @@ local_start(MainCCM, OptCCMs, Workers, Dbs, StoragePaths) ->
             ]
         ),
 
-        Daemon = filename:join([?NODES_INSTALL_PATH, ?CCM_NAME, ?ONEPROVIDER_DAEMON]),
+        ServiceStart = "service" ++ atom_to_list(?CCM_APP_NAME) ++ " start > /dev/null",
         SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
-        "" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ Daemon ++ " start\""),
+        "" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ ServiceStart ++ "\""),
 
         {ok, Host}
     catch
@@ -316,9 +306,9 @@ local_stop() ->
     Host = onepanel_utils:get_host(node()),
     try
         ?debug("Stopping CCM node"),
-        CCMPath = filename:join([?NODES_INSTALL_PATH, ?CCM_NAME]),
 
-        "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ CCMPath ++ " | awk '{print $2}'`"),
+        ServiceStop = "service" ++ atom_to_list(?CCM_APP_NAME) ++ " stop > /dev/null",
+        "" = os:cmd(ServiceStop),
         ok = installer_utils:remove_node_from_config(ccm_node),
 
         {ok, Host}
@@ -338,27 +328,16 @@ local_stop() ->
 local_restart() ->
     Host = onepanel_utils:get_host(node()),
     try
-        {ConfiguredMainCCM, ConfiguredCCMs, ConfiguredWorkers,
-            ConfiguredDbs, ConfiguredStoragePaths} =
-            case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                {ok, #?GLOBAL_CONFIG_RECORD{ccms = []}} ->
-                    throw("CCM nodes not configured.");
-                {ok, #?GLOBAL_CONFIG_RECORD{
-                    main_ccm = MainCCM, ccms = CCMs, dbs = Dbs,
-                    workers = Workers, storage_paths = StoragePaths}
-                } ->
-                    {MainCCM, CCMs, Workers, Dbs, StoragePaths};
-                _ -> throw("Cannot get CCM nodes configuration.")
-            end,
+        case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+            {ok, #?GLOBAL_CONFIG_RECORD{ccms = []}} ->
+                throw("CCM nodes not configured.");
+            {ok, _} -> ok;
+            _ -> throw("Cannot get CCM nodes configuration.")
+        end,
 
-        ConfiguredOptCCMs = lists:delete(ConfiguredMainCCM, ConfiguredCCMs),
-
-        case local_stop() of
-            {ok, _} ->
-                local_start(ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredWorkers,
-                    ConfiguredDbs, ConfiguredStoragePaths);
-            Other -> Other
-        end
+        ServiceRestart = "service" ++ atom_to_list(?CCM_APP_NAME) ++ " restart > /dev/null",
+        "" = os:cmd(ServiceRestart),
+        {ok, Host}
     catch
         _:Reason ->
             ?error("Cannot restart CCM node: ~p", [Reason]),

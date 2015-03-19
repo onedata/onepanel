@@ -88,6 +88,7 @@ add_node_to_config(Type, Name, Path) ->
 
 %% remove_node_from_config/1
 %% ====================================================================
+%% @todo store it in mnesia
 %% @doc Removes a node from configured_nodes.cfg.
 %% @end
 -spec remove_node_from_config(Type :: atom()) -> Result when

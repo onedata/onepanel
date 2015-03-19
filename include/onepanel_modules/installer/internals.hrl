@@ -21,26 +21,9 @@
 %% Default cookie used for communication with application
 -define(COOKIE, "oneprovider_node").
 
-%% Installation directory of RPM package
--define(PREFIX, filename:join([filename:absname("/"), "opt", "oneprovider"])).
-
 %% Default names of installable components
 -define(CCM_NAME, "ccm").
 -define(WORKER_NAME, "worker").
-
-%% Name of oneprovider service
--define(ONEPROVIDER_SERVICE, "oneprovider").
-
-%% Name of database service
--define(DB_SERVICE, ?ONEPROVIDER_SERVICE).
-
-%% Location of config files relative to oneprovider release
--define(CONFIG_ARGS_PATH, filename:join(["bin", "config.args"])).
--define(ONEPROVIDER_SCRIPT_PATH, filename:join(["bin", "oneprovider"])).
--define(ONEPROVIDER_DAEMON, filename:join(["bin", "oneprovider_node"])).
-
-%% Relative path to storage configuration file
--define(STORAGE_CONFIG_PATH, filename:join(["bin", "storage_info.cfg"])).
 
 %% Storage test file prefix
 -define(STORAGE_TEST_FILE_PREFIX, "storage_test_").
@@ -131,12 +114,12 @@
 -define(PROCESSES, 65535).
 
 %% Location of configured_nodes.cfg file
--define(CONFIGURED_NODES_PATH, filename:join([?PREFIX, "scripts", "configured_nodes.cfg"])).
+-define(CONFIGURED_NODES_PATH, "/tmp/configured_nodes.cfg"). %todo remove
 
 %% Location of ulimits.cfg file
--define(ULIMITS_CONFIG_PATH, filename:join([?PREFIX, "scripts", "ulimits.cfg"])).
+-define(ULIMITS_CONFIG_PATH, "/tmp/ulimits.cfg"). %todo remove
 
 %% Install path for nodes
--define(NODES_INSTALL_PATH, filename:join([?PREFIX, "nodes"])).
+-define(NODES_INSTALL_PATH, filename:join([?PREFIX, "nodes"])). %todo remove
 
 -endif.

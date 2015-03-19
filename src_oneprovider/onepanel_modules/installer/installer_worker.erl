@@ -217,6 +217,7 @@ restart(Args) ->
 
 %% local_install/0
 %% ====================================================================
+%% @todo remove
 %% @doc Installs worker node on local host.
 %% @end
 -spec local_install() -> Result when
@@ -225,14 +226,6 @@ restart(Args) ->
 local_install() ->
     Host = onepanel_utils:get_host(node()),
     try
-        ?debug("Installing worker node"),
-        WorkerPath = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME]),
-        {ok, ReleasePath} = application:get_env(?APP_NAME, application_release_path),
-
-        "" = os:cmd("rm -rf " ++ WorkerPath),
-        "" = os:cmd("mkdir -p " ++ WorkerPath),
-        "" = os:cmd("cp -R " ++ filename:join([ReleasePath, "* "]) ++ WorkerPath),
-
         {ok, Host}
     catch
         _:Reason ->
@@ -242,6 +235,7 @@ local_install() ->
 
 %% local_uninstall/0
 %% ====================================================================
+%% @todo remove
 %% @doc Uninstalls worker node on local host.
 %% @end
 -spec local_uninstall() -> Result when
@@ -250,11 +244,6 @@ local_install() ->
 local_uninstall() ->
     Host = onepanel_utils:get_host(node()),
     try
-        ?debug("Uninstalling worker node"),
-        WorkerPath = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME]),
-
-        "" = os:cmd("rm -rf " ++ WorkerPath),
-
         {ok, Host}
     catch
         _:Reason ->
@@ -277,12 +266,11 @@ local_start(MainCCM, OptCCMs, Workers, Dbs, StoragePaths) ->
 
         release_configurator:configure_release(
             ?SOFTWARE_NAME,
-            filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME]),
+            default,
             [
                 {node_type, worker},
                 {ccm_nodes, [list_to_atom(?CCM_NAME ++ "@" ++ CCM) || CCM <- [MainCCM | OptCCMs]]},
                 {db_nodes, [list_to_atom(Db ++ ":" ++ integer_to_list(?DB_PORT)) || Db <- Dbs]},
-                {workers_to_trigger_init, length(Workers)},
                 {storage_paths, StoragePaths}
             ],
             [
@@ -291,9 +279,9 @@ local_start(MainCCM, OptCCMs, Workers, Dbs, StoragePaths) ->
             ]
         ),
 
-        Daemon = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, ?ONEPROVIDER_DAEMON]),
+        ServiceStart = "service" ++ atom_to_list(?SOFTWARE_NAME) ++ " start > /dev/null",
         SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
-        "" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ Daemon ++ " start\""),
+        "" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ ServiceStart ++ "\""),
 
         {ok, Host}
     catch
@@ -313,9 +301,9 @@ local_stop(StoragePaths) ->
     Host = onepanel_utils:get_host(node()),
     try
         ?debug("Stopping worker node on host: ~p", [Host]),
-        WorkerPath = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME]),
 
-        "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ WorkerPath ++ " | awk '{print $2}'`"),
+        ServiceStop = "service" ++ atom_to_list(?SOFTWARE_NAME) ++ " stop > /dev/null",
+        "" = os:cmd(ServiceStop),
         ok = installer_utils:remove_node_from_config(worker_node),
         ok = installer_storage:remove_storage_paths_on_host(StoragePaths),
 
