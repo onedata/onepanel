@@ -34,7 +34,8 @@
 -spec init() -> ok | no_return().
 %% ====================================================================
 init() ->
-    ok = erlang:load_nif("c_lib/user_logic_drv", 0).
+    {ok, NifPrefix} = application:get_env(?APP_NAME, nif_prefix_dir),
+    ok = erlang:load_nif(filename:join(NifPrefix, "user_logic_drv"), 0).
 
 
 %% hash_password/2

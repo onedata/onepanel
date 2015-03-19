@@ -35,7 +35,8 @@
 -spec init() -> ok | no_return().
 %% ====================================================================
 init() ->
-    ok = erlang:load_nif("c_lib/provider_logic_drv", 0).
+    {ok, NifPrefix} = application:get_env(?APP_NAME, nif_prefix_dir),
+    ok = erlang:load_nif(filename:join(NifPrefix, "provider_logic_drv"), 0).
 
 
 %% create_csr/3
@@ -68,7 +69,7 @@ register(RedirectionPoint, ClientName) ->
         {ok, CsrPath} = application:get_env(?APP_NAME, grpcsr_file),
         {ok, CertName} = application:get_env(?APP_NAME, grpcert_name),
         {ok, CertFile} = application:get_env(?APP_NAME, grpcert_path),
-        Path = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, "certs"]),
+        Path = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, "certs"]), %todo change paths
 
         0 = create_csr("", KeyFile, CsrPath),
 
@@ -111,7 +112,7 @@ register(RedirectionPoint, ClientName) ->
 unregister() ->
     try
         ProviderId = get_provider_id(),
-        Path = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, "certs"]),
+        Path = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, "certs"]), %todo change paths
         {ok, KeyName} = application:get_env(?APP_NAME, grpkey_name),
         {ok, CertName} = application:get_env(?APP_NAME, grpcert_name),
 
