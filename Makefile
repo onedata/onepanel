@@ -1,6 +1,5 @@
-REL_TYPE         = globalregistry # This ca be: globalregistry | oneprovider
-
 REPO		        ?= onepanel
+REL_TYPE        ?=
 
 PKG_REVISION    ?= $(shell git describe --tags --always)
 PKG_VERSION	    ?= $(shell git describe --tags --always | tr - .)
@@ -53,9 +52,11 @@ doc:
 
 rel: deps compile generate
 ifeq ($(REL_TYPE),globalregistry)
-	mv -f rel_globalregistry/gr_onepanel rel/
+	rm -rf rel/gr_onepanel
+	mv rel_globalregistry/gr_onepanel rel/
 else
-	mv -f rel_oneprovider/op_onepanel rel/
+	rm -rf rel/op_onepanel
+	mv rel_oneprovider/op_onepanel rel/
 endif
 
 relclean:
@@ -109,7 +110,7 @@ dist: package.src
 	cp package/$(PKG_ID).tar.gz .
 
 package: package.src
-	REL_TYPE=${REL_TYPE} ${MAKE} -C package -f $(PKG_ID)/deps/node_package/Makefile
+	${MAKE} -C package -f $(PKG_ID)/deps/node_package/Makefile
 
 pkgclean: distclean
 	rm -rf package
