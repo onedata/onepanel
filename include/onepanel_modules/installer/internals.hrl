@@ -21,6 +21,9 @@
 %% Default cookie used for communication with application
 -define(COOKIE, "oneprovider_node").
 
+%% Installation directory of RPM package
+-define(PREFIX, "/tmp"). %todo remove
+
 %% Default names of installable components
 -define(CCM_NAME, "ccm").
 -define(WORKER_NAME, "worker").
