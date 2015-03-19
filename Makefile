@@ -1,8 +1,3 @@
-##
-## Export all variables to sub-invocation
-##
-export
-
 REPO		        ?= onepanel
 
 PKG_REVISION    ?= $(shell git describe --tags --always)
@@ -51,6 +46,8 @@ doc:
 	@./rebar --config $(CONFIG) doc skip_deps=true
 
 rel: deps compile generate
+	echo ${REL_TYPE}
+	echo ${CXX}
 ifeq ($(REL_TYPE),globalregistry)
 	rm -rf rel/gr_onepanel
 	mv rel_globalregistry/gr_onepanel rel/
