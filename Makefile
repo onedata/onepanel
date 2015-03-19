@@ -20,6 +20,11 @@ PKG_VARS_CONFIG  = config/op_pkg.vars.config
 PKG_ID           = op-onepanel-$(PKG_VERSION)
 endif
 
+##
+## Export all variables to sub-invocation
+##
+export
+
 .PHONY: deps generate
 
 all: rel
@@ -83,7 +88,7 @@ dialyzer_init: compile .dialyzer.plt
 ## Packaging targets
 ##
 
-export PKG_VERSION PKG_ID PKG_BUILD BASE_DIR ERLANG_BIN REBAR OVERLAY_VARS RELEASE REL_TYPE CONFIG PKG_VARS_CONFIG
+# export PKG_VERSION PKG_ID PKG_BUILD BASE_DIR ERLANG_BIN REBAR OVERLAY_VARS RELEASE REL_TYPE CONFIG PKG_VARS_CONFIG
 
 package.src: deps
 	mkdir -p package
