@@ -1,3 +1,14 @@
+REPO		        ?= oneprovider
+
+PKG_REVISION    ?= $(shell git describe --tags --always)
+PKG_VERSION	    ?= $(shell git describe --tags --always | tr - .)
+PKG_ID           = oneprovider-$(PKG_VERSION)
+PKG_BUILD        = 1
+BASE_DIR         = $(shell pwd)
+ERLANG_BIN       = $(shell dirname $(shell which erl))
+REBAR           ?= $(BASE_DIR)/rebar
+OVERLAY_VARS    ?=
+
 CONFIG=config/oneprovider.config
 
 .PHONY: deps generate
@@ -11,7 +22,7 @@ compile:
 	@./rebar --config $(CONFIG) compile
 
 generate:
-	@./rebar --config $(CONFIG) generate
+	@./rebar --config $(CONFIG) generate ${OVERLAY_VARS}
 
 clean:
 	@./rebar --config $(CONFIG) clean
