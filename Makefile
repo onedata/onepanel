@@ -1,5 +1,9 @@
+##
+## Export all variables to sub-invocation
+##
+export
+
 REPO		        ?= onepanel
-REL_TYPE        ?=
 
 PKG_REVISION    ?= $(shell git describe --tags --always)
 PKG_VERSION	    ?= $(shell git describe --tags --always | tr - .)
@@ -19,10 +23,6 @@ PKG_VARS_CONFIG  = config/op_pkg.vars.config
 PKG_ID           = op-onepanel-$(PKG_VERSION)
 endif
 
-##
-## Export all variables to sub-invocation
-##
-export
 
 .PHONY: deps generate
 
