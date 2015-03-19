@@ -46,7 +46,8 @@ doc:
 	@./rebar --config $(CONFIG) doc skip_deps=true
 
 rel: deps compile generate
-	echo ${REL_TYPE}
+	echo "????" $(shell echo $(REL_TYPE))
+	echo "????" ${REL_TYPE}
 	echo ${CXX}
 ifeq ($(REL_TYPE),globalregistry)
 	rm -rf rel/gr_onepanel
