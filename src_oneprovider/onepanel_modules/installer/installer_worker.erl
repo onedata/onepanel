@@ -279,7 +279,7 @@ local_start(MainCCM, OptCCMs, Workers, Dbs, StoragePaths) ->
             ]
         ),
 
-        ServiceStart = "service" ++ atom_to_list(?SOFTWARE_NAME) ++ " start > /dev/null",
+        ServiceStart = "service " ++ atom_to_list(?SOFTWARE_NAME) ++ " start > /dev/null",
         SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
         "" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ ServiceStart ++ "\""),
 
@@ -302,7 +302,7 @@ local_stop(StoragePaths) ->
     try
         ?debug("Stopping worker node on host: ~p", [Host]),
 
-        ServiceStop = "service" ++ atom_to_list(?SOFTWARE_NAME) ++ " stop > /dev/null",
+        ServiceStop = "service " ++ atom_to_list(?SOFTWARE_NAME) ++ " stop > /dev/null",
         "" = os:cmd(ServiceStop),
         ok = installer_utils:remove_node_from_config(worker_node),
         ok = installer_storage:remove_storage_paths_on_host(StoragePaths),
