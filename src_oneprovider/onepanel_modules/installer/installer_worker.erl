@@ -268,7 +268,6 @@ local_start(MainCCM, OptCCMs, Workers, Dbs, StoragePaths) ->
             ?SOFTWARE_NAME,
             default,
             [
-                {node_type, worker},
                 {ccm_nodes, [list_to_atom(?CCM_NAME ++ "@" ++ CCM) || CCM <- [MainCCM | OptCCMs]]},
                 {db_nodes, [list_to_atom(Db ++ ":" ++ integer_to_list(?DB_PORT)) || Db <- Dbs]},
                 {storage_paths, StoragePaths}
