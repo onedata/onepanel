@@ -280,7 +280,7 @@ local_start(MainCCM, OptCCMs, Workers, Dbs, StoragePaths) ->
 
         ServiceStart = "service " ++ atom_to_list(?SOFTWARE_NAME) ++ " start > /dev/null",
         SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
-        "" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ ServiceStart ++ "\""),
+        os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ ServiceStart ++ "\""), %todo match to "", when "too long name" warning will be fixed
 
         {ok, Host}
     catch
