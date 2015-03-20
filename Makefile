@@ -55,13 +55,10 @@ else
 endif
 
 relclean:
-ifeq ($(REL_TYPE),globalregistry)
 	rm -rf rel/gr_onepanel
-	rm -rf rel_globalregistry/gr_onepanel
-else
 	rm -rf rel/op_onepanel
+	rm -rf rel_globalregistry/gr_onepanel
 	rm -rf rel_oneprovider/op_onepanel
-endif
 
 ##
 ## Dialyzer
