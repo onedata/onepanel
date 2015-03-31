@@ -1,6 +1,6 @@
 %% ===================================================================
 %% @author Krzysztof Trzepla
-%% @copyright (C): 2014 ACK CYFRONET AGH
+%% @copyright (C): 2015 ACK CYFRONET AGH
 %% This software is released under the MIT license
 %% cited in 'LICENSE.txt'.
 %% @end
@@ -22,7 +22,7 @@
 -export([install/1, uninstall/1, start/1, stop/1, restart/1]).
 
 %% API
--export([local_install/0, local_uninstall/0, local_start/2, local_stop/0, join_cluster/3]).
+-export([local_start/2, local_stop/0, join_cluster/3]).
 -export([change_username/3, local_change_username/3, change_password/4, local_change_password/3]).
 
 %% Defines how many times onepanel will try to verify database node start
@@ -43,19 +43,8 @@
 -spec install(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-install(Args) ->
-    Dbs = proplists:get_value(dbs, Args, []),
-
-    {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(Dbs, ?MODULE, local_install, [], ?RPC_TIMEOUT),
-
-    case HostsError of
-        [] -> ok;
-        _ ->
-            ?error("Cannot install database nodes on following hosts: ~p", [HostsError]),
-            onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
-            {error, {hosts, HostsError}}
-    end.
-
+install(_Args) ->
+    ok.
 
 %% uninstall/1
 %% ====================================================================
@@ -65,19 +54,8 @@ install(Args) ->
 -spec uninstall(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-uninstall(Args) ->
-    Dbs = proplists:get_value(dbs, Args, []),
-
-    {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(Dbs, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
-
-    case HostsError of
-        [] -> ok;
-        _ ->
-            ?error("Cannot uninstall database nodes on following hosts: ~p", [HostsError]),
-            onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_install, [], ?RPC_TIMEOUT),
-            {error, {hosts, HostsError}}
-    end.
-
+uninstall(_Args) ->
+    ok.
 
 %% start/1
 %% ====================================================================
@@ -96,8 +74,11 @@ start(Args) ->
 
         case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
             {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> ok;
-            {ok, #?GLOBAL_CONFIG_RECORD{dbs = _}} -> throw("Database nodes already configured.");
-            _ -> throw("Cannot get database nodes configuration.")
+            {ok, #?GLOBAL_CONFIG_RECORD{dbs = _}} ->
+                throw("Database nodes already configured.");
+            {error, Reason} ->
+                ?error("Cannot get database nodes configuration: ~p", [Reason]),
+                throw("Cannot get database nodes configuration.")
         end,
 
         Username = proplists:get_value(username, Args),
@@ -128,11 +109,10 @@ start(Args) ->
         end
     catch
         _:nothing_to_start -> ok;
-        _:Reason ->
-            ?error("Cannot start database nodes: ~p", [Reason]),
-            {error, Reason}
+        _:Error ->
+            ?error_stacktrace("Cannot start database nodes: ~p", [Error]),
+            {error, Error}
     end.
-
 
 %% stop/1
 %% ====================================================================
@@ -144,9 +124,12 @@ start(Args) ->
 stop(_) ->
     try
         ConfiguredDbs = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> throw("Database nodes not configured.");
+                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} ->
+                                throw("Database nodes not configured.");
                             {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} -> Dbs;
-                            _ -> throw("Cannot get database nodes configuration.")
+                            {error, Reason} ->
+                                ?error("Cannot get database nodes configuration: ~p", [Reason]),
+                                throw("Cannot get database nodes configuration.")
                         end,
 
         {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(ConfiguredDbs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
@@ -166,11 +149,10 @@ stop(_) ->
                 {error, {hosts, HostsError}}
         end
     catch
-        _:Reason ->
-            ?error("Cannot stop database nodes: ~p", [Reason]),
-            {error, Reason}
+        _:Error ->
+            ?error_stacktrace("Cannot stop database nodes: ~p", [Error]),
+            {error, Error}
     end.
-
 
 %% restart/1
 %% ====================================================================
@@ -182,9 +164,12 @@ stop(_) ->
 restart(_) ->
     try
         ConfiguredDbs = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> throw("Database nodes not configured.");
+                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} ->
+                                throw("Database nodes not configured.");
                             {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} -> Dbs;
-                            _ -> throw("Cannot get database nodes configuration.")
+                            {error, Reason} ->
+                                ?error("Cannot get database nodes configuration: ~p", [Reason]),
+                                throw("Cannot get database nodes configuration.")
                         end,
 
         case stop([]) of
@@ -192,62 +177,14 @@ restart(_) ->
             Other -> Other
         end
     catch
-        _:Reason ->
-            ?error("Cannot restart database nodes: ~p", [Reason]),
-            {error, Reason}
+        _:Error ->
+            ?error_stacktrace("Cannot restart database nodes: ~p", [Error]),
+            {error, Error}
     end.
-
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
-
-%% local_install/0
-%% ====================================================================
-%% @doc Installs database node on local host.
-%% @end
--spec local_install() -> Result when
-    Result :: {ok, Host :: string()} | {error, Host :: string()}.
-%% ====================================================================
-local_install() ->
-    Host = onepanel_utils:get_host(node()),
-    try
-        ?debug("Installing database node"),
-
-        "" = os:cmd("rm -rf " ++ ?DB_PREFIX),
-        "" = os:cmd("mkdir -p " ++ ?DB_PREFIX),
-        "" = os:cmd("cp -R " ++ filename:join([?DB_RELEASE, "* "]) ++ ?DB_PREFIX),
-
-        {ok, Host}
-    catch
-        _:Reason ->
-            ?error("Cannot install database node: ~p", [Reason]),
-            {error, Host}
-    end.
-
-
-%% local_uninstall/0
-%% ====================================================================
-%% @doc Uninstalls database node on local host.
-%% @end
--spec local_uninstall() -> Result when
-    Result :: {ok, Host :: string()} | {error, Host :: string()}.
-%% ====================================================================
-local_uninstall() ->
-    Host = onepanel_utils:get_host(node()),
-    try
-        ?debug("Uninstalling database node"),
-
-        "" = os:cmd("rm -rf " ++ ?DB_PREFIX),
-        ok = file:delete(?ULIMITS_CONFIG_PATH),
-
-        {ok, Host}
-    catch
-        _:Reason ->
-            ?error("Cannot uninstall database node on host ~s: ~p", [Host, Reason]),
-            {error, Host}
-    end.
-
 
 %% local_start/2
 %% ====================================================================
@@ -262,13 +199,15 @@ local_start(Username, Password) ->
         ?debug("Starting database node"),
 
         Name = <<(list_to_binary(?DB_NAME))/binary, "@", (list_to_binary(Host))/binary>>,
-        Cookie = atom_to_binary(?COOKIE, latin1),
+        Cookie = list_to_binary(?COOKIE),
 
-        ok = installer_utils:overwrite_config_args(?DB_VM_ARGS, <<"\n-name ">>, <<"[^\n]*">>, Name),
-        ok = installer_utils:overwrite_config_args(?DB_VM_ARGS, <<"\n-setcookie ">>, <<"[^\n]*">>, Cookie),
-        ok = installer_utils:add_node_to_config(db_node, list_to_atom(?DB_NAME), ?DB_PREFIX),
+        ok = installer_utils:overwrite_config_args(?DB_CONFIG, <<"\n-name ">>, <<"[^\n]*">>, Name),
+        ok = installer_utils:overwrite_config_args(?DB_CONFIG, <<"\n-setcookie ">>, <<"[^\n]*">>, Cookie),
 
-        "0" = os:cmd("service " ++ ?DB_SERVICE ++ " start_db 1>/dev/null 2>&1 ; echo -n $?"),
+        Daemon = filename:join([?DB_PREFIX, ?DB_DAEMON]),
+        SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
+        Cmd = "bash -c \"" ++ SetUlimitsCmd ++ " ; nohup " ++ Daemon ++ " start 1>/dev/null 2>&1 &\"",
+        "" = os:cmd(Cmd),
 
         {ok, DefaultUsername} = application:get_env(?APP_NAME, default_username),
         {ok, DefaultPassword} = application:get_env(?APP_NAME, default_password),
@@ -279,10 +218,9 @@ local_start(Username, Password) ->
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot start database node: ~p", [Reason]),
+            ?error_stacktrace("Cannot start database node: ~p", [Reason]),
             {error, Host}
     end.
-
 
 %% local_stop/0
 %% ====================================================================
@@ -302,10 +240,9 @@ local_stop() ->
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot stop database node: ~p", [Reason]),
+            ?error_stacktrace("Cannot stop database node: ~p", [Reason]),
             {error, Host}
     end.
-
 
 %% join_cluster/3
 %% ====================================================================
@@ -332,10 +269,9 @@ join_cluster(Username, Password, ClusterHost) ->
         _:cluster_host ->
             {ok, Host};
         _:Reason ->
-            ?error("Cannot join database cluster: ~p", [Reason]),
+            ?error_stacktrace("Cannot join database cluster: ~p", [Reason]),
             {error, Host}
     end.
-
 
 %% change_username/3
 %% ====================================================================
@@ -363,7 +299,6 @@ change_username(Hosts, Username, NewUsername) ->
             {error, <<"Cannot get password to administrative database for user: ", Username/binary>>}
     end.
 
-
 %% local_change_username/3
 %% ====================================================================
 %% @doc Changes username in administrative database on local hosts.
@@ -388,10 +323,9 @@ local_change_username(Username, NewUsername, Password) ->
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot change username in administrative database for user ~p: ~p", [Username, Reason]),
+            ?error_stacktrace("Cannot change username in administrative database for user ~p: ~p", [Username, Reason]),
             {error, Reason}
     end.
-
 
 %% change_password/4
 %% ====================================================================
@@ -410,7 +344,6 @@ change_password(Hosts, Username, CurrentPassword, NewPassword) ->
             {error, <<"Cannot change password to administrative database.">>}
     end.
 
-
 %% local_change_password/3
 %% ====================================================================
 %% @doc Changes password to administrative database on local host.
@@ -428,11 +361,9 @@ local_change_password(Username, CurrentPassword, NewPassword) ->
             {error, Host}
     end.
 
-
 %% ====================================================================
 %% Internal functions
 %% ====================================================================
-
 
 %% finalize_local_start/3
 %% ====================================================================
@@ -455,7 +386,6 @@ finalize_local_start(Username, Password, Attempts) ->
             timer:sleep(?NEXT_ATTEMPT_DELAY),
             finalize_local_start(Username, Password, Attempts - 1)
     end.
-
 
 %% request/5
 %% ====================================================================

@@ -16,7 +16,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([random_ascii_lowercase_sequence/1, get_application_version/0]).
+-export([random_ascii_lowercase_sequence/1, get_application_version/0, get_application_ports/0]).
 -export([get_node/1, get_node/2, get_nodes/0, get_nodes/2, get_host/1, get_hosts/0]).
 -export([apply_on_hosts/5, dropwhile_failure/5, save_file_on_host/3, save_file_on_hosts/3,
     delete_file_on_host/2, delete_file_on_hosts/2]).
@@ -33,8 +33,8 @@
     Result :: string().
 %% ====================================================================
 random_ascii_lowercase_sequence(Length) ->
-    lists:foldl(fun(_, Acc) -> [random:uniform(26) + 96 | Acc] end, [], lists:seq(1, Length)).
-
+    lists:foldl(fun(_, Acc) ->
+        [random:uniform(26) + 96 | Acc] end, [], lists:seq(1, Length)).
 
 %% apply_on_nodes/5
 %% ====================================================================
@@ -63,7 +63,6 @@ apply_on_hosts(Hosts, Module, Function, Arguments, Timeout) ->
         ({_, Host}, {HostsOk, HostsError}) -> {HostsOk, [Host | HostsError]}
     end, {[], lists:map(fun(Node) -> get_host(Node) end, ErrorNodes)}, Results).
 
-
 %% dropwhile_failure/5
 %% ====================================================================
 %% @doc Applies function sequentially on nodes as long as rpc calls fail
@@ -88,7 +87,6 @@ dropwhile_failure([Node | Nodes], Module, Function, Arguments, Timeout) ->
         Result -> Result
     end.
 
-
 %% get_node/1
 %% ====================================================================
 %% @doc Returns node from host.
@@ -98,7 +96,6 @@ dropwhile_failure([Node | Nodes], Module, Function, Arguments, Timeout) ->
 %% ====================================================================
 get_node(Host) ->
     get_node(?APP_STR, Host).
-
 
 %% get_node/2
 %% ====================================================================
@@ -110,7 +107,6 @@ get_node(Host) ->
 get_node(Type, Host) ->
     list_to_atom(Type ++ "@" ++ Host).
 
-
 %% get_nodes/0
 %% ====================================================================
 %% @doc Returns list of all application nodes.
@@ -120,7 +116,6 @@ get_node(Type, Host) ->
 %% ====================================================================
 get_nodes() ->
     [node() | nodes(hidden)].
-
 
 %% get_nodes/2
 %% ====================================================================
@@ -134,7 +129,6 @@ get_nodes(Type, Hosts) ->
         get_node(Type, Host)
     end, Hosts).
 
-
 %% get_host/1
 %% ====================================================================
 %% @doc Returns host from node.
@@ -145,7 +139,6 @@ get_nodes(Type, Hosts) ->
 get_host(Node) ->
     [_, Host] = string:tokens(atom_to_list(Node), "@"),
     Host.
-
 
 %% get_hosts/0
 %% ====================================================================
@@ -163,7 +156,6 @@ get_hosts() ->
         end
     end, [], get_nodes()).
 
-
 %% save_file_on_hosts/3
 %% ====================================================================
 %% @doc Saves file on all hosts.
@@ -179,7 +171,6 @@ save_file_on_hosts(Path, Filename, Content) ->
             ?error("Cannot save file ~p at directory ~p on following hosts: ~p", [Filename, Path, HostsError]),
             {error, {hosts, HostsError}}
     end.
-
 
 %% save_file_on_host/3
 %% ====================================================================
@@ -200,7 +191,6 @@ save_file_on_host(Path, Filename, Content) ->
             {error, Host}
     end.
 
-
 %% delete_file_on_hosts/2
 %% ====================================================================
 %% @doc Deletes file on all hosts.
@@ -216,7 +206,6 @@ delete_file_on_hosts(Path, Filename) ->
             ?error("Cannot delete file ~p at directory ~p on following hosts: ~p", [Filename, Path, HostsError]),
             {error, {hosts, HostsError}}
     end.
-
 
 %% delete_file_on_host/2
 %% ====================================================================
@@ -236,7 +225,6 @@ delete_file_on_host(Path, Filename) ->
             {error, Host}
     end.
 
-
 %% get_application_version/0
 %% ====================================================================
 %% @doc Returns version of onepanel application read from reltool.config
@@ -253,3 +241,20 @@ get_application_version() ->
         [{?APP_NAME, _, Version} | _] -> list_to_binary(Version);
         _ -> <<"undefined">>
     end.
+
+%% get_application_ports/1
+%% ====================================================================
+%% @doc Returns ports used by application.
+-spec get_application_ports() -> Result when
+    Result :: [Port :: integer()].
+%% ====================================================================
+get_application_ports() ->
+    {ok, ReleasePath} = application:get_env(?APP_NAME, application_release_path),
+    {ok, [Releases]} = file:consult(filename:join([ReleasePath, "releases", "RELEASES"])),
+    Version = element(3, lists:keyfind(atom_to_list(?SOFTWARE_NAME), 2, Releases)),
+    {ok, [Config]} = file:consult(filename:join([ReleasePath, "releases", Version, "sys.config"])),
+    SysConfig = proplists:get_value(?SOFTWARE_NAME, Config, []),
+    Ports = lists:map(fun(Port) ->
+        proplists:get_value(Port, SysConfig)
+    end, proplists:get_value(ports_in_use, SysConfig, [])),
+    lists:usort(Ports).

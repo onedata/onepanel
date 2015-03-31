@@ -53,7 +53,6 @@ main() ->
             #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
     end.
 
-
 %% title/0
 %% ====================================================================
 %% @doc This will be placed instead of {{title}} tag in template.
@@ -63,7 +62,6 @@ main() ->
 %% ====================================================================
 title() ->
     <<"Application ports check">>.
-
 
 %% body/0
 %% ====================================================================
@@ -104,7 +102,6 @@ body() ->
         ]
     },
     onepanel_gui_utils:body(?SUBMENU_HEIGHT, Header, Main, onepanel_gui_utils:logotype_footer()).
-
 
 %% ports_table/2
 %% ====================================================================
@@ -165,7 +162,6 @@ ports_table(Hosts, Ports) ->
 
     [Header | Rows].
 
-
 %% ====================================================================
 %% Events handling
 %% ====================================================================
@@ -189,14 +185,16 @@ comet_loop(#?STATE{hosts = Hosts, ports = Ports} = State) ->
                     gui_jq:update(<<"ports_table">>, ports_table(HostsPorts, Ports)),
                     gui_jq:fade_in(<<"ports_table">>, 500),
                     case Status of
-                        ok -> gui_jq:update(<<"nav_buttons">>, onepanel_gui_utils:nav_buttons([
-                            {<<"back_button">>, {postback, back}, false, <<"Back">>},
-                            {<<"next_button">>, {postback, next}, false, <<"Next">>}
-                        ]));
-                        _ -> gui_jq:update(<<"nav_buttons">>, onepanel_gui_utils:nav_buttons([
-                            {<<"back_button">>, {postback, back}, false, <<"Back">>},
-                            {<<"recheck_button">>, {postback, recheck}, false, <<"Recheck">>}
-                        ]))
+                        ok ->
+                            gui_jq:update(<<"nav_buttons">>, onepanel_gui_utils:nav_buttons([
+                                {<<"back_button">>, {postback, back}, false, <<"Back">>},
+                                {<<"next_button">>, {postback, next}, false, <<"Next">>}
+                            ]));
+                        _ ->
+                            gui_jq:update(<<"nav_buttons">>, onepanel_gui_utils:nav_buttons([
+                                {<<"back_button">>, {postback, back}, false, <<"Back">>},
+                                {<<"recheck_button">>, {postback, recheck}, false, <<"Recheck">>}
+                            ]))
                     end,
                     State
 
@@ -212,7 +210,6 @@ comet_loop(#?STATE{hosts = Hosts, ports = Ports} = State) ->
     gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
 
-
 %% event/1
 %% ====================================================================
 %% @doc Handles page events.
@@ -221,7 +218,7 @@ comet_loop(#?STATE{hosts = Hosts, ports = Ports} = State) ->
 %% ====================================================================
 event(init) ->
     try
-        Ports = onepanel_utils_adapter:get_application_ports(),
+        Ports = onepanel_utils:get_application_ports(),
         {ok, #?CONFIG{gr = GR}} = onepanel_gui_utils:get_session_config(),
 
         gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),

@@ -12,6 +12,7 @@
 -module(installer_worker).
 -behaviour(installer_behaviour).
 
+-include("registered_names.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
@@ -20,7 +21,7 @@
 -export([install/1, uninstall/1, start/1, stop/1, restart/1]).
 
 %% API
--export([local_install/0, local_uninstall/0, local_start/4, local_stop/1, local_restart/0]).
+-export([local_install/0, local_uninstall/0, local_start/5, local_stop/1, local_restart/0]).
 
 %% ====================================================================
 %% Behaviour callback functions
@@ -46,7 +47,6 @@ install(Args) ->
             {error, {hosts, HostsError}}
     end.
 
-
 %% uninstall/1
 %% ====================================================================
 %% @doc Uninstalls worker nodes on given hosts.
@@ -67,7 +67,6 @@ uninstall(Args) ->
             {error, {hosts, HostsError}}
     end.
 
-
 %% start/1
 %% ====================================================================
 %% @doc Starts worker nodes on given hosts. Argument list should contain
@@ -86,7 +85,8 @@ start(Args) ->
 
         {ConfiguredMainCCM, ConfiguredCCMs, ConfiguredDbs, ConfiguredWorkers, ConfiguredStoragePaths} =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                {ok, #?GLOBAL_CONFIG_RECORD{ccms = []}} -> throw("CCM nodes not configured.");
+                {ok, #?GLOBAL_CONFIG_RECORD{ccms = []}} ->
+                    throw("CCM nodes not configured.");
                 {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM, ccms = CCMs, dbs = Dbs, workers = Workers, storage_paths = StoragePaths}} ->
                     {MainCCM, CCMs, Dbs, Workers, StoragePaths};
                 _ -> throw("Cannot get CCM nodes configuration.")
@@ -102,7 +102,7 @@ start(Args) ->
         ConfiguredOptCCMs = lists:delete(ConfiguredMainCCM, ConfiguredCCMs),
 
         {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(NewWorkers, ?MODULE, local_start,
-            [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredDbs, ConfiguredStoragePaths], ?RPC_TIMEOUT),
+            [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredWorkers, ConfiguredDbs, ConfiguredStoragePaths], ?RPC_TIMEOUT),
 
         case HostsError of
             [] ->
@@ -125,7 +125,6 @@ start(Args) ->
             {error, Reason}
     end.
 
-
 %% stop/1
 %% ====================================================================
 %% @doc Stops worker nodes on given hosts.
@@ -147,7 +146,8 @@ stop(Args) ->
                             Hosts ->
                                 lists:foreach(fun(Host) ->
                                     case lists:member(Host, ConfiguredWorkers) of
-                                        false -> throw("Worker " ++ Host ++ " is not configured.");
+                                        false ->
+                                            throw("Worker " ++ Host ++ " is not configured.");
                                         _ -> ok
                                     end
                                 end, Hosts),
@@ -165,13 +165,13 @@ stop(Args) ->
                     Other ->
                         ?error("Cannot update worker nodes configuration: ~p", [Other]),
                         onepanel_utils:apply_on_hosts(WorkersToStop, ?MODULE, local_start,
-                            [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredDbs, ConfiguredStoragePaths], ?RPC_TIMEOUT),
+                            [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredWorkers, ConfiguredDbs, ConfiguredStoragePaths], ?RPC_TIMEOUT),
                         {error, {hosts, WorkersToStop}}
                 end;
             _ ->
                 ?error("Cannot stop worker nodes on following hosts: ~p", [HostsError]),
                 onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_start,
-                    [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredDbs, ConfiguredStoragePaths], ?RPC_TIMEOUT),
+                    [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredWorkers, ConfiguredDbs, ConfiguredStoragePaths], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
@@ -179,7 +179,6 @@ stop(Args) ->
             ?error("Cannot stop worker nodes: ~p", [Reason]),
             {error, Reason}
     end.
-
 
 %% restart/1
 %% ====================================================================
@@ -191,8 +190,10 @@ stop(Args) ->
 restart(Args) ->
     try
         ConfiguredWorkers = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                                {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} -> Workers;
-                                _ -> throw("Cannot get CCM nodes configuration.")
+                                {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} ->
+                                    Workers;
+                                _ ->
+                                    throw("Cannot get CCM nodes configuration.")
                             end,
 
         WorkersToRestart = case proplists:get_value(workers, Args) of
@@ -210,7 +211,6 @@ restart(Args) ->
             {error, Reason}
     end.
 
-
 %% ====================================================================
 %% API functions
 %% ====================================================================
@@ -227,10 +227,11 @@ local_install() ->
     try
         ?debug("Installing worker node"),
         WorkerPath = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME]),
+        {ok, ReleasePath} = application:get_env(?APP_NAME, application_release_path),
 
         "" = os:cmd("rm -rf " ++ WorkerPath),
         "" = os:cmd("mkdir -p " ++ WorkerPath),
-        "" = os:cmd("cp -R " ++ filename:join([?ONEPROVIDER_RELEASE, "* "]) ++ WorkerPath),
+        "" = os:cmd("cp -R " ++ filename:join([ReleasePath, "* "]) ++ WorkerPath),
 
         {ok, Host}
     catch
@@ -238,7 +239,6 @@ local_install() ->
             ?error("Cannot install worker node: ~p", [Reason]),
             {error, Host}
     end.
-
 
 %% local_uninstall/0
 %% ====================================================================
@@ -262,48 +262,38 @@ local_uninstall() ->
             {error, Host}
     end.
 
-
-%% local_start/4
+%% local_start/5
 %% ====================================================================
 %% @doc Starts worker node on local host.
 %% @end
--spec local_start(MainCCM :: string(), OptCCMs :: [string()], Dbs :: [string()], StoragePaths :: [string()]) -> Result when
+-spec local_start(MainCCM :: string(), OptCCMs :: [string()], Worekrs :: [string()],
+    Dbs :: [string()], StoragePaths :: [string()]) -> Result when
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-local_start(MainCCM, OptCCMs, Dbs, StoragePaths) ->
+local_start(MainCCM, OptCCMs, Workers, Dbs, StoragePaths) ->
     Host = onepanel_utils:get_host(node()),
     try
         ?debug("Starting worker node: ~p"),
 
-        Name = <<(list_to_binary(?WORKER_NAME))/binary, "@", (list_to_binary(Host))/binary>>,
+        release_configurator:configure_release(
+            ?SOFTWARE_NAME,
+            filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME]),
+            [
+                {node_type, worker},
+                {ccm_nodes, [list_to_atom(?CCM_NAME ++ "@" ++ CCM) || CCM <- [MainCCM | OptCCMs]]},
+                {db_nodes, [list_to_atom(Db ++ ":" ++ integer_to_list(?DB_PORT)) || Db <- Dbs]},
+                {workers_to_trigger_init, length(Workers)},
+                {storage_paths, StoragePaths}
+            ],
+            [
+                {name, ?WORKER_NAME ++ "@" ++ Host},
+                {setcookie, ?COOKIE}
+            ]
+        ),
 
-        MainCCMName = <<(list_to_binary(?CCM_NAME))/binary, "@", (list_to_binary(MainCCM))/binary>>,
-
-        OptCCMNames = lists:foldl(fun(OptCCM, Acc) ->
-            <<Acc/binary, (list_to_binary(?CCM_NAME))/binary, "@", (list_to_binary(OptCCM))/binary, " ">>
-        end, <<>>, OptCCMs),
-
-        DbNames = lists:foldl(fun(Db, Acc) ->
-            <<Acc/binary, (list_to_binary(?DB_NAME))/binary, "@", (list_to_binary(Db))/binary, " ">>
-        end, <<>>, Dbs),
-
-
-        NodeConfigPath = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, ?CONFIG_ARGS_PATH]),
-        StorageConfigPath = list_to_binary("\"" ++ filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, ?STORAGE_CONFIG_PATH]) ++ "\""),
-        OverwriteCommand = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, ?ONEPROVIDER_SCRIPT_PATH]),
-        StartCommand = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, ?START_COMMAND_SUFFIX]),
-
-        ok = installer_utils:overwrite_config_args(NodeConfigPath, <<"name: ">>, <<"[^\n]*">>, Name),
-        ok = installer_utils:overwrite_config_args(NodeConfigPath, <<"main_ccm: ">>, <<"[^\n]*">>, MainCCMName),
-        ok = installer_utils:overwrite_config_args(NodeConfigPath, <<"opt_ccms: ">>, <<"[^\n]*">>, OptCCMNames),
-        ok = installer_utils:overwrite_config_args(NodeConfigPath, <<"db_nodes: ">>, <<"[^\n]*">>, DbNames),
-        ok = installer_utils:overwrite_config_args(NodeConfigPath, <<"storage_config_path: ">>, <<"[^\n]*">>, StorageConfigPath),
-        ok = installer_utils:add_node_to_config(worker_node, list_to_atom(?WORKER_NAME), ?NODES_INSTALL_PATH),
-        ok = installer_storage:add_storage_paths_on_host(StoragePaths),
-
-        os:cmd(OverwriteCommand),
+        Daemon = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, ?ONEPROVIDER_DAEMON]),
         SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
-        "" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ StartCommand ++ "\""),
+        "" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ Daemon ++ " start\""),
 
         {ok, Host}
     catch
@@ -311,7 +301,6 @@ local_start(MainCCM, OptCCMs, Dbs, StoragePaths) ->
             ?error("Cannot start worker node: ~p", [Reason]),
             {error, Host}
     end.
-
 
 %% local_stop/1
 %% ====================================================================
@@ -336,7 +325,6 @@ local_stop(StoragePaths) ->
             ?error("Cannot stop worker node: ~p", [Reason]),
             {error, Host}
     end.
-
 
 %% local_restart/0
 %% ====================================================================

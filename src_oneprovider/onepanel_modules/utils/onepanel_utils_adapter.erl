@@ -19,7 +19,7 @@
 %% API
 -export([apply_on_worker/3, get_host_and_port/1]).
 -export([get_software_version/0, get_available_software_versions/0, get_software_version_name/1,
-    get_software_version_record/1, get_application_ports/0]).
+    get_software_version_record/1]).
 
 
 %% ====================================================================
@@ -168,21 +168,3 @@ get_host_and_port(RedirectionPoint) ->
         _:Reason ->
             {error, Reason}
     end.
-
-
-%% get_application_ports/1
-%% ====================================================================
-%% @doc Returns ports used by application.
--spec get_application_ports() -> Result when
-    Result :: [Port :: integer()].
-%% ====================================================================
-get_application_ports() ->
-    {ok, ReleasesDir} = application:get_env(?APP_NAME, application_default_config_dir),
-    {ok, [Releases]} = file:consult(filename:join(ReleasesDir, "RELEASES")),
-    Version = element(3, lists:keyfind("oneprovider_node", 2, Releases)),
-    {ok, [Config]} = file:consult(filename:join([ReleasesDir, Version, "sys.config"])),
-    OneproviderNodeConfig = proplists:get_value(oneprovider_node, Config, []),
-    Ports = lists:map(fun(Port) ->
-        proplists:get_value(Port, OneproviderNodeConfig)
-    end, proplists:get_value(ports_in_use, OneproviderNodeConfig, [])),
-    lists:usort(Ports).

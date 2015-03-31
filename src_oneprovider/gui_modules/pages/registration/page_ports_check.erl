@@ -259,7 +259,7 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                                    ok
                                catch
                                    _:Reason ->
-                                       ?error("Cannot set redirection point: ~p", [Reason]),
+                                       ?error_stacktrace("Cannot set redirection point: ~p", [Reason]),
                                        onepanel_gui_utils:message(error, <<"Redirection point is not available for <i>Global Registry</i>.<br>
                                        This may occur due to NAT or PAT translation mechanisms. Please check your network configuration or try again later.">>),
                                        gui_jq:css(<<"redirection_point_textbox">>, <<"border-color">>, <<"red">>),
