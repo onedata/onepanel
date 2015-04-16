@@ -21,7 +21,7 @@
 -export([install/1, uninstall/1, start/1, stop/1, restart/1]).
 
 %% API
--export([local_install/0, local_uninstall/0, local_start/5, local_stop/0, local_restart/0]).
+-export([local_start/5, local_stop/0, local_restart/0]).
 
 %% ====================================================================
 %% Behaviour callback functions
@@ -35,18 +35,8 @@
 -spec install(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-install(Args) ->
-    CCMs = proplists:get_value(ccms, Args, []),
-
-    {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(CCMs, ?MODULE, local_install, [], ?RPC_TIMEOUT),
-
-    case HostsError of
-        [] -> ok;
-        _ ->
-            ?error("Cannot install CCM nodes on following hosts: ~p", [HostsError]),
-            onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
-            {error, {hosts, HostsError}}
-    end.
+install(_) ->
+    ok.
 
 %% uninstall/1
 %% ====================================================================
@@ -56,18 +46,8 @@ install(Args) ->
 -spec uninstall(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-uninstall(Args) ->
-    CCMs = proplists:get_value(ccms, Args, []),
-
-    {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(CCMs, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
-
-    case HostsError of
-        [] -> ok;
-        _ ->
-            ?error("Cannot uninstall CCM nodes on following hosts: ~p", [HostsError]),
-            onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_install, [], ?RPC_TIMEOUT),
-            {error, {hosts, HostsError}}
-    end.
+uninstall(_) ->
+    ok.
 
 %% start/1
 %% ====================================================================
@@ -218,43 +198,6 @@ restart(_) ->
 %% API functions
 %% ====================================================================
 
-%% local_install/0
-%% ====================================================================
-%% @todo remove
-%% @doc Installs CCM node on local host.
-%% @end
--spec local_install() -> Result when
-    Result :: {ok, Host :: string()} | {error, Host :: string()}.
-%% ====================================================================
-local_install() ->
-    Host = onepanel_utils:get_host(node()),
-    try
-        ?debug("Installing CCM node"),
-        {ok, Host}
-    catch
-        _:Reason ->
-            ?error("Cannot install CCM node: ~p", [Reason]),
-            {error, Host}
-    end.
-
-%% local_uninstall/0
-%% ====================================================================
-%% @todo remove
-%% @doc Uninstalls CCM node on local host.
-%% @end
--spec local_uninstall() -> Result when
-    Result :: {ok, Host :: string()} | {error, Host :: string()}.
-%% ====================================================================
-local_uninstall() ->
-    Host = onepanel_utils:get_host(node()),
-    try
-        {ok, Host}
-    catch
-        _:Reason ->
-            ?error("Cannot uninstall CCM node: ~p", [Reason]),
-            {error, Host}
-    end.
-
 %% local_start/5
 %% ====================================================================
 %% @doc Starts CCM node on local host.
@@ -283,7 +226,7 @@ local_start(MainCCM, OptCCMs, Workers, Dbs, StoragePaths) ->
             ]
         ),
 
-        ServiceStart = "service " ++ atom_to_list(?CCM_APP_NAME) ++ " start > /dev/null",
+        ServiceStart = "/etc/init.d/ " ++ atom_to_list(?CCM_APP_NAME) ++ " start > /dev/null",
         SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
         "" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ ServiceStart ++ "\""),
 
@@ -308,7 +251,6 @@ local_stop() ->
 
         ServiceStop = "service " ++ atom_to_list(?CCM_APP_NAME) ++ " stop > /dev/null",
         "" = os:cmd(ServiceStop),
-        ok = installer_utils:remove_node_from_config(ccm_node),
 
         {ok, Host}
     catch

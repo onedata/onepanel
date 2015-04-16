@@ -15,8 +15,9 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([add_storage_paths_to_db/1, remove_storage_paths_from_db/1, add_storage_paths_on_host/1, remove_storage_paths_on_host/1]).
--export([check_storage_path_on_hosts/2, check_storage_path_on_host/2, create_storage_test_file/1, remove_storage_test_file/1]).
+-export([add_storage_paths_to_db/1, remove_storage_paths_from_db/1]).
+-export([check_storage_path_on_hosts/2, check_storage_path_on_host/2,
+    create_storage_test_file/1, remove_storage_test_file/1]).
 
 
 %% ====================================================================
@@ -103,45 +104,6 @@ remove_storage_paths_from_db(Args) ->
             ?error("Cannot remove storage path: ~p", [Reason]),
             {error, Reason}
     end.
-
-
-%% add_storage_paths_on_host/1
-%% ====================================================================
-%% @todo remove, it should be in app.config
-%% @doc Adds storage paths on local host.
-%% @end
--spec add_storage_paths_on_host(Paths :: [string()]) -> Result when
-    Result :: ok | {error, Reason :: term()}.
-%% ====================================================================
-add_storage_paths_on_host(Paths) ->
-    try
-        ?debug("Adding storage paths ~p", [Paths]),
-        ok
-    catch
-        _:Reason ->
-            ?error("Cannot add storage paths ~p: ~p", [Paths, Reason]),
-            {error, Reason}
-    end.
-
-
-%% remove_storage_paths_on_host/1
-%% ====================================================================
-%% @todo remove, it should be in app.config
-%% @doc Removes configured storage path on local host.
-%% @end
--spec remove_storage_paths_on_host(Paths :: [string()]) -> Result when
-    Result :: ok | {error, Reason :: term()}.
-%% ====================================================================
-remove_storage_paths_on_host(Paths) ->
-    try
-        ?debug("Removing storage path ~p", [Paths]),
-        ok
-    catch
-        _:Reason ->
-            ?error("Cannot remove storage paths ~p: ~p", [Paths, Reason]),
-            {error, Reason}
-    end.
-
 
 %% check_storage_path_on_hosts/1
 %% ====================================================================
