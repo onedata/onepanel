@@ -22,6 +22,9 @@
 -export([install_views/0, refresh_view/1, install_view_sources/0, run_pre_update/1, remove_outdated_views/0]).
 -export([runner/3]).
 
+%% @todo Temporary solution. Should be change when updater will be adjusted to
+%% @todo new localization of release files.
+-define(NODES_INSTALL_PATH, "/tmp").
 
 %% ====================================================================
 %% API functions

@@ -21,9 +21,6 @@
 %% Default cookie used for communication with application
 -define(COOKIE, "oneprovider_node").
 
-%% Installation directory of RPM package
--define(PREFIX, "/tmp"). %todo remove
-
 %% Default names of installable components
 -define(CCM_NAME, "ccm").
 -define(WORKER_NAME, "worker").
@@ -60,6 +57,9 @@
 
 %% Installation directory of RPM package
 -define(PREFIX, filename:join([filename:absname("/"), "opt", "globalregistry"])).
+
+%% Install path for nodes
+-define(NODES_INSTALL_PATH, filename:join([?PREFIX, "nodes"])).
 
 %% Default names of installable components
 -define(GLOBALREGISTRY_NAME, "globalregistry").
@@ -115,14 +115,5 @@
 %% Default system limit values
 -define(OPEN_FILES, 65535).
 -define(PROCESSES, 65535).
-
-%% Location of configured_nodes.cfg file
--define(CONFIGURED_NODES_PATH, "/tmp/configured_nodes.cfg"). %todo remove
-
-%% Location of ulimits.cfg file
--define(ULIMITS_CONFIG_PATH, "/tmp/ulimits.cfg"). %todo remove
-
-%% Install path for nodes
--define(NODES_INSTALL_PATH, filename:join([?PREFIX, "nodes"])). %todo remove
 
 -endif.
