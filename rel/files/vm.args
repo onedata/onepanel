@@ -7,6 +7,9 @@
 ## Make node hidden for oneprovider
 -hidden
 
+## Set the location of crash dumps
+-env ERL_CRASH_DUMP {{crash_dump}}
+
 ## Heartbeat management; auto-restarts VM if it dies or becomes unresponsive
 ## (Disabled by default..use with caution!)
 ##-heart

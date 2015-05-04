@@ -17,7 +17,7 @@
 %% API
 -export([set_system_limit/2, get_system_limits_cmd/1]).
 -export([get_global_config/0, get_timestamp/0, set_timestamp/0]).
--export([add_node_to_config/3, remove_node_from_config/1, overwrite_config_args/4]).
+-export([overwrite_config_args/4]).
 -export([check_port/1, check_port/2, check_ports/2, check_host_domain_name/1]).
 
 %% ====================================================================
@@ -58,53 +58,6 @@ get_system_limits_cmd(Host) ->
         _:Reason ->
             ?error("Cannot get ulimits configuration: ~p. Returning default values.", [Reason]),
             "ulimit -n " ++ integer_to_list(?OPEN_FILES) ++ " ; ulimit -u " ++ integer_to_list(?PROCESSES)
-    end.
-
-
-%% add_node_to_config/3
-%% ====================================================================
-%% @doc Adds a node to configured_nodes.cfg.
-%% @end
--spec add_node_to_config(Type :: atom(), Name :: string(), Path :: string()) -> Result when
-    Result :: ok | {error, Reason :: term()}.
-%% ====================================================================
-add_node_to_config(Type, Name, Path) ->
-    try
-        Entries = case file:consult(?CONFIGURED_NODES_PATH) of
-                      {ok, Content} -> Content;
-                      {error, enoent} -> [];
-                      Other -> throw(Other)
-                  end,
-        case lists:keyfind(Type, 1, Entries) of
-            true -> ok;
-            _ -> save_nodes_in_config(Entries ++ [{Type, Name, Path}])
-        end
-    catch
-        _:Reason ->
-            ?error("Cannot add ~p node to ~s: ~p", [Name, ?CONFIGURED_NODES_PATH, Reason]),
-            {error, Reason}
-    end.
-
-
-%% remove_node_from_config/1
-%% ====================================================================
-%% @doc Removes a node from configured_nodes.cfg.
-%% @end
--spec remove_node_from_config(Type :: atom()) -> Result when
-    Result :: ok | {error, Reason :: term()}.
-%% ====================================================================
-remove_node_from_config(Type) ->
-    try
-        {ok, Entries} = file:consult(?CONFIGURED_NODES_PATH),
-        ToDelete = case lists:keyfind(Type, 1, Entries) of
-                       false -> ?warning("Node ~p not found among configured nodes.", [Type]);
-                       Term -> Term
-                   end,
-        save_nodes_in_config(Entries -- [ToDelete])
-    catch
-        _:Reason ->
-            ?error("Cannot delete ~p from ~s: ~p", [Type, ?CONFIGURED_NODES_PATH, Reason]),
-            {error, Reason}
     end.
 
 
@@ -253,24 +206,3 @@ check_host_domain_name(Host) ->
 %% ====================================================================
 %% Internal functions
 %% ====================================================================
-
-%% save_nodes_in_config/1
-%% ====================================================================
-%% @doc Saves list of nodes in configured_nodes.cfg.
-%% @end
--spec save_nodes_in_config(Name :: string()) -> Result when
-    Result :: ok | {error, Reason :: term()}.
-%% ====================================================================
-save_nodes_in_config(NodeList) ->
-    try
-        file:write_file(?CONFIGURED_NODES_PATH, ""),
-        lists:foreach(
-            fun(Node) ->
-                file:write_file(?CONFIGURED_NODES_PATH, io_lib:fwrite("~p.\n", [Node]), [append])
-            end, NodeList),
-        ok
-    catch
-        _:Reason ->
-            ?error("Cannot write to ~s: ~p", [?CONFIGURED_NODES_PATH, Reason]),
-            {error, Reason}
-    end.

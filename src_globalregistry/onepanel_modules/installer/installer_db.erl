@@ -235,7 +235,6 @@ local_stop() ->
         ?debug("Stopping database node"),
 
         "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ ?DB_PREFIX ++ " | awk '{print $2}'`"),
-        ok = installer_utils:remove_node_from_config(db_node),
 
         {ok, Host}
     catch

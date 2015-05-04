@@ -21,7 +21,7 @@
 -export([install/1, uninstall/1, start/1, stop/1, restart/1]).
 
 %% API
--export([local_install/0, local_uninstall/0, local_start/5, local_stop/1, local_restart/0]).
+-export([local_start/4, local_stop/0, local_restart/0]).
 
 %% ====================================================================
 %% Behaviour callback functions
@@ -34,18 +34,8 @@
 -spec install(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-install(Args) ->
-    Workers = proplists:get_value(workers, Args, []),
-
-    {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(Workers, ?MODULE, local_install, [], ?RPC_TIMEOUT),
-
-    case HostsError of
-        [] -> ok;
-        _ ->
-            ?error("Cannot install worker nodes on following hosts: ~p", [HostsError]),
-            onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
-            {error, {hosts, HostsError}}
-    end.
+install(_) ->
+    ok.
 
 %% uninstall/1
 %% ====================================================================
@@ -54,18 +44,8 @@ install(Args) ->
 -spec uninstall(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-uninstall(Args) ->
-    Workers = proplists:get_value(workers, Args, []),
-
-    {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(Workers, ?MODULE, local_uninstall, [], ?RPC_TIMEOUT),
-
-    case HostsError of
-        [] -> ok;
-        _ ->
-            ?error("Cannot uninstall worker nodes on following hosts: ~p", [HostsError]),
-            onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_install, [], ?RPC_TIMEOUT),
-            {error, {hosts, HostsError}}
-    end.
+uninstall(_) ->
+    ok.
 
 %% start/1
 %% ====================================================================
@@ -102,7 +82,7 @@ start(Args) ->
         ConfiguredOptCCMs = lists:delete(ConfiguredMainCCM, ConfiguredCCMs),
 
         {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(NewWorkers, ?MODULE, local_start,
-            [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredWorkers, ConfiguredDbs, ConfiguredStoragePaths], ?RPC_TIMEOUT),
+            [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredDbs, ConfiguredStoragePaths], ?RPC_TIMEOUT),
 
         case HostsError of
             [] ->
@@ -110,12 +90,12 @@ start(Args) ->
                     ok -> ok;
                     Other ->
                         ?error("Cannot update worker nodes configuration: ~p", [Other]),
-                        onepanel_utils:apply_on_hosts(NewWorkers, ?MODULE, local_stop, [ConfiguredStoragePaths], ?RPC_TIMEOUT),
+                        onepanel_utils:apply_on_hosts(NewWorkers, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
                         {error, {hosts, NewWorkers}}
                 end;
             _ ->
                 ?error("Cannot start worker nodes on following hosts: ~p", [HostsError]),
-                onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_stop, [ConfiguredStoragePaths], ?RPC_TIMEOUT),
+                onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
@@ -156,7 +136,7 @@ stop(Args) ->
 
         ConfiguredOptCCMs = lists:delete(ConfiguredMainCCM, ConfiguredCCMs),
 
-        {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(WorkersToStop, ?MODULE, local_stop, [ConfiguredStoragePaths], ?RPC_TIMEOUT),
+        {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(WorkersToStop, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
 
         case HostsError of
             [] ->
@@ -165,13 +145,13 @@ stop(Args) ->
                     Other ->
                         ?error("Cannot update worker nodes configuration: ~p", [Other]),
                         onepanel_utils:apply_on_hosts(WorkersToStop, ?MODULE, local_start,
-                            [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredWorkers, ConfiguredDbs, ConfiguredStoragePaths], ?RPC_TIMEOUT),
+                            [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredDbs, ConfiguredStoragePaths], ?RPC_TIMEOUT),
                         {error, {hosts, WorkersToStop}}
                 end;
             _ ->
                 ?error("Cannot stop worker nodes on following hosts: ~p", [HostsError]),
                 onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_start,
-                    [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredWorkers, ConfiguredDbs, ConfiguredStoragePaths], ?RPC_TIMEOUT),
+                    [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredDbs, ConfiguredStoragePaths], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
@@ -215,74 +195,25 @@ restart(Args) ->
 %% API functions
 %% ====================================================================
 
-%% local_install/0
-%% ====================================================================
-%% @doc Installs worker node on local host.
-%% @end
--spec local_install() -> Result when
-    Result :: {ok, Host :: string()} | {error, Host :: string()}.
-%% ====================================================================
-local_install() ->
-    Host = onepanel_utils:get_host(node()),
-    try
-        ?debug("Installing worker node"),
-        WorkerPath = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME]),
-        {ok, ReleasePath} = application:get_env(?APP_NAME, application_release_path),
-
-        "" = os:cmd("rm -rf " ++ WorkerPath),
-        "" = os:cmd("mkdir -p " ++ WorkerPath),
-        "" = os:cmd("cp -R " ++ filename:join([ReleasePath, "* "]) ++ WorkerPath),
-
-        {ok, Host}
-    catch
-        _:Reason ->
-            ?error("Cannot install worker node: ~p", [Reason]),
-            {error, Host}
-    end.
-
-%% local_uninstall/0
-%% ====================================================================
-%% @doc Uninstalls worker node on local host.
-%% @end
--spec local_uninstall() -> Result when
-    Result :: {ok, Host :: string()} | {error, Host :: string()}.
-%% ====================================================================
-local_uninstall() ->
-    Host = onepanel_utils:get_host(node()),
-    try
-        ?debug("Uninstalling worker node"),
-        WorkerPath = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME]),
-
-        "" = os:cmd("rm -rf " ++ WorkerPath),
-
-        {ok, Host}
-    catch
-        _:Reason ->
-            ?error("Cannot uninstall worker node: ~p", [Reason]),
-            {error, Host}
-    end.
-
-%% local_start/5
+%% local_start/4
 %% ====================================================================
 %% @doc Starts worker node on local host.
 %% @end
--spec local_start(MainCCM :: string(), OptCCMs :: [string()], Worekrs :: [string()],
+-spec local_start(MainCCM :: string(), OptCCMs :: [string()],
     Dbs :: [string()], StoragePaths :: [string()]) -> Result when
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-local_start(MainCCM, OptCCMs, Workers, Dbs, StoragePaths) ->
+local_start(MainCCM, OptCCMs, Dbs, StoragePaths) ->
     Host = onepanel_utils:get_host(node()),
     try
         ?debug("Starting worker node: ~p"),
 
         release_configurator:configure_release(
             ?SOFTWARE_NAME,
-            filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME]),
+            default,
             [
-                {node_type, worker},
                 {ccm_nodes, [list_to_atom(?CCM_NAME ++ "@" ++ CCM) || CCM <- [MainCCM | OptCCMs]]},
                 {db_nodes, [list_to_atom(Db ++ ":" ++ integer_to_list(?DB_PORT)) || Db <- Dbs]},
-                {workers_to_trigger_init, length(Workers)},
                 {storage_paths, StoragePaths}
             ],
             [
@@ -291,9 +222,9 @@ local_start(MainCCM, OptCCMs, Workers, Dbs, StoragePaths) ->
             ]
         ),
 
-        Daemon = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, ?ONEPROVIDER_DAEMON]),
+        ServiceStart = "/etc/init.d/ " ++ atom_to_list(?SOFTWARE_NAME) ++ " start > /dev/null",
         SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
-        "" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ Daemon ++ " start\""),
+        "" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ ServiceStart ++ "\""),
 
         {ok, Host}
     catch
@@ -302,22 +233,20 @@ local_start(MainCCM, OptCCMs, Workers, Dbs, StoragePaths) ->
             {error, Host}
     end.
 
-%% local_stop/1
+%% local_stop/0
 %% ====================================================================
 %% @doc Stops worker node on local host.
 %% @end
--spec local_stop(StoragePaths :: [string()]) -> Result when
+-spec local_stop() -> Result when
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-local_stop(StoragePaths) ->
+local_stop() ->
     Host = onepanel_utils:get_host(node()),
     try
         ?debug("Stopping worker node on host: ~p", [Host]),
-        WorkerPath = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME]),
 
-        "" = os:cmd("kill -TERM `ps aux | grep beam | grep " ++ WorkerPath ++ " | awk '{print $2}'`"),
-        ok = installer_utils:remove_node_from_config(worker_node),
-        ok = installer_storage:remove_storage_paths_on_host(StoragePaths),
+        ServiceStop = "service " ++ atom_to_list(?SOFTWARE_NAME) ++ " stop > /dev/null",
+        "" = os:cmd(ServiceStop),
 
         {ok, Host}
     catch
