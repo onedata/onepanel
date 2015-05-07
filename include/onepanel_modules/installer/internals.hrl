@@ -39,7 +39,7 @@
 -define(DB_NAME, "riak").
 
 %% Default Riak database port
--define(DB_PORT, 49161).
+-define(DB_PORT, 8087).
 
 %% Location of config file
 -define(DB_CONFIG, "/etc/riak/riak.conf").
