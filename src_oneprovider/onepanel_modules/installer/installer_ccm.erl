@@ -226,7 +226,7 @@ local_start(MainCCM, OptCCMs, Workers, Dbs, StoragePaths) ->
             ]
         ),
 
-        ServiceStart = "/etc/init.d/ " ++ atom_to_list(?CCM_APP_NAME) ++ " start > /dev/null",
+        ServiceStart = "/etc/init.d/" ++ atom_to_list(?CCM_APP_NAME) ++ " start > /dev/null",
         SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
         "" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ ServiceStart ++ "\""),
 
@@ -249,7 +249,7 @@ local_stop() ->
     try
         ?debug("Stopping CCM node"),
 
-        ServiceStop = "service " ++ atom_to_list(?CCM_APP_NAME) ++ " stop > /dev/null",
+        ServiceStop = "/etc/init.d/" ++ atom_to_list(?CCM_APP_NAME) ++ " stop > /dev/null",
         "" = os:cmd(ServiceStop),
 
         {ok, Host}
@@ -276,7 +276,7 @@ local_restart() ->
             _ -> throw("Cannot get CCM nodes configuration.")
         end,
 
-        ServiceRestart = "service " ++ atom_to_list(?CCM_APP_NAME) ++ " restart > /dev/null",
+        ServiceRestart = "/etc/init.d/" ++ atom_to_list(?CCM_APP_NAME) ++ " restart > /dev/null",
         "" = os:cmd(ServiceRestart),
         {ok, Host}
     catch
