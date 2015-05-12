@@ -32,7 +32,7 @@ compile:
 generate:
 	@./rebar --config $(CONFIG) generate ${OVERLAY_VARS}
 
-clean: relclean pkgclean distclean
+clean: relclean pkgclean
 	@./rebar --config $(CONFIG) clean
 
 distclean:
