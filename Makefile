@@ -83,7 +83,7 @@ dialyzer_init: compile .dialyzer.plt
 
 export PKG_VERSION PKG_ID PKG_BUILD BASE_DIR ERLANG_BIN REBAR OVERLAY_VARS RELEASE REL_TYPE CONFIG PKG_VARS_CONFIG
 
-package.src: deps
+package/$(PKG_ID).tar.gz: deps
 	mkdir -p package
 	rm -rf package/$(PKG_ID)
 	git archive --format=tar --prefix=$(PKG_ID)/ $(PKG_REVISION)| (cd package && tar -xf -)
@@ -98,10 +98,10 @@ package.src: deps
 	find package/$(PKG_ID) -depth -name ".git" -exec rm -rf {} \;
 	tar -C package -czf package/$(PKG_ID).tar.gz $(PKG_ID)
 
-dist: package.src
+dist: package/$(PKG_ID).tar.gz
 	cp package/$(PKG_ID).tar.gz .
 
-package: package.src
+package: package/$(PKG_ID).tar.gz
 	${MAKE} -C package -f $(PKG_ID)/deps/node_package/Makefile
 
 pkgclean: distclean
