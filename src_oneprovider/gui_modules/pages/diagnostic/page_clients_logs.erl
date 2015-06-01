@@ -200,30 +200,31 @@ manage_clients_panel() ->
         body = #span{class = <<"fui-cross">>, style = <<"font-size: 20px;">>}},
 
     {ClientListBody, Identifiers} =
-        case onepanel_utils_adapter:apply_on_worker(request_dispatcher, get_connected_fuses, []) of
-            {ok, no_fuses_connected} ->
+%% todo integrate with new code
+%%         case onepanel_utils_adapter:apply_on_worker(request_dispatcher, get_connected_fuses, []) of
+%%             {ok, no_fuses_connected} ->
                 Row = #tr{cells = [
                     #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"--">>},
                     #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"No clients are connected">>},
                     #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"">>}
                 ]},
-                {Row, []};
-            {ok, Clients} ->
-                {ClientList, {_, Ids}} = lists:mapfoldl(
-                    fun({UserName, FuseID}, {Counter, Idents}) ->
-                        {Row, Identifier} = client_row(<<"client_row_", (integer_to_binary(Counter))/binary>>, false, UserName, FuseID),
-                        {Row, {Counter + 1, Idents ++ Identifier}}
-                    end, {1, []}, Clients),
-                {ClientList, Ids};
-            {error, Reason} ->
-                ?error("Cannot get connected fuses: ~p", [Reason]),
-                Row = #tr{cells = [
-                    #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"--">>},
-                    #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"Error: cannot list fuse sessions">>},
-                    #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"">>}
-                ]},
-                {Row, []}
-        end,
+%%                 {Row, []},
+%%             {ok, Clients} ->
+%%                 {ClientList, {_, Ids}} = lists:mapfoldl(
+%%                     fun({UserName, FuseID}, {Counter, Idents}) ->
+%%                         {Row, Identifier} = client_row(<<"client_row_", (integer_to_binary(Counter))/binary>>, false, UserName, FuseID),
+%%                         {Row, {Counter + 1, Idents ++ Identifier}}
+%%                     end, {1, []}, Clients),
+%%                 {ClientList, Ids};
+%%             {error, Reason} ->
+%%                 ?error("Cannot get connected fuses: ~p", [Reason]),
+%%                 Row = #tr{cells = [
+%%                     #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"--">>},
+%%                     #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"Error: cannot list fuse sessions">>},
+%%                     #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"">>}
+%%                 ]},
+%%                 {Row, []}
+%%         end,
 
     gui_jq:bind_enter_to_submit_button(<<"search_textbox">>, <<"search_button">>),
     [

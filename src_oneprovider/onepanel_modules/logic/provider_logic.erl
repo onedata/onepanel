@@ -121,8 +121,9 @@ unregister() ->
         ok = gr_providers:unregister(provider),
         ok = onepanel_utils:delete_file_on_hosts(Path, KeyName),
         ok = onepanel_utils:delete_file_on_hosts(Path, CertName),
-        Nodes = onepanel_utils_adapter:apply_on_worker(gen_server, call, [request_dispatcher, {get_workers, gr_channel}]),
-        rpc:multicall(Nodes, gr_channel, disconnect, []),
+%%         todo enable when gr_channel will be present in new oneprovider
+%%         Nodes = onepanel_utils_adapter:apply_on_worker(gen_server, call, [request_dispatcher, {get_workers, gr_channel}]),
+%%         rpc:multicall(Nodes, gr_channel, disconnect, []),
         ok = dao:delete_record(?PROVIDER_TABLE, ProviderId)
     catch
         _:Reason ->
