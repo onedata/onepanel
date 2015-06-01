@@ -6,6 +6,7 @@
 %% @end
 %% ===================================================================
 %% @doc Remote module used to execute/inject code onto oneprovider node.
+%% @todo adjust to new code structure
 %% @end
 %% ===================================================================
 -module(updater_export).
