@@ -7,6 +7,7 @@
 %% ===================================================================
 %% @doc Passive implementation of update procedures. This module behaves as callback provider
 %%       for updater_engine.
+%% @todo adjust to new code structure
 %% @end
 %% ===================================================================
 -module(updater_impl).
