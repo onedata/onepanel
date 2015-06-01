@@ -106,7 +106,7 @@ stop(_State) ->
 %% ====================================================================
 %% @doc Callback hook for cowboy to modify response headers for HTTPS GUI.
 %% @end
--spec gui_adjust_headers(Req :: req()) -> req().
+-spec gui_adjust_headers(Req :: cowboy_req:req()) -> cowboy_req:req().
 %% ====================================================================
 gui_adjust_headers(Req) ->
     Req2 = cowboy_req:set_resp_header(<<"Strict-Transport-Security">>, <<"max-age=31536000; includeSubDomains">>, Req),
