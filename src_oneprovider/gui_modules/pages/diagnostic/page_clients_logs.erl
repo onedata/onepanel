@@ -8,6 +8,7 @@
 %% @doc This file contains n2o website code.
 %% The page (available for admins only) allows live viewing of logs sent from clients.
 %% @end
+%% @todo integrate with new code and remove request_dispatcher calls
 %% ===================================================================
 -module(page_clients_logs).
 
@@ -200,7 +201,6 @@ manage_clients_panel() ->
         body = #span{class = <<"fui-cross">>, style = <<"font-size: 20px;">>}},
 
     {ClientListBody, Identifiers} =
-%% todo integrate with new code
 %%         case onepanel_utils_adapter:apply_on_worker(request_dispatcher, get_connected_fuses, []) of
 %%             {ok, no_fuses_connected} ->
                 Row = #tr{cells = [
@@ -369,12 +369,12 @@ comet_loop(Counter, PageState = #page_state{first_log = FirstLog, auto_scroll = 
                     set_clients_loglevel(ClientList, Level, ButtonID),
                     {Counter, PageState};
                 display_error ->
-                    onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, Pid}}]),
+%%                     onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, Pid}}]),
                     gui_jq:insert_bottom(<<"main_table">>, comet_error()),
                     gui_comet:flush(),
                     error;
                 {'EXIT', _, _Reason} ->
-                    onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, Pid}}]),
+%%                     onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, Pid}}]),
                     error;
                 Other ->
                     ?debug("Unrecognized comet message in page_logs: ~p", [Other]),
@@ -385,7 +385,7 @@ comet_loop(Counter, PageState = #page_state{first_log = FirstLog, auto_scroll = 
             end
         catch _Type:_Msg ->
             ?error_stacktrace("Error in page_logs comet_loop - ~p: ~p", [_Type, _Msg]),
-            onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, Pid}}]),
+%%             onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, Pid}}]),
             gui_jq:insert_bottom(<<"main_table">>, comet_error()),
             gui_comet:flush(),
             error
@@ -571,14 +571,14 @@ event(init) ->
     % Start a comet process
     {ok, Pid} = gui_comet:spawn(fun() -> comet_loop_init() end),
     put(comet_pid, Pid),
-    % Subscribe for logs at central_logger
-    case onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {subscribe, client, Pid}}]) of
-        ok ->
-            ok;
-        Other ->
-            ?error("central_logger is unreachable. RPC call returned: ~p", [Other]),
-            Pid ! display_error
-    end,
+%%     % Subscribe for logs at central_logger
+%%     case onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {subscribe, client, Pid}}]) of
+%%         ok ->
+%%             ok;
+%%         Other ->
+%%             ?error("central_logger is unreachable. RPC call returned: ~p", [Other]),
+%%             Pid ! display_error
+%%     end,
     ok;
 
 
