@@ -3,8 +3,8 @@ onepanel.iml
 
 deps
 ebin
-rel_globalregistry/onepanel
-rel_oneprovider/onepanel
+rel/gr_onepanel
+rel/op_onepanel
 
 c_lib
 c_src/*.o

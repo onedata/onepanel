@@ -23,13 +23,6 @@
 -define(OPEN_FILES, 65535).
 -define(PROCESSES, 65535).
 
-%% Default username and password for administrative database
--define(DEFAULT_USERNAME, <<"admin">>).
--define(DEFAULT_PASSWORD, <<"password">>).
-
-%% Installation directory of oneprovider RPM
--define(PREFIX, "/opt/oneprovider/").
-
 %% Timeout for each RPC call
 -define(RPC_TIMEOUT, 120000).
 
@@ -38,7 +31,7 @@
 -define(EXIT_FAILURE, 1).
 
 %% Error logs filename
--define(LOG_FILE, "onepanel_admin.log").
+-define(LOG_FILE, "/var/log/op_onepanel/op_onepanel_admin.log").
 
 %% Local onepanel node
 -define(NODE, setup_node).
@@ -54,8 +47,16 @@
 %% * register           - yes/no value that describes whether register provider in Global Registry
 %% * username           - user's name
 %% * password           - user's password
--record(config, {main_ccm, ccms = [], workers = [], dbs = [], storage_paths = [],
-    open_files = [], processes = [], register = no, username = ?DEFAULT_USERNAME, password = ?DEFAULT_PASSWORD}).
+-record(config, {
+    main_ccm,
+    ccms = [],
+    workers = [],
+    dbs = [],
+    storage_paths = [],
+    open_files = [],
+    processes = [],
+    register = no
+}).
 
 %% API
 -export([main/1]).
@@ -80,7 +81,6 @@ main(Args) ->
     end,
     halt(?EXIT_SUCCESS).
 
-
 %% init/0
 %% ====================================================================
 %% @doc Sets up net kernel and establishes connection to oneprovider.
@@ -91,10 +91,10 @@ init() ->
     Hostname = "@" ++ os:cmd("hostname -f") -- "\n",
     put(?NODE, erlang:list_to_atom(?APP_STR ++ Hostname)),
     {A, B, C} = erlang:now(),
-    NodeName = "onepanel_admin_" ++ integer_to_list(A, 32) ++ integer_to_list(B, 32) ++ integer_to_list(C, 32) ++ "@127.0.0.1",
+    NodeName = "onepanel_admin_" ++ integer_to_list(A, 32) ++
+        integer_to_list(B, 32) ++ integer_to_list(C, 32) ++ "@127.0.0.1",
     net_kernel:start([list_to_atom(NodeName), longnames]),
     erlang:set_cookie(node(), ?COOKIE).
-
 
 %% install/1
 %% ====================================================================
@@ -113,9 +113,7 @@ install(Path) ->
             storage_paths = StoragePaths,
             open_files = OpenFiles,
             processes = Processes,
-            register = Register,
-            username = Username,
-            password = Password
+            register = Register
         } = parse({config, Path}),
         AllHosts = lists:usort(CCMs ++ Workers ++ Dbs),
 
@@ -137,11 +135,9 @@ install(Path) ->
         print_ok(),
 
         ok = execute([
-            {Node, installer_db, install, [[{dbs, Dbs}]], "Installing database nodes..."},
-            {Node, installer_db, start, [[{dbs, Dbs}, {username, Username}, {password, Password}]], "Starting database nodes..."},
-            {Node, installer_ccm, install, [[{ccms, CCMs}]], "Installing ccm nodes..."},
+            {Node, installer_db, start, [[{dbs, Dbs}]], "Starting database nodes..."},
+            {Node, installer_db, commit, [[{dbs, Dbs}]], "Committing database cluster..."},
             {Node, installer_ccm, start, [[{main_ccm, MainCCM}, {ccms, CCMs}]], "Starting ccm nodes..."},
-            {Node, installer_worker, install, [[{workers, Workers}]], "Installing worker nodes..."},
             {Node, installer_storage, add_storage_paths_to_db, [[{storage_paths, StoragePaths}]], "Adding storage paths..."},
             {Node, installer_worker, start, [[{workers, Workers}]], "Starting worker nodes..."},
             {Node, installer_utils_adapter, finalize_installation, [[]], "Finalizing installation..."}
@@ -181,7 +177,6 @@ install(Path) ->
             halt(?EXIT_FAILURE)
     end.
 
-
 %% config/0
 %% ====================================================================
 %% @doc Displays current installation configuration.
@@ -206,11 +201,12 @@ config() ->
         format_hosts("Database nodes:", lists:sort(Dbs)),
         format_hosts("Storage paths:", lists:sort(StoragePaths))
     catch
-        _:_ ->
-            io:format("Cannot get current installation configuration.\n"),
+        Error:Reason ->
+            Log = io_lib:fwrite("Error: ~p~nReason: ~p~nStacktrace: ~p~n", [Error, Reason, erlang:get_stacktrace()]),
+            file:write_file(?LOG_FILE, Log),
+            io:format("Cannot get current installation configuration.~nSee ~s for more information.~n", [?LOG_FILE]),
             halt(?EXIT_FAILURE)
     end.
-
 
 %% uninstall/0
 %% ====================================================================
@@ -223,20 +219,14 @@ uninstall() ->
         Node = get(?NODE),
         Terms = rpc:call(Node, installer_utils, get_global_config, []),
         #config{
-            ccms = CCMs,
-            workers = Workers,
-            dbs = Dbs,
             storage_paths = StoragePaths
         } = parse({terms, Terms}),
 
         ok = execute([
             {Node, installer_worker, stop, [[]], "Stopping worker nodes..."},
             {Node, installer_storage, remove_storage_paths_from_db, [[{storage_paths, StoragePaths}]], "Removing storage paths..."},
-            {Node, installer_worker, uninstall, [[{workers, Workers}]], "Uninstalling worker nodes..."},
             {Node, installer_ccm, stop, [[]], "Stopping ccm nodes..."},
-            {Node, installer_ccm, uninstall, [[{ccms, CCMs}]], "Uninstalling ccm nodes..."},
-            {Node, installer_db, stop, [[]], "Stopping database nodes..."},
-            {Node, installer_db, uninstall, [[{dbs, Dbs}]], "Uninstalling database nodes..."}
+            {Node, installer_db, stop, [[]], "Stopping database nodes..."}
         ])
     catch
         _:{hosts, Hosts} when is_list(Hosts) ->
@@ -246,11 +236,12 @@ uninstall() ->
         _:{exec, Reason} when is_list(Reason) ->
             print_error("Operation error: ~s\n", [Reason]),
             halt(?EXIT_FAILURE);
-        _:_ ->
-            print_error("An error occurred during operation.\n", []),
+        Error:Reason ->
+            Log = io_lib:fwrite("Error: ~p~nReason: ~p~nStacktrace: ~p~n", [Error, Reason, erlang:get_stacktrace()]),
+            file:write_file(?LOG_FILE, Log),
+            io:format("An error occured. See ~s for more information.~n", [?LOG_FILE]),
             halt(?EXIT_FAILURE)
     end.
-
 
 %% parse/1
 %% ====================================================================
@@ -269,9 +260,7 @@ parse({config, Path}) ->
         storage_paths = proplists:get_value("Storage paths", Terms, []),
         open_files = proplists:get_value("Open files limit", Terms, []),
         processes = proplists:get_value("Processes limit", Terms, []),
-        register = proplists:get_value("Register in Global Registry", Terms, no),
-        username = proplists:get_value("Username", Terms, ?DEFAULT_USERNAME),
-        password = proplists:get_value("Password", Terms, ?DEFAULT_PASSWORD)
+        register = proplists:get_value("Register in Global Registry", Terms, no)
     };
 
 parse({terms, Terms}) ->
@@ -282,7 +271,6 @@ parse({terms, Terms}) ->
         dbs = proplists:get_value(dbs, Terms, []),
         storage_paths = proplists:get_value(storage_paths, Terms, [])
     }.
-
 
 %% execute/4
 %% ====================================================================
@@ -308,7 +296,6 @@ execute([{Node, Module, Function, Args, Description} | Tasks]) ->
             throw({exec, "Unknown error."})
     end.
 
-
 %% check_hosts/2
 %% ====================================================================
 %% @doc Checks whether all hosts mentioned in configuration file are
@@ -321,10 +308,10 @@ check_hosts(Node, Hosts) ->
     lists:foreach(fun(Host) ->
         case lists:member(Host, ValidHosts) of
             true -> ok;
-            false -> throw({config, io_lib:fwrite("Host ~p was not found among available hosts.", [Host])})
+            false ->
+                throw({config, io_lib:fwrite("Host ~p was not found among available hosts.", [Host])})
         end
     end, Hosts).
-
 
 %% check_storage_paths/3
 %% ====================================================================
@@ -343,7 +330,6 @@ check_storage_paths(Node, StoragePaths, Workers) when is_list(StoragePaths) ->
 check_storage_paths(_, _, _) ->
     throw({config, "Wrong storage paths format."}).
 
-
 %% check_ports/1
 %% ====================================================================
 %% @doc Checks whether default ports of all control panel nodes are
@@ -357,11 +343,12 @@ check_ports(Node) ->
                             _ -> []
                         end,
     {DefaultGuiPort, DefaultRestPort} = case rpc:call(Node, provider_logic, get_ports_to_check, [], ?RPC_TIMEOUT) of
-                                            {ok, [{<<"gui">>, GuiPort}, {<<"rest">>, RestPort}]} -> {GuiPort, RestPort};
+                                            {ok, [{<<"gui">>, GuiPort}, {<<"rest">>, RestPort}]} ->
+                                                {GuiPort, RestPort};
                                             _ -> {0, 0}
                                         end,
     lists:foreach(fun(ControlPanelHost) ->
-        ControlPanelNode = list_to_atom("onepanel@" ++ ControlPanelHost),
+        ControlPanelNode = list_to_atom(?APP_STR ++ "@" ++ ControlPanelHost),
         {ok, IpAddress} = rpc:call(ControlPanelNode, gr_providers, check_ip_address, [provider], ?RPC_TIMEOUT),
         ok = rpc:call(Node, gr_providers, check_port, [provider, IpAddress, DefaultGuiPort, <<"gui">>]),
         ok = rpc:call(Node, gr_providers, check_port, [provider, IpAddress, DefaultRestPort, <<"rest">>]),
@@ -369,7 +356,6 @@ check_ports(Node) ->
             [local_configurations, ControlPanelHost, [{gui_port, DefaultGuiPort}, {rest_port, DefaultGuiPort}]], ?RPC_TIMEOUT)
     end, ControlPanelHosts),
     ok.
-
 
 %% format/2
 %% ====================================================================
@@ -379,7 +365,6 @@ check_ports(Node) ->
 %% ====================================================================
 format(Prefix, String) ->
     io:format("~-40s~s", [Prefix, String]).
-
 
 %% formatln/2
 %% ====================================================================
@@ -391,7 +376,6 @@ formatln(Prefix, String) ->
     format(Prefix, String),
     io:format("~n", []).
 
-
 %% format_host/2
 %% ====================================================================
 %% @doc Formats information about host.
@@ -402,7 +386,6 @@ format_host(Prefix, undefined) ->
     formatln(Prefix, "undefined");
 format_host(Prefix, Host) ->
     formatln(Prefix, Host).
-
 
 %% format_hosts/2
 %% ====================================================================
@@ -418,7 +401,6 @@ format_hosts(Prefix, [Host | Hosts]) ->
         format_host("", H)
     end, Hosts).
 
-
 %% print_usage/0
 %% ====================================================================
 %% @doc Prints available script options.
@@ -432,7 +414,6 @@ print_usage() ->
     io:format("\t--config\n"),
     io:format("\t--uninstall\n").
 
-
 %% print_info/1
 %% ====================================================================
 %% @doc Prints information for given step.
@@ -442,7 +423,6 @@ print_usage() ->
 print_info(Message) ->
     format(Message, "").
 
-
 %% print_ok/0
 %% ====================================================================
 %% @doc Prints 'ok' for given step.
@@ -451,7 +431,6 @@ print_info(Message) ->
 %% ====================================================================
 print_ok() ->
     io:format("[  OK  ]\n").
-
 
 %% print_error/0
 %% ====================================================================
