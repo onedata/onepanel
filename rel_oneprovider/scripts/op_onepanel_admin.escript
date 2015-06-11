@@ -49,13 +49,15 @@
 %% * password           - user's password
 -record(config, {
     main_ccm,
-    ccms = [],
-    workers = [],
-    dbs = [],
-    storage_paths = [],
-    open_files = [],
-    processes = [],
-    register = no
+    ccms,
+    workers,
+    dbs,
+    storage_paths,
+    open_files,
+    processes,
+    register,
+    redirection_point,
+    client_name
 }).
 
 %% API
@@ -113,7 +115,9 @@ install(Path) ->
             storage_paths = StoragePaths,
             open_files = OpenFiles,
             processes = Processes,
-            register = Register
+            register = Register,
+            redirection_point = RedirectionPoint,
+            client_name = ClientName
         } = parse({config, Path}),
         AllHosts = lists:usort(CCMs ++ Workers ++ Dbs),
 
@@ -154,7 +158,7 @@ install(Path) ->
                 print_ok(),
 
                 print_info("Registering..."),
-                {ok, _} = rpc:call(Node, provider_logic, register, [], ?RPC_TIMEOUT),
+                {ok, _} = rpc:call(Node, provider_logic, register, [RedirectionPoint, ClientName], ?RPC_TIMEOUT),
                 print_ok();
             _ ->
                 ok
@@ -227,7 +231,14 @@ uninstall() ->
             {Node, installer_storage, remove_storage_paths_from_db, [[{storage_paths, StoragePaths}]], "Removing storage paths..."},
             {Node, installer_ccm, stop, [[]], "Stopping ccm nodes..."},
             {Node, installer_db, stop, [[]], "Stopping database nodes..."}
-        ])
+        ]),
+
+        case is_registered() of
+            true ->
+                ok = execute([{Node, provider_logic, unregister, [], "Unregistering provider..."}]);
+            _ ->
+                ok
+        end
     catch
         _:{hosts, Hosts} when is_list(Hosts) ->
             io:format("[FAILED]\n"),
@@ -260,7 +271,9 @@ parse({config, Path}) ->
         storage_paths = proplists:get_value("Storage paths", Terms, []),
         open_files = proplists:get_value("Open files limit", Terms, []),
         processes = proplists:get_value("Processes limit", Terms, []),
-        register = proplists:get_value("Register in Global Registry", Terms, no)
+        register = proplists:get_value("Register in Global Registry", Terms, no),
+        redirection_point = list_to_binary(proplists:get_value("Redirection point", Terms, hostname())),
+        client_name = list_to_binary(proplists:get_value("Client name", Terms, "provider"))
     };
 
 parse({terms, Terms}) ->
@@ -292,9 +305,30 @@ execute([{Node, Module, Function, Args, Description} | Tasks]) ->
             throw({hosts, Hosts});
         {error, Error} when is_list(Error) ->
             throw({exec, Error});
-        _ ->
+        Error ->
+            Log = io_lib:fwrite("Error: ~p~n", [Error]),
+            file:write_file(?LOG_FILE, Log),
             throw({exec, "Unknown error."})
     end.
+
+%% hostname/0
+%% ====================================================================
+%% @doc Returns fully-qualified hostname of the machine.
+%% @end
+-spec hostname() -> Hostname :: string().
+%% ====================================================================
+hostname() ->
+    os:cmd("hostname -f") -- "\n".
+
+%% is_registered/0
+%% ====================================================================
+%% @doc Returns true if provider is registered, otherwise false.
+%% @end
+-spec is_registered() -> boolean().
+%% ====================================================================
+is_registered() ->
+    Node = get(?NODE),
+    undefined /= rpc:call(Node, provider_logic, get_provider_id, []).
 
 %% check_hosts/2
 %% ====================================================================
