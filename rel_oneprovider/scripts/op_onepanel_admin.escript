@@ -45,8 +45,8 @@
 %% * open_files         - list of pairs hostname and open files limit on this host
 %% * processes          - list of pairs hostname and processes limit on this host
 %% * register           - yes/no value that describes whether register provider in Global Registry
-%% * username           - user's name
-%% * password           - user's password
+%% * redirection_point  - url to provider's GUI
+%% * client_name        - provider name
 -record(config, {
     main_ccm,
     ccms,

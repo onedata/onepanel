@@ -241,10 +241,16 @@ local_commit() ->
         ok = wait_until("riak-admin ring_status", "Ring Ready:\s*true"),
         "0" = os:cmd("riak-admin cluster plan 1>/dev/null 2>&1 ; echo -n $?"),
         "0" = os:cmd("riak-admin cluster commit 1>/dev/null 2>&1 ; echo -n $?"),
-        "0" = os:cmd("riak-admin bucket-type create maps '{\"props\":{\"n_val\":2,"
-        " \"datatype\":\"map\"}}' 1>/dev/null 2>&1 ; echo -n $?"),
-        ok = wait_until("riak-admin bucket-type status maps", "maps has been created and may be activated"),
-        "0" = os:cmd("riak-admin bucket-type activate maps 1>/dev/null 2>&1 ; echo -n $?"),
+        CreateMaps = "riak-admin bucket-type create maps '{\"props\":{\"n_val\":2,"
+        " \"datatype\":\"map\"}}'",
+        case os:cmd(CreateMaps ++ " | grep already_active") of
+            "already_active\n" ->
+                ok;
+            _ ->
+                "0" = os:cmd(CreateMaps ++ " 1>/dev/null 2>&1 ; echo -n $?"),
+                ok = wait_until("riak-admin bucket-type status maps", "maps has been created and may be activated"),
+                "0" = os:cmd("riak-admin bucket-type activate maps 1>/dev/null 2>&1 ; echo -n $?")
+        end,
 
         ok
     catch
