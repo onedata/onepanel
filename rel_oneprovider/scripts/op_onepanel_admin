@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 
-RELEASE_PACKAGE_LOCATION=/usr/lib/op_onepanel
-START_ERL=`cat ${RELEASE_PACKAGE_LOCATION}/releases/start_erl.data`
-ERTS_VSN=${START_ERL% *}
-ESCRIPT=${RELEASE_PACKAGE_LOCATION}/erts-${ERTS_VSN}/bin/escript
+# Pull environment for this install
+. "{{runner_base_dir}}/lib/env.sh"
 
-${ESCRIPT} /var/lib/op_onepanel/op_onepanel_admin.escript $@
+${ERTS_PATH}/escript ${RUNNER_LIB_DIR}/op_onepanel_admin.escript $@
 
