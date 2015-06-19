@@ -22,7 +22,7 @@
 -export([install/1, uninstall/1, start/1, stop/1, restart/1, commit/1]).
 
 %% API
--export([local_start/0, join_cluster/1, local_commit/0]).
+-export([local_start/0, local_stop/0, join_cluster/1, local_commit/0]).
 
 %% Defines how many times onepanel will try to verify database node start
 -define(FINALIZE_START_ATTEMPTS, 10).
@@ -129,10 +129,40 @@ commit(Args) ->
 %% @doc Stops all database nodes.
 %% @end
 -spec stop(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
-    Result :: ok.
+    Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 stop(_) ->
-    ok.
+    try
+        ConfiguredDbs = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} ->
+                                throw("Database nodes not configured.");
+                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} -> Dbs;
+                            {error, Reason} ->
+                                ?error("Cannot get database nodes configuration: ~p", [Reason]),
+                                throw("Cannot get database nodes configuration.")
+                        end,
+
+        {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(ConfiguredDbs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
+
+        case HostsError of
+            [] ->
+                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{dbs, []}]) of
+                    ok -> ok;
+                    Other ->
+                        ?error("Cannot update database nodes configuration: ~p", [Other]),
+                        onepanel_utils:apply_on_hosts(ConfiguredDbs, ?MODULE, local_start, [], ?RPC_TIMEOUT),
+                        {error, {hosts, ConfiguredDbs}}
+                end;
+            _ ->
+                ?error("Cannot stop database nodes on following hosts: ~p", [HostsError]),
+                onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_start, [], ?RPC_TIMEOUT),
+                {error, {hosts, HostsError}}
+        end
+    catch
+        _:Error ->
+            ?error_stacktrace("Cannot stop database nodes: ~p", [Error]),
+            {error, Error}
+    end.
 
 %% restart/1
 %% ====================================================================
@@ -179,6 +209,27 @@ local_start() ->
             {error, Host}
     end.
 
+%% local_stop/0
+%% ====================================================================
+%% @doc Stops database node on local host.
+%% @end
+-spec local_stop() -> Result when
+    Result :: {ok, Host :: string()} | {error, Host :: string()}.
+%% ====================================================================
+local_stop() ->
+    Host = onepanel_utils:get_host(node()),
+    try
+        ?debug("Stopping database node"),
+
+        "0" = os:cmd("riak stop 1>/dev/null 2>&1 ; echo -n $?"),
+
+        {ok, Host}
+    catch
+        _:Reason ->
+            ?error_stacktrace("Cannot stop database node: ~p", [Reason]),
+            {error, Host}
+    end.
+
 %% local_commit/0
 %% ====================================================================
 %% @doc Performs database cluster commit on local node.
@@ -190,10 +241,16 @@ local_commit() ->
         ok = wait_until("riak-admin ring_status", "Ring Ready:\s*true"),
         "0" = os:cmd("riak-admin cluster plan 1>/dev/null 2>&1 ; echo -n $?"),
         "0" = os:cmd("riak-admin cluster commit 1>/dev/null 2>&1 ; echo -n $?"),
-        "0" = os:cmd("riak-admin bucket-type create maps '{\"props\":{\"n_val\":2,"
-        " \"datatype\":\"map\"}}' 1>/dev/null 2>&1 ; echo -n $?"),
-        ok = wait_until("riak-admin bucket-type status maps", "maps has been created and may be activated"),
-        "0" = os:cmd("riak-admin bucket-type activate maps 1>/dev/null 2>&1 ; echo -n $?"),
+        CreateMaps = "riak-admin bucket-type create maps '{\"props\":{\"n_val\":2,"
+        " \"datatype\":\"map\"}}'",
+        case os:cmd(CreateMaps ++ " | grep already_active") of
+            "already_active\n" ->
+                ok;
+            _ ->
+                "0" = os:cmd(CreateMaps ++ " 1>/dev/null 2>&1 ; echo -n $?"),
+                ok = wait_until("riak-admin bucket-type status maps", "maps has been created and may be activated"),
+                "0" = os:cmd("riak-admin bucket-type activate maps 1>/dev/null 2>&1 ; echo -n $?")
+        end,
 
         ok
     catch
