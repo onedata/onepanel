@@ -11,11 +11,11 @@ OVERLAY_VARS    ?=
 ifeq ($(REL_TYPE),globalregistry)
 CONFIG           = config/globalregistry.config
 PKG_VARS_CONFIG  = config/gr_pkg.vars.config
-PKG_ID           = gr-onepanel-$(PKG_VERSION)
+PKG_ID           = gr-panel-$(PKG_VERSION)
 else
 CONFIG           = config/oneprovider.config
 PKG_VARS_CONFIG  = config/op_pkg.vars.config
-PKG_ID           = op-onepanel-$(PKG_VERSION)
+PKG_ID           = op-panel-$(PKG_VERSION)
 endif
 
 
@@ -47,18 +47,18 @@ doc:
 
 rel: deps compile generate
 ifeq ($(REL_TYPE),globalregistry)
-	rm -rf rel/gr_onepanel
-	mv rel_globalregistry/gr_onepanel rel/
+	rm -rf rel/gr_panel
+	mv rel_globalregistry/gr_panel rel/
 else
-	rm -rf rel/op_onepanel
-	mv rel_oneprovider/op_onepanel rel/
+	rm -rf rel/op_panel
+	mv rel_oneprovider/op_panel rel/
 endif
 
 relclean:
-	rm -rf rel/gr_onepanel
-	rm -rf rel/op_onepanel
-	rm -rf rel_globalregistry/gr_onepanel
-	rm -rf rel_oneprovider/op_onepanel
+	rm -rf rel/gr_panel
+	rm -rf rel/op_panel
+	rm -rf rel_globalregistry/gr_panel
+	rm -rf rel_oneprovider/op_panel
 
 ##
 ## Dialyzer
