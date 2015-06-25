@@ -222,10 +222,9 @@ local_start(MainCCM, OptCCMs, Dbs, StoragePaths) ->
             ]
         ),
 
-        ServiceStart = "/etc/init.d/" ++ atom_to_list(?SOFTWARE_NAME) ++ " start > /dev/null",
+        ServiceStart = "/etc/init.d/" ++ atom_to_list(?SOFTWARE_NAME) ++ " start 2>1 1>/dev/null",
         SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
-        os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ ServiceStart ++ "\""), %todo match to "" when name is shorter than 15 chars
-
+        "0" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ ServiceStart ++ " ; echo -n $?\""),
         {ok, Host}
     catch
         _:Reason ->
@@ -245,8 +244,8 @@ local_stop() ->
     try
         ?debug("Stopping worker node on host: ~p", [Host]),
 
-        ServiceStop = "/etc/init.d/" ++ atom_to_list(?SOFTWARE_NAME) ++ " stop > /dev/null",
-        "" = os:cmd(ServiceStop),
+        ServiceStop = "/etc/init.d/" ++ atom_to_list(?SOFTWARE_NAME) ++ " stop 2>1 1>/dev/null",
+        "0" = os:cmd(ServiceStop ++ " ; echo -n $?"),
 
         {ok, Host}
     catch
