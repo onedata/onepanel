@@ -18,11 +18,13 @@
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 
+-define(COUCHBASE_PASSWORD, "lkj4n2klfsd90uchn1kadk290").
+
 %% install_behaviour callbacks
 -export([install/1, uninstall/1, start/1, stop/1, restart/1, commit/1]).
 
 %% API
--export([local_start/0, local_stop/0, join_cluster/1, local_commit/0]).
+-export([local_start/0, local_stop/0, join_cluster/1, local_commit/0, init_cluster/1]).
 
 %% Defines how many times onepanel will try to verify database node start
 -define(FINALIZE_START_ATTEMPTS, 10).
@@ -83,19 +85,26 @@ start(Args) ->
 
         case StartError of
             [] ->
-                {_, JoinError} = onepanel_utils:apply_on_hosts(Dbs, ?MODULE, join_cluster, [hd(Dbs)], ?RPC_TIMEOUT),
-                case JoinError of
+                {_InitOk, InitError} = onepanel_utils:apply_on_hosts([hd(Dbs)], ?MODULE, init_cluster, [hd(Dbs)], ?RPC_TIMEOUT),
+                case InitError of
                     [] ->
-                        case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{dbs, Dbs}]) of
-                            ok -> ok;
-                            Other ->
-                                ?error("Cannot update database nodes configuration: ~p", [Other]),
-                                onepanel_utils:apply_on_hosts(Dbs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
-                                {error, {hosts, Dbs}}
+                        {_, JoinError} = onepanel_utils:apply_on_hosts(Dbs, ?MODULE, join_cluster, [hd(Dbs)], ?RPC_TIMEOUT),
+                        case JoinError of
+                            [] ->
+                                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{dbs, Dbs}]) of
+                                    ok -> ok;
+                                    Other ->
+                                        ?error("Cannot update database nodes configuration: ~p", [Other]),
+                                        onepanel_utils:apply_on_hosts(Dbs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
+                                        {error, {hosts, Dbs}}
+                                end;
+                            _ ->
+                                ?error("Cannot add following hosts: ~p to database cluster", [JoinError]),
+                                {error, {hosts, JoinError}}
                         end;
                     _ ->
-                        ?error("Cannot add following hosts: ~p to database cluster", [JoinError]),
-                        {error, {hosts, JoinError}}
+                        ?error("Cannot init database nodes on following hosts: ~p", [InitError]),
+                        {error, {hosts, InitError}}
                 end;
             _ ->
                 ?error("Cannot start database nodes on following hosts: ~p", [StartError]),
@@ -199,8 +208,8 @@ local_start() ->
         ok = installer_utils:overwrite_config_args(?DB_CONFIG,
             <<"listener.protobuf.internal = ">>, <<"[^\n]*">>, <<"0.0.0.0:8087">>),
 
-        "0" = os:cmd("riak start 1>/dev/null 2>&1 ; echo -n $?"),
-        ok = wait_until("riak ping 1>/dev/null 2>&1 ; echo -n $?", "0"),
+        "0" = os:cmd("/etc/init.d/couchbase start 1>/dev/null 2>&1 ; echo -n $?"),
+        ok = wait_until("/etc/init.d/couchbase status 1>/dev/null 2>&1 ; echo -n $?", "0"),
 
         {ok, Host}
     catch
@@ -221,7 +230,7 @@ local_stop() ->
     try
         ?debug("Stopping database node"),
 
-        "0" = os:cmd("riak stop 1>/dev/null 2>&1 ; echo -n $?"),
+        "0" = os:cmd("/etc/init.d/couchbase stop 1>/dev/null 2>&1 ; echo -n $?"),
 
         {ok, Host}
     catch
@@ -238,20 +247,6 @@ local_stop() ->
 %% ====================================================================
 local_commit() ->
     try
-        ok = wait_until("riak-admin ring_status", "Ring Ready:\s*true"),
-        "0" = os:cmd("riak-admin cluster plan 1>/dev/null 2>&1 ; echo -n $?"),
-        "0" = os:cmd("riak-admin cluster commit 1>/dev/null 2>&1 ; echo -n $?"),
-        CreateMaps = "riak-admin bucket-type create maps '{\"props\":{\"n_val\":2,"
-        " \"datatype\":\"map\"}}'",
-        case os:cmd(CreateMaps ++ " | grep already_active") of
-            "already_active\n" ->
-                ok;
-            _ ->
-                "0" = os:cmd(CreateMaps ++ " 1>/dev/null 2>&1 ; echo -n $?"),
-                ok = wait_until("riak-admin bucket-type status maps", "maps has been created and may be activated"),
-                "0" = os:cmd("riak-admin bucket-type activate maps 1>/dev/null 2>&1 ; echo -n $?")
-        end,
-
         ok
     catch
         _:Reason ->
@@ -275,9 +270,11 @@ join_cluster(ClusterHost) ->
             _ -> ok
         end,
 
-        "0" = os:cmd("riak-admin cluster join " ++ ?DB_NAME ++ "@" ++ ClusterHost
-            ++ " 1>/dev/null 2>&1 ; echo -n $?"),
-        ok = wait_until("riak-admin ring_status", "Ring Ready:\s*true"),
+        JoinCommand = "/opt/couchbase/couchbase-cli rebalance -c " ++ ClusterHost ++ ":8091 -u admin -p " ++ ?COUCHBASE_PASSWORD ++
+            " --server-add=" ++ Host ++ ":8091 --server-add-username=admin --server-add-password=" ++ ?COUCHBASE_PASSWORD
+            ++ " 1>/dev/null 2>&1 ; echo -n $?",
+        ?info("Running couchbase command ~p", [JoinCommand]),
+        "0" = os:cmd(JoinCommand),
 
         {ok, Host}
     catch
@@ -285,6 +282,42 @@ join_cluster(ClusterHost) ->
             {ok, Host};
         _:Reason ->
             ?error_stacktrace("Cannot join database cluster: ~p", [Reason]),
+            {error, Host}
+    end.
+
+
+%% init_cluster/1
+%% ====================================================================
+%% @doc Init database cluster. ClusterHost is one of current
+%% database cluster hosts.
+%% @end
+-spec init_cluster(ClusterHost :: string()) -> Result when
+    Result :: {ok, Host :: string()} | {error, Host :: string()}.
+%% ====================================================================
+init_cluster(ClusterHost) ->
+    Host = onepanel_utils:get_host(node()),
+    try
+        catch memsup:start_link(),
+        {_, Mem} = proplists:lookup(system_total_memory, memsup:get_system_memory_data()),
+        MemMB = erlang:round(Mem / 1024 / 1024),
+        MemToAllocate = erlang:round(MemMB / 2),
+
+        InitCommand = "/opt/couchbase/couchbase-cli cluster-init -c " ++ ClusterHost ++ ":8091 --cluster-init-username=admin" ++
+            " --cluster-init-password=" ++ ?COUCHBASE_PASSWORD ++ " --cluster-init-ramsize=" ++ integer_to_list(MemToAllocate) ++
+            " 1>/dev/null 2>&1 ; echo -n $?",
+        ?info("Running couchbase command ~p", [InitCommand]),
+        "0" = os:cmd(InitCommand),
+
+        BucketCommand = "/opt/couchbase/couchbase-cli bucket-create -c " ++ ClusterHost ++ ":8091" ++
+            " -u admin -p " ++ ?COUCHBASE_PASSWORD ++ " --bucket=default --bucket-ramsize=" ++ integer_to_list(MemToAllocate) ++
+            " 1>/dev/null 2>&1 ; echo -n $?",
+        ?info("Running couchbase command ~p", [BucketCommand]),
+        "0" = os:cmd(BucketCommand),
+
+        {ok, Host}
+    catch
+        _:Reason ->
+            ?error_stacktrace("Cannot init database cluster: ~p", [Reason]),
             {error, Host}
     end.
 
