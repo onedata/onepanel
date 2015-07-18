@@ -18,7 +18,8 @@
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 
--define(COUCHBASE_PASSWORD, "lkj4n2klfsd90uchn1kadk290").
+-define(COUCHBASE_PASSWORD, "lkj4n2klfsd9kadk290").
+-define(COUCHBASE_CLI, "LC_ALL=en_US.UTF-8 /opt/couchbase/bin/couchbase-cli").
 
 %% install_behaviour callbacks
 -export([install/1, uninstall/1, start/1, stop/1, restart/1, commit/1]).
@@ -199,17 +200,9 @@ local_start() ->
     try
         ?debug("Starting database node"),
 
-        Name = <<(list_to_binary(?DB_NAME))/binary, "@", (list_to_binary(Host))/binary>>,
-
-        ok = installer_utils:overwrite_config_args(?DB_CONFIG,
-            <<"nodename = ">>, <<"[^\n]*">>, Name),
-        ok = installer_utils:overwrite_config_args(?DB_CONFIG,
-            <<"listener.http.internal = ">>, <<"[^\n]*">>, <<"0.0.0.0:8098">>),
-        ok = installer_utils:overwrite_config_args(?DB_CONFIG,
-            <<"listener.protobuf.internal = ">>, <<"[^\n]*">>, <<"0.0.0.0:8087">>),
-
-        "0" = os:cmd("/etc/init.d/couchbase start 1>/dev/null 2>&1 ; echo -n $?"),
-        ok = wait_until("/etc/init.d/couchbase status 1>/dev/null 2>&1 ; echo -n $?", "0"),
+        "0" = os:cmd("/etc/init.d/couchbase-server start 1>/dev/null 2>&1 ; echo -n $?"),
+        ok = wait_until("/etc/init.d/couchbase-server status 1>/dev/null 2>&1 ; echo -n $?", "0"),
+        wait_until_connect(Host, 8091, 10),
 
         {ok, Host}
     catch
@@ -230,7 +223,7 @@ local_stop() ->
     try
         ?debug("Stopping database node"),
 
-        "0" = os:cmd("/etc/init.d/couchbase stop 1>/dev/null 2>&1 ; echo -n $?"),
+        "0" = os:cmd("/etc/init.d/couchbase-server stop 1>/dev/null 2>&1 ; echo -n $?"),
 
         {ok, Host}
     catch
@@ -270,7 +263,7 @@ join_cluster(ClusterHost) ->
             _ -> ok
         end,
 
-        JoinCommand = "/opt/couchbase/couchbase-cli rebalance -c " ++ ClusterHost ++ ":8091 -u admin -p " ++ ?COUCHBASE_PASSWORD ++
+        JoinCommand = ?COUCHBASE_CLI ++ " rebalance -c " ++ ClusterHost ++ ":8091 -u admin -p " ++ ?COUCHBASE_PASSWORD ++
             " --server-add=" ++ Host ++ ":8091 --server-add-username=admin --server-add-password=" ++ ?COUCHBASE_PASSWORD
             ++ " 1>/dev/null 2>&1 ; echo -n $?",
         ?info("Running couchbase command ~p", [JoinCommand]),
@@ -298,19 +291,20 @@ init_cluster(ClusterHost) ->
     Host = onepanel_utils:get_host(node()),
     try
         catch memsup:start_link(),
-        {_, Mem} = proplists:lookup(system_total_memory, memsup:get_system_memory_data()),
-        MemMB = erlang:round(Mem / 1024 / 1024),
-        MemToAllocate = erlang:round(MemMB / 2),
+%%         {_, Mem} = proplists:lookup(system_total_memory, memsup:get_system_memory_data()),
+%%         MemMB = erlang:round(Mem / 1024 / 1024),
+%%         MemToAllocate = erlang:round(MemMB / 2),
+        MemToAllocate = 512,
 
-        InitCommand = "/opt/couchbase/couchbase-cli cluster-init -c " ++ ClusterHost ++ ":8091 --cluster-init-username=admin" ++
+        InitCommand = ?COUCHBASE_CLI ++ " cluster-init -c " ++ ClusterHost ++ ":8091 --cluster-init-username=admin" ++
             " --cluster-init-password=" ++ ?COUCHBASE_PASSWORD ++ " --cluster-init-ramsize=" ++ integer_to_list(MemToAllocate) ++
-            " 1>/dev/null 2>&1 ; echo -n $?",
+            " 1>/tmp/couchbase.log 2>&1 ; echo -n $?",
         ?info("Running couchbase command ~p", [InitCommand]),
         "0" = os:cmd(InitCommand),
 
-        BucketCommand = "/opt/couchbase/couchbase-cli bucket-create -c " ++ ClusterHost ++ ":8091" ++
+        BucketCommand = ?COUCHBASE_CLI ++ " bucket-create -c " ++ ClusterHost ++ ":8091" ++
             " -u admin -p " ++ ?COUCHBASE_PASSWORD ++ " --bucket=default --bucket-ramsize=" ++ integer_to_list(MemToAllocate) ++
-            " 1>/dev/null 2>&1 ; echo -n $?",
+            " 1>/tmp/couchbase.log 2>&1 ; echo -n $?",
         ?info("Running couchbase command ~p", [BucketCommand]),
         "0" = os:cmd(BucketCommand),
 
@@ -357,4 +351,28 @@ wait_until(Command, Output, N) ->
         _ ->
             timer:sleep(?NEXT_ATTEMPT_DELAY),
             wait_until(Command, Output, N - 1)
+    end.
+
+
+%% wait_until_connect/3
+%% ====================================================================
+%% @private
+%% @doc
+%% Waits given number of attempts for successful connection to Host:Port.
+%% @end
+-spec wait_until_connect(Host :: string(), Port :: non_neg_integer(), Attempt :: integer()) ->
+    ok | {error, Reason :: term()}.
+%% ====================================================================
+wait_until_connect(_Host, _Port, 0) ->
+    ?error("Cannot finalize database node start: connect attempts limit exceeded (to ~p:~p).", [_Host, _Port]),
+    {error, <<"Attempts limit exceeded.">>};
+wait_until_connect(Host, Port, N) ->
+    case gen_tcp:connect(Host, Port, [], ?NEXT_ATTEMPT_DELAY) of
+        {ok, Socket} ->
+            gen_tcp:close(Socket),
+            ok;
+        {error, Reason} ->
+            ?info("Connect to ~p:~p retry after error: ~p", [Host, Port, Reason]),
+            timer:sleep(?NEXT_ATTEMPT_DELAY),
+            wait_until_connect(Host, Port, N - 1)
     end.

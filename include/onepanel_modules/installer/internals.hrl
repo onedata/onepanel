@@ -36,13 +36,10 @@
 %% ====================================================================
 
 %% Default names database component
--define(DB_NAME, "riak").
+-define(DB_NAME, "couchbase").
 
 %% Default Riak database port
--define(DB_PORT, 8087).
-
-%% Location of config file
--define(DB_CONFIG, "/etc/riak/riak.conf").
+-define(DB_PORT, 11211).
 
 -endif.
 
