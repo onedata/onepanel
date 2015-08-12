@@ -3,6 +3,8 @@ onepanel.iml
 
 deps
 ebin
+rel_oneprovider/op_panel/
+rel_globalregistry/gr_panel/
 rel/gr_panel
 rel/op_panel
 
