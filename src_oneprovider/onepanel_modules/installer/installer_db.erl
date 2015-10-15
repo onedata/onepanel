@@ -28,7 +28,7 @@
 -export([local_start/0, local_stop/0, join_cluster/1, local_commit/0, init_cluster/1]).
 
 %% Defines how many times onepanel will try to verify database node start
--define(FINALIZE_START_ATTEMPTS, 10).
+-define(FINALIZE_START_ATTEMPTS, 60).
 
 %% Defines how long onepanel will wait before next attempt to verify database node start
 -define(NEXT_ATTEMPT_DELAY, 1000).
