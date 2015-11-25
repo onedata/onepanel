@@ -171,7 +171,7 @@ storage_paths_table_row(StoragePath, Id, Disabled, Deletable) ->
                 style = <<"text-align: center; vertical-align: inherit; padding-bottom: 0;">>,
                 body = #textbox{
                     id = TextboxId,
-                    value = gui_str:html_encode(StoragePath),
+                    value = http_utils:html_encode(StoragePath),
                     disabled = Disabled,
                     placeholder = <<"Storage path">>,
                     style = <<"width: 100%;">>

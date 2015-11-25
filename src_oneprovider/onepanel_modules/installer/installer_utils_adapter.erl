@@ -102,8 +102,8 @@ get_nagios_report() ->
     try
         {ok, #?GLOBAL_CONFIG_RECORD{workers = [Worker | _]}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
         URL = "https://" ++ Worker ++ "/nagios",
-        Headers = [{"content-type", "application/json"}],
-        {ok, "200", _ResponseHeaders, ResponseBody} = ibrowse:send_req(URL, Headers, get),
+        Headers = [{<<"content-type">>, <<"application/json">>}],
+        {ok, 200, _ResponseHeaders, ResponseBody} = http_client:get(URL, Headers),
         {Xml, _} = xmerl_scan:string(ResponseBody),
         [Status] = [X#xmlAttribute.value || X <- Xml#xmlElement.attributes, X#xmlAttribute.name == status],
 

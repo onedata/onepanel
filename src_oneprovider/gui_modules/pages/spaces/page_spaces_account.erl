@@ -273,7 +273,7 @@ redirection_point(RedirectionPoint) ->
     #span{
         style = <<"font-size: large;">>,
         body = [
-            gui_str:html_encode(RedirectionPoint),
+            http_utils:html_encode(RedirectionPoint),
             #link{
                 title = <<"Edit">>,
                 style = <<"margin-left: 1em;">>,

@@ -177,7 +177,7 @@ get_provider_id() ->
 get_provider_name() ->
     case dao:get_records(?PROVIDER_TABLE) of
         {ok, [#?PROVIDER_RECORD{name = ProviderName} | _]} ->
-            gui_str:html_encode(ProviderName);
+            http_utils:html_encode(ProviderName);
         _ ->
             <<"onepanel">>
     end.

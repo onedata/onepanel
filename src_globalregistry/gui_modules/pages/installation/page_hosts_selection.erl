@@ -124,7 +124,7 @@ hosts_table(Hosts, DbConfig, PageConfig) ->
         #tr{
             cells = [
                 #td{
-                    body = <<"<b>", (gui_str:html_encode(Host))/binary, "</b>">>,
+                    body = <<"<b>", (http_utils:html_encode(Host))/binary, "</b>">>,
                     style = case installer_utils:check_host_domain_name(Host) of
                                 ok -> ColumnStyle;
                                 _ -> <<ColumnStyle/binary, " color: red;">>

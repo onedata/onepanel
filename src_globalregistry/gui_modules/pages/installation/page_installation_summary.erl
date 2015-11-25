@@ -177,7 +177,7 @@ format([]) ->
 format(Hosts) ->
     lists:map(fun(Host) ->
         #p{
-            body = gui_str:html_encode(Host),
+            body = http_utils:html_encode(Host),
             style = <<"text-align: center; margin-bottom: 0; font-weight: 400;">>
         }
     end, Hosts).

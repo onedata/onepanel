@@ -395,6 +395,10 @@ finalize_local_start(Username, Password, Attempts) ->
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 request(Username, Password, URL, Method, Body) ->
-    Headers = [{"content-type", "application/json"}],
-    Options = [{connect_timeout, ?DB_CONNECTION_TIMEOUT}, {basic_auth, {binary_to_list(Username), binary_to_list(Password)}}],
-    ibrowse:send_req(URL, Headers, Method, Body, Options).
+    Headers = [
+        {<<"content-type">>, <<"application/json">>},
+        {<<"Authorization">>,
+            <<"Basic ", (base64:encode(Username ++ ":" ++ Password))/binary>>}
+    ],
+    Options = [{connect_timeout, ?DB_CONNECTION_TIMEOUT}],
+    http_client:request(Method, URL, Headers, Body, Options).
