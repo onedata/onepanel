@@ -122,7 +122,7 @@ main_ccm() ->
                         id = <<"ccms_label">>,
                         style = <<"padding-right: 1em;">>,
                         class = <<"filter-option pull-left">>,
-                        body = <<"Primary CCM host: <b>", (gui_str:html_encode(SessionConfig#?CONFIG.main_ccm))/binary, "</b>">>
+                        body = <<"Primary CCM host: <b>", (http_utils:html_encode(SessionConfig#?CONFIG.main_ccm))/binary, "</b>">>
                     },
                     #span{
                         class = <<"caret pull-right">>
@@ -164,7 +164,7 @@ ccms_list(MainCCM, CCMs) ->
                         end,
                 body = #link{
                     style = <<"text-align: left;">>,
-                    body = gui_str:html_encode(CCM)
+                    body = http_utils:html_encode(CCM)
                 }
             }, List],
             Id + 1
@@ -196,7 +196,7 @@ event(next) ->
 event({set_main_ccm, MainCCM, CCMs}) ->
     Config = gui_ctx:get(?CONFIG_ID),
     gui_ctx:put(?CONFIG_ID, Config#?CONFIG{main_ccm = MainCCM}),
-    gui_jq:update(<<"ccms_label">>, <<"Primary CCM host: <b>", (gui_str:html_encode(MainCCM))/binary, "</b>">>),
+    gui_jq:update(<<"ccms_label">>, <<"Primary CCM host: <b>", (http_utils:html_encode(MainCCM))/binary, "</b>">>),
     gui_jq:update(<<"ccms_dropdown">>, ccms_list(MainCCM, CCMs));
 
 event(terminate) ->

@@ -145,7 +145,7 @@ username(Username) ->
     #span{
         style = <<"font-size: large;">>,
         body = [
-            gui_str:html_encode(Username),
+            http_utils:html_encode(Username),
             #link{
                 title = <<"Edit">>,
                 style = <<"margin-left: 1em;">>,

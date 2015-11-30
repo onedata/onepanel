@@ -330,7 +330,7 @@ render_row(Counter, {Message, Timestamp, Severity, Metadata}) ->
         actions = gui_jq:postback_action(CollapsedId, {toggle_log, Counter, true}), cells = [
             #td{body = format_severity(Severity), style = <<?SEVERITY_COLUMN_STYLE>>},
             #td{body = format_time(Timestamp), style = <<?TIME_COLUMN_STYLE>>},
-            #td{body = gui_str:to_binary(Message), style = <<?MESSAGE_COLUMN_STYLE, " text-wrap:normal; word-wrap:break-word; white-space: nowrap; overflow: hidden;">>},
+            #td{body = str_utils:to_binary(Message), style = <<?MESSAGE_COLUMN_STYLE, " text-wrap:normal; word-wrap:break-word; white-space: nowrap; overflow: hidden;">>},
             #td{body = CollapsedMetadata, style = <<?METADATA_COLUMN_STYLE, "white-space: nowrap; overflow: hidden;">>}
         ]},
 
@@ -338,7 +338,7 @@ render_row(Counter, {Message, Timestamp, Severity, Metadata}) ->
         actions = gui_jq:postback_action(ExpandedId, {toggle_log, Counter, false}), cells = [
             #td{body = format_severity(Severity), style = <<?SEVERITY_COLUMN_STYLE>>},
             #td{body = format_time(Timestamp), style = <<?TIME_COLUMN_STYLE>>},
-            #td{body = gui_str:to_binary(Message), style = <<?MESSAGE_COLUMN_STYLE, " text-wrap:normal; word-wrap:break-word;">>},
+            #td{body = str_utils:to_binary(Message), style = <<?MESSAGE_COLUMN_STYLE, " text-wrap:normal; word-wrap:break-word;">>},
             #td{body = ExpandedMetadata, style = <<?METADATA_COLUMN_STYLE>>}
         ]},
 
@@ -415,13 +415,13 @@ format_time(Timestamp) ->
 format_metadata(Tags) ->
     Collapsed = case lists:keyfind(node, 1, Tags) of
                     {node, Value} ->
-                        <<"<b>node:</b> ", (gui_str:to_binary(Value))/binary, " ...">>;
+                        <<"<b>node:</b> ", (str_utils:to_binary(Value))/binary, " ...">>;
                     _ ->
                         <<"<b>unknown node</b> ...">>
                 end,
     Expanded = lists:foldl(
         fun({Key, Value}, Acc) ->
-            <<Acc/binary, "<b>", (gui_str:to_binary(Key))/binary, ":</b> ", (gui_str:to_binary(Value))/binary, "<br />">>
+            <<Acc/binary, "<b>", (str_utils:to_binary(Key))/binary, ":</b> ", (str_utils:to_binary(Value))/binary, "<br />">>
         end, <<"">>, Tags),
     {Collapsed, Expanded}.
 
@@ -436,7 +436,7 @@ filter_contains(String, Filter) ->
     case Filter of
         undefined -> true;
         ValidFilter ->
-            binary:match(gui_str:to_binary(String), ValidFilter) /= nomatch
+            binary:match(str_utils:to_binary(String), ValidFilter) /= nomatch
     end.
 
 

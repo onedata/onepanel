@@ -301,8 +301,8 @@ client_row(ID, Selected, UserName, FuseID) ->
                     body = #span{class = GlyphClass, style = <<"font-size: 20px;">>}
                 }]}
         ]},
-        #td{style = <<"border-color: rgb(82, 100, 118);">>, body = gui_str:unicode_list_to_binary(UserName)},
-        #td{style = <<"border-color: rgb(82, 100, 118);">>, body = gui_str:unicode_list_to_binary(FuseID)}
+        #td{style = <<"border-color: rgb(82, 100, 118);">>, body = str_utils:unicode_list_to_binary(UserName)},
+        #td{style = <<"border-color: rgb(82, 100, 118);">>, body = str_utils:unicode_list_to_binary(FuseID)}
     ]},
     {Row, Identifier}.
 
@@ -451,7 +451,7 @@ render_row(Counter, {Message, Timestamp, Severity, Metadata}) ->
         actions = gui_jq:postback_action(CollapsedId, {toggle_log, Counter, true}), cells = [
             #td{body = format_severity(Severity), style = <<?SEVERITY_COLUMN_STYLE>>},
             #td{body = format_time(Timestamp), style = <<?TIME_COLUMN_STYLE>>},
-            #td{body = gui_str:to_binary(Message), style = <<?MESSAGE_COLUMN_STYLE, " text-wrap:normal; word-wrap:break-word; white-space: nowrap; overflow: hidden;">>},
+            #td{body = str_utils:to_binary(Message), style = <<?MESSAGE_COLUMN_STYLE, " text-wrap:normal; word-wrap:break-word; white-space: nowrap; overflow: hidden;">>},
             #td{body = CollapsedMetadata, style = <<?METADATA_COLUMN_STYLE, " white-space: nowrap; overflow: hidden;">>}
         ]},
 
@@ -459,7 +459,7 @@ render_row(Counter, {Message, Timestamp, Severity, Metadata}) ->
         actions = gui_jq:postback_action(ExpandedId, {toggle_log, Counter, false}), cells = [
             #td{body = format_severity(Severity), style = <<?SEVERITY_COLUMN_STYLE>>},
             #td{body = format_time(Timestamp), style = <<?TIME_COLUMN_STYLE>>},
-            #td{body = gui_str:to_binary(Message), style = <<?MESSAGE_COLUMN_STYLE, " text-wrap:normal; word-wrap:break-word;">>},
+            #td{body = str_utils:to_binary(Message), style = <<?MESSAGE_COLUMN_STYLE, " text-wrap:normal; word-wrap:break-word;">>},
             #td{body = ExpandedMetadata, style = <<?METADATA_COLUMN_STYLE>>}
         ]},
 
@@ -530,7 +530,7 @@ format_time(Timestamp) ->
 format_metadata(Tags) ->
     Collapsed = case lists:keyfind(user, 1, Tags) of
                     {user, Value} ->
-                        <<"<b>user:</b> ", (gui_str:unicode_list_to_binary(Value))/binary, " ...">>;
+                        <<"<b>user:</b> ", (str_utils:unicode_list_to_binary(Value))/binary, " ...">>;
                     _ ->
                         <<"<b>unknown user</b> ...">>
                 end,
@@ -538,9 +538,9 @@ format_metadata(Tags) ->
         fun({Key, Value}, Acc) ->
             ValBinary = case is_integer(Value) of
                             true -> integer_to_binary(Value);
-                            false -> gui_str:unicode_list_to_binary(Value)
+                            false -> str_utils:unicode_list_to_binary(Value)
                         end,
-            <<Acc/binary, "<b>", (gui_str:to_binary(Key))/binary, ":</b> ", ValBinary/binary, "<br />">>
+            <<Acc/binary, "<b>", (str_utils:to_binary(Key))/binary, ":</b> ", ValBinary/binary, "<br />">>
         end, <<"">>, Tags),
     {Collapsed, Expanded}.
 
@@ -556,7 +556,7 @@ filter_contains(String, Filter) ->
     case Filter of
         undefined -> true;
         ValidFilter ->
-            binary:match(gui_str:to_binary(String), ValidFilter) /= nomatch
+            binary:match(str_utils:to_binary(String), ValidFilter) /= nomatch
     end.
 
 
@@ -618,7 +618,7 @@ event({search_clients, ClientList}) ->
         Query ->
             {Select, Deselect} = lists:partition(
                 fun({_, UserName, _}) ->
-                    binary:match(gui_str:unicode_list_to_binary(UserName), Query) =/= nomatch
+                    binary:match(str_utils:unicode_list_to_binary(UserName), Query) =/= nomatch
                 end, ClientList),
             event({toggle_clients, true, Select}),
             event({toggle_clients, false, Deselect}),
@@ -754,7 +754,7 @@ set_clients_loglevel(ClientList, LogLevel, ButtonID) ->
         ok -> gui_jq:update(ButtonID, <<"success!">>);
         error -> gui_jq:update(ButtonID, <<"failed!">>)
     end,
-    gui_jq:wire(<<"setTimeout(function f() {$('#", ButtonID/binary, "').html('", (gui_str:to_binary(LogLevel))/binary, "')}, 1000);">>),
+    gui_jq:wire(<<"setTimeout(function f() {$('#", ButtonID/binary, "').html('", (str_utils:to_binary(LogLevel))/binary, "')}, 1000);">>),
     gui_comet:flush().
 
 

@@ -103,7 +103,7 @@ redirect_with_error(ErrorId) ->
     Result :: {Reason :: binary(), Description :: binary()}.
 %% ====================================================================
 get_reason_and_description() ->
-    ErrorId = gui_str:to_binary(gui_ctx:url_param(<<"id">>)),
+    ErrorId = str_utils:to_binary(gui_ctx:url_param(<<"id">>)),
     id_to_reason_and_message(ErrorId).
 
 
