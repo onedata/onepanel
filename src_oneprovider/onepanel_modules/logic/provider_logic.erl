@@ -64,10 +64,10 @@ create_csr(_, _, _) ->
 %% ====================================================================
 register(RedirectionPoint, ClientName) ->
     try
-        {ok, PlatformData} = application:get_env(?APP_NAME, platform_data_dir),
+        {ok, PlatformData} = application:get_env(?APP_NAME, platform_etc_dir),
         {ok, KeyFile} = application:get_env(?APP_NAME, grpkey_path),
         {ok, KeyName} = application:get_env(?APP_NAME, grpkey_name),
-        {ok, CsrPath} = application:get_env(?APP_NAME, grpcsr_file),
+        {ok, CsrPath} = application:get_env(?APP_NAME, grpcsr_path),
         {ok, CertName} = application:get_env(?APP_NAME, grpcert_name),
         {ok, CertFile} = application:get_env(?APP_NAME, grpcert_path),
         Path = filename:join([PlatformData, ?SOFTWARE_NAME, "certs"]),

@@ -140,7 +140,6 @@ install(Path) ->
 
         ok = execute([
             {Node, installer_db, start, [[{dbs, Dbs}]], "Starting database nodes..."},
-            {Node, installer_db, commit, [[{dbs, Dbs}]], "Committing database cluster..."},
             {Node, installer_ccm, start, [[{main_ccm, MainCCM}, {ccms, CCMs}]], "Starting ccm nodes..."},
             {Node, installer_storage, add_storage_paths_to_db, [[{storage_paths, StoragePaths}]], "Adding storage paths..."},
             {Node, installer_worker, start, [[{workers, Workers}]], "Starting worker nodes..."},

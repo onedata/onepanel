@@ -76,8 +76,9 @@ create_user(Username, Password) ->
         Transaction = fun() ->
             {error, <<"Record not found.">>} = dao:get_record(?USER_TABLE, Username),
             {ok, WorkFactor} = application:get_env(?APP_NAME, bcrypt_work_factor),
-            PasswordHash = hash_password(binary_to_list(Password), WorkFactor),
-            ok = dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username, password_hash = PasswordHash})
+            PasswordHash = hash_password(Password, WorkFactor),
+            ok = dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username,
+                password_hash = list_to_binary(PasswordHash)})
         end,
         mnesia:activity(transaction, Transaction)
     catch
@@ -98,10 +99,10 @@ authenticate(Username, Password) ->
     case dao:get_record(?USER_TABLE, Username) of
         {ok, #?USER_RECORD{username = Username, password_hash = PasswordHash}} ->
             try
-                0 = check_password(binary_to_list(Password), PasswordHash),
+                true = check_password(Password, PasswordHash),
                 ok
             catch
-                _:{badmatch, 1} ->
+                _:{badmatch, false} ->
                     {error, ?AUTHENTICATION_ERROR};
                 _:Reason ->
                     ?error("Cannot authenticate user: ~p", [Reason]),

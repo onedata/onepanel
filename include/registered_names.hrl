@@ -40,7 +40,7 @@
 -define(SOFTWARE_NAME, op_worker).
 
 %% Ccm application name
--define(CCM_APP_NAME, op_ccm).
+-define(CCM_APP_NAME, cluster_manager).
 
 -endif.
 

@@ -259,7 +259,7 @@ local_start(Dbs) ->
             ],
             [
                 {name, ?GLOBALREGISTRY_NAME ++ "@" ++ Host},
-                {setcookie, ?COOKIE}
+                {setcookie, atom_to_list(erlang:get_cookie())}
             ]
         ),
 

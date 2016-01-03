@@ -24,11 +24,10 @@ using namespace Botan;
 
 #define KEY_SIZE 4096
 
-int create_csr(char* password, char* key_path, char* csr_path)
+int create_csr(char *password, char *key_path, char *csr_path)
 {
     Botan::LibraryInitializer init;
-    try
-    {
+    try {
         AutoSeeded_RNG rng;
         RSA_PrivateKey priv_key(rng, KEY_SIZE);
         std::ofstream key_file(key_path);
@@ -36,19 +35,20 @@ int create_csr(char* password, char* key_path, char* csr_path)
 
         X509_Cert_Options opts;
 
-        // default values for certificate fields, which will be later overwritten by Global Registry
+        // default values for certificate fields, which will be later
+        // overwritten by Global Registry
         opts.common_name = "common name";
         opts.country = "PL";
         opts.organization = "organization";
         opts.email = "email";
 
-        PKCS10_Request req = X509::create_cert_req(opts, priv_key, "SHA-256", rng);
+        PKCS10_Request req =
+            X509::create_cert_req(opts, priv_key, "SHA-256", rng);
 
         std::ofstream req_file(csr_path);
         req_file << req.PEM_encode();
     }
-    catch(std::exception& e)
-    {
+    catch (std::exception &e) {
         std::cout << e.what() << std::endl;
         return 1;
     }

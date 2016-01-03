@@ -21,7 +21,7 @@
 -export([install/1, uninstall/1, start/1, stop/1, restart/1]).
 
 %% API
--export([local_start/4, local_stop/0, local_restart/0]).
+-export([local_start/3, local_stop/0, local_restart/0]).
 
 %% ====================================================================
 %% Behaviour callback functions
@@ -63,12 +63,12 @@ start(Args) ->
                          Hosts -> Hosts
                      end,
 
-        {ConfiguredMainCCM, ConfiguredCCMs, ConfiguredDbs, ConfiguredWorkers, ConfiguredStoragePaths} =
+        {ConfiguredMainCCM, ConfiguredCCMs, ConfiguredDbs, ConfiguredWorkers} =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
                 {ok, #?GLOBAL_CONFIG_RECORD{ccms = []}} ->
                     throw("CCM nodes not configured.");
-                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM, ccms = CCMs, dbs = Dbs, workers = Workers, storage_paths = StoragePaths}} ->
-                    {MainCCM, CCMs, Dbs, Workers, StoragePaths};
+                {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM, ccms = CCMs, dbs = Dbs, workers = Workers}} ->
+                    {MainCCM, CCMs, Dbs, Workers};
                 _ -> throw("Cannot get CCM nodes configuration.")
             end,
 
@@ -82,7 +82,7 @@ start(Args) ->
         ConfiguredOptCCMs = lists:delete(ConfiguredMainCCM, ConfiguredCCMs),
 
         {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(NewWorkers, ?MODULE, local_start,
-            [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredDbs, ConfiguredStoragePaths], ?RPC_TIMEOUT),
+            [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredDbs], ?RPC_TIMEOUT),
 
         case HostsError of
             [] ->
@@ -200,10 +200,10 @@ restart(Args) ->
 %% @doc Starts worker node on local host.
 %% @end
 -spec local_start(MainCCM :: string(), OptCCMs :: [string()],
-    Dbs :: [string()], StoragePaths :: [string()]) -> Result when
+    Dbs :: [string()]) -> Result when
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-local_start(MainCCM, OptCCMs, Dbs, StoragePaths) ->
+local_start(MainCCM, OptCCMs, Dbs) ->
     Host = onepanel_utils:get_host(node()),
     try
         ?debug("Starting worker node: ~p"),
@@ -212,13 +212,14 @@ local_start(MainCCM, OptCCMs, Dbs, StoragePaths) ->
             ?SOFTWARE_NAME,
             default,
             [
-                {ccm_nodes, [list_to_atom(?CCM_NAME ++ "@" ++ CCM) || CCM <- [MainCCM | OptCCMs]]},
+                {cm_nodes, [list_to_atom(?CCM_NAME ++ "@" ++ CCM) || CCM <- [MainCCM | OptCCMs]]},
                 {db_nodes, [list_to_atom(Db ++ ":" ++ integer_to_list(?DB_PORT)) || Db <- Dbs]},
-                {storage_paths, StoragePaths}
+                {provider_domain, application:get_env(?APP_NAME, provider_domain, "localhost.local")},
+                {verify_gr_cert, application:get_env(?APP_NAME, verify_gr_cert, true)}
             ],
             [
                 {name, ?WORKER_NAME ++ "@" ++ Host},
-                {setcookie, ?COOKIE}
+                {setcookie, atom_to_list(erlang:get_cookie())}
             ]
         ),
 

@@ -18,11 +18,8 @@
 
 -ifdef(oneprovider).
 
-%% Default cookie used for communication with application
--define(COOKIE, "oneprovider_node").
-
 %% Default names of installable components
--define(CCM_NAME, "ccm").
+-define(CCM_NAME, "cm").
 -define(WORKER_NAME, "worker").
 
 %% Storage test file prefix
@@ -48,9 +45,6 @@
 %% ====================================================================
 
 -ifdef(globalregistry).
-
-%% Default cookie used for communication with application
--define(COOKIE, "globalregistry").
 
 %% Installation directory of RPM package
 -define(PREFIX, filename:join([filename:absname("/"), "opt", "globalregistry"])).

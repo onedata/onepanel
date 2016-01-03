@@ -13,20 +13,18 @@
 #include <botan/auto_rng.h>
 #include <botan/bcrypt.h>
 
-using namespace Botan;
+#include <string>
 
-char* hash_password(char* password, int work_factor)
+std::string hash_password(const std : string &password, int work_factor)
 {
-    AutoSeeded_RNG rng;
-    std::string hash = generate_bcrypt(password, rng, work_factor);
-    return &hash[0];
+    Botan::AutoSeeded_RNG rng;
+    return Botan::generate_bcrypt(password, rng, work_factor);
 }
 
-int check_password(char* password, char* hash)
+bool check_password(const std::string &password, const std::string &hash)
 {
-    if(strlen(hash) != 60) {
-        return 1;
-    }
+    if (hash.length() != 60)
+        return false;
 
-    return !check_bcrypt(password, hash);
+    return Botan::check_bcrypt(password, hash);
 }

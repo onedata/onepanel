@@ -15,7 +15,7 @@
 -include("registered_names.hrl").
 
 %% gr_plugin_behaviour API
--export([get_gr_url/0, get_key_path/0, get_cert_path/0, get_cacert_path/0]).
+-export([get_gr_url/0, get_key_path/0, get_cert_path/0, get_cacert_path/0, get_csr_path/0]).
 
 %% ====================================================================
 %% gr_plugin_behaviour API functions
@@ -65,3 +65,14 @@ get_cert_path() ->
 get_cacert_path() ->
     {ok, CACertFile} = application:get_env(?APP_NAME, grpcacert_path),
     CACertFile.
+
+%% get_csr_path/0
+%% ====================================================================
+%% @doc Should return a path to file containing provider's
+%% Certificate Signing Request.
+%% @end
+-spec get_csr_path() -> string().
+%% ====================================================================
+get_csr_path() ->
+    {ok, CSRFile} = application:get_env(?APP_NAME, grpcsr_path),
+    CSRFile.

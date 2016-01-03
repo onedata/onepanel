@@ -196,7 +196,6 @@ format(Hosts) ->
 %% ====================================================================
 get_error_message({?STAGE_DB, ?JOB_INSTALL}) -> <<"Database components were not installed on following hosts: ">>;
 get_error_message({?STAGE_DB, ?JOB_START}) -> <<"Database components were not started on following hosts: ">>;
-get_error_message({?STAGE_DB, ?JOB_COMMIT}) -> <<"Database commit error: ">>;
 get_error_message({?STAGE_CCM, ?JOB_INSTALL}) -> <<"CCM components were not installed on following hosts: ">>;
 get_error_message({?STAGE_CCM, ?JOB_START}) -> <<"CCM components were not started on following hosts: ">>;
 get_error_message({?STAGE_WORKER, ?JOB_INSTALL}) -> <<"Worker components were not installed on following hosts: ">>;
@@ -215,7 +214,6 @@ get_error_message(_) -> <<"">>.
 %% ====================================================================
 get_info_message({?STAGE_DB, ?JOB_INSTALL}) -> <<"Current stage: <b>Installing database components</b>">>;
 get_info_message({?STAGE_DB, ?JOB_START}) -> <<"Current stage: <b>Starting database components</b>">>;
-get_info_message({?STAGE_DB, ?JOB_COMMIT}) -> <<"Current stage: <b>Committing database cluster</b>">>;
 get_info_message({?STAGE_CCM, ?JOB_INSTALL}) ->
     <<"Current stage: <b>Installing Central Cluster Manager components</b>">>;
 get_info_message({?STAGE_CCM, ?JOB_START}) -> <<"Current stage: <b>Starting Central Cluster Manager components</b>">>;

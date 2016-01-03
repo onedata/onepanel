@@ -317,10 +317,9 @@ comet_loop(#?STATE{ports = Ports} = State) ->
 %% ====================================================================
 event(init) ->
     try
-        Localhost = onepanel_utils:get_host(node()),
-        {ok, #?GLOBAL_CONFIG_RECORD{workers = Hosts}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        {ok, #?GLOBAL_CONFIG_RECORD{workers = [Worker | _] = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
         {ok, [{<<"gui">>, DefaultGuiPort}, {<<"rest">>, DefaultRestPort}]} = provider_logic:get_default_ports(),
-        {ok, #?LOCAL_CONFIG_RECORD{ip_address = IpAddress}} = dao:get_record(?LOCAL_CONFIG_TABLE, Localhost),
+        {ok, #?LOCAL_CONFIG_RECORD{ip_address = IpAddress}} = dao:get_record(?LOCAL_CONFIG_TABLE, Worker),
         gui_jq:update(<<"redirection_point_table">>, redirection_table_row(IpAddress, DefaultGuiPort)),
 
         Ports = lists:map(fun({Host, Id}) ->
@@ -333,7 +332,7 @@ event(init) ->
                                           throw("Cannot get local configuration for host: " ++ Host)
                                   end,
             {Host, integer_to_binary(Id), port_value(GuiPort, DefaultGuiPort), port_value(RestPort, DefaultRestPort)}
-        end, lists:zip(Hosts, tl(lists:seq(0, length(Hosts))))),
+        end, lists:zip(Workers, tl(lists:seq(0, length(Workers))))),
 
         gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),
 

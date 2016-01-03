@@ -15,7 +15,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([add_storage_paths_to_db/1, remove_storage_paths_from_db/1]).
+-export([add_storage_paths_to_db/1, add_storage_path_to_db/1, remove_storage_paths_from_db/1]).
 -export([check_storage_path_on_hosts/2, check_storage_path_on_host/2,
     create_storage_test_file/1, remove_storage_test_file/1]).
 
@@ -33,6 +33,7 @@
 %% ====================================================================
 add_storage_paths_to_db(Args) ->
     try
+        [Worker | _] = proplists:get_value(workers, Args),
         Paths = case proplists:get_value(storage_paths, Args, []) of
                     [] -> throw(nothing_to_add);
                     PathsToAdd -> PathsToAdd
@@ -51,6 +52,13 @@ add_storage_paths_to_db(Args) ->
             end
         end, Paths),
 
+        lists:foreach(fun(Path) ->
+            case onepanel_utils:apply_on_hosts([Worker], ?MODULE, add_storage_path_to_db, [Path], ?RPC_TIMEOUT) of
+                {_, []} -> ok;
+                {_, _} -> throw("Cannot add storage path: " ++ Path)
+            end
+        end, Paths),
+
         case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{storage_paths, ConfiguredStoragePaths ++ Paths}]) of
             ok -> ok;
             Other ->
@@ -59,11 +67,34 @@ add_storage_paths_to_db(Args) ->
         end
     catch
         _:nothing_to_add -> ok;
+        throw:Reason ->
+            ?error_stacktrace(Reason),
+            {error, Reason};
         _:Reason ->
-            ?error("Cannot add storage path: ~p", [Reason]),
+            ?error_stacktrace("Cannot add storage path: ~p", [Reason]),
             {error, Reason}
     end.
 
+%% add_storage_paths_to_db/1
+%% ====================================================================
+%% @doc Adds storage path to database.
+%% @end
+-spec add_storage_path_to_db(Path :: string()) -> Result when
+    Result :: {ok, Host :: string()} | {error, Reason :: term()}.
+%% ====================================================================
+add_storage_path_to_db(Path) ->
+    try
+        Host = onepanel_utils:get_host(node()),
+        WorkerNode = onepanel_utils:get_node(?WORKER_NAME, Host),
+        Helper = rpc:call(WorkerNode, fslogic_storage, new_helper_init, [<<"DirectIO">>, #{<<"root_path">> => list_to_binary(Path)}]),
+        Storage = rpc:call(WorkerNode, fslogic_storage, new_storage, [list_to_binary(Path), [Helper]]),
+        {ok, _} = rpc:call(WorkerNode, storage, create, [Storage]),
+        {ok, Host}
+    catch
+        _:Reason ->
+            ?error_stacktrace("Cannot add storage path ~p to database due to: ~p", [Path, Reason]),
+            {error, Reason}
+    end.
 
 %% remove_storage_paths_from_db/1
 %% ====================================================================
