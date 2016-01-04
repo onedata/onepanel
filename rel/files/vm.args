@@ -2,7 +2,7 @@
 -name onepanel@127.0.0.1
 
 ## Cookie for distributed erlang
--setcookie onedata
+-setcookie cluster_node
 
 ## Make node hidden for oneprovider
 -hidden

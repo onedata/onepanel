@@ -199,7 +199,7 @@ local_start(Username, Password) ->
         ?debug("Starting database node"),
 
         Name = <<(list_to_binary(?DB_NAME))/binary, "@", (list_to_binary(Host))/binary>>,
-        Cookie = list_to_binary(?COOKIE),
+        Cookie = list_to_binary(erlang:get_cookie()),
 
         ok = installer_utils:overwrite_config_args(?DB_CONFIG, <<"\n-name ">>, <<"[^\n]*">>, Name),
         ok = installer_utils:overwrite_config_args(?DB_CONFIG, <<"\n-setcookie ">>, <<"[^\n]*">>, Cookie),

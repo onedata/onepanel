@@ -17,7 +17,7 @@
 -define(APP_STR, "onepanel").
 
 %% Default cookie used for communication with cluster
--define(COOKIE, oneprovider_node).
+-define(COOKIE, cluster_node).
 
 %% Default system limit values
 -define(OPEN_FILES, 65535).
