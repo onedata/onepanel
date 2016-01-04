@@ -263,8 +263,8 @@ uninstall() ->
 parse({config, Path}) ->
     {ok, Terms} = file:consult(Path),
     #config{
-        main_ccm = proplists:get_value("Main CCM host", Terms),
-        ccms = proplists:get_value("CCM hosts", Terms, []),
+        main_ccm = proplists:get_value("Main CM host", Terms),
+        ccms = proplists:get_value("CM hosts", Terms, []),
         workers = proplists:get_value("Worker hosts", Terms, []),
         dbs = proplists:get_value("Database hosts", Terms, []),
         storage_paths = proplists:get_value("Storage paths", Terms, []),
