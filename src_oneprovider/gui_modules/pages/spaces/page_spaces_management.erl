@@ -16,6 +16,7 @@
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/global_registry/gr_spaces.hrl").
+-include_lib("ctool/include/global_registry/gr_openid.hrl").
 
 -export([main/0, event/1, api_event/3, comet_loop/1]).
 
@@ -32,7 +33,7 @@
 
 %% Comet process state
 -define(STATE, comet_state).
--record(?STATE, {counter, spaces_details}).
+-record(?STATE, {counter, spaces_details, workers}).
 
 -record(document, {key, rev, value, links}).
 -record(storage, {name, helpers}).
@@ -443,22 +444,27 @@ dio_create_form() ->
 comet_loop({error, Reason}) ->
     {error, Reason};
 
-comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) ->
+comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails, workers = Workers} = State) ->
     NewState = try
         receive
-            {create_space, Name, Token, Size} ->
+            {create_space, StorageType, IsCeph, Name, Token, Size, Username, Key} ->
                 NextState =
                     try
                         RowId = <<"space_", (integer_to_binary(Counter + 1))/binary>>,
+                        {ok, #token_issuer{client_type = <<"user">>, client_id = UserId}} =
+                            gr_providers:get_token_issuer(provider, Token),
                         {ok, SpaceId} = gr_providers:create_space(provider,
                             [{<<"name">>, Name}, {<<"token">>, Token}, {<<"size">>, integer_to_binary(Size)}]),
                         {ok, SpaceDetails} = gr_providers:get_space_details(provider, SpaceId),
+                        StorageId = get_storage_id(StorageType),
+                        add_storage_space_mapping(Workers, SpaceId, StorageId),
+                        maybe_add_ceph_user(Workers, IsCeph, UserId, Username, Key),
                         add_space_row(RowId, SpaceDetails),
                         onepanel_gui_utils:message(success, <<"Created Space's ID: <b>", SpaceId/binary, "</b>">>),
                         State#?STATE{counter = Counter + 1, spaces_details = [{RowId, SpaceDetails} | SpacesDetails]}
                     catch
                         _:Reason ->
-                            ?error("Cannot create Space ~p associated with token ~p: ~p", [Name, Token, Reason]),
+                            ?error_stacktrace("Cannot create Space ~p associated with token ~p: ~p", [Name, Token, Reason]),
                             onepanel_gui_utils:message(error, <<"Cannot create Space <b>", Name/binary, "</b> associated with token <b>", Token/binary, "</b>.<br>
                             Please try again later.">>),
                             State
@@ -466,19 +472,25 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
                 gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"">>),
                 NextState;
 
-            {support_space, Token, Size} ->
+            {support_space, StorageType, IsCeph, Token, Size, Username, Key} ->
                 NextState =
                     try
                         RowId = <<"space_", (integer_to_binary(Counter + 1))/binary>>,
+                        {ok, #token_issuer{client_type = <<"user">>, client_id = UserId}} =
+                            gr_providers:get_token_issuer(provider, Token),
                         {ok, SpaceId} = gr_providers:support_space(provider,
                             [{<<"token">>, Token}, {<<"size">>, integer_to_binary(Size)}]),
                         {ok, SpaceDetails} = gr_providers:get_space_details(provider, SpaceId),
+                        StorageId = get_storage_id(StorageType),
+                        add_storage_space_mapping(Workers, SpaceId, StorageId),
+                        maybe_add_ceph_user(Workers, IsCeph, UserId, Username, Key),
                         add_space_row(RowId, SpaceDetails),
                         onepanel_gui_utils:message(success, <<"Supported Space's ID: <b>", SpaceId/binary, "</b>">>),
+
                         State#?STATE{counter = Counter + 1, spaces_details = [{RowId, SpaceDetails} | SpacesDetails]}
                     catch
                         _:Reason ->
-                            ?error("Cannot support Space associated with token ~p: ~p", [Token, Reason]),
+                            ?error_stacktrace("Cannot support Space associated with token ~p: ~p", [Token, Reason]),
                             onepanel_gui_utils:message(error, <<"Cannot support Space associated with token <b>", Token/binary, "</b>.<br>
                             Please try again later.">>),
                             State
@@ -543,6 +555,8 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) -
 %% ====================================================================
 event(init) ->
     try
+        {ok, #?CONFIG{workers = Hosts}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        Workers = onepanel_utils:get_nodes("worker", Hosts),
         {ok, SpaceIds} = gr_providers:get_spaces(provider),
         {SpacesDetails, Counter} = lists:foldl(fun(SpaceId, {SpacesDetailsAcc, Id}) ->
             {ok, SpaceDetails} = gr_providers:get_space_details(provider, SpaceId),
@@ -558,7 +572,7 @@ event(init) ->
         gui_jq:bind_key_to_click_on_class(<<"13">>, <<"confirm">>),
 
         {ok, Pid} = gui_comet:spawn(fun() ->
-            comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails})
+            comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails, workers = Workers})
         end),
         put(?COMET_PID, Pid),
         Pid ! render_spaces_table
@@ -674,3 +688,23 @@ api_event("revokeSpaceSupport", Args, _) ->
     [SpaceId, RowId] = mochijson2:decode(Args),
     get(?COMET_PID) ! {revoke_space_support, RowId, SpaceId},
     gui_jq:show(<<"main_spinner">>).
+
+
+get_storage_id(<<"Ceph:", StorageId/binary>>) ->
+    StorageId;
+get_storage_id(<<"DirectIO:", StorageId/binary>>) ->
+    StorageId.
+
+add_storage_space_mapping(Workers, SpaceId, StorageId) ->
+    SpaceStorage = onepanel_utils:dropwhile_failure(Workers, space_storage, new,
+        [SpaceId, StorageId], ?RPC_TIMEOUT),
+    {ok, _} = onepanel_utils:dropwhile_failure(Workers, space_storage, create,
+        [SpaceStorage], ?RPC_TIMEOUT).
+
+maybe_add_ceph_user(_, false, _, _, _) ->
+    ok;
+maybe_add_ceph_user(Workers, true, UserId, Username, Key) ->
+    CephUser = onepanel_utils:dropwhile_failure(Workers, ceph_user, new,
+        [UserId, Username, Key], ?RPC_TIMEOUT),
+    {ok, _} = onepanel_utils:dropwhile_failure(Workers, ceph_user, save,
+        [CephUser], ?RPC_TIMEOUT).
