@@ -143,7 +143,7 @@ install(Path) ->
             {Node, installer_ccm, start, [[{main_ccm, MainCCM}, {ccms, CCMs}]], "Starting ccm nodes..."},
             {Node, installer_worker, start, [[{workers, Workers}]], "Starting worker nodes..."},
             {Node, installer_utils_adapter, finalize_installation, [[]], "Finalizing installation..."},
-            {Node, installer_storage, add_storage_paths_to_db, [[{workers, Workers}, {storage_paths, StoragePaths}]], "Adding storage paths..."}
+            {Node, installer_storage, add_dio_storage, [[{workers, Workers}, {storage_paths, StoragePaths}]], "Adding storage paths..."}
         ]),
 
         case Register of

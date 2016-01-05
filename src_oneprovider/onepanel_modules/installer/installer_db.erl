@@ -33,6 +33,9 @@
 %% Defines how long onepanel will wait before next attempt to verify database node start
 -define(NEXT_ATTEMPT_DELAY, 1000).
 
+%% Defines couchbase server service command
+-define(COUCHBASE_SERVER, application:get_env(?APP_NAME, couchbase_server_service, "service couchbase-server")).
+
 %% ====================================================================
 %% Behaviour callback functions
 %% ====================================================================
@@ -169,8 +172,8 @@ local_start() ->
     try
         ?debug("Starting database node"),
 
-        "0" = os:cmd("service couchbase-server-community start 1>/dev/null 2>&1 ; echo -n $?"),
-        ok = wait_until("service couchbase-server-community status 1>/dev/null 2>&1 ; echo -n $?", "0"),
+        "0" = os:cmd(?COUCHBASE_SERVER ++ " start 1>/dev/null 2>&1 ; echo -n $?"),
+        ok = wait_until(?COUCHBASE_SERVER ++ " status 1>/dev/null 2>&1 ; echo -n $?", "0"),
         wait_until_connect(Host, 8091, 10),
 
         {ok, Host}
@@ -192,7 +195,7 @@ local_stop() ->
     try
         ?debug("Stopping database node"),
 
-        "0" = os:cmd("service couchbase-server-community stop 1>/dev/null 2>&1 ; echo -n $?"),
+        "0" = os:cmd(?COUCHBASE_SERVER ++ " stop 1>/dev/null 2>&1 ; echo -n $?"),
 
         {ok, Host}
     catch

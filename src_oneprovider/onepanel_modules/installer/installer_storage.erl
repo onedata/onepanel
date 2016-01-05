@@ -15,7 +15,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([add_ceph_storage/5, add_dio_storage/3]).
+-export([add_ceph_storage/5, add_dio_storage/1, add_dio_storage/3]).
 -export([check_storage_path_on_hosts/2, check_storage_path_on_host/2,
     create_storage_test_file/1, remove_storage_test_file/1]).
 
@@ -39,6 +39,19 @@ add_ceph_storage(Workers, StorageName, MonHost, ClusterName, PoolName) ->
         Error:Reason ->
             ?error_stacktrace("Cannot add Ceph storage ~p due to: ~p",
                 [{StorageName, MonHost, ClusterName, PoolName}, {Error, Reason}]),
+            {error, Reason}
+    end.
+
+add_dio_storage(Args) ->
+    try
+        Workers = onepanel_utils:get_nodes("worker", proplists:get_value(workers, Args, [])),
+        lists:foreach(fun(MountPoint) ->
+            ok = add_dio_storage(Workers, <<"DirectIO">>, list_to_binary(MountPoint))
+        end, proplists:get_value(storage_paths, Args, []))
+    catch
+        Error:Reason ->
+            ?error_stacktrace("Cannot add direct IO storage ~p due to: ~p",
+                [Args, {Error, Reason}]),
             {error, Reason}
     end.
 
