@@ -28,6 +28,10 @@
 -define(STATE, comet_state).
 -record(?STATE, {workers, storage_type, storages = []}).
 
+-record(document, {key, rev, value, links}).
+-record(storage, {name, helpers}).
+-record(helper_init, {name, args}).
+
 %% ====================================================================
 %% API functions
 %% ====================================================================
@@ -100,7 +104,7 @@ body() ->
             },
             #table{
                 class = <<"table table-striped">>,
-                style = <<"width: 50%; margin: 0 auto;">>,
+                style = <<"width: 50%; margin: 0 auto; margin-top: 3em;">>,
                 body = #tbody{
                     id = <<"storage_paths_table">>,
                     style = <<"display: none;">>
@@ -236,75 +240,65 @@ dio_storage() ->
         ]
     }.
 
-%% storages_table/1
+%% storage_table/1
 %% ====================================================================
 %% @doc Renders storage table body.
 %% @end
--spec storages_table(Storages :: list()) -> Result
+-spec storage_table(Storages :: list()) -> Result
     when Result :: [#tr{}].
 %% ====================================================================
-storages_table(Storages) ->
-    ?dump(Storages),
-    [].
+storage_table(Storages) ->
+    Header = #tr{
+        cells = lists:map(fun(Name) ->
+            #th{
+                style = <<"text-align: center;">>,
+                body = Name
+            }
+        end, [<<"Storage name">>, <<"Storage type">>, <<"Storage properties">>])
+    },
+    Rows = lists:map(fun
+        (#document{value = #storage{name = Name, helpers = [Helper | _]}}) ->
+            case Helper of
+                #helper_init{name = <<"Ceph">>, args = #{<<"mon_host">> := MonHost,
+                    <<"cluster_name">> := ClusterName, <<"pool_name">> := PoolName}} ->
+                    storage_table_row(Name, <<"Ceph">>, [{<<"Monitor host">>, MonHost},
+                        {<<"Cluster name">>, ClusterName}, {<<"Pool name">>, PoolName}]);
+                #helper_init{name = <<"DirectIO">>, args = #{<<"root_path">> := Path}} ->
+                    storage_table_row(Name, <<"Direct IO">>, [{<<"Mount point">>, Path}])
+            end
+    end, Storages),
+    [Header | Rows].
 
-
-%%%% storage_paths_table_row/3
-%%%% ====================================================================
-%%%% @doc Renders storage table row. 'StoragePath' is a value that will
-%%%% be placed in textbox with suffix id equals 'Id'. When 'Disabled'
-%%%% equals true user cannot write in textbox.
-%%%% @end
-%%-spec storage_paths_table_row(StoragePath, Id, Disabled, State) -> Result when
-%%    StoragePath :: string() | binary(),
-%%    Id :: integer(),
-%%    Disabled :: true | undefined,
-%%    State :: addable | removable | none,
-%%    Result :: #tr{}.
-%%%% ====================================================================
-%%storage_paths_table_row(StoragePath, Id, Disabled, Deletable) ->
-%%    BinaryId = integer_to_binary(Id),
-%%    TextboxId = <<"storage_path_textbox_", BinaryId/binary>>,
-%%    {AddStoragePathDisplay, RemoveStoragePathDisplay} = case Deletable of
-%%        addable -> {<<"">>, <<" display: none;">>};
-%%        removable -> {<<" display: none;">>, <<"">>};
-%%        _ -> {<<" display: none;">>, <<" display: none;">>}
-%%    end,
-%%    gui_jq:bind_enter_to_submit_button(TextboxId, <<"add_storage_path_", BinaryId/binary>>),
-%%    #tr{
-%%        id = <<"storage_path_row_", BinaryId/binary>>,
-%%        cells = [
-%%            #th{
-%%                style = <<"text-align: center; vertical-align: inherit; padding-bottom: 0;">>,
-%%                body = #textbox{
-%%                    id = TextboxId,
-%%                    value = http_utils:html_encode(StoragePath),
-%%                    disabled = Disabled,
-%%                    placeholder = <<"Storage path">>,
-%%                    style = <<"width: 100%;">>
-%%                }
-%%            } |
-%%            lists:map(fun({Prefix, Title, Display, Postback, Label}) ->
-%%                #th{
-%%                    id = <<Prefix/binary, "th_", BinaryId/binary>>,
-%%                    title = Title,
-%%                    style = <<"text-align: center; vertical-align: inherit; padding: 0; width: 2em;", Display/binary>>,
-%%                    body = #link{
-%%                        title = Title,
-%%                        actions = gui_jq:form_submit_action(<<Prefix/binary, BinaryId/binary>>, Postback, [TextboxId]),
-%%                        class = <<"glyph-link">>,
-%%                        body = #span{
-%%                            id = <<Prefix/binary, BinaryId/binary>>,
-%%                            class = Label,
-%%                            style = <<"font-size: large;">>
-%%                        }
-%%                    }
-%%                }
-%%            end, [
-%%                {<<"add_storage_path_">>, <<"Add">>, AddStoragePathDisplay, {add_storage_path, BinaryId}, <<"fui-plus">>},
-%%                {<<"remove_storage_path_">>, <<"Remove">>, RemoveStoragePathDisplay, {remove_storage_path, BinaryId}, <<"fui-cross">>}
-%%            ])
-%%        ]
-%%    }.
+storage_table_row(Name, Type, Params) ->
+    #tr{
+        cells = [
+            #th{
+                style = <<"text-align: center; font-weight: normal;">>,
+                body = #p{
+                    style = <<"font-size: inherit; margin: 0px;">>,
+                    body = Name
+                }
+            },
+            #th{
+                style = <<"text-align: center; font-weight: normal;">>,
+                body = #p{
+                    style = <<"font-size: inherit; margin: 0px;">>,
+                    body = Type
+                }
+            },
+            #th{
+                style = <<"text-align: center; font-weight: normal;">>,
+                body = lists:map(fun({Key, Value}) ->
+                    EKey = http_utils:html_encode(Key),
+                    EValue = http_utils:html_encode(Value),
+                    #p{
+                        style = <<"font-size: inherit; margin: 0px;">>,
+                        body = <<"<b>", EKey/binary, "</b>: ", EValue/binary>>
+                    }
+                end, Params)
+            }
+        ]
+    }.
 
 clear_textboxes() ->
     lists:foreach(fun(Id) ->
@@ -335,9 +329,10 @@ comet_loop(#?STATE{storage_type = StorageType, workers = Workers} = State) ->
             render_storages_table ->
                 {ok, Storages} = onepanel_utils:dropwhile_failure(Workers, storage,
                     list, [], ?RPC_TIMEOUT),
-                gui_jq:update(<<"storage_paths_table">>, storages_table(Storages)),
+                gui_jq:update(<<"storage_paths_table">>, storage_table(Storages)),
                 gui_jq:fade_in(<<"storage_paths_table">>, 500),
                 gui_jq:focus(<<"ceph_storage_name">>),
+                gui_jq:bind_enter_to_submit_button(<<"ceph_pool_name">>, <<"ceph_submit">>),
                 State;
 
             {set_storage_type, StorageType} ->

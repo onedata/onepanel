@@ -12,10 +12,15 @@
 -module(page_spaces_management).
 
 -include("gui_modules/common.hrl").
+-include("onepanel_modules/installer/state.hrl").
+-include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/global_registry/gr_spaces.hrl").
 
 -export([main/0, event/1, api_event/3, comet_loop/1]).
+
+%% Convenience record abbreviation
+-define(CONFIG, ?GLOBAL_CONFIG_RECORD).
 
 %% Common page CCS styles
 -define(CONTENT_COLUMN_STYLE, <<"padding-right: 0">>).
@@ -28,6 +33,10 @@
 %% Comet process state
 -define(STATE, comet_state).
 -record(?STATE, {counter, spaces_details}).
+
+-record(document, {key, rev, value, links}).
+-record(storage, {name, helpers}).
+-record(helper_init, {name, args}).
 
 %% ====================================================================
 %% API functions
@@ -45,7 +54,7 @@ main() ->
         true ->
             case provider_logic:get_provider_id() of
                 undefined ->
-                    page_error:redirect_with_error(<<"unregistered_provider_error">>),
+                    page_error:redirect_with_error(?UNREGISTERED_PROVIDER_ERROR),
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, custom()}]}
@@ -74,7 +83,11 @@ title() ->
 -spec custom() -> binary().
 %% ====================================================================
 custom() ->
-    <<"<script src='/flatui/bootbox.min.js' type='text/javascript' charset='utf-8'></script>">>.
+    <<
+        "<script src='/flatui/bootbox.min.js' type='text/javascript' charset='utf-8'></script>",
+        "<script>", (ceph_support_form())/binary, (ceph_create_form())/binary,
+        (dio_support_form())/binary, (dio_create_form())/binary, "</script>"
+    >>.
 
 
 %% body/0
@@ -85,6 +98,9 @@ custom() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
+    {ok, #?CONFIG{workers = Hosts}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+    Workers = onepanel_utils:get_nodes("worker", Hosts),
+    {ok, Storages} = onepanel_utils:dropwhile_failure(Workers, storage, list, [], ?RPC_TIMEOUT),
     Header = onepanel_gui_utils_adapter:top_menu(spaces_tab, spaces_dashboard_link, [], true),
     Main = #panel{
         style = <<"margin-top: 2em; text-align: center;">>,
@@ -98,8 +114,8 @@ body() ->
                 body = <<"Supported <i>Spaces</i> are presented in the table below.">>
             },
             onepanel_gui_utils:nav_buttons([
-                {<<"create_space_button">>, {postback, create_space}, true, <<"Create Space">>},
-                {<<"support_space_button">>, {postback, support_space}, true, <<"Support Space">>}
+                {<<"create_space_button">>, {postback, {create_space, Storages}}, true, <<"Create Space">>},
+                {<<"support_space_button">>, {postback, {support_space, Storages}}, true, <<"Support Space">>}
             ], <<"20em">>),
             #table{
                 class = <<"table table-bordered table-striped">>,
@@ -264,19 +280,19 @@ space_row_expanded(RowId, #space_details{id = SpaceId, name = SpaceName} = Space
 %% ====================================================================
 space_size_parameter() ->
     <<"<div id=\"space_size_div\" style=\"width: 100%;\">",
-    "   <input id=\"create_space_size\" class=\"pull-left\" type=\"text\" style=\"width: 50%;\" placeholder=\"Size\">",
-    "   <fieldset class=\"pull-right\" style=\"width: 41%; line-height: 40px;\">"
-    "       <label id=\"size_mb\" class=\"radio checked\" style=\"display: inline-block; padding-left: 25px; margin-right: 10px;\">",
-    "           <input type=\"radio\" name=\"optionsRadios2\" id=\"optionsRadios1\" value=\"option1\" data-toggle=\"radio\" checked=\"checked\">MB",
-    "       </label>",
-    "       <label id=\"size_gb\" class=\"radio\" style=\"display: inline-block; padding-left: 25px; margin-right: 10px;\">",
-    "           <input type=\"radio\" name=\"optionsRadios2\" id=\"optionsRadios2\" value=\"option1\" data-toggle=\"radio\">GB",
-    "       </label>",
-    "       <label id=\"size_tb\" class=\"radio\" style=\"display: inline-block; padding-left: 25px; margin-right: 10px;\">",
-    "           <input type=\"radio\" name=\"optionsRadios2\" id=\"optionsRadios3\" value=\"option1\" data-toggle=\"radio\">TB",
-    "       </label>",
-    "   </fieldset>",
-    "</div>">>.
+        "   <input id=\"space_size\" class=\"pull-left\" type=\"text\" style=\"width: 50%;\" placeholder=\"Support size\">",
+        "   <fieldset class=\"pull-right\" style=\"width: 41%; line-height: 40px;\">"
+        "       <label id=\"size_mb\" class=\"radio checked\" style=\"display: inline-block; padding-left: 25px; margin-right: 10px;\">",
+        "           <input type=\"radio\" name=\"optionsRadios2\" id=\"optionsRadios1\" value=\"option1\" data-toggle=\"radio\" checked=\"checked\">MB",
+        "       </label>",
+        "       <label id=\"size_gb\" class=\"radio\" style=\"display: inline-block; padding-left: 25px; margin-right: 10px;\">",
+        "           <input type=\"radio\" name=\"optionsRadios2\" id=\"optionsRadios2\" value=\"option1\" data-toggle=\"radio\">GB",
+        "       </label>",
+        "       <label id=\"size_tb\" class=\"radio\" style=\"display: inline-block; padding-left: 25px; margin-right: 10px;\">",
+        "           <input type=\"radio\" name=\"optionsRadios2\" id=\"optionsRadios3\" value=\"option1\" data-toggle=\"radio\">TB",
+        "       </label>",
+        "   </fieldset>",
+        "</div>">>.
 
 
 %% add_space_row/2
@@ -302,10 +318,10 @@ add_space_row(RowId, SpaceDetails) ->
     Result :: ok.
 %% ====================================================================
 initialize_radio_buttons() ->
-    gui_jq:wire(<<"$('[data-toggle=\"radio\"]').each(function () {
+    <<"$('[data-toggle=\"radio\"]').each(function () {
       var $radio = $(this);
       $radio.radio();
-    });">>).
+    });">>.
 
 
 %% space_size_check/0
@@ -316,8 +332,8 @@ initialize_radio_buttons() ->
     Result :: binary().
 %% ====================================================================
 space_size_check() ->
-    <<"else if(size.length == 0) { alert.html(\"Please provide Space size.\"); alert.fadeIn(300); return false; }",
-    "else if(isNaN(size) || parseInt(size, 10) <= 0) { alert.html(\"Space size should be a positive number.\"); alert.fadeIn(300); return false; }">>.
+    <<"if(size.length == 0) { message.html(\"Please provide Space size.\"); message.fadeIn(300); return false; }",
+        "if(isNaN(size) || parseInt(size, 10) <= 0) { message.html(\"Space size should be a positive number.\"); message.fadeIn(300); return false; }">>.
 
 
 %% space_size_multiply/0
@@ -329,9 +345,89 @@ space_size_check() ->
 %% ====================================================================
 space_size_multiply() ->
     <<"if($(\"#size_mb\").hasClass(\"checked\")) { size = 1024 * 1024 * size; }",
-    "else if($(\"#size_gb\").hasClass(\"checked\")) { size = 1024 * 1024 * 1024 * size; }",
-    "else { size = 1024 * 1024 * 1024 * 1024 * size; }">>.
+        "else if($(\"#size_gb\").hasClass(\"checked\")) { size = 1024 * 1024 * 1024 * size; }",
+        "else { size = 1024 * 1024 * 1024 * 1024 * size; }">>.
 
+storage_dropdown(Storages, CephForm, DioForm) ->
+    Options = lists:map(fun(#document{key = StorageId,
+        value = #storage{name = SName, helpers = [#helper_init{name = HName}]}
+    }) ->
+        <<"<option value=\"", HName/binary, ":", StorageId/binary, "\">", SName/binary, "</option>">>
+    end, Storages),
+    Header = <<"<div id=\"storage_list\" style=\"display: flex;\">",
+        "<label for=\"storage_type\" style=\"font-size: larger; line-height: 2em; padding-right: 0.5em;\">Storage:</label>",
+        "<select id=\"storage_type\" class=\"select\" onchange=(function(){",
+        "storage_type=$(\"#storage_type\").val();",
+        "$(\"#ceph_form\").remove();",
+        "$(\"#dio_form\").remove();",
+        "if(storage_type.slice(0,4)==\"Ceph\"){",
+        CephForm/binary,
+        "}",
+        "else{",
+        DioForm/binary,
+        "}",
+        "})()>">>,
+    lists:foldl(fun(Part, Acc) ->
+        <<Acc/binary, Part/binary>>
+    end, Header, Options ++ [<<"</select></div>">>]).
+
+ceph_support_form() ->
+    <<
+        "function ceph_support_form() {",
+        "$(\"#storage_list\").after('",
+        "<div id=\"ceph_form\">",
+        "<input id=\"space_token\" type=\"text\" style=\"width: 100%;\" placeholder=\"Space token\">",
+        "<input id=\"ceph_username\" type=\"text\" style=\"width: 100%;\" placeholder=\"Ceph username\">",
+        "<input id=\"ceph_key\" type=\"password\" style=\"width: 100%;\" placeholder=\"Ceph key\">",
+        (space_size_parameter())/binary,
+        "</div>",
+        "');",
+        (initialize_radio_buttons())/binary,
+        "$(\"#space_token\").focus();}"
+    >>.
+
+ceph_create_form() ->
+    <<
+        "function ceph_create_form() {",
+        "$(\"#storage_list\").after('",
+        "<div id=\"ceph_form\">",
+        "<input id=\"space_name\" type=\"text\" style=\"width: 100%;\" placeholder=\"Space name\">",
+        "<input id=\"space_token\" type=\"text\" style=\"width: 100%;\" placeholder=\"Space token\">",
+        "<input id=\"ceph_username\" type=\"text\" style=\"width: 100%;\" placeholder=\"Ceph username\">",
+        "<input id=\"ceph_key\" type=\"password\" style=\"width: 100%;\" placeholder=\"Ceph key\">",
+        (space_size_parameter())/binary,
+        "</div>"
+        "');",
+        (initialize_radio_buttons())/binary,
+        "$(\"#space_name\").focus();}"
+    >>.
+
+dio_support_form() ->
+    <<
+        "function dio_support_form() {",
+        "$(\"#storage_list\").after('",
+        "<div id=\"dio_form\">",
+        "<input id=\"space_token\" type=\"text\" style=\"width: 100%;\" placeholder=\"Space token\">",
+        (space_size_parameter())/binary,
+        "</div>"
+        "');",
+        (initialize_radio_buttons())/binary,
+        "$(\"#space_token\").focus();}"
+    >>.
+
+dio_create_form() ->
+    <<
+        "function dio_create_form() {",
+        "$(\"#storage_list\").after('",
+        "<div id=\"dio_form\">",
+        "<input id=\"space_name\" type=\"text\" style=\"width: 100%;\" placeholder=\"Space name\">",
+        "<input id=\"space_token\" type=\"text\" style=\"width: 100%;\" placeholder=\"Space token\">",
+        (space_size_parameter())/binary,
+        "</div>",
+        "');",
+        (initialize_radio_buttons())/binary,
+        "$(\"#space_name\").focus();}"
+    >>.
 
 %% ====================================================================
 %% Events handling
@@ -349,91 +445,91 @@ comet_loop({error, Reason}) ->
 
 comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails} = State) ->
     NewState = try
-                   receive
-                       {create_space, Name, Token, Size} ->
-                           NextState =
-                               try
-                                   RowId = <<"space_", (integer_to_binary(Counter + 1))/binary>>,
-                                   {ok, SpaceId} = gr_providers:create_space(provider,
-                                       [{<<"name">>, Name}, {<<"token">>, Token}, {<<"size">>, integer_to_binary(Size)}]),
-                                   {ok, SpaceDetails} = gr_providers:get_space_details(provider, SpaceId),
-                                   add_space_row(RowId, SpaceDetails),
-                                   onepanel_gui_utils:message(success, <<"Created Space's ID: <b>", SpaceId/binary, "</b>">>),
-                                   State#?STATE{counter = Counter + 1, spaces_details = [{RowId, SpaceDetails} | SpacesDetails]}
-                               catch
-                                   _:Reason ->
-                                       ?error("Cannot create Space ~p associated with token ~p: ~p", [Name, Token, Reason]),
-                                       onepanel_gui_utils:message(error, <<"Cannot create Space <b>", Name/binary, "</b> associated with token <b>", Token/binary, "</b>.<br>
+        receive
+            {create_space, Name, Token, Size} ->
+                NextState =
+                    try
+                        RowId = <<"space_", (integer_to_binary(Counter + 1))/binary>>,
+                        {ok, SpaceId} = gr_providers:create_space(provider,
+                            [{<<"name">>, Name}, {<<"token">>, Token}, {<<"size">>, integer_to_binary(Size)}]),
+                        {ok, SpaceDetails} = gr_providers:get_space_details(provider, SpaceId),
+                        add_space_row(RowId, SpaceDetails),
+                        onepanel_gui_utils:message(success, <<"Created Space's ID: <b>", SpaceId/binary, "</b>">>),
+                        State#?STATE{counter = Counter + 1, spaces_details = [{RowId, SpaceDetails} | SpacesDetails]}
+                    catch
+                        _:Reason ->
+                            ?error("Cannot create Space ~p associated with token ~p: ~p", [Name, Token, Reason]),
+                            onepanel_gui_utils:message(error, <<"Cannot create Space <b>", Name/binary, "</b> associated with token <b>", Token/binary, "</b>.<br>
                             Please try again later.">>),
-                                       State
-                               end,
-                           gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"">>),
-                           NextState;
+                            State
+                    end,
+                gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"">>),
+                NextState;
 
-                       {support_space, Token, Size} ->
-                           NextState =
-                               try
-                                   RowId = <<"space_", (integer_to_binary(Counter + 1))/binary>>,
-                                   {ok, SpaceId} = gr_providers:support_space(provider,
-                                       [{<<"token">>, Token}, {<<"size">>, integer_to_binary(Size)}]),
-                                   {ok, SpaceDetails} = gr_providers:get_space_details(provider, SpaceId),
-                                   add_space_row(RowId, SpaceDetails),
-                                   onepanel_gui_utils:message(success, <<"Supported Space's ID: <b>", SpaceId/binary, "</b>">>),
-                                   State#?STATE{counter = Counter + 1, spaces_details = [{RowId, SpaceDetails} | SpacesDetails]}
-                               catch
-                                   _:Reason ->
-                                       ?error("Cannot support Space associated with token ~p: ~p", [Token, Reason]),
-                                       onepanel_gui_utils:message(error, <<"Cannot support Space associated with token <b>", Token/binary, "</b>.<br>
+            {support_space, Token, Size} ->
+                NextState =
+                    try
+                        RowId = <<"space_", (integer_to_binary(Counter + 1))/binary>>,
+                        {ok, SpaceId} = gr_providers:support_space(provider,
+                            [{<<"token">>, Token}, {<<"size">>, integer_to_binary(Size)}]),
+                        {ok, SpaceDetails} = gr_providers:get_space_details(provider, SpaceId),
+                        add_space_row(RowId, SpaceDetails),
+                        onepanel_gui_utils:message(success, <<"Supported Space's ID: <b>", SpaceId/binary, "</b>">>),
+                        State#?STATE{counter = Counter + 1, spaces_details = [{RowId, SpaceDetails} | SpacesDetails]}
+                    catch
+                        _:Reason ->
+                            ?error("Cannot support Space associated with token ~p: ~p", [Token, Reason]),
+                            onepanel_gui_utils:message(error, <<"Cannot support Space associated with token <b>", Token/binary, "</b>.<br>
                             Please try again later.">>),
-                                       State
-                               end,
-                           gui_jq:prop(<<"support_space_button">>, <<"disabled">>, <<"">>),
-                           NextState;
+                            State
+                    end,
+                gui_jq:prop(<<"support_space_button">>, <<"disabled">>, <<"">>),
+                NextState;
 
-                       {revoke_space_support, RowId, SpaceId} ->
-                           NextState =
-                               case gr_providers:revoke_space_support(provider, SpaceId) of
-                                   ok ->
-                                       onepanel_gui_utils:message(success, <<"Space: <b>", SpaceId/binary, "</b> is no longer supported.">>),
-                                       gui_jq:remove(RowId),
-                                       State#?STATE{spaces_details = proplists:delete(RowId, SpacesDetails)};
-                                   Other ->
-                                       ?error("Cannot revoke support for Space ~p: ~p", [SpaceId, Other]),
-                                       onepanel_gui_utils:message(error, <<"Cannot revoke support for Space <b>", SpaceId/binary, "</b>.<br>Please try again later.">>),
-                                       State
-                               end,
-                           NextState;
+            {revoke_space_support, RowId, SpaceId} ->
+                NextState =
+                    case gr_providers:revoke_space_support(provider, SpaceId) of
+                        ok ->
+                            onepanel_gui_utils:message(success, <<"Space: <b>", SpaceId/binary, "</b> is no longer supported.">>),
+                            gui_jq:remove(RowId),
+                            State#?STATE{spaces_details = proplists:delete(RowId, SpacesDetails)};
+                        Other ->
+                            ?error("Cannot revoke support for Space ~p: ~p", [SpaceId, Other]),
+                            onepanel_gui_utils:message(error, <<"Cannot revoke support for Space <b>", SpaceId/binary, "</b>.<br>Please try again later.">>),
+                            State
+                    end,
+                NextState;
 
-                       render_spaces_table ->
-                           gui_jq:update(<<"spaces_table">>, spaces_table_collapsed(SpacesDetails)),
-                           gui_jq:fade_in(<<"spaces_table">>, 500),
-                           gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"">>),
-                           gui_jq:prop(<<"support_space_button">>, <<"disabled">>, <<"">>),
-                           State;
+            render_spaces_table ->
+                gui_jq:update(<<"spaces_table">>, spaces_table_collapsed(SpacesDetails)),
+                gui_jq:fade_in(<<"spaces_table">>, 500),
+                gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"">>),
+                gui_jq:prop(<<"support_space_button">>, <<"disabled">>, <<"">>),
+                State;
 
-                       Event ->
-                           case Event of
-                               collapse_spaces_table ->
-                                   gui_jq:update(<<"spaces_table">>, spaces_table_collapsed(SpacesDetails));
-                               expand_spaces_table ->
-                                   gui_jq:update(<<"spaces_table">>, spaces_table_expanded(SpacesDetails));
-                               {collapse_space_row, RowId, SpaceDetails} ->
-                                   gui_jq:update(RowId, space_row_collapsed(RowId, SpaceDetails));
-                               {expand_space_row, RowId, SpaceDetails} ->
-                                   gui_jq:update(RowId, space_row_expanded(RowId, SpaceDetails));
-                               _ ->
-                                   ok
-                           end,
-                           State
+            Event ->
+                case Event of
+                    collapse_spaces_table ->
+                        gui_jq:update(<<"spaces_table">>, spaces_table_collapsed(SpacesDetails));
+                    expand_spaces_table ->
+                        gui_jq:update(<<"spaces_table">>, spaces_table_expanded(SpacesDetails));
+                    {collapse_space_row, RowId, SpaceDetails} ->
+                        gui_jq:update(RowId, space_row_collapsed(RowId, SpaceDetails));
+                    {expand_space_row, RowId, SpaceDetails} ->
+                        gui_jq:update(RowId, space_row_expanded(RowId, SpaceDetails));
+                    _ ->
+                        ok
+                end,
+                State
 
-                   after ?COMET_PROCESS_RELOAD_DELAY ->
-                       State
-                   end
-               catch Type:Message ->
-                   ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
-                   onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
-                   {error, Message}
-               end,
+        after ?COMET_PROCESS_RELOAD_DELAY ->
+            State
+        end
+    catch Type:Message ->
+        ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
+        onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
+        {error, Message}
+    end,
     gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
     gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
@@ -473,52 +569,67 @@ event(init) ->
             onepanel_gui_utils:message(error, <<"Cannot fetch supported Spaces.<br>Please try again later.">>)
     end;
 
-event(create_space) ->
+event({create_space, Storages}) ->
     Title = <<"Create Space">>,
     Message = <<"<div style=\"margin: 0 auto; width: 80%;\">",
-    "<p id=\"create_space_alert\" style=\"width: 100%; color: red; font-size: medium; text-align: center; display: none;\"></p>",
-    "<input id=\"create_space_name\" type=\"text\" style=\"width: 100%;\" placeholder=\"Name\">",
-    "<input id=\"create_space_token\" type=\"text\" style=\"width: 100%;\" placeholder=\"Token\">",
-    (space_size_parameter())/binary,
-    "</div>">>,
-    Script = <<"var alert = $(\"#create_space_alert\");",
-    "var name = $.trim($(\"#create_space_name\").val());",
-    "var token = $.trim($(\"#create_space_token\").val());",
-    "var size = $.trim($(\"#create_space_size\").val());",
-    "if(name.length == 0) { alert.html(\"Please provide Space name.\"); alert.fadeIn(300); return false; }",
-    "else if(token.length == 0) { alert.html(\"Please provide Space token.\"); alert.fadeIn(300); return false; }",
-    (space_size_check())/binary,
-    "else { ", (space_size_multiply())/binary,
-    "          createSpace([name, token, size]); return true;",
-    "     }">>,
+        "<p id=\"space_alert\" style=\"width: 100%; color: red; font-size: medium; text-align: center; display: none;\"></p>",
+        (storage_dropdown(Storages, <<"ceph_create_form();">>, <<"dio_create_form();">>))/binary,
+        "</div>">>,
+    Script = <<"var message = $(\"#space_alert\");",
+        "var storage_type = $(\"#storage_type\").val();",
+        "var isCeph = storage_type.slice(0,4) == \"Ceph\";",
+        "var name = $.trim($(\"#space_name\").val());",
+        "var token = $.trim($(\"#space_token\").val());",
+        "var size = $.trim($(\"#space_size\").val());",
+        "var username = $.trim($(\"#ceph_username\").val());",
+        "var key = $.trim($(\"#ceph_key\").val());",
+        "if(name.length == 0) { message.html(\"Please provide Space name.\"); message.fadeIn(300); return false; }",
+        "if(token.length == 0) { message.html(\"Please provide Space token.\"); message.fadeIn(300); return false; }",
+        "if(isCeph && username.length == 0) { message.html(\"Please provide Ceph username.\"); message.fadeIn(300); return false; }",
+        "if(isCeph && key.length == 0) { message.html(\"Please provide Ceph key.\"); message.fadeIn(300); return false; }",
+        (space_size_check())/binary,
+        "else { ", (space_size_multiply())/binary,
+        "          createSpace([storage_type, isCeph, name, token, size, username, key]); return true;",
+        "     }">>,
     ConfirmButtonClass = <<"btn-inverse">>,
     gui_jq:dialog_popup(Title, Message, Script, ConfirmButtonClass),
-    gui_jq:wire(<<"box.on('shown',function(){ $(\"#create_space_name\").focus(); });">>),
-    initialize_radio_buttons();
+    case Storages of
+        [#document{value = #storage{helpers = [#helper_init{name = <<"Ceph">>} | _]}} | _] ->
+            gui_jq:wire(<<"box.on('shown',ceph_create_form);">>);
+        [#document{value = #storage{helpers = [#helper_init{name = <<"DirectIO">>} | _]}} | _] ->
+            gui_jq:wire(<<"box.on('shown',dio_create_form);">>);
+        _ -> ok
+    end;
 
-event(support_space) ->
+event({support_space, Storages}) ->
     Title = <<"Support Space">>,
     Message = <<"<div style=\"margin: 0 auto; width: 80%;\">",
-    "<select id=\"storage_type\" class=\"select\" onchange=(function(){alert($(\"#storage_type\").val())})()>",
-    "<option value=\"0\">lol</option>",
-    "<option value=\"1\">My Friends</option>",
-    "</select>",
-    "<p id=\"support_space_alert\" style=\"width: 100%; color: red; font-size: medium; text-align: center; display: none;\"></p>",
-    "<input id=\"support_space_token\" type=\"text\" style=\"width: 100%;\" placeholder=\"Token\">",
-    (space_size_parameter())/binary,
-    "</div>">>,
-    Script = <<"var alert = $(\"#support_space_alert\");",
-    "var token = $.trim($(\"#support_space_token\").val());",
-    "var size = $.trim($(\"#create_space_size\").val());",
-    "if(token.length == 0) { alert.html(\"Please provide Space token.\"); alert.fadeIn(300); return false; }",
-    (space_size_check())/binary,
-    "else { ", (space_size_multiply())/binary,
-    "          supportSpace([token, size]); return true;",
-    "     }">>,
+        "<p id=\"space_alert\" style=\"width: 100%; color: red; font-size: medium; text-align: center; display: none;\"></p>",
+        (storage_dropdown(Storages, <<"ceph_support_form();">>, <<"dio_support_form();">>))/binary,
+        "</div>">>,
+    Script = <<"var message = $(\"#space_alert\");",
+        "var storage_type = $(\"#storage_type\").val();",
+        "var isCeph = storage_type.slice(0,4) == \"Ceph\";",
+        "var token = $.trim($(\"#space_token\").val());",
+        "var size = $.trim($(\"#space_size\").val());",
+        "var username = $.trim($(\"#ceph_username\").val());",
+        "var key = $.trim($(\"#ceph_key\").val());"
+        "if(token.length == 0) { message.html(\"Please provide Space token.\"); message.fadeIn(300); return false; }",
+        "if(isCeph && username.length == 0) { message.html(\"Please provide Ceph username.\"); message.fadeIn(300); return false; }",
+        "if(isCeph && key.length == 0) { message.html(\"Please provide Ceph key.\"); message.fadeIn(300); return false; }",
+        (space_size_check())/binary,
+        "else { ", (space_size_multiply())/binary,
+        "          supportSpace([storage_type, isCeph, token, size, username, key]); return true;",
+        "     }">>,
     ConfirmButtonClass = <<"btn-inverse">>,
     gui_jq:dialog_popup(Title, Message, Script, ConfirmButtonClass),
-    gui_jq:wire(<<"box.on('shown',function(){ $(\"#support_space_token\").focus(); });">>),
-    initialize_radio_buttons();
+    case Storages of
+        [#document{value = #storage{helpers = [#helper_init{name = <<"Ceph">>} | _]}} | _] ->
+            gui_jq:wire(<<"box.on('shown',ceph_support_form);">>);
+        [#document{value = #storage{helpers = [#helper_init{name = <<"DirectIO">>} | _]}} | _] ->
+            gui_jq:wire(<<"box.on('shown',dio_support_form);">>);
+        _ -> ok
+    end;
 
 event({revoke_space_support, RowId, #space_details{id = SpaceId}}) ->
     Title = <<"Revoke Space support">>,
@@ -548,14 +659,14 @@ event(terminate) ->
 -spec api_event(Name :: string(), Args :: string(), Req :: string()) -> no_return().
 %% ====================================================================
 api_event("createSpace", Args, _) ->
-    [Name, Token, Size] = mochijson2:decode(Args),
-    get(?COMET_PID) ! {create_space, Name, Token, Size},
+    [StorageType, IsCeph, Name, Token, Size, Username, Key] = mochijson2:decode(Args),
+    get(?COMET_PID) ! {create_space, StorageType, IsCeph, Name, Token, Size, Username, Key},
     gui_jq:show(<<"main_spinner">>),
     gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"disabled">>);
 
 api_event("supportSpace", Args, _) ->
-    [Token, Size] = mochijson2:decode(Args),
-    get(?COMET_PID) ! {support_space, Token, Size},
+    [StorageType, IsCeph, Token, Size, Username, Key] = mochijson2:decode(Args),
+    get(?COMET_PID) ! {support_space, StorageType, IsCeph, Token, Size, Username, Key},
     gui_jq:show(<<"main_spinner">>),
     gui_jq:prop(<<"support_space_button">>, <<"disabled">>, <<"disabled">>);
 

@@ -15,7 +15,7 @@
 
 #include <string>
 
-std::string hash_password(const std : string &password, int work_factor)
+std::string hash_password(const std::string &password, int work_factor)
 {
     Botan::AutoSeeded_RNG rng;
     return Botan::generate_bcrypt(password, rng, work_factor);
