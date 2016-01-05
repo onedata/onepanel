@@ -169,8 +169,8 @@ local_start() ->
     try
         ?debug("Starting database node"),
 
-        "0" = os:cmd("/etc/init.d/couchbase-server start 1>/dev/null 2>&1 ; echo -n $?"),
-        ok = wait_until("/etc/init.d/couchbase-server status 1>/dev/null 2>&1 ; echo -n $?", "0"),
+        "0" = os:cmd("service couchbase-server-community start 1>/dev/null 2>&1 ; echo -n $?"),
+        ok = wait_until("service couchbase-server-community status 1>/dev/null 2>&1 ; echo -n $?", "0"),
         wait_until_connect(Host, 8091, 10),
 
         {ok, Host}
@@ -192,7 +192,7 @@ local_stop() ->
     try
         ?debug("Stopping database node"),
 
-        "0" = os:cmd("/etc/init.d/couchbase-server stop 1>/dev/null 2>&1 ; echo -n $?"),
+        "0" = os:cmd("service couchbase-server-community stop 1>/dev/null 2>&1 ; echo -n $?"),
 
         {ok, Host}
     catch

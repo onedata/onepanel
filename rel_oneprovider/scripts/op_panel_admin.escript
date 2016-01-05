@@ -17,7 +17,7 @@
 -define(APP_STR, "onepanel").
 
 %% Default cookie used for communication with cluster
--define(COOKIE, oneprovider_node).
+-define(COOKIE, cluster_node).
 
 %% Default system limit values
 -define(OPEN_FILES, 65535).
@@ -141,9 +141,9 @@ install(Path) ->
         ok = execute([
             {Node, installer_db, start, [[{dbs, Dbs}]], "Starting database nodes..."},
             {Node, installer_ccm, start, [[{main_ccm, MainCCM}, {ccms, CCMs}]], "Starting ccm nodes..."},
-            {Node, installer_storage, add_storage_paths_to_db, [[{storage_paths, StoragePaths}]], "Adding storage paths..."},
             {Node, installer_worker, start, [[{workers, Workers}]], "Starting worker nodes..."},
-            {Node, installer_utils_adapter, finalize_installation, [[]], "Finalizing installation..."}
+            {Node, installer_utils_adapter, finalize_installation, [[]], "Finalizing installation..."},
+            {Node, installer_storage, add_storage_paths_to_db, [[{workers, Workers}, {storage_paths, StoragePaths}]], "Adding storage paths..."}
         ]),
 
         case Register of
@@ -263,8 +263,8 @@ uninstall() ->
 parse({config, Path}) ->
     {ok, Terms} = file:consult(Path),
     #config{
-        main_ccm = proplists:get_value("Main CCM host", Terms),
-        ccms = proplists:get_value("CCM hosts", Terms, []),
+        main_ccm = proplists:get_value("Main CM host", Terms),
+        ccms = proplists:get_value("CM hosts", Terms, []),
         workers = proplists:get_value("Worker hosts", Terms, []),
         dbs = proplists:get_value("Database hosts", Terms, []),
         storage_paths = proplists:get_value("Storage paths", Terms, []),
