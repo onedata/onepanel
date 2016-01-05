@@ -89,6 +89,7 @@ top_menu(ActiveTabID, ActiveLinkID, Submenu, Spinner) ->
             #link{style = "padding: 18px;", url = ?PAGE_INSTALLATION, body = <<"Software">>},
             #list{style = "top: 37px; width: 120px;", body = Process(ActiveLinkID, [
                 {installation_link, #li{body = #link{url = ?PAGE_INSTALLATION, body = <<"Installation">>}}},
+                {storage_link, #li{body = #link{url = ?PAGE_STORAGE, body = <<"Storage configuration">>}}},
                 {update_link, #li{body = #link{url = ?PAGE_UPDATE, body = <<"Update">>}}}
             ])}
         ]}},

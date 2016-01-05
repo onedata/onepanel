@@ -318,7 +318,7 @@ update_chart(#?CHART{id = ID, node = Node, time_range = TimeRange, type = ChartT
     BodyJSON :: string().
 %% ====================================================================
 get_json_data(Id, summary, TimeRange, ChartType, UpdatePeriod) ->
-    get_json_data(Id, summary, {global, ?CCM}, get_cluster_stats, TimeRange, ChartType, UpdatePeriod);
+    get_json_data(Id, summary, {global, ?CCM_APP_NAME}, get_cluster_stats, TimeRange, ChartType, UpdatePeriod);
 
 get_json_data(Id, Node, TimeRange, ChartType, UpdatePeriod) ->
     get_json_data(Id, Node, {?NODE_MANAGER_NAME, Node}, get_node_stats, TimeRange, ChartType, UpdatePeriod).
@@ -644,7 +644,7 @@ comet_loop(#?STATE{counter = Counter, nodes = Nodes, node = Node, time_range = T
 %% ====================================================================
 event(init) ->
     try
-        [_ | _] = Nodes = onepanel_utils_adapter:apply_on_worker(gen_server, call, [{global, ?CCM}, get_nodes]),
+        [_ | _] = Nodes = onepanel_utils_adapter:apply_on_worker(gen_server, call, [{global, ?CCM_APP_NAME}, get_nodes]),
         gui_jq:prop(<<"add_chart_button">>, <<"disabled">>, <<"">>),
         gui_jq:update(<<"node_dropdown">>, node_dropdown(undefined, [summary | Nodes])),
         {ok, Pid} = gui_comet:spawn(fun() -> comet_loop(#?STATE{counter = 1, nodes = [summary | Nodes]}) end),

@@ -53,10 +53,8 @@ body() ->
         true ->
             gui_jq:redirect(?PAGE_ROOT);
         false ->
-            Nodes = onepanel_utils:get_nodes(),
             case application:get_env(?APP_NAME, verify_gr_cert) of
                 {ok, true} ->
-                    rpc:multicall(Nodes, application, set_env, [ctool, verify_gr_cert, true]),
                     case file:read_file(http_client:ca_bundle_location()) of
                         {ok, _} ->
                             render_login_page();
@@ -64,7 +62,6 @@ body() ->
                             render_ca_alert()
                     end;
                 {ok, false} ->
-                    rpc:multicall(Nodes, application, set_env, [ctool, verify_gr_cert, false]),
                     render_login_page()
             end
     end.

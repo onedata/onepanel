@@ -45,7 +45,7 @@ main() ->
         true ->
             case provider_logic:get_provider_id() of
                 undefined ->
-                    page_error:redirect_with_error(?UNREGISTERED_PROVIDER_ERROR),
+                    page_error:redirect_with_error(<<"unregistered_provider_error">>),
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, custom()}]}
@@ -499,6 +499,10 @@ event(create_space) ->
 event(support_space) ->
     Title = <<"Support Space">>,
     Message = <<"<div style=\"margin: 0 auto; width: 80%;\">",
+    "<select id=\"storage_type\" class=\"select\" onchange=(function(){alert($(\"#storage_type\").val())})()>",
+    "<option value=\"0\">lol</option>",
+    "<option value=\"1\">My Friends</option>",
+    "</select>",
     "<p id=\"support_space_alert\" style=\"width: 100%; color: red; font-size: medium; text-align: center; display: none;\"></p>",
     "<input id=\"support_space_token\" type=\"text\" style=\"width: 100%;\" placeholder=\"Token\">",
     (space_size_parameter())/binary,

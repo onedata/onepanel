@@ -81,7 +81,6 @@ body() ->
         {<<"Primary CCM selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION},
         {<<"Application ports check">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_APP_PORTS_CHECK},
         {<<"System limits">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS},
-        {<<"Storage configuration">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_STORAGE},
         {<<"Installation summary">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUMMARY}
     ]),
     Header = onepanel_gui_utils_adapter:top_menu(software_tab, installation_link, Breadcrumbs, true),
@@ -90,7 +89,7 @@ body() ->
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
-                body = <<"Step 6: Installation summary.">>
+                body = <<"Step 5: Installation summary.">>
             },
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
@@ -139,7 +138,7 @@ body() ->
 -spec summary_table(Config :: #?CONFIG{}) -> Result
     when Result :: [#tr{}].
 %% ====================================================================
-summary_table(#?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs, storage_paths = StoragePaths}) ->
+summary_table(#?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs}) ->
     lists:map(fun({Id, Description, Details}) ->
         #tr{
             id = Id,
@@ -161,8 +160,7 @@ summary_table(#?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs =
         {<<"summary_main_ccm">>, <<"Primary CCM host">>, format(MainCCM)},
         {<<"summary_ccms">>, <<"CCM hosts">>, format(CCMs)},
         {<<"summary_workers">>, <<"Worker hosts">>, format(Workers)},
-        {<<"summary_dbs">>, <<"Database hosts">>, format(Dbs)},
-        {<<"summary_storages">>, <<"Storage paths">>, format(StoragePaths)}
+        {<<"summary_dbs">>, <<"Database hosts">>, format(Dbs)}
     ]).
 
 
@@ -200,7 +198,6 @@ get_error_message({?STAGE_CCM, ?JOB_INSTALL}) -> <<"CCM components were not inst
 get_error_message({?STAGE_CCM, ?JOB_START}) -> <<"CCM components were not started on following hosts: ">>;
 get_error_message({?STAGE_WORKER, ?JOB_INSTALL}) -> <<"Worker components were not installed on following hosts: ">>;
 get_error_message({?STAGE_WORKER, ?JOB_START}) -> <<"Worker components were not started on following hosts: ">>;
-get_error_message({?STAGE_STORAGE, ?JOB_ADD_STORAGE_PATHS}) -> <<"Cannot add storage paths on following hosts: ">>;
 get_error_message(_) -> <<"">>.
 
 
@@ -219,7 +216,6 @@ get_info_message({?STAGE_CCM, ?JOB_INSTALL}) ->
 get_info_message({?STAGE_CCM, ?JOB_START}) -> <<"Current stage: <b>Starting Central Cluster Manager components</b>">>;
 get_info_message({?STAGE_WORKER, ?JOB_INSTALL}) -> <<"Current stage: <b>Installing worker components</b>">>;
 get_info_message({?STAGE_WORKER, ?JOB_START}) -> <<"Current stage: <b>Starting worker components</b>">>;
-get_info_message({?STAGE_STORAGE, ?JOB_ADD_STORAGE_PATHS}) -> <<"Current stage: <b>Adding storage paths</b>">>;
 get_info_message({?STAGE_FINAL, ?JOB_FINALIZE_INSTALLATION}) -> <<"Current stage: <b>Finalizing installation</b>">>;
 get_info_message(_) -> <<"">>.
 
@@ -377,8 +373,7 @@ event(init) ->
             main_ccm = [SessionConfig#?CONFIG.main_ccm] -- [DbConfig#?CONFIG.main_ccm],
             ccms = lists:sort(SessionConfig#?CONFIG.ccms -- DbConfig#?CONFIG.ccms),
             workers = lists:sort(SessionConfig#?CONFIG.workers -- DbConfig#?CONFIG.workers),
-            dbs = lists:sort(SessionConfig#?CONFIG.dbs -- DbConfig#?CONFIG.dbs),
-            storage_paths = lists:sort(SessionConfig#?CONFIG.storage_paths -- DbConfig#?CONFIG.storage_paths)
+            dbs = lists:sort(SessionConfig#?CONFIG.dbs -- DbConfig#?CONFIG.dbs)
         },
 
         {ok, Pid} = gui_comet:spawn(fun() ->
@@ -400,7 +395,7 @@ event(init) ->
     end;
 
 event(back) ->
-    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_STORAGE);
+    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS);
 
 event(install) ->
     get(?COMET_PID) ! install;
