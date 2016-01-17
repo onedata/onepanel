@@ -98,8 +98,8 @@ body() ->
                         class = <<"btn-group">>,
                         body = storage_type_dropdown()
                     },
-                    ceph_storage(),
-                    dio_storage()
+                    ceph_storage_panel(),
+                    posix_storage_panel()
                 ]
             },
             #table{
@@ -118,6 +118,7 @@ body() ->
 %% storage_type_dropdown/0
 %% ====================================================================
 %% @doc 
+%% Renders storage type dropdown.
 %% @end
 -spec storage_type_dropdown() -> Result when
     Result :: [term()].
@@ -144,7 +145,7 @@ storage_type_dropdown() ->
             id = <<"storage_type_dropdown">>,
             class = <<"dropdown-menu dropdown-inverse">>,
             style = <<"overflow-y: auto; max-height: 20em;">>,
-            body = storage_type_list(<<"Ceph">>, [<<"Direct IO">>, <<"Ceph">>])
+            body = storage_type_list(<<"Ceph">>, [<<"Posix">>, <<"Ceph">>])
         }
     ].
 
@@ -152,6 +153,7 @@ storage_type_dropdown() ->
 %% storage_type_list/2
 %% ====================================================================
 %% @doc
+%% Renders storage type list.
 %% @end
 -spec storage_type_list(StorageType :: binary(), StorageTypes :: [binary()]) -> Result when
     Result :: [#li{}].
@@ -177,18 +179,36 @@ storage_type_list(StorageType, StorageTypes) ->
     end, {[], 1}, StorageTypes),
     Body.
 
-ceph_storage() ->
+%% ceph_storage_panel/0
+%% ====================================================================
+%% @doc
+%% Renders Ceph storage panel.
+%% @end
+-spec ceph_storage_panel() -> #panel{}.
+%% ====================================================================
+ceph_storage_panel() ->
     #panel{
         id = <<"ceph_storage">>,
         style = <<"margin-top: 0.75em;">>,
         actions = gui_jq:form_submit_action(<<"ceph_submit">>,
-            ceph_submit, [<<"ceph_storage_name">>, <<"ceph_mon_host">>,
+            ceph_submit, [<<"ceph_storage_name">>, <<"ceph_username">>,
+                <<"ceph_key">>, <<"ceph_mon_host">>,
                 <<"ceph_cluster_name">>, <<"ceph_pool_name">>]),
         body = [
             #textbox{
                 id = <<"ceph_storage_name">>,
                 style = <<"width: 30em; display: block">>,
                 placeholder = <<"Storage name">>
+            },
+            #textbox{
+                id = <<"ceph_username">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Admin username">>
+            },
+            #password{
+                id = <<"ceph_key">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Admin key">>
             },
             #textbox{
                 id = <<"ceph_mon_host">>,
@@ -214,7 +234,14 @@ ceph_storage() ->
         ]
     }.
 
-dio_storage() ->
+%% posix_storage_panel/0
+%% ====================================================================
+%% @doc
+%% Renders POSIX storage panel.
+%% @end
+-spec posix_storage_panel() -> #panel{}.
+%% ====================================================================
+posix_storage_panel() ->
     #panel{
         id = <<"dio_storage">>,
         style = <<"margin-top: 0.75em; display: none;">>,
@@ -242,7 +269,8 @@ dio_storage() ->
 
 %% storage_table/1
 %% ====================================================================
-%% @doc Renders storage table body.
+%% @doc
+%% Renders storage table body.
 %% @end
 -spec storage_table(Storages :: list()) -> Result
     when Result :: [#tr{}].
@@ -264,11 +292,19 @@ storage_table(Storages) ->
                     storage_table_row(Name, <<"Ceph">>, [{<<"Monitor host">>, MonHost},
                         {<<"Cluster name">>, ClusterName}, {<<"Pool name">>, PoolName}]);
                 #helper_init{name = <<"DirectIO">>, args = #{<<"root_path">> := Path}} ->
-                    storage_table_row(Name, <<"Direct IO">>, [{<<"Mount point">>, Path}])
+                    storage_table_row(Name, <<"Posix">>, [{<<"Mount point">>, Path}])
             end
     end, Storages),
     [Header | Rows].
 
+%% storage_table_row/3
+%% ====================================================================
+%% @doc
+%% Renders storage table row.
+%% @end
+-spec storage_table_row(Name :: binary(), Type :: binary(), Params :: list()) -> Result
+    when Result :: #tr{}.
+%% ====================================================================
 storage_table_row(Name, Type, Params) ->
     #tr{
         cells = [
@@ -300,12 +336,27 @@ storage_table_row(Name, Type, Params) ->
         ]
     }.
 
+%% clear_textboxes/0
+%% ====================================================================
+%% @doc
+%% Clears all textboxes.
+%% @end
+-spec clear_textboxes() -> ok.
+%% ====================================================================
 clear_textboxes() ->
     lists:foreach(fun(Id) ->
         gui_jq:set_value(Id, <<"''">>)
-    end, [<<"ceph_storage_name">>, <<"ceph_mon_host">>, <<"ceph_cluster_name">>,
-        <<"ceph_pool_name">>, <<"dio_storage_name">>, <<"dio_mount_point">>]).
+    end, [<<"ceph_storage_name">>, <<"ceph_username">>, <<"ceph_key">>,
+        <<"ceph_mon_host">>, <<"ceph_cluster_name">>, <<"ceph_pool_name">>,
+        <<"dio_storage_name">>, <<"dio_mount_point">>]).
 
+%% strip/1
+%% ====================================================================
+%% @doc
+%% Strip white characters in the begining and the end of a text.
+%% @end
+-spec strip(Test :: binary()) -> binary().
+%% ====================================================================
 strip(Text) ->
     list_to_binary(string:strip(binary_to_list(Text))).
 
@@ -346,7 +397,7 @@ comet_loop(#?STATE{storage_type = StorageType, workers = Workers} = State) ->
                 gui_jq:bind_enter_to_submit_button(<<"ceph_pool_name">>, <<"ceph_submit">>),
                 State#?STATE{storage_type = SType};
 
-            {set_storage_type, <<"Direct IO">> = SType} ->
+            {set_storage_type, <<"Posix">> = SType} ->
                 gui_jq:show(<<"dio_storage">>),
                 gui_jq:hide(<<"ceph_storage">>),
                 clear_textboxes(),
@@ -354,28 +405,37 @@ comet_loop(#?STATE{storage_type = StorageType, workers = Workers} = State) ->
                 gui_jq:bind_enter_to_submit_button(<<"dio_mount_point">>, <<"dio_submit">>),
                 State#?STATE{storage_type = SType};
 
-            {ceph_submit, <<>>, _, _, _} ->
+            {ceph_submit, <<>>, _, _, _, _, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide Ceph admin username.">>),
+                State;
+
+            {ceph_submit, _, <<>>, _, _, _, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide Ceph admin key.">>),
+                State;
+
+            {ceph_submit, _, _, <<>>, _, _, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide storage name.">>),
                 State;
 
-            {ceph_submit, _, <<>>, _, _} ->
+            {ceph_submit, _, _, _, <<>>, _, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide monitor host.">>),
                 State;
 
-            {ceph_submit, _, _, <<>>, _} ->
+            {ceph_submit, _, _, _, _, <<>>, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide cluster name.">>),
                 State;
 
-            {ceph_submit, _, _, _, <<>>} ->
+            {ceph_submit, _, _, _, _, _, <<>>} ->
                 onepanel_gui_utils:message(error, <<"Please provide pool name.">>),
                 State;
 
-            {ceph_submit, StorageName, MonHost, ClusterName, PoolName} ->
+            {ceph_submit, Username, Key, StorageName, MonHost, ClusterName, PoolName} ->
                 case installer_storage:add_ceph_storage(Workers, StorageName, MonHost, ClusterName, PoolName) of
-                    ok ->
+                    {ok, StorageId} ->
+                        installer_storage:add_ceph_user(Workers, <<"0">>, StorageId, Username, Key),
                         onepanel_gui_utils:message(success, <<"Storage successfully added.">>),
                         clear_textboxes(),
-                        gui_jq:focus(<<"ceph_storage_name">>),
+                        gui_jq:focus(<<"ceph_username">>),
                         self() ! render_storages_table;
                     error ->
                         onepanel_gui_utils:message(error, <<"There has been an error while adding storage. Please try again later.">>)
@@ -449,11 +509,14 @@ event({set_storage_type, Type, StorageTypes}) ->
 
 event(ceph_submit) ->
     gui_jq:show(<<"main_spinner">>),
+    Username = gui_ctx:postback_param(<<"ceph_username">>),
+    Key = gui_ctx:postback_param(<<"ceph_key">>),
     StorageName = gui_ctx:postback_param(<<"ceph_storage_name">>),
     MonHost = gui_ctx:postback_param(<<"ceph_mon_host">>),
     ClusterName = gui_ctx:postback_param(<<"ceph_cluster_name">>),
     PoolName = gui_ctx:postback_param(<<"ceph_pool_name">>),
-    get(?COMET_PID) ! {ceph_submit, strip(StorageName), strip(MonHost), strip(ClusterName), strip(PoolName)};
+    get(?COMET_PID) ! {ceph_submit, strip(Username), strip(Key), strip(StorageName),
+        strip(MonHost), strip(ClusterName), strip(PoolName)};
 
 event(dio_submit) ->
     gui_jq:show(<<"main_spinner">>),

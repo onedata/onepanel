@@ -15,7 +15,8 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([add_ceph_storage/5, add_dio_storage/1, add_dio_storage/3]).
+-export([add_ceph_storage/5, add_ceph_user/5, add_dio_storage/1, add_dio_storage/3]).
+-export([add_space_storage_mapping/3]).
 -export([check_storage_path_on_hosts/2, check_storage_path_on_host/2,
     create_storage_test_file/1, remove_storage_test_file/1]).
 
@@ -24,6 +25,15 @@
 %% API functions
 %% ====================================================================
 
+%% add_ceph_storage/5
+%% ====================================================================
+%% @doc
+%% Adds Ceph storage configuration details to provider database.
+%% @end
+-spec add_ceph_storage(Workers :: [node()], StorageName :: binary(), MonHost :: binary(),
+    ClusterName :: binary(), PoolName:: binary()) -> Result when
+    Result :: {ok, StorageId :: binary()} | {error, Reason :: term()}.
+%% ====================================================================
 add_ceph_storage(Workers, StorageName, MonHost, ClusterName, PoolName) ->
     try
         Helper = onepanel_utils:dropwhile_failure(Workers, fslogic_storage,
@@ -32,9 +42,9 @@ add_ceph_storage(Workers, StorageName, MonHost, ClusterName, PoolName) ->
             ?RPC_TIMEOUT),
         Storage = onepanel_utils:dropwhile_failure(Workers, fslogic_storage,
             new_storage, [StorageName, [Helper]], ?RPC_TIMEOUT),
-        {ok, _} = onepanel_utils:dropwhile_failure(Workers, storage, create,
+        {ok, StorageId} = onepanel_utils:dropwhile_failure(Workers, storage, create,
             [Storage], ?RPC_TIMEOUT),
-        ok
+        {ok, StorageId}
     catch
         Error:Reason ->
             ?error_stacktrace("Cannot add Ceph storage ~p due to: ~p",
@@ -42,6 +52,28 @@ add_ceph_storage(Workers, StorageName, MonHost, ClusterName, PoolName) ->
             {error, Reason}
     end.
 
+%% add_ceph_user/5
+%% ====================================================================
+%% @doc
+%% Adds Ceph user details to provider database.
+%% @end
+-spec add_ceph_user(Workers :: [node()], UserId :: binary(), StorageId :: binary(),
+    Username :: binary(), Key:: binary()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+add_ceph_user(Workers, UserId, StorageId, Username, Key) ->
+    {ok, _} = onepanel_utils:dropwhile_failure(Workers, ceph_user, add,
+        [UserId, StorageId, Username, Key], ?RPC_TIMEOUT),
+    ok.
+
+%% add_dio_storage/1
+%% ====================================================================
+%% @doc
+%% Adds Posix storage configuration details to provider database.
+%% @end
+-spec add_dio_storage(Args :: proplists:proplist()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
 add_dio_storage(Args) ->
     try
         Workers = onepanel_utils:get_nodes("worker", proplists:get_value(workers, Args, [])),
@@ -55,6 +87,15 @@ add_dio_storage(Args) ->
             {error, Reason}
     end.
 
+%% add_dio_storage/3
+%% ====================================================================
+%% @doc
+%% Adds Posix storage configuration details to provider database.
+%% @end
+-spec add_dio_storage(Workers :: [node()], StorageName :: binary(),
+    MountPoint :: binary()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
 add_dio_storage(Workers, StorageName, MountPoint) ->
     try
         Hosts = [onepanel_utils:get_host(Worker) || Worker <- Workers],
@@ -74,6 +115,20 @@ add_dio_storage(Workers, StorageName, MountPoint) ->
                 [{StorageName, MountPoint}, {Error, Reason}]),
             {error, Reason}
     end.
+
+%% add_space_storage_mapping/3
+%% ====================================================================
+%% @doc
+%% Adds mapping from space ID to storage ID to provider database.
+%% @end
+-spec add_space_storage_mapping(Workers :: [node()], SpaceId :: binary(),
+    StorageId :: binary()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+add_space_storage_mapping(Workers, SpaceId, StorageId) ->
+    {ok, _} = onepanel_utils:dropwhile_failure(Workers, space_storage, add,
+        [SpaceId, StorageId], ?RPC_TIMEOUT),
+    ok.
 
 %% check_storage_path_on_hosts/1
 %% ====================================================================

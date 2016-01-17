@@ -86,8 +86,7 @@ title() ->
 custom() ->
     <<
         "<script src='/flatui/bootbox.min.js' type='text/javascript' charset='utf-8'></script>",
-        "<script>", (ceph_support_form())/binary, (ceph_create_form())/binary,
-        (dio_support_form())/binary, (dio_create_form())/binary, "</script>"
+        "<script src='/js/spaces_management.js' type='text/javascript' charset='utf-8'></script>"
     >>.
 
 
@@ -272,30 +271,6 @@ space_row_expanded(RowId, #space_details{id = SpaceId, name = SpaceName} = Space
     ].
 
 
-%% space_size_parameter/2
-%% ====================================================================
-%% @doc Renders space size parameter in window popups.
-%% @end
--spec space_size_parameter() -> Result when
-    Result :: binary().
-%% ====================================================================
-space_size_parameter() ->
-    <<"<div id=\"space_size_div\" style=\"width: 100%;\">",
-        "   <input id=\"space_size\" class=\"pull-left\" type=\"text\" style=\"width: 50%;\" placeholder=\"Support size\">",
-        "   <fieldset class=\"pull-right\" style=\"width: 41%; line-height: 40px;\">"
-        "       <label id=\"size_mb\" class=\"radio checked\" style=\"display: inline-block; padding-left: 25px; margin-right: 10px;\">",
-        "           <input type=\"radio\" name=\"optionsRadios2\" id=\"optionsRadios1\" value=\"option1\" data-toggle=\"radio\" checked=\"checked\">MB",
-        "       </label>",
-        "       <label id=\"size_gb\" class=\"radio\" style=\"display: inline-block; padding-left: 25px; margin-right: 10px;\">",
-        "           <input type=\"radio\" name=\"optionsRadios2\" id=\"optionsRadios2\" value=\"option1\" data-toggle=\"radio\">GB",
-        "       </label>",
-        "       <label id=\"size_tb\" class=\"radio\" style=\"display: inline-block; padding-left: 25px; margin-right: 10px;\">",
-        "           <input type=\"radio\" name=\"optionsRadios2\" id=\"optionsRadios3\" value=\"option1\" data-toggle=\"radio\">TB",
-        "       </label>",
-        "   </fieldset>",
-        "</div>">>.
-
-
 %% add_space_row/2
 %% ====================================================================
 %% @doc Adds collapsed Space settings row to Spaces settings table.
@@ -311,44 +286,13 @@ add_space_row(RowId, SpaceDetails) ->
     gui_jq:insert_bottom(<<"spaces_table">>, Row).
 
 
-%% initialize_radio_buttons/0
+%% storage_dropdown/3
 %% ====================================================================
-%% @doc Initializes radio buttons - required by flatui.
+%% @doc Renders storage list dropdown.
 %% @end
--spec initialize_radio_buttons() -> Result when
-    Result :: ok.
+-spec storage_dropdown(Storages :: list(), CephForm :: binary(), DioForm :: binary()) ->
+    Result when Result :: binary().
 %% ====================================================================
-initialize_radio_buttons() ->
-    <<"$('[data-toggle=\"radio\"]').each(function () {
-      var $radio = $(this);
-      $radio.radio();
-    });">>.
-
-
-%% space_size_check/0
-%% ====================================================================
-%% @doc Returns script used to check correctness of space size parameter.
-%% @end
--spec space_size_check() -> Result when
-    Result :: binary().
-%% ====================================================================
-space_size_check() ->
-    <<"if(size.length == 0) { message.html(\"Please provide Space size.\"); message.fadeIn(300); return false; }",
-        "if(isNaN(size) || parseInt(size, 10) <= 0) { message.html(\"Space size should be a positive number.\"); message.fadeIn(300); return false; }">>.
-
-
-%% space_size_multiply/0
-%% ====================================================================
-%% @doc Returns script used to multiply space size parameter.
-%% @end
--spec space_size_multiply() -> Result when
-    Result :: binary().
-%% ====================================================================
-space_size_multiply() ->
-    <<"if($(\"#size_mb\").hasClass(\"checked\")) { size = 1024 * 1024 * size; }",
-        "else if($(\"#size_gb\").hasClass(\"checked\")) { size = 1024 * 1024 * 1024 * size; }",
-        "else { size = 1024 * 1024 * 1024 * 1024 * size; }">>.
-
 storage_dropdown(Storages, CephForm, DioForm) ->
     Options = lists:map(fun(#document{key = StorageId,
         value = #storage{name = SName, helpers = [#helper_init{name = HName}]}
@@ -372,63 +316,28 @@ storage_dropdown(Storages, CephForm, DioForm) ->
         <<Acc/binary, Part/binary>>
     end, Header, Options ++ [<<"</select></div>">>]).
 
-ceph_support_form() ->
-    <<
-        "function ceph_support_form() {",
-        "$(\"#storage_list\").after('",
-        "<div id=\"ceph_form\">",
-        "<input id=\"space_token\" type=\"text\" style=\"width: 100%;\" placeholder=\"Space token\">",
-        "<input id=\"ceph_username\" type=\"text\" style=\"width: 100%;\" placeholder=\"Ceph username\">",
-        "<input id=\"ceph_key\" type=\"password\" style=\"width: 100%;\" placeholder=\"Ceph key\">",
-        (space_size_parameter())/binary,
-        "</div>",
-        "');",
-        (initialize_radio_buttons())/binary,
-        "$(\"#space_token\").focus();}"
-    >>.
+%% get_storage_id/1
+%% ====================================================================
+%% @doc Returns storage ID from option ID.
+%% @end
+-spec get_storage_id(OptionId :: binary()) -> StorageId :: binary().
+%% ====================================================================
+get_storage_id(<<"Ceph:", StorageId/binary>>) ->
+    StorageId;
+get_storage_id(<<"DirectIO:", StorageId/binary>>) ->
+    StorageId.
 
-ceph_create_form() ->
-    <<
-        "function ceph_create_form() {",
-        "$(\"#storage_list\").after('",
-        "<div id=\"ceph_form\">",
-        "<input id=\"space_name\" type=\"text\" style=\"width: 100%;\" placeholder=\"Space name\">",
-        "<input id=\"space_token\" type=\"text\" style=\"width: 100%;\" placeholder=\"Space token\">",
-        "<input id=\"ceph_username\" type=\"text\" style=\"width: 100%;\" placeholder=\"Ceph username\">",
-        "<input id=\"ceph_key\" type=\"password\" style=\"width: 100%;\" placeholder=\"Ceph key\">",
-        (space_size_parameter())/binary,
-        "</div>"
-        "');",
-        (initialize_radio_buttons())/binary,
-        "$(\"#space_name\").focus();}"
-    >>.
-
-dio_support_form() ->
-    <<
-        "function dio_support_form() {",
-        "$(\"#storage_list\").after('",
-        "<div id=\"dio_form\">",
-        "<input id=\"space_token\" type=\"text\" style=\"width: 100%;\" placeholder=\"Space token\">",
-        (space_size_parameter())/binary,
-        "</div>"
-        "');",
-        (initialize_radio_buttons())/binary,
-        "$(\"#space_token\").focus();}"
-    >>.
-
-dio_create_form() ->
-    <<
-        "function dio_create_form() {",
-        "$(\"#storage_list\").after('",
-        "<div id=\"dio_form\">",
-        "<input id=\"space_name\" type=\"text\" style=\"width: 100%;\" placeholder=\"Space name\">",
-        "<input id=\"space_token\" type=\"text\" style=\"width: 100%;\" placeholder=\"Space token\">",
-        (space_size_parameter())/binary,
-        "</div>",
-        "');",
-        (initialize_radio_buttons())/binary,
-        "$(\"#space_name\").focus();}"
-    >>.
+%% maybe_add_ceph_user/6
+%% ====================================================================
+%% @doc For Ceph storage user adds his details to provider database.
+%% @end
+-spec maybe_add_ceph_user(Workers :: [node()], IsCeph :: boolean(), UserId :: binary(),
+    StorageId :: binary(), Username :: binary(), Key :: binary()) -> ok.
+%% ====================================================================
+maybe_add_ceph_user(_, false, _, _, _, _) ->
+    ok;
+maybe_add_ceph_user(Workers, true, UserId, StorageId, Username, Key) ->
+    installer_storage:add_ceph_user(Workers, UserId, StorageId, Username, Key).
 
 %% ====================================================================
 %% Events handling
@@ -457,8 +366,8 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails, workers = 
                             [{<<"name">>, Name}, {<<"token">>, Token}, {<<"size">>, integer_to_binary(Size)}]),
                         {ok, SpaceDetails} = gr_providers:get_space_details(provider, SpaceId),
                         StorageId = get_storage_id(StorageType),
-                        add_storage_space_mapping(Workers, SpaceId, StorageId),
-                        maybe_add_ceph_user(Workers, IsCeph, UserId, Username, Key),
+                        installer_storage:add_space_storage_mapping(Workers, SpaceId, StorageId),
+                        maybe_add_ceph_user(Workers, IsCeph, UserId, StorageId, Username, Key),
                         add_space_row(RowId, SpaceDetails),
                         onepanel_gui_utils:message(success, <<"Created Space's ID: <b>", SpaceId/binary, "</b>">>),
                         State#?STATE{counter = Counter + 1, spaces_details = [{RowId, SpaceDetails} | SpacesDetails]}
@@ -482,8 +391,8 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails, workers = 
                             [{<<"token">>, Token}, {<<"size">>, integer_to_binary(Size)}]),
                         {ok, SpaceDetails} = gr_providers:get_space_details(provider, SpaceId),
                         StorageId = get_storage_id(StorageType),
-                        add_storage_space_mapping(Workers, SpaceId, StorageId),
-                        maybe_add_ceph_user(Workers, IsCeph, UserId, Username, Key),
+                        installer_storage:add_space_storage_mapping(Workers, SpaceId, StorageId),
+                        maybe_add_ceph_user(Workers, IsCeph, UserId, StorageId, Username, Key),
                         add_space_row(RowId, SpaceDetails),
                         onepanel_gui_utils:message(success, <<"Supported Space's ID: <b>", SpaceId/binary, "</b>">>),
 
@@ -566,9 +475,9 @@ event(init) ->
             }
         end, {[], 0}, SpaceIds),
 
-        gui_jq:wire(#api{name = "createSpace", tag = "createSpace"}, false),
-        gui_jq:wire(#api{name = "supportSpace", tag = "supportSpace"}, false),
-        gui_jq:wire(#api{name = "revokeSpaceSupport", tag = "revokeSpaceSupport"}, false),
+        gui_jq:wire(#api{name = "create_space", tag = "create_space"}, false),
+        gui_jq:wire(#api{name = "support_space", tag = "support_space"}, false),
+        gui_jq:wire(#api{name = "revoke_space_support", tag = "revoke_space_support"}, false),
         gui_jq:bind_key_to_click_on_class(<<"13">>, <<"confirm">>),
 
         {ok, Pid} = gui_comet:spawn(fun() ->
@@ -589,22 +498,7 @@ event({create_space, Storages}) ->
         "<p id=\"space_alert\" style=\"width: 100%; color: red; font-size: medium; text-align: center; display: none;\"></p>",
         (storage_dropdown(Storages, <<"ceph_create_form();">>, <<"dio_create_form();">>))/binary,
         "</div>">>,
-    Script = <<"var message = $(\"#space_alert\");",
-        "var storage_type = $(\"#storage_type\").val();",
-        "var isCeph = storage_type.slice(0,4) == \"Ceph\";",
-        "var name = $.trim($(\"#space_name\").val());",
-        "var token = $.trim($(\"#space_token\").val());",
-        "var size = $.trim($(\"#space_size\").val());",
-        "var username = $.trim($(\"#ceph_username\").val());",
-        "var key = $.trim($(\"#ceph_key\").val());",
-        "if(name.length == 0) { message.html(\"Please provide Space name.\"); message.fadeIn(300); return false; }",
-        "if(token.length == 0) { message.html(\"Please provide Space token.\"); message.fadeIn(300); return false; }",
-        "if(isCeph && username.length == 0) { message.html(\"Please provide Ceph username.\"); message.fadeIn(300); return false; }",
-        "if(isCeph && key.length == 0) { message.html(\"Please provide Ceph key.\"); message.fadeIn(300); return false; }",
-        (space_size_check())/binary,
-        "else { ", (space_size_multiply())/binary,
-        "          createSpace([storage_type, isCeph, name, token, size, username, key]); return true;",
-        "     }">>,
+    Script = <<"create_space_check();">>,
     ConfirmButtonClass = <<"btn-inverse">>,
     gui_jq:dialog_popup(Title, Message, Script, ConfirmButtonClass),
     case Storages of
@@ -621,20 +515,7 @@ event({support_space, Storages}) ->
         "<p id=\"space_alert\" style=\"width: 100%; color: red; font-size: medium; text-align: center; display: none;\"></p>",
         (storage_dropdown(Storages, <<"ceph_support_form();">>, <<"dio_support_form();">>))/binary,
         "</div>">>,
-    Script = <<"var message = $(\"#space_alert\");",
-        "var storage_type = $(\"#storage_type\").val();",
-        "var isCeph = storage_type.slice(0,4) == \"Ceph\";",
-        "var token = $.trim($(\"#space_token\").val());",
-        "var size = $.trim($(\"#space_size\").val());",
-        "var username = $.trim($(\"#ceph_username\").val());",
-        "var key = $.trim($(\"#ceph_key\").val());"
-        "if(token.length == 0) { message.html(\"Please provide Space token.\"); message.fadeIn(300); return false; }",
-        "if(isCeph && username.length == 0) { message.html(\"Please provide Ceph username.\"); message.fadeIn(300); return false; }",
-        "if(isCeph && key.length == 0) { message.html(\"Please provide Ceph key.\"); message.fadeIn(300); return false; }",
-        (space_size_check())/binary,
-        "else { ", (space_size_multiply())/binary,
-        "          supportSpace([storage_type, isCeph, token, size, username, key]); return true;",
-        "     }">>,
+    Script = <<"support_space_check();">>,
     ConfirmButtonClass = <<"btn-inverse">>,
     gui_jq:dialog_popup(Title, Message, Script, ConfirmButtonClass),
     case Storages of
@@ -648,7 +529,7 @@ event({support_space, Storages}) ->
 event({revoke_space_support, RowId, #space_details{id = SpaceId}}) ->
     Title = <<"Revoke Space support">>,
     Message = <<"Are you sure you want to stop supporting Space: <b>", SpaceId/binary, "</b>?<br>This operation cannot be undone.">>,
-    Script = <<"revokeSpaceSupport(['", SpaceId/binary, "','", RowId/binary, "']);">>,
+    Script = <<"revoke_space_support(['", SpaceId/binary, "','", RowId/binary, "']);">>,
     ConfirmButtonClass = <<"btn-inverse">>,
     gui_jq:dialog_popup(Title, Message, Script, ConfirmButtonClass);
 
@@ -672,39 +553,19 @@ event(terminate) ->
 %% @end
 -spec api_event(Name :: string(), Args :: string(), Req :: string()) -> no_return().
 %% ====================================================================
-api_event("createSpace", Args, _) ->
+api_event("create_space", Args, _) ->
     [StorageType, IsCeph, Name, Token, Size, Username, Key] = mochijson2:decode(Args),
     get(?COMET_PID) ! {create_space, StorageType, IsCeph, Name, Token, Size, Username, Key},
     gui_jq:show(<<"main_spinner">>),
     gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"disabled">>);
 
-api_event("supportSpace", Args, _) ->
+api_event("support_space", Args, _) ->
     [StorageType, IsCeph, Token, Size, Username, Key] = mochijson2:decode(Args),
     get(?COMET_PID) ! {support_space, StorageType, IsCeph, Token, Size, Username, Key},
     gui_jq:show(<<"main_spinner">>),
     gui_jq:prop(<<"support_space_button">>, <<"disabled">>, <<"disabled">>);
 
-api_event("revokeSpaceSupport", Args, _) ->
+api_event("revoke_space_support", Args, _) ->
     [SpaceId, RowId] = mochijson2:decode(Args),
     get(?COMET_PID) ! {revoke_space_support, RowId, SpaceId},
     gui_jq:show(<<"main_spinner">>).
-
-
-get_storage_id(<<"Ceph:", StorageId/binary>>) ->
-    StorageId;
-get_storage_id(<<"DirectIO:", StorageId/binary>>) ->
-    StorageId.
-
-add_storage_space_mapping(Workers, SpaceId, StorageId) ->
-    SpaceStorage = onepanel_utils:dropwhile_failure(Workers, space_storage, new,
-        [SpaceId, StorageId], ?RPC_TIMEOUT),
-    {ok, _} = onepanel_utils:dropwhile_failure(Workers, space_storage, create,
-        [SpaceStorage], ?RPC_TIMEOUT).
-
-maybe_add_ceph_user(_, false, _, _, _) ->
-    ok;
-maybe_add_ceph_user(Workers, true, UserId, Username, Key) ->
-    CephUser = onepanel_utils:dropwhile_failure(Workers, ceph_user, new,
-        [UserId, Username, Key], ?RPC_TIMEOUT),
-    {ok, _} = onepanel_utils:dropwhile_failure(Workers, ceph_user, save,
-        [CephUser], ?RPC_TIMEOUT).
