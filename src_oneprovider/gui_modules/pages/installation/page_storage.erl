@@ -99,7 +99,8 @@ body() ->
                         body = storage_type_dropdown()
                     },
                     ceph_storage_panel(),
-                    posix_storage_panel()
+                    posix_storage_panel(),
+                    s3_storage_panel()
                 ]
             },
             #table{
@@ -134,7 +135,7 @@ storage_type_dropdown() ->
                     id = <<"storage_type_label">>,
                     style = <<"padding-right: 1em; min-width: 10em;">>,
                     class = <<"filter-option pull-left">>,
-                    body = <<"Storage type: <b>Ceph</b>">>
+                    body = <<"Storage type: <b>Amazon S3</b>">>
                 },
                 #span{
                     class = <<"caret pull-right">>
@@ -145,7 +146,7 @@ storage_type_dropdown() ->
             id = <<"storage_type_dropdown">>,
             class = <<"dropdown-menu dropdown-inverse">>,
             style = <<"overflow-y: auto; max-height: 20em;">>,
-            body = storage_type_list(<<"Ceph">>, [<<"Posix">>, <<"Ceph">>])
+            body = storage_type_list(<<"Amazon S3">>, [<<"Posix">>, <<"Ceph">>, <<"Amazon S3">>])
         }
     ].
 
@@ -189,7 +190,7 @@ storage_type_list(StorageType, StorageTypes) ->
 ceph_storage_panel() ->
     #panel{
         id = <<"ceph_storage">>,
-        style = <<"margin-top: 0.75em;">>,
+        style = <<"margin-top: 0.75em; display: none;">>,
         actions = gui_jq:form_submit_action(<<"ceph_submit">>,
             ceph_submit, [<<"ceph_storage_name">>, <<"ceph_username">>,
                 <<"ceph_key">>, <<"ceph_mon_host">>,
@@ -267,6 +268,56 @@ posix_storage_panel() ->
         ]
     }.
 
+%% s3_storage_panel/0
+%% ====================================================================
+%% @doc
+%% Renders Amazon S3 storage panel.
+%% @end
+-spec s3_storage_panel() -> #panel{}.
+%% ====================================================================
+s3_storage_panel() ->
+    #panel{
+        id = <<"s3_storage">>,
+        style = <<"margin-top: 0.75em;">>,
+        actions = gui_jq:form_submit_action(<<"s3_submit">>,
+            s3_submit, [<<"s3_storage_name">>, <<"s3_access_key">>,
+                <<"s3_secret_key">>, <<"s3_hostname">>, <<"s3_bucket_name">>]),
+        body = [
+            #textbox{
+                id = <<"s3_storage_name">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Storage name">>
+            },
+            #textbox{
+                id = <<"s3_access_key">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Access key">>
+            },
+            #password{
+                id = <<"s3_secret_key">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Secret key">>
+            },
+            #textbox{
+                id = <<"s3_hostname">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Hostname">>,
+                value = <<"s3.amazonaws.com">>
+            },
+            #textbox{
+                id = <<"s3_bucket_name">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Bucket name">>
+            },
+            #button{
+                id = <<"s3_submit">>,
+                class = <<"btn btn-inverse">>,
+                style = <<"width: 10em;">>,
+                body = <<"Add">>
+            }
+        ]
+    }.
+
 %% storage_table/1
 %% ====================================================================
 %% @doc
@@ -292,7 +343,11 @@ storage_table(Storages) ->
                     storage_table_row(Name, <<"Ceph">>, [{<<"Monitor host">>, MonHost},
                         {<<"Cluster name">>, ClusterName}, {<<"Pool name">>, PoolName}]);
                 #helper_init{name = <<"DirectIO">>, args = #{<<"root_path">> := Path}} ->
-                    storage_table_row(Name, <<"Posix">>, [{<<"Mount point">>, Path}])
+                    storage_table_row(Name, <<"Posix">>, [{<<"Mount point">>, Path}]);
+                #helper_init{name = <<"AmazonS3">>, args = #{<<"host_name">> := Hostname,
+                    <<"bucket_name">> := BucketName}} ->
+                    storage_table_row(Name, <<"Amazon S3">>, [{<<"Hostname">>, Hostname},
+                        {<<"Bucket name">>, BucketName}])
             end
     end, Storages),
     [Header | Rows].
@@ -348,7 +403,9 @@ clear_textboxes() ->
         gui_jq:set_value(Id, <<"''">>)
     end, [<<"ceph_storage_name">>, <<"ceph_username">>, <<"ceph_key">>,
         <<"ceph_mon_host">>, <<"ceph_cluster_name">>, <<"ceph_pool_name">>,
-        <<"dio_storage_name">>, <<"dio_mount_point">>]).
+        <<"dio_storage_name">>, <<"dio_mount_point">>, <<"s3_storage_name">>,
+        <<"s3_access_key">>, <<"s3_secret_key">>, <<"s3_hostname">>,
+        <<"s3_bucket_name">>]).
 
 %% strip/1
 %% ====================================================================
@@ -382,16 +439,26 @@ comet_loop(#?STATE{storage_type = StorageType, workers = Workers} = State) ->
                     list, [], ?RPC_TIMEOUT),
                 gui_jq:update(<<"storage_paths_table">>, storage_table(Storages)),
                 gui_jq:fade_in(<<"storage_paths_table">>, 500),
-                gui_jq:focus(<<"ceph_storage_name">>),
-                gui_jq:bind_enter_to_submit_button(<<"ceph_pool_name">>, <<"ceph_submit">>),
+                gui_jq:focus(<<"s3_storage_name">>),
+                gui_jq:bind_enter_to_submit_button(<<"s3_bucket_name">>, <<"s3_submit">>),
                 State;
 
             {set_storage_type, StorageType} ->
                 State;
 
+            {set_storage_type, <<"Amazon S3">> = SType} ->
+                gui_jq:show(<<"s3_storage">>),
+                gui_jq:hide(<<"dio_storage">>),
+                gui_jq:hide(<<"ceph_storage">>),
+                clear_textboxes(),
+                gui_jq:focus(<<"s3_storage_name">>),
+                gui_jq:bind_enter_to_submit_button(<<"s3_bucket_name">>, <<"s3_submit">>),
+                State#?STATE{storage_type = SType};
+
             {set_storage_type, <<"Ceph">> = SType} ->
                 gui_jq:show(<<"ceph_storage">>),
                 gui_jq:hide(<<"dio_storage">>),
+                gui_jq:hide(<<"s3_storage">>),
                 clear_textboxes(),
                 gui_jq:focus(<<"ceph_storage_name">>),
                 gui_jq:bind_enter_to_submit_button(<<"ceph_pool_name">>, <<"ceph_submit">>),
@@ -400,6 +467,7 @@ comet_loop(#?STATE{storage_type = StorageType, workers = Workers} = State) ->
             {set_storage_type, <<"Posix">> = SType} ->
                 gui_jq:show(<<"dio_storage">>),
                 gui_jq:hide(<<"ceph_storage">>),
+                gui_jq:hide(<<"s3_storage">>),
                 clear_textboxes(),
                 gui_jq:focus(<<"dio_storage_name">>),
                 gui_jq:bind_enter_to_submit_button(<<"dio_mount_point">>, <<"dio_submit">>),
@@ -435,7 +503,7 @@ comet_loop(#?STATE{storage_type = StorageType, workers = Workers} = State) ->
                         installer_storage:add_ceph_user(Workers, <<"0">>, StorageId, Username, Key),
                         onepanel_gui_utils:message(success, <<"Storage successfully added.">>),
                         clear_textboxes(),
-                        gui_jq:focus(<<"ceph_username">>),
+                        gui_jq:focus(<<"ceph_storage_name">>),
                         self() ! render_storages_table;
                     error ->
                         onepanel_gui_utils:message(error, <<"There has been an error while adding storage. Please try again later.">>)
@@ -463,6 +531,39 @@ comet_loop(#?STATE{storage_type = StorageType, workers = Workers} = State) ->
                         end, list_to_binary(EHost), EHosts),
                         onepanel_gui_utils:message(error, <<"Storage not avaliable on following hosts: ", BHosts/binary>>);
                     {error, _} ->
+                        onepanel_gui_utils:message(error, <<"There has been an error while adding storage. Please try again later.">>)
+                end,
+                State;
+
+            {s3_submit, <<>>, _, _, _, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide storage name.">>),
+                State;
+
+            {s3_submit, _, <<>>, _, _, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide access key.">>),
+                State;
+
+            {s3_submit, _, _, <<>>, _, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide secret key.">>),
+                State;
+
+            {s3_submit, _, _, _, <<>>, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide hostname.">>),
+                State;
+
+            {s3_submit, _, _, _, _, <<>>} ->
+                onepanel_gui_utils:message(error, <<"Please provide bucket name.">>),
+                State;
+
+            {s3_submit, StorageName, AccessKey, SecretKey, Hostname, BucketName} ->
+                case installer_storage:add_s3_storage(Workers, StorageName, Hostname, BucketName) of
+                    {ok, StorageId} ->
+                        installer_storage:add_s3_user(Workers, <<"0">>, StorageId, AccessKey, SecretKey),
+                        onepanel_gui_utils:message(success, <<"Storage successfully added.">>),
+                        clear_textboxes(),
+                        gui_jq:focus(<<"s3_storage_name">>),
+                        self() ! render_storages_table;
+                    error ->
                         onepanel_gui_utils:message(error, <<"There has been an error while adding storage. Please try again later.">>)
                 end,
                 State
@@ -523,6 +624,16 @@ event(dio_submit) ->
     StorageName = gui_ctx:postback_param(<<"dio_storage_name">>),
     MountPoint = gui_ctx:postback_param(<<"dio_mount_point">>),
     get(?COMET_PID) ! {dio_submit, strip(StorageName), strip(MountPoint)};
+
+event(s3_submit) ->
+    gui_jq:show(<<"main_spinner">>),
+    StorageName = gui_ctx:postback_param(<<"s3_storage_name">>),
+    AccessKey = gui_ctx:postback_param(<<"s3_access_key">>),
+    SecretKey = gui_ctx:postback_param(<<"s3_secret_key">>),
+    Hostname = gui_ctx:postback_param(<<"s3_hostname">>),
+    BucketName = gui_ctx:postback_param(<<"s3_bucket_name">>),
+    get(?COMET_PID) ! {s3_submit, strip(StorageName), strip(AccessKey),
+        strip(SecretKey), strip(Hostname), strip(BucketName)};
 
 event({close_message, MessageId}) ->
     gui_jq:hide(MessageId);

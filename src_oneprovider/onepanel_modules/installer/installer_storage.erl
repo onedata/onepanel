@@ -15,7 +15,8 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([add_ceph_storage/5, add_ceph_user/5, add_dio_storage/1, add_dio_storage/3]).
+-export([add_ceph_storage/5, add_ceph_user/5, add_dio_storage/1, add_dio_storage/3,
+    add_s3_storage/4, add_s3_user/5]).
 -export([add_space_storage_mapping/3]).
 -export([check_storage_path_on_hosts/2, check_storage_path_on_host/2,
     create_storage_test_file/1, remove_storage_test_file/1]).
@@ -31,26 +32,13 @@
 %% Adds Ceph storage configuration details to provider database.
 %% @end
 -spec add_ceph_storage(Workers :: [node()], StorageName :: binary(), MonHost :: binary(),
-    ClusterName :: binary(), PoolName:: binary()) -> Result when
+    ClusterName :: binary(), PoolName :: binary()) -> Result when
     Result :: {ok, StorageId :: binary()} | {error, Reason :: term()}.
 %% ====================================================================
 add_ceph_storage(Workers, StorageName, MonHost, ClusterName, PoolName) ->
-    try
-        Helper = onepanel_utils:dropwhile_failure(Workers, fslogic_storage,
-            new_helper_init, [<<"Ceph">>, #{<<"mon_host">> => MonHost,
-                <<"cluster_name">> => ClusterName, <<"pool_name">> => PoolName}],
-            ?RPC_TIMEOUT),
-        Storage = onepanel_utils:dropwhile_failure(Workers, fslogic_storage,
-            new_storage, [StorageName, [Helper]], ?RPC_TIMEOUT),
-        {ok, StorageId} = onepanel_utils:dropwhile_failure(Workers, storage, create,
-            [Storage], ?RPC_TIMEOUT),
-        {ok, StorageId}
-    catch
-        Error:Reason ->
-            ?error_stacktrace("Cannot add Ceph storage ~p due to: ~p",
-                [{StorageName, MonHost, ClusterName, PoolName}, {Error, Reason}]),
-            {error, Reason}
-    end.
+    HelperArgs = [<<"Ceph">>, #{<<"mon_host">> => MonHost,
+        <<"cluster_name">> => ClusterName, <<"pool_name">> => PoolName}],
+    add_storage(Workers, StorageName, HelperArgs).
 
 %% add_ceph_user/5
 %% ====================================================================
@@ -58,12 +46,42 @@ add_ceph_storage(Workers, StorageName, MonHost, ClusterName, PoolName) ->
 %% Adds Ceph user details to provider database.
 %% @end
 -spec add_ceph_user(Workers :: [node()], UserId :: binary(), StorageId :: binary(),
-    Username :: binary(), Key:: binary()) -> Result when
+    Username :: binary(), Key :: binary()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 add_ceph_user(Workers, UserId, StorageId, Username, Key) ->
+    UserArgs = [UserId, StorageId, Username, Key],
     {ok, _} = onepanel_utils:dropwhile_failure(Workers, ceph_user, add,
-        [UserId, StorageId, Username, Key], ?RPC_TIMEOUT),
+        UserArgs, ?RPC_TIMEOUT),
+    ok.
+
+%% add_s3_storage/4
+%% ====================================================================
+%% @doc
+%% Adds Amazon S3 storage configuration details to provider database.
+%% @end
+-spec add_s3_storage(Workers :: [node()], StorageName :: binary(),
+    Hostname :: binary(), BucketName :: binary()) -> Result when
+    Result :: {ok, StorageId :: binary()} | {error, Reason :: term()}.
+%% ====================================================================
+add_s3_storage(Workers, StorageName, Hostname, BucketName) ->
+    HelperArgs = [<<"AmazonS3">>, #{<<"host_name">> => Hostname,
+        <<"bucket_name">> => BucketName}],
+    add_storage(Workers, StorageName, HelperArgs).
+
+%% add_ceph_user/5
+%% ====================================================================
+%% @doc
+%% Adds Amazon S3 user details to provider database.
+%% @end
+-spec add_s3_user(Workers :: [node()], UserId :: binary(), StorageId :: binary(),
+    AccessKey :: binary(), SecretKey :: binary()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+add_s3_user(Workers, UserId, StorageId, AccessKey, SecretKey) ->
+    UserArgs = [UserId, StorageId, AccessKey, SecretKey],
+    {ok, _} = onepanel_utils:dropwhile_failure(Workers, s3_user, add,
+        UserArgs, ?RPC_TIMEOUT),
     ok.
 
 %% add_dio_storage/1
@@ -100,12 +118,8 @@ add_dio_storage(Workers, StorageName, MountPoint) ->
     try
         Hosts = [onepanel_utils:get_host(Worker) || Worker <- Workers],
         ok = check_storage_path_on_hosts(Hosts, binary_to_list(MountPoint)),
-        Helper = onepanel_utils:dropwhile_failure(Workers, fslogic_storage, new_helper_init,
-            [<<"DirectIO">>, #{<<"root_path">> => MountPoint}], ?RPC_TIMEOUT),
-        Storage = onepanel_utils:dropwhile_failure(Workers, fslogic_storage,
-            new_storage, [StorageName, [Helper]], ?RPC_TIMEOUT),
-        {ok, _} = onepanel_utils:dropwhile_failure(Workers, storage, create,
-            [Storage], ?RPC_TIMEOUT),
+        HelperArgs = [<<"DirectIO">>, #{<<"root_path">> => MountPoint}],
+        add_storage(Workers, StorageName, HelperArgs),
         ok
     catch
         error:{badmatch, {error, {hosts, EHosts}}} ->
@@ -115,6 +129,32 @@ add_dio_storage(Workers, StorageName, MountPoint) ->
                 [{StorageName, MountPoint}, {Error, Reason}]),
             {error, Reason}
     end.
+
+%% add_storage/3
+%% ====================================================================
+%% @doc
+%% Adds storage configuration details to provider database.
+%% @end
+-spec add_storage(Workers :: [node()], StorageName :: binary(),
+    HelperArgs :: term()) -> Result when
+    Result :: {ok, StorageId :: binary()} | {error, Reason :: term()}.
+%% ====================================================================
+add_storage(Workers, StorageName, HelperArgs) ->
+    try
+        Helper = onepanel_utils:dropwhile_failure(Workers, fslogic_storage,
+            new_helper_init, HelperArgs, ?RPC_TIMEOUT),
+        Storage = onepanel_utils:dropwhile_failure(Workers, fslogic_storage,
+            new_storage, [StorageName, [Helper]], ?RPC_TIMEOUT),
+        {ok, StorageId} = onepanel_utils:dropwhile_failure(Workers, storage, create,
+            [Storage], ?RPC_TIMEOUT),
+        {ok, StorageId}
+    catch
+        Error:Reason ->
+            ?error_stacktrace("Cannot add storage ~p with args ~p due to: ~p",
+                [StorageName, HelperArgs, {Error, Reason}]),
+            {error, Reason}
+    end.
+
 
 %% add_space_storage_mapping/3
 %% ====================================================================
@@ -237,7 +277,3 @@ remove_storage_test_file(FilePath) ->
             ?error("Cannot remove storage test file: ~p", [Reason]),
             {error, Reason}
     end.
-
-
-
-
