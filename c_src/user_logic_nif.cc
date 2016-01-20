@@ -11,64 +11,72 @@
 *  @end
 *********************************************************************/
 
-#include "erl_nif.h"
+#include "nifpp.h"
 
-#define MAX_STRING_SIZE 2048
+#include <botan/auto_rng.h>
+#include <botan/bcrypt.h>
 
-extern char* hash_password(char* password, int work_factor);
-extern int   check_password(char* password, char* hash);
+#include <string>
 
-ERL_NIF_TERM hash_password_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+namespace {
+
+std::string hash_password(const std::string &password, int work_factor)
 {
-    if(argc != 2)
-    {
-        return enif_make_badarg(env);
-    }
-
-    int  work_factor;
-    char password[MAX_STRING_SIZE];
-
-    if (!enif_get_string(env, argv[0], password, MAX_STRING_SIZE, ERL_NIF_LATIN1))
-    {
-	    return enif_make_badarg(env);
-    }
-    if (!enif_get_int(env, argv[1], &work_factor))
-    {
-        return enif_make_badarg(env);
-    }
-
-    char* hash = hash_password(password, work_factor);
-
-    return enif_make_string(env, hash, ERL_NIF_LATIN1);
+    Botan::AutoSeeded_RNG rng;
+    return Botan::generate_bcrypt(password, rng, work_factor);
 }
 
-ERL_NIF_TERM check_password_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+bool check_password(const std::string &password, const std::string &hash)
 {
-    if(argc != 2)
-    {
-        return enif_make_badarg(env);
-    }
+    if (hash.length() != 60)
+        return false;
 
-    char password[MAX_STRING_SIZE];
-    char hash[MAX_STRING_SIZE];
-
-    if (!enif_get_string(env, argv[0], password, MAX_STRING_SIZE, ERL_NIF_LATIN1))
-    {
-	    return enif_make_badarg(env);
-    }
-    if (!enif_get_string(env, argv[1], hash, MAX_STRING_SIZE, ERL_NIF_LATIN1))
-    {
-        return enif_make_badarg(env);
-    }
-
-    int res = check_password(password, hash);
-
-    return enif_make_int(env, res);
+    return Botan::check_bcrypt(password, hash);
+}
 }
 
-ErlNifFunc nif_funcs[] = {
-    {"hash_password",  2, hash_password_nif},
-    {"check_password", 2, check_password_nif}
-};
+extern "C" {
+
+static ERL_NIF_TERM hash_password_nif(
+    ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
+{
+    try {
+        std::string password;
+        int work_factor;
+
+        nifpp::get_throws(env, argv[0], password);
+        nifpp::get_throws(env, argv[1], work_factor);
+
+        auto hash = hash_password(password, work_factor);
+
+        return nifpp::make(env, hash);
+    }
+    catch (nifpp::badarg) {
+        return enif_make_badarg(env);
+    }
+}
+
+static ERL_NIF_TERM check_password_nif(
+    ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
+{
+    try {
+        std::string password, hash;
+
+        nifpp::get_throws(env, argv[0], password);
+        nifpp::get_throws(env, argv[1], hash);
+
+        auto valid = check_password(password, hash);
+
+        return nifpp::make(env, valid);
+    }
+    catch (nifpp::badarg) {
+        return enif_make_badarg(env);
+    }
+}
+
+static ErlNifFunc nif_funcs[] = {{"hash_password", 2, hash_password_nif},
+    {"check_password", 2, check_password_nif}};
 
 ERL_NIF_INIT(user_logic, nif_funcs, NULL, NULL, NULL, NULL)
+
+} // extern C

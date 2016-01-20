@@ -338,7 +338,7 @@ refresh_view(View) ->
 %% ====================================================================
 get_release_name() ->
     {ok, ReleasePath} = application:get_env(?APP_NAME, application_release_path),
-    os:cmd("basename `find " ++ filename:join(ReleasePath, "lib") ++ " -name 'oneprovider_node*' -type d -printf '%T@ %p\n' | sort -nr | cut -d ' ' -f 2- | head -1`") -- [10].
+    os:cmd("basename `find " ++ filename:join(ReleasePath, "lib") ++ " -name 'op_worker*' -type d -printf '%T@ %p\n' | sort -nr | cut -d ' ' -f 2- | head -1`") -- [10].
 
 
 %% is_reboot_only_lib/1

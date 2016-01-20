@@ -18,20 +18,23 @@
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 
--define(COUCHBASE_PASSWORD, "lkj4n2klfsd9kadk290").
+-define(COUCHBASE_PASSWORD, "password").
 -define(COUCHBASE_CLI, "LC_ALL=en_US.UTF-8 /opt/couchbase/bin/couchbase-cli").
 
 %% install_behaviour callbacks
--export([install/1, uninstall/1, start/1, stop/1, restart/1, commit/1]).
+-export([install/1, uninstall/1, start/1, stop/1, restart/1]).
 
 %% API
--export([local_start/0, local_stop/0, join_cluster/1, local_commit/0, init_cluster/1]).
+-export([local_start/0, local_stop/0, init_cluster/1, join_cluster/1, rebalance_cluster/1]).
 
 %% Defines how many times onepanel will try to verify database node start
 -define(FINALIZE_START_ATTEMPTS, 60).
 
 %% Defines how long onepanel will wait before next attempt to verify database node start
 -define(NEXT_ATTEMPT_DELAY, 1000).
+
+%% Defines couchbase server service command
+-define(COUCHBASE_SERVER, application:get_env(?APP_NAME, couchbase_server_service, "service couchbase-server")).
 
 %% ====================================================================
 %% Behaviour callback functions
@@ -67,71 +70,40 @@ uninstall(_Args) ->
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 start(Args) ->
-    try
-        Dbs = case proplists:get_value(dbs, Args, []) of
-                  [] -> throw(nothing_to_start);
-                  Hosts -> Hosts
-              end,
-
-        case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> ok;
-            {ok, #?GLOBAL_CONFIG_RECORD{dbs = _}} ->
-                throw("Database nodes already configured.");
-            {error, Reason} ->
-                ?error("Cannot get database nodes configuration: ~p", [Reason]),
-                throw("Cannot get database nodes configuration.")
-        end,
-
-        {StartOk, StartError} = onepanel_utils:apply_on_hosts(Dbs, ?MODULE, local_start, [], ?RPC_TIMEOUT),
-
-        case StartError of
-            [] ->
-                {_InitOk, InitError} = onepanel_utils:apply_on_hosts([hd(Dbs)], ?MODULE, init_cluster, [hd(Dbs)], ?RPC_TIMEOUT),
-                case InitError of
-                    [] ->
-                        {_, JoinError} = onepanel_utils:apply_on_hosts(Dbs, ?MODULE, join_cluster, [hd(Dbs)], ?RPC_TIMEOUT),
-                        case JoinError of
-                            [] ->
-                                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{dbs, Dbs}]) of
-                                    ok -> ok;
-                                    Other ->
-                                        ?error("Cannot update database nodes configuration: ~p", [Other]),
-                                        onepanel_utils:apply_on_hosts(Dbs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
-                                        {error, {hosts, Dbs}}
-                                end;
-                            _ ->
-                                ?error("Cannot add following hosts: ~p to database cluster", [JoinError]),
-                                {error, {hosts, JoinError}}
-                        end;
-                    _ ->
-                        ?error("Cannot init database nodes on following hosts: ~p", [InitError]),
-                        {error, {hosts, InitError}}
-                end;
-            _ ->
-                ?error("Cannot start database nodes on following hosts: ~p", [StartError]),
-                onepanel_utils:apply_on_hosts(StartOk, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
-                {error, {hosts, StartError}}
-        end
-    catch
-        _:nothing_to_start -> ok;
-        _:Error ->
-            ?error_stacktrace("Cannot start database nodes: ~p", [Error]),
-            {error, Error}
-    end.
-
-%% commit/1
-%% ====================================================================
-%% @doc Performs database cluster commit using one of cluster nodes.
-%% @end
--spec commit(Args :: [{Name :: atom(), Value :: term()}]) ->
-    ok | {error, Reason :: term()}.
-%% ====================================================================
-commit(Args) ->
     case proplists:get_value(dbs, Args, []) of
-        [] ->
-            ok;
-        [Db | _] ->
-            rpc:call(onepanel_utils:get_node(Db), ?MODULE, local_commit, [])
+        [] -> ok;
+        Dbs ->
+            try
+                case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
+                    {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} -> ok;
+                    {ok, #?GLOBAL_CONFIG_RECORD{dbs = _}} ->
+                        throw("Database nodes already configured.");
+                    {error, Reason} ->
+                        ?error("Cannot get database nodes configuration: ~p", [Reason]),
+                        throw("Cannot get database nodes configuration.")
+                end,
+
+                {{_, []}, _} = {onepanel_utils:apply_on_hosts(Dbs, ?MODULE, local_start, [], ?RPC_TIMEOUT),
+                    "Cannot start database nodes on following hosts: ~p"},
+                {{_, []}, _} = {onepanel_utils:apply_on_hosts([hd(Dbs)], ?MODULE, init_cluster, [hd(Dbs)], ?RPC_TIMEOUT),
+                    "Cannot init database nodes on following hosts: ~p"},
+                {{_, []}, _} = {onepanel_utils:apply_on_hosts(Dbs, ?MODULE, join_cluster, [hd(Dbs)], ?RPC_TIMEOUT),
+                    "Cannot add following hosts: ~p to database cluster"},
+                {{_, []}, _} = {onepanel_utils:apply_on_hosts([hd(Dbs)], ?MODULE, rebalance_cluster, [hd(Dbs)], ?RPC_TIMEOUT),
+                    "Cannot rebalance database nodes on following hosts: ~p"},
+                {ok, _} = {dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{dbs, Dbs}]),
+                    "Cannot update database nodes configuration: ~p"},
+
+                ok
+            catch
+                _:nothing_to_start -> ok;
+                error:{badmatch, {{_, Hosts}, Msg}} ->
+                    ?error_stacktrace(Msg, [Hosts]),
+                    {error, {hosts, Hosts}};
+                _:Error ->
+                    ?error_stacktrace("Cannot start database nodes: ~p", [Error]),
+                    {error, Error}
+            end
     end.
 
 %% stop/1
@@ -144,13 +116,13 @@ commit(Args) ->
 stop(_) ->
     try
         ConfiguredDbs = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} ->
-                                throw("Database nodes not configured.");
-                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} -> Dbs;
-                            {error, Reason} ->
-                                ?error("Cannot get database nodes configuration: ~p", [Reason]),
-                                throw("Cannot get database nodes configuration.")
-                        end,
+            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} ->
+                throw("Database nodes not configured.");
+            {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} -> Dbs;
+            {error, Reason} ->
+                ?error("Cannot get database nodes configuration: ~p", [Reason]),
+                throw("Cannot get database nodes configuration.")
+        end,
 
         {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(ConfiguredDbs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
 
@@ -200,8 +172,8 @@ local_start() ->
     try
         ?debug("Starting database node"),
 
-        "0" = os:cmd("/etc/init.d/couchbase-server start 1>/dev/null 2>&1 ; echo -n $?"),
-        ok = wait_until("/etc/init.d/couchbase-server status 1>/dev/null 2>&1 ; echo -n $?", "0"),
+        "0" = os:cmd(?COUCHBASE_SERVER ++ " start 1>/dev/null 2>&1 ; echo -n $?"),
+        ok = wait_until(?COUCHBASE_SERVER ++ " status 1>/dev/null 2>&1 ; echo -n $?", "0"),
         wait_until_connect(Host, 8091, 10),
 
         {ok, Host}
@@ -223,7 +195,7 @@ local_stop() ->
     try
         ?debug("Stopping database node"),
 
-        "0" = os:cmd("/etc/init.d/couchbase-server stop 1>/dev/null 2>&1 ; echo -n $?"),
+        "0" = os:cmd(?COUCHBASE_SERVER ++ " stop 1>/dev/null 2>&1 ; echo -n $?"),
 
         {ok, Host}
     catch
@@ -232,19 +204,36 @@ local_stop() ->
             {error, Host}
     end.
 
-%% local_commit/0
+%% init_cluster/1
 %% ====================================================================
-%% @doc Performs database cluster commit on local node.
+%% @doc Init database cluster. ClusterHost is one of current
+%% database cluster hosts.
 %% @end
--spec local_commit() -> ok | {error, Reason :: term()}.
+-spec init_cluster(ClusterHost :: string()) -> Result when
+    Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-local_commit() ->
+init_cluster(ClusterHost) ->
+    Host = onepanel_utils:get_host(node()),
     try
-        ok
+        MemToAllocate = 512,
+
+        InitCommand = ?COUCHBASE_CLI ++ " cluster-init -c " ++ ClusterHost ++ ":8091 --cluster-init-username=admin" ++
+            " --cluster-init-password=" ++ ?COUCHBASE_PASSWORD ++ " --cluster-init-ramsize=" ++ integer_to_list(MemToAllocate) ++
+            " --services=data,index,query 1>/tmp/couchbase.log 2>&1 ; echo -n $?",
+        ?info("Running couchbase command ~p", [InitCommand]),
+        "0" = os:cmd(InitCommand),
+
+        BucketCommand = ?COUCHBASE_CLI ++ " bucket-create -c " ++ ClusterHost ++ ":8091" ++
+            " -u admin -p " ++ ?COUCHBASE_PASSWORD ++ " --bucket=default --bucket-ramsize=" ++ integer_to_list(MemToAllocate) ++
+            " --wait 1>/tmp/couchbase.log 2>&1 ; echo -n $?",
+        ?info("Running couchbase command ~p", [BucketCommand]),
+        "0" = os:cmd(BucketCommand),
+
+        {ok, Host}
     catch
         _:Reason ->
-            ?error_stacktrace("Cannot commit database cluster: ~p", [Reason]),
-            {error, Reason}
+            ?error_stacktrace("Cannot init database cluster: ~p", [Reason]),
+            {error, Host}
     end.
 
 %% join_cluster/1
@@ -263,9 +252,9 @@ join_cluster(ClusterHost) ->
             _ -> ok
         end,
 
-        JoinCommand = ?COUCHBASE_CLI ++ " rebalance -c " ++ ClusterHost ++ ":8091 -u admin -p " ++ ?COUCHBASE_PASSWORD ++
+        JoinCommand = ?COUCHBASE_CLI ++ " server-add -c " ++ ClusterHost ++ ":8091 -u admin -p " ++ ?COUCHBASE_PASSWORD ++
             " --server-add=" ++ Host ++ ":8091 --server-add-username=admin --server-add-password=" ++ ?COUCHBASE_PASSWORD
-            ++ " 1>/dev/null 2>&1 ; echo -n $?",
+            ++ " --services=data,index,query 1>/dev/null 2>&1 ; echo -n $?",
         ?info("Running couchbase command ~p", [JoinCommand]),
         "0" = os:cmd(JoinCommand),
 
@@ -278,40 +267,26 @@ join_cluster(ClusterHost) ->
             {error, Host}
     end.
 
-
-%% init_cluster/1
+%% rebalance_cluster/1
 %% ====================================================================
-%% @doc Init database cluster. ClusterHost is one of current
+%% @doc Rebalances database cluster. ClusterHost is one of current
 %% database cluster hosts.
 %% @end
--spec init_cluster(ClusterHost :: string()) -> Result when
+-spec rebalance_cluster(ClusterHost :: string()) -> Result when
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-init_cluster(ClusterHost) ->
+rebalance_cluster(ClusterHost) ->
     Host = onepanel_utils:get_host(node()),
     try
-        catch memsup:start_link(),
-%%         {_, Mem} = proplists:lookup(system_total_memory, memsup:get_system_memory_data()),
-%%         MemMB = erlang:round(Mem / 1024 / 1024),
-%%         MemToAllocate = erlang:round(MemMB / 2),
-        MemToAllocate = 512,
-
-        InitCommand = ?COUCHBASE_CLI ++ " cluster-init -c " ++ ClusterHost ++ ":8091 --cluster-init-username=admin" ++
-            " --cluster-init-password=" ++ ?COUCHBASE_PASSWORD ++ " --cluster-init-ramsize=" ++ integer_to_list(MemToAllocate) ++
-            " 1>/tmp/couchbase.log 2>&1 ; echo -n $?",
-        ?info("Running couchbase command ~p", [InitCommand]),
-        "0" = os:cmd(InitCommand),
-
-        BucketCommand = ?COUCHBASE_CLI ++ " bucket-create -c " ++ ClusterHost ++ ":8091" ++
-            " -u admin -p " ++ ?COUCHBASE_PASSWORD ++ " --bucket=default --bucket-ramsize=" ++ integer_to_list(MemToAllocate) ++
-            " 1>/tmp/couchbase.log 2>&1 ; echo -n $?",
-        ?info("Running couchbase command ~p", [BucketCommand]),
-        "0" = os:cmd(BucketCommand),
+        RebalanceCommand = ?COUCHBASE_CLI ++ " rebalance -c " ++ ClusterHost ++ ":8091 -u admin -p " ++ ?COUCHBASE_PASSWORD ++
+            " 1>/dev/null 2>&1 ; echo -n $?",
+        ?info("Running couchbase command ~p", [RebalanceCommand]),
+        "0" = os:cmd(RebalanceCommand),
 
         {ok, Host}
     catch
         _:Reason ->
-            ?error_stacktrace("Cannot init database cluster: ~p", [Reason]),
+            ?error_stacktrace("Cannot rebalance database cluster: ~p", [Reason]),
             {error, Host}
     end.
 

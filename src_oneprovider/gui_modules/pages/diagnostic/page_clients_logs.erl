@@ -203,11 +203,11 @@ manage_clients_panel() ->
     {ClientListBody, Identifiers} =
 %%         case onepanel_utils_adapter:apply_on_worker(request_dispatcher, get_connected_fuses, []) of
 %%             {ok, no_fuses_connected} ->
-                Row = #tr{cells = [
+                {#tr{cells = [
                     #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"--">>},
                     #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"No clients are connected">>},
                     #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"">>}
-                ]},
+                ]}, []},
 %%                 {Row, []},
 %%             {ok, Clients} ->
 %%                 {ClientList, {_, Ids}} = lists:mapfoldl(
@@ -346,7 +346,7 @@ comet_loop_init() ->
     comet_loop(1, #page_state{pid = Pid}).
 
 %% Comet loop - waits for new logs, updates the page and repeats. Handles messages that change logging preferences.
-comet_loop(Counter, PageState = #page_state{first_log = FirstLog, auto_scroll = AutoScroll, pid = Pid}) ->
+comet_loop(Counter, PageState = #page_state{first_log = FirstLog, auto_scroll = AutoScroll, pid = _Pid}) ->
     Result =
         try
             receive

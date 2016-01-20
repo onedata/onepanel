@@ -11,44 +11,80 @@
 *  @end
 *********************************************************************/
 
-#include "erl_nif.h"
+#include "nifpp.h"
 
-#define MAX_STRING_SIZE 2048
+#include <botan/init.h>
+#include <botan/auto_rng.h>
+#include <botan/x509self.h>
+#include <botan/rsa.h>
+#include <botan/dsa.h>
 
-extern int create_csr(char* password, char* key_path, char* csr_path);
+#include <iostream>
+#include <fstream>
+#include <string>
 
-ERL_NIF_TERM create_csr_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+#define KEY_SIZE 4096
+
+namespace {
+
+std::tuple<nifpp::str_atom, std::string> create_csr(const std::string &password,
+    const std::string &key_path, const std::string &csr_path)
 {
-    if(argc != 3)
-    {
-        return enif_make_badarg(env);
+    using namespace Botan;
+
+    LibraryInitializer init;
+    try {
+        AutoSeeded_RNG rng;
+        RSA_PrivateKey priv_key(rng, KEY_SIZE);
+        std::ofstream key_file(key_path);
+        key_file << PKCS8::PEM_encode(priv_key, rng, password);
+
+        X509_Cert_Options opts;
+
+        // default values for certificate fields, which will be later
+        // overwritten by Global Registry
+        opts.common_name = "common name";
+        opts.country = "PL";
+        opts.organization = "organization";
+        opts.email = "email";
+
+        PKCS10_Request req =
+            X509::create_cert_req(opts, priv_key, "SHA-256", rng);
+
+        std::ofstream req_file(csr_path);
+        req_file << req.PEM_encode();
+    }
+    catch (std::exception &e) {
+        return std::make_tuple("error", e.what());
     }
 
-    int ret;
-    char password[MAX_STRING_SIZE];
-    char key_path[MAX_STRING_SIZE];
-    char csr_path[MAX_STRING_SIZE];
-
-    if (!enif_get_string(env, argv[0], password, MAX_STRING_SIZE, ERL_NIF_LATIN1))
-    {
-	    return enif_make_badarg(env);
-    }
-    if (!enif_get_string(env, argv[1], key_path, MAX_STRING_SIZE, ERL_NIF_LATIN1))
-    {
-        return enif_make_badarg(env);
-    }
-    if (!enif_get_string(env, argv[2], csr_path, MAX_STRING_SIZE, ERL_NIF_LATIN1))
-    {
-        return enif_make_badarg(env);
-    }
-
-    ret = create_csr(password, key_path, csr_path);
-
-    return enif_make_int(env, ret);
+    return std::make_tuple("ok", "");
+}
 }
 
-ErlNifFunc nif_funcs[] = {
-    {"create_csr", 3, create_csr_nif}
-};
+extern "C" {
+
+static ERL_NIF_TERM create_csr_nif(
+    ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
+{
+    try {
+        std::string password;
+        std::string key_path;
+        std::string csr_path;
+
+        nifpp::get_throws(env, argv[0], password);
+        nifpp::get_throws(env, argv[1], key_path);
+        nifpp::get_throws(env, argv[2], csr_path);
+
+        return nifpp::make(env, create_csr(password, key_path, csr_path));
+    }
+    catch (nifpp::badarg) {
+        return enif_make_badarg(env);
+    }
+}
+
+static ErlNifFunc nif_funcs[] = {{"create_csr", 3, create_csr_nif}};
 
 ERL_NIF_INIT(provider_logic, nif_funcs, NULL, NULL, NULL, NULL)
+
+} // extern C

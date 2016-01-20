@@ -53,6 +53,7 @@ start_link() ->
 %% ====================================================================
 init([]) ->
     try
+        application:set_env(ctool, verify_gr_cert, application:get_env(?APP_NAME, verify_gr_cert, true)),
         ok = db_logic:create(),
         {ok, IpAddress} = application:get_env(?APP_NAME, multicast_address),
         {ok, Address} = inet:getaddr(IpAddress, inet),

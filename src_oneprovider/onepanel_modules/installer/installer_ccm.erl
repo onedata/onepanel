@@ -21,7 +21,7 @@
 -export([install/1, uninstall/1, start/1, stop/1, restart/1]).
 
 %% API
--export([local_start/5, local_stop/0, local_restart/0]).
+-export([local_start/3, local_stop/0, local_restart/0]).
 
 %% ====================================================================
 %% Behaviour callback functions
@@ -76,21 +76,10 @@ start(Args) ->
                       _ -> throw("Main CCM node not found among CCM nodes.")
                   end,
 
-        ConfiguredDbs = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} ->
-                                throw("Database nodes not configured.");
-                            {ok, #?GLOBAL_CONFIG_RECORD{ccms = [], dbs = Dbs}} ->
-                                Dbs;
-                            {ok, #?GLOBAL_CONFIG_RECORD{ccms = _}} ->
-                                throw("CCM nodes already configured.");
-                            _ -> throw("Cannot get CCM nodes configuration.")
-                        end,
-
         Workers = proplists:get_value(workers, Args, []),
-        StoragePaths = proplists:get_value(storage_paths, Args, []),
 
         {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(CCMs, ?MODULE, local_start,
-            [MainCCM, OptCCMs, Workers, ConfiguredDbs, StoragePaths], ?RPC_TIMEOUT),
+            [MainCCM, OptCCMs, Workers], ?RPC_TIMEOUT),
 
         case HostsError of
             [] ->
@@ -203,10 +192,9 @@ restart(_) ->
 %% @doc Starts CCM node on local host.
 %% @end
 -spec local_start(MainCCM :: string(), OptCCMs :: [string()],
-    Workers :: [string()], Dbs :: [string()], StoragePaths :: [string()]) ->
-    {ok, Host :: string()} | {error, Host :: string()}.
+    Workers :: [string()]) -> {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-local_start(MainCCM, OptCCMs, Workers, Dbs, StoragePaths) ->
+local_start(MainCCM, OptCCMs, Workers) ->
     Host = onepanel_utils:get_host(node()),
     try
         ?debug("Starting CCM node: ~p"),
@@ -215,14 +203,12 @@ local_start(MainCCM, OptCCMs, Workers, Dbs, StoragePaths) ->
             ?CCM_APP_NAME,
             default,
             [
-                {ccm_nodes, [list_to_atom(?CCM_NAME ++ "@" ++ CCM) || CCM <- [MainCCM | OptCCMs]]},
-                {db_nodes, [list_to_atom(Db ++ ":" ++ integer_to_list(?DB_PORT)) || Db <- Dbs]},
-                {worker_num, length(Workers)},
-                {storage_paths, StoragePaths}
+                {cm_nodes, [list_to_atom(?CCM_NAME ++ "@" ++ CCM) || CCM <- [MainCCM | OptCCMs]]},
+                {worker_num, length(Workers)}
             ],
             [
                 {name, ?CCM_NAME ++ "@" ++ Host},
-                {setcookie, ?COOKIE}
+                {setcookie, atom_to_list(erlang:get_cookie())}
             ]
         ),
 

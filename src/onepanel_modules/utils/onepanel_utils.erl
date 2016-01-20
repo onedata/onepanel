@@ -252,7 +252,8 @@ get_application_ports() ->
     {ok, EtcDir} = application:get_env(?APP_NAME, platform_etc_dir),
     Config =
         case file:consult(filename:join([EtcDir, ?SOFTWARE_NAME, "app.config"])) of
-            {ok, [Cfg]} -> Cfg;
+            {ok, [Cfg]} ->
+                Cfg;
             _ -> %todo delete sys.config part, after gr integration with node_package
                 {ok, ReleasePath} = application:get_env(?APP_NAME, application_release_path),
                 {ok, [Releases]} = file:consult(filename:join([ReleasePath, "releases", "RELEASES"])),
@@ -261,7 +262,4 @@ get_application_ports() ->
                 Cfg
         end,
     SysConfig = proplists:get_value(?SOFTWARE_NAME, Config, []),
-    Ports = lists:map(fun(Port) ->
-        proplists:get_value(Port, SysConfig)
-    end, proplists:get_value(ports_in_use, SysConfig, [])),
-    lists:usort(Ports).
+    lists:usort(proplists:get_value(application_ports, SysConfig, [])).

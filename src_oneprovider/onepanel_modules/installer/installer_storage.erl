@@ -15,7 +15,8 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([add_storage_paths_to_db/1, remove_storage_paths_from_db/1]).
+-export([add_ceph_storage/5, add_ceph_user/5, add_dio_storage/1, add_dio_storage/3]).
+-export([add_space_storage_mapping/3]).
 -export([check_storage_path_on_hosts/2, check_storage_path_on_host/2,
     create_storage_test_file/1, remove_storage_test_file/1]).
 
@@ -24,86 +25,110 @@
 %% API functions
 %% ====================================================================
 
-%% add_storage_paths_to_db/1
+%% add_ceph_storage/5
 %% ====================================================================
-%% @doc Adds storage paths to database.
+%% @doc
+%% Adds Ceph storage configuration details to provider database.
 %% @end
--spec add_storage_paths_to_db(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
-    Result :: ok | {error, Reason :: term()}.
+-spec add_ceph_storage(Workers :: [node()], StorageName :: binary(), MonHost :: binary(),
+    ClusterName :: binary(), PoolName:: binary()) -> Result when
+    Result :: {ok, StorageId :: binary()} | {error, Reason :: term()}.
 %% ====================================================================
-add_storage_paths_to_db(Args) ->
+add_ceph_storage(Workers, StorageName, MonHost, ClusterName, PoolName) ->
     try
-        Paths = case proplists:get_value(storage_paths, Args, []) of
-                    [] -> throw(nothing_to_add);
-                    PathsToAdd -> PathsToAdd
-                end,
-
-        ConfiguredStoragePaths =
-            case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                {ok, #?GLOBAL_CONFIG_RECORD{storage_paths = StoragePaths}} -> StoragePaths;
-                _ -> throw("Cannot get configured storage paths.")
-            end,
-
-        lists:foreach(fun(Path) ->
-            case lists:member(Path, ConfiguredStoragePaths) of
-                true -> throw("Path: " ++ Path ++ " is already added.");
-                _ -> ok
-            end
-        end, Paths),
-
-        case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{storage_paths, ConfiguredStoragePaths ++ Paths}]) of
-            ok -> ok;
-            Other ->
-                ?error("Cannot update storage path configuration: ~p", [Other]),
-                {error, Other}
-        end
+        Helper = onepanel_utils:dropwhile_failure(Workers, fslogic_storage,
+            new_helper_init, [<<"Ceph">>, #{<<"mon_host">> => MonHost,
+                <<"cluster_name">> => ClusterName, <<"pool_name">> => PoolName}],
+            ?RPC_TIMEOUT),
+        Storage = onepanel_utils:dropwhile_failure(Workers, fslogic_storage,
+            new_storage, [StorageName, [Helper]], ?RPC_TIMEOUT),
+        {ok, StorageId} = onepanel_utils:dropwhile_failure(Workers, storage, create,
+            [Storage], ?RPC_TIMEOUT),
+        {ok, StorageId}
     catch
-        _:nothing_to_add -> ok;
-        _:Reason ->
-            ?error("Cannot add storage path: ~p", [Reason]),
+        Error:Reason ->
+            ?error_stacktrace("Cannot add Ceph storage ~p due to: ~p",
+                [{StorageName, MonHost, ClusterName, PoolName}, {Error, Reason}]),
             {error, Reason}
     end.
 
-
-%% remove_storage_paths_from_db/1
+%% add_ceph_user/5
 %% ====================================================================
-%% @doc Removes storage paths from database.
+%% @doc
+%% Adds Ceph user details to provider database.
 %% @end
--spec remove_storage_paths_from_db(Args :: [{Name :: atom(), Value :: term()}]) -> Result when
+-spec add_ceph_user(Workers :: [node()], UserId :: binary(), StorageId :: binary(),
+    Username :: binary(), Key:: binary()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
-remove_storage_paths_from_db(Args) ->
+add_ceph_user(Workers, UserId, StorageId, Username, Key) ->
+    {ok, _} = onepanel_utils:dropwhile_failure(Workers, ceph_user, add,
+        [UserId, StorageId, Username, Key], ?RPC_TIMEOUT),
+    ok.
+
+%% add_dio_storage/1
+%% ====================================================================
+%% @doc
+%% Adds Posix storage configuration details to provider database.
+%% @end
+-spec add_dio_storage(Args :: proplists:proplist()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+add_dio_storage(Args) ->
     try
-        Paths = case proplists:get_value(storage_paths, Args, []) of
-                    [] -> throw(nothing_to_remove);
-                    PathsToRemove -> PathsToRemove
-                end,
-
-        ConfiguredStoragePaths =
-            case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                {ok, #?GLOBAL_CONFIG_RECORD{storage_paths = StoragePaths}} -> StoragePaths;
-                _ -> throw("Cannot get configured storage paths.")
-            end,
-
-        lists:foreach(fun(Path) ->
-            case lists:member(Path, ConfiguredStoragePaths) of
-                false -> throw("Path: " ++ Path ++ " is not added.");
-                _ -> ok
-            end
-        end, Paths),
-
-        case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{storage_paths, ConfiguredStoragePaths -- Paths}]) of
-            ok -> ok;
-            Other ->
-                ?error("Cannot update storage path configuration: ~p", [Other]),
-                {error, Other}
-        end
+        Workers = onepanel_utils:get_nodes("worker", proplists:get_value(workers, Args, [])),
+        lists:foreach(fun(MountPoint) ->
+            ok = add_dio_storage(Workers, <<"DirectIO">>, list_to_binary(MountPoint))
+        end, proplists:get_value(storage_paths, Args, []))
     catch
-        _:nothing_to_remove -> ok;
-        _:Reason ->
-            ?error("Cannot remove storage path: ~p", [Reason]),
+        Error:Reason ->
+            ?error_stacktrace("Cannot add direct IO storage ~p due to: ~p",
+                [Args, {Error, Reason}]),
             {error, Reason}
     end.
+
+%% add_dio_storage/3
+%% ====================================================================
+%% @doc
+%% Adds Posix storage configuration details to provider database.
+%% @end
+-spec add_dio_storage(Workers :: [node()], StorageName :: binary(),
+    MountPoint :: binary()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+add_dio_storage(Workers, StorageName, MountPoint) ->
+    try
+        Hosts = [onepanel_utils:get_host(Worker) || Worker <- Workers],
+        ok = check_storage_path_on_hosts(Hosts, binary_to_list(MountPoint)),
+        Helper = onepanel_utils:dropwhile_failure(Workers, fslogic_storage, new_helper_init,
+            [<<"DirectIO">>, #{<<"root_path">> => MountPoint}], ?RPC_TIMEOUT),
+        Storage = onepanel_utils:dropwhile_failure(Workers, fslogic_storage,
+            new_storage, [StorageName, [Helper]], ?RPC_TIMEOUT),
+        {ok, _} = onepanel_utils:dropwhile_failure(Workers, storage, create,
+            [Storage], ?RPC_TIMEOUT),
+        ok
+    catch
+        error:{badmatch, {error, {hosts, EHosts}}} ->
+            {error, {hosts, EHosts}};
+        Error:Reason ->
+            ?error_stacktrace("Cannot add direct IO storage ~p due to: ~p",
+                [{StorageName, MountPoint}, {Error, Reason}]),
+            {error, Reason}
+    end.
+
+%% add_space_storage_mapping/3
+%% ====================================================================
+%% @doc
+%% Adds mapping from space ID to storage ID to provider database.
+%% @end
+-spec add_space_storage_mapping(Workers :: [node()], SpaceId :: binary(),
+    StorageId :: binary()) -> Result when
+    Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+add_space_storage_mapping(Workers, SpaceId, StorageId) ->
+    {ok, _} = onepanel_utils:dropwhile_failure(Workers, space_storage, add,
+        [SpaceId, StorageId], ?RPC_TIMEOUT),
+    ok.
 
 %% check_storage_path_on_hosts/1
 %% ====================================================================
@@ -124,7 +149,8 @@ check_storage_path_on_hosts([Host | Hosts], Path) ->
                     (H, {NewContent, ErrorHosts}) ->
                         case rpc:call(onepanel_utils:get_node(H), ?MODULE, check_storage_path_on_host, [FilePath, NewContent], ?RPC_TIMEOUT) of
                             {ok, NextContent} -> {NextContent, ErrorHosts};
-                            {error, ErrorHost} -> {NewContent, [ErrorHost | ErrorHosts]}
+                            {error, ErrorHost} ->
+                                {NewContent, [ErrorHost | ErrorHosts]}
                         end
                 end, {Content, []}, [Host | Hosts]),
                 rpc:call(Node, ?MODULE, remove_storage_test_file, [FilePath], ?RPC_TIMEOUT),

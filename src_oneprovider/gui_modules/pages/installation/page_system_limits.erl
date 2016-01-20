@@ -243,7 +243,7 @@ comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimit
                     end
                 end, ok, NewSystemLimits) of
                     ok ->
-                        onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_STORAGE);
+                        onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUMMARY);
                     _ ->
                         onepanel_gui_utils:message(error, <<"Cannot set system limits for some hosts.<br>Remember that system limit should be a positive number.">>)
                 end,

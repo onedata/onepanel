@@ -64,15 +64,15 @@ create_csr(_, _, _) ->
 %% ====================================================================
 register(RedirectionPoint, ClientName) ->
     try
-        {ok, PlatformData} = application:get_env(?APP_NAME, platform_data_dir),
+        {ok, PlatformData} = application:get_env(?APP_NAME, platform_etc_dir),
         {ok, KeyFile} = application:get_env(?APP_NAME, grpkey_path),
         {ok, KeyName} = application:get_env(?APP_NAME, grpkey_name),
-        {ok, CsrPath} = application:get_env(?APP_NAME, grpcsr_file),
+        {ok, CsrPath} = application:get_env(?APP_NAME, grpcsr_path),
         {ok, CertName} = application:get_env(?APP_NAME, grpcert_name),
         {ok, CertFile} = application:get_env(?APP_NAME, grpcert_path),
         Path = filename:join([PlatformData, ?SOFTWARE_NAME, "certs"]),
 
-        0 = create_csr("", KeyFile, CsrPath),
+        {ok, _} = create_csr("", KeyFile, CsrPath),
 
         %% Save private key on all hosts
         {ok, Key} = file:read_file(KeyFile),
@@ -97,7 +97,7 @@ register(RedirectionPoint, ClientName) ->
         {ok, ProviderId}
     catch
         _:Reason ->
-            ?error("Cannot register in Global Registry: ~p", [Reason]),
+            ?error_stacktrace("Cannot register in Global Registry: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -141,8 +141,8 @@ unregister() ->
 %% ====================================================================
 get_default_ports() ->
     try
-        {ok, GuiPort} = onepanel_utils_adapter:apply_on_worker(application, get_env, [?SOFTWARE_NAME, http_worker_https_port]),
-        {ok, RestPort} = onepanel_utils_adapter:apply_on_worker(application, get_env, [?SOFTWARE_NAME, http_worker_rest_port]),
+        {ok, GuiPort} = onepanel_utils_adapter:apply_on_worker(application, get_env, [?SOFTWARE_NAME, gui_https_port]),
+        {ok, RestPort} = onepanel_utils_adapter:apply_on_worker(application, get_env, [?SOFTWARE_NAME, rest_port]),
         {ok, [{<<"gui">>, GuiPort}, {<<"rest">>, RestPort}]}
     catch
         _:Reason ->
