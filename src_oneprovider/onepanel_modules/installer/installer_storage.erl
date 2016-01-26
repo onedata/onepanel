@@ -76,7 +76,7 @@ add_s3_storage(Workers, StorageName, Hostname, BucketName) ->
 %% @end
 -spec add_s3_user(Workers :: [node()], UserId :: binary(), StorageId :: binary(),
     AccessKey :: binary(), SecretKey :: binary()) -> Result when
-    Result :: ok | {error, Reason :: term()}.
+    Result :: ok.
 %% ====================================================================
 add_s3_user(Workers, UserId, StorageId, AccessKey, SecretKey) ->
     UserArgs = [UserId, StorageId, AccessKey, SecretKey],
@@ -162,8 +162,7 @@ add_storage(Workers, StorageName, HelperArgs) ->
 %% Adds mapping from space ID to storage ID to provider database.
 %% @end
 -spec add_space_storage_mapping(Workers :: [node()], SpaceId :: binary(),
-    StorageId :: binary()) -> Result when
-    Result :: ok | {error, Reason :: term()}.
+    StorageId :: binary()) -> ok.
 %% ====================================================================
 add_space_storage_mapping(Workers, SpaceId, StorageId) ->
     {ok, _} = onepanel_utils:dropwhile_failure(Workers, space_storage, add,
