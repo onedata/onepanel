@@ -64,6 +64,35 @@ function ceph_create_form() {
     $('#space_name').focus();
 }
 
+// Renders space support form for Amazon S3 storage.
+function s3_support_form() {
+    $('#storage_list').after(
+        '<div id="s3_form">' +
+        '<input id="space_token" type="text" style="width: 100%;" placeholder="Space token">' +
+        '<input id="s3_access_key" type="text" style="width: 100%;" placeholder="Access key">' +
+        '<input id="s3_secret_key" type="password" style="width: 100%;" placeholder="Secret key">' +
+        space_size_panel() +
+        '</div>'
+    );
+    initialize_radio_buttons();
+    $('#space_token').focus();
+}
+
+// Renders space create form for Amazon S3 storage.
+function s3_create_form() {
+    $('#storage_list').after(
+        '<div id="s3_form">' +
+        '<input id="space_name" type="text" style="width: 100%;" placeholder="Space name">' +
+        '<input id="space_token" type="text" style="width: 100%;" placeholder="Space token">' +
+        '<input id="s3_access_key" type="text" style="width: 100%;" placeholder="Access key">' +
+        '<input id="s3_secret_key" type="password" style="width: 100%;" placeholder="Secret key">' +
+        space_size_panel() +
+        '</div>'
+    );
+    initialize_radio_buttons();
+    $('#space_name').focus();
+}
+
 // Renders space support form for direct IO storage.
 function dio_support_form() {
     $('#storage_list').after(
@@ -89,8 +118,34 @@ function dio_create_form() {
     $('#space_name').focus();
 }
 
-// Validates space size parameter.
-function space_size_check(message, size) {
+// Validates provided parameter.
+function check_params(token, username, key, accessKey, secretKey, size, isCeph, isS3) {
+    var message = $('#space_alert');
+    if (token.length == 0) {
+        message.html('Please provide Space token.');
+        message.fadeIn(300);
+        return false;
+    }
+    if (isCeph && username.length == 0) {
+        message.html('Please provide Ceph username.');
+        message.fadeIn(300);
+        return false;
+    }
+    if (isCeph && key.length == 0) {
+        message.html('Please provide Ceph key.');
+        message.fadeIn(300);
+        return false;
+    }
+    if (isS3 && accessKey.length == 0) {
+        message.html('Please provide access key.');
+        message.fadeIn(300);
+        return false;
+    }
+    if (isS3 && secretKey.length == 0) {
+        message.html('Please provide secret key.');
+        message.fadeIn(300);
+        return false;
+    }
     if (size.length == 0) {
         message.html('Please provide Space size.');
         message.fadeIn(300);
@@ -120,64 +175,50 @@ function create_space_check() {
     var message = $('#space_alert');
     var storage_type = $('#storage_type').val();
     var isCeph = storage_type.slice(0, 4) == 'Ceph';
+    var isS3 = storage_type.slice(0, 2) == 'S3';
     var name = $.trim($('#space_name').val());
     var token = $.trim($('#space_token').val());
     var size = $.trim($('#space_size').val());
     var username = $.trim($('#ceph_username').val());
     var key = $.trim($('#ceph_key').val());
+    var accessKey = $.trim($('#s3_access_key').val());
+    var secretKey = $.trim($('#s3_secret_key').val());
     if (name.length == 0) {
         message.html('Please provide Space name.');
         message.fadeIn(300);
         return false;
     }
-    if (token.length == 0) {
-        message.html('Please provide Space token.');
-        message.fadeIn(300);
-        return false;
-    }
-    if (isCeph && username.length == 0) {
-        message.html('Please provide Ceph username.');
-        message.fadeIn(300);
-        return false;
-    }
-    if (isCeph && key.length == 0) {
-        message.html('Please provide Ceph key.');
-        message.fadeIn(300);
-        return false;
-    }
-    if (!space_size_check(message, size)) {
+    if (!check_params(token, username, key, accessKey, secretKey, size, isCeph, isS3)) {
         return false;
     }
     size = multiply_space_size(size);
-    create_space([storage_type, isCeph, name, token, size, username, key]);
+    if (isCeph) {
+        create_space([storage_type, name, token, size, username, key]);
+    } else {
+        create_space([storage_type, name, token, size, accessKey, secretKey]);
+    }
     return true;
 }
 
 // Validates space support parameters.
 function support_space_check() {
-    var message = $('#space_alert');
     var storage_type = $('#storage_type').val();
     var isCeph = storage_type.slice(0, 4) == 'Ceph';
+    var isS3 = storage_type.slice(0, 2) == 'S3';
     var token = $.trim($('#space_token').val());
     var size = $.trim($('#space_size').val());
     var username = $.trim($('#ceph_username').val());
     var key = $.trim($('#ceph_key').val());
-    if (token.length == 0) {
-        message.html('Please provide Space token.');
-        message.fadeIn(300);
-        return false;
-    }
-    if (isCeph && username.length == 0) {
-        message.html('Please provide Ceph username.');
-        message.fadeIn(300);
-        return false;
-    }
-    if (isCeph && key.length == 0) {
-        message.html('Please provide Ceph key.');
-        message.fadeIn(300);
+    var accessKey = $.trim($('#s3_access_key').val());
+    var secretKey = $.trim($('#s3_secret_key').val());
+    if (!check_params(token, username, key, accessKey, secretKey, size, isCeph, isS3)) {
         return false;
     }
     size = multiply_space_size(size);
-    support_space([storage_type, isCeph, token, size, username, key]);
+    if (isCeph) {
+        support_space([storage_type, token, size, username, key]);
+    } else {
+        support_space([storage_type, token, size, accessKey, secretKey]);
+    }
     return true;
 }

@@ -64,21 +64,25 @@ relclean:
 	rm -rf rel_oneprovider/op_panel
 
 ##
-## Dialyzer
+## Dialyzer targets local
 ##
 
-# Builds .dialyzer.plt init file. This is internal target, call dialyzer_init instead
-.dialyzer.plt:
-	-dialyzer --build_plt --output_plt .dialyzer.plt --apps kernel stdlib sasl erts ssl tools runtime_tools crypto inets xmerl snmp public_key eunit syntax_tools compiler ./deps/*/ebin
+PLT ?= .dialyzer.plt
 
+# Builds dialyzer's Persistent Lookup Table file.
+.PHONY: plt
+plt:
+	dialyzer --check_plt --plt ${PLT}; \
+	if [ $$? != 0 ]; then \
+		dialyzer --build_plt --output_plt ${PLT} --apps kernel stdlib sasl erts \
+		ssl tools runtime_tools crypto inets xmerl snmp public_key eunit \
+		common_test test_server syntax_tools compiler edoc mnesia hipe \
+		ssh webtool -r deps; \
+	fi; exit 0
 
-# Starts dialyzer on whole ./ebin dir. If .dialyzer.plt does not exist, will be generated
-dialyzer: compile .dialyzer.plt
-	-dialyzer ./ebin --plt .dialyzer.plt -Werror_handling -Wrace_conditions
-
-
-# Starts full initialization of .dialyzer.plt that is required by dialyzer
-dialyzer_init: compile .dialyzer.plt
+# Dialyzes the project.
+dialyzer: plt
+	dialyzer ./ebin --plt ${PLT} -Werror_handling -Wrace_conditions --fullpath
 
 ##
 ## Packaging targets

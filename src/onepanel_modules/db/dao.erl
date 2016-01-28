@@ -24,7 +24,7 @@
 %% ====================================================================
 %% @doc Saves record in database table.
 %% @end
--spec save_record(Table :: atom(), Record :: record()) -> Result when
+-spec save_record(Table :: atom(), Record :: tuple()) -> Result when
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 save_record(Table, Record) ->
@@ -114,7 +114,7 @@ update_record(Table, Key, Values) ->
 %% found.
 %% @end
 -spec get_record(Table :: atom(), Key :: term()) -> Result when
-    Result :: {ok, Record :: record()} | {error, Reason :: term()}.
+    Result :: {ok, Record :: tuple()} | {error, Reason :: term()}.
 %% ====================================================================
 get_record(Table, Key) ->
     try
@@ -138,7 +138,7 @@ get_record(Table, Key) ->
 %% @doc Gets all records from database table.
 %% @end
 -spec get_records(Table :: atom()) -> Result when
-    Result :: {ok, Record :: record()} | {error, Reason :: term()}.
+    Result :: {ok, Record :: tuple()} | {error, Reason :: term()}.
 %% ====================================================================
 get_records(Table) ->
     try
@@ -188,7 +188,7 @@ exist_record(Table, Key) ->
 %% @doc Returns default (empty) record for a table with given primary key.
 %% @end
 -spec get_table_record(Table :: atom(), Key :: term()) -> Result when
-    Result :: record().
+    Result :: tuple().
 %% ====================================================================
 get_table_record(Table, Key) ->
     Arity = mnesia:table_info(Table, arity),
