@@ -247,8 +247,7 @@ create_storage_test_file(_, 0) ->
     ?error("Cannot create storage test file: attempts limit exceeded"),
     {error, "Attempts limit exceeded"};
 create_storage_test_file(Path, Attempts) ->
-    {A, B, C} = now(),
-    random:seed(A, B, C),
+    random:seed(erlang:timestamp()),
     Filename = onepanel_utils:random_ascii_lowercase_sequence(8),
     FilePath = filename:join([Path, ?STORAGE_TEST_FILE_PREFIX ++ Filename]),
     try

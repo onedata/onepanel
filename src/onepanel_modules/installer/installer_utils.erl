@@ -126,8 +126,7 @@ get_timestamp() ->
     Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 set_timestamp() ->
-    {MegaSecs, Secs, MicroSecs} = now(),
-    Timestamp = 1000000000000 * MegaSecs + 1000000 * Secs + MicroSecs,
+    Timestamp = erlang:system_time(micro_seconds),
     dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{timestamp, Timestamp}]).
 
 
