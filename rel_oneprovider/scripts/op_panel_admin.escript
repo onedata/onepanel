@@ -92,7 +92,7 @@ main(Args) ->
 init() ->
     Hostname = "@" ++ os:cmd("hostname -f") -- "\n",
     put(?NODE, erlang:list_to_atom(?APP_STR ++ Hostname)),
-    {A, B, C} = erlang:now(),
+    {A, B, C} = erlang:timestamp(),
     NodeName = "onepanel_admin_" ++ integer_to_list(A, 32) ++
         integer_to_list(B, 32) ++ integer_to_list(C, 32) ++ "@127.0.0.1",
     net_kernel:start([list_to_atom(NodeName), longnames]),
@@ -220,14 +220,9 @@ config() ->
 uninstall() ->
     try
         Node = get(?NODE),
-        Terms = rpc:call(Node, installer_utils, get_global_config, []),
-        #config{
-            storage_paths = StoragePaths
-        } = parse({terms, Terms}),
 
         ok = execute([
             {Node, installer_worker, stop, [[]], "Stopping worker nodes..."},
-            {Node, installer_storage, remove_storage_paths_from_db, [[{storage_paths, StoragePaths}]], "Removing storage paths..."},
             {Node, installer_ccm, stop, [[]], "Stopping ccm nodes..."},
             {Node, installer_db, stop, [[]], "Stopping database nodes..."}
         ]),
