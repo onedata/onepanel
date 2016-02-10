@@ -92,7 +92,7 @@
 -define(DB_CONFIG, filename:join([?DB_PREFIX, "etc", "vm.args"])).
 
 %% Timeout request using database REST API
--define(DB_CONNECTION_TIMEOUT, 5000).
+-define(DB_CONNECTION_TIMEOUT, timer:seconds(5)).
 
 -endif.
 
@@ -100,8 +100,8 @@
 %% Common macros
 %% ====================================================================
 
-%% Timeout for RPC calls (1 minute)
--define(RPC_TIMEOUT, 60000).
+%% Timeout for RPC calls (5 minutes)
+-define(RPC_TIMEOUT, timer:minutes(5)).
 
 %% Default system limit values
 -define(OPEN_FILES, 65535).

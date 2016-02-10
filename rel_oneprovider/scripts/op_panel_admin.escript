@@ -24,7 +24,7 @@
 -define(PROCESSES, 65535).
 
 %% Timeout for each RPC call
--define(RPC_TIMEOUT, 120000).
+-define(RPC_TIMEOUT, timer:minutes(5)).
 
 %% Exit codes
 -define(EXIT_SUCCESS, 0).
