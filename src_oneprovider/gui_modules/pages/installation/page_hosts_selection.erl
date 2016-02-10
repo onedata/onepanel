@@ -116,7 +116,7 @@ hosts_table(Hosts, DbConfig, PageConfig) ->
                 body = ColumnName,
                 style = ColumnStyle
             }
-        end, [<<"Host">>, <<"CCM">>, <<"Worker">>, <<"Database">>])
+        end, [<<"Host">>, <<"CM">>, <<"Worker">>, <<"Database">>])
     },
 
     Rows = lists:map(fun({Host, Id}) ->
@@ -199,7 +199,7 @@ comet_loop(#?STATE{hosts = Hosts, db_config = DbConfig, session_config = #?CONFI
                                             gui_ctx:put(?CONFIG_ID, SessionConfig#?CONFIG{main_ccm = hd(lists:sort(CCMs)), ccms = CCMs, workers = Workers, dbs = Dbs}),
                                             onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION);
                                         _ ->
-                                            onepanel_gui_utils:message(error, <<"Please select at least one host for CCM component.">>)
+                                            onepanel_gui_utils:message(error, <<"Please select at least one host for CM component.">>)
                                     end;
                                 _ ->
                                     gui_ctx:put(?CONFIG_ID, SessionConfig#?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs = Dbs}),

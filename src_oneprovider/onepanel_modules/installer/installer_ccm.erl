@@ -67,13 +67,13 @@ start(Args) ->
 
         MainCCM = case proplists:get_value(main_ccm, Args) of
                       undefined ->
-                          throw("Main CCM node not found in arguments list.");
+                          throw("Main CM node not found in arguments list.");
                       Host -> Host
                   end,
 
         OptCCMs = case lists:member(MainCCM, CCMs) of
                       true -> lists:delete(MainCCM, CCMs);
-                      _ -> throw("Main CCM node not found among CCM nodes.")
+                      _ -> throw("Main CM node not found among CM nodes.")
                   end,
 
         Workers = proplists:get_value(workers, Args, []),
@@ -86,19 +86,19 @@ start(Args) ->
                 case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{main_ccm, MainCCM}, {ccms, CCMs}]) of
                     ok -> ok;
                     Other ->
-                        ?error("Cannot update CCM nodes configuration: ~p", [Other]),
+                        ?error("Cannot update CM nodes configuration: ~p", [Other]),
                         onepanel_utils:apply_on_hosts(CCMs, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
                         {error, {hosts, CCMs}}
                 end;
             _ ->
-                ?error("Cannot start CCM nodes on following hosts: ~p", [HostsError]),
+                ?error("Cannot start CM nodes on following hosts: ~p", [HostsError]),
                 onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_stop, [], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
         _:nothing_to_start -> ok;
         _:Reason ->
-            ?error("Cannot start CCM nodes: ~p", [Reason]),
+            ?error("Cannot start CM nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -115,13 +115,13 @@ stop(_) ->
             ConfiguredDbs, ConfiguredStoragePaths} =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
                 {ok, #?GLOBAL_CONFIG_RECORD{ccms = []}} ->
-                    throw("CCM nodes not configured.");
+                    throw("CM nodes not configured.");
                 {ok, #?GLOBAL_CONFIG_RECORD{
                     main_ccm = MainCCM, ccms = CCMs, dbs = Dbs,
                     workers = Workers, storage_paths = StoragePaths}
                 } ->
                     {MainCCM, CCMs, Workers, Dbs, StoragePaths};
-                _ -> throw("Cannot get CCM nodes configuration.")
+                _ -> throw("Cannot get CM nodes configuration.")
             end,
 
         ConfiguredOptCCMs = lists:delete(ConfiguredMainCCM, ConfiguredCCMs),
@@ -133,14 +133,14 @@ stop(_) ->
                 case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{main_ccm, undefined}, {ccms, []}]) of
                     ok -> ok;
                     Other ->
-                        ?error("Cannot update CCM nodes configuration: ~p", [Other]),
+                        ?error("Cannot update CM nodes configuration: ~p", [Other]),
                         onepanel_utils:apply_on_hosts(ConfiguredCCMs, ?MODULE, local_start,
                             [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredWorkers,
                                 ConfiguredDbs, ConfiguredStoragePaths], ?RPC_TIMEOUT),
                         {error, {hosts, ConfiguredCCMs}}
                 end;
             _ ->
-                ?error("Cannot stop CCM nodes on following hosts: ~p", [HostsError]),
+                ?error("Cannot stop CM nodes on following hosts: ~p", [HostsError]),
                 onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_start,
                     [ConfiguredMainCCM, ConfiguredOptCCMs, ConfiguredWorkers,
                         ConfiguredDbs, ConfiguredStoragePaths], ?RPC_TIMEOUT),
@@ -148,7 +148,7 @@ stop(_) ->
         end
     catch
         _:Reason ->
-            ?error("Cannot stop CCM nodes: ~p", [Reason]),
+            ?error("Cannot stop CM nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -164,10 +164,10 @@ restart(_) ->
         {ConfiguredMainCCM, ConfiguredCCMs} =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
                 {ok, #?GLOBAL_CONFIG_RECORD{ccms = []}} ->
-                    throw("CCM nodes not configured.");
+                    throw("CM nodes not configured.");
                 {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM, ccms = CCMs}} ->
                     {MainCCM, CCMs};
-                _ -> throw("Cannot get CCM nodes configuration.")
+                _ -> throw("Cannot get CM nodes configuration.")
             end,
 
         ConfiguredOptCCMs = lists:delete(ConfiguredMainCCM, ConfiguredCCMs),
@@ -179,7 +179,7 @@ restart(_) ->
         end
     catch
         _:Reason ->
-            ?error("Cannot restart CCM nodes: ~p", [Reason]),
+            ?error("Cannot restart CM nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -197,7 +197,7 @@ restart(_) ->
 local_start(MainCCM, OptCCMs, Workers) ->
     Host = onepanel_utils:get_host(node()),
     try
-        ?debug("Starting CCM node: ~p"),
+        ?debug("Starting CM node: ~p"),
 
         release_configurator:configure_release(
             ?CCM_APP_NAME,
@@ -219,7 +219,7 @@ local_start(MainCCM, OptCCMs, Workers) ->
         {ok, Host}
     catch
         _:Reason ->
-            ?error_stacktrace("Cannot start CCM node: ~p", [Reason]),
+            ?error_stacktrace("Cannot start CM node: ~p", [Reason]),
             {error, Host}
     end.
 
@@ -233,7 +233,7 @@ local_start(MainCCM, OptCCMs, Workers) ->
 local_stop() ->
     Host = onepanel_utils:get_host(node()),
     try
-        ?debug("Stopping CCM node"),
+        ?debug("Stopping CM node"),
 
         ServiceStop = "/etc/init.d/" ++ atom_to_list(?CCM_APP_NAME) ++ " stop 2>1 1>/dev/null",
         "0" = os:cmd(ServiceStop ++ " ; echo -n $?"),
@@ -241,7 +241,7 @@ local_stop() ->
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot stop CCM node: ~p", [Reason]),
+            ?error("Cannot stop CM node: ~p", [Reason]),
             {error, Host}
     end.
 
@@ -257,9 +257,9 @@ local_restart() ->
     try
         case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
             {ok, #?GLOBAL_CONFIG_RECORD{ccms = []}} ->
-                throw("CCM nodes not configured.");
+                throw("CM nodes not configured.");
             {ok, _} -> ok;
-            _ -> throw("Cannot get CCM nodes configuration.")
+            _ -> throw("Cannot get CM nodes configuration.")
         end,
 
         ServiceRestart = "/etc/init.d/" ++ atom_to_list(?CCM_APP_NAME) ++ " restart 2>1 1>/dev/null",
@@ -267,6 +267,6 @@ local_restart() ->
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot restart CCM node: ~p", [Reason]),
+            ?error("Cannot restart CM node: ~p", [Reason]),
             {error, Host}
     end.
