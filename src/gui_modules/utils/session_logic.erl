@@ -91,7 +91,7 @@ lookup_session(SessionID) ->
     case ets:lookup(?SESSION_ETS, SessionID) of
         [{SessionID, Props, Till}] ->
             % Check if the session isn't outdated
-            Now = erlang:system_time(seconds),
+            Now = erlang:monotonic_time(seconds),
             case Till > Now of
                 true ->
                     Props;
@@ -128,7 +128,7 @@ delete_session(SessionID) ->
 -spec clear_expired_sessions() -> ok.
 %% ====================================================================
 clear_expired_sessions() ->
-    Now = erlang:system_time(seconds),
+    Now = erlang:monotonic_time(seconds),
     ExpiredSessions = ets:select(?SESSION_ETS, [{{'$1', '$2', '$3'}, [{'<', '$3', Now}], ['$_']}]),
     lists:foreach(
         fun({SessionID, _, _}) ->
