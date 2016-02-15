@@ -169,6 +169,7 @@ local_start() ->
     try
         ?debug("Starting database node"),
 
+        os:cmd("sed -i -e 's/-community//g' /etc/init.d/couchbase-server"),
         "0" = os:cmd("service couchbase-server start 1>/dev/null 2>&1 ; echo -n $?"),
         ok = wait_until("service couchbase-server status 1>/dev/null 2>&1 ; echo -n $?", "0"),
         wait_until_connect(Host, 8091, 10),
