@@ -78,7 +78,7 @@ title() ->
 body() ->
     Breadcrumbs = onepanel_gui_utils:breadcrumbs([
         {<<"Hosts selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION},
-        {<<"Primary CCM selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION},
+        {<<"Primary CM selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION},
         {<<"Application ports check">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_APP_PORTS_CHECK},
         {<<"System limits">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS},
         {<<"Installation summary">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUMMARY}
@@ -157,8 +157,8 @@ summary_table(#?CONFIG{main_ccm = MainCCM, ccms = CCMs, workers = Workers, dbs =
             ]
         }
     end, [
-        {<<"summary_main_ccm">>, <<"Primary CCM host">>, format(MainCCM)},
-        {<<"summary_ccms">>, <<"CCM hosts">>, format(CCMs)},
+        {<<"summary_main_ccm">>, <<"Primary CM host">>, format(MainCCM)},
+        {<<"summary_ccms">>, <<"CM hosts">>, format(CCMs)},
         {<<"summary_workers">>, <<"Worker hosts">>, format(Workers)},
         {<<"summary_dbs">>, <<"Database hosts">>, format(Dbs)}
     ]).
@@ -194,8 +194,8 @@ format(Hosts) ->
 %% ====================================================================
 get_error_message({?STAGE_DB, ?JOB_INSTALL}) -> <<"Database components were not installed on following hosts: ">>;
 get_error_message({?STAGE_DB, ?JOB_START}) -> <<"Database components were not started on following hosts: ">>;
-get_error_message({?STAGE_CCM, ?JOB_INSTALL}) -> <<"CCM components were not installed on following hosts: ">>;
-get_error_message({?STAGE_CCM, ?JOB_START}) -> <<"CCM components were not started on following hosts: ">>;
+get_error_message({?STAGE_CCM, ?JOB_INSTALL}) -> <<"CM components were not installed on following hosts: ">>;
+get_error_message({?STAGE_CCM, ?JOB_START}) -> <<"CM components were not started on following hosts: ">>;
 get_error_message({?STAGE_WORKER, ?JOB_INSTALL}) -> <<"Worker components were not installed on following hosts: ">>;
 get_error_message({?STAGE_WORKER, ?JOB_START}) -> <<"Worker components were not started on following hosts: ">>;
 get_error_message(_) -> <<"">>.
@@ -212,8 +212,8 @@ get_error_message(_) -> <<"">>.
 get_info_message({?STAGE_DB, ?JOB_INSTALL}) -> <<"Current stage: <b>Installing database components</b>">>;
 get_info_message({?STAGE_DB, ?JOB_START}) -> <<"Current stage: <b>Starting database components</b>">>;
 get_info_message({?STAGE_CCM, ?JOB_INSTALL}) ->
-    <<"Current stage: <b>Installing Central Cluster Manager components</b>">>;
-get_info_message({?STAGE_CCM, ?JOB_START}) -> <<"Current stage: <b>Starting Central Cluster Manager components</b>">>;
+    <<"Current stage: <b>Installing Cluster Manager components</b>">>;
+get_info_message({?STAGE_CCM, ?JOB_START}) -> <<"Current stage: <b>Starting Cluster Manager components</b>">>;
 get_info_message({?STAGE_WORKER, ?JOB_INSTALL}) -> <<"Current stage: <b>Installing worker components</b>">>;
 get_info_message({?STAGE_WORKER, ?JOB_START}) -> <<"Current stage: <b>Starting worker components</b>">>;
 get_info_message({?STAGE_FINAL, ?JOB_FINALIZE_INSTALLATION}) -> <<"Current stage: <b>Finalizing installation</b>">>;

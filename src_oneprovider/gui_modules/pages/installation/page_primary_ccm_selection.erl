@@ -55,7 +55,7 @@ main() ->
     Result :: binary().
 %% ====================================================================
 title() ->
-    <<"Primary CCM selection">>.
+    <<"Primary CM selection">>.
 
 
 %% body/0
@@ -68,7 +68,7 @@ title() ->
 body() ->
     Breadcrumbs = onepanel_gui_utils:breadcrumbs([
         {<<"Hosts selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION},
-        {<<"Primary CCM selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION}
+        {<<"Primary CM selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION}
     ]),
     Header = onepanel_gui_utils_adapter:top_menu(software_tab, installation_link, Breadcrumbs),
     Main = #panel{
@@ -76,15 +76,15 @@ body() ->
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
-                body = <<"Step 2: Primary Central Cluster Manager selection.">>
+                body = <<"Step 2: Primary Cluster Manager selection.">>
             },
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
-                body = <<"<i>Central Cluster Manager</i> components control and organize work of other"
-                " application components. However, it is not possible for more than one <i>CCM</i> component"
-                " to run simultaneously. Therefore, it is required to select primary <i>CCM</i> component"
-                " which will execute aforementioned tasks, while other <i>CCM</i> components will wait"
-                " and in case of primary <i>CCM</i> breakdown take over its duties.">>
+                body = <<"<i>Cluster Manager</i> components control and organize work of other"
+                " application components. However, it is not possible for more than one <i>CM</i> component"
+                " to run simultaneously. Therefore, it is required to select primary <i>CM</i> component"
+                " which will execute aforementioned tasks, while other <i>CM</i> components will wait"
+                " and in case of primary <i>CM</i> breakdown take over its duties.">>
             },
             #panel{
                 class = <<"btn-group">>,
@@ -122,7 +122,7 @@ main_ccm() ->
                         id = <<"ccms_label">>,
                         style = <<"padding-right: 1em;">>,
                         class = <<"filter-option pull-left">>,
-                        body = <<"Primary CCM host: <b>", (http_utils:html_encode(SessionConfig#?CONFIG.main_ccm))/binary, "</b>">>
+                        body = <<"Primary CM host: <b>", (http_utils:html_encode(SessionConfig#?CONFIG.main_ccm))/binary, "</b>">>
                     },
                     #span{
                         class = <<"caret pull-right">>
@@ -196,7 +196,7 @@ event(next) ->
 event({set_main_ccm, MainCCM, CCMs}) ->
     Config = gui_ctx:get(?CONFIG_ID),
     gui_ctx:put(?CONFIG_ID, Config#?CONFIG{main_ccm = MainCCM}),
-    gui_jq:update(<<"ccms_label">>, <<"Primary CCM host: <b>", (http_utils:html_encode(MainCCM))/binary, "</b>">>),
+    gui_jq:update(<<"ccms_label">>, <<"Primary CM host: <b>", (http_utils:html_encode(MainCCM))/binary, "</b>">>),
     gui_jq:update(<<"ccms_dropdown">>, ccms_list(MainCCM, CCMs));
 
 event(terminate) ->

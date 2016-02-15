@@ -24,7 +24,7 @@
 -define(PROCESSES, 65535).
 
 %% Timeout for each RPC call
--define(RPC_TIMEOUT, 120000).
+-define(RPC_TIMEOUT, timer:minutes(5)).
 
 %% Exit codes
 -define(EXIT_SUCCESS, 0).
@@ -37,8 +37,8 @@
 -define(NODE, setup_node).
 
 %% config record contains following fields:
-%% * main_ccm           - hostname of machine where main CCM node is configured
-%% * ccms               - list of hostnames of machines where CCM nodes are configured
+%% * main_ccm           - hostname of machine where main CM node is configured
+%% * ccms               - list of hostnames of machines where CM nodes are configured
 %% * workers            - list of hostnames of machines where worker nodes are configured
 %% * dbs                - list of hostnames of machines where database nodes are configured
 %% * storage_paths      - list of paths to storages on every worker node
@@ -92,7 +92,7 @@ main(Args) ->
 init() ->
     Hostname = "@" ++ os:cmd("hostname -f") -- "\n",
     put(?NODE, erlang:list_to_atom(?APP_STR ++ Hostname)),
-    {A, B, C} = erlang:now(),
+    {A, B, C} = erlang:timestamp(),
     NodeName = "onepanel_admin_" ++ integer_to_list(A, 32) ++
         integer_to_list(B, 32) ++ integer_to_list(C, 32) ++ "@127.0.0.1",
     net_kernel:start([list_to_atom(NodeName), longnames]),
@@ -108,8 +108,8 @@ install(Path) ->
     try
         Node = get(?NODE),
         #config{
-            main_ccm = MainCCM,
-            ccms = CCMs,
+            main_ccm = MainCM,
+            ccms = CMs,
             workers = Workers,
             dbs = Dbs,
             storage_paths = StoragePaths,
@@ -119,7 +119,7 @@ install(Path) ->
             redirection_point = RedirectionPoint,
             client_name = ClientName
         } = parse({config, Path}),
-        AllHosts = lists:usort(CCMs ++ Workers ++ Dbs),
+        AllHosts = lists:usort(CMs ++ Workers ++ Dbs),
 
         print_info("Checking configuration..."),
         check_hosts(Node, AllHosts),
@@ -140,7 +140,7 @@ install(Path) ->
 
         ok = execute([
             {Node, installer_db, start, [[{dbs, Dbs}]], "Starting database nodes..."},
-            {Node, installer_ccm, start, [[{main_ccm, MainCCM}, {ccms, CCMs}]], "Starting ccm nodes..."},
+            {Node, installer_ccm, start, [[{main_ccm, MainCM}, {ccms, CMs}]], "Starting CM nodes..."},
             {Node, installer_worker, start, [[{workers, Workers}]], "Starting worker nodes..."},
             {Node, installer_utils_adapter, finalize_installation, [[]], "Finalizing installation..."},
             {Node, installer_storage, add_dio_storage, [[{workers, Workers}, {storage_paths, StoragePaths}]], "Adding storage paths..."}
@@ -191,18 +191,16 @@ config() ->
         Node = get(?NODE),
         Terms = rpc:call(Node, installer_utils, get_global_config, []),
         #config{
-            main_ccm = MainCCM,
-            ccms = CCMs,
+            main_ccm = MainCM,
+            ccms = CMs,
             workers = Workers,
-            dbs = Dbs,
-            storage_paths = StoragePaths
+            dbs = Dbs
         } = parse({terms, Terms}),
 
-        format_host("Main CCM node:", MainCCM),
-        format_hosts("CCM nodes:", lists:sort(CCMs)),
+        format_host("Main CM node:", MainCM),
+        format_hosts("CM nodes:", lists:sort(CMs)),
         format_hosts("Worker nodes:", lists:sort(Workers)),
-        format_hosts("Database nodes:", lists:sort(Dbs)),
-        format_hosts("Storage paths:", lists:sort(StoragePaths))
+        format_hosts("Database nodes:", lists:sort(Dbs))
     catch
         Error:Reason ->
             Log = io_lib:fwrite("Error: ~p~nReason: ~p~nStacktrace: ~p~n", [Error, Reason, erlang:get_stacktrace()]),
@@ -220,15 +218,10 @@ config() ->
 uninstall() ->
     try
         Node = get(?NODE),
-        Terms = rpc:call(Node, installer_utils, get_global_config, []),
-        #config{
-            storage_paths = StoragePaths
-        } = parse({terms, Terms}),
 
         ok = execute([
             {Node, installer_worker, stop, [[]], "Stopping worker nodes..."},
-            {Node, installer_storage, remove_storage_paths_from_db, [[{storage_paths, StoragePaths}]], "Removing storage paths..."},
-            {Node, installer_ccm, stop, [[]], "Stopping ccm nodes..."},
+            {Node, installer_ccm, stop, [[]], "Stopping CM nodes..."},
             {Node, installer_db, stop, [[]], "Stopping database nodes..."}
         ]),
 
