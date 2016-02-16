@@ -70,7 +70,7 @@ init([]) ->
         {ok, #state{socket = Socket, address = Address, port = Port}}
     catch
         _:Reason ->
-            ?error_stacktrace(Reason),
+            ?error_stacktrace("Initialization error: ~p", [Reason]),
             {stop, initialization_error}
     end.
 
