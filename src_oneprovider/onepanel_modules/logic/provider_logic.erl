@@ -64,13 +64,13 @@ create_csr(_, _, _) ->
 %% ====================================================================
 register(RedirectionPoint, ClientName) ->
     try
-        {ok, PlatformData} = application:get_env(?APP_NAME, platform_etc_dir),
+        {ok, EtcDir} = application:get_env(?APP_NAME, platform_etc_dir),
         {ok, KeyFile} = application:get_env(?APP_NAME, grpkey_path),
         {ok, KeyName} = application:get_env(?APP_NAME, grpkey_name),
         {ok, CsrPath} = application:get_env(?APP_NAME, grpcsr_path),
         {ok, CertName} = application:get_env(?APP_NAME, grpcert_name),
         {ok, CertFile} = application:get_env(?APP_NAME, grpcert_path),
-        Path = filename:join([PlatformData, ?SOFTWARE_NAME, "certs"]),
+        Path = filename:join([EtcDir, ?SOFTWARE_NAME, "certs"]),
 
         {ok, _} = create_csr("", KeyFile, CsrPath),
 
@@ -88,7 +88,7 @@ register(RedirectionPoint, ClientName) ->
         Parameters = [{<<"urls">>, URLs}, {<<"csr">>, CSR}, {<<"redirectionPoint">>, RedirectionPoint}, {<<"clientName">>, ClientName}],
         {ok, ProviderId, Cert} = gr_providers:register(provider, Parameters),
 
-        %% Save provider ID and certifiacte on all hosts
+        %% Save provider ID and certificate on all hosts
         ok = file:write_file(CertFile, <<Cert/binary, Key/binary>>),
         ok = onepanel_utils:save_file_on_hosts(Path, CertName, <<Cert/binary, Key/binary>>),
 
@@ -112,10 +112,10 @@ register(RedirectionPoint, ClientName) ->
 %% ====================================================================
 unregister() ->
     try
-        {ok, PlatformData} = application:get_env(?APP_NAME, platform_data_dir),
+        {ok, EtcDir} = application:get_env(?APP_NAME, platform_etc_dir),
         {ok, KeyName} = application:get_env(?APP_NAME, grpkey_name),
         {ok, CertName} = application:get_env(?APP_NAME, grpcert_name),
-        Path = filename:join([PlatformData, ?SOFTWARE_NAME, "certs"]),
+        Path = filename:join([EtcDir, ?SOFTWARE_NAME, "certs"]),
         ProviderId = get_provider_id(),
 
         ok = gr_providers:unregister(provider),

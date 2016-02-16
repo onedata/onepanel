@@ -1,11 +1,11 @@
 REPO            ?= onepanel
 
-# distro for package building
+# distro for package building (oneof: wily, fedora-23-x86_64)
 DISTRIBUTION    ?= none
 export DISTRIBUTION
 
 PKG_REVISION    ?= $(shell git describe --tags --always)
-PKG_VERSION	    ?= $(shell git describe --tags --always | tr - .)
+PKG_VERSION     ?= $(shell git describe --tags --always | tr - .)
 PKG_BUILD        = 1
 BASE_DIR         = $(shell pwd)
 ERLANG_BIN       = $(shell dirname $(shell which erl))
@@ -15,7 +15,7 @@ OVERLAY_VARS    ?=
 ifeq ($(REL_TYPE),globalregistry)
 CONFIG           = config/globalregistry.config
 PKG_VARS_CONFIG  = config/gr_pkg.vars.config
-PKG_ID           = gr-panel-$(PKG_VERSION)
+PKG_ID           = oz-panel-$(PKG_VERSION)
 else
 CONFIG           = config/oneprovider.config
 PKG_VARS_CONFIG  = config/op_pkg.vars.config
@@ -56,17 +56,17 @@ doc:
 
 rel: deps compile generate
 ifeq ($(REL_TYPE),globalregistry)
-	rm -rf rel/gr_panel
-	mv rel_globalregistry/gr_panel rel/
+	rm -rf rel/oz_panel
+	mv rel_globalregistry/oz_panel rel/
 else
 	rm -rf rel/op_panel
 	mv rel_oneprovider/op_panel rel/
 endif
 
 relclean:
-	rm -rf rel/gr_panel
+	rm -rf rel/oz_panel
 	rm -rf rel/op_panel
-	rm -rf rel_globalregistry/gr_panel
+	rm -rf rel_globalregistry/oz_panel
 	rm -rf rel_oneprovider/op_panel
 
 ##
@@ -96,6 +96,14 @@ dialyzer: plt
 
 export PKG_VERSION PKG_ID PKG_BUILD BASE_DIR ERLANG_BIN REBAR OVERLAY_VARS RELEASE REL_TYPE CONFIG PKG_VARS_CONFIG
 
+check_distribution:
+ifeq ($(DISTRIBUTION), none)
+	@echo "Please provide package distribution. Oneof: 'wily', 'fedora-23-x86_64'"
+	@exit 1
+else
+	@echo "Building package for distribution $(DISTRIBUTION)"
+endif
+
 package/$(PKG_ID).tar.gz: deps
 	mkdir -p package
 	rm -rf package/$(PKG_ID)
@@ -114,7 +122,7 @@ package/$(PKG_ID).tar.gz: deps
 dist: package/$(PKG_ID).tar.gz
 	cp package/$(PKG_ID).tar.gz .
 
-package: package/$(PKG_ID).tar.gz
+package: check_distribution package/$(PKG_ID).tar.gz
 	${MAKE} -C package -f $(PKG_ID)/deps/node_package/Makefile
 
 pkgclean:

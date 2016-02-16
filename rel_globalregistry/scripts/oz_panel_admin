@@ -3,5 +3,5 @@
 # Pull environment for this install
 . "{{runner_base_dir}}/lib/env.sh"
 
-${ERTS_PATH}/escript ${RUNNER_LIB_DIR}/gr_panel_admin.escript $@
+${ERTS_PATH}/escript ${RUNNER_LIB_DIR}/oz_panel_admin.escript $@
 

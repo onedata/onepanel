@@ -505,7 +505,7 @@ comet_loop(#?STATE{storage_type = StorageType, workers = Workers} = State) ->
                         clear_textboxes(),
                         gui_jq:focus(<<"ceph_storage_name">>),
                         self() ! render_storages_table;
-                    error ->
+                    {error, _} ->
                         onepanel_gui_utils:message(error, <<"There has been an error while adding storage. Please try again later.">>)
                 end,
                 State;
@@ -520,7 +520,7 @@ comet_loop(#?STATE{storage_type = StorageType, workers = Workers} = State) ->
 
             {dio_submit, StorageName, MountPoint} ->
                 case installer_storage:add_dio_storage(Workers, StorageName, MountPoint) of
-                    ok ->
+                    {ok, _} ->
                         onepanel_gui_utils:message(success, <<"Storage successfully added.">>),
                         clear_textboxes(),
                         gui_jq:focus(<<"dio_storage_name">>),
@@ -563,7 +563,7 @@ comet_loop(#?STATE{storage_type = StorageType, workers = Workers} = State) ->
                         clear_textboxes(),
                         gui_jq:focus(<<"s3_storage_name">>),
                         self() ! render_storages_table;
-                    error ->
+                    {error, _} ->
                         onepanel_gui_utils:message(error, <<"There has been an error while adding storage. Please try again later.">>)
                 end,
                 State

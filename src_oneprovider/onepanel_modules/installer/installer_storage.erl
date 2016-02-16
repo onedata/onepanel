@@ -21,6 +21,8 @@
 -export([check_storage_path_on_hosts/2, check_storage_path_on_host/2,
     create_storage_test_file/1, remove_storage_test_file/1]).
 
+-define(ADD_STORAGE_RETRY_DELAY, timer:seconds(5)).
+-define(ADD_STORAGE_RETRY_NUMBER, 10).
 
 %% ====================================================================
 %% API functions
@@ -38,7 +40,7 @@
 add_ceph_storage(Workers, StorageName, MonHost, ClusterName, PoolName) ->
     HelperArgs = [<<"Ceph">>, #{<<"mon_host">> => MonHost,
         <<"cluster_name">> => ClusterName, <<"pool_name">> => PoolName}],
-    add_storage(Workers, StorageName, HelperArgs).
+    add_storage(Workers, StorageName, HelperArgs, ?ADD_STORAGE_RETRY_NUMBER).
 
 %% add_ceph_user/5
 %% ====================================================================
@@ -67,7 +69,7 @@ add_ceph_user(Workers, UserId, StorageId, Username, Key) ->
 add_s3_storage(Workers, StorageName, Hostname, BucketName) ->
     HelperArgs = [<<"AmazonS3">>, #{<<"host_name">> => Hostname,
         <<"bucket_name">> => BucketName}],
-    add_storage(Workers, StorageName, HelperArgs).
+    add_storage(Workers, StorageName, HelperArgs, ?ADD_STORAGE_RETRY_NUMBER).
 
 %% add_ceph_user/5
 %% ====================================================================
@@ -96,7 +98,7 @@ add_dio_storage(Args) ->
     try
         Workers = onepanel_utils:get_nodes("worker", proplists:get_value(workers, Args, [])),
         lists:foreach(fun(MountPoint) ->
-            ok = add_dio_storage(Workers, <<"DirectIO">>, list_to_binary(MountPoint))
+            {ok, _} = add_dio_storage(Workers, <<"DirectIO">>, list_to_binary(MountPoint))
         end, proplists:get_value(storage_paths, Args, []))
     catch
         Error:Reason ->
@@ -112,15 +114,14 @@ add_dio_storage(Args) ->
 %% @end
 -spec add_dio_storage(Workers :: [node()], StorageName :: binary(),
     MountPoint :: binary()) -> Result when
-    Result :: ok | {error, Reason :: term()}.
+    Result :: {ok, StorageId :: binary()} | {error, Reason :: term()}.
 %% ====================================================================
 add_dio_storage(Workers, StorageName, MountPoint) ->
     try
         Hosts = [onepanel_utils:get_host(Worker) || Worker <- Workers],
         ok = check_storage_path_on_hosts(Hosts, binary_to_list(MountPoint)),
         HelperArgs = [<<"DirectIO">>, #{<<"root_path">> => MountPoint}],
-        add_storage(Workers, StorageName, HelperArgs),
-        ok
+        add_storage(Workers, StorageName, HelperArgs, ?ADD_STORAGE_RETRY_NUMBER)
     catch
         error:{badmatch, {error, {hosts, EHosts}}} ->
             {error, {hosts, EHosts}};
@@ -130,16 +131,20 @@ add_dio_storage(Workers, StorageName, MountPoint) ->
             {error, Reason}
     end.
 
-%% add_storage/3
+%% add_storage/4
 %% ====================================================================
 %% @doc
 %% Adds storage configuration details to provider database.
 %% @end
 -spec add_storage(Workers :: [node()], StorageName :: binary(),
-    HelperArgs :: term()) -> Result when
+    HelperArgs :: term(), RetryNum :: non_neg_integer()) -> Result when
     Result :: {ok, StorageId :: binary()} | {error, Reason :: term()}.
 %% ====================================================================
-add_storage(Workers, StorageName, HelperArgs) ->
+add_storage(_, StorageName, HelperArgs, 0) ->
+    ?error("Cannot add storage ~p, ~p due to: attempts limit exceeded",
+        [StorageName, HelperArgs]),
+    {error, "Attempts limit exceeded."};
+add_storage(Workers, StorageName, HelperArgs, Retry) ->
     try
         Helper = onepanel_utils:dropwhile_failure(Workers, fslogic_storage,
             new_helper_init, HelperArgs, ?RPC_TIMEOUT),
@@ -152,7 +157,8 @@ add_storage(Workers, StorageName, HelperArgs) ->
         Error:Reason ->
             ?error_stacktrace("Cannot add storage ~p with args ~p due to: ~p",
                 [StorageName, HelperArgs, {Error, Reason}]),
-            {error, Reason}
+            timer:sleep(?ADD_STORAGE_RETRY_DELAY),
+            add_storage(Workers, StorageName, HelperArgs, Retry - 1)
     end.
 
 

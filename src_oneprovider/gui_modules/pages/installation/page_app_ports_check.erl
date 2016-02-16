@@ -73,7 +73,7 @@ title() ->
 body() ->
     Breadcrumbs = onepanel_gui_utils:breadcrumbs([
         {<<"Hosts selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION},
-        {<<"Primary CCM selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION},
+        {<<"Primary CM selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION},
         {<<"Application ports check">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_APP_PORTS_CHECK}
     ]),
     Header = onepanel_gui_utils_adapter:top_menu(software_tab, installation_link, Breadcrumbs, true),
@@ -220,8 +220,9 @@ comet_loop(#?STATE{hosts = Hosts, ports = Ports} = State) ->
 event(init) ->
     try
         Ports = onepanel_utils:get_application_ports(),
-        {ok, #?CONFIG{ccms = CCMs, workers = Workers}} = onepanel_gui_utils:get_session_config(),
-        Hosts = lists:usort(CCMs ++ Workers),
+        {ok, #?CONFIG{workers = ConfiguredWorkers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        {ok, #?CONFIG{workers = Workers}} = onepanel_gui_utils:get_session_config(),
+        Hosts = lists:usort(Workers -- ConfiguredWorkers),
 
         gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),
 

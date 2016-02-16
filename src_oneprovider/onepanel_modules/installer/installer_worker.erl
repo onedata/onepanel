@@ -66,10 +66,10 @@ start(Args) ->
         {ConfiguredMainCCM, ConfiguredCCMs, ConfiguredDbs, ConfiguredWorkers} =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
                 {ok, #?GLOBAL_CONFIG_RECORD{ccms = []}} ->
-                    throw("CCM nodes not configured.");
+                    throw("CM nodes not configured.");
                 {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM, ccms = CCMs, dbs = Dbs, workers = Workers}} ->
                     {MainCCM, CCMs, Dbs, Workers};
-                _ -> throw("Cannot get CCM nodes configuration.")
+                _ -> throw("Cannot get CM nodes configuration.")
             end,
 
         lists:foreach(fun(Worker) ->
@@ -118,7 +118,7 @@ stop(Args) ->
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
                 {ok, #?GLOBAL_CONFIG_RECORD{main_ccm = MainCCM, ccms = CCMs, dbs = Dbs, workers = Workers, storage_paths = StoragePaths}} ->
                     {MainCCM, CCMs, Dbs, Workers, StoragePaths};
-                _ -> throw("Cannot get CCM nodes configuration.")
+                _ -> throw("Cannot get CM nodes configuration.")
             end,
 
         WorkersToStop = case proplists:get_value(workers, Args) of
@@ -173,7 +173,7 @@ restart(Args) ->
                                 {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} ->
                                     Workers;
                                 _ ->
-                                    throw("Cannot get CCM nodes configuration.")
+                                    throw("Cannot get CM nodes configuration.")
                             end,
 
         WorkersToRestart = case proplists:get_value(workers, Args) of
