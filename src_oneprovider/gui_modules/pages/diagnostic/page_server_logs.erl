@@ -376,7 +376,7 @@ max_logs_dropdown_body(Active) ->
 comet_error() ->
     _TableRow = #tr{cells = [
         #td{body = <<"Error">>, style = <<?SEVERITY_COLUMN_STYLE, "color: red;">>},
-        #td{body = format_time(now()), style = <<?TIME_COLUMN_STYLE, "color: red;">>},
+        #td{body = format_time(erlang:timestamp()), style = <<?TIME_COLUMN_STYLE, "color: red;">>},
         #td{body = <<"There has been an error in comet process. Please refresh the page.">>,
             style = <<?MESSAGE_COLUMN_STYLE, " body-wrap:normal; word-wrap:break-word; white-space: nowrap; overflow: hidden; color: red;">>},
         #td{body = <<"">>, style = <<?METADATA_COLUMN_STYLE, "color: red;">>}
