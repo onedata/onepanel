@@ -4,6 +4,21 @@
 CHANGELOG
 ---------
 
+### 3.0.1
+
+* VFS-1603 Disable generation of start_clean.boot file in bin directory of a release.
+* VFS-1603 Rename gr_panel to oz_panel.
+* VFS-1603 Add package_rel_type to pkg.vars.config and use it during package build.
+* VFS-1603 Extend package post installation scripts for Global Registry release.
+* VFS-1528 Use monotonic time instead of system time
+* VFS-1603 Add ONEPANEL_MULTICAST_ADDRESS and ONEPANEL_AUTOSTART environment variables to post package install script.
+* VFS-1603 Rename from CCM to CM.
+* VFS-1603 Increase RPC call timeout. Add retries to storage configuration process.
+* VFS-1603 Update package dependencies.
+* VFS-1603 Add distribution check to package rule in Makefile.
+* VFS-1528 Remove deprecated use of erlang:now/0
+
+
 ### 3.0.0
 
 * Dependencies management update
