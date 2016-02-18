@@ -76,6 +76,7 @@ title() ->
 body() ->
     Breadcrumbs = onepanel_gui_utils:breadcrumbs([
         {<<"Hosts selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION},
+        {<<"Application ports check">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_APP_PORTS_CHECK},
         {<<"System limits">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS}
     ]),
     Header = onepanel_gui_utils_adapter:top_menu(installation_tab, Breadcrumbs, true),
@@ -202,55 +203,55 @@ comet_loop({error, Reason}) ->
 
 comet_loop(#?STATE{installed_hosts = InstalledHosts, system_limits = SystemLimits} = State) ->
     NewState = try
-        receive
-            render_system_limits_table ->
-                TextboxIds = lists:foldl(fun({_, Id, _, _}, TextboxIdsAcc) ->
-                    [<<"open_files_textbox_", Id/binary>>, <<"processes_textbox_", Id/binary>> | TextboxIdsAcc]
-                end, [], SystemLimits),
-                gui_jq:update(<<"system_limits_table">>, system_limits_table(InstalledHosts, SystemLimits)),
-                gui_jq:update(<<"nav_buttons">>, onepanel_gui_utils:nav_buttons([
-                    {<<"back_button">>, {postback, back}, false, <<"Back">>},
-                    {<<"next_button">>, {actions, gui_jq:form_submit_action(<<"next_button">>, {set_system_limits, SystemLimits}, TextboxIds)}, true, <<"Next">>}
-                ])),
-                gui_jq:fade_in(<<"system_limits_table">>, 500),
-                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
-                State;
+                   receive
+                       render_system_limits_table ->
+                           TextboxIds = lists:foldl(fun({_, Id, _, _}, TextboxIdsAcc) ->
+                               [<<"open_files_textbox_", Id/binary>>, <<"processes_textbox_", Id/binary>> | TextboxIdsAcc]
+                           end, [], SystemLimits),
+                           gui_jq:update(<<"system_limits_table">>, system_limits_table(InstalledHosts, SystemLimits)),
+                           gui_jq:update(<<"nav_buttons">>, onepanel_gui_utils:nav_buttons([
+                               {<<"back_button">>, {postback, back}, false, <<"Back">>},
+                               {<<"next_button">>, {actions, gui_jq:form_submit_action(<<"next_button">>, {set_system_limits, SystemLimits}, TextboxIds)}, true, <<"Next">>}
+                           ])),
+                           gui_jq:fade_in(<<"system_limits_table">>, 500),
+                           gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
+                           State;
 
-            {set_system_limits, NewSystemLimits} ->
-                case lists:foldl(fun({Host, OpenFilesId, OpenFilesLimit, ProcessesId, ProcessesLimit}, Status) ->
-                    case lists:member(Host, InstalledHosts) of
-                        true ->
-                            Status;
-                        _ ->
-                            lists:foldl(fun({LimitId, Limit, Type}, HostStatus) ->
-                                try
-                                    true = validate_limit(Limit),
-                                    ok = installer_utils:set_system_limit(Type, binary_to_integer(Limit)),
-                                    gui_jq:css(LimitId, <<"border-color">>, <<"green">>),
-                                    HostStatus
-                                catch
-                                    _:_ ->
-                                        gui_jq:css(LimitId, <<"border-color">>, <<"red">>),
-                                        error
-                                end
-                            end, Status, [
-                                {OpenFilesId, OpenFilesLimit, open_files},
-                                {ProcessesId, ProcessesLimit, process_limit}
-                            ])
-                    end
-                end, ok, NewSystemLimits) of
-                    ok ->
-                        onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUMMARY);
-                    _ ->
-                        onepanel_gui_utils:message(error, <<"Cannot set system limits for some hosts.<br>Remember that system limit should be a positive number.">>)
-                end,
-                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
-                gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
-                State
+                       {set_system_limits, NewSystemLimits} ->
+                           case lists:foldl(fun({Host, OpenFilesId, OpenFilesLimit, ProcessesId, ProcessesLimit}, Status) ->
+                               case lists:member(Host, InstalledHosts) of
+                                   true ->
+                                       Status;
+                                   _ ->
+                                       lists:foldl(fun({LimitId, Limit, Type}, HostStatus) ->
+                                           try
+                                               true = validate_limit(Limit),
+                                               ok = installer_utils:set_system_limit(Type, binary_to_integer(Limit)),
+                                               gui_jq:css(LimitId, <<"border-color">>, <<"green">>),
+                                               HostStatus
+                                           catch
+                                               _:_ ->
+                                                   gui_jq:css(LimitId, <<"border-color">>, <<"red">>),
+                                                   error
+                                           end
+                                       end, Status, [
+                                           {OpenFilesId, OpenFilesLimit, open_files},
+                                           {ProcessesId, ProcessesLimit, process_limit}
+                                       ])
+                               end
+                           end, ok, NewSystemLimits) of
+                               ok ->
+                                   onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUMMARY);
+                               _ ->
+                                   onepanel_gui_utils:message(error, <<"Cannot set system limits for some hosts.<br>Remember that system limit should be a positive number.">>)
+                           end,
+                           gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
+                           gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
+                           State
 
-        after ?COMET_PROCESS_RELOAD_DELAY ->
-            State
-        end
+                   after ?COMET_PROCESS_RELOAD_DELAY ->
+                       State
+                   end
                catch Type:Message ->
                    ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
                    onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
@@ -301,7 +302,7 @@ event(init) ->
     end;
 
 event(back) ->
-    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION);
+    onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_APP_PORTS_CHECK);
 
 event({set_system_limits, SystemLimits}) ->
     NewSystemLimits = lists:map(fun({Host, Id, _, _}) ->

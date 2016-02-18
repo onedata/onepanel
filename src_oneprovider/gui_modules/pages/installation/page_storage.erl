@@ -13,6 +13,7 @@
 
 -include("gui_modules/common.hrl").
 -include("onepanel_modules/installer/state.hrl").
+-include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 -export([main/0, event/1, comet_loop/1]).
@@ -25,7 +26,11 @@
 
 %% Comet process state
 -define(STATE, comet_state).
--record(?STATE, {counter = 0, db_config = #?CONFIG{}, session_config = #?CONFIG{}}).
+-record(?STATE, {workers, storage_type, storages = []}).
+
+-record(document, {key, rev, value, links}).
+-record(storage, {name, helpers}).
+-record(helper_init, {name, args}).
 
 %% ====================================================================
 %% API functions
@@ -41,8 +46,9 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case onepanel_gui_utils:maybe_redirect(?CURRENT_INSTALLATION_PAGE, ?PAGE_STORAGE, ?PAGE_INSTALLATION) of
-                true ->
+            case installer_utils_adapter:get_workers() of
+                [] ->
+                    page_error:redirect_with_error(?SOFTWARE_NOT_INSTALLED_ERROR),
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]}
@@ -72,157 +78,344 @@ title() ->
     Result :: #panel{}.
 %% ====================================================================
 body() ->
-    Breadcrumbs = onepanel_gui_utils:breadcrumbs([
-        {<<"Hosts selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_HOST_SELECTION},
-        {<<"Primary CCM selection">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_PRIMARY_CCM_SELECTION},
-        {<<"System limits">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS},
-        {<<"Storage configuration">>, ?CURRENT_INSTALLATION_PAGE, ?PAGE_STORAGE}
-    ]),
-    Header = onepanel_gui_utils_adapter:top_menu(software_tab, installation_link, Breadcrumbs, true),
+    Header = onepanel_gui_utils_adapter:top_menu(software_tab, storage_link, [], true),
     Main = #panel{
         style = <<"margin-top: 2em; text-align: center;">>,
         body = [
             #h6{
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
-                body = <<"Step 4: Storage configuration.">>
+                body = <<"Storage configuration.">>
             },
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
                 body = <<"<i>Worker</i> components save and retrieve user's data from network file system"
-                " storages. In order to configure application's storage please provide paths to storages"
-                " below. It is required that each storage is available for all <i>worker</i> components"
-                " at the same absolute path in file system.">>
+                " storages.">>
+            },
+            #panel{
+                style = <<"display: inline-block">>,
+                body = [
+                    #panel{
+                        class = <<"btn-group">>,
+                        body = storage_type_dropdown()
+                    },
+                    ceph_storage_panel(),
+                    posix_storage_panel(),
+                    s3_storage_panel()
+                ]
             },
             #table{
                 class = <<"table table-striped">>,
-                style = <<"width: 50%; margin: 0 auto;">>,
+                style = <<"width: 50%; margin: 0 auto; margin-top: 3em;">>,
                 body = #tbody{
                     id = <<"storage_paths_table">>,
                     style = <<"display: none;">>
                 }
-            },
-            onepanel_gui_utils:nav_buttons([
-                {<<"back_button">>, {postback, back}, false, <<"Back">>},
-                {<<"next_button">>, {postback, next}, true, <<"Next">>}
-            ])
+            }
         ]
     },
-    onepanel_gui_utils:body(?SUBMENU_HEIGHT, Header, Main, onepanel_gui_utils:logotype_footer()).
+    onepanel_gui_utils:body(61, Header, Main, onepanel_gui_utils:logotype_footer()).
 
 
-%% storage_paths_table/2
+%% storage_type_dropdown/0
 %% ====================================================================
-%% @doc Renders storage table body.
+%% @doc 
+%% Renders storage type dropdown.
 %% @end
--spec storage_paths_table(DbConfig :: #?CONFIG{}, SessionConfig :: #?CONFIG{}) -> Result
-    when Result :: [#tr{}].
+-spec storage_type_dropdown() -> Result when
+    Result :: [term()].
 %% ====================================================================
-storage_paths_table(#?CONFIG{storage_paths = DbStoragePaths}, #?CONFIG{storage_paths = SessionStoragePaths}) ->
-    State = case DbStoragePaths of
-                [] -> removable;
-                _ -> none
-            end,
+storage_type_dropdown() ->
+    [
+        <<"<i class=\"dropdown-arrow dropdown-arrow-inverse\"></i>">>,
+        #button{
+            class = <<"btn btn-inverse dropdown-toggle">>,
+            data_fields = [{<<"data-toggle">>, <<"dropdown">>}],
+            body = [
+                #span{
+                    id = <<"storage_type_label">>,
+                    style = <<"padding-right: 1em; min-width: 10em;">>,
+                    class = <<"filter-option pull-left">>,
+                    body = <<"Storage type: <b>Amazon S3</b>">>
+                },
+                #span{
+                    class = <<"caret pull-right">>
+                }
+            ]
+        },
+        #list{
+            id = <<"storage_type_dropdown">>,
+            class = <<"dropdown-menu dropdown-inverse">>,
+            style = <<"overflow-y: auto; max-height: 20em;">>,
+            body = storage_type_list(<<"Amazon S3">>, [<<"Posix">>, <<"Ceph">>, <<"Amazon S3">>])
+        }
+    ].
 
-    {Body, _} = lists:foldl(fun(StoragePath, {List, Id}) ->
+
+%% storage_type_list/2
+%% ====================================================================
+%% @doc
+%% Renders storage type list.
+%% @end
+-spec storage_type_list(StorageType :: binary(), StorageTypes :: [binary()]) -> Result when
+    Result :: [#li{}].
+%% ====================================================================
+storage_type_list(StorageType, StorageTypes) ->
+    {Body, _} = lists:foldl(fun(Type, {List, Id}) ->
+        TypeId = <<"storage_type_li_", (integer_to_binary(Id))/binary>>,
         {
-            [storage_paths_table_row(StoragePath, Id, true, State) | List],
+            [#li{
+                id = TypeId,
+                actions = gui_jq:postback_action(TypeId, {set_storage_type, Type, StorageTypes}),
+                class = case Type of
+                    StorageType -> <<"active">>;
+                    _ -> <<"">>
+                end,
+                body = #link{
+                    style = <<"text-align: left;">>,
+                    body = http_utils:html_encode(Type)
+                }
+            }, List],
             Id + 1
         }
-    end, {[], 1}, lists:sort(fun(StoragePath1, StoragePath2) ->
-        StoragePath1 > StoragePath2
-    end, SessionStoragePaths)),
+    end, {[], 1}, StorageTypes),
+    Body.
 
-    case State of
-        none ->
-            gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),
-            Body;
-        _ ->
-            Body ++ [storage_paths_table_row(<<"">>, length(SessionStoragePaths) + 1, undefined, addable)]
-    end.
-
-
-%% storage_paths_table_row/3
+%% ceph_storage_panel/0
 %% ====================================================================
-%% @doc Renders storage table row. 'StoragePath' is a value that will
-%% be placed in textbox with suffix id equals 'Id'. When 'Disabled'
-%% equals true user cannot write in textbox.
+%% @doc
+%% Renders Ceph storage panel.
 %% @end
--spec storage_paths_table_row(StoragePath, Id, Disabled, State) -> Result when
-    StoragePath :: string() | binary(),
-    Id :: integer(),
-    Disabled :: true | undefined,
-    State :: addable | removable | none,
-    Result :: #tr{}.
+-spec ceph_storage_panel() -> #panel{}.
 %% ====================================================================
-storage_paths_table_row(StoragePath, Id, Disabled, Deletable) ->
-    BinaryId = integer_to_binary(Id),
-    TextboxId = <<"storage_path_textbox_", BinaryId/binary>>,
-    {AddStoragePathDisplay, RemoveStoragePathDisplay} = case Deletable of
-                                                            addable -> {<<"">>, <<" display: none;">>};
-                                                            removable -> {<<" display: none;">>, <<"">>};
-                                                            _ -> {<<" display: none;">>, <<" display: none;">>}
-                                                        end,
-    gui_jq:bind_enter_to_submit_button(TextboxId, <<"add_storage_path_", BinaryId/binary>>),
-    #tr{
-        id = <<"storage_path_row_", BinaryId/binary>>,
-        cells = [
-            #th{
-                style = <<"text-align: center; vertical-align: inherit; padding-bottom: 0;">>,
-                body = #textbox{
-                    id = TextboxId,
-                    value = gui_str:html_encode(StoragePath),
-                    disabled = Disabled,
-                    placeholder = <<"Storage path">>,
-                    style = <<"width: 100%;">>
-                }
-            } |
-            lists:map(fun({Prefix, Title, Display, Postback, Label}) ->
-                #th{
-                    id = <<Prefix/binary, "th_", BinaryId/binary>>,
-                    title = Title,
-                    style = <<"text-align: center; vertical-align: inherit; padding: 0; width: 2em;", Display/binary>>,
-                    body = #link{
-                        title = Title,
-                        actions = gui_jq:form_submit_action(<<Prefix/binary, BinaryId/binary>>, Postback, [TextboxId]),
-                        class = <<"glyph-link">>,
-                        body = #span{
-                            id = <<Prefix/binary, BinaryId/binary>>,
-                            class = Label,
-                            style = <<"font-size: large;">>
-                        }
-                    }
-                }
-            end, [
-                {<<"add_storage_path_">>, <<"Add">>, AddStoragePathDisplay, {add_storage_path, BinaryId}, <<"fui-plus">>},
-                {<<"remove_storage_path_">>, <<"Remove">>, RemoveStoragePathDisplay, {remove_storage_path, BinaryId}, <<"fui-cross">>}
-            ])
+ceph_storage_panel() ->
+    #panel{
+        id = <<"ceph_storage">>,
+        style = <<"margin-top: 0.75em; display: none;">>,
+        actions = gui_jq:form_submit_action(<<"ceph_submit">>,
+            ceph_submit, [<<"ceph_storage_name">>, <<"ceph_username">>,
+                <<"ceph_key">>, <<"ceph_mon_host">>,
+                <<"ceph_cluster_name">>, <<"ceph_pool_name">>]),
+        body = [
+            #textbox{
+                id = <<"ceph_storage_name">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Storage name">>
+            },
+            #textbox{
+                id = <<"ceph_username">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Admin username">>
+            },
+            #password{
+                id = <<"ceph_key">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Admin key">>
+            },
+            #textbox{
+                id = <<"ceph_mon_host">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Monitor host">>
+            },
+            #textbox{
+                id = <<"ceph_cluster_name">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Cluster name">>
+            },
+            #textbox{
+                id = <<"ceph_pool_name">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Pool name">>
+            },
+            #button{
+                id = <<"ceph_submit">>,
+                class = <<"btn btn-inverse">>,
+                style = <<"width: 10em;">>,
+                body = <<"Add">>
+            }
         ]
     }.
 
-
-%% check_storage_paths/2
+%% posix_storage_panel/0
 %% ====================================================================
-%% @doc Checks wheter all storage paths are available for all workers.
+%% @doc
+%% Renders POSIX storage panel.
 %% @end
--spec check_storage_paths(Hosts :: [string()], StoragePath :: [string()]) -> Result when
-    Result :: ok | error.
+-spec posix_storage_panel() -> #panel{}.
 %% ====================================================================
-check_storage_paths(_, []) ->
-    ok;
-check_storage_paths(Hosts, [StoragePath | StoragePaths]) ->
-    case installer_storage:check_storage_path_on_hosts(Hosts, StoragePath) of
-        ok ->
-            check_storage_paths(Hosts, StoragePaths);
-        {error, {hosts, ErrorHosts}} ->
-            onepanel_gui_utils:message(error, <<"Storage: ", (list_to_binary(StoragePath))/binary,
-            ", is not available on hosts: ", (onepanel_gui_utils:format_list(ErrorHosts))/binary>>),
-            error;
-        _ ->
-            onepanel_gui_utils:message(error, <<"Storage: ", (list_to_binary(StoragePath))/binary,
-            ", is not available on all hosts">>),
-            error
-    end.
+posix_storage_panel() ->
+    #panel{
+        id = <<"dio_storage">>,
+        style = <<"margin-top: 0.75em; display: none;">>,
+        actions = gui_jq:form_submit_action(<<"dio_submit">>,
+            dio_submit, [<<"dio_storage_name">>, <<"dio_mount_point">>]),
+        body = [
+            #textbox{
+                id = <<"dio_storage_name">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Storage name">>
+            },
+            #textbox{
+                id = <<"dio_mount_point">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Mount point">>
+            },
+            #button{
+                id = <<"dio_submit">>,
+                class = <<"btn btn-inverse">>,
+                style = <<"width: 10em;">>,
+                body = <<"Add">>
+            }
+        ]
+    }.
 
+%% s3_storage_panel/0
+%% ====================================================================
+%% @doc
+%% Renders Amazon S3 storage panel.
+%% @end
+-spec s3_storage_panel() -> #panel{}.
+%% ====================================================================
+s3_storage_panel() ->
+    #panel{
+        id = <<"s3_storage">>,
+        style = <<"margin-top: 0.75em;">>,
+        actions = gui_jq:form_submit_action(<<"s3_submit">>,
+            s3_submit, [<<"s3_storage_name">>, <<"s3_access_key">>,
+                <<"s3_secret_key">>, <<"s3_hostname">>, <<"s3_bucket_name">>]),
+        body = [
+            #textbox{
+                id = <<"s3_storage_name">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Storage name">>
+            },
+            #textbox{
+                id = <<"s3_access_key">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Access key">>
+            },
+            #password{
+                id = <<"s3_secret_key">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Secret key">>
+            },
+            #textbox{
+                id = <<"s3_hostname">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Hostname">>,
+                value = <<"s3.amazonaws.com">>
+            },
+            #textbox{
+                id = <<"s3_bucket_name">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Bucket name">>
+            },
+            #button{
+                id = <<"s3_submit">>,
+                class = <<"btn btn-inverse">>,
+                style = <<"width: 10em;">>,
+                body = <<"Add">>
+            }
+        ]
+    }.
+
+%% storage_table/1
+%% ====================================================================
+%% @doc
+%% Renders storage table body.
+%% @end
+-spec storage_table(Storages :: list()) -> Result
+    when Result :: [#tr{}].
+%% ====================================================================
+storage_table(Storages) ->
+    Header = #tr{
+        cells = lists:map(fun(Name) ->
+            #th{
+                style = <<"text-align: center;">>,
+                body = Name
+            }
+        end, [<<"Storage name">>, <<"Storage type">>, <<"Storage properties">>])
+    },
+    Rows = lists:map(fun
+        (#document{value = #storage{name = Name, helpers = [Helper | _]}}) ->
+            case Helper of
+                #helper_init{name = <<"Ceph">>, args = #{<<"mon_host">> := MonHost,
+                    <<"cluster_name">> := ClusterName, <<"pool_name">> := PoolName}} ->
+                    storage_table_row(Name, <<"Ceph">>, [{<<"Monitor host">>, MonHost},
+                        {<<"Cluster name">>, ClusterName}, {<<"Pool name">>, PoolName}]);
+                #helper_init{name = <<"DirectIO">>, args = #{<<"root_path">> := Path}} ->
+                    storage_table_row(Name, <<"Posix">>, [{<<"Mount point">>, Path}]);
+                #helper_init{name = <<"AmazonS3">>, args = #{<<"host_name">> := Hostname,
+                    <<"bucket_name">> := BucketName}} ->
+                    storage_table_row(Name, <<"Amazon S3">>, [{<<"Hostname">>, Hostname},
+                        {<<"Bucket name">>, BucketName}])
+            end
+    end, Storages),
+    [Header | Rows].
+
+%% storage_table_row/3
+%% ====================================================================
+%% @doc
+%% Renders storage table row.
+%% @end
+-spec storage_table_row(Name :: binary(), Type :: binary(), Params :: list()) -> Result
+    when Result :: #tr{}.
+%% ====================================================================
+storage_table_row(Name, Type, Params) ->
+    #tr{
+        cells = [
+            #th{
+                style = <<"text-align: center; font-weight: normal;">>,
+                body = #p{
+                    style = <<"font-size: inherit; margin: 0px;">>,
+                    body = Name
+                }
+            },
+            #th{
+                style = <<"text-align: center; font-weight: normal;">>,
+                body = #p{
+                    style = <<"font-size: inherit; margin: 0px;">>,
+                    body = Type
+                }
+            },
+            #th{
+                style = <<"text-align: center; font-weight: normal;">>,
+                body = lists:map(fun({Key, Value}) ->
+                    EKey = http_utils:html_encode(Key),
+                    EValue = http_utils:html_encode(Value),
+                    #p{
+                        style = <<"font-size: inherit; margin: 0px;">>,
+                        body = <<"<b>", EKey/binary, "</b>: ", EValue/binary>>
+                    }
+                end, Params)
+            }
+        ]
+    }.
+
+%% clear_textboxes/0
+%% ====================================================================
+%% @doc
+%% Clears all textboxes.
+%% @end
+-spec clear_textboxes() -> ok.
+%% ====================================================================
+clear_textboxes() ->
+    lists:foreach(fun(Id) ->
+        gui_jq:set_value(Id, <<"''">>)
+    end, [<<"ceph_storage_name">>, <<"ceph_username">>, <<"ceph_key">>,
+        <<"ceph_mon_host">>, <<"ceph_cluster_name">>, <<"ceph_pool_name">>,
+        <<"dio_storage_name">>, <<"dio_mount_point">>, <<"s3_storage_name">>,
+        <<"s3_access_key">>, <<"s3_secret_key">>, <<"s3_hostname">>,
+        <<"s3_bucket_name">>]).
+
+%% strip/1
+%% ====================================================================
+%% @doc
+%% Strip white characters in the begining and the end of a text.
+%% @end
+-spec strip(Test :: binary()) -> binary().
+%% ====================================================================
+strip(Text) ->
+    list_to_binary(string:strip(binary_to_list(Text))).
 
 %% ====================================================================
 %% Events handling
@@ -238,78 +431,151 @@ check_storage_paths(Hosts, [StoragePath | StoragePaths]) ->
 comet_loop({error, Reason}) ->
     {error, Reason};
 
-comet_loop(#?STATE{counter = Counter, db_config = DbConfig, session_config = #?CONFIG{workers = Workers, storage_paths = StoragePaths} = SessionConfig} = State) ->
+comet_loop(#?STATE{storage_type = StorageType, workers = Workers} = State) ->
     NewState = try
         receive
-            render_storage_paths_table ->
-                gui_jq:update(<<"storage_paths_table">>, storage_paths_table(DbConfig, SessionConfig)),
+            render_storages_table ->
+                {ok, Storages} = onepanel_utils:dropwhile_failure(Workers, storage,
+                    list, [], ?RPC_TIMEOUT),
+                gui_jq:update(<<"storage_paths_table">>, storage_table(Storages)),
                 gui_jq:fade_in(<<"storage_paths_table">>, 500),
-                gui_jq:focus(<<"storage_path_textbox_", (integer_to_binary(Counter + 1))/binary>>),
-                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
+                gui_jq:focus(<<"s3_storage_name">>),
+                gui_jq:bind_enter_to_submit_button(<<"s3_bucket_name">>, <<"s3_submit">>),
                 State;
 
-            next ->
-                NextState = case StoragePaths of
-                                [] ->
-                                    onepanel_gui_utils:message(error, <<"Please add at least one storage.">>),
-                                    State;
-                                _ ->
-                                    case check_storage_paths(Workers, StoragePaths) of
-                                        ok ->
-                                            gui_ctx:put(?CONFIG_ID, SessionConfig),
-                                            onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_INSTALLATION_SUMMARY),
-                                            State;
-                                        _ ->
-                                            State
-                                    end
-                            end,
-                gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
-                gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
-                NextState;
-
-            back ->
-                gui_ctx:put(?CONFIG_ID, SessionConfig),
-                onepanel_gui_utils:change_page(?CURRENT_INSTALLATION_PAGE, ?PAGE_SYSTEM_LIMITS),
+            {set_storage_type, StorageType} ->
                 State;
 
-            {add_storage_path, StorageId, StoragePath} ->
-                NextState = case lists:member(StoragePath, StoragePaths) of
-                                true ->
-                                    onepanel_gui_utils:message(error, <<"Storage path already added.">>),
-                                    State;
-                                _ ->
-                                    case installer_storage:check_storage_path_on_hosts(Workers, StoragePath) of
-                                        ok ->
-                                            gui_jq:hide(<<"add_storage_path_th_", StorageId/binary>>),
-                                            gui_jq:show(<<"remove_storage_path_th_", StorageId/binary>>),
-                                            gui_jq:prop(<<"storage_path_textbox_", StorageId/binary>>, <<"disabled">>, <<"disabled">>),
-                                            gui_jq:insert_bottom(<<"storage_paths_table">>, storage_paths_table_row(<<"">>, Counter + 2, undefined, addable)),
-                                            gui_jq:focus(<<"storage_path_textbox_", (integer_to_binary(Counter + 2))/binary>>),
-                                            State#?STATE{counter = Counter + 1, session_config = SessionConfig#?CONFIG{storage_paths = [StoragePath | StoragePaths]}};
-                                        {error, {hosts, Hosts}} ->
-                                            onepanel_gui_utils:message(error, <<"Storage is not available on hosts: ",
-                                            (onepanel_gui_utils:format_list(Hosts))/binary>>),
-                                            State;
-                                        _ ->
-                                            onepanel_gui_utils:message(error, <<"Cannot add storage path.">>),
-                                            State
-                                    end
-                            end,
-                NextState;
+            {set_storage_type, <<"Amazon S3">> = SType} ->
+                gui_jq:show(<<"s3_storage">>),
+                gui_jq:hide(<<"dio_storage">>),
+                gui_jq:hide(<<"ceph_storage">>),
+                clear_textboxes(),
+                gui_jq:focus(<<"s3_storage_name">>),
+                gui_jq:bind_enter_to_submit_button(<<"s3_bucket_name">>, <<"s3_submit">>),
+                State#?STATE{storage_type = SType};
 
-            {remove_storage_path, StorageId, StoragePath} ->
-                gui_jq:remove(<<"storage_path_row_", StorageId/binary>>),
-                gui_jq:focus(<<"storage_path_textbox_", (integer_to_binary(Counter + 1))/binary>>),
-                State#?STATE{session_config = SessionConfig#?CONFIG{storage_paths = lists:delete(StoragePath, StoragePaths)}}
+            {set_storage_type, <<"Ceph">> = SType} ->
+                gui_jq:show(<<"ceph_storage">>),
+                gui_jq:hide(<<"dio_storage">>),
+                gui_jq:hide(<<"s3_storage">>),
+                clear_textboxes(),
+                gui_jq:focus(<<"ceph_storage_name">>),
+                gui_jq:bind_enter_to_submit_button(<<"ceph_pool_name">>, <<"ceph_submit">>),
+                State#?STATE{storage_type = SType};
+
+            {set_storage_type, <<"Posix">> = SType} ->
+                gui_jq:show(<<"dio_storage">>),
+                gui_jq:hide(<<"ceph_storage">>),
+                gui_jq:hide(<<"s3_storage">>),
+                clear_textboxes(),
+                gui_jq:focus(<<"dio_storage_name">>),
+                gui_jq:bind_enter_to_submit_button(<<"dio_mount_point">>, <<"dio_submit">>),
+                State#?STATE{storage_type = SType};
+
+            {ceph_submit, <<>>, _, _, _, _, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide Ceph admin username.">>),
+                State;
+
+            {ceph_submit, _, <<>>, _, _, _, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide Ceph admin key.">>),
+                State;
+
+            {ceph_submit, _, _, <<>>, _, _, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide storage name.">>),
+                State;
+
+            {ceph_submit, _, _, _, <<>>, _, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide monitor host.">>),
+                State;
+
+            {ceph_submit, _, _, _, _, <<>>, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide cluster name.">>),
+                State;
+
+            {ceph_submit, _, _, _, _, _, <<>>} ->
+                onepanel_gui_utils:message(error, <<"Please provide pool name.">>),
+                State;
+
+            {ceph_submit, Username, Key, StorageName, MonHost, ClusterName, PoolName} ->
+                case installer_storage:add_ceph_storage(Workers, StorageName, MonHost, ClusterName, PoolName) of
+                    {ok, StorageId} ->
+                        installer_storage:add_ceph_user(Workers, <<"0">>, StorageId, Username, Key),
+                        onepanel_gui_utils:message(success, <<"Storage successfully added.">>),
+                        clear_textboxes(),
+                        gui_jq:focus(<<"ceph_storage_name">>),
+                        self() ! render_storages_table;
+                    {error, _} ->
+                        onepanel_gui_utils:message(error, <<"There has been an error while adding storage. Please try again later.">>)
+                end,
+                State;
+
+            {dio_submit, <<>>, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide storage name.">>),
+                State;
+
+            {dio_submit, _, <<>>} ->
+                onepanel_gui_utils:message(error, <<"Please provide mount point.">>),
+                State;
+
+            {dio_submit, StorageName, MountPoint} ->
+                case installer_storage:add_dio_storage(Workers, StorageName, MountPoint) of
+                    {ok, _} ->
+                        onepanel_gui_utils:message(success, <<"Storage successfully added.">>),
+                        clear_textboxes(),
+                        gui_jq:focus(<<"dio_storage_name">>),
+                        self() ! render_storages_table;
+                    {error, {hosts, [EHost | EHosts]}} ->
+                        BHosts = lists:foldl(fun(H, Acc) ->
+                            <<Acc/binary, ", ", (list_to_binary(H))/binary>>
+                        end, list_to_binary(EHost), EHosts),
+                        onepanel_gui_utils:message(error, <<"Storage not avaliable on following hosts: ", BHosts/binary>>);
+                    {error, _} ->
+                        onepanel_gui_utils:message(error, <<"There has been an error while adding storage. Please try again later.">>)
+                end,
+                State;
+
+            {s3_submit, <<>>, _, _, _, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide storage name.">>),
+                State;
+
+            {s3_submit, _, <<>>, _, _, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide access key.">>),
+                State;
+
+            {s3_submit, _, _, <<>>, _, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide secret key.">>),
+                State;
+
+            {s3_submit, _, _, _, <<>>, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide hostname.">>),
+                State;
+
+            {s3_submit, _, _, _, _, <<>>} ->
+                onepanel_gui_utils:message(error, <<"Please provide bucket name.">>),
+                State;
+
+            {s3_submit, StorageName, AccessKey, SecretKey, Hostname, BucketName} ->
+                case installer_storage:add_s3_storage(Workers, StorageName, Hostname, BucketName) of
+                    {ok, StorageId} ->
+                        installer_storage:add_s3_user(Workers, <<"0">>, StorageId, AccessKey, SecretKey),
+                        onepanel_gui_utils:message(success, <<"Storage successfully added.">>),
+                        clear_textboxes(),
+                        gui_jq:focus(<<"s3_storage_name">>),
+                        self() ! render_storages_table;
+                    {error, _} ->
+                        onepanel_gui_utils:message(error, <<"There has been an error while adding storage. Please try again later.">>)
+                end,
+                State
 
         after ?COMET_PROCESS_RELOAD_DELAY ->
             State
         end
-               catch Type:Message ->
-                   ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
-                   onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
-                   {error, Message}
-               end,
+    catch Type:Message ->
+        ?error_stacktrace("Comet process exception: ~p:~p", [Type, Message]),
+        onepanel_gui_utils:message(error, <<"There has been an error in comet process. Please refresh the page.">>),
+        {error, Message}
+    end,
     gui_jq:wire(<<"$('#main_spinner').delay(300).hide(0);">>, false),
     gui_comet:flush(),
     ?MODULE:comet_loop(NewState).
@@ -323,14 +589,12 @@ comet_loop(#?STATE{counter = Counter, db_config = DbConfig, session_config = #?C
 %% ====================================================================
 event(init) ->
     try
-        {ok, DbConfig} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        {ok, SessionConfig} = onepanel_gui_utils:get_session_config(),
-
+        {ok, #?CONFIG{workers = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
         {ok, Pid} = gui_comet:spawn(fun() ->
-            comet_loop(#?STATE{counter = length(SessionConfig#?CONFIG.storage_paths), db_config = DbConfig, session_config = SessionConfig})
+            comet_loop(#?STATE{workers = onepanel_utils:get_nodes("worker", Workers)})
         end),
         put(?COMET_PID, Pid),
-        Pid ! render_storage_paths_table
+        Pid ! render_storages_table
     catch
         _:Reason ->
             ?error_stacktrace("Cannot initialize page ~p: ~p", [?MODULE, Reason]),
@@ -338,27 +602,38 @@ event(init) ->
             onepanel_gui_utils:message(error, <<"Cannot fetch application configuration.<br>Please try again later.">>)
     end;
 
-event({add_storage_path, StorageId}) ->
-    StoragePath = binary_to_list(gui_ctx:postback_param(<<"storage_path_textbox_", StorageId/binary>>)),
+event({set_storage_type, Type, StorageTypes}) ->
     gui_jq:show(<<"main_spinner">>),
-    case StoragePath of
-        "" -> get(?COMET_PID) ! next;
-        _ -> get(?COMET_PID) ! {add_storage_path, StorageId, StoragePath}
-    end;
+    gui_jq:update(<<"storage_type_label">>, <<"Storage type: <b>", Type/binary, "</b>">>),
+    gui_jq:update(<<"storage_type_dropdown">>, storage_type_list(Type, StorageTypes)),
+    get(?COMET_PID) ! {set_storage_type, Type};
 
-event({remove_storage_path, StorageId}) ->
-    StoragePath = binary_to_list(gui_ctx:postback_param(<<"storage_path_textbox_", StorageId/binary>>)),
+event(ceph_submit) ->
     gui_jq:show(<<"main_spinner">>),
-    get(?COMET_PID) ! {remove_storage_path, StorageId, StoragePath};
+    Username = gui_ctx:postback_param(<<"ceph_username">>),
+    Key = gui_ctx:postback_param(<<"ceph_key">>),
+    StorageName = gui_ctx:postback_param(<<"ceph_storage_name">>),
+    MonHost = gui_ctx:postback_param(<<"ceph_mon_host">>),
+    ClusterName = gui_ctx:postback_param(<<"ceph_cluster_name">>),
+    PoolName = gui_ctx:postback_param(<<"ceph_pool_name">>),
+    get(?COMET_PID) ! {ceph_submit, strip(Username), strip(Key), strip(StorageName),
+        strip(MonHost), strip(ClusterName), strip(PoolName)};
 
-event(next) ->
+event(dio_submit) ->
     gui_jq:show(<<"main_spinner">>),
-    gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"disabled">>),
-    gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
-    get(?COMET_PID) ! next;
+    StorageName = gui_ctx:postback_param(<<"dio_storage_name">>),
+    MountPoint = gui_ctx:postback_param(<<"dio_mount_point">>),
+    get(?COMET_PID) ! {dio_submit, strip(StorageName), strip(MountPoint)};
 
-event(back) ->
-    get(?COMET_PID) ! back;
+event(s3_submit) ->
+    gui_jq:show(<<"main_spinner">>),
+    StorageName = gui_ctx:postback_param(<<"s3_storage_name">>),
+    AccessKey = gui_ctx:postback_param(<<"s3_access_key">>),
+    SecretKey = gui_ctx:postback_param(<<"s3_secret_key">>),
+    Hostname = gui_ctx:postback_param(<<"s3_hostname">>),
+    BucketName = gui_ctx:postback_param(<<"s3_bucket_name">>),
+    get(?COMET_PID) ! {s3_submit, strip(StorageName), strip(AccessKey),
+        strip(SecretKey), strip(Hostname), strip(BucketName)};
 
 event({close_message, MessageId}) ->
     gui_jq:hide(MessageId);

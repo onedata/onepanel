@@ -20,7 +20,7 @@
 
 %% API
 -export([register/2, unregister/0, create_csr/3]).
--export([get_default_ports/0, get_provider_id/0]).
+-export([get_default_ports/0, get_provider_id/0, get_provider_name/0]).
 
 -on_load(init/0).
 
@@ -35,7 +35,8 @@
 -spec init() -> ok | no_return().
 %% ====================================================================
 init() ->
-    ok = erlang:load_nif("c_lib/provider_logic_drv", 0).
+    {ok, NifPrefix} = application:get_env(?APP_NAME, nif_prefix_dir),
+    ok = erlang:load_nif(filename:join(NifPrefix, "provider_logic_drv"), 0).
 
 
 %% create_csr/3
@@ -63,14 +64,15 @@ create_csr(_, _, _) ->
 %% ====================================================================
 register(RedirectionPoint, ClientName) ->
     try
+        {ok, EtcDir} = application:get_env(?APP_NAME, platform_etc_dir),
         {ok, KeyFile} = application:get_env(?APP_NAME, grpkey_path),
         {ok, KeyName} = application:get_env(?APP_NAME, grpkey_name),
-        {ok, CsrPath} = application:get_env(?APP_NAME, grpcsr_file),
+        {ok, CsrPath} = application:get_env(?APP_NAME, grpcsr_path),
         {ok, CertName} = application:get_env(?APP_NAME, grpcert_name),
         {ok, CertFile} = application:get_env(?APP_NAME, grpcert_path),
-        Path = filename:join([?NODES_INSTALL_PATH, ?WORKER_NAME, "certs"]),
+        Path = filename:join([EtcDir, ?SOFTWARE_NAME, "certs"]),
 
-        0 = create_csr("", KeyFile, CsrPath),
+        {ok, _} = create_csr("", KeyFile, CsrPath),
 
         %% Save private key on all hosts
         {ok, Key} = file:read_file(KeyFile),
@@ -78,7 +80,7 @@ register(RedirectionPoint, ClientName) ->
 
         %% Register in Global Registry
         {ok, CSR} = file:read_file(CsrPath),
-        {ok, #?GLOBAL_CONFIG_RECORD{workers = [Worker | _] = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
         URLs = lists:map(fun(Host) ->
             {ok, #?LOCAL_CONFIG_RECORD{ip_address = URL}} = dao:get_record(?LOCAL_CONFIG_TABLE, Host),
             URL
@@ -86,15 +88,16 @@ register(RedirectionPoint, ClientName) ->
         Parameters = [{<<"urls">>, URLs}, {<<"csr">>, CSR}, {<<"redirectionPoint">>, RedirectionPoint}, {<<"clientName">>, ClientName}],
         {ok, ProviderId, Cert} = gr_providers:register(provider, Parameters),
 
-        %% Save provider ID and certifiacte on all hosts
-        ok = file:write_file(CertFile, Cert),
-        ok = onepanel_utils:save_file_on_hosts(Path, CertName, Cert),
+        %% Save provider ID and certificate on all hosts
+        ok = file:write_file(CertFile, <<Cert/binary, Key/binary>>),
+        ok = onepanel_utils:save_file_on_hosts(Path, CertName, <<Cert/binary, Key/binary>>),
+
         ok = dao:save_record(?PROVIDER_TABLE, #?PROVIDER_RECORD{id = ProviderId, name = ClientName, urls = URLs, redirection_point = RedirectionPoint}),
 
         {ok, ProviderId}
     catch
         _:Reason ->
-            ?error("Cannot register in Global Registry: ~p", [Reason]),
+            ?error_stacktrace("Cannot register in Global Registry: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -109,8 +112,18 @@ register(RedirectionPoint, ClientName) ->
 %% ====================================================================
 unregister() ->
     try
+        {ok, EtcDir} = application:get_env(?APP_NAME, platform_etc_dir),
+        {ok, KeyName} = application:get_env(?APP_NAME, grpkey_name),
+        {ok, CertName} = application:get_env(?APP_NAME, grpcert_name),
+        Path = filename:join([EtcDir, ?SOFTWARE_NAME, "certs"]),
         ProviderId = get_provider_id(),
+
         ok = gr_providers:unregister(provider),
+        ok = onepanel_utils:delete_file_on_hosts(Path, KeyName),
+        ok = onepanel_utils:delete_file_on_hosts(Path, CertName),
+%%         todo enable when gr_channel will be present in new oneprovider
+%%         Nodes = onepanel_utils_adapter:apply_on_worker(gen_server, call, [request_dispatcher, {get_workers, gr_channel}]),
+%%         rpc:multicall(Nodes, gr_channel, disconnect, []),
         ok = dao:delete_record(?PROVIDER_TABLE, ProviderId)
     catch
         _:Reason ->
@@ -128,7 +141,7 @@ unregister() ->
 %% ====================================================================
 get_default_ports() ->
     try
-        {ok, GuiPort} = onepanel_utils_adapter:apply_on_worker(application, get_env, [?SOFTWARE_NAME, control_panel_port]),
+        {ok, GuiPort} = onepanel_utils_adapter:apply_on_worker(application, get_env, [?SOFTWARE_NAME, gui_https_port]),
         {ok, RestPort} = onepanel_utils_adapter:apply_on_worker(application, get_env, [?SOFTWARE_NAME, rest_port]),
         {ok, [{<<"gui">>, GuiPort}, {<<"rest">>, RestPort}]}
     catch
@@ -151,4 +164,20 @@ get_provider_id() ->
             ProviderId;
         _ ->
             undefined
+    end.
+
+
+%% get_provider_name/0
+%% ====================================================================
+%% @doc Returns provider name if registered or 'onepanel' otherwise.
+%% @end
+-spec get_provider_name() -> Result when
+    Result :: binary().
+%% ====================================================================
+get_provider_name() ->
+    case dao:get_records(?PROVIDER_TABLE) of
+        {ok, [#?PROVIDER_RECORD{name = ProviderName} | _]} ->
+            http_utils:html_encode(ProviderName);
+        _ ->
+            <<"onepanel">>
     end.

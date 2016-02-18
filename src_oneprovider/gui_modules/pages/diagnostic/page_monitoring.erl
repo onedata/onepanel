@@ -49,13 +49,13 @@ main() ->
             case installer_utils_adapter:get_workers() of
                 [] ->
                     page_error:redirect_with_error(?SOFTWARE_NOT_INSTALLED_ERROR),
-                    #dtl{file = "bare", app = ?SOFTWARE_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
+                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
-                    #dtl{file = "bare", app = ?SOFTWARE_NAME, bindings = [{title, title()}, {body, body()}, {custom, custom()}]}
+                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, custom()}]}
             end;
         false ->
             gui_jq:redirect_to_login(),
-            #dtl{file = "bare", app = ?SOFTWARE_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
+            #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
     end.
 
 
@@ -318,7 +318,7 @@ update_chart(#?CHART{id = ID, node = Node, time_range = TimeRange, type = ChartT
     BodyJSON :: string().
 %% ====================================================================
 get_json_data(Id, summary, TimeRange, ChartType, UpdatePeriod) ->
-    get_json_data(Id, summary, {global, ?CCM}, get_cluster_stats, TimeRange, ChartType, UpdatePeriod);
+    get_json_data(Id, summary, {global, ?CCM_APP_NAME}, get_cluster_stats, TimeRange, ChartType, UpdatePeriod);
 
 get_json_data(Id, Node, TimeRange, ChartType, UpdatePeriod) ->
     get_json_data(Id, Node, {?NODE_MANAGER_NAME, Node}, get_node_stats, TimeRange, ChartType, UpdatePeriod).
@@ -339,8 +339,7 @@ get_json_data(Id, Node, TimeRange, ChartType, UpdatePeriod) ->
     BodyJSON :: string().
 %% ====================================================================
 get_json_data(Id, Node, Target, Command, TimeRange, ChartType, UpdatePeriod) ->
-    {MegaSecs, Secs, _} = erlang:now(),
-    EndTime = trunc(((1000000 * MegaSecs + Secs - 2 * UpdatePeriod) / UpdatePeriod) * UpdatePeriod),
+    EndTime = trunc(((erlang:system_time(seconds) - 2 * UpdatePeriod) / UpdatePeriod) * UpdatePeriod),
     StartTime = EndTime - time_range_to_integer(TimeRange),
     {ok, {Header, Body}} = onepanel_utils_adapter:apply_on_worker(gen_server, call, [Target, {Command, StartTime, EndTime, chart_type_to_columns(ChartType)}]),
     HeaderJSON = "{ cols: [{label: 'Time', type: 'string'}, " ++
@@ -644,7 +643,7 @@ comet_loop(#?STATE{counter = Counter, nodes = Nodes, node = Node, time_range = T
 %% ====================================================================
 event(init) ->
     try
-        [_ | _] = Nodes = onepanel_utils_adapter:apply_on_worker(gen_server, call, [{global, ?CCM}, get_nodes]),
+        [_ | _] = Nodes = onepanel_utils_adapter:apply_on_worker(gen_server, call, [{global, ?CCM_APP_NAME}, get_nodes]),
         gui_jq:prop(<<"add_chart_button">>, <<"disabled">>, <<"">>),
         gui_jq:update(<<"node_dropdown">>, node_dropdown(undefined, [summary | Nodes])),
         {ok, Pid} = gui_comet:spawn(fun() -> comet_loop(#?STATE{counter = 1, nodes = [summary | Nodes]}) end),

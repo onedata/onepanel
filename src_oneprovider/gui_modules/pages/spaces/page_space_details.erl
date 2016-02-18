@@ -55,7 +55,7 @@ main() ->
                             page_error:redirect_with_error(?SPACE_NOT_FOUND_ERROR),
                             #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                         Id ->
-                            SpaceId = gui_str:to_binary(Id),
+                            SpaceId = str_utils:to_binary(Id),
                             case gr_providers:get_space_details(provider, SpaceId) of
                                 {ok, SpaceDetails} ->
                                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body(SpaceDetails)}, {custom, <<"">>}]};
@@ -438,7 +438,7 @@ comet_loop(#?STATE{providers_details = ProvidersDetails, users_details = UsersDe
 %% ====================================================================
 event(init) ->
     try
-        SpaceId = gui_str:to_binary(gui_ctx:url_param(<<"id">>)),
+        SpaceId = str_utils:to_binary(gui_ctx:url_param(<<"id">>)),
 
         GetDetailsFun = fun(Ids, Function, RowPrefix) ->
             lists:foldl(fun(Id, {Rows, It}) ->

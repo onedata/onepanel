@@ -253,13 +253,14 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                            RedirectionPointStatus =
                                try
                                    {host_and_port, {ok, RedirectionPointHost, RedirectionPointPort}} = {host_and_port, onepanel_utils_adapter:get_host_and_port(RedirectionPoint)},
-                                   {check_redirection_point, ok} = {check_redirection_point, gr_providers:check_port(provider, RedirectionPointHost, RedirectionPointPort, <<"gui">>)},
+                                   %todo add port checking to op_worker and check 'ok' here
+                                   {check_redirection_point, _} = {check_redirection_point, gr_providers:check_port(provider, RedirectionPointHost, RedirectionPointPort, <<"gui">>)},
                                    gui_ctx:put(redirection_point, RedirectionPoint),
                                    gui_jq:css(<<"redirection_point_textbox">>, <<"border-color">>, <<"green">>),
                                    ok
                                catch
                                    _:Reason ->
-                                       ?error("Cannot set redirection point: ~p", [Reason]),
+                                       ?error_stacktrace("Cannot set redirection point: ~p", [Reason]),
                                        onepanel_gui_utils:message(error, <<"Redirection point is not available for <i>Global Registry</i>.<br>
                                        This may occur due to NAT or PAT translation mechanisms. Please check your network configuration or try again later.">>),
                                        gui_jq:css(<<"redirection_point_textbox">>, <<"border-color">>, <<"red">>),
@@ -270,7 +271,8 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                                    try
                                        true = validate_port(Port),
                                        {ok, #?LOCAL_CONFIG_RECORD{ip_address = IpAddress}} = dao:get_record(?LOCAL_CONFIG_TABLE, Host),
-                                       ok = gr_providers:check_port(provider, IpAddress, binary_to_integer(Port), Type),
+                                       %todo add port checking to op_worker and check 'ok' here
+                                       _ = gr_providers:check_port(provider, IpAddress, binary_to_integer(Port), Type),
                                        ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{Field, binary_to_integer(Port)}]),
                                        gui_jq:css(PortId, <<"border-color">>, <<"green">>),
                                        HostStatus
@@ -315,10 +317,9 @@ comet_loop(#?STATE{ports = Ports} = State) ->
 %% ====================================================================
 event(init) ->
     try
-        Localhost = onepanel_utils:get_host(node()),
-        {ok, #?GLOBAL_CONFIG_RECORD{workers = Hosts}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        {ok, #?GLOBAL_CONFIG_RECORD{workers = [Worker | _] = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
         {ok, [{<<"gui">>, DefaultGuiPort}, {<<"rest">>, DefaultRestPort}]} = provider_logic:get_default_ports(),
-        {ok, #?LOCAL_CONFIG_RECORD{ip_address = IpAddress}} = dao:get_record(?LOCAL_CONFIG_TABLE, Localhost),
+        {ok, #?LOCAL_CONFIG_RECORD{ip_address = IpAddress}} = dao:get_record(?LOCAL_CONFIG_TABLE, Worker),
         gui_jq:update(<<"redirection_point_table">>, redirection_table_row(IpAddress, DefaultGuiPort)),
 
         Ports = lists:map(fun({Host, Id}) ->
@@ -331,7 +332,7 @@ event(init) ->
                                           throw("Cannot get local configuration for host: " ++ Host)
                                   end,
             {Host, integer_to_binary(Id), port_value(GuiPort, DefaultGuiPort), port_value(RestPort, DefaultRestPort)}
-        end, lists:zip(Hosts, tl(lists:seq(0, length(Hosts))))),
+        end, lists:zip(Workers, tl(lists:seq(0, length(Workers))))),
 
         gui_jq:bind_key_to_click(<<"13">>, <<"next_button">>),
 

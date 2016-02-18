@@ -1,11 +1,14 @@
 ## Name of the node
--name {{node}}
+-name onepanel@127.0.0.1
 
 ## Cookie for distributed erlang
--setcookie {{cookie}}
+-setcookie cluster_node
 
 ## Make node hidden for oneprovider
 -hidden
+
+## Set the location of crash dumps
+-env ERL_CRASH_DUMP {{crash_dump}}
 
 ## Heartbeat management; auto-restarts VM if it dies or becomes unresponsive
 ## (Disabled by default..use with caution!)

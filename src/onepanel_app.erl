@@ -32,7 +32,7 @@
 -define(COWBOY_BRIDGE_MODULE, n2o_handler).
 
 %% Paths in gui static directory
--define(STATIC_PATHS, ["/css/", "/fonts/", "/images/", "/n2o/", "/flatui/", "/js/"]).
+-define(STATIC_PATHS, ["/css/", "/fonts/", "/images/", "/n2o/", "/flatui/", "/js/", "/common/"]).
 
 %% ====================================================================
 %% Application callbacks
@@ -106,7 +106,7 @@ stop(_State) ->
 %% ====================================================================
 %% @doc Callback hook for cowboy to modify response headers for HTTPS GUI.
 %% @end
--spec gui_adjust_headers(Req :: req()) -> req().
+-spec gui_adjust_headers(Req :: cowboy_req:req()) -> cowboy_req:req().
 %% ====================================================================
 gui_adjust_headers(Req) ->
     Req2 = cowboy_req:set_resp_header(<<"Strict-Transport-Security">>, <<"max-age=31536000; includeSubDomains">>, Req),

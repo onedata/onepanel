@@ -10,6 +10,7 @@
 %% ===================================================================
 -module(installer_utils_adapter).
 
+-include("registered_names.hrl").
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
@@ -93,42 +94,24 @@ check_ip_addresses() ->
 %% @doc Returns results of software nagios health check
 %% @end
 -spec get_nagios_report() -> Result when
-    Result :: {ok, Status, NodesReport :: {Name, Status}, WorkersReport :: [{Node, Name, Status}]} | {error, Reason :: term()},
-    Node :: binary(),
-    Name :: binary(),
-    Status :: binary().
+    Result :: {ok, Status :: binary()} | {error, Reason :: term()}.
 %% ====================================================================
 get_nagios_report() ->
     try
         {ok, #?GLOBAL_CONFIG_RECORD{workers = [Worker | _]}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-        URL = "https://" ++ Worker ++ "/nagios",
-        Headers = [{"content-type", "application/json"}],
-        {ok, "200", _ResponseHeaders, ResponseBody} = ibrowse:send_req(URL, Headers, get),
-        {Xml, _} = xmerl_scan:string(ResponseBody),
+        {ok, Protocol} = application:get_env(?APP_NAME, provider_nagios_protocol),
+        {ok, Port} = application:get_env(?APP_NAME, provider_nagios_port),
+        URL = Protocol ++ "://" ++ Worker ++ ":" ++ integer_to_list(Port) ++ "/nagios",
+        Headers = [{<<"content-type">>, <<"application/json">>}],
+        {ok, 200, _ResponseHeaders, ResponseBody} = http_client:get(URL, Headers),
+
+        {Xml, _} = xmerl_scan:string(binary_to_list(ResponseBody)),
         [Status] = [X#xmlAttribute.value || X <- Xml#xmlElement.attributes, X#xmlAttribute.name == status],
 
-        GetDetails = fun
-            (oneprovider_node, X) ->
-                [NodeName] = [Y#xmlAttribute.value || Y <- X, Y#xmlAttribute.name == name],
-                [NodeStatus] = [Y#xmlAttribute.value || Y <- X, Y#xmlAttribute.name == status],
-                {list_to_binary(NodeName), list_to_binary(NodeStatus)};
-            (worker, X) ->
-                [WorkerName] = [Y#xmlAttribute.value || Y <- X, Y#xmlAttribute.name == name],
-                [WorkerNode] = [Y#xmlAttribute.value || Y <- X, Y#xmlAttribute.name == node],
-                [WorkerStatus] = [Y#xmlAttribute.value || Y <- X, Y#xmlAttribute.name == status],
-                {list_to_binary(WorkerName), list_to_binary(WorkerNode), list_to_binary(WorkerStatus)}
-        end,
-
-        GetReport = fun(Name) ->
-            [GetDetails(Name, X#xmlElement.attributes) || X <- Xml#xmlElement.content, X#xmlElement.name == Name]
-        end,
-
-        NodesReport = GetReport(oneprovider_node),
-        WorkersReport = GetReport(worker),
-        {ok, list_to_binary(Status), NodesReport, WorkersReport}
+        {ok, list_to_binary(Status)}
     catch
         _:Reason ->
-            ?error("Cannot get nagios details: ~p", [Reason]),
+            ?error_stacktrace("Cannot get nagios details: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -172,7 +155,7 @@ finalize_installation_loop(0) ->
 
 finalize_installation_loop(Attempts) ->
     case get_nagios_report() of
-        {ok, <<"ok">>, _, _} ->
+        {ok, <<"ok">>} ->
             ok;
         _ ->
             timer:sleep(?NEXT_ATTEMPT_DELAY),

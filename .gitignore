@@ -1,13 +1,19 @@
 .idea
+onepanel.iml
 
 deps
 ebin
-rel_globalregistry/onepanel
-rel_oneprovider/onepanel
+rel_oneprovider/op_panel/
+rel_globalregistry/oz_panel/
+rel/oz_panel
+rel/op_panel
 
 c_lib
 c_src/*.o
 
 src/gui_static/flatui
 src/gui_static/fonts
+src/gui_static/common
 src/gui_static/n2o
+
+packages/*.deb

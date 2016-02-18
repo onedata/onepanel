@@ -18,7 +18,8 @@
 
 %% API
 -export([apply_on_worker/3, get_host_and_port/1]).
--export([get_software_version/0, get_available_software_versions/0, get_software_version_name/1, get_software_version_record/1]).
+-export([get_software_version/0, get_available_software_versions/0, get_software_version_name/1,
+    get_software_version_record/1]).
 
 
 %% ====================================================================
@@ -101,7 +102,8 @@ get_software_version_record(Version) ->
 get_available_software_versions() ->
     try
         {ok, URL} = application:get_env(?APP_NAME, onedata_repository_url),
-        {ok, "200", _ResHeaders, ResBody} = ibrowse:send_req(URL ++ "/get_versions.php", [{content_type, "application/json"}], get, []),
+        {ok, 200, _ResHeaders, ResBody} = http_client:get(URL ++ "/get_versions.php",
+            [{<<"content-type">>, <<"application/json">>}]),
         {_, List} = mochijson2:decode(ResBody),
         sort_versions(proplists:get_value(<<"oneprovider-linux.x86_64.rpm">>, List))
     catch

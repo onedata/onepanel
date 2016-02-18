@@ -8,6 +8,7 @@
 %% @doc This file contains n2o website code.
 %% This page allows live viewing of cluster logs in the system.
 %% @end
+%% @todo integrate with new code and remove request_dispatcher calls
 %% ===================================================================
 -module(page_server_logs).
 
@@ -54,13 +55,13 @@ main() ->
             case installer_utils_adapter:get_workers() of
                 [] ->
                     page_error:redirect_with_error(?SOFTWARE_NOT_INSTALLED_ERROR),
-                    #dtl{file = "bare", app = ?SOFTWARE_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
+                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
-                    #dtl{file = "bare", app = ?SOFTWARE_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]}
+                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]}
             end;
         false ->
             gui_jq:redirect_to_login(),
-            #dtl{file = "bare", app = ?SOFTWARE_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
+            #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
     end.
 
 
@@ -242,12 +243,12 @@ comet_loop(Counter, PageState = #page_state{first_log = FirstLog, auto_scroll = 
                 {set_filter, FilterName, Filter} ->
                     {Counter, set_filter(PageState, FilterName, Filter)};
                 display_error ->
-                    onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, self()}}]),
+%%                     onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, self()}}]),
                     gui_jq:insert_bottom(<<"main_table">>, comet_error()),
                     gui_comet:flush(),
                     error;
                 {'EXIT', _, _Reason} ->
-                    onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, self()}}]),
+%%                     onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, self()}}]),
                     error;
                 Other ->
                     ?debug("Unrecognized comet message in page_logs: ~p", [Other]),
@@ -258,7 +259,7 @@ comet_loop(Counter, PageState = #page_state{first_log = FirstLog, auto_scroll = 
             end
         catch _Type:_Msg ->
             ?error_stacktrace("Error in page_logs comet_loop - ~p: ~p", [_Type, _Msg]),
-            onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, self()}}]),
+%%             onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, self()}}]),
             gui_jq:insert_bottom(<<"main_table">>, comet_error()),
             gui_comet:flush(),
             error
@@ -329,7 +330,7 @@ render_row(Counter, {Message, Timestamp, Severity, Metadata}) ->
         actions = gui_jq:postback_action(CollapsedId, {toggle_log, Counter, true}), cells = [
             #td{body = format_severity(Severity), style = <<?SEVERITY_COLUMN_STYLE>>},
             #td{body = format_time(Timestamp), style = <<?TIME_COLUMN_STYLE>>},
-            #td{body = gui_str:to_binary(Message), style = <<?MESSAGE_COLUMN_STYLE, " text-wrap:normal; word-wrap:break-word; white-space: nowrap; overflow: hidden;">>},
+            #td{body = str_utils:to_binary(Message), style = <<?MESSAGE_COLUMN_STYLE, " text-wrap:normal; word-wrap:break-word; white-space: nowrap; overflow: hidden;">>},
             #td{body = CollapsedMetadata, style = <<?METADATA_COLUMN_STYLE, "white-space: nowrap; overflow: hidden;">>}
         ]},
 
@@ -337,7 +338,7 @@ render_row(Counter, {Message, Timestamp, Severity, Metadata}) ->
         actions = gui_jq:postback_action(ExpandedId, {toggle_log, Counter, false}), cells = [
             #td{body = format_severity(Severity), style = <<?SEVERITY_COLUMN_STYLE>>},
             #td{body = format_time(Timestamp), style = <<?TIME_COLUMN_STYLE>>},
-            #td{body = gui_str:to_binary(Message), style = <<?MESSAGE_COLUMN_STYLE, " text-wrap:normal; word-wrap:break-word;">>},
+            #td{body = str_utils:to_binary(Message), style = <<?MESSAGE_COLUMN_STYLE, " text-wrap:normal; word-wrap:break-word;">>},
             #td{body = ExpandedMetadata, style = <<?METADATA_COLUMN_STYLE>>}
         ]},
 
@@ -375,7 +376,7 @@ max_logs_dropdown_body(Active) ->
 comet_error() ->
     _TableRow = #tr{cells = [
         #td{body = <<"Error">>, style = <<?SEVERITY_COLUMN_STYLE, "color: red;">>},
-        #td{body = format_time(now()), style = <<?TIME_COLUMN_STYLE, "color: red;">>},
+        #td{body = format_time(erlang:timestamp()), style = <<?TIME_COLUMN_STYLE, "color: red;">>},
         #td{body = <<"There has been an error in comet process. Please refresh the page.">>,
             style = <<?MESSAGE_COLUMN_STYLE, " body-wrap:normal; word-wrap:break-word; white-space: nowrap; overflow: hidden; color: red;">>},
         #td{body = <<"">>, style = <<?METADATA_COLUMN_STYLE, "color: red;">>}
@@ -414,13 +415,13 @@ format_time(Timestamp) ->
 format_metadata(Tags) ->
     Collapsed = case lists:keyfind(node, 1, Tags) of
                     {node, Value} ->
-                        <<"<b>node:</b> ", (gui_str:to_binary(Value))/binary, " ...">>;
+                        <<"<b>node:</b> ", (str_utils:to_binary(Value))/binary, " ...">>;
                     _ ->
                         <<"<b>unknown node</b> ...">>
                 end,
     Expanded = lists:foldl(
         fun({Key, Value}, Acc) ->
-            <<Acc/binary, "<b>", (gui_str:to_binary(Key))/binary, ":</b> ", (gui_str:to_binary(Value))/binary, "<br />">>
+            <<Acc/binary, "<b>", (str_utils:to_binary(Key))/binary, ":</b> ", (str_utils:to_binary(Value))/binary, "<br />">>
         end, <<"">>, Tags),
     {Collapsed, Expanded}.
 
@@ -435,7 +436,7 @@ filter_contains(String, Filter) ->
     case Filter of
         undefined -> true;
         ValidFilter ->
-            binary:match(gui_str:to_binary(String), ValidFilter) /= nomatch
+            binary:match(str_utils:to_binary(String), ValidFilter) /= nomatch
     end.
 
 
@@ -450,14 +451,14 @@ event(init) ->
     % Start a comet process
     {ok, Pid} = gui_comet:spawn(fun() -> comet_loop_init() end),
     put(comet_pid, Pid),
-    % Subscribe for logs at central_logger
-    case onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {subscribe, cluster, Pid}}]) of
-        ok ->
-            ok;
-        Other ->
-            ?error("central_logger is unreachable. RPC call returned: ~p", [Other]),
-            Pid ! display_error
-    end,
+%%     % Subscribe for logs at central_logger
+%%     case onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {subscribe, cluster, Pid}}]) of
+%%         ok ->
+%%             ok;
+%%         Other ->
+%%             ?error("central_logger is unreachable. RPC call returned: ~p", [Other]),
+%%             Pid ! display_error
+%%     end,
     ok;
 
 

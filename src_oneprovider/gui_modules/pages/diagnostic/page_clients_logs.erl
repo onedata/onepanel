@@ -8,6 +8,7 @@
 %% @doc This file contains n2o website code.
 %% The page (available for admins only) allows live viewing of logs sent from clients.
 %% @end
+%% @todo integrate with new code and remove request_dispatcher calls
 %% ===================================================================
 -module(page_clients_logs).
 
@@ -54,13 +55,13 @@ main() ->
             case installer_utils_adapter:get_workers() of
                 [] ->
                     page_error:redirect_with_error(?SOFTWARE_NOT_INSTALLED_ERROR),
-                    #dtl{file = "bare", app = ?SOFTWARE_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
+                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                 _ ->
-                    #dtl{file = "bare", app = ?SOFTWARE_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]}
+                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, <<"">>}]}
             end;
         false ->
             gui_jq:redirect_to_login(),
-            #dtl{file = "bare", app = ?SOFTWARE_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
+            #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
     end.
 
 
@@ -200,30 +201,30 @@ manage_clients_panel() ->
         body = #span{class = <<"fui-cross">>, style = <<"font-size: 20px;">>}},
 
     {ClientListBody, Identifiers} =
-        case onepanel_utils_adapter:apply_on_worker(request_dispatcher, get_connected_fuses, []) of
-            {ok, no_fuses_connected} ->
-                Row = #tr{cells = [
+%%         case onepanel_utils_adapter:apply_on_worker(request_dispatcher, get_connected_fuses, []) of
+%%             {ok, no_fuses_connected} ->
+                {#tr{cells = [
                     #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"--">>},
                     #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"No clients are connected">>},
                     #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"">>}
-                ]},
-                {Row, []};
-            {ok, Clients} ->
-                {ClientList, {_, Ids}} = lists:mapfoldl(
-                    fun({UserName, FuseID}, {Counter, Idents}) ->
-                        {Row, Identifier} = client_row(<<"client_row_", (integer_to_binary(Counter))/binary>>, false, UserName, FuseID),
-                        {Row, {Counter + 1, Idents ++ Identifier}}
-                    end, {1, []}, Clients),
-                {ClientList, Ids};
-            {error, Reason} ->
-                ?error("Cannot get connected fuses: ~p", [Reason]),
-                Row = #tr{cells = [
-                    #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"--">>},
-                    #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"Error: cannot list fuse sessions">>},
-                    #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"">>}
-                ]},
-                {Row, []}
-        end,
+                ]}, []},
+%%                 {Row, []},
+%%             {ok, Clients} ->
+%%                 {ClientList, {_, Ids}} = lists:mapfoldl(
+%%                     fun({UserName, FuseID}, {Counter, Idents}) ->
+%%                         {Row, Identifier} = client_row(<<"client_row_", (integer_to_binary(Counter))/binary>>, false, UserName, FuseID),
+%%                         {Row, {Counter + 1, Idents ++ Identifier}}
+%%                     end, {1, []}, Clients),
+%%                 {ClientList, Ids};
+%%             {error, Reason} ->
+%%                 ?error("Cannot get connected fuses: ~p", [Reason]),
+%%                 Row = #tr{cells = [
+%%                     #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"--">>},
+%%                     #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"Error: cannot list fuse sessions">>},
+%%                     #td{style = <<"border-color: rgb(82, 100, 118);">>, body = <<"">>}
+%%                 ]},
+%%                 {Row, []}
+%%         end,
 
     gui_jq:bind_enter_to_submit_button(<<"search_textbox">>, <<"search_button">>),
     [
@@ -300,8 +301,8 @@ client_row(ID, Selected, UserName, FuseID) ->
                     body = #span{class = GlyphClass, style = <<"font-size: 20px;">>}
                 }]}
         ]},
-        #td{style = <<"border-color: rgb(82, 100, 118);">>, body = gui_str:unicode_list_to_binary(UserName)},
-        #td{style = <<"border-color: rgb(82, 100, 118);">>, body = gui_str:unicode_list_to_binary(FuseID)}
+        #td{style = <<"border-color: rgb(82, 100, 118);">>, body = str_utils:unicode_list_to_binary(UserName)},
+        #td{style = <<"border-color: rgb(82, 100, 118);">>, body = str_utils:unicode_list_to_binary(FuseID)}
     ]},
     {Row, Identifier}.
 
@@ -345,7 +346,7 @@ comet_loop_init() ->
     comet_loop(1, #page_state{pid = Pid}).
 
 %% Comet loop - waits for new logs, updates the page and repeats. Handles messages that change logging preferences.
-comet_loop(Counter, PageState = #page_state{first_log = FirstLog, auto_scroll = AutoScroll, pid = Pid}) ->
+comet_loop(Counter, PageState = #page_state{first_log = FirstLog, auto_scroll = AutoScroll, pid = _Pid}) ->
     Result =
         try
             receive
@@ -368,12 +369,12 @@ comet_loop(Counter, PageState = #page_state{first_log = FirstLog, auto_scroll = 
                     set_clients_loglevel(ClientList, Level, ButtonID),
                     {Counter, PageState};
                 display_error ->
-                    onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, Pid}}]),
+%%                     onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, Pid}}]),
                     gui_jq:insert_bottom(<<"main_table">>, comet_error()),
                     gui_comet:flush(),
                     error;
                 {'EXIT', _, _Reason} ->
-                    onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, Pid}}]),
+%%                     onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, Pid}}]),
                     error;
                 Other ->
                     ?debug("Unrecognized comet message in page_logs: ~p", [Other]),
@@ -384,7 +385,7 @@ comet_loop(Counter, PageState = #page_state{first_log = FirstLog, auto_scroll = 
             end
         catch _Type:_Msg ->
             ?error_stacktrace("Error in page_logs comet_loop - ~p: ~p", [_Type, _Msg]),
-            onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, Pid}}]),
+%%             onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {unsubscribe, client, Pid}}]),
             gui_jq:insert_bottom(<<"main_table">>, comet_error()),
             gui_comet:flush(),
             error
@@ -450,7 +451,7 @@ render_row(Counter, {Message, Timestamp, Severity, Metadata}) ->
         actions = gui_jq:postback_action(CollapsedId, {toggle_log, Counter, true}), cells = [
             #td{body = format_severity(Severity), style = <<?SEVERITY_COLUMN_STYLE>>},
             #td{body = format_time(Timestamp), style = <<?TIME_COLUMN_STYLE>>},
-            #td{body = gui_str:to_binary(Message), style = <<?MESSAGE_COLUMN_STYLE, " text-wrap:normal; word-wrap:break-word; white-space: nowrap; overflow: hidden;">>},
+            #td{body = str_utils:to_binary(Message), style = <<?MESSAGE_COLUMN_STYLE, " text-wrap:normal; word-wrap:break-word; white-space: nowrap; overflow: hidden;">>},
             #td{body = CollapsedMetadata, style = <<?METADATA_COLUMN_STYLE, " white-space: nowrap; overflow: hidden;">>}
         ]},
 
@@ -458,7 +459,7 @@ render_row(Counter, {Message, Timestamp, Severity, Metadata}) ->
         actions = gui_jq:postback_action(ExpandedId, {toggle_log, Counter, false}), cells = [
             #td{body = format_severity(Severity), style = <<?SEVERITY_COLUMN_STYLE>>},
             #td{body = format_time(Timestamp), style = <<?TIME_COLUMN_STYLE>>},
-            #td{body = gui_str:to_binary(Message), style = <<?MESSAGE_COLUMN_STYLE, " text-wrap:normal; word-wrap:break-word;">>},
+            #td{body = str_utils:to_binary(Message), style = <<?MESSAGE_COLUMN_STYLE, " text-wrap:normal; word-wrap:break-word;">>},
             #td{body = ExpandedMetadata, style = <<?METADATA_COLUMN_STYLE>>}
         ]},
 
@@ -497,7 +498,7 @@ max_logs_dropdown_body(Active) ->
 comet_error() ->
     _TableRow = #tr{cells = [
         #td{body = <<"Error">>, style = <<?SEVERITY_COLUMN_STYLE, " color: red;">>},
-        #td{body = format_time(now()), style = <<?TIME_COLUMN_STYLE, "color: red;">>},
+        #td{body = format_time(erlang:timestamp()), style = <<?TIME_COLUMN_STYLE, "color: red;">>},
         #td{body = <<"There has been an error in comet process. Please refresh the page.">>,
             style = <<?MESSAGE_COLUMN_STYLE, " body-wrap:normal; word-wrap:break-word; white-space: nowrap; overflow: hidden; color: red;">>},
         #td{body = <<"">>, style = <<?METADATA_COLUMN_STYLE, "color: red;">>}
@@ -529,7 +530,7 @@ format_time(Timestamp) ->
 format_metadata(Tags) ->
     Collapsed = case lists:keyfind(user, 1, Tags) of
                     {user, Value} ->
-                        <<"<b>user:</b> ", (gui_str:unicode_list_to_binary(Value))/binary, " ...">>;
+                        <<"<b>user:</b> ", (str_utils:unicode_list_to_binary(Value))/binary, " ...">>;
                     _ ->
                         <<"<b>unknown user</b> ...">>
                 end,
@@ -537,9 +538,9 @@ format_metadata(Tags) ->
         fun({Key, Value}, Acc) ->
             ValBinary = case is_integer(Value) of
                             true -> integer_to_binary(Value);
-                            false -> gui_str:unicode_list_to_binary(Value)
+                            false -> str_utils:unicode_list_to_binary(Value)
                         end,
-            <<Acc/binary, "<b>", (gui_str:to_binary(Key))/binary, ":</b> ", ValBinary/binary, "<br />">>
+            <<Acc/binary, "<b>", (str_utils:to_binary(Key))/binary, ":</b> ", ValBinary/binary, "<br />">>
         end, <<"">>, Tags),
     {Collapsed, Expanded}.
 
@@ -555,7 +556,7 @@ filter_contains(String, Filter) ->
     case Filter of
         undefined -> true;
         ValidFilter ->
-            binary:match(gui_str:to_binary(String), ValidFilter) /= nomatch
+            binary:match(str_utils:to_binary(String), ValidFilter) /= nomatch
     end.
 
 
@@ -570,14 +571,14 @@ event(init) ->
     % Start a comet process
     {ok, Pid} = gui_comet:spawn(fun() -> comet_loop_init() end),
     put(comet_pid, Pid),
-    % Subscribe for logs at central_logger
-    case onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {subscribe, client, Pid}}]) of
-        ok ->
-            ok;
-        Other ->
-            ?error("central_logger is unreachable. RPC call returned: ~p", [Other]),
-            Pid ! display_error
-    end,
+%%     % Subscribe for logs at central_logger
+%%     case onepanel_utils_adapter:apply_on_worker(gen_server, call, [?DISPATCHER_NAME, {central_logger, 1, {subscribe, client, Pid}}]) of
+%%         ok ->
+%%             ok;
+%%         Other ->
+%%             ?error("central_logger is unreachable. RPC call returned: ~p", [Other]),
+%%             Pid ! display_error
+%%     end,
     ok;
 
 
@@ -617,7 +618,7 @@ event({search_clients, ClientList}) ->
         Query ->
             {Select, Deselect} = lists:partition(
                 fun({_, UserName, _}) ->
-                    binary:match(gui_str:unicode_list_to_binary(UserName), Query) =/= nomatch
+                    binary:match(str_utils:unicode_list_to_binary(UserName), Query) =/= nomatch
                 end, ClientList),
             event({toggle_clients, true, Select}),
             event({toggle_clients, false, Deselect}),
@@ -753,7 +754,7 @@ set_clients_loglevel(ClientList, LogLevel, ButtonID) ->
         ok -> gui_jq:update(ButtonID, <<"success!">>);
         error -> gui_jq:update(ButtonID, <<"failed!">>)
     end,
-    gui_jq:wire(<<"setTimeout(function f() {$('#", ButtonID/binary, "').html('", (gui_str:to_binary(LogLevel))/binary, "')}, 1000);">>),
+    gui_jq:wire(<<"setTimeout(function f() {$('#", ButtonID/binary, "').html('", (str_utils:to_binary(LogLevel))/binary, "')}, 1000);">>),
     gui_comet:flush().
 
 

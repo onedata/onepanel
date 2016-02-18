@@ -16,7 +16,7 @@
 
 -export([main/0, event/1]).
 
--define(PRIVACY_POLICY_FILE, "gui_static/PRIVACY_POLICY.html").
+-define(PRIVACY_POLICY_FILE, "PRIVACY_POLICY.html").
 
 %% ====================================================================
 %% API functions
@@ -80,11 +80,13 @@ body() ->
     Result :: binary().
 %% ====================================================================
 privacy_policy_file() ->
-    case file:read_file(?PRIVACY_POLICY_FILE) of
+    {ok, GuiStatic} = application:get_env(?APP_NAME, gui_static_root),
+    PrivacyPolicyPath = filename:join(GuiStatic, ?PRIVACY_POLICY_FILE),
+    case file:read_file(PrivacyPolicyPath) of
         {ok, File} ->
             File;
         {error, Reason} ->
-            ?error("Cannot get privacy policy file ~s: ~p", [?PRIVACY_POLICY_FILE, Reason]),
+            ?error("Cannot get privacy policy file ~s: ~p", [PrivacyPolicyPath, Reason]),
             <<"">>
     end.
 

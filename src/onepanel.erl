@@ -53,8 +53,10 @@ start_link() ->
 %% ====================================================================
 init([]) ->
     try
+        application:set_env(ctool, verify_gr_cert, application:get_env(?APP_NAME, verify_gr_cert, true)),
         ok = db_logic:create(),
-        {ok, Address} = application:get_env(?APP_NAME, multicast_address),
+        {ok, IpAddress} = application:get_env(?APP_NAME, multicast_address),
+        {ok, Address} = inet:getaddr(IpAddress, inet),
         {ok, Port} = application:get_env(?APP_NAME, onepanel_port),
         {ok, Socket} = gen_udp:open(Port, [binary, {reuseaddr, true}, {ip, Address},
             {multicast_loop, false}, {add_membership, {Address, {0, 0, 0, 0}}}]),
@@ -67,7 +69,9 @@ init([]) ->
 
         {ok, #state{socket = Socket, address = Address, port = Port}}
     catch
-        _:_ -> {stop, initialization_error}
+        _:Reason ->
+            ?error_stacktrace("Initialization error: ~p", [Reason]),
+            {stop, initialization_error}
     end.
 
 
