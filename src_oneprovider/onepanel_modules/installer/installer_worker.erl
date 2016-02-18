@@ -59,9 +59,9 @@ uninstall(_) ->
 start(Args) ->
     try
         NewWorkers = case proplists:get_value(workers, Args, []) of
-                         [] -> throw(nothing_to_start);
-                         Hosts -> Hosts
-                     end,
+            [] -> throw(nothing_to_start);
+            Hosts -> Hosts
+        end,
 
         {ConfiguredMainCCM, ConfiguredCCMs, ConfiguredDbs, ConfiguredWorkers} =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
@@ -122,17 +122,17 @@ stop(Args) ->
             end,
 
         WorkersToStop = case proplists:get_value(workers, Args) of
-                            undefined -> ConfiguredWorkers;
-                            Hosts ->
-                                lists:foreach(fun(Host) ->
-                                    case lists:member(Host, ConfiguredWorkers) of
-                                        false ->
-                                            throw("Worker " ++ Host ++ " is not configured.");
-                                        _ -> ok
-                                    end
-                                end, Hosts),
-                                Hosts
-                        end,
+            undefined -> ConfiguredWorkers;
+            Hosts ->
+                lists:foreach(fun(Host) ->
+                    case lists:member(Host, ConfiguredWorkers) of
+                        false ->
+                            throw("Worker " ++ Host ++ " is not configured.");
+                        _ -> ok
+                    end
+                end, Hosts),
+                Hosts
+        end,
 
         ConfiguredOptCCMs = lists:delete(ConfiguredMainCCM, ConfiguredCCMs),
 
@@ -170,16 +170,16 @@ stop(Args) ->
 restart(Args) ->
     try
         ConfiguredWorkers = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                                {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} ->
-                                    Workers;
-                                _ ->
-                                    throw("Cannot get CM nodes configuration.")
-                            end,
+            {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} ->
+                Workers;
+            _ ->
+                throw("Cannot get CM nodes configuration.")
+        end,
 
         WorkersToRestart = case proplists:get_value(workers, Args) of
-                               undefined -> ConfiguredWorkers;
-                               Hosts -> Hosts
-                           end,
+            undefined -> ConfiguredWorkers;
+            Hosts -> Hosts
+        end,
 
         case stop([{workers, WorkersToRestart}]) of
             ok -> start([{workers, WorkersToRestart}]);
@@ -212,10 +212,12 @@ local_start(MainCCM, OptCCMs, Dbs) ->
             ?SOFTWARE_NAME,
             default,
             [
-                {cm_nodes, [list_to_atom(?CCM_NAME ++ "@" ++ CCM) || CCM <- [MainCCM | OptCCMs]]},
-                {db_nodes, [list_to_atom(Db ++ ":" ++ integer_to_list(?DB_PORT)) || Db <- Dbs]},
-                {provider_domain, application:get_env(?APP_NAME, provider_domain, "localhost.local")},
-                {verify_gr_cert, application:get_env(?APP_NAME, verify_gr_cert, true)}
+                {?SOFTWARE_NAME, [
+                    {cm_nodes, [list_to_atom(?CCM_NAME ++ "@" ++ CCM) || CCM <- [MainCCM | OptCCMs]]},
+                    {db_nodes, [list_to_atom(Db ++ ":" ++ integer_to_list(?DB_PORT)) || Db <- Dbs]},
+                    {provider_domain, application:get_env(?APP_NAME, provider_domain, "localhost.local")},
+                    {verify_gr_cert, application:get_env(?APP_NAME, verify_gr_cert, true)}
+                ]}
             ],
             [
                 {name, ?WORKER_NAME ++ "@" ++ Host},
