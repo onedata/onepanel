@@ -82,20 +82,20 @@ uninstall(Args) ->
 start(Args) ->
     try
         GR = case proplists:get_value(gr, Args) of
-                 undefined -> throw(nothing_to_start);
-                 Host -> Host
-             end,
+            undefined -> throw(nothing_to_start);
+            Host -> Host
+        end,
 
         ConfiguredDbs = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} ->
-                                throw("Database nodes not configured.");
-                            {ok, #?GLOBAL_CONFIG_RECORD{gr = undefined, dbs = Dbs}} ->
-                                Dbs;
-                            {ok, #?GLOBAL_CONFIG_RECORD{gr = _}} ->
-                                throw("Global Registry node already configured.");
-                            _ ->
-                                throw("Cannot get Global Registry node configuration.")
-                        end,
+            {ok, #?GLOBAL_CONFIG_RECORD{dbs = []}} ->
+                throw("Database nodes not configured.");
+            {ok, #?GLOBAL_CONFIG_RECORD{gr = undefined, dbs = Dbs}} ->
+                Dbs;
+            {ok, #?GLOBAL_CONFIG_RECORD{gr = _}} ->
+                throw("Global Registry node already configured.");
+            _ ->
+                throw("Cannot get Global Registry node configuration.")
+        end,
 
         {HostsOk, HostsError} = onepanel_utils:apply_on_hosts([GR], ?MODULE, local_start, [ConfiguredDbs], ?RPC_TIMEOUT),
 
@@ -130,13 +130,13 @@ start(Args) ->
 stop(_) ->
     try
         {ConfiguredGR, ConfiguredDbs} = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                                            {ok, #?GLOBAL_CONFIG_RECORD{gr = undefined}} ->
-                                                throw("Global Registry node not configured.");
-                                            {ok, #?GLOBAL_CONFIG_RECORD{gr = GR, dbs = Dbs}} ->
-                                                {GR, Dbs};
-                                            _ ->
-                                                throw("Cannot get Global Registry node configuration.")
-                                        end,
+            {ok, #?GLOBAL_CONFIG_RECORD{gr = undefined}} ->
+                throw("Global Registry node not configured.");
+            {ok, #?GLOBAL_CONFIG_RECORD{gr = GR, dbs = Dbs}} ->
+                {GR, Dbs};
+            _ ->
+                throw("Cannot get Global Registry node configuration.")
+        end,
 
         {HostsOk, HostsError} = onepanel_utils:apply_on_hosts([ConfiguredGR], ?MODULE, local_stop, [], ?RPC_TIMEOUT),
 
@@ -170,12 +170,12 @@ stop(_) ->
 restart(_) ->
     try
         ConfiguredGR = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                           {ok, #?GLOBAL_CONFIG_RECORD{gr = undefined}} ->
-                               throw("Global Registry node not configured.");
-                           {ok, #?GLOBAL_CONFIG_RECORD{gr = GR}} -> GR;
-                           _ ->
-                               throw("Cannot get Global Registry node configuration.")
-                       end,
+            {ok, #?GLOBAL_CONFIG_RECORD{gr = undefined}} ->
+                throw("Global Registry node not configured.");
+            {ok, #?GLOBAL_CONFIG_RECORD{gr = GR}} -> GR;
+            _ ->
+                throw("Cannot get Global Registry node configuration.")
+        end,
 
         case stop([]) of
             ok -> start([{gr, ConfiguredGR}]);
@@ -254,8 +254,10 @@ local_start(Dbs) ->
             ?SOFTWARE_NAME,
             filename:join([?NODES_INSTALL_PATH, ?GLOBALREGISTRY_NAME]),
             [
-                {db_nodes, [list_to_atom(?DB_NAME ++ "@" ++ Db) || Db <- Dbs]},
-                {grpcert_domain, ?GLOBALREGISTRY_CERT_DOMAIN}
+                {?SOFTWARE_NAME, [
+                    {db_nodes, [list_to_atom(?DB_NAME ++ "@" ++ Db) || Db <- Dbs]},
+                    {grpcert_domain, ?GLOBALREGISTRY_CERT_DOMAIN}
+                ]}
             ],
             [
                 {name, ?GLOBALREGISTRY_NAME ++ "@" ++ Host},
@@ -306,13 +308,13 @@ local_restart() ->
     Host = onepanel_utils:get_host(node()),
     try
         ConfiguredDbs = case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
-                            {ok, #?GLOBAL_CONFIG_RECORD{gr = undefined}} ->
-                                throw("Global Registry node not configured.");
-                            {ok, #?GLOBAL_CONFIG_RECORD{gr = _, dbs = Dbs}} ->
-                                Dbs;
-                            _ ->
-                                throw("Cannot get Global Registry node configuration.")
-                        end,
+            {ok, #?GLOBAL_CONFIG_RECORD{gr = undefined}} ->
+                throw("Global Registry node not configured.");
+            {ok, #?GLOBAL_CONFIG_RECORD{gr = _, dbs = Dbs}} ->
+                Dbs;
+            _ ->
+                throw("Cannot get Global Registry node configuration.")
+        end,
 
         case local_stop() of
             {ok, _} -> local_start(ConfiguredDbs);

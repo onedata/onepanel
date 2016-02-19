@@ -61,20 +61,20 @@ uninstall(_) ->
 start(Args) ->
     try
         CCMs = case proplists:get_value(ccms, Args, []) of
-                   [] -> throw(nothing_to_start);
-                   Hosts -> Hosts
-               end,
+            [] -> throw(nothing_to_start);
+            Hosts -> Hosts
+        end,
 
         MainCCM = case proplists:get_value(main_ccm, Args) of
-                      undefined ->
-                          throw("Main CM node not found in arguments list.");
-                      Host -> Host
-                  end,
+            undefined ->
+                throw("Main CM node not found in arguments list.");
+            Host -> Host
+        end,
 
         OptCCMs = case lists:member(MainCCM, CCMs) of
-                      true -> lists:delete(MainCCM, CCMs);
-                      _ -> throw("Main CM node not found among CM nodes.")
-                  end,
+            true -> lists:delete(MainCCM, CCMs);
+            _ -> throw("Main CM node not found among CM nodes.")
+        end,
 
         Workers = proplists:get_value(workers, Args, []),
 
@@ -203,8 +203,10 @@ local_start(MainCCM, OptCCMs, Workers) ->
             ?CCM_APP_NAME,
             default,
             [
-                {cm_nodes, [list_to_atom(?CCM_NAME ++ "@" ++ CCM) || CCM <- [MainCCM | OptCCMs]]},
-                {worker_num, length(Workers)}
+                {?CCM_APP_NAME, [
+                    {cm_nodes, [list_to_atom(?CCM_NAME ++ "@" ++ CCM) || CCM <- [MainCCM | OptCCMs]]},
+                    {worker_num, length(Workers)}
+                ]}
             ],
             [
                 {name, ?CCM_NAME ++ "@" ++ Host},
