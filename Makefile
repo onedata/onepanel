@@ -39,7 +39,7 @@ compile:
 	@./rebar --config $(CONFIG) compile
 
 generate:
-	@./rebar --config $(CONFIG) generate ${OVERLAY_VARS}
+	@./rebar --config $(CONFIG) generate $(OVERLAY_VARS)
 
 clean: relclean pkgclean
 	@./rebar --config $(CONFIG) clean

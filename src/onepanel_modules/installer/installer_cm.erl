@@ -210,7 +210,7 @@ local_start(MainCM, OptCMs, Workers) ->
             ]
         ),
 
-        ServiceStart = "/etc/init.d/" ++ atom_to_list(?CM_APP_NAME) ++ " start 2>1 1>/dev/null",
+        ServiceStart = "service " ++ atom_to_list(?CM_APP_NAME) ++ " start 2>1 1>/dev/null",
         SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
         "0" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ ServiceStart ++ " ; echo -n $?\""),
 
@@ -233,7 +233,7 @@ local_stop() ->
     try
         ?debug("Stopping CM node"),
 
-        ServiceStop = "/etc/init.d/" ++ atom_to_list(?CM_APP_NAME) ++ " stop 2>1 1>/dev/null",
+        ServiceStop = "service " ++ atom_to_list(?CM_APP_NAME) ++ " stop 2>1 1>/dev/null",
         "0" = os:cmd(ServiceStop ++ " ; echo -n $?"),
 
         {ok, Host}
@@ -260,7 +260,7 @@ local_restart() ->
             _ -> throw("Cannot get CM nodes configuration.")
         end,
 
-        ServiceRestart = "/etc/init.d/" ++ atom_to_list(?CM_APP_NAME) ++ " restart 2>1 1>/dev/null",
+        ServiceRestart = "service " ++ atom_to_list(?CM_APP_NAME) ++ " restart 2>1 1>/dev/null",
         "0" = os:cmd(ServiceRestart ++ " ; echo -n $?"),
         {ok, Host}
     catch

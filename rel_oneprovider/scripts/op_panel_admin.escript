@@ -17,7 +17,7 @@
 -define(APP_STR, "onepanel").
 
 %% Default cookie used for communication with cluster
--define(COOKIE, cluster_node).
+-define(COOKIE, {{cookie}}).
 
 %% Default system limit values
 -define(OPEN_FILES, 65535).
@@ -31,7 +31,7 @@
 -define(EXIT_FAILURE, 1).
 
 %% Error logs filename
--define(LOG_FILE, "/var/log/op_panel/op_panel_admin.log").
+-define(LOG_FILE, os:getenv("RUNNER_LOG_DIR") ++ "op_panel_admin.log").
 
 %% Local onepanel node
 -define(NODE, setup_node).

@@ -225,7 +225,7 @@ local_start(MainCM, OptCMs, Dbs) ->
             ]
         ),
 
-        ServiceStart = "/etc/init.d/" ++ atom_to_list(?SOFTWARE_NAME) ++ " start 2>1 1>/dev/null",
+        ServiceStart = "service " ++ atom_to_list(?SOFTWARE_NAME) ++ " start 2>1 1>/dev/null",
         SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
         "0" = os:cmd("bash -c \"" ++ SetUlimitsCmd ++ " ; " ++ ServiceStart ++ " ; echo -n $?\""),
         {ok, Host}
@@ -247,7 +247,7 @@ local_stop() ->
     try
         ?debug("Stopping worker node on host: ~p", [Host]),
 
-        ServiceStop = "/etc/init.d/" ++ atom_to_list(?SOFTWARE_NAME) ++ " stop 2>1 1>/dev/null",
+        ServiceStop = "service " ++ atom_to_list(?SOFTWARE_NAME) ++ " stop 2>1 1>/dev/null",
         "0" = os:cmd(ServiceStop ++ " ; echo -n $?"),
 
         {ok, Host}
