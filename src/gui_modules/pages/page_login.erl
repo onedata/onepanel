@@ -53,7 +53,7 @@ body() ->
         true ->
             gui_jq:redirect(?PAGE_ROOT);
         false ->
-            case application:get_env(?APP_NAME, verify_gr_cert) of
+            case application:get_env(?APP_NAME, verify_oz_cert) of
                 {ok, true} ->
                     case file:read_file(http_client:ca_bundle_location()) of
                         {ok, _} ->

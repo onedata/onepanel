@@ -86,7 +86,7 @@ register(RedirectionPoint, ClientName) ->
             URL
         end, Workers),
         Parameters = [{<<"urls">>, URLs}, {<<"csr">>, CSR}, {<<"redirectionPoint">>, RedirectionPoint}, {<<"clientName">>, ClientName}],
-        {ok, ProviderId, Cert} = gr_providers:register(provider, Parameters),
+        {ok, ProviderId, Cert} = oz_providers:register(provider, Parameters),
 
         %% Save provider ID and certificate on all hosts
         ok = file:write_file(CertFile, <<Cert/binary, Key/binary>>),
@@ -118,7 +118,7 @@ unregister() ->
         Path = filename:join([EtcDir, ?SOFTWARE_NAME, "certs"]),
         ProviderId = get_provider_id(),
 
-        ok = gr_providers:unregister(provider),
+        ok = oz_providers:unregister(provider),
         ok = onepanel_utils:delete_file_on_hosts(Path, KeyName),
         ok = onepanel_utils:delete_file_on_hosts(Path, CertName),
 %%         todo enable when gr_channel will be present in new oneprovider

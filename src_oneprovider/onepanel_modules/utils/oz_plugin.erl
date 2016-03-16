@@ -5,29 +5,29 @@
 %% cited in 'LICENSE.txt'.
 %% @end
 %% ===================================================================
-%% @doc This module implements gr_plugin_behaviour in order
-%% to customize connection settings to Global Registry.
+%% @doc This module implements oz_plugin_behaviour in order
+%% to customize connection settings to onezone.
 %% @end
 %% ===================================================================
--module(gr_plugin).
--behaviour(gr_plugin_behaviour).
+-module(oz_plugin).
+-behaviour(oz_plugin_behaviour).
 
 -include("registered_names.hrl").
 
-%% gr_plugin_behaviour API
--export([get_gr_url/0, get_key_path/0, get_cert_path/0, get_cacert_path/0, get_csr_path/0]).
+%% oz_plugin_behaviour API
+-export([get_oz_url/0, get_key_path/0, get_cert_path/0, get_cacert_path/0, get_csr_path/0]).
 
 %% ====================================================================
-%% gr_plugin_behaviour API functions
+%% oz_plugin_behaviour API functions
 %% ====================================================================
 
-%% get_gr_url/0
+%% get_oz_url/0
 %% ====================================================================
-%% @doc Should return a Global Registry URL.
+%% @doc Should return a onezone URL.
 %% @end
--spec get_gr_url() -> string().
+-spec get_oz_url() -> string().
 %% ====================================================================
-get_gr_url() ->
+get_oz_url() ->
     {ok, URL} = application:get_env(?APP_NAME, onezone_url),
     URL.
 

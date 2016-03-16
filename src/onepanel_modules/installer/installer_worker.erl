@@ -216,7 +216,7 @@ local_start(MainCM, OptCMs, Dbs) ->
                     {cm_nodes, [list_to_atom(?CM_NAME ++ "@" ++ CM) || CM <- [MainCM | OptCMs]]},
                     {db_nodes, [list_to_atom(Db ++ ":" ++ integer_to_list(?DB_PORT)) || Db <- Dbs]},
                     {provider_domain, application:get_env(?APP_NAME, application_domain, "localhost.local")},
-                    {verify_gr_cert, application:get_env(?APP_NAME, verify_gr_cert, true)}
+                    {verify_oz_cert, application:get_env(?APP_NAME, verify_oz_cert, true)}
                 ]}
             ],
             [

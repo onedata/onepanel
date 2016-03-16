@@ -149,7 +149,7 @@ install(Path) ->
         case Register of
             yes ->
                 print_info("Connecting to Global Registry..."),
-                {ok, _} = rpc:call(Node, gr_providers, check_ip_address, [provider]),
+                {ok, _} = rpc:call(Node, oz_providers, check_ip_address, [provider]),
                 print_ok(),
 
                 print_info("Checking ports availability..."),
@@ -375,9 +375,9 @@ check_ports(Node) ->
                                         end,
     lists:foreach(fun(ControlPanelHost) ->
         ControlPanelNode = list_to_atom(?APP_STR ++ "@" ++ ControlPanelHost),
-        {ok, IpAddress} = rpc:call(ControlPanelNode, gr_providers, check_ip_address, [provider], ?RPC_TIMEOUT),
-        ok = rpc:call(Node, gr_providers, check_port, [provider, IpAddress, DefaultGuiPort, <<"gui">>]),
-        ok = rpc:call(Node, gr_providers, check_port, [provider, IpAddress, DefaultRestPort, <<"rest">>]),
+        {ok, IpAddress} = rpc:call(ControlPanelNode, oz_providers, check_ip_address, [provider], ?RPC_TIMEOUT),
+        ok = rpc:call(Node, oz_providers, check_port, [provider, IpAddress, DefaultGuiPort, <<"gui">>]),
+        ok = rpc:call(Node, oz_providers, check_port, [provider, IpAddress, DefaultRestPort, <<"rest">>]),
         ok = rpc:call(Node, dao, update_record,
             [local_configurations, ControlPanelHost, [{gui_port, DefaultGuiPort}, {rest_port, DefaultGuiPort}]], ?RPC_TIMEOUT)
     end, ControlPanelHosts),

@@ -369,8 +369,8 @@ comet_loop(#?STATE{id = ProviderId} = State) ->
                     {NewRedirectionPoint, MessageType, Message} =
                         try
                             {host_and_port, {ok, Host, Port}} = {host_and_port, onepanel_utils:get_host_and_port(RedirectionPoint)},
-                            {check_redirection_point, ok} = {check_redirection_point, gr_providers:check_port(provider, Host, Port, <<"gui">>)},
-                            {modify_refirection_point, ok} = {modify_refirection_point, gr_providers:modify_details(provider, [{<<"redirectionPoint">>, RedirectionPoint}])},
+                            {check_redirection_point, ok} = {check_redirection_point, oz_providers:check_port(provider, Host, Port, <<"gui">>)},
+                            {modify_refirection_point, ok} = {modify_refirection_point, oz_providers:modify_details(provider, [{<<"redirectionPoint">>, RedirectionPoint}])},
                             {modify_refirection_point, ok} = {modify_refirection_point, dao:update_record(?PROVIDER_TABLE, ProviderId, [{redirection_point, RedirectionPoint}])},
                             {RedirectionPoint, success, <<"Redirection point changed successfully.">>}
                         catch

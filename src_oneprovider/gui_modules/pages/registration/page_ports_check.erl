@@ -254,7 +254,7 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                                try
                                    {host_and_port, {ok, RedirectionPointHost, RedirectionPointPort}} = {host_and_port, onepanel_utils:get_host_and_port(RedirectionPoint)},
                                    %todo add port checking to op_worker and check 'ok' here
-                                   {check_redirection_point, _} = {check_redirection_point, gr_providers:check_port(provider, RedirectionPointHost, RedirectionPointPort, <<"gui">>)},
+                                   {check_redirection_point, _} = {check_redirection_point, oz_providers:check_port(provider, RedirectionPointHost, RedirectionPointPort, <<"gui">>)},
                                    gui_ctx:put(redirection_point, RedirectionPoint),
                                    gui_jq:css(<<"redirection_point_textbox">>, <<"border-color">>, <<"green">>),
                                    ok
@@ -272,7 +272,7 @@ comet_loop(#?STATE{ports = Ports} = State) ->
                                        true = validate_port(Port),
                                        {ok, #?LOCAL_CONFIG_RECORD{ip_address = IpAddress}} = dao:get_record(?LOCAL_CONFIG_TABLE, Host),
                                        %todo add port checking to op_worker and check 'ok' here
-                                       _ = gr_providers:check_port(provider, IpAddress, binary_to_integer(Port), Type),
+                                       _ = oz_providers:check_port(provider, IpAddress, binary_to_integer(Port), Type),
                                        ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{Field, binary_to_integer(Port)}]),
                                        gui_jq:css(PortId, <<"border-color">>, <<"green">>),
                                        HostStatus

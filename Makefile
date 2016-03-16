@@ -14,7 +14,7 @@ OVERLAY_VARS    ?=
 
 ifeq ($(REL_TYPE),onezone)
 CONFIG           = config/onezone.config
-PKG_VARS_CONFIG  = config/gr_pkg.vars.config
+PKG_VARS_CONFIG  = config/oz_pkg.vars.config
 PKG_ID           = oz-panel-$(PKG_VERSION)
 else
 CONFIG           = config/oneprovider.config
