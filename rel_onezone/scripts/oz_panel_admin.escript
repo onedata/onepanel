@@ -41,23 +41,15 @@
 %% * cms                - list of hostnames of machines where CM nodes are configured
 %% * workers            - list of hostnames of machines where worker nodes are configured
 %% * dbs                - list of hostnames of machines where database nodes are configured
-%% * storage_paths      - list of paths to storages on every worker node
 %% * open_files         - list of pairs hostname and open files limit on this host
 %% * processes          - list of pairs hostname and processes limit on this host
-%% * register           - yes/no value that describes whether register provider in Global Registry
-%% * redirection_point  - url to provider's GUI
-%% * client_name        - provider name
 -record(config, {
     main_cm,
     cms,
     workers,
     dbs,
-    storage_paths,
     open_files,
-    processes,
-    register,
-    redirection_point,
-    client_name
+    processes
 }).
 
 %% API
@@ -112,21 +104,13 @@ install(Path) ->
             cms = CMs,
             workers = Workers,
             dbs = Dbs,
-            storage_paths = StoragePaths,
             open_files = OpenFiles,
-            processes = Processes,
-            register = Register,
-            redirection_point = RedirectionPoint,
-            client_name = ClientName
+            processes = Processes
         } = parse({config, Path}),
         AllHosts = lists:usort(CMs ++ Workers ++ Dbs),
 
         print_info("Checking configuration..."),
         check_hosts(Node, AllHosts),
-        print_ok(),
-
-        print_info("Checking storage availability..."),
-        check_storage_paths(Node, StoragePaths, Workers),
         print_ok(),
 
         print_info("Setting ulimits..."),
@@ -142,26 +126,8 @@ install(Path) ->
             {Node, installer_db, start, [[{dbs, Dbs}]], "Starting database nodes..."},
             {Node, installer_cm, start, [[{main_cm, MainCM}, {cms, CMs}]], "Starting CM nodes..."},
             {Node, installer_worker, start, [[{workers, Workers}]], "Starting worker nodes..."},
-            {Node, installer_utils, finalize_installation, [[]], "Finalizing installation..."},
-            {Node, installer_storage, add_dio_storage, [[{workers, Workers}, {storage_paths, StoragePaths}]], "Adding storage paths..."}
-        ]),
-
-        case Register of
-            yes ->
-                print_info("Connecting to Global Registry..."),
-                {ok, _} = rpc:call(Node, gr_providers, check_ip_address, [provider]),
-                print_ok(),
-
-                print_info("Checking ports availability..."),
-                check_ports(Node),
-                print_ok(),
-
-                print_info("Registering..."),
-                {ok, _} = rpc:call(Node, provider_logic, register, [RedirectionPoint, ClientName], ?RPC_TIMEOUT),
-                print_ok();
-            _ ->
-                ok
-        end
+            {Node, installer_utils, finalize_installation, [[]], "Finalizing installation..."}
+        ])
     catch
         _:{config, Reason} when is_list(Reason) ->
             print_error("Configuration error: ~s\n", [Reason]),
@@ -223,14 +189,7 @@ uninstall() ->
             {Node, installer_worker, stop, [[]], "Stopping worker nodes..."},
             {Node, installer_cm, stop, [[]], "Stopping CM nodes..."},
             {Node, installer_db, stop, [[]], "Stopping database nodes..."}
-        ]),
-
-        case is_registered() of
-            true ->
-                ok = execute([{Node, provider_logic, unregister, [], "Unregistering provider..."}]);
-            _ ->
-                ok
-        end
+        ])
     catch
         _:{hosts, Hosts} when is_list(Hosts) ->
             io:format("[FAILED]\n"),
@@ -260,12 +219,8 @@ parse({config, Path}) ->
         cms = proplists:get_value("CM hosts", Terms, []),
         workers = proplists:get_value("Worker hosts", Terms, []),
         dbs = proplists:get_value("Database hosts", Terms, []),
-        storage_paths = proplists:get_value("Storage paths", Terms, []),
         open_files = proplists:get_value("Open files limit", Terms, []),
-        processes = proplists:get_value("Processes limit", Terms, []),
-        register = proplists:get_value("Register in Global Registry", Terms, no),
-        redirection_point = list_to_binary(proplists:get_value("Redirection point", Terms, hostname())),
-        client_name = list_to_binary(proplists:get_value("Client name", Terms, "provider"))
+        processes = proplists:get_value("Processes limit", Terms, [])
     };
 
 parse({terms, Terms}) ->
@@ -273,8 +228,7 @@ parse({terms, Terms}) ->
         main_cm = proplists:get_value(main_cm, Terms),
         cms = proplists:get_value(cms, Terms, []),
         workers = proplists:get_value(workers, Terms, []),
-        dbs = proplists:get_value(dbs, Terms, []),
-        storage_paths = proplists:get_value(storage_paths, Terms, [])
+        dbs = proplists:get_value(dbs, Terms, [])
     }.
 
 %% execute/4
@@ -303,25 +257,6 @@ execute([{Node, Module, Function, Args, Description} | Tasks]) ->
             throw({exec, "Unknown error."})
     end.
 
-%% hostname/0
-%% ====================================================================
-%% @doc Returns fully-qualified hostname of the machine.
-%% @end
--spec hostname() -> Hostname :: string().
-%% ====================================================================
-hostname() ->
-    os:cmd("hostname -f") -- "\n".
-
-%% is_registered/0
-%% ====================================================================
-%% @doc Returns true if provider is registered, otherwise false.
-%% @end
--spec is_registered() -> boolean().
-%% ====================================================================
-is_registered() ->
-    Node = get(?NODE),
-    undefined /= rpc:call(Node, provider_logic, get_provider_id, []).
-
 %% check_hosts/2
 %% ====================================================================
 %% @doc Checks whether all hosts mentioned in configuration file are
@@ -338,50 +273,6 @@ check_hosts(Node, Hosts) ->
                 throw({config, io_lib:fwrite("Host ~p was not found among available hosts.", [Host])})
         end
     end, Hosts).
-
-%% check_storage_paths/3
-%% ====================================================================
-%% @doc Checks whether all storage paths are available for all workers.
-%% @end
--spec check_storage_paths(Node :: atom(), StoragePaths :: [string()], Workers :: [string()]) -> ok | no_return().
-%% ====================================================================
-check_storage_paths(Node, StoragePaths, Workers) when is_list(StoragePaths) ->
-    lists:foreach(fun(StoragePath) ->
-        case rpc:call(Node, installer_storage, check_storage_path_on_hosts, [Workers, StoragePath]) of
-            ok -> ok;
-            {error, Hosts} ->
-                throw({config, io_lib:fwrite("Storage ~p in not available on following hosts: ~s", [StoragePath, string:join(Hosts, ", ")])})
-        end
-    end, StoragePaths);
-check_storage_paths(_, _, _) ->
-    throw({config, "Wrong storage paths format."}).
-
-%% check_ports/1
-%% ====================================================================
-%% @doc Checks whether default ports of all control panel nodes are
-%% available for Global Registry.
-%% @end
--spec check_ports(Node :: atom()) -> ok | no_return().
-%% ====================================================================
-check_ports(Node) ->
-    ControlPanelHosts = case rpc:call(Node, onepanel_utils, get_control_panel_hosts, [], ?RPC_TIMEOUT) of
-                            {ok, Hosts} -> Hosts;
-                            _ -> []
-                        end,
-    {DefaultGuiPort, DefaultRestPort} = case rpc:call(Node, provider_logic, get_ports_to_check, [], ?RPC_TIMEOUT) of
-                                            {ok, [{<<"gui">>, GuiPort}, {<<"rest">>, RestPort}]} ->
-                                                {GuiPort, RestPort};
-                                            _ -> {0, 0}
-                                        end,
-    lists:foreach(fun(ControlPanelHost) ->
-        ControlPanelNode = list_to_atom(?APP_STR ++ "@" ++ ControlPanelHost),
-        {ok, IpAddress} = rpc:call(ControlPanelNode, gr_providers, check_ip_address, [provider], ?RPC_TIMEOUT),
-        ok = rpc:call(Node, gr_providers, check_port, [provider, IpAddress, DefaultGuiPort, <<"gui">>]),
-        ok = rpc:call(Node, gr_providers, check_port, [provider, IpAddress, DefaultRestPort, <<"rest">>]),
-        ok = rpc:call(Node, dao, update_record,
-            [local_configurations, ControlPanelHost, [{gui_port, DefaultGuiPort}, {rest_port, DefaultGuiPort}]], ?RPC_TIMEOUT)
-    end, ControlPanelHosts),
-    ok.
 
 %% format/2
 %% ====================================================================

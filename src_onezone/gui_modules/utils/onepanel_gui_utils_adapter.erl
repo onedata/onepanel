@@ -24,8 +24,7 @@
 %% @doc Convenience function to render top menu in GUI pages.
 %% Item with ActiveTabID will be highlighted as active.
 %% @end
--spec top_menu(ActiveTabID :: atom()) -> Result when
-    Result :: #panel{}.
+-spec top_menu(ActiveTabID :: any()) -> list().
 %% ====================================================================
 top_menu(ActiveTabID) ->
     top_menu(ActiveTabID, undefined).
@@ -37,8 +36,7 @@ top_menu(ActiveTabID) ->
 %% Item with ActiveTabID and ActiveLinkID will be highlighted as active.
 %% Main page spinner will not be shown.
 %% @end
--spec top_menu(ActiveTabID :: atom(), ActiveLinkID :: atom()) -> Result when
-    Result :: #panel{}.
+-spec top_menu(ActiveTabID :: any(), SubMenuBody :: any()) -> list().
 %% ====================================================================
 top_menu(ActiveTabID, ActiveLinkID) ->
     top_menu(ActiveTabID, ActiveLinkID, []).
@@ -50,8 +48,7 @@ top_menu(ActiveTabID, ActiveLinkID) ->
 %% Item with ActiveTabID and ActiveLinkID will be highlighted as active.
 %% It allows to add submenu. Main page spinner will not be shown.
 %% @end
--spec top_menu(ActiveTabID :: atom(), ActiveLinkID :: atom(), Submenu :: term()) -> Result when
-    Result :: #panel{}.
+-spec top_menu(ActiveTabID :: atom(), ActiveLinkID :: atom(), Submenu :: term()) -> list().
 %% ====================================================================
 top_menu(ActiveTabID, ActiveLinkID, Submenu) ->
     top_menu(ActiveTabID, ActiveLinkID, Submenu, false).
@@ -63,8 +60,7 @@ top_menu(ActiveTabID, ActiveLinkID, Submenu) ->
 %% Item with ActiveTabID and ActiveLinkID will be highlighted as active.
 %% It allows to show or hide main page spinner and add submenu.
 %% @end
--spec top_menu(ActiveTabID :: atom(), ActiveLinkID :: atom(), Submenu :: term(), Spinner :: boolean()) -> Result when
-    Result :: #panel{}.
+-spec top_menu(ActiveTabID :: atom(), ActiveLinkID :: atom(), Submenu :: term(), Spinner :: boolean()) -> list().
 %% ====================================================================
 top_menu(ActiveTabID, ActiveLinkID, Submenu, Spinner) ->
     Process = fun(ActiveItem, List) ->
@@ -76,27 +72,18 @@ top_menu(ActiveTabID, ActiveLinkID, Submenu, Spinner) ->
         end, List)
     end,
 
-
     % Define menu items with ids, so that proper tab can be made active via function parameter
     MenuCaptions = Process(ActiveTabID, [
         {brand_tab, #li{body = #link{style = <<"padding: 18px;">>, url = ?PAGE_ROOT,
             body = [
                 #span{style = <<"font-size: xx-large;">>, class = <<"fui-gear">>},
-                #b{style = <<"font-size: x-large;">>, body = provider_logic:get_provider_name()}
+                #b{style = <<"font-size: x-large;">>, body = <<"onepanel">>}
             ]}
         }},
         {software_tab, #li{body = [
             #link{style = "padding: 18px;", url = ?PAGE_INSTALLATION, body = <<"Software">>},
             #list{style = "top: 37px; width: 120px;", body = Process(ActiveLinkID, [
-                {installation_link, #li{body = #link{url = ?PAGE_INSTALLATION, body = <<"Installation">>}}},
-                {storage_link, #li{body = #link{url = ?PAGE_STORAGE, body = <<"Storage configuration">>}}}
-            ])}
-        ]}},
-        {spaces_tab, #li{body = [
-            #link{style = "padding: 18px;", url = ?PAGE_SPACES_ACCOUNT, body = <<"Spaces">>},
-            #list{style = "top: 37px; width: 120px;", body = Process(ActiveLinkID, [
-                {spaces_account_link, #li{body = #link{url = ?PAGE_SPACES_ACCOUNT, body = <<"Account">>}}},
-                {spaces_dashboard_link, #li{body = #link{url = ?PAGE_SPACES_MANAGEMENT, body = <<"Management">>}}}
+                {installation_link, #li{body = #link{url = ?PAGE_INSTALLATION, body = <<"Installation">>}}}
             ])}
         ]}}
     ]),
@@ -111,9 +98,9 @@ top_menu(ActiveTabID, ActiveLinkID, Submenu, Spinner) ->
     ]),
 
     SpinnerDisplay = case Spinner of
-                         true -> <<"">>;
-                         _ -> <<" display: none;">>
-                     end,
+        true -> <<"">>;
+        _ -> <<" display: none;">>
+    end,
 
     [
         #panel{

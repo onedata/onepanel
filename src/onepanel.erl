@@ -63,9 +63,6 @@ init([]) ->
         ok = gen_udp:controlling_process(Socket, self()),
 
         self() ! connection_ping,
-        lists:foreach(fun({Message, Delay}) ->
-            timer:send_after(Delay, Message)
-        end, ?INIT_MESSAGES),
 
         {ok, #state{socket = Socket, address = Address, port = Port}}
     catch
@@ -180,12 +177,6 @@ handle_info(connection_ping, #state{socket = Socket, address = Address, port = P
     {ok, Delay} = application:get_env(?APP_NAME, connection_ping_delay),
     gen_udp:send(Socket, Address, Port, <<(?MULTICAST_MESSAGE_PREFIX)/binary, (list_to_binary(net_adm:localhost()))/binary>>),
     erlang:send_after(Delay, self(), connection_ping),
-    {noreply, State};
-
-handle_info(start_updater, State) ->
-    updater:start(),
-    {ok, Delay} = application:get_env(?APP_NAME, updater_lookup_delay),
-    timer:send_after(Delay, start_updater),
     {noreply, State};
 
 handle_info(Info, State) ->

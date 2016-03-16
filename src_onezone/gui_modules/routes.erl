@@ -58,14 +58,7 @@ finish(State, Ctx) -> {ok, State, Ctx}.
     Result :: module().
 %% ====================================================================
 %% Root page
-route(?PAGE_ROOT) ->
-    case installer_utils:get_workers() of
-        [] -> page_installation;
-        _ -> case provider_logic:get_provider_id() of
-                 undefined -> page_spaces_account;
-                 _ -> page_spaces_management
-             end
-    end;
+route(?PAGE_ROOT) -> page_installation;
 
 %% Management pages
 route(?PAGE_LOGIN) -> page_login;
@@ -82,20 +75,8 @@ route(?PAGE_HOST_SELECTION) -> page_hosts_selection;
 route(?PAGE_PRIMARY_CM_SELECTION) -> page_primary_cm_selection;
 route(?PAGE_APP_PORTS_CHECK) -> page_app_ports_check;
 route(?PAGE_SYSTEM_LIMITS) -> page_system_limits;
-route(?PAGE_STORAGE) -> page_storage;
 route(?PAGE_INSTALLATION_SUMMARY) -> page_installation_summary;
 route(?PAGE_INSTALLATION_SUCCESS) -> page_installation_success;
-
-%% Registration pages
-route(?PAGE_CONNECTION_CHECK) -> page_connection_check;
-route(?PAGE_PORTS_CHECK) -> page_ports_check;
-route(?PAGE_REGISTRATION_SUMMARY) -> page_registration_summary;
-route(?PAGE_REGISTRATION_SUCCESS) -> page_registration_success;
-
-%% Spaces pages
-route(?PAGE_SPACE_DETAILS) -> page_space_details;
-route(?PAGE_SPACES_ACCOUNT) -> page_spaces_account;
-route(?PAGE_SPACES_MANAGEMENT) -> page_spaces_management;
 
 %% Undefined pages
 route(_) -> page_404.

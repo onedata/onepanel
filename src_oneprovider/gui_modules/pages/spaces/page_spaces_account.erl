@@ -37,7 +37,7 @@
 main() ->
     case gui_ctx:user_logged_in() of
         true ->
-            case installer_utils_adapter:get_workers() of
+            case installer_utils:get_workers() of
                 [] ->
                     page_error:redirect_with_error(?SOFTWARE_NOT_INSTALLED_ERROR),
                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
@@ -368,7 +368,7 @@ comet_loop(#?STATE{id = ProviderId} = State) ->
                 {change_redirection_point, OldRedirectionPoint, RedirectionPoint} ->
                     {NewRedirectionPoint, MessageType, Message} =
                         try
-                            {host_and_port, {ok, Host, Port}} = {host_and_port, onepanel_utils_adapter:get_host_and_port(RedirectionPoint)},
+                            {host_and_port, {ok, Host, Port}} = {host_and_port, onepanel_utils:get_host_and_port(RedirectionPoint)},
                             {check_redirection_point, ok} = {check_redirection_point, gr_providers:check_port(provider, Host, Port, <<"gui">>)},
                             {modify_refirection_point, ok} = {modify_refirection_point, gr_providers:modify_details(provider, [{<<"redirectionPoint">>, RedirectionPoint}])},
                             {modify_refirection_point, ok} = {modify_refirection_point, dao:update_record(?PROVIDER_TABLE, ProviderId, [{redirection_point, RedirectionPoint}])},

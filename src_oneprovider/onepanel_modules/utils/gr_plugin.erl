@@ -28,7 +28,7 @@
 -spec get_gr_url() -> string().
 %% ====================================================================
 get_gr_url() ->
-    {ok, URL} = application:get_env(?APP_NAME, globalregistry_url),
+    {ok, URL} = application:get_env(?APP_NAME, onezone_url),
     URL.
 
 
@@ -39,7 +39,7 @@ get_gr_url() ->
 -spec get_key_path() -> string().
 %% ====================================================================
 get_key_path() ->
-    {ok, KeyFile} = application:get_env(?APP_NAME, grpkey_path),
+    {ok, KeyFile} = application:get_env(?APP_NAME, ozpkey_path),
     KeyFile.
 
 
@@ -51,7 +51,7 @@ get_key_path() ->
 -spec get_cert_path() -> string().
 %% ====================================================================
 get_cert_path() ->
-    {ok, CertFile} = application:get_env(?APP_NAME, grpcert_path),
+    {ok, CertFile} = application:get_env(?APP_NAME, ozpcert_path),
     CertFile.
 
 
@@ -63,7 +63,7 @@ get_cert_path() ->
 -spec get_cacert_path() -> string().
 %% ====================================================================
 get_cacert_path() ->
-    {ok, CACertFile} = application:get_env(?APP_NAME, grpcacert_path),
+    {ok, CACertFile} = application:get_env(?APP_NAME, ozpcacert_path),
     CACertFile.
 
 %% get_csr_path/0
@@ -74,5 +74,5 @@ get_cacert_path() ->
 -spec get_csr_path() -> string().
 %% ====================================================================
 get_csr_path() ->
-    {ok, CSRFile} = application:get_env(?APP_NAME, grpcsr_path),
+    {ok, CSRFile} = application:get_env(?APP_NAME, ozpcsr_path),
     CSRFile.

@@ -65,11 +65,11 @@ create_csr(_, _, _) ->
 register(RedirectionPoint, ClientName) ->
     try
         {ok, EtcDir} = application:get_env(?APP_NAME, platform_etc_dir),
-        {ok, KeyFile} = application:get_env(?APP_NAME, grpkey_path),
-        {ok, KeyName} = application:get_env(?APP_NAME, grpkey_name),
-        {ok, CsrPath} = application:get_env(?APP_NAME, grpcsr_path),
-        {ok, CertName} = application:get_env(?APP_NAME, grpcert_name),
-        {ok, CertFile} = application:get_env(?APP_NAME, grpcert_path),
+        {ok, KeyFile} = application:get_env(?APP_NAME, ozpkey_path),
+        {ok, KeyName} = application:get_env(?APP_NAME, ozpkey_name),
+        {ok, CsrPath} = application:get_env(?APP_NAME, ozpcsr_path),
+        {ok, CertName} = application:get_env(?APP_NAME, ozpcert_name),
+        {ok, CertFile} = application:get_env(?APP_NAME, ozpcert_path),
         Path = filename:join([EtcDir, ?SOFTWARE_NAME, "certs"]),
 
         {ok, _} = create_csr("", KeyFile, CsrPath),
@@ -113,8 +113,8 @@ register(RedirectionPoint, ClientName) ->
 unregister() ->
     try
         {ok, EtcDir} = application:get_env(?APP_NAME, platform_etc_dir),
-        {ok, KeyName} = application:get_env(?APP_NAME, grpkey_name),
-        {ok, CertName} = application:get_env(?APP_NAME, grpcert_name),
+        {ok, KeyName} = application:get_env(?APP_NAME, ozpkey_name),
+        {ok, CertName} = application:get_env(?APP_NAME, ozpcert_name),
         Path = filename:join([EtcDir, ?SOFTWARE_NAME, "certs"]),
         ProviderId = get_provider_id(),
 
@@ -122,7 +122,7 @@ unregister() ->
         ok = onepanel_utils:delete_file_on_hosts(Path, KeyName),
         ok = onepanel_utils:delete_file_on_hosts(Path, CertName),
 %%         todo enable when gr_channel will be present in new oneprovider
-%%         Nodes = onepanel_utils_adapter:apply_on_worker(gen_server, call, [request_dispatcher, {get_workers, gr_channel}]),
+%%         Nodes = onepanel_utils:apply_on_worker(gen_server, call, [request_dispatcher, {get_workers, gr_channel}]),
 %%         rpc:multicall(Nodes, gr_channel, disconnect, []),
         ok = dao:delete_record(?PROVIDER_TABLE, ProviderId)
     catch
@@ -141,8 +141,8 @@ unregister() ->
 %% ====================================================================
 get_default_ports() ->
     try
-        {ok, GuiPort} = onepanel_utils_adapter:apply_on_worker(application, get_env, [?SOFTWARE_NAME, gui_https_port]),
-        {ok, RestPort} = onepanel_utils_adapter:apply_on_worker(application, get_env, [?SOFTWARE_NAME, rest_port]),
+        {ok, GuiPort} = onepanel_utils:apply_on_worker(application, get_env, [?SOFTWARE_NAME, gui_https_port]),
+        {ok, RestPort} = onepanel_utils:apply_on_worker(application, get_env, [?SOFTWARE_NAME, rest_port]),
         {ok, [{<<"gui">>, GuiPort}, {<<"rest">>, RestPort}]}
     catch
         _:Reason ->

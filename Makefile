@@ -12,8 +12,8 @@ ERLANG_BIN       = $(shell dirname $(shell which erl))
 REBAR           ?= $(BASE_DIR)/rebar
 OVERLAY_VARS    ?=
 
-ifeq ($(REL_TYPE),globalregistry)
-CONFIG           = config/globalregistry.config
+ifeq ($(REL_TYPE),onezone)
+CONFIG           = config/onezone.config
 PKG_VARS_CONFIG  = config/gr_pkg.vars.config
 PKG_ID           = oz-panel-$(PKG_VERSION)
 else
@@ -55,9 +55,9 @@ doc:
 	@./rebar --config $(CONFIG) doc skip_deps=true
 
 rel: deps compile generate
-ifeq ($(REL_TYPE),globalregistry)
+ifeq ($(REL_TYPE),onezone)
 	rm -rf rel/oz_panel
-	mv rel_globalregistry/oz_panel rel/
+	mv rel_onezone/oz_panel rel/
 else
 	rm -rf rel/op_panel
 	mv rel_oneprovider/op_panel rel/
@@ -66,7 +66,7 @@ endif
 relclean:
 	rm -rf rel/oz_panel
 	rm -rf rel/op_panel
-	rm -rf rel_globalregistry/oz_panel
+	rm -rf rel_onezone/oz_panel
 	rm -rf rel_oneprovider/op_panel
 
 ##
