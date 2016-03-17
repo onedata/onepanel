@@ -27,6 +27,7 @@
 %% Installation pages
 -define(PAGE_INSTALLATION, <<"/software/installation">>).
 -define(PAGE_HOST_SELECTION, <<"/software/installation/hosts_selection">>).
+-define(PAGE_PRIMARY_CM_SELECTION, <<"/software/installation/primary_cm_selection">>).
 -define(PAGE_APP_PORTS_CHECK, <<"/software/installation/ports_check">>).
 -define(PAGE_SYSTEM_LIMITS, <<"/software/installation/system_limits">>).
 -define(PAGE_INSTALLATION_SUMMARY, <<"/software/installation/summary">>).
@@ -40,26 +41,8 @@
 %% Current registration step saved in user session
 -define(CURRENT_REGISTRATION_PAGE, register_page).
 
-%% Current update step saved in user session
--define(CURRENT_UPDATE_PAGE, update_page).
-
-%% Currently selected version in update process
--define(CHOSEN_VERSION, chosen_version).
-
 %% Installation pages
--define(PAGE_PRIMARY_CCM_SELECTION, <<"/software/installation/primary_ccm_selection">>).
 -define(PAGE_STORAGE, <<"/software/installation/storage">>).
-
-%% Update pages
--define(PAGE_UPDATE, <<"/software/update">>).
--define(PAGE_VERSION_SELECTION, <<"/software/update/version_selection">>).
--define(PAGE_UPDATE_SUMMARY, <<"/software/update/summary">>).
--define(PAGE_UPDATE_SUCCESS, <<"/software/update/success">>).
-
-%% Diagnostics pages
--define(PAGE_MONITORING, <<"/software/diagnostics/monitoring">>).
--define(PAGE_CLIENTS_LOGS, <<"/software/diagnostics/clients_logs">>).
--define(PAGE_SERVER_LOGS, <<"/software/diagnostics/server_logs">>).
 
 %% Registration pages
 -define(PAGE_CONNECTION_CHECK, <<"/spaces/registration/connection_check">>).

@@ -31,23 +31,20 @@
 %% Installer gen_server's name
 -define(INSTALL_SERVICE, install_service).
 
--ifdef(oneprovider).
+%% Cm application name
+-define(CM_APP_NAME, cluster_manager).
 
-%% Updater gen_server's name
--define(UPDATE_SERVICE, update_service).
+-ifdef(oneprovider).
 
 %% Name of installed software application.
 -define(SOFTWARE_NAME, op_worker).
 
-%% Ccm application name
--define(CCM_APP_NAME, cluster_manager).
-
 -endif.
 
--ifdef(globalregistry).
+-ifdef(onezone).
 
 %% Name of installed software application.
--define(SOFTWARE_NAME, globalregistry).
+-define(SOFTWARE_NAME, oz_worker).
 
 -endif.
 

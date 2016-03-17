@@ -13,7 +13,7 @@
 -ifndef(ONEPANEL_PROVIDER_LOGIC_HRL).
 -define(ONEPANEL_PROVIDER_LOGIC_HRL, 1).
 
--include_lib("ctool/include/global_registry/gr_providers.hrl").
+-include_lib("ctool/include/oz/oz_providers.hrl").
 
 %% Names of database records
 -define(PROVIDER_RECORD, provider_details).
