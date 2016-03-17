@@ -134,9 +134,7 @@ change_username(Username, NewUsername) ->
             {error, <<"Record not found.">>} = dao:get_record(?USER_TABLE, NewUsername),
             {ok, User} = dao:get_record(?USER_TABLE, Username),
             ok = dao:delete_record(?USER_TABLE, Username),
-            ok = dao:save_record(?USER_TABLE, User#?USER_RECORD{username = NewUsername}),
-            {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-            ok = installer_db:change_username(Dbs, Username, NewUsername)
+            ok = dao:save_record(?USER_TABLE, User#?USER_RECORD{username = NewUsername})
         end,
         mnesia:activity(transaction, Transaction)
     catch

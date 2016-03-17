@@ -55,7 +55,7 @@ body() ->
         false ->
             case application:get_env(?APP_NAME, verify_oz_cert) of
                 {ok, true} ->
-                    case file:read_file(http_client:ca_bundle_location()) of
+                    case file:read_file(web_client_utils:ca_bundle_location()) of
                         {ok, _} ->
                             render_login_page();
                         _ ->
@@ -78,8 +78,8 @@ render_ca_alert() ->
             #p{style = <<"color: red; font-weight: 600; margin-top: 15px;">>, body = [
                 <<"Trusted CA bundle not found.">>,
                 #br{},
-                gui_str:format_bin("Please make sure it is present under path: ~s",
-                    [http_client:ca_bundle_location()])
+                str_utils:format_bin("Please make sure it is present under path: ~s",
+                    [web_client_utils:ca_bundle_location()])
             ]},
             #button{
                 id = <<"refresh_button">>,
