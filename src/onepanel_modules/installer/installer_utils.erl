@@ -47,7 +47,7 @@ set_system_limit(Type, Value) ->
         ok = dao:update_record(?LOCAL_CONFIG_TABLE, Host, [{Type, Value}])
     catch
         _:Reason ->
-            ?error("Cannot set ulimits: ~p", [Reason]),
+            ?error_stacktrace("Cannot set ulimits: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -66,7 +66,7 @@ get_system_limits_cmd(Host) ->
         "ulimit -n " ++ integer_to_list(OpenFiles) ++ " ; ulimit -u " ++ integer_to_list(Processes)
     catch
         _:Reason ->
-            ?error("Cannot get ulimits configuration: ~p. Returning default values.", [Reason]),
+            ?error_stacktrace("Cannot get ulimits configuration: ~p. Returning default values.", [Reason]),
             "ulimit -n " ++ integer_to_list(?OPEN_FILES) ++ " ; ulimit -u " ++ integer_to_list(?PROCESSES)
     end.
 
@@ -88,7 +88,7 @@ overwrite_config_args(Path, Parameter, Pattern, NewValue) ->
         ok
     catch
         _:Reason ->
-            ?error("Cannot overwrite config args: ~p", [Reason]),
+            ?error_stacktrace("Cannot overwrite config args: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -243,7 +243,7 @@ check_ip_address() ->
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot check IP address: ~p", [Reason]),
+            ?error_stacktrace("Cannot check IP address: ~p", [Reason]),
             {error, Host}
     end.
 
@@ -265,7 +265,7 @@ check_ip_addresses() ->
         end
     catch
         _:Reason ->
-            ?error("Cannot check IP addresses: ~p", [Reason]),
+            ?error_stacktrace("Cannot check IP addresses: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -312,7 +312,7 @@ finalize_installation(_Args) ->
         ok
     catch
         _:Reason ->
-            ?error("Cannot finalize installation: ~p", [Reason]),
+            ?error_stacktrace("Cannot finalize installation: ~p", [Reason]),
             {error, Reason}
     end.
 

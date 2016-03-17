@@ -31,7 +31,7 @@
 -define(EXIT_FAILURE, 1).
 
 %% Error logs filename
--define(LOG_FILE, os:getenv("RUNNER_LOG_DIR") ++ "op_panel_admin.log").
+-define(LOG_FILE, filename:join(os:getenv("RUNNER_LOG_DIR"), "op_panel_admin.log")).
 
 %% Local onepanel node
 -define(NODE, setup_node).
@@ -90,13 +90,21 @@ main(Args) ->
 -spec init() -> ok.
 %% ====================================================================
 init() ->
-    Hostname = "@" ++ os:cmd("hostname -f") -- "\n",
-    put(?NODE, erlang:list_to_atom(?APP_STR ++ Hostname)),
-    {A, B, C} = erlang:timestamp(),
-    NodeName = "onepanel_admin_" ++ integer_to_list(A, 32) ++
-        integer_to_list(B, 32) ++ integer_to_list(C, 32) ++ "@127.0.0.1",
-    net_kernel:start([list_to_atom(NodeName), longnames]),
-    erlang:set_cookie(node(), ?COOKIE).
+    try
+        Hostname = "@" ++ os:cmd("hostname -f") -- "\n",
+        put(?NODE, erlang:list_to_atom(?APP_STR ++ Hostname)),
+        {A, B, C} = erlang:timestamp(),
+        NodeName = "onepanel_admin_" ++ integer_to_list(A, 32) ++
+            integer_to_list(B, 32) ++ integer_to_list(C, 32) ++ "@127.0.0.1",
+        net_kernel:start([list_to_atom(NodeName), longnames]),
+        erlang:set_cookie(node(), ?COOKIE)
+    catch
+        Error:Reason ->
+            Log = io_lib:fwrite("Error: ~p~nReason: ~p~nStacktrace: ~p~n", [Error, Reason, erlang:get_stacktrace()]),
+            file:write_file(?LOG_FILE, Log),
+            io:format("Environment initialization failed. See ~s for more information.~n", [?LOG_FILE]),
+            halt(?EXIT_FAILURE)
+    end.
 
 %% install/1
 %% ====================================================================

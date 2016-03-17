@@ -38,7 +38,7 @@ save_record(Table, Record) ->
         mnesia:activity(transaction, Transaction)
     catch
         _:Reason ->
-            ?error("Cannot save record ~p in table ~p: ~p", [Record, Table, Reason]),
+            ?error_stacktrace("Cannot save record ~p in table ~p: ~p", [Record, Table, Reason]),
             {error, Reason}
     end.
 
@@ -61,7 +61,7 @@ delete_record(Table, Key) ->
         mnesia:activity(transaction, Transaction)
     catch
         _:Reason ->
-            ?error("Cannot delete record from table ~p using key ~p: ~p", [Table, Key, Reason]),
+            ?error_stacktrace("Cannot delete record from table ~p using key ~p: ~p", [Table, Key, Reason]),
             {error, Reason}
     end.
 
@@ -103,7 +103,7 @@ update_record(Table, Key, Values) ->
         mnesia:activity(transaction, Transaction)
     catch
         _:Reason ->
-            ?error("Cannot update record in table ~p using key ~p and substitution values ~p: ~p", [Table, Key, Values, Reason]),
+            ?error_stacktrace("Cannot update record in table ~p using key ~p and substitution values ~p: ~p", [Table, Key, Values, Reason]),
             {error, Reason}
     end.
 
@@ -128,7 +128,7 @@ get_record(Table, Key) ->
         mnesia:activity(transaction, Transaction)
     catch
         _:Reason ->
-            ?error("Cannot get record from table ~p using key ~p: ~p", [Table, Key, Reason]),
+            ?error_stacktrace("Cannot get record from table ~p using key ~p: ~p", [Table, Key, Reason]),
             {error, Reason}
     end.
 
@@ -151,7 +151,7 @@ get_records(Table) ->
         mnesia:activity(transaction, Transaction)
     catch
         _:Reason ->
-            ?error("Cannot get all records from table ~p: ~p", [Table, Reason]),
+            ?error_stacktrace("Cannot get all records from table ~p: ~p", [Table, Reason]),
             {error, Reason}
     end.
 
@@ -174,7 +174,7 @@ exist_record(Table, Key) ->
         mnesia:activity(transaction, Transaction)
     catch
         _:Reason ->
-            ?error("Cannot check record exists in table ~p using key ~p: ~p", [Table, Key, Reason]),
+            ?error_stacktrace("Cannot check record exists in table ~p using key ~p: ~p", [Table, Key, Reason]),
             {error, Reason}
     end.
 

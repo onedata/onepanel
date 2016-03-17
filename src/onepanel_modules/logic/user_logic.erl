@@ -83,7 +83,7 @@ create_user(Username, Password) ->
         mnesia:activity(transaction, Transaction)
     catch
         _:Reason ->
-            ?error("Cannot create user ~p: ~p", [Username, Reason]),
+            ?error_stacktrace("Cannot create user ~p: ~p", [Username, Reason]),
             {error, Reason}
     end.
 
@@ -105,7 +105,7 @@ authenticate(Username, Password) ->
                 _:{badmatch, false} ->
                     {error, ?AUTHENTICATION_ERROR};
                 _:Reason ->
-                    ?error("Cannot authenticate user: ~p", [Reason]),
+                    ?error_stacktrace("Cannot authenticate user: ~p", [Reason]),
                     {error, ?INTERNAL_SERVER_ERROR}
             end;
         {error, <<"Record not found.">>} -> {error, ?AUTHENTICATION_ERROR};
@@ -145,7 +145,7 @@ change_username(Username, NewUsername) ->
         error:{badmatch, {error, Reason}} when is_binary(Reason) ->
             {error, Reason};
         _:Reason ->
-            ?error("Cannot change name of user ~p: ~p", [Username, Reason]),
+            ?error_stacktrace("Cannot change name of user ~p: ~p", [Username, Reason]),
             {error, <<"Internal server error.">>}
     end.
 
@@ -169,14 +169,12 @@ change_password(Username, CurrentPassword, NewPassword, NewPassword) ->
                         {ok, WorkFactor} = application:get_env(?APP_NAME, bcrypt_work_factor),
                         PasswordHash = hash_password(binary_to_list(NewPassword), WorkFactor),
                         ok = dao:update_record(?USER_TABLE, Username, [{password_hash, PasswordHash}]),
-                        {ok, #?GLOBAL_CONFIG_RECORD{dbs = Dbs}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-                        ok = installer_db:change_password(Dbs, Username, CurrentPassword, NewPassword),
                         ok = gen_server:call(?ONEPANEL_SERVER, {set_password, Username, NewPassword})
                     catch
                         error:{badmatch, {error, Reason}} when is_binary(Reason) ->
                             {error, Reason};
                         _:Reason ->
-                            ?error("Cannot change password for user ~p: ~p", [Username, Reason]),
+                            ?error_stacktrace("Cannot change password for user ~p: ~p", [Username, Reason]),
                             {error, <<"Internal server error">>}
                     end;
                 {error, ?AUTHENTICATION_ERROR} ->

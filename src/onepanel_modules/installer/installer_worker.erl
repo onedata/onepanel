@@ -101,7 +101,7 @@ start(Args) ->
     catch
         _:nothing_to_start -> ok;
         _:Reason ->
-            ?error("Cannot start worker nodes: ~p", [Reason]),
+            ?error_stacktrace("Cannot start worker nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -156,7 +156,7 @@ stop(Args) ->
         end
     catch
         _:Reason ->
-            ?error("Cannot stop worker nodes: ~p", [Reason]),
+            ?error_stacktrace("Cannot stop worker nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -187,7 +187,7 @@ restart(Args) ->
         end
     catch
         _:Reason ->
-            ?error("Cannot restart worker nodes: ~p", [Reason]),
+            ?error_stacktrace("Cannot restart worker nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -231,7 +231,7 @@ local_start(MainCM, OptCMs, Dbs) ->
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot start worker node: ~p", [Reason]),
+            ?error_stacktrace("Cannot start worker node: ~p", [Reason]),
             {error, Host}
     end.
 
@@ -253,7 +253,7 @@ local_stop() ->
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot stop worker node: ~p", [Reason]),
+            ?error_stacktrace("Cannot stop worker node: ~p", [Reason]),
             {error, Host}
     end.
 

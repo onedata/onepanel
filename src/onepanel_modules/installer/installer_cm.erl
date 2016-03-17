@@ -98,7 +98,7 @@ start(Args) ->
     catch
         _:nothing_to_start -> ok;
         _:Reason ->
-            ?error("Cannot start CM nodes: ~p", [Reason]),
+            ?error_stacktrace("Cannot start CM nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -144,7 +144,7 @@ stop(_) ->
         end
     catch
         _:Reason ->
-            ?error("Cannot stop CM nodes: ~p", [Reason]),
+            ?error_stacktrace("Cannot stop CM nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -175,7 +175,7 @@ restart(_) ->
         end
     catch
         _:Reason ->
-            ?error("Cannot restart CM nodes: ~p", [Reason]),
+            ?error_stacktrace("Cannot restart CM nodes: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -239,7 +239,7 @@ local_stop() ->
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot stop CM node: ~p", [Reason]),
+            ?error_stacktrace("Cannot stop CM node: ~p", [Reason]),
             {error, Host}
     end.
 
@@ -265,6 +265,6 @@ local_restart() ->
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot restart CM node: ~p", [Reason]),
+            ?error_stacktrace("Cannot restart CM node: ~p", [Reason]),
             {error, Host}
     end.

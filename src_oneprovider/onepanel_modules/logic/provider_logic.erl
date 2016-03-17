@@ -127,7 +127,7 @@ unregister() ->
         ok = dao:delete_record(?PROVIDER_TABLE, ProviderId)
     catch
         _:Reason ->
-            ?error("Cannot unregister from Global Registry: ~p", [Reason]),
+            ?error_stacktrace("Cannot unregister from Global Registry: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -146,7 +146,7 @@ get_default_ports() ->
         {ok, [{<<"gui">>, GuiPort}, {<<"rest">>, RestPort}]}
     catch
         _:Reason ->
-            ?error("Cannot get ports to check: ~p", [Reason]),
+            ?error_stacktrace("Cannot get ports to check: ~p", [Reason]),
             {error, Reason}
     end.
 

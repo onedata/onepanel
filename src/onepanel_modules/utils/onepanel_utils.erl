@@ -189,7 +189,7 @@ save_file_on_host(Path, Filename, Content) ->
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot save file ~p at directory ~p: ~p", [Filename, Path, Reason]),
+            ?error_stacktrace("Cannot save file ~p at directory ~p: ~p", [Filename, Path, Reason]),
             {error, Host}
     end.
 
@@ -223,7 +223,7 @@ delete_file_on_host(Path, Filename) ->
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot delete file ~p at directory ~p: ~p", [Filename, Path, Reason]),
+            ?error_stacktrace("Cannot delete file ~p at directory ~p: ~p", [Filename, Path, Reason]),
             {error, Host}
     end.
 
@@ -274,7 +274,7 @@ apply_on_worker(Module, Function, Arguments) ->
         onepanel_utils:dropwhile_failure(WorkerNodes, Module, Function, Arguments, ?RPC_TIMEOUT)
     catch
         _:Reason ->
-            ?error("Cannot apply ~p on worker: ~p", [{Module, Function, Arguments}, Reason]),
+            ?error_stacktrace("Cannot apply ~p on worker: ~p", [{Module, Function, Arguments}, Reason]),
             {error, Reason}
     end.
 
