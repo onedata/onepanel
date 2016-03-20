@@ -205,7 +205,7 @@ check_storage_path_on_hosts([Host | Hosts], Path) ->
                 end
             catch
                 _:Reason ->
-                    ?error("Cannot check storage ~p availability on hosts ~p: ~p", [Path, [Host | Hosts], Reason]),
+                    ?error_stacktrace("Cannot check storage ~p availability on hosts ~p: ~p", [Path, [Host | Hosts], Reason]),
                     rpc:call(Node, ?MODULE, remove_storage_test_file, [FilePath], ?RPC_TIMEOUT),
                     {error, Reason}
             end;
@@ -235,7 +235,7 @@ check_storage_path_on_host(FilePath, Content) ->
     catch
         _:Reason ->
             Host = onepanel_utils:get_host(node()),
-            ?error("Storage ~s is not available on host ~p: ~p", [FilePath, Host, Reason]),
+            ?error_stacktrace("Storage ~s is not available on host ~p: ~p", [FilePath, Host, Reason]),
             {error, Host}
     end.
 

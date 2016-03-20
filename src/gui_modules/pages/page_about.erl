@@ -16,7 +16,6 @@
 
 -export([main/0, event/1]).
 
--define(LICENSE_FILE, "LICENSE.txt").
 -define(CONTACT_EMAIL, "support@onedata.org").
 
 %% ====================================================================
@@ -178,11 +177,12 @@ acknowledgements() ->
     Result :: binary().
 %% ====================================================================
 license() ->
-    Content = case file:read_file(?LICENSE_FILE) of
+    {ok, LicensePath} = application:get_env(?APP_NAME, license_path),
+    Content = case file:read_file(LicensePath) of
                   {ok, File} ->
                       File;
                   {error, Reason} ->
-                      ?error("Cannot get license file ~s: ~p", [?LICENSE_FILE, Reason]),
+                      ?error("Cannot get license file ~s: ~p", [LicensePath, Reason]),
                       <<"">>
               end,
     #span{

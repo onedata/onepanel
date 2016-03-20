@@ -36,7 +36,7 @@ initialize(?USER_TABLE) ->
         ok = user_logic:create_user(DefaultUsername, DefaultPassword)
     catch
         _:Reason ->
-            ?error("Cannot initialize user table: ~p", [Reason]),
+            ?error_stacktrace("Cannot initialize user table: ~p", [Reason]),
             {error, Reason}
     end;
 initialize(?GLOBAL_CONFIG_TABLE) ->
@@ -44,7 +44,7 @@ initialize(?GLOBAL_CONFIG_TABLE) ->
         ok = dao:save_record(?GLOBAL_CONFIG_TABLE, #?GLOBAL_CONFIG_RECORD{id = ?CONFIG_ID, timestamp = 0})
     catch
         _:Reason ->
-            ?error("Cannot initialize global configuration table: ~p", [Reason]),
+            ?error_stacktrace("Cannot initialize global configuration table: ~p", [Reason]),
             {error, Reason}
     end;
 initialize(_) ->
@@ -83,7 +83,7 @@ create() ->
         ok
     catch
         _:Reason ->
-            ?error("Cannot create database tables: ~p", [Reason]),
+            ?error_stacktrace("Cannot create database tables: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -108,7 +108,7 @@ delete() ->
         ok
     catch
         _:Reason ->
-            ?error("Cannot delete database tables: ~p", [Reason]),
+            ?error_stacktrace("Cannot delete database tables: ~p", [Reason]),
             {error, Reason}
     end.
 
@@ -136,7 +136,7 @@ add_node(Node) ->
         ok
     catch
         _:Reason ->
-            ?error("Cannot add node ~p to database cluster: ~p", [Node, Reason]),
+            ?error_stacktrace("Cannot add node ~p to database cluster: ~p", [Node, Reason]),
             {error, Reason}
     end.
 

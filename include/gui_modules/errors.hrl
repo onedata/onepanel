@@ -72,7 +72,7 @@
 
 -endif.
 
--ifdef(globalregistry).
+-ifdef(onezone).
 
 -define(ERROR_MESSAGES, ?COMMON_ERROR_MESSAGES).
 

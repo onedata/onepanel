@@ -13,9 +13,9 @@
 
 -include("gui_modules/common.hrl").
 -include_lib("ctool/include/logging.hrl").
--include_lib("ctool/include/global_registry/gr_users.hrl").
--include_lib("ctool/include/global_registry/gr_spaces.hrl").
--include_lib("ctool/include/global_registry/gr_providers.hrl").
+-include_lib("ctool/include/oz/oz_users.hrl").
+-include_lib("ctool/include/oz/oz_spaces.hrl").
+-include_lib("ctool/include/oz/oz_providers.hrl").
 
 -export([main/0, event/1, comet_loop/1]).
 
@@ -56,7 +56,7 @@ main() ->
                             #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]};
                         Id ->
                             SpaceId = str_utils:to_binary(Id),
-                            case gr_providers:get_space_details(provider, SpaceId) of
+                            case oz_providers:get_space_details(provider, SpaceId) of
                                 {ok, SpaceDetails} ->
                                     #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body(SpaceDetails)}, {custom, <<"">>}]};
                                 Other ->
@@ -442,7 +442,7 @@ event(init) ->
 
         GetDetailsFun = fun(Ids, Function, RowPrefix) ->
             lists:foldl(fun(Id, {Rows, It}) ->
-                {ok, Details} = gr_spaces:Function(provider, SpaceId, Id),
+                {ok, Details} = oz_spaces:Function(provider, SpaceId, Id),
                 {
                     [{<<RowPrefix/binary, (integer_to_binary(It + 1))/binary>>, Details} | Rows],
                     It + 1
@@ -450,9 +450,9 @@ event(init) ->
             end, {[], 0}, Ids)
         end,
 
-        {ok, ProviderIds} = gr_spaces:get_providers(provider, SpaceId),
+        {ok, ProviderIds} = oz_spaces:get_providers(provider, SpaceId),
         {ProvidersDetails, _} = GetDetailsFun(ProviderIds, get_provider_details, <<"provider_">>),
-        {ok, UserIds} = gr_spaces:get_users(provider, SpaceId),
+        {ok, UserIds} = oz_spaces:get_users(provider, SpaceId),
         {UsersDetails, _} = GetDetailsFun(UserIds, get_user_details, <<"user_">>),
 
         {ok, Pid} = gui_comet:spawn(fun() ->

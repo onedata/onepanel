@@ -37,13 +37,13 @@
 
 %% Global config record contains following fields:
 %% * id                 - ID which equals CONFIG_ID as a primary key in database
-%% * main_ccm           - hostname of machine where main CCM node is configured
-%% * ccms               - list of hostnames of machines where CCM nodes are configured
+%% * main_cm            - hostname of machine where main CM node is configured
+%% * cms                - list of hostnames of machines where CM nodes are configured
 %% * workers            - list of hostnames of machines where worker nodes are configured
 %% * dbs                - list of hostnames of machines where database nodes are configured
 %% * storage_paths      - list of paths to storages on every worker node
 %% * timestamp          - table creation timestamp as elapsed microseconds since epoch
--record(?GLOBAL_CONFIG_RECORD, {id, main_ccm, ccms = [], workers = [], dbs = [], storage_paths = [], timestamp = 0}).
+-record(?GLOBAL_CONFIG_RECORD, {id, main_cm, cms = [], workers = [], dbs = [], storage_paths = [], timestamp = 0}).
 
 %% Local config record describes host configuration that is:
 %% * host               - machine hostname as a primary key in database
@@ -56,13 +56,13 @@
 
 -endif.
 
--ifdef(globalregistry).
+-ifdef(onezone).
 
 %% Global config record contains following fields:
 %% * id                 - ID which equals CONFIG_ID as a primary key in database
 %% * dbs                - list of hostnames of machines where database nodes are configured
 %% * timestamp          - table creation timestamp as elapsed microseconds since epoch
--record(?GLOBAL_CONFIG_RECORD, {id, gr, dbs = [], timestamp = 0}).
+-record(?GLOBAL_CONFIG_RECORD, {id, main_cm, cms = [], workers = [], dbs = [], timestamp = 0}).
 
 %% Local config record describes host configuration that is:
 %% * host               - machine hostname as a primary key in database
