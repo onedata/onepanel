@@ -138,7 +138,7 @@ comet_loop(#?STATE{pid = Pid} = State) ->
             receive
                 connect ->
                     NewPid = spawn_link(fun() ->
-                        ok = installer_utils_adapter:check_ip_addresses()
+                        ok = installer_utils:check_ip_addresses()
                     end),
                     State#?STATE{pid = NewPid};
 

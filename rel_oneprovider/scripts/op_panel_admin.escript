@@ -17,7 +17,7 @@
 -define(APP_STR, "onepanel").
 
 %% Default cookie used for communication with cluster
--define(COOKIE, cluster_node).
+-define(COOKIE, {{cookie}}).
 
 %% Default system limit values
 -define(OPEN_FILES, 65535).
@@ -31,14 +31,14 @@
 -define(EXIT_FAILURE, 1).
 
 %% Error logs filename
--define(LOG_FILE, "/var/log/op_panel/op_panel_admin.log").
+-define(LOG_FILE, filename:join(os:getenv("RUNNER_LOG_DIR"), "op_panel_admin.log")).
 
 %% Local onepanel node
 -define(NODE, setup_node).
 
 %% config record contains following fields:
-%% * main_ccm           - hostname of machine where main CM node is configured
-%% * ccms               - list of hostnames of machines where CM nodes are configured
+%% * main_cm            - hostname of machine where main CM node is configured
+%% * cms                - list of hostnames of machines where CM nodes are configured
 %% * workers            - list of hostnames of machines where worker nodes are configured
 %% * dbs                - list of hostnames of machines where database nodes are configured
 %% * storage_paths      - list of paths to storages on every worker node
@@ -48,8 +48,8 @@
 %% * redirection_point  - url to provider's GUI
 %% * client_name        - provider name
 -record(config, {
-    main_ccm,
-    ccms,
+    main_cm,
+    cms,
     workers,
     dbs,
     storage_paths,
@@ -90,13 +90,21 @@ main(Args) ->
 -spec init() -> ok.
 %% ====================================================================
 init() ->
-    Hostname = "@" ++ os:cmd("hostname -f") -- "\n",
-    put(?NODE, erlang:list_to_atom(?APP_STR ++ Hostname)),
-    {A, B, C} = erlang:timestamp(),
-    NodeName = "onepanel_admin_" ++ integer_to_list(A, 32) ++
-        integer_to_list(B, 32) ++ integer_to_list(C, 32) ++ "@127.0.0.1",
-    net_kernel:start([list_to_atom(NodeName), longnames]),
-    erlang:set_cookie(node(), ?COOKIE).
+    try
+        Hostname = "@" ++ os:cmd("hostname -f") -- "\n",
+        put(?NODE, erlang:list_to_atom(?APP_STR ++ Hostname)),
+        {A, B, C} = erlang:timestamp(),
+        NodeName = "onepanel_admin_" ++ integer_to_list(A, 32) ++
+            integer_to_list(B, 32) ++ integer_to_list(C, 32) ++ "@127.0.0.1",
+        net_kernel:start([list_to_atom(NodeName), longnames]),
+        erlang:set_cookie(node(), ?COOKIE)
+    catch
+        Error:Reason ->
+            Log = io_lib:fwrite("Error: ~p~nReason: ~p~nStacktrace: ~p~n", [Error, Reason, erlang:get_stacktrace()]),
+            file:write_file(?LOG_FILE, Log),
+            io:format("Environment initialization failed. See ~s for more information.~n", [?LOG_FILE]),
+            halt(?EXIT_FAILURE)
+    end.
 
 %% install/1
 %% ====================================================================
@@ -108,8 +116,8 @@ install(Path) ->
     try
         Node = get(?NODE),
         #config{
-            main_ccm = MainCM,
-            ccms = CMs,
+            main_cm = MainCM,
+            cms = CMs,
             workers = Workers,
             dbs = Dbs,
             storage_paths = StoragePaths,
@@ -140,16 +148,16 @@ install(Path) ->
 
         ok = execute([
             {Node, installer_db, start, [[{dbs, Dbs}]], "Starting database nodes..."},
-            {Node, installer_ccm, start, [[{main_ccm, MainCM}, {ccms, CMs}]], "Starting CM nodes..."},
+            {Node, installer_cm, start, [[{main_cm, MainCM}, {cms, CMs}]], "Starting CM nodes..."},
             {Node, installer_worker, start, [[{workers, Workers}]], "Starting worker nodes..."},
-            {Node, installer_utils_adapter, finalize_installation, [[]], "Finalizing installation..."},
+            {Node, installer_utils, finalize_installation, [[]], "Finalizing installation..."},
             {Node, installer_storage, add_dio_storage, [[{workers, Workers}, {storage_paths, StoragePaths}]], "Adding storage paths..."}
         ]),
 
         case Register of
             yes ->
                 print_info("Connecting to Global Registry..."),
-                {ok, _} = rpc:call(Node, gr_providers, check_ip_address, [provider]),
+                {ok, _} = rpc:call(Node, oz_providers, check_ip_address, [provider]),
                 print_ok(),
 
                 print_info("Checking ports availability..."),
@@ -191,8 +199,8 @@ config() ->
         Node = get(?NODE),
         Terms = rpc:call(Node, installer_utils, get_global_config, []),
         #config{
-            main_ccm = MainCM,
-            ccms = CMs,
+            main_cm = MainCM,
+            cms = CMs,
             workers = Workers,
             dbs = Dbs
         } = parse({terms, Terms}),
@@ -221,7 +229,7 @@ uninstall() ->
 
         ok = execute([
             {Node, installer_worker, stop, [[]], "Stopping worker nodes..."},
-            {Node, installer_ccm, stop, [[]], "Stopping CM nodes..."},
+            {Node, installer_cm, stop, [[]], "Stopping CM nodes..."},
             {Node, installer_db, stop, [[]], "Stopping database nodes..."}
         ]),
 
@@ -256,8 +264,8 @@ uninstall() ->
 parse({config, Path}) ->
     {ok, Terms} = file:consult(Path),
     #config{
-        main_ccm = proplists:get_value("Main CM host", Terms),
-        ccms = proplists:get_value("CM hosts", Terms, []),
+        main_cm = proplists:get_value("Main CM host", Terms),
+        cms = proplists:get_value("CM hosts", Terms, []),
         workers = proplists:get_value("Worker hosts", Terms, []),
         dbs = proplists:get_value("Database hosts", Terms, []),
         storage_paths = proplists:get_value("Storage paths", Terms, []),
@@ -270,8 +278,8 @@ parse({config, Path}) ->
 
 parse({terms, Terms}) ->
     #config{
-        main_ccm = proplists:get_value(main_ccm, Terms),
-        ccms = proplists:get_value(ccms, Terms, []),
+        main_cm = proplists:get_value(main_cm, Terms),
+        cms = proplists:get_value(cms, Terms, []),
         workers = proplists:get_value(workers, Terms, []),
         dbs = proplists:get_value(dbs, Terms, []),
         storage_paths = proplists:get_value(storage_paths, Terms, [])
@@ -375,9 +383,9 @@ check_ports(Node) ->
                                         end,
     lists:foreach(fun(ControlPanelHost) ->
         ControlPanelNode = list_to_atom(?APP_STR ++ "@" ++ ControlPanelHost),
-        {ok, IpAddress} = rpc:call(ControlPanelNode, gr_providers, check_ip_address, [provider], ?RPC_TIMEOUT),
-        ok = rpc:call(Node, gr_providers, check_port, [provider, IpAddress, DefaultGuiPort, <<"gui">>]),
-        ok = rpc:call(Node, gr_providers, check_port, [provider, IpAddress, DefaultRestPort, <<"rest">>]),
+        {ok, IpAddress} = rpc:call(ControlPanelNode, oz_providers, check_ip_address, [provider], ?RPC_TIMEOUT),
+        ok = rpc:call(Node, oz_providers, check_port, [provider, IpAddress, DefaultGuiPort, <<"gui">>]),
+        ok = rpc:call(Node, oz_providers, check_port, [provider, IpAddress, DefaultRestPort, <<"rest">>]),
         ok = rpc:call(Node, dao, update_record,
             [local_configurations, ControlPanelHost, [{gui_port, DefaultGuiPort}, {rest_port, DefaultGuiPort}]], ?RPC_TIMEOUT)
     end, ControlPanelHosts),

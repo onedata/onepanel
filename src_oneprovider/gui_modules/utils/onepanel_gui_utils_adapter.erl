@@ -21,7 +21,7 @@
 
 %% top_menu/1
 %% ====================================================================
-%% @doc Convienience function to render top menu in GUI pages.
+%% @doc Convenience function to render top menu in GUI pages.
 %% Item with ActiveTabID will be highlighted as active.
 %% @end
 -spec top_menu(ActiveTabID :: atom()) -> Result when
@@ -89,8 +89,7 @@ top_menu(ActiveTabID, ActiveLinkID, Submenu, Spinner) ->
             #link{style = "padding: 18px;", url = ?PAGE_INSTALLATION, body = <<"Software">>},
             #list{style = "top: 37px; width: 120px;", body = Process(ActiveLinkID, [
                 {installation_link, #li{body = #link{url = ?PAGE_INSTALLATION, body = <<"Installation">>}}},
-                {storage_link, #li{body = #link{url = ?PAGE_STORAGE, body = <<"Storage configuration">>}}},
-                {update_link, #li{body = #link{url = ?PAGE_UPDATE, body = <<"Update">>}}}
+                {storage_link, #li{body = #link{url = ?PAGE_STORAGE, body = <<"Storage configuration">>}}}
             ])}
         ]}},
         {spaces_tab, #li{body = [
@@ -98,14 +97,6 @@ top_menu(ActiveTabID, ActiveLinkID, Submenu, Spinner) ->
             #list{style = "top: 37px; width: 120px;", body = Process(ActiveLinkID, [
                 {spaces_account_link, #li{body = #link{url = ?PAGE_SPACES_ACCOUNT, body = <<"Account">>}}},
                 {spaces_dashboard_link, #li{body = #link{url = ?PAGE_SPACES_MANAGEMENT, body = <<"Management">>}}}
-            ])}
-        ]}},
-        {diagnostics_tab, #li{body = [
-            #link{style = "padding: 18px;", url = ?PAGE_MONITORING, body = <<"Diagnostics">>},
-            #list{style = "top: 37px; width: 120px;", body = Process(ActiveLinkID, [
-                {monitoring_link, #li{body = #link{url = ?PAGE_MONITORING, body = <<"Monitoring">>}}},
-                {server_logs_link, #li{body = #link{url = ?PAGE_SERVER_LOGS, body = <<"Server logs">>}}},
-                {clients_logs_link, #li{body = #link{url = ?PAGE_CLIENTS_LOGS, body = <<"Clients logs">>}}}
             ])}
         ]}}
     ]),

@@ -16,10 +16,12 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([random_ascii_lowercase_sequence/1, get_application_version/0, get_application_ports/0]).
--export([get_node/1, get_node/2, get_nodes/0, get_nodes/2, get_host/1, get_hosts/0]).
--export([apply_on_hosts/5, dropwhile_failure/5, save_file_on_host/3, save_file_on_hosts/3,
-    delete_file_on_host/2, delete_file_on_hosts/2]).
+-export([random_ascii_lowercase_sequence/1, get_application_version/0,
+    get_application_ports/0]).
+-export([get_node/1, get_node/2, get_nodes/0, get_nodes/2, get_host/1, get_hosts/0,
+    get_host_and_port/1]).
+-export([apply_on_hosts/5, apply_on_worker/3, dropwhile_failure/5, save_file_on_host/3,
+    save_file_on_hosts/3, delete_file_on_host/2, delete_file_on_hosts/2]).
 
 %% ====================================================================
 %% API functions
@@ -187,7 +189,7 @@ save_file_on_host(Path, Filename, Content) ->
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot save file ~p at directory ~p: ~p", [Filename, Path, Reason]),
+            ?error_stacktrace("Cannot save file ~p at directory ~p: ~p", [Filename, Path, Reason]),
             {error, Host}
     end.
 
@@ -221,7 +223,7 @@ delete_file_on_host(Path, Filename) ->
         {ok, Host}
     catch
         _:Reason ->
-            ?error("Cannot delete file ~p at directory ~p: ~p", [Filename, Path, Reason]),
+            ?error_stacktrace("Cannot delete file ~p at directory ~p: ~p", [Filename, Path, Reason]),
             {error, Host}
     end.
 
@@ -250,16 +252,53 @@ get_application_version() ->
 %% ====================================================================
 get_application_ports() ->
     {ok, EtcDir} = application:get_env(?APP_NAME, platform_etc_dir),
-    Config =
-        case file:consult(filename:join([EtcDir, ?SOFTWARE_NAME, "app.config"])) of
-            {ok, [Cfg]} ->
-                Cfg;
-            _ -> %todo delete sys.config part, after gr integration with node_package
-                {ok, ReleasePath} = application:get_env(?APP_NAME, application_release_path),
-                {ok, [Releases]} = file:consult(filename:join([ReleasePath, "releases", "RELEASES"])),
-                Version = element(3, lists:keyfind(atom_to_list(?SOFTWARE_NAME), 2, Releases)),
-                {ok, [Cfg]} = file:consult(filename:join([ReleasePath, "releases", Version, "sys.config"])),
-                Cfg
-        end,
+    {ok, [Config]} = file:consult(filename:join([EtcDir, ?SOFTWARE_NAME, "app.config"])),
     SysConfig = proplists:get_value(?SOFTWARE_NAME, Config, []),
     lists:usort(proplists:get_value(application_ports, SysConfig, [])).
+
+%% apply_on_worker/3
+%% ====================================================================
+%% @doc Applies function sequentially on worker components as long as
+%% rpc calls fail with error "badrpc".
+%% @end
+-spec apply_on_worker(Module, Function, Arguments) -> Result when
+    Result :: term(),
+    Module :: module(),
+    Function :: atom(),
+    Arguments :: [term()].
+%% ====================================================================
+apply_on_worker(Module, Function, Arguments) ->
+    try
+        {ok, #?GLOBAL_CONFIG_RECORD{workers = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+        WorkerNodes = onepanel_utils:get_nodes(?WORKER_NAME, Workers),
+        onepanel_utils:dropwhile_failure(WorkerNodes, Module, Function, Arguments, ?RPC_TIMEOUT)
+    catch
+        _:Reason ->
+            ?error_stacktrace("Cannot apply ~p on worker: ~p", [{Module, Function, Arguments}, Reason]),
+            {error, Reason}
+    end.
+
+%% get_host_and_port/1
+%% ====================================================================
+%% @doc Translates redirection point to pair of host and port.
+-spec get_host_and_port(RedirectionPoint :: binary()) -> Result when
+    Result :: {ok, Host :: binary(), Port :: integer()} | {error, Reason :: term()}.
+%% ====================================================================
+get_host_and_port(<<>>) ->
+    {error, "Redirection point cannot be empty."};
+
+get_host_and_port(RedirectionPoint) ->
+    try
+        case binary:split(RedirectionPoint, [<<"://">>, <<":">>], [global]) of
+            [<<"http">>, Host] -> {ok, Host, 80};
+            [<<"http">>, Host, Port | _] -> {ok, Host, binary_to_integer(Port)};
+            [<<"https">>, Host] -> {ok, Host, 443};
+            [<<"https">>, Host, Port | _] -> {ok, Host, binary_to_integer(Port)};
+            [Host] -> {ok, Host, 443};
+            [Host, Port | _] -> {ok, Host, binary_to_integer(Port)};
+            _ -> {error, {invalid_refirection_point, RedirectionPoint}}
+        end
+    catch
+        _:Reason ->
+            {error, Reason}
+    end.

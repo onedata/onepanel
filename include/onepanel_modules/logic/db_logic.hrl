@@ -17,7 +17,6 @@
 -include("onepanel_modules/logic/user_logic.hrl").
 -include("onepanel_modules/logic/provider_logic.hrl").
 -include("onepanel_modules/installer/state.hrl").
--include("onepanel_modules/updater/state.hrl").
 
 -ifdef(oneprovider).
 
@@ -25,13 +24,12 @@
     {?USER_TABLE, ?USER_RECORD, record_info(fields, ?USER_RECORD)},
     {?PROVIDER_TABLE, ?PROVIDER_RECORD, record_info(fields, ?PROVIDER_RECORD)},
     {?GLOBAL_CONFIG_TABLE, ?GLOBAL_CONFIG_RECORD, record_info(fields, ?GLOBAL_CONFIG_RECORD)},
-    {?LOCAL_CONFIG_TABLE, ?LOCAL_CONFIG_RECORD, record_info(fields, ?LOCAL_CONFIG_RECORD)},
-    {?UPDATER_STATE_TABLE, ?U_STATE, record_info(fields, ?U_STATE)}
+    {?LOCAL_CONFIG_TABLE, ?LOCAL_CONFIG_RECORD, record_info(fields, ?LOCAL_CONFIG_RECORD)}
 ]).
 
 -endif.
 
--ifdef(globalregistry).
+-ifdef(onezone).
 
 -define(TABLES, [
     {?USER_TABLE, ?USER_RECORD, record_info(fields, ?USER_RECORD)},

@@ -59,7 +59,7 @@ finish(State, Ctx) -> {ok, State, Ctx}.
 %% ====================================================================
 %% Root page
 route(?PAGE_ROOT) ->
-    case installer_utils_adapter:get_workers() of
+    case installer_utils:get_workers() of
         [] -> page_installation;
         _ -> case provider_logic:get_provider_id() of
                  undefined -> page_spaces_account;
@@ -79,23 +79,12 @@ route(?PAGE_PRIVACY_POLICY) -> page_privacy_policy;
 %% Installation pages
 route(?PAGE_INSTALLATION) -> page_installation;
 route(?PAGE_HOST_SELECTION) -> page_hosts_selection;
-route(?PAGE_PRIMARY_CCM_SELECTION) -> page_primary_ccm_selection;
+route(?PAGE_PRIMARY_CM_SELECTION) -> page_primary_cm_selection;
 route(?PAGE_APP_PORTS_CHECK) -> page_app_ports_check;
 route(?PAGE_SYSTEM_LIMITS) -> page_system_limits;
 route(?PAGE_STORAGE) -> page_storage;
 route(?PAGE_INSTALLATION_SUMMARY) -> page_installation_summary;
 route(?PAGE_INSTALLATION_SUCCESS) -> page_installation_success;
-
-%% Update pages
-route(?PAGE_UPDATE) -> page_update;
-route(?PAGE_VERSION_SELECTION) -> page_version_selection;
-route(?PAGE_UPDATE_SUMMARY) -> page_update_summary;
-route(?PAGE_UPDATE_SUCCESS) -> page_update_success;
-
-%% Diagnostic pages
-route(?PAGE_MONITORING) -> page_monitoring;
-route(?PAGE_CLIENTS_LOGS) -> page_clients_logs;
-route(?PAGE_SERVER_LOGS) -> page_server_logs;
 
 %% Registration pages
 route(?PAGE_CONNECTION_CHECK) -> page_connection_check;

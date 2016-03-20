@@ -4,7 +4,7 @@ onepanel.iml
 deps
 ebin
 rel_oneprovider/op_panel/
-rel_globalregistry/oz_panel/
+rel_onezone/oz_panel/
 rel/oz_panel
 rel/op_panel
 

@@ -55,8 +55,8 @@ start(_StartType, _StartArgs) ->
     {ok, Timeout} = application:get_env(?APP_NAME, socket_timeout),
     {ok, MaxKeepalive} = application:get_env(?APP_NAME, max_keepalive),
     {ok, GuiStaticRoot} = application:get_env(?APP_NAME, gui_static_root),
-    {ok, CertFile} = application:get_env(?APP_NAME, cert_file),
-    {ok, KeyFile} = application:get_env(?APP_NAME, key_file),
+    {ok, CertFile} = application:get_env(?APP_NAME, cert_path),
+    {ok, KeyFile} = application:get_env(?APP_NAME, key_path),
 
     gui_utils:init_n2o_ets_and_envs(GuiPort, ?GUI_ROUTING_MODULE, ?SESSION_LOGIC_MODULE, ?COWBOY_BRIDGE_MODULE),
 

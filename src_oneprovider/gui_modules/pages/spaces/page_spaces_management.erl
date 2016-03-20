@@ -15,8 +15,8 @@
 -include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
--include_lib("ctool/include/global_registry/gr_spaces.hrl").
--include_lib("ctool/include/global_registry/gr_openid.hrl").
+-include_lib("ctool/include/oz/oz_spaces.hrl").
+-include_lib("ctool/include/oz/oz_openid.hrl").
 
 -export([main/0, event/1, api_event/3, comet_loop/1]).
 
@@ -370,10 +370,10 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails, workers = 
                     try
                         RowId = <<"space_", (integer_to_binary(Counter + 1))/binary>>,
                         {ok, #token_issuer{client_type = <<"user">>, client_id = UserId}} =
-                            gr_providers:get_token_issuer(provider, Token),
-                        {ok, SpaceId} = gr_providers:create_space(provider,
+                            oz_providers:get_token_issuer(provider, Token),
+                        {ok, SpaceId} = oz_providers:create_space(provider,
                             [{<<"name">>, Name}, {<<"token">>, Token}, {<<"size">>, integer_to_binary(Size)}]),
-                        {ok, SpaceDetails} = gr_providers:get_space_details(provider, SpaceId),
+                        {ok, SpaceDetails} = oz_providers:get_space_details(provider, SpaceId),
                         {StorageType, StorageId} = get_storage_details(Storage),
                         installer_storage:add_space_storage_mapping(Workers, SpaceId, StorageId),
                         maybe_add_storage_user(Workers, StorageType, UserId, StorageId, Arg1, Arg2),
@@ -395,10 +395,10 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails, workers = 
                     try
                         RowId = <<"space_", (integer_to_binary(Counter + 1))/binary>>,
                         {ok, #token_issuer{client_type = <<"user">>, client_id = UserId}} =
-                            gr_providers:get_token_issuer(provider, Token),
-                        {ok, SpaceId} = gr_providers:support_space(provider,
+                            oz_providers:get_token_issuer(provider, Token),
+                        {ok, SpaceId} = oz_providers:support_space(provider,
                             [{<<"token">>, Token}, {<<"size">>, integer_to_binary(Size)}]),
-                        {ok, SpaceDetails} = gr_providers:get_space_details(provider, SpaceId),
+                        {ok, SpaceDetails} = oz_providers:get_space_details(provider, SpaceId),
                         {StorageType, StorageId} = get_storage_details(Storage),
                         installer_storage:add_space_storage_mapping(Workers, SpaceId, StorageId),
                         maybe_add_storage_user(Workers, StorageType, UserId, StorageId, Arg1, Arg2),
@@ -418,7 +418,7 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails, workers = 
 
             {revoke_space_support, RowId, SpaceId} ->
                 NextState =
-                    case gr_providers:revoke_space_support(provider, SpaceId) of
+                    case oz_providers:revoke_space_support(provider, SpaceId) of
                         ok ->
                             onepanel_gui_utils:message(success, <<"Space: <b>", SpaceId/binary, "</b> is no longer supported.">>),
                             gui_jq:remove(RowId),
@@ -475,9 +475,9 @@ event(init) ->
     try
         {ok, #?CONFIG{workers = Hosts}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
         Workers = onepanel_utils:get_nodes("worker", Hosts),
-        {ok, SpaceIds} = gr_providers:get_spaces(provider),
+        {ok, SpaceIds} = oz_providers:get_spaces(provider),
         {SpacesDetails, Counter} = lists:foldl(fun(SpaceId, {SpacesDetailsAcc, Id}) ->
-            {ok, SpaceDetails} = gr_providers:get_space_details(provider, SpaceId),
+            {ok, SpaceDetails} = oz_providers:get_space_details(provider, SpaceId),
             {
                 [{<<"space_", (integer_to_binary(Id + 1))/binary>>, SpaceDetails} | SpacesDetailsAcc],
                 Id + 1
