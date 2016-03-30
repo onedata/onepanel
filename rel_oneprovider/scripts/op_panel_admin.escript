@@ -515,7 +515,7 @@ adjust_config(Config) ->
         open_files = get([cluster, settings, open_files_limit], Config, ?OPEN_FILES),
         processes = get([cluster, settings, processes_limit], Config, ?PROCESSES),
         register = get([oneprovider, register], Config),
-        redirection_point = list_to_binary(get_host(hd(get([cluster, worker, node_ids], Config)), Config)),
+        redirection_point = get([oneprovider, redirection_point], Config),
         client_name = get([oneprovider, name], Config),
         geo_latitude = get([oneprovider, geo_latitude], Config),
         geo_longitude = get([oneprovider, geo_longitude], Config),

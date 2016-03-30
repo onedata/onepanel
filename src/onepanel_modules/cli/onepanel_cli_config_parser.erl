@@ -159,6 +159,9 @@ parse_config([?ONEPROVIDER_KEY] = RevKey, ParentConfig, Envs) ->
     #{
         register => get([?REGISTER_KEY | RevKey], atom, Config, Envs),
         name => get([?NAME_KEY | RevKey], binary, Config, Envs),
+        redirection_point => get(
+            [?REDIRECTION_POINT_KEY | RevKey], binary, Config, Envs
+        ),
         geo_longitude => get(
             [?GEO_LONGITUDE_KEY | RevKey], float, Config, Envs
         ),

@@ -118,6 +118,8 @@ get([?ONEPROVIDER_KEY, ?REGISTER_KEY], Envs) ->
     onepanel_cli_env:get("ONEPROVIDER_REGISTER", Envs);
 get([?ONEPROVIDER_KEY, ?NAME_KEY], Envs) ->
     onepanel_cli_env:get("ONEPROVIDER_NAME", Envs);
+get([?ONEPROVIDER_KEY, ?REDIRECTION_POINT_KEY], Envs) ->
+    onepanel_cli_env:get("ONEPROVIDER_REDIRECTION_POINT", Envs);
 get([?ONEPROVIDER_KEY, ?GEO_LONGITUDE_KEY], Envs) ->
     onepanel_cli_env:get("ONEPROVIDER_GEO_LONGITUDE", Envs);
 get([?ONEPROVIDER_KEY, ?GEO_LATITUDE_KEY], Envs) ->

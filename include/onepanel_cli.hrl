@@ -46,6 +46,7 @@
 -define(ONEPROVIDER_KEY, "oneprovider").
 -define(REGISTER_KEY, "register").
 -define(NAME_KEY, "name").
+-define(REDIRECTION_POINT_KEY, "redirection_point").
 -define(DOMAIN_NAME_KEY, "domain_name").
 -define(GEO_LONGITUDE_KEY, "geo_longitude").
 -define(GEO_LATITUDE_KEY, "geo_latitude").
