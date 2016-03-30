@@ -1,0 +1,27 @@
+cluster:
+  domain_name: "localdomain"
+  nodes:
+    node:
+      hostname: "localhost"
+
+  manager:
+    default_node: "node"
+    nodes:
+      - "node"
+  worker:
+    nodes:
+      - "node"
+  database:
+    nodes:
+      - "node"
+
+  settings:
+    open_files_limit: 65535
+    processes_limit: 65535
+    web_private_key: "http://172.17.0.2/oz_web_priv_key.pem"
+    web_certificate: "http://172.17.0.2/oz_web_cert.pem"
+    web_ca_certificate: "http://172.17.0.2/oz_web_ca_cert.pem"
+    open_id_auth_config: "http://172.17.0.2/oz_open_id_auth.config"
+
+onezone:
+  name: "onezone"

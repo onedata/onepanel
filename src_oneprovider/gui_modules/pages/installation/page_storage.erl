@@ -28,7 +28,7 @@
 -define(STATE, comet_state).
 -record(?STATE, {workers, storage_type, storages = []}).
 
--record(document, {key, rev, value, links}).
+-record(document, {key, rev, deleted, value, links}).
 -record(storage, {name, helpers}).
 -record(helper_init, {name, args}).
 

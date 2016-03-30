@@ -21,7 +21,7 @@
 -export([install/1, uninstall/1, start/1, stop/1, restart/1]).
 
 %% API
--export([local_start/3, local_stop/0, local_restart/0]).
+-export([local_start/4, local_stop/0, local_restart/0]).
 
 %% ====================================================================
 %% Behaviour callback functions
@@ -63,12 +63,12 @@ start(Args) ->
             Hosts -> Hosts
         end,
 
-        {ConfiguredMainCM, ConfiguredCMs, ConfiguredDbs, ConfiguredWorkers} =
+        {ConfiguredMainCM, ConfiguredCMs, ConfiguredDbs, ConfiguredWorkers, DefaultArgs} =
             case dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID) of
                 {ok, #?GLOBAL_CONFIG_RECORD{cms = []}} ->
                     throw("CM nodes not configured.");
-                {ok, #?GLOBAL_CONFIG_RECORD{main_cm = MainCM, cms = CMs, dbs = Dbs, workers = Workers}} ->
-                    {MainCM, CMs, Dbs, Workers};
+                {ok, #?GLOBAL_CONFIG_RECORD{main_cm = MainCM, cms = CMs, dbs = Dbs, workers = Workers, args = Defaults}} ->
+                    {MainCM, CMs, Dbs, Workers, Defaults};
                 _ -> throw("Cannot get CM nodes configuration.")
             end,
 
@@ -80,13 +80,15 @@ start(Args) ->
         end, NewWorkers),
 
         ConfiguredOptCMs = lists:delete(ConfiguredMainCM, ConfiguredCMs),
+        MergedArgs = maps:to_list(maps:merge(maps:from_list(DefaultArgs), maps:from_list(Args))),
 
         {HostsOk, HostsError} = onepanel_utils:apply_on_hosts(NewWorkers, ?MODULE, local_start,
-            [ConfiguredMainCM, ConfiguredOptCMs, ConfiguredDbs], ?RPC_TIMEOUT),
+            [ConfiguredMainCM, ConfiguredOptCMs, ConfiguredDbs, MergedArgs], ?RPC_TIMEOUT),
 
         case HostsError of
             [] ->
-                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID, [{workers, ConfiguredWorkers ++ NewWorkers}]) of
+                case dao:update_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID,
+                    [{workers, ConfiguredWorkers ++ NewWorkers}, {args, MergedArgs}]) of
                     ok -> ok;
                     Other ->
                         ?error("Cannot update worker nodes configuration: ~p", [Other]),
@@ -145,13 +147,13 @@ stop(Args) ->
                     Other ->
                         ?error("Cannot update worker nodes configuration: ~p", [Other]),
                         onepanel_utils:apply_on_hosts(WorkersToStop, ?MODULE, local_start,
-                            [ConfiguredMainCM, ConfiguredOptCMs, ConfiguredDbs], ?RPC_TIMEOUT),
+                            [ConfiguredMainCM, ConfiguredOptCMs, ConfiguredDbs, Args], ?RPC_TIMEOUT),
                         {error, {hosts, WorkersToStop}}
                 end;
             _ ->
                 ?error("Cannot stop worker nodes on following hosts: ~p", [HostsError]),
                 onepanel_utils:apply_on_hosts(HostsOk, ?MODULE, local_start,
-                    [ConfiguredMainCM, ConfiguredOptCMs, ConfiguredDbs], ?RPC_TIMEOUT),
+                    [ConfiguredMainCM, ConfiguredOptCMs, ConfiguredDbs, Args], ?RPC_TIMEOUT),
                 {error, {hosts, HostsError}}
         end
     catch
@@ -200,13 +202,16 @@ restart(Args) ->
 %% @doc Starts worker node on local host.
 %% @end
 -spec local_start(MainCM :: string(), OptCMs :: [string()],
-    Dbs :: [string()]) -> Result when
+    Dbs :: [string()], Args :: list()) -> Result when
     Result :: {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-local_start(MainCM, OptCMs, Dbs) ->
+local_start(MainCM, OptCMs, Dbs, Args) ->
     Host = onepanel_utils:get_host(node()),
+    {ok, AppName} = application:get_env(?APP_NAME, application_name),
     try
         ?debug("Starting worker node: ~p"),
+
+        OzDomain = proplists:get_value(oz_domain, Args, "onedata.org"),
 
         release_configurator:configure_release(
             ?SOFTWARE_NAME,
@@ -215,15 +220,33 @@ local_start(MainCM, OptCMs, Dbs) ->
                 {?SOFTWARE_NAME, [
                     {cm_nodes, [list_to_atom(?CM_NAME ++ "@" ++ CM) || CM <- [MainCM | OptCMs]]},
                     {db_nodes, [list_to_atom(Db ++ ":" ++ integer_to_list(?DB_PORT)) || Db <- Dbs]},
-                    {provider_domain, application:get_env(?APP_NAME, application_domain, "localhost.local")},
                     {verify_oz_cert, application:get_env(?APP_NAME, verify_oz_cert, true)}
-                ]}
+                ] ++ case AppName of
+                    oneprovider ->
+                        [
+                            {provider_domain, proplists:get_value(op_domain, Args, "localhost.local")},
+                            {oz_domain, OzDomain}
+                        ];
+                    onezone ->
+                        [
+                            {oz_name, proplists:get_value(oz_name, Args, "unknown")},
+                            {http_domain, OzDomain}
+                        ];
+                    _ -> []
+                end}
             ],
             [
                 {name, ?WORKER_NAME ++ "@" ++ Host},
                 {setcookie, atom_to_list(erlang:get_cookie())}
             ]
         ),
+
+        OzUrl = "https://" ++ OzDomain ++ ":8443",
+        application:set_env(?APP_NAME, onezone_url, OzUrl),
+        ok = app_config:set(?APP_NAME, onezone_url, OzUrl),
+
+        get_certs(AppName, Args),
+        get_auth_config(AppName, Args),
 
         ServiceStart = "service " ++ atom_to_list(?SOFTWARE_NAME) ++ " start 2>1 1>/dev/null",
         SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
@@ -269,4 +292,31 @@ local_restart() ->
     case restart([{workers, [Host]}]) of
         ok -> {ok, Host};
         _ -> {error, Host}
+    end.
+
+get_certs(oneprovider, Args) ->
+    get_file(web_cert, "/etc/op_worker/certs/onedataServerWeb.pem", Args);
+get_certs(onezone, Args) ->
+    get_file(web_key, "/etc/op_worker/certs/gui_key.pem", Args),
+    get_file(web_cert, "/etc/op_worker/certs/gui_cert.pem", Args),
+    get_file(web_ca_cert, "/etc/op_worker/cacerts/gui_cacert.pem", Args);
+get_certs(_, _) ->
+    ok.
+
+get_auth_config(onezone, Args) ->
+    get_file(auth_config, "/var/lib/oz_worker/auth.config", Args);
+get_auth_config(_, _) ->
+    ok.
+
+get_file(Name, Path, Args) ->
+    case proplists:get_value(Name, Args) of
+        undefined -> ok;
+        Value ->
+            try
+                {ok, 200, _, Content} = http_client:get(Value),
+                file:write_file(Path, Content)
+            catch
+                _:_ -> os:cmd("cp " ++ Value ++ " " ++ Path)
+            end,
+            ok
     end.

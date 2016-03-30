@@ -1,5 +1,6 @@
 #!/usr/bin/env escript
 %% -*- erlang -*-
+%%! -config {{platform_etc_dir}}/app.config
 
 %% ===================================================================
 %% @author Krzysztof Trzepla
@@ -31,7 +32,7 @@
 -define(EXIT_FAILURE, 1).
 
 %% Error logs filename
--define(LOG_FILE, filename:join(os:getenv("RUNNER_LOG_DIR"), "op_panel_admin.log")).
+-define(LOG_FILE, "{{platform_log_dir}}/op_panel_admin.log").
 
 %% Local onepanel node
 -define(NODE, setup_node).
@@ -52,12 +53,17 @@
     cms,
     workers,
     dbs,
-    storage_paths,
+    storage,
     open_files,
     processes,
     register,
     redirection_point,
-    client_name
+    client_name,
+    geo_longitude,
+    geo_latitude,
+    op_domain,
+    oz_domain,
+    web_cert
 }).
 
 %% API
@@ -75,8 +81,17 @@
 %% ====================================================================
 main(Args) ->
     init(),
+    Envs = get_envs(),
     case Args of
-        ["--install", Path] -> install(Path);
+        ["--install", ""] ->
+            Config = adjust_config(onepanel_cli_config_parser:parse(Envs)),
+            install(Config);
+        ["--install", Path] ->
+            Config = adjust_config(onepanel_cli_config_parser:parse(Path, Envs)),
+            install(Config);
+        ["--install"] ->
+            Config = adjust_config(onepanel_cli_config_parser:parse(Envs)),
+            install(Config);
         ["--config"] -> config();
         ["--uninstall"] -> uninstall();
         _ -> print_usage()
@@ -110,9 +125,9 @@ init() ->
 %% ====================================================================
 %% @doc Applies installation preferences read from configuration file.
 %% @end
--spec install(Path :: string()) -> ok.
+-spec install(Config :: term()) -> ok.
 %% ====================================================================
-install(Path) ->
+install(Config) ->
     try
         Node = get(?NODE),
         #config{
@@ -120,13 +135,18 @@ install(Path) ->
             cms = CMs,
             workers = Workers,
             dbs = Dbs,
-            storage_paths = StoragePaths,
+            storage = Storage,
             open_files = OpenFiles,
             processes = Processes,
             register = Register,
             redirection_point = RedirectionPoint,
-            client_name = ClientName
-        } = parse({config, Path}),
+            client_name = ClientName,
+            geo_latitude = GeoLatitude,
+            geo_longitude = GeoLongitude,
+            op_domain = OpDomain,
+            oz_domain = OzDomain,
+            web_cert = WebCert
+        } = Config,
         AllHosts = lists:usort(CMs ++ Workers ++ Dbs),
 
         print_info("Checking configuration..."),
@@ -134,38 +154,41 @@ install(Path) ->
         print_ok(),
 
         print_info("Checking storage availability..."),
-        check_storage_paths(Node, StoragePaths, Workers),
+        check_storage_paths(Node, Storage, Workers),
         print_ok(),
 
         print_info("Setting ulimits..."),
         lists:foreach(fun(Host) ->
-            HostOpenFiles = proplists:get_value(Host, OpenFiles, ?OPEN_FILES),
-            HostProcesses = proplists:get_value(Host, Processes, ?PROCESSES),
-            ok = rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_system_limit, [open_files, HostOpenFiles]),
-            ok = rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_system_limit, [process_limit, HostProcesses])
+            ok = rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_system_limit, [open_files, OpenFiles]),
+            ok = rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_system_limit, [process_limit, Processes])
         end, AllHosts),
         print_ok(),
 
         ok = execute([
             {Node, installer_db, start, [[{dbs, Dbs}]], "Starting database nodes..."},
             {Node, installer_cm, start, [[{main_cm, MainCM}, {cms, CMs}]], "Starting CM nodes..."},
-            {Node, installer_worker, start, [[{workers, Workers}]], "Starting worker nodes..."},
+            {Node, installer_worker, start, [[{workers, Workers}, {op_domain, OpDomain}, {oz_domain, OzDomain},
+                {web_cert, WebCert}]], "Starting worker nodes..."},
             {Node, installer_utils, finalize_installation, [[]], "Finalizing installation..."},
-            {Node, installer_storage, add_dio_storage, [[{workers, Workers}, {storage_paths, StoragePaths}]], "Adding storage paths..."}
+            {Node, installer_storage, add_storage_from_config, [Workers, Storage], "Configuring storage..."}
         ]),
 
         case Register of
-            yes ->
+            true ->
                 print_info("Connecting to Global Registry..."),
                 {ok, _} = rpc:call(Node, oz_providers, check_ip_address, [provider]),
                 print_ok(),
 
                 print_info("Checking ports availability..."),
-                check_ports(Node),
+                check_ports(Node, Workers),
                 print_ok(),
 
                 print_info("Registering..."),
-                {ok, _} = rpc:call(Node, provider_logic, register, [RedirectionPoint, ClientName], ?RPC_TIMEOUT),
+                {ok, _} = rpc:call(Node, provider_logic, register,
+                    [RedirectionPoint, ClientName, #{
+                        latitude => GeoLatitude,
+                        longitude => GeoLongitude
+                    }], ?RPC_TIMEOUT),
                 print_ok();
             _ ->
                 ok
@@ -268,7 +291,6 @@ parse({config, Path}) ->
         cms = proplists:get_value("CM hosts", Terms, []),
         workers = proplists:get_value("Worker hosts", Terms, []),
         dbs = proplists:get_value("Database hosts", Terms, []),
-        storage_paths = proplists:get_value("Storage paths", Terms, []),
         open_files = proplists:get_value("Open files limit", Terms, []),
         processes = proplists:get_value("Processes limit", Terms, []),
         register = proplists:get_value("Register in Global Registry", Terms, no),
@@ -281,8 +303,7 @@ parse({terms, Terms}) ->
         main_cm = proplists:get_value(main_cm, Terms),
         cms = proplists:get_value(cms, Terms, []),
         workers = proplists:get_value(workers, Terms, []),
-        dbs = proplists:get_value(dbs, Terms, []),
-        storage_paths = proplists:get_value(storage_paths, Terms, [])
+        dbs = proplists:get_value(dbs, Terms, [])
     }.
 
 %% execute/4
@@ -351,16 +372,21 @@ check_hosts(Node, Hosts) ->
 %% ====================================================================
 %% @doc Checks whether all storage paths are available for all workers.
 %% @end
--spec check_storage_paths(Node :: atom(), StoragePaths :: [string()], Workers :: [string()]) -> ok | no_return().
+-spec check_storage_paths(Node :: atom(), Storage :: #{}, Workers :: [string()]) -> ok | no_return().
 %% ====================================================================
-check_storage_paths(Node, StoragePaths, Workers) when is_list(StoragePaths) ->
-    lists:foreach(fun(StoragePath) ->
-        case rpc:call(Node, installer_storage, check_storage_path_on_hosts, [Workers, StoragePath]) of
-            ok -> ok;
-            {error, Hosts} ->
-                throw({config, io_lib:fwrite("Storage ~p in not available on following hosts: ~s", [StoragePath, string:join(Hosts, ", ")])})
-        end
-    end, StoragePaths);
+check_storage_paths(Node, Storage, Workers) when is_map(Storage) ->
+    maps:fold(fun
+        (Name, #{type := 'POSIX', mount_point := MountPoint}, _) ->
+            case rpc:call(Node, installer_storage, check_storage_path_on_hosts,
+                [Workers, binary_to_list(MountPoint)]) of
+                ok -> ok;
+                {error, Hosts} ->
+                    throw({config, io_lib:fwrite(
+                        "Storage '~s' in not available on following hosts: ~s",
+                        [Name, string:join(Hosts, ", ")])})
+            end;
+        (_, _, _) -> ok
+    end, ok, Storage);
 check_storage_paths(_, _, _) ->
     throw({config, "Wrong storage paths format."}).
 
@@ -369,26 +395,23 @@ check_storage_paths(_, _, _) ->
 %% @doc Checks whether default ports of all control panel nodes are
 %% available for Global Registry.
 %% @end
--spec check_ports(Node :: atom()) -> ok | no_return().
+-spec check_ports(Node :: atom(), Workers :: [string()]) -> ok | no_return().
 %% ====================================================================
-check_ports(Node) ->
-    ControlPanelHosts = case rpc:call(Node, onepanel_utils, get_control_panel_hosts, [], ?RPC_TIMEOUT) of
-                            {ok, Hosts} -> Hosts;
-                            _ -> []
-                        end,
+check_ports(Node, Workers) ->
     {DefaultGuiPort, DefaultRestPort} = case rpc:call(Node, provider_logic, get_ports_to_check, [], ?RPC_TIMEOUT) of
                                             {ok, [{<<"gui">>, GuiPort}, {<<"rest">>, RestPort}]} ->
                                                 {GuiPort, RestPort};
                                             _ -> {0, 0}
                                         end,
-    lists:foreach(fun(ControlPanelHost) ->
-        ControlPanelNode = list_to_atom(?APP_STR ++ "@" ++ ControlPanelHost),
-        {ok, IpAddress} = rpc:call(ControlPanelNode, oz_providers, check_ip_address, [provider], ?RPC_TIMEOUT),
-        ok = rpc:call(Node, oz_providers, check_port, [provider, IpAddress, DefaultGuiPort, <<"gui">>]),
-        ok = rpc:call(Node, oz_providers, check_port, [provider, IpAddress, DefaultRestPort, <<"rest">>]),
+    lists:foreach(fun(Worker) ->
+        WorkerNode = list_to_atom(?APP_STR ++ "@" ++ Worker),
+        {ok, _} = rpc:call(WorkerNode, installer_utils, check_ip_address, [], ?RPC_TIMEOUT),
+        %% @todo  add port checking to worker and check 'ok' here
+        %% ok = rpc:call(Node, oz_providers, check_port, [provider, IpAddress, DefaultGuiPort, <<"gui">>]),
+        %% ok = rpc:call(Node, oz_providers, check_port, [provider, IpAddress, DefaultRestPort, <<"rest">>]),
         ok = rpc:call(Node, dao, update_record,
-            [local_configurations, ControlPanelHost, [{gui_port, DefaultGuiPort}, {rest_port, DefaultGuiPort}]], ?RPC_TIMEOUT)
-    end, ControlPanelHosts),
+            [local_configurations, Worker, [{gui_port, DefaultGuiPort}, {rest_port, DefaultRestPort}]], ?RPC_TIMEOUT)
+    end, Workers),
     ok.
 
 %% format/2
@@ -442,7 +465,7 @@ format_hosts(Prefix, [Host | Hosts]) ->
 -spec print_usage() -> ok.
 %% ====================================================================
 print_usage() ->
-    io:format("Usage: onepanel_admin [options]\n", []),
+    io:format("Usage: op_panel_admin [options]\n", []),
     io:format("Options:\n"),
     io:format("\t--install <config file>\n"),
     io:format("\t--config\n"),
@@ -475,3 +498,53 @@ print_ok() ->
 print_error(Format, Args) ->
     io:format("[FAILED]\n"),
     io:format(Format, Args).
+
+get_envs() ->
+    lists:map(fun(Env) ->
+        Index = string:chr(Env, $=),
+        {string:left(Env, Index - 1), string:substr(Env, Index + 1)}
+    end, os:getenv()).
+
+adjust_config(Config) ->
+    #config{
+        main_cm = get_host(get([cluster, manager, default_node_id], Config), Config),
+        cms = get_hosts([cluster, manager], Config),
+        workers = get_hosts([cluster, worker], Config),
+        dbs = get_hosts([cluster, database], Config),
+        storage = get([cluster, storage], Config),
+        open_files = get([cluster, settings, open_files_limit], Config, ?OPEN_FILES),
+        processes = get([cluster, settings, processes_limit], Config, ?PROCESSES),
+        register = get([oneprovider, register], Config),
+        redirection_point = list_to_binary(get_host(hd(get([cluster, worker, node_ids], Config)), Config)),
+        client_name = get([oneprovider, name], Config),
+        geo_latitude = get([oneprovider, geo_latitude], Config),
+        geo_longitude = get([oneprovider, geo_longitude], Config),
+        op_domain = get([cluster, domain_name], Config),
+        oz_domain = get([onezone, domain_name], Config, "onedata.org"),
+        web_cert = get([cluster, settings, web_certificate], Config)
+    }.
+
+get([], Config) ->
+    Config;
+get([Key | Keys], Config) ->
+    case maps:find(Key, Config) of
+        {ok, InnerConfig} -> get(Keys, InnerConfig);
+        error -> undefined
+    end;
+get(Key, Config) ->
+    get([Key], Config).
+
+get(Key, Config, Default) ->
+    case get(Key, Config) of
+        undefined -> Default;
+        Value -> Value
+    end.
+
+get_host(NodeId, Config) ->
+    DomainName = get([cluster, domain_name], Config),
+    Hostname = get([cluster, nodes, NodeId, hostname], Config),
+    Hostname ++ "." ++ DomainName.
+
+get_hosts(Keys, Config) ->
+    NodeIds = get(Keys ++ [node_ids], Config),
+    lists:map(fun(NodeId) -> get_host(NodeId, Config) end, NodeIds).

@@ -16,7 +16,7 @@
 
 %% API
 -export([add_ceph_storage/5, add_ceph_user/5, add_dio_storage/1, add_dio_storage/3,
-    add_s3_storage/4, add_s3_user/5]).
+    add_s3_storage/4, add_s3_user/5, add_storage_from_config/2]).
 -export([add_space_storage_mapping/3]).
 -export([check_storage_path_on_hosts/2, check_storage_path_on_host/2,
     create_storage_test_file/1, remove_storage_test_file/1]).
@@ -281,3 +281,19 @@ remove_storage_test_file(FilePath) ->
             ?error("Cannot remove storage test file: ~p", [Reason]),
             {error, Reason}
     end.
+
+add_storage_from_config(Hosts, Config) ->
+    Workers = onepanel_utils:get_nodes("worker", Hosts),
+    maps:fold(fun
+        (Name, #{type := 'POSIX', mount_point := MountPoint}, _) ->
+            {ok, _} = add_dio_storage(Workers, Name, MountPoint);
+        (Name, #{type := 'S3', access_key := AccessKey, secret_key := SecretKey,
+            s3_hostname := Hostname, bucket_name := BucketName}, _) ->
+            {ok, StorageId} = add_s3_storage(Workers, Name, Hostname, BucketName),
+            ok = add_s3_user(Workers, <<"0">>, StorageId, AccessKey, SecretKey);
+        (Name, #{type := 'CEPH', cluster_name := ClusterName, key := Key,
+            monitor_host := MonHost, pool_name := PoolName, username := Username}, _) ->
+            {ok, StorageId} = add_ceph_storage(Workers, Name, MonHost, ClusterName, PoolName),
+            ok = add_ceph_user(Workers, <<"0">>, StorageId, Username, Key)
+    end, ok, Config),
+    ok.
