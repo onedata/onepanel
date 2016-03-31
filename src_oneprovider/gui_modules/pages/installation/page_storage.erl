@@ -28,7 +28,7 @@
 -define(STATE, comet_state).
 -record(?STATE, {workers, storage_type, storages = []}).
 
--record(document, {key, rev, value, links}).
+-record(document, {key, rev, deleted, value, links}).
 -record(storage, {name, helpers}).
 -record(helper_init, {name, args}).
 
@@ -113,7 +113,7 @@ body() ->
             }
         ]
     },
-    onepanel_gui_utils:body(61, Header, Main, onepanel_gui_utils:logotype_footer()).
+    onepanel_gui_utils:body(61, Header, Main).
 
 
 %% storage_type_dropdown/0

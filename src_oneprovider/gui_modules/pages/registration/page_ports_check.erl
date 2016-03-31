@@ -101,7 +101,7 @@ body() ->
             }
         ]
     },
-    onepanel_gui_utils:body(?SUBMENU_HEIGHT, Header, Main, onepanel_gui_utils:logotype_footer()).
+    onepanel_gui_utils:body(?SUBMENU_HEIGHT, Header, Main).
 
 
 %% redirection_table_row/2
