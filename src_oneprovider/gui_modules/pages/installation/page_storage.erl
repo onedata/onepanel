@@ -113,7 +113,7 @@ body() ->
             }
         ]
     },
-    onepanel_gui_utils:body(61, Header, Main, onepanel_gui_utils:logotype_footer()).
+    onepanel_gui_utils:body(61, Header, Main).
 
 
 %% storage_type_dropdown/0
