@@ -282,6 +282,12 @@ remove_storage_test_file(FilePath) ->
             {error, Reason}
     end.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Adds storage from config.
+%% @end
+%%--------------------------------------------------------------------
+-spec add_storage_from_config(Hosts :: list(), Config :: #{}) -> ok.
 add_storage_from_config(Hosts, Config) ->
     Workers = onepanel_utils:get_nodes("worker", Hosts),
     maps:fold(fun

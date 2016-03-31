@@ -37,18 +37,18 @@ body(Main) ->
 
 %% body/2
 %% ====================================================================
-%% @equiv body(Header, Main, logotype_footer()).
+%% @equiv body(Header, Main, []).
 %% @end
 -spec body(Header :: term(), Main :: term()) -> Result when
     Result :: list().
 %% ====================================================================
 body(Header, Main) ->
-    body(Header, Main, logotype_footer()).
+    body(Header, Main, []).
 
 
 %% body/3
 %% ====================================================================
-%% @equiv body(62, Header, Main, logotype_footer()).
+%% @equiv body(62, Header, Main, Footer).
 %% @end
 -spec body(Header :: term(), Main :: term(), Footer :: term()) -> Result when
     Result :: list().

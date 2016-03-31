@@ -215,15 +215,27 @@ init_cluster(ClusterHost) ->
     try
         MemToAllocate = 512,
 
-        InitCommand = ?COUCHBASE_CLI ++ " cluster-init -c " ++ ClusterHost ++ ":8091 --cluster-init-username=admin" ++
-            " --cluster-init-password=" ++ ?COUCHBASE_PASSWORD ++ " --cluster-init-ramsize=" ++ integer_to_list(MemToAllocate) ++
-            " --services=data,index,query 1>/tmp/couchbase.log 2>&1 ; echo -n $?",
+        SetQuotaCommand =
+            "curl -s -u admin:" ++ ?COUCHBASE_PASSWORD ++ " -X POST http://" ++
+            Host ++ ":8091/pools/default -d memoryQuota=" ++
+            integer_to_list(MemToAllocate) ++ " 1>>/tmp/couchbase.log 2>&1",
+        ?info("Running couchbase command ~p", [SetQuotaCommand]),
+        os:cmd(SetQuotaCommand),
+
+        InitCommand = ?COUCHBASE_CLI ++ " cluster-init -c " ++
+            ClusterHost ++ ":8091 --cluster-init-username=admin" ++
+            " --cluster-init-password=" ++ ?COUCHBASE_PASSWORD ++
+            " --cluster-init-ramsize=" ++ integer_to_list(MemToAllocate) ++
+            " --services=data,index,query 1>>/tmp/couchbase.log 2>&1 ; echo -n $?",
         ?info("Running couchbase command ~p", [InitCommand]),
         "0" = os:cmd(InitCommand),
 
-        BucketCommand = ?COUCHBASE_CLI ++ " bucket-create -c " ++ ClusterHost ++ ":8091" ++
-            " -u admin -p " ++ ?COUCHBASE_PASSWORD ++ " --bucket=default --bucket-ramsize=" ++ integer_to_list(MemToAllocate) ++
-            " --wait 1>/tmp/couchbase.log 2>&1 ; echo -n $?",
+        BucketCommand =
+            ?COUCHBASE_CLI ++ " bucket-create -c " ++ ClusterHost ++ ":8091" ++
+            " -u admin -p " ++ ?COUCHBASE_PASSWORD ++
+            " --bucket=default --bucket-ramsize=" ++
+            integer_to_list(MemToAllocate) ++
+            " --wait 1>>/tmp/couchbase.log 2>&1 ; echo -n $?",
         ?info("Running couchbase command ~p", [BucketCommand]),
         "0" = os:cmd(BucketCommand),
 
@@ -250,9 +262,12 @@ join_cluster(ClusterHost) ->
             _ -> ok
         end,
 
-        JoinCommand = ?COUCHBASE_CLI ++ " server-add -c " ++ ClusterHost ++ ":8091 -u admin -p " ++ ?COUCHBASE_PASSWORD ++
-            " --server-add=" ++ Host ++ ":8091 --server-add-username=admin --server-add-password=" ++ ?COUCHBASE_PASSWORD
-            ++ " --services=data,index,query 1>/dev/null 2>&1 ; echo -n $?",
+        JoinCommand = ?COUCHBASE_CLI ++ " server-add -c " ++
+            ClusterHost ++ ":8091 -u admin -p " ++ ?COUCHBASE_PASSWORD ++
+            " --server-add=" ++ Host ++
+            ":8091 --server-add-username=admin --server-add-password=" ++
+            ?COUCHBASE_PASSWORD
+            ++ " --services=data,index,query 1>>/tmp/couchbase.log 2>&1 ; echo -n $?",
         ?info("Running couchbase command ~p", [JoinCommand]),
         "0" = os:cmd(JoinCommand),
 

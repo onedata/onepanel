@@ -245,8 +245,9 @@ local_start(MainCM, OptCMs, Dbs, Args) ->
         application:set_env(?APP_NAME, onezone_url, OzUrl),
         ok = app_config:set(?APP_NAME, onezone_url, OzUrl),
 
-        get_certs(AppName, Args),
-        get_auth_config(AppName, Args),
+        copy_certs(AppName, Args),
+        copy_dns_config(AppName, Args),
+        copy_auth_config(AppName, Args),
 
         ServiceStart = "service " ++ atom_to_list(?SOFTWARE_NAME) ++ " start 2>1 1>/dev/null",
         SetUlimitsCmd = installer_utils:get_system_limits_cmd(Host),
@@ -294,29 +295,58 @@ local_restart() ->
         _ -> {error, Host}
     end.
 
-get_certs(oneprovider, Args) ->
-    get_file(web_cert, "/etc/op_worker/certs/onedataServerWeb.pem", Args);
-get_certs(onezone, Args) ->
-    get_file(web_key, "/etc/op_worker/certs/gui_key.pem", Args),
-    get_file(web_cert, "/etc/op_worker/certs/gui_cert.pem", Args),
-    get_file(web_ca_cert, "/etc/op_worker/cacerts/gui_cacert.pem", Args);
-get_certs(_, _) ->
+%%--------------------------------------------------------------------
+%% @doc Tries to copy certificates.
+%% @end
+%%--------------------------------------------------------------------
+-spec copy_certs(AppName :: atom(), Args :: list()) -> ok.
+copy_certs(oneprovider, Args) ->
+    copy_file(web_cert, "/etc/op_worker/certs/onedataServerWeb.pem", Args);
+copy_certs(onezone, Args) ->
+    copy_file(web_key, "/etc/op_worker/certs/gui_key.pem", Args),
+    copy_file(web_cert, "/etc/op_worker/certs/gui_cert.pem", Args),
+    copy_file(web_ca_cert, "/etc/op_worker/cacerts/gui_cacert.pem", Args);
+copy_certs(_, _) ->
     ok.
 
-get_auth_config(onezone, Args) ->
-    get_file(auth_config, "/var/lib/oz_worker/auth.config", Args);
-get_auth_config(_, _) ->
+%%--------------------------------------------------------------------
+%% @doc Tries to copy DNS config.
+%% @end
+%%--------------------------------------------------------------------
+-spec copy_dns_config(AppName :: atom(), Args :: list()) -> ok.
+copy_dns_config(onezone, Args) ->
+    copy_file(dns_config, "/var/lib/oz_worker/dns.config", Args);
+copy_dns_config(_, _) ->
     ok.
 
-get_file(Name, Path, Args) ->
+%%--------------------------------------------------------------------
+%% @doc Tries to copy auth config.
+%% @end
+%%--------------------------------------------------------------------
+-spec copy_auth_config(AppName :: atom(), Args :: list()) -> ok.
+copy_auth_config(onezone, Args) ->
+    copy_file(auth_config, "/var/lib/oz_worker/auth.config", Args);
+copy_auth_config(_, _) ->
+    ok.
+
+%%--------------------------------------------------------------------
+%% @doc Tries to download/copy file to given destination.
+%% @end
+%%--------------------------------------------------------------------
+-spec copy_file(AppName :: atom(), Path :: string(), Args :: list()) -> ok.
+copy_file(Name, Path, Args) ->
     case proplists:get_value(Name, Args) of
         undefined -> ok;
         Value ->
+            ?info("Copying file ~p from ~p to ~p", [Name, Value, Path]),
             try
                 {ok, 200, _, Content} = http_client:get(Value),
                 file:write_file(Path, Content)
             catch
-                _:_ -> os:cmd("cp " ++ Value ++ " " ++ Path)
+                _:Reason ->
+                    Ans = os:cmd("cp " ++ Value ++ " " ++ Path),
+                    ?error_stacktrace("File download failed: ~p. Copy attempt "
+                    "returned: ~s", [Reason, Ans])
             end,
             ok
     end.

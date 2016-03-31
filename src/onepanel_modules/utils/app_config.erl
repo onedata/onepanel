@@ -6,7 +6,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc
-%%% @todo write me!
+%%% This file contains utility functions used to modify application config.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(app_config).
@@ -22,6 +22,12 @@
 %%% API
 %%%===================================================================
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns application config path.
+%% @end
+%%--------------------------------------------------------------------
+-spec path(Ref :: atom() | string()) -> Path :: string().
 path(?APP_NAME) ->
     {ok, EtcDir} = application:get_env(?APP_NAME, onepanel_etc_dir),
     filename:join(EtcDir, "app.config");
@@ -31,6 +37,12 @@ path(AppName) when is_atom(AppName) ->
 path(Ref) when is_list(Ref) ->
     Ref.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns value from application configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec get(Ref :: atom() | string(), Keys :: list()) -> Value :: term().
 get(Ref, Keys) when is_list(Keys) ->
     case file:consult(path(Ref)) of
         {ok, [Terms]} ->
@@ -51,7 +63,13 @@ get(Ref, Ref) when is_atom(Ref) ->
 get(Ref, Key) when is_atom(Ref) ->
     get(Ref, [Ref, Key]).
 
-
+%%--------------------------------------------------------------------
+%% @doc
+%% Sets value in application configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec set(Ref :: atom() | string(), Keys :: list(), Value :: term()) ->
+    ok | {error, Reason :: term()}.
 set(Ref, Keys, Value) when is_list(Keys) ->
     Path = path(Ref),
     case file:consult(Path) of
@@ -71,6 +89,12 @@ set(Ref, Key, Value) when is_atom(Ref) ->
 %%% Internal functions
 %%%===================================================================
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Stores value in a deep proplists.
+%% @end
+%%--------------------------------------------------------------------
+-spec store(Keys :: list(), Value :: term(), Terms :: list()) -> list().
 store([], Value, _Terms) ->
     Value;
 store([Key | Keys], Value, Terms) ->

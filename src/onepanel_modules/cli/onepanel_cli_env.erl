@@ -6,7 +6,8 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc
-%%% @todo write me!
+%%% This file contains functions used to overwrite batch mode configuration with
+%%% environment variables.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_cli_env).
@@ -22,6 +23,12 @@
 %%% API
 %%%===================================================================
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns value of environment variable.
+%% @end
+%%--------------------------------------------------------------------
+-spec get(Keys :: list(), Envs :: proplists:property()) -> Value :: term().
 get(?CONFIG_KEY, Envs) ->
     {ok, Name} = application:get_env(?APP_NAME, application_env_config),
     onepanel_cli_env:get(Name, Envs);
@@ -135,8 +142,15 @@ get(Key, Envs) ->
     end,
     proplists:get_value(Env, Envs).
 
-get(Name, Envs, Default) ->
-    case onepanel_cli_env:get(Name, Envs) of
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns value of environment variable. If missing returns default value.
+%% @end
+%%--------------------------------------------------------------------
+-spec get(Keys :: list(), Envs :: proplists:property(), Default :: term()) ->
+    Value :: term().
+get(Keys, Envs, Default) ->
+    case onepanel_cli_env:get(Keys, Envs) of
         undefined -> Default;
         Value -> Value
     end.
@@ -145,9 +159,21 @@ get(Name, Envs, Default) ->
 %%% Internal functions
 %%%===================================================================
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Replaces whitespace characters with underscore in name of environment variable.
+%% @end
+%%--------------------------------------------------------------------
+-spec ensure_valid_env_name(Name :: string()) -> string().
 ensure_valid_env_name(Name) ->
     string:join(string:tokens(Name, " "), "_").
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns value of environment variable as a list.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_list_env(Key :: list(), Envs :: proplists:property()) -> Value :: list().
 get_list_env(Key, Envs) ->
     case onepanel_cli_env:get(Key, Envs) of
         undefined -> undefined;

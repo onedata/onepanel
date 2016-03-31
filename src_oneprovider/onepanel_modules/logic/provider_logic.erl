@@ -52,6 +52,13 @@ init() ->
 create_csr(_, _, _) ->
     throw("NIF library not loaded.").
 
+%%--------------------------------------------------------------------
+%% @doc
+%% @equiv register(RedirectionPoint, ClientName, #{})
+%% @end
+%%--------------------------------------------------------------------
+-spec register(RedirectionPoint :: binary(), ClientName :: binary()) ->
+    {ok, ProviderId :: binary()} | {error, Reason :: term()}.
 register(RedirectionPoint, ClientName) ->
     register(RedirectionPoint, ClientName, #{}).
 

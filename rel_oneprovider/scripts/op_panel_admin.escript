@@ -80,23 +80,33 @@
 -spec main(Args :: [string()]) -> no_return().
 %% ====================================================================
 main(Args) ->
-    init(),
-    Envs = get_envs(),
-    case Args of
-        ["--install", ""] ->
-            Config = adjust_config(onepanel_cli_config_parser:parse(Envs)),
-            install(Config);
-        ["--install", Path] ->
-            Config = adjust_config(onepanel_cli_config_parser:parse(Path, Envs)),
-            install(Config);
-        ["--install"] ->
-            Config = adjust_config(onepanel_cli_config_parser:parse(Envs)),
-            install(Config);
-        ["--config"] -> config();
-        ["--uninstall"] -> uninstall();
-        _ -> print_usage()
-    end,
-    halt(?EXIT_SUCCESS).
+    try
+        init(),
+        Envs = get_envs(),
+        case Args of
+            ["--install", ""] ->
+                Config = adjust_config(onepanel_cli_config_parser:parse(Envs)),
+                install(Config);
+            ["--install", Path] ->
+                Config = adjust_config(onepanel_cli_config_parser:parse(Path, Envs)),
+                install(Config);
+            ["--install"] ->
+                Config = adjust_config(onepanel_cli_config_parser:parse(Envs)),
+                install(Config);
+            ["--config"] -> config();
+            ["--uninstall"] -> uninstall();
+            _ -> print_usage()
+        end,
+        halt(?EXIT_SUCCESS)
+    catch
+        Error:Reason ->
+            Log = io_lib:fwrite("Error: ~p~nReason: ~p~nStacktrace: ~p~n",
+                [Error, Reason, erlang:get_stacktrace()]),
+            file:write_file(?LOG_FILE, Log),
+            io:format("Environment initialization failed. See ~s for more "
+            "information.~n", [?LOG_FILE]),
+            halt(?EXIT_FAILURE)
+    end.
 
 %% init/0
 %% ====================================================================
@@ -105,21 +115,13 @@ main(Args) ->
 -spec init() -> ok.
 %% ====================================================================
 init() ->
-    try
-        Hostname = "@" ++ os:cmd("hostname -f") -- "\n",
-        put(?NODE, erlang:list_to_atom(?APP_STR ++ Hostname)),
-        {A, B, C} = erlang:timestamp(),
-        NodeName = "onepanel_admin_" ++ integer_to_list(A, 32) ++
-            integer_to_list(B, 32) ++ integer_to_list(C, 32) ++ "@127.0.0.1",
-        net_kernel:start([list_to_atom(NodeName), longnames]),
-        erlang:set_cookie(node(), ?COOKIE)
-    catch
-        Error:Reason ->
-            Log = io_lib:fwrite("Error: ~p~nReason: ~p~nStacktrace: ~p~n", [Error, Reason, erlang:get_stacktrace()]),
-            file:write_file(?LOG_FILE, Log),
-            io:format("Environment initialization failed. See ~s for more information.~n", [?LOG_FILE]),
-            halt(?EXIT_FAILURE)
-    end.
+    Hostname = "@" ++ os:cmd("hostname -f") -- "\n",
+    put(?NODE, erlang:list_to_atom(?APP_STR ++ Hostname)),
+    {A, B, C} = erlang:timestamp(),
+    NodeName = "onepanel_admin_" ++ integer_to_list(A, 32) ++
+        integer_to_list(B, 32) ++ integer_to_list(C, 32) ++ "@127.0.0.1",
+    net_kernel:start([list_to_atom(NodeName), longnames]),
+    erlang:set_cookie(node(), ?COOKIE).
 
 %% install/1
 %% ====================================================================
@@ -499,12 +501,22 @@ print_error(Format, Args) ->
     io:format("[FAILED]\n"),
     io:format(Format, Args).
 
+%%--------------------------------------------------------------------
+%% @doc Returns environment variables proplist.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_envs() -> list().
 get_envs() ->
     lists:map(fun(Env) ->
         Index = string:chr(Env, $=),
         {string:left(Env, Index - 1), string:substr(Env, Index + 1)}
     end, os:getenv()).
 
+%%--------------------------------------------------------------------
+%% @doc Transforms config from map to record.
+%% @end
+%%--------------------------------------------------------------------
+-spec adjust_config(Config :: #{}) -> #config{}.
 adjust_config(Config) ->
     #config{
         main_cm = get_host(get([cluster, manager, default_node_id], Config), Config),
@@ -524,6 +536,11 @@ adjust_config(Config) ->
         web_cert = get([cluster, settings, web_certificate], Config)
     }.
 
+%%--------------------------------------------------------------------
+%% @doc Returns key from config.
+%% @end
+%%--------------------------------------------------------------------
+-spec get(Keys :: list(), Config :: #{}) -> Value :: term().
 get([], Config) ->
     Config;
 get([Key | Keys], Config) ->
@@ -534,17 +551,31 @@ get([Key | Keys], Config) ->
 get(Key, Config) ->
     get([Key], Config).
 
+%%--------------------------------------------------------------------
+%% @doc Returns key from config. If missing returns default value.
+%% @end
+%%--------------------------------------------------------------------
+-spec get(Key :: list(), Config :: #{}, Default :: term()) -> Value :: term().
 get(Key, Config, Default) ->
     case get(Key, Config) of
         undefined -> Default;
         Value -> Value
     end.
-
+%%--------------------------------------------------------------------
+%% @doc Converts node ID to its hostname.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_host(NodeId :: string(), Config :: #{}) -> string().
 get_host(NodeId, Config) ->
     DomainName = get([cluster, domain_name], Config),
     Hostname = get([cluster, nodes, NodeId, hostname], Config),
     Hostname ++ "." ++ DomainName.
 
+%%--------------------------------------------------------------------
+%% @doc Converts node IDs to hostnames.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_hosts(Keys :: list(), Config :: #{}) -> list().
 get_hosts(Keys, Config) ->
     NodeIds = get(Keys ++ [node_ids], Config),
     lists:map(fun(NodeId) -> get_host(NodeId, Config) end, NodeIds).

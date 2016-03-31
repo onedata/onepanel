@@ -6,7 +6,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc
-%%% @todo write me!
+%%% This file contains functions used for command line interface arguments parsing.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_cli_config_parser).
@@ -15,6 +15,8 @@
 -include("onepanel_cli.hrl").
 -include("registered_names.hrl").
 
+-type(config() :: proplists:proplist()).
+
 %% API
 -export([parse/1, parse/2]).
 
@@ -22,12 +24,25 @@
 %%% API
 %%%===================================================================
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Parse configuration from environment variables.
+%% @end
+%%--------------------------------------------------------------------
+-spec parse(Envs :: proplists:proplist()) -> Config :: #{}.
 parse(Envs) ->
     case onepanel_cli_env:get(?CONFIG_KEY, Envs) of
         undefined -> parse_config([], Envs);
         EnvConfig -> parse_env_config(EnvConfig, Envs)
     end.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Tries to parse configuration from environment variables and in case they
+%% are not specified parses file.
+%% @end
+%%--------------------------------------------------------------------
+-spec parse(FileConfig :: string(), Envs :: proplists:proplist()) -> Config :: #{}.
 parse(FileConfig, Envs) ->
     case onepanel_cli_env:get(?CONFIG_KEY, Envs) of
         undefined -> parse_file_config(FileConfig, Envs);
@@ -38,14 +53,35 @@ parse(FileConfig, Envs) ->
 %%% Internal functions
 %%%===================================================================
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Parse configuration from environment variables.
+%% @end
+%%--------------------------------------------------------------------
+-spec parse_env_config(EnvConfig :: string(), Envs :: proplists:proplist()) -> 
+    Config :: #{}.
 parse_env_config(EnvConfig, Envs) ->
     [Config] = yamerl_constr:string(EnvConfig),
     parse_config(Config, Envs).
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Parse configuration from file.
+%% @end
+%%--------------------------------------------------------------------
+-spec parse_file_config(FileConfig :: string(), Envs :: proplists:proplist()) ->
+    Config :: #{}.
 parse_file_config(FileConfig, Envs) ->
     [Config] = yamerl_constr:file(FileConfig),
     parse_config(Config, Envs).
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Parse configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec parse_config(Config :: config(), Envs :: proplists:proplist()) ->
+    Config :: #{}.
 parse_config(Config, Envs) ->
     #{
         cluster => parse_config([?CLUSTER_KEY], Config, Envs),
@@ -53,7 +89,13 @@ parse_config(Config, Envs) ->
         onezone => parse_config([?ONEZONE_KEY], Config, Envs)
     }.
 
-
+%%--------------------------------------------------------------------
+%% @doc
+%% Parse configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec parse_config(RevKey :: list(), Config :: config(), 
+    Envs :: proplists:proplist()) -> Config :: #{}.
 parse_config([?CLUSTER_KEY] = RevKey, ParentConfig, Envs) ->
     Config = proplists:get_value(?CLUSTER_KEY, ParentConfig, []),
     #{
@@ -151,7 +193,8 @@ parse_config([?SETTINGS_KEY, ?CLUSTER_KEY] = RevKey, ParentConfig, Envs) ->
         ),
         open_id_auth_config => get(
             [?OPEN_ID_AUTH_CONFIG_KEY | RevKey], string, Config, Envs
-        )
+        ),
+        dns_config => get([?DNS_CONFIG_KEY | RevKey], string, Config, Envs)
     };
 
 parse_config([?ONEPROVIDER_KEY] = RevKey, ParentConfig, Envs) ->
@@ -175,6 +218,13 @@ parse_config([?ONEZONE_KEY] = RevKey, ParentConfig, Envs) ->
         domain_name => get([?DOMAIN_NAME_KEY | RevKey], string, Config, Envs)
     }.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Gets value from config.
+%% @end
+%%--------------------------------------------------------------------
+-spec get(RevKey :: list(), Type :: atom(), Config :: #{}, Envs :: proplists:proplist()) -> 
+    Value :: term().
 get([Name | _] = RevKey, Type, Config, Envs) ->
     Key = lists:reverse(RevKey),
     ConfigValue = proplists:get_value(Name, Config),
@@ -183,12 +233,24 @@ get([Name | _] = RevKey, Type, Config, Envs) ->
         EnvValue -> convert(EnvValue, Type)
     end.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Converts value from one type to another.
+%% @end
+%%--------------------------------------------------------------------
+-spec convert(Value :: term(), Type :: atom()) -> Value :: term().
 convert(Value, Type) when is_atom(Value) -> convert(Value, atom, Type);
 convert(Value, Type) when is_list(Value) -> convert(Value, string, Type);
 convert(Value, Type) when is_binary(Value) -> convert(Value, binary, Type);
 convert(Value, Type) when is_integer(Value) -> convert(Value, integer, Type);
 convert(Value, Type) when is_float(Value) -> convert(Value, float, Type).
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Converts value from one to another.
+%% @end
+%%--------------------------------------------------------------------
+-spec convert(Value :: term(), From :: atom(), To :: atom()) -> Value :: term().
 convert(Value, string, To) ->
     convert(Value, list, To);
 convert(Value, From, string) ->
