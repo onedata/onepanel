@@ -160,10 +160,11 @@ install(Config) ->
             {Node, installer_cm, start, [[{main_cm, MainCM}, {cms, CMs}]], "Starting CM nodes..."},
             {Node, installer_worker, start, [[{workers, Workers}, {oz_name, OzName}, {oz_domain, OzDomain},
                 {web_key, WebKey}, {web_cert, WebCert}, {web_ca_cert, WebCaCert}, {auth_config, AuthConfig},
-                {dns_config, DnsConfig}]],
-                "Starting worker nodes..."},
+                {dns_config, DnsConfig}]], "Starting worker nodes..."},
             {Node, installer_utils, finalize_installation, [[]], "Finalizing installation..."}
-        ])
+        ]),
+
+        io:format("\nCongratulations! onezone has been successfully started.\n")
     catch
         _:{config, Reason} when is_list(Reason) ->
             print_error("Configuration error: ~s\n", [Reason]),

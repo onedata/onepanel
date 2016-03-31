@@ -194,7 +194,9 @@ install(Config) ->
                 print_ok();
             _ ->
                 ok
-        end
+        end,
+
+        io:format("\nCongratulations! oneprovider has been successfully started.\n")
     catch
         _:{config, Reason} when is_list(Reason) ->
             print_error("Configuration error: ~s\n", [Reason]),

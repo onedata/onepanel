@@ -344,9 +344,9 @@ copy_file(Name, Path, Args) ->
                 file:write_file(Path, Content)
             catch
                 _:Reason ->
-                    Ans = os:cmd("cp " ++ Value ++ " " ++ Path),
-                    ?error_stacktrace("File download failed: ~p. Copy attempt "
-                    "returned: ~s", [Reason, Ans])
+                    ?error_stacktrace("File download failed: ~p. "
+                    "Trying to copy...", [Reason]),
+                    os:cmd("cp " ++ Value ++ " " ++ Path)
             end,
             ok
     end.
