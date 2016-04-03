@@ -40,6 +40,7 @@
 -define(WEB_CA_CERTIFICATE_KEY, "web_ca_certificate").
 -define(OPEN_ID_AUTH_CONFIG_KEY, "open_id_auth_config").
 -define(DNS_CONFIG_KEY, "dns_config").
+-define(MEMORY_QUOTA_KEY, "memory_quota").
 
 -define(DEFAULT_NODE_KEY, "default_node").
 -define(OPEN_FILES_LIMIT_KEY, "open_files_limit").

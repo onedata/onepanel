@@ -57,7 +57,8 @@
     web_cert,
     web_ca_cert,
     auth_config,
-    dns_config
+    dns_config,
+    memory_quota
 }).
 
 %% API
@@ -140,7 +141,8 @@ install(Config) ->
             web_cert = WebCert,
             web_ca_cert = WebCaCert,
             auth_config = AuthConfig,
-            dns_config = DnsConfig
+            dns_config = DnsConfig,
+            memory_quota = MemQuota
         } = Config,
         AllHosts = lists:usort(CMs ++ Workers ++ Dbs),
 
@@ -156,7 +158,7 @@ install(Config) ->
         print_ok(),
 
         ok = execute([
-            {Node, installer_db, start, [[{dbs, Dbs}]], "Starting database nodes..."},
+            {Node, installer_db, start, [[{dbs, Dbs}, {memory_quota, MemQuota}]], "Starting database nodes..."},
             {Node, installer_cm, start, [[{main_cm, MainCM}, {cms, CMs}]], "Starting CM nodes..."},
             {Node, installer_worker, start, [[{workers, Workers}, {oz_name, OzName}, {oz_domain, OzDomain},
                 {web_key, WebKey}, {web_cert, WebCert}, {web_ca_cert, WebCaCert}, {auth_config, AuthConfig},
@@ -418,6 +420,7 @@ adjust_config(Config) ->
         cms = get_hosts([cluster, manager], Config),
         workers = get_hosts([cluster, worker], Config),
         dbs = get_hosts([cluster, database], Config),
+        memory_quota = get([cluster, database, memory_quota], Config, 512),
         open_files = get([cluster, settings, open_files_limit], Config, ?OPEN_FILES),
         processes = get([cluster, settings, processes_limit], Config, ?PROCESSES),
         oz_name = get([onezone, name], Config),

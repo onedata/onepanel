@@ -57,6 +57,8 @@ get([?CLUSTER_KEY, ?MANAGER_KEY, ?NODES_KEY], Envs) ->
 get([?CLUSTER_KEY, ?WORKER_KEY, ?NODES_KEY], Envs) ->
     get_list_env("CLUSTER_WORKER_NODES", Envs);
 
+get([?CLUSTER_KEY, ?DATABASE_KEY, ?MEMORY_QUOTA_KEY], Envs) ->
+    get_list_env("CLUSTER_DATABASE_MEMORY_QUOTA", Envs);
 get([?CLUSTER_KEY, ?DATABASE_KEY, ?NODES_KEY], Envs) ->
     get_list_env("CLUSTER_DATABASE_NODES", Envs);
 

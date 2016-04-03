@@ -145,7 +145,8 @@ parse_config([?WORKER_KEY, ?CLUSTER_KEY] = RevKey, ParentConfig, Envs) ->
 parse_config([?DATABASE_KEY, ?CLUSTER_KEY] = RevKey, ParentConfig, Envs) ->
     Config = proplists:get_value(?DATABASE_KEY, ParentConfig, []),
     #{
-        node_ids => get([?NODES_KEY | RevKey], list, Config, Envs)
+        node_ids => get([?NODES_KEY | RevKey], list, Config, Envs),
+        memory_quota => get([?MEMORY_QUOTA_KEY | RevKey], integer, Config, Envs)
     };
 
 parse_config([?STORAGE_KEY, ?CLUSTER_KEY] = RevKey, ParentConfig, Envs) ->

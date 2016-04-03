@@ -25,7 +25,7 @@
 -export([install/1, uninstall/1, start/1, stop/1, restart/1]).
 
 %% API
--export([local_start/0, local_stop/0, init_cluster/1, join_cluster/1, rebalance_cluster/1]).
+-export([local_start/0, local_stop/0, init_cluster/2, join_cluster/1, rebalance_cluster/1]).
 
 %% Defines how many times onepanel will try to verify database node start
 -define(FINALIZE_START_ATTEMPTS, 60).
@@ -82,7 +82,7 @@ start(Args) ->
 
                 {{_, []}, _} = {onepanel_utils:apply_on_hosts(Dbs, ?MODULE, local_start, [], ?RPC_TIMEOUT),
                     "Cannot start database nodes on following hosts: ~p"},
-                {{_, []}, _} = {onepanel_utils:apply_on_hosts([hd(Dbs)], ?MODULE, init_cluster, [hd(Dbs)], ?RPC_TIMEOUT),
+                {{_, []}, _} = {onepanel_utils:apply_on_hosts([hd(Dbs)], ?MODULE, init_cluster, [hd(Dbs), Args], ?RPC_TIMEOUT),
                     "Cannot init database nodes on following hosts: ~p"},
                 {{_, []}, _} = {onepanel_utils:apply_on_hosts(Dbs, ?MODULE, join_cluster, [hd(Dbs)], ?RPC_TIMEOUT),
                     "Cannot add following hosts: ~p to database cluster"},
@@ -202,18 +202,18 @@ local_stop() ->
             {error, Host}
     end.
 
-%% init_cluster/1
+%% init_cluster/2
 %% ====================================================================
 %% @doc Init database cluster. ClusterHost is one of current
 %% database cluster hosts.
 %% @end
--spec init_cluster(ClusterHost :: string()) -> Result when
-    Result :: {ok, Host :: string()} | {error, Host :: string()}.
+-spec init_cluster(ClusterHost :: string(), Opts :: proplists:proplist()) ->
+    {ok, Host :: string()} | {error, Host :: string()}.
 %% ====================================================================
-init_cluster(ClusterHost) ->
+init_cluster(ClusterHost, Opts) ->
     Host = onepanel_utils:get_host(node()),
     try
-        MemToAllocate = 512,
+        MemToAllocate = proplists:get_value(memory_quota, Opts, 512),
 
         SetQuotaCommand =
             "curl -s -u admin:" ++ ?COUCHBASE_PASSWORD ++ " -X POST http://" ++
