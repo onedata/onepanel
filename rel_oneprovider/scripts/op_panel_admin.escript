@@ -63,7 +63,8 @@
     geo_latitude,
     op_domain,
     oz_domain,
-    web_cert
+    web_cert,
+    memory_quota
 }).
 
 %% API
@@ -147,7 +148,8 @@ install(Config) ->
             geo_longitude = GeoLongitude,
             op_domain = OpDomain,
             oz_domain = OzDomain,
-            web_cert = WebCert
+            web_cert = WebCert,
+            memory_quota = MemQuota
         } = Config,
         AllHosts = lists:usort(CMs ++ Workers ++ Dbs),
 
@@ -167,7 +169,7 @@ install(Config) ->
         print_ok(),
 
         ok = execute([
-            {Node, installer_db, start, [[{dbs, Dbs}]], "Starting database nodes..."},
+            {Node, installer_db, start, [[{dbs, Dbs}, {memory_quota, MemQuota}]], "Starting database nodes..."},
             {Node, installer_cm, start, [[{main_cm, MainCM}, {cms, CMs}]], "Starting CM nodes..."},
             {Node, installer_worker, start, [[{workers, Workers}, {op_domain, OpDomain}, {oz_domain, OzDomain},
                 {web_cert, WebCert}]], "Starting worker nodes..."},
@@ -525,6 +527,7 @@ adjust_config(Config) ->
         cms = get_hosts([cluster, manager], Config),
         workers = get_hosts([cluster, worker], Config),
         dbs = get_hosts([cluster, database], Config),
+        memory_quota = get([cluster, database, memory_quota], Config, 512),
         storage = get([cluster, storage], Config),
         open_files = get([cluster, settings, open_files_limit], Config, ?OPEN_FILES),
         processes = get([cluster, settings, processes_limit], Config, ?PROCESSES),

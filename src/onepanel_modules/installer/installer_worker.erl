@@ -303,9 +303,9 @@ local_restart() ->
 copy_certs(oneprovider, Args) ->
     copy_file(web_cert, "/etc/op_worker/certs/onedataServerWeb.pem", Args);
 copy_certs(onezone, Args) ->
-    copy_file(web_key, "/etc/op_worker/certs/gui_key.pem", Args),
-    copy_file(web_cert, "/etc/op_worker/certs/gui_cert.pem", Args),
-    copy_file(web_ca_cert, "/etc/op_worker/cacerts/gui_cacert.pem", Args);
+    copy_file(web_key, "/etc/oz_worker/certs/gui_key.pem", Args),
+    copy_file(web_cert, "/etc/oz_worker/certs/gui_cert.pem", Args),
+    copy_file(web_ca_cert, "/etc/oz_worker/cacerts/gui_cacert.pem", Args);
 copy_certs(_, _) ->
     ok.
 
