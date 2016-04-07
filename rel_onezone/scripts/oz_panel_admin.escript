@@ -1,5 +1,6 @@
 #!/usr/bin/env escript
 %% -*- erlang -*-
+%%! -config {{platform_etc_dir}}/app.config
 
 %% ===================================================================
 %% @author Krzysztof Trzepla
@@ -31,7 +32,7 @@
 -define(EXIT_FAILURE, 1).
 
 %% Error logs filename
--define(LOG_FILE, filename:join(os:getenv("RUNNER_LOG_DIR"), "op_panel_admin.log")).
+-define(LOG_FILE, "{{platform_log_dir}}/oz_panel_admin.log").
 
 %% Local onepanel node
 -define(NODE, setup_node).
@@ -49,7 +50,14 @@
     workers,
     dbs,
     open_files,
-    processes
+    processes,
+    oz_name,
+    oz_domain,
+    web_key,
+    web_cert,
+    web_ca_cert,
+    auth_config,
+    dns_config
 }).
 
 %% API
@@ -66,14 +74,34 @@
 -spec main(Args :: [string()]) -> no_return().
 %% ====================================================================
 main(Args) ->
-    init(),
-    case Args of
-        ["--install", Path] -> install(Path);
-        ["--config"] -> config();
-        ["--uninstall"] -> uninstall();
-        _ -> print_usage()
-    end,
-    halt(?EXIT_SUCCESS).
+    try
+        init(),
+        Envs = get_envs(),
+        case Args of
+            ["--install", ""] ->
+                Config = adjust_config(onepanel_cli_config_parser:parse(Envs)),
+                install(Config);
+            ["--install", Path] ->
+                Config = adjust_config(onepanel_cli_config_parser:parse(Path, Envs)),
+                install(Config);
+            ["--install"] ->
+                Config = adjust_config(onepanel_cli_config_parser:parse(Envs)),
+                install(Config);
+            ["--config"] -> config();
+            ["--uninstall"] -> uninstall();
+            _ -> print_usage()
+        end,
+        halt(?EXIT_SUCCESS)
+    catch
+        Error:Reason ->
+            Log = io_lib:fwrite("Error: ~p~nReason: ~p~nStacktrace: ~p~n",
+                [Error, Reason, erlang:get_stacktrace()]),
+            file:write_file(?LOG_FILE, Log),
+            io:format(
+                "Environment initialization failed. See ~s for more information.~n",
+                [?LOG_FILE]),
+            halt(?EXIT_FAILURE)
+    end.
 
 %% init/0
 %% ====================================================================
@@ -82,29 +110,21 @@ main(Args) ->
 -spec init() -> ok.
 %% ====================================================================
 init() ->
-    try
-        Hostname = "@" ++ os:cmd("hostname -f") -- "\n",
-        put(?NODE, erlang:list_to_atom(?APP_STR ++ Hostname)),
-        {A, B, C} = erlang:timestamp(),
-        NodeName = "onepanel_admin_" ++ integer_to_list(A, 32) ++
-            integer_to_list(B, 32) ++ integer_to_list(C, 32) ++ "@127.0.0.1",
-        net_kernel:start([list_to_atom(NodeName), longnames]),
-        erlang:set_cookie(node(), ?COOKIE)
-    catch
-        Error:Reason ->
-            Log = io_lib:fwrite("Error: ~p~nReason: ~p~nStacktrace: ~p~n", [Error, Reason, erlang:get_stacktrace()]),
-            file:write_file(?LOG_FILE, Log),
-            io:format("Environment initialization failed. See ~s for more information.~n", [?LOG_FILE]),
-            halt(?EXIT_FAILURE)
-    end.
+    Hostname = "@" ++ os:cmd("hostname -f") -- "\n",
+    put(?NODE, erlang:list_to_atom(?APP_STR ++ Hostname)),
+    {A, B, C} = erlang:timestamp(),
+    NodeName = "onepanel_admin_" ++ integer_to_list(A, 32) ++
+        integer_to_list(B, 32) ++ integer_to_list(C, 32) ++ "@127.0.0.1",
+    net_kernel:start([list_to_atom(NodeName), longnames]),
+    erlang:set_cookie(node(), ?COOKIE).
 
 %% install/1
 %% ====================================================================
 %% @doc Applies installation preferences read from configuration file.
 %% @end
--spec install(Path :: string()) -> ok.
+-spec install(Config :: term()) -> ok.
 %% ====================================================================
-install(Path) ->
+install(Config) ->
     try
         Node = get(?NODE),
         #config{
@@ -113,8 +133,15 @@ install(Path) ->
             workers = Workers,
             dbs = Dbs,
             open_files = OpenFiles,
-            processes = Processes
-        } = parse({config, Path}),
+            processes = Processes,
+            oz_name = OzName,
+            oz_domain = OzDomain,
+            web_key = WebKey,
+            web_cert = WebCert,
+            web_ca_cert = WebCaCert,
+            auth_config = AuthConfig,
+            dns_config = DnsConfig
+        } = Config,
         AllHosts = lists:usort(CMs ++ Workers ++ Dbs),
 
         print_info("Checking configuration..."),
@@ -123,19 +150,21 @@ install(Path) ->
 
         print_info("Setting ulimits..."),
         lists:foreach(fun(Host) ->
-            HostOpenFiles = proplists:get_value(Host, OpenFiles, ?OPEN_FILES),
-            HostProcesses = proplists:get_value(Host, Processes, ?PROCESSES),
-            ok = rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_system_limit, [open_files, HostOpenFiles]),
-            ok = rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_system_limit, [process_limit, HostProcesses])
+            ok = rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_system_limit, [open_files, OpenFiles]),
+            ok = rpc:call(erlang:list_to_atom(?APP_STR ++ "@" ++ Host), installer_utils, set_system_limit, [process_limit, Processes])
         end, AllHosts),
         print_ok(),
 
         ok = execute([
             {Node, installer_db, start, [[{dbs, Dbs}]], "Starting database nodes..."},
             {Node, installer_cm, start, [[{main_cm, MainCM}, {cms, CMs}]], "Starting CM nodes..."},
-            {Node, installer_worker, start, [[{workers, Workers}]], "Starting worker nodes..."},
+            {Node, installer_worker, start, [[{workers, Workers}, {oz_name, OzName}, {oz_domain, OzDomain},
+                {web_key, WebKey}, {web_cert, WebCert}, {web_ca_cert, WebCaCert}, {auth_config, AuthConfig},
+                {dns_config, DnsConfig}]], "Starting worker nodes..."},
             {Node, installer_utils, finalize_installation, [[]], "Finalizing installation..."}
-        ])
+        ]),
+
+        io:format("\nCongratulations! onezone has been successfully started.\n")
     catch
         _:{config, Reason} when is_list(Reason) ->
             print_error("Configuration error: ~s\n", [Reason]),
@@ -333,7 +362,7 @@ format_hosts(Prefix, [Host | Hosts]) ->
 -spec print_usage() -> ok.
 %% ====================================================================
 print_usage() ->
-    io:format("Usage: onepanel_admin [options]\n", []),
+    io:format("Usage: oz_panel_admin [options]\n", []),
     io:format("Options:\n"),
     io:format("\t--install <config file>\n"),
     io:format("\t--config\n"),
@@ -366,3 +395,80 @@ print_ok() ->
 print_error(Format, Args) ->
     io:format("[FAILED]\n"),
     io:format(Format, Args).
+
+%%--------------------------------------------------------------------
+%% @doc Returns environment variables proplist.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_envs() -> list().
+get_envs() ->
+    lists:map(fun(Env) ->
+        Index = string:chr(Env, $=),
+        {string:left(Env, Index - 1), string:substr(Env, Index + 1)}
+    end, os:getenv()).
+
+%%--------------------------------------------------------------------
+%% @doc Transforms config from map to record.
+%% @end
+%%--------------------------------------------------------------------
+-spec adjust_config(Config :: #{}) -> #config{}.
+adjust_config(Config) ->
+    #config{
+        main_cm = get_host(get([cluster, manager, default_node_id], Config), Config),
+        cms = get_hosts([cluster, manager], Config),
+        workers = get_hosts([cluster, worker], Config),
+        dbs = get_hosts([cluster, database], Config),
+        open_files = get([cluster, settings, open_files_limit], Config, ?OPEN_FILES),
+        processes = get([cluster, settings, processes_limit], Config, ?PROCESSES),
+        oz_name = get([onezone, name], Config),
+        oz_domain = get([cluster, domain_name], Config, "onedata.org"),
+        web_key = get([cluster, settings, web_private_key], Config),
+        web_cert = get([cluster, settings, web_certificate], Config),
+        web_ca_cert = get([cluster, settings, web_ca_certificate], Config),
+        auth_config = get([cluster, settings, open_id_auth_config], Config),
+        dns_config = get([cluster, settings, dns_config], Config)
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Returns key from config.
+%% @end
+%%--------------------------------------------------------------------
+-spec get(Keys :: list(), Config :: #{}) -> Value :: term().
+get([], Config) ->
+    Config;
+get([Key | Keys], Config) ->
+    case maps:find(Key, Config) of
+        {ok, InnerConfig} -> get(Keys, InnerConfig);
+        error -> undefined
+    end;
+get(Key, Config) ->
+    get([Key], Config).
+
+%%--------------------------------------------------------------------
+%% @doc Returns key from config. If missing returns default value.
+%% @end
+%%--------------------------------------------------------------------
+-spec get(Key :: list(), Config :: #{}, Default :: term()) -> Value :: term().
+get(Key, Config, Default) ->
+    case get(Key, Config) of
+        undefined -> Default;
+        Value -> Value
+    end.
+%%--------------------------------------------------------------------
+%% @doc Converts node ID to its hostname.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_host(NodeId :: string(), Config :: #{}) -> string().
+get_host(NodeId, Config) ->
+    DomainName = get([cluster, domain_name], Config),
+    Hostname = get([cluster, nodes, NodeId, hostname], Config),
+    Hostname ++ "." ++ DomainName.
+
+%%--------------------------------------------------------------------
+%% @doc Converts node IDs to hostnames.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_hosts(Keys :: list(), Config :: #{}) -> list().
+get_hosts(Keys, Config) ->
+    NodeIds = get(Keys ++ [node_ids], Config),
+    lists:map(fun(NodeId) -> get_host(NodeId, Config) end, NodeIds).

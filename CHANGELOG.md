@@ -4,6 +4,19 @@
 CHANGELOG
 ---------
 
+### 3.0.0-beta1
+
+* VFS-1804 Add success message to batch mode script.
+* VFS-1804 Remove logotype footer.
+* FS-1804 Add dns config option to batch mode config file.
+* VFS-1804 Add redirection point to oneprovider config.
+* VFS-1804 Use environmental variables to configure onedata services.
+* VFS-1598 Fix provider key/cert names.
+* VFS-1598 Fix username change and license display.
+* VFS-1598 Fix onepanel admin script.
+* VFS-1598 Adjust onepanel to onezone configuration.
+
+
 ### 3.0.1
 
 * VFS-1603 Disable generation of start_clean.boot file in bin directory of a release.

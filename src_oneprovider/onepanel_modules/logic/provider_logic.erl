@@ -19,7 +19,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([register/2, unregister/0, create_csr/3]).
+-export([register/2, register/3, unregister/0, create_csr/3]).
 -export([get_default_ports/0, get_provider_id/0, get_provider_name/0]).
 
 -on_load(init/0).
@@ -52,17 +52,26 @@ init() ->
 create_csr(_, _, _) ->
     throw("NIF library not loaded.").
 
+%%--------------------------------------------------------------------
+%% @doc
+%% @equiv register(RedirectionPoint, ClientName, #{})
+%% @end
+%%--------------------------------------------------------------------
+-spec register(RedirectionPoint :: binary(), ClientName :: binary()) ->
+    {ok, ProviderId :: binary()} | {error, Reason :: term()}.
+register(RedirectionPoint, ClientName) ->
+    register(RedirectionPoint, ClientName, #{}).
 
-%% register/2
+%% register/3
 %% ====================================================================
 %% @doc Registers provider in Global Registry. In case of successful
 %% registration generated private key and certificate are save on all
 %% hosts. Returns provider ID or an error.
 %% @end
--spec register(RedirectionPoint :: binary(), ClientName :: binary()) -> Result when
-    Result :: {ok, ProviderId :: binary()} | {error, Reason :: term()}.
+-spec register(RedirectionPoint :: binary(), ClientName :: binary(), OptArgs :: #{}) ->
+    {ok, ProviderId :: binary()} | {error, Reason :: term()}.
 %% ====================================================================
-register(RedirectionPoint, ClientName) ->
+register(RedirectionPoint, ClientName, OptArgs) ->
     try
         {ok, EtcDir} = application:get_env(?APP_NAME, platform_etc_dir),
         {ok, KeyFile} = application:get_env(?APP_NAME, ozpkey_path),
@@ -85,7 +94,8 @@ register(RedirectionPoint, ClientName) ->
             {ok, #?LOCAL_CONFIG_RECORD{ip_address = URL}} = dao:get_record(?LOCAL_CONFIG_TABLE, Host),
             URL
         end, Workers),
-        Parameters = [{<<"urls">>, URLs}, {<<"csr">>, CSR}, {<<"redirectionPoint">>, RedirectionPoint}, {<<"clientName">>, ClientName}],
+        OptParams = get_opt_params(OptArgs, []),
+        Parameters = [{<<"urls">>, URLs}, {<<"csr">>, CSR}, {<<"redirectionPoint">>, RedirectionPoint}, {<<"clientName">>, ClientName}] ++ OptParams,
         {ok, ProviderId, Cert} = oz_providers:register(provider, Parameters),
 
         %% Save provider ID and certificate on all hosts
@@ -181,3 +191,11 @@ get_provider_name() ->
         _ ->
             <<"onepanel">>
     end.
+
+
+get_opt_params(#{latitude := Latitude} = Args, OptParams) when is_float(Latitude) ->
+    get_opt_params(Args#{latitude => undefined}, [{<<"latitude">>, Latitude} | OptParams]);
+get_opt_params(#{longitude := Longitude} = Args, OptParams) when is_float(Longitude) ->
+    get_opt_params(Args#{longitude => undefined}, [{<<"longitude">>, Longitude} | OptParams]);
+get_opt_params(_, OptParams) ->
+    OptParams.
