@@ -15,16 +15,15 @@
         "appmock": {
             "input_dir": "rel/appmock",
             "target_dir": "rel/test_cluster"
-        },
-        "onepanel": {
-            "input_dir": "rel_oneprovider/op_panel",
-            "target_dir": "rel/test_cluster"
         }
     },
     "os_configs": {
         "cfg1": {
             "storages": [
-                "/mnt/st1"
+                {
+                    "type": "posix",
+                    "name": "/mnt/st1"
+                }
             ],
             "users": [
                 "user1"
@@ -68,7 +67,7 @@
                             "db_nodes": [
                                 "dbnode1"
                             ],
-                            "zone_domain": "oz",
+                            "oz_domain": "oz",
                             "verify_oz_cert": false
                         }
                     }
