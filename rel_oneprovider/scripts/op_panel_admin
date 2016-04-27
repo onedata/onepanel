@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-
-# Pull environment for this install
-. "{{runner_base_dir}}/lib/env.sh"
-
-cd ${RUNNER_BASE_DIR} && ${ERTS_PATH}/escript ${RUNNER_LIB_DIR}/op_panel_admin.escript "$@"
-

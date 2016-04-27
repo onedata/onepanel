@@ -1,19 +1,42 @@
-.idea
-onepanel.iml
+rel/onepanel
 
+test_coverage
+test/eunit_results
+test_distributed/logs
+
+### Erlang template
+.eunit
 deps
+*.o
+*.beam
+*.plt
+erl_crash.dump
 ebin
-rel_oneprovider/op_panel/
-rel_onezone/oz_panel/
-rel/oz_panel
-rel/op_panel
+rel/example_project
+.concrete/DEV_MODE
+.rebar
 
-c_lib
-c_src/*.o
+### JetBrains template
+*.iml
+.idea
 
-src/gui_static/flatui
-src/gui_static/fonts
-src/gui_static/common
-src/gui_static/n2o
+## File-based project format:
+*.iws
 
-packages/*.deb
+## Plugin-specific files:
+
+# IntelliJ
+/out/
+
+# mpeltonen/sbt-idea plugin
+.idea_modules/
+
+# JIRA plugin
+atlassian-ide-plugin.xml
+
+# Crashlytics plugin (for Android Studio and IntelliJ)
+com_crashlytics_export_strings.xml
+crashlytics.properties
+crashlytics-build.properties
+fabric.properties
+

@@ -5,18 +5,17 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc This file contains the description of application.
+%%% @doc Example unit test.
 %%% @end
 %%%--------------------------------------------------------------------
+-module(example_test).
+-author("Krzysztof Trzepla").
 
-{application, onepanel, [
-    {description, "Management tool for onedata components."},
-    {vsn, "3.0.0-beta1"},
-    {registered, [onepanel_sup]},
-    {applications, [
-        kernel,
-        stdlib
-    ]},
-    {mod, {onepanel_app, []}},
-    {env, []}
-]}.
+-ifdef(TEST).
+
+-include_lib("eunit/include/eunit.hrl").
+
+simple_test() ->
+    ?assert(true).
+
+-endif.
