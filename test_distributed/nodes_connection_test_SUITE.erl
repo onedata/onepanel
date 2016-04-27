@@ -33,7 +33,12 @@ all() ->
 %%%===================================================================
 
 nodes_should_detect_each_other_using_multicast_address(Config) ->
-    timer:sleep(timer:seconds(10)).
+    Nodes = ?config(onepanel_nodes, Config),
+    lists:foreach(fun(Node) ->
+        ExpectedNodes = lists:sort(lists:delete(Node, Nodes)),
+        ActualNodes = lists:sort(rpc:call(Node, erlang, nodes, [])),
+        ?assertEqual(ExpectedNodes, ActualNodes, 10)
+    end, Nodes).
 
 %%%===================================================================
 %%% SetUp and TearDown functions

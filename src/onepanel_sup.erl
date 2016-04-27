@@ -50,8 +50,27 @@ start_link() ->
     {ok, {SupFlags :: supervisor:sup_flags(),
         [ChildSpec :: supervisor:child_spec()]}} | ignore.
 init([]) ->
-    {ok, {#{strategy => one_for_all, intensity => 3, period => 1}, []}}.
+    {ok, {#{strategy => one_for_all, intensity => 3, period => 1}, [
+        onepanel_spec()
+    ]}}.
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Returns a worker child_spec for a onepanel gen_server.
+%% @end
+%%--------------------------------------------------------------------
+-spec onepanel_spec() -> supervisor:child_spec().
+onepanel_spec() ->
+    #{
+        id => onepanel,
+        start => {onepanel, start_link, []},
+        restart => transient,
+        shutdown => timer:seconds(10),
+        type => worker,
+        modules => [onepanel]
+    }.
