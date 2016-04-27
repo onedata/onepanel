@@ -39,6 +39,7 @@ start(_StartType, _StartArgs) ->
     test_node_starter:maybe_start_cover(),
     onepanel_sup:start_link().
 
+
 %%--------------------------------------------------------------------
 %% @private
 %% @doc

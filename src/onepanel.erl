@@ -43,6 +43,7 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
+
 %%--------------------------------------------------------------------
 %% @doc
 %% @todo write me!
@@ -77,6 +78,7 @@ init([]) ->
 
     {ok, #state{ip = Ip, port = Port, socket = Socket}}.
 
+
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
@@ -94,6 +96,7 @@ init([]) ->
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
+
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
@@ -106,6 +109,7 @@ handle_call(_Request, _From, State) ->
     {stop, Reason :: term(), NewState :: #state{}}.
 handle_cast(_Request, State) ->
     {noreply, State}.
+
 
 %%--------------------------------------------------------------------
 %% @private
@@ -152,6 +156,7 @@ handle_info(Info, State) ->
     ?log_bad_request(Info),
     {noreply, State}.
 
+
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
@@ -165,6 +170,7 @@ handle_info(Info, State) ->
     State :: #state{}) -> term().
 terminate(_Reason, _State) ->
     ok.
+
 
 %%--------------------------------------------------------------------
 %% @private

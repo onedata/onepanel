@@ -8,24 +8,20 @@
 %%% @doc @todo write me!
 %%% @end
 %%%--------------------------------------------------------------------
--module(logger_plugin).
+-module(service_behaviour).
 -author("Krzysztof Trzepla").
 
--behaviour(logger_plugin_behaviour).
-
-%% logger_plugin callbacks
--export([gather_metadata/0]).
+%% API
+-export([]).
 
 %%%===================================================================
-%%% logger_plugin callbacks
+%%% Behaviour functions
 %%%===================================================================
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Should return a list of key, value tuples to be concatenated
-%% to standard log metadata.
+%% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec gather_metadata() -> [{Key :: term(), Value :: term()}].
-gather_metadata() ->
-    [].
+-callback get_steps(Action :: service:action(), Args :: service:args()) ->
+    Steps :: [service:step()].

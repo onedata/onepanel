@@ -20,19 +20,19 @@
 
 %% tests
 -export([
-    nodes_should_detect_each_other_using_multicast_address/1
+    onepanel_nodes_should_detect_each_other_using_multicast/1
 ]).
 
 all() ->
     ?ALL([
-        nodes_should_detect_each_other_using_multicast_address
+        onepanel_nodes_should_detect_each_other_using_multicast
     ]).
 
 %%%===================================================================
 %%% Test functions
 %%%===================================================================
 
-nodes_should_detect_each_other_using_multicast_address(Config) ->
+onepanel_nodes_should_detect_each_other_using_multicast(Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     lists:foreach(fun(Node) ->
         ExpectedNodes = lists:sort(lists:delete(Node, Nodes)),
@@ -46,6 +46,7 @@ nodes_should_detect_each_other_using_multicast_address(Config) ->
 
 init_per_suite(Config) ->
     ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json")).
+
 
 end_per_suite(Config) ->
     test_node_starter:clean_environment(Config).

@@ -24,30 +24,6 @@
           "sys.config": {
             "onepanel": {}
           }
-        },
-        "node3": {
-          "vm.args": {
-            "setcookie": "test_cookie"
-          },
-          "sys.config": {
-            "onepanel": {}
-          }
-        },
-        "node4": {
-          "vm.args": {
-            "setcookie": "test_cookie"
-          },
-          "sys.config": {
-            "onepanel": {}
-          }
-        },
-        "node5": {
-          "vm.args": {
-            "setcookie": "test_cookie"
-          },
-          "sys.config": {
-            "onepanel": {}
-          }
         }
       }
     }
