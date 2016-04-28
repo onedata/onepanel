@@ -177,7 +177,7 @@ install(Config) ->
 
         case Register of
             true ->
-                print_info("Connecting to Global Registry..."),
+                print_info("Connecting to onezone..."),
                 {ok, _} = rpc:call(Node, oz_providers, check_ip_address, [provider]),
                 print_ok(),
 
