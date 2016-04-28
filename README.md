@@ -4,9 +4,7 @@
 which unifies access to different storage systems and provides a POSIX
 compatible interface.
 
-<img style="margin: auto; display: block"
-src ="https://raw.githubusercontent.com/onedata/onepanel/develop/media/installation.gif"
-alt="installation" border="1" />
+![](https://raw.githubusercontent.com/onedata/onepanel/develop/media/installation.gif)
 
 ### Goals
 
