@@ -4,7 +4,9 @@
 which unifies access to different storage systems and provides a POSIX
 compatible interface.
 
-![](https://raw.githubusercontent.com/onedata/onepanel/develop/media/installation.gif)
+<img style="margin: auto; display: block"
+src ="https://raw.githubusercontent.com/onedata/onepanel/develop/media/installation.gif"
+alt="installation" border="1" />
 
 ### Goals
 
@@ -23,7 +25,8 @@ management of [cluster manager](https://github.com/onedata/cluster-manager),
 
 ## Compilation
 
-*onepanel* works with both [oneprovider]() and [onezone]() components.
+*onepanel* works with both [oneprovider](https://github.com/onedata/op-worker)
+and [onezone](https://github.com/onedata/oz-worker) components.
 
 In order to compile *onepanel* execute:
 
