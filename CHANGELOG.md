@@ -4,6 +4,16 @@
 CHANGELOG
 ---------
 
+### 3.0.0-beta3
+
+* VFS-1969 Update README.
+
+
+### 3.0.0-beta2
+
+* VFS-1804 Enable couchbase memory quota configuration.
+
+
 ### 3.0.0-beta1
 
 * VFS-1804 Add success message to batch mode script.
