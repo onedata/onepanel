@@ -4,6 +4,37 @@
 CHANGELOG
 ---------
 
+### New Version Tag do not change this line
+
+* VFS-1969 Update README.
+* Releasing new version 3.0.0-beta1
+* Update vsn in app.src file
+* VFS-1804 Add success message to batch mode script.
+* VFS-1804 Remove logotype footer.
+* FS-1804 Add dns config option to batch mode config file.
+* VFS-1804 Add redirection point to oneprovider config.
+* VFS-1804 Use environmental variables to configure onedata services.
+* VFS-1629 Remove bamboos compilation.
+* Squashed 'bamboos/' changes from af6bf50..434dc53
+* VFS-1598 Fix provider key/cert names.
+* VFS-1598 Fix username change and license display.
+* VFS-1598 Add stack trace to logs.
+* VFS-1598 Fix onepanel admin script.
+* VFS-1598 Update ctool reference.
+* Squashed 'bamboos/' changes from 2f522cc..af6bf50
+* VFS-1598 Adjust onepanel to onezone configuration.
+* VFS-1603 Fix release configurator.
+
+
+### 3.0.1
+
+
+
+### 3.0.0-beta2
+
+* VFS-1804 Enable couchbase memory quota configuration.
+
+
 ### 3.0.0-beta1
 
 * VFS-1804 Add success message to batch mode script.
