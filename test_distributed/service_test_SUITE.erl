@@ -109,7 +109,8 @@ service_action_should_pass_errors(Config) ->
 %%%===================================================================
 
 init_per_suite(Config) ->
-    mock_start(?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json"))).
+    NewConfig = ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json")),
+    onepanel_test_utils:mock_start(NewConfig).
 
 
 end_per_suite(Config) ->
@@ -173,16 +174,6 @@ end_per_testcase(_, Config) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-
-mock_start(Config) ->
-    Nodes = ?config(onepanel_nodes, Config),
-    lists:foreach(fun(App) ->
-        {Results, []} = ?assertMatch({_, []},
-            rpc:multicall(Nodes, application, start, [App])),
-        ?assert(lists:all(fun(Result) -> Result =:= ok end, Results))
-    end, [tools, meck]),
-    Config.
 
 
 mock_service(Config, Function, Expectation) ->

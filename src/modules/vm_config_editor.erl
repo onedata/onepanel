@@ -12,7 +12,7 @@
 -author("Krzysztof Trzepla").
 
 %% API
--export([read/2, write/3]).
+-export([read/2, write/3, get/2, set/3]).
 
 %%%===================================================================
 %%% API functions
@@ -89,7 +89,7 @@ set(Key, Value, Content) ->
             {ok, re:replace(Content, Pattern,
                 <<"-", Key/binary, " ", Value/binary>>, Options)};
         {error, not_found} ->
-            {ok, <<Content/binary, "\n\n-", Key/binary, " ", Value/binary>>};
+            {ok, <<Content/binary, "\n-", Key/binary, " ", Value/binary>>};
         {error, Reason} ->
             {error, Reason}
     end.
