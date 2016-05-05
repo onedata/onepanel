@@ -43,7 +43,7 @@
 %% * dbs                - list of hostnames of machines where database nodes are configured
 %% * storage_paths      - list of paths to storages on every worker node
 %% * timestamp          - table creation timestamp as elapsed microseconds since epoch
--record(?GLOBAL_CONFIG_RECORD, {id, main_cm, cms = [], workers = [], dbs = [], storage_paths = [], timestamp = 0}).
+-record(?GLOBAL_CONFIG_RECORD, {id, main_cm, cms = [], workers = [], dbs = [], storage_paths = [], timestamp = 0, args = []}).
 
 %% Local config record describes host configuration that is:
 %% * host               - machine hostname as a primary key in database
@@ -62,7 +62,7 @@
 %% * id                 - ID which equals CONFIG_ID as a primary key in database
 %% * dbs                - list of hostnames of machines where database nodes are configured
 %% * timestamp          - table creation timestamp as elapsed microseconds since epoch
--record(?GLOBAL_CONFIG_RECORD, {id, main_cm, cms = [], workers = [], dbs = [], timestamp = 0}).
+-record(?GLOBAL_CONFIG_RECORD, {id, main_cm, cms = [], workers = [], dbs = [], timestamp = 0, args = []}).
 
 %% Local config record describes host configuration that is:
 %% * host               - machine hostname as a primary key in database
