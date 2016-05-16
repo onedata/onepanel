@@ -4,6 +4,12 @@
 CHANGELOG
 ---------
 
+### 3.0.0-beta4
+
+* VFS-1969 Add border to installation.gif.
+* VFS-1969 Update README.
+
+
 ### 3.0.0-beta3
 
 * VFS-1969 Update README.
