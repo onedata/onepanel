@@ -505,9 +505,9 @@ comet_loop(#?STATE{storage_type = StorageType, workers = Workers} = State) ->
                 State;
 
             {ceph_submit, Username, Key, StorageName, MonHost, ClusterName, PoolName} ->
-                case installer_storage:add_ceph_storage(Workers, StorageName, MonHost, ClusterName, PoolName) of
-                    {ok, StorageId} ->
-                        installer_storage:add_ceph_user(Workers, <<"0">>, StorageId, Username, Key),
+                case installer_storage:add_ceph_storage(Workers, StorageName, MonHost,
+                    ClusterName, PoolName, Username, Key) of
+                    {ok, _} ->
                         onepanel_gui_utils:message(success, <<"Storage successfully added.">>),
                         clear_textboxes(),
                         gui_jq:focus(<<"ceph_storage_name">>),
@@ -567,9 +567,9 @@ comet_loop(#?STATE{storage_type = StorageType, workers = Workers} = State) ->
                 State;
 
             {s3_submit, StorageName, AccessKey, SecretKey, Hostname, IamHostname, BucketName} ->
-                case installer_storage:add_s3_storage(Workers, StorageName, Hostname, IamHostname, BucketName) of
-                    {ok, StorageId} ->
-                        installer_storage:add_s3_user(Workers, <<"0">>, StorageId, AccessKey, SecretKey),
+                case installer_storage:add_s3_storage(Workers, StorageName, Hostname,
+                    IamHostname, BucketName, AccessKey, SecretKey) of
+                    {ok, _} ->
                         onepanel_gui_utils:message(success, <<"Storage successfully added.">>),
                         clear_textboxes(),
                         gui_jq:focus(<<"s3_storage_name">>),

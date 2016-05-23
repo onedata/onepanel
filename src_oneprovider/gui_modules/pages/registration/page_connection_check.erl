@@ -186,10 +186,12 @@ comet_loop(#?STATE{pid = Pid} = State) ->
                             end
                         end, onepanel_utils:get_nodes()),
                         {ok, #?CONFIG{workers = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
-                        WorkerNodes = onepanel_utils:get_nodes(?APP_STR, Workers),
+                        lists:foreach(fun(Node) ->
+                            rpc:call(Node, application, set_env, [op_worker, oz_domain, OzDomain])
+                        end, onepanel_utils:get_nodes(?WORKER_NAME, Workers)),
                         lists:foreach(fun(Node) ->
                             ok = rpc:call(Node, app_config, set, [op_worker, oz_domain, OzDomain])
-                        end, WorkerNodes)
+                        end, onepanel_utils:get_nodes(?APP_STR, Workers))
                     end),
                     State#?STATE{pid = NewPid};
 

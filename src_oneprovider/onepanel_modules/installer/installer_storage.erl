@@ -15,8 +15,8 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([add_ceph_storage/5, add_ceph_user/5, add_dio_storage/1, add_dio_storage/3,
-    add_s3_storage/5, add_s3_user/5, add_storage_from_config/2]).
+-export([add_ceph_storage/7, add_dio_storage/1, add_dio_storage/3,
+    add_s3_storage/7, add_storage_from_config/2]).
 -export([add_space_storage_mapping/3]).
 -export([check_storage_path_on_hosts/2, check_storage_path_on_host/2,
     create_storage_test_file/1, remove_storage_test_file/1]).
@@ -34,28 +34,15 @@
 %% Adds Ceph storage configuration details to provider database.
 %% @end
 -spec add_ceph_storage(Workers :: [node()], StorageName :: binary(), MonHost :: binary(),
-    ClusterName :: binary(), PoolName :: binary()) -> Result when
+    ClusterName :: binary(), PoolName :: binary(), Username :: binary(),
+    Key :: binary()) -> Result when
     Result :: {ok, StorageId :: binary()} | {error, Reason :: term()}.
 %% ====================================================================
-add_ceph_storage(Workers, StorageName, MonHost, ClusterName, PoolName) ->
+add_ceph_storage(Workers, StorageName, MonHost, ClusterName, PoolName, Username, Key) ->
     HelperArgs = [<<"Ceph">>, #{<<"mon_host">> => MonHost,
-        <<"cluster_name">> => ClusterName, <<"pool_name">> => PoolName}],
+        <<"cluster_name">> => ClusterName, <<"pool_name">> => PoolName,
+        <<"user_name">> => Username, <<"user_key">> => Key}],
     add_storage(Workers, StorageName, HelperArgs, ?ADD_STORAGE_RETRY_NUMBER).
-
-%% add_ceph_user/5
-%% ====================================================================
-%% @doc
-%% Adds Ceph user details to provider database.
-%% @end
--spec add_ceph_user(Workers :: [node()], UserId :: binary(), StorageId :: binary(),
-    Username :: binary(), Key :: binary()) -> Result when
-    Result :: ok | {error, Reason :: term()}.
-%% ====================================================================
-add_ceph_user(Workers, UserId, StorageId, Username, Key) ->
-    UserArgs = [UserId, StorageId, Username, Key],
-    {ok, _} = onepanel_utils:dropwhile_failure(Workers, ceph_user, add,
-        UserArgs, ?RPC_TIMEOUT),
-    ok.
 
 %% add_s3_storage/4
 %% ====================================================================
@@ -63,31 +50,19 @@ add_ceph_user(Workers, UserId, StorageId, Username, Key) ->
 %% Adds Amazon S3 storage configuration details to provider database.
 %% @end
 -spec add_s3_storage(Workers :: [node()], StorageName :: binary(),
-    Hostname :: binary(), IamHostname :: binary(), BucketName :: binary()) ->
+    Hostname :: binary(), IamHostname :: binary(), BucketName :: binary(),
+    AccessKey :: binary(), SecretKey :: binary()) ->
     Result :: {ok, StorageId :: binary()} | {error, Reason :: term()}.
 %% ====================================================================
-add_s3_storage(Workers, StorageName, Hostname, IamHostname, BucketName) ->
+add_s3_storage(Workers, StorageName, Hostname, IamHostname, BucketName,
+    AccessKey, SecretKey) ->
     {Scheme, Host} = get_scheme_and_host(Hostname),
     {IamScheme, IamHost} = get_scheme_and_host(IamHostname),
     HelperArgs = [<<"AmazonS3">>, #{<<"host_name">> => Host,
         <<"bucket_name">> => BucketName,  <<"scheme">> => Scheme,
-        <<"iam_host">> => IamHost, <<"iam_request_scheme">> => IamScheme}],
+        <<"iam_host">> => IamHost, <<"iam_request_scheme">> => IamScheme,
+        <<"access_key">> => AccessKey, <<"secret_key">> => SecretKey}],
     add_storage(Workers, StorageName, HelperArgs, ?ADD_STORAGE_RETRY_NUMBER).
-
-%% add_ceph_user/5
-%% ====================================================================
-%% @doc
-%% Adds Amazon S3 user details to provider database.
-%% @end
--spec add_s3_user(Workers :: [node()], UserId :: binary(), StorageId :: binary(),
-    AccessKey :: binary(), SecretKey :: binary()) -> Result when
-    Result :: ok.
-%% ====================================================================
-add_s3_user(Workers, UserId, StorageId, AccessKey, SecretKey) ->
-    UserArgs = [UserId, StorageId, AccessKey, SecretKey],
-    {ok, _} = onepanel_utils:dropwhile_failure(Workers, s3_user, add,
-        UserArgs, ?RPC_TIMEOUT),
-    ok.
 
 %% add_dio_storage/1
 %% ====================================================================
@@ -299,12 +274,12 @@ add_storage_from_config(Hosts, Config) ->
         (Name, #{type := 'S3', access_key := AccessKey, secret_key := SecretKey,
             s3_hostname := Hostname, iam_hostname := IamHostname,
             bucket_name := BucketName}, _) ->
-            {ok, StorageId} = add_s3_storage(Workers, Name, Hostname, IamHostname, BucketName),
-            ok = add_s3_user(Workers, <<"0">>, StorageId, AccessKey, SecretKey);
+            {ok, _} = add_s3_storage(Workers, Name, Hostname, IamHostname,
+                BucketName, AccessKey, SecretKey);
         (Name, #{type := 'CEPH', cluster_name := ClusterName, key := Key,
             monitor_host := MonHost, pool_name := PoolName, username := Username}, _) ->
-            {ok, StorageId} = add_ceph_storage(Workers, Name, MonHost, ClusterName, PoolName),
-            ok = add_ceph_user(Workers, <<"0">>, StorageId, Username, Key)
+            {ok, _} = add_ceph_storage(Workers, Name, MonHost, ClusterName,
+                PoolName, Username, Key)
     end, ok, Config),
     ok.
 
@@ -317,8 +292,8 @@ add_storage_from_config(Hosts, Config) ->
 -spec get_scheme_and_host(Hostname :: binary()) ->
     {Scheme :: binary(), Host :: binary()}.
 get_scheme_and_host(<<"http://", Host/binary>>) ->
-    {"http", Host};
+    {<<"http">>, Host};
 get_scheme_and_host(<<"https://", Host/binary>>) ->
-    {"https", Host};
+    {<<"https">>, Host};
 get_scheme_and_host(Host) ->
-    {"https", Host}.
+    {<<"https">>, Host}.
