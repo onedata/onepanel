@@ -6,12 +6,13 @@
 %% @end
 %% ===================================================================
 %% @doc This module contains n2o website code.
-%% This page allows to check connection to Global Registry.
+%% This page allows to check connection to onezone.
 %% @end
 %% ===================================================================
 -module(page_connection_check).
 
 -include("gui_modules/common.hrl").
+-include("onepanel_modules/installer/state.hrl").
 -include("onepanel_modules/installer/internals.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -19,6 +20,9 @@
 
 %% Comet process pid
 -define(COMET_PID, comet_pid).
+
+%% Convenience record abbreviation
+-define(CONFIG, ?GLOBAL_CONFIG_RECORD).
 
 %% Comet process state
 -define(STATE, comet_state).
@@ -80,9 +84,37 @@ body() ->
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
                 body = <<"Step 1: Connection check">>
             },
+            #table{
+                id = <<"redirection_point_table">>,
+                style = <<"width: 50%; margin: 0 auto; margin-bottom: 3em; border-spacing: 1em; border-collapse: inherit;">>,
+                body = [
+                    #tr{
+                        cells = [
+                            #td{
+                                style = <<"border-width: 0; width: 50%; text-align: right;">>,
+                                body = #label{
+                                    style = <<"margin: 0 auto; cursor: auto;">>,
+                                    class = <<"label label-large label-inverse">>,
+                                    body = <<"onezone domain">>
+                                }
+                            },
+                            #td{
+                                style = <<"border-width: 0; width: 50%; text-align: left;">>,
+                                body = #textbox{
+                                    id = <<"onezone_domain_textbox">>,
+                                    style = <<"margin: 0 auto; padding: 1px;">>,
+                                    class = <<"span">>,
+                                    placeholder = <<"onezone domain">>,
+                                    value = <<"onedata.org">>
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
-                body = <<"In order to establish test connection to <i>Global Registry</i> please press <i>Next</i> button.">>
+                body = <<"In order to establish test connection to <i>onezone</i> please press <i>Next</i> button.">>
             },
             #panel{
                 id = <<"progress">>,
@@ -100,7 +132,9 @@ body() ->
                     }
                 ]
             },
-            onepanel_gui_utils:nav_buttons([{<<"next_button">>, {postback, connect}, false, <<"Next">>}])
+            onepanel_gui_utils:nav_buttons([{<<"next_button">>,
+                {actions, gui_jq:form_submit_action(<<"next_button">>, connect,
+                    <<"onezone_domain_textbox">>)}, false, <<"Next">>}])
         ]
     },
     onepanel_gui_utils:body(?SUBMENU_HEIGHT, Header, Main).
@@ -136,9 +170,26 @@ comet_loop(#?STATE{pid = Pid} = State) ->
     NewState =
         try
             receive
-                connect ->
+                {connect, OzDomain} ->
                     NewPid = spawn_link(fun() ->
-                        ok = installer_utils:check_ip_addresses()
+                        OzUrl = "https://" ++ OzDomain ++ ":8443",
+                        application:set_env(?APP_NAME, onezone_url, OzUrl),
+                        ok = installer_utils:check_ip_addresses(),
+                        AppStr = ?APP_STR,
+                        lists:foreach(fun(Node) ->
+                            case string:tokens(atom_to_list(Node), "@") of
+                                [AppStr | _] ->
+                                    rpc:call(Node, application, set_env, [?APP_NAME, onezone_url, OzUrl]),
+                                    ok = rpc:call(Node, app_config, set, [?APP_NAME, onezone_url, OzUrl]);
+                                _ ->
+                                    ok
+                            end
+                        end, onepanel_utils:get_nodes()),
+                        {ok, #?CONFIG{workers = Workers}} = dao:get_record(?GLOBAL_CONFIG_TABLE, ?CONFIG_ID),
+                        WorkerNodes = onepanel_utils:get_nodes(?APP_STR, Workers),
+                        lists:foreach(fun(Node) ->
+                            ok = rpc:call(Node, app_config, set, [op_worker, oz_domain, OzDomain])
+                        end, WorkerNodes)
                     end),
                     State#?STATE{pid = NewPid};
 
@@ -147,7 +198,7 @@ comet_loop(#?STATE{pid = Pid} = State) ->
                     State;
 
                 {'EXIT', Pid, _} ->
-                    onepanel_gui_utils:message(error, <<"Cannot connect to Global Registry.<br>
+                    onepanel_gui_utils:message(error, <<"Cannot connect to onezone.<br>
                     This may occur due to NAT or PAT translation mechanisms. Please check your network configuration or try again later.">>),
                     gui_jq:hide(<<"progress">>),
                     gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
@@ -180,7 +231,8 @@ event(init) ->
     put(?COMET_PID, Pid);
 
 event(connect) ->
-    get(?COMET_PID) ! connect,
+    OzDomain = gui_ctx:postback_param(<<"onezone_domain_textbox">>),
+    get(?COMET_PID) ! {connect, binary_to_list(OzDomain)},
     gui_jq:show(<<"progress">>),
     gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"disabled">>);
 

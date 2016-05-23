@@ -165,6 +165,7 @@ parse_config([Name, ?STORAGE_KEY, ?CLUSTER_KEY] = RevKey, ParentConfig, Envs) ->
         access_key => get([?ACCESS_KEY_KEY | RevKey], binary, Config, Envs),
         secret_key => get([?SECRET_KEY_KEY | RevKey], binary, Config, Envs),
         s3_hostname => get([?S3_HOSTNAME_KEY | RevKey], binary, Config, Envs),
+        iam_hostname => get([?IAM_HOSTNAME_KEY | RevKey], binary, Config, Envs),
         bucket_name => get([?BUCKET_NAME_KEY | RevKey], binary, Config, Envs),
         username => get([?USERNAME_KEY | RevKey], binary, Config, Envs),
         key => get([?KEY_KEY | RevKey], binary, Config, Envs),

@@ -281,7 +281,8 @@ s3_storage_panel() ->
         style = <<"margin-top: 0.75em;">>,
         actions = gui_jq:form_submit_action(<<"s3_submit">>,
             s3_submit, [<<"s3_storage_name">>, <<"s3_access_key">>,
-                <<"s3_secret_key">>, <<"s3_hostname">>, <<"s3_bucket_name">>]),
+                <<"s3_secret_key">>, <<"s3_hostname">>, <<"iam_hostname">>,
+                <<"s3_bucket_name">>]),
         body = [
             #textbox{
                 id = <<"s3_storage_name">>,
@@ -303,6 +304,12 @@ s3_storage_panel() ->
                 style = <<"width: 30em; display: block">>,
                 placeholder = <<"Hostname">>,
                 value = <<"s3.amazonaws.com">>
+            },
+            #textbox{
+                id = <<"iam_hostname">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"IAM hostname">>,
+                value = <<"iam.amazonaws.com">>
             },
             #textbox{
                 id = <<"s3_bucket_name">>,
@@ -345,9 +352,9 @@ storage_table(Storages) ->
                 #helper_init{name = <<"DirectIO">>, args = #{<<"root_path">> := Path}} ->
                     storage_table_row(Name, <<"Posix">>, [{<<"Mount point">>, Path}]);
                 #helper_init{name = <<"AmazonS3">>, args = #{<<"host_name">> := Hostname,
-                    <<"bucket_name">> := BucketName}} ->
+                    <<"bucket_name">> := BucketName, <<"iam_host">> := IamHost}} ->
                     storage_table_row(Name, <<"Amazon S3">>, [{<<"Hostname">>, Hostname},
-                        {<<"Bucket name">>, BucketName}])
+                        {<<"Bucket name">>, BucketName}, {<<"IAM hostname">>, IamHost}])
             end
     end, Storages),
     [Header | Rows].
@@ -405,7 +412,7 @@ clear_textboxes() ->
         <<"ceph_mon_host">>, <<"ceph_cluster_name">>, <<"ceph_pool_name">>,
         <<"dio_storage_name">>, <<"dio_mount_point">>, <<"s3_storage_name">>,
         <<"s3_access_key">>, <<"s3_secret_key">>, <<"s3_hostname">>,
-        <<"s3_bucket_name">>]).
+        <<"iam_hostname">>, <<"s3_bucket_name">>]).
 
 %% strip/1
 %% ====================================================================
@@ -535,28 +542,32 @@ comet_loop(#?STATE{storage_type = StorageType, workers = Workers} = State) ->
                 end,
                 State;
 
-            {s3_submit, <<>>, _, _, _, _} ->
+            {s3_submit, <<>>, _, _, _, _, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide storage name.">>),
                 State;
 
-            {s3_submit, _, <<>>, _, _, _} ->
+            {s3_submit, _, <<>>, _, _, _, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide access key.">>),
                 State;
 
-            {s3_submit, _, _, <<>>, _, _} ->
+            {s3_submit, _, _, <<>>, _, _, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide secret key.">>),
                 State;
 
-            {s3_submit, _, _, _, <<>>, _} ->
+            {s3_submit, _, _, _, <<>>, _, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide hostname.">>),
                 State;
 
-            {s3_submit, _, _, _, _, <<>>} ->
+            {s3_submit, _, _, _, _, <<>>, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide IAM hostname.">>),
+                State;
+
+            {s3_submit, _, _, _, _, _, <<>>} ->
                 onepanel_gui_utils:message(error, <<"Please provide bucket name.">>),
                 State;
 
-            {s3_submit, StorageName, AccessKey, SecretKey, Hostname, BucketName} ->
-                case installer_storage:add_s3_storage(Workers, StorageName, Hostname, BucketName) of
+            {s3_submit, StorageName, AccessKey, SecretKey, Hostname, IamHostname, BucketName} ->
+                case installer_storage:add_s3_storage(Workers, StorageName, Hostname, IamHostname, BucketName) of
                     {ok, StorageId} ->
                         installer_storage:add_s3_user(Workers, <<"0">>, StorageId, AccessKey, SecretKey),
                         onepanel_gui_utils:message(success, <<"Storage successfully added.">>),
@@ -631,9 +642,10 @@ event(s3_submit) ->
     AccessKey = gui_ctx:postback_param(<<"s3_access_key">>),
     SecretKey = gui_ctx:postback_param(<<"s3_secret_key">>),
     Hostname = gui_ctx:postback_param(<<"s3_hostname">>),
+    IamHostname = gui_ctx:postback_param(<<"iam_hostname">>),
     BucketName = gui_ctx:postback_param(<<"s3_bucket_name">>),
     get(?COMET_PID) ! {s3_submit, strip(StorageName), strip(AccessKey),
-        strip(SecretKey), strip(Hostname), strip(BucketName)};
+        strip(SecretKey), strip(Hostname), strip(IamHostname), strip(BucketName)};
 
 event({close_message, MessageId}) ->
     gui_jq:hide(MessageId);
