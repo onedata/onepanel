@@ -28,6 +28,7 @@
 -define(ACCESS_KEY_KEY, "access_key").
 -define(SECRET_KEY_KEY, "secret_key").
 -define(S3_HOSTNAME_KEY, "s3_hostname").
+-define(IAM_HOSTNAME_KEY, "iam_hostname").
 -define(BUCKET_NAME_KEY, "bucket_name").
 -define(USERNAME_KEY, "username").
 -define(KEY_KEY, "key").

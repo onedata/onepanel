@@ -229,7 +229,7 @@ get_workers() ->
 
 %% check_ip_address/0
 %% ====================================================================
-%% @doc Checks local host IP address that is visible for Global Registry
+%% @doc Checks local host IP address that is visible for onezone
 %% and saves it in database.
 %% @end
 -spec check_ip_address() -> Result when
