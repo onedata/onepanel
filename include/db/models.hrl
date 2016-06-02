@@ -28,7 +28,7 @@
 }).
 
 -record(onedata_user, {
-    login :: binary(),
+    username :: binary(),
     password_hash :: binary(),
     role :: admin | regular,
     uuid :: binary()

@@ -98,7 +98,7 @@ count_records(Tables) when is_list(Tables) ->
     end, 0, Tables).
 
 create_tables() ->
-    lists:foreach(fun(Model) ->
+    Tables = lists:map(fun(Model) ->
         Table = model_logic:table_name(Model),
         case mnesia:create_table(Table, [
             {attributes, Model:fields()},
@@ -108,8 +108,11 @@ create_tables() ->
             {atomic, ok} -> ok;
             {aborted, {already_exists, Table}} -> ok;
             {aborted, Reason} -> throw(Reason)
-        end
-    end, ?MODELS ++ ?INTERNAL_MODELS).
+        end,
+        Table
+    end, ?MODELS ++ ?INTERNAL_MODELS),
+    {ok, Timeout} = onepanel:get_env(create_tables_timeout),
+    ok = mnesia:wait_for_tables(Tables, Timeout).
 
 create_meta() ->
     case db_meta:set_timestamp() of

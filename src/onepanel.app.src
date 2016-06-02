@@ -15,7 +15,8 @@
     {registered, [onepanel_sup]},
     {applications, [
         kernel,
-        stdlib
+        stdlib,
+        crypto
     ]},
     {mod, {onepanel_app, []}},
     {env, []}

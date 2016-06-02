@@ -19,6 +19,7 @@
 %% API
 -export([start_link/0]).
 -export([connect_node/1, add_node/2, health_check/1, nodes/0]).
+-export([get_env/1, set_env/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -90,6 +91,12 @@ health_check(Nodes) ->
 nodes() ->
     db_manager:get_nodes().
 
+get_env(Key) ->
+    application:get_env(?APP_NAME, Key).
+
+set_env(Key, Value) ->
+    application:set_env(?APP_NAME, Key, Value).
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -105,8 +112,8 @@ nodes() ->
     {stop, Reason :: term()} | ignore.
 init([]) ->
     try
-        {ok, Address} = application:get_env(?APP_NAME, advertise_address),
-        {ok, Port} = application:get_env(?APP_NAME, advertise_port),
+        {ok, Address} = get_env(advertise_address),
+        {ok, Port} = get_env(advertise_port),
         {ok, Ip} = inet:getaddr(Address, inet),
         {ok, Socket} = gen_udp:open(Port, [binary, {reuseaddr, true}, {ip, Ip},
             {multicast_loop, false}, {add_membership, {Ip, {0, 0, 0, 0}}}]),
@@ -226,7 +233,7 @@ handle_info({udp, _Socket, _Ip, _Port, Msg},
 
 handle_info(advertise, #state{ip = Ip, port = Port, socket = Socket} = State) ->
     gen_udp:send(Socket, Ip, Port, erlang:atom_to_binary(node(), utf8)),
-    {ok, Delay} = application:get_env(?APP_NAME, advertise_max_delay),
+    {ok, Delay} = get_env(advertise_max_delay),
     erlang:send_after(random:uniform(Delay), self(), advertise),
     {noreply, State};
 
@@ -299,6 +306,6 @@ ignore_request(Timestamp, _Force) ->
 
 schedule_join_db_cluster_timeout() ->
     Ref = erlang:make_ref(),
-    {ok, Delay} = application:get_env(?APP_NAME, join_db_cluster_timeout),
+    {ok, Delay} = get_env(join_db_cluster_timeout),
     erlang:send_after(Delay, self(), {join_db_cluster_timeout, Ref}),
     Ref.
