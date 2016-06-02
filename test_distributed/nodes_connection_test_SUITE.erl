@@ -20,24 +20,24 @@
 
 %% tests
 -export([
-    onepanel_nodes_should_detect_each_other_using_multicast/1
+    onepanel_nodes_should_connect_using_advertisement/1
 ]).
 
 all() ->
     ?ALL([
-        onepanel_nodes_should_detect_each_other_using_multicast
+        onepanel_nodes_should_connect_using_advertisement
     ]).
 
 %%%===================================================================
 %%% Test functions
 %%%===================================================================
 
-onepanel_nodes_should_detect_each_other_using_multicast(Config) ->
+onepanel_nodes_should_connect_using_advertisement(Config) ->
     Nodes = ?config(onepanel_nodes, Config),
+    ExpectedNodes = lists:sort(Nodes),
     lists:foreach(fun(Node) ->
-        ExpectedNodes = lists:sort(lists:delete(Node, Nodes)),
-        ActualNodes = lists:sort(rpc:call(Node, erlang, nodes, [])),
-        ?assertEqual(ExpectedNodes, ActualNodes, 10)
+        ActualNodes = lists:sort(rpc:call(Node, onepanel, nodes, [])),
+        ?assertEqual(ExpectedNodes, ActualNodes)
     end, Nodes).
 
 %%%===================================================================
@@ -45,7 +45,8 @@ onepanel_nodes_should_detect_each_other_using_multicast(Config) ->
 %%%===================================================================
 
 init_per_suite(Config) ->
-    ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json")).
+    NewConfig = ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json")),
+    onepanel_test_utils:ensure_initailized(NewConfig).
 
 
 end_per_suite(Config) ->

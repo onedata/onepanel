@@ -15,11 +15,16 @@
 -include_lib("ctool/include/test/test_utils.hrl").
 
 %% API
--export([mock_start/1]).
+-export([ensure_initailized/1, mock_start/1]).
 
 %%%===================================================================
 %%% API functions
 %%%===================================================================
+
+ensure_initailized(Config) ->
+    [Node | _] = Nodes = ?config(onepanel_nodes, Config),
+    ?assertEqual(ok, rpc:call(Node, onepanel, health_check, [Nodes]), 120),
+    Config.
 
 %%--------------------------------------------------------------------
 %% @doc

@@ -110,7 +110,8 @@ service_action_should_pass_errors(Config) ->
 
 init_per_suite(Config) ->
     NewConfig = ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json")),
-    onepanel_test_utils:mock_start(NewConfig).
+    onepanel_test_utils:mock_start(
+        onepanel_test_utils:ensure_initailized(NewConfig)).
 
 
 end_per_suite(Config) ->
