@@ -11,6 +11,7 @@
 -module(service_test_SUITE).
 -author("Krzysztof Trzepla").
 
+-include("service.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
@@ -44,23 +45,23 @@ all() ->
 service_should_be_not_found(Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     lists:foreach(fun(Node) ->
-        ?assertEqual({error, service_not_found},
-            rpc:call(Node, service, apply, [some_service, some_action, #{}]))
+        ?assertMatch({error, service_not_found, _},
+            rpc:call(Node, service, apply, [example, some_action, #{}]))
     end, Nodes).
 
 
 service_action_should_be_not_supported(Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     lists:foreach(fun(Node) ->
-        ?assertEqual({error, action_not_supported},
-            rpc:call(Node, service, apply, [some_service, other_action, #{}]))
+        ?assertMatch({error, action_not_supported, _},
+            rpc:call(Node, service, apply, [example, other_action, #{}]))
     end, Nodes).
 
 
 service_should_request_action_steps(Config) ->
     [Node | _] = ?config(onepanel_nodes, Config),
     ?assertEqual(ok,
-        rpc:call(Node, service, apply, [some_service, some_action, #{}])),
+        rpc:call(Node, service, apply, [example, some_action, #{}])),
     ?assertReceivedEqual(get_steps, ?TIMEOUT).
 
 
@@ -68,7 +69,7 @@ service_should_execute_steps(Config) ->
     Self = self(),
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
     ?assertEqual(ok, rpc:call(Node1, service, apply,
-        [some_service, some_action, #{notify => Self}])),
+        [example, some_action, #{notify => Self}])),
     ?assertReceivedEqual({Node1, step1}, ?TIMEOUT),
     ?assertReceivedEqual({Node2, step2}, ?TIMEOUT),
     ?assertReceivedEqual({Node1, step3}, ?TIMEOUT),
@@ -79,29 +80,29 @@ service_should_notify_caller(Config) ->
     Self = self(),
     [Node, _] = ?config(onepanel_nodes, Config),
     ?assertEqual(ok, rpc:call(Node, service, apply,
-        [some_service, some_action, #{notify => Self}])),
-    ?assertReceivedEqual({action_begin, {some_service, some_action}}, ?TIMEOUT),
+        [example, some_action, #{notify => Self}])),
+    ?assertReceivedEqual({action_begin, {example, some_action}}, ?TIMEOUT),
     lists:foreach(fun(Step) ->
-        ?assertReceivedEqual({step_begin, {some_service, Step}}, ?TIMEOUT),
-        ?assertReceivedEqual({step_end, {some_service, Step, ok}}, ?TIMEOUT)
+        ?assertReceivedEqual({step_begin, {example, Step}}, ?TIMEOUT),
+        ?assertReceivedEqual({step_end, {example, Step, ok}}, ?TIMEOUT)
     end, [step1, step2, step3]),
-    ?assertReceivedEqual({action_end, {some_service, some_action, ok}},
+    ?assertReceivedEqual({action_end, {example, some_action, ok}},
         ?TIMEOUT).
 
 
 service_get_steps_should_pass_errors(Config) ->
     [Node | _] = ?config(onepanel_nodes, Config),
-    ?assertEqual({error, get_steps_failure},
-        rpc:call(Node, service, apply, [some_service, some_action, #{}])).
+    ?assertMatch({error, get_steps_failure, _},
+        rpc:call(Node, service, apply, [example, some_action, #{}])).
 
 
 service_action_should_pass_errors(Config) ->
     Self = self(),
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
-    ?assertEqual({error, step_failure}, rpc:call(Node1, service, apply,
-        [some_service, some_action, #{notify => Self}])),
-    ?assertReceivedEqual({step_end, {some_service, some_step,
-        {error, [{Node2, {error, step_failure}}]}}}, ?TIMEOUT).
+    ?assertMatch({error, _}, rpc:call(Node1, service, apply,
+        [example, some_action, #{notify => Self}])),
+    ?assertReceivedMatch({step_end, {example, some_step,
+        {errors, [{Node2, {error, step_failure, _}}]}}}, ?TIMEOUT).
 
 
 %%%===================================================================
@@ -131,10 +132,16 @@ init_per_testcase(service_should_request_action_steps, Config) ->
 init_per_testcase(Case, Config) when
     Case =:= service_should_execute_steps;
     Case =:= service_should_notify_caller ->
-    [Node1, Node2 | _] = Nodes = ?config(onepanel_nodes, Config),
+    [Node | _] = Nodes = ?config(onepanel_nodes, Config),
+    [Host1, Host2 | _] = Hosts =
+        rpc:call(Node, onepanel_utils, nodes_to_hosts, [Nodes]),
     Self = self(),
     mock_service(Config, get_steps, fun(some_action, _) ->
-        [{[Node1], step1}, {[Node2], step2}, {Nodes, step3}]
+        [
+            #step{hosts = [Host1], function = step1},
+            #step{hosts = [Host2], function = step2},
+            #step{hosts = Hosts, function = step3}
+        ]
     end),
     lists:foreach(fun(Step) ->
         mock_service(Config, Step, fun(_) ->
@@ -150,8 +157,9 @@ init_per_testcase(service_get_steps_should_pass_errors, Config) ->
 
 init_per_testcase(service_action_should_pass_errors, Config) ->
     [_, Node2 | _] = Nodes = ?config(onepanel_nodes, Config),
+    Hosts = rpc:call(Node2, onepanel_utils, nodes_to_hosts, [Nodes]),
     mock_service(Config, get_steps, fun(some_action, _) ->
-        [{Nodes, some_step}]
+        [#step{hosts = Hosts, function = some_step}]
     end),
     mock_service(Config, some_step, fun(_) ->
         case node() of
@@ -161,16 +169,16 @@ init_per_testcase(service_action_should_pass_errors, Config) ->
     end),
     Config;
 
-init_per_testcase(_, Config) ->
+init_per_testcase(_Case, Config) ->
     Config.
 
 
 end_per_testcase(service_should_be_not_found, _Config) ->
     ok;
 
-end_per_testcase(_, Config) ->
+end_per_testcase(_Case, Config) ->
     Nodes = ?config(onepanel_nodes, Config),
-    test_utils:mock_unload(Nodes, some_service).
+    test_utils:mock_unload(Nodes, service_example).
 
 %%%===================================================================
 %%% Internal functions
@@ -179,6 +187,6 @@ end_per_testcase(_, Config) ->
 
 mock_service(Config, Function, Expectation) ->
     Nodes = ?config(onepanel_nodes, Config),
-    test_utils:mock_new(Nodes, some_service, [non_strict]),
-    test_utils:mock_expect(Nodes, some_service, Function, Expectation),
+    test_utils:mock_new(Nodes, service_example, [non_strict]),
+    test_utils:mock_expect(Nodes, service_example, Function, Expectation),
     Config.

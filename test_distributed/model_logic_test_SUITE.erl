@@ -123,10 +123,12 @@ init_per_suite(Config) ->
 end_per_suite(Config) ->
     test_node_starter:clean_environment(Config).
 
+
 init_per_testcase(_Case, Config) ->
     [Node | _] = ?config(onepanel_nodes, Config),
     ?assertEqual(ok, rpc:call(Node, db_manager, empty_db, [])),
     Config.
+
 
 end_per_testcase(_Case, _Config) ->
     ok.

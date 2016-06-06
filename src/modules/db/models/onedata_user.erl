@@ -15,36 +15,82 @@
 
 -include("db/models.hrl").
 
+%% Model behaviour callbacks
+-export([fields/0, create/1, save/1, update/2, get/1, exists/1, delete/1]).
+
 %% API
 -export([new/3, authenticate/2, hash_password/1, change_password/2]).
 
-%% Model callbacks
--export([fields/0, create/1, save/1, update/2, get/1, exists/1, delete/1]).
+-type name() :: binary().
+-type password() :: binary().
+-type password_hash() :: binary().
+-type role() :: admin | regular.
+-type uuid() :: binary().
+
+-export_type([name/0, password/0, password_hash/0, role/0, uuid/0]).
 
 -define(UUID_LEN, 32).
 
 %%%===================================================================
-%%% Model callbacks
+%%% Model behaviour callbacks
 %%%===================================================================
 
+%%--------------------------------------------------------------------
+%% @doc @see model_behaviour:fields/0
+%%--------------------------------------------------------------------
+-spec fields() -> list(atom()).
 fields() ->
     record_info(fields, ?MODULE).
 
+
+%%--------------------------------------------------------------------
+%% @doc @see model_behaviour:create/1
+%%--------------------------------------------------------------------
+-spec create(Record :: model_behaviour:record()) ->
+    ok | {error, Reason :: term()}.
 create(Record) ->
     model_logic:create(?MODULE, Record).
 
+
+%%--------------------------------------------------------------------
+%% @doc @see model_behaviour:save/1
+%%--------------------------------------------------------------------
+-spec save(Record :: model_behaviour:record()) -> ok | {error, Reason :: term()}.
 save(Record) ->
     model_logic:save(?MODULE, Record).
 
+
+%%--------------------------------------------------------------------
+%% @doc @see model_behaviour:update/2
+%%--------------------------------------------------------------------
+-spec update(Key :: model_behaviour:key(), Diff :: model_behaviour:diff()) ->
+    ok | {error, Reason :: term()}.
 update(Key, Diff) ->
     model_logic:update(?MODULE, Key, Diff).
 
+
+%%--------------------------------------------------------------------
+%% @doc @see model_behaviour:get/1
+%%--------------------------------------------------------------------
+-spec get(Key :: model_behaviour:key()) ->
+    {ok, Record :: model_behaviour:record()} | {error, Reason :: term()}.
 get(Key) ->
     model_logic:get(?MODULE, Key).
 
+
+%%--------------------------------------------------------------------
+%% @doc @see model_behaviour:exists/1
+%%--------------------------------------------------------------------
+-spec exists(Key :: model_behaviour:key()) ->
+    boolean() | {error, Reason :: term()}.
 exists(Key) ->
     model_logic:exists(?MODULE, Key).
 
+
+%%--------------------------------------------------------------------
+%% @doc @see model_behaviour:delete/1
+%%--------------------------------------------------------------------
+-spec delete(Key :: model_behaviour:key()) -> ok | {error, Reason :: term()}.
 delete(Key) ->
     model_logic:delete(?MODULE, Key).
 
@@ -52,6 +98,13 @@ delete(Key) ->
 %%% API functions
 %%%===================================================================
 
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec new(Username :: name(), Password :: password(), Role :: role()) ->
+    ok | {error, Reason :: term()}.
 new(Username, Password, Role) ->
     case {verify_username(Username), verify_password(Password)} of
         {ok, ok} ->
@@ -63,6 +116,14 @@ new(Username, Password, Role) ->
         {_, {error, Reason}} -> {error, Reason}
     end.
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec authenticate(Username :: name(), Password :: password()) ->
+    {ok, User :: #onedata_user{}} | {error, Reason :: term()}.
 authenticate(Username, Password) ->
     case onedata_user:get(Username) of
         {ok, #onedata_user{password_hash = Hash} = User} ->
@@ -73,9 +134,24 @@ authenticate(Username, Password) ->
         _ -> {error, invalid_username_or_password}
     end.
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec hash_password(Password :: password()) -> Hash :: password_hash().
 hash_password(Password) ->
     crypto:hash(sha512, Password).
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec change_password(Username :: name(), NewPassword :: password()) ->
+    ok | {error, Reason :: term()}.
 change_password(Username, NewPassword) ->
     case verify_password(NewPassword) of
         ok ->
@@ -90,21 +166,33 @@ change_password(Username, NewPassword) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% Generates random UUID.
-%% @end
+%% @private @doc Generates random UUID.
 %%--------------------------------------------------------------------
 -spec gen_uuid() -> binary().
 gen_uuid() ->
     http_utils:base64url_encode(crypto:rand_bytes(?UUID_LEN)).
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec verify_username(Username :: name()) -> ok | {error, Reason :: term()}.
 verify_username(<<>>) ->
     {error, empty_username};
 verify_username(_) ->
     ok.
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec verify_password(Username :: name()) -> ok | {error, Reason :: term()}.
 verify_password(Password) ->
-    {ok, MinPasswordLength} = onepanel:get_env(min_password_length),
+    MinPasswordLength = onepanel:get_env(min_password_length),
     case size(Password) < MinPasswordLength of
         true -> {error, {short_password, MinPasswordLength}};
         false -> ok

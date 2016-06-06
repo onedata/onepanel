@@ -67,6 +67,13 @@ connect_node(Node) ->
     end.
 
 
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec add_node(Node :: node(), Force :: boolean()) ->
+    ok | ignore | try_again | {error, Reason :: term()}.
 add_node(Node, Force) ->
     case connect_node(Node) of
         ok -> db_manager:add_node(Node, Force);
@@ -74,13 +81,20 @@ add_node(Node, Force) ->
     end.
 
 
-
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec health_check(Nodes :: [node()]) ->
+    ok | {error, {missing_nodes, MissingNodes :: [node()]}}.
 health_check(Nodes) ->
     MissingNodes = Nodes -- onepanel:nodes(),
     case MissingNodes of
         [] -> ok;
         _ -> {error, {missing_nodes, MissingNodes}}
     end.
+
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -91,9 +105,24 @@ health_check(Nodes) ->
 nodes() ->
     db_manager:get_nodes().
 
-get_env(Key) ->
-    application:get_env(?APP_NAME, Key).
 
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec get_env(Key :: atom()) -> Value :: term().
+get_env(Key) ->
+    {ok, Value} = application:get_env(?APP_NAME, Key),
+    Value.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec set_env(Key :: atom(), Value :: term()) -> ok.
 set_env(Key, Value) ->
     application:set_env(?APP_NAME, Key, Value).
 
@@ -112,8 +141,8 @@ set_env(Key, Value) ->
     {stop, Reason :: term()} | ignore.
 init([]) ->
     try
-        {ok, Address} = get_env(advertise_address),
-        {ok, Port} = get_env(advertise_port),
+        Address = get_env(advertise_address),
+        Port = get_env(advertise_port),
         {ok, Ip} = inet:getaddr(Address, inet),
         {ok, Socket} = gen_udp:open(Port, [binary, {reuseaddr, true}, {ip, Ip},
             {multicast_loop, false}, {add_membership, {Ip, {0, 0, 0, 0}}}]),
@@ -158,7 +187,7 @@ handle_call({join_db_cluster, Timestamp, Force}, _From, #state{status = idle} =
             ?info("Received join_db_cluster ~p and accepted",
                 [{Timestamp, Force}]),
             db_manager:delete_db(),
-            Ref = schedule_join_db_cluster_timeout(),
+            Ref = schedule(join_db_cluster_timeout),
             {reply, ok, State#state{status = {connecting, Ref}}}
     end;
 
@@ -180,9 +209,13 @@ handle_call(Request, _From, State) ->
     {noreply, NewState :: #state{}} |
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}.
-handle_cast(join_db_cluster_ack, State) ->
+handle_cast({join_db_cluster_ack, Node}, State) ->
     db_manager:commit_node(),
     db_manager:copy_tables(),
+    gen_server:cast({?ONEPANEL_SERVER, Node}, commit_db_node_ack),
+    {noreply, State#state{status = idle}};
+
+handle_cast(commit_db_node_ack, State) ->
     {noreply, State#state{status = idle}};
 
 handle_cast(Request, State) ->
@@ -200,6 +233,10 @@ handle_cast(Request, State) ->
     {noreply, NewState :: #state{}} |
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}.
+handle_info({udp, _Socket, _Ip, _Port, _Msg},
+    #state{status = {connecting, _}} = State) ->
+    {noreply, State};
+
 handle_info({udp, _Socket, _Ip, _Port, Msg},
     #state{ignored_nodes = IgnoredNodes} = State) ->
 
@@ -207,7 +244,10 @@ handle_info({udp, _Socket, _Ip, _Port, Msg},
         {ok, Node} ->
             ?info("Received advertiesment from node ~p", [Node]),
             case add_node(Node, false) of
-                ok -> ?info("Node ~p successfully added.", [Node]), State;
+                ok ->
+                    ?info("Node ~p successfully added", [Node]),
+                    Ref = schedule(commit_db_node_timeout),
+                    State#state{status = {connecting, Ref}};
                 try_again ->
                     ?info("Try again adding node ~p", [Node]),
                     State;
@@ -216,7 +256,7 @@ handle_info({udp, _Socket, _Ip, _Port, Msg},
                     State#state{ignored_nodes = [Node | IgnoredNodes]};
                 {error, already_connected} -> State;
                 {error, Reason} ->
-                    ?error("Cannot add node ~p due to ~p.", [Node, Reason]),
+                    ?error("Cannot add node ~p due to ~p", [Node, Reason]),
                     State
             end;
         {error, Reason} ->
@@ -233,7 +273,7 @@ handle_info({udp, _Socket, _Ip, _Port, Msg},
 
 handle_info(advertise, #state{ip = Ip, port = Port, socket = Socket} = State) ->
     gen_udp:send(Socket, Ip, Port, erlang:atom_to_binary(node(), utf8)),
-    {ok, Delay} = get_env(advertise_max_delay),
+    Delay = get_env(advertise_max_delay),
     erlang:send_after(random:uniform(Delay), self(), advertise),
     {noreply, State};
 
@@ -243,6 +283,13 @@ handle_info({join_db_cluster_timeout, Ref}, #state{status = {connecting, Ref}} =
     {noreply, State#state{status = idle}};
 
 handle_info({join_db_cluster_timeout, _Ref}, #state{} = State) ->
+    {noreply, State};
+
+handle_info({commit_db_node_timeout, Ref}, #state{status = {connecting, Ref}} =
+    State) ->
+    {noreply, State#state{status = idle}};
+
+handle_info({commit_db_node_timeout, _Ref}, #state{} = State) ->
     {noreply, State};
 
 handle_info(Info, State) ->
@@ -281,6 +328,13 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec verify_node(Msg :: binary(), IgnoredNodes :: [node()]) ->
+    {ok, Node :: node()} | {error, Reason :: term()}.
 verify_node(Msg, IgnoredNodes) ->
     case binary:split(Msg, <<"@">>, [global]) of
         [_, Hostname] ->
@@ -298,14 +352,28 @@ verify_node(Msg, IgnoredNodes) ->
             {error, invalid_node}
     end.
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec ignore_request(Timestamp :: integer(), Force :: boolean()) -> boolean().
 ignore_request(_Timestamp, true) ->
     false;
 
 ignore_request(Timestamp, _Force) ->
     not db_manager:is_db_empty() orelse Timestamp > db_meta:get_timestamp().
 
-schedule_join_db_cluster_timeout() ->
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec schedule(Action :: atom()) -> Ref :: reference().
+schedule(Action) ->
     Ref = erlang:make_ref(),
-    {ok, Delay} = get_env(join_db_cluster_timeout),
-    erlang:send_after(Delay, self(), {join_db_cluster_timeout, Ref}),
+    Delay = get_env(Action),
+    erlang:send_after(Delay, self(), {Action, Ref}),
     Ref.

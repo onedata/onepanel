@@ -82,7 +82,3 @@ set([Key | Keys], Value, Terms) ->
         {error, not_found} -> set(Keys, Value, [])
     end,
     lists:keystore(Key, 1, Terms, {Key, NewValue}).
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================

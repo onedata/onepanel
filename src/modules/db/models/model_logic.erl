@@ -15,13 +15,29 @@
 -export([table_name/1]).
 -export([create/2, save/2, update/3, get/2, exists/2, delete/2]).
 
+-type model() :: atom().
+
 %%%===================================================================
 %%% API functions
 %%%===================================================================
 
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec table_name(Model :: model()) -> Name :: atom().
 table_name(Model) ->
     Model.
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec create(Model :: model(), Record :: model_behaviour:record()) ->
+    ok | {error, Reason :: term()}.
 create(Model, Record) ->
     run(fun() ->
         Table = table_name(Model),
@@ -33,12 +49,28 @@ create(Model, Record) ->
         mnesia:write(Table, Record, write)
     end).
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec save(Model :: model(), Record :: model_behaviour:record()) ->
+    ok | {error, Reason :: term()}.
 save(Model, Record) ->
     run(fun() ->
         Table = table_name(Model),
         mnesia:write(Table, Record, write)
     end).
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec update(Model :: model(), Key :: model_behaviour:key(),
+    Diff :: model_behaviour:diff()) -> ok | {error, Reason :: term()}.
 update(Model, Key, Diff) ->
     run(fun() ->
         Table = table_name(Model),
@@ -49,6 +81,14 @@ update(Model, Key, Diff) ->
         mnesia:write(Table, apply_diff(Record, Diff), write)
     end).
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec get(Model :: model(), Key :: model_behaviour:key()) ->
+    {ok, Record :: model_behaviour:record()} | {error, Reason :: term()}.
 get(Model, Key) ->
     run(fun() ->
         Table = table_name(Model),
@@ -58,6 +98,14 @@ get(Model, Key) ->
         end
     end).
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec exists(Model :: model(), Key :: model_behaviour:key()) -> 
+    boolean() | {error, Reason :: term()}.
 exists(Model, Key) ->
     run(fun() ->
         Table = table_name(Model),
@@ -67,6 +115,14 @@ exists(Model, Key) ->
         end
     end).
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec delete(Model :: model(), Key :: model_behaviour:key()) ->
+    ok | {error, Reason :: term()}.
 delete(Model, Key) ->
     run(fun() ->
         Table = table_name(Model),
@@ -78,6 +134,12 @@ delete(Model, Key) ->
 %%% Internal functions
 %%%===================================================================
 
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec run(Transaction :: fun()) -> term() | {error, Reason :: term()}.
 run(Transaction) ->
     try
         mnesia:activity(transaction, Transaction)
@@ -86,6 +148,14 @@ run(Transaction) ->
         _:Reason -> {error, Reason}
     end.
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec apply_diff(Record :: model_behaviour:record(), model_behaviour:diff()) ->
+    NewRecord :: model_behaviour:record().
 apply_diff(Record, Diff) when is_function(Diff) ->
     Diff(Record);
 

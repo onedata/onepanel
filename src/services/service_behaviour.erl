@@ -12,11 +12,11 @@
 -author("Krzysztof Trzepla").
 
 %%%===================================================================
-%%% Behaviour functions
+%%% Behaviour callbacks
 %%%===================================================================
 
 %%--------------------------------------------------------------------
 %% @todo write me!
 %%--------------------------------------------------------------------
--callback get_steps(Action :: service:action(), Args :: service:args()) ->
+-callback get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].

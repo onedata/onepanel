@@ -93,6 +93,9 @@ def up(image, bindir, dns_server, uid, config_path, logdir=None):
     for onepanel_instance in config['onepanel_domains']:
         app_name = config['onepanel_domains'][onepanel_instance]['app_name']
 
+        if 'image' in config['onepanel_domains'][onepanel_instance]:
+            image = config['onepanel_domains'][onepanel_instance]['image']
+
         gen_dev_cfg = {
             'config': {
                 'input_dir': input_dir,

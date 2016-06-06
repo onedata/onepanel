@@ -36,7 +36,7 @@ apply(Module, Function, Args) ->
     try
         {node(), erlang:apply(Module, Function, Args)}
     catch
-        _:Reason -> {node(), {error, Reason}}
+        _:Reason -> {node(), {error, Reason, erlang:get_stacktrace()}}
     end.
 
 
@@ -77,10 +77,6 @@ call(Nodes, Module, Function, Args, Timeout) ->
     Results = lists:foldl(fun(BadNode, Acc) ->
         [{BadNode, {error, badnode}} | Acc]
     end, Values, BadNodes),
-    ?debug("Call ~p:~p(~p) on nodes ~p with timeout ~p returned ~p",
+    ?critical("Call ~p:~p(~p) on nodes ~p with timeout ~p returned ~p",
         [Module, Function, Args, Nodes, Timeout, Results]),
     Results.
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================

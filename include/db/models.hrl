@@ -13,7 +13,7 @@
 -ifndef(ONEPANEL_MODELS_HRL).
 -define(ONEPANEL_MODELS_HRL, 1).
 
--define(MODELS, [example_model, onedata_user]).
+-define(MODELS, [example_model, onedata_user, service]).
 -define(INTERNAL_MODELS, [db_meta]).
 
 -record(example_model, {
@@ -28,10 +28,15 @@
 }).
 
 -record(onedata_user, {
-    username :: binary(),
-    password_hash :: binary(),
-    role :: admin | regular,
-    uuid :: binary()
+    username :: onedata_user:name(),
+    password_hash :: onedata_user:password_hash(),
+    role :: onedata_user:role(),
+    uuid :: onedata_user:uuid()
+}).
+
+-record(service, {
+    name :: module(),
+    hosts :: [service:host()]
 }).
 
 -endif.
