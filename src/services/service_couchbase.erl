@@ -20,10 +20,11 @@
 -export([get_steps/2]).
 
 %% API
--export([pre_configure/1, start/1, wait_for_start/1, stop/1, status/1,
+-export([configure/1, start/1, wait_for_start/1, stop/1, status/1,
     init_cluster/1, join_cluster/1, rebalance_cluster/1]).
 
--define(NAME, "couchbase-server").
+-define(NAME, couchbase).
+-define(INIT_SCRIPT, "couchbase-server").
 -define(CLI, "LC_ALL=en_US.UTF-8 /opt/couchbase/bin/couchbase-cli").
 
 %%%===================================================================
@@ -35,9 +36,9 @@
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
-get_steps(configure, #{hosts := Hosts} = Ctx) ->
+get_steps(deploy, #{hosts := Hosts} = Ctx) ->
     [
-        #step{hosts = Hosts, function = pre_configure},
+        #step{hosts = Hosts, function = configure},
         #step{hosts = Hosts, function = start},
         #step{hosts = Hosts, function = wait_for_start},
         #step{hosts = [hd(Hosts)], function = init_cluster},
@@ -85,18 +86,21 @@ get_steps(status, _) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec pre_configure(Ctx :: service:ctx()) -> ok | no_return().
-pre_configure(_Ctx) ->
-    onepanel_shell:check_call(["sed", "-i", "-e", "'s/-community//g'",
-            "/etc/init.d/" ++ ?NAME]).
+-spec configure(Ctx :: service:ctx()) -> ok | no_return().
+configure(_Ctx) ->
+    service:create(#service{name = ?NAME}),
+    onepanel_shell:sed("-community", "", "/etc/init.d/" ++ ?INIT_SCRIPT).
 
 
 %%--------------------------------------------------------------------
 %% @doc @see service:start/1
 %%--------------------------------------------------------------------
 -spec start(Ctx :: service:ctx()) -> ok | no_return().
-start(_Ctx) ->
-    service:start(?NAME).
+start(Ctx) ->
+    service:start(?INIT_SCRIPT, #{
+        open_files => service:param(couchbase_open_files_limit, Ctx),
+        processes => service:param(couchbase_processes_limit, Ctx)
+    }).
 
 
 %%--------------------------------------------------------------------
@@ -107,12 +111,13 @@ start(_Ctx) ->
 -spec wait_for_start(Ctx :: service:ctx()) -> ok | no_return().
 wait_for_start(Ctx) ->
     StartAttempts = service:param(couchbase_start_attempts, Ctx),
-    onepanel_shell:wait_call(["service", ?NAME, "status"], StartAttempts),
+    onepanel_utils:wait_until(?MODULE, status, [Ctx], {equal, ok},
+        StartAttempts),
 
     ConnectAttempts = service:param(couchbase_connect_attempts, Ctx),
     ConnectTimeout = service:param(couchbase_connect_timeout, Ctx),
     Host = onepanel_utils:node_to_host(),
-    Port = service:param(couchbase_port, Ctx),
+    Port = service:param(couchbase_admin_port, Ctx),
     Validator = fun
         ({ok, Socket}) -> gen_tcp:close(Socket);
         ({error, Reason}) ->
@@ -130,7 +135,7 @@ wait_for_start(Ctx) ->
 %%--------------------------------------------------------------------
 -spec stop(Ctx :: service:ctx()) -> ok | no_return().
 stop(_Ctx) ->
-    service:stop(?NAME).
+    service:stop(?INIT_SCRIPT).
 
 
 %%--------------------------------------------------------------------
@@ -138,7 +143,7 @@ stop(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec status(Ctx :: service:ctx()) -> ok | no_return().
 status(_Ctx) ->
-    service:status(?NAME).
+    service:status(?INIT_SCRIPT).
 
 
 %%--------------------------------------------------------------------
@@ -153,7 +158,7 @@ init_cluster(Ctx) ->
     Authorization = basic_authorization(User, Password),
     Quota = erlang:integer_to_list(service:param(couchbase_memory_quota, Ctx)),
     Host = onepanel_utils:node_to_host(),
-    Port = erlang:integer_to_list(service:param(couchbase_port, Ctx)),
+    Port = erlang:integer_to_list(service:param(couchbase_admin_port, Ctx)),
     HostAndPort = Host ++ ":" ++ Port,
 
     {ok, 200, _, _} = http_client:post(
@@ -170,7 +175,9 @@ init_cluster(Ctx) ->
 
     onepanel_shell:check_call([?CLI, "bucket-create", "-c", HostAndPort,
             "-u", User, "-p", Password, "--bucket=default",
-            "--bucket-ramsize=" ++ Quota, "--wait"]).
+            "--bucket-ramsize=" ++ Quota, "--wait"]),
+
+    service:add_host(?NAME, Host).
 
 
 %%--------------------------------------------------------------------
@@ -183,14 +190,16 @@ join_cluster(#{cluster_host := ClusterHost} = Ctx) ->
     User = service:param(couchbase_user, Ctx),
     Password = service:param(couchbase_password, Ctx),
     Host = onepanel_utils:node_to_host(),
-    Port = erlang:integer_to_list(service:param(couchbase_port, Ctx)),
+    Port = erlang:integer_to_list(service:param(couchbase_admin_port, Ctx)),
 
     onepanel_shell:check_call([?CLI, "server-add", "-c",
             ClusterHost ++ ":" ++ Port, "-u", User, "-p", Password,
             "--server-add=" ++ Host ++ ":" ++ Port,
             "--server-add-username=" ++ User,
             "--server-add-password=" ++ Password,
-            "--services=data,index,query"]).
+            "--services=data,index,query"]),
+
+    service:add_host(?NAME, Host).
 
 
 %%--------------------------------------------------------------------
@@ -203,7 +212,7 @@ rebalance_cluster(Ctx) ->
     User = service:param(couchbase_user, Ctx),
     Password = service:param(couchbase_password, Ctx),
     Host = onepanel_utils:node_to_host(),
-    Port = erlang:integer_to_list(service:param(couchbase_port, Ctx)),
+    Port = erlang:integer_to_list(service:param(couchbase_admin_port, Ctx)),
 
     onepanel_shell:check_call([?CLI, "rebalance", "-c", Host ++ ":" ++ Port,
         "-u", User, "-p", Password]).

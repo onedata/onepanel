@@ -36,7 +36,8 @@
 
 -record(service, {
     name :: module(),
-    hosts :: [service:host()]
+    hosts = []:: [service:host()],
+    params = #{} :: #{}
 }).
 
 -endif.

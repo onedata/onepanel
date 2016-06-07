@@ -8,7 +8,7 @@
 %%% @doc @todo write me!
 %%% @end
 %%%--------------------------------------------------------------------
--module(service_couchbase_test_SUITE).
+-module(service_cluster_manager_test_SUITE).
 -author("Krzysztof Trzepla").
 
 -include("db/models.hrl").
@@ -36,7 +36,7 @@ all() ->
         restart_should_reactivate_service
     ]).
 
--define(SERVICE, couchbase).
+-define(SERVICE, cluster_manager).
 -define(ATTEMPTS, 30).
 -define(TIMEOUT, timer:seconds(10)).
 
@@ -48,10 +48,11 @@ deploy_should_create_cluster(Config) ->
     [Node | _] = Nodes = ?config(onepanel_nodes, Config),
     Hosts = onepanel_utils:nodes_to_hosts(Nodes),
     ?assertEqual(ok, rpc:call(Node, service, apply,
-        [?SERVICE, deploy, #{hosts => Hosts}])),
-    {ok, #service{hosts = ServiceHosts}} = ?assertMatch({ok, _},
-        rpc:call(Node, service, get, [?SERVICE])),
-    ?assertEqual(lists:usort(Hosts), lists:usort(ServiceHosts)).
+        [?SERVICE, deploy, #{hosts => Hosts, worker_num => 0}])),
+    {ok, #service{hosts = ServiceHosts, params = Params}} =
+        ?assertMatch({ok, _}, rpc:call(Node, service, get, [?SERVICE])),
+    ?assertEqual(lists:usort(Hosts), lists:usort(ServiceHosts)),
+    ?assertEqual({ok, hd(Hosts)}, maps:find(main_host, Params)).
 
 
 start_should_activate_service(Config) ->

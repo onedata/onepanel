@@ -22,7 +22,8 @@
 -export([fields/0, create/1, save/1, update/2, get/1, exists/1, delete/1]).
 
 %% API
--export([start/1, stop/1, status/1, apply/3, nodes/1, param/2]).
+-export([start/1, start/2, stop/1, status/1, apply/3]).
+-export([nodes/1, param/2, domain/2, add_host/2]).
 
 -type name() :: atom().
 -type action() :: atom().
@@ -101,13 +102,11 @@ delete(Key) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc @equiv service:start(InitScript, #{})
 %%--------------------------------------------------------------------
--spec start(Name :: string()) -> ok | no_return().
-start(Name) ->
-    onepanel_shell:check_call(["service", Name, "start"]).
+-spec start(InitScript :: string()) -> ok | no_return().
+start(InitScript) ->
+    service:start(InitScript, #{}).
 
 
 %%--------------------------------------------------------------------
@@ -115,9 +114,14 @@ start(Name) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec stop(Name :: string()) -> ok | no_return().
-stop(Name) ->
-    onepanel_shell:check_call(["service", Name, "stop"]).
+-spec start(InitScript :: string(), SystemLimits :: #{}) -> ok | no_return().
+start(InitScript, SystemLimits) ->
+    Tokens = maps:fold(fun
+        (open_files, Value, Acc) -> ["ulimit", "-n", Value, ";" | Acc];
+        (processes, Value, Acc) -> ["ulimit", "-u", Value, ";" | Acc];
+        (_, _, Acc) -> Acc
+    end, ["service", InitScript, "start"], SystemLimits),
+    onepanel_shell:check_call(Tokens).
 
 
 %%--------------------------------------------------------------------
@@ -125,9 +129,19 @@ stop(Name) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec status(Name :: string()) -> ok | no_return().
-status(Name) ->
-    onepanel_shell:check_call(["service", Name, "status"]).
+-spec stop(InitScript :: string()) -> ok | no_return().
+stop(InitScript) ->
+    onepanel_shell:check_call(["service", InitScript, "stop"]).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec status(InitScript :: string()) -> ok | no_return().
+status(InitScript) ->
+    onepanel_shell:check_call(["service", InitScript, "status"]).
 
 
 %%--------------------------------------------------------------------
@@ -193,6 +207,36 @@ param(Name, Ctx) ->
         {ok, Value} -> Value;
         error -> onepanel:get_env(Name)
     end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec domain(Key :: atom(), Ctx ::ctx()) -> Domain :: string() | no_return().
+domain(Key, Ctx) ->
+    case maps:find(Key, Ctx) of
+        {ok, Domain} -> Domain;
+        error ->
+            Hostname = onepanel_shell:check_output(["hostname", "-f"]),
+            case string:tokens(Hostname, ".") of
+                [_] -> throw({short_hostname, Hostname});
+                [_ | Domain] -> string:join(Domain, ".")
+            end
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec add_host(Name :: name(), Host :: host()) -> ok.
+add_host(Name, Host) ->
+    ok = service:update(Name, fun(#service{hosts = Hosts} = Service) ->
+        Service#service{hosts = [Host | lists:delete(Host, Hosts)]}
+    end).
 
 %%%===================================================================
 %%% Internal functions

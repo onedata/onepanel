@@ -77,7 +77,11 @@ host_to_node(Host) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec host_to_node(Name :: string(), Host :: service:host()) -> Node :: node().
+-spec host_to_node(Name :: atom() | string(), Host :: service:host()) ->
+    Node :: node().
+host_to_node(Name, Host) when is_atom(Name) ->
+    host_to_node(erlang:atom_to_list(Name), Host);
+
 host_to_node(Name, Host) ->
     erlang:list_to_atom(string:join([Name, Host], "@")).
 
@@ -96,7 +100,7 @@ hosts_to_nodes(Hosts) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec hosts_to_nodes(Name :: string(), Hosts :: [service:host()]) ->
+-spec hosts_to_nodes(Name :: atom() | string(), Hosts :: [service:host()]) ->
     Nodes :: [node()].
 hosts_to_nodes(Name, Hosts) ->
     lists:map(fun(Host) -> host_to_node(Name, Host) end, Hosts).

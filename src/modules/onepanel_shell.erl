@@ -16,6 +16,7 @@
 %% API
 -export([output/1, check_output/1, wait_output/3, wait_output/4,
     call/1, check_call/1, wait_call/2, wait_call/3]).
+-export([sed/3]).
 
 -type token() :: atom() | integer() | string().
 
@@ -91,7 +92,7 @@ wait_output(Tokens, Expected, Attempts, Delay) ->
 %%--------------------------------------------------------------------
 -spec call(Tokens :: [token()]) -> Code :: integer().
 call(Tokens) ->
-    Code = output(Tokens ++ ["1>/dev/null", "2>&1;", "echo", "-n", "$?"]),
+    Code = output(Tokens ++ ["1>/tmp/log", "2>&1;", "echo", "-n", "$?"]),
     erlang:list_to_integer(Code).
 
 
@@ -125,3 +126,15 @@ wait_call(Tokens, Attempts) ->
 wait_call(Tokens, Attempts, Delay) ->
     onepanel_utils:wait_until(?MODULE, check_call, [Tokens],
         {equal, ok}, Attempts, Delay).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec sed(Pattern :: string(), Replacement :: string(), Path :: file:name_all()) ->
+    ok | no_return().
+sed(Pattern, Replacement, Path) ->
+    onepanel_shell:check_call(["sed", "-i", "-e", "'s/" ++ Pattern ++ "/"
+        ++ Replacement ++ "/g'", Path]).

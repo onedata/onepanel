@@ -7,7 +7,7 @@
   },
   "onepanel_domains": {
     "p1": {
-      "image": "docker.onedata.org/onepanel:oneprovider",
+      "image": "docker.onedata.org/onepanel:onezone",
       "app_name": "onepanel",
       "onepanel": {
         "node1": {
