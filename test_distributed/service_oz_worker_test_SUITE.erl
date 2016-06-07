@@ -17,22 +17,21 @@
 -include_lib("ctool/include/test/performance.hrl").
 
 %% export for ct
--export([all/0, init_per_suite/1, end_per_suite/1, init_per_testcase/2,
-    end_per_testcase/2]).
+-export([all/0, init_per_suite/1, end_per_suite/1]).
 
 %% tests
 -export([
     deploy_should_create_cluster/1,
-    start_should_activate_service/1,
     stop_should_deactivate_service/1,
+    start_should_activate_service/1,
     restart_should_reactivate_service/1
 ]).
 
 all() ->
     ?ALL([
         deploy_should_create_cluster,
-        start_should_activate_service,
         stop_should_deactivate_service,
+        start_should_activate_service,
         restart_should_reactivate_service
     ]).
 
@@ -55,34 +54,28 @@ deploy_should_create_cluster(Config) ->
     ?assertEqual(lists:usort(Hosts), lists:usort(ServiceHosts)).
 
 
+stop_should_deactivate_service(Config) ->
+    [Node | _] = ?config(onepanel_nodes, Config),
+
+    ?assertEqual(ok, rpc:call(Node, service, apply, [?SERVICE, stop, #{}])),
+    ?assertMatch({error, {service_oz_worker, status, {errors, _}}},
+        rpc:call(Node, service, apply, [?SERVICE, status, #{}])).
+
+
 start_should_activate_service(Config) ->
     [Node | _] = ?config(onepanel_nodes, Config),
-    Host = onepanel_utils:node_to_host(Node),
-    ?assertEqual(ok, rpc:call(Node, service, apply,
-        [?SERVICE, start, #{hosts => [Host]}])),
-    ?assertEqual(ok, rpc:call(Node, service, apply,
-        [?SERVICE, status, #{hosts => [Host]}]), ?ATTEMPTS).
 
+    ?assertEqual(ok, rpc:call(Node, service, apply, [?SERVICE, start, #{}])),
+    ?assertEqual(ok, rpc:call(Node, service, apply, [?SERVICE, status, #{}]),
+        ?ATTEMPTS).
 
-stop_should_deactivate_service(Config) ->
-    start_should_activate_service(Config),
-
-    [Node | _] = ?config(onepanel_nodes, Config),
-    Host = onepanel_utils:node_to_host(Node),
-    ?assertEqual(ok, rpc:call(Node, service, apply,
-        [?SERVICE, stop, #{hosts => [Host]}])),
-    ?assertMatch({error, {service_oz_worker, status, {errors, _}}},
-        rpc:call(Node, service, apply, [?SERVICE, status, #{hosts => [Host]}])).
 
 restart_should_reactivate_service(Config) ->
-    start_should_activate_service(Config),
-
     [Node | _] = ?config(onepanel_nodes, Config),
-    Host = onepanel_utils:node_to_host(Node),
-    ?assertEqual(ok, rpc:call(Node, service, apply,
-        [?SERVICE, restart, #{hosts => [Host]}])),
-    ?assertEqual(ok, rpc:call(Node, service, apply,
-        [?SERVICE, status, #{hosts => [Host]}]), ?ATTEMPTS).
+
+    ?assertEqual(ok, rpc:call(Node, service, apply, [?SERVICE, restart, #{}])),
+    ?assertEqual(ok, rpc:call(Node, service, apply, [?SERVICE, status, #{}]),
+        ?ATTEMPTS).
 
 %%%===================================================================
 %%% SetUp and TearDown functions
@@ -95,16 +88,3 @@ init_per_suite(Config) ->
 
 end_per_suite(Config) ->
     test_node_starter:clean_environment(Config).
-
-
-init_per_testcase(deploy_should_create_cluster, Config) ->
-    Config;
-
-init_per_testcase(_Case, Config) ->
-    Nodes = ?config(onepanel_nodes, Config),
-    onepanel_rpc:call(Nodes, service_couchbase, configure, [#{}]),
-    Config.
-
-
-end_per_testcase(_Case, _Config) ->
-    ok.

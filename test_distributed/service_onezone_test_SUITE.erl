@@ -8,7 +8,7 @@
 %%% @doc @todo write me!
 %%% @end
 %%%--------------------------------------------------------------------
--module(service_couchbase_test_SUITE).
+-module(service_onezone_test_SUITE).
 -author("Krzysztof Trzepla").
 
 -include("db/models.hrl").
@@ -35,7 +35,10 @@ all() ->
         restart_should_reactivate_service
     ]).
 
--define(SERVICE, couchbase).
+-define(SERVICE, onezone).
+-define(SERVICE_CB, service_couchbase:name()).
+-define(SERVICE_CM, service_cluster_manager:name()).
+-define(SERVICE_OZ, service_oz_worker:name()).
 -define(ATTEMPTS, 30).
 -define(TIMEOUT, timer:seconds(10)).
 
@@ -45,20 +48,33 @@ all() ->
 
 deploy_should_create_cluster(Config) ->
     [Node | _] = Nodes = ?config(onepanel_nodes, Config),
-    Hosts = onepanel_utils:nodes_to_hosts(Nodes),
+    Hosts = lists:usort(onepanel_utils:nodes_to_hosts(Nodes)),
     ?assertEqual(ok, rpc:call(Node, service, apply,
-        [?SERVICE, deploy, #{hosts => Hosts}])),
-    {ok, #service{hosts = ServiceHosts}} = ?assertMatch({ok, _},
-        rpc:call(Node, service, get, [?SERVICE])),
-    ?assertEqual(lists:usort(Hosts), lists:usort(ServiceHosts)).
+        [?SERVICE, deploy, #{
+            ?SERVICE_CB => #{
+                hosts => Hosts
+            },
+            ?SERVICE_CM => #{
+                hosts => Hosts, main_cm_host => hd(Hosts), worker_num => 2
+            },
+            ?SERVICE_OZ => #{
+                hosts => Hosts, main_cm_host => hd(Hosts), cm_hosts => Hosts,
+                db_hosts => Hosts
+            }
+        }]
+    )),
+    lists:foreach(fun(Service) ->
+        {ok, #service{hosts = ServiceHosts}} = ?assertMatch({ok, _},
+            rpc:call(Node, service, get, [Service])),
+        ?assertEqual(Hosts, lists:usort(ServiceHosts))
+    end, []).
 
 
 stop_should_deactivate_service(Config) ->
     [Node | _] = ?config(onepanel_nodes, Config),
 
     ?assertEqual(ok, rpc:call(Node, service, apply, [?SERVICE, stop, #{}])),
-    ?assertMatch({error, {service_couchbase, status, {errors, _}}},
-        rpc:call(Node, service, apply, [?SERVICE, status, #{}])).
+    ?assertEqual(ok, rpc:call(Node, service, apply, [?SERVICE, status, #{}])).
 
 
 start_should_activate_service(Config) ->

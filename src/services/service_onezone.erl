@@ -8,7 +8,7 @@
 %%% @doc @todo write me!
 %%% @end
 %%%--------------------------------------------------------------------
--module(service_oneprovider).
+-module(service_onezone).
 -author("Krzysztof Trzepla").
 -behaviour(service_behaviour).
 
@@ -24,7 +24,7 @@
 
 -define(SERVICE_CB, service_couchbase:name()).
 -define(SERVICE_CM, service_cluster_manager:name()).
--define(SERVICE_OP, service_op_worker:name()).
+-define(SERVICE_OZ, service_oz_worker:name()).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -38,26 +38,26 @@
 get_steps(deploy, Ctx) ->
     CbCtx = maps:get(?SERVICE_CB, Ctx),
     CmCtx = maps:get(?SERVICE_CM, Ctx),
-    OpCtx = maps:get(?SERVICE_OP, Ctx),
+    OpCtx = maps:get(?SERVICE_OZ, Ctx),
     [
         #steps{service = ?SERVICE_CB, action = deploy, ctx = CbCtx},
         #step{service = ?SERVICE_CB, function = status, ctx = CbCtx},
         #steps{service = ?SERVICE_CM, action = deploy, ctx = CmCtx},
         #step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
-        #steps{service = ?SERVICE_OP, action = deploy, ctx = OpCtx},
-        #step{service = ?SERVICE_OP, function = status, ctx = OpCtx}
+        #steps{service = ?SERVICE_OZ, action = deploy, ctx = OpCtx},
+        #step{service = ?SERVICE_OZ, function = status, ctx = OpCtx}
     ];
 
 get_steps(start, _Ctx) ->
     [
         #steps{service = ?SERVICE_CB, action = start},
         #steps{service = ?SERVICE_CM, action = start},
-        #steps{service = ?SERVICE_OP, action = start}
+        #steps{service = ?SERVICE_OZ, action = start}
     ];
 
 get_steps(stop, _Ctx) ->
     [
-        #steps{service = ?SERVICE_OP, action = stop},
+        #steps{service = ?SERVICE_OZ, action = stop},
         #steps{service = ?SERVICE_CM, action = stop},
         #steps{service = ?SERVICE_CB, action = stop}
     ];
@@ -72,7 +72,7 @@ get_steps(status, _Ctx) ->
     [
         #steps{service = ?SERVICE_CB, action = status, ignore_errors = true},
         #steps{service = ?SERVICE_CM, action = status, ignore_errors = true},
-        #steps{service = ?SERVICE_OP, action = status, ignore_errors = true}
+        #steps{service = ?SERVICE_OZ, action = status, ignore_errors = true}
     ].
 
 %%%===================================================================
