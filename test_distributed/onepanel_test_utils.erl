@@ -19,6 +19,16 @@
 
 -type config() :: proplists:proplist().
 
+-define(TEST_ENVS, [
+    {cluster_manager_vm_args_path, "/etc/cluster_manager/vm.args"},
+    {cluster_manager_app_config_path, "/etc/cluster_manager/app.config"},
+    {cluster_manager_env_path, "/usr/lib/cluster_manager/lib/env.sh"},
+    {op_worker_vm_args_path, "/etc/op_worker/vm.args"},
+    {op_worker_app_config_path, "/etc/op_worker/app.config"},
+    {oz_worker_vm_args_path, "/etc/oz_worker/vm.args"},
+    {oz_worker_app_config_path, "/etc/oz_worker/app.config"}
+]).
+
 %%%===================================================================
 %%% API functions
 %%%===================================================================
@@ -36,6 +46,7 @@ ensure_initailized(Config) ->
     health_check(OpNodes),
     health_check(OzNodes),
     health_check((Nodes -- OpNodes) -- OzNodes),
+    set_test_envs(Nodes),
     [{op_nodes, OpNodes}, {oz_nodes, OzNodes} | Config].
 
 
@@ -79,3 +90,15 @@ health_check([]) ->
 
 health_check([Node | _] = Nodes) ->
     ?assertEqual(ok, rpc:call(Node, onepanel, health_check, [Nodes]), 120).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec set_test_envs(Nodes :: [node()]) -> ok.
+set_test_envs(Nodes) ->
+    lists:foreach(fun({Key, Value}) ->
+        rpc:multicall(Nodes, onepanel, set_env, [Key, Value])
+    end, ?TEST_ENVS).

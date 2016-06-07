@@ -81,7 +81,10 @@ get_steps(status, _Ctx) ->
         #steps{service = ?SERVICE_CB, action = status, ignore_errors = true},
         #steps{service = ?SERVICE_CM, action = status, ignore_errors = true},
         #steps{service = ?SERVICE_OP, action = status, ignore_errors = true}
-    ].
+    ];
+
+get_steps(register, _Ctx) ->
+    [].
 
 %%%===================================================================
 %%% API functions

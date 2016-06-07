@@ -15,7 +15,7 @@
 -include("db/models.hrl").
 
 %% API
--export([create_db/0, delete_db/0, is_db_empty/0, empty_db/0]).
+-export([create_db/0, delete_db/0, is_db_empty/0, is_table_empty/1, empty_db/0]).
 -export([add_node/2, commit_node/0, get_nodes/0, copy_tables/0]).
 
 -type table() :: atom().
@@ -70,6 +70,16 @@ empty_db() ->
         Table = model_logic:table_name(Model),
         {atomic, ok} = mnesia:clear_table(Table)
     end, ?MODELS ++ ?INTERNAL_MODELS).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec is_table_empty(Table :: table()) -> boolean().
+is_table_empty(Table) ->
+    0 == count_records(Table).
 
 
 %%--------------------------------------------------------------------

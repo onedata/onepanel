@@ -88,8 +88,7 @@ configure(#{main_cm_host := MainCmHost, cm_hosts := CmHosts,
 -spec start(Ctx :: service:ctx()) -> ok | no_return().
 start(Ctx) ->
     NewCtx = maps:merge(#{
-        open_files => service:param(op_worker_open_files_limit, Ctx),
-        processes => service:param(op_worker_processes_limit, Ctx)
+        open_files => service:param(op_worker_open_files_limit, Ctx)
     }, Ctx),
     service_cluster_worker:start(NewCtx#{init_script => ?INIT_SCRIPT}).
 

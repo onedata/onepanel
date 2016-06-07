@@ -34,7 +34,7 @@
 }).
 
 %%%===================================================================
-%%% API
+%%% API functions
 %%%===================================================================
 
 %%--------------------------------------------------------------------
@@ -141,12 +141,16 @@ set_env(Key, Value) ->
     {stop, Reason :: term()} | ignore.
 init([]) ->
     try
+        process_flag(trap_exit, true),
+
         Address = get_env(advertise_address),
         Port = get_env(advertise_port),
         {ok, Ip} = inet:getaddr(Address, inet),
         {ok, Socket} = gen_udp:open(Port, [binary, {reuseaddr, true}, {ip, Ip},
             {multicast_loop, false}, {add_membership, {Ip, {0, 0, 0, 0}}}]),
         ok = gen_udp:controlling_process(Socket, self()),
+
+        ok = rest_listener:start(),
 
         db_manager:create_db(),
         self() ! advertise,
@@ -180,7 +184,8 @@ handle_call({join_db_cluster, Timestamp, Force}, From, #state{status = idle} =
 
     case ignore_request(Timestamp, Force) of
         true ->
-            ?info("Received join_db_cluster request from ~p and ignored", [From]),
+            ?info("Received join_db_cluster request from ~p and ignored",
+                [From]),
             {reply, ignore, State};
         false ->
             ?info("Received join_db_cluster request from ~p and accepted", [From]),
@@ -305,8 +310,9 @@ handle_info(Info, State) ->
 %%--------------------------------------------------------------------
 -spec terminate(Reason :: (normal | shutdown | {shutdown, term()} | term()),
     State :: #state{}) -> term().
-terminate(_Reason, _State) ->
-    ok.
+terminate(Reason, State) ->
+    rest_listener:stop(),
+    ?log_terminate(Reason, State).
 
 
 %%--------------------------------------------------------------------

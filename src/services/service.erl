@@ -119,7 +119,6 @@ start(InitScript) ->
 start(InitScript, SystemLimits) ->
     Tokens = maps:fold(fun
         (open_files, Value, Acc) -> ["ulimit", "-n", Value, ";" | Acc];
-        (processes, Value, Acc) -> ["ulimit", "-u", Value, ";" | Acc];
         (_, _, Acc) -> Acc
     end, ["service", InitScript, "start"], SystemLimits),
     onepanel_shell:check_call(Tokens).

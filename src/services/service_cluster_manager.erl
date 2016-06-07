@@ -104,8 +104,7 @@ configure(#{main_host := MainHost, hosts := Hosts} = Ctx) ->
 -spec start(Ctx :: service:ctx()) -> ok | no_return().
 start(Ctx) ->
     service:start(?INIT_SCRIPT, #{
-        open_files => service:param(cluster_manager_open_files_limit, Ctx),
-        processes => service:param(cluster_manager_processes_limit, Ctx)
+        open_files => service:param(cluster_manager_open_files_limit, Ctx)
     }).
 
 

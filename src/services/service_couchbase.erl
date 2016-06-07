@@ -90,8 +90,7 @@ configure(_Ctx) ->
 -spec start(Ctx :: service:ctx()) -> ok | no_return().
 start(Ctx) ->
     service:start(?INIT_SCRIPT, #{
-        open_files => service:param(couchbase_open_files_limit, Ctx),
-        processes => service:param(couchbase_processes_limit, Ctx)
+        open_files => service:param(couchbase_open_files_limit, Ctx)
     }).
 
 
