@@ -29,7 +29,7 @@
 -type action() :: atom().
 -type ctx() :: #{}.
 -type host() :: string().
--type step() :: #step{}.
+-type step() :: #step{} | #steps{}.
 -type stage() :: action_begin | action_end | step_begin | step_end.
 
 -export_type([name/0, action/0, ctx/0, host/0, step/0]).
@@ -157,9 +157,9 @@ apply([], _Action, _Ctx) ->
 apply([Service | Services], Action, Ctx) ->
     notify({action_begin, {Service, Action}}, Ctx),
     Result = try
-        Module = get_module(Service),
-        Steps = Module:get_steps(Action, Ctx),
-        apply_steps(Service, Steps, Ctx)
+        Steps = get_steps(Service, Action, Ctx, false),
+        ?critical("~n~n~n~nSteps:~n~p~n~n~n~n", [Steps]),
+        apply_steps(Steps)
     catch
         error:undef ->
             {error, service_not_found, erlang:get_stacktrace()};
@@ -214,7 +214,7 @@ param(Name, Ctx) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec domain(Key :: atom(), Ctx ::ctx()) -> Domain :: string() | no_return().
+-spec domain(Key :: atom(), Ctx :: ctx()) -> Domain :: string() | no_return().
 domain(Key, Ctx) ->
     case maps:find(Key, Ctx) of
         {ok, Domain} -> Domain;
@@ -251,49 +251,112 @@ get_module(Service) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec apply_steps(Service :: name(), Steps :: [step()], Ctx :: ctx()) ->
-    ok | {error, Reason :: term()}.
-apply_steps(_Service, [], _Ctx) ->
+-spec apply_steps(Steps :: [step()]) -> ok | {error, Reason :: term()}.
+apply_steps([]) ->
     ok;
 
-apply_steps(Service, [#step{hosts = []} | Steps], Ctx) ->
-    apply_steps(Service, Steps, Ctx);
+apply_steps([#step{hosts = []} | Steps]) ->
+    apply_steps(Steps);
 
-apply_steps(Service, [#step{hosts = fetch} = Step | Steps], Ctx) ->
-    {ok, #service{hosts = Hosts}} = service:get(Service),
-    apply_steps(Service, [Step#step{hosts = Hosts} | Steps], Ctx);
-
-apply_steps(Service, [#step{condition = undefined} = Step | Steps], Ctx) ->
-    Condition = fun() -> true end,
-    apply_steps(Service, [Step#step{condition = Condition} | Steps], Ctx);
-
-apply_steps(Service, [#step{ctx = undefined} = Step | Steps], Ctx) ->
-    apply_steps(Service, [Step#step{ctx = Ctx} | Steps], Ctx);
-
-apply_steps(Service, [#step{module = undefined} = Step | Steps], Ctx) ->
-    Module = get_module(Service),
-    apply_steps(Service, [Step#step{module = Module} | Steps], Ctx);
-
-apply_steps(Service, [#step{hosts = Hosts, module = Module, function = Function,
-    ctx = Ctx, condition = Condition} | Steps], _Ctx) ->
+apply_steps([#step{hosts = Hosts, module = Module, function = Function,
+    ctx = Ctx, condition = Condition, ignore_errors = IgnoreErrors} | Steps]) ->
     case Condition() of
         true ->
             Nodes = service:nodes(Hosts),
-            notify({step_begin, {Service, Function}}, Ctx),
+            notify({step_begin, {Module, Function}}, Ctx),
             Results =
                 onepanel_rpc:call(Nodes, Module, Function, [Ctx], ?RPC_TIMEOUT),
-            case filter_errors(Results) of
-                [] ->
-                    notify({step_end, {Service, Function, ok}}, Ctx),
-                    apply_steps(Service, Steps, _Ctx);
-                Errors ->
-                    notify({step_end, {Service, Function, {errors, Errors}}},
-                        Ctx),
-                    {error, {Service, Function, {errors, Errors}}}
+            Status = case filter_errors(Results) of
+                [] -> ok;
+                Errors -> {errors, Errors}
+            end,
+            notify({step_end, {Module, Function, Status}}, Ctx),
+            case {Status, IgnoreErrors} of
+                {ok, _} -> apply_steps(Steps);
+                {_, true} -> apply_steps(Steps);
+                {_, _} -> {error, {Module, Function, Status}}
             end;
         false ->
-            apply_steps(Service, Steps, _Ctx)
+            apply_steps(Steps)
     end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec get_steps(Service :: name(), Action :: action(), Ctx :: ctx(),
+    IgnoreErrors :: boolean()) -> Steps :: [#step{}].
+get_steps(Service, Action, Ctx, IgnoreErrors) ->
+    Module = get_module(Service),
+    Steps = Module:get_steps(Action, Ctx),
+    lists:flatten(lists:map(fun
+        (#step{} = Step) ->
+            get_step(Service, Step, Ctx, IgnoreErrors);
+        (#steps{} = NestedSteps) ->
+            get_nested_steps(Service, NestedSteps, Ctx, IgnoreErrors)
+    end, Steps)).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec get_step(Service :: name(), Step :: #step{}, Ctx :: ctx(),
+    IgnoreErrors :: boolean()) -> Step :: #step{}.
+get_step(Service, #step{service = undefined} = Step, Ctx, IgnoreErrors) ->
+    get_step(Service, Step#step{service = Service}, Ctx, IgnoreErrors);
+
+get_step(Service, #step{service = StepService, module = undefined} = Step, Ctx,
+    IgnoreErrors) ->
+    Module = get_module(StepService),
+    get_step(Service, Step#step{module = Module}, Ctx, IgnoreErrors);
+
+get_step(Service, #step{ctx = undefined} = Step, Ctx, IgnoreErrors) ->
+    get_step(Service, Step#step{ctx = Ctx}, Ctx, IgnoreErrors);
+
+get_step(Service, #step{ignore_errors = undefined} = Step, Ctx, IgnoreErrors) ->
+    get_step(Service, Step#step{ignore_errors = IgnoreErrors}, Ctx,
+        IgnoreErrors);
+
+get_step(Service, #step{hosts = undefined, ctx = #{hosts := Hosts}} = Step, Ctx,
+    IgnoreErrors) ->
+    get_step(Service, Step#step{hosts = Hosts}, Ctx, IgnoreErrors);
+
+get_step(Service, #step{hosts = undefined, service = StepService} = Step, Ctx,
+    IgnoreErrors) ->
+    {ok, #service{hosts = Hosts}} = service:get(StepService),
+    get_step(Service, Step#step{hosts = Hosts}, Ctx, IgnoreErrors);
+
+get_step(_Service, #step{} = Step, _Ctx, _IgnoreErrors) ->
+    Step.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec get_nested_steps(Service :: name(), Steps :: #steps{}, Ctx :: ctx(),
+    IgnoreErrors :: boolean()) -> Steps :: [step()].
+get_nested_steps(Service, #steps{service = undefined} = Steps, Ctx,
+    IgnoreErrors) ->
+    get_nested_steps(Service, Steps#steps{service = Service}, Ctx,
+        IgnoreErrors);
+
+get_nested_steps(Service, #steps{ctx = undefined} = Steps, Ctx, IgnoreErrors) ->
+    get_nested_steps(Service, Steps#steps{ctx = Ctx}, Ctx, IgnoreErrors);
+
+get_nested_steps(Service, #steps{ignore_errors = undefined} = Steps, Ctx,
+    IgnoreErrors) ->
+    get_nested_steps(Service, Steps#steps{ignore_errors = IgnoreErrors}, Ctx,
+        IgnoreErrors);
+
+get_nested_steps(_Service, #steps{service = Service, action = Action, ctx = Ctx,
+    ignore_errors = IgnoreErrors}, _Ctx, _IgnoreErrors) ->
+    get_steps(Service, Action, Ctx, IgnoreErrors).
 
 
 %%--------------------------------------------------------------------
@@ -302,7 +365,8 @@ apply_steps(Service, [#step{hosts = Hosts, module = Module, function = Function,
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec notify(Msg :: {Stage :: stage(), Details}, Ctx :: ctx()) -> ok when
+-spec notify(Msg :: {Stage :: stage(), Details}, Ctx :: ctx()) ->
+    ok when
     Details :: {Module, Function} | {Module, Function, Result},
     Module :: module(),
     Function :: atom(),

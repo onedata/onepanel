@@ -15,10 +15,19 @@
 
 -record(step, {
     hosts :: [service:host()] | fetch,
+    service :: service:name(),
     module :: module(),
     function :: atom(),
     ctx :: service:ctx(),
-    condition :: fun(() -> boolean())
+    condition = fun() -> true end :: fun(() -> boolean()),
+    ignore_errors :: boolean()
+}).
+
+-record(steps, {
+    service :: service:name(),
+    action :: service:action(),
+    ctx :: service:ctx(),
+    ignore_errors :: boolean()
 }).
 
 -endif.

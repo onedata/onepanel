@@ -83,8 +83,8 @@ service_should_notify_caller(Config) ->
         [example, some_action, #{notify => Self}])),
     ?assertReceivedEqual({action_begin, {example, some_action}}, ?TIMEOUT),
     lists:foreach(fun(Step) ->
-        ?assertReceivedEqual({step_begin, {example, Step}}, ?TIMEOUT),
-        ?assertReceivedEqual({step_end, {example, Step, ok}}, ?TIMEOUT)
+        ?assertReceivedEqual({step_begin, {service_example, Step}}, ?TIMEOUT),
+        ?assertReceivedEqual({step_end, {service_example, Step, ok}}, ?TIMEOUT)
     end, [step1, step2, step3]),
     ?assertReceivedEqual({action_end, {example, some_action, ok}},
         ?TIMEOUT).
@@ -101,7 +101,7 @@ service_action_should_pass_errors(Config) ->
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
     ?assertMatch({error, _}, rpc:call(Node1, service, apply,
         [example, some_action, #{notify => Self}])),
-    ?assertReceivedMatch({step_end, {example, some_step,
+    ?assertReceivedMatch({step_end, {service_example, some_step,
         {errors, [{Node2, {error, step_failure, _}}]}}}, ?TIMEOUT).
 
 

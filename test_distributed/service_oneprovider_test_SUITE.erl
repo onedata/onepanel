@@ -8,7 +8,7 @@
 %%% @doc @todo write me!
 %%% @end
 %%%--------------------------------------------------------------------
--module(service_cluster_manager_test_SUITE).
+-module(service_oneprovider_test_SUITE).
 -author("Krzysztof Trzepla").
 
 -include("db/models.hrl").
@@ -36,7 +36,10 @@ all() ->
         restart_should_reactivate_service
     ]).
 
--define(SERVICE, cluster_manager).
+-define(SERVICE, oneprovider).
+-define(SERVICE_CB, service_couchbase:name()).
+-define(SERVICE_CM, service_cluster_manager:name()).
+-define(SERVICE_OP, service_op_worker:name()).
 -define(ATTEMPTS, 30).
 -define(TIMEOUT, timer:seconds(10)).
 
@@ -46,13 +49,26 @@ all() ->
 
 deploy_should_create_cluster(Config) ->
     [Node | _] = Nodes = ?config(onepanel_nodes, Config),
-    Hosts = onepanel_utils:nodes_to_hosts(Nodes),
+    Hosts = lists:usort(onepanel_utils:nodes_to_hosts(Nodes)),
     ?assertEqual(ok, rpc:call(Node, service, apply,
-        [?SERVICE, deploy, #{hosts => Hosts, worker_num => 0}])),
-    {ok, #service{hosts = ServiceHosts, params = Params}} =
-        ?assertMatch({ok, _}, rpc:call(Node, service, get, [?SERVICE])),
-    ?assertEqual(lists:usort(Hosts), lists:usort(ServiceHosts)),
-    ?assertEqual({ok, hd(Hosts)}, maps:find(main_host, Params)).
+        [?SERVICE, deploy, #{
+            ?SERVICE_CB => #{
+                hosts => Hosts
+            },
+            ?SERVICE_CM => #{
+                hosts => Hosts, main_cm_host => hd(Hosts), worker_num => 2
+            },
+            ?SERVICE_OP => #{
+                hosts => Hosts, main_cm_host => hd(Hosts), cm_hosts => Hosts,
+                db_hosts => Hosts
+            }
+        }]
+    )),
+    lists:foreach(fun(Service) ->
+        {ok, #service{hosts = ServiceHosts}} = ?assertMatch({ok, _},
+            rpc:call(Node, service, get, [Service])),
+        ?assertEqual(Hosts, lists:usort(ServiceHosts))
+    end, []).
 
 
 start_should_activate_service(Config) ->
@@ -71,8 +87,8 @@ stop_should_deactivate_service(Config) ->
     Host = onepanel_utils:node_to_host(Node),
     ?assertEqual(ok, rpc:call(Node, service, apply,
         [?SERVICE, stop, #{hosts => [Host]}])),
-    ?assertMatch({error, {service_cluster_manager, status, {errors, _}}},
-        rpc:call(Node, service, apply, [?SERVICE, status, #{hosts => [Host]}])).
+    ?assertEqual(ok, rpc:call(Node, service, apply,
+        [?SERVICE, status, #{hosts => [Host]}])).
 
 restart_should_reactivate_service(Config) ->
     start_should_activate_service(Config),

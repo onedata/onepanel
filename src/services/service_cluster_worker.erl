@@ -31,41 +31,20 @@
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
-get_steps(deploy, #{hosts := Hosts}) ->
-    [
-        #step{hosts = Hosts, function = configure},
-        #step{hosts = Hosts, function = start}
-    ];
+get_steps(deploy, _Ctx) ->
+    [#step{function = configure}, #step{function = start}];
 
-get_steps(start, #{hosts := Hosts}) ->
-    [#step{hosts = Hosts, function = start}];
+get_steps(start, _Ctx) ->
+    [#step{function = start}];
 
-get_steps(start, _) ->
-    [#step{hosts = fetch, function = start}];
+get_steps(stop, _Ctx) ->
+    [#step{function = stop}];
 
-get_steps(stop, #{hosts := Hosts}) ->
-    [#step{hosts = Hosts, function = stop}];
+get_steps(restart, _Ctx) ->
+    [#step{function = stop}, #step{function = start}];
 
-get_steps(stop, _) ->
-    [#step{hosts = fetch, function = stop}];
-
-get_steps(restart, #{hosts := Hosts}) ->
-    [
-        #step{hosts = Hosts, function = stop},
-        #step{hosts = Hosts, function = start}
-    ];
-
-get_steps(restart, _) ->
-    [
-        #step{hosts = fetch, function = stop},
-        #step{hosts = fetch, function = start}
-    ];
-
-get_steps(status, #{hosts := Hosts}) ->
-    [#step{hosts = Hosts, function = status}];
-
-get_steps(status, _) ->
-    [#step{hosts = fetch, function = status}].
+get_steps(status, _Ctx) ->
+    [#step{function = status}].
 
 %%%===================================================================
 %%% API functions

@@ -70,8 +70,8 @@ stop_should_deactivate_service(Config) ->
     Host = onepanel_utils:node_to_host(Node),
     ?assertEqual(ok, rpc:call(Node, service, apply,
         [?SERVICE, stop, #{hosts => [Host]}])),
-    ?assertMatch({error, {?SERVICE, status, {errors, _}}}, rpc:call(Node,
-        service, apply, [?SERVICE, status, #{hosts => [Host]}])).
+    ?assertMatch({error, {service_couchbase, status, {errors, _}}},
+        rpc:call(Node, service, apply, [?SERVICE, status, #{hosts => [Host]}])).
 
 restart_should_reactivate_service(Config) ->
     start_should_activate_service(Config),
