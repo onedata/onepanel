@@ -92,7 +92,7 @@ wait_output(Tokens, Expected, Attempts, Delay) ->
 %%--------------------------------------------------------------------
 -spec call(Tokens :: [token()]) -> Code :: integer().
 call(Tokens) ->
-    Code = output(Tokens ++ ["1>/tmp/log", "2>&1;", "echo", "-n", "$?"]),
+    Code = output(Tokens ++ ["1>/dev/null", "2>&1;", "echo", "-n", "$?"]),
     erlang:list_to_integer(Code).
 
 

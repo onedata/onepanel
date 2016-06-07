@@ -15,11 +15,12 @@
 
 -record(step, {
     hosts :: [service:host()] | fetch,
+    selection = all :: all | first | rest,
     service :: service:name(),
     module :: module(),
     function :: atom(),
     ctx :: service:ctx(),
-    condition = fun() -> true end :: fun(() -> boolean()),
+    condition = fun(_) -> true end :: service:condition(),
     ignore_errors :: boolean()
 }).
 
@@ -27,6 +28,7 @@
     service :: service:name(),
     action :: service:action(),
     ctx :: service:ctx(),
+    condition = fun(_) -> true end :: service:condition(),
     ignore_errors :: boolean()
 }).
 

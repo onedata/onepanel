@@ -15,12 +15,14 @@
 -include("db/models.hrl").
 -include("service.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("xmerl/include/xmerl.hrl").
 
 %% Service behaviour callbacks
 -export([get_steps/2]).
 
 %% API
--export([configure/1, start/1, stop/1, status/1]).
+-export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
+    nagios_report/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -44,7 +46,10 @@ get_steps(restart, _Ctx) ->
     [#step{function = stop}, #step{function = start}];
 
 get_steps(status, _Ctx) ->
-    [#step{function = status}].
+    [#step{function = status}];
+
+get_steps(nagios_report, _Ctx) ->
+    [#step{function = nagios_report}].
 
 %%%===================================================================
 %%% API functions
@@ -102,3 +107,36 @@ stop(#{init_script := InitScript}) ->
 -spec status(Ctx :: service:ctx()) -> ok | no_return().
 status(#{init_script := InitScript}) ->
     service:status(InitScript).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec wait_for_init(Ctx :: service:ctx()) -> ok | no_return().
+wait_for_init(#{name := Name, wait_for_init_attempts := Attempts,
+    wait_for_init_delay := Delay} = Ctx) ->
+    Module = service:module(Name),
+    onepanel_utils:wait_until(Module, nagios_report, [Ctx], {equal, ok},
+        Attempts, Delay).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec nagios_report(Ctx :: service:ctx()) -> Status :: atom().
+nagios_report(#{nagios_protocol := Protocol, nagios_port := Port}) ->
+    Host = onepanel_utils:node_to_host(),
+    PortStr = erlang:integer_to_list(Port),
+    URL = Protocol ++ "://" ++ Host ++ ":" ++ PortStr ++ "/nagios",
+
+    {ok, 200, _Headers, Body} = http_client:get(URL),
+
+    {Xml, _} = xmerl_scan:string(binary_to_list(Body)),
+    [Status] = [X#xmlAttribute.value || X <- Xml#xmlElement.attributes,
+        X#xmlAttribute.name == status],
+
+    list_to_atom(Status).

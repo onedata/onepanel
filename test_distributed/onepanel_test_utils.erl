@@ -30,9 +30,13 @@
 %%--------------------------------------------------------------------
 -spec ensure_initailized(Config :: config()) -> Config :: config().
 ensure_initailized(Config) ->
-    [Node | _] = Nodes = ?config(onepanel_nodes, Config),
-    ?assertEqual(ok, rpc:call(Node, onepanel, health_check, [Nodes]), 120),
-    Config.
+    Nodes = ?config(onepanel_nodes, Config),
+    OpNodes = filter_nodes(oneprovider, Nodes),
+    OzNodes = filter_nodes(onezone, Nodes),
+    health_check(OpNodes),
+    health_check(OzNodes),
+    health_check((Nodes -- OpNodes) -- OzNodes),
+    [{op_nodes, OpNodes}, {oz_nodes, OzNodes} | Config].
 
 
 %%--------------------------------------------------------------------
@@ -49,3 +53,29 @@ mock_start(Config) ->
         ?assert(lists:all(fun(Result) -> Result =:= ok end, Results))
     end, [tools, meck]),
     Config.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec filter_nodes(Type :: atom(), Nodes :: [node()]) -> FilteredNodes :: [node()].
+filter_nodes(Type, Nodes) ->
+    lists:filter(fun(Node) ->
+        [_, Domain] = string:tokens(erlang:atom_to_list(Node), "@"),
+        lists:member(erlang:atom_to_list(Type), string:tokens(Domain, "."))
+    end, Nodes).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec health_check(Nodes :: [node()]) -> ok | no_return().
+health_check([]) ->
+    ok;
+
+health_check([Node | _] = Nodes) ->
+    ?assertEqual(ok, rpc:call(Node, onepanel, health_check, [Nodes]), 120).

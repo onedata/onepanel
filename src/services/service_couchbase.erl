@@ -20,7 +20,7 @@
 -export([get_steps/2]).
 
 %% API
--export([name/0, configure/1, start/1, wait_for_start/1, stop/1, status/1,
+-export([name/0, configure/1, start/1, wait_for_init/1, stop/1, status/1,
     init_cluster/1, join_cluster/1, rebalance_cluster/1]).
 
 -define(NAME, couchbase).
@@ -40,11 +40,11 @@ get_steps(deploy, #{hosts := Hosts} = Ctx) ->
     [
         #step{function = configure},
         #step{function = start},
-        #step{function = wait_for_start},
-        #step{hosts = [hd(Hosts)], function = init_cluster},
-        #step{hosts = tl(Hosts), function = join_cluster,
+        #step{function = wait_for_init},
+        #step{function = init_cluster, selection = first},
+        #step{function = join_cluster, selection = rest,
             ctx = Ctx#{cluster_host => hd(Hosts)}},
-        #step{hosts = [hd(Hosts)], function = rebalance_cluster}
+        #step{function = rebalance_cluster, selection = first}
     ];
 
 get_steps(start, _Ctx) ->
@@ -100,9 +100,9 @@ start(Ctx) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec wait_for_start(Ctx :: service:ctx()) -> ok | no_return().
-wait_for_start(Ctx) ->
-    StartAttempts = service:param(couchbase_start_attempts, Ctx),
+-spec wait_for_init(Ctx :: service:ctx()) -> ok | no_return().
+wait_for_init(Ctx) ->
+    StartAttempts = service:param(couchbase_wait_for_init_attempts, Ctx),
     onepanel_utils:wait_until(?MODULE, status, [Ctx], {equal, ok},
         StartAttempts),
 

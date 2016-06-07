@@ -13,14 +13,14 @@
 -behaviour(service_behaviour).
 
 -include("db/models.hrl").
--include("service.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% Service behaviour callbacks
 -export([get_steps/2]).
 
 %% API
--export([name/0, configure/1, start/1, stop/1, status/1]).
+-export([name/0, configure/1, start/1, stop/1, status/1, wait_for_init/1,
+    nagios_report/1]).
 
 -define(NAME, op_worker).
 -define(INIT_SCRIPT, "op_worker").
@@ -108,3 +108,27 @@ stop(Ctx) ->
 -spec status(Ctx :: service:ctx()) -> ok | no_return().
 status(Ctx) ->
     service_cluster_worker:status(Ctx#{init_script => ?INIT_SCRIPT}).
+
+
+%%--------------------------------------------------------------------
+%% @doc @see service_cluster_worker:wait_for_init/1
+%%--------------------------------------------------------------------
+-spec wait_for_init(Ctx :: service:ctx()) -> ok | no_return().
+wait_for_init(Ctx) ->
+    service_cluster_worker:wait_for_init(Ctx#{
+        name => ?NAME,
+        wait_for_init_attempts => service:param(
+            op_worker_wait_for_init_attempts, Ctx),
+        wait_for_init_delay => service:param(op_worker_wait_for_init_delay, Ctx)
+    }).
+
+
+%%--------------------------------------------------------------------
+%% @doc @see service_cluster_worker:nagios_report/1
+%%--------------------------------------------------------------------
+-spec nagios_report(Ctx :: service:ctx()) -> Status :: atom().
+nagios_report(Ctx) ->
+    service_cluster_worker:nagios_report(Ctx#{
+        nagios_protocol => service:param(op_worker_nagios_protocol, Ctx),
+        nagios_port => service:param(op_worker_nagios_port, Ctx)
+    }).

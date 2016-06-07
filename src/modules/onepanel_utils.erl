@@ -12,6 +12,7 @@
 -author("Krzysztof Trzepla").
 
 -include("onepanel.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([node_to_host/0, node_to_host/1, nodes_to_hosts/0, nodes_to_hosts/1,
@@ -139,8 +140,10 @@ wait_until(Module, Function, Args, {validator, Validator}, Attempts, Delay) ->
         Validator(Result),
         ok
     catch
-        _:_ ->
+        _:Reason ->
             timer:sleep(Delay),
+            ?debug_stacktrace("Call ~p:~p(~p) returned unexpected result: ~p."
+            " Retrying...", [Module, Function, Args, Reason]),
             wait_until(Module, Function, Args, {validator, Validator},
                 Attempts - 1, Delay)
     end;

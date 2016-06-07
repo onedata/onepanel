@@ -35,7 +35,7 @@ all() ->
         restart_should_reactivate_service
     ]).
 
--define(SERVICE, onezone).
+-define(SERVICE, service_onezone:name()).
 -define(SERVICE_CB, service_couchbase:name()).
 -define(SERVICE_CM, service_cluster_manager:name()).
 -define(SERVICE_OZ, service_oz_worker:name()).

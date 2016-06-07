@@ -175,17 +175,15 @@ init([]) ->
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
     {stop, Reason :: term(), NewState :: #state{}}.
-handle_call({join_db_cluster, Timestamp, Force}, _From, #state{status = idle} =
+handle_call({join_db_cluster, Timestamp, Force}, From, #state{status = idle} =
     State) ->
 
     case ignore_request(Timestamp, Force) of
         true ->
-            ?info("Received join_db_cluster ~p and ignored",
-                [{Timestamp, Force}]),
+            ?info("Received join_db_cluster request from ~p and ignored", [From]),
             {reply, ignore, State};
         false ->
-            ?info("Received join_db_cluster ~p and accepted",
-                [{Timestamp, Force}]),
+            ?info("Received join_db_cluster request from ~p and accepted", [From]),
             db_manager:delete_db(),
             Ref = schedule(join_db_cluster_timeout),
             {reply, ok, State#state{status = {connecting, Ref}}}
@@ -242,17 +240,16 @@ handle_info({udp, _Socket, _Ip, _Port, Msg},
 
     NewState = case verify_node(Msg, IgnoredNodes) of
         {ok, Node} ->
-            ?info("Received advertiesment from node ~p", [Node]),
             case add_node(Node, false) of
                 ok ->
                     ?info("Node ~p successfully added", [Node]),
                     Ref = schedule(commit_db_node_timeout),
                     State#state{status = {connecting, Ref}};
                 try_again ->
-                    ?info("Try again adding node ~p", [Node]),
+                    ?info("Adding node ~p rejected. Retrying...", [Node]),
                     State;
                 ignore ->
-                    ?info("Ignore adding node ~p", [Node]),
+                    ?info("Ignoring node ~p", [Node]),
                     State#state{ignored_nodes = [Node | IgnoredNodes]};
                 {error, already_connected} -> State;
                 {error, Reason} ->

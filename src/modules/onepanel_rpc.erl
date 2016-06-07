@@ -77,6 +77,6 @@ call(Nodes, Module, Function, Args, Timeout) ->
     Results = lists:foldl(fun(BadNode, Acc) ->
         [{BadNode, {error, badnode}} | Acc]
     end, Values, BadNodes),
-    ?critical("Call ~p:~p(~p) on nodes ~p with timeout ~p returned ~p",
+    ?debug("Call ~p:~p(~p) on nodes ~p with timeout ~p returned ~p",
         [Module, Function, Args, Nodes, Timeout, Results]),
     Results.

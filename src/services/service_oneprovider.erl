@@ -12,7 +12,6 @@
 -author("Krzysztof Trzepla").
 -behaviour(service_behaviour).
 
--include("db/models.hrl").
 -include("service.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -20,8 +19,9 @@
 -export([get_steps/2]).
 
 %% API
--export([]).
+-export([name/0]).
 
+-define(NAME, oneprovider).
 -define(SERVICE_CB, service_couchbase:name()).
 -define(SERVICE_CM, service_cluster_manager:name()).
 -define(SERVICE_OP, service_op_worker:name()).
@@ -38,14 +38,22 @@
 get_steps(deploy, Ctx) ->
     CbCtx = maps:get(?SERVICE_CB, Ctx),
     CmCtx = maps:get(?SERVICE_CM, Ctx),
-    OpCtx = maps:get(?SERVICE_OP, Ctx),
+    OpwCtx = maps:get(?SERVICE_OP, Ctx),
+    OpCtx = maps:get(?NAME, Ctx, #{}),
+    Register = fun
+        (#{register := true}) -> true;
+        (_) -> false
+    end,
     [
         #steps{service = ?SERVICE_CB, action = deploy, ctx = CbCtx},
         #step{service = ?SERVICE_CB, function = status, ctx = CbCtx},
         #steps{service = ?SERVICE_CM, action = deploy, ctx = CmCtx},
         #step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
-        #steps{service = ?SERVICE_OP, action = deploy, ctx = OpCtx},
-        #step{service = ?SERVICE_OP, function = status, ctx = OpCtx}
+        #steps{service = ?SERVICE_OP, action = deploy, ctx = OpwCtx},
+        #step{service = ?SERVICE_OP, function = status, ctx = OpwCtx},
+        #step{service = ?SERVICE_OP, function = wait_for_init, ctx = OpwCtx,
+            selection = first},
+        #steps{action = register, ctx = OpCtx, condition = Register}
     ];
 
 get_steps(start, _Ctx) ->
@@ -78,3 +86,12 @@ get_steps(status, _Ctx) ->
 %%%===================================================================
 %%% API functions
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec name() -> Name :: service:name().
+name() ->
+    ?NAME.
