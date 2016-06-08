@@ -48,7 +48,7 @@ new_should_not_create_user_with_empty_username(_) ->
 
 new_should_not_create_user_with_short_password(_) ->
     onepanel:set_env(min_password_length, 2),
-    ?_assertEqual({error, {short_password, 2}},
+    ?_assertEqual({error, {password, {too_short, 2}}},
         onedata_user:new(<<"u">>, <<"p">>, r)).
 
 new_should_not_overwrite_existing_user(_) ->

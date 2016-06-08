@@ -58,7 +58,7 @@ stop_should_deactivate_service(Config) ->
     [Node | _] = ?config(onepanel_nodes, Config),
 
     ?assertEqual(ok, rpc:call(Node, service, apply, [?SERVICE, stop, #{}])),
-    ?assertMatch({error, {service_oz_worker, status, {errors, _}}},
+    ?assertMatch({error, {service_oz_worker, status, {[], [_ | _]}}},
         rpc:call(Node, service, apply, [?SERVICE, status, #{}])).
 
 

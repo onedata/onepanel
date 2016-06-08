@@ -24,13 +24,13 @@
 -type accept_method() :: post | patch | put.
 -type method() :: accept_method() | get | delete.
 -type resource() :: atom().
--type bindings() :: #{}.
+-type ctx() :: #{}.
 -type data() :: proplists:proplist().
 -type client() :: #client{}.
 -type rstate() :: #rstate{}.
 
--export_type([accept_method/0, method/0, resource/0, bindings/0, data/0,
-    client/0, rstate/0]).
+-export_type([accept_method/0, method/0, resource/0, ctx/0, data/0, client/0,
+    rstate/0]).
 
 %%%===================================================================
 %%% API functions
@@ -133,9 +133,9 @@ is_authorized(Req, #rstate{noauth = Methods} = State) ->
     {boolean(), cowboy_req:req(), rstate()}.
 forbidden(Req, #rstate{module = Module, resource = Resource, client = Client} =
     State) ->
-    Bindings = get_bindings(Req),
+    Ctx = get_ctx(Req),
     Method = get_method(Req),
-    Forbidden = not Module:is_authorized(Resource, Method, Bindings, Client),
+    Forbidden = not Module:is_authorized(Resource, Method, Ctx, Client),
     {Forbidden, Req, State}.
 
 
@@ -147,8 +147,8 @@ forbidden(Req, #rstate{module = Module, resource = Resource, client = Client} =
 -spec resource_exists(Req :: cowboy_req:req(), State :: rstate()) ->
     {boolean(), cowboy_req:req(), rstate()}.
 resource_exists(Req, #rstate{module = Module, resource = Resource} = State) ->
-    Bindings = get_bindings(Req),
-    Exists = Module:resource_exists(Resource, Bindings),
+    Ctx = get_ctx(Req),
+    Exists = Module:resource_exists(Resource, Ctx),
     {Exists, Req, State}.
 
 
@@ -160,8 +160,8 @@ resource_exists(Req, #rstate{module = Module, resource = Resource} = State) ->
 -spec delete_resource(Req :: cowboy_req:req(), State :: rstate()) ->
     {boolean(), cowboy_req:req(), rstate()}.
 delete_resource(Req, #rstate{module = Mod, resource = Resource} = State) ->
-    Bindings = get_bindings(Req),
-    Deleted = Mod:delete_resource(Resource, Bindings),
+    Ctx = get_ctx(Req),
+    Deleted = Mod:delete_resource(Resource, Ctx),
     {Deleted, Req, State}.
 
 
@@ -200,8 +200,8 @@ accept_resource_json(Req, #rstate{} = State) ->
     {iodata(), cowboy_req:req(), rstate()}.
 provide_resource(Req, #rstate{module = Module, resource = Resource,
     client = Client} = State) ->
-    Bindings = get_bindings(Req),
-    Data = Module:provide_resource(Resource, Bindings, Client),
+    Ctx = get_ctx(Req),
+    Data = Module:provide_resource(Resource, Ctx, Client),
     Json = json_utils:encode(Data),
     {Json, Req, State}.
 
@@ -226,10 +226,17 @@ get_method(Req) ->
 %%--------------------------------------------------------------------
 %% @doc Returns request bindings.
 %%--------------------------------------------------------------------
--spec get_bindings(Req :: cowboy_req:req()) -> Bindings :: bindings().
-get_bindings(Req) ->
+-spec get_ctx(Req :: cowboy_req:req()) -> Ctx :: ctx().
+get_ctx(Req) ->
     {Bindings, _} = cowboy_req:bindings(Req),
-    maps:from_list(Bindings).
+    NewBindings = case lists:keyfind(host, 1, Bindings) of
+        {_, Host} ->
+            lists:keyreplace(host, 1, Bindings, {host, erlang:binary_to_list(Host)});
+        false ->
+            Bindings
+    end,
+    {QsVals, _} = cowboy_req:qs_vals(Req),
+    #{bindings => maps:from_list(NewBindings), qs_vals => maps:from_list(QsVals)}.
 
 
 %%--------------------------------------------------------------------
@@ -241,12 +248,13 @@ get_bindings(Req) ->
     {{true, URL :: binary()} | boolean(), cowboy_req:req(), rstate()}.
 accept_resource(Data, Req, #rstate{module = Module, resource = Resource,
     client = Client} = State) ->
-    Bindings = get_bindings(Req),
+    Ctx = get_ctx(Req),
     Method = get_method(Req),
 
     try
-        Result = Module:accept_resource(Resource, Method, Bindings, Data, Client),
-        {Result, Req, State}
+        {Result, Req2} = Module:accept_resource(Resource, Method, Ctx, Data,
+            Client, Req),
+        {Result, Req2, State}
     catch
         {rest_error, Reason} ->
             {false, rest_utils:set_error_response(Reason, Req), State}

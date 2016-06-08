@@ -5,9 +5,9 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%-------------------------------------------------------------------
-%%% @doc The module handling logic behind /user REST resources.
+%%% @doc The module handling logic behind /cluster/workers REST resources.
 %%%-------------------------------------------------------------------
--module(rest_onedata_user).
+-module(rest_cluster_worker).
 -author("Krzysztof Trzepla").
 
 -include("http/handlers/rest.hrl").
@@ -29,11 +29,13 @@
 -spec routes() ->
     [{Path :: binary(), rest_handler, State :: rest_handler:rstate()}].
 routes() ->
-    State = #rstate{module = ?MODULE},
+    State = #rstate{},
     Module = rest_handler,
     [
-        {<<"/user">>, Module, State#rstate{resource = user,
-            methods = [get, post, put], noauth = [post]}}
+        {<<"/cluster/workers">>, Module, State#rstate{resource = wrks,
+            methods = [get, patch]}},
+        {<<"/cluster/workers/:host">>, Module, State#rstate{resource = wrks,
+            methods = [get, patch]}}
     ].
 
 
@@ -43,14 +45,10 @@ routes() ->
 -spec is_authorized(Resource :: rest_handler:resource(),
     Method :: rest_handler:method(), Ctx :: rest_handler:ctx(),
     Client :: rest_handler:client()) -> boolean().
-is_authorized(_Resource, post, _Ctx, #client{role = admin}) ->
+is_authorized(_Resource, _Method, _Ctx, #client{role = admin}) ->
     true;
-is_authorized(_Resource, post, _Ctx, #client{role = undefined}) ->
-    db_manager:is_table_empty(model_logic:table_name(onedata_user));
-is_authorized(_Resource, post, _Ctx, _Client) ->
-    false;
 is_authorized(_Resource, _Method, _Ctx, _Client) ->
-    true.
+    false.
 
 
 %%--------------------------------------------------------------------
@@ -58,8 +56,11 @@ is_authorized(_Resource, _Method, _Ctx, _Client) ->
 %%--------------------------------------------------------------------
 -spec resource_exists(Resource :: rest_handler:resource(),
     Ctx :: rest_handler:ctx()) -> boolean().
-resource_exists(_Resource, _Ctx) ->
-    true.
+resource_exists(_Resource, #{service := Name, bindings := #{host := Host}}) ->
+    service:member(Name, Host);
+
+resource_exists(_Resource, #{service := Name}) ->
+    service:exists(Name).
 
 
 %%--------------------------------------------------------------------
@@ -69,30 +70,32 @@ resource_exists(_Resource, _Ctx) ->
     Method :: rest_handler:accept_method(), Ctx :: rest_handler:ctx(),
     Data :: rest_handler:data(), Client :: rest_handler:client(),
     Req :: cowboy_req:req()) -> {boolean(), cowboy_req:req()} | no_return().
-accept_resource(user, post, _Ctx, Data, #client{role = ClientRole}, Req) ->
-    Username = rest_utils:assert_key_type(<<"username">>, Data, binary),
-    Password = rest_utils:assert_key_type(<<"password">>, Data, base64),
-    Role = case ClientRole of
-        undefined -> admin;
-        admin -> rest_utils:assert_key_value(<<"userRole">>, Data, atom,
-            [admin, regular])
-    end,
-    case onedata_user:new(Username, Password, Role) of
-        ok -> {true, Req};
-        {error, already_exists} ->
-            rest_utils:report_error(invalid_request,
-                <<"user '", Username/binary, "' already exists">>)
-    end;
+accept_resource(wrks, patch, #{qs_vals := #{<<"started">> := <<"true">>},
+    bindings := #{host := Host}, service := Name}, _Data, _Client, Req) ->
+    {true, rest_utils:set_results(service_executor:apply_sync(
+        Name, start, #{hosts => [Host]}
+    ), Req)};
 
-accept_resource(user, put, _Ctx, Data, #client{name = Name}, Req) ->
-    Password = rest_utils:assert_key_type(<<"password">>, Data, base64),
-    case onedata_user:change_password(Name, Password) of
-        ok -> {true, Req};
-        {error, {password, {too_short, MinLength}}} ->
-            rest_utils:report_error(invalid_value,
-                <<"new password should be at least ",
-                    (integer_to_binary(MinLength))/binary, " characters long">>)
-    end.
+accept_resource(wrks, patch, #{qs_vals := #{<<"started">> := <<"true">>},
+    service := Name}, _Data, _Client, Req) ->
+    {true, rest_utils:set_results(service_executor:apply_sync(
+        Name, start, #{}
+    ), Req)};
+
+accept_resource(wrks, patch, #{qs_vals := #{<<"started">> := <<"false">>},
+    bindings := #{host := Host}, service := Name}, _Data, _Client, Req) ->
+    {true, rest_utils:set_results(service_executor:apply_sync(
+        Name, stop, #{hosts => [Host]}
+    ), Req)};
+
+accept_resource(wrks, patch, #{qs_vals := #{<<"started">> := <<"false">>},
+    service := Name}, _Data, _Client, Req) ->
+    {true, rest_utils:set_results(service_executor:apply_sync(
+        Name, stop, #{}
+    ), Req)};
+
+accept_resource(_Resource, _Method, _Ctx, _Data, _Client, _Req) ->
+    rest_utils:report_error(invalid_request).
 
 
 %%--------------------------------------------------------------------
@@ -101,8 +104,13 @@ accept_resource(user, put, _Ctx, Data, #client{name = Name}, Req) ->
 -spec provide_resource(Resource :: rest_handler:resource(),
     Ctx :: rest_handler:ctx(), Client :: rest_handler:client()) ->
     Data :: rest_handler:data().
-provide_resource(user, _Ctx, #client{id = Id, role = Role}) ->
-    [{userId, Id}, {userRole, Role}].
+provide_resource(wrks, #{bindings := #{host := Host}, service := Name}, _Client) ->
+    rest_utils:format_results(service_executor:apply_sync(
+        Name, status, #{hosts => [Host]}
+    ));
+
+provide_resource(wrks, #{service := Name}, _Client) ->
+    rest_utils:format_results(service_executor:apply_sync(Name, status, #{})).
 
 
 %%--------------------------------------------------------------------

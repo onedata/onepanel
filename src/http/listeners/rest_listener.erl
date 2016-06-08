@@ -49,7 +49,19 @@ start() ->
     [{_, CaCertDer, _} | _] = public_key:pem_decode(CaCertPem),
 
     Routes = lists:append([
-        rest_onedata_user:routes()
+        rest_onedata_user:routes(),
+        rest_couchbase:routes(),
+        rest_cluster_manager:routes(),
+        case onepanel:get_env(release) of
+            oneprovider ->
+                lists:append([
+                    rest_op_worker:routes()
+                ]);
+            onezone ->
+                lists:append([
+                    rest_oz_worker:routes()
+                ])
+        end
     ]),
 
     RoutesWithPrefix = lists:map(fun({Path, Module, State}) ->

@@ -45,7 +45,7 @@
 -spec(start_link() ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
 start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+    gen_server:start_link({local, ?ONEPANEL_SERVER}, ?MODULE, [], []).
 
 
 %%--------------------------------------------------------------------

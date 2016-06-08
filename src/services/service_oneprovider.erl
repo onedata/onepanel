@@ -84,7 +84,10 @@ get_steps(status, _Ctx) ->
     ];
 
 get_steps(register, _Ctx) ->
-    [].
+    [];
+
+get_steps(_Action, _Ctx) ->
+    throw(action_not_supported).
 
 %%%===================================================================
 %%% API functions

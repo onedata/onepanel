@@ -23,7 +23,7 @@
 
 %% API
 -export([start/1, start/2, stop/1, status/1, apply/3]).
--export([nodes/1, param/2, module/1, domain/2, add_host/2]).
+-export([nodes/1, param/2, module/1, domain/2, member/2, add_host/2]).
 
 -type name() :: atom().
 -type action() :: atom().
@@ -149,7 +149,7 @@ status(InitScript) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec apply(Services :: [name()], Action :: action(), Ctx :: ctx()) ->
+-spec apply(Services :: name() | [name()], Action :: action(), Ctx :: ctx()) ->
     ok | {error, Reason :: term()}.
 apply([], _Action, _Ctx) ->
     ok;
@@ -163,8 +163,6 @@ apply([Service | Services], Action, Ctx) ->
     catch
         error:undef ->
             {error, service_not_found, erlang:get_stacktrace()};
-        error:function_clause ->
-            {error, action_not_supported, erlang:get_stacktrace()};
         _:Reason ->
             {error, Reason, erlang:get_stacktrace()}
     end,
@@ -242,6 +240,22 @@ domain(Key, Ctx) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
+-spec member(Key :: model_behaviour:key(), Host :: host()) ->
+    boolean() | {error, Reason :: term()}.
+member(Key, Host) ->
+    model_logic:transaction(fun() ->
+        case ?MODULE:get(Key) of
+            {ok, #service{hosts = Hosts}} -> lists:member(Host, Hosts);
+            {error, not_found} -> false
+        end
+    end).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
 -spec add_host(Name :: name(), Host :: host()) -> ok.
 add_host(Name, Host) ->
     ok = service:update(Name, fun(#service{hosts = Hosts} = Service) ->
@@ -272,15 +286,12 @@ apply_steps([#step{hosts = Hosts, module = Module, function = Function,
     notify({step_begin, {Module, Function}}, Ctx),
 
     Results = onepanel_rpc:call(Nodes, Module, Function, [Ctx], ?RPC_TIMEOUT),
-    Status = case filter_errors(Results) of
-        [] -> ok;
-        Errors -> {errors, Errors}
-    end,
+    Status = partition_results(Results),
 
     notify({step_end, {Module, Function, Status}}, Ctx),
 
     case {Status, IgnoreErrors} of
-        {ok, _} -> apply_steps(Steps);
+        {{_, []}, _} -> apply_steps(Steps);
         {_, true} -> apply_steps(Steps);
         {_, _} -> {error, {Module, Function, Status}}
     end.
@@ -409,13 +420,13 @@ notify(Msg, Ctx) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec filter_errors(Results :: onepanel_rpc:results()) ->
-    BadResults :: onepanel_rpc:results().
-filter_errors(Results) ->
-    lists:filter(fun
-        ({_, {error, _}}) -> true;
-        ({_, {error, _, _}}) -> true;
-        (_) -> false
+-spec partition_results(Results :: onepanel_rpc:results()) ->
+    {GoodResults :: onepanel_rpc:results(), BadResults :: onepanel_rpc:results()}.
+partition_results(Results) ->
+    lists:partition(fun
+        ({_, {error, _}}) -> false;
+        ({_, {error, _, _}}) -> false;
+        (_) -> true
     end, Results).
 
 
@@ -441,9 +452,9 @@ log({action_end, {Module, Function, {error, Reason, Stacktrace}}}, _Ctx) ->
         [Module, Function, Reason, Stacktrace]);
 log({step_begin, {Module, Function}}, Ctx) ->
     ?info("Executing step ~p:~p with context: ~p", [Module, Function, Ctx]);
-log({step_end, {Module, Function, ok}}, _Ctx) ->
+log({step_end, {Module, Function, {_, []}}}, _Ctx) ->
     ?info("Step ~p:~p completed successfully", [Module, Function]);
-log({step_end, {Module, Function, {errors, Errors}}}, _Ctx) ->
+log({step_end, {Module, Function, {_, Errors}}}, _Ctx) ->
     ?error("Step ~p:~p failed~n~s", [Module, Function,
         format_errors(Errors, "")]).
 

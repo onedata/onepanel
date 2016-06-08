@@ -25,7 +25,7 @@
 %% request on the resource.
 %%--------------------------------------------------------------------
 -callback is_authorized(Resource :: rest_handler:resource(), 
-    Method :: rest_handler:method(), Bindings :: rest_handler:bindings(),
+    Method :: rest_handler:method(), Ctx :: rest_handler:ctx(),
     Client :: rest_handler:client()) -> boolean().
 
 
@@ -33,7 +33,7 @@
 %% Returns whether a resource exists.
 %%--------------------------------------------------------------------
 -callback resource_exists(Resource :: rest_handler:resource(),
-    Bindings :: rest_handler:bindings()) -> boolean().
+    Ctx :: rest_handler:ctx()) -> boolean().
 
 
 %%--------------------------------------------------------------------
@@ -42,9 +42,9 @@
 %% successfully.
 %%--------------------------------------------------------------------
 -callback accept_resource(Resource :: rest_handler:resource(),
-    Method :: rest_handler:accept_method(), Bindings :: rest_handler:bindings(),
-    Data :: rest_handler:data(), Client :: rest_handler:client()) ->
-    boolean() | no_return().
+    Method :: rest_handler:accept_method(), Ctx :: rest_handler:ctx(),
+    Data :: rest_handler:data(), Client :: rest_handler:client(),
+    Req :: cowboy_req:req()) -> {boolean(), cowboy_req:req()} | no_return().
 
 
 %%--------------------------------------------------------------------
@@ -52,7 +52,7 @@
 %% resource.
 %%--------------------------------------------------------------------
 -callback provide_resource(Resource :: rest_handler:resource(),
-    Bindings :: rest_handler:bindings(), Client :: rest_handler:client()) ->
+    Ctx :: rest_handler:ctx(), Client :: rest_handler:client()) ->
     Data :: rest_handler:data().
 
 
@@ -60,4 +60,4 @@
 %% Deletes the resource. Returns whether the deletion was successful.
 %%--------------------------------------------------------------------
 -callback delete_resource(Resource :: rest_handler:resource(),
-    Bindings :: rest_handler:bindings()) -> boolean().
+    Ctx :: rest_handler:ctx()) -> boolean().

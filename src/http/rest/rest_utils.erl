@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
-%%% @author Konrad Zemek
-%%% @copyright (C): 2014 ACK CYFRONET AGH
+%%% @author Krzysztof Trzepla
+%%% @copyright (C): 2016 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -11,13 +11,13 @@
 %%% @end
 %%%-------------------------------------------------------------------
 -module(rest_utils).
--author("Konrad Zemek").
+-author("Krzysztof Trzepla").
 
 -include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([report_missing_key/1, report_invalid_type/2, report_error/1,
-    report_error/2, set_error_response/2]).
+    report_error/2, set_error_response/2, set_results/2, format_results/1]).
 -export([assert_key/2, assert_type/3, assert_key_type/3, assert_key_value/4]).
 
 -type key() :: binary().
@@ -163,6 +163,18 @@ set_error_response(Type, Req) ->
     Body = json_utils:encode([{<<"error">>, Type}]),
     cowboy_req:set_resp_body(Body, Req).
 
+
+set_results(Results, Req) ->
+    Body = json_utils:encode(format_results(Results)),
+    cowboy_req:set_resp_body(Body, Req).
+
+
+format_results({ok, Results}) ->
+    format_results(Results, []);
+
+format_results({error, timeout}) ->
+    [{<<"error">>, <<"request timeout">>}].
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -175,3 +187,55 @@ set_error_response(Type, Req) ->
 %%--------------------------------------------------------------------
 -spec get_type_name(Type :: type()) -> Name :: binary().
 get_type_name(base64) -> <<"base64 encoded string">>.
+
+format_results([], Response) ->
+    lists:reverse([{<<"truncated">>, <<"true">>} | Response]);
+format_results([task_finished], Response) ->
+    lists:reverse(Response);
+format_results([{Service, Action, StatusResults} | Results], Response) ->
+    StatusResponse = [
+        {<<"service">>, format_service_name(Service)},
+        {<<"action">>, format_action_name(Action)},
+        {<<"results">>, format_action_results(Action, StatusResults)}
+    ],
+    format_results(Results, [StatusResponse | Response]).
+
+
+format_service_name(service_couchbase) ->
+    <<"couchbase">>;
+format_service_name(service_cluster_manager) ->
+    <<"cluster_manager">>;
+format_service_name(service_op_worker) ->
+    <<"op_worker">>;
+format_service_name(service_oz_worker) ->
+    <<"oz_worker">>;
+format_service_name(_) ->
+    <<>>.
+
+
+format_action_name(Action) ->
+    erlang:atom_to_binary(Action, utf8).
+
+
+format_action_results(_Action, {GoodResults, BadResults}) ->
+    lists:sort(lists:append([
+        format_results_ok(GoodResults, []),
+        format_results_error(BadResults, [])
+    ])).
+
+
+format_results_ok([], Response) ->
+    Response;
+
+format_results_ok([{Node, _} | Results], Response) ->
+    Host = onepanel_utils:node_to_host(Node),
+    format_results_ok(Results, [{Host, <<"ok">>} | Response]).
+
+
+format_results_error([], Response) ->
+    Response;
+
+format_results_error([{Node, _} | Results], Response) ->
+    Host = onepanel_utils:node_to_host(Node),
+    format_results_error(Results, [{Host, <<"error">>} | Response]).
+

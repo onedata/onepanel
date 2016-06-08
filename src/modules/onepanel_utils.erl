@@ -17,10 +17,14 @@
 %% API
 -export([node_to_host/0, node_to_host/1, nodes_to_hosts/0, nodes_to_hosts/1,
     host_to_node/1, host_to_node/2, hosts_to_nodes/1, hosts_to_nodes/2]).
+-export([get_basic_auth_header/2]).
 -export([wait_until/5, wait_until/6]).
+-export([gen_uuid/0]).
 
 -type expectation() :: {equal, Expected :: term()} | {validator,
     Validator :: fun((term()) -> term() | no_return())}.
+
+-define(UUID_LEN, 32).
 
 %%%===================================================================
 %%% API functions
@@ -108,6 +112,24 @@ hosts_to_nodes(Name, Hosts) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec get_basic_auth_header(Username :: string() | binary(),
+    Password :: string() | binary()) -> {Key :: binary(), Value :: binary()}.
+get_basic_auth_header(Username, Password) when is_list(Username)->
+    get_basic_auth_header(erlang:list_to_binary(Username), Password);
+
+get_basic_auth_header(Username, Password) when is_list(Password)->
+    get_basic_auth_header(Username, erlang:list_to_binary(Password));
+
+get_basic_auth_header(Username, Password) ->
+    Hash = base64:encode(<<Username/binary, ":", Password/binary>>),
+    {<<"Authorization">>, <<"Basic ", Hash/binary>>}.
+
+
+%%--------------------------------------------------------------------
 %% @doc @equiv wait_until(Module, Function, Args, Expectation, Attempts,
 %% timer:seconds(1))
 %% @end
@@ -150,3 +172,12 @@ wait_until(Module, Function, Args, {validator, Validator}, Attempts, Delay) ->
 
 wait_until(Module, Function, Args, Expected, Attempts, Delay) ->
     wait_until(Module, Function, Args, {equal, Expected}, Attempts, Delay).
+
+
+%%--------------------------------------------------------------------
+%% @doc Generates random UUID.
+%%--------------------------------------------------------------------
+-spec gen_uuid() -> binary().
+gen_uuid() ->
+    http_utils:base64url_encode(crypto:rand_bytes(?UUID_LEN)).
+

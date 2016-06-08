@@ -75,7 +75,10 @@ get_steps(status, _Ctx) ->
         #steps{service = ?SERVICE_CB, action = status, ignore_errors = true},
         #steps{service = ?SERVICE_CM, action = status, ignore_errors = true},
         #steps{service = ?SERVICE_OZ, action = status, ignore_errors = true}
-    ].
+    ];
+
+get_steps(_Action, _Ctx) ->
+    throw(action_not_supported).
 
 %%%===================================================================
 %%% API functions

@@ -97,11 +97,13 @@ post_should_create_user(Config) ->
     NewPassword = <<"password2">>,
     NewRole = regular,
 
-    post_user(Node, [basic_auth(Username, Password)], [
-        {username, NewUsername},
-        {password, base64:encode(NewPassword)},
-        {userRole, NewRole}
-    ], 204),
+    post_user(Node,
+        [onepanel_utils:get_basic_auth_header(Username, Password)], [
+            {username, NewUsername},
+            {password, base64:encode(NewPassword)},
+            {userRole, NewRole}
+        ], 204
+    ),
 
     ?assertMatch({_, NewRole}, get_user(Node, NewUsername, NewPassword, 200)).
 
@@ -125,11 +127,14 @@ post_should_not_create_existing_user(Config) ->
     Password = ?config(password, Config),
 
     ?assertMatch({<<"invalid_request">>, _},
-        post_user(Node, [basic_auth(Username, Password)], [
-            {username, Username},
-            {password, base64:encode(Password)},
-            {userRole, regular}
-        ], 400)).
+        post_user(Node,
+            [onepanel_utils:get_basic_auth_header(Username, Password)], [
+                {username, Username},
+                {password, base64:encode(Password)},
+                {userRole, regular}
+            ],400
+        )
+    ).
 
 
 put_should_change_password(Config) ->
@@ -193,8 +198,6 @@ init_per_suite(Config) ->
 
 
 end_per_suite(Config) ->
-    hackney:stop(),
-    application:stop(ssl2),
     test_node_starter:clean_environment(Config).
 
 
@@ -224,11 +227,6 @@ end_per_testcase(_Case, Config) ->
 %%% Internal functions
 %%%===================================================================
 
-basic_auth(Username, Password) ->
-    Hash = base64:encode(<<Username/binary, ":", Password/binary>>),
-    {<<"Authorization">>, <<"Basic ", Hash/binary>>}.
-
-
 post_user(Node, Params, Code) ->
     post_user(Node, [], Params, Code).
 
@@ -249,7 +247,8 @@ post_user(Node, Headers, Params, Code) ->
 
 get_user(Node, Username, Password, Code) ->
     {ok, _, _, Body} = ?assertMatch({ok, Code, _, _},
-        do_request(Node, "/user", get, [basic_auth(Username, Password)])),
+        do_request(Node, "/user", get,
+            [onepanel_utils:get_basic_auth_header(Username, Password)])),
     Data = json_utils:decode(Body),
 
     case Code of
@@ -266,7 +265,8 @@ get_user(Node, Username, Password, Code) ->
 
 put_user(Node, Username, Password, Params, Code) ->
     {ok, _, _, Body} = ?assertMatch({ok, Code, _, _},
-        do_request(Node, "/user", put, [basic_auth(Username, Password)],
+        do_request(Node, "/user", put,
+            [onepanel_utils:get_basic_auth_header(Username, Password)],
             json_utils:encode(Params))),
 
     case Code of
@@ -282,11 +282,11 @@ put_user(Node, Username, Password, Params, Code) ->
 do_request(Node, Endpoint, Method, Headers) ->
     do_request(Node, Endpoint, Method, Headers, <<>>).
 
+
 do_request(Node, Endpoint, Method, Headers, Body) ->
-    [_, Hostname] = string:tokens(erlang:atom_to_list(Node), "@"),
+    Hostname = onepanel_utils:node_to_host(Node),
     Prefix = rpc:call(Node, onepanel, get_env, [rest_prefix]),
-    Port =
-        erlang:integer_to_list(rpc:call(Node, onepanel, get_env, [rest_port])),
+    Port = erlang:integer_to_list(rpc:call(Node, onepanel, get_env, [rest_port])),
     Url = "https://" ++ Hostname ++ ":" ++ Port ++ Prefix ++ Endpoint,
 
     http_client:request(Method, Url, [{<<"Content-Type">>,

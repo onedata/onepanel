@@ -51,7 +51,8 @@ start_link() ->
         [ChildSpec :: supervisor:child_spec()]}} | ignore.
 init([]) ->
     {ok, {#{strategy => one_for_all, intensity => 3, period => 1}, [
-        onepanel_spec()
+        onepanel_spec(),
+        service_executor_spec()
     ]}}.
 
 %%%===================================================================
@@ -73,4 +74,21 @@ onepanel_spec() ->
         shutdown => timer:seconds(10),
         type => worker,
         modules => [onepanel]
+    }.
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Returns a worker child_spec for a service_executor gen_server.
+%% @end
+%%--------------------------------------------------------------------
+-spec service_executor_spec() -> supervisor:child_spec().
+service_executor_spec() ->
+    #{
+        id => service_executor,
+        start => {service_executor, start_link, []},
+        restart => transient,
+        shutdown => timer:seconds(10),
+        type => worker,
+        modules => [service_executor]
     }.

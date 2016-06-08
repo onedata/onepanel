@@ -29,8 +29,6 @@
 
 -export_type([name/0, password/0, password_hash/0, role/0, uuid/0]).
 
--define(UUID_LEN, 32).
-
 %%%===================================================================
 %%% Model behaviour callbacks
 %%%===================================================================
@@ -107,10 +105,10 @@ delete(Key) ->
     ok | {error, Reason :: term()}.
 new(Username, Password, Role) ->
     case {verify_username(Username), verify_password(Password)} of
-        {ok, ok} ->
+        {Username, Password} ->
             create(#onedata_user{
                 username = Username, password_hash = hash_password(Password),
-                role = Role, uuid = gen_uuid()
+                role = Role, uuid = onepanel_utils:gen_uuid()
             });
         {{error, Reason}, _} -> {error, Reason};
         {_, {error, Reason}} -> {error, Reason}
@@ -154,7 +152,7 @@ hash_password(Password) ->
     ok | {error, Reason :: term()}.
 change_password(Username, NewPassword) ->
     case verify_password(NewPassword) of
-        ok ->
+        NewPassword ->
             onedata_user:update(Username, #{
                 password_hash => hash_password(NewPassword)
             });
@@ -166,14 +164,6 @@ change_password(Username, NewPassword) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private @doc Generates random UUID.
-%%--------------------------------------------------------------------
--spec gen_uuid() -> binary().
-gen_uuid() ->
-    http_utils:base64url_encode(crypto:rand_bytes(?UUID_LEN)).
-
-
-%%--------------------------------------------------------------------
 %% @doc
 %% @todo write me!
 %% @end
@@ -181,8 +171,12 @@ gen_uuid() ->
 -spec verify_username(Username :: name()) -> ok | {error, Reason :: term()}.
 verify_username(<<>>) ->
     {error, empty_username};
-verify_username(_) ->
-    ok.
+verify_username(Username) ->
+    try
+        check_pattern(check_nonempty(Username), <<":">>)
+    catch
+        throw:Reason -> {error, {username, Reason}}
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -192,8 +186,50 @@ verify_username(_) ->
 %%--------------------------------------------------------------------
 -spec verify_password(Username :: name()) -> ok | {error, Reason :: term()}.
 verify_password(Password) ->
-    MinPasswordLength = onepanel:get_env(min_password_length),
-    case size(Password) < MinPasswordLength of
-        true -> {error, {short_password, MinPasswordLength}};
-        false -> ok
+    MinLength = onepanel:get_env(min_password_length),
+    try
+        check_pattern(check_length(Password, MinLength), <<":">>)
+    catch
+        throw:Reason -> {error, {password, Reason}}
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec check_nonempty(Binary :: binary()) -> Binary :: binary() | no_return().
+check_nonempty(<<>>) ->
+    throw(empty);
+
+check_nonempty(Binary) ->
+    Binary.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec check_pattern(Binary :: binary(), Pattern :: binary()) ->
+    Binary :: binary() | no_return().
+check_pattern(Binary, Pattern) ->
+    case binary:matches(Binary, Pattern) of
+        [] -> Binary;
+        _ -> throw({invalid_character, ":"})
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec check_length(Binary :: binary(), MinLength :: non_neg_integer()) ->
+    Binary :: binary() | no_return().
+check_length(Binary, MinLength) ->
+    case size(Binary) < MinLength of
+        true -> throw({too_short, MinLength});
+        false -> Binary
     end.

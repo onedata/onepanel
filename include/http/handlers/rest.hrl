@@ -25,7 +25,7 @@
     methods :: [rest_handler:method()],
     noauth :: [rest_handler:method()],
     client :: rest_handler:client(),
-    bindings :: #{}
+    ctx :: #{}
 }).
 
 -endif.

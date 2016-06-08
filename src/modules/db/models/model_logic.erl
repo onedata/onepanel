@@ -13,7 +13,7 @@
 
 %% API
 -export([table_name/1]).
--export([create/2, save/2, update/3, get/2, exists/2, delete/2]).
+-export([create/2, save/2, update/3, get/2, exists/2, delete/2, transaction/1]).
 
 -type model() :: atom().
 
@@ -39,7 +39,7 @@ table_name(Model) ->
 -spec create(Model :: model(), Record :: model_behaviour:record()) ->
     ok | {error, Reason :: term()}.
 create(Model, Record) ->
-    run(fun() ->
+    transaction(fun() ->
         Table = table_name(Model),
         Key = erlang:element(2, Record),
         case mnesia:read(Table, Key) of
@@ -58,7 +58,7 @@ create(Model, Record) ->
 -spec save(Model :: model(), Record :: model_behaviour:record()) ->
     ok | {error, Reason :: term()}.
 save(Model, Record) ->
-    run(fun() ->
+    transaction(fun() ->
         Table = table_name(Model),
         mnesia:write(Table, Record, write)
     end).
@@ -72,7 +72,7 @@ save(Model, Record) ->
 -spec update(Model :: model(), Key :: model_behaviour:key(),
     Diff :: model_behaviour:diff()) -> ok | {error, Reason :: term()}.
 update(Model, Key, Diff) ->
-    run(fun() ->
+    transaction(fun() ->
         Table = table_name(Model),
         Record = case mnesia:read(Table, Key) of
             [] -> mnesia:abort(not_found);
@@ -90,7 +90,7 @@ update(Model, Key, Diff) ->
 -spec get(Model :: model(), Key :: model_behaviour:key()) ->
     {ok, Record :: model_behaviour:record()} | {error, Reason :: term()}.
 get(Model, Key) ->
-    run(fun() ->
+    transaction(fun() ->
         Table = table_name(Model),
         case mnesia:read(Table, Key) of
             [] -> mnesia:abort(not_found);
@@ -107,7 +107,7 @@ get(Model, Key) ->
 -spec exists(Model :: model(), Key :: model_behaviour:key()) -> 
     boolean() | {error, Reason :: term()}.
 exists(Model, Key) ->
-    run(fun() ->
+    transaction(fun() ->
         Table = table_name(Model),
         case mnesia:read(Table, Key) of
             [] -> false;
@@ -124,23 +124,19 @@ exists(Model, Key) ->
 -spec delete(Model :: model(), Key :: model_behaviour:key()) ->
     ok | {error, Reason :: term()}.
 delete(Model, Key) ->
-    run(fun() ->
+    transaction(fun() ->
         Table = table_name(Model),
         mnesia:delete(Table, Key, write)
     end).
 
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
 
 %%--------------------------------------------------------------------
 %% @doc
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec run(Transaction :: fun()) -> term() | {error, Reason :: term()}.
-run(Transaction) ->
+-spec transaction(Transaction :: fun()) -> term() | {error, Reason :: term()}.
+transaction(Transaction) ->
     try
         mnesia:activity(transaction, Transaction)
     catch
@@ -148,6 +144,10 @@ run(Transaction) ->
         _:Reason -> {error, Reason}
     end.
 
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
 
 %%--------------------------------------------------------------------
 %% @doc

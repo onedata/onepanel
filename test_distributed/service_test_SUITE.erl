@@ -54,7 +54,7 @@ service_action_should_be_not_supported(Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     lists:foreach(fun(Node) ->
         ?assertMatch({error, action_not_supported, _},
-            rpc:call(Node, service, apply, [example, other_action, #{}]))
+            rpc:call(Node, service, apply, [example, some_action, #{}]))
     end, Nodes).
 
 
@@ -84,7 +84,8 @@ service_should_notify_caller(Config) ->
     ?assertReceivedEqual({action_begin, {example, some_action}}, ?TIMEOUT),
     lists:foreach(fun(Step) ->
         ?assertReceivedEqual({step_begin, {service_example, Step}}, ?TIMEOUT),
-        ?assertReceivedEqual({step_end, {service_example, Step, ok}}, ?TIMEOUT)
+        ?assertReceivedMatch({step_end, {service_example, Step, {[_ | _], []}}},
+            ?TIMEOUT)
     end, [step1, step2, step3]),
     ?assertReceivedEqual({action_end, {example, some_action, ok}},
         ?TIMEOUT).
@@ -102,7 +103,7 @@ service_action_should_pass_errors(Config) ->
     ?assertMatch({error, _}, rpc:call(Node1, service, apply,
         [example, some_action, #{notify => Self}])),
     ?assertReceivedMatch({step_end, {service_example, some_step,
-        {errors, [{Node2, {error, step_failure, _}}]}}}, ?TIMEOUT).
+        {[{Node1, ok}], [{Node2, {error, step_failure, _}}]}}}, ?TIMEOUT).
 
 
 %%%===================================================================
@@ -120,7 +121,9 @@ end_per_suite(Config) ->
 
 
 init_per_testcase(service_action_should_be_not_supported, Config) ->
-    mock_service(Config, get_steps, fun(some_action, _) -> [] end);
+    mock_service(Config, get_steps, fun(_, _) ->
+        meck:exception(throw, action_not_supported)
+    end);
 
 init_per_testcase(service_should_request_action_steps, Config) ->
     Self = self(),

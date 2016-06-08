@@ -57,7 +57,10 @@ get_steps(restart, _Ctx) ->
     [#step{function = stop}, #step{function = start}];
 
 get_steps(status, _Ctx) ->
-    [#step{function = status}].
+    [#step{function = status}];
+
+get_steps(_Action, _Ctx) ->
+    throw(action_not_supported).
 
 %%%===================================================================
 %%% API functions
@@ -146,7 +149,6 @@ status(_Ctx) ->
 init_cluster(Ctx) ->
     User = service:param(couchbase_user, Ctx),
     Password = service:param(couchbase_password, Ctx),
-    Authorization = basic_authorization(User, Password),
     Quota = erlang:integer_to_list(service:param(couchbase_memory_quota, Ctx)),
     Host = onepanel_utils:node_to_host(),
     Port = erlang:integer_to_list(service:param(couchbase_admin_port, Ctx)),
@@ -154,7 +156,7 @@ init_cluster(Ctx) ->
 
     {ok, 200, _, _} = http_client:post(
         "http://" ++ HostAndPort ++ "/pools/default", [
-            {"Authorization", Authorization},
+            onepanel_utils:get_basic_auth_header(User, Password),
             {"Content-Type", "application/x-www-form-urlencoded"}
         ], "memoryQuota=" ++ Quota
     ),
@@ -207,19 +209,3 @@ rebalance_cluster(Ctx) ->
 
     onepanel_shell:check_call([?CLI, "rebalance", "-c", Host ++ ":" ++ Port,
         "-u", User, "-p", Password]).
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
-%%--------------------------------------------------------------------
--spec basic_authorization(User :: string(), Password :: string()) ->
-    Authorization :: string().
-basic_authorization(User, Password) ->
-    Hash = base64:encode(string:join([User, Password], ":")),
-    "Basic " ++ erlang:binary_to_list(Hash).

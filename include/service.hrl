@@ -13,6 +13,8 @@
 -ifndef(ONEPANEL_SERVICE_HRL).
 -define(ONEPANEL_SERVICE_HRL, 1).
 
+-define(SERVICE_EXECUTOR, service_executor).
+
 -record(step, {
     hosts :: [service:host()] | fetch,
     selection = all :: all | first | rest,

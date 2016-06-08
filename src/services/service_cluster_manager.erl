@@ -51,7 +51,10 @@ get_steps(restart, _Ctx) ->
     [#step{function = stop}, #step{function = start}];
 
 get_steps(status, _Ctx) ->
-    [#step{function = status}].
+    [#step{function = status}];
+
+get_steps(_Action, _Ctx) ->
+    throw(action_not_supported).
 
 %%%===================================================================
 %%% API functions
