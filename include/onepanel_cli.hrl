@@ -53,5 +53,9 @@
 -define(GEO_LONGITUDE_KEY, "geo_longitude").
 -define(GEO_LATITUDE_KEY, "geo_latitude").
 -define(ONEZONE_KEY, "onezone").
+-define(ONEPANEL_KEY, "onepanel").
+-define(USERS_KEY, "users").
+-define(PASSWORD_KEY, "password").
+-define(ROLE_KEY, "role").
 
 -endif.

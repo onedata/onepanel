@@ -19,9 +19,12 @@
 
 %% API
 -export([hash_password/2, check_password/2]).
--export([create_user/2, change_username/2, authenticate/2, change_password/4]).
+-export([create_user/2, create_user/3, change_username/2, authenticate/2,
+    change_password/2, change_password/4, delete_default_user/0]).
 
 -on_load(init/0).
+
+-define(UUID_LEN, 32).
 
 %% ====================================================================
 %% API functions
@@ -68,23 +71,42 @@ check_password(_, _) ->
 %% ====================================================================
 %% @doc Creates user in database.
 %% @end
--spec create_user(Username :: binary(), Password :: binary()) -> Result when
-    Result :: ok | {error, Reason :: term()}.
+-spec create_user(Username :: binary(), Password :: binary()) ->
+    ok | {error, Reason :: term()}.
 %% ====================================================================
 create_user(Username, Password) ->
-    try
-        Transaction = fun() ->
-            {error, <<"Record not found.">>} = dao:get_record(?USER_TABLE, Username),
-            {ok, WorkFactor} = application:get_env(?APP_NAME, bcrypt_work_factor),
-            PasswordHash = hash_password(Password, WorkFactor),
-            ok = dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username,
-                password_hash = list_to_binary(PasswordHash)})
-        end,
-        mnesia:activity(transaction, Transaction)
-    catch
-        _:Reason ->
-            ?error_stacktrace("Cannot create user ~p: ~p", [Username, Reason]),
-            {error, Reason}
+    create_user(Username, Password, admin).
+
+
+%% create_user/2
+%% ====================================================================
+%% @doc Creates user in database.
+%% @end
+-spec create_user(Username :: binary(), Password :: binary(),
+    Role :: admin | regular) -> ok | {error, Reason :: term()}.
+%% ====================================================================
+create_user(Username, Password, Role) ->
+    case {verify_username(Username), verify_password(Password)} of
+        {Username, Password} ->
+            try
+                Transaction = fun() ->
+                    {error, <<"Record not found.">>} = dao:get_record(?USER_TABLE, Username),
+                    {ok, WorkFactor} = application:get_env(?APP_NAME, bcrypt_work_factor),
+                    PasswordHash = hash_password(Password, WorkFactor),
+                    ok = dao:save_record(?USER_TABLE, #?USER_RECORD{username = Username,
+                        password_hash = list_to_binary(PasswordHash), role = Role,
+                        uuid = http_utils:base64url_encode(crypto:rand_bytes(?UUID_LEN))})
+                end,
+                mnesia:activity(transaction, Transaction)
+            catch
+                _:{aborted, {{badmatch, {ok, #?USER_RECORD{}}}, _}} ->
+                    {error, <<"Username is not available">>};
+                _:Reason ->
+                    ?error_stacktrace("Cannot create user ~p: ~p", [Username, Reason]),
+                    {error, Reason}
+            end;
+        {{error, Reason}, _} -> {error, Reason};
+        {_, {error, Reason}} -> {error, Reason}
     end.
 
 
@@ -93,14 +115,14 @@ create_user(Username, Password) ->
 %% @doc Check whether user exists and whether it is a valid password
 %% @end
 -spec authenticate(Username :: binary(), Password :: binary()) -> Result when
-    Result :: ok | {error, ErrorId :: binary()}.
+    Result :: {ok, User :: #?USER_RECORD{}} | {error, ErrorId :: binary()}.
 %% ====================================================================
 authenticate(Username, Password) ->
     case dao:get_record(?USER_TABLE, Username) of
-        {ok, #?USER_RECORD{username = Username, password_hash = PasswordHash}} ->
+        {ok, #?USER_RECORD{username = Username, password_hash = PasswordHash} = User} ->
             try
                 true = check_password(Password, PasswordHash),
-                ok
+                {ok, User}
             catch
                 _:{badmatch, false} ->
                     {error, ?AUTHENTICATION_ERROR};
@@ -122,29 +144,31 @@ authenticate(Username, Password) ->
 -spec change_username(Username :: binary(), NewUsername :: binary()) -> Result when
     Result :: ok | {error, Reason :: binary()}.
 %% ====================================================================
-change_username(_, <<>>) ->
-    {error, <<"Username cannot be empty.">>};
-
 change_username(Username, Username) ->
     ok;
 
 change_username(Username, NewUsername) ->
-    try
-        Transaction = fun() ->
-            {error, <<"Record not found.">>} = dao:get_record(?USER_TABLE, NewUsername),
-            {ok, User} = dao:get_record(?USER_TABLE, Username),
-            ok = dao:delete_record(?USER_TABLE, Username),
-            ok = dao:save_record(?USER_TABLE, User#?USER_RECORD{username = NewUsername})
-        end,
-        mnesia:activity(transaction, Transaction)
-    catch
-        error:{badmatch, {ok, Record}} when is_record(Record, ?USER_RECORD) ->
-            {error, <<"Username is not available.">>};
-        error:{badmatch, {error, Reason}} when is_binary(Reason) ->
-            {error, Reason};
-        _:Reason ->
-            ?error_stacktrace("Cannot change name of user ~p: ~p", [Username, Reason]),
-            {error, <<"Internal server error.">>}
+    case verify_username(NewUsername) of
+        NewUsername ->
+            try
+                Transaction = fun() ->
+                    {error, <<"Record not found.">>} = dao:get_record(?USER_TABLE, NewUsername),
+                    {ok, User} = dao:get_record(?USER_TABLE, Username),
+                    ok = dao:delete_record(?USER_TABLE, Username),
+                    ok = dao:save_record(?USER_TABLE, User#?USER_RECORD{username = NewUsername})
+                end,
+                mnesia:activity(transaction, Transaction)
+            catch
+                _:{aborted, {{badmatch, {ok, #?USER_RECORD{}}}, _}} ->
+                    {error, <<"Username is not available">>};
+                error:{badmatch, {error, Reason}} when is_binary(Reason) ->
+                    {error, Reason};
+                _:Reason ->
+                    ?error_stacktrace("Cannot change name of user ~p: ~p", [Username, Reason]),
+                    {error, <<"Internal server error">>}
+            end;
+        {error, Reason} ->
+            {error, Reason}
     end.
 
 
@@ -152,35 +176,129 @@ change_username(Username, NewUsername) ->
 %% ====================================================================
 %% @doc Changes user's password if authenticated
 %% @end
--spec change_password(Username :: binary(), CurrentPassword :: binary(), NewPassword :: binary(), ConfirmedNewPassword :: binary()) -> Result
+-spec change_password(Username :: binary(), CurrentPassword :: binary(),
+    NewPassword :: binary(), ConfirmedNewPassword :: binary()) -> Result
     when Result :: ok | {error, Reason :: term()}.
 %% ====================================================================
 change_password(Username, CurrentPassword, NewPassword, NewPassword) ->
-    {ok, MinimumPasswordLength} = application:get_env(?APP_NAME, min_user_password_length),
-    case size(NewPassword) < MinimumPasswordLength of
-        true ->
-            {error, <<"Password should be at least ", (integer_to_binary(MinimumPasswordLength))/binary, " characters long.">>};
+    case authenticate(Username, CurrentPassword) of
+        {ok, _} ->
+            change_password(Username, NewPassword);
+        {error, ?AUTHENTICATION_ERROR} ->
+            {error, <<"Invalid username or password.">>};
         _ ->
-            case authenticate(Username, CurrentPassword) of
-                ok ->
-                    try
-                        {ok, WorkFactor} = application:get_env(?APP_NAME, bcrypt_work_factor),
-                        PasswordHash = hash_password(binary_to_list(NewPassword), WorkFactor),
-                        ok = dao:update_record(?USER_TABLE, Username, [{password_hash, PasswordHash}]),
-                        ok = gen_server:call(?ONEPANEL_SERVER, {set_password, Username, NewPassword})
-                    catch
-                        error:{badmatch, {error, Reason}} when is_binary(Reason) ->
-                            {error, Reason};
-                        _:Reason ->
-                            ?error_stacktrace("Cannot change password for user ~p: ~p", [Username, Reason]),
-                            {error, <<"Internal server error">>}
-                    end;
-                {error, ?AUTHENTICATION_ERROR} ->
-                    {error, <<"Invalid username or password.">>};
-                _ ->
-                    {error, <<"Internal server error">>}
-            end
+            {error, <<"Internal server error">>}
     end;
 
 change_password(_, _, _, _) ->
     {error, <<"Passwords do not match.">>}.
+
+
+%% change_password/2
+%% ====================================================================
+%% @doc Changes user's password.
+%% @end
+-spec change_password(Username :: binary(), NewPassword :: binary()) -> Result
+    when Result :: ok | {error, Reason :: term()}.
+%% ====================================================================
+change_password(Username, NewPassword) ->
+    case verify_password(NewPassword) of
+        NewPassword ->
+            try
+                {ok, WorkFactor} = application:get_env(?APP_NAME, bcrypt_work_factor),
+                PasswordHash = hash_password(binary_to_list(NewPassword), WorkFactor),
+                ok = dao:update_record(?USER_TABLE, Username, [{password_hash, PasswordHash}]),
+                ok = gen_server:call(?ONEPANEL_SERVER, {set_password, Username, NewPassword})
+            catch
+                error:{badmatch, {error, Reason}} when is_binary(Reason) ->
+                    {error, Reason};
+                _:Reason ->
+                    ?error_stacktrace("Cannot change password for user ~p: ~p", [Username, Reason]),
+                    {error, <<"Internal server error">>}
+            end;
+        {error, Reason} ->
+            {error, Reason}
+    end.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Verifies user name.
+%% @end
+%%--------------------------------------------------------------------
+-spec verify_username(Username :: binary()) -> ok | {error, Reason :: term()}.
+verify_username(<<>>) ->
+    {error, empty_username};
+verify_username(Username) ->
+    try
+        check_pattern(check_nonempty(Username), <<":">>)
+    catch
+        throw:Reason -> {error, <<"Username validation error: ", Reason/binary>>}
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Verifies user password.
+%% @end
+%%--------------------------------------------------------------------
+-spec verify_password(Username :: binary()) -> ok | {error, Reason :: term()}.
+verify_password(Password) ->
+    {ok, MinLength} = application:get_env(?APP_NAME, min_user_password_length),
+    try
+        check_pattern(check_length(Password, MinLength), <<":">>)
+    catch
+        throw:Reason -> {error, <<"Password validation error: ", Reason/binary>>}
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Checks whether provided string is nonempty.
+%% @end
+%%--------------------------------------------------------------------
+-spec check_nonempty(Binary :: binary()) -> Binary :: binary() | no_return().
+check_nonempty(<<>>) ->
+    throw(<<"must be nonempty">>);
+
+check_nonempty(Binary) ->
+    Binary.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Checks whether provided string contains given pattern.
+%% @end
+%%--------------------------------------------------------------------
+-spec check_pattern(Binary :: binary(), Pattern :: binary()) ->
+    Binary :: binary() | no_return().
+check_pattern(Binary, Pattern) ->
+    case binary:matches(Binary, Pattern) of
+        [] -> Binary;
+        _ -> throw(<<"must not contain '", Pattern/binary, "' character">>)
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Checks whether provided string satisfies minimum length.
+%% @end
+%%--------------------------------------------------------------------
+-spec check_length(Binary :: binary(), MinLength :: non_neg_integer()) ->
+    Binary :: binary() | no_return().
+check_length(Binary, MinLength) ->
+    case size(Binary) < MinLength of
+        true -> throw(<<"must contain at least ",
+            (integer_to_binary(MinLength))/binary, " characters">>);
+        false -> Binary
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Removes default user.
+%% @end
+%%--------------------------------------------------------------------
+-spec delete_default_user() -> ok | {error, Reason :: term()}.
+delete_default_user() ->
+    {ok, DefaultUsername} = application:get_env(?APP_NAME, default_username),
+    dao:delete_record(?USER_TABLE, DefaultUsername).

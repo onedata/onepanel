@@ -15,7 +15,8 @@
 -include("registered_names.hrl").
 
 %% oz_plugin_behaviour API
--export([get_oz_url/0, get_key_path/0, get_cert_path/0, get_cacert_path/0, get_csr_path/0]).
+-export([get_oz_url/0, get_oz_rest_port/0, get_oz_rest_api_prefix/0,
+    get_key_path/0, get_cert_path/0, get_cacert_path/0, get_csr_path/0]).
 
 %% ====================================================================
 %% oz_plugin_behaviour API functions
@@ -28,8 +29,30 @@
 -spec get_oz_url() -> string().
 %% ====================================================================
 get_oz_url() ->
-    {ok, URL} = application:get_env(?APP_NAME, onezone_url),
-    URL.
+    {ok, Hostname} = application:get_env(?APP_NAME, oz_domain),
+    "https://" ++ Hostname.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Should return OZ REST port.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_oz_rest_port() -> integer().
+get_oz_rest_port() ->
+    {ok, Port} = application:get_env(?APP_NAME, oz_rest_port),
+    Port.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @doc Should return OZ REST API prefix - for example /api/v3/onezone.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_oz_rest_api_prefix() -> string().
+get_oz_rest_api_prefix() ->
+    {ok, Prefix} = application:get_env(?APP_NAME, oz_rest_api_prefix),
+    Prefix.
 
 
 %% get_key_path/0
@@ -39,7 +62,7 @@ get_oz_url() ->
 -spec get_key_path() -> string().
 %% ====================================================================
 get_key_path() ->
-    {ok, KeyFile} = application:get_env(?APP_NAME, ozpkey_path),
+    {ok, KeyFile} = application:get_env(?APP_NAME, oz_key_path),
     KeyFile.
 
 
@@ -51,7 +74,7 @@ get_key_path() ->
 -spec get_cert_path() -> string().
 %% ====================================================================
 get_cert_path() ->
-    {ok, CertFile} = application:get_env(?APP_NAME, ozpcert_path),
+    {ok, CertFile} = application:get_env(?APP_NAME, oz_cert_path),
     CertFile.
 
 
@@ -63,7 +86,7 @@ get_cert_path() ->
 -spec get_cacert_path() -> string().
 %% ====================================================================
 get_cacert_path() ->
-    {ok, CACertFile} = application:get_env(?APP_NAME, ozpcacert_path),
+    {ok, CACertFile} = application:get_env(?APP_NAME, oz_cacert_path),
     CACertFile.
 
 %% get_csr_path/0
@@ -74,5 +97,5 @@ get_cacert_path() ->
 -spec get_csr_path() -> string().
 %% ====================================================================
 get_csr_path() ->
-    {ok, CSRFile} = application:get_env(?APP_NAME, ozpcsr_path),
+    {ok, CSRFile} = application:get_env(?APP_NAME, oz_csr_path),
     CSRFile.
