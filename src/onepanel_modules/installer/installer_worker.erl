@@ -224,7 +224,7 @@ local_start(MainCM, OptCMs, Dbs, Args) ->
                 ] ++ case AppName of
                     oneprovider ->
                         [
-                            {provider_domain, proplists:get_value(op_domain, Args, "localhost.local")},
+                            {provider_domain, proplists:get_value(op_domain, Args, get_op_domain())},
                             {oz_domain, OzDomain}
                         ];
                     onezone ->
@@ -241,9 +241,8 @@ local_start(MainCM, OptCMs, Dbs, Args) ->
             ]
         ),
 
-        OzUrl = "https://" ++ OzDomain ++ ":8443",
-        application:set_env(?APP_NAME, onezone_url, OzUrl),
-        ok = app_config:set(?APP_NAME, onezone_url, OzUrl),
+        application:set_env(?APP_NAME, oz_domain, OzDomain),
+        ok = app_config:set(?APP_NAME, oz_domain, OzDomain),
 
         copy_certs(AppName, Args),
         copy_dns_config(AppName, Args),
@@ -350,3 +349,7 @@ copy_file(Name, Path, Args) ->
             end,
             ok
     end.
+
+get_op_domain() ->
+    [_ | DomainTokens] = string:tokens(os:cmd("hostname -f") -- "\n", "."),
+    string:join(DomainTokens, ".").

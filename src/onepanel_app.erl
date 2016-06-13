@@ -62,6 +62,7 @@ start(_StartType, _StartArgs) ->
 
     Dispatch = cowboy_router:compile(
         [{'_',
+                rest_onedata_user:routes() ++
                 static_dispatches(GuiStaticRoot, ?STATIC_PATHS) ++ [
                 {"/ws/[...]", bullet_handler, [{handler, n2o_bullet}]},
                 {'_', ?COWBOY_BRIDGE_MODULE, []}

@@ -21,7 +21,9 @@
 
 %% User record contains following fields:
 %% * username       - name of user as a primary key in database
-%% * password_hash  - SHA 512 password hash
--record(?USER_RECORD, {username, password_hash}).
+%% * password_hash  - becrypt password hash
+%% * uuid           - onedata user UUID
+%% * role           - one of admin, regular
+-record(?USER_RECORD, {username, password_hash, uuid, role}).
 
 -endif.

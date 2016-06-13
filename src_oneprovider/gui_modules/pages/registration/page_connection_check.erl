@@ -172,15 +172,14 @@ comet_loop(#?STATE{pid = Pid} = State) ->
             receive
                 {connect, OzDomain} ->
                     NewPid = spawn_link(fun() ->
-                        OzUrl = "https://" ++ OzDomain ++ ":8443",
-                        application:set_env(?APP_NAME, onezone_url, OzUrl),
+                        application:set_env(?APP_NAME, oz_domain, OzDomain),
                         ok = installer_utils:check_ip_addresses(),
                         AppStr = ?APP_STR,
                         lists:foreach(fun(Node) ->
                             case string:tokens(atom_to_list(Node), "@") of
                                 [AppStr | _] ->
-                                    rpc:call(Node, application, set_env, [?APP_NAME, onezone_url, OzUrl]),
-                                    ok = rpc:call(Node, app_config, set, [?APP_NAME, onezone_url, OzUrl]);
+                                    rpc:call(Node, application, set_env, [?APP_NAME, oz_domain, OzDomain]),
+                                    ok = rpc:call(Node, app_config, set, [?APP_NAME, oz_domain, OzDomain]);
                                 _ ->
                                     ok
                             end

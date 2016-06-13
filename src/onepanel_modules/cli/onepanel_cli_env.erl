@@ -134,6 +134,20 @@ get([?ONEPROVIDER_KEY, ?GEO_LATITUDE_KEY], Envs) ->
 
 get([?ONEZONE_KEY, ?DOMAIN_NAME_KEY], Envs) ->
     onepanel_cli_env:get("ONEZONE_DOMAIN_NAME", Envs);
+
+get([?ONEPANEL_KEY, ?USERS_KEY], Envs) ->
+    get_list_env("ONEPANEL_USERS", Envs);
+get([?ONEPANEL_KEY, ?USERS_KEY, Name, ?PASSWORD_KEY], Envs) ->
+    ValidName = ensure_valid_env_name(Name),
+    onepanel_cli_env:get(
+        "ONEPANEL_USERS_" ++ ValidName ++ "_PASSWORD", Envs
+    );
+get([?ONEPANEL_KEY, ?USERS_KEY, Name, ?ROLE_KEY], Envs) ->
+    ValidName = ensure_valid_env_name(Name),
+    onepanel_cli_env:get(
+        "ONEPANEL_USERS_" ++ ValidName ++ "_ROLE", Envs
+    );
+
 get(Key, Envs) ->
     {ok, Prefix} = application:get_env(?APP_NAME, application_env_prefix),
     Env = case string:str(Key, Prefix) of

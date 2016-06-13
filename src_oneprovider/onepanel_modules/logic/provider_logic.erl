@@ -74,11 +74,11 @@ register(RedirectionPoint, ClientName) ->
 register(RedirectionPoint, ClientName, OptArgs) ->
     try
         {ok, EtcDir} = application:get_env(?APP_NAME, platform_etc_dir),
-        {ok, KeyFile} = application:get_env(?APP_NAME, ozpkey_path),
+        {ok, KeyFile} = application:get_env(?APP_NAME, oz_key_path),
         {ok, KeyName} = application:get_env(?APP_NAME, ozpkey_name),
-        {ok, CsrPath} = application:get_env(?APP_NAME, ozpcsr_path),
+        {ok, CsrPath} = application:get_env(?APP_NAME, oz_csr_path),
         {ok, CertName} = application:get_env(?APP_NAME, ozpcert_name),
-        {ok, CertFile} = application:get_env(?APP_NAME, ozpcert_path),
+        {ok, CertFile} = application:get_env(?APP_NAME, oz_cert_path),
         Path = filename:join([EtcDir, ?SOFTWARE_NAME, "certs"]),
 
         {ok, _} = create_csr("", KeyFile, CsrPath),

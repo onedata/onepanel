@@ -11,6 +11,7 @@
 %% ===================================================================
 -module(page_login_validation).
 
+-include("onepanel_modules/logic/db_logic.hrl").
 -include("gui_modules/common.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -56,7 +57,7 @@ body() ->
             Username = proplists:get_value(<<"username">>, Params),
             Password = proplists:get_value(<<"password">>, Params),
             case user_logic:authenticate(Username, Password) of
-                ok ->
+                {ok, #?USER_RECORD{role = admin}} ->
                     case gen_server:call(?ONEPANEL_SERVER, {set_password, Username, Password}) of
                         ok ->
                             ?info("Successful login of user: ~p", [Username]),
@@ -67,6 +68,8 @@ body() ->
                             ?error("Cannot set password for user ~p: ~p", [Username, Other]),
                             page_error:redirect_with_error(?INTERNAL_SERVER_ERROR)
                     end;
+                {ok, #?USER_RECORD{}} ->
+                    page_error:redirect_with_error(?AUTHORIZATION_ERROR);
                 {error, ErrorId} ->
                     ?error("Invalid login attempt, user ~p: ~p", [Username, ErrorId]),
                     page_error:redirect_with_error(ErrorId)
