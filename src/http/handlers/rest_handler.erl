@@ -159,9 +159,10 @@ resource_exists(Req, #rstate{module = Module, resource = Resource} = State) ->
 %%--------------------------------------------------------------------
 -spec delete_resource(Req :: cowboy_req:req(), State :: rstate()) ->
     {boolean(), cowboy_req:req(), rstate()}.
-delete_resource(Req, #rstate{module = Mod, resource = Resource} = State) ->
+delete_resource(Req, #rstate{module = Mod, resource = Resource, client = Client}
+    = State) ->
     Ctx = get_ctx(Req),
-    Deleted = Mod:delete_resource(Resource, Ctx),
+    Deleted = Mod:delete_resource(Resource, Ctx, Client),
     {Deleted, Req, State}.
 
 

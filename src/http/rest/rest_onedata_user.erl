@@ -11,11 +11,12 @@
 -author("Krzysztof Trzepla").
 
 -include("http/handlers/rest.hrl").
+-include("onepanel_modules/logic/db_logic.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% REST behaviour callbacks
 -export([routes/0, is_authorized/4, resource_exists/2, accept_resource/6,
-    provide_resource/3, delete_resource/2]).
+    provide_resource/3, delete_resource/3]).
 
 %%%===================================================================
 %%% REST behaviour callbacks
@@ -31,7 +32,9 @@ routes() ->
     Module = rest_handler,
     [
         {<<"/api/v3/onepanel/user">>, Module, State#rstate{resource = user,
-            methods = [get, post, put]}}
+            methods = [get, post, put, delete], noauth = [post]}},
+        {<<"/api/v3/onepanel/user/:name">>, Module, State#rstate{resource = users,
+            methods = [delete]}}
     ].
 
 
@@ -41,9 +44,13 @@ routes() ->
 -spec is_authorized(Resource :: rest_handler:resource(),
     Method :: rest_handler:method(), Ctx :: rest_handler:ctx(),
     Client :: rest_handler:client()) -> boolean().
-is_authorized(user, get, _Ctx, _Client) ->
-    true;
-is_authorized(user, put, _Ctx, _Client) ->
+is_authorized(user, post, _Ctx, Client) ->
+    case {mnesia:table_info(?USER_TABLE, size), Client} of
+        {0, _} -> true;
+        {_, #client{role = admin}} -> true;
+        {_, _} -> false
+    end;
+is_authorized(user, _Method, _Ctx, _Client) ->
     true;
 is_authorized(_Resource, _Method, _Ctx, #client{role = admin}) ->
     true;
@@ -102,6 +109,11 @@ provide_resource(user, _Ctx, #client{id = Id, role = Role}) ->
 %% @doc {@link rest_behaviour} callback delete_resource/2
 %%--------------------------------------------------------------------
 -spec delete_resource(Resource :: rest_handler:resource(),
-    Ctx :: rest_handler:ctx()) -> no_return().
-delete_resource(_Resource, _Ctx) ->
-    rest_utils:report_error(invalid_request).
+    Ctx :: rest_handler:ctx(), Client :: rest_handler:client()) -> true.
+delete_resource(user, _Ctx, #client{name = Username}) ->
+    ok = dao:delete_record(?USER_TABLE, Username),
+    true;
+
+delete_resource(users, #{bindings := #{name := Username}}, _Client) ->
+    ok = dao:delete_record(?USER_TABLE, Username),
+    true.
