@@ -11,7 +11,8 @@
 -module(onepanel_shell).
 -author("Krzysztof Trzepla").
 
--include_lib("ctool/include/logging.hrl").
+-include("modules/errors.hrl").
+-include("modules/logger.hrl").
 
 %% API
 -export([output/1, check_output/1, wait_output/3, wait_output/4,
@@ -40,7 +41,7 @@ output(Tokens) ->
             string:join([Acc, Token], " ")
     end, "", Tokens)),
     Result = string:strip(os:cmd(Cmd), right, $\n),
-    ?info("Shell command: '~s' returned: '~s'", [Cmd, Result]),
+    ?log_info("Shell command: '~s' returned: '~s'", [Cmd, Result]),
     Result.
 
 
@@ -57,7 +58,7 @@ check_output(Tokens) ->
     Output = string:join(OutputTokens, ","),
     case Code of
         0 -> Output;
-        _ -> throw({shell_error, Code, Output})
+        _ -> ?throw({Code, Output})
     end.
 
 
@@ -105,7 +106,7 @@ call(Tokens) ->
 check_call(Tokens) ->
     case call(Tokens) of
         0 -> ok;
-        Code -> throw({shell_error, Code})
+        Code -> ?throw(Code)
     end.
 
 

@@ -13,14 +13,13 @@
 -ifndef(ONEPANEL_SERVICE_HRL).
 -define(ONEPANEL_SERVICE_HRL, 1).
 
--define(SERVICE_EXECUTOR, service_executor).
-
 -record(step, {
-    hosts :: [service:host()] | fetch,
+    hosts :: [service:host()],
     selection = all :: all | first | rest,
     service :: service:name(),
     module :: module(),
     function :: atom(),
+    args :: term(),
     ctx :: service:ctx(),
     condition = fun(_) -> true end :: service:condition(),
     ignore_errors :: boolean()

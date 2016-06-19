@@ -14,8 +14,13 @@
 
 -ifdef(TEST).
 
--include("db/models.hrl").
+-include("modules/errors.hrl").
+-include("modules/models.hrl").
 -include_lib("eunit/include/eunit.hrl").
+
+-define(U, <<"user1">>).
+-define(P, <<"Password1">>).
+-define(R, admin).
 
 %%%===================================================================
 %%% Test generators
@@ -26,13 +31,22 @@ onedata_user_test_() ->
         fun start/0,
         fun stop/1,
         [
+            fun new_should_validate_username/1,
+            fun new_should_validate_password/1,
+            fun new_should_validate_role/1,
             fun new_should_create_user/1,
-            fun new_should_not_create_user_with_empty_username/1,
-            fun new_should_not_create_user_with_short_password/1,
-            fun new_should_not_overwrite_existing_user/1,
+            fun new_should_reject_existing_user/1,
             fun authenticate_should_return_user/1,
             fun authenticate_should_pass_errors/1,
-            fun change_password_should_work/1
+            fun change_password_should_work/1,
+            fun change_password_should_validate_password/1,
+            fun validate_username_should_reject_empty/1,
+            fun validate_username_should_reject_short/1,
+            fun validate_username_should_reject_invalid/1,
+            fun validate_password_should_reject_empty/1,
+            fun validate_password_should_reject_short/1,
+            fun validate_password_should_reject_invalid/1,
+            fun validate_role_should_reject_invalid/1
         ]
     }.
 
@@ -40,40 +54,81 @@ onedata_user_test_() ->
 %%% Test functions
 %%%===================================================================
 
+new_should_validate_username(_) ->
+    meck:new(onedata_user, [passthrough]),
+    onedata_user:new(?U, ?P, ?R),
+    ?_assert(meck:called(onedata_user, validate_username, [?U])).
+
+new_should_validate_password(_) ->
+    meck:new(onedata_user, [passthrough]),
+    onedata_user:new(?U, ?P, ?R),
+    ?_assert(meck:called(onedata_user, validate_password, [?P])).
+
+new_should_validate_role(_) ->
+    meck:new(onedata_user, [passthrough]),
+    onedata_user:new(?U, ?P, ?R),
+    ?_assert(meck:called(onedata_user, validate_role, [?R])).
+
 new_should_create_user(_) ->
-    ?_assertEqual(ok, onedata_user:new(<<"u">>, <<"p">>, r)).
+    ?_assertEqual(ok, onedata_user:new(?U, ?P, ?R)).
 
-new_should_not_create_user_with_empty_username(_) ->
-    ?_assertEqual({error, empty_username}, onedata_user:new(<<>>, <<"p">>, r)).
-
-new_should_not_create_user_with_short_password(_) ->
-    onepanel:set_env(min_password_length, 2),
-    ?_assertEqual({error, {password, {too_short, 2}}},
-        onedata_user:new(<<"u">>, <<"p">>, r)).
-
-new_should_not_overwrite_existing_user(_) ->
-    ?assertEqual(ok, onedata_user:new(<<"u">>, <<"p">>, r)),
-    ?_assertEqual({error, already_exists},
-        onedata_user:new(<<"u">>, <<"p">>, r)).
+new_should_reject_existing_user(_) ->
+    ?assertEqual(ok, onedata_user:new(?U, ?P, ?R)),
+    ?_assertThrow(#error{reason = ?ERR_USERNAME_NOT_AVAILABLE},
+        onedata_user:new(?U, ?P, ?R)).
 
 authenticate_should_return_user(_) ->
-    ?assertEqual(ok, onedata_user:new(<<"u">>, <<"p">>, r)),
-    Hash = onedata_user:hash_password(<<"p">>),
+    ?assertEqual(ok, onedata_user:new(?U, ?P, ?R)),
+    Hash = onedata_user:hash_password(?P),
     ?_assertMatch({ok, #onedata_user{
-        username = <<"u">>, password_hash = Hash, role = r, uuid = <<_/binary>>}
-    }, onedata_user:authenticate(<<"u">>, <<"p">>)).
+        username = ?U, password_hash = Hash, role = ?R, uuid = <<_/binary>>}
+    }, onedata_user:authenticate(?U, ?P)).
 
 authenticate_should_pass_errors(_) ->
-    ?assertEqual(ok, onedata_user:new(<<"u">>, <<"p">>, r)),
-    ?_assertMatch({error, invalid_username_or_password},
-        onedata_user:authenticate(<<"u">>, <<"p2">>)).
+    ?assertEqual(ok, onedata_user:new(?U, ?P, ?R)),
+    ?_assertMatch(#error{reason = ?ERR_INVALID_USERNAME_OR_PASSWORD},
+        onedata_user:authenticate(?U, <<"password">>)).
+
+change_password_should_validate_password(_) ->
+    meck:new(onedata_user, [passthrough]),
+    onedata_user:new(?U, ?P, ?R),
+    ?_assert(meck:called(onedata_user, validate_password, [?P])).
 
 change_password_should_work(_) ->
-    ?assertEqual(ok, onedata_user:new(<<"u">>, <<"p">>, r)),
-    ?assertEqual(ok, onedata_user:change_password(<<"u">>, <<"p2">>)),
-    ?assertEqual({error, invalid_username_or_password},
-        onedata_user:authenticate(<<"u">>, <<"p">>)),
-    ?_assertMatch({ok, _}, onedata_user:authenticate(<<"u">>, <<"p2">>)).
+    NewPassword = <<"Password2">>,
+    ?assertEqual(ok, onedata_user:new(?U, ?P, ?R)),
+    ?assertEqual(ok, onedata_user:change_password(?U, NewPassword)),
+    ?assertMatch(#error{reason = ?ERR_INVALID_USERNAME_OR_PASSWORD},
+        onedata_user:authenticate(?U, ?P)),
+    ?_assertMatch({ok, _}, onedata_user:authenticate(?U, NewPassword)).
+
+validate_username_should_reject_empty(_) ->
+    ?_assertThrow(#error{reason = ?ERR_INVALID_USERNAME},
+        onedata_user:validate_username(<<>>)).
+
+validate_username_should_reject_short(_) ->
+    ?_assertThrow(#error{reason = ?ERR_INVALID_USERNAME},
+        onedata_user:validate_username(<<"u">>)).
+
+validate_username_should_reject_invalid(_) ->
+    ?_assertThrow(#error{reason = ?ERR_INVALID_USERNAME},
+        onedata_user:validate_username(<<"user:">>)).
+
+validate_password_should_reject_empty(_) ->
+    ?_assertThrow(#error{reason = ?ERR_INVALID_PASSWORD},
+        onedata_user:validate_password(<<>>)).
+
+validate_password_should_reject_short(_) ->
+    ?_assertThrow(#error{reason = ?ERR_INVALID_PASSWORD},
+        onedata_user:validate_password(<<"p">>)).
+
+validate_password_should_reject_invalid(_) ->
+    ?_assertThrow(#error{reason = ?ERR_INVALID_PASSWORD},
+        onedata_user:validate_password(<<"Pass:word1">>)).
+
+validate_role_should_reject_invalid(_) ->
+    ?_assertThrow(#error{reason = ?ERR_INVALID_ROLE},
+        onedata_user:validate_role(role)).
 
 %%%===================================================================
 %%% Test fixtures
@@ -81,13 +136,14 @@ change_password_should_work(_) ->
 
 start() ->
     error_logger:tty(false),
-    onepanel:set_env(min_password_length, 1),
-    onepanel:set_env(create_tables_timeout, 10000),
-    ?assertEqual(ok, db_manager:create_db()),
-    ?assertEqual(ok, db_manager:empty_db()),
+    onepanel_env:set(min_username_length, 4),
+    onepanel_env:set(min_password_length, 8),
+    onepanel_env:set(create_tables_timeout, 10000),
+    ?assertEqual(ok, onepanel_cluster:init()),
     ok.
 
 stop(_) ->
-    ?assertEqual(ok, db_manager:delete_db()).
+    ?assertEqual(ok, onepanel_cluster:clear_node()),
+    meck:unload().
 
 -endif.

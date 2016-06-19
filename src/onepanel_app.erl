@@ -37,6 +37,7 @@
     {error, Reason :: term()}.
 start(_StartType, _StartArgs) ->
     test_node_starter:maybe_start_cover(),
+    rest_listener:start(),
     onepanel_sup:start_link().
 
 
@@ -50,6 +51,7 @@ start(_StartType, _StartArgs) ->
 %%--------------------------------------------------------------------
 -spec stop(State :: term()) -> term().
 stop(_State) ->
+    rest_listener:stop(),
     test_node_starter:maybe_stop_cover(),
     ok.
 

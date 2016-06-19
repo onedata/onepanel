@@ -13,12 +13,13 @@
 
 -behaviour(gen_server).
 
+-include("modules/errors.hrl").
+-include("modules/logger.hrl").
 -include("service.hrl").
--include_lib("ctool/include/logging.hrl").
 
 %% API
--export([start_link/0, apply_async/3, apply_sync/3, apply_sync/4, get_results/1, 
-    abort_task/1, handle_results/1]).
+-export([start_link/0, apply_async/3, apply_sync/3, apply_sync/4, get_results/1,
+    handle_results/1, abort_task/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -52,7 +53,7 @@
 -spec(start_link() ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
 start_link() ->
-    gen_server:start_link({local, ?SERVICE_EXECUTOR}, ?MODULE, [], []).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 
 %%--------------------------------------------------------------------
@@ -63,7 +64,7 @@ start_link() ->
 -spec apply_async(Services :: service:name() | [service:name()],
     Action :: service:action(), Ctx :: service:ctx()) -> TaskId :: task_id().
 apply_async(Services, Action, Ctx) ->
-    gen_server:call(?SERVICE_EXECUTOR, {apply, Services, Action, Ctx}).
+    gen_server:call(?MODULE, {apply, Services, Action, Ctx}).
 
 
 %%--------------------------------------------------------------------
@@ -73,7 +74,7 @@ apply_async(Services, Action, Ctx) ->
 %%--------------------------------------------------------------------
 -spec apply_sync(Services :: service:name() | [service:name()],
     Action :: service:action(), Ctx :: service:ctx()) ->
-    {ok, Result :: term()} | {error, Reason :: term()}.
+    {ok, Result :: term()} | #error{}.
 apply_sync(Services, Action, Ctx) ->
     apply_sync(Services, Action, Ctx, infinity).
 
@@ -85,7 +86,7 @@ apply_sync(Services, Action, Ctx) ->
 %%--------------------------------------------------------------------
 -spec apply_sync(Services :: service:name() | [service:name()],
     Action :: service:action(), Ctx :: service:ctx(), Timeout :: timeout()) ->
-    {ok, Result :: term()} | {error, Reason :: term()}.
+    {ok, Result :: term()} | #error{}.
 apply_sync(Services, Action, Ctx, Timeout) ->
     TaskId = apply_async(Services, Action, Ctx),
     Result = receive_results(TaskId, Timeout),
@@ -98,25 +99,45 @@ apply_sync(Services, Action, Ctx, Timeout) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec get_results(TaskId :: task_id()) ->
-    {ok, Results :: list()} | {error, Reason :: term()}.
+-spec get_results(TaskId :: task_id()) -> {ok, Results :: list()} | #error{}.
 get_results(TaskId) ->
     get_results(TaskId, infinity).
 
 get_results(TaskId, Timeout) ->
-    case gen_server:call(?SERVICE_EXECUTOR, {get_results, TaskId}) of
+    case gen_server:call(?MODULE, {get_results, TaskId}) of
         ok -> receive_results(TaskId, Timeout);
-        {error, Reason} -> {error, Reason}
+        #error{} = Error -> Error
     end.
+
 
 %%--------------------------------------------------------------------
 %% @doc
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec abort_task(Uuid :: binary()) -> ok | {error, Reason :: term()}.
+-spec handle_results(Results :: term()) -> no_return().
+handle_results(Results) ->
+    receive
+        task_finished ->
+            ?MODULE:handle_results([task_finished | Results]);
+        {step_end, Result} ->
+            ?MODULE:handle_results([Result | Results]);
+        {forward_results, TaskId, Pid} ->
+            Pid ! {task, TaskId, lists:reverse(Results)},
+            ?MODULE:handle_results(Results);
+        _ ->
+            ?MODULE:handle_results(Results)
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec abort_task(Uuid :: binary()) -> ok | #error{}.
 abort_task(TaskId) ->
-    gen_server:call(?SERVICE_EXECUTOR, {abort_task, TaskId}).
+    gen_server:call(?MODULE, {abort_task, TaskId}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -165,7 +186,7 @@ handle_call({apply, Services, Action, Ctx}, {Owner, _}, #state{tasks = Tasks,
 handle_call({abort_task, TaskId}, _From, State) ->
     case task_cleanup(TaskId, State) of
         {true, NewState} -> {reply, ok, NewState};
-        {false, NewState} -> {reply, {error, not_found}, NewState}
+        {false, NewState} -> {reply, ?error(?ERR_NOT_FOUND), NewState}
     end;
 
 handle_call({get_results, TaskId}, From, #state{tasks = Tasks} = State) ->
@@ -174,7 +195,7 @@ handle_call({get_results, TaskId}, From, #state{tasks = Tasks} = State) ->
             Handler ! {forward_results, TaskId, From},
             {reply, ok, State};
         error ->
-            {reply, {error, not_found}, State}
+            {reply, ?error(?ERR_NOT_FOUND), State}
     end;
 
 handle_call(Request, _From, State) ->
@@ -215,9 +236,9 @@ handle_info({'EXIT', Pid, normal}, #state{tasks = Tasks, workers = Workers} =
                     Handler ! {forward_results, TaskId, Owner},
                     schedule_task_cleanup(TaskId);
                 error ->
-                    ?warning("Task ~p not found", [TaskId])
+                    ?log_warning("Task ~p not found", [TaskId])
             end;
-        error -> ?warning("Worker ~p not found", [Pid])
+        error -> ?log_warning("Worker ~p not found", [Pid])
     end,
     {noreply, State#state{workers = maps:remove(Pid, Workers)}};
 
@@ -226,13 +247,13 @@ handle_info({'EXIT', Pid, _}, #state{workers = Workers, handlers = Handlers}
     Result = case {maps:find(Pid, Workers), maps:find(Pid, Handlers)} of
         {{ok, Id}, _} -> {ok, Id};
         {_, {ok, Id}} -> {ok, Id};
-        {_, _} -> {error, not_found}
+        {_, _} -> ?error(?ERR_NOT_FOUND)
     end,
     NewState = case Result of
         {ok, TaskId} ->
             {_, CleanState} = task_cleanup(TaskId, State),
             CleanState;
-        {error, not_found} -> State
+        #error{reason = ?ERR_NOT_FOUND} -> State
     end,
     {noreply, NewState};
 
@@ -274,6 +295,13 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec task_cleanup(TaskId :: task_id(), State :: #state{}) ->
+    {Cleaned :: boolean(), NewState :: #state{}}.
 task_cleanup(TaskId, #state{tasks = Tasks, workers = Workers,
     handlers = Handlers} = State) ->
     case maps:find(TaskId, Tasks) of
@@ -289,27 +317,28 @@ task_cleanup(TaskId, #state{tasks = Tasks, workers = Workers,
     end.
 
 
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec schedule_task_cleanup(TaskId :: task_id()) -> ok.
 schedule_task_cleanup(TaskId) ->
-    Delay = onepanel:get_env(task_ttl),
-    erlang:send_after(Delay, self(), {task_cleanup, TaskId}).
+    Delay = onepanel_env:get(task_ttl),
+    erlang:send_after(Delay, self(), {task_cleanup, TaskId}),
+    ok.
 
 
-handle_results(Results) ->
-    receive
-        task_finished ->
-            ?MODULE:handle_results([task_finished | Results]);
-        {step_end, Result} ->
-            ?MODULE:handle_results([Result | Results]);
-        {forward_results, TaskId, Pid} ->
-            Pid ! {task, TaskId, lists:reverse(Results)},
-            ?MODULE:handle_results(Results);
-        _ ->
-            ?MODULE:handle_results(Results)
-    end.
-
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec receive_results(TaskId :: task_id(), Timeout :: timeout()) ->
+    {ok, Result :: term()} | #error{}.
 receive_results(TaskId, Timeout) ->
     receive
         {task, TaskId, Result} -> {ok, Result}
     after
-        Timeout -> {error, timeout}
+        Timeout -> ?error(?ERR_TIMEOUT)
     end.

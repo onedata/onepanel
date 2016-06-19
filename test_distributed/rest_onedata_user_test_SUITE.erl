@@ -11,7 +11,8 @@
 -module(rest_onedata_user_test_SUITE).
 -author("Krzysztof Trzepla").
 
--include("db/models.hrl").
+-include("modules/errors.hrl").
+-include("modules/models.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
@@ -31,8 +32,7 @@
     put_should_change_password/1,
     put_should_return_authorization_error/1,
     put_should_report_missing_key/1,
-    put_should_report_invalid_value/1,
-    put_should_report_password_too_short/1
+    put_should_report_invalid_value/1
 ]).
 
 all() ->
@@ -46,8 +46,7 @@ all() ->
         put_should_change_password,
         put_should_return_authorization_error,
         put_should_report_missing_key,
-        put_should_report_invalid_value,
-        put_should_report_password_too_short
+        put_should_report_invalid_value
     ]).
 
 %%%===================================================================
@@ -78,11 +77,11 @@ get_should_return_authorization_error(Config) ->
 noauth_post_should_create_first_admin_user(Config) ->
     [Node | _] = ?config(onepanel_nodes, Config),
     Username = <<"username">>,
-    Password = <<"password">>,
+    Password = <<"Password1">>,
 
     post_user(Node, [
         {username, Username},
-        {password, base64:encode(Password)},
+        {password, Password},
         {userRole, regular}
     ], 204),
 
@@ -94,13 +93,13 @@ post_should_create_user(Config) ->
     Username = ?config(username, Config),
     Password = ?config(password, Config),
     NewUsername = <<"username2">>,
-    NewPassword = <<"password2">>,
+    NewPassword = <<"Password2">>,
     NewRole = regular,
 
     post_user(Node,
         [onepanel_utils:get_basic_auth_header(Username, Password)], [
             {username, NewUsername},
-            {password, base64:encode(NewPassword)},
+            {password, NewPassword},
             {userRole, NewRole}
         ], 204
     ),
@@ -111,12 +110,12 @@ post_should_create_user(Config) ->
 post_should_return_authorization_error(Config) ->
     [Node | _] = ?config(onepanel_nodes, Config),
     NewUsername = <<"username2">>,
-    NewPassword = <<"password2">>,
+    NewPassword = <<"Password2">>,
     NewRole = regular,
 
     post_user(Node, [
         {username, NewUsername},
-        {password, base64:encode(NewPassword)},
+        {password, NewPassword},
         {userRole, NewRole}
     ], 403).
 
@@ -126,13 +125,15 @@ post_should_not_create_existing_user(Config) ->
     Username = ?config(username, Config),
     Password = ?config(password, Config),
 
-    ?assertMatch({<<"invalid_request">>, _},
+    Error = rpc:call(Node, onepanel_errors, translate, [throw,
+        #error{reason = ?ERR_USERNAME_NOT_AVAILABLE}]),
+    ?assertMatch(Error,
         post_user(Node,
             [onepanel_utils:get_basic_auth_header(Username, Password)], [
                 {username, Username},
-                {password, base64:encode(Password)},
+                {password, Password},
                 {userRole, regular}
-            ],400
+            ], 400
         )
     ).
 
@@ -143,10 +144,9 @@ put_should_change_password(Config) ->
     Password = ?config(password, Config),
     Id = ?config(id, Config),
     Role = ?config(role, Config),
-    NewPassword = <<Password/binary, "_new">>,
+    NewPassword = <<Password/binary, "new">>,
 
-    put_user(Node, Username, Password,
-        [{password, base64:encode(NewPassword)}], 204),
+    put_user(Node, Username, Password, [{password, NewPassword}], 204),
     ?assertMatch({Id, Role}, get_user(Node, Username, NewPassword, 200)).
 
 
@@ -154,10 +154,9 @@ put_should_return_authorization_error(Config) ->
     [Node | _] = ?config(onepanel_nodes, Config),
     Username = ?config(username, Config),
     Password = ?config(password, Config),
-    NewPassword = <<Password/binary, "_new">>,
+    NewPassword = <<Password/binary, "new">>,
 
-    put_user(Node, Username, NewPassword,
-        [{password, base64:encode(NewPassword)}], 401).
+    put_user(Node, Username, NewPassword, [{password, NewPassword}], 401).
 
 
 put_should_report_missing_key(Config) ->
@@ -165,7 +164,9 @@ put_should_report_missing_key(Config) ->
     Username = ?config(username, Config),
     Password = ?config(password, Config),
 
-    ?assertMatch({<<"missing_key">>, _},
+    Error = rpc:call(Node, onepanel_errors, translate, [throw,
+        #error{reason = {?ERR_MISSING_REQUIRED_KEY, <<"password">>}}]),
+    ?assertEqual(Error,
         put_user(Node, Username, Password, [], 400)).
 
 
@@ -174,17 +175,10 @@ put_should_report_invalid_value(Config) ->
     Username = ?config(username, Config),
     Password = ?config(password, Config),
 
-    ?assertMatch({<<"invalid_value">>, _}, put_user(Node, Username, Password,
-        [{password, <<"not_a_base64_string">>}], 400)).
-
-
-put_should_report_password_too_short(Config) ->
-    [Node | _] = ?config(onepanel_nodes, Config),
-    Username = ?config(username, Config),
-    Password = ?config(password, Config),
-
-    ?assertMatch({<<"invalid_value">>, <<"new password should be at least",
-        _/binary>>}, put_user(Node, Username, Password, [{password, <<>>}], 400)).
+    Error = rpc:call(Node, onepanel_errors, translate, [throw,
+        #error{reason = ?ERR_INVALID_PASSWORD}]),
+    ?assertEqual(Error, put_user(Node, Username, Password,
+        [{password, <<"password">>}], 400)).
 
 %%%===================================================================
 %%% SetUp and TearDown functions
@@ -193,8 +187,7 @@ put_should_report_password_too_short(Config) ->
 init_per_suite(Config) ->
     application:start(ssl2),
     hackney:start(),
-    NewConfig = ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json")),
-    onepanel_test_utils:ensure_initailized(NewConfig).
+    ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json")).
 
 
 end_per_suite(Config) ->
@@ -202,12 +195,13 @@ end_per_suite(Config) ->
 
 
 init_per_testcase(noauth_post_should_create_first_admin_user, Config) ->
-    Config;
+    onepanel_test_utils:init(Config);
 
 init_per_testcase(_Case, Config) ->
-    [Node | _] = ?config(onepanel_nodes, Config),
+    NewConfig = onepanel_test_utils:init(Config),
+    [Node | _] = ?config(onepanel_nodes, NewConfig),
     Username = <<"username">>,
-    Password = <<"password">>,
+    Password = <<"Password1">>,
     Role = admin,
 
     ?assertEqual(ok, rpc:call(Node, onedata_user, new,
@@ -215,13 +209,12 @@ init_per_testcase(_Case, Config) ->
     {ok, #onedata_user{uuid = Id}} = ?assertMatch({ok, _},
         rpc:call(Node, onedata_user, get, [Username])),
 
-    [{username, Username}, {password, Password}, {id, Id}, {role, Role} | Config].
+    [{username, Username}, {password, Password}, {id, Id}, {role, Role} |
+        NewConfig].
 
 
-end_per_testcase(_Case, Config) ->
-    [Node | _] = ?config(onepanel_nodes, Config),
-    rpc:call(Node, db_manager, empty_db, []).
-
+end_per_testcase(_Case, _Config) ->
+    ok.
 
 %%%===================================================================
 %%% Internal functions
@@ -284,9 +277,11 @@ do_request(Node, Endpoint, Method, Headers) ->
 
 
 do_request(Node, Endpoint, Method, Headers, Body) ->
-    Hostname = onepanel_utils:node_to_host(Node),
-    Prefix = rpc:call(Node, onepanel, get_env, [rest_prefix]),
-    Port = erlang:integer_to_list(rpc:call(Node, onepanel, get_env, [rest_port])),
+    Hostname = onepanel_cluster:node_to_host(Node),
+    Prefix = "/api/v3/onepanel",
+    Port = erlang:integer_to_list(
+        rpc:call(Node, onepanel_env, get, [rest_port])
+    ),
     Url = "https://" ++ Hostname ++ ":" ++ Port ++ Prefix ++ Endpoint,
 
     http_client:request(Method, Url, [{<<"Content-Type">>,

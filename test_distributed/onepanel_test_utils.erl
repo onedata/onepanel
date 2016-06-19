@@ -15,7 +15,7 @@
 -include_lib("ctool/include/test/test_utils.hrl").
 
 %% API
--export([ensure_initailized/1, mock_start/1]).
+-export([init/1, mock_start/1]).
 
 -type config() :: proplists:proplist().
 
@@ -38,14 +38,14 @@
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec ensure_initailized(Config :: config()) -> Config :: config().
-ensure_initailized(Config) ->
+-spec init(Config :: config()) -> Config :: config().
+init(Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     OpNodes = filter_nodes(oneprovider, Nodes),
     OzNodes = filter_nodes(onezone, Nodes),
-    health_check(OpNodes),
-    health_check(OzNodes),
-    health_check((Nodes -- OpNodes) -- OzNodes),
+    create_cluster(OpNodes),
+    create_cluster(OzNodes),
+    create_cluster((Nodes -- OpNodes) -- OzNodes),
     set_test_envs(Nodes),
     [{op_nodes, OpNodes}, {oz_nodes, OzNodes} | Config].
 
@@ -84,12 +84,15 @@ filter_nodes(Type, Nodes) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec health_check(Nodes :: [node()]) -> ok | no_return().
-health_check([]) ->
+-spec create_cluster(Nodes :: [node()]) -> ok.
+create_cluster([]) ->
     ok;
 
-health_check([Node | _] = Nodes) ->
-    ?assertEqual(ok, rpc:call(Node, onepanel, health_check, [Nodes]), 120).
+create_cluster([MasterNode | Nodes]) ->
+    ?assertEqual(ok, rpc:call(MasterNode, onepanel_cluster, init, [])),
+    lists:foreach(fun(Node) ->
+        ?assertEqual(ok, rpc:call(Node, onepanel_cluster, join, [MasterNode]))
+    end, Nodes).
 
 
 %%--------------------------------------------------------------------
@@ -100,5 +103,5 @@ health_check([Node | _] = Nodes) ->
 -spec set_test_envs(Nodes :: [node()]) -> ok.
 set_test_envs(Nodes) ->
     lists:foreach(fun({Key, Value}) ->
-        rpc:multicall(Nodes, onepanel, set_env, [Key, Value])
+        rpc:multicall(Nodes, onepanel_env, set, [Key, Value])
     end, ?TEST_ENVS).

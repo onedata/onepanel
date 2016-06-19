@@ -11,6 +11,7 @@
 -module(service_test_SUITE).
 -author("Krzysztof Trzepla").
 
+-include("modules/errors.hrl").
 -include("service.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
@@ -45,7 +46,7 @@ all() ->
 service_should_be_not_found(Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     lists:foreach(fun(Node) ->
-        ?assertMatch({error, service_not_found, _},
+        ?assertMatch(#error{reason = undef},
             rpc:call(Node, service, apply, [example, some_action, #{}]))
     end, Nodes).
 
@@ -53,7 +54,7 @@ service_should_be_not_found(Config) ->
 service_action_should_be_not_supported(Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     lists:foreach(fun(Node) ->
-        ?assertMatch({error, action_not_supported, _},
+        ?assertMatch(#error{reason = action_not_supported},
             rpc:call(Node, service, apply, [example, some_action, #{}]))
     end, Nodes).
 
@@ -78,7 +79,7 @@ service_should_execute_steps(Config) ->
 
 service_should_notify_caller(Config) ->
     Self = self(),
-    [Node, _] = ?config(onepanel_nodes, Config),
+    [Node | _] = ?config(onepanel_nodes, Config),
     ?assertEqual(ok, rpc:call(Node, service, apply,
         [example, some_action, #{notify => Self}])),
     ?assertReceivedEqual({action_begin, {example, some_action}}, ?TIMEOUT),
@@ -93,17 +94,17 @@ service_should_notify_caller(Config) ->
 
 service_get_steps_should_pass_errors(Config) ->
     [Node | _] = ?config(onepanel_nodes, Config),
-    ?assertMatch({error, get_steps_failure, _},
+    ?assertMatch(#error{reason = get_steps_failure},
         rpc:call(Node, service, apply, [example, some_action, #{}])).
 
 
 service_action_should_pass_errors(Config) ->
     Self = self(),
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
-    ?assertMatch({error, _}, rpc:call(Node1, service, apply,
+    ?assertMatch(#error{}, rpc:call(Node1, service, apply,
         [example, some_action, #{notify => Self}])),
     ?assertReceivedMatch({step_end, {service_example, some_step,
-        {[{Node1, ok}], [{Node2, {error, step_failure, _}}]}}}, ?TIMEOUT).
+        {[{Node1, ok}], [{Node2, #error{reason = step_failure}}]}}}, ?TIMEOUT).
 
 
 %%%===================================================================
@@ -111,9 +112,8 @@ service_action_should_pass_errors(Config) ->
 %%%===================================================================
 
 init_per_suite(Config) ->
-    NewConfig = ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json")),
-    onepanel_test_utils:mock_start(
-        onepanel_test_utils:ensure_initailized(NewConfig)).
+    onepanel_test_utils:init(
+        ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json"))).
 
 
 end_per_suite(Config) ->
@@ -135,9 +135,8 @@ init_per_testcase(service_should_request_action_steps, Config) ->
 init_per_testcase(Case, Config) when
     Case =:= service_should_execute_steps;
     Case =:= service_should_notify_caller ->
-    [Node | _] = Nodes = ?config(onepanel_nodes, Config),
-    [Host1, Host2 | _] = Hosts =
-        rpc:call(Node, onepanel_utils, nodes_to_hosts, [Nodes]),
+    Nodes = ?config(onepanel_nodes, Config),
+    [Host1, Host2 | _] = Hosts = onepanel_cluster:nodes_to_hosts(Nodes),
     Self = self(),
     mock_service(Config, get_steps, fun(some_action, _) ->
         [
@@ -160,7 +159,7 @@ init_per_testcase(service_get_steps_should_pass_errors, Config) ->
 
 init_per_testcase(service_action_should_pass_errors, Config) ->
     [_, Node2 | _] = Nodes = ?config(onepanel_nodes, Config),
-    Hosts = rpc:call(Node2, onepanel_utils, nodes_to_hosts, [Nodes]),
+    Hosts = onepanel_cluster:nodes_to_hosts(Nodes),
     mock_service(Config, get_steps, fun(some_action, _) ->
         [#step{hosts = Hosts, function = some_step}]
     end),

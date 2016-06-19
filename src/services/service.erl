@@ -13,17 +13,18 @@
 
 -behaviour(model_behaviour).
 
--include("db/models.hrl").
--include("onepanel.hrl").
+-include("modules/errors.hrl").
+-include("modules/models.hrl").
+-include("names.hrl").
 -include("service.hrl").
--include_lib("ctool/include/logging.hrl").
+-include("modules/logger.hrl").
 
 %% Model behaviour callbacks
--export([fields/0, create/1, save/1, update/2, get/1, exists/1, delete/1]).
+-export([get_fields/0, create/1, save/1, update/2, get/1, exists/1, delete/1]).
 
 %% API
 -export([start/1, start/2, stop/1, status/1, apply/3]).
--export([nodes/1, param/2, module/1, domain/2, member/2, add_host/2]).
+-export([get_module/1, is_member/2, add_host/2]).
 
 -type name() :: atom().
 -type action() :: atom().
@@ -40,10 +41,10 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc @see model_behaviour:fields/0
+%% @doc @see model_behaviour:get_fields/0
 %%--------------------------------------------------------------------
--spec fields() -> list(atom()).
-fields() ->
+-spec get_fields() -> list(atom()).
+get_fields() ->
     record_info(fields, ?MODULE).
 
 
@@ -51,52 +52,52 @@ fields() ->
 %% @doc @see model_behaviour:create/1
 %%--------------------------------------------------------------------
 -spec create(Record :: model_behaviour:record()) ->
-    ok | {error, Reason :: term()}.
+    ok | #error{} | no_return().
 create(Record) ->
-    model_logic:create(?MODULE, Record).
+    model:create(?MODULE, Record).
 
 
 %%--------------------------------------------------------------------
 %% @doc @see model_behaviour:save/1
 %%--------------------------------------------------------------------
--spec save(Record :: model_behaviour:record()) -> ok | {error, Reason :: term()}.
+-spec save(Record :: model_behaviour:record()) -> ok | no_return().
 save(Record) ->
-    model_logic:save(?MODULE, Record).
+    model:save(?MODULE, Record).
 
 
 %%--------------------------------------------------------------------
 %% @doc @see model_behaviour:update/2
 %%--------------------------------------------------------------------
 -spec update(Key :: model_behaviour:key(), Diff :: model_behaviour:diff()) ->
-    ok | {error, Reason :: term()}.
+    ok | no_return().
 update(Key, Diff) ->
-    model_logic:update(?MODULE, Key, Diff).
+    model:update(?MODULE, Key, Diff).
 
 
 %%--------------------------------------------------------------------
 %% @doc @see model_behaviour:get/1
 %%--------------------------------------------------------------------
 -spec get(Key :: model_behaviour:key()) ->
-    {ok, Record :: model_behaviour:record()} | {error, Reason :: term()}.
+    {ok, Record :: model_behaviour:record()} | #error{} | no_return().
 get(Key) ->
-    model_logic:get(?MODULE, Key).
+    model:get(?MODULE, Key).
 
 
 %%--------------------------------------------------------------------
 %% @doc @see model_behaviour:exists/1
 %%--------------------------------------------------------------------
 -spec exists(Key :: model_behaviour:key()) ->
-    boolean() | {error, Reason :: term()}.
+    boolean() | no_return().
 exists(Key) ->
-    model_logic:exists(?MODULE, Key).
+    model:exists(?MODULE, Key).
 
 
 %%--------------------------------------------------------------------
 %% @doc @see model_behaviour:delete/1
 %%--------------------------------------------------------------------
--spec delete(Key :: model_behaviour:key()) -> ok | {error, Reason :: term()}.
+-spec delete(Key :: model_behaviour:key()) -> ok | no_return().
 delete(Key) ->
-    model_logic:delete(?MODULE, Key).
+    model:delete(?MODULE, Key).
 
 %%%===================================================================
 %%% API functions
@@ -158,13 +159,11 @@ apply([Service | Services], Action, Ctx) ->
     notify({action_begin, {Service, Action}}, Ctx),
     Result = try
         Steps = get_steps(Service, Action, Ctx, false),
-        ?critical("~n~n~n~nSteps:~n~p~n~n~n~n", [Steps]),
+        ?log_info("Execution of ~p:~p requires following steps:~n~s",
+            [Service, Action, format_steps(Steps, "")]),
         apply_steps(Steps)
     catch
-        error:undef ->
-            {error, service_not_found, erlang:get_stacktrace()};
-        _:Reason ->
-            {error, Reason, erlang:get_stacktrace()}
+        _:Reason -> ?error(Reason)
     end,
     notify({action_end, {Service, Action, Result}}, Ctx),
     case Result of
@@ -181,39 +180,8 @@ apply(Service, Action, Ctx) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec nodes(Hosts :: [host()]) -> Nodes :: [node()].
-nodes(Hosts) ->
-    HostsToNodes = lists:foldl(fun(Node, Map) ->
-        maps:put(onepanel_utils:node_to_host(Node), Node, Map)
-    end, #{}, onepanel:nodes()),
-    lists:foldl(fun(Host, Nodes) ->
-        case maps:find(Host, HostsToNodes) of
-            {ok, Node} -> [Node | Nodes];
-            error -> throw({host_not_found, Host})
-        end
-    end, [], Hosts).
-
-
-%%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
-%%--------------------------------------------------------------------
--spec param(Name :: name(), Ctx :: ctx()) -> Value :: term().
-param(Name, Ctx) ->
-    case maps:find(Name, Ctx) of
-        {ok, Value} -> Value;
-        error -> onepanel:get_env(Name)
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
-%%--------------------------------------------------------------------
--spec module(Service :: name()) -> Module :: module().
-module(Service) ->
+-spec get_module(Service :: name()) -> Module :: module().
+get_module(Service) ->
     erlang:list_to_atom("service_" ++ erlang:atom_to_list(Service)).
 
 
@@ -222,31 +190,13 @@ module(Service) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec domain(Key :: atom(), Ctx :: ctx()) -> Domain :: string() | no_return().
-domain(Key, Ctx) ->
-    case maps:find(Key, Ctx) of
-        {ok, Domain} -> Domain;
-        error ->
-            Hostname = onepanel_shell:check_output(["hostname", "-f"]),
-            case string:tokens(Hostname, ".") of
-                [_] -> throw({short_hostname, Hostname});
-                [_ | Domain] -> string:join(Domain, ".")
-            end
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
-%%--------------------------------------------------------------------
--spec member(Key :: model_behaviour:key(), Host :: host()) ->
+-spec is_member(Key :: model_behaviour:key(), Host :: host()) ->
     boolean() | {error, Reason :: term()}.
-member(Key, Host) ->
-    model_logic:transaction(fun() ->
+is_member(Key, Host) ->
+    model:transaction(fun() ->
         case ?MODULE:get(Key) of
             {ok, #service{hosts = Hosts}} -> lists:member(Host, Hosts);
-            {error, not_found} -> false
+            _ -> false
         end
     end).
 
@@ -258,7 +208,7 @@ member(Key, Host) ->
 %%--------------------------------------------------------------------
 -spec add_host(Name :: name(), Host :: host()) -> ok.
 add_host(Name, Host) ->
-    ok = service:update(Name, fun(#service{hosts = Hosts} = Service) ->
+    ?MODULE:update(Name, fun(#service{hosts = Hosts} = Service) ->
         Service#service{hosts = [Host | lists:delete(Host, Hosts)]}
     end).
 
@@ -280,12 +230,12 @@ apply_steps([#step{hosts = []} | Steps]) ->
     apply_steps(Steps);
 
 apply_steps([#step{hosts = Hosts, module = Module, function = Function,
-    ctx = Ctx, ignore_errors = IgnoreErrors} | Steps]) ->
+    args = Args, ctx = Ctx, ignore_errors = IgnoreErrors} | Steps]) ->
 
-    Nodes = service:nodes(Hosts),
+    Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
     notify({step_begin, {Module, Function}}, Ctx),
 
-    Results = onepanel_rpc:call(Nodes, Module, Function, [Ctx], ?RPC_TIMEOUT),
+    Results = onepanel_rpc:call(Nodes, Module, Function, Args),
     Status = partition_results(Results),
 
     notify({step_end, {Module, Function, Status}}, Ctx),
@@ -293,11 +243,12 @@ apply_steps([#step{hosts = Hosts, module = Module, function = Function,
     case {Status, IgnoreErrors} of
         {{_, []}, _} -> apply_steps(Steps);
         {_, true} -> apply_steps(Steps);
-        {_, _} -> {error, {Module, Function, Status}}
+        {_, _} -> ?error({Module, Function, Status})
     end.
 
 
 %%--------------------------------------------------------------------
+%% @private
 %% @doc
 %% @todo write me!
 %% @end
@@ -305,7 +256,7 @@ apply_steps([#step{hosts = Hosts, module = Module, function = Function,
 -spec get_steps(Service :: name(), Action :: action(), Ctx :: ctx(),
     IgnoreErrors :: boolean()) -> Steps :: [#step{}].
 get_steps(Service, Action, Ctx, IgnoreErrors) ->
-    Module = module(Service),
+    Module = get_module(Service),
     Steps = Module:get_steps(Action, Ctx),
     lists:flatten(lists:map(fun
         (#step{} = Step) ->
@@ -316,6 +267,7 @@ get_steps(Service, Action, Ctx, IgnoreErrors) ->
 
 
 %%--------------------------------------------------------------------
+%% @private
 %% @doc
 %% @todo write me!
 %% @end
@@ -327,11 +279,15 @@ get_step(Service, #step{service = undefined} = Step, Ctx, IgnoreErrors) ->
 
 get_step(Service, #step{service = StepService, module = undefined} = Step, Ctx,
     IgnoreErrors) ->
-    Module = module(StepService),
+    Module = get_module(StepService),
     get_step(Service, Step#step{module = Module}, Ctx, IgnoreErrors);
 
 get_step(Service, #step{ctx = undefined} = Step, Ctx, IgnoreErrors) ->
     get_step(Service, Step#step{ctx = Ctx}, Ctx, IgnoreErrors);
+
+get_step(Service, #step{ctx = Ctx, args = undefined} =
+    Step, _Ctx, IgnoreErrors) ->
+    get_step(Service, Step#step{args = [Ctx]}, Ctx, IgnoreErrors);
 
 get_step(Service, #step{ignore_errors = undefined} = Step, Ctx, IgnoreErrors) ->
     get_step(Service, Step#step{ignore_errors = IgnoreErrors}, Ctx,
@@ -365,6 +321,7 @@ get_step(_Service, #step{condition = Condition, ctx = Ctx} = Step, _Ctx,
 
 
 %%--------------------------------------------------------------------
+%% @private
 %% @doc
 %% @todo write me!
 %% @end
@@ -404,13 +361,13 @@ get_nested_steps(_Service, #steps{service = Service, action = Action, ctx = Ctx,
     Module :: module(),
     Function :: atom(),
     Result :: term().
-notify(Msg, #{notify := Pid} = Ctx) ->
-    log(Msg, Ctx),
+notify(Msg, #{notify := Pid}) ->
+    log(Msg),
     Pid ! Msg,
     ok;
 
-notify(Msg, Ctx) ->
-    log(Msg, Ctx),
+notify(Msg, _Ctx) ->
+    log(Msg),
     ok.
 
 
@@ -424,8 +381,7 @@ notify(Msg, Ctx) ->
     {GoodResults :: onepanel_rpc:results(), BadResults :: onepanel_rpc:results()}.
 partition_results(Results) ->
     lists:partition(fun
-        ({_, {error, _}}) -> false;
-        ({_, {error, _, _}}) -> false;
+        ({_, #error{}}) -> false;
         (_) -> true
     end, Results).
 
@@ -436,27 +392,44 @@ partition_results(Results) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec log(Msg :: {Stage :: stage(), Details}, Ctx :: ctx()) -> ok when
+-spec log(Msg :: {Stage :: stage(), Details}) -> ok when
     Details :: {Module, Function} | {Module, Function, Result},
     Module :: module(),
     Function :: atom(),
     Result :: term().
-log({action_begin, {Module, Function}}, Ctx) ->
-    ?info("Executing action ~p:~p with context: ~p", [Module, Function, Ctx]);
-log({action_end, {Module, Function, ok}}, _Ctx) ->
-    ?info("Action ~p:~p completed successfully", [Module, Function]);
-log({action_end, {Module, Function, {error, _}}}, _Ctx) ->
-    ?error("Action ~p:~p failed", [Module, Function]);
-log({action_end, {Module, Function, {error, Reason, Stacktrace}}}, _Ctx) ->
-    ?error("Action ~p:~p failed due to: ~p~nStacktrace: ~p",
+log({action_begin, {Module, Function}}) ->
+    ?log_info("Executing action ~p:~p", [Module, Function]);
+log({action_end, {Module, Function, ok}}) ->
+    ?log_info("Action ~p:~p completed successfully", [Module, Function]);
+log({action_end, {Module, Function, #error{stacktrace = []}}}) ->
+    ?log_error("Action ~p:~p failed", [Module, Function]);
+log({action_end, {Module, Function, #error{reason = Reason,
+    stacktrace = Stacktrace}}}) ->
+    ?log_error("Action ~p:~p failed due to: ~p~nStacktrace: ~p",
         [Module, Function, Reason, Stacktrace]);
-log({step_begin, {Module, Function}}, Ctx) ->
-    ?info("Executing step ~p:~p with context: ~p", [Module, Function, Ctx]);
-log({step_end, {Module, Function, {_, []}}}, _Ctx) ->
-    ?info("Step ~p:~p completed successfully", [Module, Function]);
-log({step_end, {Module, Function, {_, Errors}}}, _Ctx) ->
-    ?error("Step ~p:~p failed~n~s", [Module, Function,
+log({step_begin, {Module, Function}}) ->
+    ?log_info("Executing step ~p:~p", [Module, Function]);
+log({step_end, {Module, Function, {_, []}}}) ->
+    ?log_info("Step ~p:~p completed successfully", [Module, Function]);
+log({step_end, {Module, Function, {_, Errors}}}) ->
+    ?log_error("Step ~p:~p failed~n~s", [Module, Function,
         format_errors(Errors, "")]).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec format_steps(Steps :: [step()], Acc :: string()) -> Log :: string().
+format_steps([], Log) ->
+    Log;
+format_steps([#step{hosts = Hosts, module = Module, function = Function,
+    args = Args, ignore_errors = IgnoreErrors} | Steps], Log) ->
+    Step = io_lib:format("Hosts: ~p~nFunction: ~p:~p~nArgs: ~p~n"
+    "Ignore errors: ~p~n~n", [Hosts, Module, Function, Args, IgnoreErrors]),
+    format_steps(Steps, Log ++ Step).
 
 
 %%--------------------------------------------------------------------
@@ -472,10 +445,10 @@ log({step_end, {Module, Function, {_, Errors}}}, _Ctx) ->
     Stacktrace :: term().
 format_errors([], Log) ->
     Log;
-format_errors([{Node, {error, Reason}} | Errors], Log) ->
+format_errors([{Node, #error{reason = Reason, stacktrace = []}} | Errors], Log) ->
     Error = io_lib:format("Node: ~p~nReason: ~p~n", [Node, Reason]),
     format_errors(Errors, Log ++ Error);
-format_errors([{Node, {error, Reason, Stacktrace}} | Errors], Log) ->
+format_errors([{Node, #error{reason = Reason, stacktrace = Stacktrace}} | Errors], Log) ->
     Error = io_lib:format("Node: ~p~nReason: ~p~nStacktrace: ~p~n",
         [Node, Reason, Stacktrace]),
     format_errors(Errors, Log ++ Error).
