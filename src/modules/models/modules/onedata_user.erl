@@ -20,7 +20,9 @@
 -export([get_fields/0, create/1, save/1, update/2, get/1, exists/1, delete/1]).
 
 %% API
--export([new/3, authenticate/2, hash_password/1, change_password/2, count/0]).
+-export([load_nif/0]).
+-export([new/3, authenticate/2, hash_password/2, check_password/2,
+    change_password/2, count/0]).
 -export([validate_username/1, validate_password/1, validate_role/1]).
 
 -type name() :: binary().
@@ -109,15 +111,31 @@ delete(Key) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
+-spec load_nif() -> ok | no_return().
+load_nif() ->
+    LibPath = onepanel_utils:get_nif_library_path("onedata_user_nif"),
+    case erlang:load_nif(LibPath, 0) of
+        ok -> ok;
+        {error, {reload, _}} -> ok;
+        {error, Reason} -> ?throw(Reason)
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
 -spec new(Username :: name(), Password :: password(), Role :: role()) ->
     ok | no_return().
 new(Username, Password, Role) ->
     ?MODULE:validate_username(Username),
     ?MODULE:validate_password(Password),
     ?MODULE:validate_role(Role),
-    case create(#onedata_user{
-        username = Username, password_hash = hash_password(Password),
-        role = Role, uuid = onepanel_utils:gen_uuid()
+    WorkFactor = onepanel_env:get(becrypt_work_factor),
+    case ?MODULE:create(#onedata_user{
+        username = Username, role = Role, uuid = onepanel_utils:gen_uuid(),
+        password_hash = ?MODULE:hash_password(Password, WorkFactor)
     }) of
         ok -> ok;
         _ -> ?throw(?ERR_USERNAME_NOT_AVAILABLE)
@@ -134,9 +152,9 @@ new(Username, Password, Role) ->
 authenticate(Username, Password) ->
     case onedata_user:get(Username) of
         {ok, #onedata_user{password_hash = Hash} = User} ->
-            case hash_password(Password) of
-                Hash -> {ok, User};
-                _ -> ?error(?ERR_INVALID_USERNAME_OR_PASSWORD)
+            case check_password(Password, Hash) of
+                true -> {ok, User};
+                false -> ?error(?ERR_INVALID_USERNAME_OR_PASSWORD)
             end;
         _ -> ?error(?ERR_INVALID_USERNAME_OR_PASSWORD)
     end.
@@ -147,9 +165,21 @@ authenticate(Username, Password) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec hash_password(Password :: password()) -> Hash :: password_hash().
-hash_password(Password) ->
-    crypto:hash(sha512, Password).
+-spec hash_password(Password :: password(), WorkFactor :: non_neg_integer()) ->
+    Hash :: password_hash().
+hash_password(_Password, _WorkFactor) ->
+    erlang:nif_error({?ERR_NIF_NOT_LOADED, ?MODULE}).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec check_password(Password :: password(), Hash :: password_hash()) ->
+    Valid :: boolean().
+check_password(_Password, _Hash) ->
+    erlang:nif_error({?ERR_NIF_NOT_LOADED, ?MODULE}).
 
 
 %%--------------------------------------------------------------------
@@ -161,8 +191,9 @@ hash_password(Password) ->
     ok | no_return().
 change_password(Username, NewPassword) ->
     ?MODULE:validate_password(NewPassword),
-    onedata_user:update(Username, #{
-        password_hash => hash_password(NewPassword)
+    WorkFactor = onepanel_env:get(becrypt_work_factor),
+    ?MODULE:update(Username, #{
+        password_hash => ?MODULE:hash_password(NewPassword, WorkFactor)
     }).
 
 

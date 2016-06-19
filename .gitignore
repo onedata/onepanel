@@ -1,5 +1,6 @@
 doc
-
+c_src/*.d
+priv
 rel/onepanel
 
 test_coverage

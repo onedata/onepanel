@@ -13,6 +13,8 @@
 
 -behaviour(application).
 
+-include("modules/logger.hrl").
+
 %% Application callbacks
 -export([start/2, stop/1]).
 
@@ -36,9 +38,18 @@
     {ok, pid(), State :: term()} |
     {error, Reason :: term()}.
 start(_StartType, _StartArgs) ->
-    test_node_starter:maybe_start_cover(),
-    rest_listener:start(),
-    onepanel_sup:start_link().
+    try
+        test_node_starter:maybe_start_cover(),
+        rest_listener:start(),
+        onedata_user:load_nif(),
+        service_oneprovider:load_nif(),
+        onepanel_sup:start_link()
+    catch
+        _:Reason ->
+            ?log_error("Cannot start onepanel application due to: ~p", [Reason],
+                true),
+            {error, Reason}
+    end.
 
 
 %%--------------------------------------------------------------------

@@ -14,10 +14,14 @@
 
 -include("modules/errors.hrl").
 -include("modules/logger.hrl").
+-include("names.hrl").
 -include("service.hrl").
 
 %% Service behaviour callbacks
 -export([name/0, get_steps/2]).
+
+%% API
+-export([load_nif/0, create_csr/3]).
 
 -define(SERVICE_CB, service_couchbase:name()).
 -define(SERVICE_CM, service_cluster_manager:name()).
@@ -93,3 +97,32 @@ get_steps(register, _Ctx) ->
 
 get_steps(Action, _Ctx) ->
     ?throw({action_not_supported, Action}).
+
+%%%===================================================================
+%%% API functions
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec load_nif() -> ok | no_return().
+load_nif() ->
+    LibPath = onepanel_utils:get_nif_library_path("service_oneprovider_nif"),
+    case erlang:load_nif(LibPath, 0) of
+        ok -> ok;
+        {error, {reload, _}} -> ok;
+        {error, Reason} -> ?throw(Reason)
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec create_csr(Password :: binary(), KeyPath :: binary(), CsrPath :: binary()) ->
+    {ok, Result :: binary()} | {error, Reason :: binary()}.
+create_csr(_Password, _KeyPath, _CsrPath) ->
+    erlang:nif_error({?ERR_NIF_NOT_LOADED, ?MODULE}).

@@ -12,12 +12,13 @@
 -author("Krzysztof Trzepla").
 
 -include("names.hrl").
+-include("modules/errors.hrl").
 -include("modules/logger.hrl").
 
 %% API
 -export([get_basic_auth_header/2]).
 -export([wait_until/5, wait_until/6]).
--export([gen_uuid/0]).
+-export([gen_uuid/0, get_nif_library_path/1]).
 
 -type expectation() :: {equal, Expected :: term()} | {validator,
     Validator :: fun((term()) -> term() | no_return())}.
@@ -35,10 +36,10 @@
 %%--------------------------------------------------------------------
 -spec get_basic_auth_header(Username :: string() | binary(),
     Password :: string() | binary()) -> {Key :: binary(), Value :: binary()}.
-get_basic_auth_header(Username, Password) when is_list(Username)->
+get_basic_auth_header(Username, Password) when is_list(Username) ->
     get_basic_auth_header(erlang:list_to_binary(Username), Password);
 
-get_basic_auth_header(Username, Password) when is_list(Password)->
+get_basic_auth_header(Username, Password) when is_list(Password) ->
     get_basic_auth_header(Username, erlang:list_to_binary(Password));
 
 get_basic_auth_header(Username, Password) ->
@@ -97,4 +98,22 @@ wait_until(Module, Function, Args, Expected, Attempts, Delay) ->
 -spec gen_uuid() -> binary().
 gen_uuid() ->
     http_utils:base64url_encode(crypto:rand_bytes(?UUID_LEN)).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec get_nif_library_path(LibName :: string()) ->
+    LibPath :: file:filename_all().
+get_nif_library_path(LibName) ->
+    case code:priv_dir(?APP_NAME) of
+        {error, bad_name} ->
+            case filelib:is_dir(filename:join(["..", "priv"])) of
+                true -> filename:join(["..", "priv", LibName]);
+                _ -> filename:join(["priv", LibName])
+            end;
+        Dir -> filename:join(Dir, LibName)
+    end.
 

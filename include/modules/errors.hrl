@@ -50,6 +50,7 @@ end).
 -define(ERR_NOT_FOUND, not_found).
 -define(ERR_ALREADY_EXISTS, already_exists).
 -define(ERR_BAD_NODE, bad_node).
+-define(ERR_NIF_NOT_LOADED, nif_not_loaded).
 
 -define(ERR_USERNAME_NOT_AVAILABLE, username_not_available).
 -define(ERR_INVALID_USERNAME, invalid_username).
