@@ -29,7 +29,7 @@
 -type name() :: atom().
 -type action() :: atom().
 -type ctx() :: #{}.
--type host() :: string().
+-type host() :: binary().
 -type step() :: #step{} | #steps{}.
 -type condition() :: fun((ctx()) -> boolean()).
 -type stage() :: action_begin | action_end | step_begin | step_end.

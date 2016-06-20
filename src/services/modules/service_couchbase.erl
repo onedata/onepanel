@@ -109,7 +109,7 @@ wait_for_init(Ctx) ->
 
     ConnectAttempts = service_ctx:get(couchbase_connect_attempts, Ctx),
     ConnectTimeout = service_ctx:get(couchbase_connect_timeout, Ctx),
-    Host = onepanel_cluster:node_to_host(),
+    Host = erlang:binary_to_list(onepanel_cluster:node_to_host()),
     Port = service_ctx:get(couchbase_admin_port, Ctx),
     Validator = fun
         ({ok, Socket}) -> gen_tcp:close(Socket);
@@ -151,11 +151,12 @@ init_cluster(Ctx) ->
     Quota = erlang:integer_to_list(
         service_ctx:get(couchbase_memory_quota, Ctx)),
     Host = onepanel_cluster:node_to_host(),
-    Port = erlang:integer_to_list(service_ctx:get(couchbase_admin_port, Ctx)),
-    HostAndPort = Host ++ ":" ++ Port,
+    Port = service_ctx:get(couchbase_admin_port, Ctx),
+    HostAndPort = onepanel_utils:join([Host, Port], <<":">>),
+    Url = onepanel_utils:join(["http://", HostAndPort, "/pools/default"]),
 
     {ok, 200, _, _} = http_client:post(
-        "http://" ++ HostAndPort ++ "/pools/default", [
+        Url, [
             onepanel_utils:get_basic_auth_header(User, Password),
             {"Content-Type", "application/x-www-form-urlencoded"}
         ], "memoryQuota=" ++ Quota
@@ -180,14 +181,23 @@ init_cluster(Ctx) ->
 %%--------------------------------------------------------------------
 -spec join_cluster(Ctx :: service:ctx()) -> ok | no_return().
 join_cluster(#{cluster_host := ClusterHost} = Ctx) ->
+    ?log_critical("===> ClusterHost: ~p", [ClusterHost]),
     User = service_ctx:get(couchbase_user, Ctx),
+    ?log_critical("===> User: ~p", [User]),
     Password = service_ctx:get(couchbase_password, Ctx),
+    ?log_critical("===> Password: ~p", [Password]),
     Host = onepanel_cluster:node_to_host(),
-    Port = erlang:integer_to_list(service_ctx:get(couchbase_admin_port, Ctx)),
+    ?log_critical("===> Host: ~p", [Host]),
+    Port = service_ctx:get(couchbase_admin_port, Ctx),
+    ?log_critical("===> Port: ~p", [Port]),
+    HostAndPort = onepanel_utils:join([Host, Port], <<":">>),
+    ?log_critical("===> HostAndPort: ~p", [HostAndPort]),
+    ClusterHostAndPort = onepanel_utils:join([ClusterHost, Port], <<":">>),
+    ?log_critical("===> ClusterHostAndPort: ~p", [ClusterHostAndPort]),
 
     onepanel_shell:check_call([?CLI, "server-add", "-c",
-            ClusterHost ++ ":" ++ Port, "-u", User, "-p", Password,
-            "--server-add=" ++ Host ++ ":" ++ Port,
+            ClusterHostAndPort, "-u", User, "-p", Password,
+            "--server-add=" ++ erlang:binary_to_list(HostAndPort),
             "--server-add-username=" ++ User,
             "--server-add-password=" ++ Password,
             "--services=data,index,query"]),
@@ -205,7 +215,8 @@ rebalance_cluster(Ctx) ->
     User = service_ctx:get(couchbase_user, Ctx),
     Password = service_ctx:get(couchbase_password, Ctx),
     Host = onepanel_cluster:node_to_host(),
-    Port = erlang:integer_to_list(service_ctx:get(couchbase_admin_port, Ctx)),
+    Port = service_ctx:get(couchbase_admin_port, Ctx),
+    HostAndPort = onepanel_utils:join([Host, Port], <<":">>),
 
-    onepanel_shell:check_call([?CLI, "rebalance", "-c", Host ++ ":" ++ Port,
+    onepanel_shell:check_call([?CLI, "rebalance", "-c", HostAndPort,
         "-u", User, "-p", Password]).

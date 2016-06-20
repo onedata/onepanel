@@ -65,7 +65,9 @@ configure(#{main_cm_host := MainCmHost, cm_hosts := CmHosts,
         [MainCmHost | lists:delete(MainCmHost, CmHosts)]
     ),
     DbPort = erlang:integer_to_list(service_ctx:get(couchbase_port, Ctx)),
-    DbNodes = [erlang:list_to_atom(Host ++ ":" ++ DbPort) || Host <- DbHosts],
+    DbNodes = lists:map(fun(Host) ->
+        erlang:binary_to_atom(onepanel_utils:join([Host, DbPort], <<":">>), utf8)
+    end, DbHosts),
 
     service_cluster_worker:configure(Ctx#{
         name => name(),

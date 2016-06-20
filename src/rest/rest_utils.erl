@@ -71,9 +71,7 @@ get_params(Req, ParamsSpec) ->
         {onepanel_parser:parse(NewParams, ParamsSpec), Req2}
     catch
         throw:#error{reason = {?ERR_MISSING_KEY, Keys}} = Error ->
-            ?throw(Error#error{reason = {?ERR_MISSING_PARAM, Keys}});
-        throw:#error{reason = {?ERR_INVALID_KEY_VALUE, Keys, Spec}} = Error ->
-            ?throw(Error#error{reason = {?ERR_INVALID_PARAM_VALUE, Keys, Spec}})
+            ?throw(Error#error{reason = {?ERR_MISSING_PARAM, Keys}})
     end.
 
 

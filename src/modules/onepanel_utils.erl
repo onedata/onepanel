@@ -18,7 +18,7 @@
 %% API
 -export([get_basic_auth_header/2]).
 -export([wait_until/5, wait_until/6]).
--export([gen_uuid/0, get_nif_library_path/1]).
+-export([gen_uuid/0, get_nif_library_path/1, join/1, join/2]).
 
 -type expectation() :: {equal, Expected :: term()} | {validator,
     Validator :: fun((term()) -> term() | no_return())}.
@@ -116,4 +116,41 @@ get_nif_library_path(LibName) ->
             end;
         Dir -> filename:join(Dir, LibName)
     end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec join(Tokens :: [term()]) -> Binary :: binary().
+join(Tokens) ->
+    join(Tokens, <<>>).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec join(Tokens :: [term()], Sep :: binary()) -> Binary :: binary().
+join([], _Sep) ->
+    <<>>;
+
+join(Tokens, Sep) ->
+    [_ | NewTokens] = lists:foldl(fun
+        (Token, Acc) when is_list(Token) ->
+            [Sep, erlang:list_to_binary(Token) | Acc];
+        (Token, Acc) when is_atom(Token) ->
+            [Sep, erlang:atom_to_binary(Token, utf8) | Acc];
+        (Token, Acc) when is_integer(Token) ->
+            [Sep, erlang:integer_to_binary(Token) | Acc];
+        (Token, Acc) when is_float(Token) ->
+            [Sep, erlang:float_to_binary(Token) | Acc];
+        (Token, Acc) ->
+            [Sep, Token | Acc]
+    end, [], Tokens),
+    lists:foldl(fun(Token, Acc) ->
+        <<Token/binary, Acc/binary>>
+    end, <<>>, NewTokens).
 

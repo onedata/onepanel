@@ -205,9 +205,9 @@ code_change(_OldVsn, State, _Extra) ->
 verify_node(Msg, Nodes) ->
     case binary:split(Msg, <<"@">>, [global]) of
         [_, Hostname] ->
-            case inet:getaddr(binary_to_list(Hostname), inet) of
+            case inet:getaddr(erlang:binary_to_list(Hostname), inet) of
                 {ok, _} ->
-                    Node = binary_to_atom(Msg, utf8),
+                    Node = erlang:binary_to_atom(Msg, utf8),
                     case sets:is_element(Node, Nodes) of
                         true -> {error, already_discovered};
                         false -> {ok, Node}

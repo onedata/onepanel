@@ -19,7 +19,7 @@
     call/1, check_call/1, wait_call/2, wait_call/3]).
 -export([sed/3]).
 
--type token() :: atom() | integer() | string().
+-type token() :: atom() | integer() | string() | binary().
 
 %%%===================================================================
 %%% API functions
@@ -37,6 +37,8 @@ output(Tokens) ->
             string:join([Acc, erlang:atom_to_list(Token)], " ");
         (Token, Acc) when is_integer(Token) ->
             string:join([Acc, erlang:integer_to_list(Token)], " ");
+        (Token, Acc) when is_binary(Token) ->
+            string:join([Acc, erlang:binary_to_list(Token)], " ");
         (Token, Acc) ->
             string:join([Acc, Token], " ")
     end, "", Tokens)),

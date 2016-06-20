@@ -132,8 +132,8 @@ node_to_host() ->
 %%--------------------------------------------------------------------
 -spec node_to_host(Node :: node()) -> Host :: service:host().
 node_to_host(Node) ->
-    NodeStr = erlang:atom_to_list(Node),
-    [_Name, Host] = string:tokens(NodeStr, "@"),
+    BinNode= erlang:atom_to_binary(Node, utf8),
+    [_Name, Host] = binary:split(BinNode, <<"@">>),
     Host.
 
 
@@ -175,7 +175,7 @@ host_to_node(Name, Host) when is_atom(Name) ->
     host_to_node(erlang:atom_to_list(Name), Host);
 
 host_to_node(Name, Host) ->
-    erlang:list_to_atom(string:join([Name, Host], "@")).
+    erlang:binary_to_atom(onepanel_utils:join([Name, Host], <<"@">>), utf8).
 
 
 %%--------------------------------------------------------------------

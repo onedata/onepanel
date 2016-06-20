@@ -146,10 +146,9 @@ wait_for_init(#{name := Name, wait_for_init_attempts := Attempts,
 -spec nagios_report(Ctx :: service:ctx()) -> Status :: atom().
 nagios_report(#{nagios_protocol := Protocol, nagios_port := Port}) ->
     Host = onepanel_cluster:node_to_host(),
-    PortStr = erlang:integer_to_list(Port),
-    URL = Protocol ++ "://" ++ Host ++ ":" ++ PortStr ++ "/nagios",
+    Url = onepanel_utils:join([Protocol, "://", Host, ":", Port, "/nagios"]),
 
-    {ok, 200, _Headers, Body} = http_client:get(URL),
+    {ok, 200, _Headers, Body} = http_client:get(Url),
 
     {Xml, _} = xmerl_scan:string(binary_to_list(Body)),
     [Status] = [X#xmlAttribute.value || X <- Xml#xmlElement.attributes,

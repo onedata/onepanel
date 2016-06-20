@@ -60,8 +60,7 @@ end).
 -define(ERR_INVALID_USERNAME_OR_PASSWORD, invalid_username_or_password).
 
 -define(ERR_MISSING_KEY, missing_key).
--define(ERR_INVALID_KEY_VALUE, invalid_key_value).
 -define(ERR_MISSING_PARAM, missing_param).
--define(ERR_INVALID_PARAM_VALUE, invalid_param_value).
+-define(ERR_INVALID_VALUE, invalid_value).
 
 -endif.

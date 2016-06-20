@@ -62,7 +62,7 @@ parse(Data, [{'_', Spec} = ValueSpec], Keys, Args) ->
             Arg = parse_value(Value, Spec, [Key | Keys]),
             maps:put(Key, Arg, Acc);
         (_, _) ->
-            ?throw({?ERR_INVALID_KEY_VALUE, Keys, ValueSpec})
+            ?throw({?ERR_INVALID_VALUE, Keys, ValueSpec})
     end, Args, Data);
 
 parse(Data, [{'_', _} = ValueSpec | ArgsSpec], Keys, Args) ->
@@ -96,11 +96,11 @@ parse(Data, [{Key, Spec} | ArgsSpec], Keys, Args) ->
 parse_value(Value, {equal, {Type, Equal}} = ValueSpec, Keys) ->
     case parse_value(Value, Type, Keys) of
         Equal -> Equal;
-        _ -> ?throw({?ERR_INVALID_KEY_VALUE, Keys, ValueSpec})
+        _ -> ?throw({?ERR_INVALID_VALUE, Keys, ValueSpec})
     end;
 
 parse_value(_Value, {equal, _} = ValueSpec, Keys) ->
-    ?throw({?ERR_INVALID_KEY_VALUE, Keys, ValueSpec});
+    ?throw({?ERR_INVALID_VALUE, Keys, ValueSpec});
 
 parse_value(Value, integer, _Keys) when is_integer(Value) ->
     Value;
@@ -118,7 +118,7 @@ parse_value(Value, boolean = ValueSpec, Keys) when is_atom(Value) ->
     case Value of
         true -> true;
         false -> false;
-        _ -> ?throw({?ERR_INVALID_KEY_VALUE, Keys, ValueSpec})
+        _ -> ?throw({?ERR_INVALID_VALUE, Keys, ValueSpec})
     end;
 
 parse_value(Value, boolean, Keys) ->
@@ -150,7 +150,7 @@ parse_value(Value, {oneof, ValueSpecs}, Keys) when is_list(ValueSpecs) ->
     end, undefined, ValueSpecs),
     case Arg of
         undefined ->
-            ?throw({?ERR_INVALID_KEY_VALUE, Keys, {oneof, ValueSpecs}});
+            ?throw({?ERR_INVALID_VALUE, Keys, {oneof, ValueSpecs}});
         _ -> Arg
     end;
 
@@ -160,14 +160,14 @@ parse_value(Values, ValueSpec, Keys) when is_list(ValueSpec) ->
             parse_value(Value, hd(ValueSpec), Keys)
         end, Values)
     catch
-        _:_ -> ?throw({?ERR_INVALID_KEY_VALUE, Keys, ValueSpec})
+        _:_ -> ?throw({?ERR_INVALID_VALUE, Keys, ValueSpec})
     end;
 
 parse_value(Value, ValueSpec, Keys) when is_map(ValueSpec) ->
     parse(Value, maps:to_list(ValueSpec), Keys, #{});
 
 parse_value(_Value, ValueSpec, Keys) ->
-    ?throw({?ERR_INVALID_KEY_VALUE, Keys, ValueSpec}).
+    ?throw({?ERR_INVALID_VALUE, Keys, ValueSpec}).
 
 
 %%--------------------------------------------------------------------
@@ -196,5 +196,5 @@ convert(Value, ValueSpec, Keys, Fun) ->
     try
         Fun(Value)
     catch
-        _:_ -> ?throw({?ERR_INVALID_KEY_VALUE, Keys, ValueSpec})
+        _:_ -> ?throw({?ERR_INVALID_VALUE, Keys, ValueSpec})
     end.

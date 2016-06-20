@@ -45,7 +45,7 @@ all() ->
         post_should_not_create_existing_user,
         put_should_change_password,
         put_should_return_authorization_error,
-%%        put_should_report_missing_key,
+        put_should_report_missing_key,
         put_should_report_invalid_value
     ]).
 
@@ -165,7 +165,7 @@ put_should_report_missing_key(Config) ->
     Password = ?config(password, Config),
 
     Error = rpc:call(Node, onepanel_errors, translate, [throw,
-        #error{reason = {?ERR_MISSING_KEY, <<"password">>}}]),
+        #error{reason = {?ERR_MISSING_KEY, [password]}}]),
     ?assertEqual(Error,
         put_user(Node, Username, Password, [], 400)).
 
@@ -277,12 +277,10 @@ do_request(Node, Endpoint, Method, Headers) ->
 
 
 do_request(Node, Endpoint, Method, Headers, Body) ->
-    Hostname = onepanel_cluster:node_to_host(Node),
+    Host = onepanel_cluster:node_to_host(Node),
     Prefix = "/api/v3/onepanel",
-    Port = erlang:integer_to_list(
-        rpc:call(Node, onepanel_env, get, [rest_port])
-    ),
-    Url = "https://" ++ Hostname ++ ":" ++ Port ++ Prefix ++ Endpoint,
+    Port = rpc:call(Node, onepanel_env, get, [rest_port]),
+    Url = onepanel_utils:join(["https://", Host,":", Port, Prefix, Endpoint]),
 
     http_client:request(Method, Url, [{<<"Content-Type">>,
         <<"application/json">>} | Headers], Body, [insecure]).
