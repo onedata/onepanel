@@ -14,7 +14,7 @@
 %% Returns a boolean determining if the client is authorized to carry the
 %% request on the resource.
 %%--------------------------------------------------------------------
--callback is_authorized(Req :: cowboy_req:req(), Method :: rest_handler:method(),
+-callback is_authorized(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     State :: rest_handler:state()) -> {Authorized :: boolean(), Req :: cowboy_req:req()}.
 
 
@@ -30,7 +30,7 @@
 %% resource. The callback shall return whether the operation was performed
 %% successfully.
 %%--------------------------------------------------------------------
--callback accept_resource(Req :: cowboy_req:req(), Method :: rest_handler:method(),
+-callback accept_resource(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()}.
 

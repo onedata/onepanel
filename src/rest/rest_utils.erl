@@ -16,7 +16,7 @@
 -include("modules/errors.hrl").
 
 %% API
--export([get_method/1, get_bindings/1, get_params/1, get_args/2]).
+-export([get_method/1, get_bindings/1, get_params/2, get_args/2]).
 -export([handle_errors/3]).
 
 %%%===================================================================
@@ -27,7 +27,7 @@
 %% @doc Converts REST method from binary to an atom representation.
 %%--------------------------------------------------------------------
 -spec get_method(Req :: cowboy_req:req()) ->
-    {Method :: rest_handler:method(), Req :: cowboy_req:req()}.
+    {Method :: rest_handler:method_type(), Req :: cowboy_req:req()}.
 get_method(Req) ->
     case cowboy_req:method(Req) of
         {<<"POST">>, Req2} -> {'POST', Req2};
@@ -59,11 +59,22 @@ get_bindings(Req) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec get_params(Req :: cowboy_req:req()) ->
+-spec get_params(Req :: cowboy_req:req(), ParamsSpec :: rest_handler:spec()) ->
     {Params :: rest_handler:params(), Req :: cowboy_req:req()}.
-get_params(Req) ->
+get_params(Req, ParamsSpec) ->
     {Params, Req2} = cowboy_req:qs_vals(Req),
-    {maps:from_list(Params), Req2}.
+    NewParams = lists:map(fun
+        ({Key, true}) -> {Key, <<"true">>};
+        ({Key, Value}) -> {Key, Value}
+    end, Params),
+    try
+        {onepanel_parser:parse(NewParams, ParamsSpec), Req2}
+    catch
+        throw:#error{reason = {?ERR_MISSING_KEY, Keys}} = Error ->
+            ?throw(Error#error{reason = {?ERR_MISSING_PARAM, Keys}});
+        throw:#error{reason = {?ERR_INVALID_KEY_VALUE, Keys, Spec}} = Error ->
+            ?throw(Error#error{reason = {?ERR_INVALID_PARAM_VALUE, Keys, Spec}})
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -71,20 +82,10 @@ get_params(Req) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec get_args(Data :: rest_handler:data(), ArgsSpec :: rest_handler:args_spec()) ->
+-spec get_args(Data :: rest_handler:data(), ArgsSpec :: rest_handler:spec()) ->
     Args :: rest_handler:args() | no_return().
 get_args(Data, ArgsSpec) ->
-    maps:fold(fun(Key, {Type, Required}, Args) ->
-        BinKey = erlang:atom_to_binary(Key, utf8),
-        case {lists:keyfind(BinKey, 1, Data), Required} of
-            {{BinKey, Value}, _} ->
-                maps:put(Key, convert(BinKey, Value, Type), Args);
-            {_, false} ->
-                Args;
-            {_, _} ->
-                ?throw({?ERR_MISSING_REQUIRED_KEY, BinKey})
-        end
-    end, #{}, ArgsSpec).
+    onepanel_parser:parse(Data, ArgsSpec).
 
 
 %%--------------------------------------------------------------------
@@ -101,48 +102,3 @@ handle_errors(Req, Type, Reason) ->
         {<<"description">>, Description}
     ]),
     cowboy_req:set_resp_body(Body, Req).
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
-%%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
-%%--------------------------------------------------------------------
--spec convert(Key :: binary(), Value :: term(), Type :: atom()) ->
-    Term :: term().
-convert(Key, Value, Type) when is_integer(Value) ->
-    convert(Key, erlang:integer_to_binary(Value), Type);
-
-convert(Key, Value, Type) when is_float(Value) ->
-    convert(Key, erlang:float_to_binary(Value), Type);
-
-convert(_Key, Value, string) ->
-    Value;
-
-convert(Key, Value, atom = Type) ->
-    convert(Key, Value, Type, fun(V) -> erlang:binary_to_atom(V, utf8) end);
-
-convert(Key, Value, integer = Type) ->
-    convert(Key, Value, Type, fun(V) -> erlang:binary_to_integer(V) end);
-
-convert(Key, Value, float = Type) ->
-    convert(Key, Value, Type, fun(V) -> erlang:binary_to_float(V) end).
-
-
-%%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
-%%--------------------------------------------------------------------
--spec convert(Key :: binary(), Value :: binary(), Type :: atom(), Fun :: fun()) ->
-    Term :: term() | no_return().
-convert(Key, Value, Type, Fun) ->
-    try
-        Fun(Value)
-    catch
-        _:_ -> ?throw({?ERR_INVALID_VALUE_TYPE, Key,
-            erlang:atom_to_binary(Type, utf8)})
-    end.

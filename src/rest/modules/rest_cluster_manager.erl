@@ -7,7 +7,7 @@
 %%%-------------------------------------------------------------------
 %%% @doc The module handling logic behind /user REST resources.
 %%%-------------------------------------------------------------------
--module(rest_onedata_user).
+-module(rest_cluster_manager).
 -author("Krzysztof Trzepla").
 
 -include("http/rest.hrl").
@@ -19,6 +19,8 @@
 %% REST behaviour callbacks
 -export([is_authorized/3, exists_resource/2, accept_resource/4,
     provide_resource/2, delete_resource/2]).
+
+-define(SERVICE, service_cluster_manager:name()).
 
 %%%===================================================================
 %%% REST behaviour callbacks
@@ -33,14 +35,8 @@
 is_authorized(Req, _Method, #rstate{client = #client{role = admin}}) ->
     {true, Req};
 
-is_authorized(Req, 'POST', #rstate{client = #client{role = undefined}}) ->
-    {onedata_user:count() == 0, Req};
-
-is_authorized(Req, 'POST', _State) ->
-    {false, Req};
-
 is_authorized(Req, _Method, _State) ->
-    {true, Req}.
+    {false, Req}.
 
 
 %%--------------------------------------------------------------------
@@ -48,8 +44,11 @@ is_authorized(Req, _Method, _State) ->
 %%--------------------------------------------------------------------
 -spec exists_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
+exists_resource(Req, #rstate{bindings = #{host := Host}}) ->
+    {service:is_member(?SERVICE, Host), Req};
+
 exists_resource(Req, _State) ->
-    {true, Req}.
+    {service:exists(?SERVICE), Req}.
 
 
 %%--------------------------------------------------------------------
@@ -58,19 +57,30 @@ exists_resource(Req, _State) ->
 -spec accept_resource(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()}.
-accept_resource(Req, 'POST', #{username := Username, password := Password,
-    userRole := Role}, #rstate{client = #client{role = ClientRole}}) ->
-    NewRole = case ClientRole of
-        undefined -> admin;
-        _ -> Role
-    end,
-    onedata_user:new(Username, Password, NewRole),
-    {true, Req};
+%%accept_resource(Req, 'PATCH', _Args, #rstate{params = #{<<"started">> := <<"true">>},
+%%    bindings = #{host := Host}}) ->
+%%    {true, rest_utils:set_results(service_executor:apply_sync(
+%%        ?SERVICE, start, #{hosts => [Host]}
+%%    ), Req)};
+%%
+%%accept_resource(Req, 'PATCH', _Args, #rstate{params = #{<<"started">> := <<"false">>},
+%%    bindings = #{host := Host}}) ->
+%%    {true, rest_utils:set_results(service_executor:apply_sync(
+%%        ?SERVICE, stop, #{hosts => [Host]}
+%%    ), Req)};
+%%
+%%accept_resource(Req, 'PATCH', _Args, #rstate{params = #{<<"started">> := <<"true">>}}) ->
+%%    {true, rest_utils:set_results(service_executor:apply_sync(
+%%        ?SERVICE, stop, #{}
+%%    ), Req)};
+%%
+%%accept_resource(Req, 'PATCH', _Args, #rstate{params = #{<<"started">> := <<"false">>}}) ->
+%%    {true, rest_utils:set_results(service_executor:apply_sync(
+%%        ?SERVICE, stop, #{}
+%%    ), Req)};
 
-accept_resource(Req, 'PUT', #{password := Password}, #rstate{
-    client = #client{name = Name}}) ->
-    onedata_user:change_password(Name, Password),
-    {true, Req}.
+accept_resource(Req, _Method, _Args, _State) ->
+    {false, Req}.
 
 
 %%--------------------------------------------------------------------
@@ -78,8 +88,18 @@ accept_resource(Req, 'PUT', #{password := Password}, #rstate{
 %%--------------------------------------------------------------------
 -spec provide_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Data :: rest_handler:data(), Req :: cowboy_req:req()}.
-provide_resource(Req, #rstate{client = #client{id = Id, role = Role}}) ->
-    {[{userId, Id}, {userRole, Role}], Req}.
+%%provide_resource(Req, #rstate{bindings = #{host := Host}}) ->
+%%    {rest_utils:format_results(service_executor:apply_sync(
+%%        ?SERVICE, status, #{hosts => [Host]}
+%%    )), Req};
+%%
+%%provide_resource(Req, _State) ->
+%%    {rest_utils:format_results(service_executor:apply_sync(
+%%        ?SERVICE, status, #{}
+%%    )), Req};
+
+provide_resource(Req, _State) ->
+    {[], Req}.
 
 
 %%--------------------------------------------------------------------

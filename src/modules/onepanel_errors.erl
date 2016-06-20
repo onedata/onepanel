@@ -61,10 +61,13 @@ translate(Type, Reason) ->
 %%--------------------------------------------------------------------
 -spec do_translate(Type :: atom(), Reason :: term()) ->
     {Name :: binary(), Description :: binary()} | no_return().
-do_translate(_Type, #error{reason = {?ERR_MISSING_REQUIRED_KEY, Key}}) ->
+do_translate(_Type, #error{reason = ?ERR_INVALID_REQUEST}) ->
+    {<<"Invalid Request">>, <<>>};
+
+do_translate(_Type, #error{reason = {?ERR_MISSING_KEY, Key}}) ->
     {<<"Invalid Request">>, <<"Missing required key: '", Key/binary, "'.">>};
 
-do_translate(_Type, #error{reason = {?ERR_INVALID_VALUE_TYPE, Key, Type}}) ->
+do_translate(_Type, #error{reason = {?ERR_INVALID_KEY_VALUE, Key, Type}}) ->
     {<<"Invalid Request">>, <<"Invalid '", Key/binary, "' type, expected: '",
         Type/binary, "'.">>};
 
@@ -107,4 +110,4 @@ log(_Type, #error{module = Module, function = Function, arity = Arity,
     ?log_error("Function: ~p:~p/~p~nArgs: ~p~nReason: ~p~nStacktrace: ~p~n"
     "Line: ~p~n", [Module, Function, Arity, Args, Reason, Stacktrace, Line]);
 log(Type, Reason) ->
-    ?log_error("Type ~p~nReason: ~p~n", [Type, Reason]).
+    ?log_error("Type: ~p~nReason: ~p~n", [Type, Reason]).

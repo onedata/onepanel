@@ -155,7 +155,7 @@ status(InitScript) ->
 apply([], _Action, _Ctx) ->
     ok;
 
-apply([Service | Services], Action, Ctx) ->
+apply(Service, Action, Ctx) ->
     notify({action_begin, {Service, Action}}, Ctx),
     Result = try
         Steps = get_steps(Service, Action, Ctx, false),
@@ -166,13 +166,7 @@ apply([Service | Services], Action, Ctx) ->
         _:Reason -> ?error(Reason)
     end,
     notify({action_end, {Service, Action, Result}}, Ctx),
-    case Result of
-        ok -> service:apply(Services, Action, Ctx);
-        _ -> Result
-    end;
-
-apply(Service, Action, Ctx) ->
-    service:apply([Service], Action, Ctx).
+    Result.
 
 
 %%--------------------------------------------------------------------

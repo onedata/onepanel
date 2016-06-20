@@ -43,7 +43,7 @@
 %%% Test generators
 %%%===================================================================
 
-vm_config_editor_test_() ->
+onepanel_env_test_() ->
     {foreach,
         fun start/0,
         fun stop/1,

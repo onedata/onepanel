@@ -13,6 +13,7 @@
 -author("Krzysztof Trzepla").
 
 -include("http/rest.hrl").
+-include("modules/errors.hrl").
 -include("modules/logger.hrl").
 -include("modules/models.hrl").
 
@@ -22,19 +23,21 @@
     delete_resource/2, accept_resource_json/2, provide_resource/2]).
 
 -type version() :: non_neg_integer().
--type accept_method() :: 'POST' | 'PATCH' | 'PUT'.
--type method() :: accept_method() | 'GET' | 'DELETE'.
+-type accept_method_type() :: 'POST' | 'PATCH' | 'PUT'.
+-type method_type() :: accept_method_type() | 'GET' | 'DELETE'.
 -type resource() :: atom().
--type data() :: proplists:proplist().
+-type data() :: onepanel_parser:data().
 -type bindings() :: #{Key :: atom() => Value :: term()}.
 -type params() :: #{Key :: atom() => Value :: term()}.
--type args() :: #{Key :: atom() => Value :: term()}.
--type args_spec() :: #{Key :: atom() => {Type :: atom(), Required :: boolean()}}.
+-type args() :: onepanel_parser:args().
+-type spec() :: onepanel_parser:spec().
 -type client() :: #client{}.
 -type state() :: #rstate{}.
+-type method() :: #rmethod{}.
 
--export_type([version/0, accept_method/0, method/0, resource/0, data/0,
-    bindings/0, params/0, args/0, args_spec/0, client/0, state/0]).
+-export_type([version/0, accept_method_type/0, method_type/0, resource/0,
+    data/0, bindings/0, params/0, args/0, spec/0, client/0, state/0,
+    method/0]).
 
 %%%===================================================================
 %%% API functions
@@ -70,9 +73,8 @@ rest_init(Req, #rstate{} = State) ->
 -spec allowed_methods(Req :: cowboy_req:req(), State :: state()) ->
     {[binary()], cowboy_req:req(), state()}.
 allowed_methods(Req, #rstate{methods = Methods} = State) ->
-    AllowedMethods = lists:map(fun
-        ({Method, _}) -> erlang:atom_to_binary(Method, utf8);
-        (Method) -> erlang:atom_to_binary(Method, utf8)
+    AllowedMethods = lists:map(fun(#rmethod{type = Type}) ->
+        erlang:atom_to_binary(Type, utf8)
     end, Methods),
     {AllowedMethods, Req, State}.
 
@@ -110,15 +112,17 @@ content_types_provided(Req, #rstate{} = State) ->
 %%--------------------------------------------------------------------
 -spec is_authorized(Req :: cowboy_req:req(), State :: state()) ->
     {true | {false, binary()}, cowboy_req:req(), state()}.
-is_authorized(Req, #rstate{noauth = NoAuth} = State) ->
+is_authorized(Req, #rstate{methods = Methods} = State) ->
     case authorize_by_basic_auth(Req, State) of
         {true, Req2, NewState} ->
             {true, Req2, NewState};
         {false, Req2, NewState} ->
             {Method, Req3} = rest_utils:get_method(Req2),
-            case lists:member(Method, NoAuth) of
-                true -> {true, Req3, NewState#rstate{client = #client{}}};
-                false -> {{false, <<"">>}, Req3, NewState}
+            case lists:keyfind(Method, 2, Methods) of
+                #rmethod{noauth = true} ->
+                    {true, Req3, NewState#rstate{client = #client{}}};
+                _ ->
+                    {{false, <<"">>}, Req3, NewState}
             end
     end.
 
@@ -131,11 +135,12 @@ is_authorized(Req, #rstate{noauth = NoAuth} = State) ->
 %%--------------------------------------------------------------------
 -spec forbidden(Req :: cowboy_req:req(), State :: state()) ->
     {boolean(), cowboy_req:req(), state()}.
-forbidden(Req, #rstate{module = Module} = State) ->
+forbidden(Req, #rstate{module = Module, methods = Methods} = State) ->
     try
         {Method, Req2} = rest_utils:get_method(Req),
         {Bindings, Req3} = rest_utils:get_bindings(Req2),
-        {Params, Req4} = rest_utils:get_params(Req3),
+        #rmethod{params_spec = Spec} = lists:keyfind(Method, 2, Methods),
+        {Params, Req4} = rest_utils:get_params(Req3, Spec),
         {Authorized, Req5} = Module:is_authorized(Req4, Method, State#rstate{
             bindings = Bindings,
             params = Params
@@ -143,7 +148,7 @@ forbidden(Req, #rstate{module = Module} = State) ->
         {not Authorized, Req5, State}
     catch
         Type:Reason ->
-            {true, rest_utils:handle_errors(Req, Type, Reason), State}
+            {true, rest_utils:handle_errors(Req, Type, ?error(Reason)), State}
     end.
 
 
@@ -154,18 +159,20 @@ forbidden(Req, #rstate{module = Module} = State) ->
 %%--------------------------------------------------------------------
 -spec resource_exists(Req :: cowboy_req:req(), State :: state()) ->
     {boolean(), cowboy_req:req(), state()}.
-resource_exists(Req, #rstate{module = Module} = State) ->
+resource_exists(Req, #rstate{module = Module, methods = Methods} = State) ->
     try
-        {Bindings, Req2} = rest_utils:get_bindings(Req),
-        {Params, Req3} = rest_utils:get_params(Req2),
-        {Exists, Req4} = Module:exists_resource(Req3, State#rstate{
+        {Method, Req2} = rest_utils:get_method(Req),
+        {Bindings, Req3} = rest_utils:get_bindings(Req2),
+        #rmethod{params_spec = Spec} = lists:keyfind(Method, 2, Methods),
+        {Params, Req4} = rest_utils:get_params(Req3, Spec),
+        {Exists, Req5} = Module:exists_resource(Req4, State#rstate{
             bindings = Bindings,
             params = Params
         }),
-        {Exists, Req4, State}
+        {Exists, Req5, State}
     catch
         Type:Reason ->
-            {false, rest_utils:handle_errors(Req, Type, Reason), State}
+            {false, rest_utils:handle_errors(Req, Type, ?error(Reason)), State}
     end.
 
 
@@ -183,7 +190,7 @@ accept_resource_json(Req, #rstate{} = State) ->
         accept_resource(Req2, Data, State)
     catch
         Type:Reason ->
-            {false, rest_utils:handle_errors(Req, Type, Reason), State}
+            {false, rest_utils:handle_errors(Req, Type, ?error(Reason)), State}
     end.
 
 
@@ -194,19 +201,21 @@ accept_resource_json(Req, #rstate{} = State) ->
 %%--------------------------------------------------------------------
 -spec provide_resource(Req :: cowboy_req:req(), State :: state()) ->
     {iodata(), cowboy_req:req(), state()}.
-provide_resource(Req, #rstate{module = Module} = State) ->
+provide_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
     try
-        {Bindings, Req2} = rest_utils:get_bindings(Req),
-        {Params, Req3} = rest_utils:get_params(Req2),
-        {Data, Req4} = Module:provide_resource(Req3, State#rstate{
+        {Method, Req2} = rest_utils:get_method(Req),
+        {Bindings, Req3} = rest_utils:get_bindings(Req2),
+        #rmethod{params_spec = Spec} = lists:keyfind(Method, 2, Methods),
+        {Params, Req4} = rest_utils:get_params(Req3, Spec),
+        {Data, Req5} = Module:provide_resource(Req4, State#rstate{
             bindings = Bindings,
             params = Params
         }),
         Json = json_utils:encode(Data),
-        {Json, Req4, State}
+        {Json, Req5, State}
     catch
         Type:Reason ->
-            {false, rest_utils:handle_errors(Req, Type, Reason), State}
+            {false, rest_utils:handle_errors(Req, Type, ?error(Reason)), State}
     end.
 
 
@@ -217,18 +226,20 @@ provide_resource(Req, #rstate{module = Module} = State) ->
 %%--------------------------------------------------------------------
 -spec delete_resource(Req :: cowboy_req:req(), State :: state()) ->
     {boolean(), cowboy_req:req(), state()}.
-delete_resource(Req, #rstate{module = Module} = State) ->
+delete_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
     try
-        {Bindings, Req2} = rest_utils:get_bindings(Req),
-        {Params, Req3} = rest_utils:get_params(Req2),
-        {Deleted, Req4} = Module:delete_resource(Req3, State#rstate{
+        {Method, Req2} = rest_utils:get_method(Req),
+        {Bindings, Req3} = rest_utils:get_bindings(Req2),
+        #rmethod{params_spec = Spec} = lists:keyfind(Method, 2, Methods),
+        {Params, Req4} = rest_utils:get_params(Req3, Spec),
+        {Deleted, Req5} = Module:delete_resource(Req4, State#rstate{
             bindings = Bindings,
             params = Params
         }),
-        {Deleted, Req4, State}
+        {Deleted, Req5, State}
     catch
         Type:Reason ->
-            {false, rest_utils:handle_errors(Req, Type, Reason), State}
+            {false, rest_utils:handle_errors(Req, Type, ?error(Reason)), State}
     end.
 
 %%%===================================================================
@@ -242,11 +253,13 @@ delete_resource(Req, #rstate{module = Module} = State) ->
 %%--------------------------------------------------------------------
 -spec accept_resource(Req :: cowboy_req:req(), Data :: data(), State :: state()) ->
     {{true, URL :: binary()} | boolean(), cowboy_req:req(), state()}.
-accept_resource(Req, Data, #rstate{module = Module, methods = Methods} = State) ->
+accept_resource(Req, Data, #rstate{module = Module, methods = Methods} =
+    State) ->
     {Method, Req2} = rest_utils:get_method(Req),
     {Bindings, Req3} = rest_utils:get_bindings(Req2),
-    {Params, Req4} = rest_utils:get_params(Req3),
-    ArgsSpec = proplists:get_value(Method, Methods, #{}),
+    #rmethod{params_spec = ParamSpec, args_spec = ArgsSpec} =
+        lists:keyfind(Method, 2, Methods),
+    {Params, Req4} = rest_utils:get_params(Req3, ParamSpec),
     Args = rest_utils:get_args(Data, ArgsSpec),
     {Accepted, Req5} = Module:accept_resource(Req4, Method, Args, State#rstate{
         bindings = Bindings,

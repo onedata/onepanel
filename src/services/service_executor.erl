@@ -118,10 +118,10 @@ get_results(TaskId, Timeout) ->
 -spec handle_results(Results :: term()) -> no_return().
 handle_results(Results) ->
     receive
-        task_finished ->
-            ?MODULE:handle_results([task_finished | Results]);
         {step_end, Result} ->
             ?MODULE:handle_results([Result | Results]);
+        {action_end, Result} ->
+            ?MODULE:handle_results([{task_finished, Result} | Results]);
         {forward_results, TaskId, Pid} ->
             Pid ! {task, TaskId, lists:reverse(Results)},
             ?MODULE:handle_results(Results);

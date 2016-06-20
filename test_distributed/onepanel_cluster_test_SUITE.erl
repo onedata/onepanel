@@ -130,4 +130,4 @@ init_per_suite(Config) ->
 
 
 end_per_suite(Config) ->
-    test_node_starter:clean_environment(Config).
+    Config.%test_node_starter:clean_environment(Config).

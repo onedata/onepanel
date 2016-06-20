@@ -19,12 +19,18 @@
     role :: onedata_user:role()
 }).
 
+-record(rmethod, {
+    type :: rest_handler:method_type(),
+    args_spec = #{} :: rest_handler:spec(),
+    params_spec = #{} :: rest_handler:spec(),
+    noauth = false :: boolean()
+}).
+
 -record(rstate, {
     version :: rest_handler:version(),
     module :: module(),
     resource :: rest_handler:resource(),
-    methods :: [rest_handler:method() | {rest_handler:method(), rest_handler:args_spec()}],
-    noauth :: [rest_handler:method()],
+    methods :: [rest_handler:method()],
     client :: rest_handler:client(),
     bindings = #{} :: rest_handler:bindings(),
     params = #{} :: rest_handler:params()

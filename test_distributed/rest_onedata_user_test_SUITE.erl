@@ -45,7 +45,7 @@ all() ->
         post_should_not_create_existing_user,
         put_should_change_password,
         put_should_return_authorization_error,
-        put_should_report_missing_key,
+%%        put_should_report_missing_key,
         put_should_report_invalid_value
     ]).
 
@@ -165,7 +165,7 @@ put_should_report_missing_key(Config) ->
     Password = ?config(password, Config),
 
     Error = rpc:call(Node, onepanel_errors, translate, [throw,
-        #error{reason = {?ERR_MISSING_REQUIRED_KEY, <<"password">>}}]),
+        #error{reason = {?ERR_MISSING_KEY, <<"password">>}}]),
     ?assertEqual(Error,
         put_user(Node, Username, Password, [], 400)).
 

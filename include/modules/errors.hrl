@@ -50,6 +50,7 @@ end).
 -define(ERR_NOT_FOUND, not_found).
 -define(ERR_ALREADY_EXISTS, already_exists).
 -define(ERR_BAD_NODE, bad_node).
+-define(ERR_INVALID_REQUEST, invalid_request).
 -define(ERR_NIF_NOT_LOADED, nif_not_loaded).
 
 -define(ERR_USERNAME_NOT_AVAILABLE, username_not_available).
@@ -58,7 +59,9 @@ end).
 -define(ERR_INVALID_ROLE, invalid_role).
 -define(ERR_INVALID_USERNAME_OR_PASSWORD, invalid_username_or_password).
 
--define(ERR_MISSING_REQUIRED_KEY, missing_required_key).
--define(ERR_INVALID_VALUE_TYPE, invalid_value_type).
+-define(ERR_MISSING_KEY, missing_key).
+-define(ERR_INVALID_KEY_VALUE, invalid_key_value).
+-define(ERR_MISSING_PARAM, missing_param).
+-define(ERR_INVALID_PARAM_VALUE, invalid_param_value).
 
 -endif.
