@@ -4,6 +4,15 @@
 CHANGELOG
 ---------
 
+### 3.0.0-beta7
+
+* VFS-2163 Allow user deletion
+* Update erlang tls
+* VFS-2163 onepanel user REST endpoint
+* VFS-2072 Add admin credentials to helpers args
+* VFS-2072 Remove user credentials from space support
+
+
 ### 3.0.0-beta4
 
 * VFS-1969 Add border to installation.gif.
