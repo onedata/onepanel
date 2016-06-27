@@ -68,7 +68,7 @@ create() ->
         end,
         ok = application:start(mnesia),
 
-        lists:foreach(fun({Table, Record, Fields}) ->
+        Tables = lists:map(fun({Table, Record, Fields}) ->
             case mnesia:create_table(Table, [
                 {attributes, Fields},
                 {record_name, Record},
@@ -77,10 +77,12 @@ create() ->
                 {atomic, ok} -> initialize(Table);
                 {aborted, {already_exists, Table}} -> ok;
                 {aborted, Error} -> throw(Error)
-            end
+            end,
+            Table
         end, ?TABLES),
 
-        ok
+        {ok, Timeout} = application:get_env(?APP_NAME, create_tables_timeout_seconds),
+        ok = mnesia:wait_for_tables(Tables, timer:seconds(Timeout))
     catch
         _:Reason ->
             ?error_stacktrace("Cannot create database tables: ~p", [Reason]),
