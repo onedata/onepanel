@@ -84,6 +84,10 @@ body() ->
                 style = <<"font-size: x-large; margin-bottom: 1em;">>,
                 body = <<"Step 1: Connection check">>
             },
+            #p{
+                style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
+                body = <<"Please provider <i>onezone</i> domain and press <i>Next</i> button in order to check connection.">>
+            },
             #table{
                 id = <<"redirection_point_table">>,
                 style = <<"width: 50%; margin: 0 auto; margin-bottom: 3em; border-spacing: 1em; border-collapse: inherit;">>,
@@ -104,17 +108,12 @@ body() ->
                                     id = <<"onezone_domain_textbox">>,
                                     style = <<"margin: 0 auto; padding: 1px;">>,
                                     class = <<"span">>,
-                                    placeholder = <<"onezone domain">>,
-                                    value = <<"onedata.org">>
+                                    placeholder = <<"onezone domain">>
                                 }
                             }
                         ]
                     }
                 ]
-            },
-            #p{
-                style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
-                body = <<"In order to establish test connection to <i>onezone</i> please press <i>Next</i> button.">>
             },
             #panel{
                 id = <<"progress">>,
@@ -170,10 +169,15 @@ comet_loop(#?STATE{pid = Pid} = State) ->
     NewState =
         try
             receive
+                {connect, ""} ->
+                    onepanel_gui_utils:message(error, <<"Please provide onezone domain.">>),
+                    gui_jq:hide(<<"progress">>),
+                    gui_jq:prop(<<"next_button">>, <<"disabled">>, <<"">>),
+                    State;
                 {connect, OzDomain} ->
                     NewPid = spawn_link(fun() ->
                         application:set_env(?APP_NAME, oz_domain, OzDomain),
-                        ok = installer_utils:check_ip_addresses(),
+                        {ok, _} = installer_utils:check_ip_address(),
                         AppStr = ?APP_STR,
                         lists:foreach(fun(Node) ->
                             case string:tokens(atom_to_list(Node), "@") of
