@@ -63,7 +63,8 @@
     geo_latitude,
     op_domain,
     oz_domain,
-    web_cert
+    web_cert,
+    users
 }).
 
 %% API
@@ -147,7 +148,8 @@ install(Config) ->
             geo_longitude = GeoLongitude,
             op_domain = OpDomain,
             oz_domain = OzDomain,
-            web_cert = WebCert
+            web_cert = WebCert,
+            users = Users
         } = Config,
         AllHosts = lists:usort(CMs ++ Workers ++ Dbs),
 
@@ -158,6 +160,14 @@ install(Config) ->
         print_info("Checking storage availability..."),
         check_storage_paths(Node, Storage, Workers),
         print_ok(),
+
+        case Users of
+            [] -> ok;
+            _ ->
+                print_info("Creating users..."),
+                create_users(Node, Users),
+                print_ok()
+        end,
 
         print_info("Setting ulimits..."),
         lists:foreach(fun(Host) ->
@@ -535,7 +545,8 @@ adjust_config(Config) ->
         geo_longitude = get([oneprovider, geo_longitude], Config),
         op_domain = get([cluster, domain_name], Config),
         oz_domain = get([onezone, domain_name], Config, "onedata.org"),
-        web_cert = get([cluster, settings, web_certificate], Config)
+        web_cert = get([cluster, settings, web_certificate], Config),
+        users = get_users([onepanel], Config)
     }.
 
 %%--------------------------------------------------------------------
@@ -581,3 +592,32 @@ get_host(NodeId, Config) ->
 get_hosts(Keys, Config) ->
     NodeIds = get(Keys ++ [node_ids], Config),
     lists:map(fun(NodeId) -> get_host(NodeId, Config) end, NodeIds).
+
+%%--------------------------------------------------------------------
+%% @doc Returns users list.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_users(Keys :: list(), Config :: #{}) -> list().
+get_users(Keys, Config) ->
+    Users = get(Keys ++ [users], Config),
+    maps:fold(fun(Username, _, List) ->
+        [
+            {
+                list_to_binary(Username),
+                base64:decode(get(Keys ++ [users, Username, password], Config)),
+                get(Keys ++ [users, Username, role], Config)
+            } | List
+        ]
+    end, [], Users).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Creates users.
+%% @end
+%%--------------------------------------------------------------------
+-spec create_users(Node :: node(), Users :: list()) -> ok.
+create_users(Node, Users) ->
+    ok = rpc:call(Node, user_logic, delete_default_user, []),
+    lists:foreach(fun({Username, Password, Role}) ->
+        ok = rpc:call(Node, user_logic, create_user, [Username, Password, Role])
+    end, Users).

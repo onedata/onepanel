@@ -11,14 +11,13 @@ import re
 import requests
 import sys
 import time
+from timeouts import *
 
 from . import common, docker, dns as dns_mod
 
-COUCHBASE_READY_WAIT_SECONDS = 60
-
 
 def _couchbase(cluster_name, num):
-    return 'couchbase{0}_{1}'.format(num, cluster_name)
+    return 'couchbase{0}-{1}'.format(num, cluster_name)
 
 
 def config_entry(cluster_name, num, uid):
@@ -47,7 +46,7 @@ def _ready(container):
     ip = docker.inspect(container)['NetworkSettings']['IPAddress']
     url = 'http://{0}:8091/pools'.format(ip)
     try:
-        r = requests.head(url, timeout=5)
+        r = requests.head(url, timeout=REQUEST_TIMEOUT)
         return r.status_code == requests.codes.ok
     except requests.ConnectionError:
         return False
@@ -90,7 +89,7 @@ bash'''
     assert 0 == docker.exec_(containers[0],
                  command=["/opt/couchbase/bin/couchbase-cli", "cluster-init", "-c", "{0}:8091".format(master_hostname),
                           "--cluster-init-username=admin", "--cluster-init-password=password",
-                          "--cluster-init-ramsize=512", "--services=data,index,query"],
+                          "--cluster-init-ramsize=1024", "--services=data,index,query"],
                  stdout=sys.stderr)
 
     # Create default bucket

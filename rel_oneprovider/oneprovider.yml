@@ -24,6 +24,7 @@ cluster:
       access_key: "access key"
       secret_key: "secret key"
       s3_hostname: "localhost"
+      iam_hostname: "localhost"
       bucket_name: "data"
     Ceph:
       type: "CEPH"

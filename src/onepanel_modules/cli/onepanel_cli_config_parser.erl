@@ -86,7 +86,8 @@ parse_config(Config, Envs) ->
     #{
         cluster => parse_config([?CLUSTER_KEY], Config, Envs),
         oneprovider => parse_config([?ONEPROVIDER_KEY], Config, Envs),
-        onezone => parse_config([?ONEZONE_KEY], Config, Envs)
+        onezone => parse_config([?ONEZONE_KEY], Config, Envs),
+        onepanel => parse_config([?ONEPANEL_KEY], Config, Envs)
     }.
 
 %%--------------------------------------------------------------------
@@ -165,6 +166,7 @@ parse_config([Name, ?STORAGE_KEY, ?CLUSTER_KEY] = RevKey, ParentConfig, Envs) ->
         access_key => get([?ACCESS_KEY_KEY | RevKey], binary, Config, Envs),
         secret_key => get([?SECRET_KEY_KEY | RevKey], binary, Config, Envs),
         s3_hostname => get([?S3_HOSTNAME_KEY | RevKey], binary, Config, Envs),
+        iam_hostname => get([?IAM_HOSTNAME_KEY | RevKey], binary, Config, Envs),
         bucket_name => get([?BUCKET_NAME_KEY | RevKey], binary, Config, Envs),
         username => get([?USERNAME_KEY | RevKey], binary, Config, Envs),
         key => get([?KEY_KEY | RevKey], binary, Config, Envs),
@@ -216,6 +218,27 @@ parse_config([?ONEZONE_KEY] = RevKey, ParentConfig, Envs) ->
     #{
         name => get([?NAME_KEY | RevKey], string, Config, Envs),
         domain_name => get([?DOMAIN_NAME_KEY | RevKey], string, Config, Envs)
+    };
+
+parse_config([?ONEPANEL_KEY] = RevKey, ParentConfig, Envs) ->
+    Config = proplists:get_value(?ONEPANEL_KEY, ParentConfig, []),
+    #{
+        users => parse_config([?USERS_KEY | RevKey], Config, Envs)
+    };
+parse_config([?USERS_KEY, ?ONEPANEL_KEY] = RevKey, ParentConfig, Envs) ->
+    Config = proplists:get_value(?USERS_KEY, ParentConfig, []),
+    {ConfigNames, _} = lists:unzip(Config),
+    Names = onepanel_cli_env:get(lists:reverse(RevKey), Envs, ConfigNames),
+
+    lists:foldl(fun(Name, Acc) ->
+        maps:put(Name, parse_config([Name | RevKey], Config, Envs), Acc)
+    end, #{}, Names);
+
+parse_config([Name, ?USERS_KEY, ?ONEPANEL_KEY] = RevKey, ParentConfig, Envs) ->
+    Config = proplists:get_value(Name, ParentConfig, []),
+    #{
+        password => get([?PASSWORD_KEY | RevKey], string, Config, Envs),
+        role => get([?ROLE_KEY | RevKey], atom, Config, Envs)
     }.
 
 %%--------------------------------------------------------------------

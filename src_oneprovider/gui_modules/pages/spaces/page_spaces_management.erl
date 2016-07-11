@@ -37,7 +37,6 @@
 
 -record(document, {key, rev, deleted, value, links}).
 -record(storage, {name, helpers}).
--record(helper_init, {name, args}).
 
 %% ====================================================================
 %% API functions
@@ -290,63 +289,22 @@ add_space_row(RowId, SpaceDetails) ->
 %% ====================================================================
 %% @doc Renders storage list dropdown.
 %% @end
--spec storage_dropdown(Storages :: list(), CephForm :: binary(), DioForm :: binary(),
-    S3Form :: binary()) -> Result when Result :: binary().
+-spec storage_dropdown(Storages :: list(), Form :: binary()) -> Result :: binary().
 %% ====================================================================
-storage_dropdown(Storages, CephForm, DioForm, S3Form) ->
-    Options = lists:map(fun(#document{key = StorageId,
-        value = #storage{name = SName, helpers = [#helper_init{name = HName}]}
-    }) ->
-        <<"<option value=\"", HName/binary, ":", StorageId/binary, "\">", SName/binary, "</option>">>
+storage_dropdown(Storages, Form) ->
+    Options = lists:map(fun(#document{key = StorageId, value = #storage{name = SName}}) ->
+        <<"<option value=\"", StorageId/binary, "\">", SName/binary, "</option>">>
     end, Storages),
     Header = <<"<div id=\"storage_list\" style=\"display: flex;\">",
-        "<label for=\"storage_type\" style=\"font-size: larger; line-height: 2em; "
+        "<label for=\"storage_id\" style=\"font-size: larger; line-height: 2em; "
         "padding-right: 0.5em;\">Storage:</label>",
-        "<select id=\"storage_type\" class=\"select\" onchange=(function(){",
-        "storage_type=$(\"#storage_type\").val();",
-        "$(\"#ceph_form\").remove();",
-        "$(\"#dio_form\").remove();",
-        "$(\"#s3_form\").remove();",
-        "if(storage_type.slice(0,4)==\"Ceph\"){",
-        CephForm/binary,
-        "}",
-        "if(storage_type.slice(0,8)==\"DirectIO\"){",
-        DioForm/binary,
-        "}",
-        "if(storage_type.slice(0,8)==\"AmazonS3\"){",
-        S3Form/binary,
-        "}",
+        "<select id=\"storage_id\" class=\"select\" onchange=(function(){",
+        "$(\"#storage_form\").remove();",
+        Form/binary,
         "})()>">>,
     lists:foldl(fun(Part, Acc) ->
         <<Acc/binary, Part/binary>>
     end, Header, Options ++ [<<"</select></div>">>]).
-
-%% get_storage_details/1
-%% ====================================================================
-%% @doc Returns storage ID from option ID.
-%% @end
--spec get_storage_details(OptionId :: binary()) -> {Type :: atom(), StorageId :: binary()}.
-%% ====================================================================
-get_storage_details(<<"AmazonS3:", StorageId/binary>>) ->
-    {s3, StorageId};
-get_storage_details(<<"Ceph:", StorageId/binary>>) ->
-    {ceph, StorageId};
-get_storage_details(<<"DirectIO:", StorageId/binary>>) ->
-    {dio, StorageId}.
-
-%% maybe_add_storage_user/6
-%% ====================================================================
-%% @doc For Ceph storage user adds his details to provider database.
-%% @end
--spec maybe_add_storage_user(Workers :: [node()], StorageType :: atom(), UserId :: binary(),
-    StorageId :: binary(), Username :: binary(), Key :: binary()) -> ok.
-%% ====================================================================
-maybe_add_storage_user(_, dio, _, _, _, _) ->
-    ok;
-maybe_add_storage_user(Workers, ceph, UserId, StorageId, Username, Key) ->
-    installer_storage:add_ceph_user(Workers, UserId, StorageId, Username, Key);
-maybe_add_storage_user(Workers, s3, UserId, StorageId, AccessKey, SecretKey) ->
-    installer_storage:add_s3_user(Workers, UserId, StorageId, AccessKey, SecretKey).
 
 %% ====================================================================
 %% Events handling
@@ -365,18 +323,14 @@ comet_loop({error, Reason}) ->
 comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails, workers = Workers} = State) ->
     NewState = try
         receive
-            {create_space, Storage, Name, Token, Size, Arg1, Arg2} ->
+            {create_space, StorageId, Name, Token, Size} ->
                 NextState =
                     try
                         RowId = <<"space_", (integer_to_binary(Counter + 1))/binary>>,
-                        {ok, #token_issuer{client_type = <<"user">>, client_id = UserId}} =
-                            oz_providers:get_token_issuer(provider, Token),
                         {ok, SpaceId} = oz_providers:create_space(provider,
                             [{<<"name">>, Name}, {<<"token">>, Token}, {<<"size">>, integer_to_binary(Size)}]),
                         {ok, SpaceDetails} = oz_providers:get_space_details(provider, SpaceId),
-                        {StorageType, StorageId} = get_storage_details(Storage),
                         installer_storage:add_space_storage_mapping(Workers, SpaceId, StorageId),
-                        maybe_add_storage_user(Workers, StorageType, UserId, StorageId, Arg1, Arg2),
                         add_space_row(RowId, SpaceDetails),
                         onepanel_gui_utils:message(success, <<"Created Space's ID: <b>", SpaceId/binary, "</b>">>),
                         State#?STATE{counter = Counter + 1, spaces_details = [{RowId, SpaceDetails} | SpacesDetails]}
@@ -390,21 +344,16 @@ comet_loop(#?STATE{counter = Counter, spaces_details = SpacesDetails, workers = 
                 gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"">>),
                 NextState;
 
-            {support_space, Storage, Token, Size, Arg1, Arg2} ->
+            {support_space, StorageId, Token, Size} ->
                 NextState =
                     try
                         RowId = <<"space_", (integer_to_binary(Counter + 1))/binary>>,
-                        {ok, #token_issuer{client_type = <<"user">>, client_id = UserId}} =
-                            oz_providers:get_token_issuer(provider, Token),
                         {ok, SpaceId} = oz_providers:support_space(provider,
                             [{<<"token">>, Token}, {<<"size">>, integer_to_binary(Size)}]),
                         {ok, SpaceDetails} = oz_providers:get_space_details(provider, SpaceId),
-                        {StorageType, StorageId} = get_storage_details(Storage),
                         installer_storage:add_space_storage_mapping(Workers, SpaceId, StorageId),
-                        maybe_add_storage_user(Workers, StorageType, UserId, StorageId, Arg1, Arg2),
                         add_space_row(RowId, SpaceDetails),
                         onepanel_gui_utils:message(success, <<"Supported Space's ID: <b>", SpaceId/binary, "</b>">>),
-
                         State#?STATE{counter = Counter + 1, spaces_details = [{RowId, SpaceDetails} | SpacesDetails]}
                     catch
                         _:Reason ->
@@ -505,39 +454,23 @@ event({create_space, Storages}) ->
     Title = <<"Create Space">>,
     Message = <<"<div style=\"margin: 0 auto; width: 80%;\">",
         "<p id=\"space_alert\" style=\"width: 100%; color: red; font-size: medium; text-align: center; display: none;\"></p>",
-        (storage_dropdown(Storages, <<"ceph_create_form();">>, <<"dio_create_form();">>, <<"s3_create_form();">>))/binary,
+        (storage_dropdown(Storages, <<"storage_create_form();">>))/binary,
         "</div>">>,
-    Script = <<"create_space_check();">>,
+    Script = <<"return create_space_check();">>,
     ConfirmButtonClass = <<"btn-inverse">>,
     gui_jq:dialog_popup(Title, Message, Script, ConfirmButtonClass),
-    case Storages of
-        [#document{value = #storage{helpers = [#helper_init{name = <<"AmazonS3">>} | _]}} | _] ->
-            gui_jq:wire(<<"box.on('shown',s3_create_form);">>);
-        [#document{value = #storage{helpers = [#helper_init{name = <<"Ceph">>} | _]}} | _] ->
-            gui_jq:wire(<<"box.on('shown',ceph_create_form);">>);
-        [#document{value = #storage{helpers = [#helper_init{name = <<"DirectIO">>} | _]}} | _] ->
-            gui_jq:wire(<<"box.on('shown',dio_create_form);">>);
-        _ -> ok
-    end;
+    gui_jq:wire(<<"box.on('shown',storage_create_form);">>);
 
 event({support_space, Storages}) ->
     Title = <<"Support Space">>,
     Message = <<"<div style=\"margin: 0 auto; width: 80%;\">",
         "<p id=\"space_alert\" style=\"width: 100%; color: red; font-size: medium; text-align: center; display: none;\"></p>",
-        (storage_dropdown(Storages, <<"ceph_support_form();">>, <<"dio_support_form();">>, <<"s3_support_form();">>))/binary,
+        (storage_dropdown(Storages, <<"storage_support_form();">>))/binary,
         "</div>">>,
-    Script = <<"support_space_check();">>,
+    Script = <<"return support_space_check();">>,
     ConfirmButtonClass = <<"btn-inverse">>,
     gui_jq:dialog_popup(Title, Message, Script, ConfirmButtonClass),
-    case Storages of
-        [#document{value = #storage{helpers = [#helper_init{name = <<"AmazonS3">>} | _]}} | _] ->
-            gui_jq:wire(<<"box.on('shown',s3_support_form);">>);
-        [#document{value = #storage{helpers = [#helper_init{name = <<"Ceph">>} | _]}} | _] ->
-            gui_jq:wire(<<"box.on('shown',ceph_support_form);">>);
-        [#document{value = #storage{helpers = [#helper_init{name = <<"DirectIO">>} | _]}} | _] ->
-            gui_jq:wire(<<"box.on('shown',dio_support_form);">>);
-        _ -> ok
-    end;
+    gui_jq:wire(<<"box.on('shown',storage_support_form);">>);
 
 event({revoke_space_support, RowId, #space_details{id = SpaceId}}) ->
     Title = <<"Revoke Space support">>,
@@ -567,14 +500,14 @@ event(terminate) ->
 -spec api_event(Name :: string(), Args :: string(), Req :: string()) -> no_return().
 %% ====================================================================
 api_event("create_space", Args, _) ->
-    [Storage, Name, Token, Size, Arg1, Arg2] = mochijson2:decode(Args),
-    get(?COMET_PID) ! {create_space, Storage, Name, Token, Size, Arg1, Arg2},
+    [StorageId, Name, Token, Size] = mochijson2:decode(Args),
+    get(?COMET_PID) ! {create_space, StorageId, Name, Token, Size},
     gui_jq:show(<<"main_spinner">>),
     gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"disabled">>);
 
 api_event("support_space", Args, _) ->
-    [Storage, Token, Size, Arg1, Arg2] = mochijson2:decode(Args),
-    get(?COMET_PID) ! {support_space, Storage, Token, Size, Arg1, Arg2},
+    [StorageId, Token, Size] = mochijson2:decode(Args),
+    get(?COMET_PID) ! {support_space, StorageId, Token, Size},
     gui_jq:show(<<"main_spinner">>),
     gui_jq:prop(<<"support_space_button">>, <<"disabled">>, <<"disabled">>);
 

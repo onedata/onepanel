@@ -14,6 +14,7 @@
 
 -define(INTERNAL_SERVER_ERROR, <<"internal_server_error">>).
 -define(AUTHENTICATION_ERROR, <<"authentication_error">>).
+-define(AUTHORIZATION_ERROR, <<"authorization_error">>).
 
 -define(COMMON_ERROR_MESSAGES, [
     {
@@ -28,6 +29,13 @@
         {
             <<"Authentication error">>,
             <<"Server could not authenticate you. Please try again to log in or contact the site administrator if the problem persists.">>
+        }
+    },
+    {
+        ?AUTHORIZATION_ERROR,
+        {
+            <<"Authorization error">>,
+            <<"You are not allowed to execute this action.">>
         }
     }
 ]).

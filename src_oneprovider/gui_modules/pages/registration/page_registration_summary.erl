@@ -84,12 +84,30 @@ body() ->
             #p{
                 style = <<"font-size: medium; width: 50%; margin: 0 auto; margin-bottom: 3em;">>,
                 body = <<"Your software configuration has been successfully verified.<br>"
-                "Please enter your <i>onedata</i> provider name.">>
+                "Please enter your <i>onedata</i> provider name and optional approximate geographical location.">>
             },
-            #textbox{
-                id = <<"client_name">>,
-                placeholder = <<"Provider name">>,
-                style = <<"margin: 0 auto; width: 25%;">>
+            #panel{
+                body = #textbox{
+                    id = <<"client_name">>,
+                    placeholder = <<"Provider name">>,
+                    style = <<"margin: 0 auto; width: 25%;">>
+                }
+            },
+            #panel{
+                style = <<"margin-top: 1em;">>,
+                body = #textbox{
+                    id = <<"geo_latitude">>,
+                    placeholder = <<"Latitude (optional)">>,
+                    style = <<"margin: 0 auto; width: 25%;">>
+                }
+            },
+            #panel{
+                style = <<"margin-top: 1em;">>,
+                body = #textbox{
+                    id = <<"geo_longitude">>,
+                    placeholder = <<"Longitude (optional)">>,
+                    style = <<"margin: 0 auto; width: 25%;">>
+                }
             },
             #panel{
                 id = <<"progress">>,
@@ -109,7 +127,9 @@ body() ->
             },
             onepanel_gui_utils:nav_buttons([
                 {<<"back_button">>, {postback, back}, false, <<"Back">>},
-                {<<"register_button">>, {actions, gui_jq:form_submit_action(<<"register_button">>, register, [<<"client_name">>])}, false, <<"Register">>}
+                {<<"register_button">>, {actions, gui_jq:form_submit_action(<<"register_button">>,
+                    register, [<<"client_name">>, <<"geo_latitude">>, <<"geo_longitude">>])},
+                    false, <<"Register">>}
             ])
         ]
     },
@@ -146,10 +166,11 @@ comet_loop(#?STATE{pid = Pid} = State) ->
     NewState =
         try
             receive
-                {register, ClientName} ->
+                {register, ClientName, Latitude, Longitude} ->
                     RedirectionPoint = gui_ctx:get(redirection_point),
                     NewPid = spawn_link(fun() ->
-                        {ok, _} = provider_logic:register(RedirectionPoint, ClientName)
+                        {ok, _} = provider_logic:register(RedirectionPoint, ClientName,
+                            #{latitude => Latitude, longitude => Longitude})
                     end),
                     State#?STATE{pid = NewPid};
 
@@ -161,6 +182,8 @@ comet_loop(#?STATE{pid = Pid} = State) ->
                     onepanel_gui_utils:message(error, <<"Cannot register in <i>Global Registry</i>.<br>Please try again later.">>),
                     gui_jq:hide(<<"progress">>),
                     gui_jq:show(<<"client_name">>),
+                    gui_jq:show(<<"geo_latitude">>),
+                    gui_jq:show(<<"geo_longitude">>),
                     gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"">>),
                     gui_jq:prop(<<"register_button">>, <<"disabled">>, <<"">>),
                     State;
@@ -188,7 +211,9 @@ comet_loop(#?STATE{pid = Pid} = State) ->
 %% ====================================================================
 event(init) ->
     gui_jq:focus(<<"client_name">>),
-    gui_jq:bind_key_to_click(<<"13">>, <<"register_button">>),
+    gui_jq:bind_enter_to_change_focus(<<"client_name">>, <<"geo_latitude">>),
+    gui_jq:bind_enter_to_change_focus(<<"geo_latitude">>, <<"geo_longitude">>),
+    gui_jq:bind_enter_to_submit_button(<<"geo_longitude">>, <<"register_button">>),
     {ok, Pid} = gui_comet:spawn(fun() -> comet_loop_init() end),
     put(?COMET_PID, Pid);
 
@@ -200,11 +225,22 @@ event(register) ->
         <<>> ->
             onepanel_gui_utils:message(error, <<"Please enter provider name.">>);
         ClientName ->
-            get(?COMET_PID) ! {register, ClientName},
-            gui_jq:hide(<<"client_name">>),
-            gui_jq:show(<<"progress">>),
-            gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
-            gui_jq:prop(<<"register_button">>, <<"disabled">>, <<"disabled">>)
+            try
+                Latitude = get_coordinate(<<"geo_latitude">>),
+                Longitude = get_coordinate(<<"geo_longitude">>),
+                get(?COMET_PID) ! {register, ClientName, Latitude, Longitude},
+                gui_jq:hide(<<"client_name">>),
+                gui_jq:hide(<<"geo_latitude">>),
+                gui_jq:hide(<<"geo_longitude">>),
+                gui_jq:show(<<"progress">>),
+                gui_jq:prop(<<"back_button">>, <<"disabled">>, <<"disabled">>),
+                gui_jq:prop(<<"register_button">>, <<"disabled">>,
+                    <<"disabled">>)
+            catch
+                _:_ ->
+                    onepanel_gui_utils:message(error,
+                        <<"Coordinates should be a floating point numbers.">>)
+            end
     end;
 
 event({close_message, MessageId}) ->
@@ -212,3 +248,11 @@ event({close_message, MessageId}) ->
 
 event(terminate) ->
     ok.
+
+get_coordinate(Name) ->
+    case gui_ctx:postback_param(Name) of
+        <<>> ->
+            0.0;
+        Value ->
+            erlang:binary_to_float(Value)
+    end.

@@ -57,7 +57,8 @@
     web_cert,
     web_ca_cert,
     auth_config,
-    dns_config
+    dns_config,
+    users
 }).
 
 %% API
@@ -140,13 +141,22 @@ install(Config) ->
             web_cert = WebCert,
             web_ca_cert = WebCaCert,
             auth_config = AuthConfig,
-            dns_config = DnsConfig
+            dns_config = DnsConfig,
+            users = Users
         } = Config,
         AllHosts = lists:usort(CMs ++ Workers ++ Dbs),
 
         print_info("Checking configuration..."),
         check_hosts(Node, AllHosts),
         print_ok(),
+
+        case Users of
+            [] -> ok;
+            _ ->
+                print_info("Creating users..."),
+                create_users(Node, Users),
+                print_ok()
+        end,
 
         print_info("Setting ulimits..."),
         lists:foreach(fun(Host) ->
@@ -426,7 +436,8 @@ adjust_config(Config) ->
         web_cert = get([cluster, settings, web_certificate], Config),
         web_ca_cert = get([cluster, settings, web_ca_certificate], Config),
         auth_config = get([cluster, settings, open_id_auth_config], Config),
-        dns_config = get([cluster, settings, dns_config], Config)
+        dns_config = get([cluster, settings, dns_config], Config),
+        users = get_users([onepanel], Config)
     }.
 
 %%--------------------------------------------------------------------
@@ -472,3 +483,32 @@ get_host(NodeId, Config) ->
 get_hosts(Keys, Config) ->
     NodeIds = get(Keys ++ [node_ids], Config),
     lists:map(fun(NodeId) -> get_host(NodeId, Config) end, NodeIds).
+
+%%--------------------------------------------------------------------
+%% @doc Returns users list.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_users(Keys :: list(), Config :: #{}) -> list().
+get_users(Keys, Config) ->
+    Users = get(Keys ++ [users], Config),
+    maps:fold(fun(Username, _, List) ->
+        [
+            {
+                list_to_binary(Username),
+                list_to_binary(get(Keys ++ [users, Username, password], Config)),
+                get(Keys ++ [users, Username, role], Config)
+            } | List
+        ]
+    end, [], Users).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Creates users.
+%% @end
+%%--------------------------------------------------------------------
+-spec create_users(Node :: node(), Users :: list()) -> ok.
+create_users(Node, Users) ->
+    ok = rpc:call(Node, user_logic, delete_default_user, []),
+    lists:foreach(fun({Username, Password, Role}) ->
+        ok = rpc:call(Node, user_logic, create_user, [Username, Password, Role])
+    end, Users).

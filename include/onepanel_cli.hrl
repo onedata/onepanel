@@ -28,6 +28,7 @@
 -define(ACCESS_KEY_KEY, "access_key").
 -define(SECRET_KEY_KEY, "secret_key").
 -define(S3_HOSTNAME_KEY, "s3_hostname").
+-define(IAM_HOSTNAME_KEY, "iam_hostname").
 -define(BUCKET_NAME_KEY, "bucket_name").
 -define(USERNAME_KEY, "username").
 -define(KEY_KEY, "key").
@@ -52,5 +53,9 @@
 -define(GEO_LONGITUDE_KEY, "geo_longitude").
 -define(GEO_LATITUDE_KEY, "geo_latitude").
 -define(ONEZONE_KEY, "onezone").
+-define(ONEPANEL_KEY, "onepanel").
+-define(USERS_KEY, "users").
+-define(PASSWORD_KEY, "password").
+-define(ROLE_KEY, "role").
 
 -endif.
