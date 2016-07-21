@@ -190,6 +190,61 @@ def remove(containers, docker_host=None, force=False,
     subprocess.check_call(cmd)
 
 
+def cp(container, src_path, dest_path, to_container=False):
+    """Copying file between docker container and host
+    :param container: str, docker id or name
+    :param src_path: str
+    :param dest_path: str
+    :param to_container: bool, if True file will be copied from host to
+    container, otherwise from docker container to host
+    """
+    cmd = ["docker", "cp"]
+    if to_container:
+        cmd.extend([src_path, "{0}:{1}".format(container, dest_path)])
+    else:
+        cmd.extend(["{0}:{1}".format(container, src_path), dest_path])
+
+    subprocess.check_call(cmd)
+
+
+def login(user, password, repository='hub.docker.com'):
+    """Logs into docker repository."""
+
+    subprocess.check_call(['docker', 'login', '-u', user, '-p', password,
+                           repository])
+
+
+def build_image(image, build_args):
+    """Builds and tags docker image."""
+
+    subprocess.check_call(['docker', 'build', '--no-cache', '--force-rm', '-t',
+                           image] + build_args)
+
+
+def tag_image(image, tag):
+    """Tags docker image."""
+
+    subprocess.check_call(['docker', 'tag', image, tag])
+
+
+def push_image(image):
+    """Pushes docker image to the repository."""
+
+    subprocess.check_call(['docker', 'push', image])
+
+
+def pull_image(image):
+    """Pulls docker image from the repository."""
+
+    subprocess.check_call(['docker', 'pull', image])
+
+
+def remove_image(image):
+    """Removes docker image."""
+
+    subprocess.check_call(['docker', 'rmi', '-f', image])
+
+
 def create_volume(path, name, image, command):
     cmd = ['docker']
 

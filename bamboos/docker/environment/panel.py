@@ -37,7 +37,7 @@ def _tweak_config(config, name, onepanel_instance, uid):
     return cfg
 
 
-def _node_up(image, bindir, config, dns_servers, app_name, logdir):
+def _node_up(image, bindir, config, dns_servers, logdir, storages):
     node_name = config['nodes']['node']['vm.args']['name']
 
     (name, sep, hostname) = node_name.partition('@')
@@ -51,14 +51,15 @@ cat <<"EOF" > /tmp/gen_dev_args.json
 {gen_dev_args}
 EOF
 escript bamboos/gen_dev/gen_dev.escript /tmp/gen_dev_args.json
-/root/bin/node/bin/{app_name} console'''
+/root/bin/node/bin/onepanel console'''
     command = command.format(
         uid=os.geteuid(),
         gid=os.getegid(),
-        gen_dev_args=json.dumps({'onepanel': config}),
-        app_name=app_name)
+        gen_dev_args=json.dumps({'onepanel': config}))
 
     volumes = [(bindir, '/root/build', 'ro')]
+    for host, container in storages.items():
+        volumes.append((host, container, 'rw'))
 
     if logdir:
         logdir = os.path.join(os.path.abspath(logdir), hostname)
@@ -91,7 +92,10 @@ def up(image, bindir, dns_server, uid, config_path, logdir=None):
     dns_servers, output = dns.maybe_start(dns_server, uid)
 
     for onepanel_instance in config['onepanel_domains']:
-        app_name = config['onepanel_domains'][onepanel_instance]['app_name']
+        storages = config['onepanel_domains'][onepanel_instance].get(
+            'storages', {})
+        image = config['onepanel_domains'][onepanel_instance].get(
+            'image', image)
 
         if 'image' in config['onepanel_domains'][onepanel_instance]:
             image = config['onepanel_domains'][onepanel_instance]['image']
@@ -108,8 +112,8 @@ def up(image, bindir, dns_server, uid, config_path, logdir=None):
                    for node in gen_dev_cfg['nodes']]
 
         for cfg in configs:
-            node_out = _node_up(image, bindir, cfg, dns_servers, app_name,
-                                logdir)
+            node_out = _node_up(image, bindir, cfg, dns_servers, logdir,
+                                storages)
             common.merge(output, node_out)
 
     return output
