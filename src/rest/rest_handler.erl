@@ -74,7 +74,7 @@ rest_init(Req, #rstate{} = State) ->
     {[binary()], cowboy_req:req(), state()}.
 allowed_methods(Req, #rstate{methods = Methods} = State) ->
     AllowedMethods = lists:map(fun(#rmethod{type = Type}) ->
-        erlang:atom_to_binary(Type, utf8)
+        onepanel_utils:convert(Type, binary)
     end, Methods),
     {AllowedMethods, Req, State}.
 
@@ -279,12 +279,15 @@ authorize_by_basic_auth(Req, State) ->
     case cowboy_req:header(<<"authorization">>, Req) of
         {<<"Basic ", Hash/binary>>, Req2} ->
             [Username, Password] = binary:split(base64:decode(Hash), <<":">>),
-            case onedata_user:authenticate(Username, Password) of
-                {ok, #onedata_user{uuid = Uuid, role = Role}} ->
+            try onepanel_user:authenticate(Username, Password) of
+                {ok, #onepanel_user{uuid = Uuid, role = Role}} ->
                     Client = #client{name = Username, id = Uuid, role = Role},
                     {true, Req2, State#rstate{client = Client}};
                 _ ->
                     {false, Req2, State}
+            catch
+                Type:Reason ->
+                    {false, rest_utils:handle_errors(Req2, Type, ?error(Reason)), State}
             end;
         {_, Req2} ->
             {false, Req2, State}

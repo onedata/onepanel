@@ -7,7 +7,6 @@
   },
   "onepanel_domains": {
     "p1": {
-      "app_name": "onepanel",
       "onepanel": {
         "node1": {
           "vm.args": {

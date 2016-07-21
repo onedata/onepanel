@@ -58,7 +58,8 @@ create(Model, Record) ->
         Key = erlang:element(2, Record),
         case mnesia:read(Table, Key) of
             [] -> mnesia:write(Table, Record, write);
-            [_ | _] -> ?error(?ERR_ALREADY_EXISTS, Model, create, 1)
+            [_ | _] ->
+                ?error(?ERR_ALREADY_EXISTS, ?MODULE, create, 1, [Model, Record])
         end
     end).
 
@@ -88,7 +89,8 @@ update(Model, Key, Diff) ->
     transaction(fun() ->
         Table = table_name(Model),
         case mnesia:read(Table, Key) of
-            [] -> mnesia:abort(?error(?ERR_NOT_FOUND, Model, update, 2));
+            [] -> mnesia:abort(?error(?ERR_NOT_FOUND, ?MODULE, update, 2,
+                [Model, Key, Diff]));
             [Record] -> mnesia:write(Table, apply_diff(Record, Diff), write)
         end
     end).
@@ -105,7 +107,7 @@ get(Model, Key) ->
     transaction(fun() ->
         Table = table_name(Model),
         case mnesia:read(Table, Key) of
-            [] -> ?error(?ERR_NOT_FOUND, Model, get, 1);
+            [] -> ?error(?ERR_NOT_FOUND, ?MODULE, get, 1, [Model, Key]);
             [Record] -> {ok, Record}
         end
     end).

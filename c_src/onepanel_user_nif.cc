@@ -77,6 +77,6 @@ static ERL_NIF_TERM check_password_nif(
 static ErlNifFunc nif_funcs[] = {{"hash_password", 2, hash_password_nif},
     {"check_password", 2, check_password_nif}};
 
-ERL_NIF_INIT(onedata_user, nif_funcs, NULL, NULL, NULL, NULL)
+ERL_NIF_INIT(onepanel_user, nif_funcs, NULL, NULL, NULL, NULL)
 
 } // extern C

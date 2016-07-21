@@ -32,16 +32,7 @@
 %%--------------------------------------------------------------------
 -spec output(Tokens :: [token()]) -> Output :: string().
 output(Tokens) ->
-    Cmd = string:strip(lists:foldl(fun
-        (Token, Acc) when is_atom(Token) ->
-            string:join([Acc, erlang:atom_to_list(Token)], " ");
-        (Token, Acc) when is_integer(Token) ->
-            string:join([Acc, erlang:integer_to_list(Token)], " ");
-        (Token, Acc) when is_binary(Token) ->
-            string:join([Acc, erlang:binary_to_list(Token)], " ");
-        (Token, Acc) ->
-            string:join([Acc, Token], " ")
-    end, "", Tokens)),
+    Cmd = erlang:binary_to_list(onepanel_utils:join(Tokens, <<" ">>)),
     Result = string:strip(os:cmd(Cmd), right, $\n),
     ?log_info("Shell command: '~s' returned: '~s'", [Cmd, Result]),
     Result.

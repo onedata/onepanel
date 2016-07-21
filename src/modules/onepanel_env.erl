@@ -15,7 +15,8 @@
 -include("names.hrl").
 
 %% API
--export([read/2, write/3, get/1, get/2, find/1, find/2, set/2, set/3]).
+-export([get/1, get/2, find/1, find/2, set/2, set/3, set/4]).
+-export([read/2, write/2, write/3, write/4]).
 
 -type key() :: atom().
 -type keys() :: key() | [key()].
@@ -94,6 +95,17 @@ set(Keys, Value, AppName) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
+-spec set(Nodes :: [node()], Keys :: keys(), Value :: value(), AppName :: atom()) ->
+    Results :: onepanel_rpc:results() | no_return().
+set(Nodes, Keys, Value, AppName) ->
+    onepanel_rpc:call_all(Nodes, ?MODULE, set, [Keys, Value, AppName]).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
 -spec read(Keys :: keys(), Path :: file:name()) ->
     {ok, Value :: value()} | #error{} | no_return().
 read(Keys, Path) ->
@@ -101,6 +113,16 @@ read(Keys, Path) ->
         {ok, [AppConfigs]} -> select(Keys, AppConfigs);
         {error, Reason} -> ?throw(Reason)
     end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec write(Keys :: keys(), Value :: value()) -> ok | no_return().
+write(Keys, Value) ->
+    write(Keys, Value, onepanel_env:get(app_config_path)).
 
 
 %%--------------------------------------------------------------------
@@ -121,6 +143,17 @@ write(Keys, Value, Path) ->
         {error, Reason} ->
             ?throw(Reason)
     end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec write(Nodes :: [node()], Keys :: keys(), Value :: value(),
+    Path :: file:name_all()) -> Results :: onepanel_rpc:results() | no_return().
+write(Nodes, Keys, Value, Path) ->
+    onepanel_rpc:call_all(Nodes, ?MODULE, write, [Keys, Value, Path]).
 
 %%%===================================================================
 %%% Internal functions

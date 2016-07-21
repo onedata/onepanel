@@ -18,7 +18,7 @@
 -include("service.hrl").
 
 %% Service behaviour callbacks
--export([name/0, get_steps/2]).
+-export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
 -export([configure/1, start/1, stop/1, status/1]).
@@ -35,6 +35,22 @@
 -spec name() -> Name :: service:name().
 name() ->
     cluster_manager.
+
+
+%%--------------------------------------------------------------------
+%% @doc @see service_behaviour:get_hosts/0
+%%--------------------------------------------------------------------
+-spec get_hosts() -> Hosts :: [service:host()].
+get_hosts() ->
+    service:get_hosts(name()).
+
+
+%%--------------------------------------------------------------------
+%% @doc @see service_behaviour:get_hosts/0
+%%--------------------------------------------------------------------
+-spec get_nodes() -> Nodes :: [node()].
+get_nodes() ->
+    service:get_nodes(name()).
 
 
 %%--------------------------------------------------------------------
@@ -79,8 +95,9 @@ get_steps(Action, _Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
-configure(#{main_host := MainHost, hosts := Hosts, wait_for_process := Process}
-    = Ctx) ->
+configure(#{main_host := MainHost, hosts := Hosts,
+    wait_for_process :=Process} = Ctx) ->
+
     AppConfigPath = service_ctx:get(cluster_manager_app_config_path, Ctx),
     VmArgsPath = service_ctx:get(cluster_manager_vm_args_path, Ctx),
     EnvPath = service_ctx:get(cluster_manager_env_path, Ctx),
@@ -88,28 +105,25 @@ configure(#{main_host := MainHost, hosts := Hosts, wait_for_process := Process}
     Node = onepanel_cluster:host_to_node(name(), Host),
     Nodes = onepanel_cluster:hosts_to_nodes(name(), Hosts),
     MainNode = onepanel_cluster:host_to_node(name(), MainHost),
+    WorkerNum = maps:get(worker_num, Ctx, undefined),
+    Cookie = maps:get(cookie, Ctx, erlang:get_cookie()),
 
-    onepanel_env:write([name(), cm_nodes],
-        onepanel_cluster:hosts_to_nodes(name(), Hosts), AppConfigPath),
-    onepanel_env:write([name(), worker_num],
-        maps:get(worker_num, Ctx, undefined), AppConfigPath),
+    onepanel_env:write([name(), cm_nodes], Nodes, AppConfigPath),
+    onepanel_env:write([name(), worker_num], WorkerNum, AppConfigPath),
 
     onepanel_env:write([kernel, distributed], [{
         name(),
-        service_ctx:get(cluster_manager_failover_timeout, Ctx),
+        service_ctx:get(cluster_manager_failover_timeout, Ctx, integer),
         [MainNode, list_to_tuple(Nodes -- [MainNode])]
     }], AppConfigPath),
     onepanel_env:write([kernel, sync_nodes_mandatory],
         Nodes -- [Node], AppConfigPath),
     onepanel_env:write([kernel, sync_nodes_timeout],
-        service_ctx:get(cluster_manager_sync_nodes_timeout, Ctx),
+        service_ctx:get(cluster_manager_sync_nodes_timeout, Ctx, integer),
         AppConfigPath),
 
-    onepanel_vm:write(<<"name">>, erlang:atom_to_binary(Node, utf8),
-        VmArgsPath),
-    onepanel_vm:write(<<"setcookie">>,
-        erlang:atom_to_binary(maps:get(cookie, Ctx, erlang:get_cookie()), utf8),
-        VmArgsPath),
+    onepanel_vm:write("name", Node, VmArgsPath),
+    onepanel_vm:write("setcookie", Cookie, VmArgsPath),
 
     onepanel_shell:sed("WAIT_FOR_PROCESS=.*",
         "WAIT_FOR_PROCESS=" ++ Process, EnvPath),
@@ -138,6 +152,6 @@ stop(_Ctx) ->
 %%--------------------------------------------------------------------
 %% @doc @see service:status/1
 %%--------------------------------------------------------------------
--spec status(Ctx :: service:ctx()) -> ok | no_return().
+-spec status(Ctx :: service:ctx()) -> running | stopped | not_found.
 status(_Ctx) ->
     service:status(?INIT_SCRIPT).

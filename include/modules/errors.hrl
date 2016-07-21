@@ -23,27 +23,33 @@
     line :: non_neg_integer()
 }).
 
--define(error(Reason), begin
+-define(error(Reason), ?error(Reason, erlang:get_stacktrace())).
+
+-define(error(Reason, Stacktrace), begin
     {current_function, {__Module, __Function, __Arity}} =
         erlang:process_info(self(), current_function),
-    ?error(Reason, __Module, __Function, __Arity)
+    ?error(Reason, Stacktrace, __Module, __Function, __Arity, undefined)
 end).
 
 -define(error(Reason, Module, Function, Arity),
     ?error(Reason, Module, Function, Arity, undefined)).
 
 -define(error(Reason, Module, Function, Arity, Args),
-    onepanel_errors:new(Module, Function, Arity, Args, Reason,
-        erlang:get_stacktrace(), ?LINE)
+    ?error(Reason, erlang:get_stacktrace(), Module, Function, Arity, Args)).
+
+-define(error(Reason, Stacktrace, Module, Function, Arity, Args),
+    onepanel_errors:new(Module, Function, Arity, Args, Reason, Stacktrace, ?LINE)
 ).
 
 -define(throw(Reason), erlang:throw(?error(Reason))).
 
+-define(throw(Reason, Stacktrace), erlang:throw(?error(Reason, Stacktrace))).
+
 -define(throw(Reason, Module, Function, Arity),
-    ?throw(?error(Reason, Module, Function, Arity))).
+    erlang:throw(?error(Reason, Module, Function, Arity))).
 
 -define(throw(Reason, Module, Function, Arity, Args),
-    ?throw(?error(Reason, Module, Function, Arity, Args))).
+    erlang:throw(?error(Reason, Module, Function, Arity, Args))).
 
 
 -define(ERR_TIMEOUT, timeout).
@@ -52,6 +58,8 @@ end).
 -define(ERR_BAD_NODE, bad_node).
 -define(ERR_INVALID_REQUEST, invalid_request).
 -define(ERR_NIF_NOT_LOADED, nif_not_loaded).
+-define(ERR_FAILURE_ON_ALL_NODES, failure_on_all_nodes).
+-define(ERR_ACTION_IN_PROGRESS, action_in_progress).
 
 -define(ERR_USERNAME_NOT_AVAILABLE, username_not_available).
 -define(ERR_INVALID_USERNAME, invalid_username).
@@ -61,6 +69,13 @@ end).
 
 -define(ERR_MISSING_KEY, missing_key).
 -define(ERR_MISSING_PARAM, missing_param).
+-define(ERR_MISSING_ANY_KEY, missing_any_key).
 -define(ERR_INVALID_VALUE, invalid_value).
+-define(ERR_HOST_NOT_FOUND_FOR_ALIAS, host_not_found_for_alias).
+
+-define(ERR_STORAGE_TEST_FILE_CREATION, storage_test_file_creation).
+-define(ERR_STORAGE_TEST_FILE_VERIFICATION, storage_test_file_verification).
+-define(ERR_STORAGE_TEST_FILE_REMOVAL, storage_test_file_removal).
+-define(ERR_STORAGE_ADDITION, storage_addition).
 
 -endif.

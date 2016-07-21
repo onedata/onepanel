@@ -23,13 +23,14 @@
 -export([get_fields/0, create/1, save/1, update/2, get/1, exists/1, delete/1]).
 
 %% API
--export([start/1, start/2, stop/1, status/1, apply/3]).
--export([get_module/1, is_member/2, add_host/2]).
+-export([start/1, start/2, stop/1, status/1, apply/3, apply/4]).
+-export([get_module/1, get_hosts/1, get_nodes/1, is_member/2, add_host/2]).
 
 -type name() :: atom().
 -type action() :: atom().
 -type ctx() :: #{}.
--type host() :: binary().
+-type notify() :: pid() | undefined.
+-type host() :: string().
 -type step() :: #step{} | #steps{}.
 -type condition() :: fun((ctx()) -> boolean()).
 -type stage() :: action_begin | action_end | step_begin | step_end.
@@ -140,9 +141,22 @@ stop(InitScript) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec status(InitScript :: string()) -> ok | no_return().
+-spec status(InitScript :: string()) -> running | stopped | not_found.
 status(InitScript) ->
-    onepanel_shell:check_call(["service", InitScript, "status"]).
+    case onepanel_shell:call(["service", InitScript, "status"]) of
+        0 -> running;
+        2 -> stopped;
+        127 -> missing
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc @equiv apply(Service, Action, Ctx, undefined)
+%%--------------------------------------------------------------------
+-spec apply(Service :: name(), Action :: action(), Ctx :: ctx()) ->
+    ok | {error, Reason :: term()}.
+apply(Service, Action, Ctx) ->
+    apply(Service, Action, Ctx, undefined).
 
 
 %%--------------------------------------------------------------------
@@ -150,22 +164,22 @@ status(InitScript) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec apply(Services :: name() | [name()], Action :: action(), Ctx :: ctx()) ->
+-spec apply(Service :: name(), Action :: action(), Ctx :: ctx(), Notify :: notify()) ->
     ok | {error, Reason :: term()}.
-apply([], _Action, _Ctx) ->
+apply([], _Action, _Ctx, _Notify) ->
     ok;
 
-apply(Service, Action, Ctx) ->
-    notify({action_begin, {Service, Action}}, Ctx),
+apply(Service, Action, Ctx, Notify) ->
+    notify({action_begin, {Service, Action}}, Notify),
     Result = try
         Steps = get_steps(Service, Action, Ctx, false),
         ?log_info("Execution of ~p:~p requires following steps:~n~s",
             [Service, Action, format_steps(Steps, "")]),
-        apply_steps(Steps)
+        apply_steps(Steps, Notify)
     catch
         _:Reason -> ?error(Reason)
     end,
-    notify({action_end, {Service, Action, Result}}, Ctx),
+    notify({action_end, {Service, Action, Result}}, Notify),
     Result.
 
 
@@ -177,6 +191,27 @@ apply(Service, Action, Ctx) ->
 -spec get_module(Service :: name()) -> Module :: module().
 get_module(Service) ->
     erlang:list_to_atom("service_" ++ erlang:atom_to_list(Service)).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec get_hosts(Service :: name()) -> Hosts :: [host()].
+get_hosts(Service) ->
+    {ok, #service{hosts = Hosts}} = service:get(Service),
+    Hosts.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec get_nodes(Service :: name()) -> Nodes :: [node()].
+get_nodes(Service) ->
+    onepanel_cluster:hosts_to_nodes(Service, get_hosts(Service)).
 
 
 %%--------------------------------------------------------------------
@@ -216,27 +251,27 @@ add_host(Name, Host) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec apply_steps(Steps :: [step()]) -> ok | {error, Reason :: term()}.
-apply_steps([]) ->
+-spec apply_steps(Steps :: [step()], Notify :: notify()) -> ok | #error{}.
+apply_steps([], _Notify) ->
     ok;
 
-apply_steps([#step{hosts = []} | Steps]) ->
-    apply_steps(Steps);
+apply_steps([#step{hosts = []} | Steps], Notify) ->
+    apply_steps(Steps, Notify);
 
 apply_steps([#step{hosts = Hosts, module = Module, function = Function,
-    args = Args, ctx = Ctx, ignore_errors = IgnoreErrors} | Steps]) ->
+    args = Args, ignore_errors = IgnoreErrors} | Steps], Notify) ->
 
     Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
-    notify({step_begin, {Module, Function}}, Ctx),
+    notify({step_begin, {Module, Function}}, Notify),
 
     Results = onepanel_rpc:call(Nodes, Module, Function, Args),
     Status = partition_results(Results),
 
-    notify({step_end, {Module, Function, Status}}, Ctx),
+    notify({step_end, {Module, Function, Status}}, Notify),
 
     case {Status, IgnoreErrors} of
-        {{_, []}, _} -> apply_steps(Steps);
-        {_, true} -> apply_steps(Steps);
+        {{_, []}, _} -> apply_steps(Steps, Notify);
+        {_, true} -> apply_steps(Steps, Notify);
         {_, _} -> ?error({Module, Function, Status})
     end.
 
@@ -287,24 +322,36 @@ get_step(Service, #step{ignore_errors = undefined} = Step, Ctx, IgnoreErrors) ->
     get_step(Service, Step#step{ignore_errors = IgnoreErrors}, Ctx,
         IgnoreErrors);
 
+get_step(_Service, #step{hosts = []} = Step, _Ctx, _IgnoreErrors) ->
+    Step;
+
 get_step(Service, #step{hosts = undefined, ctx = #{hosts := Hosts}} = Step, Ctx,
     IgnoreErrors) ->
     get_step(Service, Step#step{hosts = Hosts}, Ctx, IgnoreErrors);
 
 get_step(Service, #step{hosts = undefined, service = StepService} = Step, Ctx,
     IgnoreErrors) ->
-    {ok, #service{hosts = Hosts}} = service:get(StepService),
-    get_step(Service, Step#step{hosts = Hosts}, Ctx, IgnoreErrors);
+    StepHosts = case service:get(StepService) of
+        {ok, #service{hosts = Hosts}} -> Hosts;
+        #error{reason = ?ERR_NOT_FOUND} -> onepanel_cluster:nodes_to_hosts()
+    end,
+    get_step(Service, Step#step{hosts = StepHosts}, Ctx, IgnoreErrors);
 
-get_step(Service, #step{hosts = Hosts, selection = first} = Step, Ctx,
+get_step(Service, #step{hosts = Hosts, ctx = Ctx, selection = any} = Step, _Ctx,
     IgnoreErrors) ->
-    get_step(Service, Step#step{hosts = [hd(Hosts)], selection = all}, Ctx,
-        IgnoreErrors);
+    Host = utils:random_element(Hosts),
+    get_step(Service, Step#step{hosts = [Host], selection = all,
+        ctx = Ctx#{rest => lists:delete(Host, Hosts)}}, _Ctx, IgnoreErrors);
 
-get_step(Service, #step{hosts = Hosts, selection = rest} = Step, Ctx,
+get_step(Service, #step{hosts = Hosts, ctx = Ctx, selection = first} = Step, _Ctx,
     IgnoreErrors) ->
-    get_step(Service, Step#step{hosts = tl(Hosts), selection = all}, Ctx,
-        IgnoreErrors);
+    get_step(Service, Step#step{hosts = [hd(Hosts)], ctx = Ctx#{rest => tl(Hosts)},
+        selection = all}, _Ctx, IgnoreErrors);
+
+get_step(Service, #step{hosts = Hosts, ctx = Ctx, selection = rest} = Step, _Ctx,
+    IgnoreErrors) ->
+    get_step(Service, Step#step{hosts = tl(Hosts), ctx = Ctx#{first => hd(Hosts)},
+        selection = all}, _Ctx, IgnoreErrors);
 
 get_step(_Service, #step{condition = Condition, ctx = Ctx} = Step, _Ctx,
     _IgnoreErrors) ->
@@ -349,18 +396,18 @@ get_nested_steps(_Service, #steps{service = Service, action = Action, ctx = Ctx,
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec notify(Msg :: {Stage :: stage(), Details}, Ctx :: ctx()) ->
+-spec notify(Msg :: {Stage :: stage(), Details}, Notify :: notify()) ->
     ok when
     Details :: {Module, Function} | {Module, Function, Result},
     Module :: module(),
     Function :: atom(),
     Result :: term().
-notify(Msg, #{notify := Pid}) ->
+notify(Msg, Notify) when is_pid(Notify) ->
     log(Msg),
-    Pid ! Msg,
+    Notify ! Msg,
     ok;
 
-notify(Msg, _Ctx) ->
+notify(Msg, _Notify) ->
     log(Msg),
     ok.
 
@@ -395,8 +442,8 @@ log({action_begin, {Module, Function}}) ->
     ?log_info("Executing action ~p:~p", [Module, Function]);
 log({action_end, {Module, Function, ok}}) ->
     ?log_info("Action ~p:~p completed successfully", [Module, Function]);
-log({action_end, {Module, Function, #error{stacktrace = []}}}) ->
-    ?log_error("Action ~p:~p failed", [Module, Function]);
+log({action_end, {Module, Function, #error{reason = Reason, stacktrace = []}}}) ->
+    ?log_error("Action ~p:~p failed due to: ~p", [Module, Function, Reason]);
 log({action_end, {Module, Function, #error{reason = Reason,
     stacktrace = Stacktrace}}}) ->
     ?log_error("Action ~p:~p failed due to: ~p~nStacktrace: ~p",

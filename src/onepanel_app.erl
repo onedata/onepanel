@@ -41,7 +41,7 @@ start(_StartType, _StartArgs) ->
     try
         test_node_starter:maybe_start_cover(),
         rest_listener:start(),
-        onedata_user:load_nif(),
+        onepanel_user:load_nif(),
         service_oneprovider:load_nif(),
         onepanel_sup:start_link()
     catch

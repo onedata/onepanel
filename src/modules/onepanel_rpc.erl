@@ -17,7 +17,8 @@
 %% API
 -export([apply/3]).
 -export([call/3, call/4, call/5]).
--export([check_call/3, check_call/4, check_call/5]).
+-export([call_all/3, call_all/4, call_all/5]).
+-export([call_any/3, call_any/4, call_any/5]).
 
 -type result() :: {Node :: node(), Result :: term()}.
 -type results() :: [result()].
@@ -45,13 +46,13 @@ apply(Module, Function, Args) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% @equiv call(onepanel_cluster:get_nodes(), Module, Function, Args)
+%% @equiv call(service_onepanel:get_nodes(), Module, Function, Args)
 %% @end
 %%--------------------------------------------------------------------
 -spec call(Module :: module(), Function :: atom(), Args :: [term()]) ->
     Results :: results().
 call(Module, Function, Args) ->
-    call(onepanel_cluster:get_nodes(), Module, Function, Args).
+    call(service_onepanel:get_nodes(), Module, Function, Args).
 
 
 %%--------------------------------------------------------------------
@@ -90,10 +91,10 @@ call(Nodes, Module, Function, Args, Timeout) when is_list(Nodes) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec check_call(Module :: module(), Function :: atom(), Args :: [term()]) ->
+-spec call_all(Module :: module(), Function :: atom(), Args :: [term()]) ->
     Results :: results() | no_return().
-check_call(Module, Function, Args) ->
-    check(call(Module, Function, Args)).
+call_all(Module, Function, Args) ->
+    all(call(Module, Function, Args)).
 
 
 %%--------------------------------------------------------------------
@@ -101,10 +102,10 @@ check_call(Module, Function, Args) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec check_call(Nodes :: [node()], Module :: module(), Function :: atom(),
+-spec call_all(Nodes :: [node()], Module :: module(), Function :: atom(),
     Args :: [term()]) -> Results :: results() | no_return().
-check_call(Nodes, Module, Function, Args) ->
-    check(call(Nodes, Module, Function, Args)).
+call_all(Nodes, Module, Function, Args) ->
+    all(call(Nodes, Module, Function, Args)).
 
 
 %%--------------------------------------------------------------------
@@ -112,10 +113,43 @@ check_call(Nodes, Module, Function, Args) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec check_call(Nodes :: [node()], Module :: module(), Function :: atom(),
-    Args :: [term()], Timeout :: timeout()) -> Results :: results() | no.
-check_call(Nodes, Module, Function, Args, Timeout) ->
-    check(call(Nodes, Module, Function, Args, Timeout)).
+-spec call_all(Nodes :: [node()], Module :: module(), Function :: atom(),
+    Args :: [term()], Timeout :: timeout()) -> Results :: results() | no_return().
+call_all(Nodes, Module, Function, Args, Timeout) ->
+    all(call(Nodes, Module, Function, Args, Timeout)).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec call_any(Module :: module(), Function :: atom(), Args :: [term()]) ->
+    Value :: term() | no_return().
+call_any(Module, Function, Args) ->
+    any(call(Module, Function, Args)).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec call_any(Nodes :: [node()], Module :: module(), Function :: atom(),
+    Args :: [term()]) -> Value :: term() | no_return().
+call_any(Nodes, Module, Function, Args) ->
+    any(call(Nodes, Module, Function, Args)).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec call_any(Nodes :: [node()], Module :: module(), Function :: atom(),
+    Args :: [term()], Timeout :: timeout()) -> Value :: term() | no_return().
+call_any(Nodes, Module, Function, Args, Timeout) ->
+    any(call(Nodes, Module, Function, Args, Timeout)).
 
 %%%===================================================================
 %%% Internal functions
@@ -126,13 +160,35 @@ check_call(Nodes, Module, Function, Args, Timeout) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec check(Results :: results()) -> Results :: results() | no_return().
-check(Results) ->
-    BadResults = lists:filter(fun
+-spec all(Results :: results()) -> Results :: results() | no_return().
+all(Results) ->
+    BadResults = lists:filtermap(fun
         ({_, #error{}}) -> true;
+        ({_, {error, Reason}}) -> {true, ?error(Reason)};
         ({_, _}) -> false
     end, Results),
     case BadResults of
         [] -> Results;
         _ -> ?throw(BadResults)
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec any(Results :: results()) -> Value :: term() | no_return().
+any([]) ->
+    ok;
+
+any(Results) ->
+    GoodResults = lists:filter(fun
+        ({_, #error{}}) -> false;
+        ({_, {error, _}}) -> false;
+        ({_, _}) -> true
+    end, Results),
+    case GoodResults of
+        [] -> ?throw(?ERR_FAILURE_ON_ALL_NODES);
+        [{_, Value} | _] -> Value
     end.

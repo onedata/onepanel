@@ -14,9 +14,9 @@
 -define(ONEPANEL_HANDLERS_REST_HRL, 1).
 
 -record(client, {
-    id :: onedata_user:uuid(),
-    name :: onedata_user:name(),
-    role :: onedata_user:role()
+    id :: onepanel_user:uuid(),
+    name :: onepanel_user:name(),
+    role :: onepanel_user:role()
 }).
 
 -record(rmethod, {

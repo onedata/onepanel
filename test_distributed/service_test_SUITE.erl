@@ -70,7 +70,7 @@ service_should_execute_steps(Config) ->
     Self = self(),
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
     ?assertEqual(ok, rpc:call(Node1, service, apply,
-        [example, some_action, #{notify => Self}])),
+        [example, some_action, #{}, Self])),
     ?assertReceivedEqual({Node1, step1}, ?TIMEOUT),
     ?assertReceivedEqual({Node2, step2}, ?TIMEOUT),
     ?assertReceivedEqual({Node1, step3}, ?TIMEOUT),
@@ -81,7 +81,7 @@ service_should_notify_caller(Config) ->
     Self = self(),
     [Node | _] = ?config(onepanel_nodes, Config),
     ?assertEqual(ok, rpc:call(Node, service, apply,
-        [example, some_action, #{notify => Self}])),
+        [example, some_action, #{}, Self])),
     ?assertReceivedEqual({action_begin, {example, some_action}}, ?TIMEOUT),
     lists:foreach(fun(Step) ->
         ?assertReceivedEqual({step_begin, {service_example, Step}}, ?TIMEOUT),
@@ -102,7 +102,7 @@ service_action_should_pass_errors(Config) ->
     Self = self(),
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
     ?assertMatch(#error{}, rpc:call(Node1, service, apply,
-        [example, some_action, #{notify => Self}])),
+        [example, some_action, #{}, Self])),
     ?assertReceivedMatch({step_end, {service_example, some_step,
         {[{Node1, ok}], [{Node2, #error{reason = step_failure}}]}}}, ?TIMEOUT).
 

@@ -15,7 +15,7 @@
 
 -record(step, {
     hosts :: [service:host()],
-    selection = all :: all | first | rest,
+    selection = all :: all | any | first | rest,
     service :: service:name(),
     module :: module(),
     function :: atom(),

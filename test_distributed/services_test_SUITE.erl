@@ -8,7 +8,7 @@
 %%% @doc @todo write me!
 %%% @end
 %%%--------------------------------------------------------------------
--module(onedata_test_SUITE).
+-module(services_test_SUITE).
 -author("Krzysztof Trzepla").
 
 -include("modules/models.hrl").
@@ -70,6 +70,7 @@
 all() ->
     ?ALL([
         service_onezone_deploy_test,
+        service_oneprovider_deploy_test,
         service_oz_worker_stop_single_node_test,
         service_oz_cluster_manager_stop_single_node_test,
         service_oz_couchbase_stop_single_node_test,
@@ -91,7 +92,6 @@ all() ->
         service_oz_cluster_manager_status_test,
         service_oz_worker_status_test,
         service_onezone_status_test,
-        service_oneprovider_deploy_test,
         service_op_worker_stop_single_node_test,
         service_op_cluster_manager_stop_single_node_test,
         service_op_couchbase_stop_single_node_test,
@@ -134,15 +134,17 @@ service_onezone_deploy_test(Config) ->
 
     ?assertEqual(ok, rpc:call(Node, service, apply,
         [?SERVICE_OZ, deploy, #{
-            ?SERVICE_CB => #{
-                hosts => Hosts
-            },
-            ?SERVICE_CM => #{
-                hosts => Hosts, main_cm_host => hd(Hosts), worker_num => 2
-            },
-            ?SERVICE_OZW => #{
-                hosts => Hosts, main_cm_host => hd(Hosts),
-                cm_hosts => Hosts, db_hosts => Hosts
+            cluster => #{
+                ?SERVICE_CB => #{
+                    hosts => Hosts
+                },
+                ?SERVICE_CM => #{
+                    hosts => Hosts, main_cm_host => hd(Hosts), worker_num => 2
+                },
+                ?SERVICE_OZW => #{
+                    hosts => Hosts, main_cm_host => hd(Hosts),
+                    cm_hosts => Hosts, db_hosts => Hosts
+                }
             }
         }]
     )).
@@ -255,19 +257,28 @@ service_onezone_status_test(Config) ->
 
 service_oneprovider_deploy_test(Config) ->
     [Node | _] = Nodes = ?config(op_nodes, Config),
+    [OzNode | _] = ?config(oz_nodes, Config),
+    OzDomain = onepanel_cluster:node_to_host(OzNode),
     Hosts = lists:usort(onepanel_cluster:nodes_to_hosts(Nodes)),
 
     ?assertEqual(ok, rpc:call(Node, service, apply,
         [?SERVICE_OP, deploy, #{
-            ?SERVICE_CB => #{
-                hosts => Hosts
+            cluster => #{
+                ?SERVICE_CB => #{
+                    hosts => Hosts
+                },
+                ?SERVICE_CM => #{
+                    hosts => Hosts, main_cm_host => hd(Hosts), worker_num => 2
+                },
+                ?SERVICE_OPW => #{
+                    hosts => Hosts, main_cm_host => hd(Hosts),
+                    cm_hosts => Hosts, db_hosts => Hosts
+                }
             },
-            ?SERVICE_CM => #{
-                hosts => Hosts, main_cm_host => hd(Hosts), worker_num => 2
-            },
-            ?SERVICE_OPW => #{
-                hosts => Hosts, main_cm_host => hd(Hosts),
-                cm_hosts => Hosts, db_hosts => Hosts
+            ?SERVICE_OP => #{
+                hosts => Hosts,
+                oneprovider_register => true,
+                onezone_domain => OzDomain
             }
         }]
     )).

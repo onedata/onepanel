@@ -20,6 +20,8 @@
 -type config() :: proplists:proplist().
 
 -define(TEST_ENVS, [
+    {vm_args_path, "./etc/vm.args"},
+    {app_config_path, "./etc/app.config"},
     {cluster_manager_vm_args_path, "/etc/cluster_manager/vm.args"},
     {cluster_manager_app_config_path, "/etc/cluster_manager/app.config"},
     {cluster_manager_env_path, "/usr/lib/cluster_manager/lib/env.sh"},
@@ -74,8 +76,8 @@ mock_start(Config) ->
 -spec filter_nodes(Type :: atom(), Nodes :: [node()]) -> FilteredNodes :: [node()].
 filter_nodes(Type, Nodes) ->
     lists:filter(fun(Node) ->
-        [_, Domain] = string:tokens(erlang:atom_to_list(Node), "@"),
-        lists:member(erlang:atom_to_list(Type), string:tokens(Domain, "."))
+        Host = onepanel_cluster:node_to_host(Node),
+        lists:member(erlang:atom_to_list(Type), string:tokens(Host, "."))
     end, Nodes).
 
 
@@ -88,11 +90,10 @@ filter_nodes(Type, Nodes) ->
 create_cluster([]) ->
     ok;
 
-create_cluster([MasterNode | Nodes]) ->
-    ?assertEqual(ok, rpc:call(MasterNode, onepanel_cluster, init, [])),
-    lists:foreach(fun(Node) ->
-        ?assertEqual(ok, rpc:call(Node, onepanel_cluster, join, [MasterNode]))
-    end, Nodes).
+create_cluster([Node | _] = Nodes) ->
+    Hosts = onepanel_cluster:nodes_to_hosts(Nodes),
+    ?assertEqual(ok, rpc:call(Node, service, apply,
+        [onepanel, deploy, #{hosts => Hosts}])).
 
 
 %%--------------------------------------------------------------------

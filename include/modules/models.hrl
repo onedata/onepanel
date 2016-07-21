@@ -13,13 +13,13 @@
 -ifndef(ONEPANEL_MODELS_HRL).
 -define(ONEPANEL_MODELS_HRL, 1).
 
--define(MODELS, [onedata_user, service]).
+-define(MODELS, [onepanel_user, service]).
 
--record(onedata_user, {
-    username :: onedata_user:name(),
-    password_hash :: onedata_user:password_hash(),
-    role :: onedata_user:role(),
-    uuid :: onedata_user:uuid()
+-record(onepanel_user, {
+    username :: onepanel_user:name(),
+    password_hash :: onepanel_user:password_hash(),
+    role :: onepanel_user:role(),
+    uuid :: onepanel_user:uuid()
 }).
 
 -record(service, {

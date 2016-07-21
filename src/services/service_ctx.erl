@@ -14,7 +14,7 @@
 -include("modules/errors.hrl").
 
 %% API
--export([get/2, get_domain/2]).
+-export([get/2, get/3, get/4, get_domain/2]).
 
 %%%===================================================================
 %%% API functions
@@ -27,10 +27,37 @@
 %%--------------------------------------------------------------------
 -spec get(Name :: service:name(), Ctx :: service:ctx()) -> Value :: term().
 get(Name, Ctx) ->
-    case maps:find(Name, Ctx) of
-        {ok, Value} -> Value;
+    get(Name, Ctx, list).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec get(Name :: service:name(), Ctx :: service:ctx(),
+    Type :: onepanel_utils:type()) -> Value :: term().
+get(Name, Ctx, Type) ->
+    Value = case maps:find(Name, Ctx) of
+        {ok, V} -> V;
         error -> onepanel_env:get(Name)
-    end.
+    end,
+    onepanel_utils:convert(Value, Type).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec get(Name :: service:name(), Ctx :: service:ctx(),
+    Type :: onepanel_utils:type(), Default :: term()) -> Value :: term().
+get(Name, Ctx, Type, Default) ->
+    Value = case maps:find(Name, Ctx) of
+        {ok, V} -> V;
+        error -> Default
+    end,
+    onepanel_utils:convert(Value, Type).
 
 
 %%--------------------------------------------------------------------

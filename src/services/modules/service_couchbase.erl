@@ -18,7 +18,7 @@
 -include("service.hrl").
 
 %% Service behaviour callbacks
--export([name/0, get_steps/2]).
+-export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
 -export([configure/1, start/1, wait_for_init/1, stop/1, status/1,
@@ -37,6 +37,22 @@
 -spec name() -> Name :: service:name().
 name() ->
     couchbase.
+
+
+%%--------------------------------------------------------------------
+%% @doc @see service_behaviour:get_hosts/0
+%%--------------------------------------------------------------------
+-spec get_hosts() -> Hosts :: [service:host()].
+get_hosts() ->
+    service:get_hosts(name()).
+
+
+%%--------------------------------------------------------------------
+%% @doc @see service_behaviour:get_hosts/0
+%%--------------------------------------------------------------------
+-spec get_nodes() -> Nodes :: [node()].
+get_nodes() ->
+    service:get_nodes(name()).
 
 
 %%--------------------------------------------------------------------
@@ -103,14 +119,14 @@ start(Ctx) ->
 %%--------------------------------------------------------------------
 -spec wait_for_init(Ctx :: service:ctx()) -> ok | no_return().
 wait_for_init(Ctx) ->
-    StartAttempts = service_ctx:get(couchbase_wait_for_init_attempts, Ctx),
-    onepanel_utils:wait_until(?MODULE, status, [Ctx], {equal, ok},
+    StartAttempts = service_ctx:get(couchbase_wait_for_init_attempts, Ctx, integer),
+    onepanel_utils:wait_until(?MODULE, status, [Ctx], {equal, running},
         StartAttempts),
 
-    ConnectAttempts = service_ctx:get(couchbase_connect_attempts, Ctx),
-    ConnectTimeout = service_ctx:get(couchbase_connect_timeout, Ctx),
-    Host = erlang:binary_to_list(onepanel_cluster:node_to_host()),
-    Port = service_ctx:get(couchbase_admin_port, Ctx),
+    ConnectAttempts = service_ctx:get(couchbase_connect_attempts, Ctx, integer),
+    ConnectTimeout = service_ctx:get(couchbase_connect_timeout, Ctx, integer),
+    Host = onepanel_cluster:node_to_host(),
+    Port = service_ctx:get(couchbase_admin_port, Ctx, integer),
     Validator = fun
         ({ok, Socket}) -> gen_tcp:close(Socket);
         ({error, Reason}) ->
@@ -134,7 +150,7 @@ stop(_Ctx) ->
 %%--------------------------------------------------------------------
 %% @doc @see service:status/1
 %%--------------------------------------------------------------------
--spec status(Ctx :: service:ctx()) -> ok | no_return().
+-spec status(Ctx :: service:ctx()) -> running | stopped | not_found.
 status(_Ctx) ->
     service:status(?INIT_SCRIPT).
 
@@ -148,12 +164,10 @@ status(_Ctx) ->
 init_cluster(Ctx) ->
     User = service_ctx:get(couchbase_user, Ctx),
     Password = service_ctx:get(couchbase_password, Ctx),
-    Quota = erlang:integer_to_list(
-        service_ctx:get(couchbase_memory_quota, Ctx)),
+    Quota = service_ctx:get(couchbase_memory_quota, Ctx),
     Host = onepanel_cluster:node_to_host(),
     Port = service_ctx:get(couchbase_admin_port, Ctx),
-    HostAndPort = onepanel_utils:join([Host, Port], <<":">>),
-    Url = onepanel_utils:join(["http://", HostAndPort, "/pools/default"]),
+    Url = onepanel_utils:join(["http://", Host, ":", Port, "/pools/default"]),
 
     {ok, 200, _, _} = http_client:post(
         Url, [
@@ -162,12 +176,12 @@ init_cluster(Ctx) ->
         ], "memoryQuota=" ++ Quota
     ),
 
-    onepanel_shell:check_call([?CLI, "cluster-init", "-c", HostAndPort,
+    onepanel_shell:check_call([?CLI, "cluster-init", "-c", Host ++ ":" ++ Port,
             "--cluster-init-username=" ++ User,
             "--cluster-init-password=" ++ Password,
             "--cluster-init-ramsize=" ++ Quota, "--services=data,index,query"]),
 
-    onepanel_shell:check_call([?CLI, "bucket-create", "-c", HostAndPort,
+    onepanel_shell:check_call([?CLI, "bucket-create", "-c", Host ++ ":" ++ Port,
             "-u", User, "-p", Password, "--bucket=default",
             "--bucket-ramsize=" ++ Quota, "--wait"]),
 
@@ -181,23 +195,14 @@ init_cluster(Ctx) ->
 %%--------------------------------------------------------------------
 -spec join_cluster(Ctx :: service:ctx()) -> ok | no_return().
 join_cluster(#{cluster_host := ClusterHost} = Ctx) ->
-    ?log_critical("===> ClusterHost: ~p", [ClusterHost]),
     User = service_ctx:get(couchbase_user, Ctx),
-    ?log_critical("===> User: ~p", [User]),
     Password = service_ctx:get(couchbase_password, Ctx),
-    ?log_critical("===> Password: ~p", [Password]),
     Host = onepanel_cluster:node_to_host(),
-    ?log_critical("===> Host: ~p", [Host]),
     Port = service_ctx:get(couchbase_admin_port, Ctx),
-    ?log_critical("===> Port: ~p", [Port]),
-    HostAndPort = onepanel_utils:join([Host, Port], <<":">>),
-    ?log_critical("===> HostAndPort: ~p", [HostAndPort]),
-    ClusterHostAndPort = onepanel_utils:join([ClusterHost, Port], <<":">>),
-    ?log_critical("===> ClusterHostAndPort: ~p", [ClusterHostAndPort]),
 
     onepanel_shell:check_call([?CLI, "server-add", "-c",
-            ClusterHostAndPort, "-u", User, "-p", Password,
-            "--server-add=" ++ erlang:binary_to_list(HostAndPort),
+            ClusterHost ++ ":" ++ Port, "-u", User, "-p", Password,
+            "--server-add=" ++ Host ++ ":" ++ Port,
             "--server-add-username=" ++ User,
             "--server-add-password=" ++ Password,
             "--services=data,index,query"]),
@@ -216,7 +221,6 @@ rebalance_cluster(Ctx) ->
     Password = service_ctx:get(couchbase_password, Ctx),
     Host = onepanel_cluster:node_to_host(),
     Port = service_ctx:get(couchbase_admin_port, Ctx),
-    HostAndPort = onepanel_utils:join([Host, Port], <<":">>),
 
-    onepanel_shell:check_call([?CLI, "rebalance", "-c", HostAndPort,
+    onepanel_shell:check_call([?CLI, "rebalance", "-c", Host ++ ":" ++ Port,
         "-u", User, "-p", Password]).

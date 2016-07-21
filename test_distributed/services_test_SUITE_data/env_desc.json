@@ -6,8 +6,8 @@
     }
   },
   "onepanel_domains": {
-    "p1": {
-      "app_name": "onepanel",
+    "onezone": {
+      "image": "docker.onedata.org/onepanel:onezone",
       "onepanel": {
         "node1": {
           "vm.args": {
@@ -24,29 +24,40 @@
           "sys.config": {
             "onepanel": {}
           }
-        },
-        "node3": {
+        }
+      }
+    },
+    "oneprovider": {
+      "image": "docker.onedata.org/onepanel:oneprovider",
+      "onepanel": {
+        "node1": {
           "vm.args": {
             "setcookie": "test_cookie"
           },
           "sys.config": {
-            "onepanel": {}
+            "ctool": {
+              "verify_oz_cert": false
+            },
+            "onepanel": {
+              "advertise_address": {
+                "string": "239.255.1.1"
+              }
+            }
           }
         },
-        "node4": {
+        "node2": {
           "vm.args": {
             "setcookie": "test_cookie"
           },
           "sys.config": {
-            "onepanel": {}
-          }
-        },
-        "node5": {
-          "vm.args": {
-            "setcookie": "test_cookie"
-          },
-          "sys.config": {
-            "onepanel": {}
+            "ctool": {
+              "verify_oz_cert": false
+            },
+            "onepanel": {
+              "advertise_address": {
+                "string": "239.255.1.1"
+              }
+            }
           }
         }
       }

@@ -19,7 +19,7 @@
 -include_lib("xmerl/include/xmerl.hrl").
 
 %% Service behaviour callbacks
--export([name/0, get_steps/2]).
+-export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
@@ -38,6 +38,22 @@ name() ->
 
 
 %%--------------------------------------------------------------------
+%% @doc @see service_behaviour:get_hosts/0
+%%--------------------------------------------------------------------
+-spec get_hosts() -> Hosts :: [service:host()].
+get_hosts() ->
+    service:get_hosts(name()).
+
+
+%%--------------------------------------------------------------------
+%% @doc @see service_behaviour:get_hosts/0
+%%--------------------------------------------------------------------
+-spec get_nodes() -> Nodes :: [node()].
+get_nodes() ->
+    service:get_nodes(name()).
+
+
+%%--------------------------------------------------------------------
 %% @doc @see service_behaviour:get_steps/2
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
@@ -47,7 +63,8 @@ get_steps(deploy, #{name := Name}) ->
         #step{module = service, function = save,
             args = [#service{name = Name}], selection = first},
         #step{function = configure},
-        #step{function = start}
+        #step{function = start},
+        #step{function = wait_for_init, selection = first}
     ];
 
 get_steps(start, _Ctx) ->
@@ -78,12 +95,20 @@ get_steps(Action, _Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
-configure(#{name := Name, cm_nodes := CmNodes, db_nodes := DbNodes,
-    app_config := AppConfig, app_config_path := AppConfigPath,
-    vm_args_path := VmArgsPath} = Ctx) ->
+configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
+    db_hosts := DbHosts, app_config := AppConfig,
+    app_config_path := AppConfigPath, vm_args_path := VmArgsPath} = Ctx) ->
 
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(Name, Host),
+    CmNodes = onepanel_cluster:hosts_to_nodes(
+        service_cluster_manager:name(),
+        [MainCmHost | lists:delete(MainCmHost, CmHosts)]
+    ),
+    DbPort = service_ctx:get(couchbase_port, Ctx),
+    DbNodes = lists:map(fun(DbHost) ->
+        onepanel_utils:convert(string:join([DbHost, DbPort], ":"), atom)
+    end, DbHosts),
 
     onepanel_env:write([Name, cm_nodes], CmNodes, AppConfigPath),
     onepanel_env:write([Name, db_nodes], DbNodes, AppConfigPath),
@@ -92,10 +117,8 @@ configure(#{name := Name, cm_nodes := CmNodes, db_nodes := DbNodes,
         onepanel_env:write([Name, Key], Value, AppConfigPath)
     end, #{}, AppConfig),
 
-    onepanel_vm:write(<<"name">>, erlang:atom_to_binary(Node, utf8),
-        VmArgsPath),
-    onepanel_vm:write(<<"setcookie">>,
-        erlang:atom_to_binary(maps:get(cookie, Ctx, erlang:get_cookie()), utf8),
+    onepanel_vm:write("name", Node, VmArgsPath),
+    onepanel_vm:write("setcookie", maps:get(cookie, Ctx, erlang:get_cookie()),
         VmArgsPath),
 
     service:add_host(Name, Host).
@@ -120,7 +143,7 @@ stop(#{init_script := InitScript}) ->
 %%--------------------------------------------------------------------
 %% @doc @see service:status/1
 %%--------------------------------------------------------------------
--spec status(Ctx :: service:ctx()) -> ok | no_return().
+-spec status(Ctx :: service:ctx()) -> running | stopped | not_found.
 status(#{init_script := InitScript}) ->
     service:status(InitScript).
 
@@ -150,7 +173,7 @@ nagios_report(#{nagios_protocol := Protocol, nagios_port := Port}) ->
 
     {ok, 200, _Headers, Body} = http_client:get(Url),
 
-    {Xml, _} = xmerl_scan:string(binary_to_list(Body)),
+    {Xml, _} = xmerl_scan:string(onepanel_utils:convert(Body, list)),
     [Status] = [X#xmlAttribute.value || X <- Xml#xmlElement.attributes,
         X#xmlAttribute.name == status],
 

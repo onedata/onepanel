@@ -77,13 +77,11 @@ parse_boolean_key_test() ->
 
 parse_string_key_test() ->
     Data1 = [{<<"key">>, <<"value">>}],
-    Data2 = [{<<"key">>, "value"}],
-    Data3 = [{<<"key">>, 1}],
+    Data2 = [{<<"key">>, 1}],
     ArgsSpec = #{key => string},
     ?assertEqual(#{key => <<"value">>}, onepanel_parser:parse(Data1, ArgsSpec)),
-    ?assertEqual(#{key => <<"value">>}, onepanel_parser:parse(Data2, ArgsSpec)),
     ?assertThrow(#error{reason = {?ERR_INVALID_VALUE, [key], string}},
-        onepanel_parser:parse(Data3, ArgsSpec)).
+        onepanel_parser:parse(Data2, ArgsSpec)).
 
 
 parse_required_key_test() ->

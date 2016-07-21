@@ -17,7 +17,7 @@
 
 %% API
 -export([start_link/0]).
--export([get_nodes/0]).
+-export([get_nodes/0, get_hosts/0]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -54,6 +54,16 @@ start_link() ->
 get_nodes() ->
     gen_server:call(?MODULE, get_nodes).
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec get_hosts() -> Hosts :: [service:host()].
+get_hosts() ->
+    onepanel_cluster:nodes_to_hosts(get_nodes()).
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -80,7 +90,8 @@ init([]) ->
 
         self() ! advertise,
 
-        {ok, #state{ip = Ip, port = Port, socket = Socket}}
+        Nodes = sets:add_element(node(), sets:new()),
+        {ok, #state{nodes = Nodes, ip = Ip, port = Port, socket = Socket}}
     catch
         _:Reason ->
             ?log_error("Cannot initialize onepanel discovery due to: ~p",
@@ -108,7 +119,7 @@ handle_call(get_nodes, _From, #state{nodes = Nodes} = State) ->
 
 handle_call(Request, _From, State) ->
     ?log_bad_request(Request),
-    {reply, {invalid_request, Request}, State}.
+    {reply, {error, {invalid_request, Request}}, State}.
 
 
 %%--------------------------------------------------------------------

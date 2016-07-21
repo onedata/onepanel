@@ -19,7 +19,7 @@
 
 %% API
 -export([start_link/0, apply_async/3, apply_sync/3, apply_sync/4, get_results/1,
-    handle_results/1, abort_task/1]).
+    handle_results/1, abort_task/1, exists_task/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -36,9 +36,9 @@
 }).
 
 -record(state, {
-    tasks = #{} :: #{Uuid :: binary() => {Worker :: pid(), Handler :: pid()}},
-    workers = #{} :: #{Worker :: pid() => Uuid :: binary()},
-    handlers = #{} :: #{Handler :: pid() => Uuid :: binary()}
+    tasks = #{} :: #{TaskId :: task_id() => {Worker :: pid(), Handler :: pid()}},
+    workers = #{} :: #{Worker :: pid() => TaskId :: task_id()},
+    handlers = #{} :: #{Handler :: pid() => TaskId :: task_id()}
 }).
 
 %%%===================================================================
@@ -61,10 +61,10 @@ start_link() ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec apply_async(Services :: service:name() | [service:name()],
-    Action :: service:action(), Ctx :: service:ctx()) -> TaskId :: task_id().
-apply_async(Services, Action, Ctx) ->
-    gen_server:call(?MODULE, {apply, Services, Action, Ctx}).
+-spec apply_async(Service :: service:name(), Action :: service:action(),
+    Ctx :: service:ctx()) -> TaskId :: task_id().
+apply_async(Service, Action, Ctx) ->
+    gen_server:call(?MODULE, {apply, Service, Action, Ctx}).
 
 
 %%--------------------------------------------------------------------
@@ -72,11 +72,10 @@ apply_async(Services, Action, Ctx) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec apply_sync(Services :: service:name() | [service:name()],
-    Action :: service:action(), Ctx :: service:ctx()) ->
-    {ok, Result :: term()} | #error{}.
-apply_sync(Services, Action, Ctx) ->
-    apply_sync(Services, Action, Ctx, infinity).
+-spec apply_sync(Service :: service:name(), Action :: service:action(),
+    Ctx :: service:ctx()) -> Results :: list() | #error{}.
+apply_sync(Service, Action, Ctx) ->
+    apply_sync(Service, Action, Ctx, infinity).
 
 
 %%--------------------------------------------------------------------
@@ -84,11 +83,11 @@ apply_sync(Services, Action, Ctx) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec apply_sync(Services :: service:name() | [service:name()],
-    Action :: service:action(), Ctx :: service:ctx(), Timeout :: timeout()) ->
-    {ok, Result :: term()} | #error{}.
-apply_sync(Services, Action, Ctx, Timeout) ->
-    TaskId = apply_async(Services, Action, Ctx),
+-spec apply_sync(Service :: service:name(), Action :: service:action(),
+    Ctx :: service:ctx(), Timeout :: timeout()) ->
+    Results :: list() | #error{}.
+apply_sync(Service, Action, Ctx, Timeout) ->
+    TaskId = apply_async(Service, Action, Ctx),
     Result = receive_results(TaskId, Timeout),
     abort_task(TaskId),
     Result.
@@ -99,7 +98,7 @@ apply_sync(Services, Action, Ctx, Timeout) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec get_results(TaskId :: task_id()) -> {ok, Results :: list()} | #error{}.
+-spec get_results(TaskId :: task_id()) -> Results :: list() | #error{}.
 get_results(TaskId) ->
     get_results(TaskId, infinity).
 
@@ -115,7 +114,7 @@ get_results(TaskId, Timeout) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec handle_results(Results :: term()) -> no_return().
+-spec handle_results(Results :: list()) -> no_return().
 handle_results(Results) ->
     receive
         {step_end, Result} ->
@@ -135,9 +134,19 @@ handle_results(Results) ->
 %% @todo write me!
 %% @end
 %%--------------------------------------------------------------------
--spec abort_task(Uuid :: binary()) -> ok | #error{}.
+-spec abort_task(TaskId :: binary()) -> ok | #error{}.
 abort_task(TaskId) ->
     gen_server:call(?MODULE, {abort_task, TaskId}).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec exists_task(TaskId :: binary()) -> boolean().
+exists_task(TaskId) ->
+    gen_server:call(?MODULE, {exists_task, TaskId}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -170,12 +179,12 @@ init([]) ->
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
     {stop, Reason :: term(), NewState :: #state{}}.
-handle_call({apply, Services, Action, Ctx}, {Owner, _}, #state{tasks = Tasks,
+handle_call({apply, Service, Action, Ctx}, {Owner, _}, #state{tasks = Tasks,
     workers = Workers, handlers = Handlers} = State) ->
     TaskId = onepanel_utils:gen_uuid(),
     Handler = erlang:spawn_link(?MODULE, handle_results, [[]]),
     Worker = erlang:spawn_link(service, apply,
-        [Services, Action, Ctx#{notify => Handler}]),
+        [Service, Action, Ctx, Handler]),
     Task = #task{owner = Owner, worker = Worker, handler = Handler},
     {reply, TaskId, State#state{
         tasks = maps:put(TaskId, Task, Tasks),
@@ -189,7 +198,13 @@ handle_call({abort_task, TaskId}, _From, State) ->
         {false, NewState} -> {reply, ?error(?ERR_NOT_FOUND), NewState}
     end;
 
-handle_call({get_results, TaskId}, From, #state{tasks = Tasks} = State) ->
+handle_call({exists_task, TaskId}, _From, #state{tasks = Tasks} = State) ->
+    case maps:find(TaskId, Tasks) of
+        {ok, #task{}} -> {reply, true, State};
+        error -> {reply, false, State}
+    end;
+
+handle_call({get_results, TaskId}, {From, _}, #state{tasks = Tasks} = State) ->
     case maps:find(TaskId, Tasks) of
         {ok, #task{handler = Handler}} ->
             Handler ! {forward_results, TaskId, From},
@@ -200,7 +215,7 @@ handle_call({get_results, TaskId}, From, #state{tasks = Tasks} = State) ->
 
 handle_call(Request, _From, State) ->
     ?log_bad_request(Request),
-    {reply, {invalid_request, Request}, State}.
+    {reply, {error, {invalid_request, Request}}, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -232,7 +247,6 @@ handle_info({'EXIT', Pid, normal}, #state{tasks = Tasks, workers = Workers} =
         {ok, TaskId} ->
             case maps:find(TaskId, Tasks) of
                 {ok, #task{owner = Owner, handler = Handler}} ->
-                    Handler ! task_finished,
                     Handler ! {forward_results, TaskId, Owner},
                     schedule_task_cleanup(TaskId);
                 error ->
@@ -335,10 +349,10 @@ schedule_task_cleanup(TaskId) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec receive_results(TaskId :: task_id(), Timeout :: timeout()) ->
-    {ok, Result :: term()} | #error{}.
+    Results :: list() | #error{}.
 receive_results(TaskId, Timeout) ->
     receive
-        {task, TaskId, Result} -> {ok, Result}
+        {task, TaskId, Result} -> Result
     after
         Timeout -> ?error(?ERR_TIMEOUT)
     end.

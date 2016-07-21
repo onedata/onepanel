@@ -16,12 +16,17 @@
 -include("modules/logger.hrl").
 
 %% API
--export([get_basic_auth_header/2]).
--export([wait_until/5, wait_until/6]).
--export([gen_uuid/0, get_nif_library_path/1, join/1, join/2]).
+-export([get_basic_auth_header/2, get_ip_address/0]).
+-export([wait_until/5, wait_until/6, save_file/2]).
+-export([gen_uuid/0, get_nif_library_path/1, join/1, join/2, trim/2]).
+-export([convert/2, get_type/1]).
 
+-type primitive_type() :: atom | binary | float | integer | list | boolean.
+-type type() :: primitive_type() | {seq, primitive_type()}.
 -type expectation() :: {equal, Expected :: term()} | {validator,
     Validator :: fun((term()) -> term() | no_return())}.
+
+-export_type([type/0]).
 
 -define(UUID_LEN, 32).
 
@@ -93,6 +98,32 @@ wait_until(Module, Function, Args, Expected, Attempts, Delay) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec save_file(Path :: file:name_all(), Content :: binary()) -> ok | no_return().
+save_file(Path, Content) ->
+    case file:write_file(Path, Content) of
+        ok -> ok;
+        {error, Reason} -> ?throw(Reason)
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec get_ip_address() -> IpAddress :: binary() | no_return().
+get_ip_address() ->
+    case oz_providers:check_ip_address(provider) of
+        {ok, IpAddress} -> IpAddress;
+        {error, Reason} -> ?throw(Reason)
+    end.
+
+
+%%--------------------------------------------------------------------
 %% @doc Generates random UUID.
 %%--------------------------------------------------------------------
 -spec gen_uuid() -> binary().
@@ -138,19 +169,74 @@ join([], _Sep) ->
     <<>>;
 
 join(Tokens, Sep) ->
-    [_ | NewTokens] = lists:foldl(fun
-        (Token, Acc) when is_list(Token) ->
-            [Sep, erlang:list_to_binary(Token) | Acc];
-        (Token, Acc) when is_atom(Token) ->
-            [Sep, erlang:atom_to_binary(Token, utf8) | Acc];
-        (Token, Acc) when is_integer(Token) ->
-            [Sep, erlang:integer_to_binary(Token) | Acc];
-        (Token, Acc) when is_float(Token) ->
-            [Sep, erlang:float_to_binary(Token) | Acc];
-        (Token, Acc) ->
-            [Sep, Token | Acc]
+    [_ | NewTokens] = lists:foldl(fun(Token, Acc) ->
+            [Sep, convert(Token, binary) | Acc]
     end, [], Tokens),
     lists:foldl(fun(Token, Acc) ->
         <<Token/binary, Acc/binary>>
     end, <<>>, NewTokens).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec trim(Text :: binary(), Side :: left | right | both) -> NewText :: binary().
+trim(Text, left) ->
+    re:replace(Text, <<"^\\s+">>, <<>>, [{return, binary}]);
+trim(Text, right) ->
+    re:replace(Text, <<"\\s+$">>, <<>>, [{return, binary}]);
+trim(Text, both) ->
+    trim(trim(Text, left), right).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec convert(Value :: term(), Type :: type()) -> Value :: term().
+convert(Values, {seq, Type}) ->
+    lists:map(fun(Value) -> convert(Value, Type) end, Values);
+
+convert(Value, boolean) when is_atom(Value) ->
+    convert(Value, atom);
+
+convert(Value, binary) when is_atom(Value) ->
+    erlang:atom_to_binary(Value, utf8);
+
+convert(Value, atom) when is_binary(Value) ->
+    erlang:binary_to_atom(Value, utf8);
+
+convert(Value, float) when is_integer(Value) ->
+    Value * 1.0;
+
+convert(Value, Type) ->
+    case get_type(Value) of
+        Type -> Value;
+        ValueType ->
+            TypeConverter = erlang:list_to_atom(erlang:atom_to_list(ValueType)
+            ++ "_to_" ++ erlang:atom_to_list(Type)),
+            erlang:TypeConverter(Value)
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% @todo write me!
+%% @end
+%%--------------------------------------------------------------------
+-spec get_type(Value :: term()) -> Type :: term().
+get_type(Value) ->
+    SupportedTypes = ["atom", "binary", "float", "integer", "list", "boolean"],
+    lists:foldl(fun
+        (Type, unknown = ValueType) ->
+            TypeMatcher = erlang:list_to_atom("is_" ++ Type),
+            case erlang:TypeMatcher(Value) of
+                true -> erlang:list_to_atom(Type);
+                false -> ValueType
+            end;
+        (_Type, ValueType) -> ValueType
+    end, unknown, SupportedTypes).
 

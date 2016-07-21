@@ -8,7 +8,7 @@
 %%% @doc @todo write me!
 %%% @end
 %%%--------------------------------------------------------------------
--module(onedata_user).
+-module(onepanel_user).
 -author("Krzysztof Trzepla").
 
 -behaviour(model_behaviour).
@@ -113,10 +113,11 @@ delete(Key) ->
 %%--------------------------------------------------------------------
 -spec load_nif() -> ok | no_return().
 load_nif() ->
-    LibPath = onepanel_utils:get_nif_library_path("onedata_user_nif"),
+    LibPath = onepanel_utils:get_nif_library_path("onepanel_user_nif"),
     case erlang:load_nif(LibPath, 0) of
         ok -> ok;
         {error, {reload, _}} -> ok;
+        {error, {upgrade, _}} -> ok;
         {error, Reason} -> ?throw(Reason)
     end.
 
@@ -133,7 +134,7 @@ new(Username, Password, Role) ->
     ?MODULE:validate_password(Password),
     ?MODULE:validate_role(Role),
     WorkFactor = onepanel_env:get(becrypt_work_factor),
-    case ?MODULE:create(#onedata_user{
+    case ?MODULE:create(#onepanel_user{
         username = Username, role = Role, uuid = onepanel_utils:gen_uuid(),
         password_hash = ?MODULE:hash_password(Password, WorkFactor)
     }) of
@@ -148,10 +149,10 @@ new(Username, Password, Role) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec authenticate(Username :: name(), Password :: password()) ->
-    {ok, User :: #onedata_user{}} | #error{}.
+    {ok, User :: #onepanel_user{}} | #error{}.
 authenticate(Username, Password) ->
-    case onedata_user:get(Username) of
-        {ok, #onedata_user{password_hash = Hash} = User} ->
+    case onepanel_user:get(Username) of
+        {ok, #onepanel_user{password_hash = Hash} = User} ->
             case check_password(Password, Hash) of
                 true -> {ok, User};
                 false -> ?error(?ERR_INVALID_USERNAME_OR_PASSWORD)
