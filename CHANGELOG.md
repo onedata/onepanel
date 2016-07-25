@@ -4,6 +4,11 @@
 CHANGELOG
 ---------
 
+### 3.0.0-RC1
+
+* minor changes and improvements
+
+
 ### 3.0.0-beta8
 
 * minor changes and improvements
