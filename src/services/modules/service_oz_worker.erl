@@ -5,8 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
-%%% @end
+%%% @doc This module contains oz_worker service management functions.
 %%%--------------------------------------------------------------------
 -module(service_oz_worker).
 -author("Krzysztof Trzepla").
@@ -29,7 +28,7 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:name/0
+%% @doc {@link service_behaviour:name/0}
 %%--------------------------------------------------------------------
 -spec name() -> Name :: service:name().
 name() ->
@@ -37,7 +36,7 @@ name() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:get_hosts/0
+%% @doc {@link service_behaviour:get_hosts/0}
 %%--------------------------------------------------------------------
 -spec get_hosts() -> Hosts :: [service:host()].
 get_hosts() ->
@@ -45,7 +44,7 @@ get_hosts() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:get_hosts/0
+%% @doc {@link service_behaviour:get_nodes/0}
 %%--------------------------------------------------------------------
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
@@ -53,7 +52,7 @@ get_nodes() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:get_steps/2
+%% @doc {@link service_behaviour:get_steps/2}
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
@@ -65,9 +64,7 @@ get_steps(Action, Ctx) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Configures the service.
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(Ctx) ->
@@ -88,7 +85,7 @@ configure(Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service:start/1
+%% @doc {@link service:start/1}
 %%--------------------------------------------------------------------
 -spec start(Ctx :: service:ctx()) -> ok | no_return().
 start(Ctx) ->
@@ -99,7 +96,7 @@ start(Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service:stop/1
+%% @doc {@link service:stop/1}
 %%--------------------------------------------------------------------
 -spec stop(Ctx :: service:ctx()) -> ok | no_return().
 stop(Ctx) ->
@@ -107,7 +104,7 @@ stop(Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service:status/1
+%% @doc {@link service:status/1}
 %%--------------------------------------------------------------------
 -spec status(Ctx :: service:ctx()) -> running | stopped | not_found.
 status(Ctx) ->
@@ -115,7 +112,7 @@ status(Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service_cluster_worker:wait_for_init/1
+%% @doc {@link service_cluster_worker:wait_for_init/1}
 %%--------------------------------------------------------------------
 -spec wait_for_init(Ctx :: service:ctx()) -> ok | no_return().
 wait_for_init(Ctx) ->
@@ -129,7 +126,7 @@ wait_for_init(Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service_cluster_worker:nagios_report/1
+%% @doc {@link service_cluster_worker:nagios_report/1}
 %%--------------------------------------------------------------------
 -spec nagios_report(Ctx :: service:ctx()) -> ok | no_return().
 nagios_report(Ctx) ->

@@ -5,8 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
-%%% @end
+%%% @doc This module contains oneprovider services management functions.
 %%%--------------------------------------------------------------------
 -module(service_oneprovider).
 -author("Krzysztof Trzepla").
@@ -37,7 +36,7 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:name/0
+%% @doc {@link service_behaviour:name/0}
 %%--------------------------------------------------------------------
 -spec name() -> Name :: service:name().
 name() ->
@@ -45,7 +44,7 @@ name() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:get_hosts/0
+%% @doc {@link service_behaviour:get_hosts/0}
 %%--------------------------------------------------------------------
 -spec get_hosts() -> Hosts :: [service:host()].
 get_hosts() ->
@@ -57,7 +56,7 @@ get_hosts() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:get_hosts/0
+%% @doc {@link service_behaviour:get_nodes/0}
 %%--------------------------------------------------------------------
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
@@ -69,7 +68,7 @@ get_nodes() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:get_steps/2
+%% @doc {@link service_behaviour:get_steps/2}
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
@@ -157,9 +156,7 @@ get_steps(Action, _Ctx) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Loads the NIF native library used for CSR generation.
 %%--------------------------------------------------------------------
 -spec load_nif() -> ok | no_return().
 load_nif() ->
@@ -173,9 +170,7 @@ load_nif() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Creates Certificate Signing Requests.
 %%--------------------------------------------------------------------
 -spec create_csr(Password :: binary()) ->
     {ok, Key :: binary(), Csr :: binary()} | {error, Reason :: binary(), binary()}.
@@ -184,9 +179,7 @@ create_csr(_Password) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Configures the service.
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(#{onezone_domain := OzDomain, onezone_verify_cert := OzVerifyCert,
@@ -215,9 +208,7 @@ configure(Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Registers provider in the zone.
 %%--------------------------------------------------------------------
 -spec register(Ctx :: service:ctx()) ->
     {ok, ProviderId :: binary()} | no_return().
@@ -257,9 +248,7 @@ register(Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Unregisters provider in the zone.
 %%--------------------------------------------------------------------
 -spec unregister(Ctx :: service:ctx()) -> ok | no_return().
 unregister(#{hosts := Hosts}) ->
@@ -276,9 +265,7 @@ unregister(#{hosts := Hosts}) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Modifies configuration details of the provider.
 %%--------------------------------------------------------------------
 -spec modify_details(Ctx :: service:ctx()) -> ok.
 modify_details(Ctx) ->
@@ -290,9 +277,7 @@ modify_details(Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns configuration details of the provider.
 %%--------------------------------------------------------------------
 -spec get_details(Ctx :: service:ctx()) -> list().
 get_details(_Ctx) ->
@@ -307,9 +292,7 @@ get_details(_Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Creates or supports space with selected storage.
 %%--------------------------------------------------------------------
 -spec support_space(Ctx :: service:ctx()) -> list().
 support_space(#{storageId := StorageId, name := Name, size := Size,
@@ -338,9 +321,7 @@ support_space(Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Revokes support for the space given by ID.
 %%--------------------------------------------------------------------
 -spec revoke_space_support(Ctx :: service:ctx()) -> ok.
 revoke_space_support(#{id := SpaceId}) ->
@@ -348,9 +329,7 @@ revoke_space_support(#{id := SpaceId}) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns list of spaces supported by the provider.
 %%--------------------------------------------------------------------
 -spec get_spaces(Ctx :: service:ctx()) -> list().
 get_spaces(_Ctx) ->
@@ -359,9 +338,7 @@ get_spaces(_Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns details of the space given by ID.
 %%--------------------------------------------------------------------
 -spec get_space_details(Ctx :: service:ctx()) -> list().
 get_space_details(#{id := SpaceId}) ->

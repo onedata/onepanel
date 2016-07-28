@@ -5,8 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
-%%% @end
+%%% @doc This module contains onezone services management functions.
 %%%--------------------------------------------------------------------
 -module(service_onezone).
 -author("Krzysztof Trzepla").
@@ -28,7 +27,7 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:name/0
+%% @doc {@link service_behaviour:name/0}
 %%--------------------------------------------------------------------
 -spec name() -> Name :: service:name().
 name() ->
@@ -36,7 +35,7 @@ name() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:get_hosts/0
+%% @doc {@link service_behaviour:get_hosts/0}
 %%--------------------------------------------------------------------
 -spec get_hosts() -> Hosts :: [service:host()].
 get_hosts() ->
@@ -48,7 +47,7 @@ get_hosts() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:get_hosts/0
+%% @doc {@link service_behaviour:get_nodes/0}
 %%--------------------------------------------------------------------
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
@@ -60,7 +59,7 @@ get_nodes() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:get_steps/2
+%% @doc {@link service_behaviour:get_steps/2}
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].

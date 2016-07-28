@@ -5,7 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
+%%% @doc This header contains service records definitions.
 %%% @end
 %%%--------------------------------------------------------------------
 -author("Krzysztof Trzepla").

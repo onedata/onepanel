@@ -5,7 +5,8 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
+%%% @doc This module is responsible discovery of a cluster nodes using multicast
+%%% advertisement.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_discovery).
@@ -35,9 +36,7 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% Starts the server
-%% @end
+%% @doc Starts the server
 %%--------------------------------------------------------------------
 -spec(start_link() ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
@@ -46,9 +45,7 @@ start_link() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns a list of discovered nodes.
 %%--------------------------------------------------------------------
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
@@ -56,9 +53,7 @@ get_nodes() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns a list of discovered hosts.
 %%--------------------------------------------------------------------
 -spec get_hosts() -> Hosts :: [service:host()].
 get_hosts() ->
@@ -69,10 +64,7 @@ get_hosts() ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Initializes the server
-%% @end
+%% @private @doc Initializes the server.
 %%--------------------------------------------------------------------
 -spec init(Args :: term()) ->
     {ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
@@ -101,10 +93,7 @@ init([]) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Handling call messages
-%% @end
+%% @private @doc Handles call messages.
 %%--------------------------------------------------------------------
 -spec handle_call(Request :: term(), From :: {pid(), Tag :: term()},
     State :: #state{}) ->
@@ -123,10 +112,7 @@ handle_call(Request, _From, State) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Handling cast messages
-%% @end
+%% @private @doc Handles cast messages.
 %%--------------------------------------------------------------------
 -spec handle_cast(Request :: term(), State :: #state{}) ->
     {noreply, NewState :: #state{}} |
@@ -138,10 +124,7 @@ handle_cast(Request, State) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Handling all non call/cast messages
-%% @end
+%% @private @doc Handles all non call/cast messages.
 %%--------------------------------------------------------------------
 -spec handle_info(Info :: timeout() | term(), State :: #state{}) ->
     {noreply, NewState :: #state{}} |
@@ -175,9 +158,7 @@ handle_info(Info, State) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% This function is called by a gen_server when it is about to
+%% @private @doc This function is called by a gen_server when it is about to
 %% terminate. It should be the opposite of Module:init/1 and do any
 %% necessary cleaning up. When it returns, the gen_server terminates
 %% with Reason. The return value is ignored.
@@ -190,10 +171,7 @@ terminate(Reason, State) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Convert process state when code is changed
-%% @end
+%% @private @doc Converts process state when code is changed
 %%--------------------------------------------------------------------
 -spec code_change(OldVsn :: term() | {down, term()}, State :: #state{},
     Extra :: term()) ->
@@ -206,9 +184,8 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
+%% @private @doc Checks whether received message is a valid name of a node,
+%% which yet has not been discovered.
 %% @end
 %%--------------------------------------------------------------------
 -spec verify_node(Msg :: binary(), Nodes :: sets:set(node())) ->

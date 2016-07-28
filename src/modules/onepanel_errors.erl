@@ -5,8 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
-%%% @end
+%%% @doc This module contains error handling functions.
 %%%--------------------------------------------------------------------
 -module(onepanel_errors).
 -author("Krzysztof Trzepla").
@@ -22,9 +21,7 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Creates an error record.
 %%--------------------------------------------------------------------
 -spec new(Module :: module(), Function :: atom(), Arity :: non_neg_integer(),
     Args :: term(), Reason :: term(), Stacktrace :: term(), Line :: non_neg_integer()) ->
@@ -44,9 +41,7 @@ new(Module, Function, Arity, Args, Reason, Stacktrace, Line) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Converts error to a human-readable description.
 %%--------------------------------------------------------------------
 -spec translate(Type :: atom(), Reason :: term()) ->
     {Name :: binary(), Description :: binary()} | no_return().
@@ -156,7 +151,9 @@ translate(Type, Reason) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc @todo write me!
+%% @private @doc Merge a list of keys with a "." character into human-readable
+%% format.
+%% @end
 %%--------------------------------------------------------------------
 -spec get_key(Keys :: onepanel_parser:keys()) -> Key :: binary().
 get_key(Keys) ->
@@ -164,8 +161,8 @@ get_key(Keys) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @private @doc Merge a list of keys with a given separator character into
+%% human-readable format.
 %% @end
 %%--------------------------------------------------------------------
 -spec get_key(Keys :: onepanel_parser:keys(), Separator :: binary()) -> Key :: binary().
@@ -177,9 +174,7 @@ get_key(Keys, Separator) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Returns human-readable expectation for a value specification.
 %%--------------------------------------------------------------------
 -spec get_expectation(ValueSpec :: onepanel_parser:value_spec(), Acc :: binary()) ->
     Expectation :: binary().
@@ -213,9 +208,7 @@ get_expectation(ValueSpec, Acc) when is_map(ValueSpec) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Translates storage test file error into human-readable format.
 %%--------------------------------------------------------------------
 -spec translate_storage_test_file_error(OperVerb :: string(), OperNoun :: binary(),
     Node :: node(), Reason :: term()) -> {Name :: binary(), Description :: binary()}.

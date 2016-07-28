@@ -5,8 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
-%%% @end
+%%% @doc This module contains utility functions.
 %%%--------------------------------------------------------------------
 -module(onepanel_utils).
 -author("Krzysztof Trzepla").
@@ -35,20 +34,15 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns basic authorization header.
 %%--------------------------------------------------------------------
 -spec get_basic_auth_header(Username :: string() | binary(),
     Password :: string() | binary()) -> {Key :: binary(), Value :: binary()}.
-get_basic_auth_header(Username, Password) when is_list(Username) ->
-    get_basic_auth_header(erlang:list_to_binary(Username), Password);
-
-get_basic_auth_header(Username, Password) when is_list(Password) ->
-    get_basic_auth_header(Username, erlang:list_to_binary(Password));
-
 get_basic_auth_header(Username, Password) ->
-    Hash = base64:encode(<<Username/binary, ":", Password/binary>>),
+    Hash = base64:encode(<<
+        (onepanel_utils:convert(Username, binary))/binary, ":",
+        (onepanel_utils:convert(Password, binary))/binary>>
+    ),
     {<<"Authorization">>, <<"Basic ", Hash/binary>>}.
 
 
@@ -64,8 +58,8 @@ wait_until(Module, Function, Args, Expectation, Attempts) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Waits until evaluation of ```apply(Module, Function, Args)''' returns
+%% expected result, defined by validation function or exact value.
 %% @end
 %%--------------------------------------------------------------------
 -spec wait_until(Module :: module(), Function :: atom(), Args :: list(),
@@ -98,8 +92,8 @@ wait_until(Module, Function, Args, Expected, Attempts, Delay) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Writes content of a file indicated by path. In case of an error throws
+%% an exception.
 %% @end
 %%--------------------------------------------------------------------
 -spec save_file(Path :: file:name_all(), Content :: binary()) -> ok | no_return().
@@ -111,8 +105,8 @@ save_file(Path, Content) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Queries onezone for IP address of the host where function has been
+%% evaluated. In case of an error throws an exception.
 %% @end
 %%--------------------------------------------------------------------
 -spec get_ip_address() -> IpAddress :: binary() | no_return().
@@ -132,9 +126,8 @@ gen_uuid() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns the NIF native library path. The library is first searched
+%% in application priv dir, and then under ../priv and ./priv .
 %%--------------------------------------------------------------------
 -spec get_nif_library_path(LibName :: string()) ->
     LibPath :: file:filename_all().
@@ -150,9 +143,7 @@ get_nif_library_path(LibName) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc @equiv join(Tokens, ```<<>>''')
 %%--------------------------------------------------------------------
 -spec join(Tokens :: [term()]) -> Binary :: binary().
 join(Tokens) ->
@@ -160,9 +151,7 @@ join(Tokens) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Joins sequence of tokens using provided separator.
 %%--------------------------------------------------------------------
 -spec join(Tokens :: [term()], Sep :: binary()) -> Binary :: binary().
 join([], _Sep) ->
@@ -178,8 +167,8 @@ join(Tokens, Sep) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Removes whitespace characters from a given side or both sides of
+%% a character sequence.
 %% @end
 %%--------------------------------------------------------------------
 -spec trim(Text :: binary(), Side :: left | right | both) -> NewText :: binary().
@@ -192,9 +181,7 @@ trim(Text, both) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Converts value to a provided type.
 %%--------------------------------------------------------------------
 -spec convert(Value :: term(), Type :: type()) -> Value :: term().
 convert(Values, {seq, Type}) ->
@@ -223,11 +210,9 @@ convert(Value, Type) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns type of a given value.
 %%--------------------------------------------------------------------
--spec get_type(Value :: term()) -> Type :: term().
+-spec get_type(Value :: term()) -> Type :: type().
 get_type(Value) ->
     SupportedTypes = ["atom", "binary", "float", "integer", "list", "boolean"],
     lists:foldl(fun

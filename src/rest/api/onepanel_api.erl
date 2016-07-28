@@ -7,7 +7,7 @@
 %%% in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc 
+%%% @doc REST API definitions for onepanel.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_api).
@@ -23,141 +23,103 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns list of path with a handler module and an initial state.
 %%--------------------------------------------------------------------
 -spec routes() ->
     [{Path :: binary(), Module :: module(), State :: rest_handler:state()}].
-routes() ->
+routes() -> 
     [
-        %%
-        %% Add cluster host
-        %%
-        {<<"/api/v3/onepanel/hosts/:host">>, rest_handler, #rstate{
+        %% Remove cluster node
+        { <<"/api/v3/onepanel/hosts/:host">>, rest_handler, #rstate{
             version = 3,
             module = rest_onepanel,
             resource = host,
-            methods = [#rmethod{type = 'PUT'}]
+            methods = [#rmethod{
+                type='DELETE'
+            }]
         }},
 
-        %%
-        %% Add user
-        %%
-        {<<"/api/v3/onepanel/users">>, rest_handler, #rstate{
+        %% Remove user
+        { <<"/api/v3/onepanel/users/:username">>, rest_handler, #rstate{
             version = 3,
             module = rest_onepanel_user,
-            resource = users,
-            methods = [#rmethod{type = 'PUT',
-                %% [Body parameter]
-                %% New user account details.
-                args_spec = rest_model:user_details_model(),
-                noauth = true}]
+            resource = user,
+            methods = [#rmethod{
+                type='DELETE'
+            }]
         }},
 
-        %%
-        %% Get cluster hosts
-        %%
-        {<<"/api/v3/onepanel/hosts">>, rest_handler, #rstate{
+        %% Get cluster/discovered hosts
+        { <<"/api/v3/onepanel/hosts">>, rest_handler, #rstate{
             version = 3,
             module = rest_onepanel,
             resource = hosts,
-            methods = [#rmethod{type = 'GET',
-                %% [Query parameters]
+            methods = [#rmethod{
+                type='GET',
                 params_spec = #{
-                    %%
-                    discovered => {boolean, {optional, false}}},
-                noauth = true}]
+                    %% Defines whether return cluster or discovered hosts.
+                    discovered => { boolean, {optional, false } }
+                },
+                noauth = true
+            }]
         }},
 
-        %%
-        %% Get cluster hosts
-        %%
-        {<<"/api/v3/onepanel/hosts">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_onepanel,
-            resource = hosts,
-            methods = [#rmethod{type = 'PUT',
-                %% [Body parameter]
-                %%
-                args_spec = rest_model:hosts_model(),
-                %% [Query parameters]
-                params_spec = #{
-                    %%
-                    discovered => {boolean, {optional, false}}},
-                noauth = true}]
-        }},
-
-        %%
-        %% Get task status
-        %%
-        {<<"/api/v3/onepanel/tasks/:id">>, rest_handler, #rstate{
+        %% Get task result
+        { <<"/api/v3/onepanel/tasks/:id">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
             resource = task,
-            methods = [#rmethod{type = 'GET'}]
+            methods = [#rmethod{
+                type='GET'
+            }]
         }},
 
-        %%
         %% Get user details
-        %%
-        {<<"/api/v3/onepanel/users/:username">>, rest_handler, #rstate{
+        { <<"/api/v3/onepanel/users/:username">>, rest_handler, #rstate{
             version = 3,
             module = rest_onepanel_user,
             resource = user,
-            methods = [#rmethod{type = 'GET'}]
+            methods = [#rmethod{
+                type='GET'
+            }]
         }},
 
-
-        %%
-        %% Change user password
-        %%
-        {<<"/api/v3/onepanel/users/:username">>, rest_handler, #rstate{
+        %% Modify user details
+        { <<"/api/v3/onepanel/users/:username">>, rest_handler, #rstate{
             version = 3,
             module = rest_onepanel_user,
             resource = user,
-            methods = [#rmethod{type = 'PUT',
-                %% [Body parameter]
-                %% New password.
-                args_spec = rest_model:user_details_update_model()}]
+            methods = [#rmethod{
+                type='PATCH',
+                args_spec = rest_model:user_modify_request_model()
+            }]
         }},
 
-        %%
-        %% Remove cluster host
-        %%
-        {<<"/api/v3/onepanel/hosts/:host">>, rest_handler, #rstate{
+        %% Create user
+        { <<"/api/v3/onepanel/users">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel_user,
+            resource = users,
+            methods = [#rmethod{
+                type='POST',
+                args_spec = rest_model:user_create_request_model(),
+                noauth = true
+            }]
+        }},
+
+        %% Create or join cluster
+        { <<"/api/v3/onepanel/hosts">>, rest_handler, #rstate{
             version = 3,
             module = rest_onepanel,
-            resource = host,
-            methods = [#rmethod{type = 'DELETE'}]
-        }},
-
-        %%
-        %% Remove user
-        %%
-        {<<"/api/v3/onepanel/users/:username">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_onepanel_user,
-            resource = user,
-            methods = [#rmethod{type = 'DELETE'}]
+            resource = hosts,
+            methods = [#rmethod{
+                type='PUT',
+                params_spec = #{
+                    %% Hostname of an existing cluster node.
+                    clusterHost => { string, optional }
+                },
+                noauth = true
+            }]
         }}
 
     ].
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

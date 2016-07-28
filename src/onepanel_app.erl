@@ -5,7 +5,8 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
+%%% @doc This module is responsible for starting and stopping onepanel
+%%% application.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_app).
@@ -23,10 +24,8 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% This function is called whenever an application is started using
-%% application:start/[1,2], and should start the processes of the
+%% @private @doc This function is called whenever an application is started
+%% using application:start/[1,2], and should start the processes of the
 %% application. If the application is structured according to the OTP
 %% design principles as a supervision tree, this means starting the
 %% top supervisor of the tree.
@@ -53,10 +52,8 @@ start(_StartType, _StartArgs) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% This function is called whenever an application has stopped. It
-%% is intended to be the opposite of Module:start/2 and should do
+%% @private @doc This function is called whenever an application has stopped.
+%% It is intended to be the opposite of Module:start/2 and should do
 %% any necessary cleaning up. The return value is ignored.
 %% @end
 %%--------------------------------------------------------------------
@@ -65,7 +62,3 @@ stop(_State) ->
     rest_listener:stop(),
     test_node_starter:maybe_stop_cover(),
     ok.
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================

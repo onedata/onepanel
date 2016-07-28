@@ -5,7 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
+%%% @doc This module is responsible for onepanel workers supervision.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_sup).
@@ -38,11 +38,9 @@ start_link() ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Whenever a supervisor is started using supervisor:start_link/[2,3],
-%% this function is called by the new process to find out about
-%% restart strategy, maximum restart frequency and child
+%% @private @doc Whenever a supervisor is started using
+%% supervisor:start_link/[2,3], this function is called by the new process
+%% to find out about restart strategy, maximum restart frequency and child
 %% specifications.
 %% @end
 %%--------------------------------------------------------------------
@@ -60,10 +58,7 @@ init([]) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Returns a worker child_spec for a onepanel_discovery gen_server.
-%% @end
+%% @private @doc Returns a worker child_spec for a onepanel_discovery gen_server.
 %%--------------------------------------------------------------------
 -spec onepanel_discovery_spec() -> supervisor:child_spec().
 onepanel_discovery_spec() ->
@@ -77,10 +72,7 @@ onepanel_discovery_spec() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Returns a worker child_spec for a service_executor gen_server.
-%% @end
+%% @private @doc Returns a worker child_spec for a service_executor gen_server.
 %%--------------------------------------------------------------------
 -spec service_executor_spec() -> supervisor:child_spec().
 service_executor_spec() ->

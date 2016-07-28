@@ -5,7 +5,9 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
+%%% @doc This module contains utility functions for a application configuration
+%%% file (app.config) management. It also allows for modification of application
+%%% variables loaded into application memory.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_env).
@@ -22,14 +24,14 @@
 -type keys() :: key() | [key()].
 -type value() :: term().
 
+-export_type([key/0, keys/0, value/0]).
+
 %%%===================================================================
 %%% API functions
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc @equiv get(Keys, ?APP_NAME)
 %%--------------------------------------------------------------------
 -spec get(Keys :: keys()) -> Value :: value().
 get(Keys) ->
@@ -37,8 +39,8 @@ get(Keys) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Returns value of a application variable from application's memory.
+%% Throws an exception when value has not been found.
 %% @end
 %%--------------------------------------------------------------------
 -spec get(Keys :: keys(), AppName :: atom()) -> Value :: value().
@@ -48,9 +50,7 @@ get(Keys, AppName) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc @equiv find(Keys, ?APP_NAME)
 %%--------------------------------------------------------------------
 -spec find(Keys :: keys()) -> {ok, Value :: value()} | #error{} | no_return().
 find(Keys) ->
@@ -58,8 +58,8 @@ find(Keys) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Returns value of a application variable from application's memory.
+%% Returns error if value has not been found.
 %% @end
 %%--------------------------------------------------------------------
 -spec find(Keys :: keys(), AppName :: atom()) ->
@@ -69,9 +69,7 @@ find(Keys, AppName) when is_atom(AppName) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc @equiv set(Keys, Value, ?APP_NAME)
 %%--------------------------------------------------------------------
 -spec set(Keys :: keys(), Value :: value()) -> ok.
 set(Keys, Value) ->
@@ -79,9 +77,7 @@ set(Keys, Value) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Sets value of a application variable in application's memory.
 %%--------------------------------------------------------------------
 -spec set(Keys :: keys(), Value :: value(), AppName :: atom()) -> ok.
 set(Keys, Value, AppName) ->
@@ -91,8 +87,8 @@ set(Keys, Value, AppName) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Sets value of a application variable in application's memory on given
+%% nodes.
 %% @end
 %%--------------------------------------------------------------------
 -spec set(Nodes :: [node()], Keys :: keys(), Value :: value(), AppName :: atom()) ->
@@ -102,8 +98,8 @@ set(Nodes, Keys, Value, AppName) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Returns value of a application variable from application's configuration
+%% file. Returns error if value has not been found.
 %% @end
 %%--------------------------------------------------------------------
 -spec read(Keys :: keys(), Path :: file:name()) ->
@@ -116,9 +112,7 @@ read(Keys, Path) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc @equiv write(Keys, Value, onepanel_env:get(app_config_path))
 %%--------------------------------------------------------------------
 -spec write(Keys :: keys(), Value :: value()) -> ok | no_return().
 write(Keys, Value) ->
@@ -126,9 +120,7 @@ write(Keys, Value) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Sets value of a application variable in application's configuration file.
 %%--------------------------------------------------------------------
 -spec write(Keys :: keys(), Value :: value(), Path :: file:name_all()) ->
     ok | no_return().
@@ -146,8 +138,8 @@ write(Keys, Value, Path) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Sets value of a application variable in application's configuration file
+%% on given nodes.
 %% @end
 %%--------------------------------------------------------------------
 -spec write(Nodes :: [node()], Keys :: keys(), Value :: value(),
@@ -160,10 +152,7 @@ write(Nodes, Keys, Value, Path) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Selects value from a nested property list.
 %%--------------------------------------------------------------------
 -spec select(Keys :: keys(), Terms :: proplists:proplist()) ->
     {ok, Value :: value()} | #error{}.
@@ -181,10 +170,7 @@ select(Key, Terms) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Stores value in a nested property list.
 %%--------------------------------------------------------------------
 -spec store(Keys :: keys(), Value :: value(), Terms :: proplists:proplist()) ->
     NewTerms :: proplists:proplist().

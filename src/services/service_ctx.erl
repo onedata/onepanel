@@ -5,8 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
-%%% @end
+%%% @doc This module provides utility functions for service contex management.
 %%%--------------------------------------------------------------------
 -module(service_ctx).
 -author("Krzysztof Trzepla").
@@ -21,39 +20,39 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc @equiv get(Name, Ctx, list)
 %%--------------------------------------------------------------------
--spec get(Name :: service:name(), Ctx :: service:ctx()) -> Value :: term().
-get(Name, Ctx) ->
-    get(Name, Ctx, list).
+-spec get(Key :: onepanel_env:key(), Ctx :: service:ctx()) ->
+    Value :: onepanel_env:value().
+get(Key, Ctx) ->
+    get(Key, Ctx, list).
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Returns a value from the service context. If it's missing returns a value
+%% from the application configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec get(Name :: service:name(), Ctx :: service:ctx(),
-    Type :: onepanel_utils:type()) -> Value :: term().
-get(Name, Ctx, Type) ->
-    Value = case maps:find(Name, Ctx) of
+-spec get(Key :: onepanel_env:key(), Ctx :: service:ctx(),
+    Type :: onepanel_utils:type()) -> Value :: onepanel_env:value().
+get(Key, Ctx, Type) ->
+    Value = case maps:find(Key, Ctx) of
         {ok, V} -> V;
-        error -> onepanel_env:get(Name)
+        error -> onepanel_env:get(Key)
     end,
     onepanel_utils:convert(Value, Type).
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Returns a value from the service context or the default one if it's
+%% missing.
 %% @end
 %%--------------------------------------------------------------------
--spec get(Name :: service:name(), Ctx :: service:ctx(),
-    Type :: onepanel_utils:type(), Default :: term()) -> Value :: term().
-get(Name, Ctx, Type, Default) ->
-    Value = case maps:find(Name, Ctx) of
+-spec get(Name :: onepanel_env:key(), Ctx :: service:ctx(),
+    Type :: onepanel_utils:type(), Default :: onepanel_env:value()) ->
+    Value :: onepanel_env:value().
+get(Key, Ctx, Type, Default) ->
+    Value = case maps:find(Key, Ctx) of
         {ok, V} -> V;
         error -> Default
     end,
@@ -61,15 +60,15 @@ get(Name, Ctx, Type, Default) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Returns a domain name from the service context. If it's missing fetches
+%% it from the system using 'hostname' shell program.
 %% @end
 %%--------------------------------------------------------------------
--spec get_domain(Key :: atom(), Ctx :: service:ctx()) ->
+-spec get_domain(Key :: onepanel_env:key(), Ctx :: service:ctx()) ->
     Domain :: string() | no_return().
 get_domain(Key, Ctx) ->
     case maps:find(Key, Ctx) of
-        {ok, Domain} -> Domain;
+        {ok, Domain} -> onepanel_utils:convert(Domain, list);
         error ->
             Hostname = onepanel_shell:check_output(["hostname", "-f"]),
             case string:tokens(Hostname, ".") of

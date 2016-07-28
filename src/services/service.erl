@@ -5,7 +5,8 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
+%%% @doc This module contains service management functions.
+%%% It implements {@link model_behaviour} behaviour.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(service).
@@ -42,7 +43,7 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc @see model_behaviour:get_fields/0
+%% @doc {@link model_behaviour:get_fields/0}
 %%--------------------------------------------------------------------
 -spec get_fields() -> list(atom()).
 get_fields() ->
@@ -50,7 +51,7 @@ get_fields() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see model_behaviour:create/1
+%% @doc {@link model_behaviour:create/1}
 %%--------------------------------------------------------------------
 -spec create(Record :: model_behaviour:record()) ->
     ok | #error{} | no_return().
@@ -59,7 +60,7 @@ create(Record) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see model_behaviour:save/1
+%% @doc {@link model_behaviour:save/1}
 %%--------------------------------------------------------------------
 -spec save(Record :: model_behaviour:record()) -> ok | no_return().
 save(Record) ->
@@ -67,7 +68,7 @@ save(Record) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see model_behaviour:update/2
+%% @doc {@link model_behaviour:update/2}
 %%--------------------------------------------------------------------
 -spec update(Key :: model_behaviour:key(), Diff :: model_behaviour:diff()) ->
     ok | no_return().
@@ -76,7 +77,7 @@ update(Key, Diff) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see model_behaviour:get/1
+%% @doc {@link model_behaviour:get/1}
 %%--------------------------------------------------------------------
 -spec get(Key :: model_behaviour:key()) ->
     {ok, Record :: model_behaviour:record()} | #error{} | no_return().
@@ -85,7 +86,7 @@ get(Key) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see model_behaviour:exists/1
+%% @doc {@link model_behaviour:exists/1}
 %%--------------------------------------------------------------------
 -spec exists(Key :: model_behaviour:key()) ->
     boolean() | no_return().
@@ -94,7 +95,7 @@ exists(Key) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see model_behaviour:delete/1
+%% @doc {@link model_behaviour:delete/1}
 %%--------------------------------------------------------------------
 -spec delete(Key :: model_behaviour:key()) -> ok | no_return().
 delete(Key) ->
@@ -113,8 +114,8 @@ start(InitScript) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Sets the system limits and starts the service using an init script
+%% in a shell.
 %% @end
 %%--------------------------------------------------------------------
 -spec start(InitScript :: string(), SystemLimits :: #{}) -> ok | no_return().
@@ -127,9 +128,7 @@ start(InitScript, SystemLimits) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Stops the service using an init script in a shell.
 %%--------------------------------------------------------------------
 -spec stop(InitScript :: string()) -> ok | no_return().
 stop(InitScript) ->
@@ -137,11 +136,9 @@ stop(InitScript) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns the service status using an init script in a shell.
 %%--------------------------------------------------------------------
--spec status(InitScript :: string()) -> running | stopped | not_found.
+-spec status(InitScript :: string()) -> running | stopped | missing.
 status(InitScript) ->
     case onepanel_shell:call(["service", InitScript, "status"]) of
         0 -> running;
@@ -160,9 +157,7 @@ apply(Service, Action, Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Executes the service action and notifies about the process.
 %%--------------------------------------------------------------------
 -spec apply(Service :: name(), Action :: action(), Ctx :: ctx(), Notify :: notify()) ->
     ok | {error, Reason :: term()}.
@@ -184,9 +179,7 @@ apply(Service, Action, Ctx, Notify) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns service module for service name.
 %%--------------------------------------------------------------------
 -spec get_module(Service :: name()) -> Module :: module().
 get_module(Service) ->
@@ -194,9 +187,7 @@ get_module(Service) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns lists of hosts where provided service is deployed.
 %%--------------------------------------------------------------------
 -spec get_hosts(Service :: name()) -> Hosts :: [host()].
 get_hosts(Service) ->
@@ -205,8 +196,8 @@ get_hosts(Service) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Returns lists of onepanel nodes for hosts where provided service is
+%% deployed.
 %% @end
 %%--------------------------------------------------------------------
 -spec get_nodes(Service :: name()) -> Nodes :: [node()].
@@ -215,15 +206,13 @@ get_nodes(Service) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Checks whether service is deployed on provided host.
 %%--------------------------------------------------------------------
--spec is_member(Key :: model_behaviour:key(), Host :: host()) ->
+-spec is_member(Service :: name(), Host :: host()) ->
     boolean() | {error, Reason :: term()}.
-is_member(Key, Host) ->
+is_member(Service, Host) ->
     model:transaction(fun() ->
-        case ?MODULE:get(Key) of
+        case ?MODULE:get(Service) of
             {ok, #service{hosts = Hosts}} -> lists:member(Host, Hosts);
             _ -> false
         end
@@ -231,14 +220,12 @@ is_member(Key, Host) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Adds host to a list of hosts where provided service is deployed.
 %%--------------------------------------------------------------------
--spec add_host(Name :: name(), Host :: host()) -> ok.
-add_host(Name, Host) ->
-    ?MODULE:update(Name, fun(#service{hosts = Hosts} = Service) ->
-        Service#service{hosts = [Host | lists:delete(Host, Hosts)]}
+-spec add_host(Service :: name(), Host :: host()) -> ok.
+add_host(Service, Host) ->
+    ?MODULE:update(Service, fun(#service{hosts = Hosts} = S) ->
+        S#service{hosts = [Host | lists:delete(Host, Hosts)]}
     end).
 
 %%%===================================================================
@@ -246,10 +233,7 @@ add_host(Name, Host) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Applies the service steps associated with an action.
 %%--------------------------------------------------------------------
 -spec apply_steps(Steps :: [step()], Notify :: notify()) -> ok | #error{}.
 apply_steps([], _Notify) ->
@@ -277,10 +261,7 @@ apply_steps([#step{hosts = Hosts, module = Module, function = Function,
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Returns a list of steps for the service action.
 %%--------------------------------------------------------------------
 -spec get_steps(Service :: name(), Action :: action(), Ctx :: ctx(),
     IgnoreErrors :: boolean()) -> Steps :: [#step{}].
@@ -296,10 +277,7 @@ get_steps(Service, Action, Ctx, IgnoreErrors) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Substitutes default step values.
 %%--------------------------------------------------------------------
 -spec get_step(Service :: name(), Step :: #step{}, Ctx :: ctx(),
     IgnoreErrors :: boolean()) -> Step :: [] | #step{}.
@@ -362,10 +340,7 @@ get_step(_Service, #step{condition = Condition, ctx = Ctx} = Step, _Ctx,
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Returns a list of steps for the nested service action.
 %%--------------------------------------------------------------------
 -spec get_nested_steps(Service :: name(), Steps :: #steps{}, Ctx :: ctx(),
     IgnoreErrors :: boolean()) -> Steps :: [step()].
@@ -391,10 +366,7 @@ get_nested_steps(_Service, #steps{service = Service, action = Action, ctx = Ctx,
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Notifies about the service action progress.
 %%--------------------------------------------------------------------
 -spec notify(Msg :: {Stage :: stage(), Details}, Notify :: notify()) ->
     ok when
@@ -413,9 +385,9 @@ notify(Msg, _Notify) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
+%% @private @doc Divides the results into two groups. The first group represents
+%% the results of step that completed successfully and the second group that
+%% completed with an error.
 %% @end
 %%--------------------------------------------------------------------
 -spec partition_results(Results :: onepanel_rpc:results()) ->
@@ -428,10 +400,7 @@ partition_results(Results) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Logs the service action progress.
 %%--------------------------------------------------------------------
 -spec log(Msg :: {Stage :: stage(), Details}) -> ok when
     Details :: {Module, Function} | {Module, Function, Result},
@@ -458,10 +427,7 @@ log({step_end, {Module, Function, {_, Errors}}}) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Formats the service steps into a human-readable format.
 %%--------------------------------------------------------------------
 -spec format_steps(Steps :: [step()], Acc :: string()) -> Log :: string().
 format_steps([], Log) ->
@@ -474,10 +440,7 @@ format_steps([#step{hosts = Hosts, module = Module, function = Function,
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Formats the service errors into a human-readable format.
 %%--------------------------------------------------------------------
 -spec format_errors(Errors :: [{Node, {error, Reason}} |{Node, {error, Reason,
     Stacktrace}}], Acc :: string()) -> Log :: string() when

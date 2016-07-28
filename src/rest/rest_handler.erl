@@ -44,9 +44,7 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc Cowboy callback function.
-%% Upgrade the protocol to cowboy_rest.
-%% @end
+%% @doc Cowboy callback function. Upgrades the protocol to cowboy_rest.
 %%--------------------------------------------------------------------
 -spec init({TransportName :: atom(), ProtocolName :: http},
     Req :: cowboy_req:req(), Opts :: any()) -> {upgrade, protocol, cowboy_rest}.
@@ -55,9 +53,7 @@ init({_, http}, _Req, _Opts) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Cowboy callback function.
-%% Initialize the state for this request.
-%% @end
+%% @doc Cowboy callback function. Initializes the state for this request.
 %%--------------------------------------------------------------------
 -spec rest_init(Req :: cowboy_req:req(), State :: state()) ->
     {ok, cowboy_req:req(), state()}.
@@ -66,9 +62,7 @@ rest_init(Req, #rstate{} = State) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Cowboy callback function.
-%% Return the list of allowed methods.
-%% @end
+%% @doc Cowboy callback function. Returns the list of allowed methods.
 %%--------------------------------------------------------------------
 -spec allowed_methods(Req :: cowboy_req:req(), State :: state()) ->
     {[binary()], cowboy_req:req(), state()}.
@@ -80,8 +74,8 @@ allowed_methods(Req, #rstate{methods = Methods} = State) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Cowboy callback function.
-%% Return whether POST is allowed when the resource doesn't exist.
+%% @doc Cowboy callback function. Returns the list of content-types the resource
+%% accepts.
 %% @end
 %%--------------------------------------------------------------------
 -spec content_types_accepted(Req :: cowboy_req:req(), State :: state()) ->
@@ -91,8 +85,8 @@ content_types_accepted(Req, #rstate{} = State) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Cowboy callback function.
-%% Return the list of content-types the resource provides.
+%% @doc Cowboy callback function. Returns the list of content-types the resource
+%% provides.
 %% @end
 %%--------------------------------------------------------------------
 -spec content_types_provided(Req :: cowboy_req:req(), State :: state()) ->
@@ -102,11 +96,10 @@ content_types_provided(Req, #rstate{} = State) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Cowboy callback function.
-%% Return whether the user is authorized to perform the action.
-%% NOTE: The name and description of this function is actually misleading;
-%% 401 Unauthorized is returned when there's been an *authentication* error,
-%% and 403 Forbidden is returned when the already-authenticated client
+%% @doc Cowboy callback function. Returns whether the user is authorized to
+%% perform the action. The name and description of this function is actually
+%% misleading; 401 Unauthorized is returned when there's been an *authentication*
+%% error, and 403 Forbidden is returned when the already-authenticated client
 %% is unauthorized to perform an operation.
 %% @end
 %%--------------------------------------------------------------------
@@ -128,9 +121,8 @@ is_authorized(Req, #rstate{methods = Methods} = State) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Cowboy callback function.
-%% Return whether access to the resource is forbidden.
-%% @see is_authorized/2
+%% @doc Cowboy callback function. Returns whether access to the resource is
+%% forbidden ({@link  is_authorized/2}).
 %% @end
 %%--------------------------------------------------------------------
 -spec forbidden(Req :: cowboy_req:req(), State :: state()) ->
@@ -153,9 +145,7 @@ forbidden(Req, #rstate{module = Module, methods = Methods} = State) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Cowboy callback function.
-%% Return whether the resource exists.
-%% @end
+%% @doc Cowboy callback function. Returns whether the resource exists.
 %%--------------------------------------------------------------------
 -spec resource_exists(Req :: cowboy_req:req(), State :: state()) ->
     {boolean(), cowboy_req:req(), state()}.
@@ -177,8 +167,8 @@ resource_exists(Req, #rstate{module = Module, methods = Methods} = State) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Cowboy callback function.
-%% Process the request body of application/json content type.
+%% @doc Cowboy callback function. Processes the request body of application/json
+%% content type.
 %% @end
 %%--------------------------------------------------------------------
 -spec accept_resource_json(Req :: cowboy_req:req(), State :: state()) ->
@@ -195,9 +185,7 @@ accept_resource_json(Req, #rstate{} = State) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Cowboy callback function.
-%% Process the request body.
-%% @end
+%% @doc Cowboy callback function. Provides the resource.
 %%--------------------------------------------------------------------
 -spec provide_resource(Req :: cowboy_req:req(), State :: state()) ->
     {iodata(), cowboy_req:req(), state()}.
@@ -220,9 +208,7 @@ provide_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Cowboy callback function.
-%% Delete the resource.
-%% @end
+%% @doc Cowboy callback function. Deletes the resource.
 %%--------------------------------------------------------------------
 -spec delete_resource(Req :: cowboy_req:req(), State :: state()) ->
     {boolean(), cowboy_req:req(), state()}.
@@ -247,9 +233,7 @@ delete_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc Cowboy callback function.
-%% Process the request body.
-%% @end
+%% @doc Cowboy callback function. Processes the request body.
 %%--------------------------------------------------------------------
 -spec accept_resource(Req :: cowboy_req:req(), Data :: data(), State :: state()) ->
     {{true, URL :: binary()} | boolean(), cowboy_req:req(), state()}.
@@ -269,9 +253,7 @@ accept_resource(Req, Data, #rstate{module = Module, methods = Methods} =
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Authorizes user using basic authorization method.
 %%--------------------------------------------------------------------
 -spec authorize_by_basic_auth(Req :: cowboy_req:req(), State :: state()) ->
     {Authorized :: boolean(), Req :: cowboy_req:req(), NewState :: state()}.

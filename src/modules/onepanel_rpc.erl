@@ -5,8 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
-%%% @end
+%%% @doc This module provides an extension of rpc module functionality.
 %%%--------------------------------------------------------------------
 -module(onepanel_rpc).
 -author("Krzysztof Trzepla").
@@ -30,8 +29,8 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Evaluates a function from a given module with provided arguments.
+%% Returns a tuple consisting of node where execution took place and a result.
 %% @end
 %%--------------------------------------------------------------------
 -spec apply(Module :: module(), Function :: atom(), Args :: [term()]) ->
@@ -45,9 +44,7 @@ apply(Module, Function, Args) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @equiv call(service_onepanel:get_nodes(), Module, Function, Args)
-%% @end
+%% @doc @equiv call(service_onepanel:get_nodes(), Module, Function, Args)
 %%--------------------------------------------------------------------
 -spec call(Module :: module(), Function :: atom(), Args :: [term()]) ->
     Results :: results().
@@ -56,9 +53,7 @@ call(Module, Function, Args) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Evaluates {@link call/5} with a default timeout.
 %%--------------------------------------------------------------------
 -spec call(Nodes :: [node()], Module :: module(), Function :: atom(),
     Args :: [term()]) -> Results :: results().
@@ -68,8 +63,8 @@ call(Nodes, Module, Function, Args) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Evaluates in parallel ```apply(Module, Function, Args)''' on the
+%% specified nodes and collects the answers with timeout.
 %% @end
 %%--------------------------------------------------------------------
 -spec call(Nodes :: [node()], Module :: module(), Function :: atom(),
@@ -87,8 +82,8 @@ call(Nodes, Module, Function, Args, Timeout) when is_list(Nodes) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Evaluates {@link call/3} and verifies that there is no errors.
+%% In case of an error throws an exception.
 %% @end
 %%--------------------------------------------------------------------
 -spec call_all(Module :: module(), Function :: atom(), Args :: [term()]) ->
@@ -98,8 +93,8 @@ call_all(Module, Function, Args) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Evaluates {@link call/4} and verifies that there is no errors.
+%% In case of an error throws an exception.
 %% @end
 %%--------------------------------------------------------------------
 -spec call_all(Nodes :: [node()], Module :: module(), Function :: atom(),
@@ -109,8 +104,8 @@ call_all(Nodes, Module, Function, Args) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Evaluates {@link call/5} and verifies that there is no errors.
+%% In case of an error throws an exception.
 %% @end
 %%--------------------------------------------------------------------
 -spec call_all(Nodes :: [node()], Module :: module(), Function :: atom(),
@@ -120,8 +115,8 @@ call_all(Nodes, Module, Function, Args, Timeout) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Evaluates {@link call/3} and verifies that there is at least one
+%% successful result. In case of errors on all nodes throws an exception.
 %% @end
 %%--------------------------------------------------------------------
 -spec call_any(Module :: module(), Function :: atom(), Args :: [term()]) ->
@@ -131,8 +126,8 @@ call_any(Module, Function, Args) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Evaluates {@link call/4} and verifies that there is at least one
+%% successful result. In case of errors on all nodes throws an exception.
 %% @end
 %%--------------------------------------------------------------------
 -spec call_any(Nodes :: [node()], Module :: module(), Function :: atom(),
@@ -142,8 +137,8 @@ call_any(Nodes, Module, Function, Args) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Evaluates {@link call/5} and verifies that there is at least one
+%% successful result. In case of errors on all nodes throws an exception.
 %% @end
 %%--------------------------------------------------------------------
 -spec call_any(Nodes :: [node()], Module :: module(), Function :: atom(),
@@ -156,9 +151,7 @@ call_any(Nodes, Module, Function, Args, Timeout) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Verifies that there is no errors.
 %%--------------------------------------------------------------------
 -spec all(Results :: results()) -> Results :: results() | no_return().
 all(Results) ->
@@ -174,9 +167,7 @@ all(Results) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Verifies that there is at least one successful result.
 %%--------------------------------------------------------------------
 -spec any(Results :: results()) -> Value :: term() | no_return().
 any([]) ->

@@ -5,7 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
+%%% @doc This header contains common names macros.
 %%% @end
 %%%--------------------------------------------------------------------
 -author("Krzysztof Trzepla").

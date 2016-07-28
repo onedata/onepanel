@@ -5,8 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
-%%% @end
+%%% @doc This module contains onepanel service management functions.
 %%%--------------------------------------------------------------------
 -module(service_onepanel).
 -author("Krzysztof Trzepla").
@@ -28,7 +27,7 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:name/0
+%% @doc {@link service_behaviour:name/0}
 %%--------------------------------------------------------------------
 -spec name() -> Name :: service:name().
 name() ->
@@ -36,7 +35,7 @@ name() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:get_hosts/0
+%% @doc {@link service_behaviour:get_hosts/0}
 %%--------------------------------------------------------------------
 -spec get_hosts() -> Hosts :: [service:host()].
 get_hosts() ->
@@ -44,7 +43,7 @@ get_hosts() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:get_hosts/0
+%% @doc {@link service_behaviour:get_nodes/0}
 %%--------------------------------------------------------------------
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
@@ -52,7 +51,7 @@ get_nodes() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:get_steps/2
+%% @doc {@link service_behaviour:get_steps/2}
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
@@ -105,9 +104,8 @@ get_steps(Action, _Ctx) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
+%% @private @doc Removes all the user and configuration data from this host.
+%% Removes host from the mnesia database cluster.
 %% @end
 %%--------------------------------------------------------------------
 -spec purge_node(Ctx :: service:ctx()) -> ok | no_return().
@@ -122,9 +120,7 @@ purge_node(_Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Creates database tables.
 %%--------------------------------------------------------------------
 -spec create_tables(Ctx :: service:ctx()) -> ok.
 create_tables(_Ctx) ->
@@ -145,9 +141,7 @@ create_tables(_Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Copies content of the database tables from remote node.
 %%--------------------------------------------------------------------
 -spec copy_tables(Ctx :: service:ctx()) -> ok.
 copy_tables(_Ctx) ->
@@ -162,9 +156,7 @@ copy_tables(_Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Adds nodes to the database cluster.
 %%--------------------------------------------------------------------
 -spec add_nodes(Ctx :: service:ctx()) -> ok.
 add_nodes(#{hosts := Hosts}) ->
@@ -175,9 +167,7 @@ add_nodes(#{hosts := Hosts}) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Removes nodes from the database cluster.
 %%--------------------------------------------------------------------
 -spec remove_nodes(Ctx :: service:ctx()) -> ok.
 remove_nodes(#{hosts := Hosts}) ->
@@ -191,10 +181,7 @@ remove_nodes(#{hosts := Hosts}) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Removes database tables and their contents from this host.
 %%--------------------------------------------------------------------
 -spec delete_tables() -> ok | no_return().
 delete_tables() ->

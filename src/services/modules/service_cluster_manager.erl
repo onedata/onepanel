@@ -5,8 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
-%%% @end
+%%% @doc This module contains cluster_manager service management functions.
 %%%--------------------------------------------------------------------
 -module(service_cluster_manager).
 -author("Krzysztof Trzepla").
@@ -30,7 +29,7 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:name/0
+%% @doc {@link service_behaviour:name/0}
 %%--------------------------------------------------------------------
 -spec name() -> Name :: service:name().
 name() ->
@@ -38,7 +37,7 @@ name() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:get_hosts/0
+%% @doc {@link service_behaviour:get_hosts/0}
 %%--------------------------------------------------------------------
 -spec get_hosts() -> Hosts :: [service:host()].
 get_hosts() ->
@@ -46,7 +45,7 @@ get_hosts() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:get_hosts/0
+%% @doc {@link service_behaviour:get_nodes/0}
 %%--------------------------------------------------------------------
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
@@ -54,7 +53,7 @@ get_nodes() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:get_steps/2
+%% @doc {@link service_behaviour:get_steps/2}
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
@@ -90,9 +89,7 @@ get_steps(Action, _Ctx) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Configures the service.
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(#{main_host := MainHost, hosts := Hosts,
@@ -132,7 +129,7 @@ configure(#{main_host := MainHost, hosts := Hosts,
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service:start/1
+%% @doc {@link service:start/1}
 %%--------------------------------------------------------------------
 -spec start(Ctx :: service:ctx()) -> ok | no_return().
 start(Ctx) ->
@@ -142,7 +139,7 @@ start(Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service:stop/1
+%% @doc {@link service:stop/1}
 %%--------------------------------------------------------------------
 -spec stop(Ctx :: service:ctx()) -> ok | no_return().
 stop(_Ctx) ->
@@ -150,7 +147,7 @@ stop(_Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service:status/1
+%% @doc {@link service:status/1}
 %%--------------------------------------------------------------------
 -spec status(Ctx :: service:ctx()) -> running | stopped | not_found.
 status(_Ctx) ->

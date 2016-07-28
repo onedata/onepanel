@@ -5,8 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
-%%% @end
+%%% @doc This module implements logger_plugin_behaviour.
 %%%--------------------------------------------------------------------
 -module(logger_plugin).
 -author("Krzysztof Trzepla").
@@ -21,10 +20,7 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% Should return a list of key, value tuples to be concatenated
-%% to standard log metadata.
-%% @end
+%% @doc {@link logger_plugin_behaviour:gather_metadata/0}
 %%--------------------------------------------------------------------
 -spec gather_metadata() -> [{Key :: term(), Value :: term()}].
 gather_metadata() ->

@@ -5,7 +5,8 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
+%%% @doc This module contains utility functions for an Erlang virtual machine
+%%% configuration file (vm.args) management.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_vm).
@@ -24,8 +25,8 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Returns value of an Erlang virtual machine property from a file.
+%% Throws an exception if value has not been found.
 %% @end
 %%--------------------------------------------------------------------
 -spec read(Key :: key(), Path :: file:name_all()) ->
@@ -38,8 +39,9 @@ read(Key, Path) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Modifies an Erlang virtual machine configuration file (vm.args) by
+%% reading its contents, evaluating {@link set/3} on it and writing updated
+%% content back to the file.
 %% @end
 %%--------------------------------------------------------------------
 -spec write(Key :: key(), Value :: value(), Path :: file:name_all()) ->
@@ -58,8 +60,8 @@ write(Key, Value, Path) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Returns value of an Erlang virtual machine property from a file content.
+%% Throws an exception if value has not been found.
 %% @end
 %%--------------------------------------------------------------------
 -spec get(Key :: key(), Content :: binary()) ->
@@ -80,9 +82,7 @@ get(Key, Content) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Sets value of an Erlang virtual machine property in provided file content.
 %%--------------------------------------------------------------------
 -spec set(Key :: key(), Value :: value(), Content :: binary()) ->
     {ok, NewContent :: binary()} | no_return().

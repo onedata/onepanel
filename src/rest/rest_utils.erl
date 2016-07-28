@@ -6,8 +6,7 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc This module contains helper functions for modules implementing
-%%% rest_module_behavior.
-%%% @see rest_module_behavior
+%%% {@link rest_module_behavior}.
 %%% @end
 %%%-------------------------------------------------------------------
 -module(rest_utils).
@@ -44,8 +43,8 @@ get_method(Req) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Returns a map of endpoint bindings, e.g. for endpoint /users/:username
+%% and request /users/user1 returns ```#{'username' => <<"user1">>}'''
 %% @end
 %%--------------------------------------------------------------------
 -spec get_bindings(Req :: cowboy_req:req()) ->
@@ -60,9 +59,7 @@ get_bindings(Req) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns a map of query string name and associated value.
 %%--------------------------------------------------------------------
 -spec get_params(Req :: cowboy_req:req(), ParamsSpec :: rest_handler:spec()) ->
     {Params :: rest_handler:params(), Req :: cowboy_req:req()}.
@@ -81,9 +78,7 @@ get_params(Req, ParamsSpec) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Parses request body according to provided specification.
 %%--------------------------------------------------------------------
 -spec get_args(Data :: rest_handler:data(), ArgsSpec :: rest_handler:spec()) ->
     Args :: rest_handler:args() | no_return().
@@ -92,8 +87,8 @@ get_args(Data, ArgsSpec) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Returns lists of hosts for given service based on cluster description
+%% format.
 %% @end
 %%--------------------------------------------------------------------
 -spec get_hosts(Keys :: [atom()], Args :: rest_handler:args()) ->
@@ -118,8 +113,8 @@ get_hosts(Keys, Args) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Checks whether at least one key from a provided list is found in a map.
+%% Throws an exception if none of keys is found.
 %% @end
 %%--------------------------------------------------------------------
 -spec verify_any(Keys :: [atom()], Args :: rest_handler:args()) -> ok | no_return().
@@ -131,9 +126,7 @@ verify_any(Keys, Args) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Sets error description in a response body.
 %%--------------------------------------------------------------------
 -spec handle_errors(Req :: cowboy_req:req(), Type :: atom(), Reason :: term()) ->
     Req :: cowboy_req:req().
@@ -143,9 +136,7 @@ handle_errors(Req, Type, Reason) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Sets service action description in a response body.
 %%--------------------------------------------------------------------
 -spec handle_service_action(Req :: cowboy_req:req(), Results :: list() | #error{}) ->
     Req :: cowboy_req:req().
@@ -154,9 +145,7 @@ handle_service_action(Req, Results) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Sets task ID as a location in a response header.
 %%--------------------------------------------------------------------
 -spec handle_service_action_async(Req :: cowboy_req:req(),
     TaskId :: service_executor:task_id(), ApiVersion :: integer()) ->
@@ -170,9 +159,7 @@ handle_service_action_async(Req, TaskId, ApiVersion) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Sets service steps description in a response body.
 %%--------------------------------------------------------------------
 -spec handle_service_steps(Req :: cowboy_req:req(), Results :: list() | #error{}) ->
     Req :: cowboy_req:req().
@@ -181,9 +168,7 @@ handle_service_steps(Req, Results) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Sets service step description in a response body.
 %%--------------------------------------------------------------------
 -spec handle_service_step(Req :: cowboy_req:req(), Module :: module(),
     Function :: atom(), Results :: list() | #error{}) -> Req :: cowboy_req:req().
@@ -192,9 +177,7 @@ handle_service_step(Req, Module, Function, Results) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns formatted error description.
 %%--------------------------------------------------------------------
 -spec format_errors(Type :: atom(), Reason :: term()) -> Response :: list().
 format_errors(Type, Reason) ->
@@ -203,9 +186,7 @@ format_errors(Type, Reason) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns formatted service action.
 %%--------------------------------------------------------------------
 -spec format_service_action(Results :: list()) -> Response :: list().
 format_service_action(Results) ->
@@ -222,9 +203,7 @@ format_service_action(Results) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns formatted service steps.
 %%--------------------------------------------------------------------
 -spec format_service_steps(Results :: list()) -> Response :: list().
 format_service_steps(Results) ->
@@ -238,9 +217,7 @@ format_service_steps(Results) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Selects and returns formatted service step.
 %%--------------------------------------------------------------------
 -spec format_service_step(Module :: module(), Function :: atom(), Results :: list()) ->
     Response :: list().
@@ -258,10 +235,7 @@ format_service_step(Module, Function, [_Result | Results]) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Sets service action result in the response body.
 %%--------------------------------------------------------------------
 -spec handle_service_response(Req :: cowboy_req:req(), ResponseFormatter :: fun(),
     Args :: list()) -> Req :: cowboy_req:req().
@@ -275,30 +249,7 @@ handle_service_response(Req, ResponseFormatter, Args) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
-%%--------------------------------------------------------------------
--spec format_hosts_results(Results :: list()) -> Response :: list().
-format_hosts_results(Results) ->
-    lists:map(fun
-        ({Node, #error{} = Error}) -> {
-            onepanel_utils:convert(onepanel_cluster:node_to_host(Node), binary),
-            format_errors(error, Error)
-        };
-        ({Node, Result}) -> {
-            onepanel_utils:convert(onepanel_cluster:node_to_host(Node), binary),
-            Result
-        }
-    end, Results).
-
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Returns formatted service step.
 %%--------------------------------------------------------------------
 -spec format_service_step({Module :: module(), Function :: atom(), Results :: term()}) ->
     Response :: list().
@@ -312,3 +263,20 @@ format_service_step({_Module, _Function, {_, BadResults}}) ->
         {<<"status">>, <<"error">>},
         {<<"hosts">>, format_hosts_results(BadResults)}
     ].
+
+
+%%--------------------------------------------------------------------
+%% @private @doc Returns formatted service results for each host.
+%%--------------------------------------------------------------------
+-spec format_hosts_results(Results :: list()) -> Response :: list().
+format_hosts_results(Results) ->
+    lists:map(fun
+        ({Node, #error{} = Error}) -> {
+            onepanel_utils:convert(onepanel_cluster:node_to_host(Node), binary),
+            format_errors(error, Error)
+        };
+        ({Node, Result}) -> {
+            onepanel_utils:convert(onepanel_cluster:node_to_host(Node), binary),
+            Result
+        }
+    end, Results).

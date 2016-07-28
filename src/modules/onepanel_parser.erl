@@ -5,7 +5,8 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
+%%% @doc This module is responsible for parsing parsing data according to
+%%% provided specification.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_parser).
@@ -33,9 +34,7 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Parses data according to provided specification.
 %%--------------------------------------------------------------------
 -spec parse(Data :: data(), ArgsSpec :: spec()) -> Args :: args().
 parse(Data, ArgsSpec) ->
@@ -46,10 +45,7 @@ parse(Data, ArgsSpec) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Parses data according to provided specification.
 %%--------------------------------------------------------------------
 -spec parse(Data :: data(), ArgsList :: args_list(), Keys :: keys(), Args :: args()) ->
     Args :: args() | no_return().
@@ -92,10 +88,7 @@ parse(_Data, [{Key, Spec} | _ArgsSpec], Keys, _Args) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Parses value according to provided specification.
 %%--------------------------------------------------------------------
 -spec parse_value(Value :: term(), ValueSpec :: value_spec(), Keys :: keys()) ->
     Value :: term() | no_return().
@@ -178,9 +171,8 @@ parse_value(_Value, ValueSpec, Keys) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
+%% @private @doc Returns 'true' if key associated with provided specification
+%% is optional, otherwise 'false'.
 %% @end
 %%--------------------------------------------------------------------
 -spec is_optional(Spec :: value_spec()) -> {Optional :: boolean(), Spec :: term()}.
@@ -191,10 +183,7 @@ is_optional(Spec) -> {false, Spec}.
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Checks whether provided specification has default value.
 %%--------------------------------------------------------------------
 -spec has_default(Spec :: value_spec()) -> {true, Spec :: term()} | false.
 has_default({_Spec, {optional, Value}}) -> {true, Value};
@@ -202,9 +191,8 @@ has_default(_) -> false.
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
+%% @private @doc Converts value according to provided specification.
+%% Throws an exception on conversion error.
 %% @end
 %%--------------------------------------------------------------------
 -spec convert(Value :: term(), ValueSpec :: value_spec(), Keys :: keys(),

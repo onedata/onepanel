@@ -7,7 +7,7 @@
 %%% in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc 
+%%% @doc REST API definitions for onezone.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(onezone_api).
@@ -23,247 +23,204 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns list of path with a handler module and an initial state.
 %%--------------------------------------------------------------------
 -spec routes() ->
     [{Path :: binary(), Module :: module(), State :: rest_handler:state()}].
-routes() ->
+routes() -> 
     [
-        %%
-        %% Get cluster hosts
-        %%
-        {<<"/api/v3/onepanel/zone/databases">>, rest_handler, #rstate{
+        %% Get zone databases status
+        { <<"/api/v3/onepanel/zone/databases">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
             resource = service_couchbase,
-            methods = [#rmethod{type = 'PUT',
-                %% [Body parameter]
-                %%
-                args_spec = #{hosts => [string]}}]
+            methods = [#rmethod{
+                type='GET'
+            }]
         }},
 
-        %%
-        %% Add zone manager hosts
-        %%
-        {<<"/api/v3/onepanel/zone/managers">>, rest_handler, #rstate{
+        %% Get zone database
+        { <<"/api/v3/onepanel/zone/databases/:host">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = service_couchbase,
+            methods = [#rmethod{
+                type='GET'
+            }]
+        }},
+
+        %% Get zone managers status
+        { <<"/api/v3/onepanel/zone/managers">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
             resource = service_cluster_manager,
-            methods = [#rmethod{type = 'PUT',
-                %% [Body parameter]
-                %%
-                args_spec = rest_model:manager_hosts_model()}]
+            methods = [#rmethod{
+                type='GET'
+            }]
         }},
 
-        %%
-        %% Add zone worker hosts
-        %%
-        {<<"/api/v3/onepanel/zone/workers">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_service,
-            resource = service_oz_worker,
-            methods = [#rmethod{type = 'PUT',
-                %% [Body parameter]
-                %%
-                args_spec = #{hosts => [string]}}]
-        }},
-
-        %%
-        %% Get zone database status
-        %%
-        {<<"/api/v3/onepanel/zone/databases/:host">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_service,
-            resource = service_couchbase,
-            methods = [#rmethod{type = 'GET'}]
-        }},
-
-        %%
-        %% Get zone database nodes
-        %%
-        {<<"/api/v3/onepanel/zone/databases">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_service,
-            resource = service_couchbase,
-            methods = [#rmethod{type = 'GET'}]
-        }},
-
-        %%
         %% Get zone manager status
-        %%
-        {<<"/api/v3/onepanel/zone/managers/:host">>, rest_handler, #rstate{
+        { <<"/api/v3/onepanel/zone/managers/:host">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
             resource = service_cluster_manager,
-            methods = [#rmethod{type = 'GET'}]
+            methods = [#rmethod{
+                type='GET'
+            }]
         }},
 
-        %%
-        %% Get zone manager nodes
-        %%
-        {<<"/api/v3/onepanel/zone/managers">>, rest_handler, #rstate{
+        %% Get zone workers
+        { <<"/api/v3/onepanel/zone/workers">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
-            resource = service_cluster_manager,
-            methods = [#rmethod{type = 'GET'}]
+            resource = service_oz_worker,
+            methods = [#rmethod{
+                type='GET'
+            }]
         }},
 
-        %%
         %% Get zone worker status
-        %%
-        {<<"/api/v3/onepanel/zone/workers/:host">>, rest_handler, #rstate{
+        { <<"/api/v3/onepanel/zone/workers/:host">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
             resource = service_oz_worker,
-            methods = [#rmethod{type = 'GET'}]
+            methods = [#rmethod{
+                type='GET'
+            }]
         }},
 
-        %%
-        %% Get zone worker nodes
-        %%
-        {<<"/api/v3/onepanel/zone/workers">>, rest_handler, #rstate{
+        %% Start/stop zone databases
+        { <<"/api/v3/onepanel/zone/databases">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = service_couchbase,
+            methods = [#rmethod{
+                type='PATCH',
+                params_spec = #{
+                    %% Defines the intended state of the database service. The service will be
+                    %% started or stopped in order to match the requested state.
+                    started => { boolean, {optional, true } }
+                }
+            }]
+        }},
+
+        %% Start/stop zone database
+        { <<"/api/v3/onepanel/zone/databases/:host">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = service_couchbase,
+            methods = [#rmethod{
+                type='PATCH',
+                params_spec = #{
+                    %% Defines the intended state of the database service. The service will be
+                    %% started or stopped in order to match the requested state.
+                    started => { boolean, {optional, true } }
+                }
+            }]
+        }},
+
+        %% Start/stop zone managers
+        { <<"/api/v3/onepanel/zone/managers">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = service_cluster_manager,
+            methods = [#rmethod{
+                type='PATCH',
+                params_spec = #{
+                    %% Defines the intended state of the cluster manager service. The service will be
+                    %% started or stopped in order to match the requested state.
+                    started => { boolean, {optional, true } }
+                }
+            }]
+        }},
+
+        %% Start/stop zone manager
+        { <<"/api/v3/onepanel/zone/managers/:host">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = service_cluster_manager,
+            methods = [#rmethod{
+                type='PATCH',
+                params_spec = #{
+                    %% Defines the intended state of the cluster manager service. The service will be
+                    %% started or stopped in order to match the requested state.
+                    started => { boolean, {optional, true } }
+                }
+            }]
+        }},
+
+        %% Start/stop zone workers
+        { <<"/api/v3/onepanel/zone/workers">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
             resource = service_oz_worker,
-            methods = [#rmethod{type = 'GET'}]
+            methods = [#rmethod{
+                type='PATCH',
+                params_spec = #{
+                    %% Defines the intended state of the cluster worker service. The service will be
+                    %% started or stopped in order to match the requested state.
+                    started => { boolean, {optional, true } }
+                }
+            }]
         }},
 
-        %%
-        %% Update zone configuration
-        %%
-        {<<"/api/v3/onepanel/zone/configuration">>, rest_handler, #rstate{
+        %% Start/stop zone worker
+        { <<"/api/v3/onepanel/zone/workers/:host">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = service_oz_worker,
+            methods = [#rmethod{
+                type='PATCH',
+                params_spec = #{
+                    %% Defines the intended state of the cluster worker service. The service will be
+                    %% started or stopped in order to match the requested state.
+                    started => { boolean, {optional, true } }
+                }
+            }]
+        }},
+
+        %% Create zone deployment
+        { <<"/api/v3/onepanel/zone/configuration">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
             resource = service_onezone,
-            methods = [#rmethod{type = 'PUT', args_spec = #{
-                cluster => #{
-                    domainName => string,
-                    nodes => #{
-                        '_' => #{
-                            hostname => string
-                        }
-                    },
-                    managers => #{
-                        mainNode => string,
-                        nodes => [string]
-                    },
-                    workers => #{
-                        nodes => [string]
-                    },
-                    databases => #{
-                        nodes => [string]
-                    }
-                },
-                onezone => {#{
-                    name => {string, optional},
-                    domainName => {string, optional}
-                }, optional}
-            }}]
+            methods = [#rmethod{
+                type='PUT',
+                args_spec = rest_model:zone_configuration_model()
+            }]
         }},
 
-        %%
-        %% Start/stop zone database node.
-        %%
-        {<<"/api/v3/onepanel/zone/databases/:host">>, rest_handler, #rstate{
+        %% Deploy zone databases
+        { <<"/api/v3/onepanel/zone/databases">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
             resource = service_couchbase,
-            methods = [#rmethod{type = 'PATCH',
-                %% [Query parameters]
-                params_spec = #{
-                    %% This flag changes the intended state of the database instance. \n\nIf the state is changed, the service will be stopped or started \nin order to match the requested state. \n
-                    started => {boolean, {optional, true}}}}]
+            methods = [#rmethod{
+                type='PUT',
+                args_spec = rest_model:service_hosts_model()
+            }]
         }},
 
-        %%
-        %% Start/stop zone database nodes
-        %%
-        {<<"/api/v3/onepanel/zone/databases">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_service,
-            resource = service_couchbase,
-            methods = [#rmethod{type = 'PATCH',
-                %% [Query parameters]
-                params_spec = #{
-                    %% This flag changes the intended state of the database instances. \nIf the state is changed, the service will be stopped or started in \norder to match the requested state. \n
-                    started => {boolean, {optional, true}}}}]
-        }},
-
-        %%
-        %% Start/stop zone manager node.
-        %%
-        {<<"/api/v3/onepanel/zone/managers/:host">>, rest_handler, #rstate{
+        %% Deploy zone managers
+        { <<"/api/v3/onepanel/zone/managers">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
             resource = service_cluster_manager,
-            methods = [#rmethod{type = 'PATCH',
-                %% [Query parameters]
-                params_spec = #{
-                    %% This flag changes the intended state of the cluster manager instance. \n\nIf the state is changed, the service will be stopped or started in order \nto match the requested state. \n
-                    started => {boolean, {optional, true}}}}]
+            methods = [#rmethod{
+                type='PUT',
+                args_spec = rest_model:manager_hosts_model()
+            }]
         }},
 
-        %%
-        %% Start/stop zone manager nodes
-        %%
-        {<<"/api/v3/onepanel/zone/managers">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_service,
-            resource = service_cluster_manager,
-            methods = [#rmethod{type = 'PATCH',
-                %% [Query parameters]
-                params_spec = #{
-                    %% This flag changes the intended state of the cluster manager instances. \n\nIf the state is changed, the service will be stopped or started in order \nto match the requested state. \n
-                    started => {boolean, {optional, true}}}}]
-        }},
-
-        %%
-        %% Start/stop zone worker node
-        %%
-        {<<"/api/v3/onepanel/zone/workers/:host">>, rest_handler, #rstate{
+        %% Deploy zone workers
+        { <<"/api/v3/onepanel/zone/workers">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
             resource = service_oz_worker,
-            methods = [#rmethod{type = 'PATCH',
-                %% [Query parameters]
-                params_spec = #{
-                    %% This flag changes the intended state of the worker instance. \n\nIf the state is changed, the service will be stopped or started in \norder to match the requested state. \n
-                    started => {boolean, {optional, true}}}}]
-        }},
-
-        %%
-        %% Start/stop zone worker nodes
-        %%
-        {<<"/api/v3/onepanel/zone/workers">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_service,
-            resource = service_oz_worker,
-            methods = [#rmethod{type = 'PATCH',
-                %% [Query parameters]
-                params_spec = #{
-                    %% This flag changes the intended state of the worker instances. \n\nIf the state is changed, the service will be stopped or started in \norder to match the requested state. \n
-                    started => {boolean, {optional, true}}}}]
+            methods = [#rmethod{
+                type='PUT',
+                args_spec = rest_model:service_hosts_model()
+            }]
         }}
 
     ].
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

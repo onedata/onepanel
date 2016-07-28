@@ -5,8 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
-%%% @end
+%%% @doc This behaviour provides a common service API.
 %%%--------------------------------------------------------------------
 -module(service_behaviour).
 -author("Krzysztof Trzepla").
@@ -16,25 +15,25 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @todo write me!
+%% Returns service name.
 %%--------------------------------------------------------------------
 -callback name() -> Name :: service:name().
 
 
 %%--------------------------------------------------------------------
-%% @todo write me!
+%% Returns service hosts.
 %%--------------------------------------------------------------------
 -callback get_hosts() -> Hosts :: [service:host()].
 
 
 %%--------------------------------------------------------------------
-%% @todo write me!
+%% Returns service nodes.
 %%--------------------------------------------------------------------
 -callback get_nodes() -> Nodes :: [node()].
 
 
 %%--------------------------------------------------------------------
-%% @todo write me!
+%% List of steps required to complete the action.
 %%--------------------------------------------------------------------
 -callback get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].

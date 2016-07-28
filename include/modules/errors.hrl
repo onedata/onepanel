@@ -5,8 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
-%%% @end
+%%% @doc This header contains errors definitions and utility macros.
 %%%--------------------------------------------------------------------
 -author("Krzysztof Trzepla").
 

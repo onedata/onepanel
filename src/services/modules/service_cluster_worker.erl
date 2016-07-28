@@ -5,8 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
-%%% @end
+%%% @doc This module contains cluster_worker service management functions.
 %%%--------------------------------------------------------------------
 -module(service_cluster_worker).
 -author("Krzysztof Trzepla").
@@ -30,7 +29,7 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:name/0
+%% @doc {@link service_behaviour:name/0}
 %%--------------------------------------------------------------------
 -spec name() -> Name :: service:name().
 name() ->
@@ -38,7 +37,7 @@ name() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:get_hosts/0
+%% @doc {@link service_behaviour:get_hosts/0}
 %%--------------------------------------------------------------------
 -spec get_hosts() -> Hosts :: [service:host()].
 get_hosts() ->
@@ -46,7 +45,7 @@ get_hosts() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:get_hosts/0
+%% @doc {@link service_behaviour:get_nodes/0}
 %%--------------------------------------------------------------------
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
@@ -54,7 +53,7 @@ get_nodes() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service_behaviour:get_steps/2
+%% @doc {@link service_behaviour:get_steps/2}
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
@@ -90,9 +89,7 @@ get_steps(Action, _Ctx) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Configures the service.
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
@@ -125,7 +122,7 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service:start/1
+%% @doc {@link service:start/1}
 %%--------------------------------------------------------------------
 -spec start(Ctx :: service:ctx()) -> ok | no_return().
 start(#{init_script := InitScript} = Ctx) ->
@@ -133,7 +130,7 @@ start(#{init_script := InitScript} = Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service:stop/1
+%% @doc {@link service:stop/1}
 %%--------------------------------------------------------------------
 -spec stop(Ctx :: service:ctx()) -> ok | no_return().
 stop(#{init_script := InitScript}) ->
@@ -141,7 +138,7 @@ stop(#{init_script := InitScript}) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see service:status/1
+%% @doc {@link service:status/1}
 %%--------------------------------------------------------------------
 -spec status(Ctx :: service:ctx()) -> running | stopped | not_found.
 status(#{init_script := InitScript}) ->
@@ -149,9 +146,7 @@ status(#{init_script := InitScript}) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Waits for initialization of the service.
 %%--------------------------------------------------------------------
 -spec wait_for_init(Ctx :: service:ctx()) -> ok | no_return().
 wait_for_init(#{name := Name, wait_for_init_attempts := Attempts,
@@ -162,9 +157,7 @@ wait_for_init(#{name := Name, wait_for_init_attempts := Attempts,
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns nagios report for the service.
 %%--------------------------------------------------------------------
 -spec nagios_report(Ctx :: service:ctx()) -> Status :: atom().
 nagios_report(#{nagios_protocol := Protocol, nagios_port := Port}) ->

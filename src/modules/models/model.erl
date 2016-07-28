@@ -5,8 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
-%%% @end
+%%% @doc This module contains model management functions.
 %%%--------------------------------------------------------------------
 -module(model).
 -author("Krzysztof Trzepla").
@@ -26,9 +25,7 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns table name associated with a model.
 %%--------------------------------------------------------------------
 -spec table_name(Model :: model()) -> Name :: atom().
 table_name(Model) ->
@@ -36,9 +33,7 @@ table_name(Model) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns list of supported models.
 %%--------------------------------------------------------------------
 -spec get_models() -> Models :: [model()].
 get_models() ->
@@ -46,9 +41,7 @@ get_models() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Creates model instance. Returns an error if instance already exists.
 %%--------------------------------------------------------------------
 -spec create(Model :: model(), Record :: model_behaviour:record()) ->
     ok | #error{} | no_return().
@@ -65,9 +58,7 @@ create(Model, Record) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Saves model instance.
 %%--------------------------------------------------------------------
 -spec save(Model :: model(), Record :: model_behaviour:record()) ->
     ok | no_return().
@@ -79,9 +70,7 @@ save(Model, Record) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Updates model instance.
 %%--------------------------------------------------------------------
 -spec update(Model :: model(), Key :: model_behaviour:key(),
     Diff :: model_behaviour:diff()) -> ok | no_return().
@@ -97,9 +86,7 @@ update(Model, Key, Diff) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns model instance.
 %%--------------------------------------------------------------------
 -spec get(Model :: model(), Key :: model_behaviour:key()) ->
     {ok, Record :: model_behaviour:record()} | #error{} | no_return().
@@ -114,9 +101,7 @@ get(Model, Key) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns 'true' if model instance exists, otherwise 'false'.
 %%--------------------------------------------------------------------
 -spec exists(Model :: model(), Key :: model_behaviour:key()) ->
     boolean() | no_return().
@@ -131,9 +116,7 @@ exists(Model, Key) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Deletes model instance.
 %%--------------------------------------------------------------------
 -spec delete(Model :: model(), Key :: model_behaviour:key()) ->
     ok | no_return().
@@ -145,9 +128,7 @@ delete(Model, Key) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns number of model instances.
 %%--------------------------------------------------------------------
 -spec size(Model :: model()) -> non_neg_integer().
 size(Model) ->
@@ -156,9 +137,7 @@ size(Model) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Provides transactional environment for operations on models.
 %%--------------------------------------------------------------------
 -spec transaction(Transaction :: fun()) -> term() | no_return().
 transaction(Transaction) ->
@@ -174,9 +153,7 @@ transaction(Transaction) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Modifies model instance according to provided update method.
 %%--------------------------------------------------------------------
 -spec apply_diff(Record :: model_behaviour:record(), model_behaviour:diff()) ->
     NewRecord :: model_behaviour:record().

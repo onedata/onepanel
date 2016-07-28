@@ -5,8 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
-%%% @end
+%%% @doc This module provides shell utility functions.
 %%%--------------------------------------------------------------------
 -module(onepanel_shell).
 -author("Krzysztof Trzepla").
@@ -26,9 +25,7 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Evaluates the shell command and returns the result.
 %%--------------------------------------------------------------------
 -spec output(Tokens :: [token()]) -> Output :: string().
 output(Tokens) ->
@@ -39,8 +36,8 @@ output(Tokens) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Evaluates the shell command and returns the result. If the command
+%% return exit code different from 0, throws an exception.
 %% @end
 %%--------------------------------------------------------------------
 -spec check_output(Tokens :: [token()]) -> Output :: string() | no_return().
@@ -65,8 +62,8 @@ wait_output(Tokens, Expected, Attempts) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Waits until shell command returns expected result. In case of a timeout
+%% throws an exception.
 %% @end
 %%--------------------------------------------------------------------
 -spec wait_output(Tokens :: [token()], Expected :: string(),
@@ -80,9 +77,7 @@ wait_output(Tokens, Expected, Attempts, Delay) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Evaluates shell command and returns exit code.
 %%--------------------------------------------------------------------
 -spec call(Tokens :: [token()]) -> Code :: integer().
 call(Tokens) ->
@@ -91,8 +86,8 @@ call(Tokens) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Evaluates shell command and in case of an exit code different from 0,
+%% throws an exception.
 %% @end
 %%--------------------------------------------------------------------
 -spec check_call(Tokens :: [token()]) -> ok | no_return().
@@ -113,7 +108,9 @@ wait_call(Tokens, Attempts) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @equiv wait_call(Tokens, Attempts, timer:seconds(1))
+%% @doc Waits until shell command completes successfully, i.e. exit code is
+%% equal to 0. In case of a timeout throws an exception.
+%% @end
 %%--------------------------------------------------------------------
 -spec wait_call(Tokens :: [token()], Attempts :: integer(), Delay :: integer()) ->
     ok | no_return().
@@ -123,9 +120,7 @@ wait_call(Tokens, Attempts, Delay) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Wrapper for shell sed program.
 %%--------------------------------------------------------------------
 -spec sed(Pattern :: string(), Replacement :: string(), Path :: file:name_all()) ->
     ok | no_return().

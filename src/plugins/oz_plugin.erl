@@ -25,7 +25,7 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc Should return OZ URL.
+%% @doc {@link oz_plugin_behaviour:get_oz_url/0}
 %%--------------------------------------------------------------------
 -spec get_oz_url() -> string().
 get_oz_url() ->
@@ -33,7 +33,7 @@ get_oz_url() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Should return OZ REST port.
+%% @doc {@link oz_plugin_behaviour:get_oz_rest_port/0}
 %%--------------------------------------------------------------------
 -spec get_oz_rest_port() -> integer().
 get_oz_rest_port() ->
@@ -41,7 +41,7 @@ get_oz_rest_port() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Should return OZ REST API prefix - for example /api/v3/onezone.
+%% @doc {@link oz_plugin_behaviour:get_oz_rest_api_prefix/0}
 %%--------------------------------------------------------------------
 -spec get_oz_rest_api_prefix() -> string().
 get_oz_rest_api_prefix() ->
@@ -49,7 +49,7 @@ get_oz_rest_api_prefix() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Should return a path to file containing provider's private key.
+%% @doc {@link oz_plugin_behaviour:get_key_path/0}
 %%--------------------------------------------------------------------
 -spec get_key_path() -> file:name_all().
 get_key_path() ->
@@ -57,7 +57,7 @@ get_key_path() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Should return a path to file containing provider's private key.
+%% @doc {@link oz_plugin_behaviour:get_csr_path/0}
 %%--------------------------------------------------------------------
 -spec get_csr_path() -> file:name_all().
 get_csr_path() ->
@@ -65,7 +65,7 @@ get_csr_path() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Should return a path to file containing provider's certificate.
+%% @doc {@link oz_plugin_behaviour:get_cert_path/0}
 %%--------------------------------------------------------------------
 -spec get_cert_path() -> file:name_all().
 get_cert_path() ->
@@ -73,7 +73,7 @@ get_cert_path() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Should return a path to file containing OZ CA certificate.
+%% @doc {@link oz_plugin_behaviour:get_oz_url/0}
 %%--------------------------------------------------------------------
 -spec get_cacert_path() -> file:name_all().
 get_cacert_path() ->
@@ -81,7 +81,7 @@ get_cacert_path() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Should return authorization method.
+%% @doc {@link oz_plugin_behaviour:auth_to_rest_client/1}
 %%--------------------------------------------------------------------
 -spec auth_to_rest_client(Auth :: term()) -> file:name_all().
 auth_to_rest_client(Auth) ->
@@ -92,9 +92,8 @@ auth_to_rest_client(Auth) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
+%% @private @doc Returns value from op_worker application configuration file and
+%% converts it according to provided type.
 %% @end
 %%--------------------------------------------------------------------
 -spec get_env(Key :: onepanel_env:key(), Type :: onepanel_utils:type()) ->

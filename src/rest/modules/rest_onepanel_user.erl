@@ -24,7 +24,7 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc @see rest_behaviour:is_authorized/3
+%% @doc {@link rest_behaviour:is_authorized/3}
 %%--------------------------------------------------------------------
 -spec is_authorized(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     State :: rest_handler:state()) ->
@@ -48,7 +48,7 @@ is_authorized(Req, _Method, _State) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see rest_behaviour:exists_resource/2
+%% @doc {@link rest_behaviour:exists_resource/2}
 %%--------------------------------------------------------------------
 -spec exists_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
@@ -60,7 +60,7 @@ exists_resource(Req, _State) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see rest_behaviour:accept_resource/4
+%% @doc {@link rest_behaviour:accept_resource/4}
 %%--------------------------------------------------------------------
 -spec accept_resource(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
@@ -81,7 +81,7 @@ accept_resource(Req, 'PUT', #{password := Password}, #rstate{resource = user,
 
 
 %%--------------------------------------------------------------------
-%% @doc @see rest_behaviour:provide_resource/2
+%% @doc {@link rest_behaviour:provide_resource/2}
 %%--------------------------------------------------------------------
 -spec provide_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Data :: rest_handler:data(), Req :: cowboy_req:req()}.
@@ -91,7 +91,7 @@ provide_resource(Req, #rstate{resource = user, bindings = #{username := Username
 
 
 %%--------------------------------------------------------------------
-%% @doc @see rest_behaviour:delete_resource/2
+%% @doc {@link rest_behaviour:delete_resource/2}
 %%--------------------------------------------------------------------
 -spec delete_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Deleted :: boolean(), Req :: cowboy_req:req()}.

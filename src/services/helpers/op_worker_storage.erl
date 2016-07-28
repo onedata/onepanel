@@ -5,7 +5,8 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
+%%% @doc This module contains helper function used during op_worker service
+%%% storage configuration.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(op_worker_storage).
@@ -31,7 +32,10 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc @todo write me!
+%% @doc Verifies that each of provided storages is accessible for all op_worker
+%% service nodes. In case of a successful verification proceeds with storage
+%% addition.
+%% @end
 %%--------------------------------------------------------------------
 -spec add(Storages :: storage_map()) -> ok | no_return().
 add(Storages) ->
@@ -52,7 +56,9 @@ add(Storages) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @todo write me!
+%% @doc Returns lists of storages' details currently configured in op_worker
+%% service.
+%% @end
 %%--------------------------------------------------------------------
 -spec get() -> storage_list().
 get() ->
@@ -65,7 +71,7 @@ get() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @todo write me!
+%% @doc Returns details of a selected storage from op_worker service.
 %%--------------------------------------------------------------------
 -spec get(Name :: name()) -> storage_list().
 get(Name) ->
@@ -79,10 +85,7 @@ get(Name) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Parses storage parameters based on its type.
 %%--------------------------------------------------------------------
 -spec parse_storage_params(Type :: binary(), Params :: storage_params_map()) ->
     {HelperName :: binary(), HelperArgs :: #{}, UserModel :: atom(),
@@ -127,10 +130,7 @@ parse_storage_params(<<"CEPH">>, Params) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Returns selected storage helper argument.
 %%--------------------------------------------------------------------
 -spec get_helper_arg(Key :: atom(), Params :: storage_params_map()) ->
     HelperArg :: binary().
@@ -139,9 +139,8 @@ get_helper_arg(Key, Params) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
+%% @private @doc Verifies that storage is accessible for all op_worker
+%% service nodes.
 %% @end
 %%--------------------------------------------------------------------
 -spec verify_storage(HelperName :: binary(), HelperArgs :: #{}, UserCtx :: any()) ->
@@ -155,10 +154,7 @@ verify_storage(HelperName, HelperArgs, UserCtx) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Creates storage test file.
 %%--------------------------------------------------------------------
 -spec create_test_file(Node :: node(), Args :: list()) ->
     {FileId :: binary(), FileContent :: binary()} | no_return().
@@ -172,10 +168,7 @@ create_test_file(Node, Args) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Checks whether storage test file content matches expected one.
 %%--------------------------------------------------------------------
 -spec verify_test_file(Nodes :: [node()], Args :: list(), FileId :: binary(),
     FileContent :: binary()) -> FileId :: binary() | no_return().
@@ -199,10 +192,7 @@ verify_test_file([Node | Nodes], Args, FileId, FileContent) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Removes storage test file.
 %%--------------------------------------------------------------------
 -spec remove_test_file(Node :: node(), Args :: list(), FileId :: binary()) ->
     ok | no_return().
@@ -215,10 +205,7 @@ remove_test_file(Node, Args, FileId) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Adds storage to the op_worker service configuration.
 %%--------------------------------------------------------------------
 -spec add_storage(Node :: node(), StorageName :: binary(), HelperName :: binary(),
     HelperArgs :: #{}) -> StorageId :: binary() | no_return().
@@ -232,10 +219,7 @@ add_storage(Node, StorageName, HelperName, HelperArgs) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Returns storage details from op_worker service configuration.
 %%--------------------------------------------------------------------
 -spec get_storage(Node :: node(), Storage :: any()) -> Storage :: storage_list().
 get_storage(Node, Storage) ->
@@ -248,10 +232,7 @@ get_storage(Node, Storage) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Converts storage helper name to storage type.
 %%--------------------------------------------------------------------
 -spec helper_name_to_type(Name :: binary()) -> Type :: binary().
 helper_name_to_type(<<"DirectIO">>) -> <<"POSIX">>;
@@ -261,10 +242,7 @@ helper_name_to_type(_) -> <<>>.
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% @todo write me!
-%% @end
+%% @private @doc Translates storage helper arguments to the expected format.
 %%--------------------------------------------------------------------
 -spec translate_helper_args(Args :: storage_params_map(), Acc :: storage_params_list()) ->
     Acc :: storage_params_list().

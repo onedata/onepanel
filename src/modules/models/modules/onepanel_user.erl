@@ -5,7 +5,8 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
+%%% @doc This module contains user management functions.
+%%% It implements {@link model_behaviour} behaviour.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_user).
@@ -44,7 +45,7 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc @see model_behaviour:get_fields/0
+%% @doc {@link model_behaviour:get_fields/0}
 %%--------------------------------------------------------------------
 -spec get_fields() -> list(atom()).
 get_fields() ->
@@ -52,7 +53,7 @@ get_fields() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see model_behaviour:create/1
+%% @doc {@link model_behaviour:create/1}
 %%--------------------------------------------------------------------
 -spec create(Record :: model_behaviour:record()) ->
     ok | #error{} | no_return().
@@ -61,7 +62,7 @@ create(Record) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see model_behaviour:save/1
+%% @doc {@link model_behaviour:save/1}
 %%--------------------------------------------------------------------
 -spec save(Record :: model_behaviour:record()) -> ok | no_return().
 save(Record) ->
@@ -69,7 +70,7 @@ save(Record) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see model_behaviour:update/2
+%% @doc {@link model_behaviour:update/2}
 %%--------------------------------------------------------------------
 -spec update(Key :: model_behaviour:key(), Diff :: model_behaviour:diff()) ->
     ok | no_return().
@@ -78,7 +79,7 @@ update(Key, Diff) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see model_behaviour:get/1
+%% @doc {@link model_behaviour:get/1}
 %%--------------------------------------------------------------------
 -spec get(Key :: model_behaviour:key()) ->
     {ok, Record :: model_behaviour:record()} | #error{} | no_return().
@@ -87,7 +88,7 @@ get(Key) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see model_behaviour:exists/1
+%% @doc {@link model_behaviour:exists/1}
 %%--------------------------------------------------------------------
 -spec exists(Key :: model_behaviour:key()) ->
     boolean() | no_return().
@@ -96,7 +97,7 @@ exists(Key) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @see model_behaviour:delete/1
+%% @doc {@link model_behaviour:delete/1}
 %%--------------------------------------------------------------------
 -spec delete(Key :: model_behaviour:key()) -> ok | no_return().
 delete(Key) ->
@@ -107,9 +108,7 @@ delete(Key) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Loads the NIF native library used for password hashing and verification.
 %%--------------------------------------------------------------------
 -spec load_nif() -> ok | no_return().
 load_nif() ->
@@ -123,9 +122,7 @@ load_nif() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Validates credentials and creates user account.
 %%--------------------------------------------------------------------
 -spec new(Username :: name(), Password :: password(), Role :: role()) ->
     ok | no_return().
@@ -144,8 +141,8 @@ new(Username, Password, Role) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Authenticates user by checking provided hash against the one stored in
+%% user model instance.
 %% @end
 %%--------------------------------------------------------------------
 -spec authenticate(Username :: name(), Password :: password()) ->
@@ -162,9 +159,7 @@ authenticate(Username, Password) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns a password hash using bcrypt algorithm.
 %%--------------------------------------------------------------------
 -spec hash_password(Password :: password(), WorkFactor :: non_neg_integer()) ->
     Hash :: password_hash().
@@ -173,9 +168,7 @@ hash_password(_Password, _WorkFactor) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Checks password against original password hash.
 %%--------------------------------------------------------------------
 -spec check_password(Password :: password(), Hash :: password_hash()) ->
     Valid :: boolean().
@@ -184,9 +177,7 @@ check_password(_Password, _Hash) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Validates and updates user password.
 %%--------------------------------------------------------------------
 -spec change_password(Username :: name(), NewPassword :: password()) ->
     ok | no_return().
@@ -207,8 +198,8 @@ count() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Validates username. It must be at least 'min_username_length'
+%% characters long and contain only alphanumeric characters [a-zA-Z0-9].
 %% @end
 %%--------------------------------------------------------------------
 -spec validate_username(Username :: name()) -> ok | no_return().
@@ -220,8 +211,10 @@ validate_username(Username) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Validates user password. It must be at least 'min_password_length'
+%% characters long and contain a minimum of 1 lower case letter [a-z]
+%% and a minimum of 1 upper case letter [A-Z] and a minimum of 1 numeric
+%% character [0-9]. Password must not contain a colon character [:].
 %% @end
 %%--------------------------------------------------------------------
 -spec validate_password(Password :: password()) -> ok | no_return().
@@ -233,9 +226,7 @@ validate_password(Password) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Validates user role. It must be one of 'admin', 'regular'.
 %%--------------------------------------------------------------------
 -spec validate_role(Role :: term()) -> ok | no_return().
 validate_role(admin) -> ok;

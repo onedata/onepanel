@@ -5,8 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
-%%% @end
+%%% @doc This module contains cluster management functions.
 %%%--------------------------------------------------------------------
 -module(onepanel_cluster).
 -author("Krzysztof Trzepla").
@@ -31,9 +30,7 @@ node_to_host() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns a hostname of a node.
 %%--------------------------------------------------------------------
 -spec node_to_host(Node :: node()) -> Host :: service:host().
 node_to_host(Node) ->
@@ -51,9 +48,7 @@ nodes_to_hosts() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Converts a list of nodes to a list of hostnames.
 %%--------------------------------------------------------------------
 -spec nodes_to_hosts(Nodes :: [node()]) -> Hosts :: [service:host()].
 nodes_to_hosts(Nodes) ->
@@ -70,9 +65,7 @@ host_to_node(Host) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Creates a node from a node name and a hostname.
 %%--------------------------------------------------------------------
 -spec host_to_node(Name :: atom() | string(), Host :: service:host()) ->
     Node :: node().
@@ -93,9 +86,7 @@ hosts_to_nodes(Hosts) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Converts a list of hostnames to a list of nodes with a given node name.
 %%--------------------------------------------------------------------
 -spec hosts_to_nodes(Name :: atom() | string(), Hosts :: [service:host()]) ->
     Nodes :: [node()].

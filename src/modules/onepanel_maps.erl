@@ -5,8 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
-%%% @end
+%%% @doc This module provides an extension of maps module functionality.
 %%%--------------------------------------------------------------------
 -module(onepanel_maps).
 -author("Krzysztof Trzepla").
@@ -34,9 +33,7 @@ get(Keys, Map) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
-%% @end
+%% @doc Returns a value from a nested map.
 %%--------------------------------------------------------------------
 -spec get(Keys :: keys(), Map :: maps(), Default :: term()) -> Value :: term().
 get([Key], Map, Default) when is_map(Map) ->
@@ -67,8 +64,8 @@ store(Key, Keys, SourceMap) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc
-%% @todo write me!
+%% @doc Gets value from a nested maps and stores it in a provided map under
+%% given key.
 %% @end
 %%--------------------------------------------------------------------
 -spec store(Key :: key(), Keys :: keys(), SourceMap :: maps(), DestMap :: maps()) ->
