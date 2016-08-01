@@ -6,6 +6,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc This module provides utility functions for service contex management.
+%%% @end
 %%%--------------------------------------------------------------------
 -module(service_ctx).
 -author("Krzysztof Trzepla").
@@ -21,6 +22,7 @@
 
 %%--------------------------------------------------------------------
 %% @doc @equiv get(Name, Ctx, list)
+%% @end
 %%--------------------------------------------------------------------
 -spec get(Key :: onepanel_env:key(), Ctx :: service:ctx()) ->
     Value :: onepanel_env:value().

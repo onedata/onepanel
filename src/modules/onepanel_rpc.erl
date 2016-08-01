@@ -6,6 +6,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc This module provides an extension of rpc module functionality.
+%%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_rpc).
 -author("Krzysztof Trzepla").
@@ -45,6 +46,7 @@ apply(Module, Function, Args) ->
 
 %%--------------------------------------------------------------------
 %% @doc @equiv call(service_onepanel:get_nodes(), Module, Function, Args)
+%% @end
 %%--------------------------------------------------------------------
 -spec call(Module :: module(), Function :: atom(), Args :: [term()]) ->
     Results :: results().
@@ -54,6 +56,7 @@ call(Module, Function, Args) ->
 
 %%--------------------------------------------------------------------
 %% @doc Evaluates {@link call/5} with a default timeout.
+%% @end
 %%--------------------------------------------------------------------
 -spec call(Nodes :: [node()], Module :: module(), Function :: atom(),
     Args :: [term()]) -> Results :: results().

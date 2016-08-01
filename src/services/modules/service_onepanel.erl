@@ -6,6 +6,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc This module contains onepanel service management functions.
+%%% @end
 %%%--------------------------------------------------------------------
 -module(service_onepanel).
 -author("Krzysztof Trzepla").
@@ -19,8 +20,8 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([purge_node/1, create_tables/1, copy_tables/1, add_nodes/1,
-    remove_nodes/1]).
+-export([set_cookie/1, purge_node/1, create_tables/1, copy_tables/1,
+    add_nodes/1, remove_nodes/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -28,6 +29,7 @@
 
 %%--------------------------------------------------------------------
 %% @doc {@link service_behaviour:name/0}
+%% @end
 %%--------------------------------------------------------------------
 -spec name() -> Name :: service:name().
 name() ->
@@ -36,6 +38,7 @@ name() ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link service_behaviour:get_hosts/0}
+%% @end
 %%--------------------------------------------------------------------
 -spec get_hosts() -> Hosts :: [service:host()].
 get_hosts() ->
@@ -44,6 +47,7 @@ get_hosts() ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link service_behaviour:get_nodes/0}
+%% @end
 %%--------------------------------------------------------------------
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
@@ -52,36 +56,40 @@ get_nodes() ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link service_behaviour:get_steps/2}
+%% @end
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
-get_steps(deploy, #{hosts := Hosts} = Ctx) ->
+get_steps(deploy, #{cookie := _, hosts := Hosts} = Ctx) ->
     [
-        #steps{action = init_cluster},
-        #steps{action = join_cluster,
-            ctx = Ctx#{cluster_hosts => [hd(Hosts)], hosts => tl(Hosts)}}
+        #steps{action = init_cluster, ctx = Ctx},
+        #steps{action = join_cluster, ctx = Ctx#{
+            cluster_host => hd(Hosts), hosts => tl(Hosts)
+        }}
     ];
+
+get_steps(deploy, Ctx) ->
+    get_steps(deploy, Ctx#{cookie => erlang:get_cookie()});
 
 get_steps(init_cluster, _Ctx) ->
+    Step = #step{verify_hosts = false},
     [
-        #step{function = purge_node, selection = first},
-        #step{function = create_tables, selection = first}
+        Step#step{function = set_cookie, selection = first},
+        Step#step{function = purge_node, selection = first},
+        Step#step{function = create_tables, selection = first}
     ];
 
-get_steps(join_cluster, #{hosts := Hosts, cluster_hosts := ClusterHosts} = Ctx) ->
-    NewHosts = lists:filter(fun(Host) ->
-        not lists:member(Host, ClusterHosts)
-    end, Hosts),
+get_steps(join_cluster, #{hosts := Hosts, cluster_host := ClusterHost} = Ctx) ->
+    Step = #step{verify_hosts = false},
     [
-        #step{hosts = NewHosts, function = purge_node},
-        #step{hosts = NewHosts, module = mnesia, function = start, args = []},
-        #step{hosts = ClusterHosts, function = add_nodes, selection = first,
-            ctx = Ctx#{hosts => NewHosts}},
-        #step{hosts = NewHosts, function = copy_tables}
+        Step#step{hosts = Hosts, function = set_cookie},
+        Step#step{hosts = Hosts, function = purge_node},
+        Step#step{hosts = Hosts, module = mnesia, function = start, args = []},
+        Step#step{hosts = [ClusterHost], function = add_nodes, selection = first,
+            ctx = Ctx#{hosts => Hosts}
+        },
+        Step#step{hosts = Hosts, function = copy_tables}
     ];
-
-get_steps(join_cluster, Ctx) ->
-    get_steps(join_cluster, Ctx#{cluster_hosts => get_hosts()});
 
 get_steps(leave_cluster, #{hosts := Hosts, cluster_hosts := ClusterHosts} = Ctx) ->
     NewHosts = lists:filter(fun(Host) ->
@@ -90,7 +98,8 @@ get_steps(leave_cluster, #{hosts := Hosts, cluster_hosts := ClusterHosts} = Ctx)
     [
         #step{hosts = NewHosts, function = purge_node},
         #step{hosts = ClusterHosts -- NewHosts, function = remove_nodes,
-            selection = first, ctx = Ctx#{hosts => NewHosts}}
+            selection = first, ctx = Ctx#{hosts => NewHosts}
+        }
     ];
 
 get_steps(leave_cluster, Ctx) ->
@@ -104,7 +113,18 @@ get_steps(Action, _Ctx) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private @doc Removes all the user and configuration data from this host.
+%% @doc Sets the node cookie.
+%% @end
+%%--------------------------------------------------------------------
+-spec set_cookie(Ctx :: service:ctx()) -> ok | no_return().
+set_cookie(#{cookie := Cookie} = Ctx) ->
+    VmArgsPath = service_ctx:get(vm_args_path, Ctx),
+    erlang:set_cookie(node(), Cookie),
+    onepanel_vm:write("setcookie", Cookie, VmArgsPath).
+
+
+%%--------------------------------------------------------------------
+%% @doc Removes all the user and configuration data from this host.
 %% Removes host from the mnesia database cluster.
 %% @end
 %%--------------------------------------------------------------------
@@ -121,6 +141,7 @@ purge_node(_Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc Creates database tables.
+%% @end
 %%--------------------------------------------------------------------
 -spec create_tables(Ctx :: service:ctx()) -> ok.
 create_tables(_Ctx) ->
@@ -142,6 +163,7 @@ create_tables(_Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc Copies content of the database tables from remote node.
+%% @end
 %%--------------------------------------------------------------------
 -spec copy_tables(Ctx :: service:ctx()) -> ok.
 copy_tables(_Ctx) ->
@@ -157,6 +179,7 @@ copy_tables(_Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc Adds nodes to the database cluster.
+%% @end
 %%--------------------------------------------------------------------
 -spec add_nodes(Ctx :: service:ctx()) -> ok.
 add_nodes(#{hosts := Hosts}) ->
@@ -168,6 +191,7 @@ add_nodes(#{hosts := Hosts}) ->
 
 %%--------------------------------------------------------------------
 %% @doc Removes nodes from the database cluster.
+%% @end
 %%--------------------------------------------------------------------
 -spec remove_nodes(Ctx :: service:ctx()) -> ok.
 remove_nodes(#{hosts := Hosts}) ->

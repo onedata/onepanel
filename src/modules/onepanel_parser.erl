@@ -35,6 +35,7 @@
 
 %%--------------------------------------------------------------------
 %% @doc Parses data according to provided specification.
+%% @end
 %%--------------------------------------------------------------------
 -spec parse(Data :: data(), ArgsSpec :: spec()) -> Args :: args().
 parse(Data, ArgsSpec) ->

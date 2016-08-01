@@ -56,19 +56,22 @@ onepanel_user_test_() ->
 
 new_should_validate_username(_) ->
     meck:new(onepanel_user, [passthrough]),
-    meck:expect(onepanel_user, hash_password, fun(_, _) -> ok end),
+    meck:new(onepanel_user_nif),
+    meck:expect(onepanel_user_nif, hash_password, fun(_, _) -> ok end),
     onepanel_user:new(?U, ?P, ?R),
     ?_assert(meck:called(onepanel_user, validate_username, [?U])).
 
 new_should_validate_password(_) ->
     meck:new(onepanel_user, [passthrough]),
-    meck:expect(onepanel_user, hash_password, fun(_, _) -> ok end),
+    meck:new(onepanel_user_nif),
+    meck:expect(onepanel_user_nif, hash_password, fun(_, _) -> ok end),
     onepanel_user:new(?U, ?P, ?R),
     ?_assert(meck:called(onepanel_user, validate_password, [?P])).
 
 new_should_validate_role(_) ->
     meck:new(onepanel_user, [passthrough]),
-    meck:expect(onepanel_user, hash_password, fun(_, _) -> ok end),
+    meck:new(onepanel_user_nif),
+    meck:expect(onepanel_user_nif, hash_password, fun(_, _) -> ok end),
     onepanel_user:new(?U, ?P, ?R),
     ?_assert(meck:called(onepanel_user, validate_role, [?R])).
 
@@ -94,7 +97,8 @@ authenticate_should_pass_errors(_) ->
 
 change_password_should_validate_password(_) ->
     meck:new(onepanel_user, [passthrough]),
-    meck:expect(onepanel_user, hash_password, fun(_, _) -> ok end),
+    meck:new(onepanel_user_nif),
+    meck:expect(onepanel_user_nif, hash_password, fun(_, _) -> ok end),
     onepanel_user:new(?U, ?P, ?R),
     ?_assert(meck:called(onepanel_user, validate_password, [?P])).
 
@@ -147,7 +151,6 @@ start() ->
     onepanel_env:set(create_tables_timeout, 10000),
     ?assertEqual(ok, service_onepanel:purge_node(#{})),
     ?assertEqual(ok, service_onepanel:create_tables(#{})),
-    ?assertEqual(ok, onepanel_user:load_nif()),
     ok.
 
 stop(_) ->

@@ -72,6 +72,7 @@ get() ->
 
 %%--------------------------------------------------------------------
 %% @doc Returns details of a selected storage from op_worker service.
+%% @end
 %%--------------------------------------------------------------------
 -spec get(Name :: name()) -> storage_list().
 get(Name) ->
@@ -90,7 +91,7 @@ get(Name) ->
 -spec parse_storage_params(Type :: binary(), Params :: storage_params_map()) ->
     {HelperName :: binary(), HelperArgs :: #{}, UserModel :: atom(),
         RootCtxArgs :: list()}.
-parse_storage_params(<<"POSIX">>, Params) ->
+parse_storage_params(<<"posix">>, Params) ->
     {
         <<"DirectIO">>,
         #{<<"root_path">> => get_helper_arg(mountPoint, Params)},
@@ -98,7 +99,7 @@ parse_storage_params(<<"POSIX">>, Params) ->
         [0, 0]
     };
 
-parse_storage_params(<<"S3">>, Params) ->
+parse_storage_params(<<"s3">>, Params) ->
     #hackney_url{scheme = S3Scheme, host = S3Host, port = S3Port} =
         hackney_url:parse_url(get_helper_arg(s3Hostname, Params)),
     #hackney_url{scheme = IamScheme, host = IamHost, port = IamPort} =
@@ -116,7 +117,7 @@ parse_storage_params(<<"S3">>, Params) ->
         [get_helper_arg(accessKey, Params), get_helper_arg(secretKey, Params)]
     };
 
-parse_storage_params(<<"CEPH">>, Params) ->
+parse_storage_params(<<"ceph">>, Params) ->
     {
         <<"Ceph">>,
         #{
@@ -226,8 +227,8 @@ get_storage(Node, Storage) ->
     Id = rpc:call(Node, storage, id, [Storage]),
     Name = rpc:call(Node, storage, name, [Storage]),
     [Helper | _] = rpc:call(Node, storage, helpers, [Storage]),
-    Type = helper_name_to_type(rpc:call(Node, helpers, get_name, [Helper])),
-    Args = translate_helper_args(rpc:call(Node, helpers, get_args, [Helper]), []),
+    Type = helper_name_to_type(rpc:call(Node, helpers, name, [Helper])),
+    Args = translate_helper_args(rpc:call(Node, helpers, args, [Helper]), []),
     [{Name, [{id, Id}, {type, Type} | Args]}].
 
 
@@ -235,9 +236,9 @@ get_storage(Node, Storage) ->
 %% @private @doc Converts storage helper name to storage type.
 %%--------------------------------------------------------------------
 -spec helper_name_to_type(Name :: binary()) -> Type :: binary().
-helper_name_to_type(<<"DirectIO">>) -> <<"POSIX">>;
-helper_name_to_type(<<"AmazonS3">>) -> <<"S3">>;
-helper_name_to_type(<<"Ceph">>) -> <<"CEPH">>;
+helper_name_to_type(<<"DirectIO">>) -> <<"posix">>;
+helper_name_to_type(<<"AmazonS3">>) -> <<"s3">>;
+helper_name_to_type(<<"Ceph">>) -> <<"ceph">>;
 helper_name_to_type(_) -> <<>>.
 
 

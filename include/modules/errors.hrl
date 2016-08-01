@@ -6,9 +6,8 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc This header contains errors definitions and utility macros.
+%%% @end
 %%%--------------------------------------------------------------------
--author("Krzysztof Trzepla").
-
 -ifndef(ONEPANEL_ERRORS_HRL).
 -define(ONEPANEL_ERRORS_HRL, 1).
 
@@ -20,6 +19,15 @@
     reason :: term(),
     stacktrace :: term(),
     line :: non_neg_integer()
+}).
+
+-record(service_error, {
+    service :: service:name(),
+    action :: service:action(),
+    module :: module(),
+    function :: atom(),
+    bad_results :: [{Node :: node(), Error :: #error{}}],
+    steps :: [{Module :: module(), Function :: atom(), Results :: term()}]
 }).
 
 -define(error(Reason), ?error(Reason, erlang:get_stacktrace())).
@@ -55,10 +63,10 @@ end).
 -define(ERR_NOT_FOUND, not_found).
 -define(ERR_ALREADY_EXISTS, already_exists).
 -define(ERR_BAD_NODE, bad_node).
--define(ERR_INVALID_REQUEST, invalid_request).
 -define(ERR_NIF_NOT_LOADED, nif_not_loaded).
 -define(ERR_FAILURE_ON_ALL_NODES, failure_on_all_nodes).
--define(ERR_ACTION_IN_PROGRESS, action_in_progress).
+-define(ERR_SERVICE_STEP_NOT_FOUND, service_step_not_found).
+-define(ERR_HOST_NOT_FOUND, host_not_found).
 
 -define(ERR_USERNAME_NOT_AVAILABLE, username_not_available).
 -define(ERR_INVALID_USERNAME, invalid_username).

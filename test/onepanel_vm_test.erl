@@ -131,6 +131,7 @@ stop(_) ->
 
 %%--------------------------------------------------------------------
 %% @doc @equiv pop_msg(timer:seconds(5))
+%% @end
 %%--------------------------------------------------------------------
 -spec pop_msg() -> Any :: term() | timeout.
 pop_msg() ->
@@ -139,6 +140,7 @@ pop_msg() ->
 
 %%--------------------------------------------------------------------
 %% @doc Returns first message from process message queue.
+%% @end
 %%--------------------------------------------------------------------
 -spec pop_msg(Timeout :: timeout()) -> Any :: term() | timeout.
 pop_msg(Timeout) ->
@@ -151,6 +153,7 @@ pop_msg(Timeout) ->
 
 %%--------------------------------------------------------------------
 %% @doc Removes all message from porcess message queue.
+%% @end
 %%--------------------------------------------------------------------
 -spec remove_msgs() -> ok.
 remove_msgs() ->

@@ -6,9 +6,8 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc This header contains logging macros.
+%%% @end
 %%%--------------------------------------------------------------------
--author("Krzysztof Trzepla").
-
 -ifndef(ONEPANEL_MODULES_LOGGER_HRL).
 -define(ONEPANEL_MODULES_LOGGER_HRL, 1).
 

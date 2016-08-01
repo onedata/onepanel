@@ -21,6 +21,7 @@
     cluster_storages_model/0,
     cluster_storages_list_model/0,
     cluster_workers_model/0,
+    cookie_model/0,
     error_model/0,
     manager_hosts_model/0,
     posix_model/0,
@@ -49,10 +50,14 @@
 ]).
 
 
+%%--------------------------------------------------------------------
+%% @doc The Ceph storage configuration.
+%% @end
+%%--------------------------------------------------------------------
 -spec ceph_model() -> #{}.
 ceph_model() ->
     #{
-        %% The type of a storage.
+        %% The type of storage.
         type => {equal, <<"ceph">>},
         %% The username for authentication to Ceph cluster.
         username => string,
@@ -68,6 +73,7 @@ ceph_model() ->
 
 %%--------------------------------------------------------------------
 %% @doc The cluster database service configuration.
+%% @end
 %%--------------------------------------------------------------------
 -spec cluster_databases_model() -> #{}.
 cluster_databases_model() ->
@@ -78,6 +84,7 @@ cluster_databases_model() ->
 
 %%--------------------------------------------------------------------
 %% @doc The cluster manager service configuration.
+%% @end
 %%--------------------------------------------------------------------
 -spec cluster_managers_model() -> #{}.
 cluster_managers_model() ->
@@ -90,20 +97,23 @@ cluster_managers_model() ->
 
 %%--------------------------------------------------------------------
 %% @doc The cluster storage configuration.
+%% @end
 %%--------------------------------------------------------------------
 -spec cluster_storages_model() -> {oneof, Oneof :: list()}.
 cluster_storages_model() ->
-    {oneof, [posix_model(),s3_model(),ceph_model()]}.
+    {oneof, [posix_model(), s3_model(), ceph_model()]}.
 
 %%--------------------------------------------------------------------
 %% @doc The list of supported storage types.
+%% @end
 %%--------------------------------------------------------------------
 -spec cluster_storages_list_model() -> #{}.
 cluster_storages_list_model() ->
-    #{ '_' => cluster_storages_model() }.
+    #{'_' => cluster_storages_model()}.
 
 %%--------------------------------------------------------------------
 %% @doc The cluster worker service configuration.
+%% @end
 %%--------------------------------------------------------------------
 -spec cluster_workers_model() -> #{}.
 cluster_workers_model() ->
@@ -113,7 +123,24 @@ cluster_workers_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc The cookie is a character sequence that is common for all the cluster
+%% nodes. If this parameter is not provided, in case of a cluster initialization
+%% request, it will be generated, and in case of a cluster extension request the
+%% current cookie value will be used. However, if the cluster cookie and the
+%% cookie of the host that is about to join the cluster doesn't match there
+%% will be a connection error.
+%% @end
+%%--------------------------------------------------------------------
+-spec cookie_model() -> #{}.
+cookie_model() ->
+    #{
+        %% The cluster cookie.
+        cookie => {atom, optional}
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The generic error model for REST requests.
+%% @end
 %%--------------------------------------------------------------------
 -spec error_model() -> #{}.
 error_model() ->
@@ -126,24 +153,29 @@ error_model() ->
 
 %%--------------------------------------------------------------------
 %% @doc The cluster manager service hosts configuration.
+%% @end
 %%--------------------------------------------------------------------
 -spec manager_hosts_model() -> #{}.
 manager_hosts_model() ->
     #{
-        %% The name of a host where main cluster manager node should be configured.
-        %% Main cluster manager node is responsible for monitoring cluster worker
-        %% nodes. Other nodes, called optional, are suspended. In case of main cluster
-        %% manager node failure one of optional nodes is resumed and it takes over
-        %% main node responsibilities.
+        %% The name of a host where main cluster manager node should be
+        %% deployed. Main cluster manager node is responsible for monitoring
+        %% cluster worker nodes. Other nodes, called optional, are suspended. In
+        %% case of main cluster manager node failure one of optional nodes is
+        %% resumed and takes over main node responsibilities.
         mainHost => string,
         %% The list of hosts where service should be deployed.
         hosts => [string]
     }.
 
+%%--------------------------------------------------------------------
+%% @doc The POSIX storage configuration.
+%% @end
+%%--------------------------------------------------------------------
 -spec posix_model() -> #{}.
 posix_model() ->
     #{
-        %% The type of a storage.
+        %% The type of storage.
         type => {equal, <<"posix">>},
         %% The absolute path to the directory where the POSIX storage is mounted
         %% on the cluster nodes.
@@ -152,35 +184,39 @@ posix_model() ->
 
 %%--------------------------------------------------------------------
 %% @doc The provider cluster configuration.
+%% @end
 %%--------------------------------------------------------------------
 -spec provider_cluster_configuration_model() -> #{}.
 provider_cluster_configuration_model() ->
     #{
-        %% The name of a domain common for all services in the cluster. Together with
-        %% a node hostname constitutes a fully qualified domain name (FDQN) of the node.
+        %% The name of a domain common for all services in the cluster. Together
+        %% with a node hostname constitutes a fully qualified domain name (FDQN)
+        %% of the node.
         domainName => string,
         %% The collection of nodes aliases associated with nodes properties.
-        nodes => #{ '_' => zone_cluster_configuration_nodes_model()},
+        nodes => #{'_' => zone_cluster_configuration_nodes_model()},
         databases => cluster_databases_model(),
         managers => cluster_managers_model(),
         workers => cluster_workers_model(),
         %% The cluster storage configuration.
-        storages => { #{ '_' => cluster_storages_model()}, optional }
+        storages => {#{'_' => cluster_storages_model()}, optional}
     }.
 
 %%--------------------------------------------------------------------
 %% @doc The provider deployment configuration.
+%% @end
 %%--------------------------------------------------------------------
 -spec provider_configuration_model() -> #{}.
 provider_configuration_model() ->
     #{
         cluster => provider_cluster_configuration_model(),
-        oneprovider => { provider_configuration_oneprovider_model(), optional },
-        onezone => { provider_configuration_onezone_model(), optional }
+        oneprovider => {provider_configuration_oneprovider_model(), optional},
+        onezone => {provider_configuration_onezone_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
 %% @doc The provider custom configuration.
+%% @end
 %%--------------------------------------------------------------------
 -spec provider_configuration_oneprovider_model() -> #{}.
 provider_configuration_oneprovider_model() ->
@@ -190,15 +226,16 @@ provider_configuration_oneprovider_model() ->
         %% The address used for user redirection from a zone to the provider.
         redirectionPoint => string,
         %% The geographical longitude of the provider.
-        geoLongitude => { float, optional },
+        geoLongitude => {float, optional},
         %% The name under which the provider will be registered in a zone.
         name => string,
         %% The geographical latitude of the provider.
-        geoLatitude => { float, optional }
+        geoLatitude => {float, optional}
     }.
 
 %%--------------------------------------------------------------------
 %% @doc The zone custom configuration.
+%% @end
 %%--------------------------------------------------------------------
 -spec provider_configuration_onezone_model() -> #{}.
 provider_configuration_onezone_model() ->
@@ -209,6 +246,7 @@ provider_configuration_onezone_model() ->
 
 %%--------------------------------------------------------------------
 %% @doc The provider configuration details.
+%% @end
 %%--------------------------------------------------------------------
 -spec provider_details_model() -> #{}.
 provider_details_model() ->
@@ -229,22 +267,24 @@ provider_details_model() ->
 
 %%--------------------------------------------------------------------
 %% @doc The provider configuration details that can be modified.
+%% @end
 %%--------------------------------------------------------------------
 -spec provider_modify_request_model() -> #{}.
 provider_modify_request_model() ->
     #{
         %% The name under which the provider has been registered in a zone.
-        name => { string, optional },
+        name => {string, optional},
         %% The address used for user redirection from a zone to the provider.
-        redirectionPoint => { string, optional },
+        redirectionPoint => {string, optional},
         %% The geographical longitude of the provider.
-        geoLongitude => { float, optional },
+        geoLongitude => {float, optional},
         %% The geographical latitude of the provider.
-        geoLatitude => { float, optional }
+        geoLatitude => {float, optional}
     }.
 
 %%--------------------------------------------------------------------
 %% @doc The provider configuration details required for registration process.
+%% @end
 %%--------------------------------------------------------------------
 -spec provider_register_request_model() -> #{}.
 provider_register_request_model() ->
@@ -254,17 +294,21 @@ provider_register_request_model() ->
         %% The address used for user redirection from a zone to the provider.
         redirectionPoint => string,
         %% The geographical longitude of the provider.
-        geoLongitude => { float, optional },
+        geoLongitude => {float, optional},
         %% The geographical latitude of the provider.
-        geoLatitude => { float, optional },
+        geoLatitude => {float, optional},
         %% The domain name of a zone where provider will be registered.
-        onezoneDomainName => { string, optional }
+        onezoneDomainName => {string, optional}
     }.
 
+%%--------------------------------------------------------------------
+%% @doc The Simple Storage Service configuration.
+%% @end
+%%--------------------------------------------------------------------
 -spec s3_model() -> #{}.
 s3_model() ->
     #{
-        %% The type of a storage.
+        %% The type of storage.
         type => {equal, <<"s3">>},
         %% The hostname of a machine where S3 storage is installed.
         s3Hostname => string,
@@ -280,16 +324,18 @@ s3_model() ->
 
 %%--------------------------------------------------------------------
 %% @doc The service error model for REST requests.
+%% @end
 %%--------------------------------------------------------------------
 -spec service_error_model() -> #{}.
 service_error_model() ->
     #{
         %% The collection of hosts with associated error description.
-        hosts => #{ '_' => error_model()}
+        hosts => #{'_' => error_model()}
     }.
 
 %%--------------------------------------------------------------------
 %% @doc The service hosts configuration.
+%% @end
 %%--------------------------------------------------------------------
 -spec service_hosts_model() -> #{}.
 service_hosts_model() ->
@@ -300,16 +346,18 @@ service_hosts_model() ->
 
 %%--------------------------------------------------------------------
 %% @doc The generic model for service status.
+%% @end
 %%--------------------------------------------------------------------
 -spec service_status_model() -> #{}.
 service_status_model() ->
     #{
         %% The collection of services with associated status information.
-        services => #{ '_' => #{ '_' => service_status_host_model()}}
+        services => #{'_' => #{'_' => service_status_host_model()}}
     }.
 
 %%--------------------------------------------------------------------
 %% @doc The service status.
+%% @end
 %%--------------------------------------------------------------------
 -spec service_status_host_model() -> #{}.
 service_status_host_model() ->
@@ -320,6 +368,7 @@ service_status_host_model() ->
 
 %%--------------------------------------------------------------------
 %% @doc The space details.
+%% @end
 %%--------------------------------------------------------------------
 -spec space_details_model() -> #{}.
 space_details_model() ->
@@ -328,49 +377,58 @@ space_details_model() ->
         spaceId => string,
         %% The name of the space.
         name => string,
-        %% The collection of provider IDs with associated supported storage space in bytes.
-        supportingProviders => #{ '_' => integer}
+        %% The collection of provider IDs with associated supported storage
+        %% space in bytes.
+        supportingProviders => #{'_' => integer}
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The configuration details required to create or support a space by a provider.
+%% @doc The configuration details required to create or support a space by a
+%% provider.
+%% @end
 %%--------------------------------------------------------------------
 -spec space_support_request_model() -> #{}.
 space_support_request_model() ->
     #{
-        %% The space name. If this property is provided and space with given name
-        %% will be created and automatically supported by a provider.
-        name => { string, optional },
+        %% The space name. If this property is provided and space with given
+        %% name will be created and automatically supported by a provider.
+        name => {string, optional},
         %% The token for space creation or support.
         token => string,
-        %% The storage space size in bytes that provider is willing to assign to the space.
+        %% The storage space size in bytes that provider is willing to assign to
+        %% the space.
         size => integer,
-        %% The name of the storage resource where the space data should be stored.
-        %% To be used interchangeably with `storageId`.
-        storageName => { string, optional },
+        %% The user defined name of the storage resource, where the space data
+        %% should be stored. To be used interchangeably with
+        %% `storageId`.
+        storageName => {string, optional},
         %% The ID of the storage resource where the space data should be stored.
         %% To be used interchangeably with `storageName`.
-        storageId => { string, optional }
+        storageId => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The result of a scheduled operation, e.g. database service configuration.
+%% @doc The result of a scheduled operation, e.g. database service
+%% configuration.
+%% @end
 %%--------------------------------------------------------------------
 -spec task_status_model() -> #{}.
 task_status_model() ->
     #{
         %% The operation status.
         status => string,
-        %% The list of operation steps that has been so far executed.
+        %% The list of operation steps that have been executed so far.
         steps => [string],
-        %% The collection of hosts with associated error description. This property
-        %% is set only when an error occurred during operation execution, i.e. the
-        %% value of property 'status' is set to 'error'.
-        hosts => { #{ '_' => error_model()}, optional }
+        %% The collection of hosts with associated error description. This
+        %% property is set only when an error occurred during operation
+        %% execution, i.e. the value of property 'status' is set to
+        %% 'error'.
+        hosts => {#{'_' => error_model()}, optional}
     }.
 
 %%--------------------------------------------------------------------
 %% @doc The user configuration details required for creation process.
+%% @end
 %%--------------------------------------------------------------------
 -spec user_create_request_model() -> #{}.
 user_create_request_model() ->
@@ -380,8 +438,8 @@ user_create_request_model() ->
         username => string,
         %% The user password. It must be at least 8 characters long and contain
         %% a minimum of 1 lower case letter [a-z] and a minimum of 1 upper case
-        %% letter [A-Z] and a minimum of 1 numeric character [0-9]. The Password must
-        %% not contain a colon character [:].
+        %% letter [A-Z] and a minimum of 1 numeric character [0-9]. The Password
+        %% must not contain a colon character [:].
         password => string,
         %% The user role, one of 'admin' or 'regular'.
         userRole => atom
@@ -389,18 +447,20 @@ user_create_request_model() ->
 
 %%--------------------------------------------------------------------
 %% @doc The user configuration details.
+%% @end
 %%--------------------------------------------------------------------
 -spec user_details_model() -> #{}.
 user_details_model() ->
     #{
         %% The user ID.
         userId => string,
-        %% The user role, one of 'admin' or 'regular'.
+        %% The user role, one of `admin` or `regular`.
         userRole => atom
     }.
 
 %%--------------------------------------------------------------------
 %% @doc The user configuration details that can be modified.
+%% @end
 %%--------------------------------------------------------------------
 -spec user_modify_request_model() -> #{}.
 user_modify_request_model() ->
@@ -411,15 +471,16 @@ user_modify_request_model() ->
 
 %%--------------------------------------------------------------------
 %% @doc The zone cluster configuration.
+%% @end
 %%--------------------------------------------------------------------
 -spec zone_cluster_configuration_model() -> #{}.
 zone_cluster_configuration_model() ->
     #{
-        %% The name of a domain common for all services in the cluster. Together with
-        %% a node hostname constitute a node fully qualified domain name.
+        %% The name of a domain common for all services in the cluster. Together
+        %% with a node hostname constitute a node fully qualified domain name.
         domainName => string,
         %% The collection of nodes aliases associated with nodes properties.
-        nodes => #{ '_' => zone_cluster_configuration_nodes_model()},
+        nodes => #{'_' => zone_cluster_configuration_nodes_model()},
         databases => cluster_databases_model(),
         managers => cluster_managers_model(),
         workers => cluster_workers_model()
@@ -434,23 +495,24 @@ zone_cluster_configuration_nodes_model() ->
 
 %%--------------------------------------------------------------------
 %% @doc The zone deployment configuration.
+%% @end
 %%--------------------------------------------------------------------
 -spec zone_configuration_model() -> #{}.
 zone_configuration_model() ->
     #{
         cluster => zone_cluster_configuration_model(),
-        onezone => { zone_configuration_onezone_model(), optional }
+        onezone => {zone_configuration_onezone_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
 %% @doc The zone custom configuration.
+%% @end
 %%--------------------------------------------------------------------
 -spec zone_configuration_onezone_model() -> #{}.
 zone_configuration_onezone_model() ->
     #{
         %% The name of a zone.
-        name => { string, optional },
+        name => {string, optional},
         %% The name of a HTTP domain.
-        domainName => { string, optional }
+        domainName => {string, optional}
     }.
-

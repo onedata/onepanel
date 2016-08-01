@@ -6,6 +6,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc This module implements logger_plugin_behaviour.
+%%% @end
 %%%--------------------------------------------------------------------
 -module(logger_plugin).
 -author("Krzysztof Trzepla").
@@ -21,6 +22,7 @@
 
 %%--------------------------------------------------------------------
 %% @doc {@link logger_plugin_behaviour:gather_metadata/0}
+%% @end
 %%--------------------------------------------------------------------
 -spec gather_metadata() -> [{Key :: term(), Value :: term()}].
 gather_metadata() ->

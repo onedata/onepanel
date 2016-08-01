@@ -6,6 +6,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc This module contains oz_worker service management functions.
+%%% @end
 %%%--------------------------------------------------------------------
 -module(service_oz_worker).
 -author("Krzysztof Trzepla").
@@ -29,6 +30,7 @@
 
 %%--------------------------------------------------------------------
 %% @doc {@link service_behaviour:name/0}
+%% @end
 %%--------------------------------------------------------------------
 -spec name() -> Name :: service:name().
 name() ->
@@ -37,6 +39,7 @@ name() ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link service_behaviour:get_hosts/0}
+%% @end
 %%--------------------------------------------------------------------
 -spec get_hosts() -> Hosts :: [service:host()].
 get_hosts() ->
@@ -45,6 +48,7 @@ get_hosts() ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link service_behaviour:get_nodes/0}
+%% @end
 %%--------------------------------------------------------------------
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
@@ -53,6 +57,7 @@ get_nodes() ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link service_behaviour:get_steps/2}
+%% @end
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
@@ -65,6 +70,7 @@ get_steps(Action, Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc Configures the service.
+%% @end
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(Ctx) ->
@@ -86,6 +92,7 @@ configure(Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link service:start/1}
+%% @end
 %%--------------------------------------------------------------------
 -spec start(Ctx :: service:ctx()) -> ok | no_return().
 start(Ctx) ->
@@ -97,6 +104,7 @@ start(Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link service:stop/1}
+%% @end
 %%--------------------------------------------------------------------
 -spec stop(Ctx :: service:ctx()) -> ok | no_return().
 stop(Ctx) ->
@@ -105,6 +113,7 @@ stop(Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link service:status/1}
+%% @end
 %%--------------------------------------------------------------------
 -spec status(Ctx :: service:ctx()) -> running | stopped | not_found.
 status(Ctx) ->
@@ -113,6 +122,7 @@ status(Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link service_cluster_worker:wait_for_init/1}
+%% @end
 %%--------------------------------------------------------------------
 -spec wait_for_init(Ctx :: service:ctx()) -> ok | no_return().
 wait_for_init(Ctx) ->
@@ -127,6 +137,7 @@ wait_for_init(Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link service_cluster_worker:nagios_report/1}
+%% @end
 %%--------------------------------------------------------------------
 -spec nagios_report(Ctx :: service:ctx()) -> ok | no_return().
 nagios_report(Ctx) ->

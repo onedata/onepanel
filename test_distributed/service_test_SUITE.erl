@@ -5,15 +5,15 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
+%%% @doc This module contains integration tests of 'service' module.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(service_test_SUITE).
 -author("Krzysztof Trzepla").
 
 -include("modules/errors.hrl").
+-include("onepanel_test_utils.hrl").
 -include("service.hrl").
--include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
 
@@ -113,7 +113,8 @@ service_action_should_pass_errors(Config) ->
 
 init_per_suite(Config) ->
     onepanel_test_utils:init(
-        ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json"))).
+        ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json"))
+    ).
 
 
 end_per_suite(Config) ->
@@ -121,16 +122,22 @@ end_per_suite(Config) ->
 
 
 init_per_testcase(service_action_should_be_not_supported, Config) ->
-    mock_service(Config, get_steps, fun(_, _) ->
+    Nodes = ?config(onepanel_nodes, Config),
+    test_utils:mock_new(Nodes, service_example, [non_strict]),
+    test_utils:mock_expect(Nodes, service_example, get_steps, fun(_, _) ->
         meck:exception(throw, action_not_supported)
-    end);
+    end),
+    Config;
 
 init_per_testcase(service_should_request_action_steps, Config) ->
     Self = self(),
-    mock_service(Config, get_steps, fun(some_action, _) ->
+    Nodes = ?config(onepanel_nodes, Config),
+    test_utils:mock_new(Nodes, service_example, [non_strict]),
+    test_utils:mock_expect(Nodes, service_example, get_steps, fun(some_action, _) ->
         Self ! get_steps,
         []
-    end);
+    end),
+    Config;
 
 init_per_testcase(Case, Config) when
     Case =:= service_should_execute_steps;
@@ -138,7 +145,8 @@ init_per_testcase(Case, Config) when
     Nodes = ?config(onepanel_nodes, Config),
     [Host1, Host2 | _] = Hosts = onepanel_cluster:nodes_to_hosts(Nodes),
     Self = self(),
-    mock_service(Config, get_steps, fun(some_action, _) ->
+    test_utils:mock_new(Nodes, service_example, [non_strict]),
+    test_utils:mock_expect(Nodes, service_example, get_steps, fun(some_action, _) ->
         [
             #step{hosts = [Host1], function = step1},
             #step{hosts = [Host2], function = step2},
@@ -146,24 +154,28 @@ init_per_testcase(Case, Config) when
         ]
     end),
     lists:foreach(fun(Step) ->
-        mock_service(Config, Step, fun(_) ->
+        test_utils:mock_expect(Nodes, service_example, Step, fun(_) ->
             Self ! {node(), Step}
         end)
     end, [step1, step2, step3]),
     Config;
 
 init_per_testcase(service_get_steps_should_pass_errors, Config) ->
-    mock_service(Config, get_steps, fun(some_action, _) ->
+    Nodes = ?config(onepanel_nodes, Config),
+    test_utils:mock_new(Nodes, service_example, [non_strict]),
+    test_utils:mock_expect(Nodes, service_example, get_steps, fun(some_action, _) ->
         meck:exception(throw, get_steps_failure)
-    end);
+    end),
+    Config;
 
 init_per_testcase(service_action_should_pass_errors, Config) ->
     [_, Node2 | _] = Nodes = ?config(onepanel_nodes, Config),
     Hosts = onepanel_cluster:nodes_to_hosts(Nodes),
-    mock_service(Config, get_steps, fun(some_action, _) ->
+    test_utils:mock_new(Nodes, service_example, [non_strict]),
+    test_utils:mock_expect(Nodes, service_example, get_steps, fun(some_action, _) ->
         [#step{hosts = Hosts, function = some_step}]
     end),
-    mock_service(Config, some_step, fun(_) ->
+    test_utils:mock_expect(Nodes, service_example, some_step, fun(_) ->
         case node() of
             Node2 -> meck:exception(throw, step_failure);
             _ -> ok
@@ -175,20 +187,9 @@ init_per_testcase(_Case, Config) ->
     Config.
 
 
-end_per_testcase(service_should_be_not_found, _Config) ->
-    ok;
+end_per_testcase(service_should_be_not_found, Config) ->
+    Config;
 
 end_per_testcase(_Case, Config) ->
     Nodes = ?config(onepanel_nodes, Config),
-    test_utils:mock_unload(Nodes, service_example).
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
-
-mock_service(Config, Function, Expectation) ->
-    Nodes = ?config(onepanel_nodes, Config),
-    test_utils:mock_new(Nodes, service_example, [non_strict]),
-    test_utils:mock_expect(Nodes, service_example, Function, Expectation),
-    Config.
+    test_utils:mock_unload(Nodes).

@@ -8,8 +8,6 @@
 %%% @doc Common definitions for REST handlers.
 %%% @end
 %%%--------------------------------------------------------------------
--author("Krzysztof Trzepla").
-
 -ifndef(ONEPANEL_HANDLERS_REST_HRL).
 -define(ONEPANEL_HANDLERS_REST_HRL, 1).
 

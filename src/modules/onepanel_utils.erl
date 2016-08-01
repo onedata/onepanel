@@ -6,6 +6,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc This module contains utility functions.
+%%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_utils).
 -author("Krzysztof Trzepla").
@@ -18,7 +19,7 @@
 -export([get_basic_auth_header/2, get_ip_address/0]).
 -export([wait_until/5, wait_until/6, save_file/2]).
 -export([gen_uuid/0, get_nif_library_path/1, join/1, join/2, trim/2]).
--export([convert/2, get_type/1]).
+-export([convert/2, get_type/1, typed_get/3]).
 
 -type primitive_type() :: atom | binary | float | integer | list | boolean.
 -type type() :: primitive_type() | {seq, primitive_type()}.
@@ -35,6 +36,7 @@
 
 %%--------------------------------------------------------------------
 %% @doc Returns basic authorization header.
+%% @end
 %%--------------------------------------------------------------------
 -spec get_basic_auth_header(Username :: string() | binary(),
     Password :: string() | binary()) -> {Key :: binary(), Value :: binary()}.
@@ -43,7 +45,7 @@ get_basic_auth_header(Username, Password) ->
         (onepanel_utils:convert(Username, binary))/binary, ":",
         (onepanel_utils:convert(Password, binary))/binary>>
     ),
-    {<<"Authorization">>, <<"Basic ", Hash/binary>>}.
+    {<<"authorization">>, <<"Basic ", Hash/binary>>}.
 
 
 %%--------------------------------------------------------------------
@@ -119,6 +121,7 @@ get_ip_address() ->
 
 %%--------------------------------------------------------------------
 %% @doc Generates random UUID.
+%% @end
 %%--------------------------------------------------------------------
 -spec gen_uuid() -> binary().
 gen_uuid() ->
@@ -144,6 +147,7 @@ get_nif_library_path(LibName) ->
 
 %%--------------------------------------------------------------------
 %% @doc @equiv join(Tokens, ```<<>>''')
+%% @end
 %%--------------------------------------------------------------------
 -spec join(Tokens :: [term()]) -> Binary :: binary().
 join(Tokens) ->
@@ -152,6 +156,7 @@ join(Tokens) ->
 
 %%--------------------------------------------------------------------
 %% @doc Joins sequence of tokens using provided separator.
+%% @end
 %%--------------------------------------------------------------------
 -spec join(Tokens :: [term()], Sep :: binary()) -> Binary :: binary().
 join([], _Sep) ->
@@ -159,7 +164,7 @@ join([], _Sep) ->
 
 join(Tokens, Sep) ->
     [_ | NewTokens] = lists:foldl(fun(Token, Acc) ->
-            [Sep, convert(Token, binary) | Acc]
+        [Sep, convert(Token, binary) | Acc]
     end, [], Tokens),
     lists:foldl(fun(Token, Acc) ->
         <<Token/binary, Acc/binary>>
@@ -182,6 +187,7 @@ trim(Text, both) ->
 
 %%--------------------------------------------------------------------
 %% @doc Converts value to a provided type.
+%% @end
 %%--------------------------------------------------------------------
 -spec convert(Value :: term(), Type :: type()) -> Value :: term().
 convert(Values, {seq, Type}) ->
@@ -211,6 +217,7 @@ convert(Value, Type) ->
 
 %%--------------------------------------------------------------------
 %% @doc Returns type of a given value.
+%% @end
 %%--------------------------------------------------------------------
 -spec get_type(Value :: term()) -> Type :: type().
 get_type(Value) ->
@@ -225,3 +232,22 @@ get_type(Value) ->
         (_Type, ValueType) -> ValueType
     end, unknown, SupportedTypes).
 
+
+%%--------------------------------------------------------------------
+%% @doc Returns a value from the nested property list or map and converts it
+%% to match the provided type.
+%% @end
+%%--------------------------------------------------------------------
+-spec typed_get(Keys :: onepanel_lists:keys() | onepanel_maps:keys(),
+    Terms :: onepanel_lists:terms() | onepanel_maps:terms(), Type :: type()) ->
+    Value :: term().
+typed_get(Keys, Terms, Type) when is_list(Terms) ->
+    case onepanel_lists:get(Keys, Terms) of
+        {ok, Value} -> convert(Value, Type);
+        #error{} = Error -> Error
+    end;
+typed_get(Keys, Terms, Type) when is_map(Terms) ->
+    case onepanel_maps:get(Keys, Terms) of
+        {ok, Value} -> convert(Value, Type);
+        #error{} = Error -> Error
+    end.

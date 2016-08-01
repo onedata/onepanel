@@ -5,14 +5,14 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc @todo write me!
+%%% @doc This module contains integration tests of 'model' module.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(model_test_SUITE).
 -author("Krzysztof Trzepla").
 
 -include("modules/errors.hrl").
--include_lib("ctool/include/test/test_utils.hrl").
+-include("onepanel_test_utils.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
 
@@ -27,7 +27,11 @@
     save_test/1,
     update_test/1,
     exists_test/1,
-    delete_test/1
+    delete_test/1,
+    list_test/1,
+    select_test/1,
+    size_test/1,
+    clear_test/1
 ]).
 
 -define(MODEL, example_model).
@@ -44,7 +48,11 @@ all() ->
         save_test,
         update_test,
         exists_test,
-        delete_test
+        delete_test,
+        list_test,
+        select_test,
+        size_test,
+        clear_test
     ]).
 
 %%%===================================================================
@@ -52,71 +60,95 @@ all() ->
 %%%===================================================================
 
 create_test(Config) ->
-    Nodes = ?config(onepanel_nodes, Config),
-
     Record = #?MODEL{field1 = 1, field2 = <<"field2">>, field3 = field3},
-    ?assertEqual(ok, call(Nodes, create, [Record])),
+    ?assertEqual(ok, ?callAny(Config, model, create, [?MODEL, Record])),
     ?assertMatch(#error{reason = ?ERR_ALREADY_EXISTS},
-        call(Nodes, create, [Record])).
+        ?callAny(Config, model, create, [?MODEL, Record])).
 
 
 get_test(Config) ->
-    Nodes = ?config(onepanel_nodes, Config),
-
     Record = #?MODEL{field1 = 1, field2 = <<"field2">>, field3 = field3},
-    ?assertMatch(#error{reason = ?ERR_NOT_FOUND}, call(Nodes, get, [1])),
-    ?assertEqual(ok, call(Nodes, create, [Record])),
-    ?assertEqual({ok, Record}, call(Nodes, get, [1])).
+    ?assertMatch(#error{reason = ?ERR_NOT_FOUND}, ?callAny(Config, model, get,
+        [?MODEL, 1])),
+    ?assertEqual(ok, ?callAny(Config, model, create, [?MODEL, Record])),
+    ?assertEqual({ok, Record}, ?callAny(Config, model, get, [?MODEL, 1])).
 
 
 save_test(Config) ->
-    Nodes = ?config(onepanel_nodes, Config),
-
     Record = #?MODEL{field1 = 1, field2 = <<"field2">>, field3 = field3},
-    ?assertEqual(ok, call(Nodes, save, [Record])),
-    ?assertEqual({ok, Record}, call(Nodes, get, [1])),
+    ?assertEqual(ok, ?callAny(Config, model, save, [?MODEL, Record])),
+    ?assertEqual({ok, Record}, ?callAny(Config, model, get, [?MODEL, 1])),
 
     Record2 = Record#?MODEL{field2 = <<"field2_new">>},
-    ?assertEqual(ok, call(Nodes, save, [Record2])),
-    ?assertEqual({ok, Record2}, call(Nodes, get, [1])).
+    ?assertEqual(ok, ?callAny(Config, model, save, [?MODEL, Record2])),
+    ?assertEqual({ok, Record2}, ?callAny(Config, model, get, [?MODEL, 1])).
 
 
 update_test(Config) ->
-    Nodes = ?config(onepanel_nodes, Config),
-
     ?assertMatch(#error{reason = ?ERR_NOT_FOUND},
-        call(Nodes, update, [1, #{}])),
+        ?callAny(Config, model, update, [?MODEL, 1, #{}])),
 
     Record = #?MODEL{field1 = 1, field2 = <<"field2">>, field3 = field3},
-    ?assertEqual(ok, call(Nodes, save, [Record])),
+    ?assertEqual(ok, ?callAny(Config, model, save, [?MODEL, Record])),
 
     Record2 = Record#?MODEL{field2 = <<"field2_new">>},
-    ?assertEqual(ok, call(Nodes, update, [1, #{field2 => <<"field2_new">>}])),
-    ?assertEqual({ok, Record2}, call(Nodes, get, [1])),
+    ?assertEqual(ok, ?callAny(Config, model, update,
+        [?MODEL, 1, #{field2 => <<"field2_new">>}])),
+    ?assertEqual({ok, Record2}, ?callAny(Config, model, get, [?MODEL, 1])),
 
     Record3 = Record2#?MODEL{field3 = field3_new},
-    ?assertEqual(ok, call(Nodes, update,
-        [1, fun(R) -> R#?MODEL{field3 = field3_new} end])),
-    ?assertEqual({ok, Record3}, call(Nodes, get, [1])).
+    ?assertEqual(ok, ?callAny(Config, model, update,
+        [?MODEL, 1, fun(R) -> R#?MODEL{field3 = field3_new} end])),
+    ?assertEqual({ok, Record3}, ?callAny(Config, model, get, [?MODEL, 1])).
 
 
 exists_test(Config) ->
-    Nodes = ?config(onepanel_nodes, Config),
-
-    ?assertEqual(false, call(Nodes, exists, [1])),
+    ?assertEqual(false, ?callAny(Config, model, exists, [?MODEL, 1])),
     Record = #?MODEL{field1 = 1, field2 = <<"field2">>, field3 = field3},
-    ?assertEqual(ok, call(Nodes, save, [Record])),
-    ?assertEqual(true, call(Nodes, exists, [1])).
+    ?assertEqual(ok, ?callAny(Config, model, save, [?MODEL, Record])),
+    ?assertEqual(true, ?callAny(Config, model, exists, [?MODEL, 1])).
 
 
 delete_test(Config) ->
-    Nodes = ?config(onepanel_nodes, Config),
-
-    ?assertEqual(ok, call(Nodes, delete, [1])),
+    ?assertEqual(ok, ?callAny(Config, model, delete, [?MODEL, 1])),
     Record = #?MODEL{field1 = 1, field2 = <<"field2">>, field3 = field3},
-    ?assertEqual(ok, call(Nodes, save, [Record])),
-    ?assertEqual(ok, call(Nodes, delete, [1])),
-    ?assertEqual(false, call(Nodes, exists, [1])).
+    ?assertEqual(ok, ?callAny(Config, model, save, [?MODEL, Record])),
+    ?assertEqual(ok, ?callAny(Config, model, delete, [?MODEL, 1])),
+    ?assertEqual(false, ?callAny(Config, model, exists, [?MODEL, 1])).
+
+
+list_test(Config) ->
+    Records = ?config(records, Config),
+    ?assertEqual(Records, lists:sort(?callAny(Config, model, list, [?MODEL]))).
+
+
+select_test(Config) ->
+    [Record1, Record2, Record3 | _] = ?config(records, Config),
+    ?assertEqual([Record1], ?callAny(Config, model, select, [
+        ?MODEL, [{#?MODEL{field1 = 1, _ = '_'}, [], ['$_']}]
+    ])),
+    ?assertEqual([Record2], ?callAny(Config, model, select, [
+        ?MODEL, [{#?MODEL{field1 = 2, _ = '_'}, [], ['$_']}]
+    ])),
+    ?assertEqual([Record3], ?callAny(Config, model, select, [
+        ?MODEL, [{#?MODEL{field1 = 3, _ = '_'}, [], ['$_']}]
+    ])),
+    ?assertEqual([Record1, Record2], ?callAny(Config, model, select, [
+        ?MODEL, [{#?MODEL{field2 = <<"field1">>, _ = '_'}, [], ['$_']}]
+    ])),
+    ?assertEqual([Record1, Record3, Record2], ?callAny(Config, model, select, [
+        ?MODEL, [{#?MODEL{field3 = field1, _ = '_'}, [], ['$_']}]
+    ])).
+
+
+size_test(Config) ->
+    Length = erlang:length(?config(records, Config)),
+    ?assertEqual(Length, ?callAny(Config, model, size, [?MODEL])).
+
+
+clear_test(Config) ->
+    ?assertEqual(ok, ?callAny(Config, model, clear, [?MODEL])),
+    ?assertEqual(0, ?callAny(Config, model, size, [?MODEL])).
 
 %%%===================================================================
 %%% SetUp and TearDown functions
@@ -130,6 +162,22 @@ end_per_suite(Config) ->
     test_node_starter:clean_environment(Config).
 
 
+init_per_testcase(Case, Config) when
+    Case =:= list_test;
+    Case =:= select_test;
+    Case =:= size_test;
+    Case =:= clear_test ->
+    NewConfig = init_per_testcase(default, Config),
+    Records = lists:sort([
+        #?MODEL{field1 = 1, field2 = <<"field1">>, field3 = field1},
+        #?MODEL{field1 = 2, field2 = <<"field1">>, field3 = field1},
+        #?MODEL{field1 = 3, field2 = <<"field2">>, field3 = field1}
+    ]),
+    lists:foreach(fun(Record) ->
+        ?assertEqual(ok, ?callAny(NewConfig, model, save, [?MODEL, Record]))
+    end, Records),
+    [{records, Records} | NewConfig];
+
 init_per_testcase(_Case, Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     test_utils:mock_new(Nodes, [model, ?MODEL], [passthrough, non_strict]),
@@ -141,17 +189,5 @@ init_per_testcase(_Case, Config) ->
 
 
 end_per_testcase(_Case, Config) ->
-    Nodes = ?config(onepanel_nodes, Config),
+    Nodes = ?config(all_nodes, Config),
     test_utils:mock_unload(Nodes).
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
-call(Node, Function, Args) when is_atom(Node) ->
-    rpc:call(Node, model, Function, [?MODEL | Args]);
-
-
-call(Nodes, Function, Args) when is_list(Nodes) ->
-    Node = utils:random_element(Nodes),
-    call(Node, Function, Args).

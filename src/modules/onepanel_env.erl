@@ -32,6 +32,7 @@
 
 %%--------------------------------------------------------------------
 %% @doc @equiv get(Keys, ?APP_NAME)
+%% @end
 %%--------------------------------------------------------------------
 -spec get(Keys :: keys()) -> Value :: value().
 get(Keys) ->
@@ -51,6 +52,7 @@ get(Keys, AppName) ->
 
 %%--------------------------------------------------------------------
 %% @doc @equiv find(Keys, ?APP_NAME)
+%% @end
 %%--------------------------------------------------------------------
 -spec find(Keys :: keys()) -> {ok, Value :: value()} | #error{} | no_return().
 find(Keys) ->
@@ -65,11 +67,12 @@ find(Keys) ->
 -spec find(Keys :: keys(), AppName :: atom()) ->
     {ok, Value :: value()} | #error{} | no_return().
 find(Keys, AppName) when is_atom(AppName) ->
-    select(Keys, application:get_all_env(AppName)).
+    onepanel_lists:get(Keys, application:get_all_env(AppName)).
 
 
 %%--------------------------------------------------------------------
 %% @doc @equiv set(Keys, Value, ?APP_NAME)
+%% @end
 %%--------------------------------------------------------------------
 -spec set(Keys :: keys(), Value :: value()) -> ok.
 set(Keys, Value) ->
@@ -78,12 +81,13 @@ set(Keys, Value) ->
 
 %%--------------------------------------------------------------------
 %% @doc Sets value of a application variable in application's memory.
+%% @end
 %%--------------------------------------------------------------------
 -spec set(Keys :: keys(), Value :: value(), AppName :: atom()) -> ok.
 set(Keys, Value, AppName) ->
     lists:foreach(fun({K, V}) ->
         application:set_env(AppName, K, V)
-    end, store(Keys, Value, application:get_all_env())).
+    end, onepanel_lists:store(Keys, Value, application:get_all_env())).
 
 
 %%--------------------------------------------------------------------
@@ -106,13 +110,14 @@ set(Nodes, Keys, Value, AppName) ->
     {ok, Value :: value()} | #error{} | no_return().
 read(Keys, Path) ->
     case file:consult(Path) of
-        {ok, [AppConfigs]} -> select(Keys, AppConfigs);
+        {ok, [AppConfigs]} -> onepanel_lists:get(Keys, AppConfigs);
         {error, Reason} -> ?throw(Reason)
     end.
 
 
 %%--------------------------------------------------------------------
 %% @doc @equiv write(Keys, Value, onepanel_env:get(app_config_path))
+%% @end
 %%--------------------------------------------------------------------
 -spec write(Keys :: keys(), Value :: value()) -> ok | no_return().
 write(Keys, Value) ->
@@ -121,13 +126,14 @@ write(Keys, Value) ->
 
 %%--------------------------------------------------------------------
 %% @doc Sets value of a application variable in application's configuration file.
+%% @end
 %%--------------------------------------------------------------------
 -spec write(Keys :: keys(), Value :: value(), Path :: file:name_all()) ->
     ok | no_return().
 write(Keys, Value, Path) ->
     case file:consult(Path) of
         {ok, [AppConfigs]} ->
-            NewAppConfigs = store(Keys, Value, AppConfigs),
+            NewAppConfigs = onepanel_lists:store(Keys, Value, AppConfigs),
             case file:write_file(Path, io_lib:fwrite("~p.", [NewAppConfigs])) of
                 ok -> ok;
                 {error, Reason} -> ?throw(Reason)
@@ -146,43 +152,3 @@ write(Keys, Value, Path) ->
     Path :: file:name_all()) -> Results :: onepanel_rpc:results() | no_return().
 write(Nodes, Keys, Value, Path) ->
     onepanel_rpc:call_all(Nodes, ?MODULE, write, [Keys, Value, Path]).
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
-%%--------------------------------------------------------------------
-%% @private @doc Selects value from a nested property list.
-%%--------------------------------------------------------------------
--spec select(Keys :: keys(), Terms :: proplists:proplist()) ->
-    {ok, Value :: value()} | #error{}.
-select([], Terms) ->
-    {ok, Terms};
-
-select([Key | Keys], Terms) ->
-    case lists:keyfind(Key, 1, Terms) of
-        {Key, NewTerms} -> select(Keys, NewTerms);
-        false -> ?error(?ERR_NOT_FOUND)
-    end;
-
-select(Key, Terms) ->
-    select([Key], Terms).
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Stores value in a nested property list.
-%%--------------------------------------------------------------------
--spec store(Keys :: keys(), Value :: value(), Terms :: proplists:proplist()) ->
-    NewTerms :: proplists:proplist().
-store([], Value, _Terms) ->
-    Value;
-
-store([Key | Keys], Value, Terms) ->
-    NewValue = case select(Key, Terms) of
-        {ok, NewTerms} -> store(Keys, Value, NewTerms);
-        #error{reason = ?ERR_NOT_FOUND} -> store(Keys, Value, [])
-    end,
-    lists:keystore(Key, 1, Terms, {Key, NewValue});
-
-store(Key, Value, Terms) ->
-    store([Key], Value, Terms).

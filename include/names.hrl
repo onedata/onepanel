@@ -8,11 +8,10 @@
 %%% @doc This header contains common names macros.
 %%% @end
 %%%--------------------------------------------------------------------
--author("Krzysztof Trzepla").
-
 -ifndef(ONEPANEL_NAMES_HRL).
 -define(ONEPANEL_NAMES_HRL, 1).
 
 -define(APP_NAME, onepanel).
+-define(SERVICE_EXECUTOR_NAME, service_executor).
 
 -endif.

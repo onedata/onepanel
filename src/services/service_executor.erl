@@ -16,19 +16,27 @@
 
 -include("modules/errors.hrl").
 -include("modules/logger.hrl").
--include("service.hrl").
+-include("names.hrl").
 
 %% API
--export([start_link/0, apply_async/3, apply_sync/3, apply_sync/4, get_results/1,
-    handle_results/1, abort_task/1, exists_task/1]).
+-export([start_link/0, handle_results/1, receive_results/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
     code_change/3]).
 
 -type task_id() :: binary().
+-type hosts_results() :: {GoodResults :: onepanel_rpc:results(),
+    BadResults :: onepanel_rpc:results()}.
+-type step_result() :: {Module :: module(), Function :: atom(),
+    HostsResults :: hosts_results()}.
+-type action_result() :: {task_finished, Service :: service:name(),
+    Action :: service:action(), Result :: ok | #error{}}.
+-type result()  :: action_result() | step_result().
+-type results() :: [result()].
 
--export_type([task_id/0]).
+-export_type([task_id/0, hosts_results/0, step_result/0, action_result/0,
+    result/0, results/0]).
 
 -record(task, {
     owner :: pid(),
@@ -48,70 +56,19 @@
 
 %%--------------------------------------------------------------------
 %% @doc Starts the server.
+%% @end
 %%--------------------------------------------------------------------
 -spec(start_link() ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
 start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
-
-
-%%--------------------------------------------------------------------
-%% @doc Schedules the asynchronous service action.
-%%--------------------------------------------------------------------
--spec apply_async(Service :: service:name(), Action :: service:action(),
-    Ctx :: service:ctx()) -> TaskId :: task_id().
-apply_async(Service, Action, Ctx) ->
-    gen_server:call(?MODULE, {apply, Service, Action, Ctx}).
-
-
-%%--------------------------------------------------------------------
-%% @doc Evaluates the service action synchronously and returns the results.
-%%--------------------------------------------------------------------
--spec apply_sync(Service :: service:name(), Action :: service:action(),
-    Ctx :: service:ctx()) -> Results :: list() | #error{}.
-apply_sync(Service, Action, Ctx) ->
-    apply_sync(Service, Action, Ctx, infinity).
-
-
-%%--------------------------------------------------------------------
-%% @doc Evaluates the service action synchronously with a timeout and returns
-%% the results.
-%% @end
-%%--------------------------------------------------------------------
--spec apply_sync(Service :: service:name(), Action :: service:action(),
-    Ctx :: service:ctx(), Timeout :: timeout()) ->
-    Results :: list() | #error{}.
-apply_sync(Service, Action, Ctx, Timeout) ->
-    TaskId = apply_async(Service, Action, Ctx),
-    Result = receive_results(TaskId, Timeout),
-    abort_task(TaskId),
-    Result.
-
-
-%%--------------------------------------------------------------------
-%% @doc @equiv get_results(TaskId, infinity)
-%%--------------------------------------------------------------------
--spec get_results(TaskId :: task_id()) -> Results :: list() | #error{}.
-get_results(TaskId) ->
-    get_results(TaskId, infinity).
-
-
-%%--------------------------------------------------------------------
-%% @doc Returns the asynchronous operation results.
-%%--------------------------------------------------------------------
--spec get_results(TaskId :: task_id(), Timeout :: timeout()) ->
-    Results :: list() | #error{}.
-get_results(TaskId, Timeout) ->
-    case gen_server:call(?MODULE, {get_results, TaskId}) of
-        ok -> receive_results(TaskId, Timeout);
-        #error{} = Error -> Error
-    end.
+    gen_server:start_link({local, ?SERVICE_EXECUTOR_NAME}, ?MODULE, [], []).
 
 
 %%--------------------------------------------------------------------
 %% @doc Loop that stores the asynchronous operation results.
+%% @end
 %%--------------------------------------------------------------------
--spec handle_results(Results :: list()) -> no_return().
+-spec handle_results(Results :: service_executor:results()) -> no_return().
 handle_results(Results) ->
     receive
         {step_end, Result} ->
@@ -125,22 +82,18 @@ handle_results(Results) ->
             ?MODULE:handle_results(Results)
     end.
 
-
 %%--------------------------------------------------------------------
-%% @doc Aborts the asynchronous operation.
+%% @doc Returns the asynchronous operation results.
+%% @end
 %%--------------------------------------------------------------------
--spec abort_task(TaskId :: binary()) -> ok | #error{}.
-abort_task(TaskId) ->
-    gen_server:call(?MODULE, {abort_task, TaskId}).
-
-
-%%--------------------------------------------------------------------
-%% @doc Checks whether the asynchronous operation associated with the provided
-%% ID exists.
-%%--------------------------------------------------------------------
--spec exists_task(TaskId :: binary()) -> boolean().
-exists_task(TaskId) ->
-    gen_server:call(?MODULE, {exists_task, TaskId}).
+-spec receive_results(TaskId :: task_id(), Timeout :: timeout()) ->
+    Results :: service_executor:results() | #error{}.
+receive_results(TaskId, Timeout) ->
+    receive
+        {task, TaskId, Result} -> Result
+    after
+        Timeout -> ?error(?ERR_TIMEOUT)
+    end.
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -316,16 +269,3 @@ schedule_task_cleanup(TaskId) ->
     Delay = onepanel_env:get(task_ttl),
     erlang:send_after(Delay, self(), {task_cleanup, TaskId}),
     ok.
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Returns the asynchronous operation results.
-%%--------------------------------------------------------------------
--spec receive_results(TaskId :: task_id(), Timeout :: timeout()) ->
-    Results :: list() | #error{}.
-receive_results(TaskId, Timeout) ->
-    receive
-        {task, TaskId, Result} -> Result
-    after
-        Timeout -> ?error(?ERR_TIMEOUT)
-    end.

@@ -6,6 +6,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc This module contains error handling functions.
+%%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_errors).
 -author("Krzysztof Trzepla").
@@ -22,6 +23,7 @@
 
 %%--------------------------------------------------------------------
 %% @doc Creates an error record.
+%% @end
 %%--------------------------------------------------------------------
 -spec new(Module :: module(), Function :: atom(), Arity :: non_neg_integer(),
     Args :: term(), Reason :: term(), Stacktrace :: term(), Line :: non_neg_integer()) ->
@@ -42,12 +44,10 @@ new(Module, Function, Arity, Args, Reason, Stacktrace, Line) ->
 
 %%--------------------------------------------------------------------
 %% @doc Converts error to a human-readable description.
+%% @end
 %%--------------------------------------------------------------------
 -spec translate(Type :: atom(), Reason :: term()) ->
     {Name :: binary(), Description :: binary()} | no_return().
-translate(_Type, #error{reason = ?ERR_INVALID_REQUEST}) ->
-    {<<"Invalid Request">>, <<>>};
-
 translate(_Type, #error{reason = {?ERR_MISSING_KEY, Keys}}) ->
     Key = get_key(Keys),
     {<<"Invalid Request">>, <<"Missing required key: '", Key/binary, "'.">>};

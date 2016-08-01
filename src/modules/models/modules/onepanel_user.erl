@@ -18,12 +18,11 @@
 -include("modules/models.hrl").
 
 %% Model behaviour callbacks
--export([get_fields/0, create/1, save/1, update/2, get/1, exists/1, delete/1]).
+-export([get_fields/0, create/1, save/1, update/2, get/1, exists/1, delete/1,
+    list/0]).
 
 %% API
--export([load_nif/0]).
--export([new/3, authenticate/2, hash_password/2, check_password/2,
-    change_password/2, count/0]).
+-export([new/3, authenticate/2, change_password/2, get_by_role/1]).
 -export([validate_username/1, validate_password/1, validate_role/1]).
 
 -type name() :: binary().
@@ -46,6 +45,7 @@
 
 %%--------------------------------------------------------------------
 %% @doc {@link model_behaviour:get_fields/0}
+%% @end
 %%--------------------------------------------------------------------
 -spec get_fields() -> list(atom()).
 get_fields() ->
@@ -54,6 +54,7 @@ get_fields() ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link model_behaviour:create/1}
+%% @end
 %%--------------------------------------------------------------------
 -spec create(Record :: model_behaviour:record()) ->
     ok | #error{} | no_return().
@@ -63,6 +64,7 @@ create(Record) ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link model_behaviour:save/1}
+%% @end
 %%--------------------------------------------------------------------
 -spec save(Record :: model_behaviour:record()) -> ok | no_return().
 save(Record) ->
@@ -71,6 +73,7 @@ save(Record) ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link model_behaviour:update/2}
+%% @end
 %%--------------------------------------------------------------------
 -spec update(Key :: model_behaviour:key(), Diff :: model_behaviour:diff()) ->
     ok | no_return().
@@ -80,6 +83,7 @@ update(Key, Diff) ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link model_behaviour:get/1}
+%% @end
 %%--------------------------------------------------------------------
 -spec get(Key :: model_behaviour:key()) ->
     {ok, Record :: model_behaviour:record()} | #error{} | no_return().
@@ -89,6 +93,7 @@ get(Key) ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link model_behaviour:exists/1}
+%% @end
 %%--------------------------------------------------------------------
 -spec exists(Key :: model_behaviour:key()) ->
     boolean() | no_return().
@@ -98,31 +103,28 @@ exists(Key) ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link model_behaviour:delete/1}
+%% @end
 %%--------------------------------------------------------------------
 -spec delete(Key :: model_behaviour:key()) -> ok | no_return().
 delete(Key) ->
     model:delete(?MODULE, Key).
+
+
+%%--------------------------------------------------------------------
+%% @doc {@link model_behaviour:list/0}
+%% @end
+%%--------------------------------------------------------------------
+-spec list() -> Records :: [model_behaviour:record()] | no_return().
+list() ->
+    model:list(?MODULE).
 
 %%%===================================================================
 %%% API functions
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc Loads the NIF native library used for password hashing and verification.
-%%--------------------------------------------------------------------
--spec load_nif() -> ok | no_return().
-load_nif() ->
-    LibPath = onepanel_utils:get_nif_library_path("onepanel_user_nif"),
-    case erlang:load_nif(LibPath, 0) of
-        ok -> ok;
-        {error, {reload, _}} -> ok;
-        {error, {upgrade, _}} -> ok;
-        {error, Reason} -> ?throw(Reason)
-    end.
-
-
-%%--------------------------------------------------------------------
 %% @doc Validates credentials and creates user account.
+%% @end
 %%--------------------------------------------------------------------
 -spec new(Username :: name(), Password :: password(), Role :: role()) ->
     ok | no_return().
@@ -133,7 +135,7 @@ new(Username, Password, Role) ->
     WorkFactor = onepanel_env:get(becrypt_work_factor),
     case ?MODULE:create(#onepanel_user{
         username = Username, role = Role, uuid = onepanel_utils:gen_uuid(),
-        password_hash = ?MODULE:hash_password(Password, WorkFactor)
+        password_hash = onepanel_user_nif:hash_password(Password, WorkFactor)
     }) of
         ok -> ok;
         _ -> ?throw(?ERR_USERNAME_NOT_AVAILABLE)
@@ -150,7 +152,7 @@ new(Username, Password, Role) ->
 authenticate(Username, Password) ->
     case onepanel_user:get(Username) of
         {ok, #onepanel_user{password_hash = Hash} = User} ->
-            case check_password(Password, Hash) of
+            case onepanel_user_nif:check_password(Password, Hash) of
                 true -> {ok, User};
                 false -> ?error(?ERR_INVALID_USERNAME_OR_PASSWORD)
             end;
@@ -159,25 +161,8 @@ authenticate(Username, Password) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Returns a password hash using bcrypt algorithm.
-%%--------------------------------------------------------------------
--spec hash_password(Password :: password(), WorkFactor :: non_neg_integer()) ->
-    Hash :: password_hash().
-hash_password(_Password, _WorkFactor) ->
-    erlang:nif_error({?ERR_NIF_NOT_LOADED, ?MODULE}).
-
-
-%%--------------------------------------------------------------------
-%% @doc Checks password against original password hash.
-%%--------------------------------------------------------------------
--spec check_password(Password :: password(), Hash :: password_hash()) ->
-    Valid :: boolean().
-check_password(_Password, _Hash) ->
-    erlang:nif_error({?ERR_NIF_NOT_LOADED, ?MODULE}).
-
-
-%%--------------------------------------------------------------------
 %% @doc Validates and updates user password.
+%% @end
 %%--------------------------------------------------------------------
 -spec change_password(Username :: name(), NewPassword :: password()) ->
     ok | no_return().
@@ -185,16 +170,17 @@ change_password(Username, NewPassword) ->
     ?MODULE:validate_password(NewPassword),
     WorkFactor = onepanel_env:get(becrypt_work_factor),
     ?MODULE:update(Username, #{
-        password_hash => ?MODULE:hash_password(NewPassword, WorkFactor)
+        password_hash => onepanel_user_nif:hash_password(NewPassword, WorkFactor)
     }).
 
 
 %%--------------------------------------------------------------------
-%% @doc @equiv model:size(?MODULE)
+%% @doc Returns a list of users with the specified role.
+%% @end
 %%--------------------------------------------------------------------
--spec count() -> non_neg_integer().
-count() ->
-    model:size(?MODULE).
+-spec get_by_role(Role :: role()) -> Users :: [#onepanel_user{}] | no_return().
+get_by_role(Role) ->
+    model:select(?MODULE, [{#onepanel_user{role = Role, _ = '_'}, [], ['$_']}]).
 
 
 %%--------------------------------------------------------------------
@@ -227,6 +213,7 @@ validate_password(Password) ->
 
 %%--------------------------------------------------------------------
 %% @doc Validates user role. It must be one of 'admin', 'regular'.
+%% @end
 %%--------------------------------------------------------------------
 -spec validate_role(Role :: term()) -> ok | no_return().
 validate_role(admin) -> ok;

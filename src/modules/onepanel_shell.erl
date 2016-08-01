@@ -6,6 +6,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc This module provides shell utility functions.
+%%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_shell).
 -author("Krzysztof Trzepla").
@@ -26,6 +27,7 @@
 
 %%--------------------------------------------------------------------
 %% @doc Evaluates the shell command and returns the result.
+%% @end
 %%--------------------------------------------------------------------
 -spec output(Tokens :: [token()]) -> Output :: string().
 output(Tokens) ->
@@ -54,6 +56,7 @@ check_output(Tokens) ->
 
 %%--------------------------------------------------------------------
 %% @doc @equiv wait_output(Tokens, Expects, Attempts, timer:seconds(1))
+%% @end
 %%--------------------------------------------------------------------
 -spec wait_output(Tokens :: [token()], Expected :: string(), Attempts :: integer()) ->
     ok | no_return().
@@ -78,6 +81,7 @@ wait_output(Tokens, Expected, Attempts, Delay) ->
 
 %%--------------------------------------------------------------------
 %% @doc Evaluates shell command and returns exit code.
+%% @end
 %%--------------------------------------------------------------------
 -spec call(Tokens :: [token()]) -> Code :: integer().
 call(Tokens) ->
@@ -100,6 +104,7 @@ check_call(Tokens) ->
 
 %%--------------------------------------------------------------------
 %% @doc @equiv wait_call(Tokens, Attempts, timer:seconds(1))
+%% @end
 %%--------------------------------------------------------------------
 -spec wait_call(Tokens :: [token()], Attempts :: integer()) ->
     ok | no_return().
@@ -121,6 +126,7 @@ wait_call(Tokens, Attempts, Delay) ->
 
 %%--------------------------------------------------------------------
 %% @doc Wrapper for shell sed program.
+%% @end
 %%--------------------------------------------------------------------
 -spec sed(Pattern :: string(), Replacement :: string(), Path :: file:name_all()) ->
     ok | no_return().

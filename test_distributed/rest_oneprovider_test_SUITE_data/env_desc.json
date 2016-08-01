@@ -1,0 +1,22 @@
+{
+  "dirs_config": {
+    "onepanel": {
+      "input_dir": "rel/onepanel",
+      "target_dir": "rel/test_cluster"
+    }
+  },
+  "onepanel_domains": {
+    "oneprovider": {
+      "onepanel": {
+        "node1": {
+          "vm.args": {
+            "setcookie": "test_cookie"
+          },
+          "sys.config": {
+            "onepanel": {}
+          }
+        }
+      }
+    }
+  }
+}

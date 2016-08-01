@@ -8,8 +8,6 @@
 %%% @doc This header contains service records definitions.
 %%% @end
 %%%--------------------------------------------------------------------
--author("Krzysztof Trzepla").
-
 -ifndef(ONEPANEL_SERVICE_HRL).
 -define(ONEPANEL_SERVICE_HRL, 1).
 
@@ -22,15 +20,14 @@
     args :: term(),
     ctx :: service:ctx(),
     condition = fun(_) -> true end :: service:condition(),
-    ignore_errors :: boolean()
+    verify_hosts = true :: boolean()
 }).
 
 -record(steps, {
     service :: service:name(),
     action :: service:action(),
     ctx :: service:ctx(),
-    condition = fun(_) -> true end :: service:condition(),
-    ignore_errors :: boolean()
+    condition = fun(_) -> true end :: service:condition()
 }).
 
 -endif.

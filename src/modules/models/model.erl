@@ -6,6 +6,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc This module contains model management functions.
+%%% @end
 %%%--------------------------------------------------------------------
 -module(model).
 -author("Krzysztof Trzepla").
@@ -15,8 +16,8 @@
 
 %% API
 -export([table_name/1, get_models/0]).
--export([create/2, save/2, update/3, get/2, exists/2, delete/2, size/1,
-    transaction/1]).
+-export([create/2, save/2, update/3, get/2, exists/2, delete/2, list/1, select/2,
+    size/1, clear/1, transaction/1]).
 
 -type model() :: atom().
 
@@ -25,7 +26,8 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc Returns table name associated with a model.
+%% @doc Returns a table name associated with the model.
+%% @end
 %%--------------------------------------------------------------------
 -spec table_name(Model :: model()) -> Name :: atom().
 table_name(Model) ->
@@ -33,7 +35,8 @@ table_name(Model) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Returns list of supported models.
+%% @doc Returns a list of supported models.
+%% @end
 %%--------------------------------------------------------------------
 -spec get_models() -> Models :: [model()].
 get_models() ->
@@ -41,7 +44,8 @@ get_models() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Creates model instance. Returns an error if instance already exists.
+%% @doc {@link model_behaviour:create/1}
+%% @end
 %%--------------------------------------------------------------------
 -spec create(Model :: model(), Record :: model_behaviour:record()) ->
     ok | #error{} | no_return().
@@ -58,7 +62,8 @@ create(Model, Record) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Saves model instance.
+%% @doc {@link model_behaviour:save/1}
+%% @end
 %%--------------------------------------------------------------------
 -spec save(Model :: model(), Record :: model_behaviour:record()) ->
     ok | no_return().
@@ -70,7 +75,8 @@ save(Model, Record) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Updates model instance.
+%% @doc {@link model_behaviour:update/2}
+%% @end
 %%--------------------------------------------------------------------
 -spec update(Model :: model(), Key :: model_behaviour:key(),
     Diff :: model_behaviour:diff()) -> ok | no_return().
@@ -86,7 +92,8 @@ update(Model, Key, Diff) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Returns model instance.
+%% @doc {@link model_behaviour:get/1}
+%% @end
 %%--------------------------------------------------------------------
 -spec get(Model :: model(), Key :: model_behaviour:key()) ->
     {ok, Record :: model_behaviour:record()} | #error{} | no_return().
@@ -101,7 +108,8 @@ get(Model, Key) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Returns 'true' if model instance exists, otherwise 'false'.
+%% @doc {@link model_behaviour:exists/1}
+%% @end
 %%--------------------------------------------------------------------
 -spec exists(Model :: model(), Key :: model_behaviour:key()) ->
     boolean() | no_return().
@@ -116,7 +124,8 @@ exists(Model, Key) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Deletes model instance.
+%% @doc {@link model_behaviour:delete/1}
+%% @end
 %%--------------------------------------------------------------------
 -spec delete(Model :: model(), Key :: model_behaviour:key()) ->
     ok | no_return().
@@ -128,7 +137,31 @@ delete(Model, Key) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc {@link model_behaviour:list/0}
+%% @end
+%%--------------------------------------------------------------------
+-spec list(Model :: model()) ->
+    Records :: [model_behaviour:record()] | no_return().
+list(Model) ->
+    select(Model, [{'_', [], ['$_']}]).
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns a list of the selected model instances.
+%% @end
+%%--------------------------------------------------------------------
+-spec select(Model :: model(), MatchSpec :: any()) ->
+    Records :: [model_behaviour:record()] | no_return().
+select(Model, MatchSpec) ->
+    transaction(fun() ->
+        Table = table_name(Model),
+        mnesia:select(Table, MatchSpec)
+    end).
+
+
+%%--------------------------------------------------------------------
 %% @doc Returns number of model instances.
+%% @end
 %%--------------------------------------------------------------------
 -spec size(Model :: model()) -> non_neg_integer().
 size(Model) ->
@@ -137,7 +170,21 @@ size(Model) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc Removes all the model instances.
+%% @end
+%%--------------------------------------------------------------------
+-spec clear(Model :: model()) -> ok | #error{}.
+clear(Model) ->
+    Table = table_name(Model),
+    case mnesia:clear_table(Table) of
+        {atomic, ok} -> ok;
+        {aborted, Reason} -> ?error(Reason)
+    end.
+
+
+%%--------------------------------------------------------------------
 %% @doc Provides transactional environment for operations on models.
+%% @end
 %%--------------------------------------------------------------------
 -spec transaction(Transaction :: fun()) -> term() | no_return().
 transaction(Transaction) ->
@@ -154,6 +201,7 @@ transaction(Transaction) ->
 
 %%--------------------------------------------------------------------
 %% @doc Modifies model instance according to provided update method.
+%% @end
 %%--------------------------------------------------------------------
 -spec apply_diff(Record :: model_behaviour:record(), model_behaviour:diff()) ->
     NewRecord :: model_behaviour:record().

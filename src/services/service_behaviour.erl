@@ -6,6 +6,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc This behaviour provides a common service API.
+%%% @end
 %%%--------------------------------------------------------------------
 -module(service_behaviour).
 -author("Krzysztof Trzepla").

@@ -6,6 +6,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc This module contains cluster management functions.
+%%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_cluster).
 -author("Krzysztof Trzepla").
@@ -23,6 +24,7 @@
 
 %%--------------------------------------------------------------------
 %% @doc @equiv node_to_host(node())
+%% @end
 %%--------------------------------------------------------------------
 -spec node_to_host() -> Host :: service:host().
 node_to_host() ->
@@ -31,6 +33,7 @@ node_to_host() ->
 
 %%--------------------------------------------------------------------
 %% @doc Returns a hostname of a node.
+%% @end
 %%--------------------------------------------------------------------
 -spec node_to_host(Node :: node()) -> Host :: service:host().
 node_to_host(Node) ->
@@ -41,6 +44,7 @@ node_to_host(Node) ->
 
 %%--------------------------------------------------------------------
 %% @doc @equiv nodes_to_hosts(onepanel:nodes())
+%% @end
 %%--------------------------------------------------------------------
 -spec nodes_to_hosts() -> Hosts :: [service:host()].
 nodes_to_hosts() ->
@@ -49,6 +53,7 @@ nodes_to_hosts() ->
 
 %%--------------------------------------------------------------------
 %% @doc Converts a list of nodes to a list of hostnames.
+%% @end
 %%--------------------------------------------------------------------
 -spec nodes_to_hosts(Nodes :: [node()]) -> Hosts :: [service:host()].
 nodes_to_hosts(Nodes) ->
@@ -57,6 +62,7 @@ nodes_to_hosts(Nodes) ->
 
 %%--------------------------------------------------------------------
 %% @doc @equiv host_to_node(?APP_NAME)
+%% @end
 %%--------------------------------------------------------------------
 -spec host_to_node(Host :: service:host()) -> Node :: node().
 host_to_node(Host) ->
@@ -66,6 +72,7 @@ host_to_node(Host) ->
 
 %%--------------------------------------------------------------------
 %% @doc Creates a node from a node name and a hostname.
+%% @end
 %%--------------------------------------------------------------------
 -spec host_to_node(Name :: atom() | string(), Host :: service:host()) ->
     Node :: node().
@@ -78,6 +85,7 @@ host_to_node(Name, Host) ->
 
 %%--------------------------------------------------------------------
 %% @doc @equiv host_to_node(?APP_NAME, Hosts)
+%% @end
 %%--------------------------------------------------------------------
 -spec hosts_to_nodes(Hosts :: [service:host()]) -> Nodes :: [node()].
 hosts_to_nodes(Hosts) ->
@@ -87,6 +95,7 @@ hosts_to_nodes(Hosts) ->
 
 %%--------------------------------------------------------------------
 %% @doc Converts a list of hostnames to a list of nodes with a given node name.
+%% @end
 %%--------------------------------------------------------------------
 -spec hosts_to_nodes(Name :: atom() | string(), Hosts :: [service:host()]) ->
     Nodes :: [node()].

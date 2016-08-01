@@ -83,6 +83,7 @@ get(Key, Content) ->
 
 %%--------------------------------------------------------------------
 %% @doc Sets value of an Erlang virtual machine property in provided file content.
+%% @end
 %%--------------------------------------------------------------------
 -spec set(Key :: key(), Value :: value(), Content :: binary()) ->
     {ok, NewContent :: binary()} | no_return().

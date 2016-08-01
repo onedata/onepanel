@@ -6,6 +6,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc This module contains couchbase service management functions.
+%%% @end
 %%%--------------------------------------------------------------------
 -module(service_couchbase).
 -author("Krzysztof Trzepla").
@@ -32,6 +33,7 @@
 
 %%--------------------------------------------------------------------
 %% @doc {@link service_behaviour:name/0}
+%% @end
 %%--------------------------------------------------------------------
 -spec name() -> Name :: service:name().
 name() ->
@@ -40,6 +42,7 @@ name() ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link service_behaviour:get_hosts/0}
+%% @end
 %%--------------------------------------------------------------------
 -spec get_hosts() -> Hosts :: [service:host()].
 get_hosts() ->
@@ -48,6 +51,7 @@ get_hosts() ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link service_behaviour:get_nodes/0}
+%% @end
 %%--------------------------------------------------------------------
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
@@ -56,6 +60,7 @@ get_nodes() ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link service_behaviour:get_steps/2}
+%% @end
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
@@ -93,6 +98,7 @@ get_steps(Action, _Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc Configures the service.
+%% @end
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(_Ctx) ->
@@ -101,6 +107,7 @@ configure(_Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link service:start/1}
+%% @end
 %%--------------------------------------------------------------------
 -spec start(Ctx :: service:ctx()) -> ok | no_return().
 start(Ctx) ->
@@ -111,6 +118,7 @@ start(Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc Waits for the service initialization.
+%% @end
 %%--------------------------------------------------------------------
 -spec wait_for_init(Ctx :: service:ctx()) -> ok | no_return().
 wait_for_init(Ctx) ->
@@ -136,6 +144,7 @@ wait_for_init(Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link service:stop/1}
+%% @end
 %%--------------------------------------------------------------------
 -spec stop(Ctx :: service:ctx()) -> ok | no_return().
 stop(_Ctx) ->
@@ -144,6 +153,7 @@ stop(_Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link service:status/1}
+%% @end
 %%--------------------------------------------------------------------
 -spec status(Ctx :: service:ctx()) -> running | stopped | not_found.
 status(_Ctx) ->
@@ -152,6 +162,7 @@ status(_Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc Initializes the service cluster.
+%% @end
 %%--------------------------------------------------------------------
 -spec init_cluster(Ctx :: service:ctx()) -> ok | no_return().
 init_cluster(Ctx) ->
@@ -183,6 +194,7 @@ init_cluster(Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc Adds this host to the service cluster.
+%% @end
 %%--------------------------------------------------------------------
 -spec join_cluster(Ctx :: service:ctx()) -> ok | no_return().
 join_cluster(#{cluster_host := ClusterHost} = Ctx) ->
@@ -203,6 +215,7 @@ join_cluster(#{cluster_host := ClusterHost} = Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc Rebalances the service cluster.
+%% @end
 %%--------------------------------------------------------------------
 -spec rebalance_cluster(Ctx :: service:ctx()) -> ok | no_return().
 rebalance_cluster(Ctx) ->

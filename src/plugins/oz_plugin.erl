@@ -26,6 +26,7 @@
 
 %%--------------------------------------------------------------------
 %% @doc {@link oz_plugin_behaviour:get_oz_url/0}
+%% @end
 %%--------------------------------------------------------------------
 -spec get_oz_url() -> string().
 get_oz_url() ->
@@ -34,6 +35,7 @@ get_oz_url() ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link oz_plugin_behaviour:get_oz_rest_port/0}
+%% @end
 %%--------------------------------------------------------------------
 -spec get_oz_rest_port() -> integer().
 get_oz_rest_port() ->
@@ -42,6 +44,7 @@ get_oz_rest_port() ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link oz_plugin_behaviour:get_oz_rest_api_prefix/0}
+%% @end
 %%--------------------------------------------------------------------
 -spec get_oz_rest_api_prefix() -> string().
 get_oz_rest_api_prefix() ->
@@ -50,6 +53,7 @@ get_oz_rest_api_prefix() ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link oz_plugin_behaviour:get_key_path/0}
+%% @end
 %%--------------------------------------------------------------------
 -spec get_key_path() -> file:name_all().
 get_key_path() ->
@@ -58,6 +62,7 @@ get_key_path() ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link oz_plugin_behaviour:get_csr_path/0}
+%% @end
 %%--------------------------------------------------------------------
 -spec get_csr_path() -> file:name_all().
 get_csr_path() ->
@@ -66,6 +71,7 @@ get_csr_path() ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link oz_plugin_behaviour:get_cert_path/0}
+%% @end
 %%--------------------------------------------------------------------
 -spec get_cert_path() -> file:name_all().
 get_cert_path() ->
@@ -74,6 +80,7 @@ get_cert_path() ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link oz_plugin_behaviour:get_oz_url/0}
+%% @end
 %%--------------------------------------------------------------------
 -spec get_cacert_path() -> file:name_all().
 get_cacert_path() ->
@@ -82,6 +89,7 @@ get_cacert_path() ->
 
 %%--------------------------------------------------------------------
 %% @doc {@link oz_plugin_behaviour:auth_to_rest_client/1}
+%% @end
 %%--------------------------------------------------------------------
 -spec auth_to_rest_client(Auth :: term()) -> file:name_all().
 auth_to_rest_client(Auth) ->

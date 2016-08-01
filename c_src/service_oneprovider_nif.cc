@@ -1,14 +1,14 @@
 /*********************************************************************
-*  @author Krzysztof Trzepla
-*  @copyright (C): 2016 ACK CYFRONET AGH
-*  This software is released under the MIT license
-*  cited in 'LICENSE.txt'.
-*  @end
+* @author Krzysztof Trzepla
+* @copyright (C): 2016 ACK CYFRONET AGH
+* This software is released under the MIT license
+* cited in 'LICENSE.txt'.
+* @end
 **********************************************************************
-*  @doc This is an interface for Erlang NIF library. It contains one
-*  method that allows to create private key and Certificate Signing
-*  Request using Botan library.
-*  @end
+* @doc This is an interface for Erlang NIF library. It contains a method
+* that allows to create private key and Certificate Signing Request using
+* Botan library.
+* @end
 *********************************************************************/
 
 #include "nifpp.h"
@@ -75,6 +75,6 @@ static ERL_NIF_TERM create_csr_nif(
 
 static ErlNifFunc nif_funcs[] = {{"create_csr", 1, create_csr_nif}};
 
-ERL_NIF_INIT(service_oneprovider, nif_funcs, NULL, NULL, NULL, NULL)
+ERL_NIF_INIT(service_oneprovider_nif, nif_funcs, NULL, NULL, NULL, NULL)
 
 } // extern C

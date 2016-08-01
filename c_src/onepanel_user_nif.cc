@@ -1,14 +1,13 @@
 /*********************************************************************
-*  @author Krzysztof Trzepla
-*  @copyright (C): 2014 ACK CYFRONET AGH
-*  This software is released under the MIT license
-*  cited in 'LICENSE.txt'.
-*  @end
+* @author Krzysztof Trzepla
+* @copyright (C): 2016 ACK CYFRONET AGH
+* This software is released under the MIT license
+* cited in 'LICENSE.txt'.
+* @end
 **********************************************************************
-*  @doc This is an interface for Erlang NIF library. It contains two
-*  methods that allows to hash user's password and verify user's identity
-*  using Botan library.
-*  @end
+* @doc This is an interface for Erlang NIF library. It contains methods that
+* allows to hash user's password and verify user's identity using Botan library.
+* @end
 *********************************************************************/
 
 #include "nifpp.h"
@@ -77,6 +76,6 @@ static ERL_NIF_TERM check_password_nif(
 static ErlNifFunc nif_funcs[] = {{"hash_password", 2, hash_password_nif},
     {"check_password", 2, check_password_nif}};
 
-ERL_NIF_INIT(onepanel_user, nif_funcs, NULL, NULL, NULL, NULL)
+ERL_NIF_INIT(onepanel_user_nif, nif_funcs, NULL, NULL, NULL, NULL)
 
 } // extern C

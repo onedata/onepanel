@@ -5,6 +5,31 @@
       "target_dir": "rel/test_cluster"
     }
   },
+  "os_configs": {
+    "cfg1": {
+      "storages": [
+        {
+          "type": "posix",
+          "name": "/mnt/st1"
+        },
+        {
+          "type": "posix",
+          "name": "/mnt/st2"
+        },
+        {
+          "type": "ceph",
+          "name": "someCeph",
+          "pool": "onedata:8"
+        },
+        {
+          "type": "s3",
+          "name": "someS3",
+          "bucket": "onedata",
+          "disable_iam_mock": false
+        }
+      ]
+    }
+  },
   "onepanel_domains": {
     "onezone": {
       "image": "docker.onedata.org/onepanel:onezone",
@@ -29,6 +54,7 @@
     },
     "oneprovider": {
       "image": "docker.onedata.org/onepanel:oneprovider",
+      "os_config": "cfg1",
       "onepanel": {
         "node1": {
           "vm.args": {

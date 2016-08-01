@@ -45,6 +45,7 @@
 
 %%--------------------------------------------------------------------
 %% @doc Cowboy callback function. Upgrades the protocol to cowboy_rest.
+%% @end
 %%--------------------------------------------------------------------
 -spec init({TransportName :: atom(), ProtocolName :: http},
     Req :: cowboy_req:req(), Opts :: any()) -> {upgrade, protocol, cowboy_rest}.
@@ -54,6 +55,7 @@ init({_, http}, _Req, _Opts) ->
 
 %%--------------------------------------------------------------------
 %% @doc Cowboy callback function. Initializes the state for this request.
+%% @end
 %%--------------------------------------------------------------------
 -spec rest_init(Req :: cowboy_req:req(), State :: state()) ->
     {ok, cowboy_req:req(), state()}.
@@ -63,6 +65,7 @@ rest_init(Req, #rstate{} = State) ->
 
 %%--------------------------------------------------------------------
 %% @doc Cowboy callback function. Returns the list of allowed methods.
+%% @end
 %%--------------------------------------------------------------------
 -spec allowed_methods(Req :: cowboy_req:req(), State :: state()) ->
     {[binary()], cowboy_req:req(), state()}.
@@ -140,12 +143,13 @@ forbidden(Req, #rstate{module = Module, methods = Methods} = State) ->
         {not Authorized, Req5, State}
     catch
         Type:Reason ->
-            {true, rest_utils:handle_errors(Req, Type, ?error(Reason)), State}
+            {true, rest_replier:handle_error(Req, Type, ?error(Reason)), State}
     end.
 
 
 %%--------------------------------------------------------------------
 %% @doc Cowboy callback function. Returns whether the resource exists.
+%% @end
 %%--------------------------------------------------------------------
 -spec resource_exists(Req :: cowboy_req:req(), State :: state()) ->
     {boolean(), cowboy_req:req(), state()}.
@@ -162,7 +166,7 @@ resource_exists(Req, #rstate{module = Module, methods = Methods} = State) ->
         {Exists, Req5, State}
     catch
         Type:Reason ->
-            {false, rest_utils:handle_errors(Req, Type, ?error(Reason)), State}
+            {false, rest_replier:handle_error(Req, Type, ?error(Reason)), State}
     end.
 
 
@@ -180,12 +184,13 @@ accept_resource_json(Req, #rstate{} = State) ->
         accept_resource(Req2, Data, State)
     catch
         Type:Reason ->
-            {false, rest_utils:handle_errors(Req, Type, ?error(Reason)), State}
+            {false, rest_replier:handle_error(Req, Type, ?error(Reason)), State}
     end.
 
 
 %%--------------------------------------------------------------------
 %% @doc Cowboy callback function. Provides the resource.
+%% @end
 %%--------------------------------------------------------------------
 -spec provide_resource(Req :: cowboy_req:req(), State :: state()) ->
     {iodata(), cowboy_req:req(), state()}.
@@ -203,12 +208,13 @@ provide_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
         {Json, Req5, State}
     catch
         Type:Reason ->
-            {false, rest_utils:handle_errors(Req, Type, ?error(Reason)), State}
+            {false, rest_replier:handle_error(Req, Type, ?error(Reason)), State}
     end.
 
 
 %%--------------------------------------------------------------------
 %% @doc Cowboy callback function. Deletes the resource.
+%% @end
 %%--------------------------------------------------------------------
 -spec delete_resource(Req :: cowboy_req:req(), State :: state()) ->
     {boolean(), cowboy_req:req(), state()}.
@@ -225,7 +231,7 @@ delete_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
         {Deleted, Req5, State}
     catch
         Type:Reason ->
-            {false, rest_utils:handle_errors(Req, Type, ?error(Reason)), State}
+            {false, rest_replier:handle_error(Req, Type, ?error(Reason)), State}
     end.
 
 %%%===================================================================
@@ -234,6 +240,7 @@ delete_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
 
 %%--------------------------------------------------------------------
 %% @doc Cowboy callback function. Processes the request body.
+%% @end
 %%--------------------------------------------------------------------
 -spec accept_resource(Req :: cowboy_req:req(), Data :: data(), State :: state()) ->
     {{true, URL :: binary()} | boolean(), cowboy_req:req(), state()}.
@@ -254,6 +261,7 @@ accept_resource(Req, Data, #rstate{module = Module, methods = Methods} =
 
 %%--------------------------------------------------------------------
 %% @doc Authorizes user using basic authorization method.
+%% @end
 %%--------------------------------------------------------------------
 -spec authorize_by_basic_auth(Req :: cowboy_req:req(), State :: state()) ->
     {Authorized :: boolean(), Req :: cowboy_req:req(), NewState :: state()}.
@@ -269,7 +277,7 @@ authorize_by_basic_auth(Req, State) ->
                     {false, Req2, State}
             catch
                 Type:Reason ->
-                    {false, rest_utils:handle_errors(Req2, Type, ?error(Reason)), State}
+                    {false, rest_replier:handle_error(Req2, Type, ?error(Reason)), State}
             end;
         {_, Req2} ->
             {false, Req2, State}
