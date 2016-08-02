@@ -146,7 +146,7 @@ leave_should_remove_node(Config) ->
         [?SERVICE, leave_cluster, #{hosts => [Host1]}]
     )),
 
-    ?assertEqual([Host1], lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
+    ?assertEqual([], lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
     ?assertEqual(Hosts, lists:sort(rpc:call(Node2, service_onepanel, get_hosts, []))),
     ?assertEqual(Hosts, lists:sort(rpc:call(Node3, service_onepanel, get_hosts, []))).
 
@@ -157,7 +157,7 @@ leave_should_remove_node(Config) ->
 init_per_testcase(_Case, Config) ->
     NewConfig = ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json")),
     onepanel_test_utils:set_test_envs(?config(onepanel_nodes, NewConfig)),
-    NewConfig.
+    onepanel_test_utils:ensure_started(NewConfig).
 
 
 end_per_testcase(_Case, Config) ->

@@ -51,15 +51,19 @@ get_hosts() ->
 %%--------------------------------------------------------------------
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
-    mnesia:system_info(db_nodes).
+    try
+        mnesia:table_info(schema, disc_copies)
+    catch
+        _:{aborted, {no_exists, schema, disc_copies}} -> []
+    end.
 
 
 %%--------------------------------------------------------------------
 %% @doc {@link service_behaviour:get_steps/2}
 %% @end
 %%--------------------------------------------------------------------
--spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
-    Steps :: [service:step()].
+        - spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
+Steps :: [service:step()].
 get_steps(deploy, #{cookie := _, hosts := Hosts} = Ctx) ->
     [
         #steps{action = init_cluster, ctx = Ctx},
@@ -132,11 +136,11 @@ set_cookie(#{cookie := Cookie} = Ctx) ->
 purge_node(_Ctx) ->
     Host = onepanel_cluster:node_to_host(),
     ok = mnesia:start(),
+    Nodes = lists:delete(node(), get_nodes()),
     delete_tables(),
     mnesia:stop(),
     ok = mnesia:delete_schema([node()]),
-    onepanel_rpc:call_any(lists:delete(node(), get_nodes()), ?MODULE,
-        remove_nodes, [#{hosts => [Host]}]).
+    onepanel_rpc:call_any(Nodes, ?MODULE, remove_nodes, [#{hosts => [Host]}]).
 
 
 %%--------------------------------------------------------------------
@@ -149,7 +153,7 @@ create_tables(_Ctx) ->
     ok = mnesia:start(),
 
     Tables = lists:map(fun(Model) ->
-        Table = model:table_name(Model),
+        Table = model:get_table_name(Model),
         {atomic, ok} = mnesia:create_table(Table, [
             {attributes, Model:get_fields()},
             {record_name, Model},
@@ -169,7 +173,7 @@ create_tables(_Ctx) ->
 copy_tables(_Ctx) ->
     {atomic, ok} = mnesia:change_table_copy_type(schema, node(), disc_copies),
     Tables = lists:map(fun(Model) ->
-        Table = model:table_name(Model),
+        Table = model:get_table_name(Model),
         {atomic, ok} = mnesia:add_table_copy(Table, node(), disc_copies),
         Table
     end, model:get_models()),
@@ -210,7 +214,7 @@ remove_nodes(#{hosts := Hosts}) ->
 -spec delete_tables() -> ok | no_return().
 delete_tables() ->
     lists:foreach(fun(Model) ->
-        Table = model:table_name(Model),
+        Table = model:get_table_name(Model),
         case mnesia:del_table_copy(Table, node()) of
             {atomic, ok} -> ok;
             {aborted, {no_exists, _}} -> ok;

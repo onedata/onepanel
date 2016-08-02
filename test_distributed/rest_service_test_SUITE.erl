@@ -543,8 +543,8 @@ put_should_configure_oneprovider_service(Config) ->
 %%%===================================================================
 
 init_per_suite(Config) ->
-    ?assertEqual(ok, application:start(etls)),
-    ?assertEqual(ok, hackney:start()),
+    application:start(etls),
+    hackney:start(),
     onepanel_test_utils:init(
         ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json"))
     ).

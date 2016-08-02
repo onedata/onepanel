@@ -36,7 +36,8 @@ is_authorized(Req, _Method, #rstate{client = #client{role = admin}}) ->
     {true, Req};
 
 is_authorized(Req, _Method, #rstate{resource = hosts}) ->
-    {onepanel_user:get_by_role(admin) == [], Req};
+    {(not model:exists(onepanel_user)) orelse
+        (onepanel_user:get_by_role(admin) == []), Req};
 
 is_authorized(Req, _Method, _State) ->
     {false, Req}.

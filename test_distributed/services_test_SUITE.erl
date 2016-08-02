@@ -307,7 +307,7 @@ init_per_suite(Config) ->
 
 
 end_per_suite(Config) ->
-    Config.%test_node_starter:clean_environment(Config).
+    test_node_starter:clean_environment(Config).
 
 
 init_per_testcase(_Case, Config) ->

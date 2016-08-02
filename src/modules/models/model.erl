@@ -15,9 +15,9 @@
 -include("modules/models.hrl").
 
 %% API
--export([table_name/1, get_models/0]).
--export([create/2, save/2, update/3, get/2, exists/2, delete/2, list/1, select/2,
-    size/1, clear/1, transaction/1]).
+-export([get_table_name/1, get_models/0]).
+-export([create/2, save/2, update/3, get/2, exists/2, delete/2, list/1]).
+-export([exists/1, select/2, size/1, clear/1, transaction/1]).
 
 -type model() :: atom().
 
@@ -29,8 +29,8 @@
 %% @doc Returns a table name associated with the model.
 %% @end
 %%--------------------------------------------------------------------
--spec table_name(Model :: model()) -> Name :: atom().
-table_name(Model) ->
+-spec get_table_name(Model :: model()) -> Name :: atom().
+get_table_name(Model) ->
     Model.
 
 
@@ -51,7 +51,7 @@ get_models() ->
     ok | #error{} | no_return().
 create(Model, Record) ->
     transaction(fun() ->
-        Table = table_name(Model),
+        Table = get_table_name(Model),
         Key = erlang:element(2, Record),
         case mnesia:read(Table, Key) of
             [] -> mnesia:write(Table, Record, write);
@@ -69,7 +69,7 @@ create(Model, Record) ->
     ok | no_return().
 save(Model, Record) ->
     transaction(fun() ->
-        Table = table_name(Model),
+        Table = get_table_name(Model),
         mnesia:write(Table, Record, write)
     end).
 
@@ -82,7 +82,7 @@ save(Model, Record) ->
     Diff :: model_behaviour:diff()) -> ok | no_return().
 update(Model, Key, Diff) ->
     transaction(fun() ->
-        Table = table_name(Model),
+        Table = get_table_name(Model),
         case mnesia:read(Table, Key) of
             [] -> mnesia:abort(?error(?ERR_NOT_FOUND, ?MODULE, update, 2,
                 [Model, Key, Diff]));
@@ -99,7 +99,7 @@ update(Model, Key, Diff) ->
     {ok, Record :: model_behaviour:record()} | #error{} | no_return().
 get(Model, Key) ->
     transaction(fun() ->
-        Table = table_name(Model),
+        Table = get_table_name(Model),
         case mnesia:read(Table, Key) of
             [] -> ?error(?ERR_NOT_FOUND, ?MODULE, get, 1, [Model, Key]);
             [Record] -> {ok, Record}
@@ -115,7 +115,7 @@ get(Model, Key) ->
     boolean() | no_return().
 exists(Model, Key) ->
     transaction(fun() ->
-        Table = table_name(Model),
+        Table = get_table_name(Model),
         case mnesia:read(Table, Key) of
             [] -> false;
             [_ | _] -> true
@@ -131,7 +131,7 @@ exists(Model, Key) ->
     ok | no_return().
 delete(Model, Key) ->
     transaction(fun() ->
-        Table = table_name(Model),
+        Table = get_table_name(Model),
         mnesia:delete(Table, Key, write)
     end).
 
@@ -147,6 +147,15 @@ list(Model) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc Returns 'true' if model table exists, otherwise false.
+%%--------------------------------------------------------------------
+-spec exists(Model :: model()) -> boolean().
+exists(Model) ->
+    Table = get_table_name(Model),
+    lists:member(Table, mnesia:system_info(tables)).
+
+
+%%--------------------------------------------------------------------
 %% @doc Returns a list of the selected model instances.
 %% @end
 %%--------------------------------------------------------------------
@@ -154,7 +163,7 @@ list(Model) ->
     Records :: [model_behaviour:record()] | no_return().
 select(Model, MatchSpec) ->
     transaction(fun() ->
-        Table = table_name(Model),
+        Table = get_table_name(Model),
         mnesia:select(Table, MatchSpec)
     end).
 
@@ -165,7 +174,7 @@ select(Model, MatchSpec) ->
 %%--------------------------------------------------------------------
 -spec size(Model :: model()) -> non_neg_integer().
 size(Model) ->
-    Table = table_name(Model),
+    Table = get_table_name(Model),
     mnesia:table_info(Table, size).
 
 
@@ -175,7 +184,7 @@ size(Model) ->
 %%--------------------------------------------------------------------
 -spec clear(Model :: model()) -> ok | #error{}.
 clear(Model) ->
-    Table = table_name(Model),
+    Table = get_table_name(Model),
     case mnesia:clear_table(Table) of
         {atomic, ok} -> ok;
         {aborted, Reason} -> ?error(Reason)

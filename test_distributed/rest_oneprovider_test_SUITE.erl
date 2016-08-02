@@ -237,8 +237,8 @@ delete_should_revoke_space_support(Config) ->
 %%%===================================================================
 
 init_per_suite(Config) ->
-    ?assertEqual(ok, application:start(etls)),
-    ?assertEqual(ok, hackney:start()),
+    application:start(etls),
+    hackney:start(),
     NewConfig = onepanel_test_utils:init(
         ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json"))
     ),

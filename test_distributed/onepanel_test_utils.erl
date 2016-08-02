@@ -11,12 +11,13 @@
 -module(onepanel_test_utils).
 -author("Krzysztof Trzepla").
 
+-include("names.hrl").
 -include("onepanel_test_utils.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 
 %% API
--export([init/1, set_test_envs/1, mock_start/1, assert_fields/2, assert_values/2,
-    clear_msg_inbox/0]).
+-export([init/1, ensure_started/1, set_test_envs/1, mock_start/1]).
+-export([assert_fields/2, assert_values/2, clear_msg_inbox/0]).
 
 -type config() :: proplists:proplist().
 
@@ -65,9 +66,21 @@ init(Config) ->
         {onepanel_hosts, onepanel_cluster:nodes_to_hosts(PanelNodes)} |
         lists:keydelete(onepanel_nodes, 1, Config)
     ],
-    ?assertAllEqual(ok, ?callAll(NewConfig, onepanel_utils, wait_until,
-        [rest_listener, get_status, [], {equal, ok}, 30])),
-    NewConfig.
+    ensure_started(NewConfig).
+
+
+%%--------------------------------------------------------------------
+%% @doc Waits until onepanel application is started on all nodes.
+%%--------------------------------------------------------------------
+-spec ensure_started(Config :: config()) -> Config :: config().
+ensure_started(Config) ->
+    Nodes = proplists:get_value(all_nodes, Config,
+        proplists:get_value(onepanel_nodes, Config)),
+    lists:foreach(fun(Node) ->
+        ?assertEqual(ok, rpc:call(Node, onepanel_utils, wait_until,
+            [application, ensure_started, [?APP_NAME], {equal, ok}, 30]))
+    end, Nodes),
+    Config.
 
 
 %%--------------------------------------------------------------------
