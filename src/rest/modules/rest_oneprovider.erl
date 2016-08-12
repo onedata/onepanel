@@ -48,7 +48,7 @@ is_authorized(Req, _Method, _State) ->
 -spec exists_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
 exists_resource(Req, _State) ->
-    {true, Req}.
+    {service:exists(?SERVICE), Req}.
 
 
 %%--------------------------------------------------------------------
@@ -88,9 +88,11 @@ accept_resource(Req, 'PUT', Args, #rstate{resource = spaces}) ->
 
     rest_utils:verify_any([storageId, storageName], Args),
 
-    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, support_space, Ctx5
-    ))}.
+    {true, rest_replier:handle_service_step(Req, service_oneprovider, support_space,
+        service_utils:throw_on_error(service:apply_sync(
+            ?SERVICE, support_space, Ctx5
+        ))
+    )}.
 
 
 %%--------------------------------------------------------------------

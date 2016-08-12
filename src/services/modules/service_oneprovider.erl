@@ -126,19 +126,28 @@ get_steps(status, _Ctx) ->
 
 get_steps(register, #{hosts := Hosts} = Ctx) ->
     [
-        #step{hosts = Hosts, module = service, function = save,
-            args = [#service{name = name()}], selection = first},
         #step{hosts = Hosts, function = configure, ctx = Ctx#{application => name()}},
         #step{hosts = service_onepanel:get_hosts(), function = configure,
             ctx = Ctx#{application => ?APP_NAME}},
-        #step{hosts = Hosts, function = register, selection = any}
+        #step{hosts = Hosts, function = register, selection = any},
+        #step{hosts = Hosts, module = service, function = save,
+            args = [#service{name = name()}], selection = any}
     ];
 
 get_steps(register, Ctx) ->
     get_steps(register, Ctx#{hosts => service_op_worker:get_hosts()});
 
+get_steps(unregister, #{hosts := Hosts} = Ctx) ->
+    [
+        #step{hosts = Hosts, module = service, function = delete,
+            args = [name()], selection = any},
+        #step{hosts = Hosts, function = unregister, selection = any, ctx = Ctx}
+    ];
+
+get_steps(unregister, Ctx) ->
+    get_steps(unregister, Ctx#{hosts => service_op_worker:get_hosts()});
+
 get_steps(Action, Ctx) when
-    Action =:= unregister;
     Action =:= get_details;
     Action =:= modify_details;
     Action =:= support_space;

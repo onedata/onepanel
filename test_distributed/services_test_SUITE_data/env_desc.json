@@ -39,7 +39,9 @@
             "setcookie": "test_cookie"
           },
           "sys.config": {
-            "onepanel": {}
+            "onepanel": {
+              "release": "onezone"
+            }
           }
         },
         "node2": {
@@ -47,7 +49,9 @@
             "setcookie": "test_cookie"
           },
           "sys.config": {
-            "onepanel": {}
+            "onepanel": {
+              "release": "onezone"
+            }
           }
         }
       }

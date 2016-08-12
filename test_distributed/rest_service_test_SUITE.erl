@@ -600,18 +600,18 @@ init_per_testcase(get_should_return_service_task_results, Config) ->
     test_utils:mock_expect(Nodes, service, exists_task, fun(_) -> true end),
     test_utils:mock_expect(Nodes, service, get_results, fun
         (<<"someTaskId1">>) -> [
-            {module1, function1, {[], []}},
-            {module2, function2, {[], []}},
-            {module3, function3, {[], []}},
+            {module1, function1},
+            {module2, function2},
+            {module3, function3},
             {task_finished, {service, action, ok}}
         ];
         (<<"someTaskId2">>) -> [
-            {module1, function1, {[], []}},
-            {module2, function2, {[], []}}
+            {module1, function1},
+            {module2, function2}
         ];
         (<<"someTaskId3">>) -> [
-            {module1, function1, {[], []}},
-            {module2, function2, {[], []}},
+            {module1, function1},
+            {module2, function2},
             {module3, function3, {[], [
                 {'node@host1', #error{}}, {'node@host2', #error{}}
             ]}},

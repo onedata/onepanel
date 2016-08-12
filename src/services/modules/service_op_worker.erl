@@ -64,14 +64,14 @@ get_nodes() ->
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
-get_steps(add_storages, #{hosts := Hosts, storages := Storages}) ->
-    case maps:size(Storages) of
-        0 -> [];
-        _ -> [#step{hosts = Hosts, function = add_storages, selection = any}]
-    end;
+get_steps(add_storages, #{hosts := Hosts, storages := _}) ->
+    [#step{hosts = Hosts, function = add_storages, selection = any}];
 
-get_steps(add_storages, #{storages := _Storages} = Ctx) ->
+get_steps(add_storages, #{storages := _} = Ctx) ->
     get_steps(add_storages, Ctx#{hosts => get_hosts()});
+
+get_steps(add_storages, _Ctx) ->
+    [];
 
 get_steps(get_storages, #{hosts := Hosts}) ->
     [#step{hosts = Hosts, function = get_storages, selection = any}];

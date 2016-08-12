@@ -132,8 +132,7 @@ translate(_Type, #error{module = model, function = get, reason = ?ERR_NOT_FOUND,
     args = [service, oz_worker]}) ->
     {<<"Operation Error">>, <<"Cluster Worker not configured.">>};
 
-translate(_Type, #error{reason = {error, 'No such file or directory'},
-    stacktrace = [{service_oneprovider, get_details, _, _} | _]}) ->
+translate(_Type, #error{reason = ?ERR_UNREGISTERED_PROVIDER}) ->
     {<<"Operation Error">>, <<"Unregistered provider.">>};
 
 translate(_Type, #error{module = Module, function = Function, arity = Arity,

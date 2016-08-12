@@ -62,8 +62,7 @@ get(Keys, Terms, Default) ->
 %% @doc @equiv store(Keys, Value, [])
 %% @end
 %%--------------------------------------------------------------------
--spec store(Keys :: keys(), Value :: value()) ->
-    NewTerms :: terms().
+-spec store(Keys :: keys(), Value :: value()) -> NewTerms :: terms().
 store(Keys, Value) ->
     store(Keys, Value, []).
 

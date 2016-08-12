@@ -24,10 +24,7 @@
 -record(service_error, {
     service :: service:name(),
     action :: service:action(),
-    module :: module(),
-    function :: atom(),
-    bad_results :: [{Node :: node(), Error :: #error{}}],
-    steps :: [{Module :: module(), Function :: atom(), Results :: term()}]
+    steps :: service_executor:results()
 }).
 
 -define(error(Reason), ?error(Reason, erlang:get_stacktrace())).
@@ -84,5 +81,7 @@ end).
 -define(ERR_STORAGE_TEST_FILE_VERIFICATION, storage_test_file_verification).
 -define(ERR_STORAGE_TEST_FILE_REMOVAL, storage_test_file_removal).
 -define(ERR_STORAGE_ADDITION, storage_addition).
+
+-define(ERR_UNREGISTERED_PROVIDER, unregistered_provider).
 
 -endif.

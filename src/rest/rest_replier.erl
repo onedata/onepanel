@@ -13,10 +13,11 @@
 -author("Krzysztof Trzepla").
 
 -include("modules/errors.hrl").
+-include("modules/logger.hrl").
 
 %% API
 -export([throw_on_service_error/2]).
--export([handle_error/3, handle_service_action_async/3]).
+-export([handle_error/3, handle_service_action_async/3, handle_service_step/4]).
 -export([format_error/2, format_service_status/2, format_service_host_status/2,
     format_service_task_results/1, format_service_step/3]).
 
@@ -65,6 +66,23 @@ handle_service_action_async(Req, TaskId, ApiVersion) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc Sets a formatted result of the single host service step in the response
+%% body.
+%% @end
+%%--------------------------------------------------------------------
+-spec handle_service_step(Req :: cowboy_req:req(), Module :: module(),
+    Function :: atom(), Results :: service_executor:results()) ->
+    Req :: cowboy_req:req().
+handle_service_step(Req, Module, Function, Results) ->
+    ?log_critical("Req: ~p", [Req]),
+    ?log_critical("Module: ~p", [Module]),
+    ?log_critical("Function: ~p", [Function]),
+    ?log_critical("Results: ~p", [Results]),
+    Body = json_utils:encode(format_service_step(Module, Function, Results)),
+    cowboy_req:set_resp_body(Body, Req).
+
+
+%%--------------------------------------------------------------------
 %% @doc Returns a formatted error description.
 %% @end
 %%--------------------------------------------------------------------
@@ -73,7 +91,7 @@ format_error(Type, #error{reason = #service_error{} = Error}) ->
     format_error(Type, Error);
 
 format_error(_Type, #service_error{service = Service, action = Action,
-    module = Module, function = Function, steps = Steps, bad_results = Results}) ->
+    steps = [{Module, Function, {_, Results}} | Steps]}) ->
     [
         {<<"error">>, <<"Service Error">>},
         {<<"description">>, onepanel_utils:join(["Action '", Action,
@@ -126,14 +144,12 @@ format_service_task_results(#error{} = Error) ->
 
 format_service_task_results(Results) ->
     case lists:reverse(Results) of
-        [{task_finished, {Service, Action, #error{}}},
-            {Module, Function, {_, BadResults}} | Steps] ->
-            [{<<"status">>, <<"error">>} | format_error(error, #service_error{
-                service = Service, action = Action, module = Module,
-                function = Function, bad_results = BadResults, steps = Steps
-            })];
         [{task_finished, {_, _, #error{} = Error}}] ->
             [{<<"status">>, <<"error">>} | format_error(error, Error)];
+        [{task_finished, {Service, Action, #error{}}} | Steps] ->
+            [{<<"status">>, <<"error">>} | format_error(error, #service_error{
+                service = Service, action = Action, steps = Steps
+            })];
         [{task_finished, {_, _, ok}} | Steps] ->
             [
                 {<<"status">>, <<"ok">>},
@@ -148,7 +164,7 @@ format_service_task_results(Results) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Returns a formatted result of a single host service step.
+%% @doc Returns a formatted result of the single host service step.
 %% @end
 %%--------------------------------------------------------------------
 -spec format_service_step(Module :: module(), Function :: atom(),
@@ -186,8 +202,11 @@ select_service_step(Module, Function, [_ | Results]) ->
 -spec format_service_task_steps(Steps :: [service_executor:step_result()]) ->
     [StepName :: binary()].
 format_service_task_steps(Steps) ->
-    lists:map(fun({Module, Function, _}) ->
-        onepanel_utils:join([Module, Function], <<":">>)
+    lists:filtermap(fun
+        ({Module, Function}) ->
+            {true, onepanel_utils:join([Module, Function], <<":">>)};
+        (_) ->
+            false
     end, Steps).
 
 

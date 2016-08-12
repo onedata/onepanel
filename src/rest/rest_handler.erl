@@ -47,8 +47,8 @@
 %% @doc Cowboy callback function. Upgrades the protocol to cowboy_rest.
 %% @end
 %%--------------------------------------------------------------------
--spec init({TransportName :: atom(), ProtocolName :: http},
-    Req :: cowboy_req:req(), Opts :: any()) -> {upgrade, protocol, cowboy_rest}.
+-spec init(Type :: {any(), http}, Req :: cowboy_req:req(), Opts :: any()) ->
+    {upgrade, protocol, cowboy_rest}.
 init({_, http}, _Req, _Opts) ->
     {upgrade, protocol, cowboy_rest}.
 
@@ -208,7 +208,7 @@ provide_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
         {Json, Req5, State}
     catch
         Type:Reason ->
-            {false, rest_replier:handle_error(Req, Type, ?error(Reason)), State}
+            {halt, rest_replier:handle_error(Req, Type, ?error(Reason)), State}
     end.
 
 
@@ -273,8 +273,8 @@ authorize_by_basic_auth(Req, State) ->
                 {ok, #onepanel_user{uuid = Uuid, role = Role}} ->
                     Client = #client{name = Username, id = Uuid, role = Role},
                     {true, Req2, State#rstate{client = Client}};
-                _ ->
-                    {false, Req2, State}
+                #error{} = Error ->
+                    {false, rest_replier:handle_error(Req2, error, Error), State}
             catch
                 Type:Reason ->
                     {false, rest_replier:handle_error(Req2, Type, ?error(Reason)), State}

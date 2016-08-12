@@ -100,15 +100,12 @@ throw_on_error(#error{} = Error) ->
 
 throw_on_error(Results) ->
     case lists:reverse(Results) of
-        [{task_finished, {Service, Action, #error{}}}, Step | Steps] ->
-            {Module, Function, {_, BadResults}} = Step,
-            ?throw(#service_error{
-                service = Service, action = Action,
-                module = Module, function = Function,
-                bad_results = BadResults, steps = lists:reverse(Steps)
-            });
         [{task_finished, {_, _, #error{} = Error}}] ->
             ?throw(Error);
+        [{task_finished, {Service, Action, #error{}}} | Steps] ->
+            ?throw(#service_error{
+                service = Service, action = Action, steps = lists:reverse(Steps)
+            });
         [{task_finished, {_, _, ok}} | Steps] ->
             lists:reverse(Steps)
     end.

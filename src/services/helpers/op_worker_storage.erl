@@ -259,7 +259,7 @@ translate_helper_args(#{<<"host_name">> := Hostname, <<"scheme">> := Scheme} = A
 translate_helper_args(#{<<"iam_host">> := Hostname, <<"iam_request_scheme">> := Scheme} = Args, Acc) ->
     NewArgs = maps:remove(<<"iam_host">>, maps:remove(<<"iam_request_scheme">>, Args)),
     IamHostname = <<Scheme/binary, ":", Hostname/binary>>,
-    translate_helper_args(NewArgs, [{iamHostname, IamHostname}, Acc]);
+    translate_helper_args(NewArgs, [{iamHostname, IamHostname} | Acc]);
 
 translate_helper_args(#{<<"bucket_name">> := Name} = Args, Acc) ->
     NewArgs = maps:remove(<<"bucket_name">>, Args),

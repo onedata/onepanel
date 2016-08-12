@@ -17,7 +17,8 @@
         kernel,
         stdlib,
         public_key,
-        crypto
+        crypto,
+        onepanel_gui
     ]},
     {mod, {onepanel_app, []}},
     {env, []}
