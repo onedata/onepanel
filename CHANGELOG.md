@@ -4,6 +4,11 @@
 CHANGELOG
 ---------
 
+### 3.0.0-RC2
+
+* VFS-2269 Enable Symmetric Multiprocessing
+
+
 ### 3.0.0-RC1
 
 * minor changes and improvements
