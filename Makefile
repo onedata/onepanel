@@ -4,50 +4,70 @@ REPO            ?= onepanel
 DISTRIBUTION    ?= none
 export DISTRIBUTION
 
-PKG_REVISION    ?= $(shell git describe --tags --always)
-PKG_VERSION     ?= $(shell git describe --tags --always | tr - .)
-PKG_BUILD        = 1
-PKG_VARS_CONFIG  = pkg.vars.config
-PKG_ID           = onepanel-$(PKG_VERSION)
-BASE_DIR         = $(shell pwd)
-ERLANG_BIN       = $(shell dirname $(shell which erl))
-REBAR           ?= $(BASE_DIR)/rebar
-OVERLAY_VARS    ?=
-
-BASE_DIR         = $(shell pwd)
+BASE_DIR        := $(shell pwd)
 GIT_URL := $(shell git config --get remote.origin.url | sed -e 's/\(\/[^/]*\)$$//g')
 GIT_URL := $(shell if [ "${GIT_URL}" = "file:/" ]; then echo 'ssh://git@git.plgrid.pl:7999/vfs'; else echo ${GIT_URL}; fi)
 ONEDATA_GIT_URL := $(shell if [ "${ONEDATA_GIT_URL}" = "" ]; then echo ${GIT_URL}; else echo ${ONEDATA_GIT_URL}; fi)
 export ONEDATA_GIT_URL
 
-.PHONY: deps doc
+PKG_REVISION    ?= $(shell git describe --tags --always)
+PKG_VERSION     ?= $(shell git describe --tags --always | tr - .)
+PKG_BUILD       := 1
+PKG_VARS_CONFIG := rel/pkg.vars.config
+ERLANG_BIN      := $(shell dirname $(shell which erl))
+REBAR           ?= $(BASE_DIR)/rebar
+TEMPLATE_SCRIPT := ./rel/templates/overlay.escript
+
+ifeq ($(strip $(REL_TYPE)),onezone)
+TEMPLATE_CONFIG := ./rel/templates/onezone.config
+PKG_ID          := oz-panel-$(PKG_VERSION)
+else ifeq ($(strip $(REL_TYPE)),oneprovider)
+TEMPLATE_CONFIG := ./rel/templates/oneprovider.config
+PKG_ID          := op-panel-$(PKG_VERSION)
+else
+TEMPLATE_CONFIG := ./rel/templates/dev.config
+PKG_ID          := onepanel-$(PKG_VERSION)
+endif
 
 all: rel
 
+.PHONY: deps
 deps:
 	./rebar get-deps
 
+.PHONY: compile
 compile:
 	./rebar compile
 
-generate:
+.PHONY: generate
+generate: template
 	./rebar generate $(OVERLAY_VARS)
 
+.PHONY: clean
 clean: relclean pkgclean
 	./rebar clean
 
+.PHONY: distclean
 distclean:
 	./rebar delete-deps
+
+.PHONY: template
+template:
+	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rel/pkg.vars.config.template
+	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rel/reltool.config.template
+	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rel/vars.config.template
 
 ##
 ## Testing targets
 ##
 
+.PHONY: eunit
 eunit:
 	./rebar eunit skip_deps=true suites=${SUITES}
 ## Rename all tests in order to remove duplicated names (add _(++i) suffix to each test)
 	@for tout in `find test -name "TEST-*.xml"`; do awk '/testcase/{gsub("_[0-9]+\"", "_" ++i "\"")}1' $$tout > $$tout.tmp; mv $$tout.tmp $$tout; done
 
+.PHONY: coverage
 coverage:
 	$(BASE_DIR)/bamboos/docker/coverage.escript $(BASE_DIR)
 
@@ -55,11 +75,14 @@ coverage:
 ## Release targets
 ##
 
+.PHONY: doc
 doc:
 	@./rebar doc skip_deps=true
 
+.PHONY: rel
 rel: deps compile generate
 
+.PHONY: relclean
 relclean:
 	rm -rf rel/onepanel
 
@@ -81,6 +104,7 @@ plt:
 
 
 # Dialyzes the project.
+.PHONY: dialyzer
 dialyzer: plt
 	dialyzer ./ebin --plt ${PLT} -Werror_handling -Wrace_conditions --fullpath
 
@@ -98,11 +122,11 @@ else
 	@echo "Building package for distribution $(DISTRIBUTION)"
 endif
 
-package/$(PKG_ID).tar.gz: deps
+package/$(PKG_ID).tar.gz:
 	mkdir -p package
 	rm -rf package/$(PKG_ID)
 	git archive --format=tar --prefix=$(PKG_ID)/ $(PKG_REVISION) | (cd package && tar -xf -)
-	${MAKE} -C package/$(PKG_ID) deps
+	${MAKE} -C package/$(PKG_ID) deps template
 	for dep in package/$(PKG_ID) package/$(PKG_ID)/deps/*; do \
 	     echo "Processing dependency: `basename $${dep}`"; \
 	     vsn=`git --git-dir=$${dep}/.git describe --tags 2>/dev/null`; \

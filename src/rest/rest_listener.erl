@@ -47,7 +47,7 @@ start() ->
     [{_, CaCertDer, _} | _] = public_key:pem_decode(CaCertPem),
 
     CommonRoutes = onepanel_api:routes(),
-    SpecificRoutes = case onepanel_env:get(release) of
+    SpecificRoutes = case onepanel_env:get(release_type) of
         oneprovider -> oneprovider_api:routes();
         onezone -> onezone_api:routes()
     end,

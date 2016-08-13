@@ -26,7 +26,7 @@
           },
           "sys.config": {
             "onepanel": {
-              "release": "onezone"
+              "release_type": "onezone"
             }
           }
         }

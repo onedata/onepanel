@@ -1,16 +1,14 @@
-%%
-%% Packaging
-%%
-{package_name, "onepanel"}.
-{package_install_name, "onepanel"}.
-{package_install_user, "onepanel"}.
+{package_name, "{{package_name}}"}.
+{package_install_name, "{{release_name}}"}.
+{package_install_user, "{{release_name}}"}.
 {package_runner_user, "root"}.
 {package_install_group, "onedata"}.
-{package_install_user_desc, "onedata panel user"}.
-{package_shortdesc, "Administrative panel."}.
-{package_desc, "The administrative panel for onedata cluster."}.
-{package_commands, {list, [[{name, "onepanel"}]]}}.
+{package_install_user_desc, "{{release_type}} panel user"}.
+{package_shortdesc, "{{release_type}} administrative panel"}.
+{package_desc, "The administrative panel for the {{release_type}}, part of the onedata project"}.
+{package_commands, {list, [[{name, "{{release_name}}"}]]}}.
 {package_patch_dir, "onedata-patches"}.
+{package_rel_type, "{{release_type}}"}.
 {bin_or_sbin, "sbin"}.
 {license_type, "MIT"}.
 {copyright, "2016 ACK CYFRONET AGH"}.
@@ -39,7 +37,6 @@
     "FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR\n"
     "OTHER DEALINGS IN THE SOFTWARE."}.
 {rpm_requires,
-    ", python"
     ", sed"}.
 {rpm_build_requires,
     ", automake"
@@ -58,10 +55,18 @@
     ", libsodium-devel"
     ", libtool"
     ", ninja-build"
+    ", openssl"
     ", python"}.
+{post_install_rpm_script,
+    "if [ \"$ONEPANEL_ADVERTISE_ADDRESS\" ]; then "
+    "   sed -i -e \"s/{advertise_address, .*}/{advertise_address, $ONEPANEL_ADVERTISE_ADDRESS}/g\" /etc/{{release_name}}/app.config; "
+    "fi; "
+    "if [ \"$ONEPANEL_AUTOSTART\" != false ]; then "
+    "   sed -i -e 's/-name .*/-name onepanel@`hostname -f`/g' /etc/{{release_name}}/vm.args; "
+    "   service {{release_name}} start; "
+    "fi"}.
 {deb_depends,
-    "python"
-    ", sed"}.
+    "sed"}.
 {deb_build_depends,
     "automake"
     ", cmake (>= 3.0.0)"
@@ -71,8 +76,17 @@
     ", git"
     ", golang-go"
     ", libbotan1.10-dev"
+    ", libssl-dev"
     ", libsodium-dev"
     ", libtool"
     ", ninja-build"
     ", pkg-config"
     ", python"}.
+{post_install_deb_script,
+    "if [ \"$ONEPANEL_ADVERTISE_ADDRESS\" ]; then "
+    "   sed -i -e \"s/{advertise_address, .*}/{advertise_address, \\\"$ONEPANEL_ADVERTISE_ADDRESS\\\"}/g\" /etc/{{release_name}}/app.config; "
+    "fi; "
+    "if [ \"$ONEPANEL_AUTOSTART\" != false ]; then "
+    "   sed -i -e \"s/-name .*/-name onepanel@`hostname -f`/g\" /etc/{{release_name}}/vm.args; "
+    "   service {{release_name}} start; "
+    "fi"}.

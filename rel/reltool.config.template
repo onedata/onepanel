@@ -4,7 +4,7 @@
     {lib_dirs, ["../deps"]},
     {erts, [{mod_cond, derived}, {app_file, strip}]},
     {app_file, strip},
-    {rel, "onepanel", "1.0.0",
+    {rel, "{{release_name}}", "1.0.0",
         [
             kernel,
             stdlib,
@@ -19,7 +19,7 @@
             kernel,
             stdlib
         ]},
-    {boot_rel, "onepanel"},
+    {boot_rel, "{{release_name}}"},
     {profile, embedded},
     {incl_cond, derived},
     {excl_archive_filters, [".*"]}, %% Do not archive built libs
@@ -29,7 +29,7 @@
     {app, onepanel, [{mod_cond, app}, {incl_cond, include}, {lib_dir, ".."}]}
 ]}.
 
-{target_dir, "onepanel"}.
+{target_dir, "{{release_name}}"}.
 
 {overlay_vars, "vars.config"}.
 
@@ -37,7 +37,7 @@
     %% Copy base files for starting and interacting with node
     {copy, "../deps/node_package/priv/base/erl", "{{erts_vsn}}/bin/erl"},
     {copy, "../deps/node_package/priv/base/nodetool", "{{erts_vsn}}/bin/nodetool"},
-    {template, "../deps/node_package/priv/base/runner", "bin/onepanel"},
+    {template, "../deps/node_package/priv/base/runner", "bin/{{release_name}}"},
     {template, "../deps/node_package/priv/base/env.sh", "lib/env.sh"},
 
     %% Copy config files
