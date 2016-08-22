@@ -12,9 +12,6 @@
 -author("Krzysztof Trzepla").
 -behaviour(service_behaviour).
 
--include("modules/logger.hrl").
--include("modules/models.hrl").
-
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 

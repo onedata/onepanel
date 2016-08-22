@@ -31,6 +31,7 @@
     services_stop_start_test/1
 ]).
 
+-define(SERVICE_OPA, service_onepanel:name()).
 -define(SERVICE_OP, service_oneprovider:name()).
 -define(SERVICE_OZ, service_onezone:name()).
 -define(SERVICE_CB, service_couchbase:name()).
@@ -126,8 +127,9 @@ service_oneprovider_get_supported_spaces_test(Config) ->
 service_op_worker_add_storage_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
     {ok, Posix} = onepanel_lists:get([storages, posix, '/mnt/st2'], Config),
-    {ok, Ceph} = onepanel_lists:get([storages, ceph, 'someCeph'], Config),
-    {ok, S3} = onepanel_lists:get([storages, s3, 'someS3'], Config),
+    {ok, Ceph} = onepanel_lists:get([storages, ceph, someCeph], Config),
+    {ok, S3} = onepanel_lists:get([storages, s3, someS3], Config),
+    {ok, Swift} = onepanel_lists:get([storages, swift, someSwift], Config),
     service_action(Node, op_worker, add_storages, #{
         hosts => [hd(?config(oneprovider_hosts, Config))],
         storages => #{
@@ -152,6 +154,16 @@ service_op_worker_add_storage_test(Config) ->
                     S3, binary))/binary>>,
                 iamHostname => <<"http://", (onepanel_utils:typed_get(iam_host,
                     S3, binary))/binary>>
+            },
+            <<"someSwift">> => #{
+                type => <<"swift">>,
+                username => onepanel_utils:typed_get(user_name, Swift, binary),
+                password => onepanel_utils:typed_get(password, Swift, binary),
+                authUrl => onepanel_utils:join(["http://",
+                    onepanel_utils:typed_get(host_name, Swift, binary), ":",
+                    onepanel_utils:typed_get(keystone_port, Swift, binary), "/v2.0/tokens"]),
+                tenantName => onepanel_utils:typed_get(tenant_name, Swift, binary),
+                containerName => <<"swift">>
             }
         }
     }),
@@ -252,6 +264,9 @@ init_per_suite(Config) ->
     OzHosts = onepanel_cluster:nodes_to_hosts(OzNodes),
     service_action(OzNode, ?SERVICE_OZ, deploy, #{
         cluster => #{
+            ?SERVICE_OPA => #{
+                hosts => OzHosts
+            },
             ?SERVICE_CB => #{
                 hosts => OzHosts
             },
@@ -269,6 +284,9 @@ init_per_suite(Config) ->
     {ok, Posix} = onepanel_lists:get([storages, posix, '/mnt/st1'], NewConfig),
     service_action(OpNode, ?SERVICE_OP, deploy, #{
         cluster => #{
+            ?SERVICE_OPA => #{
+                hosts => OpHosts
+            },
             ?SERVICE_CB => #{
                 hosts => OpHosts
             },

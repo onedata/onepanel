@@ -82,7 +82,8 @@ routes() ->
             module = rest_service,
             resource = task,
             methods = [#rmethod{
-                type = 'GET'
+                type = 'GET',
+                noauth = true
             }]
         }},
 
@@ -107,6 +108,22 @@ routes() ->
             }]
         }},
 
+        %% Create or join cluster
+        {<<"/api/v3/onepanel/hosts">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel,
+            resource = hosts,
+            methods = [#rmethod{
+                type = 'POST',
+                args_spec = rest_model:cookie_model(),
+                params_spec = #{
+                    %% Hostname of an existing cluster node.
+                    clusterHost => {string, optional}
+                },
+                noauth = true
+            }]
+        }},
+
         %% Create user
         {<<"/api/v3/onepanel/users">>, rest_handler, #rstate{
             version = 3,
@@ -115,22 +132,6 @@ routes() ->
             methods = [#rmethod{
                 type = 'POST',
                 args_spec = rest_model:user_create_request_model(),
-                noauth = true
-            }]
-        }},
-
-        %% Create or join cluster
-        {<<"/api/v3/onepanel/hosts">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_onepanel,
-            resource = hosts,
-            methods = [#rmethod{
-                type = 'PUT',
-                args_spec = rest_model:cookie_model(),
-                params_spec = #{
-                    %% Hostname of an existing cluster node.
-                    clusterHost => {string, optional}
-                },
                 noauth = true
             }]
         }}

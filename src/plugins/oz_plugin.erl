@@ -111,6 +111,6 @@ get_env(Key, Type) ->
     Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
     Name = service_op_worker:name(),
     Path = onepanel_env:get(op_worker_app_config_path),
-    {ok, Value} = onepanel_rpc:call_any(Nodes, onepanel_env, read, 
+    {ok, Value} = onepanel_rpc:call_any(Nodes, onepanel_env, read,
         [[Name, Key], Path]),
     onepanel_utils:convert(Value, Type).

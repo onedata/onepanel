@@ -127,6 +127,18 @@ parse_storage_params(<<"ceph">>, Params) ->
         },
         ceph_user,
         [get_helper_arg(username, Params), get_helper_arg(key, Params)]
+    };
+
+parse_storage_params(<<"swift">>, Params) ->
+    {
+        <<"Swift">>,
+        #{
+            <<"auth_url">> => get_helper_arg(authUrl, Params),
+            <<"container_name">> => get_helper_arg(containerName, Params),
+            <<"tenant_name">> => get_helper_arg(tenantName, Params)
+        },
+        swift_user,
+        [get_helper_arg(username, Params), get_helper_arg(password, Params)]
     }.
 
 
@@ -239,6 +251,7 @@ get_storage(Node, Storage) ->
 helper_name_to_type(<<"DirectIO">>) -> <<"posix">>;
 helper_name_to_type(<<"AmazonS3">>) -> <<"s3">>;
 helper_name_to_type(<<"Ceph">>) -> <<"ceph">>;
+helper_name_to_type(<<"Swift">>) -> <<"swift">>;
 helper_name_to_type(_) -> <<>>.
 
 
@@ -276,6 +289,18 @@ translate_helper_args(#{<<"cluster_name">> := Name} = Args, Acc) ->
 translate_helper_args(#{<<"pool_name">> := Name} = Args, Acc) ->
     NewArgs = maps:remove(<<"pool_name">>, Args),
     translate_helper_args(NewArgs, [{poolName, Name} | Acc]);
+
+translate_helper_args(#{<<"auth_url">> := Name} = Args, Acc) ->
+    NewArgs = maps:remove(<<"auth_url">>, Args),
+    translate_helper_args(NewArgs, [{authUrl, Name} | Acc]);
+
+translate_helper_args(#{<<"container_name">> := Name} = Args, Acc) ->
+    NewArgs = maps:remove(<<"container_name">>, Args),
+    translate_helper_args(NewArgs, [{containerName, Name} | Acc]);
+
+translate_helper_args(#{<<"tenant_name">> := Name} = Args, Acc) ->
+    NewArgs = maps:remove(<<"tenant_name">>, Args),
+    translate_helper_args(NewArgs, [{tenantName, Name} | Acc]);
 
 translate_helper_args(_Args, Acc) ->
     Acc.

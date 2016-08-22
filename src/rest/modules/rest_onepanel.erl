@@ -36,8 +36,7 @@ is_authorized(Req, _Method, #rstate{client = #client{role = admin}}) ->
     {true, Req};
 
 is_authorized(Req, _Method, #rstate{resource = hosts}) ->
-    {(not model:exists(onepanel_user)) orelse
-        (onepanel_user:get_by_role(admin) == []), Req};
+    {onepanel_user:get_by_role(admin) == [], Req};
 
 is_authorized(Req, _Method, _State) ->
     {false, Req}.
@@ -63,7 +62,7 @@ exists_resource(Req, _State) ->
 -spec accept_resource(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()}.
-accept_resource(Req, 'PUT', Args, #rstate{resource = hosts,
+accept_resource(Req, 'POST', Args, #rstate{resource = hosts,
     params = #{clusterHost := Host}}) ->
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?SERVICE, join_cluster, #{
@@ -73,7 +72,7 @@ accept_resource(Req, 'PUT', Args, #rstate{resource = hosts,
         }
     ))};
 
-accept_resource(Req, 'PUT', Args, #rstate{resource = hosts}) ->
+accept_resource(Req, 'POST', Args, #rstate{resource = hosts}) ->
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?SERVICE, init_cluster, #{
             hosts => [onepanel_cluster:node_to_host()],

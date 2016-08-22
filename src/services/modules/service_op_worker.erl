@@ -12,9 +12,6 @@
 -author("Krzysztof Trzepla").
 -behaviour(service_behaviour).
 
--include("modules/errors.hrl").
--include("modules/logger.hrl").
--include("modules/models.hrl").
 -include("service.hrl").
 -include_lib("hackney/include/hackney_lib.hrl").
 

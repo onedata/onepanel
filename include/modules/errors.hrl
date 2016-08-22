@@ -24,7 +24,9 @@
 -record(service_error, {
     service :: service:name(),
     action :: service:action(),
-    steps :: service_executor:results()
+    module :: module(),
+    function :: atom(),
+    bad_results :: onepanel_rpc:results()
 }).
 
 -define(error(Reason), ?error(Reason, erlang:get_stacktrace())).

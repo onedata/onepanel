@@ -20,7 +20,8 @@
 %% API
 -export([init/3, rest_init/2, allowed_methods/2, content_types_accepted/2,
     content_types_provided/2, is_authorized/2, forbidden/2, resource_exists/2,
-    delete_resource/2, accept_resource_json/2, provide_resource/2]).
+    delete_resource/2, accept_resource_json/2, accept_resource_yaml/2,
+    provide_resource/2]).
 
 -type version() :: non_neg_integer().
 -type accept_method_type() :: 'POST' | 'PATCH' | 'PUT'.
@@ -84,7 +85,10 @@ allowed_methods(Req, #rstate{methods = Methods} = State) ->
 -spec content_types_accepted(Req :: cowboy_req:req(), State :: state()) ->
     {[{binary(), atom()}], cowboy_req:req(), state()}.
 content_types_accepted(Req, #rstate{} = State) ->
-    {[{<<"application/json">>, accept_resource_json}], Req, State}.
+    {[
+        {<<"application/json">>, accept_resource_json},
+        {<<"application/x-yaml">>, accept_resource_yaml}
+    ], Req, State}.
 
 
 %%--------------------------------------------------------------------
@@ -116,7 +120,8 @@ is_authorized(Req, #rstate{methods = Methods} = State) ->
             {Method, Req3} = rest_utils:get_method(Req2),
             case lists:keyfind(Method, 2, Methods) of
                 #rmethod{noauth = true} ->
-                    {true, Req3, NewState#rstate{client = #client{}}};
+                    Req4 = cowboy_req:set_resp_body(<<>>, Req3),
+                    {true, Req4, NewState#rstate{client = #client{}}};
                 _ ->
                     {{false, <<"">>}, Req3, NewState}
             end
@@ -189,6 +194,25 @@ accept_resource_json(Req, #rstate{} = State) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc Cowboy callback function. Processes the request body of application/x-yaml
+%% content type.
+%% @end
+%%--------------------------------------------------------------------
+-spec accept_resource_yaml(Req :: cowboy_req:req(), State :: state()) ->
+    {boolean(), cowboy_req:req(), state()}.
+accept_resource_yaml(Req, #rstate{} = State) ->
+    try
+        {ok, Body, Req2} = cowboy_req:body(Req),
+        [Data] = yamerl_constr:string(Body),
+        Data2 = adjust_yaml_data(Data),
+        accept_resource(Req2, Data2, State)
+    catch
+        Type:Reason ->
+            {false, rest_replier:handle_error(Req, Type, ?error(Reason)), State}
+    end.
+
+
+%%--------------------------------------------------------------------
 %% @doc Cowboy callback function. Provides the resource.
 %% @end
 %%--------------------------------------------------------------------
@@ -239,7 +263,7 @@ delete_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc Cowboy callback function. Processes the request body.
+%% @private @doc Cowboy callback function. Processes the request body.
 %% @end
 %%--------------------------------------------------------------------
 -spec accept_resource(Req :: cowboy_req:req(), Data :: data(), State :: state()) ->
@@ -260,7 +284,7 @@ accept_resource(Req, Data, #rstate{module = Module, methods = Methods} =
 
 
 %%--------------------------------------------------------------------
-%% @doc Authorizes user using basic authorization method.
+%% @private @doc Authorizes user using basic authorization method.
 %% @end
 %%--------------------------------------------------------------------
 -spec authorize_by_basic_auth(Req :: cowboy_req:req(), State :: state()) ->
@@ -281,4 +305,22 @@ authorize_by_basic_auth(Req, State) ->
             end;
         {_, Req2} ->
             {false, Req2, State}
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private @doc Adjust data, that has been returned by YAML parser, by
+%% converting each parameter into binary.
+%% @end
+%%--------------------------------------------------------------------
+-spec adjust_yaml_data(Data :: data()) -> NewData :: data().
+adjust_yaml_data(Data) ->
+    case {io_lib:printable_unicode_list(Data), erlang:is_list(Data)} of
+        {false, true} -> lists:map(fun
+            ({Key, Value}) ->
+                {onepanel_utils:convert(Key, binary), adjust_yaml_data(Value)};
+            (Value) ->
+                onepanel_utils:convert(Value, binary)
+        end, Data);
+        {_, _} -> onepanel_utils:convert(Data, binary)
     end.

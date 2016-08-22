@@ -61,6 +61,17 @@ routes() ->
             }]
         }},
 
+        %% Get provider cluster configuration
+        {<<"/api/v3/onepanel/provider/configuration">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = service_oneprovider,
+            methods = [#rmethod{
+                type = 'GET',
+                noauth = true
+            }]
+        }},
+
         %% Get provider databases status
         {<<"/api/v3/onepanel/provider/databases">>, rest_handler, #rstate{
             version = 3,
@@ -81,7 +92,7 @@ routes() ->
             }]
         }},
 
-        %% Get provider managers
+        %% Get provider cluster managers status
         {<<"/api/v3/onepanel/provider/managers">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
@@ -91,7 +102,7 @@ routes() ->
             }]
         }},
 
-        %% Get provider manager status
+        %% Get provider cluster manager status
         {<<"/api/v3/onepanel/provider/managers/:host">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
@@ -141,7 +152,7 @@ routes() ->
             }]
         }},
 
-        %% Get provider workers
+        %% Get provider cluster workers status
         {<<"/api/v3/onepanel/provider/workers">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
@@ -151,7 +162,7 @@ routes() ->
             }]
         }},
 
-        %% Get cluster worker status
+        %% Get provider cluster worker status
         {<<"/api/v3/onepanel/provider/workers/:host">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
@@ -204,7 +215,7 @@ routes() ->
             }]
         }},
 
-        %% Start/stop provider managers
+        %% Start/stop provider cluster managers
         {<<"/api/v3/onepanel/provider/managers">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
@@ -213,14 +224,14 @@ routes() ->
                 type = 'PATCH',
                 params_spec = #{
                     %% Defines the intended state of the cluster manager
-                    %% service. The service will bestarted or stopped in order
+                    %% service. The service will be started or stopped in order
                     %% to match the requested state.
                     started => {boolean, {optional, true}}
                 }
             }]
         }},
 
-        %% Start/stop provider manager
+        %% Start/stop provider cluster manager
         {<<"/api/v3/onepanel/provider/managers/:host">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
@@ -229,14 +240,14 @@ routes() ->
                 type = 'PATCH',
                 params_spec = #{
                     %% Defines the intended state of the cluster manager
-                    %% service.  The service will be started or stopped in order
-                    %% to match the  requested state.
+                    %% service. The service will be started or stopped in order
+                    %% to match the requested state.
                     started => {boolean, {optional, true}}
                 }
             }]
         }},
 
-        %% Start/stop cluster worker service
+        %% Start/stop provider cluster workers
         {<<"/api/v3/onepanel/provider/workers">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
@@ -252,7 +263,7 @@ routes() ->
             }]
         }},
 
-        %% Start/stop provider workers
+        %% Start/stop provider cluster worker
         {<<"/api/v3/onepanel/provider/workers/:host">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
@@ -274,7 +285,7 @@ routes() ->
             module = rest_oneprovider,
             resource = provider,
             methods = [#rmethod{
-                type = 'PUT',
+                type = 'POST',
                 args_spec = rest_model:provider_register_request_model()
             }]
         }},
@@ -285,8 +296,9 @@ routes() ->
             module = rest_service,
             resource = service_oneprovider,
             methods = [#rmethod{
-                type = 'PUT',
-                args_spec = rest_model:provider_configuration_model()
+                type = 'POST',
+                args_spec = rest_model:provider_configuration_model(),
+                noauth = true
             }]
         }},
 
@@ -296,18 +308,18 @@ routes() ->
             module = rest_service,
             resource = service_couchbase,
             methods = [#rmethod{
-                type = 'PUT',
+                type = 'POST',
                 args_spec = rest_model:service_hosts_model()
             }]
         }},
 
-        %% Deploy provider managers
+        %% Deploy provider cluster managers
         {<<"/api/v3/onepanel/provider/managers">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
             resource = service_cluster_manager,
             methods = [#rmethod{
-                type = 'PUT',
+                type = 'POST',
                 args_spec = rest_model:manager_hosts_model()
             }]
         }},
@@ -318,7 +330,7 @@ routes() ->
             module = rest_oneprovider,
             resource = spaces,
             methods = [#rmethod{
-                type = 'PUT',
+                type = 'POST',
                 args_spec = rest_model:space_support_request_model()
             }]
         }},
@@ -329,20 +341,20 @@ routes() ->
             module = rest_service,
             resource = storages,
             methods = [#rmethod{
-                type = 'PUT',
+                type = 'POST',
                 %% The list of configuration details of storages to be added to
                 %% the provider deployment.
                 args_spec = rest_model:cluster_storages_list_model()
             }]
         }},
 
-        %% Deploy provider workers
+        %% Deploy provider cluster workers
         {<<"/api/v3/onepanel/provider/workers">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
             resource = service_op_worker,
             methods = [#rmethod{
-                type = 'PUT',
+                type = 'POST',
                 args_spec = rest_model:service_hosts_model()
             }]
         }}

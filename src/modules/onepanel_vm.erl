@@ -49,7 +49,7 @@ read(Key, Path) ->
 write(Key, Value, Path) ->
     case file:read_file(Path) of
         {ok, Content} ->
-            {ok, NewContent} =  set(Key, Value, Content),
+            {ok, NewContent} = set(Key, Value, Content),
             case file:write_file(Path, NewContent) of
                 ok -> ok;
                 {error, Reason} -> ?throw(Reason)

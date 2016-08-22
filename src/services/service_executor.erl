@@ -32,7 +32,7 @@
     {Module :: module(), Function :: atom(), HostsResults :: hosts_results()}.
 -type action_result() :: {task_finished, Service :: service:name(),
     Action :: service:action(), Result :: ok | #error{}}.
--type result()  :: action_result() | step_result().
+-type result() :: action_result() | step_result().
 -type results() :: [result()].
 
 -export_type([task_id/0, hosts_results/0, step_result/0, action_result/0,

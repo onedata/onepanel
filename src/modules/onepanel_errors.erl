@@ -90,6 +90,10 @@ translate(_Type, #error{reason = ?ERR_INVALID_USERNAME_OR_PASSWORD}) ->
 translate(_Type, #error{reason = ?ERR_BAD_NODE}) ->
     {<<"Invalid Request">>, <<"Node connection error.">>};
 
+translate(_Type, #error{reason = {?ERR_HOST_NOT_FOUND, Host}}) ->
+    {<<"Invalid Request">>, <<"Host not found: '",
+        (onepanel_utils:convert(Host, binary))/binary, "'.">>};
+
 translate(_Type, #error{reason = {?ERR_HOST_NOT_FOUND_FOR_ALIAS, Alias}}) ->
     {<<"Invalid Request">>, <<"Host not found for node: '",
         (onepanel_utils:convert(Alias, binary))/binary, "'.">>};

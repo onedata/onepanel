@@ -14,12 +14,13 @@
 
 -include("modules/errors.hrl").
 -include("modules/logger.hrl").
+-include("modules/models.hrl").
 
 %% API
 -export([throw_on_service_error/2]).
 -export([handle_error/3, handle_service_action_async/3, handle_service_step/4]).
 -export([format_error/2, format_service_status/2, format_service_host_status/2,
-    format_service_task_results/1, format_service_step/3]).
+    format_service_task_results/1, format_service_step/3, format_configuration/1]).
 
 -type response() :: proplists:proplist().
 
@@ -74,10 +75,6 @@ handle_service_action_async(Req, TaskId, ApiVersion) ->
     Function :: atom(), Results :: service_executor:results()) ->
     Req :: cowboy_req:req().
 handle_service_step(Req, Module, Function, Results) ->
-    ?log_critical("Req: ~p", [Req]),
-    ?log_critical("Module: ~p", [Module]),
-    ?log_critical("Function: ~p", [Function]),
-    ?log_critical("Results: ~p", [Results]),
     Body = json_utils:encode(format_service_step(Module, Function, Results)),
     cowboy_req:set_resp_body(Body, Req).
 
@@ -91,12 +88,11 @@ format_error(Type, #error{reason = #service_error{} = Error}) ->
     format_error(Type, Error);
 
 format_error(_Type, #service_error{service = Service, action = Action,
-    steps = [{Module, Function, {_, Results}} | Steps]}) ->
+    module = Module, function = Function, bad_results = Results}) ->
     [
         {<<"error">>, <<"Service Error">>},
         {<<"description">>, onepanel_utils:join(["Action '", Action,
             "' for a service '", Service, "' terminated with an error."])},
-        {<<"steps">>, format_service_task_steps(lists:reverse(Steps))},
         {<<"module">>, Module},
         {<<"function">>, Function},
         {<<"hosts">>, format_service_hosts_results(Results)}
@@ -146,10 +142,16 @@ format_service_task_results(Results) ->
     case lists:reverse(Results) of
         [{task_finished, {_, _, #error{} = Error}}] ->
             [{<<"status">>, <<"error">>} | format_error(error, Error)];
-        [{task_finished, {Service, Action, #error{}}} | Steps] ->
-            [{<<"status">>, <<"error">>} | format_error(error, #service_error{
-                service = Service, action = Action, steps = Steps
-            })];
+        [{task_finished, {Service, Action, #error{}}}, Step | Steps] ->
+            {Module, Function, {_, BadResults}} = Step,
+            [
+                {<<"status">>, <<"error">>},
+                {<<"steps">>, format_service_task_steps(lists:reverse(Steps))} |
+                format_error(error, #service_error{
+                    service = Service, action = Action, module = Module,
+                    function = Function, bad_results = BadResults
+                })
+            ];
         [{task_finished, {_, _, ok}} | Steps] ->
             [
                 {<<"status">>, <<"ok">>},
@@ -172,6 +174,28 @@ format_service_task_results(Results) ->
 format_service_step(Module, Function, Results) ->
     {[{_, HostResult}], []} = select_service_step(Module, Function, Results),
     HostResult.
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns formatted cluster configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec format_configuration(SModule :: module()) -> Response :: response().
+format_configuration(SModule) ->
+    DbHosts = service_couchbase:get_hosts(),
+    {ok, #service{hosts = CmHosts, ctx = #{main_host := MainCmHost}}} =
+        service:get(service_cluster_manager:name()),
+    WrkHosts = SModule:get_hosts(),
+    [
+        {<<"cluster">>, [
+            {<<"databases">>, onepanel_utils:convert(DbHosts, {seq, binary})},
+            {<<"managers">>, [
+                {<<"mainHost">>, onepanel_utils:convert(MainCmHost, binary)},
+                {<<"hosts">>, onepanel_utils:convert(CmHosts, {seq, binary})}
+            ]},
+            {<<"workers">>, onepanel_utils:convert(WrkHosts, {seq, binary})}
+        ]}
+    ].
 
 %%%===================================================================
 %%% Internal functions

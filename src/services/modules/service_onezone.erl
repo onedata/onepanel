@@ -13,12 +13,13 @@
 -behaviour(service_behaviour).
 
 -include("modules/errors.hrl").
--include("modules/logger.hrl").
+-include("modules/models.hrl").
 -include("service.hrl").
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
+-define(SERVICE_OPA, service_onepanel:name()).
 -define(SERVICE_CB, service_couchbase:name()).
 -define(SERVICE_CM, service_cluster_manager:name()).
 -define(SERVICE_OZW, service_oz_worker:name()).
@@ -69,16 +70,28 @@ get_nodes() ->
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, Ctx) ->
+    {ok, OpaCtx} = onepanel_maps:get([cluster, ?SERVICE_OPA], Ctx),
     {ok, CbCtx} = onepanel_maps:get([cluster, ?SERVICE_CB], Ctx),
     {ok, CmCtx} = onepanel_maps:get([cluster, ?SERVICE_CM], Ctx),
     {ok, OzwCtx} = onepanel_maps:get([cluster, ?SERVICE_OZW], Ctx),
+    AutoDeploy = case OpaCtx of
+        #{auto_deploy := true} -> true;
+        _ -> false
+    end,
+    Step = #step{verify_hosts = not AutoDeploy},
+    Steps = #steps{verify_hosts = not AutoDeploy},
     [
-        #steps{service = ?SERVICE_CB, action = deploy, ctx = CbCtx},
-        #step{service = ?SERVICE_CB, function = status, ctx = CbCtx},
-        #steps{service = ?SERVICE_CM, action = deploy, ctx = CmCtx},
-        #step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
-        #steps{service = ?SERVICE_OZW, action = deploy, ctx = OzwCtx},
-        #step{service = ?SERVICE_OZW, function = status, ctx = OzwCtx}
+        Steps#steps{service = ?SERVICE_OPA, action = deploy, ctx = OpaCtx,
+            condition = fun(_) -> AutoDeploy end},
+        Steps#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx},
+        Steps#steps{service = ?SERVICE_CB, action = deploy, ctx = CbCtx},
+        Step#step{service = ?SERVICE_CB, function = status, ctx = CbCtx},
+        Steps#steps{service = ?SERVICE_CM, action = deploy, ctx = CmCtx},
+        Step#step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
+        Steps#steps{service = ?SERVICE_OZW, action = deploy, ctx = OzwCtx},
+        Step#step{service = ?SERVICE_OZW, function = status, ctx = OzwCtx},
+        Step#step{module = service, function = save, ctx = OpaCtx,
+            args = [#service{name = name()}], selection = first}
     ];
 
 get_steps(start, _Ctx) ->

@@ -58,7 +58,7 @@ exists_resource(Req, _State) ->
 -spec accept_resource(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()}.
-accept_resource(Req, 'PUT', Args, #rstate{resource = provider}) ->
+accept_resource(Req, 'POST', Args, #rstate{resource = provider}) ->
     Ctx = onepanel_maps:get_store(onezoneDomainName, Args, onezone_domain),
     Ctx2 = onepanel_maps:get_store(name, Args, oneprovider_name, Ctx),
     Ctx3 = onepanel_maps:get_store(redirectionPoint, Args, oneprovider_redirection_point, Ctx2),
@@ -79,7 +79,7 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
         ?SERVICE, modify_details, Ctx4
     ))};
 
-accept_resource(Req, 'PUT', Args, #rstate{resource = spaces}) ->
+accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
     Ctx = onepanel_maps:get_store(name, Args, name),
     Ctx2 = onepanel_maps:get_store(token, Args, token, Ctx),
     Ctx3 = onepanel_maps:get_store(size, Args, size, Ctx2),

@@ -13,7 +13,6 @@
 -behaviour(service_behaviour).
 
 -include("modules/errors.hrl").
--include("modules/logger.hrl").
 -include("modules/models.hrl").
 -include("service.hrl").
 -include_lib("xmerl/include/xmerl.hrl").

@@ -42,11 +42,11 @@
 
 -define(COMMON_ENDPOINTS_WITH_METHODS, [
     {<<"/provider">>, get},
-    {<<"/provider">>, put},
+    {<<"/provider">>, post},
     {<<"/provider">>, patch},
     {<<"/provider">>, delete},
     {<<"/provider/spaces">>, get},
-    {<<"/provider/spaces">>, put},
+    {<<"/provider/spaces">>, post},
     {<<"/provider/spaces/someSpaceId">>, get},
     {<<"/provider/spaces/someSpaceId">>, delete}
 ]).
@@ -125,7 +125,7 @@ get_should_return_provider_details(Config) ->
 put_should_register_provider(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider">>, put, ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, [
+            Host, <<"/provider">>, post, ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, [
                 {<<"name">>, <<"someName">>},
                 {<<"redirectionPoint">>, <<"someUrl">>},
                 {<<"geoLongitude">>, 10.0},
@@ -188,7 +188,7 @@ put_should_create_or_support_space(Config) ->
         lists:foreach(fun(Body) ->
             {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
                 onepanel_test_rest:auth_request(
-                    Host, <<"/provider/spaces">>, put,
+                    Host, <<"/provider/spaces">>, post,
                     ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, Body
                 )
             ),

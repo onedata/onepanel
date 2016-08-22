@@ -24,6 +24,8 @@
     cookie_model/0,
     error_model/0,
     manager_hosts_model/0,
+    panel_configuration_model/0,
+    panel_configuration_users_model/0,
     posix_model/0,
     provider_cluster_configuration_model/0,
     provider_configuration_model/0,
@@ -32,6 +34,7 @@
     provider_details_model/0,
     provider_modify_request_model/0,
     provider_register_request_model/0,
+    provider_spaces_model/0,
     s3_model/0,
     service_error_model/0,
     service_hosts_model/0,
@@ -39,6 +42,7 @@
     service_status_host_model/0,
     space_details_model/0,
     space_support_request_model/0,
+    swift_model/0,
     task_status_model/0,
     user_create_request_model/0,
     user_details_model/0,
@@ -101,7 +105,7 @@ cluster_managers_model() ->
 %%--------------------------------------------------------------------
 -spec cluster_storages_model() -> {oneof, Oneof :: list()}.
 cluster_storages_model() ->
-    {oneof, [posix_model(), s3_model(), ceph_model()]}.
+    {oneof, [posix_model(), s3_model(), ceph_model(), swift_model()]}.
 
 %%--------------------------------------------------------------------
 %% @doc The list of supported storage types.
@@ -169,6 +173,26 @@ manager_hosts_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc The panel configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec panel_configuration_model() -> #{}.
+panel_configuration_model() ->
+    #{
+        %% The collection of user names associated with users properties.
+        users => #{'_' => panel_configuration_users_model()}
+    }.
+
+-spec panel_configuration_users_model() -> #{}.
+panel_configuration_users_model() ->
+    #{
+        %% The user role, one of 'admin' or 'regular'.
+        userRole => atom,
+        %% The user password.
+        password => string
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The POSIX storage configuration.
 %% @end
 %%--------------------------------------------------------------------
@@ -189,6 +213,9 @@ posix_model() ->
 -spec provider_cluster_configuration_model() -> #{}.
 provider_cluster_configuration_model() ->
     #{
+        %% Defines whether administrative cluster should be created from the
+        %% list of provided cluster nodes.
+        autoDeploy => {boolean, optional},
         %% The name of a domain common for all services in the cluster. Together
         %% with a node hostname constitutes a fully qualified domain name (FDQN)
         %% of the node.
@@ -211,7 +238,8 @@ provider_configuration_model() ->
     #{
         cluster => provider_cluster_configuration_model(),
         oneprovider => {provider_configuration_oneprovider_model(), optional},
-        onezone => {provider_configuration_onezone_model(), optional}
+        onezone => {provider_configuration_onezone_model(), optional},
+        onepanel => {panel_configuration_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -302,6 +330,17 @@ provider_register_request_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc The provider spaces details.
+%% @end
+%%--------------------------------------------------------------------
+-spec provider_spaces_model() -> #{}.
+provider_spaces_model() ->
+    #{
+        %% The list of IDs of spaces supported by a provider.
+        ids => [string]
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The Simple Storage Service configuration.
 %% @end
 %%--------------------------------------------------------------------
@@ -329,8 +368,16 @@ s3_model() ->
 -spec service_error_model() -> #{}.
 service_error_model() ->
     #{
+        %% The name of an error type.
+        error => string,
+        %% The detailed error description.
+        description => string,
+        %% The name of a module containing function that returned error.
+        module => {string, optional},
+        %% The name of a function that returned error.
+        function => {string, optional},
         %% The collection of hosts with associated error description.
-        hosts => #{'_' => error_model()}
+        hosts => {#{'_' => error_model()}, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -351,8 +398,9 @@ service_hosts_model() ->
 -spec service_status_model() -> #{}.
 service_status_model() ->
     #{
-        %% The collection of services with associated status information.
-        services => #{'_' => #{'_' => service_status_host_model()}}
+        %% The collection of hosts with associated service status, for each
+        %% hostwhere given service has been deployed.
+        hosts => {#{'_' => service_status_host_model()}, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -374,7 +422,7 @@ service_status_host_model() ->
 space_details_model() ->
     #{
         %% The ID of the space.
-        spaceId => string,
+        id => {string, optional},
         %% The name of the space.
         name => string,
         %% The collection of provider IDs with associated supported storage
@@ -408,6 +456,27 @@ space_support_request_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc The OpenStack Swift configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec swift_model() -> #{}.
+swift_model() ->
+    #{
+        %% The type of storage.
+        type => {equal, <<"swift">>},
+        %% The URL to OpenStack Keystone identity service.
+        authUrl => string,
+        %% The name of the tenant to which the user belongs.
+        tenantName => string,
+        %% The name of the Swift storage container.
+        containerName => string,
+        %% The Keystone authentication username.
+        username => string,
+        %% The Keystone authentication password.
+        password => string
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The result of a scheduled operation, e.g. database service
 %% configuration.
 %% @end
@@ -417,12 +486,17 @@ task_status_model() ->
     #{
         %% The operation status.
         status => string,
-        %% The list of operation steps that have been executed so far.
+        %% The list of operation steps that have been executed successfully.
         steps => [string],
-        %% The collection of hosts with associated error description. This
-        %% property is set only when an error occurred during operation
-        %% execution, i.e. the value of property 'status' is set to
-        %% 'error'.
+        %% The name of an error type.
+        error => {string, optional},
+        %% The detailed error description.
+        description => {string, optional},
+        %% The name of a module containing function that returned error.
+        module => {string, optional},
+        %% The name of a function that returned error.
+        function => {string, optional},
+        %% The collection of hosts with associated error description.
         hosts => {#{'_' => error_model()}, optional}
     }.
 
@@ -476,6 +550,9 @@ user_modify_request_model() ->
 -spec zone_cluster_configuration_model() -> #{}.
 zone_cluster_configuration_model() ->
     #{
+        %% Defines whether administrative cluster should be created from the
+        %% list of provided cluster nodes.
+        autoDeploy => {boolean, optional},
         %% The name of a domain common for all services in the cluster. Together
         %% with a node hostname constitute a node fully qualified domain name.
         domainName => string,
@@ -501,7 +578,8 @@ zone_cluster_configuration_nodes_model() ->
 zone_configuration_model() ->
     #{
         cluster => zone_cluster_configuration_model(),
-        onezone => {zone_configuration_onezone_model(), optional}
+        onezone => {zone_configuration_onezone_model(), optional},
+        onepanel => {panel_configuration_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -516,3 +594,4 @@ zone_configuration_onezone_model() ->
         %% The name of a HTTP domain.
         domainName => {string, optional}
     }.
+

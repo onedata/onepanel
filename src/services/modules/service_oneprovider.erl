@@ -13,7 +13,6 @@
 -behaviour(service_behaviour).
 
 -include("modules/errors.hrl").
--include("modules/logger.hrl").
 -include("modules/models.hrl").
 -include("names.hrl").
 -include("service.hrl").
@@ -27,6 +26,7 @@
 -export([configure/1, register/1, unregister/1, modify_details/1, get_details/1,
     support_space/1, revoke_space_support/1, get_spaces/1, get_space_details/1]).
 
+-define(SERVICE_OPA, service_onepanel:name()).
 -define(SERVICE_CB, service_couchbase:name()).
 -define(SERVICE_CM, service_cluster_manager:name()).
 -define(SERVICE_OPW, service_op_worker:name()).
@@ -77,24 +77,36 @@ get_nodes() ->
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, Ctx) ->
+    {ok, OpaCtx} = onepanel_maps:get([cluster, ?SERVICE_OPA], Ctx),
     {ok, CbCtx} = onepanel_maps:get([cluster, ?SERVICE_CB], Ctx),
     {ok, CmCtx} = onepanel_maps:get([cluster, ?SERVICE_CM], Ctx),
     {ok, OpwCtx} = onepanel_maps:get([cluster, ?SERVICE_OPW], Ctx),
     StorageCtx = onepanel_maps:get([cluster, storages], Ctx, #{}),
     OpCtx = onepanel_maps:get(name(), Ctx, #{}),
+    AutoDeploy = case OpaCtx of
+        #{auto_deploy := true} -> true;
+        _ -> false
+    end,
     Register = fun
         (#{oneprovider_register := true}) -> true;
         (_) -> false
     end,
+    Step = #step{verify_hosts = not AutoDeploy},
+    Steps = #steps{verify_hosts = not AutoDeploy},
     [
-        #steps{service = ?SERVICE_CB, action = deploy, ctx = CbCtx},
-        #step{service = ?SERVICE_CB, function = status, ctx = CbCtx},
-        #steps{service = ?SERVICE_CM, action = deploy, ctx = CmCtx},
-        #step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
-        #steps{service = ?SERVICE_OPW, action = deploy, ctx = OpwCtx},
-        #step{service = ?SERVICE_OPW, function = status, ctx = OpwCtx},
-        #steps{service = ?SERVICE_OPW, action = add_storages, ctx = StorageCtx},
-        #steps{action = register, ctx = OpCtx, condition = Register}
+        Steps#steps{service = ?SERVICE_OPA, action = deploy, ctx = OpaCtx,
+            condition = fun(_) -> AutoDeploy end},
+        Steps#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx},
+        Steps#steps{service = ?SERVICE_CB, action = deploy, ctx = CbCtx},
+        Step#step{service = ?SERVICE_CB, function = status, ctx = CbCtx},
+        Steps#steps{service = ?SERVICE_CM, action = deploy, ctx = CmCtx},
+        Step#step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
+        Steps#steps{service = ?SERVICE_OPW, action = deploy, ctx = OpwCtx},
+        Step#step{service = ?SERVICE_OPW, function = status, ctx = OpwCtx},
+        Steps#steps{service = ?SERVICE_OPW, action = add_storages, ctx = StorageCtx},
+        Steps#steps{action = register, ctx = OpCtx, condition = Register},
+        Step#step{module = service, function = save, ctx = OpaCtx,
+            args = [#service{name = name()}], selection = first}
     ];
 
 get_steps(start, _Ctx) ->
@@ -270,7 +282,7 @@ modify_details(Ctx) ->
     Params3 = onepanel_maps:get_store(oneprovider_geo_latitude, Ctx,
         <<"latitude">>, Params2),
     Params4 = onepanel_maps:get_store(oneprovider_geo_longitude, Ctx,
-        <<"longitude">>,  Params3),
+        <<"longitude">>, Params3),
     ok = oz_providers:modify_details(provider, maps:to_list(Params4)).
 
 

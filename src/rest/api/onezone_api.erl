@@ -31,6 +31,17 @@
     [{Path :: binary(), Module :: module(), State :: rest_handler:state()}].
 routes() ->
     [
+        %% Get zone cluster configuration
+        {<<"/api/v3/onepanel/zone/configuration">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = service_onezone,
+            methods = [#rmethod{
+                type = 'GET',
+                noauth = true
+            }]
+        }},
+
         %% Get zone databases status
         {<<"/api/v3/onepanel/zone/databases">>, rest_handler, #rstate{
             version = 3,
@@ -41,7 +52,7 @@ routes() ->
             }]
         }},
 
-        %% Get zone database
+        %% Get zone database status
         {<<"/api/v3/onepanel/zone/databases/:host">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
@@ -51,7 +62,7 @@ routes() ->
             }]
         }},
 
-        %% Get zone managers status
+        %% Get zone cluster managers status
         {<<"/api/v3/onepanel/zone/managers">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
@@ -61,7 +72,7 @@ routes() ->
             }]
         }},
 
-        %% Get zone manager status
+        %% Get zone cluster manager status
         {<<"/api/v3/onepanel/zone/managers/:host">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
@@ -71,7 +82,7 @@ routes() ->
             }]
         }},
 
-        %% Get zone workers
+        %% Get zone cluster workers status
         {<<"/api/v3/onepanel/zone/workers">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
@@ -81,7 +92,7 @@ routes() ->
             }]
         }},
 
-        %% Get zone worker status
+        %% Get zone cluster worker status
         {<<"/api/v3/onepanel/zone/workers/:host">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
@@ -123,7 +134,7 @@ routes() ->
             }]
         }},
 
-        %% Start/stop zone managers
+        %% Start/stop zone cluster managers
         {<<"/api/v3/onepanel/zone/managers">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
@@ -132,14 +143,14 @@ routes() ->
                 type = 'PATCH',
                 params_spec = #{
                     %% Defines the intended state of the cluster manager
-                    %% service. The service  will be started or stopped in order
+                    %% service. The service will be started or stopped in order
                     %% to match the requested state.
                     started => {boolean, {optional, true}}
                 }
             }]
         }},
 
-        %% Start/stop zone manager
+        %% Start/stop zone cluster manager
         {<<"/api/v3/onepanel/zone/managers/:host">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
@@ -155,7 +166,7 @@ routes() ->
             }]
         }},
 
-        %% Start/stop zone workers
+        %% Start/stop zone cluster workers
         {<<"/api/v3/onepanel/zone/workers">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
@@ -171,7 +182,7 @@ routes() ->
             }]
         }},
 
-        %% Start/stop zone worker
+        %% Start/stop zone cluster worker
         {<<"/api/v3/onepanel/zone/workers/:host">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
@@ -187,14 +198,15 @@ routes() ->
             }]
         }},
 
-        %% Create zone deployment
+        %% Configure zone deployment
         {<<"/api/v3/onepanel/zone/configuration">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
             resource = service_onezone,
             methods = [#rmethod{
-                type = 'PUT',
-                args_spec = rest_model:zone_configuration_model()
+                type = 'POST',
+                args_spec = rest_model:zone_configuration_model(),
+                noauth = true
             }]
         }},
 
@@ -204,29 +216,29 @@ routes() ->
             module = rest_service,
             resource = service_couchbase,
             methods = [#rmethod{
-                type = 'PUT',
+                type = 'POST',
                 args_spec = rest_model:service_hosts_model()
             }]
         }},
 
-        %% Deploy zone managers
+        %% Deploy zone cluster managers
         {<<"/api/v3/onepanel/zone/managers">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
             resource = service_cluster_manager,
             methods = [#rmethod{
-                type = 'PUT',
+                type = 'POST',
                 args_spec = rest_model:manager_hosts_model()
             }]
         }},
 
-        %% Deploy zone workers
+        %% Deploy zone cluster workers
         {<<"/api/v3/onepanel/zone/workers">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
             resource = service_oz_worker,
             methods = [#rmethod{
-                type = 'PUT',
+                type = 'POST',
                 args_spec = rest_model:service_hosts_model()
             }]
         }}

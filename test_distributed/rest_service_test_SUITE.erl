@@ -62,10 +62,9 @@
     {<<"/databases">>, patch},
     {<<"/managers">>, patch},
     {<<"/workers">>, patch},
-    {<<"/configuration">>, put},
-    {<<"/databases">>, put},
-    {<<"/managers">>, put},
-    {<<"/workers">>, put} |
+    {<<"/databases">>, post},
+    {<<"/managers">>, post},
+    {<<"/workers">>, post} |
     ?COMMON_HOST_ENDPOINTS_WITH_METHODS
 ]).
 
@@ -148,15 +147,6 @@ all() ->
 %%%===================================================================
 
 method_should_return_unauthorized_error(Config) ->
-    ?run(Config, fun({Host, _}) ->
-        ?assertMatch({ok, 401, _, _}, onepanel_test_rest:noauth_request(
-            Host, <<"/tasks/someTaskId">>, get
-        )),
-        ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/tasks/someTaskId">>, get, <<"someUser">>, <<"somePassword">>
-        ))
-    end, [{oneprovider_hosts, <<>>}, {onezone_hosts, <<>>}]),
-
     ?run(Config, fun({Host, Prefix}) ->
         lists:foreach(fun({Endpoint, Method}) ->
             ?assertMatch({ok, 401, _, _}, onepanel_test_rest:noauth_request(
@@ -326,7 +316,7 @@ put_should_add_storage(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
             Host, <<Prefix/binary, "/storages">>,
-            put, ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD,
+            post, ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD,
             ?STORAGES_JSON
         )),
         ?assertReceivedMatch({service, op_worker, add_storages, #{
@@ -360,7 +350,7 @@ put_should_configure_database_service(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
         {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, "/databases">>, put,
+                Host, <<Prefix/binary, "/databases">>, post,
                 ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD,
                 [{hosts, [<<"host1">>, <<"host2">>, <<"host3">>]}]
             )
@@ -378,7 +368,7 @@ put_should_configure_cluster_manager_service(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
         {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, "/managers">>, put,
+                Host, <<Prefix/binary, "/managers">>, post,
                 ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD,
                 [
                     {mainHost, <<"host1">>},
@@ -400,7 +390,7 @@ put_should_configure_cluster_worker_service(Config) ->
     ?run(Config, fun({Host, {Prefix, Service}}) ->
         {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, "/workers">>, put,
+                Host, <<Prefix/binary, "/workers">>, post,
                 ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD,
                 [{hosts, [<<"host1">>, <<"host2">>, <<"host3">>]}]
             )
@@ -422,7 +412,7 @@ put_should_configure_onezone_service(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
         {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, "/configuration">>, put,
+                Host, <<Prefix/binary, "/configuration">>, post,
                 ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD,
                 [
                     {<<"cluster">>, ?CLUSTER_JSON},
@@ -462,7 +452,7 @@ put_should_configure_oneprovider_service(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
         {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, "/configuration">>, put,
+                Host, <<Prefix/binary, "/configuration">>, post,
                 ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD,
                 [
                     {<<"cluster">>, [

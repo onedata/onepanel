@@ -21,7 +21,7 @@
 
 %% API
 -export([set_cookie/1, purge_node/1, create_tables/1, copy_tables/1,
-    add_nodes/1, remove_nodes/1]).
+    add_nodes/1, remove_nodes/1, add_users/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -62,8 +62,8 @@ get_nodes() ->
 %% @doc {@link service_behaviour:get_steps/2}
 %% @end
 %%--------------------------------------------------------------------
-        - spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
-Steps :: [service:step()].
+-spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
+    Steps :: [service:step()].
 get_steps(deploy, #{cookie := _, hosts := Hosts} = Ctx) ->
     [
         #steps{action = init_cluster, ctx = Ctx},
@@ -108,6 +108,12 @@ get_steps(leave_cluster, #{hosts := Hosts, cluster_hosts := ClusterHosts} = Ctx)
 
 get_steps(leave_cluster, Ctx) ->
     get_steps(leave_cluster, Ctx#{cluster_hosts => get_hosts()});
+
+get_steps(add_users, #{users := _}) ->
+    [#step{function = add_users, selection = any}];
+
+get_steps(add_users, _Ctx) ->
+    [];
 
 get_steps(Action, _Ctx) ->
     ?throw({action_not_supported, Action}).
@@ -203,6 +209,17 @@ remove_nodes(#{hosts := Hosts}) ->
         Node = onepanel_cluster:host_to_node(Host),
         {atomic, ok} = mnesia:del_table_copy(schema, Node)
     end, Hosts).
+
+
+%%--------------------------------------------------------------------
+%% @doc Adds users.
+%% @end
+%%--------------------------------------------------------------------
+-spec add_users(Ctx :: service:ctx()) -> ok.
+add_users(#{users := Users}) ->
+    maps:fold(fun(Username, #{password := Password, userRole := Role}, _) ->
+        onepanel_user:new(Username, Password, Role)
+    end, ok, Users).
 
 %%%===================================================================
 %%% Internal functions

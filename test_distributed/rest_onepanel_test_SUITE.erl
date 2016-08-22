@@ -83,8 +83,8 @@ method_should_return_forbidden_error(Config) ->
             Config, Endpoint, Method, ?REG_USER_NAME, ?REG_USER_PASSWORD
         ))
     end, [
-        {<<"/hosts">>, put},
-        {<<"/hosts?clusterHost=someHost">>, put},
+        {<<"/hosts">>, post},
+        {<<"/hosts?clusterHost=someHost">>, post},
         {<<"/hosts">>, get},
         {<<"/hosts?discovered=true">>, get}
     ]),
@@ -155,7 +155,7 @@ get_as_admin_should_return_cookie(Config) ->
 put_as_admin_should_init_cluster(Config) ->
     [Host | _] = ?config(onepanel_hosts, Config),
     ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
-        Config, "/hosts", put, ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD,
+        Config, "/hosts", post, ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD,
         [{cookie, ?COOKIE}]
     )),
     ?assertReceivedMatch({service, onepanel, init_cluster,
@@ -165,7 +165,7 @@ put_as_admin_should_init_cluster(Config) ->
 put_as_admin_should_extend_cluster(Config) ->
     [Host | _] = ?config(onepanel_hosts, Config),
     ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
-        Config, "/hosts?clusterHost=someHost", put,
+        Config, "/hosts?clusterHost=someHost", post,
         ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, [{cookie, ?COOKIE}]
     )),
     ?assertReceivedMatch({service, onepanel, join_cluster,

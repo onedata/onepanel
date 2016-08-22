@@ -12,9 +12,9 @@
 -author("Krzysztof Trzepla").
 
 -include("modules/errors.hrl").
+-include("modules/logger.hrl").
 -include("modules/models.hrl").
 -include("service.hrl").
--include("modules/logger.hrl").
 
 %% API
 -export([get_steps/3, format_steps/2, notify/2, partition_results/1,
@@ -31,15 +31,8 @@
 -spec get_steps(Service :: service:name(), Action :: service:action(),
     Ctx :: service:ctx()) -> Steps :: [#step{}].
 get_steps(Service, Action, Ctx) ->
-    Module = service:get_module(Service),
-    Steps = Module:get_steps(Action, Ctx),
-    lists:flatten(lists:map(fun
-        (#step{} = Step) ->
-            get_step(Service, Step, Ctx);
-        (#steps{} = NestedSteps) ->
-            get_nested_steps(Service, NestedSteps, Ctx)
-    end, Steps)).
-
+    get_steps(#steps{service = Service, action = Action, ctx = Ctx,
+        verify_hosts = true}).
 
 %%--------------------------------------------------------------------
 %% @doc Formats the service steps into a human-readable format.
@@ -102,9 +95,11 @@ throw_on_error(Results) ->
     case lists:reverse(Results) of
         [{task_finished, {_, _, #error{} = Error}}] ->
             ?throw(Error);
-        [{task_finished, {Service, Action, #error{}}} | Steps] ->
+        [{task_finished, {Service, Action, #error{}}}, Step | _] ->
+            {Module, Function, {_, BadResults}} = Step,
             ?throw(#service_error{
-                service = Service, action = Action, steps = lists:reverse(Steps)
+                service = Service, action = Action, module = Module,
+                function = Function, bad_results = BadResults
             });
         [{task_finished, {_, _, ok}} | Steps] ->
             lists:reverse(Steps)
@@ -115,37 +110,54 @@ throw_on_error(Results) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private @doc Substitutes default step values.
+%% @private @doc Substitutes default steps values.
+%% @end
 %%--------------------------------------------------------------------
--spec get_step(Service :: service:name(), Step :: #step{}, Ctx :: service:ctx()) ->
-    Step :: [] | #step{}.
-get_step(Service, #step{service = undefined} = Step, Ctx) ->
-    get_step(Service, Step#step{service = Service}, Ctx);
+-spec get_steps(Steps :: #steps{}) -> [#step{}].
+get_steps(#steps{service = Service, action = Action, ctx = Ctx, verify_hosts = Verify}) ->
+    Module = service:get_module(Service),
+    Steps = Module:get_steps(Action, Ctx),
+    lists:flatten(lists:map(fun
+        (#step{service = Service2, ctx = Ctx2, verify_hosts = Verify2} = Step) ->
+            get_step(Step#step{
+                service = utils:ensure_defined(Service2, undefined, Service),
+                ctx = utils:ensure_defined(Ctx2, undefined, Ctx),
+                verify_hosts = utils:ensure_defined(Verify2, undefined, Verify)
+            });
+        (#steps{service = Service2, ctx = Ctx2, verify_hosts = Verify2} = NestedSteps) ->
+            get_nested_steps(NestedSteps#steps{
+                service = utils:ensure_defined(Service2, undefined, Service),
+                ctx = utils:ensure_defined(Ctx2, undefined, Ctx),
+                verify_hosts = utils:ensure_defined(Verify2, undefined, Verify)
+            })
+    end, Steps)).
 
-get_step(Service, #step{service = StepService, module = undefined} = Step, Ctx) ->
-    Module = service:get_module(StepService),
-    get_step(Service, Step#step{module = Module}, Ctx);
 
-get_step(Service, #step{ctx = undefined} = Step, Ctx) ->
-    get_step(Service, Step#step{ctx = Ctx}, Ctx);
+%%--------------------------------------------------------------------
+%% @private @doc Substitutes default step values.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_step(Step :: #step{}) -> Step :: [] | #step{}.
+get_step(#step{service = Service, module = undefined} = Step) ->
+    get_step(Step#step{module = service:get_module(Service)});
 
-get_step(Service, #step{ctx = StepCtx, args = undefined} = Step, Ctx) ->
-    get_step(Service, Step#step{args = [StepCtx]}, Ctx);
+get_step(#step{ctx = Ctx, args = undefined} = Step) ->
+    get_step(Step#step{args = [Ctx]});
 
-get_step(Service, #step{hosts = undefined, ctx = #{hosts := Hosts}} = Step, Ctx) ->
-    get_step(Service, Step#step{hosts = Hosts}, Ctx);
+get_step(#step{hosts = undefined, ctx = #{hosts := Hosts}} = Step) ->
+    get_step(Step#step{hosts = Hosts});
 
-get_step(Service, #step{hosts = undefined, service = StepService} = Step, Ctx) ->
-    StepHosts = case service:get(StepService) of
+get_step(#step{hosts = undefined, service = Service} = Step) ->
+    Hosts2 = case service:get(Service) of
         {ok, #service{hosts = Hosts}} -> Hosts;
         #error{reason = ?ERR_NOT_FOUND} -> onepanel_cluster:nodes_to_hosts()
     end,
-    get_step(Service, Step#step{hosts = StepHosts}, Ctx);
+    get_step(Step#step{hosts = Hosts2});
 
-get_step(_Service, #step{hosts = []}, _Ctx) ->
+get_step(#step{hosts = []}) ->
     [];
 
-get_step(Service, #step{hosts = Hosts, verify_hosts = true} = Step, Ctx) ->
+get_step(#step{hosts = Hosts, verify_hosts = true} = Step) ->
     ClusterHosts = service_onepanel:get_hosts(),
     lists:foreach(fun(Host) ->
         case lists:member(Host, ClusterHosts) of
@@ -153,27 +165,23 @@ get_step(Service, #step{hosts = Hosts, verify_hosts = true} = Step, Ctx) ->
             false -> ?throw({?ERR_HOST_NOT_FOUND, Host})
         end
     end, Hosts),
-    get_step(Service, Step#step{verify_hosts = false}, Ctx);
+    get_step(Step#step{verify_hosts = false});
 
-get_step(Service, #step{hosts = Hosts, ctx = StepCtx, selection = any} = Step, Ctx) ->
+get_step(#step{hosts = Hosts, ctx = Ctx, selection = any} = Step) ->
     Host = utils:random_element(Hosts),
-    get_step(Service, Step#step{hosts = [Host], selection = all,
-        ctx = StepCtx#{rest => lists:delete(Host, Hosts)}
-    }, Ctx);
+    get_step(Step#step{hosts = [Host], selection = all,
+        ctx = Ctx#{rest => lists:delete(Host, Hosts)}});
 
-get_step(Service, #step{hosts = Hosts, ctx = StepCtx, selection = first} = Step, Ctx) ->
-    get_step(Service, Step#step{hosts = [hd(Hosts)],
-        ctx = StepCtx#{rest => tl(Hosts)}, selection = all
-    }, Ctx);
+get_step(#step{hosts = Hosts, ctx = Ctx, selection = first} = Step) ->
+    get_step(Step#step{hosts = [hd(Hosts)],
+        ctx = Ctx#{rest => tl(Hosts)}, selection = all});
 
-get_step(Service, #step{hosts = Hosts, ctx = StepCtx, selection = rest} = Step, Ctx) ->
-    get_step(Service, Step#step{hosts = tl(Hosts),
-        ctx = StepCtx#{first => hd(Hosts)}, selection = all
-    }, Ctx);
+get_step(#step{hosts = Hosts, ctx = StepCtx, selection = rest} = Step) ->
+    get_step(Step#step{hosts = tl(Hosts), ctx = StepCtx#{first => hd(Hosts)},
+        selection = all});
 
-get_step(_Service, #step{condition = StepCondition, ctx = StepCtx} =
-    Step, _Ctx) ->
-    case StepCondition(StepCtx) of
+get_step(#step{condition = Condition, ctx = Ctx} = Step) ->
+    case Condition(Ctx) of
         true -> Step;
         false -> []
     end.
@@ -181,25 +189,19 @@ get_step(_Service, #step{condition = StepCondition, ctx = StepCtx} =
 
 %%--------------------------------------------------------------------
 %% @private @doc Returns a list of steps for the nested service action.
+%% @end
 %%--------------------------------------------------------------------
--spec get_nested_steps(Service :: service:name(), Steps :: #steps{},
-    Ctx :: service:ctx()) -> Steps :: [#step{}].
-get_nested_steps(Service, #steps{service = undefined} = Steps, Ctx) ->
-    get_nested_steps(Service, Steps#steps{service = Service}, Ctx);
-
-get_nested_steps(Service, #steps{ctx = undefined} = Steps, Ctx) ->
-    get_nested_steps(Service, Steps#steps{ctx = Ctx}, Ctx);
-
-get_nested_steps(_Service, #steps{service = StepsService, action = StepsAction,
-    ctx = StepsCtx, condition = StepsCondition}, _Ctx) ->
-    case StepsCondition(StepsCtx) of
-        true -> get_steps(StepsService, StepsAction, StepsCtx);
+-spec get_nested_steps(Steps :: #steps{}) -> Steps :: [#step{}].
+get_nested_steps(#steps{ctx = Ctx, condition = Condition} = Steps) ->
+    case Condition(Ctx) of
+        true -> get_steps(Steps);
         false -> []
     end.
 
 
 %%--------------------------------------------------------------------
 %% @private @doc Logs the service action progress.
+%% @end
 %%--------------------------------------------------------------------
 -spec log(Msg :: {Stage :: service:stage(), Details}) -> ok when
     Details :: {Module, Function} | {Module, Function, Result},
@@ -227,6 +229,7 @@ log({step_end, {Module, Function, {_, Errors}}}) ->
 
 %%--------------------------------------------------------------------
 %% @private @doc Formats the service errors into a human-readable format.
+%% @end
 %%--------------------------------------------------------------------
 -spec format_errors(Errors :: [{Node, {error, Reason}} |{Node, {error, Reason,
     Stacktrace}}], Acc :: string()) -> Log :: string() when

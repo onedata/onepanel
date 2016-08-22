@@ -26,6 +26,11 @@
           "name": "someS3",
           "bucket": "onedata",
           "disable_iam_mock": false
+        },
+        {
+          "type": "swift",
+          "name": "someSwift",
+          "container": "swift"
         }
       ]
     }

@@ -20,14 +20,15 @@
     args :: term(),
     ctx :: service:ctx(),
     condition = fun(_) -> true end :: service:condition(),
-    verify_hosts = true :: boolean()
+    verify_hosts :: boolean()
 }).
 
 -record(steps, {
     service :: service:name(),
     action :: service:action(),
     ctx :: service:ctx(),
-    condition = fun(_) -> true end :: service:condition()
+    condition = fun(_) -> true end :: service:condition(),
+    verify_hosts :: boolean()
 }).
 
 -endif.

@@ -180,7 +180,11 @@ change_password(Username, NewPassword) ->
 %%--------------------------------------------------------------------
 -spec get_by_role(Role :: role()) -> Users :: [#onepanel_user{}] | no_return().
 get_by_role(Role) ->
-    model:select(?MODULE, [{#onepanel_user{role = Role, _ = '_'}, [], ['$_']}]).
+    case model:exists(onepanel_user) of
+        true -> model:select(?MODULE,
+            [{#onepanel_user{role = Role, _ = '_'}, [], ['$_']}]);
+        false -> []
+    end.
 
 
 %%--------------------------------------------------------------------
