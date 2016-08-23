@@ -62,7 +62,7 @@
     "   sed -i -e \"s/{advertise_address, .*}/{advertise_address, $ONEPANEL_ADVERTISE_ADDRESS}/g\" /etc/{{release_name}}/app.config; "
     "fi; "
     "if [ \"$ONEPANEL_AUTOSTART\" != false ]; then "
-    "   sed -i -e 's/-name .*/-name onepanel@`hostname -f`/g' /etc/{{release_name}}/vm.args; "
+    "   sed -i -e \"s/-name .*/-name onepanel@`hostname -f`/g\" /etc/{{release_name}}/vm.args; "
     "   service {{release_name}} start; "
     "fi"}.
 {deb_depends,

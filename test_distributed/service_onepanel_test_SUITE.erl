@@ -155,9 +155,8 @@ leave_should_remove_node(Config) ->
 %%%===================================================================
 
 init_per_testcase(_Case, Config) ->
-    NewConfig = ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json")),
-    onepanel_test_utils:set_test_envs(?config(onepanel_nodes, NewConfig)),
-    onepanel_test_utils:ensure_started(NewConfig).
+    onepanel_test_utils:ensure_started(
+        ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json"))).
 
 
 end_per_testcase(_Case, Config) ->

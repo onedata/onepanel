@@ -16,14 +16,12 @@
 -include_lib("ctool/include/test/assertions.hrl").
 
 %% API
--export([init/1, ensure_started/1, set_test_envs/1, mock_start/1]).
+-export([init/1, ensure_started/1, mock_start/1]).
 -export([assert_fields/2, assert_values/2, clear_msg_inbox/0]).
 
 -type config() :: proplists:proplist().
 
 -define(TEST_ENVS, [
-    {vm_args_path, "./etc/vm.args"},
-    {app_config_path, "./etc/app.config"},
     {cluster_manager_vm_args_path, "/etc/cluster_manager/vm.args"},
     {cluster_manager_app_config_path, "/etc/cluster_manager/app.config"},
     {cluster_manager_env_path, "/usr/lib/cluster_manager/lib/env.sh"},
@@ -71,6 +69,7 @@ init(Config) ->
 
 %%--------------------------------------------------------------------
 %% @doc Waits until onepanel application is started on all nodes.
+%% @end
 %%--------------------------------------------------------------------
 -spec ensure_started(Config :: config()) -> Config :: config().
 ensure_started(Config) ->
@@ -81,17 +80,6 @@ ensure_started(Config) ->
             [application, ensure_started, [?APP_NAME], {equal, ok}, 30]))
     end, Nodes),
     Config.
-
-
-%%--------------------------------------------------------------------
-%% @doc Overwrites the default application variables for the test purposes.
-%% @end
-%%--------------------------------------------------------------------
--spec set_test_envs(Nodes :: [node()]) -> ok.
-set_test_envs(Nodes) ->
-    lists:foreach(fun({Key, Value}) ->
-        rpc:multicall(Nodes, onepanel_env, set, [Key, Value])
-    end, ?TEST_ENVS).
 
 
 %%--------------------------------------------------------------------
@@ -160,6 +148,18 @@ filter_nodes(Segment, Nodes) ->
         Host = onepanel_cluster:node_to_host(Node),
         lists:member(erlang:atom_to_list(Segment), string:tokens(Host, "."))
     end, Nodes).
+
+
+%%--------------------------------------------------------------------
+%% @private @doc Overwrites the default application variables for the test
+%% purposes.
+%% @end
+%%--------------------------------------------------------------------
+-spec set_test_envs(Nodes :: [node()]) -> ok.
+set_test_envs(Nodes) ->
+    lists:foreach(fun({Key, Value}) ->
+        rpc:multicall(Nodes, onepanel_env, set, [Key, Value])
+    end, ?TEST_ENVS).
 
 
 %%--------------------------------------------------------------------
