@@ -40,7 +40,7 @@ is_authorized(Req, _Method, #rstate{client = #client{role = admin}}) ->
 
 is_authorized(Req, Method, #rstate{resource = Resource}) when
     (Method =:= 'POST' orelse Method =:= 'GET') andalso
-    (Resource =:= service_oneprovider orelse Resource =:= service_onezone) ->
+        (Resource =:= service_oneprovider orelse Resource =:= service_onezone) ->
     {onepanel_user:get_by_role(admin) == [], Req};
 
 is_authorized(Req, 'GET', #rstate{resource = task}) ->
@@ -74,7 +74,8 @@ exists_resource(Req, #rstate{resource = SModule, bindings = #{host := Host}}) ->
 
 exists_resource(Req, #rstate{resource = SModule}) ->
     case lists:member(SModule, ?SERVICES) of
-        true -> {model:exists(service) andalso service:exists(SModule:name()), Req};
+        true ->
+            {model:exists(service) andalso service:exists(SModule:name()), Req};
         false -> {false, Req}
     end.
 
@@ -87,9 +88,11 @@ exists_resource(Req, #rstate{resource = SModule}) ->
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()}.
 accept_resource(Req, 'POST', Args, #rstate{resource = service_couchbase, version = Version}) ->
-    Hosts = onepanel_utils:typed_get(hosts, Args, {seq, list}),
+    Ctx = #{hosts => onepanel_utils:typed_get(hosts, Args, {seq, list})},
+    Ctx2 = onepanel_maps:get_store(serverQuota, Args, couchbase_server_quota, Ctx),
+    Ctx3 = onepanel_maps:get_store(bucketQuota, Args, couchbase_bucket_quota, Ctx2),
     {true, rest_replier:handle_service_action_async(Req, service:apply_async(
-        service_couchbase:name(), deploy, #{hosts => Hosts}
+        service_couchbase:name(), deploy, Ctx3
     ), Version)};
 
 accept_resource(Req, 'POST', Args, #rstate{resource = service_cluster_manager, version = Version}) ->
@@ -116,12 +119,20 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
 
     StorageCtx = onepanel_maps:get_store([cluster, storages], Args, storages),
     StorageCtx2 = StorageCtx#{hosts => OpwHosts},
+
+    DbCtx = #{hosts => DbHosts},
+    DbCtx2 = onepanel_maps:get_store([cluster, databases, serverQuota], Args,
+        couchbase_server_quota, DbCtx),
+    DbCtx3 = onepanel_maps:get_store([cluster, databases, bucketQuota], Args,
+        couchbase_bucket_quota, DbCtx2),
+
     OpaCtx = maps:get(onepanel, Args, #{}),
     OpaCtx2 = OpaCtx#{hosts => lists:usort(DbHosts ++ CmHosts ++ OpwHosts)},
     OpaCtx3 = onepanel_maps:get_store([cluster, autoDeploy], Args, auto_deploy, OpaCtx2),
+
     ClusterCtx = #{
         service_onepanel:name() => OpaCtx3,
-        service_couchbase:name() => #{hosts => DbHosts},
+        service_couchbase:name() => DbCtx3,
         service_cluster_manager:name() => #{main_host => MainCmHost, hosts => CmHosts},
         service_op_worker:name() => #{hosts => OpwHosts, db_hosts => DbHosts,
             cm_hosts => CmHosts, main_cm_host => MainCmHost
@@ -149,18 +160,26 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version =
     [MainCmHost] = rest_utils:get_hosts([cluster, managers, mainNode], Args),
     OzwHosts = rest_utils:get_hosts([cluster, workers, nodes], Args),
 
+    DbCtx = #{hosts => DbHosts},
+    DbCtx2 = onepanel_maps:get_store([cluster, databases, serverQuota], Args,
+        couchbase_server_quota, DbCtx),
+    DbCtx3 = onepanel_maps:get_store([cluster, databases, bucketQuota], Args,
+        couchbase_bucket_quota, DbCtx2),
+
     OpaCtx = maps:get(onepanel, Args, #{}),
     OpaCtx2 = OpaCtx#{hosts => lists:usort(DbHosts ++ CmHosts ++ OzwHosts)},
     OpaCtx3 = onepanel_maps:get_store([cluster, autoDeploy], Args, auto_deploy, OpaCtx2),
+
     OzCtx = #{
         hosts => OzwHosts, db_hosts => DbHosts, cm_hosts => CmHosts,
         main_cm_host => MainCmHost
     },
     OzCtx2 = onepanel_maps:get_store([onezone, name], Args, onezone_name, OzCtx),
     OzCtx3 = onepanel_maps:get_store([onezone, domainName], Args, onezone_domain, OzCtx2),
+
     ClusterCtx = #{
         service_onepanel:name() => OpaCtx3,
-        service_couchbase:name() => #{hosts => DbHosts},
+        service_couchbase:name() => DbCtx3,
         service_cluster_manager:name() => #{main_host => MainCmHost, hosts => CmHosts},
         service_oz_worker:name() => OzCtx3
     },

@@ -168,10 +168,8 @@ status(_Ctx) ->
 init_cluster(Ctx) ->
     User = service_ctx:get(couchbase_user, Ctx),
     Password = service_ctx:get(couchbase_password, Ctx),
-    Quota = service_ctx:get(couchbase_memory_quota, Ctx, integer),
-    QuotaStr = erlang:integer_to_list(Quota),
-    BucketSize = Quota * 7 div 10,
-    BucketSizeStr = erlang:integer_to_list(BucketSize),
+    ServerQuota = service_ctx:get(couchbase_server_quota, Ctx),
+    BucketQuota = service_ctx:get(couchbase_bucket_quota, Ctx),
     Host = onepanel_cluster:node_to_host(),
     Port = service_ctx:get(couchbase_admin_port, Ctx),
     Url = onepanel_utils:join(["http://", Host, ":", Port, "/pools/default"]),
@@ -180,18 +178,18 @@ init_cluster(Ctx) ->
         Url, [
             onepanel_utils:get_basic_auth_header(User, Password),
             {"Content-Type", "application/x-www-form-urlencoded"}
-        ], "memoryQuota=" ++ QuotaStr
+        ], "memoryQuota=" ++ ServerQuota
     ),
 
     onepanel_shell:check_call([?CLI, "cluster-init", "-c", Host ++ ":" ++ Port,
             "--cluster-init-username=" ++ User,
             "--cluster-init-password=" ++ Password,
-            "--cluster-init-ramsize=" ++ QuotaStr,
+            "--cluster-init-ramsize=" ++ ServerQuota,
             "--services=data,index,query"]),
 
     onepanel_shell:check_call([?CLI, "bucket-create", "-c", Host ++ ":" ++ Port,
             "-u", User, "-p", Password, "--bucket=default",
-            "--bucket-ramsize=" ++ BucketSizeStr, "--wait"]),
+            "--bucket-ramsize=" ++ BucketQuota, "--wait"]),
 
     service:add_host(name(), Host).
 
@@ -212,7 +210,7 @@ join_cluster(#{cluster_host := ClusterHost} = Ctx) ->
             "--server-add=" ++ Host ++ ":" ++ Port,
             "--server-add-username=" ++ User,
             "--server-add-password=" ++ Password,
-        "--services=data,index,query"]),
+            "--services=data,index,query"]),
 
     service:add_host(name(), Host).
 

@@ -217,7 +217,7 @@ routes() ->
             resource = service_couchbase,
             methods = [#rmethod{
                 type = 'POST',
-                args_spec = rest_model:service_hosts_model()
+                args_spec = rest_model:service_databases_model()
             }]
         }},
 

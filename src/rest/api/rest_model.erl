@@ -36,6 +36,7 @@
     provider_register_request_model/0,
     provider_spaces_model/0,
     s3_model/0,
+    service_databases_model/0,
     service_error_model/0,
     service_hosts_model/0,
     service_status_model/0,
@@ -83,7 +84,15 @@ ceph_model() ->
 cluster_databases_model() ->
     #{
         %% The list of aliases of cluster database nodes.
-        nodes => [string]
+        nodes => [string],
+        %% The server quota is the RAM memory in bytes that is allocated to the
+        %% server when Couchbase Server is first installed. This sets the limit
+        %% of RAM allocated by Couchbase for caching data for all buckets and is
+        %% configured on a per-node basis.
+        serverQuota => {integer, optional},
+        %% The bucket quota is the amount of RAM memory in bytes allocated to an
+        %% individual bucket for caching data.
+        bucketQuota => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -359,6 +368,25 @@ s3_model() ->
         accessKey => string,
         %% The secret key to the S3 storage.
         secretKey => string
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The service hosts configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec service_databases_model() -> #{}.
+service_databases_model() ->
+    #{
+        %% The list of hosts where service should be deployed.
+        hosts => [string],
+        %% The server quota is the RAM memory in bytes that is allocated to the
+        %% server when Couchbase Server is first installed. This sets the limit
+        %% of RAM allocated by Couchbase for caching data for all buckets and is
+        %% configured on a per-node basis.
+        serverQuota => {integer, optional},
+        %% The bucket quota is the amount of RAM memory in bytes allocated to an
+        %% individual bucket for caching data.
+        bucketQuota => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------

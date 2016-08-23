@@ -62,7 +62,7 @@ get_nodes() ->
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
 get_steps(add_storages, #{hosts := Hosts, storages := _}) ->
-    [#step{hosts = Hosts, function = add_storages, selection = any}];
+    [#step{hosts = Hosts, function = add_storages, selection = first}];
 
 get_steps(add_storages, #{storages := _} = Ctx) ->
     get_steps(add_storages, Ctx#{hosts => get_hosts()});
