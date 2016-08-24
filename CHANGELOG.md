@@ -4,6 +4,46 @@
 CHANGELOG
 ---------
 
+### 3.0.0-RC2
+
+* VFS-2269 Enable Symmetric Multiprocessing
+
+
+### 3.0.0-RC1
+
+* minor changes and improvements
+
+
+### 3.0.0-beta8
+
+* minor changes and improvements
+
+
+### 3.0.0-beta7
+
+* VFS-2163 Allow user deletion
+* Update erlang tls
+* VFS-2163 onepanel user REST endpoint
+* VFS-2072 Add admin credentials to helpers args
+* VFS-2072 Remove user credentials from space support
+
+
+### 3.0.0-beta4
+
+* VFS-1969 Add border to installation.gif.
+* VFS-1969 Update README.
+
+
+### 3.0.0-beta3
+
+* VFS-1969 Update README.
+
+
+### 3.0.0-beta2
+
+* VFS-1804 Enable couchbase memory quota configuration.
+
+
 ### 3.0.0-beta1
 
 * VFS-1804 Add success message to batch mode script.
