@@ -44,7 +44,7 @@ is_authorized(Req, Method, #rstate{resource = Resource}) when
     {onepanel_user:get_by_role(admin) == [], Req};
 
 is_authorized(Req, 'GET', #rstate{resource = task}) ->
-    {onepanel_user:get_by_role(admin) == [], Req};
+    {true, Req};
 
 is_authorized(Req, _Method, _State) ->
     {false, Req}.

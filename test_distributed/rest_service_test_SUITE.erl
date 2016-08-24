@@ -161,12 +161,6 @@ method_should_return_unauthorized_error(Config) ->
 
 
 method_should_return_forbidden_error(Config) ->
-    ?run(Config, fun({Host, _}) ->
-        ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/tasks/someTaskId">>, get, ?REG_USER_NAME, ?REG_USER_PASSWORD
-        ))
-    end, [{oneprovider_hosts, <<>>}, {onezone_hosts, <<>>}]),
-
     ?run(Config, fun({Host, Prefix}) ->
         lists:foreach(fun({Endpoint, Method}) ->
             ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(

@@ -83,7 +83,6 @@ get_steps(deploy, Ctx) ->
     [
         Steps#steps{service = ?SERVICE_OPA, action = deploy, ctx = OpaCtx,
             condition = fun(_) -> AutoDeploy end},
-        Steps#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx},
         Steps#steps{service = ?SERVICE_CB, action = deploy, ctx = CbCtx},
         Step#step{service = ?SERVICE_CB, function = status, ctx = CbCtx},
         Steps#steps{service = ?SERVICE_CM, action = deploy, ctx = CmCtx},
@@ -91,7 +90,8 @@ get_steps(deploy, Ctx) ->
         Steps#steps{service = ?SERVICE_OZW, action = deploy, ctx = OzwCtx},
         Step#step{service = ?SERVICE_OZW, function = status, ctx = OzwCtx},
         Step#step{module = service, function = save, ctx = OpaCtx,
-            args = [#service{name = name()}], selection = first}
+            args = [#service{name = name()}], selection = first},
+        Steps#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx}
     ];
 
 get_steps(start, _Ctx) ->

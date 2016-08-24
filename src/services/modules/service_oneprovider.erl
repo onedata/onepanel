@@ -96,7 +96,6 @@ get_steps(deploy, Ctx) ->
     [
         Steps#steps{service = ?SERVICE_OPA, action = deploy, ctx = OpaCtx,
             condition = fun(_) -> AutoDeploy end},
-        Steps#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx},
         Steps#steps{service = ?SERVICE_CB, action = deploy, ctx = CbCtx},
         Step#step{service = ?SERVICE_CB, function = status, ctx = CbCtx},
         Steps#steps{service = ?SERVICE_CM, action = deploy, ctx = CmCtx},
@@ -106,7 +105,8 @@ get_steps(deploy, Ctx) ->
         Steps#steps{service = ?SERVICE_OPW, action = add_storages, ctx = StorageCtx},
         Steps#steps{action = register, ctx = OpCtx, condition = Register},
         Step#step{module = service, function = save, ctx = OpaCtx,
-            args = [#service{name = name()}], selection = first}
+            args = [#service{name = name()}], selection = first},
+        Steps#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx}
     ];
 
 get_steps(start, _Ctx) ->
@@ -141,9 +141,7 @@ get_steps(register, #{hosts := Hosts} = Ctx) ->
         #step{hosts = Hosts, function = configure, ctx = Ctx#{application => name()}},
         #step{hosts = service_onepanel:get_hosts(), function = configure,
             ctx = Ctx#{application => ?APP_NAME}},
-        #step{hosts = Hosts, function = register, selection = any},
-        #step{hosts = Hosts, module = service, function = save,
-            args = [#service{name = name()}], selection = any}
+        #step{hosts = Hosts, function = register, selection = any}
     ];
 
 get_steps(register, Ctx) ->
@@ -191,7 +189,10 @@ configure(#{onezone_domain := OzDomain, onezone_verify_cert := OzVerifyCert,
     lists:foreach(fun({AppName, Key, Value}) ->
         application:set_env(AppName, Key, Value),
         onepanel_env:write([AppName, Key], Value)
-    end, [{?APP_NAME, onezone_domain, OzDomain}, {ctool, verify_oz_cert, OzVerifyCert}]);
+    end, [
+        {?APP_NAME, onezone_domain, OzDomain},
+        {ctool, verify_oz_cert, OzVerifyCert}
+    ]);
 
 configure(#{onezone_domain := OzDomain, onezone_verify_cert := OzVerifyCert} = Ctx) ->
     Name = service_op_worker:name(),
@@ -202,7 +203,11 @@ configure(#{onezone_domain := OzDomain, onezone_verify_cert := OzVerifyCert} = C
     lists:foreach(fun({AppName, Key, Value}) ->
         rpc:call(Node, application, set_env, [AppName, Key, Value]),
         onepanel_env:write([AppName, Key], Value, AppConfigPath)
-    end, [{Name, oz_domain, OzDomain}, {ctool, verify_oz_cert, OzVerifyCert}]);
+    end, [
+        {Name, oz_domain, OzDomain},
+        {Name, verify_oz_cert, OzVerifyCert},
+        {ctool, verify_oz_cert, OzVerifyCert}
+    ]);
 
 configure(Ctx) ->
     OzDomain = service_ctx:get(onezone_domain, Ctx),
