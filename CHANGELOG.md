@@ -4,6 +4,11 @@
 CHANGELOG
 ---------
 
+### 3.0.0-rc4
+
+* VFS-2156 Add repeats to provider registration process
+
+
 ### 3.0.0-RC3
 
 * VFS-2156 Make '/tasks' endpoint unauthorized
