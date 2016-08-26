@@ -54,7 +54,7 @@ get_basic_auth_header(Username, Password) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec wait_until(Module :: module(), Function :: atom(), Args :: list(),
-    Expectation :: expectation(), Attempts :: integer()) -> ok | no_return().
+    Expectation :: expectation(), Attempts :: integer()) -> term() | no_return().
 wait_until(Module, Function, Args, Expectation, Attempts) ->
     wait_until(Module, Function, Args, Expectation, Attempts, timer:seconds(1)).
 
@@ -66,7 +66,7 @@ wait_until(Module, Function, Args, Expectation, Attempts) ->
 %%--------------------------------------------------------------------
 -spec wait_until(Module :: module(), Function :: atom(), Args :: list(),
     Expectation :: expectation(), Attempts :: integer(), Delay :: integer()) ->
-    ok | no_return().
+    term() | no_return().
 wait_until(_Module, _Function, _Args, _Expectation, Attempts, _Delay) when
     Attempts =< 0 ->
     throw(attempts_limit_exceeded);
@@ -78,8 +78,7 @@ wait_until(Module, Function, Args, {equal, Expected}, Attempts, Delay) ->
 wait_until(Module, Function, Args, {validator, Validator}, Attempts, Delay) ->
     try
         Result = erlang:apply(Module, Function, Args),
-        Validator(Result),
-        ok
+        Validator(Result)
     catch
         _:Reason ->
             timer:sleep(Delay),
