@@ -73,7 +73,8 @@ wait_output(Tokens, Expected, Attempts) ->
     Attempts :: integer(), Delay :: integer()) -> ok | no_return().
 wait_output(Tokens, Expected, Attempts, Delay) ->
     Validator = fun(Result) ->
-        {match, [_]} = re:run(Result, Expected, [{capture, first, list}])
+        {match, [_]} = re:run(Result, Expected, [{capture, first, list}]),
+        ok
     end,
     onepanel_utils:wait_until(?MODULE, check_output, [Tokens],
         {validator, Validator}, Attempts, Delay).
