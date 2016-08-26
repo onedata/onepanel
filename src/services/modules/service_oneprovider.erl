@@ -244,7 +244,13 @@ register(Ctx) ->
         {<<"longitude">>,
             service_ctx:get(oneprovider_geo_longitude, Ctx, float, 0.0)}
     ],
-    {ok, ProviderId, Cert} = oz_providers:register(provider, Params),
+
+    Validator = fun
+        ({ok, ProviderId, Cert}) -> {ProviderId, Cert};
+        ({error, Reason}) -> ?throw(Reason)
+    end,
+    {ProviderId, Cert} = onepanel_utils:wait_until(oz_providers, register,
+        [provider, Params], {validator, Validator}, 10, timer:seconds(30)),
 
     lists:foreach(fun({Path, Content}) ->
         onepanel_rpc:call_all(Nodes, onepanel_utils, save_file, [Path, Content])
