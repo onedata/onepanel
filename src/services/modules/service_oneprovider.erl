@@ -141,7 +141,8 @@ get_steps(register, #{hosts := Hosts} = Ctx) ->
         #step{hosts = Hosts, function = configure, ctx = Ctx#{application => name()}},
         #step{hosts = service_onepanel:get_hosts(), function = configure,
             ctx = Ctx#{application => ?APP_NAME}},
-        #step{hosts = Hosts, function = register, selection = any}
+        #step{hosts = Hosts, function = register, selection = any,
+            attempts = onepanel_env:get(oneprovider_register_attempts)}
     ];
 
 get_steps(register, Ctx) ->
@@ -244,13 +245,7 @@ register(Ctx) ->
         {<<"longitude">>,
             service_ctx:get(oneprovider_geo_longitude, Ctx, float, 0.0)}
     ],
-
-    Validator = fun
-        ({ok, ProviderId, Cert}) -> {ProviderId, Cert};
-        ({error, Reason}) -> ?throw(Reason)
-    end,
-    {ProviderId, Cert} = onepanel_utils:wait_until(oz_providers, register,
-        [provider, Params], {validator, Validator}, 10, timer:seconds(30)),
+    {ok, ProviderId, Cert} = oz_providers:register(provider, Params),
 
     lists:foreach(fun({Path, Content}) ->
         onepanel_rpc:call_all(Nodes, onepanel_utils, save_file, [Path, Content])

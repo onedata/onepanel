@@ -345,7 +345,7 @@ apply_steps([], _Notify) ->
     ok;
 
 apply_steps([#step{hosts = Hosts, module = Module, function = Function,
-    args = Args} | Steps], Notify) ->
+    args = Args, attempts = Attempts, retry_delay = Delay} = Step | Steps], Notify) ->
 
     Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
     service_utils:notify({step_begin, {Module, Function}}, Notify),
@@ -355,7 +355,10 @@ apply_steps([#step{hosts = Hosts, module = Module, function = Function,
 
     service_utils:notify({step_end, {Module, Function, Status}}, Notify),
 
-    case Status of
-        {_, []} -> apply_steps(Steps, Notify);
-        {_, _} -> ?error({Module, Function, Status})
+    case {Status, Attempts} of
+        {{_, []}, _} -> apply_steps(Steps, Notify);
+        {{_, _}, 1} -> ?error({Module, Function, Status});
+        {{_, _}, _} ->
+            timer:sleep(Delay),
+            apply_steps([Step#step{attempts = Attempts - 1} | Steps], Notify)
     end.
