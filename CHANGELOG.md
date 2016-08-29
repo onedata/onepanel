@@ -4,6 +4,37 @@
 CHANGELOG
 ---------
 
+### 3.0.0-rc4
+
+* VFS-2156 Add repeats to provider registration process
+
+
+### 3.0.0-RC3
+
+* VFS-2156 Make '/tasks' endpoint unauthorized
+* VFS-2156 Add couchbase server and bucket quota
+* VFS-2156 Accept application/x-yaml content type
+* VFS-2156 Build package
+* VFS-2156 Add onepanel_gui
+* Releasing new version 3.0.0-RC2
+* VFS-2269 Enable Symmetric Multiprocessing
+* VFS-1847 Add documentation
+* Releasing new version 3.0.0-RC1
+* VFS-1847 Integrate swagger REST API description
+* VFS-1847 Add REST requests parser
+* VFS-1847 Add NIF libraries
+* VFS-1847 Add REST handlers for all services
+* VFS-1847 Add onedata_user REST handler
+* VFS-1847 Add onezone service
+* VFS-1847 Add oneprovider service
+* VFS-1847 Add cluster_manager and cluster_worker services
+* VFS-1847 Add couchbase service
+* VFS-1847 Add onedata_user logic
+* VFS-1847 Add db models
+* VFS-1847 Add vm config editor.
+* VFS-1847 Start onepanel core project.
+
+
 ### 3.0.0-RC2
 
 * VFS-2269 Enable Symmetric Multiprocessing
