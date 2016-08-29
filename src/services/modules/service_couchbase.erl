@@ -169,7 +169,7 @@ init_cluster(Ctx) ->
     User = service_ctx:get(couchbase_user, Ctx),
     Password = service_ctx:get(couchbase_password, Ctx),
     ServerQuota = service_ctx:get(couchbase_server_quota, Ctx),
-    BucketQuota = service_ctx:get(couchbase_bucket_quota, Ctx),
+    BucketQuota = service_ctx:get(couchbase_bucket_quota, Ctx, integer),
     Host = onepanel_cluster:node_to_host(),
     Port = service_ctx:get(couchbase_admin_port, Ctx),
     Url = onepanel_utils:join(["http://", Host, ":", Port, "/pools/default"]),
@@ -187,9 +187,14 @@ init_cluster(Ctx) ->
             "--cluster-init-ramsize=" ++ ServerQuota,
             "--services=data,index,query"]),
 
-    onepanel_shell:check_call([?CLI, "bucket-create", "-c", Host ++ ":" ++ Port,
-            "-u", User, "-p", Password, "--bucket=default",
-            "--bucket-ramsize=" ++ BucketQuota, "--wait"]),
+    Release = onepanel_env:get(release_type),
+    {ok, Buckets} = onepanel_lists:get(Release, onepanel_env:get(couchbase_buckets)),
+    lists:foreach(fun
+        ({Bucket, Quota}) ->
+            create_bucket(Host, Port, User, Password, Bucket, Quota);
+        (Bucket) ->
+            create_bucket(Host, Port, User, Password, Bucket, BucketQuota)
+    end, Buckets),
 
     service:add_host(name(), Host).
 
@@ -228,3 +233,21 @@ rebalance_cluster(Ctx) ->
 
     onepanel_shell:check_call([?CLI, "rebalance", "-c", Host ++ ":" ++ Port,
         "-u", User, "-p", Password]).
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private @doc
+%% Creates Couchbase bucket.
+%% @end
+%%--------------------------------------------------------------------
+-spec create_bucket(Host :: string(), Port :: string(), User :: string(),
+    Password :: string(), Bucket :: string(), BucketQuota :: integer()) ->
+    ok | no_return().
+create_bucket(Host, Port, User, Password, Bucket, BucketQuota) ->
+    onepanel_shell:check_call([?CLI, "bucket-create", "-c", Host ++ ":" ++ Port,
+        "-u", User, "-p", Password, "--bucket=" ++ Bucket,
+        "--bucket-ramsize=" ++ onepanel_utils:convert(BucketQuota, list),
+        "--wait"]).
