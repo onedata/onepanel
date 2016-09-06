@@ -74,7 +74,7 @@ get_domain(Key, Ctx) ->
         error ->
             Hostname = onepanel_shell:check_output(["hostname", "-f"]),
             case string:tokens(Hostname, ".") of
-                [_] -> ?throw({short_hostname, Hostname});
+                [_] -> ?throw_error({short_hostname, Hostname});
                 [_ | Domain] -> string:join(Domain, ".")
             end
     end.

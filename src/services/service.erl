@@ -15,7 +15,7 @@
 -behaviour(model_behaviour).
 
 -include("modules/errors.hrl").
--include("modules/logger.hrl").
+-include_lib("ctool/include/logging.hrl").
 -include("modules/models.hrl").
 -include("names.hrl").
 -include("service.hrl").
@@ -193,11 +193,11 @@ apply(Service, Action, Ctx, Notify) ->
     service_utils:notify({action_begin, {Service, Action}}, Notify),
     Result = try
         Steps = service_utils:get_steps(Service, Action, Ctx),
-        ?log_info("Execution of ~p:~p requires following steps:~n~s",
+        ?info("Execution of ~p:~p requires following steps:~n~s",
             [Service, Action, service_utils:format_steps(Steps, "")]),
         apply_steps(Steps, Notify)
     catch
-        _:Reason -> ?error(Reason)
+        _:Reason -> ?make_error(Reason)
     end,
     service_utils:notify({action_end, {Service, Action, Result}}, Notify),
     Result.
@@ -357,5 +357,5 @@ apply_steps([#step{hosts = Hosts, module = Module, function = Function,
 
     case Status of
         {_, []} -> apply_steps(Steps, Notify);
-        {_, _} -> ?error({Module, Function, Status})
+        {_, _} -> ?make_error({Module, Function, Status})
     end.

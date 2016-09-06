@@ -12,7 +12,7 @@
 
 -include("http/rest.hrl").
 -include("modules/errors.hrl").
--include("modules/logger.hrl").
+-include_lib("ctool/include/logging.hrl").
 -include("modules/models.hrl").
 
 -behavior(rest_behaviour).

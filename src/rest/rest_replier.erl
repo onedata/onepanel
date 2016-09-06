@@ -13,7 +13,7 @@
 -author("Krzysztof Trzepla").
 
 -include("modules/errors.hrl").
--include("modules/logger.hrl").
+-include_lib("ctool/include/logging.hrl").
 -include("modules/models.hrl").
 
 %% API
@@ -136,12 +136,13 @@ format_service_host_status(SModule, Results) ->
 -spec format_service_task_results(Results :: #error{} | service_executor:results()) ->
     Response :: response().
 format_service_task_results(#error{} = Error) ->
-    ?throw(Error);
+    ?throw_error(Error);
 
 format_service_task_results(Results) ->
     case lists:reverse(Results) of
         [{task_finished, {_, _, #error{} = Error}}] ->
             [{<<"status">>, <<"error">>} | format_error(error, Error)];
+
         [{task_finished, {Service, Action, #error{}}}, Step | Steps] ->
             {Module, Function, {_, BadResults}} = Step,
             [
@@ -152,11 +153,13 @@ format_service_task_results(Results) ->
                     function = Function, bad_results = BadResults
                 })
             ];
+
         [{task_finished, {_, _, ok}} | Steps] ->
             [
                 {<<"status">>, <<"ok">>},
                 {<<"steps">>, format_service_task_steps(lists:reverse(Steps))}
             ];
+
         Steps ->
             [
                 {<<"status">>, <<"running">>},
@@ -210,7 +213,7 @@ format_configuration(SModule) ->
     Results :: service_executor:results()) ->
     HostsResults :: service_executor:hosts_results().
 select_service_step(Module, Function, []) ->
-    ?throw({?ERR_SERVICE_STEP_NOT_FOUND, Module, Function});
+    ?throw_error({?ERR_SERVICE_STEP_NOT_FOUND, Module, Function});
 
 select_service_step(Module, Function, [{Module, Function, Results} | _]) ->
     Results;

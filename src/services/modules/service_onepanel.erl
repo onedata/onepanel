@@ -21,7 +21,7 @@
 
 %% API
 -export([set_cookie/1, purge_node/1, create_tables/1, copy_tables/1,
-    add_nodes/1, remove_nodes/1, add_users/1]).
+    add_nodes/1, remove_nodes/1, add_users/1, add_default_users/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -80,7 +80,8 @@ get_steps(init_cluster, _Ctx) ->
     [
         Step#step{function = set_cookie, selection = first},
         Step#step{function = purge_node, selection = first},
-        Step#step{function = create_tables, selection = first}
+        Step#step{function = create_tables, selection = first},
+        Step#step{function = add_default_users, selection = first}
     ];
 
 get_steps(join_cluster, #{hosts := Hosts, cluster_host := ClusterHost} = Ctx) ->
@@ -113,10 +114,7 @@ get_steps(add_users, #{users := _}) ->
     [#step{function = add_users, selection = any}];
 
 get_steps(add_users, _Ctx) ->
-    [];
-
-get_steps(Action, _Ctx) ->
-    ?throw({action_not_supported, Action}).
+    [].
 
 %%%===================================================================
 %%% API functions
@@ -221,6 +219,18 @@ add_users(#{users := Users}) ->
         onepanel_user:new(Username, Password, Role)
     end, ok, Users).
 
+
+%%--------------------------------------------------------------------
+%% @doc Adds default users.
+%% @end
+%%--------------------------------------------------------------------
+-spec add_default_users(Ctx :: service:ctx()) -> ok.
+add_default_users(Ctx) ->
+    Users = lists:foldl(fun({Username, Password, Role}, Map) ->
+        maps:put(Username, #{password => Password, userRole => Role}, Map)
+    end, #{}, onepanel_env:get(default_users)),
+    add_users(Ctx#{users => Users}).
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -235,6 +245,6 @@ delete_tables() ->
         case mnesia:del_table_copy(Table, node()) of
             {atomic, ok} -> ok;
             {aborted, {no_exists, _}} -> ok;
-            {aborted, Reason} -> ?throw(Reason)
+            {aborted, Reason} -> ?throw_error(Reason)
         end
     end, model:get_models()).

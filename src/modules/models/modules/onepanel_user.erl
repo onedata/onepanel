@@ -33,12 +33,6 @@
 
 -export_type([name/0, password/0, password_hash/0, role/0, uuid/0]).
 
--define(USERNAME_REGEX, <<"^[a-zA-Z0-9]{", (erlang:integer_to_binary(
-    onepanel_env:get(min_username_length)))/binary, ",}$">>).
--define(PASSWORD_REGEX, <<"^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])[^:]{",
-    (erlang:integer_to_binary(onepanel_env:get(min_password_length)))/binary,
-    ",}$">>).
-
 %%%===================================================================
 %%% Model behaviour callbacks
 %%%===================================================================
@@ -132,13 +126,13 @@ new(Username, Password, Role) ->
     ?MODULE:validate_username(Username),
     ?MODULE:validate_password(Password),
     ?MODULE:validate_role(Role),
-    WorkFactor = onepanel_env:get(becrypt_work_factor),
+    WorkFactor = onepanel_env:get(bcrypt_work_factor),
     case ?MODULE:create(#onepanel_user{
         username = Username, role = Role, uuid = onepanel_utils:gen_uuid(),
         password_hash = onepanel_user_nif:hash_password(Password, WorkFactor)
     }) of
         ok -> ok;
-        _ -> ?throw(?ERR_USERNAME_NOT_AVAILABLE)
+        _ -> ?throw_error(?ERR_USERNAME_NOT_AVAILABLE)
     end.
 
 
@@ -154,9 +148,9 @@ authenticate(Username, Password) ->
         {ok, #onepanel_user{password_hash = Hash} = User} ->
             case onepanel_user_nif:check_password(Password, Hash) of
                 true -> {ok, User};
-                false -> ?error(?ERR_INVALID_USERNAME_OR_PASSWORD)
+                false -> ?make_error(?ERR_INVALID_USERNAME_OR_PASSWORD)
             end;
-        _ -> ?error(?ERR_INVALID_USERNAME_OR_PASSWORD)
+        _ -> ?make_error(?ERR_INVALID_USERNAME_OR_PASSWORD)
     end.
 
 
@@ -168,7 +162,7 @@ authenticate(Username, Password) ->
     ok | no_return().
 change_password(Username, NewPassword) ->
     ?MODULE:validate_password(NewPassword),
-    WorkFactor = onepanel_env:get(becrypt_work_factor),
+    WorkFactor = onepanel_env:get(bcrypt_work_factor),
     ?MODULE:update(Username, #{
         password_hash => onepanel_user_nif:hash_password(NewPassword, WorkFactor)
     }).
@@ -188,31 +182,27 @@ get_by_role(Role) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Validates username. It must be at least 'min_username_length'
-%% characters long and contain only alphanumeric characters [a-zA-Z0-9].
+%% @doc Validates username. It must not be empty and must not contain
+%% a colon character.
 %% @end
 %%--------------------------------------------------------------------
 -spec validate_username(Username :: name()) -> ok | no_return().
+validate_username(<<>>) ->
+    ?throw_error(?ERR_INVALID_USERNAME);
 validate_username(Username) ->
-    case re:run(Username, ?USERNAME_REGEX) of
-        {match, _} -> ok;
-        nomatch -> ?throw(?ERR_INVALID_USERNAME)
+    case binary:match(Username, <<":">>) of
+        nomatch -> ok;
+        _ -> ?throw_error(?ERR_INVALID_USERNAME)
     end.
 
 
 %%--------------------------------------------------------------------
-%% @doc Validates user password. It must be at least 'min_password_length'
-%% characters long and contain a minimum of 1 lower case letter [a-z]
-%% and a minimum of 1 upper case letter [A-Z] and a minimum of 1 numeric
-%% character [0-9]. Password must not contain a colon character [:].
+%% @doc Validates user password. It must not be empty.
 %% @end
 %%--------------------------------------------------------------------
 -spec validate_password(Password :: password()) -> ok | no_return().
-validate_password(Password) ->
-    case re:run(Password, ?PASSWORD_REGEX) of
-        {match, _} -> ok;
-        nomatch -> ?throw(?ERR_INVALID_PASSWORD)
-    end.
+validate_password(<<>>) -> ?throw_error(?ERR_INVALID_PASSWORD);
+validate_password(_) -> ok.
 
 
 %%--------------------------------------------------------------------
@@ -222,4 +212,4 @@ validate_password(Password) ->
 -spec validate_role(Role :: term()) -> ok | no_return().
 validate_role(admin) -> ok;
 validate_role(regular) -> ok;
-validate_role(_) -> ?throw(?ERR_INVALID_ROLE).
+validate_role(_) -> ?throw_error(?ERR_INVALID_ROLE).

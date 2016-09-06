@@ -12,7 +12,7 @@
 -author("Krzysztof Trzepla").
 
 -include("modules/errors.hrl").
--include("modules/logger.hrl").
+-include_lib("ctool/include/logging.hrl").
 -include("modules/models.hrl").
 -include("service.hrl").
 
@@ -89,15 +89,15 @@ partition_results(Results) ->
 %%--------------------------------------------------------------------
 -spec throw_on_error(Results :: #error{} | list()) -> Steps :: list() | no_return().
 throw_on_error(#error{} = Error) ->
-    ?throw(Error);
+    ?throw_error(Error);
 
 throw_on_error(Results) ->
     case lists:reverse(Results) of
         [{task_finished, {_, _, #error{} = Error}}] ->
-            ?throw(Error);
+            ?throw_error(Error);
         [{task_finished, {Service, Action, #error{}}}, Step | _] ->
             {Module, Function, {_, BadResults}} = Step,
-            ?throw(#service_error{
+            ?throw_error(#service_error{
                 service = Service, action = Action, module = Module,
                 function = Function, bad_results = BadResults
             });
@@ -162,7 +162,7 @@ get_step(#step{hosts = Hosts, verify_hosts = true} = Step) ->
     lists:foreach(fun(Host) ->
         case lists:member(Host, ClusterHosts) of
             true -> ok;
-            false -> ?throw({?ERR_HOST_NOT_FOUND, Host})
+            false -> ?throw_error({?ERR_HOST_NOT_FOUND, Host})
         end
     end, Hosts),
     get_step(Step#step{verify_hosts = false});
@@ -209,21 +209,21 @@ get_nested_steps(#steps{ctx = Ctx, condition = Condition} = Steps) ->
     Function :: atom(),
     Result :: term().
 log({action_begin, {Module, Function}}) ->
-    ?log_info("Executing action ~p:~p", [Module, Function]);
+    ?info("Executing action ~p:~p", [Module, Function]);
 log({action_end, {Module, Function, ok}}) ->
-    ?log_info("Action ~p:~p completed successfully", [Module, Function]);
+    ?info("Action ~p:~p completed successfully", [Module, Function]);
 log({action_end, {Module, Function, #error{reason = Reason, stacktrace = []}}}) ->
-    ?log_error("Action ~p:~p failed due to: ~p", [Module, Function, Reason]);
+    ?error("Action ~p:~p failed due to: ~p", [Module, Function, Reason]);
 log({action_end, {Module, Function, #error{reason = Reason,
     stacktrace = Stacktrace}}}) ->
-    ?log_error("Action ~p:~p failed due to: ~p~nStacktrace: ~p",
+    ?error("Action ~p:~p failed due to: ~p~nStacktrace: ~p",
         [Module, Function, Reason, Stacktrace]);
 log({step_begin, {Module, Function}}) ->
-    ?log_info("Executing step ~p:~p", [Module, Function]);
+    ?info("Executing step ~p:~p", [Module, Function]);
 log({step_end, {Module, Function, {_, []}}}) ->
-    ?log_info("Step ~p:~p completed successfully", [Module, Function]);
+    ?info("Step ~p:~p completed successfully", [Module, Function]);
 log({step_end, {Module, Function, {_, Errors}}}) ->
-    ?log_error("Step ~p:~p failed~n~s", [Module, Function,
+    ?error("Step ~p:~p failed~n~s", [Module, Function,
         format_errors(Errors, "")]).
 
 

@@ -12,7 +12,7 @@
 -author("Krzysztof Trzepla").
 
 -include("modules/errors.hrl").
--include("modules/logger.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([apply/3]).
@@ -40,7 +40,7 @@ apply(Module, Function, Args) ->
     try
         {node(), erlang:apply(Module, Function, Args)}
     catch
-        _:Reason -> {node(), ?error(Reason)}
+        _:Reason -> {node(), ?make_error(Reason)}
     end.
 
 
@@ -77,9 +77,9 @@ call(Nodes, Module, Function, Args, Timeout) when is_list(Nodes) ->
         Nodes, ?MODULE, apply, [Module, Function, Args], Timeout
     ),
     Results = lists:foldl(fun(BadNode, Acc) ->
-        [{BadNode, ?error(?ERR_BAD_NODE)} | Acc]
+        [{BadNode, ?make_error(?ERR_BAD_NODE)} | Acc]
     end, Values, BadNodes),
-    ?log_debug("Call ~p:~p(~p) on nodes ~p with timeout ~p returned ~p",
+    ?debug("Call ~p:~p(~p) on nodes ~p with timeout ~p returned ~p",
         [Module, Function, Args, Nodes, Timeout, Results]),
     Results.
 
@@ -160,12 +160,12 @@ call_any(Nodes, Module, Function, Args, Timeout) ->
 all(Results) ->
     BadResults = lists:filtermap(fun
         ({_, #error{}}) -> true;
-        ({_, {error, Reason}}) -> {true, ?error(Reason)};
+        ({_, {error, Reason}}) -> {true, ?make_error(Reason)};
         ({_, _}) -> false
     end, Results),
     case BadResults of
         [] -> Results;
-        _ -> ?throw(BadResults)
+        _ -> ?throw_error(BadResults)
     end.
 
 
@@ -183,6 +183,6 @@ any(Results) ->
         ({_, _}) -> true
     end, Results),
     case GoodResults of
-        [] -> ?throw(?ERR_FAILURE_ON_ALL_NODES);
+        [] -> ?throw_error(?ERR_FAILURE_ON_ALL_NODES);
         [{_, Value} | _] -> Value
     end.

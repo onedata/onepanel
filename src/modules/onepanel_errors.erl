@@ -12,7 +12,7 @@
 -author("Krzysztof Trzepla").
 
 -include("modules/errors.hrl").
--include("modules/logger.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([new/7, translate/2]).
@@ -67,16 +67,11 @@ translate(_Type, #error{reason = {?ERR_MISSING_PARAM, Keys}}) ->
     {<<"Invalid Request">>, <<"Missing required parameter: '", Key/binary, "'.">>};
 
 translate(_Type, #error{reason = ?ERR_INVALID_USERNAME}) ->
-    Len = erlang:integer_to_binary(onepanel_env:get(min_username_length)),
-    {<<"Invalid Request">>, <<"Username must be at least ", Len/binary,
-        " characters long and contain only alphanumeric characters [a-zA-Z0-9].">>};
+    {<<"Invalid Request">>, <<"Username must not be empty and must not contain "
+    "a colon character ':'">>};
 
 translate(_Type, #error{reason = ?ERR_INVALID_PASSWORD}) ->
-    Len = erlang:integer_to_binary(onepanel_env:get(min_password_length)),
-    {<<"Invalid Request">>, <<"Password must be at least ", Len/binary,
-        " characters long and contain a minimum of 1 lower case letter [a-z]"
-        " and a minimum of 1 upper case letter [A-Z] and a minimum of 1 numeric"
-        " character [0-9]. Password must not contain a colon character [:].">>};
+    {<<"Invalid Request">>, <<"Password must not be empty.">>};
 
 translate(_Type, #error{reason = ?ERR_INVALID_ROLE}) ->
     {<<"Invalid Request">>, <<"User role must be one of 'admin' or 'regular'.">>};
@@ -102,7 +97,7 @@ translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, aleady_exists}}) ->
     {<<"Operation Error">>, <<"Storage name is not available.">>};
 
 translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, Reason}}) ->
-    ?log_error("Cannot add storage due to: ~p", [Reason]),
+    ?error("Cannot add storage due to: ~p", [Reason]),
     {<<"Operation Error">>, <<"Storage addition error.">>};
 
 translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_CREATION, Node, Reason}}) ->
@@ -141,12 +136,12 @@ translate(_Type, #error{reason = ?ERR_UNREGISTERED_PROVIDER}) ->
 
 translate(_Type, #error{module = Module, function = Function, arity = Arity,
     args = Args, reason = Reason, stacktrace = Stacktrace, line = Line}) ->
-    ?log_error("Function: ~p:~p/~p~nArgs: ~p~nReason: ~p~nStacktrace: ~p~n"
+    ?error("Function: ~p:~p/~p~nArgs: ~p~nReason: ~p~nStacktrace: ~p~n"
     "Line: ~p~n", [Module, Function, Arity, Args, Reason, Stacktrace, Line]),
     {<<"Internal Error">>, <<"Server encountered an unexpected error.">>};
 
 translate(Type, Reason) ->
-    ?log_error("Type: ~p~nReason: ~p~n", [Type, Reason]),
+    ?error("Type: ~p~nReason: ~p~n", [Type, Reason]),
     erlang:raise(Type, Reason, []).
 
 %%%===================================================================
@@ -170,14 +165,12 @@ get_key(Keys) ->
 %%--------------------------------------------------------------------
 -spec get_key(Keys :: onepanel_parser:keys(), Separator :: binary()) -> Key :: binary().
 get_key(Keys, Separator) ->
-    Tokens = lists:map(fun(Key) ->
-        onepanel_utils:convert(Key, binary)
-    end, lists:reverse(Keys)),
-    onepanel_utils:join(Tokens, Separator).
+    onepanel_utils:join(Keys, Separator).
 
 
 %%--------------------------------------------------------------------
 %% @private @doc Returns human-readable expectation for a value specification.
+%% @end
 %%--------------------------------------------------------------------
 -spec get_expectation(ValueSpec :: onepanel_parser:value_spec(), Acc :: binary()) ->
     Expectation :: binary().
@@ -212,12 +205,13 @@ get_expectation(ValueSpec, Acc) when is_map(ValueSpec) ->
 
 %%--------------------------------------------------------------------
 %% @private @doc Translates storage test file error into human-readable format.
+%% @end
 %%--------------------------------------------------------------------
 -spec translate_storage_test_file_error(OperVerb :: string(), OperNoun :: binary(),
     Node :: node(), Reason :: term()) -> {Name :: binary(), Description :: binary()}.
 translate_storage_test_file_error(OperVerb, OperNoun, Node, Reason) ->
     Host = onepanel_cluster:node_to_host(Node),
-    ?log_error("Cannot " ++ OperVerb ++ " storage test file on node ~p due to: ~p",
+    ?error("Cannot " ++ OperVerb ++ " storage test file on node ~p due to: ~p",
         [Node, Reason]),
     {<<"Operation Error">>, <<"Storage test file ", OperNoun/binary, " failed "
     "on host: '", (onepanel_utils:convert(Host, binary))/binary, "'.">>}.

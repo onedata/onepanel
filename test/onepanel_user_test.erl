@@ -41,11 +41,8 @@ onepanel_user_test_() ->
             fun change_password_should_work/1,
             fun change_password_should_validate_password/1,
             fun validate_username_should_reject_empty/1,
-            fun validate_username_should_reject_short/1,
             fun validate_username_should_reject_invalid/1,
             fun validate_password_should_reject_empty/1,
-            fun validate_password_should_reject_short/1,
-            fun validate_password_should_reject_invalid/1,
             fun validate_role_should_reject_invalid/1
         ]
     }.
@@ -114,10 +111,6 @@ validate_username_should_reject_empty(_) ->
     ?_assertThrow(#error{reason = ?ERR_INVALID_USERNAME},
         onepanel_user:validate_username(<<>>)).
 
-validate_username_should_reject_short(_) ->
-    ?_assertThrow(#error{reason = ?ERR_INVALID_USERNAME},
-        onepanel_user:validate_username(<<"u">>)).
-
 validate_username_should_reject_invalid(_) ->
     ?_assertThrow(#error{reason = ?ERR_INVALID_USERNAME},
         onepanel_user:validate_username(<<"user:">>)).
@@ -125,14 +118,6 @@ validate_username_should_reject_invalid(_) ->
 validate_password_should_reject_empty(_) ->
     ?_assertThrow(#error{reason = ?ERR_INVALID_PASSWORD},
         onepanel_user:validate_password(<<>>)).
-
-validate_password_should_reject_short(_) ->
-    ?_assertThrow(#error{reason = ?ERR_INVALID_PASSWORD},
-        onepanel_user:validate_password(<<"p">>)).
-
-validate_password_should_reject_invalid(_) ->
-    ?_assertThrow(#error{reason = ?ERR_INVALID_PASSWORD},
-        onepanel_user:validate_password(<<"Pass:word1">>)).
 
 validate_role_should_reject_invalid(_) ->
     ?_assertThrow(#error{reason = ?ERR_INVALID_ROLE},
@@ -145,9 +130,7 @@ validate_role_should_reject_invalid(_) ->
 start() ->
     error_logger:tty(false),
     onepanel_env:set(rpc_timeout, 1000),
-    onepanel_env:set(min_username_length, 4),
-    onepanel_env:set(min_password_length, 8),
-    onepanel_env:set(becrypt_work_factor, 4),
+    onepanel_env:set(bcrypt_work_factor, 4),
     onepanel_env:set(create_tables_timeout, 10000),
     ?assertEqual(ok, service_onepanel:purge_node(#{})),
     ?assertEqual(ok, service_onepanel:create_tables(#{})),

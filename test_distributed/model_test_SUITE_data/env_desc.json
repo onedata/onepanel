@@ -13,7 +13,9 @@
             "setcookie": "test_cookie"
           },
           "sys.config": {
-            "onepanel": {}
+            "onepanel": {
+              "default_users": []
+            }
           }
         },
         "node2": {
@@ -21,7 +23,9 @@
             "setcookie": "test_cookie"
           },
           "sys.config": {
-            "onepanel": {}
+            "onepanel": {
+              "default_users": []
+            }
           }
         }
       }
