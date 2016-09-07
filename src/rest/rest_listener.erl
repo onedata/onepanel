@@ -43,9 +43,6 @@ start() ->
     CertPath = onepanel_env:get(rest_cert_path),
     CaCertPath = onepanel_env:get(rest_cacert_path),
 
-    {ok, CaCertPem} = file:read_file(CaCertPath),
-    [{_, CaCertDer, _} | _] = public_key:pem_decode(CaCertPem),
-
     CommonRoutes = onepanel_api:routes(),
     SpecificRoutes = case onepanel_env:get(release_type) of
         oneprovider -> oneprovider_api:routes();
@@ -55,19 +52,19 @@ start() ->
 
     Dispatch = cowboy_router:compile([{'_', Routes}]),
 
-    {ok, _} = cowboy:start_https(?LISTENER, HttpsAcceptors,
+    {ok, _} = ranch:start_listener(?LISTENER, HttpsAcceptors, ranch_etls,
         [
             {port, Port},
             {keyfile, KeyPath},
             {certfile, CertPath},
-            {cacerts, [CaCertDer]},
+            {cacertfile, CaCertPath},
             {verify, verify_peer},
             {ciphers, ssl:cipher_suites() -- weak_ciphers()},
             {versions, ['tlsv1.2', 'tlsv1.1']}
-        ],
-        [
+        ], cowboy_protocol, [
             {env, [{dispatch, Dispatch}]}
-        ]),
+        ]
+    ),
 
     ?info("REST listener successfully started").
 
@@ -105,6 +102,7 @@ get_status() ->
 
 %%--------------------------------------------------------------------
 %% @private @doc Returns list of weak ciphers.
+%% @end
 %%--------------------------------------------------------------------
 -spec weak_ciphers() -> list().
 weak_ciphers() ->

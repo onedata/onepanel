@@ -16,7 +16,6 @@
     {applications, [
         kernel,
         stdlib,
-        public_key,
         crypto,
         onepanel_gui
     ]},

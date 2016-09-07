@@ -66,6 +66,7 @@ get_steps(deploy, #{name := Name}) ->
         #step{module = service, function = save,
             args = [#service{name = Name}], selection = first},
         #step{function = configure},
+        #step{function = setup_certs},
         #step{function = start},
         #step{function = wait_for_init, selection = first}
     ];

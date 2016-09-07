@@ -45,7 +45,6 @@
     {template, "files/app.config", "etc/app.config"},
     {template, "files/vm.args", "etc/vm.args"},
     {copy, "../certs", "./etc/"},
-    {copy, "../cacerts", "./etc/"},
 
     %% Copy additional data files
     {mkdir, "data"},
