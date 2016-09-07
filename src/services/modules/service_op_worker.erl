@@ -19,7 +19,7 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
+-export([configure/1, setup_certs/1, start/1, stop/1, status/1, wait_for_init/1,
     nagios_report/1, add_storages/1, get_storages/1]).
 
 -define(INIT_SCRIPT, "op_worker").
@@ -101,6 +101,20 @@ configure(Ctx) ->
         app_config_path => AppConfigPath,
         vm_args_path => VmArgsPath
     }).
+
+
+%%--------------------------------------------------------------------
+%% @doc Setup service certificates using onepanel certificates.
+%% @end
+%%--------------------------------------------------------------------
+-spec setup_certs(Ctx :: service:ctx()) -> ok | no_return().
+setup_certs(Ctx) ->
+    {ok, KeyPem} = file:read_file(service_ctx:get(rest_key_path, Ctx)),
+    {ok, CertPem} = file:read_file(service_ctx:get(rest_cert_path, Ctx)),
+    {ok, CaCertPem} = file:read_file(service_ctx:get(rest_cacert_path, Ctx)),
+    FullPem = <<CertPem/binary, CaCertPem/binary, KeyPem/binary>>,
+    ok = file:write_file(onepanel_env:get(op_worker_gui_cert_path), FullPem),
+    ok = file:write_file(onepanel_env:get(op_worker_fuse_cert_path), FullPem).
 
 
 %%--------------------------------------------------------------------
