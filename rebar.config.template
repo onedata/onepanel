@@ -1,0 +1,147 @@
+%% plugins
+{plugins, [rebar3_hex, pc, rebar3_elixir]}.
+
+{erl_first_files, [
+    "src/modules/models/model_behaviour.erl",
+    "src/rest/rest_behaviour.erl",
+    "src/services/service_behaviour.erl"
+]}.
+
+{erl_opts, [
+    fail_on_warning
+]}.
+
+{eunit_opts, [
+    verbose,
+    {report, {eunit_surefire, [{dir, "./test/eunit_results"}]}}
+]}.
+
+{cover_enabled, true}.
+
+{dialyzer, [
+    {warnings, [error_handling, race_conditions]},
+    {plt_extra_apps, [ctool, ranch]}
+]}.
+
+{deps, [
+    {ctool, {git, "ssh://git@git.plgrid.pl:7999/vfs/ctool.git", {ref, "d498728ef38"}}},
+    {onepanel_gui, {git, "git://github.com/krzysztof-trzepla/onepanel_gui.git", {ref, "7b2c775"}}},
+    {yamerl, {git, "git://github.com/yakaz/yamerl.git", {ref, "3f46bf06b9"}}}
+]}.
+
+{pre_hooks, [
+    {compile, "mkdir -p priv"},
+    {eunit, "mkdir -p test/eunit_results"}
+]}.
+
+{port_specs, [
+    {"priv/onepanel_user_nif.so", ["c_src/onepanel_user_nif.cc"]},
+    {"priv/service_oneprovider_nif.so", ["c_src/service_oneprovider_nif.cc"]}
+]}.
+
+{port_env, [
+    {"LDFLAGS", "$LDFLAGS `pkg-config --libs botan-1.10`"},
+    {"CXXFLAGS", "$CXXFLAGS -std=c++14 -O2 -Wall `pkg-config --cflags botan-1.10`"}
+]}.
+
+{clean_files, [
+    "./c_src/*.o",
+    "./c_src/*.d",
+    "./priv/*.so",
+    "./test/eunit_results",
+    "./test_distributed/logs/*",
+    "./test_distributed/*.beam"
+]}.
+
+{provider_hooks,
+    [
+        {pre,
+            [
+                {compile, {pc, compile}},
+                {clean, {pc, clean}}
+            ]
+        }
+    ]
+}.
+
+%% relx configuration
+{relx, [
+    {release, {"{{release_name}}", "1.0.0"},
+        [
+            kernel,
+            stdlib,
+            public_key,
+            crypto,
+            mnesia,
+            ctool,
+            %% deps included by default by reltool but not included by relx
+            {base64url, load},
+            {common_test, load},
+            {debugger, load},
+            {edoc, load},
+            {enacl_p, load},
+            {erlydtl, load},
+            {erts, load},
+            {et, load},
+            {eunit, load},
+            {jiffy, load},
+            {macaroons, load},
+            {meck, load},
+            {mochiweb, load},
+            {n2o, load},
+            {observer, load},
+            {runtime_tools, load},
+            {sasl, load},
+            {snmp, load},
+            {ssh, load},
+            {tools, load},
+            {wx, load},
+            {xmerl, load},
+            {yamerl, load},
+            onepanel
+        ]},
+
+    {vm_args, "rel/files/vm.args"},
+    {sys_config, "rel/files/app.config"},
+    {target_dir, "{{release_name}}"},
+    {include_src, false},
+    {dev_mode, true},
+
+    {overlay, [
+        %% Copy base files for starting and interacting with node
+        {copy, "node_package/priv/base/erl", "erts-{{erts_vsn}}/bin/erl"},
+        {copy, "node_package/priv/base/nodetool", "erts-{{erts_vsn}}/bin/nodetool"},
+        {template, "node_package/priv/base/runner", "bin/onepanel"},
+        {template, "node_package/priv/base/env.sh", "lib/env.sh"},
+
+        %% Copy config files
+        {mkdir, "etc"},
+        {template, "rel/files/app.config", "etc/app.config"},
+        {template, "rel/files/vm.args", "etc/vm.args"},
+        {copy, "certs", "./etc/"},
+        {copy, "cacerts", "./etc/"},
+
+        %% Copy additional data files
+        {mkdir, "data"},
+        {copy, "LICENSE.txt", "data/"}
+    ]},
+
+    {extended_start_script, true}
+]}.
+
+%% Profiles configuration
+{profiles, [
+    {package, [
+        {relx, [{dev_mode, false}]}
+    ]},
+    {bamboo, [
+        {relx, [{dev_mode, false}]},
+        {post_hooks, [
+            {release, "rm -rf _build/default/rel"},
+            {release, "mv -f _build/bamboo/rel _build/default"},
+            {release, "rm -rf _build/default/lib/onepanel"},
+            {release, "mv -f _build/bamboo/lib/onepanel _build/default/lib"}
+        ]}
+    ]}
+]}.
+

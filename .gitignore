@@ -3,7 +3,7 @@ c_src/*.d
 priv
 rel/onepanel
 rel/pkg.vars.config
-rel/reltool.config
+rel/files/app.config
 rel/vars.config
 package
 
@@ -13,12 +13,10 @@ test_distributed/logs
 
 ### Erlang template
 .eunit
-deps
 *.o
 *.beam
 *.plt
 erl_crash.dump
-ebin
 rel/example_project
 .concrete/DEV_MODE
 .rebar
@@ -47,3 +45,7 @@ crashlytics.properties
 crashlytics-build.properties
 fabric.properties
 
+# rebar3
+_build
+compile_commands.json
+rebar.config

@@ -59,7 +59,7 @@
 %% @doc The Ceph storage configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec ceph_model() -> #{}.
+-spec ceph_model() -> maps:map().
 ceph_model() ->
     #{
         %% The type of storage.
@@ -80,7 +80,7 @@ ceph_model() ->
 %% @doc The cluster database service configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec cluster_databases_model() -> #{}.
+-spec cluster_databases_model() -> maps:map().
 cluster_databases_model() ->
     #{
         %% The list of aliases of cluster database nodes.
@@ -99,7 +99,7 @@ cluster_databases_model() ->
 %% @doc The cluster manager service configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec cluster_managers_model() -> #{}.
+-spec cluster_managers_model() -> maps:map().
 cluster_managers_model() ->
     #{
         %% The alias of the main cluster manager node.
@@ -120,7 +120,7 @@ cluster_storages_model() ->
 %% @doc The list of supported storage types.
 %% @end
 %%--------------------------------------------------------------------
--spec cluster_storages_list_model() -> #{}.
+-spec cluster_storages_list_model() -> maps:map().
 cluster_storages_list_model() ->
     #{'_' => cluster_storages_model()}.
 
@@ -128,7 +128,7 @@ cluster_storages_list_model() ->
 %% @doc The cluster worker service configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec cluster_workers_model() -> #{}.
+-spec cluster_workers_model() -> maps:map().
 cluster_workers_model() ->
     #{
         %% The list of aliases of cluster worker nodes.
@@ -144,7 +144,7 @@ cluster_workers_model() ->
 %% will be a connection error.
 %% @end
 %%--------------------------------------------------------------------
--spec cookie_model() -> #{}.
+-spec cookie_model() -> maps:map().
 cookie_model() ->
     #{
         %% The cluster cookie.
@@ -155,7 +155,7 @@ cookie_model() ->
 %% @doc The generic error model for REST requests.
 %% @end
 %%--------------------------------------------------------------------
--spec error_model() -> #{}.
+-spec error_model() -> maps:map().
 error_model() ->
     #{
         %% The name of an error type.
@@ -168,7 +168,7 @@ error_model() ->
 %% @doc The cluster manager service hosts configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec manager_hosts_model() -> #{}.
+-spec manager_hosts_model() -> maps:map().
 manager_hosts_model() ->
     #{
         %% The name of a host where main cluster manager node should be
@@ -185,14 +185,14 @@ manager_hosts_model() ->
 %% @doc The panel configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec panel_configuration_model() -> #{}.
+-spec panel_configuration_model() -> maps:map().
 panel_configuration_model() ->
     #{
         %% The collection of user names associated with users properties.
         users => #{'_' => panel_configuration_users_model()}
     }.
 
--spec panel_configuration_users_model() -> #{}.
+-spec panel_configuration_users_model() -> maps:map().
 panel_configuration_users_model() ->
     #{
         %% The user role, one of 'admin' or 'regular'.
@@ -205,7 +205,7 @@ panel_configuration_users_model() ->
 %% @doc The POSIX storage configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec posix_model() -> #{}.
+-spec posix_model() -> maps:map().
 posix_model() ->
     #{
         %% The type of storage.
@@ -219,7 +219,7 @@ posix_model() ->
 %% @doc The provider cluster configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec provider_cluster_configuration_model() -> #{}.
+-spec provider_cluster_configuration_model() -> maps:map().
 provider_cluster_configuration_model() ->
     #{
         %% Defines whether administrative cluster should be created from the
@@ -242,7 +242,7 @@ provider_cluster_configuration_model() ->
 %% @doc The provider deployment configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec provider_configuration_model() -> #{}.
+-spec provider_configuration_model() -> maps:map().
 provider_configuration_model() ->
     #{
         cluster => provider_cluster_configuration_model(),
@@ -255,7 +255,7 @@ provider_configuration_model() ->
 %% @doc The provider custom configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec provider_configuration_oneprovider_model() -> #{}.
+-spec provider_configuration_oneprovider_model() -> maps:map().
 provider_configuration_oneprovider_model() ->
     #{
         %% Defines whether the provider should be registered in a zone.
@@ -274,7 +274,7 @@ provider_configuration_oneprovider_model() ->
 %% @doc The zone custom configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec provider_configuration_onezone_model() -> #{}.
+-spec provider_configuration_onezone_model() -> maps:map().
 provider_configuration_onezone_model() ->
     #{
         %% The domain name of a zone where provider will be registered.
@@ -285,7 +285,7 @@ provider_configuration_onezone_model() ->
 %% @doc The provider configuration details.
 %% @end
 %%--------------------------------------------------------------------
--spec provider_details_model() -> #{}.
+-spec provider_details_model() -> maps:map().
 provider_details_model() ->
     #{
         %% The ID assigned by a zone.
@@ -306,7 +306,7 @@ provider_details_model() ->
 %% @doc The provider configuration details that can be modified.
 %% @end
 %%--------------------------------------------------------------------
--spec provider_modify_request_model() -> #{}.
+-spec provider_modify_request_model() -> maps:map().
 provider_modify_request_model() ->
     #{
         %% The name under which the provider has been registered in a zone.
@@ -323,7 +323,7 @@ provider_modify_request_model() ->
 %% @doc The provider configuration details required for registration process.
 %% @end
 %%--------------------------------------------------------------------
--spec provider_register_request_model() -> #{}.
+-spec provider_register_request_model() -> maps:map().
 provider_register_request_model() ->
     #{
         %% The name under which the provider should be registered in a zone.
@@ -342,7 +342,7 @@ provider_register_request_model() ->
 %% @doc The provider spaces details.
 %% @end
 %%--------------------------------------------------------------------
--spec provider_spaces_model() -> #{}.
+-spec provider_spaces_model() -> maps:map().
 provider_spaces_model() ->
     #{
         %% The list of IDs of spaces supported by a provider.
@@ -353,7 +353,7 @@ provider_spaces_model() ->
 %% @doc The Simple Storage Service configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec s3_model() -> #{}.
+-spec s3_model() -> maps:map().
 s3_model() ->
     #{
         %% The type of storage.
@@ -374,7 +374,7 @@ s3_model() ->
 %% @doc The service hosts configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec service_databases_model() -> #{}.
+-spec service_databases_model() -> maps:map().
 service_databases_model() ->
     #{
         %% The list of hosts where service should be deployed.
@@ -393,7 +393,7 @@ service_databases_model() ->
 %% @doc The service error model for REST requests.
 %% @end
 %%--------------------------------------------------------------------
--spec service_error_model() -> #{}.
+-spec service_error_model() -> maps:map().
 service_error_model() ->
     #{
         %% The name of an error type.
@@ -412,7 +412,7 @@ service_error_model() ->
 %% @doc The service hosts configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec service_hosts_model() -> #{}.
+-spec service_hosts_model() -> maps:map().
 service_hosts_model() ->
     #{
         %% The list of hosts where service should be deployed.
@@ -423,7 +423,7 @@ service_hosts_model() ->
 %% @doc The generic model for service status.
 %% @end
 %%--------------------------------------------------------------------
--spec service_status_model() -> #{}.
+-spec service_status_model() -> maps:map().
 service_status_model() ->
     #{
         %% The collection of hosts with associated service status, for each
@@ -435,7 +435,7 @@ service_status_model() ->
 %% @doc The service status.
 %% @end
 %%--------------------------------------------------------------------
--spec service_status_host_model() -> #{}.
+-spec service_status_host_model() -> maps:map().
 service_status_host_model() ->
     #{
         %% The service status.
@@ -446,7 +446,7 @@ service_status_host_model() ->
 %% @doc The space details.
 %% @end
 %%--------------------------------------------------------------------
--spec space_details_model() -> #{}.
+-spec space_details_model() -> maps:map().
 space_details_model() ->
     #{
         %% The ID of the space.
@@ -463,7 +463,7 @@ space_details_model() ->
 %% provider.
 %% @end
 %%--------------------------------------------------------------------
--spec space_support_request_model() -> #{}.
+-spec space_support_request_model() -> maps:map().
 space_support_request_model() ->
     #{
         %% The space name. If this property is provided and space with given
@@ -487,7 +487,7 @@ space_support_request_model() ->
 %% @doc The OpenStack Swift configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec swift_model() -> #{}.
+-spec swift_model() -> maps:map().
 swift_model() ->
     #{
         %% The type of storage.
@@ -509,7 +509,7 @@ swift_model() ->
 %% configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec task_status_model() -> #{}.
+-spec task_status_model() -> maps:map().
 task_status_model() ->
     #{
         %% The operation status.
@@ -532,7 +532,7 @@ task_status_model() ->
 %% @doc The user configuration details required for creation process.
 %% @end
 %%--------------------------------------------------------------------
--spec user_create_request_model() -> #{}.
+-spec user_create_request_model() -> maps:map().
 user_create_request_model() ->
     #{
         %% The user name. It must be at least 4 characters long and contain only
@@ -551,7 +551,7 @@ user_create_request_model() ->
 %% @doc The user configuration details.
 %% @end
 %%--------------------------------------------------------------------
--spec user_details_model() -> #{}.
+-spec user_details_model() -> maps:map().
 user_details_model() ->
     #{
         %% The user ID.
@@ -564,7 +564,7 @@ user_details_model() ->
 %% @doc The user configuration details that can be modified.
 %% @end
 %%--------------------------------------------------------------------
--spec user_modify_request_model() -> #{}.
+-spec user_modify_request_model() -> maps:map().
 user_modify_request_model() ->
     #{
         %% The user password.
@@ -575,7 +575,7 @@ user_modify_request_model() ->
 %% @doc The zone cluster configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec zone_cluster_configuration_model() -> #{}.
+-spec zone_cluster_configuration_model() -> maps:map().
 zone_cluster_configuration_model() ->
     #{
         %% Defines whether administrative cluster should be created from the
@@ -591,7 +591,7 @@ zone_cluster_configuration_model() ->
         workers => cluster_workers_model()
     }.
 
--spec zone_cluster_configuration_nodes_model() -> #{}.
+-spec zone_cluster_configuration_nodes_model() -> maps:map().
 zone_cluster_configuration_nodes_model() ->
     #{
         %% The name of a host.
@@ -602,7 +602,7 @@ zone_cluster_configuration_nodes_model() ->
 %% @doc The zone deployment configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec zone_configuration_model() -> #{}.
+-spec zone_configuration_model() -> maps:map().
 zone_configuration_model() ->
     #{
         cluster => zone_cluster_configuration_model(),
@@ -614,7 +614,7 @@ zone_configuration_model() ->
 %% @doc The zone custom configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec zone_configuration_onezone_model() -> #{}.
+-spec zone_configuration_onezone_model() -> maps:map().
 zone_configuration_onezone_model() ->
     #{
         %% The name of a zone.

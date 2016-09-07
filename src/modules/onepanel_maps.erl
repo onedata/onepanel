@@ -19,7 +19,7 @@
 -type key() :: any().
 -type keys() :: key() | [key()].
 -type value() :: term().
--type terms() :: #{}.
+-type terms() :: maps:map().
 
 -export_type([key/0, keys/0, value/0, terms/0]).
 

@@ -32,7 +32,7 @@
 
 -type name() :: atom().
 -type action() :: atom().
--type ctx() :: #{}.
+-type ctx() :: maps:map().
 -type notify() :: pid() | undefined.
 -type host() :: string().
 -type step() :: #step{} | #steps{}.
@@ -139,7 +139,7 @@ start(InitScript) ->
 %% in a shell.
 %% @end
 %%--------------------------------------------------------------------
--spec start(InitScript :: string(), SystemLimits :: #{}) -> ok | no_return().
+-spec start(InitScript :: string(), SystemLimits :: maps:map()) -> ok | no_return().
 start(InitScript, SystemLimits) ->
     Tokens = maps:fold(fun
         (open_files, Value, Acc) -> ["ulimit", "-n", Value, ";" | Acc];
