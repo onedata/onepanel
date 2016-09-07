@@ -15,7 +15,7 @@
 -behaviour(gen_server).
 
 -include("modules/errors.hrl").
--include("modules/logger.hrl").
+-include_lib("ctool/include/logging.hrl").
 -include("names.hrl").
 
 %% API
@@ -29,7 +29,7 @@
 -type hosts_results() :: {GoodResults :: onepanel_rpc:results(),
     BadResults :: onepanel_rpc:results()}.
 -type step_result() :: {Module :: module(), Function :: atom()} |
-    {Module :: module(), Function :: atom(), HostsResults :: hosts_results()}.
+{Module :: module(), Function :: atom(), HostsResults :: hosts_results()}.
 -type action_result() :: {task_finished, Service :: service:name(),
     Action :: service:action(), Result :: ok | #error{}}.
 -type result() :: action_result() | step_result().
@@ -94,7 +94,7 @@ receive_results(TaskId, Timeout) ->
     receive
         {task, TaskId, Result} -> Result
     after
-        Timeout -> ?error(?ERR_TIMEOUT)
+        Timeout -> ?make_error(?ERR_TIMEOUT)
     end.
 
 %%%===================================================================
@@ -103,16 +103,17 @@ receive_results(TaskId, Timeout) ->
 
 %%--------------------------------------------------------------------
 %% @private @doc Initializes the server.
+%% @end
 %%--------------------------------------------------------------------
 -spec init(Args :: term()) ->
     {ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term()} | ignore.
 init([]) ->
-    process_flag(trap_exit, true),
     {ok, #state{}}.
 
 %%--------------------------------------------------------------------
 %% @private @doc Handles call messages.
+%% @end
 %%--------------------------------------------------------------------
 -spec handle_call(Request :: term(), From :: {pid(), Tag :: term()},
     State :: #state{}) ->
@@ -125,8 +126,8 @@ init([]) ->
 handle_call({apply, Service, Action, Ctx}, {Owner, _}, #state{tasks = Tasks,
     workers = Workers, handlers = Handlers} = State) ->
     TaskId = onepanel_utils:gen_uuid(),
-    Handler = erlang:spawn_link(?MODULE, handle_results, [[]]),
-    Worker = erlang:spawn_link(service, apply,
+    {Handler, _} = erlang:spawn_monitor(?MODULE, handle_results, [[]]),
+    {Worker, _} = erlang:spawn_monitor(service, apply,
         [Service, Action, Ctx, Handler]),
     Task = #task{owner = Owner, worker = Worker, handler = Handler},
     {reply, TaskId, State#state{
@@ -138,7 +139,7 @@ handle_call({apply, Service, Action, Ctx}, {Owner, _}, #state{tasks = Tasks,
 handle_call({abort_task, TaskId}, _From, State) ->
     case task_cleanup(TaskId, State) of
         {true, NewState} -> {reply, ok, NewState};
-        {false, NewState} -> {reply, ?error(?ERR_NOT_FOUND), NewState}
+        {false, NewState} -> {reply, ?make_error(?ERR_NOT_FOUND), NewState}
     end;
 
 handle_call({exists_task, TaskId}, _From, #state{tasks = Tasks} = State) ->
@@ -153,7 +154,7 @@ handle_call({get_results, TaskId}, {From, _}, #state{tasks = Tasks} = State) ->
             Handler ! {forward_results, TaskId, From},
             {reply, ok, State};
         error ->
-            {reply, ?error(?ERR_NOT_FOUND), State}
+            {reply, ?make_error(?ERR_NOT_FOUND), State}
     end;
 
 handle_call(Request, _From, State) ->
@@ -162,6 +163,7 @@ handle_call(Request, _From, State) ->
 
 %%--------------------------------------------------------------------
 %% @private @doc Handles cast messages.
+%% @end
 %%--------------------------------------------------------------------
 -spec handle_cast(Request :: term(), State :: #state{}) ->
     {noreply, NewState :: #state{}} |
@@ -173,12 +175,13 @@ handle_cast(Request, State) ->
 
 %%--------------------------------------------------------------------
 %% @private @doc Handles all non call/cast messages.
+%% @end
 %%--------------------------------------------------------------------
 -spec handle_info(Info :: timeout() | term(), State :: #state{}) ->
     {noreply, NewState :: #state{}} |
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}.
-handle_info({'EXIT', Pid, normal}, #state{tasks = Tasks, workers = Workers} =
+handle_info({'DOWN', _, _, Pid, normal}, #state{tasks = Tasks, workers = Workers} =
     State) ->
     case maps:find(Pid, Workers) of
         {ok, TaskId} ->
@@ -187,18 +190,18 @@ handle_info({'EXIT', Pid, normal}, #state{tasks = Tasks, workers = Workers} =
                     Handler ! {forward_results, TaskId, Owner},
                     schedule_task_cleanup(TaskId);
                 error ->
-                    ?log_warning("Task ~p not found", [TaskId])
+                    ?warning("Task ~p not found", [TaskId])
             end;
-        error -> ?log_warning("Worker ~p not found", [Pid])
+        error -> ?warning("Worker ~p not found", [Pid])
     end,
     {noreply, State#state{workers = maps:remove(Pid, Workers)}};
 
-handle_info({'EXIT', Pid, _}, #state{workers = Workers, handlers = Handlers}
+handle_info({'DOWN', _, _, Pid, _}, #state{workers = Workers, handlers = Handlers}
     = State) ->
     Result = case {maps:find(Pid, Workers), maps:find(Pid, Handlers)} of
         {{ok, Id}, _} -> {ok, Id};
         {_, {ok, Id}} -> {ok, Id};
-        {_, _} -> ?error(?ERR_NOT_FOUND)
+        {_, _} -> ?make_error(?ERR_NOT_FOUND)
     end,
     NewState = case Result of
         {ok, TaskId} ->
@@ -230,6 +233,7 @@ terminate(_Reason, _State) ->
 
 %%--------------------------------------------------------------------
 %% @private @doc Converts process state when code is changed.
+%% @end
 %%--------------------------------------------------------------------
 -spec code_change(OldVsn :: term() | {down, term()}, State :: #state{},
     Extra :: term()) ->
@@ -243,6 +247,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 %%--------------------------------------------------------------------
 %% @private @doc Removes an asynchronous operation associated with the provided ID.
+%% @end
 %%--------------------------------------------------------------------
 -spec task_cleanup(TaskId :: task_id(), State :: #state{}) ->
     {Cleaned :: boolean(), NewState :: #state{}}.

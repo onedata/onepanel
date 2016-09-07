@@ -124,9 +124,9 @@ parse_nested_key_test() ->
             key3 => <<"value">>
         }
     }}, onepanel_parser:parse(Data1, ArgsSpec)),
-    ?assertThrow(#error{reason = {?ERR_MISSING_KEY, [key3, key2, key1]}},
+    ?assertThrow(#error{reason = {?ERR_MISSING_KEY, [key1, key2, key3]}},
         onepanel_parser:parse(Data2, ArgsSpec)),
-    ?assertThrow(#error{reason = {?ERR_MISSING_KEY, [key2, key1]}},
+    ?assertThrow(#error{reason = {?ERR_MISSING_KEY, [key1, key2]}},
         onepanel_parser:parse(Data3, ArgsSpec)),
     ?assertThrow(#error{reason = {?ERR_MISSING_KEY, [key1]}},
         onepanel_parser:parse(Data4, ArgsSpec)).

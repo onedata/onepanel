@@ -13,7 +13,7 @@
 -author("Krzysztof Trzepla").
 
 -include("modules/errors.hrl").
--include("modules/logger.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([get_method/1, get_bindings/1, get_params/2, get_args/2, get_hosts/2,
@@ -71,7 +71,7 @@ get_params(Req, ParamsSpec) ->
         {onepanel_parser:parse(NewParams, ParamsSpec), Req2}
     catch
         throw:#error{reason = {?ERR_MISSING_KEY, Keys}} = Error ->
-            ?throw(Error#error{reason = {?ERR_MISSING_PARAM, Keys}})
+            ?throw_error(Error#error{reason = {?ERR_MISSING_PARAM, Keys}})
     end.
 
 
@@ -107,7 +107,7 @@ get_hosts(Keys, Args) ->
     lists:map(fun(Alias) ->
         case maps:find(Alias, HostsMap) of
             {ok, Host} -> onepanel_utils:convert(Host, list);
-            error -> ?throw({?ERR_HOST_NOT_FOUND_FOR_ALIAS, Alias})
+            error -> ?throw_error({?ERR_HOST_NOT_FOUND_FOR_ALIAS, Alias})
         end
     end, AliasesList).
 
@@ -121,5 +121,5 @@ get_hosts(Keys, Args) ->
 verify_any(Keys, Args) ->
     case lists:any(fun(Key) -> maps:is_key(Key, Args) end, Keys) of
         true -> ok;
-        _ -> ?throw({?ERR_MISSING_ANY_KEY, Keys})
+        _ -> ?throw_error({?ERR_MISSING_ANY_KEY, Keys})
     end.

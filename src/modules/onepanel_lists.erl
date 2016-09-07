@@ -38,7 +38,7 @@ get([], Terms) ->
 get([Key | Keys], Terms) ->
     case lists:keyfind(Key, 1, Terms) of
         {Key, NewTerms} -> get(Keys, NewTerms);
-        false -> ?error(?ERR_NOT_FOUND)
+        false -> ?make_error(?ERR_NOT_FOUND)
     end;
 
 get(Key, Terms) ->

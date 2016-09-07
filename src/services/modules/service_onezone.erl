@@ -119,8 +119,4 @@ get_steps(status, _Ctx) ->
         #steps{service = ?SERVICE_CB, action = status},
         #steps{service = ?SERVICE_CM, action = status},
         #steps{service = ?SERVICE_OZW, action = status}
-    ];
-
-get_steps(Action, _Ctx) ->
-    ?throw({action_not_supported, Action}).
-
+    ].

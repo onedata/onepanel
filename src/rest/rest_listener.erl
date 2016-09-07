@@ -12,7 +12,7 @@
 -author("Krzysztof Trzepla").
 
 -include("http/rest.hrl").
--include("modules/logger.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 -export([start/0, stop/0, get_status/0]).
 
@@ -69,7 +69,7 @@ start() ->
             {env, [{dispatch, Dispatch}]}
         ]),
 
-    ?log_info("REST listener successfully started").
+    ?info("REST listener successfully started").
 
 
 %%--------------------------------------------------------------------
@@ -80,9 +80,9 @@ start() ->
 stop() ->
     case cowboy:stop_listener(?LISTENER) of
         ok ->
-            ?log_info("REST listener stopped");
+            ?info("REST listener stopped");
         {error, Reason} ->
-            ?log_error("Cannot stop REST listener due to: ~p", [Reason]),
+            ?error("Cannot stop REST listener due to: ~p", [Reason]),
             {error, Reason}
     end.
 

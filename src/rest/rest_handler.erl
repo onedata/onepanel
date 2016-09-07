@@ -14,7 +14,7 @@
 
 -include("http/rest.hrl").
 -include("modules/errors.hrl").
--include("modules/logger.hrl").
+-include_lib("ctool/include/logging.hrl").
 -include("modules/models.hrl").
 
 %% API
@@ -148,7 +148,7 @@ forbidden(Req, #rstate{module = Module, methods = Methods} = State) ->
         {not Authorized, Req5, State}
     catch
         Type:Reason ->
-            {true, rest_replier:handle_error(Req, Type, ?error(Reason)), State}
+            {true, rest_replier:handle_error(Req, Type, ?make_error(Reason)), State}
     end.
 
 
@@ -171,7 +171,7 @@ resource_exists(Req, #rstate{module = Module, methods = Methods} = State) ->
         {Exists, Req5, State}
     catch
         Type:Reason ->
-            {false, rest_replier:handle_error(Req, Type, ?error(Reason)), State}
+            {false, rest_replier:handle_error(Req, Type, ?make_error(Reason)), State}
     end.
 
 
@@ -189,7 +189,7 @@ accept_resource_json(Req, #rstate{} = State) ->
         accept_resource(Req2, Data, State)
     catch
         Type:Reason ->
-            {false, rest_replier:handle_error(Req, Type, ?error(Reason)), State}
+            {false, rest_replier:handle_error(Req, Type, ?make_error(Reason)), State}
     end.
 
 
@@ -208,7 +208,7 @@ accept_resource_yaml(Req, #rstate{} = State) ->
         accept_resource(Req2, Data2, State)
     catch
         Type:Reason ->
-            {false, rest_replier:handle_error(Req, Type, ?error(Reason)), State}
+            {false, rest_replier:handle_error(Req, Type, ?make_error(Reason)), State}
     end.
 
 
@@ -232,7 +232,7 @@ provide_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
         {Json, Req5, State}
     catch
         Type:Reason ->
-            {halt, rest_replier:handle_error(Req, Type, ?error(Reason)), State}
+            {halt, rest_replier:handle_error(Req, Type, ?make_error(Reason)), State}
     end.
 
 
@@ -255,7 +255,7 @@ delete_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
         {Deleted, Req5, State}
     catch
         Type:Reason ->
-            {false, rest_replier:handle_error(Req, Type, ?error(Reason)), State}
+            {false, rest_replier:handle_error(Req, Type, ?make_error(Reason)), State}
     end.
 
 %%%===================================================================
@@ -301,7 +301,7 @@ authorize_by_basic_auth(Req, State) ->
                     {false, rest_replier:handle_error(Req2, error, Error), State}
             catch
                 Type:Reason ->
-                    {false, rest_replier:handle_error(Req2, Type, ?error(Reason)), State}
+                    {false, rest_replier:handle_error(Req2, Type, ?make_error(Reason)), State}
             end;
         {_, Req2} ->
             {false, Req2, State}

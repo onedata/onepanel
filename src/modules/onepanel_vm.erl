@@ -34,7 +34,7 @@
 read(Key, Path) ->
     case file:read_file(Path) of
         {ok, Content} -> get(Key, Content);
-        {error, Reason} -> ?throw(Reason)
+        {error, Reason} -> ?throw_error(Reason)
     end.
 
 
@@ -52,10 +52,10 @@ write(Key, Value, Path) ->
             {ok, NewContent} = set(Key, Value, Content),
             case file:write_file(Path, NewContent) of
                 ok -> ok;
-                {error, Reason} -> ?throw(Reason)
+                {error, Reason} -> ?throw_error(Reason)
             end;
         {error, Reason} ->
-            ?throw(Reason)
+            ?throw_error(Reason)
     end.
 
 
@@ -75,9 +75,9 @@ get(Key, Content) ->
         {match, [<<"-", BinKey:KeySize/binary, Value/binary>>]} ->
             {ok, onepanel_utils:trim(Value, both)};
         nomatch ->
-            ?error(?ERR_NOT_FOUND);
+            ?make_error(?ERR_NOT_FOUND);
         {error, Reason} ->
-            ?throw(Reason)
+            ?throw_error(Reason)
     end.
 
 

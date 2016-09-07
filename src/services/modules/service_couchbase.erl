@@ -13,7 +13,7 @@
 -behaviour(service_behaviour).
 
 -include("modules/errors.hrl").
--include("modules/logger.hrl").
+-include_lib("ctool/include/logging.hrl").
 -include("modules/models.hrl").
 -include("service.hrl").
 
@@ -87,10 +87,7 @@ get_steps(restart, _Ctx) ->
     [#step{function = stop}, #step{function = start}];
 
 get_steps(status, _Ctx) ->
-    [#step{function = status}];
-
-get_steps(Action, _Ctx) ->
-    ?throw({action_not_supported, Action}).
+    [#step{function = status}].
 
 %%%===================================================================
 %%% API functions
@@ -133,9 +130,9 @@ wait_for_init(Ctx) ->
     Validator = fun
         ({ok, Socket}) -> gen_tcp:close(Socket);
         ({error, Reason}) ->
-            ?log_warning("Cannot connect to couchbase server (~s:~p) due to: "
+            ?warning("Cannot connect to couchbase server (~s:~p) due to: "
             "~p", [Host, Port, Reason]),
-            ?throw(Reason)
+            ?throw_error(Reason)
     end,
 
     onepanel_utils:wait_until(gen_tcp, connect, [Host, Port, [],

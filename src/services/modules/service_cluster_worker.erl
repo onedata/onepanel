@@ -83,10 +83,7 @@ get_steps(status, _Ctx) ->
     [#step{function = status}];
 
 get_steps(nagios_report, _Ctx) ->
-    [#step{function = nagios_report}];
-
-get_steps(Action, _Ctx) ->
-    ?throw({action_not_supported, Action}).
+    [#step{function = nagios_report}].
 
 %%%===================================================================
 %%% API functions

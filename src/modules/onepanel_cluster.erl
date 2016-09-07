@@ -57,21 +57,20 @@ nodes_to_hosts() ->
 %%--------------------------------------------------------------------
 -spec nodes_to_hosts(Nodes :: [node()]) -> Hosts :: [service:host()].
 nodes_to_hosts(Nodes) ->
-    lists:map(fun(Node) -> node_to_host(Node) end, Nodes).
+    lists:map(fun node_to_host/1, Nodes).
 
 
 %%--------------------------------------------------------------------
-%% @doc @equiv host_to_node(?APP_NAME)
+%% @doc @equiv host_to_node(?APP_NAME, Host)
 %% @end
 %%--------------------------------------------------------------------
 -spec host_to_node(Host :: service:host()) -> Node :: node().
 host_to_node(Host) ->
-    Name = erlang:atom_to_list(?APP_NAME),
-    host_to_node(Name, Host).
+    host_to_node(?APP_NAME, Host).
 
 
 %%--------------------------------------------------------------------
-%% @doc Creates a node from a node name and a hostname.
+%% @doc Creates a node name from a name and a hostname.
 %% @end
 %%--------------------------------------------------------------------
 -spec host_to_node(Name :: atom() | string(), Host :: service:host()) ->
@@ -80,17 +79,16 @@ host_to_node(Name, Host) when is_atom(Name) ->
     host_to_node(erlang:atom_to_list(Name), Host);
 
 host_to_node(Name, Host) ->
-    erlang:list_to_atom(string:join([Name, Host], "@")).
+    erlang:list_to_atom(Name ++ "@" ++ Host).
 
 
 %%--------------------------------------------------------------------
-%% @doc @equiv host_to_node(?APP_NAME, Hosts)
+%% @doc @equiv hosts_to_node(?APP_NAME, Hosts)
 %% @end
 %%--------------------------------------------------------------------
 -spec hosts_to_nodes(Hosts :: [service:host()]) -> Nodes :: [node()].
 hosts_to_nodes(Hosts) ->
-    Name = erlang:atom_to_list(?APP_NAME),
-    hosts_to_nodes(Name, Hosts).
+    hosts_to_nodes(?APP_NAME, Hosts).
 
 
 %%--------------------------------------------------------------------

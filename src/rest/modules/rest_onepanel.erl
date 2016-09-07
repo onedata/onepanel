@@ -11,7 +11,7 @@
 -author("Krzysztof Trzepla").
 
 -include("http/rest.hrl").
--include("modules/logger.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 -behavior(rest_behaviour).
 

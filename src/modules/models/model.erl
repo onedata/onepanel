@@ -56,7 +56,7 @@ create(Model, Record) ->
         case mnesia:read(Table, Key) of
             [] -> mnesia:write(Table, Record, write);
             [_ | _] ->
-                ?error(?ERR_ALREADY_EXISTS, ?MODULE, create, 1, [Model, Record])
+                ?make_error(?ERR_ALREADY_EXISTS, ?MODULE, create, 1, [Model, Record])
         end
     end).
 
@@ -84,7 +84,7 @@ update(Model, Key, Diff) ->
     transaction(fun() ->
         Table = get_table_name(Model),
         case mnesia:read(Table, Key) of
-            [] -> mnesia:abort(?error(?ERR_NOT_FOUND, ?MODULE, update, 2,
+            [] -> mnesia:abort(?make_error(?ERR_NOT_FOUND, ?MODULE, update, 2,
                 [Model, Key, Diff]));
             [Record] -> mnesia:write(Table, apply_diff(Record, Diff), write)
         end
@@ -101,7 +101,7 @@ get(Model, Key) ->
     transaction(fun() ->
         Table = get_table_name(Model),
         case mnesia:read(Table, Key) of
-            [] -> ?error(?ERR_NOT_FOUND, ?MODULE, get, 1, [Model, Key]);
+            [] -> ?make_error(?ERR_NOT_FOUND, ?MODULE, get, 1, [Model, Key]);
             [Record] -> {ok, Record}
         end
     end).
@@ -187,7 +187,7 @@ clear(Model) ->
     Table = get_table_name(Model),
     case mnesia:clear_table(Table) of
         {atomic, ok} -> ok;
-        {aborted, Reason} -> ?error(Reason)
+        {aborted, Reason} -> ?make_error(Reason)
     end.
 
 
@@ -200,8 +200,8 @@ transaction(Transaction) ->
     try
         mnesia:activity(transaction, Transaction)
     catch
-        _:{aborted, Reason} -> ?throw(Reason);
-        _:Reason -> ?throw(Reason)
+        _:{aborted, Reason} -> ?throw_error(Reason);
+        _:Reason -> ?throw_error(Reason)
     end.
 
 %%%===================================================================
@@ -220,10 +220,7 @@ apply_diff(Record, Diff) when is_function(Diff) ->
 apply_diff(Record, Diff) when is_map(Diff) ->
     [Model | Values] = erlang:tuple_to_list(Record),
     Fields = Model:get_fields(),
-    NewValues = lists:map(fun({Field, Value}) ->
-        case maps:find(Field, Diff) of
-            {ok, NewValue} -> NewValue;
-            error -> Value
-        end
+    NewValues = lists:map(fun({Field, OldValue}) ->
+        maps:get(Field, Diff, OldValue)
     end, lists:zip(Fields, Values)),
     erlang:list_to_tuple([Model | NewValues]).
