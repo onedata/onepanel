@@ -141,7 +141,8 @@ get_steps(register, #{hosts := Hosts} = Ctx) ->
         #step{hosts = Hosts, function = configure, ctx = Ctx#{application => name()}},
         #step{hosts = service_onepanel:get_hosts(), function = configure,
             ctx = Ctx#{application => ?APP_NAME}},
-        #step{hosts = Hosts, function = register, selection = any}
+        #step{hosts = Hosts, function = register, selection = any,
+            attempts = onepanel_env:get(oneprovider_register_attempts)}
     ];
 
 get_steps(register, Ctx) ->
