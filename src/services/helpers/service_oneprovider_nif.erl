@@ -35,7 +35,7 @@ init() ->
         ok -> ok;
         {error, {reload, _}} -> ok;
         {error, {upgrade, _}} -> ok;
-        {error, Reason} -> ?throw(Reason)
+        {error, Reason} -> ?throw_error(Reason)
     end.
 
 

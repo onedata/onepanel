@@ -14,7 +14,7 @@
 
 -behaviour(gen_server).
 
--include("modules/logger.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([start_link/0]).
@@ -28,7 +28,7 @@
     ip :: inet:ip_address(),
     port :: inet:port_number(),
     socket :: inet:socket(),
-    nodes = sets:new() :: sets:set(node())
+    nodes = gb_sets:new() :: gb_sets:set(node())
 }).
 
 %%%===================================================================
@@ -74,23 +74,20 @@ get_hosts() ->
     {stop, Reason :: term()} | ignore.
 init([]) ->
     try
-        process_flag(trap_exit, true),
-
         Address = onepanel_env:get(advertise_address),
         Port = onepanel_env:get(advertise_port),
         {ok, Ip} = inet:getaddr(Address, inet),
         {ok, Socket} = gen_udp:open(Port, [binary, {reuseaddr, true}, {ip, Ip},
             {multicast_loop, false}, {add_membership, {Ip, {0, 0, 0, 0}}}]),
-        ok = gen_udp:controlling_process(Socket, self()),
 
         self() ! advertise,
 
-        Nodes = sets:add_element(node(), sets:new()),
+        Nodes = gb_sets:from_list([node()]),
         {ok, #state{nodes = Nodes, ip = Ip, port = Port, socket = Socket}}
     catch
         _:Reason ->
-            ?log_error("Cannot initialize onepanel discovery due to: ~p",
-                [Reason], true),
+            ?error_stacktrace("Cannot initialize onepanel discovery due to: ~p",
+                [Reason]),
             {stop, Reason}
     end.
 
@@ -107,7 +104,7 @@ init([]) ->
     {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
     {stop, Reason :: term(), NewState :: #state{}}.
 handle_call(get_nodes, _From, #state{nodes = Nodes} = State) ->
-    {reply, sets:to_list(Nodes), State};
+    {reply, gb_sets:to_list(Nodes), State};
 
 handle_call(Request, _From, State) ->
     ?log_bad_request(Request),
@@ -136,15 +133,15 @@ handle_cast(Request, State) ->
 handle_info({udp, _Socket, _Ip, _Port, Msg}, #state{nodes = Nodes} = State) ->
     NewState = case verify_node(Msg, Nodes) of
         {ok, Node} ->
-            ?log_info("Discovered node ~p", [Node]),
-            State#state{nodes = sets:add_element(Node, Nodes)};
+            ?info("Discovered node ~p", [Node]),
+            State#state{nodes = gb_sets:add_element(Node, Nodes)};
         {error, already_discovered} ->
             State;
         {error, invalid_node} ->
-            ?log_debug("Cannot parse node name: ~p", [Msg]),
+            ?debug("Cannot parse node name: ~p", [Msg]),
             State;
         {error, {resolve, Hostname, Reason}} ->
-            ?log_warning("Cannot resolve hostname ~p due to: ~p", [Hostname, Reason]),
+            ?warning("Cannot resolve hostname ~p due to: ~p", [Hostname, Reason]),
             State
     end,
     {noreply, NewState};
@@ -191,7 +188,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% which yet has not been discovered.
 %% @end
 %%--------------------------------------------------------------------
--spec verify_node(Msg :: binary(), Nodes :: sets:set(node())) ->
+-spec verify_node(Msg :: binary(), Nodes :: gb_sets:set(node())) ->
     {ok, Node :: node()} | {error, Reason :: term()}.
 verify_node(Msg, Nodes) ->
     case binary:split(Msg, <<"@">>, [global]) of
@@ -199,7 +196,7 @@ verify_node(Msg, Nodes) ->
             case inet:getaddr(erlang:binary_to_list(Hostname), inet) of
                 {ok, _} ->
                     Node = erlang:binary_to_atom(Msg, utf8),
-                    case sets:is_element(Node, Nodes) of
+                    case gb_sets:is_element(Node, Nodes) of
                         true -> {error, already_discovered};
                         false -> {ok, Node}
                     end;

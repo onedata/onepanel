@@ -13,7 +13,7 @@
 -author("Krzysztof Trzepla").
 
 -include("modules/errors.hrl").
--include("modules/logger.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([parse/2]).
@@ -47,6 +47,7 @@ parse(Data, ArgsSpec) ->
 
 %%--------------------------------------------------------------------
 %% @private @doc Parses data according to provided specification.
+%% @end
 %%--------------------------------------------------------------------
 -spec parse(Data :: data(), ArgsList :: args_list(), Keys :: keys(), Args :: args()) ->
     Args :: args() | no_return().
@@ -58,8 +59,7 @@ parse(Data, [{'_', Spec} = ValueSpec], Keys, Args) when is_list(Data) ->
         ({Key, Value}, Acc) when is_binary(Key) ->
             Arg = parse_value(Value, Spec, [Key | Keys]),
             maps:put(Key, Arg, Acc);
-        (_, _) ->
-            ?throw({?ERR_INVALID_VALUE, Keys, ValueSpec})
+        (_, _) -> report_invalid_value(Keys, ValueSpec)
     end, Args, Data);
 
 parse(Data, [{'_', _} = ValueSpec | ArgsSpec], Keys, Args) when is_list(Data) ->
@@ -81,15 +81,16 @@ parse(Data, [{Key, Spec} | ArgsSpec], Keys, Args) when is_list(Data) ->
                     parse(Data, ArgsSpec, Keys, Args)
             end;
         {false, {false, _}} ->
-            ?throw({?ERR_MISSING_KEY, [Key | Keys]})
+            ?throw_error({?ERR_MISSING_KEY, lists:reverse([Key | Keys])})
     end;
 
 parse(_Data, [{Key, Spec} | _ArgsSpec], Keys, _Args) ->
-    ?throw({?ERR_INVALID_VALUE, [Key | Keys], Spec}).
+    report_invalid_value([Key | Keys], Spec).
 
 
 %%--------------------------------------------------------------------
 %% @private @doc Parses value according to provided specification.
+%% @end
 %%--------------------------------------------------------------------
 -spec parse_value(Value :: term(), ValueSpec :: value_spec(), Keys :: keys()) ->
     Value :: term() | no_return().
@@ -97,7 +98,7 @@ parse_value(Value, {equal, Equal} = ValueSpec, Keys) ->
     Type = onepanel_utils:get_type(Equal),
     case parse_value(Value, Type, Keys) of
         Equal -> Equal;
-        _ -> ?throw({?ERR_INVALID_VALUE, Keys, ValueSpec})
+        _ -> report_invalid_value(Keys, ValueSpec)
     end;
 
 parse_value(Value, integer, _Keys) when is_integer(Value) ->
@@ -119,7 +120,7 @@ parse_value(Value, boolean = ValueSpec, Keys) when is_atom(Value) ->
     case Value of
         true -> true;
         false -> false;
-        _ -> ?throw({?ERR_INVALID_VALUE, Keys, ValueSpec})
+        _ -> report_invalid_value(Keys, ValueSpec)
     end;
 
 parse_value(Value, boolean, Keys) ->
@@ -147,8 +148,7 @@ parse_value(Value, {oneof, ValueSpecs}, Keys) when is_list(ValueSpecs) ->
         (_, _Arg) -> _Arg
     end, undefined, ValueSpecs),
     case Arg of
-        undefined ->
-            ?throw({?ERR_INVALID_VALUE, Keys, {oneof, ValueSpecs}});
+        undefined -> report_invalid_value(Keys, {oneof, ValueSpecs});
         _ -> Arg
     end;
 
@@ -158,17 +158,17 @@ parse_value(Values, ValueSpec, Keys) when is_list(ValueSpec) ->
             parse_value(Value, hd(ValueSpec), Keys)
         end, Values)
     catch
-        _:_ -> ?throw({?ERR_INVALID_VALUE, Keys, ValueSpec})
+        _:_ -> report_invalid_value(Keys, ValueSpec)
     end;
 
 parse_value(Value, ValueSpec, Keys) when is_map(ValueSpec) ->
     parse(Value, maps:to_list(ValueSpec), Keys, #{});
 
 parse_value(_Value, binary, Keys) ->
-    ?throw({?ERR_INVALID_VALUE, Keys, string});
+    report_invalid_value(Keys, string);
 
 parse_value(_Value, ValueSpec, Keys) ->
-    ?throw({?ERR_INVALID_VALUE, Keys, ValueSpec}).
+    report_invalid_value(Keys, ValueSpec).
 
 
 %%--------------------------------------------------------------------
@@ -185,6 +185,7 @@ is_optional(Spec) -> {false, Spec}.
 
 %%--------------------------------------------------------------------
 %% @private @doc Checks whether provided specification has default value.
+%% @end
 %%--------------------------------------------------------------------
 -spec has_default(Spec :: value_spec()) -> {true, Spec :: term()} | false.
 has_default({_Spec, {optional, Value}}) -> {true, Value};
@@ -202,5 +203,13 @@ convert(Value, ValueSpec, Keys, Fun) ->
     try
         Fun(Value)
     catch
-        _:_ -> ?throw({?ERR_INVALID_VALUE, Keys, ValueSpec})
+        _:_ -> report_invalid_value(Keys, ValueSpec)
     end.
+
+%%--------------------------------------------------------------------
+%% @private @doc Throws invalid value error.
+%% @end
+%%--------------------------------------------------------------------
+-spec report_invalid_value(Keys :: keys(), ValueSpec :: value_spec()) -> no_return().
+report_invalid_value(Keys, ValueSpec) ->
+    ?throw_error({?ERR_INVALID_VALUE, lists:reverse(Keys), ValueSpec}).

@@ -13,7 +13,7 @@
 
 -include("names.hrl").
 -include("modules/errors.hrl").
--include("modules/logger.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([get_basic_auth_header/2, get_ip_address/0]).
@@ -82,8 +82,8 @@ wait_until(Module, Function, Args, {validator, Validator}, Attempts, Delay) ->
     catch
         _:Reason ->
             timer:sleep(Delay),
-            ?log_debug("Call ~p:~p(~p) returned unexpected result: ~p."
-            " Retrying...", [Module, Function, Args, Reason], true),
+            ?debug_stacktrace("Call ~p:~p(~p) returned unexpected result: ~p."
+            " Retrying...", [Module, Function, Args, Reason]),
             wait_until(Module, Function, Args, {validator, Validator},
                 Attempts - 1, Delay)
     end;
@@ -101,7 +101,7 @@ wait_until(Module, Function, Args, Expected, Attempts, Delay) ->
 save_file(Path, Content) ->
     case file:write_file(Path, Content) of
         ok -> ok;
-        {error, Reason} -> ?throw(Reason)
+        {error, Reason} -> ?throw_error(Reason)
     end.
 
 
@@ -114,7 +114,7 @@ save_file(Path, Content) ->
 get_ip_address() ->
     case oz_providers:check_ip_address(provider) of
         {ok, IpAddress} -> IpAddress;
-        {error, Reason} -> ?throw(Reason)
+        {error, Reason} -> ?throw_error(Reason)
     end.
 
 

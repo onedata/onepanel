@@ -111,7 +111,7 @@ set(Nodes, Keys, Value, AppName) ->
 read(Keys, Path) ->
     case file:consult(Path) of
         {ok, [AppConfigs]} -> onepanel_lists:get(Keys, AppConfigs);
-        {error, Reason} -> ?throw(Reason)
+        {error, Reason} -> ?throw_error(Reason)
     end.
 
 
@@ -136,10 +136,10 @@ write(Keys, Value, Path) ->
             NewAppConfigs = onepanel_lists:store(Keys, Value, AppConfigs),
             case file:write_file(Path, io_lib:fwrite("~p.", [NewAppConfigs])) of
                 ok -> ok;
-                {error, Reason} -> ?throw(Reason)
+                {error, Reason} -> ?throw_error(Reason)
             end;
         {error, Reason} ->
-            ?throw(Reason)
+            ?throw_error(Reason)
     end.
 
 

@@ -174,7 +174,7 @@ verify_storage(HelperName, HelperArgs, UserCtx) ->
 create_test_file(Node, Args) ->
     case rpc:call(Node, helpers_utils, create_test_file, Args) of
         {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
-            ?throw({?ERR_STORAGE_TEST_FILE_CREATION, Node, Reason}, Stacktrace);
+            ?throw_error({?ERR_STORAGE_TEST_FILE_CREATION, Node, Reason}, Stacktrace);
         {<<_/binary>> = FileId, <<_/binary>> = FileContent} ->
             {FileId, FileContent}
     end.
@@ -197,10 +197,10 @@ verify_test_file([Node | Nodes], Args, FileId, FileContent) ->
             {NewFileId, NewFileContent} = create_test_file(Node, Args),
             verify_test_file(Nodes, Args, NewFileId, NewFileContent);
         <<_/binary>> ->
-            ?throw({?ERR_STORAGE_TEST_FILE_VERIFICATION, Node,
+            ?throw_error({?ERR_STORAGE_TEST_FILE_VERIFICATION, Node,
                 {invalid_content, FileContent, ActualFileContent}});
         {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
-            ?error({?ERR_STORAGE_TEST_FILE_VERIFICATION, Node, Reason}, Stacktrace)
+            ?make_error({?ERR_STORAGE_TEST_FILE_VERIFICATION, Node, Reason}, Stacktrace)
     end.
 
 
@@ -212,7 +212,7 @@ verify_test_file([Node | Nodes], Args, FileId, FileContent) ->
 remove_test_file(Node, Args, FileId) ->
     case rpc:call(Node, helpers_utils, remove_test_file, Args ++ [FileId]) of
         {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
-            ?throw({?ERR_STORAGE_TEST_FILE_REMOVAL, Node, Reason}, Stacktrace);
+            ?throw_error({?ERR_STORAGE_TEST_FILE_REMOVAL, Node, Reason}, Stacktrace);
         _ -> ok
     end.
 
@@ -227,7 +227,7 @@ add_storage(Node, StorageName, HelperName, HelperArgs) ->
     Storage = rpc:call(Node, fslogic_storage, new_storage, [StorageName, [Helper]]),
     case rpc:call(Node, storage, create, [Storage]) of
         {ok, StorageId} -> StorageId;
-        {error, Reason} -> ?throw({?ERR_STORAGE_ADDITION, Reason})
+        {error, Reason} -> ?throw_error({?ERR_STORAGE_ADDITION, Reason})
     end.
 
 

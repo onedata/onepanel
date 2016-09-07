@@ -170,10 +170,7 @@ get_steps(Action, Ctx) when
         _ ->
             [#step{function = Action, selection = any,
                 ctx = Ctx#{hosts => service_op_worker:get_hosts()}}]
-    end;
-
-get_steps(Action, _Ctx) ->
-    ?throw({action_not_supported, Action}).
+    end.
 
 %%%===================================================================
 %%% API functions
@@ -247,7 +244,7 @@ register(Ctx) ->
 
     Validator = fun
         ({ok, ProviderId, Cert}) -> {ProviderId, Cert};
-        ({error, Reason}) -> ?throw(Reason)
+        ({error, Reason}) -> ?throw_error(Reason)
     end,
     {ProviderId, Cert} = onepanel_utils:wait_until(oz_providers, register,
         [provider, Params], {validator, Validator}, 10, timer:seconds(30)),

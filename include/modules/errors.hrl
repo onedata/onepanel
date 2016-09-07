@@ -29,33 +29,33 @@
     bad_results :: onepanel_rpc:results()
 }).
 
--define(error(Reason), ?error(Reason, erlang:get_stacktrace())).
+-define(make_error(Reason), ?make_error(Reason, erlang:get_stacktrace())).
 
--define(error(Reason, Stacktrace), begin
+-define(make_error(Reason, Stacktrace), begin
     {current_function, {__Module, __Function, __Arity}} =
         erlang:process_info(self(), current_function),
-    ?error(Reason, Stacktrace, __Module, __Function, __Arity, undefined)
+    ?make_error(Reason, Stacktrace, __Module, __Function, __Arity, undefined)
 end).
 
--define(error(Reason, Module, Function, Arity),
-    ?error(Reason, Module, Function, Arity, undefined)).
+-define(make_error(Reason, Module, Function, Arity),
+    ?make_error(Reason, Module, Function, Arity, undefined)).
 
--define(error(Reason, Module, Function, Arity, Args),
-    ?error(Reason, erlang:get_stacktrace(), Module, Function, Arity, Args)).
+-define(make_error(Reason, Module, Function, Arity, Args),
+    ?make_error(Reason, erlang:get_stacktrace(), Module, Function, Arity, Args)).
 
--define(error(Reason, Stacktrace, Module, Function, Arity, Args),
+-define(make_error(Reason, Stacktrace, Module, Function, Arity, Args),
     onepanel_errors:new(Module, Function, Arity, Args, Reason, Stacktrace, ?LINE)
 ).
 
--define(throw(Reason), erlang:throw(?error(Reason))).
+-define(throw_error(Reason), erlang:throw(?make_error(Reason))).
 
--define(throw(Reason, Stacktrace), erlang:throw(?error(Reason, Stacktrace))).
+-define(throw_error(Reason, Stacktrace), erlang:throw(?make_error(Reason, Stacktrace))).
 
--define(throw(Reason, Module, Function, Arity),
-    erlang:throw(?error(Reason, Module, Function, Arity))).
+-define(throw_error(Reason, Module, Function, Arity),
+    erlang:throw(?make_error(Reason, Module, Function, Arity))).
 
--define(throw(Reason, Module, Function, Arity, Args),
-    erlang:throw(?error(Reason, Module, Function, Arity, Args))).
+-define(throw_error(Reason, Module, Function, Arity, Args),
+    erlang:throw(?make_error(Reason, Module, Function, Arity, Args))).
 
 
 -define(ERR_TIMEOUT, timeout).

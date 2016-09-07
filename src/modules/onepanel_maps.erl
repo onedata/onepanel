@@ -38,7 +38,7 @@ get([], Terms) ->
 get([Key | Keys], Terms) ->
     case maps:find(Key, Terms) of
         {ok, NewTerms} -> get(Keys, NewTerms);
-        error -> ?error(?ERR_NOT_FOUND)
+        error -> ?make_error(?ERR_NOT_FOUND)
     end;
 
 get(Key, Terms) ->

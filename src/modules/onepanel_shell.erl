@@ -12,7 +12,7 @@
 -author("Krzysztof Trzepla").
 
 -include("modules/errors.hrl").
--include("modules/logger.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([output/1, check_output/1, wait_output/3, wait_output/4,
@@ -33,7 +33,7 @@
 output(Tokens) ->
     Cmd = erlang:binary_to_list(onepanel_utils:join(Tokens, <<" ">>)),
     Result = string:strip(os:cmd(Cmd), right, $\n),
-    ?log_info("Shell command: '~s' returned: '~s'", [Cmd, Result]),
+    ?info("Shell command: '~s' returned: '~s'", [Cmd, Result]),
     Result.
 
 
@@ -50,7 +50,7 @@ check_output(Tokens) ->
     Output = string:join(OutputTokens, ","),
     case Code of
         0 -> Output;
-        _ -> ?throw({Code, Output})
+        _ -> ?throw_error({Code, Output})
     end.
 
 
@@ -99,7 +99,7 @@ call(Tokens) ->
 check_call(Tokens) ->
     case call(Tokens) of
         0 -> ok;
-        Code -> ?throw(Code)
+        Code -> ?throw_error(Code)
     end.
 
 

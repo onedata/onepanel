@@ -14,7 +14,7 @@
 -include("modules/errors.hrl").
 
 -type key() :: term().
--type diff() :: fun((record()) -> record()) | #{}.
+-type diff() :: fun((record()) -> record()) | #{key() => term()}.
 -type record() :: tuple().
 
 -export_type([key/0, diff/0, record/0]).
