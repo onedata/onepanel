@@ -106,21 +106,14 @@ CHANGELOG
 * VFS-915 Add breadcrumbs.
 * VFS-915 Add info about NAT/PAT in case of connection error.
 
-
 ### 2.0.0
-
 
 * Service command may be used after installation
 * Registration in globalregistry hidden
 
-
-
 ### 1.0.0
 
-
 * provide GUI for oneprovider installation and update.
-
-
 
 ________
 

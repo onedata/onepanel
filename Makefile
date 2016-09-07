@@ -4,70 +4,87 @@ REPO            ?= onepanel
 DISTRIBUTION    ?= none
 export DISTRIBUTION
 
-PKG_REVISION    ?= $(shell git describe --tags --always)
-PKG_VERSION     ?= $(shell git describe --tags --always | tr - .)
-PKG_BUILD        = 1
-BASE_DIR         = $(shell pwd)
-ERLANG_BIN       = $(shell dirname $(shell which erl))
-REBAR           ?= $(BASE_DIR)/rebar
-OVERLAY_VARS    ?=
-
-ifeq ($(REL_TYPE),onezone)
-CONFIG           = config/onezone.config
-PKG_VARS_CONFIG  = config/oz_pkg.vars.config
-PKG_ID           = oz-panel-$(PKG_VERSION)
-else
-CONFIG           = config/oneprovider.config
-PKG_VARS_CONFIG  = config/op_pkg.vars.config
-PKG_ID           = op-panel-$(PKG_VERSION)
-endif
-
-BASE_DIR         = $(shell pwd)
+BASE_DIR        := $(shell pwd)
 GIT_URL := $(shell git config --get remote.origin.url | sed -e 's/\(\/[^/]*\)$$//g')
 GIT_URL := $(shell if [ "${GIT_URL}" = "file:/" ]; then echo 'ssh://git@git.plgrid.pl:7999/vfs'; else echo ${GIT_URL}; fi)
 ONEDATA_GIT_URL := $(shell if [ "${ONEDATA_GIT_URL}" = "" ]; then echo ${GIT_URL}; else echo ${ONEDATA_GIT_URL}; fi)
 export ONEDATA_GIT_URL
 
-.PHONY: deps generate
+PKG_REVISION    ?= $(shell git describe --tags --always)
+PKG_VERSION     ?= $(shell git describe --tags --always | tr - .)
+PKG_BUILD       := 1
+PKG_VARS_CONFIG := rel/pkg.vars.config
+ERLANG_BIN      := $(shell dirname $(shell which erl))
+REBAR           ?= $(BASE_DIR)/rebar
+TEMPLATE_SCRIPT := ./rel/templates/overlay.escript
+
+ifeq ($(strip $(REL_TYPE)),onezone)
+TEMPLATE_CONFIG := ./rel/templates/onezone.config
+PKG_ID          := oz-panel-$(PKG_VERSION)
+else ifeq ($(strip $(REL_TYPE)),oneprovider)
+TEMPLATE_CONFIG := ./rel/templates/oneprovider.config
+PKG_ID          := op-panel-$(PKG_VERSION)
+else
+TEMPLATE_CONFIG := ./rel/templates/dev.config
+PKG_ID          := onepanel-$(PKG_VERSION)
+endif
 
 all: rel
 
+.PHONY: deps
 deps:
-	@./rebar --config $(CONFIG) get-deps
+	./rebar get-deps
 
+.PHONY: compile
 compile:
-	@./rebar --config $(CONFIG) compile
+	./rebar compile
 
-generate:
-	@./rebar --config $(CONFIG) generate $(OVERLAY_VARS)
+.PHONY: generate
+generate: template
+	./rebar generate $(OVERLAY_VARS)
 
+.PHONY: clean
 clean: relclean pkgclean
-	@./rebar --config $(CONFIG) clean
+	./rebar clean
 
+.PHONY: distclean
 distclean:
-	@./rebar --config $(CONFIG) delete-deps
+	./rebar delete-deps
+
+.PHONY: template
+template:
+	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rel/pkg.vars.config.template
+	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rel/reltool.config.template
+	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rel/vars.config.template
+
+##
+## Testing targets
+##
+
+.PHONY: eunit
+eunit:
+	./rebar eunit skip_deps=true suites=${SUITES}
+## Rename all tests in order to remove duplicated names (add _(++i) suffix to each test)
+	@for tout in `find test -name "TEST-*.xml"`; do awk '/testcase/{gsub("_[0-9]+\"", "_" ++i "\"")}1' $$tout > $$tout.tmp; mv $$tout.tmp $$tout; done
+
+.PHONY: coverage
+coverage:
+	$(BASE_DIR)/bamboos/docker/coverage.escript $(BASE_DIR)
 
 ##
 ## Release targets
 ##
 
+.PHONY: doc
 doc:
-	@./rebar --config $(CONFIG) doc skip_deps=true
+	@./rebar doc skip_deps=true
 
+.PHONY: rel
 rel: deps compile generate
-ifeq ($(REL_TYPE),onezone)
-	rm -rf rel/oz_panel
-	mv rel_onezone/oz_panel rel/
-else
-	rm -rf rel/op_panel
-	mv rel_oneprovider/op_panel rel/
-endif
 
+.PHONY: relclean
 relclean:
-	rm -rf rel/oz_panel
-	rm -rf rel/op_panel
-	rm -rf rel_onezone/oz_panel
-	rm -rf rel_oneprovider/op_panel
+	rm -rf rel/onepanel
 
 ##
 ## Dialyzer targets local
@@ -80,13 +97,14 @@ PLT ?= .dialyzer.plt
 plt:
 	dialyzer --check_plt --plt ${PLT}; \
 	if [ $$? != 0 ]; then \
-		dialyzer --build_plt --output_plt ${PLT} --apps kernel stdlib sasl erts \
+	    dialyzer --build_plt --output_plt ${PLT} --apps kernel stdlib sasl erts \
 		ssl tools runtime_tools crypto inets xmerl snmp public_key eunit \
-		common_test syntax_tools compiler edoc mnesia hipe \
-		ssh webtool -r deps; \
+		mnesia edoc common_test test_server syntax_tools compiler ./deps/*/ebin; \
 	fi; exit 0
 
+
 # Dialyzes the project.
+.PHONY: dialyzer
 dialyzer: plt
 	dialyzer ./ebin --plt ${PLT} -Werror_handling -Wrace_conditions --fullpath
 
@@ -94,7 +112,7 @@ dialyzer: plt
 ## Packaging targets
 ##
 
-export PKG_VERSION PKG_ID PKG_BUILD BASE_DIR ERLANG_BIN REBAR OVERLAY_VARS RELEASE REL_TYPE CONFIG PKG_VARS_CONFIG
+export PKG_VERSION PKG_ID PKG_BUILD BASE_DIR ERLANG_BIN REBAR OVERLAY_VARS RELEASE PKG_VARS_CONFIG
 
 check_distribution:
 ifeq ($(DISTRIBUTION), none)
@@ -104,11 +122,11 @@ else
 	@echo "Building package for distribution $(DISTRIBUTION)"
 endif
 
-package/$(PKG_ID).tar.gz: deps
+package/$(PKG_ID).tar.gz:
 	mkdir -p package
 	rm -rf package/$(PKG_ID)
 	git archive --format=tar --prefix=$(PKG_ID)/ $(PKG_REVISION) | (cd package && tar -xf -)
-	${MAKE} -C package/$(PKG_ID) deps
+	${MAKE} -C package/$(PKG_ID) deps template
 	for dep in package/$(PKG_ID) package/$(PKG_ID)/deps/*; do \
 	     echo "Processing dependency: `basename $${dep}`"; \
 	     vsn=`git --git-dir=$${dep}/.git describe --tags 2>/dev/null`; \
