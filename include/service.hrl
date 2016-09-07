@@ -21,7 +21,7 @@
     ctx :: service:ctx(),
     condition = fun(_) -> true end :: service:condition(),
     verify_hosts :: boolean(),
-    attempts = 1 :: non_neg_integer(),
+    attempts = 1 :: pos_integer(),
     retry_delay = onepanel_env:get(service_step_retry_delay) :: non_neg_integer()
 }).
 
