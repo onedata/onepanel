@@ -4,6 +4,14 @@
 CHANGELOG
 ---------
 
+### 3.0.0-rc5
+
+* VFS-2527 Add certs setup step to cluster worker deployment
+* VFS-2156 Add repeats to provider registration process
+* VFS-2468 Add step attempts in case of failure
+* VFS-2468 Make couchbase buckets configurable
+
+
 ### 3.0.0-rc4
 
 * VFS-2156 Add repeats to provider registration process
