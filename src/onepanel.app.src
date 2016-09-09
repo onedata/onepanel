@@ -11,12 +11,11 @@
 
 {application, onepanel, [
     {description, "Management tool for onedata components."},
-    {vsn, "3.0.0-rc4"},
+    {vsn, "3.0.0-rc5"},
     {registered, [onepanel_sup]},
     {applications, [
         kernel,
         stdlib,
-        public_key,
         crypto,
         onepanel_gui
     ]},

@@ -16,7 +16,7 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
+-export([configure/1, setup_certs/1, start/1, stop/1, status/1, wait_for_init/1,
     nagios_report/1]).
 
 -define(INIT_SCRIPT, "oz_worker").
@@ -85,6 +85,21 @@ configure(Ctx) ->
         app_config_path => AppConfigPath,
         vm_args_path => VmArgsPath
     }).
+
+
+%%--------------------------------------------------------------------
+%% @doc Setup service certificates using onepanel certificates.
+%% @end
+%%--------------------------------------------------------------------
+-spec setup_certs(Ctx :: service:ctx()) -> ok | no_return().
+setup_certs(Ctx) ->
+    lists:foreach(fun({Src, Dst}) ->
+        {ok, _} = file:copy(service_ctx:get(Src, Ctx), service_ctx:get(Dst, Ctx))
+    end, [
+        {rest_key_path, oz_worker_gui_key_path},
+        {rest_cert_path, oz_worker_gui_cert_path},
+        {rest_cacert_path, oz_worker_gui_cacert_path}
+    ]).
 
 
 %%--------------------------------------------------------------------

@@ -38,15 +38,15 @@ OVERLAY_VARS    ?= --overlay_vars=rel/vars.config
 all: rel
 
 .PHONY: upgrade
-upgrade:
+upgrade: config
 	$(REBAR) upgrade
 
 .PHONY: compile
-compile:
+compile: config
 	$(REBAR) compile
 
 .PHONY: generate
-generate: template
+generate: template config
 	$(REBAR) release $(OVERLAY_VARS)
 
 .PHONY: clean
