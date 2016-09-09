@@ -89,7 +89,7 @@ get(Name) ->
 %% @private @doc Parses storage parameters based on its type.
 %%--------------------------------------------------------------------
 -spec parse_storage_params(Type :: binary(), Params :: storage_params_map()) ->
-    {HelperName :: binary(), HelperArgs :: #{}, UserModel :: atom(),
+    {HelperName :: binary(), HelperArgs :: maps:map(), UserModel :: atom(),
         RootCtxArgs :: list()}.
 parse_storage_params(<<"posix">>, Params) ->
     {
@@ -156,7 +156,7 @@ get_helper_arg(Key, Params) ->
 %% service nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec verify_storage(HelperName :: binary(), HelperArgs :: #{}, UserCtx :: any()) ->
+-spec verify_storage(HelperName :: binary(), HelperArgs :: maps:map(), UserCtx :: any()) ->
     ok | no_return().
 verify_storage(HelperName, HelperArgs, UserCtx) ->
     [Node | _] = Nodes = service_op_worker:get_nodes(),
@@ -221,7 +221,7 @@ remove_test_file(Node, Args, FileId) ->
 %% @private @doc Adds storage to the op_worker service configuration.
 %%--------------------------------------------------------------------
 -spec add_storage(Node :: node(), StorageName :: binary(), HelperName :: binary(),
-    HelperArgs :: #{}) -> StorageId :: binary() | no_return().
+    HelperArgs :: maps:map()) -> StorageId :: binary() | no_return().
 add_storage(Node, StorageName, HelperName, HelperArgs) ->
     Helper = rpc:call(Node, fslogic_storage, new_helper_init, [HelperName, HelperArgs]),
     Storage = rpc:call(Node, fslogic_storage, new_storage, [StorageName, [Helper]]),

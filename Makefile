@@ -1,3 +1,5 @@
+.EXPORT_ALL_VARIABLES:
+
 REPO            ?= onepanel
 
 # distro for package building (oneof: wily, fedora-23-x86_64)
@@ -15,7 +17,7 @@ PKG_VERSION     ?= $(shell git describe --tags --always | tr - .)
 PKG_BUILD       := 1
 PKG_VARS_CONFIG := rel/pkg.vars.config
 ERLANG_BIN      := $(shell dirname $(shell which erl))
-REBAR           ?= $(BASE_DIR)/rebar
+REBAR           ?= $(BASE_DIR)/rebar3
 TEMPLATE_SCRIPT := ./rel/templates/overlay.escript
 
 ifeq ($(strip $(REL_TYPE)),onezone)
@@ -29,33 +31,41 @@ TEMPLATE_CONFIG := ./rel/templates/dev.config
 PKG_ID          := onepanel-$(PKG_VERSION)
 endif
 
+LIB_DIR          = _build/default/lib
+REL_DIRS         = _build/default/rel
+OVERLAY_VARS    ?= --overlay_vars=rel/vars.config
+
 all: rel
 
-.PHONY: deps
-deps:
-	./rebar get-deps
+.PHONY: upgrade
+upgrade: config
+	$(REBAR) upgrade
 
 .PHONY: compile
-compile:
-	./rebar compile
+compile: config
+	$(REBAR) compile
 
 .PHONY: generate
-generate: template
-	./rebar generate $(OVERLAY_VARS)
+generate: template config
+	$(REBAR) release $(OVERLAY_VARS)
 
 .PHONY: clean
 clean: relclean pkgclean
-	./rebar clean
+	$(REBAR) clean
 
 .PHONY: distclean
 distclean:
-	./rebar delete-deps
+	$(REBAR) clean --all
 
 .PHONY: template
 template:
 	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rel/pkg.vars.config.template
-	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rel/reltool.config.template
 	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rel/vars.config.template
+	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rel/files/app.config.template
+
+config:
+	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rebar.config.template
+
 
 ##
 ## Testing targets
@@ -63,7 +73,7 @@ template:
 
 .PHONY: eunit
 eunit:
-	./rebar eunit skip_deps=true suites=${SUITES}
+	$(REBAR) do eunit skip_deps=true suites=${SUITES}, cover
 ## Rename all tests in order to remove duplicated names (add _(++i) suffix to each test)
 	@for tout in `find test -name "TEST-*.xml"`; do awk '/testcase/{gsub("_[0-9]+\"", "_" ++i "\"")}1' $$tout > $$tout.tmp; mv $$tout.tmp $$tout; done
 
@@ -77,10 +87,10 @@ coverage:
 
 .PHONY: doc
 doc:
-	@./rebar doc skip_deps=true
+	@$(REBAR) doc skip_deps=true
 
 .PHONY: rel
-rel: deps compile generate
+rel: config compile generate
 
 .PHONY: relclean
 relclean:
@@ -90,29 +100,13 @@ relclean:
 ## Dialyzer targets local
 ##
 
-PLT ?= .dialyzer.plt
-
-# Builds dialyzer's Persistent Lookup Table file.
-.PHONY: plt
-plt:
-	dialyzer --check_plt --plt ${PLT}; \
-	if [ $$? != 0 ]; then \
-	    dialyzer --build_plt --output_plt ${PLT} --apps kernel stdlib sasl erts \
-		ssl tools runtime_tools crypto inets xmerl snmp public_key eunit \
-		mnesia edoc common_test test_server syntax_tools compiler ./deps/*/ebin; \
-	fi; exit 0
-
-
 # Dialyzes the project.
-.PHONY: dialyzer
-dialyzer: plt
-	dialyzer ./ebin --plt ${PLT} -Werror_handling -Wrace_conditions --fullpath
+dialyzer:
+	$(REBAR) dialyzer
 
 ##
 ## Packaging targets
 ##
-
-export PKG_VERSION PKG_ID PKG_BUILD BASE_DIR ERLANG_BIN REBAR OVERLAY_VARS RELEASE PKG_VARS_CONFIG
 
 check_distribution:
 ifeq ($(DISTRIBUTION), none)
@@ -126,22 +120,21 @@ package/$(PKG_ID).tar.gz:
 	mkdir -p package
 	rm -rf package/$(PKG_ID)
 	git archive --format=tar --prefix=$(PKG_ID)/ $(PKG_REVISION) | (cd package && tar -xf -)
-	${MAKE} -C package/$(PKG_ID) deps template
-	for dep in package/$(PKG_ID) package/$(PKG_ID)/deps/*; do \
+	${MAKE} -C package/$(PKG_ID) config upgrade template
+	for dep in package/$(PKG_ID) package/$(PKG_ID)/$(LIB_DIR)/*; do \
 	     echo "Processing dependency: `basename $${dep}`"; \
 	     vsn=`git --git-dir=$${dep}/.git describe --tags 2>/dev/null`; \
 	     mkdir -p $${dep}/priv; \
 	     echo "$${vsn}" > $${dep}/priv/vsn.git; \
 	     sed -i'' "s/{vsn,\\s*git}/{vsn, \"$${vsn}\"}/" $${dep}/src/*.app.src 2>/dev/null || true; \
 	done
-	find package/$(PKG_ID) -depth -name ".git" -exec rm -rf {} \;
 	tar -C package -czf package/$(PKG_ID).tar.gz $(PKG_ID)
 
 dist: package/$(PKG_ID).tar.gz
 	cp package/$(PKG_ID).tar.gz .
 
 package: check_distribution package/$(PKG_ID).tar.gz
-	${MAKE} -C package -f $(PKG_ID)/deps/node_package/Makefile
+	${MAKE} -C package -f $(PKG_ID)/node_package/Makefile
 
 pkgclean:
 	rm -rf package

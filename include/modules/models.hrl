@@ -23,7 +23,7 @@
 -record(service, {
     name :: module(),
     hosts = []:: [service:host()],
-    ctx = #{} :: #{}
+    ctx = #{} :: maps:map()
 }).
 
 -endif.
