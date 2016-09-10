@@ -66,7 +66,7 @@ exists_resource(Req, _State) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()}.
 accept_resource(Req, 'POST', #{username := Username, password := Password,
     userRole := Role}, #rstate{resource = users}) ->
-    onepanel_user:new(Username, Password, Role),
+    onepanel_user:create(Username, Password, Role),
     {true, Req};
 
 accept_resource(Req, 'PATCH', #{password := Password}, #rstate{resource = user,
