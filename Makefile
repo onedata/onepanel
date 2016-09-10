@@ -87,7 +87,7 @@ coverage:
 
 .PHONY: doc
 doc:
-	@$(REBAR) doc skip_deps=true
+	@$(REBAR) edoc skip_deps=true
 
 .PHONY: rel
 rel: config compile generate
