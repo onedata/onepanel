@@ -76,7 +76,7 @@
   1},
  {<<"onepanel_gui">>,
   {git,"git://github.com/krzysztof-trzepla/onepanel_gui.git",
-       {ref,"440100645cb7fe13b44a7cc854de3cc68bc1dba1"}},
+       {ref,"d6a5e218aa8ae704a798fd8a9a8313f3ee2baf81"}},
   0},
  {<<"parse_trans">>,
   {git,"https://github.com/uwiger/parse_trans.git",
