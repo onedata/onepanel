@@ -4,6 +4,14 @@
 CHANGELOG
 ---------
 
+### 3.0.0-rc6
+
+* VFS-2180 Add 'sync' bucket for oneprovider release
+* VFS-2525 Update onepanel_gui ref
+* VFS-2525 Fix docs generation
+* VFS-2390 Upgrade rebar to version 3
+
+
 ### 3.0.0-rc5
 
 * VFS-2527 Add certs setup step to cluster worker deployment
