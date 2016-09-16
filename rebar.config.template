@@ -34,6 +34,13 @@
     {eunit, "mkdir -p test/eunit_results"}
 ]}.
 
+{post_hooks, [
+    {release, "rm -f _build/*/rel/*/bin/install_upgrade.escript"},
+    {release, "rm -f _build/*/rel/*/bin/nodetool"},
+    {release, "rm -f _build/*/rel/*/bin/onepanel-*"},
+    {release, "rm -f _build/*/rel/*/bin/start_clean.boot"}
+]}.
+
 {port_specs, [
     {"priv/onepanel_user_nif.so", ["c_src/onepanel_user_nif.cc"]},
     {"priv/service_oneprovider_nif.so", ["c_src/service_oneprovider_nif.cc"]}
