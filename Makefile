@@ -50,11 +50,11 @@ generate: template config
 	$(REBAR) release $(OVERLAY_VARS)
 
 .PHONY: clean
-clean: relclean pkgclean
+clean: config relclean pkgclean
 	$(REBAR) clean
 
 .PHONY: distclean
-distclean:
+distclean: config
 	$(REBAR) clean --all
 
 .PHONY: template
@@ -72,7 +72,7 @@ config:
 ##
 
 .PHONY: eunit
-eunit:
+eunit: config
 	$(REBAR) do eunit skip_deps=true suites=${SUITES}, cover
 ## Rename all tests in order to remove duplicated names (add _(++i) suffix to each test)
 	@for tout in `find test -name "TEST-*.xml"`; do awk '/testcase/{gsub("_[0-9]+\"", "_" ++i "\"")}1' $$tout > $$tout.tmp; mv $$tout.tmp $$tout; done
@@ -86,7 +86,7 @@ coverage:
 ##
 
 .PHONY: doc
-doc:
+doc: config
 	@$(REBAR) edoc skip_deps=true
 
 .PHONY: rel
@@ -101,7 +101,7 @@ relclean:
 ##
 
 # Dialyzes the project.
-dialyzer:
+dialyzer: config
 	$(REBAR) dialyzer
 
 ##
