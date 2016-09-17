@@ -118,7 +118,7 @@
         %% Copy base files for starting and interacting with node
         {copy, "node_package/priv/base/erl", "erts-{{erts_vsn}}/bin/erl"},
         {copy, "node_package/priv/base/nodetool", "erts-{{erts_vsn}}/bin/nodetool"},
-        {template, "node_package/priv/base/runner", "bin/onepanel"},
+        {template, "node_package/priv/base/runner", "bin/{{release_name}}"},
         {template, "node_package/priv/base/env.sh", "lib/env.sh"},
 
         %% Copy config files
