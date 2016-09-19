@@ -34,6 +34,13 @@
     {eunit, "mkdir -p test/eunit_results"}
 ]}.
 
+{post_hooks, [
+    {release, "rm -f _build/*/rel/*/bin/install_upgrade.escript"},
+    {release, "rm -f _build/*/rel/*/bin/nodetool"},
+    {release, "rm -f _build/*/rel/*/bin/onepanel-*"},
+    {release, "rm -f _build/*/rel/*/bin/start_clean.boot"}
+]}.
+
 {port_specs, [
     {"priv/onepanel_user_nif.so", ["c_src/onepanel_user_nif.cc"]},
     {"priv/service_oneprovider_nif.so", ["c_src/service_oneprovider_nif.cc"]}
@@ -111,7 +118,7 @@
         %% Copy base files for starting and interacting with node
         {copy, "node_package/priv/base/erl", "erts-{{erts_vsn}}/bin/erl"},
         {copy, "node_package/priv/base/nodetool", "erts-{{erts_vsn}}/bin/nodetool"},
-        {template, "node_package/priv/base/runner", "bin/onepanel"},
+        {template, "node_package/priv/base/runner", "bin/{{release_name}}"},
         {template, "node_package/priv/base/env.sh", "lib/env.sh"},
 
         %% Copy config files

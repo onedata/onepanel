@@ -1,4 +1,4 @@
-{build_envs, "REBAR_PROFILE=package"}.
+{build_envs, "REBAR_PROFILE=package REL_TYPE={{release_type}}"}.
 {package_name, "{{package_name}}"}.
 {package_install_name, "{{release_name}}"}.
 {package_install_user, "{{release_name}}"}.
