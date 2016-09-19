@@ -4,6 +4,7 @@ priv
 rel/onepanel
 rel/pkg.vars.config
 rel/files/app.config
+rel/files/vm.args
 rel/vars.config
 package
 
