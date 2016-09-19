@@ -216,7 +216,7 @@ remove_nodes(#{hosts := Hosts}) ->
 -spec add_users(Ctx :: service:ctx()) -> ok.
 add_users(#{users := Users}) ->
     maps:fold(fun(Username, #{password := Password, userRole := Role}, _) ->
-        onepanel_user:new(Username, Password, Role)
+        onepanel_user:save(Username, Password, Role)
     end, ok, Users).
 
 

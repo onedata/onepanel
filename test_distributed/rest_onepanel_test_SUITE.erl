@@ -218,7 +218,7 @@ init_per_testcase(Case, Config) when
     Case =:= get_as_admin_should_return_hosts;
     Case =:= get_as_admin_should_return_cookie;
     Case =:= method_should_return_not_found_error ->
-    ?assertEqual(ok, ?call(Config, onepanel_user, new,
+    ?assertEqual(ok, ?call(Config, onepanel_user, create,
         [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin])),
     init_per_testcase(default, Config);
 
@@ -233,7 +233,7 @@ init_per_testcase(_Case, Config) ->
     test_utils:mock_expect(Nodes, onepanel_discovery, get_hosts, fun() ->
         DiscoveredHosts
     end),
-    ?assertEqual(ok, ?call(Config, onepanel_user, new,
+    ?assertEqual(ok, ?call(Config, onepanel_user, create,
         [?REG_USER_NAME, ?REG_USER_PASSWORD, regular])),
     [{cluster_hosts, ClusterHosts}, {discovered_hosts, DiscoveredHosts} | Config].
 

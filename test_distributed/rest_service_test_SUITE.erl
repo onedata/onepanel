@@ -539,7 +539,7 @@ end_per_suite(Config) ->
 
 
 init_per_testcase(method_should_return_not_found_error, Config) ->
-    ?assertAllEqual(ok, ?callAll(Config, onepanel_user, new,
+    ?assertAllEqual(ok, ?callAll(Config, onepanel_user, create,
         [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
     )),
     Config;
@@ -630,10 +630,10 @@ init_per_testcase(_Case, Config) ->
         <<"someTaskId">>
     end),
 
-    ?assertAllEqual(ok, ?callAll(Config, onepanel_user, new,
+    ?assertAllEqual(ok, ?callAll(Config, onepanel_user, create,
         [?REG_USER_NAME, ?REG_USER_PASSWORD, regular]
     )),
-    ?assertAllEqual(ok, ?callAll(Config, onepanel_user, new,
+    ?assertAllEqual(ok, ?callAll(Config, onepanel_user, create,
         [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
     )),
     Config.

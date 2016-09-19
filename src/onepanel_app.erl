@@ -43,9 +43,7 @@ start(_StartType, _StartArgs) ->
         onepanel_utils:wait_until(rest_listener, get_status, [], {equal, ok},
             onepanel_env:get(rest_listener_status_check_attempts)),
         {ok, Pid} = onepanel_sup:start_link(),
-        [_ | _] = service:apply_sync(service_onepanel:name(), deploy, #{
-            hosts => [onepanel_cluster:node_to_host()]
-        }, onepanel_env:get(initialize_timeout)),
+        maybe_deploy_cluster(),
         {ok, Pid}
     catch
         _:Reason ->
@@ -65,4 +63,25 @@ start(_StartType, _StartArgs) ->
 stop(_State) ->
     rest_listener:stop(),
     test_node_starter:maybe_stop_cover(),
+    ok.
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private @doc If this node does not belong to a cluster deploys a single node
+%% cluster consisting only of this node.
+%% @end
+%%--------------------------------------------------------------------
+-spec maybe_deploy_cluster() -> ok.
+maybe_deploy_cluster() ->
+    case service_onepanel:get_nodes() of
+        [] ->
+            [_ | _] = service:apply_sync(service_onepanel:name(), deploy, #{
+                hosts => [onepanel_cluster:node_to_host()]
+            }, onepanel_env:get(initialize_timeout));
+        [_ | _] ->
+            ok
+    end,
     ok.
