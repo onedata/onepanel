@@ -239,10 +239,10 @@ init_per_suite(Config) ->
     NewConfig = onepanel_test_utils:init(
         ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json"))
     ),
-    ?assertAllEqual(ok, ?callAll(NewConfig, onepanel_user, new,
+    ?assertAllEqual(ok, ?callAll(NewConfig, onepanel_user, create,
         [?REG_USER_NAME, ?REG_USER_PASSWORD, regular]
     )),
-    ?assertAllEqual(ok, ?callAll(NewConfig, onepanel_user, new,
+    ?assertAllEqual(ok, ?callAll(NewConfig, onepanel_user, create,
         [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
     )),
     NewConfig.

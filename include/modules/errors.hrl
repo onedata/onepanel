@@ -44,7 +44,7 @@ end).
     ?make_error(Reason, erlang:get_stacktrace(), Module, Function, Arity, Args)).
 
 -define(make_error(Reason, Stacktrace, Module, Function, Arity, Args),
-    onepanel_errors:new(Module, Function, Arity, Args, Reason, Stacktrace, ?LINE)
+    onepanel_errors:create(Module, Function, Arity, Args, Reason, Stacktrace, ?LINE)
 ).
 
 -define(throw_error(Reason), erlang:throw(?make_error(Reason))).
