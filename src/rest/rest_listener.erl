@@ -52,7 +52,7 @@ start() ->
 
     Dispatch = cowboy_router:compile([{'_', Routes}]),
 
-    {ok, _} = ranch:start_listener(?LISTENER, HttpsAcceptors, ranch_etls,
+    {ok, _} =  cowboy:start_https(?LISTENER, HttpsAcceptors,
         [
             {port, Port},
             {keyfile, KeyPath},
@@ -61,7 +61,7 @@ start() ->
             {verify, verify_peer},
             {ciphers, ssl:cipher_suites() -- weak_ciphers()},
             {versions, ['tlsv1.2', 'tlsv1.1']}
-        ], cowboy_protocol, [
+        ], [
             {env, [{dispatch, Dispatch}]}
         ]
     ),
