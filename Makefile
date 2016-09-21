@@ -95,7 +95,7 @@ rel: config compile generate
 
 .PHONY: relclean
 relclean:
-	rm -rf rel/onepanel
+	rm -rf _build/default/rel/onepanel
 
 ##
 ## Dialyzer targets local

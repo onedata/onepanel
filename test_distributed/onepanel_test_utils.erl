@@ -17,7 +17,7 @@
 
 %% API
 -export([init/1, ensure_started/1, set_test_envs/1, mock_start/1]).
--export([assert_fields/2, assert_values/2, clear_msg_inbox/0]).
+-export([assert_fields/2, assert_values/2, clear_msg_inbox/0, retry/3]).
 
 -type config() :: proplists:proplist().
 
@@ -148,6 +148,25 @@ clear_msg_inbox() ->
         _ -> clear_msg_inbox()
     after
         timer:seconds(1) -> ok
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Retries function execution as long as it throws an exception and
+%% attempts limit is not exceeded.
+%% @end
+%%--------------------------------------------------------------------
+-spec retry(Function :: fun(), Attempts :: integer(), Timeout :: timeout()) ->
+    term() | no_return().
+retry(_Function, Attempts, _Timeout) when Attempts =< 0 ->
+    throw(attempts_limit_exceeded);
+retry(Function, Attempts, Timeout) ->
+    try
+        Function()
+    catch
+        E:R ->
+            timer:sleep(Timeout),
+            retry(Function, Attempts - 1, Timeout)
     end.
 
 %%%===================================================================
