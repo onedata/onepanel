@@ -25,7 +25,7 @@
 
 {deps, [
     {ctool, {git, "ssh://git@git.plgrid.pl:7999/vfs/ctool.git", {ref, "473ad78"}}},
-    {onepanel_gui, {git, "git://github.com/krzysztof-trzepla/onepanel_gui.git", {ref, "7d7790d0d5"}}},
+    {onepanel_gui, {git, "git://github.com/krzysztof-trzepla/onepanel_gui.git", {ref, "6f83381b56"}}},
     {yamerl, {git, "git://github.com/yakaz/yamerl.git", {ref, "3f46bf06b9"}}}
 ]}.
 
