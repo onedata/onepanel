@@ -21,8 +21,8 @@
 -include("service.hrl").
 
 %% Model behaviour callbacks
--export([get_fields/0, create/1, save/1, update/2, get/1, exists/1, delete/1,
-    list/0]).
+-export([get_fields/0, seed/0, create/1, save/1, update/2, get/1, exists/1,
+    delete/1, list/0]).
 
 %% API
 -export([start/1, start/2, stop/1, status/1, apply/3, apply/4, apply_async/3,
@@ -53,6 +53,15 @@
 -spec get_fields() -> list(atom()).
 get_fields() ->
     record_info(fields, ?MODULE).
+
+
+%%--------------------------------------------------------------------
+%% @doc {@link model_behaviour:seed/0}
+%% @end
+%%--------------------------------------------------------------------
+-spec seed() -> any().
+seed() ->
+    ok.
 
 
 %%--------------------------------------------------------------------

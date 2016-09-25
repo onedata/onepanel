@@ -18,8 +18,8 @@
 -include("modules/models.hrl").
 
 %% Model behaviour callbacks
--export([get_fields/0, create/1, save/1, update/2, get/1, exists/1, delete/1,
-    list/0]).
+-export([get_fields/0, seed/0, create/1, save/1, update/2, get/1, exists/1,
+    delete/1, list/0]).
 
 %% API
 -export([create/3, save/3, authenticate/2, change_password/2, get_by_role/1]).
@@ -44,6 +44,22 @@
 -spec get_fields() -> list(atom()).
 get_fields() ->
     record_info(fields, ?MODULE).
+
+
+%%--------------------------------------------------------------------
+%% @doc {@link model_behaviour:seed/0}
+%% @end
+%%--------------------------------------------------------------------
+-spec seed() -> any().
+seed() ->
+    lists:foreach(fun({Username, Password, Role}) ->
+        try
+            create(Username, Password, Role)
+        catch
+            #error{reason = ?ERR_USERNAME_NOT_AVAILABLE} -> ok;
+            #error{} = Error -> ?throw_error(Error)
+        end
+    end, onepanel_env:get(default_users)).
 
 
 %%--------------------------------------------------------------------
@@ -130,7 +146,8 @@ create(Username, Password, Role) ->
         password_hash = onepanel_user_nif:hash_password(Password, WorkFactor)
     }) of
         ok -> ok;
-        _ -> ?throw_error(?ERR_USERNAME_NOT_AVAILABLE)
+        #error{reason = ?ERR_ALREADY_EXISTS} ->
+            ?throw_error(?ERR_USERNAME_NOT_AVAILABLE)
     end.
 
 

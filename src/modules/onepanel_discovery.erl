@@ -149,7 +149,7 @@ handle_info({udp, _Socket, _Ip, _Port, Msg}, #state{nodes = Nodes} = State) ->
 handle_info(advertise, #state{ip = Ip, port = Port, socket = Socket} = State) ->
     gen_udp:send(Socket, Ip, Port, erlang:atom_to_binary(node(), utf8)),
     Delay = onepanel_env:get(advertise_max_delay),
-    erlang:send_after(random:uniform(Delay), self(), advertise),
+    erlang:send_after(rand:uniform(Delay), self(), advertise),
     {noreply, State};
 
 handle_info(Info, State) ->

@@ -86,7 +86,8 @@ wait_output(Tokens, Expected, Attempts, Delay) ->
 %%--------------------------------------------------------------------
 -spec call(Tokens :: [token()]) -> Code :: integer().
 call(Tokens) ->
-    Code = output(Tokens ++ ["1>/dev/null", "2>&1;", "echo", "-n", "$?"]),
+    LogPath = onepanel_env:get(cmd_log_path),
+    Code = output(Tokens ++ ["1>" ++ LogPath, "2>&1;", "echo", "-n", "$?"]),
     erlang:list_to_integer(Code).
 
 

@@ -14,7 +14,8 @@
 -include("http/rest.hrl").
 -include_lib("ctool/include/logging.hrl").
 
--export([start/0, stop/0, get_status/0]).
+-export([get_port/0, get_prefix/1]).
+-export([start/0, stop/0, status/0]).
 
 -define(LISTENER, rest_listener).
 
@@ -26,9 +27,20 @@
 %% @doc Returns REST listener port.
 %% @end
 %%--------------------------------------------------------------------
--spec port() -> Port :: integer().
-port() ->
+-spec get_port() -> Port :: integer().
+get_port() ->
     onepanel_env:get(rest_port).
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns REST listener prefix.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_prefix(ApiVersion :: rest_handler:version()) -> Prefix :: binary().
+get_prefix(ApiVersion) ->
+    Template = onepanel_env:get(rest_api_prefix_template),
+    re:replace(Template, "{version_number}",
+        onepanel_utils:convert(ApiVersion, binary), [{return, binary}]).
 
 
 %%--------------------------------------------------------------------
@@ -37,7 +49,7 @@ port() ->
 %%--------------------------------------------------------------------
 -spec start() -> ok | no_return().
 start() ->
-    Port = port(),
+    Port = get_port(),
     HttpsAcceptors = onepanel_env:get(rest_https_acceptors),
     KeyPath = onepanel_env:get(rest_key_path),
     CertPath = onepanel_env:get(rest_cert_path),
@@ -91,9 +103,9 @@ stop() ->
 %% @doc Checks whether REST listener is working.
 %% @end
 %%--------------------------------------------------------------------
--spec get_status() -> ok | {error, Reason :: term()}.
-get_status() ->
-    Endpoint = "https://127.0.0.1:" ++ integer_to_list(port()),
+-spec status() -> ok | {error, Reason :: term()}.
+status() ->
+    Endpoint = "https://127.0.0.1:" ++ integer_to_list(get_port()),
     case http_client:get(Endpoint, [], <<>>, [insecure]) of
         {ok, _, _, _} -> ok;
         {error, Reason} -> {error, Reason}

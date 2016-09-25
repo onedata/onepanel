@@ -65,16 +65,26 @@ get_nodes() ->
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, #{hosts := Hosts} = Ctx) ->
+    service:create(#service{name = name()}),
+    ClusterHosts = get_hosts(),
+    NewHosts = onepanel_lists:subtract(Hosts, ClusterHosts),
+    AllHosts = onepanel_lists:union(ClusterHosts, NewHosts),
     [
-        #step{module = service, function = save,
-            args = [#service{name = name()}], selection = first},
-        #step{function = configure},
-        #step{function = start},
-        #step{function = wait_for_init},
-        #step{function = init_cluster, selection = first},
-        #step{function = join_cluster, selection = rest,
-            ctx = Ctx#{cluster_host => hd(Hosts)}},
-        #step{function = rebalance_cluster, selection = first}
+        #step{hosts = NewHosts, function = configure},
+        #step{hosts = AllHosts, function = start},
+        #step{hosts = AllHosts, function = wait_for_init},
+        #step{hosts = NewHosts, function = init_cluster, selection = first,
+            condition = fun(_) -> ClusterHosts == [] end
+        },
+        #step{hosts = NewHosts, function = join_cluster, selection = rest,
+            ctx = Ctx#{cluster_host => catch hd(NewHosts)},
+            condition = fun(_) -> ClusterHosts == [] end
+        },
+        #step{hosts = NewHosts, function = join_cluster,
+            ctx = Ctx#{cluster_host => catch hd(ClusterHosts)},
+            condition = fun(_) -> ClusterHosts /= [] end
+        },
+        #step{hosts = AllHosts, function = rebalance_cluster, selection = first}
     ];
 
 get_steps(start, _Ctx) ->
@@ -174,7 +184,7 @@ init_cluster(Ctx) ->
     {ok, 200, _, _} = http_client:post(
         Url, [
             onepanel_utils:get_basic_auth_header(User, Password),
-            {"Content-Type", "application/x-www-form-urlencoded"}
+            {"content-type", "application/x-www-form-urlencoded"}
         ], "memoryQuota=" ++ ServerQuota
     ),
 

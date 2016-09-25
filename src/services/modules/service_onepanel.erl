@@ -20,8 +20,8 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([set_cookie/1, purge_node/1, create_tables/1, copy_tables/1,
-    add_nodes/1, remove_nodes/1, add_users/1, add_default_users/1]).
+-export([set_cookie/1, check_connection/1, init_cluster/1, extend_cluster/1,
+    join_cluster/1, reset_node/1, add_users/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -51,11 +51,7 @@ get_hosts() ->
 %%--------------------------------------------------------------------
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
-    try
-        mnesia:table_info(schema, disc_copies)
-    catch
-        _:{aborted, {no_exists, schema, disc_copies}} -> []
-    end.
+    onepanel_db:get_nodes().
 
 
 %%--------------------------------------------------------------------
@@ -64,51 +60,53 @@ get_nodes() ->
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
-get_steps(deploy, #{cookie := _, hosts := Hosts} = Ctx) ->
+get_steps(deploy, #{hosts := Hosts} = Ctx) ->
+    Host = onepanel_cluster:node_to_host(),
+    ClusterHosts = get_hosts(),
+    NewHosts = onepanel_lists:subtract(Hosts, ClusterHosts),
+    S = #step{hosts = [Host], verify_hosts = false},
     [
-        #steps{action = init_cluster, ctx = Ctx},
-        #steps{action = join_cluster, ctx = Ctx#{
-            cluster_host => hd(Hosts), hosts => tl(Hosts)
-        }}
-    ];
-
-get_steps(deploy, Ctx) ->
-    get_steps(deploy, Ctx#{cookie => erlang:get_cookie()});
-
-get_steps(init_cluster, _Ctx) ->
-    Step = #step{verify_hosts = false},
-    [
-        Step#step{function = set_cookie, selection = first},
-        Step#step{function = purge_node, selection = first},
-        Step#step{function = create_tables, selection = first},
-        Step#step{function = add_default_users, selection = first}
-    ];
-
-get_steps(join_cluster, #{hosts := Hosts, cluster_host := ClusterHost} = Ctx) ->
-    Step = #step{verify_hosts = false},
-    [
-        Step#step{hosts = Hosts, function = set_cookie},
-        Step#step{hosts = Hosts, function = purge_node},
-        Step#step{hosts = Hosts, module = mnesia, function = start, args = []},
-        Step#step{hosts = [ClusterHost], function = add_nodes, selection = first,
-            ctx = Ctx#{hosts => Hosts}
+        #steps{action = init_cluster,
+            condition = fun(_) -> ClusterHosts =:= [] end
         },
-        Step#step{hosts = Hosts, function = copy_tables}
-    ];
-
-get_steps(leave_cluster, #{hosts := Hosts, cluster_hosts := ClusterHosts} = Ctx) ->
-    NewHosts = lists:filter(fun(Host) ->
-        lists:member(Host, ClusterHosts)
-    end, Hosts),
-    [
-        #step{hosts = NewHosts, function = purge_node},
-        #step{hosts = ClusterHosts -- NewHosts, function = remove_nodes,
-            selection = first, ctx = Ctx#{hosts => NewHosts}
+        S#step{function = extend_cluster,
+            ctx = Ctx#{hosts => NewHosts},
+            condition = fun(_) ->
+                ClusterHosts /= [] andalso erlang:length(NewHosts) >= 1
+            end
+        },
+        S#step{function = extend_cluster,
+            ctx = Ctx#{hosts => lists:delete(Host, NewHosts)},
+            condition = fun(_) ->
+                ClusterHosts == [] andalso erlang:length(NewHosts) >= 2
+            end
         }
     ];
 
-get_steps(leave_cluster, Ctx) ->
-    get_steps(leave_cluster, Ctx#{cluster_hosts => get_hosts()});
+get_steps(init_cluster, _Ctx) ->
+    S = #step{hosts = [onepanel_cluster:node_to_host()], verify_hosts = false},
+    [
+        S#step{function = set_cookie},
+        S#step{function = reset_node},
+        S#step{function = init_cluster}
+    ];
+
+get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
+    Host = onepanel_cluster:node_to_host(),
+    case ClusterHost of
+        Host -> [];
+        _ ->
+            S = #step{hosts = [Host], verify_hosts = false},
+            [
+                S#step{function = set_cookie},
+                S#step{function = check_connection},
+                S#step{function = reset_node},
+                S#step{function = join_cluster}
+            ]
+    end;
+
+get_steps(leave_cluster, _Ctx) ->
+    [#step{hosts = [onepanel_cluster:node_to_host()], function = reset_node}];
 
 get_steps(add_users, #{users := _}) ->
     [#step{function = add_users, selection = any}];
@@ -128,85 +126,81 @@ get_steps(add_users, _Ctx) ->
 set_cookie(#{cookie := Cookie} = Ctx) ->
     VmArgsPath = service_ctx:get(vm_args_path, Ctx),
     erlang:set_cookie(node(), Cookie),
-    onepanel_vm:write("setcookie", Cookie, VmArgsPath).
+    onepanel_vm:write("setcookie", Cookie, VmArgsPath);
+
+set_cookie(Ctx) ->
+    set_cookie(Ctx#{cookie => erlang:get_cookie()}).
+
+
+%%--------------------------------------------------------------------
+%% @doc Checks whether this erlang node can be connected to the remote cluster
+%% node.
+%% @end
+%%--------------------------------------------------------------------
+-spec check_connection(Ctx :: service:ctx()) -> ok.
+check_connection(#{cluster_host := ClusterHost}) ->
+    ClusterNode = onepanel_cluster:host_to_node(ClusterHost),
+    pong = net_adm:ping(ClusterNode),
+    ok.
+
+
+%%--------------------------------------------------------------------
+%% @doc Initializes onepanel cluster.
+%% @end
+%%--------------------------------------------------------------------
+-spec init_cluster(Ctx :: service:ctx()) -> ok | no_return().
+init_cluster(_Ctx) ->
+    onepanel_db:init(),
+    onepanel_db:create_tables().
+
+
+%%--------------------------------------------------------------------
+%% @doc Extends onepanel cluster.
+%% @end
+%%--------------------------------------------------------------------
+-spec extend_cluster(Ctx :: service:ctx()) -> ok.
+extend_cluster(#{hosts := Hosts, auth := Auth, api_version := ApiVersion}) ->
+    ClusterHost = onepanel_cluster:node_to_host(),
+    Port = rest_listener:get_port(),
+    Prefix = rest_listener:get_prefix(ApiVersion),
+    Suffix = onepanel_utils:join(["/hosts?clusterHost=", ClusterHost]),
+    Body = json_utils:encode([{cookie, erlang:get_cookie()}]),
+    lists:foreach(fun(Host) ->
+        Url = onepanel_utils:join(["https://", Host, ":", Port, Prefix, Suffix]),
+        {ok, 204, _, _} = http_client:post(
+            Url, [
+                {<<"authorization">>, Auth},
+                {"Content-Type", "application/json"}
+            ], Body, [insecure]
+        )
+    end, Hosts).
+
+
+%%--------------------------------------------------------------------
+%% @doc Adds this node to the remote onepanel cluster.
+%% @end
+%%--------------------------------------------------------------------
+-spec join_cluster(Ctx :: service:ctx()) -> ok.
+join_cluster(#{cluster_host := ClusterHost}) ->
+    Node = node(),
+    ClusterNode = onepanel_cluster:host_to_node(ClusterHost),
+    ok = rpc:call(ClusterNode, onepanel_db, add_node, [Node]),
+    onepanel_db:copy_tables().
 
 
 %%--------------------------------------------------------------------
 %% @doc Removes all the user and configuration data from this host.
-%% Removes host from the mnesia database cluster.
+%% Removes host from the database cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec purge_node(Ctx :: service:ctx()) -> ok | no_return().
-purge_node(_Ctx) ->
-    Host = onepanel_cluster:node_to_host(),
-    ok = mnesia:start(),
-    Nodes = lists:delete(node(), get_nodes()),
-    delete_tables(),
-    mnesia:stop(),
-    ok = mnesia:delete_schema([node()]),
-    onepanel_rpc:call_any(Nodes, ?MODULE, remove_nodes, [#{hosts => [Host]}]).
-
-
-%%--------------------------------------------------------------------
-%% @doc Creates database tables.
-%% @end
-%%--------------------------------------------------------------------
--spec create_tables(Ctx :: service:ctx()) -> ok.
-create_tables(_Ctx) ->
-    ok = mnesia:create_schema([node()]),
-    ok = mnesia:start(),
-
-    Tables = lists:map(fun(Model) ->
-        Table = model:get_table_name(Model),
-        {atomic, ok} = mnesia:create_table(Table, [
-            {attributes, Model:get_fields()},
-            {record_name, Model},
-            {disc_copies, [node()]}
-        ]),
-        Table
-    end, model:get_models()),
-    Timeout = onepanel_env:get(create_tables_timeout),
-    ok = mnesia:wait_for_tables(Tables, Timeout).
-
-
-%%--------------------------------------------------------------------
-%% @doc Copies content of the database tables from remote node.
-%% @end
-%%--------------------------------------------------------------------
--spec copy_tables(Ctx :: service:ctx()) -> ok.
-copy_tables(_Ctx) ->
-    {atomic, ok} = mnesia:change_table_copy_type(schema, node(), disc_copies),
-    Tables = lists:map(fun(Model) ->
-        Table = model:get_table_name(Model),
-        {atomic, ok} = mnesia:add_table_copy(Table, node(), disc_copies),
-        Table
-    end, model:get_models()),
-    Timeout = onepanel_env:get(copy_tables_timeout),
-    ok = mnesia:wait_for_tables(Tables, Timeout).
-
-
-%%--------------------------------------------------------------------
-%% @doc Adds nodes to the database cluster.
-%% @end
-%%--------------------------------------------------------------------
--spec add_nodes(Ctx :: service:ctx()) -> ok.
-add_nodes(#{hosts := Hosts}) ->
-    lists:foreach(fun(Host) ->
-        Node = onepanel_cluster:host_to_node(Host),
-        {ok, [Node]} = mnesia:change_config(extra_db_nodes, [Node])
-    end, Hosts).
-
-
-%%--------------------------------------------------------------------
-%% @doc Removes nodes from the database cluster.
-%% @end
-%%--------------------------------------------------------------------
--spec remove_nodes(Ctx :: service:ctx()) -> ok.
-remove_nodes(#{hosts := Hosts}) ->
-    lists:foreach(fun(Host) ->
-        Node = onepanel_cluster:host_to_node(Host),
-        {atomic, ok} = mnesia:del_table_copy(schema, Node)
-    end, Hosts).
+-spec reset_node(Ctx :: service:ctx()) -> ok | no_return().
+reset_node(_Ctx) ->
+    Node = node(),
+    ClusterNodes = lists:delete(node(), get_nodes()),
+    onepanel_db:delete_tables(),
+    onepanel_db:destroy(),
+    onepanel_rpc:call_all(ClusterNodes, onepanel_db, remove_node, [Node]),
+    ok = mnesia:start().
 
 
 %%--------------------------------------------------------------------
@@ -218,33 +212,3 @@ add_users(#{users := Users}) ->
     maps:fold(fun(Username, #{password := Password, userRole := Role}, _) ->
         onepanel_user:save(Username, Password, Role)
     end, ok, Users).
-
-
-%%--------------------------------------------------------------------
-%% @doc Adds default users.
-%% @end
-%%--------------------------------------------------------------------
--spec add_default_users(Ctx :: service:ctx()) -> ok.
-add_default_users(Ctx) ->
-    Users = lists:foldl(fun({Username, Password, Role}, Map) ->
-        maps:put(Username, #{password => Password, userRole => Role}, Map)
-    end, #{}, onepanel_env:get(default_users)),
-    add_users(Ctx#{users => Users}).
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
-%%--------------------------------------------------------------------
-%% @private @doc Removes database tables and their contents from this host.
-%%--------------------------------------------------------------------
--spec delete_tables() -> ok | no_return().
-delete_tables() ->
-    lists:foreach(fun(Model) ->
-        Table = model:get_table_name(Model),
-        case mnesia:del_table_copy(Table, node()) of
-            {atomic, ok} -> ok;
-            {aborted, {no_exists, _}} -> ok;
-            {aborted, Reason} -> ?throw_error(Reason)
-        end
-    end, model:get_models()).

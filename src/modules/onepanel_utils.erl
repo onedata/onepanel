@@ -124,7 +124,7 @@ get_ip_address() ->
 %%--------------------------------------------------------------------
 -spec gen_uuid() -> binary().
 gen_uuid() ->
-    http_utils:base64url_encode(crypto:rand_bytes(?UUID_LEN)).
+    http_utils:base64url_encode(crypto:strong_rand_bytes(?UUID_LEN)).
 
 
 %%--------------------------------------------------------------------

@@ -153,23 +153,21 @@ get_as_admin_should_return_cookie(Config) ->
 
 
 put_as_admin_should_init_cluster(Config) ->
-    [Host | _] = ?config(onepanel_hosts, Config),
     ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
         Config, "/hosts", post, ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD,
         [{cookie, ?COOKIE}]
     )),
     ?assertReceivedMatch({service, onepanel, init_cluster,
-        #{cookie := ?COOKIE, hosts := [Host]}}, ?TIMEOUT).
+        #{cookie := ?COOKIE}}, ?TIMEOUT).
 
 
 put_as_admin_should_extend_cluster(Config) ->
-    [Host | _] = ?config(onepanel_hosts, Config),
     ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
         Config, "/hosts?clusterHost=someHost", post,
         ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, [{cookie, ?COOKIE}]
     )),
     ?assertReceivedMatch({service, onepanel, join_cluster,
-        #{cookie := ?COOKIE, hosts := [Host], cluster_host := "someHost"}
+        #{cookie := ?COOKIE, cluster_host := "someHost"}
     }, ?TIMEOUT).
 
 

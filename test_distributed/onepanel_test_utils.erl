@@ -164,7 +164,7 @@ retry(Function, Attempts, Timeout) ->
     try
         Function()
     catch
-        E:R ->
+        _:_ ->
             timer:sleep(Timeout),
             retry(Function, Attempts - 1, Timeout)
     end.
@@ -196,5 +196,7 @@ create_cluster([]) ->
 create_cluster([Node | _] = Nodes) ->
     Hosts = onepanel_cluster:nodes_to_hosts(Nodes),
     ?assertEqual(ok, rpc:call(Node, service, apply,
-        [onepanel, deploy, #{hosts => Hosts}]
+        [onepanel, deploy, #{
+            hosts => Hosts, auth => ?DEFAULT_AUTH, api_version => ?API_VERSION
+        }]
     )).

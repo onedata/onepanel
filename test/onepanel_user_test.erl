@@ -132,12 +132,12 @@ start() ->
     onepanel_env:set(rpc_timeout, 1000),
     onepanel_env:set(bcrypt_work_factor, 4),
     onepanel_env:set(create_tables_timeout, 10000),
-    ?assertEqual(ok, service_onepanel:purge_node(#{})),
-    ?assertEqual(ok, service_onepanel:create_tables(#{})),
+    onepanel_env:set(default_users, []),
+    ?assertEqual(ok, service_onepanel:init_cluster(#{})),
     ok.
 
 stop(_) ->
-    ?assertEqual(ok, service_onepanel:purge_node(#{})),
+    ?assertEqual(ok, service_onepanel:reset_node(#{})),
     meck:unload().
 
 -endif.
