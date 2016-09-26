@@ -62,15 +62,26 @@ get_nodes() ->
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, #{hosts := Hosts} = Ctx) ->
-    MainHost = maps:get(main_host, Ctx, hd(Hosts)),
+    service:create(#service{name = name()}),
+    {ClusterHost, MainHost} = case service:get(name()) of
+        {ok, #service{hosts = CHosts, ctx = #{main_host := Host}}} ->
+            {CHosts, maps:get(main_host, Ctx, Host)};
+        {ok, #service{hosts = CHosts}} ->
+            {CHosts, maps:get(main_host, Ctx, hd(Hosts))}
+    end,
     [
         #step{module = service, function = save, args = [#service{name = name(),
             ctx = #{main_host => MainHost}}], selection = first},
         #step{hosts = [MainHost], function = configure, ctx = Ctx#{
             main_host => MainHost, wait_for_process => "cluster_manager_sup"}},
-        #step{hosts = Hosts -- [MainHost], function = configure, ctx = Ctx#{
-            main_host => MainHost, wait_for_process => "kernel_sup"}},
-        #step{function = start}
+        #step{hosts = onepanel_lists:subtract(Hosts, [MainHost]),
+            function = configure, ctx = Ctx#{
+                main_host => MainHost, wait_for_process => "kernel_sup"
+            }
+        },
+        #steps{action = restart, ctx = Ctx#{
+            hosts => onepanel_lists:union(ClusterHost, Hosts)
+        }}
     ];
 
 get_steps(start, _Ctx) ->

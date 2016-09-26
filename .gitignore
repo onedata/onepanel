@@ -4,12 +4,14 @@ priv
 rel/onepanel
 rel/pkg.vars.config
 rel/files/app.config
+rel/files/vm.args
 rel/vars.config
 package
 
 test_coverage
 test/eunit_results
 test_distributed/logs
+test_distributed/cover_tmp.spec
 
 ### Erlang template
 .eunit

@@ -285,35 +285,35 @@ init_per_testcase(post_noauth_should_create_account_when_admin_missing, Config) 
     Config;
 
 init_per_testcase(post_as_regular_should_create_account_when_admin_missing, Config) ->
-    ?assertEqual(ok, ?call(Config, onepanel_user, new,
+    ?assertEqual(ok, ?call(Config, onepanel_user, create,
         [?REG_USER1_NAME, ?REG_USER1_PASSWORD, regular])),
     Config;
 
 init_per_testcase(post_noauth_should_not_create_account_when_admin_present, Config) ->
-    ?assertEqual(ok, ?call(Config, onepanel_user, new,
+    ?assertEqual(ok, ?call(Config, onepanel_user, create,
         [?ADMIN_USER1_NAME, ?ADMIN_USER1_PASSWORD, admin])),
     Config;
 
 init_per_testcase(post_as_regular_should_not_create_account_when_admin_present, Config) ->
-    ?assertEqual(ok, ?call(Config, onepanel_user, new,
+    ?assertEqual(ok, ?call(Config, onepanel_user, create,
         [?REG_USER1_NAME, ?REG_USER1_PASSWORD, regular])),
-    ?assertEqual(ok, ?call(Config, onepanel_user, new,
+    ?assertEqual(ok, ?call(Config, onepanel_user, create,
         [?ADMIN_USER1_NAME, ?ADMIN_USER1_PASSWORD, admin])),
     Config;
 
 init_per_testcase(post_as_admin_should_create_account, Config) ->
-    ?assertEqual(ok, ?call(Config, onepanel_user, new,
+    ?assertEqual(ok, ?call(Config, onepanel_user, create,
         [?ADMIN_USER1_NAME, ?ADMIN_USER1_PASSWORD, admin])),
     Config;
 
 init_per_testcase(_Case, Config) ->
-    ?assertEqual(ok, ?call(Config, onepanel_user, new,
+    ?assertEqual(ok, ?call(Config, onepanel_user, create,
         [?ADMIN_USER1_NAME, ?ADMIN_USER1_PASSWORD, admin])),
-    ?assertEqual(ok, ?call(Config, onepanel_user, new,
+    ?assertEqual(ok, ?call(Config, onepanel_user, create,
         [?ADMIN_USER2_NAME, ?ADMIN_USER2_PASSWORD, admin])),
-    ?assertEqual(ok, ?call(Config, onepanel_user, new,
+    ?assertEqual(ok, ?call(Config, onepanel_user, create,
         [?REG_USER1_NAME, ?REG_USER1_PASSWORD, regular])),
-    ?assertEqual(ok, ?call(Config, onepanel_user, new,
+    ?assertEqual(ok, ?call(Config, onepanel_user, create,
         [?REG_USER2_NAME, ?REG_USER2_PASSWORD, regular])),
     Config.
 

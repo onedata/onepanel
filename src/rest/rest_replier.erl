@@ -59,9 +59,7 @@ handle_error(Req, Type, Reason) ->
     TaskId :: service_executor:task_id(), ApiVersion :: integer()) ->
     Req :: cowboy_req:req().
 handle_service_action_async(Req, TaskId, ApiVersion) ->
-    Template = onepanel_env:get(rest_api_prefix_template),
-    Prefix = re:replace(Template, "{version_number}",
-        onepanel_utils:convert(ApiVersion, binary), [{return, binary}]),
+    Prefix = rest_listener:get_prefix(ApiVersion),
     Location = <<Prefix/binary, "/tasks/", TaskId/binary>>,
     cowboy_req:set_resp_header(<<"location">>, Location, Req).
 

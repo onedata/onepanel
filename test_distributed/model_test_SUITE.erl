@@ -185,6 +185,8 @@ init_per_testcase(_Case, Config) ->
     test_utils:mock_expect(Nodes, ?MODEL, get_fields, fun() ->
         record_info(fields, ?MODEL)
     end),
+    test_utils:mock_expect(Nodes, ?MODEL, seed, fun() -> ok end),
+    ok = rpc:call(hd(Nodes), service_onepanel, reset_node, [#{}]),
     onepanel_test_utils:init(Config).
 
 

@@ -15,6 +15,7 @@
 
 %% API
 -export([get/2, get/3, store/2, store/3, get_store/3, get_store/4]).
+-export([union/2, intersect/2, subtract/2]).
 
 -type key() :: any().
 -type keys() :: key() | [key()].
@@ -110,3 +111,38 @@ get_store(SrcKeys, SrcTerms, DstKeys, DstTerms) ->
         {ok, Value} -> store(DstKeys, Value, DstTerms);
         #error{reason = ?ERR_NOT_FOUND} -> DstTerms
     end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns a union of lists without duplicates.
+%% @end
+%%--------------------------------------------------------------------
+-spec union(List1 :: list(), List2 :: list()) -> List :: list().
+union(List1, List2) ->
+    ordsets:to_list(ordsets:union(
+        ordsets:from_list(List1), ordsets:from_list(List2)
+    )).
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns a list of elements from the List1 that does belong to the
+%% List2.
+%% @end
+%%--------------------------------------------------------------------
+-spec intersect(List1 :: list(), List2 :: list()) -> List :: list().
+intersect(List1, List2) ->
+    ordsets:to_list(ordsets:intersection(
+        ordsets:from_list(List1), ordsets:from_list(List2)
+    )).
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns a list of elements from the List1 that does not belong to the
+%% List2.
+%% @end
+%%--------------------------------------------------------------------
+-spec subtract(List1 :: list(), List2 :: list()) -> List :: list().
+subtract(List1, List2) ->
+    ordsets:to_list(ordsets:subtract(
+        ordsets:from_list(List1), ordsets:from_list(List2)
+    )).

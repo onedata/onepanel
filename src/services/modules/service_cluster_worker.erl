@@ -61,14 +61,15 @@ get_nodes() ->
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
-get_steps(deploy, #{name := Name}) ->
+get_steps(deploy, #{hosts := Hosts, name := Name} = Ctx) ->
+    service:create(#service{name = Name}),
+    ClusterHosts = (service:get_module(Name)):get_hosts(),
+    AllHosts = onepanel_lists:union(Hosts, ClusterHosts),
     [
-        #step{module = service, function = save,
-            args = [#service{name = Name}], selection = first},
-        #step{function = configure},
-        #step{function = setup_certs},
-        #step{function = start},
-        #step{function = wait_for_init, selection = first}
+        #step{hosts = AllHosts, function = configure},
+        #step{hosts = AllHosts, function = setup_certs},
+        #steps{action = restart, ctx = Ctx#{hosts => AllHosts}},
+        #step{hosts = [hd(AllHosts)], function = wait_for_init}
     ];
 
 get_steps(start, _Ctx) ->

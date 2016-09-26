@@ -74,24 +74,19 @@ get_steps(deploy, Ctx) ->
     {ok, CbCtx} = onepanel_maps:get([cluster, ?SERVICE_CB], Ctx),
     {ok, CmCtx} = onepanel_maps:get([cluster, ?SERVICE_CM], Ctx),
     {ok, OzwCtx} = onepanel_maps:get([cluster, ?SERVICE_OZW], Ctx),
-    AutoDeploy = case OpaCtx of
-        #{auto_deploy := true} -> true;
-        _ -> false
-    end,
-    Step = #step{verify_hosts = not AutoDeploy},
-    Steps = #steps{verify_hosts = not AutoDeploy},
+    S = #step{verify_hosts = false},
+    Ss = #steps{verify_hosts = false},
     [
-        Steps#steps{service = ?SERVICE_OPA, action = deploy, ctx = OpaCtx,
-            condition = fun(_) -> AutoDeploy end},
-        Steps#steps{service = ?SERVICE_CB, action = deploy, ctx = CbCtx},
-        Step#step{service = ?SERVICE_CB, function = status, ctx = CbCtx},
-        Steps#steps{service = ?SERVICE_CM, action = deploy, ctx = CmCtx},
-        Step#step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
-        Steps#steps{service = ?SERVICE_OZW, action = deploy, ctx = OzwCtx},
-        Step#step{service = ?SERVICE_OZW, function = status, ctx = OzwCtx},
-        Step#step{module = service, function = save, ctx = OpaCtx,
+        Ss#steps{service = ?SERVICE_OPA, action = deploy, ctx = OpaCtx},
+        Ss#steps{service = ?SERVICE_CB, action = deploy, ctx = CbCtx},
+        S#step{service = ?SERVICE_CB, function = status, ctx = CbCtx},
+        Ss#steps{service = ?SERVICE_CM, action = deploy, ctx = CmCtx},
+        S#step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
+        Ss#steps{service = ?SERVICE_OZW, action = deploy, ctx = OzwCtx},
+        S#step{service = ?SERVICE_OZW, function = status, ctx = OzwCtx},
+        S#step{module = service, function = save, ctx = OpaCtx,
             args = [#service{name = name()}], selection = first},
-        Steps#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx}
+        Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx}
     ];
 
 get_steps(start, _Ctx) ->

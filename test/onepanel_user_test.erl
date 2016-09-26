@@ -55,40 +55,40 @@ new_should_validate_username(_) ->
     meck:new(onepanel_user, [passthrough]),
     meck:new(onepanel_user_nif),
     meck:expect(onepanel_user_nif, hash_password, fun(_, _) -> ok end),
-    onepanel_user:new(?U, ?P, ?R),
+    onepanel_user:create(?U, ?P, ?R),
     ?_assert(meck:called(onepanel_user, validate_username, [?U])).
 
 new_should_validate_password(_) ->
     meck:new(onepanel_user, [passthrough]),
     meck:new(onepanel_user_nif),
     meck:expect(onepanel_user_nif, hash_password, fun(_, _) -> ok end),
-    onepanel_user:new(?U, ?P, ?R),
+    onepanel_user:create(?U, ?P, ?R),
     ?_assert(meck:called(onepanel_user, validate_password, [?P])).
 
 new_should_validate_role(_) ->
     meck:new(onepanel_user, [passthrough]),
     meck:new(onepanel_user_nif),
     meck:expect(onepanel_user_nif, hash_password, fun(_, _) -> ok end),
-    onepanel_user:new(?U, ?P, ?R),
+    onepanel_user:create(?U, ?P, ?R),
     ?_assert(meck:called(onepanel_user, validate_role, [?R])).
 
 new_should_create_user(_) ->
-    ?_assertEqual(ok, onepanel_user:new(?U, ?P, ?R)).
+    ?_assertEqual(ok, onepanel_user:create(?U, ?P, ?R)).
 
 new_should_reject_existing_user(_) ->
-    ?assertEqual(ok, onepanel_user:new(?U, ?P, ?R)),
+    ?assertEqual(ok, onepanel_user:create(?U, ?P, ?R)),
     ?_assertThrow(#error{reason = ?ERR_USERNAME_NOT_AVAILABLE},
-        onepanel_user:new(?U, ?P, ?R)).
+        onepanel_user:create(?U, ?P, ?R)).
 
 authenticate_should_return_user(_) ->
-    ?assertEqual(ok, onepanel_user:new(?U, ?P, ?R)),
+    ?assertEqual(ok, onepanel_user:create(?U, ?P, ?R)),
     ?_assertMatch({ok, #onepanel_user{
         username = ?U, password_hash = <<_/binary>>, role = ?R,
         uuid = <<_/binary>>}
     }, onepanel_user:authenticate(?U, ?P)).
 
 authenticate_should_pass_errors(_) ->
-    ?assertEqual(ok, onepanel_user:new(?U, ?P, ?R)),
+    ?assertEqual(ok, onepanel_user:create(?U, ?P, ?R)),
     ?_assertMatch(#error{reason = ?ERR_INVALID_USERNAME_OR_PASSWORD},
         onepanel_user:authenticate(?U, <<"password">>)).
 
@@ -96,12 +96,12 @@ change_password_should_validate_password(_) ->
     meck:new(onepanel_user, [passthrough]),
     meck:new(onepanel_user_nif),
     meck:expect(onepanel_user_nif, hash_password, fun(_, _) -> ok end),
-    onepanel_user:new(?U, ?P, ?R),
+    onepanel_user:create(?U, ?P, ?R),
     ?_assert(meck:called(onepanel_user, validate_password, [?P])).
 
 change_password_should_work(_) ->
     NewPassword = <<"Password2">>,
-    ?assertEqual(ok, onepanel_user:new(?U, ?P, ?R)),
+    ?assertEqual(ok, onepanel_user:create(?U, ?P, ?R)),
     ?assertEqual(ok, onepanel_user:change_password(?U, NewPassword)),
     ?assertMatch(#error{reason = ?ERR_INVALID_USERNAME_OR_PASSWORD},
         onepanel_user:authenticate(?U, ?P)),
@@ -132,12 +132,12 @@ start() ->
     onepanel_env:set(rpc_timeout, 1000),
     onepanel_env:set(bcrypt_work_factor, 4),
     onepanel_env:set(create_tables_timeout, 10000),
-    ?assertEqual(ok, service_onepanel:purge_node(#{})),
-    ?assertEqual(ok, service_onepanel:create_tables(#{})),
+    onepanel_env:set(default_users, []),
+    ?assertEqual(ok, service_onepanel:init_cluster(#{})),
     ok.
 
 stop(_) ->
-    ?assertEqual(ok, service_onepanel:purge_node(#{})),
+    ?assertEqual(ok, service_onepanel:reset_node(#{})),
     meck:unload().
 
 -endif.

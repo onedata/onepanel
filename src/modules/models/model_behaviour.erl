@@ -30,6 +30,12 @@
 
 
 %%--------------------------------------------------------------------
+%% Provides custom model initialization.
+%%--------------------------------------------------------------------
+-callback seed() -> any().
+
+
+%%--------------------------------------------------------------------
 %% Creates the model instance. Returns an error if the instance already exists.
 %%--------------------------------------------------------------------
 -callback create(Record :: record()) -> ok | #error{} | no_return().

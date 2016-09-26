@@ -39,14 +39,11 @@
 start(_StartType, _StartArgs) ->
     try
         test_node_starter:maybe_start_cover(),
+        service_onepanel:init_cluster(#{}),
         rest_listener:start(),
-        onepanel_utils:wait_until(rest_listener, get_status, [], {equal, ok},
+        onepanel_utils:wait_until(rest_listener, status, [], {equal, ok},
             onepanel_env:get(rest_listener_status_check_attempts)),
-        {ok, Pid} = onepanel_sup:start_link(),
-        [_ | _] = service:apply_sync(service_onepanel:name(), deploy, #{
-            hosts => [onepanel_cluster:node_to_host()]
-        }, onepanel_env:get(initialize_timeout)),
-        {ok, Pid}
+        onepanel_sup:start_link()
     catch
         _:Reason ->
             ?error_stacktrace("Cannot start onepanel application due to: ~p",

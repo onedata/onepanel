@@ -65,6 +65,7 @@
 
         {vm_args_path, "{{platform_etc_dir}}/vm.args"},
         {app_config_path, "{{platform_etc_dir}}/app.config"},
+        {cmd_log_path, "{{platform_log_dir}}/cmd.log"},
 
         {default_users, [{<<"admin">>, <<"password">>, admin}]},
 

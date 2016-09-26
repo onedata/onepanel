@@ -153,23 +153,21 @@ get_as_admin_should_return_cookie(Config) ->
 
 
 put_as_admin_should_init_cluster(Config) ->
-    [Host | _] = ?config(onepanel_hosts, Config),
     ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
         Config, "/hosts", post, ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD,
         [{cookie, ?COOKIE}]
     )),
     ?assertReceivedMatch({service, onepanel, init_cluster,
-        #{cookie := ?COOKIE, hosts := [Host]}}, ?TIMEOUT).
+        #{cookie := ?COOKIE}}, ?TIMEOUT).
 
 
 put_as_admin_should_extend_cluster(Config) ->
-    [Host | _] = ?config(onepanel_hosts, Config),
     ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
         Config, "/hosts?clusterHost=someHost", post,
         ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, [{cookie, ?COOKIE}]
     )),
     ?assertReceivedMatch({service, onepanel, join_cluster,
-        #{cookie := ?COOKIE, hosts := [Host], cluster_host := "someHost"}
+        #{cookie := ?COOKIE, cluster_host := "someHost"}
     }, ?TIMEOUT).
 
 
@@ -218,7 +216,7 @@ init_per_testcase(Case, Config) when
     Case =:= get_as_admin_should_return_hosts;
     Case =:= get_as_admin_should_return_cookie;
     Case =:= method_should_return_not_found_error ->
-    ?assertEqual(ok, ?call(Config, onepanel_user, new,
+    ?assertEqual(ok, ?call(Config, onepanel_user, create,
         [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin])),
     init_per_testcase(default, Config);
 
@@ -233,7 +231,7 @@ init_per_testcase(_Case, Config) ->
     test_utils:mock_expect(Nodes, onepanel_discovery, get_hosts, fun() ->
         DiscoveredHosts
     end),
-    ?assertEqual(ok, ?call(Config, onepanel_user, new,
+    ?assertEqual(ok, ?call(Config, onepanel_user, create,
         [?REG_USER_NAME, ?REG_USER_PASSWORD, regular])),
     [{cluster_hosts, ClusterHosts}, {discovered_hosts, DiscoveredHosts} | Config].
 

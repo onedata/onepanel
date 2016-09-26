@@ -62,6 +62,7 @@ template:
 	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rel/pkg.vars.config.template
 	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rel/vars.config.template
 	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rel/files/app.config.template
+	$(TEMPLATE_SCRIPT) rel/vars.config ./rel/files/vm.args.template
 
 config:
 	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rebar.config.template
@@ -94,7 +95,7 @@ rel: config compile generate
 
 .PHONY: relclean
 relclean:
-	rm -rf rel/onepanel
+	rm -rf _build/default/rel/onepanel
 
 ##
 ## Dialyzer targets local

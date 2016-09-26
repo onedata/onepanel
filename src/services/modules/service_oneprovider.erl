@@ -83,30 +83,26 @@ get_steps(deploy, Ctx) ->
     {ok, OpwCtx} = onepanel_maps:get([cluster, ?SERVICE_OPW], Ctx),
     StorageCtx = onepanel_maps:get([cluster, storages], Ctx, #{}),
     OpCtx = onepanel_maps:get(name(), Ctx, #{}),
-    AutoDeploy = case OpaCtx of
-        #{auto_deploy := true} -> true;
-        _ -> false
-    end,
+
     Register = fun
         (#{oneprovider_register := true}) -> true;
         (_) -> false
     end,
-    Step = #step{verify_hosts = not AutoDeploy},
-    Steps = #steps{verify_hosts = not AutoDeploy},
+    S = #step{verify_hosts = false},
+    Ss = #steps{verify_hosts = false},
     [
-        Steps#steps{service = ?SERVICE_OPA, action = deploy, ctx = OpaCtx,
-            condition = fun(_) -> AutoDeploy end},
-        Steps#steps{service = ?SERVICE_CB, action = deploy, ctx = CbCtx},
-        Step#step{service = ?SERVICE_CB, function = status, ctx = CbCtx},
-        Steps#steps{service = ?SERVICE_CM, action = deploy, ctx = CmCtx},
-        Step#step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
-        Steps#steps{service = ?SERVICE_OPW, action = deploy, ctx = OpwCtx},
-        Step#step{service = ?SERVICE_OPW, function = status, ctx = OpwCtx},
-        Steps#steps{service = ?SERVICE_OPW, action = add_storages, ctx = StorageCtx},
-        Steps#steps{action = register, ctx = OpCtx, condition = Register},
-        Step#step{module = service, function = save, ctx = OpaCtx,
+        Ss#steps{service = ?SERVICE_OPA, action = deploy, ctx = OpaCtx},
+        Ss#steps{service = ?SERVICE_CB, action = deploy, ctx = CbCtx},
+        S#step{service = ?SERVICE_CB, function = status, ctx = CbCtx},
+        Ss#steps{service = ?SERVICE_CM, action = deploy, ctx = CmCtx},
+        S#step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
+        Ss#steps{service = ?SERVICE_OPW, action = deploy, ctx = OpwCtx},
+        S#step{service = ?SERVICE_OPW, function = status, ctx = OpwCtx},
+        Ss#steps{service = ?SERVICE_OPW, action = add_storages, ctx = StorageCtx},
+        Ss#steps{action = register, ctx = OpCtx, condition = Register},
+        S#step{module = service, function = save, ctx = OpaCtx,
             args = [#service{name = name()}], selection = first},
-        Steps#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx}
+        Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx}
     ];
 
 get_steps(start, _Ctx) ->

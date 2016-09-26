@@ -18,11 +18,11 @@
 -include("modules/models.hrl").
 
 %% Model behaviour callbacks
--export([get_fields/0, create/1, save/1, update/2, get/1, exists/1, delete/1,
-    list/0]).
+-export([get_fields/0, seed/0, create/1, save/1, update/2, get/1, exists/1,
+    delete/1, list/0]).
 
 %% API
--export([new/3, authenticate/2, change_password/2, get_by_role/1]).
+-export([create/3, save/3, authenticate/2, change_password/2, get_by_role/1]).
 -export([validate_username/1, validate_password/1, validate_role/1]).
 
 -type name() :: binary().
@@ -44,6 +44,22 @@
 -spec get_fields() -> list(atom()).
 get_fields() ->
     record_info(fields, ?MODULE).
+
+
+%%--------------------------------------------------------------------
+%% @doc {@link model_behaviour:seed/0}
+%% @end
+%%--------------------------------------------------------------------
+-spec seed() -> any().
+seed() ->
+    lists:foreach(fun({Username, Password, Role}) ->
+        try
+            create(Username, Password, Role)
+        catch
+            #error{reason = ?ERR_USERNAME_NOT_AVAILABLE} -> ok;
+            #error{} = Error -> ?throw_error(Error)
+        end
+    end, onepanel_env:get(default_users)).
 
 
 %%--------------------------------------------------------------------
@@ -120,20 +136,34 @@ list() ->
 %% @doc Validates credentials and creates user account.
 %% @end
 %%--------------------------------------------------------------------
--spec new(Username :: name(), Password :: password(), Role :: role()) ->
+-spec create(Username :: name(), Password :: password(), Role :: role()) ->
     ok | no_return().
-new(Username, Password, Role) ->
-    ?MODULE:validate_username(Username),
-    ?MODULE:validate_password(Password),
-    ?MODULE:validate_role(Role),
+create(Username, Password, Role) ->
+    validate_credentials(Username, Password, Role),
     WorkFactor = onepanel_env:get(bcrypt_work_factor),
     case ?MODULE:create(#onepanel_user{
         username = Username, role = Role, uuid = onepanel_utils:gen_uuid(),
         password_hash = onepanel_user_nif:hash_password(Password, WorkFactor)
     }) of
         ok -> ok;
-        _ -> ?throw_error(?ERR_USERNAME_NOT_AVAILABLE)
+        #error{reason = ?ERR_ALREADY_EXISTS} ->
+            ?throw_error(?ERR_USERNAME_NOT_AVAILABLE)
     end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Validates credentials and creates or updates user account.
+%% @end
+%%--------------------------------------------------------------------
+-spec save(Username :: name(), Password :: password(), Role :: role()) ->
+    ok | no_return().
+save(Username, Password, Role) ->
+    validate_credentials(Username, Password, Role),
+    WorkFactor = onepanel_env:get(bcrypt_work_factor),
+    ok = ?MODULE:save(#onepanel_user{
+        username = Username, role = Role, uuid = onepanel_utils:gen_uuid(),
+        password_hash = onepanel_user_nif:hash_password(Password, WorkFactor)
+    }).
 
 
 %%--------------------------------------------------------------------
@@ -213,3 +243,17 @@ validate_password(_) -> ok.
 validate_role(admin) -> ok;
 validate_role(regular) -> ok;
 validate_role(_) -> ?throw_error(?ERR_INVALID_ROLE).
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private @doc Validates user credentials.
+%% @end
+%%--------------------------------------------------------------------
+-spec validate_credentials(Username :: name(), Password :: password(), Role :: role()) -> ok.
+validate_credentials(Username, Password, Role) ->
+    ?MODULE:validate_username(Username),
+    ?MODULE:validate_password(Password),
+    ?MODULE:validate_role(Role).

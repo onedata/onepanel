@@ -126,12 +126,16 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
     DbCtx3 = onepanel_maps:get_store([cluster, databases, bucketQuota], Args,
         couchbase_bucket_quota, DbCtx2),
 
+    {Auth, Req2} = cowboy_req:header(<<"authorization">>, Req),
     OpaCtx = maps:get(onepanel, Args, #{}),
-    OpaCtx2 = OpaCtx#{hosts => lists:usort(DbHosts ++ CmHosts ++ OpwHosts)},
-    OpaCtx3 = onepanel_maps:get_store([cluster, autoDeploy], Args, auto_deploy, OpaCtx2),
+    OpaCtx2 = OpaCtx#{
+        hosts => lists:usort(DbHosts ++ CmHosts ++ OpwHosts),
+        auth => Auth,
+        api_version => Version
+    },
 
     ClusterCtx = #{
-        service_onepanel:name() => OpaCtx3,
+        service_onepanel:name() => OpaCtx2,
         service_couchbase:name() => DbCtx3,
         service_cluster_manager:name() => #{main_host => MainCmHost, hosts => CmHosts},
         service_op_worker:name() => #{hosts => OpwHosts, db_hosts => DbHosts,
@@ -148,7 +152,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
     OpCtx6 = onepanel_maps:get_store([oneprovider, geoLongitude], Args, oneprovider_geo_longitude, OpCtx5),
     OpCtx7 = OpCtx6#{hosts => OpwHosts},
 
-    {true, rest_replier:handle_service_action_async(Req, service:apply_async(
+    {true, rest_replier:handle_service_action_async(Req2, service:apply_async(
         service_oneprovider:name(), deploy, #{
             cluster => ClusterCtx, service_oneprovider:name() => OpCtx7
         }
@@ -166,9 +170,13 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version =
     DbCtx3 = onepanel_maps:get_store([cluster, databases, bucketQuota], Args,
         couchbase_bucket_quota, DbCtx2),
 
+    {Auth, Req2} = cowboy_req:header(<<"authorization">>, Req),
     OpaCtx = maps:get(onepanel, Args, #{}),
-    OpaCtx2 = OpaCtx#{hosts => lists:usort(DbHosts ++ CmHosts ++ OzwHosts)},
-    OpaCtx3 = onepanel_maps:get_store([cluster, autoDeploy], Args, auto_deploy, OpaCtx2),
+    OpaCtx2 = OpaCtx#{
+        hosts => lists:usort(DbHosts ++ CmHosts ++ OzwHosts),
+        auth => Auth,
+        api_version => Version
+    },
 
     OzCtx = #{
         hosts => OzwHosts, db_hosts => DbHosts, cm_hosts => CmHosts,
@@ -178,13 +186,13 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version =
     OzCtx3 = onepanel_maps:get_store([onezone, domainName], Args, onezone_domain, OzCtx2),
 
     ClusterCtx = #{
-        service_onepanel:name() => OpaCtx3,
+        service_onepanel:name() => OpaCtx2,
         service_couchbase:name() => DbCtx3,
         service_cluster_manager:name() => #{main_host => MainCmHost, hosts => CmHosts},
         service_oz_worker:name() => OzCtx3
     },
 
-    {true, rest_replier:handle_service_action_async(Req, service:apply_async(
+    {true, rest_replier:handle_service_action_async(Req2, service:apply_async(
         service_onezone:name(), deploy, #{cluster => ClusterCtx}
     ), Version)};
 

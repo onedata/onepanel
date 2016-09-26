@@ -15,7 +15,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([new/7, translate/2]).
+-export([create/7, translate/2]).
 
 %%%===================================================================
 %%% API functions
@@ -25,19 +25,19 @@
 %% @doc Creates an error record.
 %% @end
 %%--------------------------------------------------------------------
--spec new(Module :: module(), Function :: atom(), Arity :: non_neg_integer(),
+-spec create(Module :: module(), Function :: atom(), Arity :: non_neg_integer(),
     Args :: term(), Reason :: term(), Stacktrace :: term(), Line :: non_neg_integer()) ->
     #error{}.
-new(Module, Function, Arity, Args, {badmatch, Reason}, Stacktrace, Line) ->
-    new(Module, Function, Arity, Args, Reason, Stacktrace, Line);
+create(Module, Function, Arity, Args, {badmatch, Reason}, Stacktrace, Line) ->
+    create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
 
-new(_Module, _Function, _Arity, _Args, #error{} =
+create(_Module, _Function, _Arity, _Args, #error{} =
     _Reason, _Stacktrace, _Line) ->
     #error{module = Module, function = Function, arity = Arity, args = Args,
         reason = Reason, stacktrace = Stacktrace, line = Line} = _Reason,
-    new(Module, Function, Arity, Args, Reason, Stacktrace, Line);
+    create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
 
-new(Module, Function, Arity, Args, Reason, Stacktrace, Line) ->
+create(Module, Function, Arity, Args, Reason, Stacktrace, Line) ->
     #error{module = Module, function = Function, arity = Arity, args = Args,
         reason = Reason, stacktrace = Stacktrace, line = Line}.
 

@@ -64,22 +64,16 @@ exists_resource(Req, _State) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()}.
 accept_resource(Req, 'POST', Args, #rstate{resource = hosts,
     params = #{clusterHost := Host}}) ->
+    Ctx = #{cluster_host => onepanel_utils:convert(Host, list)},
+    Ctx2 = onepanel_maps:get_store(cookie, Args, cookie, Ctx),
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, join_cluster, #{
-            hosts => [onepanel_cluster:node_to_host()],
-            cluster_host => onepanel_utils:convert(Host, list),
-            cookie => maps:get(cookie, Args, erlang:get_cookie())
-        }
+        ?SERVICE, join_cluster, Ctx2
     ))};
 
 accept_resource(Req, 'POST', Args, #rstate{resource = hosts}) ->
+    Ctx = onepanel_maps:get_store(cookie, Args, cookie),
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, init_cluster, #{
-            hosts => [onepanel_cluster:node_to_host()],
-            cookie => onepanel_utils:convert(
-                maps:get(cookie, Args, onepanel_utils:gen_uuid()), atom
-            )
-        }
+        ?SERVICE, init_cluster, Ctx
     ))}.
 
 
