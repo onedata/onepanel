@@ -4,6 +4,11 @@
 CHANGELOG
 ---------
 
+### 3.0.0-rc7
+
+* VFS-2550 Make configure operation idempotent
+
+
 ### 3.0.0-rc6
 
 * VFS-2180 Add 'sync' bucket for oneprovider release
