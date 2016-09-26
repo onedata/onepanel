@@ -106,7 +106,7 @@ get_steps(status, _Ctx) ->
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(#{main_host := MainHost, hosts := Hosts,
-    wait_for_process :=Process} = Ctx) ->
+    wait_for_process := Process} = Ctx) ->
 
     AppConfigPath = service_ctx:get(cluster_manager_app_config_path, Ctx),
     VmArgsPath = service_ctx:get(cluster_manager_vm_args_path, Ctx),
