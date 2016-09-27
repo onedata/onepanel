@@ -212,5 +212,10 @@ reset_node(_Ctx) ->
 -spec add_users(Ctx :: service:ctx()) -> ok.
 add_users(#{users := Users}) ->
     maps:fold(fun(Username, #{password := Password, userRole := Role}, _) ->
-        onepanel_user:save(Username, Password, Role)
+        case onepanel_user:create_noexcept(Username, Password, Role) of
+            ok -> ok;
+            #error{reason = ?ERR_ALREADY_EXISTS} ->
+                onepanel_user:change_password(Username, Password),
+                onepanel_user:update(Username, #{role => Role})
+        end
     end, ok, Users).
