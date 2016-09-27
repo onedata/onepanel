@@ -159,19 +159,21 @@ init_cluster(_Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec extend_cluster(Ctx :: service:ctx()) -> ok.
-extend_cluster(#{hosts := Hosts, auth := Auth, api_version := ApiVersion}) ->
+extend_cluster(#{hosts := Hosts, auth := Auth, api_version := ApiVersion} = Ctx) ->
     ClusterHost = onepanel_cluster:node_to_host(),
     Port = rest_listener:get_port(),
     Prefix = rest_listener:get_prefix(ApiVersion),
     Suffix = onepanel_utils:join(["/hosts?clusterHost=", ClusterHost]),
     Body = json_utils:encode([{cookie, erlang:get_cookie()}]),
+    Timeout = service_ctx:get(extend_cluster_timeout, Ctx, integer),
     lists:foreach(fun(Host) ->
         Url = onepanel_utils:join(["https://", Host, ":", Port, Prefix, Suffix]),
         {ok, 204, _, _} = http_client:post(
             Url, [
                 {<<"authorization">>, Auth},
                 {"Content-Type", "application/json"}
-            ], Body, [insecure]
+            ], Body,
+            [insecure, {connect_timeout, Timeout}, {recv_timeout, Timeout}]
         )
     end, Hosts).
 

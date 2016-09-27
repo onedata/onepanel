@@ -61,7 +61,7 @@ get_nodes() ->
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
-get_steps(deploy, #{hosts := Hosts} = Ctx) ->
+get_steps(deploy, #{hosts := [_ | _] = Hosts} = Ctx) ->
     service:create(#service{name = name()}),
     {ClusterHost, MainHost} = case service:get(name()) of
         {ok, #service{hosts = CHosts, ctx = #{main_host := Host}}} ->
@@ -83,6 +83,9 @@ get_steps(deploy, #{hosts := Hosts} = Ctx) ->
             hosts => onepanel_lists:union(ClusterHost, Hosts)
         }}
     ];
+
+get_steps(deploy, _Ctx) ->
+    [];
 
 get_steps(start, _Ctx) ->
     [#step{function = start}];

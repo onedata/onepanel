@@ -77,11 +77,11 @@ get_steps(deploy, #{hosts := Hosts} = Ctx) ->
             condition = fun(_) -> ClusterHosts == [] end
         },
         #step{hosts = NewHosts, function = join_cluster, selection = rest,
-            ctx = Ctx#{cluster_host => catch hd(NewHosts)},
+            ctx = Ctx#{cluster_host => onepanel_lists:hd(NewHosts)},
             condition = fun(_) -> ClusterHosts == [] end
         },
         #step{hosts = NewHosts, function = join_cluster,
-            ctx = Ctx#{cluster_host => catch hd(ClusterHosts)},
+            ctx = Ctx#{cluster_host => onepanel_lists:hd(ClusterHosts)},
             condition = fun(_) -> ClusterHosts /= [] end
         },
         #step{hosts = AllHosts, function = rebalance_cluster, selection = first}

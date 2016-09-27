@@ -58,6 +58,7 @@
         {initialize_timeout, 60000},
         {create_tables_timeout, 10000},
         {copy_tables_timeout, 10000},
+        {extend_cluster_timeout, 900000},
         {task_ttl, 86400000},
         {service_step_retry_delay, 30000},
 
