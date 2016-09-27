@@ -180,12 +180,14 @@ init_cluster(Ctx) ->
     Host = onepanel_cluster:node_to_host(),
     Port = service_ctx:get(couchbase_admin_port, Ctx),
     Url = onepanel_utils:join(["http://", Host, ":", Port, "/pools/default"]),
+    Timeout = service_ctx:get(couchbase_init_timeout, Ctx, integer),
 
     {ok, 200, _, _} = http_client:post(
         Url, [
             onepanel_utils:get_basic_auth_header(User, Password),
             {"content-type", "application/x-www-form-urlencoded"}
-        ], "memoryQuota=" ++ ServerQuota
+        ], "memoryQuota=" ++ ServerQuota,
+        [{connect_timeout, Timeout}, {recv_timeout, Timeout}]
     ),
 
     onepanel_shell:check_call([?CLI, "cluster-init", "-c", Host ++ ":" ++ Port,

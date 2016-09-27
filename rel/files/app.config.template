@@ -70,6 +70,7 @@
 
         {default_users, [{<<"admin">>, <<"password">>, admin}]},
 
+        {couchbase_init_timeout, 300000},
         {couchbase_wait_for_init_attempts, 60},
         {couchbase_connect_attempts, 30},
         {couchbase_connect_timeout, 1000},
