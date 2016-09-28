@@ -4,6 +4,14 @@
 CHANGELOG
 ---------
 
+### 3.0.0-rc8
+
+* VFS-2550 Template runner_wait_process
+* VFS-2550 Make add_storages operation idempotent
+* VFS-2550 Make register operation idempotent
+* VFS-2550 Make add_users operation idempotent
+
+
 ### 3.0.0-rc7
 
 * VFS-2550 Make configure operation idempotent
