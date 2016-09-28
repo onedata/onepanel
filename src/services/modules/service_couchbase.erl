@@ -77,11 +77,11 @@ get_steps(deploy, #{hosts := Hosts} = Ctx) ->
             condition = fun(_) -> ClusterHosts == [] end
         },
         #step{hosts = NewHosts, function = join_cluster, selection = rest,
-            ctx = Ctx#{cluster_host => catch hd(NewHosts)},
+            ctx = Ctx#{cluster_host => onepanel_lists:hd(NewHosts)},
             condition = fun(_) -> ClusterHosts == [] end
         },
         #step{hosts = NewHosts, function = join_cluster,
-            ctx = Ctx#{cluster_host => catch hd(ClusterHosts)},
+            ctx = Ctx#{cluster_host => onepanel_lists:hd(ClusterHosts)},
             condition = fun(_) -> ClusterHosts /= [] end
         },
         #step{hosts = AllHosts, function = rebalance_cluster, selection = first}
@@ -180,12 +180,14 @@ init_cluster(Ctx) ->
     Host = onepanel_cluster:node_to_host(),
     Port = service_ctx:get(couchbase_admin_port, Ctx),
     Url = onepanel_utils:join(["http://", Host, ":", Port, "/pools/default"]),
+    Timeout = service_ctx:get(couchbase_init_timeout, Ctx, integer),
 
     {ok, 200, _, _} = http_client:post(
         Url, [
             onepanel_utils:get_basic_auth_header(User, Password),
             {"content-type", "application/x-www-form-urlencoded"}
-        ], "memoryQuota=" ++ ServerQuota
+        ], "memoryQuota=" ++ ServerQuota,
+        [{connect_timeout, Timeout}, {recv_timeout, Timeout}]
     ),
 
     onepanel_shell:check_call([?CLI, "cluster-init", "-c", Host ++ ":" ++ Port,

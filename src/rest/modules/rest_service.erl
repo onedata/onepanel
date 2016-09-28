@@ -118,7 +118,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
     OpwHosts = rest_utils:get_hosts([cluster, workers, nodes], Args),
 
     StorageCtx = onepanel_maps:get_store([cluster, storages], Args, storages),
-    StorageCtx2 = StorageCtx#{hosts => OpwHosts},
+    StorageCtx2 = StorageCtx#{hosts => OpwHosts, ignore_exists => true},
 
     DbCtx = #{hosts => DbHosts},
     DbCtx2 = onepanel_maps:get_store([cluster, databases, serverQuota], Args,
@@ -198,7 +198,9 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version =
 
 accept_resource(Req, 'POST', Args, #rstate{resource = storages}) ->
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        service_op_worker:name(), add_storages, #{storages => Args}
+        service_op_worker:name(), add_storages, #{
+            storages => Args, ignore_exists => false
+        }
     ))};
 
 accept_resource(Req, 'PATCH', _Args, #rstate{resource = SModule,

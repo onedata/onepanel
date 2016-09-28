@@ -17,7 +17,7 @@
 -include_lib("hackney/include/hackney_lib.hrl").
 
 %% API
--export([add/1, get/0, get/1]).
+-export([add/2, get/0, get/1]).
 
 -type name() :: binary().
 -type storage_params_map() :: #{Key :: atom() | binary() => Value :: binary()}.
@@ -37,8 +37,8 @@
 %% addition.
 %% @end
 %%--------------------------------------------------------------------
--spec add(Storages :: storage_map()) -> ok | no_return().
-add(Storages) ->
+-spec add(Storages :: storage_map(), IgnoreExists :: boolean()) -> ok | no_return().
+add(Storages, IgnoreExists) ->
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(service_op_worker:name(), Host),
     RootUserId = rpc:call(Node, fslogic_uuid, root_user_id, []),
@@ -49,8 +49,15 @@ add(Storages) ->
             parse_storage_params(StorageType, Value),
         RootCtx = rpc:call(Node, UserModel, new_ctx, RootCtxArgs),
         verify_storage(HelperName, HelperArgs, RootCtx),
-        StorageId = add_storage(Node, StorageName, HelperName, HelperArgs),
-        rpc:call(Node, UserModel, add, [RootUserId, StorageId, RootCtx])
+        Result = add_storage(Node, StorageName, HelperName, HelperArgs),
+        case {Result, IgnoreExists} of
+            {{ok, StorageId}, _} ->
+                rpc:call(Node, UserModel, add, [RootUserId, StorageId, RootCtx]);
+            {{error, already_exists}, true} ->
+                ok;
+            {{error, Reason}, _} ->
+                ?throw_error({?ERR_STORAGE_ADDITION, Reason})
+        end
     end, [], Storages),
     ok.
 
@@ -221,14 +228,11 @@ remove_test_file(Node, Args, FileId) ->
 %% @private @doc Adds storage to the op_worker service configuration.
 %%--------------------------------------------------------------------
 -spec add_storage(Node :: node(), StorageName :: binary(), HelperName :: binary(),
-    HelperArgs :: maps:map()) -> StorageId :: binary() | no_return().
+    HelperArgs :: maps:map()) -> {ok, StorageId :: binary()} | {error, Reason :: term()}.
 add_storage(Node, StorageName, HelperName, HelperArgs) ->
     Helper = rpc:call(Node, fslogic_storage, new_helper_init, [HelperName, HelperArgs]),
     Storage = rpc:call(Node, fslogic_storage, new_storage, [StorageName, [Helper]]),
-    case rpc:call(Node, storage, create, [Storage]) of
-        {ok, StorageId} -> StorageId;
-        {error, Reason} -> ?throw_error({?ERR_STORAGE_ADDITION, Reason})
-    end.
+    rpc:call(Node, storage, create, [Storage]).
 
 
 %%--------------------------------------------------------------------

@@ -3,6 +3,7 @@
 {package_install_name, "{{release_name}}"}.
 {package_install_user, "{{release_name}}"}.
 {package_runner_user, "root"}.
+{package_runner_wait_process, "onepanel_sup"}.
 {package_install_group, "onedata"}.
 {package_install_user_desc, "{{release_type}} panel user"}.
 {package_shortdesc, "{{release_type}} administrative panel"}.

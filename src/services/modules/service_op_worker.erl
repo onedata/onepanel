@@ -61,8 +61,8 @@ get_nodes() ->
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
-get_steps(add_storages, #{hosts := Hosts, storages := _}) ->
-    [#step{hosts = Hosts, function = add_storages, selection = first}];
+get_steps(add_storages, #{hosts := Hosts, storages := _} = Ctx) ->
+    [#step{hosts = Hosts, function = add_storages, selection = first, ctx = Ctx}];
 
 get_steps(add_storages, #{storages := _} = Ctx) ->
     get_steps(add_storages, Ctx#{hosts => get_hosts()});
@@ -179,8 +179,11 @@ nagios_report(Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec add_storages(Ctx :: service:ctx()) -> ok | no_return().
-add_storages(#{storages := Storages}) ->
-    op_worker_storage:add(Storages).
+add_storages(#{storages := Storages, ignore_exists := IgnoreExists}) ->
+    op_worker_storage:add(Storages, IgnoreExists);
+
+add_storages(Ctx) ->
+    add_storages(Ctx#{ignore_exists => false}).
 
 
 %%--------------------------------------------------------------------

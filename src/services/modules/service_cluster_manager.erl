@@ -61,7 +61,7 @@ get_nodes() ->
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
-get_steps(deploy, #{hosts := Hosts} = Ctx) ->
+get_steps(deploy, #{hosts := [_ | _] = Hosts} = Ctx) ->
     service:create(#service{name = name()}),
     {ClusterHost, MainHost} = case service:get(name()) of
         {ok, #service{hosts = CHosts, ctx = #{main_host := Host}}} ->
@@ -83,6 +83,9 @@ get_steps(deploy, #{hosts := Hosts} = Ctx) ->
             hosts => onepanel_lists:union(ClusterHost, Hosts)
         }}
     ];
+
+get_steps(deploy, _Ctx) ->
+    [];
 
 get_steps(start, _Ctx) ->
     [#step{function = start}];
@@ -106,7 +109,7 @@ get_steps(status, _Ctx) ->
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(#{main_host := MainHost, hosts := Hosts,
-    wait_for_process :=Process} = Ctx) ->
+    wait_for_process := Process} = Ctx) ->
 
     AppConfigPath = service_ctx:get(cluster_manager_app_config_path, Ctx),
     VmArgsPath = service_ctx:get(cluster_manager_vm_args_path, Ctx),

@@ -14,7 +14,7 @@
 -include("modules/errors.hrl").
 
 %% API
--export([get/2, get/3, store/2, store/3, get_store/3, get_store/4]).
+-export([hd/1, get/2, get/3, store/2, store/3, get_store/3, get_store/4]).
 -export([union/2, intersect/2, subtract/2]).
 
 -type key() :: any().
@@ -27,6 +27,15 @@
 %%%===================================================================
 %%% API functions
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc Returns first element in the lists or if the lists is empty
+%% an 'undefined' atom.
+%% @end
+%%--------------------------------------------------------------------
+-spec hd(List :: list()) -> Elem :: undefined | any().
+hd([]) -> undefined;
+hd([Head | _]) -> Head.
 
 %%--------------------------------------------------------------------
 %% @doc Returns a value from the nested property list.

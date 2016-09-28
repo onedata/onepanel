@@ -84,8 +84,13 @@ get_steps(deploy, Ctx) ->
     StorageCtx = onepanel_maps:get([cluster, storages], Ctx, #{}),
     OpCtx = onepanel_maps:get(name(), Ctx, #{}),
 
+    service:create(#service{name = name()}),
     Register = fun
-        (#{oneprovider_register := true}) -> true;
+        (#{oneprovider_register := true}) ->
+            case service:get(name()) of
+                {ok, #service{ctx = #{registered := Registered}}} -> not Registered;
+                _ -> true
+            end;
         (_) -> false
     end,
     S = #step{verify_hosts = false},
@@ -100,8 +105,6 @@ get_steps(deploy, Ctx) ->
         S#step{service = ?SERVICE_OPW, function = status, ctx = OpwCtx},
         Ss#steps{service = ?SERVICE_OPW, action = add_storages, ctx = StorageCtx},
         Ss#steps{action = register, ctx = OpCtx, condition = Register},
-        S#step{module = service, function = save, ctx = OpaCtx,
-            args = [#service{name = name()}], selection = first},
         Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx}
     ];
 
@@ -135,7 +138,7 @@ get_steps(status, _Ctx) ->
 get_steps(register, #{hosts := Hosts} = Ctx) ->
     [
         #step{hosts = Hosts, function = configure, ctx = Ctx#{application => name()}},
-        #step{hosts = service_onepanel:get_hosts(), function = configure,
+        #step{hosts = Hosts, function = configure,
             ctx = Ctx#{application => ?APP_NAME}},
         #step{hosts = Hosts, function = register, selection = any,
             attempts = onepanel_env:get(oneprovider_register_attempts)}
@@ -253,6 +256,8 @@ register(Ctx) ->
         {oz_plugin:get_csr_path(), Csr},
         {oz_plugin:get_cert_path(), Cert}
     ]),
+
+    service:save(#service{name = name(), ctx = #{registered => true}}),
 
     {ok, ProviderId}.
 

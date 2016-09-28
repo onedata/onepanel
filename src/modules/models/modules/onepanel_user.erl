@@ -22,7 +22,8 @@
     delete/1, list/0]).
 
 %% API
--export([create/3, save/3, authenticate/2, change_password/2, get_by_role/1]).
+-export([create/3, create_noexcept/3, authenticate/2, change_password/2,
+    get_by_role/1]).
 -export([validate_username/1, validate_password/1, validate_role/1]).
 
 -type name() :: binary().
@@ -133,18 +134,14 @@ list() ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc Validates credentials and creates user account.
+%% @doc Validates credentials and creates user account. Throws an exception
+%% if username is not available.
 %% @end
 %%--------------------------------------------------------------------
 -spec create(Username :: name(), Password :: password(), Role :: role()) ->
     ok | no_return().
 create(Username, Password, Role) ->
-    validate_credentials(Username, Password, Role),
-    WorkFactor = onepanel_env:get(bcrypt_work_factor),
-    case ?MODULE:create(#onepanel_user{
-        username = Username, role = Role, uuid = onepanel_utils:gen_uuid(),
-        password_hash = onepanel_user_nif:hash_password(Password, WorkFactor)
-    }) of
+    case create_noexcept(Username, Password, Role) of
         ok -> ok;
         #error{reason = ?ERR_ALREADY_EXISTS} ->
             ?throw_error(?ERR_USERNAME_NOT_AVAILABLE)
@@ -152,19 +149,18 @@ create(Username, Password, Role) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Validates credentials and creates or updates user account.
+%% @doc Validates credentials and creates user account.
 %% @end
 %%--------------------------------------------------------------------
--spec save(Username :: name(), Password :: password(), Role :: role()) ->
-    ok | no_return().
-save(Username, Password, Role) ->
+-spec create_noexcept(Username :: name(), Password :: password(), Role :: role()) ->
+    ok | #error{}.
+create_noexcept(Username, Password, Role) ->
     validate_credentials(Username, Password, Role),
     WorkFactor = onepanel_env:get(bcrypt_work_factor),
-    ok = ?MODULE:save(#onepanel_user{
+    ?MODULE:create(#onepanel_user{
         username = Username, role = Role, uuid = onepanel_utils:gen_uuid(),
         password_hash = onepanel_user_nif:hash_password(Password, WorkFactor)
     }).
-
 
 %%--------------------------------------------------------------------
 %% @doc Authenticates user by checking provided hash against the one stored in
