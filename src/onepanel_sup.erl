@@ -59,6 +59,7 @@ init([]) ->
 
 %%--------------------------------------------------------------------
 %% @private @doc Returns a worker child_spec for a onepanel_discovery gen_server.
+%% @end
 %%--------------------------------------------------------------------
 -spec onepanel_discovery_spec() -> supervisor:child_spec().
 onepanel_discovery_spec() ->
@@ -73,6 +74,7 @@ onepanel_discovery_spec() ->
 
 %%--------------------------------------------------------------------
 %% @private @doc Returns a worker child_spec for a service_executor gen_server.
+%% @end
 %%--------------------------------------------------------------------
 -spec service_executor_spec() -> supervisor:child_spec().
 service_executor_spec() ->

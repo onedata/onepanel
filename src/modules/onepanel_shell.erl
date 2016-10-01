@@ -17,7 +17,7 @@
 %% API
 -export([output/1, check_output/1, wait_output/3, wait_output/4,
     call/1, check_call/1, wait_call/2, wait_call/3]).
--export([sed/3]).
+-export([sed/3, mktemp/0]).
 
 -type token() :: atom() | integer() | string() | binary().
 
@@ -135,3 +135,12 @@ wait_call(Tokens, Attempts, Delay) ->
 sed(Pattern, Replacement, Path) ->
     onepanel_shell:check_call(["sed", "-i", "-e", "'s/" ++ Pattern ++ "/"
         ++ Replacement ++ "/g'", Path]).
+
+
+%%--------------------------------------------------------------------
+%% @doc Creates temporary directory.
+%% @end
+%%--------------------------------------------------------------------
+-spec mktemp() -> Path :: string().
+mktemp() ->
+    lib:nonl(os:cmd("mktemp")).

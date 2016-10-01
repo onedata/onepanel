@@ -61,6 +61,7 @@
         {extend_cluster_timeout, 900000},
         {task_ttl, 86400000},
         {service_step_retry_delay, 30000},
+        {openssl_cmd_timeout, 60000},
 
         {bcrypt_work_factor, 12},
 
@@ -118,7 +119,8 @@
         {onezone_name, "example"},
         {onezone_domain, "onedata.org"},
 
-        {oneprovider_key_password, ""},
+        {oneprovider_key_length, 4096},
+        {oneprovider_csr_subject, "provider"},
         {oneprovider_name, "example"},
         {oneprovider_redirection_point, "https://127.0.0.1"},
         {oneprovider_geo_latitude, 0.0},

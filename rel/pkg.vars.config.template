@@ -39,10 +39,10 @@
     "FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR\n"
     "OTHER DEALINGS IN THE SOFTWARE."}.
 {rpm_requires,
+    ", openssl"
     ", sed"}.
 {rpm_build_requires,
     ", automake"
-    ", botan-devel >= 1.10.0"
     ", cmake >= 3.0.0"
     ", erlang-common_test >= 18.0"
     ", erlang-edoc >= 18.0"
@@ -68,7 +68,8 @@
     "   service {{release_name}} start; "
     "fi"}.
 {deb_depends,
-    "sed"}.
+    "openssl"
+    ", sed"}.
 {deb_build_depends,
     "automake"
     ", cmake (>= 3.0.0)"
@@ -77,7 +78,6 @@
     ", g++ (>= 4.9.0)"
     ", git"
     ", golang-go"
-    ", libbotan1.10-dev"
     ", libssl-dev"
     ", libsodium-dev"
     ", libtool"

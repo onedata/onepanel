@@ -1,5 +1,5 @@
 %% plugins
-{plugins, [rebar3_hex, pc, rebar3_elixir]}.
+{plugins, [rebar3_hex, rebar3_elixir]}.
 
 {erl_first_files, [
     "src/modules/models/model_behaviour.erl",
@@ -26,11 +26,11 @@
 {deps, [
     {ctool, {git, "ssh://git@git.plgrid.pl:7999/vfs/ctool.git", {ref, "473ad78"}}},
     {onepanel_gui, {git, "git://github.com/krzysztof-trzepla/onepanel_gui.git", {ref, "6f83381b56"}}},
-    {yamerl, {git, "git://github.com/yakaz/yamerl.git", {ref, "3f46bf06b9"}}}
+    {yamerl, {git, "git://github.com/yakaz/yamerl.git", {ref, "3f46bf06b9"}}},
+    {bcrypt, {git, "git://github.com/smarkets/erlang-bcrypt.git", {ref, "a63df34d49"}}}
 ]}.
 
 {pre_hooks, [
-    {compile, "mkdir -p priv"},
     {eunit, "mkdir -p test/eunit_results"}
 ]}.
 
@@ -41,35 +41,11 @@
     {release, "rm -f _build/*/rel/*/bin/start_clean.boot"}
 ]}.
 
-{port_specs, [
-    {"priv/onepanel_user_nif.so", ["c_src/onepanel_user_nif.cc"]},
-    {"priv/service_oneprovider_nif.so", ["c_src/service_oneprovider_nif.cc"]}
-]}.
-
-{port_env, [
-    {"LDFLAGS", "$LDFLAGS `pkg-config --libs botan-1.10`"},
-    {"CXXFLAGS", "$CXXFLAGS -std=c++14 -O2 -Wall `pkg-config --cflags botan-1.10`"}
-]}.
-
 {clean_files, [
-    "./c_src/*.o",
-    "./c_src/*.d",
-    "./priv/*.so",
     "./test/eunit_results",
     "./test_distributed/logs/*",
     "./test_distributed/*.beam"
 ]}.
-
-{provider_hooks,
-    [
-        {pre,
-            [
-                {compile, {pc, compile}},
-                {clean, {pc, clean}}
-            ]
-        }
-    ]
-}.
 
 %% relx configuration
 {relx, [

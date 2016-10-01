@@ -220,8 +220,10 @@ configure(Ctx) ->
 -spec register(Ctx :: service:ctx()) ->
     {ok, ProviderId :: binary()} | no_return().
 register(Ctx) ->
-    Password = service_ctx:get(oneprovider_key_password, Ctx),
-    {ok, Key, Csr} = service_oneprovider_nif:create_csr(Password),
+    Length = service_ctx:get(oneprovider_key_length, Ctx),
+    Subject = service_ctx:get(oneprovider_csr_subject, Ctx),
+    Key = onepanel_ssl:gen_rsa(Length),
+    Csr = onepanel_ssl:gen_csr(Subject, Key),
 
     Hosts = onepanel_cluster:nodes_to_hosts(service_op_worker:get_nodes()),
     Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
