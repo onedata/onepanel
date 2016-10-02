@@ -4,6 +4,11 @@
 CHANGELOG
 ---------
 
+### 3.0.0-rc9
+
+* VFS-2550 Remove NIF libraries
+
+
 ### 3.0.0-rc8
 
 * VFS-2550 Template runner_wait_process
