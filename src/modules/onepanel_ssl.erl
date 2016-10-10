@@ -41,7 +41,7 @@ gen_rsa(Length) ->
 gen_csr(Subject, Key) ->
     KeyFile = onepanel_shell:mktemp(),
     CsrFile = onepanel_shell:mktemp(),
-    file:write_file(KeyFile, Key),
+    ok = file:write_file(KeyFile, Key),
     exec("req", ["-subj", "/CN=" ++ Subject, "-new", "-key", KeyFile, "-out", CsrFile]),
     {ok, Csr} = file:read_file(CsrFile),
     file:delete(KeyFile),
