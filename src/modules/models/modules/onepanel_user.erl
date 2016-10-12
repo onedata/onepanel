@@ -22,13 +22,13 @@
     delete/1, list/0]).
 
 %% API
--export([create/3, create_noexcept/3, authenticate/2, change_password/2,
-    get_by_role/1]).
+-export([create/3, create_noexcept/3, authenticate/2, hash_password/1,
+    change_password/2, get_by_role/1]).
 -export([validate_username/1, validate_password/1, validate_role/1]).
 
 -type name() :: binary().
 -type password() :: binary().
--type password_hash() :: binary().
+-type password_hash() :: string().
 -type role() :: admin | regular.
 -type uuid() :: binary().
 
@@ -156,10 +156,9 @@ create(Username, Password, Role) ->
     ok | #error{}.
 create_noexcept(Username, Password, Role) ->
     validate_credentials(Username, Password, Role),
-    WorkFactor = onepanel_env:get(bcrypt_work_factor),
-    ?MODULE:create(#onepanel_user{
+    create(#onepanel_user{
         username = Username, role = Role, uuid = onepanel_utils:gen_uuid(),
-        password_hash = onepanel_user_nif:hash_password(Password, WorkFactor)
+        password_hash = hash_password(Password)
     }).
 
 %%--------------------------------------------------------------------
@@ -172,12 +171,23 @@ create_noexcept(Username, Password, Role) ->
 authenticate(Username, Password) ->
     case onepanel_user:get(Username) of
         {ok, #onepanel_user{password_hash = Hash} = User} ->
-            case onepanel_user_nif:check_password(Password, Hash) of
-                true -> {ok, User};
-                false -> ?make_error(?ERR_INVALID_USERNAME_OR_PASSWORD)
+            case bcrypt:hashpw(Password, Hash) of
+                {ok, Hash} -> {ok, User};
+                _ -> ?make_error(?ERR_INVALID_USERNAME_OR_PASSWORD)
             end;
         _ -> ?make_error(?ERR_INVALID_USERNAME_OR_PASSWORD)
     end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Creates password hash.
+%% @end
+%%--------------------------------------------------------------------
+-spec hash_password(Password :: password()) -> PasswordHash :: password_hash().
+hash_password(Password) ->
+    {ok, Salt} = bcrypt:gen_salt(),
+    {ok, PasswordHash} = bcrypt:hashpw(Password, Salt),
+    PasswordHash.
 
 
 %%--------------------------------------------------------------------
@@ -188,10 +198,7 @@ authenticate(Username, Password) ->
     ok | no_return().
 change_password(Username, NewPassword) ->
     ?MODULE:validate_password(NewPassword),
-    WorkFactor = onepanel_env:get(bcrypt_work_factor),
-    ?MODULE:update(Username, #{
-        password_hash => onepanel_user_nif:hash_password(NewPassword, WorkFactor)
-    }).
+    update(Username, #{password_hash => hash_password(NewPassword)}).
 
 
 %%--------------------------------------------------------------------

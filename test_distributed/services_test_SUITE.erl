@@ -39,7 +39,6 @@
 -define(SERVICE_OPW, service_op_worker:name()).
 -define(SERVICE_OZW, service_oz_worker:name()).
 -define(TIMEOUT, timer:seconds(5)).
--define(ATTEMPTS, 10).
 
 -define(run(Config, Function, HostsType), begin
     lists:foreach(fun(_Type_) ->
@@ -228,29 +227,23 @@ services_stop_start_test(Config) ->
 
             lists:foreach(fun(Node) ->
                 lists:foreach(fun({Action, Result}) ->
-                    onepanel_test_utils:retry(fun() ->
-                        service_host_action(Node, Service, Action),
-                        assert_service_step(SModule, Action, [Node], Result)
-                    end, ?ATTEMPTS, ?TIMEOUT)
+                    service_host_action(Node, Service, Action),
+                    assert_service_step(SModule, Action, [Node], Result)
                 end, ActionsWithResults)
             end, Nodes),
 
             lists:foreach(fun({Action, Result}) ->
-                onepanel_test_utils:retry(fun() ->
-                    service_action(hd(Nodes), Service, Action),
-                    assert_service_step(SModule, Action, Nodes, Result)
-                end, ?ATTEMPTS, ?TIMEOUT)
+                service_action(hd(Nodes), Service, Action),
+                assert_service_step(SModule, Action, Nodes, Result)
             end, ActionsWithResults)
         end, Services),
 
         lists:foreach(fun({Action, Result}) ->
-            onepanel_test_utils:retry(fun() ->
-                service_action(hd(Nodes), MainService, Action),
-                lists:foreach(fun(Service) ->
-                    SModule = service:get_module(Service),
-                    assert_service_step(SModule, Action, Nodes, Result)
-                end, Services)
-            end, ?ATTEMPTS, ?TIMEOUT)
+            service_action(hd(Nodes), MainService, Action),
+            lists:foreach(fun(Service) ->
+                SModule = service:get_module(Service),
+                assert_service_step(SModule, Action, Nodes, Result)
+            end, Services)
         end, ActionsWithResults)
     end, [
         {?config(onezone_nodes, Config), ?SERVICE_OZ,

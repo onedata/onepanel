@@ -53,22 +53,16 @@ onepanel_user_test_() ->
 
 new_should_validate_username(_) ->
     meck:new(onepanel_user, [passthrough]),
-    meck:new(onepanel_user_nif),
-    meck:expect(onepanel_user_nif, hash_password, fun(_, _) -> ok end),
     onepanel_user:create(?U, ?P, ?R),
     ?_assert(meck:called(onepanel_user, validate_username, [?U])).
 
 new_should_validate_password(_) ->
     meck:new(onepanel_user, [passthrough]),
-    meck:new(onepanel_user_nif),
-    meck:expect(onepanel_user_nif, hash_password, fun(_, _) -> ok end),
     onepanel_user:create(?U, ?P, ?R),
     ?_assert(meck:called(onepanel_user, validate_password, [?P])).
 
 new_should_validate_role(_) ->
     meck:new(onepanel_user, [passthrough]),
-    meck:new(onepanel_user_nif),
-    meck:expect(onepanel_user_nif, hash_password, fun(_, _) -> ok end),
     onepanel_user:create(?U, ?P, ?R),
     ?_assert(meck:called(onepanel_user, validate_role, [?R])).
 
@@ -83,7 +77,7 @@ new_should_reject_existing_user(_) ->
 authenticate_should_return_user(_) ->
     ?assertEqual(ok, onepanel_user:create(?U, ?P, ?R)),
     ?_assertMatch({ok, #onepanel_user{
-        username = ?U, password_hash = <<_/binary>>, role = ?R,
+        username = ?U, password_hash = [_ | _], role = ?R,
         uuid = <<_/binary>>}
     }, onepanel_user:authenticate(?U, ?P)).
 
@@ -94,8 +88,6 @@ authenticate_should_pass_errors(_) ->
 
 change_password_should_validate_password(_) ->
     meck:new(onepanel_user, [passthrough]),
-    meck:new(onepanel_user_nif),
-    meck:expect(onepanel_user_nif, hash_password, fun(_, _) -> ok end),
     onepanel_user:create(?U, ?P, ?R),
     ?_assert(meck:called(onepanel_user, validate_password, [?P])).
 
@@ -130,9 +122,9 @@ validate_role_should_reject_invalid(_) ->
 start() ->
     error_logger:tty(false),
     onepanel_env:set(rpc_timeout, 1000),
-    onepanel_env:set(bcrypt_work_factor, 4),
     onepanel_env:set(create_tables_timeout, 10000),
     onepanel_env:set(default_users, []),
+    application:ensure_all_started(bcrypt),
     ?assertEqual(ok, service_onepanel:init_cluster(#{})),
     ok.
 
