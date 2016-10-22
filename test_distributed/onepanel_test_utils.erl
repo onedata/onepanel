@@ -22,18 +22,19 @@
 -type config() :: proplists:proplist().
 
 -define(TEST_ENVS, [
-    {cluster_manager_vm_args_path, "/etc/cluster_manager/vm.args"},
-    {cluster_manager_app_config_path, "/etc/cluster_manager/app.config"},
-    {cluster_manager_env_path, "/usr/lib/cluster_manager/lib/env.sh"},
-    {op_worker_vm_args_path, "/etc/op_worker/vm.args"},
-    {op_worker_app_config_path, "/etc/op_worker/app.config"},
-    {op_worker_gui_cert_path, "/etc/op_worker/certs/onedataServerWeb.pem"},
-    {op_worker_fuse_cert_path, "/etc/op_worker/certs/onedataServerFuse.pem"},
-    {oz_worker_vm_args_path, "/etc/oz_worker/vm.args"},
-    {oz_worker_app_config_path, "/etc/oz_worker/app.config"},
-    {oz_worker_gui_key_path, "/etc/oz_worker/certs/gui_key.pem"},
-    {oz_worker_gui_cert_path, "/etc/oz_worker/certs/gui_cert.pem"},
-    {oz_worker_gui_cacert_path, "/etc/oz_worker/cacerts/gui_cacert.pem"}
+    {cluster_manager_vm_args_file, "/etc/cluster_manager/vm.args"},
+    {cluster_manager_app_config_file, "/etc/cluster_manager/app.config"},
+    {cluster_manager_env_file, "/usr/lib/cluster_manager/lib/env.sh"},
+    {op_worker_vm_args_file, "/etc/op_worker/vm.args"},
+    {op_worker_app_config_file, "/etc/op_worker/app.config"},
+    {op_worker_web_key_file, "/etc/op_worker/certs/web_key.pem"},
+    {op_worker_web_cert_file, "/etc/op_worker/certs/web_cert.pem"},
+    {op_worker_protocol_key_file, "/etc/op_worker/certs/protocol_key.pem"},
+    {op_worker_protocol_cert_file, "/etc/op_worker/certs/protocol_cert.pem"},
+    {oz_worker_vm_args_file, "/etc/oz_worker/vm.args"},
+    {oz_worker_app_config_file, "/etc/oz_worker/app.config"},
+    {oz_worker_web_key_file, "/etc/oz_worker/certs/gui_key.pem"},
+    {oz_worker_web_cert_file, "/etc/oz_worker/certs/gui_cert.pem"}
 ]).
 
 %%%===================================================================

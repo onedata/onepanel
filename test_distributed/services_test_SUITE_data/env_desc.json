@@ -70,9 +70,6 @@
             "setcookie": "test_cookie"
           },
           "sys.config": {
-            "ctool": {
-              "verify_oz_cert": false
-            },
             "onepanel": {
               "advertise_address": {
                 "string": "239.255.1.1"
@@ -85,9 +82,6 @@
             "setcookie": "test_cookie"
           },
           "sys.config": {
-            "ctool": {
-              "verify_oz_cert": false
-            },
             "onepanel": {
               "advertise_address": {
                 "string": "239.255.1.1"

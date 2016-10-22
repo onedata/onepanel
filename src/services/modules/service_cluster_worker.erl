@@ -98,7 +98,7 @@ get_steps(nagios_report, _Ctx) ->
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
     db_hosts := DbHosts, app_config := AppConfig,
-    app_config_path := AppConfigPath, vm_args_path := VmArgsPath} = Ctx) ->
+    app_config_file := AppConfigFile, vm_args_file := VmArgsFile} = Ctx) ->
 
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(Name, Host),
@@ -111,16 +111,16 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
         onepanel_utils:convert(string:join([DbHost, DbPort], ":"), atom)
     end, DbHosts),
 
-    onepanel_env:write([Name, cm_nodes], CmNodes, AppConfigPath),
-    onepanel_env:write([Name, db_nodes], DbNodes, AppConfigPath),
+    onepanel_env:write([Name, cm_nodes], CmNodes, AppConfigFile),
+    onepanel_env:write([Name, db_nodes], DbNodes, AppConfigFile),
 
     maps:fold(fun(Key, Value, _) ->
-        onepanel_env:write([Name, Key], Value, AppConfigPath)
+        onepanel_env:write([Name, Key], Value, AppConfigFile)
     end, #{}, AppConfig),
 
-    onepanel_vm:write("name", Node, VmArgsPath),
+    onepanel_vm:write("name", Node, VmArgsFile),
     onepanel_vm:write("setcookie", maps:get(cookie, Ctx, erlang:get_cookie()),
-        VmArgsPath),
+        VmArgsFile),
 
     service:add_host(Name, Host).
 

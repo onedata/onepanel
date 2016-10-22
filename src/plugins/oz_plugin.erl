@@ -17,7 +17,7 @@
 
 %% OZ behaviour callbacks
 -export([get_oz_url/0, get_oz_rest_port/0, get_oz_rest_api_prefix/0]).
--export([get_key_path/0, get_csr_path/0, get_cert_path/0, get_cacert_path/0]).
+-export([get_key_file/0, get_csr_file/0, get_cert_file/0, get_cacerts_dir/0]).
 -export([auth_to_rest_client/1]).
 
 %%%===================================================================
@@ -52,39 +52,39 @@ get_oz_rest_api_prefix() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link oz_plugin_behaviour:get_key_path/0}
+%% @doc {@link oz_plugin_behaviour:get_key_file/0}
 %% @end
 %%--------------------------------------------------------------------
--spec get_key_path() -> file:name_all().
-get_key_path() ->
-    get_env(oz_provider_key_path, list).
+-spec get_key_file() -> file:name_all().
+get_key_file() ->
+    get_env(oz_provider_key_file, list).
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link oz_plugin_behaviour:get_csr_path/0}
+%% @doc {@link oz_plugin_behaviour:get_csr_file/0}
 %% @end
 %%--------------------------------------------------------------------
--spec get_csr_path() -> file:name_all().
-get_csr_path() ->
-    get_env(oz_provider_csr_path, list).
+-spec get_csr_file() -> file:name_all().
+get_csr_file() ->
+    get_env(oz_provider_csr_file, list).
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link oz_plugin_behaviour:get_cert_path/0}
+%% @doc {@link oz_plugin_behaviour:get_cert_file/0}
 %% @end
 %%--------------------------------------------------------------------
--spec get_cert_path() -> file:name_all().
-get_cert_path() ->
-    get_env(oz_provider_cert_path, list).
+-spec get_cert_file() -> file:name_all().
+get_cert_file() ->
+    get_env(oz_provider_cert_file, list).
 
 
 %%--------------------------------------------------------------------
 %% @doc {@link oz_plugin_behaviour:get_oz_url/0}
 %% @end
 %%--------------------------------------------------------------------
--spec get_cacert_path() -> file:name_all().
-get_cacert_path() ->
-    get_env(oz_ca_cert_path, list).
+-spec get_cacerts_dir() -> file:name_all().
+get_cacerts_dir() ->
+    onepanel_env:get(cacerts_dir).
 
 
 %%--------------------------------------------------------------------
@@ -110,7 +110,7 @@ get_env(Key, Type) ->
     Hosts = service_op_worker:get_hosts(),
     Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
     Name = service_op_worker:name(),
-    Path = onepanel_env:get(op_worker_app_config_path),
+    Path = onepanel_env:get(op_worker_app_config_file),
     {ok, Value} = onepanel_rpc:call_any(Nodes, onepanel_env, read,
         [[Name, Key], Path]),
     onepanel_utils:convert(Value, Type).

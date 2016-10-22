@@ -111,9 +111,9 @@ get_steps(status, _Ctx) ->
 configure(#{main_host := MainHost, hosts := Hosts,
     wait_for_process := Process} = Ctx) ->
 
-    AppConfigPath = service_ctx:get(cluster_manager_app_config_path, Ctx),
-    VmArgsPath = service_ctx:get(cluster_manager_vm_args_path, Ctx),
-    EnvPath = service_ctx:get(cluster_manager_env_path, Ctx),
+    AppConfigFile = service_ctx:get(cluster_manager_app_config_file, Ctx),
+    VmArgsFile = service_ctx:get(cluster_manager_vm_args_file, Ctx),
+    EnvFile = service_ctx:get(cluster_manager_env_file, Ctx),
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(name(), Host),
     Nodes = onepanel_cluster:hosts_to_nodes(name(), Hosts),
@@ -121,25 +121,25 @@ configure(#{main_host := MainHost, hosts := Hosts,
     WorkerNum = maps:get(worker_num, Ctx, undefined),
     Cookie = maps:get(cookie, Ctx, erlang:get_cookie()),
 
-    onepanel_env:write([name(), cm_nodes], Nodes, AppConfigPath),
-    onepanel_env:write([name(), worker_num], WorkerNum, AppConfigPath),
+    onepanel_env:write([name(), cm_nodes], Nodes, AppConfigFile),
+    onepanel_env:write([name(), worker_num], WorkerNum, AppConfigFile),
 
     onepanel_env:write([kernel, distributed], [{
         name(),
         service_ctx:get(cluster_manager_failover_timeout, Ctx, integer),
         [MainNode, list_to_tuple(Nodes -- [MainNode])]
-    }], AppConfigPath),
+    }], AppConfigFile),
     onepanel_env:write([kernel, sync_nodes_mandatory],
-        Nodes -- [Node], AppConfigPath),
+        Nodes -- [Node], AppConfigFile),
     onepanel_env:write([kernel, sync_nodes_timeout],
         service_ctx:get(cluster_manager_sync_nodes_timeout, Ctx, integer),
-        AppConfigPath),
+        AppConfigFile),
 
-    onepanel_vm:write("name", Node, VmArgsPath),
-    onepanel_vm:write("setcookie", Cookie, VmArgsPath),
+    onepanel_vm:write("name", Node, VmArgsFile),
+    onepanel_vm:write("setcookie", Cookie, VmArgsFile),
 
     onepanel_shell:sed("WAIT_FOR_PROCESS=.*",
-        "WAIT_FOR_PROCESS=" ++ Process, EnvPath),
+        "WAIT_FOR_PROCESS=" ++ Process, EnvFile),
 
     service:add_host(name(), Host).
 
