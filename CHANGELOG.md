@@ -4,6 +4,11 @@
 CHANGELOG
 ---------
 
+### 3.0.0-rc10
+
+* minor changes and improvements
+
+
 ### 3.0.0-rc9
 
 * VFS-2550 Remove NIF libraries
