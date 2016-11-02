@@ -1,19 +1,53 @@
+doc
+c_src/*.d
+priv
+rel/onepanel
+rel/pkg.vars.config
+rel/files/app.config
+rel/files/vm.args
+rel/vars.config
+package
+
+test_coverage
+test/eunit_results
+test_distributed/logs
+test_distributed/cover_tmp.spec
+
+### Erlang template
+.eunit
+*.o
+*.beam
+*.plt
+erl_crash.dump
+rel/example_project
+.concrete/DEV_MODE
+.rebar
+
+### JetBrains template
+*.iml
 .idea
-onepanel.iml
 
-deps
-ebin
-rel_oneprovider/op_panel/
-rel_onezone/oz_panel/
-rel/oz_panel
-rel/op_panel
+## File-based project format:
+*.iws
 
-c_lib
-c_src/*.o
+## Plugin-specific files:
 
-src/gui_static/flatui
-src/gui_static/fonts
-src/gui_static/common
-src/gui_static/n2o
+# IntelliJ
+/out/
 
-packages/*.deb
+# mpeltonen/sbt-idea plugin
+.idea_modules/
+
+# JIRA plugin
+atlassian-ide-plugin.xml
+
+# Crashlytics plugin (for Android Studio and IntelliJ)
+com_crashlytics_export_strings.xml
+crashlytics.properties
+crashlytics-build.properties
+fabric.properties
+
+# rebar3
+_build
+compile_commands.json
+rebar.config

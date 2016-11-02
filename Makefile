@@ -1,100 +1,113 @@
+.EXPORT_ALL_VARIABLES:
+
 REPO            ?= onepanel
 
 # distro for package building (oneof: wily, fedora-23-x86_64)
 DISTRIBUTION    ?= none
 export DISTRIBUTION
 
-PKG_REVISION    ?= $(shell git describe --tags --always)
-PKG_VERSION     ?= $(shell git describe --tags --always | tr - .)
-PKG_BUILD        = 1
-BASE_DIR         = $(shell pwd)
-ERLANG_BIN       = $(shell dirname $(shell which erl))
-REBAR           ?= $(BASE_DIR)/rebar
-OVERLAY_VARS    ?=
-
-ifeq ($(REL_TYPE),onezone)
-CONFIG           = config/onezone.config
-PKG_VARS_CONFIG  = config/oz_pkg.vars.config
-PKG_ID           = oz-panel-$(PKG_VERSION)
-else
-CONFIG           = config/oneprovider.config
-PKG_VARS_CONFIG  = config/op_pkg.vars.config
-PKG_ID           = op-panel-$(PKG_VERSION)
-endif
-
-BASE_DIR         = $(shell pwd)
+BASE_DIR        := $(shell pwd)
 GIT_URL := $(shell git config --get remote.origin.url | sed -e 's/\(\/[^/]*\)$$//g')
 GIT_URL := $(shell if [ "${GIT_URL}" = "file:/" ]; then echo 'ssh://git@git.plgrid.pl:7999/vfs'; else echo ${GIT_URL}; fi)
 ONEDATA_GIT_URL := $(shell if [ "${ONEDATA_GIT_URL}" = "" ]; then echo ${GIT_URL}; else echo ${ONEDATA_GIT_URL}; fi)
 export ONEDATA_GIT_URL
 
-.PHONY: deps generate
+PKG_REVISION    ?= $(shell git describe --tags --always)
+PKG_VERSION     ?= $(shell git describe --tags --always | tr - .)
+PKG_BUILD       := 1
+PKG_VARS_CONFIG := rel/pkg.vars.config
+ERLANG_BIN      := $(shell dirname $(shell which erl))
+REBAR           ?= $(BASE_DIR)/rebar3
+TEMPLATE_SCRIPT := ./rel/templates/overlay.escript
+
+ifeq ($(strip $(REL_TYPE)),onezone)
+TEMPLATE_CONFIG := ./rel/templates/onezone.config
+PKG_ID          := oz-panel-$(PKG_VERSION)
+else ifeq ($(strip $(REL_TYPE)),oneprovider)
+TEMPLATE_CONFIG := ./rel/templates/oneprovider.config
+PKG_ID          := op-panel-$(PKG_VERSION)
+else
+TEMPLATE_CONFIG := ./rel/templates/dev.config
+PKG_ID          := onepanel-$(PKG_VERSION)
+endif
+
+LIB_DIR          = _build/default/lib
+REL_DIRS         = _build/default/rel
+OVERLAY_VARS    ?= --overlay_vars=rel/vars.config
 
 all: rel
 
-deps:
-	@./rebar --config $(CONFIG) get-deps
+.PHONY: upgrade
+upgrade: config
+	$(REBAR) upgrade
 
-compile:
-	@./rebar --config $(CONFIG) compile
+.PHONY: compile
+compile: config
+	$(REBAR) compile
 
-generate:
-	@./rebar --config $(CONFIG) generate $(OVERLAY_VARS)
+.PHONY: generate
+generate: template config
+	$(REBAR) release $(OVERLAY_VARS)
 
-clean: relclean pkgclean
-	@./rebar --config $(CONFIG) clean
+.PHONY: clean
+clean: config relclean pkgclean
+	$(REBAR) clean
 
-distclean:
-	@./rebar --config $(CONFIG) delete-deps
+.PHONY: distclean
+distclean: config
+	$(REBAR) clean --all
+
+.PHONY: template
+template:
+	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rel/pkg.vars.config.template
+	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rel/vars.config.template
+	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rel/files/app.config.template
+	$(TEMPLATE_SCRIPT) rel/vars.config ./rel/files/vm.args.template
+
+config:
+	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rebar.config.template
+
+
+##
+## Testing targets
+##
+
+.PHONY: eunit
+eunit: config
+	$(REBAR) do eunit skip_deps=true suites=${SUITES}, cover
+## Rename all tests in order to remove duplicated names (add _(++i) suffix to each test)
+	@for tout in `find test -name "TEST-*.xml"`; do awk '/testcase/{gsub("_[0-9]+\"", "_" ++i "\"")}1' $$tout > $$tout.tmp; mv $$tout.tmp $$tout; done
+
+.PHONY: coverage
+coverage:
+	$(BASE_DIR)/bamboos/docker/coverage.escript $(BASE_DIR)
 
 ##
 ## Release targets
 ##
 
-doc:
-	@./rebar --config $(CONFIG) doc skip_deps=true
+.PHONY: doc
+doc: config
+	@$(REBAR) edoc skip_deps=true
 
-rel: deps compile generate
-ifeq ($(REL_TYPE),onezone)
-	rm -rf rel/oz_panel
-	mv rel_onezone/oz_panel rel/
-else
-	rm -rf rel/op_panel
-	mv rel_oneprovider/op_panel rel/
-endif
+.PHONY: rel
+rel: config compile generate
 
+.PHONY: relclean
 relclean:
-	rm -rf rel/oz_panel
-	rm -rf rel/op_panel
-	rm -rf rel_onezone/oz_panel
-	rm -rf rel_oneprovider/op_panel
+	rm -rf _build/default/rel/onepanel
 
 ##
 ## Dialyzer targets local
 ##
 
-PLT ?= .dialyzer.plt
-
-# Builds dialyzer's Persistent Lookup Table file.
-.PHONY: plt
-plt:
-	dialyzer --check_plt --plt ${PLT}; \
-	if [ $$? != 0 ]; then \
-		dialyzer --build_plt --output_plt ${PLT} --apps kernel stdlib sasl erts \
-		ssl tools runtime_tools crypto inets xmerl snmp public_key eunit \
-		common_test test_server syntax_tools compiler edoc mnesia hipe \
-		ssh webtool -r deps; \
-	fi; exit 0
-
 # Dialyzes the project.
-dialyzer: plt
-	dialyzer ./ebin --plt ${PLT} -Werror_handling -Wrace_conditions --fullpath
+dialyzer: config
+	$(REBAR) dialyzer
 
 ##
 ## Packaging targets
 ##
-
-export PKG_VERSION PKG_ID PKG_BUILD BASE_DIR ERLANG_BIN REBAR OVERLAY_VARS RELEASE REL_TYPE CONFIG PKG_VARS_CONFIG
 
 check_distribution:
 ifeq ($(DISTRIBUTION), none)
@@ -104,26 +117,25 @@ else
 	@echo "Building package for distribution $(DISTRIBUTION)"
 endif
 
-package/$(PKG_ID).tar.gz: deps
+package/$(PKG_ID).tar.gz:
 	mkdir -p package
 	rm -rf package/$(PKG_ID)
 	git archive --format=tar --prefix=$(PKG_ID)/ $(PKG_REVISION) | (cd package && tar -xf -)
-	${MAKE} -C package/$(PKG_ID) deps
-	for dep in package/$(PKG_ID) package/$(PKG_ID)/deps/*; do \
+	${MAKE} -C package/$(PKG_ID) config upgrade template
+	for dep in package/$(PKG_ID) package/$(PKG_ID)/$(LIB_DIR)/*; do \
 	     echo "Processing dependency: `basename $${dep}`"; \
 	     vsn=`git --git-dir=$${dep}/.git describe --tags 2>/dev/null`; \
 	     mkdir -p $${dep}/priv; \
 	     echo "$${vsn}" > $${dep}/priv/vsn.git; \
 	     sed -i'' "s/{vsn,\\s*git}/{vsn, \"$${vsn}\"}/" $${dep}/src/*.app.src 2>/dev/null || true; \
 	done
-	find package/$(PKG_ID) -depth -name ".git" -exec rm -rf {} \;
 	tar -C package -czf package/$(PKG_ID).tar.gz $(PKG_ID)
 
 dist: package/$(PKG_ID).tar.gz
 	cp package/$(PKG_ID).tar.gz .
 
 package: check_distribution package/$(PKG_ID).tar.gz
-	${MAKE} -C package -f $(PKG_ID)/deps/node_package/Makefile
+	${MAKE} -C package -f $(PKG_ID)/node_package/Makefile
 
 pkgclean:
 	rm -rf package

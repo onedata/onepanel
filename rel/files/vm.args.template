@@ -1,0 +1,14 @@
+## Name of the node
+-name {{node}}
+
+## Cookie for distributed erlang
+-setcookie {{cookie}}
+
+## Make onepanel hidden for other nodes
+-hidden
+
+## Set the location of crash dumps
+-env ERL_CRASH_DUMP {{crash_dump}}
+
+## Enable SMP
+-smp enable

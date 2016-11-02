@@ -4,6 +4,86 @@
 CHANGELOG
 ---------
 
+### 3.0.0-rc10
+
+* minor changes and improvements
+
+
+### 3.0.0-rc9
+
+* VFS-2550 Remove NIF libraries
+
+
+### 3.0.0-rc8
+
+* VFS-2550 Template runner_wait_process
+* VFS-2550 Make add_storages operation idempotent
+* VFS-2550 Make register operation idempotent
+* VFS-2550 Make add_users operation idempotent
+
+
+### 3.0.0-rc7
+
+* VFS-2550 Make configure operation idempotent
+
+
+### 3.0.0-rc6
+
+* VFS-2180 Add 'sync' bucket for oneprovider release
+* VFS-2525 Update onepanel_gui ref
+* VFS-2525 Fix docs generation
+* VFS-2390 Upgrade rebar to version 3
+
+
+### 3.0.0-rc5
+
+* VFS-2527 Add certs setup step to cluster worker deployment
+* VFS-2156 Add repeats to provider registration process
+* VFS-2468 Add step attempts in case of failure
+* VFS-2468 Make couchbase buckets configurable
+
+
+### 3.0.0-rc4
+
+* VFS-2156 Add repeats to provider registration process
+
+
+### 3.0.0-RC3
+
+* VFS-2156 Make '/tasks' endpoint unauthorized
+* VFS-2156 Add couchbase server and bucket quota
+* VFS-2156 Accept application/x-yaml content type
+* VFS-2156 Build package
+* VFS-2156 Add onepanel_gui
+* Releasing new version 3.0.0-RC2
+* VFS-2269 Enable Symmetric Multiprocessing
+* VFS-1847 Add documentation
+* Releasing new version 3.0.0-RC1
+* VFS-1847 Integrate swagger REST API description
+* VFS-1847 Add REST requests parser
+* VFS-1847 Add NIF libraries
+* VFS-1847 Add REST handlers for all services
+* VFS-1847 Add onedata_user REST handler
+* VFS-1847 Add onezone service
+* VFS-1847 Add oneprovider service
+* VFS-1847 Add cluster_manager and cluster_worker services
+* VFS-1847 Add couchbase service
+* VFS-1847 Add onedata_user logic
+* VFS-1847 Add db models
+* VFS-1847 Add vm config editor.
+* VFS-1847 Start onepanel core project.
+
+
+### 3.0.0-RC2
+
+* VFS-2269 Enable Symmetric Multiprocessing
+
+
+### 3.0.0-RC1
+
+* minor changes and improvements
+
+
 ### 3.0.0-beta8
 
 * minor changes and improvements
@@ -96,21 +176,14 @@ CHANGELOG
 * VFS-915 Add breadcrumbs.
 * VFS-915 Add info about NAT/PAT in case of connection error.
 
-
 ### 2.0.0
-
 
 * Service command may be used after installation
 * Registration in globalregistry hidden
 
-
-
 ### 1.0.0
 
-
 * provide GUI for oneprovider installation and update.
-
-
 
 ________
 

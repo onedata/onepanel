@@ -4,8 +4,6 @@
 which unifies access to different storage systems and provides a POSIX
 compatible interface.
 
-![](https://raw.githubusercontent.com/onedata/onepanel/develop/media/installation.gif)
-
 ### Goals
 
 The main goal of *onepanel* is to enable configuration of *onedata* cluster
@@ -83,24 +81,39 @@ cluster.
 
 ```yaml
 cluster:
-  domain_name: "onezone.dev.local"
+  domainName: "onezone.1.dev"
+  autoDeploy: true
   nodes:
-    node1:
+    n1:
       hostname: "node1"
-  manager:
-    default_node: "node1"
+    n2:
+      hostname: "node2"
+  managers:
+    mainNode: "n1"
     nodes:
-      - "node1"
-  worker:
+      - "n1"
+      - "n2"
+  workers:
     nodes:
-      - "node1"
-  database:
+      - "n1"
+      - "n2"
+  databases:
+    serverQuota: 4096
+    bucketQuota: 1024
     nodes:
-      - "node1"
-  settings:
-    open_id_auth_config: "https://raw.githubusercontent.com/krzysztof-trzepla/onedata-getting-started/develop/files/oz_open_id_auth.config"
+      - "n1"
+      - "n2"
 onezone:
-  name: "example"
+  name: "Example"
+  domainName: "onezone.1.dev"
+onepanel:
+  users:
+    "admin1":
+      password: "Password1"
+      userRole: "admin"
+    "user1":
+      password: "Password2"
+      userRole: "regular"
 ```
 
 ### Sample Configuration File (oneprovider)
@@ -110,28 +123,46 @@ oneprovider cluster and registers it in onezone configured in previous section.
 
 ```yaml
 cluster:
-  domain_name: "oneprovider.dev.local"
+  domainName: "oneprovider.1.dev"
+  autoDeploy: true
   nodes:
-    node1:
+    n1:
       hostname: "node1"
-  manager:
-    default_node: "node1"
+    n2:
+      hostname: "node2"
+  managers:
+    mainNode: "n1"
     nodes:
-      - "node1"
-  worker:
+      - "n1"
+      - "n2"
+  workers:
     nodes:
-      - "node1"
-  database:
+      - "n1"
+      - "n2"
+  databases:
+    serverQuota: 4096
+    bucketQuota: 1024
     nodes:
-      - "node1"
-  storage:
-    NFS:
-      type: "POSIX"
-      mount_point: "/tmp"
+      - "n1"
+      - "n2"
+  storages:
+    "NFS":
+      type: "posix"
+      mountPoint: "/mnt/st1"
 oneprovider:
   register: true
-  name: "example"
-  redirection_point: "https://node1.oneprovider.dev.local"
+  name: "Provider"
+  redirectionPoint: "https://node1.oneprovider.1.dev"
+  geoLatitude: 10.0
+  geoLongitude: 20.0
 onezone:
-  domain_name: "node1.onezone.dev.local"
+  domainName: "node1.onezone.1.dev"
+onepanel:
+  users:
+    "admin1":
+      password: "Password1"
+      userRole: "admin"
+    "user1":
+      password: "Password2"
+      userRole: "regular"
 ```
