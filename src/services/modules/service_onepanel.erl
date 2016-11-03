@@ -124,9 +124,9 @@ get_steps(add_users, _Ctx) ->
 %%--------------------------------------------------------------------
 -spec set_cookie(Ctx :: service:ctx()) -> ok | no_return().
 set_cookie(#{cookie := Cookie} = Ctx) ->
-    VmArgsPath = service_ctx:get(vm_args_path, Ctx),
+    VmArgsFile = service_ctx:get(vm_args_file, Ctx),
     erlang:set_cookie(node(), Cookie),
-    onepanel_vm:write("setcookie", Cookie, VmArgsPath);
+    onepanel_vm:write("setcookie", Cookie, VmArgsFile);
 
 set_cookie(Ctx) ->
     set_cookie(Ctx#{cookie => erlang:get_cookie()}).

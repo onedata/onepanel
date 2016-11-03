@@ -88,7 +88,8 @@ get_steps(deploy, Ctx) ->
     Register = fun
         (#{oneprovider_register := true}) ->
             case service:get(name()) of
-                {ok, #service{ctx = #{registered := Registered}}} -> not Registered;
+                {ok, #service{ctx = #{registered := Registered}}} ->
+                    not Registered;
                 _ -> true
             end;
         (_) -> false
@@ -181,36 +182,19 @@ get_steps(Action, Ctx) when
 %% @end
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
-configure(#{onezone_domain := OzDomain, onezone_verify_cert := OzVerifyCert,
-    application := ?APP_NAME}) ->
-    lists:foreach(fun({AppName, Key, Value}) ->
-        application:set_env(AppName, Key, Value),
-        onepanel_env:write([AppName, Key], Value)
-    end, [
-        {?APP_NAME, onezone_domain, OzDomain},
-        {ctool, verify_oz_cert, OzVerifyCert}
-    ]);
-
-configure(#{onezone_domain := OzDomain, onezone_verify_cert := OzVerifyCert} = Ctx) ->
-    Name = service_op_worker:name(),
-    Host = onepanel_cluster:node_to_host(),
-    Node = onepanel_cluster:host_to_node(Name, Host),
-    AppConfigPath = service_ctx:get(op_worker_app_config_path, Ctx),
-
-    lists:foreach(fun({AppName, Key, Value}) ->
-        rpc:call(Node, application, set_env, [AppName, Key, Value]),
-        onepanel_env:write([AppName, Key], Value, AppConfigPath)
-    end, [
-        {Name, oz_domain, OzDomain},
-        {Name, verify_oz_cert, OzVerifyCert},
-        {ctool, verify_oz_cert, OzVerifyCert}
-    ]);
+configure(#{application := ?APP_NAME} = Ctx) ->
+    OzDomain = service_ctx:get(onezone_domain, Ctx),
+    application:set_env(?APP_NAME, onezone_domain, OzDomain),
+    onepanel_env:write([?APP_NAME, onezone_domain], OzDomain);
 
 configure(Ctx) ->
     OzDomain = service_ctx:get(onezone_domain, Ctx),
-    OzVerifyCert = service_ctx:get(onezone_verify_cert, Ctx, boolean,
-        onepanel_env:get(verify_oz_cert, ctool)),
-    configure(Ctx#{onezone_domain => OzDomain, onezone_verify_cert => OzVerifyCert}).
+    Name = service_op_worker:name(),
+    Host = onepanel_cluster:node_to_host(),
+    Node = onepanel_cluster:host_to_node(Name, Host),
+    AppConfigFile = service_ctx:get(op_worker_app_config_file, Ctx),
+    rpc:call(Node, application, set_env, [Name, oz_domain, OzDomain]),
+    onepanel_env:write([Name, oz_domain], OzDomain, AppConfigFile).
 
 
 %%--------------------------------------------------------------------
@@ -251,12 +235,12 @@ register(Ctx) ->
     {ProviderId, Cert} = onepanel_utils:wait_until(oz_providers, register,
         [provider, Params], {validator, Validator}, 10, timer:seconds(30)),
 
-    lists:foreach(fun({Path, Content}) ->
-        onepanel_rpc:call_all(Nodes, onepanel_utils, save_file, [Path, Content])
+    lists:foreach(fun({File, Content}) ->
+        onepanel_rpc:call_all(Nodes, onepanel_utils, save_file, [File, Content])
     end, [
-        {oz_plugin:get_key_path(), Key},
-        {oz_plugin:get_csr_path(), Csr},
-        {oz_plugin:get_cert_path(), Cert}
+        {oz_plugin:get_key_file(), Key},
+        {oz_plugin:get_csr_file(), Csr},
+        {oz_plugin:get_cert_file(), Cert}
     ]),
 
     service:save(#service{name = name(), ctx = #{registered => true}}),
@@ -273,12 +257,12 @@ unregister(#{hosts := Hosts}) ->
     Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
     ok = oz_providers:unregister(provider),
 
-    lists:foreach(fun(Path) ->
-        onepanel_rpc:call_all(Nodes, file, delete, [Path])
+    lists:foreach(fun(File) ->
+        onepanel_rpc:call_all(Nodes, file, delete, [File])
     end, [
-        oz_plugin:get_key_path(),
-        oz_plugin:get_csr_path(),
-        oz_plugin:get_cert_path()
+        oz_plugin:get_key_file(),
+        oz_plugin:get_csr_file(),
+        oz_plugin:get_cert_file()
     ]).
 
 

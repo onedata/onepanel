@@ -89,8 +89,8 @@ get_steps(Action, Ctx) ->
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(Ctx) ->
-    AppConfigPath = service_ctx:get(op_worker_app_config_path, Ctx),
-    VmArgsPath = service_ctx:get(op_worker_vm_args_path, Ctx),
+    AppConfigFile = service_ctx:get(op_worker_app_config_file, Ctx),
+    VmArgsFile = service_ctx:get(op_worker_vm_args_file, Ctx),
     OpDomain = service_ctx:get_domain(oneprovider_domain, Ctx),
 
     service_cluster_worker:configure(Ctx#{
@@ -98,8 +98,8 @@ configure(Ctx) ->
         app_config => #{
             provider_domain => OpDomain
         },
-        app_config_path => AppConfigPath,
-        vm_args_path => VmArgsPath
+        app_config_file => AppConfigFile,
+        vm_args_file => VmArgsFile
     }).
 
 
@@ -109,12 +109,14 @@ configure(Ctx) ->
 %%--------------------------------------------------------------------
 -spec setup_certs(Ctx :: service:ctx()) -> ok | no_return().
 setup_certs(Ctx) ->
-    {ok, KeyPem} = file:read_file(service_ctx:get(rest_key_path, Ctx)),
-    {ok, CertPem} = file:read_file(service_ctx:get(rest_cert_path, Ctx)),
-    {ok, CaCertPem} = file:read_file(service_ctx:get(rest_cacert_path, Ctx)),
-    FullPem = <<CertPem/binary, CaCertPem/binary, KeyPem/binary>>,
-    ok = file:write_file(onepanel_env:get(op_worker_gui_cert_path), FullPem),
-    ok = file:write_file(onepanel_env:get(op_worker_fuse_cert_path), FullPem).
+    lists:foreach(fun({Src, Dst}) ->
+        {ok, _} = file:copy(service_ctx:get(Src, Ctx), service_ctx:get(Dst, Ctx))
+    end, [
+        {key_file, op_worker_web_key_file},
+        {cert_file, op_worker_web_cert_file},
+        {key_file, op_worker_protocol_key_file},
+        {cert_file, op_worker_protocol_cert_file}
+    ]).
 
 
 %%--------------------------------------------------------------------

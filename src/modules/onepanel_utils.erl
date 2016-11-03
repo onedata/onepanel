@@ -18,7 +18,7 @@
 %% API
 -export([get_basic_auth_header/2, get_ip_address/0]).
 -export([wait_until/5, wait_until/6, save_file/2]).
--export([gen_uuid/0, get_nif_library_path/1, join/1, join/2, trim/2]).
+-export([gen_uuid/0, get_nif_library_file/1, join/1, join/2, trim/2]).
 -export([convert/2, get_type/1, typed_get/3]).
 
 -type primitive_type() :: atom | binary | float | integer | list | boolean.
@@ -131,9 +131,9 @@ gen_uuid() ->
 %% @doc Returns the NIF native library path. The library is first searched
 %% in application priv dir, and then under ../priv and ./priv .
 %%--------------------------------------------------------------------
--spec get_nif_library_path(LibName :: string()) ->
-    LibPath :: file:filename_all().
-get_nif_library_path(LibName) ->
+-spec get_nif_library_file(LibName :: string()) ->
+    LibFile :: file:filename_all().
+get_nif_library_file(LibName) ->
     case code:priv_dir(?APP_NAME) of
         {error, bad_name} ->
             case filelib:is_dir(filename:join(["..", "priv"])) of

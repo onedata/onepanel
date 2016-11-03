@@ -71,8 +71,8 @@ get_steps(Action, Ctx) ->
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(Ctx) ->
-    AppConfigPath = service_ctx:get(oz_worker_app_config_path, Ctx),
-    VmArgsPath = service_ctx:get(oz_worker_vm_args_path, Ctx),
+    AppConfigFile = service_ctx:get(oz_worker_app_config_file, Ctx),
+    VmArgsFile = service_ctx:get(oz_worker_vm_args_file, Ctx),
     OzName = service_ctx:get(onezone_name, Ctx),
     OzDomain = service_ctx:get_domain(onezone_domain, Ctx),
 
@@ -82,8 +82,8 @@ configure(Ctx) ->
             oz_name => OzName,
             http_domain => OzDomain
         },
-        app_config_path => AppConfigPath,
-        vm_args_path => VmArgsPath
+        app_config_file => AppConfigFile,
+        vm_args_file => VmArgsFile
     }).
 
 
@@ -96,9 +96,8 @@ setup_certs(Ctx) ->
     lists:foreach(fun({Src, Dst}) ->
         {ok, _} = file:copy(service_ctx:get(Src, Ctx), service_ctx:get(Dst, Ctx))
     end, [
-        {rest_key_path, oz_worker_gui_key_path},
-        {rest_cert_path, oz_worker_gui_cert_path},
-        {rest_cacert_path, oz_worker_gui_cacert_path}
+        {key_file, oz_worker_web_key_file},
+        {cert_file, oz_worker_web_cert_file}
     ]).
 
 

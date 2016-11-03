@@ -24,8 +24,8 @@
 ]}.
 
 {deps, [
-    {ctool, {git, "ssh://git@git.plgrid.pl:7999/vfs/ctool.git", {ref, "473ad78"}}},
-    {onepanel_gui, {git, "git://github.com/krzysztof-trzepla/onepanel_gui.git", {ref, "6f83381b56"}}},
+    {ctool, {git, "ssh://git@git.plgrid.pl:7999/vfs/ctool.git", {ref, "e151d0e1ae"}}},
+    {onepanel_gui, {git, "git://github.com/krzysztof-trzepla/onepanel_gui.git", {ref, "d4ffc9a179"}}},
     {yamerl, {git, "git://github.com/yakaz/yamerl.git", {ref, "3f46bf06b9"}}},
     {bcrypt, {git, "git://github.com/smarkets/erlang-bcrypt.git", {ref, "a63df34d49"}}}
 ]}.
@@ -101,7 +101,8 @@
         {mkdir, "etc"},
         {template, "rel/files/app.config", "etc/app.config"},
         {template, "rel/files/vm.args", "etc/vm.args"},
-        {copy, "certs", "./etc/"},
+        {copy, "certs", "etc/"},
+        {copy, "cacerts", "etc/"},
 
         %% Copy additional data files
         {mkdir, "data"},
