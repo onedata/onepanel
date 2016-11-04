@@ -4,6 +4,11 @@
 CHANGELOG
 ---------
 
+### 3.0.0-rc11
+
+* VFS-2733 Standarize app listeners
+
+
 ### 3.0.0-rc10
 
 * minor changes and improvements
