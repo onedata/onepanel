@@ -22,7 +22,7 @@
 -export([format_error/2, format_service_status/2, format_service_host_status/2,
     format_service_task_results/1, format_service_step/3, format_configuration/1]).
 
--type response() :: proplists:proplist().
+-type response() :: proplists:proplist() | term().
 
 %%%===================================================================
 %%% API functions

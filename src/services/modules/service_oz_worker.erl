@@ -17,7 +17,7 @@
 
 %% API
 -export([configure/1, setup_certs/1, start/1, stop/1, status/1, wait_for_init/1,
-    nagios_report/1]).
+    get_nagios_response/1, get_nagios_status/1]).
 
 -define(INIT_SCRIPT, "oz_worker").
 
@@ -150,9 +150,22 @@ wait_for_init(Ctx) ->
 %% @doc {@link service_cluster_worker:nagios_report/1}
 %% @end
 %%--------------------------------------------------------------------
--spec nagios_report(Ctx :: service:ctx()) -> ok | no_return().
-nagios_report(Ctx) ->
-    service_cluster_worker:nagios_report(Ctx#{
+-spec get_nagios_response(Ctx :: service:ctx()) ->
+    Response :: http_client:response().
+get_nagios_response(Ctx) ->
+    service_cluster_worker:get_nagios_response(Ctx#{
+        nagios_protocol => service_ctx:get(oz_worker_nagios_protocol, Ctx),
+        nagios_port => service_ctx:get(oz_worker_nagios_port, Ctx, integer)
+    }).
+
+
+%%--------------------------------------------------------------------
+%% @doc {@link service_cluster_worker:get_nagios_status/1}
+%% @end
+%%--------------------------------------------------------------------
+-spec get_nagios_status(Ctx :: service:ctx()) -> Status :: atom().
+get_nagios_status(Ctx) ->
+    service_cluster_worker:get_nagios_status(Ctx#{
         nagios_protocol => service_ctx:get(oz_worker_nagios_protocol, Ctx),
         nagios_port => service_ctx:get(oz_worker_nagios_port, Ctx, integer)
     }).

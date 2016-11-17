@@ -38,13 +38,14 @@
 is_authorized(Req, _Method, #rstate{client = #client{role = admin}}) ->
     {true, Req};
 
+is_authorized(Req, 'GET', #rstate{resource = Resource}) when
+    Resource =:= task orelse Resource =:= nagios ->
+    {true, Req};
+
 is_authorized(Req, Method, #rstate{resource = Resource}) when
     (Method =:= 'POST' orelse Method =:= 'GET') andalso
         (Resource =:= service_oneprovider orelse Resource =:= service_onezone) ->
     {onepanel_user:get_by_role(admin) == [], Req};
-
-is_authorized(Req, 'GET', #rstate{resource = task}) ->
-    {true, Req};
 
 is_authorized(Req, _Method, _State) ->
     {false, Req}.
@@ -56,6 +57,12 @@ is_authorized(Req, _Method, _State) ->
 %%--------------------------------------------------------------------
 -spec exists_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
+exists_resource(Req, #rstate{resource = nagios}) ->
+    {model:exists(service) andalso (
+        service:exists(service_oz_worker:name()) orelse
+            service:exists(service_op_worker:name())
+    ), Req};
+
 exists_resource(Req, #rstate{resource = task, bindings = #{id := TaskId}}) ->
     {service:exists_task(TaskId), Req};
 
@@ -233,7 +240,22 @@ accept_resource(Req, 'PATCH', _Args, #rstate{resource = SModule,
 %% @end
 %%--------------------------------------------------------------------
 -spec provide_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
-    {Data :: rest_handler:data(), Req :: cowboy_req:req()}.
+    {Data :: rest_handler:data(), Req :: cowboy_req:req()} |
+    {halt, Req :: cowboy_req:req(), State :: rest_handler:state()}.
+provide_resource(Req, #rstate{resource = nagios} = State) ->
+    SModule = case onepanel_env:get(release_type) of
+        oneprovider -> service_op_worker;
+        onezone -> service_oz_worker
+    end,
+
+    {ok, Code, Headers, Body} = rest_replier:format_service_step(
+        SModule, get_nagios_response, service_utils:throw_on_error(
+            service:apply_sync(SModule:name(), get_nagios_response, #{})
+        )
+    ),
+    {ok, Req2} = cowboy_req:reply(Code, Headers, Body, Req),
+    {halt, Req2, State};
+
 provide_resource(Req, #rstate{resource = task, bindings = #{id := TaskId}}) ->
     {rest_replier:format_service_task_results(service:get_results(TaskId)), Req};
 
