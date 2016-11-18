@@ -112,6 +112,16 @@ routes() ->
             }]
         }},
 
+        %% Get provider nagios status
+        {<<"/api/v3/onepanel/provider/nagios">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = nagios,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
         %% Get provider spaces
         {<<"/api/v3/onepanel/provider/spaces">>, rest_handler, #rstate{
             version = 3,

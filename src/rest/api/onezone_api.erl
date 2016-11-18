@@ -82,6 +82,16 @@ routes() ->
             }]
         }},
 
+        %% Get zone nagios status
+        {<<"/api/v3/onepanel/zone/nagios">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = nagios,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
         %% Get zone cluster workers status
         {<<"/api/v3/onepanel/zone/workers">>, rest_handler, #rstate{
             version = 3,

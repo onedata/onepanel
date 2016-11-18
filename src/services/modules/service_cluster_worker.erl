@@ -22,7 +22,7 @@
 
 %% API
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
-    nagios_report/1]).
+    get_nagios_response/1, get_nagios_status/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -84,8 +84,12 @@ get_steps(restart, _Ctx) ->
 get_steps(status, _Ctx) ->
     [#step{function = status}];
 
-get_steps(nagios_report, _Ctx) ->
-    [#step{function = nagios_report}].
+get_steps(get_nagios_response, #{name := Name}) ->
+    [#step{
+        function = get_nagios_response,
+        hosts = (service:get_module(Name)):get_hosts(),
+        selection = any
+    }].
 
 %%%===================================================================
 %%% API functions
@@ -160,7 +164,7 @@ status(#{init_script := InitScript}) ->
 wait_for_init(#{name := Name, wait_for_init_attempts := Attempts,
     wait_for_init_delay := Delay} = Ctx) ->
     Module = service:get_module(Name),
-    onepanel_utils:wait_until(Module, nagios_report, [Ctx], {equal, ok},
+    onepanel_utils:wait_until(Module, get_nagios_status, [Ctx], {equal, ok},
         Attempts, Delay).
 
 
@@ -168,12 +172,21 @@ wait_for_init(#{name := Name, wait_for_init_attempts := Attempts,
 %% @doc Returns nagios report for the service.
 %% @end
 %%--------------------------------------------------------------------
--spec nagios_report(Ctx :: service:ctx()) -> Status :: atom().
-nagios_report(#{nagios_protocol := Protocol, nagios_port := Port}) ->
+-spec get_nagios_response(Ctx :: service:ctx()) ->
+    Response :: http_client:response().
+get_nagios_response(#{nagios_protocol := Protocol, nagios_port := Port}) ->
     Host = onepanel_cluster:node_to_host(),
     Url = onepanel_utils:join([Protocol, "://", Host, ":", Port, "/nagios"]),
+    http_client:get(Url).
 
-    {ok, 200, _Headers, Body} = http_client:get(Url),
+
+%%--------------------------------------------------------------------
+%% @doc Returns the service status from the nagios report.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_nagios_status(Ctx :: service:ctx()) -> Status :: atom().
+get_nagios_status(Ctx) ->
+    {ok, 200, _Headers, Body} = get_nagios_response(Ctx),
 
     {Xml, _} = xmerl_scan:string(onepanel_utils:convert(Body, list)),
     [Status] = [X#xmlAttribute.value || X <- Xml#xmlElement.attributes,

@@ -224,12 +224,16 @@ provide_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
         {Bindings, Req3} = rest_utils:get_bindings(Req2),
         #rmethod{params_spec = Spec} = lists:keyfind(Method, 2, Methods),
         {Params, Req4} = rest_utils:get_params(Req3, Spec),
-        {Data, Req5} = Module:provide_resource(Req4, State#rstate{
+        case Module:provide_resource(Req4, State#rstate{
             bindings = Bindings,
             params = Params
-        }),
-        Json = json_utils:encode(Data),
-        {Json, Req5, State}
+        }) of
+            {Data, Req5} ->
+                Json = json_utils:encode(Data),
+                {Json, Req5, State};
+            {halt, Req5, State} ->
+                {halt, Req5, State}
+        end
     catch
         Type:Reason ->
             {halt, rest_replier:handle_error(Req, Type, ?make_error(Reason)), State}

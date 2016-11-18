@@ -31,6 +31,7 @@
     get_should_return_storages/1,
     get_should_return_storage/1,
     get_should_return_service_task_results/1,
+    get_should_return_nagios_response/1,
     patch_should_start_stop_service/1,
     put_should_add_storage/1,
     put_should_configure_database_service/1,
@@ -112,6 +113,11 @@
     ]}
 ]).
 
+-define(NAGIOS_REPORT_XML, <<"<?xml version=\"1.0\"?>"
+"<healthdata status=\"ok\">"
+"</healthdata>">>
+).
+
 -define(run(Config, Function), ?run(Config, Function, [
     {oneprovider_hosts, <<"/provider">>},
     {onezone_hosts, <<"/zone">>}
@@ -133,6 +139,7 @@ all() ->
         get_should_return_storages,
         get_should_return_storage,
         get_should_return_service_task_results,
+        get_should_return_nagios_response,
         patch_should_start_stop_service,
         put_should_add_storage,
         put_should_configure_database_service,
@@ -272,6 +279,26 @@ get_should_return_service_task_results(Config) ->
             }
         ])
     end, [{oneprovider_hosts, <<>>}, {onezone_hosts, <<>>}]).
+
+
+get_should_return_nagios_response(Config) ->
+    ?run(Config, fun({Host, Prefix}) ->
+        ?assertMatch({ok, 200, _, ?NAGIOS_REPORT_XML},
+            onepanel_test_rest:auth_request(
+                Host, <<Prefix/binary, "/nagios">>, get,
+                ?REG_USER_NAME, ?REG_USER_PASSWORD
+            )
+        ),
+        ?assertMatch({ok, 200, _, ?NAGIOS_REPORT_XML},
+            onepanel_test_rest:auth_request(
+                Host, <<Prefix/binary, "/nagios">>, get,
+                ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+            )
+        )
+    end, [
+        {oneprovider_hosts, <<"/provider">>},
+        {onezone_hosts, <<"/zone">>}
+    ]).
 
 
 patch_should_start_stop_service(Config) ->
@@ -561,6 +588,24 @@ init_per_testcase(get_should_return_storages, Config) ->
     Nodes = ?config(all_nodes, NewConfig),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
         {service_op_worker, get_storages, {[{'node@host1', ?STORAGES_JSON}], []}},
+        {task_finished, {service, action, ok}}
+    ] end),
+    NewConfig;
+
+init_per_testcase(get_should_return_nagios_response, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(all_nodes, NewConfig),
+    test_utils:mock_new(Nodes, rest_service),
+    test_utils:mock_expect(Nodes, rest_service, exists_resource, fun(Req, _) ->
+        {true, Req}
+    end),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        {service_op_worker, get_nagios_response, {
+            [{'node@host1', {ok, 200, [], ?NAGIOS_REPORT_XML}}], []
+        }},
+        {service_oz_worker, get_nagios_response, {
+            [{'node@host1', {ok, 200, [], ?NAGIOS_REPORT_XML}}], []
+        }},
         {task_finished, {service, action, ok}}
     ] end),
     NewConfig;
