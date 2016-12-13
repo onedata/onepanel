@@ -16,7 +16,7 @@
 -include_lib("ctool/include/test/performance.hrl").
 
 %% export for ct
--export([all/0, init_per_testcase/2, end_per_testcase/2]).
+-export([all/0, init_per_testcase/2, end_per_testcase/2, init_per_suite/1]).
 
 %% tests
 -export([
@@ -156,9 +156,12 @@ leave_should_remove_node(Config) ->
 %%% SetUp and TearDown functions
 %%%===================================================================
 
+init_per_suite(Config) ->
+    [{?CTH_ENV_UP, ?DISABLE} | Config].
+
 init_per_testcase(_Case, Config) ->
     onepanel_test_utils:ensure_started(
-        ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json"))).
+        test_node_starter:prepare_test_environment(Config, ?MODULE)).
 
 
 end_per_testcase(_Case, Config) ->

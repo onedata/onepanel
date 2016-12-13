@@ -17,8 +17,7 @@
 -include_lib("ctool/include/test/performance.hrl").
 
 %% export for ct
--export([all/0, init_per_suite/1, end_per_suite/1, init_per_testcase/2,
-    end_per_testcase/2]).
+-export([all/0, init_per_suite/1, init_per_testcase/2, end_per_testcase/2]).
 
 %% tests
 -export([
@@ -236,20 +235,17 @@ delete_should_revoke_space_support(Config) ->
 init_per_suite(Config) ->
     application:start(etls),
     hackney:start(),
-    NewConfig = onepanel_test_utils:init(
-        ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json"))
-    ),
-    ?assertAllEqual(ok, ?callAll(NewConfig, onepanel_user, create,
-        [?REG_USER_NAME, ?REG_USER_PASSWORD, regular]
-    )),
-    ?assertAllEqual(ok, ?callAll(NewConfig, onepanel_user, create,
-        [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
-    )),
-    NewConfig.
-
-
-end_per_suite(Config) ->
-    test_node_starter:clean_environment(Config).
+    Posthook = fun(NewConfig) ->
+        NewConfig2 = onepanel_test_utils:init(NewConfig),
+        ?assertAllEqual(ok, ?callAll(NewConfig2, onepanel_user, create,
+            [?REG_USER_NAME, ?REG_USER_PASSWORD, regular]
+        )),
+        ?assertAllEqual(ok, ?callAll(NewConfig2, onepanel_user, create,
+            [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
+        )),
+        NewConfig2
+    end,
+    [{?ENV_UP_POSTHOOK, Posthook} | Config].
 
 
 init_per_testcase(get_should_return_provider_details, Config) ->
