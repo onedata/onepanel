@@ -43,6 +43,7 @@
     service_status_host_model/0,
     space_details_model/0,
     space_support_request_model/0,
+    storage_modify_request_model/0,
     swift_model/0,
     task_status_model/0,
     user_create_request_model/0,
@@ -73,7 +74,9 @@ ceph_model() ->
         %% The Ceph cluster name.
         clusterName => string,
         %% The Ceph pool name.
-        poolName => string
+        poolName => string,
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -212,7 +215,9 @@ posix_model() ->
         type => {equal, <<"posix">>},
         %% The absolute path to the directory where the POSIX storage is mounted
         %% on the cluster nodes.
-        mountPoint => string
+        mountPoint => string,
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -320,7 +325,8 @@ provider_modify_request_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The provider configuration details required for registration process.
+%% @doc The storage provider configuration details required for registration
+%% process.
 %% @end
 %%--------------------------------------------------------------------
 -spec provider_register_request_model() -> maps:map().
@@ -328,13 +334,15 @@ provider_register_request_model() ->
     #{
         %% The name under which the provider should be registered in a zone.
         name => string,
-        %% The address used for user redirection from a zone to the provider.
+        %% The address used for user redirection from a zone to the storage
+        %% provider.
         redirectionPoint => string,
-        %% The geographical longitude of the provider.
+        %% The geographical longitude of the storage provider.
         geoLongitude => {float, optional},
-        %% The geographical latitude of the provider.
+        %% The geographical latitude of the storage provider.
         geoLatitude => {float, optional},
-        %% The domain name of a zone where provider will be registered.
+        %% The domain name of a zone where this storage provider will be
+        %% registered.
         onezoneDomainName => {string, optional}
     }.
 
@@ -367,7 +375,11 @@ s3_model() ->
         %% The access key to the S3 storage.
         accessKey => string,
         %% The secret key to the S3 storage.
-        secretKey => string
+        secretKey => string,
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
+        %% Storage block size in bytes.
+        blockSize => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -484,6 +496,17 @@ space_support_request_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc The storage configuration details that can be modified.
+%% @end
+%%--------------------------------------------------------------------
+-spec storage_modify_request_model() -> maps:map().
+storage_modify_request_model() ->
+    #{
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional}
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The OpenStack Swift configuration.
 %% @end
 %%--------------------------------------------------------------------
@@ -501,7 +524,11 @@ swift_model() ->
         %% The Keystone authentication username.
         username => string,
         %% The Keystone authentication password.
-        password => string
+        password => string,
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
+        %% Storage block size in bytes.
+        blockSize => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -529,7 +556,7 @@ task_status_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The user configuration details required for creation process.
+%% @doc The new user account details.
 %% @end
 %%--------------------------------------------------------------------
 -spec user_create_request_model() -> maps:map().

@@ -210,6 +210,14 @@ accept_resource(Req, 'POST', Args, #rstate{resource = storages}) ->
         }
     ))};
 
+accept_resource(Req, 'PATCH', Args, #rstate{resource = storage,
+    bindings = #{name := Name}}) ->
+    Ctx = #{name => Name},
+    Ctx2 = onepanel_maps:get_store(timeout, Args, [args, timeout], Ctx),
+    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
+        service_op_worker:name(), update_storage, Ctx2
+    ))};
+
 accept_resource(Req, 'PATCH', _Args, #rstate{resource = SModule,
     bindings = #{host := Host}, params = #{started := true}}) ->
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
