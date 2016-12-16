@@ -171,6 +171,7 @@ init_per_testcase(Case, Config) when
 
 init_per_testcase(_Case, Config) ->
     Nodes = ?config(onepanel_nodes, Config),
+    onepanel_test_utils:ensure_started(Config),
     test_utils:mock_new(Nodes, [model, ?MODEL], [passthrough, non_strict]),
     test_utils:mock_expect(Nodes, model, get_models, fun() -> [?MODEL] end),
     test_utils:mock_expect(Nodes, ?MODEL, get_fields, fun() ->
