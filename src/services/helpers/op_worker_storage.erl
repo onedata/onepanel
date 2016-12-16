@@ -17,7 +17,7 @@
 -include_lib("hackney/include/hackney_lib.hrl").
 
 %% API
--export([add/2, get/0, get/1]).
+-export([add/2, get/0, get/1, update/2]).
 
 -type name() :: binary().
 -type storage_params_map() :: #{Key :: atom() | binary() => Value :: binary()}.
@@ -88,12 +88,28 @@ get(Name) ->
     {ok, Storage} = rpc:call(Node, storage, get_by_name, [Name]),
     get_storage(Node, Storage).
 
+
+%%--------------------------------------------------------------------
+%% @doc Updates details of a selected storage in op_worker service.
+%% @end
+%%--------------------------------------------------------------------
+-spec update(Name :: name(), Args :: maps:map()) -> ok.
+update(Name, Args) ->
+    Host = onepanel_cluster:node_to_host(),
+    Node = onepanel_cluster:host_to_node(service_op_worker:name(), Host),
+    [{_, Params}] = ?MODULE:get(Name),
+    {ok, Id} = onepanel_lists:get(id, Params),
+    Args2 = #{<<"timeout">> => get_helper_arg(timeout, Args)},
+    {ok, _} = rpc:call(Node, storage, update_helper, [Id, Args2]),
+    ok.
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
 %%--------------------------------------------------------------------
 %% @private @doc Parses storage parameters based on its type.
+%% @end
 %%--------------------------------------------------------------------
 -spec parse_storage_params(Type :: binary(), Params :: storage_params_map()) ->
     {HelperName :: binary(), HelperArgs :: maps:map(), UserModel :: atom(),
@@ -101,7 +117,10 @@ get(Name) ->
 parse_storage_params(<<"posix">>, Params) ->
     {
         <<"DirectIO">>,
-        #{<<"root_path">> => get_helper_arg(mountPoint, Params)},
+        onepanel_maps:remove_undefined(#{
+            <<"root_path">> => get_helper_arg(mountPoint, Params),
+            <<"timeout">> => get_helper_arg(timeout, Params)
+        }),
         posix_user,
         [0, 0]
     };
@@ -113,13 +132,15 @@ parse_storage_params(<<"s3">>, Params) ->
         hackney_url:parse_url(get_helper_arg(iamHostname, Params)),
     {
         <<"AmazonS3">>,
-        #{
+        onepanel_maps:remove_undefined(#{
             <<"host_name">> => onepanel_utils:join([S3Host, S3Port], <<":">>),
             <<"scheme">> => onepanel_utils:convert(S3Scheme, binary),
             <<"bucket_name">> => get_helper_arg(bucketName, Params),
             <<"iam_host">> => onepanel_utils:join([IamHost, IamPort], <<":">>),
-            <<"iam_request_scheme">> => onepanel_utils:convert(IamScheme, binary)
-        },
+            <<"iam_request_scheme">> => onepanel_utils:convert(IamScheme, binary),
+            <<"timeout">> => get_helper_arg(timeout, Params),
+            <<"block_size">> => get_helper_arg(blockSize, Params)
+        }),
         s3_user,
         [get_helper_arg(accessKey, Params), get_helper_arg(secretKey, Params)]
     };
@@ -127,11 +148,12 @@ parse_storage_params(<<"s3">>, Params) ->
 parse_storage_params(<<"ceph">>, Params) ->
     {
         <<"Ceph">>,
-        #{
+        onepanel_maps:remove_undefined(#{
             <<"mon_host">> => get_helper_arg(monitorHostname, Params),
             <<"cluster_name">> => get_helper_arg(clusterName, Params),
-            <<"pool_name">> => get_helper_arg(poolName, Params)
-        },
+            <<"pool_name">> => get_helper_arg(poolName, Params),
+            <<"timeout">> => get_helper_arg(timeout, Params)
+        }),
         ceph_user,
         [get_helper_arg(username, Params), get_helper_arg(key, Params)]
     };
@@ -139,11 +161,13 @@ parse_storage_params(<<"ceph">>, Params) ->
 parse_storage_params(<<"swift">>, Params) ->
     {
         <<"Swift">>,
-        #{
+        onepanel_maps:remove_undefined(#{
             <<"auth_url">> => get_helper_arg(authUrl, Params),
             <<"container_name">> => get_helper_arg(containerName, Params),
-            <<"tenant_name">> => get_helper_arg(tenantName, Params)
-        },
+            <<"tenant_name">> => get_helper_arg(tenantName, Params),
+            <<"timeout">> => get_helper_arg(timeout, Params),
+            <<"block_size">> => get_helper_arg(blockSize, Params)
+        }),
         swift_user,
         [get_helper_arg(username, Params), get_helper_arg(password, Params)]
     }.
@@ -151,11 +175,15 @@ parse_storage_params(<<"swift">>, Params) ->
 
 %%--------------------------------------------------------------------
 %% @private @doc Returns selected storage helper argument.
+%% @end
 %%--------------------------------------------------------------------
 -spec get_helper_arg(Key :: atom(), Params :: storage_params_map()) ->
-    HelperArg :: binary().
+    HelperArg :: binary() | undefined.
 get_helper_arg(Key, Params) ->
-    onepanel_utils:convert(maps:get(Key, Params), binary).
+    case maps:find(Key, Params) of
+        {ok, Value} -> onepanel_utils:convert(Value, binary);
+        error -> undefined
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -175,6 +203,7 @@ verify_storage(HelperName, HelperArgs, UserCtx) ->
 
 %%--------------------------------------------------------------------
 %% @private @doc Creates storage test file.
+%% @end
 %%--------------------------------------------------------------------
 -spec create_test_file(Node :: node(), Args :: list()) ->
     {FileId :: binary(), FileContent :: binary()} | no_return().
@@ -189,6 +218,7 @@ create_test_file(Node, Args) ->
 
 %%--------------------------------------------------------------------
 %% @private @doc Checks whether storage test file content matches expected one.
+%% @end
 %%--------------------------------------------------------------------
 -spec verify_test_file(Nodes :: [node()], Args :: list(), FileId :: binary(),
     FileContent :: binary()) -> FileId :: binary() | no_return().
@@ -213,6 +243,7 @@ verify_test_file([Node | Nodes], Args, FileId, FileContent) ->
 
 %%--------------------------------------------------------------------
 %% @private @doc Removes storage test file.
+%% @end
 %%--------------------------------------------------------------------
 -spec remove_test_file(Node :: node(), Args :: list(), FileId :: binary()) ->
     ok | no_return().
@@ -226,6 +257,7 @@ remove_test_file(Node, Args, FileId) ->
 
 %%--------------------------------------------------------------------
 %% @private @doc Adds storage to the op_worker service configuration.
+%% @end
 %%--------------------------------------------------------------------
 -spec add_storage(Node :: node(), StorageName :: binary(), HelperName :: binary(),
     HelperArgs :: maps:map()) -> {ok, StorageId :: binary()} | {error, Reason :: term()}.
@@ -237,6 +269,7 @@ add_storage(Node, StorageName, HelperName, HelperArgs) ->
 
 %%--------------------------------------------------------------------
 %% @private @doc Returns storage details from op_worker service configuration.
+%% @end
 %%--------------------------------------------------------------------
 -spec get_storage(Node :: node(), Storage :: any()) -> Storage :: storage_list().
 get_storage(Node, Storage) ->
@@ -250,6 +283,7 @@ get_storage(Node, Storage) ->
 
 %%--------------------------------------------------------------------
 %% @private @doc Converts storage helper name to storage type.
+%% @end
 %%--------------------------------------------------------------------
 -spec helper_name_to_type(Name :: binary()) -> Type :: binary().
 helper_name_to_type(<<"DirectIO">>) -> <<"posix">>;
@@ -261,6 +295,7 @@ helper_name_to_type(_) -> <<>>.
 
 %%--------------------------------------------------------------------
 %% @private @doc Translates storage helper arguments to the expected format.
+%% @end
 %%--------------------------------------------------------------------
 -spec translate_helper_args(Args :: storage_params_map(), Acc :: storage_params_list()) ->
     Acc :: storage_params_list().
@@ -305,6 +340,14 @@ translate_helper_args(#{<<"container_name">> := Name} = Args, Acc) ->
 translate_helper_args(#{<<"tenant_name">> := Name} = Args, Acc) ->
     NewArgs = maps:remove(<<"tenant_name">>, Args),
     translate_helper_args(NewArgs, [{tenantName, Name} | Acc]);
+
+translate_helper_args(#{<<"timeout">> := Timeout} = Args, Acc) ->
+    NewArgs = maps:remove(<<"timeout">>, Args),
+    translate_helper_args(NewArgs, [{timeout, Timeout} | Acc]);
+
+translate_helper_args(#{<<"block_size">> := Size} = Args, Acc) ->
+    NewArgs = maps:remove(<<"block_size">>, Args),
+    translate_helper_args(NewArgs, [{blockSize, Size} | Acc]);
 
 translate_helper_args(_Args, Acc) ->
     Acc.

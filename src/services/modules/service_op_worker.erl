@@ -20,7 +20,8 @@
 
 %% API
 -export([configure/1, setup_certs/1, start/1, stop/1, status/1, wait_for_init/1,
-    get_nagios_response/1, get_nagios_status/1, add_storages/1, get_storages/1]).
+    get_nagios_response/1, get_nagios_status/1, add_storages/1, get_storages/1,
+    update_storage/1]).
 
 -define(INIT_SCRIPT, "op_worker").
 
@@ -75,6 +76,12 @@ get_steps(get_storages, #{hosts := Hosts}) ->
 
 get_steps(get_storages, Ctx) ->
     get_steps(get_storages, Ctx#{hosts => get_hosts()});
+
+get_steps(update_storage, #{hosts := Hosts}) ->
+    [#step{hosts = Hosts, function = update_storage, selection = any}];
+
+get_steps(update_storage, Ctx) ->
+    get_steps(update_storage, Ctx#{hosts => get_hosts()});
 
 get_steps(Action, Ctx) ->
     service_cluster_worker:get_steps(Action, Ctx#{name => name()}).
@@ -211,3 +218,12 @@ get_storages(#{name := Name}) ->
 
 get_storages(_Ctx) ->
     op_worker_storage:get().
+
+
+%%--------------------------------------------------------------------
+%% @doc Configuration details of the service storage.
+%% @end
+%%--------------------------------------------------------------------
+-spec update_storage(Ctx :: service:ctx()) -> ok | no_return().
+update_storage(#{name := Name, args := Args}) ->
+    op_worker_storage:update(Name, Args).

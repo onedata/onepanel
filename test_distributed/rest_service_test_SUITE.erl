@@ -31,6 +31,7 @@
     get_should_return_storage/1,
     get_should_return_service_task_results/1,
     get_should_return_nagios_response/1,
+    patch_should_update_storage/1,
     patch_should_start_stop_service/1,
     put_should_add_storage/1,
     put_should_configure_database_service/1,
@@ -75,6 +76,10 @@
     ]}
 ]).
 
+-define(STORAGE_UPDATE_JSON, [
+    {<<"timeout">>, 10000}
+]).
+
 -define(STORAGES_JSON, [
     {<<"someCeph">>, [
         {<<"type">>, <<"ceph">>},
@@ -82,7 +87,8 @@
         {<<"key">>, <<"someKey">>},
         {<<"monitorHostname">>, <<"someHostname">>},
         {<<"poolName">>, <<"someName">>},
-        {<<"clusterName">>, <<"someName">>}
+        {<<"clusterName">>, <<"someName">>},
+        {<<"timeout">>, 5000}
     ]},
     {<<"someS3">>, [
         {<<"type">>, <<"s3">>},
@@ -90,7 +96,8 @@
         {<<"iamHostname">>, <<"someHostname">>},
         {<<"bucketName">>, <<"someName">>},
         {<<"accessKey">>, <<"someKey">>},
-        {<<"secretKey">>, <<"someKey">>}
+        {<<"secretKey">>, <<"someKey">>},
+        {<<"blockSize">>, 1024}
     ]} | ?STORAGE_JSON
 ]).
 
@@ -138,6 +145,7 @@ all() ->
         get_should_return_storages,
         get_should_return_storage,
         get_should_return_service_task_results,
+        patch_should_update_storage,
         get_should_return_nagios_response,
         patch_should_start_stop_service,
         put_should_add_storage,
@@ -300,6 +308,21 @@ get_should_return_nagios_response(Config) ->
     ]).
 
 
+patch_should_update_storage(Config) ->
+    ?run(Config, fun({Host, Prefix}) ->
+        ?assertMatch({ok, 204, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<Prefix/binary, "/storages/somePosix">>, patch,
+                ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, ?STORAGE_UPDATE_JSON
+            )
+        ),
+        ?assertReceivedMatch({service, op_worker, update_storage, #{
+            name := <<"somePosix">>,
+            args := #{timeout := 10000}
+        }}, ?TIMEOUT)
+    end, [{oneprovider_hosts, <<"/provider">>}]).
+
+
 patch_should_start_stop_service(Config) ->
     ?run(Config, fun({Host, {Prefix, WorkerService}}) ->
         lists:foreach(fun({Service, Endpoint}) ->
@@ -351,7 +374,8 @@ put_should_add_storage(Config) ->
                     key := <<"someKey">>,
                     monitorHostname := <<"someHostname">>,
                     poolName := <<"someName">>,
-                    username := <<"someName">>
+                    username := <<"someName">>,
+                    timeout := 5000
                 },
                 <<"someS3">> := #{
                     type := <<"s3">>,
@@ -359,7 +383,8 @@ put_should_add_storage(Config) ->
                     bucketName := <<"someName">>,
                     iamHostname := <<"someHostname">>,
                     s3Hostname := <<"someHostname">>,
-                    secretKey := <<"someKey">>
+                    secretKey := <<"someKey">>,
+                    blockSize := 1024
                 }
             }
         }}, ?TIMEOUT)
@@ -642,6 +667,15 @@ init_per_testcase(get_should_return_service_task_results, Config) ->
         (<<"someTaskId4">>) -> [
             {task_finished, {service, action, #error{}}}
         ]
+    end),
+    NewConfig;
+
+init_per_testcase(patch_should_update_storage, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(all_nodes, NewConfig),
+    test_utils:mock_new(Nodes, rest_service),
+    test_utils:mock_expect(Nodes, rest_service, exists_resource, fun(Req, _) ->
+        {true, Req}
     end),
     NewConfig;
 
