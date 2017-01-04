@@ -150,9 +150,7 @@ service_op_worker_add_storage_test(Config) ->
                 accessKey => onepanel_utils:typed_get(access_key, S3, binary),
                 secretKey => onepanel_utils:typed_get(secret_key, S3, binary),
                 bucketName => <<"onedata">>,
-                s3Hostname => <<"http://", (onepanel_utils:typed_get(host_name,
-                    S3, binary))/binary>>,
-                iamHostname => <<"http://", (onepanel_utils:typed_get(iam_host,
+                hostname => <<"http://", (onepanel_utils:typed_get(host_name,
                     S3, binary))/binary>>
             },
             <<"someSwift">> => #{
@@ -183,7 +181,7 @@ service_op_worker_get_storages_test(Config) ->
         onepanel_test_utils:assert_fields(?config(Name, Storages), [id]),
         onepanel_test_utils:assert_values(?config(Name, Storages), [
             {type, <<"posix">>},
-            {mountPoint, onepanel_utils:typed_get(
+            {<<"mountPoint">>, onepanel_utils:typed_get(
                 [storages, posix, '/mnt/st1', docker_path], Config, binary
             )}
         ])

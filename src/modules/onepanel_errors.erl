@@ -100,13 +100,16 @@ translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, Reason}}) ->
     ?error("Cannot add storage due to: ~p", [Reason]),
     {<<"Operation Error">>, <<"Storage addition error.">>};
 
-translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_CREATION, Node, Reason}}) ->
+translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_CREATE, Node, Reason}}) ->
     translate_storage_test_file_error("create", <<"creation">>, Node, Reason);
 
-translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_VERIFICATION, Node, Reason}}) ->
-    translate_storage_test_file_error("verify", <<"verification">>, Node, Reason);
+translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_READ, Node, Reason}}) ->
+    translate_storage_test_file_error("read", <<"read">>, Node, Reason);
 
-translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_REMOVAL, Node, Reason}}) ->
+translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_WRITE, Node, Reason}}) ->
+    translate_storage_test_file_error("write", <<"write">>, Node, Reason);
+
+translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_REMOVE, Node, Reason}}) ->
     translate_storage_test_file_error("remove", <<"removal">>, Node, Reason);
 
 translate(_Type, #error{reason = {no_exists, onepanel_user}}) ->

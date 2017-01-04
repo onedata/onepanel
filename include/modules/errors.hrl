@@ -79,9 +79,10 @@ end).
 -define(ERR_INVALID_VALUE, invalid_value).
 -define(ERR_HOST_NOT_FOUND_FOR_ALIAS, host_not_found_for_alias).
 
--define(ERR_STORAGE_TEST_FILE_CREATION, storage_test_file_creation).
--define(ERR_STORAGE_TEST_FILE_VERIFICATION, storage_test_file_verification).
--define(ERR_STORAGE_TEST_FILE_REMOVAL, storage_test_file_removal).
+-define(ERR_STORAGE_TEST_FILE_CREATE, storage_test_file_creation).
+-define(ERR_STORAGE_TEST_FILE_READ, storage_test_file_read).
+-define(ERR_STORAGE_TEST_FILE_WRITE, storage_test_file_write).
+-define(ERR_STORAGE_TEST_FILE_REMOVE, storage_test_file_removal).
 -define(ERR_STORAGE_ADDITION, storage_addition).
 
 -define(ERR_UNREGISTERED_PROVIDER, unregistered_provider).
