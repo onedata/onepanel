@@ -18,6 +18,7 @@
 
 %% API
 -export([add/2, get/0, get/1, update/2]).
+-export([add_storage/3]).
 
 -type name() :: binary().
 -type storage_params_map() :: #{Key :: atom() | binary() => Value :: binary()}.
@@ -41,18 +42,16 @@
 add(Storages, IgnoreExists) ->
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(service_op_worker:name(), Host),
-    RootUserId = rpc:call(Node, fslogic_uuid, root_user_id, []),
     maps:fold(fun(Key, Value, _) ->
         StorageName = onepanel_utils:convert(Key, binary),
-        StorageType = get_helper_arg(type, Value),
-        {HelperName, HelperArgs, UserModel, RootCtxArgs} =
-            parse_storage_params(StorageType, Value),
-        RootCtx = rpc:call(Node, UserModel, new_ctx, RootCtxArgs),
-        verify_storage(HelperName, HelperArgs, RootCtx),
-        Result = add_storage(Node, StorageName, HelperName, HelperArgs),
+        StorageType = onepanel_utils:typed_get(type, Value, binary),
+        UserCtx = get_storage_user_ctx(Node, StorageType, Value),
+        Helper = get_storage_helper(Node, StorageType, UserCtx, Value),
+        verify_storage(Helper, UserCtx),
+        Result = add_storage(Node, StorageName, [Helper]),
         case {Result, IgnoreExists} of
-            {{ok, StorageId}, _} ->
-                rpc:call(Node, UserModel, add, [RootUserId, StorageId, RootCtx]);
+            {{ok, _StorageId}, _} ->
+                ok;
             {{error, already_exists}, true} ->
                 ok;
             {{error, Reason}, _} ->
@@ -85,7 +84,7 @@ get() ->
 get(Name) ->
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(service_op_worker:name(), Host),
-    {ok, Storage} = rpc:call(Node, storage, get_by_name, [Name]),
+    {ok, Storage} = rpc:call(Node, storage, select, [Name]),
     get_storage(Node, Storage).
 
 
@@ -97,10 +96,11 @@ get(Name) ->
 update(Name, Args) ->
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(service_op_worker:name(), Host),
-    [{_, Params}] = ?MODULE:get(Name),
+    [{_, Params}] = op_worker_storage:get(Name),
     {ok, Id} = onepanel_lists:get(id, Params),
-    Args2 = #{<<"timeout">> => get_helper_arg(timeout, Args)},
-    {ok, _} = rpc:call(Node, storage, update_helper, [Id, Args2]),
+    {ok, Type} = onepanel_lists:get(type, Params),
+    Args2 = #{<<"timeout">> => onepanel_utils:typed_get(timeout, Args, binary)},
+    {ok, _} = rpc:call(Node, storage, update_helper, [Id, Type, Args2]),
     ok.
 
 %%%===================================================================
@@ -108,82 +108,91 @@ update(Name, Args) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private @doc Parses storage parameters based on its type.
+%% @private @doc Returns storage user context record.
 %% @end
 %%--------------------------------------------------------------------
--spec parse_storage_params(Type :: binary(), Params :: storage_params_map()) ->
-    {HelperName :: binary(), HelperArgs :: maps:map(), UserModel :: atom(),
-        RootCtxArgs :: list()}.
-parse_storage_params(<<"posix">>, Params) ->
-    {
-        <<"DirectIO">>,
-        onepanel_maps:remove_undefined(#{
-            <<"root_path">> => get_helper_arg(mountPoint, Params),
-            <<"timeout">> => get_helper_arg(timeout, Params)
-        }),
-        posix_user,
-        [0, 0]
-    };
+-spec get_storage_user_ctx(Node :: node(), StorageType :: binary(),
+    Params :: storage_params_map()) -> UserCtx :: any().
+get_storage_user_ctx(Node, <<"ceph">>, Params) ->
+    rpc:call(Node, helper, new_ceph_user_ctx, [
+        onepanel_utils:typed_get(username, Params, binary),
+        onepanel_utils:typed_get(key, Params, binary)
+    ]);
 
-parse_storage_params(<<"s3">>, Params) ->
+get_storage_user_ctx(Node, <<"posix">>, _Params) ->
+    rpc:call(Node, helper, new_posix_user_ctx, [0, 0]);
+
+get_storage_user_ctx(Node, <<"s3">>, Params) ->
+    rpc:call(Node, helper, new_s3_user_ctx, [
+        onepanel_utils:typed_get(accessKey, Params, binary),
+        onepanel_utils:typed_get(secretKey, Params, binary)
+    ]);
+
+get_storage_user_ctx(Node, <<"swift">>, Params) ->
+    rpc:call(Node, helper, new_swift_user_ctx, [
+        onepanel_utils:typed_get(username, Params, binary),
+        onepanel_utils:typed_get(password, Params, binary)
+    ]).
+
+
+%%--------------------------------------------------------------------
+%% @private @doc Returns storage helper record.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_storage_helper(Node :: node(), StorageType :: binary(), UserCtx :: any(),
+    Params :: storage_params_map()) -> Helper :: any().
+get_storage_helper(Node, <<"ceph">>, UserCtx, Params) ->
+    rpc:call(Node, helper, new_ceph_helper, [
+        onepanel_utils:typed_get(monitorHostname, Params, binary),
+        onepanel_utils:typed_get(clusterName, Params, binary),
+        onepanel_utils:typed_get(poolName, Params, binary),
+        get_helper_opt_args([{timeout, binary}], Params),
+        UserCtx,
+        onepanel_utils:typed_get(insecure, Params, boolean, false)
+    ]);
+get_storage_helper(Node, <<"posix">>, UserCtx, Params) ->
+    rpc:call(Node, helper, new_posix_helper, [
+        onepanel_utils:typed_get(mountPoint, Params, binary),
+        get_helper_opt_args([{timeout, binary}], Params),
+        UserCtx
+    ]);
+get_storage_helper(Node, <<"s3">>, UserCtx, Params) ->
     #hackney_url{scheme = S3Scheme, host = S3Host, port = S3Port} =
-        hackney_url:parse_url(get_helper_arg(s3Hostname, Params)),
-    #hackney_url{scheme = IamScheme, host = IamHost, port = IamPort} =
-        hackney_url:parse_url(get_helper_arg(iamHostname, Params)),
-    {
-        <<"AmazonS3">>,
-        onepanel_maps:remove_undefined(#{
-            <<"host_name">> => onepanel_utils:join([S3Host, S3Port], <<":">>),
-            <<"scheme">> => onepanel_utils:convert(S3Scheme, binary),
-            <<"bucket_name">> => get_helper_arg(bucketName, Params),
-            <<"iam_host">> => onepanel_utils:join([IamHost, IamPort], <<":">>),
-            <<"iam_request_scheme">> => onepanel_utils:convert(IamScheme, binary),
-            <<"timeout">> => get_helper_arg(timeout, Params),
-            <<"block_size">> => get_helper_arg(blockSize, Params)
-        }),
-        s3_user,
-        [get_helper_arg(accessKey, Params), get_helper_arg(secretKey, Params)]
-    };
-
-parse_storage_params(<<"ceph">>, Params) ->
-    {
-        <<"Ceph">>,
-        onepanel_maps:remove_undefined(#{
-            <<"mon_host">> => get_helper_arg(monitorHostname, Params),
-            <<"cluster_name">> => get_helper_arg(clusterName, Params),
-            <<"pool_name">> => get_helper_arg(poolName, Params),
-            <<"timeout">> => get_helper_arg(timeout, Params)
-        }),
-        ceph_user,
-        [get_helper_arg(username, Params), get_helper_arg(key, Params)]
-    };
-
-parse_storage_params(<<"swift">>, Params) ->
-    {
-        <<"Swift">>,
-        onepanel_maps:remove_undefined(#{
-            <<"auth_url">> => get_helper_arg(authUrl, Params),
-            <<"container_name">> => get_helper_arg(containerName, Params),
-            <<"tenant_name">> => get_helper_arg(tenantName, Params),
-            <<"timeout">> => get_helper_arg(timeout, Params),
-            <<"block_size">> => get_helper_arg(blockSize, Params)
-        }),
-        swift_user,
-        [get_helper_arg(username, Params), get_helper_arg(password, Params)]
-    }.
+        hackney_url:parse_url(onepanel_utils:typed_get(hostname, Params, binary)),
+    rpc:call(Node, helper, new_s3_helper, [
+        onepanel_utils:join([S3Host, S3Port], <<":">>),
+        onepanel_utils:typed_get(bucketName, Params, binary),
+        S3Scheme =:= https,
+        get_helper_opt_args([{timeout, binary}, {blockSize, binary}], Params),
+        UserCtx,
+        onepanel_utils:typed_get(insecure, Params, boolean, false)
+    ]);
+get_storage_helper(Node, <<"swift">>, UserCtx, Params) ->
+    rpc:call(Node, helper, new_swift_helper, [
+        onepanel_utils:typed_get(authUrl, Params, binary),
+        onepanel_utils:typed_get(containerName, Params, binary),
+        onepanel_utils:typed_get(tenantName, Params, binary),
+        get_helper_opt_args([{timeout, binary}, {blockSize, binary}], Params),
+        UserCtx,
+        onepanel_utils:typed_get(insecure, Params, boolean, false)
+    ]).
 
 
 %%--------------------------------------------------------------------
-%% @private @doc Returns selected storage helper argument.
+%% @private @doc Returns storage helper optional argument.
 %% @end
 %%--------------------------------------------------------------------
--spec get_helper_arg(Key :: atom(), Params :: storage_params_map()) ->
-    HelperArg :: binary() | undefined.
-get_helper_arg(Key, Params) ->
-    case maps:find(Key, Params) of
-        {ok, Value} -> onepanel_utils:convert(Value, binary);
-        error -> undefined
-    end.
+-spec get_helper_opt_args(KeySpec :: [{Key :: atom(), Type :: onepanel_utils:type()}],
+    Params :: storage_params_map()) -> OptArgs :: #{}.
+get_helper_opt_args(KeysSpec, Params) ->
+    lists:foldl(fun({Key, Type}, OptArgs) ->
+        case onepanel_utils:typed_get(Key, Params, Type) of
+            #error{} ->
+                OptArgs;
+            Value ->
+                maps:put(onepanel_utils:convert(Key, binary), Value, OptArgs)
+        end
+    end, #{}, KeysSpec).
 
 
 %%--------------------------------------------------------------------
@@ -191,14 +200,15 @@ get_helper_arg(Key, Params) ->
 %% service nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec verify_storage(HelperName :: binary(), HelperArgs :: maps:map(), UserCtx :: any()) ->
+-spec verify_storage(Helper :: any(), UserCtx :: any()) ->
     ok | no_return().
-verify_storage(HelperName, HelperArgs, UserCtx) ->
+verify_storage(Helper, UserCtx) ->
     [Node | _] = Nodes = service_op_worker:get_nodes(),
-    Args = [HelperName, HelperArgs, UserCtx],
-    {FileId, FileContent} = create_test_file(Node, Args),
-    NewFileId = verify_test_file(Nodes, Args, FileId, FileContent),
-    remove_test_file(Node, Args, NewFileId).
+    FileId = rpc:call(Node, storage_detector, generate_file_id, []),
+    Args = [Helper, UserCtx, FileId],
+    FileContent = create_test_file(Node, Args),
+    verify_test_file(Nodes, Args, FileContent),
+    remove_test_file(Node, Args).
 
 
 %%--------------------------------------------------------------------
@@ -206,13 +216,13 @@ verify_storage(HelperName, HelperArgs, UserCtx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec create_test_file(Node :: node(), Args :: list()) ->
-    {FileId :: binary(), FileContent :: binary()} | no_return().
+    FileContent :: binary() | no_return().
 create_test_file(Node, Args) ->
-    case rpc:call(Node, helpers_utils, create_test_file, Args) of
+    case rpc:call(Node, storage_detector, create_test_file, Args) of
+        <<_/binary>> = FileContent ->
+            FileContent;
         {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
-            ?throw_error({?ERR_STORAGE_TEST_FILE_CREATION, Node, Reason}, Stacktrace);
-        {<<_/binary>> = FileId, <<_/binary>> = FileContent} ->
-            {FileId, FileContent}
+            ?throw_error({?ERR_STORAGE_TEST_FILE_CREATE, Node, Reason}, Stacktrace)
     end.
 
 
@@ -220,24 +230,27 @@ create_test_file(Node, Args) ->
 %% @private @doc Checks whether storage test file content matches expected one.
 %% @end
 %%--------------------------------------------------------------------
--spec verify_test_file(Nodes :: [node()], Args :: list(), FileId :: binary(),
-    FileContent :: binary()) -> FileId :: binary() | no_return().
-verify_test_file([], _Args, FileId, _FileContent) ->
-    FileId;
+-spec verify_test_file(Nodes :: [node()], Args :: list(), FileContent :: binary()) ->
+    ok | no_return().
+verify_test_file([], _Args, _FileContent) ->
+    ok;
 
-verify_test_file([Node | Nodes], Args, FileId, FileContent) ->
-    ActualFileContent = rpc:call(Node, helpers_utils, read_test_file, Args ++ [FileId]),
-    remove_test_file(Node, Args, FileId),
+verify_test_file([Node | Nodes], Args, FileContent) ->
+    ActualFileContent = rpc:call(Node, storage_detector, read_test_file, Args),
 
     case ActualFileContent of
         FileContent ->
-            {NewFileId, NewFileContent} = create_test_file(Node, Args),
-            verify_test_file(Nodes, Args, NewFileId, NewFileContent);
+            case rpc:call(Node, storage_detector, update_test_file, Args) of
+                <<_/binary>> = NewFileContent ->
+                    verify_test_file(Nodes, Args, NewFileContent);
+                {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
+                    ?throw_error({?ERR_STORAGE_TEST_FILE_WRITE, Node, Reason}, Stacktrace)
+            end;
         <<_/binary>> ->
-            ?throw_error({?ERR_STORAGE_TEST_FILE_VERIFICATION, Node,
+            ?throw_error({?ERR_STORAGE_TEST_FILE_READ, Node,
                 {invalid_content, FileContent, ActualFileContent}});
         {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
-            ?make_error({?ERR_STORAGE_TEST_FILE_VERIFICATION, Node, Reason}, Stacktrace)
+            ?throw_error({?ERR_STORAGE_TEST_FILE_READ, Node, Reason}, Stacktrace)
     end.
 
 
@@ -245,12 +258,11 @@ verify_test_file([Node | Nodes], Args, FileId, FileContent) ->
 %% @private @doc Removes storage test file.
 %% @end
 %%--------------------------------------------------------------------
--spec remove_test_file(Node :: node(), Args :: list(), FileId :: binary()) ->
-    ok | no_return().
-remove_test_file(Node, Args, FileId) ->
-    case rpc:call(Node, helpers_utils, remove_test_file, Args ++ [FileId]) of
+-spec remove_test_file(Node :: node(), Args :: list()) -> ok | no_return().
+remove_test_file(Node, Args) ->
+    case rpc:call(Node, storage_detector, remove_test_file, Args) of
         {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
-            ?throw_error({?ERR_STORAGE_TEST_FILE_REMOVAL, Node, Reason}, Stacktrace);
+            ?throw_error({?ERR_STORAGE_TEST_FILE_REMOVE, Node, Reason}, Stacktrace);
         _ -> ok
     end.
 
@@ -259,11 +271,10 @@ remove_test_file(Node, Args, FileId) ->
 %% @private @doc Adds storage to the op_worker service configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec add_storage(Node :: node(), StorageName :: binary(), HelperName :: binary(),
-    HelperArgs :: maps:map()) -> {ok, StorageId :: binary()} | {error, Reason :: term()}.
-add_storage(Node, StorageName, HelperName, HelperArgs) ->
-    Helper = rpc:call(Node, fslogic_storage, new_helper_init, [HelperName, HelperArgs]),
-    Storage = rpc:call(Node, fslogic_storage, new_storage, [StorageName, [Helper]]),
+-spec add_storage(Node :: node(), StorageName :: binary(), Helpers :: list()) ->
+    {ok, StorageId :: binary()} | {error, Reason :: term()}.
+add_storage(Node, StorageName, Helpers) ->
+    Storage = rpc:call(Node, storage, new, [StorageName, Helpers]),
     rpc:call(Node, storage, create, [Storage]).
 
 
@@ -273,81 +284,9 @@ add_storage(Node, StorageName, HelperName, HelperArgs) ->
 %%--------------------------------------------------------------------
 -spec get_storage(Node :: node(), Storage :: any()) -> Storage :: storage_list().
 get_storage(Node, Storage) ->
-    Id = rpc:call(Node, storage, id, [Storage]),
-    Name = rpc:call(Node, storage, name, [Storage]),
-    [Helper | _] = rpc:call(Node, storage, helpers, [Storage]),
-    Type = helper_name_to_type(rpc:call(Node, helpers, name, [Helper])),
-    Args = translate_helper_args(rpc:call(Node, helpers, args, [Helper]), []),
+    Id = rpc:call(Node, storage, get_id, [Storage]),
+    Name = rpc:call(Node, storage, get_name, [Storage]),
+    [Helper | _] = rpc:call(Node, storage, get_helpers, [Storage]),
+    Type = rpc:call(Node, helper, get_name, [Helper]),
+    Args = maps:to_list(rpc:call(Node, helper, get_args, [Helper])),
     [{Name, [{id, Id}, {type, Type} | Args]}].
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Converts storage helper name to storage type.
-%% @end
-%%--------------------------------------------------------------------
--spec helper_name_to_type(Name :: binary()) -> Type :: binary().
-helper_name_to_type(<<"DirectIO">>) -> <<"posix">>;
-helper_name_to_type(<<"AmazonS3">>) -> <<"s3">>;
-helper_name_to_type(<<"Ceph">>) -> <<"ceph">>;
-helper_name_to_type(<<"Swift">>) -> <<"swift">>;
-helper_name_to_type(_) -> <<>>.
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Translates storage helper arguments to the expected format.
-%% @end
-%%--------------------------------------------------------------------
--spec translate_helper_args(Args :: storage_params_map(), Acc :: storage_params_list()) ->
-    Acc :: storage_params_list().
-translate_helper_args(#{<<"root_path">> := MountPoint} = Args, Acc) ->
-    NewArgs = maps:remove(<<"root_path">>, Args),
-    translate_helper_args(NewArgs, [{mountPoint, MountPoint} | Acc]);
-
-translate_helper_args(#{<<"host_name">> := Hostname, <<"scheme">> := Scheme} = Args, Acc) ->
-    NewArgs = maps:remove(<<"host_name">>, maps:remove(<<"scheme">>, Args)),
-    S3Hostname = <<Scheme/binary, ":", Hostname/binary>>,
-    translate_helper_args(NewArgs, [{s3Hostname, S3Hostname} | Acc]);
-
-translate_helper_args(#{<<"iam_host">> := Hostname, <<"iam_request_scheme">> := Scheme} = Args, Acc) ->
-    NewArgs = maps:remove(<<"iam_host">>, maps:remove(<<"iam_request_scheme">>, Args)),
-    IamHostname = <<Scheme/binary, ":", Hostname/binary>>,
-    translate_helper_args(NewArgs, [{iamHostname, IamHostname} | Acc]);
-
-translate_helper_args(#{<<"bucket_name">> := Name} = Args, Acc) ->
-    NewArgs = maps:remove(<<"bucket_name">>, Args),
-    translate_helper_args(NewArgs, [{bucketName, Name} | Acc]);
-
-translate_helper_args(#{<<"mon_host">> := Hostname} = Args, Acc) ->
-    NewArgs = maps:remove(<<"mon_host">>, Args),
-    translate_helper_args(NewArgs, [{monitorHostname, Hostname} | Acc]);
-
-translate_helper_args(#{<<"cluster_name">> := Name} = Args, Acc) ->
-    NewArgs = maps:remove(<<"cluster_name">>, Args),
-    translate_helper_args(NewArgs, [{clusterName, Name} | Acc]);
-
-translate_helper_args(#{<<"pool_name">> := Name} = Args, Acc) ->
-    NewArgs = maps:remove(<<"pool_name">>, Args),
-    translate_helper_args(NewArgs, [{poolName, Name} | Acc]);
-
-translate_helper_args(#{<<"auth_url">> := Name} = Args, Acc) ->
-    NewArgs = maps:remove(<<"auth_url">>, Args),
-    translate_helper_args(NewArgs, [{authUrl, Name} | Acc]);
-
-translate_helper_args(#{<<"container_name">> := Name} = Args, Acc) ->
-    NewArgs = maps:remove(<<"container_name">>, Args),
-    translate_helper_args(NewArgs, [{containerName, Name} | Acc]);
-
-translate_helper_args(#{<<"tenant_name">> := Name} = Args, Acc) ->
-    NewArgs = maps:remove(<<"tenant_name">>, Args),
-    translate_helper_args(NewArgs, [{tenantName, Name} | Acc]);
-
-translate_helper_args(#{<<"timeout">> := Timeout} = Args, Acc) ->
-    NewArgs = maps:remove(<<"timeout">>, Args),
-    translate_helper_args(NewArgs, [{timeout, Timeout} | Acc]);
-
-translate_helper_args(#{<<"block_size">> := Size} = Args, Acc) ->
-    NewArgs = maps:remove(<<"block_size">>, Args),
-    translate_helper_args(NewArgs, [{blockSize, Size} | Acc]);
-
-translate_helper_args(_Args, Acc) ->
-    Acc.

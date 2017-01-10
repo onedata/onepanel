@@ -65,9 +65,9 @@ ceph_model() ->
     #{
         %% The type of storage.
         type => {equal, <<"ceph">>},
-        %% The username for authentication to Ceph cluster.
+        %% The username of the Ceph cluster administrator.
         username => string,
-        %% The key to access the Ceph cluster.
+        %% The admin key to access the Ceph cluster.
         key => string,
         %% The monitor host name.
         monitorHostname => string,
@@ -76,7 +76,11 @@ ceph_model() ->
         %% The Ceph pool name.
         poolName => string,
         %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional}
+        timeout => {integer, optional},
+        %% Defines whether storage administrator credentials (username and key)
+        %% may be used by users without storage accounts to access storage in
+        %% direct IO mode.
+        insecure => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -367,9 +371,7 @@ s3_model() ->
         %% The type of storage.
         type => {equal, <<"s3">>},
         %% The hostname of a machine where S3 storage is installed.
-        s3Hostname => string,
-        %% The IAM hostname for the S3 storage.
-        iamHostname => string,
+        hostname => string,
         %% The storage bucket name.
         bucketName => string,
         %% The access key to the S3 storage.
@@ -379,7 +381,11 @@ s3_model() ->
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Storage block size in bytes.
-        blockSize => {integer, optional}
+        blockSize => {integer, optional},
+        %% Defines whether storage administrator credentials (accessKey and
+        %% secretKey) may be used by users without storage accounts to access
+        %% storage in direct IO mode.
+        insecure => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -528,7 +534,11 @@ swift_model() ->
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Storage block size in bytes.
-        blockSize => {integer, optional}
+        blockSize => {integer, optional},
+        %% Defines whether storage administrator credentials (username and
+        %% password) may be used by users without storage accounts to access
+        %% storage in direct IO mode.
+        insecure => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------

@@ -41,6 +41,22 @@ get_steps(Service, Action, Ctx) ->
 -spec format_steps(Steps :: [#step{}], Acc :: string()) -> Log :: string().
 format_steps([], Log) ->
     Log;
+format_steps([#step{hosts = Hosts, module = service_op_worker = Module,
+    function = add_storages = Function, args = [Ctx]} | Steps], Log) ->
+    Storages = maps:get(storages, Ctx, #{}),
+    Storages2 = maps:fold(fun(Name, Params, Map) ->
+        Params2 = lists:foldl(fun(Key, Map2) ->
+            case maps:find(Key, Map2) of
+                {ok, _} -> maps:put(Key, <<"__secret__">>, Map2);
+                error -> Map2
+            end
+        end, Params, [key, secretKey, password]),
+        maps:put(Name, Params2, Map)
+    end, #{}, Storages),
+    Ctx2 = maps:put(storages, Storages2, Ctx),
+    Step = io_lib:format("Hosts: ~p~nFunction: ~p:~p~nArgs: ~p~n~n",
+        [Hosts, Module, Function, [Ctx2]]),
+    format_steps(Steps, Log ++ Step);
 format_steps([#step{hosts = Hosts, module = Module, function = Function,
     args = Args} | Steps], Log) ->
     Step = io_lib:format("Hosts: ~p~nFunction: ~p:~p~nArgs: ~p~n~n",

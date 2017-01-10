@@ -92,8 +92,7 @@
     ]},
     {<<"someS3">>, [
         {<<"type">>, <<"s3">>},
-        {<<"s3Hostname">>, <<"someHostname">>},
-        {<<"iamHostname">>, <<"someHostname">>},
+        {<<"hostname">>, <<"someHostname">>},
         {<<"bucketName">>, <<"someName">>},
         {<<"accessKey">>, <<"someKey">>},
         {<<"secretKey">>, <<"someKey">>},
@@ -381,8 +380,7 @@ put_should_add_storage(Config) ->
                     type := <<"s3">>,
                     accessKey := <<"someKey">>,
                     bucketName := <<"someName">>,
-                    iamHostname := <<"someHostname">>,
-                    s3Hostname := <<"someHostname">>,
+                    hostname := <<"someHostname">>,
                     secretKey := <<"someKey">>,
                     blockSize := 1024
                 }
@@ -554,8 +552,7 @@ put_should_configure_oneprovider_service(Config) ->
                             type := <<"s3">>,
                             accessKey := <<"someKey">>,
                             bucketName := <<"someName">>,
-                            iamHostname := <<"someHostname">>,
-                            s3Hostname := <<"someHostname">>,
+                            hostname := <<"someHostname">>,
                             secretKey := <<"someKey">>
                         }
                     }
