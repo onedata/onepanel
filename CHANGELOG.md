@@ -4,6 +4,14 @@
 CHANGELOG
 ---------
 
+### 3.0.0-rc12
+
+* VFS-2931 Reduce number of kept rotated log files
+* VFS-2910 Adjust code to LUMA refactoring
+* VFS-2620 Enable storage helper args update
+* VFS-2802 Add nagios proxy
+
+
 ### 3.0.0-rc11
 
 * VFS-2733 Standarize app listeners
