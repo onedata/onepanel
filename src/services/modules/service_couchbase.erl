@@ -120,7 +120,8 @@ configure(_Ctx) ->
 start(Ctx) ->
     service:start(?INIT_SCRIPT, #{
         open_files => service_ctx:get(couchbase_open_files_limit, Ctx)
-    }).
+    }),
+    service_watcher:register_service(name()).
 
 
 %%--------------------------------------------------------------------
@@ -155,6 +156,7 @@ wait_for_init(Ctx) ->
 %%--------------------------------------------------------------------
 -spec stop(Ctx :: service:ctx()) -> ok | no_return().
 stop(_Ctx) ->
+    service_watcher:unregister_service(name()),
     service:stop(?INIT_SCRIPT).
 
 

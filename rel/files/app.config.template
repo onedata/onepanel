@@ -64,6 +64,7 @@
         {extend_cluster_timeout, 900000},
         {task_ttl, 86400000},
         {service_step_retry_delay, 30000},
+        {services_check_delay, 5000},
         {openssl_cmd_timeout, 60000},
 
         {bcrypt_work_factor, 12},
