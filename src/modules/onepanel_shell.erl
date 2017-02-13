@@ -33,7 +33,7 @@
 output(Tokens) ->
     Cmd = erlang:binary_to_list(onepanel_utils:join(Tokens, <<" ">>)),
     Result = string:strip(os:cmd(Cmd), right, $\n),
-    ?info("Shell command: '~s' returned: '~s'", [Cmd, Result]),
+    ?debug("Shell command: '~s' returned: '~s'", [Cmd, Result]),
     Result.
 
 

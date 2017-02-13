@@ -152,7 +152,8 @@ configure(#{main_host := MainHost, hosts := Hosts,
 start(Ctx) ->
     service:start(?INIT_SCRIPT, #{
         open_files => service_ctx:get(cluster_manager_open_files_limit, Ctx)
-    }).
+    }),
+    service_watcher:register_service(name()).
 
 
 %%--------------------------------------------------------------------
@@ -161,6 +162,7 @@ start(Ctx) ->
 %%--------------------------------------------------------------------
 -spec stop(Ctx :: service:ctx()) -> ok | no_return().
 stop(_Ctx) ->
+    service_watcher:unregister_service(name()),
     service:stop(?INIT_SCRIPT).
 
 
