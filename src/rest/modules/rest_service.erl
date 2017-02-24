@@ -144,7 +144,8 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
     ClusterCtx = #{
         service_onepanel:name() => OpaCtx2,
         service_couchbase:name() => DbCtx3,
-        service_cluster_manager:name() => #{main_host => MainCmHost, hosts => CmHosts},
+        service_cluster_manager:name() => #{main_host => MainCmHost,
+            hosts => CmHosts, worker_num => length(OpwHosts)},
         service_op_worker:name() => #{hosts => OpwHosts, db_hosts => DbHosts,
             cm_hosts => CmHosts, main_cm_host => MainCmHost
         },
@@ -195,7 +196,8 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version =
     ClusterCtx = #{
         service_onepanel:name() => OpaCtx2,
         service_couchbase:name() => DbCtx3,
-        service_cluster_manager:name() => #{main_host => MainCmHost, hosts => CmHosts},
+        service_cluster_manager:name() => #{main_host => MainCmHost,
+            hosts => CmHosts, worker_num => length(OzwHosts)},
         service_oz_worker:name() => OzCtx3
     },
 
