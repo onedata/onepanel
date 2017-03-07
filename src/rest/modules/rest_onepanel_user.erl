@@ -33,6 +33,9 @@
 is_authorized(Req, _Method, #rstate{client = #client{role = admin}}) ->
     {true, Req};
 
+is_authorized(Req, 'POST', #rstate{resource = login}) ->
+    {true, Req};
+
 is_authorized(Req, 'POST', #rstate{resource = users}) ->
     {onepanel_user:get_by_role(admin) == [], Req};
 
@@ -64,6 +67,11 @@ exists_resource(Req, _State) ->
 -spec accept_resource(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()}.
+accept_resource(Req, 'POST', _Args, #rstate{resource = login, client = #client{
+    name = Username}}) ->
+    {ok, SessionId} = onepanel_session:create(Username),
+    {true, rest_replier:handle_session(Req, SessionId)};
+
 accept_resource(Req, 'POST', #{username := Username, password := Password,
     userRole := Role}, #rstate{resource = users}) ->
     onepanel_user:create(Username, Password, Role),

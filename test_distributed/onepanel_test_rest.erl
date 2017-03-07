@@ -15,13 +15,15 @@
 -include_lib("ctool/include/test/test_utils.hrl").
 
 %% API
--export([auth_request/5, auth_request/6, auth_request/7, auth_request/8,
+-export([auth_request/4, auth_request/5, auth_request/6, auth_request/7,
     noauth_request/3, noauth_request/4, noauth_request/5, noauth_request/6]).
 -export([assert_body_fields/2, assert_body_values/2, assert_body/2]).
 
 -type config() :: string() | proplists:proplist().
 -type endpoint() :: http_client:url().
 -type method() :: http_client:method().
+-type auth() :: {Username :: binary(), Password :: binary()} |
+                {cookie, Cookie :: binary()}.
 -type headers() :: http_client:headers().
 -type body() :: http_client:body().
 -type code() :: http_client:code().
@@ -37,10 +39,9 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec auth_request(HostOrConfig :: config(), Endpoint :: endpoint(),
-    Method :: method(), Username :: binary(), Password :: binary()) ->
-    Response :: response().
-auth_request(HostOrConfig, Endpoint, Method, Username, Password) ->
-    auth_request(HostOrConfig, Endpoint, Method, Username, Password, <<>>).
+    Method :: method(), Auth :: auth()) -> Response :: response().
+auth_request(HostOrConfig, Endpoint, Method, Auth) ->
+    auth_request(HostOrConfig, Endpoint, Method, Auth, <<>>).
 
 
 %%--------------------------------------------------------------------
@@ -49,10 +50,9 @@ auth_request(HostOrConfig, Endpoint, Method, Username, Password) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec auth_request(HostOrConfig :: config(), Endpoint :: endpoint(),
-    Method :: method(), Username :: binary(), Password :: binary(),
-    Body :: body()) -> Response :: response().
-auth_request(HostOrConfig, Endpoint, Method, Username, Password, Body) ->
-    auth_request(HostOrConfig, Endpoint, Method, Username, Password, [], Body).
+    Method :: method(), Auth :: auth(), Body :: body()) -> Response :: response().
+auth_request(HostOrConfig, Endpoint, Method, Auth, Body) ->
+    auth_request(HostOrConfig, Endpoint, Method, Auth, [], Body).
 
 
 %%--------------------------------------------------------------------
@@ -61,10 +61,10 @@ auth_request(HostOrConfig, Endpoint, Method, Username, Password, Body) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec auth_request(HostOrConfig :: config(), Endpoint :: endpoint(),
-    Method :: method(), Username :: binary(), Password :: binary(),
-    Headers :: headers(), Body :: body()) -> Response :: response().
-auth_request(HostOrConfig, Endpoint, Method, Username, Password, Headers, Body) ->
-    auth_request(HostOrConfig, 9443, Endpoint, Method, Username, Password, Headers, Body).
+    Method :: method(), Auth :: auth(), Headers :: headers(), Body :: body()) ->
+    Response :: response().
+auth_request(HostOrConfig, Endpoint, Method, Auth, Headers, Body) ->
+    auth_request(HostOrConfig, 9443, Endpoint, Method, Auth, Headers, Body).
 
 
 %%--------------------------------------------------------------------
@@ -72,9 +72,17 @@ auth_request(HostOrConfig, Endpoint, Method, Username, Password, Headers, Body) 
 %% @end
 %%--------------------------------------------------------------------
 -spec auth_request(HostOrConfig :: config(), Port :: integer(), Endpoint :: endpoint(),
-    Method :: method(), Username :: binary(), Password :: binary(),
-    Headers :: headers(), Body :: body()) -> Response :: response().
-auth_request(HostOrConfig, Port, Endpoint, Method, Username, Password, Headers, Body) ->
+    Method :: method(), Auth :: auth(), Headers :: headers(), Body :: body()) ->
+    Response :: response().
+auth_request(HostOrConfig, Port, Endpoint, Method, {cookie, SessionId}, Headers,
+    Body) ->
+    NewHeaders = [
+        {<<"cookie">>, <<"sessionId=", SessionId/binary>>} |
+        Headers
+    ],
+    noauth_request(HostOrConfig, Port, Endpoint, Method, NewHeaders, Body);
+auth_request(HostOrConfig, Port, Endpoint, Method, {Username, Password}, Headers,
+    Body) ->
     NewHeaders = [
         onepanel_utils:get_basic_auth_header(Username, Password) |
         Headers

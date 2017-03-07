@@ -11,13 +11,19 @@
 -ifndef(ONEPANEL_MODELS_HRL).
 -define(ONEPANEL_MODELS_HRL, 1).
 
--define(MODELS, [onepanel_user, service]).
+-define(MODELS, [onepanel_user, onepanel_session, service]).
 
 -record(onepanel_user, {
     username :: onepanel_user:name() | '_',
     password_hash :: onepanel_user:password_hash() | '_',
     role :: onepanel_user:role() | '_',
     uuid :: onepanel_user:uuid() | '_'
+}).
+
+-record(onepanel_session, {
+    id :: onepanel_session:id(),
+    username :: onepanel_user:name(),
+    expire :: non_neg_integer()
 }).
 
 -record(service, {

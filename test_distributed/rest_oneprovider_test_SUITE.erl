@@ -94,7 +94,7 @@ method_should_return_unauthorized_error(Config) ->
                 Host, Endpoint, Method
             )),
             ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
-                Host, Endpoint, Method, <<"someUser">>, <<"somePassword">>
+                Host, Endpoint, Method, {<<"someUser">>, <<"somePassword">>}
             ))
         end, ?COMMON_ENDPOINTS_WITH_METHODS)
     end).
@@ -104,7 +104,7 @@ method_should_return_forbidden_error(Config) ->
     ?run(Config, fun(Host) ->
         lists:foreach(fun({Endpoint, Method}) ->
             ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
-                Host, Endpoint, Method, ?REG_USER_NAME, ?REG_USER_PASSWORD
+                Host, Endpoint, Method, {?REG_USER_NAME, ?REG_USER_PASSWORD}
             ))
         end, ?COMMON_ENDPOINTS_WITH_METHODS)
     end).
@@ -114,7 +114,8 @@ get_should_return_provider_details(Config) ->
     ?run(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
-                Host, <<"/provider">>, get, ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+                Host, <<"/provider">>, get,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
             )
         ),
         onepanel_test_rest:assert_body(JsonBody, ?PROVIDER_DETAILS_JSON)
@@ -124,7 +125,8 @@ get_should_return_provider_details(Config) ->
 put_should_register_provider(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider">>, post, ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, [
+            Host, <<"/provider">>, post,
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [
                 {<<"name">>, <<"someName">>},
                 {<<"redirectionPoint">>, <<"someUrl">>},
                 {<<"geoLongitude">>, 10.0},
@@ -145,7 +147,8 @@ put_should_register_provider(Config) ->
 patch_should_modify_provider_details(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider">>, patch, ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, [
+            Host, <<"/provider">>, patch,
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [
                 {<<"name">>, <<"someName">>},
                 {<<"redirectionPoint">>, <<"someUrl">>},
                 {<<"geoLongitude">>, 10.0},
@@ -164,7 +167,8 @@ patch_should_modify_provider_details(Config) ->
 delete_should_unregister_provider(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider">>, delete, ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+            Host, <<"/provider">>, delete,
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
         )),
         ?assertReceivedMatch({service, oneprovider, unregister, #{}}, ?TIMEOUT)
     end).
@@ -175,7 +179,7 @@ get_should_return_supported_spaces(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces">>, get,
-                ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
             )
         ),
         onepanel_test_rest:assert_body(JsonBody, ?SPACES_JSON)
@@ -188,7 +192,7 @@ put_should_create_or_support_space(Config) ->
             {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
                 onepanel_test_rest:auth_request(
                     Host, <<"/provider/spaces">>, post,
-                    ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, Body
+                    {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, Body
                 )
             ),
             onepanel_test_rest:assert_body(JsonBody, ?SPACE_JSON)
@@ -210,7 +214,7 @@ get_should_return_space_details(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId">>, get,
-                ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
             )
         ),
         onepanel_test_rest:assert_body(JsonBody, ?SPACE_DETAILS_JSON)
@@ -221,7 +225,7 @@ delete_should_revoke_space_support(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/spaces/someId">>, delete,
-            ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
         )),
         ?assertReceivedMatch({service, oneprovider, revoke_space_support,
             #{id := <<"someId">>}
@@ -237,10 +241,10 @@ init_per_suite(Config) ->
     hackney:start(),
     Posthook = fun(NewConfig) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
-        ?assertAllEqual(ok, ?callAll(NewConfig2, onepanel_user, create,
+        ?assertAllMatch({ok, _}, ?callAll(NewConfig2, onepanel_user, create,
             [?REG_USER_NAME, ?REG_USER_PASSWORD, regular]
         )),
-        ?assertAllEqual(ok, ?callAll(NewConfig2, onepanel_user, create,
+        ?assertAllMatch({ok, _}, ?callAll(NewConfig2, onepanel_user, create,
             [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
         )),
         NewConfig2

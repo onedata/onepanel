@@ -213,7 +213,7 @@ reset_node(_Ctx) ->
 add_users(#{users := Users}) ->
     maps:fold(fun(Username, #{password := Password, userRole := Role}, _) ->
         case onepanel_user:create_noexcept(Username, Password, Role) of
-            ok -> ok;
+            {ok, _} -> ok;
             #error{reason = ?ERR_ALREADY_EXISTS} ->
                 onepanel_user:change_password(Username, Password),
                 onepanel_user:update(Username, #{role => Role})
