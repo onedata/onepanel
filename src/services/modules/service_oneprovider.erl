@@ -304,17 +304,17 @@ get_details(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec support_space(Ctx :: service:ctx()) -> list().
 support_space(#{storage_id := StorageId, name := Name, size := Size,
-    token := Token, node := Node}) ->
+    token := Token, node := Node, mount_in_root := MountInRoot}) ->
     {ok, SpaceId} = oz_providers:create_space(provider, [{<<"name">>, Name},
         {<<"size">>, onepanel_utils:convert(Size, binary)}, {<<"token">>, Token}]),
-    {ok, _} = rpc:call(Node, space_storage, add, [SpaceId, StorageId]),
+    {ok, _} = rpc:call(Node, space_storage, add, [SpaceId, StorageId, MountInRoot]),
     [{id, SpaceId}];
 
 support_space(#{storage_id := StorageId, size := Size, token := Token,
-    node := Node}) ->
+    node := Node, mount_in_root := MountInRoot}) ->
     {ok, SpaceId} = oz_providers:support_space(provider, [{<<"token">>, Token},
         {<<"size">>, onepanel_utils:convert(Size, binary)}]),
-    {ok, _} = rpc:call(Node, space_storage, add, [SpaceId, StorageId]),
+    {ok, _} = rpc:call(Node, space_storage, add, [SpaceId, StorageId, MountInRoot]),
     [{id, SpaceId}];
 
 support_space(#{storage_name := Name, node := _} = Ctx) ->

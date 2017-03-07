@@ -80,7 +80,9 @@ ceph_model() ->
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
-        insecure => {boolean, optional}
+        insecure => {boolean, optional},
+        %% Defines whether storage is readonly.
+        readonly => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -221,7 +223,9 @@ posix_model() ->
         %% on the cluster nodes.
         mountPoint => string,
         %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional}
+        timeout => {integer, optional},
+        %% Defines whether storage is readonly.
+        readonly => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -385,7 +389,9 @@ s3_model() ->
         %% Defines whether storage administrator credentials (accessKey and
         %% secretKey) may be used by users without storage accounts to access
         %% storage in direct IO mode.
-        insecure => {boolean, optional}
+        insecure => {boolean, optional},
+        %% Defines whether storage is readonly.
+        readonly => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -498,7 +504,9 @@ space_support_request_model() ->
         storageName => {string, optional},
         %% The ID of the storage resource where the space data should be stored.
         %% To be used interchangeably with `storageName`.
-        storageId => {string, optional}
+        storageId => {string, optional},
+        %% Defines whether space will be mounted in / or /{SpaceId}/ path.
+        mountInRoot => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -538,7 +546,9 @@ swift_model() ->
         %% Defines whether storage administrator credentials (username and
         %% password) may be used by users without storage accounts to access
         %% storage in direct IO mode.
-        insecure => {boolean, optional}
+        insecure => {boolean, optional},
+        %% Defines whether storage is readonly.
+        readonly => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
