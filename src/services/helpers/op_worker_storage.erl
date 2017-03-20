@@ -18,7 +18,7 @@
 
 %% API
 -export([add/2, get/0, get/1, update/2]).
--export([add_storage/3]).
+-export([add_storage/4]).
 
 -type name() :: binary().
 -type storage_params_map() :: #{Key :: atom() | binary() => Value :: binary()}.
@@ -45,10 +45,11 @@ add(Storages, IgnoreExists) ->
     maps:fold(fun(Key, Value, _) ->
         StorageName = onepanel_utils:convert(Key, binary),
         StorageType = onepanel_utils:typed_get(type, Value, binary),
+        ReadOnly = onepanel_utils:typed_get(readonly, Value, boolean, false),
         UserCtx = get_storage_user_ctx(Node, StorageType, Value),
         Helper = get_storage_helper(Node, StorageType, UserCtx, Value),
-        verify_storage(Helper, UserCtx),
-        Result = add_storage(Node, StorageName, [Helper]),
+        maybe_verify_storage(Helper, UserCtx, ReadOnly),
+        Result = add_storage(Node, StorageName, [Helper], ReadOnly),
         case {Result, IgnoreExists} of
             {{ok, _StorageId}, _} ->
                 ok;
@@ -194,6 +195,17 @@ get_helper_opt_args(KeysSpec, Params) ->
         end
     end, #{}, KeysSpec).
 
+%%--------------------------------------------------------------------
+%% @private @doc For read-write storage verifies that it is accessible for all
+%% op_worker service nodes.
+%% @end
+%%--------------------------------------------------------------------
+-spec maybe_verify_storage(Helper :: any(), UserCtx :: any(), Readonly :: boolean()) ->
+    ok | no_return().
+maybe_verify_storage(_Helper, _UserCtx, true) ->
+    ok;
+maybe_verify_storage(Helper, UserCtx, _) ->
+    verify_storage(Helper, UserCtx).
 
 %%--------------------------------------------------------------------
 %% @private @doc Verifies that storage is accessible for all op_worker
@@ -271,10 +283,10 @@ remove_test_file(Node, Args) ->
 %% @private @doc Adds storage to the op_worker service configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec add_storage(Node :: node(), StorageName :: binary(), Helpers :: list()) ->
-    {ok, StorageId :: binary()} | {error, Reason :: term()}.
-add_storage(Node, StorageName, Helpers) ->
-    Storage = rpc:call(Node, storage, new, [StorageName, Helpers]),
+-spec add_storage(Node :: node(), StorageName :: binary(), Helpers :: list(),
+    ReadOnly :: boolean()) -> {ok, StorageId :: binary()} | {error, Reason :: term()}.
+add_storage(Node, StorageName, Helpers, ReadOnly) ->
+    Storage = rpc:call(Node, storage, new, [StorageName, Helpers, ReadOnly]),
     rpc:call(Node, storage, create, [Storage]).
 
 

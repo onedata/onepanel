@@ -85,12 +85,13 @@ accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
     Ctx3 = onepanel_maps:get_store(size, Args, size, Ctx2),
     Ctx4 = onepanel_maps:get_store(storageId, Args, storage_id, Ctx3),
     Ctx5 = onepanel_maps:get_store(storageName, Args, storage_name, Ctx4),
+    Ctx6 = onepanel_maps:get_store(mountInRoot, Args, mount_in_root, Ctx5),
 
     rest_utils:verify_any([storageId, storageName], Args),
 
     {true, rest_replier:handle_service_step(Req, service_oneprovider, support_space,
         service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, support_space, Ctx5
+            ?SERVICE, support_space, Ctx6
         ))
     )}.
 
