@@ -38,7 +38,8 @@
 %%--------------------------------------------------------------------
 %% Creates the model instance. Returns an error if the instance already exists.
 %%--------------------------------------------------------------------
--callback create(Record :: record()) -> ok | #error{} | no_return().
+-callback create(Record :: record()) ->
+    {ok, model_behaviour:key()} | #error{} | no_return().
 
 
 %%--------------------------------------------------------------------

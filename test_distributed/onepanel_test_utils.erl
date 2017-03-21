@@ -16,7 +16,8 @@
 -include_lib("ctool/include/test/assertions.hrl").
 
 %% API
--export([init/1, ensure_started/1, set_test_envs/1, mock_start/1]).
+-export([init/1, ensure_started/1, set_test_envs/1, set_test_envs/2,
+    mock_start/1]).
 -export([assert_fields/2, assert_values/2, clear_msg_inbox/0]).
 
 -type config() :: proplists:proplist().
@@ -90,14 +91,23 @@ ensure_started(Config) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Overwrites the default application variables for the test purposes.
+%% @equiv set_test_envs(Nodes, ?TEST_ENVS)
 %% @end
 %%--------------------------------------------------------------------
 -spec set_test_envs(Nodes :: [node()]) -> ok.
 set_test_envs(Nodes) ->
+    set_test_envs(Nodes, ?TEST_ENVS).
+
+
+%%--------------------------------------------------------------------
+%% @doc Overwrites the default application variables for the test purposes.
+%% @end
+%%--------------------------------------------------------------------
+-spec set_test_envs(Nodes :: [node()], TestEnvs :: proplists:proplist()) -> ok.
+set_test_envs(Nodes, TestEnvs) ->
     lists:foreach(fun({Key, Value}) ->
         rpc:multicall(Nodes, onepanel_env, set, [Key, Value])
-    end, ?TEST_ENVS).
+    end, TestEnvs).
 
 
 %%--------------------------------------------------------------------
