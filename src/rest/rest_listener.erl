@@ -17,8 +17,6 @@
 -export([get_port/0, get_prefix/1]).
 -export([start/0, stop/0, status/0]).
 
--define(LISTENER, rest_listener).
-
 %%%===================================================================
 %%% API functions
 %%%===================================================================
@@ -55,17 +53,19 @@ start() ->
     CertFile = onepanel_env:get(cert_file),
     CaCertsDir = onepanel_env:get(cacerts_dir),
     {ok, CaCerts} = file_utils:read_files({dir, CaCertsDir}),
+    StaticDir = onepanel_env:get(rest_static_dir),
 
     CommonRoutes = onepanel_api:routes(),
     SpecificRoutes = case onepanel_env:get(release_type) of
         oneprovider -> oneprovider_api:routes();
         onezone -> onezone_api:routes()
     end,
-    Routes = merge_routes(CommonRoutes ++ SpecificRoutes),
+    StaticRoutes = [{"/[...]", cowboy_static, {dir, StaticDir}}],
+    Routes = merge_routes(CommonRoutes ++ SpecificRoutes) ++ StaticRoutes,
 
     Dispatch = cowboy_router:compile([{'_', Routes}]),
 
-    {ok, _} = ranch:start_listener(?LISTENER, HttpsAcceptors,
+    {ok, _} = ranch:start_listener(?MODULE, HttpsAcceptors,
         ranch_etls, [
             {port, Port},
             {keyfile, KeyFile},
@@ -87,7 +87,7 @@ start() ->
 %%--------------------------------------------------------------------
 -spec stop() -> ok | {error, Reason :: term()}.
 stop() ->
-    case ranch:stop_listener(?LISTENER) of
+    case ranch:stop_listener(?MODULE) of
         ok ->
             ?info("REST listener stopped");
         {error, Reason} ->

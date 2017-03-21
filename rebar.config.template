@@ -25,7 +25,6 @@
 
 {deps, [
     {ctool, {git, "ssh://git@git.plgrid.pl:7999/vfs/ctool.git", {ref, "9cb0c03570"}}},
-    {onepanel_gui, {git, "git://github.com/krzysztof-trzepla/onepanel_gui.git", {ref, "3f4ca66604"}}},
     {yamerl, {git, "git://github.com/yakaz/yamerl.git", {ref, "3f46bf06b9"}}},
     {bcrypt, {git, "git://github.com/smarkets/erlang-bcrypt.git", {ref, "a63df34d49"}}}
 ]}.
@@ -63,7 +62,6 @@
             {debugger, load},
             {edoc, load},
             {enacl_p, load},
-            {erlydtl, load},
             {erts, load},
             {et, load},
             {eunit, load},
@@ -71,7 +69,6 @@
             {macaroons, load},
             {meck, load},
             {mochiweb, load},
-            {n2o, load},
             {observer, load},
             {runtime_tools, load},
             {sasl, load},
