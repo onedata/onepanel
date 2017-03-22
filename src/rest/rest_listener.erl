@@ -60,7 +60,10 @@ start() ->
         oneprovider -> oneprovider_api:routes();
         onezone -> onezone_api:routes()
     end,
-    StaticRoutes = [{"/[...]", cowboy_static, {dir, StaticDir}}],
+    StaticRoutes = [
+        {"/", cowboy_static, {file, filename:join(StaticDir, "index.html")}},
+        {"/[...]", cowboy_static, {dir, StaticDir}}
+    ],
     Routes = merge_routes(CommonRoutes ++ SpecificRoutes) ++ StaticRoutes,
 
     Dispatch = cowboy_router:compile([{'_', Routes}]),
