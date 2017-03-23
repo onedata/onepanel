@@ -18,7 +18,8 @@
         stdlib,
         public_key,
         crypto,
-        bcrypt
+        bcrypt,
+        gui
     ]},
     {mod, {onepanel_app, []}},
     {env, []}

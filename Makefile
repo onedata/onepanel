@@ -46,7 +46,7 @@ compile: config
 	$(REBAR) compile
 
 .PHONY: generate
-generate: template config
+generate: template config gui-static
 	$(REBAR) release $(OVERLAY_VARS)
 
 .PHONY: clean
@@ -66,6 +66,9 @@ template:
 
 config:
 	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rebar.config.template
+
+gui-static:
+	$(LIB_DIR)/gui/pull-gui.sh gui-config.sh
 
 
 ##

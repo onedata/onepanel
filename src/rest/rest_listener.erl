@@ -53,18 +53,13 @@ start() ->
     CertFile = onepanel_env:get(cert_file),
     CaCertsDir = onepanel_env:get(cacerts_dir),
     {ok, CaCerts} = file_utils:read_files({dir, CaCertsDir}),
-    StaticDir = onepanel_env:get(rest_static_dir),
 
     CommonRoutes = onepanel_api:routes(),
     SpecificRoutes = case onepanel_env:get(release_type) of
         oneprovider -> oneprovider_api:routes();
         onezone -> onezone_api:routes()
     end,
-    StaticRoutes = [
-        {"/", cowboy_static, {file, filename:join(StaticDir, "index.html")}},
-        {"/[...]", cowboy_static, {dir, StaticDir}}
-    ],
-    Routes = merge_routes(CommonRoutes ++ SpecificRoutes) ++ StaticRoutes,
+    Routes = merge_routes(CommonRoutes ++ SpecificRoutes) ++ static_gui_routes(),
 
     Dispatch = cowboy_router:compile([{'_', Routes}]),
 
@@ -132,3 +127,21 @@ merge_routes(Routes) ->
                 [Route | Acc]
         end
     end, [], Routes).
+
+
+%%--------------------------------------------------------------------
+%% @private @doc Returns Cowboy router compliant routes for static gui files.
+%% @end
+%%--------------------------------------------------------------------
+-spec static_gui_routes() -> [{Path :: string(), Module :: module(), State :: term()}].
+static_gui_routes() ->
+    % Resolve static files root. First, check if there is a non-empty dir
+    % located in gui_custom_static_root. If not, use default.
+    CustomRoot = onepanel_env:get(gui_custom_static_root),
+    DefaultRoot = onepanel_env:get(gui_default_static_root),
+    StaticFilesRoot = case file:list_dir_all(CustomRoot) of
+        {error, enoent} -> DefaultRoot;
+        {ok, []} -> DefaultRoot;
+        {ok, _} -> CustomRoot
+    end,
+   [{"/[...]", gui_static_handler, {dir, StaticFilesRoot}}].
