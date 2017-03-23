@@ -57,7 +57,7 @@
         %% Directory where onepanel tries to find static files of a custom GUI.
         %% If the directory is not empty, it will serve the static files
         %% from it. If not, it will fall back to default, embedded GUI.
-        {gui_custom_static_root, "/var/www/html"},
+        {gui_custom_static_root, "/var/www/html/onepanel"},
 
         {rpc_timeout, 1800000},
         {initialize_timeout, 60000},
