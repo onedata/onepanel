@@ -51,7 +51,8 @@ init([]) ->
     {ok, {#{strategy => one_for_all, intensity => 3, period => 1}, [
         onepanel_discovery_spec(),
         service_executor_spec(),
-        service_watcher_spec()
+        service_watcher_spec(),
+        onepanel_session_gc_spec()
     ]}}.
 
 %%%===================================================================
@@ -101,4 +102,20 @@ service_watcher_spec() ->
         shutdown => timer:seconds(10),
         type => worker,
         modules => [service_watcher]
+    }.
+
+%%--------------------------------------------------------------------
+%% @private @doc Returns a worker child_spec for a onepanel_session_gc
+%% gen_server.
+%% @end
+%%--------------------------------------------------------------------
+-spec onepanel_session_gc_spec() -> supervisor:child_spec().
+onepanel_session_gc_spec() ->
+    #{
+        id => onepanel_session_gc,
+        start => {onepanel_session_gc, start_link, []},
+        restart => permanent,
+        shutdown => timer:seconds(10),
+        type => worker,
+        modules => [onepanel_session_gc]
     }.

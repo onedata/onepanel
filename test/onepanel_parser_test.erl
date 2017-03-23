@@ -40,8 +40,7 @@ parse_float_key_test() ->
     ArgsSpec = #{key => float},
     ?assertEqual(#{key => 1.0}, onepanel_parser:parse(Data1, ArgsSpec)),
     ?assertEqual(#{key => 1.0}, onepanel_parser:parse(Data2, ArgsSpec)),
-    ?assertThrow(#error{reason = {?ERR_INVALID_VALUE, [key], float}},
-        onepanel_parser:parse(Data3, ArgsSpec)),
+    ?assertEqual(#{key => 1.0}, onepanel_parser:parse(Data3, ArgsSpec)),
     ?assertThrow(#error{reason = {?ERR_INVALID_VALUE, [key], float}},
         onepanel_parser:parse(Data4, ArgsSpec)).
 

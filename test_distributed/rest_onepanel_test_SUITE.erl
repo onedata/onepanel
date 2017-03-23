@@ -62,7 +62,7 @@ method_should_return_unauthorized_error(Config) ->
             Config, Endpoint, Method
         )),
         ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
-            Config, Endpoint, Method, <<"someUser">>, <<"somePassword">>
+            Config, Endpoint, Method, {<<"someUser">>, <<"somePassword">>}
         ))
     end, [
         {<<"/cookie">>, get},
@@ -76,10 +76,10 @@ method_should_return_forbidden_error(Config) ->
             Config, Endpoint, Method
         )),
         ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
-            Config, Endpoint, Method, <<"someUser">>, <<"somePassword">>
+            Config, Endpoint, Method, {<<"someUser">>, <<"somePassword">>}
         )),
         ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
-            Config, Endpoint, Method, ?REG_USER_NAME, ?REG_USER_PASSWORD
+            Config, Endpoint, Method, {?REG_USER_NAME, ?REG_USER_PASSWORD}
         ))
     end, [
         {<<"/hosts">>, post},
@@ -90,7 +90,7 @@ method_should_return_forbidden_error(Config) ->
 
     lists:foreach(fun({Endpoint, Method}) ->
         ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
-            Config, Endpoint, Method, ?REG_USER_NAME, ?REG_USER_PASSWORD
+            Config, Endpoint, Method, {?REG_USER_NAME, ?REG_USER_PASSWORD}
         ))
     end, [
         {<<"/cookie">>, get},
@@ -102,7 +102,7 @@ method_should_return_not_found_error(Config) ->
     lists:foreach(fun({Endpoint, Method}) ->
         ?assertMatch({ok, 404, _, _}, onepanel_test_rest:auth_request(
             Config, Endpoint, Method,
-            ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
         ))
     end, [{<<"/hosts/someHost">>, delete}]).
 
@@ -114,7 +114,7 @@ get_noauth_or_as_regular_should_return_hosts_when_admin_missing(Config) ->
         ),
         {_, _, _, JsonBody2} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(Config, Endpoint, get,
-                ?REG_USER_NAME, ?REG_USER_PASSWORD
+                {?REG_USER_NAME, ?REG_USER_PASSWORD}
             )
         ),
         ?assertEqual(JsonBody1, JsonBody2),
@@ -130,7 +130,7 @@ get_as_admin_should_return_hosts(Config) ->
     lists:foreach(fun({Endpoint, HostsType}) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(Config, Endpoint, get,
-                ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
             )
         ),
         Hosts = onepanel_utils:typed_get(HostsType, Config, {seq, binary}),
@@ -144,7 +144,7 @@ get_as_admin_should_return_hosts(Config) ->
 get_as_admin_should_return_cookie(Config) ->
     {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
         onepanel_test_rest:auth_request(Config, <<"/cookie">>, get,
-            ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
         )
     ),
     Cookie = ?callAny(Config, erlang, get_cookie, []),
@@ -153,7 +153,7 @@ get_as_admin_should_return_cookie(Config) ->
 
 put_as_admin_should_init_cluster(Config) ->
     ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
-        Config, "/hosts", post, ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD,
+        Config, "/hosts", post, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
         [{cookie, ?COOKIE}]
     )),
     ?assertReceivedMatch({service, onepanel, init_cluster,
@@ -163,7 +163,7 @@ put_as_admin_should_init_cluster(Config) ->
 put_as_admin_should_extend_cluster(Config) ->
     ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
         Config, "/hosts?clusterHost=someHost", post,
-        ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, [{cookie, ?COOKIE}]
+        {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [{cookie, ?COOKIE}]
     )),
     ?assertReceivedMatch({service, onepanel, join_cluster,
         #{cookie := ?COOKIE, cluster_host := "someHost"}
@@ -174,7 +174,7 @@ delete_as_admin_should_remove_node_from_cluster(Config) ->
     lists:foreach(fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
             Config, "/hosts/" ++ Host, delete,
-            ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
         )),
         ?assertReceivedMatch({service, onepanel, leave_cluster, #{hosts := [Host]}},
             ?TIMEOUT)
@@ -209,7 +209,7 @@ init_per_testcase(Case, Config) when
     Case =:= get_as_admin_should_return_hosts;
     Case =:= get_as_admin_should_return_cookie;
     Case =:= method_should_return_not_found_error ->
-    ?assertEqual(ok, ?call(Config, onepanel_user, create,
+    ?assertMatch({ok, _}, ?call(Config, onepanel_user, create,
         [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin])),
     init_per_testcase(default, Config);
 
@@ -224,7 +224,7 @@ init_per_testcase(_Case, Config) ->
     test_utils:mock_expect(Nodes, onepanel_discovery, get_hosts, fun() ->
         DiscoveredHosts
     end),
-    ?assertEqual(ok, ?call(Config, onepanel_user, create,
+    ?assertMatch({ok, _}, ?call(Config, onepanel_user, create,
         [?REG_USER_NAME, ?REG_USER_PASSWORD, regular])),
     [{cluster_hosts, ClusterHosts}, {discovered_hosts, DiscoveredHosts} | Config].
 

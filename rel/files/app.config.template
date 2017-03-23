@@ -68,6 +68,7 @@
         {service_step_retry_delay, 30000},
         {services_check_delay, 5000},
         {openssl_cmd_timeout, 60000},
+        {session_ttl, 3600000},
 
         {bcrypt_work_factor, 12},
 
