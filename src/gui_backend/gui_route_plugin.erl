@@ -72,7 +72,7 @@ route(_) -> ?INDEX.
 %% @end
 %%--------------------------------------------------------------------
 -spec data_backend(HasSession :: boolean(), Identifier :: binary()) ->
-    HandlerModule :: module().
+    no_return().
 data_backend(_, _) -> error(unimplemented).
 
 
@@ -81,6 +81,7 @@ data_backend(_, _) -> error(unimplemented).
 %% {@link gui_route_plugin_behaviour} callback private_rpc_backend/0
 %% @end
 %%--------------------------------------------------------------------
+-spec private_rpc_backend() -> no_return().
 private_rpc_backend() -> error(unimplemented).
 
 
@@ -89,6 +90,7 @@ private_rpc_backend() -> error(unimplemented).
 %% {@link gui_route_plugin_behaviour} callback public_rpc_backend/0
 %% @end
 %%--------------------------------------------------------------------
+-spec public_rpc_backend() -> no_return().
 public_rpc_backend() -> error(unimplemented).
 
 
@@ -97,8 +99,7 @@ public_rpc_backend() -> error(unimplemented).
 %% {@link gui_route_plugin_behaviour} callback get_session_details/0
 %% @end
 %%--------------------------------------------------------------------
--spec session_details() ->
-    {ok, proplists:proplist()} | gui_error:error_result().
+-spec session_details() -> no_return().
 session_details() ->
     error(unimplemented).
 
