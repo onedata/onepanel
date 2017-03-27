@@ -4,8 +4,17 @@
 CHANGELOG
 ---------
 
+### 3.0.0-rc13
+
+* VFS-3117 Allow integer for provider geo long/lat
+* VFS-3086 Add cookie authentication
+
+
 ### 3.0.0-rc12
 
+* VFS-2907 Add mount in root and readonly options
+* VFS-3073 Set worker_num for deployment
+* Add service watcher
 * VFS-2931 Reduce number of kept rotated log files
 * VFS-2910 Adjust code to LUMA refactoring
 * VFS-2620 Enable storage helper args update
