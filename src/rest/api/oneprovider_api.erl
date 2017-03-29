@@ -81,16 +81,16 @@ routes() ->
             }]
         }},
 
-        %% Add storage.
+        %% Add storage
         {<<"/api/v3/onepanel/provider/storages">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
             resource = storages,
             methods = [#rmethod{
                 type = 'POST',
-                %% The list of configuration details of storages to be added to
+                %% The configuration details of storage resources to be added to
                 %% the provider deployment.
-                args_spec = rest_model:cluster_storages_list_model()
+                args_spec = rest_model:storage_create_request_model()
             }]
         }},
 
@@ -219,7 +219,7 @@ routes() ->
         }},
 
         %% Get storage details
-        {<<"/api/v3/onepanel/provider/storages/:name">>, rest_handler, #rstate{
+        {<<"/api/v3/onepanel/provider/storages/:id">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
             resource = storage,
@@ -252,7 +252,7 @@ routes() ->
         }},
 
         %% Modify storage details
-        {<<"/api/v3/onepanel/provider/storages/:name">>, rest_handler, #rstate{
+        {<<"/api/v3/onepanel/provider/storages/:id">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
             resource = storage,
@@ -274,7 +274,7 @@ routes() ->
             }]
         }},
 
-        %% Revoke space support for a space.
+        %% Revoke space support for a space
         {<<"/api/v3/onepanel/provider/spaces/:id">>, rest_handler, #rstate{
             version = 3,
             module = rest_oneprovider,
