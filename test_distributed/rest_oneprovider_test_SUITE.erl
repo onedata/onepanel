@@ -58,7 +58,9 @@
 
 -define(SPACE_JSON, [{<<"id">>, <<"someId1">>}]).
 
--define(SPACES_JSON, [<<"someId1">>, <<"someId2">>, <<"someId3">>]).
+-define(SPACES_JSON, [
+    {<<"ids">>, [<<"someId1">>, <<"someId2">>, <<"someId3">>]}
+]).
 
 -define(SPACE_DETAILS_JSON, [
     {<<"id">>, <<"someId">>}, {<<"name">>, <<"someName">>},

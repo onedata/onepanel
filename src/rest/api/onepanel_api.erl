@@ -31,15 +31,6 @@
     [{Path :: binary(), Module :: module(), State :: rest_handler:state()}].
 routes() ->
     [
-        {<<"/api/v3/onepanel/login">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_onepanel_user,
-            resource = login,
-            methods = [#rmethod{
-                type = 'POST'
-            }]
-        }},
-
         %% Create Onepanel user
         {<<"/api/v3/onepanel/users">>, rest_handler, #rstate{
             version = 3,
@@ -113,6 +104,16 @@ routes() ->
             resource = user,
             methods = [#rmethod{
                 type = 'GET'
+            }]
+        }},
+
+        %% Create Onepanel user session
+        {<<"/api/v3/onepanel/login">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel_user,
+            resource = login,
+            methods = [#rmethod{
+                type = 'POST'
             }]
         }},
 

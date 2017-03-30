@@ -181,6 +181,16 @@ get_key(Keys, Separator) ->
 %%--------------------------------------------------------------------
 -spec get_expectation(ValueSpec :: onepanel_parser:value_spec(), Acc :: binary()) ->
     Expectation :: binary().
+get_expectation({ValueSpec, optional}, Acc) ->
+    <<(get_expectation(ValueSpec, Acc))/binary, " (optional)">>;
+
+get_expectation({ValueSpec, {optional, Default}}, Acc) ->
+    <<(get_expectation(ValueSpec, Acc))/binary, " (optional, default: ",
+        (onepanel_utils:convert(Default, binary))/binary, ")">>;
+
+get_expectation({ValueSpec, required}, Acc) ->
+    get_expectation(ValueSpec, Acc);
+
 get_expectation(atom, Acc) ->
     <<Acc/binary, "'<string>'">>;
 
