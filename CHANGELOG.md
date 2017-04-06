@@ -4,6 +4,11 @@
 CHANGELOG
 ---------
 
+### 3.0.0-rc14
+
+* Releasing new version 3.0.0-rc14
+
+
 ### 3.0.0-rc13
 
 * VFS-3117 Allow integer for provider geo long/lat
