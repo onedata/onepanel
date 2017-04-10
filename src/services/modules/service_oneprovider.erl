@@ -303,17 +303,22 @@ get_details(_Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec support_space(Ctx :: service:ctx()) -> list().
-support_space(#{storage_id := StorageId, name := Name, size := Size,
-    token := Token, node := Node, mount_in_root := MountInRoot}) ->
-    {ok, SpaceId} = oz_providers:create_space(provider, [{<<"name">>, Name},
-        {<<"size">>, onepanel_utils:convert(Size, binary)}, {<<"token">>, Token}]),
+support_space(#{storage_id := StorageId, name := Name, node := Node} = Ctx) ->
+    {ok, SpaceId} = oz_providers:create_space(provider, [
+        {<<"name">>, Name},
+        {<<"size">>, onepanel_utils:typed_get(size, Ctx, binary)},
+        {<<"token">>, onepanel_utils:typed_get(token, Ctx, binary)}
+    ]),
+    MountInRoot = onepanel_utils:typed_get(mount_in_root, Ctx, boolean, false),
     {ok, _} = rpc:call(Node, space_storage, add, [SpaceId, StorageId, MountInRoot]),
     [{id, SpaceId}];
 
-support_space(#{storage_id := StorageId, size := Size, token := Token,
-    node := Node, mount_in_root := MountInRoot}) ->
-    {ok, SpaceId} = oz_providers:support_space(provider, [{<<"token">>, Token},
-        {<<"size">>, onepanel_utils:convert(Size, binary)}]),
+support_space(#{storage_id := StorageId, node := Node} = Ctx) ->
+    {ok, SpaceId} = oz_providers:support_space(provider, [
+        {<<"size">>, onepanel_utils:typed_get(size, Ctx, binary)},
+        {<<"token">>, onepanel_utils:typed_get(token, Ctx, binary)}
+    ]),
+    MountInRoot = onepanel_utils:typed_get(mount_in_root, Ctx, boolean, false),
     {ok, _} = rpc:call(Node, space_storage, add, [SpaceId, StorageId, MountInRoot]),
     [{id, SpaceId}];
 
