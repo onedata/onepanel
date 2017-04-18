@@ -476,7 +476,9 @@ service_status_host_model() ->
 session_details_model() ->
     #{
         %% The session ID.
-        sessionId => string
+        sessionId => string,
+        %% The name of a user associated with the session.
+        username => string
     }.
 
 %%--------------------------------------------------------------------
