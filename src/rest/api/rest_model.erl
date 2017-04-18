@@ -645,8 +645,11 @@ user_details_model() ->
 -spec user_modify_request_model() -> maps:map().
 user_modify_request_model() ->
     #{
-        %% The user password.
-        password => string
+        %% The current user password that should be changed or password of an
+        %% administrator that is issuing this request on behalf of a user. 
+        currentPassword => string,
+        %% The new user password.
+        newPassword => string
     }.
 
 %%--------------------------------------------------------------------
