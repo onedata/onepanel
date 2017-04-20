@@ -1,13 +1,13 @@
 %%%-------------------------------------------------------------------
 %%% @author Krzysztof Trzepla
-%%% @copyright (C): 2016 ACK CYFRONET AGH
+%%% @copyright (C): 2017 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%-------------------------------------------------------------------
-%%% @doc The module handling logic behind /user REST resources.
+%%% @doc The module handling logic behind /session REST resources.
 %%%-------------------------------------------------------------------
--module(rest_onepanel_user).
+-module(rest_onepanel_session).
 -author("Krzysztof Trzepla").
 
 -include("http/rest.hrl").
@@ -33,13 +33,6 @@
 is_authorized(Req, _Method, #rstate{client = #client{role = admin}}) ->
     {true, Req};
 
-is_authorized(Req, 'POST', #rstate{resource = users}) ->
-    {onepanel_user:get_by_role(admin) == [], Req};
-
-is_authorized(Req, _Method, #rstate{resource = user, bindings = #{username := Username},
-    client = #client{name = Username}}) ->
-    {true, Req};
-
 is_authorized(Req, _Method, _State) ->
     {false, Req}.
 
@@ -50,8 +43,9 @@ is_authorized(Req, _Method, _State) ->
 %%--------------------------------------------------------------------
 -spec exists_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
-exists_resource(Req, #rstate{resource = user, bindings = #{username := Username}}) ->
-    {onepanel_user:exists(Username), Req};
+exists_resource(Req, #rstate{resource = session,
+    client = #client{session_id = SessionId}}) ->
+    {SessionId =/= undefined, Req};
 
 exists_resource(Req, _State) ->
     {true, Req}.
@@ -64,17 +58,10 @@ exists_resource(Req, _State) ->
 -spec accept_resource(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()}.
-accept_resource(Req, 'POST', #{username := Username, password := Password,
-    userRole := Role}, #rstate{resource = users}) ->
-    onepanel_user:create(Username, Password, Role),
-    {true, Req};
-
-accept_resource(Req, 'PATCH', Args, #rstate{resource = user,
-    client = #client{name = ClientName}, bindings = #{username := Username}}) ->
-    #{currentPassword := CurrentPassword, newPassword := NewPassword} = Args,
-    {ok, _} = onepanel_user:authenticate(ClientName, CurrentPassword),
-    onepanel_user:change_password(Username, NewPassword),
-    {true, Req}.
+accept_resource(Req, 'POST', _Args, #rstate{resource = session, client = #client{
+    name = Username}}) ->
+    {ok, SessionId} = onepanel_session:create(Username),
+    {true, rest_replier:handle_session(Req, SessionId, Username)}.
 
 
 %%--------------------------------------------------------------------
@@ -83,9 +70,10 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = user,
 %%--------------------------------------------------------------------
 -spec provide_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Data :: rest_handler:data(), Req :: cowboy_req:req()}.
-provide_resource(Req, #rstate{resource = user, bindings = #{username := Username}}) ->
-    {ok, #onepanel_user{uuid = UserId, role = Role}} = onepanel_user:get(Username),
-    {[{userId, UserId}, {userRole, Role}], Req}.
+provide_resource(Req, #rstate{resource = session,
+    client = #client{session_id = SessionId}}) ->
+    {ok, #onepanel_session{username = Username}} = onepanel_session:get(SessionId),
+    {[{sessionId, SessionId}, {username, Username}], Req}.
 
 
 %%--------------------------------------------------------------------
@@ -94,6 +82,7 @@ provide_resource(Req, #rstate{resource = user, bindings = #{username := Username
 %%--------------------------------------------------------------------
 -spec delete_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Deleted :: boolean(), Req :: cowboy_req:req()}.
-delete_resource(Req, #rstate{bindings = #{username := Username}}) ->
-    onepanel_user:delete(Username),
+delete_resource(Req, #rstate{resource = session,
+    client = #client{session_id = SessionId}}) ->
+    onepanel_session:delete(SessionId),
     {true, Req}.

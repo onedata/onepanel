@@ -61,6 +61,16 @@ routes() ->
             }]
         }},
 
+        %% Create Onepanel user session
+        {<<"/api/v3/onepanel/session">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel_session,
+            resource = session,
+            methods = [#rmethod{
+                type = 'POST'
+            }]
+        }},
+
         %% Get cluster cookie
         {<<"/api/v3/onepanel/cookie">>, rest_handler, #rstate{
             version = 3,
@@ -86,6 +96,16 @@ routes() ->
             }]
         }},
 
+        %% Get Onepanel user session
+        {<<"/api/v3/onepanel/session">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel_session,
+            resource = session,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
         %% Get background task result
         {<<"/api/v3/onepanel/tasks/:id">>, rest_handler, #rstate{
             version = 3,
@@ -107,16 +127,6 @@ routes() ->
             }]
         }},
 
-        %% Create Onepanel user session
-        {<<"/api/v3/onepanel/login">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_onepanel_user,
-            resource = login,
-            methods = [#rmethod{
-                type = 'POST'
-            }]
-        }},
-
         %% Modify Onepanel user details
         {<<"/api/v3/onepanel/users/:username">>, rest_handler, #rstate{
             version = 3,
@@ -133,6 +143,16 @@ routes() ->
             version = 3,
             module = rest_onepanel,
             resource = host,
+            methods = [#rmethod{
+                type = 'DELETE'
+            }]
+        }},
+
+        %% Remove Onepanel user session
+        {<<"/api/v3/onepanel/session">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel_session,
+            resource = session,
             methods = [#rmethod{
                 type = 'DELETE'
             }]

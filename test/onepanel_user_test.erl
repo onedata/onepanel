@@ -87,8 +87,9 @@ authenticate_should_pass_errors(_) ->
         onepanel_user:authenticate(?U, <<"password">>)).
 
 change_password_should_validate_password(_) ->
-    meck:new(onepanel_user, [passthrough]),
     onepanel_user:create(?U, ?P, ?R),
+    meck:new(onepanel_user, [passthrough]),
+    ?assertEqual(ok, onepanel_user:change_password(?U, ?P)),
     ?_assert(meck:called(onepanel_user, validate_password, [?P])).
 
 change_password_should_work(_) ->

@@ -27,6 +27,7 @@
     get_as_regular_should_return_only_own_account/1,
     patch_as_admin_should_change_any_account_password/1,
     patch_as_regular_should_change_only_own_account_password/1,
+    patch_as_regular_should_check_current_password/1,
     post_noauth_should_create_account_when_admin_missing/1,
     post_as_regular_should_create_account_when_admin_missing/1,
     post_noauth_should_not_create_account_when_admin_present/1,
@@ -53,6 +54,7 @@ all() ->
         get_as_regular_should_return_only_own_account,
         patch_as_admin_should_change_any_account_password,
         patch_as_regular_should_change_only_own_account_password,
+        patch_as_regular_should_check_current_password,
         post_noauth_should_create_account_when_admin_missing,
         post_as_regular_should_create_account_when_admin_missing,
         post_noauth_should_not_create_account_when_admin_present,
@@ -127,7 +129,10 @@ patch_as_admin_should_change_any_account_password(Config) ->
         NewPassword = <<Password/binary, "New">>,
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
             Config, <<"/users/", Username/binary>>, patch, {?ADMIN_USER1_NAME,
-                ?ADMIN_USER1_PASSWORD}, [{password, NewPassword}]
+                ?ADMIN_USER1_PASSWORD}, [
+                {currentPassword, ?ADMIN_USER1_PASSWORD},
+                {newPassword, NewPassword}
+            ]
         )),
         ?assertMatch({ok, 200, _, _}, onepanel_test_rest:auth_request(
             Config, <<"/users/", Username/binary>>, get, {Username, NewPassword}
@@ -147,7 +152,10 @@ patch_as_regular_should_change_only_own_account_password(Config) ->
     lists:foreach(fun(Username) ->
         ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
             Config, <<"/users/", Username/binary>>, patch, {?REG_USER1_NAME,
-                ?REG_USER1_PASSWORD}, [{password, <<"SomePassword1">>}]
+                ?REG_USER1_PASSWORD}, [
+                {currentPassword, ?REG_USER1_PASSWORD},
+                {newPassword, <<"SomePassword1">>}
+            ]
         ))
     end, [?ADMIN_USER1_NAME, ?ADMIN_USER2_NAME, ?REG_USER2_NAME]),
 
@@ -155,13 +163,32 @@ patch_as_regular_should_change_only_own_account_password(Config) ->
         NewPassword = <<Password/binary, "New">>,
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
             Config, <<"/users/", Username/binary>>, patch, {Username,
-                Password}, [{password, NewPassword}]
+                Password}, [
+                {currentPassword, Password},
+                {newPassword, NewPassword}
+            ]
         )),
         ?assertMatch({ok, 200, _, _}, onepanel_test_rest:auth_request(
             Config, <<"/users/", Username/binary>>, get, {Username, NewPassword}
         )),
         ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
             Config, <<"/users/", Username/binary>>, get, {Username, Password}
+        ))
+    end, [
+        {?REG_USER1_NAME, ?REG_USER1_PASSWORD},
+        {?REG_USER2_NAME, ?REG_USER2_PASSWORD}
+    ]).
+
+
+patch_as_regular_should_check_current_password(Config) ->
+    lists:foreach(fun({Username, Password}) ->
+        NewPassword = <<Password/binary, "New">>,
+        ?assertMatch({ok, 400, _, _}, onepanel_test_rest:auth_request(
+            Config, <<"/users/", Username/binary>>, patch, {Username,
+                Password}, [
+                {currentPassword, NewPassword},
+                {newPassword, NewPassword}
+            ]
         ))
     end, [
         {?REG_USER1_NAME, ?REG_USER1_PASSWORD},
