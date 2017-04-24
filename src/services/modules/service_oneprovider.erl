@@ -328,8 +328,7 @@ support_space(#{storage_name := Name, node := _} = Ctx) ->
     support_space(Ctx#{storage_id => Id});
 
 support_space(Ctx) ->
-    Host = onepanel_cluster:node_to_host(),
-    Node = onepanel_cluster:host_to_node(service_op_worker:name(), Host),
+    [Node | _] = service_op_worker:get_nodes(),
     support_space(Ctx#{node => Node}).
 
 
@@ -339,7 +338,9 @@ support_space(Ctx) ->
 %%--------------------------------------------------------------------
 -spec revoke_space_support(Ctx :: service:ctx()) -> ok.
 revoke_space_support(#{id := SpaceId}) ->
-    ok = oz_providers:revoke_space_support(provider, SpaceId).
+    [Node | _] = service_op_worker:get_nodes(),
+    ok = oz_providers:revoke_space_support(provider, SpaceId),
+    ok = rpc:call(Node, space_storage, delete, [SpaceId]).
 
 
 %%--------------------------------------------------------------------
