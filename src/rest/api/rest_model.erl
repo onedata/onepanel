@@ -18,8 +18,6 @@
     ceph_model/0,
     cluster_databases_model/0,
     cluster_managers_model/0,
-    cluster_storages_model/0,
-    cluster_storages_list_model/0,
     cluster_workers_model/0,
     cookie_model/0,
     error_model/0,
@@ -35,14 +33,18 @@
     provider_modify_request_model/0,
     provider_register_request_model/0,
     provider_spaces_model/0,
+    provider_storages_model/0,
     s3_model/0,
     service_databases_model/0,
     service_error_model/0,
     service_hosts_model/0,
     service_status_model/0,
     service_status_host_model/0,
+    session_details_model/0,
     space_details_model/0,
     space_support_request_model/0,
+    storage_create_request_model/0,
+    storage_details_model/0,
     storage_modify_request_model/0,
     swift_model/0,
     task_status_model/0,
@@ -63,6 +65,8 @@
 -spec ceph_model() -> maps:map().
 ceph_model() ->
     #{
+        %% The name of storage.
+        name => {string, optional},
         %% The type of storage.
         type => {equal, <<"ceph">>},
         %% The username of the Ceph cluster administrator.
@@ -116,22 +120,6 @@ cluster_managers_model() ->
         %% The list of aliases of cluster manager nodes.
         nodes => [string]
     }.
-
-%%--------------------------------------------------------------------
-%% @doc The cluster storage configuration.
-%% @end
-%%--------------------------------------------------------------------
--spec cluster_storages_model() -> {oneof, Oneof :: list()}.
-cluster_storages_model() ->
-    {oneof, [posix_model(), s3_model(), ceph_model(), swift_model()]}.
-
-%%--------------------------------------------------------------------
-%% @doc The list of supported storage types.
-%% @end
-%%--------------------------------------------------------------------
--spec cluster_storages_list_model() -> maps:map().
-cluster_storages_list_model() ->
-    #{'_' => cluster_storages_model()}.
 
 %%--------------------------------------------------------------------
 %% @doc The cluster worker service configuration.
@@ -217,6 +205,8 @@ panel_configuration_users_model() ->
 -spec posix_model() -> maps:map().
 posix_model() ->
     #{
+        %% The name of storage.
+        name => {string, optional},
         %% The type of storage.
         type => {equal, <<"posix">>},
         %% The absolute path to the directory where the POSIX storage is mounted
@@ -247,8 +237,7 @@ provider_cluster_configuration_model() ->
         databases => cluster_databases_model(),
         managers => cluster_managers_model(),
         workers => cluster_workers_model(),
-        %% The cluster storage configuration.
-        storages => {#{'_' => cluster_storages_model()}, optional}
+        storages => {storage_create_request_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -366,12 +355,25 @@ provider_spaces_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc The cluster storage resources.
+%% @end
+%%--------------------------------------------------------------------
+-spec provider_storages_model() -> maps:map().
+provider_storages_model() ->
+    #{
+        %% The list of IDs of cluster storage resources.
+        ids => [string]
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The Simple Storage Service configuration.
 %% @end
 %%--------------------------------------------------------------------
 -spec s3_model() -> maps:map().
 s3_model() ->
     #{
+        %% The name of storage.
+        name => {string, optional},
         %% The type of storage.
         type => {equal, <<"s3">>},
         %% The hostname of a machine where S3 storage is installed.
@@ -467,6 +469,19 @@ service_status_host_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc The user session details.
+%% @end
+%%--------------------------------------------------------------------
+-spec session_details_model() -> maps:map().
+session_details_model() ->
+    #{
+        %% The session ID.
+        sessionId => string,
+        %% The name of a user associated with the session.
+        username => string
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The space details.
 %% @end
 %%--------------------------------------------------------------------
@@ -510,6 +525,22 @@ space_support_request_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc The configuration details required to add storage resources.
+%% @end
+%%--------------------------------------------------------------------
+-spec storage_create_request_model() -> maps:map().
+storage_create_request_model() ->
+    #{'_' => storage_details_model()}.
+
+%%--------------------------------------------------------------------
+%% @doc The cluster storage configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec storage_details_model() -> {oneof, Oneof :: list()}.
+storage_details_model() ->
+    {oneof, [posix_model(), s3_model(), ceph_model(), swift_model()]}.
+
+%%--------------------------------------------------------------------
 %% @doc The storage configuration details that can be modified.
 %% @end
 %%--------------------------------------------------------------------
@@ -527,6 +558,8 @@ storage_modify_request_model() ->
 -spec swift_model() -> maps:map().
 swift_model() ->
     #{
+        %% The name of storage.
+        name => {string, optional},
         %% The type of storage.
         type => {equal, <<"swift">>},
         %% The URL to OpenStack Keystone identity service.
@@ -614,8 +647,11 @@ user_details_model() ->
 -spec user_modify_request_model() -> maps:map().
 user_modify_request_model() ->
     #{
-        %% The user password.
-        password => string
+        %% The current user password that should be changed or password of an
+        %% administrator that is issuing this request on behalf of a user. 
+        currentPassword => string,
+        %% The new user password.
+        newPassword => string
     }.
 
 %%--------------------------------------------------------------------

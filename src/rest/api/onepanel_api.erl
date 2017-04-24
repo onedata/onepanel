@@ -31,15 +31,6 @@
     [{Path :: binary(), Module :: module(), State :: rest_handler:state()}].
 routes() ->
     [
-        {<<"/api/v3/onepanel/login">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_onepanel_user,
-            resource = login,
-            methods = [#rmethod{
-                type = 'POST'
-            }]
-        }},
-
         %% Create Onepanel user
         {<<"/api/v3/onepanel/users">>, rest_handler, #rstate{
             version = 3,
@@ -70,6 +61,16 @@ routes() ->
             }]
         }},
 
+        %% Create Onepanel user session
+        {<<"/api/v3/onepanel/session">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel_session,
+            resource = session,
+            methods = [#rmethod{
+                type = 'POST'
+            }]
+        }},
+
         %% Get cluster cookie
         {<<"/api/v3/onepanel/cookie">>, rest_handler, #rstate{
             version = 3,
@@ -92,6 +93,16 @@ routes() ->
                     discovered => {boolean, {optional, false}}
                 },
                 noauth = true
+            }]
+        }},
+
+        %% Get Onepanel user session
+        {<<"/api/v3/onepanel/session">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel_session,
+            resource = session,
+            methods = [#rmethod{
+                type = 'GET'
             }]
         }},
 
@@ -132,6 +143,16 @@ routes() ->
             version = 3,
             module = rest_onepanel,
             resource = host,
+            methods = [#rmethod{
+                type = 'DELETE'
+            }]
+        }},
+
+        %% Remove Onepanel user session
+        {<<"/api/v3/onepanel/session">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel_session,
+            resource = session,
             methods = [#rmethod{
                 type = 'DELETE'
             }]

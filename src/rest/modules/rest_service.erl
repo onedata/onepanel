@@ -66,12 +66,9 @@ exists_resource(Req, #rstate{resource = nagios}) ->
 exists_resource(Req, #rstate{resource = task, bindings = #{id := TaskId}}) ->
     {service:exists_task(TaskId), Req};
 
-exists_resource(Req, #rstate{resource = storage, bindings = #{name := Name}}) ->
+exists_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
     Node = utils:random_element(service_op_worker:get_nodes()),
-    case rpc:call(Node, storage, get_by_name, [Name]) of
-        {ok, _} -> {true, Req};
-        {error, {not_found, storage}} -> {false, Req}
-    end;
+    {rpc:call(Node, storage, exists, [Id]), Req};
 
 exists_resource(Req, #rstate{resource = storages}) ->
     {true, Req};
@@ -213,8 +210,8 @@ accept_resource(Req, 'POST', Args, #rstate{resource = storages}) ->
     ))};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = storage,
-    bindings = #{name := Name}}) ->
-    Ctx = #{name => Name},
+    bindings = #{id := Id}}) ->
+    Ctx = #{id => Id},
     Ctx2 = onepanel_maps:get_store(timeout, Args, [args, timeout], Ctx),
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         service_op_worker:name(), update_storage, Ctx2
@@ -269,10 +266,10 @@ provide_resource(Req, #rstate{resource = nagios} = State) ->
 provide_resource(Req, #rstate{resource = task, bindings = #{id := TaskId}}) ->
     {rest_replier:format_service_task_results(service:get_results(TaskId)), Req};
 
-provide_resource(Req, #rstate{resource = storage, bindings = #{name := Name}}) ->
+provide_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
     {rest_replier:format_service_step(service_op_worker, get_storages,
         service_utils:throw_on_error(service:apply_sync(
-            service_op_worker:name(), get_storages, #{name => Name}
+            service_op_worker:name(), get_storages, #{id => Id}
         ))
     ), Req};
 

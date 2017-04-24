@@ -8,7 +8,7 @@
 %%% @doc This module contains integration tests of 'onepanel_session' module.
 %%% @end
 %%%--------------------------------------------------------------------
--module(onepanel_session_test_SUITE).
+-module(rest_onepanel_session_test_SUITE).
 -author("Krzysztof Trzepla").
 
 -include("modules/errors.hrl").
@@ -23,7 +23,12 @@
 %% tests
 -export([
     post_should_return_unauthorized_error/1,
+    post_should_return_forbidden_error/1,
     post_should_create_session/1,
+    get_should_return_session/1,
+    get_should_return_not_found_error/1,
+    delete_should_remove_session/1,
+    delete_should_return_not_found_error/1,
     session_should_authenticate_user/1,
     session_should_not_authenticate_user/1,
     session_should_expire/1
@@ -37,7 +42,12 @@
 all() ->
     ?ALL([
         post_should_return_unauthorized_error,
+        post_should_return_forbidden_error,
         post_should_create_session,
+        get_should_return_session,
+        get_should_return_not_found_error,
+        delete_should_remove_session,
+        delete_should_return_not_found_error,
         session_should_authenticate_user,
         session_should_not_authenticate_user,
         session_should_expire
@@ -49,29 +59,76 @@ all() ->
 
 post_should_return_unauthorized_error(Config) ->
     ?assertMatch({ok, 401, _, _}, onepanel_test_rest:noauth_request(
-        Config, <<"/login">>, post
+        Config, <<"/session">>, post
     )),
     lists:foreach(fun(Username) ->
         ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
-            Config, <<"/login">>, post,
+            Config, <<"/session">>, post,
             {Username, <<"somePassword">>}
         ))
     end, [<<"someUser">>, ?ADMIN_USER_NAME, ?REG_USER_NAME]).
 
 
+post_should_return_forbidden_error(Config) ->
+    ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
+        Config, <<"/session">>, post,
+        {?REG_USER_NAME, ?REG_USER_PASSWORD}
+    )).
+
+
 post_should_create_session(Config) ->
-    lists:foreach(fun({Username, Password}) ->
-        {ok, 200, Headers, JsonBody} = ?assertMatch({ok, 200, _, _},
-            onepanel_test_rest:auth_request(
-                Config, <<"/login">>, post, {Username, Password}
-            )
-        ),
-        onepanel_test_utils:assert_fields(Headers, [<<"set-cookie">>]),
-        onepanel_test_rest:assert_body_fields(JsonBody, [<<"sessionId">>])
-    end, [
-        {?REG_USER_NAME, ?REG_USER_PASSWORD},
-        {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+    {ok, 200, Headers, JsonBody} = ?assertMatch({ok, 200, _, _},
+        onepanel_test_rest:auth_request(
+            Config, <<"/session">>, post,
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+        )
+    ),
+    onepanel_test_utils:assert_fields(Headers, [<<"set-cookie">>]),
+    onepanel_test_rest:assert_body_fields(JsonBody, [
+        <<"sessionId">>, <<"username">>
     ]).
+
+
+get_should_return_session(Config) ->
+    {ok, SessionId} = ?assertMatch({ok, _},
+        ?call(Config, onepanel_session, create, [?ADMIN_USER_NAME])),
+    {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+        onepanel_test_rest:auth_request(
+            Config, <<"/session">>, get, {cookie, SessionId}
+        )
+    ),
+    onepanel_test_rest:assert_body_fields(JsonBody,
+        [<<"sessionId">>, <<"username">>]).
+
+
+get_should_return_not_found_error(Config) ->
+    ?assertMatch({ok, 404, _, _},
+        onepanel_test_rest:auth_request(
+            Config, <<"/session">>, get,
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+        )
+    ).
+
+
+delete_should_remove_session(Config) ->
+    {ok, SessionId} = ?assertMatch({ok, _},
+        ?call(Config, onepanel_session, create, [?ADMIN_USER_NAME])),
+    ?assertMatch({ok, 204, _, _},
+        onepanel_test_rest:auth_request(
+            Config, <<"/session">>, delete, {cookie, SessionId}
+        )
+    ),
+    ?assertMatch(#error{reason = ?ERR_NOT_FOUND},
+        ?call(Config, onepanel_session, get, [SessionId])).
+
+
+delete_should_return_not_found_error(Config) ->
+    ?assertMatch({ok, 404, _, _},
+        onepanel_test_rest:auth_request(
+            Config, <<"/session">>, delete,
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+        )
+    ).
 
 
 session_should_authenticate_user(Config) ->
@@ -124,4 +181,5 @@ init_per_testcase(_Case, Config) ->
 
 
 end_per_testcase(_Case, Config) ->
-    ?call(Config, model, clear, [onepanel_user]).
+    ?call(Config, model, clear, [onepanel_user]),
+    ?call(Config, model, clear, [onepanel_session]).

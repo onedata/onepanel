@@ -323,8 +323,8 @@ support_space(#{storage_id := StorageId, node := Node} = Ctx) ->
     [{id, SpaceId}];
 
 support_space(#{storage_name := Name, node := _} = Ctx) ->
-    [{Name, Props}] = op_worker_storage:get(Name),
-    {id, Id} = lists:keyfind(id, 1, Props),
+    Storage = op_worker_storage:get(Name),
+    {id, Id} = lists:keyfind(id, 1, Storage),
     support_space(Ctx#{storage_id => Id});
 
 support_space(Ctx) ->
@@ -349,7 +349,7 @@ revoke_space_support(#{id := SpaceId}) ->
 -spec get_spaces(Ctx :: service:ctx()) -> list().
 get_spaces(_Ctx) ->
     {ok, SpaceIds} = oz_providers:get_spaces(provider),
-    SpaceIds.
+    [{ids, SpaceIds}].
 
 
 %%--------------------------------------------------------------------

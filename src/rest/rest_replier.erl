@@ -19,7 +19,7 @@
 %% API
 -export([throw_on_service_error/2]).
 -export([handle_error/3, handle_service_action_async/3, handle_service_step/4,
-    handle_session/2]).
+    handle_session/3]).
 -export([format_error/2, format_service_status/2, format_service_host_status/2,
     format_service_task_results/1, format_service_step/3, format_configuration/1]).
 
@@ -82,16 +82,19 @@ handle_service_step(Req, Module, Function, Results) ->
 %% @doc Sets session details in the response header and body.
 %% @end
 %%--------------------------------------------------------------------
--spec handle_session(Req :: cowboy_req:req(), SessionId :: onepanel_session:id()) ->
-    Req :: cowboy_req:req().
-handle_session(Req, SessionId) ->
+-spec handle_session(Req :: cowboy_req:req(), SessionId :: onepanel_session:id(),
+    Username :: onepanel_user:name()) -> Req :: cowboy_req:req().
+handle_session(Req, SessionId, Username) ->
     Req2 = cowboy_req:set_resp_cookie(<<"sessionId">>, SessionId, [
         {max_age, onepanel_env:get(session_ttl) div 1000},
         {path, "/"},
         {secure, true},
         {http_only, true}
     ], Req),
-    Body = json_utils:encode([{<<"sessionId">>, SessionId}]),
+    Body = json_utils:encode([
+        {<<"sessionId">>, SessionId},
+        {<<"username">>, Username}
+    ]),
     cowboy_req:set_resp_body(Body, Req2).
 
 
