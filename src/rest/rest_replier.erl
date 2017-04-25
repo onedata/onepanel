@@ -208,14 +208,22 @@ format_configuration(SModule) ->
     {ok, #service{hosts = CmHosts, ctx = #{main_host := MainCmHost}}} =
         service:get(service_cluster_manager:name()),
     WrkHosts = SModule:get_hosts(),
+    {ok, #service{ctx = Ctx}} = service:get(SModule:name()),
     [
         {<<"cluster">>, [
-            {<<"databases">>, onepanel_utils:convert(DbHosts, {seq, binary})},
+            {<<"databases">>, [
+                {<<"hosts">>, onepanel_utils:convert(DbHosts, {seq, binary})}
+            ]},
             {<<"managers">>, [
                 {<<"mainHost">>, onepanel_utils:convert(MainCmHost, binary)},
                 {<<"hosts">>, onepanel_utils:convert(CmHosts, {seq, binary})}
             ]},
-            {<<"workers">>, onepanel_utils:convert(WrkHosts, {seq, binary})}
+            {<<"workers">>, [
+                {<<"hosts">>, onepanel_utils:convert(WrkHosts, {seq, binary})}
+            ]}
+        ]},
+        {SModule:name(), [
+            {<<"name">>, maps:get(name, Ctx, SModule:name())}
         ]}
     ].
 
