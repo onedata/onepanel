@@ -149,17 +149,17 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
         storages => StorageCtx2
     },
 
-    OpCtx = onepanel_maps:get_store([onezone, domainName], Args, onezone_domain),
-    OpCtx2 = onepanel_maps:get_store([oneprovider, register], Args, oneprovider_register, OpCtx),
-    OpCtx3 = onepanel_maps:get_store([oneprovider, name], Args, oneprovider_name, OpCtx2),
-    OpCtx4 = onepanel_maps:get_store([oneprovider, redirectionPoint], Args, oneprovider_redirection_point, OpCtx3),
-    OpCtx5 = onepanel_maps:get_store([oneprovider, geoLatitude], Args, oneprovider_geo_latitude, OpCtx4),
-    OpCtx6 = onepanel_maps:get_store([oneprovider, geoLongitude], Args, oneprovider_geo_longitude, OpCtx5),
-    OpCtx7 = OpCtx6#{hosts => OpwHosts},
+    OpwCtx = onepanel_maps:get_store([onezone, domainName], Args, onezone_domain),
+    OpwCtx2 = onepanel_maps:get_store([oneprovider, register], Args, oneprovider_register, OpwCtx),
+    OpwCtx3 = onepanel_maps:get_store([oneprovider, name], Args, oneprovider_name, OpwCtx2),
+    OpwCtx4 = onepanel_maps:get_store([oneprovider, redirectionPoint], Args, oneprovider_redirection_point, OpwCtx3),
+    OpwCtx5 = onepanel_maps:get_store([oneprovider, geoLatitude], Args, oneprovider_geo_latitude, OpwCtx4),
+    OpwCtx6 = onepanel_maps:get_store([oneprovider, geoLongitude], Args, oneprovider_geo_longitude, OpwCtx5),
+    OpwCtx7 = OpwCtx6#{hosts => OpwHosts},
 
     {true, rest_replier:handle_service_action_async(Req2, service:apply_async(
         service_oneprovider:name(), deploy, #{
-            cluster => ClusterCtx, service_oneprovider:name() => OpCtx7
+            cluster => ClusterCtx, service_oneprovider:name() => OpwCtx7
         }
     ), Version)};
 
@@ -183,23 +183,28 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version =
         api_version => Version
     },
 
-    OzCtx = #{
+    OzCtx = onepanel_maps:get_store([onezone, name], Args, name),
+    OzCtx2 = onepanel_maps:get_store([onezone, domainName], Args, domain, OzCtx),
+
+    OzwCtx = #{
         hosts => OzwHosts, db_hosts => DbHosts, cm_hosts => CmHosts,
         main_cm_host => MainCmHost
     },
-    OzCtx2 = onepanel_maps:get_store([onezone, name], Args, onezone_name, OzCtx),
-    OzCtx3 = onepanel_maps:get_store([onezone, domainName], Args, onezone_domain, OzCtx2),
+    OzwCtx2 = onepanel_maps:get_store([onezone, name], Args, onezone_name, OzwCtx),
+    OzwCtx3 = onepanel_maps:get_store([onezone, domainName], Args, onezone_domain, OzwCtx2),
 
     ClusterCtx = #{
         service_onepanel:name() => OpaCtx2,
         service_couchbase:name() => DbCtx3,
         service_cluster_manager:name() => #{main_host => MainCmHost,
             hosts => CmHosts, worker_num => length(OzwHosts)},
-        service_oz_worker:name() => OzCtx3
+        service_oz_worker:name() => OzwCtx3
     },
 
     {true, rest_replier:handle_service_action_async(Req2, service:apply_async(
-        service_onezone:name(), deploy, #{cluster => ClusterCtx}
+        service_onezone:name(), deploy, #{
+            cluster => ClusterCtx, service_onezone:name() => OzCtx2
+        }
     ), Version)};
 
 accept_resource(Req, 'POST', Args, #rstate{resource = storages}) ->

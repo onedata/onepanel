@@ -16,10 +16,12 @@
 
 -export([
     ceph_model/0,
+    cluster_configuration_details_model/0,
     cluster_databases_model/0,
     cluster_managers_model/0,
     cluster_workers_model/0,
     cookie_model/0,
+    database_hosts_model/0,
     error_model/0,
     manager_hosts_model/0,
     panel_configuration_model/0,
@@ -27,6 +29,8 @@
     posix_model/0,
     provider_cluster_configuration_model/0,
     provider_configuration_model/0,
+    provider_configuration_details_model/0,
+    provider_configuration_details_oneprovider_model/0,
     provider_configuration_oneprovider_model/0,
     provider_configuration_onezone_model/0,
     provider_details_model/0,
@@ -51,9 +55,12 @@
     user_create_request_model/0,
     user_details_model/0,
     user_modify_request_model/0,
+    worker_hosts_model/0,
     zone_cluster_configuration_model/0,
     zone_cluster_configuration_nodes_model/0,
     zone_configuration_model/0,
+    zone_configuration_details_model/0,
+    zone_configuration_details_onezone_model/0,
     zone_configuration_onezone_model/0
 ]).
 
@@ -87,6 +94,18 @@ ceph_model() ->
         insecure => {boolean, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The cluster configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec cluster_configuration_details_model() -> maps:map().
+cluster_configuration_details_model() ->
+    #{
+        databases => database_hosts_model(),
+        managers => manager_hosts_model(),
+        workers => worker_hosts_model()
     }.
 
 %%--------------------------------------------------------------------
@@ -149,6 +168,17 @@ cookie_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc The cluster database service hosts configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec database_hosts_model() -> maps:map().
+database_hosts_model() ->
+    #{
+        %% The list of service hosts.
+        hosts => [string]
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The generic error model for REST requests.
 %% @end
 %%--------------------------------------------------------------------
@@ -168,13 +198,13 @@ error_model() ->
 -spec manager_hosts_model() -> maps:map().
 manager_hosts_model() ->
     #{
-        %% The name of a host where main cluster manager node should be
-        %% deployed. Main cluster manager node is responsible for monitoring
-        %% cluster worker nodes. Other nodes, called optional, are suspended. In
-        %% case of main cluster manager node failure one of optional nodes is
-        %% resumed and takes over main node responsibilities.
+        %% The main cluster manager host. Main cluster manager node is
+        %% responsible for monitoring cluster worker nodes. Other nodes, called
+        %% optional, are suspended. In case of main cluster manager node failure
+        %% one of optional nodes is resumed and takes over main node
+        %% responsibilities.
         mainHost => string,
-        %% The list of hosts where service should be deployed.
+        %% The list of service hosts.
         hosts => [string]
     }.
 
@@ -225,9 +255,6 @@ posix_model() ->
 -spec provider_cluster_configuration_model() -> maps:map().
 provider_cluster_configuration_model() ->
     #{
-        %% Defines whether administrative cluster should be created from the
-        %% list of provided cluster nodes.
-        autoDeploy => {boolean, optional},
         %% The name of a domain common for all services in the cluster. Together
         %% with a node hostname constitutes a fully qualified domain name (FDQN)
         %% of the node.
@@ -251,6 +278,28 @@ provider_configuration_model() ->
         oneprovider => {provider_configuration_oneprovider_model(), optional},
         onezone => {provider_configuration_onezone_model(), optional},
         onepanel => {panel_configuration_model(), optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The provider deployment configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec provider_configuration_details_model() -> maps:map().
+provider_configuration_details_model() ->
+    #{
+        cluster => cluster_configuration_details_model(),
+        oneprovider => {provider_configuration_details_oneprovider_model(), optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The provider custom configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec provider_configuration_details_oneprovider_model() -> maps:map().
+provider_configuration_details_oneprovider_model() ->
+    #{
+        %% The name of a provider.
+        name => string
     }.
 
 %%--------------------------------------------------------------------
@@ -454,7 +503,7 @@ service_status_model() ->
     #{
         %% The collection of hosts with associated service status, for each
         %% hostwhere given service has been deployed.
-        hosts => {#{'_' => service_status_host_model()}, optional}
+        hosts => #{'_' => service_status_host_model()}
     }.
 
 %%--------------------------------------------------------------------
@@ -489,7 +538,7 @@ session_details_model() ->
 space_details_model() ->
     #{
         %% The ID of the space.
-        id => {string, optional},
+        id => string,
         %% The name of the space.
         name => string,
         %% The collection of provider IDs with associated supported storage
@@ -655,15 +704,23 @@ user_modify_request_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc The cluster worker service hosts configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec worker_hosts_model() -> maps:map().
+worker_hosts_model() ->
+    #{
+        %% The list of service hosts.
+        hosts => [string]
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The zone cluster configuration.
 %% @end
 %%--------------------------------------------------------------------
 -spec zone_cluster_configuration_model() -> maps:map().
 zone_cluster_configuration_model() ->
     #{
-        %% Defines whether administrative cluster should be created from the
-        %% list of provided cluster nodes.
-        autoDeploy => {boolean, optional},
         %% The name of a domain common for all services in the cluster. Together
         %% with a node hostname constitute a node fully qualified domain name.
         domainName => string,
@@ -691,6 +748,28 @@ zone_configuration_model() ->
         cluster => zone_cluster_configuration_model(),
         onezone => {zone_configuration_onezone_model(), optional},
         onepanel => {panel_configuration_model(), optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The zone cluster configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec zone_configuration_details_model() -> maps:map().
+zone_configuration_details_model() ->
+    #{
+        cluster => cluster_configuration_details_model(),
+        onezone => {zone_configuration_details_onezone_model(), optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The zone custom configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec zone_configuration_details_onezone_model() -> maps:map().
+zone_configuration_details_onezone_model() ->
+    #{
+        %% The name of a zone.
+        name => string
     }.
 
 %%--------------------------------------------------------------------

@@ -243,7 +243,10 @@ register(Ctx) ->
         {oz_plugin:get_cert_file(), Cert}
     ]),
 
-    service:save(#service{name = name(), ctx = #{registered => true}}),
+    service:save(#service{name = name(), ctx = #{
+        name => service_ctx:get(oneprovider_name, Ctx, binary),
+        registered => true
+    }}),
 
     {ok, ProviderId}.
 
