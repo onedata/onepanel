@@ -303,8 +303,9 @@ init_per_testcase(_Case, Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
     Self = self(),
     test_utils:mock_new(Nodes, service),
-    test_utils:mock_expect(Nodes, service, exists, fun(oneprovider) ->
-        true end),
+    test_utils:mock_expect(Nodes, service, get, fun(oneprovider) ->
+        {ok, #service{ctx = #{registered => true}}}
+    end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},
         [{task_finished, {service, action, ok}}]

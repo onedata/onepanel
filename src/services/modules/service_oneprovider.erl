@@ -150,8 +150,6 @@ get_steps(register, Ctx) ->
 
 get_steps(unregister, #{hosts := Hosts} = Ctx) ->
     [
-        #step{hosts = Hosts, module = service, function = delete,
-            args = [name()], selection = any},
         #step{hosts = Hosts, function = unregister, selection = any, ctx = Ctx}
     ];
 
@@ -243,7 +241,9 @@ register(Ctx) ->
         {oz_plugin:get_cert_file(), Cert}
     ]),
 
-    service:save(#service{name = name(), ctx = #{registered => true}}),
+    service:update(name(), fun(#service{ctx = C} = S) ->
+        S#service{ctx = C#{registered => true}}
+    end),
 
     {ok, ProviderId}.
 
@@ -256,6 +256,10 @@ register(Ctx) ->
 unregister(#{hosts := Hosts}) ->
     Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
     ok = oz_providers:unregister(provider),
+
+    service:update(name(), fun(#service{ctx = C} = S) ->
+        S#service{ctx = C#{registered => false}}
+    end),
 
     lists:foreach(fun(File) ->
         onepanel_rpc:call_all(Nodes, file, delete, [File])

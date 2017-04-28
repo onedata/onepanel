@@ -212,11 +212,11 @@ format_configuration(SModule) ->
     SName = case SModule of
         service_onezone ->
             {ok, #service{ctx = Ctx}} = service:get(service_onezone:name()),
-            maps:get(name, Ctx, service_onezone:name());
+            maps:get(name, Ctx, null);
         service_oneprovider ->
             case oz_providers:get_details(provider) of
                 {ok, #provider_details{name = Name}} -> Name;
-                {error, _Reason} -> service_oneprovider:name()
+                {error, _Reason} -> null
             end
     end,
     [
