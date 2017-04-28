@@ -13,8 +13,9 @@
 -author("Krzysztof Trzepla").
 
 -include("modules/errors.hrl").
--include_lib("ctool/include/logging.hrl").
 -include("modules/models.hrl").
+-include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/oz/oz_providers.hrl").
 
 %% API
 -export([throw_on_service_error/2]).
@@ -208,7 +209,16 @@ format_configuration(SModule) ->
     {ok, #service{hosts = CmHosts, ctx = #{main_host := MainCmHost}}} =
         service:get(service_cluster_manager:name()),
     WrkHosts = SModule:get_hosts(),
-    {ok, #service{ctx = Ctx}} = service:get(SModule:name()),
+    SName = case SModule of
+        service_onezone ->
+            {ok, #service{ctx = Ctx}} = service:get(service_onezone:name()),
+            maps:get(name, Ctx, service_onezone:name());
+        service_oneprovider ->
+            case oz_providers:get_details(provider) of
+                {ok, #provider_details{name = Name}} -> Name;
+                {error, _Reason} -> service_oneprovider:name()
+            end
+    end,
     [
         {<<"cluster">>, [
             {<<"databases">>, [
@@ -223,7 +233,7 @@ format_configuration(SModule) ->
             ]}
         ]},
         {SModule:name(), [
-            {<<"name">>, maps:get(name, Ctx, SModule:name())}
+            {<<"name">>, SName}
         ]}
     ].
 
