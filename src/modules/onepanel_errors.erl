@@ -104,9 +104,6 @@ translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, Reason}}) ->
     ?error("Cannot add storage due to: ~p", [Reason]),
     {<<"Operation Error">>, <<"Storage addition error.">>};
 
-translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_CREATE, Node, Reason}}) ->
-    translate_storage_test_file_error("create", <<"creation">>, Node, Reason);
-
 translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_READ, Node, Reason}}) ->
     translate_storage_test_file_error("read", <<"read">>, Node, Reason);
 
