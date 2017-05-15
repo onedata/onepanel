@@ -80,14 +80,11 @@ get() ->
 %% @doc Returns details of a selected storage from op_worker service.
 %% @end
 %%--------------------------------------------------------------------
--spec get({id, Id :: id()} | {name, Name :: name()}) -> storage_params_list().
-get(Ref) ->
+-spec get(Id :: id()) -> storage_params_list().
+get(Id) ->
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(service_op_worker:name(), Host),
-    {ok, Storage} = case Ref of
-        {id, Id} -> rpc:call(Node, storage, get, [Id]);
-        {name, Name} -> rpc:call(Node, storage, select, [Name])
-    end,
+    {ok, Storage} = rpc:call(Node, storage, get, [Id]),
     get_storage(Node, Storage).
 
 
@@ -99,7 +96,7 @@ get(Ref) ->
 update(Id, Args) ->
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(service_op_worker:name(), Host),
-    Storage = op_worker_storage:get({id, Id}),
+    Storage = op_worker_storage:get(Id),
     {ok, Id} = onepanel_lists:get(id, Storage),
     {ok, Type} = onepanel_lists:get(type, Storage),
     Args2 = #{<<"timeout">> => onepanel_utils:typed_get(timeout, Args, binary)},

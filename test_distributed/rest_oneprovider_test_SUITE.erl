@@ -190,24 +190,17 @@ get_should_return_supported_spaces(Config) ->
 
 put_should_create_or_support_space(Config) ->
     ?run(Config, fun(Host) ->
-        lists:foreach(fun(Body) ->
-            {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
-                onepanel_test_rest:auth_request(
-                    Host, <<"/provider/spaces">>, post,
-                    {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, Body
-                )
-            ),
-            onepanel_test_rest:assert_body(JsonBody, ?SPACE_JSON)
-        end, [
-            [
-                {<<"token">>, <<"someToken">>}, {<<"size">>, 1024},
-                {<<"storageName">>, <<"someName">>}
-            ],
-            [
-                {<<"name">>, <<"someName">>}, {<<"token">>, <<"someToken">>},
-                {<<"size">>, 1024}, {<<"storageId">>, <<"someId">>}
-            ]
-        ])
+        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/spaces">>, post,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [
+                    {<<"token">>, <<"someToken">>},
+                    {<<"size">>, 1024},
+                    {<<"storageId">>, <<"someId">>}
+                ]
+            )
+        ),
+        onepanel_test_rest:assert_body(JsonBody, ?SPACE_JSON)
     end).
 
 

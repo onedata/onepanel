@@ -216,7 +216,7 @@ add_storages(Ctx) ->
 %%--------------------------------------------------------------------
 -spec get_storages(Ctx :: service:ctx()) -> list().
 get_storages(#{id := Id}) ->
-    op_worker_storage:get({id, Id});
+    op_worker_storage:get(Id);
 
 get_storages(_Ctx) ->
     op_worker_storage:get().

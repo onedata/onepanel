@@ -72,6 +72,8 @@
 -spec ceph_model() -> maps:map().
 ceph_model() ->
     #{
+        %% The ID of storage.
+        id => {string, optional},
         %% The name of storage.
         name => {string, optional},
         %% The type of storage.
@@ -235,6 +237,8 @@ panel_configuration_users_model() ->
 -spec posix_model() -> maps:map().
 posix_model() ->
     #{
+        %% The ID of storage.
+        id => {string, optional},
         %% The name of storage.
         name => {string, optional},
         %% The type of storage.
@@ -421,6 +425,8 @@ provider_storages_model() ->
 -spec s3_model() -> maps:map().
 s3_model() ->
     #{
+        %% The ID of storage.
+        id => {string, optional},
         %% The name of storage.
         name => {string, optional},
         %% The type of storage.
@@ -562,13 +568,9 @@ space_support_request_model() ->
         %% The storage space size in bytes that provider is willing to assign to
         %% the space.
         size => integer,
-        %% The user defined name of the storage resource, where the space data
-        %% should be stored. To be used interchangeably with
-        %% `storageId`.
-        storageName => {string, optional},
-        %% The ID of the storage resource where the space data should be stored.
-        %% To be used interchangeably with `storageName`.
-        storageId => {string, optional},
+        %% The ID of the storage resource where the space data should be
+        %% stored.
+        storageId => string,
         %% Defines whether space will be mounted in / or /{SpaceId}/ path.
         mountInRoot => {boolean, optional}
     }.
@@ -607,6 +609,8 @@ storage_modify_request_model() ->
 -spec swift_model() -> maps:map().
 swift_model() ->
     #{
+        %% The ID of storage.
+        id => {string, optional},
         %% The name of storage.
         name => {string, optional},
         %% The type of storage.

@@ -326,11 +326,6 @@ support_space(#{storage_id := StorageId, node := Node} = Ctx) ->
     {ok, _} = rpc:call(Node, space_storage, add, [SpaceId, StorageId, MountInRoot]),
     [{id, SpaceId}];
 
-support_space(#{storage_name := Name, node := _} = Ctx) ->
-    Storage = op_worker_storage:get(Name),
-    {id, Id} = lists:keyfind(id, 1, Storage),
-    support_space(Ctx#{storage_id => Id});
-
 support_space(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     support_space(Ctx#{node => Node}).
