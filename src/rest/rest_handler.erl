@@ -322,7 +322,7 @@ authenticate(Req, [AuthMethod | AuthMethods]) ->
     {ok, User :: #onepanel_user{}} | #error{} | {ignore, Req :: cowboy_req:req()}.
 authenticate_by_basic_auth(Req) ->
     case cowboy_req:header(<<"authorization">>, Req) of
-        {<<"Basic ", Hash/binary>>, Req2} ->
+        {<<"Basic ", Hash/binary>>, _Req2} ->
             [Username, Password] = binary:split(base64:decode(Hash), <<":">>),
             onepanel_user:authenticate(Username, Password);
         {_, Req2} ->
@@ -339,7 +339,7 @@ authenticate_by_basic_auth(Req) ->
 authenticate_by_cookie(Req) ->
     case cowboy_req:cookie(<<"sessionId">>, Req) of
         {undefined, Req2} -> {ignore, Req2};
-        {SessionId, Req2} -> onepanel_user:authenticate(SessionId)
+        {SessionId, _Req2} -> onepanel_user:authenticate(SessionId)
     end.
 
 
