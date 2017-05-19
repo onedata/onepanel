@@ -24,7 +24,6 @@
     method_should_return_unauthorized_error/1,
     method_should_return_forbidden_error/1,
     method_should_return_not_found_error/1,
-    get_noauth_or_as_regular_should_return_hosts_when_admin_missing/1,
     get_as_admin_should_return_hosts/1,
     get_as_admin_should_return_cookie/1,
     put_as_admin_should_init_cluster/1,
@@ -44,7 +43,6 @@ all() ->
         method_should_return_unauthorized_error,
         method_should_return_forbidden_error,
         method_should_return_not_found_error,
-        get_noauth_or_as_regular_should_return_hosts_when_admin_missing,
         get_as_admin_should_return_hosts,
         get_as_admin_should_return_cookie,
         put_as_admin_should_init_cluster,
@@ -66,7 +64,9 @@ method_should_return_unauthorized_error(Config) ->
         ))
     end, [
         {<<"/cookie">>, get},
-        {<<"/hosts/someHost">>, delete}
+        {<<"/hosts/someHost">>, delete},
+        {<<"/hosts">>, get},
+        {<<"/hosts?discovered=true">>, get}
     ]).
 
 
@@ -83,9 +83,7 @@ method_should_return_forbidden_error(Config) ->
         ))
     end, [
         {<<"/hosts">>, post},
-        {<<"/hosts?clusterHost=someHost">>, post},
-        {<<"/hosts">>, get},
-        {<<"/hosts?discovered=true">>, get}
+        {<<"/hosts?clusterHost=someHost">>, post}
     ]),
 
     lists:foreach(fun({Endpoint, Method}) ->
@@ -105,25 +103,6 @@ method_should_return_not_found_error(Config) ->
             {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
         ))
     end, [{<<"/hosts/someHost">>, delete}]).
-
-
-get_noauth_or_as_regular_should_return_hosts_when_admin_missing(Config) ->
-    lists:foreach(fun({Endpoint, HostsType}) ->
-        {_, _, _, JsonBody1} = ?assertMatch({ok, 200, _, _},
-            onepanel_test_rest:noauth_request(Config, Endpoint, get)
-        ),
-        {_, _, _, JsonBody2} = ?assertMatch({ok, 200, _, _},
-            onepanel_test_rest:auth_request(Config, Endpoint, get,
-                {?REG_USER_NAME, ?REG_USER_PASSWORD}
-            )
-        ),
-        ?assertEqual(JsonBody1, JsonBody2),
-        Hosts = onepanel_utils:typed_get(HostsType, Config, {seq, binary}),
-        onepanel_test_rest:assert_body(JsonBody1, Hosts)
-    end, [
-        {<<"/hosts">>, cluster_hosts},
-        {<<"/hosts?discovered=true">>, discovered_hosts}
-    ]).
 
 
 get_as_admin_should_return_hosts(Config) ->

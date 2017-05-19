@@ -91,8 +91,7 @@ routes() ->
                 params_spec = #{
                     %% Defines whether to return cluster or discovered hosts.
                     discovered => {boolean, {optional, false}}
-                },
-                noauth = true
+                }
             }]
         }},
 
