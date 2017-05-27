@@ -382,6 +382,9 @@ s3_model() ->
         accessKey => string,
         %% The secret key to the S3 storage.
         secretKey => string,
+        %% The version of signature used to sign requests. One of: 2, 4.
+        %% Default: 4.
+        signatureVersion => {integer, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Storage block size in bytes.
