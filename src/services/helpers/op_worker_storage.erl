@@ -164,7 +164,11 @@ get_storage_helper(Node, <<"s3">>, UserCtx, Params) ->
         onepanel_utils:join([S3Host, S3Port], <<":">>),
         onepanel_utils:typed_get(bucketName, Params, binary),
         S3Scheme =:= https,
-        get_helper_opt_args([{timeout, binary}, {blockSize, binary}], Params),
+        get_helper_opt_args([
+            {signatureVersion, binary},
+            {timeout, binary},
+            {blockSize, binary}
+        ], Params),
         UserCtx,
         onepanel_utils:typed_get(insecure, Params, boolean, false)
     ]);
@@ -173,7 +177,10 @@ get_storage_helper(Node, <<"swift">>, UserCtx, Params) ->
         onepanel_utils:typed_get(authUrl, Params, binary),
         onepanel_utils:typed_get(containerName, Params, binary),
         onepanel_utils:typed_get(tenantName, Params, binary),
-        get_helper_opt_args([{timeout, binary}, {blockSize, binary}], Params),
+        get_helper_opt_args([
+            {timeout, binary},
+            {blockSize, binary}
+        ], Params),
         UserCtx,
         onepanel_utils:typed_get(insecure, Params, boolean, false)
     ]).
