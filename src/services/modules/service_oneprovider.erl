@@ -24,7 +24,8 @@
 
 %% API
 -export([configure/1, register/1, unregister/1, modify_details/1, get_details/1,
-    support_space/1, revoke_space_support/1, get_spaces/1, get_space_details/1]).
+    support_space/1, revoke_space_support/1, get_spaces/1, get_space_details/1,
+    modify_space/1]).
 
 -define(SERVICE_OPA, service_onepanel:name()).
 -define(SERVICE_CB, service_couchbase:name()).
@@ -162,7 +163,8 @@ get_steps(Action, Ctx) when
     Action =:= support_space;
     Action =:= revoke_space_support;
     Action =:= get_spaces;
-    Action =:= get_space_details ->
+    Action =:= get_space_details;
+    Action =:= modify_space ->
     case Ctx of
         #{hosts := Hosts} ->
             [#step{hosts = Hosts, function = Action, selection = any}];
@@ -314,7 +316,11 @@ support_space(#{storage_id := StorageId, name := Name, node := Node} = Ctx) ->
         {<<"token">>, onepanel_utils:typed_get(token, Ctx, binary)}
     ]),
     MountInRoot = onepanel_utils:typed_get(mount_in_root, Ctx, boolean, false),
+    ImportArgs = maps:get(storage_import, Ctx),
+    UpdateArgs = maps:get(storage_import, Ctx),
     {ok, _} = rpc:call(Node, space_storage, add, [SpaceId, StorageId, MountInRoot]),
+    op_worker_storage_sync:modify_storage_import(Node, SpaceId, ImportArgs),
+    op_worker_storage_sync:modify_storage_update(Node, SpaceId, UpdateArgs),
     [{id, SpaceId}];
 
 support_space(#{storage_id := StorageId, node := Node} = Ctx) ->
@@ -323,7 +329,11 @@ support_space(#{storage_id := StorageId, node := Node} = Ctx) ->
         {<<"token">>, onepanel_utils:typed_get(token, Ctx, binary)}
     ]),
     MountInRoot = onepanel_utils:typed_get(mount_in_root, Ctx, boolean, false),
+    ImportArgs = maps:get(storage_import, Ctx),
+    UpdateArgs = maps:get(storage_update, Ctx),
     {ok, _} = rpc:call(Node, space_storage, add, [SpaceId, StorageId, MountInRoot]),
+    op_worker_storage_sync:modify_storage_import(Node, SpaceId, ImportArgs),
+    op_worker_storage_sync:modify_storage_update(Node, SpaceId, UpdateArgs),
     [{id, SpaceId}];
 
 support_space(Ctx) ->
@@ -357,7 +367,35 @@ get_spaces(_Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_space_details(Ctx :: service:ctx()) -> list().
-get_space_details(#{id := SpaceId}) ->
+get_space_details(#{id := SpaceId, node := Node}) ->
     {ok, #space_details{id = Id, name = Name, providers_supports = Providers}} =
         oz_providers:get_space_details(provider, SpaceId),
-    [{id, Id}, {name, Name}, {supportingProviders, Providers}].
+    StorageId = op_worker_storage:get_supporting_storage(Node, SpaceId),
+    ImportDetails = op_worker_storage_sync:get_storage_import_details(Node, SpaceId, StorageId),
+    UpdateDetails = op_worker_storage_sync:get_storage_update_details(Node, SpaceId, StorageId),
+    [
+        {id, Id},
+        {name, Name},
+        {supportingProviders, Providers},
+        {storageId, StorageId},
+        {storageImport, ImportDetails},
+        {storageUpdate, UpdateDetails}
+    ];
+get_space_details(Ctx) ->
+    [Node | _] = service_op_worker:get_nodes(),
+    get_space_details(Ctx#{node => Node}).
+
+
+%%--------------------------------------------------------------------
+%% @doc Modifies space details.
+%% @end
+%%--------------------------------------------------------------------
+-spec modify_space(Ctx :: service:ctx()) -> list().
+modify_space(#{space_id := SpaceId, node := Node} = Ctx) ->
+    UpdateArgs = maps:get(storage_update, Ctx),
+    op_worker_storage_sync:modify_storage_update(Node, SpaceId, UpdateArgs),
+    [{id, SpaceId}];
+
+modify_space(Ctx) ->
+    [Node | _] = service_op_worker:get_nodes(),
+    modify_space(Ctx#{node => Node}).
