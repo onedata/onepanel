@@ -319,8 +319,8 @@ support_space(#{storage_id := StorageId, name := Name, node := Node} = Ctx) ->
     ImportArgs = maps:get(storage_import, Ctx),
     UpdateArgs = maps:get(storage_import, Ctx),
     {ok, _} = rpc:call(Node, space_storage, add, [SpaceId, StorageId, MountInRoot]),
-    op_worker_storage_sync:modify_storage_import(Node, SpaceId, ImportArgs),
-    op_worker_storage_sync:modify_storage_update(Node, SpaceId, UpdateArgs),
+    op_worker_storage_sync:maybe_modify_storage_import(Node, SpaceId, ImportArgs),
+    op_worker_storage_sync:maybe_modify_storage_update(Node, SpaceId, UpdateArgs),
     [{id, SpaceId}];
 
 support_space(#{storage_id := StorageId, node := Node} = Ctx) ->
@@ -332,8 +332,8 @@ support_space(#{storage_id := StorageId, node := Node} = Ctx) ->
     ImportArgs = maps:get(storage_import, Ctx),
     UpdateArgs = maps:get(storage_update, Ctx),
     {ok, _} = rpc:call(Node, space_storage, add, [SpaceId, StorageId, MountInRoot]),
-    op_worker_storage_sync:modify_storage_import(Node, SpaceId, ImportArgs),
-    op_worker_storage_sync:modify_storage_update(Node, SpaceId, UpdateArgs),
+    op_worker_storage_sync:maybe_modify_storage_import(Node, SpaceId, ImportArgs),
+    op_worker_storage_sync:maybe_modify_storage_update(Node, SpaceId, UpdateArgs),
     [{id, SpaceId}];
 
 support_space(Ctx) ->
@@ -392,8 +392,10 @@ get_space_details(Ctx) ->
 %%--------------------------------------------------------------------
 -spec modify_space(Ctx :: service:ctx()) -> list().
 modify_space(#{space_id := SpaceId, node := Node} = Ctx) ->
-    UpdateArgs = maps:get(storage_update, Ctx),
-    op_worker_storage_sync:modify_storage_update(Node, SpaceId, UpdateArgs),
+    ImportArgs = maps:get(storage_import, Ctx, #{}),
+    UpdateArgs = maps:get(storage_update, Ctx, #{}),
+    op_worker_storage_sync:maybe_modify_storage_import(Node, SpaceId, ImportArgs),
+    op_worker_storage_sync:maybe_modify_storage_update(Node, SpaceId, UpdateArgs),
     [{id, SpaceId}];
 
 modify_space(Ctx) ->

@@ -99,11 +99,12 @@ accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource=space, bindings = #{id := Id}}) ->
     Ctx2 = get_storage_update_args(Args),
-    Ctx3 = Ctx2#{space_id => Id},
+    Ctx3 = get_storage_import_args(Args, Ctx2),
+    Ctx4 = Ctx3#{space_id => Id},
 
     {true, rest_replier:handle_service_step(Req, service_oneprovider, modify_space,
         service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, modify_space, Ctx3
+            ?SERVICE, modify_space, Ctx4
         ))
     )}.
 

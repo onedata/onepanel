@@ -141,6 +141,9 @@ translate(_Type, #error{module = model, function = get, reason = ?ERR_NOT_FOUND,
 translate(_Type, #error{reason = ?ERR_UNREGISTERED_PROVIDER}) ->
     {<<"Operation Error">>, <<"Unregistered provider.">>};
 
+translate(_Type, #error{reason = {?ERR_STORAGE_SYNC, import_already_started}}) ->
+    {<<"Operation Error">>, <<"Modifying storage_import that has already been started">>};
+
 translate(_Type, #error{reason = {error, {Code, Error, Description}}})
     when is_integer(Code), is_binary(Error), is_binary(Description) ->
     {<<"Operation Error">>, Error};
