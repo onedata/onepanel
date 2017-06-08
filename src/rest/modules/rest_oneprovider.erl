@@ -50,7 +50,8 @@ is_authorized(Req, _Method, _State) ->
 exists_resource(Req, _State) ->
     case service:get(?SERVICE) of
         {ok, #service{ctx = #{registered := true}}} -> {true, Req};
-        _ -> {false, Req}
+        {ok, #service{}} -> {false, Req};
+        #error{reason = ?ERR_NOT_FOUND} -> {false, Req}
     end.
 
 
