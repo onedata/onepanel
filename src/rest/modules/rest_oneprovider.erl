@@ -48,7 +48,11 @@ is_authorized(Req, _Method, _State) ->
 -spec exists_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
 exists_resource(Req, _State) ->
-    {service:exists(?SERVICE), Req}.
+    case service:get(?SERVICE) of
+        {ok, #service{ctx = #{registered := true}}} -> {true, Req};
+        {ok, #service{}} -> {false, Req};
+        #error{reason = ?ERR_NOT_FOUND} -> {false, Req}
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -84,14 +88,12 @@ accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
     Ctx2 = onepanel_maps:get_store(token, Args, token, Ctx),
     Ctx3 = onepanel_maps:get_store(size, Args, size, Ctx2),
     Ctx4 = onepanel_maps:get_store(storageId, Args, storage_id, Ctx3),
-    Ctx5 = onepanel_maps:get_store(storageName, Args, storage_name, Ctx4),
-    Ctx6 = onepanel_maps:get_store(mountInRoot, Args, mount_in_root, Ctx5),
+    Ctx5 = onepanel_maps:get_store(mountInRoot, Args, mount_in_root, Ctx4),
 
-    rest_utils:verify_any([storageId, storageName], Args),
 
     {true, rest_replier:handle_service_step(Req, service_oneprovider, support_space,
         service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, support_space, Ctx6
+            ?SERVICE, support_space, Ctx5
         ))
     )}.
 

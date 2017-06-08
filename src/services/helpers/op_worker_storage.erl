@@ -20,13 +20,11 @@
 -export([add/2, get/0, get/1, update/2]).
 -export([add_storage/4]).
 
+-type id() :: binary().
 -type name() :: binary().
 -type storage_params_map() :: #{Key :: atom() | binary() => Value :: binary()}.
 -type storage_params_list() :: [{Key :: atom() | binary(), Value :: binary()}].
 -type storage_map() :: #{Name :: name() => Params :: storage_params_map()}.
--type storage_list() :: [{Name :: name(), Params :: storage_params_list()}].
-
--export_type([storage_list/0]).
 
 %%%===================================================================
 %%% API functions
@@ -67,25 +65,26 @@ add(Storages, IgnoreExists) ->
 %% service.
 %% @end
 %%--------------------------------------------------------------------
--spec get() -> storage_list().
+-spec get() -> list().
 get() ->
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(service_op_worker:name(), Host),
     {ok, Storages} = rpc:call(Node, storage, list, []),
-    lists:foldl(fun(Storage, Acc) ->
-        Acc ++ get_storage(Node, Storage)
-    end, [], Storages).
+    Ids = lists:map(fun(Storage) ->
+        rpc:call(Node, storage, get_id, [Storage])
+    end, Storages),
+    [{ids, Ids}].
 
 
 %%--------------------------------------------------------------------
 %% @doc Returns details of a selected storage from op_worker service.
 %% @end
 %%--------------------------------------------------------------------
--spec get(Name :: name()) -> storage_list().
-get(Name) ->
+-spec get(Id :: id()) -> storage_params_list().
+get(Id) ->
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(service_op_worker:name(), Host),
-    {ok, Storage} = rpc:call(Node, storage, select, [Name]),
+    {ok, Storage} = rpc:call(Node, storage, get, [Id]),
     get_storage(Node, Storage).
 
 
@@ -94,12 +93,12 @@ get(Name) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec update(Name :: name(), Args :: maps:map()) -> ok.
-update(Name, Args) ->
+update(Id, Args) ->
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(service_op_worker:name(), Host),
-    [{_, Params}] = op_worker_storage:get(Name),
-    {ok, Id} = onepanel_lists:get(id, Params),
-    {ok, Type} = onepanel_lists:get(type, Params),
+    Storage = op_worker_storage:get(Id),
+    {ok, Id} = onepanel_lists:get(id, Storage),
+    {ok, Type} = onepanel_lists:get(type, Storage),
     Args2 = #{<<"timeout">> => onepanel_utils:typed_get(timeout, Args, binary)},
     {ok, _} = rpc:call(Node, storage, update_helper, [Id, Type, Args2]),
     ok.
@@ -317,11 +316,12 @@ add_storage(Node, StorageName, Helpers, ReadOnly) ->
 %% @private @doc Returns storage details from op_worker service configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec get_storage(Node :: node(), Storage :: any()) -> Storage :: storage_list().
+-spec get_storage(Node :: node(), Storage :: any()) ->
+    Storage :: storage_params_list().
 get_storage(Node, Storage) ->
     Id = rpc:call(Node, storage, get_id, [Storage]),
     Name = rpc:call(Node, storage, get_name, [Storage]),
     [Helper | _] = rpc:call(Node, storage, get_helpers, [Storage]),
     Type = rpc:call(Node, helper, get_name, [Helper]),
     Args = maps:to_list(rpc:call(Node, helper, get_args, [Helper])),
-    [{Name, [{id, Id}, {type, Type} | Args]}].
+    [{id, Id}, {name, Name}, {type, Type} | Args].

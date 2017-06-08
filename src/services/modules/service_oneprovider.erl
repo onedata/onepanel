@@ -150,8 +150,6 @@ get_steps(register, Ctx) ->
 
 get_steps(unregister, #{hosts := Hosts} = Ctx) ->
     [
-        #step{hosts = Hosts, module = service, function = delete,
-            args = [name()], selection = any},
         #step{hosts = Hosts, function = unregister, selection = any, ctx = Ctx}
     ];
 
@@ -243,7 +241,9 @@ register(Ctx) ->
         {oz_plugin:get_cert_file(), Cert}
     ]),
 
-    service:save(#service{name = name(), ctx = #{registered => true}}),
+    service:update(name(), fun(#service{ctx = C} = S) ->
+        S#service{ctx = C#{registered => true}}
+    end),
 
     {ok, ProviderId}.
 
@@ -256,6 +256,10 @@ register(Ctx) ->
 unregister(#{hosts := Hosts}) ->
     Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
     ok = oz_providers:unregister(provider),
+
+    service:update(name(), fun(#service{ctx = C} = S) ->
+        S#service{ctx = C#{registered => false}}
+    end),
 
     lists:foreach(fun(File) ->
         onepanel_rpc:call_all(Nodes, file, delete, [File])
@@ -322,11 +326,6 @@ support_space(#{storage_id := StorageId, node := Node} = Ctx) ->
     {ok, _} = rpc:call(Node, space_storage, add, [SpaceId, StorageId, MountInRoot]),
     [{id, SpaceId}];
 
-support_space(#{storage_name := Name, node := _} = Ctx) ->
-    [{Name, Props}] = op_worker_storage:get(Name),
-    {id, Id} = lists:keyfind(id, 1, Props),
-    support_space(Ctx#{storage_id => Id});
-
 support_space(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     support_space(Ctx#{node => Node}).
@@ -350,7 +349,7 @@ revoke_space_support(#{id := SpaceId}) ->
 -spec get_spaces(Ctx :: service:ctx()) -> list().
 get_spaces(_Ctx) ->
     {ok, SpaceIds} = oz_providers:get_spaces(provider),
-    SpaceIds.
+    [{ids, SpaceIds}].
 
 
 %%--------------------------------------------------------------------

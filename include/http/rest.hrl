@@ -14,7 +14,8 @@
 -record(client, {
     id :: undefined | onepanel_user:uuid(),
     name :: undefined | onepanel_user:name(),
-    role :: undefined | onepanel_user:role()
+    role :: undefined | onepanel_user:role(),
+    session_id :: undefined | onepanel_session:id()
 }).
 
 -record(rmethod, {

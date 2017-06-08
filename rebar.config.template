@@ -25,7 +25,7 @@
 
 {deps, [
     {ctool, {git, "ssh://git@git.plgrid.pl:7999/vfs/ctool.git", {ref, "9cb0c03570"}}},
-    {onepanel_gui, {git, "git://github.com/krzysztof-trzepla/onepanel_gui.git", {ref, "c7a32f1651"}}},
+    {gui, {git, "ssh://git@git.plgrid.pl:7999/vfs/gui.git", {ref, "ea2ab01"}}},
     {yamerl, {git, "git://github.com/yakaz/yamerl.git", {ref, "3f46bf06b9"}}},
     {bcrypt, {git, "git://github.com/smarkets/erlang-bcrypt.git", {ref, "a63df34d49"}}}
 ]}.
@@ -57,13 +57,13 @@
             crypto,
             mnesia,
             ctool,
+            gui,
             %% deps included by default by reltool but not included by relx
             {base64url, load},
             {common_test, load},
             {debugger, load},
             {edoc, load},
             {enacl_p, load},
-            {erlydtl, load},
             {erts, load},
             {et, load},
             {eunit, load},
@@ -71,7 +71,6 @@
             {macaroons, load},
             {meck, load},
             {mochiweb, load},
-            {n2o, load},
             {observer, load},
             {runtime_tools, load},
             {sasl, load},
@@ -106,7 +105,10 @@
 
         %% Copy additional data files
         {mkdir, "data"},
-        {copy, "LICENSE.txt", "data/"}
+        {copy, "LICENSE.txt", "data/"},
+
+        %% Copy GUI static files
+        {copy, "_build/default/lib/gui_static", "./data/"}
     ]},
 
     {extended_start_script, true}

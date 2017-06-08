@@ -17,8 +17,6 @@
 -export([get_port/0, get_prefix/1]).
 -export([start/0, stop/0, status/0]).
 
--define(LISTENER, rest_listener).
-
 %%%===================================================================
 %%% API functions
 %%%===================================================================
@@ -61,11 +59,11 @@ start() ->
         oneprovider -> oneprovider_api:routes();
         onezone -> onezone_api:routes()
     end,
-    Routes = merge_routes(CommonRoutes ++ SpecificRoutes),
+    Routes = merge_routes(CommonRoutes ++ SpecificRoutes) ++ static_gui_routes(),
 
     Dispatch = cowboy_router:compile([{'_', Routes}]),
 
-    {ok, _} = ranch:start_listener(?LISTENER, HttpsAcceptors,
+    {ok, _} = ranch:start_listener(?MODULE, HttpsAcceptors,
         ranch_etls, [
             {port, Port},
             {keyfile, KeyFile},
@@ -87,7 +85,7 @@ start() ->
 %%--------------------------------------------------------------------
 -spec stop() -> ok | {error, Reason :: term()}.
 stop() ->
-    case ranch:stop_listener(?LISTENER) of
+    case ranch:stop_listener(?MODULE) of
         ok ->
             ?info("REST listener stopped");
         {error, Reason} ->
@@ -129,3 +127,21 @@ merge_routes(Routes) ->
                 [Route | Acc]
         end
     end, [], Routes).
+
+
+%%--------------------------------------------------------------------
+%% @private @doc Returns Cowboy router compliant routes for static gui files.
+%% @end
+%%--------------------------------------------------------------------
+-spec static_gui_routes() -> [{Path :: string(), Module :: module(), State :: term()}].
+static_gui_routes() ->
+    % Resolve static files root. First, check if there is a non-empty dir
+    % located in gui_custom_static_root. If not, use default.
+    CustomRoot = onepanel_env:get(gui_custom_static_root),
+    DefaultRoot = onepanel_env:get(gui_default_static_root),
+    StaticFilesRoot = case file:list_dir_all(CustomRoot) of
+        {error, enoent} -> DefaultRoot;
+        {ok, []} -> DefaultRoot;
+        {ok, _} -> CustomRoot
+    end,
+   [{"/[...]", gui_static_handler, {dir, StaticFilesRoot}}].

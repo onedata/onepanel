@@ -19,7 +19,7 @@
         public_key,
         crypto,
         bcrypt,
-        onepanel_gui
+        gui
     ]},
     {mod, {onepanel_app, []}},
     {env, []}

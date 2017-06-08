@@ -118,9 +118,11 @@ is_authorized(Req, #rstate{methods = Methods} = State) ->
         fun authenticate_by_cookie/1
     ],
     case authenticate(Req, AuthMethods) of
-        {{true, User}, Req3} ->
+        {{true, User, SessionId}, Req3} ->
             #onepanel_user{username = Username, role = Role, uuid = Uuid} = User,
-            Client = #client{name = Username, id = Uuid, role = Role},
+            Client = #client{
+                name = Username, id = Uuid, role = Role, session_id = SessionId
+            },
             {true, Req3, State#rstate{client = Client}};
         {false, Req3} ->
             {Method, Req4} = rest_utils:get_method(Req3),
@@ -298,16 +300,17 @@ accept_resource(Req, Data, #rstate{module = Module, methods = Methods} =
 %% @end
 %%--------------------------------------------------------------------
 -spec authenticate(Req :: cowboy_req:req(), Methods :: [fun()]) ->
-    {{true, User :: #onepanel_user{}} | false, Req :: cowboy_req:req()}.
+    {{true, User :: #onepanel_user{}, SessionId ::
+    undefined | onepanel_session:id()} | false, Req :: cowboy_req:req()}.
 authenticate(Req, []) ->
     {false, Req};
 authenticate(Req, [AuthMethod | AuthMethods]) ->
     try AuthMethod(Req) of
-        {ok, User} ->
-            {{true, User}, Req};
-        #error{} = Error ->
-            {false, rest_replier:handle_error(Req, error, Error)};
-        {ignore, Req2} ->
+        {{ok, User}, SessionId, Req2} ->
+            {{true, User, SessionId}, Req2};
+        {#error{} = Error, _SessionId, Req2} ->
+            {false, rest_replier:handle_error(Req2, error, Error)};
+        {ignore, _SessionId, Req2} ->
             authenticate(Req2, AuthMethods)
     catch
         Type:Reason ->
@@ -319,14 +322,15 @@ authenticate(Req, [AuthMethod | AuthMethods]) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec authenticate_by_basic_auth(Req :: cowboy_req:req()) ->
-    {ok, User :: #onepanel_user{}} | #error{} | {ignore, Req :: cowboy_req:req()}.
+    {{ok, User :: #onepanel_user{}} | #error{} | ignore, SessionId ::
+    undefined | onepanel_session:id(), Req :: cowboy_req:req()}.
 authenticate_by_basic_auth(Req) ->
     case cowboy_req:header(<<"authorization">>, Req) of
-        {<<"Basic ", Hash/binary>>, _Req2} ->
+        {<<"Basic ", Hash/binary>>, Req2} ->
             [Username, Password] = binary:split(base64:decode(Hash), <<":">>),
-            onepanel_user:authenticate(Username, Password);
+            {onepanel_user:authenticate(Username, Password), undefined, Req2};
         {_, Req2} ->
-            {ignore, Req2}
+            {ignore, undefined, Req2}
     end.
 
 
@@ -335,11 +339,14 @@ authenticate_by_basic_auth(Req) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec authenticate_by_cookie(Req :: cowboy_req:req()) ->
-    {ok, User :: #onepanel_user{}} | #error{} | {ignore, Req :: cowboy_req:req()}.
+    {{ok, User :: #onepanel_user{}} | #error{} | ignore, SessionId ::
+    undefined | onepanel_session:id(), Req :: cowboy_req:req()}.
 authenticate_by_cookie(Req) ->
     case cowboy_req:cookie(<<"sessionId">>, Req) of
-        {undefined, Req2} -> {ignore, Req2};
-        {SessionId, _Req2} -> onepanel_user:authenticate(SessionId)
+        {undefined, Req2} ->
+            {ignore, undefined, Req2};
+        {SessionId, Req2} ->
+            {onepanel_user:authenticate(SessionId), SessionId, Req2}
     end.
 
 

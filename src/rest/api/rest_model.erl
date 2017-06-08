@@ -16,12 +16,12 @@
 
 -export([
     ceph_model/0,
+    cluster_configuration_details_model/0,
     cluster_databases_model/0,
     cluster_managers_model/0,
-    cluster_storages_model/0,
-    cluster_storages_list_model/0,
     cluster_workers_model/0,
     cookie_model/0,
+    database_hosts_model/0,
     error_model/0,
     manager_hosts_model/0,
     panel_configuration_model/0,
@@ -29,29 +29,38 @@
     posix_model/0,
     provider_cluster_configuration_model/0,
     provider_configuration_model/0,
+    provider_configuration_details_model/0,
+    provider_configuration_details_oneprovider_model/0,
     provider_configuration_oneprovider_model/0,
     provider_configuration_onezone_model/0,
     provider_details_model/0,
     provider_modify_request_model/0,
     provider_register_request_model/0,
     provider_spaces_model/0,
+    provider_storages_model/0,
     s3_model/0,
     service_databases_model/0,
     service_error_model/0,
     service_hosts_model/0,
     service_status_model/0,
     service_status_host_model/0,
+    session_details_model/0,
     space_details_model/0,
     space_support_request_model/0,
+    storage_create_request_model/0,
+    storage_details_model/0,
     storage_modify_request_model/0,
     swift_model/0,
     task_status_model/0,
     user_create_request_model/0,
     user_details_model/0,
     user_modify_request_model/0,
+    worker_hosts_model/0,
     zone_cluster_configuration_model/0,
     zone_cluster_configuration_nodes_model/0,
     zone_configuration_model/0,
+    zone_configuration_details_model/0,
+    zone_configuration_details_onezone_model/0,
     zone_configuration_onezone_model/0
 ]).
 
@@ -63,6 +72,10 @@
 -spec ceph_model() -> maps:map().
 ceph_model() ->
     #{
+        %% The ID of storage.
+        id => {string, optional},
+        %% The name of storage.
+        name => {string, optional},
         %% The type of storage.
         type => {equal, <<"ceph">>},
         %% The username of the Ceph cluster administrator.
@@ -83,6 +96,18 @@ ceph_model() ->
         insecure => {boolean, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The cluster configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec cluster_configuration_details_model() -> maps:map().
+cluster_configuration_details_model() ->
+    #{
+        databases => database_hosts_model(),
+        managers => manager_hosts_model(),
+        workers => worker_hosts_model()
     }.
 
 %%--------------------------------------------------------------------
@@ -118,22 +143,6 @@ cluster_managers_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The cluster storage configuration.
-%% @end
-%%--------------------------------------------------------------------
--spec cluster_storages_model() -> {oneof, Oneof :: list()}.
-cluster_storages_model() ->
-    {oneof, [posix_model(), s3_model(), ceph_model(), swift_model()]}.
-
-%%--------------------------------------------------------------------
-%% @doc The list of supported storage types.
-%% @end
-%%--------------------------------------------------------------------
--spec cluster_storages_list_model() -> maps:map().
-cluster_storages_list_model() ->
-    #{'_' => cluster_storages_model()}.
-
-%%--------------------------------------------------------------------
 %% @doc The cluster worker service configuration.
 %% @end
 %%--------------------------------------------------------------------
@@ -161,6 +170,17 @@ cookie_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc The cluster database service hosts configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec database_hosts_model() -> maps:map().
+database_hosts_model() ->
+    #{
+        %% The list of service hosts.
+        hosts => [string]
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The generic error model for REST requests.
 %% @end
 %%--------------------------------------------------------------------
@@ -180,13 +200,13 @@ error_model() ->
 -spec manager_hosts_model() -> maps:map().
 manager_hosts_model() ->
     #{
-        %% The name of a host where main cluster manager node should be
-        %% deployed. Main cluster manager node is responsible for monitoring
-        %% cluster worker nodes. Other nodes, called optional, are suspended. In
-        %% case of main cluster manager node failure one of optional nodes is
-        %% resumed and takes over main node responsibilities.
+        %% The main cluster manager host. Main cluster manager node is
+        %% responsible for monitoring cluster worker nodes. Other nodes, which
+        %% are redundant, are suspended. In case of main cluster manager node
+        %% failure one of redundant nodes is resumed and takes over main node
+        %% responsibilities.
         mainHost => string,
-        %% The list of hosts where service should be deployed.
+        %% The list of service hosts.
         hosts => [string]
     }.
 
@@ -217,6 +237,10 @@ panel_configuration_users_model() ->
 -spec posix_model() -> maps:map().
 posix_model() ->
     #{
+        %% The ID of storage.
+        id => {string, optional},
+        %% The name of storage.
+        name => {string, optional},
         %% The type of storage.
         type => {equal, <<"posix">>},
         %% The absolute path to the directory where the POSIX storage is mounted
@@ -235,11 +259,8 @@ posix_model() ->
 -spec provider_cluster_configuration_model() -> maps:map().
 provider_cluster_configuration_model() ->
     #{
-        %% Defines whether administrative cluster should be created from the
-        %% list of provided cluster nodes.
-        autoDeploy => {boolean, optional},
         %% The name of a domain common for all services in the cluster. Together
-        %% with a node hostname constitutes a fully qualified domain name (FDQN)
+        %% with a node hostname constitutes a fully qualified domain name (FQDN)
         %% of the node.
         domainName => string,
         %% The collection of nodes aliases associated with nodes properties.
@@ -247,8 +268,7 @@ provider_cluster_configuration_model() ->
         databases => cluster_databases_model(),
         managers => cluster_managers_model(),
         workers => cluster_workers_model(),
-        %% The cluster storage configuration.
-        storages => {#{'_' => cluster_storages_model()}, optional}
+        storages => {storage_create_request_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -262,6 +282,28 @@ provider_configuration_model() ->
         oneprovider => {provider_configuration_oneprovider_model(), optional},
         onezone => {provider_configuration_onezone_model(), optional},
         onepanel => {panel_configuration_model(), optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The provider deployment configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec provider_configuration_details_model() -> maps:map().
+provider_configuration_details_model() ->
+    #{
+        cluster => cluster_configuration_details_model(),
+        oneprovider => {provider_configuration_details_oneprovider_model(), optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The provider custom configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec provider_configuration_details_oneprovider_model() -> maps:map().
+provider_configuration_details_oneprovider_model() ->
+    #{
+        %% The name of a provider.
+        name => string
     }.
 
 %%--------------------------------------------------------------------
@@ -366,12 +408,27 @@ provider_spaces_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc The cluster storage resources.
+%% @end
+%%--------------------------------------------------------------------
+-spec provider_storages_model() -> maps:map().
+provider_storages_model() ->
+    #{
+        %% The list of IDs of cluster storage resources.
+        ids => [string]
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The Simple Storage Service configuration.
 %% @end
 %%--------------------------------------------------------------------
 -spec s3_model() -> maps:map().
 s3_model() ->
     #{
+        %% The ID of storage.
+        id => {string, optional},
+        %% The name of storage.
+        name => {string, optional},
         %% The type of storage.
         type => {equal, <<"s3">>},
         %% The hostname of a machine where S3 storage is installed.
@@ -455,7 +512,7 @@ service_status_model() ->
     #{
         %% The collection of hosts with associated service status, for each
         %% hostwhere given service has been deployed.
-        hosts => {#{'_' => service_status_host_model()}, optional}
+        hosts => #{'_' => service_status_host_model()}
     }.
 
 %%--------------------------------------------------------------------
@@ -470,6 +527,19 @@ service_status_host_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc The user session details.
+%% @end
+%%--------------------------------------------------------------------
+-spec session_details_model() -> maps:map().
+session_details_model() ->
+    #{
+        %% The session ID.
+        sessionId => string,
+        %% The name of a user associated with the session.
+        username => string
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The space details.
 %% @end
 %%--------------------------------------------------------------------
@@ -477,7 +547,7 @@ service_status_host_model() ->
 space_details_model() ->
     #{
         %% The ID of the space.
-        id => {string, optional},
+        id => string,
         %% The name of the space.
         name => string,
         %% The collection of provider IDs with associated supported storage
@@ -501,16 +571,28 @@ space_support_request_model() ->
         %% The storage space size in bytes that provider is willing to assign to
         %% the space.
         size => integer,
-        %% The user defined name of the storage resource, where the space data
-        %% should be stored. To be used interchangeably with
-        %% `storageId`.
-        storageName => {string, optional},
-        %% The ID of the storage resource where the space data should be stored.
-        %% To be used interchangeably with `storageName`.
-        storageId => {string, optional},
+        %% The ID of the storage resource where the space data should be
+        %% stored.
+        storageId => string,
         %% Defines whether space will be mounted in / or /{SpaceId}/ path.
         mountInRoot => {boolean, optional}
     }.
+
+%%--------------------------------------------------------------------
+%% @doc The configuration details required to add storage resources.
+%% @end
+%%--------------------------------------------------------------------
+-spec storage_create_request_model() -> maps:map().
+storage_create_request_model() ->
+    #{'_' => storage_details_model()}.
+
+%%--------------------------------------------------------------------
+%% @doc The cluster storage configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec storage_details_model() -> {oneof, Oneof :: list()}.
+storage_details_model() ->
+    {oneof, [posix_model(), s3_model(), ceph_model(), swift_model()]}.
 
 %%--------------------------------------------------------------------
 %% @doc The storage configuration details that can be modified.
@@ -530,6 +612,10 @@ storage_modify_request_model() ->
 -spec swift_model() -> maps:map().
 swift_model() ->
     #{
+        %% The ID of storage.
+        id => {string, optional},
+        %% The name of storage.
+        name => {string, optional},
         %% The type of storage.
         type => {equal, <<"swift">>},
         %% The URL to OpenStack Keystone identity service.
@@ -617,8 +703,22 @@ user_details_model() ->
 -spec user_modify_request_model() -> maps:map().
 user_modify_request_model() ->
     #{
-        %% The user password.
-        password => string
+        %% The current user password that should be changed or password of an
+        %% administrator that is issuing this request on behalf of a user. 
+        currentPassword => string,
+        %% The new user password.
+        newPassword => string
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The cluster worker service hosts configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec worker_hosts_model() -> maps:map().
+worker_hosts_model() ->
+    #{
+        %% The list of service hosts.
+        hosts => [string]
     }.
 
 %%--------------------------------------------------------------------
@@ -628,9 +728,6 @@ user_modify_request_model() ->
 -spec zone_cluster_configuration_model() -> maps:map().
 zone_cluster_configuration_model() ->
     #{
-        %% Defines whether administrative cluster should be created from the
-        %% list of provided cluster nodes.
-        autoDeploy => {boolean, optional},
         %% The name of a domain common for all services in the cluster. Together
         %% with a node hostname constitute a node fully qualified domain name.
         domainName => string,
@@ -658,6 +755,28 @@ zone_configuration_model() ->
         cluster => zone_cluster_configuration_model(),
         onezone => {zone_configuration_onezone_model(), optional},
         onepanel => {panel_configuration_model(), optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The zone cluster configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec zone_configuration_details_model() -> maps:map().
+zone_configuration_details_model() ->
+    #{
+        cluster => cluster_configuration_details_model(),
+        onezone => {zone_configuration_details_onezone_model(), optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The zone custom configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec zone_configuration_details_onezone_model() -> maps:map().
+zone_configuration_details_onezone_model() ->
+    #{
+        %% The name of a zone.
+        name => string
     }.
 
 %%--------------------------------------------------------------------

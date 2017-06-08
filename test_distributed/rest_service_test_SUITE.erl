@@ -70,10 +70,10 @@
 ]).
 
 -define(STORAGE_JSON, [
-    {<<"somePosix">>, [
-        {<<"type">>, <<"posix">>},
-        {<<"mountPoint">>, <<"someMountPoint">>}
-    ]}
+    {<<"id">>, <<"somePosixId">>},
+    {<<"name">>, <<"somePosix">>},
+    {<<"type">>, <<"posix">>},
+    {<<"mountPoint">>, <<"someMountPoint">>}
 ]).
 
 -define(STORAGE_UPDATE_JSON, [
@@ -97,7 +97,7 @@
         {<<"accessKey">>, <<"someKey">>},
         {<<"secretKey">>, <<"someKey">>},
         {<<"blockSize">>, 1024}
-    ]} | ?STORAGE_JSON
+    ]}
 ]).
 
 -define(CLUSTER_JSON, [{<<"domainName">>, <<"someDomain">>},
@@ -242,7 +242,7 @@ get_should_return_storages(Config) ->
                 {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
             )
         ),
-        onepanel_test_rest:assert_body(JsonBody, ?STORAGES_JSON)
+        onepanel_test_rest:assert_body_fields(JsonBody, [<<"ids">>])
     end, [{oneprovider_hosts, <<"/provider">>}]).
 
 
@@ -250,7 +250,7 @@ get_should_return_storage(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, "/storages/somePosix">>, get,
+                Host, <<Prefix/binary, "/storages/somePosixId">>, get,
                 {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
             )
         ),
@@ -311,12 +311,12 @@ patch_should_update_storage(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
         ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, "/storages/somePosix">>, patch,
+                Host, <<Prefix/binary, "/storages/somePosixId">>, patch,
                 {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, ?STORAGE_UPDATE_JSON
             )
         ),
         ?assertReceivedMatch({service, op_worker, update_storage, #{
-            name := <<"somePosix">>,
+            id := <<"somePosixId">>,
             args := #{timeout := 10000}
         }}, ?TIMEOUT)
     end, [{oneprovider_hosts, <<"/provider">>}]).
@@ -363,10 +363,6 @@ put_should_add_storage(Config) ->
         )),
         ?assertReceivedMatch({service, op_worker, add_storages, #{
             storages := #{
-                <<"somePosix">> := #{
-                    type := <<"posix">>,
-                    mountPoint := <<"someMountPoint">>
-                },
                 <<"someCeph">> := #{
                     type := <<"ceph">>,
                     clusterName := <<"someName">>,
@@ -536,10 +532,6 @@ put_should_configure_oneprovider_service(Config) ->
                 storages := #{
                     hosts := ["host1.someDomain", "host2.someDomain", "host3.someDomain"],
                     storages := #{
-                        <<"somePosix">> := #{
-                            type := <<"posix">>,
-                            mountPoint := <<"someMountPoint">>
-                        },
                         <<"someCeph">> := #{
                             type := <<"ceph">>,
                             clusterName := <<"someName">>,
@@ -602,7 +594,9 @@ init_per_testcase(get_should_return_storages, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(all_nodes, NewConfig),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_op_worker, get_storages, {[{'node@host1', ?STORAGES_JSON}], []}},
+        {service_op_worker, get_storages, {[{'node@host1', [
+            {<<"ids">>, [<<"id1">>, <<"id2">>, <<"id3">>]}
+        ]}], []}},
         {task_finished, {service, action, ok}}
     ] end),
     NewConfig;

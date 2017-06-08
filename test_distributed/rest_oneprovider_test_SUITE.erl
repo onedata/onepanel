@@ -58,7 +58,9 @@
 
 -define(SPACE_JSON, [{<<"id">>, <<"someId1">>}]).
 
--define(SPACES_JSON, [<<"someId1">>, <<"someId2">>, <<"someId3">>]).
+-define(SPACES_JSON, [
+    {<<"ids">>, [<<"someId1">>, <<"someId2">>, <<"someId3">>]}
+]).
 
 -define(SPACE_DETAILS_JSON, [
     {<<"id">>, <<"someId">>}, {<<"name">>, <<"someName">>},
@@ -188,24 +190,17 @@ get_should_return_supported_spaces(Config) ->
 
 put_should_create_or_support_space(Config) ->
     ?run(Config, fun(Host) ->
-        lists:foreach(fun(Body) ->
-            {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
-                onepanel_test_rest:auth_request(
-                    Host, <<"/provider/spaces">>, post,
-                    {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, Body
-                )
-            ),
-            onepanel_test_rest:assert_body(JsonBody, ?SPACE_JSON)
-        end, [
-            [
-                {<<"token">>, <<"someToken">>}, {<<"size">>, 1024},
-                {<<"storageName">>, <<"someName">>}
-            ],
-            [
-                {<<"name">>, <<"someName">>}, {<<"token">>, <<"someToken">>},
-                {<<"size">>, 1024}, {<<"storageId">>, <<"someId">>}
-            ]
-        ])
+        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/spaces">>, post,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [
+                    {<<"token">>, <<"someToken">>},
+                    {<<"size">>, 1024},
+                    {<<"storageId">>, <<"someId">>}
+                ]
+            )
+        ),
+        onepanel_test_rest:assert_body(JsonBody, ?SPACE_JSON)
     end).
 
 
@@ -301,8 +296,9 @@ init_per_testcase(_Case, Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
     Self = self(),
     test_utils:mock_new(Nodes, service),
-    test_utils:mock_expect(Nodes, service, exists, fun(oneprovider) ->
-        true end),
+    test_utils:mock_expect(Nodes, service, get, fun(oneprovider) ->
+        {ok, #service{ctx = #{registered => true}}}
+    end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},
         [{task_finished, {service, action, ok}}]

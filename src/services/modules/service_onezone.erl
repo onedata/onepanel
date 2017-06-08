@@ -74,6 +74,7 @@ get_steps(deploy, Ctx) ->
     {ok, CbCtx} = onepanel_maps:get([cluster, ?SERVICE_CB], Ctx),
     {ok, CmCtx} = onepanel_maps:get([cluster, ?SERVICE_CM], Ctx),
     {ok, OzwCtx} = onepanel_maps:get([cluster, ?SERVICE_OZW], Ctx),
+    OzCtx = onepanel_maps:get(name(), Ctx, #{}),
     S = #step{verify_hosts = false},
     Ss = #steps{verify_hosts = false},
     [
@@ -85,7 +86,9 @@ get_steps(deploy, Ctx) ->
         Ss#steps{service = ?SERVICE_OZW, action = deploy, ctx = OzwCtx},
         S#step{service = ?SERVICE_OZW, function = status, ctx = OzwCtx},
         S#step{module = service, function = save, ctx = OpaCtx,
-            args = [#service{name = name()}], selection = first},
+            args = [#service{name = name(), ctx = OzCtx}],
+            selection = first
+        },
         Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx}
     ];
 

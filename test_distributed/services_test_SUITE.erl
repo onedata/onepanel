@@ -52,8 +52,8 @@ all() ->
         service_oneprovider_modify_details_test,
         service_oneprovider_get_details_test,
         service_oneprovider_get_supported_spaces_test,
-        service_op_worker_add_storage_test,
         service_op_worker_get_storages_test,
+        service_op_worker_add_storage_test,
         services_status_test,
         services_stop_start_test
     ]).
@@ -119,9 +119,29 @@ service_oneprovider_get_supported_spaces_test(Config) ->
     service_action(Node, oneprovider, get_spaces, #{
         hosts => [onepanel_cluster:node_to_host(Node)]
     }),
-    ?assertEqual([{Node, []}], assert_service_step(
+    ?assertEqual([{Node, [{ids, []}]}], assert_service_step(
         service:get_module(oneprovider), get_spaces
     )).
+
+
+service_op_worker_get_storages_test(Config) ->
+    [Node | _] = ?config(oneprovider_nodes, Config),
+    Ctx = #{hosts => [onepanel_cluster:node_to_host(Node)]},
+    service_action(Node, op_worker, get_storages, Ctx),
+    Results = assert_service_step(service:get_module(op_worker), get_storages),
+    [{Node, [{ids, [Id]}]}] = ?assertMatch([{Node, [{ids, [_]}]}], Results),
+
+    service_action(Node, op_worker, get_storages, Ctx#{id => Id}),
+    Results2 = assert_service_step(service:get_module(op_worker), get_storages),
+    [{Node, Storage}] = ?assertMatch([{Node, _}], Results2),
+    onepanel_test_utils:assert_values(Storage, [
+        {id, Id},
+        {name, <<"somePosix1">>},
+        {type, <<"posix">>},
+        {<<"mountPoint">>, onepanel_utils:typed_get(
+            [storages, posix, '/mnt/st1', docker_path], Config, binary
+        )}
+    ]).
 
 
 service_op_worker_add_storage_test(Config) ->
@@ -166,26 +186,6 @@ service_op_worker_add_storage_test(Config) ->
         }
     }),
     assert_service_step(service:get_module(op_worker), add_storages, [Node], ok).
-
-
-service_op_worker_get_storages_test(Config) ->
-    [Node | _] = ?config(oneprovider_nodes, Config),
-    Name = <<"somePosix1">>,
-    lists:foreach(fun(Ctx) ->
-        service_action(Node, op_worker, get_storages, Ctx#{
-            hosts => [onepanel_cluster:node_to_host(Node)]
-        }),
-        Results = assert_service_step(service:get_module(op_worker), get_storages),
-        [{_, Storages}] = ?assertMatch([{Node, _}], Results),
-        onepanel_test_utils:assert_fields(Storages, [Name]),
-        onepanel_test_utils:assert_fields(?config(Name, Storages), [id]),
-        onepanel_test_utils:assert_values(?config(Name, Storages), [
-            {type, <<"posix">>},
-            {<<"mountPoint">>, onepanel_utils:typed_get(
-                [storages, posix, '/mnt/st1', docker_path], Config, binary
-            )}
-        ])
-    end, [#{}, #{name => Name}]).
 
 
 services_status_test(Config) ->
