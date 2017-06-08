@@ -110,9 +110,6 @@ translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_CREATE, Node, Reason}})
 translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_READ, Node, Reason}}) ->
     translate_storage_test_file_error("read", <<"read">>, Node, Reason);
 
-translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_WRITE, Node, Reason}}) ->
-    translate_storage_test_file_error("write", <<"write">>, Node, Reason);
-
 translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_REMOVE, Node, Reason}}) ->
     translate_storage_test_file_error("remove", <<"removal">>, Node, Reason);
 
