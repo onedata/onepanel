@@ -204,9 +204,9 @@ error_model() ->
 manager_hosts_model() ->
     #{
         %% The main cluster manager host. Main cluster manager node is
-        %% responsible for monitoring cluster worker nodes. Other nodes, called
-        %% optional, are suspended. In case of main cluster manager node failure
-        %% one of optional nodes is resumed and takes over main node
+        %% responsible for monitoring cluster worker nodes. Other nodes, which
+        %% are redundant, are suspended. In case of main cluster manager node
+        %% failure one of redundant nodes is resumed and takes over main node
         %% responsibilities.
         mainHost => string,
         %% The list of service hosts.
@@ -263,7 +263,7 @@ posix_model() ->
 provider_cluster_configuration_model() ->
     #{
         %% The name of a domain common for all services in the cluster. Together
-        %% with a node hostname constitutes a fully qualified domain name (FDQN)
+        %% with a node hostname constitutes a fully qualified domain name (FQDN)
         %% of the node.
         domainName => string,
         %% The collection of nodes aliases associated with nodes properties.
@@ -442,6 +442,9 @@ s3_model() ->
         accessKey => string,
         %% The secret key to the S3 storage.
         secretKey => string,
+        %% The version of signature used to sign requests. One of: 2, 4.
+        %% Default: 4.
+        signatureVersion => {integer, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Storage block size in bytes.

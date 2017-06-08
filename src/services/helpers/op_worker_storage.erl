@@ -174,7 +174,11 @@ get_storage_helper(Node, <<"s3">>, UserCtx, Params) ->
         onepanel_utils:join([S3Host, S3Port], <<":">>),
         onepanel_utils:typed_get(bucketName, Params, binary),
         S3Scheme =:= https,
-        get_helper_opt_args([{timeout, binary}, {blockSize, binary}], Params),
+        get_helper_opt_args([
+            {signatureVersion, binary},
+            {timeout, binary},
+            {blockSize, binary}
+        ], Params),
         UserCtx,
         onepanel_utils:typed_get(insecure, Params, boolean, false)
     ]);
@@ -183,7 +187,10 @@ get_storage_helper(Node, <<"swift">>, UserCtx, Params) ->
         onepanel_utils:typed_get(authUrl, Params, binary),
         onepanel_utils:typed_get(containerName, Params, binary),
         onepanel_utils:typed_get(tenantName, Params, binary),
-        get_helper_opt_args([{timeout, binary}, {blockSize, binary}], Params),
+        get_helper_opt_args([
+            {timeout, binary},
+            {blockSize, binary}
+        ], Params),
         UserCtx,
         onepanel_utils:typed_get(insecure, Params, boolean, false)
     ]).
@@ -225,49 +232,63 @@ maybe_verify_storage(Helper, UserCtx, _) ->
 -spec verify_storage(Helper :: any(), UserCtx :: any()) ->
     ok | no_return().
 verify_storage(Helper, UserCtx) ->
-    [Node | _] = Nodes = service_op_worker:get_nodes(),
-    FileId = rpc:call(Node, storage_detector, generate_file_id, []),
-    Args = [Helper, UserCtx, FileId],
-    FileContent = create_test_file(Node, Args),
-    verify_test_file(Nodes, Args, FileContent),
-    remove_test_file(Node, Args).
+    [Node | Nodes] = service_op_worker:get_nodes(),
+    {FileId, FileContent} = create_test_file(Node, Helper, UserCtx),
+    {FileId2, FileContent2} = verify_test_file(
+        Nodes, Helper, UserCtx, FileId, FileContent
+    ),
+    read_test_file(Node, Helper, UserCtx, FileId2, FileContent2),
+    remove_test_file(Node, Helper, UserCtx, FileId2).
+
+
+%%--------------------------------------------------------------------
+%% @private @doc Checks whether storage is read/write accessible for all
+%% op_worker service nodes by creating, reading and removing test files.
+%% @end
+%%--------------------------------------------------------------------
+-spec verify_test_file(Nodes :: [node()], Helper :: any(), UserCtx :: any(),
+    FileId :: binary(), FileContent :: binary()) ->
+    {FileId :: binary(), FileContent :: binary()} | no_return().
+verify_test_file([], _Helper, _UserCtx, FileId, FileContent) ->
+    {FileId, FileContent};
+
+verify_test_file([Node | Nodes], Helper, UserCtx, FileId, FileContent) ->
+    read_test_file(Node, Helper, UserCtx, FileId, FileContent),
+    remove_test_file(Node, Helper, UserCtx, FileId),
+    {FileId2, FileContent2} = create_test_file(Node, Helper, UserCtx),
+    verify_test_file(Nodes, Helper, UserCtx, FileId2, FileContent2).
 
 
 %%--------------------------------------------------------------------
 %% @private @doc Creates storage test file.
 %% @end
 %%--------------------------------------------------------------------
--spec create_test_file(Node :: node(), Args :: list()) ->
-    FileContent :: binary() | no_return().
-create_test_file(Node, Args) ->
+-spec create_test_file(Node :: node(), Helper :: any(), UserCtx :: any()) ->
+    {FileId :: binary(), FileContent :: binary()} | no_return().
+create_test_file(Node, Helper, UserCtx) ->
+    FileId = rpc:call(Node, storage_detector, generate_file_id, []),
+    Args = [Helper, UserCtx, FileId],
     case rpc:call(Node, storage_detector, create_test_file, Args) of
         <<_/binary>> = FileContent ->
-            FileContent;
+            {FileId, FileContent};
         {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
             ?throw_error({?ERR_STORAGE_TEST_FILE_CREATE, Node, Reason}, Stacktrace)
     end.
 
 
 %%--------------------------------------------------------------------
-%% @private @doc Checks whether storage test file content matches expected one.
+%% @private @doc Reads storage test file.
 %% @end
 %%--------------------------------------------------------------------
--spec verify_test_file(Nodes :: [node()], Args :: list(), FileContent :: binary()) ->
-    ok | no_return().
-verify_test_file([], _Args, _FileContent) ->
-    ok;
-
-verify_test_file([Node | Nodes], Args, FileContent) ->
+-spec read_test_file(Node :: node(), Helper :: any(), UserCtx :: any(),
+    FileId :: binary(), FileContent :: binary()) -> ok | no_return().
+read_test_file(Node, Helper, UserCtx, FileId, FileContent) ->
+    Args = [Helper, UserCtx, FileId],
     ActualFileContent = rpc:call(Node, storage_detector, read_test_file, Args),
 
     case ActualFileContent of
         FileContent ->
-            case rpc:call(Node, storage_detector, update_test_file, Args) of
-                <<_/binary>> = NewFileContent ->
-                    verify_test_file(Nodes, Args, NewFileContent);
-                {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
-                    ?throw_error({?ERR_STORAGE_TEST_FILE_WRITE, Node, Reason}, Stacktrace)
-            end;
+            ok;
         <<_/binary>> ->
             ?throw_error({?ERR_STORAGE_TEST_FILE_READ, Node,
                 {invalid_content, FileContent, ActualFileContent}});
@@ -280,8 +301,10 @@ verify_test_file([Node | Nodes], Args, FileContent) ->
 %% @private @doc Removes storage test file.
 %% @end
 %%--------------------------------------------------------------------
--spec remove_test_file(Node :: node(), Args :: list()) -> ok | no_return().
-remove_test_file(Node, Args) ->
+-spec remove_test_file(Node :: node(), Helper :: any(), UserCtx :: any(),
+    FileId :: binary()) -> ok | no_return().
+remove_test_file(Node, Helper, UserCtx, FileId) ->
+    Args = [Helper, UserCtx, FileId],
     case rpc:call(Node, storage_detector, remove_test_file, Args) of
         {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
             ?throw_error({?ERR_STORAGE_TEST_FILE_REMOVE, Node, Reason}, Stacktrace);

@@ -4,6 +4,14 @@
 CHANGELOG
 ---------
 
+### 3.0.0-rc15
+
+* VFS-3233 Add support for sig v2 to AWS S3 helper
+* VFS-3213 Rename storage verification error codes
+* VFS-3213 Create new test files while verifying storage availability
+* VFS-3188 Remove space-storage mapping on space support revoke
+
+
 ### 3.0.0-rc14
 
 * Releasing new version 3.0.0-rc14
