@@ -195,8 +195,7 @@ init_cluster(Ctx) ->
     onepanel_shell:check_call([?CLI, "cluster-init", "-c", Host ++ ":" ++ Port,
             "--cluster-init-username=" ++ User,
             "--cluster-init-password=" ++ Password,
-            "--cluster-init-ramsize=" ++ ServerQuota,
-            "--services=data,index,query"]),
+            "--cluster-init-ramsize=" ++ ServerQuota]),
 
     Release = onepanel_env:get(release_type),
     {ok, Buckets} = onepanel_lists:get(Release, onepanel_env:get(couchbase_buckets)),
@@ -225,8 +224,7 @@ join_cluster(#{cluster_host := ClusterHost} = Ctx) ->
             ClusterHost ++ ":" ++ Port, "-u", User, "-p", Password,
             "--server-add=" ++ Host ++ ":" ++ Port,
             "--server-add-username=" ++ User,
-            "--server-add-password=" ++ Password,
-            "--services=data,index,query"]),
+            "--server-add-password=" ++ Password]),
 
     service:add_host(name(), Host).
 
@@ -261,4 +259,4 @@ create_bucket(Host, Port, User, Password, Bucket, BucketQuota) ->
     onepanel_shell:check_call([?CLI, "bucket-create", "-c", Host ++ ":" ++ Port,
         "-u", User, "-p", Password, "--bucket=" ++ Bucket,
         "--bucket-ramsize=" ++ onepanel_utils:convert(BucketQuota, list),
-        "--wait"]).
+        "--bucket-eviction-policy=fullEviction", "--wait"]).
