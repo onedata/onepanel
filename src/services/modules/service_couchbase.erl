@@ -185,10 +185,10 @@ init_cluster(Ctx) ->
     Timeout = service_ctx:get(couchbase_init_timeout, Ctx, integer),
 
     {ok, 200, _, _} = http_client:post(
-        Url, [
+        Url, maps:from_list([
             onepanel_utils:get_basic_auth_header(User, Password),
             {"content-type", "application/x-www-form-urlencoded"}
-        ], "memoryQuota=" ++ ServerQuota,
+        ]), "memoryQuota=" ++ ServerQuota,
         [{connect_timeout, Timeout}, {recv_timeout, Timeout}]
     ),
 

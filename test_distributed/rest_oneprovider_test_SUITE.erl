@@ -232,7 +232,7 @@ delete_should_revoke_space_support(Config) ->
 %%%===================================================================
 
 init_per_suite(Config) ->
-    application:start(etls),
+    ssl:start(),
     hackney:start(),
     Posthook = fun(NewConfig) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),

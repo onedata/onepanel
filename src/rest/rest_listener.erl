@@ -52,7 +52,8 @@ start() ->
     KeyFile = onepanel_env:get(key_file),
     CertFile = onepanel_env:get(cert_file),
     CaCertsDir = onepanel_env:get(cacerts_dir),
-    {ok, CaCerts} = file_utils:read_files({dir, CaCertsDir}),
+    {ok, CaCertPems} = file_utils:read_files({dir, CaCertsDir}),
+    CaCerts = lists:map(fun cert_decoder:pem_to_der/1, CaCertPems),
 
     CommonRoutes = onepanel_api:routes(),
     SpecificRoutes = case onepanel_env:get(release_type) of
@@ -64,13 +65,12 @@ start() ->
     Dispatch = cowboy_router:compile([{'_', Routes}]),
 
     {ok, _} = ranch:start_listener(?MODULE, HttpsAcceptors,
-        ranch_etls, [
+        ranch_ssl, [
             {port, Port},
             {keyfile, KeyFile},
             {certfile, CertFile},
             {cacerts, CaCerts},
-            {ciphers, ssl:cipher_suites() -- ssl_utils:weak_ciphers()},
-            {versions, ['tlsv1.2', 'tlsv1.1']}
+            {ciphers, ssl:cipher_suites() -- ssl_utils:weak_ciphers()}
         ], cowboy_protocol, [
             {env, [{dispatch, Dispatch}]}
         ]
@@ -101,7 +101,7 @@ stop() ->
 -spec status() -> ok | {error, Reason :: term()}.
 status() ->
     Endpoint = "https://127.0.0.1:" ++ integer_to_list(get_port()),
-    case http_client:get(Endpoint, [], <<>>, [insecure]) of
+    case http_client:get(Endpoint, #{}, <<>>, [insecure]) of
         {ok, _, _, _} -> ok;
         {error, Reason} -> {error, Reason}
     end.

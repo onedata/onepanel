@@ -140,7 +140,7 @@ noauth_request(HostOrConfig, Port, Endpoint, Method, Headers, Body) ->
     Prefix = "/api/v3/onepanel",
     Url = onepanel_utils:join(["https://", Host, ":", Port, Prefix, Endpoint]),
     JsonBody = json_utils:encode(Body),
-    http_client:request(Method, Url, NewHeaders, JsonBody, [insecure]).
+    http_client:request(Method, Url, maps:from_list(NewHeaders), JsonBody, [insecure]).
 
 
 %%--------------------------------------------------------------------
