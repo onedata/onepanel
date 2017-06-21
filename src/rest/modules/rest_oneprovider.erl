@@ -161,7 +161,7 @@ delete_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
 
 %%-------------------------------------------------------------------
 %% @private
-%% @doc @equiv get_storage_update_args(Args, #{}).
+%% @equiv get_storage_update_args(Args, #{}).
 %% @end
 %%-------------------------------------------------------------------
 -spec get_storage_update_args(Args :: rest_handler:args()) -> service:ctx().
@@ -176,21 +176,16 @@ get_storage_update_args(Args) ->
 -spec get_storage_update_args(Args :: rest_handler:args(), Ctx :: service:ctx())
         -> service:ctx().
 get_storage_update_args(Args, Ctx) ->
-    case maps:is_key(storageUpdate, Args) of
-        false ->
-            Ctx;
-        true ->
-            Ctx2 = onepanel_maps:get_store([storageUpdate, strategy], Args,
-                [storage_update, strategy], Ctx),
-            Ctx3 = onepanel_maps:get_store([storageUpdate, maxDepth], Args,
-                [storage_update, max_depth], Ctx2),
-            Ctx4 = onepanel_maps:get_store([storageUpdate, writeOnce], Args,
-                [storage_update, write_once], Ctx3),
-            Ctx5 = onepanel_maps:get_store([storageUpdate, deleteEnable], Args,
-                [storage_update, delete_enable], Ctx4),
-            onepanel_maps:get_store([storageUpdate, scanInterval], Args,
-                [storage_update, scan_interval], Ctx5)
-    end.
+    Ctx2 = onepanel_maps:get_store([storageUpdate, strategy], Args,
+        [storage_update, strategy], Ctx),
+    Ctx3 = onepanel_maps:get_store([storageUpdate, maxDepth], Args,
+        [storage_update, max_depth], Ctx2),
+    Ctx4 = onepanel_maps:get_store([storageUpdate, writeOnce], Args,
+        [storage_update, write_once], Ctx3),
+    Ctx5 = onepanel_maps:get_store([storageUpdate, deleteEnable], Args,
+        [storage_update, delete_enable], Ctx4),
+    onepanel_maps:get_store([storageUpdate, scanInterval], Args,
+        [storage_update, scan_interval], Ctx5).
 
 %%-------------------------------------------------------------------
 %% @private
@@ -200,12 +195,7 @@ get_storage_update_args(Args, Ctx) ->
 -spec get_storage_import_args(Args :: rest_handler:args(), Ctx :: service:ctx())
         -> service:ctx().
 get_storage_import_args(Args, Ctx) ->
-    case maps:is_key(storageImport, Args) of
-        false ->
-            Ctx;
-        true ->
-            Ctx2 = onepanel_maps:get_store([storageImport, strategy], Args,
-                [storage_import, strategy], Ctx),
-            onepanel_maps:get_store([storageImport, maxDepth], Args,
-                [storage_import, max_depth], Ctx2)
-    end.
+    Ctx2 = onepanel_maps:get_store([storageImport, strategy], Args,
+        [storage_import, strategy], Ctx),
+    onepanel_maps:get_store([storageImport, maxDepth], Args,
+        [storage_import, max_depth], Ctx2).

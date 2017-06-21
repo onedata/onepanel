@@ -93,7 +93,8 @@ get_storage_update_details(Node, SpaceId, StorageId) ->
                 {scanInterval, maps:get(scan_interval, Args)},
                 {writeOnce, maps:get(write_once, Args)},
                 {deleteEnable, maps:get(delete_enable, Args)}
-                | Details]
+                | Details
+            ]
     end.
 
 %%%===================================================================
@@ -110,14 +111,16 @@ get_storage_update_details(Node, SpaceId, StorageId) ->
 modify_storage_import(_Node, SpaceId, _Args0, no_import) ->
     {ok, SpaceId};
 modify_storage_import(Node, SpaceId, Args0, NewStrategyName) ->
-    MaxDepth = onepanel_utils:typed_get(max_depth, Args0, integer,
-        get_default(max_depth)),
-    Args = #{max_depth => MaxDepth},
+    Args = #{
+        max_depth =>onepanel_utils:typed_get(max_depth, Args0, integer,
+            get_default(max_depth))
+    },
     {ok, _} = rpc:call(Node, storage_sync, modify_storage_import, [
             SpaceId, NewStrategyName, Args
     ]).
 
 %%-------------------------------------------------------------------
+%% @private
 %% @doc This function modifies storage_update configuration on given Node.
 %% @end
 %%-------------------------------------------------------------------
@@ -126,19 +129,15 @@ modify_storage_import(Node, SpaceId, Args0, NewStrategyName) ->
 modify_storage_update(_Node, SpaceId, _Args0, no_update) ->
     {ok, SpaceId};
 modify_storage_update(Node, SpaceId, Args0, NewStrategyName) ->
-    MaxDepth = onepanel_utils:typed_get(max_depth, Args0, integer,
-        get_default(max_depth)),
-    ScanInterval = onepanel_utils:typed_get(scan_interval, Args0,
-        integer, get_default(scan_interval)),
-    WriteOnce = onepanel_utils:typed_get(write_once, Args0, boolean,
-        get_default(write_once)),
-    DeleteEnable = onepanel_utils:typed_get(delete_enable, Args0, boolean,
-        get_default(delete_enable)),
     Args = #{
-        max_depth => MaxDepth,
-        scan_interval => ScanInterval,
-        write_once => WriteOnce,
-        delete_enable => DeleteEnable
+        max_depth => onepanel_utils:typed_get(max_depth, Args0, integer,
+            get_default(max_depth)),
+        scan_interval => onepanel_utils:typed_get(scan_interval, Args0, integer,
+            get_default(scan_interval)),
+        write_once => onepanel_utils:typed_get(write_once, Args0, boolean,
+            get_default(write_once)),
+        delete_enable => onepanel_utils:typed_get(delete_enable, Args0, boolean,
+            get_default(delete_enable))
     },
 
     {ok, _} = rpc:call(Node, storage_sync, modify_storage_update, [

@@ -316,8 +316,8 @@ support_space(#{storage_id := StorageId, name := Name, node := Node} = Ctx) ->
         {<<"token">>, onepanel_utils:typed_get(token, Ctx, binary)}
     ]),
     MountInRoot = onepanel_utils:typed_get(mount_in_root, Ctx, boolean, false),
-    ImportArgs = maps:get(storage_import, Ctx),
-    UpdateArgs = maps:get(storage_import, Ctx),
+    ImportArgs = maps:get(storage_import, Ctx, #{}),
+    UpdateArgs = maps:get(storage_import, Ctx, #{}),
     {ok, _} = rpc:call(Node, space_storage, add, [SpaceId, StorageId, MountInRoot]),
     op_worker_storage_sync:maybe_modify_storage_import(Node, SpaceId, ImportArgs),
     op_worker_storage_sync:maybe_modify_storage_update(Node, SpaceId, UpdateArgs),
@@ -329,8 +329,8 @@ support_space(#{storage_id := StorageId, node := Node} = Ctx) ->
         {<<"token">>, onepanel_utils:typed_get(token, Ctx, binary)}
     ]),
     MountInRoot = onepanel_utils:typed_get(mount_in_root, Ctx, boolean, false),
-    ImportArgs = maps:get(storage_import, Ctx),
-    UpdateArgs = maps:get(storage_update, Ctx),
+    ImportArgs = maps:get(storage_import, Ctx, #{}),
+    UpdateArgs = maps:get(storage_update, Ctx, #{}),
     {ok, _} = rpc:call(Node, space_storage, add, [SpaceId, StorageId, MountInRoot]),
     op_worker_storage_sync:maybe_modify_storage_import(Node, SpaceId, ImportArgs),
     op_worker_storage_sync:maybe_modify_storage_update(Node, SpaceId, UpdateArgs),
@@ -397,7 +397,6 @@ modify_space(#{space_id := SpaceId, node := Node} = Ctx) ->
     op_worker_storage_sync:maybe_modify_storage_import(Node, SpaceId, ImportArgs),
     op_worker_storage_sync:maybe_modify_storage_update(Node, SpaceId, UpdateArgs),
     [{id, SpaceId}];
-
 modify_space(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     modify_space(Ctx#{node => Node}).
