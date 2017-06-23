@@ -161,7 +161,7 @@ delete_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
 
 %%-------------------------------------------------------------------
 %% @private
-%% @equiv get_storage_update_args(Args, #{}).
+%% @doc @equiv get_storage_update_args(Args, #{}).
 %% @end
 %%-------------------------------------------------------------------
 -spec get_storage_update_args(Args :: rest_handler:args()) -> service:ctx().

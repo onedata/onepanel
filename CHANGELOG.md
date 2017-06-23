@@ -4,6 +4,25 @@
 CHANGELOG
 ---------
 
+### 3.0.0-rc16
+
+* VFS-3216 Update REST API
+* VFS-3207 Using new GUI ref
+* VFS-3216 Make GET method for onepanel hosts endpoint auth
+* VFS-3216 Use only storage ID in space support request
+* HOTFIX added gui-static dependency on package target in Makefile
+* VFS-3186 Change provider deregistration behaviour
+* VFS-3186 Update provider name after modify
+* VFS-3186 Return deployment name with cluster configuration
+* VFS-3163 Add session REST endpoint
+* VFS-3165 Add current password to user modify request
+* VFS-3118 Change default env value for custom gui root
+* VFS-3118 Add gui override and livereload to panel.up
+* VFS-3118 Add gui repo, serve static files using default gui logic, add templates for session and router plugins
+* VFS-3118 Serve index.html on root path
+* VFS-3118 Remove onepanel_gui and serve static files
+
+
 ### 3.0.0-rc15
 
 * VFS-3233 Add support for sig v2 to AWS S3 helper
