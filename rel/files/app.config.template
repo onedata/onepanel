@@ -91,7 +91,7 @@
         {couchbase_open_files_limit, 65535},
         {couchbase_buckets, [
             {oneprovider, [{"default", 100}, "sync"]},
-            {onezone, ["default", {"location_service", 100}]}
+            {onezone, [{"default", 150}, {"sync", 250}, {"location_service", 100}]}
         ]},
 
         {cluster_manager_vm_args_file, "{{platform_etc_dir}}/../cluster_manager/vm.args"},
