@@ -89,11 +89,23 @@ accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
     Ctx3 = onepanel_maps:get_store(size, Args, size, Ctx2),
     Ctx4 = onepanel_maps:get_store(storageId, Args, storage_id, Ctx3),
     Ctx5 = onepanel_maps:get_store(mountInRoot, Args, mount_in_root, Ctx4),
-
+    Ctx6 = get_storage_import_args(Args, Ctx5),
+    Ctx7 = get_storage_update_args(Args, Ctx6),
 
     {true, rest_replier:handle_service_step(Req, service_oneprovider, support_space,
         service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, support_space, Ctx5
+            ?SERVICE, support_space, Ctx7
+        ))
+    )};
+
+accept_resource(Req, 'PATCH', Args, #rstate{resource=space, bindings = #{id := Id}}) ->
+    Ctx2 = get_storage_update_args(Args),
+    Ctx3 = get_storage_import_args(Args, Ctx2),
+    Ctx4 = Ctx3#{space_id => Id},
+
+    {true, rest_replier:handle_service_step(Req, service_oneprovider, modify_space,
+        service_utils:throw_on_error(service:apply_sync(
+            ?SERVICE, modify_space, Ctx4
         ))
     )}.
 
@@ -141,3 +153,49 @@ delete_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?SERVICE, revoke_space_support, #{id => Id}
     ))}.
+
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+%%-------------------------------------------------------------------
+%% @private
+%% @doc @equiv get_storage_update_args(Args, #{}).
+%% @end
+%%-------------------------------------------------------------------
+-spec get_storage_update_args(Args :: rest_handler:args()) -> service:ctx().
+get_storage_update_args(Args) ->
+    get_storage_update_args(Args, #{}).
+
+%%-------------------------------------------------------------------
+%% @private
+%% @doc Parse args for storage_update.
+%% @end
+%%-------------------------------------------------------------------
+-spec get_storage_update_args(Args :: rest_handler:args(), Ctx :: service:ctx())
+        -> service:ctx().
+get_storage_update_args(Args, Ctx) ->
+    Ctx2 = onepanel_maps:get_store([storageUpdate, strategy], Args,
+        [storage_update, strategy], Ctx),
+    Ctx3 = onepanel_maps:get_store([storageUpdate, maxDepth], Args,
+        [storage_update, max_depth], Ctx2),
+    Ctx4 = onepanel_maps:get_store([storageUpdate, writeOnce], Args,
+        [storage_update, write_once], Ctx3),
+    Ctx5 = onepanel_maps:get_store([storageUpdate, deleteEnable], Args,
+        [storage_update, delete_enable], Ctx4),
+    onepanel_maps:get_store([storageUpdate, scanInterval], Args,
+        [storage_update, scan_interval], Ctx5).
+
+%%-------------------------------------------------------------------
+%% @private
+%% @doc Parse args for storage_import.
+%% @end
+%%-------------------------------------------------------------------
+-spec get_storage_import_args(Args :: rest_handler:args(), Ctx :: service:ctx())
+        -> service:ctx().
+get_storage_import_args(Args, Ctx) ->
+    Ctx2 = onepanel_maps:get_store([storageImport, strategy], Args,
+        [storage_import, strategy], Ctx),
+    onepanel_maps:get_store([storageImport, maxDepth], Args,
+        [storage_import, max_depth], Ctx2).

@@ -17,7 +17,7 @@
 -include_lib("hackney/include/hackney_lib.hrl").
 
 %% API
--export([add/2, get/0, get/1, update/2]).
+-export([add/2, get/0, get/1, update/2, get_supporting_storage/2]).
 -export([add_storage/4]).
 
 -type id() :: binary().
@@ -86,6 +86,17 @@ get(Id) ->
     Node = onepanel_cluster:host_to_node(service_op_worker:name(), Host),
     {ok, Storage} = rpc:call(Node, storage, get, [Id]),
     get_storage(Node, Storage).
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns storage supporting given space on given Node.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_supporting_storage(Node :: node(), SpaceId :: id()) -> id().
+get_supporting_storage(Node, SpaceId) ->
+    {ok, SpaceStorage} = rpc:call(Node, space_storage, get, [SpaceId]),
+    StorageIds = rpc:call(Node, space_storage, get_storage_ids, [SpaceStorage]),
+    hd(StorageIds).
 
 
 %%--------------------------------------------------------------------

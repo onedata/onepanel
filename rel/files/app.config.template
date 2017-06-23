@@ -133,7 +133,12 @@
         {oneprovider_redirection_point, "https://127.0.0.1"},
         {oneprovider_geo_latitude, 0.0},
         {oneprovider_geo_longitude, 0.0},
-        {oneprovider_register_attempts, 10}
+        {oneprovider_register_attempts, 10},
+
+        {oneprovider_sync_max_depth, 65535},
+        {oneprovider_sync_update_scan_interval, 10}, % in seconds
+        {oneprovider_sync_update_delete_enable, false},
+        {oneprovider_sync_update_write_once, false}
     ]}
 ].
 

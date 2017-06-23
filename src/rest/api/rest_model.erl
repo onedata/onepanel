@@ -46,10 +46,13 @@
     service_status_host_model/0,
     session_details_model/0,
     space_details_model/0,
+    space_modify_request_model/0,
     space_support_request_model/0,
     storage_create_request_model/0,
     storage_details_model/0,
+    storage_import_details_model/0,
     storage_modify_request_model/0,
+    storage_update_details_model/0,
     swift_model/0,
     task_status_model/0,
     user_create_request_model/0,
@@ -550,9 +553,25 @@ space_details_model() ->
         id => string,
         %% The name of the space.
         name => string,
+        %% Id of StorageDetails that supports this space on provider that is
+        %% associated with this panel.
+        storageId => string,
         %% The collection of provider IDs with associated supported storage
         %% space in bytes.
-        supportingProviders => #{'_' => integer}
+        supportingProviders => #{ '_' => integer},
+        storageImport => {storage_import_details_model(), optional},
+        storageUpdate => {storage_update_details_model(), optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The space configuration details that can be modified.
+%% @end
+%%--------------------------------------------------------------------
+-spec space_modify_request_model() -> maps:map().
+space_modify_request_model() ->
+    #{
+        storageImport => {storage_import_details_model(), optional},
+        storageUpdate => {storage_update_details_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -575,7 +594,9 @@ space_support_request_model() ->
         %% stored.
         storageId => string,
         %% Defines whether space will be mounted in / or /{SpaceId}/ path.
-        mountInRoot => {boolean, optional}
+        mountInRoot => {boolean, optional},
+        storageImport => {storage_import_details_model(), optional},
+        storageUpdate => {storage_update_details_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -595,6 +616,21 @@ storage_details_model() ->
     {oneof, [posix_model(), s3_model(), ceph_model(), swift_model()]}.
 
 %%--------------------------------------------------------------------
+%% @doc The storage import configuration. Storage import allows to import data
+%% from storage to space without need for copying the data.
+%% @end
+%%--------------------------------------------------------------------
+-spec storage_import_details_model() -> maps:map().
+storage_import_details_model() ->
+    #{
+        %% The import strategy. One of no_import, simple_scan.
+        strategy => string,
+        %% Maximum depth of filesystem tree that will be traversed during
+        %% storage synchronization.
+        maxDepth => {integer, optional}
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The storage configuration details that can be modified.
 %% @end
 %%--------------------------------------------------------------------
@@ -603,6 +639,30 @@ storage_modify_request_model() ->
     #{
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The storage update configuration. Storage update ensures that all
+%% changes on storage will be reflected in space.
+%% @end
+%%--------------------------------------------------------------------
+-spec storage_update_details_model() -> maps:map().
+storage_update_details_model() ->
+    #{
+        %% The update strategy. One of no_update, simple_scan.
+        strategy => string,
+        %% Maximum depth of filesystem tree that will be traversed during
+        %% storage synchronization.
+        maxDepth => {integer, optional},
+        %% Period between subsequent scans in seconds (counted from end of one
+        %% scan till beginning of the following).
+        scanInterval => {integer, optional},
+        %% Flag determining that synchronized storage will be treated as
+        %% immutable (only creations and deletions of files on storage will be
+        %% detected).
+        writeOnce => {boolean, optional},
+        %% Flag determining that deletions of files will be detected.
+        deleteEnable => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------

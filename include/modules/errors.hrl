@@ -86,4 +86,9 @@ end).
 
 -define(ERR_UNREGISTERED_PROVIDER, unregistered_provider).
 
+-define(ERR_STORAGE_SYNC, storage_sync).
+-define(ERR_STORAGE_SYNC(Reason), {?ERR_STORAGE_SYNC, Reason}).
+
+-define(ERR_STORAGE_SYNC_IMPORT_STARTED, ?ERR_STORAGE_SYNC(import_already_started)).
+
 -endif.

@@ -251,6 +251,17 @@ routes() ->
             }]
         }},
 
+        %% Modify space details
+        {<<"/api/v3/onepanel/provider/spaces/:id">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = space,
+            methods = [#rmethod{
+                type = 'PATCH',
+                args_spec = rest_model:space_modify_request_model()
+            }]
+        }},
+
         %% Modify storage details
         {<<"/api/v3/onepanel/provider/storages/:id">>, rest_handler, #rstate{
             version = 3,
