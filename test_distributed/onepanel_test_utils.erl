@@ -129,7 +129,9 @@ mock_start(Config) ->
 %% @doc Checks whether the tuple list contains specified fields.
 %% @end
 %%--------------------------------------------------------------------
--spec assert_fields(TupleList :: [tuple()], Fields :: [binary()]) -> ok.
+-spec assert_fields(KeyValue :: [tuple()] | maps:map() , Fields :: [binary()]) -> ok.
+assert_fields(Map = #{}, Fields) ->
+    assert_fields(maps:to_list(Map), Fields);
 assert_fields(TupleList, Fields) ->
     lists:foreach(fun(Field) ->
         ?assert(lists:keymember(Field, 1, TupleList))
@@ -141,7 +143,9 @@ assert_fields(TupleList, Fields) ->
 %% values match the expected ones.
 %% @end
 %%--------------------------------------------------------------------
--spec assert_values(TupleList :: [tuple()], Values :: [{binary(), any()}]) -> ok.
+-spec assert_values(KeyValue :: [tuple()] | maps:map(), Values :: [{binary(), any()}]) -> ok.
+assert_values(Map = #{}, Values) ->
+    assert_values(maps:to_list(Map), Values);
 assert_values(TupleList, Values) ->
     lists:foreach(fun({Field, Value}) ->
         ?assert(lists:keymember(Field, 1, TupleList)),

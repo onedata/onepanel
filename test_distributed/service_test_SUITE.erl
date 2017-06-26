@@ -111,7 +111,7 @@ service_action_should_pass_errors(Config) ->
 %%%===================================================================
 
 init_per_suite(Config) ->
-    application:start(etls),
+    ssl:start(),
     hackney:start(),
     Posthook = fun(NewConfig) -> onepanel_test_utils:init(NewConfig) end,
     [{?ENV_UP_POSTHOOK, Posthook} | Config].

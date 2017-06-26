@@ -169,10 +169,10 @@ extend_cluster(#{hosts := Hosts, auth := Auth, api_version := ApiVersion} = Ctx)
     lists:foreach(fun(Host) ->
         Url = onepanel_utils:join(["https://", Host, ":", Port, Prefix, Suffix]),
         {ok, 204, _, _} = http_client:post(
-            Url, [
-                {<<"authorization">>, Auth},
-                {"Content-Type", "application/json"}
-            ], Body,
+            Url, #{
+                <<"authorization">> => Auth,
+                <<"Content-Type">> => <<"application/json">>
+            }, Body,
             [insecure, {connect_timeout, Timeout}, {recv_timeout, Timeout}]
         )
     end, Hosts).

@@ -91,7 +91,9 @@ get_cacerts_dir() ->
 %% @doc {@link oz_plugin_behaviour:auth_to_rest_client/1}
 %% @end
 %%--------------------------------------------------------------------
--spec auth_to_rest_client(Auth :: term()) -> file:name_all().
+-spec auth_to_rest_client(Auth :: term()) -> {user, token, binary()} |
+{user, macaroon, {Macaroon :: binary(), DischargeMacaroons :: [binary()]}} |
+{user, basic, binary()} | provider.
 auth_to_rest_client(Auth) ->
     Auth.
 
