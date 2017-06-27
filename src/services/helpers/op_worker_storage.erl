@@ -143,8 +143,10 @@ get_storage_user_ctx(Node, <<"swift">>, Params) ->
     rpc:call(Node, helper, new_swift_user_ctx, [
         onepanel_utils:typed_get(username, Params, binary),
         onepanel_utils:typed_get(password, Params, binary)
-    ]).
+    ]);
 
+get_storage_user_ctx(Node, <<"glusterfs">>, _Params) ->
+    rpc:call(Node, helper, new_glusterfs_user_ctx, [0, 0]).
 
 %%--------------------------------------------------------------------
 %% @private @doc Returns storage helper record.
@@ -193,8 +195,22 @@ get_storage_helper(Node, <<"swift">>, UserCtx, Params) ->
         ], Params),
         UserCtx,
         onepanel_utils:typed_get(insecure, Params, boolean, false)
+    ]);
+get_storage_helper(Node, <<"glusterfs">>, UserCtx, Params) ->
+    rpc:call(Node, helper, new_glusterfs_helper, [
+        onepanel_utils:typed_get(volume, Params, binary),
+        onepanel_utils:typed_get(hostname, Params, binary),
+        get_helper_opt_args([
+            {port, binary},
+            {mountPoint, binary},
+            {transport, binary},
+            {xlatorOptions, binary},
+            {timeout, binary},
+            {blockSize, binary}
+        ], Params),
+        UserCtx,
+        onepanel_utils:typed_get(insecure, Params, boolean, false)
     ]).
-
 
 %%--------------------------------------------------------------------
 %% @private @doc Returns storage helper optional argument.

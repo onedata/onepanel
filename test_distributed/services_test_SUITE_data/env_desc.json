@@ -31,6 +31,14 @@
           "type": "swift",
           "name": "someSwift",
           "container": "swift"
+        },
+        {
+          "type": "glusterfs",
+          "name": "someGlusterfs",
+          "volume": "data",
+          "transport": "tcp",
+          "mountpoint": "/",
+          "xlatorOptions": ""
         }
       ]
     }
