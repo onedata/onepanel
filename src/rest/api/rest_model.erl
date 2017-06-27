@@ -23,6 +23,7 @@
     cookie_model/0,
     database_hosts_model/0,
     error_model/0,
+    glusterfs_model/0,
     manager_hosts_model/0,
     panel_configuration_model/0,
     panel_configuration_users_model/0,
@@ -48,6 +49,7 @@
     space_details_model/0,
     space_modify_request_model/0,
     space_support_request_model/0,
+    space_sync_stats_model/0,
     storage_create_request_model/0,
     storage_details_model/0,
     storage_import_details_model/0,
@@ -55,6 +57,8 @@
     storage_update_details_model/0,
     swift_model/0,
     task_status_model/0,
+    time_stats_model/0,
+    time_stats_collection_model/0,
     user_create_request_model/0,
     user_details_model/0,
     user_modify_request_model/0,
@@ -194,6 +198,43 @@ error_model() ->
         error => string,
         %% The detailed error description.
         description => string
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The GlusterFS storage configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec glusterfs_model() -> maps:map().
+glusterfs_model() ->
+    #{
+        %% The ID of storage.
+        id => { string, optional },
+        %% The name of storage.
+        name => { string, optional },
+        %% The type of storage.
+        type => {equal, <<"glusterfs">>},
+        %% The name of the volume to use as a storage backend.
+        volume => string,
+        %% The hostname (IP address or FQDN) of GlusterFS volume server.
+        hostname => string,
+        %% The GlusterFS port on volume server.
+        port => { integer, optional },
+        %% The transport protocol to use to connect to the volume server.
+        transport => { string, optional },
+        %% Relative mountpoint within the volume which should be used by
+        %% Oneprovider.
+        mountPoint => { string, optional },
+        %% Volume specific GlusterFS translator options, in the format:
+        %% TRANSLATOR1.OPTION1&#x3D;VALUE1;TRANSLATOR2.OPTION2&#x3D;VALUE2;...
+        xlatorOptions => { string, optional },
+        %% Storage operation timeout in milliseconds.
+        timeout => { integer, optional },
+        %% Defines whether storage administrator credentials (username and key)
+        %% may be used by users without storage accounts to access storage in
+        %% direct IO mode.
+        insecure => { boolean, optional },
+        %% Defines whether storage is readonly.
+        readonly => { boolean, optional }
     }.
 
 %%--------------------------------------------------------------------
@@ -600,6 +641,21 @@ space_support_request_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc Status and statistics of storage/space synchronization.
+%% @end
+%%--------------------------------------------------------------------
+-spec space_sync_stats_model() -> maps:map().
+space_sync_stats_model() ->
+    #{
+        %% Describes import algorithm run status.
+        importStatus => string,
+        %% Describes update algorithm run status.
+        updateStatus => string,
+        %% Collection of statistics for requested metrics.
+        stats => {time_stats_collection_model(), optional}
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The configuration details required to add storage resources.
 %% @end
 %%--------------------------------------------------------------------
@@ -613,7 +669,7 @@ storage_create_request_model() ->
 %%--------------------------------------------------------------------
 -spec storage_details_model() -> {oneof, Oneof :: list()}.
 storage_details_model() ->
-    {oneof, [posix_model(), s3_model(), ceph_model(), swift_model()]}.
+    {oneof, [posix_model(),s3_model(),ceph_model(),swift_model(),glusterfs_model()]}.
 
 %%--------------------------------------------------------------------
 %% @doc The storage import configuration. Storage import allows to import data
@@ -722,6 +778,44 @@ task_status_model() ->
         function => {string, optional},
         %% The collection of hosts with associated error description.
         hosts => {#{'_' => error_model()}, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Statistics for single metric over specified time.
+%% @end
+%%--------------------------------------------------------------------
+-spec time_stats_model() -> maps:map().
+time_stats_model() ->
+    #{
+        %% Name of metric for which this object holds statistics.
+        name => string,
+        %% Date of last measurement value in this object in ISO 8601 format
+        lastValueDate => string,
+        %% Predefined time period for which the statistics were fetched
+        period => {string, optional},
+        %% List of sample values for given metric. The used period is divided
+        %% into array-length number of parts. E.g. if the used period is an
+        %% hour, and if there are 12 values in this array, every value is a
+        %% value for 1/12 of day, which gives value for every hour of the day.
+        %% If the value is null, there is no sample for given time part.
+        values => [number]
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Statistics for single metric over specified time.
+%% @end
+%%--------------------------------------------------------------------
+-spec time_stats_collection_model() -> maps:map().
+time_stats_collection_model() ->
+    #{
+        %% Statistics of storage sync jobs queue length.
+        queueLength => { time_stats_model(), optional },
+        %% Statistics of storage sync imported files.
+        insertCount => { time_stats_model(), optional },
+        %% Statistics of storage sync updated files.
+        updateCount => { time_stats_model(), optional },
+        %% Statistics of storage sync deleted files.
+        deleteCount => { time_stats_model(), optional }
     }.
 
 %%--------------------------------------------------------------------

@@ -25,7 +25,7 @@
 %% API
 -export([configure/1, register/1, unregister/1, modify_details/1, get_details/1,
     support_space/1, revoke_space_support/1, get_spaces/1, get_space_details/1,
-    modify_space/1]).
+    modify_space/1, get_sync_stats/1]).
 
 -define(SERVICE_OPA, service_onepanel:name()).
 -define(SERVICE_CB, service_couchbase:name()).
@@ -400,3 +400,17 @@ modify_space(#{space_id := SpaceId, node := Node} = Ctx) ->
 modify_space(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     modify_space(Ctx#{node => Node}).
+
+
+%%--------------------------------------------------------------------
+%% @doc Get storage_sync stats
+%% @end
+%%--------------------------------------------------------------------
+-spec get_sync_stats(Ctx :: service:ctx()) -> list().
+get_sync_stats(#{space_id := SpaceId, node := Node} = Ctx) ->
+    Period = onepanel_utils:typed_get(period, Ctx, binary, undefined),
+    Metrics = onepanel_utils:typed_get(period, Ctx, list, []),
+    op_worker_storage_sync:get_stats(Node, SpaceId, Period, Metrics);
+get_sync_stats(Ctx) ->
+    [Node | _] = service_op_worker:get_nodes(),
+    get_sync_stats(Ctx#{node => Node}).

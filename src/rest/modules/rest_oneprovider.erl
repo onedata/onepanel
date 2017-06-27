@@ -135,6 +135,19 @@ provide_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
         service_utils:throw_on_error(service:apply_sync(
             ?SERVICE, get_space_details, #{id => Id}
         ))
+    ), Req};
+
+provide_resource(Req, #rstate{resource = space_sync_stats, bindings = #{id := Id},
+    params = Params}
+) ->
+    Ctx = onepanel_maps:get_store(period, Params, period),
+    Ctx2 = onepanel_maps:get_store(metrics, Params, metrics, Ctx),
+    Ctx3 = Ctx2#{space_id => Id},
+
+    {rest_replier:format_service_step(service_oneprovider, get_sync_stats,
+        service_utils:throw_on_error(service:apply_sync(
+            ?SERVICE, get_sync_stats, Ctx3
+        ))
     ), Req}.
 
 
