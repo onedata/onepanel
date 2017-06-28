@@ -4,6 +4,11 @@
 CHANGELOG
 ---------
 
+### 17.06.0-beta3
+
+* Releasing new version 17.06.0-beta3
+
+
 ### 17.06.0-beta2
 
 * VFS-3345 Updating GUI ref (development) - added missing data-options in cluster-host-table-row (for testing purposes) - show glusterfs in storage type select dropdown without scroll
