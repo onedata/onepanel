@@ -4,6 +4,13 @@
 CHANGELOG
 ---------
 
+### 17.06.0-beta2
+
+* VFS-3345 Updating GUI ref (development) - added missing data-options in cluster-host-table-row (for testing purposes) - show glusterfs in storage type select dropdown without scroll
+* VFS-3280 Remove etls.
+* VFS-3250 Added GlusterFS support
+
+
 ### 3.0.0-rc16
 
 * VFS-3216 Update REST API
