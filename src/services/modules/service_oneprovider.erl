@@ -164,7 +164,8 @@ get_steps(Action, Ctx) when
     Action =:= revoke_space_support;
     Action =:= get_spaces;
     Action =:= get_space_details;
-    Action =:= modify_space ->
+    Action =:= modify_space;
+    Action =:= get_sync_stats ->
     case Ctx of
         #{hosts := Hosts} ->
             [#step{hosts = Hosts, function = Action, selection = any}];
@@ -409,7 +410,8 @@ modify_space(Ctx) ->
 -spec get_sync_stats(Ctx :: service:ctx()) -> list().
 get_sync_stats(#{space_id := SpaceId, node := Node} = Ctx) ->
     Period = onepanel_utils:typed_get(period, Ctx, binary, undefined),
-    Metrics = onepanel_utils:typed_get(period, Ctx, list, []),
+    MetricsJoined = onepanel_utils:typed_get(metrics, Ctx, binary, <<"">>),
+    Metrics = binary:split(MetricsJoined, <<",">>, [global, trim]),
     op_worker_storage_sync:get_stats(Node, SpaceId, Period, Metrics);
 get_sync_stats(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),

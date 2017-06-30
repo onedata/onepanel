@@ -137,9 +137,11 @@ provide_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
         ))
     ), Req};
 
-provide_resource(Req, #rstate{resource = space_sync_stats, bindings = #{id := Id},
-    params = Params}
-) ->
+provide_resource(Req, #rstate{
+    resource = space_sync_stats,
+    bindings = #{id := Id},
+    params = Params
+}) ->
     Ctx = onepanel_maps:get_store(period, Params, period),
     Ctx2 = onepanel_maps:get_store(metrics, Params, metrics, Ctx),
     Ctx3 = Ctx2#{space_id => Id},
