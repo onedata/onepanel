@@ -31,13 +31,21 @@
           "type": "swift",
           "name": "someSwift",
           "container": "swift"
+        },
+        {
+          "type": "glusterfs",
+          "name": "someGlusterfs",
+          "volume": "data",
+          "transport": "tcp",
+          "mountpoint": "/",
+          "xlatorOptions": ""
         }
       ]
     }
   },
   "onepanel_domains": {
     "onezone": {
-      "image": "onedata/onepanel-test:onezone_3.0.0.rc16.4.gb5ea2dc-1",
+      "image": "docker.onedata.org/onezone-dev:ID-5829920c4d",
       "onepanel": {
         "node1": {
           "vm.args": {
@@ -62,7 +70,7 @@
       }
     },
     "oneprovider": {
-      "image": "onedata/onepanel-test:oneprovider_3.0.0.rc16.4.g865b933-1",
+      "image": "docker.onedata.org/oneprovider-dev:ID-be8080c385",
       "os_config": "cfg1",
       "onepanel": {
         "node1": {

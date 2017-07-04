@@ -208,9 +208,9 @@ error_model() ->
 glusterfs_model() ->
     #{
         %% The ID of storage.
-        id => { string, optional },
+        id => {string, optional},
         %% The name of storage.
-        name => { string, optional },
+        name => {string, optional},
         %% The type of storage.
         type => {equal, <<"glusterfs">>},
         %% The name of the volume to use as a storage backend.
@@ -218,23 +218,23 @@ glusterfs_model() ->
         %% The hostname (IP address or FQDN) of GlusterFS volume server.
         hostname => string,
         %% The GlusterFS port on volume server.
-        port => { integer, optional },
+        port => {integer, optional},
         %% The transport protocol to use to connect to the volume server.
-        transport => { string, optional },
+        transport => {string, optional},
         %% Relative mountpoint within the volume which should be used by
         %% Oneprovider.
-        mountPoint => { string, optional },
+        mountPoint => {string, optional},
         %% Volume specific GlusterFS translator options, in the format:
         %% TRANSLATOR1.OPTION1&#x3D;VALUE1;TRANSLATOR2.OPTION2&#x3D;VALUE2;...
-        xlatorOptions => { string, optional },
+        xlatorOptions => {string, optional},
         %% Storage operation timeout in milliseconds.
-        timeout => { integer, optional },
+        timeout => {integer, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
-        insecure => { boolean, optional },
+        insecure => {boolean, optional},
         %% Defines whether storage is readonly.
-        readonly => { boolean, optional }
+        readonly => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -599,7 +599,7 @@ space_details_model() ->
         storageId => string,
         %% The collection of provider IDs with associated supported storage
         %% space in bytes.
-        supportingProviders => #{ '_' => integer},
+        supportingProviders => #{'_' => integer},
         storageImport => {storage_import_details_model(), optional},
         storageUpdate => {storage_update_details_model(), optional}
     }.
@@ -669,7 +669,7 @@ storage_create_request_model() ->
 %%--------------------------------------------------------------------
 -spec storage_details_model() -> {oneof, Oneof :: list()}.
 storage_details_model() ->
-    {oneof, [posix_model(),s3_model(),ceph_model(),swift_model(),glusterfs_model()]}.
+    {oneof, [posix_model(), s3_model(), ceph_model(), swift_model(),glusterfs_model()]}.
 
 %%--------------------------------------------------------------------
 %% @doc The storage import configuration. Storage import allows to import data
@@ -858,7 +858,7 @@ user_details_model() ->
 user_modify_request_model() ->
     #{
         %% The current user password that should be changed or password of an
-        %% administrator that is issuing this request on behalf of a user. 
+        %% administrator that is issuing this request on behalf of a user.
         currentPassword => string,
         %% The new user password.
         newPassword => string

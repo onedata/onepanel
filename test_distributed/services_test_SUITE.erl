@@ -54,8 +54,8 @@ all() ->
         service_oneprovider_get_supported_spaces_test,
         service_op_worker_get_storages_test,
         service_op_worker_add_storage_test,
-        services_status_test
-%%        services_stop_start_test todo VFS-3347
+        services_status_test,
+        services_stop_start_test
     ]).
 
 %%%===================================================================
@@ -150,6 +150,7 @@ service_op_worker_add_storage_test(Config) ->
     {ok, Ceph} = onepanel_lists:get([storages, ceph, someCeph], Config),
     {ok, S3} = onepanel_lists:get([storages, s3, someS3], Config),
     {ok, Swift} = onepanel_lists:get([storages, swift, someSwift], Config),
+    {ok, Glusterfs} = onepanel_lists:get([storages, glusterfs, someGlusterfs], Config),
     service_action(Node, op_worker, add_storages, #{
         hosts => [hd(?config(oneprovider_hosts, Config))],
         storages => #{
@@ -182,6 +183,15 @@ service_op_worker_add_storage_test(Config) ->
                     onepanel_utils:typed_get(keystone_port, Swift, binary), "/v2.0/tokens"]),
                 tenantName => onepanel_utils:typed_get(tenant_name, Swift, binary),
                 containerName => <<"swift">>
+            },
+            <<"someGluster">> => #{
+                type => <<"glusterfs">>,
+                volume => <<"data">>,
+                hostname => onepanel_utils:typed_get(host_name, Glusterfs, binary),
+                port => onepanel_utils:typed_get(port, Glusterfs, binary),
+                transport => onepanel_utils:typed_get(transport, Glusterfs, binary),
+                mountPoint => onepanel_utils:typed_get(mountpoint, Glusterfs, binary),
+                xlatorOptions => <<"cluster.write-freq-threshold=100;">>
             }
         }
     }),
