@@ -323,7 +323,7 @@ init_per_testcase(put_should_create_or_support_space, Config) ->
     end),
     NewConfig;
 
-init_per_testcase(Case, Config) when Case =:= patch_should_modify_storage_update_test ->
+init_per_testcase(patch_should_modify_storage_update_test, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [

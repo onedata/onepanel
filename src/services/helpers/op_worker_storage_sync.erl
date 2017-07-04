@@ -221,7 +221,7 @@ get_metric(Node, SpaceId, Period, Metric) ->
     Results = rpc:call(Node, storage_sync_monitoring,
         get_metric, [SpaceId, Type, binary_to_atom(Period, latin1)]),
     case Results of
-        [] ->
+        undefined ->
             null;
         Results ->
             LastValueTimestamp = proplists:get_value(timestamp, Results),
