@@ -35,7 +35,8 @@
     {oz_worker_vm_args_file, "/etc/oz_worker/vm.args"},
     {oz_worker_app_config_file, "/etc/oz_worker/app.config"},
     {oz_worker_web_key_file, "/etc/oz_worker/certs/gui_key.pem"},
-    {oz_worker_web_cert_file, "/etc/oz_worker/certs/gui_cert.pem"}
+    {oz_worker_web_cert_file, "/etc/oz_worker/certs/gui_cert.pem"},
+    {services_check_delay, timer:hours(1)}
 ]).
 
 %%%===================================================================
