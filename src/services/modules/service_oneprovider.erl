@@ -25,7 +25,7 @@
 %% API
 -export([configure/1, register/1, unregister/1, modify_details/1, get_details/1,
     support_space/1, revoke_space_support/1, get_spaces/1, get_space_details/1,
-    modify_space/1, get_sync_stats/1]).
+    modify_space/1, get_sync_stats/1, restart_listeners/1]).
 
 -define(SERVICE_OPA, service_onepanel:name()).
 -define(SERVICE_CB, service_couchbase:name()).
@@ -143,7 +143,8 @@ get_steps(register, #{hosts := Hosts} = Ctx) ->
         #step{hosts = Hosts, function = configure,
             ctx = Ctx#{application => ?APP_NAME}},
         #step{hosts = Hosts, function = register, selection = any,
-            attempts = onepanel_env:get(oneprovider_register_attempts)}
+            attempts = onepanel_env:get(oneprovider_register_attempts)},
+        #step{hosts = Hosts, function = restart_listeners}
     ];
 
 get_steps(register, Ctx) ->
@@ -210,7 +211,8 @@ register(Ctx) ->
     Key = onepanel_ssl:gen_rsa(Length),
     Csr = onepanel_ssl:gen_csr(Subject, Key),
 
-    Hosts = onepanel_cluster:nodes_to_hosts(service_op_worker:get_nodes()),
+    OpwNodes = service_op_worker:get_nodes(),
+    Hosts = onepanel_cluster:nodes_to_hosts(OpwNodes),
     Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
 
     DefaultUrls = lists:map(fun({_, IpAddress}) ->
@@ -243,6 +245,8 @@ register(Ctx) ->
         {oz_plugin:get_csr_file(), Csr},
         {oz_plugin:get_cert_file(), Cert}
     ]),
+
+    restart_provider_listeners(OpwNodes),
 
     service:update(name(), fun(#service{ctx = C} = S) ->
         S#service{ctx = C#{registered => true}}
@@ -402,7 +406,6 @@ modify_space(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     modify_space(Ctx#{node => Node}).
 
-
 %%--------------------------------------------------------------------
 %% @doc Get storage_sync stats
 %% @end
@@ -416,3 +419,49 @@ get_sync_stats(#{space_id := SpaceId, node := Node} = Ctx) ->
 get_sync_stats(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     get_sync_stats(Ctx#{node => Node}).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Restarts secure listeners and SSL application.
+%% @end
+%%--------------------------------------------------------------------
+-spec restart_listeners(Ctx :: service:ctx()) -> ok.
+restart_listeners(_Ctx) ->
+    Modules = [
+        rest_listener,
+        hackney,
+        ssl
+    ],
+    lists:foreach(fun(Module) ->
+        Module:stop()
+    end, Modules),
+    lists:foreach(fun(Module) ->
+        Module:start()
+    end, lists:reverse(Modules)).
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Restarts provider's secure listeners and SSL application.
+%% @end
+%%--------------------------------------------------------------------
+-spec restart_provider_listeners([node()]) -> ok.
+restart_provider_listeners(Nodes) ->
+    Modules = [
+        gui_listener,
+        rest_listener,
+        provider_listener,
+        protocol_listener,
+        hackney,
+        ssl
+    ],
+    lists:foreach(fun(Module) ->
+        onepanel_rpc:call_all(Nodes, Module, stop, [])
+    end, Modules),
+    lists:foreach(fun(Module) ->
+        onepanel_rpc:call_all(Nodes, Module, start, [])
+    end, lists:reverse(Modules)).
