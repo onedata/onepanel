@@ -4,6 +4,12 @@
 CHANGELOG
 ---------
 
+### 17.06.0-beta5
+
+* VFS-3356 Extend REST GET space/storage responses
+* VFS-3339 Restart secure listeners on registration
+
+
 ### 17.06.0-beta4
 
 * VFS-3362 Update web-client
