@@ -25,7 +25,7 @@
 %% API
 -export([configure/1, register/1, unregister/1, modify_details/1, get_details/1,
     support_space/1, revoke_space_support/1, get_spaces/1, get_space_details/1,
-    modify_space/1, restart_listeners/1, restart_provider_listeners/1]).
+    modify_space/1, get_sync_stats/1, restart_listeners/1, restart_provider_listeners/1]).
 
 -define(SERVICE_OPA, service_onepanel:name()).
 -define(SERVICE_CB, service_couchbase:name()).
@@ -173,7 +173,8 @@ get_steps(Action, Ctx) when
     Action =:= revoke_space_support;
     Action =:= get_spaces;
     Action =:= get_space_details;
-    Action =:= modify_space ->
+    Action =:= modify_space;
+    Action =:= get_sync_stats ->
     case Ctx of
         #{hosts := Hosts} ->
             [#step{hosts = Hosts, function = Action, selection = any}];
@@ -424,7 +425,20 @@ modify_space(Ctx) ->
     modify_space(Ctx#{node => Node}).
 
 %%--------------------------------------------------------------------
-%% @private
+%% @doc Get storage_sync stats
+%% @end
+%%--------------------------------------------------------------------
+-spec get_sync_stats(Ctx :: service:ctx()) -> list().
+get_sync_stats(#{space_id := SpaceId, node := Node} = Ctx) ->
+    Period = onepanel_utils:typed_get(period, Ctx, binary, undefined),
+    MetricsJoined = onepanel_utils:typed_get(metrics, Ctx, binary, <<"">>),
+    Metrics = binary:split(MetricsJoined, <<",">>, [global, trim]),
+    op_worker_storage_sync:get_stats(Node, SpaceId, Period, Metrics);
+get_sync_stats(Ctx) ->
+    [Node | _] = service_op_worker:get_nodes(),
+    get_sync_stats(Ctx#{node => Node}).
+
+%%--------------------------------------------------------------------
 %% @doc
 %% Restarts secure listeners and SSL application.
 %% @end

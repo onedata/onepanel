@@ -49,6 +49,7 @@
     space_details_model/0,
     space_modify_request_model/0,
     space_support_request_model/0,
+    space_sync_stats_model/0,
     storage_create_request_model/0,
     storage_details_model/0,
     storage_import_details_model/0,
@@ -56,6 +57,8 @@
     storage_update_details_model/0,
     swift_model/0,
     task_status_model/0,
+    time_stats_model/0,
+    time_stats_collection_model/0,
     user_create_request_model/0,
     user_details_model/0,
     user_modify_request_model/0,
@@ -646,6 +649,21 @@ space_support_request_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc Status and statistics of storage/space synchronization.
+%% @end
+%%--------------------------------------------------------------------
+-spec space_sync_stats_model() -> maps:map().
+space_sync_stats_model() ->
+    #{
+        %% Describes import algorithm run status.
+        importStatus => string,
+        %% Describes update algorithm run status.
+        updateStatus => string,
+        %% Collection of statistics for requested metrics.
+        stats => {time_stats_collection_model(), optional}
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The configuration details required to add storage resources.
 %% @end
 %%--------------------------------------------------------------------
@@ -659,7 +677,7 @@ storage_create_request_model() ->
 %%--------------------------------------------------------------------
 -spec storage_details_model() -> {oneof, Oneof :: list()}.
 storage_details_model() ->
-    {oneof, [posix_model(), s3_model(), ceph_model(), swift_model(), glusterfs_model()]}.
+    {oneof, [posix_model(), s3_model(), ceph_model(), swift_model(),glusterfs_model()]}.
 
 %%--------------------------------------------------------------------
 %% @doc The storage import configuration. Storage import allows to import data
@@ -768,6 +786,44 @@ task_status_model() ->
         function => {string, optional},
         %% The collection of hosts with associated error description.
         hosts => {#{'_' => error_model()}, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Statistics for single metric over specified time.
+%% @end
+%%--------------------------------------------------------------------
+-spec time_stats_model() -> maps:map().
+time_stats_model() ->
+    #{
+        %% Name of metric for which this object holds statistics.
+        name => string,
+        %% Date of last measurement value in this object in ISO 8601 format
+        lastValueDate => string,
+        %% Predefined time period for which the statistics were fetched
+        period => {string, optional},
+        %% List of sample values for given metric. The used period is divided
+        %% into array-length number of parts. E.g. if the used period is an
+        %% hour, and if there are 12 values in this array, every value is a
+        %% value for 1/12 of day, which gives value for every hour of the day.
+        %% If the value is null, there is no sample for given time part.
+        values => [number]
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Statistics for single metric over specified time.
+%% @end
+%%--------------------------------------------------------------------
+-spec time_stats_collection_model() -> maps:map().
+time_stats_collection_model() ->
+    #{
+        %% Statistics of storage sync jobs queue length.
+        queueLength => { time_stats_model(), optional },
+        %% Statistics of storage sync imported files.
+        insertCount => { time_stats_model(), optional },
+        %% Statistics of storage sync updated files.
+        updateCount => { time_stats_model(), optional },
+        %% Statistics of storage sync deleted files.
+        deleteCount => { time_stats_model(), optional }
     }.
 
 %%--------------------------------------------------------------------

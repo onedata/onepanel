@@ -178,6 +178,24 @@ routes() ->
             }]
         }},
 
+        %% Get statistics of storage synchronization
+        {<<"/api/v3/onepanel/provider/spaces/:id/sync">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = space_sync_stats,
+            methods = [#rmethod{
+                type = 'GET',
+            params_spec = #{
+                %% Predefined time period for which the statistics
+                %% should be fetched
+                period => {string, optional},
+                %% Specify which statistic metrics should be returned -
+                %% strings delimited with comma
+                metrics => {string, optional}
+            }
+            }]
+        }},
+
         %% Get provider spaces
         {<<"/api/v3/onepanel/provider/spaces">>, rest_handler, #rstate{
             version = 3,

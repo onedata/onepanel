@@ -96,7 +96,8 @@ all() ->
         get_should_return_supported_spaces,
         put_should_create_or_support_space,
         get_should_return_space_details,
-        delete_should_revoke_space_support_test
+        delete_should_revoke_space_support_test,
+        patch_should_modify_storage_update_test
     ]).
 
 %%%===================================================================
@@ -322,7 +323,7 @@ init_per_testcase(put_should_create_or_support_space, Config) ->
     end),
     NewConfig;
 
-init_per_testcase(patch_should_modify_storage_update, Config) ->
+init_per_testcase(patch_should_modify_storage_update_test, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [

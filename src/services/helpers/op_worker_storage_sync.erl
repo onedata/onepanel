@@ -21,7 +21,7 @@
 
 %% API
 -export([maybe_modify_storage_import/3, maybe_modify_storage_update/3,
-    get_storage_import_details/3, get_storage_update_details/3]).
+    get_storage_import_details/3, get_storage_update_details/3, get_stats/4]).
 
 %%-------------------------------------------------------------------
 %% @doc This function modifies storage_import configuration on given Node.
@@ -97,6 +97,21 @@ get_storage_update_details(Node, SpaceId, StorageId) ->
             ]
     end.
 
+%%-------------------------------------------------------------------
+%% @doc Returns storage_sync_stats for given SpaceId.
+%% @end
+%%-------------------------------------------------------------------
+-spec get_stats(Node :: node(), SpaceId :: id(), Period :: binary(),
+    Metrics :: [binary()]) -> proplists:proplist().
+get_stats(Node, SpaceId, _Period, [<<"">>]) ->
+    get_status(Node, SpaceId);
+get_stats(Node, SpaceId, Period, Metrics) ->
+    [
+        {stats, get_all_metrics(Node, SpaceId, Period, Metrics)}
+        | get_status(Node, SpaceId)
+    ].
+
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -126,8 +141,9 @@ modify_storage_import(Node, SpaceId, Args0, NewStrategyName) ->
 %%-------------------------------------------------------------------
 -spec modify_storage_update(Node :: node(), SpaceId :: id(), Args :: args(),
     NewStrategyName :: strategy_name()) -> {ok, id()}.
-modify_storage_update(_Node, SpaceId, _Args0, no_update) ->
-    {ok, SpaceId};
+modify_storage_update(Node, SpaceId, _Args0, no_update) ->
+    {ok, _} = rpc:call(Node, storage_sync, modify_storage_update, [
+        SpaceId, no_update, #{}]);
 modify_storage_update(Node, SpaceId, Args0, NewStrategyName) ->
     Args = #{
         max_depth => onepanel_utils:typed_get(max_depth, Args0, integer,
@@ -179,3 +195,100 @@ current_import_strategy(Node, SpaceId) ->
     ImportDetails = op_worker_storage_sync:get_storage_import_details(Node,
         SpaceId, StorageId),
     proplists:get_value(strategy, ImportDetails).
+
+%%-------------------------------------------------------------------
+%% @private
+%% @doc Returns storage_sync metrics.
+%% @end
+%%-------------------------------------------------------------------
+-spec get_all_metrics(Node :: node(), SpaceId :: id(), Period :: binary(),
+    Metrics :: [binary()]) -> proplists:proplist().
+get_all_metrics(Node, SpaceId, Period, Metrics) ->
+    lists:foldl(fun(Metric, AccIn) ->
+        MetricResult = get_metric(Node, SpaceId, Period, Metric),
+        [{Metric, MetricResult} | AccIn]
+    end, [], Metrics).
+
+%%-------------------------------------------------------------------
+%% @private
+%% @doc Returns storage_sync metrics.
+%% @end
+%%-------------------------------------------------------------------
+-spec get_metric(Node :: node(), SpaceId :: id(), Period :: binary(),
+    Metric :: binary()) -> proplists:proplist() | atom().
+get_metric(Node, SpaceId, Period, Metric) ->
+    Type = map_metric_name_to_type(Metric),
+    Results = rpc:call(Node, storage_sync_monitoring,
+        get_metric, [SpaceId, Type, binary_to_atom(Period, latin1)]),
+    case Results of
+        undefined ->
+            null;
+        Results ->
+            LastValueTimestamp = proplists:get_value(timestamp, Results),
+            Values = proplists:get_value(values, Results),
+            [
+                {name, Metric},
+                {lastValueDate, timestamp_utils:datetime_to_datestamp(LastValueTimestamp)},
+                {values, Values}
+            ]
+    end.
+
+%%-------------------------------------------------------------------
+%% @private
+%% @doc
+%% Maps type of metric.
+%% @end
+%%-------------------------------------------------------------------
+-spec map_metric_name_to_type(binary()) -> atom().
+map_metric_name_to_type(<<"queueLength">>) -> queue_length;
+map_metric_name_to_type(<<"insertCount">>) -> imported_files;
+map_metric_name_to_type(<<"updateCount">>) -> updated_files;
+map_metric_name_to_type(<<"deleteCount">>) -> deleted_files.
+
+
+
+%%-------------------------------------------------------------------
+%% @private
+%% @doc Returns current storage_sync status.
+%% @end
+%%-------------------------------------------------------------------
+-spec get_status(Node :: node(), SpaceId :: id()) ->
+    proplists:proplist().
+get_status(Node, SpaceId) ->
+    [
+        {importStatus, get_import_status(Node, SpaceId)},
+        {updateStatus, get_update_status(Node, SpaceId)}
+    ].
+
+%%-------------------------------------------------------------------
+%% @private
+%% @doc Returns current storage_import status
+%% @end
+%%-------------------------------------------------------------------
+-spec get_import_status(Node :: node(), SpaceId :: id()) -> binary().
+get_import_status(Node, SpaceId) ->
+    ImportInProgress = rpc:call(Node, storage_sync_monitoring,
+        import_in_progress, [SpaceId]),
+    case ImportInProgress of
+        true ->
+            <<"inProgress">>;
+        _ ->
+            <<"done">>
+    end.
+
+%%-------------------------------------------------------------------
+%% @private
+%% @doc Returns current storage_update status
+%% @end
+%%-------------------------------------------------------------------
+-spec get_update_status(Node :: node(), SpaceId :: id()) -> binary().
+get_update_status(Node, SpaceId) ->
+    UpdateInProgress = rpc:call(Node, storage_sync_monitoring,
+        update_in_progress, [SpaceId]),
+    case UpdateInProgress of
+        true ->
+            <<"inProgress">>;
+        _ ->
+            <<"waiting">>
+    end.
+
