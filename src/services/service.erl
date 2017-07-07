@@ -200,6 +200,9 @@ apply([], _Action, _Ctx, _Notify) ->
     ok;
 
 apply(Service, Action, Ctx, Notify) ->
+    TaskDelay = maps:get(task_delay, Ctx, 0),
+    ?debug("Delaying task ~p:~p by ~p ms", [Service, Action, TaskDelay]),
+    timer:sleep(TaskDelay),
     service_utils:notify({action_begin, {Service, Action}}, Notify),
     Result = try
         Steps = service_utils:get_steps(Service, Action, Ctx),

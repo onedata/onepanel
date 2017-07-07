@@ -25,7 +25,7 @@
 %% API
 -export([configure/1, register/1, unregister/1, modify_details/1, get_details/1,
     support_space/1, revoke_space_support/1, get_spaces/1, get_space_details/1,
-    modify_space/1, get_sync_stats/1, restart_listeners/1]).
+    modify_space/1, get_sync_stats/1, restart_listeners/1, restart_provider_listeners/1]).
 
 -define(SERVICE_OPA, service_onepanel:name()).
 -define(SERVICE_CB, service_couchbase:name()).
@@ -143,12 +143,20 @@ get_steps(register, #{hosts := Hosts} = Ctx) ->
         #step{hosts = Hosts, function = configure,
             ctx = Ctx#{application => ?APP_NAME}},
         #step{hosts = Hosts, function = register, selection = any,
-            attempts = onepanel_env:get(oneprovider_register_attempts)},
-        #step{hosts = Hosts, function = restart_listeners}
+            attempts = onepanel_env:get(oneprovider_register_attempts)}
     ];
 
 get_steps(register, Ctx) ->
     get_steps(register, Ctx#{hosts => service_op_worker:get_hosts()});
+
+get_steps(restart_listeners, #{hosts := Hosts}) ->
+    [
+        #step{hosts = Hosts, function = restart_provider_listeners},
+        #step{hosts = Hosts, function = restart_listeners}
+    ];
+
+get_steps(restart_listeners, Ctx) ->
+    get_steps(restart_listeners, Ctx#{hosts => service_op_worker:get_hosts()});
 
 get_steps(unregister, #{hosts := Hosts} = Ctx) ->
     [
@@ -211,8 +219,7 @@ register(Ctx) ->
     Key = onepanel_ssl:gen_rsa(Length),
     Csr = onepanel_ssl:gen_csr(Subject, Key),
 
-    OpwNodes = service_op_worker:get_nodes(),
-    Hosts = onepanel_cluster:nodes_to_hosts(OpwNodes),
+    Hosts = onepanel_cluster:nodes_to_hosts(service_op_worker:get_nodes()),
     Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
 
     DefaultUrls = lists:map(fun({_, IpAddress}) ->
@@ -246,7 +253,10 @@ register(Ctx) ->
         {oz_plugin:get_cert_file(), Cert}
     ]),
 
-    restart_provider_listeners(OpwNodes),
+    OpwNodes = onepanel_cluster:hosts_to_nodes(service_op_worker:name(), Hosts),
+    onepanel_rpc:call_all(OpwNodes, application, set_env, [
+        service_op_worker:name(), provider_id, ProviderId
+    ]),
 
     service:update(name(), fun(#service{ctx = C} = S) ->
         S#service{ctx = C#{registered => true}}
@@ -375,14 +385,22 @@ get_spaces(_Ctx) ->
 get_space_details(#{id := SpaceId, node := Node}) ->
     {ok, #space_details{id = Id, name = Name, providers_supports = Providers}} =
         oz_providers:get_space_details(provider, SpaceId),
-    StorageId = op_worker_storage:get_supporting_storage(Node, SpaceId),
-    ImportDetails = op_worker_storage_sync:get_storage_import_details(Node, SpaceId, StorageId),
-    UpdateDetails = op_worker_storage_sync:get_storage_update_details(Node, SpaceId, StorageId),
+    StorageIds = op_worker_storage:get_supporting_storages(Node, SpaceId),
+    StorageId = hd(StorageIds),
+    MountInRoot = op_worker_storage:is_mounted_in_root(Node, SpaceId, StorageId),
+    ImportDetails = op_worker_storage_sync:get_storage_import_details(
+        Node, SpaceId, StorageId
+    ),
+    UpdateDetails = op_worker_storage_sync:get_storage_update_details(
+        Node, SpaceId, StorageId
+    ),
     [
         {id, Id},
         {name, Name},
         {supportingProviders, Providers},
         {storageId, StorageId},
+        {localStorages, StorageIds},
+        {mountInRoot, MountInRoot},
         {storageImport, ImportDetails},
         {storageUpdate, UpdateDetails}
     ];
@@ -439,18 +457,15 @@ restart_listeners(_Ctx) ->
         Module:start()
     end, lists:reverse(Modules)).
 
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
 %%--------------------------------------------------------------------
-%% @private
 %% @doc
 %% Restarts provider's secure listeners and SSL application.
 %% @end
 %%--------------------------------------------------------------------
--spec restart_provider_listeners([node()]) -> ok.
-restart_provider_listeners(Nodes) ->
+-spec restart_provider_listeners(Ctx :: service:ctx()) -> ok.
+restart_provider_listeners(_Ctx) ->
+    Host = onepanel_cluster:node_to_host(),
+    Node = onepanel_cluster:host_to_node(service_op_worker:name(), Host),
     Modules = [
         gui_listener,
         rest_listener,
@@ -460,8 +475,8 @@ restart_provider_listeners(Nodes) ->
         ssl
     ],
     lists:foreach(fun(Module) ->
-        onepanel_rpc:call_all(Nodes, Module, stop, [])
+        onepanel_rpc:call_all([Node], Module, stop, [])
     end, Modules),
     lists:foreach(fun(Module) ->
-        onepanel_rpc:call_all(Nodes, Module, start, [])
+        onepanel_rpc:call_all([Node], Module, start, [])
     end, lists:reverse(Modules)).

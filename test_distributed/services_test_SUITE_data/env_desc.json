@@ -70,7 +70,7 @@
       }
     },
     "oneprovider": {
-      "image": "docker.onedata.org/oneprovider-dev:ID-8137af6f6e",
+      "image": "docker.onedata.org/oneprovider-dev:ID-7c783f96ed",
       "os_config": "cfg1",
       "onepanel": {
         "node1": {

@@ -69,9 +69,13 @@ accept_resource(Req, 'POST', Args, #rstate{resource = provider}) ->
     Ctx4 = onepanel_maps:get_store(geoLatitude, Args, oneprovider_geo_latitude, Ctx3),
     Ctx5 = onepanel_maps:get_store(geoLongitude, Args, oneprovider_geo_longitude, Ctx4),
 
-    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
+    Response = {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?SERVICE, register, Ctx5
-    ))};
+    ))},
+    service:apply_async(?SERVICE, restart_listeners, Ctx5#{
+        task_delay => timer:seconds(1)
+    }),
+    Response;
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
     Ctx = onepanel_maps:get_store(name, Args, oneprovider_name, Args),
