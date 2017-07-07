@@ -17,7 +17,9 @@
 -include_lib("hackney/include/hackney_lib.hrl").
 
 %% API
--export([add/2, get/0, get/1, update/2, get_supporting_storage/2]).
+-export([add/2, get/0, get/1, update/2]).
+-export([get_supporting_storage/2, get_supporting_storages/2]).
+-export([is_mounted_in_root/3]).
 -export([add_storage/4]).
 
 -type id() :: binary().
@@ -94,9 +96,31 @@ get(Id) ->
 %%--------------------------------------------------------------------
 -spec get_supporting_storage(Node :: node(), SpaceId :: id()) -> id().
 get_supporting_storage(Node, SpaceId) ->
+    hd(get_supporting_storages(Node, SpaceId)).
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns all storages supporting given space on given Node.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_supporting_storages(Node :: node(), SpaceId :: id()) -> [id()].
+get_supporting_storages(Node, SpaceId) ->
     {ok, SpaceStorage} = rpc:call(Node, space_storage, get, [SpaceId]),
-    StorageIds = rpc:call(Node, space_storage, get_storage_ids, [SpaceStorage]),
-    hd(StorageIds).
+    rpc:call(Node, space_storage, get_storage_ids, [SpaceStorage]).
+
+
+%%--------------------------------------------------------------------
+%% @doc Checks whether space storage is mounted in root.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_mounted_in_root(Node :: node(), SpaceId :: id(), StorageId :: id()) ->
+    boolean().
+is_mounted_in_root(Node, SpaceId, StorageId) ->
+    {ok, SpaceStorage} = rpc:call(Node, space_storage, get, [SpaceId]),
+    MountedInRoot = rpc:call(Node, space_storage, get_mounted_in_root,
+        [SpaceStorage]
+    ),
+    lists:member(StorageId, MountedInRoot).
 
 
 %%--------------------------------------------------------------------
@@ -346,9 +370,14 @@ add_storage(Node, StorageName, Helpers, ReadOnly) ->
 -spec get_storage(Node :: node(), Storage :: any()) ->
     Storage :: storage_params_list().
 get_storage(Node, Storage) ->
-    Id = rpc:call(Node, storage, get_id, [Storage]),
-    Name = rpc:call(Node, storage, get_name, [Storage]),
     [Helper | _] = rpc:call(Node, storage, get_helpers, [Storage]),
-    Type = rpc:call(Node, helper, get_name, [Helper]),
-    Args = maps:to_list(rpc:call(Node, helper, get_args, [Helper])),
-    [{id, Id}, {name, Name}, {type, Type} | Args].
+    AdminCtx = rpc:call(Node, helper, get_admin_ctx, [Helper]),
+    AdminCtx2 = maps:with([<<"username">>, <<"accessKey">>], AdminCtx),
+    HelperArgs = rpc:call(Node, helper, get_args, [Helper]),
+    [
+        {id, rpc:call(Node, storage, get_id, [Storage])},
+        {name, rpc:call(Node, storage, get_name, [Storage])},
+        {type, rpc:call(Node, helper, get_name, [Helper])},
+        {readonly, rpc:call(Node, storage, is_readonly, [Storage])},
+        {insecure, rpc:call(Node, helper, is_insecure, [Helper])}
+    ] ++ maps:to_list(AdminCtx2) ++ maps:to_list(HelperArgs).

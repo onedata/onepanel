@@ -80,6 +80,12 @@ ceph_model() ->
         id => {string, optional},
         %% The name of storage.
         name => {string, optional},
+        %% Defines whether storage administrator credentials (username and key)
+        %% may be used by users without storage accounts to access storage in
+        %% direct IO mode.
+        insecure => {boolean, optional},
+        %% Defines whether storage is readonly.
+        readonly => {boolean, optional},
         %% The type of storage.
         type => {equal, <<"ceph">>},
         %% The username of the Ceph cluster administrator.
@@ -93,13 +99,7 @@ ceph_model() ->
         %% The Ceph pool name.
         poolName => string,
         %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional}
+        timeout => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -208,6 +208,12 @@ glusterfs_model() ->
         id => {string, optional},
         %% The name of storage.
         name => {string, optional},
+        %% Defines whether storage administrator credentials (username and key)
+        %% may be used by users without storage accounts to access storage in
+        %% direct IO mode.
+        insecure => {boolean, optional},
+        %% Defines whether storage is readonly.
+        readonly => {boolean, optional},
         %% The type of storage.
         type => {equal, <<"glusterfs">>},
         %% The name of the volume to use as a storage backend.
@@ -225,13 +231,7 @@ glusterfs_model() ->
         %% TRANSLATOR1.OPTION1&#x3D;VALUE1;TRANSLATOR2.OPTION2&#x3D;VALUE2;...
         xlatorOptions => {string, optional},
         %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional}
+        timeout => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -282,15 +282,19 @@ posix_model() ->
         id => {string, optional},
         %% The name of storage.
         name => {string, optional},
+        %% Defines whether storage administrator credentials (username and key)
+        %% may be used by users without storage accounts to access storage in
+        %% direct IO mode.
+        insecure => {boolean, optional},
+        %% Defines whether storage is readonly.
+        readonly => {boolean, optional},
         %% The type of storage.
         type => {equal, <<"posix">>},
         %% The absolute path to the directory where the POSIX storage is mounted
         %% on the cluster nodes.
         mountPoint => string,
         %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional}
+        timeout => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -470,6 +474,12 @@ s3_model() ->
         id => {string, optional},
         %% The name of storage.
         name => {string, optional},
+        %% Defines whether storage administrator credentials (accessKey and
+        %% secretKey) may be used by users without storage accounts to access
+        %% storage in direct IO mode.
+        insecure => {boolean, optional},
+        %% Defines whether storage is readonly.
+        readonly => {boolean, optional},
         %% The type of storage.
         type => {equal, <<"s3">>},
         %% The hostname of a machine where S3 storage is installed.
@@ -486,13 +496,7 @@ s3_model() ->
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Storage block size in bytes.
-        blockSize => {integer, optional},
-        %% Defines whether storage administrator credentials (accessKey and
-        %% secretKey) may be used by users without storage accounts to access
-        %% storage in direct IO mode.
-        insecure => {boolean, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional}
+        blockSize => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -594,9 +598,13 @@ space_details_model() ->
         %% Id of StorageDetails that supports this space on provider that is
         %% associated with this panel.
         storageId => string,
+        %% The list of IDs of cluster storage resources.
+        localStorages => {[string], optional},
         %% The collection of provider IDs with associated supported storage
         %% space in bytes.
         supportingProviders => #{'_' => integer},
+        %% Defines whether space will be mounted in / or /{SpaceId}/ path.
+        mountInRoot => {boolean, optional},
         storageImport => {storage_import_details_model(), optional},
         storageUpdate => {storage_update_details_model(), optional}
     }.
@@ -714,6 +722,12 @@ swift_model() ->
         id => {string, optional},
         %% The name of storage.
         name => {string, optional},
+        %% Defines whether storage administrator credentials (username and
+        %% password) may be used by users without storage accounts to access
+        %% storage in direct IO mode.
+        insecure => {boolean, optional},
+        %% Defines whether storage is readonly.
+        readonly => {boolean, optional},
         %% The type of storage.
         type => {equal, <<"swift">>},
         %% The URL to OpenStack Keystone identity service.
@@ -729,13 +743,7 @@ swift_model() ->
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Storage block size in bytes.
-        blockSize => {integer, optional},
-        %% Defines whether storage administrator credentials (username and
-        %% password) may be used by users without storage accounts to access
-        %% storage in direct IO mode.
-        insecure => {boolean, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional}
+        blockSize => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
