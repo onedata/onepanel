@@ -206,7 +206,7 @@ apply(Service, Action, Ctx, Notify) ->
     service_utils:notify({action_begin, {Service, Action}}, Notify),
     Result = try
         Steps = service_utils:get_steps(Service, Action, Ctx),
-        ?info("Execution of ~p:~p requires following steps:~n~s",
+        ?debug("Execution of ~p:~p requires following steps:~n~s",
             [Service, Action, service_utils:format_steps(Steps, "")]),
         apply_steps(Steps, Notify)
     catch

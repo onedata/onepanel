@@ -141,7 +141,7 @@ handle_info({udp, _Socket, _Ip, _Port, Msg}, #state{nodes = Nodes} = State) ->
             ?debug("Cannot parse node name: ~p", [Msg]),
             State;
         {error, {resolve, Hostname, Reason}} ->
-            ?warning("Cannot resolve hostname ~p due to: ~p", [Hostname, Reason]),
+            ?debug("Cannot resolve hostname ~p due to: ~p", [Hostname, Reason]),
             State
     end,
     {noreply, NewState};

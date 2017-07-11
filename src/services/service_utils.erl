@@ -225,9 +225,9 @@ get_nested_steps(#steps{ctx = Ctx, condition = Condition} = Steps) ->
     Function :: atom(),
     Result :: term().
 log({action_begin, {Module, Function}}) ->
-    ?info("Executing action ~p:~p", [Module, Function]);
+    ?debug("Executing action ~p:~p", [Module, Function]);
 log({action_end, {Module, Function, ok}}) ->
-    ?info("Action ~p:~p completed successfully", [Module, Function]);
+    ?debug("Action ~p:~p completed successfully", [Module, Function]);
 log({action_end, {Module, Function, #error{reason = Reason, stacktrace = []}}}) ->
     ?error("Action ~p:~p failed due to: ~p", [Module, Function, Reason]);
 log({action_end, {Module, Function, #error{reason = Reason,
@@ -235,9 +235,9 @@ log({action_end, {Module, Function, #error{reason = Reason,
     ?error("Action ~p:~p failed due to: ~p~nStacktrace: ~p",
         [Module, Function, Reason, Stacktrace]);
 log({step_begin, {Module, Function}}) ->
-    ?info("Executing step ~p:~p", [Module, Function]);
+    ?debug("Executing step ~p:~p", [Module, Function]);
 log({step_end, {Module, Function, {_, []}}}) ->
-    ?info("Step ~p:~p completed successfully", [Module, Function]);
+    ?debug("Step ~p:~p completed successfully", [Module, Function]);
 log({step_end, {Module, Function, {_, Errors}}}) ->
     ?error("Step ~p:~p failed~n~s", [Module, Function,
         format_errors(Errors, "")]).
