@@ -28,6 +28,8 @@
     services :: gb_sets:set(service:name())
 }).
 
+-define(TIMEOUT, timer:minutes(5)).
+
 %%%===================================================================
 %%% API
 %%%===================================================================
@@ -47,7 +49,7 @@ start_link() ->
 %%--------------------------------------------------------------------
 -spec register_service(Service :: service:name()) -> ok.
 register_service(Service) ->
-    gen_server:cast(?SERVICE_WATCHER_NAME, {register, Service}).
+    gen_server:call(?SERVICE_WATCHER_NAME, {register, Service}, ?TIMEOUT).
 
 %%--------------------------------------------------------------------
 %% @doc Removes a service from a collection of supervised services.
@@ -55,7 +57,7 @@ register_service(Service) ->
 %%--------------------------------------------------------------------
 -spec unregister_service(Service :: service:name()) -> ok.
 unregister_service(Service) ->
-    gen_server:cast(?SERVICE_WATCHER_NAME, {unregister, Service}).
+    gen_server:call(?SERVICE_WATCHER_NAME, {unregister, Service}, ?TIMEOUT).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -86,6 +88,16 @@ init([]) ->
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
     {stop, Reason :: term(), NewState :: #state{}}.
+handle_call({register, Service}, _From, #state{services = Services} = State) ->
+    {reply, ok, State#state{
+        services = gb_sets:add_element(Service, Services)
+    }};
+
+handle_call({unregister, Service}, _From, #state{services = Services} = State) ->
+    {reply, ok, State#state{
+        services = gb_sets:del_element(Service, Services)
+    }};
+
 handle_call(Request, _From, State) ->
     ?log_bad_request(Request),
     {reply, {error, {invalid_request, Request}}, State}.
@@ -98,16 +110,6 @@ handle_call(Request, _From, State) ->
     {noreply, NewState :: #state{}} |
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}.
-handle_cast({register, Service}, #state{services = Services} = State) ->
-    {noreply, State#state{
-        services = gb_sets:add_element(Service, Services)
-    }};
-
-handle_cast({unregister, Service}, #state{services = Services} = State) ->
-    {noreply, State#state{
-        services = gb_sets:del_element(Service, Services)
-    }};
-
 handle_cast(Request, State) ->
     ?log_bad_request(Request),
     {noreply, State}.
@@ -127,7 +129,13 @@ handle_info(check, #state{services = Services} = State) ->
             running -> ok;
             _ ->
                 ?critical("Service ~p in not running. Restarting...", [Service]),
-                Module:start(#{})
+                try
+                    Module:start(#{})
+                catch
+                    _:Reason ->
+                        ?critical("Failed to restart service ~p due to: ~p",
+                            [Service, Reason])
+                end
         end
     end, gb_sets:to_list(Services)),
     schedule_services_check(),
