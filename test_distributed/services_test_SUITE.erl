@@ -65,6 +65,8 @@ all() ->
 service_oneprovider_unregister_register_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
     service_action(Node, oneprovider, unregister, #{}),
+    service_action(Node, oneprovider, restart_listeners, #{
+    }),
     service_action(Node, oneprovider, register, #{
         oneprovider_geo_latitude => 20.0,
         oneprovider_geo_longitude => 20.0,
@@ -72,8 +74,6 @@ service_oneprovider_unregister_register_test(Config) ->
         oneprovider_redirection_point => onepanel_utils:join(
             ["https://", onepanel_cluster:node_to_host(Node)]
         )
-    }),
-    service_action(Node, oneprovider, restart_listeners, #{
     }).
 
 

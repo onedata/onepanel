@@ -25,7 +25,8 @@
 %% API
 -export([configure/1, register/1, unregister/1, modify_details/1, get_details/1,
     support_space/1, revoke_space_support/1, get_spaces/1, get_space_details/1,
-    modify_space/1, get_sync_stats/1, restart_listeners/1, restart_provider_listeners/1]).
+    modify_space/1, get_sync_stats/1, restart_listeners/1,
+    restart_provider_listeners/1]).
 
 -define(SERVICE_OPA, service_onepanel:name()).
 -define(SERVICE_CB, service_couchbase:name()).

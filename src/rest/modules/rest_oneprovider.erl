@@ -69,13 +69,9 @@ accept_resource(Req, 'POST', Args, #rstate{resource = provider}) ->
     Ctx4 = onepanel_maps:get_store(geoLatitude, Args, oneprovider_geo_latitude, Ctx3),
     Ctx5 = onepanel_maps:get_store(geoLongitude, Args, oneprovider_geo_longitude, Ctx4),
 
-    Response = {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
+    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?SERVICE, register, Ctx5
-    ))},
-    service:apply_async(?SERVICE, restart_listeners, Ctx5#{
-        task_delay => timer:seconds(1)
-    }),
-    Response;
+    ))};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
     Ctx = onepanel_maps:get_store(name, Args, oneprovider_name, Args),
@@ -164,9 +160,13 @@ provide_resource(Req, #rstate{
 -spec delete_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Deleted :: boolean(), Req :: cowboy_req:req()}.
 delete_resource(Req, #rstate{resource = provider}) ->
-    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, unregister, #{}
-    ))};
+    Response = {true, rest_replier:throw_on_service_error(
+        Req, service:apply_sync(?SERVICE, unregister, #{})
+    )},
+    service:apply_async(?SERVICE, restart_listeners, #{
+        task_delay => timer:seconds(1)
+    }),
+    Response;
 
 delete_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
