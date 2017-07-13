@@ -83,6 +83,7 @@ end).
 -define(ERR_STORAGE_TEST_FILE_READ, storage_test_file_read).
 -define(ERR_STORAGE_TEST_FILE_REMOVE, storage_test_file_remove).
 -define(ERR_STORAGE_ADDITION, storage_addition).
+-define(ERR_LUMA_CONFIG(Key), {?ERR_STORAGE_ADDITION, {missing_key, Key}}).
 
 -define(ERR_UNREGISTERED_PROVIDER, unregistered_provider).
 
