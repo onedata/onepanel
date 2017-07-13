@@ -66,7 +66,7 @@
         {extend_cluster_timeout, 900000},
         {task_ttl, 86400000},
         {service_step_retry_delay, 30000},
-        {services_check_delay, 5000},
+        {services_check_delay, 60000},
         {openssl_cmd_timeout, 60000},
         {session_ttl, 3600000},
 
@@ -86,12 +86,12 @@
         {couchbase_password, "password"},
         {couchbase_admin_port, 8091},
         {couchbase_port, 11211},
-        {couchbase_server_quota, 512},
-        {couchbase_bucket_quota, 350},
+        {couchbase_server_quota, 4096},
+        {couchbase_bucket_quota, 2048},
         {couchbase_open_files_limit, 65535},
         {couchbase_buckets, [
-            {oneprovider, [{"default", 100}, "sync"]},
-            {onezone, [{"default", 150}, {"sync", 250}, {"location_service", 100}]}
+            {oneprovider, [{"default", 2048}, {"sync", 2048}]},
+            {onezone, [{"default", 2048}, {"sync", 1024}, {"location_service", 100}]}
         ]},
 
         {cluster_manager_vm_args_file, "{{platform_etc_dir}}/../cluster_manager/vm.args"},
