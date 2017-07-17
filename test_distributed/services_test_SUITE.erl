@@ -17,7 +17,7 @@
 -include_lib("ctool/include/test/performance.hrl").
 
 %% export for ct
--export([all/0, init_per_suite/1, end_per_suite/1, init_per_testcase/2]).
+-export([all/0, init_per_suite/1, init_per_testcase/2]).
 
 %% tests
 -export([
@@ -52,8 +52,8 @@ all() ->
         service_oneprovider_modify_details_test,
         service_oneprovider_get_details_test,
         service_oneprovider_get_supported_spaces_test,
-        service_op_worker_add_storage_test,
         service_op_worker_get_storages_test,
+        service_op_worker_add_storage_test,
         services_status_test,
         services_stop_start_test
     ]).
@@ -65,6 +65,8 @@ all() ->
 service_oneprovider_unregister_register_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
     service_action(Node, oneprovider, unregister, #{}),
+    service_action(Node, oneprovider, restart_listeners, #{
+    }),
     service_action(Node, oneprovider, register, #{
         oneprovider_geo_latitude => 20.0,
         oneprovider_geo_longitude => 20.0,
@@ -119,9 +121,29 @@ service_oneprovider_get_supported_spaces_test(Config) ->
     service_action(Node, oneprovider, get_spaces, #{
         hosts => [onepanel_cluster:node_to_host(Node)]
     }),
-    ?assertEqual([{Node, []}], assert_service_step(
+    ?assertEqual([{Node, [{ids, []}]}], assert_service_step(
         service:get_module(oneprovider), get_spaces
     )).
+
+
+service_op_worker_get_storages_test(Config) ->
+    [Node | _] = ?config(oneprovider_nodes, Config),
+    Ctx = #{hosts => [onepanel_cluster:node_to_host(Node)]},
+    service_action(Node, op_worker, get_storages, Ctx),
+    Results = assert_service_step(service:get_module(op_worker), get_storages),
+    [{Node, [{ids, [Id]}]}] = ?assertMatch([{Node, [{ids, [_]}]}], Results),
+
+    service_action(Node, op_worker, get_storages, Ctx#{id => Id}),
+    Results2 = assert_service_step(service:get_module(op_worker), get_storages),
+    [{Node, Storage}] = ?assertMatch([{Node, _}], Results2),
+    onepanel_test_utils:assert_values(Storage, [
+        {id, Id},
+        {name, <<"somePosix1">>},
+        {type, <<"posix">>},
+        {<<"mountPoint">>, onepanel_utils:typed_get(
+            [storages, posix, '/mnt/st1', docker_path], Config, binary
+        )}
+    ]).
 
 
 service_op_worker_add_storage_test(Config) ->
@@ -130,6 +152,7 @@ service_op_worker_add_storage_test(Config) ->
     {ok, Ceph} = onepanel_lists:get([storages, ceph, someCeph], Config),
     {ok, S3} = onepanel_lists:get([storages, s3, someS3], Config),
     {ok, Swift} = onepanel_lists:get([storages, swift, someSwift], Config),
+    {ok, Glusterfs} = onepanel_lists:get([storages, glusterfs, someGlusterfs], Config),
     service_action(Node, op_worker, add_storages, #{
         hosts => [hd(?config(oneprovider_hosts, Config))],
         storages => #{
@@ -150,9 +173,7 @@ service_op_worker_add_storage_test(Config) ->
                 accessKey => onepanel_utils:typed_get(access_key, S3, binary),
                 secretKey => onepanel_utils:typed_get(secret_key, S3, binary),
                 bucketName => <<"onedata">>,
-                s3Hostname => <<"http://", (onepanel_utils:typed_get(host_name,
-                    S3, binary))/binary>>,
-                iamHostname => <<"http://", (onepanel_utils:typed_get(iam_host,
+                hostname => <<"http://", (onepanel_utils:typed_get(host_name,
                     S3, binary))/binary>>
             },
             <<"someSwift">> => #{
@@ -164,30 +185,19 @@ service_op_worker_add_storage_test(Config) ->
                     onepanel_utils:typed_get(keystone_port, Swift, binary), "/v2.0/tokens"]),
                 tenantName => onepanel_utils:typed_get(tenant_name, Swift, binary),
                 containerName => <<"swift">>
+            },
+            <<"someGluster">> => #{
+                type => <<"glusterfs">>,
+                volume => <<"data">>,
+                hostname => onepanel_utils:typed_get(host_name, Glusterfs, binary),
+                port => onepanel_utils:typed_get(port, Glusterfs, binary),
+                transport => onepanel_utils:typed_get(transport, Glusterfs, binary),
+                mountPoint => onepanel_utils:typed_get(mountpoint, Glusterfs, binary),
+                xlatorOptions => <<"cluster.write-freq-threshold=100;">>
             }
         }
     }),
     assert_service_step(service:get_module(op_worker), add_storages, [Node], ok).
-
-
-service_op_worker_get_storages_test(Config) ->
-    [Node | _] = ?config(oneprovider_nodes, Config),
-    Name = <<"somePosix1">>,
-    lists:foreach(fun(Ctx) ->
-        service_action(Node, op_worker, get_storages, Ctx#{
-            hosts => [onepanel_cluster:node_to_host(Node)]
-        }),
-        Results = assert_service_step(service:get_module(op_worker), get_storages),
-        [{_, Storages}] = ?assertMatch([{Node, _}], Results),
-        onepanel_test_utils:assert_fields(Storages, [Name]),
-        onepanel_test_utils:assert_fields(?config(Name, Storages), [id]),
-        onepanel_test_utils:assert_values(?config(Name, Storages), [
-            {type, <<"posix">>},
-            {mountPoint, onepanel_utils:typed_get(
-                [storages, posix, '/mnt/st1', docker_path], Config, binary
-            )}
-        ])
-    end, [#{}, #{name => Name}]).
 
 
 services_status_test(Config) ->
@@ -257,75 +267,72 @@ services_stop_start_test(Config) ->
 %%%===================================================================
 
 init_per_suite(Config) ->
-    NewConfig = onepanel_test_utils:init(
-        ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json"))
-    ),
-    [OzNode | _] = OzNodes = ?config(onezone_nodes, NewConfig),
-    OzHosts = onepanel_cluster:nodes_to_hosts(OzNodes),
-    service_action(OzNode, ?SERVICE_OZ, deploy, #{
-        cluster => #{
-            ?SERVICE_OPA => #{
-                hosts => OzHosts
-            },
-            ?SERVICE_CB => #{
-                hosts => OzHosts
-            },
-            ?SERVICE_CM => #{
-                hosts => OzHosts, main_cm_host => hd(OzHosts), worker_num => 2
-            },
-            ?SERVICE_OZW => #{
-                hosts => OzHosts, main_cm_host => hd(OzHosts),
-                cm_hosts => OzHosts, db_hosts => OzHosts
-            }
-        }
-    }),
-    [OpNode | _] = OpNodes = ?config(oneprovider_nodes, NewConfig),
-    OpHosts = onepanel_cluster:nodes_to_hosts(OpNodes),
-    {ok, Posix} = onepanel_lists:get([storages, posix, '/mnt/st1'], NewConfig),
-    service_action(OpNode, ?SERVICE_OP, deploy, #{
-        cluster => #{
-            ?SERVICE_OPA => #{
-                hosts => OpHosts
-            },
-            ?SERVICE_CB => #{
-                hosts => OpHosts
-            },
-            ?SERVICE_CM => #{
-                hosts => OpHosts, main_cm_host => hd(OpHosts), worker_num => 2
-            },
-            ?SERVICE_OPW => #{
-                hosts => OpHosts, main_cm_host => hd(OpHosts),
-                cm_hosts => OpHosts, db_hosts => OpHosts
-            },
-            storages => #{
-                hosts => OpHosts,
-                storages => #{
-                    <<"somePosix1">> => #{
-                        type => <<"posix">>,
-                        mountPoint => onepanel_utils:typed_get(
-                            docker_path, Posix, binary
-                        )
-                    }
+    Posthook = fun(NewConfig) ->
+        NewConfig2 = onepanel_test_utils:init(NewConfig),
+        [OzNode | _] = OzNodes = ?config(onezone_nodes, NewConfig2),
+        OzHosts = onepanel_cluster:nodes_to_hosts(OzNodes),
+        service_action(OzNode, ?SERVICE_OZ, deploy, #{
+            cluster => #{
+                ?SERVICE_OPA => #{
+                    hosts => OzHosts
+                },
+                ?SERVICE_CB => #{
+                    hosts => OzHosts
+                },
+                ?SERVICE_CM => #{
+                    hosts => OzHosts, main_cm_host => hd(OzHosts), worker_num => 2
+                },
+                ?SERVICE_OZW => #{
+                    hosts => OzHosts, main_cm_host => hd(OzHosts),
+                    cm_hosts => OzHosts, db_hosts => OzHosts
                 }
             }
-        },
-        ?SERVICE_OP => #{
-            hosts => OpHosts,
-            oneprovider_geo_latitude => 10.0,
-            oneprovider_geo_longitude => 10.0,
-            oneprovider_name => <<"provider1">>,
-            oneprovider_redirection_point => onepanel_utils:join(
-                ["https://", hd(OpHosts)]
-            ),
-            oneprovider_register => true,
-            onezone_domain => hd(OzHosts)
-        }
-    }),
-    NewConfig.
-
-
-end_per_suite(Config) ->
-    test_node_starter:clean_environment(Config).
+        }),
+        [OpNode | _] = OpNodes = ?config(oneprovider_nodes, NewConfig2),
+        OpHosts = onepanel_cluster:nodes_to_hosts(OpNodes),
+        {ok, Posix} = onepanel_lists:get([storages, posix, '/mnt/st1'], NewConfig2),
+        service_action(OpNode, ?SERVICE_OP, deploy, #{
+            cluster => #{
+                ?SERVICE_OPA => #{
+                    hosts => OpHosts
+                },
+                ?SERVICE_CB => #{
+                    hosts => OpHosts
+                },
+                ?SERVICE_CM => #{
+                    hosts => OpHosts, main_cm_host => hd(OpHosts), worker_num => 2
+                },
+                ?SERVICE_OPW => #{
+                    hosts => OpHosts, main_cm_host => hd(OpHosts),
+                    cm_hosts => OpHosts, db_hosts => OpHosts
+                },
+                storages => #{
+                    hosts => OpHosts,
+                    storages => #{
+                        <<"somePosix1">> => #{
+                            type => <<"posix">>,
+                            mountPoint => onepanel_utils:typed_get(
+                                docker_path, Posix, binary
+                            )
+                        }
+                    }
+                }
+            },
+            ?SERVICE_OP => #{
+                hosts => OpHosts,
+                oneprovider_geo_latitude => 10.0,
+                oneprovider_geo_longitude => 10.0,
+                oneprovider_name => <<"provider1">>,
+                oneprovider_redirection_point => onepanel_utils:join(
+                    ["https://", hd(OpHosts)]
+                ),
+                oneprovider_register => true,
+                onezone_domain => hd(OzHosts)
+            }
+        }),
+        NewConfig2
+    end,
+    [{?ENV_UP_POSTHOOK, Posthook} | Config].
 
 
 init_per_testcase(_Case, Config) ->

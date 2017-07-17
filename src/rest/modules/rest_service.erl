@@ -38,13 +38,14 @@
 is_authorized(Req, _Method, #rstate{client = #client{role = admin}}) ->
     {true, Req};
 
+is_authorized(Req, 'GET', #rstate{resource = Resource}) when
+    Resource =:= task orelse Resource =:= nagios ->
+    {true, Req};
+
 is_authorized(Req, Method, #rstate{resource = Resource}) when
     (Method =:= 'POST' orelse Method =:= 'GET') andalso
         (Resource =:= service_oneprovider orelse Resource =:= service_onezone) ->
     {onepanel_user:get_by_role(admin) == [], Req};
-
-is_authorized(Req, 'GET', #rstate{resource = task}) ->
-    {true, Req};
 
 is_authorized(Req, _Method, _State) ->
     {false, Req}.
@@ -56,15 +57,18 @@ is_authorized(Req, _Method, _State) ->
 %%--------------------------------------------------------------------
 -spec exists_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
+exists_resource(Req, #rstate{resource = nagios}) ->
+    {model:exists(service) andalso (
+        service:exists(service_oz_worker:name()) orelse
+            service:exists(service_op_worker:name())
+    ), Req};
+
 exists_resource(Req, #rstate{resource = task, bindings = #{id := TaskId}}) ->
     {service:exists_task(TaskId), Req};
 
-exists_resource(Req, #rstate{resource = storage, bindings = #{name := Name}}) ->
+exists_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
     Node = utils:random_element(service_op_worker:get_nodes()),
-    case rpc:call(Node, storage, get_by_name, [Name]) of
-        {ok, _} -> {true, Req};
-        {error, {not_found, storage}} -> {false, Req}
-    end;
+    {rpc:call(Node, storage, exists, [Id]), Req};
 
 exists_resource(Req, #rstate{resource = storages}) ->
     {true, Req};
@@ -137,24 +141,25 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
     ClusterCtx = #{
         service_onepanel:name() => OpaCtx2,
         service_couchbase:name() => DbCtx3,
-        service_cluster_manager:name() => #{main_host => MainCmHost, hosts => CmHosts},
+        service_cluster_manager:name() => #{main_host => MainCmHost,
+            hosts => CmHosts, worker_num => length(OpwHosts)},
         service_op_worker:name() => #{hosts => OpwHosts, db_hosts => DbHosts,
             cm_hosts => CmHosts, main_cm_host => MainCmHost
         },
         storages => StorageCtx2
     },
 
-    OpCtx = onepanel_maps:get_store([onezone, domainName], Args, onezone_domain),
-    OpCtx2 = onepanel_maps:get_store([oneprovider, register], Args, oneprovider_register, OpCtx),
-    OpCtx3 = onepanel_maps:get_store([oneprovider, name], Args, oneprovider_name, OpCtx2),
-    OpCtx4 = onepanel_maps:get_store([oneprovider, redirectionPoint], Args, oneprovider_redirection_point, OpCtx3),
-    OpCtx5 = onepanel_maps:get_store([oneprovider, geoLatitude], Args, oneprovider_geo_latitude, OpCtx4),
-    OpCtx6 = onepanel_maps:get_store([oneprovider, geoLongitude], Args, oneprovider_geo_longitude, OpCtx5),
-    OpCtx7 = OpCtx6#{hosts => OpwHosts},
+    OpwCtx = onepanel_maps:get_store([onezone, domainName], Args, onezone_domain),
+    OpwCtx2 = onepanel_maps:get_store([oneprovider, register], Args, oneprovider_register, OpwCtx),
+    OpwCtx3 = onepanel_maps:get_store([oneprovider, name], Args, oneprovider_name, OpwCtx2),
+    OpwCtx4 = onepanel_maps:get_store([oneprovider, redirectionPoint], Args, oneprovider_redirection_point, OpwCtx3),
+    OpwCtx5 = onepanel_maps:get_store([oneprovider, geoLatitude], Args, oneprovider_geo_latitude, OpwCtx4),
+    OpwCtx6 = onepanel_maps:get_store([oneprovider, geoLongitude], Args, oneprovider_geo_longitude, OpwCtx5),
+    OpwCtx7 = OpwCtx6#{hosts => OpwHosts},
 
     {true, rest_replier:handle_service_action_async(Req2, service:apply_async(
         service_oneprovider:name(), deploy, #{
-            cluster => ClusterCtx, service_oneprovider:name() => OpCtx7
+            cluster => ClusterCtx, service_oneprovider:name() => OpwCtx7
         }
     ), Version)};
 
@@ -178,22 +183,28 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version =
         api_version => Version
     },
 
-    OzCtx = #{
+    OzCtx = onepanel_maps:get_store([onezone, name], Args, name),
+    OzCtx2 = onepanel_maps:get_store([onezone, domainName], Args, domain, OzCtx),
+
+    OzwCtx = #{
         hosts => OzwHosts, db_hosts => DbHosts, cm_hosts => CmHosts,
         main_cm_host => MainCmHost
     },
-    OzCtx2 = onepanel_maps:get_store([onezone, name], Args, onezone_name, OzCtx),
-    OzCtx3 = onepanel_maps:get_store([onezone, domainName], Args, onezone_domain, OzCtx2),
+    OzwCtx2 = onepanel_maps:get_store([onezone, name], Args, onezone_name, OzwCtx),
+    OzwCtx3 = onepanel_maps:get_store([onezone, domainName], Args, onezone_domain, OzwCtx2),
 
     ClusterCtx = #{
         service_onepanel:name() => OpaCtx2,
         service_couchbase:name() => DbCtx3,
-        service_cluster_manager:name() => #{main_host => MainCmHost, hosts => CmHosts},
-        service_oz_worker:name() => OzCtx3
+        service_cluster_manager:name() => #{main_host => MainCmHost,
+            hosts => CmHosts, worker_num => length(OzwHosts)},
+        service_oz_worker:name() => OzwCtx3
     },
 
     {true, rest_replier:handle_service_action_async(Req2, service:apply_async(
-        service_onezone:name(), deploy, #{cluster => ClusterCtx}
+        service_onezone:name(), deploy, #{
+            cluster => ClusterCtx, service_onezone:name() => OzCtx2
+        }
     ), Version)};
 
 accept_resource(Req, 'POST', Args, #rstate{resource = storages}) ->
@@ -201,6 +212,14 @@ accept_resource(Req, 'POST', Args, #rstate{resource = storages}) ->
         service_op_worker:name(), add_storages, #{
             storages => Args, ignore_exists => false
         }
+    ))};
+
+accept_resource(Req, 'PATCH', Args, #rstate{resource = storage,
+    bindings = #{id := Id}}) ->
+    Ctx = #{id => Id},
+    Ctx2 = onepanel_maps:get_store(timeout, Args, [args, timeout], Ctx),
+    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
+        service_op_worker:name(), update_storage, Ctx2
     ))};
 
 accept_resource(Req, 'PATCH', _Args, #rstate{resource = SModule,
@@ -233,14 +252,29 @@ accept_resource(Req, 'PATCH', _Args, #rstate{resource = SModule,
 %% @end
 %%--------------------------------------------------------------------
 -spec provide_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
-    {Data :: rest_handler:data(), Req :: cowboy_req:req()}.
+    {Data :: rest_handler:data(), Req :: cowboy_req:req()} |
+    {halt, Req :: cowboy_req:req(), State :: rest_handler:state()}.
+provide_resource(Req, #rstate{resource = nagios} = State) ->
+    SModule = case onepanel_env:get(release_type) of
+        oneprovider -> service_op_worker;
+        onezone -> service_oz_worker
+    end,
+
+    {ok, Code, Headers, Body} = rest_replier:format_service_step(
+        SModule, get_nagios_response, service_utils:throw_on_error(
+            service:apply_sync(SModule:name(), get_nagios_response, #{})
+        )
+    ),
+    {ok, Req2} = cowboy_req:reply(Code, Headers, Body, Req),
+    {halt, Req2, State};
+
 provide_resource(Req, #rstate{resource = task, bindings = #{id := TaskId}}) ->
     {rest_replier:format_service_task_results(service:get_results(TaskId)), Req};
 
-provide_resource(Req, #rstate{resource = storage, bindings = #{name := Name}}) ->
+provide_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
     {rest_replier:format_service_step(service_op_worker, get_storages,
         service_utils:throw_on_error(service:apply_sync(
-            service_op_worker:name(), get_storages, #{name => Name}
+            service_op_worker:name(), get_storages, #{id => Id}
         ))
     ), Req};
 

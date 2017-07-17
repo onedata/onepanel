@@ -104,6 +104,9 @@ parse_value(Value, {equal, Equal} = ValueSpec, Keys) ->
 parse_value(Value, integer, _Keys) when is_integer(Value) ->
     Value;
 
+parse_value(Value, float, _Keys) when is_integer(Value) ->
+    Value * 1.0;
+
 parse_value(Value, float, _Keys) when is_float(Value) ->
     Value;
 

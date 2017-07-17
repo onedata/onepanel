@@ -38,6 +38,7 @@
 -type step() :: #step{} | #steps{}.
 -type condition() :: fun((ctx()) -> boolean()).
 -type stage() :: action_begin | action_end | step_begin | step_end.
+-type record() :: #service{}.
 
 -export_type([name/0, action/0, ctx/0, notify/0, host/0, step/0, condition/0,
     stage/0]).
@@ -68,8 +69,8 @@ seed() ->
 %% @doc {@link model_behaviour:create/1}
 %% @end
 %%--------------------------------------------------------------------
--spec create(Record :: model_behaviour:record()) ->
-    ok | #error{} | no_return().
+-spec create(Record :: record()) ->
+    {ok, name()} | #error{} | no_return().
 create(Record) ->
     model:create(?MODULE, Record).
 
@@ -78,7 +79,7 @@ create(Record) ->
 %% @doc {@link model_behaviour:save/1}
 %% @end
 %%--------------------------------------------------------------------
--spec save(Record :: model_behaviour:record()) -> ok | no_return().
+-spec save(Record :: record()) -> ok | no_return().
 save(Record) ->
     model:save(?MODULE, Record).
 
@@ -98,7 +99,7 @@ update(Key, Diff) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get(Key :: model_behaviour:key()) ->
-    {ok, Record :: model_behaviour:record()} | #error{} | no_return().
+    {ok, Record :: record()} | #error{} | no_return().
 get(Key) ->
     model:get(?MODULE, Key).
 
@@ -199,10 +200,13 @@ apply([], _Action, _Ctx, _Notify) ->
     ok;
 
 apply(Service, Action, Ctx, Notify) ->
+    TaskDelay = maps:get(task_delay, Ctx, 0),
+    ?debug("Delaying task ~p:~p by ~p ms", [Service, Action, TaskDelay]),
+    timer:sleep(TaskDelay),
     service_utils:notify({action_begin, {Service, Action}}, Notify),
     Result = try
         Steps = service_utils:get_steps(Service, Action, Ctx),
-        ?info("Execution of ~p:~p requires following steps:~n~s",
+        ?debug("Execution of ~p:~p requires following steps:~n~s",
             [Service, Action, service_utils:format_steps(Steps, "")]),
         apply_steps(Steps, Notify)
     catch

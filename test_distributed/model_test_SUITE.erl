@@ -17,8 +17,7 @@
 -include_lib("ctool/include/test/performance.hrl").
 
 %% export for ct
--export([all/0, init_per_suite/1, end_per_suite/1, init_per_testcase/2,
-    end_per_testcase/2]).
+-export([all/0, init_per_testcase/2, end_per_testcase/2]).
 
 %% tests
 -export([
@@ -61,7 +60,7 @@ all() ->
 
 create_test(Config) ->
     Record = #?MODEL{field1 = 1, field2 = <<"field2">>, field3 = field3},
-    ?assertEqual(ok, ?callAny(Config, model, create, [?MODEL, Record])),
+    ?assertEqual({ok, 1}, ?callAny(Config, model, create, [?MODEL, Record])),
     ?assertMatch(#error{reason = ?ERR_ALREADY_EXISTS},
         ?callAny(Config, model, create, [?MODEL, Record])).
 
@@ -70,7 +69,7 @@ get_test(Config) ->
     Record = #?MODEL{field1 = 1, field2 = <<"field2">>, field3 = field3},
     ?assertMatch(#error{reason = ?ERR_NOT_FOUND}, ?callAny(Config, model, get,
         [?MODEL, 1])),
-    ?assertEqual(ok, ?callAny(Config, model, create, [?MODEL, Record])),
+    ?assertEqual({ok, 1}, ?callAny(Config, model, create, [?MODEL, Record])),
     ?assertEqual({ok, Record}, ?callAny(Config, model, get, [?MODEL, 1])).
 
 
@@ -154,14 +153,6 @@ clear_test(Config) ->
 %%% SetUp and TearDown functions
 %%%===================================================================
 
-init_per_suite(Config) ->
-    ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json")).
-
-
-end_per_suite(Config) ->
-    test_node_starter:clean_environment(Config).
-
-
 init_per_testcase(Case, Config) when
     Case =:= list_test;
     Case =:= select_test;
@@ -180,6 +171,7 @@ init_per_testcase(Case, Config) when
 
 init_per_testcase(_Case, Config) ->
     Nodes = ?config(onepanel_nodes, Config),
+    onepanel_test_utils:ensure_started(Config),
     test_utils:mock_new(Nodes, [model, ?MODEL], [passthrough, non_strict]),
     test_utils:mock_expect(Nodes, model, get_models, fun() -> [?MODEL] end),
     test_utils:mock_expect(Nodes, ?MODEL, get_fields, fun() ->

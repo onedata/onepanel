@@ -124,9 +124,9 @@ get_steps(add_users, _Ctx) ->
 %%--------------------------------------------------------------------
 -spec set_cookie(Ctx :: service:ctx()) -> ok | no_return().
 set_cookie(#{cookie := Cookie} = Ctx) ->
-    VmArgsPath = service_ctx:get(vm_args_path, Ctx),
+    VmArgsFile = service_ctx:get(vm_args_file, Ctx),
     erlang:set_cookie(node(), Cookie),
-    onepanel_vm:write("setcookie", Cookie, VmArgsPath);
+    onepanel_vm:write("setcookie", Cookie, VmArgsFile);
 
 set_cookie(Ctx) ->
     set_cookie(Ctx#{cookie => erlang:get_cookie()}).
@@ -169,10 +169,10 @@ extend_cluster(#{hosts := Hosts, auth := Auth, api_version := ApiVersion} = Ctx)
     lists:foreach(fun(Host) ->
         Url = onepanel_utils:join(["https://", Host, ":", Port, Prefix, Suffix]),
         {ok, 204, _, _} = http_client:post(
-            Url, [
-                {<<"authorization">>, Auth},
-                {"Content-Type", "application/json"}
-            ], Body,
+            Url, #{
+                <<"authorization">> => Auth,
+                <<"Content-Type">> => <<"application/json">>
+            }, Body,
             [insecure, {connect_timeout, Timeout}, {recv_timeout, Timeout}]
         )
     end, Hosts).
@@ -213,7 +213,7 @@ reset_node(_Ctx) ->
 add_users(#{users := Users}) ->
     maps:fold(fun(Username, #{password := Password, userRole := Role}, _) ->
         case onepanel_user:create_noexcept(Username, Password, Role) of
-            ok -> ok;
+            {ok, _} -> ok;
             #error{reason = ?ERR_ALREADY_EXISTS} ->
                 onepanel_user:change_password(Username, Password),
                 onepanel_user:update(Username, #{role => Role})

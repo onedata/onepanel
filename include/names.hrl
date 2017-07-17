@@ -13,5 +13,6 @@
 
 -define(APP_NAME, onepanel).
 -define(SERVICE_EXECUTOR_NAME, service_executor).
+-define(SERVICE_WATCHER_NAME, service_watcher).
 
 -endif.

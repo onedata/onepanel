@@ -33,7 +33,7 @@
 output(Tokens) ->
     Cmd = erlang:binary_to_list(onepanel_utils:join(Tokens, <<" ">>)),
     Result = string:strip(os:cmd(Cmd), right, $\n),
-    ?info("Shell command: '~s' returned: '~s'", [Cmd, Result]),
+    ?debug("Shell command: '~s' returned: '~s'", [Cmd, Result]),
     Result.
 
 
@@ -86,8 +86,8 @@ wait_output(Tokens, Expected, Attempts, Delay) ->
 %%--------------------------------------------------------------------
 -spec call(Tokens :: [token()]) -> Code :: integer().
 call(Tokens) ->
-    LogPath = onepanel_env:get(cmd_log_path),
-    Code = output(Tokens ++ ["1>>" ++ LogPath, "2>&1;", "echo", "-n", "$?"]),
+    LogFile = onepanel_env:get(cmd_log_file),
+    Code = output(Tokens ++ ["1>>" ++ LogFile, "2>&1;", "echo", "-n", "$?"]),
     erlang:list_to_integer(Code).
 
 

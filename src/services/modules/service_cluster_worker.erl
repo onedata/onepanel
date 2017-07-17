@@ -22,7 +22,7 @@
 
 %% API
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
-    nagios_report/1]).
+    get_nagios_response/1, get_nagios_status/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -84,8 +84,12 @@ get_steps(restart, _Ctx) ->
 get_steps(status, _Ctx) ->
     [#step{function = status}];
 
-get_steps(nagios_report, _Ctx) ->
-    [#step{function = nagios_report}].
+get_steps(get_nagios_response, #{name := Name}) ->
+    [#step{
+        function = get_nagios_response,
+        hosts = (service:get_module(Name)):get_hosts(),
+        selection = any
+    }].
 
 %%%===================================================================
 %%% API functions
@@ -98,7 +102,7 @@ get_steps(nagios_report, _Ctx) ->
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
     db_hosts := DbHosts, app_config := AppConfig,
-    app_config_path := AppConfigPath, vm_args_path := VmArgsPath} = Ctx) ->
+    app_config_file := AppConfigFile, vm_args_file := VmArgsFile} = Ctx) ->
 
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(Name, Host),
@@ -111,16 +115,16 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
         onepanel_utils:convert(string:join([DbHost, DbPort], ":"), atom)
     end, DbHosts),
 
-    onepanel_env:write([Name, cm_nodes], CmNodes, AppConfigPath),
-    onepanel_env:write([Name, db_nodes], DbNodes, AppConfigPath),
+    onepanel_env:write([Name, cm_nodes], CmNodes, AppConfigFile),
+    onepanel_env:write([Name, db_nodes], DbNodes, AppConfigFile),
 
     maps:fold(fun(Key, Value, _) ->
-        onepanel_env:write([Name, Key], Value, AppConfigPath)
+        onepanel_env:write([Name, Key], Value, AppConfigFile)
     end, #{}, AppConfig),
 
-    onepanel_vm:write("name", Node, VmArgsPath),
+    onepanel_vm:write("name", Node, VmArgsFile),
     onepanel_vm:write("setcookie", maps:get(cookie, Ctx, erlang:get_cookie()),
-        VmArgsPath),
+        VmArgsFile),
 
     service:add_host(Name, Host).
 
@@ -160,7 +164,7 @@ status(#{init_script := InitScript}) ->
 wait_for_init(#{name := Name, wait_for_init_attempts := Attempts,
     wait_for_init_delay := Delay} = Ctx) ->
     Module = service:get_module(Name),
-    onepanel_utils:wait_until(Module, nagios_report, [Ctx], {equal, ok},
+    onepanel_utils:wait_until(Module, get_nagios_status, [Ctx], {equal, ok},
         Attempts, Delay).
 
 
@@ -168,12 +172,21 @@ wait_for_init(#{name := Name, wait_for_init_attempts := Attempts,
 %% @doc Returns nagios report for the service.
 %% @end
 %%--------------------------------------------------------------------
--spec nagios_report(Ctx :: service:ctx()) -> Status :: atom().
-nagios_report(#{nagios_protocol := Protocol, nagios_port := Port}) ->
+-spec get_nagios_response(Ctx :: service:ctx()) ->
+    Response :: http_client:response().
+get_nagios_response(#{nagios_protocol := Protocol, nagios_port := Port}) ->
     Host = onepanel_cluster:node_to_host(),
     Url = onepanel_utils:join([Protocol, "://", Host, ":", Port, "/nagios"]),
+    http_client:get(Url).
 
-    {ok, 200, _Headers, Body} = http_client:get(Url),
+
+%%--------------------------------------------------------------------
+%% @doc Returns the service status from the nagios report.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_nagios_status(Ctx :: service:ctx()) -> Status :: atom().
+get_nagios_status(Ctx) ->
+    {ok, 200, _Headers, Body} = get_nagios_response(Ctx),
 
     {Xml, _} = xmerl_scan:string(onepanel_utils:convert(Body, list)),
     [Status] = [X#xmlAttribute.value || X <- Xml#xmlElement.attributes,

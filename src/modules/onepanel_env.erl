@@ -116,12 +116,12 @@ read(Keys, Path) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @equiv write(Keys, Value, onepanel_env:get(app_config_path))
+%% @doc @equiv write(Keys, Value, onepanel_env:get(app_config_file))
 %% @end
 %%--------------------------------------------------------------------
 -spec write(Keys :: keys(), Value :: value()) -> ok | no_return().
 write(Keys, Value) ->
-    write(Keys, Value, onepanel_env:get(app_config_path)).
+    write(Keys, Value, onepanel_env:get(app_config_file)).
 
 
 %%--------------------------------------------------------------------

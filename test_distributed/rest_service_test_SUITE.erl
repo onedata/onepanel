@@ -18,8 +18,7 @@
 -include_lib("ctool/include/test/performance.hrl").
 
 %% export for ct
--export([all/0, init_per_suite/1, end_per_suite/1, init_per_testcase/2,
-    end_per_testcase/2]).
+-export([all/0, init_per_suite/1, init_per_testcase/2, end_per_testcase/2]).
 
 %% tests
 -export([
@@ -31,6 +30,8 @@
     get_should_return_storages/1,
     get_should_return_storage/1,
     get_should_return_service_task_results/1,
+    get_should_return_nagios_response/1,
+    patch_should_update_storage/1,
     patch_should_start_stop_service/1,
     put_should_add_storage/1,
     put_should_configure_database_service/1,
@@ -69,10 +70,14 @@
 ]).
 
 -define(STORAGE_JSON, [
-    {<<"somePosix">>, [
-        {<<"type">>, <<"posix">>},
-        {<<"mountPoint">>, <<"someMountPoint">>}
-    ]}
+    {<<"id">>, <<"somePosixId">>},
+    {<<"name">>, <<"somePosix">>},
+    {<<"type">>, <<"posix">>},
+    {<<"mountPoint">>, <<"someMountPoint">>}
+]).
+
+-define(STORAGE_UPDATE_JSON, [
+    {<<"timeout">>, 10000}
 ]).
 
 -define(STORAGES_JSON, [
@@ -82,16 +87,17 @@
         {<<"key">>, <<"someKey">>},
         {<<"monitorHostname">>, <<"someHostname">>},
         {<<"poolName">>, <<"someName">>},
-        {<<"clusterName">>, <<"someName">>}
+        {<<"clusterName">>, <<"someName">>},
+        {<<"timeout">>, 5000}
     ]},
     {<<"someS3">>, [
         {<<"type">>, <<"s3">>},
-        {<<"s3Hostname">>, <<"someHostname">>},
-        {<<"iamHostname">>, <<"someHostname">>},
+        {<<"hostname">>, <<"someHostname">>},
         {<<"bucketName">>, <<"someName">>},
         {<<"accessKey">>, <<"someKey">>},
-        {<<"secretKey">>, <<"someKey">>}
-    ]} | ?STORAGE_JSON
+        {<<"secretKey">>, <<"someKey">>},
+        {<<"blockSize">>, 1024}
+    ]}
 ]).
 
 -define(CLUSTER_JSON, [{<<"domainName">>, <<"someDomain">>},
@@ -111,6 +117,11 @@
         {<<"nodes">>, [<<"n1">>, <<"n2">>, <<"n3">>]}
     ]}
 ]).
+
+-define(NAGIOS_REPORT_XML, <<"<?xml version=\"1.0\"?>"
+"<healthdata status=\"ok\">"
+"</healthdata>">>
+).
 
 -define(run(Config, Function), ?run(Config, Function, [
     {oneprovider_hosts, <<"/provider">>},
@@ -133,6 +144,8 @@ all() ->
         get_should_return_storages,
         get_should_return_storage,
         get_should_return_service_task_results,
+        patch_should_update_storage,
+        get_should_return_nagios_response,
         patch_should_start_stop_service,
         put_should_add_storage,
         put_should_configure_database_service,
@@ -154,7 +167,7 @@ method_should_return_unauthorized_error(Config) ->
             )),
             ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, Endpoint/binary>>, Method,
-                <<"someUser">>, <<"somePassword">>
+                {<<"someUser">>, <<"somePassword">>}
             ))
         end, ?COMMON_ENDPOINTS_WITH_METHODS)
     end).
@@ -165,7 +178,7 @@ method_should_return_forbidden_error(Config) ->
         lists:foreach(fun({Endpoint, Method}) ->
             ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, Endpoint/binary>>, Method,
-                ?REG_USER_NAME, ?REG_USER_PASSWORD
+                {?REG_USER_NAME, ?REG_USER_PASSWORD}
             ))
         end, ?COMMON_ENDPOINTS_WITH_METHODS)
     end).
@@ -175,7 +188,7 @@ method_should_return_not_found_error(Config) ->
     ?run(Config, fun({Host, _}) ->
         ?assertMatch({ok, 404, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/tasks/someTaskId">>, get,
-            ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
         ))
     end, [{oneprovider_hosts, <<>>}, {onezone_hosts, <<>>}]),
 
@@ -183,7 +196,7 @@ method_should_return_not_found_error(Config) ->
         lists:foreach(fun({Endpoint, Method}) ->
             ?assertMatch({ok, 404, _, _}, onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, Endpoint/binary>>, Method,
-                ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
             ))
         end, ?COMMON_HOST_ENDPOINTS_WITH_METHODS)
     end).
@@ -195,7 +208,7 @@ get_should_return_service_status(Config) ->
             {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
                 onepanel_test_rest:auth_request(
                     Host, <<Prefix/binary, Endpoint/binary>>, get,
-                    ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+                    {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
                 )
             ),
             onepanel_test_rest:assert_body_values(JsonBody, [
@@ -213,7 +226,7 @@ get_should_return_service_host_status(Config) ->
             {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
                 onepanel_test_rest:auth_request(
                     Host, <<Prefix/binary, Endpoint/binary, "/someHost">>, get,
-                    ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+                    {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
                 )
             ),
             onepanel_test_rest:assert_body(JsonBody, <<"running">>)
@@ -226,10 +239,10 @@ get_should_return_storages(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/storages">>, get,
-                ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
             )
         ),
-        onepanel_test_rest:assert_body(JsonBody, ?STORAGES_JSON)
+        onepanel_test_rest:assert_body_fields(JsonBody, [<<"ids">>])
     end, [{oneprovider_hosts, <<"/provider">>}]).
 
 
@@ -237,8 +250,8 @@ get_should_return_storage(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, "/storages/somePosix">>, get,
-                ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+                Host, <<Prefix/binary, "/storages/somePosixId">>, get,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
             )
         ),
         onepanel_test_rest:assert_body(JsonBody, ?STORAGE_JSON)
@@ -251,7 +264,7 @@ get_should_return_service_task_results(Config) ->
             {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
                 onepanel_test_rest:auth_request(
                     Host, <<"/tasks/", TaskId/binary>>, get,
-                    ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+                    {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
                 )
             ),
             onepanel_test_rest:assert_body_fields(JsonBody, Fields),
@@ -274,6 +287,41 @@ get_should_return_service_task_results(Config) ->
     end, [{oneprovider_hosts, <<>>}, {onezone_hosts, <<>>}]).
 
 
+get_should_return_nagios_response(Config) ->
+    ?run(Config, fun({Host, Prefix}) ->
+        ?assertMatch({ok, 200, _, ?NAGIOS_REPORT_XML},
+            onepanel_test_rest:auth_request(
+                Host, <<Prefix/binary, "/nagios">>, get,
+                {?REG_USER_NAME, ?REG_USER_PASSWORD}
+            )
+        ),
+        ?assertMatch({ok, 200, _, ?NAGIOS_REPORT_XML},
+            onepanel_test_rest:auth_request(
+                Host, <<Prefix/binary, "/nagios">>, get,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+            )
+        )
+    end, [
+        {oneprovider_hosts, <<"/provider">>},
+        {onezone_hosts, <<"/zone">>}
+    ]).
+
+
+patch_should_update_storage(Config) ->
+    ?run(Config, fun({Host, Prefix}) ->
+        ?assertMatch({ok, 204, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<Prefix/binary, "/storages/somePosixId">>, patch,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, ?STORAGE_UPDATE_JSON
+            )
+        ),
+        ?assertReceivedMatch({service, op_worker, update_storage, #{
+            id := <<"somePosixId">>,
+            args := #{timeout := 10000}
+        }}, ?TIMEOUT)
+    end, [{oneprovider_hosts, <<"/provider">>}]).
+
+
 patch_should_start_stop_service(Config) ->
     ?run(Config, fun({Host, {Prefix, WorkerService}}) ->
         lists:foreach(fun({Service, Endpoint}) ->
@@ -283,7 +331,7 @@ patch_should_start_stop_service(Config) ->
                         onepanel_test_rest:auth_request(
                             Host, <<Prefix/binary, Endpoint/binary,
                                 HostParam/binary, StartedParam/binary>>,
-                            patch, ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+                            patch, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
                         )
                     ),
                     ?assertReceivedMatch({service, Service, Action, Ctx}, ?TIMEOUT)
@@ -310,30 +358,27 @@ put_should_add_storage(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
             Host, <<Prefix/binary, "/storages">>,
-            post, ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD,
+            post, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
             ?STORAGES_JSON
         )),
         ?assertReceivedMatch({service, op_worker, add_storages, #{
             storages := #{
-                <<"somePosix">> := #{
-                    type := <<"posix">>,
-                    mountPoint := <<"someMountPoint">>
-                },
                 <<"someCeph">> := #{
                     type := <<"ceph">>,
                     clusterName := <<"someName">>,
                     key := <<"someKey">>,
                     monitorHostname := <<"someHostname">>,
                     poolName := <<"someName">>,
-                    username := <<"someName">>
+                    username := <<"someName">>,
+                    timeout := 5000
                 },
                 <<"someS3">> := #{
                     type := <<"s3">>,
                     accessKey := <<"someKey">>,
                     bucketName := <<"someName">>,
-                    iamHostname := <<"someHostname">>,
-                    s3Hostname := <<"someHostname">>,
-                    secretKey := <<"someKey">>
+                    hostname := <<"someHostname">>,
+                    secretKey := <<"someKey">>,
+                    blockSize := 1024
                 }
             }
         }}, ?TIMEOUT)
@@ -345,7 +390,7 @@ put_should_configure_database_service(Config) ->
         {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/databases">>, post,
-                ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
                 [{hosts, [<<"host1">>, <<"host2">>, <<"host3">>]}]
             )
         ),
@@ -363,7 +408,7 @@ put_should_configure_cluster_manager_service(Config) ->
         {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/managers">>, post,
-                ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
                 [
                     {mainHost, <<"host1">>},
                     {hosts, [<<"host1">>, <<"host2">>, <<"host3">>]}
@@ -385,7 +430,7 @@ put_should_configure_cluster_worker_service(Config) ->
         {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/workers">>, post,
-                ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
                 [{hosts, [<<"host1">>, <<"host2">>, <<"host3">>]}]
             )
         ),
@@ -407,7 +452,7 @@ put_should_configure_onezone_service(Config) ->
         {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/configuration">>, post,
-                ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
                 [
                     {<<"cluster">>, ?CLUSTER_JSON},
                     {<<"onezone">>, [
@@ -447,7 +492,7 @@ put_should_configure_oneprovider_service(Config) ->
         {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/configuration">>, post,
-                ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
                 [
                     {<<"cluster">>, [
                         {<<"storages">>, ?STORAGES_JSON} |
@@ -487,10 +532,6 @@ put_should_configure_oneprovider_service(Config) ->
                 storages := #{
                     hosts := ["host1.someDomain", "host2.someDomain", "host3.someDomain"],
                     storages := #{
-                        <<"somePosix">> := #{
-                            type := <<"posix">>,
-                            mountPoint := <<"someMountPoint">>
-                        },
                         <<"someCeph">> := #{
                             type := <<"ceph">>,
                             clusterName := <<"someName">>,
@@ -503,8 +544,7 @@ put_should_configure_oneprovider_service(Config) ->
                             type := <<"s3">>,
                             accessKey := <<"someKey">>,
                             bucketName := <<"someName">>,
-                            iamHostname := <<"someHostname">>,
-                            s3Hostname := <<"someHostname">>,
+                            hostname := <<"someHostname">>,
                             secretKey := <<"someKey">>
                         }
                     }
@@ -527,19 +567,13 @@ put_should_configure_oneprovider_service(Config) ->
 %%%===================================================================
 
 init_per_suite(Config) ->
-    application:start(etls),
+    ssl:start(),
     hackney:start(),
-    onepanel_test_utils:init(
-        ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json"))
-    ).
-
-
-end_per_suite(Config) ->
-    test_node_starter:clean_environment(Config).
-
+    Posthook = fun(NewConfig) -> onepanel_test_utils:init(NewConfig) end,
+    [{?ENV_UP_POSTHOOK, Posthook} | Config].
 
 init_per_testcase(method_should_return_not_found_error, Config) ->
-    ?assertAllEqual(ok, ?callAll(Config, onepanel_user, create,
+    ?assertAllMatch({ok, _}, ?callAll(Config, onepanel_user, create,
         [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
     )),
     Config;
@@ -560,7 +594,27 @@ init_per_testcase(get_should_return_storages, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(all_nodes, NewConfig),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_op_worker, get_storages, {[{'node@host1', ?STORAGES_JSON}], []}},
+        {service_op_worker, get_storages, {[{'node@host1', [
+            {<<"ids">>, [<<"id1">>, <<"id2">>, <<"id3">>]}
+        ]}], []}},
+        {task_finished, {service, action, ok}}
+    ] end),
+    NewConfig;
+
+init_per_testcase(get_should_return_nagios_response, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(all_nodes, NewConfig),
+    test_utils:mock_new(Nodes, rest_service),
+    test_utils:mock_expect(Nodes, rest_service, exists_resource, fun(Req, _) ->
+        {true, Req}
+    end),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        {service_op_worker, get_nagios_response, {
+            [{'node@host1', {ok, 200, [], ?NAGIOS_REPORT_XML}}], []
+        }},
+        {service_oz_worker, get_nagios_response, {
+            [{'node@host1', {ok, 200, [], ?NAGIOS_REPORT_XML}}], []
+        }},
         {task_finished, {service, action, ok}}
     ] end),
     NewConfig;
@@ -607,6 +661,15 @@ init_per_testcase(get_should_return_service_task_results, Config) ->
     end),
     NewConfig;
 
+init_per_testcase(patch_should_update_storage, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(all_nodes, NewConfig),
+    test_utils:mock_new(Nodes, rest_service),
+    test_utils:mock_expect(Nodes, rest_service, exists_resource, fun(Req, _) ->
+        {true, Req}
+    end),
+    NewConfig;
+
 init_per_testcase(_Case, Config) ->
     Nodes = ?config(all_nodes, Config),
     Self = self(),
@@ -630,10 +693,10 @@ init_per_testcase(_Case, Config) ->
         <<"someTaskId">>
     end),
 
-    ?assertAllEqual(ok, ?callAll(Config, onepanel_user, create,
+    ?assertAllMatch({ok, _}, ?callAll(Config, onepanel_user, create,
         [?REG_USER_NAME, ?REG_USER_PASSWORD, regular]
     )),
-    ?assertAllEqual(ok, ?callAll(Config, onepanel_user, create,
+    ?assertAllMatch({ok, _}, ?callAll(Config, onepanel_user, create,
         [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
     )),
     Config.

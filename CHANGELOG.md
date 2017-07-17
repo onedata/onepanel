@@ -4,6 +4,85 @@
 CHANGELOG
 ---------
 
+### 17.06.0-beta6
+
+* VFS-3417 Change listeners restart strategy
+* VFS-3356 Extend REST GET space/storage responses
+* VFS-3289 - change according to change in op_worker storage_sync_monitoring API
+* VFS-3289 - storage_sync metrics API
+
+
+### 17.06.0-beta4
+
+* VFS-3362 Update web-client
+
+
+### 17.06.0-beta3
+
+* Releasing new version 17.06.0-beta3
+
+
+### 17.06.0-beta2
+
+* VFS-3345 Updating GUI ref (development) - added missing data-options in cluster-host-table-row (for testing purposes) - show glusterfs in storage type select dropdown without scroll
+* VFS-3280 Remove etls.
+* VFS-3250 Added GlusterFS support
+
+
+### 3.0.0-rc16
+
+* VFS-3216 Update REST API
+* VFS-3207 Using new GUI ref
+* VFS-3216 Make GET method for onepanel hosts endpoint auth
+* VFS-3216 Use only storage ID in space support request
+* HOTFIX added gui-static dependency on package target in Makefile
+* VFS-3186 Change provider deregistration behaviour
+* VFS-3186 Update provider name after modify
+* VFS-3186 Return deployment name with cluster configuration
+* VFS-3163 Add session REST endpoint
+* VFS-3165 Add current password to user modify request
+* VFS-3118 Change default env value for custom gui root
+* VFS-3118 Add gui override and livereload to panel.up
+* VFS-3118 Add gui repo, serve static files using default gui logic, add templates for session and router plugins
+* VFS-3118 Serve index.html on root path
+* VFS-3118 Remove onepanel_gui and serve static files
+
+
+### 3.0.0-rc15
+
+* VFS-3233 Add support for sig v2 to AWS S3 helper
+* VFS-3213 Rename storage verification error codes
+* VFS-3213 Create new test files while verifying storage availability
+* VFS-3188 Remove space-storage mapping on space support revoke
+
+
+### 3.0.0-rc14
+
+* Releasing new version 3.0.0-rc14
+
+
+### 3.0.0-rc13
+
+* VFS-3117 Allow integer for provider geo long/lat
+* VFS-3086 Add cookie authentication
+
+
+### 3.0.0-rc12
+
+* VFS-2907 Add mount in root and readonly options
+* VFS-3073 Set worker_num for deployment
+* Add service watcher
+* VFS-2931 Reduce number of kept rotated log files
+* VFS-2910 Adjust code to LUMA refactoring
+* VFS-2620 Enable storage helper args update
+* VFS-2802 Add nagios proxy
+
+
+### 3.0.0-rc11
+
+* VFS-2733 Standarize app listeners
+
+
 ### 3.0.0-rc10
 
 * minor changes and improvements

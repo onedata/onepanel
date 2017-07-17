@@ -15,6 +15,7 @@
 
 %% API
 -export([get/2, get/3, store/2, store/3, get_store/3, get_store/4]).
+-export([remove_undefined/1]).
 
 -type key() :: any().
 -type keys() :: key() | [key()].
@@ -110,3 +111,15 @@ get_store(SrcKeys, SrcTerms, DstKeys, DstTerms) ->
         {ok, Value} -> store(DstKeys, Value, DstTerms);
         #error{reason = ?ERR_NOT_FOUND} -> DstTerms
     end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Removes undefined values from the map.
+%% @end
+%%--------------------------------------------------------------------
+-spec remove_undefined(Args :: maps:map()) -> NewArgs :: maps:map().
+remove_undefined(Args) ->
+    maps:fold(fun
+        (_Key, undefined, Acc) -> Acc;
+        (Key, Value, Acc) -> maps:put(Key, Value, Acc)
+    end, #{}, Args).

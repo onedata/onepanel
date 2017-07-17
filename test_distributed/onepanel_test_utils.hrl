@@ -42,4 +42,9 @@
         ?assertEqual(Expect, Expr)
     end, ExprList)).
 
+-define(assertAllMatch(Expect, ExprList),
+    lists:foreach(fun(Expr) ->
+        ?assertMatch(Expect, Expr)
+    end, ExprList)).
+
 -endif.

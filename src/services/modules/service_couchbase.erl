@@ -120,7 +120,8 @@ configure(_Ctx) ->
 start(Ctx) ->
     service:start(?INIT_SCRIPT, #{
         open_files => service_ctx:get(couchbase_open_files_limit, Ctx)
-    }).
+    }),
+    service_watcher:register_service(name()).
 
 
 %%--------------------------------------------------------------------
@@ -155,6 +156,7 @@ wait_for_init(Ctx) ->
 %%--------------------------------------------------------------------
 -spec stop(Ctx :: service:ctx()) -> ok | no_return().
 stop(_Ctx) ->
+    service_watcher:unregister_service(name()),
     service:stop(?INIT_SCRIPT).
 
 
@@ -183,18 +185,17 @@ init_cluster(Ctx) ->
     Timeout = service_ctx:get(couchbase_init_timeout, Ctx, integer),
 
     {ok, 200, _, _} = http_client:post(
-        Url, [
+        Url, maps:from_list([
             onepanel_utils:get_basic_auth_header(User, Password),
             {"content-type", "application/x-www-form-urlencoded"}
-        ], "memoryQuota=" ++ ServerQuota,
+        ]), "memoryQuota=" ++ ServerQuota,
         [{connect_timeout, Timeout}, {recv_timeout, Timeout}]
     ),
 
     onepanel_shell:check_call([?CLI, "cluster-init", "-c", Host ++ ":" ++ Port,
             "--cluster-init-username=" ++ User,
             "--cluster-init-password=" ++ Password,
-            "--cluster-init-ramsize=" ++ ServerQuota,
-            "--services=data,index,query"]),
+            "--cluster-init-ramsize=" ++ ServerQuota]),
 
     Release = onepanel_env:get(release_type),
     {ok, Buckets} = onepanel_lists:get(Release, onepanel_env:get(couchbase_buckets)),
@@ -223,8 +224,7 @@ join_cluster(#{cluster_host := ClusterHost} = Ctx) ->
             ClusterHost ++ ":" ++ Port, "-u", User, "-p", Password,
             "--server-add=" ++ Host ++ ":" ++ Port,
             "--server-add-username=" ++ User,
-            "--server-add-password=" ++ Password,
-            "--services=data,index,query"]),
+            "--server-add-password=" ++ Password]),
 
     service:add_host(name(), Host).
 
@@ -259,4 +259,4 @@ create_bucket(Host, Port, User, Password, Bucket, BucketQuota) ->
     onepanel_shell:check_call([?CLI, "bucket-create", "-c", Host ++ ":" ++ Port,
         "-u", User, "-p", Password, "--bucket=" ++ Bucket,
         "--bucket-ramsize=" ++ onepanel_utils:convert(BucketQuota, list),
-        "--wait"]).
+        "--bucket-eviction-policy=fullEviction", "--wait"]).

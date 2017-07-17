@@ -31,23 +31,43 @@
     [{Path :: binary(), Module :: module(), State :: rest_handler:state()}].
 routes() ->
     [
-        %% Remove cluster node
-        {<<"/api/v3/onepanel/hosts/:host">>, rest_handler, #rstate{
+        %% Create Onepanel user
+        {<<"/api/v3/onepanel/users">>, rest_handler, #rstate{
             version = 3,
-            module = rest_onepanel,
-            resource = host,
+            module = rest_onepanel_user,
+            resource = users,
             methods = [#rmethod{
-                type = 'DELETE'
+                type = 'POST',
+                %% The user configuration details.
+                args_spec = rest_model:user_create_request_model(),
+                noauth = true
             }]
         }},
 
-        %% Remove user
-        {<<"/api/v3/onepanel/users/:username">>, rest_handler, #rstate{
+        %% Create or join cluster
+        {<<"/api/v3/onepanel/hosts">>, rest_handler, #rstate{
             version = 3,
-            module = rest_onepanel_user,
-            resource = user,
+            module = rest_onepanel,
+            resource = hosts,
             methods = [#rmethod{
-                type = 'DELETE'
+                type = 'POST',
+                %% The cookie used for cluster authentication.
+                args_spec = rest_model:cookie_model(),
+                params_spec = #{
+                    %% Hostname of an existing cluster node.
+                    clusterHost => {string, optional}
+                },
+                noauth = true
+            }]
+        }},
+
+        %% Create Onepanel user session
+        {<<"/api/v3/onepanel/session">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel_session,
+            resource = session,
+            methods = [#rmethod{
+                type = 'POST'
             }]
         }},
 
@@ -61,7 +81,7 @@ routes() ->
             }]
         }},
 
-        %% Get cluster/discovered hosts
+        %% Get cluster or discovered hosts
         {<<"/api/v3/onepanel/hosts">>, rest_handler, #rstate{
             version = 3,
             module = rest_onepanel,
@@ -69,14 +89,23 @@ routes() ->
             methods = [#rmethod{
                 type = 'GET',
                 params_spec = #{
-                    %% Defines whether return cluster or discovered hosts.
+                    %% Defines whether to return cluster or discovered hosts.
                     discovered => {boolean, {optional, false}}
-                },
-                noauth = true
+                }
             }]
         }},
 
-        %% Get task result
+        %% Get Onepanel user session
+        {<<"/api/v3/onepanel/session">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel_session,
+            resource = session,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% Get background task result
         {<<"/api/v3/onepanel/tasks/:id">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
@@ -87,7 +116,7 @@ routes() ->
             }]
         }},
 
-        %% Get user details
+        %% Get Onepanel user details
         {<<"/api/v3/onepanel/users/:username">>, rest_handler, #rstate{
             version = 3,
             module = rest_onepanel_user,
@@ -97,7 +126,7 @@ routes() ->
             }]
         }},
 
-        %% Modify user details
+        %% Modify Onepanel user details
         {<<"/api/v3/onepanel/users/:username">>, rest_handler, #rstate{
             version = 3,
             module = rest_onepanel_user,
@@ -108,31 +137,33 @@ routes() ->
             }]
         }},
 
-        %% Create or join cluster
-        {<<"/api/v3/onepanel/hosts">>, rest_handler, #rstate{
+        %% Remove host from cluster
+        {<<"/api/v3/onepanel/hosts/:host">>, rest_handler, #rstate{
             version = 3,
             module = rest_onepanel,
-            resource = hosts,
+            resource = host,
             methods = [#rmethod{
-                type = 'POST',
-                args_spec = rest_model:cookie_model(),
-                params_spec = #{
-                    %% Hostname of an existing cluster node.
-                    clusterHost => {string, optional}
-                },
-                noauth = true
+                type = 'DELETE'
             }]
         }},
 
-        %% Create user
-        {<<"/api/v3/onepanel/users">>, rest_handler, #rstate{
+        %% Remove Onepanel user session
+        {<<"/api/v3/onepanel/session">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel_session,
+            resource = session,
+            methods = [#rmethod{
+                type = 'DELETE'
+            }]
+        }},
+
+        %% Remove Onepanel user
+        {<<"/api/v3/onepanel/users/:username">>, rest_handler, #rstate{
             version = 3,
             module = rest_onepanel_user,
-            resource = users,
+            resource = user,
             methods = [#rmethod{
-                type = 'POST',
-                args_spec = rest_model:user_create_request_model(),
-                noauth = true
+                type = 'DELETE'
             }]
         }}
 

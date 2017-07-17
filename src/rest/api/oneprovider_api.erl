@@ -31,23 +31,79 @@
     [{Path :: binary(), Module :: module(), State :: rest_handler:state()}].
 routes() ->
     [
-        %% Unregister provider
+        %% Register provider
         {<<"/api/v3/onepanel/provider">>, rest_handler, #rstate{
             version = 3,
             module = rest_oneprovider,
             resource = provider,
             methods = [#rmethod{
-                type = 'DELETE'
+                type = 'POST',
+                %% The new provider details.
+                args_spec = rest_model:provider_register_request_model()
             }]
         }},
 
-        %% Revoke space support
-        {<<"/api/v3/onepanel/provider/spaces/:id">>, rest_handler, #rstate{
+        %% Deploy provider databases
+        {<<"/api/v3/onepanel/provider/databases">>, rest_handler, #rstate{
             version = 3,
-            module = rest_oneprovider,
-            resource = space,
+            module = rest_service,
+            resource = service_couchbase,
             methods = [#rmethod{
-                type = 'DELETE'
+                type = 'POST',
+                %% The service hosts configuration where databases should be
+                %% deployed.
+                args_spec = rest_model:service_databases_model()
+            }]
+        }},
+
+        %% Add provider cluster managers
+        {<<"/api/v3/onepanel/provider/managers">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = service_cluster_manager,
+            methods = [#rmethod{
+                type = 'POST',
+                %% The cluster manager service hosts configuration.
+                args_spec = rest_model:manager_hosts_model()
+            }]
+        }},
+
+        %% Add provider cluster workers
+        {<<"/api/v3/onepanel/provider/workers">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = service_op_worker,
+            methods = [#rmethod{
+                type = 'POST',
+                %% The service hosts configuration where workers should be
+                %% deployed.
+                args_spec = rest_model:service_hosts_model()
+            }]
+        }},
+
+        %% Add storage
+        {<<"/api/v3/onepanel/provider/storages">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = storages,
+            methods = [#rmethod{
+                type = 'POST',
+                %% The configuration details of storage resources to be added to
+                %% the provider deployment.
+                args_spec = rest_model:storage_create_request_model()
+            }]
+        }},
+
+        %% Configure provider deployment
+        {<<"/api/v3/onepanel/provider/configuration">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = service_oneprovider,
+            methods = [#rmethod{
+                type = 'POST',
+                %% The provider configuration description.
+                args_spec = rest_model:provider_configuration_model(),
+                noauth = true
             }]
         }},
 
@@ -72,16 +128,6 @@ routes() ->
             }]
         }},
 
-        %% Get provider databases status
-        {<<"/api/v3/onepanel/provider/databases">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_service,
-            resource = service_couchbase,
-            methods = [#rmethod{
-                type = 'GET'
-            }]
-        }},
-
         %% Get provider database status
         {<<"/api/v3/onepanel/provider/databases/:host">>, rest_handler, #rstate{
             version = 3,
@@ -92,11 +138,11 @@ routes() ->
             }]
         }},
 
-        %% Get provider cluster managers status
-        {<<"/api/v3/onepanel/provider/managers">>, rest_handler, #rstate{
+        %% Get provider databases status
+        {<<"/api/v3/onepanel/provider/databases">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
-            resource = service_cluster_manager,
+            resource = service_couchbase,
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -112,51 +158,49 @@ routes() ->
             }]
         }},
 
+        %% Get provider cluster managers status
+        {<<"/api/v3/onepanel/provider/managers">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = service_cluster_manager,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% Get provider nagios report
+        {<<"/api/v3/onepanel/provider/nagios">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = nagios,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% Get statistics of storage synchronization
+        {<<"/api/v3/onepanel/provider/spaces/:id/sync">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = space_sync_stats,
+            methods = [#rmethod{
+                type = 'GET',
+            params_spec = #{
+                %% Predefined time period for which the statistics
+                %% should be fetched
+                period => {string, optional},
+                %% Specify which statistic metrics should be returned -
+                %% strings delimited with comma
+                metrics => {string, optional}
+            }
+            }]
+        }},
+
         %% Get provider spaces
         {<<"/api/v3/onepanel/provider/spaces">>, rest_handler, #rstate{
             version = 3,
             module = rest_oneprovider,
             resource = spaces,
-            methods = [#rmethod{
-                type = 'GET'
-            }]
-        }},
-
-        %% Get space details
-        {<<"/api/v3/onepanel/provider/spaces/:id">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_oneprovider,
-            resource = space,
-            methods = [#rmethod{
-                type = 'GET'
-            }]
-        }},
-
-        %% Get storages
-        {<<"/api/v3/onepanel/provider/storages">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_service,
-            resource = storages,
-            methods = [#rmethod{
-                type = 'GET'
-            }]
-        }},
-
-        %% Get storage details
-        {<<"/api/v3/onepanel/provider/storages/:name">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_service,
-            resource = storage,
-            methods = [#rmethod{
-                type = 'GET'
-            }]
-        }},
-
-        %% Get provider cluster workers status
-        {<<"/api/v3/onepanel/provider/workers">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_service,
-            resource = service_op_worker,
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -172,6 +216,46 @@ routes() ->
             }]
         }},
 
+        %% Get provider cluster workers status
+        {<<"/api/v3/onepanel/provider/workers">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = service_op_worker,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% Get space details
+        {<<"/api/v3/onepanel/provider/spaces/:id">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = space,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% Get storage details
+        {<<"/api/v3/onepanel/provider/storages/:id">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = storage,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% Get storages
+        {<<"/api/v3/onepanel/provider/storages">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = storages,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
         %% Modify provider details
         {<<"/api/v3/onepanel/provider">>, rest_handler, #rstate{
             version = 3,
@@ -179,7 +263,69 @@ routes() ->
             resource = provider,
             methods = [#rmethod{
                 type = 'PATCH',
+                %% New values for provider configuration parameters which should
+                %% be changed.
                 args_spec = rest_model:provider_modify_request_model()
+            }]
+        }},
+
+        %% Modify space details
+        {<<"/api/v3/onepanel/provider/spaces/:id">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = space,
+            methods = [#rmethod{
+                type = 'PATCH',
+                args_spec = rest_model:space_modify_request_model()
+            }]
+        }},
+
+        %% Modify storage details
+        {<<"/api/v3/onepanel/provider/storages/:id">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = storage,
+            methods = [#rmethod{
+                type = 'PATCH',
+                %% New values for storage configuration parameters which should
+                %% be changed.
+                args_spec = rest_model:storage_modify_request_model()
+            }]
+        }},
+
+        %% Unregister provider
+        {<<"/api/v3/onepanel/provider">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = provider,
+            methods = [#rmethod{
+                type = 'DELETE'
+            }]
+        }},
+
+        %% Revoke space support for a space
+        {<<"/api/v3/onepanel/provider/spaces/:id">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = space,
+            methods = [#rmethod{
+                type = 'DELETE'
+            }]
+        }},
+
+        %% Start/stop provider database
+        {<<"/api/v3/onepanel/provider/databases/:host">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = service_couchbase,
+            methods = [#rmethod{
+                type = 'PATCH',
+                params_spec = #{
+                    %% Defines the intended state of the database service. The
+                    %% service will be started or stopped in order to match the
+                    %% requested state.
+                    started => {boolean, {optional, true}}
+                }
             }]
         }},
 
@@ -199,17 +345,17 @@ routes() ->
             }]
         }},
 
-        %% Start/stop provider database
-        {<<"/api/v3/onepanel/provider/databases/:host">>, rest_handler, #rstate{
+        %% Start/stop provider cluster manager
+        {<<"/api/v3/onepanel/provider/managers/:host">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
-            resource = service_couchbase,
+            resource = service_cluster_manager,
             methods = [#rmethod{
                 type = 'PATCH',
                 params_spec = #{
-                    %% Defines the intended state of the database service. The
-                    %% service will be started or stopped in order to match the
-                    %% requested state.
+                    %% Defines the intended state of the cluster manager
+                    %% service. The service  will be started or stopped in order
+                    %% to match the requested state.
                     started => {boolean, {optional, true}}
                 }
             }]
@@ -231,17 +377,17 @@ routes() ->
             }]
         }},
 
-        %% Start/stop provider cluster manager
-        {<<"/api/v3/onepanel/provider/managers/:host">>, rest_handler, #rstate{
+        %% Start/stop provider cluster worker
+        {<<"/api/v3/onepanel/provider/workers/:host">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
-            resource = service_cluster_manager,
+            resource = service_op_worker,
             methods = [#rmethod{
                 type = 'PATCH',
                 params_spec = #{
-                    %% Defines the intended state of the cluster manager
-                    %% service. The service will be started or stopped in order
-                    %% to match the requested state.
+                    %% Defines the intended state of the cluster worker service.
+                    %% The service will  be started or stopped in order to match
+                    %% the requested state.
                     started => {boolean, {optional, true}}
                 }
             }]
@@ -256,71 +402,10 @@ routes() ->
                 type = 'PATCH',
                 params_spec = #{
                     %% Defines the intended state of the cluster worker service.
-                    %% The service will be started or stopped in order to match
+                    %% The service  will be started or stopped in order to match
                     %% the requested state.
                     started => {boolean, {optional, true}}
                 }
-            }]
-        }},
-
-        %% Start/stop provider cluster worker
-        {<<"/api/v3/onepanel/provider/workers/:host">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_service,
-            resource = service_op_worker,
-            methods = [#rmethod{
-                type = 'PATCH',
-                params_spec = #{
-                    %% Defines the intended state of the cluster worker service.
-                    %% The service will be started or stopped in order to match
-                    %% the requested state.
-                    started => {boolean, {optional, true}}
-                }
-            }]
-        }},
-
-        %% Register provider
-        {<<"/api/v3/onepanel/provider">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_oneprovider,
-            resource = provider,
-            methods = [#rmethod{
-                type = 'POST',
-                args_spec = rest_model:provider_register_request_model()
-            }]
-        }},
-
-        %% Configure provider deployment
-        {<<"/api/v3/onepanel/provider/configuration">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_service,
-            resource = service_oneprovider,
-            methods = [#rmethod{
-                type = 'POST',
-                args_spec = rest_model:provider_configuration_model(),
-                noauth = true
-            }]
-        }},
-
-        %% Deploy provider databases
-        {<<"/api/v3/onepanel/provider/databases">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_service,
-            resource = service_couchbase,
-            methods = [#rmethod{
-                type = 'POST',
-                args_spec = rest_model:service_databases_model()
-            }]
-        }},
-
-        %% Deploy provider cluster managers
-        {<<"/api/v3/onepanel/provider/managers">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_service,
-            resource = service_cluster_manager,
-            methods = [#rmethod{
-                type = 'POST',
-                args_spec = rest_model:manager_hosts_model()
             }]
         }},
 
@@ -331,31 +416,9 @@ routes() ->
             resource = spaces,
             methods = [#rmethod{
                 type = 'POST',
+                %% Specification of the space support request including name of
+                %% the space, size and support token.
                 args_spec = rest_model:space_support_request_model()
-            }]
-        }},
-
-        %% Configure storage
-        {<<"/api/v3/onepanel/provider/storages">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_service,
-            resource = storages,
-            methods = [#rmethod{
-                type = 'POST',
-                %% The list of configuration details of storages to be added to
-                %% the provider deployment.
-                args_spec = rest_model:cluster_storages_list_model()
-            }]
-        }},
-
-        %% Deploy provider cluster workers
-        {<<"/api/v3/onepanel/provider/workers">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_service,
-            resource = service_op_worker,
-            methods = [#rmethod{
-                type = 'POST',
-                args_spec = rest_model:service_hosts_model()
             }]
         }}
 

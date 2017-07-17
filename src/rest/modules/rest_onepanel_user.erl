@@ -69,9 +69,11 @@ accept_resource(Req, 'POST', #{username := Username, password := Password,
     onepanel_user:create(Username, Password, Role),
     {true, Req};
 
-accept_resource(Req, 'PATCH', #{password := Password}, #rstate{resource = user,
-    bindings = #{username := Username}}) ->
-    onepanel_user:change_password(Username, Password),
+accept_resource(Req, 'PATCH', Args, #rstate{resource = user,
+    client = #client{name = ClientName}, bindings = #{username := Username}}) ->
+    #{currentPassword := CurrentPassword, newPassword := NewPassword} = Args,
+    {ok, _} = onepanel_user:authenticate(ClientName, CurrentPassword),
+    onepanel_user:change_password(Username, NewPassword),
     {true, Req}.
 
 

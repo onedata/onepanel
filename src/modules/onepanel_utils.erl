@@ -18,8 +18,8 @@
 %% API
 -export([get_basic_auth_header/2, get_ip_address/0]).
 -export([wait_until/5, wait_until/6, save_file/2]).
--export([gen_uuid/0, get_nif_library_path/1, join/1, join/2, trim/2]).
--export([convert/2, get_type/1, typed_get/3]).
+-export([gen_uuid/0, get_nif_library_file/1, join/1, join/2, trim/2]).
+-export([convert/2, get_type/1, typed_get/3, typed_get/4]).
 
 -type primitive_type() :: atom | binary | float | integer | list | boolean.
 -type type() :: primitive_type() | {seq, primitive_type()}.
@@ -131,9 +131,9 @@ gen_uuid() ->
 %% @doc Returns the NIF native library path. The library is first searched
 %% in application priv dir, and then under ../priv and ./priv .
 %%--------------------------------------------------------------------
--spec get_nif_library_path(LibName :: string()) ->
-    LibPath :: file:filename_all().
-get_nif_library_path(LibName) ->
+-spec get_nif_library_file(LibName :: string()) ->
+    LibFile :: file:filename_all().
+get_nif_library_file(LibName) ->
     case code:priv_dir(?APP_NAME) of
         {error, bad_name} ->
             case filelib:is_dir(filename:join(["..", "priv"])) of
@@ -249,4 +249,18 @@ typed_get(Keys, Terms, Type) when is_map(Terms) ->
     case onepanel_maps:get(Keys, Terms) of
         {ok, Value} -> convert(Value, Type);
         #error{} = Error -> Error
+    end.
+
+%%--------------------------------------------------------------------
+%% @doc Returns a value from the nested property list or map and converts it
+%% to match the provided type. If key is missing returns default value.
+%% @end
+%%--------------------------------------------------------------------
+-spec typed_get(Keys :: onepanel_lists:keys() | onepanel_maps:keys(),
+    Terms :: onepanel_lists:terms() | onepanel_maps:terms(), Type :: type(),
+    Default :: term()) -> Value :: term().
+typed_get(Keys, Terms, Type, Default) ->
+    case typed_get(Keys, Terms, Type) of
+        #error{} -> Default;
+        Value -> Value
     end.

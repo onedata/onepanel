@@ -113,17 +113,25 @@ content_types_provided(Req, #rstate{} = State) ->
 -spec is_authorized(Req :: cowboy_req:req(), State :: state()) ->
     {true | {false, binary()}, cowboy_req:req(), state()}.
 is_authorized(Req, #rstate{methods = Methods} = State) ->
-    case authorize_by_basic_auth(Req, State) of
-        {true, Req2, NewState} ->
-            {true, Req2, NewState};
-        {false, Req2, NewState} ->
-            {Method, Req3} = rest_utils:get_method(Req2),
+    AuthMethods = [
+        fun authenticate_by_basic_auth/1,
+        fun authenticate_by_cookie/1
+    ],
+    case authenticate(Req, AuthMethods) of
+        {{true, User, SessionId}, Req3} ->
+            #onepanel_user{username = Username, role = Role, uuid = Uuid} = User,
+            Client = #client{
+                name = Username, id = Uuid, role = Role, session_id = SessionId
+            },
+            {true, Req3, State#rstate{client = Client}};
+        {false, Req3} ->
+            {Method, Req4} = rest_utils:get_method(Req3),
             case lists:keyfind(Method, 2, Methods) of
                 #rmethod{noauth = true} ->
-                    Req4 = cowboy_req:set_resp_body(<<>>, Req3),
-                    {true, Req4, NewState#rstate{client = #client{}}};
+                    Req5 = cowboy_req:set_resp_body(<<>>, Req4),
+                    {true, Req5, State#rstate{client = #client{}}};
                 _ ->
-                    {{false, <<"">>}, Req3, NewState}
+                    {{false, <<"">>}, Req4, State}
             end
     end.
 
@@ -224,12 +232,16 @@ provide_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
         {Bindings, Req3} = rest_utils:get_bindings(Req2),
         #rmethod{params_spec = Spec} = lists:keyfind(Method, 2, Methods),
         {Params, Req4} = rest_utils:get_params(Req3, Spec),
-        {Data, Req5} = Module:provide_resource(Req4, State#rstate{
+        case Module:provide_resource(Req4, State#rstate{
             bindings = Bindings,
             params = Params
-        }),
-        Json = json_utils:encode(Data),
-        {Json, Req5, State}
+        }) of
+            {Data, Req5} ->
+                Json = json_utils:encode(Data),
+                {Json, Req5, State};
+            {halt, Req5, State} ->
+                {halt, Req5, State}
+        end
     catch
         Type:Reason ->
             {halt, rest_replier:handle_error(Req, Type, ?make_error(Reason)), State}
@@ -284,27 +296,57 @@ accept_resource(Req, Data, #rstate{module = Module, methods = Methods} =
 
 
 %%--------------------------------------------------------------------
-%% @private @doc Authorizes user using basic authorization method.
+%% @private @doc Authenticates user using provided authorization methods.
 %% @end
 %%--------------------------------------------------------------------
--spec authorize_by_basic_auth(Req :: cowboy_req:req(), State :: state()) ->
-    {Authorized :: boolean(), Req :: cowboy_req:req(), NewState :: state()}.
-authorize_by_basic_auth(Req, State) ->
+-spec authenticate(Req :: cowboy_req:req(), Methods :: [fun()]) ->
+    {{true, User :: #onepanel_user{}, SessionId ::
+    undefined | onepanel_session:id()} | false, Req :: cowboy_req:req()}.
+authenticate(Req, []) ->
+    {false, Req};
+authenticate(Req, [AuthMethod | AuthMethods]) ->
+    try AuthMethod(Req) of
+        {{ok, User}, SessionId, Req2} ->
+            {{true, User, SessionId}, Req2};
+        {#error{} = Error, _SessionId, Req2} ->
+            {false, rest_replier:handle_error(Req2, error, Error)};
+        {ignore, _SessionId, Req2} ->
+            authenticate(Req2, AuthMethods)
+    catch
+        Type:Reason ->
+            {false, rest_replier:handle_error(Req, Type, ?make_error(Reason))}
+    end.
+
+%%--------------------------------------------------------------------
+%% @private @doc Authenticates user using basic authorization method.
+%% @end
+%%--------------------------------------------------------------------
+-spec authenticate_by_basic_auth(Req :: cowboy_req:req()) ->
+    {{ok, User :: #onepanel_user{}} | #error{} | ignore, SessionId ::
+    undefined | onepanel_session:id(), Req :: cowboy_req:req()}.
+authenticate_by_basic_auth(Req) ->
     case cowboy_req:header(<<"authorization">>, Req) of
         {<<"Basic ", Hash/binary>>, Req2} ->
             [Username, Password] = binary:split(base64:decode(Hash), <<":">>),
-            try onepanel_user:authenticate(Username, Password) of
-                {ok, #onepanel_user{uuid = Uuid, role = Role}} ->
-                    Client = #client{name = Username, id = Uuid, role = Role},
-                    {true, Req2, State#rstate{client = Client}};
-                #error{} = Error ->
-                    {false, rest_replier:handle_error(Req2, error, Error), State}
-            catch
-                Type:Reason ->
-                    {false, rest_replier:handle_error(Req2, Type, ?make_error(Reason)), State}
-            end;
+            {onepanel_user:authenticate(Username, Password), undefined, Req2};
         {_, Req2} ->
-            {false, Req2, State}
+            {ignore, undefined, Req2}
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private @doc Authenticates user using session cookie.
+%% @end
+%%--------------------------------------------------------------------
+-spec authenticate_by_cookie(Req :: cowboy_req:req()) ->
+    {{ok, User :: #onepanel_user{}} | #error{} | ignore, SessionId ::
+    undefined | onepanel_session:id(), Req :: cowboy_req:req()}.
+authenticate_by_cookie(Req) ->
+    case cowboy_req:cookie(<<"sessionId">>, Req) of
+        {undefined, Req2} ->
+            {ignore, undefined, Req2};
+        {SessionId, Req2} ->
+            {onepanel_user:authenticate(SessionId), SessionId, Req2}
     end.
 
 

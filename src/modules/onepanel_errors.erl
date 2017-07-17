@@ -82,6 +82,10 @@ translate(_Type, #error{reason = ?ERR_USERNAME_NOT_AVAILABLE}) ->
 translate(_Type, #error{reason = ?ERR_INVALID_USERNAME_OR_PASSWORD}) ->
     {<<"Authentication Error">>, <<"Invalid username or password.">>};
 
+translate(_Type, #error{module = model, function = get, reason = ?ERR_NOT_FOUND,
+    args = [onepanel_session, _]}) ->
+    {<<"Authentication Error">>, <<"Session not found or expired.">>};
+
 translate(_Type, #error{reason = ?ERR_BAD_NODE}) ->
     {<<"Invalid Request">>, <<"Node connection error.">>};
 
@@ -100,13 +104,13 @@ translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, Reason}}) ->
     ?error("Cannot add storage due to: ~p", [Reason]),
     {<<"Operation Error">>, <<"Storage addition error.">>};
 
-translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_CREATION, Node, Reason}}) ->
+translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_CREATE, Node, Reason}}) ->
     translate_storage_test_file_error("create", <<"creation">>, Node, Reason);
 
-translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_VERIFICATION, Node, Reason}}) ->
-    translate_storage_test_file_error("verify", <<"verification">>, Node, Reason);
+translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_READ, Node, Reason}}) ->
+    translate_storage_test_file_error("read", <<"read">>, Node, Reason);
 
-translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_REMOVAL, Node, Reason}}) ->
+translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_REMOVE, Node, Reason}}) ->
     translate_storage_test_file_error("remove", <<"removal">>, Node, Reason);
 
 translate(_Type, #error{reason = {no_exists, onepanel_user}}) ->
@@ -133,6 +137,13 @@ translate(_Type, #error{module = model, function = get, reason = ?ERR_NOT_FOUND,
 
 translate(_Type, #error{reason = ?ERR_UNREGISTERED_PROVIDER}) ->
     {<<"Operation Error">>, <<"Unregistered provider.">>};
+
+translate(_Type, #error{reason = {?ERR_STORAGE_SYNC, import_already_started}}) ->
+    {<<"Operation Error">>, <<"Modifying storage_import that has already been started">>};
+
+translate(_Type, #error{reason = {error, {Code, Error, Description}}})
+    when is_integer(Code), is_binary(Error), is_binary(Description) ->
+    {<<"Operation Error">>, Error};
 
 translate(_Type, #error{module = Module, function = Function, arity = Arity,
     args = Args, reason = Reason, stacktrace = Stacktrace, line = Line}) ->
@@ -174,6 +185,16 @@ get_key(Keys, Separator) ->
 %%--------------------------------------------------------------------
 -spec get_expectation(ValueSpec :: onepanel_parser:value_spec(), Acc :: binary()) ->
     Expectation :: binary().
+get_expectation({ValueSpec, optional}, Acc) ->
+    <<(get_expectation(ValueSpec, Acc))/binary, " (optional)">>;
+
+get_expectation({ValueSpec, {optional, Default}}, Acc) ->
+    <<(get_expectation(ValueSpec, Acc))/binary, " (optional, default: ",
+        (onepanel_utils:convert(Default, binary))/binary, ")">>;
+
+get_expectation({ValueSpec, required}, Acc) ->
+    get_expectation(ValueSpec, Acc);
+
 get_expectation(atom, Acc) ->
     <<Acc/binary, "'<string>'">>;
 

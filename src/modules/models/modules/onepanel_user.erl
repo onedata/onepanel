@@ -22,8 +22,8 @@
     delete/1, list/0]).
 
 %% API
--export([create/3, create_noexcept/3, authenticate/2, hash_password/1,
-    change_password/2, get_by_role/1]).
+-export([create/3, create_noexcept/3, authenticate/1, authenticate/2,
+    hash_password/1, change_password/2, get_by_role/1]).
 -export([validate_username/1, validate_password/1, validate_role/1]).
 
 -type name() :: binary().
@@ -31,6 +31,7 @@
 -type password_hash() :: string().
 -type role() :: admin | regular.
 -type uuid() :: binary().
+-type record() :: #onepanel_user{}.
 
 -export_type([name/0, password/0, password_hash/0, role/0, uuid/0]).
 
@@ -67,8 +68,8 @@ seed() ->
 %% @doc {@link model_behaviour:create/1}
 %% @end
 %%--------------------------------------------------------------------
--spec create(Record :: model_behaviour:record()) ->
-    ok | #error{} | no_return().
+-spec create(Record :: record()) ->
+    {ok, name()} | #error{} | no_return().
 create(Record) ->
     model:create(?MODULE, Record).
 
@@ -77,7 +78,7 @@ create(Record) ->
 %% @doc {@link model_behaviour:save/1}
 %% @end
 %%--------------------------------------------------------------------
--spec save(Record :: model_behaviour:record()) -> ok | no_return().
+-spec save(Record :: record()) -> ok | no_return().
 save(Record) ->
     model:save(?MODULE, Record).
 
@@ -97,7 +98,7 @@ update(Key, Diff) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get(Key :: model_behaviour:key()) ->
-    {ok, Record :: model_behaviour:record()} | #error{} | no_return().
+    {ok, Record :: record()} | #error{} | no_return().
 get(Key) ->
     model:get(?MODULE, Key).
 
@@ -139,10 +140,10 @@ list() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec create(Username :: name(), Password :: password(), Role :: role()) ->
-    ok | no_return().
+    {ok, name()} | no_return().
 create(Username, Password, Role) ->
     case create_noexcept(Username, Password, Role) of
-        ok -> ok;
+        {ok, Username} -> {ok, Username};
         #error{reason = ?ERR_ALREADY_EXISTS} ->
             ?throw_error(?ERR_USERNAME_NOT_AVAILABLE)
     end.
@@ -153,13 +154,35 @@ create(Username, Password, Role) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec create_noexcept(Username :: name(), Password :: password(), Role :: role()) ->
-    ok | #error{}.
+    {ok, name()} | #error{}.
 create_noexcept(Username, Password, Role) ->
     validate_credentials(Username, Password, Role),
     create(#onepanel_user{
         username = Username, role = Role, uuid = onepanel_utils:gen_uuid(),
         password_hash = hash_password(Password)
     }).
+
+
+%%--------------------------------------------------------------------
+%% @doc Authenticates user by session.
+%% @end
+%%--------------------------------------------------------------------
+-spec authenticate(SessionId :: onepanel_session:id()) ->
+    {ok, User :: #onepanel_user{}} | #error{}.
+authenticate(SessionId) ->
+    case onepanel_session:get(SessionId) of
+        {ok, Session} ->
+            Username = onepanel_session:get_username(Session),
+            case onepanel_user:get(Username) of
+                {ok, User} ->
+                    onepanel_session:mark_active(SessionId),
+                    {ok, User};
+                #error{} = Error ->
+                    Error
+            end;
+        #error{} = Error ->
+            Error
+    end.
 
 %%--------------------------------------------------------------------
 %% @doc Authenticates user by checking provided hash against the one stored in

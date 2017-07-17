@@ -16,24 +16,27 @@
 -include_lib("ctool/include/test/assertions.hrl").
 
 %% API
--export([init/1, ensure_started/1, set_test_envs/1, mock_start/1]).
+-export([init/1, ensure_started/1, set_test_envs/1, set_test_envs/2,
+    mock_start/1]).
 -export([assert_fields/2, assert_values/2, clear_msg_inbox/0]).
 
 -type config() :: proplists:proplist().
 
 -define(TEST_ENVS, [
-    {cluster_manager_vm_args_path, "/etc/cluster_manager/vm.args"},
-    {cluster_manager_app_config_path, "/etc/cluster_manager/app.config"},
-    {cluster_manager_env_path, "/usr/lib/cluster_manager/lib/env.sh"},
-    {op_worker_vm_args_path, "/etc/op_worker/vm.args"},
-    {op_worker_app_config_path, "/etc/op_worker/app.config"},
-    {op_worker_gui_cert_path, "/etc/op_worker/certs/onedataServerWeb.pem"},
-    {op_worker_fuse_cert_path, "/etc/op_worker/certs/onedataServerFuse.pem"},
-    {oz_worker_vm_args_path, "/etc/oz_worker/vm.args"},
-    {oz_worker_app_config_path, "/etc/oz_worker/app.config"},
-    {oz_worker_gui_key_path, "/etc/oz_worker/certs/gui_key.pem"},
-    {oz_worker_gui_cert_path, "/etc/oz_worker/certs/gui_cert.pem"},
-    {oz_worker_gui_cacert_path, "/etc/oz_worker/cacerts/gui_cacert.pem"}
+    {cluster_manager_vm_args_file, "/etc/cluster_manager/vm.args"},
+    {cluster_manager_app_config_file, "/etc/cluster_manager/app.config"},
+    {cluster_manager_env_file, "/usr/lib/cluster_manager/lib/env.sh"},
+    {op_worker_vm_args_file, "/etc/op_worker/vm.args"},
+    {op_worker_app_config_file, "/etc/op_worker/app.config"},
+    {op_worker_web_key_file, "/etc/op_worker/certs/web_key.pem"},
+    {op_worker_web_cert_file, "/etc/op_worker/certs/web_cert.pem"},
+    {op_worker_protocol_key_file, "/etc/op_worker/certs/protocol_key.pem"},
+    {op_worker_protocol_cert_file, "/etc/op_worker/certs/protocol_cert.pem"},
+    {oz_worker_vm_args_file, "/etc/oz_worker/vm.args"},
+    {oz_worker_app_config_file, "/etc/oz_worker/app.config"},
+    {oz_worker_web_key_file, "/etc/oz_worker/certs/gui_key.pem"},
+    {oz_worker_web_cert_file, "/etc/oz_worker/certs/gui_cert.pem"},
+    {services_check_delay, timer:hours(1)}
 ]).
 
 %%%===================================================================
@@ -89,14 +92,23 @@ ensure_started(Config) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Overwrites the default application variables for the test purposes.
+%% @equiv set_test_envs(Nodes, ?TEST_ENVS)
 %% @end
 %%--------------------------------------------------------------------
 -spec set_test_envs(Nodes :: [node()]) -> ok.
 set_test_envs(Nodes) ->
+    set_test_envs(Nodes, ?TEST_ENVS).
+
+
+%%--------------------------------------------------------------------
+%% @doc Overwrites the default application variables for the test purposes.
+%% @end
+%%--------------------------------------------------------------------
+-spec set_test_envs(Nodes :: [node()], TestEnvs :: proplists:proplist()) -> ok.
+set_test_envs(Nodes, TestEnvs) ->
     lists:foreach(fun({Key, Value}) ->
         rpc:multicall(Nodes, onepanel_env, set, [Key, Value])
-    end, ?TEST_ENVS).
+    end, TestEnvs).
 
 
 %%--------------------------------------------------------------------
@@ -118,7 +130,9 @@ mock_start(Config) ->
 %% @doc Checks whether the tuple list contains specified fields.
 %% @end
 %%--------------------------------------------------------------------
--spec assert_fields(TupleList :: [tuple()], Fields :: [binary()]) -> ok.
+-spec assert_fields(KeyValue :: [tuple()] | maps:map() , Fields :: [binary()]) -> ok.
+assert_fields(Map = #{}, Fields) ->
+    assert_fields(maps:to_list(Map), Fields);
 assert_fields(TupleList, Fields) ->
     lists:foreach(fun(Field) ->
         ?assert(lists:keymember(Field, 1, TupleList))
@@ -130,7 +144,9 @@ assert_fields(TupleList, Fields) ->
 %% values match the expected ones.
 %% @end
 %%--------------------------------------------------------------------
--spec assert_values(TupleList :: [tuple()], Values :: [{binary(), any()}]) -> ok.
+-spec assert_values(KeyValue :: [tuple()] | maps:map(), Values :: [{binary(), any()}]) -> ok.
+assert_values(Map = #{}, Values) ->
+    assert_values(maps:to_list(Map), Values);
 assert_values(TupleList, Values) ->
     lists:foreach(fun({Field, Value}) ->
         ?assert(lists:keymember(Field, 1, TupleList)),

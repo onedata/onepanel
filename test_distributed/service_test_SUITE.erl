@@ -18,8 +18,7 @@
 -include_lib("ctool/include/test/performance.hrl").
 
 %% export for ct
--export([all/0, init_per_suite/1, end_per_suite/1, init_per_testcase/2,
-    end_per_testcase/2]).
+-export([all/0, init_per_suite/1, init_per_testcase/2, end_per_testcase/2]).
 
 %% tests
 -export([
@@ -112,14 +111,10 @@ service_action_should_pass_errors(Config) ->
 %%%===================================================================
 
 init_per_suite(Config) ->
-    onepanel_test_utils:init(
-        ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json"))
-    ).
-
-
-end_per_suite(Config) ->
-    test_node_starter:clean_environment(Config).
-
+    ssl:start(),
+    hackney:start(),
+    Posthook = fun(NewConfig) -> onepanel_test_utils:init(NewConfig) end,
+    [{?ENV_UP_POSTHOOK, Posthook} | Config].
 
 init_per_testcase(service_action_should_be_not_supported, Config) ->
     Nodes = ?config(onepanel_nodes, Config),

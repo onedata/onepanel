@@ -17,8 +17,7 @@
 -include_lib("ctool/include/test/performance.hrl").
 
 %% export for ct
--export([all/0, init_per_suite/1, end_per_suite/1, init_per_testcase/2,
-    end_per_testcase/2]).
+-export([all/0, init_per_suite/1, init_per_testcase/2, end_per_testcase/2]).
 
 %% tests
 -export([
@@ -31,8 +30,8 @@
     get_should_return_supported_spaces/1,
     put_should_create_or_support_space/1,
     get_should_return_space_details/1,
-    delete_should_revoke_space_support/1
-]).
+    delete_should_revoke_space_support_test/1,
+    patch_should_modify_storage_update_test/1]).
 
 -define(ADMIN_USER_NAME, <<"admin1">>).
 -define(ADMIN_USER_PASSWORD, <<"Admin1Password">>).
@@ -59,13 +58,29 @@
 
 -define(SPACE_JSON, [{<<"id">>, <<"someId1">>}]).
 
--define(SPACES_JSON, [<<"someId1">>, <<"someId2">>, <<"someId3">>]).
+-define(SPACES_JSON, [
+    {<<"ids">>, [<<"someId1">>, <<"someId2">>, <<"someId3">>]}
+]).
+
+-define(STORAGE_IMPORT_DETAILS_JSON, [
+    {<<"strategy">>, <<"someStrategy">>},
+    {<<"someIntegerDetail">>, 1}
+]).
+
+-define(STORAGE_UPDATE_DETAILS_JSON, [
+    {<<"strategy">>, <<"someStrategy">>},
+    {<<"someIntegerDetail">>, 2},
+    {<<"someBooleanDetail">>, false}
+]).
 
 -define(SPACE_DETAILS_JSON, [
     {<<"id">>, <<"someId">>}, {<<"name">>, <<"someName">>},
     {<<"supportingProviders">>, [
         {<<"someId1">>, 1024}, {<<"someId2">>, 2048}, {<<"someId3">>, 4096}
-    ]}
+    ]},
+    {<<"storageId">>, <<"someId">>},
+    {<<"storageImport">>, ?STORAGE_IMPORT_DETAILS_JSON},
+    {<<"storageUpdate">>, ?STORAGE_UPDATE_DETAILS_JSON}
 ]).
 
 -define(run(Config, Function), Function(hd(?config(oneprovider_hosts, Config)))).
@@ -81,7 +96,8 @@ all() ->
         get_should_return_supported_spaces,
         put_should_create_or_support_space,
         get_should_return_space_details,
-        delete_should_revoke_space_support
+        delete_should_revoke_space_support_test,
+        patch_should_modify_storage_update_test
     ]).
 
 %%%===================================================================
@@ -95,7 +111,7 @@ method_should_return_unauthorized_error(Config) ->
                 Host, Endpoint, Method
             )),
             ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
-                Host, Endpoint, Method, <<"someUser">>, <<"somePassword">>
+                Host, Endpoint, Method, {<<"someUser">>, <<"somePassword">>}
             ))
         end, ?COMMON_ENDPOINTS_WITH_METHODS)
     end).
@@ -105,7 +121,7 @@ method_should_return_forbidden_error(Config) ->
     ?run(Config, fun(Host) ->
         lists:foreach(fun({Endpoint, Method}) ->
             ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
-                Host, Endpoint, Method, ?REG_USER_NAME, ?REG_USER_PASSWORD
+                Host, Endpoint, Method, {?REG_USER_NAME, ?REG_USER_PASSWORD}
             ))
         end, ?COMMON_ENDPOINTS_WITH_METHODS)
     end).
@@ -115,7 +131,8 @@ get_should_return_provider_details(Config) ->
     ?run(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
-                Host, <<"/provider">>, get, ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+                Host, <<"/provider">>, get,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
             )
         ),
         onepanel_test_rest:assert_body(JsonBody, ?PROVIDER_DETAILS_JSON)
@@ -125,7 +142,8 @@ get_should_return_provider_details(Config) ->
 put_should_register_provider(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider">>, post, ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, [
+            Host, <<"/provider">>, post,
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [
                 {<<"name">>, <<"someName">>},
                 {<<"redirectionPoint">>, <<"someUrl">>},
                 {<<"geoLongitude">>, 10.0},
@@ -146,7 +164,8 @@ put_should_register_provider(Config) ->
 patch_should_modify_provider_details(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider">>, patch, ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, [
+            Host, <<"/provider">>, patch,
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [
                 {<<"name">>, <<"someName">>},
                 {<<"redirectionPoint">>, <<"someUrl">>},
                 {<<"geoLongitude">>, 10.0},
@@ -165,7 +184,8 @@ patch_should_modify_provider_details(Config) ->
 delete_should_unregister_provider(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider">>, delete, ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+            Host, <<"/provider">>, delete,
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
         )),
         ?assertReceivedMatch({service, oneprovider, unregister, #{}}, ?TIMEOUT)
     end).
@@ -176,7 +196,7 @@ get_should_return_supported_spaces(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces">>, get,
-                ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
             )
         ),
         onepanel_test_rest:assert_body(JsonBody, ?SPACES_JSON)
@@ -185,24 +205,19 @@ get_should_return_supported_spaces(Config) ->
 
 put_should_create_or_support_space(Config) ->
     ?run(Config, fun(Host) ->
-        lists:foreach(fun(Body) ->
-            {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
-                onepanel_test_rest:auth_request(
-                    Host, <<"/provider/spaces">>, post,
-                    ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, Body
-                )
-            ),
-            onepanel_test_rest:assert_body(JsonBody, ?SPACE_JSON)
-        end, [
-            [
-                {<<"token">>, <<"someToken">>}, {<<"size">>, 1024},
-                {<<"storageName">>, <<"someName">>}
-            ],
-            [
-                {<<"name">>, <<"someName">>}, {<<"token">>, <<"someToken">>},
-                {<<"size">>, 1024}, {<<"storageId">>, <<"someId">>}
-            ]
-        ])
+        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/spaces">>, post,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [
+                    {<<"token">>, <<"someToken">>},
+                    {<<"size">>, 1024},
+                    {<<"storageId">>, <<"someId">>},
+                    {<<"storageImport">>, ?STORAGE_IMPORT_DETAILS_JSON},
+                    {<<"storageUpdate">>, ?STORAGE_UPDATE_DETAILS_JSON}
+                ]
+            )
+        ),
+        onepanel_test_rest:assert_body(JsonBody, ?SPACE_JSON)
     end).
 
 
@@ -211,22 +226,36 @@ get_should_return_space_details(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId">>, get,
-                ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
             )
         ),
         onepanel_test_rest:assert_body(JsonBody, ?SPACE_DETAILS_JSON)
     end).
 
 
-delete_should_revoke_space_support(Config) ->
+delete_should_revoke_space_support_test(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/spaces/someId">>, delete,
-            ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
         )),
         ?assertReceivedMatch({service, oneprovider, revoke_space_support,
             #{id := <<"someId">>}
         }, ?TIMEOUT)
+    end).
+
+patch_should_modify_storage_update_test(Config) ->
+    ?run(Config, fun(Host) ->
+        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/spaces/someId1">>, patch,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [
+                    {<<"storageImport">>, ?STORAGE_IMPORT_DETAILS_JSON},
+                    {<<"storageUpdate">>, ?STORAGE_UPDATE_DETAILS_JSON}
+                ]
+            )
+        ),
+        onepanel_test_rest:assert_body(JsonBody, ?SPACE_JSON)
     end).
 
 %%%===================================================================
@@ -234,22 +263,19 @@ delete_should_revoke_space_support(Config) ->
 %%%===================================================================
 
 init_per_suite(Config) ->
-    application:start(etls),
+    ssl:start(),
     hackney:start(),
-    NewConfig = onepanel_test_utils:init(
-        ?TEST_INIT(Config, ?TEST_FILE(Config, "env_desc.json"))
-    ),
-    ?assertAllEqual(ok, ?callAll(NewConfig, onepanel_user, create,
-        [?REG_USER_NAME, ?REG_USER_PASSWORD, regular]
-    )),
-    ?assertAllEqual(ok, ?callAll(NewConfig, onepanel_user, create,
-        [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
-    )),
-    NewConfig.
-
-
-end_per_suite(Config) ->
-    test_node_starter:clean_environment(Config).
+    Posthook = fun(NewConfig) ->
+        NewConfig2 = onepanel_test_utils:init(NewConfig),
+        ?assertAllMatch({ok, _}, ?callAll(NewConfig2, onepanel_user, create,
+            [?REG_USER_NAME, ?REG_USER_PASSWORD, regular]
+        )),
+        ?assertAllMatch({ok, _}, ?callAll(NewConfig2, onepanel_user, create,
+            [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
+        )),
+        NewConfig2
+    end,
+    [{?ENV_UP_POSTHOOK, Posthook} | Config].
 
 
 init_per_testcase(get_should_return_provider_details, Config) ->
@@ -297,12 +323,25 @@ init_per_testcase(put_should_create_or_support_space, Config) ->
     end),
     NewConfig;
 
+init_per_testcase(patch_should_modify_storage_update_test, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        {service_oneprovider, modify_space, {
+            [{'node@host1', ?SPACE_JSON}], []
+        }},
+        {task_finished, {service, action, ok}}
+    ]
+    end),
+    NewConfig;
+
 init_per_testcase(_Case, Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
     Self = self(),
     test_utils:mock_new(Nodes, service),
-    test_utils:mock_expect(Nodes, service, exists, fun(oneprovider) ->
-        true end),
+    test_utils:mock_expect(Nodes, service, get, fun(oneprovider) ->
+        {ok, #service{ctx = #{registered => true}}}
+    end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},
         [{task_finished, {service, action, ok}}]

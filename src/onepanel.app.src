@@ -11,7 +11,7 @@
 
 {application, onepanel, [
     {description, "Management tool for onedata components."},
-    {vsn, "3.0.0-rc10"},
+    {vsn, "17.06.0-beta6"},
     {registered, [onepanel_sup]},
     {applications, [
         kernel,
@@ -19,7 +19,7 @@
         public_key,
         crypto,
         bcrypt,
-        onepanel_gui
+        gui
     ]},
     {mod, {onepanel_app, []}},
     {env, []}

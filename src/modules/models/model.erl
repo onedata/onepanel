@@ -48,15 +48,18 @@ get_models() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec create(Model :: model(), Record :: model_behaviour:record()) ->
-    ok | #error{} | no_return().
+    {ok, model_behaviour:key()} | #error{} | no_return().
 create(Model, Record) ->
     transaction(fun() ->
         Table = get_table_name(Model),
         Key = erlang:element(2, Record),
         case mnesia:read(Table, Key) of
-            [] -> mnesia:write(Table, Record, write);
+            [] ->
+                mnesia:write(Table, Record, write),
+                {ok, Key};
             [_ | _] ->
-                ?make_error(?ERR_ALREADY_EXISTS, ?MODULE, create, 1, [Model, Record])
+                ?make_error(?ERR_ALREADY_EXISTS, ?MODULE, create, 1,
+                    [Model, Record])
         end
     end).
 
