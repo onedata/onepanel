@@ -4,6 +4,14 @@
 CHANGELOG
 ---------
 
+### 17.06.0-beta6
+
+* VFS-3417 Change listeners restart strategy
+* VFS-3356 Extend REST GET space/storage responses
+* VFS-3289 - change according to change in op_worker storage_sync_monitoring API
+* VFS-3289 - storage_sync metrics API
+
+
 ### 17.06.0-beta4
 
 * VFS-3362 Update web-client

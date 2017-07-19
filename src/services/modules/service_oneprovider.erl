@@ -333,7 +333,7 @@ support_space(#{storage_id := StorageId, name := Name, node := Node} = Ctx) ->
     ]),
     MountInRoot = onepanel_utils:typed_get(mount_in_root, Ctx, boolean, false),
     ImportArgs = maps:get(storage_import, Ctx, #{}),
-    UpdateArgs = maps:get(storage_import, Ctx, #{}),
+    UpdateArgs = maps:get(storage_update, Ctx, #{}),
     {ok, _} = rpc:call(Node, space_storage, add, [SpaceId, StorageId, MountInRoot]),
     op_worker_storage_sync:maybe_modify_storage_import(Node, SpaceId, ImportArgs),
     op_worker_storage_sync:maybe_modify_storage_update(Node, SpaceId, UpdateArgs),

@@ -396,9 +396,9 @@ get_storage(Node, Storage) ->
 get_luma_config(Node, StorageParams) ->
     case onepanel_utils:typed_get(lumaEnabled, StorageParams, boolean, false) of
         true ->
-            Url = get_luma_arg(StorageParams, lumaUrl),
-            CacheTimeout = get_luma_arg(StorageParams, lumaCacheTimeout),
-            ApiKey = get_luma_arg(StorageParams, lumaApiKey),
+            Url = get_required_luma_arg(StorageParams, lumaUrl, binary),
+            CacheTimeout = get_required_luma_arg(StorageParams, lumaCacheTimeout, integer),
+            ApiKey = onepanel_utils:typed_get(lumaApiKey, StorageParams, binary, undefined),
             rpc:call(Node, luma_config, new, [Url, CacheTimeout, ApiKey]);
         false ->
             undefined
@@ -409,9 +409,10 @@ get_luma_config(Node, StorageParams) ->
 %% in StorageParams. Throws error if key is missing
 %% @end
 %%--------------------------------------------------------------------
--spec get_luma_arg(storage_params_map(), atom()) -> term().
-get_luma_arg(StorageParams, Key) ->
-    case onepanel_utils:typed_get(lumaUrl, StorageParams, binary) of
+-spec get_required_luma_arg(StorageParams :: storage_params_map(), Key ::atom(),
+    Type :: onepanel_utils:type()) -> term().
+get_required_luma_arg(StorageParams, Key, Type) ->
+    case onepanel_utils:typed_get(Key, StorageParams, Type) of
         {error, _} ->
             ?throw_error( ?ERR_LUMA_CONFIG(Key));
         Value ->
