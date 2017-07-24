@@ -141,6 +141,9 @@ translate(_Type, #error{reason = ?ERR_UNREGISTERED_PROVIDER}) ->
 translate(_Type, #error{reason = {?ERR_STORAGE_SYNC, import_already_started}}) ->
     {<<"Operation Error">>, <<"Modifying storage_import that has already been started">>};
 
+translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, {missing_key, MissingKey}}}) ->
+    {<<"Operation Error">>, str_utils:format_bin("LUMA configuration error. Missing key: ~p", [MissingKey])};
+
 translate(_Type, #error{reason = {error, {Code, Error, Description}}})
     when is_integer(Code), is_binary(Error), is_binary(Description) ->
     {<<"Operation Error">>, Error};
