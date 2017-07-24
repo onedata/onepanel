@@ -20,13 +20,14 @@
 -export([add/2, get/0, get/1, update/2]).
 -export([get_supporting_storage/2, get_supporting_storages/2]).
 -export([is_mounted_in_root/3]).
--export([add_storage/4]).
+-export([add_storage/5]).
 
 -type id() :: binary().
 -type name() :: binary().
 -type storage_params_map() :: #{Key :: atom() | binary() => Value :: binary()}.
 -type storage_params_list() :: [{Key :: atom() | binary(), Value :: binary()}].
 -type storage_map() :: #{Name :: name() => Params :: storage_params_map()}.
+-type luma_config() :: {atom(), binary(), non_neg_integer()}.
 
 %%%===================================================================
 %%% API functions
@@ -48,8 +49,9 @@ add(Storages, IgnoreExists) ->
         ReadOnly = onepanel_utils:typed_get(readonly, Value, boolean, false),
         UserCtx = get_storage_user_ctx(Node, StorageType, Value),
         Helper = get_storage_helper(Node, StorageType, UserCtx, Value),
+        LumaConfig = get_luma_config(Node, Value),
         maybe_verify_storage(Helper, UserCtx, ReadOnly),
-        Result = add_storage(Node, StorageName, [Helper], ReadOnly),
+        Result = add_storage(Node, StorageName, [Helper], ReadOnly, LumaConfig),
         case {Result, IgnoreExists} of
             {{ok, _StorageId}, _} ->
                 ok;
@@ -357,9 +359,10 @@ remove_test_file(Node, Helper, UserCtx, FileId) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec add_storage(Node :: node(), StorageName :: binary(), Helpers :: list(),
-    ReadOnly :: boolean()) -> {ok, StorageId :: binary()} | {error, Reason :: term()}.
-add_storage(Node, StorageName, Helpers, ReadOnly) ->
-    Storage = rpc:call(Node, storage, new, [StorageName, Helpers, ReadOnly]),
+    ReadOnly :: boolean(), LumaConfig :: luma_config()) ->
+    {ok, StorageId :: binary()} | {error, Reason :: term()}.
+add_storage(Node, StorageName, Helpers, ReadOnly, LumaConfig) ->
+    Storage = rpc:call(Node, storage, new, [StorageName, Helpers, ReadOnly, LumaConfig]),
     rpc:call(Node, storage, create, [Storage]).
 
 
@@ -381,3 +384,37 @@ get_storage(Node, Storage) ->
         {readonly, rpc:call(Node, storage, is_readonly, [Storage])},
         {insecure, rpc:call(Node, helper, is_insecure, [Helper])}
     ] ++ maps:to_list(AdminCtx2) ++ maps:to_list(HelperArgs).
+
+%%--------------------------------------------------------------------
+%% @private @doc Parses LUMA config arguments if lumaEnabled is set to
+%% true in StorageParams and returns luma config acquired from provider.
+%% Throws error if lumaEnabled is true and other arguments are missing.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_luma_config(Node :: node(), StorageParams :: storage_params_map()) ->
+    undefined | luma_config().
+get_luma_config(Node, StorageParams) ->
+    case onepanel_utils:typed_get(lumaEnabled, StorageParams, boolean, false) of
+        true ->
+            Url = get_required_luma_arg(StorageParams, lumaUrl, binary),
+            CacheTimeout = get_required_luma_arg(StorageParams, lumaCacheTimeout, integer),
+            ApiKey = onepanel_utils:typed_get(lumaApiKey, StorageParams, binary, undefined),
+            rpc:call(Node, luma_config, new, [Url, CacheTimeout, ApiKey]);
+        false ->
+            undefined
+    end.
+
+%%--------------------------------------------------------------------
+%% @private @doc Returns LUMA argument value associated with Key
+%% in StorageParams. Throws error if key is missing
+%% @end
+%%--------------------------------------------------------------------
+-spec get_required_luma_arg(StorageParams :: storage_params_map(), Key ::atom(),
+    Type :: onepanel_utils:type()) -> term().
+get_required_luma_arg(StorageParams, Key, Type) ->
+    case onepanel_utils:typed_get(Key, StorageParams, Type) of
+        {error, _} ->
+            ?throw_error( ?ERR_LUMA_CONFIG(Key));
+        Value ->
+            Value
+    end.

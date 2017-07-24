@@ -267,13 +267,12 @@ get_status(Node, SpaceId) ->
 %%-------------------------------------------------------------------
 -spec get_import_status(Node :: node(), SpaceId :: id()) -> binary().
 get_import_status(Node, SpaceId) ->
-    ImportInProgress = rpc:call(Node, storage_sync_monitoring,
-        import_in_progress, [SpaceId]),
-    case ImportInProgress of
-        true ->
-            <<"inProgress">>;
+    ImportState = rpc:call(Node, storage_sync_monitoring, import_state, [SpaceId]),
+    case ImportState of
+        finished ->
+            <<"done">>;
         _ ->
-            <<"done">>
+            <<"inProgress">>
     end.
 
 %%-------------------------------------------------------------------

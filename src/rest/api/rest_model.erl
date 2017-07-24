@@ -91,6 +91,15 @@ ceph_model() ->
         readonly => {boolean, optional},
         %% The type of storage.
         type => {equal, <<"ceph">>},
+        %% If true LUMA and reverse LUMA services will be enabled.
+        lumaEnabled => {boolean, optional},
+        %% URL of external LUMA service
+        lumaUrl => {string, optional},
+        %% LUMA cache timeout in minutes.
+        lumaCacheTimeout => {integer, optional},
+        %% LUMA API Key, must be identical with API Key in external LUMA
+        %% service.
+        lumaApiKey => {string, optional},
         %% The username of the Ceph cluster administrator.
         username => string,
         %% The admin key to access the Ceph cluster.
@@ -219,6 +228,15 @@ glusterfs_model() ->
         readonly => {boolean, optional},
         %% The type of storage.
         type => {equal, <<"glusterfs">>},
+        %% If true LUMA and reverse LUMA services will be enabled.
+        lumaEnabled => {boolean, optional},
+        %% URL of external LUMA service
+        lumaUrl => {string, optional},
+        %% LUMA cache timeout in minutes.
+        lumaCacheTimeout => {integer, optional},
+        %% LUMA API Key, must be identical with API Key in external LUMA
+        %% service.
+        lumaApiKey => {string, optional},
         %% The name of the volume to use as a storage backend.
         volume => string,
         %% The hostname (IP address or FQDN) of GlusterFS volume server.
@@ -293,6 +311,15 @@ posix_model() ->
         readonly => {boolean, optional},
         %% The type of storage.
         type => {equal, <<"posix">>},
+        %% If true LUMA and reverse LUMA services will be enabled.
+        lumaEnabled => {boolean, optional},
+        %% URL of external LUMA service
+        lumaUrl => {string, optional},
+        %% LUMA cache timeout in minutes.
+        lumaCacheTimeout => {integer, optional},
+        %% LUMA API Key, must be identical with API Key in external LUMA
+        %% service.
+        lumaApiKey => {string, optional},
         %% The absolute path to the directory where the POSIX storage is mounted
         %% on the cluster nodes.
         mountPoint => string,
@@ -485,6 +512,15 @@ s3_model() ->
         readonly => {boolean, optional},
         %% The type of storage.
         type => {equal, <<"s3">>},
+        %% If true LUMA and reverse LUMA services will be enabled.
+        lumaEnabled => {boolean, optional},
+        %% URL of external LUMA service
+        lumaUrl => {string, optional},
+        %% LUMA cache timeout in minutes.
+        lumaCacheTimeout => {integer, optional},
+        %% LUMA API Key, must be identical with API Key in external LUMA
+        %% service.
+        lumaApiKey => {string, optional},
         %% The hostname of a machine where S3 storage is installed.
         hostname => string,
         %% The storage bucket name.
@@ -748,6 +784,15 @@ swift_model() ->
         readonly => {boolean, optional},
         %% The type of storage.
         type => {equal, <<"swift">>},
+        %% If true LUMA and reverse LUMA services will be enabled.
+        lumaEnabled => {boolean, optional},
+        %% URL of external LUMA service
+        lumaUrl => {string, optional},
+        %% LUMA cache timeout in minutes.
+        lumaCacheTimeout => {integer, optional},
+        %% LUMA API Key, must be identical with API Key in external LUMA
+        %% service.
+        lumaApiKey => {string, optional},
         %% The URL to OpenStack Keystone identity service.
         authUrl => string,
         %% The name of the tenant to which the user belongs.
