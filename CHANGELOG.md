@@ -4,6 +4,14 @@
 CHANGELOG
 ---------
 
+### 17.06.0-rc1
+
+* VFS-3448 Use single 'onedata' bucket
+* VFS-3384 add translation of luma configuration error
+* VFS-3384 setup luma when adding storage
+* VFS-3417 Increase default RAM quota of couchbase buckets
+
+
 ### 17.06.0-beta6
 
 * VFS-3417 Change listeners restart strategy
