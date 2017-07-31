@@ -208,7 +208,10 @@ format_configuration(SModule) ->
     DbHosts = service_couchbase:get_hosts(),
     {ok, #service{hosts = CmHosts, ctx = #{main_host := MainCmHost}}} =
         service:get(service_cluster_manager:name()),
-    WrkHosts = SModule:get_hosts(),
+    WrkHosts = case SModule of
+        service_onezone -> service_oz_worker:get_hosts();
+        service_oneprovider -> service_op_worker:get_hosts()
+    end,
     SName = case SModule of
         service_onezone ->
             {ok, #service{ctx = Ctx}} = service:get(service_onezone:name()),

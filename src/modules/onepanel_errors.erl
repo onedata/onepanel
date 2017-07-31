@@ -104,6 +104,9 @@ translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, Reason}}) ->
     ?error("Cannot add storage due to: ~p", [Reason]),
     {<<"Operation Error">>, <<"Storage addition error.">>};
 
+translate(_Type, #error{reason = {?ERR_STORAGE_NOT_FOUND, StorageId}}) ->
+    {<<"Operation Error">>, <<"Storage '", StorageId/binary, "' not found.">>};
+
 translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_CREATE, Node, Reason}}) ->
     translate_storage_test_file_error("create", <<"creation">>, Node, Reason);
 
@@ -142,7 +145,8 @@ translate(_Type, #error{reason = {?ERR_STORAGE_SYNC, import_already_started}}) -
     {<<"Operation Error">>, <<"Modifying storage_import that has already been started">>};
 
 translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, {missing_key, MissingKey}}}) ->
-    {<<"Operation Error">>, str_utils:format_bin("LUMA configuration error. Missing key: ~p", [MissingKey])};
+    {<<"Operation Error">>, str_utils:format_bin("LUMA configuration error. "
+    "Missing key: ~p", [MissingKey])};
 
 translate(_Type, #error{reason = {error, {Code, Error, Description}}})
     when is_integer(Code), is_binary(Error), is_binary(Description) ->

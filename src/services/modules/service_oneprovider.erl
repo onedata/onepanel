@@ -326,31 +326,21 @@ get_details(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec support_space(Ctx :: service:ctx()) -> list().
 support_space(#{storage_id := StorageId, name := Name, node := Node} = Ctx) ->
+    assert_storage_exists(Node, StorageId),
     {ok, SpaceId} = oz_providers:create_space(provider, [
         {<<"name">>, Name},
         {<<"size">>, onepanel_utils:typed_get(size, Ctx, binary)},
         {<<"token">>, onepanel_utils:typed_get(token, Ctx, binary)}
     ]),
-    MountInRoot = onepanel_utils:typed_get(mount_in_root, Ctx, boolean, false),
-    ImportArgs = maps:get(storage_import, Ctx, #{}),
-    UpdateArgs = maps:get(storage_update, Ctx, #{}),
-    {ok, _} = rpc:call(Node, space_storage, add, [SpaceId, StorageId, MountInRoot]),
-    op_worker_storage_sync:maybe_modify_storage_import(Node, SpaceId, ImportArgs),
-    op_worker_storage_sync:maybe_modify_storage_update(Node, SpaceId, UpdateArgs),
-    [{id, SpaceId}];
+    support_space(Ctx, SpaceId);
 
 support_space(#{storage_id := StorageId, node := Node} = Ctx) ->
+    assert_storage_exists(Node, StorageId),
     {ok, SpaceId} = oz_providers:support_space(provider, [
         {<<"size">>, onepanel_utils:typed_get(size, Ctx, binary)},
         {<<"token">>, onepanel_utils:typed_get(token, Ctx, binary)}
     ]),
-    MountInRoot = onepanel_utils:typed_get(mount_in_root, Ctx, boolean, false),
-    ImportArgs = maps:get(storage_import, Ctx, #{}),
-    UpdateArgs = maps:get(storage_update, Ctx, #{}),
-    {ok, _} = rpc:call(Node, space_storage, add, [SpaceId, StorageId, MountInRoot]),
-    op_worker_storage_sync:maybe_modify_storage_import(Node, SpaceId, ImportArgs),
-    op_worker_storage_sync:maybe_modify_storage_update(Node, SpaceId, UpdateArgs),
-    [{id, SpaceId}];
+    support_space(Ctx, SpaceId);
 
 support_space(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
@@ -481,3 +471,37 @@ restart_provider_listeners(_Ctx) ->
     lists:foreach(fun(Module) ->
         onepanel_rpc:call_all([Node], Module, start, [])
     end, lists:reverse(Modules)).
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Ensures that storage with provided ID exists.
+%% @end
+%%--------------------------------------------------------------------
+-spec assert_storage_exists(Node :: node(), StorageId :: binary()) ->
+    ok | no_return().
+assert_storage_exists(Node, StorageId) ->
+    case rpc:call(Node, storage, exists, [StorageId]) of
+        true -> ok;
+        _ -> ?throw_error({?ERR_STORAGE_NOT_FOUND, StorageId})
+    end.
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Configures storage of a supported space.
+%% @end
+%%--------------------------------------------------------------------
+-spec support_space(Ctx :: service:ctx(), SpaceId :: binary()) -> list().
+support_space(#{storage_id := StorageId, node := Node} = Ctx, SpaceId) ->
+    MountInRoot = onepanel_utils:typed_get(mount_in_root, Ctx, boolean, false),
+    ImportArgs = maps:get(storage_import, Ctx, #{}),
+    UpdateArgs = maps:get(storage_update, Ctx, #{}),
+    {ok, _} = rpc:call(Node, space_storage, add, [SpaceId, StorageId, MountInRoot]),
+    op_worker_storage_sync:maybe_modify_storage_import(Node, SpaceId, ImportArgs),
+    op_worker_storage_sync:maybe_modify_storage_update(Node, SpaceId, UpdateArgs),
+    [{id, SpaceId}].
