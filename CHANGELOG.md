@@ -4,6 +4,26 @@
 CHANGELOG
 ---------
 
+### 17.06.0-rc2
+
+* VFS-3506 Fix space support with missing storage ID
+
+
+### 17.06.0-rc1
+
+* Releasing new version 17.06.0-rc1
+* Update vsn in app.src file
+* VFS-3448 Use single 'onedata' bucket
+* VFS-3384 add translation of luma configuration error
+* VFS-3384 - update provider docker image in services_test_SUITE
+* VFS-3384 - call import_state function instead of import_in_progress
+* VFS-3384 - setup luma when adding storage
+* VF-3345 Updating GUI ref to 17.06.0-beta6
+* VFS-3417 Increase default RAM quota of couchbase buckets
+* release notes update
+* Release notes update
+
+
 ### 17.06.0-beta6
 
 * VFS-3417 Change listeners restart strategy
