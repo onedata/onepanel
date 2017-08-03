@@ -4,6 +4,11 @@
 CHANGELOG
 ---------
 
+### 17.06.0-rc2
+
+* VFS-3506 Fix space support with missing storage ID
+
+
 ### 17.06.0-rc1
 
 * VFS-3448 Use single 'onedata' bucket
