@@ -21,6 +21,6 @@
 TARGET_DIR='_build/default/lib/gui_static'
 # Image which will be used by default to get the static files. If it cannot
 # be resolved, the script will fall back to secondary.
-PRIMARY_IMAGE='docker.onedata.org/onepanel-gui:VFS-3360'
+PRIMARY_IMAGE='docker.onedata.org/onepanel-gui:VFS-3298'
 # Image which will be used if primary image is not resolved.
-SECONDARY_IMAGE='docker.onedata.org/onepanel-gui:VFS-3360'
+SECONDARY_IMAGE='onedata/onepanel-gui:VFS-3298'
