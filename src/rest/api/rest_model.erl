@@ -727,7 +727,9 @@ storage_import_details_model() ->
         strategy => string,
         %% Maximum depth of filesystem tree that will be traversed during
         %% storage synchronization.
-        maxDepth => {integer, optional}
+        maxDepth => {integer, optional},
+        %% Flag that enables synchronization of NFSv4 ACLs.
+        syncAcl => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -762,7 +764,9 @@ storage_update_details_model() ->
         %% detected).
         writeOnce => {boolean, optional},
         %% Flag determining that deletions of files will be detected.
-        deleteEnable => {boolean, optional}
+        deleteEnable => {boolean, optional},
+        %% Flag that enables synchronization of NFSv4 ACLs.
+        syncAcl => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
