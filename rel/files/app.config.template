@@ -138,7 +138,8 @@
         {oneprovider_sync_max_depth, 65535},
         {oneprovider_sync_update_scan_interval, 10}, % in seconds
         {oneprovider_sync_update_delete_enable, false},
-        {oneprovider_sync_update_write_once, false}
+        {oneprovider_sync_update_write_once, false},
+        {oneprovider_sync_acl, false}
     ]}
 ].
 

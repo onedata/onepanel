@@ -203,8 +203,10 @@ get_storage_update_args(Args, Ctx) ->
         [storage_update, write_once], Ctx3),
     Ctx5 = onepanel_maps:get_store([storageUpdate, deleteEnable], Args,
         [storage_update, delete_enable], Ctx4),
-    onepanel_maps:get_store([storageUpdate, scanInterval], Args,
-        [storage_update, scan_interval], Ctx5).
+    Ctx6 = onepanel_maps:get_store([storageUpdate, scanInterval], Args,
+        [storage_update, scan_interval], Ctx5),
+    onepanel_maps:get_store([storageUpdate, syncAcl], Args,
+        [storage_update, sync_acl], Ctx6).
 
 %%-------------------------------------------------------------------
 %% @private
@@ -216,5 +218,7 @@ get_storage_update_args(Args, Ctx) ->
 get_storage_import_args(Args, Ctx) ->
     Ctx2 = onepanel_maps:get_store([storageImport, strategy], Args,
         [storage_import, strategy], Ctx),
-    onepanel_maps:get_store([storageImport, maxDepth], Args,
-        [storage_import, max_depth], Ctx2).
+    Ctx3 = onepanel_maps:get_store([storageImport, maxDepth], Args,
+        [storage_import, max_depth], Ctx2),
+    onepanel_maps:get_store([storageImport, syncAcl], Args,
+        [storage_import, sync_acl], Ctx3).
