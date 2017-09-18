@@ -4,6 +4,12 @@
 CHANGELOG
 ---------
 
+### 17.06.1
+
+* VFS-3639 Updating GUI ref
+* VFS-3449 add syncAcl flag to storage import and storage update configuration
+
+
 ### 17.06.0-rc2
 
 * VFS-3506 Fix space support with missing storage ID
