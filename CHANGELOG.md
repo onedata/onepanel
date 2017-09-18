@@ -4,7 +4,7 @@
 CHANGELOG
 ---------
 
-### 17.06.1
+### 17.06.0-rc3
 
 * VFS-3639 Updating GUI ref
 * VFS-3449 add syncAcl flag to storage import and storage update configuration
