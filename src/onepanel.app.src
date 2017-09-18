@@ -11,7 +11,7 @@
 
 {application, onepanel, [
     {description, "Management tool for onedata components."},
-    {vsn, "17.06.0-rc2"},
+    {vsn, "17.06.1"},
     {registered, [onepanel_sup]},
     {applications, [
         kernel,
