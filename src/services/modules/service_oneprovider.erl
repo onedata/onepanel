@@ -226,16 +226,13 @@ register(Ctx) ->
     Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
 
     {ok, CaCert} = oz_providers:get_oz_cacert(provider),
-    DefaultUrls = lists:map(fun({_, IpAddress}) ->
-        IpAddress
-    end, onepanel_rpc:call_all(Nodes, onepanel_utils, get_ip_address, [])),
     Params = [
-        {<<"urls">>, maps:get(oneprovider_urls, Ctx, DefaultUrls)},
         {<<"csr">>, Csr},
-        {<<"redirectionPoint">>,
-            service_ctx:get(oneprovider_redirection_point, Ctx, binary)},
         {<<"name">>,
             service_ctx:get(oneprovider_name, Ctx, binary)},
+        {<<"subdomainDelegation">>, false},
+        {<<"domain">>,
+            service_ctx:get(oneprovider_domain, Ctx, binary)},
         {<<"latitude">>,
             service_ctx:get(oneprovider_geo_latitude, Ctx, float, 0.0)},
         {<<"longitude">>,
@@ -303,8 +300,8 @@ unregister(#{hosts := Hosts}) ->
 -spec modify_details(Ctx :: service:ctx()) -> ok.
 modify_details(Ctx) ->
     Params = onepanel_maps:get_store(oneprovider_name, Ctx, <<"name">>),
-    Params2 = onepanel_maps:get_store(oneprovider_redirection_point, Ctx,
-        <<"redirectionPoint">>, Params),
+    Params2 = onepanel_maps:get_store(oneprovider_domain, Ctx,
+        <<"domain">>, Params),
     Params3 = onepanel_maps:get_store(oneprovider_geo_latitude, Ctx,
         <<"latitude">>, Params2),
     Params4 = onepanel_maps:get_store(oneprovider_geo_longitude, Ctx,
@@ -318,12 +315,12 @@ modify_details(Ctx) ->
 %%--------------------------------------------------------------------
 -spec get_details(Ctx :: service:ctx()) -> list().
 get_details(_Ctx) ->
-    {ok, #provider_details{id = Id, name = Name, urls = Urls,
-        redirection_point = RedirectionPoint, latitude = Latitude,
+    {ok, #provider_details{id = Id, name = Name,
+        domain = Domain, latitude = Latitude,
         longitude = Longitude}} = oz_providers:get_details(provider),
     [
-        {id, Id}, {name, Name}, {redirectionPoint, RedirectionPoint},
-        {urls, Urls}, {geoLatitude, onepanel_utils:convert(Latitude, float)},
+        {id, Id}, {name, Name}, {domain, Domain},
+        {geoLatitude, onepanel_utils:convert(Latitude, float)},
         {geoLongitude, onepanel_utils:convert(Longitude, float)}
     ].
 

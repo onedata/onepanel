@@ -275,8 +275,8 @@ provider_configuration_oneprovider_model() ->
         register => boolean,
         %% The name under which the provider will be registered in a zone.
         name => string,
-        %% The address used for user redirection from a zone to the provider.
-        redirectionPoint => string,
+        %% The domain of this provider.
+        domain => string,
         %% The geographical longitude of the provider.
         geoLongitude => {float, optional},
         %% The geographical latitude of the provider.
@@ -305,10 +305,8 @@ provider_details_model() ->
         id => string,
         %% The name under which the provider has been registered in a zone.
         name => string,
-        %% The list of IP addresses of provider cluster worker nodes.
-        urls => [string],
-        %% The address used for user redirection from a zone to the provider.
-        redirectionPoint => string,
+        %% The domain of this provider.
+        domain => string,
         %% The geographical longitude of the provider.
         geoLongitude => float,
         %% The geographical latitude of the provider.
@@ -324,8 +322,8 @@ provider_modify_request_model() ->
     #{
         %% The name under which the provider has been registered in a zone.
         name => {string, optional},
-        %% The address used for user redirection from a zone to the provider.
-        redirectionPoint => {string, optional},
+        %% The domain of this provider.
+        domain => string,
         %% The geographical longitude of the provider.
         geoLongitude => {float, optional},
         %% The geographical latitude of the provider.
@@ -342,9 +340,8 @@ provider_register_request_model() ->
     #{
         %% The name under which the provider should be registered in a zone.
         name => string,
-        %% The address used for user redirection from a zone to the storage
-        %% provider.
-        redirectionPoint => string,
+        %% The domain of this provider.
+        domain => string,
         %% The geographical longitude of the storage provider.
         geoLongitude => {float, optional},
         %% The geographical latitude of the storage provider.

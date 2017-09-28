@@ -65,7 +65,7 @@ exists_resource(Req, _State) ->
 accept_resource(Req, 'POST', Args, #rstate{resource = provider}) ->
     Ctx = onepanel_maps:get_store(onezoneDomainName, Args, onezone_domain),
     Ctx2 = onepanel_maps:get_store(name, Args, oneprovider_name, Ctx),
-    Ctx3 = onepanel_maps:get_store(redirectionPoint, Args, oneprovider_redirection_point, Ctx2),
+    Ctx3 = onepanel_maps:get_store(domain, Args, oneprovider_domain, Ctx2),
     Ctx4 = onepanel_maps:get_store(geoLatitude, Args, oneprovider_geo_latitude, Ctx3),
     Ctx5 = onepanel_maps:get_store(geoLongitude, Args, oneprovider_geo_longitude, Ctx4),
 
@@ -97,7 +97,7 @@ accept_resource(Req, 'POST', _Args, #rstate{resource = start_cleaning, bindings 
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
     Ctx = onepanel_maps:get_store(name, Args, oneprovider_name, Args),
-    Ctx2 = onepanel_maps:get_store(redirectionPoint, Args, oneprovider_redirection_point, Ctx),
+    Ctx2 = onepanel_maps:get_store(domain, Args, oneprovider_domain, Ctx),
     Ctx3 = onepanel_maps:get_store(geoLatitude, Args, oneprovider_geo_latitude, Ctx2),
     Ctx4 = onepanel_maps:get_store(geoLongitude, Args, oneprovider_geo_longitude, Ctx3),
 

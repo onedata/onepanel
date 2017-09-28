@@ -71,22 +71,18 @@ service_oneprovider_unregister_register_test(Config) ->
         oneprovider_geo_latitude => 20.0,
         oneprovider_geo_longitude => 20.0,
         oneprovider_name => <<"provider2">>,
-        oneprovider_redirection_point => onepanel_utils:join(
-            ["https://", onepanel_cluster:node_to_host(Node)]
-        )
+        oneprovider_domain => onepanel_cluster:node_to_host(Node)
     }).
 
 
 service_oneprovider_modify_details_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
-    RedirectionPoint = onepanel_utils:join(
-        ["https://", onepanel_cluster:node_to_host(Node)]
-    ),
+    Domain = list_to_binary(onepanel_cluster:node_to_host(Node)),
     service_action(Node, oneprovider, modify_details, #{
         oneprovider_geo_latitude => 30.0,
         oneprovider_geo_longitude => 40.0,
         oneprovider_name => <<"provider3">>,
-        oneprovider_redirection_point => RedirectionPoint
+        oneprovider_domain => Domain
     }),
     service_action(Node, oneprovider, get_details, #{
         hosts => [onepanel_cluster:node_to_host(Node)]
@@ -94,11 +90,11 @@ service_oneprovider_modify_details_test(Config) ->
     Results = assert_service_step(service:get_module(oneprovider), get_details),
     [{_, Details}] = ?assertMatch([{Node, _}], Results),
     onepanel_test_utils:assert_fields(Details,
-        [id, name, redirectionPoint, urls, geoLatitude, geoLongitude]
+        [id, name, domain, geoLatitude, geoLongitude]
     ),
     onepanel_test_utils:assert_values(Details, [
         {name, <<"provider3">>},
-        {redirectionPoint, RedirectionPoint},
+        {domain, Domain},
         {geoLatitude, 30.0},
         {geoLongitude, 40.0}
     ]).
@@ -112,7 +108,7 @@ service_oneprovider_get_details_test(Config) ->
     Results = assert_service_step(service:get_module(oneprovider), get_details),
     [{_, Details}] = ?assertMatch([{Node, _}], Results),
     onepanel_test_utils:assert_fields(Details,
-        [id, name, redirectionPoint, urls, geoLatitude, geoLongitude]
+        [id, name, domain, geoLatitude, geoLongitude]
     ).
 
 
@@ -335,9 +331,7 @@ init_per_suite(Config) ->
                 oneprovider_geo_latitude => 10.0,
                 oneprovider_geo_longitude => 10.0,
                 oneprovider_name => <<"provider1">>,
-                oneprovider_redirection_point => onepanel_utils:join(
-                    ["https://", hd(OpHosts)]
-                ),
+                oneprovider_domain => hd(OpHosts),
                 oneprovider_register => true,
                 onezone_domain => OzDomain
             }
