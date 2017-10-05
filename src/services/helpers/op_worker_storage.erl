@@ -377,12 +377,16 @@ get_storage(Node, Storage) ->
     AdminCtx = rpc:call(Node, helper, get_admin_ctx, [Helper]),
     AdminCtx2 = maps:with([<<"username">>, <<"accessKey">>], AdminCtx),
     HelperArgs = rpc:call(Node, helper, get_args, [Helper]),
+    LumaConfig = rpc:call(Node, storage, get_luma_config_map, [Storage]),
     [
         {id, rpc:call(Node, storage, get_id, [Storage])},
         {name, rpc:call(Node, storage, get_name, [Storage])},
         {type, rpc:call(Node, helper, get_name, [Helper])},
         {readonly, rpc:call(Node, storage, is_readonly, [Storage])},
-        {insecure, rpc:call(Node, helper, is_insecure, [Helper])}
+        {insecure, rpc:call(Node, helper, is_insecure, [Helper])},
+        {lumaEnabled, maps:get(enabled, LumaConfig, false)},
+        {lumaUrl, maps:get(url, LumaConfig, null)},
+        {lumaCacheTimeout, maps:get(cache_timeout, LumaConfig, null)}
     ] ++ maps:to_list(AdminCtx2) ++ maps:to_list(HelperArgs).
 
 %%--------------------------------------------------------------------
