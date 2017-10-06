@@ -4,6 +4,11 @@
 CHANGELOG
 ---------
 
+### 17.06.0-rc5
+
+* fix fetching luma_config
+
+
 ### 17.06.0-rc4
 
 * Releasing new version 17.06.0-rc4
