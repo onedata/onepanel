@@ -223,6 +223,7 @@ register(Ctx) ->
     Hosts = onepanel_cluster:nodes_to_hosts(service_op_worker:get_nodes()),
     Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
 
+    {ok, CaCert} = oz_providers:get_oz_cacert(provider),
     DefaultUrls = lists:map(fun({_, IpAddress}) ->
         IpAddress
     end, onepanel_rpc:call_all(Nodes, onepanel_utils, get_ip_address, [])),
@@ -251,13 +252,17 @@ register(Ctx) ->
     end, [
         {oz_plugin:get_key_file(), Key},
         {oz_plugin:get_csr_file(), Csr},
-        {oz_plugin:get_cert_file(), Cert}
+        {oz_plugin:get_cert_file(), Cert},
+        {filename:join(oz_plugin:get_cacerts_dir(), "ozp_cacert.pem"), CaCert}
     ]),
 
     OpwNodes = onepanel_cluster:hosts_to_nodes(service_op_worker:name(), Hosts),
     onepanel_rpc:call_all(OpwNodes, application, set_env, [
         service_op_worker:name(), provider_id, ProviderId
     ]),
+
+    rpc:multicall(Nodes, oz_endpoint, reset_oz_cacerts, []),
+    rpc:multicall(OpwNodes, oz_endpoint, reset_oz_cacerts, []),
 
     service:update(name(), fun(#service{ctx = C} = S) ->
         S#service{ctx = C#{registered => true}}
