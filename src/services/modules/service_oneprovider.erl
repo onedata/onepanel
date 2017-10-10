@@ -253,7 +253,8 @@ register(Ctx) ->
         {oz_plugin:get_key_file(), Key},
         {oz_plugin:get_csr_file(), Csr},
         {oz_plugin:get_cert_file(), Cert},
-        {filename:join(oz_plugin:get_cacerts_dir(), "ozp_cacert.pem"), CaCert}
+        {filename:join(oz_plugin:get_cacerts_dir(), "ozp_cacert.pem"), CaCert},
+        {filename:join(oz_plugin:get_provider_cacerts_dir(), "ozp_cacert.pem"), CaCert}
     ]),
 
     OpwNodes = onepanel_cluster:hosts_to_nodes(service_op_worker:name(), Hosts),
