@@ -178,6 +178,31 @@ routes() ->
             }]
         }},
 
+        %% Get reports of space auto cleaning
+        {<<"/api/v3/onepanel/provider/spaces/:id/auto_cleaning_reports">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = space_auto_cleaning_report_collection,
+            methods = [#rmethod{
+                type = 'GET',
+            params_spec = #{
+                        %% Fetch only reports that started after this date
+                        %% (ISO-8601)
+                        started_after => string
+            }
+            }]
+        }},
+
+        %% Get status of space auto cleaning
+        {<<"/api/v3/onepanel/provider/spaces/:id/auto_cleaning_status">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = space_auto_cleaning_status,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
         %% Get statistics of storage synchronization
         {<<"/api/v3/onepanel/provider/spaces/:id/sync">>, rest_handler, #rstate{
             version = 3,

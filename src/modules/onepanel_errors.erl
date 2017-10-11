@@ -148,6 +148,12 @@ translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, {missing_key, MissingKe
     {<<"Operation Error">>, str_utils:format_bin("LUMA configuration error. "
     "Missing key: ~p", [MissingKey])};
 
+translate(_Type, #error{reason = {?ERR_CONFIG_AUTOCLEANING, {error, file_popularity_disabled}}}) ->
+    {<<"Operation Error">>, <<"File popularity statistics must be turned on to enable autocleaning">>};
+
+translate(_Type, #error{reason = {?ERR_CONFIG_AUTOCLEANING, {error, {undefined_parameter, Parameter}}}}) ->
+    {<<"Operation Error">>, str_utils:format_bin("Autocleaning configuration error. Missing key: ~p", [Parameter])};
+
 translate(_Type, #error{reason = {error, {Code, Error, Description}}})
     when is_integer(Code), is_binary(Error), is_binary(Description) ->
     {<<"Operation Error">>, Error};
