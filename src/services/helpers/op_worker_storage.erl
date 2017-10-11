@@ -18,9 +18,9 @@
 
 %% API
 -export([add/2, get/0, get/1, update/2]).
--export([get_supporting_storage/2, get_supporting_storages/2]).
+-export([get_supporting_storage/2, get_supporting_storages/2, get_file_popularity_details/2, get_autocleaning_details/2]).
 -export([is_mounted_in_root/3]).
--export([add_storage/5]).
+-export([add_storage/5, update_file_popularity/3, update_autocleaning/3]).
 
 -type id() :: binary().
 -type name() :: binary().
@@ -139,6 +139,50 @@ update(Id, Args) ->
     Args2 = #{<<"timeout">> => onepanel_utils:typed_get(timeout, Args, binary)},
     {ok, _} = rpc:call(Node, storage, update_helper, [Id, Type, Args2]),
     ok.
+
+%%-------------------------------------------------------------------
+%% @private
+%% @doc
+%% Enables or disables file popularity.
+%% @end
+%%-------------------------------------------------------------------
+-spec update_file_popularity(Node :: node(), SpaceId :: id(),
+    maps:map()) -> {ok, id()}.
+update_file_popularity(Node, SpaceId, Args) ->
+    case onepanel_utils:typed_get(enabled, Args, boolean) of
+        true ->
+            rpc:call(Node, space_storage, enable_file_popularity, [SpaceId]);
+        false ->
+            rpc:call(Node, space_storage, disable_file_popularity, [SpaceId])
+    end.
+
+%%-------------------------------------------------------------------
+%% @private
+%% @doc
+%% Updates autocleaning configuration.
+%% @end
+%%-------------------------------------------------------------------
+-spec update_autocleaning(Node :: node(), SpaceId :: id(), maps:map()) -> {ok, id()}.
+update_autocleaning(Node, SpaceId, Args) ->
+    Settings = #{
+        enabled => onepanel_utils:typed_get(enabled, Args, boolean, undefined),
+        file_size_gt => onepanel_utils:typed_get([settings, file_size_greater_than], Args, boolean, undefined),
+        file_size_gt => onepanel_utils:typed_get([settings, file_size_less_than], Args, integer, undefined),
+        file_size_gt => onepanel_utils:typed_get([settings, file_not_active_hours], Args, integer, undefined),
+        file_size_gt => onepanel_utils:typed_get([settings, space_soft_quota], Args, integer, undefined),
+        file_size_gt => onepanel_utils:typed_get([settings, space_hard_quota], Args, integer, undefined)
+    },
+    case rpc:call(Node, space_storage, update_autocleaning, [SpaceId, Settings]) of
+        {error, Reason} ->
+            ?throw_error({?ERR_CONFIG_AUTOCLEANING, Reason});
+        Result -> Result
+    end.
+
+get_file_popularity_details(Node, SpaceId) ->
+    rpc:call(Node, space_storage, get_file_popularity_details, [SpaceId]).
+
+get_autocleaning_details(Node, SpaceId) ->
+    rpc:call(Node, space_storage, get_autocleaning_details, [SpaceId]).
 
 %%%===================================================================
 %%% Internal functions
