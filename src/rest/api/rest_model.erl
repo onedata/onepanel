@@ -514,19 +514,19 @@ space_auto_cleaning_settings_model() ->
     #{
         %% Only files which size [b] exceeds given should be cleaned. Set to
         %% null to disable this parameter.
-        fileSizeGreaterThan => {number, optional},
+        fileSizeGreaterThan => {integer, optional},
         %% Only files which size [b] is less than given should be cleaned Set to
         %% null to disable this parameter.
-        fileSizeLessThan => {number, optional},
+        fileSizeLessThan => {integer, optional},
         %% Only files that were not active for given period [h] should be
         %% cleaned. Set to null to disable this parameter.
-        fileNotActiveHours => {number, optional},
+        fileNotActiveHours => {integer, optional},
         %% Autocleaning will start if occupancy of storage will exceed this
         %% value. This parameter is required to start autocleaning.
-        threshold => {number, optional},
+        threshold => {integer, optional},
         %% Autocleaning will stop if occupancy of storage will reach this value.
         %% This parameter is required to start autocleaning.
-        target => {number, optional}
+        target => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -539,7 +539,7 @@ space_auto_cleaning_status_model() ->
         %% If true, auto cleaning algorithm is currently working
         isWorking => boolean,
         %% Current occupancy [b] of storage support supporting given space
-        spaceUsed => number
+        spaceUsed => integer
     }.
 
 %%--------------------------------------------------------------------

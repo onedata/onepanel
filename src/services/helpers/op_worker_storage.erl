@@ -15,6 +15,7 @@
 -include("modules/errors.hrl").
 
 -include_lib("hackney/include/hackney_lib.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([add/2, get/0, get/1, update/2]).
@@ -148,6 +149,8 @@ update(Id, Args) ->
 %%-------------------------------------------------------------------
 -spec update_file_popularity(Node :: node(), SpaceId :: id(),
     maps:map()) -> {ok, id()}.
+update_file_popularity(_Node, SpaceId, Args) when map_size(Args) =:= 0 ->
+    {ok, SpaceId};
 update_file_popularity(Node, SpaceId, Args) ->
     case onepanel_utils:typed_get(enabled, Args, boolean) of
         true ->
@@ -163,14 +166,16 @@ update_file_popularity(Node, SpaceId, Args) ->
 %% @end
 %%-------------------------------------------------------------------
 -spec update_autocleaning(Node :: node(), SpaceId :: id(), maps:map()) -> {ok, id()}.
+update_autocleaning(_Node, SpaceId, Args) when map_size(Args) =:= 0 ->
+    {ok, SpaceId};
 update_autocleaning(Node, SpaceId, Args) ->
     Settings = #{
         enabled => onepanel_utils:typed_get(enabled, Args, boolean, undefined),
-        file_size_gt => onepanel_utils:typed_get([settings, file_size_greater_than], Args, boolean, undefined),
-        file_size_gt => onepanel_utils:typed_get([settings, file_size_less_than], Args, integer, undefined),
-        file_size_gt => onepanel_utils:typed_get([settings, file_not_active_hours], Args, integer, undefined),
-        file_size_gt => onepanel_utils:typed_get([settings, space_soft_quota], Args, integer, undefined),
-        file_size_gt => onepanel_utils:typed_get([settings, space_hard_quota], Args, integer, undefined)
+        file_size_greater_than => onepanel_utils:typed_get([settings, file_size_greater_than], Args, integer, undefined),
+        file_size_less_than => onepanel_utils:typed_get([settings, file_size_less_than], Args, integer, undefined),
+        file_not_active_hours => onepanel_utils:typed_get([settings, file_not_active_hours], Args, integer, undefined),
+        target => onepanel_utils:typed_get([settings, target], Args, integer, undefined),
+        threshold => onepanel_utils:typed_get([settings, threshold], Args, integer, undefined)
     },
     case rpc:call(Node, space_storage, update_autocleaning, [SpaceId, Settings]) of
         {error, Reason} ->
@@ -182,7 +187,13 @@ get_file_popularity_details(Node, SpaceId) ->
     rpc:call(Node, space_storage, get_file_popularity_details, [SpaceId]).
 
 get_autocleaning_details(Node, SpaceId) ->
-    rpc:call(Node, space_storage, get_autocleaning_details, [SpaceId]).
+    Details = rpc:call(Node, space_storage, get_autocleaning_details, [SpaceId]),
+    case proplists:get_value(settings, Details) of
+        undefined ->
+            lists:keyreplace(settings, 1, Details, {settings, null});
+        _ ->
+            Details
+    end.
 
 %%%===================================================================
 %%% Internal functions
