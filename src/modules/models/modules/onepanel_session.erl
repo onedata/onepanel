@@ -148,7 +148,7 @@ get_id(#onepanel_session{id = Id}) ->
 %% @doc Returns name of a user associated with the session.
 %% @end
 %%--------------------------------------------------------------------
--spec get_username(Session :: #onepanel_session{}) -> id().
+-spec get_username(Session :: #onepanel_session{}) -> onepanel_user:name().
 get_username(#onepanel_session{username = Username}) ->
     Username.
 

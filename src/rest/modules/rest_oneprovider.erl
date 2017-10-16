@@ -278,7 +278,7 @@ get_autocleaning_args(Args, Ctx) ->
         [auto_cleaning, settings, [autoCleaning, settings, file_size_less_than]], Ctx3),
     Ctx5 = onepanel_maps:get_store([autoCleaning, settings, fileNotActiveHours], Args,
         [auto_cleaning, settings, file_not_active_hours], Ctx4),
-    Ctx6 = onepanel_maps:get_store([autoCleaning, settings, spaceSoftQuota], Args,
-        [auto_cleaning, settings, space_soft_quota], Ctx5),
-    onepanel_maps:get_store([autoCleaning, settings, spaceHardQuota], Args,
-        [auto_cleaning, settings, space_hard_quota], Ctx6).
+    Ctx6 = onepanel_maps:get_store([autoCleaning, settings, target], Args,
+        [auto_cleaning, settings, target], Ctx5),
+    onepanel_maps:get_store([autoCleaning, settings, threshold], Args,
+        [auto_cleaning, settings, threshold], Ctx6).
