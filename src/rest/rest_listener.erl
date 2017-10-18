@@ -52,9 +52,7 @@ start() ->
     KeyFile = onepanel_env:get(key_file),
     CertFile = onepanel_env:get(cert_file),
     CaCertsDir = onepanel_env:get(cacerts_dir),
-    {ok, CaCertPems} = file_utils:read_files({dir, CaCertsDir}),
-    CaCerts = lists:map(fun cert_decoder:pem_to_der/1, CaCertPems),
-
+    CaCerts = cert_utils:load_ders_in_dir(CaCertsDir),
     CommonRoutes = onepanel_api:routes(),
     SpecificRoutes = case onepanel_env:get(release_type) of
         oneprovider -> oneprovider_api:routes();
@@ -101,7 +99,7 @@ stop() ->
 -spec status() -> ok | {error, Reason :: term()}.
 status() ->
     Endpoint = "https://127.0.0.1:" ++ integer_to_list(get_port()),
-    case http_client:get(Endpoint, #{}, <<>>, [insecure]) of
+    case http_client:get(Endpoint, #{}, <<>>, [{ssl_options, [{secure, false}]}]) of
         {ok, _, _, _} -> ok;
         {error, Reason} -> {error, Reason}
     end.

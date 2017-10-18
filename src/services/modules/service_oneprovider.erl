@@ -232,7 +232,7 @@ register(Ctx) ->
         {<<"csr">>, Csr},
         {<<"redirectionPoint">>,
             service_ctx:get(oneprovider_redirection_point, Ctx, binary)},
-        {<<"clientName">>,
+        {<<"name">>,
             service_ctx:get(oneprovider_name, Ctx, binary)},
         {<<"latitude">>,
             service_ctx:get(oneprovider_geo_latitude, Ctx, float, 0.0)},
@@ -300,7 +300,7 @@ unregister(#{hosts := Hosts}) ->
 %%--------------------------------------------------------------------
 -spec modify_details(Ctx :: service:ctx()) -> ok.
 modify_details(Ctx) ->
-    Params = onepanel_maps:get_store(oneprovider_name, Ctx, <<"clientName">>),
+    Params = onepanel_maps:get_store(oneprovider_name, Ctx, <<"name">>),
     Params2 = onepanel_maps:get_store(oneprovider_redirection_point, Ctx,
         <<"redirectionPoint">>, Params),
     Params3 = onepanel_maps:get_store(oneprovider_geo_latitude, Ctx,
