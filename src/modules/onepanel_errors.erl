@@ -97,6 +97,10 @@ translate(_Type, #error{reason = {?ERR_HOST_NOT_FOUND_FOR_ALIAS, Alias}}) ->
     {<<"Invalid Request">>, <<"Host not found for node: '",
         (onepanel_utils:convert(Alias, binary))/binary, "'.">>};
 
+translate(_Type, #error{reason = ?ERR_SUBDOMAIN_NOT_AVAILABLE}) ->
+    % DO NOT modify this error message as it is used to identify the error in GUI
+    {<<"Subdomain reserved error">>, <<"Subdomain is not available.">>};
+
 translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, aleady_exists}}) ->
     {<<"Operation Error">>, <<"Storage name is not available.">>};
 

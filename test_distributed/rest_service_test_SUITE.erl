@@ -501,6 +501,7 @@ put_should_configure_oneprovider_service(Config) ->
                     {<<"oneprovider">>, [
                         {<<"register">>, true},
                         {<<"name">>, <<"someName">>},
+                        {<<"subdomainDelegation">>, false},
                         {<<"domain">>, <<"someDomain">>},
                         {<<"geoLongitude">>, 10.0},
                         {<<"geoLatitude">>, 20.0}

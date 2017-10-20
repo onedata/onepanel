@@ -152,14 +152,16 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
     OpwCtx = onepanel_maps:get_store([onezone, domainName], Args, onezone_domain),
     OpwCtx2 = onepanel_maps:get_store([oneprovider, register], Args, oneprovider_register, OpwCtx),
     OpwCtx3 = onepanel_maps:get_store([oneprovider, name], Args, oneprovider_name, OpwCtx2),
-    OpwCtx4 = onepanel_maps:get_store([oneprovider, domain], Args, oneprovider_domain, OpwCtx3),
-    OpwCtx5 = onepanel_maps:get_store([oneprovider, geoLatitude], Args, oneprovider_geo_latitude, OpwCtx4),
-    OpwCtx6 = onepanel_maps:get_store([oneprovider, geoLongitude], Args, oneprovider_geo_longitude, OpwCtx5),
-    OpwCtx7 = OpwCtx6#{hosts => OpwHosts},
+    OpwCtx4 = onepanel_maps:get_store([oneprovider, subdomainDelegation], Args, oneprovider_domain, OpwCtx3),
+    OpwCtx5 = onepanel_maps:get_store([oneprovider, domain], Args, oneprovider_domain, OpwCtx4),
+    OpwCtx6 = onepanel_maps:get_store([oneprovider, subdomain], Args, oneprovider_domain, OpwCtx5),
+    OpwCtx7 = onepanel_maps:get_store([oneprovider, geoLatitude], Args, oneprovider_geo_latitude, OpwCtx6),
+    OpwCtx8 = onepanel_maps:get_store([oneprovider, geoLongitude], Args, oneprovider_geo_longitude, OpwCtx7),
+    OpwCtx9 = OpwCtx8#{hosts => OpwHosts},
 
     {true, rest_replier:handle_service_action_async(Req2, service:apply_async(
         service_oneprovider:name(), deploy, #{
-            cluster => ClusterCtx, service_oneprovider:name() => OpwCtx7
+            cluster => ClusterCtx, service_oneprovider:name() => OpwCtx9
         }
     ), Version)};
 

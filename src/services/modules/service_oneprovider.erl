@@ -226,17 +226,31 @@ register(Ctx) ->
     Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
 
     {ok, CaCert} = oz_providers:get_oz_cacert(provider),
+    DomainParams = case service_ctx:get(oneprovider_subdomain_delegation, Ctx, boolean) of
+        true -> [
+            {<<"subdomainDelegation">>,
+                service_ctx:get(oneprovider_subdomain_delegation, Ctx, boolean)},
+            {<<"subdomain">>,
+                service_ctx:get(oneprovider_subdomain, Ctx,
+                    binary)},
+            {<<"ipList">>,
+                onepanel_rpc:call_all(Nodes, onepanel_utils, get_ip_address, [])}];
+        false -> [
+            {<<"subdomainDelegation">>,
+                service_ctx:get(oneprovider_subdomain_delegation, Ctx, boolean)},
+            {<<"domain">>,
+                service_ctx:get(oneprovider_domain, Ctx, binary)}]
+    end,
+
     Params = [
         {<<"csr">>, Csr},
         {<<"name">>,
             service_ctx:get(oneprovider_name, Ctx, binary)},
-        {<<"subdomainDelegation">>, false},
-        {<<"domain">>,
-            service_ctx:get(oneprovider_domain, Ctx, binary)},
         {<<"latitude">>,
             service_ctx:get(oneprovider_geo_latitude, Ctx, float, 0.0)},
         {<<"longitude">>,
             service_ctx:get(oneprovider_geo_longitude, Ctx, float, 0.0)}
+        | DomainParams
     ],
 
     Validator = fun
@@ -298,15 +312,36 @@ unregister(#{hosts := Hosts}) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec modify_details(Ctx :: service:ctx()) -> ok.
+modify_details(#{node := Node} = Ctx) ->
+    % If provider domain is modified it is done via rpc call to oneprovider
+    Result = case onepanel_maps:get(oneprovider_subdomain_delegation, Ctx, undefined) of
+        true ->
+            Subdomain = onepanel_maps:get(oneprovider_subdomain, Ctx),
+            case rpc:call(Node, provider_logic, set_delegated_subdomain, [Subdomain]) of
+                ok -> ok;
+                {error, subdomain_exists} ->
+                    {error, ?ERR_SUBDOMAIN_NOT_AVAILABLE}
+            end;
+        false ->
+            Domain = onepanel_maps:get(oneprovider_domain, Ctx),
+            ok = rpc:call(Node, provider_logic, set_domain, [Domain]);
+        undefined -> ok
+    end,
+
+    case Result of
+        {error, _} = Error ->
+            Error;
+        ok ->
+            Params = onepanel_maps:get_store(oneprovider_name, Ctx, <<"name">>),
+            Params2 = onepanel_maps:get_store(oneprovider_geo_latitude, Ctx,
+                <<"latitude">>, Params),
+            Params3 = onepanel_maps:get_store(oneprovider_geo_longitude, Ctx,
+                <<"longitude">>, Params2),
+            ok = oz_providers:modify_details(provider, maps:to_list(Params3))
+    end;
 modify_details(Ctx) ->
-    Params = onepanel_maps:get_store(oneprovider_name, Ctx, <<"name">>),
-    Params2 = onepanel_maps:get_store(oneprovider_domain, Ctx,
-        <<"domain">>, Params),
-    Params3 = onepanel_maps:get_store(oneprovider_geo_latitude, Ctx,
-        <<"latitude">>, Params2),
-    Params4 = onepanel_maps:get_store(oneprovider_geo_longitude, Ctx,
-        <<"longitude">>, Params3),
-    ok = oz_providers:modify_details(provider, maps:to_list(Params4)).
+    [Node | _] = service_op_worker:get_nodes(),
+    modify_details(Ctx#{node => Node}).
 
 
 %%--------------------------------------------------------------------
@@ -314,15 +349,22 @@ modify_details(Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_details(Ctx :: service:ctx()) -> list().
-get_details(_Ctx) ->
-    {ok, #provider_details{id = Id, name = Name,
-        domain = Domain, latitude = Latitude,
+get_details(Ctx) ->
+    "https://" ++ OzDomain = oz_plugin:get_oz_url(),
+    {ok, #provider_details{id = Id, name = Name, subdomain_delegation = Delegation,
+        domain = Domain, subdomain = Subdomain, latitude = Latitude,
         longitude = Longitude}} = oz_providers:get_details(provider),
-    [
-        {id, Id}, {name, Name}, {domain, Domain},
+    Details = [
+        {id, Id}, {name, Name},
+        {subdomainDelegation, Delegation}, {domain, Domain},
         {geoLatitude, onepanel_utils:convert(Latitude, float)},
-        {geoLongitude, onepanel_utils:convert(Longitude, float)}
-    ].
+        {geoLongitude, onepanel_utils:convert(Longitude, float)},
+        {onezoneDomainName, onepanel_utils:convert(OzDomain, binary)}
+    ],
+    case Delegation of
+        true -> [{subdomain, Subdomain} | Details];
+        _ -> Details
+    end .
 
 
 %%--------------------------------------------------------------------

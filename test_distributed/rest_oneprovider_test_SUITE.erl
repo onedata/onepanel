@@ -54,7 +54,7 @@
 
 -define(PROVIDER_DETAILS_JSON, [
     {<<"id">>, <<"someId">>}, {<<"name">>, <<"someName">>},
-    {<<"domain">>, <<"someDomain">>},
+    {<<"subdomainDelegation">>, false}, {<<"domain">>, <<"someDomain">>},
     {<<"geoLatitude">>, 10.0}, {<<"geoLongitude">>, 20.0}
 ]).
 
@@ -171,6 +171,7 @@ put_should_register_provider(Config) ->
             Host, <<"/provider">>, post,
             {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [
                 {<<"name">>, <<"someName">>},
+                {<<"subdomainDelegation">>, false},
                 {<<"domain">>, <<"someDomain">>},
                 {<<"geoLongitude">>, 10.0},
                 {<<"geoLatitude">>, 20.0},
