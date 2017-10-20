@@ -512,20 +512,22 @@ space_auto_cleaning_report_collection_model() ->
 -spec space_auto_cleaning_settings_model() -> maps:map().
 space_auto_cleaning_settings_model() ->
     #{
-        %% Only files which size [b] exceeds given should be cleaned. Set to
-        %% null to disable this parameter.
-        fileSizeGreaterThan => {integer, optional},
-        %% Only files which size [b] is less than given should be cleaned Set to
-        %% null to disable this parameter.
-        fileSizeLessThan => {integer, optional},
-        %% Only files that were not active for given period [h] should be
-        %% cleaned. Set to null to disable this parameter.
-        fileNotActiveHours => {integer, optional},
-        %% Autocleaning will start if occupancy of storage will exceed this
-        %% value. This parameter is required to start autocleaning.
+        %% Only files which size [b] is greater than or equal to given value
+        %% should be cleaned. Set to null to disable this parameter.
+        lowerFileSizeLimit => { integer, optional},
+        %% Only files which size [b] is less than or equal to given value should
+        %% be cleaned Set to null to disable this parameter.
+        upperFileSizeLimit => {integer, optional},
+        %% Files that haven't been opened for longer than or equal to given
+        %% period [h] will be cleaned. Set to null to disable this parameter.
+        maxFileNotOpenedHours => {integer, optional},
+        %% Autocleaning will start if occupancy of storage will greater than or
+        %% equal to this value [b]. This parameter is required to start
+        %% autocleaning.
         threshold => {integer, optional},
-        %% Autocleaning will stop if occupancy of storage will reach this value.
-        %% This parameter is required to start autocleaning.
+        %% Autocleaning will stop if occupancy of storage will be less than or
+        %% equal to this value [b]. This parameter is required to start
+        %% autocleaning.
         target => {integer, optional}
     }.
 
@@ -536,10 +538,11 @@ space_auto_cleaning_settings_model() ->
 -spec space_auto_cleaning_status_model() -> maps:map().
 space_auto_cleaning_status_model() ->
     #{
-        %% If true, auto cleaning algorithm is currently working
-        isWorking => boolean,
-        %% Current occupancy [b] of storage support supporting given space
-        spaceUsed => integer
+        %% Flag which indicates that autocleaning process is currently in
+        %% progress.
+        inProgress => boolean,
+        %% Current occupancy [b] of storage supporting given space.
+        spaceOccupancy => integer
     }.
 
 %%--------------------------------------------------------------------
@@ -562,7 +565,9 @@ space_details_model() ->
         %% space in bytes.
         supportingProviders => #{ '_' => integer},
         %% Defines whether space will be mounted in / or /{SpaceId}/ path.
-        mountInRoot => {boolean, optional},
+        mountInRoot => { boolean, optional },
+        %% Number of bytes that can be written above support limit.
+        softQuota => integer,
         storageImport => {storage_import_details_model(), optional},
         storageUpdate => {storage_update_details_model(), optional},
         %% Configuration of files popularity feature for this space

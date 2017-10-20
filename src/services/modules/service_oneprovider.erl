@@ -381,6 +381,7 @@ get_space_details(#{id := SpaceId, node := Node}) ->
     StorageIds = op_worker_storage:get_supporting_storages(Node, SpaceId),
     StorageId = hd(StorageIds),
     MountInRoot = op_worker_storage:is_mounted_in_root(Node, SpaceId, StorageId),
+    SoftQuota = op_worker_storage:get_soft_quota(Node),
     ImportDetails = op_worker_storage_sync:get_storage_import_details(
         Node, SpaceId, StorageId
     ),
@@ -394,6 +395,7 @@ get_space_details(#{id := SpaceId, node := Node}) ->
         {storageId, StorageId},
         {localStorages, StorageIds},
         {mountInRoot, MountInRoot},
+        {softQuota, SoftQuota},
         {storageImport, ImportDetails},
         {storageUpdate, UpdateDetails},
         {filesPopularity, op_worker_storage:get_file_popularity_details(Node, SpaceId)},
@@ -416,8 +418,8 @@ modify_space(#{space_id := SpaceId, node := Node} = Ctx) ->
     AutoCleaningArgs = maps:get(auto_cleaning, Ctx, #{}),
     {ok, _} = op_worker_storage_sync:maybe_modify_storage_import(Node, SpaceId, ImportArgs),
     {ok, _} = op_worker_storage_sync:maybe_modify_storage_update(Node, SpaceId, UpdateArgs),
-    {ok, _} = op_worker_storage:update_file_popularity(Node, SpaceId, FilePopularityArgs),
-    {ok, _} = op_worker_storage:update_autocleaning(Node, SpaceId, AutoCleaningArgs),
+    {ok, _} = op_worker_storage:maybe_update_file_popularity(Node, SpaceId, FilePopularityArgs),
+    {ok, _} = op_worker_storage:maybe_update_autocleaning(Node, SpaceId, AutoCleaningArgs),
     [{id, SpaceId}];
 modify_space(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
@@ -487,9 +489,13 @@ restart_provider_listeners(_Ctx) ->
 %%-------------------------------------------------------------------
 -spec get_autocleaning_reports(Ctx :: service:ctx()) -> proplists:proplist().
 get_autocleaning_reports(Ctx = #{space_id := SpaceId, node := Node}) ->
-    Since = onepanel_utils:typed_get(started_after, Ctx, integer),
+    Since = onepanel_utils:typed_get(started_after, Ctx, binary),
     SinceEpoch = timestamp_utils:iso8601_to_epoch(Since),
-    rpc:call(Node, autocleaning, list_reports_since, [SpaceId, SinceEpoch]);
+    Reports = rpc:call(Node, autocleaning, list_reports_since, [SpaceId, SinceEpoch]),
+    Entries = lists:map(fun(Report) ->
+        onepanel_lists:map_undefined_to_null_in_proplist(Report)
+    end, Reports),
+    [{reportEntries, Entries}];
 get_autocleaning_reports(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     get_autocleaning_reports(Ctx#{node => Node}).
@@ -501,9 +507,7 @@ get_autocleaning_reports(Ctx) ->
 %%-------------------------------------------------------------------
 -spec get_autocleaning_status(Ctx :: service:ctx()) -> proplists:proplist().
 get_autocleaning_status(#{space_id := SpaceId, node := Node}) ->
-    Status = rpc:call(Node, autocleaning, status, [SpaceId]),
-    IsWorking = proplists:get_value(inProgress, Status),
-    lists:keyreplace(inProgress, 1, Status, {isWorking, IsWorking});    % todo change in op
+    rpc:call(Node, autocleaning, status, [SpaceId]);
 get_autocleaning_status(Ctx) ->
 [Node | _] = service_op_worker:get_nodes(),
     get_autocleaning_status(Ctx#{node => Node}).

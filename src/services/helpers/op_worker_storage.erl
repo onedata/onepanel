@@ -19,9 +19,10 @@
 
 %% API
 -export([add/2, get/0, get/1, update/2]).
--export([get_supporting_storage/2, get_supporting_storages/2, get_file_popularity_details/2, get_autocleaning_details/2]).
+-export([get_supporting_storage/2, get_supporting_storages/2,
+    get_file_popularity_details/2, get_autocleaning_details/2, get_soft_quota/1]).
 -export([is_mounted_in_root/3]).
--export([add_storage/5, update_file_popularity/3, update_autocleaning/3]).
+-export([add_storage/5, maybe_update_file_popularity/3, maybe_update_autocleaning/3]).
 
 -type id() :: binary().
 -type name() :: binary().
@@ -147,11 +148,11 @@ update(Id, Args) ->
 %% Enables or disables file popularity.
 %% @end
 %%-------------------------------------------------------------------
--spec update_file_popularity(Node :: node(), SpaceId :: id(),
+-spec maybe_update_file_popularity(Node :: node(), SpaceId :: id(),
     maps:map()) -> {ok, id()}.
-update_file_popularity(_Node, SpaceId, Args) when map_size(Args) =:= 0 ->
+maybe_update_file_popularity(_Node, SpaceId, Args) when map_size(Args) =:= 0 ->
     {ok, SpaceId};
-update_file_popularity(Node, SpaceId, Args) ->
+maybe_update_file_popularity(Node, SpaceId, Args) ->
     case onepanel_utils:typed_get(enabled, Args, boolean) of
         true ->
             rpc:call(Node, space_storage, enable_file_popularity, [SpaceId]);
@@ -165,35 +166,54 @@ update_file_popularity(Node, SpaceId, Args) ->
 %% Updates autocleaning configuration.
 %% @end
 %%-------------------------------------------------------------------
--spec update_autocleaning(Node :: node(), SpaceId :: id(), maps:map()) -> {ok, id()}.
-update_autocleaning(_Node, SpaceId, Args) when map_size(Args) =:= 0 ->
+-spec maybe_update_autocleaning(Node :: node(), SpaceId :: id(), maps:map()) -> {ok, id()}.
+maybe_update_autocleaning(_Node, SpaceId, Args) when map_size(Args) =:= 0 ->
     {ok, SpaceId};
-update_autocleaning(Node, SpaceId, Args) ->
+maybe_update_autocleaning(Node, SpaceId, Args) ->
     Settings = #{
         enabled => onepanel_utils:typed_get(enabled, Args, boolean, undefined),
-        file_size_greater_than => onepanel_utils:typed_get([settings, file_size_greater_than], Args, integer, undefined),
-        file_size_less_than => onepanel_utils:typed_get([settings, file_size_less_than], Args, integer, undefined),
-        file_not_active_hours => onepanel_utils:typed_get([settings, file_not_active_hours], Args, integer, undefined),
+        lower_file_size_limit => onepanel_utils:typed_get([settings, lower_file_size_limit], Args, integer, undefined),
+        upper_file_size_limit => onepanel_utils:typed_get([settings, upper_file_size_limit], Args, integer, undefined),
+        max_file_not_opened_hours => onepanel_utils:typed_get([settings, max_file_not_opened_hours], Args, integer, undefined),
         target => onepanel_utils:typed_get([settings, target], Args, integer, undefined),
         threshold => onepanel_utils:typed_get([settings, threshold], Args, integer, undefined)
     },
-    case rpc:call(Node, space_storage, update_autocleaning, [SpaceId, Settings]) of
+    case rpc:call(Node, space_storage, update_autocleaning, [SpaceId, onepanel_maps:remove_undefined(Settings)]) of
         {error, Reason} ->
             ?throw_error({?ERR_CONFIG_AUTOCLEANING, Reason});
         Result -> Result
     end.
 
+%%-------------------------------------------------------------------
+%% @doc
+%% This function is responsible for fetching file popularity details
+%% from provider.
+%% @end
+%%-------------------------------------------------------------------
+-spec get_file_popularity_details(Node :: node(), SpaceId :: id()) -> proplists:proplist().
 get_file_popularity_details(Node, SpaceId) ->
     rpc:call(Node, space_storage, get_file_popularity_details, [SpaceId]).
 
+%%-------------------------------------------------------------------
+%% @doc
+%% This function is responsible for fetching autocleaning details from
+%% provider.
+%% @end
+%%-------------------------------------------------------------------
+-spec get_autocleaning_details(Node :: node(), SpaceId :: id()) -> proplists:proplist().
 get_autocleaning_details(Node, SpaceId) ->
     Details = rpc:call(Node, space_storage, get_autocleaning_details, [SpaceId]),
-    case proplists:get_value(settings, Details) of
-        undefined ->
-            lists:keyreplace(settings, 1, Details, {settings, null});
-        _ ->
-            Details
-    end.
+    onepanel_lists:map_undefined_to_null_in_proplist(Details).
+
+%%-------------------------------------------------------------------
+%% @doc
+%% This function is responsible for fetching soft quota limit from
+%% given provider.
+%% @end
+%%-------------------------------------------------------------------
+-spec get_soft_quota(Node :: node()) -> non_neg_integer().
+get_soft_quota(Node) ->
+    rpc:call(Node, space_storage, get_soft_quota, []).
 
 %%%===================================================================
 %%% Internal functions
