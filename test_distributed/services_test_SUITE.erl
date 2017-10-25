@@ -290,6 +290,18 @@ init_per_suite(Config) ->
         }),
         [OpNode | _] = OpNodes = ?config(oneprovider_nodes, NewConfig2),
         OpHosts = onepanel_cluster:nodes_to_hosts(OpNodes),
+        % We do not have a DNS server that would resolve OZ domain for provider,
+        % so we need to simulate it using /etc/hosts.
+        OzDomain = get_domain(hd(OzHosts)),
+        OzIp = test_utils:get_docker_ip(OzNode),
+        lists:foreach(fun(Node) ->
+            rpc:call(Node, file, write_file, [
+                "/etc/hosts",
+                <<"\n", OzIp/binary, "\t", OzDomain/binary>>,
+                [append]
+            ])
+        end, OpNodes),
+
         {ok, Posix} = onepanel_lists:get([storages, posix, '/mnt/st1'], NewConfig2),
         service_action(OpNode, ?SERVICE_OP, deploy, #{
             cluster => #{
@@ -327,7 +339,7 @@ init_per_suite(Config) ->
                     ["https://", hd(OpHosts)]
                 ),
                 oneprovider_register => true,
-                onezone_domain => hd(OzHosts)
+                onezone_domain => OzDomain
             }
         }),
         NewConfig2
@@ -373,3 +385,9 @@ assert_service_step(Module, Function, Nodes, Result) ->
     onepanel_test_utils:assert_values(Results, lists:zip(
         Nodes, lists:duplicate(erlang:length(Nodes), Result)
     )).
+
+get_domain(Hostname) when not is_binary(Hostname) ->
+    get_domain(str_utils:to_binary(Hostname));
+get_domain(Hostname) ->
+    [_Hostname, Domain] = binary:split(Hostname, <<".">>),
+    Domain.
