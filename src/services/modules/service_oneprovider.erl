@@ -254,18 +254,17 @@ register(Ctx) ->
     Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
 
     {ok, CaCert} = oz_providers:get_oz_cacert(provider),
-    DomainParams = case service_ctx:get(oneprovider_subdomain_delegation, Ctx, boolean) of
-        true -> [
-            {<<"subdomainDelegation">>,
-                service_ctx:get(oneprovider_subdomain_delegation, Ctx, boolean)},
-            {<<"subdomain">>,
-                service_ctx:get(oneprovider_subdomain, Ctx,
-                    binary)},
-            {<<"ipList">>,
-                onepanel_rpc:call_all(Nodes, onepanel_utils, get_ip_address, [])}];
+
+    DomainParams = case service_ctx:get(oneprovider_subdomain_delegation, Ctx, boolean, false) of
+        true ->
+            {_, IPs} = lists:unzip(
+                onepanel_rpc:call_all(Nodes, onepanel_utils, get_ip_address, [])),
+            [{<<"subdomainDelegation">>, true},
+                {<<"subdomain">>,
+                    service_ctx:get(oneprovider_subdomain, Ctx, binary)},
+                {<<"ipList">>, IPs}];
         false -> [
-            {<<"subdomainDelegation">>,
-                service_ctx:get(oneprovider_subdomain_delegation, Ctx, boolean)},
+            {<<"subdomainDelegation">>, false},
             {<<"domain">>,
                 service_ctx:get(oneprovider_domain, Ctx, binary)}]
     end,
@@ -283,34 +282,45 @@ register(Ctx) ->
 
     Validator = fun
         ({ok, ProviderId, Cert}) -> {ProviderId, Cert};
+
+        % Return the subdomain_reserved error instead of throwing as it would cause
+        % wait_until to repeat attempts. As the error condition will not change
+        % it's not necessary
+        ({error, subdomain_reserved}) -> {error, subdomain_reserved};
+
         ({error, Reason}) -> ?throw_error(Reason)
     end,
-    {ProviderId, Cert} = onepanel_utils:wait_until(oz_providers, register,
-        [provider, Params], {validator, Validator}, 10, timer:seconds(30)),
 
-    lists:foreach(fun({File, Content}) ->
-        onepanel_rpc:call_all(Nodes, onepanel_utils, save_file, [File, Content])
-    end, [
-        {oz_plugin:get_key_file(), Key},
-        {oz_plugin:get_csr_file(), Csr},
-        {oz_plugin:get_cert_file(), Cert},
-        {filename:join(oz_plugin:get_cacerts_dir(), "ozp_cacert.pem"), CaCert},
-        {filename:join(oz_plugin:get_provider_cacerts_dir(), "ozp_cacert.pem"), CaCert}
-    ]),
+    case onepanel_utils:wait_until(oz_providers, register, [provider, Params],
+            {validator, Validator}, 10, timer:seconds(30)) of
+        {error, subdomain_reserved} ->
+            ?throw_error(?ERR_SUBDOMAIN_NOT_AVAILABLE);
+        {ProviderId, Cert} ->
+            lists:foreach(fun({File, Content}) ->
+                onepanel_rpc:call_all(Nodes, onepanel_utils, save_file, [File, Content])
+            end, [
+                {oz_plugin:get_key_file(), Key},
+                {oz_plugin:get_csr_file(), Csr},
+                {oz_plugin:get_cert_file(), Cert},
+                {filename:join(oz_plugin:get_cacerts_dir(), "ozp_cacert.pem"), CaCert},
+                {filename:join(oz_plugin:get_provider_cacerts_dir(), "ozp_cacert.pem"), CaCert}
+            ]),
 
-    OpwNodes = onepanel_cluster:hosts_to_nodes(service_op_worker:name(), Hosts),
-    onepanel_rpc:call_all(OpwNodes, application, set_env, [
-        service_op_worker:name(), provider_id, ProviderId
-    ]),
+            OpwNodes = onepanel_cluster:hosts_to_nodes(service_op_worker:name(), Hosts),
+            onepanel_rpc:call_all(OpwNodes, application, set_env, [
+                service_op_worker:name(), provider_id, ProviderId
+            ]),
 
-    rpc:multicall(Nodes, oz_endpoint, reset_oz_cacerts, []),
-    rpc:multicall(OpwNodes, oz_endpoint, reset_oz_cacerts, []),
+            rpc:multicall(Nodes, oz_endpoint, reset_oz_cacerts, []),
+            rpc:multicall(OpwNodes, oz_endpoint, reset_oz_cacerts, []),
 
-    service:update(name(), fun(#service{ctx = C} = S) ->
-        S#service{ctx = C#{registered => true}}
-    end),
+            service:update(name(), fun(#service{ctx = C} = S) ->
+                S#service{ctx = C#{registered => true}}
+            end),
 
-    {ok, ProviderId}.
+            {ok, ProviderId}
+    end.
+
 
 
 %%--------------------------------------------------------------------
@@ -339,34 +349,29 @@ unregister(#{hosts := Hosts}) ->
 %% @doc Modifies configuration details of the provider.
 %% @end
 %%--------------------------------------------------------------------
--spec modify_details(Ctx :: service:ctx()) -> ok.
+-spec modify_details(Ctx :: service:ctx()) -> ok | no_return().
 modify_details(#{node := Node} = Ctx) ->
     % If provider domain is modified it is done via rpc call to oneprovider
-    Result = case onepanel_maps:get(oneprovider_subdomain_delegation, Ctx, undefined) of
+    case onepanel_maps:get(oneprovider_subdomain_delegation, Ctx, undefined) of
         true ->
-            Subdomain = onepanel_maps:get(oneprovider_subdomain, Ctx),
+            Subdomain = onepanel_utils:typed_get(oneprovider_subdomain, Ctx, binary),
             case rpc:call(Node, provider_logic, set_delegated_subdomain, [Subdomain]) of
                 ok -> ok;
                 {error, subdomain_exists} ->
-                    {error, ?ERR_SUBDOMAIN_NOT_AVAILABLE}
+                    ?throw_error(?ERR_SUBDOMAIN_NOT_AVAILABLE)
             end;
         false ->
-            Domain = onepanel_maps:get(oneprovider_domain, Ctx),
+            Domain = onepanel_utils:typed_get(oneprovider_domain, Ctx, binary),
             ok = rpc:call(Node, provider_logic, set_domain, [Domain]);
         undefined -> ok
     end,
 
-    case Result of
-        {error, _} = Error ->
-            Error;
-        ok ->
-            Params = onepanel_maps:get_store(oneprovider_name, Ctx, <<"name">>),
-            Params2 = onepanel_maps:get_store(oneprovider_geo_latitude, Ctx,
-                <<"latitude">>, Params),
-            Params3 = onepanel_maps:get_store(oneprovider_geo_longitude, Ctx,
-                <<"longitude">>, Params2),
-            ok = oz_providers:modify_details(provider, maps:to_list(Params3))
-    end;
+    Params = onepanel_maps:get_store(oneprovider_name, Ctx, <<"name">>),
+    Params2 = onepanel_maps:get_store(oneprovider_geo_latitude, Ctx,
+        <<"latitude">>, Params),
+    Params3 = onepanel_maps:get_store(oneprovider_geo_longitude, Ctx,
+        <<"longitude">>, Params2),
+    ok = oz_providers:modify_details(provider, maps:to_list(Params3));
 modify_details(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     modify_details(Ctx#{node => Node}).
@@ -377,22 +382,32 @@ modify_details(Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_details(Ctx :: service:ctx()) -> list().
-get_details(Ctx) ->
-    "https://" ++ OzDomain = oz_plugin:get_oz_url(),
-    {ok, #provider_details{id = Id, name = Name, subdomain_delegation = Delegation,
-        domain = Domain, subdomain = Subdomain, latitude = Latitude,
-        longitude = Longitude}} = oz_providers:get_details(provider),
+get_details(#{node := Node} = Ctx) ->
+    {ok, {_, _, OzDomain, _, _, _}} = http_uri:parse(oz_plugin:get_oz_url()),
+    #{
+        name := Name,
+        subdomain_delegation := SubdomainDelegation,
+        domain := Domain,
+        subdomain := Subdomain,
+        longitude := Longitude,
+        latitude := Latitude
+    } = rpc:call(Node, provider_logic, get_as_map, []),
+    Id = rpc:call(Node, oneprovider, get_provider_id, []),
+
     Details = [
         {id, Id}, {name, Name},
-        {subdomainDelegation, Delegation}, {domain, Domain},
+        {subdomainDelegation, SubdomainDelegation}, {domain, Domain},
         {geoLatitude, onepanel_utils:convert(Latitude, float)},
         {geoLongitude, onepanel_utils:convert(Longitude, float)},
         {onezoneDomainName, onepanel_utils:convert(OzDomain, binary)}
     ],
-    case Delegation of
+    case SubdomainDelegation of
         true -> [{subdomain, Subdomain} | Details];
         _ -> Details
-    end .
+    end;
+get_details(Ctx) ->
+    [Node | _] = service_op_worker:get_nodes(),
+    get_details(Ctx#{node => Node}).
 
 
 %%--------------------------------------------------------------------

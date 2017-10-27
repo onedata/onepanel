@@ -172,7 +172,7 @@ put_should_register_provider(Config) ->
             {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [
                 {<<"name">>, <<"someName">>},
                 {<<"subdomainDelegation">>, false},
-                {<<"domain">>, <<"someDomain">>},
+                {<<"domain">>, <<"somedomain">>},
                 {<<"geoLongitude">>, 10.0},
                 {<<"geoLatitude">>, 20.0},
                 {<<"onezoneDomainName">>, <<"someDomain">>}
@@ -181,7 +181,7 @@ put_should_register_provider(Config) ->
         ?assertReceivedMatch({service, oneprovider, register, #{
             onezone_domain := <<"someDomain">>,
             oneprovider_name := <<"someName">>,
-            oneprovider_domain := <<"someDomain">>,
+            oneprovider_domain := <<"somedomain">>,
             oneprovider_geo_latitude := 20.0,
             oneprovider_geo_longitude := 10.0
         }}, ?TIMEOUT)
