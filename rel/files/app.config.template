@@ -42,9 +42,20 @@
 
         {release_type, {{release_type}} },
 
+        %% If enabled and there is no web key/cert under expected paths
+        %% (key_file, cert_file) during startup, a new web cert will be
+        %% generated with CN matching onepanel domain and signed by CA cert
+        %% found under test_web_cert_ca_path.
+        %% This functionality is devised for test purposes and should not be
+        %% used in production.
+        {generate_web_cert_if_absent, true},
+        {test_web_cert_domain, "onedata.org"},
+        %% The CA cert to sign auto generated test web certs. The file must
+        %% contain both the key and cert.
+        {test_web_cert_ca_path, "{{platform_etc_dir}}/cacerts/OneDataTestWebServerCa.pem"},
+        {cacerts_dir, "{{platform_etc_dir}}/cacerts"},
         {key_file, "{{platform_etc_dir}}/certs/key.pem"},
         {cert_file, "{{platform_etc_dir}}/certs/cert.pem"},
-        {cacerts_dir, "{{platform_etc_dir}}/cacerts"},
 
         {rest_port, 9443},
         {rest_api_prefix_template, "/api/v{version_number}/onepanel"},

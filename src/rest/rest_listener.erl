@@ -47,6 +47,7 @@ get_prefix(ApiVersion) ->
 %%--------------------------------------------------------------------
 -spec start() -> ok | no_return().
 start() ->
+    maybe_generate_web_cert(),
     Port = get_port(),
     HttpsAcceptors = onepanel_env:get(rest_https_acceptors),
     KeyFile = onepanel_env:get(key_file),
@@ -98,8 +99,10 @@ stop() ->
 %%--------------------------------------------------------------------
 -spec status() -> ok | {error, Reason :: term()}.
 status() ->
-    Endpoint = "https://127.0.0.1:" ++ integer_to_list(get_port()),
-    case http_client:get(Endpoint, #{}, <<>>, [{ssl_options, [{secure, false}]}]) of
+    Endpoint = str_utils:format_bin("https://127.0.0.1:~B", [get_port()]),
+    CaCerts = cert_utils:load_ders_in_dir(onepanel_env:get(cacerts_dir)),
+    Opts = [{ssl_options, [{secure, only_verify_peercert}, {cacerts, CaCerts}]}],
+    case http_client:get(Endpoint, #{}, <<>>, Opts) of
         {ok, _, _, _} -> ok;
         {error, Reason} -> {error, Reason}
     end.
@@ -143,3 +146,39 @@ static_gui_routes() ->
         {ok, _} -> CustomRoot
     end,
    [{"/[...]", gui_static_handler, {dir, StaticFilesRoot}}].
+
+
+%%--------------------------------------------------------------------
+%% @private @doc
+%% Generates a new test web server cert if none is found under expected path,
+%% given that this option is enabled in env config. The generated cert should be
+%% used only for test purposes.
+%% NOTE: for multi-node onepanel cluster, each node will generate its own cert
+%% (for the same domain) - this is not a problem since these are test
+%% certificates.
+%% @end
+%%--------------------------------------------------------------------
+-spec maybe_generate_web_cert() -> ok.
+maybe_generate_web_cert() ->
+    GenerateIfAbsent = onepanel_env:get(generate_web_cert_if_absent),
+    WebKeyPath = onepanel_env:get(key_file),
+    WebCertPath = onepanel_env:get(cert_file),
+    CertExists = filelib:is_regular(WebKeyPath) andalso
+        filelib:is_regular(WebCertPath),
+    case GenerateIfAbsent andalso not CertExists of
+        false ->
+            ok;
+        true ->
+            % Both key and cert are expected in the same file
+            CAPath = onepanel_env:get(test_web_cert_ca_path),
+            Domain = onepanel_env:get(test_web_cert_domain),
+            cert_utils:create_signed_webcert(
+                WebKeyPath, WebCertPath, Domain, CAPath, CAPath
+            ),
+            ?warning(
+                "Web server cert not found (~s). Generated a new cert for "
+                "domain '~s'. Use only for test purposes.",
+                [WebCertPath, Domain]
+            ),
+            ok
+    end.
