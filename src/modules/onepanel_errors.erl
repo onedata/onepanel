@@ -154,6 +154,12 @@ translate(_Type, #error{reason = {?ERR_CONFIG_AUTOCLEANING, {error, file_popular
 translate(_Type, #error{reason = {?ERR_CONFIG_AUTOCLEANING, {error, {undefined_parameter, Parameter}}}}) ->
     {<<"Operation Error">>, str_utils:format_bin("Autocleaning configuration error. Missing key: ~p", [Parameter])};
 
+translate(_Type, #error{reason = {?ERR_CONFIG_AUTOCLEANING, {error, {negative_value_not_allowed, Parameter}}}}) ->
+    {<<"Operation Error">>, str_utils:format_bin("Autocleaning configuration error. Negative value not allowed for key: ~p", [Parameter])};
+
+translate(_Type, #error{reason = {?ERR_CONFIG_AUTOCLEANING, {error, {illegal_type, Parameter}}}}) ->
+    {<<"Operation Error">>, str_utils:format_bin("Autocleaning configuration error. Illegal type for key: ~p. Should be integer.", [Parameter])};
+
 translate(_Type, #error{reason = {error, {Code, Error, Description}}})
     when is_integer(Code), is_binary(Error), is_binary(Description) ->
     {<<"Operation Error">>, Error};
