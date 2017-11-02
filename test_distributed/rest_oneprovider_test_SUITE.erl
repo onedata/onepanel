@@ -249,11 +249,6 @@ put_should_create_or_support_space(Config) ->
 
 get_should_return_space_details(Config) ->
     [N | _] = ?config(oneprovider_nodes, Config),
-    tracer:start(N),
-    tracer:trace_calls(service, apply_sync),
-    tracer:trace_calls(service_utils, throw_on_error),
-    tracer:trace_calls(service_executor, receive_results),
-    tracer:trace_calls(service_executor, handle_results),
     ?run(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
