@@ -73,16 +73,6 @@ accept_resource(Req, 'POST', Args, #rstate{resource = provider}) ->
         ?SERVICE, register, Ctx5
     ))};
 
-accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
-    Ctx = onepanel_maps:get_store(name, Args, oneprovider_name, Args),
-    Ctx2 = onepanel_maps:get_store(redirectionPoint, Args, oneprovider_redirection_point, Ctx),
-    Ctx3 = onepanel_maps:get_store(geoLatitude, Args, oneprovider_geo_latitude, Ctx2),
-    Ctx4 = onepanel_maps:get_store(geoLongitude, Args, oneprovider_geo_longitude, Ctx3),
-
-    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, modify_details, Ctx4
-    ))};
-
 accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
     Ctx = onepanel_maps:get_store(name, Args, name),
     Ctx2 = onepanel_maps:get_store(token, Args, token, Ctx),
@@ -97,6 +87,24 @@ accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
             ?SERVICE, support_space, Ctx7
         ))
     )};
+
+accept_resource(Req, 'POST', _Args, #rstate{resource = start_cleaning, bindings = #{id := Id}}) ->
+    {true, rest_replier:handle_service_step(Req, service_oneprovider, start_cleaning,
+        service_utils:throw_on_error(service:apply_sync(
+            ?SERVICE, support_space, #{space_id => Id}
+        ))
+    )};
+
+accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
+    Ctx = onepanel_maps:get_store(name, Args, oneprovider_name, Args),
+    Ctx2 = onepanel_maps:get_store(redirectionPoint, Args, oneprovider_redirection_point, Ctx),
+    Ctx3 = onepanel_maps:get_store(geoLatitude, Args, oneprovider_geo_latitude, Ctx2),
+    Ctx4 = onepanel_maps:get_store(geoLongitude, Args, oneprovider_geo_longitude, Ctx3),
+
+    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
+        ?SERVICE, modify_details, Ctx4
+    ))};
+
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = space, bindings = #{id := Id}}) ->
     Ctx2 = get_storage_update_args(Args),

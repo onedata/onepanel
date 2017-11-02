@@ -318,6 +318,16 @@ routes() ->
             }]
         }},
 
+        %% Start space cleaning
+        {<<"/api/v3/onepanel/provider/spaces/:id/start_cleaning">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = start_cleaning,
+            methods = [#rmethod{
+                type = 'POST'
+            }]
+        }},
+
         %% Unregister provider
         {<<"/api/v3/onepanel/provider">>, rest_handler, #rstate{
             version = 3,

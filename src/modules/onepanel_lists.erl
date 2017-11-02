@@ -15,7 +15,7 @@
 
 %% API
 -export([hd/1, get/2, get/3, store/2, store/3, get_store/3, get_store/4]).
--export([union/2, intersect/2, subtract/2, map_undefined_to_null_in_proplist/1]).
+-export([union/2, intersect/2, subtract/2, map_undefined_to_null/1]).
 
 -type key() :: any().
 -type keys() :: key() | [key()].
@@ -162,14 +162,14 @@ subtract(List1, List2) ->
 %% values in given proplist to null
 %% @end
 %%-------------------------------------------------------------------
--spec map_undefined_to_null_in_proplist(Proplist :: proplists:proplist()) ->
+-spec map_undefined_to_null(Proplist :: proplists:proplist()) ->
     proplists:proplist().
-map_undefined_to_null_in_proplist(Proplist) ->
+map_undefined_to_null(Proplist) ->
     lists:map(fun
         ({Key, undefined}) ->
             {Key, null};
         ({Key, SubProplist}) when is_list(SubProplist) ->
-            Map2 = map_undefined_to_null_in_proplist(SubProplist),
+            Map2 = map_undefined_to_null(SubProplist),
             {Key, Map2};
         ({Key, Value}) ->
             {Key, Value}
