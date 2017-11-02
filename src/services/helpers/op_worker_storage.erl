@@ -203,7 +203,7 @@ get_file_popularity_details(Node, SpaceId) ->
 -spec get_autocleaning_details(Node :: node(), SpaceId :: id()) -> proplists:proplist().
 get_autocleaning_details(Node, SpaceId) ->
     Details = rpc:call(Node, space_storage, get_autocleaning_details, [SpaceId]),
-    onepanel_lists:map_undefined_to_null_in_proplist(Details).
+    onepanel_lists:map_undefined_to_null(Details).
 
 %%-------------------------------------------------------------------
 %% @doc

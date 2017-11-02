@@ -26,7 +26,7 @@
 -export([configure/1, register/1, unregister/1, modify_details/1, get_details/1,
     support_space/1, revoke_space_support/1, get_spaces/1, get_space_details/1,
     modify_space/1, get_sync_stats/1, restart_listeners/1,
-    restart_provider_listeners/1, get_autocleaning_reports/1, get_autocleaning_status/1]).
+    restart_provider_listeners/1, get_autocleaning_reports/1, get_autocleaning_status/1, start_cleaning/1]).
 
 -define(SERVICE_OPA, service_onepanel:name()).
 -define(SERVICE_CB, service_couchbase:name()).
@@ -493,7 +493,7 @@ get_autocleaning_reports(Ctx = #{space_id := SpaceId, node := Node}) ->
     SinceEpoch = timestamp_utils:iso8601_to_epoch(Since),
     Reports = rpc:call(Node, autocleaning, list_reports_since, [SpaceId, SinceEpoch]),
     Entries = lists:map(fun(Report) ->
-        onepanel_lists:map_undefined_to_null_in_proplist(Report)
+        onepanel_lists:map_undefined_to_null(Report)
     end, Reports),
     [{reportEntries, Entries}];
 get_autocleaning_reports(Ctx) ->
@@ -512,6 +512,17 @@ get_autocleaning_status(Ctx) ->
 [Node | _] = service_op_worker:get_nodes(),
     get_autocleaning_status(Ctx#{node => Node}).
 
+%%-------------------------------------------------------------------
+%% @doc
+%% Manually starts cleaning of given space.
+%% @end
+%%-------------------------------------------------------------------
+-spec start_cleaning(Ctx :: service:ctx()) -> ok.
+start_cleaning(#{space_id := SpaceId, node := Node}) ->
+    rpc:call(Node, autocleaning, start, [SpaceId]);
+start_cleaning(Ctx) ->
+    [Node | _] = service_op_worker:get_nodes(),
+    start_cleaning(Ctx#{node => Node}).
 
 %%%===================================================================
 %%% Internal functions
