@@ -91,7 +91,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
 accept_resource(Req, 'POST', _Args, #rstate{resource = start_cleaning, bindings = #{id := Id}}) ->
     {true, rest_replier:handle_service_step(Req, service_oneprovider, start_cleaning,
         service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, support_space, #{space_id => Id}
+            ?SERVICE, start_cleaning, #{space_id => Id}
         ))
     )};
 
