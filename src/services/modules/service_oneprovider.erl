@@ -177,6 +177,7 @@ get_steps(Action, Ctx) when
     Action =:= modify_space;
     Action =:= get_autocleaning_reports;
     Action =:= get_autocleaning_status;
+    Action =:= start_cleaning;
     Action =:= get_sync_stats ->
     case Ctx of
         #{hosts := Hosts} ->
