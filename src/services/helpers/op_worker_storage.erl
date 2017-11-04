@@ -178,7 +178,7 @@ maybe_update_autocleaning(Node, SpaceId, Args) ->
         target => onepanel_utils:typed_get([settings, target], Args, integer, undefined),
         threshold => onepanel_utils:typed_get([settings, threshold], Args, integer, undefined)
     },
-    case rpc:call(Node, space_storage, update_autocleaning, [SpaceId, onepanel_maps:remove_undefined(Settings)]) of
+    case rpc:call(Node, space_cleanup_api, configure_autocleaning, [SpaceId, onepanel_maps:remove_undefined(Settings)]) of
         {error, Reason} ->
             ?throw_error({?ERR_CONFIG_AUTOCLEANING, Reason});
         Result -> Result
@@ -202,7 +202,7 @@ get_file_popularity_details(Node, SpaceId) ->
 %%-------------------------------------------------------------------
 -spec get_autocleaning_details(Node :: node(), SpaceId :: id()) -> proplists:proplist().
 get_autocleaning_details(Node, SpaceId) ->
-    Details = rpc:call(Node, space_storage, get_autocleaning_details, [SpaceId]),
+    Details = rpc:call(Node, space_cleanup_api, get_details, [SpaceId]),
     onepanel_lists:map_undefined_to_null(Details).
 
 %%-------------------------------------------------------------------

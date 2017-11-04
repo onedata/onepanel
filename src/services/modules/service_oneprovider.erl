@@ -177,6 +177,7 @@ get_steps(Action, Ctx) when
     Action =:= modify_space;
     Action =:= get_autocleaning_reports;
     Action =:= get_autocleaning_status;
+    Action =:= start_cleaning;
     Action =:= get_sync_stats ->
     case Ctx of
         #{hosts := Hosts} ->
@@ -496,8 +497,7 @@ restart_provider_listeners(_Ctx) ->
 -spec get_autocleaning_reports(Ctx :: service:ctx()) -> proplists:proplist().
 get_autocleaning_reports(Ctx = #{space_id := SpaceId, node := Node}) ->
     Since = onepanel_utils:typed_get(started_after, Ctx, binary),
-    SinceEpoch = timestamp_utils:iso8601_to_epoch(Since),
-    Reports = rpc:call(Node, autocleaning, list_reports_since, [SpaceId, SinceEpoch]),
+    Reports = rpc:call(Node, space_cleanup_api, list_reports_since, [SpaceId, Since]),
     Entries = lists:map(fun(Report) ->
         onepanel_lists:map_undefined_to_null(Report)
     end, Reports),
@@ -513,7 +513,7 @@ get_autocleaning_reports(Ctx) ->
 %%-------------------------------------------------------------------
 -spec get_autocleaning_status(Ctx :: service:ctx()) -> proplists:proplist().
 get_autocleaning_status(#{space_id := SpaceId, node := Node}) ->
-    rpc:call(Node, autocleaning, status, [SpaceId]);
+    rpc:call(Node, space_cleanup_api, status, [SpaceId]);
 get_autocleaning_status(Ctx) ->
 [Node | _] = service_op_worker:get_nodes(),
     get_autocleaning_status(Ctx#{node => Node}).
@@ -525,7 +525,7 @@ get_autocleaning_status(Ctx) ->
 %%-------------------------------------------------------------------
 -spec start_cleaning(Ctx :: service:ctx()) -> ok.
 start_cleaning(#{space_id := SpaceId, node := Node}) ->
-    rpc:call(Node, autocleaning, start, [SpaceId]);
+    rpc:call(Node, space_cleanup_api, force_cleanup, [SpaceId]);
 start_cleaning(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     start_cleaning(Ctx#{node => Node}).
