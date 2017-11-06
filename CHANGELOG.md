@@ -4,6 +4,17 @@
 CHANGELOG
 ---------
 
+### 17.06.0-rc7
+
+* VFS-3815 Added erlang-observer as RPM build dependency
+* VFS-3686 allow to start space cleaning manually, update ctool
+* Updating GUI, including: VFS-3685, VFS-3661 - VFS-3685 Added space files popularity and space auto cleaning views - VFS-3661 Improvements in presenting loading state of views and errors
+* Updating GUI, including: VFS-3710 - VFS-3710 Using binary prefixes for size units (IEC format: MiB, GiB, TiB, etc.)
+* Updating GUI, including: VFS-3737, VFS-3639 - VFS-3737 Change Bower server to registry.bower.io - VFS-3639 Fix and restore loaders in new GUIs
+* Updating GUI, including: VFS-3608 - VFS-3608 Table component for showing details about support size
+* VFS-3686 configure autocleaning in onepanel
+
+
 ### 17.06.0-rc6
 
 * Releasing new version 17.06.0-rc6
