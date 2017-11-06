@@ -26,7 +26,7 @@
 -export([configure/1, register/1, unregister/1, modify_details/1, get_details/1,
     support_space/1, revoke_space_support/1, get_spaces/1, get_space_details/1,
     modify_space/1, get_sync_stats/1, restart_listeners/1,
-    restart_provider_listeners/1]).
+    restart_provider_listeners/1, get_autocleaning_reports/1, get_autocleaning_status/1, start_cleaning/1]).
 
 -define(SERVICE_OPA, service_onepanel:name()).
 -define(SERVICE_CB, service_couchbase:name()).
@@ -175,6 +175,9 @@ get_steps(Action, Ctx) when
     Action =:= get_spaces;
     Action =:= get_space_details;
     Action =:= modify_space;
+    Action =:= get_autocleaning_reports;
+    Action =:= get_autocleaning_status;
+    Action =:= start_cleaning;
     Action =:= get_sync_stats ->
     case Ctx of
         #{hosts := Hosts} ->
@@ -379,6 +382,7 @@ get_space_details(#{id := SpaceId, node := Node}) ->
     StorageIds = op_worker_storage:get_supporting_storages(Node, SpaceId),
     StorageId = hd(StorageIds),
     MountInRoot = op_worker_storage:is_mounted_in_root(Node, SpaceId, StorageId),
+    SoftQuota = op_worker_storage:get_soft_quota(Node),
     ImportDetails = op_worker_storage_sync:get_storage_import_details(
         Node, SpaceId, StorageId
     ),
@@ -392,8 +396,11 @@ get_space_details(#{id := SpaceId, node := Node}) ->
         {storageId, StorageId},
         {localStorages, StorageIds},
         {mountInRoot, MountInRoot},
+        {softQuota, SoftQuota},
         {storageImport, ImportDetails},
-        {storageUpdate, UpdateDetails}
+        {storageUpdate, UpdateDetails},
+        {filesPopularity, op_worker_storage:get_file_popularity_details(Node, SpaceId)},
+        {autoCleaning, op_worker_storage:get_autocleaning_details(Node, SpaceId)}
     ];
 get_space_details(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
@@ -408,8 +415,12 @@ get_space_details(Ctx) ->
 modify_space(#{space_id := SpaceId, node := Node} = Ctx) ->
     ImportArgs = maps:get(storage_import, Ctx, #{}),
     UpdateArgs = maps:get(storage_update, Ctx, #{}),
-    op_worker_storage_sync:maybe_modify_storage_import(Node, SpaceId, ImportArgs),
-    op_worker_storage_sync:maybe_modify_storage_update(Node, SpaceId, UpdateArgs),
+    FilePopularityArgs = maps:get(files_popularity, Ctx, #{}),
+    AutoCleaningArgs = maps:get(auto_cleaning, Ctx, #{}),
+    {ok, _} = op_worker_storage_sync:maybe_modify_storage_import(Node, SpaceId, ImportArgs),
+    {ok, _} = op_worker_storage_sync:maybe_modify_storage_update(Node, SpaceId, UpdateArgs),
+    {ok, _} = op_worker_storage:maybe_update_file_popularity(Node, SpaceId, FilePopularityArgs),
+    {ok, _} = op_worker_storage:maybe_update_autocleaning(Node, SpaceId, AutoCleaningArgs),
     [{id, SpaceId}];
 modify_space(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
@@ -471,6 +482,47 @@ restart_provider_listeners(_Ctx) ->
     lists:foreach(fun(Module) ->
         onepanel_rpc:call_all([Node], Module, start, [])
     end, lists:reverse(Modules)).
+
+%%-------------------------------------------------------------------
+%% @doc
+%% Returns list of autocleaning reports started since Since date.
+%% @end
+%%-------------------------------------------------------------------
+-spec get_autocleaning_reports(Ctx :: service:ctx()) -> proplists:proplist().
+get_autocleaning_reports(Ctx = #{space_id := SpaceId, node := Node}) ->
+    Since = onepanel_utils:typed_get(started_after, Ctx, binary),
+    Reports = rpc:call(Node, space_cleanup_api, list_reports_since, [SpaceId, Since]),
+    Entries = lists:map(fun(Report) ->
+        onepanel_lists:map_undefined_to_null(Report)
+    end, Reports),
+    [{reportEntries, Entries}];
+get_autocleaning_reports(Ctx) ->
+    [Node | _] = service_op_worker:get_nodes(),
+    get_autocleaning_reports(Ctx#{node => Node}).
+
+%%-------------------------------------------------------------------
+%% @doc
+%% Returns status of current working autocleaning process for given space.
+%% @end
+%%-------------------------------------------------------------------
+-spec get_autocleaning_status(Ctx :: service:ctx()) -> proplists:proplist().
+get_autocleaning_status(#{space_id := SpaceId, node := Node}) ->
+    rpc:call(Node, space_cleanup_api, status, [SpaceId]);
+get_autocleaning_status(Ctx) ->
+[Node | _] = service_op_worker:get_nodes(),
+    get_autocleaning_status(Ctx#{node => Node}).
+
+%%-------------------------------------------------------------------
+%% @doc
+%% Manually starts cleaning of given space.
+%% @end
+%%-------------------------------------------------------------------
+-spec start_cleaning(Ctx :: service:ctx()) -> ok.
+start_cleaning(#{space_id := SpaceId, node := Node}) ->
+    rpc:call(Node, space_cleanup_api, force_cleanup, [SpaceId]);
+start_cleaning(Ctx) ->
+    [Node | _] = service_op_worker:get_nodes(),
+    start_cleaning(Ctx#{node => Node}).
 
 %%%===================================================================
 %%% Internal functions

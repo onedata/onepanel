@@ -15,7 +15,6 @@
 -author("Krzysztof Trzepla").
 
 -export([
-    ceph_model/0,
     cluster_configuration_details_model/0,
     cluster_databases_model/0,
     cluster_managers_model/0,
@@ -23,11 +22,9 @@
     cookie_model/0,
     database_hosts_model/0,
     error_model/0,
-    glusterfs_model/0,
     manager_hosts_model/0,
     panel_configuration_model/0,
     panel_configuration_users_model/0,
-    posix_model/0,
     provider_cluster_configuration_model/0,
     provider_configuration_model/0,
     provider_configuration_details_model/0,
@@ -39,14 +36,19 @@
     provider_register_request_model/0,
     provider_spaces_model/0,
     provider_storages_model/0,
-    s3_model/0,
     service_databases_model/0,
     service_error_model/0,
     service_hosts_model/0,
     service_status_model/0,
     service_status_host_model/0,
     session_details_model/0,
+    space_auto_cleaning_model/0,
+    space_auto_cleaning_report_model/0,
+    space_auto_cleaning_report_collection_model/0,
+    space_auto_cleaning_settings_model/0,
+    space_auto_cleaning_status_model/0,
     space_details_model/0,
+    space_files_popularity_model/0,
     space_modify_request_model/0,
     space_support_request_model/0,
     space_sync_stats_model/0,
@@ -55,7 +57,6 @@
     storage_import_details_model/0,
     storage_modify_request_model/0,
     storage_update_details_model/0,
-    swift_model/0,
     task_status_model/0,
     time_stats_model/0,
     time_stats_collection_model/0,
@@ -68,51 +69,14 @@
     zone_configuration_model/0,
     zone_configuration_details_model/0,
     zone_configuration_details_onezone_model/0,
-    zone_configuration_onezone_model/0
+    zone_configuration_onezone_model/0,
+    ceph_model/0,
+    glusterfs_model/0,
+    posix_model/0,
+    s3_model/0,
+    swift_model/0
 ]).
 
-
-%%--------------------------------------------------------------------
-%% @doc The Ceph storage configuration.
-%% @end
-%%--------------------------------------------------------------------
--spec ceph_model() -> maps:map().
-ceph_model() ->
-    #{
-        %% The ID of storage.
-        id => {string, optional},
-        %% The name of storage.
-        name => {string, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional},
-        %% The type of storage.
-        type => {equal, <<"ceph">>},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
-        %% URL of external LUMA service
-        lumaUrl => {string, optional},
-        %% LUMA cache timeout in minutes.
-        lumaCacheTimeout => {integer, optional},
-        %% LUMA API Key, must be identical with API Key in external LUMA
-        %% service.
-        lumaApiKey => {string, optional},
-        %% The username of the Ceph cluster administrator.
-        username => string,
-        %% The admin key to access the Ceph cluster.
-        key => string,
-        %% The monitor host name.
-        monitorHostname => string,
-        %% The Ceph cluster name.
-        clusterName => string,
-        %% The Ceph pool name.
-        poolName => string,
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional}
-    }.
 
 %%--------------------------------------------------------------------
 %% @doc The cluster configuration.
@@ -210,52 +174,6 @@ error_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The GlusterFS storage configuration.
-%% @end
-%%--------------------------------------------------------------------
--spec glusterfs_model() -> maps:map().
-glusterfs_model() ->
-    #{
-        %% The ID of storage.
-        id => {string, optional},
-        %% The name of storage.
-        name => {string, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional},
-        %% The type of storage.
-        type => {equal, <<"glusterfs">>},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
-        %% URL of external LUMA service
-        lumaUrl => {string, optional},
-        %% LUMA cache timeout in minutes.
-        lumaCacheTimeout => {integer, optional},
-        %% LUMA API Key, must be identical with API Key in external LUMA
-        %% service.
-        lumaApiKey => {string, optional},
-        %% The name of the volume to use as a storage backend.
-        volume => string,
-        %% The hostname (IP address or FQDN) of GlusterFS volume server.
-        hostname => string,
-        %% The GlusterFS port on volume server.
-        port => {integer, optional},
-        %% The transport protocol to use to connect to the volume server.
-        transport => {string, optional},
-        %% Relative mountpoint within the volume which should be used by
-        %% Oneprovider.
-        mountPoint => {string, optional},
-        %% Volume specific GlusterFS translator options, in the format:
-        %% TRANSLATOR1.OPTION1&#x3D;VALUE1;TRANSLATOR2.OPTION2&#x3D;VALUE2;...
-        xlatorOptions => {string, optional},
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional}
-    }.
-
-%%--------------------------------------------------------------------
 %% @doc The cluster manager service hosts configuration.
 %% @end
 %%--------------------------------------------------------------------
@@ -286,45 +204,10 @@ panel_configuration_model() ->
 -spec panel_configuration_users_model() -> maps:map().
 panel_configuration_users_model() ->
     #{
-        %% The user role, one of 'admin' or 'regular'.
-        userRole => atom,
         %% The user password.
-        password => string
-    }.
-
-%%--------------------------------------------------------------------
-%% @doc The POSIX storage configuration.
-%% @end
-%%--------------------------------------------------------------------
--spec posix_model() -> maps:map().
-posix_model() ->
-    #{
-        %% The ID of storage.
-        id => {string, optional},
-        %% The name of storage.
-        name => {string, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional},
-        %% The type of storage.
-        type => {equal, <<"posix">>},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
-        %% URL of external LUMA service
-        lumaUrl => {string, optional},
-        %% LUMA cache timeout in minutes.
-        lumaCacheTimeout => {integer, optional},
-        %% LUMA API Key, must be identical with API Key in external LUMA
-        %% service.
-        lumaApiKey => {string, optional},
-        %% The absolute path to the directory where the POSIX storage is mounted
-        %% on the cluster nodes.
-        mountPoint => string,
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional}
+        password => string,
+        %% The user role, one of 'admin' or 'regular'.
+        userRole => atom
     }.
 
 %%--------------------------------------------------------------------
@@ -390,12 +273,12 @@ provider_configuration_oneprovider_model() ->
     #{
         %% Defines whether the provider should be registered in a zone.
         register => boolean,
+        %% The name under which the provider will be registered in a zone.
+        name => string,
         %% The address used for user redirection from a zone to the provider.
         redirectionPoint => string,
         %% The geographical longitude of the provider.
         geoLongitude => {float, optional},
-        %% The name under which the provider will be registered in a zone.
-        name => string,
         %% The geographical latitude of the provider.
         geoLatitude => {float, optional}
     }.
@@ -494,51 +377,6 @@ provider_storages_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The Simple Storage Service configuration.
-%% @end
-%%--------------------------------------------------------------------
--spec s3_model() -> maps:map().
-s3_model() ->
-    #{
-        %% The ID of storage.
-        id => {string, optional},
-        %% The name of storage.
-        name => {string, optional},
-        %% Defines whether storage administrator credentials (accessKey and
-        %% secretKey) may be used by users without storage accounts to access
-        %% storage in direct IO mode.
-        insecure => {boolean, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional},
-        %% The type of storage.
-        type => {equal, <<"s3">>},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
-        %% URL of external LUMA service
-        lumaUrl => {string, optional},
-        %% LUMA cache timeout in minutes.
-        lumaCacheTimeout => {integer, optional},
-        %% LUMA API Key, must be identical with API Key in external LUMA
-        %% service.
-        lumaApiKey => {string, optional},
-        %% The hostname of a machine where S3 storage is installed.
-        hostname => string,
-        %% The storage bucket name.
-        bucketName => string,
-        %% The access key to the S3 storage.
-        accessKey => string,
-        %% The secret key to the S3 storage.
-        secretKey => string,
-        %% The version of signature used to sign requests. One of: 2, 4.
-        %% Default: 4.
-        signatureVersion => {integer, optional},
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional},
-        %% Storage block size in bytes.
-        blockSize => {integer, optional}
-    }.
-
-%%--------------------------------------------------------------------
 %% @doc The service hosts configuration.
 %% @end
 %%--------------------------------------------------------------------
@@ -594,8 +432,8 @@ service_hosts_model() ->
 -spec service_status_model() -> maps:map().
 service_status_model() ->
     #{
-        %% The collection of hosts with associated service status, for each
-        %% hostwhere given service has been deployed.
+        %% The collection of hosts with associated service status, for each host
+        %% where given service has been deployed.
         hosts => #{'_' => service_status_host_model()}
     }.
 
@@ -624,6 +462,90 @@ session_details_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc Settings of auto cleanging space feature
+%% @end
+%%--------------------------------------------------------------------
+-spec space_auto_cleaning_model() -> maps:map().
+space_auto_cleaning_model() ->
+    #{
+        %% If true, auto cleaning feature for the space is enabled
+        enabled => {boolean, optional},
+        %% Settings when and what files auto cleaning should clean
+        settings => {space_auto_cleaning_settings_model(), optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Autocleaning report
+%% @end
+%%--------------------------------------------------------------------
+-spec space_auto_cleaning_report_model() -> maps:map().
+space_auto_cleaning_report_model() ->
+    #{
+        %% Start time of autocleaning procedure in ISO 8601 format
+        startedAt => string,
+        %% Finish time of autocleaning procedure in ISO 8601 format
+        stoppedAt => string,
+        %% Number of bytes deleted during autocleaning procedure.
+        releasedBytes => integer,
+        %% Number of bytes that should be deleted.
+        bytesToRelease => integer,
+        %% Number of deleted files.
+        filesNumber => integer
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc List of report entries
+%% @end
+%%--------------------------------------------------------------------
+-spec space_auto_cleaning_report_collection_model() -> maps:map().
+space_auto_cleaning_report_collection_model() ->
+    #{
+        reportEntries => {[space_auto_cleaning_report_model()], optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Settings for auto cleaning algorithms - for what files and when it
+%% should be started. If parameter is not set in the request, previous value
+%% will be used.
+%% @end
+%%--------------------------------------------------------------------
+-spec space_auto_cleaning_settings_model() -> maps:map().
+space_auto_cleaning_settings_model() ->
+    #{
+        %% Only files which size [b] is greater than or equal to given value
+        %% should be cleaned. Set to null to disable this parameter.
+        lowerFileSizeLimit => { integer, optional},
+        %% Only files which size [b] is less than or equal to given value should
+        %% be cleaned Set to null to disable this parameter.
+        upperFileSizeLimit => {integer, optional},
+        %% Files that haven't been opened for longer than or equal to given
+        %% period [h] will be cleaned. Set to null to disable this parameter.
+        maxFileNotOpenedHours => {integer, optional},
+        %% Autocleaning will start if occupancy of storage will greater than or
+        %% equal to this value [b]. This parameter is required to start
+        %% autocleaning.
+        threshold => {integer, optional},
+        %% Autocleaning will stop if occupancy of storage will be less than or
+        %% equal to this value [b]. This parameter is required to start
+        %% autocleaning.
+        target => {integer, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Status of current auto cleaning process for given space
+%% @end
+%%--------------------------------------------------------------------
+-spec space_auto_cleaning_status_model() -> maps:map().
+space_auto_cleaning_status_model() ->
+    #{
+        %% Flag which indicates that autocleaning process is currently in
+        %% progress.
+        inProgress => boolean,
+        %% Current occupancy [b] of storage supporting given space.
+        spaceOccupancy => integer
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The space details.
 %% @end
 %%--------------------------------------------------------------------
@@ -638,14 +560,33 @@ space_details_model() ->
         %% associated with this panel.
         storageId => string,
         %% The list of IDs of cluster storage resources.
-        localStorages => {[string], optional},
+        localStorages => [string],
         %% The collection of provider IDs with associated supported storage
         %% space in bytes.
-        supportingProviders => #{'_' => integer},
+        supportingProviders => #{ '_' => integer},
         %% Defines whether space will be mounted in / or /{SpaceId}/ path.
-        mountInRoot => {boolean, optional},
+        mountInRoot => { boolean, optional },
+        %% Number of bytes that can be written above support limit.
+        softQuota => integer,
         storageImport => {storage_import_details_model(), optional},
-        storageUpdate => {storage_update_details_model(), optional}
+        storageUpdate => {storage_update_details_model(), optional},
+        %% Configuration of files popularity feature for this space
+        filesPopularity => {space_files_popularity_model(), optional},
+        %% Configuration of auto cleaning feature for this space
+        autoCleaning => {space_auto_cleaning_model(), optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Settings of files popularity feature of space
+%% @end
+%%--------------------------------------------------------------------
+-spec space_files_popularity_model() -> maps:map().
+space_files_popularity_model() ->
+    #{
+        %% If true, files popularity feature for the space is enabled
+        enabled => boolean,
+        %% REST endpoint to view file popularity statistics
+        restUrl => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -656,7 +597,11 @@ space_details_model() ->
 space_modify_request_model() ->
     #{
         storageImport => {storage_import_details_model(), optional},
-        storageUpdate => {storage_update_details_model(), optional}
+        storageUpdate => {storage_update_details_model(), optional},
+        %% Configuration of files popularity feature for this space
+        filesPopularity => {space_files_popularity_model(), optional},
+        %% Configuration of auto cleaning feature for this space
+        autoCleaning => {space_auto_cleaning_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -675,8 +620,7 @@ space_support_request_model() ->
         %% The storage space size in bytes that provider is willing to assign to
         %% the space.
         size => integer,
-        %% The ID of the storage resource where the space data should be
-        %% stored.
+        %% The ID of the storage resource where the space data should be stored.
         storageId => string,
         %% Defines whether space will be mounted in / or /{SpaceId}/ path.
         mountInRoot => {boolean, optional},
@@ -694,7 +638,7 @@ space_sync_stats_model() ->
         %% Describes import algorithm run status.
         importStatus => string,
         %% Describes update algorithm run status.
-        updateStatus => string,
+        updateStatus => {string, optional},
         %% Collection of statistics for requested metrics.
         stats => {time_stats_collection_model(), optional}
     }.
@@ -767,50 +711,6 @@ storage_update_details_model() ->
         deleteEnable => {boolean, optional},
         %% Flag that enables synchronization of NFSv4 ACLs.
         syncAcl => {boolean, optional}
-    }.
-
-%%--------------------------------------------------------------------
-%% @doc The OpenStack Swift configuration.
-%% @end
-%%--------------------------------------------------------------------
--spec swift_model() -> maps:map().
-swift_model() ->
-    #{
-        %% The ID of storage.
-        id => {string, optional},
-        %% The name of storage.
-        name => {string, optional},
-        %% Defines whether storage administrator credentials (username and
-        %% password) may be used by users without storage accounts to access
-        %% storage in direct IO mode.
-        insecure => {boolean, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional},
-        %% The type of storage.
-        type => {equal, <<"swift">>},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
-        %% URL of external LUMA service
-        lumaUrl => {string, optional},
-        %% LUMA cache timeout in minutes.
-        lumaCacheTimeout => {integer, optional},
-        %% LUMA API Key, must be identical with API Key in external LUMA
-        %% service.
-        lumaApiKey => {string, optional},
-        %% The URL to OpenStack Keystone identity service.
-        authUrl => string,
-        %% The name of the tenant to which the user belongs.
-        tenantName => string,
-        %% The name of the Swift storage container.
-        containerName => string,
-        %% The Keystone authentication username.
-        username => string,
-        %% The Keystone authentication password.
-        password => string,
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional},
-        %% Storage block size in bytes.
-        blockSize => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -997,9 +897,221 @@ zone_configuration_details_onezone_model() ->
 -spec zone_configuration_onezone_model() -> maps:map().
 zone_configuration_onezone_model() ->
     #{
-        %% The name of a zone.
-        name => {string, optional},
         %% The name of a HTTP domain.
-        domainName => {string, optional}
+        domainName => {string, optional},
+        %% The name of a zone.
+        name => {string, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The Ceph storage configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec ceph_model() -> maps:map().
+ceph_model() ->
+    #{
+        %% The ID of storage.
+        id => {string, optional},
+        %% The name of storage.
+        name => {string, optional},
+        %% Defines whether storage administrator credentials (username and key)
+        %% may be used by users without storage accounts to access storage in
+        %% direct IO mode.
+        insecure => {boolean, optional},
+        %% Defines whether storage is readonly.
+        readonly => {boolean, optional},
+        %% The type of storage.
+        type => {equal, <<"ceph">>},
+        %% If true LUMA and reverse LUMA services will be enabled.
+        lumaEnabled => {boolean, optional},
+        %% URL of external LUMA service
+        lumaUrl => {string, optional},
+        %% LUMA cache timeout in minutes.
+        lumaCacheTimeout => {integer, optional},
+        %% LUMA API Key, must be identical with API Key in external LUMA
+        %% service.
+        lumaApiKey => {string, optional},
+        %% The username of the Ceph cluster administrator.
+        username => string,
+        %% The admin key to access the Ceph cluster.
+        key => string,
+        %% The monitor host name.
+        monitorHostname => string,
+        %% The Ceph cluster name.
+        clusterName => string,
+        %% The Ceph pool name.
+        poolName => string,
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The GlusterFS storage configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec glusterfs_model() -> maps:map().
+glusterfs_model() ->
+    #{
+        %% The ID of storage.
+        id => {string, optional},
+        %% The name of storage.
+        name => {string, optional},
+        %% Defines whether storage administrator credentials (username and key)
+        %% may be used by users without storage accounts to access storage in
+        %% direct IO mode.
+        insecure => {boolean, optional},
+        %% Defines whether storage is readonly.
+        readonly => {boolean, optional},
+        %% The type of storage.
+        type => {equal, <<"glusterfs">>},
+        %% If true LUMA and reverse LUMA services will be enabled.
+        lumaEnabled => {boolean, optional},
+        %% URL of external LUMA service
+        lumaUrl => {string, optional},
+        %% LUMA cache timeout in minutes.
+        lumaCacheTimeout => {integer, optional},
+        %% LUMA API Key, must be identical with API Key in external LUMA
+        %% service.
+        lumaApiKey => {string, optional},
+        %% The name of the volume to use as a storage backend.
+        volume => string,
+        %% The hostname (IP address or FQDN) of GlusterFS volume server.
+        hostname => string,
+        %% The GlusterFS port on volume server.
+        port => {integer, optional},
+        %% The transport protocol to use to connect to the volume server.
+        transport => {string, optional},
+        %% Relative mountpoint within the volume which should be used by
+        %% Oneprovider.
+        mountPoint => {string, optional},
+        %% Volume specific GlusterFS translator options, in the format:
+        %% TRANSLATOR1.OPTION1&#x3D;VALUE1;TRANSLATOR2.OPTION2&#x3D;VALUE2;...
+        xlatorOptions => {string, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The POSIX storage configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec posix_model() -> maps:map().
+posix_model() ->
+    #{
+        %% The ID of storage.
+        id => {string, optional},
+        %% The name of storage.
+        name => {string, optional},
+        %% Defines whether storage administrator credentials (username and key)
+        %% may be used by users without storage accounts to access storage in
+        %% direct IO mode.
+        insecure => {boolean, optional},
+        %% Defines whether storage is readonly.
+        readonly => {boolean, optional},
+        %% The type of storage.
+        type => {equal, <<"posix">>},
+        %% If true LUMA and reverse LUMA services will be enabled.
+        lumaEnabled => {boolean, optional},
+        %% URL of external LUMA service
+        lumaUrl => {string, optional},
+        %% LUMA cache timeout in minutes.
+        lumaCacheTimeout => {integer, optional},
+        %% LUMA API Key, must be identical with API Key in external LUMA
+        %% service.
+        lumaApiKey => {string, optional},
+        %% The absolute path to the directory where the POSIX storage is mounted
+        %% on the cluster nodes.
+        mountPoint => string,
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The Simple Storage Service configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec s3_model() -> maps:map().
+s3_model() ->
+    #{
+        %% The ID of storage.
+        id => {string, optional},
+        %% The name of storage.
+        name => {string, optional},
+        %% Defines whether storage administrator credentials (accessKey and
+        %% secretKey) may be used by users without storage accounts to access
+        %% storage in direct IO mode.
+        insecure => {boolean, optional},
+        %% Defines whether storage is readonly.
+        readonly => {boolean, optional},
+        %% The type of storage.
+        type => {equal, <<"s3">>},
+        %% If true LUMA and reverse LUMA services will be enabled.
+        lumaEnabled => {boolean, optional},
+        %% URL of external LUMA service
+        lumaUrl => {string, optional},
+        %% LUMA cache timeout in minutes.
+        lumaCacheTimeout => {integer, optional},
+        %% LUMA API Key, must be identical with API Key in external LUMA
+        %% service.
+        lumaApiKey => {string, optional},
+        %% The hostname of a machine where S3 storage is installed.
+        hostname => string,
+        %% The storage bucket name.
+        bucketName => string,
+        %% The access key to the S3 storage.
+        accessKey => string,
+        %% The secret key to the S3 storage.
+        secretKey => string,
+        %% The version of signature used to sign requests. One of: 2, 4.
+        %% Default: 4.
+        signatureVersion => {integer, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
+        %% Storage block size in bytes.
+        blockSize => {integer, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The OpenStack Swift configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec swift_model() -> maps:map().
+swift_model() ->
+    #{
+        %% The ID of storage.
+        id => {string, optional},
+        %% The name of storage.
+        name => {string, optional},
+        %% Defines whether storage administrator credentials (username and
+        %% password) may be used by users without storage accounts to access
+        %% storage in direct IO mode.
+        insecure => {boolean, optional},
+        %% Defines whether storage is readonly.
+        readonly => {boolean, optional},
+        %% The type of storage.
+        type => {equal, <<"swift">>},
+        %% If true LUMA and reverse LUMA services will be enabled.
+        lumaEnabled => {boolean, optional},
+        %% URL of external LUMA service
+        lumaUrl => {string, optional},
+        %% LUMA cache timeout in minutes.
+        lumaCacheTimeout => {integer, optional},
+        %% LUMA API Key, must be identical with API Key in external LUMA
+        %% service.
+        lumaApiKey => {string, optional},
+        %% The URL to OpenStack Keystone identity service.
+        authUrl => string,
+        %% The name of the tenant to which the user belongs.
+        tenantName => string,
+        %% The name of the Swift storage container.
+        containerName => string,
+        %% The Keystone authentication username.
+        username => string,
+        %% The Keystone authentication password.
+        password => string,
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
+        %% Storage block size in bytes.
+        blockSize => {integer, optional}
     }.
 

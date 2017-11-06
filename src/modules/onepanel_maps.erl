@@ -119,7 +119,7 @@ get_store(SrcKeys, SrcTerms, DstKeys, DstTerms) ->
 %%--------------------------------------------------------------------
 -spec remove_undefined(Args :: maps:map()) -> NewArgs :: maps:map().
 remove_undefined(Args) ->
-    maps:fold(fun
-        (_Key, undefined, Acc) -> Acc;
-        (Key, Value, Acc) -> maps:put(Key, Value, Acc)
-    end, #{}, Args).
+    maps:filter(fun
+        (_Key, undefined) -> false;
+        (_Key, _Value) -> true
+    end, Args).

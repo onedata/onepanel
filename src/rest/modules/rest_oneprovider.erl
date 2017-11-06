@@ -73,16 +73,6 @@ accept_resource(Req, 'POST', Args, #rstate{resource = provider}) ->
         ?SERVICE, register, Ctx5
     ))};
 
-accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
-    Ctx = onepanel_maps:get_store(name, Args, oneprovider_name, Args),
-    Ctx2 = onepanel_maps:get_store(redirectionPoint, Args, oneprovider_redirection_point, Ctx),
-    Ctx3 = onepanel_maps:get_store(geoLatitude, Args, oneprovider_geo_latitude, Ctx2),
-    Ctx4 = onepanel_maps:get_store(geoLongitude, Args, oneprovider_geo_longitude, Ctx3),
-
-    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, modify_details, Ctx4
-    ))};
-
 accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
     Ctx = onepanel_maps:get_store(name, Args, name),
     Ctx2 = onepanel_maps:get_store(token, Args, token, Ctx),
@@ -98,14 +88,34 @@ accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
         ))
     )};
 
-accept_resource(Req, 'PATCH', Args, #rstate{resource=space, bindings = #{id := Id}}) ->
+accept_resource(Req, 'POST', _Args, #rstate{resource = start_cleaning, bindings = #{id := Id}}) ->
+    {true, rest_replier:handle_service_step(Req, service_oneprovider, start_cleaning,
+        service_utils:throw_on_error(service:apply_sync(
+            ?SERVICE, start_cleaning, #{space_id => Id}
+        ))
+    )};
+
+accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
+    Ctx = onepanel_maps:get_store(name, Args, oneprovider_name, Args),
+    Ctx2 = onepanel_maps:get_store(redirectionPoint, Args, oneprovider_redirection_point, Ctx),
+    Ctx3 = onepanel_maps:get_store(geoLatitude, Args, oneprovider_geo_latitude, Ctx2),
+    Ctx4 = onepanel_maps:get_store(geoLongitude, Args, oneprovider_geo_longitude, Ctx3),
+
+    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
+        ?SERVICE, modify_details, Ctx4
+    ))};
+
+
+accept_resource(Req, 'PATCH', Args, #rstate{resource = space, bindings = #{id := Id}}) ->
     Ctx2 = get_storage_update_args(Args),
     Ctx3 = get_storage_import_args(Args, Ctx2),
-    Ctx4 = Ctx3#{space_id => Id},
+    Ctx4 = get_file_popularity_args(Args, Ctx3),
+    Ctx5 = get_autocleaning_args(Args, Ctx4),
+    Ctx6 = Ctx5#{space_id => Id},
 
     {true, rest_replier:handle_service_step(Req, service_oneprovider, modify_space,
         service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, modify_space, Ctx4
+            ?SERVICE, modify_space, Ctx6
         ))
     )}.
 
@@ -149,6 +159,31 @@ provide_resource(Req, #rstate{
     {rest_replier:format_service_step(service_oneprovider, get_sync_stats,
         service_utils:throw_on_error(service:apply_sync(
             ?SERVICE, get_sync_stats, Ctx3
+        ))
+    ), Req};
+
+provide_resource(Req, #rstate{
+    resource = space_auto_cleaning_report_collection,
+    bindings = #{id := Id},
+    params = Params
+}) ->
+    Ctx = onepanel_maps:get_store(started_after, Params, started_after),
+    Ctx2 = Ctx#{space_id => Id},
+
+    {rest_replier:format_service_step(service_oneprovider, get_autocleaning_reports,
+        service_utils:throw_on_error(service:apply_sync(
+            ?SERVICE, get_autocleaning_reports, Ctx2
+        ))
+    ), Req};
+
+provide_resource(Req, #rstate{
+    resource = space_auto_cleaning_status,
+    bindings = #{id := Id}
+}) ->
+    Ctx = #{space_id => Id},
+    {rest_replier:format_service_step(service_oneprovider, get_autocleaning_status,
+        service_utils:throw_on_error(service:apply_sync(
+            ?SERVICE, get_autocleaning_status, Ctx
         ))
     ), Req}.
 
@@ -222,3 +257,36 @@ get_storage_import_args(Args, Ctx) ->
         [storage_import, max_depth], Ctx2),
     onepanel_maps:get_store([storageImport, syncAcl], Args,
         [storage_import, sync_acl], Ctx3).
+
+
+%%-------------------------------------------------------------------
+%% @private
+%% @doc Parse args for file_popularity
+%% @end
+%%-------------------------------------------------------------------
+-spec get_file_popularity_args(Args :: rest_handler:args(), Ctx :: service:ctx())
+        -> service:ctx().
+get_file_popularity_args(Args, Ctx) ->
+    onepanel_maps:get_store([filesPopularity, enabled], Args,
+        [files_popularity, enabled], Ctx).
+
+%%-------------------------------------------------------------------
+%% @private
+%% @doc Parse args for autocleaning
+%% @end
+%%-------------------------------------------------------------------
+-spec get_autocleaning_args(Args :: rest_handler:args(), Ctx :: service:ctx())
+        -> service:ctx().
+get_autocleaning_args(Args, Ctx) ->
+    Ctx2 = onepanel_maps:get_store([autoCleaning, enabled], Args,
+        [auto_cleaning, enabled], Ctx),
+    Ctx3 = onepanel_maps:get_store([autoCleaning, settings, lowerFileSizeLimit], Args,
+        [auto_cleaning, settings, lower_file_size_limit], Ctx2),
+    Ctx4 = onepanel_maps:get_store([autoCleaning, settings, upperFileSizeLimit], Args,
+        [auto_cleaning, settings, upper_file_size_limit], Ctx3),
+    Ctx5 = onepanel_maps:get_store([autoCleaning, settings, maxFileNotOpenedHours], Args,
+        [auto_cleaning, settings, max_file_not_opened_hours], Ctx4),
+    Ctx6 = onepanel_maps:get_store([autoCleaning, settings, target], Args,
+        [auto_cleaning, settings, target], Ctx5),
+    onepanel_maps:get_store([autoCleaning, settings, threshold], Args,
+        [auto_cleaning, settings, threshold], Ctx6).

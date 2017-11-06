@@ -31,7 +31,9 @@
     put_should_create_or_support_space/1,
     get_should_return_space_details/1,
     delete_should_revoke_space_support_test/1,
-    patch_should_modify_storage_update_test/1]).
+    patch_should_modify_storage_update_test/1,
+    get_should_return_autocleaning_reports/1,
+    get_should_return_autocleaning_status/1]).
 
 -define(ADMIN_USER_NAME, <<"admin1">>).
 -define(ADMIN_USER_PASSWORD, <<"Admin1Password">>).
@@ -83,6 +85,28 @@
     {<<"storageUpdate">>, ?STORAGE_UPDATE_DETAILS_JSON}
 ]).
 
+-define(AUTOCLEANING_REPORTS, [
+    [
+        {<<"startedAt">>, <<"2004-02-12T15:19:21.423Z">>},
+        {<<"stoppedAt">>, <<"2004-02-12T15:29:11.598Z">>},
+        {<<"releasedBytes">>, 100},
+        {<<"bytesToRelease">>, 125},
+        {<<"filesNumber">>, 10}
+    ],
+    [
+        {<<"startedAt">>, <<"2014-07-16T15:19:21.423Z">>},
+        {<<"stoppedAt">>, null},
+        {<<"releasedBytes">>, 1001234},
+        {<<"bytesToRelease">>, 1313125},
+        {<<"filesNumber">>, 1056}
+    ]
+]).
+
+-define(AUTOCLEANING_STATUS, [
+    {<<"usedSpace">>, 1234123},
+    {<<"inProgress">>, false}
+]).
+
 -define(run(Config, Function), Function(hd(?config(oneprovider_hosts, Config)))).
 
 all() ->
@@ -97,7 +121,9 @@ all() ->
         put_should_create_or_support_space,
         get_should_return_space_details,
         delete_should_revoke_space_support_test,
-        patch_should_modify_storage_update_test
+        patch_should_modify_storage_update_test,
+        get_should_return_autocleaning_reports,
+        get_should_return_autocleaning_status
     ]).
 
 %%%===================================================================
@@ -222,6 +248,7 @@ put_should_create_or_support_space(Config) ->
 
 
 get_should_return_space_details(Config) ->
+    [N | _] = ?config(oneprovider_nodes, Config),
     ?run(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
@@ -256,6 +283,27 @@ patch_should_modify_storage_update_test(Config) ->
             )
         ),
         onepanel_test_rest:assert_body(JsonBody, ?SPACE_JSON)
+    end).
+
+get_should_return_autocleaning_reports(Config) ->
+    ?run(Config, fun(Host) ->
+        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(Host,
+                <<"/provider/spaces/someId/auto_cleaning_reports?started_after=2004-02-12T15:19:21.423Z">>,
+                get, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [])
+        ),
+        onepanel_test_rest:assert_body(JsonBody, ?AUTOCLEANING_REPORTS)
+    end).
+
+get_should_return_autocleaning_status(Config) ->
+    [N | _] = ?config(oneprovider_nodes, Config),
+    ?run(Config, fun(Host) ->
+        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(Host,
+                <<"/provider/spaces/someId/auto_cleaning_status">>,
+                get, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [])
+        ),
+        onepanel_test_rest:assert_body(JsonBody, ?AUTOCLEANING_STATUS)
     end).
 
 %%%===================================================================
@@ -329,6 +377,30 @@ init_per_testcase(patch_should_modify_storage_update_test, Config) ->
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
         {service_oneprovider, modify_space, {
             [{'node@host1', ?SPACE_JSON}], []
+        }},
+        {task_finished, {service, action, ok}}
+    ]
+    end),
+    NewConfig;
+
+init_per_testcase(get_should_return_autocleaning_reports, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        {service_oneprovider, get_autocleaning_reports, {
+            [{'node@host1', ?AUTOCLEANING_REPORTS}], []
+        }},
+        {task_finished, {service, action, ok}}
+    ]
+    end),
+    NewConfig;
+
+init_per_testcase(get_should_return_autocleaning_status, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        {service_oneprovider, get_autocleaning_status, {
+            [{'node@host1', ?AUTOCLEANING_STATUS}], []
         }},
         {task_finished, {service, action, ok}}
     ]
