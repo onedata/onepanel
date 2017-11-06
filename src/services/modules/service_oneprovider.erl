@@ -16,14 +16,15 @@
 -include("modules/models.hrl").
 -include("names.hrl").
 -include("service.hrl").
--include_lib("ctool/include/oz/oz_providers.hrl").
 -include_lib("ctool/include/oz/oz_spaces.hrl").
+-include_lib("ctool/include/logging.hrl").
+-include_lib("xmerl/include/xmerl.hrl").
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([configure/1, register/1, unregister/1, modify_details/1, get_details/1,
+-export([configure/1, register/1, check_oz_availability/1, unregister/1, modify_details/1, get_details/1,
     support_space/1, revoke_space_support/1, get_spaces/1, get_space_details/1,
     modify_space/1, get_sync_stats/1, restart_listeners/1,
     restart_provider_listeners/1, get_autocleaning_reports/1, get_autocleaning_status/1, start_cleaning/1]).
@@ -143,8 +144,10 @@ get_steps(register, #{hosts := Hosts} = Ctx) ->
         #step{hosts = Hosts, function = configure, ctx = Ctx#{application => name()}},
         #step{hosts = Hosts, function = configure,
             ctx = Ctx#{application => ?APP_NAME}},
-        #step{hosts = Hosts, function = register, selection = any,
-            attempts = onepanel_env:get(oneprovider_register_attempts)}
+        #step{hosts = Hosts, function = check_oz_availability,
+            attempts = onepanel_env:get(connect_to_onezone_attempts)
+        },
+        #step{hosts = Hosts, function = register, selection = any}
     ];
 
 get_steps(register, Ctx) ->
@@ -208,6 +211,31 @@ configure(Ctx) ->
     AppConfigFile = service_ctx:get(op_worker_app_config_file, Ctx),
     rpc:call(Node, application, set_env, [Name, oz_domain, OzDomain]),
     onepanel_env:write([Name, oz_domain], OzDomain, AppConfigFile).
+
+
+%%--------------------------------------------------------------------
+%% @doc Checks if connection to oz is available
+%% @end
+%%--------------------------------------------------------------------
+-spec check_oz_availability(Ctx :: service:ctx()) -> ok | no_return().
+check_oz_availability(Ctx) ->
+    Protocol = service_ctx:get(oz_worker_nagios_protocol, Ctx),
+    Port = service_ctx:get(oz_worker_nagios_port, Ctx, integer),
+    OzDomain = service_ctx:get(onezone_domain, Ctx),
+    Url = onepanel_utils:join([Protocol, "://", OzDomain, ":", Port, "/nagios"]),
+
+    case http_client:get(Url) of
+        {ok, 200, _Headers, Body} ->
+            {Xml, _} = xmerl_scan:string(onepanel_utils:convert(Body, list)),
+            [Status] = [X#xmlAttribute.value || X <- Xml#xmlElement.attributes,
+                X#xmlAttribute.name == status],
+            case Status of
+                "ok" -> ok;
+                _ -> ?throw_error(?ERR_ONEZONE_NOT_READY)
+            end;
+        _ ->
+            ?throw_error(?ERR_ONEZONE_NOT_READY)
+    end.
 
 
 %%--------------------------------------------------------------------

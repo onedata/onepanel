@@ -97,6 +97,9 @@ translate(_Type, #error{reason = {?ERR_HOST_NOT_FOUND_FOR_ALIAS, Alias}}) ->
     {<<"Invalid Request">>, <<"Host not found for node: '",
         (onepanel_utils:convert(Alias, binary))/binary, "'.">>};
 
+translate(_Type, #error{reason = ?ERR_ONEZONE_NOT_READY}) ->
+    {<<"Onezone connection error">>, <<"Onezone not ready">>};
+
 translate(_Type, #error{reason = ?ERR_SUBDOMAIN_NOT_AVAILABLE}) ->
     % DO NOT modify this error message as it is used to identify the error in GUI
     {<<"Subdomain reserved error">>, <<"Subdomain is not available.">>};

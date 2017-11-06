@@ -79,6 +79,7 @@ end).
 -define(ERR_INVALID_VALUE, invalid_value).
 -define(ERR_HOST_NOT_FOUND_FOR_ALIAS, host_not_found_for_alias).
 
+-define(ERR_ONEZONE_NOT_READY, onezone_not_ready).
 -define(ERR_SUBDOMAIN_NOT_AVAILABLE, subdomain_not_available).
 
 -define(ERR_STORAGE_TEST_FILE_CREATE, storage_test_file_create).
