@@ -145,8 +145,7 @@ get_steps(register, #{hosts := Hosts} = Ctx) ->
         #step{hosts = Hosts, function = configure,
             ctx = Ctx#{application => ?APP_NAME}},
         #step{hosts = Hosts, function = check_oz_availability,
-            attempts = onepanel_env:get(connect_to_onezone_attempts)
-        },
+            attempts = onepanel_env:get(connect_to_onezone_attempts)},
         #step{hosts = Hosts, function = register, selection = any}
     ];
 

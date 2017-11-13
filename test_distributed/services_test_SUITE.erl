@@ -46,6 +46,8 @@
     end, HostsType)
 end).
 
+-define(AWAIT_OZ_CONNECTIVITY_ATTEMPTS, 30).
+
 all() ->
     ?ALL([
         service_oneprovider_unregister_register_test,
@@ -82,6 +84,7 @@ service_oneprovider_modify_details_test(Config) ->
         oneprovider_geo_latitude => 30.0,
         oneprovider_geo_longitude => 40.0,
         oneprovider_name => <<"provider3">>,
+        oneprovider_subdomain_delegation => false,
         oneprovider_domain => Domain
     }),
     service_action(Node, oneprovider, get_details, #{
@@ -90,10 +93,11 @@ service_oneprovider_modify_details_test(Config) ->
     Results = assert_service_step(service:get_module(oneprovider), get_details),
     [{_, Details}] = ?assertMatch([{Node, _}], Results),
     onepanel_test_utils:assert_fields(Details,
-        [id, name, domain, geoLatitude, geoLongitude]
+        [id, name, subdomainDelegation, domain, geoLatitude, geoLongitude]
     ),
     onepanel_test_utils:assert_values(Details, [
         {name, <<"provider3">>},
+        {subdomainDelegation, false},
         {domain, Domain},
         {geoLatitude, 30.0},
         {geoLongitude, 40.0}
@@ -340,6 +344,14 @@ init_per_suite(Config) ->
     end,
     [{?ENV_UP_POSTHOOK, Posthook} | Config].
 
+init_per_testcase(Case, Config) when
+    Case == service_oneprovider_get_details_test;
+    Case == service_oneprovider_modify_details_test ->
+
+    [Node | _] = ?config(oneprovider_nodes, Config),
+    await_oz_connectivity(Node),
+
+    init_per_testcase(default, Config);
 
 init_per_testcase(_Case, Config) ->
     onepanel_test_utils:clear_msg_inbox(),
@@ -385,3 +397,17 @@ get_domain(Hostname) when not is_binary(Hostname) ->
 get_domain(Hostname) ->
     [_Hostname, Domain] = binary:split(Hostname, <<".">>),
     Domain.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Waits for substriptions channel to be active in the provider.
+%% @end
+%%--------------------------------------------------------------------
+-spec await_oz_connectivity(Node :: node()) -> ok | no_return().
+await_oz_connectivity(Node) ->
+    OpNode = onepanel_cluster:host_to_node(service_op_worker:name(), onepanel_cluster:node_to_host(Node)),
+    ?assertMatch({ok, _},
+        % direct rpc from testmaster apparently does not work
+        rpc:call(Node, rpc, call, [OpNode, provider_logic, get, []]),
+        ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS),
+    ok.
