@@ -13,6 +13,7 @@
 
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([auth_request/4, auth_request/5, auth_request/6, auth_request/7,
