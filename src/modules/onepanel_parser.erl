@@ -138,7 +138,14 @@ parse_value(Value, integer = ValueSpec, Keys) ->
     convert(Value, ValueSpec, Keys, fun(V) -> erlang:binary_to_integer(V) end);
 
 parse_value(Value, float = ValueSpec, Keys) ->
-    convert(Value, ValueSpec, Keys, fun(V) -> erlang:binary_to_float(V) end);
+    convert(Value, ValueSpec, Keys, fun(V) ->
+        try
+            erlang:binary_to_float(V)
+        catch
+            _:_ ->
+                erlang:binary_to_integer(V) * 1.0
+        end
+    end);
 
 parse_value(Value, {oneof, ValueSpecs}, Keys) when is_list(ValueSpecs) ->
     Arg = lists:foldl(fun
