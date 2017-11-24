@@ -65,12 +65,14 @@ exists_resource(Req, _State) ->
 accept_resource(Req, 'POST', Args, #rstate{resource = provider}) ->
     Ctx = onepanel_maps:get_store(onezoneDomainName, Args, onezone_domain),
     Ctx2 = onepanel_maps:get_store(name, Args, oneprovider_name, Ctx),
-    Ctx3 = onepanel_maps:get_store(redirectionPoint, Args, oneprovider_redirection_point, Ctx2),
-    Ctx4 = onepanel_maps:get_store(geoLatitude, Args, oneprovider_geo_latitude, Ctx3),
-    Ctx5 = onepanel_maps:get_store(geoLongitude, Args, oneprovider_geo_longitude, Ctx4),
+    Ctx3 = onepanel_maps:get_store(subdomainDelegation, Args, oneprovider_subdomain_delegation, Ctx2),
+    Ctx4 = onepanel_maps:get_store(domain, Args, oneprovider_domain, Ctx3),
+    Ctx5 = onepanel_maps:get_store(subdomain, Args, oneprovider_subdomain, Ctx4),
+    Ctx6 = onepanel_maps:get_store(geoLatitude, Args, oneprovider_geo_latitude, Ctx5),
+    Ctx7 = onepanel_maps:get_store(geoLongitude, Args, oneprovider_geo_longitude, Ctx6),
 
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, register, Ctx5
+        ?SERVICE, register, Ctx7
     ))};
 
 accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
@@ -97,12 +99,14 @@ accept_resource(Req, 'POST', _Args, #rstate{resource = start_cleaning, bindings 
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
     Ctx = onepanel_maps:get_store(name, Args, oneprovider_name, Args),
-    Ctx2 = onepanel_maps:get_store(redirectionPoint, Args, oneprovider_redirection_point, Ctx),
-    Ctx3 = onepanel_maps:get_store(geoLatitude, Args, oneprovider_geo_latitude, Ctx2),
-    Ctx4 = onepanel_maps:get_store(geoLongitude, Args, oneprovider_geo_longitude, Ctx3),
+    Ctx2 = onepanel_maps:get_store(subdomainDelegation, Args, oneprovider_subdomain_delegation, Ctx),
+    Ctx3 = onepanel_maps:get_store(domain, Args, oneprovider_domain, Ctx2),
+    Ctx4 = onepanel_maps:get_store(subdomain, Args, oneprovider_subdomain, Ctx3),
+    Ctx5 = onepanel_maps:get_store(geoLatitude, Args, oneprovider_geo_latitude, Ctx4),
+    Ctx6 = onepanel_maps:get_store(geoLongitude, Args, oneprovider_geo_longitude, Ctx5),
 
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, modify_details, Ctx4
+        ?SERVICE, modify_details, Ctx6
     ))};
 
 

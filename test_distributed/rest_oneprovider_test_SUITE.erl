@@ -54,7 +54,7 @@
 
 -define(PROVIDER_DETAILS_JSON, [
     {<<"id">>, <<"someId">>}, {<<"name">>, <<"someName">>},
-    {<<"redirectionPoint">>, <<"someUrl">>}, {<<"urls">>, [<<"someUrl">>]},
+    {<<"subdomainDelegation">>, false}, {<<"domain">>, <<"someDomain">>},
     {<<"geoLatitude">>, 10.0}, {<<"geoLongitude">>, 20.0}
 ]).
 
@@ -171,7 +171,8 @@ put_should_register_provider(Config) ->
             Host, <<"/provider">>, post,
             {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [
                 {<<"name">>, <<"someName">>},
-                {<<"redirectionPoint">>, <<"someUrl">>},
+                {<<"subdomainDelegation">>, false},
+                {<<"domain">>, <<"somedomain">>},
                 {<<"geoLongitude">>, 10.0},
                 {<<"geoLatitude">>, 20.0},
                 {<<"onezoneDomainName">>, <<"someDomain">>}
@@ -180,7 +181,7 @@ put_should_register_provider(Config) ->
         ?assertReceivedMatch({service, oneprovider, register, #{
             onezone_domain := <<"someDomain">>,
             oneprovider_name := <<"someName">>,
-            oneprovider_redirection_point := <<"someUrl">>,
+            oneprovider_domain := <<"somedomain">>,
             oneprovider_geo_latitude := 20.0,
             oneprovider_geo_longitude := 10.0
         }}, ?TIMEOUT)
@@ -193,14 +194,14 @@ patch_should_modify_provider_details(Config) ->
             Host, <<"/provider">>, patch,
             {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [
                 {<<"name">>, <<"someName">>},
-                {<<"redirectionPoint">>, <<"someUrl">>},
+                {<<"domain">>, <<"someDomain">>},
                 {<<"geoLongitude">>, 10.0},
                 {<<"geoLatitude">>, 20.0}
             ]
         )),
         ?assertReceivedMatch({service, oneprovider, modify_details, #{
             oneprovider_name := <<"someName">>,
-            oneprovider_redirection_point := <<"someUrl">>,
+            oneprovider_domain := <<"someDomain">>,
             oneprovider_geo_latitude := 20.0,
             oneprovider_geo_longitude := 10.0
         }}, ?TIMEOUT)

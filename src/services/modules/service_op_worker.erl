@@ -102,9 +102,7 @@ configure(Ctx) ->
 
     service_cluster_worker:configure(Ctx#{
         name => name(),
-        app_config => #{
-            provider_domain => OpDomain
-        },
+        app_config => #{},
         app_config_file => AppConfigFile,
         vm_args_file => VmArgsFile
     }).

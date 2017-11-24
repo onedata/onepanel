@@ -275,8 +275,17 @@ provider_configuration_oneprovider_model() ->
         register => boolean,
         %% The name under which the provider will be registered in a zone.
         name => string,
-        %% The address used for user redirection from a zone to the provider.
-        redirectionPoint => string,
+        %% If enabled, the storage provider will be assigned a subdomain in
+        %% onezone's domain and 'subdomain' property must be
+        %% provided. If disabled, 'domain' property should be provided.
+        subdomainDelegation => {boolean, optional},
+        %% Unique subdomain in onezone's domain for the provider. Required
+        %% if subdomain delegation is enabled.
+        subdomain => {string, optional},
+        %% The fully qualified domain name of the provider or its IP address
+        %% (only for single-node deployments or clusters with a reverse proxy).
+        %% Required if subdomain delegation is disabled.
+        domain => {string, optional},
         %% The geographical longitude of the provider.
         geoLongitude => {float, optional},
         %% The geographical latitude of the provider.
@@ -305,14 +314,21 @@ provider_details_model() ->
         id => string,
         %% The name under which the provider has been registered in a zone.
         name => string,
-        %% The list of IP addresses of provider cluster worker nodes.
-        urls => [string],
-        %% The address used for user redirection from a zone to the provider.
-        redirectionPoint => string,
+        %% If enabled, the storage provider has a subdomain in onezone's
+        %% domain and 'subdomain' property must be provided.
+        subdomainDelegation => boolean,
+        %% Unique subdomain in onezone's domain for the provider. Required
+        %% if subdomain delegation is enabled.
+        subdomain => {string, optional},
+        %% The fully qualified domain name of the provider or its IP address
+        %% (only for single-node deployments or clusters with a reverse proxy).
+        domain => string,
         %% The geographical longitude of the provider.
         geoLongitude => float,
         %% The geographical latitude of the provider.
-        geoLatitude => float
+        geoLatitude => float,
+        %% The domain name of a zone where this storage provider is registered.
+        onezoneDomainName => string
     }.
 
 %%--------------------------------------------------------------------
@@ -324,8 +340,19 @@ provider_modify_request_model() ->
     #{
         %% The name under which the provider has been registered in a zone.
         name => {string, optional},
-        %% The address used for user redirection from a zone to the provider.
-        redirectionPoint => {string, optional},
+        %% If enabled, the storage provider will be assigned a subdomain in
+        %% onezone's domain and 'subdomain' property must be
+        %% provided. If disabled, 'domain' property should be provided.
+        subdomainDelegation => {boolean, optional},
+        %% Unique subdomain in onezone's domain for the provider. This
+        %% property is required only if subdomain delegation is enabled.
+        %% Otherwise it is ignored.
+        subdomain => {string, optional},
+        %% The fully qualified domain name of the provider or its IP address
+        %% (only for single-node deployments or clusters with a reverse proxy).
+        %% This property is required only if subdomain delegation is disabled.
+        %% Otherwise it is ignored.
+        domain => {string, optional},
         %% The geographical longitude of the provider.
         geoLongitude => {float, optional},
         %% The geographical latitude of the provider.
@@ -342,16 +369,24 @@ provider_register_request_model() ->
     #{
         %% The name under which the provider should be registered in a zone.
         name => string,
-        %% The address used for user redirection from a zone to the storage
-        %% provider.
-        redirectionPoint => string,
+        %% If enabled, the storage provider will be assigned a subdomain in
+        %% onezone's domain and 'subdomain' property must be
+        %% provided. If disabled, 'domain' property should be provided.
+        subdomainDelegation => {boolean, optional},
+        %% Unique subdomain in onezone's domain for the storage provider.
+        %% Required if subdomain delegation is enabled.
+        subdomain => {string, optional},
+        %% The fully qualified domain name of the storage provider or its IP
+        %% address (only for single-node deployments or clusters with a reverse
+        %% proxy). Required if subdomain delegation is disabled.
+        domain => {string, optional},
         %% The geographical longitude of the storage provider.
         geoLongitude => {float, optional},
         %% The geographical latitude of the storage provider.
         geoLatitude => {float, optional},
         %% The domain name of a zone where this storage provider will be
         %% registered.
-        onezoneDomainName => {string, optional}
+        onezoneDomainName => string
     }.
 
 %%--------------------------------------------------------------------

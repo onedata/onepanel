@@ -501,7 +501,8 @@ put_should_configure_oneprovider_service(Config) ->
                     {<<"oneprovider">>, [
                         {<<"register">>, true},
                         {<<"name">>, <<"someName">>},
-                        {<<"redirectionPoint">>, <<"someUrl">>},
+                        {<<"subdomainDelegation">>, false},
+                        {<<"domain">>, <<"someDomain">>},
                         {<<"geoLongitude">>, 10.0},
                         {<<"geoLatitude">>, 20.0}
                     ]},
@@ -555,7 +556,7 @@ put_should_configure_oneprovider_service(Config) ->
                 oneprovider_geo_latitude := 20.0,
                 oneprovider_geo_longitude := 10.0,
                 oneprovider_name := <<"someName">>,
-                oneprovider_redirection_point := <<"someUrl">>,
+                oneprovider_domain := <<"someDomain">>,
                 oneprovider_register := true,
                 onezone_domain := <<"someDomain">>
             }
