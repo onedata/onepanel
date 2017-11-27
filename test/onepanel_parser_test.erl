@@ -36,13 +36,15 @@ parse_float_key_test() ->
     Data1 = [{<<"key">>, 1.0}],
     Data2 = [{<<"key">>, <<"1.0">>}],
     Data3 = [{<<"key">>, 1}],
-    Data4 = [{<<"key">>, <<"not_a_float">>}],
+    Data4 = [{<<"key">>, <<"1">>}],
+    Data5 = [{<<"key">>, <<"not_a_float">>}],
     ArgsSpec = #{key => float},
     ?assertEqual(#{key => 1.0}, onepanel_parser:parse(Data1, ArgsSpec)),
     ?assertEqual(#{key => 1.0}, onepanel_parser:parse(Data2, ArgsSpec)),
     ?assertEqual(#{key => 1.0}, onepanel_parser:parse(Data3, ArgsSpec)),
+    ?assertEqual(#{key => 1.0}, onepanel_parser:parse(Data4, ArgsSpec)),
     ?assertThrow(#error{reason = {?ERR_INVALID_VALUE, [key], float}},
-        onepanel_parser:parse(Data4, ArgsSpec)).
+        onepanel_parser:parse(Data5, ArgsSpec)).
 
 
 parse_atom_key_test() ->
