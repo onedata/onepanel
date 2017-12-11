@@ -307,7 +307,7 @@ register(Ctx) ->
             ]),
 
             OpwNodes = onepanel_cluster:hosts_to_nodes(service_op_worker:name(), Hosts),
-            onepanel_rpc:call_all(OpwNodes, application, set_env, [
+            {_, []} = rpc:multicall(OpwNodes, application, set_env, [
                 service_op_worker:name(), provider_id, ProviderId
             ]),
 
