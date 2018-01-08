@@ -17,7 +17,6 @@
 
 %% OZ behaviour callbacks
 -export([get_oz_url/0, get_oz_rest_port/0, get_oz_rest_api_prefix/0]).
--export([get_key_file/0, get_csr_file/0, get_cert_file/0]).
 -export([get_cacerts_dir/0, get_provider_cacerts_dir/0]).
 -export([auth_to_rest_client/1]).
 
@@ -53,33 +52,6 @@ get_oz_rest_api_prefix() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link oz_plugin_behaviour:get_key_file/0}
-%% @end
-%%--------------------------------------------------------------------
--spec get_key_file() -> file:name_all().
-get_key_file() ->
-    get_env(oz_provider_key_file, list).
-
-
-%%--------------------------------------------------------------------
-%% @doc {@link oz_plugin_behaviour:get_csr_file/0}
-%% @end
-%%--------------------------------------------------------------------
--spec get_csr_file() -> file:name_all().
-get_csr_file() ->
-    get_env(oz_provider_csr_file, list).
-
-
-%%--------------------------------------------------------------------
-%% @doc {@link oz_plugin_behaviour:get_cert_file/0}
-%% @end
-%%--------------------------------------------------------------------
--spec get_cert_file() -> file:name_all().
-get_cert_file() ->
-    get_env(oz_provider_cert_file, list).
-
-
-%%--------------------------------------------------------------------
 %% @doc {@link oz_plugin_behaviour:get_cacerts_dir/0}
 %% @end
 %%--------------------------------------------------------------------
@@ -104,9 +76,14 @@ get_provider_cacerts_dir() ->
 %%--------------------------------------------------------------------
 -spec auth_to_rest_client(Auth :: term()) -> {user, token, binary()} |
 {user, macaroon, {Macaroon :: binary(), DischargeMacaroons :: [binary()]}} |
-{user, basic, binary()} | provider.
-auth_to_rest_client(Auth) ->
-    Auth.
+{user, basic, binary()} | {provider, Macaroon :: binary()} | none.
+auth_to_rest_client(none) ->
+    none;
+auth_to_rest_client(provider) ->
+    Hosts = service_op_worker:get_hosts(),
+    Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
+    {ok, ProviderMacaroon} = rpc:call(hd(Nodes), provider_auth, get_auth_macaroon, []),
+    {provider, ProviderMacaroon}.
 
 %%%===================================================================
 %%% Internal function

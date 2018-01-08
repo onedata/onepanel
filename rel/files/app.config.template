@@ -116,8 +116,6 @@
         {op_worker_app_config_file, "{{platform_etc_dir}}/../op_worker/app.config"},
         {op_worker_web_key_file, "{{platform_etc_dir}}/../op_worker/certs/web_key.pem"},
         {op_worker_web_cert_file, "{{platform_etc_dir}}/../op_worker/certs/web_cert.pem"},
-        {op_worker_protocol_key_file, "{{platform_etc_dir}}/../op_worker/certs/protocol_key.pem"},
-        {op_worker_protocol_cert_file, "{{platform_etc_dir}}/../op_worker/certs/protocol_cert.pem"},
         {op_worker_open_files_limit, 65535},
         {op_worker_nagios_protocol, "http"},
         {op_worker_nagios_port, 6666},
@@ -138,8 +136,6 @@
         {onezone_name, "example"},
         {onezone_domain, "onedata.org"},
 
-        {oneprovider_key_length, 4096},
-        {oneprovider_csr_subject, "provider"},
         {oneprovider_name, "example"},
         {oneprovider_redirection_point, "https://127.0.0.1"},
         {oneprovider_geo_latitude, 0.0},

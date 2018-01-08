@@ -24,7 +24,9 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([configure/1, register/1, check_oz_availability/1, unregister/1, modify_details/1, get_details/1,
+-export([configure/1, check_oz_availability/1,
+    register/1, unregister/1, is_registered/1,
+    modify_details/1, get_details/1,
     support_space/1, revoke_space_support/1, get_spaces/1, get_space_details/1,
     modify_space/1, get_sync_stats/1, restart_listeners/1,
     restart_provider_listeners/1, get_autocleaning_reports/1, get_autocleaning_status/1, start_cleaning/1]).
@@ -245,15 +247,8 @@ check_oz_availability(Ctx) ->
 -spec register(Ctx :: service:ctx()) ->
     {ok, ProviderId :: binary()} | no_return().
 register(Ctx) ->
-    Length = service_ctx:get(oneprovider_key_length, Ctx),
-    Subject = service_ctx:get(oneprovider_csr_subject, Ctx),
-    Key = onepanel_ssl:gen_rsa(Length),
-    Csr = onepanel_ssl:gen_csr(Subject, Key),
-
     Hosts = onepanel_cluster:nodes_to_hosts(service_op_worker:get_nodes()),
     Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
-
-    {ok, CaCert} = oz_providers:get_oz_cacert(provider),
 
     DomainParams = case service_ctx:get(oneprovider_subdomain_delegation, Ctx, boolean, false) of
         true ->
@@ -270,7 +265,6 @@ register(Ctx) ->
     end,
 
     Params = [
-        {<<"csr">>, Csr},
         {<<"name">>,
             service_ctx:get(oneprovider_name, Ctx, binary)},
         {<<"latitude">>,
@@ -281,7 +275,7 @@ register(Ctx) ->
     ],
 
     Validator = fun
-        ({ok, ProviderId, Cert}) -> {ProviderId, Cert};
+        ({ok, ProviderId, Macaroon}) -> {ProviderId, Macaroon};
 
         % Return the subdomain_reserved error instead of throwing as it would cause
         % wait_until to repeat attempts. As the error condition will not change
@@ -291,28 +285,16 @@ register(Ctx) ->
         ({error, Reason}) -> ?throw_error(Reason)
     end,
 
-    case onepanel_utils:wait_until(oz_providers, register, [provider, Params],
-            {validator, Validator}, 10, timer:seconds(30)) of
+    case onepanel_utils:wait_until(oz_providers, register, [none, Params],
+        {validator, Validator}, 10, timer:seconds(30)) of
         {error, subdomain_reserved} ->
             ?throw_error(?ERR_SUBDOMAIN_NOT_AVAILABLE);
-        {ProviderId, Cert} ->
-            lists:foreach(fun({File, Content}) ->
-                onepanel_rpc:call_all(Nodes, onepanel_utils, save_file, [File, Content])
-            end, [
-                {oz_plugin:get_key_file(), Key},
-                {oz_plugin:get_csr_file(), Csr},
-                {oz_plugin:get_cert_file(), Cert},
-                {filename:join(oz_plugin:get_cacerts_dir(), "ozp_cacert.pem"), CaCert},
-                {filename:join(oz_plugin:get_provider_cacerts_dir(), "ozp_cacert.pem"), CaCert}
-            ]),
-
+        {ProviderId, Macaroon} ->
             OpwNodes = onepanel_cluster:hosts_to_nodes(service_op_worker:name(), Hosts),
-            {_, []} = rpc:multicall(OpwNodes, application, set_env, [
-                service_op_worker:name(), provider_id, ProviderId
-            ]),
-
-            rpc:multicall(Nodes, oz_endpoint, reset_oz_cacerts, []),
-            rpc:multicall(OpwNodes, oz_endpoint, reset_oz_cacerts, []),
+            rpc:call(hd(OpwNodes), provider_auth, save, [ProviderId, Macaroon]),
+            % Force connection healthcheck
+            % (reconnect attempt is performed automatically if there is no connection)
+            rpc:multicall(OpwNodes, oneprovider, is_connected_to_oz, []),
 
             service:update(name(), fun(#service{ctx = C} = S) ->
                 S#service{ctx = C#{registered => true}}
@@ -320,7 +302,6 @@ register(Ctx) ->
 
             {ok, ProviderId}
     end.
-
 
 
 %%--------------------------------------------------------------------
@@ -332,17 +313,28 @@ unregister(#{hosts := Hosts}) ->
     Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
     ok = oz_providers:unregister(provider),
 
+    rpc:call(hd(Nodes), provider_auth, delete, []),
+
     service:update(name(), fun(#service{ctx = C} = S) ->
         S#service{ctx = C#{registered => false}}
-    end),
+    end).
 
-    lists:foreach(fun(File) ->
-        onepanel_rpc:call_all(Nodes, file, delete, [File])
-    end, [
-        oz_plugin:get_key_file(),
-        oz_plugin:get_csr_file(),
-        oz_plugin:get_cert_file()
-    ]).
+
+%%--------------------------------------------------------------------
+%% @doc Returns if this provider is registered in OneZone.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_registered(Ctx :: service:ctx()) -> boolean().
+is_registered(#{node := Node}) ->
+    try rpc:call(Node, oneprovider, is_registered, []) of
+        true -> true;
+        _ -> false
+    catch _:_ ->
+        false
+    end;
+is_registered(Ctx) ->
+    [Node | _] = service_op_worker:get_nodes(),
+    is_registered(Ctx#{node => Node}).
 
 
 %%--------------------------------------------------------------------
@@ -382,9 +374,10 @@ modify_details(Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_details(Ctx :: service:ctx()) -> list().
-get_details(#{node := Node} = Ctx) ->
+get_details(#{node := Node}) ->
     {ok, {_, _, OzDomain, _, _, _}} = http_uri:parse(oz_plugin:get_oz_url()),
     #{
+        id := Id,
         name := Name,
         subdomain_delegation := SubdomainDelegation,
         domain := Domain,
@@ -392,7 +385,6 @@ get_details(#{node := Node} = Ctx) ->
         longitude := Longitude,
         latitude := Latitude
     } = rpc:call(Node, provider_logic, get_as_map, []),
-    Id = rpc:call(Node, oneprovider, get_provider_id, []),
 
     Details = [
         {id, Id}, {name, Name},
@@ -596,7 +588,7 @@ get_autocleaning_reports(Ctx) ->
 get_autocleaning_status(#{space_id := SpaceId, node := Node}) ->
     rpc:call(Node, space_cleanup_api, status, [SpaceId]);
 get_autocleaning_status(Ctx) ->
-[Node | _] = service_op_worker:get_nodes(),
+    [Node | _] = service_op_worker:get_nodes(),
     get_autocleaning_status(Ctx#{node => Node}).
 
 %%-------------------------------------------------------------------

@@ -24,7 +24,7 @@
 ]}.
 
 {deps, [
-    {ctool, {git, "ssh://git@git.plgrid.pl:7999/vfs/ctool.git", {ref, "3ffbd768b3"}}},
+    {ctool, {git, "ssh://git@git.plgrid.pl:7999/vfs/ctool.git", {ref, "4e71050b96"}}},
     {gui, {git, "ssh://git@git.plgrid.pl:7999/vfs/gui.git", {ref, "449f114e"}}},
     {yamerl, {git, "git://github.com/yakaz/yamerl.git", {ref, "3f46bf06b9"}}},
     {bcrypt, {git, "git://github.com/smarkets/erlang-bcrypt.git", {ref, "a63df34d49"}}}

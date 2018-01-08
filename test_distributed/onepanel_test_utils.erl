@@ -30,8 +30,6 @@
     {op_worker_app_config_file, "/etc/op_worker/app.config"},
     {op_worker_web_key_file, "/etc/op_worker/certs/web_key.pem"},
     {op_worker_web_cert_file, "/etc/op_worker/certs/web_cert.pem"},
-    {op_worker_protocol_key_file, "/etc/op_worker/certs/protocol_key.pem"},
-    {op_worker_protocol_cert_file, "/etc/op_worker/certs/protocol_cert.pem"},
     {oz_worker_vm_args_file, "/etc/oz_worker/vm.args"},
     {oz_worker_app_config_file, "/etc/oz_worker/app.config"},
     {oz_worker_web_key_file, "/etc/oz_worker/certs/gui_key.pem"},
