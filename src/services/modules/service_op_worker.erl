@@ -98,7 +98,6 @@ get_steps(Action, Ctx) ->
 configure(Ctx) ->
     AppConfigFile = service_ctx:get(op_worker_app_config_file, Ctx),
     VmArgsFile = service_ctx:get(op_worker_vm_args_file, Ctx),
-    OpDomain = service_ctx:get_domain(oneprovider_domain, Ctx),
 
     service_cluster_worker:configure(Ctx#{
         name => name(),
@@ -118,9 +117,7 @@ setup_certs(Ctx) ->
         {ok, _} = file:copy(service_ctx:get(Src, Ctx), service_ctx:get(Dst, Ctx))
     end, [
         {key_file, op_worker_web_key_file},
-        {cert_file, op_worker_web_cert_file},
-        {key_file, op_worker_protocol_key_file},
-        {cert_file, op_worker_protocol_cert_file}
+        {cert_file, op_worker_web_cert_file}
     ]).
 
 

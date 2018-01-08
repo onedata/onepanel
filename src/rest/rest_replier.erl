@@ -217,9 +217,15 @@ format_configuration(SModule) ->
             {ok, #service{ctx = Ctx}} = service:get(service_onezone:name()),
             maps:get(name, Ctx, null);
         service_oneprovider ->
-            case oz_providers:get_details(provider) of
-                {ok, #provider_details{name = Name}} -> Name;
-                {error, _Reason} -> null
+            {ok, #service{ctx = Ctx}} = service:get(service_oneprovider:name()),
+            case service_oneprovider:is_registered(Ctx) of
+                true ->
+                    case oz_providers:get_details(provider) of
+                        {ok, #provider_details{name = Name}} -> Name;
+                        {error, _Reason} -> null
+                    end;
+                false ->
+                    null
             end
     end,
     [
