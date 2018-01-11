@@ -309,15 +309,17 @@ register(Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec unregister(Ctx :: service:ctx()) -> ok | no_return().
-unregister(#{hosts := Hosts}) ->
-    Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
+unregister(#{node := Node}) ->
     ok = oz_providers:unregister(provider),
 
-    rpc:call(hd(Nodes), provider_auth, delete, []),
+    rpc:call(Node, provider_auth, delete, []),
 
     service:update(name(), fun(#service{ctx = C} = S) ->
         S#service{ctx = C#{registered => false}}
-    end).
+    end);
+unregister(Ctx) ->
+    [Node | _] = service_op_worker:get_nodes(),
+    ?MODULE:unregister(Ctx#{node => Node}).
 
 
 %%--------------------------------------------------------------------
