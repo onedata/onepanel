@@ -80,9 +80,8 @@ get_provider_cacerts_dir() ->
 auth_to_rest_client(none) ->
     none;
 auth_to_rest_client(provider) ->
-    Hosts = service_op_worker:get_hosts(),
-    Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
-    {ok, ProviderMacaroon} = rpc:call(hd(Nodes), provider_auth, get_auth_macaroon, []),
+    [Node | _] = service_op_worker:get_nodes(),
+    {ok, ProviderMacaroon} = rpc:call(Node, provider_auth, get_auth_macaroon, []),
     {provider, ProviderMacaroon}.
 
 %%%===================================================================
