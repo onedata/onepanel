@@ -344,6 +344,11 @@ init_per_suite(Config) ->
     end,
     [{?ENV_UP_POSTHOOK, Posthook} | Config].
 
+
+init_per_testcase(services_stop_start_test, Config) ->
+    ct:timetrap({minutes, 60}),
+    init_per_testcase(default, Config);
+
 init_per_testcase(Case, Config) when
     Case == service_oneprovider_get_details_test;
     Case == service_oneprovider_modify_details_test ->
