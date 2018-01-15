@@ -6,7 +6,7 @@
 {platform_log_dir,  "./log"}.
 
 %% etc/vm.args
-{node,       "onepanel@127.0.0.1"}.
+{node,       "onepanel"}.
 {cookie,     "cluster_node"}.
 {crash_dump, "{{platform_log_dir}}/erl_crash.dump"}.
 

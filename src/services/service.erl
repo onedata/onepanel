@@ -25,7 +25,7 @@
     delete/1, list/0]).
 
 %% API
--export([start/1, start/2, stop/1, status/1, apply/3, apply/4, apply_async/3,
+-export([start/3, stop/2, status/2, apply/3, apply/4, apply_async/3,
     apply_sync/3, apply_sync/4, get_results/1, get_results/2, abort_task/1,
     exists_task/1]).
 -export([get_module/1, get_hosts/1, get_nodes/1, is_member/2, add_host/2]).
@@ -136,44 +136,53 @@ list() ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc @equiv service:start(InitScript, #{})
-%% @end
-%%--------------------------------------------------------------------
--spec start(InitScript :: string()) -> ok | no_return().
-start(InitScript) ->
-    service:start(InitScript, #{}).
-
-
-%%--------------------------------------------------------------------
 %% @doc Sets the system limits and starts the service using an init script
 %% in a shell.
 %% @end
 %%--------------------------------------------------------------------
--spec start(InitScript :: string(), SystemLimits :: maps:map()) -> ok | no_return().
-start(InitScript, SystemLimits) ->
-    Tokens = maps:fold(fun
+-spec start(string(), maps:map(), atom()) -> ok | no_return().
+start(InitScript, SystemLimits, CustomCmdEnv) ->
+    Tokens = case onepanel_env:find(CustomCmdEnv) of
+        {ok, Cmd} -> [Cmd];
+        _ -> ["service", InitScript, "start"]
+    end,
+    Tokens2 = maps:fold(fun
         (open_files, Value, Acc) -> ["ulimit", "-n", Value, ";" | Acc];
         (_, _, Acc) -> Acc
-    end, ["service", InitScript, "start"], SystemLimits),
-    onepanel_shell:check_call(Tokens).
+    end, Tokens, SystemLimits),
+    onepanel_shell:check_call(Tokens2).
 
 
 %%--------------------------------------------------------------------
 %% @doc Stops the service using an init script in a shell.
 %% @end
 %%--------------------------------------------------------------------
--spec stop(InitScript :: string()) -> ok | no_return().
-stop(InitScript) ->
-    onepanel_shell:check_call(["service", InitScript, "stop"]).
+-spec stop(string(), atom()) -> ok | no_return().
+stop(InitScript, CustomCmdEnv) ->
+    Tokens = case onepanel_env:find(CustomCmdEnv) of
+        {ok, Cmd} -> [Cmd];
+        _ -> ["service", InitScript, "stop"]
+    end,
+    try
+        onepanel_shell:check_call(Tokens)
+    catch
+        _:_ ->
+            ?warning("Failed to stop service '~s'", [InitScript]),
+            ok
+    end.
 
 
 %%--------------------------------------------------------------------
 %% @doc Returns the service status using an init script in a shell.
 %% @end
 %%--------------------------------------------------------------------
--spec status(InitScript :: string()) -> running | stopped | missing.
-status(InitScript) ->
-    case onepanel_shell:call(["service", InitScript, "status"]) of
+-spec status(string(), atom()) -> running | stopped | missing.
+status(InitScript, CustomCmdEnv) ->
+    Tokens = case onepanel_env:find(CustomCmdEnv) of
+        {ok, Cmd} -> [Cmd];
+        _ -> ["service", InitScript, "status"]
+    end,
+    case onepanel_shell:call(Tokens) of
         0 -> running;
         127 -> missing;
         _ -> stopped
