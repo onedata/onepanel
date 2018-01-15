@@ -67,7 +67,7 @@ get_cacerts_dir() ->
 %%--------------------------------------------------------------------
 -spec get_provider_cacerts_dir() -> file:name_all().
 get_provider_cacerts_dir() ->
-    get_env(cacerts_dir, list).
+    get_env(cacerts_dir, path).
 
 
 %%--------------------------------------------------------------------
@@ -95,6 +95,16 @@ auth_to_rest_client(provider) ->
 %%--------------------------------------------------------------------
 -spec get_env(Key :: onepanel_env:key(), Type :: onepanel_utils:type()) ->
     Value :: term().
+get_env(Key, path) ->
+    Path = get_env(Key, list),
+    case filename:absname(Path) of
+        Path ->
+            Path;
+        _ ->
+            [Node | _] = service_op_worker:get_nodes(),
+            {ok, Cwd} = rpc:call(Node, file, get_cwd, []),
+            filename:join(Cwd, Path)
+    end;
 get_env(Key, Type) ->
     Hosts = service_op_worker:get_hosts(),
     Nodes = onepanel_cluster:hosts_to_nodes(Hosts),

@@ -21,7 +21,7 @@
 -export([gen_uuid/0, get_nif_library_file/1, join/1, join/2, trim/2]).
 -export([convert/2, get_type/1, typed_get/3, typed_get/4]).
 
--type primitive_type() :: atom | binary | float | integer | list | boolean.
+-type primitive_type() :: atom | binary | float | integer | list | boolean | path.
 -type type() :: primitive_type() | {seq, primitive_type()}.
 -type expectation() :: {equal, Expected :: term()} | {validator,
     Validator :: fun((term()) -> term() | no_return())}.

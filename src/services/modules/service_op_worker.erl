@@ -130,7 +130,10 @@ start(Ctx) ->
     NewCtx = maps:merge(#{
         open_files => service_ctx:get(op_worker_open_files_limit, Ctx)
     }, Ctx),
-    service_cluster_worker:start(NewCtx#{init_script => ?INIT_SCRIPT}),
+    service_cluster_worker:start(NewCtx#{
+        init_script => ?INIT_SCRIPT,
+        custom_cmd_env => op_worker_start_cmd
+    }),
     service_watcher:register_service(name()).
 
 
@@ -141,7 +144,10 @@ start(Ctx) ->
 -spec stop(Ctx :: service:ctx()) -> ok | no_return().
 stop(Ctx) ->
     service_watcher:unregister_service(name()),
-    service_cluster_worker:stop(Ctx#{init_script => ?INIT_SCRIPT}).
+    service_cluster_worker:stop(Ctx#{
+        init_script => ?INIT_SCRIPT,
+        custom_cmd_env => op_worker_stop_cmd
+    }).
 
 
 %%--------------------------------------------------------------------
@@ -150,7 +156,10 @@ stop(Ctx) ->
 %%--------------------------------------------------------------------
 -spec status(Ctx :: service:ctx()) -> running | stopped | not_found.
 status(Ctx) ->
-    service_cluster_worker:status(Ctx#{init_script => ?INIT_SCRIPT}).
+    service_cluster_worker:status(Ctx#{
+        init_script => ?INIT_SCRIPT,
+        custom_cmd_env => op_worker_status_cmd
+    }).
 
 
 %%--------------------------------------------------------------------

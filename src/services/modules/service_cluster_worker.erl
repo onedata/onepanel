@@ -134,17 +134,16 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
 %% @end
 %%--------------------------------------------------------------------
 -spec start(Ctx :: service:ctx()) -> ok | no_return().
-start(#{init_script := InitScript} = Ctx) ->
-    service:start(InitScript, Ctx).
-
+start(#{init_script := InitScript, custom_cmd_env := CustomCmdEnv} = Ctx) ->
+    service:start(InitScript, Ctx, CustomCmdEnv).
 
 %%--------------------------------------------------------------------
 %% @doc {@link service:stop/1}
 %% @end
 %%--------------------------------------------------------------------
 -spec stop(Ctx :: service:ctx()) -> ok | no_return().
-stop(#{init_script := InitScript}) ->
-    service:stop(InitScript).
+stop(#{init_script := InitScript, custom_cmd_env := CustomCmdEnv}) ->
+    service:stop(InitScript, CustomCmdEnv).
 
 
 %%--------------------------------------------------------------------
@@ -152,8 +151,8 @@ stop(#{init_script := InitScript}) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec status(Ctx :: service:ctx()) -> running | stopped | not_found.
-status(#{init_script := InitScript}) ->
-    service:status(InitScript).
+status(#{init_script := InitScript, custom_cmd_env := CustomCmdEnv}) ->
+    service:status(InitScript, CustomCmdEnv).
 
 
 %%--------------------------------------------------------------------
