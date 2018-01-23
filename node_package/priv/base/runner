@@ -252,8 +252,8 @@ case "$1" in
         # Bootstrap daemon command (check perms & drop to $RUNNER_USER)
         bootstrapd $@
 
-        if [[ "${2}" == "-config" && -n ${3} ]]; then
-            CONFIG_OPTION="${2} ${3}"
+        if [[ -f "$RUNNER_ETC_DIR/overlay.config" ]]; then
+            CONFIG_OPTION="-config $RUNNER_ETC_DIR/overlay.config"
         else
             CONFIG_OPTION=""
         fi
