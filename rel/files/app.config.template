@@ -31,11 +31,6 @@
 
     %% onepanel config
     {onepanel, [
-        %% List of beam directories to be covered, cover is not started if list is empty
-        {covered_dirs, []},
-        %% List of modules to be excluded during cover analysis
-        {covered_excluded_modules, []},
-
         {advertise_address, "239.255.0.1"},
         {advertise_port, 8888},
         {advertise_max_delay, 5000},
@@ -71,17 +66,13 @@
         {gui_custom_static_root, "/var/www/html/onepanel"},
 
         {rpc_timeout, 1800000},
-        {initialize_timeout, 60000},
         {create_tables_timeout, 10000},
         {copy_tables_timeout, 10000},
         {extend_cluster_timeout, 900000},
         {task_ttl, 86400000},
         {service_step_retry_delay, 30000},
         {services_check_delay, 60000},
-        {openssl_cmd_timeout, 60000},
         {session_ttl, 3600000},
-
-        {bcrypt_work_factor, 12},
 
         {vm_args_file, "{{platform_etc_dir}}/vm.args"},
         {app_config_file, "{{platform_etc_dir}}/app.config"},
@@ -131,13 +122,11 @@
         {oz_worker_nagios_protocol, "http"},
         {oz_worker_nagios_port, 6666},
         {oz_worker_wait_for_init_attempts, 60},
-        {oz_worker_wait_for_init_delay, 5000},
 
         {onezone_name, "example"},
         {onezone_domain, "onedata.org"},
 
         {oneprovider_name, "example"},
-        {oneprovider_redirection_point, "https://127.0.0.1"},
         {oneprovider_geo_latitude, 0.0},
         {oneprovider_geo_longitude, 0.0},
         {connect_to_onezone_attempts, 5},
