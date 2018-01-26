@@ -4,6 +4,14 @@
 CHANGELOG
 ---------
 
+### 17.06.0-rc9
+
+* VFS-4004 Update ctool to include safe ciphers in TLS
+* VFS-3972 Fix attach-direct consoles in releases not being run with xterm terminal
+* VFS-3911 - adapt onepanel to changes in op-worker storage_sync_monitoring module
+* fix error when geolocation is integer
+
+
 ### 17.06.0-rc8
 
 * Releasing new version 17.06.0-rc8
