@@ -28,7 +28,7 @@
 
 -type name() :: binary().
 -type password() :: binary().
--type password_hash() :: string().
+-type password_hash() :: binary().
 -type role() :: admin | regular.
 -type uuid() :: binary().
 -type record() :: #onepanel_user{}.
@@ -194,9 +194,9 @@ authenticate(SessionId) ->
 authenticate(Username, Password) ->
     case onepanel_user:get(Username) of
         {ok, #onepanel_user{password_hash = Hash} = User} ->
-            case bcrypt:hashpw(Password, Hash) of
-                {ok, Hash} -> {ok, User};
-                _ -> ?make_error(?ERR_INVALID_USERNAME_OR_PASSWORD)
+            case onepanel_password:verify(Password, Hash) of
+                true -> {ok, User};
+                false -> ?make_error(?ERR_INVALID_USERNAME_OR_PASSWORD)
             end;
         _ -> ?make_error(?ERR_INVALID_USERNAME_OR_PASSWORD)
     end.
@@ -208,9 +208,7 @@ authenticate(Username, Password) ->
 %%--------------------------------------------------------------------
 -spec hash_password(Password :: password()) -> PasswordHash :: password_hash().
 hash_password(Password) ->
-    {ok, Salt} = bcrypt:gen_salt(),
-    {ok, PasswordHash} = bcrypt:hashpw(Password, Salt),
-    PasswordHash.
+    onepanel_password:create_hash(Password).
 
 
 %%--------------------------------------------------------------------

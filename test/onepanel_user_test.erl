@@ -77,7 +77,7 @@ new_should_reject_existing_user(_) ->
 authenticate_should_return_user(_) ->
     ?assertEqual({ok, ?U}, onepanel_user:create(?U, ?P, ?R)),
     ?_assertMatch({ok, #onepanel_user{
-        username = ?U, password_hash = [_ | _], role = ?R,
+        username = ?U, password_hash = <<_/binary>>, role = ?R,
         uuid = <<_/binary>>}
     }, onepanel_user:authenticate(?U, ?P)).
 
@@ -125,7 +125,6 @@ start() ->
     onepanel_env:set(rpc_timeout, 1000),
     onepanel_env:set(create_tables_timeout, 10000),
     onepanel_env:set(default_users, []),
-    application:ensure_all_started(bcrypt),
     ?assertEqual(ok, service_onepanel:init_cluster(#{})),
     ok.
 
