@@ -72,6 +72,7 @@
     zone_configuration_onezone_model/0,
     ceph_model/0,
     glusterfs_model/0,
+    nulldevice_model/0,
     posix_model/0,
     s3_model/0,
     swift_model/0
@@ -497,7 +498,7 @@ session_details_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Settings of auto cleanging space feature
+%% @doc Space auto cleaning settings
 %% @end
 %%--------------------------------------------------------------------
 -spec space_auto_cleaning_model() -> maps:map().
@@ -529,7 +530,7 @@ space_auto_cleaning_report_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc List of report entries
+%% @doc List of auto cleaning report entries
 %% @end
 %%--------------------------------------------------------------------
 -spec space_auto_cleaning_report_collection_model() -> maps:map().
@@ -549,20 +550,20 @@ space_auto_cleaning_settings_model() ->
     #{
         %% Only files which size [b] is greater than or equal to given value
         %% should be cleaned. Set to null to disable this parameter.
-        lowerFileSizeLimit => { integer, optional},
+        lowerFileSizeLimit => {integer, optional},
         %% Only files which size [b] is less than or equal to given value should
         %% be cleaned Set to null to disable this parameter.
         upperFileSizeLimit => {integer, optional},
         %% Files that haven't been opened for longer than or equal to given
         %% period [h] will be cleaned. Set to null to disable this parameter.
         maxFileNotOpenedHours => {integer, optional},
-        %% Autocleaning will start if occupancy of storage will greater than or
-        %% equal to this value [b]. This parameter is required to start
-        %% autocleaning.
+        %% Amount of data [b], which should trigger the auto cleaning in the
+        %% space.  Only replicas maintained by this storage provider will be
+        %% removed. If not specified, the auto cleaning will not start
+        %% automatically.
         threshold => {integer, optional},
-        %% Autocleaning will stop if occupancy of storage will be less than or
-        %% equal to this value [b]. This parameter is required to start
-        %% autocleaning.
+        %% Amount of data [b], at which the auto cleaning process should stop.
+        %% This parameter is required to enale auto cleaning.
         target => {integer, optional}
     }.
 
@@ -573,10 +574,10 @@ space_auto_cleaning_settings_model() ->
 -spec space_auto_cleaning_status_model() -> maps:map().
 space_auto_cleaning_status_model() ->
     #{
-        %% Flag which indicates that autocleaning process is currently in
-        %% progress.
+        %% Flag which indicates whether auto cleaning process is currently in
+        %% progress
         inProgress => boolean,
-        %% Current occupancy [b] of storage supporting given space.
+        %% Amount of storage [b] used by data from given space on that storage.
         spaceOccupancy => integer
     }.
 
@@ -598,9 +599,9 @@ space_details_model() ->
         localStorages => [string],
         %% The collection of provider IDs with associated supported storage
         %% space in bytes.
-        supportingProviders => #{ '_' => integer},
+        supportingProviders => #{'_' => integer},
         %% Defines whether space will be mounted in / or /{SpaceId}/ path.
-        mountInRoot => { boolean, optional },
+        mountInRoot => {boolean, optional},
         %% Number of bytes that can be written above support limit.
         softQuota => integer,
         storageImport => {storage_import_details_model(), optional},
@@ -692,7 +693,8 @@ storage_create_request_model() ->
 %%--------------------------------------------------------------------
 -spec storage_details_model() -> {oneof, Oneof :: list()}.
 storage_details_model() ->
-    {oneof, [posix_model(), s3_model(), ceph_model(), swift_model(),glusterfs_model()]}.
+    {oneof, [posix_model(), s3_model(), ceph_model(), swift_model(),
+             glusterfs_model(), nulldevice_model()]}.
 
 %%--------------------------------------------------------------------
 %% @doc The storage import configuration. Storage import allows to import data
@@ -801,13 +803,13 @@ time_stats_model() ->
 time_stats_collection_model() ->
     #{
         %% Statistics of storage sync jobs queue length.
-        queueLength => { time_stats_model(), optional },
+        queueLength => {time_stats_model(), optional},
         %% Statistics of storage sync imported files.
-        insertCount => { time_stats_model(), optional },
+        insertCount => {time_stats_model(), optional},
         %% Statistics of storage sync updated files.
-        updateCount => { time_stats_model(), optional },
+        updateCount => {time_stats_model(), optional},
         %% Statistics of storage sync deleted files.
-        deleteCount => { time_stats_model(), optional }
+        deleteCount => {time_stats_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1020,8 +1022,53 @@ glusterfs_model() ->
         %% Oneprovider.
         mountPoint => {string, optional},
         %% Volume specific GlusterFS translator options, in the format:
-        %% TRANSLATOR1.OPTION1&#x3D;VALUE1;TRANSLATOR2.OPTION2&#x3D;VALUE2;...
+        %% TRANSLATOR1.OPTION1=VALUE1;TRANSLATOR2.OPTION2=VALUE2;...
         xlatorOptions => {string, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The Null Device storage configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec nulldevice_model() -> maps:map().
+nulldevice_model() ->
+    #{
+        %% The ID of storage.
+        id => {string, optional},
+        %% The name of storage.
+        name => {string, optional},
+        %% Defines whether storage administrator credentials (username and key)
+        %% may be used by users without storage accounts to access storage in
+        %% direct IO mode.
+        insecure => {boolean, optional},
+        %% Defines whether storage is readonly.
+        readonly => {boolean, optional},
+        %% The type of storage.
+        type => {equal, <<"nulldevice">>},
+        %% If true LUMA and reverse LUMA services will be enabled.
+        lumaEnabled => {boolean, optional},
+        %% URL of external LUMA service
+        lumaUrl => {string, optional},
+        %% LUMA cache timeout in minutes.
+        lumaCacheTimeout => {integer, optional},
+        %% LUMA API Key, must be identical with API Key in external LUMA
+        %% service.
+        lumaApiKey => {string, optional},
+        %% Minimum latency in milliseconds, which should be simulated for
+        %% selected operations.
+        latencyMin => {integer, optional},
+        %% Maximum latency in milliseconds, which should be simulated for
+        %% selected operations.
+        latencyMax => {integer, optional},
+        %% Probability (0.0, 1.0), with which an operation should return a
+        %% timeout error.
+        timeoutProbability => {float, optional},
+        %% Comma-separated list of filesystem operations, for which latency and
+        %% timeout should be simulated. Empty or '*' mean all operations
+        %% will be affected.
+        filter => {string, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional}
     }.

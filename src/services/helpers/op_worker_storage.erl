@@ -247,7 +247,10 @@ get_storage_user_ctx(Node, <<"swift">>, Params) ->
     ]);
 
 get_storage_user_ctx(Node, <<"glusterfs">>, _Params) ->
-    rpc:call(Node, helper, new_glusterfs_user_ctx, [0, 0]).
+    rpc:call(Node, helper, new_glusterfs_user_ctx, [0, 0]);
+
+get_storage_user_ctx(Node, <<"nulldevice">>, _Params) ->
+    rpc:call(Node, helper, new_nulldevice_user_ctx, [0, 0]).
 
 %%--------------------------------------------------------------------
 %% @private @doc Returns storage helper record.
@@ -308,6 +311,18 @@ get_storage_helper(Node, <<"glusterfs">>, UserCtx, Params) ->
             {xlatorOptions, binary},
             {timeout, binary},
             {blockSize, binary}
+        ], Params),
+        UserCtx,
+        onepanel_utils:typed_get(insecure, Params, boolean, false)
+    ]);
+get_storage_helper(Node, <<"nulldevice">>, UserCtx, Params) ->
+    rpc:call(Node, helper, new_nulldevice_helper, [
+        get_helper_opt_args([
+            {latencyMin, binary},
+            {latencyMax, binary},
+            {timeoutProbability, binary},
+            {filter, binary},
+            {timeout, binary}
         ], Params),
         UserCtx,
         onepanel_utils:typed_get(insecure, Params, boolean, false)

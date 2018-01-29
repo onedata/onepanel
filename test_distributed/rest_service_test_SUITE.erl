@@ -380,7 +380,7 @@ put_should_add_storage(Config) ->
                     secretKey := <<"someKey">>,
                     blockSize := 1024
                 }
-            }
+             }
         }}, ?TIMEOUT)
     end, [{oneprovider_hosts, <<"/provider">>}]).
 
