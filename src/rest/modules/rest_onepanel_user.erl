@@ -85,7 +85,7 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = user,
     {Data :: rest_handler:data(), Req :: cowboy_req:req()}.
 provide_resource(Req, #rstate{resource = user, bindings = #{username := Username}}) ->
     {ok, #onepanel_user{uuid = UserId, role = Role}} = onepanel_user:get(Username),
-    {[{userId, UserId}, {userRole, Role}], Req}.
+    {#{userId => UserId, userRole => Role}, Req}.
 
 
 %%--------------------------------------------------------------------

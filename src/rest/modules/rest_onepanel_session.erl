@@ -73,7 +73,7 @@ accept_resource(Req, 'POST', _Args, #rstate{resource = session, client = #client
 provide_resource(Req, #rstate{resource = session,
     client = #client{session_id = SessionId}}) ->
     {ok, #onepanel_session{username = Username}} = onepanel_session:get(SessionId),
-    {[{sessionId, SessionId}, {username, Username}], Req}.
+    {#{sessionId => SessionId, username => Username}, Req}.
 
 
 %%--------------------------------------------------------------------

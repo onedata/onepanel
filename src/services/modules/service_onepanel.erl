@@ -168,7 +168,7 @@ extend_cluster(#{hosts := Hosts, auth := Auth, api_version := ApiVersion} = Ctx)
     Port = rest_listener:get_port(),
     Prefix = rest_listener:get_prefix(ApiVersion),
     Suffix = onepanel_utils:join(["/hosts?clusterHost=", ClusterHost]),
-    Body = json_utils:encode([{cookie, erlang:get_cookie()}]),
+    Body = json_utils:encode(#{cookie => erlang:get_cookie()}),
     Timeout = service_ctx:get(extend_cluster_timeout, Ctx, integer),
     CaCerts = rest_listener:get_cert_chain(),
     Opts = [

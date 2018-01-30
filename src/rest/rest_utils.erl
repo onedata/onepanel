@@ -64,10 +64,10 @@ get_bindings(Req) ->
     {Params :: rest_handler:params(), Req :: cowboy_req:req()}.
 get_params(Req, ParamsSpec) ->
     Params = cowboy_req:parse_qs(Req),
-    NewParams = lists:map(fun
-        ({Key, true}) -> {Key, <<"true">>};
-        ({Key, Value}) -> {Key, Value}
-    end, Params),
+    NewParams = lists:foldl(fun
+        ({Key, true}, Acc) -> maps:put(Key, <<"true">>, Acc);
+        ({Key, Value}, Acc) -> maps:put(Key, Value, Acc)
+    end, #{}, Params),
     try
         {onepanel_parser:parse(NewParams, ParamsSpec), Req}
     catch
