@@ -24,7 +24,7 @@
 ]}.
 
 {deps, [
-    {ctool, {git, "ssh://git@git.plgrid.pl:7999/vfs/ctool.git", {ref, "e7da286a8d"}}},
+    {ctool, {git, "ssh://git@git.plgrid.pl:7999/vfs/ctool.git", {ref, "505e5f6341"}}},
     {gui, {git, "ssh://git@git.plgrid.pl:7999/vfs/gui.git", {ref, "449f114e"}}},
     {yamerl, {git, "git://github.com/yakaz/yamerl.git", {ref, "3f46bf06b9"}}},
     {pbkdf2, {git, "git://github.com/basho/erlang-pbkdf2.git", {ref, "7076584f53"}}}
