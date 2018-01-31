@@ -35,6 +35,8 @@ LIB_DIR          = _build/default/lib
 REL_DIRS         = _build/default/rel
 OVERLAY_VARS    ?= --overlay_vars=rel/vars.config
 
+BUILD_VERSION := $(subst $(shell git describe --tags --abbrev=0)-,,$(shell git describe --tags --long))
+
 all: rel
 
 .PHONY: upgrade
@@ -60,8 +62,8 @@ distclean: config
 .PHONY: template
 template:
 	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rel/pkg.vars.config.template
-	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rel/vars.config.template
 	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rel/files/app.config.template
+	sed "s/{build_version, \".*\"}/{build_version, \"${BUILD_VERSION}\"}/" ./rel/vars.config.template > ./rel/vars.config
 	$(TEMPLATE_SCRIPT) rel/vars.config ./rel/files/vm.args.template
 
 config:
