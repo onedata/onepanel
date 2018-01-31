@@ -29,7 +29,7 @@
 %% @doc Generates Certificate Signing Request and matching private key.
 %% @end
 %%--------------------------------------------------------------------
--spec generate_csr_and_key(Domain :: string) ->
+-spec generate_csr_and_key(Domain :: string()) ->
     {ok, CSR :: pem(), Key :: pem()} | error.
 generate_csr_and_key(Domain) ->
     KeyFile = onepanel_shell:mktemp(),

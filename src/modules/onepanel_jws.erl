@@ -83,7 +83,7 @@ key_to_jwk_map(#'RSAPublicKey'{publicExponent = E, modulus = N}) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec sign(Payload :: map() | binary(),
-    ProtectedHeader :: map, Key :: #'RSAPrivateKey'{}) ->
+    ProtectedHeader :: map(), Key :: #'RSAPrivateKey'{}) ->
     {ok, map()} | {error, unsupported_alg} | no_return().
 sign(Payload, ProtectedHeader, Key) when not(is_binary(Payload)) ->
     sign(json_utils:encode_map(Payload), ProtectedHeader, Key);

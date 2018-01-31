@@ -157,11 +157,12 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
     OpwCtx6 = onepanel_maps:get_store([oneprovider, subdomain], Args, oneprovider_subdomain, OpwCtx5),
     OpwCtx7 = onepanel_maps:get_store([oneprovider, geoLatitude], Args, oneprovider_geo_latitude, OpwCtx6),
     OpwCtx8 = onepanel_maps:get_store([oneprovider, geoLongitude], Args, oneprovider_geo_longitude, OpwCtx7),
-    OpwCtx9 = OpwCtx8#{hosts => OpwHosts},
+    OpwCtx9 = onepanel_maps:get_store([oneprovider, letsEncryptEnabled], Args, oneprovider_letsencrypt_enabled, OpwCtx8),
+    OpwCtx10 = OpwCtx9#{hosts => OpwHosts},
 
     {true, rest_replier:handle_service_action_async(Req2, service:apply_async(
         service_oneprovider:name(), deploy, #{
-            cluster => ClusterCtx, service_oneprovider:name() => OpwCtx9
+            cluster => ClusterCtx, service_oneprovider:name() => OpwCtx10
         }
     ), Version)};
 

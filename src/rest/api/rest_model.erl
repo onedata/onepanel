@@ -283,6 +283,12 @@ provider_configuration_oneprovider_model() ->
         %% Unique subdomain in onezone's domain for the provider. Required
         %% if subdomain delegation is enabled.
         subdomain => {string, optional},
+        %% If enabled the provider will use Let's Encrypt service to obtain
+        %% SSL certificates. Otherwise certificates must be manually provided.
+        %% This option cannot be enabled if subdomainDelegation is false. By
+        %% enabling this option you agree to the Let's Encrypt Subscriber
+        %% Agreement.
+        letsEncryptEnabled => boolean,
         %% The fully qualified domain name of the provider or its IP address
         %% (only for single-node deployments or clusters with a reverse proxy).
         %% Required if subdomain delegation is disabled.
@@ -290,7 +296,9 @@ provider_configuration_oneprovider_model() ->
         %% The geographical longitude of the provider.
         geoLongitude => {float, optional},
         %% The geographical latitude of the provider.
-        geoLatitude => {float, optional}
+        geoLatitude => {float, optional},
+        %% Email address of the oneprovider administrator.
+        adminEmail => string
     }.
 
 %%--------------------------------------------------------------------
@@ -324,6 +332,12 @@ provider_details_model() ->
         %% The fully qualified domain name of the provider or its IP address
         %% (only for single-node deployments or clusters with a reverse proxy).
         domain => string,
+        %% If enabled the provider will use Let's Encrypt service to obtain
+        %% SSL certificates. Otherwise certificates must be manually provided.
+        %% This option cannot be enabled if subdomainDelegation is false.
+        letsEncryptEnabled => {boolean, optional},
+        %% Email address of the oneprovider administrator.
+        adminEmail => string,
         %% The geographical longitude of the provider.
         geoLongitude => float,
         %% The geographical latitude of the provider.
@@ -342,22 +356,30 @@ provider_modify_request_model() ->
         %% The name under which the provider has been registered in a zone.
         name => {string, optional},
         %% If enabled, the storage provider will be assigned a subdomain in
-        %% onezone's domain and 'subdomain' property must be
-        %% provided. If disabled, 'domain' property should be provided.
+        %% onezone's domain  and 'subdomain' property must be
+        %% provided. If disabled, 'domain' property  should be provided.
         subdomainDelegation => {boolean, optional},
+        %% If enabled the provider will use Let's Encrypt service to obtain
+        %% SSL certificates. Otherwise certificates must be manually provided.
+        %% This option cannot be enabled is subdomainDelegation is disabled. By
+        %% enabling this option you agree to the Let's Encrypt Subscriber
+        %% Agreement.
+        letsEncryptEnabled => {boolean, optional},
         %% Unique subdomain in onezone's domain for the provider. This
-        %% property is required only if subdomain delegation is enabled.
+        %% property is required  only if subdomain delegation is enabled.
         %% Otherwise it is ignored.
         subdomain => {string, optional},
         %% The fully qualified domain name of the provider or its IP address
-        %% (only for single-node deployments or clusters with a reverse proxy).
-        %% This property is required only if subdomain delegation is disabled.
+        %% (only for  single-node deployments or clusters with a reverse proxy).
+        %% This property is required  only if subdomain delegation is disabled.
         %% Otherwise it is ignored.
         domain => {string, optional},
         %% The geographical longitude of the provider.
         geoLongitude => {float, optional},
         %% The geographical latitude of the provider.
-        geoLatitude => {float, optional}
+        geoLatitude => {float, optional},
+        %% Email address of the oneprovider administrator.
+        adminEmail => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -371,9 +393,9 @@ provider_register_request_model() ->
         %% The name under which the provider should be registered in a zone.
         name => string,
         %% If enabled, the storage provider will be assigned a subdomain in
-        %% onezone's domain and 'subdomain' property must be
-        %% provided. If disabled, 'domain' property should be provided.
-        subdomainDelegation => {boolean, optional},
+        %% onezone's domain  and 'subdomain' property must be
+        %% provided. If disabled, 'domain' property  should be provided.
+        subdomainDelegation => boolean,
         %% Unique subdomain in onezone's domain for the storage provider.
         %% Required if subdomain delegation is enabled.
         subdomain => {string, optional},
@@ -387,7 +409,9 @@ provider_register_request_model() ->
         geoLatitude => {float, optional},
         %% The domain name of a zone where this storage provider will be
         %% registered.
-        onezoneDomainName => string
+        onezoneDomainName => string,
+        %% Email address of the oneprovider administrator.
+        adminEmail => string
     }.
 
 %%--------------------------------------------------------------------

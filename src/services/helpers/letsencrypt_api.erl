@@ -65,7 +65,7 @@
 
     % Every Let's Encrypt response contains a nonce for one-time use.
     % This is a pool for unused nonces.
-    nonces = [] :: nonce(),
+    nonces = [] :: [nonce()],
 
     % URL for checking domain authorization status
     authz_uri = undefined :: undefined | binary(),
@@ -207,9 +207,9 @@ run_certification_flow(Domain, CertPath, PrivateKeyPath, CacertDir, Mode) ->
 %% Reads the endpoints directory and stores it in flow state.
 %% @end
 %%--------------------------------------------------------------------
--spec get_directory(#flow_state{}) -> #flow_state{}.
+-spec get_directory(#flow_state{}) -> {ok, #flow_state{}}.
 get_directory(#flow_state{directory_url = URL} = State) ->
-    {ok, DirectoryMap, _, State2} = http_get(URL, State),
+    {ok, #{} = DirectoryMap, _, State2} = http_get(URL, State),
     {ok, State2#flow_state{directory = decode_directory(DirectoryMap)}}.
 
 
@@ -405,9 +405,13 @@ save_chain(State, Link) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec http_get(url(), #flow_state{}) ->
-    {ok, Response :: map | {raw, binary()}, http_client:headers(), #flow_state{}}.
+    {ok, Response :: map() | {raw, binary()}, http_client:headers(), #flow_state{}} |
+    no_return().
 http_get(URL, State) ->
     http_get(URL, State, ?GET_RETRIES).
+-spec http_get(url(), #flow_state{}, Attempts :: non_neg_integer()) ->
+    {ok, Response :: map() | {raw, binary()}, http_client:headers(), #flow_state{}} |
+    no_return().
 http_get(_URL, _State, 0) ->
     ?ERR_LETSENCRYPT(<<"connection">>, "Could not connect to Let's Encrypt.");
 http_get(URL, State, Attempts) ->
@@ -521,7 +525,7 @@ read_keys(KeysDir) ->
 %% path to the temporary directory where its stored.
 %% @end
 %%--------------------------------------------------------------------
--spec generate_keys() -> string().
+-spec generate_keys() -> {ok, string()}.
 generate_keys() ->
     KeysDir = utils:mkdtemp(),
     PrivateKeyFile = filename:join([KeysDir, ?PRIVATE_RSA_KEY]),
