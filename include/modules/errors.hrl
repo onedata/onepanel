@@ -79,8 +79,13 @@ end).
 -define(ERR_INVALID_VALUE, invalid_value).
 -define(ERR_HOST_NOT_FOUND_FOR_ALIAS, host_not_found_for_alias).
 
--define(ERR_ONEZONE_NOT_READY, onezone_not_ready).
+-define(ERR_ONEZONE_NOT_AVAILABLE, onezone_not_available).
 -define(ERR_SUBDOMAIN_NOT_AVAILABLE, subdomain_not_available).
+
+-define(ERR_LETSENCRYPT(ErrorURN, Message), {letsencrypt, ErrorURN, Message}).
+-define(ERR_LETSENCRYPT_LIMIT(ErrorURN, Message), {letsencrypt_limit, ErrorURN, Message}).
+-define(ERR_LETSENCRYPT_AUTHORIZATION(Message), {letsencrypt_authorization, Message}).
+-define(ERR_SUBDOMAIN_DELEGATION_DISABLED, subdomain_delegation_disabled).
 
 -define(ERR_STORAGE_TEST_FILE_CREATE, storage_test_file_create).
 -define(ERR_STORAGE_TEST_FILE_READ, storage_test_file_read).
@@ -89,7 +94,6 @@ end).
 -define(ERR_STORAGE_NOT_FOUND, storage_not_found).
 -define(ERR_LUMA_CONFIG(Key), {?ERR_STORAGE_ADDITION, {missing_key, Key}}).
 
--define(ERR_UNREGISTERED_PROVIDER, unregistered_provider).
 
 -define(ERR_STORAGE_SYNC, storage_sync).
 -define(ERR_STORAGE_SYNC(Reason), {?ERR_STORAGE_SYNC, Reason}).

@@ -27,9 +27,11 @@
 -export([configure/1, check_oz_availability/1,
     register/1, unregister/1, is_registered/1,
     modify_details/1, get_details/1,
-    support_space/1, revoke_space_support/1, get_spaces/1, get_space_details/1,
-    modify_space/1, get_sync_stats/1, restart_listeners/1,
-    restart_provider_listeners/1, get_autocleaning_reports/1, get_autocleaning_status/1, start_cleaning/1]).
+    support_space/1, revoke_space_support/1, get_spaces/1,
+    get_space_details/1, modify_space/1,
+    get_sync_stats/1, get_autocleaning_reports/1, get_autocleaning_status/1,
+    start_cleaning/1]).
+-export([set_txt_record/1, remove_txt_record/1]).
 
 -define(SERVICE_OPA, service_onepanel:name()).
 -define(SERVICE_CB, service_couchbase:name()).
@@ -508,6 +510,26 @@ modify_space(#{space_id := SpaceId, node := Node} = Ctx) ->
 modify_space(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     modify_space(Ctx#{node => Node}).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Sets txt record in onezone dns via oneprovider.
+%% @end
+%%--------------------------------------------------------------------
+-spec set_txt_record(Ctx :: service:ctx()) -> ok.
+set_txt_record(#{txt_record_name:= Name, txt_record_value:= Value}) ->
+    [Node | _] = service_op_worker:get_nodes(),
+    ok = rpc:call(Node, provider_logic, set_txt_record, [Name, Value]).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Removes txt record from onezone dns via oneprovider.
+%% @end
+%%--------------------------------------------------------------------
+-spec remove_txt_record(Ctx :: service:ctx()) -> ok.
+remove_txt_record(#{txt_record_name:= Name}) ->
+    [Node | _] = service_op_worker:get_nodes(),
+    ok = rpc:call(Node, provider_logic, remove_txt_record, [Name]).
 
 %%--------------------------------------------------------------------
 %% @doc Get storage_sync stats
