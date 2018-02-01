@@ -805,12 +805,33 @@ should_generate_cert(Ctx) ->
     %% Let's Encrypt certificate should be generated iff it wasn't already obtaind
     %% and the users requests it
     Previous = get_has_letsencrypt_cert(),
-    Request = service_ctx:get(oneprovider_letsencrypt_enabled, Ctx, boolean, false),
+    Request = service_ctx:get(oneprovider_letsencrypt_enabled, Ctx, boolean, Previous),
 
-    case {Previous, Request} of
-        {true, true} -> false;
-        {_, true} -> true;
+    case {is_subdomain_changing(Ctx), Previous, Request} of
+        {true, _, true} -> true;  % subdomain changed, old cert invalid
+        {_, true, true} -> false; % certificate already obtained
+        {_, _, true} -> true; % certificate requested
         _ -> false
+    end.
+
+
+%%-------------------------------------------------------------------
+%% @private
+%% @doc
+%% True iff the delegated subdomain changes from one to another.
+%% @end
+%%-------------------------------------------------------------------
+is_subdomain_changing(RequestCtx) ->
+    Host = onepanel_cluster:node_to_host(),
+    Node = onepanel_cluster:host_to_node(?SERVICE_OPW, Host),
+
+    Current = rpc:call(Node, provider_logic, is_subdomain_delegated, []),
+    Requested = service_ctx:get(oneprovider_subdomain, RequestCtx, binary, <<>>),
+
+    case {Current, Requested} of
+        {_, <<>>} -> false; % no subdomain set, not applicable
+        _ when Current == Requested -> false;
+        _ -> true
     end.
 
 

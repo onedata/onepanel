@@ -112,7 +112,8 @@ save_file(Path, Content) ->
 %%--------------------------------------------------------------------
 -spec get_ip_address() -> IpAddress :: binary() | no_return().
 get_ip_address() ->
-    case oz_providers:check_ip_address(none) of
+    Result = oz_providers:check_ip_address(none),
+    case Result of
         {ok, IpAddress} -> IpAddress;
         {error, Reason} -> ?throw_error(Reason)
     end.
