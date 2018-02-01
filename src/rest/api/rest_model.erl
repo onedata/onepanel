@@ -288,7 +288,7 @@ provider_configuration_oneprovider_model() ->
         %% This option cannot be enabled if subdomainDelegation is false. By
         %% enabling this option you agree to the Let's Encrypt Subscriber
         %% Agreement.
-        letsEncryptEnabled => boolean,
+        letsEncryptEnabled => {boolean, optional},
         %% The fully qualified domain name of the provider or its IP address
         %% (only for single-node deployments or clusters with a reverse proxy).
         %% Required if subdomain delegation is disabled.
@@ -356,8 +356,8 @@ provider_modify_request_model() ->
         %% The name under which the provider has been registered in a zone.
         name => {string, optional},
         %% If enabled, the storage provider will be assigned a subdomain in
-        %% onezone's domain  and 'subdomain' property must be
-        %% provided. If disabled, 'domain' property  should be provided.
+        %% onezone's domain and 'subdomain' property must be
+        %% provided. If disabled, 'domain' property should be provided.
         subdomainDelegation => {boolean, optional},
         %% If enabled the provider will use Let's Encrypt service to obtain
         %% SSL certificates. Otherwise certificates must be manually provided.
@@ -366,12 +366,12 @@ provider_modify_request_model() ->
         %% Agreement.
         letsEncryptEnabled => {boolean, optional},
         %% Unique subdomain in onezone's domain for the provider. This
-        %% property is required  only if subdomain delegation is enabled.
+        %% property is required only if subdomain delegation is enabled.
         %% Otherwise it is ignored.
         subdomain => {string, optional},
         %% The fully qualified domain name of the provider or its IP address
-        %% (only for  single-node deployments or clusters with a reverse proxy).
-        %% This property is required  only if subdomain delegation is disabled.
+        %% (only for single-node deployments or clusters with a reverse proxy).
+        %% This property is required only if subdomain delegation is disabled.
         %% Otherwise it is ignored.
         domain => {string, optional},
         %% The geographical longitude of the provider.
@@ -393,8 +393,8 @@ provider_register_request_model() ->
         %% The name under which the provider should be registered in a zone.
         name => string,
         %% If enabled, the storage provider will be assigned a subdomain in
-        %% onezone's domain  and 'subdomain' property must be
-        %% provided. If disabled, 'domain' property  should be provided.
+        %% onezone's domain and 'subdomain' property must be
+        %% provided. If disabled, 'domain' property should be provided.
         subdomainDelegation => boolean,
         %% Unique subdomain in onezone's domain for the storage provider.
         %% Required if subdomain delegation is enabled.
@@ -582,7 +582,7 @@ space_auto_cleaning_settings_model() ->
         %% period [h] will be cleaned. Set to null to disable this parameter.
         maxFileNotOpenedHours => {integer, optional},
         %% Amount of data [b], which should trigger the auto cleaning in the
-        %% space.  Only replicas maintained by this storage provider will be
+        %% space. Only replicas maintained by this storage provider will be
         %% removed. If not specified, the auto cleaning will not start
         %% automatically.
         threshold => {integer, optional},
@@ -633,9 +633,7 @@ space_details_model() ->
         %% Configuration of files popularity feature for this space
         filesPopularity => {space_files_popularity_model(), optional},
         %% Configuration of auto cleaning feature for this space
-        autoCleaning => {space_auto_cleaning_model(), optional},
-        %% Amount of storage [b] used by data from given space on that storage.
-        spaceOccupancy => integer
+        autoCleaning => {space_auto_cleaning_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
