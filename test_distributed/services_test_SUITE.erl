@@ -73,7 +73,8 @@ service_oneprovider_unregister_register_test(Config) ->
         oneprovider_geo_latitude => 20.0,
         oneprovider_geo_longitude => 20.0,
         oneprovider_name => <<"provider2">>,
-        oneprovider_domain => onepanel_cluster:node_to_host(Node)
+        oneprovider_domain => onepanel_cluster:node_to_host(Node),
+        oneprovider_admin_email => <<"admin@onedata.org">>
     }).
 
 
@@ -85,7 +86,8 @@ service_oneprovider_modify_details_test(Config) ->
         oneprovider_geo_longitude => 40.0,
         oneprovider_name => <<"provider3">>,
         oneprovider_subdomain_delegation => false,
-        oneprovider_domain => Domain
+        oneprovider_domain => Domain,
+        oneprovider_admin_email => <<"admin@onedata.org">>
     }),
     service_action(Node, oneprovider, get_details, #{
         hosts => [onepanel_cluster:node_to_host(Node)]
@@ -93,12 +95,13 @@ service_oneprovider_modify_details_test(Config) ->
     Results = assert_service_step(service:get_module(oneprovider), get_details),
     [{_, Details}] = ?assertMatch([{Node, _}], Results),
     onepanel_test_utils:assert_fields(Details,
-        [id, name, subdomainDelegation, domain, geoLatitude, geoLongitude]
+        [id, name, subdomainDelegation, domain, adminEmail, geoLatitude, geoLongitude]
     ),
     onepanel_test_utils:assert_values(Details, [
         {name, <<"provider3">>},
         {subdomainDelegation, false},
         {domain, Domain},
+        {adminEmail, <<"admin@onedata.org">>},
         {geoLatitude, 30.0},
         {geoLongitude, 40.0}
     ]).
@@ -112,7 +115,7 @@ service_oneprovider_get_details_test(Config) ->
     Results = assert_service_step(service:get_module(oneprovider), get_details),
     [{_, Details}] = ?assertMatch([{Node, _}], Results),
     onepanel_test_utils:assert_fields(Details,
-        [id, name, domain, geoLatitude, geoLongitude]
+        [id, name, domain, adminEmail, geoLatitude, geoLongitude]
     ).
 
 
@@ -337,6 +340,7 @@ init_per_suite(Config) ->
                 oneprovider_name => <<"provider1">>,
                 oneprovider_domain => hd(OpHosts),
                 oneprovider_register => true,
+                oneprovider_admin_email => <<"admin@onedata.org">>,
                 onezone_domain => OzDomain
             }
         }),
