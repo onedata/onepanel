@@ -37,7 +37,7 @@
 -define(PUBLIC_RSA_KEY, "acme_public_key.pem").
 
 % See run_certification_flow doc for possible values
--define(DEFAULT_MODE, full).
+-define(DEFAULT_MODE, application:get_env(onepanel, acme_mode, full)).
 
 % Interval between polls about authorization status
 -define(LE_POLL_INTERVAL, timer:seconds(2)).

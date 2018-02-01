@@ -75,6 +75,16 @@
         %% Filename for saving chain certificate obtained via ACME
         {acme_cacert, "LetsEncrypt.pem"},
 
+        %% Mode of operation with the ACME Certificate Authority (ie. Let's Encrypt):
+        %% - dry        - run full certification procedure against staging server but do NOT
+        %%                save obtained certificate
+        %% - staging    - obtain certificate from the staging server
+        %% - production - obtain certificate from the main Let's Encrypt server
+        %% - full       - check certification success as with dry and then obtain certificate
+        %%                from the production server
+        {acme_mode, full},
+
+
         {rest_api_prefix_template, "/api/v{version_number}/onepanel"},
         {rest_https_acceptors, 100},
         {rest_listener_status_check_attempts, 30},
