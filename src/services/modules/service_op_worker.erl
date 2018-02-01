@@ -122,10 +122,21 @@ setup_certs(Ctx) ->
         {key_file, op_worker_web_key_file},
         {cert_file, op_worker_web_cert_file}
     ]),
-    lists:foreach(fun(Cacert) ->
-        Target = filename:join([ProviderCacertDir, filename:basename(Cacert)]),
-        {ok, _} = file:copy(Cacert, Target)
-    end, CacertsNames).
+
+    case CacertsNames of
+        [] -> ok;
+        _ ->
+            case filelib:is_dir(ProviderCacertDir) of
+                false ->
+                    ok = file:make_dir(ProviderCacertDir);
+                _ -> ok
+            end,
+
+            lists:foreach(fun(Cacert) ->
+                Target = filename:join([ProviderCacertDir, filename:basename(Cacert)]),
+                {ok, _} = file:copy(Cacert, Target)
+            end, CacertsNames)
+    end.
 
 
 %%--------------------------------------------------------------------
