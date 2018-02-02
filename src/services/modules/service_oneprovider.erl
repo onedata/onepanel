@@ -470,6 +470,7 @@ get_space_details(#{id := SpaceId, node := Node}) ->
     UpdateDetails = op_worker_storage_sync:get_storage_update_details(
         Node, SpaceId, StorageId
     ),
+    CurrentSize = rpc:call(Node, space_quota, currentSize, [SpaceId]),
     [
         {id, Id},
         {name, Name},
@@ -481,7 +482,8 @@ get_space_details(#{id := SpaceId, node := Node}) ->
         {storageImport, ImportDetails},
         {storageUpdate, UpdateDetails},
         {filesPopularity, op_worker_storage:get_file_popularity_details(Node, SpaceId)},
-        {autoCleaning, op_worker_storage:get_autocleaning_details(Node, SpaceId)}
+        {autoCleaning, op_worker_storage:get_autocleaning_details(Node, SpaceId)},
+        {spaceOccupancy, CurrentSize}
     ];
 get_space_details(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
