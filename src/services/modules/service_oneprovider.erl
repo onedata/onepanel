@@ -27,7 +27,7 @@
 %% API
 -export([configure/1, check_oz_availability/1,
     register/1, unregister/1, is_registered/1,
-    modify_details/1, get_details/1,
+    modify_details/1, get_details/1, get_admin_email/1,
     support_space/1, revoke_space_support/1, get_spaces/1,
     get_space_details/1, modify_space/1,
     get_sync_stats/1, get_autocleaning_reports/1, get_autocleaning_status/1,
@@ -298,9 +298,6 @@ register(Ctx) ->
     Hosts = onepanel_cluster:nodes_to_hosts(service_op_worker:get_nodes()),
     Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
 
-    % TODO VFS-3765
-    AdminEmail = service_ctx:get(oneprovider_admin_email, Ctx, binary),
-
     DomainParams = case service_ctx:get(oneprovider_subdomain_delegation, Ctx, boolean, false) of
         true ->
             {_, IPs} = lists:unzip(
@@ -318,6 +315,8 @@ register(Ctx) ->
     Params = [
         {<<"name">>,
             service_ctx:get(oneprovider_name, Ctx, binary)},
+        {<<"adminEmail">>,
+            service_ctx:get(oneprovider_admin_email, Ctx, binary)},
         {<<"latitude">>,
             service_ctx:get(oneprovider_geo_latitude, Ctx, float, 0.0)},
         {<<"longitude">>,
@@ -348,7 +347,7 @@ register(Ctx) ->
             rpc:multicall(OpwNodes, oneprovider, is_connected_to_oz, []),
 
             service:update(name(), fun(#service{ctx = C} = S) ->
-                S#service{ctx = C#{registered => true, admin_email => AdminEmail}}
+                S#service{ctx = C#{registered => true}}
             end),
 
             {ok, ProviderId}
@@ -424,19 +423,12 @@ modify_details(#{node := Node} = Ctx) ->
         <<"latitude">>, Params),
     Params3 = onepanel_maps:get_store(oneprovider_geo_longitude, Ctx,
         <<"longitude">>, Params2),
+    Params4 = onepanel_maps:get_store(oneprovider_admin_email, Ctx,
+        <<"adminEmail">>, Params3),
 
-    % TODO VFS-3765
-    case onepanel_maps:get(oneprovider_admin_email, Ctx, undefined) of
-        undefined -> ok;
-        AdminEmail ->
-            service:update(name(), fun(#service{ctx = C} = S) ->
-                S#service{ctx = C#{admin_email => AdminEmail}}
-            end)
-    end,
-
-    case maps:size(Params3) of
+    case maps:size(Params4) of
         0 -> ok;
-        _ -> ok = oz_providers:modify_details(provider, maps:to_list(Params3))
+        _ -> ok = oz_providers:modify_details(provider, maps:to_list(Params4))
     end;
 modify_details(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
@@ -453,16 +445,13 @@ get_details(#{node := Node}) ->
     #{
         id := Id,
         name := Name,
+        admin_email := AdminEmail,
         subdomain_delegation := SubdomainDelegation,
         domain := Domain,
         subdomain := Subdomain,
         longitude := Longitude,
         latitude := Latitude
     } = rpc:call(Node, provider_logic, get_as_map, []),
-
-    % VFS-3765 Use email stored in oz
-    {ok, #service{ctx = Ctx}} = service:get(name()),
-    AdminEmail = maps:get(admin_email, Ctx, <<>>),
 
     Details = [
         {id, Id}, {name, Name},
@@ -486,6 +475,19 @@ get_details(#{node := Node}) ->
 get_details(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     get_details(Ctx#{node => Node}).
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns the email address of the provider administrator.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_admin_email(Ctx :: service:ctx()) -> binary().
+get_admin_email(#{node := Node}) ->
+    #{admin_email := AdminEmail} = rpc:call(Node, provider_logic, get_as_map, []),
+    AdminEmail;
+get_admin_email(Ctx) ->
+    [Node | _] = service_op_worker:get_nodes(),
+    get_admin_email(Ctx#{node => Node}).
 
 
 %%--------------------------------------------------------------------

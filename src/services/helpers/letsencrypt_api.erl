@@ -12,6 +12,7 @@
 -module(letsencrypt_api).
 -author("Wojciech Geisler").
 
+-include("modules/models.hrl").
 -include("modules/errors.hrl").
 
 -include_lib("ctool/include/logging.hrl").
@@ -225,9 +226,10 @@ get_directory(#flow_state{directory_url = URL} = State) ->
 register_account(State) ->
     #flow_state{directory = #directory{new_reg = NewRegURL}} = State,
 
-    % TODO VFS-3765 - Use admin e-mail
+    {ok, #service{ctx = Ctx}} = service:get(service_oneprovider:name()),
+    AdminEmail = service_oneprovider:get_admin_email(Ctx),
     Payload = #{resource => <<"new-reg">>,
-        contact => [<<"mailto:w.geisler@cyfronet.pl">>]},
+        contact => [<<"mailto:", AdminEmail/binary>>]},
 
     % Do not allow more than 1 attempt since it can introduce
     % "account already registered for that key" error
