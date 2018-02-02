@@ -549,7 +549,7 @@ space_auto_cleaning_settings_model() ->
     #{
         %% Only files which size [b] is greater than or equal to given value
         %% should be cleaned. Set to null to disable this parameter.
-        lowerFileSizeLimit => { integer, optional},
+        lowerFileSizeLimit => {integer, optional},
         %% Only files which size [b] is less than or equal to given value should
         %% be cleaned Set to null to disable this parameter.
         upperFileSizeLimit => {integer, optional},
@@ -573,10 +573,10 @@ space_auto_cleaning_settings_model() ->
 -spec space_auto_cleaning_status_model() -> maps:map().
 space_auto_cleaning_status_model() ->
     #{
-        %% Flag which indicates that autocleaning process is currently in
-        %% progress.
+        %% Flag which indicates whether auto cleaning process is currently in
+        %% progress
         inProgress => boolean,
-        %% Current occupancy [b] of storage supporting given space.
+        %% Amount of storage [b] used by data from given space on that storage.
         spaceOccupancy => integer
     }.
 
@@ -598,9 +598,9 @@ space_details_model() ->
         localStorages => [string],
         %% The collection of provider IDs with associated supported storage
         %% space in bytes.
-        supportingProviders => #{ '_' => integer},
+        supportingProviders => #{'_' => integer},
         %% Defines whether space will be mounted in / or /{SpaceId}/ path.
-        mountInRoot => { boolean, optional },
+        mountInRoot => {boolean, optional},
         %% Number of bytes that can be written above support limit.
         softQuota => integer,
         storageImport => {storage_import_details_model(), optional},
@@ -608,7 +608,9 @@ space_details_model() ->
         %% Configuration of files popularity feature for this space
         filesPopularity => {space_files_popularity_model(), optional},
         %% Configuration of auto cleaning feature for this space
-        autoCleaning => {space_auto_cleaning_model(), optional}
+        autoCleaning => {space_auto_cleaning_model(), optional},
+        %% Amount of storage [b] used by data from given space on that storage.
+        spaceOccupancy => integer
     }.
 
 %%--------------------------------------------------------------------
@@ -801,13 +803,13 @@ time_stats_model() ->
 time_stats_collection_model() ->
     #{
         %% Statistics of storage sync jobs queue length.
-        queueLength => { time_stats_model(), optional },
+        queueLength => {time_stats_model(), optional},
         %% Statistics of storage sync imported files.
-        insertCount => { time_stats_model(), optional },
+        insertCount => {time_stats_model(), optional},
         %% Statistics of storage sync updated files.
-        updateCount => { time_stats_model(), optional },
+        updateCount => {time_stats_model(), optional},
         %% Statistics of storage sync deleted files.
-        deleteCount => { time_stats_model(), optional }
+        deleteCount => {time_stats_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
