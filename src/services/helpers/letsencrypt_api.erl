@@ -189,8 +189,8 @@ run_certification_flow(Domain, CertPath, PrivateKeyPath, CacertDir, Mode) ->
         ?info("Let's Encrypt ~s run: obtain certificate", [ModeName]),
         {ok, _State6} = get_certificate(State5)
     after
-        clean_keys(KeysDir),
-        clean_txt_record()
+        catch clean_keys(KeysDir),
+        catch clean_txt_record()
     end,
 
     case Mode2 of
