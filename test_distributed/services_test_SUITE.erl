@@ -340,6 +340,7 @@ init_per_suite(Config) ->
                 oneprovider_name => <<"provider1">>,
                 oneprovider_domain => hd(OpHosts),
                 oneprovider_register => true,
+                oneprovider_letsencrypt_enabled => false,
                 oneprovider_admin_email => <<"admin@onedata.org">>,
                 onezone_domain => OzDomain
             }
