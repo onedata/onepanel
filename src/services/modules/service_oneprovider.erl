@@ -470,7 +470,7 @@ get_space_details(#{id := SpaceId, node := Node}) ->
     UpdateDetails = op_worker_storage_sync:get_storage_update_details(
         Node, SpaceId, StorageId
     ),
-    CurrentSize = rpc:call(Node, space_quota, currentSize, [SpaceId]),
+    CurrentSize = rpc:call(Node, space_quota, current_size, [SpaceId]),
     [
         {id, Id},
         {name, Name},
