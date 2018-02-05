@@ -105,9 +105,10 @@ get_steps(deploy, Ctx) ->
         (_) -> false
     end,
     LetsEncryptCondition = fun
-        (#{oneprovider_letsencrypt_enabled := true}) ->
-            Register(Ctx) andalso should_generate_cert(Ctx);
-        (_) -> false
+        (#{oneprovider_letsencrypt_enabled := true} = ConditionCtx) ->
+            Register(ConditionCtx) andalso should_generate_cert(ConditionCtx);
+        (_) ->
+            false
     end,
 
     S = #step{verify_hosts = false},
@@ -122,6 +123,7 @@ get_steps(deploy, Ctx) ->
         S#step{service = ?SERVICE_OPW, function = status, ctx = OpwCtx},
         Ss#steps{service = ?SERVICE_OPW, action = add_storages, ctx = StorageCtx},
         Ss#steps{action = register, ctx = OpCtx, condition = Register},
+        S#step{function = modify_letsencrypt_enabled, ctx = OpCtx},
         Ss#steps{action = obtain_webcert, ctx = OpCtx, condition = LetsEncryptCondition},
         Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx}
     ];
@@ -167,7 +169,7 @@ get_steps(register, Ctx) ->
 
 get_steps(obtain_webcert, #{hosts := Hosts}) ->
     [
-        #step{hosts = Hosts, function = check_oz_availability,
+        #step{hosts = Hosts, function = check_oz_connection,
             attempts = onepanel_env:get(connect_to_onezone_attempts)},
         #step{hosts = Hosts, function = obtain_webcert, selection = any},
         #step{hosts = Hosts, service = ?SERVICE_OPW,
@@ -196,7 +198,7 @@ get_steps(unregister, #{hosts := Hosts} = Ctx) ->
 get_steps(unregister, Ctx) ->
     get_steps(unregister, Ctx#{hosts => service_op_worker:get_hosts()});
 
-get_steps(modify_details, #{hosts := Hosts} = CTX) ->
+get_steps(modify_details, #{hosts := Hosts}) ->
     [
         #step{hosts = Hosts, function = modify_letsencrypt_enabled, selection = any},
         #step{hosts = Hosts, function = modify_details, selection = any},
@@ -633,8 +635,8 @@ obtain_webcert(#{node := Node}) ->
             try
                 ok = letsencrypt_api:run_certification_flow(Domain)
             after
-                % if error occured gui user after reload should be presented
-                % with the certificate configuration page again
+                % user of GUI should be presented with certificate configuration
+                % step if error occured
                 mark_letsencrypt_undecided()
             end,
             set_has_letsencrypt_cert(true);
