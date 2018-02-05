@@ -737,17 +737,15 @@ restart_provider_listeners(_Ctx) ->
     Node = onepanel_cluster:host_to_node(service_op_worker:name(), Host),
     Modules = [
         gui_listener,
-        rest_listener,
-        provider_listener,
-        protocol_listener,
+        nagios_listener,
         hackney,
         ssl
     ],
     lists:foreach(fun(Module) ->
-        onepanel_rpc:call_all([Node], Module, stop, [])
+        ok = rpc:call(Node, Module, stop, [])
     end, Modules),
     lists:foreach(fun(Module) ->
-        onepanel_rpc:call_all([Node], Module, start, [])
+        ok = rpc:call(Node, Module, start, [])
     end, lists:reverse(Modules)).
 
 %%-------------------------------------------------------------------

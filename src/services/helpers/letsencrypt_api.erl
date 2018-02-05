@@ -350,25 +350,21 @@ get_certificate(#flow_state{domain = Domain} = State) ->
     #flow_state{directory = #directory{new_cert = NewCertURL}} = State,
 
     {ok, CSRPem, KeyPem} = onepanel_ssl:generate_csr_and_key(binary_to_list(Domain)),
-
-    [{'CertificationRequest', CSRDer, not_encrypted}] =
-        public_key:pem_decode(CSRPem),
+    [{'CertificationRequest', CSRDer, not_encrypted}] = public_key:pem_decode(CSRPem),
     CSRB64 = base64url:encode(CSRDer),
 
     Payload = #{<<"resource">> => <<"new-cert">>, <<"csr">> => CSRB64},
 
     {ok, {raw, CertDer}, Headers, State2} = http_post(NewCertURL, Payload, 201, State),
-
     CertPem = public_key:pem_encode([{'Certificate', CertDer, not_encrypted}]),
 
-    State4 = case State2#flow_state.save_cert of
+    case State2#flow_state.save_cert of
         true ->
-            {ok, State3} = save_chain(State2, maps:get(<<"Link">>, Headers)),
+            {ok, State3} = get_chain_certificate(State2, maps:get(<<"Link">>, Headers)),
             save_cert(State3, CertPem, KeyPem),
-            State3;
-        _ -> State2
-    end,
-    {ok, State4}.
+            {ok, State3};
+        _ -> {ok, State2}
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -377,22 +373,21 @@ get_certificate(#flow_state{domain = Domain} = State) ->
 %% and downloads the CA certificates it is pointing to.
 %% @end
 %%--------------------------------------------------------------------
--spec save_chain(State :: #flow_state{}, Link :: binary()) -> tuple().
-save_chain(State, Link) ->
+-spec get_chain_certificate(State :: #flow_state{}, Link :: binary()) -> tuple().
+get_chain_certificate(State, Link) ->
     % example Link value:
     % <https://acme-v01.api.letsencrypt.org/acme/issuer-cert>;rel=\"up\"
     {match, [ChainURL]} =
-        re:run(Link, <<"^<(.*)>;rel=\"up\"">>,
-            [{capture, [1], binary}]),
+        re:run(Link, <<"^<(.*)>;rel=\"up\"">>, [{capture, [1], binary}]),
 
     {ok, {raw, ChainDer}, _, State2} = http_get(ChainURL, State),
-
     ChainPem = public_key:pem_encode([{'Certificate', ChainDer, not_encrypted}]),
+
     CacertPath = filename:join([State#flow_state.cacert_dir, ?CACERT_FILENAME]),
 
     Nodes = service_onepanel:get_nodes(),
-
     ok = utils:save_file_on_hosts(Nodes, CacertPath, ChainPem),
+
     {ok, State2}.
 
 
