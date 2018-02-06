@@ -155,13 +155,15 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
     OpwCtx4 = onepanel_maps:get_store([oneprovider, subdomainDelegation], Args, oneprovider_subdomain_delegation, OpwCtx3),
     OpwCtx5 = onepanel_maps:get_store([oneprovider, domain], Args, oneprovider_domain, OpwCtx4),
     OpwCtx6 = onepanel_maps:get_store([oneprovider, subdomain], Args, oneprovider_subdomain, OpwCtx5),
-    OpwCtx7 = onepanel_maps:get_store([oneprovider, geoLatitude], Args, oneprovider_geo_latitude, OpwCtx6),
-    OpwCtx8 = onepanel_maps:get_store([oneprovider, geoLongitude], Args, oneprovider_geo_longitude, OpwCtx7),
-    OpwCtx9 = OpwCtx8#{hosts => OpwHosts},
+    OpwCtx7 = onepanel_maps:get_store([oneprovider, adminEmail], Args, oneprovider_admin_email, OpwCtx6),
+    OpwCtx8 = onepanel_maps:get_store([oneprovider, geoLatitude], Args, oneprovider_geo_latitude, OpwCtx7),
+    OpwCtx9 = onepanel_maps:get_store([oneprovider, geoLongitude], Args, oneprovider_geo_longitude, OpwCtx8),
+    OpwCtx10 = onepanel_maps:get_store([oneprovider, letsEncryptEnabled], Args, oneprovider_letsencrypt_enabled, OpwCtx9),
+    OpwCtx11 = OpwCtx10#{hosts => OpwHosts},
 
     {true, rest_replier:handle_service_action_async(Req2, service:apply_async(
         service_oneprovider:name(), deploy, #{
-            cluster => ClusterCtx, service_oneprovider:name() => OpwCtx9
+            cluster => ClusterCtx, service_oneprovider:name() => OpwCtx11
         }
     ), Version)};
 

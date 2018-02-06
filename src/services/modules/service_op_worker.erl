@@ -14,6 +14,7 @@
 
 -include("service.hrl").
 -include_lib("hackney/include/hackney_lib.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
@@ -113,12 +114,30 @@ configure(Ctx) ->
 %%--------------------------------------------------------------------
 -spec setup_certs(Ctx :: service:ctx()) -> ok | no_return().
 setup_certs(Ctx) ->
+    CacertsNames = filelib:wildcard([service_ctx:get(cacerts_dir, Ctx, list), '/*.pem']),
+    ProviderCacertDir = service_ctx:get(op_worker_cacerts_dir, Ctx),
+
     lists:foreach(fun({Src, Dst}) ->
         {ok, _} = file:copy(service_ctx:get(Src, Ctx), service_ctx:get(Dst, Ctx))
     end, [
         {key_file, op_worker_web_key_file},
         {cert_file, op_worker_web_cert_file}
-    ]).
+    ]),
+
+    case CacertsNames of
+        [] -> ok;
+        _ ->
+            case filelib:is_dir(ProviderCacertDir) of
+                false ->
+                    ?info("Skipping copy of cacerts as oneprovider cacert dir is not present"),
+                    ok;
+                _ ->
+                    lists:foreach(fun(Cacert) ->
+                        Target = filename:join([ProviderCacertDir, filename:basename(Cacert)]),
+                        {ok, _} = file:copy(Cacert, Target)
+                    end, CacertsNames)
+            end
+    end.
 
 
 %%--------------------------------------------------------------------

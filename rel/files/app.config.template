@@ -68,6 +68,23 @@
         {key_file, "{{platform_etc_dir}}/certs/key.pem"},
         {cert_file, "{{platform_etc_dir}}/certs/cert.pem"},
 
+        %% The directory URL of a Certificate Authority server using the ACME protocol
+        %% to be used for automated web certificate issuance
+        {acme_directory_url_staging_url, "https://acme-staging.api.letsencrypt.org/directory"},
+        {acme_directory_url, "https://acme-v01.api.letsencrypt.org/directory"},
+        %% Filename for saving chain certificate obtained via ACME
+        {acme_cacert, "LetsEncrypt.pem"},
+
+        %% Mode of operation with the ACME Certificate Authority (ie. Let's Encrypt):
+        %% - dry        - run full certification procedure against staging server but do NOT
+        %%                save obtained certificate
+        %% - staging    - obtain certificate from the staging server
+        %% - production - obtain certificate from the main Let's Encrypt server
+        %% - full       - check certification success as with dry and then obtain certificate
+        %%                from the production server
+        {acme_mode, full},
+
+
         {rest_api_prefix_template, "/api/v{version_number}/onepanel"},
         {rest_https_acceptors, 100},
         {rest_listener_status_check_attempts, 30},
@@ -122,6 +139,7 @@
         {op_worker_app_config_file, "{{platform_etc_dir}}/../op_worker/app.config"},
         {op_worker_web_key_file, "{{platform_etc_dir}}/../op_worker/certs/web_key.pem"},
         {op_worker_web_cert_file, "{{platform_etc_dir}}/../op_worker/certs/web_cert.pem"},
+        {op_worker_cacerts_dir, "{{platform_etc_dir}}/../op_worker/cacerts/"},
         {op_worker_open_files_limit, 65535},
         {op_worker_nagios_protocol, "http"},
         {op_worker_wait_for_init_attempts, 60},

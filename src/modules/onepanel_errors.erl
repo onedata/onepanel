@@ -97,8 +97,8 @@ translate(_Type, #error{reason = {?ERR_HOST_NOT_FOUND_FOR_ALIAS, Alias}}) ->
     {<<"Invalid Request">>, <<"Host not found for node: '",
         (onepanel_utils:convert(Alias, binary))/binary, "'.">>};
 
-translate(_Type, #error{reason = ?ERR_ONEZONE_NOT_READY}) ->
-    {<<"Onezone connection error">>, <<"Onezone not ready">>};
+translate(_Type, #error{reason = ?ERR_ONEZONE_NOT_AVAILABLE}) ->
+    {<<"Onezone connection error">>, <<"Onezone not available">>};
 
 translate(_Type, #error{reason = ?ERR_SUBDOMAIN_NOT_AVAILABLE}) ->
     % DO NOT modify this error message as it is used to identify the error in GUI
@@ -145,8 +145,23 @@ translate(_Type, #error{module = model, function = get, reason = ?ERR_NOT_FOUND,
     args = [service, oz_worker]}) ->
     {<<"Operation Error">>, <<"Cluster Worker not configured.">>};
 
-translate(_Type, #error{reason = ?ERR_UNREGISTERED_PROVIDER}) ->
-    {<<"Operation Error">>, <<"Unregistered provider.">>};
+translate(_Type, #error{reason = ?ERR_SUBDOMAIN_DELEGATION_DISABLED}) ->
+    {<<"Operation Error">>, <<"Subdomain delegation is not enabled.">>};
+
+% DO NOT modify this error message as it is used to identify the error in GUI
+translate(_Type, #error{reason = ?ERR_LETSENCRYPT(ErrorURN, Message)}) ->
+    {<<"Let's Encrypt Error">>, str_utils:format_bin("Let's Encrypt error: ~s: ~s",
+        [ErrorURN, Message])};
+
+% DO NOT modify this error message as it is used to identify the error in GUI
+translate(_Type, #error{reason = ?ERR_LETSENCRYPT_LIMIT(ErrorURN, Message)}) ->
+    {<<"Let's Encrypt Limit Error">>,
+    str_utils:format_bin("Let's Encrypt limit error: ~s: ~s", [ErrorURN, Message])};
+
+% DO NOT modify this error message as it is used to identify the error in GUI
+translate(_Type, #error{reason = ?ERR_LETSENCRYPT_AUTHORIZATION(Message)}) ->
+    {<<"Let's Encrypt Authorization Error">>,
+        str_utils:format_bin("Let's Encrypt authroization error: ~s", [Message])};
 
 translate(_Type, #error{reason = {?ERR_STORAGE_SYNC, import_already_started}}) ->
     {<<"Operation Error">>, <<"Modifying storage_import that has already been started">>};

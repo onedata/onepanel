@@ -503,6 +503,7 @@ put_should_configure_oneprovider_service(Config) ->
                         {<<"name">>, <<"someName">>},
                         {<<"subdomainDelegation">>, false},
                         {<<"domain">>, <<"someDomain">>},
+                        {<<"adminEmail">>, <<"admin@onedata.org">>},
                         {<<"geoLongitude">>, <<"10">>},
                         {<<"geoLatitude">>, <<"20.0">>}
                     ]},

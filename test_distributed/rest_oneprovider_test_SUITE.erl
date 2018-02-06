@@ -173,6 +173,7 @@ put_should_register_provider(Config) ->
                 {<<"name">>, <<"someName">>},
                 {<<"subdomainDelegation">>, false},
                 {<<"domain">>, <<"somedomain">>},
+                {<<"adminEmail">>, <<"admin@onedata.org">>},
                 {<<"geoLongitude">>, 10.0},
                 {<<"geoLatitude">>, 20.0},
                 {<<"onezoneDomainName">>, <<"someDomain">>}

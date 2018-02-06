@@ -68,11 +68,12 @@ accept_resource(Req, 'POST', Args, #rstate{resource = provider}) ->
     Ctx3 = onepanel_maps:get_store(subdomainDelegation, Args, oneprovider_subdomain_delegation, Ctx2),
     Ctx4 = onepanel_maps:get_store(domain, Args, oneprovider_domain, Ctx3),
     Ctx5 = onepanel_maps:get_store(subdomain, Args, oneprovider_subdomain, Ctx4),
-    Ctx6 = onepanel_maps:get_store(geoLatitude, Args, oneprovider_geo_latitude, Ctx5),
-    Ctx7 = onepanel_maps:get_store(geoLongitude, Args, oneprovider_geo_longitude, Ctx6),
+    Ctx6 = onepanel_maps:get_store(adminEmail, Args, oneprovider_admin_email, Ctx5),
+    Ctx7 = onepanel_maps:get_store(geoLatitude, Args, oneprovider_geo_latitude, Ctx6),
+    Ctx8 = onepanel_maps:get_store(geoLongitude, Args, oneprovider_geo_longitude, Ctx7),
 
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, register, Ctx7
+        ?SERVICE, register, Ctx8
     ))};
 
 accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
@@ -102,11 +103,13 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
     Ctx2 = onepanel_maps:get_store(subdomainDelegation, Args, oneprovider_subdomain_delegation, Ctx),
     Ctx3 = onepanel_maps:get_store(domain, Args, oneprovider_domain, Ctx2),
     Ctx4 = onepanel_maps:get_store(subdomain, Args, oneprovider_subdomain, Ctx3),
-    Ctx5 = onepanel_maps:get_store(geoLatitude, Args, oneprovider_geo_latitude, Ctx4),
-    Ctx6 = onepanel_maps:get_store(geoLongitude, Args, oneprovider_geo_longitude, Ctx5),
+    Ctx5 = onepanel_maps:get_store(letsEncryptEnabled, Args, oneprovider_letsencrypt_enabled, Ctx4),
+    Ctx6 = onepanel_maps:get_store(adminEmail, Args, oneprovider_admin_email, Ctx5),
+    Ctx7 = onepanel_maps:get_store(geoLatitude, Args, oneprovider_geo_latitude, Ctx6),
+    Ctx8 = onepanel_maps:get_store(geoLongitude, Args, oneprovider_geo_longitude, Ctx7),
 
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, modify_details, Ctx6
+        ?SERVICE, modify_details, Ctx8
     ))};
 
 
