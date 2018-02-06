@@ -744,7 +744,7 @@ restart_provider_listeners(_Ctx) ->
         ssl
     ],
     lists:foreach(fun(Module) ->
-        ok = rpc:call(Node, Module, stop, [])
+        rpc:call(Node, Module, stop, [])
     end, Modules),
     lists:foreach(fun(Module) ->
         ok = rpc:call(Node, Module, start, [])
