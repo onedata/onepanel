@@ -76,7 +76,9 @@ key_to_jwk_map(#'RSAPublicKey'{publicExponent = E, modulus = N}) ->
 %%--------------------------------------------------------------------
 %% @doc
 %% Creates JWS map signed with given key using algorithm given
-%% in ProtectedHeader field <<"alg">>.
+%% in ProtectedHeader field `<<"alg">>`.
+%% Currently only RS256 algorithm is supported. It will automatically set
+%% if `<<"alg">>` field is omitted from ProtectedHeader.
 %%
 %% If payload is not a binary tries to encode it as JSON, may throw 
 %% {error, {invalid_string, term()}}
