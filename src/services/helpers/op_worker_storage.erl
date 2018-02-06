@@ -45,19 +45,26 @@
 add(Storages, IgnoreExists) ->
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(service_op_worker:name(), Host),
+    ?info("Adding ~b storage(s)", [maps:size(Storages)]),
     maps:fold(fun(Key, Value, _) ->
         StorageName = onepanel_utils:convert(Key, binary),
         StorageType = onepanel_utils:typed_get(type, Value, binary),
+
+        ?info("Gathering storage configuration: \"~s\" (~s)", [StorageName, StorageType]),
         ReadOnly = onepanel_utils:typed_get(readonly, Value, boolean, false),
         UserCtx = get_storage_user_ctx(Node, StorageType, Value),
         Helper = get_storage_helper(Node, StorageType, UserCtx, Value),
         LumaConfig = get_luma_config(Node, Value),
         maybe_verify_storage(Helper, UserCtx, ReadOnly),
+
+        ?info("Adding storage: \"~s\" (~s)", [StorageName, StorageType]),
         Result = add_storage(Node, StorageName, [Helper], ReadOnly, LumaConfig),
         case {Result, IgnoreExists} of
             {{ok, _StorageId}, _} ->
+                ?info("Successfully added storage: \"~s\" (~s)", [StorageName, StorageType]),
                 ok;
             {{error, already_exists}, true} ->
+                ?info("Storage already exists, skipping: \"~s\" (~s)", [StorageName, StorageType]),
                 ok;
             {{error, Reason}, _} ->
                 ?throw_error({?ERR_STORAGE_ADDITION, Reason})
@@ -354,6 +361,7 @@ get_helper_opt_args(KeysSpec, Params) ->
 maybe_verify_storage(_Helper, _UserCtx, true) ->
     ok;
 maybe_verify_storage(Helper, UserCtx, _) ->
+    ?info("Verifying write access to storage"),
     verify_storage(Helper, UserCtx).
 
 %%--------------------------------------------------------------------
