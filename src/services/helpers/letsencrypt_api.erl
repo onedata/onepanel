@@ -48,7 +48,8 @@
 -define(GET_RETRIES, 3).
 -define(POST_RETRIES, 4).
 
--define(HTTP_TIMEOUT, timer:seconds(15)).
+-define(HTTP_OPTS,
+    [{connect_timeout, timer:seconds(15)}, {recv_timeout, timer:seconds(15)}]).
 
 % Record for the endpoints directory presented by letsencrypt
 -record(directory, {
@@ -414,7 +415,7 @@ http_get(URL, State) ->
 http_get(_URL, _State, 0) ->
     ?ERR_LETSENCRYPT(<<"connection">>, "Could not connect to Let's Encrypt.");
 http_get(URL, State, Attempts) ->
-    case http_client:get(URL, #{}, <<>>, [{connection_timeout, ?HTTP_TIMEOUT}]) of
+    case http_client:get(URL, #{}, <<>>, ?HTTP_OPTS) of
         {ok, _Status, #{<<"Replay-Nonce">> := Nonce} = Headers, BodyRaw} ->
             Body = try
                 json_utils:decode_map(BodyRaw)
@@ -456,7 +457,7 @@ http_post(_URL, _Payload, _ExpectedStatus, _State, 0) ->
 http_post(URL, Payload, ExpectedStatus, #flow_state{} = State, Attempts) ->
     {ok, Body, State2} = encode(Payload, State),
 
-    case http_client:post(URL, #{}, Body, [{connection_timeout, ?HTTP_TIMEOUT}]) of
+    case http_client:post(URL, #{}, Body, ?HTTP_OPTS) of
         {ok, Status, #{<<"Replay-Nonce">> := Nonce} = Headers, ResponseRaw} ->
             Response = try
                 json_utils:decode_map(ResponseRaw)
