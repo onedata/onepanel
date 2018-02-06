@@ -34,7 +34,7 @@
     start_cleaning/1, check_oz_connection/1]).
 -export([restart_listeners/1, restart_provider_listeners/1, async_restart_listeners/1]).
 -export([obtain_webcert/1, set_txt_record/1, remove_txt_record/1,
-    modify_letsencrypt_enabled/1, clear_pem_cache/1]).
+    mark_letsencrypt_decided/1, clear_pem_cache/1]).
 
 -define(SERVICE_OPA, service_onepanel:name()).
 -define(SERVICE_CB, service_couchbase:name()).
@@ -123,7 +123,7 @@ get_steps(deploy, Ctx) ->
         S#step{service = ?SERVICE_OPW, function = status, ctx = OpwCtx},
         Ss#steps{service = ?SERVICE_OPW, action = add_storages, ctx = StorageCtx},
         Ss#steps{action = register, ctx = OpCtx, condition = Register},
-        S#step{function = modify_letsencrypt_enabled, ctx = OpCtx},
+        S#step{function = mark_letsencrypt_decided, ctx = OpCtx},
         Ss#steps{action = obtain_webcert, ctx = OpCtx, condition = LetsEncryptCondition},
         Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx}
     ];
@@ -200,7 +200,7 @@ get_steps(unregister, Ctx) ->
 
 get_steps(modify_details, #{hosts := Hosts}) ->
     [
-        #step{hosts = Hosts, function = modify_letsencrypt_enabled, selection = any},
+        #step{hosts = Hosts, function = mark_letsencrypt_decided, selection = any},
         #step{hosts = Hosts, function = modify_details, selection = any},
         #steps{action = obtain_webcert, condition = fun should_generate_cert/1}
     ];
@@ -605,8 +605,8 @@ modify_space(Ctx) ->
 %% Stores information about Let's Encrypt being disabled.
 %% @end
 %%--------------------------------------------------------------------
--spec modify_letsencrypt_enabled(service:ctx()) -> ok.
-modify_letsencrypt_enabled(#{oneprovider_letsencrypt_enabled := Request}) ->
+-spec mark_letsencrypt_decided(service:ctx()) -> ok.
+mark_letsencrypt_decided(#{oneprovider_letsencrypt_enabled := Request}) ->
     ok = service:update(name(), fun(#service{ctx = ServiceCtx} = Record) ->
         Current = maps:get(has_letsencrypt_cert, ServiceCtx, undecided),
         case {Current, Request} of
@@ -619,7 +619,7 @@ modify_letsencrypt_enabled(#{oneprovider_letsencrypt_enabled := Request}) ->
                 Record#service{ctx = maps:put(has_letsencrypt_cert, false, ServiceCtx)}
         end
     end);
-modify_letsencrypt_enabled(_) -> ok.
+mark_letsencrypt_decided(_) -> ok.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -632,6 +632,7 @@ obtain_webcert(#{node := Node}) ->
     case rpc:call(Node, provider_logic, is_subdomain_delegated, []) of
         {true, _} ->
             #{domain := Domain} = rpc:call(Node, provider_logic, get_as_map, []),
+
             try
                 ok = letsencrypt_api:run_certification_flow(Domain)
             after
@@ -639,6 +640,8 @@ obtain_webcert(#{node := Node}) ->
                 % step if error occured
                 mark_letsencrypt_undecided()
             end,
+
+            % this will be executed only on certification success
             set_has_letsencrypt_cert(true);
         false ->
             set_has_letsencrypt_cert(false),
