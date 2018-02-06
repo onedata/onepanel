@@ -172,8 +172,6 @@ get_steps(obtain_webcert, #{hosts := Hosts}) ->
         #step{hosts = Hosts, function = check_oz_connection,
             attempts = onepanel_env:get(connect_to_onezone_attempts)},
         #step{hosts = Hosts, function = obtain_webcert, selection = any},
-        #step{hosts = Hosts, service = ?SERVICE_OPW,
-            function = setup_certs, selection = all},
         #step{hosts = Hosts, function = clear_pem_cache, selection = any},
         #step{hosts = Hosts, function = async_restart_listeners, selection = any}
     ];

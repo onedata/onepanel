@@ -67,7 +67,6 @@ get_steps(deploy, #{hosts := Hosts, name := Name} = Ctx) ->
     AllHosts = onepanel_lists:union(Hosts, ClusterHosts),
     [
         #step{hosts = AllHosts, function = configure},
-        #step{hosts = AllHosts, function = setup_certs},
         #steps{action = restart, ctx = Ctx#{hosts => AllHosts}},
         #step{hosts = [hd(AllHosts)], function = wait_for_init}
     ];
@@ -125,6 +124,8 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
     onepanel_vm:write("name", Node, VmArgsFile),
     onepanel_vm:write("setcookie", maps:get(cookie, Ctx, erlang:get_cookie()),
         VmArgsFile),
+
+    setup_cert_paths(Ctx),
 
     service:add_host(Name, Host).
 
@@ -192,3 +193,18 @@ get_nagios_status(Ctx) ->
         X#xmlAttribute.name == status],
 
     list_to_atom(Status).
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+-spec setup_cert_paths(service:ctx()) -> ok | no_return().
+setup_cert_paths(#{name := AppName, app_config_file := AppConfigFile}) ->
+    lists:foreach(fun({Src, Dst}) ->
+        Path = filename:absname(onepanel_env:get(Src)),
+        ok = onepanel_env:write([AppName, Dst], Path, AppConfigFile)
+    end, [
+        {key_file, web_key_file},
+        {cert_file, web_cert_file},
+        {cacerts_dir, cacerts_dir}
+    ]).

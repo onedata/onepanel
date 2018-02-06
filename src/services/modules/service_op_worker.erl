@@ -20,7 +20,7 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([configure/1, setup_certs/1, start/1, stop/1, status/1, wait_for_init/1,
+-export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
     get_nagios_response/1, get_nagios_status/1, add_storages/1, get_storages/1,
     update_storage/1]).
 
@@ -106,38 +106,6 @@ configure(Ctx) ->
         app_config_file => AppConfigFile,
         vm_args_file => VmArgsFile
     }).
-
-
-%%--------------------------------------------------------------------
-%% @doc Setup service certificates using onepanel certificates.
-%% @end
-%%--------------------------------------------------------------------
--spec setup_certs(Ctx :: service:ctx()) -> ok | no_return().
-setup_certs(Ctx) ->
-    CacertsNames = filelib:wildcard([service_ctx:get(cacerts_dir, Ctx, list), '/*.pem']),
-    ProviderCacertDir = service_ctx:get(op_worker_cacerts_dir, Ctx),
-
-    lists:foreach(fun({Src, Dst}) ->
-        {ok, _} = file:copy(service_ctx:get(Src, Ctx), service_ctx:get(Dst, Ctx))
-    end, [
-        {key_file, op_worker_web_key_file},
-        {cert_file, op_worker_web_cert_file}
-    ]),
-
-    case CacertsNames of
-        [] -> ok;
-        _ ->
-            case filelib:is_dir(ProviderCacertDir) of
-                false ->
-                    ?info("Skipping copy of cacerts as oneprovider cacert dir is not present"),
-                    ok;
-                _ ->
-                    lists:foreach(fun(Cacert) ->
-                        Target = filename:join([ProviderCacertDir, filename:basename(Cacert)]),
-                        {ok, _} = file:copy(Cacert, Target)
-                    end, CacertsNames)
-            end
-    end.
 
 
 %%--------------------------------------------------------------------
