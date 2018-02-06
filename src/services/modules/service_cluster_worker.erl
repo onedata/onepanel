@@ -206,5 +206,6 @@ setup_cert_paths(#{name := AppName, app_config_file := AppConfigFile}) ->
     end, [
         {key_file, web_key_file},
         {cert_file, web_cert_file},
+        {cert_chain_file, web_cert_chain_file},
         {cacerts_dir, cacerts_dir}
     ]).

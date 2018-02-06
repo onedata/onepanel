@@ -67,6 +67,7 @@
         {cacerts_dir, "{{platform_etc_dir}}/cacerts"},
         {key_file, "{{platform_etc_dir}}/certs/key.pem"},
         {cert_file, "{{platform_etc_dir}}/certs/cert.pem"},
+        {cert_chain_file, "{{platform_etc_dir}}/certs/chain.pem"},
 
         %% The directory URL of a Certificate Authority server using the ACME protocol
         %% to be used for automated web certificate issuance

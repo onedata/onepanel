@@ -52,8 +52,8 @@ start() ->
     HttpsAcceptors = onepanel_env:get(rest_https_acceptors),
     KeyFile = onepanel_env:get(key_file),
     CertFile = onepanel_env:get(cert_file),
-    CaCertsDir = onepanel_env:get(cacerts_dir),
-    CaCerts = cert_utils:load_ders_in_dir(CaCertsDir),
+    ChainFile = onepanel_env:get(cert_chain_file),
+
     CommonRoutes = onepanel_api:routes(),
     SpecificRoutes = case onepanel_env:get(release_type) of
         oneprovider -> oneprovider_api:routes();
@@ -63,14 +63,20 @@ start() ->
 
     Dispatch = cowboy_router:compile([{'_', Routes}]),
 
+    SslOpts = [
+        {port, Port},
+        {keyfile, KeyFile},
+        {certfile, CertFile},
+        {ciphers, ssl_utils:safe_ciphers()}],
+
+    SslOptsWithChain = case filelib:is_regular(ChainFile) of
+        true -> [{cacertfile, ChainFile} | SslOpts];
+        _ -> SslOpts
+    end,
+
     {ok, _} = ranch:start_listener(?MODULE, HttpsAcceptors,
-        ranch_ssl, [
-            {port, Port},
-            {keyfile, KeyFile},
-            {certfile, CertFile},
-            {cacerts, CaCerts},
-            {ciphers, ssl_utils:safe_ciphers()}
-        ], cowboy_protocol, [
+        ranch_ssl, SslOptsWithChain,
+        cowboy_protocol, [
             {env, [{dispatch, Dispatch}]}
         ]
     ),
@@ -163,6 +169,8 @@ maybe_generate_web_cert() ->
     GenerateIfAbsent = onepanel_env:get(generate_web_cert_if_absent),
     WebKeyPath = onepanel_env:get(key_file),
     WebCertPath = onepanel_env:get(cert_file),
+    WebChainPath = onepanel_env:get(cert_chain_file),
+
     CertExists = filelib:is_regular(WebKeyPath) andalso
         filelib:is_regular(WebCertPath),
     case GenerateIfAbsent andalso not CertExists of
@@ -175,6 +183,7 @@ maybe_generate_web_cert() ->
             cert_utils:create_signed_webcert(
                 WebKeyPath, WebCertPath, Domain, CAPath, CAPath
             ),
+            file:copy(CAPath, WebChainPath),
             ?warning(
                 "Web server cert not found (~s). Generated a new cert for "
                 "domain '~s'. Use only for test purposes.",
