@@ -56,8 +56,9 @@ all() ->
         service_oneprovider_get_supported_spaces_test,
         service_op_worker_get_storages_test,
         service_op_worker_add_storage_test,
-        services_status_test,
-        services_stop_start_test
+        services_status_test
+        %% TODO VFS-4056
+        %% services_stop_start_test
     ]).
 
 %%%===================================================================
