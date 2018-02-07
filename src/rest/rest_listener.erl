@@ -196,19 +196,7 @@ maybe_generate_web_cert() ->
             ok;
         true ->
             % Back up any pre-existing certs
-            lists:foreach(fun(Env) ->
-                Path = onepanel_env:get(Env),
-                case filelib:is_regular(Path) of
-                    false ->
-                        ok;
-                    true ->
-                        BackupPath = str_utils:format("~s.~B.bak", [
-                            Path, time_utils:system_time_seconds()
-                        ]),
-                        file:copy(Path, BackupPath)
-                end
-            end, [web_key_file, web_cert_file, web_cert_chain_file]),
-
+            onepanel_ssl:backup_exisiting_certs(),
             % Both key and cert are expected in the same file
             CAPath = onepanel_env:get(test_web_cert_ca_path),
             Domain = onepanel_env:get(test_web_cert_domain),

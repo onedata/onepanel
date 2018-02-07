@@ -26,7 +26,7 @@
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
     get_nagios_response/1, get_nagios_status/1, set_node_ip/1,
     get_cluster_ips/1,
-    mark_cluster_ips_configured/1, are_cluster_ips_configured/1]).
+    mark_cluster_ips_configured/1, are_cluster_ips_configured/1, reload_webcert/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -102,7 +102,9 @@ get_steps(get_nagios_response, #{name := Name}) ->
         function = get_nagios_response,
         hosts = (service:get_module(Name)):get_hosts(),
         selection = any
-    }].
+    }];
+get_steps(reload_webcert, Ctx) ->
+    [#step{function = reload_webcert, selection = all}].
 
 %%%===================================================================
 %%% API functions
@@ -276,9 +278,22 @@ get_cluster_ips(#{name := ServiceName} = _Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 mark_cluster_ips_configured(ServiceName) ->
+    % TODO VFS-4141 Common store for configuration steps
     ok = service:update(ServiceName, fun(#service{ctx = ServiceCtx} = Record) ->
         Record#service{ctx = maps:put(cluster_ips_configured, true, ServiceCtx)}
     end).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Clears worker ssl cache to ensure certificates changed on disk
+%% are reloaded.
+%% @end
+%%--------------------------------------------------------------------
+reload_webcert(#{name := ServiceName} = Ctx) ->
+    Host = onepanel_cluster:node_to_host(),
+    Node = onepanel_cluster:host_to_node(ServiceName, Host), ok,
+    ok = rpc:call(Node, ssl, clear_pem_cache, []).
 
 %%%===================================================================
 %%% Internal functions

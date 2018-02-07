@@ -29,6 +29,7 @@
     apply_sync/3, apply_sync/4, get_results/1, get_results/2, abort_task/1,
     exists_task/1]).
 -export([get_module/1, get_hosts/1, get_nodes/1, is_member/2, add_host/2]).
+-export([mark_configured/2, mark_not_configured/2, is_configured/2]).
 
 -type name() :: atom().
 -type action() :: atom().
@@ -354,6 +355,44 @@ add_host(Service, Host) ->
     ?MODULE:update(Service, fun(#service{hosts = Hosts} = S) ->
         S#service{hosts = [Host | lists:delete(Host, Hosts)]}
     end).
+
+
+%%--------------------------------------------------------------------
+%% @doc Marks interactive configuration step as completed.
+%% @end
+%%--------------------------------------------------------------------
+-spec mark_configured(Service :: name(), Step :: atom()) -> ok.
+mark_configured(Service, Step) ->
+    ?MODULE:update(Service, fun(#service{ctx = Ctx} = S) ->
+        Configured = maps:get(configured, Ctx, gb_sets:new()),
+        S#service{ctx = Ctx#{configured => gb_sets:add_element(Step, Configured)}}
+    end).
+
+
+%%--------------------------------------------------------------------
+%% @doc Marks configuration step as waiting for user decision.
+%% @end
+%%--------------------------------------------------------------------
+-spec mark_not_configured(Service :: name(), Step :: atom()) -> ok.
+mark_not_configured(Service, Step) ->
+    ?MODULE:update(Service, fun(#service{ctx = Ctx} = S) ->
+        Configured = maps:get(configured, Ctx, gb_sets:new()),
+        S#service{ctx = Ctx#{configured => gb_sets:del_element(Step, Configured)}}
+    end).
+
+
+%%--------------------------------------------------------------------
+%% @doc Checks if given configuration step was completed by the user.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_configured(Service :: name(), Step :: atom()) -> boolean().
+is_configured(Service, Step) ->
+    case ?MODULE:get(Service) of
+        {ok, #service{ctx = #{configured := Configured}}} ->
+            gb_sets:is_member(Step, Configured);
+        _ -> false
+    end.
+
 
 %%%===================================================================
 %%% Internal functions

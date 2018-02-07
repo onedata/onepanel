@@ -148,6 +148,9 @@ translate(_Type, #error{module = model, function = get, reason = ?ERR_NOT_FOUND,
 translate(_Type, #error{reason = ?ERR_SUBDOMAIN_DELEGATION_DISABLED}) ->
     {<<"Operation Error">>, <<"Subdomain delegation is not enabled.">>};
 
+translate(_Type, #error{reason = ?ERR_FILE_ACCESS(Path, Reason)}) ->
+    {<<"File access error">>, str_utils:format_bin("Error opening file ~p: ~p", [Path, Reason])};
+
 % DO NOT modify this error message as it is used to identify the error in GUI
 translate(_Type, #error{reason = ?ERR_LETSENCRYPT(ErrorURN, Message)}) ->
     {<<"Let's Encrypt Error">>, str_utils:format_bin("Let's Encrypt error: ~s: ~s",
@@ -162,6 +165,11 @@ translate(_Type, #error{reason = ?ERR_LETSENCRYPT_LIMIT(ErrorURN, Message)}) ->
 translate(_Type, #error{reason = ?ERR_LETSENCRYPT_AUTHORIZATION(Message)}) ->
     {<<"Let's Encrypt Authorization Error">>,
         str_utils:format_bin("Let's Encrypt authroization error: ~s", [Message])};
+
+translate(_Type, #error{reason = ?ERR_LETSENCRYPT_NOT_SUPPORTED}) ->
+    {<<"Let's Encrypt Not Supported Error">>,
+        <<"Current DNS/domain configuration does not support automatic "
+        "obtaining certificates">>};
 
 translate(_Type, #error{reason = {?ERR_STORAGE_SYNC, import_already_started}}) ->
     {<<"Operation Error">>, <<"Modifying storage_import that has already been started">>};
