@@ -308,10 +308,10 @@ register(Ctx) ->
                 {<<"subdomain">>,
                     service_ctx:get(oneprovider_subdomain, Ctx, binary)},
                 {<<"ipList">>, IPs}];
-        false -> [
-            {<<"subdomainDelegation">>, false},
-            {<<"domain">>,
-                service_ctx:get(oneprovider_domain, Ctx, binary)}]
+        false ->
+            set_has_letsencrypt_cert(false),
+            [{<<"subdomainDelegation">>, false},
+                {<<"domain">>, service_ctx:get(oneprovider_domain, Ctx, binary)}]
     end,
 
     Params = [
