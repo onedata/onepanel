@@ -105,9 +105,9 @@
 %%--------------------------------------------------------------------
 -spec run_certification_flow(Domain :: binary()) -> ok | no_return().
 run_certification_flow(Domain) ->
-    CertPath = onepanel_env:get(cert_file),
-    PrivateKeyPath = onepanel_env:get(key_file),
-    ChainPath = onepanel_env:get(cert_chain_file),
+    CertPath = onepanel_env:get(web_cert_file),
+    PrivateKeyPath = onepanel_env:get(web_key_file),
+    ChainPath = onepanel_env:get(web_cert_chain_file),
     run_certification_flow(Domain, CertPath, PrivateKeyPath, ChainPath,
         ?DEFAULT_MODE).
 

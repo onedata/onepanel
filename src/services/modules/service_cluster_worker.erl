@@ -204,8 +204,8 @@ setup_cert_paths(#{name := AppName, app_config_file := AppConfigFile}) ->
         Path = filename:absname(onepanel_env:get(Src)),
         ok = onepanel_env:write([AppName, Dst], Path, AppConfigFile)
     end, [
-        {key_file, web_key_file},
-        {cert_file, web_cert_file},
-        {cert_chain_file, web_cert_chain_file},
+        {web_key_file, web_key_file},
+        {web_cert_file, web_cert_file},
+        {web_cert_chain_file, web_cert_chain_file},
         {cacerts_dir, cacerts_dir}
     ]).

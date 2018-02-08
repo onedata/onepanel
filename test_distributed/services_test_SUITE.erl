@@ -438,9 +438,9 @@ await_oz_connectivity(Node) ->
 -spec regenerate_web_certificate([node()], Domain :: string()) -> ok | no_return().
 regenerate_web_certificate(Nodes, Domain) ->
     [Node | _] = Nodes,
-    WebKeyPath = rpc_get_env(Node, key_file),
-    WebCertPath = rpc_get_env(Node, cert_file),
-    WebChainPath = rpc_get_env(Node, cert_chain_file),
+    WebKeyPath = rpc_get_env(Node, web_key_file),
+    WebCertPath = rpc_get_env(Node, web_cert_file),
+    WebChainPath = rpc_get_env(Node, web_cert_chain_file),
 
     % Both key and cert are expected in the same file
     CAPath = rpc_get_env(Node, test_web_cert_ca_path),

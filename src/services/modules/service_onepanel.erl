@@ -166,7 +166,7 @@ extend_cluster(#{hosts := Hosts, auth := Auth, api_version := ApiVersion} = Ctx)
     Suffix = onepanel_utils:join(["/hosts?clusterHost=", ClusterHost]),
     Body = json_utils:encode([{cookie, erlang:get_cookie()}]),
     Timeout = service_ctx:get(extend_cluster_timeout, Ctx, integer),
-    CaCerts = cert_utils:load_ders_in_dir(onepanel_env:get(cacerts_dir)),
+    CaCerts = rest_listener:get_cert_chain(),
     Opts = [
         {ssl_options, [{secure, only_verify_peercert}, {cacerts, CaCerts}]},
         {connect_timeout, Timeout},

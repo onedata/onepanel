@@ -205,9 +205,6 @@ delete_resource(Req, #rstate{resource = provider}) ->
     Response = {true, rest_replier:throw_on_service_error(
         Req, service:apply_sync(?SERVICE, unregister, #{})
     )},
-    service:apply_async(?SERVICE, restart_listeners, #{
-        task_delay => timer:seconds(1)
-    }),
     Response;
 
 delete_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
