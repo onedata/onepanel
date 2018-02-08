@@ -67,6 +67,7 @@
         {cacerts_dir, "{{platform_etc_dir}}/cacerts"},
         {key_file, "{{platform_etc_dir}}/certs/key.pem"},
         {cert_file, "{{platform_etc_dir}}/certs/cert.pem"},
+        {cert_chain_file, "{{platform_etc_dir}}/certs/chain.pem"},
 
         %% The directory URL of a Certificate Authority server using the ACME protocol
         %% to be used for automated web certificate issuance
@@ -137,9 +138,6 @@
 
         {op_worker_vm_args_file, "{{platform_etc_dir}}/../op_worker/vm.args"},
         {op_worker_app_config_file, "{{platform_etc_dir}}/../op_worker/app.config"},
-        {op_worker_web_key_file, "{{platform_etc_dir}}/../op_worker/certs/web_key.pem"},
-        {op_worker_web_cert_file, "{{platform_etc_dir}}/../op_worker/certs/web_cert.pem"},
-        {op_worker_cacerts_dir, "{{platform_etc_dir}}/../op_worker/cacerts/"},
         {op_worker_open_files_limit, 65535},
         {op_worker_nagios_protocol, "http"},
         {op_worker_wait_for_init_attempts, 60},
@@ -148,8 +146,6 @@
 
         {oz_worker_vm_args_file, "{{platform_etc_dir}}/../oz_worker/vm.args"},
         {oz_worker_app_config_file, "{{platform_etc_dir}}/../oz_worker/app.config"},
-        {oz_worker_web_key_file, "{{platform_etc_dir}}/../oz_worker/certs/web_key.pem"},
-        {oz_worker_web_cert_file, "{{platform_etc_dir}}/../oz_worker/certs/web_cert.pem"},
         {oz_worker_open_files_limit, 65535},
         {oz_worker_nagios_protocol, "http"},
         {oz_worker_wait_for_init_attempts, 60},

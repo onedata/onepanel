@@ -29,10 +29,6 @@
 % See <https://tools.ietf.org/id/draft-ietf-acme-acme-07.html#rfc.section.8.5>
 -define(ACME_TXT_NAME, <<"_acme-challenge">>).
 
-% Filename to use for the Let's Encrypt chain certificate
--define(CACERT_FILENAME,
-    application:get_env(onepanel, acme_cacert, "LetsEncrypt.pem")).
-
 % Filenames for temporary Let's Encrypt account keys
 -define(PRIVATE_RSA_KEY, "acme_private_key.pem").
 -define(PUBLIC_RSA_KEY, "acme_public_key.pem").
@@ -83,7 +79,7 @@
     % Paths for saving resulting key and cert
     cert_path :: string(),
     cert_private_key_path :: string(),
-    cacert_dir :: string(),
+    chain_path :: string(),
 
     % Directory for keys used in communication with Let's Encrypt
     jws_keys_dir :: string()
@@ -111,15 +107,15 @@
 run_certification_flow(Domain) ->
     CertPath = onepanel_env:get(cert_file),
     PrivateKeyPath = onepanel_env:get(key_file),
-    CacertsDir = onepanel_env:get(cacerts_dir),
-    run_certification_flow(Domain, CertPath, PrivateKeyPath, CacertsDir,
+    ChainPath = onepanel_env:get(cert_chain_file),
+    run_certification_flow(Domain, CertPath, PrivateKeyPath, ChainPath,
         ?DEFAULT_MODE).
 
 -spec run_certification_flow(Domain :: binary(), CertPath :: string(),
-    PrivateKeypath :: string(), CacertsDir :: string()) ->
+    PrivateKeypath :: string(), ChainPath :: string()) ->
     ok | no_return().
-run_certification_flow(Domain, CertPath, PrivateKeyPath, CacertDir) ->
-    run_certification_flow(Domain, CertPath, PrivateKeyPath, CacertDir,
+run_certification_flow(Domain, CertPath, PrivateKeyPath, ChainPath) ->
+    run_certification_flow(Domain, CertPath, PrivateKeyPath, ChainPath,
         ?DEFAULT_MODE).
 
 %%--------------------------------------------------------------------
@@ -135,9 +131,9 @@ run_certification_flow(Domain, CertPath, PrivateKeyPath, CacertDir) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec run_certification_flow(Domain :: binary(), CertPath :: string(),
-    PrivateKeyPath :: string(), CacertsDir :: string(),
+    PrivateKeyPath :: string(), ChainPath :: string(),
     Mode :: dry | staging | production | full) -> ok | no_return().
-run_certification_flow(Domain, CertPath, PrivateKeyPath, CacertDir, Mode) ->
+run_certification_flow(Domain, CertPath, PrivateKeyPath, ChainPath, Mode) ->
 
     {ok, KeysDir} = generate_keys(),
 
@@ -172,7 +168,7 @@ run_certification_flow(Domain, CertPath, PrivateKeyPath, CacertDir, Mode) ->
         jws_keys_dir = KeysDir,
         cert_path = CertPath,
         cert_private_key_path = PrivateKeyPath,
-        cacert_dir = CacertDir,
+        chain_path = ChainPath,
         save_cert = Mode2 == production orelse Mode2 == staging,
         domain = Domain},
 
@@ -195,7 +191,7 @@ run_certification_flow(Domain, CertPath, PrivateKeyPath, CacertDir, Mode) ->
     end,
 
     case Mode2 of
-        full -> run_certification_flow(Domain, CertPath, PrivateKeyPath, CacertDir,
+        full -> run_certification_flow(Domain, CertPath, PrivateKeyPath, ChainPath,
             production);
         _ -> ok
     end.
@@ -375,7 +371,7 @@ get_certificate(#flow_state{domain = Domain} = State) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_chain_certificate(State :: #flow_state{}, Link :: binary()) -> tuple().
-get_chain_certificate(State, Link) ->
+get_chain_certificate(#flow_state{chain_path = ChainPath} = State, Link) ->
     % example Link value:
     % <https://acme-v01.api.letsencrypt.org/acme/issuer-cert>;rel=\"up\"
     {match, [ChainURL]} =
@@ -384,10 +380,8 @@ get_chain_certificate(State, Link) ->
     {ok, {raw, ChainDer}, _, State2} = http_get(ChainURL, State),
     ChainPem = public_key:pem_encode([{'Certificate', ChainDer, not_encrypted}]),
 
-    CacertPath = filename:join([State#flow_state.cacert_dir, ?CACERT_FILENAME]),
-
     Nodes = service_onepanel:get_nodes(),
-    ok = utils:save_file_on_hosts(Nodes, CacertPath, ChainPem),
+    ok = utils:save_file_on_hosts(Nodes, ChainPath, ChainPem),
 
     {ok, State2}.
 
