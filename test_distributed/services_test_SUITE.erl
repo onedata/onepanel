@@ -275,6 +275,13 @@ init_per_suite(Config) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
         [OzNode | _] = OzNodes = ?config(onezone_nodes, NewConfig2),
         OzHosts = onepanel_cluster:nodes_to_hosts(OzNodes),
+        OzIp = test_utils:get_docker_ip(OzNode),
+        OzDomain = get_domain(hd(OzHosts)),
+        onepanel_test_utils:set_test_envs(OzNodes, [{test_web_cert_domain, OzDomain}]),
+
+        % generate certificate with correct onezone domain
+        regenerate_web_certificate(OzNodes, OzDomain),
+
         service_action(OzNode, ?SERVICE_OZ, deploy, #{
             cluster => #{
                 ?SERVICE_OPA => #{
@@ -296,8 +303,6 @@ init_per_suite(Config) ->
         OpHosts = onepanel_cluster:nodes_to_hosts(OpNodes),
         % We do not have a DNS server that would resolve OZ domain for provider,
         % so we need to simulate it using /etc/hosts.
-        OzDomain = get_domain(hd(OzHosts)),
-        OzIp = test_utils:get_docker_ip(OzNode),
         lists:foreach(fun(Node) ->
             rpc:call(Node, file, write_file, [
                 "/etc/hosts",
@@ -410,6 +415,7 @@ get_domain(Hostname) ->
     Domain.
 
 %%--------------------------------------------------------------------
+%% @private
 %% @doc
 %% Waits for substriptions channel to be active in the provider.
 %% @end
@@ -422,3 +428,32 @@ await_oz_connectivity(Node) ->
         rpc:call(Node, rpc, call, [OpNode, provider_logic, get, []]),
         ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS),
     ok.
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Generates certificate using test CA for given domain.
+%% @end
+%%--------------------------------------------------------------------
+-spec regenerate_web_certificate([node()], Domain :: string()) -> ok | no_return().
+regenerate_web_certificate(Nodes, Domain) ->
+    [Node | _] = Nodes,
+    WebKeyPath = rpc_get_env(Node, key_file),
+    WebCertPath = rpc_get_env(Node, cert_file),
+    WebChainPath = rpc_get_env(Node, cert_chain_file),
+
+    % Both key and cert are expected in the same file
+    CAPath = rpc_get_env(Node, test_web_cert_ca_path),
+
+    {_, []} = rpc:multicall(Nodes, cert_utils, create_signed_webcert, [
+        WebKeyPath, WebCertPath, Domain, CAPath, CAPath]),
+    {_, []} = rpc:multicall(Nodes, file, copy, [CAPath, WebChainPath]),
+
+    rpc:multicall(Nodes, service_oneprovider, clear_pem_cache, [#{}]),
+    rpc:multicall(Nodes, service_oneprovider, restart_listeners, [#{}]).
+
+
+-spec rpc_get_env(node(), atom()) -> term().
+rpc_get_env(Node, Key) ->
+    rpc:call(Node, onepanel_env, get, [Key]).
+
