@@ -123,7 +123,7 @@ get_steps(deploy, Ctx) ->
         S#step{service = ?SERVICE_OPW, function = status, ctx = OpwCtx},
         Ss#steps{service = ?SERVICE_OPW, action = add_storages, ctx = StorageCtx},
         Ss#steps{action = register, ctx = OpCtx, condition = Register},
-        S#step{function = mark_letsencrypt_decided, ctx = OpCtx},
+        S#step{function = mark_letsencrypt_decided, ctx = OpCtx, condition = Register},
         Ss#steps{action = obtain_webcert, ctx = OpCtx, condition = LetsEncryptCondition},
         Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx}
     ];
