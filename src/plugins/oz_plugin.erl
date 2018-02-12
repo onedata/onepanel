@@ -17,7 +17,7 @@
 
 %% OZ behaviour callbacks
 -export([get_oz_url/0, get_oz_rest_port/0, get_oz_rest_api_prefix/0]).
--export([trusted_cacerts_dir/0, get_provider_cacerts_dir/0]).
+-export([get_cacerts_dir/0, get_provider_cacerts_dir/0]).
 -export([auth_to_rest_client/1]).
 
 %%%===================================================================
@@ -55,8 +55,8 @@ get_oz_rest_api_prefix() ->
 %% @doc {@link oz_plugin_behaviour:get_cacerts_dir/0}
 %% @end
 %%--------------------------------------------------------------------
--spec trusted_cacerts_dir() -> file:name_all().
-trusted_cacerts_dir() ->
+-spec get_cacerts_dir() -> file:name_all().
+get_cacerts_dir() ->
     onepanel_env:get(cacerts_dir).
 
 
