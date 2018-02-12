@@ -16,6 +16,7 @@
 
 -export([get_port/0, get_prefix/1]).
 -export([start/0, stop/0, status/0]).
+-export([get_cert_chain/0]).
 
 %%%===================================================================
 %%% API functions
@@ -48,11 +49,12 @@ get_prefix(ApiVersion) ->
 -spec start() -> ok | no_return().
 start() ->
     maybe_generate_web_cert(),
+    maybe_trust_test_ca(),
     Port = get_port(),
     HttpsAcceptors = onepanel_env:get(rest_https_acceptors),
-    KeyFile = onepanel_env:get(key_file),
-    CertFile = onepanel_env:get(cert_file),
-    ChainFile = onepanel_env:get(cert_chain_file),
+    KeyFile = onepanel_env:get(web_key_file),
+    CertFile = onepanel_env:get(web_cert_file),
+    ChainFile = onepanel_env:get(web_cert_chain_file),
 
     CommonRoutes = onepanel_api:routes(),
     SpecificRoutes = case onepanel_env:get(release_type) of
@@ -106,12 +108,26 @@ stop() ->
 -spec status() -> ok | {error, Reason :: term()}.
 status() ->
     Endpoint = str_utils:format_bin("https://127.0.0.1:~B", [get_port()]),
-    CaCerts = cert_utils:load_ders_in_dir(onepanel_env:get(cacerts_dir)),
-    Opts = [{ssl_options, [{secure, only_verify_peercert}, {cacerts, CaCerts}]}],
+    Opts = [{ssl_options, [{secure, only_verify_peercert}, {cacerts, get_cert_chain()}]}],
     case http_client:get(Endpoint, #{}, <<>>, Opts) of
         {ok, _, _, _} -> ok;
         {error, Reason} -> {error, Reason}
     end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns intermediate CA chain for the web cert used in gui listener.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_cert_chain() -> [public_key:der_encoded()].
+get_cert_chain() ->
+    ChainFile = onepanel_env:get(web_cert_chain_file),
+    case filelib:is_regular(ChainFile) of
+        true -> cert_utils:load_ders(ChainFile);
+        _ -> []
+    end.
+
 
 %%%===================================================================
 %%% Internal functions
@@ -151,14 +167,13 @@ static_gui_routes() ->
         {ok, []} -> DefaultRoot;
         {ok, _} -> CustomRoot
     end,
-   [{"/[...]", gui_static_handler, {dir, StaticFilesRoot}}].
+    [{"/[...]", gui_static_handler, {dir, StaticFilesRoot}}].
 
 
 %%--------------------------------------------------------------------
 %% @private @doc
-%% Generates a new test web server cert if none is found under expected path,
-%% given that this option is enabled in env config. The generated cert should be
-%% used only for test purposes.
+%% Generates a new test web server cert, given that this option is enabled in
+%% env config. The generated cert should be used only for test purposes.
 %% NOTE: for multi-node onepanel cluster, each node will generate its own cert
 %% (for the same domain) - this is not a problem since these are test
 %% certificates.
@@ -166,17 +181,28 @@ static_gui_routes() ->
 %%--------------------------------------------------------------------
 -spec maybe_generate_web_cert() -> ok.
 maybe_generate_web_cert() ->
-    GenerateIfAbsent = onepanel_env:get(generate_web_cert_if_absent),
-    WebKeyPath = onepanel_env:get(key_file),
-    WebCertPath = onepanel_env:get(cert_file),
-    WebChainPath = onepanel_env:get(cert_chain_file),
+    WebKeyPath = onepanel_env:get(web_key_file),
+    WebCertPath = onepanel_env:get(web_cert_file),
+    WebChainPath = onepanel_env:get(web_cert_chain_file),
 
-    CertExists = filelib:is_regular(WebKeyPath) andalso
-        filelib:is_regular(WebCertPath),
-    case GenerateIfAbsent andalso not CertExists of
+    case onepanel_env:get(generate_test_web_cert) of
         false ->
             ok;
         true ->
+            % Back up any pre-existing certs
+            lists:foreach(fun(Env) ->
+                Path = onepanel_env:get(Env),
+                case filelib:is_regular(Path) of
+                    false ->
+                        ok;
+                    true ->
+                        BackupPath = str_utils:format("~s.~B.bak", [
+                            Path, time_utils:system_time_seconds()
+                        ]),
+                        file:copy(Path, BackupPath)
+                end
+            end, [web_key_file, web_cert_file, web_cert_chain_file]),
+
             % Both key and cert are expected in the same file
             CAPath = onepanel_env:get(test_web_cert_ca_path),
             Domain = onepanel_env:get(test_web_cert_domain),
@@ -185,9 +211,33 @@ maybe_generate_web_cert() ->
             ),
             file:copy(CAPath, WebChainPath),
             ?warning(
-                "Web server cert not found (~s). Generated a new cert for "
-                "domain '~s'. Use only for test purposes.",
-                [WebCertPath, Domain]
+                "Generated a new cert for domain '~s'. "
+                "Use only for test purposes.~n"
+                "    ~s~n"
+                "    ~s~n"
+                "    ~s",
+                [Domain, WebKeyPath, WebCertPath, WebChainPath]
             ),
             ok
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private @doc
+%% Adds Onedata test CA to trusted certificates, given that this option is
+%% enabled in env config.
+%% @end
+%%--------------------------------------------------------------------
+-spec maybe_trust_test_ca() -> ok.
+maybe_trust_test_ca() ->
+    case onepanel_env:get(treat_test_ca_as_trusted) of
+        false ->
+            ok;
+        true ->
+            CAPath = onepanel_env:get(test_web_cert_ca_path),
+            CaFile = filename:basename(CAPath),
+            file:copy(CAPath, filename:join(oz_plugin:get_cacerts_dir(), CaFile)),
+            ?warning("Added '~s' to trusted certificates. Use only for test purposes.", [
+                CaFile
+            ])
     end.

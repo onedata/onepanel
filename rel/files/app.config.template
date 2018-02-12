@@ -53,21 +53,44 @@
 
         {release_type, {{release_type}} },
 
-        %% If enabled and there is no web key/cert under expected paths
-        %% (key_file, cert_file) during startup, a new web cert will be
-        %% generated with CN matching onepanel domain and signed by CA cert
-        %% found under test_web_cert_ca_path.
-        %% This functionality is devised for test purposes and should not be
-        %% used in production.
-        {generate_web_cert_if_absent, true},
+        %% ===================================================================
+        %% Server certificates
+        %% ===================================================================
+
+        %% NOTE - below certificates will be reused by underlying
+        %% Oneprovider / Onezone.
+        %% Path to private key used by web server
+        {web_key_file, "{{platform_etc_dir}}/certs/web_key.pem"},
+        %% Path to certificate used by web server
+        {web_cert_file, "{{platform_etc_dir}}/certs/web_cert.pem"},
+        %% Path to certificate chain file used by web server
+        {web_cert_chain_file, "{{platform_etc_dir}}/certs/web_chain.pem"},
+
+        %% Path to directory with trusted CA certificates
+        {cacerts_dir, "{{platform_etc_dir}}/cacerts"},
+
+        %% ===================================================================
+        %% Test certificates
+        %% ===================================================================
+
+        %% If enabled, a new web cert will be generated with CN matching
+        %% the test_web_cert_domain and signed by CA cert found under
+        %% test_web_cert_ca_path.
+        %% NOTE: The generation will be performed upon every startup, any
+        %%  existing certs will be backed up and placed in the same directory.
+        %% NOTE: This functionality is devised for test purposes and must not
+        %%  be used in production.
+        {generate_test_web_cert, false},
+        %% The domain for which a test cert will be generated
         {test_web_cert_domain, "onedata.org"},
         %% The CA cert to sign auto generated test web certs. The file must
         %% contain both the key and cert.
-        {test_web_cert_ca_path, "{{platform_etc_dir}}/cacerts/OneDataTestWebServerCa.pem"},
-        {cacerts_dir, "{{platform_etc_dir}}/cacerts"},
-        {key_file, "{{platform_etc_dir}}/certs/key.pem"},
-        {cert_file, "{{platform_etc_dir}}/certs/cert.pem"},
-        {cert_chain_file, "{{platform_etc_dir}}/certs/chain.pem"},
+        {test_web_cert_ca_path, "{{platform_etc_dir}}/OnedataTestWebServerCa.pem"},
+        %% If enabled, onepanel will trust any server that has a cert signed by
+        %% the OnedataTestWebServerCa.
+        %% NOTE: This functionality is devised for test purposes and must not
+        %%  be used in production.
+        {treat_test_ca_as_trusted, false},
 
         %% The directory URL of a Certificate Authority server using the ACME protocol
         %% to be used for automated web certificate issuance
