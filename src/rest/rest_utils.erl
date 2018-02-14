@@ -29,14 +29,15 @@
 %%--------------------------------------------------------------------
 -spec get_method(Req :: cowboy_req:req()) ->
     {Method :: rest_handler:method_type(), Req :: cowboy_req:req()}.
-get_method(Req) ->
-    case cowboy_req:method(Req) of
-        {<<"POST">>, Req2} -> {'POST', Req2};
-        {<<"PATCH">>, Req2} -> {'PATCH', Req2};
-        {<<"GET">>, Req2} -> {'GET', Req2};
-        {<<"PUT">>, Req2} -> {'PUT', Req2};
-        {<<"DELETE">>, Req2} -> {'DELETE', Req2}
-    end.
+get_method(#{method := MethodBin} = Req) ->
+    Method = case MethodBin of
+        <<"POST">> -> 'POST';
+        <<"PATCH">> -> 'PATCH';
+        <<"GET">> -> 'GET';
+        <<"PUT">> -> 'PUT';
+        <<"DELETE">> -> 'DELETE'
+    end,
+    {Method, Req}.
 
 
 %%--------------------------------------------------------------------
@@ -47,12 +48,12 @@ get_method(Req) ->
 -spec get_bindings(Req :: cowboy_req:req()) ->
     {Bindings :: rest_handler:bindings(), Req :: cowboy_req:req()}.
 get_bindings(Req) ->
-    {Bindings, Req2} = cowboy_req:bindings(Req),
-    NewBindings = lists:map(fun
-        ({host, Value}) -> {host, onepanel_utils:convert(Value, list)};
-        ({Key, Value}) -> {Key, Value}
+    Bindings = cowboy_req:bindings(Req),
+    NewBindings = maps:map(fun
+        (host, Value) -> onepanel_utils:convert(Value, list);
+        (_Key, Value) -> Value
     end, Bindings),
-    {maps:from_list(NewBindings), Req2}.
+    {NewBindings, Req}.
 
 
 %%--------------------------------------------------------------------
@@ -62,13 +63,13 @@ get_bindings(Req) ->
 -spec get_params(Req :: cowboy_req:req(), ParamsSpec :: rest_handler:spec()) ->
     {Params :: rest_handler:params(), Req :: cowboy_req:req()}.
 get_params(Req, ParamsSpec) ->
-    {Params, Req2} = cowboy_req:qs_vals(Req),
+    Params = cowboy_req:parse_qs(Req),
     NewParams = lists:map(fun
         ({Key, true}) -> {Key, <<"true">>};
         ({Key, Value}) -> {Key, Value}
     end, Params),
     try
-        {onepanel_parser:parse(NewParams, ParamsSpec), Req2}
+        {onepanel_parser:parse(NewParams, ParamsSpec), Req}
     catch
         throw:#error{reason = {?ERR_MISSING_KEY, Keys}} = Error ->
             ?throw_error(Error#error{reason = {?ERR_MISSING_PARAM, Keys}})

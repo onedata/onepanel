@@ -41,7 +41,7 @@
 %%--------------------------------------------------------------------
 -callback provide_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Data :: rest_handler:data(), Req :: cowboy_req:req()} |
-    {halt, Req :: cowboy_req:req(), State :: rest_handler:state()}.
+    {stop, Req :: cowboy_req:req(), State :: rest_handler:state()}.
 
 
 %%--------------------------------------------------------------------

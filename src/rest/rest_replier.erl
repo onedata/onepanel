@@ -86,12 +86,12 @@ handle_service_step(Req, Module, Function, Results) ->
 -spec handle_session(Req :: cowboy_req:req(), SessionId :: onepanel_session:id(),
     Username :: onepanel_user:name()) -> Req :: cowboy_req:req().
 handle_session(Req, SessionId, Username) ->
-    Req2 = cowboy_req:set_resp_cookie(<<"sessionId">>, SessionId, [
-        {max_age, onepanel_env:get(session_ttl) div 1000},
-        {path, "/"},
-        {secure, true},
-        {http_only, true}
-    ], Req),
+    Req2 = cowboy_req:set_resp_cookie(<<"sessionId">>, SessionId, Req #{
+        max_age => onepanel_env:get(session_ttl) div 1000,
+        path => "/",
+        secure => true,
+        http_only => true
+    }),
     Body = json_utils:encode([
         {<<"sessionId">>, SessionId},
         {<<"username">>, Username}
