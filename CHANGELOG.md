@@ -4,6 +4,44 @@
 CHANGELOG
 ---------
 
+### 18.02.0-beta1
+
+* VFS-3978 Do not distribute Onedata Test CA in packages   
+* VFS-3978 add untrusted web certificates for localhost as default   
+* VFS-3978 autogenerate certs option now always overwrites existing certs   
+* VFS-3978 unify paths and env names related to certs with those in op and oz
+* VFS-3765 Use provided admin email in provider registration and Let's Encrypt cert procedure
+* VFS-4015 Use PBKDF2 rather than bcrypt for user password hashing
+* VFS-3622 Allow to use custom commands for starting underlying services and to pass overlay config upon onepanel start
+* VFS-3751 Use provider macaroons rather than certificates, don't fetch provider details unless it is registered
+* VFS-3790 Automatically generate web certs on startup if not present, use secure connections where possible
+* VFS-3635 Distribute OZ CA cert during registration
+* Overwrite worker cert paths with onepanel certs
+* VFS-3609 Implement ACME protocol (Let's Encrypt) client
+* VFS-3614 Modify API to handle subdomain delegation
+* VFS-3526 Combine provider urls and redirection_point
+* VFS-3606 GUI: Subdomain delegation functionality for provider
+* VFS-3968 GUI: Update to EmberJS 2.18.0
+* VFS-3985 GUI: Added a bar chart, that shows storage usage for a space
+* VFS-4016 GUI: Added NullDevice storage support
+* VFS-3986 GUI: Added Let’s Encrypt certificate setup step in provider cluster deployment; improved error backend error descriptions
+* VFS-3955 GUI: Better truncating of too long names in sidebar; internal libs update
+* VFS-3619 GUI: Refactor of login page components
+* VFS-3205 GUI: Improvements in displaying deployment steps
+* VFS-3636 GUI: Fix for invalid date in synchronization statistics charts
+* VFS-3202 GUI: Try to detect unfinished cluster deployment on page refresh
+* VFS-3870 GUI: Show notify after space support settings change
+* VFS-3706 GUI: Do not allow to enter improper routes in panel (fixes also VFS-3895: PATCH request after provider deregistration)
+* VFS-3928 GUI: Less restrictive validation of provider/onezone domain name
+* VFS-3677 GUI: Fix for tooltip positioning in mobile view
+* VFS-3592 GUI: Added common favicon
+* VFS-3883 GUI: Porting recent improvements in common components and utils from op-gui-default
+* VFS-3741 GUI: Fix for import chart tooltip positioning and overflow handling in mobile view
+* VFS-3677 GUI: Fix for tooltip positioning in mobile view
+* VFS-3741 GUI: Fix for import chart tooltip positioning and overflow handling in mobile view
+* VFS-3882 GUI: Fixed space auto-cleaning report status tooltips; deregister provider message update
+
+
 ### 17.06.2
 
 * Releasing new version 17.06.2
