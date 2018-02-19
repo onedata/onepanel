@@ -4,6 +4,61 @@
 CHANGELOG
 ---------
 
+### 17.06.2
+
+* Releasing new version 17.06.2
+
+
+### 17.06.1
+
+* Releasing new version 17.06.1
+
+
+### 17.06.0-rc9
+
+* VFS-4004 Update ctool to include safe ciphers in TLS
+* VFS-3972 Fix attach-direct consoles in releases not being run with xterm terminal
+* VFS-3911 - adapt onepanel to changes in op-worker storage_sync_monitoring module
+* fix error when geolocation is integer
+
+
+### 17.06.0-rc8
+
+* Releasing new version 17.06.0-rc8
+
+
+### 17.06.0-rc7
+
+* VFS-3815 Added erlang-observer as RPM build dependency
+* VFS-3686 allow to start space cleaning manually, update ctool
+* Updating GUI, including: VFS-3685, VFS-3661 - VFS-3685 Added space files popularity and space auto cleaning views - VFS-3661 Improvements in presenting loading state of views and errors
+* Updating GUI, including: VFS-3710 - VFS-3710 Using binary prefixes for size units (IEC format: MiB, GiB, TiB, etc.)
+* Updating GUI, including: VFS-3737, VFS-3639 - VFS-3737 Change Bower server to registry.bower.io - VFS-3639 Fix and restore loaders in new GUIs
+* Updating GUI, including: VFS-3608 - VFS-3608 Table component for showing details about support size
+* VFS-3686 configure autocleaning in onepanel
+
+
+### 17.06.0-rc6
+
+* Releasing new version 17.06.0-rc6
+
+
+### 17.06.0-rc5
+
+* fix fetching luma_config
+
+
+### 17.06.0-rc4
+
+* Releasing new version 17.06.0-rc4
+
+
+### 17.06.0-rc3
+
+* VFS-3639 Updating GUI ref
+* VFS-3449 add syncAcl flag to storage import and storage update configuration
+
+
 ### 17.06.0-rc2
 
 * VFS-3506 Fix space support with missing storage ID
