@@ -244,7 +244,7 @@ provide_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
         end
     catch
         Type:Reason ->
-            {halt, rest_replier:handle_error(Req, Type, ?make_error(Reason)), State}
+            {halt, rest_replier:reply_with_error(Req, Type, ?make_error(Reason)), State}
     end.
 
 
