@@ -24,10 +24,9 @@
 ]}.
 
 {deps, [
-    {ctool, {git, "ssh://git@git.plgrid.pl:7999/vfs/ctool.git", {ref, "0452bbc64d"}}},
+    {ctool, {git, "ssh://git@git.plgrid.pl:7999/vfs/ctool.git", {ref, "385be51240e"}}},
     {gui, {git, "ssh://git@git.plgrid.pl:7999/vfs/gui.git", {ref, "ba8292ff867"}}},
     {yamerl, {git, "git://github.com/yakaz/yamerl.git", {ref, "3f46bf06b9"}}},
-    {pbkdf2, {git, "git://github.com/basho/erlang-pbkdf2.git", {ref, "7076584f53"}}},
     {cowboy, {git, "git://github.com/ninenines/cowboy.git", {tag, "2.2.2"}}}
 ]}.
 
@@ -81,7 +80,6 @@
             {wx, load},
             {xmerl, load},
             {yamerl, load},
-            {pbkdf2, load},
             onepanel
         ]},
 
