@@ -19,8 +19,8 @@
 
 %% API
 -export([throw_on_service_error/2]).
--export([handle_error/3, handle_service_action_async/3, handle_service_step/4,
-    handle_session/3]).
+-export([handle_error/3, reply_with_error/3, handle_service_action_async/3,
+    handle_service_step/4, handle_session/3]).
 -export([format_error/2, format_service_status/2, format_service_host_status/2,
     format_service_task_results/1, format_service_step/3, format_configuration/1]).
 
@@ -51,6 +51,17 @@ throw_on_service_error(Req, Results) ->
 handle_error(Req, Type, Reason) ->
     Body = json_utils:encode(format_error(Type, Reason)),
     cowboy_req:set_resp_body(Body, Req).
+
+
+%%--------------------------------------------------------------------
+%% @doc Replies with an error and 500 HTTP code.
+%% @end
+%%--------------------------------------------------------------------
+-spec reply_with_error(Req :: cowboy_req:req(), Type :: atom(), Reason :: term()) ->
+    Req :: cowboy_req:req().
+reply_with_error(Req, Type, Reason) ->
+    Body = json_utils:encode(format_error(Type, Reason)),
+    cowboy_req:reply(500, #{}, Body, Req).
 
 
 %%--------------------------------------------------------------------
