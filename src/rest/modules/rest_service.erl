@@ -130,7 +130,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
     DbCtx3 = onepanel_maps:get_store([cluster, databases, bucketQuota], Args,
         couchbase_bucket_quota, DbCtx2),
 
-    {Auth, Req2} = cowboy_req:header(<<"authorization">>, Req),
+    Auth = cowboy_req:header(<<"authorization">>, Req),
     OpaCtx = maps:get(onepanel, Args, #{}),
     OpaCtx2 = OpaCtx#{
         hosts => lists:usort(DbHosts ++ CmHosts ++ OpwHosts),
@@ -161,7 +161,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
     OpwCtx10 = onepanel_maps:get_store([oneprovider, letsEncryptEnabled], Args, oneprovider_letsencrypt_enabled, OpwCtx9),
     OpwCtx11 = OpwCtx10#{hosts => OpwHosts},
 
-    {true, rest_replier:handle_service_action_async(Req2, service:apply_async(
+    {true, rest_replier:handle_service_action_async(Req, service:apply_async(
         service_oneprovider:name(), deploy, #{
             cluster => ClusterCtx, service_oneprovider:name() => OpwCtx11
         }
@@ -179,7 +179,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version =
     DbCtx3 = onepanel_maps:get_store([cluster, databases, bucketQuota], Args,
         couchbase_bucket_quota, DbCtx2),
 
-    {Auth, Req2} = cowboy_req:header(<<"authorization">>, Req),
+    Auth = cowboy_req:header(<<"authorization">>, Req),
     OpaCtx = maps:get(onepanel, Args, #{}),
     OpaCtx2 = OpaCtx#{
         hosts => lists:usort(DbHosts ++ CmHosts ++ OzwHosts),
@@ -205,7 +205,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version =
         service_oz_worker:name() => OzwCtx3
     },
 
-    {true, rest_replier:handle_service_action_async(Req2, service:apply_async(
+    {true, rest_replier:handle_service_action_async(Req, service:apply_async(
         service_onezone:name(), deploy, #{
             cluster => ClusterCtx, service_onezone:name() => OzCtx2
         }
@@ -257,7 +257,7 @@ accept_resource(Req, 'PATCH', _Args, #rstate{resource = SModule,
 %%--------------------------------------------------------------------
 -spec provide_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Data :: rest_handler:data(), Req :: cowboy_req:req()} |
-    {halt, Req :: cowboy_req:req(), State :: rest_handler:state()}.
+    {stop, Req :: cowboy_req:req(), State :: rest_handler:state()}.
 provide_resource(Req, #rstate{resource = nagios} = State) ->
     SModule = case onepanel_env:get(release_type) of
         oneprovider -> service_op_worker;
@@ -269,8 +269,8 @@ provide_resource(Req, #rstate{resource = nagios} = State) ->
             service:apply_sync(SModule:name(), get_nagios_response, #{})
         )
     ),
-    {ok, Req2} = cowboy_req:reply(Code, Headers, Body, Req),
-    {halt, Req2, State};
+    Req2 = cowboy_req:reply(Code, Headers, Body, Req),
+    {stop, Req2, State};
 
 provide_resource(Req, #rstate{resource = task, bindings = #{id := TaskId}}) ->
     {rest_replier:format_service_task_results(service:get_results(TaskId)), Req};

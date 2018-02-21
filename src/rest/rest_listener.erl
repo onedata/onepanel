@@ -67,6 +67,7 @@ start() ->
 
     SslOpts = [
         {port, Port},
+        {num_acceptors, HttpsAcceptors},
         {keyfile, KeyFile},
         {certfile, CertFile},
         {ciphers, ssl_utils:safe_ciphers()}],
@@ -76,11 +77,11 @@ start() ->
         _ -> SslOpts
     end,
 
-    {ok, _} = ranch:start_listener(?MODULE, HttpsAcceptors,
-        ranch_ssl, SslOptsWithChain,
-        cowboy_protocol, [
-            {env, [{dispatch, Dispatch}]}
-        ]
+    {ok, _} = cowboy:start_tls(?MODULE,
+        SslOptsWithChain,
+        #{
+            env => #{dispatch => Dispatch}
+        }
     ),
 
     ?info("REST listener successfully started").
@@ -92,7 +93,7 @@ start() ->
 %%--------------------------------------------------------------------
 -spec stop() -> ok | {error, Reason :: term()}.
 stop() ->
-    case ranch:stop_listener(?MODULE) of
+    case cowboy:stop_listener(?MODULE) of
         ok ->
             ?info("REST listener stopped");
         {error, Reason} ->

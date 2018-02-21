@@ -612,10 +612,10 @@ init_per_testcase(get_should_return_nagios_response, Config) ->
     end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
         {service_op_worker, get_nagios_response, {
-            [{'node@host1', {ok, 200, [], ?NAGIOS_REPORT_XML}}], []
+            [{'node@host1', {ok, 200, #{}, ?NAGIOS_REPORT_XML}}], []
         }},
         {service_oz_worker, get_nagios_response, {
-            [{'node@host1', {ok, 200, [], ?NAGIOS_REPORT_XML}}], []
+            [{'node@host1', {ok, 200, #{}, ?NAGIOS_REPORT_XML}}], []
         }},
         {task_finished, {service, action, ok}}
     ] end),

@@ -18,7 +18,7 @@
 -include("modules/models.hrl").
 
 %% API
--export([init/3, rest_init/2, allowed_methods/2, content_types_accepted/2,
+-export([init/2, allowed_methods/2, content_types_accepted/2,
     content_types_provided/2, is_authorized/2, forbidden/2, resource_exists/2,
     delete_resource/2, accept_resource_json/2, accept_resource_yaml/2,
     provide_resource/2]).
@@ -48,20 +48,10 @@
 %% @doc Cowboy callback function. Upgrades the protocol to cowboy_rest.
 %% @end
 %%--------------------------------------------------------------------
--spec init(Type :: {any(), http}, Req :: cowboy_req:req(), Opts :: any()) ->
-    {upgrade, protocol, cowboy_rest}.
-init({_, http}, _Req, _Opts) ->
-    {upgrade, protocol, cowboy_rest}.
-
-
-%%--------------------------------------------------------------------
-%% @doc Cowboy callback function. Initializes the state for this request.
-%% @end
-%%--------------------------------------------------------------------
--spec rest_init(Req :: cowboy_req:req(), State :: state()) ->
-    {ok, cowboy_req:req(), state()}.
-rest_init(Req, #rstate{} = State) ->
-    {ok, Req, State}.
+-spec init(Req :: cowboy_req:req(), State :: state()) ->
+    {cowboy_rest, Req :: cowboy_req:req(), State :: state()}.
+init(Req, Opts) ->
+    {cowboy_rest, Req, Opts}.
 
 
 %%--------------------------------------------------------------------
@@ -192,7 +182,7 @@ resource_exists(Req, #rstate{module = Module, methods = Methods} = State) ->
     {boolean(), cowboy_req:req(), state()}.
 accept_resource_json(Req, #rstate{} = State) ->
     try
-        {ok, Body, Req2} = cowboy_req:body(Req),
+        {ok, Body, Req2} = cowboy_req:read_body(Req),
         Data = json_utils:decode(Body),
         accept_resource(Req2, Data, State)
     catch
@@ -210,7 +200,7 @@ accept_resource_json(Req, #rstate{} = State) ->
     {boolean(), cowboy_req:req(), state()}.
 accept_resource_yaml(Req, #rstate{} = State) ->
     try
-        {ok, Body, Req2} = cowboy_req:body(Req),
+        {ok, Body, Req2} = cowboy_req:read_body(Req),
         [Data] = yamerl_constr:string(Body),
         Data2 = adjust_yaml_data(Data),
         accept_resource(Req2, Data2, State)
@@ -239,12 +229,12 @@ provide_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
             {Data, Req5} ->
                 Json = json_utils:encode(Data),
                 {Json, Req5, State};
-            {halt, Req5, State} ->
-                {halt, Req5, State}
+            {stop, Req5, State} ->
+                {stop, Req5, State}
         end
     catch
         Type:Reason ->
-            {halt, rest_replier:reply_with_error(Req, Type, ?make_error(Reason)), State}
+            {stop, rest_replier:reply_with_error(Req, Type, ?make_error(Reason)), State}
     end.
 
 
@@ -326,11 +316,11 @@ authenticate(Req, [AuthMethod | AuthMethods]) ->
     undefined | onepanel_session:id(), Req :: cowboy_req:req()}.
 authenticate_by_basic_auth(Req) ->
     case cowboy_req:header(<<"authorization">>, Req) of
-        {<<"Basic ", Hash/binary>>, Req2} ->
+        <<"Basic ", Hash/binary>> ->
             [Username, Password] = binary:split(base64:decode(Hash), <<":">>),
-            {onepanel_user:authenticate(Username, Password), undefined, Req2};
-        {_, Req2} ->
-            {ignore, undefined, Req2}
+            {onepanel_user:authenticate(Username, Password), undefined, Req};
+        _ ->
+            {ignore, undefined, Req}
     end.
 
 
@@ -342,11 +332,12 @@ authenticate_by_basic_auth(Req) ->
     {{ok, User :: #onepanel_user{}} | #error{} | ignore, SessionId ::
     undefined | onepanel_session:id(), Req :: cowboy_req:req()}.
 authenticate_by_cookie(Req) ->
-    case cowboy_req:cookie(<<"sessionId">>, Req) of
-        {undefined, Req2} ->
-            {ignore, undefined, Req2};
-        {SessionId, Req2} ->
-            {onepanel_user:authenticate(SessionId), SessionId, Req2}
+    Cookies = cowboy_req:parse_cookies(Req),
+    case proplists:get_value(<<"sessionId">>, Cookies, undefined) of
+        undefined ->
+            {ignore, undefined, Req};
+        SessionId ->
+            {onepanel_user:authenticate(SessionId), SessionId, Req}
     end.
 
 
