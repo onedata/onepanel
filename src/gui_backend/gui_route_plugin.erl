@@ -63,7 +63,7 @@ route(<<"/do_logout">>) -> ?LOGOUT;
 route(<<"/do_login">>) -> ?BASIC_LOGIN;
 route(<<"/">>) -> ?INDEX;
 route(<<"/index.html">>) -> ?INDEX;
-route(_) -> ?INDEX.
+route(_) -> undefined.
 
 
 %%--------------------------------------------------------------------
