@@ -117,4 +117,14 @@ get_steps(status, _Ctx) ->
         #steps{service = ?SERVICE_CB, action = status},
         #steps{service = ?SERVICE_CM, action = status},
         #steps{service = ?SERVICE_OZW, action = status}
-    ].
+    ];
+
+get_steps(modify_ips, #{cluster_ips := HostsToIps} = Ctx) ->
+    AppConfigFile = service_ctx:get(oz_worker_app_config_file, Ctx),
+    Ctx2 = Ctx#{
+        app_config_file => AppConfigFile,
+        name => ?SERVICE_OZW
+    },
+    Hosts = maps:keys(HostsToIps),
+    [#step{function = modify_ip, hosts = Hosts, ctx = Ctx2,
+        service = service_cluster_worker:name()}].

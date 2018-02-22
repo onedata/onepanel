@@ -914,7 +914,9 @@ zone_cluster_configuration_model() ->
 zone_cluster_configuration_nodes_model() ->
     #{
         %% The name of a host.
-        hostname => string
+        hostname => string,
+        %% External IP of the node.
+        externalIp => {string, optional}
     }.
 
 %%--------------------------------------------------------------------

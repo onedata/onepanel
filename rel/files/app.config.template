@@ -108,6 +108,8 @@
         %%                from the production server
         {acme_mode, full},
 
+        %% URL of service used for autodetecting external IP
+        {ip_check_url, "http://ip4.icanhazip.com"},
 
         {rest_api_prefix_template, "/api/v{version_number}/onepanel"},
         {rest_https_acceptors, 100},

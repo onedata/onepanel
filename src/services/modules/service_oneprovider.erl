@@ -39,6 +39,7 @@
 -define(SERVICE_OPA, service_onepanel:name()).
 -define(SERVICE_CB, service_couchbase:name()).
 -define(SERVICE_CM, service_cluster_manager:name()).
+-define(SERVICE_CW, service_cluster_worker:name()).
 -define(SERVICE_OPW, service_op_worker:name()).
 
 %%%===================================================================
@@ -204,6 +205,17 @@ get_steps(modify_details, #{hosts := Hosts}) ->
     ];
 get_steps(modify_details, Ctx) ->
     get_steps(modify_details, Ctx#{hosts => service_op_worker:get_hosts()});
+
+
+get_steps(modify_ips, #{cluster_ips := HostsToIps} = Ctx) ->
+    AppConfigFile = service_ctx:get(op_worker_app_config_file, Ctx),
+    Ctx2 = Ctx#{
+        app_config_file => AppConfigFile,
+        name => ?SERVICE_OPW
+    },
+    Hosts = maps:keys(HostsToIps),
+    [#step{function = modify_ip, hosts = Hosts, ctx = Ctx2,
+        service = ?SERVICE_CW}];
 
 get_steps(Action, Ctx) when
     Action =:= get_details;

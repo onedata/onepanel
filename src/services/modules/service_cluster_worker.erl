@@ -17,12 +17,14 @@
 -include("service.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
 
+-include_lib("ctool/include/logging.hrl").
+
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
-    get_nagios_response/1, get_nagios_status/1]).
+    get_nagios_response/1, get_nagios_status/1, modify_ip/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -83,6 +85,10 @@ get_steps(restart, _Ctx) ->
 get_steps(status, _Ctx) ->
     [#step{function = status}];
 
+get_steps(modify_ips, #{cluster_ips := HostsToIps} = _Ctx) ->
+    Hosts = maps:keys(HostsToIps),
+    [#step{function = modify_ip, hosts = Hosts}];
+
 get_steps(get_nagios_response, #{name := Name}) ->
     [#step{
         function = get_nagios_response,
@@ -105,6 +111,7 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
 
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(Name, Host),
+    IP = onepanel_ip:determine_ip(),
     CmNodes = onepanel_cluster:hosts_to_nodes(
         service_cluster_manager:name(),
         [MainCmHost | lists:delete(MainCmHost, CmHosts)]
@@ -116,6 +123,7 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
 
     onepanel_env:write([Name, cm_nodes], CmNodes, AppConfigFile),
     onepanel_env:write([Name, db_nodes], DbNodes, AppConfigFile),
+    onepanel_env:write([name(), external_ip], IP, AppConfigFile),
 
     maps:fold(fun(Key, Value, _) ->
         onepanel_env:write([Name, Key], Value, AppConfigFile)
@@ -128,7 +136,6 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
     setup_cert_paths(Ctx),
 
     service:add_host(Name, Host).
-
 
 %%--------------------------------------------------------------------
 %% @doc {@link service:start/1}
@@ -204,10 +211,31 @@ get_nagios_status(Ctx) ->
 
     list_to_atom(Status).
 
+-spec modify_ip(Ctx :: service:ctx()) -> ok | no_return().
+modify_ip(#{app_config_file := AppConfigFile, name := ServiceName} = Ctx) ->
+    Host = onepanel_cluster:node_to_host(),
+    Node = onepanel_cluster:host_to_node(ServiceName, Host),
+
+    IP = case onepanel_maps:get([cluster_ips, Host], Ctx) of
+        {ok, NewIP} -> NewIP;
+        _ -> onepanel_ip:determine_ip()
+    end,
+
+    onepanel_env:write([name(), external_ip], IP, AppConfigFile),
+
+    %@fixme update DNS
+    ok = rpc:call(Node, application, set_env, [name(), external_ip, IP]).
+
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Writes certificate paths to the app config file of the service.
+%% @end
+%%--------------------------------------------------------------------
 -spec setup_cert_paths(service:ctx()) -> ok | no_return().
 setup_cert_paths(#{name := AppName, app_config_file := AppConfigFile}) ->
     lists:foreach(fun({Src, Dst}) ->

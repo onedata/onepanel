@@ -124,7 +124,16 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = space, bindings = #{id :=
         service_utils:throw_on_error(service:apply_sync(
             ?SERVICE, modify_space, Ctx6
         ))
-    )}.
+    )};
+
+accept_resource(Req, 'PATCH', Args, #rstate{resource = cluster_ips}) ->
+    Ctx = #{cluster_ips => keys_binary_to_list(onepanel_maps:get(hosts, Args))}
+
+    {true, rest_replier:handle_service_step(Req, service_oneprovider, modify_space,
+        service_utils:throw_on_error(service:apply_sync(
+            ?SERVICE, modify_space, Ctx6
+        ))
+    )};
 
 
 %%--------------------------------------------------------------------
@@ -294,3 +303,15 @@ get_autocleaning_args(Args, Ctx) ->
         [auto_cleaning, settings, target], Ctx5),
     onepanel_maps:get_store([autoCleaning, settings, threshold], Args,
         [auto_cleaning, settings, threshold], Ctx6).
+
+
+%%-------------------------------------------------------------------
+%% @private
+%% @doc Converts keys of a map from binaries to lists
+%% @end
+%%-------------------------------------------------------------------
+-spec keys_binary_to_list(Args :: rest_handler:args(), Ctx :: service:ctx())
+        -> service:ctx().
+keys_binary_to_list(Map) ->
+    KeyVals = maps:to_list(Map),
+    maps:from_list(lists:map(fun({K, V}) -> {binary_to_list(K), V} end, KeyVals)).

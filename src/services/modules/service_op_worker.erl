@@ -20,7 +20,7 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
+-export([configure/1, modify_ip/1, start/1, stop/1, status/1, wait_for_init/1,
     get_nagios_response/1, get_nagios_status/1, add_storages/1, get_storages/1,
     update_storage/1]).
 
