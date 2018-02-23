@@ -31,7 +31,7 @@
     support_space/1, revoke_space_support/1, get_spaces/1,
     get_space_details/1, modify_space/1,
     get_sync_stats/1, get_autocleaning_reports/1, get_autocleaning_status/1,
-    start_cleaning/1, check_oz_connection/1]).
+    start_cleaning/1, check_oz_connection/1, update_subdomain_delegation_ips/1]).
 -export([restart_listeners/1, restart_provider_listeners/1, async_restart_listeners/1]).
 -export([obtain_webcert/1, set_txt_record/1, remove_txt_record/1,
     mark_letsencrypt_decided/1, clear_pem_cache/1]).
@@ -213,9 +213,12 @@ get_steps(modify_ips, #{cluster_ips := HostsToIps} = Ctx) ->
         app_config_file => AppConfigFile,
         name => ?SERVICE_OPW
     },
-    Hosts = maps:keys(HostsToIps),
-    [#step{function = modify_ip, hosts = Hosts, ctx = Ctx2,
-        service = ?SERVICE_CW}];
+    [
+        % steps instead of step to ensure get_steps in cluster_worker
+        % for determining correct hosts
+        #steps{action = modify_ip, ctx = Ctx2, service = ?SERVICE_CW},
+        #step{function = update_subdomain_delegation_ips, selection = any}
+    ];
 
 get_steps(Action, Ctx) when
     Action =:= get_details;
@@ -720,6 +723,23 @@ restart_listeners(_Ctx) ->
     lists:foreach(fun(Module) ->
         Module:start()
     end, lists:reverse(Modules)).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Notify onezone about IPs change.
+%% @end
+%%--------------------------------------------------------------------
+-spec update_subdomain_delegation_ips(service:ctx()) -> ok.
+update_subdomain_delegation_ips(Ctx#{node := Node}) ->
+    case is_registered(Ctx#{node := Node}) of
+        true ->
+            ok = rpc:call(Node, provider_logic, update_subdomain_delegation_ips, []);
+        false -> ok
+    end;
+update_subdomain_delegation_ips(Ctx) ->
+    [Node | _] = service_op_worker:get_nodes(),
+    update_subdomain_delegation_ips(Ctx#{node => Node}).
 
 
 %%--------------------------------------------------------------------

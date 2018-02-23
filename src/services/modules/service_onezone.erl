@@ -19,9 +19,12 @@
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
+-export([reconcile_dns/1]).
+
 -define(SERVICE_OPA, service_onepanel:name()).
 -define(SERVICE_CB, service_couchbase:name()).
 -define(SERVICE_CM, service_cluster_manager:name()).
+-define(SERVICE_CW, service_cluster_worker:name()).
 -define(SERVICE_OZW, service_oz_worker:name()).
 
 %%%===================================================================
@@ -119,12 +122,20 @@ get_steps(status, _Ctx) ->
         #steps{service = ?SERVICE_OZW, action = status}
     ];
 
-get_steps(modify_ips, #{cluster_ips := HostsToIps} = Ctx) ->
+get_steps(modify_ips, Ctx) ->
     AppConfigFile = service_ctx:get(oz_worker_app_config_file, Ctx),
     Ctx2 = Ctx#{
         app_config_file => AppConfigFile,
         name => ?SERVICE_OZW
     },
-    Hosts = maps:keys(HostsToIps),
-    [#step{function = modify_ip, hosts = Hosts, ctx = Ctx2,
-        service = service_cluster_worker:name()}].
+    [#steps{action = modify_ips, ctx = Ctx2, service = ?SERVICE_CW},
+       #step{function = reconcile_dns, selection = any}].
+
+
+-spec reconcile_dns(service:ctx()) -> ok.
+reconcile_dns(Ctx#{node := Node}) ->
+    ok = rpc:call(Node, node_manager_plugin, reconcile_dns, []);
+reconcile_dns(Ctx) ->
+    [Node | _] = service_op_worker:get_nodes(),
+    reconcile_dns(Ctx#{node => Node}).
+

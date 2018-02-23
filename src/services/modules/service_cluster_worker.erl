@@ -85,9 +85,15 @@ get_steps(restart, _Ctx) ->
 get_steps(status, _Ctx) ->
     [#step{function = status}];
 
-get_steps(modify_ips, #{cluster_ips := HostsToIps} = _Ctx) ->
-    Hosts = maps:keys(HostsToIps),
+get_steps(modify_ips, #{hosts := Hosts} = _Ctx) ->
     [#step{function = modify_ip, hosts = Hosts}];
+get_steps(modify_ips, #{cluster_ips := HostsToIps} = Ctx) ->
+    % execute only on nodes where ip is explicitely provided
+    get_steps(modify_ips, Ctx#{hosts := maps:keys(HostsToIps)});
+get_steps(modify_ips, #{name := ServiceName} = Ctx) ->
+    % execute on all service hosts, "guessing" IP if necessary
+    Hosts = (service:get_module(ServiceName)):get_hosts(),
+    get_steps(modify_ips, Ctx#{hosts := Hosts});
 
 get_steps(get_nagios_response, #{name := Name}) ->
     [#step{
@@ -213,6 +219,7 @@ get_nagios_status(Ctx) ->
 
 -spec modify_ip(Ctx :: service:ctx()) -> ok | no_return().
 modify_ip(#{app_config_file := AppConfigFile, name := ServiceName} = Ctx) ->
+    mark_cluster_ips_configured(ServiceName),
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(ServiceName, Host),
 
@@ -247,3 +254,9 @@ setup_cert_paths(#{name := AppName, app_config_file := AppConfigFile}) ->
         {web_cert_chain_file, web_cert_chain_file},
         {cacerts_dir, cacerts_dir}
     ]).
+
+
+mark_cluster_ips_configured(ServiceName) ->
+    ok = service:update(ServiceName, fun(#service{ctx = ServiceCtx} = Record) ->
+        Record#service{ctx = maps:put(ips_configured, true, ServiceCtx)}
+    end).
