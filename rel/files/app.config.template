@@ -44,8 +44,8 @@
         %% ===================================================================
         {advertise_port, 8888},
         {rest_port, 9443},
-        {op_worker_nagios_port, 6666},
-        {oz_worker_nagios_port, 6666},
+        {op_worker_nagios_port, 443},
+        {oz_worker_nagios_port, 443},
 
 
         {advertise_address, "239.255.0.1"},
@@ -144,7 +144,7 @@
         {couchbase_password, "password"},
         {couchbase_admin_port, 8091},
         {couchbase_port, 11211},
-        {couchbase_server_quota, 4196},
+        {couchbase_server_quota, 4096},
         {couchbase_bucket_quota, 4096},
         {couchbase_open_files_limit, 65535},
         {couchbase_buckets, [
@@ -162,7 +162,7 @@
         {op_worker_vm_args_file, "{{platform_etc_dir}}/../op_worker/vm.args"},
         {op_worker_app_config_file, "{{platform_etc_dir}}/../op_worker/app.config"},
         {op_worker_open_files_limit, 65535},
-        {op_worker_nagios_protocol, "http"},
+        {op_worker_nagios_protocol, "https"},
         {op_worker_wait_for_init_attempts, 60},
         {op_worker_wait_for_init_delay, 5000},
 
@@ -170,7 +170,7 @@
         {oz_worker_vm_args_file, "{{platform_etc_dir}}/../oz_worker/vm.args"},
         {oz_worker_app_config_file, "{{platform_etc_dir}}/../oz_worker/app.config"},
         {oz_worker_open_files_limit, 65535},
-        {oz_worker_nagios_protocol, "http"},
+        {oz_worker_nagios_protocol, "https"},
         {oz_worker_wait_for_init_attempts, 60},
 
         {onezone_name, "example"},
