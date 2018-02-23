@@ -177,7 +177,14 @@ wait_for_init(#{name := Name, wait_for_init_attempts := Attempts,
 get_nagios_response(#{nagios_protocol := Protocol, nagios_port := Port}) ->
     Host = onepanel_cluster:node_to_host(),
     Url = onepanel_utils:join([Protocol, "://", Host, ":", Port, "/nagios"]),
-    http_client:get(Url).
+    Opts = case Protocol of
+        "https" ->
+            CaCerts = cert_utils:load_ders_in_dir(oz_plugin:get_cacerts_dir()),
+            [{ssl_options, [{secure, only_verify_peercert}, {cacerts, CaCerts}]}];
+        _ ->
+            []
+    end,
+    http_client:get(Url, #{}, <<>>, Opts).
 
 
 %%--------------------------------------------------------------------

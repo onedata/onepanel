@@ -258,8 +258,15 @@ check_oz_availability(Ctx) ->
     Port = service_ctx:get(oz_worker_nagios_port, Ctx, integer),
     OzDomain = service_ctx:get(onezone_domain, Ctx),
     Url = onepanel_utils:join([Protocol, "://", OzDomain, ":", Port, "/nagios"]),
+    Opts = case Protocol of
+        "https" ->
+            CaCerts = cert_utils:load_ders_in_dir(oz_plugin:get_cacerts_dir()),
+            [{ssl_options, [{secure, only_verify_peercert}, {cacerts, CaCerts}]}];
+        _ ->
+            []
+    end,
 
-    case http_client:get(Url) of
+    case http_client:get(Url, #{}, <<>>, Opts) of
         {ok, 200, _Headers, Body} ->
             {Xml, _} = xmerl_scan:string(onepanel_utils:convert(Body, list)),
             [Status] = [X#xmlAttribute.value || X <- Xml#xmlElement.attributes,
