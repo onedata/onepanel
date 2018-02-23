@@ -23,16 +23,21 @@
 %% @doc Attempts to determine IP of current node.
 %% @end
 %%--------------------------------------------------------------------
--spec determine_ip(Ctx :: service:ctx()) -> inet:ip4_address().
+-spec determine_ip() -> inet:ip4_address().
 determine_ip() ->
-    case determine_ip_by_external_service() of
-        {ok, IP} ->
-            IP;
-        _ -> case determine_ip_by_shell() of
-            {ok, IP} -> IP;
-            _ -> {127, 0, 0, 1}
+    % use first working method of getting IP
+    {ok, IP} = lists:foldl(fun(IpSupplier, PrevResult) ->
+        case PrevResult of
+            {ok, IP} -> PrevResult;
+            _ -> catch IpSupplier()
         end
-    end.
+    end, undefined, [
+        fun determine_ip_by_oz/0,
+        fun determine_ip_by_external_service/0,
+        fun determine_ip_by_shell/0,
+        fun () -> {ok, {127,0,0,1}} end
+    ]),
+    IP.
 
 
 %%--------------------------------------------------------------------
@@ -49,6 +54,23 @@ parse_ip4(Value) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Attempts to use Onezone endpoint to determine the public IP of this node.
+%% Will work only in onepanel of registered oneprovider.
+%% @end
+%%--------------------------------------------------------------------
+-spec determine_ip_by_oz() -> {ok, inet:ip4_address()} | {error, term()}.
+determine_ip_by_oz() ->
+    case lists:member(service_op_worker:name(), service:list())
+        andalso service_oneprovider:is_registered() of
+        true ->
+            {ok, IPBin} = oz_providers:check_ip_address(none),
+            parse_ip4(IPBin);
+        _ -> {error, not_registered}
+    end.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -74,8 +96,7 @@ determine_ip_by_external_service() ->
 %% Uses shell command `hostname` to determine current IP.
 %% @end
 %%--------------------------------------------------------------------
--spec determine_ip_by_shell() ->
-    {ok, inet:ip4_address()} | {error, term()}.
+-spec determine_ip_by_shell() -> {ok, inet:ip4_address()} | {error, term()}.
 determine_ip_by_shell() ->
     Result = onepanel_shell:check_output(["hostname", "-i"]),
     parse_ip4(Result).
