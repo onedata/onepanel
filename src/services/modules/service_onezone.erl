@@ -129,11 +129,13 @@ get_steps(modify_ips, Ctx) ->
         name => ?SERVICE_OZW
     },
     [#steps{action = modify_ips, ctx = Ctx2, service = ?SERVICE_CW},
-       #step{function = reconcile_dns, selection = any}].
+       #step{function = reconcile_dns, selection = any}];
 
+get_steps(get_cluster_ips, Ctx) ->
+    [#step{function = get_cluster_ips, service = ?SERVICE_OZW, selection = any}].
 
 -spec reconcile_dns(service:ctx()) -> ok.
-reconcile_dns(Ctx#{node := Node}) ->
+reconcile_dns(#{node := Node} = Ctx) ->
     ok = rpc:call(Node, node_manager_plugin, reconcile_dns, []);
 reconcile_dns(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),

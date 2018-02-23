@@ -22,7 +22,7 @@
 %% API
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
     get_nagios_response/1, get_nagios_status/1, add_storages/1, get_storages/1,
-    update_storage/1]).
+    update_storage/1, get_cluster_ips/1]).
 
 -define(INIT_SCRIPT, "op_worker").
 
@@ -220,3 +220,11 @@ get_storages(_Ctx) ->
 -spec update_storage(Ctx :: service:ctx()) -> ok | no_return().
 update_storage(#{id := Id, args := Args}) ->
     op_worker_storage:update(Id, Args).
+
+
+-spec get_cluster_ips(service:ctx()) -> #{service:host() => inet:ip4_address()}.
+get_cluster_ips(_Ctx) ->
+    lists:map(fun(Host) ->
+        Node = onepanel_cluster:host_to_node(name(), Host),
+        {_, _, _, _} = rpc:call(Node, node_manager, get_ip_address, [])
+    end, get_hosts()).

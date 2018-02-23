@@ -13,7 +13,7 @@
 
 -include_lib("ctool/include/logging.hrl").
 
--export([determine_ip/0, parse_ip4/1]).
+-export([determine_ip/0, ip4_to_binary/1, parse_ip4/1]).
 
 %%%===================================================================
 %%% API
@@ -49,6 +49,11 @@ determine_ip() ->
 parse_ip4(Value) ->
     List = onepanel_utils:convert(Value, list),
     inet:parse_ipv4strict_address(List).
+
+
+-spec ip4_to_binary(inet:ip4_address()) -> binary().
+ip4_to_binary(IPTuple) ->
+    list_to_binary(inet:ntoa(IPTuple)).
 
 
 %%%===================================================================

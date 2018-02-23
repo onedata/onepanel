@@ -24,7 +24,8 @@
 
 %% API
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
-    get_nagios_response/1, get_nagios_status/1, modify_ip/1]).
+    get_nagios_response/1, get_nagios_status/1, modify_ip/1,
+    are_cluster_ips_configured/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -89,11 +90,11 @@ get_steps(modify_ips, #{hosts := Hosts} = _Ctx) ->
     [#step{function = modify_ip, hosts = Hosts}];
 get_steps(modify_ips, #{cluster_ips := HostsToIps} = Ctx) ->
     % execute only on nodes where ip is explicitely provided
-    get_steps(modify_ips, Ctx#{hosts := maps:keys(HostsToIps)});
+    get_steps(modify_ips, Ctx#{hosts => maps:keys(HostsToIps)});
 get_steps(modify_ips, #{name := ServiceName} = Ctx) ->
     % execute on all service hosts, "guessing" IP if necessary
     Hosts = (service:get_module(ServiceName)):get_hosts(),
-    get_steps(modify_ips, Ctx#{hosts := Hosts});
+    get_steps(modify_ips, Ctx#{hosts => Hosts});
 
 get_steps(get_nagios_response, #{name := Name}) ->
     [#step{
@@ -218,20 +219,24 @@ get_nagios_status(Ctx) ->
     list_to_atom(Status).
 
 -spec modify_ip(Ctx :: service:ctx()) -> ok | no_return().
-modify_ip(#{app_config_file := AppConfigFile, name := ServiceName} = Ctx) ->
+    ?alert("Modify IP: ~p", [Ctx]),
     mark_cluster_ips_configured(ServiceName),
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(ServiceName, Host),
 
-    IP = case onepanel_maps:get([cluster_ips, Host], Ctx) of
-        {ok, NewIP} -> NewIP;
-        _ -> onepanel_ip:determine_ip()
+    {ok, IP} = case onepanel_maps:get([cluster_ips, Host], Ctx) of
+        {ok, {_, _, _, _}} = Result -> Result;
+        {ok, NewIP} -> onepanel_ip:parse_ip4(NewIP);
+        _ -> {ok, onepanel_ip:determine_ip()}
     end,
-
     onepanel_env:write([name(), external_ip], IP, AppConfigFile),
 
-    %@fixme update DNS
     ok = rpc:call(Node, application, set_env, [name(), external_ip, IP]).
+
+-spec are_cluster_ips_configured(service:ctx()) -> boolean().
+are_cluster_ips_configured(#{name := ServiceName}) ->
+    {ok, #service{ctx = Ctx}} = service:get(ServiceName),
+    maps:get(cluster_ips_configured, Ctx, false).
 
 
 %%%===================================================================
@@ -258,5 +263,5 @@ setup_cert_paths(#{name := AppName, app_config_file := AppConfigFile}) ->
 
 mark_cluster_ips_configured(ServiceName) ->
     ok = service:update(ServiceName, fun(#service{ctx = ServiceCtx} = Record) ->
-        Record#service{ctx = maps:put(ips_configured, true, ServiceCtx)}
+        Record#service{ctx = maps:put(cluster_ips_configured, true, ServiceCtx)}
     end).

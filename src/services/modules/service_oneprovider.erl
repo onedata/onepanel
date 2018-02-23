@@ -220,6 +220,9 @@ get_steps(modify_ips, #{cluster_ips := HostsToIps} = Ctx) ->
         #step{function = update_subdomain_delegation_ips, selection = any}
     ];
 
+get_steps(get_cluster_ips, Ctx) ->
+    [#step{function = get_cluster_ips, service = ?SERVICE_OPW, selection = any}];
+
 get_steps(Action, Ctx) when
     Action =:= get_details;
     Action =:= support_space;
@@ -731,8 +734,8 @@ restart_listeners(_Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec update_subdomain_delegation_ips(service:ctx()) -> ok.
-update_subdomain_delegation_ips(Ctx#{node := Node}) ->
-    case is_registered(Ctx#{node := Node}) of
+update_subdomain_delegation_ips(#{node := Node} = Ctx) ->
+    case is_registered(Ctx) of
         true ->
             ok = rpc:call(Node, provider_logic, update_subdomain_delegation_ips, []);
         false -> ok
