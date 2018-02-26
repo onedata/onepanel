@@ -118,7 +118,6 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
 
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(Name, Host),
-    IP = onepanel_ip:determine_ip(),
     CmNodes = onepanel_cluster:hosts_to_nodes(
         service_cluster_manager:name(),
         [MainCmHost | lists:delete(MainCmHost, CmHosts)]
@@ -128,6 +127,13 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
         onepanel_utils:convert(string:join([DbHost, DbPort], ":"), atom)
     end, DbHosts),
 
+        Ctx)]),
+    IP = case onepanel_maps:get([cluster_ips, Host], Ctx, undefined) of
+        undefined -> get_initial_ip(AppConfigFile);
+        Found ->
+            {ok, IPTuple} = onepanel_ip:parse_ip4(Found),
+            IPTuple
+    end,
     onepanel_env:write([Name, cm_nodes], CmNodes, AppConfigFile),
     onepanel_env:write([Name, db_nodes], DbNodes, AppConfigFile),
     onepanel_env:write([name(), external_ip], IP, AppConfigFile),
@@ -219,13 +225,13 @@ get_nagios_status(Ctx) ->
     list_to_atom(Status).
 
 -spec modify_ip(Ctx :: service:ctx()) -> ok | no_return().
+modify_ip(#{name := ServiceName, app_config_file := AppConfigFile} = Ctx) ->
     ?alert("Modify IP: ~p", [Ctx]),
     mark_cluster_ips_configured(ServiceName),
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(ServiceName, Host),
 
     {ok, IP} = case onepanel_maps:get([cluster_ips, Host], Ctx) of
-        {ok, {_, _, _, _}} = Result -> Result;
         {ok, NewIP} -> onepanel_ip:parse_ip4(NewIP);
         _ -> {ok, onepanel_ip:determine_ip()}
     end,
@@ -260,6 +266,20 @@ setup_cert_paths(#{name := AppName, app_config_file := AppConfigFile}) ->
         {cacerts_dir, cacerts_dir}
     ]).
 
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Get IP preconfigured by user or determine it.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_initial_ip(file:name()) -> inet:ip4_address().
+get_initial_ip(AppConfigFile) ->
+    case onepanel_env:read([name(), external_ip], AppConfigFile) of
+        {ok, undefined} -> onepanel_ip:determine_ip();
+        #error{} -> onepanel_ip:determine_ip();
+        {ok, IP} ->
+            IP
+    end.
 
 mark_cluster_ips_configured(ServiceName) ->
     ok = service:update(ServiceName, fun(#service{ctx = ServiceCtx} = Record) ->

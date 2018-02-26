@@ -222,9 +222,15 @@ update_storage(#{id := Id, args := Args}) ->
     op_worker_storage:update(Id, Args).
 
 
--spec get_cluster_ips(service:ctx()) -> #{service:host() => inet:ip4_address()}.
+-spec get_cluster_ips(service:ctx()) -> list().
 get_cluster_ips(_Ctx) ->
-    lists:map(fun(Host) ->
+    Pairs = lists:map(fun(Host) ->
         Node = onepanel_cluster:host_to_node(name(), Host),
-        {_, _, _, _} = rpc:call(Node, node_manager, get_ip_address, [])
-    end, get_hosts()).
+        {_, _, _, _} = IP = rpc:call(Node, node_manager, get_ip_address, []),
+        {Host, onepanel_ip:ip4_to_binary(IP)}
+    end, get_hosts()),
+    [
+        {isConfigured, service_cluster_worker:are_cluster_ips_configured(#{
+            name => name()})},
+        {hosts, Pairs}].
+

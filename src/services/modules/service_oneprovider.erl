@@ -29,7 +29,7 @@
     register/1, unregister/1, is_registered/1,
     modify_details/1, get_details/1, get_admin_email/1,
     support_space/1, revoke_space_support/1, get_spaces/1,
-    get_space_details/1, modify_space/1,
+    get_space_details/1, modify_space/1, get_cluster_ips/1,
     get_sync_stats/1, get_autocleaning_reports/1, get_autocleaning_status/1,
     start_cleaning/1, check_oz_connection/1, update_subdomain_delegation_ips/1]).
 -export([restart_listeners/1, restart_provider_listeners/1, async_restart_listeners/1]).
@@ -220,9 +220,6 @@ get_steps(modify_ips, #{cluster_ips := HostsToIps} = Ctx) ->
         #step{function = update_subdomain_delegation_ips, selection = any}
     ];
 
-get_steps(get_cluster_ips, Ctx) ->
-    [#step{function = get_cluster_ips, service = ?SERVICE_OPW, selection = any}];
-
 get_steps(Action, Ctx) when
     Action =:= get_details;
     Action =:= support_space;
@@ -232,6 +229,7 @@ get_steps(Action, Ctx) when
     Action =:= modify_space;
     Action =:= get_autocleaning_reports;
     Action =:= get_autocleaning_status;
+    Action =:= get_cluster_ips;
     Action =:= start_cleaning;
     Action =:= get_sync_stats ->
     case Ctx of
@@ -513,6 +511,14 @@ get_admin_email(#{node := Node}) ->
 get_admin_email(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     get_admin_email(Ctx#{node => Node}).
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns IPs of hosts with op_worker or rtransfer instances.
+%% @end
+%%--------------------------------------------------------------------
+get_cluster_ips(Ctx) ->
+    service_op_worker:get_cluster_ips(Ctx).
 
 
 %%--------------------------------------------------------------------

@@ -203,9 +203,7 @@ provide_resource(Req, #rstate{
         ))
     ), Req};
 
-%@fixme provider resource cluster_ips
 provide_resource(Req, #rstate{resource = cluster_ips}) ->
-    ?alert("Provider cluster ips"),
     {rest_replier:format_service_step(service_oneprovider, get_cluster_ips,
         service_utils:throw_on_error(service:apply_sync(
             ?SERVICE, get_cluster_ips, #{}

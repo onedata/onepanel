@@ -28,7 +28,7 @@ determine_ip() ->
     % use first working method of getting IP
     {ok, IP} = lists:foldl(fun(IpSupplier, PrevResult) ->
         case PrevResult of
-            {ok, IP} -> PrevResult;
+            {ok, _IP} -> PrevResult;
             _ -> catch IpSupplier()
         end
     end, undefined, [
@@ -44,8 +44,10 @@ determine_ip() ->
 %% @doc Attempts to parse a string as an IPv4 address.
 %% @end
 %%--------------------------------------------------------------------
--spec parse_ip4(binary() | string()) ->
+-spec parse_ip4(inet:ip4_address() | binary() | string()) ->
     {ok, inet:ip4_address()} | {error, einval}.
+parse_ip4({_, _, _, _} = IP) ->
+    IP;
 parse_ip4(Value) ->
     List = onepanel_utils:convert(Value, list),
     inet:parse_ipv4strict_address(List).

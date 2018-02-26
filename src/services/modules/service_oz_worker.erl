@@ -169,7 +169,7 @@ get_nagios_status(Ctx) ->
         nagios_port => service_ctx:get(oz_worker_nagios_port, Ctx, integer)
     }).
 
--spec get_cluster_ips(service:ctx()) -> proplist().
+-spec get_cluster_ips(service:ctx()) -> list().
 get_cluster_ips(_Ctx) ->
     Pairs = lists:map(fun(Host) ->
         Node = onepanel_cluster:host_to_node(name(), Host),

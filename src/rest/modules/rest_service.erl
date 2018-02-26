@@ -138,16 +138,20 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
         api_version => Version
     },
 
+    ClusterIPs = rest_utils:get_cluster_ips(Args),
+
     ClusterCtx = #{
         service_onepanel:name() => OpaCtx2,
         service_couchbase:name() => DbCtx3,
         service_cluster_manager:name() => #{main_host => MainCmHost,
             hosts => CmHosts, worker_num => length(OpwHosts)},
         service_op_worker:name() => #{hosts => OpwHosts, db_hosts => DbHosts,
-            cm_hosts => CmHosts, main_cm_host => MainCmHost
+            cm_hosts => CmHosts, main_cm_host => MainCmHost,
+            cluster_ips => ClusterIPs % for cluster worker
         },
         storages => StorageCtx2
     },
+
 
     OpwCtx = onepanel_maps:get_store([onezone, domainName], Args, onezone_domain),
     OpwCtx2 = onepanel_maps:get_store([oneprovider, register], Args, oneprovider_register, OpwCtx),
@@ -159,7 +163,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
     OpwCtx8 = onepanel_maps:get_store([oneprovider, geoLatitude], Args, oneprovider_geo_latitude, OpwCtx7),
     OpwCtx9 = onepanel_maps:get_store([oneprovider, geoLongitude], Args, oneprovider_geo_longitude, OpwCtx8),
     OpwCtx10 = onepanel_maps:get_store([oneprovider, letsEncryptEnabled], Args, oneprovider_letsencrypt_enabled, OpwCtx9),
-    OpwCtx11 = OpwCtx10#{hosts => OpwHosts},
+    OpwCtx11 = OpwCtx10#{hosts => OpwHosts, cluster_ips => ClusterIPs},
 
     {true, rest_replier:handle_service_action_async(Req, service:apply_async(
         service_oneprovider:name(), deploy, #{
@@ -172,6 +176,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version =
     CmHosts = rest_utils:get_hosts([cluster, managers, nodes], Args),
     [MainCmHost] = rest_utils:get_hosts([cluster, managers, mainNode], Args),
     OzwHosts = rest_utils:get_hosts([cluster, workers, nodes], Args),
+    ClusterIPs = rest_utils:get_cluster_ips(Args),
 
     DbCtx = #{hosts => DbHosts},
     DbCtx2 = onepanel_maps:get_store([cluster, databases, serverQuota], Args,
@@ -192,7 +197,8 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version =
 
     OzwCtx = #{
         hosts => OzwHosts, db_hosts => DbHosts, cm_hosts => CmHosts,
-        main_cm_host => MainCmHost
+        main_cm_host => MainCmHost,
+        cluster_ips => ClusterIPs
     },
     OzwCtx2 = onepanel_maps:get_store([onezone, name], Args, onezone_name, OzwCtx),
     OzwCtx3 = onepanel_maps:get_store([onezone, domainName], Args, onezone_domain, OzwCtx2),
