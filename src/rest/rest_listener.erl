@@ -70,17 +70,21 @@ start() ->
         {num_acceptors, HttpsAcceptors},
         {keyfile, KeyFile},
         {certfile, CertFile},
-        {ciphers, ssl_utils:safe_ciphers()}],
+        {ciphers, ssl_utils:safe_ciphers()},
+        {connection_type, supervisor},
+        {next_protocols_advertised, [<<"http/1.1">>]},
+        {alpn_preferred_protocols, [<<"http/1.1">>]}
+    ],
 
     SslOptsWithChain = case filelib:is_regular(ChainFile) of
         true -> [{cacertfile, ChainFile} | SslOpts];
         _ -> SslOpts
     end,
 
-    {ok, _} = cowboy:start_tls(?MODULE,
-        SslOptsWithChain,
-        #{
-            env => #{dispatch => Dispatch}
+    {ok, _} = ranch:start_listener(?MODULE, ranch_ssl, SslOptsWithChain,
+        cowboy_tls, #{
+            env => #{dispatch => Dispatch},
+            connection_type => supervisor
         }
     ),
 
