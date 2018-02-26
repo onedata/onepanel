@@ -179,8 +179,11 @@ get_nagios_response(#{nagios_protocol := Protocol, nagios_port := Port}) ->
     Url = onepanel_utils:join([Protocol, "://", Host, ":", Port, "/nagios"]),
     Opts = case Protocol of
         "https" ->
-            CaCerts = cert_utils:load_ders_in_dir(oz_plugin:get_cacerts_dir()),
-            [{ssl_options, [{secure, only_verify_peercert}, {cacerts, CaCerts}]}];
+            % Nagios polling does not need to be secure (we only depend on
+            % it to check if the service is up), plus skipping cert validation
+            % allows to start the service on self-signed certs (for test
+            % purposes or before Let's Encrypt is used to generate certs).
+            [{ssl_options, [{secure, false}]}];
         _ ->
             []
     end,
