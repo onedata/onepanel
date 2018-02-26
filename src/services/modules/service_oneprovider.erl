@@ -207,17 +207,18 @@ get_steps(modify_details, Ctx) ->
     get_steps(modify_details, Ctx#{hosts => service_op_worker:get_hosts()});
 
 
-get_steps(modify_ips, #{cluster_ips := HostsToIps} = Ctx) ->
+get_steps(modify_cluster_ips, #{cluster_ips := HostsToIps} = Ctx) ->
     AppConfigFile = service_ctx:get(op_worker_app_config_file, Ctx),
     Ctx2 = Ctx#{
         app_config_file => AppConfigFile,
         name => ?SERVICE_OPW
     },
     [
-        % steps instead of step to ensure get_steps in cluster_worker
+        % using #steps and not #step to invoke choosing hosts in cluster worker
         % for determining correct hosts
-        #steps{action = modify_ip, ctx = Ctx2, service = ?SERVICE_CW},
-        #step{function = update_subdomain_delegation_ips, selection = any}
+        #steps{action = modify_cluster_ips, ctx = Ctx2, service = ?SERVICE_CW},
+        #step{function = update_subdomain_delegation_ips, selection = any,
+            hosts = get_hosts()}
     ];
 
 get_steps(Action, Ctx) when
@@ -518,7 +519,7 @@ get_admin_email(Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 get_cluster_ips(Ctx) ->
-    service_op_worker:get_cluster_ips(Ctx).
+    service_cluster_worker:get_cluster_ips(Ctx#{name => ?SERVICE_OPW}).
 
 
 %%--------------------------------------------------------------------

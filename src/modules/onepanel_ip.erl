@@ -41,7 +41,7 @@ determine_ip() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Attempts to parse a string as an IPv4 address.
+%% @doc Attempts to parse given argument as IP string or tuple.
 %% @end
 %%--------------------------------------------------------------------
 -spec parse_ip4(inet:ip4_address() | binary() | string()) ->
@@ -53,6 +53,10 @@ parse_ip4(Value) ->
     inet:parse_ipv4strict_address(List).
 
 
+%%--------------------------------------------------------------------
+%% @doc Converts IP tuple to binary.
+%% @end
+%%--------------------------------------------------------------------
 -spec ip4_to_binary(inet:ip4_address()) -> binary().
 ip4_to_binary(IPTuple) ->
     list_to_binary(inet:ntoa(IPTuple)).

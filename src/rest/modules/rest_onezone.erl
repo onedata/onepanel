@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
-%%% @author Krzysztof Trzepla
-%%% @copyright (C): 2016 ACK CYFRONET AGH
+%%% @author Wojciech Geisler
+%%% @copyright (C): 2018 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -54,12 +54,11 @@ exists_resource(Req, _State) ->
     end.
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = cluster_ips}) ->
-    ?alert("Args: ~p", [Args]),
     {ok, ClusterIps} = onepanel_maps:get(hosts, Args),
     Ctx = #{cluster_ips => keys_binary_to_list(ClusterIps)},
 
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, modify_ips, Ctx
+        ?SERVICE, modify_cluster_ips, Ctx
     ))}.
 
 
@@ -70,9 +69,7 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = cluster_ips}) ->
 -spec provide_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Data :: rest_handler:data(), Req :: cowboy_req:req()}.
 provide_resource(Req, #rstate{resource = cluster_ips}) ->
-    % @fixme provider resource  cluster_ips
-
-    {rest_replier:format_service_step(service_oz_worker, get_cluster_ips,
+    {rest_replier:format_service_step(service_onezone, get_cluster_ips,
         service_utils:throw_on_error(service:apply_sync(
             ?SERVICE, get_cluster_ips, #{}
         ))

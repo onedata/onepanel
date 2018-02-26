@@ -12,14 +12,12 @@
 -author("Krzysztof Trzepla").
 -behaviour(service_behaviour).
 
--include_lib("ctool/include/logging.hrl").
-
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
-    get_nagios_response/1, get_nagios_status/1, get_cluster_ips/1]).
+    get_nagios_response/1, get_nagios_status/1]).
 
 -define(INIT_SCRIPT, "oz_worker").
 
@@ -168,15 +166,3 @@ get_nagios_status(Ctx) ->
         nagios_protocol => service_ctx:get(oz_worker_nagios_protocol, Ctx),
         nagios_port => service_ctx:get(oz_worker_nagios_port, Ctx, integer)
     }).
-
--spec get_cluster_ips(service:ctx()) -> list().
-get_cluster_ips(_Ctx) ->
-    Pairs = lists:map(fun(Host) ->
-        Node = onepanel_cluster:host_to_node(name(), Host),
-        {_, _, _, _} = IP = rpc:call(Node, node_manager, get_ip_address, []),
-        {Host, onepanel_ip:ip4_to_binary(IP)}
-    end, get_hosts()),
-    [
-        {isConfigured, service_cluster_worker:are_cluster_ips_configured(#{
-            name => name()})},
-        {hosts, Pairs}].

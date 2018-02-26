@@ -131,7 +131,7 @@ cluster_ips_model() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec cluster_managers_model() -> maps:map().
-cluster_managers_model() ->
+Attempts to parse given argument as IP string or tuple.cluster_managers_model() ->
     #{
         %% The alias of the main cluster manager node.
         mainNode => string,

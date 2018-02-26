@@ -312,8 +312,7 @@ routes() ->
             methods = [#rmethod{
                 type = 'PATCH',
                 %% The provider configuration description.
-                args_spec = rest_model:modify_cluster_ips_model(),
-                noauth = true
+                args_spec = rest_model:modify_cluster_ips_model()
             }]
         }},
 

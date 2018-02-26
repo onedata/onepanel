@@ -15,11 +15,12 @@
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include("service.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
--export([reconcile_dns/1]).
+-export([get_cluster_ips/1, reconcile_dns/1]).
 
 -define(SERVICE_OPA, service_onepanel:name()).
 -define(SERVICE_CB, service_couchbase:name()).
@@ -122,17 +123,18 @@ get_steps(status, _Ctx) ->
         #steps{service = ?SERVICE_OZW, action = status}
     ];
 
-get_steps(modify_ips, Ctx) ->
+get_steps(modify_cluster_ips, Ctx) ->
     AppConfigFile = service_ctx:get(oz_worker_app_config_file, Ctx),
     Ctx2 = Ctx#{
         app_config_file => AppConfigFile,
         name => ?SERVICE_OZW
     },
-    [#steps{action = modify_ips, ctx = Ctx2, service = ?SERVICE_CW},
-       #step{function = reconcile_dns, selection = any}];
+    [#steps{action = modify_cluster_ips, ctx = Ctx2, service = ?SERVICE_CW},
+       #step{function = reconcile_dns, selection = any,
+           hosts = get_hosts()}];
 
-get_steps(get_cluster_ips, Ctx) ->
-    [#step{function = get_cluster_ips, service = ?SERVICE_OZW, selection = any}].
+get_steps(get_cluster_ips, _Ctx) ->
+    [#step{hosts = get_hosts(), function = get_cluster_ips, selection = any}].
 
 -spec reconcile_dns(service:ctx()) -> ok.
 reconcile_dns(#{node := Node} = Ctx) ->
@@ -140,4 +142,12 @@ reconcile_dns(#{node := Node} = Ctx) ->
 reconcile_dns(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     reconcile_dns(Ctx#{node => Node}).
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns IPs of hosts with oz_worker instances.
+%% @end
+%%--------------------------------------------------------------------
+get_cluster_ips(Ctx) ->
+    service_cluster_worker:get_cluster_ips(Ctx#{name => ?SERVICE_OZW}).
 
