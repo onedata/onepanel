@@ -194,7 +194,7 @@ authenticate(SessionId) ->
 authenticate(Username, Password) ->
     case onepanel_user:get(Username) of
         {ok, #onepanel_user{password_hash = Hash} = User} ->
-            case onepanel_password:verify(Password, Hash) of
+            case onedata_passwords:verify(Password, Hash) of
                 true -> {ok, User};
                 false -> ?make_error(?ERR_INVALID_USERNAME_OR_PASSWORD)
             end;
@@ -208,7 +208,7 @@ authenticate(Username, Password) ->
 %%--------------------------------------------------------------------
 -spec hash_password(Password :: password()) -> PasswordHash :: password_hash().
 hash_password(Password) ->
-    onepanel_password:create_hash(Password).
+    onedata_passwords:create_hash(Password).
 
 
 %%--------------------------------------------------------------------
