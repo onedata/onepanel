@@ -163,7 +163,9 @@ get_steps(register, #{hosts := Hosts} = Ctx) ->
             ctx = Ctx#{application => ?APP_NAME}},
         #step{hosts = Hosts, function = check_oz_availability,
             attempts = onepanel_env:get(connect_to_onezone_attempts)},
-        #step{hosts = Hosts, function = register, selection = any}
+        #step{hosts = Hosts, function = register, selection = any},
+        #steps{action = set_cluster_ips}
+
     ];
 get_steps(register, Ctx) ->
     get_steps(register, Ctx#{hosts => service_op_worker:get_hosts()});
@@ -207,7 +209,7 @@ get_steps(modify_details, Ctx) ->
     get_steps(modify_details, Ctx#{hosts => service_op_worker:get_hosts()});
 
 
-get_steps(modify_cluster_ips, #{cluster_ips := HostsToIps} = Ctx) ->
+get_steps(set_cluster_ips, #{hosts := Hosts} = Ctx) ->
     AppConfigFile = service_ctx:get(op_worker_app_config_file, Ctx),
     Ctx2 = Ctx#{
         app_config_file => AppConfigFile,
@@ -216,10 +218,12 @@ get_steps(modify_cluster_ips, #{cluster_ips := HostsToIps} = Ctx) ->
     [
         % using #steps and not #step to invoke choosing hosts in cluster worker
         % for determining correct hosts
-        #steps{action = modify_cluster_ips, ctx = Ctx2, service = ?SERVICE_CW},
+        #steps{action = set_cluster_ips, ctx = Ctx2, service = ?SERVICE_CW},
         #step{function = update_subdomain_delegation_ips, selection = any,
-            hosts = get_hosts()}
+            hosts = Hosts}
     ];
+get_steps(set_cluster_ips, Ctx) ->
+    get_steps(set_cluster_ips, Ctx#{hosts => get_hosts()});
 
 get_steps(Action, Ctx) when
     Action =:= get_details;
@@ -324,12 +328,10 @@ register(Ctx) ->
 
     DomainParams = case service_ctx:get(oneprovider_subdomain_delegation, Ctx, boolean, false) of
         true ->
-            {_, IPs} = lists:unzip(
-                onepanel_rpc:call_all(Nodes, onepanel_utils, get_ip_address, [])),
             [{<<"subdomainDelegation">>, true},
                 {<<"subdomain">>,
                     service_ctx:get(oneprovider_subdomain, Ctx, binary)},
-                {<<"ipList">>, IPs}];
+                {<<"ipList">>, []}]; % IPs will be updated in the step set_cluster_ips
         false ->
             set_has_letsencrypt_cert(false),
             [{<<"subdomainDelegation">>, false},
@@ -409,8 +411,10 @@ is_registered(#{node := Node}) ->
         false
     end;
 is_registered(Ctx) ->
-    [Node | _] = service_op_worker:get_nodes(),
-    is_registered(Ctx#{node => Node}).
+    case service_op_worker:get_nodes() of
+        [Node | _] -> is_registered(Ctx#{node => Node});
+        [] -> false
+    end.
 
 
 %%--------------------------------------------------------------------

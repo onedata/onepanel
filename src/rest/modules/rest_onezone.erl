@@ -58,7 +58,7 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = cluster_ips}) ->
     Ctx = #{cluster_ips => keys_binary_to_list(ClusterIps)},
 
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, modify_cluster_ips, Ctx
+        ?SERVICE, set_cluster_ips, Ctx
     ))}.
 
 

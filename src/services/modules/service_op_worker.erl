@@ -104,7 +104,8 @@ configure(Ctx) ->
         name => name(),
         app_config => #{},
         app_config_file => AppConfigFile,
-        vm_args_file => VmArgsFile
+        vm_args_file => VmArgsFile,
+        initialize_ip => false % do not set IP until onezone is connected
     }).
 
 

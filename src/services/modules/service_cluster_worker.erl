@@ -24,7 +24,7 @@
 
 %% API
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
-    get_nagios_response/1, get_nagios_status/1, modify_cluster_ip/1,
+    get_nagios_response/1, get_nagios_status/1, set_node_ip/1,
     get_cluster_ips/1, are_cluster_ips_configured/1]).
 
 %%%===================================================================
@@ -86,15 +86,15 @@ get_steps(restart, _Ctx) ->
 get_steps(status, _Ctx) ->
     [#step{function = status}];
 
-get_steps(modify_cluster_ips, #{hosts := Hosts} = _Ctx) ->
-    [#step{function = modify_cluster_ip, hosts = Hosts}];
-get_steps(modify_cluster_ips, #{cluster_ips := HostsToIps} = Ctx) ->
+get_steps(set_cluster_ips, #{hosts := Hosts} = _Ctx) ->
+    [#step{function = set_node_ip, hosts = Hosts}];
+get_steps(set_cluster_ips, #{cluster_ips := HostsToIps} = Ctx) ->
     % execute only on nodes where ip is explicitely provided
-    get_steps(modify_cluster_ips, Ctx#{hosts => maps:keys(HostsToIps)});
-get_steps(modify_cluster_ips, #{name := ServiceName} = Ctx) ->
+    get_steps(set_cluster_ips, Ctx#{hosts => maps:keys(HostsToIps)});
+get_steps(set_cluster_ips, #{name := ServiceName} = Ctx) ->
     % execute on all service hosts, "guessing" IP if necessary
     Hosts = (service:get_module(ServiceName)):get_hosts(),
-    get_steps(modify_cluster_ips, Ctx#{hosts => Hosts});
+    get_steps(set_cluster_ips, Ctx#{hosts => Hosts});
 
 get_steps(get_nagios_response, #{name := Name}) ->
     [#step{
@@ -113,7 +113,7 @@ get_steps(get_nagios_response, #{name := Name}) ->
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
-    db_hosts := DbHosts, app_config := AppConfig,
+    db_hosts := DbHosts, app_config := AppConfig, initialize_ip := InitIp,
     app_config_file := AppConfigFile, vm_args_file := VmArgsFile} = Ctx) ->
 
     Host = onepanel_cluster:node_to_host(),
@@ -127,16 +127,21 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
         onepanel_utils:convert(string:join([DbHost, DbPort], ":"), atom)
     end, DbHosts),
 
-    IP = case onepanel_maps:get([cluster_ips, Host], Ctx, undefined) of
-        undefined -> get_initial_ip(AppConfigFile);
-        Found ->
-            mark_cluster_ips_configured(Name),
-            {ok, IPTuple} = onepanel_ip:parse_ip4(Found),
-            IPTuple
-    end,
     onepanel_env:write([Name, cm_nodes], CmNodes, AppConfigFile),
     onepanel_env:write([Name, db_nodes], DbNodes, AppConfigFile),
-    onepanel_env:write([name(), external_ip], IP, AppConfigFile),
+
+    case InitIp of
+        true ->
+            IP = case onepanel_maps:get([cluster_ips, Host], Ctx, undefined) of
+                undefined -> get_initial_ip(AppConfigFile);
+                Found ->
+                    mark_cluster_ips_configured(Name),
+                    {ok, IPTuple} = onepanel_ip:parse_ip4(Found),
+                    IPTuple
+            end,
+            onepanel_env:write([name(), external_ip], IP, AppConfigFile);
+        false -> ok
+    end,
 
     maps:fold(fun(Key, Value, _) ->
         onepanel_env:write([Name, Key], Value, AppConfigFile)
@@ -225,25 +230,20 @@ get_nagios_status(Ctx) ->
     list_to_atom(Status).
 
 
--spec modify_cluster_ip(Ctx :: service:ctx()) -> ok | no_return().
-modify_cluster_ip(#{name := ServiceName, app_config_file := AppConfigFile} = Ctx) ->
-    mark_cluster_ips_configured(ServiceName),
+-spec set_node_ip(Ctx :: service:ctx()) -> ok | no_return().
+set_node_ip(#{name := ServiceName, app_config_file := AppConfigFile} = Ctx) ->
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(ServiceName, Host),
 
     {ok, IP} = case onepanel_maps:get([cluster_ips, Host], Ctx) of
-        {ok, NewIP} -> onepanel_ip:parse_ip4(NewIP);
-        _ -> {ok, onepanel_ip:determine_ip()}
+        {ok, NewIP} ->
+            mark_cluster_ips_configured(ServiceName),
+            onepanel_ip:parse_ip4(NewIP);
+        _ -> {ok, get_initial_ip(AppConfigFile)}
     end,
+
     onepanel_env:write([name(), external_ip], IP, AppConfigFile),
-
     ok = rpc:call(Node, application, set_env, [name(), external_ip, IP]).
-
-
--spec are_cluster_ips_configured(service:ctx()) -> boolean().
-are_cluster_ips_configured(#{name := ServiceName}) ->
-    {ok, #service{ctx = Ctx}} = service:get(ServiceName),
-    maps:get(cluster_ips_configured, Ctx, false).
 
 
 -spec get_cluster_ips(service:ctx()) -> list().
@@ -257,7 +257,6 @@ get_cluster_ips(#{name := ServiceName} = _Ctx) ->
         {isConfigured, are_cluster_ips_configured(#{name => ServiceName})},
         {hosts, Pairs}
     ].
-
 
 
 %%%===================================================================
@@ -290,11 +289,17 @@ setup_cert_paths(#{name := AppName, app_config_file := AppConfigFile}) ->
 -spec get_initial_ip(file:name()) -> inet:ip4_address().
 get_initial_ip(AppConfigFile) ->
     case onepanel_env:read([name(), external_ip], AppConfigFile) of
-        {ok, undefined} -> onepanel_ip:determine_ip();
-        #error{} -> onepanel_ip:determine_ip();
-        {ok, IP} ->
-            IP
+        {ok, {_, _, _, _} = IP} -> IP;
+        {ok, IPList} when is_list(IPList) -> onepanel_ip:parse_ip4(IPList);
+        _ -> onepanel_ip:determine_ip()
     end.
+
+
+-spec are_cluster_ips_configured(service:ctx()) -> boolean().
+are_cluster_ips_configured(#{name := ServiceName}) ->
+    {ok, #service{ctx = Ctx}} = service:get(ServiceName),
+    maps:get(cluster_ips_configured, Ctx, false).
+
 
 mark_cluster_ips_configured(ServiceName) ->
     ok = service:update(ServiceName, fun(#service{ctx = ServiceCtx} = Record) ->

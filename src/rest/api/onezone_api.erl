@@ -181,8 +181,7 @@ routes() ->
             methods = [#rmethod{
                 type = 'PATCH',
                 %% The zone configuration description.
-                args_spec = rest_model:modify_cluster_ips_model(),
-                noauth = true
+                args_spec = rest_model:modify_cluster_ips_model()
             }]
         }},
 

@@ -75,8 +75,8 @@ ip4_to_binary(IPTuple) ->
 %%--------------------------------------------------------------------
 -spec determine_ip_by_oz() -> {ok, inet:ip4_address()} | {error, term()}.
 determine_ip_by_oz() ->
-    case lists:member(service_op_worker:name(), service:list())
-        andalso service_oneprovider:is_registered() of
+    case service:exists(service_op_worker:name())
+        andalso service_oneprovider:is_registered(#{}) of
         true ->
             {ok, IPBin} = oz_providers:check_ip_address(none),
             parse_ip4(IPBin);

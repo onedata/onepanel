@@ -123,13 +123,13 @@ get_steps(status, _Ctx) ->
         #steps{service = ?SERVICE_OZW, action = status}
     ];
 
-get_steps(modify_cluster_ips, Ctx) ->
+get_steps(set_cluster_ips, Ctx) ->
     AppConfigFile = service_ctx:get(oz_worker_app_config_file, Ctx),
     Ctx2 = Ctx#{
         app_config_file => AppConfigFile,
         name => ?SERVICE_OZW
     },
-    [#steps{action = modify_cluster_ips, ctx = Ctx2, service = ?SERVICE_CW},
+    [#steps{action = set_cluster_ips, ctx = Ctx2, service = ?SERVICE_CW},
        #step{function = reconcile_dns, selection = any,
            hosts = get_hosts()}];
 
@@ -138,9 +138,11 @@ get_steps(get_cluster_ips, _Ctx) ->
 
 -spec reconcile_dns(service:ctx()) -> ok.
 reconcile_dns(#{node := Node} = Ctx) ->
-    ok = rpc:call(Node, node_manager_plugin, reconcile_dns, []);
+    OzNode = onepanel_cluster:host_to_node(?SERVICE_OZW,
+        onepanel_cluster:node_to_host(Node)),
+    ok = rpc:call(OzNode, node_manager_plugin, reconcile_dns_config, []);
 reconcile_dns(Ctx) ->
-    [Node | _] = service_op_worker:get_nodes(),
+    [Node | _] = service_oz_worker:get_nodes(),
     reconcile_dns(Ctx#{node => Node}).
 
 

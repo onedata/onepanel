@@ -83,7 +83,8 @@ configure(Ctx) ->
             http_domain => OzDomain
         },
         app_config_file => AppConfigFile,
-        vm_args_file => VmArgsFile
+        vm_args_file => VmArgsFile,
+        initialize_ip => true
     }).
 
 
