@@ -80,9 +80,9 @@ provide_resource(Req, #rstate{resource = cluster_ips}) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec delete_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
-    {Deleted :: boolean(), Req :: cowboy_req:req()}.
-delete_resource(Req, #rstate{}) ->
-    ?make_error(?ERR_NOT_FOUND).
+    no_return().
+delete_resource(_Req, #rstate{}) ->
+    ?throw_error(?ERR_NOT_FOUND).
 
 %%%===================================================================
 %%% Internal functions
