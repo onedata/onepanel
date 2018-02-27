@@ -76,6 +76,9 @@ configure(Ctx) ->
     OzName = service_ctx:get(onezone_name, Ctx),
     OzDomain = service_ctx:get_domain(onezone_domain, Ctx),
 
+    % TODO VFS-4140 Mark IPs configured only in batch mode
+    service_cluster_worker:mark_cluster_ips_configured(name()),
+
     service_cluster_worker:configure(Ctx#{
         name => name(),
         app_config => #{

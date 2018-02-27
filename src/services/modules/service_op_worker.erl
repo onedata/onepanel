@@ -100,6 +100,10 @@ configure(Ctx) ->
     AppConfigFile = service_ctx:get(op_worker_app_config_file, Ctx),
     VmArgsFile = service_ctx:get(op_worker_vm_args_file, Ctx),
 
+    case(maps:get(mark_cluster_ips_configured, Ctx, false)) of
+        true -> service_cluster_worker:mark_cluster_ips_configured(name());
+        _ -> ok
+    end,
     service_cluster_worker:configure(Ctx#{
         name => name(),
         app_config => #{},

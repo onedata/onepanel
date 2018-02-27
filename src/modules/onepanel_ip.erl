@@ -45,7 +45,7 @@ determine_ip() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec parse_ip4(inet:ip4_address() | binary() | string()) ->
-    {ok, inet:ip4_address()} | {error, einval}.
+    {ok, inet:ip4_address()} | {error, einval} | no_return().
 parse_ip4({_, _, _, _} = IP) ->
     IP;
 parse_ip4(Value) ->

@@ -25,7 +25,8 @@
 %% API
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
     get_nagios_response/1, get_nagios_status/1, set_node_ip/1,
-    get_cluster_ips/1, are_cluster_ips_configured/1]).
+    get_cluster_ips/1,
+    mark_cluster_ips_configured/1, are_cluster_ips_configured/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -230,6 +231,12 @@ get_nagios_status(Ctx) ->
     list_to_atom(Status).
 
 
+%%--------------------------------------------------------------------
+%% @doc Writes node IP to app.config on the current node's worker.
+%% If IP is not given explicitely in cluster_ips map
+%% and worker has none in its app config onepanel tries to determine it.
+%% @end
+%%--------------------------------------------------------------------
 -spec set_node_ip(Ctx :: service:ctx()) -> ok | no_return().
 set_node_ip(#{name := ServiceName, app_config_file := AppConfigFile} = Ctx) ->
     Host = onepanel_cluster:node_to_host(),
@@ -246,6 +253,11 @@ set_node_ip(#{name := ServiceName, app_config_file := AppConfigFile} = Ctx) ->
     ok = rpc:call(Node, application, set_env, [name(), external_ip, IP]).
 
 
+%%--------------------------------------------------------------------
+%% @doc Creates response about cluster IPs with all oz_worker
+%% nodes and their IPs
+%% @end
+%%--------------------------------------------------------------------
 -spec get_cluster_ips(service:ctx()) -> list().
 get_cluster_ips(#{name := ServiceName} = _Ctx) ->
     Pairs = lists:map(fun(Host) ->
@@ -258,6 +270,15 @@ get_cluster_ips(#{name := ServiceName} = _Ctx) ->
         {hosts, Pairs}
     ].
 
+
+%%--------------------------------------------------------------------
+%% @doc Marks cluster IPs as approved by the user.
+%% @end
+%%--------------------------------------------------------------------
+mark_cluster_ips_configured(ServiceName) ->
+    ok = service:update(ServiceName, fun(#service{ctx = ServiceCtx} = Record) ->
+        Record#service{ctx = maps:put(cluster_ips_configured, true, ServiceCtx)}
+    end).
 
 %%%===================================================================
 %%% Internal functions
@@ -295,13 +316,11 @@ get_initial_ip(AppConfigFile) ->
     end.
 
 
+%%--------------------------------------------------------------------
+%% @doc Checks if cluster IPs configuration was approved by the user.
+%% @end
+%%--------------------------------------------------------------------
 -spec are_cluster_ips_configured(service:ctx()) -> boolean().
 are_cluster_ips_configured(#{name := ServiceName}) ->
     {ok, #service{ctx = Ctx}} = service:get(ServiceName),
     maps:get(cluster_ips_configured, Ctx, false).
-
-
-mark_cluster_ips_configured(ServiceName) ->
-    ok = service:update(ServiceName, fun(#service{ctx = ServiceCtx} = Record) ->
-        Record#service{ctx = maps:put(cluster_ips_configured, true, ServiceCtx)}
-    end).

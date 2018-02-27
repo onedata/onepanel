@@ -140,13 +140,18 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
 
     ClusterIPs = rest_utils:get_cluster_ips(Args),
 
+    % In batch mode IPs do not need user approval
+    % TODO VFS-4140 Use proper batch config enabling argument
+    IPsConfigured = onepanel_maps:get([oneprovider, register], Args, false),
+
     ClusterCtx = #{
         service_onepanel:name() => OpaCtx2,
         service_couchbase:name() => DbCtx3,
         service_cluster_manager:name() => #{main_host => MainCmHost,
             hosts => CmHosts, worker_num => length(OpwHosts)},
         service_op_worker:name() => #{hosts => OpwHosts, db_hosts => DbHosts,
-            cm_hosts => CmHosts, main_cm_host => MainCmHost
+            cm_hosts => CmHosts, main_cm_host => MainCmHost,
+            mark_cluster_ips_configured => IPsConfigured
         },
         storages => StorageCtx2
     },

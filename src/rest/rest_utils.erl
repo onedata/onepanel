@@ -113,12 +113,16 @@ get_hosts(Keys, Args) ->
     end, AliasesList).
 
 
+%%--------------------------------------------------------------------
+%% @doc Returns map from cluster hosts to their IPs given
+%% in cluster description.
+%% @end
+%%--------------------------------------------------------------------
 -spec get_cluster_ips(Args :: rest_handler:args()) ->
     #{service:host() => binary()} | no_return().
 get_cluster_ips(Args) ->
     {ok, DomainName} = onepanel_maps:get([cluster, domainName], Args),
     {ok, Nodes} = onepanel_maps:get([cluster, nodes], Args),
-    ?alert("get_cluster_ips: ~p", [Nodes]),
     NodesWithIPs = maps:filter(fun(_Node, Props) ->
         maps:is_key(externalIp, Props)
     end, Nodes),
