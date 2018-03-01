@@ -488,7 +488,7 @@ get_storage(Node, Storage) ->
         {type, rpc:call(Node, helper, get_name, [Helper])},
         {readonly, rpc:call(Node, storage, is_readonly, [Storage])},
         {insecure, rpc:call(Node, helper, is_insecure, [Helper])},
-        {storagePathType, rpc:call(Node, helper, storage_path_type, [Helper])},
+        {storagePathType, rpc:call(Node, helper, get_storage_path_type, [Helper])},
         {lumaEnabled, maps:get(enabled, LumaConfig, false)},
         {lumaUrl, maps:get(url, LumaConfig, null)},
         {lumaCacheTimeout, maps:get(cache_timeout, LumaConfig, null)}

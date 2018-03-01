@@ -104,10 +104,10 @@ cluster_databases_model() ->
         %% server when Couchbase Server is first installed. This sets the limit
         %% of RAM allocated by Couchbase for caching data for all buckets and is
         %% configured on a per-node basis.
-        serverQuota => { integer, optional },
+        serverQuota => {integer, optional},
         %% The bucket quota is the amount of RAM memory in bytes allocated to an
         %% individual bucket for caching data.
-        bucketQuota => { integer, optional }
+        bucketQuota => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -147,7 +147,7 @@ cluster_workers_model() ->
 cookie_model() ->
     #{
         %% The cluster cookie.
-        cookie => { atom, optional }
+        cookie => {atom, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -199,7 +199,7 @@ manager_hosts_model() ->
 panel_configuration_model() ->
     #{
         %% The collection of user names associated with users properties.
-        users => #{ '_' => panel_configuration_users_model()}
+        users => #{'_' => panel_configuration_users_model()}
     }.
 
 -spec panel_configuration_users_model() -> maps:map().
@@ -223,11 +223,11 @@ provider_cluster_configuration_model() ->
         %% of the node.
         domainName => string,
         %% The collection of nodes aliases associated with nodes properties.
-        nodes => #{ '_' => zone_cluster_configuration_nodes_model()},
+        nodes => #{'_' => zone_cluster_configuration_nodes_model()},
         databases => cluster_databases_model(),
         managers => cluster_managers_model(),
         workers => cluster_workers_model(),
-        storages => { storage_create_request_model(), optional }
+        storages => {storage_create_request_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -238,9 +238,9 @@ provider_cluster_configuration_model() ->
 provider_configuration_model() ->
     #{
         cluster => provider_cluster_configuration_model(),
-        oneprovider => { provider_configuration_oneprovider_model(), optional },
-        onezone => { provider_configuration_onezone_model(), optional },
-        onepanel => { panel_configuration_model(), optional }
+        oneprovider => {provider_configuration_oneprovider_model(), optional},
+        onezone => {provider_configuration_onezone_model(), optional},
+        onepanel => {panel_configuration_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -251,7 +251,7 @@ provider_configuration_model() ->
 provider_configuration_details_model() ->
     #{
         cluster => cluster_configuration_details_model(),
-        oneprovider => { provider_configuration_details_oneprovider_model(), optional }
+        oneprovider => {provider_configuration_details_oneprovider_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -279,24 +279,24 @@ provider_configuration_oneprovider_model() ->
         %% If enabled, the storage provider will be assigned a subdomain in
         %% onezone's domain and 'subdomain' property must be
         %% provided. If disabled, 'domain' property should be provided.
-        subdomainDelegation => { boolean, optional },
+        subdomainDelegation => {boolean, optional},
         %% Unique subdomain in onezone's domain for the provider. Required
         %% if subdomain delegation is enabled.
-        subdomain => { string, optional },
+        subdomain => {string, optional},
         %% If enabled the provider will use Let's Encrypt service to obtain
         %% SSL certificates. Otherwise certificates must be manually provided.
         %% This option cannot be enabled if subdomainDelegation is false. By
         %% enabling this option you agree to the Let's Encrypt Subscriber
         %% Agreement.
-        letsEncryptEnabled => { boolean, optional },
+        letsEncryptEnabled => {boolean, optional},
         %% The fully qualified domain name of the provider or its IP address
         %% (only for single-node deployments or clusters with a reverse proxy).
         %% Required if subdomain delegation is disabled.
-        domain => { string, optional },
+        domain => {string, optional},
         %% The geographical longitude of the provider.
-        geoLongitude => { float, optional },
+        geoLongitude => {float, optional},
         %% The geographical latitude of the provider.
-        geoLatitude => { float, optional },
+        geoLatitude => {float, optional},
         %% Email address of the oneprovider administrator.
         adminEmail => string
     }.
@@ -328,14 +328,14 @@ provider_details_model() ->
         subdomainDelegation => boolean,
         %% Unique subdomain in onezone's domain for the provider. Required
         %% if subdomain delegation is enabled.
-        subdomain => { string, optional },
+        subdomain => {string, optional},
         %% The fully qualified domain name of the provider or its IP address
         %% (only for single-node deployments or clusters with a reverse proxy).
         domain => string,
         %% If enabled the provider will use Let's Encrypt service to obtain
         %% SSL certificates. Otherwise certificates must be manually provided.
         %% This option cannot be enabled if subdomainDelegation is false.
-        letsEncryptEnabled => { boolean, optional },
+        letsEncryptEnabled => {boolean, optional},
         %% Email address of the oneprovider administrator.
         adminEmail => string,
         %% The geographical longitude of the provider.
@@ -354,32 +354,32 @@ provider_details_model() ->
 provider_modify_request_model() ->
     #{
         %% The name under which the provider has been registered in a zone.
-        name => { string, optional },
+        name => {string, optional},
         %% If enabled, the storage provider will be assigned a subdomain in
         %% onezone's domain and 'subdomain' property must be
         %% provided. If disabled, 'domain' property should be provided.
-        subdomainDelegation => { boolean, optional },
+        subdomainDelegation => {boolean, optional},
         %% If enabled the provider will use Let's Encrypt service to obtain
         %% SSL certificates. Otherwise certificates must be manually provided.
         %% This option cannot be enabled is subdomainDelegation is disabled. By
         %% enabling this option you agree to the Let's Encrypt Subscriber
         %% Agreement.
-        letsEncryptEnabled => { boolean, optional },
+        letsEncryptEnabled => {boolean, optional},
         %% Unique subdomain in onezone's domain for the provider. This
         %% property is required only if subdomain delegation is enabled.
         %% Otherwise it is ignored.
-        subdomain => { string, optional },
+        subdomain => {string, optional},
         %% The fully qualified domain name of the provider or its IP address
         %% (only for single-node deployments or clusters with a reverse proxy).
         %% This property is required only if subdomain delegation is disabled.
         %% Otherwise it is ignored.
-        domain => { string, optional },
+        domain => {string, optional},
         %% The geographical longitude of the provider.
-        geoLongitude => { float, optional },
+        geoLongitude => {float, optional},
         %% The geographical latitude of the provider.
-        geoLatitude => { float, optional },
+        geoLatitude => {float, optional},
         %% Email address of the oneprovider administrator.
-        adminEmail => { string, optional }
+        adminEmail => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -398,15 +398,15 @@ provider_register_request_model() ->
         subdomainDelegation => boolean,
         %% Unique subdomain in onezone's domain for the storage provider.
         %% Required if subdomain delegation is enabled.
-        subdomain => { string, optional },
+        subdomain => {string, optional},
         %% The fully qualified domain name of the storage provider or its IP
         %% address (only for single-node deployments or clusters with a reverse
         %% proxy). Required if subdomain delegation is disabled.
-        domain => { string, optional },
+        domain => {string, optional},
         %% The geographical longitude of the storage provider.
-        geoLongitude => { float, optional },
+        geoLongitude => {float, optional},
         %% The geographical latitude of the storage provider.
-        geoLatitude => { float, optional },
+        geoLatitude => {float, optional},
         %% The domain name of a zone where this storage provider will be
         %% registered.
         onezoneDomainName => string,
@@ -449,10 +449,10 @@ service_databases_model() ->
         %% server when Couchbase Server is first installed. This sets the limit
         %% of RAM allocated by Couchbase for caching data for all buckets and is
         %% configured on a per-node basis.
-        serverQuota => { integer, optional },
+        serverQuota => {integer, optional},
         %% The bucket quota is the amount of RAM memory in bytes allocated to an
         %% individual bucket for caching data.
-        bucketQuota => { integer, optional }
+        bucketQuota => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -467,11 +467,11 @@ service_error_model() ->
         %% The detailed error description.
         description => string,
         %% The name of a module containing function that returned error.
-        module => { string, optional },
+        module => {string, optional},
         %% The name of a function that returned error.
-        function => { string, optional },
+        function => {string, optional},
         %% The collection of hosts with associated error description.
-        hosts => { #{ '_' => error_model()}, optional }
+        hosts => {#{'_' => error_model()}, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -494,7 +494,7 @@ service_status_model() ->
     #{
         %% The collection of hosts with associated service status, for each host
         %% where given service has been deployed.
-        hosts => #{ '_' => service_status_host_model()}
+        hosts => #{'_' => service_status_host_model()}
     }.
 
 %%--------------------------------------------------------------------
@@ -529,9 +529,9 @@ session_details_model() ->
 space_auto_cleaning_model() ->
     #{
         %% If true, auto cleaning feature for the space is enabled
-        enabled => { boolean, optional },
+        enabled => {boolean, optional},
         %% Settings when and what files auto cleaning should clean
-        settings => { space_auto_cleaning_settings_model(), optional }
+        settings => {space_auto_cleaning_settings_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -560,7 +560,7 @@ space_auto_cleaning_report_model() ->
 -spec space_auto_cleaning_report_collection_model() -> maps:map().
 space_auto_cleaning_report_collection_model() ->
     #{
-        reportEntries => { [space_auto_cleaning_report_model()], optional }
+        reportEntries => {[space_auto_cleaning_report_model()], optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -574,21 +574,21 @@ space_auto_cleaning_settings_model() ->
     #{
         %% Only files which size [b] is greater than or equal to given value
         %% should be cleaned. Set to null to disable this parameter.
-        lowerFileSizeLimit => { integer, optional },
+        lowerFileSizeLimit => {integer, optional},
         %% Only files which size [b] is less than or equal to given value should
         %% be cleaned Set to null to disable this parameter.
-        upperFileSizeLimit => { integer, optional },
+        upperFileSizeLimit => {integer, optional},
         %% Files that haven't been opened for longer than or equal to given
         %% period [h] will be cleaned. Set to null to disable this parameter.
-        maxFileNotOpenedHours => { integer, optional },
+        maxFileNotOpenedHours => {integer, optional},
         %% Amount of data [b], which should trigger the auto cleaning in the
         %% space. Only replicas maintained by this storage provider will be
         %% removed. If not specified, the auto cleaning will not start
         %% automatically.
-        threshold => { integer, optional },
+        threshold => {integer, optional},
         %% Amount of data [b], at which the auto cleaning process should stop.
         %% This parameter is required to enale auto cleaning.
-        target => { integer, optional }
+        target => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -623,17 +623,17 @@ space_details_model() ->
         localStorages => [string],
         %% The collection of provider IDs with associated supported storage
         %% space in bytes.
-        supportingProviders => #{ '_' => integer},
+        supportingProviders => #{'_' => integer},
         %% Defines whether space will be mounted in / or /{SpaceId}/ path.
-        mountInRoot => { boolean, optional },
+        mountInRoot => {boolean, optional},
         %% Number of bytes that can be written above support limit.
         softQuota => integer,
-        storageImport => { storage_import_details_model(), optional },
-        storageUpdate => { storage_update_details_model(), optional },
+        storageImport => {storage_import_details_model(), optional},
+        storageUpdate => {storage_update_details_model(), optional},
         %% Configuration of files popularity feature for this space
-        filesPopularity => { space_files_popularity_model(), optional },
+        filesPopularity => {space_files_popularity_model(), optional},
         %% Configuration of auto cleaning feature for this space
-        autoCleaning => { space_auto_cleaning_model(), optional },
+        autoCleaning => {space_auto_cleaning_model(), optional},
         %% Amount of storage [b] used by data from given space on that storage.
         spaceOccupancy => integer
     }.
@@ -648,7 +648,7 @@ space_files_popularity_model() ->
         %% If true, files popularity feature for the space is enabled
         enabled => boolean,
         %% REST endpoint to view file popularity statistics
-        restUrl => { string, optional }
+        restUrl => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -658,12 +658,12 @@ space_files_popularity_model() ->
 -spec space_modify_request_model() -> maps:map().
 space_modify_request_model() ->
     #{
-        storageImport => { storage_import_details_model(), optional },
-        storageUpdate => { storage_update_details_model(), optional },
+        storageImport => {storage_import_details_model(), optional},
+        storageUpdate => {storage_update_details_model(), optional},
         %% Configuration of files popularity feature for this space
-        filesPopularity => { space_files_popularity_model(), optional },
+        filesPopularity => {space_files_popularity_model(), optional},
         %% Configuration of auto cleaning feature for this space
-        autoCleaning => { space_auto_cleaning_model(), optional }
+        autoCleaning => {space_auto_cleaning_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -676,7 +676,7 @@ space_support_request_model() ->
     #{
         %% The space name. If this property is provided and space with given
         %% name will be created and automatically supported by a provider.
-        name => { string, optional },
+        name => {string, optional},
         %% The token for space creation or support.
         token => string,
         %% The storage space size in bytes that provider is willing to assign to
@@ -685,9 +685,9 @@ space_support_request_model() ->
         %% The ID of the storage resource where the space data should be stored.
         storageId => string,
         %% Defines whether space will be mounted in / or /{SpaceId}/ path.
-        mountInRoot => { boolean, optional },
-        storageImport => { storage_import_details_model(), optional },
-        storageUpdate => { storage_update_details_model(), optional }
+        mountInRoot => {boolean, optional},
+        storageImport => {storage_import_details_model(), optional},
+        storageUpdate => {storage_update_details_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -700,9 +700,9 @@ space_sync_stats_model() ->
         %% Describes import algorithm run status.
         importStatus => string,
         %% Describes update algorithm run status.
-        updateStatus => { string, optional },
+        updateStatus => {string, optional},
         %% Collection of statistics for requested metrics.
-        stats => { time_stats_collection_model(), optional }
+        stats => {time_stats_collection_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -711,7 +711,7 @@ space_sync_stats_model() ->
 %%--------------------------------------------------------------------
 -spec storage_create_request_model() -> maps:map().
 storage_create_request_model() ->
-    #{ '_' => storage_details_model() }.
+    #{'_' => storage_details_model()}.
 
 %%--------------------------------------------------------------------
 %% @doc The cluster storage configuration.
@@ -719,7 +719,8 @@ storage_create_request_model() ->
 %%--------------------------------------------------------------------
 -spec storage_details_model() -> {oneof, Oneof :: list()}.
 storage_details_model() ->
-    {oneof, [posix_model(),s3_model(),ceph_model(),swift_model(),glusterfs_model(),nulldevice_model()]}.
+    {oneof, [posix_model(), s3_model(), ceph_model(), swift_model(),
+             glusterfs_model(), nulldevice_model()]}.
 
 %%--------------------------------------------------------------------
 %% @doc The storage import configuration. Storage import allows to import data
@@ -733,9 +734,9 @@ storage_import_details_model() ->
         strategy => string,
         %% Maximum depth of filesystem tree that will be traversed during
         %% storage synchronization.
-        maxDepth => { integer, optional },
+        maxDepth => {integer, optional},
         %% Flag that enables synchronization of NFSv4 ACLs.
-        syncAcl => { boolean, optional }
+        syncAcl => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -746,7 +747,7 @@ storage_import_details_model() ->
 storage_modify_request_model() ->
     #{
         %% Storage operation timeout in milliseconds.
-        timeout => { integer, optional }
+        timeout => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -761,18 +762,18 @@ storage_update_details_model() ->
         strategy => string,
         %% Maximum depth of filesystem tree that will be traversed during
         %% storage synchronization.
-        maxDepth => { integer, optional },
+        maxDepth => {integer, optional},
         %% Period between subsequent scans in seconds (counted from end of one
         %% scan till beginning of the following).
-        scanInterval => { integer, optional },
+        scanInterval => {integer, optional},
         %% Flag determining that synchronized storage will be treated as
         %% immutable (only creations and deletions of files on storage will be
         %% detected).
-        writeOnce => { boolean, optional },
+        writeOnce => {boolean, optional},
         %% Flag determining that deletions of files will be detected.
-        deleteEnable => { boolean, optional },
+        deleteEnable => {boolean, optional},
         %% Flag that enables synchronization of NFSv4 ACLs.
-        syncAcl => { boolean, optional }
+        syncAcl => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -788,15 +789,15 @@ task_status_model() ->
         %% The list of operation steps that have been executed successfully.
         steps => [string],
         %% The name of an error type.
-        error => { string, optional },
+        error => {string, optional},
         %% The detailed error description.
-        description => { string, optional },
+        description => {string, optional},
         %% The name of a module containing function that returned error.
-        module => { string, optional },
+        module => {string, optional},
         %% The name of a function that returned error.
-        function => { string, optional },
+        function => {string, optional},
         %% The collection of hosts with associated error description.
-        hosts => { #{ '_' => error_model()}, optional }
+        hosts => {#{'_' => error_model()}, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -811,7 +812,7 @@ time_stats_model() ->
         %% Date of last measurement value in this object in ISO 8601 format
         lastValueDate => string,
         %% Predefined time period for which the statistics were fetched
-        period => { string, optional },
+        period => {string, optional},
         %% List of sample values for given metric. The used period is divided
         %% into array-length number of parts. E.g. if the used period is an
         %% hour, and if there are 12 values in this array, every value is a
@@ -828,13 +829,13 @@ time_stats_model() ->
 time_stats_collection_model() ->
     #{
         %% Statistics of storage sync jobs queue length.
-        queueLength => { time_stats_model(), optional },
+        queueLength => {time_stats_model(), optional},
         %% Statistics of storage sync imported files.
-        insertCount => { time_stats_model(), optional },
+        insertCount => {time_stats_model(), optional},
         %% Statistics of storage sync updated files.
-        updateCount => { time_stats_model(), optional },
+        updateCount => {time_stats_model(), optional},
         %% Statistics of storage sync deleted files.
-        deleteCount => { time_stats_model(), optional }
+        deleteCount => {time_stats_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -905,7 +906,7 @@ zone_cluster_configuration_model() ->
         %% with a node hostname constitute a node fully qualified domain name.
         domainName => string,
         %% The collection of nodes aliases associated with nodes properties.
-        nodes => #{ '_' => zone_cluster_configuration_nodes_model()},
+        nodes => #{'_' => zone_cluster_configuration_nodes_model()},
         databases => cluster_databases_model(),
         managers => cluster_managers_model(),
         workers => cluster_workers_model()
@@ -926,8 +927,8 @@ zone_cluster_configuration_nodes_model() ->
 zone_configuration_model() ->
     #{
         cluster => zone_cluster_configuration_model(),
-        onezone => { zone_configuration_onezone_model(), optional },
-        onepanel => { panel_configuration_model(), optional }
+        onezone => {zone_configuration_onezone_model(), optional},
+        onepanel => {panel_configuration_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -938,7 +939,7 @@ zone_configuration_model() ->
 zone_configuration_details_model() ->
     #{
         cluster => cluster_configuration_details_model(),
-        onezone => { zone_configuration_details_onezone_model(), optional }
+        onezone => {zone_configuration_details_onezone_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -960,9 +961,9 @@ zone_configuration_details_onezone_model() ->
 zone_configuration_onezone_model() ->
     #{
         %% The name of a HTTP domain.
-        domainName => { string, optional },
+        domainName => {string, optional},
         %% The name of a zone.
-        name => { string, optional }
+        name => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -973,26 +974,26 @@ zone_configuration_onezone_model() ->
 ceph_model() ->
     #{
         %% The ID of storage.
-        id => { string, optional },
+        id => {string, optional},
         %% The name of storage.
-        name => { string, optional },
+        name => {string, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
-        insecure => { boolean, optional },
+        insecure => {boolean, optional},
         %% Defines whether storage is readonly.
-        readonly => { boolean, optional },
+        readonly => {boolean, optional},
         %% The type of storage.
         type => {equal, <<"ceph">>},
         %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => { boolean, optional },
+        lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
-        lumaUrl => { string, optional },
+        lumaUrl => {string, optional},
         %% LUMA cache timeout in minutes.
-        lumaCacheTimeout => { integer, optional },
+        lumaCacheTimeout => {integer, optional},
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
-        lumaApiKey => { string, optional },
+        lumaApiKey => {string, optional},
         %% The username of the Ceph cluster administrator.
         username => string,
         %% The admin key to access the Ceph cluster.
@@ -1004,14 +1005,14 @@ ceph_model() ->
         %% The Ceph pool name.
         poolName => string,
         %% Storage operation timeout in milliseconds.
-        timeout => { integer, optional },
+        timeout => {integer, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => { string, optional }
+        storagePathType => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1022,49 +1023,49 @@ ceph_model() ->
 glusterfs_model() ->
     #{
         %% The ID of storage.
-        id => { string, optional },
+        id => {string, optional},
         %% The name of storage.
-        name => { string, optional },
+        name => {string, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
-        insecure => { boolean, optional },
+        insecure => {boolean, optional},
         %% Defines whether storage is readonly.
-        readonly => { boolean, optional },
+        readonly => {boolean, optional},
         %% The type of storage.
         type => {equal, <<"glusterfs">>},
         %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => { boolean, optional },
+        lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
-        lumaUrl => { string, optional },
+        lumaUrl => {string, optional},
         %% LUMA cache timeout in minutes.
-        lumaCacheTimeout => { integer, optional },
+        lumaCacheTimeout => {integer, optional},
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
-        lumaApiKey => { string, optional },
+        lumaApiKey => {string, optional},
         %% The name of the volume to use as a storage backend.
         volume => string,
         %% The hostname (IP address or FQDN) of GlusterFS volume server.
         hostname => string,
         %% The GlusterFS port on volume server.
-        port => { integer, optional },
+        port => {integer, optional},
         %% The transport protocol to use to connect to the volume server.
-        transport => { string, optional },
+        transport => {string, optional},
         %% Relative mountpoint within the volume which should be used by
         %% Oneprovider.
-        mountPoint => { string, optional },
+        mountPoint => {string, optional},
         %% Volume specific GlusterFS translator options, in the format:
-        %% TRANSLATOR1.OPTION1&#x3D;VALUE1;TRANSLATOR2.OPTION2&#x3D;VALUE2;...
-        xlatorOptions => { string, optional },
+        %% TRANSLATOR1.OPTION1=VALUE1;TRANSLATOR2.OPTION2=VALUE2;...
+        xlatorOptions => {string, optional},
         %% Storage operation timeout in milliseconds.
-        timeout => { integer, optional },
+        timeout => {integer, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => { string, optional }
+        storagePathType => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1075,48 +1076,48 @@ glusterfs_model() ->
 nulldevice_model() ->
     #{
         %% The ID of storage.
-        id => { string, optional },
+        id => {string, optional},
         %% The name of storage.
-        name => { string, optional },
+        name => {string, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
-        insecure => { boolean, optional },
+        insecure => {boolean, optional},
         %% Defines whether storage is readonly.
-        readonly => { boolean, optional },
+        readonly => {boolean, optional},
         %% The type of storage.
         type => {equal, <<"nulldevice">>},
         %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => { boolean, optional },
+        lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
-        lumaUrl => { string, optional },
+        lumaUrl => {string, optional},
         %% LUMA cache timeout in minutes.
-        lumaCacheTimeout => { integer, optional },
+        lumaCacheTimeout => {integer, optional},
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
-        lumaApiKey => { string, optional },
+        lumaApiKey => {string, optional},
         %% Minimum latency in milliseconds, which should be simulated for
         %% selected operations.
-        latencyMin => { integer, optional },
+        latencyMin => {integer, optional},
         %% Maximum latency in milliseconds, which should be simulated for
         %% selected operations.
-        latencyMax => { integer, optional },
+        latencyMax => {integer, optional},
         %% Probability (0.0, 1.0), with which an operation should return a
         %% timeout error.
-        timeoutProbability => { float, optional },
+        timeoutProbability => {float, optional},
         %% Comma-separated list of filesystem operations, for which latency and
         %% timeout should be simulated. Empty or '*' mean all operations
         %% will be affected.
-        filter => { string, optional },
+        filter => {string, optional},
         %% Storage operation timeout in milliseconds.
-        timeout => { integer, optional },
+        timeout => {integer, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => { string, optional }
+        storagePathType => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1127,38 +1128,38 @@ nulldevice_model() ->
 posix_model() ->
     #{
         %% The ID of storage.
-        id => { string, optional },
+        id => {string, optional},
         %% The name of storage.
-        name => { string, optional },
+        name => {string, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
-        insecure => { boolean, optional },
+        insecure => {boolean, optional},
         %% Defines whether storage is readonly.
-        readonly => { boolean, optional },
+        readonly => {boolean, optional},
         %% The type of storage.
         type => {equal, <<"posix">>},
         %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => { boolean, optional },
+        lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
-        lumaUrl => { string, optional },
+        lumaUrl => {string, optional},
         %% LUMA cache timeout in minutes.
-        lumaCacheTimeout => { integer, optional },
+        lumaCacheTimeout => {integer, optional},
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
-        lumaApiKey => { string, optional },
+        lumaApiKey => {string, optional},
         %% The absolute path to the directory where the POSIX storage is mounted
         %% on the cluster nodes.
         mountPoint => string,
         %% Storage operation timeout in milliseconds.
-        timeout => { integer, optional },
+        timeout => {integer, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => { string, optional }
+        storagePathType => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1169,26 +1170,26 @@ posix_model() ->
 s3_model() ->
     #{
         %% The ID of storage.
-        id => { string, optional },
+        id => {string, optional},
         %% The name of storage.
-        name => { string, optional },
+        name => {string, optional},
         %% Defines whether storage administrator credentials (accessKey and
         %% secretKey) may be used by users without storage accounts to access
         %% storage in direct IO mode.
-        insecure => { boolean, optional },
+        insecure => {boolean, optional},
         %% Defines whether storage is readonly.
-        readonly => { boolean, optional },
+        readonly => {boolean, optional},
         %% The type of storage.
         type => {equal, <<"s3">>},
         %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => { boolean, optional },
+        lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
-        lumaUrl => { string, optional },
+        lumaUrl => {string, optional},
         %% LUMA cache timeout in minutes.
-        lumaCacheTimeout => { integer, optional },
+        lumaCacheTimeout => {integer, optional},
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
-        lumaApiKey => { string, optional },
+        lumaApiKey => {string, optional},
         %% The hostname of a machine where S3 storage is installed.
         hostname => string,
         %% The storage bucket name.
@@ -1199,18 +1200,18 @@ s3_model() ->
         secretKey => string,
         %% The version of signature used to sign requests. One of: 2, 4.
         %% Default: 4.
-        signatureVersion => { integer, optional },
+        signatureVersion => {integer, optional},
         %% Storage operation timeout in milliseconds.
-        timeout => { integer, optional },
+        timeout => {integer, optional},
         %% Storage block size in bytes.
-        blockSize => { integer, optional },
+        blockSize => {integer, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => { string, optional }
+        storagePathType => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1221,26 +1222,26 @@ s3_model() ->
 swift_model() ->
     #{
         %% The ID of storage.
-        id => { string, optional },
+        id => {string, optional},
         %% The name of storage.
-        name => { string, optional },
+        name => {string, optional},
         %% Defines whether storage administrator credentials (username and
         %% password) may be used by users without storage accounts to access
         %% storage in direct IO mode.
-        insecure => { boolean, optional },
+        insecure => {boolean, optional},
         %% Defines whether storage is readonly.
-        readonly => { boolean, optional },
+        readonly => {boolean, optional},
         %% The type of storage.
         type => {equal, <<"swift">>},
         %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => { boolean, optional },
+        lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
-        lumaUrl => { string, optional },
+        lumaUrl => {string, optional},
         %% LUMA cache timeout in minutes.
-        lumaCacheTimeout => { integer, optional },
+        lumaCacheTimeout => {integer, optional},
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
-        lumaApiKey => { string, optional },
+        lumaApiKey => {string, optional},
         %% The URL to OpenStack Keystone identity service.
         authUrl => string,
         %% The name of the tenant to which the user belongs.
@@ -1252,15 +1253,15 @@ swift_model() ->
         %% The Keystone authentication password.
         password => string,
         %% Storage operation timeout in milliseconds.
-        timeout => { integer, optional },
+        timeout => {integer, optional},
         %% Storage block size in bytes.
-        blockSize => { integer, optional },
+        blockSize => {integer, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => { string, optional }
+        storagePathType => {string, optional}
     }.
 
