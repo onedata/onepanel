@@ -273,14 +273,14 @@ get_storage_helper(Node, <<"ceph">>, UserCtx, Params) ->
         get_helper_opt_args([{timeout, binary}], Params),
         UserCtx,
         onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary)
+        onepanel_utils:typed_get(storagePathType, Params, binary, <<"flat">>)
     ]);
 get_storage_helper(Node, <<"posix">>, UserCtx, Params) ->
     rpc:call(Node, helper, new_posix_helper, [
         onepanel_utils:typed_get(mountPoint, Params, binary),
         get_helper_opt_args([{timeout, binary}], Params),
         UserCtx,
-        onepanel_utils:typed_get(storagePathType, Params, binary)
+        onepanel_utils:typed_get(storagePathType, Params, binary, <<"canonical">>)
     ]);
 get_storage_helper(Node, <<"s3">>, UserCtx, Params) ->
     #hackney_url{scheme = S3Scheme, host = S3Host, port = S3Port} =
@@ -296,7 +296,7 @@ get_storage_helper(Node, <<"s3">>, UserCtx, Params) ->
         ], Params),
         UserCtx,
         onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary)
+        onepanel_utils:typed_get(storagePathType, Params, binary, <<"flat">>)
     ]);
 get_storage_helper(Node, <<"swift">>, UserCtx, Params) ->
     rpc:call(Node, helper, new_swift_helper, [
@@ -309,7 +309,7 @@ get_storage_helper(Node, <<"swift">>, UserCtx, Params) ->
         ], Params),
         UserCtx,
         onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary)
+        onepanel_utils:typed_get(storagePathType, Params, binary, <<"flat">>)
     ]);
 get_storage_helper(Node, <<"glusterfs">>, UserCtx, Params) ->
     rpc:call(Node, helper, new_glusterfs_helper, [
@@ -325,7 +325,7 @@ get_storage_helper(Node, <<"glusterfs">>, UserCtx, Params) ->
         ], Params),
         UserCtx,
         onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary)
+        onepanel_utils:typed_get(storagePathType, Params, binary, <<"canonical">>)
     ]);
 get_storage_helper(Node, <<"nulldevice">>, UserCtx, Params) ->
     rpc:call(Node, helper, new_nulldevice_helper, [
@@ -338,7 +338,7 @@ get_storage_helper(Node, <<"nulldevice">>, UserCtx, Params) ->
         ], Params),
         UserCtx,
         onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary)
+        onepanel_utils:typed_get(storagePathType, Params, binary, <<"canonical">>)
     ]).
 
 %%--------------------------------------------------------------------
