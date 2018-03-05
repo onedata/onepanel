@@ -1003,7 +1003,14 @@ ceph_model() ->
         %% The Ceph pool name.
         poolName => string,
         %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional}
+        timeout => {integer, optional},
+        %% Determines how the logical file paths will be mapped on the storage.
+        %% 'canonical' paths reflect the logical file names and
+        %% directory structure, however each rename operation will require
+        %% renaming the files on the storage. 'flat' paths are based on
+        %% unique file UUID's and do not require on-storage rename when
+        %% logical file name is changed.
+        storagePathType => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1049,7 +1056,14 @@ glusterfs_model() ->
         %% TRANSLATOR1.OPTION1=VALUE1;TRANSLATOR2.OPTION2=VALUE2;...
         xlatorOptions => {string, optional},
         %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional}
+        timeout => {integer, optional},
+        %% Determines how the logical file paths will be mapped on the storage.
+        %% 'canonical' paths reflect the logical file names and
+        %% directory structure, however each rename operation will require
+        %% renaming the files on the storage. 'flat' paths are based on
+        %% unique file UUID's and do not require on-storage rename when
+        %% logical file name is changed.
+        storagePathType => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1094,7 +1108,14 @@ nulldevice_model() ->
         %% will be affected.
         filter => {string, optional},
         %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional}
+        timeout => {integer, optional},
+        %% Determines how the logical file paths will be mapped on the storage.
+        %% 'canonical' paths reflect the logical file names and
+        %% directory structure, however each rename operation will require
+        %% renaming the files on the storage. 'flat' paths are based on
+        %% unique file UUID's and do not require on-storage rename when
+        %% logical file name is changed.
+        storagePathType => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1129,7 +1150,14 @@ posix_model() ->
         %% on the cluster nodes.
         mountPoint => string,
         %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional}
+        timeout => {integer, optional},
+        %% Determines how the logical file paths will be mapped on the storage.
+        %% 'canonical' paths reflect the logical file names and
+        %% directory structure, however each rename operation will require
+        %% renaming the files on the storage. 'flat' paths are based on
+        %% unique file UUID's and do not require on-storage rename when
+        %% logical file name is changed.
+        storagePathType => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1174,7 +1202,14 @@ s3_model() ->
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Storage block size in bytes.
-        blockSize => {integer, optional}
+        blockSize => {integer, optional},
+        %% Determines how the logical file paths will be mapped on the storage.
+        %% 'canonical' paths reflect the logical file names and
+        %% directory structure, however each rename operation will require
+        %% renaming the files on the storage. 'flat' paths are based on
+        %% unique file UUID's and do not require on-storage rename when
+        %% logical file name is changed.
+        storagePathType => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1218,6 +1253,13 @@ swift_model() ->
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Storage block size in bytes.
-        blockSize => {integer, optional}
+        blockSize => {integer, optional},
+        %% Determines how the logical file paths will be mapped on the storage.
+        %% 'canonical' paths reflect the logical file names and
+        %% directory structure, however each rename operation will require
+        %% renaming the files on the storage. 'flat' paths are based on
+        %% unique file UUID's and do not require on-storage rename when
+        %% logical file name is changed.
+        storagePathType => {string, optional}
     }.
 
