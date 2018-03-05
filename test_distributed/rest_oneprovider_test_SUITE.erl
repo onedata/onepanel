@@ -24,8 +24,10 @@
     method_should_return_unauthorized_error/1,
     method_should_return_forbidden_error/1,
     get_should_return_provider_details/1,
+    get_should_return_cluster_ips/1,
     put_should_register_provider/1,
     patch_should_modify_provider_details/1,
+    patch_should_modify_provider_ips/1,
     delete_should_unregister_provider/1,
     get_should_return_supported_spaces/1,
     put_should_create_or_support_space/1,
@@ -62,6 +64,15 @@
 
 -define(SPACES_JSON, [
     {<<"ids">>, [<<"someId1">>, <<"someId2">>, <<"someId3">>]}
+]).
+
+-define(CLUSTER_IPS_JSON(_Hosts), [
+    {<<"isConfigured">>, false},
+    {<<"hosts">>,
+        lists:map(fun(Host) ->
+            {list_to_binary(Host), <<"1.2.3.4">>}
+        end, _Hosts)
+    }
 ]).
 
 -define(STORAGE_IMPORT_DETAILS_JSON, [
@@ -114,8 +125,10 @@ all() ->
         method_should_return_unauthorized_error,
         method_should_return_forbidden_error,
         get_should_return_provider_details,
+        get_should_return_cluster_ips,
         put_should_register_provider,
         patch_should_modify_provider_details,
+        patch_should_modify_provider_ips,
         delete_should_unregister_provider,
         get_should_return_supported_spaces,
         put_should_create_or_support_space,
@@ -164,6 +177,19 @@ get_should_return_provider_details(Config) ->
         onepanel_test_rest:assert_body(JsonBody, ?PROVIDER_DETAILS_JSON)
     end).
 
+get_should_return_cluster_ips(Config) ->
+    Nodes = ?config(oneprovider_nodes, Config),
+    Hosts = lists:map(fun onepanel_cluster:node_to_host/1, Nodes),
+    ?run(Config, fun(Host) ->
+        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/cluster_ips">>, get,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+            )
+        ),
+        onepanel_test_rest:assert_body(JsonBody, ?CLUSTER_IPS_JSON(Hosts))
+    end).
+
 
 put_should_register_provider(Config) ->
     ?run(Config, fun(Host) ->
@@ -208,6 +234,26 @@ patch_should_modify_provider_details(Config) ->
         }}, ?TIMEOUT)
     end).
 
+patch_should_modify_provider_ips(Config) ->
+    % There is one node in test environment
+    [Node] = ?config(oneprovider_nodes, Config),
+    Host = onepanel_cluster:node_to_host(Node),
+    NewIP = <<"1.2.3.4">>,
+    ?run(Config, fun(Host) ->
+        ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/cluster_ips">>, patch,
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [
+                {hosts, [
+                    {Host, NewIP}
+                ]}
+            ]
+        )),
+        ?assertReceivedMatch({service, oneprovider, set_cluster_ips, #{
+            cluster_ips := #{
+                Host := NewIP
+            }
+        }}, ?TIMEOUT)
+    end).
 
 delete_should_unregister_provider(Config) ->
     ?run(Config, fun(Host) ->
@@ -334,6 +380,18 @@ init_per_testcase(get_should_return_provider_details, Config) ->
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
         {service_oneprovider, get_details, {
             [{'node@host1', ?PROVIDER_DETAILS_JSON}], []
+        }},
+        {task_finished, {service, action, ok}}
+    ] end),
+    NewConfig;
+
+init_per_testcase(get_should_return_cluster_ips, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    Hosts = lists:map(fun onepanel_cluster:node_to_host/1, Nodes),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        {service_oneprovider, get_cluster_ips, {
+            [{'node@host1', ?CLUSTER_IPS_JSON(Hosts)}], []
         }},
         {task_finished, {service, action, ok}}
     ] end),
