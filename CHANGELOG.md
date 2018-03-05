@@ -4,6 +4,20 @@
 CHANGELOG
 ---------
 
+### 18.02.0-beta2
+
+* VFS-4178 Fixed generated rest_model
+* VFS-4178 Added default storage types when adding storage from REST
+* VFS-4036 Added support for storage path type
+* VFS-4036 Updated rest model from onepanel-swagger
+* disable http2
+* VFS-4126 Loosen cert validation during local service status checks via nagios
+* VFS-4126 Fix some default values of app.config envs
+* Updating GUI, including: VFS-4125 * VFS-4125 Fixed lack of integrity check for CSS files
+* VFS-3704 update cowboy to version 2.2.2
+* VFS-4120 Get provider configuration fail now causes HTTP 500
+
+
 ### 18.02.0-beta1
 
 * VFS-3978 Do not distribute Onedata Test CA in packages   
