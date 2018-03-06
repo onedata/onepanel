@@ -124,7 +124,15 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = space, bindings = #{id :=
         service_utils:throw_on_error(service:apply_sync(
             ?SERVICE, modify_space, Ctx6
         ))
-    )}.
+    )};
+
+accept_resource(Req, 'PATCH', Args, #rstate{resource = cluster_ips}) ->
+    {ok, ClusterIps} = onepanel_maps:get(hosts, Args),
+    Ctx = #{cluster_ips => rest_utils:keys_binary_to_list(ClusterIps)},
+
+    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
+        ?SERVICE, set_cluster_ips, Ctx
+    ))}.
 
 
 %%--------------------------------------------------------------------
@@ -191,6 +199,13 @@ provide_resource(Req, #rstate{
     {rest_replier:format_service_step(service_oneprovider, get_autocleaning_status,
         service_utils:throw_on_error(service:apply_sync(
             ?SERVICE, get_autocleaning_status, Ctx
+        ))
+    ), Req};
+
+provide_resource(Req, #rstate{resource = cluster_ips}) ->
+    {rest_replier:format_service_step(service_oneprovider, get_cluster_ips,
+        service_utils:throw_on_error(service:apply_sync(
+            ?SERVICE, get_cluster_ips, #{}
         ))
     ), Req}.
 

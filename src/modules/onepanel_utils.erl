@@ -16,7 +16,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([get_basic_auth_header/2, get_ip_address/0]).
+-export([get_basic_auth_header/2]).
 -export([wait_until/5, wait_until/6, save_file/2]).
 -export([gen_uuid/0, get_nif_library_file/1, join/1, join/2, trim/2]).
 -export([convert/2, get_type/1, typed_get/3, typed_get/4]).
@@ -101,20 +101,6 @@ wait_until(Module, Function, Args, Expected, Attempts, Delay) ->
 save_file(Path, Content) ->
     case file:write_file(Path, Content) of
         ok -> ok;
-        {error, Reason} -> ?throw_error(Reason)
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @doc Queries onezone for IP address of the host where function has been
-%% evaluated. In case of an error throws an exception.
-%% @end
-%%--------------------------------------------------------------------
--spec get_ip_address() -> IpAddress :: binary() | no_return().
-get_ip_address() ->
-    Result = oz_providers:check_ip_address(none),
-    case Result of
-        {ok, IpAddress} -> IpAddress;
         {error, Reason} -> ?throw_error(Reason)
     end.
 

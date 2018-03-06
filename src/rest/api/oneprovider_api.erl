@@ -117,6 +117,16 @@ routes() ->
             }]
         }},
 
+        %% Get provider cluster nodes IPs
+        {<<"/api/v3/onepanel/provider/cluster_ips">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = cluster_ips,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
         %% Get provider cluster configuration
         {<<"/api/v3/onepanel/provider/configuration">>, rest_handler, #rstate{
             version = 3,
@@ -291,6 +301,18 @@ routes() ->
                 %% New values for provider configuration parameters which should
                 %% be changed.
                 args_spec = rest_model:provider_modify_request_model()
+            }]
+        }},
+
+        %% Set external IPs of nodes in application config
+        {<<"/api/v3/onepanel/provider/cluster_ips">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = cluster_ips,
+            methods = [#rmethod{
+                type = 'PATCH',
+                %% The provider configuration description.
+                args_spec = rest_model:modify_cluster_ips_model()
             }]
         }},
 

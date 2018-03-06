@@ -82,6 +82,16 @@ routes() ->
             }]
         }},
 
+        %% Get zone cluster nodes IPs
+        {<<"/api/v3/onepanel/zone/cluster_ips">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onezone,
+            resource = cluster_ips,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
         %% Get zone cluster configuration
         {<<"/api/v3/onepanel/zone/configuration">>, rest_handler, #rstate{
             version = 3,
@@ -160,6 +170,18 @@ routes() ->
             resource = service_oz_worker,
             methods = [#rmethod{
                 type = 'GET'
+            }]
+        }},
+
+        %% Set external IPs of nodes in application config
+        {<<"/api/v3/onepanel/zone/cluster_ips">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onezone,
+            resource = cluster_ips,
+            methods = [#rmethod{
+                type = 'PATCH',
+                %% The zone configuration description.
+                args_spec = rest_model:modify_cluster_ips_model()
             }]
         }},
 

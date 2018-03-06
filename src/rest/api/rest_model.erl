@@ -17,12 +17,14 @@
 -export([
     cluster_configuration_details_model/0,
     cluster_databases_model/0,
+    cluster_ips_model/0,
     cluster_managers_model/0,
     cluster_workers_model/0,
     cookie_model/0,
     database_hosts_model/0,
     error_model/0,
     manager_hosts_model/0,
+    modify_cluster_ips_model/0,
     panel_configuration_model/0,
     panel_configuration_users_model/0,
     provider_cluster_configuration_model/0,
@@ -111,6 +113,20 @@ cluster_databases_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc External IPs used by cluster nodes.
+%% @end
+%%--------------------------------------------------------------------
+-spec cluster_ips_model() -> maps:map().
+cluster_ips_model() ->
+    #{
+        %% If true, user has already sent a request updating IPs thus marking
+        %% them as accepted.
+        isConfigured => boolean,
+        %% The collection of cluster nodes associated with their IPs.
+        hosts => #{'_' => string}
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The cluster manager service configuration.
 %% @end
 %%--------------------------------------------------------------------
@@ -189,6 +205,17 @@ manager_hosts_model() ->
         mainHost => string,
         %% The list of service hosts.
         hosts => [string]
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc External IPs used by cluster nodes.
+%% @end
+%%--------------------------------------------------------------------
+-spec modify_cluster_ips_model() -> maps:map().
+modify_cluster_ips_model() ->
+    #{
+        %% The collection of cluster nodes associated with their IPs.
+        hosts => #{'_' => string}
     }.
 
 %%--------------------------------------------------------------------
@@ -914,7 +941,9 @@ zone_cluster_configuration_model() ->
 zone_cluster_configuration_nodes_model() ->
     #{
         %% The name of a host.
-        hostname => string
+        hostname => string,
+        %% External IP of the node.
+        externalIp => {string, optional}
     }.
 
 %%--------------------------------------------------------------------

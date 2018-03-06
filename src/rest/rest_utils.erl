@@ -16,8 +16,8 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([get_method/1, get_bindings/1, get_params/2, get_args/2, get_hosts/2,
-    verify_any/2]).
+-export([get_method/1, get_bindings/1, get_params/2, get_args/2,
+    get_hosts/2, get_cluster_ips/1, keys_binary_to_list/1, verify_any/2]).
 
 %%%===================================================================
 %%% API functions
@@ -111,6 +111,39 @@ get_hosts(Keys, Args) ->
             error -> ?throw_error({?ERR_HOST_NOT_FOUND_FOR_ALIAS, Alias})
         end
     end, AliasesList).
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns map from cluster hosts to their IPs given
+%% in cluster description.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_cluster_ips(Args :: rest_handler:args()) ->
+    #{service:host() => binary()} | no_return().
+get_cluster_ips(Args) ->
+    {ok, DomainName} = onepanel_maps:get([cluster, domainName], Args),
+    {ok, Nodes} = onepanel_maps:get([cluster, nodes], Args),
+    NodesWithIPs = maps:filter(fun(_Node, Props) ->
+        maps:is_key(externalIp, Props)
+    end, Nodes),
+
+    maps:fold(fun(_Alias, Props, Acc) ->
+        IP = maps:get(externalIp, Props),
+        Host = onepanel_utils:convert(
+            <<(maps:get(hostname, Props))/binary, ".", DomainName/binary>>,
+            list),
+        maps:put(Host, IP, Acc)
+    end, #{}, NodesWithIPs).
+
+%%-------------------------------------------------------------------
+%% @private
+%% @doc Converts keys of a map from binaries to lists
+%% @end
+%%-------------------------------------------------------------------
+-spec keys_binary_to_list(#{binary() => term()}) -> #{string() => term()}.
+keys_binary_to_list(Map) ->
+    KeyVals = maps:to_list(Map),
+    maps:from_list(lists:map(fun({K, V}) -> {binary_to_list(K), V} end, KeyVals)).
 
 
 %%--------------------------------------------------------------------

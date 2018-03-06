@@ -29,9 +29,9 @@
     register/1, unregister/1, is_registered/1,
     modify_details/1, get_details/1, get_admin_email/1,
     support_space/1, revoke_space_support/1, get_spaces/1,
-    get_space_details/1, modify_space/1,
+    get_space_details/1, modify_space/1, get_cluster_ips/1,
     get_sync_stats/1, get_autocleaning_reports/1, get_autocleaning_status/1,
-    start_cleaning/1, check_oz_connection/1]).
+    start_cleaning/1, check_oz_connection/1, update_subdomain_delegation_ips/1]).
 -export([restart_listeners/1, restart_provider_listeners/1, async_restart_listeners/1]).
 -export([obtain_webcert/1, set_txt_record/1, remove_txt_record/1,
     mark_letsencrypt_decided/1, clear_pem_cache/1]).
@@ -39,6 +39,7 @@
 -define(SERVICE_OPA, service_onepanel:name()).
 -define(SERVICE_CB, service_couchbase:name()).
 -define(SERVICE_CM, service_cluster_manager:name()).
+-define(SERVICE_CW, service_cluster_worker:name()).
 -define(SERVICE_OPW, service_op_worker:name()).
 
 %%%===================================================================
@@ -162,7 +163,9 @@ get_steps(register, #{hosts := Hosts} = Ctx) ->
             ctx = Ctx#{application => ?APP_NAME}},
         #step{hosts = Hosts, function = check_oz_availability,
             attempts = onepanel_env:get(connect_to_onezone_attempts)},
-        #step{hosts = Hosts, function = register, selection = any}
+        #step{hosts = Hosts, function = register, selection = any},
+        #steps{action = set_cluster_ips}
+
     ];
 get_steps(register, Ctx) ->
     get_steps(register, Ctx#{hosts => service_op_worker:get_hosts()});
@@ -205,6 +208,23 @@ get_steps(modify_details, #{hosts := Hosts}) ->
 get_steps(modify_details, Ctx) ->
     get_steps(modify_details, Ctx#{hosts => service_op_worker:get_hosts()});
 
+
+get_steps(set_cluster_ips, #{hosts := Hosts} = Ctx) ->
+    AppConfigFile = service_ctx:get(op_worker_app_config_file, Ctx),
+    Ctx2 = Ctx#{
+        app_config_file => AppConfigFile,
+        name => ?SERVICE_OPW
+    },
+    [
+        % using #steps and not #step to invoke choosing hosts in cluster worker
+        % for determining correct hosts
+        #steps{action = set_cluster_ips, ctx = Ctx2, service = ?SERVICE_CW},
+        #step{function = update_subdomain_delegation_ips, selection = any,
+            hosts = Hosts}
+    ];
+get_steps(set_cluster_ips, Ctx) ->
+    get_steps(set_cluster_ips, Ctx#{hosts => get_hosts()});
+
 get_steps(Action, Ctx) when
     Action =:= get_details;
     Action =:= support_space;
@@ -214,6 +234,7 @@ get_steps(Action, Ctx) when
     Action =:= modify_space;
     Action =:= get_autocleaning_reports;
     Action =:= get_autocleaning_status;
+    Action =:= get_cluster_ips;
     Action =:= start_cleaning;
     Action =:= get_sync_stats ->
     case Ctx of
@@ -307,12 +328,10 @@ register(Ctx) ->
 
     DomainParams = case service_ctx:get(oneprovider_subdomain_delegation, Ctx, boolean, false) of
         true ->
-            {_, IPs} = lists:unzip(
-                onepanel_rpc:call_all(Nodes, onepanel_utils, get_ip_address, [])),
             [{<<"subdomainDelegation">>, true},
                 {<<"subdomain">>,
                     service_ctx:get(oneprovider_subdomain, Ctx, binary)},
-                {<<"ipList">>, IPs}];
+                {<<"ipList">>, []}]; % IPs will be updated in the step set_cluster_ips
         false ->
             set_has_letsencrypt_cert(false),
             [{<<"subdomainDelegation">>, false},
@@ -392,8 +411,10 @@ is_registered(#{node := Node}) ->
         false
     end;
 is_registered(Ctx) ->
-    [Node | _] = service_op_worker:get_nodes(),
-    is_registered(Ctx#{node => Node}).
+    case service_op_worker:get_nodes() of
+        [Node | _] -> is_registered(Ctx#{node => Node});
+        [] -> false
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -495,6 +516,14 @@ get_admin_email(#{node := Node}) ->
 get_admin_email(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     get_admin_email(Ctx#{node => Node}).
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns IPs of hosts with op_worker or rtransfer instances.
+%% @end
+%%--------------------------------------------------------------------
+get_cluster_ips(Ctx) ->
+    service_cluster_worker:get_cluster_ips(Ctx#{name => ?SERVICE_OPW}).
 
 
 %%--------------------------------------------------------------------
@@ -708,6 +737,23 @@ restart_listeners(_Ctx) ->
     lists:foreach(fun(Module) ->
         Module:start()
     end, lists:reverse(Modules)).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Notify onezone about IPs change.
+%% @end
+%%--------------------------------------------------------------------
+-spec update_subdomain_delegation_ips(service:ctx()) -> ok.
+update_subdomain_delegation_ips(#{node := Node} = Ctx) ->
+    case is_registered(Ctx) of
+        true ->
+            ok = rpc:call(Node, provider_logic, update_subdomain_delegation_ips, []);
+        false -> ok
+    end;
+update_subdomain_delegation_ips(Ctx) ->
+    [Node | _] = service_op_worker:get_nodes(),
+    update_subdomain_delegation_ips(Ctx#{node => Node}).
 
 
 %%--------------------------------------------------------------------

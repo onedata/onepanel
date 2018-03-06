@@ -14,7 +14,7 @@
 -include("modules/errors.hrl").
 
 %% API
--export([get/2, get/3, store/2, store/3, get_store/3, get_store/4]).
+-export([get/2, get/3, store/2, store/3, get_store/3, get_store/4, get_store/5]).
 -export([remove_undefined/1]).
 
 -type key() :: any().
@@ -110,6 +110,21 @@ get_store(SrcKeys, SrcTerms, DstKeys, DstTerms) ->
     case get(SrcKeys, SrcTerms) of
         {ok, Value} -> store(DstKeys, Value, DstTerms);
         #error{reason = ?ERR_NOT_FOUND} -> DstTerms
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Gets a value from the source nested property map and stores it in
+%% the target nested property map. If the value is not found in the source map
+%% default value is used.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_store(SrcKeys :: keys(), SrcTerms :: terms(), DstKeys :: keys(),
+    DstTerms :: terms(), Default :: terms()) -> NewTerms :: terms().
+get_store(SrcKeys, SrcTerms, DstKeys, DstTerms, Default) ->
+    case get(SrcKeys, SrcTerms) of
+        {ok, Value} -> store(DstKeys, Value, DstTerms);
+        #error{reason = ?ERR_NOT_FOUND} -> store(DstKeys, Default, DstTerms)
     end.
 
 
