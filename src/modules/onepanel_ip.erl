@@ -104,7 +104,7 @@ determine_ip_by_external_service() ->
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
-%% Uses shell command `hostname` to determine current IP.
+%% Uses shell command "hostname" to determine current IP.
 %% @end
 %%--------------------------------------------------------------------
 -spec determine_ip_by_shell() -> {ok, inet:ip4_address()} | {error, term()}.
