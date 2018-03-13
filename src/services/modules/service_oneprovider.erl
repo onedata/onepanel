@@ -791,18 +791,7 @@ clear_pem_cache(Ctx) ->
 restart_provider_listeners(_Ctx) ->
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(service_op_worker:name(), Host),
-    Modules = [
-        gui_listener,
-        nagios_listener,
-        hackney,
-        ssl
-    ],
-    lists:foreach(fun(Module) ->
-        rpc:call(Node, Module, stop, [])
-    end, Modules),
-    lists:foreach(fun(Module) ->
-        ok = rpc:call(Node, Module, start, [])
-    end, lists:reverse(Modules)).
+    ok = rpc:call(Node, oneprovider, restart_listeners, []).
 
 %%-------------------------------------------------------------------
 %% @doc
