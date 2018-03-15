@@ -223,6 +223,9 @@ maybe_generate_web_cert() ->
                 "    ~s",
                 [Domain, WebKeyPath, WebCertPath, WebChainPath]
             ),
+            % Do not generate new certificates upon listener restart
+            onepanel_env:set(generate_test_web_cert, false),
+            onepanel_env:write(generate_test_web_cert, false),
             ok
     end.
 
