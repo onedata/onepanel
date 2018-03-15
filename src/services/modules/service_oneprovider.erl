@@ -31,7 +31,7 @@
     support_space/1, revoke_space_support/1, get_spaces/1,
     get_space_details/1, modify_space/1, get_cluster_ips/1,
     get_sync_stats/1, get_autocleaning_reports/1, get_autocleaning_status/1,
-    start_cleaning/1, check_oz_connection/1, update_subdomain_delegation_ips/1]).
+    start_cleaning/1, check_oz_connection/1, update_provider_ips/1]).
 -export([restart_listeners/1, restart_provider_listeners/1, async_restart_listeners/1]).
 -export([obtain_webcert/1, set_txt_record/1, remove_txt_record/1,
     mark_letsencrypt_decided/1, clear_pem_cache/1]).
@@ -164,6 +164,9 @@ get_steps(register, #{hosts := Hosts} = Ctx) ->
         #step{hosts = Hosts, function = check_oz_availability,
             attempts = onepanel_env:get(connect_to_onezone_attempts)},
         #step{hosts = Hosts, function = register, selection = any},
+        % explicitely fail on connection problems before executing further steps
+        #step{hosts = Hosts, function = check_oz_connection,
+            attempts = onepanel_env:get(connect_to_onezone_attempts)},
         #steps{action = set_cluster_ips}
 
     ];
@@ -172,8 +175,6 @@ get_steps(register, Ctx) ->
 
 get_steps(obtain_webcert, #{hosts := Hosts}) ->
     [
-        #step{hosts = Hosts, function = check_oz_connection,
-            attempts = onepanel_env:get(connect_to_onezone_attempts)},
         #step{hosts = Hosts, function = obtain_webcert, selection = any},
         #step{hosts = Hosts, function = clear_pem_cache, selection = any},
         #step{hosts = Hosts, function = async_restart_listeners, selection = any}
@@ -219,7 +220,7 @@ get_steps(set_cluster_ips, #{hosts := Hosts} = Ctx) ->
         % using #steps and not #step to invoke choosing hosts in cluster worker
         % for determining correct hosts
         #steps{action = set_cluster_ips, ctx = Ctx2, service = ?SERVICE_CW},
-        #step{function = update_subdomain_delegation_ips, selection = any,
+        #step{function = update_provider_ips, selection = any,
             hosts = Hosts}
     ];
 get_steps(set_cluster_ips, Ctx) ->
@@ -323,8 +324,7 @@ check_oz_connection(Ctx) ->
 -spec register(Ctx :: service:ctx()) ->
     {ok, ProviderId :: binary()} | no_return().
 register(Ctx) ->
-    Hosts = onepanel_cluster:nodes_to_hosts(service_op_worker:get_nodes()),
-    Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
+    [OpwNode|_] = service_op_worker:get_nodes(),
 
     DomainParams = case service_ctx:get(oneprovider_subdomain_delegation, Ctx, boolean, false) of
         true ->
@@ -366,11 +366,10 @@ register(Ctx) ->
         {error, subdomain_reserved} ->
             ?throw_error(?ERR_SUBDOMAIN_NOT_AVAILABLE);
         {ProviderId, Macaroon} ->
-            OpwNodes = onepanel_cluster:hosts_to_nodes(service_op_worker:name(), Hosts),
-            rpc:call(hd(OpwNodes), provider_auth, save, [ProviderId, Macaroon]),
+            rpc:call(OpwNode, provider_auth, save, [ProviderId, Macaroon]),
             % Force connection healthcheck
             % (reconnect attempt is performed automatically if there is no connection)
-            rpc:multicall(OpwNodes, oneprovider, is_connected_to_oz, []),
+            ok = rpc:call(OpwNode, oneprovider, start_connection_to_oz, []),
 
             service:update(name(), fun(#service{ctx = C} = S) ->
                 S#service{ctx = C#{registered => true}}
@@ -744,16 +743,18 @@ restart_listeners(_Ctx) ->
 %% Notify onezone about IPs change.
 %% @end
 %%--------------------------------------------------------------------
--spec update_subdomain_delegation_ips(service:ctx()) -> ok.
-update_subdomain_delegation_ips(#{node := Node} = Ctx) ->
+-spec update_provider_ips(service:ctx()) -> ok.
+update_provider_ips(#{node := Node} = Ctx) ->
     case is_registered(Ctx) of
         true ->
-            ok = rpc:call(Node, provider_logic, update_subdomain_delegation_ips, []);
+            % no check of results - if the provider is not connected to onezone
+            % the IPs will be sent automatically after connection is acquired
+            rpc:call(Node, provider_logic, update_subdomain_delegation_ips, []);
         false -> ok
     end;
-update_subdomain_delegation_ips(Ctx) ->
+update_provider_ips(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
-    update_subdomain_delegation_ips(Ctx#{node => Node}).
+    update_provider_ips(Ctx#{node => Node}).
 
 
 %%--------------------------------------------------------------------
