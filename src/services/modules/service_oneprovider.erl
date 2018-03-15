@@ -876,7 +876,7 @@ is_subdomain_changing(RequestCtx) ->
 
     case {Current, Requested} of
         {_, <<>>} -> false; % no subdomain set, not applicable
-        _ when Current == Requested -> false;
+        {{true, Requested}, Requested} -> false;
         _ -> true
     end.
 
