@@ -369,7 +369,7 @@ register(Ctx) ->
             rpc:call(OpwNode, provider_auth, save, [ProviderId, Macaroon]),
             % Force connection healthcheck
             % (reconnect attempt is performed automatically if there is no connection)
-            ok = rpc:call(OpwNode, oneprovider, start_connection_to_oz, []),
+            rpc:call(OpwNode, oneprovider, force_oz_connection_start, []),
 
             service:update(name(), fun(#service{ctx = C} = S) ->
                 S#service{ctx = C#{registered => true}}
