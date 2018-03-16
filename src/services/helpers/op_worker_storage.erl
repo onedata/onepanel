@@ -149,6 +149,19 @@ update(Id, Args) ->
     {ok, _} = rpc:call(Node, storage, update_helper, [Id, Type, Args2]),
     ok.
 
+
+%%--------------------------------------------------------------------
+%% @doc Checks if storage with given name exists.
+%% @end
+%%--------------------------------------------------------------------
+-spec exists(Node :: node(), StorageName :: name()) -> boolean().
+exists(Node, StorageName) ->
+    case rpc:call(Node, storage, select, [StorageName]) of
+        {error, not_found} -> false;
+        {ok, _} -> true
+    end.
+
+
 %%-------------------------------------------------------------------
 %% @private
 %% @doc
@@ -466,8 +479,13 @@ remove_test_file(Node, Helper, UserCtx, FileId) ->
     ReadOnly :: boolean(), LumaConfig :: luma_config()) ->
     {ok, StorageId :: binary()} | {error, Reason :: term()}.
 add_storage(Node, StorageName, Helpers, ReadOnly, LumaConfig) ->
-    Storage = rpc:call(Node, storage, new, [StorageName, Helpers, ReadOnly, LumaConfig]),
-    rpc:call(Node, storage, create, [Storage]).
+    case exists(Node, StorageName) of
+        true ->
+            {error, already_exists};
+        false ->
+            Storage = rpc:call(Node, storage, new, [StorageName, Helpers, ReadOnly, LumaConfig]),
+            rpc:call(Node, storage, create, [Storage])
+    end.
 
 
 %%--------------------------------------------------------------------
