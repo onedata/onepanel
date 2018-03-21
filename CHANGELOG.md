@@ -4,6 +4,34 @@
 CHANGELOG
 ---------
 
+### 18.02.0-beta3
+
+* Updating GUI, including: VFS-4259 * VFS-4259 Fixing not working create new cluster button
+* Updating GUI, including: VFS-4229 * VFS-4229 Merged recent changes of onedata-gui-common library (ia. improved mobile view, styles improvements)
+* VFS-4236 Check if storage exists before creating it
+* VFS-4222 Change op_worker function triggering oz connection
+* VFS-4222 Don't trigger Let's Encrypt on every provider modification
+* VFS-4222 Explicitly check oz connection after registration
+* VFS-3745 Generate test web cert only once
+* Updating GUI, including: VFS-4027 * VFS-4027 Added support for peta-, exa-, zetta- and yottabytes
+* Updating GUI, including: VFS-4206 * VFS-4206 Added capability to display speed in bps (ported)
+* VFS-4207 Move provider listener restarting logic to provider
+* Updating GUI, including: VFS-4194 * VFS-4197 Added "storage path type" option for storages
+* VFS-4067 Add test for GET and PATCH on cluster ips
+* Updating GUI, including: VFS-4097 * VFS-4097 Added cluster IPs configuration step and view for changing IPs after deployment
+* VFS-4067 Move common function to utils
+* VFS-4067 Set default value for Let's Encrypt in batch config
+* VFS-4067 Throw on unimplemented delete resource method
+* VFS-4067 Mark IPs as configured in batch config
+* VFS-4067 Do not set provider IP before registration in onezone
+* VFS-4067 Fixes for cluster_ips API and style improvements
+* VFS-4067 Allow setting cluster IPs with batch config
+* VFS-4067 Implement GET/PATCH of cluster_ips
+* VFS-4067 Notify workers after modifying IPs
+* VFS-4067 Add OZ endpoint as a method of determining IP
+* VFS-4067 Add step for writing external IP to node
+
+
 ### 18.02.0-beta2
 
 * VFS-4178 Fixed generated rest_model
