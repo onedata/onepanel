@@ -12,6 +12,7 @@
 -author("Krzysztof Trzepla").
 
 -include("http/rest.hrl").
+-include("names.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 -export([get_port/0, get_prefix/1]).
@@ -225,7 +226,7 @@ maybe_generate_web_cert() ->
             ),
             % Do not generate new certificates upon listener restart
             onepanel_env:set(generate_test_web_cert, false),
-            onepanel_env:write(generate_test_web_cert, false),
+            onepanel_env:write([?APP_NAME, generate_test_web_cert], false),
             ok
     end.
 
