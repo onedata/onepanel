@@ -4,6 +4,11 @@
 CHANGELOG
 ---------
 
+### 18.02.0-beta4
+
+* Releasing new version 18.02.0-beta4
+
+
 ### 18.02.0-beta3
 
 * Updating GUI, including: VFS-4259 * VFS-4259 Fixing not working create new cluster button
