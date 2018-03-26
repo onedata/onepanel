@@ -22,14 +22,15 @@
 -export([get_supporting_storage/2, get_supporting_storages/2,
     get_file_popularity_details/2, get_autocleaning_details/2, get_soft_quota/1]).
 -export([is_mounted_in_root/3]).
--export([add_storage/5, maybe_update_file_popularity/3, maybe_update_autocleaning/3]).
+-export([add_storage/5, maybe_update_file_popularity/3, maybe_update_autocleaning/3,
+    invalidate_luma_cache/1]).
 
 -type id() :: binary().
 -type name() :: binary().
 -type storage_params_map() :: #{Key :: atom() | binary() => Value :: binary()}.
 -type storage_params_list() :: [{Key :: atom() | binary(), Value :: binary()}].
 -type storage_map() :: #{Name :: name() => Params :: storage_params_map()}.
--type luma_config() :: {atom(), binary(), non_neg_integer()}.
+-type luma_config() :: {atom(), binary(), undefined | binary()}.
 
 %%%===================================================================
 %%% API functions
@@ -234,6 +235,18 @@ get_autocleaning_details(Node, SpaceId) ->
 -spec get_soft_quota(Node :: node()) -> non_neg_integer().
 get_soft_quota(Node) ->
     rpc:call(Node, space_storage, get_soft_quota, []).
+
+%%-------------------------------------------------------------------
+%% @doc
+%% This function is responsible for invalidating luma cache on given
+%% provider for given storage.
+%% @end
+%%-------------------------------------------------------------------
+-spec invalidate_luma_cache(StorageId :: binary) -> ok.
+invalidate_luma_cache(StorageId) ->
+    Host = onepanel_cluster:node_to_host(),
+    Node = onepanel_cluster:host_to_node(service_op_worker:name(), Host),
+    ok = rpc:call(Node, luma_cache, invalidate, [StorageId]).
 
 %%%===================================================================
 %%% Internal functions
@@ -508,8 +521,7 @@ get_storage(Node, Storage) ->
         {insecure, rpc:call(Node, helper, is_insecure, [Helper])},
         {storagePathType, rpc:call(Node, helper, get_storage_path_type, [Helper])},
         {lumaEnabled, maps:get(enabled, LumaConfig, false)},
-        {lumaUrl, maps:get(url, LumaConfig, null)},
-        {lumaCacheTimeout, maps:get(cache_timeout, LumaConfig, null)}
+        {lumaUrl, maps:get(url, LumaConfig, null)}
     ] ++ maps:to_list(AdminCtx2) ++ maps:to_list(HelperArgs).
 
 %%--------------------------------------------------------------------
@@ -524,9 +536,8 @@ get_luma_config(Node, StorageParams) ->
     case onepanel_utils:typed_get(lumaEnabled, StorageParams, boolean, false) of
         true ->
             Url = get_required_luma_arg(StorageParams, lumaUrl, binary),
-            CacheTimeout = get_required_luma_arg(StorageParams, lumaCacheTimeout, integer),
             ApiKey = onepanel_utils:typed_get(lumaApiKey, StorageParams, binary, undefined),
-            rpc:call(Node, luma_config, new, [Url, CacheTimeout, ApiKey]);
+            rpc:call(Node, luma_config, new, [Url, ApiKey]);
         false ->
             undefined
     end.

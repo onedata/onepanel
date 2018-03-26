@@ -73,6 +73,9 @@ exists_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
 exists_resource(Req, #rstate{resource = storages}) ->
     {true, Req};
 
+exists_resource(Req, #rstate{resource = luma}) ->
+    {true, Req};
+
 exists_resource(Req, #rstate{resource = SModule, bindings = #{host := Host}}) ->
     {service:is_member(SModule:name(), Host), Req};
 
@@ -227,6 +230,13 @@ accept_resource(Req, 'POST', Args, #rstate{resource = storages}) ->
         service_op_worker:name(), add_storages, #{
             storages => Args, ignore_exists => false
         }
+    ))};
+
+accept_resource(Req, 'PATCH', _Args, #rstate{resource = luma,
+    bindings = #{id := Id}}) ->
+    Ctx = #{id => Id},
+    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
+        service_op_worker:name(), invalidate_luma_cache, Ctx
     ))};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = storage,

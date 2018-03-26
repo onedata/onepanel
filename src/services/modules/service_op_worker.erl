@@ -22,7 +22,7 @@
 %% API
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
     get_nagios_response/1, get_nagios_status/1, add_storages/1, get_storages/1,
-    update_storage/1]).
+    update_storage/1, invalidate_luma_cache/1]).
 
 -define(INIT_SCRIPT, "op_worker").
 
@@ -83,6 +83,12 @@ get_steps(update_storage, #{hosts := Hosts}) ->
 
 get_steps(update_storage, Ctx) ->
     get_steps(update_storage, Ctx#{hosts => get_hosts()});
+
+get_steps(invalidate_luma_cache, #{hosts := Hosts}) ->
+    [#step{hosts = Hosts, function = invalidate_luma_cache, selection = any}];
+
+get_steps(invalidate_luma_cache, Ctx) ->
+    get_steps(invalidate_luma_cache, Ctx#{hosts => get_hosts()});
 
 get_steps(Action, Ctx) ->
     service_cluster_worker:get_steps(Action, Ctx#{name => name()}).
@@ -225,3 +231,14 @@ get_storages(_Ctx) ->
 -spec update_storage(Ctx :: service:ctx()) -> ok | no_return().
 update_storage(#{id := Id, args := Args}) ->
     op_worker_storage:update(Id, Args).
+
+
+%%-------------------------------------------------------------------
+%% @doc
+%% This function is responsible for invalidating luma cache on given
+%% provider for given storage.
+%% @end
+%%-------------------------------------------------------------------
+-spec invalidate_luma_cache(Ctx :: service:ctx()) -> ok.
+invalidate_luma_cache(#{id := StorageId}) ->
+    op_worker_storage:invalidate_luma_cache(StorageId).
