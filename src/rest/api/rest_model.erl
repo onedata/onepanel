@@ -1016,8 +1016,6 @@ ceph_model() ->
         lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
         lumaUrl => {string, optional},
-        %% LUMA cache timeout in minutes.
-        lumaCacheTimeout => {integer, optional},
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
@@ -1065,8 +1063,6 @@ glusterfs_model() ->
         lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
         lumaUrl => {string, optional},
-        %% LUMA cache timeout in minutes.
-        lumaCacheTimeout => {integer, optional},
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
@@ -1118,8 +1114,6 @@ nulldevice_model() ->
         lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
         lumaUrl => {string, optional},
-        %% LUMA cache timeout in minutes.
-        lumaCacheTimeout => {integer, optional},
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
@@ -1170,8 +1164,6 @@ posix_model() ->
         lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
         lumaUrl => {string, optional},
-        %% LUMA cache timeout in minutes.
-        lumaCacheTimeout => {integer, optional},
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
@@ -1212,8 +1204,6 @@ s3_model() ->
         lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
         lumaUrl => {string, optional},
-        %% LUMA cache timeout in minutes.
-        lumaCacheTimeout => {integer, optional},
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
@@ -1264,8 +1254,6 @@ swift_model() ->
         lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
         lumaUrl => {string, optional},
-        %% LUMA cache timeout in minutes.
-        lumaCacheTimeout => {integer, optional},
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},

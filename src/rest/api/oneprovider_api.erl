@@ -291,6 +291,16 @@ routes() ->
             }]
         }},
 
+        %% Invalidates LUMA cache
+        {<<"/api/v3/onepanel/provider/storages/:id/invalidate_luma">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = luma,
+            methods = [#rmethod{
+                type = 'PATCH'
+            }]
+        }},
+
         %% Modify provider details
         {<<"/api/v3/onepanel/provider">>, rest_handler, #rstate{
             version = 3,
