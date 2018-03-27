@@ -24,7 +24,7 @@
 ]}.
 
 {deps, [
-    {ctool, {git, "ssh://git@git.plgrid.pl:7999/vfs/ctool.git", {ref, "c6d073bc68"}}},
+    {ctool, {git, "ssh://git@git.plgrid.pl:7999/vfs/ctool.git", {ref, "4521027564"}}},
     {gui, {git, "ssh://git@git.plgrid.pl:7999/vfs/gui.git", {ref, "ba8292ff867"}}},
     {yamerl, {git, "git://github.com/yakaz/yamerl.git", {ref, "3f46bf06b9"}}},
     {cowboy, {git, "git://github.com/ninenines/cowboy.git", {tag, "2.2.2"}}}
