@@ -6,7 +6,10 @@ CHANGELOG
 
 ### 18.02.0-beta5
 
-* Releasing new version 18.02.0-beta5
+* VFS-4267 Update images in services test suite
+* Update web-client and ctool refs
+* VFS-4267 Adjust code to erl 20, update deps
+* VFS-4273 - add rest endpoint for invalidating luma cache in provider
 
 
 ### 18.02.0-beta4
