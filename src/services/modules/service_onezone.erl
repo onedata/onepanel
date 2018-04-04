@@ -130,10 +130,11 @@ get_steps(set_cluster_ips, Ctx) ->
     Ctx2 = Ctx#{
         app_config_file => AppConfigFile,
         name => ?SERVICE_OZW
-    },
-    [#steps{action = set_cluster_ips, ctx = Ctx2, service = ?SERVICE_CW},
-       #step{function = reconcile_dns, selection = any,
-           hosts = get_hosts()}];
+    }, [
+        #steps{action = set_cluster_ips, ctx = Ctx2, service = ?SERVICE_CW},
+        #step{function = reconcile_dns, selection = any, service = ?SERVICE_OZW,
+            hosts = get_hosts()}
+    ];
 
 get_steps(get_cluster_ips, _Ctx) ->
     [#step{hosts = get_hosts(), function = get_cluster_ips, selection = any}].
