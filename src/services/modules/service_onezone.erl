@@ -16,17 +16,19 @@
 -include("modules/models.hrl").
 -include("service.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/global_definitions.hrl").
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
--export([get_cluster_ips/1, reconcile_dns/1]).
+-export([get_cluster_ips/1]).
 
 -define(SERVICE_OPA, service_onepanel:name()).
 -define(SERVICE_CB, service_couchbase:name()).
 -define(SERVICE_CM, service_cluster_manager:name()).
 -define(SERVICE_CW, service_cluster_worker:name()).
 -define(SERVICE_OZW, service_oz_worker:name()).
+-define(SERVICE_LE, service_letsencrypt:name()).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -128,22 +130,14 @@ get_steps(set_cluster_ips, Ctx) ->
     Ctx2 = Ctx#{
         app_config_file => AppConfigFile,
         name => ?SERVICE_OZW
-    },
-    [#steps{action = set_cluster_ips, ctx = Ctx2, service = ?SERVICE_CW},
-       #step{function = reconcile_dns, selection = any,
-           hosts = get_hosts()}];
+    }, [
+        #steps{action = set_cluster_ips, ctx = Ctx2, service = ?SERVICE_CW},
+        #step{function = reconcile_dns, selection = any, service = ?SERVICE_OZW,
+            hosts = get_hosts()}
+    ];
 
 get_steps(get_cluster_ips, _Ctx) ->
     [#step{hosts = get_hosts(), function = get_cluster_ips, selection = any}].
-
--spec reconcile_dns(service:ctx()) -> ok.
-reconcile_dns(#{node := Node} = Ctx) ->
-    OzNode = onepanel_cluster:host_to_node(?SERVICE_OZW,
-        onepanel_cluster:node_to_host(Node)),
-    ok = rpc:call(OzNode, node_manager_plugin, reconcile_dns_config, []);
-reconcile_dns(Ctx) ->
-    [Node | _] = service_oz_worker:get_nodes(),
-    reconcile_dns(Ctx#{node => Node}).
 
 
 %%--------------------------------------------------------------------
@@ -152,4 +146,3 @@ reconcile_dns(Ctx) ->
 %%--------------------------------------------------------------------
 get_cluster_ips(Ctx) ->
     service_cluster_worker:get_cluster_ips(Ctx#{name => ?SERVICE_OZW}).
-

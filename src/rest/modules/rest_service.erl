@@ -127,6 +127,8 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
     StorageCtx = onepanel_maps:get_store([cluster, storages], Args, storages),
     StorageCtx2 = StorageCtx#{hosts => OpwHosts, ignore_exists => true},
 
+    LetsencryptCtx = onepanel_maps:get_store([oneprovider, letsEncryptEnabled], Args, letsencrypt_enabled),
+
     DbCtx = #{hosts => DbHosts},
     DbCtx2 = onepanel_maps:get_store([cluster, databases, serverQuota], Args,
         couchbase_server_quota, DbCtx),
@@ -135,8 +137,9 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
 
     Auth = cowboy_req:header(<<"authorization">>, Req),
     OpaCtx = maps:get(onepanel, Args, #{}),
+    OpaHosts = lists:usort(DbHosts ++ CmHosts ++ OpwHosts),
     OpaCtx2 = OpaCtx#{
-        hosts => lists:usort(DbHosts ++ CmHosts ++ OpwHosts),
+        hosts => OpaHosts,
         auth => Auth,
         api_version => Version
     },
@@ -156,6 +159,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
             cm_hosts => CmHosts, main_cm_host => MainCmHost,
             mark_cluster_ips_configured => IPsConfigured
         },
+        service_letsencrypt:name() => LetsencryptCtx#{hosts => OpaHosts},
         storages => StorageCtx2
     },
 
@@ -169,13 +173,11 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
     OpwCtx7 = onepanel_maps:get_store([oneprovider, adminEmail], Args, oneprovider_admin_email, OpwCtx6),
     OpwCtx8 = onepanel_maps:get_store([oneprovider, geoLatitude], Args, oneprovider_geo_latitude, OpwCtx7),
     OpwCtx9 = onepanel_maps:get_store([oneprovider, geoLongitude], Args, oneprovider_geo_longitude, OpwCtx8),
-    OpwCtx10 = onepanel_maps:get_store([oneprovider, letsEncryptEnabled], Args,
-        oneprovider_letsencrypt_enabled, OpwCtx9, false),
-    OpwCtx11 = OpwCtx10#{hosts => OpwHosts, cluster_ips => ClusterIPs},
+    OpwCtx10 = OpwCtx9#{hosts => OpwHosts, cluster_ips => ClusterIPs},
 
     {true, rest_replier:handle_service_action_async(Req, service:apply_async(
         service_oneprovider:name(), deploy, #{
-            cluster => ClusterCtx, service_oneprovider:name() => OpwCtx11
+            cluster => ClusterCtx, service_oneprovider:name() => OpwCtx10
         }
     ), Version)};
 

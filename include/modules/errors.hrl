@@ -82,9 +82,11 @@ end).
 -define(ERR_ONEZONE_NOT_AVAILABLE, onezone_not_available).
 -define(ERR_SUBDOMAIN_NOT_AVAILABLE, subdomain_not_available).
 
+-define(ERR_FILE_ACCESS(Path, Reason), {file_access, Path, Reason}).
 -define(ERR_LETSENCRYPT(ErrorURN, Message), {letsencrypt, ErrorURN, Message}).
 -define(ERR_LETSENCRYPT_LIMIT(ErrorURN, Message), {letsencrypt_limit, ErrorURN, Message}).
 -define(ERR_LETSENCRYPT_AUTHORIZATION(Message), {letsencrypt_authorization, Message}).
+-define(ERR_LETSENCRYPT_NOT_SUPPORTED, letsencrypt_not_supported).
 -define(ERR_SUBDOMAIN_DELEGATION_DISABLED, subdomain_delegation_disabled).
 
 -define(ERR_STORAGE_TEST_FILE_CREATE, storage_test_file_create).

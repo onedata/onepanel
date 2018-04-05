@@ -33,6 +33,7 @@
 
 -define(SERVICE_OPA, service_onepanel:name()).
 -define(SERVICE_OP, service_oneprovider:name()).
+-define(SERVICE_LE, service_letsencrypt:name()).
 -define(SERVICE_OZ, service_onezone:name()).
 -define(SERVICE_CB, service_couchbase:name()).
 -define(SERVICE_CM, service_cluster_manager:name()).
@@ -68,8 +69,6 @@ all() ->
 service_oneprovider_unregister_register_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
     service_action(Node, oneprovider, unregister, #{}),
-    service_action(Node, oneprovider, restart_listeners, #{
-    }),
     service_action(Node, oneprovider, register, #{
         oneprovider_geo_latitude => 20.0,
         oneprovider_geo_longitude => 20.0,
@@ -337,6 +336,10 @@ init_per_suite(Config) ->
                             )
                         }
                     }
+                },
+                ?SERVICE_LE => #{
+                    hosts => OpHosts,
+                    letsencrypt_enabled => false
                 }
             },
             ?SERVICE_OP => #{
@@ -346,7 +349,6 @@ init_per_suite(Config) ->
                 oneprovider_name => <<"provider1">>,
                 oneprovider_domain => hd(OpHosts),
                 oneprovider_register => true,
-                oneprovider_letsencrypt_enabled => false,
                 oneprovider_admin_email => <<"admin@onedata.org">>,
                 onezone_domain => OzDomain
             }
@@ -449,10 +451,14 @@ regenerate_web_certificate(Nodes, Domain) ->
         WebKeyPath, WebCertPath, Domain, CAPath, CAPath]),
     {_, []} = rpc:multicall(Nodes, file, copy, [CAPath, WebChainPath]),
 
-    rpc:multicall(Nodes, service_oneprovider, clear_pem_cache, [#{}]),
-    rpc:multicall(Nodes, service_oneprovider, restart_listeners, [#{}]).
+    rpc:multicall(Nodes, service_op_worker, reload_webcert, [#{}]).
 
-
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Reads app config from given Node
+%% @end
+%%--------------------------------------------------------------------
 -spec rpc_get_env(node(), atom()) -> term().
 rpc_get_env(Node, Key) ->
     rpc:call(Node, onepanel_env, get, [Key]).

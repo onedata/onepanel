@@ -70,6 +70,35 @@
         {cacerts_dir, "{{platform_etc_dir}}/cacerts"},
 
         %% ===================================================================
+        %% Let's Encrypt configuration
+        %% ===================================================================
+
+        %% The directory URL of a Certificate Authority server using the ACME protocol
+        %% to be used for automated web certificate issuance
+        {letsencrypt_directory_url, "https://acme-v01.api.letsencrypt.org/directory"},
+        {letsencrypt_directory_url_staging, "https://acme-staging.api.letsencrypt.org/directory"},
+
+        %% Mode of operation with the Let's Encrypt:
+        %% - dry        - run full certification procedure against staging server but do NOT
+        %%                save obtained certificate
+        %% - staging    - obtain certificate from the staging server
+        %% - production - obtain certificate from the main Let's Encrypt server
+        %% - full       - check certification success as with dry and then obtain certificate
+        %%                from the production server
+        {letsencrypt_mode, full},
+
+        %% Directory for saving Let's Encrypt account keys (needed for renewal)
+        {letsencrypt_keys_dir, "{{platform_etc_dir}}/certs/letsencrypt/"},
+
+        %% Configures how many days before expiration the certificate should
+        %% be scheduled for renewal.
+        %% Keep in mind that Let's Encrypt certificates are valid for at most 90 days
+        {webcert_renewal_days, 7},
+
+        %% Seconds between certificate checks
+        {webcert_renew_check_delay, 3600},
+
+        %% ===================================================================
         %% Test certificates
         %% ===================================================================
 
@@ -91,22 +120,6 @@
         %% NOTE: This functionality is devised for test purposes and must not
         %%  be used in production.
         {treat_test_ca_as_trusted, false},
-
-        %% The directory URL of a Certificate Authority server using the ACME protocol
-        %% to be used for automated web certificate issuance
-        {acme_directory_url_staging_url, "https://acme-staging.api.letsencrypt.org/directory"},
-        {acme_directory_url, "https://acme-v01.api.letsencrypt.org/directory"},
-        %% Filename for saving chain certificate obtained via ACME
-        {acme_cacert, "LetsEncrypt.pem"},
-
-        %% Mode of operation with the ACME Certificate Authority (ie. Let's Encrypt):
-        %% - dry        - run full certification procedure against staging server but do NOT
-        %%                save obtained certificate
-        %% - staging    - obtain certificate from the staging server
-        %% - production - obtain certificate from the main Let's Encrypt server
-        %% - full       - check certification success as with dry and then obtain certificate
-        %%                from the production server
-        {acme_mode, full},
 
         %% URL of service used for autodetecting external IP
         {ip_check_url, "http://ip4.icanhazip.com"},

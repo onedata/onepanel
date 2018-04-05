@@ -20,6 +20,11 @@ testing purposes and must be replaced in production.
 The certificates placed here will be used both by onepanel and by underlying
 Oneprovider / Onezone.
 
+### Let's Encrypt account
+If your deployment uses certificates obtained from Let's Encrypt by onepanel,
+a subdirectory `letsencrypt` will be created to store Let's Encrypt
+account credentials.
+
 #### NOTE
 
 You should use certificates signed by a trusted CA to ensure secure connections 

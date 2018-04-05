@@ -20,21 +20,23 @@
 
 % Staging server
 -define(STAGING_DIRECTORY_URL, application:get_env(onepanel,
-    acme_directory_url_staging_url, undefined)).
+    letsencrypt_directory_url_staging, undefined)).
 % Production server
--define(PRODUCTION_DIRECTORY_URL, application:get_env(onepanel, acme_directory_url,
+-define(PRODUCTION_DIRECTORY_URL, application:get_env(onepanel, letsencrypt_directory_url,
     "https://acme-v01.api.letsencrypt.org/directory")).
 
 % Name of the txt record used for authorization.
 % See <https://tools.ietf.org/id/draft-ietf-acme-acme-07.html#rfc.section.8.5>
--define(ACME_TXT_NAME, <<"_acme-challenge">>).
+-define(LETSENCRYPT_TXT_NAME, <<"_acme-challenge">>).
+% Short ttl to mitigate problems when quickly obtaining new certificate
+-define(LETSENCRYPT_TXT_TTL, 10).
 
 % Filenames for temporary Let's Encrypt account keys
--define(PRIVATE_RSA_KEY, "acme_private_key.pem").
--define(PUBLIC_RSA_KEY, "acme_public_key.pem").
+-define(PRIVATE_RSA_KEY, "letsencrypt_private_key.pem").
+-define(PUBLIC_RSA_KEY, "letsencrypt_public_key.pem").
 
 % See run_certification_flow doc for possible values
--define(DEFAULT_MODE, application:get_env(onepanel, acme_mode, full)).
+-define(DEFAULT_MODE, application:get_env(onepanel, letsencrypt_mode, full)).
 
 % Interval between polls about authorization status
 -define(LE_POLL_INTERVAL, timer:seconds(2)).
@@ -57,6 +59,8 @@
 
 % record for storing progress in the certification process
 -record(flow_state, {
+    service :: module(),
+
     % ACME server directory URL
     directory_url :: string(),
 
@@ -88,9 +92,10 @@
 -type token() :: binary().
 -type nonce() :: binary().
 -type url() :: http_client:url().
+-type pem() :: binary().
 
--export([run_certification_flow/1, run_certification_flow/4,
-    run_certification_flow/5]).
+-export([run_certification_flow/2, run_certification_flow/3]).
+-export([clean_keys/0, clean_keys/1]).
 
 %%%===================================================================
 %%% Public API
@@ -101,22 +106,12 @@
 %% @doc
 %% Performs all stages of obtaining new certificate from Let's Encrypt.
 %% Certificate paths are obtained from app config.
+%% Plugin is a service module for interacting with the oneprovider or onezone.
 %% @end
 %%--------------------------------------------------------------------
--spec run_certification_flow(Domain :: binary()) -> ok | no_return().
-run_certification_flow(Domain) ->
-    CertPath = onepanel_env:get(web_cert_file),
-    PrivateKeyPath = onepanel_env:get(web_key_file),
-    ChainPath = onepanel_env:get(web_cert_chain_file),
-    run_certification_flow(Domain, CertPath, PrivateKeyPath, ChainPath,
-        ?DEFAULT_MODE).
-
--spec run_certification_flow(Domain :: binary(), CertPath :: string(),
-    PrivateKeypath :: string(), ChainPath :: string()) ->
-    ok | no_return().
-run_certification_flow(Domain, CertPath, PrivateKeyPath, ChainPath) ->
-    run_certification_flow(Domain, CertPath, PrivateKeyPath, ChainPath,
-        ?DEFAULT_MODE).
+-spec run_certification_flow(Domain :: binary(), Plugin :: module()) -> ok | no_return().
+run_certification_flow(Domain, Plugin) ->
+    run_certification_flow(Domain, Plugin, ?DEFAULT_MODE).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -130,25 +125,21 @@ run_certification_flow(Domain, CertPath, PrivateKeyPath, ChainPath) ->
 %%                from the production server
 %% @end
 %%--------------------------------------------------------------------
--spec run_certification_flow(Domain :: binary(), CertPath :: string(),
-    PrivateKeyPath :: string(), ChainPath :: string(),
+-spec run_certification_flow(Domain :: binary(), Plugin :: module(),
     Mode :: dry | staging | production | full) -> ok | no_return().
-run_certification_flow(Domain, CertPath, PrivateKeyPath, ChainPath, Mode) ->
-
-    {ok, KeysDir} = generate_keys(),
+run_certification_flow(Domain, Plugin, Mode) ->
 
     Mode2 = case {Mode, ?STAGING_DIRECTORY_URL} of
         {production, _} -> production;
         {full, undefined} ->
-            ?info(
-                "No staging ACME server URL defined. Skipping staging run and running in production mode."),
+            ?info("No staging ACME server URL defined. Skipping staging run and running in production mode."),
             production;
         {full, _} ->
-            ?info(
-                "Starting test run against staging server before actual Let's Encrypt certification"),
+            ?info("Let's Encrypt: Starting test run against staging server before actual Let's"
+            "Encrypt certification"),
             full;
         {_, undefined} -> throw("No staging ACME server URL defined. Cannot perform test run"),
-            throw({error, no_acme_staging_server});
+            throw({error, no_letsencrypt_staging_server});
         {_, _} -> Mode
     end,
 
@@ -163,21 +154,41 @@ run_certification_flow(Domain, CertPath, PrivateKeyPath, ChainPath, Mode) ->
         _ -> ?STAGING_DIRECTORY_URL
     end,
 
+    KeysDir = filename:join(onepanel_env:get(letsencrypt_keys_dir), atom_to_list(ModeName)),
+    SaveCert = Mode2 == production orelse Mode2 == staging,
+
+    CertPath = onepanel_env:get(web_cert_file),
+    KeyPath = onepanel_env:get(web_key_file),
+    ChainPath = onepanel_env:get(web_cert_chain_file),
+
+    case SaveCert of
+        true -> ensure_files_access([CertPath, KeyPath, ChainPath]);
+        false -> ok
+    end,
+
+    % passing state around is useful for managing anti-replay nonces
     State = #flow_state{
+        service = Plugin,
         directory_url = DirectoryURL,
         jws_keys_dir = KeysDir,
         cert_path = CertPath,
-        cert_private_key_path = PrivateKeyPath,
+        cert_private_key_path = KeyPath,
         chain_path = ChainPath,
         save_cert = Mode2 == production orelse Mode2 == staging,
         domain = Domain},
 
     try
-        % passing state around is useful for managing anti-replay nonces
+        case read_keys(KeysDir) of
+            {ok, _, _} ->
+                ?info("Let's Encrypt: reusing account from \"~s\"", [filename:absname(KeysDir)]);
+            error ->
+                ?info("Let's Encrypt: generating new Let's Encrypt account keys"),
+                ok = generate_keys(KeysDir)
+        end,
 
         ?info("Let's Encrypt ~s run: get endpoints", [ModeName]),
         {ok, State2} = get_directory(State),
-        ?info("Let's Encrypt ~s run: register new account", [ModeName]),
+        ?info("Let's Encrypt ~s run: register account", [ModeName]),
         {ok, State3} = register_account(State2),
         ?info("Let's Encrypt ~s run: authorize for the domain ~s", [ModeName, Domain]),
         {ok, State4} = authorize(State3),
@@ -186,13 +197,11 @@ run_certification_flow(Domain, CertPath, PrivateKeyPath, ChainPath, Mode) ->
         ?info("Let's Encrypt ~s run: obtain certificate", [ModeName]),
         {ok, _State6} = get_certificate(State5)
     after
-        catch clean_keys(KeysDir),
-        catch clean_txt_record()
+        catch clean_txt_record(Plugin)
     end,
 
     case Mode2 of
-        full -> run_certification_flow(Domain, CertPath, PrivateKeyPath, ChainPath,
-            production);
+        full -> run_certification_flow(Domain, Plugin, production);
         _ -> ok
     end.
 
@@ -220,27 +229,33 @@ get_directory(#flow_state{directory_url = URL} = State) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec register_account(#flow_state{}) -> {ok, #flow_state{}}.
-register_account(State) ->
+register_account(#flow_state{service = Service} = State) ->
     #flow_state{directory = #directory{new_reg = NewRegURL}} = State,
 
-    {ok, #service{ctx = Ctx}} = service:get(service_oneprovider:name()),
-    AdminEmail = service_oneprovider:get_admin_email(Ctx),
-    Payload = #{resource => <<"new-reg">>,
-        contact => [<<"mailto:", AdminEmail/binary>>]},
+    Contact = case Service:get_admin_email(#{}) of
+        undefined -> [];
+        Email -> [<<"mailto:", Email/binary>>]
+    end,
+    Payload = #{resource => <<"new-reg">>, contact => Contact},
 
-    % Do not allow more than 1 attempt since it can introduce
-    % "account already registered for that key" error
-    {ok, _, Headers, State2} = http_post(NewRegURL, Payload, 201, State, 1),
 
-    #{<<"Link">> := TermsHeader, <<"Location">> := AgreementURL} = Headers,
+    % Let's Encrypt incorrectly returns 409 on registering existing account
+    {ok, _, Headers, State2} = http_post(NewRegURL, Payload, [201, 409], State),
 
-    % extract usage terms URL needed to send ToS agreement request
-    % example input:
-    % <https://letsencrypt.org/documents/LE-SA-v1.2-November-15-2017.pdf>; rel="terms-of-service"
-    {match, [TermsURL]} =
-        re:run(TermsHeader, <<"^<(.*)>">>, [{capture, [1], binary}]),
+    case Headers of
+        #{<<"Link">> := TermsHeader, <<"Location">> := AgreementURL} ->
+            % extract usage terms URL needed to send ToS agreement request
+            % example input:
+            % <https://letsencrypt.org/documents/LE-SA-v1.2-November-15-2017.pdf>; rel="terms-of-service"
+            {match, [TermsURL]} =
+                re:run(TermsHeader, <<"^<(.*)>">>, [{capture, [1], binary}]),
 
-    agree_to_terms(AgreementURL, TermsURL, State2).
+            agree_to_terms(AgreementURL, TermsURL, State2);
+        _ ->
+            % existing account, no agreement needed
+            {ok, State2}
+    end.
+
 
 
 %%--------------------------------------------------------------------
@@ -255,6 +270,7 @@ agree_to_terms(URL, TermsURL, State) ->
         <<"agreement">> => TermsURL},
     {ok, _, _, State2} = http_post(URL, Payload, 202, State),
     {ok, State2}.
+
 
 %%--------------------------------------------------------------------
 %% @private
@@ -292,13 +308,13 @@ authorize(#flow_state{domain = Domain} = State) ->
 %% Handles fullfilling authorization challange.
 %% @end
 %%--------------------------------------------------------------------
-handle_challenge(URI, Token, #flow_state{} = State) ->
+handle_challenge(URI, Token, #flow_state{service = Service} = State) ->
     AuthString = make_auth_string(Token, State),
     TxtValue = base64url:encode(crypto:hash(sha256, AuthString)),
 
     % requires oz connection
-    ok = service_oneprovider:set_txt_record(#{txt_record_name => ?ACME_TXT_NAME,
-        txt_record_value => TxtValue}),
+    ok = Service:set_txt_record(#{txt_name => ?LETSENCRYPT_TXT_NAME,
+        txt_value => TxtValue, txt_ttl => ?LETSENCRYPT_TXT_TTL}),
 
     Payload = #{<<"resource">> => <<"challenge">>,
         <<"type">> => <<"dns-01">>,
@@ -357,8 +373,11 @@ get_certificate(#flow_state{domain = Domain} = State) ->
 
     case State2#flow_state.save_cert of
         true ->
-            {ok, State3} = get_chain_certificate(State2, maps:get(<<"Link">>, Headers)),
-            save_cert(State3, CertPem, KeyPem),
+            {ok, State3, ChainPem} = get_chain_certificate(State2, maps:get(<<"Link">>, Headers)),
+            save_cert(State3, CertPem, KeyPem, ChainPem),
+
+            ?info("Let's Encrypt: saved new certificate at ~s",
+                [filename:absname(State3#flow_state.cert_path)]),
             {ok, State3};
         _ -> {ok, State2}
     end.
@@ -370,8 +389,9 @@ get_certificate(#flow_state{domain = Domain} = State) ->
 %% and downloads the CA certificates it is pointing to.
 %% @end
 %%--------------------------------------------------------------------
--spec get_chain_certificate(State :: #flow_state{}, Link :: binary()) -> tuple().
-get_chain_certificate(#flow_state{chain_path = ChainPath} = State, Link) ->
+-spec get_chain_certificate(State :: #flow_state{}, Link :: binary()) ->
+    {ok, #flow_state{}, pem()}.
+get_chain_certificate(State, Link) ->
     % example Link value:
     % <https://acme-v01.api.letsencrypt.org/acme/issuer-cert>;rel=\"up\"
     {match, [ChainURL]} =
@@ -380,10 +400,7 @@ get_chain_certificate(#flow_state{chain_path = ChainPath} = State, Link) ->
     {ok, {raw, ChainDer}, _, State2} = http_get(ChainURL, State),
     ChainPem = public_key:pem_encode([{'Certificate', ChainDer, not_encrypted}]),
 
-    Nodes = service_onepanel:get_nodes(),
-    ok = utils:save_file_on_hosts(Nodes, ChainPath, ChainPem),
-
-    {ok, State2}.
+    {ok, State2, ChainPem}.
 
 
 %%%===================================================================
@@ -426,29 +443,39 @@ http_get(URL, State, Attempts) ->
 %%--------------------------------------------------------------------
 %% @doc
 %% Performs post request with given Payload packaged as JWS.
-%% Verifies response status and decodes tries to parse JSON.
+%% Verifies response status and decodes body as JSON.
 %% If returned body cannot be parsed as JSON it is returned unchanged.
 %% @end
 %%--------------------------------------------------------------------
--spec http_post(URL :: url(), Payload :: term(),
-    ExpectedStatus :: http_client:code(), State :: #flow_state{}) ->
-    {ok, Response :: map(), Headers :: http_client:headers(), #flow_state{}} |
-    {ok, {raw, binary()}, Headers :: http_client:headers(), #flow_state{}} |
-    {error, Reason :: term(), #flow_state{}}.
-http_post(URL, Payload, ExpectedStatus, #flow_state{} = State) ->
-    http_post(URL, Payload, ExpectedStatus, State, ?POST_RETRIES).
+-spec http_post(
+    URL :: url(), Payload :: term(),
+    OkCodes :: Status | [Status], State :: #flow_state{}
+) ->
+    {ok, Response, Headers, #flow_state{}} | {error, Reason :: term(), #flow_state{}}
+    when
+    Status :: [http_client:code()],
+    Response :: map() | {raw, binary()},
+    Headers :: http_client:headers().
+http_post(URL, Payload, OkCodes, #flow_state{} = State) ->
+    http_post(URL, Payload, OkCodes, State, ?POST_RETRIES).
 
 
 -spec http_post(URL :: url(), Payload :: term(),
-    ExpectedStatus :: http_client:code(), State :: #flow_state{},
-    Retries :: non_neg_integer()) ->
-    {ok, Response :: map(), Headers :: http_client:headers(), #flow_state{}} |
-    {ok, {raw, binary()}, Headers :: http_client:headers(), #flow_state{}} |
-    {error, Reason :: term(), #flow_state{}}.
-http_post(_URL, _Payload, _ExpectedStatus, _State, 0) ->
+    OkCodes :: Status | [Status], State :: #flow_state{},
+    Retrues :: non_neg_integer()) ->
+    {ok, Response, Headers, #flow_state{}} | {error, Reason :: term(), #flow_state{}}
+    when
+    Status :: [http_client:code()],
+    Response :: map() | {raw, binary()},
+    Headers :: http_client:headers().
+http_post(URL, Payload, OkCode, State, Attempts)
+    when is_integer(OkCode) ->
+    http_post(URL, Payload, [OkCode], State, Attempts);
+
+http_post(_URL, _Payload, _OkCodes, _State, 0) ->
     ?ERR_LETSENCRYPT(<<"connection">>, "Could not connect to Let's Encrypt.");
 
-http_post(URL, Payload, ExpectedStatus, #flow_state{} = State, Attempts) ->
+http_post(URL, Payload, OkCodes, #flow_state{} = State, Attempts) ->
     {ok, Body, State2} = encode(Payload, State),
 
     case http_client:post(URL, #{}, Body, ?HTTP_OPTS) of
@@ -459,43 +486,48 @@ http_post(URL, Payload, ExpectedStatus, #flow_state{} = State, Attempts) ->
                 throw:invalid_json -> {raw, ResponseRaw}
             end,
 
-            case {Status, Response} of
-                {ExpectedStatus, _} ->
+            case lists:member(Status, OkCodes) of
+                true ->
                     {ok, Response, Headers, push_nonce(Nonce, State2)};
-                {400, #{<<"type">> := <<"urn:acme:error:badNonce">>}} ->
-                    % badNonce - retry with newly received nonce
-                    http_post(URL, Payload, ExpectedStatus, push_nonce(Nonce, State2),
-                        Attempts - 1);
-                {400, #{
-                    <<"type">> := <<"urn:acme:error:connection">> = ErrorType,
-                    <<"detail">> := ErrorMessage}} ->
-                    % Handled as a special case to provide explanation for the user
-                    ?error("Let's Encrypt response status: ~B, expected: ~B~n"
-                    "Response headers: ~p~nResponse body:~p",
-                        [Status, ExpectedStatus, Headers, Response]),
-                    ?throw_error(?ERR_LETSENCRYPT_AUTHORIZATION(ErrorMessage));
-                {429, #{<<"type">> := ErrorType, <<"detail">> := ErrorMessage}} ->
-                    % Rate limits reached error
-                    % Handled as a special case to provide explanation for the user
-                    ?error("Let's Encrypt limit reached. Response headers: ~p~nResponse body:~p",
-                        [Headers, Response]),
-                    ?throw_error(?ERR_LETSENCRYPT_LIMIT(ErrorType, ErrorMessage));
-                {_, #{<<"type">> := ErrorType, <<"detail">> := ErrorMessage}} ->
-                    ?error("Let's Encrypt response status: ~B, expected: ~B~n"
-                    "Response headers: ~p~nResponse body:~p",
-                        [Status, ExpectedStatus, Headers, Response]),
-                    ?throw_error(?ERR_LETSENCRYPT(ErrorType, ErrorMessage));
-                {_, Response} ->
-                    ?error("Let's Encrypt response status: ~B, expected: ~B~n"
-                    "Response headers: ~p~nResponse body:~p",
-                        [Status, ExpectedStatus, Headers, Response]),
-                    ?throw_error(
-                        ?ERR_LETSENCRYPT(<<"">>, "Unexpected Let's Encrypt response"))
+                false ->
+                    OkCodesStr = lists:join(" or ", lists:map(fun erlang:integer_to_list/1, OkCodes)),
+                    % Identify errors deserving customized handling
+                    case {Status, Response} of
+                        {400, #{<<"type">> := <<"urn:acme:error:badNonce">>}} ->
+                            % badNonce - retry with newly received nonce
+                            http_post(URL, Payload, OkCodes, push_nonce(Nonce, State2),
+                                Attempts - 1);
+                        {400, #{
+                            <<"type">> := <<"urn:acme:error:connection">> = ErrorType,
+                            <<"detail">> := ErrorMessage}} ->
+                            % Handled as a special case to provide explanation for the user
+                            ?error("Let's Encrypt response status: ~B, expected ~s~n"
+                            "Response headers: ~p~nResponse body:~p",
+                                [Status, OkCodesStr, Headers, Response]),
+                            ?throw_error(?ERR_LETSENCRYPT_AUTHORIZATION(ErrorMessage));
+                        {429, #{<<"type">> := ErrorType, <<"detail">> := ErrorMessage}} ->
+                            % Rate limits reached error
+                            % Handled as a special case to provide explanation for the user
+                            ?error("Let's Encrypt limit reached. Response headers: ~p~nResponse body:~p",
+                                [Headers, Response]),
+                            ?throw_error(?ERR_LETSENCRYPT_LIMIT(ErrorType, ErrorMessage));
+                        {_, #{<<"type">> := ErrorType, <<"detail">> := ErrorMessage}} ->
+                            ?error("Let's Encrypt response status: ~B, expected ~s~n"
+                            "Response headers: ~p~nResponse body:~p",
+                                [Status, OkCodesStr, Headers, Response]),
+                            ?throw_error(?ERR_LETSENCRYPT(ErrorType, ErrorMessage));
+                        {_, Response} ->
+                            ?error("Let's Encrypt response status: ~B, expected ~s~n"
+                            "Response headers: ~p~nResponse body:~p",
+                                [Status, OkCodesStr, Headers, Response]),
+                            ?throw_error(
+                                ?ERR_LETSENCRYPT(<<"">>, "Unexpected Let's Encrypt response"))
+                    end
             end;
 
         {error, Reason} ->
             ?error("Error performing POST request to ~s: ~p", [URL, {error, Reason}]),
-            http_post(URL, Payload, ExpectedStatus, State2, Attempts - 1)
+            http_post(URL, Payload, OkCodes, State2, Attempts - 1)
     end.
 
 
@@ -504,28 +536,36 @@ http_post(URL, Payload, ExpectedStatus, #flow_state{} = State, Attempts) ->
 %% Loads keys used for communication with Let's Encrypt
 %% @end
 %%--------------------------------------------------------------------
--spec read_keys(KeyPath :: string()) -> {ok, #'RSAPrivateKey'{}, #'RSAPublicKey'{}}.
+-spec read_keys(KeyPath :: string()) ->
+    {ok, #'RSAPrivateKey'{}, #'RSAPublicKey'{}} | error.
 read_keys(KeysDir) ->
     PrivateKeyFile = filename:join([KeysDir, ?PRIVATE_RSA_KEY]),
     PublicKeyFile = filename:join([KeysDir, ?PUBLIC_RSA_KEY]),
-    {ok, #'RSAPrivateKey'{} = Key} = onepanel_jws:load_key(PrivateKeyFile),
-    {ok, #'RSAPublicKey'{} = Pubkey} = onepanel_jws:load_key(PublicKeyFile),
-    {ok, Key, Pubkey}.
+
+    case {
+        onepanel_jws:load_key(PrivateKeyFile),
+        onepanel_jws:load_key(PublicKeyFile)
+    } of
+        {{ok, #'RSAPrivateKey'{} = Key}, {ok, #'RSAPublicKey'{} = Pubkey}} ->
+            {ok, Key, Pubkey};
+        _ -> error
+    end.
 
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Creates keys used for communication with Let's Encrypt and returns
-%% path to the temporary directory where its stored.
+%% Generates keys for communication with Let's Encrypt.
 %% @end
 %%--------------------------------------------------------------------
--spec generate_keys() -> {ok, string()}.
-generate_keys() ->
-    KeysDir = utils:mkdtemp(),
+-spec generate_keys(KeysDir :: string()) -> ok.
+generate_keys(KeysDir) ->
+    % trailing slash necessary to create the directory itself
+    % and not only parent directories
+    ok = filelib:ensure_dir(KeysDir ++ "/"),
+
     PrivateKeyFile = filename:join([KeysDir, ?PRIVATE_RSA_KEY]),
     PublicKeyFile = filename:join([KeysDir, ?PUBLIC_RSA_KEY]),
-    ok = onepanel_jws:generate_keys(PrivateKeyFile, PublicKeyFile),
-    {ok, KeysDir}.
+    onepanel_jws:generate_keys(PrivateKeyFile, PublicKeyFile).
 
 
 %%--------------------------------------------------------------------
@@ -534,9 +574,23 @@ generate_keys() ->
 %% Deletes keys temporary directory.
 %% @end
 %%--------------------------------------------------------------------
+-spec clean_keys() -> ok.
+clean_keys() ->
+    lists:foreach(fun(Mode) ->
+        Dir = filename:join(onepanel_env:get(letsencrypt_keys_dir), Mode),
+        clean_keys(Dir)
+    end, [dry, staging, production]).
+
 -spec clean_keys(KeysDir :: string()) -> ok.
 clean_keys(KeysDir) ->
-    utils:rmtempdir(KeysDir).
+    lists:foreach(fun(File) ->
+        Path = filename:join(KeysDir, File),
+        case filelib:is_regular(Path) of
+            true -> file:delete(Path);
+            _ -> ok
+        end
+    end, [?PRIVATE_RSA_KEY, ?PUBLIC_RSA_KEY]).
+
 
 %%--------------------------------------------------------------------
 %% @private
@@ -544,10 +598,10 @@ clean_keys(KeysDir) ->
 %% Deletes txt record set for Let's Encrypt authorization
 %% @end
 %%--------------------------------------------------------------------
--spec clean_txt_record() -> ok.
-clean_txt_record() ->
-    ok = service_oneprovider:remove_txt_record(
-        #{txt_record_name => ?ACME_TXT_NAME}).
+-spec clean_txt_record(Service :: module()) -> ok.
+clean_txt_record(Service) ->
+    ok = Service:remove_txt_record(
+        #{txt_name => ?LETSENCRYPT_TXT_NAME}).
 
 
 %%--------------------------------------------------------------------
@@ -630,10 +684,50 @@ decode_directory(Map) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec save_cert(State :: #flow_state{},
-    CertPem :: onepanel_ssl:pem(), KeyPem :: onepanel_ssl:pem()) -> ok.
-save_cert(#flow_state{cert_private_key_path = KeyPath, cert_path = CertPath},
-    CertPem, KeyPem) ->
+    CertPem :: onepanel_ssl:pem(), KeyPem :: onepanel_ssl:pem(), ChainPem :: onepanel_ssl:pem()) ->
+    ok.
+save_cert(#flow_state{
+    cert_private_key_path = KeyPath,
+    cert_path = CertPath,
+    chain_path = ChainPath}, CertPem, KeyPem, ChainPem) ->
     Nodes = service_onepanel:get_nodes(),
 
+    ok = utils:save_file_on_hosts(Nodes, KeyPath, KeyPem),
     ok = utils:save_file_on_hosts(Nodes, CertPath, CertPem),
-    ok = utils:save_file_on_hosts(Nodes, KeyPath, KeyPem).
+    ok = utils:save_file_on_hosts(Nodes, ChainPath, ChainPem).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Ensures all given paths are writable. Creates files if they
+%% do not exist.
+%% @end
+%%--------------------------------------------------------------------
+-spec ensure_files_access([string()]) -> ok | no_return().
+ensure_files_access(Paths) ->
+    lists:foreach(fun(Path) ->
+        case check_write_access(Path) of
+            ok -> ok;
+            {error, Reason} -> ?throw_error(?ERR_FILE_ACCESS(Path, Reason))
+        end
+    end, Paths).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% If Path points to exisiting file checks if it can be opened for writing.
+%% Otherwise attempts to create file at given path.
+%% @end
+%%--------------------------------------------------------------------
+-spec check_write_access(Path :: string()) -> ok | {error, Reason :: term()}.
+check_write_access(Path) ->
+    case filelib:ensure_dir(Path) of
+        ok ->
+            case file:open(Path, [write, read]) of
+                {ok, File} -> ok = file:close(File);
+                Error -> Error
+            end;
+        Error -> Error
+    end.
