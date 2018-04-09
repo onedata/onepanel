@@ -256,21 +256,22 @@ set_node_ip(#{name := ServiceName, app_config_file := AppConfigFile} = Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Creates response about cluster IPs with all oz_worker
-%% nodes and their IPs
+%% @doc Creates response about cluster IPs with all worker
+%% hosts and their IPs
 %% @end
 %%--------------------------------------------------------------------
--spec get_cluster_ips(service:ctx()) -> list().
+-spec get_cluster_ips(service:ctx()) ->
+    #{isConfigured := boolean(), hosts := #{binary() => binary()}}.
 get_cluster_ips(#{name := ServiceName} = _Ctx) ->
     Pairs = lists:map(fun(Host) ->
         Node = onepanel_cluster:host_to_node(ServiceName, Host),
         {_, _, _, _} = IP = rpc:call(Node, node_manager, get_ip_address, []),
-        {Host, onepanel_ip:ip4_to_binary(IP)}
+        {binary:list_to_bin(Host), onepanel_ip:ip4_to_binary(IP)}
     end, (service:get_module(ServiceName)):get_hosts()),
-    [
-        {isConfigured, are_cluster_ips_configured(#{name => ServiceName})},
-        {hosts, Pairs}
-    ].
+    #{
+        isConfigured => are_cluster_ips_configured(#{name => ServiceName}),
+        hosts => maps:from_list(Pairs)
+    }.
 
 
 %%--------------------------------------------------------------------
