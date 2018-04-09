@@ -24,7 +24,7 @@
 -export([format_error/2, format_service_status/2, format_service_host_status/2,
     format_service_task_results/1, format_service_step/3, format_configuration/1]).
 
--type response() :: proplists:proplist() | term().
+-type response() :: maps:map() | term().
 
 %%%===================================================================
 %%% API functions
@@ -103,10 +103,10 @@ handle_session(Req, SessionId, Username) ->
         secure => true,
         http_only => true
     }),
-    Body = json_utils:encode([
-        {<<"sessionId">>, SessionId},
-        {<<"username">>, Username}
-    ]),
+    Body = json_utils:encode(
+        #{<<"sessionId">> => SessionId,
+          <<"username">> => Username}
+    ),
     cowboy_req:set_resp_body(Body, Req2).
 
 
@@ -120,18 +120,16 @@ format_error(Type, #error{reason = #service_error{} = Error}) ->
 
 format_error(_Type, #service_error{service = Service, action = Action,
     module = Module, function = Function, bad_results = Results}) ->
-    [
-        {<<"error">>, <<"Service Error">>},
-        {<<"description">>, onepanel_utils:join(["Action '", Action,
-            "' for a service '", Service, "' terminated with an error."])},
-        {<<"module">>, Module},
-        {<<"function">>, Function},
-        {<<"hosts">>, format_service_hosts_results(Results)}
-    ];
+        #{<<"error">> => <<"Service Error">>,
+          <<"description">> => onepanel_utils:join(["Action '", Action,
+            "' for a service '", Service, "' terminated with an error."]),
+          <<"module">> => Module,
+          <<"function">> => Function,
+          <<"hosts">> => format_service_hosts_results(Results)};
 
 format_error(Type, Reason) ->
     {Name, Description} = onepanel_errors:translate(Type, Reason),
-    [{<<"error">>, Name}, {<<"description">>, Description}].
+    #{<<"error">> => Name, <<"description">> => Description}.
 
 
 %%--------------------------------------------------------------------
@@ -142,12 +140,11 @@ format_error(Type, Reason) ->
     Results :: service_executor:results()) -> Response :: response().
 format_service_status(SModule, Results) ->
     {HostsResults, []} = select_service_step(SModule, status, Results),
-    lists:map(fun
-        ({Node, Result}) -> {
+    lists:foldl(fun
+        ({Node, Result}, Acc) -> maps:put(
             onepanel_utils:convert(onepanel_cluster:node_to_host(Node), binary),
-            Result
-        }
-    end, HostsResults).
+            Result, Acc)
+    end, #{}, HostsResults).
 
 
 %%--------------------------------------------------------------------
@@ -172,30 +169,25 @@ format_service_task_results(#error{} = Error) ->
 format_service_task_results(Results) ->
     case lists:reverse(Results) of
         [{task_finished, {_, _, #error{} = Error}}] ->
-            [{<<"status">>, <<"error">>} | format_error(error, Error)];
+            maps:put(<<"status">>, <<"error">>, format_error(error, Error));
 
         [{task_finished, {Service, Action, #error{}}}, Step | Steps] ->
             {Module, Function, {_, BadResults}} = Step,
-            [
-                {<<"status">>, <<"error">>},
-                {<<"steps">>, format_service_task_steps(lists:reverse(Steps))} |
+            maps:merge( #{ 
+                <<"status">> => <<"error">>,
+                <<"steps">> => format_service_task_steps(lists:reverse(Steps))},
                 format_error(error, #service_error{
                     service = Service, action = Action, module = Module,
                     function = Function, bad_results = BadResults
-                })
-            ];
+                }));
 
-        [{task_finished, {_, _, ok}} | Steps] ->
-            [
-                {<<"status">>, <<"ok">>},
-                {<<"steps">>, format_service_task_steps(lists:reverse(Steps))}
-            ];
+        [{task_finished, {_, _, ok}} | Steps] -> #{
+                <<"status">> => <<"ok">>,
+                <<"steps">> => format_service_task_steps(lists:reverse(Steps))};
 
-        Steps ->
-            [
-                {<<"status">>, <<"running">>},
-                {<<"steps">>, format_service_task_steps(lists:reverse(Steps))}
-            ]
+        Steps -> #{
+                <<"status">> => <<"running">>,
+                <<"steps">> => format_service_task_steps(lists:reverse(Steps))}
     end.
 
 
@@ -207,7 +199,10 @@ format_service_task_results(Results) ->
     Results :: service_executor:results()) -> Response :: response().
 format_service_step(Module, Function, Results) ->
     {[{_, HostResult}], []} = select_service_step(Module, Function, Results),
-    HostResult.
+    case erlang:is_list(HostResult) of
+        true -> json_utils:list_to_map(HostResult);
+        false -> HostResult
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -239,23 +234,20 @@ format_configuration(SModule) ->
                     null
             end
     end,
-    [
-        {<<"cluster">>, [
-            {<<"databases">>, [
-                {<<"hosts">>, onepanel_utils:convert(DbHosts, {seq, binary})}
-            ]},
-            {<<"managers">>, [
-                {<<"mainHost">>, onepanel_utils:convert(MainCmHost, binary)},
-                {<<"hosts">>, onepanel_utils:convert(CmHosts, {seq, binary})}
-            ]},
-            {<<"workers">>, [
-                {<<"hosts">>, onepanel_utils:convert(WrkHosts, {seq, binary})}
-            ]}
-        ]},
-        {SModule:name(), [
-            {<<"name">>, SName}
-        ]}
-    ].
+    #{
+        <<"cluster">> => #{
+            <<"databases">> => #{
+                <<"hosts">> => onepanel_utils:convert(DbHosts, {seq, binary})},
+            <<"managers">> => #{
+                <<"mainHost">> => onepanel_utils:convert(MainCmHost, binary),
+                <<"hosts">> => onepanel_utils:convert(CmHosts, {seq, binary})},
+            <<"workers">> => #{
+                <<"hosts">> => onepanel_utils:convert(WrkHosts, {seq, binary})}
+        },
+        SModule:name() => #{
+            <<"name">> => SName
+        }
+    }.
 
 %%%===================================================================
 %%% Internal functions
@@ -301,13 +293,11 @@ format_service_task_steps(Steps) ->
 -spec format_service_hosts_results(Results :: onepanel_rpc:results()) ->
     Response :: response().
 format_service_hosts_results(Results) ->
-    lists:map(fun
-        ({Node, #error{} = Error}) -> {
+    lists:foldl(fun
+        ({Node, #error{} = Error}, Acc) -> maps:put(
             onepanel_utils:convert(onepanel_cluster:node_to_host(Node), binary),
-            format_error(error, Error)
-        };
-        ({Node, Result}) -> {
+            format_error(error, Error), Acc);
+        ({Node, Result}, Acc) -> maps:put(
             onepanel_utils:convert(onepanel_cluster:node_to_host(Node), binary),
-            Result
-        }
-    end, Results).
+            Result, Acc)
+    end, #{}, Results).

@@ -88,11 +88,11 @@ key_to_jwk_map(#'RSAPublicKey'{publicExponent = E, modulus = N}) ->
     ProtectedHeader :: map(), Key :: #'RSAPrivateKey'{}) ->
     {ok, map()} | {error, unsupported_alg} | no_return().
 sign(Payload, ProtectedHeader, Key) when not(is_binary(Payload)) ->
-    sign(json_utils:encode_map(Payload), ProtectedHeader, Key);
+    sign(json_utils:encode(Payload), ProtectedHeader, Key);
 sign(Payload, #{<<"alg">> := <<"RS256">>} = ProtectedHeader,
     #'RSAPrivateKey'{} = Key) ->
 
-    ProtectedB64 = base64url:encode(json_utils:encode_map(ProtectedHeader)),
+    ProtectedB64 = base64url:encode(json_utils:encode(ProtectedHeader)),
     PayloadB64 = base64url:encode(Payload),
 
     Content = <<ProtectedB64/binary, $., PayloadB64/binary>>,
@@ -117,5 +117,5 @@ sign(Payload, #{} = ProtectedHeader, #'RSAPrivateKey'{} = Key) ->
 thumbprint(Key) ->
     % jwk thumbprint requires JSON keys to be in alphabetical order
     KeyParams = lists:sort(maps:to_list(key_to_jwk_map(Key))),
-    JSON = json_utils:encode_map({KeyParams}),
+    JSON = json_utils:encode({KeyParams}),
     base64url:encode(crypto:hash(sha256, JSON)).

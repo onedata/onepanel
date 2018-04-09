@@ -429,7 +429,7 @@ http_get(URL, State, Attempts) ->
     case http_client:get(URL, #{}, <<>>, ?HTTP_OPTS) of
         {ok, _Status, #{<<"Replay-Nonce">> := Nonce} = Headers, BodyRaw} ->
             Body = try
-                json_utils:decode_map(BodyRaw)
+                json_utils:decode(BodyRaw)
             catch
                 throw:invalid_json -> {raw, BodyRaw}
             end,
@@ -481,7 +481,7 @@ http_post(URL, Payload, OkCodes, #flow_state{} = State, Attempts) ->
     case http_client:post(URL, #{}, Body, ?HTTP_OPTS) of
         {ok, Status, #{<<"Replay-Nonce">> := Nonce} = Headers, ResponseRaw} ->
             Response = try
-                json_utils:decode_map(ResponseRaw)
+                json_utils:decode(ResponseRaw)
             catch
                 throw:invalid_json -> {raw, ResponseRaw}
             end,
@@ -645,7 +645,7 @@ encode(Payload, #flow_state{jws_keys_dir = KeysDir} = State) ->
     ProtectedHeader = #{<<"jwk">> => JWK, <<"nonce">> => Nonce},
 
     {ok, BodyMap} = onepanel_jws:sign(Payload, ProtectedHeader, Key),
-    {ok, json_utils:encode_map(BodyMap), State2}.
+    {ok, json_utils:encode(BodyMap), State2}.
 
 
 %%--------------------------------------------------------------------

@@ -54,69 +54,74 @@
     {<<"/provider/spaces/someSpaceId">>, delete}
 ]).
 
--define(PROVIDER_DETAILS_JSON, [
-    {<<"id">>, <<"someId">>}, {<<"name">>, <<"someName">>},
-    {<<"subdomainDelegation">>, false}, {<<"domain">>, <<"someDomain">>},
-    {<<"geoLatitude">>, 10.0}, {<<"geoLongitude">>, 20.0}
-]).
+-define(PROVIDER_DETAILS_JSON, #{
+    <<"domain">> => <<"someDomain">>,
+    <<"geoLatitude">> => 10.0, 
+    <<"geoLongitude">> => 20.0,
+    <<"id">> => <<"someId">>, 
+    <<"name">> => <<"someName">>,
+    <<"subdomainDelegation">> => false
+}).
 
--define(SPACE_JSON, [{<<"id">>, <<"someId1">>}]).
+-define(SPACE_JSON, #{<<"id">> => <<"someId1">>}).
 
--define(SPACES_JSON, [
-    {<<"ids">>, [<<"someId1">>, <<"someId2">>, <<"someId3">>]}
-]).
+-define(SPACES_JSON, #{
+    <<"ids">> => [<<"someId1">>, <<"someId2">>, <<"someId3">>]
+}).
 
--define(CLUSTER_IPS_JSON(_Hosts), [
-    {<<"isConfigured">>, false},
-    {<<"hosts">>,
-        lists:map(fun(Host) ->
-            {list_to_binary(Host), <<"1.2.3.4">>}
-        end, _Hosts)
+-define(CLUSTER_IPS_JSON(_Hosts), #{
+    <<"hosts">> =>
+        lists:foldl(fun(Host, Acc) ->
+            maps:put(list_to_binary(Host), <<"1.2.3.4">>, Acc)
+        end, #{}, _Hosts),
+    <<"isConfigured">> => false
+}).
+
+-define(STORAGE_IMPORT_DETAILS_JSON, #{
+    <<"someIntegerDetail">> => 1,
+    <<"strategy">> => <<"someStrategy">>
+}).
+
+-define(STORAGE_UPDATE_DETAILS_JSON, #{
+    <<"someBooleanDetail">> => false,
+    <<"someIntegerDetail">> => 2,
+    <<"strategy">> => <<"someStrategy">>
+}).
+
+-define(SPACE_DETAILS_JSON, #{
+    <<"id">> => <<"someId">>, 
+    <<"name">> => <<"someName">>,
+    <<"storageId">> => <<"someId">>,
+    <<"storageImport">> => ?STORAGE_IMPORT_DETAILS_JSON,
+    <<"storageUpdate">> => ?STORAGE_UPDATE_DETAILS_JSON,
+    <<"supportingProviders">> => #{
+        <<"someId1">> => 1024, 
+        <<"someId2">> => 2048, 
+        <<"someId3">> => 4096
+    }
+}).
+
+-define(AUTOCLEANING_REPORTS, [
+    #{
+        <<"bytesToRelease">> => 125,
+        <<"filesNumber">> => 10,
+        <<"releasedBytes">> => 100,
+        <<"startedAt">> => <<"2004-02-12T15:19:21.423Z">>,
+        <<"stoppedAt">> => <<"2004-02-12T15:29:11.598Z">>
+    },
+    #{
+        <<"bytesToRelease">> => 1313125,
+        <<"filesNumber">> => 1056,
+        <<"releasedBytes">> => 1001234,
+        <<"startedAt">> => <<"2014-07-16T15:19:21.423Z">>,
+        <<"stoppedAt">> => null
     }
 ]).
 
--define(STORAGE_IMPORT_DETAILS_JSON, [
-    {<<"strategy">>, <<"someStrategy">>},
-    {<<"someIntegerDetail">>, 1}
-]).
-
--define(STORAGE_UPDATE_DETAILS_JSON, [
-    {<<"strategy">>, <<"someStrategy">>},
-    {<<"someIntegerDetail">>, 2},
-    {<<"someBooleanDetail">>, false}
-]).
-
--define(SPACE_DETAILS_JSON, [
-    {<<"id">>, <<"someId">>}, {<<"name">>, <<"someName">>},
-    {<<"supportingProviders">>, [
-        {<<"someId1">>, 1024}, {<<"someId2">>, 2048}, {<<"someId3">>, 4096}
-    ]},
-    {<<"storageId">>, <<"someId">>},
-    {<<"storageImport">>, ?STORAGE_IMPORT_DETAILS_JSON},
-    {<<"storageUpdate">>, ?STORAGE_UPDATE_DETAILS_JSON}
-]).
-
--define(AUTOCLEANING_REPORTS, [
-    [
-        {<<"startedAt">>, <<"2004-02-12T15:19:21.423Z">>},
-        {<<"stoppedAt">>, <<"2004-02-12T15:29:11.598Z">>},
-        {<<"releasedBytes">>, 100},
-        {<<"bytesToRelease">>, 125},
-        {<<"filesNumber">>, 10}
-    ],
-    [
-        {<<"startedAt">>, <<"2014-07-16T15:19:21.423Z">>},
-        {<<"stoppedAt">>, null},
-        {<<"releasedBytes">>, 1001234},
-        {<<"bytesToRelease">>, 1313125},
-        {<<"filesNumber">>, 1056}
-    ]
-]).
-
--define(AUTOCLEANING_STATUS, [
-    {<<"usedSpace">>, 1234123},
-    {<<"inProgress">>, false}
-]).
+-define(AUTOCLEANING_STATUS, #{
+    <<"inProgress">> => false,
+    <<"usedSpace">> => 1234123
+}).
 
 -define(run(Config, Function), Function(hd(?config(oneprovider_hosts, Config)))).
 
@@ -195,15 +200,15 @@ put_should_register_provider(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider">>, post,
-            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [
-                {<<"name">>, <<"someName">>},
-                {<<"subdomainDelegation">>, false},
-                {<<"domain">>, <<"somedomain">>},
-                {<<"adminEmail">>, <<"admin@onedata.org">>},
-                {<<"geoLongitude">>, 10.0},
-                {<<"geoLatitude">>, 20.0},
-                {<<"onezoneDomainName">>, <<"someDomain">>}
-            ]
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, #{
+                <<"name">> => <<"someName">>,
+                <<"subdomainDelegation">> => false,
+                <<"domain">> => <<"somedomain">>,
+                <<"adminEmail">> => <<"admin@onedata.org">>,
+                <<"geoLongitude">> => 10.0,
+                <<"geoLatitude">> => 20.0,
+                <<"onezoneDomainName">> => <<"someDomain">>
+            }
         )),
         ?assertReceivedMatch({service, oneprovider, register, #{
             onezone_domain := <<"someDomain">>,
@@ -219,12 +224,12 @@ patch_should_modify_provider_details(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider">>, patch,
-            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [
-                {<<"name">>, <<"someName">>},
-                {<<"domain">>, <<"someDomain">>},
-                {<<"geoLongitude">>, 10.0},
-                {<<"geoLatitude">>, 20.0}
-            ]
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, #{
+                <<"name">> => <<"someName">>,
+                <<"domain">> => <<"someDomain">>,
+                <<"geoLongitude">> => 10.0,
+                <<"geoLatitude">> => 20.0
+            }
         )),
         ?assertReceivedMatch({service, oneprovider, modify_details, #{
             oneprovider_name := <<"someName">>,
@@ -242,11 +247,11 @@ patch_should_modify_provider_ips(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/cluster_ips">>, patch,
-            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [
-                {hosts, [
-                    {Host, NewIP}
-                ]}
-            ]
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, #{
+                hosts => #{
+                    list_to_binary(Host) => NewIP
+                }
+            }
         )),
         ?assertReceivedMatch({service, oneprovider, set_cluster_ips, #{
             cluster_ips := #{
@@ -282,13 +287,13 @@ put_should_create_or_support_space(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces">>, post,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [
-                    {<<"token">>, <<"someToken">>},
-                    {<<"size">>, 1024},
-                    {<<"storageId">>, <<"someId">>},
-                    {<<"storageImport">>, ?STORAGE_IMPORT_DETAILS_JSON},
-                    {<<"storageUpdate">>, ?STORAGE_UPDATE_DETAILS_JSON}
-                ]
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, #{
+                    <<"token">> => <<"someToken">>,
+                    <<"size">> => 1024,
+                    <<"storageId">> => <<"someId">>,
+                    <<"storageImport">> => ?STORAGE_IMPORT_DETAILS_JSON,
+                    <<"storageUpdate">> => ?STORAGE_UPDATE_DETAILS_JSON
+                }
             )
         ),
         onepanel_test_rest:assert_body(JsonBody, ?SPACE_JSON)
@@ -324,10 +329,10 @@ patch_should_modify_storage_update_test(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId1">>, patch,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [
-                    {<<"storageImport">>, ?STORAGE_IMPORT_DETAILS_JSON},
-                    {<<"storageUpdate">>, ?STORAGE_UPDATE_DETAILS_JSON}
-                ]
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, #{
+                    <<"storageImport">> => ?STORAGE_IMPORT_DETAILS_JSON,
+                    <<"storageUpdate">> => ?STORAGE_UPDATE_DETAILS_JSON
+                }
             )
         ),
         onepanel_test_rest:assert_body(JsonBody, ?SPACE_JSON)
