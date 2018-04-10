@@ -144,5 +144,7 @@ get_steps(get_cluster_ips, _Ctx) ->
 %% @doc Returns IPs of hosts with oz_worker instances.
 %% @end
 %%--------------------------------------------------------------------
+-spec get_cluster_ips(service:ctx()) ->
+    #{isConfigured := boolean(), hosts := #{binary() => binary()}}.
 get_cluster_ips(Ctx) ->
     service_cluster_worker:get_cluster_ips(Ctx#{name => ?SERVICE_OZW}).
