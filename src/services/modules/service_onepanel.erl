@@ -21,7 +21,7 @@
 
 %% API
 -export([set_cookie/1, check_connection/1, init_cluster/1, extend_cluster/1,
-    join_cluster/1, reset_node/1, add_users/1]).
+    join_cluster/1, reset_node/1, reload_webcert/1, add_users/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -112,7 +112,11 @@ get_steps(add_users, #{users := _}) ->
     [#step{function = add_users, selection = any}];
 
 get_steps(add_users, _Ctx) ->
-    [].
+    [];
+
+get_steps(reload_webcert, _Ctx) ->
+    [#step{function = reload_webcert}].
+
 
 %%%===================================================================
 %%% API functions
@@ -164,7 +168,7 @@ extend_cluster(#{hosts := Hosts, auth := Auth, api_version := ApiVersion} = Ctx)
     Port = rest_listener:get_port(),
     Prefix = rest_listener:get_prefix(ApiVersion),
     Suffix = onepanel_utils:join(["/hosts?clusterHost=", ClusterHost]),
-    Body = json_utils:encode([{cookie, erlang:get_cookie()}]),
+    Body = json_utils:encode(#{cookie => erlang:get_cookie()}),
     Timeout = service_ctx:get(extend_cluster_timeout, Ctx, integer),
     CaCerts = rest_listener:get_cert_chain(),
     Opts = [
@@ -225,3 +229,13 @@ add_users(#{users := Users}) ->
                 onepanel_user:update(Username, #{role => Role})
         end
     end, ok, Users).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Ensures certificates changed on disk are updated in listeners.
+%% @end
+%%--------------------------------------------------------------------
+-spec reload_webcert(service:ctx()) -> ok.
+reload_webcert(_Ctx) ->
+    ssl:clear_pem_cache().

@@ -17,6 +17,7 @@
         kernel,
         stdlib,
         public_key,
+        inets,
         crypto,
         gui
     ]},

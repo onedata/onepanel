@@ -64,7 +64,9 @@ init(Config) ->
         {onezone_nodes, ZoneNodes},
         {onezone_hosts, onepanel_cluster:nodes_to_hosts(ZoneNodes)},
         {onepanel_nodes, PanelNodes},
-        {onepanel_hosts, onepanel_cluster:nodes_to_hosts(PanelNodes)} |
+        {onepanel_hosts, onepanel_cluster:nodes_to_hosts(PanelNodes)},
+        {letsencrypt_nodes, PanelNodes},
+        {letsencrypt_hosts, onepanel_cluster:nodes_to_hosts(PanelNodes)} |
         lists:keydelete(onepanel_nodes, 1, Config)
     ],
     ensure_started(NewConfig).

@@ -69,54 +69,55 @@
     ?COMMON_HOST_ENDPOINTS_WITH_METHODS
 ]).
 
--define(STORAGE_JSON, [
-    {<<"id">>, <<"somePosixId">>},
-    {<<"name">>, <<"somePosix">>},
-    {<<"type">>, <<"posix">>},
-    {<<"mountPoint">>, <<"someMountPoint">>}
-]).
+-define(STORAGE_JSON, #{
+    <<"id">> => <<"somePosixId">>,
+    <<"mountPoint">> => <<"someMountPoint">>,
+    <<"name">> => <<"somePosix">>,
+    <<"type">> => <<"posix">>
+}).
 
--define(STORAGE_UPDATE_JSON, [
-    {<<"timeout">>, 10000}
-]).
+-define(STORAGE_UPDATE_JSON, #{
+    <<"timeout">> => 10000
+}).
 
--define(STORAGES_JSON, [
-    {<<"someCeph">>, [
-        {<<"type">>, <<"ceph">>},
-        {<<"username">>, <<"someName">>},
-        {<<"key">>, <<"someKey">>},
-        {<<"monitorHostname">>, <<"someHostname">>},
-        {<<"poolName">>, <<"someName">>},
-        {<<"clusterName">>, <<"someName">>},
-        {<<"timeout">>, 5000}
-    ]},
-    {<<"someS3">>, [
-        {<<"type">>, <<"s3">>},
-        {<<"hostname">>, <<"someHostname">>},
-        {<<"bucketName">>, <<"someName">>},
-        {<<"accessKey">>, <<"someKey">>},
-        {<<"secretKey">>, <<"someKey">>},
-        {<<"blockSize">>, 1024}
-    ]}
-]).
+-define(STORAGES_JSON, #{
+    <<"someCeph">> => #{
+        <<"type">> => <<"ceph">>,
+        <<"username">> => <<"someName">>,
+        <<"key">> => <<"someKey">>,
+        <<"monitorHostname">> => <<"someHostname">>,
+        <<"poolName">> => <<"someName">>,
+        <<"clusterName">> => <<"someName">>,
+        <<"timeout">> => 5000
+    },
+    <<"someS3">> => #{
+        <<"type">> => <<"s3">>,
+        <<"hostname">> => <<"someHostname">>,
+        <<"bucketName">> => <<"someName">>,
+        <<"accessKey">> => <<"someKey">>,
+        <<"secretKey">> => <<"someKey">>,
+        <<"blockSize">> => 1024
+    }
+}).
 
--define(CLUSTER_JSON, [{<<"domainName">>, <<"someDomain">>},
-    {<<"nodes">>, [
-        {<<"n1">>, [{<<"hostname">>, <<"host1">>}]},
-        {<<"n2">>, [{<<"hostname">>, <<"host2">>}]},
-        {<<"n3">>, [{<<"hostname">>, <<"host3">>}]}
-    ]},
-    {<<"databases">>, [
-        {<<"nodes">>, [<<"n1">>, <<"n2">>]}
-    ]},
-    {<<"managers">>, [
-        {<<"mainNode">>, <<"n3">>},
-        {<<"nodes">>, [<<"n2">>, <<"n3">>]}
-    ]},
-    {<<"workers">>, [
-        {<<"nodes">>, [<<"n1">>, <<"n2">>, <<"n3">>]}
-    ]}
-]).
+-define(CLUSTER_JSON, #{
+    <<"domainName">> => <<"someDomain">>,
+    <<"nodes">> => #{
+        <<"n1">> => #{<<"hostname">> => <<"host1">>},
+        <<"n2">> => #{<<"hostname">> => <<"host2">>},
+        <<"n3">> => #{<<"hostname">> => <<"host3">>}
+    },
+    <<"databases">> => #{
+        <<"nodes">> => [<<"n1">>, <<"n2">>]
+    },
+    <<"managers">> => #{
+        <<"mainNode">> => <<"n3">>,
+        <<"nodes">> => [<<"n2">>, <<"n3">>]
+    },
+    <<"workers">> => #{
+        <<"nodes">> => [<<"n1">>, <<"n2">>, <<"n3">>]
+    }
+}).
 
 -define(NAGIOS_REPORT_XML, <<"<?xml version=\"1.0\"?>"
 "<healthdata status=\"ok\">"
@@ -391,7 +392,7 @@ put_should_configure_database_service(Config) ->
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/databases">>, post,
                 {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
-                [{hosts, [<<"host1">>, <<"host2">>, <<"host3">>]}]
+                #{hosts => [<<"host1">>, <<"host2">>, <<"host3">>]}
             )
         ),
         onepanel_test_utils:assert_values(Headers, [
@@ -409,10 +410,10 @@ put_should_configure_cluster_manager_service(Config) ->
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/managers">>, post,
                 {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
-                [
-                    {mainHost, <<"host1">>},
-                    {hosts, [<<"host1">>, <<"host2">>, <<"host3">>]}
-                ]
+                #{
+                    mainHost => <<"host1">>,
+                    hosts => [<<"host1">>, <<"host2">>, <<"host3">>]
+                }
             )
         ),
         onepanel_test_utils:assert_values(Headers, [
@@ -431,7 +432,7 @@ put_should_configure_cluster_worker_service(Config) ->
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/workers">>, post,
                 {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
-                [{hosts, [<<"host1">>, <<"host2">>, <<"host3">>]}]
+                #{hosts => [<<"host1">>, <<"host2">>, <<"host3">>]}
             )
         ),
         onepanel_test_utils:assert_values(Headers, [
@@ -453,13 +454,13 @@ put_should_configure_onezone_service(Config) ->
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/configuration">>, post,
                 {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
-                [
-                    {<<"cluster">>, ?CLUSTER_JSON},
-                    {<<"onezone">>, [
-                        {<<"name">>, <<"someName">>},
-                        {<<"domainName">>, <<"someDomain">>}
-                    ]}
-                ]
+                #{
+                    <<"cluster">> => ?CLUSTER_JSON,
+                    <<"onezone">> => #{
+                        <<"name">> => <<"someName">>,
+                        <<"domainName">> => <<"someDomain">>
+                    }
+                }
             )
         ),
         onepanel_test_utils:assert_values(Headers, [
@@ -493,24 +494,23 @@ put_should_configure_oneprovider_service(Config) ->
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/configuration">>, post,
                 {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
-                [
-                    {<<"cluster">>, [
-                        {<<"storages">>, ?STORAGES_JSON} |
-                        ?CLUSTER_JSON
-                    ]},
-                    {<<"oneprovider">>, [
-                        {<<"register">>, true},
-                        {<<"name">>, <<"someName">>},
-                        {<<"subdomainDelegation">>, false},
-                        {<<"domain">>, <<"someDomain">>},
-                        {<<"adminEmail">>, <<"admin@onedata.org">>},
-                        {<<"geoLongitude">>, <<"10">>},
-                        {<<"geoLatitude">>, <<"20.0">>}
-                    ]},
-                    {<<"onezone">>, [
-                        {<<"domainName">>, <<"someDomain">>}
-                    ]}
-                ]
+                #{
+                    <<"cluster">> => maps:merge(#{
+                        <<"storages">> => ?STORAGES_JSON},
+                        ?CLUSTER_JSON),
+                    <<"oneprovider">> => #{
+                        <<"register">> => true,
+                        <<"name">> => <<"someName">>,
+                        <<"subdomainDelegation">> => false,
+                        <<"domain">> => <<"someDomain">>,
+                        <<"adminEmail">> => <<"admin@onedata.org">>,
+                        <<"geoLongitude">> => <<"10">>,
+                        <<"geoLatitude">> => <<"20.0">>
+                    },
+                    <<"onezone">> => #{
+                        <<"domainName">> => <<"someDomain">>
+                    }
+                }
             )
         ),
         onepanel_test_utils:assert_values(Headers, [

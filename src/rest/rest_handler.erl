@@ -202,7 +202,7 @@ accept_resource_yaml(Req, #rstate{} = State) ->
     try
         {ok, Body, Req2} = cowboy_req:read_body(Req),
         [Data] = yamerl_constr:string(Body),
-        Data2 = adjust_yaml_data(Data),
+        Data2 = json_utils:list_to_map(adjust_yaml_data(Data)),
         accept_resource(Req2, Data2, State)
     catch
         Type:Reason ->
@@ -346,7 +346,8 @@ authenticate_by_cookie(Req) ->
 %% converting each parameter into binary.
 %% @end
 %%--------------------------------------------------------------------
--spec adjust_yaml_data(Data :: data()) -> NewData :: data().
+-spec adjust_yaml_data(Data ::proplists:proplist()) -> 
+    NewData :: proplists:proplist().
 adjust_yaml_data(Data) ->
     case {io_lib:printable_unicode_list(Data), erlang:is_list(Data)} of
         {false, true} -> lists:map(fun

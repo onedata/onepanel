@@ -19,6 +19,7 @@
 %% API
 -export([get/1, get/2, find/1, find/2, set/2, set/3, set/4]).
 -export([read/2, write/2, write/3, write/4]).
+-export([get_remote/3, find_remote/3, set_remote/4]).
 
 -type key() :: atom().
 -type keys() :: key() | [key()].
@@ -51,6 +52,19 @@ get(Keys, AppName) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc Returns value of a application variable from from memory of application
+%% on another node.
+%% Throws an exception when value has not been found.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_remote(Node :: node(), Keys :: keys(), AppName :: atom()) ->
+    Value :: value().
+get_remote(Node, Keys, AppName) ->
+    {ok, Value} = find_remote(Node, Keys, AppName),
+    Value.
+
+
+%%--------------------------------------------------------------------
 %% @doc @equiv find(Keys, ?APP_NAME)
 %% @end
 %%--------------------------------------------------------------------
@@ -68,6 +82,18 @@ find(Keys) ->
     {ok, Value :: value()} | #error{} | no_return().
 find(Keys, AppName) when is_atom(AppName) ->
     onepanel_lists:get(Keys, application:get_all_env(AppName)).
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns value of an application variable from memory
+%% of an application running on given Node.
+%% @end
+%%--------------------------------------------------------------------
+-spec find_remote(Node :: node(), Keys :: keys(), AppName :: atom()) ->
+    {ok, Value :: value()} | #error{} | no_return().
+find_remote(Node, Keys, AppName) ->
+    Env = rpc:call(Node, application, get_all_env, [AppName]),
+    onepanel_lists:get(Keys, Env).
 
 
 %%--------------------------------------------------------------------
@@ -99,6 +125,29 @@ set(Keys, Value, AppName) ->
     Results :: onepanel_rpc:results() | no_return().
 set(Nodes, Keys, Value, AppName) ->
     onepanel_rpc:call_all(Nodes, ?MODULE, set, [Keys, Value, AppName]).
+
+
+%%--------------------------------------------------------------------
+%% @doc Sets value of a application variable in another application
+%% on the same host.
+%% @end
+%%--------------------------------------------------------------------
+-spec set_remote(Node :: [node()], Keys :: keys(), Value :: value(), AppName :: atom()) ->
+    ok | no_return().
+set_remote(Node, Keys, Value, AppName) when is_atom(Node) ->
+    set_remote([Node], Keys, Value, AppName);
+set_remote(Nodes, Keys, Value, AppName) ->
+    lists:map(fun(Node) ->
+        NewEnv = case rpc:call(Node, application, get_all_env, [AppName]) of
+            {badrpc, _} = Error -> ?throw_error(Error);
+            Result -> onepanel_lists:store(Keys, Value, Result)
+        end,
+
+        lists:foreach(fun({K, V}) ->
+            ok = rpc:call(Node, application, set_env, [AppName, K, V])
+        end, NewEnv)
+    end, Nodes),
+    ok.
 
 
 %%--------------------------------------------------------------------

@@ -11,6 +11,7 @@
 -module(service_op_worker).
 -author("Krzysztof Trzepla").
 -behaviour(service_behaviour).
+-behaviour(letsencrypt_plugin_behaviour).
 
 -include("service.hrl").
 -include_lib("hackney/include/hackney_lib.hrl").
@@ -18,11 +19,14 @@
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
+%% LE behaviour callbacks
+-export([set_txt_record/1, remove_txt_record/1, get_domain/1, get_admin_email/1,
+    is_letsencrypt_supported/1]).
 
 %% API
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
     get_nagios_response/1, get_nagios_status/1, add_storages/1, get_storages/1,
-    update_storage/1, invalidate_luma_cache/1]).
+    update_storage/1, invalidate_luma_cache/1, reload_webcert/1]).
 
 -define(INIT_SCRIPT, "op_worker").
 
@@ -242,3 +246,70 @@ update_storage(#{id := Id, args := Args}) ->
 -spec invalidate_luma_cache(Ctx :: service:ctx()) -> ok.
 invalidate_luma_cache(#{id := StorageId}) ->
     op_worker_storage:invalidate_luma_cache(StorageId).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Ensures certificates changed on disk are updated in worker listeners.
+%% @end
+%%--------------------------------------------------------------------
+-spec reload_webcert(service:ctx()) -> ok.
+reload_webcert(Ctx) ->
+    service_cluster_worker:reload_webcert(Ctx#{name => name()}).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Checks if the provider has subdomain delegation enabled
+%% needed for Let's Encrypt to be available.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_letsencrypt_supported(service:ctx()) -> boolean().
+is_letsencrypt_supported(Ctx) ->
+    service_oneprovider:is_registered(Ctx) andalso
+        proplists:get_value(subdomainDelegation, service_oneprovider:get_details(Ctx), false).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Sets txt record in onezone dns via oneprovider.
+%% @end
+%%--------------------------------------------------------------------
+-spec set_txt_record(Ctx :: service:ctx()) -> ok.
+set_txt_record(#{txt_name := Name, txt_value := Value, txt_ttl := TTL}) ->
+    [Node | _] = get_nodes(),
+    ok = rpc:call(Node, provider_logic, set_txt_record, [Name, Value, TTL]).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Removes txt record from onezone dns via oneprovider.
+%% @end
+%%--------------------------------------------------------------------
+-spec remove_txt_record(Ctx :: service:ctx()) -> ok.
+remove_txt_record(#{txt_name:= Name}) ->
+    [Node | _] = get_nodes(),
+    ok = rpc:call(Node, provider_logic, remove_txt_record, [Name]).
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns the domain of the provider.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_domain(service:ctx()) -> binary().
+get_domain(_Ctx) ->
+    {domain, Domain} = proplists:lookup(domain, service_oneprovider:get_details(#{})),
+    Domain.
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns the email address of the provider administrator.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_admin_email(Ctx :: service:ctx()) -> binary().
+get_admin_email(#{node := Node}) ->
+    #{admin_email := AdminEmail} = rpc:call(Node, provider_logic, get_as_map, []),
+    AdminEmail;
+get_admin_email(Ctx) ->
+    [Node | _] = get_nodes(),
+    get_admin_email(Ctx#{node => Node}).
