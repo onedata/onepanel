@@ -6,6 +6,10 @@ CHANGELOG
 
 ### 18.02.0-beta5
 
+* VFS-4335 Return map when checking cluster IPs
+* VFS-3703 Switched from mochiweb JSON parsing to jiffy
+* VFS-4067 Fix setting cluster IPs in onezone
+* VFS-3745 Seperate Let's Encrypt client from oneprovdier
 * VFS-4267 Update images in services test suite
 * Update web-client and ctool refs
 * VFS-4267 Adjust code to erl 20, update deps
