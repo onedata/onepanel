@@ -14,6 +14,7 @@
 
 -include("modules/models.hrl").
 -include("modules/errors.hrl").
+-include("names.hrl").
 
 -include_lib("ctool/include/logging.hrl").
 -include_lib("public_key/include/OTP-PUB-KEY.hrl").
@@ -24,6 +25,11 @@
 % Production server
 -define(PRODUCTION_DIRECTORY_URL, application:get_env(onepanel, letsencrypt_directory_url,
     "https://acme-v01.api.letsencrypt.org/directory")).
+
+-define(CERT_PATH, onepanel_env:get(web_cert_file)).
+-define(LETSENCRYPT_KEYS_DIR, application:get_env(?APP_NAME, letsencrypt_keys_dir,
+    % default
+    filename:join(filename:dirname(?CERT_PATH), "letsencrypt/"))).
 
 % Name of the txt record used for authorization.
 % See <https://tools.ietf.org/id/draft-ietf-acme-acme-07.html#rfc.section.8.5>
@@ -153,8 +159,7 @@ run_certification_flow(Domain, Plugin, Mode) ->
         production -> ?PRODUCTION_DIRECTORY_URL;
         _ -> ?STAGING_DIRECTORY_URL
     end,
-
-    KeysDir = filename:join(onepanel_env:get(letsencrypt_keys_dir), atom_to_list(ModeName)),
+    KeysDir = filename:join(?LETSENCRYPT_KEYS_DIR, atom_to_list(ModeName)),
     SaveCert = Mode2 == production orelse Mode2 == staging,
 
     CertPath = onepanel_env:get(web_cert_file),
@@ -577,7 +582,7 @@ generate_keys(KeysDir) ->
 -spec clean_keys() -> ok.
 clean_keys() ->
     lists:foreach(fun(Mode) ->
-        Dir = filename:join(onepanel_env:get(letsencrypt_keys_dir), Mode),
+        Dir = filename:join(?LETSENCRYPT_KEYS_DIR, Mode),
         clean_keys(Dir)
     end, [dry, staging, production]).
 

@@ -117,7 +117,7 @@ get_steps(deploy, Ctx) ->
         case AlreadyRegistered of
             % If provider is already registered the deployment request
             % should not override Let's Encrypt config
-            true -> #{};
+            true -> maps:remove(letsencrypt_enabled, LeCtx);
             _ -> LeCtx
         end,
     LeCtx3 = LeCtx2#{letsencrypt_plugin => ?SERVICE_OPW},
@@ -707,7 +707,13 @@ pop_legacy_letsencrypt_config() ->
             service:update(name(), fun(#service{ctx = C} = S) ->
                 S#service{ctx = maps:remove(has_letsencrypt_cert, C)}
             end),
-            maps:get(has_letsencrypt_cert, Ctx, false);
+            Result = case maps:find(has_letsencrypt_cert, Ctx) of
+                {ok, Val} ->
+                    service:mark_configured(name(), letsencrypt),
+                    Val;
+                error -> false
+            end,
+            Result;
         _ -> false
     end.
 
