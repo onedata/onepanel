@@ -18,6 +18,7 @@
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include("service.hrl").
+-include("names.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -33,8 +34,10 @@
 -define(KEY_PATH, onepanel_env:get(web_key_file)).
 -define(CACERT_PATH, onepanel_env:get(web_cacerts_dir)).
 
--define(CHECK_DELAY, timer:seconds(onepanel_env:get(webcert_renew_check_delay))).
--define(RENEW_MARGIN_SECONDS, onepanel_env:get(webcert_renewal_days) * 24 * 3600).
+-define(CHECK_DELAY, timer:seconds(application:get_env(
+    ?APP_NAME, webcert_renew_check_delay, 3600))).
+-define(RENEW_MARGIN_SECONDS, application:get_env(
+    ?APP_NAME, webcert_renewal_days, 7) * 24 * 3600).
 
 %%%===================================================================
 %%% Service behaviour callbacks
