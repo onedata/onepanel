@@ -4,6 +4,14 @@
 CHANGELOG
 ---------
 
+### 18.02.0-beta6
+
+* VFS-4357 Register letsencrypt in service watcher after restart
+* VFS-4357 Add default values for letsencrypt app config
+* VFS-4357 Set onepanel hosts even on registered provider
+* Updating GUI, including: VFS-4210 * VFS-4210 New layout for main menu in desktop view mode
+
+
 ### 18.02.0-beta5
 
 * VFS-4335 Return map when checking cluster IPs
