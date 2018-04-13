@@ -122,7 +122,7 @@ update(Ctx) ->
     % ensure current state is valid (for example if provider is still registered)
 
     case {is_enabled(#{}), (get_plugin_module(Ctx)):is_letsencrypt_supported(Ctx)} of
-        {true, true} -> ok;
+        {true, true} -> enable(); % to register in service watcher
         {true, false} -> disable();
         {false, _} -> ok
     end.
