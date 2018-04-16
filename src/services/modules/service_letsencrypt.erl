@@ -204,8 +204,8 @@ obtain_cert(Ctx) ->
     ok = letsencrypt_api:run_certification_flow(Domain, get_plugin_module(Ctx)),
     set_dirty(false),
 
-    service_onepanel:reload_webcert(Ctx),
-    Plugin:reload_webcert(Ctx),
+    service:apply(service_onepanel:name(), reload_webcert, #{}),
+    service:apply(get_plugin(#{}), reload_webcert, #{}),
     ok.
 
 
