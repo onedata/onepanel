@@ -15,6 +15,7 @@
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include("service.hrl").
+-include("milestones.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/global_definitions.hrl").
 
@@ -76,10 +77,13 @@ get_nodes() ->
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, Ctx) ->
+    service:create(#service{name = name()}),
+
     {ok, OpaCtx} = onepanel_maps:get([cluster, ?SERVICE_OPA], Ctx),
     {ok, CbCtx} = onepanel_maps:get([cluster, ?SERVICE_CB], Ctx),
     {ok, CmCtx} = onepanel_maps:get([cluster, ?SERVICE_CM], Ctx),
     {ok, OzwCtx} = onepanel_maps:get([cluster, ?SERVICE_OZW], Ctx),
+
     OzCtx = onepanel_maps:get(name(), Ctx, #{}),
     S = #step{verify_hosts = false},
     Ss = #steps{verify_hosts = false},
@@ -91,11 +95,15 @@ get_steps(deploy, Ctx) ->
         S#step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
         Ss#steps{service = ?SERVICE_OZW, action = deploy, ctx = OzwCtx},
         S#step{service = ?SERVICE_OZW, function = status, ctx = OzwCtx},
+        S#step{module = service, function = mark_configured,
+            args = [name(), ?MILESTONE_ONEZONE], selection = any},
         S#step{module = service, function = save, ctx = OpaCtx,
             args = [#service{name = name(), ctx = OzCtx}],
             selection = first
         },
-        Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx}
+        Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx},
+        S#step{module = service, function = mark_configured,
+            args = [name(), ?MILESTONE_ONEZONE], selection = any}
     ];
 
 get_steps(start, _Ctx) ->

@@ -17,6 +17,7 @@
 -include("names.hrl").
 -include("service.hrl").
 -include("modules/models.hrl").
+-include("milestones.hrl").
 -include_lib("ctool/include/oz/oz_spaces.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
@@ -132,11 +133,15 @@ get_steps(deploy, Ctx) ->
         S#step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
         Ss#steps{service = ?SERVICE_OPW, action = deploy, ctx = OpwCtx},
         S#step{service = ?SERVICE_OPW, function = status, ctx = OpwCtx},
-        Ss#steps{service = ?SERVICE_OPW, action = add_storages, ctx = StorageCtx},
         Ss#steps{service = ?SERVICE_LE, action = deploy, ctx = LeCtx3},
+        S#step{module = service, function = mark_configured, ctx = OpaCtx,
+            args = [name(), ?MILESTONE_CLUSTER], selection = any},
+        Ss#steps{service = ?SERVICE_OPW, action = add_storages, ctx = StorageCtx},
         Ss#steps{action = register, ctx = OpCtx, condition = Register},
         Ss#steps{service = ?SERVICE_LE, action = update, ctx = LeCtx3},
-        Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx}
+        Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx},
+        S#step{module = service, function = mark_configured, ctx = OpaCtx,
+            args = [name(), ?MILESTONE_ONEPROVIDER], selection = any, condition = Register}
     ];
 
 get_steps(start, _Ctx) ->

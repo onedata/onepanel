@@ -245,7 +245,8 @@ format_configuration(SModule) ->
                 <<"hosts">> => onepanel_utils:convert(WrkHosts, {seq, binary})}
         },
         SModule:name() => #{
-            <<"name">> => SName
+            <<"name">> => SName,
+            <<"configured">> => service:is_configured(SModule:name(), SModule:name())
         }
     }.
 

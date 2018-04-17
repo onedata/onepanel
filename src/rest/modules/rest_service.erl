@@ -14,6 +14,7 @@
 -include("modules/errors.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include("modules/models.hrl").
+-include("milestones.hrl").
 
 -behavior(rest_behaviour).
 
@@ -78,6 +79,11 @@ exists_resource(Req, #rstate{resource = luma}) ->
 
 exists_resource(Req, #rstate{resource = SModule, bindings = #{host := Host}}) ->
     {service:is_member(SModule:name(), Host), Req};
+
+exists_resource(Req, #rstate{resource = SModule}) when
+    SModule =:= service_onezone; SModule =:= service_oneprovider ->
+    {model:exists(service) andalso
+        service:is_configured(SModule:name(), ?MILESTONE_CLUSTER), Req};
 
 exists_resource(Req, #rstate{resource = SModule}) ->
     case lists:member(SModule, ?SERVICES) of
