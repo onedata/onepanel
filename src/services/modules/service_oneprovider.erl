@@ -214,7 +214,7 @@ get_steps(set_cluster_ips, #{hosts := Hosts} = Ctx) ->
             hosts = Hosts}
     ];
 get_steps(set_cluster_ips, Ctx) ->
-    get_steps(set_cluster_ips, Ctx#{hosts => get_hosts()});
+    get_steps(set_cluster_ips, Ctx#{hosts => service_op_worker:get_hosts()});
 
 get_steps(Action, Ctx) when
     Action =:= get_details;
