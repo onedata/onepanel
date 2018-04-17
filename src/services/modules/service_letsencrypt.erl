@@ -111,7 +111,7 @@ configure(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec update(service:ctx()) -> ok | no_return().
 update(#{letsencrypt_enabled := Request} = Ctx) ->
-    case {Request, (get_plugin_module(Ctx)):is_letsencrypt_supported(Ctx)} of
+    case {Request, (get_plugin_module()):is_letsencrypt_supported(Ctx)} of
         {true, false} ->
             ?throw_error(?ERR_LETSENCRYPT_NOT_SUPPORTED);
         {true, true} -> enable();
@@ -121,7 +121,7 @@ update(Ctx) ->
     % even when letsencrypt_enabled is not present in Ctx
     % ensure current state is valid (for example if provider is still registered)
 
-    case {is_enabled(#{}), (get_plugin_module(Ctx)):is_letsencrypt_supported(Ctx)} of
+    case {is_enabled(#{}), (get_plugin_module()):is_letsencrypt_supported(Ctx)} of
         {true, true} -> enable(); % to register in service watcher
         {true, false} -> disable();
         {false, _} -> ok
@@ -153,7 +153,7 @@ check_webcert(Ctx) ->
     case is_enabled(#{}) of
         true ->
             Nodes = get_nodes(),
-            Domain = (get_plugin_module(Ctx)):get_domain(Ctx),
+            Domain = (get_plugin_module()):get_domain(Ctx),
             Ctx2 = Ctx#{domain => Domain},
 
             % check all nodes to ensure consistency
@@ -190,7 +190,7 @@ ensure_webcert(Ctx) ->
 %%--------------------------------------------------------------------
 -spec obtain_cert(service:ctx()) -> ok | no_return().
 obtain_cert(Ctx) ->
-    Plugin = get_plugin_module(Ctx),
+    Plugin = get_plugin_module(),
     Domain = Plugin:get_domain(Ctx),
 
     case maps:get(renewal, Ctx, false) of
@@ -201,11 +201,11 @@ obtain_cert(Ctx) ->
             ok
     end,
 
-    ok = letsencrypt_api:run_certification_flow(Domain, get_plugin_module(Ctx)),
+    ok = letsencrypt_api:run_certification_flow(Domain, get_plugin_module()),
     set_dirty(false),
 
     service:apply(service_onepanel:name(), reload_webcert, #{}),
-    service:apply(get_plugin(#{}), reload_webcert, #{}),
+    service:apply(get_plugin_name(), reload_webcert, #{}),
     ok.
 
 
@@ -317,10 +317,8 @@ is_local_cert_dirty(#{domain := Domain} = Ctx) ->
 %% Returns plugin service name.
 %% @end
 %%--------------------------------------------------------------------
--spec get_plugin(service:ctx()) -> service:name().
-get_plugin(#{letsencrypt_plugin := Plugin} = _Ctx) ->
-    Plugin;
-get_plugin(_Ctx) ->
+-spec get_plugin_name() -> service:name().
+get_plugin_name() ->
     {ok, #service{ctx = #{letsencrypt_plugin := Plugin}}} = service:get(name()),
     Plugin.
 
@@ -330,6 +328,6 @@ get_plugin(_Ctx) ->
 %% Returns module corresponding to the plugin service.
 %% @end
 %%--------------------------------------------------------------------
--spec get_plugin_module(service:ctx()) -> module().
-get_plugin_module(Ctx) ->
-    service:get_module(get_plugin(Ctx)).
+-spec get_plugin_module() -> module().
+get_plugin_module() ->
+    service:get_module(get_plugin_name()).
