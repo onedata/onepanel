@@ -90,6 +90,9 @@
         %% Directory for saving Let's Encrypt account keys (needed for renewal)
         {letsencrypt_keys_dir, "{{platform_etc_dir}}/certs/letsencrypt/"},
 
+        %% Number of consecutive retries on any Let's Encrypt error
+        {letsencrypt_attempts, 1},
+
         %% Configures how many days before expiration the certificate should
         %% be scheduled for renewal.
         %% Keep in mind that Let's Encrypt certificates are valid for at most 90 days

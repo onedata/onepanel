@@ -38,6 +38,8 @@
     ?APP_NAME, webcert_renew_check_delay, 3600))).
 -define(RENEW_MARGIN_SECONDS, application:get_env(
     ?APP_NAME, webcert_renewal_days, 7) * 24 * 3600).
+-define(CERTIFICATION_ATTEMPTS, application:get_env(
+    ?APP_NAME, letsencrypt_attempts, 1)).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -85,7 +87,8 @@ get_steps(update, _Ctx) -> [
         % only on one node
         #step{function = update, selection = first},
         #step{function = check_webcert, selection = first, condition = fun is_enabled/1},
-        #step{function = ensure_webcert, selection = first, condition = fun is_enabled/1}
+        #step{function = ensure_webcert, selection = first, condition = fun is_enabled/1,
+            attempts = ?CERTIFICATION_ATTEMPTS, retry_delay = 10}
     ].
 
 
