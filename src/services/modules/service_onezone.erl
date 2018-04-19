@@ -147,7 +147,6 @@ get_steps(set_cluster_ips, Ctx) ->
 get_steps(get_cluster_ips, _Ctx) ->
     [#step{hosts = get_hosts(), function = get_cluster_ips, selection = any}].
 
-
 %%--------------------------------------------------------------------
 %% @doc Returns IPs of hosts with oz_worker instances.
 %% @end

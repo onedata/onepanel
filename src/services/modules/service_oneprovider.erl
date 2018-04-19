@@ -145,10 +145,23 @@ get_steps(deploy, Ctx) ->
     ];
 
 get_steps(start, _Ctx) ->
+    IsMaster = fun(_) ->
+%%        R = service_onepanel:are_all_hosts_available(#{hostget_hosts())
+        Self = onepanel_cluster:node_to_host(),
+        case get_hosts() of
+            [] -> ?alert("Skip resuming!"), false;
+            [Self | _] -> ?alert("Manage resuming!"), true;
+            _ -> ?alert("Skip resuming!"), false
+        end
+    end,
     [
-        #steps{service = ?SERVICE_CB, action = start},
-        #steps{service = ?SERVICE_CM, action = start},
-        #steps{service = ?SERVICE_OPW, action = start}
+%%        #steps{service = ?SERVICE_OPA, action = check_connection_all},
+        #step{service = ?SERVICE_OPA, function = ensure_all_available,
+            condition = IsMaster, attempts = 5},
+        #steps{service = ?SERVICE_CB, action = start, condition = IsMaster},
+        #steps{service = ?SERVICE_CM, action = start, condition = IsMaster},
+        #steps{service = ?SERVICE_OPW, action = start, condition = IsMaster},
+        #steps{service = ?SERVICE_LE, action = update, condition = IsMaster}
     ];
 
 get_steps(stop, _Ctx) ->
