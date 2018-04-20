@@ -145,7 +145,7 @@ status(Ctx) ->
         check_webcert(Ctx),
         ensure_webcert(Ctx#{renewal => true})
     catch
-        Type:Error -> ?warning("Certificate renewal check failed: ~p", [{Type, Error}])
+        _:Reason -> ?error("Certificate renewal check failed: ~p", [?make_error(Reason)])
     end,
     % always returns 'running' as there is no meaningful way of restarting this service
     running.
