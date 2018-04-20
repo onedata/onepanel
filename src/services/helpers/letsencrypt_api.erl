@@ -182,9 +182,13 @@ run_certification_flow(Domain, Plugin, Mode) ->
         save_cert = Mode2 == production orelse Mode2 == staging,
         domain = Domain},
 
+    ExistingAccount = case read_keys(KeysDir) of
+        {ok, _, _} -> true;
+        _ -> false;
+    end,
+
     try
-        case read_keys(KeysDir) of
-            {ok, _, _} ->
+        case ExistingAccount of
                 ?info("Let's Encrypt: reusing account from \"~s\"", [filename:absname(KeysDir)]);
             error ->
                 ?info("Let's Encrypt: generating new Let's Encrypt account keys"),
@@ -202,7 +206,15 @@ run_certification_flow(Domain, Plugin, Mode) ->
         ?info("Let's Encrypt ~s run: obtain certificate", [ModeName]),
         {ok, _State6} = get_certificate(State5)
     after
-        catch clean_txt_record(Plugin)
+        catch clean_txt_record(Plugin),
+        case ExistingAccount of
+            true -> ok;
+            false ->
+                % if error occurred before any successful certification
+                % account can be safely deleted to prevent counting against
+                % invalid authorization rate limit
+                catch clean_keys(KeysDir)
+        end
     end,
 
     case Mode2 of
