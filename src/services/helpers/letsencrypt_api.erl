@@ -35,7 +35,7 @@
 % See <https://tools.ietf.org/id/draft-ietf-acme-acme-07.html#rfc.section.8.5>
 -define(LETSENCRYPT_TXT_NAME, <<"_acme-challenge">>).
 % Short ttl to mitigate problems when quickly obtaining new certificate
--define(LETSENCRYPT_TXT_TTL, 10).
+-define(LETSENCRYPT_TXT_TTL, 1).
 
 % Filenames for temporary Let's Encrypt account keys
 -define(PRIVATE_RSA_KEY, "letsencrypt_private_key.pem").
@@ -45,9 +45,9 @@
 -define(DEFAULT_MODE, application:get_env(onepanel, letsencrypt_mode, full)).
 
 % Interval between polls about authorization status
--define(LE_POLL_INTERVAL, timer:seconds(2)).
+-define(LE_POLL_INTERVAL, timer:seconds(3)).
 % Number of polls about authorization status
--define(LE_POLL_ATTEMPTS, 5).
+-define(LE_POLL_ATTEMPTS, 10).
 % Number of failed request retries
 -define(GET_RETRIES, 3).
 -define(POST_RETRIES, 4).
