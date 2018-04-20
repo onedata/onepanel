@@ -28,6 +28,11 @@
 -callback remove_txt_record(#{txt_name := binary(), _ => _}) -> ok.
 
 %%--------------------------------------------------------------------
+%% Returns hostname of the server at which txt record is set.
+%%--------------------------------------------------------------------
+-callback get_dns_server() -> string().
+
+%%--------------------------------------------------------------------
 %% Returns current domain.
 %%--------------------------------------------------------------------
 -callback get_domain(service:ctx()) -> binary().
