@@ -360,6 +360,8 @@ get_storage_helper(Node, <<"nulldevice">>, UserCtx, Params) ->
             {latencyMax, binary},
             {timeoutProbability, binary},
             {filter, binary},
+            {simulatedFilesystemParameters, binary},
+            {simulatedFilesystemGrowSpeed, binary},
             {timeout, binary}
         ], Params),
         UserCtx,
