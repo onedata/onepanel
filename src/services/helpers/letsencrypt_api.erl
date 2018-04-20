@@ -48,6 +48,13 @@
 -define(LE_POLL_INTERVAL, timer:seconds(3)).
 % Number of polls about authorization status
 -define(LE_POLL_ATTEMPTS, 10).
+
+% Number of polls to DNS
+-define(WAIT_FOR_TXT_ATTEMPTS, 70).
+% Delay between polls to DNS. Total polling time should be longer than soa_minimum
+% in onezone
+-define(WAIT_FOR_TXT_DELAY, timer:seconds(2)).
+
 % Number of failed request retries
 -define(GET_RETRIES, 3).
 -define(POST_RETRIES, 4).
@@ -141,8 +148,8 @@ run_certification_flow(Domain, Plugin, Mode) ->
             ?info("No staging ACME server URL defined. Skipping staging run and running in production mode."),
             production;
         {full, _} ->
-            ?info("Let's Encrypt: Starting test run against staging server before actual Let's"
-            "Encrypt certification"),
+            ?info("Let's Encrypt: Starting test run against staging server before actual "
+            "Let's Encrypt certification"),
             full;
         {_, undefined} -> throw("No staging ACME server URL defined. Cannot perform test run"),
             throw({error, no_letsencrypt_staging_server});
@@ -184,13 +191,14 @@ run_certification_flow(Domain, Plugin, Mode) ->
 
     ExistingAccount = case read_keys(KeysDir) of
         {ok, _, _} -> true;
-        _ -> false;
+        _ -> false
     end,
 
     try
         case ExistingAccount of
+            true ->
                 ?info("Let's Encrypt: reusing account from \"~s\"", [filename:absname(KeysDir)]);
-            error ->
+            false ->
                 ?info("Let's Encrypt: generating new Let's Encrypt account keys"),
                 ok = generate_keys(KeysDir)
         end,
@@ -329,15 +337,39 @@ handle_challenge(URI, Token, #flow_state{service = Service} = State) ->
     AuthString = make_auth_string(Token, State),
     TxtValue = base64url:encode(crypto:hash(sha256, AuthString)),
 
-    % requires oz connection
     ok = Service:set_txt_record(#{txt_name => ?LETSENCRYPT_TXT_NAME,
         txt_value => TxtValue, txt_ttl => ?LETSENCRYPT_TXT_TTL}),
+    ?info("Let's Encrypt: Wait for TXT record at ~s.~s",
+        [?LETSENCRYPT_TXT_NAME, State#flow_state .domain]),
+    wait_until_txt(?LETSENCRYPT_TXT_NAME, State#flow_state.domain, TxtValue),
 
     Payload = #{<<"resource">> => <<"challenge">>,
         <<"type">> => <<"dns-01">>,
         <<"keyAuthorization">> => AuthString},
     {ok, _, _, State2} = http_post(URI, Payload, 202, State),
     {ok, State2#flow_state{authz_uri = URI}}.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Polls DNS until txt record with expected Content is available
+%% @end
+%%--------------------------------------------------------------------
+-spec wait_until_txt(Name :: binary(), Domain :: binary(), Content :: binary()) ->
+    ok | no_return().
+wait_until_txt(Name, Domain, Content) ->
+    Query = binary:bin_to_list(<<Name/binary, ".", Domain/binary>>),
+    Expected = [[binary:bin_to_list(Content)]],
+    try
+        onepanel_utils:wait_until(inet_res, lookup, [Query, any, txt, []],
+            {equal, Expected}, ?WAIT_FOR_TXT_ATTEMPTS, ?WAIT_FOR_TXT_DELAY),
+        ok
+    catch throw:attempts_limit_exceeded ->
+        ?throw_error(?ERR_LETSENCRYPT(
+            <<"">>, "Could not set TXT record for Let's Encrypt authorization. "
+            "This might be caused by Onezone DNS misconfiguration."))
+    end.
 
 
 %%--------------------------------------------------------------------
