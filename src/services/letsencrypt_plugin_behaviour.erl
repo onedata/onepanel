@@ -40,7 +40,7 @@
 %%--------------------------------------------------------------------
 %% Checks if service is in a state allowing obtaining certificates.
 %%--------------------------------------------------------------------
--callback is_letsencrypt_supported(service:ctx()) -> boolean().
+-callback is_letsencrypt_supported(service:ctx()) -> boolean() | unknown.
 
 %%--------------------------------------------------------------------
 %% Clears worker ssl cache to ensure certificates changed on disk

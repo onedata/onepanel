@@ -488,7 +488,7 @@ get_details(#{node := Node}) ->
 
     Details2 = case service:is_configured(name(), letsencrypt) of
         true ->
-            [{letsEncryptEnabled, service_letsencrypt:is_enabled(#{})} | Details];
+            [{letsEncryptEnabled, service_letsencrypt:is_enabled()} | Details];
         false ->
             % do not send letsEncryptEnabled field
             % in order to prompt GUI to display certificate configuration panel

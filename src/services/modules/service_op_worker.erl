@@ -264,10 +264,14 @@ reload_webcert(Ctx) ->
 %% needed for Let's Encrypt to be available.
 %% @end
 %%--------------------------------------------------------------------
--spec is_letsencrypt_supported(service:ctx()) -> boolean().
+-spec is_letsencrypt_supported(service:ctx()) -> boolean() | unknown.
 is_letsencrypt_supported(Ctx) ->
-    service_oneprovider:is_registered(Ctx) andalso
-        proplists:get_value(subdomainDelegation, service_oneprovider:get_details(Ctx), false).
+    try
+        service_oneprovider:is_registered(Ctx) andalso
+            proplists:get_value(subdomainDelegation, service_oneprovider:get_details(Ctx), false)
+    catch
+        _:_ -> unknown
+    end.
 
 
 %%--------------------------------------------------------------------
