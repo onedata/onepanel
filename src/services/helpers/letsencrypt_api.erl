@@ -175,7 +175,7 @@ run_certification_flow(Domain, Plugin, Mode) ->
     KeyPath = onepanel_env:get(web_key_file),
     ChainPath = onepanel_env:get(web_cert_chain_file),
 
-    case SaveCert of
+    case SaveCert orelse Mode =:= full of
         true -> ensure_files_access([CertPath, KeyPath, ChainPath]);
         false -> ok
     end,
