@@ -1138,7 +1138,23 @@ nulldevice_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, optional}
+        storagePathType => {string, optional},
+        %% Specifies the parameters for a simulated null device filesystem. For
+        %% example `2-2:2-2:0-1` will generate a filesystem tree which
+        %% has 2 directories (`0` and `1`) and 2 files
+        %% (`2` and `3`) in the root of the filesystem, each
+        %% of these directories will have 2 subdirectories (`0` and
+        %% `1`) and 2 files (`2` and `3`) and each
+        %% of these subdirectories has only a single file (`0`).
+        %% Default empty string disables the simulated filesystem feature.
+        simulatedFilesystemParameters => {string, optional},
+        %% Determines the simulated filesystem grow rate. Default 0.0 value will
+        %% cause all the files and directories defined by the
+        %% `simulatedFilesystemParameters` specification to be visible
+        %% immediately. For example value of 0.01 will increase the number of
+        %% the visible filesystem entries by 1 file per 100 seconds, while 100.0
+        %% will increase it by 100 files per second.
+        simulatedFilesystemGrowSpeed => {float, optional}
     }.
 
 %%--------------------------------------------------------------------
