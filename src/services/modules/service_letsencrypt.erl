@@ -92,7 +92,7 @@ get_steps(update, _Ctx) ->
         #step{function = update, selection = first},
         #step{function = check_webcert, selection = first, condition = IsEnabled},
         #step{function = ensure_webcert, selection = first, condition = IsEnabled,
-            attempts = ?CERTIFICATION_ATTEMPTS, retry_delay = 10}
+            attempts = ?CERTIFICATION_ATTEMPTS}
     ].
 
 
@@ -189,8 +189,12 @@ ensure_webcert(Ctx) ->
         _ -> ok
     end.
 
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
 
 %%--------------------------------------------------------------------
+%% @private
 %% @doc
 %% Obtains certificate from Let's Encrypt
 %% @end
@@ -215,10 +219,6 @@ obtain_cert(Ctx) ->
     service:apply(get_plugin_name(), reload_webcert, #{}),
     ok.
 
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
 
 %%--------------------------------------------------------------------
 %% @private
@@ -282,7 +282,6 @@ is_enabled() ->
         {ok, #service{ctx = #{letsencrypt_enabled := true}}} -> true;
         _ -> false
     end.
-
 
 
 %%--------------------------------------------------------------------

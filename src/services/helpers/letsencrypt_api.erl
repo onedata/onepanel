@@ -52,9 +52,10 @@
 
 % Number of polls to DNS
 -define(WAIT_FOR_TXT_ATTEMPTS, 65).
-% Delay between polls to DNS. Total polling time should be longer than soa_minimum
-% in onezone
+% Delay between polls to DNS.
 -define(WAIT_FOR_TXT_DELAY, timer:seconds(1)).
+% DNS servers used to verify TXT record at onezone
+-define(DNS_SERVERS, [{{8,8,8,8}, 53}, {{8,8,4,4}, 53}, {{1,1,1,1}, 53}]).
 
 % Number of failed request retries
 -define(GET_RETRIES, 3).
@@ -62,8 +63,6 @@
 
 -define(HTTP_OPTS,
     [{connect_timeout, timer:seconds(15)}, {recv_timeout, timer:seconds(15)}]).
-
--define(DNS_SERVERS, [{{8,8,8,8}, 53}, {{8,8,4,4}, 53}, {{1,1,1,1}, 53}]).
 
 % Record for the endpoints directory presented by letsencrypt
 -record(directory, {
@@ -344,7 +343,7 @@ handle_challenge(URI, Token, #flow_state{service = Service} = State) ->
         txt_value => TxtValue, txt_ttl => ?LETSENCRYPT_TXT_TTL}),
 
     % Do not fail here even if TXT cannot be confirmed
-    % as there is no harm in trying asking Let's Encrypt anyway
+    % as there is no harm in attempting certification anyway
     confirm_txt_set(?LETSENCRYPT_TXT_NAME, State#flow_state.domain,
         TxtValue, State#flow_state.service),
 
@@ -781,13 +780,13 @@ confirm_txt_set(TxtName, Domain, Expected, Plugin) ->
     ZoneDomain = Plugin:get_dns_server(),
     {ok, IP} = inet:getaddr(ZoneDomain, inet),
 
+    ?info("Let's Encrypt: Waiting for TXT record at ~s", [Query]),
     TxtAtZone = (catch onepanel_utils:wait_until(erlang, apply,
                     [fun check_txt_at_server/4, [Query, ExpectedTxt, ZoneDomain, {IP, 53}]],
                     {equal, ok}, ?WAIT_FOR_TXT_ATTEMPTS, ?WAIT_FOR_TXT_DELAY)),
 
     case TxtAtZone of
         ok ->
-            ?info("Let's Encrypt: Waiting for TXT record at ~s", [Query]),
             try
                 onepanel_utils:wait_until(erlang, apply,
                     [fun check_txt_at_servers/4, [Query, ExpectedTxt, ZoneDomain, ?DNS_SERVERS]],
