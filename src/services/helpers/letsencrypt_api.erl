@@ -342,6 +342,9 @@ handle_challenge(URI, Token, #flow_state{service = Service} = State) ->
 
     ok = Service:set_txt_record(#{txt_name => ?LETSENCRYPT_TXT_NAME,
         txt_value => TxtValue, txt_ttl => ?LETSENCRYPT_TXT_TTL}),
+
+    % Do not fail here even if TXT cannot be confirmed
+    % as there is no harm in trying asking Let's Encrypt anyway
     confirm_txt_set(?LETSENCRYPT_TXT_NAME, State#flow_state.domain,
         TxtValue, State#flow_state.service),
 
@@ -777,12 +780,13 @@ confirm_txt_set(TxtName, Domain, Expected, Plugin) ->
 
     ZoneDomain = Plugin:get_dns_server(),
     {ok, IP} = inet:getaddr(ZoneDomain, inet),
-    case check_txt_at_server(Query, ExpectedTxt, ZoneDomain, {IP, 53}) of
-        not_found ->
-            ?error("Onezone DNS server failed to set TXT record needed by "
-            "Let's Encrypt client"),
-            ?throw_error(?ERR_LETSENCRYPT_NOT_SUPPORTED);
-        _ ->
+
+    TxtAtZone = (catch onepanel_utils:wait_until(erlang, apply,
+                    [fun check_txt_at_server/4, [Query, ExpectedTxt, ZoneDomain, {IP, 53}]],
+                    {equal, ok}, ?WAIT_FOR_TXT_ATTEMPTS, ?WAIT_FOR_TXT_DELAY)),
+
+    case TxtAtZone of
+        ok ->
             ?info("Let's Encrypt: Waiting for TXT record at ~s", [Query]),
             try
                 onepanel_utils:wait_until(erlang, apply,
@@ -794,7 +798,11 @@ confirm_txt_set(TxtName, Domain, Expected, Plugin) ->
                 "domain authorization in the Let's Encrypt. If certification fails, contact "
                 "your onezone administrator."),
                 {error, timeout}
-            end
+            end;
+        _ ->
+            ?warning("Cannot verify that onezone DNS is properly configured
+            for authorizing Let's Encrypt. ",
+            "If certification fails, contact your onezone administrator.")
     end.
 
 
