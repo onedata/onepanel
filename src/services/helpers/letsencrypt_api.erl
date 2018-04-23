@@ -215,17 +215,21 @@ run_certification_flow(Domain, Plugin, Mode) ->
         {ok, State5} = poll_authorization(State4),
         ?info("Let's Encrypt ~s run: obtain certificate", [ModeName]),
         {ok, _State6} = get_certificate(State5)
-    after
-        catch clean_txt_record(Plugin),
-        case ExistingAccount of
-            true -> ok;
-            false ->
-                % if error occurred before any successful certification
-                % account can be safely deleted to prevent counting against
-                % invalid authorization rate limit
-                catch clean_keys(KeysDir)
-        end
+    catch
+        Type:Error ->
+            case ExistingAccount of
+                true -> ok;
+                false ->
+                    % if error occurred before any successful certification,
+                    % account can be safely deleted to prevent counting against
+                    % invalid authorization rate limit
+                    catch clean_keys(KeysDir)
+            end,
+            erlang:Type(Error)
     end,
+
+    % Remove TXT record only on success to ease debugging
+    catch clean_txt_record(Plugin),
 
     case Mode2 of
         full -> run_certification_flow(Domain, Plugin, production);
