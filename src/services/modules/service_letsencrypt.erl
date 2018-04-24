@@ -189,6 +189,18 @@ ensure_webcert(Ctx) ->
         _ -> ok
     end.
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Determines whether Let's Encrypt certificate renewal is enabled.
+%% @end
+%%--------------------------------------------------------------------
+is_enabled() ->
+    case service:get(name()) of
+        {ok, #service{ctx = #{letsencrypt_enabled := true}}} -> true;
+        _ -> false
+    end.
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -270,18 +282,6 @@ disable() ->
     service:update(name(), fun(#service{ctx = ServiceCtx} = Record) ->
         Record#service{ctx = ServiceCtx#{letsencrypt_enabled => false}}
     end).
-
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Determines whether Let's Encrypt certificate renewal is enabled.
-%% @end
-%%--------------------------------------------------------------------
-is_enabled() ->
-    case service:get(name()) of
-        {ok, #service{ctx = #{letsencrypt_enabled := true}}} -> true;
-        _ -> false
-    end.
 
 
 %%--------------------------------------------------------------------

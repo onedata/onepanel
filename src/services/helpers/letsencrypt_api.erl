@@ -50,12 +50,14 @@
 % Number of polls about authorization status
 -define(LE_POLL_ATTEMPTS, 10).
 
-% Number of polls to DNS
+% Number of polls to DNS.
+% Selected so that it is longer than default soa_minimum in Onezone DNS
 -define(WAIT_FOR_TXT_ATTEMPTS, 65).
 % Delay between polls to DNS.
--define(WAIT_FOR_TXT_DELAY, timer:seconds(1)).
+-define(WAIT_FOR_TXT_DELAY, timer:seconds(2)).
 % DNS servers used to verify TXT record at onezone
--define(DNS_SERVERS, [{{8,8,8,8}, 53}, {{8,8,4,4}, 53}, {{1,1,1,1}, 53}]).
+-define(DNS_SERVERS, application:get_env(?APP_NAME, letsencrypt_dns_verification_servers,
+    [{8,8,8, 8}, {8, 8,4, 4}, {1,1,1,1}])).
 
 % Number of failed request retries
 -define(GET_RETRIES, 3).
@@ -785,27 +787,25 @@ confirm_txt_set(TxtName, Domain, Expected, Plugin) ->
     {ok, IP} = inet:getaddr(ZoneDomain, inet),
 
     ?info("Let's Encrypt: Waiting for TXT record at ~s", [Query]),
-    TxtAtZone = (catch onepanel_utils:wait_until(erlang, apply,
-                    [fun check_txt_at_server/4, [Query, ExpectedTxt, ZoneDomain, {IP, 53}]],
-                    {equal, ok}, ?WAIT_FOR_TXT_ATTEMPTS, ?WAIT_FOR_TXT_DELAY)),
 
-    case TxtAtZone of
-        ok ->
-            try
-                onepanel_utils:wait_until(erlang, apply,
-                    [fun check_txt_at_servers/4, [Query, ExpectedTxt, ZoneDomain, ?DNS_SERVERS]],
-                    {equal, ok}, ?WAIT_FOR_TXT_ATTEMPTS, ?WAIT_FOR_TXT_DELAY),
-                ok
-            catch throw:attempts_limit_exceeded ->
-                ?warning("There may be issues with Onezone dns configuration preventing "
-                "domain authorization in the Let's Encrypt. If certification fails, contact "
-                "your onezone administrator."),
-                {error, timeout}
-            end;
-        _ ->
-            ?warning("Cannot verify that onezone DNS is properly configured
-            for authorizing Let's Encrypt. ",
-            "If certification fails, contact your onezone administrator.")
+    try
+        % check that onezone responds if correct txt record
+        onepanel_utils:wait_until(erlang, apply,
+            [fun check_txt_at_server/4, [Query, ExpectedTxt, ZoneDomain, {IP, 53}]],
+            {equal, ok}, ?WAIT_FOR_TXT_ATTEMPTS, ?WAIT_FOR_TXT_DELAY),
+
+        DnsServers = lists:map(fun(DnsIp) -> {DnsIp, 53} end, ?DNS_SERVERS),
+
+        % check that txt record is visible globally in DNS
+        onepanel_utils:wait_until(erlang, apply,
+            [fun check_txt_at_servers/4, [Query, ExpectedTxt, ZoneDomain, DnsServers]],
+            {equal, ok}, ?WAIT_FOR_TXT_ATTEMPTS, ?WAIT_FOR_TXT_DELAY),
+        ok
+    catch throw:attempts_limit_exceeded ->
+        ?warning("Cannot verify that txt DNS record needed by Let's Encrypt client "
+        "was set in Onezone DNS. Continuing anyway. If certification fails, "
+        "contact your Onezone administrator."),
+        {error, timeout}
     end.
 
 
