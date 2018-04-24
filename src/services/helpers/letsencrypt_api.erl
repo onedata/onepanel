@@ -18,6 +18,7 @@
 
 -include_lib("ctool/include/logging.hrl").
 -include_lib("public_key/include/OTP-PUB-KEY.hrl").
+-include_lib("kernel/include/inet.hrl").
 
 % Staging server
 -define(STAGING_DIRECTORY_URL, application:get_env(onepanel,
@@ -35,7 +36,7 @@
 % See <https://tools.ietf.org/id/draft-ietf-acme-acme-07.html#rfc.section.8.5>
 -define(LETSENCRYPT_TXT_NAME, <<"_acme-challenge">>).
 % Short ttl to mitigate problems when quickly obtaining new certificate
--define(LETSENCRYPT_TXT_TTL, 10).
+-define(LETSENCRYPT_TXT_TTL, 1).
 
 % Filenames for temporary Let's Encrypt account keys
 -define(PRIVATE_RSA_KEY, "letsencrypt_private_key.pem").
@@ -45,9 +46,19 @@
 -define(DEFAULT_MODE, application:get_env(onepanel, letsencrypt_mode, full)).
 
 % Interval between polls about authorization status
--define(LE_POLL_INTERVAL, timer:seconds(2)).
+-define(LE_POLL_INTERVAL, timer:seconds(3)).
 % Number of polls about authorization status
--define(LE_POLL_ATTEMPTS, 5).
+-define(LE_POLL_ATTEMPTS, 10).
+
+% Number of polls to DNS.
+% Selected so that it is longer than default soa_minimum in Onezone DNS
+-define(WAIT_FOR_TXT_ATTEMPTS, 65).
+% Delay between polls to DNS.
+-define(WAIT_FOR_TXT_DELAY, timer:seconds(2)).
+% DNS servers used to verify TXT record at onezone
+-define(DNS_SERVERS, application:get_env(?APP_NAME, letsencrypt_dns_verification_servers,
+    [{8,8,8, 8}, {8, 8,4, 4}, {1,1,1,1}])).
+
 % Number of failed request retries
 -define(GET_RETRIES, 3).
 -define(POST_RETRIES, 4).
@@ -141,8 +152,8 @@ run_certification_flow(Domain, Plugin, Mode) ->
             ?info("No staging ACME server URL defined. Skipping staging run and running in production mode."),
             production;
         {full, _} ->
-            ?info("Let's Encrypt: Starting test run against staging server before actual Let's"
-            "Encrypt certification"),
+            ?info("Let's Encrypt: Starting test run against staging server before actual "
+            "Let's Encrypt certification"),
             full;
         {_, undefined} -> throw("No staging ACME server URL defined. Cannot perform test run"),
             throw({error, no_letsencrypt_staging_server});
@@ -166,7 +177,7 @@ run_certification_flow(Domain, Plugin, Mode) ->
     KeyPath = onepanel_env:get(web_key_file),
     ChainPath = onepanel_env:get(web_cert_chain_file),
 
-    case SaveCert of
+    case SaveCert orelse Mode =:= full of
         true -> ensure_files_access([CertPath, KeyPath, ChainPath]);
         false -> ok
     end,
@@ -182,11 +193,16 @@ run_certification_flow(Domain, Plugin, Mode) ->
         save_cert = Mode2 == production orelse Mode2 == staging,
         domain = Domain},
 
+    ExistingAccount = case read_keys(KeysDir) of
+        {ok, _, _} -> true;
+        _ -> false
+    end,
+
     try
-        case read_keys(KeysDir) of
-            {ok, _, _} ->
+        case ExistingAccount of
+            true ->
                 ?info("Let's Encrypt: reusing account from \"~s\"", [filename:absname(KeysDir)]);
-            error ->
+            false ->
                 ?info("Let's Encrypt: generating new Let's Encrypt account keys"),
                 ok = generate_keys(KeysDir)
         end,
@@ -201,9 +217,21 @@ run_certification_flow(Domain, Plugin, Mode) ->
         {ok, State5} = poll_authorization(State4),
         ?info("Let's Encrypt ~s run: obtain certificate", [ModeName]),
         {ok, _State6} = get_certificate(State5)
-    after
-        catch clean_txt_record(Plugin)
+    catch
+        Type:Error ->
+            case ExistingAccount of
+                true -> ok;
+                false ->
+                    % if error occurred before any successful certification,
+                    % account can be safely deleted to prevent counting against
+                    % invalid authorization rate limit
+                    catch clean_keys(KeysDir)
+            end,
+            erlang:Type(Error)
     end,
+
+    % Remove TXT record only on success to ease debugging
+    catch clean_txt_record(Plugin),
 
     case Mode2 of
         full -> run_certification_flow(Domain, Plugin, production);
@@ -317,9 +345,13 @@ handle_challenge(URI, Token, #flow_state{service = Service} = State) ->
     AuthString = make_auth_string(Token, State),
     TxtValue = base64url:encode(crypto:hash(sha256, AuthString)),
 
-    % requires oz connection
     ok = Service:set_txt_record(#{txt_name => ?LETSENCRYPT_TXT_NAME,
         txt_value => TxtValue, txt_ttl => ?LETSENCRYPT_TXT_TTL}),
+
+    % Do not fail here even if TXT cannot be confirmed
+    % as there is no harm in attempting certification anyway
+    confirm_txt_set(?LETSENCRYPT_TXT_NAME, State#flow_state.domain,
+        TxtValue, State#flow_state.service),
 
     Payload = #{<<"resource">> => <<"challenge">>,
         <<"type">> => <<"dns-01">>,
@@ -735,4 +767,91 @@ check_write_access(Path) ->
                 Error -> Error
             end;
         Error -> Error
+    end.
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Waits for the expected DNS txt record to be resolvable.
+%% TxtName and Domain are used to construct the query.
+%% Expected is the correct content.
+%% @end
+%%--------------------------------------------------------------------
+-spec confirm_txt_set(TxtName :: binary(), Domain :: binary(),
+    Expected :: binary(), Plugin :: module()) -> ok | {error, timeout}.
+confirm_txt_set(TxtName, Domain, Expected, Plugin) ->
+    Query = binary:bin_to_list(<<TxtName/binary, ".", Domain/binary>>),
+    ExpectedTxt = binary:bin_to_list(Expected),
+
+    ZoneDomain = Plugin:get_dns_server(),
+    {ok, IP} = inet:getaddr(ZoneDomain, inet),
+
+    ?info("Let's Encrypt: Waiting for TXT record at ~s", [Query]),
+
+    try
+        % check that onezone responds if correct txt record
+        onepanel_utils:wait_until(erlang, apply,
+            [fun check_txt_at_server/4, [Query, ExpectedTxt, ZoneDomain, {IP, 53}]],
+            {equal, ok}, ?WAIT_FOR_TXT_ATTEMPTS, ?WAIT_FOR_TXT_DELAY),
+
+        DnsServers = lists:map(fun(DnsIp) -> {DnsIp, 53} end, ?DNS_SERVERS),
+
+        % check that txt record is visible globally in DNS
+        onepanel_utils:wait_until(erlang, apply,
+            [fun check_txt_at_servers/4, [Query, ExpectedTxt, ZoneDomain, DnsServers]],
+            {equal, ok}, ?WAIT_FOR_TXT_ATTEMPTS, ?WAIT_FOR_TXT_DELAY),
+        ok
+    catch throw:attempts_limit_exceeded ->
+        ?warning("Cannot verify that txt DNS record needed by Let's Encrypt client "
+        "was set in Onezone DNS. Continuing anyway. If certification fails, "
+        "contact your Onezone administrator."),
+        {error, timeout}
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Checks if ExpectedTxt txt record is resolved to correct value
+%% on all working Servers.
+%% @end
+%%--------------------------------------------------------------------
+-spec check_txt_at_servers(Query :: string(), Expected :: string(),
+    KnownA :: string(), Servers :: [{inet:ip4_address(), Port :: 0..65535}]) ->
+    ok | error.
+check_txt_at_servers(Query, Expected, KnownA, Servers) ->
+    Results = utils:pmap(fun(Server) ->
+        check_txt_at_server(Query, Expected, KnownA, Server)
+    end, Servers),
+
+    TxtMissing = fun(not_found) -> true; (_) -> false end,
+    ServerWorks = fun(server_error) -> false; (_) -> true end,
+
+    % ensure some servers worked and none failed to find TXT record
+    case lists:any(ServerWorks, Results) andalso not lists:any(TxtMissing, Results) of
+        true -> ok;
+        false -> error
+    end.
+
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% After ensuring the server is reliable by quering KnownA a record,
+%% checks if ExpectedTxt txt record is resolved by dns Server at QueryTxt,
+%% @end
+%%--------------------------------------------------------------------
+-spec check_txt_at_server(QueryTxt :: string(), ExpectedTxt :: string(),
+    KnownA :: string(), Server :: {inet:ip4_address(), Port :: 1..65535}) ->
+    ok | not_found | server_error.
+check_txt_at_server(QueryTxt, ExpectedTxt, KnownA, Server) ->
+    case inet_res:resolve(KnownA, in, a, [{nameservers, [Server]}]) of
+        {error, _} -> server_error;
+        _ ->
+            Results = inet_res:lookup(QueryTxt, in, txt, [{nameservers, [Server]}]),
+            case lists:member([ExpectedTxt], Results) of
+                true -> ok;
+                false -> not_found
+            end
     end.

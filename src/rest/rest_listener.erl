@@ -85,7 +85,9 @@ start() ->
     {ok, _} = ranch:start_listener(?MODULE, ranch_ssl, SslOptsWithChain,
         cowboy_tls, #{
             env => #{dispatch => Dispatch},
-            connection_type => supervisor
+            connection_type => supervisor,
+            idle_timeout => timer:hours(24),
+            inactivity_timeout => timer:minutes(10)
         }
     ),
 

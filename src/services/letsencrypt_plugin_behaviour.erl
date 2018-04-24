@@ -28,6 +28,11 @@
 -callback remove_txt_record(#{txt_name := binary(), _ => _}) -> ok.
 
 %%--------------------------------------------------------------------
+%% Returns hostname of the server at which txt record is set.
+%%--------------------------------------------------------------------
+-callback get_dns_server() -> string().
+
+%%--------------------------------------------------------------------
 %% Returns current domain.
 %%--------------------------------------------------------------------
 -callback get_domain(service:ctx()) -> binary().
@@ -40,7 +45,7 @@
 %%--------------------------------------------------------------------
 %% Checks if service is in a state allowing obtaining certificates.
 %%--------------------------------------------------------------------
--callback is_letsencrypt_supported(service:ctx()) -> boolean().
+-callback is_letsencrypt_supported(service:ctx()) -> boolean() | unknown.
 
 %%--------------------------------------------------------------------
 %% Clears worker ssl cache to ensure certificates changed on disk

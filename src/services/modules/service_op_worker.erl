@@ -20,8 +20,8 @@
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 %% LE behaviour callbacks
--export([set_txt_record/1, remove_txt_record/1, get_domain/1, get_admin_email/1,
-    is_letsencrypt_supported/1]).
+-export([set_txt_record/1, remove_txt_record/1, get_dns_server/0,
+    get_domain/1, get_admin_email/1, is_letsencrypt_supported/1]).
 
 %% API
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
@@ -264,10 +264,14 @@ reload_webcert(Ctx) ->
 %% needed for Let's Encrypt to be available.
 %% @end
 %%--------------------------------------------------------------------
--spec is_letsencrypt_supported(service:ctx()) -> boolean().
+-spec is_letsencrypt_supported(service:ctx()) -> boolean() | unknown.
 is_letsencrypt_supported(Ctx) ->
-    service_oneprovider:is_registered(Ctx) andalso
-        proplists:get_value(subdomainDelegation, service_oneprovider:get_details(Ctx), false).
+    try
+        service_oneprovider:is_registered(Ctx) andalso
+            proplists:get_value(subdomainDelegation, service_oneprovider:get_details(Ctx), false)
+    catch
+        _:_ -> unknown
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -290,6 +294,15 @@ set_txt_record(#{txt_name := Name, txt_value := Value, txt_ttl := TTL}) ->
 remove_txt_record(#{txt_name:= Name}) ->
     [Node | _] = get_nodes(),
     ok = rpc:call(Node, provider_logic, remove_txt_record, [Name]).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns hostname of the dns server responsible for setting txt record.
+%% @end
+%%--------------------------------------------------------------------
+get_dns_server() ->
+    service_oneprovider:get_oz_domain().
 
 
 %%--------------------------------------------------------------------

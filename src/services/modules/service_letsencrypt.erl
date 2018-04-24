@@ -27,7 +27,7 @@
 
 %% API
 -export([configure/1, status/1, check_webcert/1, ensure_webcert/1,
-    update/1, is_enabled/1]).
+    update/1, is_enabled/0]).
 -export([is_local_cert_dirty/1]).
 
 -define(CERT_PATH, onepanel_env:get(web_cert_file)).
@@ -38,6 +38,8 @@
     ?APP_NAME, webcert_renew_check_delay, 3600))).
 -define(RENEW_MARGIN_SECONDS, application:get_env(
     ?APP_NAME, webcert_renewal_days, 7) * 24 * 3600).
+-define(CERTIFICATION_ATTEMPTS, application:get_env(
+    ?APP_NAME, letsencrypt_attempts, 1)).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -80,12 +82,17 @@ get_steps(deploy, #{letsencrypt_plugin := _} = Ctx) ->
     create(Ctx),
     [#step{function = configure}];
 
-get_steps(update, _Ctx) -> [
-        % selection=first to ensure service watcher will trigger cert renewal
-        % only on one node
+get_steps(update, _Ctx) ->
+    IsEnabled = fun
+        (#{letsencrypt_enabled := Enabled}) -> Enabled;
+        (_) -> is_enabled()
+    end,
+    [
+        % use "first" host to launch service watcher monitoring on one node only
         #step{function = update, selection = first},
-        #step{function = check_webcert, selection = first, condition = fun is_enabled/1},
-        #step{function = ensure_webcert, selection = first, condition = fun is_enabled/1}
+        #step{function = check_webcert, selection = first, condition = IsEnabled},
+        #step{function = ensure_webcert, selection = first, condition = IsEnabled,
+            attempts = ?CERTIFICATION_ATTEMPTS}
     ].
 
 
@@ -112,19 +119,19 @@ configure(_Ctx) ->
 -spec update(service:ctx()) -> ok | no_return().
 update(#{letsencrypt_enabled := Request} = Ctx) ->
     case {Request, (get_plugin_module()):is_letsencrypt_supported(Ctx)} of
-        {true, false} ->
-            ?throw_error(?ERR_LETSENCRYPT_NOT_SUPPORTED);
         {true, true} -> enable();
+        {true, _} -> % unsuppoted or support cannot be determined
+            disable(),
+            ?throw_error(?ERR_LETSENCRYPT_NOT_SUPPORTED);
         {false, _} -> disable()
     end;
 update(Ctx) ->
     % even when letsencrypt_enabled is not present in Ctx
     % ensure current state is valid (for example if provider is still registered)
-
-    case {is_enabled(#{}), (get_plugin_module()):is_letsencrypt_supported(Ctx)} of
+    case {is_enabled(), (get_plugin_module()):is_letsencrypt_supported(Ctx)} of
         {true, true} -> enable(); % to register in service watcher
         {true, false} -> disable();
-        {false, _} -> ok
+        _ -> ok
     end.
 
 
@@ -138,7 +145,7 @@ status(Ctx) ->
         check_webcert(Ctx),
         ensure_webcert(Ctx#{renewal => true})
     catch
-        Type:Error -> ?warning("Certificate renewal check failed: ~p", [{Type, Error}])
+        _:Reason -> ?error("Certificate renewal check failed: ~p", [?make_error(Reason)])
     end,
     % always returns 'running' as there is no meaningful way of restarting this service
     running.
@@ -150,7 +157,7 @@ status(Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 check_webcert(Ctx) ->
-    case is_enabled(#{}) of
+    case is_enabled() of
         true ->
             Nodes = get_nodes(),
             Domain = (get_plugin_module()):get_domain(Ctx),
@@ -185,6 +192,22 @@ ensure_webcert(Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc
+%% Determines whether Let's Encrypt certificate renewal is enabled.
+%% @end
+%%--------------------------------------------------------------------
+is_enabled() ->
+    case service:get(name()) of
+        {ok, #service{ctx = #{letsencrypt_enabled := true}}} -> true;
+        _ -> false
+    end.
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
 %% Obtains certificate from Let's Encrypt
 %% @end
 %%--------------------------------------------------------------------
@@ -208,10 +231,6 @@ obtain_cert(Ctx) ->
     service:apply(get_plugin_name(), reload_webcert, #{}),
     ok.
 
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
 
 %%--------------------------------------------------------------------
 %% @private
@@ -263,24 +282,6 @@ disable() ->
     service:update(name(), fun(#service{ctx = ServiceCtx} = Record) ->
         Record#service{ctx = ServiceCtx#{letsencrypt_enabled => false}}
     end).
-
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Determines whether Let's Encrypt client is enabled based on provided ctx
-%% or state from datastore.
-%% @end
-%%--------------------------------------------------------------------
--spec is_enabled(service:ctx()) -> boolean().
-is_enabled(#{letsencrypt_enabled := Enabled}) ->
-    % use value from Ctx to allow usage in step condition, which is checked
-    % before any steps are executed
-    Enabled;
-is_enabled(_Ctx) ->
-    case service:get(name()) of
-        {ok, #service{ctx = #{letsencrypt_enabled := true}}} -> true;
-        _ -> false
-    end.
 
 
 %%--------------------------------------------------------------------

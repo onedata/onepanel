@@ -27,7 +27,7 @@
 %% API
 -export([configure/1, check_oz_availability/1,
     register/1, unregister/1, is_registered/1,
-    modify_details/1, get_details/1,
+    modify_details/1, get_details/1, get_oz_domain/0,
     support_space/1, revoke_space_support/1, get_spaces/1,
     get_space_details/1, modify_space/1, get_cluster_ips/1,
     get_sync_stats/1, get_autocleaning_reports/1, get_autocleaning_status/1,
@@ -465,7 +465,7 @@ modify_details(Ctx) ->
 get_details(#{node := Node}) ->
     % Graph Sync connection is needed to obtain details
     rpc:call(Node, oneprovider, force_oz_connection_start, []),
-    {ok, {_, _, OzDomain, _, _, _}} = http_uri:parse(oz_plugin:get_oz_url()),
+    OzDomain = get_oz_domain(),
     #{
         id := Id,
         name := Name,
@@ -488,7 +488,7 @@ get_details(#{node := Node}) ->
 
     Details2 = case service:is_configured(name(), letsencrypt) of
         true ->
-            [{letsEncryptEnabled, service_letsencrypt:is_enabled(#{})} | Details];
+            [{letsEncryptEnabled, service_letsencrypt:is_enabled()} | Details];
         false ->
             % do not send letsEncryptEnabled field
             % in order to prompt GUI to display certificate configuration panel
@@ -502,6 +502,16 @@ get_details(#{node := Node}) ->
 get_details(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     get_details(Ctx#{node => Node}).
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns the onezone domain.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_oz_domain() -> string().
+get_oz_domain() ->
+    {ok, {_, _, OzDomain, _, _, _}} = http_uri:parse(oz_plugin:get_oz_url()),
+    OzDomain.
 
 
 %%--------------------------------------------------------------------

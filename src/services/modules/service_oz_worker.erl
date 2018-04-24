@@ -18,8 +18,8 @@
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 %% LE behaviour callbacks
--export([set_txt_record/1, remove_txt_record/1, reload_webcert/1, get_domain/1,
-get_admin_email/1, is_letsencrypt_supported/1]).
+-export([set_txt_record/1, remove_txt_record/1, get_dns_server/0,
+    reload_webcert/1, get_domain/1, get_admin_email/1, is_letsencrypt_supported/1]).
 
 %% API
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
@@ -194,6 +194,18 @@ set_txt_record(#{txt_name := Name, txt_value := Value, txt_ttl := _TTL,
     reconcile_dns(Ctx);
 set_txt_record(#{txt_name := _, txt_value := _} = Ctx) ->
     set_txt_record(Ctx#{nodes => get_nodes()}).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns hostname of the dns server responsible for setting txt record.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_dns_server() -> string() | no_return().
+get_dns_server() ->
+    [Node|_] = get_nodes(),
+    {ok, DomainBin} = onepanel_env:get_remote(Node, name(), http_domain),
+    binary:bin_to_list(DomainBin).
 
 
 %%--------------------------------------------------------------------
