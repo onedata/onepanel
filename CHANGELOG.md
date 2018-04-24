@@ -4,6 +4,28 @@
 CHANGELOG
 ---------
 
+### 18.02.0-rc1
+
+* VFS-4374 Increase inactivity timeout in rest listener
+* VFS-4374 Make LE dns servers configurable and improve logs
+* VFS-4374 Remove LE account on failure and txt record on success
+* VFS-4374 Check if cert file is writtable before staging LE run
+* VFS-4374 Retry checking TXT record at onezone
+* VFs-4374 Ensure LE TXT presence by querying global DNS servers
+* VFS-4374 Log verbose error on cert renewal chack failure
+* VFS-4374 Prevent too eager disabling of Let's Encrypt
+* VFS-4374 Add verification of set txt record in letsencrypt
+* VFS-4374 Delete Let's Encrypt account on error
+* VFS-4374 Increase LE retries and decrease dns TTL to improve stability
+* VFS-4374 Add option to retry the ensure_webcert step
+* VFS-2021 Added dockers.config
+* VFS-4280 Added simulated filesystem options to null device helper
+* VFS-4280 Updated null helper rest model
+* VFS-4368 Remove unused Context argument in letsencrypt service
+* VFS-4368 Fix node IPs being set on nodes without op-worker
+* VFS-4368 Fix webcert being reset only on one node
+
+
 ### 18.02.0-beta6
 
 * VFS-4357 Register letsencrypt in service watcher after restart
