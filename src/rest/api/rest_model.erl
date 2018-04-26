@@ -291,7 +291,7 @@ provider_configuration_details_oneprovider_model() ->
         %% The name of a provider.
         name => string,
         %% Informs about cluster deployment being finished
-        configured => boolean
+        ready => boolean
     }.
 
 %%--------------------------------------------------------------------
@@ -981,7 +981,7 @@ zone_configuration_details_onezone_model() ->
         %% The name of a zone.
         name => string,
         %% Informs about cluster deployment being finished
-        configured => boolean
+        ready => boolean
     }.
 
 %%--------------------------------------------------------------------

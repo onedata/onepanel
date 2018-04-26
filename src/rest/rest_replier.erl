@@ -246,7 +246,7 @@ format_configuration(SModule) ->
         },
         SModule:name() => #{
             <<"name">> => SName,
-            <<"configured">> => service:is_configured(SModule:name(), SModule:name())
+            <<"ready">> => is_service_ready(SModule)
         }
     }.
 
@@ -302,3 +302,29 @@ format_service_hosts_results(Results) ->
             onepanel_utils:convert(onepanel_cluster:node_to_host(Node), binary),
             Result, Acc)
     end, #{}, Results).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Checks if all configuration steps have been performed
+%% and configured services are running on all hosts.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_service_ready(SModule :: module()) -> boolean().
+is_service_ready(SModule) ->
+    service:is_configured(SModule:name(), SModule:name()) andalso
+        is_service_running(SModule).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Checks if services comprising the oneprovider are running
+%% on all configured hosts.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_service_running(SModule :: module()) -> boolean().
+is_service_running(SModule) ->
+    Results = [GoodResults ++ BadResults ||
+        {_, _, {GoodResults, BadResults}} <- service:apply_sync(SModule:name(), status, #{})],
+    lists:all(fun({_Host, running}) -> true; (_) -> false end, lists:flatten(Results)).
+

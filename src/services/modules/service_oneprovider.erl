@@ -225,8 +225,6 @@ get_steps(set_cluster_ips, #{hosts := Hosts} = Ctx) ->
         name => ?SERVICE_OPW
     },
     [
-        % using #steps and not #step to invoke choosing hosts in cluster worker
-        % for determining correct hosts
         #steps{action = set_cluster_ips, ctx = Ctx2, service = ?SERVICE_CW},
         #step{function = update_provider_ips, selection = any,
             hosts = Hosts}

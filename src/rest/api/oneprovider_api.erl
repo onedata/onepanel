@@ -380,19 +380,19 @@ routes() ->
             }]
         }},
 
-        %% Start/stop provider services
-        {<<"/api/v3/onepanel/provider/services">>, rest_handler, #rstate{
+        %% Start/stop provider service
+        {<<"/api/v3/onepanel/provider/service">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
             resource = service_oneprovider,
             methods = [#rmethod{
                 type = 'PATCH',
-            params_spec = #{
-                        %% Defines the intended state of the Oneprovider
-                        %% service. The service will be started or stopped in
-                        %% order to match the requested state.
-                        started => { boolean, {optional, true } }
-            }
+                params_spec = #{
+                    %% Defines the intended state of the Oneprovider
+                    %% service. The service will be started or stopped in
+                    %% order to match the requested state.
+                    started => {boolean, {optional, true}}
+                }
             }]
         }},
 
