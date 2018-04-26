@@ -96,7 +96,8 @@ get_steps(deploy, Ctx) ->
     StorageCtx = onepanel_maps:get([cluster, storages], Ctx, #{}),
     OpCtx = onepanel_maps:get(name(), Ctx, #{}),
 
-    service:create(#service{name = name()}),
+    service:create(#service{name = name(),
+        ctx = #{master => onepanel_cluster:node_to_host()}}),
     AlreadyRegistered =
         case service:get(name()) of
             {ok, #service{ctx = #{registered := true}}} -> true;
@@ -134,30 +135,30 @@ get_steps(deploy, Ctx) ->
         Ss#steps{service = ?SERVICE_OPW, action = deploy, ctx = OpwCtx},
         S#step{service = ?SERVICE_OPW, function = status, ctx = OpwCtx},
         Ss#steps{service = ?SERVICE_LE, action = deploy, ctx = LeCtx3},
-        S#step{module = service, function = mark_configured, ctx = OpaCtx,
+        S#step{module = service, function = mark_configured, ctx = OpCtx,
             args = [name(), ?MILESTONE_CLUSTER], selection = any},
         Ss#steps{service = ?SERVICE_OPW, action = add_storages, ctx = StorageCtx},
         Ss#steps{action = register, ctx = OpCtx, condition = Register},
         Ss#steps{service = ?SERVICE_LE, action = update, ctx = LeCtx3},
         Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx},
-        S#step{module = service, function = mark_configured, ctx = OpaCtx,
-            args = [name(), ?MILESTONE_ONEPROVIDER], selection = any, condition = Register}
+        S#step{module = service, function = mark_configured, ctx = OpCtx,
+            args = [name(), ?MILESTONE_ONEPROVIDER], selection = any,
+            condition = Register}
     ];
 
+% start = resume
 get_steps(start, _Ctx) ->
-    IsMaster = fun(_) ->
-%%        R = service_onepanel:are_all_hosts_available(#{hostget_hosts())
-        Self = onepanel_cluster:node_to_host(),
-        case get_hosts() of
-            [] -> ?alert("Skip resuming!"), false;
-            [Self | _] -> ?alert("Manage resuming!"), true;
-            _ -> ?alert("Skip resuming!"), false
-        end
+    Self = onepanel_cluster:node_to_host(),
+
+    %% Handle upgrade from older version
+    IsMaster = case service:get(name()) of
+        {ok, #service{ctx = #{master := Master}}} -> fun(_) -> Self == Master end;
+        _ -> fun(_) -> false end
     end,
     [
-%%        #steps{service = ?SERVICE_OPA, action = check_connection_all},
+        % Wait for all nodes to be available
         #step{service = ?SERVICE_OPA, function = ensure_all_available,
-            condition = IsMaster, attempts = 5},
+            condition = IsMaster, attempts = 10},
         #steps{service = ?SERVICE_CB, action = start, condition = IsMaster},
         #steps{service = ?SERVICE_CM, action = start, condition = IsMaster},
         #steps{service = ?SERVICE_OPW, action = start, condition = IsMaster},
