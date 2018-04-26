@@ -100,14 +100,14 @@ get_steps(deploy, Ctx) ->
         Ss#steps{service = ?SERVICE_OZW, action = deploy, ctx = OzwCtx},
         S#step{service = ?SERVICE_OZW, function = status, ctx = OzwCtx},
         S#step{module = service, function = mark_configured,
-            args = [name(), ?MILESTONE_ONEZONE], selection = any},
+            args = [name(), ?MILESTONE_CLUSTER], selection = any},
         S#step{module = service, function = save, ctx = OpaCtx,
             args = [#service{name = name(), ctx = OzCtx}],
             selection = first
         },
         Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx},
         S#step{module = service, function = mark_configured,
-            args = [name(), ?MILESTONE_ONEZONE], selection = any}
+            args = [name(), ?MILESTONE_READY], selection = any}
     ];
 
 get_steps(start, _Ctx) ->

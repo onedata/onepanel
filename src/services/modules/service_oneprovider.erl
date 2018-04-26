@@ -115,7 +115,7 @@ get_steps(deploy, Ctx) ->
 
     % TODO VFS-4140 Proper detection of batch config
     case Register(OpCtx) of
-        true -> service:mark_configured(name(), letsencrypt);
+        true -> onepanel_milestones:mark_configured(?MILESTONE_LETSENCRYPT);
         _ -> ok
     end,
 
@@ -128,6 +128,8 @@ get_steps(deploy, Ctx) ->
         end,
     LeCtx3 = LeCtx2#{letsencrypt_plugin => ?SERVICE_OPW},
 
+    SelfHost = [onepanel_cluster:node_to_host()],
+
     S = #step{verify_hosts = false},
     Ss = #steps{verify_hosts = false},
     [
@@ -139,15 +141,14 @@ get_steps(deploy, Ctx) ->
         Ss#steps{service = ?SERVICE_OPW, action = deploy, ctx = OpwCtx},
         S#step{service = ?SERVICE_OPW, function = status, ctx = OpwCtx},
         Ss#steps{service = ?SERVICE_LE, action = deploy, ctx = LeCtx3},
-        S#step{module = service, function = mark_configured, ctx = OpCtx,
-            args = [name(), ?MILESTONE_CLUSTER], selection = any},
+        S#step{module = onepanel_milestones, function = mark_configured,
+            hosts = [SelfHost], args = [?MILESTONE_CLUSTER]},
         Ss#steps{service = ?SERVICE_OPW, action = add_storages, ctx = StorageCtx},
         Ss#steps{action = register, ctx = OpCtx, condition = Register},
         Ss#steps{service = ?SERVICE_LE, action = update, ctx = LeCtx3},
         Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx},
-        S#step{module = service, function = mark_configured, ctx = OpCtx,
-            args = [name(), ?MILESTONE_ONEPROVIDER], selection = any,
-            condition = Register}
+        S#step{module = onepanel_milestones, function = mark_configured,
+            hosts = [SelfHost], args = [?MILESTONE_READY]}
     ];
 
 % start = resume
@@ -345,7 +346,7 @@ register(Ctx) ->
                 {<<"ipList">>, []}]; % IPs will be updated in the step set_cluster_ips
         false ->
             % without subdomain delegtion, Let's Encrypt does not have to be configured
-            service:mark_configured(name(), letsencrypt),
+            onepanel_milestones:mark_configured(?MILESTONE_LETSENCRYPT),
             [{<<"subdomainDelegation">>, false},
                 {<<"domain">>, service_ctx:get(oneprovider_domain, Ctx, binary)}]
     end,
@@ -399,7 +400,7 @@ unregister(#{node := Node}) ->
     ok = oz_providers:unregister(provider),
     rpc:call(Node, provider_auth, delete, []),
 
-    service:mark_not_configured(name(), letsencrypt),
+    onepanel_milestones:mark_not_configured(?MILESTONE_LETSENCRYPT),
     service:update(name(), fun(#service{ctx = C} = S) ->
         S#service{ctx = C#{registered => false}}
     end);
@@ -464,7 +465,7 @@ modify_details(#{node := Node} = Ctx) ->
         <<"adminEmail">>, Params3),
 
     case maps:is_key(letsencrypt_enabled, Ctx) of
-        true -> service:mark_configured(name(), letsencrypt);
+        true -> onepanel_milestones:mark_configured(?MILESTONE_LETSENCRYPT);
         _ -> ok
     end,
 
@@ -506,7 +507,7 @@ get_details(#{node := Node}) ->
         {onezoneDomainName, onepanel_utils:convert(OzDomain, binary)}
     ],
 
-    Details2 = case service:is_configured(name(), letsencrypt) of
+    Details2 = case onepanel_milestones:is_configured(?MILESTONE_LETSENCRYPT) of
         true ->
             [{letsEncryptEnabled, service_letsencrypt:is_enabled()} | Details];
         false ->
@@ -739,7 +740,7 @@ pop_legacy_letsencrypt_config() ->
             end),
             Result = case maps:find(has_letsencrypt_cert, Ctx) of
                 {ok, Val} ->
-                    service:mark_configured(name(), letsencrypt),
+                    onepanel_milestones:mark_configured(?MILESTONE_LETSENCRYPT),
                     Val;
                 error -> false
             end,

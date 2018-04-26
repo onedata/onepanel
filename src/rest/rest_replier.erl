@@ -14,6 +14,7 @@
 
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
+-include("milestones.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/oz/oz_providers.hrl").
 
@@ -318,7 +319,7 @@ format_service_hosts_results(Results) ->
 %%--------------------------------------------------------------------
 -spec is_service_ready(SModule :: module()) -> boolean().
 is_service_ready(SModule) ->
-    service:is_configured(SModule:name(), SModule:name()) andalso
+    onepanel_milestones:is_configured(?MILESTONE_READY) andalso
         is_service_running(SModule).
 
 

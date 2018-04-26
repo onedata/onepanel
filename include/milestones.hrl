@@ -13,8 +13,7 @@
 
 % services are assigned to nodes
 -define(MILESTONE_CLUSTER, service_nodes).
-
--define(MILESTONE_ONEPROVIDER, service_oneprovider:name()).
--define(MILESTONE_ONEZONE, service_onezone:name()).
+-define(MILESTONE_LETSENCRYPT, letsencrypt).
+-define(MILESTONE_READY, ready).
 
 -endif.
