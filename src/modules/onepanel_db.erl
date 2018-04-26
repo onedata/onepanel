@@ -63,11 +63,12 @@ create_tables() ->
             {record_name, Model},
             {disc_copies, [node()]}
         ]) of
-            {atomic, ok} -> ok;
+            {atomic, ok} ->
+                Model:seed(),
+                ok;
             {aborted, {already_exists, Model}} -> ok;
             {aborted, Reason} -> throw(Reason)
         end,
-        Model:seed(),
         Table
     end, model:get_models()),
     Timeout = onepanel_env:get(create_tables_timeout),
