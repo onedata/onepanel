@@ -78,6 +78,10 @@ get_nodes() ->
     Steps :: [service:step()].
 get_steps(deploy, Ctx) ->
     service:create(#service{name = name()}),
+    % separate update to handle upgrade from older version
+    service:update(name(), fun(#service{ctx = C} = S) ->
+        S#service{ctx = C#{master_host => onepanel_cluster:node_to_host()}}
+    end),
 
     {ok, OpaCtx} = onepanel_maps:get([cluster, ?SERVICE_OPA], Ctx),
     {ok, CbCtx} = onepanel_maps:get([cluster, ?SERVICE_CB], Ctx),

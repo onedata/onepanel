@@ -88,6 +88,9 @@
 -spec cluster_configuration_details_model() -> maps:map().
 cluster_configuration_details_model() ->
     #{
+        %% Host designated for managing service deployment and subsequent
+        %% starts.
+        master_host => string,
         databases => database_hosts_model(),
         managers => manager_hosts_model(),
         workers => worker_hosts_model()

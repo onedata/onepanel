@@ -96,8 +96,12 @@ get_steps(deploy, Ctx) ->
     StorageCtx = onepanel_maps:get([cluster, storages], Ctx, #{}),
     OpCtx = onepanel_maps:get(name(), Ctx, #{}),
 
-    service:create(#service{name = name(),
-        ctx = #{master => onepanel_cluster:node_to_host()}}),
+    service:create(#service{name = name()}),
+    % separate update to handle upgrade from older version
+    service:update(name(), fun(#service{ctx = C} = S) ->
+        S#service{ctx = C#{master_host => onepanel_cluster:node_to_host()}}
+    end),
+
     AlreadyRegistered =
         case service:get(name()) of
             {ok, #service{ctx = #{registered := true}}} -> true;
@@ -148,11 +152,11 @@ get_steps(deploy, Ctx) ->
 
 % start = resume
 get_steps(start, _Ctx) ->
-    Self = onepanel_cluster:node_to_host(),
+    SelfHost = onepanel_cluster:node_to_host(),
 
-    %% Handle upgrade from older version
     IsMaster = case service:get(name()) of
-        {ok, #service{ctx = #{master := Master}}} -> fun(_) -> Self == Master end;
+        {ok, #service{ctx = #{master_host := Master}}} -> fun(_) -> SelfHost == Master end;
+        {ok, #service{}} -> fun(_) -> SelfHost == hd(get_hosts()) end; % legacy deployment
         _ -> fun(_) -> false end
     end,
     [
@@ -440,8 +444,7 @@ modify_details(#{node := Node} = Ctx) ->
                 {true, Subdomain} -> ok; % no change
                 _ ->
                     case rpc:call(Node, provider_logic, set_delegated_subdomain, [Subdomain]) of
-                        ok -> % any previous cert will have the old domain
-                            ok;
+                        ok -> ok;
                         {error, subdomain_exists} ->
                             ?throw_error(?ERR_SUBDOMAIN_NOT_AVAILABLE)
                     end
