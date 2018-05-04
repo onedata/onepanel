@@ -238,7 +238,7 @@ get_metric(Node, SpaceId, Period, Metric) ->
             Values = proplists:get_value(values, Results),
             [
                 {name, Metric},
-                {lastValueDate, time_utils:datetime_to_datestamp(LastValueTimestamp)},
+                {lastValueDate, time_utils:epoch_to_iso8601(LastValueTimestamp)},
                 {values, Values}
             ]
     end.
