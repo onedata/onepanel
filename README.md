@@ -29,6 +29,7 @@ In order to compile *onepanel* execute:
 ```bash
 git clone https://github.com/onedata/onepanel.git
 cd onepanel
+make submodules
 make REL_TYPE=<type> rel
 ```
 

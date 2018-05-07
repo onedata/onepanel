@@ -74,6 +74,15 @@ gui-static:
 
 
 ##
+## Submodules
+##
+
+submodules:
+	git submodule sync --recursive ${submodule}
+	git submodule update --init --recursive ${submodule}
+
+
+##
 ## Testing targets
 ##
 
