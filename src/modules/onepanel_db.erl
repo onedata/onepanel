@@ -13,9 +13,11 @@
 
 -include("modules/errors.hrl").
 -include("names.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([init/0, destroy/0]).
+-export([wait_for_tables/0]).
 -export([create_tables/0, copy_tables/0, delete_tables/0]).
 -export([add_node/1, remove_node/1, get_nodes/0]).
 
@@ -56,7 +58,7 @@ destroy() ->
 %%--------------------------------------------------------------------
 -spec create_tables() -> ok.
 create_tables() ->
-    Tables = lists:map(fun(Model) ->
+    lists:foreach(fun(Model) ->
         Table = model:get_table_name(Model),
         case mnesia:create_table(Table, [
             {attributes, Model:get_fields()},
@@ -68,10 +70,20 @@ create_tables() ->
                 ok;
             {aborted, {already_exists, Model}} -> ok;
             {aborted, Reason} -> throw(Reason)
-        end,
-        Table
-    end, model:get_models()),
-    Timeout = onepanel_env:get(create_tables_timeout),
+        end
+    end, model:get_models()).
+
+
+%%--------------------------------------------------------------------
+%% @doc Waits for all tables to be available.
+%% In multinode setup this requires other nodes to be online
+%% unless current node was the last one to be stopped.
+%% @end
+%%--------------------------------------------------------------------
+-spec wait_for_tables() -> ok.
+wait_for_tables() ->
+    Timeout = infinity,
+    Tables = lists:map(fun model:get_table_name/1, model:get_models()),
     ok = mnesia:wait_for_tables(Tables, Timeout).
 
 

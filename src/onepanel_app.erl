@@ -39,10 +39,6 @@
 start(_StartType, _StartArgs) ->
     try
         test_node_starter:maybe_start_cover(),
-        service_onepanel:init_cluster(#{}),
-        rest_listener:start(),
-        onepanel_utils:wait_until(rest_listener, status, [], {equal, ok},
-            onepanel_env:get(rest_listener_status_check_attempts)),
         onepanel_sup:start_link()
     catch
         _:Reason ->
