@@ -39,13 +39,28 @@
 start(_StartType, _StartArgs) ->
     try
         test_node_starter:maybe_start_cover(),
-        onepanel_sup:start_link()
+        Supervisor = onepanel_sup:start_link(),
+        resume_service(),
+        Supervisor
     catch
         _:Reason ->
             ?error_stacktrace("Cannot start onepanel application due to: ~p",
                 [Reason]),
             {error, Reason}
     end.
+
+-spec resume_service() -> ok.
+resume_service() ->
+    case {service:exists(service_oneprovider:name()), service:exists(service_onezone:name())} of
+        {true, _} ->
+            ?info("Resuming oneprovider"),
+            service:apply_async(service_oneprovider:name(), start, #{});
+        {_, true} ->
+            ?info("Resuming onezone"),
+            service:apply_async(service_onezone:name(), start, #{});
+        _ -> ok % new deployment
+    end,
+    ok.
 
 
 %%--------------------------------------------------------------------
