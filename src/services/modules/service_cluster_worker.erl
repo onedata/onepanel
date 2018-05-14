@@ -327,7 +327,9 @@ setup_cert_paths(#{name := AppName, app_config_file := AppConfigFile}) ->
 get_initial_ip(AppConfigFile) ->
     case onepanel_env:read([name(), external_ip], AppConfigFile) of
         {ok, {_, _, _, _} = IP} -> IP;
-        {ok, IPList} when is_list(IPList) -> onepanel_ip:parse_ip4(IPList);
+        {ok, IPList} when is_list(IPList) ->
+            {ok, IP} = onepanel_ip:parse_ip4(IPList),
+            IP;
         _ -> onepanel_ip:determine_ip()
     end.
 
