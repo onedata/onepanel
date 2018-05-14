@@ -11,7 +11,7 @@
 -ifndef(ONEPANEL_MODELS_HRL).
 -define(ONEPANEL_MODELS_HRL, 1).
 
--define(MODELS, [onepanel_user, onepanel_session, onepanel_milestones, service]).
+-define(MODELS, [onepanel_user, onepanel_session, onepanel_deployment, service]).
 
 -record(onepanel_user, {
     username :: onepanel_user:name() | '_',
@@ -32,9 +32,9 @@
     ctx = #{} :: maps:map()
 }).
 
--record(onepanel_milestones, {
+-record(onepanel_deployment, {
     key :: atom(),
-    configured :: gb_sets:set()
+    completed :: gb_sets:set()
 }).
 
 -endif.

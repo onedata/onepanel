@@ -15,7 +15,7 @@
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include("service.hrl").
--include("milestones.hrl").
+-include("deployment_progress.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/global_definitions.hrl").
 
@@ -98,15 +98,15 @@ get_steps(deploy, Ctx) ->
         S#step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
         Ss#steps{service = ?SERVICE_OZW, action = deploy, ctx = OzwCtx},
         S#step{service = ?SERVICE_OZW, function = status, ctx = OzwCtx},
-        S#step{module = onepanel_milestones, function = mark_configured, ctx = OpaCtx,
-            args = [?MILESTONE_CLUSTER], selection = first},
+        S#step{module = onepanel_deployment, function = mark_completed, ctx = OpaCtx,
+            args = [?PROGRESS_CLUSTER], selection = first},
         S#step{module = service, function = save, ctx = OpaCtx,
             args = [#service{name = name(), ctx = OzCtx}],
             selection = first
         },
         Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx},
-        S#step{module = onepanel_milestones, function = mark_configured, ctx = OpaCtx,
-            args = [?MILESTONE_READY], selection = first}
+        S#step{module = onepanel_deployment, function = mark_completed, ctx = OpaCtx,
+            args = [?PROGRESS_READY], selection = first}
     ];
 
 get_steps(start, _Ctx) ->

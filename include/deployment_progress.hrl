@@ -8,12 +8,12 @@
 %%% @doc This header contains macros for deployment steps.
 %%% @end
 %%%--------------------------------------------------------------------
--ifndef(ONEPANEL_MILESTONES_HRL).
--define(ONEPANEL_MILESTONES_HRL, 1).
+-ifndef(onepanel_deployment_HRL).
+-define(onepanel_deployment_HRL, 1).
 
 % services are assigned to nodes
--define(MILESTONE_CLUSTER, service_nodes).
--define(MILESTONE_LETSENCRYPT, letsencrypt).
--define(MILESTONE_READY, ready).
+-define(PROGRESS_CLUSTER, service_nodes).
+-define(PROGRESS_LETSENCRYPT, letsencrypt).
+-define(PROGRESS_READY, ready).
 
 -endif.

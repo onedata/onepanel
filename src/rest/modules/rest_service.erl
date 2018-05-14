@@ -14,7 +14,7 @@
 -include("modules/errors.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include("modules/models.hrl").
--include("milestones.hrl").
+-include("deployment_progress.hrl").
 
 -behavior(rest_behaviour).
 
@@ -82,8 +82,8 @@ exists_resource(Req, #rstate{resource = SModule, bindings = #{host := Host}}) ->
 
 exists_resource(Req, #rstate{resource = SModule}) when
     SModule =:= service_onezone; SModule =:= service_oneprovider ->
-    {model:exists(onepanel_milestones) andalso
-        onepanel_milestones:is_configured(?MILESTONE_READY), Req};
+    {model:exists(onepanel_deployment) andalso
+        onepanel_deployment:is_completed(?PROGRESS_READY), Req};
 
 exists_resource(Req, #rstate{resource = SModule}) ->
     case lists:member(SModule, ?SERVICES) of
@@ -384,4 +384,4 @@ deploy_cluster_worker(Req, Args, #rstate{resource = SModule, version = Version})
 %% @end
 %%--------------------------------------------------------------------
 is_service_configured() ->
-    model:exists(onepanel_milestones) andalso onepanel_milestones:is_configured(?MILESTONE_READY).
+    model:exists(onepanel_deployment) andalso onepanel_deployment:is_completed(?PROGRESS_READY).

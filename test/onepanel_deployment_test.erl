@@ -9,7 +9,7 @@
 %%% Unit tests for onepanel_user module.
 %%% @end
 %%%--------------------------------------------------------------------
--module(onepanel_milestones_test).
+-module(onepanel_deployment_test).
 -author("Krzysztof Trzepla").
 
 -ifdef(TEST).
@@ -25,12 +25,12 @@
 %%% Test generators
 %%%===================================================================
 
-onepanel_milestone_test_() ->
+onepanel_deployment_test_() ->
     {foreach,
         fun start/0,
         fun stop/1,
         [
-            fun milestone_is_configured_only_when_marked/0
+            fun step_is_completed_only_when_marked/0
         ]
     }.
 
@@ -38,10 +38,10 @@ onepanel_milestone_test_() ->
 %%% Test functions
 %%%===================================================================
 
-milestone_is_configured_only_when_marked() ->
-    ?assertNot(onepanel_milestones:is_configured(?M1)),
-    ?assertMatch(ok, onepanel_milestones:mark_configured(?M1)),
-    ?_assert(onepanel_milestones:is_configured(?M1)).
+step_is_completed_only_when_marked() ->
+    ?assertNot(onepanel_deployment:is_completed(?M1)),
+    ?assertMatch(ok, onepanel_deployment:mark_completed(?M1)),
+    ?_assert(onepanel_deployment:is_completed(?M1)).
 
 %%%===================================================================
 %%% Test fixtures

@@ -5,12 +5,12 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc This module contains functions for managing singleton
+%%% @doc This module contains functions for managing singleton model
 %%% storing completed configuration steps.
 %%% It implements {@link model_behaviour} behaviour.
 %%% @end
 %%%--------------------------------------------------------------------
--module(onepanel_milestones).
+-module(onepanel_deployment).
 -author("Wojciech Geisler").
 
 -behaviour(model_behaviour).
@@ -26,12 +26,12 @@
     delete/1, list/0]).
 
 %% API
--export([mark_configured/1, mark_not_configured/1, is_configured/1, get/0]).
+-export([mark_completed/1, mark_not_completed/1, is_completed/1]).
 
--type record() :: #onepanel_milestones{}.
--type milestone() :: atom().
+-type record() :: #onepanel_deployment{}.
+-type mark() :: atom().
 
--export_type([milestone/0]).
+-export_type([mark/0]).
 
 -define(KEY, ?MODULE).
 
@@ -54,7 +54,7 @@ get_fields() ->
 %%--------------------------------------------------------------------
 -spec seed() -> any().
 seed() ->
-    create(#onepanel_milestones{key = ?KEY, configured = gb_sets:new()}).
+    create(#onepanel_deployment{key = ?KEY, completed = gb_sets:new()}).
 
 
 %%--------------------------------------------------------------------
@@ -132,21 +132,21 @@ list() ->
 %% @doc Marks interactive configuration step as completed.
 %% @end
 %%--------------------------------------------------------------------
--spec mark_configured(Milestone :: milestone()) -> ok.
-mark_configured(Milestone) ->
-    ?MODULE:update(?KEY, fun(#onepanel_milestones{configured = C} = OM) ->
-        OM#onepanel_milestones{configured = gb_sets:add_element(Milestone, C)}
+-spec mark_completed(ProgressMark :: mark()) -> ok.
+mark_completed(ProgressMark) ->
+    ?MODULE:update(?KEY, fun(#onepanel_deployment{completed = C} = OP) ->
+        OP#onepanel_deployment{completed = gb_sets:add_element(ProgressMark, C)}
     end).
 
 
 %%--------------------------------------------------------------------
-%% @doc Marks configuration step as waiting for user decision.
+%% @doc Marks configuration step as uncompleted or waiting for user decision.
 %% @end
 %%--------------------------------------------------------------------
--spec mark_not_configured(Milestone :: milestone()) -> ok.
-mark_not_configured(Milestone) ->
-    ?MODULE:update(?KEY, fun(#onepanel_milestones{configured = C} = OM) ->
-        OM#onepanel_milestones{configured = gb_sets:del_element(Milestone, C)}
+-spec mark_not_completed(ProgressMark :: mark()) -> ok.
+mark_not_completed(ProgressMark) ->
+    ?MODULE:update(?KEY, fun(#onepanel_deployment{completed = C} = OP) ->
+        OP#onepanel_deployment{completed = gb_sets:del_element(ProgressMark, C)}
     end).
 
 
@@ -154,19 +154,10 @@ mark_not_configured(Milestone) ->
 %% @doc Checks if given configuration step was completed by the user.
 %% @end
 %%--------------------------------------------------------------------
--spec is_configured(Milestone :: milestone()) -> boolean().
-is_configured(Milestone) ->
+-spec is_completed(ProgressMark :: mark()) -> boolean().
+is_completed(ProgressMark) ->
     case ?MODULE:get(?KEY) of
-        {ok, #onepanel_milestones{configured = C}} ->
-            gb_sets:is_member(Milestone, C);
+        {ok, #onepanel_deployment{completed = C}} ->
+            gb_sets:is_member(ProgressMark, C);
         _ -> false
     end.
-
--spec get() -> [milestone()].
-get() ->
-    case ?MODULE:get(?KEY) of
-        {ok, #onepanel_milestones{configured = C}} ->
-            gb_sets:to_list(C);
-        _ -> []
-    end.
-
