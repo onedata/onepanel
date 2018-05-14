@@ -78,9 +78,11 @@ get_nodes() ->
     Steps :: [service:step()].
 get_steps(deploy, Ctx) ->
     service:create(#service{name = name()}),
-    % separate update to handle upgrade from older version
+    SelfHost = onepanel_cluster:node_to_host(),
+
+    % separate update from create to handle upgrade from older version
     service:update(name(), fun(#service{ctx = C} = S) ->
-        S#service{ctx = C#{master_host => onepanel_cluster:node_to_host()}}
+        S#service{ctx = C#{master_host => SelfHost}}
     end),
 
     {ok, OpaCtx} = onepanel_maps:get([cluster, ?SERVICE_OPA], Ctx),
@@ -99,15 +101,15 @@ get_steps(deploy, Ctx) ->
         S#step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
         Ss#steps{service = ?SERVICE_OZW, action = deploy, ctx = OzwCtx},
         S#step{service = ?SERVICE_OZW, function = status, ctx = OzwCtx},
-        S#step{module = service, function = mark_configured,
-            args = [name(), ?MILESTONE_CLUSTER], selection = any},
+        S#step{module = onepanel_milestones, function = mark_configured, ctx = OpaCtx,
+            args = [?MILESTONE_CLUSTER], selection = first},
         S#step{module = service, function = save, ctx = OpaCtx,
             args = [#service{name = name(), ctx = OzCtx}],
             selection = first
         },
         Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx},
-        S#step{module = service, function = mark_configured,
-            args = [name(), ?MILESTONE_READY], selection = any}
+        S#step{module = onepanel_milestones, function = mark_configured, ctx = OpaCtx,
+            args = [?MILESTONE_READY], selection = first}
     ];
 
 get_steps(start, _Ctx) ->
@@ -129,6 +131,20 @@ get_steps(restart, _Ctx) ->
         #steps{action = stop},
         #steps{action = start}
     ];
+
+% Execute restart steps on single node after all nodes are availabl
+get_steps(manage_restart, _Ctx) ->
+    % Won't work on upgraded, older systems
+    SelfHost = onepanel_cluster:node_to_host(),
+    case service:get(name()) of
+        {ok, #service{ctx = #{master_host := SelfHost}}} ->
+            [
+                #step{service = ?SERVICE_OPA, function = ensure_all_available,
+                    attempts = 10},
+                #steps{action = restart}
+            ];
+        _ -> []
+    end;
 
 get_steps(status, _Ctx) ->
     [

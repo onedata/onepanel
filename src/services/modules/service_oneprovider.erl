@@ -128,7 +128,7 @@ get_steps(deploy, Ctx) ->
         end,
     LeCtx3 = LeCtx2#{letsencrypt_plugin => ?SERVICE_OPW},
 
-    SelfHost = [onepanel_cluster:node_to_host()],
+    SelfHost = onepanel_cluster:node_to_host(),
 
     S = #step{verify_hosts = false},
     Ss = #steps{verify_hosts = false},
@@ -142,32 +142,21 @@ get_steps(deploy, Ctx) ->
         S#step{service = ?SERVICE_OPW, function = status, ctx = OpwCtx},
         Ss#steps{service = ?SERVICE_LE, action = deploy, ctx = LeCtx3},
         S#step{module = onepanel_milestones, function = mark_configured,
-            hosts = [SelfHost], args = [?MILESTONE_CLUSTER]},
+            args = [?MILESTONE_CLUSTER], hosts = [SelfHost]},
         Ss#steps{service = ?SERVICE_OPW, action = add_storages, ctx = StorageCtx},
         Ss#steps{action = register, ctx = OpCtx, condition = Register},
         Ss#steps{service = ?SERVICE_LE, action = update, ctx = LeCtx3},
         Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx},
         S#step{module = onepanel_milestones, function = mark_configured,
-            hosts = [SelfHost], args = [?MILESTONE_READY]}
+            args = [?MILESTONE_READY], hosts = [SelfHost]}
     ];
 
-% start = resume
 get_steps(start, _Ctx) ->
-    SelfHost = onepanel_cluster:node_to_host(),
-
-    IsMaster = case service:get(name()) of
-        {ok, #service{ctx = #{master_host := Master}}} -> fun(_) -> SelfHost == Master end;
-        {ok, #service{}} -> fun(_) -> SelfHost == hd(get_hosts()) end; % legacy deployment
-        _ -> fun(_) -> false end
-    end,
     [
-        % Wait for all nodes to be available
-        #step{service = ?SERVICE_OPA, function = ensure_all_available,
-            condition = IsMaster, attempts = 10},
-        #steps{service = ?SERVICE_CB, action = start, condition = IsMaster},
-        #steps{service = ?SERVICE_CM, action = start, condition = IsMaster},
-        #steps{service = ?SERVICE_OPW, action = start, condition = IsMaster},
-        #steps{service = ?SERVICE_LE, action = update, condition = IsMaster}
+        #steps{service = ?SERVICE_CB, action = start},
+        #steps{service = ?SERVICE_CM, action = start},
+        #steps{service = ?SERVICE_OPW, action = start},
+        #steps{service = ?SERVICE_LE, action = update}
     ];
 
 get_steps(stop, _Ctx) ->
@@ -182,6 +171,20 @@ get_steps(restart, _Ctx) ->
         #steps{action = stop},
         #steps{action = start}
     ];
+
+% Execute restart steps after all nodes are available
+get_steps(manage_restart, _Ctx) ->
+    % Won't work on upgraded, older systems
+    SelfHost = onepanel_cluster:node_to_host(),
+    case service:get(name()) of
+        {ok, #service{ctx = #{master_host := SelfHost}}} ->
+            [
+                #step{service = ?SERVICE_OPA, function = ensure_all_available,
+                    attempts = 10},
+                #steps{action = restart}
+            ];
+        _ -> []
+    end;
 
 get_steps(status, _Ctx) ->
     [

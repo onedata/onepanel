@@ -49,19 +49,6 @@ start(_StartType, _StartArgs) ->
             {error, Reason}
     end.
 
--spec resume_service() -> ok.
-resume_service() ->
-    case {service:exists(service_oneprovider:name()), service:exists(service_onezone:name())} of
-        {true, _} ->
-            ?info("Resuming oneprovider"),
-            service:apply_async(service_oneprovider:name(), start, #{});
-        {_, true} ->
-            ?info("Resuming onezone"),
-            service:apply_async(service_onezone:name(), start, #{});
-        _ -> ok % new deployment
-    end,
-    ok.
-
 
 %%--------------------------------------------------------------------
 %% @private @doc This function is called whenever an application has stopped.
@@ -74,3 +61,28 @@ stop(_State) ->
     rest_listener:stop(),
     test_node_starter:maybe_stop_cover(),
     ok.
+
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Restart oneprovider or onezone service if its already configured.
+%% @end
+%%--------------------------------------------------------------------
+-spec resume_service() -> ok.
+resume_service() ->
+    case {service:exists(service_oneprovider:name()), service:exists(service_onezone:name())} of
+        {true, _} ->
+            ?info("Resuming oneprovider"),
+            service:apply_async(service_oneprovider:name(), manage_restart, #{});
+        {_, true} ->
+            ?info("Resuming onezone"),
+            service:apply_async(service_onezone:name(), manage_restart, #{});
+        _ -> ok % new deployment
+    end,
+    ok.
+
