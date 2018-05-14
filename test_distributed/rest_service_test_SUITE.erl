@@ -33,12 +33,12 @@
     get_should_return_nagios_response/1,
     patch_should_update_storage/1,
     patch_should_start_stop_service/1,
-    put_should_add_storage/1,
-    put_should_configure_database_service/1,
-    put_should_configure_cluster_manager_service/1,
-    put_should_configure_cluster_worker_service/1,
-    put_should_configure_oneprovider_service/1,
-    put_should_configure_onezone_service/1
+    post_should_add_storage/1,
+    post_should_configure_database_service/1,
+    post_should_configure_cluster_manager_service/1,
+    post_should_configure_cluster_worker_service/1,
+    post_should_configure_oneprovider_service/1,
+    post_should_configure_onezone_service/1
 ]).
 
 -define(ADMIN_USER_NAME, <<"admin1">>).
@@ -148,12 +148,12 @@ all() ->
         patch_should_update_storage,
         get_should_return_nagios_response,
         patch_should_start_stop_service,
-        put_should_add_storage,
-        put_should_configure_database_service,
-        put_should_configure_cluster_manager_service,
-        put_should_configure_cluster_worker_service,
-        put_should_configure_oneprovider_service,
-        put_should_configure_onezone_service
+        post_should_add_storage,
+        post_should_configure_database_service,
+        post_should_configure_cluster_manager_service,
+        post_should_configure_cluster_worker_service,
+        post_should_configure_oneprovider_service,
+        post_should_configure_onezone_service
     ]).
 
 %%%===================================================================
@@ -355,7 +355,7 @@ patch_should_start_stop_service(Config) ->
     ]).
 
 
-put_should_add_storage(Config) ->
+post_should_add_storage(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
             Host, <<Prefix/binary, "/storages">>,
@@ -386,7 +386,7 @@ put_should_add_storage(Config) ->
     end, [{oneprovider_hosts, <<"/provider">>}]).
 
 
-put_should_configure_database_service(Config) ->
+post_should_configure_database_service(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
         {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
@@ -404,7 +404,7 @@ put_should_configure_database_service(Config) ->
     end).
 
 
-put_should_configure_cluster_manager_service(Config) ->
+post_should_configure_cluster_manager_service(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
         {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
@@ -426,7 +426,7 @@ put_should_configure_cluster_manager_service(Config) ->
     end).
 
 
-put_should_configure_cluster_worker_service(Config) ->
+post_should_configure_cluster_worker_service(Config) ->
     ?run(Config, fun({Host, {Prefix, Service}}) ->
         {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
@@ -448,9 +448,9 @@ put_should_configure_cluster_worker_service(Config) ->
     ]).
 
 
-put_should_configure_onezone_service(Config) ->
+post_should_configure_onezone_service(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
-        {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
+        {_, _, Headers, _} = ?assertMatch({ok, 201, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/configuration">>, post,
                 {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
@@ -488,9 +488,9 @@ put_should_configure_onezone_service(Config) ->
     end, [{onezone_hosts, <<"/zone">>}]).
 
 
-put_should_configure_oneprovider_service(Config) ->
+post_should_configure_oneprovider_service(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
-        {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
+        {_, _, Headers, _} = ?assertMatch({ok, 201, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/configuration">>, post,
                 {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
@@ -694,6 +694,9 @@ init_per_testcase(_Case, Config) ->
         Self ! {service, Service, Action, Ctx},
         <<"someTaskId">>
     end),
+
+    test_utils:mock_new(Nodes, onepanel_deployment),
+    test_utils:mock_expect(Nodes, onepanel_deployment, is_completed, fun(_) -> false end),
 
     ?assertAllMatch({ok, _}, ?callAll(Config, onepanel_user, create,
         [?REG_USER_NAME, ?REG_USER_PASSWORD, regular]

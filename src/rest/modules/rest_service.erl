@@ -80,6 +80,7 @@ exists_resource(Req, #rstate{resource = luma}) ->
 exists_resource(Req, #rstate{resource = SModule, bindings = #{host := Host}}) ->
     {service:is_member(SModule:name(), Host), Req};
 
+
 exists_resource(Req, #rstate{resource = SModule}) when
     SModule =:= service_onezone; SModule =:= service_oneprovider ->
     {model:exists(onepanel_deployment) andalso
