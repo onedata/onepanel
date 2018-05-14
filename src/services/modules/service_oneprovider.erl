@@ -172,18 +172,25 @@ get_steps(restart, _Ctx) ->
         #steps{action = start}
     ];
 
-% Execute restart steps after all nodes are available
+% returns any steps only on the master node
 get_steps(manage_restart, _Ctx) ->
-    % Won't work on upgraded, older systems
-    SelfHost = onepanel_cluster:node_to_host(),
-    case service:get(name()) of
-        {ok, #service{ctx = #{master_host := SelfHost}}} ->
-            [
-                #step{service = ?SERVICE_OPA, function = ensure_all_available,
-                    attempts = 10},
-                #steps{action = restart}
-            ];
-        _ -> []
+    MasterHost = case service:get(name()) of
+        {ok, #service{ctx = #{master_host := Master}}} -> Master;
+        {ok, #service{hosts = [FirstHost | _]}} ->
+            ?info("No master host configured, defaulting to \"~s\"", [FirstHost]),
+            FirstHost;
+        _ -> undefined
+    end,
+
+    case onepanel_cluster:node_to_host() == MasterHost of
+        true -> [
+            #step{service = ?SERVICE_OPA, function = ensure_all_available,
+                attempts = 10},
+            #steps{action = restart}
+        ];
+        false ->
+            ?info("Waiting for master node \"~s\" to start", [MasterHost]),
+            []
     end;
 
 get_steps(status, _Ctx) ->
@@ -741,6 +748,7 @@ pop_legacy_letsencrypt_config() ->
             service:update(name(), fun(#service{ctx = C} = S) ->
                 S#service{ctx = maps:remove(has_letsencrypt_cert, C)}
             end),
+            % upgrade from versions 18.02.0-beta5 and older
             Result = case maps:find(has_letsencrypt_cert, Ctx) of
                 {ok, Val} ->
                     onepanel_milestones:mark_configured(?MILESTONE_LETSENCRYPT),
