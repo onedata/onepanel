@@ -90,7 +90,7 @@ cluster_configuration_details_model() ->
     #{
         %% Host designated for managing service deployment and subsequent
         %% starts.
-        master_host => string,
+        master => string,
         databases => database_hosts_model(),
         managers => manager_hosts_model(),
         workers => worker_hosts_model()
@@ -293,8 +293,8 @@ provider_configuration_details_oneprovider_model() ->
     #{
         %% The name of a provider.
         name => string,
-        %% Informs about cluster deployment being finished
-        ready => boolean
+        %% True iff all steps of initial cluster deployment have been performed.
+        configured => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -983,8 +983,8 @@ zone_configuration_details_onezone_model() ->
     #{
         %% The name of a zone.
         name => string,
-        %% Informs about cluster deployment being finished
-        ready => boolean
+        %% True iff all steps of initial cluster deployment have been performed.
+        configured => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------

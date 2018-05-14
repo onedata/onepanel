@@ -253,7 +253,7 @@ format_configuration(SModule) ->
         },
         SModule:name() => #{
             <<"name">> => SName,
-            <<"ready">> => is_service_ready(SModule)
+            <<"configured">> => is_service_configured()
         }
     }.
 
@@ -313,25 +313,9 @@ format_service_hosts_results(Results) ->
 
 %%--------------------------------------------------------------------
 %% @private
-%% @doc Checks if all configuration steps have been performed
-%% and configured services are running on all hosts.
+%% @doc Checks if all configuration steps have been performed.
 %% @end
 %%--------------------------------------------------------------------
--spec is_service_ready(SModule :: module()) -> boolean().
-is_service_ready(SModule) ->
-    onepanel_milestones:is_configured(?MILESTONE_READY) andalso
-        is_service_running(SModule).
-
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc Checks if services comprising the oneprovider are running
-%% on all configured hosts.
-%% @end
-%%--------------------------------------------------------------------
--spec is_service_running(SModule :: module()) -> boolean().
-is_service_running(SModule) ->
-    Results = [GoodResults ++ BadResults ||
-        {_, _, {GoodResults, BadResults}} <- service:apply_sync(SModule:name(), status, #{})],
-    lists:all(fun({_Host, running}) -> true; (_) -> false end, lists:flatten(Results)).
-
+-spec is_service_configured() -> boolean().
+is_service_configured() ->
+    onepanel_milestones:is_configured(?MILESTONE_READY).
