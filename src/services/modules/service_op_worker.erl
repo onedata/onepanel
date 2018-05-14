@@ -14,6 +14,8 @@
 -behaviour(letsencrypt_plugin_behaviour).
 
 -include("service.hrl").
+-include("modules/models.hrl").
+-include("deployment_progress.hrl").
 -include_lib("hackney/include/hackney_lib.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -110,10 +112,12 @@ configure(Ctx) ->
     AppConfigFile = service_ctx:get(op_worker_app_config_file, Ctx),
     VmArgsFile = service_ctx:get(op_worker_vm_args_file, Ctx),
 
-    case(maps:get(mark_cluster_ips_configured, Ctx, false)) of
-        true -> service_cluster_worker:mark_cluster_ips_configured(name());
+    case maps:get(mark_cluster_ips_configured, Ctx, false)
+        orelse pop_legacy_ips_configured() of
+        true -> onepanel_deployment:mark_completed(?PROGRESS_CLUSTER_IPS);
         _ -> ok
     end,
+
     service_cluster_worker:configure(Ctx#{
         name => name(),
         app_config => #{},
@@ -329,3 +333,24 @@ get_admin_email(#{node := Node}) ->
 get_admin_email(Ctx) ->
     [Node | _] = get_nodes(),
     get_admin_email(Ctx#{node => Node}).
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+%%-------------------------------------------------------------------
+%% @doc
+%% Removes legacy (up to 18.02.0-rc1) way of marking cluster IPs as configured
+%% and returns its value.
+%% @end
+%%-------------------------------------------------------------------
+pop_legacy_ips_configured() ->
+    case service:get(name()) of
+        {ok, #service{ctx = #{cluster_ips_configured := Configured}}} ->
+            service:update(name(), fun(#service{ctx = C} = S) ->
+                S#service{ctx = maps:remove(cluster_ips_configured, C)}
+            end),
+            Configured;
+        _ -> false
+    end.
+

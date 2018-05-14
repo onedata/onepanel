@@ -115,7 +115,7 @@ get_steps(deploy, Ctx) ->
 
     % TODO VFS-4140 Proper detection of batch config
     case Register(OpCtx) of
-        true -> onepanel_deployment:mark_completed(?PROGRESS_LETSENCRYPT);
+        true -> onepanel_deployment:mark_completed(?PROGRESS_LETSENCRYPT_CONFIG);
         _ -> ok
     end,
 
@@ -356,7 +356,7 @@ register(Ctx) ->
                 {<<"ipList">>, []}]; % IPs will be updated in the step set_cluster_ips
         false ->
             % without subdomain delegtion, Let's Encrypt does not have to be configured
-            onepanel_deployment:mark_completed(?PROGRESS_LETSENCRYPT),
+            onepanel_deployment:mark_completed(?PROGRESS_LETSENCRYPT_CONFIG),
             [{<<"subdomainDelegation">>, false},
                 {<<"domain">>, service_ctx:get(oneprovider_domain, Ctx, binary)}]
     end,
@@ -410,7 +410,7 @@ unregister(#{node := Node}) ->
     ok = oz_providers:unregister(provider),
     rpc:call(Node, provider_auth, delete, []),
 
-    onepanel_deployment:mark_not_completed(?PROGRESS_LETSENCRYPT),
+    onepanel_deployment:mark_not_completed(?PROGRESS_LETSENCRYPT_CONFIG),
     service:update(name(), fun(#service{ctx = C} = S) ->
         S#service{ctx = C#{registered => false}}
     end);
@@ -475,7 +475,7 @@ modify_details(#{node := Node} = Ctx) ->
         <<"adminEmail">>, Params3),
 
     case maps:is_key(letsencrypt_enabled, Ctx) of
-        true -> onepanel_deployment:mark_completed(?PROGRESS_LETSENCRYPT);
+        true -> onepanel_deployment:mark_completed(?PROGRESS_LETSENCRYPT_CONFIG);
         _ -> ok
     end,
 
@@ -517,7 +517,7 @@ get_details(#{node := Node}) ->
         {onezoneDomainName, onepanel_utils:convert(OzDomain, binary)}
     ],
 
-    Details2 = case onepanel_deployment:is_completed(?PROGRESS_LETSENCRYPT) of
+    Details2 = case onepanel_deployment:is_completed(?PROGRESS_LETSENCRYPT_CONFIG) of
         true ->
             [{letsEncryptEnabled, service_letsencrypt:is_enabled()} | Details];
         false ->
@@ -743,20 +743,27 @@ start_cleaning(Ctx) ->
 %% @end
 %%-------------------------------------------------------------------
 pop_legacy_letsencrypt_config() ->
-    case service:get(name()) of
-        {ok, #service{ctx = Ctx}} ->
+    Result = case service:get(name()) of
+        {ok, #service{ctx = #{has_letsencrypt_cert:= Enabled}}} ->
+            % upgrade from versions 18.02.0-beta5 and older
             service:update(name(), fun(#service{ctx = C} = S) ->
                 S#service{ctx = maps:remove(has_letsencrypt_cert, C)}
             end),
-            % upgrade from versions 18.02.0-beta5 and older
-            Result = case maps:find(has_letsencrypt_cert, Ctx) of
-                {ok, Val} ->
-                    onepanel_deployment:mark_completed(?PROGRESS_LETSENCRYPT),
-                    Val;
-                error -> false
-            end,
-            Result;
+            Enabled;
+        {ok, #service{ctx = #{configured => {_, _} = GbSet}}} ->
+            % upgrade from versions 18.02.0-beta6..18.02.0-rc1
+            service:update(name(), fun(#service{ctx = C} = S) ->
+                S#service{
+                    ctx = C#{configured => gb_sets:del_element(letsencrypt, GbSet)}
+                }
+            end),
+            gb_sets:is_member(letsencrypt, GbSet);
         _ -> false
+    end,
+    case Result of
+        true -> onepanel_deployment:mark_completed(?PROGRESS_LETSENCRYPT_CONFIG),
+            Result;
+        _ -> Result
     end.
 
 

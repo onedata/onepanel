@@ -8,12 +8,13 @@
 %%% @doc This header contains macros for deployment steps.
 %%% @end
 %%%--------------------------------------------------------------------
--ifndef(onepanel_deployment_HRL).
--define(onepanel_deployment_HRL, 1).
+-ifndef(DEPLOYMENT_PROGRESS_HRL).
+-define(DEPLOYMENT_PROGRESS_HRL, 1).
 
 % services are assigned to nodes
 -define(PROGRESS_CLUSTER, service_nodes).
--define(PROGRESS_LETSENCRYPT, letsencrypt).
+-define(PROGRESS_CLUSTER_IPS, cluster_ips).
+-define(PROGRESS_LETSENCRYPT_CONFIG, letsencrypt).
 -define(PROGRESS_READY, ready).
 
 -endif.
