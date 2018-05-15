@@ -4,6 +4,17 @@
 CHANGELOG
 ---------
 
+### 18.02.0-rc2
+
+* VFS-4446 Updated dockers config
+* VFS-4446 Updated jiffy ref
+* VFS-4443 Fixed generation of source archive with submodules
+* Updating GUI, including: VFS-4381, VFS-4380, VFS-4356 * VFS-4381 Removed signature version option from S3 storage form, because we support only V4 * VFS-4380 Added new parameters in null device form: simulated filesystem paramers and grow speed * VFS-4356 Improvements in navigation related to incorrect URLs
+* VFS-4295 Changed subtrees to submodules
+* Updating GUI, including: VFS-4241 * VFS-4241 Polling for synchronization statistics with higher frequency.
+* VFS-4241 update ctool, load iso8061 module, update fetching sync metrics from op
+
+
 ### 18.02.0-rc1
 
 * VFS-4374 Increase inactivity timeout in rest listener
