@@ -77,11 +77,11 @@ stop(_State) ->
 resume_service() ->
     case {service:exists(service_oneprovider:name()), service:exists(service_onezone:name())} of
         {true, _} ->
-            ?info("Resuming oneprovider"),
-            service:apply_async(service_oneprovider:name(), manage_restart, #{});
+            Task = service:apply_async(service_oneprovider:name(), manage_restart, #{}),
+            ?info("Resuming oneprovider (task ~s)", [Task]);
         {_, true} ->
-            ?info("Resuming onezone"),
-            service:apply_async(service_onezone:name(), manage_restart, #{});
+            Task = service:apply_async(service_onezone:name(), manage_restart, #{}),
+            ?info("Resuming onezone (task ~s)", [Task]);
         _ -> ok % new deployment
     end,
     ok.

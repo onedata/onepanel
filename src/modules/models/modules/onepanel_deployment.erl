@@ -26,7 +26,7 @@
     delete/1, list/0]).
 
 %% API
--export([mark_completed/1, mark_not_completed/1, is_completed/1]).
+-export([mark_completed/1, mark_not_completed/1, is_completed/1, get_all/0]).
 
 -type record() :: #onepanel_deployment{}.
 -type mark() :: atom().
@@ -160,4 +160,16 @@ is_completed(ProgressMark) ->
         {ok, #onepanel_deployment{completed = C}} ->
             gb_sets:is_member(ProgressMark, C);
         _ -> false
+    end.
+
+%%--------------------------------------------------------------------
+%% @doc Returns unordered list of all completed steps.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_all() -> [mark()].
+get_all() ->
+    case ?MODULE:get(?KEY) of
+        {ok, #onepanel_deployment{completed = C}} ->
+            gb_sets:to_list(C);
+        _ -> []
     end.

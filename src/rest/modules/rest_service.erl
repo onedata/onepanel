@@ -84,7 +84,7 @@ exists_resource(Req, #rstate{resource = SModule, bindings = #{host := Host}}) ->
 exists_resource(Req, #rstate{resource = SModule}) when
     SModule =:= service_onezone; SModule =:= service_oneprovider ->
     {model:exists(onepanel_deployment) andalso
-        onepanel_deployment:is_completed(?PROGRESS_READY), Req};
+        onepanel_deployment:is_completed(?PROGRESS_CLUSTER), Req};
 
 exists_resource(Req, #rstate{resource = SModule}) ->
     case lists:member(SModule, ?SERVICES) of

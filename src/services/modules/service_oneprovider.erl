@@ -148,7 +148,7 @@ get_steps(deploy, Ctx) ->
         Ss#steps{service = ?SERVICE_LE, action = update, ctx = LeCtx3},
         Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx},
         S#step{module = onepanel_deployment, function = mark_completed,
-            args = [?PROGRESS_CLUSTER], hosts = [SelfHost]}
+            args = [?PROGRESS_READY], hosts = [SelfHost]}
     ];
 
 get_steps(start, _Ctx) ->
@@ -750,18 +750,23 @@ pop_legacy_letsencrypt_config() ->
                 S#service{ctx = maps:remove(has_letsencrypt_cert, C)}
             end),
             Enabled;
-        {ok, #service{ctx = #{configured => {_, _} = GbSet}}} ->
-            % upgrade from versions 18.02.0-beta6..18.02.0-rc1
-            service:update(name(), fun(#service{ctx = C} = S) ->
-                S#service{
-                    ctx = C#{configured => gb_sets:del_element(letsencrypt, GbSet)}
-                }
-            end),
-            gb_sets:is_member(letsencrypt, GbSet);
+        {ok, #service{ctx = #{configured := GbSet}}} ->
+            case gb_sets:is_set(GbSet) of
+                true ->
+                    % upgrade from versions 18.02.0-beta6..18.02.0-rc1
+                    service:update(name(), fun(#service{ctx = C} = S) ->
+                        S#service{
+                            ctx = C#{configured => gb_sets:del_element(letsencrypt, GbSet)}
+                        }
+                    end),
+                    gb_sets:is_member(letsencrypt, GbSet);
+                false -> false
+            end;
         _ -> false
     end,
     case Result of
-        true -> onepanel_deployment:mark_completed(?PROGRESS_LETSENCRYPT_CONFIG),
+        true ->
+            onepanel_deployment:mark_completed(?PROGRESS_LETSENCRYPT_CONFIG),
             Result;
         _ -> Result
     end.
