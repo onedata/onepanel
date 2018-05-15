@@ -88,8 +88,8 @@
 -spec cluster_configuration_details_model() -> maps:map().
 cluster_configuration_details_model() ->
     #{
-        %% Host designated for managing service deployment and subsequent
-        %% starts.
+        %% Host responsible for deploying cluster and coordinating cluster
+        %% restarts.
         master => string,
         databases => database_hosts_model(),
         managers => manager_hosts_model(),
@@ -291,10 +291,11 @@ provider_configuration_details_model() ->
 -spec provider_configuration_details_oneprovider_model() -> maps:map().
 provider_configuration_details_oneprovider_model() ->
     #{
-        %% The name of a provider.
+        %% The name of a provider. Null if not registered.
         name => string,
-        %% True iff all steps of initial cluster deployment have been performed.
-        configured => {boolean, optional}
+        %% True if all steps of cluster deployment and configuration have been
+        %% performed.
+        configured => boolean
     }.
 
 %%--------------------------------------------------------------------
@@ -983,8 +984,9 @@ zone_configuration_details_onezone_model() ->
     #{
         %% The name of a zone.
         name => string,
-        %% True iff all steps of initial cluster deployment have been performed.
-        configured => {boolean, optional}
+        %% True if all steps of cluster deployment and configuration have been
+        %% performed.
+        configured => boolean
     }.
 
 %%--------------------------------------------------------------------

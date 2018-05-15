@@ -185,22 +185,6 @@ routes() ->
             }]
         }},
 
-        %% Start/stop onezone services
-        {<<"/api/v3/onepanel/zone/services">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_service,
-            resource = service_onezone,
-            methods = [#rmethod{
-                type = 'PATCH',
-                params_spec = #{
-                    %% Defines the intended state of the Onezone services.
-                    %% The services will be started or stopped in order to
-                    %% match the requested state.
-                    started => {boolean, {optional, true}}
-                }
-            }]
-        }},
-
         %% Start/stop zone databases
         {<<"/api/v3/onepanel/zone/databases">>, rest_handler, #rstate{
             version = 3,

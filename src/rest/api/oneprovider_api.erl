@@ -380,22 +380,6 @@ routes() ->
             }]
         }},
 
-        %% Start/stop provider service
-        {<<"/api/v3/onepanel/provider/service">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_service,
-            resource = service_oneprovider,
-            methods = [#rmethod{
-                type = 'PATCH',
-                params_spec = #{
-                    %% Defines the intended state of the Oneprovider
-                    %% service. The service will be started or stopped in
-                    %% order to match the requested state.
-                    started => {boolean, {optional, true}}
-                }
-            }]
-        }},
-
         %% Start/stop provider database
         {<<"/api/v3/onepanel/provider/databases/:host">>, rest_handler, #rstate{
             version = 3,
@@ -453,8 +437,8 @@ routes() ->
                 type = 'PATCH',
                 params_spec = #{
                     %% Defines the intended state of the cluster manager
-                    %% service. The service will be started or stopped in
-                    %% order to match the requested state.
+                    %% service. The service will be started or stopped in order
+                    %% to match the requested state.
                     started => {boolean, {optional, true}}
                 }
             }]
