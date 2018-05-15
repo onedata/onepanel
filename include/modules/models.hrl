@@ -34,7 +34,7 @@
 
 -record(onepanel_deployment, {
     key :: atom(),
-    completed :: gb_sets:set()
+    completed = gb_sets:empty() :: gb_sets:set()
 }).
 
 -endif.

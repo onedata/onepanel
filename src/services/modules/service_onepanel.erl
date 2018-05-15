@@ -20,10 +20,9 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([set_cookie/1, check_connection/1, init_cluster/1, extend_cluster/1,
-    join_cluster/1, reset_node/1, reload_webcert/1,
-    add_users/1]).
--export([are_all_hosts_available/1, ensure_all_available/1]).
+-export([set_cookie/1, check_connection/1, ensure_all_hosts_available/1,
+    init_cluster/1, extend_cluster/1, join_cluster/1, reset_node/1,
+    reload_webcert/1, add_users/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -238,23 +237,12 @@ add_users(#{users := Users}) ->
 %% Ensures all cluster hosts are up.
 %% @end
 %%--------------------------------------------------------------------
--spec are_all_hosts_available(Ctx :: service:ctx()) -> boolean().
-are_all_hosts_available(#{hosts := Hosts}) ->
-    lists:all(fun(Host) ->
-        try
-           check_connection(#{cluster_host => Host}),
-           true
-        catch
-            _:_ -> false
-        end
-    end, Hosts);
-are_all_hosts_available(Ctx) ->
-    are_all_hosts_available(Ctx#{hosts => get_hosts()}).
-
-
--spec ensure_all_available(service:ctx()) ->  ok | no_return().
-ensure_all_available(Ctx) ->
-    true = are_all_hosts_available(Ctx),
+-spec ensure_all_hosts_available(service:ctx()) ->  ok | no_return().
+ensure_all_hosts_available(_Ctx) ->
+    Hosts = get_hosts(),
+    lists:foreach(fun(Host) ->
+        ok = check_connection(#{cluster_host => Host})
+    end, Hosts),
     ok.
 
 

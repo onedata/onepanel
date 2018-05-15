@@ -340,8 +340,8 @@ get_admin_email(Ctx) ->
 
 %%-------------------------------------------------------------------
 %% @doc
-%% Removes legacy (up to 18.02.0-rc1) way of marking cluster IPs as configured
-%% and returns its value.
+%% Removes legacy (up to 18.02.0-rc1) way of marking cluster IPs as
+%% configured and returns its value.
 %% @end
 %%-------------------------------------------------------------------
 pop_legacy_ips_configured() ->

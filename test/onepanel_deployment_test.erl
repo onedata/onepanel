@@ -1,6 +1,6 @@
 %%%--------------------------------------------------------------------
-%%% @author Krzysztof Trzepla
-%%% @copyright (C) 2016 ACK CYFRONET AGH
+%%% @author Wojciech Geisler
+%%% @copyright (C) 2018 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -10,7 +10,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_deployment_test).
--author("Krzysztof Trzepla").
+-author("Wojciech Geisler").
 
 -ifdef(TEST).
 

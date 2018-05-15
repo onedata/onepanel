@@ -141,7 +141,7 @@ get_steps(manage_restart, _Ctx) ->
 
     case onepanel_cluster:node_to_host() == MasterHost of
         true -> [
-            #step{service = ?SERVICE_OPA, function = ensure_all_available,
+            #step{service = ?SERVICE_OPA, function = ensure_all_hosts_available,
                 attempts = 10},
             #steps{action = restart}
         ];
@@ -170,6 +170,7 @@ get_steps(set_cluster_ips, Ctx) ->
 
 get_steps(get_cluster_ips, _Ctx) ->
     [#step{hosts = get_hosts(), function = get_cluster_ips, selection = any}].
+
 
 %%--------------------------------------------------------------------
 %% @doc Returns IPs of hosts with oz_worker instances.

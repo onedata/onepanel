@@ -13,8 +13,14 @@
 
 % services are assigned to nodes
 -define(PROGRESS_CLUSTER, service_nodes).
+
+% user accepted determined IPs (or batch config was used)
 -define(PROGRESS_CLUSTER_IPS, cluster_ips).
+
+% user decided if Let's Encrypt should be enabled
 -define(PROGRESS_LETSENCRYPT_CONFIG, letsencrypt).
+
+% all steps of configuration have been performed
 -define(PROGRESS_READY, ready).
 
 -endif.
