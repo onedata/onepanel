@@ -174,6 +174,7 @@ get_steps(restart, _Ctx) ->
 
 % returns any steps only on the master node
 get_steps(manage_restart, _Ctx) ->
+    SelfHost = onepanel_cluster:node_to_host(),
     MasterHost = case service:get(name()) of
         {ok, #service{ctx = #{master_host := Master}}} -> Master;
         {ok, #service{hosts = [FirstHost | _]}} ->
@@ -182,10 +183,10 @@ get_steps(manage_restart, _Ctx) ->
         _ -> undefined
     end,
 
-    case onepanel_cluster:node_to_host() == MasterHost of
+    case SelfHost == MasterHost of
         true -> [
             #step{service = ?SERVICE_OPA, function = ensure_all_hosts_available,
-                attempts = 10},
+                attempts = 10, hosts = [SelfHost]},
             #steps{action = restart}
         ];
         false ->
