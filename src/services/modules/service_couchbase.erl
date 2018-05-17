@@ -87,6 +87,12 @@ get_steps(deploy, #{hosts := Hosts} = Ctx) ->
         #step{hosts = AllHosts, function = rebalance_cluster, selection = first}
     ];
 
+get_steps(resume, _Ctx) ->
+    [
+        #step{function = start},
+        #step{function = wait_for_init}
+    ];
+
 get_steps(start, _Ctx) ->
     [#step{function = start}];
 

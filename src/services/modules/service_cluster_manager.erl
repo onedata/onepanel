@@ -88,6 +88,9 @@ get_steps(deploy, #{hosts := [_ | _] = Hosts} = Ctx) ->
 get_steps(deploy, _Ctx) ->
     [];
 
+get_steps(resume, Ctx) ->
+    get_steps(start, Ctx);
+
 get_steps(start, _Ctx) ->
     [#step{function = start}];
 

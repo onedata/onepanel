@@ -75,6 +75,12 @@ get_steps(deploy, #{hosts := Hosts, name := Name} = Ctx) ->
         #step{hosts = [hd(AllHosts)], function = wait_for_init}
     ];
 
+get_steps(resume, #{name := _Name}) ->
+    [
+        #steps{action = start},
+        #step{function = wait_for_init, selection = first}
+    ];
+
 get_steps(start, _Ctx) ->
     [#step{function = start}];
 
@@ -282,7 +288,7 @@ get_cluster_ips(#{name := ServiceName} = _Ctx) ->
 %%--------------------------------------------------------------------
 reload_webcert(#{name := ServiceName} = Ctx) ->
     Host = onepanel_cluster:node_to_host(),
-    Node = onepanel_cluster:host_to_node(ServiceName, Host), ok,
+    Node = onepanel_cluster:host_to_node(ServiceName, Host),
     ok = rpc:call(Node, ssl, clear_pem_cache, []).
 
 %%%===================================================================

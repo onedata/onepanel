@@ -142,7 +142,10 @@ get_steps(manage_restart, _Ctx) ->
     case onepanel_cluster:node_to_host() == MasterHost of
         true -> [
             #steps{service = ?SERVICE_OPA, action = wait_for_cluster},
-            #steps{action = restart}
+            #steps{action = stop},
+            #steps{service = ?SERVICE_CB, action = resume},
+            #steps{service = ?SERVICE_CM, action = resume},
+            #steps{service = ?SERVICE_OZW, action = resume}
         ];
         false ->
             ?info("Waiting for master node \"~s\" to start", [MasterHost]),
