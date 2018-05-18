@@ -255,7 +255,10 @@ invalidate_luma_cache(#{id := StorageId}) ->
 %%--------------------------------------------------------------------
 -spec reload_webcert(service:ctx()) -> ok.
 reload_webcert(Ctx) ->
-    service_cluster_worker:reload_webcert(Ctx#{name => name()}).
+    service_cluster_worker:reload_webcert(Ctx#{name => name()}),
+
+    Node = onepanel_cluster:host_to_node(name(), onepanel_cluster:node_to_host()),
+    ok = rpc:call(Node, rtransfer_config, restart_link, []).
 
 
 %%--------------------------------------------------------------------
