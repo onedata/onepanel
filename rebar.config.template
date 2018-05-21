@@ -121,13 +121,34 @@
     {package, [
         {relx, [{dev_mode, false}]}
     ]},
-    {bamboo, [
+    {bamboo_default_rel, [
         {relx, [{dev_mode, false}]},
         {post_hooks, [
-            {release, "rm -rf _build/default/rel"},
-            {release, "mv -f _build/bamboo/rel _build/default"},
+            {release, "rm -rf _build/default/rel/onepanel"},
+            {release, "mkdir -p _build/default/rel"},
+            {release, "mv -f _build/bamboo_default_rel/rel/onepanel _build/default/rel/onepanel"},
             {release, "rm -rf _build/default/lib/onepanel"},
-            {release, "mv -f _build/bamboo/lib/onepanel _build/default/lib"}
+            {release, "mv -f _build/bamboo_default_rel/lib/onepanel _build/default/lib"}
+        ]}
+    ]},
+    {bamboo_oz_rel, [
+        {relx, [{dev_mode, false}]},
+        {post_hooks, [
+            {release, "rm -rf _build/default/rel/oz_panel"},
+            {release, "mkdir -p _build/default/rel"},
+            {release, "mv -f _build/bamboo_oz_rel/rel/oz_panel _build/default/rel/oz_panel"},
+            {release, "rm -rf _build/default/lib/onepanel"},
+            {release, "mv -f _build/bamboo_oz_rel/lib/onepanel _build/default/lib"}
+        ]}
+    ]},
+    {bamboo_op_rel, [
+        {relx, [{dev_mode, false}]},
+        {post_hooks, [
+            {release, "rm -rf _build/default/rel/op_panel"},
+            {release, "mkdir -p _build/default/rel"},
+            {release, "mv -f _build/bamboo_op_rel/rel/op_panel _build/default/rel/op_panel"},
+            {release, "rm -rf _build/default/lib/onepanel"},
+            {release, "mv -f _build/bamboo_op_rel/lib/onepanel _build/default/lib"}
         ]}
     ]}
 ]}.
