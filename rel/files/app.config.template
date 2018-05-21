@@ -169,11 +169,11 @@
         {create_tables_timeout, 10000},
         {copy_tables_timeout, 10000},
         {extend_cluster_timeout, 900000},
-        {wait_for_cluster_timeout, 600000},
         {task_ttl, 86400000},
         {service_step_retry_delay, 30000},
         {services_check_delay, 60000},
         {session_ttl, 3600000},
+        {wait_for_cluster_attempts, 20},
 
         {vm_args_file, "{{platform_etc_dir}}/vm.args"},
         {app_config_file, "{{platform_etc_dir}}/app.config"},

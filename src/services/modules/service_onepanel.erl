@@ -111,14 +111,12 @@ get_steps(leave_cluster, _Ctx) ->
 
 get_steps(wait_for_cluster, _Ctx) ->
     SelfHost = onepanel_cluster:node_to_host(),
-    Timeout = application:get_env(?APP_NAME, wait_for_cluster_timeout, timer:minutes(10)),
-    RetryDelay = onepanel_env:get(service_step_retry_delay),
-    Attempts = Timeout / RetryDelay,
+    Attempts = application:get_env(?APP_NAME, wait_for_cluster_attempts, 20),
     [
         #step{service = name(), function = ensure_all_hosts_available,
-            attempts = Attempts, retry_delay = RetryDelay, hosts = [SelfHost]},
+            attempts = Attempts, hosts = [SelfHost]},
         #step{service = name(), function = ensure_node_ready,
-            attempts = Attempts, retry_delay = RetryDelay, hosts = get_hosts()}
+            attempts = Attempts, hosts = get_hosts()}
     ];
 
 get_steps(add_users, #{users := _}) ->
