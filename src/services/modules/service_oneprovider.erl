@@ -177,8 +177,7 @@ get_steps(manage_restart, _Ctx) ->
         {ok, #service{ctx = #{master_host := Master}}} -> Master;
         {ok, #service{hosts = [FirstHost | _]}} ->
             ?info("No master host configured, defaulting to \"~s\"", [FirstHost]),
-            FirstHost;
-        _ -> undefined
+            FirstHost
     end,
 
     case onepanel_cluster:node_to_host() == MasterHost of
