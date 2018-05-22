@@ -100,7 +100,7 @@ exists_resource(Req, #rstate{resource = SModule}) ->
 %%--------------------------------------------------------------------
 -spec accept_resource(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
-    {Accepted :: boolean(), Req :: cowboy_req:req()}.
+    {Accepted :: boolean() | stop, Req :: cowboy_req:req()}.
 accept_resource(Req, 'POST', Args, #rstate{resource = service_couchbase, version = Version}) ->
     Ctx = #{hosts => onepanel_utils:typed_get(hosts, Args, {seq, list})},
     Ctx2 = onepanel_maps:get_store(serverQuota, Args, couchbase_server_quota, Ctx),
