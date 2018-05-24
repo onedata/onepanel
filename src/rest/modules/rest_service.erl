@@ -305,13 +305,18 @@ provide_resource(Req, #rstate{resource = nagios} = State) ->
         onezone -> service_oz_worker
     end,
 
-    {ok, Code, Headers, Body} = rest_replier:format_service_step(
-        SModule, get_nagios_response, service_utils:throw_on_error(
-            service:apply_sync(SModule:name(), get_nagios_response, #{})
-        )
+    Result = rest_replier:format_service_step(
+        SModule, get_nagios_response,
+        service:apply_sync(SModule:name(), get_nagios_response, #{})
     ),
-    Req2 = cowboy_req:reply(Code, Headers, Body, Req),
-    {stop, Req2, State};
+    case Result of
+        {ok, Code, Headers, Body} ->
+            Req2 = cowboy_req:reply(Code, Headers, Body, Req),
+            {stop, Req2, State};
+        {error, econnrefused} ->
+            Req2 = cowboy_req:reply(503, #{}, Req),
+            {stop, Req2, State}
+    end;
 
 provide_resource(Req, #rstate{resource = task, bindings = #{id := TaskId}}) ->
     {rest_replier:format_service_task_results(service:get_results(TaskId)), Req};
