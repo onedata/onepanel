@@ -154,7 +154,12 @@
         {ip_check_url, "http://ip4.icanhazip.com"},
 
         {rest_api_prefix_template, "/api/v{version_number}/onepanel"},
+        %% Number of accepting processes in HTTPS listeners
         {rest_https_acceptors, 100},
+        %% Request timeout in milliseconds, meaning how long the server should
+        %% wait for an incoming request since the last activity until it closes
+        %% the connection.
+        {rest_https_request_timeout, 30000},
         {rest_listener_status_check_attempts, 30},
 
         %% Directory where static files of default, embedded GUI are kept.

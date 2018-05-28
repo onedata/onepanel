@@ -11,13 +11,15 @@
 -module(rest_listener).
 -author("Krzysztof Trzepla").
 
+-behaviour(listener_behaviour).
+
 -include("http/rest.hrl").
 -include("names.hrl").
+-include_lib("gui/include/new_gui.hrl").
 -include_lib("ctool/include/logging.hrl").
 
--export([get_port/0, get_prefix/1]).
--export([start/0, stop/0, status/0]).
--export([get_cert_chain/0]).
+-export([port/0, start/0, stop/0, healthcheck/0]).
+-export([get_cert_chain_pems/0, get_prefix/1]).
 
 %%%===================================================================
 %%% API functions
@@ -27,9 +29,76 @@
 %% @doc Returns REST listener port.
 %% @end
 %%--------------------------------------------------------------------
--spec get_port() -> Port :: integer().
-get_port() ->
+-spec port() -> Port :: integer().
+port() ->
     onepanel_env:get(rest_port).
+
+
+%%--------------------------------------------------------------------
+%% @doc Starts REST listener.
+%% @end
+%%--------------------------------------------------------------------
+-spec start() -> ok | no_return().
+start() ->
+    maybe_generate_web_cert(),
+    maybe_trust_test_ca(),
+    HttpsAcceptors = onepanel_env:get(rest_https_acceptors),
+    RequestTimeout = onepanel_env:get(rest_https_request_timeout),
+    KeyFile = onepanel_env:get(web_key_file),
+    CertFile = onepanel_env:get(web_cert_file),
+    ChainFile = onepanel_env:get(web_cert_chain_file),
+    CustomRoot = onepanel_env:get(gui_custom_static_root),
+    DefaultRoot = onepanel_env:get(gui_default_static_root),
+
+    CommonRoutes = onepanel_api:routes(),
+    SpecificRoutes = case onepanel_env:get(release_type) of
+        oneprovider -> oneprovider_api:routes();
+        onezone -> onezone_api:routes()
+    end,
+    Routes = merge_routes(CommonRoutes ++ SpecificRoutes),
+
+    ok = new_gui:start(#gui_config{
+        port = port(),
+        key_file = KeyFile,
+        cert_file = CertFile,
+        chain_file = ChainFile,
+        number_of_acceptors = HttpsAcceptors,
+        request_timeout = RequestTimeout,
+        inactivity_timeout = timer:minutes(10),
+        custom_cowboy_routes = Routes,
+        default_static_root = DefaultRoot,
+        custom_static_root = CustomRoot
+    }),
+
+    ?info("REST listener successfully started").
+
+
+%%--------------------------------------------------------------------
+%% @doc Stops REST listener.
+%% @end
+%%--------------------------------------------------------------------
+-spec stop() -> ok | {error, Reason :: term()}.
+stop() ->
+    new_gui:stop().
+
+
+%%--------------------------------------------------------------------
+%% @doc Checks whether REST listener is working.
+%% @end
+%%--------------------------------------------------------------------
+-spec healthcheck() -> ok | {error, server_not_responding}.
+healthcheck() ->
+    new_gui:healthcheck().
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns intermediate CA chain for the web cert used in gui listener.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_cert_chain_pems() -> [public_key:der_encoded()].
+get_cert_chain_pems() ->
+    new_gui:get_cert_chain_pems().
 
 
 %%--------------------------------------------------------------------
@@ -41,100 +110,6 @@ get_prefix(ApiVersion) ->
     Template = onepanel_env:get(rest_api_prefix_template),
     re:replace(Template, "{version_number}",
         onepanel_utils:convert(ApiVersion, binary), [{return, binary}]).
-
-
-%%--------------------------------------------------------------------
-%% @doc Starts REST listener.
-%% @end
-%%--------------------------------------------------------------------
--spec start() -> ok | no_return().
-start() ->
-    maybe_generate_web_cert(),
-    maybe_trust_test_ca(),
-    Port = get_port(),
-    HttpsAcceptors = onepanel_env:get(rest_https_acceptors),
-    KeyFile = onepanel_env:get(web_key_file),
-    CertFile = onepanel_env:get(web_cert_file),
-    ChainFile = onepanel_env:get(web_cert_chain_file),
-
-    CommonRoutes = onepanel_api:routes(),
-    SpecificRoutes = case onepanel_env:get(release_type) of
-        oneprovider -> oneprovider_api:routes();
-        onezone -> onezone_api:routes()
-    end,
-    Routes = merge_routes(CommonRoutes ++ SpecificRoutes) ++ static_gui_routes(),
-
-    Dispatch = cowboy_router:compile([{'_', Routes}]),
-
-    SslOpts = [
-        {port, Port},
-        {num_acceptors, HttpsAcceptors},
-        {keyfile, KeyFile},
-        {certfile, CertFile},
-        {ciphers, ssl_utils:safe_ciphers()},
-        {connection_type, supervisor},
-        {next_protocols_advertised, [<<"http/1.1">>]},
-        {alpn_preferred_protocols, [<<"http/1.1">>]}
-    ],
-
-    SslOptsWithChain = case filelib:is_regular(ChainFile) of
-        true -> [{cacertfile, ChainFile} | SslOpts];
-        _ -> SslOpts
-    end,
-
-    {ok, _} = ranch:start_listener(?MODULE, ranch_ssl, SslOptsWithChain,
-        cowboy_tls, #{
-            env => #{dispatch => Dispatch},
-            connection_type => supervisor,
-            idle_timeout => timer:hours(24),
-            inactivity_timeout => timer:minutes(10)
-        }
-    ),
-
-    ?info("REST listener successfully started").
-
-
-%%--------------------------------------------------------------------
-%% @doc Stops REST listener.
-%% @end
-%%--------------------------------------------------------------------
--spec stop() -> ok | {error, Reason :: term()}.
-stop() ->
-    case cowboy:stop_listener(?MODULE) of
-        ok ->
-            ?info("REST listener stopped");
-        {error, Reason} ->
-            ?error("Cannot stop REST listener due to: ~p", [Reason]),
-            {error, Reason}
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @doc Checks whether REST listener is working.
-%% @end
-%%--------------------------------------------------------------------
--spec status() -> ok | {error, Reason :: term()}.
-status() ->
-    Endpoint = str_utils:format_bin("https://127.0.0.1:~B", [get_port()]),
-    Opts = [{ssl_options, [{secure, only_verify_peercert}, {cacerts, get_cert_chain()}]}],
-    case http_client:get(Endpoint, #{}, <<>>, Opts) of
-        {ok, _, _, _} -> ok;
-        {error, Reason} -> {error, Reason}
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Returns intermediate CA chain for the web cert used in gui listener.
-%% @end
-%%--------------------------------------------------------------------
--spec get_cert_chain() -> [public_key:der_encoded()].
-get_cert_chain() ->
-    ChainFile = onepanel_env:get(web_cert_chain_file),
-    case filelib:is_regular(ChainFile) of
-        true -> cert_utils:load_ders(ChainFile);
-        _ -> []
-    end.
 
 
 %%%===================================================================
@@ -158,24 +133,6 @@ merge_routes(Routes) ->
                 [Route | Acc]
         end
     end, [], Routes).
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Returns Cowboy router compliant routes for static gui files.
-%% @end
-%%--------------------------------------------------------------------
--spec static_gui_routes() -> [{Path :: string(), Module :: module(), State :: term()}].
-static_gui_routes() ->
-    % Resolve static files root. First, check if there is a non-empty dir
-    % located in gui_custom_static_root. If not, use default.
-    CustomRoot = onepanel_env:get(gui_custom_static_root),
-    DefaultRoot = onepanel_env:get(gui_default_static_root),
-    StaticFilesRoot = case file:list_dir_all(CustomRoot) of
-        {error, enoent} -> DefaultRoot;
-        {ok, []} -> DefaultRoot;
-        {ok, _} -> CustomRoot
-    end,
-    [{"/[...]", gui_static_handler, {dir, StaticFilesRoot}}].
 
 
 %%--------------------------------------------------------------------
