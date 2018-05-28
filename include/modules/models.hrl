@@ -33,7 +33,7 @@
 }).
 
 -record(onepanel_deployment, {
-    key :: atom(),
+    id :: atom(),
     completed = gb_sets:empty() :: gb_sets:set()
 }).
 

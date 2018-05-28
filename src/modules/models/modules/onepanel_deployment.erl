@@ -33,7 +33,7 @@
 
 -export_type([mark/0]).
 
--define(KEY, ?MODULE).
+-define(ID, ?MODULE).
 
 %%%===================================================================
 %%% Model behaviour callbacks
@@ -54,7 +54,7 @@ get_fields() ->
 %%--------------------------------------------------------------------
 -spec seed() -> any().
 seed() ->
-    create(#onepanel_deployment{key = ?KEY, completed = gb_sets:new()}).
+    create(#onepanel_deployment{id = ?ID, completed = gb_sets:new()}).
 
 
 %%--------------------------------------------------------------------
@@ -134,7 +134,7 @@ list() ->
 %%--------------------------------------------------------------------
 -spec mark_completed(ProgressMark :: mark()) -> ok.
 mark_completed(ProgressMark) ->
-    ?MODULE:update(?KEY, fun(#onepanel_deployment{completed = C} = OP) ->
+    ?MODULE:update(?ID, fun(#onepanel_deployment{completed = C} = OP) ->
         OP#onepanel_deployment{completed = gb_sets:add_element(ProgressMark, C)}
     end).
 
@@ -145,7 +145,7 @@ mark_completed(ProgressMark) ->
 %%--------------------------------------------------------------------
 -spec mark_not_completed(ProgressMark :: mark()) -> ok.
 mark_not_completed(ProgressMark) ->
-    ?MODULE:update(?KEY, fun(#onepanel_deployment{completed = C} = OP) ->
+    ?MODULE:update(?ID, fun(#onepanel_deployment{completed = C} = OP) ->
         OP#onepanel_deployment{completed = gb_sets:del_element(ProgressMark, C)}
     end).
 
@@ -156,7 +156,7 @@ mark_not_completed(ProgressMark) ->
 %%--------------------------------------------------------------------
 -spec is_completed(ProgressMark :: mark()) -> boolean().
 is_completed(ProgressMark) ->
-    case ?MODULE:get(?KEY) of
+    case ?MODULE:get(?ID) of
         {ok, #onepanel_deployment{completed = C}} ->
             gb_sets:is_member(ProgressMark, C);
         _ -> false
@@ -168,7 +168,7 @@ is_completed(ProgressMark) ->
 %%--------------------------------------------------------------------
 -spec get_all() -> [mark()].
 get_all() ->
-    case ?MODULE:get(?KEY) of
+    case ?MODULE:get(?ID) of
         {ok, #onepanel_deployment{completed = C}} ->
             gb_sets:to_list(C);
         _ -> []
