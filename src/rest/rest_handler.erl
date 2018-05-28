@@ -179,7 +179,7 @@ resource_exists(Req, #rstate{module = Module, methods = Methods} = State) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec accept_resource_json(Req :: cowboy_req:req(), State :: state()) ->
-    {boolean(), cowboy_req:req(), state()}.
+    {boolean() | stop, cowboy_req:req(), state()}.
 accept_resource_json(Req, #rstate{} = State) ->
     try
         {ok, Body, Req2} = cowboy_req:read_body(Req),
@@ -197,7 +197,7 @@ accept_resource_json(Req, #rstate{} = State) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec accept_resource_yaml(Req :: cowboy_req:req(), State :: state()) ->
-    {boolean(), cowboy_req:req(), state()}.
+    {boolean() | stop, cowboy_req:req(), state()}.
 accept_resource_yaml(Req, #rstate{} = State) ->
     try
         {ok, Body, Req2} = cowboy_req:read_body(Req),
@@ -269,7 +269,7 @@ delete_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec accept_resource(Req :: cowboy_req:req(), Data :: data(), State :: state()) ->
-    {{true, URL :: binary()} | boolean(), cowboy_req:req(), state()}.
+    {{true, URL :: binary()} | boolean() | stop, cowboy_req:req(), state()}.
 accept_resource(Req, Data, #rstate{module = Module, methods = Methods} =
     State) ->
     {Method, Req2} = rest_utils:get_method(Req),
@@ -278,11 +278,11 @@ accept_resource(Req, Data, #rstate{module = Module, methods = Methods} =
         lists:keyfind(Method, 2, Methods),
     {Params, Req4} = rest_utils:get_params(Req3, ParamSpec),
     Args = rest_utils:get_args(Data, ArgsSpec),
-    {Accepted, Req5} = Module:accept_resource(Req4, Method, Args, State#rstate{
+    {Result, Req5} = Module:accept_resource(Req4, Method, Args, State#rstate{
         bindings = Bindings,
         params = Params
     }),
-    {Accepted, Req5, State}.
+    {Result, Req5, State}.
 
 
 %%--------------------------------------------------------------------

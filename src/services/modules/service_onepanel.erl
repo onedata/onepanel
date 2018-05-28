@@ -20,8 +20,9 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([set_cookie/1, check_connection/1, init_cluster/1, extend_cluster/1,
-    join_cluster/1, reset_node/1, reload_webcert/1, add_users/1]).
+-export([set_cookie/1, check_connection/1, ensure_all_hosts_available/1,
+    init_cluster/1, extend_cluster/1, join_cluster/1, reset_node/1,
+    ensure_node_ready/1, reload_webcert/1, add_users/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -107,6 +108,16 @@ get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
 
 get_steps(leave_cluster, _Ctx) ->
     [#step{hosts = [onepanel_cluster:node_to_host()], function = reset_node}];
+
+get_steps(wait_for_cluster, _Ctx) ->
+    SelfHost = onepanel_cluster:node_to_host(),
+    Attempts = application:get_env(?APP_NAME, wait_for_cluster_attempts, 20),
+    [
+        #step{service = name(), function = ensure_all_hosts_available,
+            attempts = Attempts, hosts = [SelfHost]},
+        #step{service = name(), function = ensure_node_ready,
+            attempts = Attempts, hosts = get_hosts()}
+    ];
 
 get_steps(add_users, #{users := _}) ->
     [#step{function = add_users, selection = any}];
@@ -229,6 +240,30 @@ add_users(#{users := Users}) ->
                 onepanel_user:update(Username, #{role => Role})
         end
     end, ok, Users).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Ensures all cluster hosts are up.
+%% @end
+%%--------------------------------------------------------------------
+-spec ensure_all_hosts_available(service:ctx()) -> ok | no_return().
+ensure_all_hosts_available(_Ctx) ->
+    Hosts = get_hosts(),
+    lists:foreach(fun(Host) ->
+        ok = check_connection(#{cluster_host => Host})
+    end, Hosts),
+    ok.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Fails if some children of the main supervisor are not running.
+%% @end
+%%--------------------------------------------------------------------
+ensure_node_ready(_Ctx) ->
+    Counts = supervisor:count_children(onepanel_sup),
+    true = (proplists:get_value(specs, Counts) == proplists:get_value(active, Counts)).
 
 
 %%--------------------------------------------------------------------

@@ -11,6 +11,8 @@
 -module(onepanel_sup).
 -author("Krzysztof Trzepla").
 
+-include_lib("ctool/include/logging.hrl").
+
 -behaviour(supervisor).
 
 %% API
@@ -48,6 +50,19 @@ start_link() ->
     {ok, {SupFlags :: supervisor:sup_flags(),
         [ChildSpec :: supervisor:child_spec()]}} | ignore.
 init([]) ->
+    % Initialization done here rather than in onepanel_app:start
+    % because too long wait before spawning supervisor causes timeout
+    % and exit of application
+
+    service_onepanel:init_cluster(#{}),
+
+    ?info("Waiting for distributed database to be ready"),
+    onepanel_db:wait_for_tables(),
+
+    rest_listener:start(),
+    onepanel_utils:wait_until(rest_listener, status, [], {equal, ok},
+        onepanel_env:get(rest_listener_status_check_attempts)),
+
     {ok, {#{strategy => one_for_all, intensity => 3, period => 1}, [
         onepanel_discovery_spec(),
         service_executor_spec(),

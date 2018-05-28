@@ -14,6 +14,7 @@
 -include("modules/errors.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include("modules/models.hrl").
+-include("deployment_progress.hrl").
 
 -behavior(rest_behaviour).
 
@@ -79,6 +80,12 @@ exists_resource(Req, #rstate{resource = luma}) ->
 exists_resource(Req, #rstate{resource = SModule, bindings = #{host := Host}}) ->
     {service:is_member(SModule:name(), Host), Req};
 
+
+exists_resource(Req, #rstate{resource = SModule}) when
+    SModule =:= service_onezone; SModule =:= service_oneprovider ->
+    {model:exists(onepanel_deployment) andalso
+        onepanel_deployment:is_completed(?PROGRESS_CLUSTER), Req};
+
 exists_resource(Req, #rstate{resource = SModule}) ->
     case lists:member(SModule, ?SERVICES) of
         true ->
@@ -93,7 +100,7 @@ exists_resource(Req, #rstate{resource = SModule}) ->
 %%--------------------------------------------------------------------
 -spec accept_resource(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
-    {Accepted :: boolean(), Req :: cowboy_req:req()}.
+    {Accepted :: boolean() | stop, Req :: cowboy_req:req()}.
 accept_resource(Req, 'POST', Args, #rstate{resource = service_couchbase, version = Version}) ->
     Ctx = #{hosts => onepanel_utils:typed_get(hosts, Args, {seq, list})},
     Ctx2 = onepanel_maps:get_store(serverQuota, Args, couchbase_server_quota, Ctx),
@@ -119,113 +126,124 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oz_worker} = State
     deploy_cluster_worker(Req, Args, State);
 
 accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, version = Version}) ->
-    DbHosts = rest_utils:get_hosts([cluster, databases, nodes], Args),
-    CmHosts = rest_utils:get_hosts([cluster, managers, nodes], Args),
-    [MainCmHost] = rest_utils:get_hosts([cluster, managers, mainNode], Args),
-    OpwHosts = rest_utils:get_hosts([cluster, workers, nodes], Args),
+    case is_service_configured() of
+        true ->
+            {false, Req};
+        _ ->
+            DbHosts = rest_utils:get_hosts([cluster, databases, nodes], Args),
+            CmHosts = rest_utils:get_hosts([cluster, managers, nodes], Args),
+            [MainCmHost] = rest_utils:get_hosts([cluster, managers, mainNode], Args),
+            OpwHosts = rest_utils:get_hosts([cluster, workers, nodes], Args),
 
-    StorageCtx = onepanel_maps:get_store([cluster, storages], Args, storages),
-    StorageCtx2 = StorageCtx#{hosts => OpwHosts, ignore_exists => true},
+            StorageCtx = onepanel_maps:get_store([cluster, storages], Args, storages),
+            StorageCtx2 = StorageCtx#{hosts => OpwHosts, ignore_exists => true},
 
-    LetsencryptCtx = onepanel_maps:get_store([oneprovider, letsEncryptEnabled], Args, letsencrypt_enabled),
+            LetsencryptCtx = onepanel_maps:get_store([oneprovider, letsEncryptEnabled], Args, letsencrypt_enabled),
 
-    DbCtx = #{hosts => DbHosts},
-    DbCtx2 = onepanel_maps:get_store([cluster, databases, serverQuota], Args,
-        couchbase_server_quota, DbCtx),
-    DbCtx3 = onepanel_maps:get_store([cluster, databases, bucketQuota], Args,
-        couchbase_bucket_quota, DbCtx2),
+            DbCtx = #{hosts => DbHosts},
+            DbCtx2 = onepanel_maps:get_store([cluster, databases, serverQuota], Args,
+                couchbase_server_quota, DbCtx),
+            DbCtx3 = onepanel_maps:get_store([cluster, databases, bucketQuota], Args,
+                couchbase_bucket_quota, DbCtx2),
 
-    Auth = cowboy_req:header(<<"authorization">>, Req),
-    OpaCtx = maps:get(onepanel, Args, #{}),
-    OpaHosts = lists:usort(DbHosts ++ CmHosts ++ OpwHosts),
-    OpaCtx2 = OpaCtx#{
-        hosts => OpaHosts,
-        auth => Auth,
-        api_version => Version
-    },
+            Auth = cowboy_req:header(<<"authorization">>, Req),
+            OpaCtx = maps:get(onepanel, Args, #{}),
+            OpaHosts = lists:usort(DbHosts ++ CmHosts ++ OpwHosts),
+            OpaCtx2 = OpaCtx#{
+                hosts => OpaHosts,
+                auth => Auth,
+                api_version => Version
+            },
 
-    ClusterIPs = rest_utils:get_cluster_ips(Args),
+            ClusterIPs = rest_utils:get_cluster_ips(Args),
 
-    % In batch mode IPs do not need user approval
-    % TODO VFS-4140 Use proper batch config enabling argument
-    IPsConfigured = onepanel_maps:get([oneprovider, register], Args, false),
+            % In batch mode IPs do not need user approval
+            % TODO VFS-4140 Use proper batch config enabling argument
+            IPsConfigured = onepanel_maps:get([oneprovider, register], Args, false),
 
-    ClusterCtx = #{
-        service_onepanel:name() => OpaCtx2,
-        service_couchbase:name() => DbCtx3,
-        service_cluster_manager:name() => #{main_host => MainCmHost,
-            hosts => CmHosts, worker_num => length(OpwHosts)},
-        service_op_worker:name() => #{hosts => OpwHosts, db_hosts => DbHosts,
-            cm_hosts => CmHosts, main_cm_host => MainCmHost,
-            mark_cluster_ips_configured => IPsConfigured
-        },
-        service_letsencrypt:name() => LetsencryptCtx#{hosts => OpaHosts},
-        storages => StorageCtx2
-    },
+            ClusterCtx = #{
+                service_onepanel:name() => OpaCtx2,
+                service_couchbase:name() => DbCtx3,
+                service_cluster_manager:name() => #{main_host => MainCmHost,
+                    hosts => CmHosts, worker_num => length(OpwHosts)},
+                service_op_worker:name() => #{hosts => OpwHosts, db_hosts => DbHosts,
+                    cm_hosts => CmHosts, main_cm_host => MainCmHost,
+                    mark_cluster_ips_configured => IPsConfigured
+                },
+                service_letsencrypt:name() => LetsencryptCtx#{hosts => OpaHosts},
+                storages => StorageCtx2
+            },
 
 
-    OpwCtx = onepanel_maps:get_store([onezone, domainName], Args, onezone_domain),
-    OpwCtx2 = onepanel_maps:get_store([oneprovider, register], Args, oneprovider_register, OpwCtx),
-    OpwCtx3 = onepanel_maps:get_store([oneprovider, name], Args, oneprovider_name, OpwCtx2),
-    OpwCtx4 = onepanel_maps:get_store([oneprovider, subdomainDelegation], Args, oneprovider_subdomain_delegation, OpwCtx3),
-    OpwCtx5 = onepanel_maps:get_store([oneprovider, domain], Args, oneprovider_domain, OpwCtx4),
-    OpwCtx6 = onepanel_maps:get_store([oneprovider, subdomain], Args, oneprovider_subdomain, OpwCtx5),
-    OpwCtx7 = onepanel_maps:get_store([oneprovider, adminEmail], Args, oneprovider_admin_email, OpwCtx6),
-    OpwCtx8 = onepanel_maps:get_store([oneprovider, geoLatitude], Args, oneprovider_geo_latitude, OpwCtx7),
-    OpwCtx9 = onepanel_maps:get_store([oneprovider, geoLongitude], Args, oneprovider_geo_longitude, OpwCtx8),
-    OpwCtx10 = OpwCtx9#{hosts => OpwHosts, cluster_ips => ClusterIPs},
+            OpwCtx = onepanel_maps:get_store([onezone, domainName], Args, onezone_domain),
+            OpwCtx2 = onepanel_maps:get_store([oneprovider, register], Args, oneprovider_register, OpwCtx),
+            OpwCtx3 = onepanel_maps:get_store([oneprovider, name], Args, oneprovider_name, OpwCtx2),
+            OpwCtx4 = onepanel_maps:get_store([oneprovider, subdomainDelegation], Args, oneprovider_subdomain_delegation, OpwCtx3),
+            OpwCtx5 = onepanel_maps:get_store([oneprovider, domain], Args, oneprovider_domain, OpwCtx4),
+            OpwCtx6 = onepanel_maps:get_store([oneprovider, subdomain], Args, oneprovider_subdomain, OpwCtx5),
+            OpwCtx7 = onepanel_maps:get_store([oneprovider, adminEmail], Args, oneprovider_admin_email, OpwCtx6),
+            OpwCtx8 = onepanel_maps:get_store([oneprovider, geoLatitude], Args, oneprovider_geo_latitude, OpwCtx7),
+            OpwCtx9 = onepanel_maps:get_store([oneprovider, geoLongitude], Args, oneprovider_geo_longitude, OpwCtx8),
+            OpwCtx10 = OpwCtx9#{hosts => OpwHosts, cluster_ips => ClusterIPs},
 
-    {true, rest_replier:handle_service_action_async(Req, service:apply_async(
-        service_oneprovider:name(), deploy, #{
-            cluster => ClusterCtx, service_oneprovider:name() => OpwCtx10
-        }
-    ), Version)};
+            {true, rest_replier:handle_service_action_async(Req, service:apply_async(
+                service_oneprovider:name(), deploy, #{
+                    cluster => ClusterCtx, service_oneprovider:name() => OpwCtx10
+                }
+            ), Version)}
+    end;
 
 accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version = Version}) ->
-    DbHosts = rest_utils:get_hosts([cluster, databases, nodes], Args),
-    CmHosts = rest_utils:get_hosts([cluster, managers, nodes], Args),
-    [MainCmHost] = rest_utils:get_hosts([cluster, managers, mainNode], Args),
-    OzwHosts = rest_utils:get_hosts([cluster, workers, nodes], Args),
-    ClusterIPs = rest_utils:get_cluster_ips(Args),
+    case is_service_configured() of
+        true ->
+            % repeating POST on configure is forbidden
+            {false, Req};
+        _ ->
+            DbHosts = rest_utils:get_hosts([cluster, databases, nodes], Args),
+            CmHosts = rest_utils:get_hosts([cluster, managers, nodes], Args),
+            [MainCmHost] = rest_utils:get_hosts([cluster, managers, mainNode], Args),
+            OzwHosts = rest_utils:get_hosts([cluster, workers, nodes], Args),
+            ClusterIPs = rest_utils:get_cluster_ips(Args),
 
-    DbCtx = #{hosts => DbHosts},
-    DbCtx2 = onepanel_maps:get_store([cluster, databases, serverQuota], Args,
-        couchbase_server_quota, DbCtx),
-    DbCtx3 = onepanel_maps:get_store([cluster, databases, bucketQuota], Args,
-        couchbase_bucket_quota, DbCtx2),
+            DbCtx = #{hosts => DbHosts},
+            DbCtx2 = onepanel_maps:get_store([cluster, databases, serverQuota], Args,
+                couchbase_server_quota, DbCtx),
+            DbCtx3 = onepanel_maps:get_store([cluster, databases, bucketQuota], Args,
+                couchbase_bucket_quota, DbCtx2),
 
-    Auth = cowboy_req:header(<<"authorization">>, Req),
-    OpaCtx = maps:get(onepanel, Args, #{}),
-    OpaCtx2 = OpaCtx#{
-        hosts => lists:usort(DbHosts ++ CmHosts ++ OzwHosts),
-        auth => Auth,
-        api_version => Version
-    },
+            Auth = cowboy_req:header(<<"authorization">>, Req),
+            OpaCtx = maps:get(onepanel, Args, #{}),
+            OpaCtx2 = OpaCtx#{
+                hosts => lists:usort(DbHosts ++ CmHosts ++ OzwHosts),
+                auth => Auth,
+                api_version => Version
+            },
 
-    OzCtx = onepanel_maps:get_store([onezone, name], Args, name),
-    OzCtx2 = onepanel_maps:get_store([onezone, domainName], Args, domain, OzCtx),
+            OzCtx = onepanel_maps:get_store([onezone, name], Args, name),
+            OzCtx2 = onepanel_maps:get_store([onezone, domainName], Args, domain, OzCtx),
 
-    OzwCtx = #{
-        hosts => OzwHosts, db_hosts => DbHosts, cm_hosts => CmHosts,
-        main_cm_host => MainCmHost,
-        cluster_ips => ClusterIPs
-    },
-    OzwCtx2 = onepanel_maps:get_store([onezone, name], Args, onezone_name, OzwCtx),
-    OzwCtx3 = onepanel_maps:get_store([onezone, domainName], Args, onezone_domain, OzwCtx2),
+            OzwCtx = #{
+                hosts => OzwHosts, db_hosts => DbHosts, cm_hosts => CmHosts,
+                main_cm_host => MainCmHost,
+                cluster_ips => ClusterIPs
+            },
+            OzwCtx2 = onepanel_maps:get_store([onezone, name], Args, onezone_name, OzwCtx),
+            OzwCtx3 = onepanel_maps:get_store([onezone, domainName], Args, onezone_domain, OzwCtx2),
 
-    ClusterCtx = #{
-        service_onepanel:name() => OpaCtx2,
-        service_couchbase:name() => DbCtx3,
-        service_cluster_manager:name() => #{main_host => MainCmHost,
-            hosts => CmHosts, worker_num => length(OzwHosts)},
-        service_oz_worker:name() => OzwCtx3
-    },
+            ClusterCtx = #{
+                service_onepanel:name() => OpaCtx2,
+                service_couchbase:name() => DbCtx3,
+                service_cluster_manager:name() => #{main_host => MainCmHost,
+                    hosts => CmHosts, worker_num => length(OzwHosts)},
+                service_oz_worker:name() => OzwCtx3
+            },
 
-    {true, rest_replier:handle_service_action_async(Req, service:apply_async(
-        service_onezone:name(), deploy, #{
-            cluster => ClusterCtx, service_onezone:name() => OzCtx2
-        }
-    ), Version)};
+            {true, rest_replier:handle_service_action_async(Req, service:apply_async(
+                service_onezone:name(), deploy, #{
+                    cluster => ClusterCtx, service_onezone:name() => OzCtx2
+                }
+            ), Version)}
+        end;
 
 accept_resource(Req, 'POST', Args, #rstate{resource = storages}) ->
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
@@ -287,13 +305,18 @@ provide_resource(Req, #rstate{resource = nagios} = State) ->
         onezone -> service_oz_worker
     end,
 
-    {ok, Code, Headers, Body} = rest_replier:format_service_step(
-        SModule, get_nagios_response, service_utils:throw_on_error(
-            service:apply_sync(SModule:name(), get_nagios_response, #{})
-        )
+    Result = rest_replier:format_service_step(
+        SModule, get_nagios_response,
+        service:apply_sync(SModule:name(), get_nagios_response, #{})
     ),
-    Req2 = cowboy_req:reply(Code, Headers, Body, Req),
-    {stop, Req2, State};
+    case Result of
+        {ok, Code, Headers, Body} ->
+            Req2 = cowboy_req:reply(Code, Headers, Body, Req),
+            {stop, Req2, State};
+        {error, econnrefused} ->
+            Req2 = cowboy_req:reply(503, #{}, Req),
+            {stop, Req2, State}
+    end;
 
 provide_resource(Req, #rstate{resource = task, bindings = #{id := TaskId}}) ->
     {rest_replier:format_service_task_results(service:get_results(TaskId)), Req};
@@ -361,3 +384,10 @@ deploy_cluster_worker(Req, Args, #rstate{resource = SModule, version = Version})
             main_cm_host => MainCmHost
         }
     ), Version)}.
+
+%%--------------------------------------------------------------------
+%% @private @doc Checks if service has already been configured.
+%% @end
+%%--------------------------------------------------------------------
+is_service_configured() ->
+    model:exists(onepanel_deployment) andalso onepanel_deployment:is_completed(?PROGRESS_READY).

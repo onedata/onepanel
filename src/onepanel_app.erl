@@ -39,11 +39,9 @@
 start(_StartType, _StartArgs) ->
     try
         test_node_starter:maybe_start_cover(),
-        service_onepanel:init_cluster(#{}),
-        rest_listener:start(),
-        onepanel_utils:wait_until(rest_listener, status, [], {equal, ok},
-            onepanel_env:get(rest_listener_status_check_attempts)),
-        onepanel_sup:start_link()
+        Supervisor = onepanel_sup:start_link(),
+        resume_service(),
+        Supervisor
     catch
         _:Reason ->
             ?error_stacktrace("Cannot start onepanel application due to: ~p",
@@ -63,3 +61,28 @@ stop(_State) ->
     rest_listener:stop(),
     test_node_starter:maybe_stop_cover(),
     ok.
+
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Restart oneprovider or onezone service if its already configured.
+%% @end
+%%--------------------------------------------------------------------
+-spec resume_service() -> ok.
+resume_service() ->
+    case {service:exists(service_oneprovider:name()), service:exists(service_onezone:name())} of
+        {true, _} ->
+            Task = service:apply_async(service_oneprovider:name(), manage_restart, #{}),
+            ?info("Resuming oneprovider (task ~s)", [Task]);
+        {_, true} ->
+            Task = service:apply_async(service_onezone:name(), manage_restart, #{}),
+            ?info("Resuming onezone (task ~s)", [Task]);
+        _ -> ok % new deployment
+    end,
+    ok.
+

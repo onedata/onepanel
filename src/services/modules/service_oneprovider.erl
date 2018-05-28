@@ -17,6 +17,7 @@
 -include("names.hrl").
 -include("service.hrl").
 -include("modules/models.hrl").
+-include("deployment_progress.hrl").
 -include_lib("ctool/include/oz/oz_spaces.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
@@ -96,6 +97,11 @@ get_steps(deploy, Ctx) ->
     OpCtx = onepanel_maps:get(name(), Ctx, #{}),
 
     service:create(#service{name = name()}),
+    % separate update to handle upgrade from older version
+    service:update(name(), fun(#service{ctx = C} = S) ->
+        S#service{ctx = C#{master_host => onepanel_cluster:node_to_host()}}
+    end),
+
     AlreadyRegistered =
         case service:get(name()) of
             {ok, #service{ctx = #{registered := true}}} -> true;
@@ -109,7 +115,7 @@ get_steps(deploy, Ctx) ->
 
     % TODO VFS-4140 Proper detection of batch config
     case Register(OpCtx) of
-        true -> service:mark_configured(name(), letsencrypt);
+        true -> onepanel_deployment:mark_completed(?PROGRESS_LETSENCRYPT_CONFIG);
         _ -> ok
     end,
 
@@ -122,6 +128,8 @@ get_steps(deploy, Ctx) ->
         end,
     LeCtx3 = LeCtx2#{letsencrypt_plugin => ?SERVICE_OPW},
 
+    SelfHost = onepanel_cluster:node_to_host(),
+
     S = #step{verify_hosts = false},
     Ss = #steps{verify_hosts = false},
     [
@@ -132,11 +140,15 @@ get_steps(deploy, Ctx) ->
         S#step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
         Ss#steps{service = ?SERVICE_OPW, action = deploy, ctx = OpwCtx},
         S#step{service = ?SERVICE_OPW, function = status, ctx = OpwCtx},
-        Ss#steps{service = ?SERVICE_OPW, action = add_storages, ctx = StorageCtx},
         Ss#steps{service = ?SERVICE_LE, action = deploy, ctx = LeCtx3},
+        S#step{module = onepanel_deployment, function = mark_completed,
+            args = [?PROGRESS_CLUSTER], hosts = [SelfHost]},
+        Ss#steps{service = ?SERVICE_OPW, action = add_storages, ctx = StorageCtx},
         Ss#steps{action = register, ctx = OpCtx, condition = Register},
         Ss#steps{service = ?SERVICE_LE, action = update, ctx = LeCtx3},
-        Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx}
+        Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx},
+        S#step{module = onepanel_deployment, function = mark_completed,
+            args = [?PROGRESS_READY], hosts = [SelfHost]}
     ];
 
 get_steps(start, _Ctx) ->
@@ -158,6 +170,29 @@ get_steps(restart, _Ctx) ->
         #steps{action = stop},
         #steps{action = start}
     ];
+
+% returns any steps only on the master node
+get_steps(manage_restart, _Ctx) ->
+    MasterHost = case service:get(name()) of
+        {ok, #service{ctx = #{master_host := Master}}} -> Master;
+        {ok, #service{hosts = [FirstHost | _]}} ->
+            ?info("No master host configured, defaulting to \"~s\"", [FirstHost]),
+            FirstHost
+    end,
+
+    case onepanel_cluster:node_to_host() == MasterHost of
+        true -> [
+            #steps{service = ?SERVICE_OPA, action = wait_for_cluster},
+            #steps{action = stop},
+            #steps{service = ?SERVICE_CB, action = resume},
+            #steps{service = ?SERVICE_CM, action = resume},
+            #steps{service = ?SERVICE_OPW, action = resume},
+            #steps{service = ?SERVICE_LE, action = update}
+        ];
+        false ->
+            ?info("Waiting for master node \"~s\" to start", [MasterHost]),
+            []
+    end;
 
 get_steps(status, _Ctx) ->
     [
@@ -207,8 +242,6 @@ get_steps(set_cluster_ips, #{hosts := Hosts} = Ctx) ->
         name => ?SERVICE_OPW
     },
     [
-        % using #steps and not #step to invoke choosing hosts in cluster worker
-        % for determining correct hosts
         #steps{action = set_cluster_ips, ctx = Ctx2, service = ?SERVICE_CW},
         #step{function = update_provider_ips, selection = any,
             hosts = Hosts}
@@ -324,7 +357,7 @@ register(Ctx) ->
                 {<<"ipList">>, []}]; % IPs will be updated in the step set_cluster_ips
         false ->
             % without subdomain delegtion, Let's Encrypt does not have to be configured
-            service:mark_configured(name(), letsencrypt),
+            onepanel_deployment:mark_completed(?PROGRESS_LETSENCRYPT_CONFIG),
             [{<<"subdomainDelegation">>, false},
                 {<<"domain">>, service_ctx:get(oneprovider_domain, Ctx, binary)}]
     end,
@@ -378,7 +411,7 @@ unregister(#{node := Node}) ->
     ok = oz_providers:unregister(provider),
     rpc:call(Node, provider_auth, delete, []),
 
-    service:mark_not_configured(name(), letsencrypt),
+    onepanel_deployment:mark_not_completed(?PROGRESS_LETSENCRYPT_CONFIG),
     service:update(name(), fun(#service{ctx = C} = S) ->
         S#service{ctx = C#{registered => false}}
     end);
@@ -423,8 +456,7 @@ modify_details(#{node := Node} = Ctx) ->
                 {true, Subdomain} -> ok; % no change
                 _ ->
                     case rpc:call(Node, provider_logic, set_delegated_subdomain, [Subdomain]) of
-                        ok -> % any previous cert will have the old domain
-                            ok;
+                        ok -> ok;
                         {error, subdomain_exists} ->
                             ?throw_error(?ERR_SUBDOMAIN_NOT_AVAILABLE)
                     end
@@ -444,7 +476,7 @@ modify_details(#{node := Node} = Ctx) ->
         <<"adminEmail">>, Params3),
 
     case maps:is_key(letsencrypt_enabled, Ctx) of
-        true -> service:mark_configured(name(), letsencrypt);
+        true -> onepanel_deployment:mark_completed(?PROGRESS_LETSENCRYPT_CONFIG);
         _ -> ok
     end,
 
@@ -486,7 +518,7 @@ get_details(#{node := Node}) ->
         {onezoneDomainName, onepanel_utils:convert(OzDomain, binary)}
     ],
 
-    Details2 = case service:is_configured(name(), letsencrypt) of
+    Details2 = case onepanel_deployment:is_completed(?PROGRESS_LETSENCRYPT_CONFIG) of
         true ->
             [{letsEncryptEnabled, service_letsencrypt:is_enabled()} | Details];
         false ->
@@ -712,19 +744,32 @@ start_cleaning(Ctx) ->
 %% @end
 %%-------------------------------------------------------------------
 pop_legacy_letsencrypt_config() ->
-    case service:get(name()) of
-        {ok, #service{ctx = Ctx}} ->
+    Result = case service:get(name()) of
+        {ok, #service{ctx = #{has_letsencrypt_cert:= Enabled}}} ->
+            % upgrade from versions 18.02.0-beta5 and older
             service:update(name(), fun(#service{ctx = C} = S) ->
                 S#service{ctx = maps:remove(has_letsencrypt_cert, C)}
             end),
-            Result = case maps:find(has_letsencrypt_cert, Ctx) of
-                {ok, Val} ->
-                    service:mark_configured(name(), letsencrypt),
-                    Val;
-                error -> false
-            end,
-            Result;
+            Enabled;
+        {ok, #service{ctx = #{configured := GbSet}}} ->
+            case gb_sets:is_set(GbSet) of
+                true ->
+                    % upgrade from versions 18.02.0-beta6..18.02.0-rc1
+                    service:update(name(), fun(#service{ctx = C} = S) ->
+                        S#service{
+                            ctx = C#{configured => gb_sets:del_element(letsencrypt, GbSet)}
+                        }
+                    end),
+                    gb_sets:is_member(letsencrypt, GbSet);
+                false -> false
+            end;
         _ -> false
+    end,
+    case Result of
+        true ->
+            onepanel_deployment:mark_completed(?PROGRESS_LETSENCRYPT_CONFIG),
+            Result;
+        _ -> Result
     end.
 
 

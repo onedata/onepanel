@@ -14,6 +14,7 @@
 
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
+-include("deployment_progress.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/oz/oz_providers.hrl").
 
@@ -218,24 +219,30 @@ format_configuration(SModule) ->
         service_onezone -> service_oz_worker:get_hosts();
         service_oneprovider -> service_op_worker:get_hosts()
     end,
-    SName = case SModule of
+    {SName, Ctx} = case SModule of
         service_onezone ->
             {ok, #service{ctx = Ctx}} = service:get(service_onezone:name()),
-            maps:get(name, Ctx, null);
+            {maps:get(name, Ctx, null), Ctx};
         service_oneprovider ->
             {ok, #service{ctx = Ctx}} = service:get(service_oneprovider:name()),
-            case service_oneprovider:is_registered(Ctx) of
+            Name = case service_oneprovider:is_registered(Ctx) of
                 true ->
                     case oz_providers:get_details(provider) of
-                        {ok, #provider_details{name = Name}} -> Name;
+                        {ok, #provider_details{name = N}} -> N;
                         {error, _Reason} -> null
                     end;
                 false ->
                     null
-            end
+            end,
+            {Name, Ctx}
+    end,
+    MasterHostBin = case maps:get(master_host, Ctx, null) of
+        null -> null;
+        MasterHost -> onepanel_utils:convert(MasterHost, binary)
     end,
     #{
         <<"cluster">> => #{
+            <<"master">> => MasterHostBin,
             <<"databases">> => #{
                 <<"hosts">> => onepanel_utils:convert(DbHosts, {seq, binary})},
             <<"managers">> => #{
@@ -245,7 +252,8 @@ format_configuration(SModule) ->
                 <<"hosts">> => onepanel_utils:convert(WrkHosts, {seq, binary})}
         },
         SModule:name() => #{
-            <<"name">> => SName
+            <<"name">> => SName,
+            <<"configured">> => is_service_configured()
         }
     }.
 
@@ -301,3 +309,13 @@ format_service_hosts_results(Results) ->
             onepanel_utils:convert(onepanel_cluster:node_to_host(Node), binary),
             Result, Acc)
     end, #{}, Results).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Checks if all configuration steps have been performed.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_service_configured() -> boolean().
+is_service_configured() ->
+    onepanel_deployment:is_completed(?PROGRESS_READY).

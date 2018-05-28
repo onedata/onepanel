@@ -47,7 +47,7 @@ determine_ip() ->
 -spec parse_ip4(inet:ip4_address() | binary() | string()) ->
     {ok, inet:ip4_address()} | {error, einval} | no_return().
 parse_ip4({_, _, _, _} = IP) ->
-    IP;
+    {ok, IP};
 parse_ip4(Value) ->
     List = onepanel_utils:convert(Value, list),
     inet:parse_ipv4strict_address(List).

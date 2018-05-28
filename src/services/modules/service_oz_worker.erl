@@ -13,6 +13,7 @@
 -behaviour(service_behaviour).
 -behaviour(letsencrypt_plugin_behaviour).
 
+-include("deployment_progress.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% Service behaviour callbacks
@@ -84,7 +85,7 @@ configure(Ctx) ->
     OzDomain = service_ctx:get_domain(onezone_domain, Ctx),
 
     % TODO VFS-4140 Mark IPs configured only in batch mode
-    service_cluster_worker:mark_cluster_ips_configured(name()),
+    onepanel_deployment:mark_completed(?PROGRESS_CLUSTER_IPS),
 
     service_cluster_worker:configure(Ctx#{
         name => name(),

@@ -15,6 +15,7 @@
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include("service.hrl").
+-include("deployment_progress.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
 
 -include_lib("ctool/include/logging.hrl").
@@ -25,8 +26,7 @@
 %% API
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
     get_nagios_response/1, get_nagios_status/1, set_node_ip/1,
-    get_cluster_ips/1,
-    mark_cluster_ips_configured/1, are_cluster_ips_configured/1, reload_webcert/1]).
+    get_cluster_ips/1, reload_webcert/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -73,6 +73,12 @@ get_steps(deploy, #{hosts := Hosts, name := Name} = Ctx) ->
         #step{hosts = AllHosts, function = configure},
         #steps{action = restart, ctx = Ctx#{hosts => AllHosts}},
         #step{hosts = [hd(AllHosts)], function = wait_for_init}
+    ];
+
+get_steps(resume, #{name := _Name}) ->
+    [
+        #steps{action = start},
+        #step{function = wait_for_init, selection = first}
     ];
 
 get_steps(start, _Ctx) ->
@@ -138,7 +144,7 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
             IP = case onepanel_maps:get([cluster_ips, Host], Ctx, undefined) of
                 undefined -> get_initial_ip(AppConfigFile);
                 Found ->
-                    mark_cluster_ips_configured(Name),
+                    onepanel_deployment:mark_completed(?PROGRESS_CLUSTER_IPS),
                     {ok, IPTuple} = onepanel_ip:parse_ip4(Found),
                     IPTuple
             end,
@@ -246,7 +252,7 @@ set_node_ip(#{name := ServiceName, app_config_file := AppConfigFile} = Ctx) ->
 
     {ok, IP} = case onepanel_maps:get([cluster_ips, Host], Ctx) of
         {ok, NewIP} ->
-            mark_cluster_ips_configured(ServiceName),
+            onepanel_deployment:mark_completed(?PROGRESS_CLUSTER_IPS),
             onepanel_ip:parse_ip4(NewIP);
         _ -> {ok, get_initial_ip(AppConfigFile)}
     end,
@@ -269,20 +275,9 @@ get_cluster_ips(#{name := ServiceName} = _Ctx) ->
         {binary:list_to_bin(Host), onepanel_ip:ip4_to_binary(IP)}
     end, (service:get_module(ServiceName)):get_hosts()),
     #{
-        isConfigured => are_cluster_ips_configured(#{name => ServiceName}),
+        isConfigured => onepanel_deployment:is_completed(?PROGRESS_CLUSTER_IPS),
         hosts => maps:from_list(Pairs)
     }.
-
-
-%%--------------------------------------------------------------------
-%% @doc Marks cluster IPs as approved by the user.
-%% @end
-%%--------------------------------------------------------------------
-mark_cluster_ips_configured(ServiceName) ->
-    % TODO VFS-4141 Common store for configuration steps
-    ok = service:update(ServiceName, fun(#service{ctx = ServiceCtx} = Record) ->
-        Record#service{ctx = maps:put(cluster_ips_configured, true, ServiceCtx)}
-    end).
 
 
 %%--------------------------------------------------------------------
@@ -293,7 +288,7 @@ mark_cluster_ips_configured(ServiceName) ->
 %%--------------------------------------------------------------------
 reload_webcert(#{name := ServiceName} = Ctx) ->
     Host = onepanel_cluster:node_to_host(),
-    Node = onepanel_cluster:host_to_node(ServiceName, Host), ok,
+    Node = onepanel_cluster:host_to_node(ServiceName, Host),
     ok = rpc:call(Node, ssl, clear_pem_cache, []).
 
 %%%===================================================================
@@ -327,16 +322,8 @@ setup_cert_paths(#{name := AppName, app_config_file := AppConfigFile}) ->
 get_initial_ip(AppConfigFile) ->
     case onepanel_env:read([name(), external_ip], AppConfigFile) of
         {ok, {_, _, _, _} = IP} -> IP;
-        {ok, IPList} when is_list(IPList) -> onepanel_ip:parse_ip4(IPList);
+        {ok, IPList} when is_list(IPList) ->
+            {ok, IP} = onepanel_ip:parse_ip4(IPList),
+            IP;
         _ -> onepanel_ip:determine_ip()
     end.
-
-
-%%--------------------------------------------------------------------
-%% @doc Checks if cluster IPs configuration was approved by the user.
-%% @end
-%%--------------------------------------------------------------------
--spec are_cluster_ips_configured(service:ctx()) -> boolean().
-are_cluster_ips_configured(#{name := ServiceName}) ->
-    {ok, #service{ctx = Ctx}} = service:get(ServiceName),
-    maps:get(cluster_ips_configured, Ctx, false).

@@ -35,9 +35,9 @@
 -define(CACERT_PATH, onepanel_env:get(web_cacerts_dir)).
 
 -define(CHECK_DELAY, timer:seconds(application:get_env(
-    ?APP_NAME, webcert_renew_check_delay, 3600))).
+    ?APP_NAME, web_cert_renewal_check_delay, 3600))).
 -define(RENEW_MARGIN_SECONDS, application:get_env(
-    ?APP_NAME, webcert_renewal_days, 7) * 24 * 3600).
+    ?APP_NAME, web_cert_renewal_days, 7) * 24 * 3600).
 -define(CERTIFICATION_ATTEMPTS, application:get_env(
     ?APP_NAME, letsencrypt_attempts, 1)).
 
@@ -227,8 +227,8 @@ obtain_cert(Ctx) ->
     ok = letsencrypt_api:run_certification_flow(Domain, get_plugin_module()),
     set_dirty(false),
 
-    service:apply(service_onepanel:name(), reload_webcert, #{}),
-    service:apply(get_plugin_name(), reload_webcert, #{}),
+    service:apply_sync(service_onepanel:name(), reload_webcert, #{}),
+    service:apply_sync(get_plugin_name(), reload_webcert, #{}),
     ok.
 
 

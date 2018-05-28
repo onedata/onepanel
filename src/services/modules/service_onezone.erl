@@ -15,6 +15,7 @@
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include("service.hrl").
+-include("deployment_progress.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/global_definitions.hrl").
 
@@ -76,11 +77,17 @@ get_nodes() ->
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, Ctx) ->
+    service:create(#service{name = name()}),
+    SelfHost = onepanel_cluster:node_to_host(),
+
     {ok, OpaCtx} = onepanel_maps:get([cluster, ?SERVICE_OPA], Ctx),
     {ok, CbCtx} = onepanel_maps:get([cluster, ?SERVICE_CB], Ctx),
     {ok, CmCtx} = onepanel_maps:get([cluster, ?SERVICE_CM], Ctx),
     {ok, OzwCtx} = onepanel_maps:get([cluster, ?SERVICE_OZW], Ctx),
-    OzCtx = onepanel_maps:get(name(), Ctx, #{}),
+
+    OzCtx = (onepanel_maps:get(name(), Ctx, #{}))#{
+        master_host => SelfHost
+    },
     S = #step{verify_hosts = false},
     Ss = #steps{verify_hosts = false},
     [
@@ -91,11 +98,15 @@ get_steps(deploy, Ctx) ->
         S#step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
         Ss#steps{service = ?SERVICE_OZW, action = deploy, ctx = OzwCtx},
         S#step{service = ?SERVICE_OZW, function = status, ctx = OzwCtx},
+        S#step{module = onepanel_deployment, function = mark_completed, ctx = OpaCtx,
+            args = [?PROGRESS_CLUSTER], selection = first},
         S#step{module = service, function = save, ctx = OpaCtx,
             args = [#service{name = name(), ctx = OzCtx}],
             selection = first
         },
-        Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx}
+        Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx},
+        S#step{module = onepanel_deployment, function = mark_completed, ctx = OpaCtx,
+            args = [?PROGRESS_READY], selection = first}
     ];
 
 get_steps(start, _Ctx) ->
@@ -117,6 +128,28 @@ get_steps(restart, _Ctx) ->
         #steps{action = stop},
         #steps{action = start}
     ];
+
+% returns any steps only on the master node
+get_steps(manage_restart, _Ctx) ->
+    MasterHost = case service:get(name()) of
+        {ok, #service{ctx = #{master_host := Master}}} -> Master;
+        {ok, #service{hosts = [FirstHost | _]}} ->
+            ?info("No master host configured, defaulting to ~p", [FirstHost]),
+            FirstHost
+    end,
+
+    case onepanel_cluster:node_to_host() == MasterHost of
+        true -> [
+            #steps{service = ?SERVICE_OPA, action = wait_for_cluster},
+            #steps{action = stop},
+            #steps{service = ?SERVICE_CB, action = resume},
+            #steps{service = ?SERVICE_CM, action = resume},
+            #steps{service = ?SERVICE_OZW, action = resume}
+        ];
+        false ->
+            ?info("Waiting for master node \"~s\" to start", [MasterHost]),
+            []
+    end;
 
 get_steps(status, _Ctx) ->
     [

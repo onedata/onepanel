@@ -122,10 +122,10 @@
         %% Configures how many days before expiration the certificate should
         %% be scheduled for renewal.
         %% Keep in mind that Let's Encrypt certificates are valid for at most 90 days
-        {webcert_renewal_days, 7},
+        {web_cert_renewal_days, 7},
 
         %% Seconds between certificate checks
-        {webcert_renew_check_delay, 3600},
+        {web_cert_renewal_check_delay, 3600},
 
         %% ===================================================================
         %% Test certificates
@@ -173,6 +173,7 @@
         {service_step_retry_delay, 30000},
         {services_check_delay, 60000},
         {session_ttl, 3600000},
+        {wait_for_cluster_attempts, 20},
 
         {vm_args_file, "{{platform_etc_dir}}/vm.args"},
         {app_config_file, "{{platform_etc_dir}}/app.config"},
