@@ -4,6 +4,30 @@
 CHANGELOG
 ---------
 
+### 18.02.0-rc4
+
+* VFS-4278 Rename singleton Key to ID in onepanel_deployment
+* VFS-4278 Return code 503 on nagios endpoint for stopped service
+* VFS-4278 Properly invoke service action to reload webcert
+* VFS-4278 Add "resume" steps used for getting up existing cluster
+* VFS-4278 Add wait for onepanel workers to start
+* VFS-4278 Migrate to onepanel_deployment model
+* VFS-4278 Change PUT to POST in test names to match implementaton
+* VFS-4278 Rename onepanel_milestones to deployment marks
+* VFS-4278 Change "ready" to "configured" in GET /configuration
+* VFS-4278 Create steps for managing cluster restart
+* VFS-4278 Block repeated POSTS on /configuration
+* VFS-4278 Start configured cluster services on startup
+* VFS-4278 Wait indefinitely for other mnesia nodes
+* VFS-4278 Create model for storing configuration milestones
+* VFS-4278 Add field 'master' to REST configuration details
+* VFS-4278 Introduce Master node
+* VFS-4278 Introduce field "ready" in cluster configuration GET
+* VFS-4278 Endpoint for starting oneprovider service
+* VFS-4370 Add information about finished deployment in REST
+* Added rebar profiles for oz_rel, op_rel and default_rel
+
+
 ### 18.02.0-rc3
 
 * VFS-4449 Restart rtransfer on certificates change
