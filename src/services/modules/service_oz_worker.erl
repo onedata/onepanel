@@ -237,7 +237,7 @@ reload_webcert(Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_domain(service:ctx()) -> binary().
-get_domain(#{node := Node} = Ctx) ->
+get_domain(#{node := Node}) ->
     list_to_binary(onepanel_env:get_remote(Node, [http_domain], name()));
 get_domain(Ctx) ->
     get_domain(Ctx#{node => hd(get_nodes())}).
@@ -253,7 +253,7 @@ get_admin_email(_Ctx) ->
 
 
 -spec reconcile_dns(service:ctx()) -> ok.
-reconcile_dns(#{node := Node} = Ctx) ->
+reconcile_dns(#{node := Node}) ->
     ok = rpc:call(Node, node_manager_plugin, reconcile_dns_config, []);
 reconcile_dns(#{nodes := [Node | _]} = Ctx) ->
     reconcile_dns(Ctx#{node => Node});

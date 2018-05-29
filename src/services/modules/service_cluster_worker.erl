@@ -109,7 +109,7 @@ get_steps(get_nagios_response, #{name := Name}) ->
         hosts = (service:get_module(Name)):get_hosts(),
         selection = any
     }];
-get_steps(reload_webcert, Ctx) ->
+get_steps(reload_webcert, _Ctx) ->
     [#step{function = reload_webcert, selection = all}].
 
 %%%===================================================================
@@ -286,7 +286,7 @@ get_cluster_ips(#{name := ServiceName} = _Ctx) ->
 %% are reloaded.
 %% @end
 %%--------------------------------------------------------------------
-reload_webcert(#{name := ServiceName} = Ctx) ->
+reload_webcert(#{name := ServiceName}) ->
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(ServiceName, Host),
     ok = rpc:call(Node, ssl, clear_pem_cache, []).

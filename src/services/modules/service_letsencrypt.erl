@@ -303,7 +303,7 @@ set_dirty(IsDirty) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec is_local_cert_dirty(service:ctx()) -> boolean().
-is_local_cert_dirty(#{domain := Domain} = Ctx) ->
+is_local_cert_dirty(#{domain := Domain}) ->
     case onepanel_ssl:read_cert(?CERT_PATH) of
         {ok, Cert} ->
             Domain /= onepanel_ssl:get_subject_cn(Cert)
