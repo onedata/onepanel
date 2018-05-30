@@ -14,6 +14,8 @@
 
 -behaviour(application).
 
+-include("names.hrl").
+-include("deployment_progress.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% Application callbacks
@@ -75,14 +77,17 @@ stop(_State) ->
 %%--------------------------------------------------------------------
 -spec resume_service() -> ok.
 resume_service() ->
-    case {service:exists(service_oneprovider:name()), service:exists(service_onezone:name())} of
-        {true, _} ->
-            Task = service:apply_async(service_oneprovider:name(), manage_restart, #{}),
-            ?info("Resuming oneprovider (task ~s)", [Task]);
-        {_, true} ->
-            Task = service:apply_async(service_onezone:name(), manage_restart, #{}),
-            ?info("Resuming onezone (task ~s)", [Task]);
-        _ -> ok % new deployment
+    % Must be consistent with condition for blocking deployment request
+    % (see rest_service:is_service_configured/0)
+    ClusterExists = model:exists(onepanel_deployment)
+        andalso onepanel_deployment:is_completed(?PROGRESS_READY),
+
+    case ClusterExists of
+        true ->
+            ReleaseType = onepanel_env:get(release_type),
+            Task = service:apply_async(ReleaseType, manage_restart, #{}),
+            ?info("Resuming ~s (task id ~s)", [ReleaseType, Task]);
+        false -> ok % new deployment, managed by REST
     end,
     ok.
 
