@@ -18,6 +18,12 @@
 -include_lib("gui/include/new_gui.hrl").
 -include_lib("ctool/include/logging.hrl").
 
+-define(PORT, application:get_env(onepanel, rest_port, 443)).
+-define(ACCEPTORS_NUM, application:get_env(onepanel, rest_https_acceptors, 100)).
+-define(REQUEST_TIMEOUT, application:get_env(onepanel, rest_https_request_timeout, timer:minutes(5))).
+-define(INACTIVITY_TIMEOUT, application:get_env(onepanel, rest_https_inactivity_timeout, timer:minutes(10))).
+
+
 -export([port/0, start/0, stop/0, healthcheck/0]).
 -export([get_cert_chain_pems/0, get_prefix/1]).
 
@@ -31,7 +37,7 @@
 %%--------------------------------------------------------------------
 -spec port() -> Port :: integer().
 port() ->
-    onepanel_env:get(rest_port).
+    ?PORT.
 
 
 %%--------------------------------------------------------------------
@@ -42,8 +48,6 @@ port() ->
 start() ->
     maybe_generate_web_cert(),
     maybe_trust_test_ca(),
-    HttpsAcceptors = onepanel_env:get(rest_https_acceptors),
-    RequestTimeout = onepanel_env:get(rest_https_request_timeout),
     KeyFile = onepanel_env:get(web_key_file),
     CertFile = onepanel_env:get(web_cert_file),
     ChainFile = onepanel_env:get(web_cert_chain_file),
@@ -62,9 +66,9 @@ start() ->
         key_file = KeyFile,
         cert_file = CertFile,
         chain_file = ChainFile,
-        number_of_acceptors = HttpsAcceptors,
-        request_timeout = RequestTimeout,
-        inactivity_timeout = timer:minutes(10),
+        number_of_acceptors = ?ACCEPTORS_NUM,
+        request_timeout = ?REQUEST_TIMEOUT,
+        inactivity_timeout = ?INACTIVITY_TIMEOUT,
         custom_cowboy_routes = Routes,
         default_static_root = DefaultRoot,
         custom_static_root = CustomRoot
