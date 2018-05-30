@@ -133,8 +133,12 @@ get_steps(restart, _Ctx) ->
 get_steps(manage_restart, _Ctx) ->
     MasterHost = case service:get(name()) of
         {ok, #service{ctx = #{master_host := Master}}} -> Master;
-        {ok, #service{hosts = [FirstHost | _]}} ->
+        _ ->
+            [FirstHost | _] = get_hosts(),
             ?info("No master host configured, defaulting to ~p", [FirstHost]),
+            service:update(name(), fun(#service{ctx = C} = S) ->
+                S#service{ctx = C#{master_host => FirstHost}}
+            end),
             FirstHost
     end,
 
