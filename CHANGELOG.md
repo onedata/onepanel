@@ -4,6 +4,12 @@
 CHANGELOG
 ---------
 
+### 18.02.0-rc5
+
+* VFS-3953 Add default config values for REST listener
+* VFS-3953 Integrate new GUI static backend
+
+
 ### 18.02.0-rc4
 
 * VFS-4278 Rename singleton Key to ID in onepanel_deployment
