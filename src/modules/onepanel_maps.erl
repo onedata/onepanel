@@ -15,6 +15,7 @@
 
 %% API
 -export([get/2, get/3, store/2, store/3, get_store/3, get_store/4, get_store/5]).
+-export([get_store_multiple/2, get_store_multiple/3]).
 -export([remove_undefined/1]).
 
 -type key() :: any().
@@ -126,6 +127,39 @@ get_store(SrcKeys, SrcTerms, DstKeys, DstTerms, Default) ->
         {ok, Value} -> store(DstKeys, Value, DstTerms);
         #error{reason = ?ERR_NOT_FOUND} -> store(DstKeys, Default, DstTerms)
     end.
+
+
+%%--------------------------------------------------------------------
+%% @doc @equiv get_store_multiple(KeyMappings, SrcTerms,#{}).
+%% @end
+%%--------------------------------------------------------------------
+-spec get_store_multiple(KeyMappings, SrcTerms :: terms()) ->
+    NewTerms :: terms()
+    when KeyMappings :: [{SrcKeys :: keys(), DstKeys :: keys()}].
+get_store_multiple(KeyMappings, SrcTerms) ->
+    get_store_multiple(KeyMappings, SrcTerms,#{}).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Performs multiple get_store operations, copying nested properites
+%% from source map to destination.
+%% If source property is missing and no default is provided given mapping
+%% is skipped.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_store_multiple(KeyMappings, SrcTerms :: terms(), DstTerms :: terms()) ->
+    NewTerms :: terms()
+    when
+    KeyMappings :: [KeyMapping],
+    KeyMapping :: {SrcKeys :: keys(), DstKeys :: keys()} |
+                  {SrcKeys :: keys(), DstKeys :: keys(), Default :: term()}.
+get_store_multiple(KeyMappings, SrcTerms, DstTerms) ->
+    lists:foldl(fun
+        ({SrcKeys, DstKeys}, DstTerms) ->
+            get_store(SrcKeys, SrcTerms, DstKeys, DstTerms);
+        ({SrcKeys, DstKeys, Default}, DstTerms) ->
+            get_store(SrcKeys, SrcTerms, DstKeys, DstTerms, Default)
+    end, DstTerms, KeyMappings).
 
 
 %%--------------------------------------------------------------------

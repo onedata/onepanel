@@ -63,31 +63,34 @@ exists_resource(Req, _State) ->
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()}.
 accept_resource(Req, 'POST', Args, #rstate{resource = provider}) ->
-    Ctx = onepanel_maps:get_store(onezoneDomainName, Args, onezone_domain),
-    Ctx2 = onepanel_maps:get_store(name, Args, oneprovider_name, Ctx),
-    Ctx3 = onepanel_maps:get_store(subdomainDelegation, Args, oneprovider_subdomain_delegation, Ctx2),
-    Ctx4 = onepanel_maps:get_store(domain, Args, oneprovider_domain, Ctx3),
-    Ctx5 = onepanel_maps:get_store(subdomain, Args, oneprovider_subdomain, Ctx4),
-    Ctx6 = onepanel_maps:get_store(adminEmail, Args, oneprovider_admin_email, Ctx5),
-    Ctx7 = onepanel_maps:get_store(geoLatitude, Args, oneprovider_geo_latitude, Ctx6),
-    Ctx8 = onepanel_maps:get_store(geoLongitude, Args, oneprovider_geo_longitude, Ctx7),
+    Ctx = onepanel_maps:get_store_multiple([
+        {onezoneDomainName, onezone_domain},
+        {name, oneprovider_name},
+        {subdomainDelegation, oneprovider_subdomain_delegation},
+        {domain, oneprovider_domain},
+        {subdomain, oneprovider_subdomain},
+        {adminEmail, oneprovider_admin_email},
+        {geoLatitude, oneprovider_geo_latitude},
+        {geoLongitude, oneprovider_geo_longitude}
+    ], Args),
 
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, register, Ctx8
+        ?SERVICE, register, Ctx
     ))};
 
 accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
-    Ctx = onepanel_maps:get_store(name, Args, name),
-    Ctx2 = onepanel_maps:get_store(token, Args, token, Ctx),
-    Ctx3 = onepanel_maps:get_store(size, Args, size, Ctx2),
-    Ctx4 = onepanel_maps:get_store(storageId, Args, storage_id, Ctx3),
-    Ctx5 = onepanel_maps:get_store(mountInRoot, Args, mount_in_root, Ctx4),
-    Ctx6 = get_storage_import_args(Args, Ctx5),
-    Ctx7 = get_storage_update_args(Args, Ctx6),
+    Ctx = onepanel_maps:get_store_multiple([
+        {name, name},
+        {token, token},
+        {size, size},
+        {storageId, storage_id},
+        {mountInRoot, mount_in_root}], Args),
+    Ctx2 = get_storage_import_args(Args, Ctx),
+    Ctx3 = get_storage_update_args(Args, Ctx2),
 
     {true, rest_replier:handle_service_step(Req, service_oneprovider, support_space,
         service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, support_space, Ctx7
+            ?SERVICE, support_space, Ctx3
         ))
     )};
 
@@ -99,17 +102,19 @@ accept_resource(Req, 'POST', _Args, #rstate{resource = start_cleaning, bindings 
     )};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
-    Ctx = onepanel_maps:get_store(name, Args, oneprovider_name, Args),
-    Ctx2 = onepanel_maps:get_store(subdomainDelegation, Args, oneprovider_subdomain_delegation, Ctx),
-    Ctx3 = onepanel_maps:get_store(domain, Args, oneprovider_domain, Ctx2),
-    Ctx4 = onepanel_maps:get_store(subdomain, Args, oneprovider_subdomain, Ctx3),
-    Ctx5 = onepanel_maps:get_store(adminEmail, Args, oneprovider_admin_email, Ctx4),
-    Ctx6 = onepanel_maps:get_store(geoLatitude, Args, oneprovider_geo_latitude, Ctx5),
-    Ctx7 = onepanel_maps:get_store(geoLongitude, Args, oneprovider_geo_longitude, Ctx6),
-    Ctx8 = onepanel_maps:get_store(letsEncryptEnabled, Args, letsencrypt_enabled, Ctx7),
+    Ctx = onepanel_maps:get_store_multiple([
+        {name, oneprovider_name},
+        {subdomainDelegation, oneprovider_subdomain_delegation},
+        {domain, oneprovider_domain},
+        {subdomain, oneprovider_subdomain},
+        {adminEmail, oneprovider_admin_email},
+        {geoLatitude, oneprovider_geo_latitude},
+        {geoLongitude, oneprovider_geo_longitude},
+        {letsEncryptEnabled, letsencrypt_enabled}
+    ], Args),
 
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, modify_details, Ctx8
+        ?SERVICE, modify_details, Ctx
     ))};
 
 
@@ -249,18 +254,14 @@ get_storage_update_args(Args) ->
 -spec get_storage_update_args(Args :: rest_handler:args(), Ctx :: service:ctx())
         -> service:ctx().
 get_storage_update_args(Args, Ctx) ->
-    Ctx2 = onepanel_maps:get_store([storageUpdate, strategy], Args,
-        [storage_update, strategy], Ctx),
-    Ctx3 = onepanel_maps:get_store([storageUpdate, maxDepth], Args,
-        [storage_update, max_depth], Ctx2),
-    Ctx4 = onepanel_maps:get_store([storageUpdate, writeOnce], Args,
-        [storage_update, write_once], Ctx3),
-    Ctx5 = onepanel_maps:get_store([storageUpdate, deleteEnable], Args,
-        [storage_update, delete_enable], Ctx4),
-    Ctx6 = onepanel_maps:get_store([storageUpdate, scanInterval], Args,
-        [storage_update, scan_interval], Ctx5),
-    onepanel_maps:get_store([storageUpdate, syncAcl], Args,
-        [storage_update, sync_acl], Ctx6).
+    onepanel_maps:get_store_multiple([
+        {[storageUpdate, strategy], [storage_update, strategy]},
+        {[storageUpdate, maxDepth], [storage_update, max_depth]},
+        {[storageUpdate, writeOnce], [storage_update, write_once]},
+        {[storageUpdate, deleteEnable], [storage_update, delete_enable]},
+        {[storageUpdate, scanInterval], [storage_update, scan_interval]},
+        {[storageUpdate, syncAcl], [storage_update, sync_acl]}
+    ], Args, Ctx).
 
 %%-------------------------------------------------------------------
 %% @private
@@ -270,12 +271,11 @@ get_storage_update_args(Args, Ctx) ->
 -spec get_storage_import_args(Args :: rest_handler:args(), Ctx :: service:ctx())
         -> service:ctx().
 get_storage_import_args(Args, Ctx) ->
-    Ctx2 = onepanel_maps:get_store([storageImport, strategy], Args,
-        [storage_import, strategy], Ctx),
-    Ctx3 = onepanel_maps:get_store([storageImport, maxDepth], Args,
-        [storage_import, max_depth], Ctx2),
-    onepanel_maps:get_store([storageImport, syncAcl], Args,
-        [storage_import, sync_acl], Ctx3).
+    onepanel_maps:get_store_multiple([
+        {[storageImport, strategy], [storage_import, strategy]},
+        {[storageImport, maxDepth], [storage_import, max_depth]},
+        {[storageImport, syncAcl], [storage_import, sync_acl]}
+    ], Args, Ctx).
 
 
 %%-------------------------------------------------------------------
@@ -297,15 +297,17 @@ get_file_popularity_args(Args, Ctx) ->
 -spec get_autocleaning_args(Args :: rest_handler:args(), Ctx :: service:ctx())
         -> service:ctx().
 get_autocleaning_args(Args, Ctx) ->
-    Ctx2 = onepanel_maps:get_store([autoCleaning, enabled], Args,
-        [auto_cleaning, enabled], Ctx),
-    Ctx3 = onepanel_maps:get_store([autoCleaning, settings, lowerFileSizeLimit], Args,
-        [auto_cleaning, settings, lower_file_size_limit], Ctx2),
-    Ctx4 = onepanel_maps:get_store([autoCleaning, settings, upperFileSizeLimit], Args,
-        [auto_cleaning, settings, upper_file_size_limit], Ctx3),
-    Ctx5 = onepanel_maps:get_store([autoCleaning, settings, maxFileNotOpenedHours], Args,
-        [auto_cleaning, settings, max_file_not_opened_hours], Ctx4),
-    Ctx6 = onepanel_maps:get_store([autoCleaning, settings, target], Args,
-        [auto_cleaning, settings, target], Ctx5),
-    onepanel_maps:get_store([autoCleaning, settings, threshold], Args,
-        [auto_cleaning, settings, threshold], Ctx6).
+    onepanel_maps:get_store_multiple([
+        {[autoCleaning, enabled],
+            [auto_cleaning, enabled]},
+        {[autoCleaning, settings, lowerFileSizeLimit],
+            [auto_cleaning, settings, lower_file_size_limit]},
+        {[autoCleaning, settings, upperFileSizeLimit],
+            [auto_cleaning, settings, upper_file_size_limit]},
+        {[autoCleaning, settings, maxFileNotOpenedHours],
+            [auto_cleaning, settings, max_file_not_opened_hours]},
+        {[autoCleaning, settings, target],
+            [auto_cleaning, settings, target]},
+        {[autoCleaning, settings, threshold],
+            [auto_cleaning, settings, threshold]}
+    ], Args, Ctx).
