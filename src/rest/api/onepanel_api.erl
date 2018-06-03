@@ -31,6 +31,17 @@
     [{Path :: binary(), Module :: module(), State :: rest_handler:state()}].
 routes() ->
     [
+        %% Adds given host to the cluster.
+        {<<"/api/v3/onepanel/hosts">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel,
+            resource = hosts,
+            methods = [#rmethod{
+                type = 'POST',
+                args_spec = rest_model:host_add_request_model()
+            }]
+        }},
+
         %% Create Onepanel user
         {<<"/api/v3/onepanel/users">>, rest_handler, #rstate{
             version = 3,
@@ -40,23 +51,6 @@ routes() ->
                 type = 'POST',
                 %% The user configuration details.
                 args_spec = rest_model:user_create_request_model(),
-                noauth = true
-            }]
-        }},
-
-        %% Create or join cluster
-        {<<"/api/v3/onepanel/hosts">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_onepanel,
-            resource = hosts,
-            methods = [#rmethod{
-                type = 'POST',
-                %% The cookie used for cluster authentication.
-                args_spec = rest_model:cookie_model(),
-                params_spec = #{
-                    %% Hostname of an existing cluster node.
-                    clusterHost => {string, optional}
-                },
                 noauth = true
             }]
         }},
@@ -81,17 +75,24 @@ routes() ->
             }]
         }},
 
-        %% Get cluster or discovered hosts
+        %% Get cluster hosts
         {<<"/api/v3/onepanel/hosts">>, rest_handler, #rstate{
             version = 3,
             module = rest_onepanel,
             resource = hosts,
             methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% Get information about current onepanel node.
+        {<<"/api/v3/onepanel/node">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel,
+            resource = node,
+            methods = [#rmethod{
                 type = 'GET',
-                params_spec = #{
-                    %% Defines whether to return cluster or discovered hosts.
-                    discovered => {boolean, {optional, false}}
-                }
+                noauth = true
             }]
         }},
 
@@ -123,6 +124,34 @@ routes() ->
             resource = user,
             methods = [#rmethod{
                 type = 'GET'
+            }]
+        }},
+
+        %% List onepanel users
+        {<<"/api/v3/onepanel/users">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel_user,
+            resource = users,
+            methods = [#rmethod{
+                type = 'GET',
+                params_spec = #{
+                    %% If present, query returns only users with specified
+                    %% role.
+                    role => {string, optional}
+                },
+                noauth = true
+            }]
+        }},
+
+        %% Join existing cluster
+        {<<"/api/v3/onepanel/join_cluster">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel,
+            resource = cluster,
+            methods = [#rmethod{
+                type = 'POST',
+                args_spec = rest_model:join_cluster_request_model(),
+                noauth = true
             }]
         }},
 

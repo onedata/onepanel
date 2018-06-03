@@ -66,6 +66,8 @@ end).
 -define(ERR_FAILURE_ON_ALL_NODES, failure_on_all_nodes).
 -define(ERR_SERVICE_STEP_NOT_FOUND, service_step_not_found).
 -define(ERR_HOST_NOT_FOUND, host_not_found).
+-define(ERR_NODE_NOT_EMPTY(Host), {node_not_empty, Host}).
+-define(ERR_INCOMPATIBLE_NODE(Host, ClusterType), {incompatible_node, Host, ClusterType}).
 
 -define(ERR_USERNAME_NOT_AVAILABLE, username_not_available).
 -define(ERR_INVALID_USERNAME, invalid_username).

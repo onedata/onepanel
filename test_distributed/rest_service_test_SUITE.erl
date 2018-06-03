@@ -39,7 +39,9 @@
     post_should_configure_cluster_manager_service/1,
     post_should_configure_cluster_worker_service/1,
     post_should_configure_oneprovider_service/1,
-    post_should_configure_onezone_service/1
+    post_should_configure_onezone_service/1,
+    post_should_return_conflict_on_configured_onezone/1,
+    post_should_return_conflict_on_configured_oneprovider/1
 ]).
 
 -define(ADMIN_USER_NAME, <<"admin1">>).
@@ -154,7 +156,9 @@ all() ->
         post_should_configure_cluster_manager_service,
         post_should_configure_cluster_worker_service,
         post_should_configure_oneprovider_service,
-        post_should_configure_onezone_service
+        post_should_configure_onezone_service,
+        post_should_return_conflict_on_configured_onezone,
+        post_should_return_conflict_on_configured_oneprovider
     ]).
 
 %%%===================================================================
@@ -565,6 +569,53 @@ post_should_configure_oneprovider_service(Config) ->
         }}, ?TIMEOUT)
     end, [{oneprovider_hosts, <<"/provider">>}]).
 
+
+post_should_return_conflict_on_configured_onezone(Config) ->
+    ?run(Config, fun({Host, Prefix}) ->
+        ?assertMatch({ok, 409, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<Prefix/binary, "/configuration">>, post,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
+                #{
+                    <<"cluster">> => ?CLUSTER_JSON,
+                    <<"onezone">> => #{
+                        <<"name">> => <<"someName">>,
+                        <<"domainName">> => <<"someDomain">>
+                    }
+                }
+            )
+        )
+    end, [{onezone_hosts, <<"/zone">>}]).
+
+
+post_should_return_conflict_on_configured_oneprovider(Config) ->
+    ?run(Config, fun({Host, Prefix}) ->
+        ?assertMatch({ok, 409, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<Prefix/binary, "/configuration">>, post,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
+                #{
+                    <<"cluster">> => maps:merge(#{
+                        <<"storages">> => ?STORAGES_JSON},
+                        ?CLUSTER_JSON),
+                    <<"oneprovider">> => #{
+                        <<"register">> => true,
+                        <<"name">> => <<"someName">>,
+                        <<"subdomainDelegation">> => false,
+                        <<"domain">> => <<"someDomain">>,
+                        <<"adminEmail">> => <<"admin@onedata.org">>,
+                        <<"geoLongitude">> => <<"10">>,
+                        <<"geoLatitude">> => <<"20.0">>
+                    },
+                    <<"onezone">> => #{
+                        <<"domainName">> => <<"someDomain">>
+                    }
+                }
+            )
+        )
+    end, [{oneprovider_hosts, <<"/provider">>}]).
+
+
 %%%===================================================================
 %%% SetUp and TearDown functions
 %%%===================================================================
@@ -673,6 +724,15 @@ init_per_testcase(patch_should_update_storage, Config) ->
     end),
     NewConfig;
 
+init_per_testcase(Case, Config) when
+    Case == post_should_return_conflict_on_configured_onezone;
+    Case == post_should_return_conflict_on_configured_oneprovider ->
+    Nodes = ?config(all_nodes, Config),
+    test_utils:mock_new(Nodes, onepanel_deployment),
+    test_utils:mock_expect(Nodes, onepanel_deployment, is_completed, fun(_) -> true end),
+    init_per_testcase(default, Config);
+
+
 init_per_testcase(_Case, Config) ->
     Nodes = ?config(all_nodes, Config),
     Self = self(),
@@ -695,9 +755,6 @@ init_per_testcase(_Case, Config) ->
         Self ! {service, Service, Action, Ctx},
         <<"someTaskId">>
     end),
-
-    test_utils:mock_new(Nodes, onepanel_deployment),
-    test_utils:mock_expect(Nodes, onepanel_deployment, is_completed, fun(_) -> false end),
 
     ?assertAllMatch({ok, _}, ?callAll(Config, onepanel_user, create,
         [?REG_USER_NAME, ?REG_USER_PASSWORD, regular]

@@ -51,7 +51,6 @@ start() ->
     error_logger:tty(false),
     onepanel_env:set(rpc_timeout, 1000),
     onepanel_env:set(create_tables_timeout, 10000),
-    onepanel_env:set(default_users, []),
     ?assertEqual(ok, service_onepanel:init_cluster(#{})),
     ok.
 

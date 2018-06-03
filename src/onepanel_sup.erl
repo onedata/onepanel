@@ -64,7 +64,6 @@ init([]) ->
         onepanel_env:get(rest_listener_status_check_attempts)),
 
     {ok, {#{strategy => one_for_all, intensity => 3, period => 1}, [
-        onepanel_discovery_spec(),
         service_executor_spec(),
         service_watcher_spec(),
         onepanel_session_gc_spec()
@@ -73,21 +72,6 @@ init([]) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-%%--------------------------------------------------------------------
-%% @private @doc Returns a worker child_spec for a onepanel_discovery gen_server.
-%% @end
-%%--------------------------------------------------------------------
--spec onepanel_discovery_spec() -> supervisor:child_spec().
-onepanel_discovery_spec() ->
-    #{
-        id => onepanel_discovery,
-        start => {onepanel_discovery, start_link, []},
-        restart => transient,
-        shutdown => timer:seconds(10),
-        type => worker,
-        modules => [onepanel_discovery]
-    }.
 
 %%--------------------------------------------------------------------
 %% @private @doc Returns a worker child_spec for a service_executor gen_server.

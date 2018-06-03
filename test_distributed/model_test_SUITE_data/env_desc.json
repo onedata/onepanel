@@ -14,7 +14,6 @@
           },
           "sys.config": {
             "onepanel": {
-              "default_users": []
             }
           }
         },
@@ -24,7 +23,6 @@
           },
           "sys.config": {
             "onepanel": {
-              "default_users": []
             }
           }
         }

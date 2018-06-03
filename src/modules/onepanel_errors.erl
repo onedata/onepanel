@@ -97,6 +97,14 @@ translate(_Type, #error{reason = {?ERR_HOST_NOT_FOUND, Host}}) ->
     {<<"Invalid Request">>, <<"Host not found: '",
         (onepanel_utils:convert(Host, binary))/binary, "'.">>};
 
+translate(_Type, #error{reason = ?ERR_NODE_NOT_EMPTY(Host)}) ->
+    {<<"Invalid Request">>, str_utils:format_bin(
+        "Host at '~s' is already a part of an existing cluster.", [Host])};
+
+translate(_Type, #error{reason = ?ERR_INCOMPATIBLE_NODE(Host, ClusterType)}) ->
+    {<<"Operation error">>, str_utils:format_bin(
+        "Cannot add node ~s to the cluster. It is not a ~s node", [Host, ClusterType])};
+
 translate(_Type, #error{reason = {?ERR_HOST_NOT_FOUND_FOR_ALIAS, Alias}}) ->
     {<<"Invalid Request">>, <<"Host not found for node: '",
         (onepanel_utils:convert(Alias, binary))/binary, "'.">>};

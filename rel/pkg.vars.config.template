@@ -61,9 +61,6 @@
     ", openssl"
     ", python"}.
 {post_install_rpm_script,
-    "if [ \"$ONEPANEL_ADVERTISE_ADDRESS\" ]; then "
-    "   sed -i -e \"s/{advertise_address, .*}/{advertise_address, $ONEPANEL_ADVERTISE_ADDRESS}/g\" /etc/{{release_name}}/app.config; "
-    "fi; "
     "if [ \"$ONEPANEL_AUTOSTART\" != false ]; then "
     "   sed -i -e \"s/-name .*/-name onepanel@`hostname -f`/g\" /etc/{{release_name}}/vm.args; "
     "   service {{release_name}} start; "
@@ -86,9 +83,6 @@
     ", pkg-config"
     ", python"}.
 {post_install_deb_script,
-    "if [ \"$ONEPANEL_ADVERTISE_ADDRESS\" ]; then "
-    "   sed -i -e \"s/{advertise_address, .*}/{advertise_address, \\\"$ONEPANEL_ADVERTISE_ADDRESS\\\"}/g\" /etc/{{release_name}}/app.config; "
-    "fi; "
     "if [ \"$ONEPANEL_AUTOSTART\" != false ]; then "
     "   sed -i -e \"s/-name .*/-name onepanel@`hostname -f`/g\" /etc/{{release_name}}/vm.args; "
     "   service {{release_name}} start; "

@@ -33,7 +33,7 @@
 is_authorized(Req, _Method, #rstate{client = #client{role = admin}}) ->
     {true, Req};
 
-is_authorized(Req, 'POST', #rstate{resource = users}) ->
+is_authorized(Req, _Method, #rstate{resource = users}) ->
     {onepanel_user:get_by_role(admin) == [], Req};
 
 is_authorized(Req, _Method, #rstate{resource = user, bindings = #{username := Username},
@@ -91,6 +91,12 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = user,
 %%--------------------------------------------------------------------
 -spec provide_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Data :: rest_handler:data(), Req :: cowboy_req:req()}.
+provide_resource(Req, #rstate{resource = users, params = #{role := Role}}) ->
+    Users = onepanel_user:get_by_role(onepanel_utils:convert(Role, atom)),
+    {format_usernames(Users), Req};
+provide_resource(Req, #rstate{resource = users}) ->
+    Users = onepanel_user:list(),
+    {format_usernames(Users), Req};
 provide_resource(Req, #rstate{resource = user, bindings = #{username := Username}}) ->
     {ok, #onepanel_user{uuid = UserId, role = Role}} = onepanel_user:get(Username),
     {#{userId => UserId, userRole => Role}, Req}.
@@ -105,3 +111,21 @@ provide_resource(Req, #rstate{resource = user, bindings = #{username := Username
 delete_resource(Req, #rstate{bindings = #{username := Username}}) ->
     onepanel_user:delete(Username),
     {true, Req}.
+
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Extracts usernames from a list of users.
+%% @end
+%%--------------------------------------------------------------------
+-spec format_usernames(Users :: [#onepanel_user{}]) -> #{usernames := [binary()]}.
+format_usernames(Users) ->
+    Usernames = lists:map(fun(#onepanel_user{username = Username}) -> Username end, Users),
+    #{
+        usernames => lists:sort(Usernames)
+    }.

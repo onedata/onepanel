@@ -11,51 +11,51 @@
 -module(service_onepanel_test_SUITE).
 -author("Krzysztof Trzepla").
 
+-include("modules/errors.hrl").
+-include("modules/models.hrl").
 -include("onepanel_test_utils.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
 
 %% export for ct
--export([all/0, init_per_testcase/2, end_per_testcase/2, init_per_suite/1]).
+-export([all/0, init_per_testcase/2, end_per_testcase/2,
+    init_per_suite/1, end_per_suite/1]).
 
 %% tests
 -export([
-    nodes_should_discover_each_other/1,
     deploy_should_create_cluster/1,
     join_should_add_node/1,
     join_should_work_after_leave/1,
+    join_should_fail_on_clustered_node/1,
     sequential_join_should_create_cluster/1,
-    leave_should_remove_node/1
+    extend_should_add_node_by_hostname/1,
+    extend_should_add_node_by_ip/1,
+    extend_should_retun_hostname_of_new_node/1,
+    leave_should_remove_node/1,
+    leave_should_not_remove_used_host/1
 ]).
 
 all() ->
     ?ALL([
-        nodes_should_discover_each_other,
         deploy_should_create_cluster,
         join_should_add_node,
         join_should_work_after_leave,
+        join_should_fail_on_clustered_node,
         sequential_join_should_create_cluster,
-        leave_should_remove_node
+        extend_should_add_node_by_hostname,
+        extend_should_add_node_by_ip,
+        extend_should_retun_hostname_of_new_node,
+        leave_should_remove_node,
+        leave_should_not_remove_used_host
     ]).
 
 -define(SERVICE, service_onepanel:name()).
 -define(COOKIE, test_cookie).
+-define(COOKIE2, other_cookie).
 
 %%%===================================================================
 %%% Test functions
 %%%===================================================================
-
-nodes_should_discover_each_other(Config) ->
-    Nodes = ?config(onepanel_nodes, Config),
-
-    lists:foreach(fun(Node) ->
-        ?assertMatch({true, _}, lists:foldl(fun
-            (_ExpectedNode, {false, ActualNodes}) ->
-                {false, ActualNodes};
-            (ExpectedNode, {true, ActualNodes}) ->
-                {lists:member(ExpectedNode, ActualNodes), ActualNodes}
-        end, {true, rpc:call(Node, onepanel_discovery, get_nodes, [])}, Nodes), 30)
-    end, Nodes).
 
 
 deploy_should_create_cluster(Config) ->
@@ -84,6 +84,24 @@ join_should_add_node(Config) ->
 
     ?assertEqual(Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
     ?assertEqual(Hosts, lists:sort(rpc:call(Node2, service_onepanel, get_hosts, []))).
+
+
+join_should_fail_on_clustered_node(Config) ->
+    Cluster1 = ?config(cluster1, Config),
+    Cluster2 = ?config(cluster2, Config),
+    [Host1 | _] = Cluster1Hosts = onepanel_cluster:nodes_to_hosts(Cluster1),
+    Cluster2Hosts = onepanel_cluster:nodes_to_hosts(Cluster2),
+
+    lists:foreach(fun(Node) ->
+        ?assertMatch(#error{}, rpc:call(Node, service, apply,
+            [?SERVICE, join_cluster, #{hosts => [onepanel_cluster:node_to_host(Node)],
+                cluster_host => Host1}]
+        ))
+    end, Cluster2),
+
+    % assert no change
+    ?assertEqual(Cluster1Hosts, lists:sort(rpc:call(hd(Cluster1), service_onepanel, get_hosts, []))),
+    ?assertEqual(Cluster2Hosts, lists:sort(rpc:call(hd(Cluster2), service_onepanel, get_hosts, []))).
 
 
 join_should_work_after_leave(Config) ->
@@ -148,9 +166,82 @@ leave_should_remove_node(Config) ->
         [?SERVICE, leave_cluster, #{}]
     )),
 
-    ?assertEqual([], lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
+    ?assertEqual([Host1], lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
     ?assertEqual(Hosts, lists:sort(rpc:call(Node2, service_onepanel, get_hosts, []))),
     ?assertEqual(Hosts, lists:sort(rpc:call(Node3, service_onepanel, get_hosts, []))).
+
+
+leave_should_not_remove_used_host(Config) ->
+    [Node1, Node2, Node3 | _] = ?config(onepanel_nodes, Config),
+    Nodes = [Node1, Node2, Node3],
+    Hosts = lists:sort(onepanel_cluster:nodes_to_hosts(Nodes)),
+
+    ?assertEqual(ok, rpc:call(Node1, service, apply,
+        [?SERVICE, deploy, #{cookie => ?COOKIE, hosts => Hosts,
+            api_version => ?API_VERSION}]
+    )),
+    ?assertMatch(#error{}, rpc:call(Node1, service, apply,
+        [?SERVICE, leave_cluster, #{}]
+    )),
+
+    ?assertEqual(Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
+    ?assertEqual(Hosts, lists:sort(rpc:call(Node2, service_onepanel, get_hosts, []))),
+    ?assertEqual(Hosts, lists:sort(rpc:call(Node3, service_onepanel, get_hosts, []))).
+
+
+extend_should_add_node_by_hostname(Config) ->
+    [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
+    Nodes = [Node1, Node2],
+    [Host1 | Host2] = Hosts = lists:sort(onepanel_cluster:nodes_to_hosts(Nodes)),
+
+    Ctx = #{cookie => ?COOKIE},
+    ?assertEqual(ok, rpc:call(Node1, service, apply,
+        [?SERVICE, deploy, Ctx#{hosts => [Host1]}]
+    )),
+    ?assertEqual(ok, rpc:call(Node1, service, apply,
+        [?SERVICE, extend_cluster, Ctx#{hostname => Host2, api_version => ?API_VERSION}]
+    )),
+
+    ?assertEqual(Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
+    ?assertEqual(Hosts, lists:sort(rpc:call(Node2, service_onepanel, get_hosts, []))).
+
+
+extend_should_add_node_by_ip(Config) ->
+    [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
+    Nodes = [Node1, Node2],
+    [Host1 | _] = Hosts = lists:sort(onepanel_cluster:nodes_to_hosts(Nodes)),
+    Host2Address = test_utils:get_docker_ip(Node2),
+
+    Ctx = #{cookie => ?COOKIE},
+    ?assertEqual(ok, rpc:call(Node1, service, apply,
+        [?SERVICE, deploy, Ctx#{hosts => [Host1]}]
+    )),
+    ?assertEqual(ok, rpc:call(Node1, service, apply,
+        [?SERVICE, extend_cluster, Ctx#{address => Host2Address, api_version => ?API_VERSION}]
+    )),
+
+    ?assertEqual(Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
+    ?assertEqual(Hosts, lists:sort(rpc:call(Node2, service_onepanel, get_hosts, []))).
+
+extend_should_retun_hostname_of_new_node(Config) ->
+    [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
+    Nodes = [Node1, Node2],
+    [Host1 | Host2] = Hosts = lists:sort(onepanel_cluster:nodes_to_hosts(Nodes)),
+    Host2Binary = onepanel_utils:convert(Host2, binary),
+    Host2Address = test_utils:get_docker_ip(Node2),
+    Module = service:get_module(?SERVICE),
+
+    ?assertEqual(ok, rpc:call(Node1, service, apply,
+        [?SERVICE, deploy, #{hosts => [Host1]}]
+    )),
+    Results = ?assertMatch([_|_], rpc:call(Node1, service, apply_sync,
+        [?SERVICE, extend_cluster, #{address => Host2Address, api_version => ?API_VERSION}]
+    )),
+    ?assertMatch([{[{_Node, #{hostname := Host2Binary}}], []}],
+        [FunctionResults || {Module, extend_cluster, FunctionResults} <- Results]),
+
+    ?assertEqual(Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
+    ?assertEqual(Hosts, lists:sort(rpc:call(Node2, service_onepanel, get_hosts, []))).
 
 %%%===================================================================
 %%% SetUp and TearDown functions
@@ -158,6 +249,42 @@ leave_should_remove_node(Config) ->
 
 init_per_suite(Config) ->
     [{?CTH_ENV_UP, ?DISABLE} | Config].
+
+init_per_testcase(join_should_fail_on_clustered_node, Config) ->
+    Config2 = init_per_testcase(default, Config),
+
+    [Node1, Node2, Node3 | _] = ?config(onepanel_nodes, Config2),
+    Cluster1 = [Node1],
+    Cluster2 = lists:sort([Node2, Node3]),
+    Cluster1Hosts = onepanel_cluster:nodes_to_hosts(Cluster1),
+    Cluster2Hosts = onepanel_cluster:nodes_to_hosts(Cluster2),
+
+    ?assertEqual(ok, rpc:call(Node1, service, apply,
+        [?SERVICE, deploy, #{hosts => Cluster1Hosts}]
+    )),
+    ?assertEqual(Cluster1Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
+
+    ?assertEqual(ok, rpc:call(Node2, service, apply,
+        [?SERVICE, deploy, #{hosts => Cluster2Hosts,
+            auth => ?DEFAULT_AUTH, api_version => ?API_VERSION}]
+    )),
+    ?assertEqual(Cluster2Hosts, lists:sort(rpc:call(Node2, service_onepanel, get_hosts, []))),
+
+    [{cluster1, Cluster1}, {cluster2, Cluster2} | Config2];
+
+init_per_testcase(leave_should_not_remove_used_host, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    [Node1 | _] = Nodes = ?config(onepanel_nodes, NewConfig),
+    Hosts = onepanel_cluster:nodes_to_hosts(Nodes),
+
+    % simulate deployed cluster
+    lists:foreach(fun(Service) ->
+        % Node1 will be used to deploy cluster
+        ?assertMatch(ok, rpc:call(Node1, service, save, [#service{
+            name = Service, hosts = Hosts
+        }]))
+    end, [couchbase, cluster_manager, op_worker]),
+    NewConfig;
 
 init_per_testcase(_Case, Config) ->
     onepanel_test_utils:ensure_started(
