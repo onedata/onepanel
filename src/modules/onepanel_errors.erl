@@ -101,8 +101,12 @@ translate(_Type, #error{reason = ?ERR_ONEZONE_NOT_AVAILABLE}) ->
     {<<"Onezone connection error">>, <<"Onezone not available">>};
 
 translate(_Type, #error{reason = ?ERR_SUBDOMAIN_NOT_AVAILABLE}) ->
-    % DO NOT modify this error message as it is used to identify the error in GUI
-    {<<"Subdomain reserved error">>, <<"Subdomain is not available.">>};
+    % DO NOT modify this error name as it is used to identify the error in GUI
+    {<<"Subdomain reserved error">>, <<"Requested subdomain is currently used "
+        "by another provider. Please choose another one. The subdomain will be "
+        "available again when the conflicting provider is unregistered or "
+        "configured to use a different subdomain. Please contact your Onezone "
+        "administror if you want to reclaim the subdomain of an unused provider.">>};
 
 translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, aleady_exists}}) ->
     {<<"Operation Error">>, <<"Storage name is not available.">>};
