@@ -15,9 +15,9 @@
     module :: module(),
     function :: atom(),
     arity :: non_neg_integer(),
-    args :: term(),
+    args = undefined :: term(),
     reason :: term(),
-    stacktrace :: term(),
+    stacktrace = [] :: term(),
     line :: non_neg_integer()
 }).
 
@@ -29,27 +29,31 @@
     bad_results :: onepanel_rpc:results()
 }).
 
--define(make_error(Reason), ?make_error(Reason, erlang:get_stacktrace())).
+-define(make_error(Reason), ?make_error(Reason, undefined)).
 
--define(make_error(Reason, Stacktrace), begin
-    {current_function, {__Module, __Function, __Arity}} =
-        erlang:process_info(self(), current_function),
-    ?make_error(Reason, Stacktrace, __Module, __Function, __Arity, undefined)
-end).
+-define(make_error(Reason, Args),
+    ?make_error(Reason, ?MODULE, ?FUNCTION_NAME, ?FUNCTION_ARITY, Args)).
 
 -define(make_error(Reason, Module, Function, Arity),
-    ?make_error(Reason, Module, Function, Arity, undefined)).
+    ?make_error(Module, Function, Arity, undefined)).
 
 -define(make_error(Reason, Module, Function, Arity, Args),
-    ?make_error(Reason, erlang:get_stacktrace(), Module, Function, Arity, Args)).
+    onepanel_errors:create(Module, Function, Arity, Args, Reason, [], ?LINE)).
 
--define(make_error(Reason, Stacktrace, Module, Function, Arity, Args),
-    onepanel_errors:create(Module, Function, Arity, Args, Reason, Stacktrace, ?LINE)
-).
+-define(make_stacktrace(Reason), ?make_error(Reason, undefined)).
+
+-define(make_stacktrace(Reason, Args),
+    ?make_error(Reason, ?MODULE, ?FUNCTION_NAME, ?FUNCTION_ARITY, Args)).
+
+-define(make_stacktrace(Reason, Module, Function, Arity),
+    ?make_error(Module, Function, Arity, undefined)).
+
+-define(make_stacktrace(Reason, Module, Function, Arity, Args),
+    onepanel_errors:create(Module, Function, Arity, Args, Reason, erlang:get_stacktrace(), ?LINE)).
 
 -define(throw_error(Reason), erlang:throw(?make_error(Reason))).
 
--define(throw_error(Reason, Stacktrace), erlang:throw(?make_error(Reason, Stacktrace))).
+-define(throw_error(Reason, Args), erlang:throw(?make_error(Reason, Args))).
 
 -define(throw_error(Reason, Module, Function, Arity),
     erlang:throw(?make_error(Reason, Module, Function, Arity))).
@@ -57,6 +61,15 @@ end).
 -define(throw_error(Reason, Module, Function, Arity, Args),
     erlang:throw(?make_error(Reason, Module, Function, Arity, Args))).
 
+-define(throw_stacktrace(Reason), erlang:throw(?make_stacktrace(Reason))).
+
+-define(throw_stacktrace(Reason, Args), erlang:throw(?make_stacktrace(Reason, Args))).
+
+-define(throw_stacktrace(Reason, Module, Function, Arity),
+    erlang:throw(?make_stacktrace(Reason, Module, Function, Arity))).
+
+-define(throw_stacktrace(Reason, Module, Function, Arity, Args),
+    erlang:throw(?make_stacktrace(Reason, Module, Function, Arity, Args))).
 
 -define(ERR_TIMEOUT, timeout).
 -define(ERR_NOT_FOUND, not_found).

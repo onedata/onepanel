@@ -322,10 +322,10 @@ check_oz_availability(Ctx) ->
                 X#xmlAttribute.name == status],
             case Status of
                 "ok" -> ok;
-                _ -> ?throw_error(?ERR_ONEZONE_NOT_AVAILABLE)
+                _ -> ?throw_error(?ERR_ONEZONE_NOT_AVAILABLE, [Ctx])
             end;
         _ ->
-            ?throw_error(?ERR_ONEZONE_NOT_AVAILABLE)
+            ?throw_error(?ERR_ONEZONE_NOT_AVAILABLE, [Ctx])
     end.
 
 
@@ -392,7 +392,8 @@ register(Ctx) ->
     case onepanel_utils:wait_until(oz_providers, register, [none, Params],
         {validator, Validator}, 10, timer:seconds(30)) of
         {error, subdomain_reserved} ->
-            ?throw_error(?ERR_SUBDOMAIN_NOT_AVAILABLE);
+            ?throw_error(?ERR_SUBDOMAIN_NOT_AVAILABLE, ?MODULE, ?FUNCTION_NAME,
+                ?FUNCTION_ARITY, [Ctx]);
         {ProviderId, Macaroon} ->
             rpc:call(OpwNode, provider_auth, save, [ProviderId, Macaroon]),
             % Force connection healthcheck
