@@ -1,4 +1,10 @@
 [
+    % Range of ports that will be used by erlang nodes to communicate
+    {kernel,[
+        {inet_dist_listen_min, 9100},
+        {inet_dist_listen_max, 9139}
+    ]},
+
     %% lager config
     {lager, [
         {colored, true},
