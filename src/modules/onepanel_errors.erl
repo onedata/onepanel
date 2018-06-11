@@ -12,6 +12,7 @@
 -author("Krzysztof Trzepla").
 
 -include("modules/errors.hrl").
+-include("validation.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
@@ -67,11 +68,14 @@ translate(_Type, #error{reason = {?ERR_MISSING_PARAM, Keys}}) ->
     {<<"Invalid Request">>, <<"Missing required parameter: '", Key/binary, "'.">>};
 
 translate(_Type, #error{reason = ?ERR_INVALID_USERNAME}) ->
-    {<<"Invalid Request">>, <<"Username must not be empty and must not contain "
-    "a colon character ':'">>};
+    {<<"Invalid Request">>, <<"Username must be 2-15 characters long and composed ",
+        "of letters and digits. Dashes and underscores are allowed ",
+        "(but not at the beginning or the end).">>};
 
 translate(_Type, #error{reason = ?ERR_INVALID_PASSWORD}) ->
-    {<<"Invalid Request">>, <<"Password must not be empty.">>};
+    {<<"Invalid Request">>, <<"Password must be at least ",
+        (integer_to_binary(?PASSWORD_MIN_LENGTH))/binary,
+        " characters long and must not contain a colon character ':'">>};
 
 translate(_Type, #error{reason = ?ERR_INVALID_ROLE}) ->
     {<<"Invalid Request">>, <<"User role must be one of 'admin' or 'regular'.">>};

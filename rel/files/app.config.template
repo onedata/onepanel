@@ -190,8 +190,6 @@
         {app_config_file, "{{platform_etc_dir}}/app.config"},
         {cmd_log_file, "{{platform_log_dir}}/cmd.log"},
 
-        {default_users, [{<<"admin">>, <<"password">>, admin}]},
-
         {couchbase_init_timeout, 300000},
         {couchbase_wait_for_init_attempts, 60},
         {couchbase_connect_attempts, 30},

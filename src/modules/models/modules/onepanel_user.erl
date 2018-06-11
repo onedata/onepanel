@@ -16,6 +16,7 @@
 
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
+-include("validation.hrl").
 
 %% Model behaviour callbacks
 -export([get_fields/0, seed/0, create/1, save/1, update/2, get/1, exists/1,
@@ -54,14 +55,7 @@ get_fields() ->
 %%--------------------------------------------------------------------
 -spec seed() -> any().
 seed() ->
-    lists:foreach(fun({Username, Password, Role}) ->
-        try
-            create(Username, Password, Role)
-        catch
-            #error{reason = ?ERR_USERNAME_NOT_AVAILABLE} -> ok;
-            #error{} = Error -> ?throw_error(Error)
-        end
-    end, onepanel_env:get(default_users)).
+    ok.
 
 
 %%--------------------------------------------------------------------
@@ -244,8 +238,8 @@ get_by_role(Role) ->
 validate_username(<<>>) ->
     ?throw_error(?ERR_INVALID_USERNAME);
 validate_username(Username) ->
-    case binary:match(Username, <<":">>) of
-        nomatch -> ok;
+    case re:run(Username, ?USERNAME_VALIDATION_REGEXP, [{capture, none}]) of
+        match -> ok;
         _ -> ?throw_error(?ERR_INVALID_USERNAME)
     end.
 
@@ -255,8 +249,13 @@ validate_username(Username) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec validate_password(Password :: password()) -> ok | no_return().
-validate_password(<<>>) -> ?throw_error(?ERR_INVALID_PASSWORD);
-validate_password(_) -> ok.
+validate_password(Password) when size(Password) < ?PASSWORD_MIN_LENGTH ->
+    ?throw_error(?ERR_INVALID_PASSWORD);
+validate_password(Password) ->
+    case binary:match(Password, ?PASSWORD_FORBIDDEN_REGEXP) of
+        nomatch -> ok;
+        _ -> ?throw_error(?ERR_INVALID_PASSWORD)
+    end.
 
 
 %%--------------------------------------------------------------------
