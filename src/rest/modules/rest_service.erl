@@ -59,10 +59,12 @@ is_authorized(Req, _Method, _State) ->
 -spec exists_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
 exists_resource(Req, #rstate{resource = nagios}) ->
-    {model:exists(service) andalso (
-        service:exists(service_oz_worker:name()) orelse
-            service:exists(service_op_worker:name())
-    ), Req};
+    SModule = case onepanel_env:get(release_type) of
+        oneprovider -> service_op_worker;
+        onezone -> service_oz_worker
+    end,
+    {model:exists(service) andalso service:exists(SModule:name())
+        andalso SModule:get_hosts() /= [], Req};
 
 exists_resource(Req, #rstate{resource = task, bindings = #{id := TaskId}}) ->
     {service:exists_task(TaskId), Req};

@@ -109,7 +109,7 @@ provide_resource(Req, #rstate{resource = hosts}) ->
 %%--------------------------------------------------------------------
 -spec delete_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Deleted :: boolean(), Req :: cowboy_req:req()}.
-delete_resource(Req, #rstate{bindings = #{host := Host}}) ->
+delete_resource(Req, #rstate{resource = host, bindings = #{host := Host}}) ->
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?SERVICE, leave_cluster, #{hosts => [Host]}
     ))}.

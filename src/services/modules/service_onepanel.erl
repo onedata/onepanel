@@ -106,9 +106,15 @@ get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
             ]
     end;
 
-get_steps(leave_cluster, _Ctx) ->
-    [#step{hosts = [onepanel_cluster:node_to_host()], function = reset_node}];
+%% Removes given nodes from the current cluster, clears database on each
+%% and initalizes separate one-node clusters.
+get_steps(leave_cluster, #{hosts := Hosts}) ->
+    [#step{function = reset_node, hosts = Hosts}];
+get_steps(leave_cluster, Ctx) ->
+    get_steps(leave_cluster, Ctx#{hosts => [onepanel_cluster:node_to_host()]});
 
+%% Utility for managing cluster restart, waiting for all onepanel
+%% nodes in the cluster to start.
 get_steps(wait_for_cluster, _Ctx) ->
     SelfHost = onepanel_cluster:node_to_host(),
     Attempts = application:get_env(?APP_NAME, wait_for_cluster_attempts, 20),
