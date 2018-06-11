@@ -119,6 +119,11 @@
         %% authorization was properly set
         {letsencrypt_dns_verification_servers, [{8,8,8,8}, {8,8,4,4}, {1,1,1,1}]},
 
+        %% Regular expression used for checking if existing certificate
+        %% was issued by Let's Encrypt.
+        %% See https://letsencrypt.org/certificates/ for expected values
+        {letsencrypt_issuer_regex, <<"^Let's Encrypt Authority X[34]$">>},
+
         %% Configures how many days before expiration the certificate should
         %% be scheduled for renewal.
         %% Keep in mind that Let's Encrypt certificates are valid for at most 90 days

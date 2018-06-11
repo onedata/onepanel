@@ -22,7 +22,8 @@
 
 %% API
 -export([generate_csr_and_key/1, backup_exisiting_certs/0]).
--export([read_cert/1, get_subject_cn/1, get_seconds_till_expiration/1]).
+-export([read_cert/1, get_subject_cn/1, get_issuer_cn/1,
+    get_seconds_till_expiration/1]).
 
 %%%===================================================================
 %%% API functions
@@ -70,22 +71,28 @@ generate_csr_and_key(Domain) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_subject_cn(#'Certificate'{} | file:name_all()) ->
-    binary() | undefined | no_return().
+    binary() | undefined.
 get_subject_cn(#'Certificate'{} = Cert) ->
     #'Certificate'{tbsCertificate = #'TBSCertificate'{
         subject = {rdnSequence, SubjectParts}
     }} = Cert,
+    get_common_name(SubjectParts).
 
-    case lists:filtermap(fun
-        ([#'AttributeTypeAndValue'{
-            type = {2, 5, 4, 3}, % Common Name
-            value = <<_:16, CN/binary>>}]) -> {true, CN};
-        (_) ->
-            false
-    end, SubjectParts) of
-        [CN|_] -> CN;
-        [] -> undefined
-    end.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Extracts issuer Common Name from a certificate.
+%% If the certificate containts no issuer Common Name 'undefined'
+%% is returned.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_issuer_cn(#'Certificate'{} | file:name_all()) ->
+    binary() | undefined.
+get_issuer_cn(#'Certificate'{} = Cert) ->
+    #'Certificate'{tbsCertificate = #'TBSCertificate'{
+        issuer = {rdnSequence, IssuerParts}
+    }} = Cert,
+    get_common_name(IssuerParts).
 
 
 %%--------------------------------------------------------------------
@@ -161,6 +168,25 @@ get_expiration_time(#'Certificate'{} = Cert) ->
     } = Cert#'Certificate'.tbsCertificate,
     {'Validity', _NotBeforeStr, NotAfterStr} = Validity,
     time_str_2_gregorian_sec(NotAfterStr).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Returns Common Name from issuer or subject attribues.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_common_name([#'AttributeTypeAndValue'{}]) -> binary() | undefined.
+get_common_name(RdnSequence) ->
+    case lists:filtermap(fun
+        ([#'AttributeTypeAndValue'{
+            type = {2, 5, 4, 3}, % Common Name
+            value = <<_:16, CN/binary>>}]) -> {true, CN};
+        (_) -> false
+    end, RdnSequence) of
+        [CN|_] -> CN;
+        [] -> undefined
+    end.
 
 
 %%--------------------------------------------------------------------

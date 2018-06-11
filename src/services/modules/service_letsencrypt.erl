@@ -28,7 +28,7 @@
 %% API
 -export([configure/1, status/1, check_webcert/1, ensure_webcert/1,
     update/1, is_enabled/0]).
--export([is_local_cert_dirty/1]).
+-export([is_local_cert_dirty/1, is_local_cert_letsencrypt/0]).
 
 -define(CERT_PATH, onepanel_env:get(web_cert_file)).
 -define(KEY_PATH, onepanel_env:get(web_key_file)).
@@ -260,11 +260,19 @@ create(#{letsencrypt_plugin := Plugin}) ->
 enable() ->
     ok = service_watcher:register_service(name(), ?CHECK_DELAY),
     service:update(name(), fun(#service{ctx = ServiceCtx} = Record) ->
-        Enabling = not(maps:get(letsencrypt_enabled, ServiceCtx, false)),
-        
+        StateChange = not(maps:get(letsencrypt_enabled, ServiceCtx, false)),
+        AlreadyLetsencrypt = are_all_certs_letsencrypt(),
+        NewIsDirty = case {StateChange, AlreadyLetsencrypt} of
+            {true, true} ->
+                ?info("Found existing Let's Encrypt web certificate"),
+                false;
+            {true, false} -> true;
+            {false, _} -> false % further checks will be performed in check_webcert/1
+        end,
+
         Record#service{ctx = ServiceCtx#{
             letsencrypt_enabled => true,
-            is_cert_dirty => Enabling
+            is_cert_dirty => NewIsDirty
         }}
     end).
 
@@ -310,6 +318,39 @@ is_local_cert_dirty(#{domain := Domain}) ->
             orelse
             (onepanel_ssl:get_seconds_till_expiration(Cert) < ?RENEW_MARGIN_SECONDS);
         {error, _} -> true
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Checks if certificates on all hosts were issued by Let's Encrypt.
+%% @end
+%%--------------------------------------------------------------------
+-spec are_all_certs_letsencrypt() -> boolean().
+are_all_certs_letsencrypt() ->
+    Nodes = get_nodes(),
+    lists:all(fun(Node) ->
+        true == rpc:call(Node, ?MODULE, is_local_cert_letsencrypt, [])
+    end, Nodes).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Checks if the issuer of certificate on the current node
+%% matches Let's Encrypt's issuer Common Name.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_local_cert_letsencrypt() -> boolean().
+is_local_cert_letsencrypt() ->
+    case onepanel_ssl:read_cert(?CERT_PATH) of
+        {ok, Cert} ->
+            Regex = application:get_env(?APP_NAME, letsencrypt_issuer_regex,
+                <<"^Let's Encrypt Authority X[34]$">>),
+            case onepanel_ssl:get_issuer_cn(Cert) of
+                undefined -> false;
+                Issuer -> match == re:run(Issuer, Regex, [{capture, none}])
+            end;
+        {error, _} -> false
     end.
 
 
