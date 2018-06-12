@@ -103,7 +103,8 @@ translate(_Type, #error{reason = ?ERR_NODE_NOT_EMPTY(Host)}) ->
 
 translate(_Type, #error{reason = ?ERR_INCOMPATIBLE_NODE(Host, ClusterType)}) ->
     {<<"Operation error">>, str_utils:format_bin(
-        "Cannot add node ~s to the cluster. It is not a ~s node", [Host, ClusterType])};
+        "Cannot add node ~s to the cluster. It is a ~s node, expected ~s.",
+        [Host, ClusterType, onepanel_env:get(release_type)])};
 
 translate(_Type, #error{reason = {?ERR_HOST_NOT_FOUND_FOR_ALIAS, Alias}}) ->
     {<<"Invalid Request">>, <<"Host not found for node: '",

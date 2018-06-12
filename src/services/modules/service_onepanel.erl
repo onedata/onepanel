@@ -223,12 +223,10 @@ extend_cluster(#{address := Address, api_version := _ApiVersion,
     attempts := Attempts} = Ctx) ->
     ClusterType = onepanel_env:get(release_type),
     case get_remote_node_info(Ctx) of
-        {ok, Hostname, NodeType} ->
-            case NodeType of
-                ClusterType -> ok;
-                _ -> ?throw_error(?ERR_INCOMPATIBLE_NODE(Address, ClusterType))
-            end,
+        {ok, Hostname, ClusterType} ->
             extend_cluster(Ctx#{hostname => Hostname});
+        {ok, Hostname, OtherType} ->
+            ?throw_error(?ERR_INCOMPATIBLE_NODE(Address, OtherType));
         #error{reason = ?ERR_BAD_NODE} ->
             ?warning("Failed to connect with '~s' to extend cluster", [Address]),
             extend_cluster(Ctx#{attempts => Attempts - 1})
