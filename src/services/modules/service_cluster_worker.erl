@@ -16,6 +16,7 @@
 -include("modules/models.hrl").
 -include("service.hrl").
 -include("deployment_progress.hrl").
+-include("modules/errors.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
 
 -include_lib("ctool/include/logging.hrl").
@@ -26,7 +27,7 @@
 %% API
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
     get_nagios_response/1, get_nagios_status/1, set_node_ip/1,
-    get_cluster_ips/1, reload_webcert/1]).
+    get_cluster_ips/1, reload_webcert/1, migrate_generated_config/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -70,13 +71,17 @@ get_steps(deploy, #{hosts := Hosts, name := Name} = Ctx) ->
     ClusterHosts = (service:get_module(Name)):get_hosts(),
     AllHosts = onepanel_lists:union(Hosts, ClusterHosts),
     [
+        #step{function = migrate_generated_config,
+            condition = fun(_) -> onepanel_env:legacy_config_exists(Name) end},
         #step{hosts = AllHosts, function = configure},
         #steps{action = restart, ctx = Ctx#{hosts => AllHosts}},
         #step{hosts = [hd(AllHosts)], function = wait_for_init}
     ];
 
-get_steps(resume, #{name := _Name}) ->
+get_steps(resume, #{name := Name}) ->
     [
+        #step{function = migrate_generated_config,
+            condition = fun(_) -> onepanel_env:legacy_config_exists(Name) end},
         #steps{action = start},
         #step{function = wait_for_init, selection = first}
     ];
@@ -123,7 +128,7 @@ get_steps(reload_webcert, _Ctx) ->
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
     db_hosts := DbHosts, app_config := AppConfig, initialize_ip := InitIp,
-    app_config_file := AppConfigFile, vm_args_file := VmArgsFile} = Ctx) ->
+    generated_config_file := GeneratedConfigFile, vm_args_file := VmArgsFile} = Ctx) ->
 
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(Name, Host),
@@ -136,24 +141,24 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
         onepanel_utils:convert(string:join([DbHost, DbPort], ":"), atom)
     end, DbHosts),
 
-    onepanel_env:write([Name, cm_nodes], CmNodes, AppConfigFile),
-    onepanel_env:write([Name, db_nodes], DbNodes, AppConfigFile),
+    onepanel_env:write([Name, cm_nodes], CmNodes, GeneratedConfigFile),
+    onepanel_env:write([Name, db_nodes], DbNodes, GeneratedConfigFile),
 
     case InitIp of
         true ->
             IP = case onepanel_maps:get([cluster_ips, Host], Ctx, undefined) of
-                undefined -> get_initial_ip(AppConfigFile);
+                undefined -> get_initial_ip(Name);
                 Found ->
                     onepanel_deployment:mark_completed(?PROGRESS_CLUSTER_IPS),
                     {ok, IPTuple} = onepanel_ip:parse_ip4(Found),
                     IPTuple
             end,
-            onepanel_env:write([name(), external_ip], IP, AppConfigFile);
+            onepanel_env:write([name(), external_ip], IP, GeneratedConfigFile);
         false -> ok
     end,
 
     maps:fold(fun(Key, Value, _) ->
-        onepanel_env:write([Name, Key], Value, AppConfigFile)
+        onepanel_env:write([Name, Key], Value, GeneratedConfigFile)
     end, #{}, AppConfig),
 
     onepanel_vm:write("name", Node, VmArgsFile),
@@ -246,7 +251,7 @@ get_nagios_status(Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec set_node_ip(Ctx :: service:ctx()) -> ok | no_return().
-set_node_ip(#{name := ServiceName, app_config_file := AppConfigFile} = Ctx) ->
+set_node_ip(#{name := ServiceName, generated_config_file := GeneratedConfigFile} = Ctx) ->
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(ServiceName, Host),
 
@@ -254,10 +259,10 @@ set_node_ip(#{name := ServiceName, app_config_file := AppConfigFile} = Ctx) ->
         {ok, NewIP} ->
             onepanel_deployment:mark_completed(?PROGRESS_CLUSTER_IPS),
             onepanel_ip:parse_ip4(NewIP);
-        _ -> {ok, get_initial_ip(AppConfigFile)}
+        _ -> {ok, get_initial_ip(ServiceName)}
     end,
 
-    onepanel_env:write([name(), external_ip], IP, AppConfigFile),
+    onepanel_env:write([name(), external_ip], IP, GeneratedConfigFile),
     ok = rpc:call(Node, application, set_env, [name(), external_ip, IP]).
 
 
@@ -291,6 +296,27 @@ reload_webcert(#{name := ServiceName}) ->
     Node = onepanel_cluster:host_to_node(ServiceName, Host),
     ok = rpc:call(Node, ssl, clear_pem_cache, []).
 
+
+%%--------------------------------------------------------------------
+%% @doc {@link onepanel_env:migrate_generated_config/2}
+%% @end
+%%--------------------------------------------------------------------
+-spec migrate_generated_config(service:ctx()) -> ok | no_return().
+migrate_generated_config(#{name := Name, variables := Variables}) ->
+    onepanel_env:migrate_generated_config(Name, [
+        [Name, cm_nodes],
+        [Name, db_nodes],
+        [Name, web_key_file],
+        [Name, web_cert_file],
+        [Name, web_cert_chain_file],
+        [Name, cacerts_dir],
+        [name(), external_ip]
+        | Variables
+    ]);
+migrate_generated_config(#{name := _Name} = Ctx) ->
+    migrate_generated_config(Ctx#{variables => []}).
+
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -301,10 +327,10 @@ reload_webcert(#{name := ServiceName}) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec setup_cert_paths(service:ctx()) -> ok | no_return().
-setup_cert_paths(#{name := AppName, app_config_file := AppConfigFile}) ->
+setup_cert_paths(#{name := AppName, generated_config_file := GeneratedConfigFile}) ->
     lists:foreach(fun({Src, Dst}) ->
         Path = filename:absname(onepanel_env:get(Src)),
-        ok = onepanel_env:write([AppName, Dst], Path, AppConfigFile)
+        ok = onepanel_env:write([AppName, Dst], Path, GeneratedConfigFile)
     end, [
         {web_key_file, web_key_file},
         {web_cert_file, web_cert_file},
@@ -318,9 +344,9 @@ setup_cert_paths(#{name := AppName, app_config_file := AppConfigFile}) ->
 %% @doc Get IP preconfigured by user or determine it.
 %% @end
 %%--------------------------------------------------------------------
--spec get_initial_ip(file:name()) -> inet:ip4_address().
-get_initial_ip(AppConfigFile) ->
-    case onepanel_env:read([name(), external_ip], AppConfigFile) of
+-spec get_initial_ip(service:name()) -> inet:ip4_address().
+get_initial_ip(ServiceName) ->
+    case onepanel_env:read_effective([name(), external_ip], ServiceName) of
         {ok, {_, _, _, _} = IP} -> IP;
         {ok, IPList} when is_list(IPList) ->
             {ok, IP} = onepanel_ip:parse_ip4(IPList),

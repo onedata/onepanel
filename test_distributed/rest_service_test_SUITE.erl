@@ -714,6 +714,7 @@ end_per_testcase(_Case, Config) ->
     ?callAll(Config, model, clear, [onepanel_user]).
 
 end_per_suite(_Config) ->
+    timer:sleep(timer:hours(24)),
     ok.
 
 %%%===================================================================

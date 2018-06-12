@@ -240,9 +240,9 @@ get_steps(modify_details, Ctx) ->
 
 
 get_steps(set_cluster_ips, #{hosts := Hosts} = Ctx) ->
-    AppConfigFile = service_ctx:get(op_worker_app_config_file, Ctx),
+    GeneratedConfigFile = service_ctx:get(op_worker_generated_config_file, Ctx),
     Ctx2 = Ctx#{
-        app_config_file => AppConfigFile,
+        generated_config_file => GeneratedConfigFile,
         name => ?SERVICE_OPW
     },
     [
@@ -292,9 +292,9 @@ configure(Ctx) ->
     Name = service_op_worker:name(),
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(Name, Host),
-    AppConfigFile = service_ctx:get(op_worker_app_config_file, Ctx),
+    GeneratedConfigFile = service_ctx:get(op_worker_generated_config_file, Ctx),
     rpc:call(Node, application, set_env, [Name, oz_domain, OzDomain]),
-    onepanel_env:write([Name, oz_domain], OzDomain, AppConfigFile).
+    onepanel_env:write([Name, oz_domain], OzDomain, GeneratedConfigFile).
 
 
 %%--------------------------------------------------------------------

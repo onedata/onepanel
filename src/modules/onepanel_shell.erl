@@ -86,7 +86,7 @@ wait_output(Tokens, Expected, Attempts, Delay) ->
 %%--------------------------------------------------------------------
 -spec call(Tokens :: [token()]) -> Code :: integer().
 call(Tokens) ->
-    LogFile = onepanel_env:get(cmd_log_file),
+    LogFile = onepanel_env:get(onepanel_cmd_log_file),
     Output = output(Tokens ++ ["1>>" ++ LogFile, "2>&1;", "echo", "-n", "$?"]),
     [Code | _] = lists:reverse(string:tokens(Output, "\n")),
     erlang:list_to_integer(Code).
