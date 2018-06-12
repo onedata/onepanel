@@ -747,6 +747,7 @@ start_cleaning(Ctx) ->
 %% returns its value.
 %% @end
 %%-------------------------------------------------------------------
+-spec pop_legacy_letsencrypt_config() -> boolean().
 pop_legacy_letsencrypt_config() ->
     Result = case service:get(name()) of
         {ok, #service{ctx = #{has_letsencrypt_cert:= Enabled}}} ->
