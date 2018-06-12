@@ -16,8 +16,8 @@
 -behavior(rest_behaviour).
 
 %% REST behaviour callbacks
--export([is_authorized/3, exists_resource/2, accept_resource/4,
-    provide_resource/2, delete_resource/2]).
+-export([is_authorized/3, exists_resource/2, accept_possible/4,
+    accept_resource/4, provide_resource/2, delete_resource/2]).
 
 %%%===================================================================
 %%% REST behaviour callbacks
@@ -54,6 +54,14 @@ exists_resource(Req, #rstate{resource = user, bindings = #{username := Username}
     {onepanel_user:exists(Username), Req};
 
 exists_resource(Req, _State) ->
+    {true, Req}.
+
+
+%%--------------------------------------------------------------------
+%% @doc {@link rest_behaviour:accept_possible/4}
+%% @end
+%%--------------------------------------------------------------------
+accept_possible(Req, _Method, _Args, _State) ->
     {true, Req}.
 
 

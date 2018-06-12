@@ -16,8 +16,8 @@
 -behavior(rest_behaviour).
 
 %% REST behaviour callbacks
--export([is_authorized/3, exists_resource/2, accept_resource/4,
-    provide_resource/2, delete_resource/2]).
+-export([is_authorized/3, exists_resource/2, accept_possible/4,
+    accept_resource/4, provide_resource/2, delete_resource/2]).
 
 -define(SERVICE, service_onepanel:name()).
 
@@ -52,6 +52,14 @@ exists_resource(Req, #rstate{resource = host, bindings = #{host := Host}}) ->
     {lists:member(Host, service_onepanel:get_hosts()), Req};
 
 exists_resource(Req, _State) ->
+    {true, Req}.
+
+
+%%--------------------------------------------------------------------
+%% @doc {@link rest_behaviour:accept_possible/4}
+%% @end
+%%--------------------------------------------------------------------
+accept_possible(Req, _Method, _Args, _State) ->
     {true, Req}.
 
 
@@ -101,7 +109,7 @@ provide_resource(Req, #rstate{resource = hosts}) ->
 %%--------------------------------------------------------------------
 -spec delete_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Deleted :: boolean(), Req :: cowboy_req:req()}.
-delete_resource(Req, #rstate{bindings = #{host := Host}}) ->
+delete_resource(Req, #rstate{resource = host, bindings = #{host := Host}}) ->
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?SERVICE, leave_cluster, #{hosts => [Host]}
     ))}.

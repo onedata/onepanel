@@ -166,3 +166,7 @@ init_per_testcase(_Case, Config) ->
 
 end_per_testcase(_Case, Config) ->
     test_node_starter:clean_environment(Config).
+
+
+end_per_suite(_Config) ->
+    ok.

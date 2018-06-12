@@ -26,6 +26,16 @@
 
 
 %%--------------------------------------------------------------------
+%% Checks if request submitted by a client through POST, PUT, PATCH on a REST
+%% resource is allowed in the current state.
+%%--------------------------------------------------------------------
+-callback accept_possible(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
+    Args :: rest_handler:args(), State :: rest_handler:state()) ->
+    {Possible :: boolean(), Req :: cowboy_req:req()} |
+    {stop, Req :: cowboy_req:req()}.
+
+
+%%--------------------------------------------------------------------
 %% Processes data submitted by a client through POST, PUT, PATCH on a REST
 %% resource. The callback shall return whether the operation was performed
 %% successfully.

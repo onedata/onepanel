@@ -278,11 +278,20 @@ accept_resource(Req, Data, #rstate{module = Module, methods = Methods} =
         lists:keyfind(Method, 2, Methods),
     {Params, Req4} = rest_utils:get_params(Req3, ParamSpec),
     Args = rest_utils:get_args(Data, ArgsSpec),
-    {Result, Req5} = Module:accept_resource(Req4, Method, Args, State#rstate{
+
+    case Module:accept_possible(Req4, Method, Args, State#rstate{
         bindings = Bindings,
         params = Params
-    }),
-    {Result, Req5, State}.
+    }) of
+        {true, Req5} ->
+            {Result, Req6} = Module:accept_resource(Req5, Method, Args, State#rstate{
+                bindings = Bindings,
+                params = Params
+            }),
+            {Result, Req6, State};
+        {false, Req5} ->
+            {stop, cowboy_req:reply(409, Req5), State}
+    end.
 
 
 %%--------------------------------------------------------------------
