@@ -35,8 +35,11 @@
 is_authorized(Req, _Method, #rstate{client = #client{role = admin}}) ->
     {true, Req};
 
-is_authorized(Req, _Method, #rstate{resource = hosts}) ->
-    {onepanel_user:get_by_role(admin) == [], Req};
+is_authorized(Req, 'GET', #rstate{resource = node}) ->
+    {true, Req};
+
+is_authorized(Req, 'POST', #rstate{resource = cluster}) ->
+    {service_onepanel:available_for_clustering(), Req};
 
 is_authorized(Req, _Method, _State) ->
     {false, Req}.
@@ -59,6 +62,9 @@ exists_resource(Req, _State) ->
 %% @doc {@link rest_behaviour:accept_possible/4}
 %% @end
 %%--------------------------------------------------------------------
+accept_possible(Req, _Method, _Args, #rstate{resource = cluster}) ->
+    {service_onepanel:available_for_clustering(), Req};
+
 accept_possible(Req, _Method, _Args, _State) ->
     {true, Req}.
 
@@ -70,19 +76,23 @@ accept_possible(Req, _Method, _Args, _State) ->
 -spec accept_resource(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()}.
-accept_resource(Req, 'POST', Args, #rstate{resource = hosts,
-    params = #{clusterHost := Host}}) ->
-    Ctx = #{cluster_host => onepanel_utils:convert(Host, list)},
-    Ctx2 = onepanel_maps:get_store(cookie, Args, cookie, Ctx),
+accept_resource(Req, 'POST', #{clusterHost := Host} = Args, #rstate{resource = cluster}) ->
+    Ctx = onepanel_maps:get_store(cookie, Args, cookie, #{
+        cluster_host => onepanel_utils:convert(Host, list)
+    }),
+
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, join_cluster, Ctx2
+        ?SERVICE, join_cluster, Ctx
     ))};
 
-accept_resource(Req, 'POST', Args, #rstate{resource = hosts}) ->
-    Ctx = onepanel_maps:get_store(cookie, Args, cookie),
-    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, init_cluster, Ctx
-    ))}.
+accept_resource(Req, 'POST', #{address := Address},
+    #rstate{resource = hosts, version = ApiVersion}) ->
+    {true, cowboy_req:set_resp_body(json_utils:encode(
+        rest_replier:format_service_step(service_onepanel, extend_cluster,
+            service_utils:throw_on_error(service:apply_sync(
+                ?SERVICE, extend_cluster, #{address => Address, api_version => ApiVersion}
+            )))
+    ), Req)}.
 
 
 %%--------------------------------------------------------------------
@@ -94,9 +104,10 @@ accept_resource(Req, 'POST', Args, #rstate{resource = hosts}) ->
 provide_resource(Req, #rstate{resource = cookie}) ->
     {erlang:get_cookie(), Req};
 
-provide_resource(Req, #rstate{resource = hosts, params = #{discovered := true}}) ->
-    Hosts = onepanel_discovery:get_hosts(),
-    {lists:sort(onepanel_utils:convert(Hosts, {seq, binary})), Req};
+provide_resource(Req, #rstate{resource = node}) ->
+    Hostname = onepanel_utils:convert(onepanel_cluster:node_to_host(), binary),
+    ReleaseType = onepanel_env:get(release_type),
+    {#{hostname => Hostname, componentType => ReleaseType}, Req};
 
 provide_resource(Req, #rstate{resource = hosts}) ->
     Hosts = service_onepanel:get_hosts(),

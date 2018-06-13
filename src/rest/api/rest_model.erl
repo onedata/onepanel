@@ -20,11 +20,14 @@
     cluster_ips_model/0,
     cluster_managers_model/0,
     cluster_workers_model/0,
-    cookie_model/0,
     database_hosts_model/0,
     error_model/0,
+    host_model/0,
+    host_add_request_model/0,
+    join_cluster_request_model/0,
     manager_hosts_model/0,
     modify_cluster_ips_model/0,
+    node_model/0,
     panel_configuration_model/0,
     panel_configuration_users_model/0,
     provider_cluster_configuration_model/0,
@@ -65,6 +68,7 @@
     user_create_request_model/0,
     user_details_model/0,
     user_modify_request_model/0,
+    users_model/0,
     worker_hosts_model/0,
     zone_cluster_configuration_model/0,
     zone_cluster_configuration_nodes_model/0,
@@ -154,22 +158,6 @@ cluster_workers_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The cookie is a character sequence that is common for all the cluster
-%% nodes. If this parameter is not provided, in case of a cluster initialization
-%% request, it will be generated, and in case of a cluster extension request the
-%% current cookie value will be used. However, if the cluster cookie and the
-%% cookie of the host that is about to join the cluster doesn't match there
-%% will be a connection error.
-%% @end
-%%--------------------------------------------------------------------
--spec cookie_model() -> maps:map().
-cookie_model() ->
-    #{
-        %% The cluster cookie.
-        cookie => {atom, optional}
-    }.
-
-%%--------------------------------------------------------------------
 %% @doc The cluster database service hosts configuration.
 %% @end
 %%--------------------------------------------------------------------
@@ -191,6 +179,47 @@ error_model() ->
         error => string,
         %% The detailed error description.
         description => string
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Details of a cluster host.
+%% @end
+%%--------------------------------------------------------------------
+-spec host_model() -> maps:map().
+host_model() ->
+    #{
+        %% Host's hostname.
+        hostname => string
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Details of host added to cluster
+%% @end
+%%--------------------------------------------------------------------
+-spec host_add_request_model() -> maps:map().
+host_add_request_model() ->
+    #{
+        %% Address which can be used for performing request to the host.
+        address => string
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Information allowing new host to join the cluster.
+%% @end
+%%--------------------------------------------------------------------
+-spec join_cluster_request_model() -> maps:map().
+join_cluster_request_model() ->
+    #{
+        %% Hostname of an existing cluster node.
+        clusterHost => string,
+        %% The cookie is a character sequence that is common for all the cluster
+        %% nodes. If this parameter is not provided, in case of a cluster
+        %% initialization request, it will be generated, and in case of a
+        %% cluster extension request the current cookie value will be used.
+        %% However, if the cluster cookie and the cookie of the host that is
+        %% about to join the cluster doesn't match there will be a
+        %% connection error.
+        cookie => {atom, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -219,6 +248,19 @@ modify_cluster_ips_model() ->
     #{
         %% The collection of cluster nodes associated with their IPs.
         hosts => #{'_' => string}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Details of a onepanel node.
+%% @end
+%%--------------------------------------------------------------------
+-spec node_model() -> maps:map().
+node_model() ->
+    #{
+        %% Hostname of the node.
+        hostname => string,
+        %% Type of Onedata component managed by this onepanel.
+        componentType => string
     }.
 
 %%--------------------------------------------------------------------
@@ -913,6 +955,17 @@ user_modify_request_model() ->
         currentPassword => string,
         %% The new user password.
         newPassword => string
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc List of onepanel user usernames.
+%% @end
+%%--------------------------------------------------------------------
+-spec users_model() -> maps:map().
+users_model() ->
+    #{
+        %% The list of usernames.
+        usernames => [string]
     }.
 
 %%--------------------------------------------------------------------

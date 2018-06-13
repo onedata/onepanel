@@ -15,6 +15,8 @@
 -include("modules/errors.hrl").
 -include("names.hrl").
 -include("service.hrl").
+-include("deployment_progress.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
@@ -22,7 +24,7 @@
 %% API
 -export([set_cookie/1, check_connection/1, ensure_all_hosts_available/1,
     init_cluster/1, extend_cluster/1, join_cluster/1, reset_node/1,
-    ensure_node_ready/1, reload_webcert/1, add_users/1]).
+    ensure_node_ready/1, reload_webcert/1, add_users/1, available_for_clustering/0]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -62,26 +64,19 @@ get_nodes() ->
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, #{hosts := Hosts} = Ctx) ->
-    Host = onepanel_cluster:node_to_host(),
+    SelfHost = onepanel_cluster:node_to_host(),
     ClusterHosts = get_hosts(),
     NewHosts = onepanel_lists:subtract(Hosts, ClusterHosts),
-    S = #step{hosts = [Host], verify_hosts = false},
+    Attempts = application:get_env(?APP_NAME, extend_cluster_attempts, 20),
+    [#step{
+        function = extend_cluster, hosts = [SelfHost],
+        ctx = Ctx#{hostname => NewHost, attempts => Attempts}
+    } || NewHost <- NewHosts];
+
+get_steps(extend_cluster, Ctx) ->
     [
-        #steps{action = init_cluster,
-            condition = fun(_) -> ClusterHosts =:= [] end
-        },
-        S#step{function = extend_cluster,
-            ctx = Ctx#{hosts => NewHosts},
-            condition = fun(_) ->
-                ClusterHosts /= [] andalso erlang:length(NewHosts) >= 1
-            end
-        },
-        S#step{function = extend_cluster,
-            ctx = Ctx#{hosts => lists:delete(Host, NewHosts)},
-            condition = fun(_) ->
-                ClusterHosts == [] andalso erlang:length(NewHosts) >= 2
-            end
-        }
+        #step{function = extend_cluster, hosts = [onepanel_cluster:node_to_host()],
+            ctx = Ctx#{attempts => 1}}
     ];
 
 get_steps(init_cluster, _Ctx) ->
@@ -93,11 +88,12 @@ get_steps(init_cluster, _Ctx) ->
     ];
 
 get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
-    Host = onepanel_cluster:node_to_host(),
-    case ClusterHost of
-        Host -> [];
-        _ ->
-            S = #step{hosts = [Host], verify_hosts = false},
+    SelfHost = onepanel_cluster:node_to_host(),
+    case {available_for_clustering(), ClusterHost} of
+        {_, SelfHost} -> [];
+        {false, _} -> ?throw_error(?ERR_NODE_NOT_EMPTY(SelfHost));
+        {true, _} ->
+            S = #step{hosts = [SelfHost], verify_hosts = false},
             [
                 S#step{function = set_cookie},
                 S#step{function = check_connection},
@@ -109,7 +105,16 @@ get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
 %% Removes given nodes from the current cluster, clears database on each
 %% and initalizes separate one-node clusters.
 get_steps(leave_cluster, #{hosts := Hosts}) ->
-    [#step{function = reset_node, hosts = Hosts}];
+    lists:foreach(fun(Host) ->
+        case is_used(Host) of
+            true -> ?throw_error(?ERR_NODE_NOT_EMPTY(Host));
+            false -> ok
+        end
+    end, Hosts),
+    [
+        #step{function = reset_node, hosts = Hosts},
+        #step{function = init_cluster, hosts = Hosts}
+    ];
 get_steps(leave_cluster, Ctx) ->
     get_steps(leave_cluster, Ctx#{hosts => [onepanel_cluster:node_to_host()]});
 
@@ -176,33 +181,56 @@ init_cluster(_Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Extends onepanel cluster.
+%% @doc Adds given node to the current onepanel cluster.
+%% Node can be identified by its exact erlang Hostname or
+%% by any other Address. In the second case preliminary request
+%% is made to learn proper node hostname and ensure it's built for
+%% the same application.
+%% Returns a map containing the node's Hostname.
+%% Fails if given node is already part of a cluster, including
+%% the current one.
 %% @end
 %%--------------------------------------------------------------------
--spec extend_cluster(Ctx :: service:ctx()) -> ok.
-extend_cluster(#{hosts := Hosts, auth := Auth, api_version := ApiVersion} = Ctx) ->
-    ClusterHost = onepanel_cluster:node_to_host(),
-    Port = rest_listener:port(),
-    Prefix = rest_listener:get_prefix(ApiVersion),
-    Suffix = onepanel_utils:join(["/hosts?clusterHost=", ClusterHost]),
-    Body = json_utils:encode(#{cookie => erlang:get_cookie()}),
+-spec extend_cluster(service:ctx()) -> #{hostname := binary()} | no_return().
+extend_cluster(#{attempts := Attempts}) when Attempts =< 0 ->
+    ?throw_error(?ERR_BAD_NODE);
+
+extend_cluster(#{hostname := Hostname, api_version := ApiVersion,
+    attempts := Attempts} = Ctx) ->
+    SelfHost = onepanel_cluster:node_to_host(),
+    Body = json_utils:encode(#{
+        cookie => erlang:get_cookie(),
+        clusterHost => onepanel_utils:convert(SelfHost, binary)
+    }),
+    Headers = #{<<"Content-Type">> => <<"application/json">>},
+    Suffix = "/join_cluster",
     Timeout = service_ctx:get(extend_cluster_timeout, Ctx, integer),
-    CaCerts = rest_listener:get_cert_chain_pems(),
-    Opts = [
-        {ssl_options, [{secure, only_verify_peercert}, {cacerts, CaCerts}]},
-        {connect_timeout, Timeout},
-        {recv_timeout, Timeout}
-    ],
-    lists:foreach(fun(Host) ->
-        Url = onepanel_utils:join(["https://", Host, ":", Port, Prefix, Suffix]),
-        {ok, 204, _, _} = http_client:post(
-            Url, #{
-                <<"authorization">> => Auth,
-                <<"Content-Type">> => <<"application/json">>
-            }, Body,
-            Opts
-        )
-    end, Hosts).
+    Opts = https_opts(Timeout),
+    Url = build_url(Hostname, ApiVersion, Suffix),
+
+    case http_client:post(Url, Headers, Body, Opts) of
+        {ok, 403, _, _} ->
+            ?throw_error(?ERR_NODE_NOT_EMPTY(Hostname));
+        {ok, 204, _, _} ->
+            ?info("Host '~s' added to the cluster", [Hostname]),
+            #{hostname => Hostname};
+        {error, _} ->
+            ?warning("Failed to connect with '~s' to extend cluster", [Hostname]),
+            extend_cluster(Ctx#{attempts => Attempts - 1})
+    end;
+
+extend_cluster(#{address := Address, api_version := _ApiVersion,
+    attempts := Attempts} = Ctx) ->
+    ClusterType = onepanel_env:get(release_type),
+    case get_remote_node_info(Ctx) of
+        {ok, Hostname, ClusterType} ->
+            extend_cluster(Ctx#{hostname => Hostname});
+        {ok, Hostname, OtherType} ->
+            ?throw_error(?ERR_INCOMPATIBLE_NODE(Address, OtherType));
+        #error{reason = ?ERR_BAD_NODE} ->
+            ?warning("Failed to connect with '~s' to extend cluster", [Address]),
+            extend_cluster(Ctx#{attempts => Attempts - 1})
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -234,6 +262,7 @@ reset_node(_Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc Adds users.
+%% If a user already exists its password and role are updated.
 %% @end
 %%--------------------------------------------------------------------
 -spec add_users(Ctx :: service:ctx()) -> ok.
@@ -258,8 +287,7 @@ ensure_all_hosts_available(_Ctx) ->
     Hosts = get_hosts(),
     lists:foreach(fun(Host) ->
         ok = check_connection(#{cluster_host => Host})
-    end, Hosts),
-    ok.
+    end, Hosts).
 
 
 %%--------------------------------------------------------------------
@@ -280,3 +308,94 @@ ensure_node_ready(_Ctx) ->
 -spec reload_webcert(service:ctx()) -> ok.
 reload_webcert(_Ctx) ->
     ssl:clear_pem_cache().
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Checks if current node is in a fresh state which allows it to join
+%% other cluster.
+%% @end
+%%--------------------------------------------------------------------
+available_for_clustering() ->
+    onepanel_user:get_by_role(admin) == [] andalso length(get_hosts()) =< 1
+    andalso not onepanel_deployment:is_completed(?PROGRESS_CLUSTER).
+
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Returns information about remote node. The node must be ready to join
+%% a cluster, ie. contain no configured users.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_remote_node_info(service:ctx()) ->
+    {ok, Hostname :: binary(), Application :: atom()} | #error{} | no_return().
+get_remote_node_info(#{address := Address, api_version := ApiVersion} = Ctx) ->
+    Timeout = service_ctx:get(extend_cluster_timeout, Ctx, integer),
+    Opts = https_opts(Timeout),
+    Suffix = <<"/node">>,
+    Url = build_url(Address, ApiVersion, Suffix),
+
+    Headers = #{<<"Content-Type">> => <<"application/json">>},
+
+    case http_client:get(Url, Headers, <<>>, Opts) of
+        {ok, 200, _, Body} ->
+            #{<<"hostname">> := Hostname,
+                <<"componentType">> := ReleaseType} = json_utils:decode(Body),
+            {ok, Hostname, onepanel_utils:convert(ReleaseType, atom)};
+        {error, _} -> ?make_error(?ERR_BAD_NODE)
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Builds url for given onepanel REST endpoint
+%% @end
+%%--------------------------------------------------------------------
+-spec build_url(Host :: binary() | string(), ApiVersion :: rest_handler:version(),
+    Suffix :: binary() | string()) -> binary().
+build_url(Host, ApiVersion, Suffix) ->
+    Port = rest_listener:port(),
+    Prefix = rest_listener:get_prefix(ApiVersion),
+    onepanel_utils:join(["https://", Host, ":", Port, Prefix, Suffix]).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Returns connection opts for clustering requests.
+%% @end
+%%--------------------------------------------------------------------
+-spec https_opts(Timeout :: non_neg_integer()) -> http_client:opts().
+https_opts(Timeout) ->
+    CaCerts = rest_listener:get_cert_chain_pems(),
+    [
+        {ssl_options, [{secure, only_verify_peercert}, {cacerts, CaCerts}]},
+        {connect_timeout, Timeout},
+        {recv_timeout, Timeout}
+    ].
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Checks if given host is used to run oneprovider or onezone.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_used(service:host()) -> boolean().
+is_used(Host) ->
+    ClusterType = onepanel_env:get(release_type),
+    SModule = service:get_module(ClusterType),
+    try
+        lists:member(Host, SModule:get_hosts())
+    catch
+        _:_ ->
+            % incorrect during deployment when some services are
+            % already deployed but other are not
+            false
+    end.
