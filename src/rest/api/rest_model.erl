@@ -708,7 +708,9 @@ space_details_model() ->
         %% Configuration of files popularity feature for this space
         filesPopularity => {space_files_popularity_model(), optional},
         %% Configuration of auto cleaning feature for this space
-        autoCleaning => {space_auto_cleaning_model(), optional}
+        autoCleaning => {space_auto_cleaning_model(), optional},
+        %% Amount of storage [b] used by data from given space on that storage.
+        spaceOccupancy => integer
     }.
 
 %%--------------------------------------------------------------------
@@ -792,8 +794,7 @@ storage_create_request_model() ->
 %%--------------------------------------------------------------------
 -spec storage_details_model() -> {oneof, Oneof :: list()}.
 storage_details_model() ->
-    {oneof, [posix_model(), s3_model(), ceph_model(), swift_model(),
-             glusterfs_model(), nulldevice_model()]}.
+    {oneof, [posix_model(),s3_model(),ceph_model(),swift_model(),glusterfs_model(),nulldevice_model()]}.
 
 %%--------------------------------------------------------------------
 %% @doc The storage import configuration. Storage import allows to import data
