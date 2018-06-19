@@ -35,21 +35,27 @@
     ?make_error(Reason, ?MODULE, ?FUNCTION_NAME, ?FUNCTION_ARITY, Args)).
 
 -define(make_error(Reason, Module, Function, Arity),
-    ?make_error(Module, Function, Arity, undefined)).
+    ?make_error(Reason, Module, Function, Arity, undefined)).
 
 -define(make_error(Reason, Module, Function, Arity, Args),
     onepanel_errors:create(Module, Function, Arity, Args, Reason, [], ?LINE)).
 
--define(make_stacktrace(Reason), ?make_error(Reason, undefined)).
+-define(make_stacktrace(Reason), ?make_stacktrace(Reason, undefined)).
 
 -define(make_stacktrace(Reason, Args),
-    ?make_error(Reason, ?MODULE, ?FUNCTION_NAME, ?FUNCTION_ARITY, Args)).
+    ?make_stacktrace(Reason, ?MODULE, ?FUNCTION_NAME, ?FUNCTION_ARITY, Args)).
+
+-define(make_stacktrace(Reason, Args, Stacktrace),
+    ?make_stacktrace(Reason, ?MODULE, ?FUNCTION_NAME, ?FUNCTION_ARITY, Args, Stacktrace)).
 
 -define(make_stacktrace(Reason, Module, Function, Arity),
-    ?make_error(Module, Function, Arity, undefined)).
+    ?make_stacktrace(Reason, Module, Function, Arity, undefined)).
 
 -define(make_stacktrace(Reason, Module, Function, Arity, Args),
-    onepanel_errors:create(Module, Function, Arity, Args, Reason, erlang:get_stacktrace(), ?LINE)).
+    ?make_stacktrace(Reason, Module, Function, Arity, Args, erlang:get_stacktrace())).
+
+-define(make_stacktrace(Reason, Module, Function, Arity, Args, Stacktrace),
+    onepanel_errors:create(Module, Function, Arity, Args, Reason, Stacktrace, ?LINE)).
 
 -define(throw_error(Reason), erlang:throw(?make_error(Reason))).
 
@@ -65,11 +71,17 @@
 
 -define(throw_stacktrace(Reason, Args), erlang:throw(?make_stacktrace(Reason, Args))).
 
+-define(throw_stacktrace(Reason, Args, Stacktrace),
+    erlang:throw(?make_stacktrace(Reason, Args, Stacktrace))).
+
 -define(throw_stacktrace(Reason, Module, Function, Arity),
     erlang:throw(?make_stacktrace(Reason, Module, Function, Arity))).
 
 -define(throw_stacktrace(Reason, Module, Function, Arity, Args),
     erlang:throw(?make_stacktrace(Reason, Module, Function, Arity, Args))).
+
+-define(throw_stacktrace(Reason, Module, Function, Arity, Args, Stacktrace),
+    erlang:throw(?make_stacktrace(Reason, Module, Function, Arity, Args, Stacktrace))).
 
 -define(ERR_TIMEOUT, timeout).
 -define(ERR_NOT_FOUND, not_found).

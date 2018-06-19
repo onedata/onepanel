@@ -40,7 +40,7 @@ apply(Module, Function, Args) ->
     try
         {node(), erlang:apply(Module, Function, Args)}
     catch
-        _:Reason -> {node(), ?make_error(Reason)}
+        _:Reason -> {node(), ?make_stacktrace(Reason)}
     end.
 
 

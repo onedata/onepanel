@@ -220,7 +220,7 @@ apply(Service, Action, Ctx, Notify) ->
             [Service, Action, service_utils:format_steps(Steps, "")]),
         apply_steps(Steps, Notify)
     catch
-        _:Reason -> ?make_error(Reason)
+        _:Reason -> ?make_stacktrace(Reason)
     end,
     service_utils:notify({action_end, {Service, Action, Result}}, Notify),
     Result.
