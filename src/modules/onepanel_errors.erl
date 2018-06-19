@@ -28,9 +28,6 @@
 -spec create(Module :: module(), Function :: atom(), Arity :: non_neg_integer(),
     Args :: term(), Reason :: term(), Stacktrace :: term(), Line :: non_neg_integer()) ->
     #error{}.
-create(Module, Function, Arity, Args, {badmatch, Reason}, Stacktrace, Line) ->
-    create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
-
 create(_Module, _Function, _Arity, _Args, #error{} =
     _Reason, _Stacktrace, _Line) ->
     #error{module = Module, function = Function, arity = Arity, args = Args,
