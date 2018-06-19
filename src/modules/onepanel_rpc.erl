@@ -68,20 +68,30 @@ call(Nodes, Module, Function, Args) ->
 %%--------------------------------------------------------------------
 %% @doc Evaluates in parallel ```apply(Module, Function, Args)''' on the
 %% specified nodes and collects the answers with timeout.
+%% Nodes must by a list of onepanel nodes.
 %% @end
 %%--------------------------------------------------------------------
 -spec call(Nodes :: [node()], Module :: module(), Function :: atom(),
     Args :: [term()], Timeout :: timeout()) -> Results :: results().
 call(Nodes, Module, Function, Args, Timeout) when is_list(Nodes) ->
-    {Values, BadNodes} = rpc:multicall(
+    {Values, _} = rpc:multicall(
         Nodes, ?MODULE, apply, [Module, Function, Args], Timeout
     ),
-    Results = lists:foldl(fun(BadNode, Acc) ->
-        [{BadNode, ?make_error(?ERR_BAD_NODE)} | Acc]
-    end, Values, BadNodes),
+
+    % Calling non-onepanel nodes causes badrpc error since
+    % onepanel_rpc:apply is not available on them.
+    Results = lists:filter(fun
+        ({badrpc, _}) -> false;
+        ({_Node, _Result}) -> true
+    end, Values),
+
+    BadNodes = onepanel_lists:subtract(Nodes, proplists:get_keys(Results)),
+    AllResults = Results ++
+        [{BadNode, ?make_error(?ERR_BAD_NODE)} || BadNode <- BadNodes],
+
     ?debug("Call ~p:~p(~p) on nodes ~p with timeout ~p returned ~p",
-        [Module, Function, Args, Nodes, Timeout, Results]),
-    Results.
+        [Module, Function, Args, Nodes, Timeout, AllResults]),
+    AllResults.
 
 
 %%--------------------------------------------------------------------
