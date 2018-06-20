@@ -53,7 +53,7 @@ ensure_success(Tokens) ->
         {Code, Output} ->
             ?error("Command \"~ts\" exited with code ~p and output~n\"~ts\"",
                 [tokens_to_cmd(Tokens), Code, Output]),
-            ?throw_error({Code, Output}, [Tokens])
+            ?throw_error(?ERR_CMD_FAILURE(Code, Output), [Tokens])
     end.
 
 
@@ -69,7 +69,7 @@ get_success_output(Tokens) ->
         {Code, Output} ->
             ?error("Command \"~ts\" exited with code ~p and output~n\"~ts\"",
                 [tokens_to_cmd(Tokens), Code, Output]),
-            ?throw_error({Code, Output}, [Tokens])
+            ?throw_error(?ERR_CMD_FAILURE(Code, Output), [Tokens])
     end.
 
 %%--------------------------------------------------------------------

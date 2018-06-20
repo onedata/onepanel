@@ -191,6 +191,9 @@ translate(_Type, #error{reason = {?ERR_CONFIG_AUTOCLEANING, {error, {negative_va
 translate(_Type, #error{reason = {?ERR_CONFIG_AUTOCLEANING, {error, {illegal_type, Parameter}}}}) ->
     {<<"Operation Error">>, str_utils:format_bin("Autocleaning configuration error. Illegal type for key: ~p. Should be integer.", [Parameter])};
 
+translate(_Type, #error{reason = ?ERR_CMD_FAILURE(_, _)}) ->
+    {<<"Internal Error">>, <<"Server encountered an unexpected error.">>};
+
 translate(_Type, #error{reason = {error, {Code, Error, Description}}})
     when is_integer(Code), is_binary(Error), is_binary(Description) ->
     {<<"Operation Error">>, Error};

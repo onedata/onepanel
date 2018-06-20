@@ -88,6 +88,7 @@
 -define(ERR_ALREADY_EXISTS, already_exists).
 -define(ERR_BAD_NODE, bad_node).
 -define(ERR_NIF_NOT_LOADED, nif_not_loaded).
+-define(ERR_CMD_FAILURE(Code, Output), {shell_command_failure, {Code, Output}}).
 -define(ERR_FAILURE_ON_ALL_NODES, failure_on_all_nodes).
 -define(ERR_SERVICE_STEP_NOT_FOUND, service_step_not_found).
 -define(ERR_HOST_NOT_FOUND, host_not_found).
