@@ -194,9 +194,9 @@
         {vm_args_file, "{{platform_etc_dir}}/vm.args"},
         {app_config_file, "{{platform_etc_dir}}/app.config"},
         {cmd_log_file, "{{platform_log_dir}}/cmd.log"},
-        {status_cmd, default},
-        {start_cmd, default},
-        {stop_cmd, default},
+        {onepanel_status_cmd, default},
+        {onepanel_start_cmd, default},
+        {onepanel_stop_cmd, default},
 
         {default_users, [{<<"admin">>, <<"password">>, admin}]},
 
