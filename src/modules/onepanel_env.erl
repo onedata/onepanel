@@ -30,6 +30,10 @@
 
 -export_type([key/0, keys/0, value/0]).
 
+-define(DO_NOT_MODIFY_HEADER,
+    "% MACHINE GENERATED FILE. DO NOT MODIFY.\n"
+    "% Use overlay.config for custom configuration.\n").
+
 %%%===================================================================
 %%% API functions
 %%%===================================================================
@@ -202,9 +206,6 @@ write(Keys, Value) ->
 -spec write(Keys :: keys(), Value :: value(), Path :: file:name_all()) ->
     ok | no_return().
 write(Keys, Value, Path) ->
-    Header = "% MACHINE GENERATED FILE. DO NOT MODIFY.\n"
-             "% Use overlay.config for custom configuration.\n",
-
     AppConfigs = case file:consult(Path) of
         {ok, [Configs]} -> Configs;
         _ -> []
@@ -212,7 +213,7 @@ write(Keys, Value, Path) ->
 
     NewAppConfigs = onepanel_lists:store(Keys, Value, AppConfigs),
     case file:write_file(Path, io_lib:fwrite("~s~n~p.",
-        [Header, NewAppConfigs])
+        [?DO_NOT_MODIFY_HEADER, NewAppConfigs])
     ) of
         ok -> ok;
         {error, Reason} -> ?throw_error(Reason)
