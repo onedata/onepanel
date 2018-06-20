@@ -142,9 +142,9 @@ list() ->
 %%--------------------------------------------------------------------
 -spec start(string(), maps:map(), atom()) -> ok | no_return().
 start(InitScript, SystemLimits, CustomCmdEnv) ->
-    Tokens = case onepanel_env:find(CustomCmdEnv) of
-        {ok, Cmd} -> [Cmd];
-        _ -> ["service", InitScript, "start"]
+    Tokens = case onepanel_env:get(CustomCmdEnv) of
+        default -> ["service", InitScript, "start"];
+        Cmd -> [Cmd]
     end,
     Tokens2 = maps:fold(fun
         (open_files, Value, Acc) -> ["ulimit", "-n", Value, ";" | Acc];
@@ -159,9 +159,9 @@ start(InitScript, SystemLimits, CustomCmdEnv) ->
 %%--------------------------------------------------------------------
 -spec stop(string(), atom()) -> ok | no_return().
 stop(InitScript, CustomCmdEnv) ->
-    Tokens = case onepanel_env:find(CustomCmdEnv) of
-        {ok, Cmd} -> [Cmd];
-        _ -> ["service", InitScript, "stop"]
+    Tokens = case onepanel_env:get(CustomCmdEnv) of
+        default -> ["service", InitScript, "stop"];
+        Cmd -> [Cmd]
     end,
     try
         onepanel_shell:check_call(Tokens)
@@ -178,9 +178,9 @@ stop(InitScript, CustomCmdEnv) ->
 %%--------------------------------------------------------------------
 -spec status(string(), atom()) -> running | stopped | missing.
 status(InitScript, CustomCmdEnv) ->
-    Tokens = case onepanel_env:find(CustomCmdEnv) of
-        {ok, Cmd} -> [Cmd];
-        _ -> ["service", InitScript, "status"]
+    Tokens = case onepanel_env:get(CustomCmdEnv) of
+        default -> ["service", InitScript, "status"];
+        Cmd -> [Cmd]
     end,
     case onepanel_shell:call(Tokens) of
         0 -> running;
