@@ -302,14 +302,15 @@ reload_webcert(#{name := ServiceName}) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec migrate_generated_config(service:ctx()) -> ok | no_return().
-migrate_generated_config(#{name := Name, variables := Variables}) ->
-    onepanel_env:migrate_generated_config(Name, [
-        [Name, cm_nodes],
-        [Name, db_nodes],
-        [Name, web_key_file],
-        [Name, web_cert_file],
-        [Name, web_cert_chain_file],
-        [Name, cacerts_dir],
+migrate_generated_config(#{name := ServiceName, variables := Variables}) ->
+    onepanel_env:migrate_generated_config(ServiceName, [
+        [ServiceName, cm_nodes],
+        [ServiceName, db_nodes],
+        [ServiceName, web_key_file],
+        [ServiceName, web_cert_file],
+        [ServiceName, web_cert_chain_file],
+        [ServiceName, cacerts_dir],
+        % external_ip is in the namespace of cluster_worker application
         [name(), external_ip]
         | Variables
     ]);
