@@ -21,8 +21,8 @@
 -export([get/1, get/2, find/1, find/2, set/2, set/3, set/4]).
 -export([read/2, read_effective/2, write/2, write/3, write/4]).
 -export([get_remote/3, find_remote/3, set_remote/4]).
--export([migrate_generated_config/2, legacy_config_exists/1,
-    get_config_path/2]).
+-export([migrate_generated_config/2, migrate_generated_config/3,
+    legacy_config_exists/1, get_config_path/2]).
 
 -type key() :: atom().
 -type keys() :: key() | [key()].
@@ -240,17 +240,41 @@ write(Nodes, Keys, Value, Path) ->
 -spec migrate_generated_config(service:name(), Variables :: [keys()]) ->
     ok | no_return().
 migrate_generated_config(ServiceName, Variables) ->
+    migrate_generated_config(ServiceName, Variables, false).
+
+%%--------------------------------------------------------------------
+%% @doc Copies given variables from old app.config file to the "generated"
+%% app config file. Afterwards moves the legacy file to a backup location.
+%% Variables missing from the source file are skipped.
+%% If SetInRuntime is enabled values being copied are also set
+%% in the live config.
+%% @end
+%%--------------------------------------------------------------------
+-spec migrate_generated_config(service:name(), Variables :: [keys()],
+    SetInRuntime :: boolean()) -> ok | no_return().
+migrate_generated_config(ServiceName, Variables, SetInRuntime) ->
     Src = get_config_path(ServiceName, legacy),
     Dst = get_config_path(ServiceName, generated),
     case file:consult(Src) of
         {ok, [LegacyConfigs]} ->
             ?info("Migrating app config from '~s' to '~s'", [Src, Dst]),
-            lists:foreach(fun(Variable) ->
+            Values = lists:filtermap(fun(Variable) ->
                 case onepanel_lists:get(Variable, LegacyConfigs) of
-                    {ok, Val} -> write(Variable, Val, Dst);
-                    #error{} -> ok
+                    {ok, Val} -> {true, {Variable, Val}};
+                    #error{} -> false
                 end
             end, Variables),
+
+            lists:foreach(fun({Variable, Val}) ->
+                write(Variable, Val, Dst),
+                case SetInRuntime of
+                    true ->
+                        [AppName | Key] = Variable,
+                        onepanel_env:set(Key, Val, AppName);
+                    false -> ok
+                end
+            end, Values),
+
             case file:rename(Src, [Src, ".bak"]) of
                 ok -> ok;
                 {error, Reason} -> ?throw_error(Reason, [])

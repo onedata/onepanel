@@ -48,7 +48,7 @@ start(_StartType, _StartArgs) ->
                     [onepanel, generate_test_web_cert],
                     [onepanel, test_web_cert_domain],
                     [onepanel, treat_test_ca_as_trusted]
-                ]);
+                ], true);
             false -> ok
         end,
         Supervisor = onepanel_sup:start_link(),
