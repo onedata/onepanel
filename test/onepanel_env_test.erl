@@ -37,7 +37,10 @@
 -define(VALUE_7, [
     {k8, v8}
 ]).
--define(FILE_CONTENT(X), lists:flatten(io_lib:format("~p.", [X]))).
+-define(FILE_CONTENT(X), lists:flatten(io_lib:format(
+    "% MACHINE GENERATED FILE. DO NOT MODIFY.~n"
+    "% Use overlay.config for custom configuration.~n~n"
+    "~p.", [X]))).
 
 %%%===================================================================
 %%% Test generators
@@ -163,7 +166,7 @@ write_should_replace_value(_) ->
 
 write_should_pass_errors(_) ->
     ?_assertThrow(#error{reason = enoent},
-        onepanel_env:write([a1, k1], v9, "p2")).
+        onepanel_env:write([a1, k1], v9, "/nonexistent/p2")).
 
 %%%===================================================================
 %%% Test fixtures

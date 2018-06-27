@@ -16,6 +16,7 @@
 -include("service.hrl").
 -include("modules/models.hrl").
 -include("deployment_progress.hrl").
+-include("modules/errors.hrl").
 -include_lib("hackney/include/hackney_lib.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -29,6 +30,7 @@
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
     get_nagios_response/1, get_nagios_status/1, add_storages/1, get_storages/1,
     update_storage/1, invalidate_luma_cache/1, reload_webcert/1]).
+-export([migrate_generated_config/1]).
 
 -define(INIT_SCRIPT, "op_worker").
 
@@ -109,7 +111,7 @@ get_steps(Action, Ctx) ->
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(Ctx) ->
-    AppConfigFile = service_ctx:get(op_worker_app_config_file, Ctx),
+    GeneratedConfigFile = onepanel_env:get_config_path(name(), generated),
     VmArgsFile = service_ctx:get(op_worker_vm_args_file, Ctx),
 
     case maps:get(mark_cluster_ips_configured, Ctx, false)
@@ -121,7 +123,7 @@ configure(Ctx) ->
     service_cluster_worker:configure(Ctx#{
         name => name(),
         app_config => #{},
-        app_config_file => AppConfigFile,
+        generated_config_file => GeneratedConfigFile,
         vm_args_file => VmArgsFile,
         initialize_ip => false % do not set IP until onezone is connected
     }).
@@ -333,6 +335,20 @@ get_admin_email(#{node := Node}) ->
 get_admin_email(Ctx) ->
     [Node | _] = get_nodes(),
     get_admin_email(Ctx#{node => Node}).
+
+
+%%--------------------------------------------------------------------
+%% @doc {@link onepanel_env:migrate_generated_config/2}
+%% @end
+%%--------------------------------------------------------------------
+-spec migrate_generated_config(service:ctx()) -> ok | no_return().
+migrate_generated_config(Ctx) ->
+    service_cluster_worker:migrate_generated_config(Ctx#{
+        name => name(),
+        variables => [
+            [name(), oz_domain]
+        ]
+    }).
 
 %%%===================================================================
 %%% Internal functions

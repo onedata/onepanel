@@ -145,7 +145,7 @@ get_steps(reload_webcert, _Ctx) ->
 %%--------------------------------------------------------------------
 -spec set_cookie(Ctx :: service:ctx()) -> ok | no_return().
 set_cookie(#{cookie := Cookie} = Ctx) ->
-    VmArgsFile = service_ctx:get(vm_args_file, Ctx),
+    VmArgsFile = service_ctx:get(onepanel_vm_args_file, Ctx),
     erlang:set_cookie(node(), Cookie),
     onepanel_vm:write("setcookie", Cookie, VmArgsFile);
 
