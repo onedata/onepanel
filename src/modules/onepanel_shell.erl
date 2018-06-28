@@ -30,14 +30,15 @@
 %%--------------------------------------------------------------------
 -spec execute(Tokens :: [token()]) -> {Code :: 0..255, Output :: string()}.
 execute(Tokens) ->
-    LogFile = onepanel_env:get(cmd_log_file),
-    % Wrapper adds exit code to output and tees command output to the cmd log
-    Wrapper = ["R=`"] ++ Tokens ++
-        ["2>&1`;", "echo", "-n", "$?,;", "echo", "$R", " | tee", "-a", LogFile],
+    % Wrapper adds exit code to the output
+    Wrapper = ["R=`"] ++ Tokens ++ ["2>&1`;", "echo", "-n", "$?,$R;"],
     Result = string:strip(os:cmd(tokens_to_cmd(Wrapper)), right, $\n),
 
     [CodeStr, Output] = string:split(Result, ",", leading),
     Code = erlang:list_to_integer(CodeStr),
+
+    ?debug("Command \"~ts\" exited with code ~p and output~n\"~ts\"",
+        [tokens_to_cmd(Tokens), Code, Output]),
     {Code, Output}.
 
 
