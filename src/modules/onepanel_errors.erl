@@ -29,9 +29,13 @@
     Args :: term(), Reason :: term(), Stacktrace :: term(), Line :: non_neg_integer()) ->
     #error{}.
 create(_Module, _Function, _Arity, _Args, #error{} =
-    _Reason, _Stacktrace, _Line) ->
+    _Reason, NewStacktrace, _Line) ->
     #error{module = Module, function = Function, arity = Arity, args = Args,
-        reason = Reason, stacktrace = Stacktrace, line = Line} = _Reason,
+        reason = Reason, stacktrace = OldStacktrace, line = Line} = _Reason,
+    Stacktrace = case OldStacktrace of
+        [] -> NewStacktrace;
+        _ -> OldStacktrace
+    end,
     create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
 
 create(Module, Function, Arity, Args, Reason, Stacktrace, Line) ->
