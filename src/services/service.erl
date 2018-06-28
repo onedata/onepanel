@@ -150,7 +150,8 @@ start(InitScript, SystemLimits, CustomCmdEnv) ->
         (open_files, Value, Acc) -> ["ulimit", "-n", Value, ";" | Acc];
         (_, _, Acc) -> Acc
     end, Tokens, SystemLimits),
-    onepanel_shell:check_call(Tokens2).
+    onepanel_shell:check_output(Tokens2),
+    ok.
 
 
 %%--------------------------------------------------------------------

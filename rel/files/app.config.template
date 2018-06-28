@@ -245,6 +245,7 @@
         {oz_worker_open_files_limit, 65535},
         {oz_worker_nagios_protocol, "https"},
         {oz_worker_wait_for_init_attempts, 60},
+        {oz_worker_wait_for_init_delay, 5000},
 
         {onezone_name, "example"},
         {onezone_domain, "onedata.org"},
