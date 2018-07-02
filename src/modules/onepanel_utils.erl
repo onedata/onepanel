@@ -17,7 +17,7 @@
 
 %% API
 -export([get_basic_auth_header/2]).
--export([wait_until/5, wait_until/6, save_file/2]).
+-export([wait_until/5, wait_until/6]).
 -export([gen_uuid/0, get_nif_library_file/1, join/1, join/2, trim/2]).
 -export([convert/2, get_type/1, typed_get/3, typed_get/4]).
 
@@ -90,19 +90,6 @@ wait_until(Module, Function, Args, {validator, Validator}, Attempts, Delay) ->
 
 wait_until(Module, Function, Args, Expected, Attempts, Delay) ->
     wait_until(Module, Function, Args, {equal, Expected}, Attempts, Delay).
-
-
-%%--------------------------------------------------------------------
-%% @doc Writes content of a file indicated by path. In case of an error throws
-%% an exception.
-%% @end
-%%--------------------------------------------------------------------
--spec save_file(Path :: file:name_all(), Content :: binary()) -> ok | no_return().
-save_file(Path, Content) ->
-    case file:write_file(Path, Content) of
-        ok -> ok;
-        {error, Reason} -> ?throw_error(Reason)
-    end.
 
 
 %%--------------------------------------------------------------------

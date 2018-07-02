@@ -368,11 +368,10 @@ handle_challenge(URI, Token, #flow_state{service = Service} = State) ->
 %%--------------------------------------------------------------------
 -spec poll_authorization(State :: #flow_state{}, Attempts :: non_neg_integer()) ->
     {ok, #flow_state{}} | no_return().
-poll_authorization(#flow_state{authz_uri = URI} = _State, 0) when is_binary(
-    URI) ->
+poll_authorization(#flow_state{authz_uri = URI} = State, 0) when is_binary(URI) ->
     ?error("Let's Encrypt authorization timed out"),
     ?throw_error(?ERR_LETSENCRYPT(
-        "authorization", "Let's Encrypt authorization timed out"));
+        "authorization", "Let's Encrypt authorization timed out"), [State, 0]);
 poll_authorization(#flow_state{authz_uri = URI} = State, Attempts) when is_binary(URI) ->
     {ok, #{<<"status">> := ChallengeStatus} = Body, _, State2} = http_get(URI, State),
     case ChallengeStatus of
@@ -383,7 +382,7 @@ poll_authorization(#flow_state{authz_uri = URI} = State, Attempts) when is_binar
         <<"invalid">> ->
             ?error("Let's Encrypt did not accept challenge response: ~p", [Body]),
             ?throw_error(?ERR_LETSENCRYPT_AUTHORIZATION(
-                "Let's encrypt could not authorize domain."))
+                "Let's encrypt could not authorize domain."), [State, Attempts])
     end.
 poll_authorization(#flow_state{authz_uri = URI} = State) when is_binary(URI) ->
     poll_authorization(State, ?LE_POLL_ATTEMPTS).
@@ -746,7 +745,7 @@ ensure_files_access(Paths) ->
     lists:foreach(fun(Path) ->
         case check_write_access(Path) of
             ok -> ok;
-            {error, Reason} -> ?throw_error(?ERR_FILE_ACCESS(Path, Reason))
+            {error, Reason} -> ?throw_error(?ERR_FILE_ACCESS(Path, Reason), [Paths])
         end
     end, Paths).
 

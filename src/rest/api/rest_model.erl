@@ -749,9 +749,6 @@ space_modify_request_model() ->
 -spec space_support_request_model() -> maps:map().
 space_support_request_model() ->
     #{
-        %% The space name. If this property is provided and space with given
-        %% name will be created and automatically supported by a provider.
-        name => {string, optional},
         %% The token for space creation or support.
         token => string,
         %% The storage space size in bytes that provider is willing to assign to

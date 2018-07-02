@@ -97,7 +97,7 @@ get(Key) ->
                     {ok, Session};
                 false ->
                     delete(Key),
-                    ?make_error(?ERR_NOT_FOUND, ?MODULE, get, 1, [?MODULE, Key])
+                    ?make_error(?ERR_NOT_FOUND, [Key])
             end;
         #error{} = Error ->
             Error

@@ -36,7 +36,7 @@ init() ->
     case mnesia:create_schema([Node]) of
         ok -> ok;
         {error, {Node, {already_exists, Node}}} -> ok;
-        {error, Reason} -> ?throw_error(Reason)
+        {error, Reason} -> ?throw_error(Reason, [])
     end,
     ok = mnesia:start().
 
@@ -114,7 +114,7 @@ delete_tables() ->
         case mnesia:del_table_copy(Table, node()) of
             {atomic, ok} -> ok;
             {aborted, {no_exists, _}} -> ok;
-            {aborted, Reason} -> ?throw_error(Reason)
+            {aborted, Reason} -> ?throw_error(Reason, [])
         end
     end, model:get_models()).
 

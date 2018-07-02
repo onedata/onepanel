@@ -236,11 +236,11 @@ get_by_role(Role) ->
 %%--------------------------------------------------------------------
 -spec validate_username(Username :: name()) -> ok | no_return().
 validate_username(<<>>) ->
-    ?throw_error(?ERR_INVALID_USERNAME);
+    ?throw_error(?ERR_INVALID_USERNAME, [<<>>]);
 validate_username(Username) ->
     case re:run(Username, ?USERNAME_VALIDATION_REGEXP, [{capture, none}]) of
         match -> ok;
-        _ -> ?throw_error(?ERR_INVALID_USERNAME)
+        _ -> ?throw_error(?ERR_INVALID_USERNAME, [Username])
     end.
 
 
@@ -250,7 +250,7 @@ validate_username(Username) ->
 %%--------------------------------------------------------------------
 -spec validate_password(Password :: password()) -> ok | no_return().
 validate_password(Password) when size(Password) < ?PASSWORD_MIN_LENGTH ->
-    ?throw_error(?ERR_INVALID_PASSWORD);
+    ?throw_error(?ERR_INVALID_PASSWORD, [<<>>]);
 validate_password(Password) ->
     case binary:match(Password, ?PASSWORD_FORBIDDEN_REGEXP) of
         nomatch -> ok;
@@ -265,7 +265,7 @@ validate_password(Password) ->
 -spec validate_role(Role :: term()) -> ok | no_return().
 validate_role(admin) -> ok;
 validate_role(regular) -> ok;
-validate_role(_) -> ?throw_error(?ERR_INVALID_ROLE).
+validate_role(Role) -> ?throw_error(?ERR_INVALID_ROLE, [Role]).
 
 %%%===================================================================
 %%% Internal functions

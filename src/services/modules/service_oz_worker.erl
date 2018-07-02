@@ -14,6 +14,7 @@
 -behaviour(letsencrypt_plugin_behaviour).
 
 -include("deployment_progress.hrl").
+-include("modules/errors.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% Service behaviour callbacks
@@ -26,6 +27,7 @@
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
     get_nagios_response/1, get_nagios_status/1]).
 -export([reconcile_dns/1]).
+-export([migrate_generated_config/1]).
 
 -define(INIT_SCRIPT, "oz_worker").
 
@@ -79,7 +81,7 @@ get_steps(Action, Ctx) ->
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(Ctx) ->
-    AppConfigFile = service_ctx:get(oz_worker_app_config_file, Ctx),
+    GeneratedConfigFile = onepanel_env:get_config_path(name(), generated),
     VmArgsFile = service_ctx:get(oz_worker_vm_args_file, Ctx),
     OzName = service_ctx:get(onezone_name, Ctx),
     OzDomain = service_ctx:get_domain(onezone_domain, Ctx),
@@ -93,7 +95,7 @@ configure(Ctx) ->
             oz_name => OzName,
             http_domain => OzDomain
         },
-        app_config_file => AppConfigFile,
+        generated_config_file => GeneratedConfigFile,
         vm_args_file => VmArgsFile,
         initialize_ip => true
     }).
@@ -151,7 +153,7 @@ wait_for_init(Ctx) ->
         wait_for_init_attempts => service_ctx:get(
             oz_worker_wait_for_init_attempts, Ctx, integer),
         wait_for_init_delay => service_ctx:get(
-            op_worker_wait_for_init_delay, Ctx, integer)
+            oz_worker_wait_for_init_delay, Ctx, integer)
     }).
 
 
@@ -252,6 +254,18 @@ get_admin_email(_Ctx) ->
     undefined.
 
 
+%%--------------------------------------------------------------------
+%% @doc {@link letsencrypt_plugin_behaviour:is_letsencrypt_supported/0}
+%% @end
+%%--------------------------------------------------------------------
+is_letsencrypt_supported(Ctx) ->
+    status(Ctx) == running.
+
+
+%%--------------------------------------------------------------------
+%% @doc Triggers update of dns server config in oz_worker.
+%% @end
+%%--------------------------------------------------------------------
 -spec reconcile_dns(service:ctx()) -> ok.
 reconcile_dns(#{node := Node}) ->
     ok = rpc:call(Node, node_manager_plugin, reconcile_dns_config, []);
@@ -262,5 +276,16 @@ reconcile_dns(Ctx) ->
     reconcile_dns(Ctx#{node => Node}).
 
 
-is_letsencrypt_supported(Ctx) ->
-    status(Ctx) == running.
+%%--------------------------------------------------------------------
+%% @doc {@link onepanel_env:migrate_generated_config/2}
+%% @end
+%%--------------------------------------------------------------------
+-spec migrate_generated_config(service:ctx()) -> ok | no_return().
+migrate_generated_config(Ctx) ->
+    service_cluster_worker:migrate_generated_config(Ctx#{
+        name => name(),
+        variables => [
+            [name(), http_domain],
+            [name(), oz_name]
+        ]
+    }).
