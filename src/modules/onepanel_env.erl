@@ -54,8 +54,10 @@ get(Keys) ->
 %%--------------------------------------------------------------------
 -spec get(Keys :: keys(), AppName :: atom()) -> Value :: value() | no_return().
 get(Keys, AppName) ->
-    {ok, Value} = find(Keys, AppName),
-    Value.
+    case find(Keys, AppName) of
+        {ok, Value} -> Value;
+        #error{reason = ?ERR_NOT_FOUND} -> ?throw_error(?ERR_NOT_FOUND, [Keys, AppName])
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -67,8 +69,10 @@ get(Keys, AppName) ->
 -spec get_remote(Node :: node(), Keys :: keys(), AppName :: atom()) ->
     Value :: value().
 get_remote(Node, Keys, AppName) ->
-    {ok, Value} = find_remote(Node, Keys, AppName),
-    Value.
+    case find_remote(Node, Keys, AppName) of
+        {ok, Value} -> Value;
+        #error{reason = ?ERR_NOT_FOUND} -> ?throw_error(?ERR_NOT_FOUND, [Node, Keys, AppName])
+    end.
 
 
 %%--------------------------------------------------------------------

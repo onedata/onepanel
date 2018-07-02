@@ -150,8 +150,7 @@ start(InitScript, SystemLimits, CustomCmdEnv) ->
         (open_files, Value, Acc) -> ["ulimit", "-n", Value, ";" | Acc];
         (_, _, Acc) -> Acc
     end, Tokens, SystemLimits),
-    onepanel_shell:check_output(Tokens2),
-    ok.
+    onepanel_shell:ensure_success(Tokens2).
 
 
 %%--------------------------------------------------------------------
@@ -164,10 +163,9 @@ stop(InitScript, CustomCmdEnv) ->
         {ok, Cmd} -> [Cmd];
         _ -> ["service", InitScript, "stop"]
     end,
-    try
-        onepanel_shell:check_call(Tokens)
-    catch
-        _:_ ->
+    case onepanel_shell:execute(Tokens) of
+        {0, _} -> ok;
+        _ ->
             ?warning("Failed to stop service '~s'", [InitScript]),
             ok
     end.
@@ -183,9 +181,9 @@ status(InitScript, CustomCmdEnv) ->
         {ok, Cmd} -> [Cmd];
         _ -> ["service", InitScript, "status"]
     end,
-    case onepanel_shell:call(Tokens) of
-        0 -> running;
-        127 -> missing;
+    case onepanel_shell:execute(Tokens) of
+        {0, _} -> running;
+        {127, _} -> missing;
         _ -> stopped
     end.
 
@@ -220,7 +218,7 @@ apply(Service, Action, Ctx, Notify) ->
             [Service, Action, service_utils:format_steps(Steps, "")]),
         apply_steps(Steps, Notify)
     catch
-        _:Reason -> ?make_error(Reason)
+        _:Reason -> ?make_stacktrace(Reason)
     end,
     service_utils:notify({action_end, {Service, Action, Result}}, Notify),
     Result.
