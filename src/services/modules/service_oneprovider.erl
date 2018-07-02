@@ -561,19 +561,9 @@ get_cluster_ips(Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Creates or supports space with selected storage.
+%% @doc Supports space with selected storage.
 %% @end
 %%--------------------------------------------------------------------
--spec support_space(Ctx :: service:ctx()) -> list().
-support_space(#{storage_id := StorageId, name := Name, node := Node} = Ctx) ->
-    assert_storage_exists(Node, StorageId),
-    {ok, SpaceId} = oz_providers:create_space(provider, [
-        {<<"name">>, Name},
-        {<<"size">>, onepanel_utils:typed_get(size, Ctx, binary)},
-        {<<"token">>, onepanel_utils:typed_get(token, Ctx, binary)}
-    ]),
-    support_space(Ctx, SpaceId);
-
 support_space(#{storage_id := StorageId, node := Node} = Ctx) ->
     assert_storage_exists(Node, StorageId),
     {ok, SpaceId} = oz_providers:support_space(provider, [

@@ -88,7 +88,6 @@ accept_resource(Req, 'POST', Args, #rstate{resource = provider}) ->
 
 accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
     Ctx = onepanel_maps:get_store_multiple([
-        {name, name},
         {token, token},
         {size, size},
         {storageId, storage_id},
