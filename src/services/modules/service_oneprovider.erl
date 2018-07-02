@@ -240,9 +240,9 @@ get_steps(modify_details, Ctx) ->
 
 
 get_steps(set_cluster_ips, #{hosts := Hosts} = Ctx) ->
-    AppConfigFile = service_ctx:get(op_worker_app_config_file, Ctx),
+    GeneratedConfigFile = service_ctx:get(op_worker_generated_config_file, Ctx),
     Ctx2 = Ctx#{
-        app_config_file => AppConfigFile,
+        generated_config_file => GeneratedConfigFile,
         name => ?SERVICE_OPW
     },
     [
@@ -292,9 +292,9 @@ configure(Ctx) ->
     Name = service_op_worker:name(),
     Host = onepanel_cluster:node_to_host(),
     Node = onepanel_cluster:host_to_node(Name, Host),
-    AppConfigFile = service_ctx:get(op_worker_app_config_file, Ctx),
+    GeneratedConfigFile = service_ctx:get(op_worker_generated_config_file, Ctx),
     rpc:call(Node, application, set_env, [Name, oz_domain, OzDomain]),
-    onepanel_env:write([Name, oz_domain], OzDomain, AppConfigFile).
+    onepanel_env:write([Name, oz_domain], OzDomain, GeneratedConfigFile).
 
 
 %%--------------------------------------------------------------------
@@ -561,19 +561,9 @@ get_cluster_ips(Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Creates or supports space with selected storage.
+%% @doc Supports space with selected storage.
 %% @end
 %%--------------------------------------------------------------------
--spec support_space(Ctx :: service:ctx()) -> list().
-support_space(#{storage_id := StorageId, name := Name, node := Node} = Ctx) ->
-    assert_storage_exists(Node, StorageId),
-    {ok, SpaceId} = oz_providers:create_space(provider, [
-        {<<"name">>, Name},
-        {<<"size">>, onepanel_utils:typed_get(size, Ctx, binary)},
-        {<<"token">>, onepanel_utils:typed_get(token, Ctx, binary)}
-    ]),
-    support_space(Ctx, SpaceId);
-
 support_space(#{storage_id := StorageId, node := Node} = Ctx) ->
     assert_storage_exists(Node, StorageId),
     {ok, SpaceId} = oz_providers:support_space(provider, [

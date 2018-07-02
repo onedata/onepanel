@@ -476,15 +476,15 @@ routes() ->
             }]
         }},
 
-        %% Create or support space
+        %% Support space
         {<<"/api/v3/onepanel/provider/spaces">>, rest_handler, #rstate{
             version = 3,
             module = rest_oneprovider,
             resource = spaces,
             methods = [#rmethod{
                 type = 'POST',
-                %% Specification of the space support request including name of
-                %% the space, size and support token.
+                %% Specification of the space support request including support
+                %% size and token.
                 args_spec = rest_model:space_support_request_model()
             }]
         }}

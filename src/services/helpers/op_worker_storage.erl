@@ -446,7 +446,7 @@ create_test_file(Node, Helper, UserCtx) ->
         <<_/binary>> = FileContent ->
             {FileId, FileContent};
         {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
-            ?throw_error({?ERR_STORAGE_TEST_FILE_CREATE, Node, Reason}, Stacktrace)
+            ?throw_stacktrace({?ERR_STORAGE_TEST_FILE_CREATE, Node, Reason}, undefined, Stacktrace)
     end.
 
 
@@ -467,7 +467,7 @@ read_test_file(Node, Helper, UserCtx, FileId, FileContent) ->
             ?throw_error({?ERR_STORAGE_TEST_FILE_READ, Node,
                 {invalid_content, FileContent, ActualFileContent}});
         {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
-            ?throw_error({?ERR_STORAGE_TEST_FILE_READ, Node, Reason}, Stacktrace)
+            ?throw_stacktrace({?ERR_STORAGE_TEST_FILE_READ, Node, Reason}, undefined, Stacktrace)
     end.
 
 
@@ -481,7 +481,7 @@ remove_test_file(Node, Helper, UserCtx, FileId) ->
     Args = [Helper, UserCtx, FileId],
     case rpc:call(Node, storage_detector, remove_test_file, Args) of
         {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
-            ?throw_error({?ERR_STORAGE_TEST_FILE_REMOVE, Node, Reason}, Stacktrace);
+            ?throw_stacktrace({?ERR_STORAGE_TEST_FILE_REMOVE, Node, Reason}, undefined, Stacktrace);
         _ -> ok
     end.
 

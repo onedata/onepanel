@@ -109,6 +109,6 @@ determine_ip_by_external_service() ->
 %%--------------------------------------------------------------------
 -spec determine_ip_by_shell() -> {ok, inet:ip4_address()} | {error, term()}.
 determine_ip_by_shell() ->
-    Result = onepanel_shell:check_output(["hostname", "-i"]),
+    Result = onepanel_shell:get_success_output(["hostname", "-i"]),
     parse_ip4(Result).
 

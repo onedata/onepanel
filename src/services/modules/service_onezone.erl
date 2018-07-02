@@ -163,9 +163,9 @@ get_steps(status, _Ctx) ->
     ];
 
 get_steps(set_cluster_ips, Ctx) ->
-    AppConfigFile = service_ctx:get(oz_worker_app_config_file, Ctx),
+    GeneratedConfigFile = service_ctx:get(oz_worker_generated_config_file, Ctx),
     Ctx2 = Ctx#{
-        app_config_file => AppConfigFile,
+        generated_config_file => GeneratedConfigFile,
         name => ?SERVICE_OZW
     }, [
         #steps{action = set_cluster_ips, ctx = Ctx2, service = ?SERVICE_CW},

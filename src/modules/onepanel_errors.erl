@@ -29,13 +29,14 @@
 -spec create(Module :: module(), Function :: atom(), Arity :: non_neg_integer(),
     Args :: term(), Reason :: term(), Stacktrace :: term(), Line :: non_neg_integer()) ->
     #error{}.
-create(Module, Function, Arity, Args, {badmatch, Reason}, Stacktrace, Line) ->
-    create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
-
 create(_Module, _Function, _Arity, _Args, #error{} =
-    _Reason, _Stacktrace, _Line) ->
+    _Reason, NewStacktrace, _Line) ->
     #error{module = Module, function = Function, arity = Arity, args = Args,
-        reason = Reason, stacktrace = Stacktrace, line = Line} = _Reason,
+        reason = Reason, stacktrace = OldStacktrace, line = Line} = _Reason,
+    Stacktrace = case OldStacktrace of
+        [] -> NewStacktrace;
+        _ -> OldStacktrace
+    end,
     create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
 
 create(Module, Function, Arity, Args, Reason, Stacktrace, Line) ->
@@ -206,6 +207,9 @@ translate(_Type, #error{reason = {?ERR_CONFIG_AUTOCLEANING, {error, {negative_va
 
 translate(_Type, #error{reason = {?ERR_CONFIG_AUTOCLEANING, {error, {illegal_type, Parameter}}}}) ->
     {<<"Operation Error">>, str_utils:format_bin("Autocleaning configuration error. Illegal type for key: ~p. Should be integer.", [Parameter])};
+
+translate(_Type, #error{reason = ?ERR_CMD_FAILURE(_, _)}) ->
+    {<<"Internal Error">>, <<"Server encountered an unexpected error.">>};
 
 translate(_Type, #error{reason = {error, {Code, Error, Description}}})
     when is_integer(Code), is_binary(Error), is_binary(Description) ->

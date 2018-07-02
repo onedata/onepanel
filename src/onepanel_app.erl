@@ -41,6 +41,16 @@
 start(_StartType, _StartArgs) ->
     try
         test_node_starter:maybe_start_cover(),
+        case onepanel_env:legacy_config_exists(onepanel) of
+            true ->
+                onepanel_env:migrate_generated_config(onepanel, [
+                    [onepanel, advertise_address],
+                    [onepanel, generate_test_web_cert],
+                    [onepanel, test_web_cert_domain],
+                    [onepanel, treat_test_ca_as_trusted]
+                ], true);
+            false -> ok
+        end,
         Supervisor = onepanel_sup:start_link(),
         resume_service(),
         Supervisor
