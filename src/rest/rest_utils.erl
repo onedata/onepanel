@@ -94,10 +94,10 @@ get_args(Data, ArgsSpec) ->
 -spec get_hosts(Keys :: [atom()], Args :: rest_handler:args()) ->
     Hosts :: [service:host()] | no_return().
 get_hosts(Keys, Args) ->
-    {ok, DomainName} = onepanel_maps:get([cluster, domainName], Args),
+    CommonSuffix = common_hostname_suffix(Args),
     {ok, Nodes} = onepanel_maps:get([cluster, nodes], Args),
     HostsMap = maps:fold(fun(Alias, Props, Acc) ->
-        Host = <<(maps:get(hostname, Props))/binary, ".", DomainName/binary>>,
+        Host = <<(maps:get(hostname, Props))/binary, CommonSuffix/binary>>,
         maps:put(Alias, Host, Acc)
     end, #{}, Nodes),
     {ok, Aliases} = onepanel_maps:get(Keys, Args),
@@ -121,7 +121,7 @@ get_hosts(Keys, Args) ->
 -spec get_cluster_ips(Args :: rest_handler:args()) ->
     #{service:host() => binary()} | no_return().
 get_cluster_ips(Args) ->
-    {ok, DomainName} = onepanel_maps:get([cluster, domainName], Args),
+    CommonSuffix = common_hostname_suffix(Args),
     {ok, Nodes} = onepanel_maps:get([cluster, nodes], Args),
     NodesWithIPs = maps:filter(fun(_Node, Props) ->
         maps:is_key(externalIp, Props)
@@ -130,7 +130,7 @@ get_cluster_ips(Args) ->
     maps:fold(fun(_Alias, Props, Acc) ->
         IP = maps:get(externalIp, Props),
         Host = onepanel_utils:convert(
-            <<(maps:get(hostname, Props))/binary, ".", DomainName/binary>>,
+            <<(maps:get(hostname, Props))/binary, CommonSuffix/binary>>,
             list),
         maps:put(Host, IP, Acc)
     end, #{}, NodesWithIPs).
@@ -156,4 +156,23 @@ verify_any(Keys, Args) ->
     case lists:any(fun(Key) -> maps:is_key(Key, Args) end, Keys) of
         true -> ok;
         _ -> ?throw_error({?ERR_MISSING_ANY_KEY, Keys})
+    end.
+
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Returns suffix to be appended to each node's "hostname" field
+%% to create full node hostname.
+%% @end
+%%--------------------------------------------------------------------
+-spec common_hostname_suffix(Args :: rest_handler:args()) -> binary().
+common_hostname_suffix(Args) ->
+    case onepanel_maps:get([cluster, domainName], Args, <<>>) of
+        <<>> -> <<>>;
+        DomainName -> <<".", DomainName/binary>>
     end.

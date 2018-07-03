@@ -293,7 +293,7 @@ provider_cluster_configuration_model() ->
         %% The name of a domain common for all services in the cluster. Together
         %% with a node hostname constitutes a fully qualified domain name (FQDN)
         %% of the node.
-        domainName => string,
+        domainName => {string, optional},
         %% The collection of nodes aliases associated with nodes properties.
         nodes => #{'_' => zone_cluster_configuration_nodes_model()},
         databases => cluster_databases_model(),
