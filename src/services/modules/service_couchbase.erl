@@ -156,7 +156,8 @@ wait_for_init(Ctx) ->
     onepanel_utils:wait_until(gen_tcp, connect, [Host, Port, [],
         ConnectTimeout], {validator, Validator}, ConnectAttempts),
 
-    % artifical delay until better readiness check is devised (VFS-4631)
+    % Couchbase reports healthy status before it's ready to serve requests.
+    % This delay provides additional margin of error before starting workers.
     Delay = application:get_env(onepanel, couchbase_init_delay, 0),
     timer:sleep(Delay).
 
@@ -203,16 +204,12 @@ init_cluster(Ctx) ->
         [{connect_timeout, Timeout}, {recv_timeout, Timeout}]
     ),
 
+    Cmd = [?CLI, "cluster-init", "-c", Host ++ ":" ++ Port,
+            "--cluster-init-username=" ++ User,
+            "--cluster-init-ramsize=" ++ ServerQuota],
     onepanel_shell:ensure_success(
-        [?CLI, "cluster-init", "-c", Host ++ ":" ++ Port,
-                "--cluster-init-username=" ++ User,
-                "--cluster-init-password=" ++ Password,
-                "--cluster-init-ramsize=" ++ ServerQuota],
-        [?CLI, "cluster-init", "-c", Host ++ ":" ++ Port,
-                "--cluster-init-username=" ++ User,
-                "--cluster-init-password=" ++ "*****",
-                "--cluster-init-ramsize=" ++ ServerQuota]
-    ),
+        Cmd ++ ["--cluster-init-password=" ++ Password],
+        Cmd ++ ["--cluster-init-password=*****"]),
 
     Release = onepanel_env:get(release_type),
     {ok, Buckets} = onepanel_lists:get(Release, onepanel_env:get(couchbase_buckets)),
@@ -237,17 +234,15 @@ join_cluster(#{cluster_host := ClusterHost} = Ctx) ->
     Host = onepanel_cluster:node_to_host(),
     Port = service_ctx:get(couchbase_admin_port, Ctx),
 
+    Cmd = [?CLI, "server-add", "-c",
+            ClusterHost ++ ":" ++ Port, "-u", User, "-p", Password,
+            "--server-add=" ++ Host ++ ":" ++ Port,
+            "--server-add-username=" ++ User
+    ],
     onepanel_shell:ensure_success(
-        [?CLI, "server-add", "-c",
-                ClusterHost ++ ":" ++ Port, "-u", User, "-p", Password,
-                "--server-add=" ++ Host ++ ":" ++ Port,
-                "--server-add-username=" ++ User,
-                "--server-add-password=" ++ Password],
-        [?CLI, "server-add", "-c",
-                ClusterHost ++ ":" ++ Port, "-u", User, "-p", "******",
-                "--server-add=" ++ Host ++ ":" ++ Port,
-                "--server-add-username=" ++ User,
-                "--server-add-password=" ++ "******"]),
+        Cmd ++ ["--server-add-password=" ++ Password],
+        Cmd ++ ["--server-add-password=*****"]
+    ),
 
     service:add_host(name(), Host).
 
@@ -263,11 +258,14 @@ rebalance_cluster(Ctx) ->
     Host = onepanel_cluster:node_to_host(),
     Port = service_ctx:get(couchbase_admin_port, Ctx),
 
+    Cmd = [?CLI, "rebalance", "-c", Host ++ ":" ++ Port, "-u", User],
     onepanel_shell:ensure_success(
-        [?CLI, "rebalance", "-c", Host ++ ":" ++ Port,"-u", User, "-p", Password],
-        [?CLI, "rebalance", "-c", Host ++ ":" ++ Port,"-u", User, "-p", "*****"]),
+        Cmd ++ ["-p", Password],
+        Cmd ++ ["-p", "*****"]
+    ),
 
-    % artifical delay until better readiness check is devised (VFS-4631)
+    % Couchbase reports healthy status before it's ready to serve requests.
+    % This delay provides additional margin of error before starting workers.
     Delay = application:get_env(onepanel, couchbase_init_delay, 0),
     timer:sleep(Delay).
 
@@ -284,12 +282,10 @@ rebalance_cluster(Ctx) ->
     Password :: string(), Bucket :: string(), BucketQuota :: integer()) ->
     ok | no_return().
 create_bucket(Host, Port, User, Password, Bucket, BucketQuota) ->
+    Cmd = [?CLI, "bucket-create", "-c", Host ++ ":" ++ Port,
+        "-u", User, "--bucket=" ++ Bucket,
+        "--bucket-ramsize=" ++ onepanel_utils:convert(BucketQuota, list),
+        "--bucket-eviction-policy=fullEviction", "--wait"],
     onepanel_shell:ensure_success(
-        [?CLI, "bucket-create", "-c", Host ++ ":" ++ Port,
-            "-u", User, "-p", Password, "--bucket=" ++ Bucket,
-            "--bucket-ramsize=" ++ onepanel_utils:convert(BucketQuota, list),
-            "--bucket-eviction-policy=fullEviction", "--wait"],
-        [?CLI, "bucket-create", "-c", Host ++ ":" ++ Port,
-            "-u", User, "-p", "*****", "--bucket=" ++ Bucket,
-            "--bucket-ramsize=" ++ onepanel_utils:convert(BucketQuota, list),
-            "--bucket-eviction-policy=fullEviction", "--wait"]).
+        Cmd ++ ["-p", Password],
+        Cmd ++ ["-p", "****"]).

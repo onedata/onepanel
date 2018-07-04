@@ -92,9 +92,11 @@ service_oneprovider_modify_details_test(Config) ->
     service_action(Node, oneprovider, get_details, #{
         hosts => [onepanel_cluster:node_to_host(Node)]
     }),
+
     % wait for graph sync to converge
     % (won't be necessary when modification is done via graph sync - VFS-4644)
     timer:sleep(timer:seconds(20)),
+
     Results = assert_service_step(service:get_module(oneprovider), get_details),
     [{_, Details}] = ?assertMatch([{Node, _}], Results),
     onepanel_test_utils:assert_fields(Details,

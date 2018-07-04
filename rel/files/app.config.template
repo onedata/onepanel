@@ -201,9 +201,10 @@
 
         {couchbase_init_timeout, 300000},
         {couchbase_wait_for_init_attempts, 60},
-        % artificial delay to increase chances of couchbase being ready
-        % before workers start
-        {couchbase_init_delay, 2000}, % 2 seconds
+
+        % Couchbase reports healthy status before it's ready to serve requests.
+        % This delay provides additional margin of error before starting workers.
+        {couchbase_after_init_delay, 2000}, % 2 seconds
         {couchbase_connect_attempts, 30},
         {couchbase_connect_timeout, 1000},
         {couchbase_user, "admin"},
