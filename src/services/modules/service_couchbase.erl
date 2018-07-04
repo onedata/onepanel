@@ -13,6 +13,7 @@
 -behaviour(service_behaviour).
 
 -include("modules/errors.hrl").
+-include("names.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include("modules/models.hrl").
 -include("service.hrl").
@@ -153,7 +154,11 @@ wait_for_init(Ctx) ->
     end,
 
     onepanel_utils:wait_until(gen_tcp, connect, [Host, Port, [],
-        ConnectTimeout], {validator, Validator}, ConnectAttempts).
+        ConnectTimeout], {validator, Validator}, ConnectAttempts),
+
+    % artifical delay until better readiness check is devised (VFS-4631)
+    Delay = application:get_env(onepanel, couchbase_init_delay, 0),
+    timer:sleep(Delay).
 
 
 %%--------------------------------------------------------------------
@@ -260,7 +265,11 @@ rebalance_cluster(Ctx) ->
 
     onepanel_shell:ensure_success(
         [?CLI, "rebalance", "-c", Host ++ ":" ++ Port,"-u", User, "-p", Password],
-        [?CLI, "rebalance", "-c", Host ++ ":" ++ Port,"-u", User, "-p", "*****"]).
+        [?CLI, "rebalance", "-c", Host ++ ":" ++ Port,"-u", User, "-p", "*****"]),
+
+    % artifical delay until better readiness check is devised (VFS-4631)
+    Delay = application:get_env(onepanel, couchbase_init_delay, 0),
+    timer:sleep(Delay).
 
 %%%===================================================================
 %%% Internal functions
