@@ -120,13 +120,25 @@ configure(Ctx) ->
         _ -> ok
     end,
 
-    service_cluster_worker:configure(Ctx#{
+    ok = service_cluster_worker:configure(Ctx#{
         name => name(),
         app_config => #{},
         generated_config_file => GeneratedConfigFile,
         vm_args_file => VmArgsFile,
         initialize_ip => false % do not set IP until onezone is connected
-    }).
+    }),
+
+    {ok, RecvBuffer} = onepanel_env:read_effective(
+        [rtransfer_link, transfer, recv_buffer_size], name()),
+    {ok, SendBuffer} = onepanel_env:read_effective(
+        [rtransfer_link, transfer, send_buffer_size], name()),
+    ?info("Remember to set following kernel parameters "
+        "for optimal op_worker performance:~n"
+        "sysctl -w ~s=~b~n"
+        "sysctl -w ~s=~b", [
+        "net.core.wmem_max", 2 * RecvBuffer,
+        "net.core.rmem_max", 2 * SendBuffer
+    ]).
 
 
 %%--------------------------------------------------------------------
