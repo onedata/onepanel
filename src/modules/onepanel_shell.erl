@@ -16,6 +16,7 @@
 
 %% API
 -export([execute/1, ensure_success/1, get_success_output/1]).
+-export([execute/2, ensure_success/2, get_success_output/2]).
 -export([sed/3, mktemp/0]).
 
 -type token() :: atom() | integer() | string() | binary().
@@ -25,11 +26,21 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc Evaluates the shell command and returns exit code and result.
+%% @doc @equiv execute(Tokens, Tokens)
 %% @end
 %%--------------------------------------------------------------------
 -spec execute(Tokens :: [token()]) -> {Code :: 0..255, Output :: string()}.
 execute(Tokens) ->
+    execute(Tokens, Tokens).
+
+%%--------------------------------------------------------------------
+%% @doc Evaluates the shell command and returns exit code and result.
+%% TokensToLog allows providing the command with sensitive info removed.
+%% @end
+%%--------------------------------------------------------------------
+-spec execute(Tokens :: [token()], TokensToLog :: [token()]) ->
+    {Code :: 0..255, Output :: string()}.
+execute(Tokens, TokensToLog) ->
     % Wrapper adds exit code to the output
     Wrapper = ["R=`"] ++ Tokens ++ ["2>&1`;", "echo", "-n", "$?,$R;"],
     Result = string:strip(os:cmd(tokens_to_cmd(Wrapper)), right, $\n),
@@ -38,39 +49,59 @@ execute(Tokens) ->
     Code = erlang:list_to_integer(CodeStr),
 
     ?debug("Command \"~ts\" exited with code ~p and output~n\"~ts\"",
-        [tokens_to_cmd(Tokens), Code, Output]),
+        [tokens_to_cmd(TokensToLog), Code, Output]),
     {Code, Output}.
 
 
 %%--------------------------------------------------------------------
-%% @doc Evaluates shell command and in case of an exit code different from 0,
-%% throws an exception.
+%% @doc @equiv ensure_success(Tokens, Tokens)
 %% @end
 %%--------------------------------------------------------------------
 -spec ensure_success(Tokens :: [token()]) -> ok | no_return().
 ensure_success(Tokens) ->
-    case execute(Tokens) of
+    ensure_success(Tokens, Tokens).
+
+%%--------------------------------------------------------------------
+%% @doc Evaluates shell command and in case of an exit code different from 0,
+%% throws an exception.
+%% TokensToLog allows providing the command with sensitive info removed.
+%% @end
+%%--------------------------------------------------------------------
+-spec ensure_success(Tokens :: [token()], TokensToLog :: [token()]) ->
+    ok | no_return().
+ensure_success(Tokens, TokensToLog) ->
+    case execute(Tokens, TokensToLog) of
         {0, _} -> ok;
         {Code, Output} ->
             ?error("Command \"~ts\" exited with code ~p and output~n\"~ts\"",
-                [tokens_to_cmd(Tokens), Code, Output]),
-            ?throw_error(?ERR_CMD_FAILURE(Code, Output), [Tokens])
+                [tokens_to_cmd(TokensToLog), Code, Output]),
+            ?throw_error(?ERR_CMD_FAILURE(Code, Output), [TokensToLog])
     end.
 
 
 %%--------------------------------------------------------------------
-%% @doc Evaluates shell command and returns its output.
-%% In case of an exit code different from 0 throws an exception.
+%% @doc @equiv get_success_output(Tokens, Tokens)
 %% @end
 %%--------------------------------------------------------------------
 -spec get_success_output(Tokens :: [token()]) -> string() | no_return().
 get_success_output(Tokens) ->
+    get_success_output(Tokens, Tokens).
+
+%%--------------------------------------------------------------------
+%% @doc Evaluates shell command and returns its output.
+%% In case of an exit code different from 0 throws an exception.
+%% TokensToLog allows providing the command with sensitive info removed.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_success_output(Tokens :: [token()], TokensToLog :: [token()]) ->
+    string() | no_return().
+get_success_output(Tokens, TokensToLog) ->
     case execute(Tokens) of
         {0, Output} -> Output;
         {Code, Output} ->
             ?error("Command \"~ts\" exited with code ~p and output~n\"~ts\"",
-                [tokens_to_cmd(Tokens), Code, Output]),
-            ?throw_error(?ERR_CMD_FAILURE(Code, Output), [Tokens])
+                [tokens_to_cmd(TokensToLog), Code, Output]),
+            ?throw_error(?ERR_CMD_FAILURE(Code, Output), [TokensToLog])
     end.
 
 %%--------------------------------------------------------------------
