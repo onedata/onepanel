@@ -65,6 +65,9 @@
     user_create_request_model/0,
     user_details_model/0,
     user_modify_request_model/0,
+    web_cert_model/0,
+    web_cert_modify_request_model/0,
+    web_cert_paths_model/0,
     worker_hosts_model/0,
     zone_cluster_configuration_model/0,
     zone_cluster_configuration_nodes_model/0,
@@ -395,8 +398,7 @@ provider_modify_request_model() ->
         subdomainDelegation => {boolean, optional},
         %% If enabled the provider will use Let's Encrypt service to obtain
         %% SSL certificates. Otherwise certificates must be manually provided.
-        %% This option cannot be enabled is subdomainDelegation is disabled. By
-        %% enabling this option you agree to the Let's Encrypt Subscriber
+        %% By enabling this option you agree to the Let's Encrypt Subscriber
         %% Agreement.
         letsEncryptEnabled => {boolean, optional},
         %% Unique subdomain in onezone's domain for the provider. This
@@ -915,6 +917,68 @@ user_modify_request_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc The SSL certificate details.
+%% @end
+%%--------------------------------------------------------------------
+-spec web_cert_model() -> maps:map().
+web_cert_model() ->
+    #{
+        %% If true, the certificate is obtained from Let's Encrypt service
+        %% and renewed automatically. Otherwise, the certificate management is
+        %% up to the administrator.
+        letsEncrypt => boolean,
+        %% Installed certificate's expiration time in ISO 8601 format.
+        expirationTime => string,
+        %% Installed certificate's creation time in ISO 8601 format.
+        creationTime => string,
+        %% Describes certificate validity status.
+        status => string,
+        paths => {web_cert_paths_model(), optional},
+        %% The domain (Common Name) for which current certificate was issued.
+        domain => string,
+        %% Issuer value of the current certificate.
+        issuer => string,
+        %% Date and time in ISO 8601 format. Represents last sucesfful attempt
+        %% to obtain certificate from Let's Encrypt. If there are no
+        %% successful attempts its value is null. This property is omitted if
+        %% letsEncrypt is off.
+        lastRenewalSuccess => {string, optional},
+        %% Date and time in ISO 8601 format. Represents last unsucesfful attempt
+        %% to obtain certificate from Let's Encrypt. If there are no
+        %% successful attempts its value is null. This property is omitted if
+        %% letsEncrypt is off.
+        lastRenewalFailure => {string, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The SSL certificate configuration details that can be modified.
+%% @end
+%%--------------------------------------------------------------------
+-spec web_cert_modify_request_model() -> maps:map().
+web_cert_modify_request_model() ->
+    #{
+        %% If enabled Let's Encrypt service will be used to obtain SSL
+        %% certificates and renew them before expiration. Otherwise certificates
+        %% must be manually provided.
+        letsEncrypt => boolean
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Paths to certificate-related files.
+%% @end
+%%--------------------------------------------------------------------
+-spec web_cert_paths_model() -> maps:map().
+web_cert_paths_model() ->
+    #{
+        %% Path to the certificate PEM file.
+        cert => string,
+        %% Path to the corresponding private key PEM file.
+        key => string,
+        %% Path to the file containing certificate chain.
+        chain => string
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The cluster worker service hosts configuration.
 %% @end
 %%--------------------------------------------------------------------
@@ -982,6 +1046,8 @@ zone_configuration_details_model() ->
 -spec zone_configuration_details_onezone_model() -> maps:map().
 zone_configuration_details_onezone_model() ->
     #{
+        %% Onezone's domain.
+        domainName => string,
         %% The name of a zone.
         name => string,
         %% True if all steps of cluster deployment and configuration have been
@@ -999,7 +1065,12 @@ zone_configuration_onezone_model() ->
         %% The name of a HTTP domain.
         domainName => {string, optional},
         %% The name of a zone.
-        name => {string, optional}
+        name => {string, optional},
+        %% If enabled the zone will use Let's Encrypt service to obtain SSL
+        %% certificates. Otherwise certificates must be manually provided. By
+        %% enabling this option you agree to the Let's Encrypt Subscriber
+        %% Agreement.
+        letsEncryptEnabled => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------

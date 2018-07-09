@@ -126,6 +126,16 @@ routes() ->
             }]
         }},
 
+        %% Get information about SSL certificates configuration and status.
+        {<<"/api/v3/onepanel/web_cert">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel,
+            resource = web_cert,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
         %% Modify Onepanel user details
         {<<"/api/v3/onepanel/users/:username">>, rest_handler, #rstate{
             version = 3,
@@ -134,6 +144,19 @@ routes() ->
             methods = [#rmethod{
                 type = 'PATCH',
                 args_spec = rest_model:user_modify_request_model()
+            }]
+        }},
+
+        %% Modify SSL certificate configuration
+        {<<"/api/v3/onepanel/web_cert">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel,
+            resource = web_cert,
+            methods = [#rmethod{
+                type = 'PATCH',
+                %% New values for certificate configuration parameters which
+                %% should be changed.
+                args_spec = rest_model:web_cert_modify_request_model()
             }]
         }},
 

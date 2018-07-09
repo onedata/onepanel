@@ -159,7 +159,7 @@ maybe_generate_web_cert() ->
             ok;
         true ->
             % Back up any pre-existing certs
-            onepanel_ssl:backup_exisiting_certs(),
+            onepanel_cert:backup_exisiting_certs(),
             % Both key and cert are expected in the same file
             CAPath = onepanel_env:get(test_web_cert_ca_path),
             Domain = onepanel_env:get(test_web_cert_domain),

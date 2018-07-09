@@ -20,6 +20,7 @@
     accept_resource/4, provide_resource/2, delete_resource/2]).
 
 -define(SERVICE, service_onepanel:name()).
+-define(LE_SERVICE, service_letsencrypt:name()).
 
 %%%===================================================================
 %%% REST behaviour callbacks
@@ -50,6 +51,9 @@ is_authorized(Req, _Method, _State) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
 exists_resource(Req, #rstate{resource = host, bindings = #{host := Host}}) ->
     {lists:member(Host, service_onepanel:get_hosts()), Req};
+
+exists_resource(Req, #rstate{resource = web_cert}) ->
+    {model:exists(service) andalso service:exists(service_letsencrypt:name()), Req};
 
 exists_resource(Req, _State) ->
     {true, Req}.
@@ -82,6 +86,12 @@ accept_resource(Req, 'POST', Args, #rstate{resource = hosts}) ->
     Ctx = onepanel_maps:get_store(cookie, Args, cookie),
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?SERVICE, init_cluster, Ctx
+    ))};
+
+accept_resource(Req, 'PATCH', Args, #rstate{resource = web_cert}) ->
+    Ctx = onepanel_maps:get_store(letsEncrypt, Args, letsencrypt_enabled),
+    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
+        ?LE_SERVICE, update, Ctx
     ))}.
 
 
@@ -100,7 +110,14 @@ provide_resource(Req, #rstate{resource = hosts, params = #{discovered := true}})
 
 provide_resource(Req, #rstate{resource = hosts}) ->
     Hosts = service_onepanel:get_hosts(),
-    {lists:sort(onepanel_utils:convert(Hosts, {seq, binary})), Req}.
+    {lists:sort(onepanel_utils:convert(Hosts, {seq, binary})), Req};
+
+provide_resource(Req, #rstate{resource = web_cert}) ->
+    {rest_replier:format_service_step(service_letsencrypt, get_details,
+        service_utils:throw_on_error(service:apply_sync(
+            ?LE_SERVICE, get_details, #{}
+        ))
+    ), Req}.
 
 
 %%--------------------------------------------------------------------
