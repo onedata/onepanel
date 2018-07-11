@@ -248,9 +248,9 @@ panel_configuration_users_model() ->
 -spec provider_cluster_configuration_model() -> maps:map().
 provider_cluster_configuration_model() ->
     #{
-        %% The name of a domain common for all services in the cluster. Together
-        %% with a node hostname constitutes a fully qualified domain name (FQDN)
-        %% of the node.
+        %% Hostname suffix common for all services in the cluster. Together with
+        %% a node hostname constitutes a fully qualified domain name (FQDN) of
+        %% the node. May be skipped to allow unrelated hostnames for each node.
         domainName => {string, optional},
         %% The collection of nodes aliases associated with nodes properties.
         nodes => #{'_' => zone_cluster_configuration_nodes_model()},
@@ -931,9 +931,10 @@ worker_hosts_model() ->
 -spec zone_cluster_configuration_model() -> maps:map().
 zone_cluster_configuration_model() ->
     #{
-        %% The name of a domain common for all services in the cluster. Together
-        %% with a node hostname constitute a node fully qualified domain name.
-        domainName => string,
+        %% Hostname suffix common for all services in the cluster. Together with
+        %% a node hostname constitutes a fully qualified domain name (FQDN) of
+        %% the node. May be skipped to allow unrelated hostnames for each node.
+        domainName => {string, optional},
         %% The collection of nodes aliases associated with nodes properties.
         nodes => #{'_' => zone_cluster_configuration_nodes_model()},
         databases => cluster_databases_model(),
