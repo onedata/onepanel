@@ -59,7 +59,7 @@ seed() ->
             create(Username, Password, Role)
         catch
             #error{reason = ?ERR_USERNAME_NOT_AVAILABLE} -> ok;
-            #error{} = Error -> ?throw_error(Error)
+            #error{} = Error -> ?throw_stacktrace(Error, [])
         end
     end, onepanel_env:get(default_users)).
 
@@ -242,11 +242,11 @@ get_by_role(Role) ->
 %%--------------------------------------------------------------------
 -spec validate_username(Username :: name()) -> ok | no_return().
 validate_username(<<>>) ->
-    ?throw_error(?ERR_INVALID_USERNAME);
+    ?throw_error(?ERR_INVALID_USERNAME, [<<>>]);
 validate_username(Username) ->
     case binary:match(Username, <<":">>) of
         nomatch -> ok;
-        _ -> ?throw_error(?ERR_INVALID_USERNAME)
+        _ -> ?throw_error(?ERR_INVALID_USERNAME, [Username])
     end.
 
 
@@ -255,7 +255,7 @@ validate_username(Username) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec validate_password(Password :: password()) -> ok | no_return().
-validate_password(<<>>) -> ?throw_error(?ERR_INVALID_PASSWORD);
+validate_password(<<>>) -> ?throw_error(?ERR_INVALID_PASSWORD, [<<>>]);
 validate_password(_) -> ok.
 
 
@@ -266,7 +266,7 @@ validate_password(_) -> ok.
 -spec validate_role(Role :: term()) -> ok | no_return().
 validate_role(admin) -> ok;
 validate_role(regular) -> ok;
-validate_role(_) -> ?throw_error(?ERR_INVALID_ROLE).
+validate_role(Role) -> ?throw_error(?ERR_INVALID_ROLE, [Role]).
 
 %%%===================================================================
 %%% Internal functions

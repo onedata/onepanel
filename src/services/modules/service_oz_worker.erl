@@ -153,7 +153,7 @@ wait_for_init(Ctx) ->
         wait_for_init_attempts => service_ctx:get(
             oz_worker_wait_for_init_attempts, Ctx, integer),
         wait_for_init_delay => service_ctx:get(
-            op_worker_wait_for_init_delay, Ctx, integer)
+            oz_worker_wait_for_init_delay, Ctx, integer)
     }).
 
 

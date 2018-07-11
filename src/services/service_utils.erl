@@ -254,10 +254,14 @@ log({step_end, {Module, Function, {_, Errors}}}) ->
     Stacktrace :: term().
 format_errors([], Log) ->
     Log;
-format_errors([{Node, #error{reason = Reason, stacktrace = []}} | Errors], Log) ->
-    Error = io_lib:format("Node: ~p~nReason: ~p~n", [Node, Reason]),
+format_errors([{Node, #error{module = Module, function = Function, arity = Arity,
+    args = Args, reason = Reason, stacktrace = [], line = Line}} | Errors], Log) ->
+    Error = io_lib:format("Node: ~p~nFunction: ~p:~p/~p~nArgs: ~p~nReason: ~p~nLine: ~p~n",
+        [Node, Module, Function, Arity, Args, Reason, Line]),
     format_errors(Errors, Log ++ Error);
-format_errors([{Node, #error{reason = Reason, stacktrace = Stacktrace}} | Errors], Log) ->
-    Error = io_lib:format("Node: ~p~nReason: ~p~nStacktrace: ~p~n",
-        [Node, Reason, Stacktrace]),
+format_errors([{Node, #error{module = Module, function = Function, arity = Arity,
+    args = Args, reason = Reason, stacktrace = Stacktrace, line = Line}} | Errors], Log) ->
+    Error = io_lib:format("Node: ~p~nFunction: ~p:~p/~p~nArgs: ~p~nReason: ~p~n"
+        "Stacktrace: ~p~nLine: ~p~n",
+        [Node, Module, Function, Arity, Args, Reason, Stacktrace, Line]),
     format_errors(Errors, Log ++ Error).

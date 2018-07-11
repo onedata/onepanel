@@ -94,7 +94,7 @@ receive_results(TaskId, Timeout) ->
     receive
         {task, TaskId, Result} -> Result
     after
-        Timeout -> ?make_error(?ERR_TIMEOUT)
+        Timeout -> ?make_error(?ERR_TIMEOUT, [TaskId, Timeout])
     end.
 
 %%%===================================================================

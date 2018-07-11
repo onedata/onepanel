@@ -251,7 +251,7 @@ provider_cluster_configuration_model() ->
         %% The name of a domain common for all services in the cluster. Together
         %% with a node hostname constitutes a fully qualified domain name (FQDN)
         %% of the node.
-        domainName => string,
+        domainName => {string, optional},
         %% The collection of nodes aliases associated with nodes properties.
         nodes => #{'_' => zone_cluster_configuration_nodes_model()},
         databases => cluster_databases_model(),
@@ -707,9 +707,6 @@ space_modify_request_model() ->
 -spec space_support_request_model() -> maps:map().
 space_support_request_model() ->
     #{
-        %% The space name. If this property is provided and space with given
-        %% name will be created and automatically supported by a provider.
-        name => {string, optional},
         %% The token for space creation or support.
         token => string,
         %% The storage space size in bytes that provider is willing to assign to

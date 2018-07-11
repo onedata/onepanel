@@ -4,6 +4,29 @@
 CHANGELOG
 ---------
 
+### 18.02.0-rc9
+
+* VFS-4532 Include command output in error reason on service start failure
+* VFS-4532 Use separate variable for oz_worker init delay
+* VFS-4532 Use migrated app config values in runtime
+* Updating GUI, including: VFS-4559-fix-actions-display-in-onepanel * VFS-4559 Fixed global actions display in mobile view
+* VFS-4532 Update node_package vars for all platforms
+* VFS-4532 Use separate config files for generated config
+* Updating GUI, including: VFS-4587 * VFS-4587 Fixing lack of space occupancy bar by updating onepanel client
+* VFs-4586 Updated rest model with space occupancy field from swagger
+* VFS-4560 Detect existing Let's Encrypt certificates
+* VFS-4570 Fix endpoints for leaving cluster and querying nagios
+* VFS-4367 Add rest callback accept_possible
+* VFS-4367 Refactor oneprovider rest to use batch argument copying
+* Updating GUI, including: VFS-4424 * VFS-4424 Improved sidebar content presentation and animation
+* VFS-4504 Set min and max port for distributed erlang
+
+
+### 18.02.0-rc8
+
+* Releasing new version 18.02.0-rc8
+
+
 ### 18.02.0-rc7
 
 * VFS-4474 Describe recovery from the subdomain not available error
