@@ -158,7 +158,7 @@ service_op_worker_add_storage_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
     {ok, Posix} = onepanel_lists:get([storages, posix, '/mnt/st2'], Config),
     {ok, Ceph} = onepanel_lists:get([storages, ceph, someCeph], Config),
-    %{ok, CephRados} = onepanel_lists:get([storages, cephrados, someCephRados], Config),
+    {ok, CephRados} = onepanel_lists:get([storages, cephrados, someCephRados], Config),
     {ok, S3} = onepanel_lists:get([storages, s3, someS3], Config),
     {ok, Swift} = onepanel_lists:get([storages, swift, someSwift], Config),
     {ok, Glusterfs} = onepanel_lists:get([storages, glusterfs, someGlusterfs], Config),
