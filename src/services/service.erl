@@ -143,7 +143,7 @@ list() ->
 -spec start(string(), maps:map(), atom()) -> ok | no_return().
 start(InitScript, SystemLimits, CustomCmdEnv) ->
     Tokens = case onepanel_env:find(CustomCmdEnv) of
-        {ok, Cmd} -> [Cmd];
+        {ok, Cmd} when is_list(Cmd) -> [Cmd];
         _ -> ["service", InitScript, "start"]
     end,
     Tokens2 = maps:fold(fun
@@ -160,7 +160,7 @@ start(InitScript, SystemLimits, CustomCmdEnv) ->
 -spec stop(string(), atom()) -> ok | no_return().
 stop(InitScript, CustomCmdEnv) ->
     Tokens = case onepanel_env:find(CustomCmdEnv) of
-        {ok, Cmd} -> [Cmd];
+        {ok, Cmd} when is_list(Cmd) -> [Cmd];
         _ -> ["service", InitScript, "stop"]
     end,
     case onepanel_shell:execute(Tokens) of
@@ -178,7 +178,7 @@ stop(InitScript, CustomCmdEnv) ->
 -spec status(string(), atom()) -> running | stopped | missing.
 status(InitScript, CustomCmdEnv) ->
     Tokens = case onepanel_env:find(CustomCmdEnv) of
-        {ok, Cmd} -> [Cmd];
+        {ok, Cmd} when is_list(Cmd) -> [Cmd];
         _ -> ["service", InitScript, "status"]
     end,
     case onepanel_shell:execute(Tokens) of
