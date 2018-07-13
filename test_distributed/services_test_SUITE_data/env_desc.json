@@ -25,6 +25,12 @@
           "storagePathType": "flat"
         },
         {
+          "type": "cephrados",
+          "name": "someCephRados",
+          "pool": "onedata:8",
+          "storagePathType": "flat"
+        },
+        {
           "type": "s3",
           "name": "someS3",
           "bucket": "onedata",
@@ -77,7 +83,7 @@
     },
     "oneprovider": {
       "os_config": "cfg1",
-      "image": "docker.onedata.org/oneprovider-dev:develop",
+      "image": "docker.onedata.org/oneprovider-dev:ID-f7dd414aee",
       "onepanel": {
         "node1": {
           "vm.args": {

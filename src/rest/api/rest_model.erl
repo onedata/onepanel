@@ -73,6 +73,7 @@
     zone_configuration_details_onezone_model/0,
     zone_configuration_onezone_model/0,
     ceph_model/0,
+    cephrados_model/0,
     glusterfs_model/0,
     nulldevice_model/0,
     posix_model/0,
@@ -749,7 +750,7 @@ storage_create_request_model() ->
 %%--------------------------------------------------------------------
 -spec storage_details_model() -> {oneof, Oneof :: list()}.
 storage_details_model() ->
-    {oneof, [posix_model(),s3_model(),ceph_model(),swift_model(),glusterfs_model(),nulldevice_model()]}.
+    {oneof, [posix_model(),s3_model(),ceph_model(),cephrados_model(),swift_model(),glusterfs_model(),nulldevice_model()]}.
 
 %%--------------------------------------------------------------------
 %% @doc The storage import configuration. Storage import allows to import data
@@ -1002,7 +1003,7 @@ zone_configuration_onezone_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The Ceph storage configuration.
+%% @doc The Ceph storage configuration (uses libradosstriper).
 %% @end
 %%--------------------------------------------------------------------
 -spec ceph_model() -> maps:map().
@@ -1039,6 +1040,55 @@ ceph_model() ->
         poolName => string,
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
+        %% Determines how the logical file paths will be mapped on the storage.
+        %% 'canonical' paths reflect the logical file names and
+        %% directory structure, however each rename operation will require
+        %% renaming the files on the storage. 'flat' paths are based on
+        %% unique file UUID's and do not require on-storage rename when
+        %% logical file name is changed.
+        storagePathType => {string, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The Ceph storage configuration (uses librados).
+%% @end
+%%--------------------------------------------------------------------
+-spec cephrados_model() -> maps:map().
+cephrados_model() ->
+    #{
+        %% The ID of storage.
+        id => {string, optional},
+        %% The name of storage.
+        name => {string, optional},
+        %% Defines whether storage administrator credentials (username and key)
+        %% may be used by users without storage accounts to access storage in
+        %% direct IO mode.
+        insecure => {boolean, optional},
+        %% Defines whether storage is readonly.
+        readonly => {boolean, optional},
+        %% The type of storage.
+        type => {equal, <<"cephrados">>},
+        %% If true LUMA and reverse LUMA services will be enabled.
+        lumaEnabled => {boolean, optional},
+        %% URL of external LUMA service
+        lumaUrl => {string, optional},
+        %% LUMA API Key, must be identical with API Key in external LUMA
+        %% service.
+        lumaApiKey => {string, optional},
+        %% The username of the Ceph cluster administrator.
+        username => string,
+        %% The admin key to access the Ceph cluster.
+        key => string,
+        %% The monitor host name.
+        monitorHostname => string,
+        %% The Ceph cluster name.
+        clusterName => string,
+        %% The Ceph pool name.
+        poolName => string,
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
+        %% Storage block size in bytes.
+        blockSize => {integer, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
