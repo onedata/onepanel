@@ -195,11 +195,11 @@ routes() ->
             resource = space_auto_cleaning_report_collection,
             methods = [#rmethod{
                 type = 'GET',
-            params_spec = #{
-                        %% Fetch only reports that started after this date
-                        %% (ISO-8601)
-                        started_after => string
-            }
+                params_spec = #{
+                    %% Fetch only reports that started after this date (ISO
+                    %% 8601)
+                    started_after => string
+                }
             }]
         }},
 
@@ -220,14 +220,14 @@ routes() ->
             resource = space_sync_stats,
             methods = [#rmethod{
                 type = 'GET',
-            params_spec = #{
-                %% Predefined time period for which the statistics
-                %% should be fetched
-                period => {string, optional},
-                %% Specify which statistic metrics should be returned -
-                %% strings delimited with comma
-                metrics => {string, optional}
-            }
+                params_spec = #{
+                    %% Predefined time period for which the statistics
+                    %% should be fetched
+                    period => {string, optional},
+                    %% Specify which statistic metrics should be returned -
+                    %% strings delimited with comma
+                    metrics => {string, optional}
+                }
             }]
         }},
 
@@ -291,7 +291,7 @@ routes() ->
             }]
         }},
 
-        %% Invalidates LUMA cache
+        %% Invalidate LUMA cache
         {<<"/api/v3/onepanel/provider/storages/:id/invalidate_luma">>, rest_handler, #rstate{
             version = 3,
             module = rest_service,
@@ -388,9 +388,9 @@ routes() ->
             methods = [#rmethod{
                 type = 'PATCH',
                 params_spec = #{
-                    %% Defines the intended state of the database service. The
-                    %% service will be started or stopped in order to match the
-                    %% requested state.
+                    %% Defines the intended state of the database service.
+                    %% The service will be started or stopped in order to
+                    %% match the requested state.
                     started => {boolean, {optional, true}}
                 }
             }]
@@ -404,9 +404,9 @@ routes() ->
             methods = [#rmethod{
                 type = 'PATCH',
                 params_spec = #{
-                    %% Defines the intended state of the database service. The
-                    %% service will be started or stopped in order to match the
-                    %% requested state.
+                    %% Defines the intended state of the database service.
+                    %% The service will be started or stopped in order to
+                    %% match the requested state.
                     started => {boolean, {optional, true}}
                 }
             }]
@@ -421,8 +421,8 @@ routes() ->
                 type = 'PATCH',
                 params_spec = #{
                     %% Defines the intended state of the cluster manager
-                    %% service. The service  will be started or stopped in order
-                    %% to match the requested state.
+                    %% service. The service will be started or stopped in
+                    %% order to match the requested state.
                     started => {boolean, {optional, true}}
                 }
             }]
@@ -437,8 +437,8 @@ routes() ->
                 type = 'PATCH',
                 params_spec = #{
                     %% Defines the intended state of the cluster manager
-                    %% service. The service will be started or stopped in order
-                    %% to match the requested state.
+                    %% service. The service will be started or stopped in
+                    %% order to match the requested state.
                     started => {boolean, {optional, true}}
                 }
             }]
@@ -452,9 +452,9 @@ routes() ->
             methods = [#rmethod{
                 type = 'PATCH',
                 params_spec = #{
-                    %% Defines the intended state of the cluster worker service.
-                    %% The service will  be started or stopped in order to match
-                    %% the requested state.
+                    %% Defines the intended state of the cluster worker
+                    %% service. The service will be started or stopped in
+                    %% order to match the requested state.
                     started => {boolean, {optional, true}}
                 }
             }]
@@ -468,9 +468,9 @@ routes() ->
             methods = [#rmethod{
                 type = 'PATCH',
                 params_spec = #{
-                    %% Defines the intended state of the cluster worker service.
-                    %% The service  will be started or stopped in order to match
-                    %% the requested state.
+                    %% Defines the intended state of the cluster worker
+                    %% service. The service will be started or stopped in
+                    %% order to match the requested state.
                     started => {boolean, {optional, true}}
                 }
             }]

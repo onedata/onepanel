@@ -369,10 +369,6 @@ provider_details_model() ->
         %% The fully qualified domain name of the provider or its IP address
         %% (only for single-node deployments or clusters with a reverse proxy).
         domain => string,
-        %% If enabled the provider will use Let's Encrypt service to obtain
-        %% SSL certificates. Otherwise certificates must be manually provided.
-        %% This option cannot be enabled if subdomainDelegation is false.
-        letsEncryptEnabled => {boolean, optional},
         %% Email address of the oneprovider administrator.
         adminEmail => string,
         %% The geographical longitude of the provider.
@@ -396,11 +392,6 @@ provider_modify_request_model() ->
         %% onezone's domain and 'subdomain' property must be
         %% provided. If disabled, 'domain' property should be provided.
         subdomainDelegation => {boolean, optional},
-        %% If enabled the provider will use Let's Encrypt service to obtain
-        %% SSL certificates. Otherwise certificates must be manually provided.
-        %% By enabling this option you agree to the Let's Encrypt Subscriber
-        %% Agreement.
-        letsEncryptEnabled => {boolean, optional},
         %% Unique subdomain in onezone's domain for the provider. This
         %% property is required only if subdomain delegation is enabled.
         %% Otherwise it is ignored.
@@ -938,15 +929,13 @@ web_cert_model() ->
         domain => string,
         %% Issuer value of the current certificate.
         issuer => string,
-        %% Date and time in ISO 8601 format. Represents last sucesfful attempt
-        %% to obtain certificate from Let's Encrypt. If there are no
-        %% successful attempts its value is null. This property is omitted if
-        %% letsEncrypt is off.
+        %% Date and time in ISO 8601 format. Represents last successful
+        %% Let's Encrypt certification. If there are no successful attempts
+        %% its value is null. This property is omitted if letsEncrypt is off.
         lastRenewalSuccess => {string, optional},
-        %% Date and time in ISO 8601 format. Represents last unsucesfful attempt
-        %% to obtain certificate from Let's Encrypt. If there are no
-        %% successful attempts its value is null. This property is omitted if
-        %% letsEncrypt is off.
+        %% Date and time in ISO 8601 format. Represents last unsuccessful
+        %% Let's Encrypt certification. If there are no successful attempts
+        %% its value is null. This property is omitted if letsEncrypt is off.
         lastRenewalFailure => {string, optional}
     }.
 
