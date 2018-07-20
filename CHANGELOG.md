@@ -4,6 +4,28 @@
 CHANGELOG
 ---------
 
+### 18.02.0-rc10
+
+* Updating GUI, including: VFS-4677-cephrados * VFS-4677 Added Ceph RADOS storage support
+* Updating GUI, including: VFS-4463-show-storage-id, VFS-4233-use-submodules * VFS-4463 Showing storage ID on storages view * VFS-4233 Using submodules for own libs on separate repos
+* VFS-4656 Added cephrados helper
+* Updating GUI, including: VFS-4629-fix-translations * VFS-4463 Showing storage ID on storages view
+* VFS-4634 Import missing API config to make domainName optional
+* VFS-4529 Display log about correct kernel settings for rtransfer
+* VFS-4631 Introduce artificial delay in couchbase startup
+* VFS-4631 Remove password from couchbase CLI logs
+* VFS-4634 Allow empty domainName in cluster configuration
+* VFS-4203 Remove implicit space creation on support
+* VFS-4474 Print verbose logs on steps error
+* VFS-4474 Throw clear error on onepanel_env:get failure
+* VFS-4474 Do not write command output to cmd.log
+* VFS-4474 Create error type for shell failures
+* VFS-4474 Log output of failed shell commands
+* VFS-4474 Detect calling non-onepanel nodes with onepanel_rpc
+* VFS-4491 Allow custom command env variable to be missing
+* VFS-4491 Added entries for start/stop/status command in app config
+
+
 ### 18.02.0-rc9
 
 * VFS-4532 Include command output in error reason on service start failure
