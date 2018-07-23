@@ -182,12 +182,12 @@ init_cluster(_Ctx) ->
 -spec extend_cluster(Ctx :: service:ctx()) -> ok.
 extend_cluster(#{hosts := Hosts, auth := Auth, api_version := ApiVersion} = Ctx) ->
     ClusterHost = onepanel_cluster:node_to_host(),
-    Port = rest_listener:port(),
-    Prefix = rest_listener:get_prefix(ApiVersion),
+    Port = https_listener:port(),
+    Prefix = https_listener:get_prefix(ApiVersion),
     Suffix = onepanel_utils:join(["/hosts?clusterHost=", ClusterHost]),
     Body = json_utils:encode(#{cookie => erlang:get_cookie()}),
     Timeout = service_ctx:get(extend_cluster_timeout, Ctx, integer),
-    CaCerts = rest_listener:get_cert_chain_pems(),
+    CaCerts = https_listener:get_cert_chain_pems(),
     Opts = [
         {ssl_options, [{secure, only_verify_peercert}, {cacerts, CaCerts}]},
         {connect_timeout, Timeout},
