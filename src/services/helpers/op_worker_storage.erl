@@ -44,8 +44,7 @@
 %%--------------------------------------------------------------------
 -spec add(Storages :: storage_map(), IgnoreExists :: boolean()) -> ok | no_return().
 add(Storages, IgnoreExists) ->
-    Host = onepanel_cluster:node_to_host(),
-    Node = onepanel_cluster:host_to_node(service_op_worker:name(), Host),
+    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
     ?info("Adding ~b storage(s)", [maps:size(Storages)]),
     maps:fold(fun(Key, Value, _) ->
         StorageName = onepanel_utils:convert(Key, binary),
@@ -81,8 +80,7 @@ add(Storages, IgnoreExists) ->
 %%--------------------------------------------------------------------
 -spec get() -> list().
 get() ->
-    Host = onepanel_cluster:node_to_host(),
-    Node = onepanel_cluster:host_to_node(service_op_worker:name(), Host),
+    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
     {ok, Storages} = rpc:call(Node, storage, list, []),
     Ids = lists:map(fun(Storage) ->
         rpc:call(Node, storage, get_id, [Storage])
@@ -96,8 +94,7 @@ get() ->
 %%--------------------------------------------------------------------
 -spec get(Id :: id()) -> storage_params_list().
 get(Id) ->
-    Host = onepanel_cluster:node_to_host(),
-    Node = onepanel_cluster:host_to_node(service_op_worker:name(), Host),
+    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
     {ok, Storage} = rpc:call(Node, storage, get, [Id]),
     get_storage(Node, Storage).
 
@@ -141,8 +138,7 @@ is_mounted_in_root(Node, SpaceId, StorageId) ->
 %%--------------------------------------------------------------------
 -spec update(Name :: name(), Args :: maps:map()) -> ok.
 update(Id, Args) ->
-    Host = onepanel_cluster:node_to_host(),
-    Node = onepanel_cluster:host_to_node(service_op_worker:name(), Host),
+    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
     Storage = op_worker_storage:get(Id),
     {ok, Id} = onepanel_lists:get(id, Storage),
     {ok, Type} = onepanel_lists:get(type, Storage),
@@ -244,8 +240,7 @@ get_soft_quota(Node) ->
 %%-------------------------------------------------------------------
 -spec invalidate_luma_cache(StorageId :: binary) -> ok.
 invalidate_luma_cache(StorageId) ->
-    Host = onepanel_cluster:node_to_host(),
-    Node = onepanel_cluster:host_to_node(service_op_worker:name(), Host),
+    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
     ok = rpc:call(Node, luma_cache, invalidate, [StorageId]).
 
 %%%===================================================================

@@ -44,6 +44,21 @@ routes() ->
             }]
         }},
 
+        %% Check correctness of DNS entries for the cluster's domain.
+        {<<"/api/v3/onepanel/dns_check">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = dns_check,
+            methods = [#rmethod{
+                type = 'GET',
+                params_spec = #{
+                    %% If true the DNS check cache is overriden and check is
+                    %% performed during handling of the request.
+                    forceCheck => {boolean, {optional, false}}
+                }
+            }]
+        }},
+
         %% Create or join cluster
         {<<"/api/v3/onepanel/hosts">>, rest_handler, #rstate{
             version = 3,
@@ -95,6 +110,16 @@ routes() ->
             }]
         }},
 
+        %% Return settings used when performing the DNS check.
+        {<<"/api/v3/onepanel/dns_check/configuration">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = dns_check_configuration,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
         %% Get Onepanel user session
         {<<"/api/v3/onepanel/session">>, rest_handler, #rstate{
             version = 3,
@@ -133,6 +158,18 @@ routes() ->
             resource = web_cert,
             methods = [#rmethod{
                 type = 'GET'
+            }]
+        }},
+
+        %% Configure dns check
+        {<<"/api/v3/onepanel/dns_check/configuration">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_service,
+            resource = dns_check_configuration,
+            methods = [#rmethod{
+                type = 'PATCH',
+                %% The configuration changes.
+                args_spec = rest_model:dns_check_configuration_model()
             }]
         }},
 

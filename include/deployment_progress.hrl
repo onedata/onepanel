@@ -20,6 +20,10 @@
 % user decided if Let's Encrypt should be enabled
 -define(PROGRESS_LETSENCRYPT_CONFIG, letsencrypt).
 
+% user acknowledged the DNS check resutls or they turned out OK
+% during batch deployment
+-define(DNS_CHECK_ACKNOWLEDGED, dns_check_acknowledged).
+
 % all steps of configuration have been performed
 -define(PROGRESS_READY, ready).
 

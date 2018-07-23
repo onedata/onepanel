@@ -22,6 +22,9 @@
     cluster_workers_model/0,
     cookie_model/0,
     database_hosts_model/0,
+    dns_check_model/0,
+    dns_check_configuration_model/0,
+    dns_check_result_model/0,
     error_model/0,
     manager_hosts_model/0,
     modify_cluster_ips_model/0,
@@ -75,6 +78,7 @@
     zone_configuration_details_model/0,
     zone_configuration_details_onezone_model/0,
     zone_configuration_onezone_model/0,
+    zone_policies_model/0,
     ceph_model/0,
     cephrados_model/0,
     glusterfs_model/0,
@@ -185,6 +189,69 @@ database_hosts_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc Gathers results of DNS checks for various aspect's of the cluster
+%% domain. Both Oneprovider and Onezone return field 'domain' for
+%% checking if cluster's domain can be resolved. In Onezone there is
+%% additional field 'dnsZone' for checking whether DNS zone management
+%% for the Onezone's domain has been delegated to Onezone server (SOA and NS
+%% records) allowing for subdomain delegation. If the cluster is configured with
+%% an IP neither \&quot;domain\&quot; nor \&quot;dnsZone\&quot; is returned.
+%% @end
+%%--------------------------------------------------------------------
+-spec dns_check_model() -> maps:map().
+dns_check_model() ->
+    #{
+        domain => {dns_check_result_model(), optional},
+        dnsZone => {dns_check_result_model(), optional},
+        %% Time at which the DNS check was perfmormed. Formatted according to
+        %% ISO 8601.
+        timestamp => string
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Configuration of the dns check to be modified.
+%% @end
+%%--------------------------------------------------------------------
+-spec dns_check_configuration_model() -> maps:map().
+dns_check_configuration_model() ->
+    #{
+        %% A collection of IP address for DNS servers used in checking DNS.
+        dnsServers => {[string], optional},
+        %% If true, DNS check will verify that control of DNS zone of
+        %% Onezone's domain was delegated to the DNS server built into
+        %% Onezone service. This option is available only in Onezone service.
+        builtInDnsServer => {boolean, optional},
+        %% Marks that the during an interactive deployment user has passed
+        %% through the DNS check step.
+        dnsCheckAcknowledged => {boolean, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Describes results obtained from a DNS check. DNS check involves querying
+%% DNS servers to ensure publicly visible records match expected values.
+%% @end
+%%--------------------------------------------------------------------
+-spec dns_check_result_model() -> maps:map().
+dns_check_result_model() ->
+    #{
+        %% An interpreation of results obtained from DNS check. Possible values
+        %% are: 'error' - no DNS server could be contacted to perform
+        %% the check; 'unresolvable' - query returned empty results;
+        %% 'missing_records' - only some of the expected results were
+        %% returned; 'bad_records' - none of the expected results were
+        %% returned; 'ok' - all of expected values were present in
+        %% obtained results.
+        summary => string,
+        %% List of expected query results.
+        expected => [string],
+        %% List of obtained query results.
+        got => [string],
+        %% List of suggested DNS records to set at your DNS provider to fulfill
+        %% this check. Each record is provided in the format of BIND server.
+        recommended => [string]
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The generic error model for REST requests.
 %% @end
 %%--------------------------------------------------------------------
@@ -232,8 +299,13 @@ modify_cluster_ips_model() ->
 -spec panel_configuration_model() -> maps:map().
 panel_configuration_model() ->
     #{
+        %% Indicates that interactive deployment is performed. If false, users
+        %% entering GUI will not be asked to complete the configuration. Instead
+        %% default values will be used, available for change later via
+        %% appropriate onepanel GUI pages or REST.
+        interactiveDeployment => {boolean, optional},
         %% The collection of user names associated with users properties.
-        users => #{'_' => panel_configuration_users_model()}
+        users => {#{'_' => panel_configuration_users_model()}, {optional, #{}}}
     }.
 
 -spec panel_configuration_users_model() -> maps:map().
@@ -743,7 +815,7 @@ storage_create_request_model() ->
 %%--------------------------------------------------------------------
 -spec storage_details_model() -> {oneof, Oneof :: list()}.
 storage_details_model() ->
-    {oneof, [posix_model(),s3_model(),ceph_model(),cephrados_model(),swift_model(),glusterfs_model(),nulldevice_model()]}.
+    {oneof, [posix_model(), s3_model(), ceph_model(), cephrados_model(), swift_model(), glusterfs_model(), nulldevice_model()]}.
 
 %%--------------------------------------------------------------------
 %% @doc The storage import configuration. Storage import allows to import data
@@ -1059,7 +1131,20 @@ zone_configuration_onezone_model() ->
         %% certificates. Otherwise certificates must be manually provided. By
         %% enabling this option you agree to the Let's Encrypt Subscriber
         %% Agreement.
-        letsEncryptEnabled => {boolean, optional}
+        letsEncryptEnabled => {boolean, optional},
+        policies => {zone_policies_model(), optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc State of Onezone operation policies.
+%% @end
+%%--------------------------------------------------------------------
+-spec zone_policies_model() -> maps:map().
+zone_policies_model() ->
+    #{
+        %% If true, Oneproviders are allowed to request subdomains of the
+        %% Onezone domain for use as their domains.
+        subdomainDelegation => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------

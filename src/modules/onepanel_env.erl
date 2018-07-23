@@ -143,8 +143,8 @@ set(Nodes, Keys, Value, AppName) ->
 %% on the same host.
 %% @end
 %%--------------------------------------------------------------------
--spec set_remote(Node :: [node()], Keys :: keys(), Value :: value(), AppName :: atom()) ->
-    ok | no_return().
+-spec set_remote(Node :: node() | [node()], Keys :: keys(), Value :: value(),
+    AppName :: atom()) -> ok | no_return().
 set_remote(Node, Keys, Value, AppName) when is_atom(Node) ->
     set_remote([Node], Keys, Value, AppName);
 set_remote(Nodes, Keys, Value, AppName) ->

@@ -215,9 +215,9 @@ provide_resource(Req, #rstate{
     ), Req};
 
 provide_resource(Req, #rstate{resource = cluster_ips}) ->
-    {rest_replier:format_service_step(service_oneprovider, get_cluster_ips,
+    {rest_replier:format_service_step(service_oneprovider, format_cluster_ips,
         service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, get_cluster_ips, #{}
+            ?SERVICE, format_cluster_ips, #{}
         ))
     ), Req}.
 

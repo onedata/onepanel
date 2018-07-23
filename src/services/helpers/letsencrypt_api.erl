@@ -14,6 +14,7 @@
 
 -include("modules/models.hrl").
 -include("modules/errors.hrl").
+-include("modules/dns_check.hrl").
 -include("names.hrl").
 
 -include_lib("ctool/include/logging.hrl").
@@ -56,8 +57,8 @@
 % Delay between polls to DNS.
 -define(WAIT_FOR_TXT_DELAY, timer:seconds(2)).
 % DNS servers used to verify TXT record at onezone
--define(DNS_SERVERS, application:get_env(?APP_NAME, letsencrypt_dns_verification_servers,
-    [{8,8,8, 8}, {8, 8,4, 4}, {1,1,1,1}])).
+-define(DNS_SERVERS, application:get_env(?APP_NAME,
+    letsencrypt_dns_verification_servers, [{8,8,8,8}])).
 
 % Number of failed request retries
 -define(GET_RETRIES, 3).
@@ -903,77 +904,27 @@ check_write_access(Path) ->
     Expected :: binary(), Plugin :: module()) -> ok | {error, timeout}.
 confirm_txt_set(TxtName, Domain, Expected, Plugin) ->
     Query = binary:bin_to_list(<<TxtName/binary, ".", Domain/binary>>),
-    ExpectedTxt = binary:bin_to_list(Expected),
 
-    ZoneDomain = Plugin:get_dns_server(),
-    {ok, IP} = inet:getaddr(ZoneDomain, inet),
+    Validator = fun(#dns_check{summary = ok}) -> ok end,
 
-    ?info("Let's Encrypt: Waiting for txt record at ~s", [Query]),
-
+    ?info("Let's Encrypt: Waiting for txt record valued ~p at ~s", [Expected, Query]),
+    ?notice("Checking at servers ~p", [?DNS_SERVERS]),
     try
-        % check that onezone responds if correct txt record
-        onepanel_utils:wait_until(erlang, apply,
-            [fun check_txt_at_server/4, [Query, ExpectedTxt, ZoneDomain, {IP, 53}]],
-            {equal, ok}, ?WAIT_FOR_TXT_ATTEMPTS, ?WAIT_FOR_TXT_DELAY),
+        ZoneDomain = Plugin:get_dns_server(),
+        {ok, IP} = inet:getaddr(ZoneDomain, inet),
 
-        DnsServers = lists:map(fun(DnsIp) -> {DnsIp, 53} end, ?DNS_SERVERS),
+        % check that onezone responds with correct txt record
+        onepanel_utils:wait_until(onepanel_dns_check, verify_all,
+            [[Expected], [Query], txt, [IP]],
+            {validator, Validator}, ?WAIT_FOR_TXT_ATTEMPTS, ?WAIT_FOR_TXT_DELAY),
 
         % check that txt record is visible globally in DNS
-        onepanel_utils:wait_until(erlang, apply,
-            [fun check_txt_at_servers/4, [Query, ExpectedTxt, ZoneDomain, DnsServers]],
-            {equal, ok}, ?WAIT_FOR_TXT_ATTEMPTS, ?WAIT_FOR_TXT_DELAY),
-        ok
-    catch throw:attempts_limit_exceeded ->
+        onepanel_utils:wait_until(onepanel_dns_check, verify_all,
+            [[Expected], [Query], txt, ?DNS_SERVERS],
+            {validator, Validator}, ?WAIT_FOR_TXT_ATTEMPTS, ?WAIT_FOR_TXT_DELAY)
+    catch _:_ ->
         ?warning("Cannot verify that txt DNS record needed by Let's Encrypt client "
         "was set in Onezone DNS. Continuing anyway. If certification fails, "
         "contact your Onezone administrator."),
         {error, timeout}
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Checks if ExpectedTxt txt record is resolved to correct value
-%% on all working Servers.
-%% @end
-%%--------------------------------------------------------------------
--spec check_txt_at_servers(Query :: string(), Expected :: string(),
-    KnownA :: string(), Servers :: [{inet:ip4_address(), Port :: 0..65535}]) ->
-    ok | error.
-check_txt_at_servers(Query, Expected, KnownA, Servers) ->
-    Results = utils:pmap(fun(Server) ->
-        check_txt_at_server(Query, Expected, KnownA, Server)
-    end, Servers),
-
-    TxtMissing = fun(not_found) -> true; (_) -> false end,
-    ServerWorks = fun(server_error) -> false; (_) -> true end,
-
-    % ensure some servers worked and none failed to find TXT record
-    case lists:any(ServerWorks, Results) andalso not lists:any(TxtMissing, Results) of
-        true -> ok;
-        false -> error
-    end.
-
-
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% After ensuring the server is reliable by quering KnownA a record,
-%% checks if ExpectedTxt txt record is resolved by dns Server at QueryTxt,
-%% @end
-%%--------------------------------------------------------------------
--spec check_txt_at_server(QueryTxt :: string(), ExpectedTxt :: string(),
-    KnownA :: string(), Server :: {inet:ip4_address(), Port :: 1..65535}) ->
-    ok | not_found | server_error.
-check_txt_at_server(QueryTxt, ExpectedTxt, KnownA, Server) ->
-    case inet_res:resolve(KnownA, in, a, [{nameservers, [Server]}]) of
-        {error, _} -> server_error;
-        _ ->
-            Results = inet_res:lookup(QueryTxt, in, txt, [{nameservers, [Server]}]),
-            case lists:member([ExpectedTxt], Results) of
-                true -> ok;
-                false -> not_found
-            end
     end.

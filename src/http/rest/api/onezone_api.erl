@@ -153,6 +153,16 @@ routes() ->
             }]
         }},
 
+        %% Get Onezone policies.
+        {<<"/api/v3/onepanel/zone/policies">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onezone,
+            resource = policies,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
         %% Get zone cluster worker status
         {<<"/api/v3/onepanel/zone/workers/:host">>, rest_handler, #rstate{
             version = 3,
@@ -182,6 +192,18 @@ routes() ->
                 type = 'PATCH',
                 %% The zone configuration description.
                 args_spec = rest_model:modify_cluster_ips_model()
+            }]
+        }},
+
+        %% Modify current Onezone policies
+        {<<"/api/v3/onepanel/zone/policies">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onezone,
+            resource = policies,
+            methods = [#rmethod{
+                type = 'PATCH',
+                %% New values for Onezone policies.
+                args_spec = rest_model:zone_policies_model()
             }]
         }},
 

@@ -125,6 +125,7 @@
         %% authorization was properly set
         {letsencrypt_dns_verification_servers, [{8,8,8,8}, {8,8,4,4}, {1,1,1,1}]},
 
+
         %% Regular expression used for checking if existing certificate
         %% was issued by Let's Encrypt.
         %% See https://letsencrypt.org/certificates/ for expected values
@@ -163,6 +164,16 @@
 
         %% URL of service used for autodetecting external IP
         {ip_check_url, "http://ip4.icanhazip.com"},
+
+        %% IPs of DNS servers used to validate domain configuration
+        {dns_check_servers, [{8,8,8,8}, {8,8,4,4}, {1,1,1,1}]},
+
+        %% Interval between DNS checks in seconds. Default: 6 hours
+        {dns_check_interval, 21600},
+
+        %% Boolean used in oz_panel. Indicates whether to check for
+        %% DNS zone delegation.
+        {dns_expect_zone_delegation, true},
 
         {rest_api_prefix_template, "/api/v{version_number}/onepanel"},
         %% Number of accepting processes in HTTPS listeners

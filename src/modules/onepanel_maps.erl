@@ -141,7 +141,7 @@ get_store_multiple(KeyMappings, SrcTerms) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Performs multiple get_store operations, copying nested properites
+%% Performs multiple get_store operations, copying nested properties
 %% from source map to destination.
 %% If source property is missing and no default is provided given mapping
 %% is skipped.
