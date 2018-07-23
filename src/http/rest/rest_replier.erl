@@ -14,6 +14,7 @@
 
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
+-include("modules/onepanel_dns.hrl").
 -include("deployment_progress.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/oz/oz_providers.hrl").
@@ -22,7 +23,7 @@
 -export([throw_on_service_error/2]).
 -export([handle_error/3, reply_with_error/3, handle_service_action_async/3,
     handle_service_step/4, handle_session/3]).
--export([format_error/2, format_service_status/2, format_service_host_status/2,
+-export([format_error/2, format_service_status/2, format_dns_check/1, format_service_host_status/2,
     format_service_task_results/1, format_service_step/3, format_configuration/1]).
 
 -type response() :: maps:map() | term().
@@ -98,7 +99,7 @@ handle_service_step(Req, Module, Function, Results) ->
 -spec handle_session(Req :: cowboy_req:req(), SessionId :: onepanel_session:id(),
     Username :: onepanel_user:name()) -> Req :: cowboy_req:req().
 handle_session(Req, SessionId, Username) ->
-    Req2 = cowboy_req:set_resp_cookie(<<"sessionId">>, SessionId, Req #{
+    Req2 = cowboy_req:set_resp_cookie(<<"sessionId">>, SessionId, Req, #{
         max_age => onepanel_env:get(session_ttl) div 1000,
         path => "/",
         secure => true,
@@ -149,6 +150,34 @@ format_service_status(SModule, Results) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc Returns a formatted result of a dns check.
+%% @end
+%%--------------------------------------------------------------------
+format_dns_check(Results) ->
+    {[{_Node, Result} | _], []} =
+    select_service_step(dns_check, get, Results),
+
+    IpOrTxtToBinary = fun(IpOrString) ->
+        case inet:ntoa(IpOrString) of
+            {error, einval} -> onepanel_utils:convert(IpOrString, binary);
+            IP -> list_to_binary(IP)
+        end
+    end,
+
+    maps:map(fun
+        (_Key, #dns_check{summary = Summary, expected = E, got = G, bind_records = Records}) ->
+        #{
+            summary => Summary,
+            expected => lists:map(IpOrTxtToBinary, E),
+            got => lists:map(IpOrTxtToBinary, G),
+            recommended => Records
+        };
+        (timestamp, Epoch) -> time_utils:epoch_to_iso8601(Epoch);
+        (_Key, LiteralValue) -> LiteralValue
+    end, Result).
+
+
+%%--------------------------------------------------------------------
 %% @doc @equiv format_service_step(SModule, status, Results)
 %% @end
 %%--------------------------------------------------------------------
@@ -174,13 +203,16 @@ format_service_task_results(Results) ->
 
         [{task_finished, {Service, Action, #error{}}}, Step | Steps] ->
             {Module, Function, {_, BadResults}} = Step,
-            maps:merge( #{ 
-                <<"status">> => <<"error">>,
-                <<"steps">> => format_service_task_steps(lists:reverse(Steps))},
+            maps:merge(
+                #{
+                    <<"status">> => <<"error">>,
+                    <<"steps">> => format_service_task_steps(lists:reverse(Steps))
+                },
                 format_error(error, #service_error{
                     service = Service, action = Action, module = Module,
                     function = Function, bad_results = BadResults
-                }));
+                })
+            );
 
         [{task_finished, {_, _, ok}} | Steps] -> #{
                 <<"status">> => <<"ok">>,
@@ -221,12 +253,12 @@ format_configuration(SModule) ->
     end,
     {SName, Ctx, Details} = case SModule of
         service_onezone ->
-            {ok, #service{ctx = Ctx}} = service:get(service_onezone:name()),
-            OzDetails = #{domainName => service_oz_worker:get_domain(#{})},
-            {maps:get(name, Ctx, null), Ctx, OzDetails};
+            {ok, #service{ctx = ServiceCtx}} = service:get(service_onezone:name()),
+            OzDetails = #{domainName => service_oz_worker:get_domain()},
+            {maps:get(name, ServiceCtx, null), ServiceCtx, OzDetails};
         service_oneprovider ->
-            {ok, #service{ctx = Ctx}} = service:get(service_oneprovider:name()),
-            Name = case service_oneprovider:is_registered(Ctx) of
+            {ok, #service{ctx = ServiceCtx}} = service:get(service_oneprovider:name()),
+            Name = case service_oneprovider:is_registered(ServiceCtx) of
                 true ->
                     case oz_providers:get_details(provider) of
                         {ok, #provider_details{name = N}} -> N;
@@ -234,7 +266,7 @@ format_configuration(SModule) ->
                     end;
                 false -> null
             end,
-            {Name, Ctx, #{}}
+            {Name, ServiceCtx, #{}}
     end,
     MasterHostBin = case maps:get(master_host, Ctx, null) of
         null -> null;

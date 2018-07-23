@@ -395,7 +395,7 @@ init_per_testcase(get_should_return_cluster_ips, Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
     Hosts = lists:map(fun onepanel_cluster:node_to_host/1, Nodes),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_oneprovider, get_cluster_ips, {
+        {service_oneprovider, format_cluster_ips, {
             [{'node@host1', ?CLUSTER_IPS_JSON(Hosts)}], []
         }},
         {task_finished, {service, action, ok}}

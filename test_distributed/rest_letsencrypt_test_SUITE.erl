@@ -444,8 +444,8 @@ mock_plugin_modules(Config) ->
     test_utils:mock_new(OpNodes, [service_op_worker], [passthrough]),
     test_utils:mock_new(OzNodes, [service_oz_worker], [passthrough]),
 
-    test_utils:mock_expect(OpNodes, service_op_worker, get_domain, fun(_) -> OpDomain end),
-    test_utils:mock_expect(OzNodes, service_oz_worker, get_domain, fun(_) -> OzDomain end),
+    test_utils:mock_expect(OpNodes, service_op_worker, get_domain, fun() -> OpDomain end),
+    test_utils:mock_expect(OzNodes, service_oz_worker, get_domain, fun() -> OzDomain end),
     test_utils:mock_expect(OpNodes, service_op_worker, get_hosts, fun() -> OpHosts end),
     test_utils:mock_expect(OzNodes, service_oz_worker, get_hosts, fun() -> OzHosts end),
     test_utils:mock_expect(OpNodes, service_op_worker, reload_webcert, fun(_) -> ok end),
