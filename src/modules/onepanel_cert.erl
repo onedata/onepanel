@@ -9,7 +9,7 @@
 %%% ssl certificates.
 %%% @end
 %%%--------------------------------------------------------------------
--module(onepanel_ssl).
+-module(onepanel_cert).
 -author("Wojciech Geisler").
 
 -include("modules/errors.hrl").
@@ -24,6 +24,7 @@
 -export([generate_csr_and_key/1, backup_exisiting_certs/0]).
 -export([read_cert/1, get_subject_cn/1, get_issuer_cn/1,
     get_seconds_till_expiration/1]).
+-export([get_times/1]).
 
 %%%===================================================================
 %%% API functions
@@ -102,8 +103,8 @@ get_issuer_cn(#'Certificate'{} = Cert) ->
 %%--------------------------------------------------------------------
 -spec get_seconds_till_expiration(#'Certificate'{}) -> integer().
 get_seconds_till_expiration(#'Certificate'{} = Cert) ->
-    get_expiration_time(Cert) -
-    calendar:datetime_to_gregorian_seconds(calendar:universal_time()).
+    {_, ExpirationTime} = get_times(Cert),
+    ExpirationTime - time_utils:system_time_seconds().
 
 
 %%--------------------------------------------------------------------
@@ -149,25 +150,25 @@ backup_exisiting_certs() ->
         end
     end, [WebKeyPath, WebCertPath, WebChainPath]).
 
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Returns times when certificate validity begins and ends.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_times(#'Certificate'{}) ->
+    {Since :: integer(), Until :: integer()}.
+get_times(#'Certificate'{} = Cert) ->
+    #'TBSCertificate'{
+        validity = Validity
+    } = Cert#'Certificate'.tbsCertificate,
+    {'Validity', NotBeforeStr, NotAfterStr} = Validity,
+    {time_str_to_epoch(NotBeforeStr), time_str_to_epoch(NotAfterStr)}.
 
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Returns notAfter date of a certificate expressed as gregorian seconds.
-%% @end
-%%--------------------------------------------------------------------
--spec get_expiration_time(#'Certificate'{}) -> non_neg_integer().
-get_expiration_time(#'Certificate'{} = Cert) ->
-    #'TBSCertificate'{
-        validity = Validity
-    } = Cert#'Certificate'.tbsCertificate,
-    {'Validity', _NotBeforeStr, NotAfterStr} = Validity,
-    time_str_2_gregorian_sec(NotAfterStr).
 
 
 %%--------------------------------------------------------------------
@@ -192,31 +193,27 @@ get_common_name(RdnSequence) ->
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
-%% Converts time string YYmmDDHHMMSS to gregorian seconds.
-%% This is undocumented function from public_key/public_cert.erl
-%% - code under Apache license.
-%% Copied here for future-proofness.
+%% Converts time string YYmmDDHHMMSS to epoch seconds.
 %% @end
 %%--------------------------------------------------------------------
--spec time_str_2_gregorian_sec({utcTime | generalTime, string()}) -> integer().
-time_str_2_gregorian_sec({utcTime, [Y1,Y2,M1,M2,D1,D2,H1,H2,M3,M4,S1,S2,Z]}) ->
+-spec time_str_to_epoch({utcTime | generalTime, string()}) -> integer().
+time_str_to_epoch({utcTime, [Y1,Y2,M1,M2,D1,D2,H1,H2,M3,M4,S1,S2,Z]}) ->
     case list_to_integer([Y1,Y2]) of
         N when N >= 50 ->
-            time_str_2_gregorian_sec({generalTime,
+            time_str_to_epoch({generalTime,
                 [$1,$9,Y1,Y2,M1,M2,D1,D2,
                     H1,H2,M3,M4,S1,S2,Z]});
         _ ->
-            time_str_2_gregorian_sec({generalTime,
+            time_str_to_epoch({generalTime,
                 [$2,$0,Y1,Y2,M1,M2,D1,D2,
                     H1,H2,M3,M4,S1,S2,Z]})
     end;
 
-time_str_2_gregorian_sec({_,[Y1,Y2,Y3,Y4,M1,M2,D1,D2,H1,H2,M3,M4,S1,S2,$Z]}) ->
+time_str_to_epoch({_,[Y1,Y2,Y3,Y4,M1,M2,D1,D2,H1,H2,M3,M4,S1,S2,$Z]}) ->
     Year  = list_to_integer([Y1, Y2, Y3, Y4]),
     Month = list_to_integer([M1, M2]),
     Day   = list_to_integer([D1, D2]),
     Hour  = list_to_integer([H1, H2]),
     Min   = list_to_integer([M3, M4]),
     Sec   = list_to_integer([S1, S2]),
-    calendar:datetime_to_gregorian_seconds({{Year, Month, Day},
-        {Hour, Min, Sec}}).
+    time_utils:datetime_to_epoch({{Year, Month, Day}, {Hour, Min, Sec}}).

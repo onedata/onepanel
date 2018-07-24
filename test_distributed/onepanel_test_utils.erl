@@ -19,6 +19,9 @@
 -export([init/1, ensure_started/1, set_test_envs/1, set_test_envs/2,
     mock_start/1]).
 -export([assert_fields/2, assert_values/2, clear_msg_inbox/0]).
+-export([service_host_action/3, service_host_action/4,
+    service_action/3, service_action/4]).
+-export([get_domain/1]).
 
 -type config() :: proplists:proplist().
 
@@ -65,6 +68,7 @@ init(Config) ->
     create_cluster(PanelNodes),
     NewConfig = [
         {all_nodes, Nodes},
+        {all_hosts, onepanel_cluster:nodes_to_hosts(Nodes)},
         {oneprovider_nodes, ProviderNodes},
         {oneprovider_hosts, onepanel_cluster:nodes_to_hosts(ProviderNodes)},
         {onezone_nodes, ZoneNodes},
@@ -167,6 +171,61 @@ clear_msg_inbox() ->
     after
         timer:seconds(1) -> ok
     end.
+
+
+%%--------------------------------------------------------------------
+%% @doc @equiv service_host_action(Node, Service, Action, #{}).
+%% @end
+%%--------------------------------------------------------------------
+-spec service_host_action(Node :: node(), Service :: service:name(),
+    Action :: atom()) -> ok | no_return().
+service_host_action(Node, Service, Action) ->
+    service_host_action(Node, Service, Action, #{}).
+
+
+%%--------------------------------------------------------------------
+%% @doc Performs service action setting given Node as target host.
+%% @end
+%%--------------------------------------------------------------------
+-spec service_host_action(Node :: node(), Service :: service:name(),
+    Action :: atom(), Ctx :: service:ctx()) -> ok | no_return().
+service_host_action(Node, Service, Action, Ctx) ->
+    Host = onepanel_cluster:node_to_host(Node),
+    service_action(Node, Service, Action, Ctx#{hosts => [Host]}).
+
+
+%%--------------------------------------------------------------------
+%% @doc @equiv service_action(Node, Service, Action, #{}).
+%% @end
+%%--------------------------------------------------------------------
+-spec service_action(Node :: node(), Service :: service:name(),
+    Action :: atom()) -> ok | no_return().
+service_action(Node, Service, Action) ->
+    service_action(Node, Service, Action, #{}).
+
+
+%%--------------------------------------------------------------------
+%% @doc Performs service action on given node.
+%% @end
+%%--------------------------------------------------------------------
+-spec service_action(Node :: node(), Service :: service:name(),
+    Action :: atom(), Ctx :: service:ctx()) -> ok | no_return().
+service_action(Node, Service, Action, Ctx) ->
+    Self = self(),
+    ?assertEqual(ok, rpc:call(Node, service, apply,
+        [Service, Action, Ctx, Self]
+    )).
+
+%%--------------------------------------------------------------------
+%% @doc Returns hostname stripped of the first segment.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_domain(Hostname :: term()) -> binary().
+get_domain(Hostname) when not is_binary(Hostname) ->
+    get_domain(str_utils:to_binary(Hostname));
+get_domain(Hostname) ->
+    [_Hostname, Domain] = binary:split(Hostname, <<".">>),
+    Domain.
 
 %%%===================================================================
 %%% Internal functions

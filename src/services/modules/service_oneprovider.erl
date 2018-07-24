@@ -123,6 +123,8 @@ get_steps(deploy, Ctx) ->
         case AlreadyRegistered of
             % If provider is already registered the deployment request
             % should not override Let's Encrypt config
+
+            % TODO remove this check when some time passes since introducing manage_restart
             true -> maps:remove(letsencrypt_enabled, LeCtx);
             _ -> LeCtx
         end,
@@ -191,7 +193,7 @@ get_steps(manage_restart, _Ctx) ->
             #steps{service = ?SERVICE_CB, action = resume},
             #steps{service = ?SERVICE_CM, action = resume},
             #steps{service = ?SERVICE_OPW, action = resume},
-            #steps{service = ?SERVICE_LE, action = update}
+            #steps{service = ?SERVICE_LE, action = resume}
         ];
         false ->
             ?info("Waiting for master node \"~s\" to start", [MasterHost]),
@@ -223,8 +225,7 @@ get_steps(register, Ctx) ->
 
 get_steps(unregister, #{hosts := Hosts} = Ctx) ->
     [
-        #step{hosts = Hosts, function = unregister, selection = any, ctx = Ctx},
-        #steps{service = ?SERVICE_LE, action = update}
+        #step{hosts = Hosts, function = unregister, selection = any, ctx = Ctx}
     ];
 
 get_steps(unregister, Ctx) ->
@@ -232,8 +233,7 @@ get_steps(unregister, Ctx) ->
 
 get_steps(modify_details, #{hosts := Hosts}) ->
     [
-        #step{hosts = Hosts, function = modify_details, selection = any},
-        #steps{service = ?SERVICE_LE, action = update}
+        #step{hosts = Hosts, function = modify_details, selection = any}
     ];
 get_steps(modify_details, Ctx) ->
     get_steps(modify_details, Ctx#{hosts => service_op_worker:get_hosts()});
@@ -479,11 +479,6 @@ modify_details(#{node := Node} = Ctx) ->
     Params4 = onepanel_maps:get_store(oneprovider_admin_email, Ctx,
         <<"adminEmail">>, Params3),
 
-    case maps:is_key(letsencrypt_enabled, Ctx) of
-        true -> onepanel_deployment:mark_completed(?PROGRESS_LETSENCRYPT_CONFIG);
-        _ -> ok
-    end,
-
     case maps:size(Params4) of
         0 -> ok;
         _ -> ok = oz_providers:modify_details(provider, maps:to_list(Params4))
@@ -522,18 +517,9 @@ get_details(#{node := Node}) ->
         {onezoneDomainName, onepanel_utils:convert(OzDomain, binary)}
     ],
 
-    Details2 = case onepanel_deployment:is_completed(?PROGRESS_LETSENCRYPT_CONFIG) of
-        true ->
-            [{letsEncryptEnabled, service_letsencrypt:is_enabled()} | Details];
-        false ->
-            % do not send letsEncryptEnabled field
-            % in order to prompt GUI to display certificate configuration panel
-            Details
-    end,
-
     case SubdomainDelegation of
-        true -> [{subdomain, Subdomain} | Details2];
-        _ -> Details2
+        true -> [{subdomain, Subdomain} | Details];
+        _ -> Details
     end;
 get_details(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),

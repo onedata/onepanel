@@ -164,11 +164,13 @@ get_step(#step{hosts = undefined, ctx = #{hosts := Hosts}} = Step) ->
     get_step(Step#step{hosts = Hosts});
 
 get_step(#step{hosts = undefined, service = Service} = Step) ->
-    Hosts2 = case service:get(Service) of
-        {ok, #service{hosts = Hosts}} -> Hosts;
-        #error{reason = ?ERR_NOT_FOUND} -> onepanel_cluster:nodes_to_hosts()
+    Hosts = try
+        Module = service:get_module(Service),
+        Module:get_hosts()
+    catch
+        _:_ -> onepanel_cluster:nodes_to_hosts()
     end,
-    get_step(Step#step{hosts = Hosts2});
+    get_step(Step#step{hosts = Hosts});
 
 get_step(#step{hosts = []}) ->
     [];
@@ -262,6 +264,6 @@ format_errors([{Node, #error{module = Module, function = Function, arity = Arity
 format_errors([{Node, #error{module = Module, function = Function, arity = Arity,
     args = Args, reason = Reason, stacktrace = Stacktrace, line = Line}} | Errors], Log) ->
     Error = io_lib:format("Node: ~p~nFunction: ~p:~p/~p~nArgs: ~p~nReason: ~p~n"
-        "Stacktrace: ~p~nLine: ~p~n",
+    "Stacktrace: ~p~nLine: ~p~n",
         [Node, Module, Function, Arity, Args, Reason, Stacktrace, Line]),
     format_errors(Errors, Log ++ Error).
