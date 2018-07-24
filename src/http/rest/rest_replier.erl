@@ -73,7 +73,7 @@ reply_with_error(Req, Type, Reason) ->
     TaskId :: service_executor:task_id(), ApiVersion :: integer()) ->
     Req :: cowboy_req:req().
 handle_service_action_async(Req, TaskId, ApiVersion) ->
-    Prefix = rest_listener:get_prefix(ApiVersion),
+    Prefix = https_listener:get_prefix(ApiVersion),
     Location = <<Prefix/binary, "/tasks/", TaskId/binary>>,
     cowboy_req:set_resp_header(<<"location">>, Location, Req).
 

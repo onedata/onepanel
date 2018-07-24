@@ -8,13 +8,14 @@
 %%% @doc This module is responsible for REST listener starting and stopping.
 %%% @end
 %%%--------------------------------------------------------------------
--module(rest_listener).
+-module(https_listener).
 -author("Krzysztof Trzepla").
 
 -behaviour(listener_behaviour).
 
 -include("http/rest.hrl").
 -include("names.hrl").
+-include("http/gui_paths.hrl").
 -include_lib("gui/include/new_gui.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -60,6 +61,7 @@ start() ->
         onezone -> onezone_api:routes()
     end,
     Routes = merge_routes(CommonRoutes ++ SpecificRoutes),
+    DynamicPages = [{?CONFIGURATION_PATH, [<<"GET">>], page_panel_configuration}],
 
     ok = new_gui:start(#gui_config{
         port = port(),
@@ -70,6 +72,7 @@ start() ->
         request_timeout = ?REQUEST_TIMEOUT,
         inactivity_timeout = ?INACTIVITY_TIMEOUT,
         custom_cowboy_routes = Routes,
+        dynamic_pages = DynamicPages,
         default_static_root = DefaultRoot,
         custom_static_root = CustomRoot
     }),
