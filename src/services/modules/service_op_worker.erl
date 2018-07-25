@@ -24,7 +24,8 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 %% LE behaviour callbacks
 -export([set_txt_record/1, remove_txt_record/1, get_dns_server/0,
-    get_domain/1, get_admin_email/1, is_letsencrypt_supported/1]).
+    get_domain/1, get_admin_email/1, set_http_record/2,
+    supports_letsencrypt_challenge/1]).
 
 %% API
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
@@ -285,14 +286,34 @@ reload_webcert(Ctx) ->
 %% needed for Let's Encrypt to be available.
 %% @end
 %%--------------------------------------------------------------------
--spec is_letsencrypt_supported(service:ctx()) -> boolean() | unknown.
-is_letsencrypt_supported(Ctx) ->
+-spec supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
+    boolean() | unknown.
+supports_letsencrypt_challenge(http) ->
     try
-        service_oneprovider:is_registered(Ctx) andalso
-            proplists:get_value(subdomainDelegation, service_oneprovider:get_details(Ctx), false)
+        service_oneprovider:is_registered(#{})
     catch
         _:_ -> unknown
-    end.
+    end;
+supports_letsencrypt_challenge(dns) ->
+    try
+        service_oneprovider:is_registered(#{}) andalso
+            proplists:get_value(subdomainDelegation, service_oneprovider:get_details(#{}), false)
+    catch
+        _:_ -> unknown
+    end;
+supports_letsencrypt_challenge(_) -> false.
+
+
+%%--------------------------------------------------------------------
+%% @doc {@link letsencrypt_plugin_behaviour:set_http_record/2}
+%% @end
+%%--------------------------------------------------------------------
+set_http_record(Name, Value) ->
+    Nodes = get_nodes(),
+    {Results, []} = rpc:multicall(Nodes, http_listener,
+        set_response_to_letsencrypt_challenge, [Name, Value]),
+    lists:foreach(fun(R) -> ok = R end, Results),
+    ok.
 
 
 %%--------------------------------------------------------------------

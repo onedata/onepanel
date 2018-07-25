@@ -31,7 +31,7 @@
     [{Path :: binary(), Module :: module(), State :: rest_handler:state()}].
 routes() ->
     [
-        %% Adds given host to the cluster.
+        %% Adds given host to the cluster
         {<<"/api/v3/onepanel/hosts">>, rest_handler, #rstate{
             version = 3,
             module = rest_onepanel,
@@ -143,6 +143,16 @@ routes() ->
             }]
         }},
 
+        %% Get information about SSL certificates configuration and status.
+        {<<"/api/v3/onepanel/web_cert">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel,
+            resource = web_cert,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
         %% Join existing cluster
         {<<"/api/v3/onepanel/join_cluster">>, rest_handler, #rstate{
             version = 3,
@@ -163,6 +173,18 @@ routes() ->
             methods = [#rmethod{
                 type = 'PATCH',
                 args_spec = rest_model:user_modify_request_model()
+            }]
+        }},
+
+        %% Modify SSL certificate configuration
+        {<<"/api/v3/onepanel/web_cert">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel,
+            resource = web_cert,
+            methods = [#rmethod{
+                type = 'PATCH',
+                %% New values for certificate management configuration.
+                args_spec = rest_model:web_cert_modify_request_model()
             }]
         }},
 

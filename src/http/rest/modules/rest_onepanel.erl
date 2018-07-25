@@ -20,6 +20,7 @@
     accept_resource/4, provide_resource/2, delete_resource/2]).
 
 -define(SERVICE, service_onepanel:name()).
+-define(LE_SERVICE, service_letsencrypt:name()).
 
 %%%===================================================================
 %%% REST behaviour callbacks
@@ -54,6 +55,9 @@ is_authorized(Req, _Method, _State) ->
 exists_resource(Req, #rstate{resource = host, bindings = #{host := Host}}) ->
     {lists:member(Host, service_onepanel:get_hosts()), Req};
 
+exists_resource(Req, #rstate{resource = web_cert}) ->
+    {model:exists(service) andalso service:exists(service_letsencrypt:name()), Req};
+
 exists_resource(Req, _State) ->
     {true, Req}.
 
@@ -85,6 +89,7 @@ accept_resource(Req, 'POST', #{clusterHost := Host} = Args, #rstate{resource = c
         ?SERVICE, join_cluster, Ctx
     ))};
 
+
 accept_resource(Req, 'POST', #{address := Address},
     #rstate{resource = hosts, version = ApiVersion}) ->
     {true, cowboy_req:set_resp_body(json_utils:encode(
@@ -92,7 +97,13 @@ accept_resource(Req, 'POST', #{address := Address},
             service_utils:throw_on_error(service:apply_sync(
                 ?SERVICE, extend_cluster, #{address => Address, api_version => ApiVersion}
             )))
-    ), Req)}.
+    ), Req)};
+
+accept_resource(Req, 'PATCH', Args, #rstate{resource = web_cert}) ->
+    Ctx = onepanel_maps:get_store(letsEncrypt, Args, letsencrypt_enabled),
+    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
+        ?LE_SERVICE, update, Ctx
+    ))}.
 
 
 %%--------------------------------------------------------------------
@@ -111,7 +122,14 @@ provide_resource(Req, #rstate{resource = node}) ->
 
 provide_resource(Req, #rstate{resource = hosts}) ->
     Hosts = service_onepanel:get_hosts(),
-    {lists:sort(onepanel_utils:convert(Hosts, {seq, binary})), Req}.
+    {lists:sort(onepanel_utils:convert(Hosts, {seq, binary})), Req};
+
+provide_resource(Req, #rstate{resource = web_cert}) ->
+    {rest_replier:format_service_step(service_letsencrypt, get_details,
+        service_utils:throw_on_error(service:apply_sync(
+            ?LE_SERVICE, get_details, #{}
+        ))
+    ), Req}.
 
 
 %%--------------------------------------------------------------------
