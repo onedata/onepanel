@@ -264,6 +264,12 @@ get_storage_user_ctx(Node, <<"ceph">>, Params) ->
         onepanel_utils:typed_get(key, Params, binary)
     ]);
 
+get_storage_user_ctx(Node, <<"cephrados">>, Params) ->
+    rpc:call(Node, helper, new_cephrados_user_ctx, [
+        onepanel_utils:typed_get(username, Params, binary),
+        onepanel_utils:typed_get(key, Params, binary)
+    ]);
+
 get_storage_user_ctx(Node, <<"posix">>, _Params) ->
     rpc:call(Node, helper, new_posix_user_ctx, [0, 0]);
 
@@ -297,6 +303,19 @@ get_storage_helper(Node, <<"ceph">>, UserCtx, Params) ->
         onepanel_utils:typed_get(clusterName, Params, binary),
         onepanel_utils:typed_get(poolName, Params, binary),
         get_helper_opt_args([{timeout, binary}], Params),
+        UserCtx,
+        onepanel_utils:typed_get(insecure, Params, boolean, false),
+        onepanel_utils:typed_get(storagePathType, Params, binary, <<"flat">>)
+    ]);
+get_storage_helper(Node, <<"cephrados">>, UserCtx, Params) ->
+    rpc:call(Node, helper, new_cephrados_helper, [
+        onepanel_utils:typed_get(monitorHostname, Params, binary),
+        onepanel_utils:typed_get(clusterName, Params, binary),
+        onepanel_utils:typed_get(poolName, Params, binary),
+        get_helper_opt_args([
+            {timeout, binary},
+            {blockSize, binary}
+        ], Params),
         UserCtx,
         onepanel_utils:typed_get(insecure, Params, boolean, false),
         onepanel_utils:typed_get(storagePathType, Params, binary, <<"flat">>)
@@ -412,7 +431,7 @@ verify_storage(Helper, UserCtx) ->
         Nodes, Helper, UserCtx, FileId, FileContent
     ),
     read_test_file(Node, Helper, UserCtx, FileId2, FileContent2),
-    remove_test_file(Node, Helper, UserCtx, FileId2).
+    remove_test_file(Node, Helper, UserCtx, FileId2, size(FileContent2)).
 
 
 %%--------------------------------------------------------------------
@@ -428,7 +447,7 @@ verify_test_file([], _Helper, _UserCtx, FileId, FileContent) ->
 
 verify_test_file([Node | Nodes], Helper, UserCtx, FileId, FileContent) ->
     read_test_file(Node, Helper, UserCtx, FileId, FileContent),
-    remove_test_file(Node, Helper, UserCtx, FileId),
+    remove_test_file(Node, Helper, UserCtx, FileId, size(FileContent)),
     {FileId2, FileContent2} = create_test_file(Node, Helper, UserCtx),
     verify_test_file(Nodes, Helper, UserCtx, FileId2, FileContent2).
 
@@ -476,9 +495,9 @@ read_test_file(Node, Helper, UserCtx, FileId, FileContent) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec remove_test_file(Node :: node(), Helper :: any(), UserCtx :: any(),
-    FileId :: binary()) -> ok | no_return().
-remove_test_file(Node, Helper, UserCtx, FileId) ->
-    Args = [Helper, UserCtx, FileId],
+    FileId :: binary(), Size :: non_neg_integer()) -> ok | no_return().
+remove_test_file(Node, Helper, UserCtx, FileId, Size) ->
+    Args = [Helper, UserCtx, FileId, Size],
     case rpc:call(Node, storage_detector, remove_test_file, Args) of
         {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
             ?throw_stacktrace({?ERR_STORAGE_TEST_FILE_REMOVE, Node, Reason}, undefined, Stacktrace);

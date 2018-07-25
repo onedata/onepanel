@@ -19,6 +19,7 @@
 -include("modules/models.hrl").
 -include("service.hrl").
 -include("names.hrl").
+-include("deployment_progress.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -26,13 +27,15 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([configure/1, status/1, check_webcert/1, ensure_webcert/1,
-    update/1, is_enabled/0]).
--export([is_local_cert_dirty/1, is_local_cert_letsencrypt/0]).
+-export([create/1, status/1, check_webcert/1,
+    enable/1, disable/1, get_details/1]).
+
+%% Private function exported for rpc
+-export([local_cert_status/1, is_local_cert_letsencrypt/0]).
 
 -define(CERT_PATH, onepanel_env:get(web_cert_file)).
 -define(KEY_PATH, onepanel_env:get(web_key_file)).
--define(CACERT_PATH, onepanel_env:get(web_cacerts_dir)).
+-define(CHAIN_PATH, onepanel_env:get(web_cert_chain_file)).
 
 -define(CHECK_DELAY, timer:seconds(application:get_env(
     ?APP_NAME, web_cert_renewal_check_delay, 3600))).
@@ -40,6 +43,9 @@
     ?APP_NAME, web_cert_renewal_days, 7) * 24 * 3600).
 -define(CERTIFICATION_ATTEMPTS, application:get_env(
     ?APP_NAME, letsencrypt_attempts, 1)).
+
+-type status() :: regenerating | valid | near_expiration
+| expired | domain_mismatch | unknown.
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -60,7 +66,7 @@ name() ->
 %%--------------------------------------------------------------------
 -spec get_hosts() -> Hosts :: [service:host()].
 get_hosts() ->
-    service:get_hosts(name()).
+    service_onepanel:get_hosts().
 
 
 %%--------------------------------------------------------------------
@@ -69,7 +75,7 @@ get_hosts() ->
 %%--------------------------------------------------------------------
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
-    onepanel_cluster:hosts_to_nodes(service_onepanel:name(), get_hosts()).
+    service_onepanel:get_nodes().
 
 
 %%--------------------------------------------------------------------
@@ -78,22 +84,31 @@ get_nodes() ->
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
-get_steps(deploy, #{letsencrypt_plugin := _} = Ctx) ->
-    create(Ctx),
-    [#step{function = configure}];
+get_steps(deploy, #{letsencrypt_plugin := _} = _Ctx) ->
+    [#step{function = create, selection = first}];
 
-get_steps(update, _Ctx) ->
-    IsEnabled = fun
-        (#{letsencrypt_enabled := Enabled}) -> Enabled;
-        (_) -> is_enabled()
-    end,
+get_steps(resume, Ctx) ->
+    % failsafe against unlikely case of failing to reset the "regenerating" flag
+    update_ctx(#{regenerating => false}),
+
+    % ensure service is added to service_watcher if necessary
+    [#steps{action = update}];
+
+get_steps(update, Ctx) ->
+    mark_configured(Ctx),
+    IsEnabled = fun is_enabled/1,
+    IsDisabled = fun(FunCtx) -> not is_enabled(FunCtx) end,
     [
-        % use "first" host to launch service watcher monitoring on one node only
-        #step{function = update, selection = first},
-        #step{function = check_webcert, selection = first, condition = IsEnabled},
-        #step{function = ensure_webcert, selection = first, condition = IsEnabled,
-            attempts = ?CERTIFICATION_ATTEMPTS}
-    ].
+        % always use "first" host to launch service watcher on one node only
+        #step{function = check_webcert, selection = first, condition = IsEnabled,
+            attempts = ?CERTIFICATION_ATTEMPTS},
+
+        #step{function = enable, selection = first, condition = IsEnabled},
+        #step{function = disable, selection = first, condition = IsDisabled}
+    ];
+
+get_steps(get_details, _Ctx) ->
+    [#step{function = get_details, selection = first}].
 
 
 %%%===================================================================
@@ -101,49 +116,29 @@ get_steps(update, _Ctx) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc Adds current host to service's hosts.
+%% @doc
+%% Creates default service model, preserving existing configuration
+%% from older oneprovider versions.
 %% @end
 %%--------------------------------------------------------------------
--spec configure(Ctx :: service:ctx()) -> ok | no_return().
-configure(_Ctx) ->
-    Host = onepanel_cluster:node_to_host(),
-    service:add_host(name(), Host).
+create(#{letsencrypt_plugin := Plugin}) ->
+    LegacyEnabled = service_oneprovider:pop_legacy_letsencrypt_config(),
+    service:create(#service{name = name(),
+        ctx = #{
+            letsencrypt_plugin => Plugin,
+            letsencrypt_enabled => LegacyEnabled
+        }}).
 
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Changes letsencrypt client state between disabled and enabled.
-%% Enabling starts periodic checks of the installed certificate.
-%% @end
-%%--------------------------------------------------------------------
--spec update(service:ctx()) -> ok | no_return().
-update(#{letsencrypt_enabled := Request} = Ctx) ->
-    case {Request, (get_plugin_module()):is_letsencrypt_supported(Ctx)} of
-        {true, true} -> enable();
-        {true, _} -> % unsuppoted or support cannot be determined
-            disable(),
-            ?throw_error(?ERR_LETSENCRYPT_NOT_SUPPORTED);
-        {false, _} -> disable()
-    end;
-update(Ctx) ->
-    % even when letsencrypt_enabled is not present in Ctx
-    % ensure current state is valid (for example if provider is still registered)
-    case {is_enabled(), (get_plugin_module()):is_letsencrypt_supported(Ctx)} of
-        {true, true} -> enable(); % to register in service watcher
-        {true, false} -> disable();
-        _ -> ok
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @doc {@link service:status/1}
+%% Callback needed for service_watcher.
 %% @end
 %%--------------------------------------------------------------------
 -spec status(Ctx :: service:ctx()) -> running.
 status(Ctx) ->
     try
-        check_webcert(Ctx),
-        ensure_webcert(Ctx#{renewal => true})
+        check_webcert(Ctx#{renewal => true})
     catch
         _:Reason -> ?error("Certificate renewal check failed: ~p", [?make_stacktrace(Reason)])
     end,
@@ -153,41 +148,64 @@ status(Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Sets is_cert_dirty flag if certificate needs renewal.
+%% Obtains certificate if current is marked as dirty.
 %% @end
 %%--------------------------------------------------------------------
 check_webcert(Ctx) ->
-    case is_enabled() of
+    case should_obtain(Ctx) of
         true ->
-            Nodes = get_nodes(),
-            Domain = (get_plugin_module()):get_domain(Ctx),
-            Ctx2 = Ctx#{domain => Domain},
+            update_ctx(#{regenerating => true}),
+            try
+                obtain_cert(Ctx)
+            catch _:Error ->
+                update_ctx(#{
+                    regenerating => false,
+                    last_failure => time_utils:system_time_seconds()
+                }),
+                % stores original stacktrace
+                ?throw_stacktrace(Error)
+            end,
 
-            % check all nodes to ensure consistency
-            NodeCerts =
-                lists:map(fun(Node) ->
-                    rpc:call(Node, ?MODULE, is_local_cert_dirty, [Ctx2]) end,
-                Nodes),
-
-            case lists:any(fun(IsDirty) -> IsDirty end, NodeCerts) of
-                true -> set_dirty(true);
-                false -> ok
-            end;
+            update_ctx(#{
+                regenerating => false,
+                last_success => time_utils:system_time_seconds()
+            });
         false -> ok
     end.
 
 
-%%--------------------------------------------------------------------
-%% @doc
-%% Obtains certificate if current is marked as dirty.
-%% @end
-%%--------------------------------------------------------------------
-ensure_webcert(Ctx) ->
-    case service:get(name()) of
-        {ok, #service{ctx = #{is_cert_dirty := true, letsencrypt_enabled := true}}} ->
-            obtain_cert(Ctx);
-        _ -> ok
-    end.
+get_details(_Ctx) ->
+    {ok, #service{ctx = Ctx}} = service:get(name()),
+    Enabled = is_enabled(Ctx),
+    Status = global_cert_status(Ctx),
+
+    {ok, Cert} = onepanel_cert:read_cert(?CERT_PATH),
+    {Since, Until} = onepanel_cert:get_times(Cert),
+    Domain = onepanel_cert:get_subject_cn(Cert),
+    Issuer = onepanel_cert:get_issuer_cn(Cert),
+
+    Optional = case Enabled of
+        true -> #{
+            lastRenewalSuccess => date_or_null(last_success, Ctx),
+            lastRenewalFailure => date_or_null(last_failure, Ctx)
+        };
+        false -> #{}
+    end,
+
+
+    Optional#{
+        letsEncrypt => is_enabled(#{}),
+        creationTime => time_utils:epoch_to_iso8601(Since),
+        expirationTime => time_utils:epoch_to_iso8601(Until),
+        paths => #{
+            cert => filename:absname(onepanel_utils:convert(?CERT_PATH, binary)),
+            key => filename:absname(onepanel_utils:convert(?KEY_PATH, binary)),
+            chain => filename:absname(onepanel_utils:convert(?CHAIN_PATH, binary))
+        },
+        domain => Domain,
+        issuer => Issuer,
+        status => Status
+    }.
 
 
 %%--------------------------------------------------------------------
@@ -195,11 +213,13 @@ ensure_webcert(Ctx) ->
 %% Determines whether Let's Encrypt certificate renewal is enabled.
 %% @end
 %%--------------------------------------------------------------------
-is_enabled() ->
+is_enabled(#{letsencrypt_enabled := Enabled}) -> Enabled;
+is_enabled(_Ctx) ->
     case service:get(name()) of
         {ok, #service{ctx = #{letsencrypt_enabled := true}}} -> true;
         _ -> false
     end.
+
 
 %%%===================================================================
 %%% Internal functions
@@ -217,15 +237,13 @@ obtain_cert(Ctx) ->
     Domain = Plugin:get_domain(Ctx),
 
     case maps:get(renewal, Ctx, false) of
-        false ->
-            onepanel_ssl:backup_exisiting_certs();
+        false -> onepanel_cert:backup_exisiting_certs();
         true ->
             ?info("Renewing Let's Encrypt certificate"),
             ok
     end,
 
     ok = letsencrypt_api:run_certification_flow(Domain, get_plugin_module()),
-    set_dirty(false),
 
     service:apply_sync(service_onepanel:name(), reload_webcert, #{}),
     service:apply_sync(get_plugin_name(), reload_webcert, #{}),
@@ -235,46 +253,13 @@ obtain_cert(Ctx) ->
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
-%% Creates default service model, preserving existing configuration
-%% from older oneprovider versions.
-%% @end
-%%--------------------------------------------------------------------
-create(#{letsencrypt_plugin := Plugin}) ->
-    LegacyEnabled = service_oneprovider:pop_legacy_letsencrypt_config(),
-    service:create(#service{name = name(), ctx = #{
-        letsencrypt_plugin => Plugin,
-        letsencrypt_enabled => LegacyEnabled,
-        % is_cert_dirty marks certificate as needing renewal.
-        % Later can be set to 'false' only by successfully obtaining certificate
-        is_cert_dirty => not(LegacyEnabled)
-    }}).
-
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
 %% Changes client state from disabled to enabled.
 %% @end
 %%--------------------------------------------------------------------
--spec enable() -> ok.
-enable() ->
+-spec enable(service:ctx()) -> ok.
+enable(_Ctx) ->
     ok = service_watcher:register_service(name(), ?CHECK_DELAY),
-    service:update(name(), fun(#service{ctx = ServiceCtx} = Record) ->
-        StateChange = not(maps:get(letsencrypt_enabled, ServiceCtx, false)),
-        AlreadyLetsencrypt = are_all_certs_letsencrypt(),
-        NewIsDirty = case {StateChange, AlreadyLetsencrypt} of
-            {true, true} ->
-                ?info("Found existing Let's Encrypt web certificate"),
-                false;
-            {true, false} -> true;
-            {false, _} -> false % further checks will be performed in check_webcert/1
-        end,
-
-        Record#service{ctx = ServiceCtx#{
-            letsencrypt_enabled => true,
-            is_cert_dirty => NewIsDirty
-        }}
-    end).
+    update_ctx(#{letsencrypt_enabled => true}).
 
 
 %%--------------------------------------------------------------------
@@ -283,41 +268,111 @@ enable() ->
 %% Ensures certificate renewal is disabled.
 %% @end
 %%--------------------------------------------------------------------
--spec disable() -> ok.
-disable() ->
-    letsencrypt_api:clean_keys(),
+-spec disable(service:ctx()) -> ok.
+disable(_Ctx) ->
     ok = service_watcher:unregister_service(name()),
-    service:update(name(), fun(#service{ctx = ServiceCtx} = Record) ->
-        Record#service{ctx = ServiceCtx#{letsencrypt_enabled => false}}
-    end).
+    update_ctx(#{letsencrypt_enabled => false}).
 
 
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
-%% Sets 'is_cert_dirty' state in the service model.
+%% Checks if Let's Encrypt certification is in progress.
 %% @end
 %%--------------------------------------------------------------------
--spec set_dirty(boolean()) -> ok | no_return().
-set_dirty(IsDirty) ->
-    service:update(name(), fun(#service{ctx = ServiceCtx} = Record) ->
-        Record#service{ctx = ServiceCtx#{is_cert_dirty => IsDirty}}
-    end).
+is_regenerating() ->
+    case service:get(name()) of
+        {ok, #service{ctx = #{regenerating := true}}} -> true;
+        _ -> false
+    end.
 
 
 %%--------------------------------------------------------------------
+%% @private
 %% @doc
-%% Checks if certificate on the current node needs renewal.
+%% Checks cert status on all nodes until finding an invalid cert
+%% or ensuring validity of all certs.
 %% @end
 %%--------------------------------------------------------------------
--spec is_local_cert_dirty(service:ctx()) -> boolean().
-is_local_cert_dirty(#{domain := Domain}) ->
-    case onepanel_ssl:read_cert(?CERT_PATH) of
+-spec global_cert_status(service:ctx()) -> status().
+global_cert_status(Ctx) ->
+    case is_regenerating() of
+        true -> regenerating;
+        _ ->
+            Nodes = get_nodes(),
+            Domain = (get_plugin_module()):get_domain(Ctx),
+            lists:foldl(fun(Node, PrevStatus) ->
+                case PrevStatus of
+                    valid -> rpc:call(Node, ?MODULE, local_cert_status, [Domain]);
+                    Problem -> Problem
+                end
+            end, valid, Nodes)
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Checks cert status on the current node.
+%% @end
+%%--------------------------------------------------------------------
+-spec local_cert_status(ExpectedDomain :: binary()) -> status().
+local_cert_status(ExpectedDomain) ->
+    case onepanel_cert:read_cert(?CERT_PATH) of
         {ok, Cert} ->
-            Domain /= onepanel_ssl:get_subject_cn(Cert)
-            orelse
-            (onepanel_ssl:get_seconds_till_expiration(Cert) < ?RENEW_MARGIN_SECONDS);
-        {error, _} -> true
+            Subject = onepanel_cert:get_subject_cn(Cert),
+            Remaining = onepanel_cert:get_seconds_till_expiration(Cert),
+            Margin = ?RENEW_MARGIN_SECONDS,
+            case {Subject, Remaining} of
+                {CertDomain, _} when CertDomain /= ExpectedDomain -> domain_mismatch;
+                {_, Remaining} when Remaining < Margin -> near_expiration;
+                {_, Remaining} when Remaining < 0 -> expired;
+                _ -> valid
+            end;
+        {error, _} -> unknown
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% If key exists in the Map and is an integer (timestamp),
+%% returns its iso8601 string representation. Otherwise 'null'.
+%% @end
+%%--------------------------------------------------------------------
+-spec date_or_null(Key :: term(), Map :: map()) -> binary() | null.
+date_or_null(Key, Map) ->
+    case maps:find(Key, Map) of
+        {ok, Epoch} when is_integer(Epoch) -> time_utils:epoch_to_iso8601(Epoch);
+        _ -> null
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Returns true if Let's Encrypt certificates should be obtained
+%% to replace exisitng foreign certificates.
+%% @end
+%%--------------------------------------------------------------------
+-spec first_run(Ctx :: service:ctx()) -> boolean().
+first_run(Ctx) ->
+    Enabling = (is_enabled(Ctx) and not is_enabled(#{})),
+    Enabling andalso not are_all_certs_letsencrypt().
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Checks if cert should be obtained.
+%% @end
+%%--------------------------------------------------------------------
+-spec should_obtain(Ctx :: service:ctx()) -> boolean().
+should_obtain(Ctx) ->
+    first_run(Ctx) orelse case global_cert_status(Ctx) of
+        valid -> false;
+        regenerating -> false;
+        _ -> true
     end.
 
 
@@ -342,16 +397,26 @@ are_all_certs_letsencrypt() ->
 %%--------------------------------------------------------------------
 -spec is_local_cert_letsencrypt() -> boolean().
 is_local_cert_letsencrypt() ->
-    case onepanel_ssl:read_cert(?CERT_PATH) of
+    case onepanel_cert:read_cert(?CERT_PATH) of
         {ok, Cert} ->
             Regex = application:get_env(?APP_NAME, letsencrypt_issuer_regex,
                 <<"^Let's Encrypt Authority X[34]$">>),
-            case onepanel_ssl:get_issuer_cn(Cert) of
+            case onepanel_cert:get_issuer_cn(Cert) of
                 undefined -> false;
                 Issuer -> match == re:run(Issuer, Regex, [{capture, none}])
             end;
         {error, _} -> false
     end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Marks that user explicitely configured Let's Encrypt.
+%% @end
+%%--------------------------------------------------------------------
+mark_configured(#{letsencrypt_enabled := _}) ->
+    onepanel_deployment:mark_completed(?PROGRESS_LETSENCRYPT_CONFIG);
+mark_configured(_Ctx) -> ok.
 
 
 %%--------------------------------------------------------------------
@@ -373,3 +438,18 @@ get_plugin_name() ->
 -spec get_plugin_module() -> module().
 get_plugin_module() ->
     service:get_module(get_plugin_name()).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Updates service ctx in the datastore.
+%% @end
+%%--------------------------------------------------------------------
+-spec update_ctx(Diff) -> ok | no_return()
+    when Diff :: fun((map()) -> map()) | map().
+update_ctx(Diff) when is_map(Diff) ->
+    update_ctx(fun(Ctx) -> maps:merge(Ctx, Diff) end);
+update_ctx(Diff) when is_function(Diff, 1) ->
+    service:update(name(), fun(#service{ctx = Ctx} = S) ->
+        S#service{ctx = Diff(Ctx)}
+    end).

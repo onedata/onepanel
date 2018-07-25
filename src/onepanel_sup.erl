@@ -59,8 +59,8 @@ init([]) ->
     ?info("Waiting for distributed database to be ready"),
     onepanel_db:wait_for_tables(),
 
-    rest_listener:start(),
-    onepanel_utils:wait_until(rest_listener, healthcheck, [], {equal, ok},
+    https_listener:start(),
+    onepanel_utils:wait_until(https_listener, healthcheck, [], {equal, ok},
         onepanel_env:get(rest_listener_status_check_attempts)),
 
     {ok, {#{strategy => one_for_all, intensity => 3, period => 1}, [

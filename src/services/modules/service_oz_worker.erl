@@ -21,7 +21,8 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 %% LE behaviour callbacks
 -export([set_txt_record/1, remove_txt_record/1, get_dns_server/0,
-    reload_webcert/1, get_domain/1, get_admin_email/1, is_letsencrypt_supported/1]).
+    reload_webcert/1, get_domain/1, get_admin_email/1, set_http_record/2,
+    supports_letsencrypt_challenge/1]).
 
 %% API
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
@@ -181,6 +182,19 @@ get_nagios_status(Ctx) ->
         nagios_port => service_ctx:get(oz_worker_nagios_port, Ctx, integer)
     }).
 
+
+%%--------------------------------------------------------------------
+%% @doc {@link letsencrypt_plugin_behaviour:set_http_record/2}
+%% @end
+%%--------------------------------------------------------------------
+set_http_record(Name, Value) ->
+    Nodes = get_nodes(),
+    {Results, []} = rpc:multicall(Nodes, http_listener,
+        set_response_to_letsencrypt_challenge, [Name, Value]),
+    lists:foreach(fun(R) -> ok = R end, Results),
+    ok.
+
+
 %%--------------------------------------------------------------------
 %% @doc {@link letsencrypt_plugin_behaviour:set_txt_record/1}
 %% @end
@@ -206,9 +220,7 @@ set_txt_record(#{txt_name := _, txt_value := _} = Ctx) ->
 %%--------------------------------------------------------------------
 -spec get_dns_server() -> string() | no_return().
 get_dns_server() ->
-    [Node|_] = get_nodes(),
-    {ok, DomainBin} = onepanel_env:get_remote(Node, name(), http_domain),
-    binary:bin_to_list(DomainBin).
+    binary_to_list(get_domain(#{})).
 
 
 %%--------------------------------------------------------------------
@@ -240,7 +252,14 @@ reload_webcert(Ctx) ->
 %%--------------------------------------------------------------------
 -spec get_domain(service:ctx()) -> binary().
 get_domain(#{node := Node}) ->
-    list_to_binary(onepanel_env:get_remote(Node, [http_domain], name()));
+    % Call node with oz_worker and read local file.
+    % Do not call oz_worker node to allow checking domain
+    % when oz worker is not running.
+    Host = onepanel_cluster:node_to_host(Node),
+    OpaNode = onepanel_cluster:host_to_node(service_onepanel:name(), Host),
+    {ok, DomainStr} = rpc:call(OpaNode, onepanel_env, read_effective,
+        [[name(), http_domain], name ()]),
+    list_to_binary(DomainStr);
 get_domain(Ctx) ->
     get_domain(Ctx#{node => hd(get_nodes())}).
 
@@ -255,11 +274,20 @@ get_admin_email(_Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link letsencrypt_plugin_behaviour:is_letsencrypt_supported/0}
+%% @doc {@link letsencrypt_plugin_behaviour:supports_letsencrypt_challenge/0}
 %% @end
 %%--------------------------------------------------------------------
-is_letsencrypt_supported(Ctx) ->
-    status(Ctx) == running.
+-spec supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
+    boolean() | unknown.
+supports_letsencrypt_challenge(http) -> true;
+supports_letsencrypt_challenge(dns) ->
+    try
+        onepanel_env:get_remote(hd(get_nodes()),
+            [subdomain_delegation_enabled], name())
+    catch _:_ ->
+        unknown
+    end;
+supports_letsencrypt_challenge(_) -> false.
 
 
 %%--------------------------------------------------------------------
@@ -267,13 +295,8 @@ is_letsencrypt_supported(Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec reconcile_dns(service:ctx()) -> ok.
-reconcile_dns(#{node := Node}) ->
-    ok = rpc:call(Node, node_manager_plugin, reconcile_dns_config, []);
-reconcile_dns(#{nodes := [Node | _]} = Ctx) ->
-    reconcile_dns(Ctx#{node => Node});
-reconcile_dns(Ctx) ->
-    [Node | _] = get_nodes(),
-    reconcile_dns(Ctx#{node => Node}).
+reconcile_dns(_Ctx) ->
+    ok = rpc:call(hd(get_nodes()), node_manager_plugin, reconcile_dns_config, []).
 
 
 %%--------------------------------------------------------------------

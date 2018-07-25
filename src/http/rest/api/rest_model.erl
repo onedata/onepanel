@@ -69,6 +69,9 @@
     user_details_model/0,
     user_modify_request_model/0,
     users_model/0,
+    web_cert_model/0,
+    web_cert_modify_request_model/0,
+    web_cert_paths_model/0,
     worker_hosts_model/0,
     zone_cluster_configuration_model/0,
     zone_cluster_configuration_nodes_model/0,
@@ -77,6 +80,7 @@
     zone_configuration_details_onezone_model/0,
     zone_configuration_onezone_model/0,
     ceph_model/0,
+    cephrados_model/0,
     glusterfs_model/0,
     nulldevice_model/0,
     posix_model/0,
@@ -199,7 +203,7 @@ host_model() ->
 -spec host_add_request_model() -> maps:map().
 host_add_request_model() ->
     #{
-        %% Address which can be used for performing request to the host.
+        %% Address at which the host is available, IP or hostname.
         address => string
     }.
 
@@ -290,9 +294,9 @@ panel_configuration_users_model() ->
 -spec provider_cluster_configuration_model() -> maps:map().
 provider_cluster_configuration_model() ->
     #{
-        %% The name of a domain common for all services in the cluster. Together
-        %% with a node hostname constitutes a fully qualified domain name (FQDN)
-        %% of the node.
+        %% Hostname suffix common for all services in the cluster. Together with
+        %% a node hostname constitutes a fully qualified domain name (FQDN) of
+        %% the node. May be skipped to allow unrelated hostnames for each node.
         domainName => {string, optional},
         %% The collection of nodes aliases associated with nodes properties.
         nodes => #{'_' => zone_cluster_configuration_nodes_model()},
@@ -407,10 +411,6 @@ provider_details_model() ->
         %% The fully qualified domain name of the provider or its IP address
         %% (only for single-node deployments or clusters with a reverse proxy).
         domain => string,
-        %% If enabled the provider will use Let's Encrypt service to obtain
-        %% SSL certificates. Otherwise certificates must be manually provided.
-        %% This option cannot be enabled if subdomainDelegation is false.
-        letsEncryptEnabled => {boolean, optional},
         %% Email address of the oneprovider administrator.
         adminEmail => string,
         %% The geographical longitude of the provider.
@@ -434,12 +434,6 @@ provider_modify_request_model() ->
         %% onezone's domain and 'subdomain' property must be
         %% provided. If disabled, 'domain' property should be provided.
         subdomainDelegation => {boolean, optional},
-        %% If enabled the provider will use Let's Encrypt service to obtain
-        %% SSL certificates. Otherwise certificates must be manually provided.
-        %% This option cannot be enabled is subdomainDelegation is disabled. By
-        %% enabling this option you agree to the Let's Encrypt Subscriber
-        %% Agreement.
-        letsEncryptEnabled => {boolean, optional},
         %% Unique subdomain in onezone's domain for the provider. This
         %% property is required only if subdomain delegation is enabled.
         %% Otherwise it is ignored.
@@ -791,7 +785,7 @@ storage_create_request_model() ->
 %%--------------------------------------------------------------------
 -spec storage_details_model() -> {oneof, Oneof :: list()}.
 storage_details_model() ->
-    {oneof, [posix_model(),s3_model(),ceph_model(),swift_model(),glusterfs_model(),nulldevice_model()]}.
+    {oneof, [posix_model(),s3_model(),ceph_model(),cephrados_model(),swift_model(),glusterfs_model(),nulldevice_model()]}.
 
 %%--------------------------------------------------------------------
 %% @doc The storage import configuration. Storage import allows to import data
@@ -916,13 +910,11 @@ time_stats_collection_model() ->
 -spec user_create_request_model() -> maps:map().
 user_create_request_model() ->
     #{
-        %% The user name. It must be at least 4 characters long and contain only
+        %% The user name. It must be at least 2 characters long and contain only
         %% alphanumeric characters [a-zA-Z0-9].
         username => string,
-        %% The user password. It must be at least 8 characters long and contain
-        %% a minimum of 1 lower case letter [a-z] and a minimum of 1 upper case
-        %% letter [A-Z] and a minimum of 1 numeric character [0-9]. The Password
-        %% must not contain a colon character [:].
+        %% The user password. It must be at least 8 characters long. The
+        %% password must not contain a colon character ':'.
         password => string,
         %% The user role, one of 'admin' or 'regular'.
         userRole => atom
@@ -967,6 +959,66 @@ users_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc The SSL certificate details.
+%% @end
+%%--------------------------------------------------------------------
+-spec web_cert_model() -> maps:map().
+web_cert_model() ->
+    #{
+        %% If true, the certificate is obtained from Let's Encrypt service
+        %% and renewed automatically. Otherwise, the certificate management is
+        %% up to the administrator.
+        letsEncrypt => boolean,
+        %% Installed certificate's expiration time in ISO 8601 format.
+        expirationTime => string,
+        %% Installed certificate's creation time in ISO 8601 format.
+        creationTime => string,
+        %% Describes certificate validity status.
+        status => string,
+        paths => {web_cert_paths_model(), optional},
+        %% The domain (Common Name) for which current certificate was issued.
+        domain => string,
+        %% Issuer value of the current certificate.
+        issuer => string,
+        %% Date and time in ISO 8601 format. Represents last successful
+        %% Let's Encrypt certification. If there are no successful attempts
+        %% its value is null. This property is omitted if letsEncrypt is off.
+        lastRenewalSuccess => {string, optional},
+        %% Date and time in ISO 8601 format. Represents last unsuccessful
+        %% Let's Encrypt certification. If there are no successful attempts
+        %% its value is null. This property is omitted if letsEncrypt is off.
+        lastRenewalFailure => {string, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The SSL certificate configuration details that can be modified.
+%% @end
+%%--------------------------------------------------------------------
+-spec web_cert_modify_request_model() -> maps:map().
+web_cert_modify_request_model() ->
+    #{
+        %% If enabled Let's Encrypt service will be used to obtain SSL
+        %% certificates and renew them before expiration. Otherwise certificates
+        %% must be manually provided.
+        letsEncrypt => boolean
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Paths to certificate-related files.
+%% @end
+%%--------------------------------------------------------------------
+-spec web_cert_paths_model() -> maps:map().
+web_cert_paths_model() ->
+    #{
+        %% Path to the certificate PEM file.
+        cert => string,
+        %% Path to the corresponding private key PEM file.
+        key => string,
+        %% Path to the file containing certificate chain.
+        chain => string
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The cluster worker service hosts configuration.
 %% @end
 %%--------------------------------------------------------------------
@@ -984,9 +1036,10 @@ worker_hosts_model() ->
 -spec zone_cluster_configuration_model() -> maps:map().
 zone_cluster_configuration_model() ->
     #{
-        %% The name of a domain common for all services in the cluster. Together
-        %% with a node hostname constitute a node fully qualified domain name.
-        domainName => string,
+        %% Hostname suffix common for all services in the cluster. Together with
+        %% a node hostname constitutes a fully qualified domain name (FQDN) of
+        %% the node. May be skipped to allow unrelated hostnames for each node.
+        domainName => {string, optional},
         %% The collection of nodes aliases associated with nodes properties.
         nodes => #{'_' => zone_cluster_configuration_nodes_model()},
         databases => cluster_databases_model(),
@@ -1033,6 +1086,8 @@ zone_configuration_details_model() ->
 -spec zone_configuration_details_onezone_model() -> maps:map().
 zone_configuration_details_onezone_model() ->
     #{
+        %% Onezone's domain.
+        domainName => string,
         %% The name of a zone.
         name => string,
         %% True if all steps of cluster deployment and configuration have been
@@ -1050,11 +1105,16 @@ zone_configuration_onezone_model() ->
         %% The name of a HTTP domain.
         domainName => {string, optional},
         %% The name of a zone.
-        name => {string, optional}
+        name => {string, optional},
+        %% If enabled the zone will use Let's Encrypt service to obtain SSL
+        %% certificates. Otherwise certificates must be manually provided. By
+        %% enabling this option you agree to the Let's Encrypt Subscriber
+        %% Agreement.
+        letsEncryptEnabled => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The Ceph storage configuration.
+%% @doc The Ceph storage configuration (uses libradosstriper).
 %% @end
 %%--------------------------------------------------------------------
 -spec ceph_model() -> maps:map().
@@ -1091,6 +1151,55 @@ ceph_model() ->
         poolName => string,
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
+        %% Determines how the logical file paths will be mapped on the storage.
+        %% 'canonical' paths reflect the logical file names and
+        %% directory structure, however each rename operation will require
+        %% renaming the files on the storage. 'flat' paths are based on
+        %% unique file UUID's and do not require on-storage rename when
+        %% logical file name is changed.
+        storagePathType => {string, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The Ceph storage configuration (uses librados).
+%% @end
+%%--------------------------------------------------------------------
+-spec cephrados_model() -> maps:map().
+cephrados_model() ->
+    #{
+        %% The ID of storage.
+        id => {string, optional},
+        %% The name of storage.
+        name => {string, optional},
+        %% Defines whether storage administrator credentials (username and key)
+        %% may be used by users without storage accounts to access storage in
+        %% direct IO mode.
+        insecure => {boolean, optional},
+        %% Defines whether storage is readonly.
+        readonly => {boolean, optional},
+        %% The type of storage.
+        type => {equal, <<"cephrados">>},
+        %% If true LUMA and reverse LUMA services will be enabled.
+        lumaEnabled => {boolean, optional},
+        %% URL of external LUMA service
+        lumaUrl => {string, optional},
+        %% LUMA API Key, must be identical with API Key in external LUMA
+        %% service.
+        lumaApiKey => {string, optional},
+        %% The username of the Ceph cluster administrator.
+        username => string,
+        %% The admin key to access the Ceph cluster.
+        key => string,
+        %% The monitor host name.
+        monitorHostname => string,
+        %% The Ceph cluster name.
+        clusterName => string,
+        %% The Ceph pool name.
+        poolName => string,
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
+        %% Storage block size in bytes.
+        blockSize => {integer, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require

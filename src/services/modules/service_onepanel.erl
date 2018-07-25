@@ -360,8 +360,8 @@ get_remote_node_info(#{address := Address, api_version := ApiVersion} = Ctx) ->
 -spec build_url(Host :: binary() | string(), ApiVersion :: rest_handler:version(),
     Suffix :: binary() | string()) -> binary().
 build_url(Host, ApiVersion, Suffix) ->
-    Port = rest_listener:port(),
-    Prefix = rest_listener:get_prefix(ApiVersion),
+    Port = https_listener:port(),
+    Prefix = https_listener:get_prefix(ApiVersion),
     onepanel_utils:join(["https://", Host, ":", Port, Prefix, Suffix]).
 
 
@@ -373,7 +373,7 @@ build_url(Host, ApiVersion, Suffix) ->
 %%--------------------------------------------------------------------
 -spec https_opts(Timeout :: non_neg_integer()) -> http_client:opts().
 https_opts(Timeout) ->
-    CaCerts = rest_listener:get_cert_chain_pems(),
+    CaCerts = https_listener:get_cert_chain_pems(),
     [
         {ssl_options, [{secure, only_verify_peercert}, {cacerts, CaCerts}]},
         {connect_timeout, Timeout},

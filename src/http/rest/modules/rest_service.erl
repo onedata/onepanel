@@ -102,7 +102,7 @@ exists_resource(Req, #rstate{resource = SModule}) ->
 %%--------------------------------------------------------------------
 accept_possible(Req, 'POST', _Args, #rstate{resource = SModule})
     when SModule == service_oneprovider orelse SModule == service_onezone ->
-    {not(onepanel_deployment:is_completed(?PROGRESS_READY)), Req};
+    {not onepanel_deployment:is_completed(?PROGRESS_READY), Req};
 
 accept_possible(Req, _Method, _Args, _State) ->
     {true, Req}.
@@ -206,21 +206,25 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version =
     CmHosts = rest_utils:get_hosts([cluster, managers, nodes], Args),
     [MainCmHost] = rest_utils:get_hosts([cluster, managers, mainNode], Args),
     OzwHosts = rest_utils:get_hosts([cluster, workers, nodes], Args),
+    AllHosts = lists:usort(DbHosts ++ CmHosts ++ OzwHosts),
     ClusterIPs = rest_utils:get_cluster_ips(Args),
 
-    DbCtx = #{hosts => DbHosts},
-    DbCtx2 = onepanel_maps:get_store([cluster, databases, serverQuota], Args,
-        couchbase_server_quota, DbCtx),
-    DbCtx3 = onepanel_maps:get_store([cluster, databases, bucketQuota], Args,
-        couchbase_bucket_quota, DbCtx2),
+    DbCtx = onepanel_maps:get_store_multiple([
+        {[cluster, databases, serverQuota], couchbase_server_quota},
+        {[cluster, databases, bucketQuota], couchbase_bucket_quota}
+    ], Args, #{hosts => DbHosts}),
 
     Auth = cowboy_req:header(<<"authorization">>, Req),
     OpaCtx = maps:get(onepanel, Args, #{}),
     OpaCtx2 = OpaCtx#{
-        hosts => lists:usort(DbHosts ++ CmHosts ++ OzwHosts),
+        hosts => AllHosts,
         auth => Auth,
         api_version => Version
     },
+
+    LeCtx = onepanel_maps:get_store_multiple([
+        {[onezone, letsEncryptEnabled], letsencrypt_enabled}
+    ], Args, #{hosts => AllHosts}),
 
     OzCtx = onepanel_maps:get_store([onezone, name], Args, name),
     OzCtx2 = onepanel_maps:get_store([onezone, domainName], Args, domain, OzCtx),
@@ -235,10 +239,11 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version =
 
     ClusterCtx = #{
         service_onepanel:name() => OpaCtx2,
-        service_couchbase:name() => DbCtx3,
+        service_couchbase:name() => DbCtx,
         service_cluster_manager:name() => #{main_host => MainCmHost,
             hosts => CmHosts, worker_num => length(OzwHosts)},
-        service_oz_worker:name() => OzwCtx3
+        service_oz_worker:name() => OzwCtx3,
+        service_letsencrypt:name() => LeCtx
     },
 
     {true, rest_replier:handle_service_action_async(Req, service:apply_async(
