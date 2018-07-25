@@ -26,7 +26,7 @@
 %% @doc Creates an error record.
 %% @end
 %%--------------------------------------------------------------------
--spec create(Module :: module(), Function :: atom(), Arity :: non_neg_integer(),
+-spec create(Module :: module(), Function :: atom(), Arity :: arity(),
     Args :: term(), Reason :: term(), Stacktrace :: term(), Line :: non_neg_integer()) ->
     #error{}.
 create(_Module, _Function, _Arity, _Args, #error{} =

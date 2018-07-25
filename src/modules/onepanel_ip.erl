@@ -26,18 +26,17 @@
 -spec determine_ip() -> inet:ip4_address().
 determine_ip() ->
     % use first working method of getting IP
-    {ok, IP} = lists:foldl(fun(IpSupplier, PrevResult) ->
-        case PrevResult of
-            {ok, _IP} -> PrevResult;
-            _ -> catch IpSupplier()
-        end
+    onepanel_lists:foldl_while(fun(IpSupplier, PrevResult) ->
+        try
+            {ok, IP} = IpSupplier(),
+            {halt, IP}
+        catch  _:_ -> {cont, PrevResult} end
     end, undefined, [
         fun determine_ip_by_oz/0,
         fun determine_ip_by_external_service/0,
         fun determine_ip_by_shell/0,
         fun () -> {ok, {127,0,0,1}} end
-    ]),
-    IP.
+    ]).
 
 
 %%--------------------------------------------------------------------

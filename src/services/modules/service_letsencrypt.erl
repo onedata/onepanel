@@ -135,15 +135,15 @@ create(#{letsencrypt_plugin := Plugin}) ->
 %% Callback needed for service_watcher.
 %% @end
 %%--------------------------------------------------------------------
--spec status(Ctx :: service:ctx()) -> running.
+-spec status(Ctx :: service:ctx()) -> healthy.
 status(Ctx) ->
     try
         check_webcert(Ctx#{renewal => true})
     catch
         _:Reason -> ?error("Certificate renewal check failed: ~p", [?make_stacktrace(Reason)])
     end,
-    % always returns 'running' as there is no meaningful way of restarting this service
-    running.
+    % always returns 'healthy' as there is no meaningful way of restarting this service
+    healthy.
 
 
 %%--------------------------------------------------------------------

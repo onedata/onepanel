@@ -15,7 +15,7 @@
 
 %% API
 -export([hd/1, get/2, get/3, store/2, store/3, get_store/3, get_store/4]).
--export([union/2, intersect/2, subtract/2, map_undefined_to_null/1]).
+-export([union/2, intersect/2, subtract/2, foldl_while/3, map_undefined_to_null/1]).
 
 -type key() :: any().
 -type keys() :: key() | [key()].
@@ -155,6 +155,24 @@ subtract(List1, List2) ->
     ordsets:to_list(ordsets:subtract(
         ordsets:from_list(List1), ordsets:from_list(List2)
     )).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Foldls the list until Fun returns {halt, Term}.
+%% The return value for Fun is expected to be
+%% {cont, Acc} to continue the fold with Acc as the new accumulator or
+%% {halt, Acc} to halt the fold and return Acc as the return value of this function
+%% @end
+%%--------------------------------------------------------------------
+foldl_while(F, Accu, List) ->
+    do_foldl(F, {cont, Accu}, List).
+
+
+do_foldl(F, {halt, Accu}, _) -> Accu;
+do_foldl(F, {cont, Accu}, []) -> Accu;
+do_foldl(F, {cont, Accu}, [Hd|Tail]) -> do_foldl(F, F(Hd, Accu), Tail).
+
 
 %%-------------------------------------------------------------------
 %% @doc

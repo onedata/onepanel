@@ -17,7 +17,7 @@
 
 %% API
 -export([get_method/1, get_bindings/1, get_params/2, get_args/2,
-    get_hosts/2, get_cluster_ips/1, keys_binary_to_list/1, verify_any/2]).
+    get_hosts/2, get_cluster_ips/1, verify_any/2]).
 
 %%%===================================================================
 %%% API functions
@@ -134,16 +134,6 @@ get_cluster_ips(Args) ->
             list),
         maps:put(Host, IP, Acc)
     end, #{}, NodesWithIPs).
-
-%%-------------------------------------------------------------------
-%% @private
-%% @doc Converts keys of a map from binaries to lists
-%% @end
-%%-------------------------------------------------------------------
--spec keys_binary_to_list(#{binary() => term()}) -> #{string() => term()}.
-keys_binary_to_list(Map) ->
-    KeyVals = maps:to_list(Map),
-    maps:from_list(lists:map(fun({K, V}) -> {binary_to_list(K), V} end, KeyVals)).
 
 
 %%--------------------------------------------------------------------

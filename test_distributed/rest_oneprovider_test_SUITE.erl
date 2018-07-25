@@ -17,12 +17,14 @@
 -include_lib("ctool/include/test/performance.hrl").
 
 %% export for ct
--export([all/0, init_per_suite/1, init_per_testcase/2, end_per_testcase/2]).
+-export([all/0, init_per_suite/1, init_per_testcase/2,
+    end_per_testcase/2, end_per_suite/1]).
 
 %% tests
 -export([
     method_should_return_unauthorized_error/1,
     method_should_return_forbidden_error/1,
+    method_should_return_service_unavailable_error/1,
     get_should_return_provider_details/1,
     get_should_return_cluster_ips/1,
     put_should_register_provider/1,
@@ -51,7 +53,9 @@
     {<<"/provider/spaces">>, get},
     {<<"/provider/spaces">>, post},
     {<<"/provider/spaces/someSpaceId">>, get},
-    {<<"/provider/spaces/someSpaceId">>, delete}
+    {<<"/provider/spaces/someSpaceId">>, delete},
+    {<<"/provider/cluster_ips">>, get},
+    {<<"/provider/cluster_ips">>, patch}
 ]).
 
 -define(PROVIDER_DETAILS_JSON, #{
@@ -129,6 +133,7 @@ all() ->
     ?ALL([
         method_should_return_unauthorized_error,
         method_should_return_forbidden_error,
+        method_should_return_service_unavailable_error,
         get_should_return_provider_details,
         get_should_return_cluster_ips,
         put_should_register_provider,
@@ -168,6 +173,20 @@ method_should_return_forbidden_error(Config) ->
                 Host, Endpoint, Method, {?REG_USER_NAME, ?REG_USER_PASSWORD}
             ))
         end, ?COMMON_ENDPOINTS_WITH_METHODS)
+    end).
+
+
+method_should_return_service_unavailable_error(Config) ->
+    ?run(Config, fun(Host) ->
+        lists:foreach(fun({Endpoint, Method}) ->
+            ?assertMatch({ok, 503, _, _}, onepanel_test_rest:auth_request(
+                Host, Endpoint, Method, {?REG_USER_NAME, ?REG_USER_PASSWORD}
+            )),
+            ?assertMatch({ok, 503, _, _}, onepanel_test_rest:noauth_request(
+                Host, Endpoint, Method
+            ))
+        end, lists:delete({<<"/provider/cluster_ips">>, get}, % only endpoint not causing 503
+            ?COMMON_ENDPOINTS_WITH_METHODS))
     end).
 
 
@@ -241,8 +260,6 @@ patch_should_modify_provider_details(Config) ->
 
 patch_should_modify_provider_ips(Config) ->
     % There is one node in test environment
-    [Node] = ?config(oneprovider_nodes, Config),
-    Host = onepanel_cluster:node_to_host(Node),
     NewIP = <<"1.2.3.4">>,
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
@@ -379,6 +396,12 @@ init_per_suite(Config) ->
     [{?ENV_UP_POSTHOOK, Posthook} | Config].
 
 
+init_per_testcase(method_should_return_service_unavailable_error, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(all_nodes, Config),
+    test_utils:mock_expect(Nodes, service, all_healthy, fun() -> false end),
+    NewConfig;
+
 init_per_testcase(get_should_return_provider_details, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
@@ -489,3 +512,6 @@ init_per_testcase(_Case, Config) ->
 end_per_testcase(_Case, Config) ->
     Nodes = ?config(all_nodes, Config),
     test_utils:mock_unload(Nodes).
+
+end_per_suite(Config) ->
+    ok.

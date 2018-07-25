@@ -497,6 +497,13 @@ get_details(#{node := Node}) ->
     % Graph Sync connection is needed to obtain details
     rpc:call(Node, oneprovider, force_oz_connection_start, []),
     OzDomain = get_oz_domain(),
+
+    Details = case rpc:call(Node, provider_logic, get_as_map, []) of
+        {ok, DetailsMap} -> DetailsMap;
+        {error, no_connection_to_oz} -> ?throw_error(?ERR_ONEZONE_NOT_AVAILABLE);
+        {error, Reason} -> ?throw_error(Reason)
+    end,
+
     #{
         id := Id,
         name := Name,
@@ -506,9 +513,9 @@ get_details(#{node := Node}) ->
         subdomain := Subdomain,
         longitude := Longitude,
         latitude := Latitude
-    } = rpc:call(Node, provider_logic, get_as_map, []),
+    } = Details,
 
-    Details = [
+    Response = [
         {id, Id}, {name, Name},
         {subdomainDelegation, SubdomainDelegation}, {domain, Domain},
         {adminEmail, AdminEmail},
@@ -518,8 +525,8 @@ get_details(#{node := Node}) ->
     ],
 
     case SubdomainDelegation of
-        true -> [{subdomain, Subdomain} | Details];
-        _ -> Details
+        true -> [{subdomain, Subdomain} | Response];
+        _ -> Response
     end;
 get_details(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
