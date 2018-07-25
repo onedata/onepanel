@@ -181,10 +181,10 @@ service_op_worker_add_storage_test(Config) ->
             <<"someCephRados">> => #{
                 type => <<"cephrados">>,
                 clusterName => <<"ceph">>,
-                key => onepanel_utils:typed_get(key, Ceph, binary),
-                monitorHostname => onepanel_utils:typed_get(host_name, Ceph, binary),
+                key => onepanel_utils:typed_get(key, CephRados, binary),
+                monitorHostname => onepanel_utils:typed_get(host_name, CephRados, binary),
                 poolName => <<"onedata">>,
-                username => onepanel_utils:typed_get(username, Ceph, binary)
+                username => onepanel_utils:typed_get(username, CephRados, binary)
             },
             <<"someS3">> => #{
                 type => <<"s3">>,
