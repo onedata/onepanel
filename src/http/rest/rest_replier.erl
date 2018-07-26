@@ -73,7 +73,7 @@ reply_with_error(Req, Type, Reason) ->
     TaskId :: service_executor:task_id(), ApiVersion :: integer()) ->
     Req :: cowboy_req:req().
 handle_service_action_async(Req, TaskId, ApiVersion) ->
-    Prefix = rest_listener:get_prefix(ApiVersion),
+    Prefix = https_listener:get_prefix(ApiVersion),
     Location = <<Prefix/binary, "/tasks/", TaskId/binary>>,
     cowboy_req:set_resp_header(<<"location">>, Location, Req).
 
@@ -219,10 +219,11 @@ format_configuration(SModule) ->
         service_onezone -> service_oz_worker:get_hosts();
         service_oneprovider -> service_op_worker:get_hosts()
     end,
-    {SName, Ctx} = case SModule of
+    {SName, Ctx, Details} = case SModule of
         service_onezone ->
             {ok, #service{ctx = Ctx}} = service:get(service_onezone:name()),
-            {maps:get(name, Ctx, null), Ctx};
+            OzDetails = #{domainName => service_oz_worker:get_domain(#{})},
+            {maps:get(name, Ctx, null), Ctx, OzDetails};
         service_oneprovider ->
             {ok, #service{ctx = Ctx}} = service:get(service_oneprovider:name()),
             Name = case service_oneprovider:is_registered(Ctx) of
@@ -231,10 +232,9 @@ format_configuration(SModule) ->
                         {ok, #provider_details{name = N}} -> N;
                         {error, _Reason} -> null
                     end;
-                false ->
-                    null
+                false -> null
             end,
-            {Name, Ctx}
+            {Name, Ctx, #{}}
     end,
     MasterHostBin = case maps:get(master_host, Ctx, null) of
         null -> null;
@@ -251,7 +251,7 @@ format_configuration(SModule) ->
             <<"workers">> => #{
                 <<"hosts">> => onepanel_utils:convert(WrkHosts, {seq, binary})}
         },
-        SModule:name() => #{
+        SModule:name() => Details#{
             <<"name">> => SName,
             <<"configured">> => is_service_configured()
         }

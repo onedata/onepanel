@@ -81,11 +81,13 @@ get_steps(deploy, Ctx) ->
     SelfHost = onepanel_cluster:node_to_host(),
 
     {ok, OpaCtx} = onepanel_maps:get([cluster, ?SERVICE_OPA], Ctx),
+    {ok, LeCtx} = onepanel_maps:get([cluster, ?SERVICE_LE], Ctx),
     {ok, CbCtx} = onepanel_maps:get([cluster, ?SERVICE_CB], Ctx),
     {ok, CmCtx} = onepanel_maps:get([cluster, ?SERVICE_CM], Ctx),
     {ok, OzwCtx} = onepanel_maps:get([cluster, ?SERVICE_OZW], Ctx),
 
-    OzCtx = (onepanel_maps:get(name(), Ctx, #{}))#{
+    OzCtx1 = onepanel_maps:get(name(), Ctx, #{}),
+    OzCtx2 = OzCtx1#{
         master_host => SelfHost
     },
     S = #step{verify_hosts = false},
@@ -98,12 +100,16 @@ get_steps(deploy, Ctx) ->
         S#step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
         Ss#steps{service = ?SERVICE_OZW, action = deploy, ctx = OzwCtx},
         S#step{service = ?SERVICE_OZW, function = status, ctx = OzwCtx},
+        Ss#steps{service = ?SERVICE_LE, action = deploy, ctx = LeCtx#{
+            letsencrypt_plugin => ?SERVICE_OZW
+        }},
         S#step{module = onepanel_deployment, function = mark_completed, ctx = OpaCtx,
             args = [?PROGRESS_CLUSTER], selection = first},
         S#step{module = service, function = save, ctx = OpaCtx,
-            args = [#service{name = name(), ctx = OzCtx}],
+            args = [#service{name = name(), ctx = OzCtx2}],
             selection = first
         },
+        Ss#steps{service = ?SERVICE_LE, action = update, ctx = LeCtx},
         Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx},
         S#step{module = onepanel_deployment, function = mark_completed, ctx = OpaCtx,
             args = [?PROGRESS_READY], selection = first}
@@ -148,7 +154,8 @@ get_steps(manage_restart, _Ctx) ->
             #steps{action = stop},
             #steps{service = ?SERVICE_CB, action = resume},
             #steps{service = ?SERVICE_CM, action = resume},
-            #steps{service = ?SERVICE_OZW, action = resume}
+            #steps{service = ?SERVICE_OZW, action = resume},
+            #steps{service = ?SERVICE_LE, action = resume}
         ];
         false ->
             ?info("Waiting for master node \"~s\" to start", [MasterHost]),

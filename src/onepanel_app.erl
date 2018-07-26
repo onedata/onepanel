@@ -70,7 +70,7 @@ start(_StartType, _StartArgs) ->
 %%--------------------------------------------------------------------
 -spec stop(State :: term()) -> term().
 stop(_State) ->
-    rest_listener:stop(),
+    https_listener:stop(),
     test_node_starter:maybe_stop_cover(),
     ok.
 

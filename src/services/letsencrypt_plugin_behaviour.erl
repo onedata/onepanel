@@ -28,6 +28,11 @@
 -callback remove_txt_record(#{txt_name := binary(), _ => _}) -> ok.
 
 %%--------------------------------------------------------------------
+%% Sets static http content.
+%%--------------------------------------------------------------------
+-callback set_http_record(Name :: binary(), Value :: binary()) -> ok.
+
+%%--------------------------------------------------------------------
 %% Returns hostname of the server at which txt record is set.
 %%--------------------------------------------------------------------
 -callback get_dns_server() -> string().
@@ -43,9 +48,10 @@
 -callback get_admin_email(service:ctx()) -> binary() | undefined.
 
 %%--------------------------------------------------------------------
-%% Checks if service is in a state allowing obtaining certificates.
+%% Checks if service supports Let's Encrypt challenge of given type.
 %%--------------------------------------------------------------------
--callback is_letsencrypt_supported(service:ctx()) -> boolean() | unknown.
+-callback supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
+    boolean() | unknown.
 
 %%--------------------------------------------------------------------
 %% Clears worker ssl cache to ensure certificates changed on disk
