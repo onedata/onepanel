@@ -6,6 +6,11 @@ CHANGELOG
 
 ### 18.02.0-rc10
 
+* VFS-4724 Use cephrados config when setting up storage
+* VFS-4667 Created configuration endpoint
+* Updating GUI, including: VFS-4663-onezone-web-cert * VFS-4663 Web certificate management
+* VFS-4029 Update API description from swagger
+* VFS-4029 Support http Let's Encrypt challenge in OZ and OP
 * Updating GUI, including: VFS-4677-cephrados * VFS-4677 Added Ceph RADOS storage support
 * Updating GUI, including: VFS-4463-show-storage-id, VFS-4233-use-submodules * VFS-4463 Showing storage ID on storages view * VFS-4233 Using submodules for own libs on separate repos
 * VFS-4656 Added cephrados helper
