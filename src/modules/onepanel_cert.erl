@@ -17,12 +17,13 @@
 -include_lib("public_key/include/OTP-PUB-KEY.hrl").
 
 -type pem() :: binary().
+-type cert() :: #'Certificate'{}.
 
--export_type([pem/0]).
+-export_type([pem/0, cert/0]).
 
 %% API
 -export([generate_csr_and_key/1, backup_exisiting_certs/0]).
--export([read_cert/1, get_subject_cn/1, get_issuer_cn/1,
+-export([read/1, verify_hostname/2, get_subject_cn/1, get_issuer_cn/1,
     get_seconds_till_expiration/1]).
 -export([get_times/1]).
 
@@ -67,11 +68,31 @@ generate_csr_and_key(Domain) ->
 
 %%--------------------------------------------------------------------
 %% @doc
+%% Reads first certificate from a pem file.
+%% @end
+%%--------------------------------------------------------------------
+-spec read(Path :: file:name_all()) ->
+    {ok, cert()} | {error, Reason :: term()}.
+read(Path) ->
+    case file:read_file(Path) of
+        {ok, Pem} ->
+            case public_key:pem_decode(Pem) of
+                [Entries | _] ->
+                    #'Certificate'{} = Cert = public_key:pem_entry_decode(Entries),
+                    {ok, Cert};
+                [] -> {error, bad_cert}
+            end;
+        Error -> Error
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
 %% Extracts subject Common Name from a certificate.
 %% If the certificate containts no Common Name 'undefined' is returned.
 %% @end
 %%--------------------------------------------------------------------
--spec get_subject_cn(#'Certificate'{} | file:name_all()) ->
+-spec get_subject_cn(cert() | file:name_all()) ->
     binary() | undefined.
 get_subject_cn(#'Certificate'{} = Cert) ->
     #'Certificate'{tbsCertificate = #'TBSCertificate'{
@@ -87,7 +108,7 @@ get_subject_cn(#'Certificate'{} = Cert) ->
 %% is returned.
 %% @end
 %%--------------------------------------------------------------------
--spec get_issuer_cn(#'Certificate'{} | file:name_all()) ->
+-spec get_issuer_cn(cert() | file:name_all()) ->
     binary() | undefined.
 get_issuer_cn(#'Certificate'{} = Cert) ->
     #'Certificate'{tbsCertificate = #'TBSCertificate'{
@@ -96,35 +117,44 @@ get_issuer_cn(#'Certificate'{} = Cert) ->
     get_common_name(IssuerParts).
 
 
+-spec verify_hostname(cert(), Hostname :: binary() | string()) ->
+    valid | invalid | error.
+verify_hostname(Cert, Hostname) ->
+    HostnameStr = onepanel_utils:convert(Hostname, list),
+    OtpCert = to_otp(Cert),
+
+    case ssl_verify_hostname:verify_cert_hostname(OtpCert, HostnameStr) of
+        {fail, unable_to_decode_common_name} -> error;
+        {fail, _} -> invalid;
+        {valid, _} -> valid
+    end.
+
+
 %%--------------------------------------------------------------------
 %% @doc
 %% Returns seconds until expiration time of a given certificate.
 %% @end
 %%--------------------------------------------------------------------
--spec get_seconds_till_expiration(#'Certificate'{}) -> integer().
+-spec get_seconds_till_expiration(cert()) -> integer().
 get_seconds_till_expiration(#'Certificate'{} = Cert) ->
     {_, ExpirationTime} = get_times(Cert),
     ExpirationTime - time_utils:system_time_seconds().
 
 
 %%--------------------------------------------------------------------
+%% @private
 %% @doc
-%% Reads first certificate from a pem file.
+%% Returns times when certificate validity begins and ends.
 %% @end
 %%--------------------------------------------------------------------
--spec read_cert(Path :: file:name_all()) ->
-    {ok, #'Certificate'{}} | {error, Reason :: term()}.
-read_cert(Path) ->
-    case file:read_file(Path) of
-        {ok, Pem} ->
-            case public_key:pem_decode(Pem) of
-                [Entries | _] ->
-                    #'Certificate'{} = Cert = public_key:pem_entry_decode(Entries),
-                    {ok, Cert};
-                [] -> {error, bad_cert}
-            end;
-        Error -> Error
-    end.
+-spec get_times(cert()) ->
+    {Since :: integer(), Until :: integer()}.
+get_times(#'Certificate'{} = Cert) ->
+    #'TBSCertificate'{
+        validity = Validity
+    } = Cert#'Certificate'.tbsCertificate,
+    {'Validity', NotBeforeStr, NotAfterStr} = Validity,
+    {time_str_to_epoch(NotBeforeStr), time_str_to_epoch(NotAfterStr)}.
 
 
 %%--------------------------------------------------------------------
@@ -140,8 +170,7 @@ backup_exisiting_certs() ->
 
     lists:foreach(fun(Path) ->
         case filelib:is_regular(Path) of
-            false ->
-                ok;
+            false -> ok;
             true ->
                 BackupPath = str_utils:format("~s.~B.bak", [
                     Path, time_utils:system_time_seconds()
@@ -150,25 +179,21 @@ backup_exisiting_certs() ->
         end
     end, [WebKeyPath, WebCertPath, WebChainPath]).
 
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Returns times when certificate validity begins and ends.
-%% @end
-%%--------------------------------------------------------------------
--spec get_times(#'Certificate'{}) ->
-    {Since :: integer(), Until :: integer()}.
-get_times(#'Certificate'{} = Cert) ->
-    #'TBSCertificate'{
-        validity = Validity
-    } = Cert#'Certificate'.tbsCertificate,
-    {'Validity', NotBeforeStr, NotAfterStr} = Validity,
-    {time_str_to_epoch(NotBeforeStr), time_str_to_epoch(NotAfterStr)}.
-
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Converts plain 'Certificate' record to 'OTPCertificate.
+%% @end
+%%--------------------------------------------------------------------
+-spec to_otp(cert()) -> #'OTPCertificate'{}.
+to_otp(Cert) ->
+    Der = public_key:pkix_encode('Certificate', Cert, plain),
+    public_key:pkix_decode_cert(Der, otp).
 
 
 %%--------------------------------------------------------------------
@@ -181,7 +206,7 @@ get_times(#'Certificate'{} = Cert) ->
 get_common_name(RdnSequence) ->
     case lists:filtermap(fun
         ([#'AttributeTypeAndValue'{
-            type = {2, 5, 4, 3}, % Common Name
+            type = ?'id-at-commonName',
             value = <<_:16, CN/binary>>}]) -> {true, CN};
         (_) -> false
     end, RdnSequence) of
