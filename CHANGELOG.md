@@ -4,6 +4,12 @@
 CHANGELOG
 ---------
 
+### 18.02.0-rc11
+
+* VFS-4623 Adjust to change in dns config structure in oz worker
+* VFS-4029 Better certificate hostname verification
+
+
 ### 18.02.0-rc10
 
 * VFS-4724 Use cephrados config when setting up storage
