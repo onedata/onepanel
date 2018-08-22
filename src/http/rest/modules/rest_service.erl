@@ -19,7 +19,7 @@
 -behavior(rest_behaviour).
 
 %% REST behaviour callbacks
--export([is_authorized/3, exists_resource/2, accept_possible/4,
+-export([is_authorized/3, exists_resource/2, accept_possible/4, is_available/3,
     accept_resource/4, provide_resource/2, delete_resource/2]).
 
 -define(SERVICES, [service_couchbase, service_cluster_manager, service_op_worker,
@@ -105,6 +105,20 @@ accept_possible(Req, 'POST', _Args, #rstate{resource = SModule})
     {not onepanel_deployment:is_completed(?PROGRESS_READY), Req};
 
 accept_possible(Req, _Method, _Args, _State) ->
+    {true, Req}.
+
+
+%%--------------------------------------------------------------------
+%% @doc {@link rest_behaviour:is_available/3}
+%% @end
+%%--------------------------------------------------------------------
+is_available(Req, _Method, #rstate{resource = Resource}) when
+    Resource == luma;
+    Resource == storages;
+    Resource == storage ->
+    {service:all_healthy(), Req};
+
+is_available(Req, _Method, _State) ->
     {true, Req}.
 
 
@@ -321,6 +335,9 @@ provide_resource(Req, #rstate{resource = nagios} = State) ->
             Req2 = cowboy_req:reply(Code, Headers, Body, Req),
             {stop, Req2, State};
         {error, econnrefused} ->
+            Req2 = cowboy_req:reply(503, #{}, Req),
+            {stop, Req2, State};
+        {error, timeout} ->
             Req2 = cowboy_req:reply(503, #{}, Req),
             {stop, Req2, State}
     end;

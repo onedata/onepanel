@@ -22,6 +22,7 @@
     content_types_provided/2, is_authorized/2, forbidden/2, resource_exists/2,
     delete_resource/2, accept_resource_json/2, accept_resource_yaml/2,
     provide_resource/2]).
+-export([service_available/2]).
 
 -type version() :: non_neg_integer().
 -type accept_method_type() :: 'POST' | 'PATCH' | 'PUT'.
@@ -53,6 +54,35 @@
 init(Req, Opts) ->
     {cowboy_rest, Req, Opts}.
 
+
+%%--------------------------------------------------------------------
+%% @doc Cowboy callback function.
+%% Returns whether services needed to fulfill the request are available.
+%% Negative result of this function triggers 503 Service Unavailable error.
+%% @end
+%%--------------------------------------------------------------------
+-spec service_available(Req :: cowboy_req:req(), State :: state()) ->
+    {boolean(), cowboy_req:req(), state()}.
+service_available(Req, #rstate{methods = Methods, module = Module} = State) ->
+    try
+        {Method, Req2} = rest_utils:get_method(Req),
+        {Bindings, Req3} = rest_utils:get_bindings(Req2),
+        case lists:keyfind(Method, 2, Methods) of
+            #rmethod{params_spec = Spec} ->
+                {Params, Req4} = rest_utils:get_params(Req3, Spec),
+                State2 = State#rstate{bindings = Bindings, params = Params},
+
+                {Available, Req} = Module:is_available(Req4, Method, State2),
+                {Available, Req, State};
+            false ->
+                % continue processing as it will fail anyway on allowed methods check
+                % triggering more descriptive error
+                {true, Req, State}
+        end
+    catch
+        Type:Reason ->
+            {false, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason)), State}
+    end.
 
 %%--------------------------------------------------------------------
 %% @doc Cowboy callback function. Returns the list of allowed methods.
@@ -93,11 +123,14 @@ content_types_provided(Req, #rstate{} = State) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Cowboy callback function. Returns whether the user is authorized to
-%% perform the action. The name and description of this function is actually
-%% misleading; 401 Unauthorized is returned when there's been an *authentication*
-%% error, and 403 Forbidden is returned when the already-authenticated client
-%% is unauthorized to perform an operation.
+%% @doc Cowboy callback function.
+%% Handles authentication of the user.
+%% Negative result of this function triggers 401 Unauthorized which
+%% is http status used to describe authentication errors.
+%%
+%% Resource methods marked as "noauth" will never cause failure
+%% of this function even if user does provide credentials in the request,
+%% thus never triggering 401 code for such resources.
 %% @end
 %%--------------------------------------------------------------------
 -spec is_authorized(Req :: cowboy_req:req(), State :: state()) ->
@@ -127,8 +160,11 @@ is_authorized(Req, #rstate{methods = Methods} = State) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Cowboy callback function. Returns whether access to the resource is
-%% forbidden ({@link  is_authorized/2}).
+%% @doc Cowboy callback function.
+%% Returns whether the client is allowed to access given resource.
+%% The client is an already authenticated user unless given endpoint has
+%% the noauth flag permitting requests without authentication.
+%% Negative result of this function triggers 403 Unauthorized status code.
 %% @end
 %%--------------------------------------------------------------------
 -spec forbidden(Req :: cowboy_req:req(), State :: state()) ->
@@ -278,16 +314,11 @@ accept_resource(Req, Data, #rstate{module = Module, methods = Methods} =
         lists:keyfind(Method, 2, Methods),
     {Params, Req4} = rest_utils:get_params(Req3, ParamSpec),
     Args = rest_utils:get_args(Data, ArgsSpec),
+    State2 = State#rstate{bindings = Bindings, params = Params},
 
-    case Module:accept_possible(Req4, Method, Args, State#rstate{
-        bindings = Bindings,
-        params = Params
-    }) of
+    case Module:accept_possible(Req4, Method, Args, State2) of
         {true, Req5} ->
-            {Result, Req6} = Module:accept_resource(Req5, Method, Args, State#rstate{
-                bindings = Bindings,
-                params = Params
-            }),
+            {Result, Req6} = Module:accept_resource(Req5, Method, Args, State2),
             {Result, Req6, State};
         {false, Req5} ->
             {stop, cowboy_req:reply(409, Req5), State}
@@ -355,7 +386,7 @@ authenticate_by_cookie(Req) ->
 %% converting each parameter into binary.
 %% @end
 %%--------------------------------------------------------------------
--spec adjust_yaml_data(Data ::proplists:proplist()) -> 
+-spec adjust_yaml_data(Data :: proplists:proplist()) ->
     NewData :: proplists:proplist().
 adjust_yaml_data(Data) ->
     case {io_lib:printable_unicode_list(Data), erlang:is_list(Data)} of

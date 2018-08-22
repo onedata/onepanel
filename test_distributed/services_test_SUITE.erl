@@ -224,17 +224,17 @@ services_status_test(Config) ->
             SModule = service:get_module(Service),
             lists:foreach(fun(Node) ->
                 onepanel_test_utils:service_host_action(Node, Service, status),
-                assert_service_step(SModule, status, [Node], running)
+                assert_service_step(SModule, status, [Node], healthy)
             end, Nodes),
 
             onepanel_test_utils:service_action(hd(Nodes), Service, status),
-            assert_service_step(SModule, status, Nodes, running)
+            assert_service_step(SModule, status, Nodes, healthy)
         end, Services),
 
         onepanel_test_utils:service_action(hd(Nodes), MainService, status),
         lists:foreach(fun(Service) ->
             SModule = service:get_module(Service),
-            assert_service_step(SModule, status, Nodes, running)
+            assert_service_step(SModule, status, Nodes, healthy)
         end, Services)
     end, [
         {?config(onezone_nodes, Config), ?SERVICE_OZ,
@@ -246,7 +246,7 @@ services_status_test(Config) ->
 
 services_stop_start_test(Config) ->
     ActionsWithResults = [
-        {stop, ok}, {status, stopped}, {start, ok}, {status, running}
+        {stop, ok}, {status, stopped}, {start, ok}, {status, unhealthy}
     ],
 
     lists:foreach(fun({Nodes, MainService, Services}) ->

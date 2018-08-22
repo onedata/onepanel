@@ -25,7 +25,7 @@
     supports_letsencrypt_challenge/1]).
 
 %% API
--export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
+-export([configure/1, start/1, stop/1, status/1, health/1, wait_for_init/1,
     get_nagios_response/1, get_nagios_status/1]).
 -export([reconcile_dns/1]).
 -export([migrate_generated_config/1]).
@@ -103,7 +103,7 @@ configure(Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link service:start/1}
+%% @doc {@link service_cli:start/1}
 %% @end
 %%--------------------------------------------------------------------
 -spec start(Ctx :: service:ctx()) -> ok | no_return().
@@ -111,36 +111,37 @@ start(Ctx) ->
     NewCtx = maps:merge(#{
         open_files => service_ctx:get(oz_worker_open_files_limit, Ctx)
     }, Ctx),
-    service_cluster_worker:start(NewCtx#{
-        init_script => ?INIT_SCRIPT,
-        custom_cmd_env => oz_worker_start_cmd
-    }),
-    service_watcher:register_service(name()).
+    service_cluster_worker:start(NewCtx#{name => name()}).
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link service:stop/1}
+%% @doc {@link service_cli:stop/1}
 %% @end
 %%--------------------------------------------------------------------
 -spec stop(Ctx :: service:ctx()) -> ok | no_return().
 stop(Ctx) ->
-    service_watcher:unregister_service(name()),
-    service_cluster_worker:stop(Ctx#{
-        init_script => ?INIT_SCRIPT,
-        custom_cmd_env => oz_worker_stop_cmd
-    }).
+    service_cluster_worker:stop(Ctx#{name => name()}).
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link service:status/1}
+%% @doc {@link service_cli:status/1}
 %% @end
 %%--------------------------------------------------------------------
--spec status(Ctx :: service:ctx()) -> running | stopped | not_found.
+-spec status(Ctx :: service:ctx()) -> service:status().
 status(Ctx) ->
-    service_cluster_worker:status(Ctx#{
-        init_script => ?INIT_SCRIPT,
-        custom_cmd_env => oz_worker_status_cmd
-    }).
+    service_cluster_worker:status(Ctx#{name => name()}).
+
+
+%%--------------------------------------------------------------------
+%% @doc Checks if a running service is in a fully functional state.
+%% @end
+%%--------------------------------------------------------------------
+-spec health(service:ctx()) -> service:status().
+health(Ctx) ->
+    case (catch get_nagios_status(Ctx)) of
+        ok -> healthy;
+        _ -> unhealthy
+    end.
 
 
 %%--------------------------------------------------------------------

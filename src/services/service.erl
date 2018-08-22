@@ -20,14 +20,17 @@
 -include("names.hrl").
 -include("service.hrl").
 
+-define(DEFAULT_STATUS, stopped).
+
 %% Model behaviour callbacks
 -export([get_fields/0, seed/0, create/1, save/1, update/2, get/1, exists/1,
     delete/1, list/0]).
 
 %% API
--export([start/3, stop/2, status/2, apply/3, apply/4, apply_async/3,
+-export([apply/3, apply/4, apply_async/3,
     apply_sync/3, apply_sync/4, get_results/1, get_results/2, abort_task/1,
     exists_task/1]).
+-export([get_status/2, update_status/2, update_status/3, all_healthy/0]).
 -export([get_module/1, get_hosts/1, get_nodes/1, is_member/2, add_host/2]).
 
 -type name() :: atom().
@@ -40,7 +43,9 @@
 -type stage() :: action_begin | action_end | step_begin | step_end.
 -type record() :: #service{}.
 
--export_type([name/0, action/0, ctx/0, notify/0, host/0, step/0, condition/0,
+-type status() :: healthy | unhealthy | stopped | missing.
+
+-export_type([name/0, action/0, status/0, ctx/0, notify/0, host/0, step/0, condition/0,
     stage/0]).
 
 %%%===================================================================
@@ -136,56 +141,54 @@ list() ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc Sets the system limits and starts the service using an init script
-%% in a shell.
+%% @doc @equiv update_status(Service, onepanel_cluster:node_to_host(), Status)
 %% @end
 %%--------------------------------------------------------------------
--spec start(string(), maps:map(), atom()) -> ok | no_return().
-start(InitScript, SystemLimits, CustomCmdEnv) ->
-    Tokens = case onepanel_env:find(CustomCmdEnv) of
-        {ok, Cmd} when is_list(Cmd) -> [Cmd];
-        _ -> ["service", InitScript, "start"]
-    end,
-    Tokens2 = maps:fold(fun
-        (open_files, Value, Acc) -> ["ulimit", "-n", Value, ";" | Acc];
-        (_, _, Acc) -> Acc
-    end, Tokens, SystemLimits),
-    onepanel_shell:ensure_success(Tokens2).
+-spec update_status(name(), status()) -> status().
+update_status(Service, Status) ->
+    update_status(Service, onepanel_cluster:node_to_host(), Status).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Updates service status cache value for given service and host.
+%% @end
+%%--------------------------------------------------------------------
+-spec update_status(name(), host(), status()) -> status().
+update_status(Service, Host, Status) ->
+    update_ctx(Service, fun(Ctx) ->
+        onepanel_maps:store([status, Host], Status, Ctx)
+    end),
+    Status.
 
 
 %%--------------------------------------------------------------------
-%% @doc Stops the service using an init script in a shell.
+%% @doc
+%% Returns cached service status.
+%% This cache is updated on each start/stop operation
+%% and by service_watcher periodically invoking ServiceModule:status/1.
 %% @end
 %%--------------------------------------------------------------------
--spec stop(string(), atom()) -> ok | no_return().
-stop(InitScript, CustomCmdEnv) ->
-    Tokens = case onepanel_env:find(CustomCmdEnv) of
-        {ok, Cmd} when is_list(Cmd) -> [Cmd];
-        _ -> ["service", InitScript, "stop"]
-    end,
-    case onepanel_shell:execute(Tokens) of
-        {0, _} -> ok;
-        _ ->
-            ?warning("Failed to stop service '~s'", [InitScript]),
-            ok
+-spec get_status(name(), host()) -> status() | #error{}.
+get_status(Service, Host)->
+    case get_ctx(Service) of
+        Ctx when is_map(Ctx) -> onepanel_maps:get([status, Host], Ctx);
+        Error -> Error
     end.
 
 
 %%--------------------------------------------------------------------
-%% @doc Returns the service status using an init script in a shell.
+%% @doc
+%% Checks if all deployed services have reported healthy status
+%% on last check.
 %% @end
 %%--------------------------------------------------------------------
--spec status(string(), atom()) -> running | stopped | missing.
-status(InitScript, CustomCmdEnv) ->
-    Tokens = case onepanel_env:find(CustomCmdEnv) of
-        {ok, Cmd} when is_list(Cmd) -> [Cmd];
-        _ -> ["service", InitScript, "status"]
-    end,
-    case onepanel_shell:execute(Tokens) of
-        {0, _} -> running;
-        {127, _} -> missing;
-        _ -> stopped
-    end.
+-spec all_healthy() -> boolean().
+all_healthy() ->
+    lists:all(fun(#service{ctx = Ctx}) ->
+        lists:all(fun({_Host, Status}) ->
+            healthy == Status
+        end, maps:to_list(maps:get(status, Ctx, #{})))
+    end, service:list()).
 
 
 %%--------------------------------------------------------------------
@@ -350,14 +353,23 @@ is_member(Service, Host) ->
 %%--------------------------------------------------------------------
 -spec add_host(Service :: name(), Host :: host()) -> ok.
 add_host(Service, Host) ->
-    ?MODULE:update(Service, fun(#service{hosts = Hosts} = S) ->
-        S#service{hosts = [Host | lists:delete(Host, Hosts)]}
+    ?MODULE:update(Service, fun(#service{hosts = Hosts, ctx = Ctx} = S) ->
+        NewStatus = case maps:get(status, Ctx, #{}) of
+            #{Host := _} = Status -> Status;
+            Status -> Status#{Host => ?DEFAULT_STATUS}
+        end,
+        S#service{
+            hosts = lists:usort([Host | Hosts]),
+            % ensure statuses map contains all hosts
+            ctx = Ctx#{status => NewStatus}
+        }
     end).
 
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
 
 %%--------------------------------------------------------------------
 %% @private @doc Applies the service steps associated with an action.
@@ -384,3 +396,29 @@ apply_steps([#step{hosts = Hosts, module = Module, function = Function,
             timer:sleep(Delay),
             apply_steps([Step#step{attempts = Attempts - 1} | Steps], Notify)
     end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Returns the "ctx" field of a service model.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_ctx(name()) -> ctx() | #error{} | no_return().
+get_ctx(Service) ->
+    case ?MODULE:get(Service) of
+        {ok, #service{ctx = Ctx}} -> Ctx;
+        Error -> Error
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Updates the "ctx" field of a service model.
+%% @end
+%%--------------------------------------------------------------------
+-spec update_ctx(Service :: service:name(), Diff) -> ok | no_return()
+    when Diff :: map() | fun((map()) -> map()).
+update_ctx(Service, Diff) when is_function(Diff, 1) ->
+    service:update(Service, fun(#service{ctx = Ctx} = S) ->
+        S#service{ctx = Diff(Ctx)}
+    end).

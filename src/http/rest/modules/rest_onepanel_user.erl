@@ -16,7 +16,7 @@
 -behavior(rest_behaviour).
 
 %% REST behaviour callbacks
--export([is_authorized/3, exists_resource/2, accept_possible/4,
+-export([is_authorized/3, exists_resource/2, accept_possible/4, is_available/3,
     accept_resource/4, provide_resource/2, delete_resource/2]).
 
 %%%===================================================================
@@ -62,6 +62,14 @@ exists_resource(Req, _State) ->
 %% @end
 %%--------------------------------------------------------------------
 accept_possible(Req, _Method, _Args, _State) ->
+    {true, Req}.
+
+
+%%--------------------------------------------------------------------
+%% @doc {@link rest_behaviour:is_available/3}
+%% @end
+%%--------------------------------------------------------------------
+is_available(Req, _Method, _State) ->
     {true, Req}.
 
 

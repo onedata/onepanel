@@ -25,7 +25,7 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
+-export([configure/1, wait_for_init/1, start/1, stop/1, status/1,
     get_nagios_response/1, get_nagios_status/1, set_node_ip/1,
     get_cluster_ips/1, reload_webcert/1, migrate_generated_config/1]).
 
@@ -169,30 +169,33 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
 
     service:add_host(Name, Host).
 
-%%--------------------------------------------------------------------
-%% @doc {@link service:start/1}
-%% @end
-%%--------------------------------------------------------------------
--spec start(Ctx :: service:ctx()) -> ok | no_return().
-start(#{init_script := InitScript, custom_cmd_env := CustomCmdEnv} = Ctx) ->
-    service:start(InitScript, Ctx, CustomCmdEnv).
 
-%%--------------------------------------------------------------------
-%% @doc {@link service:stop/1}
-%% @end
-%%--------------------------------------------------------------------
--spec stop(Ctx :: service:ctx()) -> ok | no_return().
-stop(#{init_script := InitScript, custom_cmd_env := CustomCmdEnv}) ->
-    service:stop(InitScript, CustomCmdEnv).
+-spec start(service:ctx()) -> ok | no_return().
+start(#{name := Name} = Ctx) ->
+    service_cli:start(Name, Ctx),
+    service_watcher:register_service(Name),
+    service:update_status(Name, unhealthy),
+    ok.
 
 
-%%--------------------------------------------------------------------
-%% @doc {@link service:status/1}
-%% @end
-%%--------------------------------------------------------------------
--spec status(Ctx :: service:ctx()) -> running | stopped | not_found.
-status(#{init_script := InitScript, custom_cmd_env := CustomCmdEnv}) ->
-    service:status(InitScript, CustomCmdEnv).
+-spec stop(service:ctx()) -> ok.
+stop(#{name := Name} = Ctx) ->
+    service_watcher:unregister_service(Name),
+    service_cli:stop(Name),
+    % check status before updating it as service_cli:stop/1 does not throw on failure
+    status(Ctx),
+    ok.
+
+
+-spec status(service:ctx()) -> service:status().
+status(#{name := Name} = Ctx) ->
+    Module = service:get_module(Name),
+    service:update_status(Name,
+        case service_cli:status(Name, ping) of
+            running -> Module:health(Ctx);
+            stopped -> stopped;
+            missing -> missing
+        end).
 
 
 %%--------------------------------------------------------------------
@@ -203,8 +206,10 @@ status(#{init_script := InitScript, custom_cmd_env := CustomCmdEnv}) ->
 wait_for_init(#{name := Name, wait_for_init_attempts := Attempts,
     wait_for_init_delay := Delay} = Ctx) ->
     Module = service:get_module(Name),
-    onepanel_utils:wait_until(Module, get_nagios_status, [Ctx], {equal, ok},
-        Attempts, Delay).
+    onepanel_utils:wait_until(Module, health, [Ctx], {equal, healthy},
+        Attempts, Delay),
+    service:update_status(Name, healthy),
+    ok.
 
 
 %%--------------------------------------------------------------------
@@ -275,9 +280,11 @@ set_node_ip(#{name := ServiceName, generated_config_file := GeneratedConfigFile}
     #{isConfigured := boolean(), hosts := #{binary() => binary()}}.
 get_cluster_ips(#{name := ServiceName} = _Ctx) ->
     Pairs = lists:map(fun(Host) ->
-        Node = onepanel_cluster:host_to_node(ServiceName, Host),
-        {_, _, _, _} = IP = rpc:call(Node, node_manager, get_ip_address, []),
-        {binary:list_to_bin(Host), onepanel_ip:ip4_to_binary(IP)}
+        Node = onepanel_cluster:host_to_node(Host),
+        IPEnv = rpc:call(Node, onepanel_env, read_effective,
+            [[name(), external_ip], ServiceName]),
+        {ok, IPTuple} = IPEnv,
+        {binary:list_to_bin(Host), onepanel_ip:ip4_to_binary(IPTuple)}
     end, (service:get_module(ServiceName)):get_hosts()),
     #{
         isConfigured => onepanel_deployment:is_completed(?PROGRESS_CLUSTER_IPS),

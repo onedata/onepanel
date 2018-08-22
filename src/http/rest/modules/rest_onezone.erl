@@ -18,7 +18,7 @@
 -behavior(rest_behaviour).
 
 %% REST behaviour callbacks
--export([is_authorized/3, exists_resource/2, accept_possible/4,
+-export([is_authorized/3, exists_resource/2, accept_possible/4, is_available/3,
     accept_resource/4, provide_resource/2, delete_resource/2]).
 
 -define(SERVICE, service_onezone:name()).
@@ -63,12 +63,23 @@ accept_possible(Req, _Method, _Args, _State) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc {@link rest_behaviour:is_available/3}
+%% @end
+%%--------------------------------------------------------------------
+is_available(Req, 'GET', #rstate{resource = cluster_ips}) ->
+    {true, Req};
+
+is_available(Req, _Method, _State) ->
+    {service:all_healthy(), Req}.
+
+
+%%--------------------------------------------------------------------
 %% @doc {@link rest_behaviour:accept_resourcec/4}
 %% @end
 %%--------------------------------------------------------------------
 accept_resource(Req, 'PATCH', Args, #rstate{resource = cluster_ips}) ->
     {ok, ClusterIps} = onepanel_maps:get(hosts, Args),
-    Ctx = #{cluster_ips => rest_utils:keys_binary_to_list(ClusterIps)},
+    Ctx = #{cluster_ips => onepanel_utils:convert(ClusterIps, {keys, list})},
 
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?SERVICE, set_cluster_ips, Ctx

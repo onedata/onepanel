@@ -67,6 +67,7 @@ register_service(Service, Delay) ->
 unregister_service(Service) ->
     gen_server:call(?SERVICE_WATCHER_NAME, {unregister, Service}, ?TIMEOUT).
 
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -145,10 +146,12 @@ handle_info({check, Service}, #state{services = Services} = State) ->
         true ->
             Module = service:get_module(Service),
             case (catch Module:status(#{})) of
-                running -> ok;
+                healthy -> ok;
+                unhealthy -> ok;
                 _ ->
                     ?critical("Service ~p in not running. Restarting...", [Service]),
                     try
+                        Module = service:get_module(Service),
                         Module:start(#{})
                     catch
                         _:Reason ->
