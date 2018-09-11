@@ -121,13 +121,17 @@ get_steps(get_details, _Ctx) ->
 %% from older oneprovider versions.
 %% @end
 %%--------------------------------------------------------------------
+-spec create(service:ctx()) -> ok.
 create(#{letsencrypt_plugin := Plugin}) ->
     LegacyEnabled = service_oneprovider:pop_legacy_letsencrypt_config(),
-    service:create(#service{name = name(),
+    case service:create(#service{name = name(),
         ctx = #{
             letsencrypt_plugin => Plugin,
             letsencrypt_enabled => LegacyEnabled
-        }}).
+        }}) of
+        {ok, _} -> ok;
+        #error{reason = ?ERR_ALREADY_EXISTS} -> ok
+    end.
 
 
 %%--------------------------------------------------------------------
