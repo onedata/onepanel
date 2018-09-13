@@ -88,11 +88,16 @@ get_steps(deploy, #{letsencrypt_plugin := _} = _Ctx) ->
     [#step{function = create, selection = first}];
 
 get_steps(resume, Ctx) ->
-    % failsafe against unlikely case of failing to reset the "regenerating" flag
-    update_ctx(#{regenerating => false}),
-
-    % ensure service is added to service_watcher if necessary
+    case service:exists(name()) of
+        true -> % failsafe against unlikely case of failing to reset the "regenerating" flag
+            update_ctx(#{regenerating => false});
+        false ->
+            % this action, needed after upgrading from version without
+            % service_letsencrypt, requires key letsencrypt_plugin in the Ctx
+            create(Ctx)
+    end,
     [#steps{action = update}];
+
 
 get_steps(update, Ctx) ->
     mark_configured(Ctx),
