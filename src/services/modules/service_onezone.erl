@@ -14,6 +14,7 @@
 
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
+-include("modules/onepanel_dns.hrl").
 -include("service.hrl").
 -include("deployment_progress.hrl").
 -include_lib("ctool/include/logging.hrl").
@@ -22,7 +23,7 @@
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
--export([get_cluster_ips/1]).
+-export([mark_configured/1, format_cluster_ips/1]).
 
 -define(SERVICE_OPA, service_onepanel:name()).
 -define(SERVICE_CB, service_couchbase:name()).
@@ -112,7 +113,9 @@ get_steps(deploy, Ctx) ->
         Ss#steps{service = ?SERVICE_LE, action = update, ctx = LeCtx},
         Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx},
         S#step{module = onepanel_deployment, function = mark_completed, ctx = OpaCtx,
-            args = [?PROGRESS_READY], selection = first}
+            args = [?PROGRESS_READY], selection = first},
+        S#step{function = mark_configured, ctx = OpaCtx, selection = any,
+            condition = fun(Ctx) -> not maps:get(interactive_deployment, Ctx, true) end}
     ];
 
 get_steps(start, _Ctx) ->
@@ -180,15 +183,28 @@ get_steps(set_cluster_ips, Ctx) ->
             hosts = get_hosts()}
     ];
 
-get_steps(get_cluster_ips, _Ctx) ->
-    [#step{hosts = get_hosts(), function = get_cluster_ips, selection = any}].
+get_steps(format_cluster_ips, _Ctx) ->
+    [#step{hosts = get_hosts(), function = format_cluster_ips, selection = any}].
 
 
 %%--------------------------------------------------------------------
 %% @doc Returns IPs of hosts with oz_worker instances.
 %% @end
 %%--------------------------------------------------------------------
--spec get_cluster_ips(service:ctx()) ->
+-spec format_cluster_ips(service:ctx()) ->
     #{isConfigured := boolean(), hosts := #{binary() => binary()}}.
-get_cluster_ips(Ctx) ->
+format_cluster_ips(Ctx) ->
     service_cluster_worker:get_cluster_ips(Ctx#{name => ?SERVICE_OZW}).
+
+
+%%-------------------------------------------------------------------
+%% @doc
+%% Marks all configuration steps as already performed.
+%% @end
+%%-------------------------------------------------------------------
+mark_configured(Ctx) ->
+    onepanel_deployment:mark_completed([
+        ?PROGRESS_LETSENCRYPT_CONFIG,
+        ?PROGRESS_CLUSTER_IPS,
+        ?DNS_CHECK_ACKNOWLEDGED
+    ]).

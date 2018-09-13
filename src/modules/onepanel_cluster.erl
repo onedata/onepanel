@@ -15,12 +15,47 @@
 -include("names.hrl").
 
 %% API
--export([node_to_host/0, node_to_host/1, nodes_to_hosts/0, nodes_to_hosts/1,
-    host_to_node/1, host_to_node/2, hosts_to_nodes/1, hosts_to_nodes/2]).
+-export([node_to_host/0, node_to_host/1, nodes_to_hosts/1]).
+-export([service_to_node/1, service_to_node/2,  service_to_nodes/2]).
 
 %%%===================================================================
 %%% API functions
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc @equiv service_to_node(Host, node())
+%% @end
+%%--------------------------------------------------------------------
+-spec service_to_node(Name :: atom() | string()) -> Node :: node().
+service_to_node(Name) ->
+    service_to_node(Name, node()).
+
+
+%%--------------------------------------------------------------------
+%% @doc Creates a node name from a service Name and a hostname.
+%% @end
+%%--------------------------------------------------------------------
+-spec service_to_node(Name :: atom() | string(), HostOrNode :: service:host() | node()) ->
+    Node :: node().
+service_to_node(Name, Node) when is_atom(Node) ->
+    service_to_node(Name, node_to_host(Node));
+
+service_to_node(Name, Host) when is_atom(Name) ->
+    service_to_node(atom_to_list(Name), Host);
+
+service_to_node(Name, Host) ->
+    erlang:list_to_atom(Name ++ "@" ++ Host).
+
+
+%%--------------------------------------------------------------------
+%% @doc Converts a list of hostnames to a list of nodes with given node name.
+%% @end
+%%--------------------------------------------------------------------
+-spec service_to_nodes(Name :: atom() | string(), Hosts :: [service:host()]) ->
+    Nodes :: [node()].
+service_to_nodes(Name, HostsOrNodes) ->
+    lists:map(fun(HostOrNode) -> service_to_node(Name, HostOrNode) end, HostsOrNodes).
+
 
 %%--------------------------------------------------------------------
 %% @doc @equiv node_to_host(node())
@@ -32,7 +67,7 @@ node_to_host() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Returns a hostname of a node.
+%% @doc Returns the hostname of a node.
 %% @end
 %%--------------------------------------------------------------------
 -spec node_to_host(Node :: node()) -> Host :: service:host().
@@ -43,59 +78,9 @@ node_to_host(Node) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @equiv nodes_to_hosts(onepanel:nodes())
-%% @end
-%%--------------------------------------------------------------------
--spec nodes_to_hosts() -> Hosts :: [service:host()].
-nodes_to_hosts() ->
-    nodes_to_hosts(service_onepanel:get_nodes()).
-
-
-%%--------------------------------------------------------------------
 %% @doc Converts a list of nodes to a list of hostnames.
 %% @end
 %%--------------------------------------------------------------------
 -spec nodes_to_hosts(Nodes :: [node()]) -> Hosts :: [service:host()].
 nodes_to_hosts(Nodes) ->
     lists:map(fun node_to_host/1, Nodes).
-
-
-%%--------------------------------------------------------------------
-%% @doc @equiv host_to_node(?APP_NAME, Host)
-%% @end
-%%--------------------------------------------------------------------
--spec host_to_node(Host :: service:host()) -> Node :: node().
-host_to_node(Host) ->
-    host_to_node(?APP_NAME, Host).
-
-
-%%--------------------------------------------------------------------
-%% @doc Creates a node name from a name and a hostname.
-%% @end
-%%--------------------------------------------------------------------
--spec host_to_node(Name :: atom() | string(), Host :: service:host()) ->
-    Node :: node().
-host_to_node(Name, Host) when is_atom(Name) ->
-    host_to_node(erlang:atom_to_list(Name), Host);
-
-host_to_node(Name, Host) ->
-    erlang:list_to_atom(Name ++ "@" ++ Host).
-
-
-%%--------------------------------------------------------------------
-%% @doc @equiv hosts_to_node(?APP_NAME, Hosts)
-%% @end
-%%--------------------------------------------------------------------
--spec hosts_to_nodes(Hosts :: [service:host()]) -> Nodes :: [node()].
-hosts_to_nodes(Hosts) ->
-    hosts_to_nodes(?APP_NAME, Hosts).
-
-
-%%--------------------------------------------------------------------
-%% @doc Converts a list of hostnames to a list of nodes with a given node name.
-%% @end
-%%--------------------------------------------------------------------
--spec hosts_to_nodes(Name :: atom() | string(), Hosts :: [service:host()]) ->
-    Nodes :: [node()].
-hosts_to_nodes(Name, Hosts) ->
-    lists:map(fun(Host) -> host_to_node(Name, Host) end, Hosts).

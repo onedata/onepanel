@@ -153,6 +153,9 @@ translate(_Type, #error{module = model, function = get, reason = ?ERR_NOT_FOUND,
 translate(_Type, #error{reason = ?ERR_SUBDOMAIN_DELEGATION_DISABLED}) ->
     {<<"Operation Error">>, <<"Subdomain delegation is not enabled.">>};
 
+translate(_Type, #error{reason = ?ERR_DNS_CHECK_ERROR(Message)}) ->
+    {<<"Operation Error">>, str_utils:format_bin("Error performing DNS check: ~ts", [Message])};
+
 translate(_Type, #error{reason = ?ERR_FILE_ACCESS(Path, Reason)}) ->
     {<<"File access error">>, str_utils:format_bin("Error opening file ~p: ~p", [Path, Reason])};
 

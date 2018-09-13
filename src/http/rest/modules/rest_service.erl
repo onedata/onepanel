@@ -59,12 +59,10 @@ is_authorized(Req, _Method, _State) ->
 -spec exists_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
 exists_resource(Req, #rstate{resource = nagios}) ->
-    SModule = case onepanel_env:get(release_type) of
-        oneprovider -> service_op_worker;
-        onezone -> service_oz_worker
-    end,
-    {model:exists(service) andalso service:exists(SModule:name())
-        andalso SModule:get_hosts() /= [], Req};
+    Worker = cluster_worker_name(),
+    Module = service:get_module(Worker),
+    {model:exists(service) andalso service:exists(Worker)
+        andalso Module:get_hosts() /= [], Req};
 
 exists_resource(Req, #rstate{resource = task, bindings = #{id := TaskId}}) ->
     {service:exists_task(TaskId), Req};
@@ -82,9 +80,13 @@ exists_resource(Req, #rstate{resource = luma}) ->
 exists_resource(Req, #rstate{resource = SModule, bindings = #{host := Host}}) ->
     {service:is_member(SModule:name(), Host), Req};
 
+exists_resource(Req, #rstate{resource = dns_check_configuration}) ->
+    {true, Req};
 
-exists_resource(Req, #rstate{resource = SModule}) when
-    SModule =:= service_onezone; SModule =:= service_oneprovider ->
+exists_resource(Req, #rstate{resource = Resource}) when
+    Resource =:= service_onezone; Resource =:= service_oneprovider;
+    Resource =:= dns_check ->
+    % TODO VFS-4460 Short-circuit if workers are off
     {model:exists(onepanel_deployment) andalso
         onepanel_deployment:is_completed(?PROGRESS_CLUSTER), Req};
 
@@ -148,7 +150,8 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
     StorageCtx = onepanel_maps:get_store([cluster, storages], Args, storages),
     StorageCtx2 = StorageCtx#{hosts => OpwHosts, ignore_exists => true},
 
-    LetsencryptCtx = onepanel_maps:get_store([oneprovider, letsEncryptEnabled], Args, letsencrypt_enabled),
+    LetsencryptCtx =
+        onepanel_maps:get_store([oneprovider, letsEncryptEnabled], Args, letsencrypt_enabled),
 
     DbCtx = onepanel_maps:get_store_multiple([
         {[cluster, databases, serverQuota], couchbase_server_quota},
@@ -163,6 +166,8 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
         auth => Auth,
         api_version => Version
     },
+    OpaCtx3 = onepanel_maps:get_store([onepanel, interactiveDeployment], Args,
+        interactive_deployment, OpaCtx2, true),
 
     ClusterIPs = rest_utils:get_cluster_ips(Args),
 
@@ -171,7 +176,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
     IPsConfigured = onepanel_maps:get([oneprovider, register], Args, false),
 
     ClusterCtx = #{
-        service_onepanel:name() => OpaCtx2,
+        service_onepanel:name() => OpaCtx3,
         service_couchbase:name() => DbCtx,
         service_cluster_manager:name() => #{main_host => MainCmHost,
             hosts => CmHosts, worker_num => length(OpwHosts)},
@@ -221,6 +226,8 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version =
         auth => Auth,
         api_version => Version
     },
+    OpaCtx3 = onepanel_maps:get_store([onepanel, interactiveDeployment], Args,
+        interactive_deployment, OpaCtx2, true),
 
     LeCtx = onepanel_maps:get_store_multiple([
         {[onezone, letsEncryptEnabled], letsencrypt_enabled}
@@ -234,11 +241,20 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version =
         main_cm_host => MainCmHost,
         cluster_ips => ClusterIPs
     },
-    OzwCtx2 = onepanel_maps:get_store([onezone, name], Args, onezone_name, OzwCtx),
-    OzwCtx3 = onepanel_maps:get_store([onezone, domainName], Args, onezone_domain, OzwCtx2),
+
+    OzwCtx2 = onepanel_maps:get_store_multiple([
+        {[onezone, name], onezone_name},
+        {[onezone, domainName], onezone_domain}
+    ], Args, OzwCtx),
+
+    OzwCtx3 = case Args of
+        #{onezone := #{policies := Policies}} ->
+            OzwCtx2#{policies => rest_onezone:make_policies_ctx(Policies)};
+        _ -> OzwCtx2
+    end,
 
     ClusterCtx = #{
-        service_onepanel:name() => OpaCtx2,
+        service_onepanel:name() => OpaCtx3,
         service_couchbase:name() => DbCtx,
         service_cluster_manager:name() => #{main_host => MainCmHost,
             hosts => CmHosts, worker_num => length(OzwHosts)},
@@ -274,6 +290,29 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = storage,
         service_op_worker:name(), update_storage, Ctx2
     ))};
 
+accept_resource(Req, 'PATCH', Args, #rstate{resource = dns_check_configuration}) ->
+    % two resources exist because GET differs between them
+
+    Ctx = case Args of
+        #{dnsServers := IPs} ->
+            IPTuples = lists:map(fun(IPBinary) ->
+                case onepanel_ip:parse_ip4(IPBinary) of
+                    {ok, IP} -> IP;
+                    _ -> ?throw_error({?ERR_INVALID_VALUE, [dnsServers], ['IPv4']})
+                end
+            end, IPs),
+            #{dns_servers => IPTuples};
+        _ -> #{}
+    end,
+    Ctx2 = onepanel_maps:get_store_multiple([
+        {builtInDnsServer, built_in_dns_server},
+        {dnsCheckAcknowledged, dns_check_acknowledged}
+    ], Args, Ctx),
+
+    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
+        cluster_worker_name(), configure_dns_check, Ctx2
+    ))};
+
 accept_resource(Req, 'PATCH', _Args, #rstate{resource = SModule,
     bindings = #{host := Host}, params = #{started := true}}) ->
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
@@ -307,14 +346,11 @@ accept_resource(Req, 'PATCH', _Args, #rstate{resource = SModule,
     {Data :: rest_handler:data(), Req :: cowboy_req:req()} |
     {stop, Req :: cowboy_req:req(), State :: rest_handler:state()}.
 provide_resource(Req, #rstate{resource = nagios} = State) ->
-    SModule = case onepanel_env:get(release_type) of
-        oneprovider -> service_op_worker;
-        onezone -> service_oz_worker
-    end,
+    Worker = cluster_worker_name(),
 
     Result = rest_replier:format_service_step(
-        SModule, get_nagios_response,
-        service:apply_sync(SModule:name(), get_nagios_response, #{})
+        service:get_module(Worker), get_nagios_response,
+        service:apply_sync(Worker, get_nagios_response, #{})
     ),
     case Result of
         {ok, Code, Headers, Body} ->
@@ -345,6 +381,22 @@ provide_resource(Req, #rstate{resource = storages}) ->
 provide_resource(Req, #rstate{resource = SModule}) when
     SModule =:= service_onezone; SModule =:= service_oneprovider ->
     {rest_replier:format_configuration(SModule), Req};
+
+provide_resource(Req, #rstate{resource = dns_check, params = Params}) ->
+    Ctx = #{force_check => onepanel_maps:get(forceCheck, Params, false)},
+
+    {rest_replier:format_dns_check_result(
+        service_utils:throw_on_error(service:apply_sync(
+            cluster_worker_name(), dns_check, Ctx
+        ))
+    ), Req};
+
+provide_resource(Req, #rstate{resource = dns_check_configuration}) ->
+    {rest_replier:format_service_step(dns_check, get_configuration,
+        service_utils:throw_on_error(service:apply_sync(
+            cluster_worker_name(), get_dns_check_configuration, #{}
+        ))
+    ), Req};
 
 provide_resource(Req, #rstate{resource = SModule, bindings = #{host := Host}}) ->
     {rest_replier:format_service_host_status(SModule,
@@ -391,3 +443,15 @@ deploy_cluster_worker(Req, Args, #rstate{resource = SModule, version = Version})
             main_cm_host => MainCmHost
         }
     ), Version)}.
+
+
+%%--------------------------------------------------------------------
+%% @private @doc Returns name of cluster worker depending on the release type.
+%% @end
+%%--------------------------------------------------------------------
+-spec cluster_worker_name() -> service:name().
+cluster_worker_name() ->
+    case onepanel_env:get(release_type) of
+        oneprovider -> service_op_worker:name();
+        onezone -> service_oz_worker:name()
+    end.

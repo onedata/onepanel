@@ -321,8 +321,8 @@ authenticate(Req, [AuthMethod | AuthMethods]) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec authenticate_by_basic_auth(Req :: cowboy_req:req()) ->
-    {{ok, User :: #onepanel_user{}} | #error{} | ignore, SessionId ::
-    undefined | onepanel_session:id(), Req :: cowboy_req:req()}.
+    {Result, SessionId :: undefined, Req :: cowboy_req:req()}
+    when Result :: {ok, User :: #onepanel_user{}} | #error{} | ignore.
 authenticate_by_basic_auth(Req) ->
     case cowboy_req:header(<<"authorization">>, Req) of
         <<"Basic ", Hash/binary>> ->
@@ -338,15 +338,29 @@ authenticate_by_basic_auth(Req) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec authenticate_by_cookie(Req :: cowboy_req:req()) ->
-    {{ok, User :: #onepanel_user{}} | #error{} | ignore, SessionId ::
-    undefined | onepanel_session:id(), Req :: cowboy_req:req()}.
+    {{ok, User :: #onepanel_user{}}, onepanel_session:id(), Req}
+    | {#error{}, onepanel_session:id(), Req}
+    | {ignore, undefined, Req}
+    when Req :: onepanel_session:req().
 authenticate_by_cookie(Req) ->
     Cookies = cowboy_req:parse_cookies(Req),
-    case proplists:get_value(<<"sessionId">>, Cookies, undefined) of
-        undefined ->
+    case proplists:get_all_values(<<"sessionId">>, Cookies) of
+        [] ->
             {ignore, undefined, Req};
-        SessionId ->
-            {onepanel_user:authenticate(SessionId), SessionId, Req}
+        [SessionId] ->
+            {onepanel_user:authenticate(SessionId), SessionId, Req};
+        [SessionId1, SessionId2] ->
+            % Since 18.02.0-beta2 up to 18.02.0-rc11 a bug existed causing
+            % session cookie to be set with path "/api/v3/onepanel/" instead of "/".
+            % After upgrading to fixed version using the "/" path the old cookie
+            % persists and both are sent in each request.
+            % Without the code below logging in would not work in such situation
+            % without manually cleaning cookies.
+
+            case onepanel_user:authenticate(SessionId1) of
+                {ok, _} = Result -> {Result, SessionId1, Req};
+                #error{} -> {onepanel_user:authenticate(SessionId2), SessionId2, Req}
+            end
     end.
 
 
@@ -355,7 +369,7 @@ authenticate_by_cookie(Req) ->
 %% converting each parameter into binary.
 %% @end
 %%--------------------------------------------------------------------
--spec adjust_yaml_data(Data ::proplists:proplist()) -> 
+-spec adjust_yaml_data(Data :: proplists:proplist()) ->
     NewData :: proplists:proplist().
 adjust_yaml_data(Data) ->
     case {io_lib:printable_unicode_list(Data), erlang:is_list(Data)} of

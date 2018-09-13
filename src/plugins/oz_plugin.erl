@@ -13,6 +13,8 @@
 -module(oz_plugin).
 -author("Krzysztof Trzepla").
 
+-include("names.hrl").
+
 -behaviour(oz_plugin_behaviour).
 
 %% OZ behaviour callbacks
@@ -107,7 +109,7 @@ get_env(Key, path) ->
     end;
 get_env(Key, Type) ->
     Hosts = service_op_worker:get_hosts(),
-    Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
+    Nodes = onepanel_cluster:service_to_nodes(?APP_NAME, Hosts),
     Name = service_op_worker:name(),
     {ok, Value} = onepanel_rpc:call_any(Nodes, onepanel_env, read_effective,
         [[Name, Key], Name]),
