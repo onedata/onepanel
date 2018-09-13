@@ -149,10 +149,9 @@ format_service_status(SModule, Results) ->
     end, #{}, HostsResults).
 
 
--spec format_dns_check_result(dns_check:result()) -> response().
+-spec format_dns_check_result(Results :: service_executor:results()) -> response().
 format_dns_check_result(Results) ->
-    {[{_Node, Result} | _], []} =
-    select_service_step(dns_check, get, Results),
+    {[{_Node, Result} | _], []} = select_service_step(dns_check, get, Results),
 
     IpOrTxtToBinary = fun(IpOrString) ->
         case inet:ntoa(IpOrString) of
