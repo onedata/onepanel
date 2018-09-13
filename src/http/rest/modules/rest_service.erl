@@ -385,7 +385,7 @@ provide_resource(Req, #rstate{resource = SModule}) when
 provide_resource(Req, #rstate{resource = dns_check, params = Params}) ->
     Ctx = #{force_check => onepanel_maps:get(forceCheck, Params, false)},
 
-    {rest_replier:format_dns_check(
+    {rest_replier:format_dns_check_result(
         service_utils:throw_on_error(service:apply_sync(
             cluster_worker_name(), dns_check, Ctx
         ))
@@ -446,7 +446,7 @@ deploy_cluster_worker(Req, Args, #rstate{resource = SModule, version = Version})
 
 
 %%--------------------------------------------------------------------
-%% @private @doc Returns name of cluster worker depending on the relaese type.
+%% @private @doc Returns name of cluster worker depending on the release type.
 %% @end
 %%--------------------------------------------------------------------
 -spec cluster_worker_name() -> service:name().

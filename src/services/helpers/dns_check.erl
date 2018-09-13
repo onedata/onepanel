@@ -46,6 +46,8 @@
 }.
 % @formatter:on
 
+-export_type([result/0, check/0]).
+
 
 %% API
 -export([get/2, should_update_cache/1, invalidate_cache/1,

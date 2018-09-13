@@ -23,7 +23,7 @@
 -export([throw_on_service_error/2]).
 -export([handle_error/3, reply_with_error/3, handle_service_action_async/3,
     handle_service_step/4, handle_session/3]).
--export([format_error/2, format_service_status/2, format_dns_check/1, format_service_host_status/2,
+-export([format_error/2, format_service_status/2, format_dns_check_result/1, format_service_host_status/2,
     format_service_task_results/1, format_service_step/3, format_configuration/1]).
 
 -type response() :: maps:map() | term().
@@ -149,11 +149,8 @@ format_service_status(SModule, Results) ->
     end, #{}, HostsResults).
 
 
-%%--------------------------------------------------------------------
-%% @doc Returns a formatted result of a dns check.
-%% @end
-%%--------------------------------------------------------------------
-format_dns_check(Results) ->
+-spec format_dns_check_result(dns_check:result()) -> response().
+format_dns_check_result(Results) ->
     {[{_Node, Result} | _], []} =
     select_service_step(dns_check, get, Results),
 
