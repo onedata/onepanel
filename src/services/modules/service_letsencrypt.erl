@@ -96,8 +96,8 @@ get_steps(resume, Ctx) ->
             % service_letsencrypt, requires key letsencrypt_plugin in the Ctx
             create(Ctx)
     end,
+    % ensure service is added to service_watcher if necessary
     [#steps{action = update}];
-
 
 get_steps(update, Ctx) ->
     mark_configured(Ctx),
@@ -126,13 +126,17 @@ get_steps(get_details, _Ctx) ->
 %% from older oneprovider versions.
 %% @end
 %%--------------------------------------------------------------------
+-spec create(service:ctx()) -> ok.
 create(#{letsencrypt_plugin := Plugin}) ->
     LegacyEnabled = service_oneprovider:pop_legacy_letsencrypt_config(),
-    service:create(#service{name = name(),
+    case service:create(#service{name = name(),
         ctx = #{
             letsencrypt_plugin => Plugin,
             letsencrypt_enabled => LegacyEnabled
-        }}).
+        }}) of
+        {ok, _} -> ok;
+        #error{reason = ?ERR_ALREADY_EXISTS} -> ok
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -184,7 +188,7 @@ get_details(_Ctx) ->
     Enabled = is_enabled(Ctx),
     Status = global_cert_status(Ctx),
 
-    {ok, Cert} = onepanel_cert:read_cert(?CERT_PATH),
+    {ok, Cert} = onepanel_cert:read(?CERT_PATH),
     {Since, Until} = onepanel_cert:get_times(Cert),
     Domain = onepanel_cert:get_subject_cn(Cert),
     Issuer = onepanel_cert:get_issuer_cn(Cert),
@@ -323,18 +327,33 @@ global_cert_status(Ctx) ->
 %%--------------------------------------------------------------------
 -spec local_cert_status(ExpectedDomain :: binary()) -> status().
 local_cert_status(ExpectedDomain) ->
-    case onepanel_cert:read_cert(?CERT_PATH) of
-        {ok, Cert} ->
-            Subject = onepanel_cert:get_subject_cn(Cert),
-            Remaining = onepanel_cert:get_seconds_till_expiration(Cert),
-            Margin = ?RENEW_MARGIN_SECONDS,
-            case {Subject, Remaining} of
-                {CertDomain, _} when CertDomain /= ExpectedDomain -> domain_mismatch;
-                {_, Remaining} when Remaining < Margin -> near_expiration;
-                {_, Remaining} when Remaining < 0 -> expired;
-                _ -> valid
-            end;
+    case onepanel_cert:read(?CERT_PATH) of
+        {ok, Cert} -> cert_status(Cert, ExpectedDomain);
         {error, _} -> unknown
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Checks status of given cert.
+%% @end
+%%--------------------------------------------------------------------
+-spec cert_status(Cert :: onepanel_cert:cert(), ExpectedDomain :: binary()) ->
+    status().
+cert_status(Cert, ExpectedDomain) ->
+    Remaining = onepanel_cert:get_seconds_till_expiration(Cert),
+    Margin = ?RENEW_MARGIN_SECONDS,
+
+    case onepanel_cert:verify_hostname(Cert, ExpectedDomain) of
+        error -> unknown;
+        invalid -> domain_mismatch;
+        valid ->
+            if
+                Remaining < Margin -> near_expiration;
+                Remaining < 0 -> expired;
+                true -> valid
+            end
     end.
 
 
@@ -402,7 +421,7 @@ are_all_certs_letsencrypt() ->
 %%--------------------------------------------------------------------
 -spec is_local_cert_letsencrypt() -> boolean().
 is_local_cert_letsencrypt() ->
-    case onepanel_cert:read_cert(?CERT_PATH) of
+    case onepanel_cert:read(?CERT_PATH) of
         {ok, Cert} ->
             Regex = application:get_env(?APP_NAME, letsencrypt_issuer_regex,
                 <<"^Let's Encrypt Authority X[34]$">>),
