@@ -136,7 +136,7 @@ get_steps(restart, _Ctx) ->
     ];
 
 % returns any steps only on the master node
-get_steps(manage_restart, _Ctx) ->
+get_steps(manage_restart, Ctx) ->
     MasterHost = case service:get(name()) of
         {ok, #service{ctx = #{master_host := Master}}} -> Master;
         _ ->
@@ -155,7 +155,8 @@ get_steps(manage_restart, _Ctx) ->
             #steps{service = ?SERVICE_CB, action = resume},
             #steps{service = ?SERVICE_CM, action = resume},
             #steps{service = ?SERVICE_OZW, action = resume},
-            #steps{service = ?SERVICE_LE, action = resume}
+            #steps{service = ?SERVICE_LE, action = resume,
+                ctx = Ctx#{letsencrypt_plugin => ?SERVICE_OZW}}
         ];
         false ->
             ?info("Waiting for master node \"~s\" to start", [MasterHost]),
