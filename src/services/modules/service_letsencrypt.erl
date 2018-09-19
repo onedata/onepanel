@@ -243,7 +243,7 @@ is_enabled(_Ctx) ->
 -spec obtain_cert(service:ctx()) -> ok | no_return().
 obtain_cert(Ctx) ->
     Plugin = get_plugin_module(),
-    Domain = Plugin:get_domain(Ctx),
+    Domain = Plugin:get_domain(),
 
     case maps:get(renewal, Ctx, false) of
         false -> onepanel_cert:backup_exisiting_certs();
@@ -309,7 +309,7 @@ global_cert_status(Ctx) ->
         true -> regenerating;
         _ ->
             Nodes = get_nodes(),
-            Domain = (get_plugin_module()):get_domain(Ctx),
+            Domain = (get_plugin_module()):get_domain(),
             lists:foldl(fun(Node, PrevStatus) ->
                 case PrevStatus of
                     valid -> rpc:call(Node, ?MODULE, local_cert_status, [Domain]);

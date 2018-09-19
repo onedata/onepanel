@@ -115,6 +115,8 @@
 -define(ERR_LETSENCRYPT_NOT_SUPPORTED, letsencrypt_not_supported).
 -define(ERR_SUBDOMAIN_DELEGATION_DISABLED, subdomain_delegation_disabled).
 
+-define(ERR_DNS_CHECK_ERROR(Message), {dns_check_error, Message}).
+
 -define(ERR_STORAGE_TEST_FILE_CREATE, storage_test_file_create).
 -define(ERR_STORAGE_TEST_FILE_READ, storage_test_file_read).
 -define(ERR_STORAGE_TEST_FILE_REMOVE, storage_test_file_remove).

@@ -132,22 +132,30 @@ list() ->
 %% @doc Marks interactive configuration step as completed.
 %% @end
 %%--------------------------------------------------------------------
--spec mark_completed(ProgressMark :: mark()) -> ok.
-mark_completed(ProgressMark) ->
-    ?MODULE:update(?ID, fun(#onepanel_deployment{completed = C} = OP) ->
-        OP#onepanel_deployment{completed = gb_sets:add_element(ProgressMark, C)}
-    end).
+-spec mark_completed(ProgressMarks :: mark() | [mark()]) -> ok.
+mark_completed([]) -> ok;
+mark_completed([_|_] = ProgressMarks) ->
+    ?MODULE:update(?ID, fun(#onepanel_deployment{completed = C} = Record) ->
+        Record#onepanel_deployment{
+            completed = lists:foldl(fun gb_sets:add_element/2, C, ProgressMarks)
+        }
+    end);
+mark_completed(ProgressMark) -> mark_completed([ProgressMark]).
 
 
 %%--------------------------------------------------------------------
-%% @doc Marks configuration step as uncompleted or waiting for user decision.
+%% @doc Marks configuration step(s) as uncompleted or waiting for user decision.
 %% @end
 %%--------------------------------------------------------------------
--spec mark_not_completed(ProgressMark :: mark()) -> ok.
-mark_not_completed(ProgressMark) ->
-    ?MODULE:update(?ID, fun(#onepanel_deployment{completed = C} = OP) ->
-        OP#onepanel_deployment{completed = gb_sets:del_element(ProgressMark, C)}
-    end).
+-spec mark_not_completed(ProgressMarks :: mark() | [mark()]) -> ok.
+mark_not_completed([]) -> ok;
+mark_not_completed([_|_] = ProgressMarks) ->
+    ?MODULE:update(?ID, fun(#onepanel_deployment{completed = C} = Record) ->
+        Record#onepanel_deployment{
+            completed = lists:foldl(fun gb_sets:del_element/2, C, ProgressMarks)
+        }
+    end);
+mark_not_completed(ProgressMark) -> mark_not_completed([ProgressMark]).
 
 
 %%--------------------------------------------------------------------

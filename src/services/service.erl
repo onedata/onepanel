@@ -29,6 +29,7 @@
     apply_sync/3, apply_sync/4, get_results/1, get_results/2, abort_task/1,
     exists_task/1]).
 -export([get_module/1, get_hosts/1, get_nodes/1, is_member/2, add_host/2]).
+-export([get_ctx/1, update_ctx/2]).
 
 -type name() :: atom().
 -type action() :: atom().
@@ -326,7 +327,7 @@ get_hosts(Service) ->
 %%--------------------------------------------------------------------
 -spec get_nodes(Service :: name()) -> Nodes :: [node()].
 get_nodes(Service) ->
-    onepanel_cluster:hosts_to_nodes(Service, get_hosts(Service)).
+    onepanel_cluster:service_to_nodes(Service, get_hosts(Service)).
 
 
 %%--------------------------------------------------------------------
@@ -355,6 +356,35 @@ add_host(Service, Host) ->
     end).
 
 
+%%--------------------------------------------------------------------
+%% @doc Returns the "ctx" field of a service model.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_ctx(name()) -> ctx() | #error{} | no_return().
+get_ctx(Service) ->
+    case ?MODULE:get(Service) of
+        {ok, #service{ctx = Ctx}} -> Ctx;
+        Error -> Error
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Updates the "ctx" field of a service model.
+%% @end
+%%--------------------------------------------------------------------
+-spec update_ctx(Service :: service:name(), Diff) -> ok | no_return()
+    when Diff :: map() | fun((map()) -> map()).
+update_ctx(Service, Diff) when is_map(Diff) ->
+    update_ctx(Service, fun(Ctx) ->
+        maps:merge(Ctx, Diff)
+    end);
+
+update_ctx(Service, Diff) when is_function(Diff, 1) ->
+    service:update(Service, fun(#service{ctx = Ctx} = S) ->
+        S#service{ctx = Diff(Ctx)}
+    end).
+
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -369,7 +399,7 @@ apply_steps([], _Notify) ->
 apply_steps([#step{hosts = Hosts, module = Module, function = Function,
     args = Args, attempts = Attempts, retry_delay = Delay} = Step | Steps], Notify) ->
 
-    Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
+    Nodes = onepanel_cluster:service_to_nodes(?APP_NAME, Hosts),
     service_utils:notify({step_begin, {Module, Function}}, Notify),
 
     Results = onepanel_rpc:call(Nodes, Module, Function, Args),
