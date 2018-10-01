@@ -14,6 +14,7 @@
 
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
+-include("modules/onepanel_dns.hrl").
 -include("names.hrl").
 -include("service.hrl").
 -include("modules/models.hrl").
@@ -26,11 +27,11 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([configure/1, check_oz_availability/1,
-    register/1, unregister/1, is_registered/1,
+-export([configure/1, check_oz_availability/1, mark_configured/1,
+    register/1, unregister/1, is_registered/1, is_registered/0,
     modify_details/1, get_details/1, get_oz_domain/0,
     support_space/1, revoke_space_support/1, get_spaces/1,
-    get_space_details/1, modify_space/1, get_cluster_ips/1,
+    get_space_details/1, modify_space/1, format_cluster_ips/1,
     get_sync_stats/1, get_autocleaning_reports/1, get_autocleaning_status/1,
     start_cleaning/1, check_oz_connection/1, update_provider_ips/1]).
 -export([pop_legacy_letsencrypt_config/0]).
@@ -113,12 +114,6 @@ get_steps(deploy, Ctx) ->
         (_) -> false
     end,
 
-    % TODO VFS-4140 Proper detection of batch config
-    case Register(OpCtx) of
-        true -> onepanel_deployment:mark_completed(?PROGRESS_LETSENCRYPT_CONFIG);
-        _ -> ok
-    end,
-
     LeCtx2 =
         case AlreadyRegistered of
             % If provider is already registered the deployment request
@@ -150,7 +145,9 @@ get_steps(deploy, Ctx) ->
         Ss#steps{service = ?SERVICE_LE, action = update, ctx = LeCtx3},
         Ss#steps{service = ?SERVICE_OPA, action = add_users, ctx = OpaCtx},
         S#step{module = onepanel_deployment, function = mark_completed,
-            args = [?PROGRESS_READY], hosts = [SelfHost]}
+            args = [?PROGRESS_READY], hosts = [SelfHost]},
+        S#step{function = mark_configured, ctx = OpaCtx, selection = any,
+            condition = fun(Ctx) -> not maps:get(interactive_deployment, Ctx, true) end}
     ];
 
 get_steps(start, _Ctx) ->
@@ -174,7 +171,7 @@ get_steps(restart, _Ctx) ->
     ];
 
 % returns any steps only on the master node
-get_steps(manage_restart, _Ctx) ->
+get_steps(manage_restart, Ctx) ->
     MasterHost = case service:get(name()) of
         {ok, #service{ctx = #{master_host := Master}}} -> Master;
         _ ->
@@ -193,7 +190,8 @@ get_steps(manage_restart, _Ctx) ->
             #steps{service = ?SERVICE_CB, action = resume},
             #steps{service = ?SERVICE_CM, action = resume},
             #steps{service = ?SERVICE_OPW, action = resume},
-            #steps{service = ?SERVICE_LE, action = resume}
+            #steps{service = ?SERVICE_LE, action = resume,
+                ctx = Ctx#{letsencrypt_plugin => ?SERVICE_OPW}}
         ];
         false ->
             ?info("Waiting for master node \"~s\" to start", [MasterHost]),
@@ -262,7 +260,7 @@ get_steps(Action, Ctx) when
     Action =:= modify_space;
     Action =:= get_autocleaning_reports;
     Action =:= get_autocleaning_status;
-    Action =:= get_cluster_ips;
+    Action =:= format_cluster_ips;
     Action =:= start_cleaning;
     Action =:= get_sync_stats ->
     case Ctx of
@@ -290,8 +288,7 @@ configure(#{application := ?APP_NAME} = Ctx) ->
 configure(Ctx) ->
     OzDomain = service_ctx:get(onezone_domain, Ctx),
     Name = service_op_worker:name(),
-    Host = onepanel_cluster:node_to_host(),
-    Node = onepanel_cluster:host_to_node(Name, Host),
+    Node = onepanel_cluster:service_to_node(Name),
     GeneratedConfigFile = service_ctx:get(op_worker_generated_config_file, Ctx),
     rpc:call(Node, application, set_env, [Name, oz_domain, OzDomain]),
     onepanel_env:write([Name, oz_domain], OzDomain, GeneratedConfigFile).
@@ -444,6 +441,8 @@ is_registered(Ctx) ->
         false
     end.
 
+is_registered() ->
+    is_registered(#{}).
 
 %%--------------------------------------------------------------------
 %% @doc Modifies configuration details of the provider.
@@ -460,14 +459,17 @@ modify_details(#{node := Node} = Ctx) ->
                 {true, Subdomain} -> ok; % no change
                 _ ->
                     case rpc:call(Node, provider_logic, set_delegated_subdomain, [Subdomain]) of
-                        ok -> ok;
+                        ok ->
+                            dns_check:invalidate_cache(op_worker),
+                            ok;
                         {error, subdomain_exists} ->
                             ?throw_error(?ERR_SUBDOMAIN_NOT_AVAILABLE)
                     end
             end;
         false ->
             Domain = onepanel_utils:typed_get(oneprovider_domain, Ctx, binary),
-            ok = rpc:call(Node, provider_logic, set_domain, [Domain]);
+            ok = rpc:call(Node, provider_logic, set_domain, [Domain]),
+            dns_check:invalidate_cache(op_worker);
         undefined -> ok
     end,
 
@@ -547,9 +549,9 @@ get_oz_domain() ->
 %% @doc Returns IPs of hosts with op_worker instances.
 %% @end
 %%--------------------------------------------------------------------
--spec get_cluster_ips(service:ctx()) ->
+-spec format_cluster_ips(service:ctx()) ->
     #{isConfigured := boolean(), hosts := #{binary() => binary()}}.
-get_cluster_ips(Ctx) ->
+format_cluster_ips(Ctx) ->
     service_cluster_worker:get_cluster_ips(Ctx#{name => ?SERVICE_OPW}).
 
 
@@ -722,6 +724,20 @@ start_cleaning(#{space_id := SpaceId, node := Node}) ->
 start_cleaning(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     start_cleaning(Ctx#{node => Node}).
+
+
+%%-------------------------------------------------------------------
+%% @doc
+%% Marks all configuration steps as already performed.
+%% @end
+%%-------------------------------------------------------------------
+-spec mark_configured(service:ctx()) -> ok.
+mark_configured(Ctx) ->
+    onepanel_deployment:mark_completed([
+        ?PROGRESS_LETSENCRYPT_CONFIG,
+        ?PROGRESS_CLUSTER_IPS,
+        ?DNS_CHECK_ACKNOWLEDGED
+    ]).
 
 
 %%-------------------------------------------------------------------

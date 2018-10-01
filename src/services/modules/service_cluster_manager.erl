@@ -122,10 +122,12 @@ configure(#{main_host := MainHost, hosts := Hosts,
     GeneratedConfigFile = service_ctx:get(cluster_manager_generated_config_file, Ctx),
     VmArgsFile = service_ctx:get(cluster_manager_vm_args_file, Ctx),
     EnvFile = service_ctx:get(cluster_manager_env_file, Ctx),
+
     Host = onepanel_cluster:node_to_host(),
-    Node = onepanel_cluster:host_to_node(name(), Host),
-    Nodes = onepanel_cluster:hosts_to_nodes(name(), Hosts),
-    MainNode = onepanel_cluster:host_to_node(name(), MainHost),
+    Node = onepanel_cluster:service_to_node(name()),
+    Nodes = onepanel_cluster:service_to_nodes(name(), Hosts),
+    MainNode = onepanel_cluster:service_to_node(name(), MainHost),
+
     WorkerNum = maps:get(worker_num, Ctx, undefined),
     Cookie = maps:get(cookie, Ctx, erlang:get_cookie()),
 

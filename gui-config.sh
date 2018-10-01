@@ -21,6 +21,6 @@
 TARGET_DIR='_build/default/lib/gui_static'
 # Image which will be used by default to get the static files. If it cannot
 # be resolved, the script will fall back to secondary.
-PRIMARY_IMAGE='docker.onedata.org/onepanel-gui:VFS-4385-sync-not-updated-18.07'
+PRIMARY_IMAGE='docker.onedata.org/onepanel-gui:VFS-4700-dns-status-18.07'
 # Image which will be used if primary image is not resolved.
-SECONDARY_IMAGE='onedata/onepanel-gui:VFS-4385-sync-not-updated-18.07'
+SECONDARY_IMAGE='onedata/onepanel-gui:VFS-4700-dns-status-18.07'

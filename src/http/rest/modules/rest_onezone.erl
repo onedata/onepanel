@@ -14,6 +14,7 @@
 -include("modules/errors.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include("modules/models.hrl").
+-include("deployment_progress.hrl").
 
 -behavior(rest_behaviour).
 
@@ -21,7 +22,10 @@
 -export([is_authorized/3, exists_resource/2, accept_possible/4, is_available/3,
     accept_resource/4, provide_resource/2, delete_resource/2]).
 
--define(SERVICE, service_onezone:name()).
+-export([make_policies_ctx/1]).
+
+-define(ONEZONE, service_onezone:name()).
+-define(WORKER, service_oz_worker:name()).
 
 %%%===================================================================
 %%% REST behaviour callbacks
@@ -47,8 +51,11 @@ is_authorized(Req, _Method, _State) ->
 %%--------------------------------------------------------------------
 -spec exists_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
+exists_resource(Req, #rstate{resource = policies}) ->
+    {model:exists(onepanel_deployment) andalso
+        onepanel_deployment:is_completed(?PROGRESS_READY), Req};
 exists_resource(Req, _State) ->
-    case service:get(?SERVICE) of
+    case service:get(?ONEZONE) of
         {ok, #service{}} -> {true, Req};
         #error{reason = ?ERR_NOT_FOUND} -> {false, Req}
     end.
@@ -77,12 +84,18 @@ is_available(Req, _Method, _State) ->
 %% @doc {@link rest_behaviour:accept_resourcec/4}
 %% @end
 %%--------------------------------------------------------------------
+accept_resource(Req, 'PATCH', Args, #rstate{resource = policies}) ->
+    Ctx = make_policies_ctx(Args),
+    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
+        ?WORKER, set_policies, Ctx
+    ))};
+
 accept_resource(Req, 'PATCH', Args, #rstate{resource = cluster_ips}) ->
     {ok, ClusterIps} = onepanel_maps:get(hosts, Args),
     Ctx = #{cluster_ips => onepanel_utils:convert(ClusterIps, {keys, list})},
 
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, set_cluster_ips, Ctx
+        ?ONEZONE, set_cluster_ips, Ctx
     ))}.
 
 
@@ -92,12 +105,20 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = cluster_ips}) ->
 %%--------------------------------------------------------------------
 -spec provide_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Data :: rest_handler:data(), Req :: cowboy_req:req()}.
-provide_resource(Req, #rstate{resource = cluster_ips}) ->
-    {rest_replier:format_service_step(service_onezone, get_cluster_ips,
+provide_resource(Req, #rstate{resource = policies}) ->
+    {rest_replier:format_service_step(service_oz_worker, get_policies,
         service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, get_cluster_ips, #{}
+            ?WORKER, get_policies, #{}
+        ))
+    ), Req};
+
+provide_resource(Req, #rstate{resource = cluster_ips}) ->
+    {rest_replier:format_service_step(service_onezone, format_cluster_ips,
+        service_utils:throw_on_error(service:apply_sync(
+            ?ONEZONE, format_cluster_ips, #{}
         ))
     ), Req}.
+
 
 %%--------------------------------------------------------------------
 %% @doc {@link rest_behaviour:delete_resource/2}
@@ -107,3 +128,9 @@ provide_resource(Req, #rstate{resource = cluster_ips}) ->
     no_return().
 delete_resource(_Req, #rstate{}) ->
     ?throw_error(?ERR_NOT_FOUND).
+
+
+make_policies_ctx(Args) ->
+    onepanel_maps:get_store_multiple([
+        {subdomainDelegation, subdomain_delegation}
+    ], Args).

@@ -13,6 +13,7 @@
 
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
+-include("modules/onepanel_dns.hrl").
 -include("onepanel_test_utils.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
@@ -33,6 +34,7 @@
     get_should_return_storage/1,
     get_should_return_service_task_results/1,
     get_should_return_nagios_response/1,
+    get_should_return_dns_check/1,
     patch_should_update_storage/1,
     patch_should_start_stop_service/1,
     post_should_add_storage/1,
@@ -123,6 +125,37 @@
     }
 }).
 
+
+-define(SOME_IP_STR1, "127.0.0.1").
+-define(SOME_IP_STR2, "10.0.0.2").
+
+-define(DNS_CHECK_TIMESTAMP, 1500000000).
+-define(DNS_CHECK_JSON_OP, #{
+    <<"timestamp">> => time_utils:epoch_to_iso8601(?DNS_CHECK_TIMESTAMP),
+    <<"domain">> => #{
+        <<"summary">> => <<"ok">>,
+        <<"expected">> => [<<?SOME_IP_STR1>>],
+        <<"got">> => [<<?SOME_IP_STR1>>],
+        <<"recommended">> => []
+    }
+}).
+
+-define(DNS_CHECK_JSON_OZ, #{
+    <<"timestamp">> => time_utils:epoch_to_iso8601(?DNS_CHECK_TIMESTAMP),
+    <<"domain">> => #{
+        <<"summary">> => <<"ok">>,
+        <<"expected">> => [<<?SOME_IP_STR1>>],
+        <<"got">> => [<<?SOME_IP_STR1>>],
+        <<"recommended">> => []
+    },
+    <<"dnsZone">> => #{
+        <<"summary">> => <<"bad_records">>,
+        <<"expected">> => [<<?SOME_IP_STR1>>],
+        <<"got">> => [<<?SOME_IP_STR2>>],
+        <<"recommended">> => []
+    }
+}).
+
 -define(NAGIOS_REPORT_XML, <<"<?xml version=\"1.0\"?>"
 "<healthdata status=\"ok\">"
 "</healthdata>">>
@@ -152,6 +185,7 @@ all() ->
         get_should_return_service_task_results,
         patch_should_update_storage,
         get_should_return_nagios_response,
+        get_should_return_dns_check,
         patch_should_start_stop_service,
         post_should_add_storage,
         post_should_configure_database_service,
@@ -337,6 +371,27 @@ get_should_return_nagios_response(Config) ->
     ]).
 
 
+get_should_return_dns_check(Config) ->
+    [OpHost | _] = ?config(oneprovider_hosts, Config),
+    [OzHost | _] = ?config(onezone_hosts, Config),
+
+    {_, _, _, OpJsonBody} = ?assertMatch({ok, 200, _, _},
+        onepanel_test_rest:auth_request(
+            OpHost, <<"/dns_check">>, get,
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+        )
+    ),
+    onepanel_test_rest:assert_body(OpJsonBody, ?DNS_CHECK_JSON_OP),
+
+    {_, _, _, OzJsonBody} = ?assertMatch({ok, 200, _, _},
+        onepanel_test_rest:auth_request(
+            OzHost, <<"/dns_check">>, get,
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+        )
+    ),
+    onepanel_test_rest:assert_body(OzJsonBody, ?DNS_CHECK_JSON_OZ).
+
+
 patch_should_update_storage(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
         ?assertMatch({ok, 204, _, _},
@@ -410,7 +465,7 @@ post_should_add_storage(Config) ->
                     secretKey := <<"someKey">>,
                     blockSize := 1024
                 }
-             }
+            }
         }}, ?TIMEOUT)
     end, [{oneprovider_hosts, <<"/provider">>}]).
 
@@ -487,7 +542,10 @@ post_should_configure_onezone_service(Config) ->
                     <<"cluster">> => ?CLUSTER_JSON,
                     <<"onezone">> => #{
                         <<"name">> => <<"someName">>,
-                        <<"domainName">> => <<"someDomain">>
+                        <<"domainName">> => <<"someDomain">>,
+                        <<"policies">> => #{
+                            <<"subdomainDelegation">> => false
+                        }
                     }
                 }
             )
@@ -510,7 +568,10 @@ post_should_configure_onezone_service(Config) ->
                     hosts := ["host1.someDomain", "host2.someDomain", "host3.someDomain"],
                     main_cm_host := "host3.someDomain",
                     onezone_name := <<"someName">>,
-                    onezone_domain := <<"someDomain">>
+                    onezone_domain := <<"someDomain">>,
+                    policies := #{
+                        subdomain_delegation := false
+                    }
                 }
             }
         }}, ?TIMEOUT)
@@ -702,6 +763,51 @@ init_per_testcase(get_should_return_nagios_response, Config) ->
         {task_finished, {service, action, ok}}
     ] end),
     NewConfig;
+
+init_per_testcase(get_should_return_dns_check, Config) ->
+    ?assertAllMatch({ok, _}, ?callAll(Config, onepanel_user, create,
+        [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
+    )),
+
+    Nodes = ?config(all_nodes, Config),
+    OpHosts = ?config(oneprovider_hosts, Config),
+    OzHosts = ?config(onezone_hosts, Config),
+    OpNodes = ?config(oneprovider_nodes, Config),
+    OzNodes = ?config(onezone_nodes, Config),
+
+    test_utils:mock_new(Nodes, [model, onepanel_deployment, service,
+        dns_check]),
+    test_utils:mock_expect(Nodes, model, exists,
+        fun(_) -> true end),
+    test_utils:mock_expect(Nodes, onepanel_deployment, is_completed,
+        fun(_) -> true end),
+    test_utils:mock_expect(Nodes, service, get_hosts, fun
+        (op_worker) -> OpHosts;
+        (oz_worker) -> OzHosts
+    end),
+    test_utils:mock_expect(OpNodes, dns_check, get, fun
+        (op_worker, _) -> #{
+            timestamp => ?DNS_CHECK_TIMESTAMP,
+            domain => #dns_check{
+                summary = ok, expected = [?SOME_IP_STR1], got = [?SOME_IP_STR1],
+                bind_records = []
+            }
+        } end),
+
+    test_utils:mock_expect(OzNodes, dns_check, get, fun
+        (oz_worker, _) -> #{
+            timestamp => ?DNS_CHECK_TIMESTAMP,
+            domain => #dns_check{
+                summary = ok, expected = [?SOME_IP_STR1], got = [?SOME_IP_STR1],
+                bind_records = []
+            },
+            dnsZone => #dns_check{
+                summary = bad_records, expected = [?SOME_IP_STR1], got = [?SOME_IP_STR2],
+                bind_records = []
+            }
+        } end),
+
+    Config;
 
 init_per_testcase(get_should_return_storage, Config) ->
     NewConfig = init_per_testcase(default, Config),
