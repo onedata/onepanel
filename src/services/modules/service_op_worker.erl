@@ -24,7 +24,7 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 %% LE behaviour callbacks
 -export([set_txt_record/1, remove_txt_record/1, get_dns_server/0,
-    get_domain/1, get_admin_email/1, set_http_record/2,
+    get_domain/0, get_admin_email/1, set_http_record/2,
     supports_letsencrypt_challenge/1]).
 
 %% API
@@ -134,9 +134,9 @@ configure(Ctx) ->
     {ok, SendBuffer} = onepanel_env:read_effective(
         [rtransfer_link, transfer, send_buffer_size], name()),
     ?info("Remember to set following kernel parameters "
-        "for optimal op_worker performance:~n"
-        "sysctl -w ~s=~b~n"
-        "sysctl -w ~s=~b", [
+    "for optimal op_worker performance:~n"
+    "sysctl -w ~s=~b~n"
+    "sysctl -w ~s=~b", [
         "net.core.wmem_max", 2 * RecvBuffer,
         "net.core.rmem_max", 2 * SendBuffer
     ]).
@@ -169,6 +169,9 @@ stop(Ctx) ->
 %%--------------------------------------------------------------------
 -spec status(Ctx :: service:ctx()) -> service:status().
 status(Ctx) ->
+    % Since this function is invoked periodically by service_watcher
+    % use it to schedule DNS check refresh on a single node
+    catch maybe_check_dns(),
     service_cluster_worker:status(Ctx#{name => name()}).
 
 
@@ -277,7 +280,7 @@ invalidate_luma_cache(#{id := StorageId}) ->
 reload_webcert(Ctx) ->
     service_cluster_worker:reload_webcert(Ctx#{name => name()}),
 
-    Node = onepanel_cluster:host_to_node(name(), onepanel_cluster:node_to_host()),
+    Node = onepanel_cluster:service_to_node(name()),
     ok = rpc:call(Node, rtransfer_config, restart_link, []).
 
 
@@ -352,8 +355,8 @@ get_dns_server() ->
 %% @doc Returns the domain of the provider.
 %% @end
 %%--------------------------------------------------------------------
--spec get_domain(service:ctx()) -> binary().
-get_domain(_Ctx) ->
+-spec get_domain() -> binary().
+get_domain() ->
     {domain, Domain} = proplists:lookup(domain, service_oneprovider:get_details(#{})),
     Domain.
 
@@ -384,6 +387,7 @@ migrate_generated_config(Ctx) ->
         ]
     }).
 
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -404,3 +408,21 @@ pop_legacy_ips_configured() ->
         _ -> false
     end.
 
+
+%%-------------------------------------------------------------------
+%% @private
+%% @doc
+%% If this function is run on the first of service's nodes
+%% and Oneprovider is registered, triggers DNS check cache refresh.
+%% @end
+%%-------------------------------------------------------------------
+maybe_check_dns() ->
+    ThisNode = node(),
+    ThisHost = onepanel_cluster:node_to_host(ThisNode),
+    case ThisHost == hd(get_hosts())
+        andalso service_oneprovider:is_registered()
+        andalso dns_check:should_update_cache(name()) of
+
+        true -> dns_check:async_update_cache(name());
+        false -> ok
+    end.

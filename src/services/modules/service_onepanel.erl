@@ -165,7 +165,7 @@ set_cookie(Ctx) ->
 %%--------------------------------------------------------------------
 -spec check_connection(Ctx :: service:ctx()) -> ok.
 check_connection(#{cluster_host := ClusterHost}) ->
-    ClusterNode = onepanel_cluster:host_to_node(ClusterHost),
+    ClusterNode = onepanel_cluster:service_to_node(name(), ClusterHost),
     pong = net_adm:ping(ClusterNode),
     ok.
 
@@ -240,7 +240,7 @@ extend_cluster(#{address := Address, api_version := _ApiVersion,
 -spec join_cluster(Ctx :: service:ctx()) -> ok.
 join_cluster(#{cluster_host := ClusterHost}) ->
     Node = node(),
-    ClusterNode = onepanel_cluster:host_to_node(ClusterHost),
+    ClusterNode = onepanel_cluster:service_to_node(name(), ClusterHost),
     ok = rpc:call(ClusterNode, onepanel_db, add_node, [Node]),
     onepanel_db:copy_tables().
 

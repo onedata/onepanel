@@ -40,7 +40,7 @@
 %%--------------------------------------------------------------------
 %% Returns current domain.
 %%--------------------------------------------------------------------
--callback get_domain(service:ctx()) -> binary().
+-callback get_domain() -> binary().
 
 %%--------------------------------------------------------------------
 %% Returns admin email to be used in Let's Encrypt registration.

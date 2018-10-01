@@ -42,7 +42,7 @@ execute(Tokens) ->
     {Code :: 0..255, Output :: string()}.
 execute(Tokens, TokensToLog) ->
     % Wrapper adds exit code to the output
-    Wrapper = ["R=`"] ++ Tokens ++ ["2>&1`;", "echo", "-n", "$?,$R;"],
+    Wrapper = ["R=`"] ++ Tokens ++ ["2>&1`;", "echo", "-n", "$?,\"$R\";"],
     Result = string:strip(os:cmd(tokens_to_cmd(Wrapper)), right, $\n),
 
     [CodeStr, Output] = string:split(Result, ",", leading),

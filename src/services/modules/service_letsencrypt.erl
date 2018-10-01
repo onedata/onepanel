@@ -87,10 +87,15 @@ get_nodes() ->
 get_steps(deploy, #{letsencrypt_plugin := _} = _Ctx) ->
     [#step{function = create, selection = first}];
 
-get_steps(resume, _Ctx) ->
-    % failsafe against unlikely case of failing to reset the "regenerating" flag
-    update_ctx(#{regenerating => false}),
-
+get_steps(resume, Ctx) ->
+    case service:exists(name()) of
+        true -> % failsafe against unlikely case of failing to reset the "regenerating" flag
+            update_ctx(#{regenerating => false});
+        false ->
+            % this action, needed after upgrading from version without
+            % service_letsencrypt, requires key letsencrypt_plugin in the Ctx
+            create(Ctx)
+    end,
     % ensure service is added to service_watcher if necessary
     [#steps{action = update}];
 
@@ -238,7 +243,7 @@ is_enabled(_Ctx) ->
 -spec obtain_cert(service:ctx()) -> ok | no_return().
 obtain_cert(Ctx) ->
     Plugin = get_plugin_module(),
-    Domain = Plugin:get_domain(Ctx),
+    Domain = Plugin:get_domain(),
 
     case maps:get(renewal, Ctx, false) of
         false -> onepanel_cert:backup_exisiting_certs();
@@ -304,7 +309,7 @@ global_cert_status(Ctx) ->
         true -> regenerating;
         _ ->
             Nodes = get_nodes(),
-            Domain = (get_plugin_module()):get_domain(Ctx),
+            Domain = (get_plugin_module()):get_domain(),
             lists:foldl(fun(Node, PrevStatus) ->
                 case PrevStatus of
                     valid -> rpc:call(Node, ?MODULE, local_cert_status, [Domain]);

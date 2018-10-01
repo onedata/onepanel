@@ -153,6 +153,16 @@ routes() ->
             }]
         }},
 
+        %% Get Onezone policies.
+        {<<"/api/v3/onepanel/zone/policies">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onezone,
+            resource = policies,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
         %% Get zone cluster worker status
         {<<"/api/v3/onepanel/zone/workers/:host">>, rest_handler, #rstate{
             version = 3,
@@ -185,6 +195,18 @@ routes() ->
             }]
         }},
 
+        %% Modify current Onezone policies
+        {<<"/api/v3/onepanel/zone/policies">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onezone,
+            resource = policies,
+            methods = [#rmethod{
+                type = 'PATCH',
+                %% New values for Onezone policies.
+                args_spec = rest_model:zone_policies_model()
+            }]
+        }},
+
         %% Start/stop zone databases
         {<<"/api/v3/onepanel/zone/databases">>, rest_handler, #rstate{
             version = 3,
@@ -193,9 +215,9 @@ routes() ->
             methods = [#rmethod{
                 type = 'PATCH',
                 params_spec = #{
-                    %% Defines the intended state of the database service. The
-                    %% service will be started or stopped in order to match the
-                    %% requested state.
+                    %% Defines the intended state of the database service.
+                    %% The service will be started or stopped in order to
+                    %% match the requested state.
                     started => {boolean, {optional, true}}
                 }
             }]
@@ -209,9 +231,9 @@ routes() ->
             methods = [#rmethod{
                 type = 'PATCH',
                 params_spec = #{
-                    %% Defines the intended state of the database service. The
-                    %% service will be started or stopped in order to match the
-                    %% requested state.
+                    %% Defines the intended state of the database service.
+                    %% The service will be started or stopped in order to
+                    %% match the requested state.
                     started => {boolean, {optional, true}}
                 }
             }]
@@ -226,8 +248,8 @@ routes() ->
                 type = 'PATCH',
                 params_spec = #{
                     %% Defines the intended state of the cluster manager
-                    %% service. The service  will be started or stopped in order
-                    %% to match the requested state.
+                    %% service. The service will be started or stopped in
+                    %% order to match the requested state.
                     started => {boolean, {optional, true}}
                 }
             }]
@@ -242,8 +264,8 @@ routes() ->
                 type = 'PATCH',
                 params_spec = #{
                     %% Defines the intended state of the cluster manager
-                    %% service. The service  will be started or stopped in order
-                    %% to match the requested state.
+                    %% service. The service will be started or stopped in
+                    %% order to match the requested state.
                     started => {boolean, {optional, true}}
                 }
             }]
@@ -257,9 +279,9 @@ routes() ->
             methods = [#rmethod{
                 type = 'PATCH',
                 params_spec = #{
-                    %% Defines the intended state of the cluster worker service.
-                    %% The service will be started or stopped in order to match
-                    %% the requested state.
+                    %% Defines the intended state of the cluster worker
+                    %% service. The service will be started or stopped in
+                    %% order to match the requested state.
                     started => {boolean, {optional, true}}
                 }
             }]
@@ -273,9 +295,9 @@ routes() ->
             methods = [#rmethod{
                 type = 'PATCH',
                 params_spec = #{
-                    %% Defines the intended state of the cluster worker service.
-                    %% The service  will be started or stopped in order to match
-                    %% the requested state.
+                    %% Defines the intended state of the cluster worker
+                    %% service. The service will be started or stopped in
+                    %% order to match the requested state.
                     started => {boolean, {optional, true}}
                 }
             }]

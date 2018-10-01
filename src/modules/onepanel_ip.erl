@@ -13,7 +13,7 @@
 
 -include_lib("ctool/include/logging.hrl").
 
--export([determine_ip/0, ip4_to_binary/1, parse_ip4/1]).
+-export([determine_ip/0, ip4_to_binary/1, parse_ip4/1, is_ip/1]).
 
 %%%===================================================================
 %%% API
@@ -59,6 +59,19 @@ parse_ip4(Value) ->
 -spec ip4_to_binary(inet:ip4_address()) -> binary().
 ip4_to_binary(IPTuple) ->
     list_to_binary(inet:ntoa(IPTuple)).
+
+
+%%--------------------------------------------------------------------
+%% @doc Detects IP address in a string, binary or tuple form.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_ip(term()) -> boolean().
+is_ip(Value) ->
+    try parse_ip4(Value) of
+        {ok, _} -> true;
+        _ -> false
+    catch _:_ -> false
+    end.
 
 
 %%%===================================================================

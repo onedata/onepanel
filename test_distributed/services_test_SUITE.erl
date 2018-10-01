@@ -427,7 +427,7 @@ assert_service_step(Module, Function, Nodes, Result) ->
 %%--------------------------------------------------------------------
 -spec await_oz_connectivity(Node :: node()) -> ok | no_return().
 await_oz_connectivity(Node) ->
-    OpNode = onepanel_cluster:host_to_node(service_op_worker:name(), onepanel_cluster:node_to_host(Node)),
+    OpNode = onepanel_cluster:service_to_node(service_op_worker:name(), Node),
     ?assertMatch({ok, _},
         % direct rpc from testmaster apparently does not work
         rpc:call(Node, rpc, call, [OpNode, provider_logic, get, []]),
