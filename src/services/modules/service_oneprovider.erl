@@ -30,7 +30,7 @@
 -export([configure/1, check_oz_availability/1, mark_configured/1,
     register/1, unregister/1, is_registered/1, is_registered/0,
     modify_details/1, get_details/1, get_oz_domain/0,
-    support_space/1, revoke_space_support/1, get_spaces/1,
+    support_space/1, revoke_space_support/1, get_spaces/1, is_space_supported/1,
     get_space_details/1, modify_space/1, format_cluster_ips/1,
     get_sync_stats/1, get_autocleaning_reports/1, get_autocleaning_status/1,
     start_cleaning/1, check_oz_connection/1, update_provider_ips/1]).
@@ -587,6 +587,18 @@ get_spaces(_Ctx) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc Calls op_worker to check if a space is supported.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_space_supported(Ctx :: service:ctx()) -> boolean().
+is_space_supported(#{space_id := Id}) ->
+    Node = utils:random_element(service_op_worker:get_nodes()),
+    case rpc:call(Node, provider_logic, supports_space, [Id]) of
+        Result when is_boolean(Result) -> Result
+    end.
+
+
+%%--------------------------------------------------------------------
 %% @doc Returns details of the space given by ID.
 %% @end
 %%--------------------------------------------------------------------
@@ -649,10 +661,11 @@ maybe_update_support_size(#{node := Node, space_id := SpaceId, size := SupportSi
     case rpc:call(Node, provider_logic, update_space_support_size, [SpaceId, SupportSize]) of
         ok -> ok;
         {error, storage_space_occupied} ->
-            ?throw_error(?ERR_SPACE_SUPPORT_TOO_LOW)
-
-    % @fixme handle error coming from oz caused by support size being below threshold
-    %        configured there
+            ?throw_error(?ERR_SPACE_SUPPORT_TOO_LOW);
+        % error created by onezone
+        {error, {value_too_low, _, _}} ->
+            ?throw_error(?ERR_SPACE_SUPPORT_TOO_LOW);
+        {error, Reason} -> ?throw_error(Reason)
     end;
 
 maybe_update_support_size(Ctx) -> ok.

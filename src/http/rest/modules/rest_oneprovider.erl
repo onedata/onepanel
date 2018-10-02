@@ -52,6 +52,9 @@ exists_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
     Node = utils:random_element(service_op_worker:get_nodes()),
     {rpc:call(Node, storage, exists, [Id]), Req};
 
+exists_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
+    {service_oneprovider:is_space_supported(#{space_id => Id}), Req};
+
 exists_resource(Req, _State) ->
     case service:get(?SERVICE) of
         {ok, #service{ctx = #{registered := true}}} -> {true, Req};
@@ -122,7 +125,6 @@ accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
         ))
     )};
 
-
 accept_resource(Req, 'PATCH', Args, #rstate{resource = space, bindings = #{id := Id}}) ->
     Ctx1 = onepanel_maps:get_store_multiple([
         {size, size}
@@ -159,7 +161,6 @@ accept_resource(Req, 'PATCH', _Args, #rstate{resource = luma,
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?WORKER, invalidate_luma_cache, Ctx
     ))};
-
 
 accept_resource(Req, 'POST', _Args, #rstate{resource = start_cleaning, bindings = #{id := Id}}) ->
     {true, rest_replier:handle_service_step(Req, service_oneprovider, start_cleaning,
@@ -257,7 +258,6 @@ provide_resource(Req, #rstate{resource = storages}) ->
             ?WORKER, get_storages, #{}
         ))
     ), Req};
-
 
 provide_resource(Req, #rstate{resource = cluster_ips}) ->
     {rest_replier:format_service_step(service_oneprovider, format_cluster_ips,
