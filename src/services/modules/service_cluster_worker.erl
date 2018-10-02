@@ -15,6 +15,7 @@
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include("service.hrl").
+-include("names.hrl").
 -include("deployment_progress.hrl").
 -include("modules/onepanel_dns.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
@@ -309,7 +310,7 @@ get_cluster_ips(#{name := _ServiceName} = Ctx) ->
     [{Host :: service:host(), IP :: inet:ip4_address()}].
 get_hosts_ips(#{name := ServiceName}) ->
     lists:map(fun(Host) ->
-        Node = onepanel_cluster:service_to_node(Host),
+        Node = onepanel_cluster:service_to_node(?APP_NAME, Host),
         IPEnv = rpc:call(Node, onepanel_env, read_effective,
             [[name(), external_ip], ServiceName]),
         {ok, IPTuple} = IPEnv,
