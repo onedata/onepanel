@@ -184,12 +184,12 @@
         {rest_listener_status_check_attempts, 30},
 
         %% Directory where static files of default, embedded GUI are kept.
-        %% Used when gui_custom_static_root is non-existent or empty.
+        %% Used when gui_static_root_override is non-existent or empty.
         {gui_default_static_root, "{{platform_data_dir}}/gui_static"},
         %% Directory where onepanel tries to find static files of a custom GUI.
         %% If the directory is not empty, it will serve the static files
         %% from it. If not, it will fall back to default, embedded GUI.
-        {gui_custom_static_root, "/var/www/html/onepanel"},
+        {gui_static_root_override, "/var/www/html/onepanel"},
 
         {rpc_timeout, 1800000},
         {create_tables_timeout, 10000},
