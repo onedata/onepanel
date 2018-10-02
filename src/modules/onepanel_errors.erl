@@ -186,6 +186,9 @@ translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, {missing_key, MissingKe
     {<<"Operation Error">>, str_utils:format_bin("LUMA configuration error. "
     "Missing key: ~p", [MissingKey])};
 
+translate(_Type, #error{reason = ?ERR_SPACE_SUPPORT_TOO_LOW}) ->
+    {<<"Operation Error">>, <<"Requested space support size is to low.">>};
+
 translate(_Type, #error{reason = {?ERR_CONFIG_AUTOCLEANING, {error, file_popularity_disabled}}}) ->
     {<<"Operation Error">>, <<"File popularity statistics must be turned on to enable autocleaning">>};
 

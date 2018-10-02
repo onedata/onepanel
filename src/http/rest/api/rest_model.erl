@@ -756,6 +756,9 @@ space_files_popularity_model() ->
 -spec space_modify_request_model() -> maps:map().
 space_modify_request_model() ->
     #{
+        %% The storage space size in bytes that provider is willing to assign to
+        %% the space.
+        size => {integer, optional},
         storageImport => {storage_import_details_model(), optional},
         storageUpdate => {storage_update_details_model(), optional},
         %% Configuration of files popularity feature for this space

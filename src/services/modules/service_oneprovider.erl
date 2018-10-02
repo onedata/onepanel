@@ -634,6 +634,7 @@ modify_space(#{space_id := SpaceId, node := Node} = Ctx) ->
     UpdateArgs = maps:get(storage_update, Ctx, #{}),
     FilePopularityArgs = maps:get(files_popularity, Ctx, #{}),
     AutoCleaningArgs = maps:get(auto_cleaning, Ctx, #{}),
+    ok = maybe_update_support_size(Ctx),
     {ok, _} = op_worker_storage_sync:maybe_modify_storage_import(Node, SpaceId, ImportArgs),
     {ok, _} = op_worker_storage_sync:maybe_modify_storage_update(Node, SpaceId, UpdateArgs),
     {ok, _} = op_worker_storage:maybe_update_file_popularity(Node, SpaceId, FilePopularityArgs),
@@ -642,6 +643,20 @@ modify_space(#{space_id := SpaceId, node := Node} = Ctx) ->
 modify_space(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     modify_space(Ctx#{node => Node}).
+
+
+maybe_update_support_size(#{node := Node, space_id := SpaceId, size := SupportSize}) ->
+    case rpc:call(Node, provider_logic, update_space_support_size, [SpaceId, SupportSize]) of
+        ok -> ok;
+        {error, storage_space_occupied} ->
+            ?throw_error(?ERR_SPACE_SUPPORT_TOO_LOW)
+
+    % @fixme handle error coming from oz caused by support size being below threshold
+    %        configured there
+    end;
+
+maybe_update_support_size(Ctx) -> ok.
+
 
 %%--------------------------------------------------------------------
 %% @doc Get storage_sync stats
