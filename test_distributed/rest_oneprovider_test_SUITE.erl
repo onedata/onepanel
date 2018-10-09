@@ -548,6 +548,8 @@ init_per_testcase(get_should_return_supported_spaces, Config) ->
         }},
         {task_finished, {service, action, ok}}
     ] end),
+    test_utils:mock_expect(Nodes, service_oneprovider, is_space_supported,
+        fun(#{space_id := _Id}) -> true end),
     NewConfig;
 
 init_per_testcase(get_should_return_space_details, Config) ->
@@ -559,7 +561,17 @@ init_per_testcase(get_should_return_space_details, Config) ->
         }},
         {task_finished, {service, action, ok}}
     ] end),
+    test_utils:mock_expect(Nodes, service_oneprovider, is_space_supported,
+        fun(#{space_id := _Id}) -> true end),
     NewConfig;
+
+init_per_testcase(delete_should_revoke_space_support, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_expect(Nodes, service_oneprovider, is_space_supported,
+        fun(#{space_id := _Id}) -> true end),
+    NewConfig;
+
 init_per_testcase(put_should_create_or_support_space, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
@@ -582,6 +594,8 @@ init_per_testcase(patch_should_modify_storage_update, Config) ->
         {task_finished, {service, action, ok}}
     ]
     end),
+    test_utils:mock_expect(Nodes, service_oneprovider, is_space_supported,
+        fun(#{space_id := _Id}) -> true end),
     NewConfig;
 
 init_per_testcase(patch_should_update_storage, Config) ->
@@ -630,7 +644,7 @@ init_per_testcase(_Case, Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
     Hosts = ?config(oneprovider_hosts, Config),
     Self = self(),
-    test_utils:mock_new(Nodes, service),
+    test_utils:mock_new(Nodes, [service, service_oneprovider]),
     test_utils:mock_expect(Nodes, service, get, fun
         (oneprovider) -> {ok, #service{ctx = #{registered => true}}};
         (op_worker) -> {ok, #service{hosts = Hosts}}
