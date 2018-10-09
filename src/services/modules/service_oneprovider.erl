@@ -21,6 +21,7 @@
 -include("deployment_progress.hrl").
 -include_lib("ctool/include/oz/oz_spaces.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/api_errors.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
 
 %% Service behaviour callbacks
@@ -657,15 +658,17 @@ modify_space(Ctx) ->
     modify_space(Ctx#{node => Node}).
 
 
+%%--------------------------------------------------------------------
+%% @doc If new size for a space is specified, enacts the change.
+%% @end
+%%--------------------------------------------------------------------
 maybe_update_support_size(#{node := Node, space_id := SpaceId, size := SupportSize}) ->
     case rpc:call(Node, provider_logic, update_space_support_size, [SpaceId, SupportSize]) of
         ok -> ok;
-        {error, storage_space_occupied} ->
-            ?throw_error(?ERR_SPACE_SUPPORT_TOO_LOW);
-        % error created by onezone
-        {error, {value_too_low, _, _}} ->
-            ?throw_error(?ERR_SPACE_SUPPORT_TOO_LOW);
-        {error, Reason} -> ?throw_error(Reason)
+        ?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, Minimum) ->
+            ?throw_error(?ERR_SPACE_SUPPORT_TOO_LOW(Minimum));
+        {error, Reason} ->
+            ?throw_error(Reason)
     end;
 
 maybe_update_support_size(Ctx) -> ok.
