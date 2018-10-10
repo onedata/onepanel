@@ -597,7 +597,6 @@ get_space_details(#{id := SpaceId, node := Node}) ->
     StorageIds = op_worker_storage:get_supporting_storages(Node, SpaceId),
     StorageId = hd(StorageIds),
     MountInRoot = op_worker_storage:is_mounted_in_root(Node, SpaceId, StorageId),
-    SoftQuota = op_worker_storage:get_soft_quota(Node),
     ImportDetails = op_worker_storage_sync:get_storage_import_details(
         Node, SpaceId, StorageId
     ),
@@ -612,7 +611,6 @@ get_space_details(#{id := SpaceId, node := Node}) ->
         {storageId, StorageId},
         {localStorages, StorageIds},
         {mountInRoot, MountInRoot},
-        {softQuota, SoftQuota},
         {storageImport, ImportDetails},
         {storageUpdate, UpdateDetails},
         {filesPopularity, op_worker_storage:get_file_popularity_details(Node, SpaceId)},
