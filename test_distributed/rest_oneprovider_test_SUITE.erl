@@ -53,9 +53,9 @@
     {<<"/provider">>, patch},
     {<<"/provider">>, delete},
     {<<"/provider/spaces">>, get},
-    {<<"/provider/spaces">>, patch},
     {<<"/provider/spaces">>, post},
     {<<"/provider/spaces/someSpaceId">>, get},
+    {<<"/provider/spaces/someSpaceId">>, patch},
     {<<"/provider/spaces/someSpaceId">>, delete}
 ]).
 
