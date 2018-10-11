@@ -21,6 +21,7 @@
 -include("deployment_progress.hrl").
 -include_lib("ctool/include/oz/oz_spaces.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/api_errors.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
 
 %% Service behaviour callbacks
@@ -30,7 +31,7 @@
 -export([configure/1, check_oz_availability/1, mark_configured/1,
     register/1, unregister/1, is_registered/1, is_registered/0,
     modify_details/1, get_details/1, get_oz_domain/0,
-    support_space/1, revoke_space_support/1, get_spaces/1,
+    support_space/1, revoke_space_support/1, get_spaces/1, is_space_supported/1,
     get_space_details/1, modify_space/1, format_cluster_ips/1,
     get_sync_stats/1, get_autocleaning_reports/1, get_autocleaning_status/1,
     start_cleaning/1, check_oz_connection/1, update_provider_ips/1]).
@@ -594,6 +595,18 @@ get_spaces(_Ctx) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc Calls op_worker to check if a space is supported.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_space_supported(Ctx :: service:ctx()) -> boolean().
+is_space_supported(#{space_id := Id}) ->
+    Node = utils:random_element(service_op_worker:get_nodes()),
+    case rpc:call(Node, provider_logic, supports_space, [Id]) of
+        Result when is_boolean(Result) -> Result
+    end.
+
+
+%%--------------------------------------------------------------------
 %% @doc Returns details of the space given by ID.
 %% @end
 %%--------------------------------------------------------------------
@@ -641,6 +654,7 @@ modify_space(#{space_id := SpaceId, node := Node} = Ctx) ->
     UpdateArgs = maps:get(storage_update, Ctx, #{}),
     FilePopularityArgs = maps:get(files_popularity, Ctx, #{}),
     AutoCleaningArgs = maps:get(auto_cleaning, Ctx, #{}),
+    ok = maybe_update_support_size(Ctx),
     {ok, _} = op_worker_storage_sync:maybe_modify_storage_import(Node, SpaceId, ImportArgs),
     {ok, _} = op_worker_storage_sync:maybe_modify_storage_update(Node, SpaceId, UpdateArgs),
     {ok, _} = op_worker_storage:maybe_update_file_popularity(Node, SpaceId, FilePopularityArgs),
@@ -649,6 +663,23 @@ modify_space(#{space_id := SpaceId, node := Node} = Ctx) ->
 modify_space(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     modify_space(Ctx#{node => Node}).
+
+
+%%--------------------------------------------------------------------
+%% @doc If new size for a space is specified, enacts the change.
+%% @end
+%%--------------------------------------------------------------------
+maybe_update_support_size(#{node := Node, space_id := SpaceId, size := SupportSize}) ->
+    case rpc:call(Node, provider_logic, update_space_support_size, [SpaceId, SupportSize]) of
+        ok -> ok;
+        ?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, Minimum) ->
+            ?throw_error(?ERR_SPACE_SUPPORT_TOO_LOW(Minimum));
+        {error, Reason} ->
+            ?throw_error(Reason)
+    end;
+
+maybe_update_support_size(Ctx) -> ok.
+
 
 %%--------------------------------------------------------------------
 %% @doc Get storage_sync stats

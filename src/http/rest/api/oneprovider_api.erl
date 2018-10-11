@@ -84,7 +84,7 @@ routes() ->
         %% Add storage
         {<<"/api/v3/onepanel/provider/storages">>, rest_handler, #rstate{
             version = 3,
-            module = rest_service,
+            module = rest_oneprovider,
             resource = storages,
             methods = [#rmethod{
                 type = 'POST',
@@ -274,7 +274,7 @@ routes() ->
         %% Get storage details
         {<<"/api/v3/onepanel/provider/storages/:id">>, rest_handler, #rstate{
             version = 3,
-            module = rest_service,
+            module = rest_oneprovider,
             resource = storage,
             methods = [#rmethod{
                 type = 'GET'
@@ -284,7 +284,7 @@ routes() ->
         %% Get storages
         {<<"/api/v3/onepanel/provider/storages">>, rest_handler, #rstate{
             version = 3,
-            module = rest_service,
+            module = rest_oneprovider,
             resource = storages,
             methods = [#rmethod{
                 type = 'GET'
@@ -294,7 +294,7 @@ routes() ->
         %% Invalidate LUMA cache
         {<<"/api/v3/onepanel/provider/storages/:id/invalidate_luma">>, rest_handler, #rstate{
             version = 3,
-            module = rest_service,
+            module = rest_oneprovider,
             resource = luma,
             methods = [#rmethod{
                 type = 'PATCH'
@@ -340,7 +340,7 @@ routes() ->
         %% Modify storage details
         {<<"/api/v3/onepanel/provider/storages/:id">>, rest_handler, #rstate{
             version = 3,
-            module = rest_service,
+            module = rest_oneprovider,
             resource = storage,
             methods = [#rmethod{
                 type = 'PATCH',

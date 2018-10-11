@@ -22,6 +22,7 @@
     accept_resource/4, provide_resource/2, delete_resource/2]).
 
 -define(SERVICE, service_oneprovider:name()).
+-define(WORKER, service_op_worker:name()).
 
 %%%===================================================================
 %%% REST behaviour callbacks
@@ -47,6 +48,13 @@ is_authorized(Req, _Method, _State) ->
 %%--------------------------------------------------------------------
 -spec exists_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
+exists_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
+    Node = utils:random_element(service_op_worker:get_nodes()),
+    {rpc:call(Node, storage, exists, [Id]), Req};
+
+exists_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
+    {service_oneprovider:is_space_supported(#{space_id => Id}), Req};
+
 exists_resource(Req, _State) ->
     case service:get(?SERVICE) of
         {ok, #service{ctx = #{registered := true}}} -> {true, Req};
@@ -97,28 +105,6 @@ accept_resource(Req, 'POST', Args, #rstate{resource = provider}) ->
         ?SERVICE, register, Ctx
     ))};
 
-accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
-    Ctx = onepanel_maps:get_store_multiple([
-        {token, token},
-        {size, size},
-        {storageId, storage_id},
-        {mountInRoot, mount_in_root}], Args),
-    Ctx2 = get_storage_import_args(Args, Ctx),
-    Ctx3 = get_storage_update_args(Args, Ctx2),
-
-    {true, rest_replier:handle_service_step(Req, service_oneprovider, support_space,
-        service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, support_space, Ctx3
-        ))
-    )};
-
-accept_resource(Req, 'POST', _Args, #rstate{resource = start_cleaning, bindings = #{id := Id}}) ->
-    {true, rest_replier:handle_service_step(Req, service_oneprovider, start_cleaning,
-        service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, start_cleaning, #{space_id => Id}
-        ))
-    )};
-
 accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
     Ctx = onepanel_maps:get_store_multiple([
         {name, oneprovider_name},
@@ -135,17 +121,62 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
         ?SERVICE, modify_details, Ctx
     ))};
 
+accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
+    Ctx = onepanel_maps:get_store_multiple([
+        {token, token},
+        {size, size},
+        {storageId, storage_id},
+        {mountInRoot, mount_in_root}], Args),
+    Ctx2 = get_storage_import_args(Args, Ctx),
+    Ctx3 = get_storage_update_args(Args, Ctx2),
+
+    {true, rest_replier:handle_service_step(Req, service_oneprovider, support_space,
+        service_utils:throw_on_error(service:apply_sync(
+            ?SERVICE, support_space, Ctx3
+        ))
+    )};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = space, bindings = #{id := Id}}) ->
-    Ctx2 = get_storage_update_args(Args),
+    Ctx1 = onepanel_maps:get_store_multiple([
+        {size, size}
+    ], Args, #{space_id => Id}),
+    Ctx2 = get_storage_update_args(Args, Ctx1),
     Ctx3 = get_storage_import_args(Args, Ctx2),
     Ctx4 = get_file_popularity_args(Args, Ctx3),
     Ctx5 = get_autocleaning_args(Args, Ctx4),
-    Ctx6 = Ctx5#{space_id => Id},
 
     {true, rest_replier:handle_service_step(Req, service_oneprovider, modify_space,
         service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, modify_space, Ctx6
+            ?SERVICE, modify_space, Ctx5
+        ))
+    )};
+
+accept_resource(Req, 'POST', Args, #rstate{resource = storages}) ->
+    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
+        ?WORKER, add_storages, #{
+            storages => Args, ignore_exists => false
+        }
+    ))};
+
+accept_resource(Req, 'PATCH', Args, #rstate{resource = storage,
+    bindings = #{id := Id}}) ->
+    Ctx = #{id => Id},
+    Ctx2 = onepanel_maps:get_store(timeout, Args, [args, timeout], Ctx),
+    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
+        ?WORKER, update_storage, Ctx2
+    ))};
+
+accept_resource(Req, 'PATCH', _Args, #rstate{resource = luma,
+    bindings = #{id := Id}}) ->
+    Ctx = #{id => Id},
+    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
+        ?WORKER, invalidate_luma_cache, Ctx
+    ))};
+
+accept_resource(Req, 'POST', _Args, #rstate{resource = start_cleaning, bindings = #{id := Id}}) ->
+    {true, rest_replier:handle_service_step(Req, service_oneprovider, start_cleaning,
+        service_utils:throw_on_error(service:apply_sync(
+            ?SERVICE, start_cleaning, #{space_id => Id}
         ))
     )};
 
@@ -225,6 +256,20 @@ provide_resource(Req, #rstate{
         ))
     ), Req};
 
+provide_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
+    {rest_replier:format_service_step(service_op_worker, get_storages,
+        service_utils:throw_on_error(service:apply_sync(
+            ?WORKER, get_storages, #{id => Id}
+        ))
+    ), Req};
+
+provide_resource(Req, #rstate{resource = storages}) ->
+    {rest_replier:format_service_step(service_op_worker, get_storages,
+        service_utils:throw_on_error(service:apply_sync(
+            ?WORKER, get_storages, #{}
+        ))
+    ), Req};
+
 provide_resource(Req, #rstate{resource = cluster_ips}) ->
     {rest_replier:format_service_step(service_oneprovider, format_cluster_ips,
         service_utils:throw_on_error(service:apply_sync(
@@ -254,15 +299,6 @@ delete_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-%%-------------------------------------------------------------------
-%% @private
-%% @doc @equiv get_storage_update_args(Args, #{}).
-%% @end
-%%-------------------------------------------------------------------
--spec get_storage_update_args(Args :: rest_handler:args()) -> service:ctx().
-get_storage_update_args(Args) ->
-    get_storage_update_args(Args, #{}).
 
 %%-------------------------------------------------------------------
 %% @private

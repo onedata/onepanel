@@ -25,7 +25,7 @@
 
 {deps, [
     {ctool, {git, "ssh://git@git.plgrid.pl:7999/vfs/ctool.git", {ref, "646527bd83"}}},
-    {gui, {git, "ssh://git@git.plgrid.pl:7999/vfs/gui.git", {ref, "dd0c5082b8"}}},
+    {gui, {git, "ssh://git@git.plgrid.pl:7999/vfs/gui.git", {ref, "8ceb0d56f1"}}},
     {yamerl, {git, "git://github.com/yakaz/yamerl.git", {ref, "3f46bf06b9"}}}
 ]}.
 
