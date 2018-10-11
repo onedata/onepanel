@@ -17,7 +17,8 @@
 -include_lib("ctool/include/test/performance.hrl").
 
 %% export for ct
--export([all/0, init_per_suite/1, init_per_testcase/2, end_per_testcase/2]).
+-export([all/0, init_per_suite/1, end_per_suite/1,
+    init_per_testcase/2, end_per_testcase/2]).
 
 %% tests
 -export([
@@ -30,10 +31,15 @@
     patch_should_modify_provider_ips/1,
     delete_should_unregister_provider/1,
     get_should_return_supported_spaces/1,
-    put_should_create_or_support_space/1,
+    post_should_create_or_support_space/1,
+    patch_should_modify_space_support/1,
     get_should_return_space_details/1,
-    delete_should_revoke_space_support_test/1,
-    patch_should_modify_storage_update_test/1,
+    delete_should_revoke_space_support/1,
+    get_should_return_storages/1,
+    get_should_return_storage/1,
+    post_should_add_storage/1,
+    patch_should_modify_storage_update/1,
+    patch_should_update_storage/1,
     get_should_return_autocleaning_reports/1,
     get_should_return_autocleaning_status/1]).
 
@@ -51,14 +57,15 @@
     {<<"/provider/spaces">>, get},
     {<<"/provider/spaces">>, post},
     {<<"/provider/spaces/someSpaceId">>, get},
+    {<<"/provider/spaces/someSpaceId">>, patch},
     {<<"/provider/spaces/someSpaceId">>, delete}
 ]).
 
 -define(PROVIDER_DETAILS_JSON, #{
     <<"domain">> => <<"someDomain">>,
-    <<"geoLatitude">> => 10.0, 
+    <<"geoLatitude">> => 10.0,
     <<"geoLongitude">> => 20.0,
-    <<"id">> => <<"someId">>, 
+    <<"id">> => <<"someId">>,
     <<"name">> => <<"someName">>,
     <<"subdomainDelegation">> => false
 }).
@@ -77,6 +84,38 @@
     <<"isConfigured">> => false
 }).
 
+
+-define(STORAGE_JSON, #{
+    <<"id">> => <<"somePosixId">>,
+    <<"mountPoint">> => <<"someMountPoint">>,
+    <<"name">> => <<"somePosix">>,
+    <<"type">> => <<"posix">>
+}).
+
+-define(STORAGE_UPDATE_JSON, #{
+    <<"timeout">> => 10000
+}).
+
+-define(STORAGES_JSON, #{
+    <<"someCeph">> => #{
+        <<"type">> => <<"ceph">>,
+        <<"username">> => <<"someName">>,
+        <<"key">> => <<"someKey">>,
+        <<"monitorHostname">> => <<"someHostname">>,
+        <<"poolName">> => <<"someName">>,
+        <<"clusterName">> => <<"someName">>,
+        <<"timeout">> => 5000
+    },
+    <<"someS3">> => #{
+        <<"type">> => <<"s3">>,
+        <<"hostname">> => <<"someHostname">>,
+        <<"bucketName">> => <<"someName">>,
+        <<"accessKey">> => <<"someKey">>,
+        <<"secretKey">> => <<"someKey">>,
+        <<"blockSize">> => 1024
+    }
+}).
+
 -define(STORAGE_IMPORT_DETAILS_JSON, #{
     <<"someIntegerDetail">> => 1,
     <<"strategy">> => <<"someStrategy">>
@@ -89,14 +128,14 @@
 }).
 
 -define(SPACE_DETAILS_JSON, #{
-    <<"id">> => <<"someId">>, 
+    <<"id">> => <<"someId">>,
     <<"name">> => <<"someName">>,
     <<"storageId">> => <<"someId">>,
     <<"storageImport">> => ?STORAGE_IMPORT_DETAILS_JSON,
     <<"storageUpdate">> => ?STORAGE_UPDATE_DETAILS_JSON,
     <<"supportingProviders">> => #{
-        <<"someId1">> => 1024, 
-        <<"someId2">> => 2048, 
+        <<"someId1">> => 1024,
+        <<"someId2">> => 2048,
         <<"someId3">> => 4096
     }
 }).
@@ -136,10 +175,15 @@ all() ->
         patch_should_modify_provider_ips,
         delete_should_unregister_provider,
         get_should_return_supported_spaces,
-        put_should_create_or_support_space,
+        post_should_create_or_support_space,
+        patch_should_modify_space_support,
         get_should_return_space_details,
-        delete_should_revoke_space_support_test,
-        patch_should_modify_storage_update_test,
+        delete_should_revoke_space_support,
+        get_should_return_storages,
+        get_should_return_storage,
+        post_should_add_storage,
+        patch_should_modify_storage_update,
+        patch_should_update_storage,
         get_should_return_autocleaning_reports,
         get_should_return_autocleaning_status
     ]).
@@ -181,6 +225,7 @@ get_should_return_provider_details(Config) ->
         ),
         onepanel_test_rest:assert_body(JsonBody, ?PROVIDER_DETAILS_JSON)
     end).
+
 
 get_should_return_cluster_ips(Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
@@ -239,6 +284,7 @@ patch_should_modify_provider_details(Config) ->
         }}, ?TIMEOUT)
     end).
 
+
 patch_should_modify_provider_ips(Config) ->
     % There is one node in test environment
     [Node] = ?config(oneprovider_nodes, Config),
@@ -259,6 +305,7 @@ patch_should_modify_provider_ips(Config) ->
             }
         }}, ?TIMEOUT)
     end).
+
 
 delete_should_unregister_provider(Config) ->
     ?run(Config, fun(Host) ->
@@ -282,7 +329,7 @@ get_should_return_supported_spaces(Config) ->
     end).
 
 
-put_should_create_or_support_space(Config) ->
+post_should_create_or_support_space(Config) ->
     ?run(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
@@ -293,6 +340,21 @@ put_should_create_or_support_space(Config) ->
                     <<"storageId">> => <<"someId">>,
                     <<"storageImport">> => ?STORAGE_IMPORT_DETAILS_JSON,
                     <<"storageUpdate">> => ?STORAGE_UPDATE_DETAILS_JSON
+                }
+            )
+        ),
+        onepanel_test_rest:assert_body(JsonBody, ?SPACE_JSON)
+    end).
+
+
+patch_should_modify_space_support(Config) ->
+    NewSize = 99000000,
+    ?run(Config, fun(Host) ->
+        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/spaces/someId1">>, patch,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, #{
+                    <<"size">> => NewSize
                 }
             )
         ),
@@ -313,7 +375,7 @@ get_should_return_space_details(Config) ->
     end).
 
 
-delete_should_revoke_space_support_test(Config) ->
+delete_should_revoke_space_support(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/spaces/someId">>, delete,
@@ -324,7 +386,63 @@ delete_should_revoke_space_support_test(Config) ->
         }, ?TIMEOUT)
     end).
 
-patch_should_modify_storage_update_test(Config) ->
+
+get_should_return_storages(Config) ->
+    ?run(Config, fun(Host) ->
+        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/storages">>, get,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+            )
+        ),
+        onepanel_test_rest:assert_body_fields(JsonBody, [<<"ids">>])
+    end).
+
+
+get_should_return_storage(Config) ->
+    ?run(Config, fun(Host) ->
+        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/storages/somePosixId">>, get,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+            )
+        ),
+        onepanel_test_rest:assert_body(JsonBody, ?STORAGE_JSON)
+    end).
+
+
+post_should_add_storage(Config) ->
+    ?run(Config, fun(Host) ->
+        ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages">>,
+            post, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
+            ?STORAGES_JSON
+        )),
+        ?assertReceivedMatch({service, op_worker, add_storages, #{
+            storages := #{
+                <<"someCeph">> := #{
+                    type := <<"ceph">>,
+                    clusterName := <<"someName">>,
+                    key := <<"someKey">>,
+                    monitorHostname := <<"someHostname">>,
+                    poolName := <<"someName">>,
+                    username := <<"someName">>,
+                    timeout := 5000
+                },
+                <<"someS3">> := #{
+                    type := <<"s3">>,
+                    accessKey := <<"someKey">>,
+                    bucketName := <<"someName">>,
+                    hostname := <<"someHostname">>,
+                    secretKey := <<"someKey">>,
+                    blockSize := 1024
+                }
+            }
+        }}, ?TIMEOUT)
+    end).
+
+
+patch_should_modify_storage_update(Config) ->
     ?run(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
@@ -338,6 +456,22 @@ patch_should_modify_storage_update_test(Config) ->
         onepanel_test_rest:assert_body(JsonBody, ?SPACE_JSON)
     end).
 
+
+patch_should_update_storage(Config) ->
+    ?run(Config, fun(Host) ->
+        ?assertMatch({ok, 204, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/storages/somePosixId">>, patch,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, ?STORAGE_UPDATE_JSON
+            )
+        ),
+        ?assertReceivedMatch({service, op_worker, update_storage, #{
+            id := <<"somePosixId">>,
+            args := #{timeout := 10000}
+        }}, ?TIMEOUT)
+    end).
+
+
 get_should_return_autocleaning_reports(Config) ->
     ?run(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
@@ -347,6 +481,7 @@ get_should_return_autocleaning_reports(Config) ->
         ),
         onepanel_test_rest:assert_body(JsonBody, ?AUTOCLEANING_REPORTS)
     end).
+
 
 get_should_return_autocleaning_status(Config) ->
     [N | _] = ?config(oneprovider_nodes, Config),
@@ -402,6 +537,31 @@ init_per_testcase(get_should_return_cluster_ips, Config) ->
     ] end),
     NewConfig;
 
+init_per_testcase(get_should_return_storage, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(all_nodes, NewConfig),
+    test_utils:mock_new(Nodes, rest_oneprovider),
+    test_utils:mock_expect(Nodes, rest_oneprovider, exists_resource, fun(Req, _) ->
+        {true, Req}
+    end),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        {service_op_worker, get_storages, {[{'node@host1', ?STORAGE_JSON}], []}},
+        {task_finished, {service, action, ok}}
+    ] end),
+    NewConfig;
+
+
+init_per_testcase(get_should_return_storages, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(all_nodes, NewConfig),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        {service_op_worker, get_storages, {[{'node@host1', [
+            {<<"ids">>, [<<"id1">>, <<"id2">>, <<"id3">>]}
+        ]}], []}},
+        {task_finished, {service, action, ok}}
+    ] end),
+    NewConfig;
+
 init_per_testcase(get_should_return_supported_spaces, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
@@ -411,6 +571,8 @@ init_per_testcase(get_should_return_supported_spaces, Config) ->
         }},
         {task_finished, {service, action, ok}}
     ] end),
+    test_utils:mock_expect(Nodes, service_oneprovider, is_space_supported,
+        fun(#{space_id := _Id}) -> true end),
     NewConfig;
 
 init_per_testcase(get_should_return_space_details, Config) ->
@@ -422,9 +584,18 @@ init_per_testcase(get_should_return_space_details, Config) ->
         }},
         {task_finished, {service, action, ok}}
     ] end),
+    test_utils:mock_expect(Nodes, service_oneprovider, is_space_supported,
+        fun(#{space_id := _Id}) -> true end),
     NewConfig;
 
-init_per_testcase(put_should_create_or_support_space, Config) ->
+init_per_testcase(delete_should_revoke_space_support, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_expect(Nodes, service_oneprovider, is_space_supported,
+        fun(#{space_id := _Id}) -> true end),
+    NewConfig;
+
+init_per_testcase(post_should_create_or_support_space, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
@@ -436,7 +607,7 @@ init_per_testcase(put_should_create_or_support_space, Config) ->
     end),
     NewConfig;
 
-init_per_testcase(patch_should_modify_storage_update_test, Config) ->
+init_per_testcase(patch_should_modify_space_support, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
@@ -445,6 +616,40 @@ init_per_testcase(patch_should_modify_storage_update_test, Config) ->
         }},
         {task_finished, {service, action, ok}}
     ]
+    end),
+    test_utils:mock_expect(Nodes, service_oneprovider, is_space_supported,
+        fun(#{space_id := _Id}) -> true end),
+    NewConfig;
+
+init_per_testcase(patch_should_modify_storage_update, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        {service_oneprovider, modify_space, {
+            [{'node@host1', ?SPACE_JSON}], []
+        }},
+        {task_finished, {service, action, ok}}
+    ]
+    end),
+    test_utils:mock_expect(Nodes, service_oneprovider, is_space_supported,
+        fun(#{space_id := _Id}) -> true end),
+    NewConfig;
+
+init_per_testcase(patch_should_update_storage, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_new(Nodes, rest_oneprovider),
+    test_utils:mock_expect(Nodes, rest_oneprovider, exists_resource, fun(Req, _) ->
+        {true, Req}
+    end),
+    Self = self(),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
+        Self ! {service, Service, Action, Ctx},
+        [{task_finished, {service, action, ok}}]
+    end),
+    test_utils:mock_expect(Nodes, service, apply_async, fun(Service, Action, Ctx) ->
+        Self ! {service, Service, Action, Ctx},
+        <<"someTaskId">>
     end),
     NewConfig;
 
@@ -474,10 +679,12 @@ init_per_testcase(get_should_return_autocleaning_status, Config) ->
 
 init_per_testcase(_Case, Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
+    Hosts = ?config(oneprovider_hosts, Config),
     Self = self(),
-    test_utils:mock_new(Nodes, service),
-    test_utils:mock_expect(Nodes, service, get, fun(oneprovider) ->
-        {ok, #service{ctx = #{registered => true}}}
+    test_utils:mock_new(Nodes, [service, service_oneprovider]),
+    test_utils:mock_expect(Nodes, service, get, fun
+        (oneprovider) -> {ok, #service{ctx = #{registered => true}}};
+        (op_worker) -> {ok, #service{hosts = Hosts}}
     end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},
@@ -489,3 +696,7 @@ init_per_testcase(_Case, Config) ->
 end_per_testcase(_Case, Config) ->
     Nodes = ?config(all_nodes, Config),
     test_utils:mock_unload(Nodes).
+
+
+end_per_suite(_Config) ->
+    ok.

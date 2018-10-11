@@ -54,6 +54,7 @@
     space_auto_cleaning_status_model/0,
     space_details_model/0,
     space_files_popularity_model/0,
+    space_id_model/0,
     space_modify_request_model/0,
     space_support_request_model/0,
     space_sync_stats_model/0,
@@ -750,12 +751,26 @@ space_files_popularity_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc Provides ID of a space.
+%% @end
+%%--------------------------------------------------------------------
+-spec space_id_model() -> maps:map().
+space_id_model() ->
+    #{
+        %% The ID of the space.
+        id => string
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The space configuration details that can be modified.
 %% @end
 %%--------------------------------------------------------------------
 -spec space_modify_request_model() -> maps:map().
 space_modify_request_model() ->
     #{
+        %% The storage space size in bytes that provider is willing to assign to
+        %% the space.
+        size => {integer, optional},
         storageImport => {storage_import_details_model(), optional},
         storageUpdate => {storage_update_details_model(), optional},
         %% Configuration of files popularity feature for this space
