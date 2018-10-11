@@ -30,7 +30,7 @@
     patch_should_modify_provider_ips/1,
     delete_should_unregister_provider/1,
     get_should_return_supported_spaces/1,
-    put_should_create_or_support_space/1,
+    post_should_create_or_support_space/1,
     get_should_return_space_details/1,
     delete_should_revoke_space_support/1,
     get_should_return_storages/1,
@@ -53,6 +53,7 @@
     {<<"/provider">>, patch},
     {<<"/provider">>, delete},
     {<<"/provider/spaces">>, get},
+    {<<"/provider/spaces">>, patch},
     {<<"/provider/spaces">>, post},
     {<<"/provider/spaces/someSpaceId">>, get},
     {<<"/provider/spaces/someSpaceId">>, delete}
@@ -172,7 +173,7 @@ all() ->
         patch_should_modify_provider_ips,
         delete_should_unregister_provider,
         get_should_return_supported_spaces,
-        put_should_create_or_support_space,
+        post_should_create_or_support_space,
         get_should_return_space_details,
         delete_should_revoke_space_support,
         get_should_return_storages,
@@ -322,7 +323,7 @@ get_should_return_supported_spaces(Config) ->
     end).
 
 
-put_should_create_or_support_space(Config) ->
+post_should_create_or_support_space(Config) ->
     ?run(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
@@ -572,7 +573,7 @@ init_per_testcase(delete_should_revoke_space_support, Config) ->
         fun(#{space_id := _Id}) -> true end),
     NewConfig;
 
-init_per_testcase(put_should_create_or_support_space, Config) ->
+init_per_testcase(post_should_create_or_support_space, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
