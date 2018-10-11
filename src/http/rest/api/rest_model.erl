@@ -54,6 +54,7 @@
     space_auto_cleaning_status_model/0,
     space_details_model/0,
     space_files_popularity_model/0,
+    space_id_model/0,
     space_modify_request_model/0,
     space_support_request_model/0,
     space_sync_stats_model/0,
@@ -747,6 +748,17 @@ space_files_popularity_model() ->
         enabled => boolean,
         %% REST endpoint to view file popularity statistics
         restUrl => {string, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Provides ID of a space.
+%% @end
+%%--------------------------------------------------------------------
+-spec space_id_model() -> maps:map().
+space_id_model() ->
+    #{
+        %% The ID of the space.
+        id => string
     }.
 
 %%--------------------------------------------------------------------
