@@ -24,7 +24,7 @@
 
 -export([make_policies_ctx/1]).
 
--define(ONEZONE, service_onezone:name()).
+-define(SERVICE, service_onezone:name()).
 -define(WORKER, service_oz_worker:name()).
 
 %%%===================================================================
@@ -55,7 +55,7 @@ exists_resource(Req, #rstate{resource = policies}) ->
     {model:exists(onepanel_deployment) andalso
         onepanel_deployment:is_completed(?PROGRESS_READY), Req};
 exists_resource(Req, _State) ->
-    case service:get(?ONEZONE) of
+    case service:get(?SERVICE) of
         {ok, #service{}} -> {true, Req};
         #error{reason = ?ERR_NOT_FOUND} -> {false, Req}
     end.
@@ -95,7 +95,7 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = cluster_ips}) ->
     Ctx = #{cluster_ips => onepanel_utils:convert(ClusterIps, {keys, list})},
 
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?ONEZONE, set_cluster_ips, Ctx
+        ?SERVICE, set_cluster_ips, Ctx
     ))}.
 
 
@@ -115,7 +115,7 @@ provide_resource(Req, #rstate{resource = policies}) ->
 provide_resource(Req, #rstate{resource = cluster_ips}) ->
     {rest_replier:format_service_step(service_onezone, format_cluster_ips,
         service_utils:throw_on_error(service:apply_sync(
-            ?ONEZONE, format_cluster_ips, #{}
+            ?SERVICE, format_cluster_ips, #{}
         ))
     ), Req}.
 

@@ -30,14 +30,10 @@
     method_should_return_not_found_error/1,
     get_should_return_service_status/1,
     get_should_return_service_host_status/1,
-    get_should_return_storages/1,
-    get_should_return_storage/1,
     get_should_return_service_task_results/1,
     get_should_return_nagios_response/1,
     get_should_return_dns_check/1,
-    patch_should_update_storage/1,
     patch_should_start_stop_service/1,
-    post_should_add_storage/1,
     post_should_configure_database_service/1,
     post_should_configure_cluster_manager_service/1,
     post_should_configure_cluster_worker_service/1,
@@ -74,17 +70,6 @@
     {<<"/workers">>, post} |
     ?COMMON_HOST_ENDPOINTS_WITH_METHODS
 ]).
-
--define(STORAGE_JSON, #{
-    <<"id">> => <<"somePosixId">>,
-    <<"mountPoint">> => <<"someMountPoint">>,
-    <<"name">> => <<"somePosix">>,
-    <<"type">> => <<"posix">>
-}).
-
--define(STORAGE_UPDATE_JSON, #{
-    <<"timeout">> => 10000
-}).
 
 -define(STORAGES_JSON, #{
     <<"someCeph">> => #{
@@ -180,14 +165,10 @@ all() ->
         method_should_return_not_found_error,
         get_should_return_service_status,
         get_should_return_service_host_status,
-        get_should_return_storages,
-        get_should_return_storage,
         get_should_return_service_task_results,
-        patch_should_update_storage,
         get_should_return_nagios_response,
         get_should_return_dns_check,
         patch_should_start_stop_service,
-        post_should_add_storage,
         post_should_configure_database_service,
         post_should_configure_cluster_manager_service,
         post_should_configure_cluster_worker_service,
@@ -298,30 +279,6 @@ get_should_return_service_host_status(Config) ->
     end).
 
 
-get_should_return_storages(Config) ->
-    ?run(Config, fun({Host, Prefix}) ->
-        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, "/storages">>, get,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
-            )
-        ),
-        onepanel_test_rest:assert_body_fields(JsonBody, [<<"ids">>])
-    end, [{oneprovider_hosts, <<"/provider">>}]).
-
-
-get_should_return_storage(Config) ->
-    ?run(Config, fun({Host, Prefix}) ->
-        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, "/storages/somePosixId">>, get,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
-            )
-        ),
-        onepanel_test_rest:assert_body(JsonBody, ?STORAGE_JSON)
-    end, [{oneprovider_hosts, <<"/provider">>}]).
-
-
 get_should_return_service_task_results(Config) ->
     ?run(Config, fun({Host, _}) ->
         lists:foreach(fun({TaskId, Fields, Values}) ->
@@ -392,21 +349,6 @@ get_should_return_dns_check(Config) ->
     onepanel_test_rest:assert_body(OzJsonBody, ?DNS_CHECK_JSON_OZ).
 
 
-patch_should_update_storage(Config) ->
-    ?run(Config, fun({Host, Prefix}) ->
-        ?assertMatch({ok, 204, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, "/storages/somePosixId">>, patch,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, ?STORAGE_UPDATE_JSON
-            )
-        ),
-        ?assertReceivedMatch({service, op_worker, update_storage, #{
-            id := <<"somePosixId">>,
-            args := #{timeout := 10000}
-        }}, ?TIMEOUT)
-    end, [{oneprovider_hosts, <<"/provider">>}]).
-
-
 patch_should_start_stop_service(Config) ->
     ?run(Config, fun({Host, {Prefix, WorkerService}}) ->
         lists:foreach(fun({Service, Endpoint}) ->
@@ -437,37 +379,6 @@ patch_should_start_stop_service(Config) ->
         {oneprovider_hosts, {<<"/provider">>, op_worker}},
         {onezone_hosts, {<<"/zone">>, oz_worker}}
     ]).
-
-
-post_should_add_storage(Config) ->
-    ?run(Config, fun({Host, Prefix}) ->
-        ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
-            Host, <<Prefix/binary, "/storages">>,
-            post, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
-            ?STORAGES_JSON
-        )),
-        ?assertReceivedMatch({service, op_worker, add_storages, #{
-            storages := #{
-                <<"someCeph">> := #{
-                    type := <<"ceph">>,
-                    clusterName := <<"someName">>,
-                    key := <<"someKey">>,
-                    monitorHostname := <<"someHostname">>,
-                    poolName := <<"someName">>,
-                    username := <<"someName">>,
-                    timeout := 5000
-                },
-                <<"someS3">> := #{
-                    type := <<"s3">>,
-                    accessKey := <<"someKey">>,
-                    bucketName := <<"someName">>,
-                    hostname := <<"someHostname">>,
-                    secretKey := <<"someKey">>,
-                    blockSize := 1024
-                }
-            }
-        }}, ?TIMEOUT)
-    end, [{oneprovider_hosts, <<"/provider">>}]).
 
 
 post_should_configure_database_service(Config) ->
@@ -735,17 +646,6 @@ init_per_testcase(get_should_return_service_host_status, Config) ->
         {'node@host1', healthy}
     ]);
 
-init_per_testcase(get_should_return_storages, Config) ->
-    NewConfig = init_per_testcase(default, Config),
-    Nodes = ?config(all_nodes, NewConfig),
-    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_op_worker, get_storages, {[{'node@host1', [
-            {<<"ids">>, [<<"id1">>, <<"id2">>, <<"id3">>]}
-        ]}], []}},
-        {task_finished, {service, action, ok}}
-    ] end),
-    NewConfig;
-
 init_per_testcase(get_should_return_nagios_response, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(all_nodes, NewConfig),
@@ -809,19 +709,6 @@ init_per_testcase(get_should_return_dns_check, Config) ->
 
     Config;
 
-init_per_testcase(get_should_return_storage, Config) ->
-    NewConfig = init_per_testcase(default, Config),
-    Nodes = ?config(all_nodes, NewConfig),
-    test_utils:mock_new(Nodes, rest_service),
-    test_utils:mock_expect(Nodes, rest_service, exists_resource, fun(Req, _) ->
-        {true, Req}
-    end),
-    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_op_worker, get_storages, {[{'node@host1', ?STORAGE_JSON}], []}},
-        {task_finished, {service, action, ok}}
-    ] end),
-    NewConfig;
-
 init_per_testcase(get_should_return_service_task_results, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(all_nodes, NewConfig),
@@ -851,15 +738,6 @@ init_per_testcase(get_should_return_service_task_results, Config) ->
     end),
     NewConfig;
 
-init_per_testcase(patch_should_update_storage, Config) ->
-    NewConfig = init_per_testcase(default, Config),
-    Nodes = ?config(all_nodes, NewConfig),
-    test_utils:mock_new(Nodes, rest_service),
-    test_utils:mock_expect(Nodes, rest_service, exists_resource, fun(Req, _) ->
-        {true, Req}
-    end),
-    NewConfig;
-
 init_per_testcase(Case, Config) when
     Case == post_should_return_conflict_on_configured_onezone;
     Case == post_should_return_conflict_on_configured_oneprovider ->
@@ -867,7 +745,6 @@ init_per_testcase(Case, Config) when
     test_utils:mock_new(Nodes, onepanel_deployment),
     test_utils:mock_expect(Nodes, onepanel_deployment, is_completed, fun(_) -> true end),
     init_per_testcase(default, Config);
-
 
 init_per_testcase(_Case, Config) ->
     Nodes = ?config(all_nodes, Config),

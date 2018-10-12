@@ -67,16 +67,6 @@ exists_resource(Req, #rstate{resource = nagios}) ->
 exists_resource(Req, #rstate{resource = task, bindings = #{id := TaskId}}) ->
     {service:exists_task(TaskId), Req};
 
-exists_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
-    Node = utils:random_element(service_op_worker:get_nodes()),
-    {rpc:call(Node, storage, exists, [Id]), Req};
-
-exists_resource(Req, #rstate{resource = storages}) ->
-    {true, Req};
-
-exists_resource(Req, #rstate{resource = luma}) ->
-    {true, Req};
-
 exists_resource(Req, #rstate{resource = SModule, bindings = #{host := Host}}) ->
     {service:is_member(SModule:name(), Host), Req};
 
@@ -282,28 +272,6 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version =
         }
     ), Version)};
 
-accept_resource(Req, 'POST', Args, #rstate{resource = storages}) ->
-    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        service_op_worker:name(), add_storages, #{
-            storages => Args, ignore_exists => false
-        }
-    ))};
-
-accept_resource(Req, 'PATCH', _Args, #rstate{resource = luma,
-    bindings = #{id := Id}}) ->
-    Ctx = #{id => Id},
-    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        service_op_worker:name(), invalidate_luma_cache, Ctx
-    ))};
-
-accept_resource(Req, 'PATCH', Args, #rstate{resource = storage,
-    bindings = #{id := Id}}) ->
-    Ctx = #{id => Id},
-    Ctx2 = onepanel_maps:get_store(timeout, Args, [args, timeout], Ctx),
-    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        service_op_worker:name(), update_storage, Ctx2
-    ))};
-
 accept_resource(Req, 'PATCH', Args, #rstate{resource = dns_check_configuration}) ->
     % two resources exist because GET differs between them
 
@@ -380,20 +348,6 @@ provide_resource(Req, #rstate{resource = nagios} = State) ->
 
 provide_resource(Req, #rstate{resource = task, bindings = #{id := TaskId}}) ->
     {rest_replier:format_service_task_results(service:get_results(TaskId)), Req};
-
-provide_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
-    {rest_replier:format_service_step(service_op_worker, get_storages,
-        service_utils:throw_on_error(service:apply_sync(
-            service_op_worker:name(), get_storages, #{id => Id}
-        ))
-    ), Req};
-
-provide_resource(Req, #rstate{resource = storages}) ->
-    {rest_replier:format_service_step(service_op_worker, get_storages,
-        service_utils:throw_on_error(service:apply_sync(
-            service_op_worker:name(), get_storages, #{}
-        ))
-    ), Req};
 
 provide_resource(Req, #rstate{resource = SModule}) when
     SModule =:= service_onezone; SModule =:= service_oneprovider ->

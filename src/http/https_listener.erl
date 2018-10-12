@@ -52,7 +52,7 @@ start() ->
     KeyFile = onepanel_env:get(web_key_file),
     CertFile = onepanel_env:get(web_cert_file),
     ChainFile = onepanel_env:get(web_cert_chain_file),
-    CustomRoot = onepanel_env:get(gui_custom_static_root),
+    CustomRoot = onepanel_env:get(gui_static_root_override),
     DefaultRoot = onepanel_env:get(gui_default_static_root),
 
     CommonRoutes = onepanel_api:routes(),
@@ -74,7 +74,7 @@ start() ->
         custom_cowboy_routes = Routes,
         dynamic_pages = DynamicPages,
         default_static_root = DefaultRoot,
-        custom_static_root = CustomRoot
+        static_root_override = CustomRoot
     }),
 
     ?info("REST listener successfully started").

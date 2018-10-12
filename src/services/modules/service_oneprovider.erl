@@ -21,6 +21,7 @@
 -include("deployment_progress.hrl").
 -include_lib("ctool/include/oz/oz_spaces.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/api_errors.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
 
 %% Service behaviour callbacks
@@ -30,7 +31,7 @@
 -export([configure/1, check_oz_availability/1, mark_configured/1,
     register/1, unregister/1, is_registered/1, is_registered/0,
     modify_details/1, get_details/1, get_oz_domain/0,
-    support_space/1, revoke_space_support/1, get_spaces/1,
+    support_space/1, revoke_space_support/1, get_spaces/1, is_space_supported/1,
     get_space_details/1, modify_space/1, format_cluster_ips/1,
     get_sync_stats/1, get_autocleaning_reports/1, get_autocleaning_status/1,
     start_cleaning/1, check_oz_connection/1, update_provider_ips/1]).
@@ -561,13 +562,22 @@ format_cluster_ips(Ctx) ->
 %%--------------------------------------------------------------------
 support_space(#{storage_id := StorageId, node := Node} = Ctx) ->
     assert_storage_exists(Node, StorageId),
-    {ok, SpaceId} = oz_providers:support_space(provider, [
-        {<<"size">>, onepanel_utils:typed_get(size, Ctx, binary)},
-        {<<"token">>, onepanel_utils:typed_get(token, Ctx, binary)}
-    ]),
-    support_space(Ctx, SpaceId);
+    SupportSize = onepanel_utils:typed_get(size, Ctx, binary),
+    Token = onepanel_utils:typed_get(token, Ctx, binary),
 
-support_space(Ctx) ->
+    {ok, SpaceId} = case rpc:call(
+        Node, provider_logic, support_space, [Token, SupportSize]
+    ) of
+        {ok, Id} -> {ok, Id};
+        ?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, Minimum) ->
+            ?throw_error(?ERR_SPACE_SUPPORT_TOO_LOW(Minimum));
+        {error, Reason} ->
+            ?throw_error(Reason)
+    end,
+
+    configure_space(Ctx, SpaceId);
+
+support_space(#{storage_id := _} = Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     support_space(Ctx#{node => Node}).
 
@@ -591,6 +601,18 @@ revoke_space_support(#{id := SpaceId}) ->
 get_spaces(_Ctx) ->
     {ok, SpaceIds} = oz_providers:get_spaces(provider),
     [{ids, SpaceIds}].
+
+
+%%--------------------------------------------------------------------
+%% @doc Calls op_worker to check if a space is supported.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_space_supported(Ctx :: service:ctx()) -> boolean().
+is_space_supported(#{space_id := Id}) ->
+    Node = utils:random_element(service_op_worker:get_nodes()),
+    case rpc:call(Node, provider_logic, supports_space, [Id]) of
+        Result when is_boolean(Result) -> Result
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -641,6 +663,7 @@ modify_space(#{space_id := SpaceId, node := Node} = Ctx) ->
     UpdateArgs = maps:get(storage_update, Ctx, #{}),
     FilePopularityArgs = maps:get(files_popularity, Ctx, #{}),
     AutoCleaningArgs = maps:get(auto_cleaning, Ctx, #{}),
+    ok = maybe_update_support_size(Ctx),
     {ok, _} = op_worker_storage_sync:maybe_modify_storage_import(Node, SpaceId, ImportArgs),
     {ok, _} = op_worker_storage_sync:maybe_modify_storage_update(Node, SpaceId, UpdateArgs),
     {ok, _} = op_worker_storage:maybe_update_file_popularity(Node, SpaceId, FilePopularityArgs),
@@ -649,6 +672,23 @@ modify_space(#{space_id := SpaceId, node := Node} = Ctx) ->
 modify_space(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     modify_space(Ctx#{node => Node}).
+
+
+%%--------------------------------------------------------------------
+%% @doc If new size for a space is specified, enacts the change.
+%% @end
+%%--------------------------------------------------------------------
+maybe_update_support_size(#{node := Node, space_id := SpaceId, size := SupportSize}) ->
+    case rpc:call(Node, provider_logic, update_space_support_size, [SpaceId, SupportSize]) of
+        ok -> ok;
+        ?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, Minimum) ->
+            ?throw_error(?ERR_SPACE_SUPPORT_TOO_LOW(Minimum));
+        {error, Reason} ->
+            ?throw_error(Reason)
+    end;
+
+maybe_update_support_size(Ctx) -> ok.
+
 
 %%--------------------------------------------------------------------
 %% @doc Get storage_sync stats
@@ -801,8 +841,8 @@ assert_storage_exists(Node, StorageId) ->
 %% Configures storage of a supported space.
 %% @end
 %%--------------------------------------------------------------------
--spec support_space(Ctx :: service:ctx(), SpaceId :: binary()) -> list().
-support_space(#{storage_id := StorageId, node := Node} = Ctx, SpaceId) ->
+-spec configure_space(Ctx :: service:ctx(), SpaceId :: binary()) -> list().
+configure_space(#{storage_id := StorageId, node := Node} = Ctx, SpaceId) ->
     MountInRoot = onepanel_utils:typed_get(mount_in_root, Ctx, boolean, false),
     ImportArgs = maps:get(storage_import, Ctx, #{}),
     UpdateArgs = maps:get(storage_update, Ctx, #{}),
