@@ -555,13 +555,22 @@ format_cluster_ips(Ctx) ->
 %%--------------------------------------------------------------------
 support_space(#{storage_id := StorageId, node := Node} = Ctx) ->
     assert_storage_exists(Node, StorageId),
-    {ok, SpaceId} = oz_providers:support_space(provider, [
-        {<<"size">>, onepanel_utils:typed_get(size, Ctx, binary)},
-        {<<"token">>, onepanel_utils:typed_get(token, Ctx, binary)}
-    ]),
-    support_space(Ctx, SpaceId);
+    SupportSize = onepanel_utils:typed_get(size, Ctx, binary),
+    Token = onepanel_utils:typed_get(token, Ctx, binary),
 
-support_space(Ctx) ->
+    {ok, SpaceId} = case rpc:call(
+        Node, provider_logic, support_space, [Token, SupportSize]
+    ) of
+        {ok, Id} -> {ok, Id};
+        ?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, Minimum) ->
+            ?throw_error(?ERR_SPACE_SUPPORT_TOO_LOW(Minimum));
+        {error, Reason} ->
+            ?throw_error(Reason)
+    end,
+
+    configure_space(Ctx, SpaceId);
+
+support_space(#{storage_id := _} = Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     support_space(Ctx#{node => Node}).
 
@@ -825,8 +834,8 @@ assert_storage_exists(Node, StorageId) ->
 %% Configures storage of a supported space.
 %% @end
 %%--------------------------------------------------------------------
--spec support_space(Ctx :: service:ctx(), SpaceId :: binary()) -> list().
-support_space(#{storage_id := StorageId, node := Node} = Ctx, SpaceId) ->
+-spec configure_space(Ctx :: service:ctx(), SpaceId :: binary()) -> list().
+configure_space(#{storage_id := StorageId, node := Node} = Ctx, SpaceId) ->
     MountInRoot = onepanel_utils:typed_get(mount_in_root, Ctx, boolean, false),
     ImportArgs = maps:get(storage_import, Ctx, #{}),
     UpdateArgs = maps:get(storage_update, Ctx, #{}),
