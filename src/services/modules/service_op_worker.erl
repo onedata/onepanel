@@ -300,7 +300,7 @@ supports_letsencrypt_challenge(http) ->
 supports_letsencrypt_challenge(dns) ->
     try
         service_oneprovider:is_registered(#{}) andalso
-            proplists:get_value(subdomainDelegation, service_oneprovider:get_details(#{}), false)
+            maps:get(subdomainDelegation, service_oneprovider:get_details(#{}), false)
     catch
         _:_ -> unknown
     end;
@@ -356,7 +356,7 @@ get_dns_server() ->
 %%--------------------------------------------------------------------
 -spec get_domain() -> binary().
 get_domain() ->
-    {domain, Domain} = proplists:lookup(domain, service_oneprovider:get_details(#{})),
+    #{domain := Domain} = service_oneprovider:get_details(#{}),
     Domain.
 
 
@@ -366,7 +366,7 @@ get_domain() ->
 %%--------------------------------------------------------------------
 -spec get_admin_email(Ctx :: service:ctx()) -> binary().
 get_admin_email(#{node := Node}) ->
-    #{admin_email := AdminEmail} = rpc:call(Node, provider_logic, get_as_map, []),
+    #{adminEmail := AdminEmail} = service_oneprovider:get_details(#{}),
     AdminEmail;
 get_admin_email(Ctx) ->
     [Node | _] = get_nodes(),
