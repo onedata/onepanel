@@ -451,41 +451,20 @@ is_registered() ->
 %%--------------------------------------------------------------------
 -spec modify_details(Ctx :: service:ctx()) -> ok | no_return().
 modify_details(#{node := Node} = Ctx) ->
-    % If provider domain is modified it is done via rpc call to oneprovider
-    case onepanel_maps:get(oneprovider_subdomain_delegation, Ctx, undefined) of
-        true ->
-            Subdomain = onepanel_utils:typed_get(oneprovider_subdomain, Ctx, binary),
-            % check current subdomain
-            case rpc:call(Node, provider_logic, is_subdomain_delegated, []) of
-                {true, Subdomain} -> ok; % no change
-                _ ->
-                    case rpc:call(Node, provider_logic, set_delegated_subdomain, [Subdomain]) of
-                        ok ->
-                            dns_check:invalidate_cache(op_worker),
-                            ok;
-                        {error, subdomain_exists} ->
-                            ?throw_error(?ERR_SUBDOMAIN_NOT_AVAILABLE)
-                    end
-            end;
-        false ->
-            Domain = onepanel_utils:typed_get(oneprovider_domain, Ctx, binary),
-            ok = rpc:call(Node, provider_logic, set_domain, [Domain]),
-            dns_check:invalidate_cache(op_worker);
-        undefined -> ok
-    end,
+    ok = modify_domain_details(Ctx),
 
-    Params = onepanel_maps:get_store(oneprovider_name, Ctx, <<"name">>, #{}),
-    Params2 = onepanel_maps:get_store(oneprovider_geo_latitude, Ctx,
-        <<"latitude">>, Params),
-    Params3 = onepanel_maps:get_store(oneprovider_geo_longitude, Ctx,
-        <<"longitude">>, Params2),
-    Params4 = onepanel_maps:get_store(oneprovider_admin_email, Ctx,
-        <<"adminEmail">>, Params3),
+    Params = onepanel_maps:get_store_multiple([
+        {oneprovider_name, <<"name">>},
+        {oneprovider_geo_latitude, <<"latitude">>},
+        {oneprovider_geo_longitude, <<"longitude">>},
+        {oneprovider_admin_email, <<"adminEmail">>}
+    ], Ctx),
 
-    case maps:size(Params4) of
+    case maps:size(Params) of
         0 -> ok;
-        _ -> ok = oz_providers:modify_details(provider, maps:to_list(Params4))
+        _ -> ok = rpc:call(Node, provider_logic, update, [Params])
     end;
+
 modify_details(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     modify_details(Ctx#{node => Node}).
@@ -811,6 +790,35 @@ pop_legacy_letsencrypt_config() ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Modify provider details regarding its domain or subdomain.
+%% @end
+%%--------------------------------------------------------------------
+modify_domain_details(#{oneprovider_subdomain_delegation := true, node := Node} = Ctx) ->
+    Subdomain = onepanel_utils:typed_get(oneprovider_subdomain, Ctx, binary),
+
+    case rpc:call(Node, provider_logic, is_subdomain_delegated, []) of
+        {true, Subdomain} -> ok; % no change
+        _ ->
+            case rpc:call(Node, provider_logic, set_delegated_subdomain, [Subdomain]) of
+                ok ->
+                    dns_check:invalidate_cache(op_worker);
+                ?ERROR_BAD_VALUE_IDENTIFIER_OCCUPIED(<<"subdomain">>) ->
+                    ?throw_error(?ERR_SUBDOMAIN_NOT_AVAILABLE)
+            end
+    end;
+
+modify_domain_details(#{oneprovider_subdomain_delegation := false, node := Node} = Ctx) ->
+    Domain = onepanel_utils:typed_get(oneprovider_domain, Ctx, binary),
+    ok = rpc:call(Node, provider_logic, set_domain, [Domain]),
+    dns_check:invalidate_cache(op_worker);
+
+modify_domain_details(#{node := _Node}) ->
+    ok.
+
 
 %%--------------------------------------------------------------------
 %% @private
