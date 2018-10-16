@@ -20,7 +20,7 @@
 %% API
 -export([add/2, get/0, get/1, update/2]).
 -export([get_supporting_storage/2, get_supporting_storages/2,
-    get_file_popularity_details/2, get_autocleaning_details/2, get_soft_quota/1]).
+    get_file_popularity_details/2, get_autocleaning_details/2]).
 -export([is_mounted_in_root/3]).
 -export([add_storage/5, maybe_update_file_popularity/3, maybe_update_autocleaning/3,
     invalidate_luma_cache/1]).
@@ -221,16 +221,6 @@ get_file_popularity_details(Node, SpaceId) ->
 get_autocleaning_details(Node, SpaceId) ->
     Details = rpc:call(Node, space_cleanup_api, get_details, [SpaceId]),
     onepanel_lists:map_undefined_to_null(Details).
-
-%%-------------------------------------------------------------------
-%% @doc
-%% This function is responsible for fetching soft quota limit from
-%% given provider.
-%% @end
-%%-------------------------------------------------------------------
--spec get_soft_quota(Node :: node()) -> non_neg_integer().
-get_soft_quota(Node) ->
-    rpc:call(Node, space_storage, get_soft_quota, []).
 
 %%-------------------------------------------------------------------
 %% @doc
