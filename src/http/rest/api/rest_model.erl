@@ -767,8 +767,6 @@ space_details_model() ->
         supportingProviders => #{'_' => integer},
         %% Defines whether space will be mounted in / or /{SpaceId}/ path.
         mountInRoot => {boolean, optional},
-        %% Number of bytes that can be written above support limit.
-        softQuota => integer,
         storageImport => {storage_import_details_model(), optional},
         storageUpdate => {storage_update_details_model(), optional},
         %% Configuration of files popularity feature for this space
