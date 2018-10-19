@@ -163,6 +163,7 @@ service_op_worker_add_storage_test(Config) ->
     {ok, S3} = onepanel_lists:get([storages, s3, someS3], Config),
     {ok, Swift} = onepanel_lists:get([storages, swift, someSwift], Config),
     {ok, Glusterfs} = onepanel_lists:get([storages, glusterfs, someGlusterfs], Config),
+    {ok, WebDAV} = onepanel_lists:get([storages, webdav, someWebDAV], Config),
     onepanel_test_utils:service_action(Node, op_worker, add_storages, #{
         hosts => [hd(?config(oneprovider_hosts, Config))],
         storages => #{
@@ -212,6 +213,16 @@ service_op_worker_add_storage_test(Config) ->
                 transport => onepanel_utils:typed_get(transport, Glusterfs, binary),
                 mountPoint => onepanel_utils:typed_get(mountpoint, Glusterfs, binary),
                 xlatorOptions => <<"cluster.write-freq-threshold=100;">>
+            },
+            <<"someWebDAV">> => #{
+                type => <<"webdav">>,
+                endpoint => onepanel_utils:typed_get(endpoint, WebDAV, binary),
+                credentials => onepanel_utils:typed_get(credentials, WebDAV, binary),
+                credentialsType => onepanel_utils:typed_get(credentials_type, WebDAV, binary),
+                verifyServerCertificate => onepanel_utils:typed_get(verify_server_certificate, WebDAV, binary),
+                rangeWriteSupport => onepanel_utils:typed_get(range_write_support, WebDAV, binary),
+                authorizationHeader => onepanel_utils:typed_get(authorization_header, WebDAV, binary),
+                connectionPoolSize => onepanel_utils:typed_get(connection_pool_size, WebDAV, binary)
             }
         }
     }),

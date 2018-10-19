@@ -86,7 +86,8 @@
     nulldevice_model/0,
     posix_model/0,
     s3_model/0,
-    swift_model/0
+    swift_model/0,
+    webdav_model/0
 ]).
 
 
@@ -827,7 +828,9 @@ storage_create_request_model() ->
 %%--------------------------------------------------------------------
 -spec storage_details_model() -> {oneof, Oneof :: list()}.
 storage_details_model() ->
-    {oneof, [posix_model(), s3_model(), ceph_model(), cephrados_model(), swift_model(), glusterfs_model(), nulldevice_model()]}.
+    {oneof, [posix_model(), s3_model(), ceph_model(), cephrados_model(),
+             swift_model(), glusterfs_model(), nulldevice_model(),
+             webdav_model()]}.
 
 %%--------------------------------------------------------------------
 %% @doc The storage import configuration. Storage import allows to import data
@@ -1502,6 +1505,77 @@ swift_model() ->
         timeout => {integer, optional},
         %% Storage block size in bytes.
         blockSize => {integer, optional},
+        %% Determines how the logical file paths will be mapped on the storage.
+        %% 'canonical' paths reflect the logical file names and
+        %% directory structure, however each rename operation will require
+        %% renaming the files on the storage. 'flat' paths are based on
+        %% unique file UUID's and do not require on-storage rename when
+        %% logical file name is changed.
+        storagePathType => {string, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The WebDAV storage configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec webdav_model() -> maps:map().
+webdav_model() ->
+    #{
+        %% The ID of storage.
+        id => {string, optional},
+        %% The name of storage.
+        name => {string, optional},
+        %% Defines whether storage administrator credentials (username and key)
+        %% may be used by users without storage accounts to access storage in
+        %% direct IO mode.
+        insecure => {boolean, optional},
+        %% Defines whether storage is readonly.
+        readonly => {boolean, optional},
+        %% The type of storage.
+        type => {equal, <<"webdav">>},
+        %% If true LUMA and reverse LUMA services will be enabled.
+        lumaEnabled => {boolean, optional},
+        %% URL of external LUMA service
+        lumaUrl => {string, optional},
+        %% LUMA API Key, must be identical with API Key in external LUMA
+        %% service.
+        lumaApiKey => {string, optional},
+        %% Full URL of the WebDAV server, including scheme (http or https) and
+        %% path.
+        endpoint => string,
+        %% Determines whether Oneprovider should verify the certificate of the
+        %% WebDAV server.
+        verifyServerCertificate => {boolean, optional},
+        %% Determines the types of credentials provided in the credentials
+        %% field.
+        credentialsType => {string, optional},
+        %% The credentials to authenticate with the WebDAV server.
+        %% `basic` credentials should be provided in the form
+        %% `username:password`, for `token` just the token.
+        %% For `none` this field is ignored.
+        credentials => {string, optional},
+        %% The authorization header to be used for passing the access token.
+        %% This field can contain any prefix that should be added to the header
+        %% value. Default is `Authorization: Bearer {}`. The token
+        %% will placed where `{}` is provided.
+        authorizationHeader => {string, optional},
+        %% The type of partial write support enabled in the WebDAV server.
+        %% Currently 2 types are supported `sabredav` which assumes
+        %% the server supports the SabreDAV PartialUpdate extension via
+        %% `PATCH` method, and `moddav` which assumes server
+        %% supports partial `PUT` requests with `Content-
+        %% Range` header. If `none` is selected no write support
+        %% is available for this WebDAV storage.
+        rangeWriteSupport => {string, optional},
+        %% Defines the maximum number of parallel connections for a single
+        %% WebDAV storage.
+        connectionPoolSize => {integer, optional},
+        %% Defines the maximum upload size for a single `PUT` or
+        %% `PATCH` request. If set to 0, assumes that the WebDAV
+        %% server has no upload limit.
+        maximumUploadSize => {integer, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
