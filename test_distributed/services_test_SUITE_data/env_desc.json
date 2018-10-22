@@ -88,7 +88,7 @@
     },
     "oneprovider": {
       "os_config": "cfg1",
-      "image": "docker.onedata.org/oneprovider-dev:VFS-4902-implement-webdav-helper",
+      "image": "docker.onedata.org/oneprovider-dev:develop",
       "onepanel": {
         "node1": {
           "vm.args": {
