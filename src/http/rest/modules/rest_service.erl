@@ -110,6 +110,10 @@ is_available(Req, _Method, #rstate{resource = Resource}) when
     Resource == storage ->
     {service:all_healthy(), Req};
 
+is_available(Req, Method, #rstate{resource = Resource}) when
+    Method == 'GET' andalso Resource == dns_check ->
+    {service:all_healthy(), Req};
+
 is_available(Req, _Method, _State) ->
     {true, Req}.
 
