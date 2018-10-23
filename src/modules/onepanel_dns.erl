@@ -52,7 +52,7 @@
     Servers :: [inet:ip4_address()]) -> dns_check().
 check_any(Expected, Names, Type, Servers) ->
     Diffs = check(Expected, Names, Type, Servers),
-    Best = hd(lists:sort(fun compare/2, Diffs)),
+    Best = lists:last(lists:sort(fun compare/2, Diffs)),
     log_result(Names, Type, Servers, Best),
     Best.
 
@@ -67,7 +67,7 @@ check_any(Expected, Names, Type, Servers) ->
     Servers :: [inet:ip4_address()]) -> dns_check().
 check_all(Expected, Names, Type, Servers) ->
     Diffs = check(Expected, Names, Type, Servers),
-    Worst = lists:last(lists:sort(fun compare/2, Diffs)),
+    Worst = hd(lists:sort(fun compare/2, Diffs)),
     log_result(Names, Type, Servers, Worst),
     Worst.
 

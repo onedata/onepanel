@@ -4,6 +4,11 @@
 CHANGELOG
 ---------
 
+### 18.02.0-rc12
+
+* Releasing new version 18.02.0-rc12
+
+
 ### 18.02.0-rc11
 
 * VFS-4623 Adjust to change in dns config structure in oz worker

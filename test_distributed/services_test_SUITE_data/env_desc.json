@@ -51,6 +51,11 @@
           "mountpoint": "/",
           "xlatorOptions": "",
           "storagePathType": "canonical"
+        },
+        {
+          "type": "webdav",
+          "name": "someWebDAV",
+          "storagePathType": "canonical"
         }
       ]
     }
