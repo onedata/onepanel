@@ -274,7 +274,13 @@ get_storage_user_ctx(Node, <<"glusterfs">>, _Params) ->
     rpc:call(Node, helper, new_glusterfs_user_ctx, [0, 0]);
 
 get_storage_user_ctx(Node, <<"nulldevice">>, _Params) ->
-    rpc:call(Node, helper, new_nulldevice_user_ctx, [0, 0]).
+    rpc:call(Node, helper, new_nulldevice_user_ctx, [0, 0]);
+
+get_storage_user_ctx(Node, <<"webdav">>, Params) ->
+    rpc:call(Node, helper, new_webdav_user_ctx, [
+        onepanel_utils:typed_get(credentialsType, Params, binary),
+        onepanel_utils:typed_get(credentials, Params, binary)
+    ]).
 
 %%--------------------------------------------------------------------
 %% @private @doc Returns storage helper record.
@@ -366,6 +372,21 @@ get_storage_helper(Node, <<"nulldevice">>, UserCtx, Params) ->
             {filter, binary},
             {simulatedFilesystemParameters, binary},
             {simulatedFilesystemGrowSpeed, binary},
+            {timeout, binary}
+        ], Params),
+        UserCtx,
+        onepanel_utils:typed_get(insecure, Params, boolean, false),
+        onepanel_utils:typed_get(storagePathType, Params, binary, <<"canonical">>)
+    ]);
+get_storage_helper(Node, <<"webdav">>, UserCtx, Params) ->
+    rpc:call(Node, helper, new_webdav_helper, [
+        onepanel_utils:typed_get(endpoint, Params, binary),
+        get_helper_opt_args([
+            {verifyServerCertificate, binary},
+            {authorizationHeader, binary},
+            {rangeWriteSupport, binary},
+            {connectionPoolSize, binary},
+            {maximumUploadSize, binary},
             {timeout, binary}
         ], Params),
         UserCtx,
