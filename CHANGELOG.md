@@ -4,6 +4,24 @@
 CHANGELOG
 ---------
 
+### 18.02.0-rc13
+
+* Updating GUI, including: VFS-4919-webdav-storage, VFS-4873-unify-onedata-addons * VFS-4919 Added support for WebDAV storage * VFS-4873 Refactoring of common addons
+* VFS-4902 Added WebDAV helper storage
+* VFS-4902 Updated builder and worker images
+* VFS-4902 Updated rest model with WebDAV storage definition
+* VFS-4952 Use graph sync to modify provider data
+* Updating GUI, including: VFS-4870-representation-of-effective-groups * VFS-4870 New style for modals
+* Updating GUI, including: VFS-4798-refresh-provider-name * VFS-4798 Fixed redirect modal not shown after provider domain change and provider data refresh after cluster aspect change
+* VFS-4936 Use graph sync for adding supported spaces
+* Updating GUI, including: VFS-4865-space-resize * VFS-4865 Added space support size change feature
+* VFS-4936 Use common errors API for space support change
+* VFS-4936 Check if space exists when handling REST call
+* VFS-4936 Move storages endpoint handling to rest_oneprovider
+* VFS-4936 Add space support resizing
+* VFS-4707 remove soft quota limit
+
+
 ### 18.02.0-rc12
 
 * Releasing new version 18.02.0-rc12
