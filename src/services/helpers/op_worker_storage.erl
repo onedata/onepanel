@@ -277,8 +277,8 @@ get_storage_user_ctx(Node, <<"nulldevice">>, _Params) ->
 
 get_storage_user_ctx(Node, <<"webdav">>, Params) ->
     rpc:call(Node, helper, new_webdav_user_ctx, [
-        onepanel_utils:typed_get(credentialsType, Params, binary),
-        onepanel_utils:typed_get(credentials, Params, binary)
+        <<_/binary>> = onepanel_utils:typed_get(credentialsType, Params, binary),
+        <<_/binary>> = onepanel_utils:typed_get(credentials, Params, binary, <<>>)
     ]).
 
 %%--------------------------------------------------------------------

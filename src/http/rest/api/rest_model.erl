@@ -1545,10 +1545,10 @@ webdav_model() ->
         endpoint => string,
         %% Determines whether Oneprovider should verify the certificate of the
         %% WebDAV server.
-        verifyServerCertificate => {boolean, optional},
+        verifyServerCertificate => {boolean, {optional, true}},
         %% Determines the types of credentials provided in the credentials
         %% field.
-        credentialsType => {string, optional},
+        credentialsType => {string, {optional, none}},
         %% The credentials to authenticate with the WebDAV server.
         %% `basic` credentials should be provided in the form
         %% `username:password`, for `token` just the token.
@@ -1566,14 +1566,14 @@ webdav_model() ->
         %% supports partial `PUT` requests with `Content-
         %% Range` header. If `none` is selected no write support
         %% is available for this WebDAV storage.
-        rangeWriteSupport => {string, optional},
+        rangeWriteSupport => {string, {optional, none}},
         %% Defines the maximum number of parallel connections for a single
         %% WebDAV storage.
-        connectionPoolSize => {integer, optional},
+        connectionPoolSize => {integer, {optional, 10}},
         %% Defines the maximum upload size for a single `PUT` or
         %% `PATCH` request. If set to 0, assumes that the WebDAV
         %% server has no upload limit.
-        maximumUploadSize => {integer, optional},
+        maximumUploadSize => {integer, {optional, 0}},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Determines how the logical file paths will be mapped on the storage.
