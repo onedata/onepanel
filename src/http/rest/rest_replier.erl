@@ -24,7 +24,8 @@
 -export([handle_error/3, reply_with_error/3, handle_service_action_async/3,
     handle_service_step/4, handle_session/3]).
 -export([format_error/2, format_service_status/2, format_dns_check_result/1, format_service_host_status/2,
-    format_service_task_results/1, format_service_step/3, format_configuration/1]).
+    format_service_task_results/1, format_service_step/3, format_configuration/1,
+    format_storage_details/1]).
 
 -type response() :: maps:map() | term().
 
@@ -221,6 +222,29 @@ format_service_task_results(Results) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc All storage helper parameters are stored as binaries in op-worker.
+%% This functions attempts to find their desired type in API model
+%% used for creating them and convert accordingly.
+%% @end
+%%--------------------------------------------------------------------
+format_storage_details(Results) ->
+    {[{_Node, Result} | _], []} =
+        select_service_step(service_op_worker, get_storages, Results),
+    StorageType = onepanel_utils:typed_get(type, Result, atom),
+    Model = get_storage_model(StorageType),
+    Typemap = model_to_typemap(Model),
+    maps:map(fun
+        (Key, Value) when is_binary(Value) ->
+            case maps:find(onepanel_utils:convert(Key, atom), Typemap) of
+                {ok, string} -> onepanel_utils:convert(Value, binary);
+                {ok, Type} -> onepanel_utils:convert(Value, Type);
+                error -> Value
+            end;
+        (_Key, Value) -> Value
+    end, Result).
+
+
+%%--------------------------------------------------------------------
 %% @doc Returns a formatted result of the single host service step.
 %% @end
 %%--------------------------------------------------------------------
@@ -347,3 +371,36 @@ format_service_hosts_results(Results) ->
 -spec is_service_configured() -> boolean().
 is_service_configured() ->
     onepanel_deployment:is_completed(?PROGRESS_READY).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Simplifies API model by stripping optionality modifiers
+%% and filtering out more complex specs such sa "anyOf".
+%% @end
+%%--------------------------------------------------------------------
+-spec model_to_typemap(Model :: #{atom() := atom() | tuple()}) ->
+    #{Key :: atom() := Type :: atom()}.
+model_to_typemap(Model) ->
+    maps:fold(fun
+        (Key, Type, Acc) when is_atom(Type) -> Acc#{Key => Type};
+        (Key, {Type, optional}, Acc) when is_atom(Type) -> Acc#{Key => Type};
+        (Key, {Type, required}, Acc) when is_atom(Type) -> Acc#{Key => Type};
+        (Key, {Type, {optional, _}}, Acc) when is_atom(Type) -> Acc#{Key => Type};
+        (_Key, _ValueSpec, Acc) -> Acc
+    end, #{}, Model).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Finds REST model used for creating storage of given type.
+%% @end
+%%--------------------------------------------------------------------
+get_storage_model(posix) -> rest_model:posix_model();
+get_storage_model(s3) -> rest_model:s3_model();
+get_storage_model(ceph) -> rest_model:ceph_model();
+get_storage_model(cephrados) -> rest_model:cephrados_model();
+get_storage_model(swift) -> rest_model:swift_model();
+get_storage_model(glusterfs) -> rest_model:glusterfs_model();
+get_storage_model(nulldevice) -> rest_model:nulldevice_model();
+get_storage_model(webdav) -> rest_model:webdav_model().

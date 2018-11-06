@@ -28,7 +28,6 @@
 -type id() :: binary().
 -type name() :: binary().
 -type storage_params_map() :: #{Key :: atom() | binary() => Value :: binary()}.
--type storage_params_list() :: [{Key :: atom() | binary(), Value :: binary()}].
 -type storage_map() :: #{Name :: name() => Params :: storage_params_map()}.
 -type luma_config() :: {atom(), binary(), undefined | binary()}.
 
@@ -92,7 +91,7 @@ get() ->
 %% @doc Returns details of a selected storage from op_worker service.
 %% @end
 %%--------------------------------------------------------------------
--spec get(Id :: id()) -> storage_params_list().
+-spec get(Id :: id()) -> storage_params_map().
 get(Id) ->
     Node = onepanel_cluster:service_to_node(service_op_worker:name()),
     {ok, Storage} = rpc:call(Node, storage, get, [Id]),
@@ -140,8 +139,8 @@ is_mounted_in_root(Node, SpaceId, StorageId) ->
 update(Id, Args) ->
     Node = onepanel_cluster:service_to_node(service_op_worker:name()),
     Storage = op_worker_storage:get(Id),
-    {ok, Id} = onepanel_lists:get(id, Storage),
-    {ok, Type} = onepanel_lists:get(type, Storage),
+    {ok, Id} = onepanel_maps:get(id, Storage),
+    {ok, Type} = onepanel_maps:get(type, Storage),
     Args2 = #{<<"timeout">> => onepanel_utils:typed_get(timeout, Args, binary)},
     {ok, _} = rpc:call(Node, storage, update_helper, [Id, Type, Args2]),
     ok.
@@ -533,23 +532,25 @@ add_storage(Node, StorageName, Helpers, ReadOnly, LumaConfig) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_storage(Node :: node(), Storage :: any()) ->
-    Storage :: storage_params_list().
+    Storage :: storage_params_map().
 get_storage(Node, Storage) ->
     [Helper | _] = rpc:call(Node, storage, get_helpers, [Storage]),
     AdminCtx = rpc:call(Node, helper, get_admin_ctx, [Helper]),
     AdminCtx2 = maps:with([<<"username">>, <<"accessKey">>], AdminCtx),
     HelperArgs = rpc:call(Node, helper, get_args, [Helper]),
     LumaConfig = rpc:call(Node, storage, get_luma_config_map, [Storage]),
-    [
-        {id, rpc:call(Node, storage, get_id, [Storage])},
-        {name, rpc:call(Node, storage, get_name, [Storage])},
-        {type, rpc:call(Node, helper, get_name, [Helper])},
-        {readonly, rpc:call(Node, storage, is_readonly, [Storage])},
-        {insecure, rpc:call(Node, helper, is_insecure, [Helper])},
-        {storagePathType, rpc:call(Node, helper, get_storage_path_type, [Helper])},
-        {lumaEnabled, maps:get(enabled, LumaConfig, false)},
-        {lumaUrl, maps:get(url, LumaConfig, null)}
-    ] ++ maps:to_list(AdminCtx2) ++ maps:to_list(HelperArgs).
+
+    Params = maps:merge(AdminCtx2, HelperArgs),
+    Params#{
+        id => rpc:call(Node, storage, get_id, [Storage]),
+        name => rpc:call(Node, storage, get_name, [Storage]),
+        type => rpc:call(Node, helper, get_name, [Helper]),
+        readonly => rpc:call(Node, storage, is_readonly, [Storage]),
+        insecure => rpc:call(Node, helper, is_insecure, [Helper]),
+        storagePathType => rpc:call(Node, helper, get_storage_path_type, [Helper]),
+        lumaEnabled => maps:get(enabled, LumaConfig, false),
+        lumaUrl => maps:get(url, LumaConfig, null)
+    }.
 
 %%--------------------------------------------------------------------
 %% @private @doc Parses LUMA config arguments if lumaEnabled is set to
