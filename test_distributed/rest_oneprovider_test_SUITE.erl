@@ -706,6 +706,7 @@ end_per_suite(_Config) ->
 %%% Internal functions
 %%%===================================================================
 
+-spec keys_to_atoms(#{term() => term()}) -> #{atom() => term()}.
 keys_to_atoms(Map) ->
     maps:fold(fun(K, V, Acc) ->
         Acc#{onepanel_utils:convert(K, atom) => V}
