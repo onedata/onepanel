@@ -166,8 +166,11 @@ trim(Text, both) ->
 convert(Values, {seq, Type}) ->
     lists:map(fun(Value) -> convert(Value, Type) end, Values);
 
-convert(Value, boolean) when is_atom(Value) ->
-    convert(Value, atom);
+convert(Value, boolean) ->
+    case convert(Value, atom) of
+        true -> true;
+        false -> false
+    end;
 
 convert(Value, binary) when is_atom(Value) ->
     erlang:atom_to_binary(Value, utf8);
