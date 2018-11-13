@@ -243,7 +243,7 @@ add_storages(Ctx) ->
 %% @doc Returns a list of the configured service storages.
 %% @end
 %%--------------------------------------------------------------------
--spec get_storages(Ctx :: service:ctx()) -> list().
+-spec get_storages(Ctx :: service:ctx()) -> map().
 get_storages(#{id := Id}) ->
     op_worker_storage:get(Id);
 

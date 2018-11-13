@@ -913,12 +913,12 @@ confirm_txt_set(TxtName, Domain, Expected, Plugin) ->
         {ok, IP} = inet:getaddr(ZoneDomain, inet),
 
         % check that onezone responds with correct txt record
-        onepanel_utils:wait_until(onepanel_dns_check, verify_all,
+        onepanel_utils:wait_until(onepanel_dns, check_all,
             [[Expected], [Query], txt, [IP]],
             {validator, Validator}, ?WAIT_FOR_TXT_ATTEMPTS, ?WAIT_FOR_TXT_DELAY),
 
         % check that txt record is visible globally in DNS
-        onepanel_utils:wait_until(onepanel_dns_check, verify_all,
+        onepanel_utils:wait_until(onepanel_dns, check_all,
             [[Expected], [Query], txt, ?DNS_SERVERS],
             {validator, Validator}, ?WAIT_FOR_TXT_ATTEMPTS, ?WAIT_FOR_TXT_DELAY)
     catch _:_ ->
