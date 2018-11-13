@@ -179,8 +179,11 @@ convert(Map, {values, Type}) ->
         convert(Value, Type)
     end, Map);
 
-convert(Value, boolean) when is_atom(Value) ->
-    convert(Value, atom);
+convert(Value, boolean) ->
+    case convert(Value, atom) of
+        true -> true;
+        false -> false
+    end;
 
 convert(Value, binary) when is_atom(Value) ->
     erlang:atom_to_binary(Value, utf8);

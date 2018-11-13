@@ -567,7 +567,7 @@ init_per_testcase(get_should_return_storage, Config) ->
         {true, Req}
     end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_op_worker, get_storages, {[{'node@host1', ?STORAGE_JSON}], []}},
+        {service_op_worker, get_storages, {[{'node@host1', keys_to_atoms(?STORAGE_JSON)}], []}},
         {task_finished, {service, action, ok}}
     ] end),
     NewConfig;
@@ -722,3 +722,14 @@ end_per_testcase(_Case, Config) ->
 
 end_per_suite(_Config) ->
     ok.
+
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+-spec keys_to_atoms(#{term() => term()}) -> #{atom() => term()}.
+keys_to_atoms(Map) ->
+    maps:fold(fun(K, V, Acc) ->
+        Acc#{onepanel_utils:convert(K, atom) => V}
+    end, #{}, Map).

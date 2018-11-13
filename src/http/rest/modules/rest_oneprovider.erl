@@ -257,7 +257,7 @@ provide_resource(Req, #rstate{
     ), Req};
 
 provide_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
-    {rest_replier:format_service_step(service_op_worker, get_storages,
+    {rest_replier:format_storage_details(
         service_utils:throw_on_error(service:apply_sync(
             ?WORKER, get_storages, #{id => Id}
         ))
