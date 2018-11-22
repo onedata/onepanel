@@ -568,7 +568,7 @@ patch_should_update_file_popularity(Config) ->
             )
         ),
         ?assertReceivedMatch({service, oneprovider, configure_files_popularity, #{
-            id := <<"someId">>,
+            space_id := <<"someId">>,
             enabled := true
         }}, ?TIMEOUT)
     end).
@@ -582,7 +582,7 @@ patch_should_update_auto_cleaning(Config) ->
             )
         ),
         ?assertReceivedMatch({service, oneprovider, configure_auto_cleaning, #{
-            id := <<"someId">>,
+            space_id := <<"someId">>,
             enabled := true,
             target := 32,
             threshold := 64,
@@ -608,7 +608,7 @@ patch_with_incomplete_config_should_update_auto_cleaning(Config) ->
             )
         ),
         ?assertReceivedMatch({service, oneprovider, configure_auto_cleaning, #{
-            id := <<"someId">>,
+            space_id := <<"someId">>,
             enabled := true,
             target := 32
         }}, ?TIMEOUT)
