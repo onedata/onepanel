@@ -194,14 +194,14 @@ translate(_Type, #error{reason = ?ERR_SPACE_SUPPORT_TOO_LOW(Minimum)}) ->
 translate(_Type, #error{reason = {?ERR_CONFIG_AUTOCLEANING, {error, file_popularity_disabled}}}) ->
     {<<"Operation Error">>, <<"File popularity statistics must be turned on to enable autocleaning">>};
 
-translate(_Type, #error{reason = {?ERR_CONFIG_AUTOCLEANING, {error, {undefined_parameter, Parameter}}}}) ->
-    {<<"Operation Error">>, str_utils:format_bin("Autocleaning configuration error. Missing key: ~p", [Parameter])};
-
-translate(_Type, #error{reason = {?ERR_CONFIG_AUTOCLEANING, {error, {negative_value_not_allowed, Parameter}}}}) ->
+translate(_Type, #error{reason = {?ERR_CONFIG_AUTOCLEANING, {error, {negative_value, Parameter}}}}) ->
     {<<"Operation Error">>, str_utils:format_bin("Autocleaning configuration error. Negative value not allowed for key: ~p", [Parameter])};
 
 translate(_Type, #error{reason = {?ERR_CONFIG_AUTOCLEANING, {error, {illegal_type, Parameter}}}}) ->
-    {<<"Operation Error">>, str_utils:format_bin("Autocleaning configuration error. Illegal type for key: ~p. Should be integer.", [Parameter])};
+    {<<"Operation Error">>, str_utils:format_bin("Autocleaning configuration error. Illegal type for key: ~p.", [Parameter])};
+
+translate(_Type, #error{reason = {?ERR_CONFIG_AUTOCLEANING, {error, {value_grater_than, Name1, Name2}}}}) ->
+    {<<"Operation Error">>, str_utils:format_bin("Autocleaning configuration error. Setting value of parameter ~p greater than ~p is forbidden", [Name1, Name2])};
 
 translate(_Type, #error{reason = ?ERR_CMD_FAILURE(_, _)}) ->
     {<<"Internal Error">>, <<"Server encountered an unexpected error.">>};

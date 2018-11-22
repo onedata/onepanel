@@ -131,12 +131,10 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = space, bindings = #{id :=
     ], Args, #{space_id => Id}),
     Ctx2 = get_storage_update_args(Args, Ctx1),
     Ctx3 = get_storage_import_args(Args, Ctx2),
-    Ctx4 = get_file_popularity_args(Args, Ctx3),
-    Ctx5 = get_autocleaning_args(Args, Ctx4),
 
     {true, rest_replier:handle_service_step(Req, service_oneprovider, modify_space,
         service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, modify_space, Ctx5
+            ?SERVICE, modify_space, Ctx3
         ))
     )};
 
@@ -155,19 +153,14 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = storage,
         ?WORKER, update_storage, Ctx2
     ))};
 
-accept_resource(Req, 'PATCH', _Args, #rstate{resource = luma,
-    bindings = #{id := Id}}) ->
+accept_resource(Req, 'PATCH', _Args, #rstate{
+    resource = luma,
+    bindings = #{id := Id}
+}) ->
     Ctx = #{id => Id},
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?WORKER, invalidate_luma_cache, Ctx
     ))};
-
-accept_resource(Req, 'POST', _Args, #rstate{resource = start_cleaning, bindings = #{id := Id}}) ->
-    {true, rest_replier:handle_service_step(Req, service_oneprovider, start_cleaning,
-        service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, start_cleaning, #{space_id => Id}
-        ))
-    )};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = cluster_ips}) ->
     {ok, ClusterIps} = onepanel_maps:get(hosts, Args),
@@ -175,8 +168,36 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = cluster_ips}) ->
 
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?SERVICE, set_cluster_ips, Ctx
-    ))}.
+    ))};
 
+accept_resource(Req, 'PATCH', Args, #rstate{
+    resource = files_popularity_configuration,
+    bindings = #{id := Id}
+}) ->
+    Ctx = #{space_id => Id},
+    Ctx2 = onepanel_maps:get_store(enabled, Args, [enabled], Ctx),
+    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
+        ?SERVICE, configure_files_popularity, Ctx2
+    ))};
+
+
+accept_resource(Req, 'PATCH', Args, #rstate{
+    resource = space_auto_cleaning_configuration,
+    bindings = #{id := Id}
+}) ->
+    Ctx = #{space_id => Id},
+    Ctx2 = get_auto_cleaning_configuration(Args, Ctx),
+    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
+            ?SERVICE, configure_auto_cleaning, Ctx2
+    ))};
+
+accept_resource(Req, 'POST', _Args, #rstate{
+    resource = space_auto_cleaning_start,
+    bindings = #{id := Id}
+}) ->
+    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
+            ?SERVICE, start_auto_cleaning, #{space_id => Id}
+    ))}.
 
 %%--------------------------------------------------------------------
 %% @doc {@link rest_behaviour:provide_resource/2}
@@ -221,16 +242,16 @@ provide_resource(Req, #rstate{
     ), Req};
 
 provide_resource(Req, #rstate{
-    resource = space_auto_cleaning_report_collection,
+    resource = space_auto_cleaning_reports_collection,
     bindings = #{id := Id},
     params = Params
 }) ->
     Ctx = onepanel_maps:get_store(started_after, Params, started_after),
     Ctx2 = Ctx#{space_id => Id},
 
-    {rest_replier:format_service_step(service_oneprovider, get_autocleaning_reports,
+    {rest_replier:format_service_step(service_oneprovider, get_auto_cleaning_reports,
         service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, get_autocleaning_reports, Ctx2
+            ?SERVICE, get_auto_cleaning_reports, Ctx2
         ))
     ), Req};
 
@@ -239,9 +260,31 @@ provide_resource(Req, #rstate{
     bindings = #{id := Id}
 }) ->
     Ctx = #{space_id => Id},
-    {rest_replier:format_service_step(service_oneprovider, get_autocleaning_status,
+    {rest_replier:format_service_step(service_oneprovider, get_auto_cleaning_status,
         service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, get_autocleaning_status, Ctx
+            ?SERVICE, get_auto_cleaning_status, Ctx
+        ))
+    ), Req};
+
+provide_resource(Req, #rstate{
+    resource = space_auto_cleaning_configuration,
+    bindings = #{id := Id}
+}) ->
+    Ctx = #{space_id => Id},
+    {rest_replier:format_service_step(service_oneprovider, get_auto_cleaning_configuration,
+        service_utils:throw_on_error(service:apply_sync(
+            ?SERVICE, get_auto_cleaning_configuration, Ctx
+        ))
+    ), Req};
+
+provide_resource(Req, #rstate{
+    resource = files_popularity_configuration,
+    bindings = #{id := Id}
+}) ->
+    Ctx = #{space_id => Id},
+    {rest_replier:format_service_step(service_oneprovider, get_files_popularity_configuration,
+        service_utils:throw_on_error(service:apply_sync(
+            ?SERVICE, get_files_popularity_configuration, Ctx
         ))
     ), Req};
 
@@ -323,34 +366,22 @@ get_storage_import_args(Args, Ctx) ->
 
 %%-------------------------------------------------------------------
 %% @private
-%% @doc Parse args for file_popularity
+%% @doc Parse configuration for autocleaning
 %% @end
 %%-------------------------------------------------------------------
--spec get_file_popularity_args(Args :: rest_handler:args(), Ctx :: service:ctx())
+-spec get_auto_cleaning_configuration(Args :: rest_handler:args(), Ctx :: service:ctx())
         -> service:ctx().
-get_file_popularity_args(Args, Ctx) ->
-    onepanel_maps:get_store([filesPopularity, enabled], Args,
-        [files_popularity, enabled], Ctx).
-
-%%-------------------------------------------------------------------
-%% @private
-%% @doc Parse args for autocleaning
-%% @end
-%%-------------------------------------------------------------------
--spec get_autocleaning_args(Args :: rest_handler:args(), Ctx :: service:ctx())
-        -> service:ctx().
-get_autocleaning_args(Args, Ctx) ->
+get_auto_cleaning_configuration(Args, Ctx) ->
     onepanel_maps:get_store_multiple([
-        {[autoCleaning, enabled],
-            [auto_cleaning, enabled]},
-        {[autoCleaning, settings, lowerFileSizeLimit],
-            [auto_cleaning, settings, lower_file_size_limit]},
-        {[autoCleaning, settings, upperFileSizeLimit],
-            [auto_cleaning, settings, upper_file_size_limit]},
-        {[autoCleaning, settings, maxFileNotOpenedHours],
-            [auto_cleaning, settings, max_file_not_opened_hours]},
-        {[autoCleaning, settings, target],
-            [auto_cleaning, settings, target]},
-        {[autoCleaning, settings, threshold],
-            [auto_cleaning, settings, threshold]}
+        {[enabled], [enabled]},
+        {[target], [target]},
+        {[threshold], [threshold]},
+        {[rules, enabled], [rules, enabled]},
+        {[rules, maxOpenCount], [rules, max_open_count]},
+        {[rules, minHoursSinceLastOpen], [rules, min_hours_since_last_open]},
+        {[rules, lowerFileSizeLimit], [rules, lower_file_size_limit]},
+        {[rules, upperFileSizeLimit], [rules, upper_file_size_limit]},
+        {[rules, maxHourlyMovingAverage], [rules, max_hourly_moving_average]},
+        {[rules, maxDailyMovingAverage], [rules, max_daily_moving_average]},
+        {[rules, maxMonthlyMovingAverage], [rules, max_monthly_moving_average]}
     ], Args, Ctx).

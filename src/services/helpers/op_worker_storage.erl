@@ -20,10 +20,10 @@
 %% API
 -export([add/2, get/0, get/1, update/2]).
 -export([get_supporting_storage/2, get_supporting_storages/2,
-    get_file_popularity_details/2, get_autocleaning_details/2]).
+    get_files_popularity_configuration/2, get_auto_cleaning_configuration/2]).
 -export([is_mounted_in_root/3]).
--export([add_storage/5, maybe_update_file_popularity/3, maybe_update_autocleaning/3,
-    invalidate_luma_cache/1]).
+-export([add_storage/5, maybe_update_file_popularity/3,
+    maybe_update_auto_cleaning/3, invalidate_luma_cache/1]).
 
 -type id() :: binary().
 -type name() :: binary().
@@ -171,9 +171,9 @@ maybe_update_file_popularity(_Node, SpaceId, Args) when map_size(Args) =:= 0 ->
 maybe_update_file_popularity(Node, SpaceId, Args) ->
     case onepanel_utils:typed_get(enabled, Args, boolean) of
         true ->
-            rpc:call(Node, space_storage, enable_file_popularity, [SpaceId]);
+            rpc:call(Node, space_quota, enable_file_popularity, [SpaceId]);
         false ->
-            rpc:call(Node, space_storage, disable_file_popularity, [SpaceId])
+            rpc:call(Node, space_quota, disable_file_popularity, [SpaceId])
     end.
 
 %%-------------------------------------------------------------------
@@ -182,19 +182,12 @@ maybe_update_file_popularity(Node, SpaceId, Args) ->
 %% Updates autocleaning configuration.
 %% @end
 %%-------------------------------------------------------------------
--spec maybe_update_autocleaning(Node :: node(), SpaceId :: id(), maps:map()) -> {ok, id()}.
-maybe_update_autocleaning(_Node, SpaceId, Args) when map_size(Args) =:= 0 ->
+-spec maybe_update_auto_cleaning(Node :: node(), SpaceId :: id(), maps:map()) -> {ok, id()}.
+maybe_update_auto_cleaning(_Node, SpaceId, Args) when map_size(Args) =:= 0 ->
     {ok, SpaceId};
-maybe_update_autocleaning(Node, SpaceId, Args) ->
-    Settings = #{
-        enabled => onepanel_utils:typed_get(enabled, Args, boolean, undefined),
-        lower_file_size_limit => onepanel_utils:typed_get([settings, lower_file_size_limit], Args, integer, undefined),
-        upper_file_size_limit => onepanel_utils:typed_get([settings, upper_file_size_limit], Args, integer, undefined),
-        max_file_not_opened_hours => onepanel_utils:typed_get([settings, max_file_not_opened_hours], Args, integer, undefined),
-        target => onepanel_utils:typed_get([settings, target], Args, integer, undefined),
-        threshold => onepanel_utils:typed_get([settings, threshold], Args, integer, undefined)
-    },
-    case rpc:call(Node, space_cleanup_api, configure_autocleaning, [SpaceId, onepanel_maps:remove_undefined(Settings)]) of
+maybe_update_auto_cleaning(Node, SpaceId, Args) ->
+    Configuration = parse_auto_cleaning_configuration(Args),
+    case rpc:call(Node, space_cleanup_api, configure_autocleaning, [SpaceId, onepanel_maps:remove_undefined(Configuration)]) of
         {error, Reason} ->
             ?throw_error({?ERR_CONFIG_AUTOCLEANING, Reason});
         Result -> Result
@@ -202,13 +195,17 @@ maybe_update_autocleaning(Node, SpaceId, Args) ->
 
 %%-------------------------------------------------------------------
 %% @doc
-%% This function is responsible for fetching file popularity details
-%% from provider.
+%% This function is responsible for fetching files-popularity
+%% configuration from provider.
 %% @end
 %%-------------------------------------------------------------------
--spec get_file_popularity_details(Node :: node(), SpaceId :: id()) -> proplists:proplist().
-get_file_popularity_details(Node, SpaceId) ->
-    rpc:call(Node, space_storage, get_file_popularity_details, [SpaceId]).
+-spec get_files_popularity_configuration(Node :: node(), SpaceId :: id()) -> proplists:proplist().
+get_files_popularity_configuration(Node, SpaceId) ->
+    DetailsMap = rpc:call(Node, space_quota, get_file_popularity_configuration, [SpaceId]),
+    maps:to_list(onepanel_maps:get_store_multiple([
+        {[enabled], [enabled]},
+        {[rest_url], [restUrl]}
+    ], DetailsMap)).
 
 %%-------------------------------------------------------------------
 %% @doc
@@ -216,10 +213,19 @@ get_file_popularity_details(Node, SpaceId) ->
 %% provider.
 %% @end
 %%-------------------------------------------------------------------
--spec get_autocleaning_details(Node :: node(), SpaceId :: id()) -> proplists:proplist().
-get_autocleaning_details(Node, SpaceId) ->
-    Details = rpc:call(Node, space_cleanup_api, get_details, [SpaceId]),
-    onepanel_lists:map_undefined_to_null(Details).
+-spec get_auto_cleaning_configuration(Node :: node(), SpaceId :: id()) -> proplists:proplist().
+get_auto_cleaning_configuration(Node, SpaceId) ->
+    DetailsMap = rpc:call(Node, space_cleanup_api, get_configuration, [SpaceId]),
+    DetailsMap2 = onepanel_maps:get_store_multiple([
+        {[rules, lower_file_size_limit], [rules, lowerFileSizeLimit]},
+        {[rules, upper_file_size_limit], [rules, upperFileSizeLimit]},
+        {[rules, min_hours_since_last_open], [rules, minHoursSinceLastOpen]},
+        {[rules, max_open_count], [rules, maxOpenCount]},
+        {[rules, max_hourly_moving_average], [rules, maxHourlyMovingAverage]},
+        {[rules, max_daily_moving_average], [rules, maxDailyMovingAverage]},
+        {[rules, max_monthly_moving_average], [rules, maxMonthlyMovingAverage]}
+    ], DetailsMap, DetailsMap),
+    onepanel_lists:map_undefined_to_null(onepanel_maps:to_list(DetailsMap2)).
 
 %%-------------------------------------------------------------------
 %% @doc
@@ -584,3 +590,46 @@ get_required_luma_arg(StorageParams, Key, Type) ->
         Value ->
             Value
     end.
+
+%%--------------------------------------------------------------------
+%% @private @doc Parses and validates auto-cleaning configuration
+%% arguments.
+%% @end
+%%--------------------------------------------------------------------
+-spec parse_auto_cleaning_configuration(maps:maps()) -> maps:map().
+parse_auto_cleaning_configuration(Args) ->
+    #{
+        enabled => onepanel_utils:typed_get(enabled, Args, boolean, undefined),
+        target => onepanel_utils:typed_get([target], Args, integer, undefined),
+        threshold => onepanel_utils:typed_get([threshold], Args, integer, undefined),
+        rules => parse_auto_cleaning_rules(Args)
+    }.
+
+%%--------------------------------------------------------------------
+%% @private @doc Parses and validates auto-cleaning rules
+%% configuration arguments.
+%% @end
+%%--------------------------------------------------------------------
+-spec parse_auto_cleaning_rules(maps:maps()) -> maps:map().
+parse_auto_cleaning_rules(Args) ->
+    ParsedRules = #{
+        enabled => onepanel_utils:typed_get([rules, enabled], Args, boolean, undefined)
+    },
+    lists:foldl(fun(RuleName, AccIn) ->
+        AccIn#{RuleName => parse_auto_cleaning_rule_setting(RuleName, Args)}
+    end, ParsedRules, [
+        lower_file_size_limit, upper_file_size_limit,
+        min_hours_since_last_open, max_open_count, max_hourly_moving_average,
+        max_daily_moving_average, max_monthly_moving_average
+    ]).
+
+%%--------------------------------------------------------------------
+%% @private @doc Parses and validates auto-cleaning rule setting.
+%% @end
+%%--------------------------------------------------------------------
+-spec parse_auto_cleaning_rule_setting(atom(), maps:map()) -> maps:map().
+parse_auto_cleaning_rule_setting(RuleName, Args) ->
+    #{
+        enabled => onepanel_utils:typed_get([rules, RuleName, enabled], Args, boolean, undefined),
+        value => onepanel_utils:typed_get([rules, RuleName, value], Args, integer, undefined)
+    }.

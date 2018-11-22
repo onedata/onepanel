@@ -75,10 +75,14 @@ allowed_methods(Req, #rstate{methods = Methods} = State) ->
 -spec content_types_accepted(Req :: cowboy_req:req(), State :: state()) ->
     {[{binary(), atom()}], cowboy_req:req(), state()}.
 content_types_accepted(Req, #rstate{} = State) ->
-    {[
-        {<<"application/json">>, accept_resource_json},
-        {<<"application/x-yaml">>, accept_resource_yaml}
-    ], Req, State}.
+    case cowboy_req:has_body(Req) of
+        true -> {[
+            {<<"application/json">>, accept_resource_json},
+            {<<"application/x-yaml">>, accept_resource_yaml}
+        ], Req, State};
+        false ->
+            {[{'*', accept_resource_json}], Req, State}
+    end.
 
 
 %%--------------------------------------------------------------------
