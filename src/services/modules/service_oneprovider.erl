@@ -358,8 +358,6 @@ register(Ctx) ->
                     service_ctx:get(oneprovider_subdomain, Ctx, binary)},
                 {<<"ipList">>, []}]; % IPs will be updated in the step set_cluster_ips
         false ->
-            % without subdomain delegtion, Let's Encrypt does not have to be configured
-            onepanel_deployment:mark_completed(?PROGRESS_LETSENCRYPT_CONFIG),
             [{<<"subdomainDelegation">>, false},
                 {<<"domain">>, service_ctx:get(oneprovider_domain, Ctx, binary)}]
     end,
