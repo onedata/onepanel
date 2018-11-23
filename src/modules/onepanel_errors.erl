@@ -129,6 +129,12 @@ translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, Reason}}) ->
     ?error("Cannot add storage due to: ~p", [Reason]),
     {<<"Operation Error">>, <<"Storage addition error.">>};
 
+translate(_Type, #error{reason = ?ERR_STORAGE_UPDATE_MISMATCH}) ->
+    {<<"Operation Error">>, <<"Specified storage type or name do not match the id">>};
+
+translate(_Type, #error{reason = ?ERR_STORAGE_IN_USE}) ->
+    {<<"Operation Error">>, <<"Storage supporting a space cannot be removed.">>};
+
 translate(_Type, #error{reason = {?ERR_STORAGE_NOT_FOUND, StorageId}}) ->
     {<<"Operation Error">>, <<"Storage '", StorageId/binary, "' not found.">>};
 
@@ -198,6 +204,9 @@ translate(_Type, #error{reason = {?ERR_STORAGE_SYNC, import_already_started}}) -
 translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, {missing_key, MissingKey}}}) ->
     {<<"Operation Error">>, str_utils:format_bin("LUMA configuration error. "
     "Missing key: ~p", [MissingKey])};
+
+translate(_Type, #error{reason = ?ERR_LUMA_DISABLED}) ->
+    {<<"Operation Error">>, <<"Disabled LUMA cannot be configured.">>};
 
 translate(_Type, #error{reason = ?ERR_SPACE_SUPPORT_TOO_LOW(Minimum)}) ->
     {<<"Operation Error">>, str_utils:format_bin(
@@ -328,6 +337,8 @@ get_expectation(ValueSpec, Acc) when is_map(ValueSpec) ->
     Node :: node(), Reason :: term()) -> {Name :: binary(), Description :: binary()}.
 translate_storage_test_file_error(OperVerb, OperNoun, Node, Reason) ->
     Host = onepanel_cluster:node_to_host(Node),
+    % If this log is removed, adjust op_worker_storage to report
+    % reason of issues with PATCH
     ?error("Cannot " ++ OperVerb ++ " storage test file on node ~p due to: ~p",
         [Node, Reason]),
     {<<"Operation Error">>, <<"Storage test file ", OperNoun/binary, " failed "

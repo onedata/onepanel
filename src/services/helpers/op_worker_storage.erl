@@ -18,154 +18,178 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([add/2, get/0, get/1, update/2]).
+-export([add/2, list/0, get/1, update/3, remove/2]).
 -export([get_supporting_storage/2, get_supporting_storages/2,
     get_file_popularity_configuration/2, get_auto_cleaning_configuration/2]).
--export([is_mounted_in_root/3]).
--export([add_storage/5, maybe_update_file_popularity/3,
+-export([is_mounted_in_root/3, can_be_removed/1]).
+-export([maybe_update_file_popularity/3,
     maybe_update_auto_cleaning/3, invalidate_luma_cache/1]).
 
+% @formatter:off
 -type id() :: binary().
 -type name() :: binary().
--type storage_params_map() :: #{Key :: atom() | binary() => Value :: binary()}.
--type storage_map() :: #{Name :: name() => Params :: storage_params_map()}.
+
+%% specification for updating or modifying storage
+-type param() :: binary() | boolean() | integer() | float().
+-type storage_params() :: #{
+    Key :: atom() => Value :: param()
+}.
+
+%% Storage information retrieved from op worker
+-type storage_details() :: #{
+    readonly | insecure | lumaEnabled := boolean(),
+    atom() := binary()
+}.
+
+-type helper_args() :: #{binary() => binary()}.
+-type user_ctx() :: #{binary() => binary()}.
+-type storages_map() :: #{Name :: name() => Params :: storage_params()}.
 -type luma_config() :: {atom(), binary(), undefined | binary()}.
+-type helper() :: term().
+% @formatter:on
+
+-export_type([storage_params/0, storage_details/0, storages_map/0, helper_args/0,
+    user_ctx/0]).
 
 %%%===================================================================
 %%% API functions
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc Verifies that each of provided storages is accessible for all op_worker
-%% service nodes. In case of a successful verification proceeds with storage
-%% addition.
+%% @doc Adds storages specified in a map.
+%% Before each addition verifies that given storage is accessible for all
+%% op_worker service nodes and aborts upon error.
+%% This verification is skipped for readonly storages.
 %% @end
 %%--------------------------------------------------------------------
--spec add(Storages :: storage_map(), IgnoreExists :: boolean()) -> ok | no_return().
+-spec add(Storages :: storages_map(), IgnoreExists :: boolean()) -> ok | no_return().
 add(Storages, IgnoreExists) ->
-    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
+    OpNode = onepanel_cluster:service_to_node(service_op_worker:name()),
     ?info("Adding ~b storage(s)", [maps:size(Storages)]),
     maps:fold(fun(Key, Value, _) ->
         StorageName = onepanel_utils:convert(Key, binary),
         StorageType = onepanel_utils:typed_get(type, Value, binary),
 
-        ?info("Gathering storage configuration: \"~s\" (~s)", [StorageName, StorageType]),
-        ReadOnly = onepanel_utils:typed_get(readonly, Value, boolean, false),
-        UserCtx = get_storage_user_ctx(Node, StorageType, Value),
-        Helper = get_storage_helper(Node, StorageType, UserCtx, Value),
-        LumaConfig = get_luma_config(Node, Value),
-        maybe_verify_storage(Helper, UserCtx, ReadOnly),
+        Result = case {exists(OpNode, StorageName), IgnoreExists} of
+            {true, true} -> skipped;
+            {true, false} -> {error, already_exists};
+            _ -> add(OpNode, StorageName, Value)
+        end,
 
-        ?info("Adding storage: \"~s\" (~s)", [StorageName, StorageType]),
-        Result = add_storage(Node, StorageName, [Helper], ReadOnly, LumaConfig),
-        case {Result, IgnoreExists} of
-            {{ok, _StorageId}, _} ->
-                ?info("Successfully added storage: \"~s\" (~s)", [StorageName, StorageType]),
+        case Result of
+            skipped ->
+                ?info("Storage already exists, skipping: \"~s\" (~s)",
+                    [StorageName, StorageType]),
                 ok;
-            {{error, already_exists}, true} ->
-                ?info("Storage already exists, skipping: \"~s\" (~s)", [StorageName, StorageType]),
+            ok -> ?info("Successfully added storage: \"~s\" (~s)",
+                [StorageName, StorageType]),
                 ok;
-            {{error, Reason}, _} ->
+            {error, Reason} ->
                 ?throw_error({?ERR_STORAGE_ADDITION, Reason})
         end
-    end, [], Storages),
-    ok.
-
-
-%%--------------------------------------------------------------------
-%% @doc Returns lists of storages' details currently configured in op_worker
-%% service.
-%% @end
-%%--------------------------------------------------------------------
--spec get() -> list().
-get() ->
-    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
-    {ok, Storages} = rpc:call(Node, storage, list, []),
-    Ids = lists:map(fun(Storage) ->
-        rpc:call(Node, storage, get_id, [Storage])
-    end, Storages),
-    [{ids, Ids}].
-
-
-%%--------------------------------------------------------------------
-%% @doc Returns details of a selected storage from op_worker service.
-%% @end
-%%--------------------------------------------------------------------
--spec get(Id :: id()) -> storage_params_map().
-get(Id) ->
-    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
-    {ok, Storage} = rpc:call(Node, storage, get, [Id]),
-    get_storage(Node, Storage).
-
-
-%%--------------------------------------------------------------------
-%% @doc Returns storage supporting given space on given Node.
-%% @end
-%%--------------------------------------------------------------------
--spec get_supporting_storage(Node :: node(), SpaceId :: id()) -> id().
-get_supporting_storage(Node, SpaceId) ->
-    hd(get_supporting_storages(Node, SpaceId)).
-
-
-%%--------------------------------------------------------------------
-%% @doc Returns all storages supporting given space on given Node.
-%% @end
-%%--------------------------------------------------------------------
--spec get_supporting_storages(Node :: node(), SpaceId :: id()) -> [id()].
-get_supporting_storages(Node, SpaceId) ->
-    {ok, SpaceStorage} = rpc:call(Node, space_storage, get, [SpaceId]),
-    rpc:call(Node, space_storage, get_storage_ids, [SpaceStorage]).
-
-
-%%--------------------------------------------------------------------
-%% @doc Checks whether space storage is mounted in root.
-%% @end
-%%--------------------------------------------------------------------
--spec is_mounted_in_root(Node :: node(), SpaceId :: id(), StorageId :: id()) ->
-    boolean().
-is_mounted_in_root(Node, SpaceId, StorageId) ->
-    {ok, SpaceStorage} = rpc:call(Node, space_storage, get, [SpaceId]),
-    MountedInRoot = rpc:call(Node, space_storage, get_mounted_in_root,
-        [SpaceStorage]
-    ),
-    lists:member(StorageId, MountedInRoot).
+    end, ok, Storages).
 
 
 %%--------------------------------------------------------------------
 %% @doc Updates details of a selected storage in op_worker service.
 %% @end
 %%--------------------------------------------------------------------
--spec update(Name :: name(), Args :: maps:map()) -> ok.
-update(Id, Args) ->
-    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
+-spec update(OpNode :: node(), Id :: id(), Params :: storage_params()) ->
+    storage_details().
+update(OpNode, Id, Params) ->
     Storage = op_worker_storage:get(Id),
     {ok, Id} = onepanel_maps:get(id, Storage),
     {ok, Type} = onepanel_maps:get(type, Storage),
-    Args2 = #{<<"timeout">> => onepanel_utils:typed_get(timeout, Args, binary)},
-    {ok, _} = rpc:call(Node, storage, update_helper, [Id, Type, Args2]),
-    ok.
+
+    ok = maybe_update_name(OpNode, Id, Params),
+    ok = maybe_update_admin_ctx(OpNode, Id, Type, Params),
+    ok = maybe_update_args(OpNode, Id, Type, Params),
+    ok = maybe_update_luma_config(OpNode, Id, Params),
+    ok = maybe_update_insecure(OpNode, Id, Type, Params),
+    ok = maybe_update_readonly(OpNode, Id, Params),
+    make_update_result(OpNode, Id).
 
 
 %%--------------------------------------------------------------------
-%% @doc Checks if storage with given name exists.
+%% @doc Removes given storage.
+%% Fails if any space is supported by this storage.
 %% @end
 %%--------------------------------------------------------------------
--spec exists(Node :: node(), StorageName :: name()) -> boolean().
-exists(Node, StorageName) ->
-    case rpc:call(Node, storage, select, [StorageName]) of
-        {error, not_found} -> false;
-        {ok, _} -> true
+-spec remove(OpNode :: node(), id()) -> ok | no_return().
+remove(OpNode, Id) ->
+    case rpc:call(OpNode, storage, safe_remove, [Id]) of
+        ok ->
+            ?info("Successfully removed storage with id ~p", [Id]),
+            ok;
+        {error, storage_in_use} -> ?throw_error(?ERR_STORAGE_IN_USE)
     end.
 
 
+%%--------------------------------------------------------------------
+%% @doc Returns lists of storage ids currently configured in op_worker
+%% service.
+%% @end
+%%--------------------------------------------------------------------
+-spec list() -> #{ids := [id()]}.
+list() ->
+    OpNode = onepanel_cluster:service_to_node(service_op_worker:name()),
+    {ok, Storages} = rpc:call(OpNode, storage, list, []),
+    Ids = lists:map(fun(Storage) ->
+        rpc:call(OpNode, storage, get_id, [Storage])
+    end, Storages),
+    #{ids => Ids}.
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns details of a selected storage from op_worker service.
+%% @end
+%%--------------------------------------------------------------------
+-spec get(Id :: id()) -> storage_details().
+get(Id) ->
+    OpNode = hd(service_op_worker:get_nodes()),
+    {ok, Storage} = rpc:call(OpNode, storage, get, [Id]),
+    get_storage(OpNode, Storage).
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns storage supporting given space on given OpNode.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_supporting_storage(OpNode :: node(), SpaceId :: id()) -> id().
+get_supporting_storage(OpNode, SpaceId) ->
+    hd(get_supporting_storages(OpNode, SpaceId)).
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns all storages supporting given space on given OpNode.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_supporting_storages(OpNode :: node(), SpaceId :: id()) -> [id()].
+get_supporting_storages(OpNode, SpaceId) ->
+    {ok, SpaceStorage} = rpc:call(OpNode, space_storage, get, [SpaceId]),
+    rpc:call(OpNode, space_storage, get_storage_ids, [SpaceStorage]).
+
+
+%%--------------------------------------------------------------------
+%% @doc Checks whether space storage is mounted in root.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_mounted_in_root(OpNode :: node(), SpaceId :: id(), StorageId :: id()) ->
+    boolean().
+is_mounted_in_root(OpNode, SpaceId, StorageId) ->
+    {ok, SpaceStorage} = rpc:call(OpNode, space_storage, get, [SpaceId]),
+    MountedInRoot = rpc:call(OpNode, space_storage, get_mounted_in_root,
+        [SpaceStorage]
+    ),
+    lists:member(StorageId, MountedInRoot).
+
 %%-------------------------------------------------------------------
-%% @private
 %% @doc
 %% Enables or disables file popularity.
 %% @end
 %%-------------------------------------------------------------------
--spec maybe_update_file_popularity(Node :: node(), SpaceId :: id(),
-    maps:map()) -> ok.
+-spec maybe_update_file_popularity(Node :: node(), SpaceId :: id(), maps:map()) ->
+    ok.
 maybe_update_file_popularity(_Node, _SpaceId, Args) when map_size(Args) =:= 0 ->
     ok;
 maybe_update_file_popularity(Node, SpaceId, Args) ->
@@ -176,22 +200,24 @@ maybe_update_file_popularity(Node, SpaceId, Args) ->
         Result -> Result
     end.
 
+
 %%-------------------------------------------------------------------
-%% @private
 %% @doc
 %% Updates autocleaning configuration.
 %% @end
 %%-------------------------------------------------------------------
--spec maybe_update_auto_cleaning(Node :: node(), SpaceId :: id(), maps:map()) -> ok.
-maybe_update_auto_cleaning(_Node, _SpaceId, Args) when map_size(Args) =:= 0 ->
+-spec maybe_update_auto_cleaning(OpNode :: node(), SpaceId :: id(), maps:map()) -> ok.
+maybe_update_auto_cleaning(_OpNode, _SpaceId, Args) when map_size(Args) =:= 0 ->
     ok;
-maybe_update_auto_cleaning(Node, SpaceId, Args) ->
+maybe_update_auto_cleaning(OpNode, SpaceId, Args) ->
     Configuration = parse_auto_cleaning_configuration(Args),
-    case rpc:call(Node, autocleaning_api, configure, [SpaceId, Configuration]) of
+    case rpc:call(OpNode, autocleaning_api, configure,
+        [SpaceId, Configuration]) of
         {error, Reason} ->
             ?throw_error({?ERR_CONFIG_AUTO_CLEANING, Reason});
         Result -> Result
     end.
+
 
 %%-------------------------------------------------------------------
 %% @doc
@@ -199,9 +225,9 @@ maybe_update_auto_cleaning(Node, SpaceId, Args) ->
 %% configuration from provider.
 %% @end
 %%-------------------------------------------------------------------
--spec get_file_popularity_configuration(Node :: node(), SpaceId :: id()) -> proplists:proplist().
-get_file_popularity_configuration(Node, SpaceId) ->
-    case rpc:call(Node, file_popularity_api, get_configuration, [SpaceId]) of
+-spec get_file_popularity_configuration(OpNode :: node(), SpaceId :: id()) -> proplists:proplist().
+get_file_popularity_configuration(OpNode, SpaceId) ->
+    case rpc:call(OpNode, file_popularity_api, get_configuration, [SpaceId]) of
         {ok, DetailsMap} ->
             maps:to_list(onepanel_maps:get_store_multiple([
                 {[enabled], [enabled]},
@@ -220,9 +246,9 @@ get_file_popularity_configuration(Node, SpaceId) ->
 %% provider.
 %% @end
 %%-------------------------------------------------------------------
--spec get_auto_cleaning_configuration(Node :: node(), SpaceId :: id()) -> proplists:proplist().
-get_auto_cleaning_configuration(Node, SpaceId) ->
-    DetailsMap = rpc:call(Node, autocleaning_api, get_configuration, [SpaceId]),
+-spec get_auto_cleaning_configuration(OpNode :: node(), SpaceId :: id()) -> proplists:proplist().
+get_auto_cleaning_configuration(OpNode, SpaceId) ->
+    DetailsMap = rpc:call(OpNode, autocleaning_api, get_configuration, [SpaceId]),
     DetailsMap2 = onepanel_maps:get_store_multiple([
         {[rules, min_file_size], [rules, minFileSize]},
         {[rules, max_file_size], [rules, maxFileSize]},
@@ -234,336 +260,120 @@ get_auto_cleaning_configuration(Node, SpaceId) ->
     ], DetailsMap, DetailsMap),
     onepanel_lists:map_undefined_to_null(onepanel_maps:to_list(DetailsMap2)).
 
+
 %%-------------------------------------------------------------------
 %% @doc
 %% This function is responsible for invalidating luma cache on given
 %% provider for given storage.
 %% @end
 %%-------------------------------------------------------------------
--spec invalidate_luma_cache(StorageId :: binary) -> ok.
+-spec invalidate_luma_cache(StorageId :: id()) -> ok.
 invalidate_luma_cache(StorageId) ->
-    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
-    ok = rpc:call(Node, luma_cache, invalidate, [StorageId]).
+    OpNode = onepanel_cluster:service_to_node(service_op_worker:name()),
+    ok = rpc:call(OpNode, luma_cache, invalidate, [StorageId]).
+
+
+%%-------------------------------------------------------------------
+%% @doc
+%% Checks if given storage can be removed, i.e. does not support
+%% any space.
+%% @end
+%%-------------------------------------------------------------------
+-spec can_be_removed(id()) -> boolean().
+can_be_removed(StorageId) ->
+    Node = hd(service_op_worker:get_nodes()),
+    not rpc:call(Node, storage, supports_any_space, [StorageId]).
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private @doc Returns storage user context record.
+%% @private
+%% @doc Handles addition of a single storage. Ensures read/write access
+%% beforehand.
+%% Uses given OpNode for op_worker operations.
 %% @end
 %%--------------------------------------------------------------------
--spec get_storage_user_ctx(Node :: node(), StorageType :: binary(),
-    Params :: storage_params_map()) -> UserCtx :: any().
-get_storage_user_ctx(Node, <<"ceph">>, Params) ->
-    rpc:call(Node, helper, new_ceph_user_ctx, [
-        onepanel_utils:typed_get(username, Params, binary),
-        onepanel_utils:typed_get(key, Params, binary)
-    ]);
+-spec add(OpNode :: node(), StorageName :: binary(), Params :: storage_params()) ->
+    ok | {error, Reason :: term()}.
+add(OpNode, StorageName, Params) ->
+    StorageType = onepanel_utils:typed_get(type, Params, binary),
 
-get_storage_user_ctx(Node, <<"cephrados">>, Params) ->
-    rpc:call(Node, helper, new_cephrados_user_ctx, [
-        onepanel_utils:typed_get(username, Params, binary),
-        onepanel_utils:typed_get(key, Params, binary)
-    ]);
+    ?info("Gathering storage configuration: \"~s\" (~s)", [StorageName, StorageType]),
+    ReadOnly = onepanel_utils:typed_get(readonly, Params, boolean, false),
 
-get_storage_user_ctx(Node, <<"posix">>, _Params) ->
-    rpc:call(Node, helper, new_posix_user_ctx, [0, 0]);
+    UserCtx = storage_params:make_user_ctx(OpNode, StorageType, Params),
+    Helper = make_helper(OpNode, StorageType, UserCtx, Params),
 
-get_storage_user_ctx(Node, <<"s3">>, Params) ->
-    rpc:call(Node, helper, new_s3_user_ctx, [
-        onepanel_utils:typed_get(accessKey, Params, binary),
-        onepanel_utils:typed_get(secretKey, Params, binary)
-    ]);
+    LumaConfig = get_luma_config(OpNode, Params),
+    maybe_verify_storage(Helper, UserCtx, ReadOnly),
 
-get_storage_user_ctx(Node, <<"swift">>, Params) ->
-    rpc:call(Node, helper, new_swift_user_ctx, [
-        onepanel_utils:typed_get(username, Params, binary),
-        onepanel_utils:typed_get(password, Params, binary)
-    ]);
+    ?info("Adding storage: \"~s\" (~s)", [StorageName, StorageType]),
+    StorageRecord = rpc:call(OpNode, storage, new,
+        [StorageName, [Helper], ReadOnly, LumaConfig]),
+    case rpc:call(OpNode, storage, create, [StorageRecord]) of
+        {ok, _StorageId} -> ok;
+        {error, Reason} -> {error, Reason}
+    end.
 
-get_storage_user_ctx(Node, <<"glusterfs">>, _Params) ->
-    rpc:call(Node, helper, new_glusterfs_user_ctx, [0, 0]);
-
-get_storage_user_ctx(Node, <<"nulldevice">>, _Params) ->
-    rpc:call(Node, helper, new_nulldevice_user_ctx, [0, 0]);
-
-get_storage_user_ctx(Node, <<"webdav">>, Params) ->
-    rpc:call(Node, helper, new_webdav_user_ctx, [
-        <<_/binary>> = onepanel_utils:typed_get(credentialsType, Params, binary),
-        <<_/binary>> = onepanel_utils:typed_get(credentials, Params, binary, <<>>)
-    ]).
 
 %%--------------------------------------------------------------------
-%% @private @doc Returns storage helper record.
+%% @private
+%% @doc Uses op worker to create a helper record.
 %% @end
 %%--------------------------------------------------------------------
--spec get_storage_helper(Node :: node(), StorageType :: binary(), UserCtx :: any(),
-    Params :: storage_params_map()) -> Helper :: any().
-get_storage_helper(Node, <<"ceph">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_ceph_helper, [
-        onepanel_utils:typed_get(monitorHostname, Params, binary),
-        onepanel_utils:typed_get(clusterName, Params, binary),
-        onepanel_utils:typed_get(poolName, Params, binary),
-        get_helper_opt_args([{timeout, binary}], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"flat">>)
-    ]);
-get_storage_helper(Node, <<"cephrados">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_cephrados_helper, [
-        onepanel_utils:typed_get(monitorHostname, Params, binary),
-        onepanel_utils:typed_get(clusterName, Params, binary),
-        onepanel_utils:typed_get(poolName, Params, binary),
-        get_helper_opt_args([
-            {timeout, binary},
-            {blockSize, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"flat">>)
-    ]);
-get_storage_helper(Node, <<"posix">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_posix_helper, [
-        onepanel_utils:typed_get(mountPoint, Params, binary),
-        get_helper_opt_args([{timeout, binary}], Params),
-        UserCtx,
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"canonical">>)
-    ]);
-get_storage_helper(Node, <<"s3">>, UserCtx, Params) ->
-    #hackney_url{scheme = S3Scheme, host = S3Host, port = S3Port} =
-        hackney_url:parse_url(onepanel_utils:typed_get(hostname, Params, binary)),
-    rpc:call(Node, helper, new_s3_helper, [
-        onepanel_utils:join([S3Host, S3Port], <<":">>),
-        onepanel_utils:typed_get(bucketName, Params, binary),
-        S3Scheme =:= https,
-        get_helper_opt_args([
-            {signatureVersion, binary},
-            {timeout, binary},
-            {blockSize, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"flat">>)
-    ]);
-get_storage_helper(Node, <<"swift">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_swift_helper, [
-        onepanel_utils:typed_get(authUrl, Params, binary),
-        onepanel_utils:typed_get(containerName, Params, binary),
-        onepanel_utils:typed_get(tenantName, Params, binary),
-        get_helper_opt_args([
-            {timeout, binary},
-            {blockSize, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"flat">>)
-    ]);
-get_storage_helper(Node, <<"glusterfs">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_glusterfs_helper, [
-        onepanel_utils:typed_get(volume, Params, binary),
-        onepanel_utils:typed_get(hostname, Params, binary),
-        get_helper_opt_args([
-            {port, binary},
-            {mountPoint, binary},
-            {transport, binary},
-            {xlatorOptions, binary},
-            {timeout, binary},
-            {blockSize, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"canonical">>)
-    ]);
-get_storage_helper(Node, <<"nulldevice">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_nulldevice_helper, [
-        get_helper_opt_args([
-            {latencyMin, binary},
-            {latencyMax, binary},
-            {timeoutProbability, binary},
-            {filter, binary},
-            {simulatedFilesystemParameters, binary},
-            {simulatedFilesystemGrowSpeed, binary},
-            {timeout, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"canonical">>)
-    ]);
-get_storage_helper(Node, <<"webdav">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_webdav_helper, [
-        onepanel_utils:typed_get(endpoint, Params, binary),
-        get_helper_opt_args([
-            {verifyServerCertificate, binary},
-            {authorizationHeader, binary},
-            {rangeWriteSupport, binary},
-            {connectionPoolSize, binary},
-            {maximumUploadSize, binary},
-            {timeout, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"canonical">>)
-    ]).
+-spec make_helper(OpNode :: node(), StorageType :: binary(), UserCtx :: user_ctx(),
+    Params :: storage_params()) ->
+    helper() | {badrpc, term()}.
+make_helper(OpNode, StorageType, UserCtx, Params) ->
+    Args = storage_params:make_helper_args(OpNode, StorageType, Params),
+    Insecure = onepanel_utils:typed_get(insecure, Params, boolean, false),
+    PathType = onepanel_utils:typed_get(storagePathType, Params, binary),
 
-%%--------------------------------------------------------------------
-%% @private @doc Returns storage helper optional argument.
-%% @end
-%%--------------------------------------------------------------------
--spec get_helper_opt_args(KeySpec :: [{Key :: atom(), Type :: onepanel_utils:type()}],
-    Params :: storage_params_map()) -> OptArgs :: #{}.
-get_helper_opt_args(KeysSpec, Params) ->
-    lists:foldl(fun({Key, Type}, OptArgs) ->
-        case onepanel_utils:typed_get(Key, Params, Type) of
-            #error{} ->
-                OptArgs;
-            Value ->
-                maps:put(onepanel_utils:convert(Key, binary), Value, OptArgs)
-        end
-    end, #{}, KeysSpec).
+    rpc:call(OpNode, helper, new_helper,
+        [StorageType, Args, UserCtx, Insecure, PathType]).
+
 
 %%--------------------------------------------------------------------
 %% @private @doc For read-write storage verifies that it is accessible for all
 %% op_worker service nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec maybe_verify_storage(Helper :: any(), UserCtx :: any(), Readonly :: boolean()) ->
-    ok | no_return().
+-spec maybe_verify_storage(Helper :: helper(), UserCtx :: any(), Readonly :: boolean()) ->
+    skipped | verified | no_return().
 maybe_verify_storage(_Helper, _UserCtx, true) ->
-    ok;
+    skipped;
 maybe_verify_storage(Helper, UserCtx, _) ->
     ?info("Verifying write access to storage"),
-    verify_storage(Helper, UserCtx).
-
-%%--------------------------------------------------------------------
-%% @private @doc Verifies that storage is accessible for all op_worker
-%% service nodes.
-%% @end
-%%--------------------------------------------------------------------
--spec verify_storage(Helper :: any(), UserCtx :: any()) ->
-    ok | no_return().
-verify_storage(Helper, UserCtx) ->
-    [Node | Nodes] = service_op_worker:get_nodes(),
-    {FileId, FileContent} = create_test_file(Node, Helper, UserCtx),
-    {FileId2, FileContent2} = verify_test_file(
-        Nodes, Helper, UserCtx, FileId, FileContent
-    ),
-    read_test_file(Node, Helper, UserCtx, FileId2, FileContent2),
-    remove_test_file(Node, Helper, UserCtx, FileId2, size(FileContent2)).
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Checks whether storage is read/write accessible for all
-%% op_worker service nodes by creating, reading and removing test files.
-%% @end
-%%--------------------------------------------------------------------
--spec verify_test_file(Nodes :: [node()], Helper :: any(), UserCtx :: any(),
-    FileId :: binary(), FileContent :: binary()) ->
-    {FileId :: binary(), FileContent :: binary()} | no_return().
-verify_test_file([], _Helper, _UserCtx, FileId, FileContent) ->
-    {FileId, FileContent};
-
-verify_test_file([Node | Nodes], Helper, UserCtx, FileId, FileContent) ->
-    read_test_file(Node, Helper, UserCtx, FileId, FileContent),
-    remove_test_file(Node, Helper, UserCtx, FileId, size(FileContent)),
-    {FileId2, FileContent2} = create_test_file(Node, Helper, UserCtx),
-    verify_test_file(Nodes, Helper, UserCtx, FileId2, FileContent2).
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Creates storage test file.
-%% @end
-%%--------------------------------------------------------------------
--spec create_test_file(Node :: node(), Helper :: any(), UserCtx :: any()) ->
-    {FileId :: binary(), FileContent :: binary()} | no_return().
-create_test_file(Node, Helper, UserCtx) ->
-    FileId = rpc:call(Node, storage_detector, generate_file_id, []),
-    Args = [Helper, UserCtx, FileId],
-    case rpc:call(Node, storage_detector, create_test_file, Args) of
-        <<_/binary>> = FileContent ->
-            {FileId, FileContent};
-        {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
-            ?throw_stacktrace({?ERR_STORAGE_TEST_FILE_CREATE, Node, Reason}, undefined, Stacktrace)
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Reads storage test file.
-%% @end
-%%--------------------------------------------------------------------
--spec read_test_file(Node :: node(), Helper :: any(), UserCtx :: any(),
-    FileId :: binary(), FileContent :: binary()) -> ok | no_return().
-read_test_file(Node, Helper, UserCtx, FileId, FileContent) ->
-    Args = [Helper, UserCtx, FileId],
-    ActualFileContent = rpc:call(Node, storage_detector, read_test_file, Args),
-
-    case ActualFileContent of
-        FileContent ->
-            ok;
-        <<_/binary>> ->
-            ?throw_error({?ERR_STORAGE_TEST_FILE_READ, Node,
-                {invalid_content, FileContent, ActualFileContent}});
-        {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
-            ?throw_stacktrace({?ERR_STORAGE_TEST_FILE_READ, Node, Reason}, undefined, Stacktrace)
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Removes storage test file.
-%% @end
-%%--------------------------------------------------------------------
--spec remove_test_file(Node :: node(), Helper :: any(), UserCtx :: any(),
-    FileId :: binary(), Size :: non_neg_integer()) -> ok | no_return().
-remove_test_file(Node, Helper, UserCtx, FileId, Size) ->
-    Args = [Helper, UserCtx, FileId, Size],
-    case rpc:call(Node, storage_detector, remove_test_file, Args) of
-        {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
-            ?throw_stacktrace({?ERR_STORAGE_TEST_FILE_REMOVE, Node, Reason}, undefined, Stacktrace);
-        _ -> ok
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Adds storage to the op_worker service configuration.
-%% @end
-%%--------------------------------------------------------------------
--spec add_storage(Node :: node(), StorageName :: binary(), Helpers :: list(),
-    ReadOnly :: boolean(), LumaConfig :: luma_config()) ->
-    {ok, StorageId :: binary()} | {error, Reason :: term()}.
-add_storage(Node, StorageName, Helpers, ReadOnly, LumaConfig) ->
-    case exists(Node, StorageName) of
-        true ->
-            {error, already_exists};
-        false ->
-            Storage = rpc:call(Node, storage, new, [StorageName, Helpers, ReadOnly, LumaConfig]),
-            rpc:call(Node, storage, create, [Storage])
-    end.
+    ok = storage_tester:verify_storage(Helper, UserCtx),
+    verified.
 
 
 %%--------------------------------------------------------------------
 %% @private @doc Returns storage details from op_worker service configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec get_storage(Node :: node(), Storage :: any()) ->
-    Storage :: storage_params_map().
-get_storage(Node, Storage) ->
-    [Helper | _] = rpc:call(Node, storage, get_helpers, [Storage]),
-    AdminCtx = rpc:call(Node, helper, get_admin_ctx, [Helper]),
+-spec get_storage(OpNode :: node(), Storage :: any()) -> storage_details().
+get_storage(OpNode, Storage) ->
+    [Helper | _] = rpc:call(OpNode, storage, get_helpers, [Storage]),
+    AdminCtx = rpc:call(OpNode, helper, get_admin_ctx, [Helper]),
     AdminCtx2 = maps:with([<<"username">>, <<"accessKey">>], AdminCtx),
-    HelperArgs = rpc:call(Node, helper, get_args, [Helper]),
-    LumaConfig = rpc:call(Node, storage, get_luma_config_map, [Storage]),
+    HelperArgs = rpc:call(OpNode, helper, get_args, [Helper]),
+    LumaConfig = rpc:call(OpNode, storage, get_luma_config_map, [Storage]),
 
-    Params = maps:merge(AdminCtx2, HelperArgs),
+    Params = onepanel_utils:convert(maps:merge(AdminCtx2, HelperArgs), {keys, atom}),
     Params#{
-        id => rpc:call(Node, storage, get_id, [Storage]),
-        name => rpc:call(Node, storage, get_name, [Storage]),
-        type => rpc:call(Node, helper, get_name, [Helper]),
-        readonly => rpc:call(Node, storage, is_readonly, [Storage]),
-        insecure => rpc:call(Node, helper, is_insecure, [Helper]),
-        storagePathType => rpc:call(Node, helper, get_storage_path_type, [Helper]),
+        id => rpc:call(OpNode, storage, get_id, [Storage]),
+        name => rpc:call(OpNode, storage, get_name, [Storage]),
+        type => rpc:call(OpNode, helper, get_name, [Helper]),
+        readonly => rpc:call(OpNode, storage, is_readonly, [Storage]),
+        insecure => rpc:call(OpNode, helper, is_insecure, [Helper]),
+        storagePathType => rpc:call(OpNode, helper, get_storage_path_type, [Helper]),
         lumaEnabled => maps:get(enabled, LumaConfig, false),
         lumaUrl => maps:get(url, LumaConfig, null)
     }.
+
 
 %%--------------------------------------------------------------------
 %% @private @doc Parses LUMA config arguments if lumaEnabled is set to
@@ -571,31 +381,146 @@ get_storage(Node, Storage) ->
 %% Throws error if lumaEnabled is true and other arguments are missing.
 %% @end
 %%--------------------------------------------------------------------
--spec get_luma_config(Node :: node(), StorageParams :: storage_params_map()) ->
+-spec get_luma_config(OpNode :: node(), StorageParams :: storage_params()) ->
     undefined | luma_config().
-get_luma_config(Node, StorageParams) ->
+get_luma_config(OpNode, StorageParams) ->
     case onepanel_utils:typed_get(lumaEnabled, StorageParams, boolean, false) of
         true ->
-            Url = get_required_luma_arg(StorageParams, lumaUrl, binary),
+            Url = get_required_luma_arg(lumaUrl, StorageParams, binary),
             ApiKey = onepanel_utils:typed_get(lumaApiKey, StorageParams, binary, undefined),
-            rpc:call(Node, luma_config, new, [Url, ApiKey]);
+            rpc:call(OpNode, luma_config, new, [Url, ApiKey]);
         false ->
             undefined
     end.
+
 
 %%--------------------------------------------------------------------
 %% @private @doc Returns LUMA argument value associated with Key
 %% in StorageParams. Throws error if key is missing
 %% @end
 %%--------------------------------------------------------------------
--spec get_required_luma_arg(StorageParams :: storage_params_map(), Key :: atom(),
+-spec get_required_luma_arg(Key :: atom(), StorageParams :: storage_params(),
     Type :: onepanel_utils:type()) -> term().
-get_required_luma_arg(StorageParams, Key, Type) ->
-    case onepanel_utils:typed_get(Key, StorageParams, Type) of
-        {error, _} ->
-            ?throw_error(?ERR_LUMA_CONFIG(Key));
-        Value ->
-            Value
+get_required_luma_arg(Key, StorageParams, Type) ->
+    case onepanel_utils:typed_find(Key, StorageParams, Type) of
+        #error{} -> ?throw_error(?ERR_LUMA_CONFIG(Key));
+        Value -> Value
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private @doc Creates response for modify request
+%% by gathering current storage params and performing a write test
+%% as when adding new storage.
+%% @end
+%%--------------------------------------------------------------------
+-spec make_update_result(OpNode :: node(), StorageId :: id()) -> storage_details().
+make_update_result(OpNode, StorageId) ->
+    Details = #{name := Name, type := Type, readonly := Readonly} = ?MODULE:get(StorageId),
+    try
+        {ok, Helper} = rpc:call(OpNode, storage, select_helper, [StorageId, Type]),
+        UserCtx = rpc:call(OpNode, helper, get_admin_ctx, [Helper]),
+        maybe_verify_storage(Helper, UserCtx, Readonly)
+    of
+        skipped -> Details;
+        verified -> Details#{verificationPassed => true}
+    catch ErrType:Error ->
+        ?warning("Verfication of modified storage ~p (~p) failed", [Name, StorageId]),
+        % translator will log the error
+        onepanel_errors:translate(ErrType, Error),
+        Details#{verificationPassed => false}
+    end.
+
+
+%% @private
+-spec maybe_update_name(OpNode :: node(), Id :: id(), Params :: map()) ->
+    ok | no_return().
+maybe_update_name(OpNode, Id, #{name := Name}) ->
+    ok = rpc:call(OpNode, storage, update_name, [Id, Name]);
+
+maybe_update_name(_OpNode, _Id, _Params) ->
+    ok.
+
+
+%% @private
+-spec maybe_update_admin_ctx(OpNode :: node(), Id :: id(), Type :: binary(),
+    Params :: map()) -> ok | no_return().
+maybe_update_admin_ctx(OpNode, Id, Type, Params) ->
+    Ctx = storage_params:make_user_ctx(OpNode, Type, Params),
+    case maps:size(Ctx) of
+        0 -> ok;
+        _ ->
+            % Note that for some storage types make_user_ctx/3 always
+            % returns a nonempty, constant result.
+            % This is not a problem as long as those values are
+            % never changed by op_worker.
+            ok = rpc:call(OpNode, storage, update_admin_ctx, [Id, Type, Ctx])
+    end.
+
+
+%% @private
+-spec maybe_update_args(OpNode :: node(), Id :: id(), Type :: binary(),
+    Params :: map()) -> ok | no_return().
+maybe_update_args(OpNode, Id, Type, Params) ->
+    Args = storage_params:make_helper_args(OpNode, Type, Params),
+    case maps:size(Args) of
+        0 -> ok;
+        _ ->
+            ok = rpc:call(OpNode, storage, update_helper_args,
+                [Id, Type, Args])
+    end.
+
+
+%% @private
+-spec maybe_update_insecure(OpNode :: node(), Id :: id(), Type :: binary(),
+    Params :: map()) -> ok | no_return().
+maybe_update_insecure(OpNode, Id, Type, #{insecure := NewInsecure}) ->
+    ok = rpc:call(OpNode, storage, set_insecure,
+        [Id, Type, NewInsecure]);
+
+maybe_update_insecure(_OpNode, _Id, _Type, _Params) -> ok.
+
+
+%% @private
+-spec maybe_update_readonly(OpNode :: node(), Id :: id(), Params :: map()) ->
+    ok | no_return().
+maybe_update_readonly(OpNode, Id, #{readonly := NewReadonly}) ->
+    ok = rpc:call(OpNode, storage, set_readonly, [Id, NewReadonly]);
+
+maybe_update_readonly(_OpNode, _Id, _Params) -> ok.
+
+
+%% @private
+-spec maybe_update_luma_config(OpNode :: node(), Id :: id(),
+    Params :: #{atom() => term()}) -> ok | no_return().
+maybe_update_luma_config(OpNode, Id, Params) ->
+    IsEnabled = rpc:call(OpNode, storage, is_luma_enabled, [Id]),
+
+    case {storage_params:make_luma_params(Params), IsEnabled} of
+        {Empty, _} when map_size(Empty) == 0 ->
+            ok;
+        {#{luma_enabled := false}, false} ->
+            ok;
+        {#{luma_enabled := New}, Old} when New /= Old ->
+            LumaConfig = get_luma_config(OpNode, Params),
+            ok = rpc:call(OpNode, storage, set_luma_config, [Id, LumaConfig]),
+            invalidate_luma_cache(Id);
+        {Changes, true} ->
+            ok = rpc:call(OpNode, storage, update_luma_config, [Id, Changes]),
+            invalidate_luma_cache(Id)
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Checks if storage with given name exists.
+%% @end
+%%--------------------------------------------------------------------
+-spec exists(OpNode :: node(), StorageName :: name()) -> boolean().
+exists(OpNode, StorageName) ->
+    case rpc:call(OpNode, storage, select, [StorageName]) of
+        {error, not_found} -> false;
+        {ok, _} -> true
     end.
 
 %%--------------------------------------------------------------------

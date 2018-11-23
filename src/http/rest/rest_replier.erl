@@ -224,7 +224,7 @@ format_service_task_results(Results) ->
 
 %%--------------------------------------------------------------------
 %% @doc All storage helper parameters are stored as binaries in op-worker.
-%% This functions attempts to find their desired type in API model
+%% This function attempts to find their desired type in API model
 %% used for creating them and convert accordingly.
 %% @end
 %%--------------------------------------------------------------------

@@ -19,10 +19,16 @@
 # First put them in deps, later after release generation they will be copied
 # from there to release (see Makefile).
 TARGET_DIR='_build/default/lib/gui_static'
+
 # Image which will be used by default to get the static files. If it cannot
 # be resolved, the script will fall back to secondary.
-# @FIXME use 18.07 version
+
+# @FIXME use 18.07 version of storage-options-change
+# PRIMARY_IMAGE='docker.onedata.org/onepanel-gui:VFS-3335-storage-options-change-v2'
 PRIMARY_IMAGE='docker.onedata.org/onepanel-gui:VFS-5187-spaces-support-fixes-18.07'
+
 # Image which will be used if primary image is not resolved.
-# @FIXME use 18.07 version
+
+# @FIXME use 18.07 version of storage-options-change
+# SECONDARY_IMAGE='onedata/onepanel-gui:VFS-3335-storage-options-change-v2'
 SECONDARY_IMAGE='onedata/onepanel-gui:VFS-5187-spaces-support-fixes-18.07'

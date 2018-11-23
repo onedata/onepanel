@@ -368,8 +368,6 @@ register(Ctx) ->
                     service_ctx:get(oneprovider_subdomain, Ctx, binary)},
                 {<<"ipList">>, []}]; % IPs will be updated in the step set_cluster_ips
         false ->
-            % without subdomain delegtion, Let's Encrypt does not have to be configured
-            onepanel_deployment:mark_completed(?PROGRESS_LETSENCRYPT_CONFIG),
             [{<<"subdomainDelegation">>, false},
                 {<<"domain">>, service_ctx:get(oneprovider_domain, Ctx, binary)}]
     end,
@@ -587,7 +585,8 @@ revoke_space_support(#{id := SpaceId}) ->
 %%--------------------------------------------------------------------
 -spec get_spaces(Ctx :: service:ctx()) -> list().
 get_spaces(_Ctx) ->
-    {ok, SpaceIds} = oz_providers:get_spaces(provider),
+    [Node | _] = service_op_worker:get_nodes(),
+    {ok, SpaceIds} = rpc:call(Node, provider_logic, get_spaces, []),
     [{ids, SpaceIds}].
 
 

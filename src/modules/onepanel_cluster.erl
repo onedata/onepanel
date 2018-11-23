@@ -12,7 +12,6 @@
 -author("Krzysztof Trzepla").
 
 -include("modules/errors.hrl").
--include("names.hrl").
 
 %% API
 -export([node_to_host/0, node_to_host/1, nodes_to_hosts/1]).

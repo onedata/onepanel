@@ -28,6 +28,7 @@
     service_oneprovider_get_supported_spaces_test/1,
     service_op_worker_add_storage_test/1,
     service_op_worker_get_storages_test/1,
+    service_op_worker_update_storage_test/1,
     services_status_test/1,
     services_stop_start_test/1
 ]).
@@ -58,6 +59,7 @@ all() ->
         service_oneprovider_get_supported_spaces_test,
         service_op_worker_get_storages_test,
         service_op_worker_add_storage_test,
+        service_op_worker_update_storage_test,
         services_status_test
         %% TODO VFS-4056
         %% services_stop_start_test
@@ -140,7 +142,7 @@ service_op_worker_get_storages_test(Config) ->
     Ctx = #{hosts => [onepanel_cluster:node_to_host(Node)]},
     onepanel_test_utils:service_action(Node, op_worker, get_storages, Ctx),
     Results = assert_service_step(service:get_module(op_worker), get_storages),
-    [{Node, [{ids, [Id]}]}] = ?assertMatch([{Node, [{ids, [_]}]}], Results),
+    [{Node, #{ids := [Id]}}] = ?assertMatch([{Node, #{ids := [_]}}], Results),
 
     onepanel_test_utils:service_action(Node, op_worker, get_storages, Ctx#{id => Id}),
     Results2 = assert_service_step(service:get_module(op_worker), get_storages),
@@ -149,7 +151,7 @@ service_op_worker_get_storages_test(Config) ->
         {id, Id},
         {name, <<"somePosix1">>},
         {type, <<"posix">>},
-        {<<"mountPoint">>, onepanel_utils:typed_get(
+        {mountPoint, onepanel_utils:typed_get(
             [storages, posix, '/mnt/st1', docker_path], Config, binary
         )}
     ]).
@@ -169,7 +171,8 @@ service_op_worker_add_storage_test(Config) ->
         storages => #{
             <<"somePosix2">> => #{
                 type => <<"posix">>,
-                mountPoint => onepanel_utils:typed_get(docker_path, Posix, binary)
+                mountPoint => onepanel_utils:typed_get(docker_path, Posix, binary),
+                storagePathType => <<"canonical">>
             },
             <<"someCeph">> => #{
                 type => <<"ceph">>,
@@ -177,7 +180,8 @@ service_op_worker_add_storage_test(Config) ->
                 key => onepanel_utils:typed_get(key, Ceph, binary),
                 monitorHostname => onepanel_utils:typed_get(host_name, Ceph, binary),
                 poolName => <<"onedata">>,
-                username => onepanel_utils:typed_get(username, Ceph, binary)
+                username => onepanel_utils:typed_get(username, Ceph, binary),
+                storagePathType => <<"flat">>
             },
             <<"someCephRados">> => #{
                 type => <<"cephrados">>,
@@ -185,7 +189,8 @@ service_op_worker_add_storage_test(Config) ->
                 key => onepanel_utils:typed_get(key, CephRados, binary),
                 monitorHostname => onepanel_utils:typed_get(host_name, CephRados, binary),
                 poolName => <<"onedata">>,
-                username => onepanel_utils:typed_get(username, CephRados, binary)
+                username => onepanel_utils:typed_get(username, CephRados, binary),
+                storagePathType => <<"flat">>
             },
             <<"someS3">> => #{
                 type => <<"s3">>,
@@ -193,7 +198,8 @@ service_op_worker_add_storage_test(Config) ->
                 secretKey => onepanel_utils:typed_get(secret_key, S3, binary),
                 bucketName => <<"onedata">>,
                 hostname => <<"http://", (onepanel_utils:typed_get(host_name,
-                    S3, binary))/binary>>
+                    S3, binary))/binary>>,
+                storagePathType => <<"flat">>
             },
             <<"someSwift">> => #{
                 type => <<"swift">>,
@@ -203,7 +209,8 @@ service_op_worker_add_storage_test(Config) ->
                     onepanel_utils:typed_get(host_name, Swift, binary), ":",
                     onepanel_utils:typed_get(keystone_port, Swift, binary), "/v2.0/tokens"]),
                 tenantName => onepanel_utils:typed_get(tenant_name, Swift, binary),
-                containerName => <<"swift">>
+                containerName => <<"swift">>,
+                storagePathType => <<"flat">>
             },
             <<"someGluster">> => #{
                 type => <<"glusterfs">>,
@@ -212,7 +219,8 @@ service_op_worker_add_storage_test(Config) ->
                 port => onepanel_utils:typed_get(port, Glusterfs, binary),
                 transport => onepanel_utils:typed_get(transport, Glusterfs, binary),
                 mountPoint => onepanel_utils:typed_get(mountpoint, Glusterfs, binary),
-                xlatorOptions => <<"cluster.write-freq-threshold=100;">>
+                xlatorOptions => <<"cluster.write-freq-threshold=100;">>,
+                storagePathType => <<"canonical">>
             },
             <<"someWebDAV">> => #{
                 type => <<"webdav">>,
@@ -222,11 +230,65 @@ service_op_worker_add_storage_test(Config) ->
                 verifyServerCertificate => onepanel_utils:typed_get(verify_server_certificate, WebDAV, binary),
                 rangeWriteSupport => onepanel_utils:typed_get(range_write_support, WebDAV, binary),
                 authorizationHeader => onepanel_utils:typed_get(authorization_header, WebDAV, binary),
-                connectionPoolSize => onepanel_utils:typed_get(connection_pool_size, WebDAV, binary)
+                connectionPoolSize => onepanel_utils:typed_get(connection_pool_size, WebDAV, binary),
+                storagePathType => <<"canonical">>
             }
         }
     }),
     assert_service_step(service:get_module(op_worker), add_storages, [Node], ok).
+
+
+service_op_worker_update_storage_test(Config) ->
+    [Node | _] = ?config(oneprovider_nodes, Config),
+    [Host | _] = ?config(oneprovider_hosts, Config),
+
+    ChangesByName = #{
+        <<"somePosix2">> => #{
+            type => <<"posix">>, mountPoint => <<"newMountPoint">>, timeout => 500
+        },
+        <<"someCeph">> => #{
+            monitorHostname => <<"newHostName">>, username => <<"changedCephAdmin">>
+        },
+        <<"someCephRados">> => #{
+            monitorHostname => <<"newHostName">>, username => <<"changedCephAdmin">>
+        },
+        <<"someS3">> => #{
+            type => <<"s3">>,
+            bucketName => <<"onedataNew">>
+        },
+        <<"someSwift">> => #{
+            type => <<"swift">>,
+            tenantName => <<"changedTenant">>,
+            containerName => <<"swift2">>
+        },
+        <<"someGluster">> => #{
+            type => <<"glusterfs">>,
+            transport => <<"http">>,
+            mountPoint => <<"otherMountPoint">>
+        },
+        <<"someWebDAV">> => #{
+            type => <<"webdav">>,
+            rangeWriteSupport => <<"moddav">>
+        }
+    },
+
+    ExistingStorages = get_storages(Config),
+    lists:foreach(fun
+        (#{id := Id, type := _Type, name := Name} = Storage) ->
+            case maps:find(Name, ChangesByName) of
+                {ok, Changes} ->
+                    ChangesBinary = onepanel_utils:convert(Changes, {values, binary}),
+                    Expected = maps:merge(Storage,
+                        ChangesBinary#{verificationPassed => false}),
+
+                    onepanel_test_utils:service_action(Node, op_worker, update_storage, #{
+                        hosts => [Host], storage => Changes, id => Id
+                    }),
+                    assert_service_step(service:get_module(op_worker),
+                        update_storage, [Node], Expected);
+                error -> skip
+            end
+    end, ExistingStorages).
 
 
 services_status_test(Config) ->
@@ -363,7 +425,8 @@ init_per_suite(Config) ->
                             type => <<"posix">>,
                             mountPoint => onepanel_utils:typed_get(
                                 docker_path, Posix, binary
-                            )
+                            ),
+                            storagePathType => <<"canonical">>
                         }
                     }
                 },
@@ -433,7 +496,7 @@ assert_service_step(Module, Function, Nodes, Result) ->
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
-%% Waits for substriptions channel to be active in the provider.
+%% Waits for subscriptions channel to be active in the provider.
 %% @end
 %%--------------------------------------------------------------------
 -spec await_oz_connectivity(Node :: node()) -> ok | no_return().
@@ -476,3 +539,29 @@ regenerate_web_certificate(Nodes, Domain) ->
 -spec rpc_get_env(node(), atom()) -> term().
 rpc_get_env(Node, Key) ->
     rpc:call(Node, onepanel_env, get, [Key]).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Returns list of op worker storages
+%% @end
+%%--------------------------------------------------------------------
+-spec get_storages(Config :: proplists:proplist()) ->
+    [op_worker_storage:storage_details()].
+get_storages(Config) ->
+    [Node | _] = ?config(oneprovider_nodes, Config),
+    onepanel_test_utils:service_action(Node, op_worker, get_storages, #{
+        hosts => [onepanel_cluster:node_to_host(Node)]
+    }),
+    Results = assert_service_step(service:get_module(op_worker), get_storages),
+    [{_, #{ids := Ids}}] = ?assertMatch([{Node, _}], Results),
+
+    lists:map(fun(Id) ->
+        onepanel_test_utils:service_action(Node, op_worker, get_storages, #{
+            hosts => [onepanel_cluster:node_to_host(Node)], id => Id
+        }),
+        Results2 = assert_service_step(service:get_module(op_worker), get_storages),
+        [{_, Details}] = ?assertMatch([{Node, _}], Results2),
+        Details
+    end, Ids).

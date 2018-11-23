@@ -19,7 +19,7 @@
 -behavior(rest_behaviour).
 
 %% REST behaviour callbacks
--export([is_authorized/3, exists_resource/2, accept_possible/4, is_available/3,
+-export([is_authorized/3, exists_resource/2, is_conflict/4, is_available/3,
     accept_resource/4, provide_resource/2, delete_resource/2]).
 
 -export([make_policies_ctx/1]).
@@ -62,11 +62,11 @@ exists_resource(Req, _State) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link rest_behaviour:accept_possible/4}
+%% @doc {@link rest_behaviour:is_conflict/4}
 %% @end
 %%--------------------------------------------------------------------
-accept_possible(Req, _Method, _Args, _State) ->
-    {true, Req}.
+is_conflict(Req, _Method, _Args, _State) ->
+    {false, Req}.
 
 
 %%--------------------------------------------------------------------
