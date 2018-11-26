@@ -337,7 +337,7 @@ routes() ->
             }]
         }},
 
-        %% Modify storage details
+        %% Modify storage config
         {<<"/api/v3/onepanel/provider/storages/:id">>, rest_handler, #rstate{
             version = 3,
             module = rest_oneprovider,
