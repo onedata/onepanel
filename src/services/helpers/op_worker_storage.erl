@@ -31,6 +31,8 @@
 -type storage_map() :: #{Name :: name() => Params :: storage_params_map()}.
 -type luma_config() :: {atom(), binary(), undefined | binary()}.
 
+-export_type([storage_params_map/0, storage_map/0]).
+
 %%%===================================================================
 %%% API functions
 %%%===================================================================
@@ -52,7 +54,7 @@ add(Storages, IgnoreExists) ->
         ?info("Gathering storage configuration: \"~s\" (~s)", [StorageName, StorageType]),
         ReadOnly = onepanel_utils:typed_get(readonly, Value, boolean, false),
         UserCtx = get_storage_user_ctx(Node, StorageType, Value),
-        Helper = get_storage_helper(Node, StorageType, UserCtx, Value),
+        Helper = storage_helper_record:make_storage_helper(Node, StorageType, UserCtx, Value),
         LumaConfig = get_luma_config(Node, Value),
         maybe_verify_storage(Helper, UserCtx, ReadOnly),
 
@@ -286,134 +288,6 @@ get_storage_user_ctx(Node, <<"webdav">>, Params) ->
     ]).
 
 %%--------------------------------------------------------------------
-%% @private @doc Returns storage helper record.
-%% @end
-%%--------------------------------------------------------------------
--spec get_storage_helper(Node :: node(), StorageType :: binary(), UserCtx :: any(),
-    Params :: storage_params_map()) -> Helper :: any().
-get_storage_helper(Node, <<"ceph">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_ceph_helper, [
-        onepanel_utils:typed_get(monitorHostname, Params, binary),
-        onepanel_utils:typed_get(clusterName, Params, binary),
-        onepanel_utils:typed_get(poolName, Params, binary),
-        get_helper_opt_args([{timeout, binary}], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"flat">>)
-    ]);
-get_storage_helper(Node, <<"cephrados">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_cephrados_helper, [
-        onepanel_utils:typed_get(monitorHostname, Params, binary),
-        onepanel_utils:typed_get(clusterName, Params, binary),
-        onepanel_utils:typed_get(poolName, Params, binary),
-        get_helper_opt_args([
-            {timeout, binary},
-            {blockSize, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"flat">>)
-    ]);
-get_storage_helper(Node, <<"posix">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_posix_helper, [
-        onepanel_utils:typed_get(mountPoint, Params, binary),
-        get_helper_opt_args([{timeout, binary}], Params),
-        UserCtx,
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"canonical">>)
-    ]);
-get_storage_helper(Node, <<"s3">>, UserCtx, Params) ->
-    #hackney_url{scheme = S3Scheme, host = S3Host, port = S3Port} =
-        hackney_url:parse_url(onepanel_utils:typed_get(hostname, Params, binary)),
-    rpc:call(Node, helper, new_s3_helper, [
-        onepanel_utils:join([S3Host, S3Port], <<":">>),
-        onepanel_utils:typed_get(bucketName, Params, binary),
-        S3Scheme =:= https,
-        get_helper_opt_args([
-            {signatureVersion, binary},
-            {timeout, binary},
-            {blockSize, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"flat">>)
-    ]);
-get_storage_helper(Node, <<"swift">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_swift_helper, [
-        onepanel_utils:typed_get(authUrl, Params, binary),
-        onepanel_utils:typed_get(containerName, Params, binary),
-        onepanel_utils:typed_get(tenantName, Params, binary),
-        get_helper_opt_args([
-            {timeout, binary},
-            {blockSize, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"flat">>)
-    ]);
-get_storage_helper(Node, <<"glusterfs">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_glusterfs_helper, [
-        onepanel_utils:typed_get(volume, Params, binary),
-        onepanel_utils:typed_get(hostname, Params, binary),
-        get_helper_opt_args([
-            {port, binary},
-            {mountPoint, binary},
-            {transport, binary},
-            {xlatorOptions, binary},
-            {timeout, binary},
-            {blockSize, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"canonical">>)
-    ]);
-get_storage_helper(Node, <<"nulldevice">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_nulldevice_helper, [
-        get_helper_opt_args([
-            {latencyMin, binary},
-            {latencyMax, binary},
-            {timeoutProbability, binary},
-            {filter, binary},
-            {simulatedFilesystemParameters, binary},
-            {simulatedFilesystemGrowSpeed, binary},
-            {timeout, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"canonical">>)
-    ]);
-get_storage_helper(Node, <<"webdav">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_webdav_helper, [
-        onepanel_utils:typed_get(endpoint, Params, binary),
-        get_helper_opt_args([
-            {verifyServerCertificate, binary},
-            {authorizationHeader, binary},
-            {rangeWriteSupport, binary},
-            {connectionPoolSize, binary},
-            {maximumUploadSize, binary},
-            {timeout, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"canonical">>)
-    ]).
-
-%%--------------------------------------------------------------------
-%% @private @doc Returns storage helper optional argument.
-%% @end
-%%--------------------------------------------------------------------
--spec get_helper_opt_args(KeySpec :: [{Key :: atom(), Type :: onepanel_utils:type()}],
-    Params :: storage_params_map()) -> OptArgs :: #{}.
-get_helper_opt_args(KeysSpec, Params) ->
-    lists:foldl(fun({Key, Type}, OptArgs) ->
-        case onepanel_utils:typed_get(Key, Params, Type) of
-            #error{} ->
-                OptArgs;
-            Value ->
-                maps:put(onepanel_utils:convert(Key, binary), Value, OptArgs)
-        end
-    end, #{}, KeysSpec).
-
-%%--------------------------------------------------------------------
 %% @private @doc For read-write storage verifies that it is accessible for all
 %% op_worker service nodes.
 %% @end
@@ -424,95 +298,7 @@ maybe_verify_storage(_Helper, _UserCtx, true) ->
     ok;
 maybe_verify_storage(Helper, UserCtx, _) ->
     ?info("Verifying write access to storage"),
-    verify_storage(Helper, UserCtx).
-
-%%--------------------------------------------------------------------
-%% @private @doc Verifies that storage is accessible for all op_worker
-%% service nodes.
-%% @end
-%%--------------------------------------------------------------------
--spec verify_storage(Helper :: any(), UserCtx :: any()) ->
-    ok | no_return().
-verify_storage(Helper, UserCtx) ->
-    [Node | Nodes] = service_op_worker:get_nodes(),
-    {FileId, FileContent} = create_test_file(Node, Helper, UserCtx),
-    {FileId2, FileContent2} = verify_test_file(
-        Nodes, Helper, UserCtx, FileId, FileContent
-    ),
-    read_test_file(Node, Helper, UserCtx, FileId2, FileContent2),
-    remove_test_file(Node, Helper, UserCtx, FileId2, size(FileContent2)).
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Checks whether storage is read/write accessible for all
-%% op_worker service nodes by creating, reading and removing test files.
-%% @end
-%%--------------------------------------------------------------------
--spec verify_test_file(Nodes :: [node()], Helper :: any(), UserCtx :: any(),
-    FileId :: binary(), FileContent :: binary()) ->
-    {FileId :: binary(), FileContent :: binary()} | no_return().
-verify_test_file([], _Helper, _UserCtx, FileId, FileContent) ->
-    {FileId, FileContent};
-
-verify_test_file([Node | Nodes], Helper, UserCtx, FileId, FileContent) ->
-    read_test_file(Node, Helper, UserCtx, FileId, FileContent),
-    remove_test_file(Node, Helper, UserCtx, FileId, size(FileContent)),
-    {FileId2, FileContent2} = create_test_file(Node, Helper, UserCtx),
-    verify_test_file(Nodes, Helper, UserCtx, FileId2, FileContent2).
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Creates storage test file.
-%% @end
-%%--------------------------------------------------------------------
--spec create_test_file(Node :: node(), Helper :: any(), UserCtx :: any()) ->
-    {FileId :: binary(), FileContent :: binary()} | no_return().
-create_test_file(Node, Helper, UserCtx) ->
-    FileId = rpc:call(Node, storage_detector, generate_file_id, []),
-    Args = [Helper, UserCtx, FileId],
-    case rpc:call(Node, storage_detector, create_test_file, Args) of
-        <<_/binary>> = FileContent ->
-            {FileId, FileContent};
-        {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
-            ?throw_stacktrace({?ERR_STORAGE_TEST_FILE_CREATE, Node, Reason}, undefined, Stacktrace)
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Reads storage test file.
-%% @end
-%%--------------------------------------------------------------------
--spec read_test_file(Node :: node(), Helper :: any(), UserCtx :: any(),
-    FileId :: binary(), FileContent :: binary()) -> ok | no_return().
-read_test_file(Node, Helper, UserCtx, FileId, FileContent) ->
-    Args = [Helper, UserCtx, FileId],
-    ActualFileContent = rpc:call(Node, storage_detector, read_test_file, Args),
-
-    case ActualFileContent of
-        FileContent ->
-            ok;
-        <<_/binary>> ->
-            ?throw_error({?ERR_STORAGE_TEST_FILE_READ, Node,
-                {invalid_content, FileContent, ActualFileContent}});
-        {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
-            ?throw_stacktrace({?ERR_STORAGE_TEST_FILE_READ, Node, Reason}, undefined, Stacktrace)
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Removes storage test file.
-%% @end
-%%--------------------------------------------------------------------
--spec remove_test_file(Node :: node(), Helper :: any(), UserCtx :: any(),
-    FileId :: binary(), Size :: non_neg_integer()) -> ok | no_return().
-remove_test_file(Node, Helper, UserCtx, FileId, Size) ->
-    Args = [Helper, UserCtx, FileId, Size],
-    case rpc:call(Node, storage_detector, remove_test_file, Args) of
-        {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
-            ?throw_stacktrace({?ERR_STORAGE_TEST_FILE_REMOVE, Node, Reason}, undefined, Stacktrace);
-        _ -> ok
-    end.
-
+    storage_tester:verify_storage(Helper, UserCtx).
 
 %%--------------------------------------------------------------------
 %% @private @doc Adds storage to the op_worker service configuration.
@@ -567,7 +353,7 @@ get_storage(Node, Storage) ->
 get_luma_config(Node, StorageParams) ->
     case onepanel_utils:typed_get(lumaEnabled, StorageParams, boolean, false) of
         true ->
-            Url = get_required_luma_arg(StorageParams, lumaUrl, binary),
+            Url = get_required_luma_arg(lumaUrl, StorageParams, binary),
             ApiKey = onepanel_utils:typed_get(lumaApiKey, StorageParams, binary, undefined),
             rpc:call(Node, luma_config, new, [Url, ApiKey]);
         false ->
@@ -579,12 +365,10 @@ get_luma_config(Node, StorageParams) ->
 %% in StorageParams. Throws error if key is missing
 %% @end
 %%--------------------------------------------------------------------
--spec get_required_luma_arg(StorageParams :: storage_params_map(), Key :: atom(),
+-spec get_required_luma_arg(Key :: atom(), StorageParams :: storage_params_map(),
     Type :: onepanel_utils:type()) -> term().
-get_required_luma_arg(StorageParams, Key, Type) ->
+get_required_luma_arg(Key, StorageParams, Type) ->
     case onepanel_utils:typed_get(Key, StorageParams, Type) of
-        {error, _} ->
-            ?throw_error(?ERR_LUMA_CONFIG(Key));
-        Value ->
-            Value
+        #error{} -> ?throw_error(?ERR_LUMA_CONFIG(Key));
+        Value -> Value
     end.
