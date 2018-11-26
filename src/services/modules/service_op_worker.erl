@@ -255,8 +255,8 @@ get_storages(_Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec update_storage(Ctx :: service:ctx()) -> ok | no_return().
-update_storage(#{id := Id, args := Args}) ->
-    op_worker_storage:update(Id, Args).
+update_storage(#{id := Id, storage := Params}) ->
+    op_worker_storage:update(Id, Params).
 
 
 %%-------------------------------------------------------------------

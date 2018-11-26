@@ -77,14 +77,14 @@ add(Storages, IgnoreExists) ->
 %% service.
 %% @end
 %%--------------------------------------------------------------------
--spec get() -> list().
+-spec get() -> #{ids := [id()]}.
 get() ->
     Node = onepanel_cluster:service_to_node(service_op_worker:name()),
     {ok, Storages} = rpc:call(Node, storage, list, []),
     Ids = lists:map(fun(Storage) ->
         rpc:call(Node, storage, get_id, [Storage])
     end, Storages),
-    [{ids, Ids}].
+    #{ids => Ids}.
 
 
 %%--------------------------------------------------------------------
@@ -188,13 +188,17 @@ maybe_update_autocleaning(_Node, SpaceId, Args) when map_size(Args) =:= 0 ->
 maybe_update_autocleaning(Node, SpaceId, Args) ->
     Settings = #{
         enabled => onepanel_utils:typed_get(enabled, Args, boolean, undefined),
-        lower_file_size_limit => onepanel_utils:typed_get([settings, lower_file_size_limit], Args, integer, undefined),
-        upper_file_size_limit => onepanel_utils:typed_get([settings, upper_file_size_limit], Args, integer, undefined),
-        max_file_not_opened_hours => onepanel_utils:typed_get([settings, max_file_not_opened_hours], Args, integer, undefined),
+        lower_file_size_limit => onepanel_utils:typed_get([settings, lower_file_size_limit], Args,
+            integer, undefined),
+        upper_file_size_limit => onepanel_utils:typed_get([settings, upper_file_size_limit], Args,
+            integer, undefined),
+        max_file_not_opened_hours => onepanel_utils:typed_get([settings, max_file_not_opened_hours],
+            Args, integer, undefined),
         target => onepanel_utils:typed_get([settings, target], Args, integer, undefined),
         threshold => onepanel_utils:typed_get([settings, threshold], Args, integer, undefined)
     },
-    case rpc:call(Node, space_cleanup_api, configure_autocleaning, [SpaceId, onepanel_maps:remove_undefined(Settings)]) of
+    case rpc:call(Node, space_cleanup_api, configure_autocleaning,
+        [SpaceId, onepanel_maps:remove_undefined(Settings)]) of
         {error, Reason} ->
             ?throw_error({?ERR_CONFIG_AUTOCLEANING, Reason});
         Result -> Result
@@ -575,12 +579,12 @@ get_luma_config(Node, StorageParams) ->
 %% in StorageParams. Throws error if key is missing
 %% @end
 %%--------------------------------------------------------------------
--spec get_required_luma_arg(StorageParams :: storage_params_map(), Key ::atom(),
+-spec get_required_luma_arg(StorageParams :: storage_params_map(), Key :: atom(),
     Type :: onepanel_utils:type()) -> term().
 get_required_luma_arg(StorageParams, Key, Type) ->
     case onepanel_utils:typed_get(Key, StorageParams, Type) of
         {error, _} ->
-            ?throw_error( ?ERR_LUMA_CONFIG(Key));
+            ?throw_error(?ERR_LUMA_CONFIG(Key));
         Value ->
             Value
     end.

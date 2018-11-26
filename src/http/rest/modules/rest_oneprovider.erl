@@ -149,10 +149,14 @@ accept_resource(Req, 'POST', Args, #rstate{resource = storages}) ->
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = storage,
     bindings = #{id := Id}}) ->
-    Ctx = #{id => Id},
-    Ctx2 = onepanel_maps:get_store(timeout, Args, [args, timeout], Ctx),
+    % only 1 storage should be modified at a time
+    [{Name, #{type := Type} = Params}] = maps:to_list(Args),
+
+    % ensure received name and type match expected
+    #{name := Name, type := Type} = service_op_worker:get_storages(#{id => Id}),
+
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?WORKER, update_storage, Ctx2
+        ?WORKER, update_storage, #{id => Id, storage => Params}
     ))};
 
 accept_resource(Req, 'PATCH', _Args, #rstate{resource = luma,
