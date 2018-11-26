@@ -24,7 +24,7 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec make_storage_helper(Node :: node(), StorageType :: binary(),
-    UserCtx :: any(), Params :: op_worker_storage:storage_params_map()) ->
+    UserCtx :: any(), Params :: op_worker_storage:storage_params()) ->
     Helper :: any().
 make_storage_helper(Node, <<"ceph">>, UserCtx, Params) ->
     rpc:call(Node, helper, new_ceph_helper, [
@@ -149,7 +149,7 @@ make_storage_helper(Node, <<"webdav">>, UserCtx, Params) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_helper_opt_args(KeySpec :: [{Key :: atom(), Type :: onepanel_utils:type()}],
-    Params :: op_worker_storage:storage_params_map()) -> OptArgs :: #{}.
+    Params :: op_worker_storage:storage_params()) -> OptArgs :: #{}.
 get_helper_opt_args(KeysSpec, Params) ->
     lists:foldl(fun({Key, Type}, OptArgs) ->
         case onepanel_utils:typed_get(Key, Params, Type) of

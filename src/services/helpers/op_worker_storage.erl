@@ -27,11 +27,11 @@
 
 -type id() :: binary().
 -type name() :: binary().
--type storage_params_map() :: #{Key :: atom() | binary() => Value :: binary()}.
--type storage_map() :: #{Name :: name() => Params :: storage_params_map()}.
+-type storage_params() :: #{Key :: atom() | binary() => Value :: binary()}.
+-type storages_map() :: #{Name :: name() => Params :: storage_params()}.
 -type luma_config() :: {atom(), binary(), undefined | binary()}.
 
--export_type([storage_params_map/0, storage_map/0]).
+-export_type([storage_params/0, storages_map/0]).
 
 %%%===================================================================
 %%% API functions
@@ -43,23 +43,15 @@
 %% addition.
 %% @end
 %%--------------------------------------------------------------------
--spec add(Storages :: storage_map(), IgnoreExists :: boolean()) -> ok | no_return().
+-spec add(Storages :: storages_map(), IgnoreExists :: boolean()) -> ok | no_return().
 add(Storages, IgnoreExists) ->
     Node = onepanel_cluster:service_to_node(service_op_worker:name()),
     ?info("Adding ~b storage(s)", [maps:size(Storages)]),
     maps:fold(fun(Key, Value, _) ->
         StorageName = onepanel_utils:convert(Key, binary),
         StorageType = onepanel_utils:typed_get(type, Value, binary),
+        Result = add(Node, StorageName, Value),
 
-        ?info("Gathering storage configuration: \"~s\" (~s)", [StorageName, StorageType]),
-        ReadOnly = onepanel_utils:typed_get(readonly, Value, boolean, false),
-        UserCtx = get_storage_user_ctx(Node, StorageType, Value),
-        Helper = storage_helper_record:make_storage_helper(Node, StorageType, UserCtx, Value),
-        LumaConfig = get_luma_config(Node, Value),
-        maybe_verify_storage(Helper, UserCtx, ReadOnly),
-
-        ?info("Adding storage: \"~s\" (~s)", [StorageName, StorageType]),
-        Result = add_storage(Node, StorageName, [Helper], ReadOnly, LumaConfig),
         case {Result, IgnoreExists} of
             {{ok, _StorageId}, _} ->
                 ?info("Successfully added storage: \"~s\" (~s)", [StorageName, StorageType]),
@@ -70,8 +62,31 @@ add(Storages, IgnoreExists) ->
             {{error, Reason}, _} ->
                 ?throw_error({?ERR_STORAGE_ADDITION, Reason})
         end
-    end, [], Storages),
-    ok.
+    end, ok, Storages).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Verifies that provide storage is accessible for all op_worker
+%% service nodes. In case of a successful verification proceeds with storage
+%% addition.
+%% Uses given Node for op_worker operations.
+%% @end
+%%--------------------------------------------------------------------
+-spec add(Node :: node(), StorageName :: binary(), Params :: storage_params()) ->
+    {ok, StorageId :: binary()} | {error, Reason :: term()}.
+add(Node, StorageName, Params) ->
+    StorageType = onepanel_utils:typed_get(type, Params, binary),
+
+    ?info("Gathering storage configuration: \"~s\" (~s)", [StorageName, StorageType]),
+    ReadOnly = onepanel_utils:typed_get(readonly, Params, boolean, false),
+    UserCtx = get_storage_user_ctx(Node, StorageType, Params),
+    Helper = storage_helper_record:make_storage_helper(Node, StorageType, UserCtx, Params),
+    LumaConfig = get_luma_config(Node, Params),
+    maybe_verify_storage(Helper, UserCtx, ReadOnly),
+
+    ?info("Adding storage: \"~s\" (~s)", [StorageName, StorageType]),
+    add_storage(Node, StorageName, [Helper], ReadOnly, LumaConfig).
 
 
 %%--------------------------------------------------------------------
@@ -93,7 +108,7 @@ get() ->
 %% @doc Returns details of a selected storage from op_worker service.
 %% @end
 %%--------------------------------------------------------------------
--spec get(Id :: id()) -> storage_params_map().
+-spec get(Id :: id()) -> storage_params().
 get(Id) ->
     Node = onepanel_cluster:service_to_node(service_op_worker:name()),
     {ok, Storage} = rpc:call(Node, storage, get, [Id]),
@@ -178,6 +193,7 @@ maybe_update_file_popularity(Node, SpaceId, Args) ->
             rpc:call(Node, space_storage, disable_file_popularity, [SpaceId])
     end.
 
+
 %%-------------------------------------------------------------------
 %% @private
 %% @doc
@@ -206,6 +222,7 @@ maybe_update_autocleaning(Node, SpaceId, Args) ->
         Result -> Result
     end.
 
+
 %%-------------------------------------------------------------------
 %% @doc
 %% This function is responsible for fetching file popularity details
@@ -215,6 +232,7 @@ maybe_update_autocleaning(Node, SpaceId, Args) ->
 -spec get_file_popularity_details(Node :: node(), SpaceId :: id()) -> proplists:proplist().
 get_file_popularity_details(Node, SpaceId) ->
     rpc:call(Node, space_storage, get_file_popularity_details, [SpaceId]).
+
 
 %%-------------------------------------------------------------------
 %% @doc
@@ -226,6 +244,7 @@ get_file_popularity_details(Node, SpaceId) ->
 get_autocleaning_details(Node, SpaceId) ->
     Details = rpc:call(Node, space_cleanup_api, get_details, [SpaceId]),
     onepanel_lists:map_undefined_to_null(Details).
+
 
 %%-------------------------------------------------------------------
 %% @doc
@@ -247,7 +266,7 @@ invalidate_luma_cache(StorageId) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_storage_user_ctx(Node :: node(), StorageType :: binary(),
-    Params :: storage_params_map()) -> UserCtx :: any().
+    Params :: storage_params()) -> UserCtx :: any().
 get_storage_user_ctx(Node, <<"ceph">>, Params) ->
     rpc:call(Node, helper, new_ceph_user_ctx, [
         onepanel_utils:typed_get(username, Params, binary),
@@ -300,6 +319,7 @@ maybe_verify_storage(Helper, UserCtx, _) ->
     ?info("Verifying write access to storage"),
     storage_tester:verify_storage(Helper, UserCtx).
 
+
 %%--------------------------------------------------------------------
 %% @private @doc Adds storage to the op_worker service configuration.
 %% @end
@@ -322,7 +342,7 @@ add_storage(Node, StorageName, Helpers, ReadOnly, LumaConfig) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_storage(Node :: node(), Storage :: any()) ->
-    Storage :: storage_params_map().
+    Storage :: storage_params().
 get_storage(Node, Storage) ->
     [Helper | _] = rpc:call(Node, storage, get_helpers, [Storage]),
     AdminCtx = rpc:call(Node, helper, get_admin_ctx, [Helper]),
@@ -342,13 +362,14 @@ get_storage(Node, Storage) ->
         lumaUrl => maps:get(url, LumaConfig, null)
     }.
 
+
 %%--------------------------------------------------------------------
 %% @private @doc Parses LUMA config arguments if lumaEnabled is set to
 %% true in StorageParams and returns luma config acquired from provider.
 %% Throws error if lumaEnabled is true and other arguments are missing.
 %% @end
 %%--------------------------------------------------------------------
--spec get_luma_config(Node :: node(), StorageParams :: storage_params_map()) ->
+-spec get_luma_config(Node :: node(), StorageParams :: storage_params()) ->
     undefined | luma_config().
 get_luma_config(Node, StorageParams) ->
     case onepanel_utils:typed_get(lumaEnabled, StorageParams, boolean, false) of
@@ -360,12 +381,13 @@ get_luma_config(Node, StorageParams) ->
             undefined
     end.
 
+
 %%--------------------------------------------------------------------
 %% @private @doc Returns LUMA argument value associated with Key
 %% in StorageParams. Throws error if key is missing
 %% @end
 %%--------------------------------------------------------------------
--spec get_required_luma_arg(Key :: atom(), StorageParams :: storage_params_map(),
+-spec get_required_luma_arg(Key :: atom(), StorageParams :: storage_params(),
     Type :: onepanel_utils:type()) -> term().
 get_required_luma_arg(Key, StorageParams, Type) ->
     case onepanel_utils:typed_get(Key, StorageParams, Type) of
