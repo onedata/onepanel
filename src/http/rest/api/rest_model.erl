@@ -840,7 +840,8 @@ storage_details_model() ->
     {oneof, [posix_model(), s3_model(), ceph_model(), cephrados_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model()]}.
 
 %%--------------------------------------------------------------------
-%% @doc The part of storage configuration which can be after storage creation.
+%% @doc The part of storage configuration which can be modified after storage
+%% creation.
 %% @end
 %%--------------------------------------------------------------------
 -spec storage_details_modify_model() -> {oneof, Oneof :: list()}.
@@ -865,7 +866,9 @@ storage_import_details_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The configuration details required to add storage resources.
+%% @doc The storage parameters to be changed. Should be a single-valued
+%% dictionary with storage name as the key and parameters to be changed as the
+%% value.
 %% @end
 %%--------------------------------------------------------------------
 -spec storage_modify_request_model() -> map().
@@ -1218,7 +1221,7 @@ ceph_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, optional}
+        storagePathType => {string, {optional, <<"flat">>}}
     }.
 
 %%--------------------------------------------------------------------
@@ -1307,7 +1310,7 @@ cephrados_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, optional}
+        storagePathType => {string, {optional, <<"flat">>}}
     }.
 
 %%--------------------------------------------------------------------
@@ -1398,7 +1401,7 @@ glusterfs_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, optional}
+        storagePathType => {string, {optional, <<"canonical">>}}
     }.
 
 %%--------------------------------------------------------------------
@@ -1492,7 +1495,7 @@ nulldevice_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, optional},
+        storagePathType => {string, {optional, <<"canonical">>}},
         %% Specifies the parameters for a simulated null device filesystem. For
         %% example `2-2:2-2:0-1` will generate a filesystem tree which
         %% has 2 directories (`0` and `1`) and 2 files
@@ -1607,7 +1610,7 @@ posix_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, optional}
+        storagePathType => {string, {optional, <<"canonical">>}}
     }.
 
 %%--------------------------------------------------------------------
@@ -1690,7 +1693,7 @@ s3_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, optional}
+        storagePathType => {string, {optional, <<"flat">>}}
     }.
 
 %%--------------------------------------------------------------------
@@ -1780,7 +1783,7 @@ swift_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, optional}
+        storagePathType => {string, {optional, <<"flat">>}}
     }.
 
 %%--------------------------------------------------------------------
@@ -1891,7 +1894,7 @@ webdav_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, optional}
+        storagePathType => {string, {optional, <<"canonical">>}}
     }.
 
 %%--------------------------------------------------------------------
@@ -1957,5 +1960,4 @@ webdav_modify_model() ->
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional}
     }.
-
 

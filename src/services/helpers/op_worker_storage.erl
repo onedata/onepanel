@@ -81,12 +81,33 @@ add(Node, StorageName, Params) ->
     ?info("Gathering storage configuration: \"~s\" (~s)", [StorageName, StorageType]),
     ReadOnly = onepanel_utils:typed_get(readonly, Params, boolean, false),
     UserCtx = get_storage_user_ctx(Node, StorageType, Params),
-    Helper = storage_helper_record:make_storage_helper(Node, StorageType, UserCtx, Params),
+    Helper = storage_params:make_storage_helper(Node, StorageType, UserCtx, Params),
     LumaConfig = get_luma_config(Node, Params),
     maybe_verify_storage(Helper, UserCtx, ReadOnly),
 
     ?info("Adding storage: \"~s\" (~s)", [StorageName, StorageType]),
     add_storage(Node, StorageName, [Helper], ReadOnly, LumaConfig).
+
+
+%%--------------------------------------------------------------------
+%% @doc Updates details of a selected storage in op_worker service.
+%% @end
+%%--------------------------------------------------------------------
+-spec update(Name :: name(), Args :: maps:map()) -> ok.
+update(Id, Args) ->
+    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
+    Storage = op_worker_storage:get(Id),
+    {ok, Id} = onepanel_maps:get(id, Storage),
+    {ok, Type} = onepanel_maps:get(type, Storage),
+
+%%    extract helper params
+
+    Args2 = #{<<"timeout">> => onepanel_utils:typed_get(timeout, Args, binary)},
+
+
+
+    {ok, _} = rpc:call(Node, storage, update_helper_args, [Id, Type, Args2]),
+    ok.
 
 
 %%--------------------------------------------------------------------
@@ -146,21 +167,6 @@ is_mounted_in_root(Node, SpaceId, StorageId) ->
         [SpaceStorage]
     ),
     lists:member(StorageId, MountedInRoot).
-
-
-%%--------------------------------------------------------------------
-%% @doc Updates details of a selected storage in op_worker service.
-%% @end
-%%--------------------------------------------------------------------
--spec update(Name :: name(), Args :: maps:map()) -> ok.
-update(Id, Args) ->
-    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
-    Storage = op_worker_storage:get(Id),
-    {ok, Id} = onepanel_maps:get(id, Storage),
-    {ok, Type} = onepanel_maps:get(type, Storage),
-    Args2 = #{<<"timeout">> => onepanel_utils:typed_get(timeout, Args, binary)},
-    {ok, _} = rpc:call(Node, storage, update_helper, [Id, Type, Args2]),
-    ok.
 
 
 %%--------------------------------------------------------------------

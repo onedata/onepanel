@@ -8,7 +8,7 @@
 %%% @doc Module responsible of creation of op_workers "helper" records.
 %%% @end
 %%%--------------------------------------------------------------------
--module(storage_helper_record).
+-module(storage_params).
 -author("Wojciech Geisler").
 
 -include("modules/errors.hrl").
@@ -34,7 +34,7 @@ make_storage_helper(Node, <<"ceph">>, UserCtx, Params) ->
         get_helper_opt_args([{timeout, binary}], Params),
         UserCtx,
         onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"flat">>)
+        onepanel_utils:typed_get(storagePathType, Params, binary)
     ]);
 
 make_storage_helper(Node, <<"cephrados">>, UserCtx, Params) ->
@@ -48,7 +48,7 @@ make_storage_helper(Node, <<"cephrados">>, UserCtx, Params) ->
         ], Params),
         UserCtx,
         onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"flat">>)
+        onepanel_utils:typed_get(storagePathType, Params, binary)
     ]);
 
 make_storage_helper(Node, <<"posix">>, UserCtx, Params) ->
@@ -56,7 +56,7 @@ make_storage_helper(Node, <<"posix">>, UserCtx, Params) ->
         onepanel_utils:typed_get(mountPoint, Params, binary),
         get_helper_opt_args([{timeout, binary}], Params),
         UserCtx,
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"canonical">>)
+        onepanel_utils:typed_get(storagePathType, Params, binary)
     ]);
 
 make_storage_helper(Node, <<"s3">>, UserCtx, Params) ->
@@ -73,7 +73,7 @@ make_storage_helper(Node, <<"s3">>, UserCtx, Params) ->
         ], Params),
         UserCtx,
         onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"flat">>)
+        onepanel_utils:typed_get(storagePathType, Params, binary)
     ]);
 
 make_storage_helper(Node, <<"swift">>, UserCtx, Params) ->
@@ -87,7 +87,7 @@ make_storage_helper(Node, <<"swift">>, UserCtx, Params) ->
         ], Params),
         UserCtx,
         onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"flat">>)
+        onepanel_utils:typed_get(storagePathType, Params, binary)
     ]);
 
 make_storage_helper(Node, <<"glusterfs">>, UserCtx, Params) ->
@@ -104,7 +104,7 @@ make_storage_helper(Node, <<"glusterfs">>, UserCtx, Params) ->
         ], Params),
         UserCtx,
         onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"canonical">>)
+        onepanel_utils:typed_get(storagePathType, Params, binary)
     ]);
 
 make_storage_helper(Node, <<"nulldevice">>, UserCtx, Params) ->
@@ -120,7 +120,7 @@ make_storage_helper(Node, <<"nulldevice">>, UserCtx, Params) ->
         ], Params),
         UserCtx,
         onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"canonical">>)
+        onepanel_utils:typed_get(storagePathType, Params, binary)
     ]);
 
 make_storage_helper(Node, <<"webdav">>, UserCtx, Params) ->
@@ -136,7 +136,7 @@ make_storage_helper(Node, <<"webdav">>, UserCtx, Params) ->
         ], Params),
         UserCtx,
         onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"canonical">>)
+        onepanel_utils:typed_get(storagePathType, Params, binary)
     ]).
 
 

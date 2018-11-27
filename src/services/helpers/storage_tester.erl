@@ -18,8 +18,8 @@
 -export([verify_storage/2]).
 
 %%--------------------------------------------------------------------
-%% @private @doc Verifies that storage is accessible for all op_worker
-%% service nodes.
+%% @private @doc Verifies that storage is accessible for reading and writing
+%% on all op_worker nodes.
 %% @end
 %%--------------------------------------------------------------------
 -spec verify_storage(Helper :: any(), UserCtx :: any()) ->
