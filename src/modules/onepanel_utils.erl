@@ -22,7 +22,8 @@
 -export([convert/2, get_type/1, typed_get/3, typed_get/4]).
 
 -type primitive_type() :: atom | binary | float | integer | list | boolean | path.
--type type() :: primitive_type() | {seq, primitive_type()}.
+-type collection_modifier() :: seq | keys | values.
+-type type() :: primitive_type() | {collection_modifier(), primitive_type()}.
 -type expectation() :: {equal, Expected :: term()} | {validator,
     Validator :: fun((term()) -> term() | no_return())}.
 
@@ -165,6 +166,18 @@ trim(Text, both) ->
 -spec convert(Value :: term(), Type :: type()) -> Value :: term().
 convert(Values, {seq, Type}) ->
     lists:map(fun(Value) -> convert(Value, Type) end, Values);
+
+% convert keys in a map
+convert(Map, {keys, Type}) ->
+    maps:from_list(
+        [{convert(Key, Type), Value} || {Key, Value} <- maps:to_list(Map)]
+    );
+
+% convert values in a map
+convert(Map, {values, Type}) ->
+    maps:map(fun(_Key, Value) ->
+        convert(Value, Type)
+    end, Map);
 
 convert(Value, boolean) ->
     case convert(Value, atom) of
