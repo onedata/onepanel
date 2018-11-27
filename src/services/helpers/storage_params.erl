@@ -16,127 +16,68 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([make_storage_helper/4]).
+-export([get_helper_args/3]).
+-export([get_storage_user_ctx/3]).
+
 
 %%--------------------------------------------------------------------
-%% @private @doc Builds storage helper record. Calls given op worker
-%% node when necessary.
+%% @doc
+%% Extracts helper arguments from storage params.
 %% @end
 %%--------------------------------------------------------------------
--spec make_storage_helper(Node :: node(), StorageType :: binary(),
-    UserCtx :: any(), Params :: op_worker_storage:storage_params()) ->
-    Helper :: any().
-make_storage_helper(Node, <<"ceph">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_ceph_helper, [
-        onepanel_utils:typed_get(monitorHostname, Params, binary),
-        onepanel_utils:typed_get(clusterName, Params, binary),
-        onepanel_utils:typed_get(poolName, Params, binary),
-        get_helper_opt_args([{timeout, binary}], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary)
+get_helper_args(Node, StorageType, Params) ->
+    BinKeys = onepanel_utils:convert(Params, {keys, binary}),
+    Args = prepare_args(StorageType, BinKeys),
+
+    % ensure only relevant keys
+    RelevantArgs = rpc:call(Node, helper, filter_args, [StorageType, Args]),
+    % ensure binary values
+    onepanel_utils:convert(RelevantArgs, {values, binary}).
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns storage user context record.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_storage_user_ctx(Node :: node(), StorageType :: binary(),
+    Params :: op_worker_storage:storage_params()) -> UserCtx :: term().
+get_storage_user_ctx(Node, <<"ceph">>, Params) ->
+    rpc:call(Node, helper, new_ceph_user_ctx, [
+        onepanel_utils:typed_get(username, Params, binary),
+        onepanel_utils:typed_get(key, Params, binary)
     ]);
 
-make_storage_helper(Node, <<"cephrados">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_cephrados_helper, [
-        onepanel_utils:typed_get(monitorHostname, Params, binary),
-        onepanel_utils:typed_get(clusterName, Params, binary),
-        onepanel_utils:typed_get(poolName, Params, binary),
-        get_helper_opt_args([
-            {timeout, binary},
-            {blockSize, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary)
+get_storage_user_ctx(Node, <<"cephrados">>, Params) ->
+    rpc:call(Node, helper, new_cephrados_user_ctx, [
+        onepanel_utils:typed_get(username, Params, binary),
+        onepanel_utils:typed_get(key, Params, binary)
     ]);
 
-make_storage_helper(Node, <<"posix">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_posix_helper, [
-        onepanel_utils:typed_get(mountPoint, Params, binary),
-        get_helper_opt_args([{timeout, binary}], Params),
-        UserCtx,
-        onepanel_utils:typed_get(storagePathType, Params, binary)
+get_storage_user_ctx(Node, <<"posix">>, _Params) ->
+    rpc:call(Node, helper, new_posix_user_ctx, [0, 0]);
+
+get_storage_user_ctx(Node, <<"s3">>, Params) ->
+    rpc:call(Node, helper, new_s3_user_ctx, [
+        onepanel_utils:typed_get(accessKey, Params, binary),
+        onepanel_utils:typed_get(secretKey, Params, binary)
     ]);
 
-make_storage_helper(Node, <<"s3">>, UserCtx, Params) ->
-    #hackney_url{scheme = S3Scheme, host = S3Host, port = S3Port} =
-        hackney_url:parse_url(onepanel_utils:typed_get(hostname, Params, binary)),
-    rpc:call(Node, helper, new_s3_helper, [
-        onepanel_utils:join([S3Host, S3Port], <<":">>),
-        onepanel_utils:typed_get(bucketName, Params, binary),
-        S3Scheme =:= https,
-        get_helper_opt_args([
-            {signatureVersion, binary},
-            {timeout, binary},
-            {blockSize, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary)
+get_storage_user_ctx(Node, <<"swift">>, Params) ->
+    rpc:call(Node, helper, new_swift_user_ctx, [
+        onepanel_utils:typed_get(username, Params, binary),
+        onepanel_utils:typed_get(password, Params, binary)
     ]);
 
-make_storage_helper(Node, <<"swift">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_swift_helper, [
-        onepanel_utils:typed_get(authUrl, Params, binary),
-        onepanel_utils:typed_get(containerName, Params, binary),
-        onepanel_utils:typed_get(tenantName, Params, binary),
-        get_helper_opt_args([
-            {timeout, binary},
-            {blockSize, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary)
-    ]);
+get_storage_user_ctx(Node, <<"glusterfs">>, _Params) ->
+    rpc:call(Node, helper, new_glusterfs_user_ctx, [0, 0]);
 
-make_storage_helper(Node, <<"glusterfs">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_glusterfs_helper, [
-        onepanel_utils:typed_get(volume, Params, binary),
-        onepanel_utils:typed_get(hostname, Params, binary),
-        get_helper_opt_args([
-            {port, binary},
-            {mountPoint, binary},
-            {transport, binary},
-            {xlatorOptions, binary},
-            {timeout, binary},
-            {blockSize, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary)
-    ]);
+get_storage_user_ctx(Node, <<"nulldevice">>, _Params) ->
+    rpc:call(Node, helper, new_nulldevice_user_ctx, [0, 0]);
 
-make_storage_helper(Node, <<"nulldevice">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_nulldevice_helper, [
-        get_helper_opt_args([
-            {latencyMin, binary},
-            {latencyMax, binary},
-            {timeoutProbability, binary},
-            {filter, binary},
-            {simulatedFilesystemParameters, binary},
-            {simulatedFilesystemGrowSpeed, binary},
-            {timeout, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary)
-    ]);
-
-make_storage_helper(Node, <<"webdav">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_webdav_helper, [
-        onepanel_utils:typed_get(endpoint, Params, binary),
-        get_helper_opt_args([
-            {verifyServerCertificate, binary},
-            {authorizationHeader, binary},
-            {rangeWriteSupport, binary},
-            {connectionPoolSize, binary},
-            {maximumUploadSize, binary},
-            {timeout, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary)
+get_storage_user_ctx(Node, <<"webdav">>, Params) ->
+    rpc:call(Node, helper, new_webdav_user_ctx, [
+        <<_/binary>> = onepanel_utils:typed_get(credentialsType, Params, binary),
+        <<_/binary>> = onepanel_utils:typed_get(credentials, Params, binary, <<>>)
     ]).
 
 
@@ -145,18 +86,30 @@ make_storage_helper(Node, <<"webdav">>, UserCtx, Params) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private @doc Returns storage helper optional argument.
+%% @doc
+%% Translates storage parameters as received in API to storage
+%% helper arguments.
 %% @end
 %%--------------------------------------------------------------------
--spec get_helper_opt_args(KeySpec :: [{Key :: atom(), Type :: onepanel_utils:type()}],
-    Params :: op_worker_storage:storage_params()) -> OptArgs :: #{}.
-get_helper_opt_args(KeysSpec, Params) ->
-    lists:foldl(fun({Key, Type}, OptArgs) ->
-        case onepanel_utils:typed_get(Key, Params, Type) of
-            #error{} ->
-                OptArgs;
-            Value ->
-                maps:put(onepanel_utils:convert(Key, binary), Value, OptArgs)
-        end
-    end, #{}, KeysSpec).
+-spec prepare_args(StorageType :: binary(), #{binary() => term()}) ->
+    #{binary() => term()}.
+prepare_args(<<"s3">>, Args) ->
+    maps:fold(fun
+        (<<"hostname">>, Hostname, Acc) ->
+            #hackney_url{scheme = S3Scheme, host = S3Host, port = S3Port} =
+                hackney_url:parse_url(Hostname),
+            Scheme = case S3Scheme of
+                https -> <<"https">>;
+                _ -> <<"http">>
+            end,
+            Acc#{
+                <<"hostname">> => onepanel_utils:join([S3Host, S3Port], <<":">>),
+                <<"scheme">> => Scheme
+            };
+        (Key, Value, Acc) ->
+            Acc#{Key => Value}
+    end, #{}, Args);
+
+prepare_args(_HelperName, Args) ->
+    Args.
 

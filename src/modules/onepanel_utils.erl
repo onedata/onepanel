@@ -19,9 +19,9 @@
 -export([get_basic_auth_header/2]).
 -export([wait_until/5, wait_until/6]).
 -export([gen_uuid/0, get_nif_library_file/1, join/1, join/2, trim/2]).
--export([convert/2, get_type/1, typed_get/3, typed_get/4]).
+-export([convert/2, get_type/1, typed_get/3, typed_get/4, typed_find/3]).
 
--type primitive_type() :: atom | binary | float | integer | list | boolean | path.
+-type primitive_type() :: atom | binary | float | integer | list | boolean.
 -type collection_modifier() :: seq | keys | values.
 -type type() :: primitive_type() | {collection_modifier(), primitive_type()}.
 -type expectation() :: {equal, Expected :: term()} | {validator,
@@ -248,7 +248,7 @@ typed_get(Keys, Terms, Type) ->
 typed_get(Keys, Terms, Type, Default) ->
     case typed_find(Keys, Terms, Type) of
         {ok, Value} -> Value;
-        #error{} = Error -> Default
+        _ -> Default
     end.
 
 

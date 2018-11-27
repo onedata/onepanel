@@ -80,14 +80,24 @@ add(Node, StorageName, Params) ->
 
     ?info("Gathering storage configuration: \"~s\" (~s)", [StorageName, StorageType]),
     ReadOnly = onepanel_utils:typed_get(readonly, Params, boolean, false),
-    UserCtx = get_storage_user_ctx(Node, StorageType, Params),
-    Helper = storage_params:make_storage_helper(Node, StorageType, UserCtx, Params),
+
+    UserCtx = storage_params:get_storage_user_ctx(Node, StorageType, Params),
+    Helper = make_helper(Node, StorageType, UserCtx, Params),
+
     LumaConfig = get_luma_config(Node, Params),
     maybe_verify_storage(Helper, UserCtx, ReadOnly),
 
     ?info("Adding storage: \"~s\" (~s)", [StorageName, StorageType]),
     add_storage(Node, StorageName, [Helper], ReadOnly, LumaConfig).
 
+
+make_helper(Node, StorageType, UserCtx, Params) ->
+    Args = storage_params:get_helper_args(Node, StorageType, Params),
+    Insecure = onepanel_utils:typed_get(insecure, Params, boolean, false),
+    PathType = onepanel_utils:typed_get(storagePathType, Params, binary),
+
+    rpc:call(Node, helper, new_helper,
+        [StorageType, Args, UserCtx, PathType, Insecure]).
 
 %%--------------------------------------------------------------------
 %% @doc Updates details of a selected storage in op_worker service.
@@ -103,7 +113,6 @@ update(Id, Args) ->
 %%    extract helper params
 
     Args2 = #{<<"timeout">> => onepanel_utils:typed_get(timeout, Args, binary)},
-
 
 
     {ok, _} = rpc:call(Node, storage, update_helper_args, [Id, Type, Args2]),
@@ -266,51 +275,6 @@ invalidate_luma_cache(StorageId) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-%%--------------------------------------------------------------------
-%% @private @doc Returns storage user context record.
-%% @end
-%%--------------------------------------------------------------------
--spec get_storage_user_ctx(Node :: node(), StorageType :: binary(),
-    Params :: storage_params()) -> UserCtx :: any().
-get_storage_user_ctx(Node, <<"ceph">>, Params) ->
-    rpc:call(Node, helper, new_ceph_user_ctx, [
-        onepanel_utils:typed_get(username, Params, binary),
-        onepanel_utils:typed_get(key, Params, binary)
-    ]);
-
-get_storage_user_ctx(Node, <<"cephrados">>, Params) ->
-    rpc:call(Node, helper, new_cephrados_user_ctx, [
-        onepanel_utils:typed_get(username, Params, binary),
-        onepanel_utils:typed_get(key, Params, binary)
-    ]);
-
-get_storage_user_ctx(Node, <<"posix">>, _Params) ->
-    rpc:call(Node, helper, new_posix_user_ctx, [0, 0]);
-
-get_storage_user_ctx(Node, <<"s3">>, Params) ->
-    rpc:call(Node, helper, new_s3_user_ctx, [
-        onepanel_utils:typed_get(accessKey, Params, binary),
-        onepanel_utils:typed_get(secretKey, Params, binary)
-    ]);
-
-get_storage_user_ctx(Node, <<"swift">>, Params) ->
-    rpc:call(Node, helper, new_swift_user_ctx, [
-        onepanel_utils:typed_get(username, Params, binary),
-        onepanel_utils:typed_get(password, Params, binary)
-    ]);
-
-get_storage_user_ctx(Node, <<"glusterfs">>, _Params) ->
-    rpc:call(Node, helper, new_glusterfs_user_ctx, [0, 0]);
-
-get_storage_user_ctx(Node, <<"nulldevice">>, _Params) ->
-    rpc:call(Node, helper, new_nulldevice_user_ctx, [0, 0]);
-
-get_storage_user_ctx(Node, <<"webdav">>, Params) ->
-    rpc:call(Node, helper, new_webdav_user_ctx, [
-        <<_/binary>> = onepanel_utils:typed_get(credentialsType, Params, binary),
-        <<_/binary>> = onepanel_utils:typed_get(credentials, Params, binary, <<>>)
-    ]).
 
 %%--------------------------------------------------------------------
 %% @private @doc For read-write storage verifies that it is accessible for all
