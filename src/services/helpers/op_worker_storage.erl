@@ -28,10 +28,12 @@
 -type id() :: binary().
 -type name() :: binary().
 -type storage_params() :: #{Key :: atom() | binary() => Value :: binary()}.
+-type helper_args() :: #{binary() => binary()}.
+-type user_ctx() :: #{binary() => binary()}.
 -type storages_map() :: #{Name :: name() => Params :: storage_params()}.
 -type luma_config() :: {atom(), binary(), undefined | binary()}.
 
--export_type([storage_params/0, storages_map/0]).
+-export_type([storage_params/0, storages_map/0, helper_args/0, user_ctx/0]).
 
 %%%===================================================================
 %%% API functions
@@ -81,7 +83,7 @@ add(Node, StorageName, Params) ->
     ?info("Gathering storage configuration: \"~s\" (~s)", [StorageName, StorageType]),
     ReadOnly = onepanel_utils:typed_get(readonly, Params, boolean, false),
 
-    UserCtx = storage_params:get_storage_user_ctx(Node, StorageType, Params),
+    UserCtx = storage_params:make_user_ctx(Node, StorageType, Params),
     Helper = make_helper(Node, StorageType, UserCtx, Params),
 
     LumaConfig = get_luma_config(Node, Params),
@@ -92,7 +94,7 @@ add(Node, StorageName, Params) ->
 
 
 make_helper(Node, StorageType, UserCtx, Params) ->
-    Args = storage_params:get_helper_args(Node, StorageType, Params),
+    Args = storage_params:make_helper_args(Node, StorageType, Params),
     Insecure = onepanel_utils:typed_get(insecure, Params, boolean, false),
     PathType = onepanel_utils:typed_get(storagePathType, Params, binary),
 

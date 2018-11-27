@@ -16,8 +16,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([get_helper_args/3]).
--export([get_storage_user_ctx/3]).
+-export([make_helper_args/3, make_user_ctx/3]).
 
 
 %%--------------------------------------------------------------------
@@ -25,91 +24,87 @@
 %% Extracts helper arguments from storage params.
 %% @end
 %%--------------------------------------------------------------------
-get_helper_args(Node, StorageType, Params) ->
-    BinKeys = onepanel_utils:convert(Params, {keys, binary}),
-    Args = prepare_args(StorageType, BinKeys),
+-spec make_helper_args(OpNode :: node(), StorageType :: binary(),
+    Params :: #{atom() => term()}) -> op_worker_storage:helper_args().
+make_helper_args(OpNode, StorageType, Params) ->
+    Args = prepare_args(StorageType, Params),
+    BinKeys = onepanel_utils:convert(Args, {keys, binary}),
 
     % ensure only relevant keys
-    RelevantArgs = rpc:call(Node, helper, filter_args, [StorageType, Args]),
+    RelevantArgs = rpc:call(OpNode, helper, filter_args,
+        [StorageType, BinKeys]),
+
     % ensure binary values
     onepanel_utils:convert(RelevantArgs, {values, binary}).
 
 
-%%--------------------------------------------------------------------
-%% @doc Returns storage user context record.
-%% @end
-%%--------------------------------------------------------------------
--spec get_storage_user_ctx(Node :: node(), StorageType :: binary(),
-    Params :: op_worker_storage:storage_params()) -> UserCtx :: term().
-get_storage_user_ctx(Node, <<"ceph">>, Params) ->
-    rpc:call(Node, helper, new_ceph_user_ctx, [
-        onepanel_utils:typed_get(username, Params, binary),
-        onepanel_utils:typed_get(key, Params, binary)
-    ]);
+-spec make_user_ctx(OpNode :: node(), StorageType :: binary(),
+    Params :: #{atom() => term()}) -> op_worker_storage:user_ctx().
+make_user_ctx(Node, StorageType, Params) ->
+    Args = prepare_user_ctx_params(StorageType, Params),
+    BinKeys = onepanel_utils:convert(Args, {keys, binary}),
 
-get_storage_user_ctx(Node, <<"cephrados">>, Params) ->
-    rpc:call(Node, helper, new_cephrados_user_ctx, [
-        onepanel_utils:typed_get(username, Params, binary),
-        onepanel_utils:typed_get(key, Params, binary)
-    ]);
+    % ensure only relevant keys
+    RelevantParams = rpc:call(Node, helper, filter_user_ctx,
+        [StorageType, BinKeys]),
 
-get_storage_user_ctx(Node, <<"posix">>, _Params) ->
-    rpc:call(Node, helper, new_posix_user_ctx, [0, 0]);
-
-get_storage_user_ctx(Node, <<"s3">>, Params) ->
-    rpc:call(Node, helper, new_s3_user_ctx, [
-        onepanel_utils:typed_get(accessKey, Params, binary),
-        onepanel_utils:typed_get(secretKey, Params, binary)
-    ]);
-
-get_storage_user_ctx(Node, <<"swift">>, Params) ->
-    rpc:call(Node, helper, new_swift_user_ctx, [
-        onepanel_utils:typed_get(username, Params, binary),
-        onepanel_utils:typed_get(password, Params, binary)
-    ]);
-
-get_storage_user_ctx(Node, <<"glusterfs">>, _Params) ->
-    rpc:call(Node, helper, new_glusterfs_user_ctx, [0, 0]);
-
-get_storage_user_ctx(Node, <<"nulldevice">>, _Params) ->
-    rpc:call(Node, helper, new_nulldevice_user_ctx, [0, 0]);
-
-get_storage_user_ctx(Node, <<"webdav">>, Params) ->
-    rpc:call(Node, helper, new_webdav_user_ctx, [
-        <<_/binary>> = onepanel_utils:typed_get(credentialsType, Params, binary),
-        <<_/binary>> = onepanel_utils:typed_get(credentials, Params, binary, <<>>)
-    ]).
+    % ensure binary values
+    onepanel_utils:convert(RelevantParams, {values, binary}).
 
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
+%% @fixme maybe this needs not to be invoked on PATCH at all
 %%--------------------------------------------------------------------
 %% @doc
-%% Translates storage parameters as received in API to storage
-%% helper arguments.
+%% Applies necessary transformations to storage params producing
+%% user Ctx params.
 %% @end
 %%--------------------------------------------------------------------
--spec prepare_args(StorageType :: binary(), #{binary() => term()}) ->
-    #{binary() => term()}.
-prepare_args(<<"s3">>, Args) ->
-    maps:fold(fun
-        (<<"hostname">>, Hostname, Acc) ->
-            #hackney_url{scheme = S3Scheme, host = S3Host, port = S3Port} =
-                hackney_url:parse_url(Hostname),
-            Scheme = case S3Scheme of
-                https -> <<"https">>;
-                _ -> <<"http">>
-            end,
-            Acc#{
-                <<"hostname">> => onepanel_utils:join([S3Host, S3Port], <<":">>),
-                <<"scheme">> => Scheme
-            };
-        (Key, Value, Acc) ->
-            Acc#{Key => Value}
-    end, #{}, Args);
+prepare_user_ctx_params(StorageType, Params) when
+    StorageType == <<"glusterfs">>;
+    StorageType == <<"nulldevice">>;
+    StorageType == <<"posix">> ->
+    #{<<"uid">> => <<"0">>, <<"gid">> => <<"0">>};
+
+prepare_user_ctx_params(<<"webdav">>, Params) ->
+    case Params of
+        #{<<"credentialsType">> := <<"none">>} ->
+            Params#{<<"credentials">> => <<>>};
+        _ -> Params
+    end;
+
+prepare_user_ctx_params(_StorageType, Params) ->
+    Params.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Applies necessary transformations to storage params producing
+%% helper args.
+%% @end
+%%--------------------------------------------------------------------
+-spec prepare_args(StorageType :: binary(), #{term() => term()}) ->
+    #{term() => term()}.
+prepare_args(<<"s3">>, Params) ->
+    Hostname = onepanel_utils:typed_get(hostname, Params, binary),
+    #hackney_url{scheme = S3Scheme, host = S3Host, port = S3Port} =
+        hackney_url:parse_url(Hostname),
+
+    Scheme = case S3Scheme of
+        https -> <<"https">>;
+        _ -> <<"http">>
+    end,
+
+    Params#{
+        <<"hostname">> => onepanel_utils:join([S3Host, S3Port], <<":">>),
+        <<"scheme">> => Scheme
+    };
 
 prepare_args(_HelperName, Args) ->
     Args.
+
+
 
