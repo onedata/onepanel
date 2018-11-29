@@ -14,6 +14,7 @@
 -behaviour(letsencrypt_plugin_behaviour).
 
 -include("service.hrl").
+-include("names.hrl").
 -include("modules/models.hrl").
 -include("deployment_progress.hrl").
 -include("modules/errors.hrl").
@@ -87,11 +88,8 @@ get_steps(get_storages, #{hosts := Hosts}) ->
 get_steps(get_storages, Ctx) ->
     get_steps(get_storages, Ctx#{hosts => get_hosts()});
 
-get_steps(update_storage, #{hosts := Hosts}) ->
-    [#step{hosts = Hosts, function = update_storage, selection = any}];
-
 get_steps(update_storage, Ctx) ->
-    get_steps(update_storage, Ctx#{hosts => get_hosts()});
+    [#step{function = update_storage, selection = any}];
 
 get_steps(invalidate_luma_cache, #{hosts := Hosts}) ->
     [#step{hosts = Hosts, function = invalidate_luma_cache, selection = any}];
@@ -256,7 +254,8 @@ get_storages(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec update_storage(Ctx :: service:ctx()) -> ok | no_return().
 update_storage(#{id := Id, storage := Params}) ->
-    op_worker_storage:update(Id, Params).
+    Node = onepanel_cluster:service_to_node(name()),
+    op_worker_storage:update(Node, Id, Params).
 
 
 %%-------------------------------------------------------------------

@@ -38,6 +38,11 @@ make_helper_args(OpNode, StorageType, Params) ->
     onepanel_utils:convert(RelevantArgs, {values, binary}).
 
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Extracts storage params relevant to the user ctx.
+%% @end
+%%--------------------------------------------------------------------
 -spec make_user_ctx(OpNode :: node(), StorageType :: binary(),
     Params :: #{atom() => term()}) -> op_worker_storage:user_ctx().
 make_user_ctx(Node, StorageType, Params) ->
@@ -103,8 +108,8 @@ prepare_args(<<"s3">>, Params) ->
         <<"scheme">> => Scheme
     };
 
-prepare_args(_HelperName, Args) ->
-    Args.
+prepare_args(_HelperName, Params) ->
+    Params.
 
 
 

@@ -1231,8 +1231,6 @@ ceph_model() ->
 -spec ceph_modify_model() -> map().
 ceph_modify_model() ->
     #{
-        %% The ID of storage.
-        id => {string, optional},
         %% The name of storage.
         name => {string, optional},
         %% Defines whether storage administrator credentials (username and key)
@@ -1241,8 +1239,6 @@ ceph_modify_model() ->
         insecure => {boolean, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
         lumaUrl => {string, optional},
         %% LUMA API Key, must be identical with API Key in external LUMA
@@ -1320,8 +1316,6 @@ cephrados_model() ->
 -spec cephrados_modify_model() -> map().
 cephrados_modify_model() ->
     #{
-        %% The ID of storage.
-        id => {string, optional},
         %% The name of storage.
         name => {string, optional},
         %% Defines whether storage administrator credentials (username and key)
@@ -1330,8 +1324,6 @@ cephrados_modify_model() ->
         insecure => {boolean, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
         lumaUrl => {string, optional},
         %% LUMA API Key, must be identical with API Key in external LUMA
@@ -1411,8 +1403,6 @@ glusterfs_model() ->
 -spec glusterfs_modify_model() -> map().
 glusterfs_modify_model() ->
     #{
-        %% The ID of storage.
-        id => {string, optional},
         %% The name of storage.
         name => {string, optional},
         %% Defines whether storage administrator credentials (username and key)
@@ -1421,8 +1411,6 @@ glusterfs_modify_model() ->
         insecure => {boolean, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
         lumaUrl => {string, optional},
         %% LUMA API Key, must be identical with API Key in external LUMA
@@ -1521,8 +1509,6 @@ nulldevice_model() ->
 -spec nulldevice_modify_model() -> map().
 nulldevice_modify_model() ->
     #{
-        %% The ID of storage.
-        id => {string, optional},
         %% The name of storage.
         name => {string, optional},
         %% Defines whether storage administrator credentials (username and key)
@@ -1531,8 +1517,6 @@ nulldevice_modify_model() ->
         insecure => {boolean, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
         lumaUrl => {string, optional},
         %% LUMA API Key, must be identical with API Key in external LUMA
@@ -1620,8 +1604,6 @@ posix_model() ->
 -spec posix_modify_model() -> map().
 posix_modify_model() ->
     #{
-        %% The ID of storage.
-        id => {string, optional},
         %% The name of storage.
         name => {string, optional},
         %% Defines whether storage administrator credentials (username and key)
@@ -1630,8 +1612,6 @@ posix_modify_model() ->
         insecure => {boolean, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
         lumaUrl => {string, optional},
         %% LUMA API Key, must be identical with API Key in external LUMA
@@ -1703,8 +1683,6 @@ s3_model() ->
 -spec s3_modify_model() -> map().
 s3_modify_model() ->
     #{
-        %% The ID of storage.
-        id => {string, optional},
         %% The name of storage.
         name => {string, optional},
         %% Defines whether storage administrator credentials (accessKey and
@@ -1713,8 +1691,6 @@ s3_modify_model() ->
         insecure => {boolean, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
         lumaUrl => {string, optional},
         %% LUMA API Key, must be identical with API Key in external LUMA
@@ -1793,8 +1769,6 @@ swift_model() ->
 -spec swift_modify_model() -> map().
 swift_modify_model() ->
     #{
-        %% The ID of storage.
-        id => {string, optional},
         %% The name of storage.
         name => {string, optional},
         %% Defines whether storage administrator credentials (username and
@@ -1803,8 +1777,6 @@ swift_modify_model() ->
         insecure => {boolean, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
         lumaUrl => {string, optional},
         %% LUMA API Key, must be identical with API Key in external LUMA
@@ -1904,8 +1876,6 @@ webdav_model() ->
 -spec webdav_modify_model() -> map().
 webdav_modify_model() ->
     #{
-        %% The ID of storage.
-        id => {string, optional},
         %% The name of storage.
         name => {string, optional},
         %% Defines whether storage administrator credentials (username and key)
@@ -1914,8 +1884,6 @@ webdav_modify_model() ->
         insecure => {boolean, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
         lumaUrl => {string, optional},
         %% LUMA API Key, must be identical with API Key in external LUMA

@@ -18,7 +18,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([add/2, get/0, get/1, update/2]).
+-export([add/2, get/0, get/1, update/3]).
 -export([get_supporting_storage/2, get_supporting_storages/2,
     get_file_popularity_details/2, get_autocleaning_details/2]).
 -export([is_mounted_in_root/3]).
@@ -101,15 +101,14 @@ make_helper(OpNode, StorageType, UserCtx, Params) ->
     PathType = onepanel_utils:typed_get(storagePathType, Params, binary),
 
     rpc:call(OpNode, helper, new_helper,
-        [StorageType, Args, UserCtx, PathType, Insecure]).
+        [StorageType, Args, UserCtx, Insecure, PathType]).
 
 %%--------------------------------------------------------------------
 %% @doc Updates details of a selected storage in op_worker service.
 %% @end
 %%--------------------------------------------------------------------
--spec update(Name :: name(), Args :: maps:map()) -> ok.
-update(Id, Args) ->
-    % @fixme validate "type" in input matches actual
+-spec update(OpNode :: node(), Name :: name(), Args :: map()) -> ok.
+update(OpNode, Id, Args) ->
     % @fixme receive OpNode as argument
 
     OpNode = onepanel_cluster:service_to_node(service_op_worker:name()),
@@ -117,21 +116,43 @@ update(Id, Args) ->
     {ok, Id} = onepanel_maps:get(id, Storage),
     {ok, Type} = onepanel_maps:get(type, Storage),
 
+    maybe_update_name(OpNode, Id, Type, Args),
     maybe_update_admin_ctx(OpNode, Id, Type, Args),
     maybe_update_args(OpNode, Id, Type, Args),
     maybe_update_insecure(OpNode, Id, Type, Args).
 
+% @fixme generate test file
 
+%% @private
+-spec maybe_update_name(OpNode :: node(), Id :: id(), Type :: binary(),
+    Params :: map()) -> ok | no_return().
+maybe_update_name(OpNode, Id, Type, #{name := Name}) ->
+    ok = rpc:call(OpNode, storage, update_name, [Id, Name]);
+
+maybe_update_name(_OpNode, _Id, _Type, _Params) ->
+    ok.
+
+
+%% @private
+-spec maybe_update_admin_ctx(OpNode :: node(), Id :: id(), Type :: binary(),
+    Params :: map()) -> ok | no_return().
 maybe_update_admin_ctx(OpNode, Id, Type, Params) ->
     Ctx = storage_params:make_user_ctx(OpNode, Type, Params),
     case maps:size(Ctx) of
         0 -> ok;
         _ ->
+            % Note that for some storage types make_user_ctx/3 always
+            % returns a nonempty, constant result.
+            % This is not a problem as long as those values are not
+            % expected to be changed by op_worker.
             ok = rpc:call(OpNode, storage, update_admin_ctx,
                 [Id, Type, Ctx])
-    end .
+    end.
 
 
+%% @private
+-spec maybe_update_args(OpNode :: node(), Id :: id(), Type :: binary(),
+    Params :: map()) -> ok | no_return().
 maybe_update_args(OpNode, Id, Type, Params) ->
     Args = storage_params:make_helper_args(OpNode, Type, Params),
     case maps:size(Args) of
@@ -139,14 +160,18 @@ maybe_update_args(OpNode, Id, Type, Params) ->
         _ ->
             ok = rpc:call(OpNode, storage, update_helper_args,
                 [Id, Type, Args])
-    end .
+    end.
 
 
+%% @private
 -spec maybe_update_insecure(OpNode :: node(), Id :: id(), Type :: binary(),
     Params :: map()) -> ok | no_return().
 maybe_update_insecure(OpNode, Id, Type, #{insecure := NewInsecure}) ->
     ok = rpc:call(OpNode, storage, set_insecure,
-        [Id, Type, NewInsecure]).
+        [Id, Type, NewInsecure]);
+
+maybe_update_insecure(_OpNode, _Id, _Type, _Params) ->
+    ok.
 
 
 %%--------------------------------------------------------------------
