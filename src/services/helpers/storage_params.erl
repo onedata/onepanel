@@ -16,7 +16,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([make_helper_args/3, make_user_ctx/3]).
+-export([make_helper_args/3, make_user_ctx/3, make_luma_params/1]).
 
 
 %%--------------------------------------------------------------------
@@ -55,6 +55,15 @@ make_user_ctx(Node, StorageType, Params) ->
 
     % ensure binary values
     onepanel_utils:convert(RelevantParams, {values, binary}).
+
+
+-spec make_luma_params(Params :: #{atom() => term()}) ->
+    #{url => binary(), api_key => binary()}.
+make_luma_params(Params) ->
+    onepanel_maps:get_store_multiple([
+        {lumaUrl, url},
+        {lumaApiKey, api_key}
+    ]).
 
 
 %%%===================================================================

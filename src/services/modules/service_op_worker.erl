@@ -252,7 +252,8 @@ get_storages(_Ctx) ->
 %% @doc Configuration details of the service storage.
 %% @end
 %%--------------------------------------------------------------------
--spec update_storage(Ctx :: service:ctx()) -> ok | no_return().
+-spec update_storage(Ctx :: service:ctx()) ->
+    op_worker_storage:storage_params() | no_return().
 update_storage(#{id := Id, storage := Params}) ->
     Node = onepanel_cluster:service_to_node(name()),
     op_worker_storage:update(Node, Id, Params).

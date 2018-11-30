@@ -1188,6 +1188,9 @@ ceph_model() ->
         id => {string, optional},
         %% The name of storage.
         name => {string, optional},
+        %% Result of storage verification (reading and writing a file). Returned
+        %% only on PATCH requests for read/write storages.
+        verificationResult => {string, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
@@ -1271,6 +1274,9 @@ cephrados_model() ->
         id => {string, optional},
         %% The name of storage.
         name => {string, optional},
+        %% Result of storage verification (reading and writing a file). Returned
+        %% only on PATCH requests for read/write storages.
+        verificationResult => {string, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
@@ -1356,6 +1362,9 @@ glusterfs_model() ->
         id => {string, optional},
         %% The name of storage.
         name => {string, optional},
+        %% Result of storage verification (reading and writing a file). Returned
+        %% only on PATCH requests for read/write storages.
+        verificationResult => {string, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
@@ -1447,6 +1456,9 @@ nulldevice_model() ->
         id => {string, optional},
         %% The name of storage.
         name => {string, optional},
+        %% Result of storage verification (reading and writing a file). Returned
+        %% only on PATCH requests for read/write storages.
+        verificationResult => {string, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
@@ -1568,6 +1580,9 @@ posix_model() ->
         id => {string, optional},
         %% The name of storage.
         name => {string, optional},
+        %% Result of storage verification (reading and writing a file). Returned
+        %% only on PATCH requests for read/write storages.
+        verificationResult => {string, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
@@ -1637,6 +1652,9 @@ s3_model() ->
         id => {string, optional},
         %% The name of storage.
         name => {string, optional},
+        %% Result of storage verification (reading and writing a file). Returned
+        %% only on PATCH requests for read/write storages.
+        verificationResult => {string, optional},
         %% Defines whether storage administrator credentials (accessKey and
         %% secretKey) may be used by users without storage accounts to access
         %% storage in direct IO mode.
@@ -1724,6 +1742,9 @@ swift_model() ->
         id => {string, optional},
         %% The name of storage.
         name => {string, optional},
+        %% Result of storage verification (reading and writing a file). Returned
+        %% only on PATCH requests for read/write storages.
+        verificationResult => {string, optional},
         %% Defines whether storage administrator credentials (username and
         %% password) may be used by users without storage accounts to access
         %% storage in direct IO mode.
@@ -1809,6 +1830,9 @@ webdav_model() ->
         id => {string, optional},
         %% The name of storage.
         name => {string, optional},
+        %% Result of storage verification (reading and writing a file). Returned
+        %% only on PATCH requests for read/write storages.
+        verificationResult => {string, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.

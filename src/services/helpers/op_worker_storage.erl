@@ -107,7 +107,8 @@ make_helper(OpNode, StorageType, UserCtx, Params) ->
 %% @doc Updates details of a selected storage in op_worker service.
 %% @end
 %%--------------------------------------------------------------------
--spec update(OpNode :: node(), Name :: name(), Args :: map()) -> ok.
+-spec update(OpNode :: node(), Name :: name(), Args :: map()) ->
+    storage_params().
 update(OpNode, Id, Args) ->
     % @fixme receive OpNode as argument
 
@@ -116,10 +117,27 @@ update(OpNode, Id, Args) ->
     {ok, Id} = onepanel_maps:get(id, Storage),
     {ok, Type} = onepanel_maps:get(type, Storage),
 
-    maybe_update_name(OpNode, Id, Type, Args),
-    maybe_update_admin_ctx(OpNode, Id, Type, Args),
-    maybe_update_args(OpNode, Id, Type, Args),
-    maybe_update_insecure(OpNode, Id, Type, Args).
+    ok = maybe_update_name(OpNode, Id, Type, Args),
+    ok = maybe_update_admin_ctx(OpNode, Id, Type, Args),
+    ok = maybe_update_args(OpNode, Id, Type, Args),
+    ok = maybe_update_luma_config(OpNode, Id, Args),
+    ok = maybe_update_insecure(OpNode, Id, Type, Args),
+    make_update_result(OpNode, Id).
+
+%% @private
+make_update_result(OpNode, StorageId) ->
+    Details = #{name := Name, type := Type, readonly := Readonly} = ?MODULE:get(StorageId),
+    try
+        {ok, Helper} = rpc:call(OpNode, storage, select_helper, [StorageId, Type]),
+        UserCtx = rpc:call(OpNode, helper, get_admin_ctx, [Helper]),
+        maybe_verify_storage(Helper, UserCtx, Readonly),
+        Details#{verificationPassed => true}
+    catch Type:Error ->
+        ?warning("Verfication of modified storage ~p (~p) failed: ~p",
+            [Name, StorageId, {Type, Error}]),
+        Details#{verificationPassed => false}
+    end.
+
 
 % @fixme generate test file
 
@@ -143,10 +161,9 @@ maybe_update_admin_ctx(OpNode, Id, Type, Params) ->
         _ ->
             % Note that for some storage types make_user_ctx/3 always
             % returns a nonempty, constant result.
-            % This is not a problem as long as those values are not
-            % expected to be changed by op_worker.
-            ok = rpc:call(OpNode, storage, update_admin_ctx,
-                [Id, Type, Ctx])
+            % This is not a problem as long as those values are
+            % never changed by op_worker.
+            ok = rpc:call(OpNode, storage, update_admin_ctx, [Id, Type, Ctx])
     end.
 
 
@@ -172,6 +189,18 @@ maybe_update_insecure(OpNode, Id, Type, #{insecure := NewInsecure}) ->
 
 maybe_update_insecure(_OpNode, _Id, _Type, _Params) ->
     ok.
+
+
+%% @private
+-spec maybe_update_luma_config(OpNode :: node(), Id :: id(),
+    Params :: #{atom() => term()}) -> ok | no_return().
+maybe_update_luma_config(OpNode, Id, Params) ->
+    case storage_params:make_luma_params(Params) of
+        Empty when map_size(Empty) == 0 ->
+            ok;
+        Changes ->
+            ok = rpc:call(OpNode, storage, update_luma_config, [Id, Changes])
+    end.
 
 
 %%--------------------------------------------------------------------
