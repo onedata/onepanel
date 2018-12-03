@@ -123,6 +123,7 @@
 -define(ERR_STORAGE_ADDITION, storage_addition).
 -define(ERR_STORAGE_NOT_FOUND, storage_not_found).
 -define(ERR_LUMA_CONFIG(Key), {?ERR_STORAGE_ADDITION, {missing_key, Key}}).
+-define(ERR_LUMA_DISABLED, luma_disabled).
 
 -define(ERR_SPACE_SUPPORT_TOO_LOW(Minimum), {space_support_too_low, Minimum}).
 

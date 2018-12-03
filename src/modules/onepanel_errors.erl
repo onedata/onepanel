@@ -186,6 +186,9 @@ translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, {missing_key, MissingKe
     {<<"Operation Error">>, str_utils:format_bin("LUMA configuration error. "
     "Missing key: ~p", [MissingKey])};
 
+translate(_Type, #error{reason = ?ERR_LUMA_DISABLED}) ->
+    {<<"Operation Error">>, <<"Disabled LUMA cannot be configured.">>};
+
 translate(_Type, #error{reason = ?ERR_SPACE_SUPPORT_TOO_LOW(Minimum)}) ->
     {<<"Operation Error">>, str_utils:format_bin(
         "Space support size must exceed currently used storage space and the minimum imposed by "

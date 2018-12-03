@@ -117,12 +117,14 @@ update(OpNode, Id, Args) ->
     {ok, Id} = onepanel_maps:get(id, Storage),
     {ok, Type} = onepanel_maps:get(type, Storage),
 
-    ok = maybe_update_name(OpNode, Id, Type, Args),
+    ok = maybe_update_name(OpNode, Id, Args),
     ok = maybe_update_admin_ctx(OpNode, Id, Type, Args),
     ok = maybe_update_args(OpNode, Id, Type, Args),
     ok = maybe_update_luma_config(OpNode, Id, Args),
     ok = maybe_update_insecure(OpNode, Id, Type, Args),
+    ok = maybe_update_readonly(OpNode, Id, Args),
     make_update_result(OpNode, Id).
+
 
 %% @private
 make_update_result(OpNode, StorageId) ->
@@ -130,24 +132,24 @@ make_update_result(OpNode, StorageId) ->
     try
         {ok, Helper} = rpc:call(OpNode, storage, select_helper, [StorageId, Type]),
         UserCtx = rpc:call(OpNode, helper, get_admin_ctx, [Helper]),
-        maybe_verify_storage(Helper, UserCtx, Readonly),
-        Details#{verificationPassed => true}
-    catch Type:Error ->
-        ?warning("Verfication of modified storage ~p (~p) failed: ~p",
-            [Name, StorageId, {Type, Error}]),
+        case maybe_verify_storage(Helper, UserCtx, Readonly) of
+            skipped -> Details;
+            verified -> Details#{verificationPassed => true}
+        end
+    catch ErrType:Error ->
+        ?warning("Verfication of modified storage ~p (~p) failed:~n~p:~p",
+            [Name, StorageId, ErrType, Error]),
         Details#{verificationPassed => false}
     end.
 
 
-% @fixme generate test file
-
 %% @private
--spec maybe_update_name(OpNode :: node(), Id :: id(), Type :: binary(),
+-spec maybe_update_name(OpNode :: node(), Id :: id(),
     Params :: map()) -> ok | no_return().
-maybe_update_name(OpNode, Id, Type, #{name := Name}) ->
+maybe_update_name(OpNode, Id, #{name := Name}) ->
     ok = rpc:call(OpNode, storage, update_name, [Id, Name]);
 
-maybe_update_name(_OpNode, _Id, _Type, _Params) ->
+maybe_update_name(_OpNode, _Id, _Params) ->
     ok.
 
 
@@ -192,6 +194,16 @@ maybe_update_insecure(_OpNode, _Id, _Type, _Params) ->
 
 
 %% @private
+-spec maybe_update_readonly(OpNode :: node(), Id :: id(), Params :: map()) ->
+    ok | no_return().
+maybe_update_readonly(OpNode, Id, #{readonly := NewReadonly}) ->
+    ok = rpc:call(OpNode, storage, set_readonly, [Id, NewReadonly]);
+
+maybe_update_readonly(_OpNode, _Id, _Params) ->
+    ok.
+
+
+%% @private
 -spec maybe_update_luma_config(OpNode :: node(), Id :: id(),
     Params :: #{atom() => term()}) -> ok | no_return().
 maybe_update_luma_config(OpNode, Id, Params) ->
@@ -199,7 +211,10 @@ maybe_update_luma_config(OpNode, Id, Params) ->
         Empty when map_size(Empty) == 0 ->
             ok;
         Changes ->
-            ok = rpc:call(OpNode, storage, update_luma_config, [Id, Changes])
+            case rpc:call(OpNode, storage, update_luma_config, [Id, Changes]) of
+                ok -> ok;
+                {error, luma_disabled} -> ?throw_error(?ERR_LUMA_DISABLED)
+            end
     end.
 
 
@@ -224,7 +239,7 @@ get() ->
 %%--------------------------------------------------------------------
 -spec get(Id :: id()) -> storage_params().
 get(Id) ->
-    OpNode = onepanel_cluster:service_to_node(service_op_worker:name()),
+    OpNode = hd(service_op_worker:get_nodes()),
     {ok, Storage} = rpc:call(OpNode, storage, get, [Id]),
     get_storage(OpNode, Storage).
 
@@ -366,12 +381,13 @@ invalidate_luma_cache(StorageId) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec maybe_verify_storage(Helper :: any(), UserCtx :: any(), Readonly :: boolean()) ->
-    ok | no_return().
+    skipped | verified | no_return().
 maybe_verify_storage(_Helper, _UserCtx, true) ->
-    ok;
+    skipped;
 maybe_verify_storage(Helper, UserCtx, _) ->
     ?info("Verifying write access to storage"),
-    storage_tester:verify_storage(Helper, UserCtx).
+    ok = storage_tester:verify_storage(Helper, UserCtx),
+    verified.
 
 
 %%--------------------------------------------------------------------

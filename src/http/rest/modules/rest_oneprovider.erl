@@ -152,12 +152,21 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = storage,
     % only 1 storage should be modified at a time
     [{Name, #{type := Type} = Params}] = maps:to_list(Args),
 
-    % ensure received name and type match expected
-    #{name := Name, type := Type} = service_op_worker:get_storages(#{id => Id}),
+    % @fixme Decide on convention for name change
 
-    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?WORKER, update_storage, #{id => Id, storage => Params}
-    ))};
+    case service_op_worker:get_storages(#{id => Id}) of
+        #{name := Name, type := Type} -> ok;
+        Actual ->
+            ?warning("Input ~p. Should be : ",
+                [ #{name => Name, type => Type}, maps:with([name, type],Actual)]),
+            ?throw_error("Storage nam mismatch") % @fixme better error
+    end,
+
+    {true, rest_replier:handle_service_step(Req, service_op_worker, update_storage,
+        service_utils:throw_on_error(service:apply_sync(
+            ?WORKER, update_storage, #{id => Id, storage => Params}
+        ))
+    )};
 
 accept_resource(Req, 'PATCH', _Args, #rstate{resource = luma,
     bindings = #{id := Id}}) ->

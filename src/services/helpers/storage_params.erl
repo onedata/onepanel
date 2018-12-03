@@ -63,7 +63,7 @@ make_luma_params(Params) ->
     onepanel_maps:get_store_multiple([
         {lumaUrl, url},
         {lumaApiKey, api_key}
-    ]).
+    ], Params).
 
 
 %%%===================================================================
