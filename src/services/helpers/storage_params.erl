@@ -5,7 +5,10 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc Module responsible of creation of op_workers "helper" records.
+%%% @doc Functions for selecting parameters relevant to various aspects
+%%% of a storage, ie. helper params, user ctx etc.
+%%% Does not ensure that all required parameters are present, since
+%%% it is not the case for modification requests.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(storage_params).
@@ -16,13 +19,16 @@
 -include_lib("ctool/include/logging.hrl").
 
 -type storage_params() :: op_worker_storage:storage_params().
--type storage_details() :: op_worker_storage:storage_details().
 -type helper_args() :: op_worker_storage:helper_args().
 -type user_ctx() :: op_worker_storage:user_ctx().
 
 %% API
 -export([make_helper_args/3, make_user_ctx/3, make_luma_params/1]).
 
+
+%%%===================================================================
+%%% Public API
+%%%===================================================================
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -80,32 +86,6 @@ make_luma_params(Params) ->
 %%% Internal functions
 %%%===================================================================
 
-%% @fixme maybe this needs not to be invoked on PATCH at all
-%%--------------------------------------------------------------------
-%% @doc
-%% Applies necessary transformations to storage params producing
-%% user Ctx params.
-%% @end
-%%--------------------------------------------------------------------
--spec prepare_user_ctx_params(StorageType :: binary(),
-    Params :: storage_params()) -> #{binary() => binary()}.
-prepare_user_ctx_params(StorageType, _Params) when
-    StorageType == <<"glusterfs">>;
-    StorageType == <<"nulldevice">>;
-    StorageType == <<"posix">> ->
-    #{<<"uid">> => <<"0">>, <<"gid">> => <<"0">>};
-
-prepare_user_ctx_params(<<"webdav">>, Params) ->
-    case Params of
-        #{<<"credentialsType">> := <<"none">>} ->
-            Params#{<<"credentials">> => <<>>};
-        _ -> Params
-    end;
-
-prepare_user_ctx_params(_StorageType, Params) ->
-    Params.
-
-
 %%--------------------------------------------------------------------
 %% @doc
 %% Applies necessary transformations to storage params producing
@@ -133,4 +113,28 @@ prepare_args(_HelperName, Params) ->
     Params.
 
 
+%% @fixme maybe this needs not to be invoked on PATCH at all
+%%--------------------------------------------------------------------
+%% @doc
+%% Applies necessary transformations to storage params producing
+%% user Ctx params.
+%% @end
+%%--------------------------------------------------------------------
+-spec prepare_user_ctx_params(StorageType :: binary(),
+    Params :: storage_params()) -> #{binary() => binary()}.
+prepare_user_ctx_params(StorageType, _Params) when
+    StorageType == <<"glusterfs">>;
+    StorageType == <<"nulldevice">>;
+    StorageType == <<"posix">> ->
+    #{<<"uid">> => <<"0">>, <<"gid">> => <<"0">>};
+
+prepare_user_ctx_params(<<"webdav">>, Params) ->
+    case Params of
+        #{<<"credentialsType">> := <<"none">>} ->
+            Params#{<<"credentials">> => <<>>};
+        _ -> Params
+    end;
+
+prepare_user_ctx_params(_StorageType, Params) ->
+    Params.
 

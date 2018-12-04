@@ -5,8 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc This module contains helper function for verifying
-%%% access to op worker storage.
+%%% @doc Module responsible for verifying op worker's access to storage.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(storage_tester).
@@ -17,8 +16,13 @@
 %% API
 -export([verify_storage/2]).
 
+
+%%%===================================================================
+%%% Public API
+%%%===================================================================
+
 %%--------------------------------------------------------------------
-%% @private @doc Verifies that storage is accessible for reading and writing
+%% @doc Verifies that storage is accessible for reading and writing
 %% on all op_worker nodes.
 %% @end
 %%--------------------------------------------------------------------
@@ -33,6 +37,7 @@ verify_storage(Helper, UserCtx) ->
     read_test_file(Node, Helper, UserCtx, FileId2, FileContent2),
     remove_test_file(Node, Helper, UserCtx, FileId2, size(FileContent2)).
 
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -41,7 +46,7 @@ verify_storage(Helper, UserCtx) ->
 %% @private @doc Checks whether storage is read/write accessible for all
 %% op_worker service nodes.
 %% On each node the test file is read, removed and new file is created
-%% for the next node to be read.
+%% for the next node to read.
 %% @end
 %%--------------------------------------------------------------------
 -spec verify_test_file(Nodes :: [node()], Helper :: any(), UserCtx :: any(),

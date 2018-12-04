@@ -245,7 +245,7 @@ get_storages(#{id := Id}) ->
     op_worker_storage:get(Id);
 
 get_storages(_Ctx) ->
-    op_worker_storage:get().
+    op_worker_storage:list().
 
 
 %%--------------------------------------------------------------------

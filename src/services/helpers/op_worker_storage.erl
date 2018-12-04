@@ -18,11 +18,11 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([add/2, get/0, get/1, update/3]).
+-export([add/2, list/0, get/1, update/3]).
 -export([get_supporting_storage/2, get_supporting_storages/2,
     get_file_popularity_details/2, get_autocleaning_details/2]).
 -export([is_mounted_in_root/3]).
--export([add_storage/5, maybe_update_file_popularity/3, maybe_update_autocleaning/3,
+-export([maybe_update_file_popularity/3, maybe_update_autocleaning/3,
     invalidate_luma_cache/1]).
 
 % @formatter:off
@@ -41,7 +41,6 @@
     atom() := binary()
 }.
 
-
 -type helper_args() :: #{binary() => binary()}.
 -type user_ctx() :: #{binary() => binary()}.
 -type storages_map() :: #{Name :: name() => Params :: storage_params()}.
@@ -56,9 +55,10 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc Verifies that each of provided storages is accessible for all op_worker
-%% service nodes. In case of a successful verification proceeds with storage
-%% addition.
+%% @doc Adds storages specified in a map.
+%% Before each addition verifies that given storage is accessible for all
+%% op_worker service nodes and aborts upon error.
+%% This verification is skipped for readonly storages.
 %% @end
 %%--------------------------------------------------------------------
 -spec add(Storages :: storages_map(), IgnoreExists :: boolean()) -> ok | no_return().
@@ -68,45 +68,26 @@ add(Storages, IgnoreExists) ->
     maps:fold(fun(Key, Value, _) ->
         StorageName = onepanel_utils:convert(Key, binary),
         StorageType = onepanel_utils:typed_get(type, Value, binary),
-        Result = add(OpNode, StorageName, Value),
 
-        case {Result, IgnoreExists} of
-            {{ok, _StorageId}, _} ->
-                ?info("Successfully added storage: \"~s\" (~s)", [StorageName, StorageType]),
-                ok;
-            {{error, already_exists}, true} ->
+        Result = case {exists(OpNode, StorageName), IgnoreExists} of
+            {true, true} ->
                 ?info("Storage already exists, skipping: \"~s\" (~s)", [StorageName, StorageType]),
+                skipped;
+            {true, false} ->
+                {error, already_exists};
+            _ ->
+                add(OpNode, StorageName, Value)
+        end,
+
+        case Result of
+            skipped ->
                 ok;
-            {{error, Reason}, _} ->
+            ok ->
+                ?info("Successfully added storage: \"~s\" (~s)", [StorageName, StorageType]);
+            {error, Reason} ->
                 ?throw_error({?ERR_STORAGE_ADDITION, Reason})
         end
     end, ok, Storages).
-
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc Verifies that provided storage is accessible for all op_worker
-%% service nodes. In case of a successful verification proceeds with storage
-%% addition.
-%% Uses given OpNode for op_worker operations.
-%% @end
-%%--------------------------------------------------------------------
--spec add(OpNode :: node(), StorageName :: binary(), Params :: storage_params()) ->
-    {ok, StorageId :: binary()} | {error, Reason :: term()}.
-add(OpNode, StorageName, Params) ->
-    StorageType = onepanel_utils:typed_get(type, Params, binary),
-
-    ?info("Gathering storage configuration: \"~s\" (~s)", [StorageName, StorageType]),
-    ReadOnly = onepanel_utils:typed_get(readonly, Params, boolean, false),
-
-    UserCtx = storage_params:make_user_ctx(OpNode, StorageType, Params),
-    Helper = make_helper(OpNode, StorageType, UserCtx, Params),
-
-    LumaConfig = get_luma_config(OpNode, Params),
-    maybe_verify_storage(Helper, UserCtx, ReadOnly),
-
-    ?info("Adding storage: \"~s\" (~s)", [StorageName, StorageType]),
-    add_storage(OpNode, StorageName, [Helper], ReadOnly, LumaConfig).
 
 
 %%--------------------------------------------------------------------
@@ -131,12 +112,12 @@ update(OpNode, Id, Params) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Returns lists of storages' details currently configured in op_worker
+%% @doc Returns lists of storage ids currently configured in op_worker
 %% service.
 %% @end
 %%--------------------------------------------------------------------
--spec get() -> #{ids := [id()]}.
-get() ->
+-spec list() -> #{ids := [id()]}.
+list() ->
     OpNode = onepanel_cluster:service_to_node(service_op_worker:name()),
     {ok, Storages} = rpc:call(OpNode, storage, list, []),
     Ids = lists:map(fun(Storage) ->
@@ -188,21 +169,7 @@ is_mounted_in_root(OpNode, SpaceId, StorageId) ->
     ),
     lists:member(StorageId, MountedInRoot).
 
-
-%%--------------------------------------------------------------------
-%% @doc Checks if storage with given name exists.
-%% @end
-%%--------------------------------------------------------------------
--spec exists(OpNode :: node(), StorageName :: name()) -> boolean().
-exists(OpNode, StorageName) ->
-    case rpc:call(OpNode, storage, select, [StorageName]) of
-        {error, not_found} -> false;
-        {ok, _} -> true
-    end.
-
-
 %%-------------------------------------------------------------------
-%% @private
 %% @doc
 %% Enables or disables file popularity.
 %% @end
@@ -221,7 +188,6 @@ maybe_update_file_popularity(OpNode, SpaceId, Args) ->
 
 
 %%-------------------------------------------------------------------
-%% @private
 %% @doc
 %% Updates autocleaning configuration.
 %% @end
@@ -283,9 +249,40 @@ invalidate_luma_cache(StorageId) ->
     OpNode = onepanel_cluster:service_to_node(service_op_worker:name()),
     ok = rpc:call(OpNode, luma_cache, invalidate, [StorageId]).
 
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Handles addition of a single storage. Ensures read/write access
+%% beforehand.
+%% Uses given OpNode for op_worker operations.
+%% @end
+%%--------------------------------------------------------------------
+-spec add(OpNode :: node(), StorageName :: binary(), Params :: storage_params()) ->
+    {ok, StorageId :: binary()} | {error, Reason :: term()}.
+add(OpNode, StorageName, Params) ->
+    StorageType = onepanel_utils:typed_get(type, Params, binary),
+
+    ?info("Gathering storage configuration: \"~s\" (~s)", [StorageName, StorageType]),
+    ReadOnly = onepanel_utils:typed_get(readonly, Params, boolean, false),
+
+    UserCtx = storage_params:make_user_ctx(OpNode, StorageType, Params),
+    Helper = make_helper(OpNode, StorageType, UserCtx, Params),
+
+    LumaConfig = get_luma_config(OpNode, Params),
+    maybe_verify_storage(Helper, UserCtx, ReadOnly),
+
+    ?info("Adding storage: \"~s\" (~s)", [StorageName, StorageType]),
+    StorageRecord = rpc:call(OpNode, storage, new,
+        [StorageName, [Helper], ReadOnly, LumaConfig]),
+    case rpc:call(OpNode, storage, create, [StorageRecord]) of
+        {ok, _StorageId} -> ok;
+        {error, Reason} -> {error, Reason}
+    end.
+
 
 %%--------------------------------------------------------------------
 %% @private
@@ -317,23 +314,6 @@ maybe_verify_storage(Helper, UserCtx, _) ->
     ?info("Verifying write access to storage"),
     ok = storage_tester:verify_storage(Helper, UserCtx),
     verified.
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Adds storage to the op_worker service configuration.
-%% @end
-%%--------------------------------------------------------------------
--spec add_storage(OpNode :: node(), StorageName :: binary(), Helpers :: list(),
-    ReadOnly :: boolean(), LumaConfig :: luma_config()) ->
-    {ok, StorageId :: binary()} | {error, Reason :: term()}.
-add_storage(OpNode, StorageName, Helpers, ReadOnly, LumaConfig) ->
-    case exists(OpNode, StorageName) of
-        true ->
-            {error, already_exists};
-        false ->
-            Storage = rpc:call(OpNode, storage, new, [StorageName, Helpers, ReadOnly, LumaConfig]),
-            rpc:call(OpNode, storage, create, [Storage])
-    end.
 
 
 %%--------------------------------------------------------------------
@@ -490,5 +470,18 @@ maybe_update_luma_config(OpNode, Id, Params) ->
                 ok -> ok;
                 {error, luma_disabled} -> ?throw_error(?ERR_LUMA_DISABLED)
             end
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Checks if storage with given name exists.
+%% @end
+%%--------------------------------------------------------------------
+-spec exists(OpNode :: node(), StorageName :: name()) -> boolean().
+exists(OpNode, StorageName) ->
+    case rpc:call(OpNode, storage, select, [StorageName]) of
+        {error, not_found} -> false;
+        {ok, _} -> true
     end.
 
