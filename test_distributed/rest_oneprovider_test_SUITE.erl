@@ -870,17 +870,6 @@ init_per_testcase(Case, Config) when
     end),
     NewConfig;
 
-%%init_per_testcase(patch_should_invalidate_luma_cache, Config) ->
-%%    NewConfig = init_per_testcase(default, Config),
-%%    Nodes = ?config(oneprovider_nodes, Config),
-%%    test_utils:mock_new(Nodes, rest_oneprovider),
-%%    Self = self(),
-%%    test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
-%%        Self ! {service, Service, Action, Ctx},
-%%        [{task_finished, {service, action, ok}}]
-%%    end),
-%%    NewConfig;
-
 init_per_testcase(_Case, Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
     Hosts = ?config(oneprovider_hosts, Config),

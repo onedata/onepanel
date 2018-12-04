@@ -165,15 +165,15 @@ exists(Node, StorageName) ->
 %% @end
 %%-------------------------------------------------------------------
 -spec maybe_update_file_popularity(Node :: node(), SpaceId :: id(),
-    maps:map()) -> {ok, id()}.
-maybe_update_file_popularity(_Node, SpaceId, Args) when map_size(Args) =:= 0 ->
-    {ok, SpaceId};
+    maps:map()) -> ok.
+maybe_update_file_popularity(_Node, _SpaceId, Args) when map_size(Args) =:= 0 ->
+    ok;
 maybe_update_file_popularity(Node, SpaceId, Args) ->
     case onepanel_utils:typed_get(enabled, Args, boolean) of
         true ->
-            rpc:call(Node, space_quota, enable_file_popularity, [SpaceId]);
+            rpc:call(Node, file_popularity_api, enable, [SpaceId]);
         false ->
-            rpc:call(Node, space_quota, disable_file_popularity, [SpaceId])
+            rpc:call(Node, file_popularity_api, disable, [SpaceId])
     end.
 
 %%-------------------------------------------------------------------
@@ -182,12 +182,12 @@ maybe_update_file_popularity(Node, SpaceId, Args) ->
 %% Updates autocleaning configuration.
 %% @end
 %%-------------------------------------------------------------------
--spec maybe_update_auto_cleaning(Node :: node(), SpaceId :: id(), maps:map()) -> {ok, id()}.
-maybe_update_auto_cleaning(_Node, SpaceId, Args) when map_size(Args) =:= 0 ->
-    {ok, SpaceId};
+-spec maybe_update_auto_cleaning(Node :: node(), SpaceId :: id(), maps:map()) -> ok.
+maybe_update_auto_cleaning(_Node, _SpaceId, Args) when map_size(Args) =:= 0 ->
+    ok;
 maybe_update_auto_cleaning(Node, SpaceId, Args) ->
     Configuration = parse_auto_cleaning_configuration(Args),
-    case rpc:call(Node, space_cleanup_api, configure_autocleaning, [SpaceId, onepanel_maps:remove_undefined(Configuration)]) of
+    case rpc:call(Node, autocleaning_api, configure, [SpaceId, onepanel_maps:remove_undefined(Configuration)]) of
         {error, Reason} ->
             ?throw_error({?ERR_CONFIG_AUTOCLEANING, Reason});
         Result -> Result
@@ -201,7 +201,7 @@ maybe_update_auto_cleaning(Node, SpaceId, Args) ->
 %%-------------------------------------------------------------------
 -spec get_files_popularity_configuration(Node :: node(), SpaceId :: id()) -> proplists:proplist().
 get_files_popularity_configuration(Node, SpaceId) ->
-    DetailsMap = rpc:call(Node, space_quota, get_file_popularity_configuration, [SpaceId]),
+    DetailsMap = rpc:call(Node, file_popularity_api, get_configuration, [SpaceId]),
     maps:to_list(onepanel_maps:get_store_multiple([
         {[enabled], [enabled]},
         {[rest_url], [restUrl]}
@@ -215,7 +215,7 @@ get_files_popularity_configuration(Node, SpaceId) ->
 %%-------------------------------------------------------------------
 -spec get_auto_cleaning_configuration(Node :: node(), SpaceId :: id()) -> proplists:proplist().
 get_auto_cleaning_configuration(Node, SpaceId) ->
-    DetailsMap = rpc:call(Node, space_cleanup_api, get_configuration, [SpaceId]),
+    DetailsMap = rpc:call(Node, autocleaning_api, get_configuration, [SpaceId]),
     DetailsMap2 = onepanel_maps:get_store_multiple([
         {[rules, lower_file_size_limit], [rules, lowerFileSizeLimit]},
         {[rules, upper_file_size_limit], [rules, upperFileSizeLimit]},

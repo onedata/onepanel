@@ -18,7 +18,7 @@
 -include_lib("ctool/include/test/performance.hrl").
 
 %% export for ct
--export([all/0, init_per_suite/1, init_per_testcase/2, end_per_testcase/2]).
+-export([all/0, init_per_suite/1, init_per_testcase/2, end_per_testcase/2, end_per_suite/1]).
 
 %% tests
 -export([
@@ -188,3 +188,6 @@ end_per_testcase(service_should_be_not_found, Config) ->
 end_per_testcase(_Case, Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     test_utils:mock_unload(Nodes).
+
+end_per_suite(_Config) ->
+    ok.

@@ -707,9 +707,17 @@ update_provider_ips(Ctx) ->
 -spec get_auto_cleaning_reports(Ctx :: service:ctx()) -> proplists:proplist().
 get_auto_cleaning_reports(Ctx = #{space_id := SpaceId, node := Node}) ->
     Since = onepanel_utils:typed_get(started_after, Ctx, binary),
-    Reports = rpc:call(Node, space_cleanup_api, list_reports_since, [SpaceId, Since]),
+    Reports = rpc:call(Node, autocleaning_api, list_reports_since, [SpaceId, Since]),
     Entries = lists:map(fun(Report) ->
-        onepanel_lists:map_undefined_to_null(Report)
+        onepanel_lists:map_undefined_to_null(
+            onepanel_maps:to_list(
+                onepanel_maps:get_store_multiple([
+                    {started_at, startedAt},
+                    {stopped_at, stoppedAt},
+                    {released_bytes, releasedBytes},
+                    {bytes_to_release, bytesToRelease},
+                    {files_number, filesNumber}
+                ], Report)))
     end, Reports),
     [{reportEntries, Entries}];
 get_auto_cleaning_reports(Ctx) ->
@@ -723,7 +731,7 @@ get_auto_cleaning_reports(Ctx) ->
 %%-------------------------------------------------------------------
 -spec get_auto_cleaning_status(Ctx :: service:ctx()) -> proplists:proplist().
 get_auto_cleaning_status(#{space_id := SpaceId, node := Node}) ->
-    Status = rpc:call(Node, space_cleanup_api, status, [SpaceId]),
+    Status = rpc:call(Node, autocleaning_api, status, [SpaceId]),
     onepanel_maps:to_list(onepanel_maps:get_store_multiple([
         {in_progress, inProgress},
         {space_occupancy, spaceOccupancy}
@@ -766,7 +774,7 @@ get_files_popularity_configuration(Ctx) ->
 %%-------------------------------------------------------------------
 -spec start_auto_cleaning(Ctx :: service:ctx()) -> ok.
 start_auto_cleaning(#{space_id := SpaceId, node := Node}) ->
-    rpc:call(Node, space_cleanup_api, force_cleanup, [SpaceId]);
+    rpc:call(Node, autocleaning_api, force_start, [SpaceId]);
 start_auto_cleaning(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     start_auto_cleaning(Ctx#{node => Node}).
@@ -828,7 +836,7 @@ pop_legacy_letsencrypt_config() ->
 %%-------------------------------------------------------------------
 -spec configure_files_popularity(Ctx :: service:ctx()) -> list().
 configure_files_popularity(#{space_id := SpaceId, node := Node} = Ctx) ->
-    {ok, _} = op_worker_storage:maybe_update_file_popularity(Node, SpaceId, Ctx),
+    ok = op_worker_storage:maybe_update_file_popularity(Node, SpaceId, Ctx),
     [{id, SpaceId}];
 configure_files_popularity(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
@@ -841,7 +849,7 @@ configure_files_popularity(Ctx) ->
 %%-------------------------------------------------------------------
 -spec configure_auto_cleaning(Ctx :: service:ctx()) -> list().
 configure_auto_cleaning(#{space_id := SpaceId, node := Node} = Ctx) ->
-    {ok, _} = op_worker_storage:maybe_update_auto_cleaning(Node, SpaceId, Ctx),
+    ok = op_worker_storage:maybe_update_auto_cleaning(Node, SpaceId, Ctx),
     [{id, SpaceId}];
 configure_auto_cleaning(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
