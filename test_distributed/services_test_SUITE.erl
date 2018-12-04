@@ -28,6 +28,7 @@
     service_oneprovider_get_supported_spaces_test/1,
     service_op_worker_add_storage_test/1,
     service_op_worker_get_storages_test/1,
+    service_op_worker_update_storage_test/1,
     services_status_test/1,
     services_stop_start_test/1
 ]).
@@ -58,6 +59,7 @@ all() ->
         service_oneprovider_get_supported_spaces_test,
         service_op_worker_get_storages_test,
         service_op_worker_add_storage_test,
+        service_op_worker_update_storage_test,
         services_status_test
         %% TODO VFS-4056
         %% services_stop_start_test
@@ -227,6 +229,30 @@ service_op_worker_add_storage_test(Config) ->
         }
     }),
     assert_service_step(service:get_module(op_worker), add_storages, [Node], ok).
+
+
+service_op_worker_update_storage_test(Config) ->
+    [Node | _] = ?config(oneprovider_nodes, Config),
+    [Host | _] = service_op_worker:get_hosts(),
+
+    ChangesByType = #{
+        <<"posix">> => #{
+            mountPoint => <<"newMountPoint">>, timeout => 500
+        }
+    },
+
+    ExistingStorages = get_storages(Config),
+    lists:foreach(fun
+        (#{id := Id, type := Type}) ->
+            case maps:find(Type, ChangesByType) of
+                {ok, Changes} ->
+                    onepanel_test_utils:service_action(Node, op_worker, update_storage, #{
+                        hosts => [Host], storage => Changes, id => Id
+                    }),
+                    assert_service_step(service:get_module(op_worker), update_storage, [Node], ok);
+                error -> skip
+            end
+    end, ExistingStorages).
 
 
 services_status_test(Config) ->
@@ -433,7 +459,7 @@ assert_service_step(Module, Function, Nodes, Result) ->
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
-%% Waits for substriptions channel to be active in the provider.
+%% Waits for subscriptions channel to be active in the provider.
 %% @end
 %%--------------------------------------------------------------------
 -spec await_oz_connectivity(Node :: node()) -> ok | no_return().
@@ -476,3 +502,29 @@ regenerate_web_certificate(Nodes, Domain) ->
 -spec rpc_get_env(node(), atom()) -> term().
 rpc_get_env(Node, Key) ->
     rpc:call(Node, onepanel_env, get, [Key]).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Returns list of op worker storages
+%% @end
+%%--------------------------------------------------------------------
+-spec get_storages(Config :: proplists:proplist()) ->
+    [op_worker_storage:storage_details()].
+get_storages(Config) ->
+    [Node | _] = ?config(oneprovider_nodes, Config),
+    onepanel_test_utils:service_action(Node, oneprovider, get_storages, #{
+        hosts => [onepanel_cluster:node_to_host(Node)]
+    }),
+    Results = assert_service_step(service:get_module(oneprovider), get_storages),
+    [{_, #{ids := Ids}}] = ?assertMatch([{Node, _}], Results),
+
+    lists:map(fun(Id) ->
+        onepanel_test_utils:service_action(Node, oneprovider, get_storages, #{
+            hosts => [onepanel_cluster:node_to_host(Node)], id => Id
+        }),
+        Results2 = assert_service_step(service:get_module(oneprovider), get_storages),
+        [{_, Details}] = ?assertMatch([{Node, _}], Results),
+        Details
+    end, Ids).
