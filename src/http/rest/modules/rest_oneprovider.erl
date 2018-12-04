@@ -150,17 +150,11 @@ accept_resource(Req, 'POST', Args, #rstate{resource = storages}) ->
 accept_resource(Req, 'PATCH', Args, #rstate{resource = storage,
     bindings = #{id := Id}}) ->
     % only 1 storage should be modified at a time
-    [{Name, #{type := Type} = Params}] = maps:to_list(Args),
-
-    % @fixme Decide on convention for name change
-    ?notice("~p", [Args]),
+    [{OldName, #{type := Type} = Params}] = maps:to_list(Args),
 
     case service_op_worker:get_storages(#{id => Id}) of
-        #{name := Name, type := Type} -> ok;
-        Expected ->
-            ?warning("Got: ~p. Expected: ~p",
-                [#{name => Name, type => Type}, maps:with([name, type], Expected)]),
-            ?throw_error("Storage name or type mismatch") % @fixme better error
+        #{name := OldName, type := Type} -> ok;
+        _ -> ?throw_error(?ERR_STORAGE_UPDATE_MISMATCH)
     end,
 
     {true, rest_replier:handle_service_step(Req, service_op_worker, update_storage,

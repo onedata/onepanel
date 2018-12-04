@@ -116,6 +116,9 @@ translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, Reason}}) ->
     ?error("Cannot add storage due to: ~p", [Reason]),
     {<<"Operation Error">>, <<"Storage addition error.">>};
 
+translate(_Type, #error{reason = ?ERR_STORAGE_UPDATE_MISMATCH}) ->
+    {<<"Operation Error">>, <<"Specified storage type or name do not match the id">>};
+
 translate(_Type, #error{reason = {?ERR_STORAGE_NOT_FOUND, StorageId}}) ->
     {<<"Operation Error">>, <<"Storage '", StorageId/binary, "' not found.">>};
 
