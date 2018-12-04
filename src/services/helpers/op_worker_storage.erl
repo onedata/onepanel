@@ -189,7 +189,7 @@ maybe_update_auto_cleaning(Node, SpaceId, Args) ->
     Configuration = parse_auto_cleaning_configuration(Args),
     case rpc:call(Node, autocleaning_api, configure, [SpaceId, onepanel_maps:remove_undefined(Configuration)]) of
         {error, Reason} ->
-            ?throw_error({?ERR_CONFIG_AUTOCLEANING, Reason});
+            ?throw_error({?ERR_CONFIG_AUTO_CLEANING, Reason});
         Result -> Result
     end.
 

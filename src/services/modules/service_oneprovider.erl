@@ -774,7 +774,11 @@ get_files_popularity_configuration(Ctx) ->
 %%-------------------------------------------------------------------
 -spec start_auto_cleaning(Ctx :: service:ctx()) -> ok.
 start_auto_cleaning(#{space_id := SpaceId, node := Node}) ->
-    rpc:call(Node, autocleaning_api, force_start, [SpaceId]);
+    case rpc:call(Node, autocleaning_api, force_start, [SpaceId]) of
+        ok -> ok;
+        {error, Reason} ->
+            ?throw_error({?ERR_AUTOCLEANING, Reason})
+    end;
 start_auto_cleaning(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     start_auto_cleaning(Ctx#{node => Node}).
