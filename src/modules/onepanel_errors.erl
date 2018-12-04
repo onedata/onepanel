@@ -300,6 +300,8 @@ get_expectation(ValueSpec, Acc) when is_map(ValueSpec) ->
     Node :: node(), Reason :: term()) -> {Name :: binary(), Description :: binary()}.
 translate_storage_test_file_error(OperVerb, OperNoun, Node, Reason) ->
     Host = onepanel_cluster:node_to_host(Node),
+    % If this log is removed, adjust op_worker_storage to report
+    % reason of issues with PATCH
     ?error("Cannot " ++ OperVerb ++ " storage test file on node ~p due to: ~p",
         [Node, Reason]),
     {<<"Operation Error">>, <<"Storage test file ", OperNoun/binary, " failed "

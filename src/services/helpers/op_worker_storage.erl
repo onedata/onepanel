@@ -28,12 +28,15 @@
 -type id() :: binary().
 -type name() :: binary().
 -type storage_params() :: #{Key :: atom() | binary() => Value :: binary()}.
+-type storage_details() :: #{atom() := binary() | boolean()}.
+
 -type helper_args() :: #{binary() => binary()}.
 -type user_ctx() :: #{binary() => binary()}.
 -type storages_map() :: #{Name :: name() => Params :: storage_params()}.
 -type luma_config() :: {atom(), binary(), undefined | binary()}.
 
--export_type([storage_params/0, storages_map/0, helper_args/0, user_ctx/0]).
+-export_type([storage_params/0, storage_details/0, storages_map/0, helper_args/0,
+    user_ctx/0]).
 
 %%%===================================================================
 %%% API functions
@@ -107,8 +110,8 @@ make_helper(OpNode, StorageType, UserCtx, Params) ->
 %% @doc Updates details of a selected storage in op_worker service.
 %% @end
 %%--------------------------------------------------------------------
--spec update(OpNode :: node(), Name :: name(), Args :: map()) ->
-    storage_params().
+-spec update(OpNode :: node(), Id :: id(), Args :: map()) ->
+    #{atom() => binary() | boolean()}.
 update(OpNode, Id, Args) ->
     % @fixme receive OpNode as argument
 
@@ -137,8 +140,9 @@ make_update_result(OpNode, StorageId) ->
             verified -> Details#{verificationPassed => true}
         end
     catch ErrType:Error ->
-        ?warning("Verfication of modified storage ~p (~p) failed:~n~p:~p",
-            [Name, StorageId, ErrType, Error]),
+        ?warning("Verfication of modified storage ~p (~p) failed", [Name, StorageId]),
+        % translator will log the error
+        onepanel_errors:translate(ErrType,Error),
         Details#{verificationPassed => false}
     end.
 
@@ -237,7 +241,7 @@ get() ->
 %% @doc Returns details of a selected storage from op_worker service.
 %% @end
 %%--------------------------------------------------------------------
--spec get(Id :: id()) -> storage_params().
+-spec get(Id :: id()) -> #{atom() => binary() | boolean()}.
 get(Id) ->
     OpNode = hd(service_op_worker:get_nodes()),
     {ok, Storage} = rpc:call(OpNode, storage, get, [Id]),
@@ -412,7 +416,7 @@ add_storage(OpNode, StorageName, Helpers, ReadOnly, LumaConfig) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_storage(OpNode :: node(), Storage :: any()) ->
-    Storage :: storage_params().
+    Storage :: #{atom() => binary() | boolean()}.
 get_storage(OpNode, Storage) ->
     [Helper | _] = rpc:call(OpNode, storage, get_helpers, [Storage]),
     AdminCtx = rpc:call(OpNode, helper, get_admin_ctx, [Helper]),
