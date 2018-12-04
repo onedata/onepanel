@@ -868,7 +868,8 @@ storage_import_details_model() ->
 %%--------------------------------------------------------------------
 %% @doc The storage parameters to be changed. Should be a single-valued
 %% dictionary with storage name as the key and parameters to be changed as the
-%% value.
+%% value. If changing the storage name, use old name as dictionary key and
+%% provide new name among the changed params.
 %% @end
 %%--------------------------------------------------------------------
 -spec storage_modify_request_model() -> map().
@@ -1190,7 +1191,7 @@ ceph_model() ->
         name => {string, optional},
         %% Result of storage verification (reading and writing a file). Returned
         %% only on PATCH requests for read/write storages.
-        verificationResult => {string, optional},
+        verificationPassed => {boolean, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
@@ -1276,7 +1277,7 @@ cephrados_model() ->
         name => {string, optional},
         %% Result of storage verification (reading and writing a file). Returned
         %% only on PATCH requests for read/write storages.
-        verificationResult => {string, optional},
+        verificationPassed => {boolean, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
@@ -1364,7 +1365,7 @@ glusterfs_model() ->
         name => {string, optional},
         %% Result of storage verification (reading and writing a file). Returned
         %% only on PATCH requests for read/write storages.
-        verificationResult => {string, optional},
+        verificationPassed => {boolean, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
@@ -1458,7 +1459,7 @@ nulldevice_model() ->
         name => {string, optional},
         %% Result of storage verification (reading and writing a file). Returned
         %% only on PATCH requests for read/write storages.
-        verificationResult => {string, optional},
+        verificationPassed => {boolean, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
@@ -1582,7 +1583,7 @@ posix_model() ->
         name => {string, optional},
         %% Result of storage verification (reading and writing a file). Returned
         %% only on PATCH requests for read/write storages.
-        verificationResult => {string, optional},
+        verificationPassed => {boolean, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
@@ -1654,7 +1655,7 @@ s3_model() ->
         name => {string, optional},
         %% Result of storage verification (reading and writing a file). Returned
         %% only on PATCH requests for read/write storages.
-        verificationResult => {string, optional},
+        verificationPassed => {boolean, optional},
         %% Defines whether storage administrator credentials (accessKey and
         %% secretKey) may be used by users without storage accounts to access
         %% storage in direct IO mode.
@@ -1744,7 +1745,7 @@ swift_model() ->
         name => {string, optional},
         %% Result of storage verification (reading and writing a file). Returned
         %% only on PATCH requests for read/write storages.
-        verificationResult => {string, optional},
+        verificationPassed => {boolean, optional},
         %% Defines whether storage administrator credentials (username and
         %% password) may be used by users without storage accounts to access
         %% storage in direct IO mode.
@@ -1832,7 +1833,7 @@ webdav_model() ->
         name => {string, optional},
         %% Result of storage verification (reading and writing a file). Returned
         %% only on PATCH requests for read/write storages.
-        verificationResult => {string, optional},
+        verificationPassed => {boolean, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
@@ -1920,10 +1921,10 @@ webdav_modify_model() ->
         endpoint => {string, optional},
         %% Determines whether Oneprovider should verify the certificate of the
         %% WebDAV server.
-        verifyServerCertificate => {boolean, {optional, true}},
+        verifyServerCertificate => {boolean, optional},
         %% Determines the types of credentials provided in the credentials
         %% field.
-        credentialsType => {string, {optional, none}},
+        credentialsType => {string, optional},
         %% The credentials to authenticate with the WebDAV server.
         %% `basic` credentials should be provided in the form
         %% `username:password`, for `token` just the token.
@@ -1941,14 +1942,14 @@ webdav_modify_model() ->
         %% supports partial `PUT` requests with `Content-
         %% Range` header. If `none` is selected no write support
         %% is available for this WebDAV storage.
-        rangeWriteSupport => {string, {optional, none}},
+        rangeWriteSupport => {string, optional},
         %% Defines the maximum number of parallel connections for a single
         %% WebDAV storage.
-        connectionPoolSize => {integer, {optional, 10}},
+        connectionPoolSize => {integer, optional},
         %% Defines the maximum upload size for a single `PUT` or
         %% `PATCH` request. If set to 0, assumes that the WebDAV
         %% server has no upload limit.
-        maximumUploadSize => {integer, {optional, 0}},
+        maximumUploadSize => {integer, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional}
     }.
