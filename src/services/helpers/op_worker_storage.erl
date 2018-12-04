@@ -18,7 +18,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([add/2, list/0, get/1, update/3]).
+-export([add/2, list/0, get/1, update/3, remove/2]).
 -export([get_supporting_storage/2, get_supporting_storages/2,
     get_file_popularity_details/2, get_autocleaning_details/2]).
 -export([is_mounted_in_root/3]).
@@ -109,6 +109,15 @@ update(OpNode, Id, Params) ->
     ok = maybe_update_readonly(OpNode, Id, Params),
     make_update_result(OpNode, Id).
 
+
+%%--------------------------------------------------------------------
+%% @doc Removes given storage.
+%% Returns error if any space is supported by this storage.
+%% @end
+%%--------------------------------------------------------------------
+-spec remove(OpNode :: node(), id()) -> ok | {error, storage_in_use | term()}.
+remove(OpNode, Id) ->
+    rpc:call(OpNode, storage, safe_remove, [Id]).
 
 
 %%--------------------------------------------------------------------
