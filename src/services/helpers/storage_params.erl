@@ -15,6 +15,11 @@
 -include_lib("hackney/include/hackney_lib.hrl").
 -include_lib("ctool/include/logging.hrl").
 
+-type storage_params() :: op_worker_storage:storage_params().
+-type storage_details() :: op_worker_storage:storage_details().
+-type helper_args() :: op_worker_storage:helper_args().
+-type user_ctx() :: op_worker_storage:user_ctx().
+
 %% API
 -export([make_helper_args/3, make_user_ctx/3, make_luma_params/1]).
 
@@ -25,7 +30,7 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec make_helper_args(OpNode :: node(), StorageType :: binary(),
-    Params :: #{atom() => term()}) -> op_worker_storage:helper_args().
+    Params :: #{atom() => term()}) -> helper_args().
 make_helper_args(OpNode, StorageType, Params) ->
     Args = prepare_args(StorageType, Params),
     BinKeys = onepanel_utils:convert(Args, {keys, binary}),
@@ -44,7 +49,7 @@ make_helper_args(OpNode, StorageType, Params) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec make_user_ctx(OpNode :: node(), StorageType :: binary(),
-    Params :: #{atom() => term()}) -> op_worker_storage:user_ctx().
+    Params :: storage_params()) -> user_ctx().
 make_user_ctx(Node, StorageType, Params) ->
     Args = prepare_user_ctx_params(StorageType, Params),
     BinKeys = onepanel_utils:convert(Args, {keys, binary}),
@@ -57,7 +62,12 @@ make_user_ctx(Node, StorageType, Params) ->
     onepanel_utils:convert(RelevantParams, {values, binary}).
 
 
--spec make_luma_params(Params :: #{atom() => term()}) ->
+%%--------------------------------------------------------------------
+%% @doc
+%% Extracts storage params relevant to the luma config.
+%% @end
+%%--------------------------------------------------------------------
+-spec make_luma_params(Params :: storage_params()) ->
     #{url => binary(), api_key => binary()}.
 make_luma_params(Params) ->
     onepanel_maps:get_store_multiple([
@@ -77,7 +87,9 @@ make_luma_params(Params) ->
 %% user Ctx params.
 %% @end
 %%--------------------------------------------------------------------
-prepare_user_ctx_params(StorageType, Params) when
+-spec prepare_user_ctx_params(StorageType :: binary(),
+    Params :: storage_params()) -> #{binary() => binary()}.
+prepare_user_ctx_params(StorageType, _Params) when
     StorageType == <<"glusterfs">>;
     StorageType == <<"nulldevice">>;
     StorageType == <<"posix">> ->
@@ -100,8 +112,8 @@ prepare_user_ctx_params(_StorageType, Params) ->
 %% helper args.
 %% @end
 %%--------------------------------------------------------------------
--spec prepare_args(StorageType :: binary(), #{term() => term()}) ->
-    #{term() => term()}.
+-spec prepare_args(StorageType :: binary(), Params :: storage_params()) ->
+    storage_params().
 prepare_args(<<"s3">>, Params) ->
     Hostname = onepanel_utils:typed_get(hostname, Params, binary),
     #hackney_url{scheme = S3Scheme, host = S3Host, port = S3Port} =

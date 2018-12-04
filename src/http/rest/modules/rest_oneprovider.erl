@@ -153,13 +153,14 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = storage,
     [{Name, #{type := Type} = Params}] = maps:to_list(Args),
 
     % @fixme Decide on convention for name change
+    ?notice("~p", [Args]),
 
     case service_op_worker:get_storages(#{id => Id}) of
         #{name := Name, type := Type} -> ok;
-        Actual ->
-            ?warning("Input ~p. Should be : ",
-                [ #{name => Name, type => Type}, maps:with([name, type],Actual)]),
-            ?throw_error("Storage nam mismatch") % @fixme better error
+        Expected ->
+            ?warning("Got: ~p. Expected: ~p",
+                [#{name => Name, type => Type}, maps:with([name, type], Expected)]),
+            ?throw_error("Storage name or type mismatch") % @fixme better error
     end,
 
     {true, rest_replier:handle_service_step(Req, service_op_worker, update_storage,

@@ -88,7 +88,7 @@ get_steps(get_storages, #{hosts := Hosts}) ->
 get_steps(get_storages, Ctx) ->
     get_steps(get_storages, Ctx#{hosts => get_hosts()});
 
-get_steps(update_storage, Ctx) ->
+get_steps(update_storage, _Ctx) ->
     [#step{function = update_storage, selection = any}];
 
 get_steps(invalidate_luma_cache, #{hosts := Hosts}) ->
