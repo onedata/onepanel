@@ -26,13 +26,13 @@
 
 
 %%--------------------------------------------------------------------
-%% Checks if request submitted by a client through POST, PUT, PATCH on a REST
-%% resource is allowed in the current state.
+%% Checks if current state makes request impossible to fulfill.
+%% Called on methods POST, PUT, PATCH and DELETE.
 %%--------------------------------------------------------------------
--callback no_conflict(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
+-callback is_conflict(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
-    {Possible :: boolean(), Req :: cowboy_req:req()} |
-    {stop, Req :: cowboy_req:req()}.
+    {Possible :: boolean(), Req :: cowboy_req:req()}
+    | {stop, Req :: cowboy_req:req()}.
 
 
 %%--------------------------------------------------------------------

@@ -16,7 +16,7 @@
 -behavior(rest_behaviour).
 
 %% REST behaviour callbacks
--export([is_authorized/3, exists_resource/2, no_conflict/4,
+-export([is_authorized/3, exists_resource/2, is_conflict/4,
     accept_resource/4, provide_resource/2, delete_resource/2]).
 
 %%%===================================================================
@@ -52,11 +52,11 @@ exists_resource(Req, _State) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link rest_behaviour:no_conflict/4}
+%% @doc {@link rest_behaviour:is_conflict/4}
 %% @end
 %%--------------------------------------------------------------------
-no_conflict(Req, _Method, _Args, _State) ->
-    {true, Req}.
+is_conflict(Req, _Method, _Args, _State) ->
+    {false, Req}.
 
 
 %%--------------------------------------------------------------------

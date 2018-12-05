@@ -250,17 +250,17 @@ delete_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
         {Bindings, Req3} = rest_utils:get_bindings(Req2),
         #rmethod{params_spec = Spec} = lists:keyfind(Method, 2, Methods),
         {Params, Req4} = rest_utils:get_params(Req3, Spec),
-        case Module:no_conflict(Req4, Method, #{}, State#rstate{
+        case Module:is_conflict(Req4, Method, #{}, State#rstate{
             bindings = Bindings,
             params = Params
         }) of
-            {true, Req5} ->
+            {false, Req5} ->
                 {Deleted, Req6} = Module:delete_resource(Req4, State#rstate{
                     bindings = Bindings,
                     params = Params
                 }),
                 {Deleted, Req6, State};
-            {false, Req5} ->
+            {true, Req5} ->
                 {stop, cowboy_req:reply(409, Req5), State}
         end
     catch
@@ -287,17 +287,17 @@ accept_resource(Req, Data, #rstate{module = Module, methods = Methods} =
     {Params, Req4} = rest_utils:get_params(Req3, ParamSpec),
     Args = rest_utils:get_args(Data, ArgsSpec),
 
-    case Module:no_conflict(Req4, Method, Args, State#rstate{
+    case Module:is_conflict(Req4, Method, Args, State#rstate{
         bindings = Bindings,
         params = Params
     }) of
-        {true, Req5} ->
+        {false, Req5} ->
             {Result, Req6} = Module:accept_resource(Req5, Method, Args, State#rstate{
                 bindings = Bindings,
                 params = Params
             }),
             {Result, Req6, State};
-        {false, Req5} ->
+        {true, Req5} ->
             {stop, cowboy_req:reply(409, Req5), State}
     end.
 

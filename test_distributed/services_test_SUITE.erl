@@ -235,6 +235,8 @@ service_op_worker_update_storage_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
     [Host | _] = service_op_worker:get_hosts(),
 
+
+    % @fixme update docker and add other storage changes
     ChangesByType = #{
         <<"posix">> => #{
             mountPoint => <<"newMountPoint">>, timeout => 500

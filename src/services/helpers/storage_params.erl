@@ -6,7 +6,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc Functions for selecting parameters relevant to various aspects
-%%% of a storage, ie. helper params, user ctx etc.
+%%% of a storage, i.e. helper params, user ctx etc.
 %%% Does not ensure that all required parameters are present, since
 %%% it is not the case for modification requests.
 %%% @end
@@ -113,7 +113,6 @@ prepare_args(_HelperName, Params) ->
     Params.
 
 
-%% @fixme maybe this needs not to be invoked on PATCH at all
 %%--------------------------------------------------------------------
 %% @doc
 %% Applies necessary transformations to storage params producing
