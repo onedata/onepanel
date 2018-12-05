@@ -217,8 +217,9 @@ get_files_popularity_configuration(Node, SpaceId) ->
 get_auto_cleaning_configuration(Node, SpaceId) ->
     DetailsMap = rpc:call(Node, autocleaning_api, get_configuration, [SpaceId]),
     DetailsMap2 = onepanel_maps:get_store_multiple([
-        {[rules, lower_file_size_limit], [rules, lowerFileSizeLimit]},
-        {[rules, upper_file_size_limit], [rules, upperFileSizeLimit]},
+        % todo update lowerFileSizeLimit and upperFileSizeLimit names in VFS-5121
+        {[rules, min_file_size], [rules, lowerFileSizeLimit]},
+        {[rules, max_file_size], [rules, upperFileSizeLimit]},
         {[rules, min_hours_since_last_open], [rules, minHoursSinceLastOpen]},
         {[rules, max_open_count], [rules, maxOpenCount]},
         {[rules, max_hourly_moving_average], [rules, maxHourlyMovingAverage]},
@@ -618,9 +619,8 @@ parse_auto_cleaning_rules(Args) ->
     lists:foldl(fun(RuleName, AccIn) ->
         AccIn#{RuleName => parse_auto_cleaning_rule_setting(RuleName, Args)}
     end, ParsedRules, [
-        lower_file_size_limit, upper_file_size_limit,
-        min_hours_since_last_open, max_open_count, max_hourly_moving_average,
-        max_daily_moving_average, max_monthly_moving_average
+        min_file_size, max_file_size, min_hours_since_last_open, max_open_count,
+        max_hourly_moving_average, max_daily_moving_average, max_monthly_moving_average
     ]).
 
 %%--------------------------------------------------------------------

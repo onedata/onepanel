@@ -590,8 +590,8 @@ patch_should_update_auto_cleaning(Config) ->
                 enabled := true,
                 max_open_count := #{enabled := true, value := 1},
                 min_hours_since_last_open := #{enabled := true, value := 2},
-                lower_file_size_limit := #{enabled := true, value := 3},
-                upper_file_size_limit := #{enabled := true, value := 4},
+                min_file_size := #{enabled := true, value := 3},
+                max_file_size := #{enabled := true, value := 4},
                 max_hourly_moving_average := #{enabled := true, value := 5},
                 max_daily_moving_average := #{enabled := true, value := 6},
                 max_monthly_moving_average := #{enabled := true, value := 7}

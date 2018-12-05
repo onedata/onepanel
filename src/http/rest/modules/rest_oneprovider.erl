@@ -379,8 +379,9 @@ get_auto_cleaning_configuration(Args, Ctx) ->
         {[rules, enabled], [rules, enabled]},
         {[rules, maxOpenCount], [rules, max_open_count]},
         {[rules, minHoursSinceLastOpen], [rules, min_hours_since_last_open]},
-        {[rules, lowerFileSizeLimit], [rules, lower_file_size_limit]},
-        {[rules, upperFileSizeLimit], [rules, upper_file_size_limit]},
+        % todo update lowerFileSizeLimit and upperFileSizeLimit names in VFS-5121
+        {[rules, lowerFileSizeLimit], [rules, min_file_size]},
+        {[rules, upperFileSizeLimit], [rules, max_file_size]},
         {[rules, maxHourlyMovingAverage], [rules, max_hourly_moving_average]},
         {[rules, maxDailyMovingAverage], [rules, max_daily_moving_average]},
         {[rules, maxMonthlyMovingAverage], [rules, max_monthly_moving_average]}
