@@ -19,7 +19,7 @@
 -behavior(rest_behaviour).
 
 %% REST behaviour callbacks
--export([is_authorized/3, exists_resource/2, accept_possible/4,
+-export([is_authorized/3, exists_resource/2, no_conflict/4,
     accept_resource/4, provide_resource/2, delete_resource/2]).
 
 -define(SERVICES, [service_couchbase, service_cluster_manager, service_op_worker,
@@ -89,14 +89,14 @@ exists_resource(Req, #rstate{resource = SModule}) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link rest_behaviour:accept_possible/4}
+%% @doc {@link rest_behaviour:no_conflict/4}
 %% @end
 %%--------------------------------------------------------------------
-accept_possible(Req, 'POST', _Args, #rstate{resource = SModule})
+no_conflict(Req, 'POST', _Args, #rstate{resource = SModule})
     when SModule == service_oneprovider orelse SModule == service_onezone ->
     {not onepanel_deployment:is_completed(?PROGRESS_READY), Req};
 
-accept_possible(Req, _Method, _Args, _State) ->
+no_conflict(Req, _Method, _Args, _State) ->
     {true, Req}.
 
 

@@ -21,7 +21,7 @@
 -export([add/2, list/0, get/1, update/3, remove/2]).
 -export([get_supporting_storage/2, get_supporting_storages/2,
     get_file_popularity_details/2, get_autocleaning_details/2]).
--export([is_mounted_in_root/3]).
+-export([is_mounted_in_root/3, can_be_removed/1]).
 -export([maybe_update_file_popularity/3, maybe_update_autocleaning/3,
     invalidate_luma_cache/1]).
 
@@ -119,7 +119,7 @@ update(OpNode, Id, Params) ->
 remove(OpNode, Id) ->
     case rpc:call(OpNode, storage, safe_remove, [Id]) of
         ok ->
-            ?info("Successfully removd storage with id ~p", [Id]),
+            ?info("Successfully removed storage with id ~p", [Id]),
             ok;
         {error, storage_in_use} -> ?throw_error(?ERR_STORAGE_IN_USE)
     end.
@@ -263,6 +263,13 @@ invalidate_luma_cache(StorageId) ->
     OpNode = onepanel_cluster:service_to_node(service_op_worker:name()),
     ok = rpc:call(OpNode, luma_cache, invalidate, [StorageId]).
 
+
+-spec can_be_removed(id()) -> boolean().
+can_be_removed(StorageId) ->
+    Node = hd(service_op_worker:get_nodes()),
+    Resutl = not rpc:call(Node, storage, supports_any_space, [StorageId]),
+    ?notice("can be removed: ~p", [Resutl]),
+    Resutl.
 
 %%%===================================================================
 %%% Internal functions

@@ -18,7 +18,7 @@
 -behavior(rest_behaviour).
 
 %% REST behaviour callbacks
--export([is_authorized/3, exists_resource/2, accept_possible/4,
+-export([is_authorized/3, exists_resource/2, no_conflict/4,
     accept_resource/4, provide_resource/2, delete_resource/2]).
 
 -define(SERVICE, service_oneprovider:name()).
@@ -63,10 +63,17 @@ exists_resource(Req, _State) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link rest_behaviour:accept_possible/4}
+%% @doc {@link rest_behaviour:no_conflict/4}
 %% @end
 %%--------------------------------------------------------------------
-accept_possible(Req, _Method, _Args, _State) ->
+no_conflict(Req, 'DELETE', _Args,
+    #rstate{resource = storage, bindings = #{id:=Id}}) ->
+    case op_worker_storage:can_be_removed(Id) of
+        false -> {false, rest_replier:handle_error(Req, throw, ?make_error(?ERR_STORAGE_IN_USE))};
+        true -> {true, Req}
+    end;
+
+no_conflict(Req, _Method, _Args, _State) ->
     {true, Req}.
 
 
