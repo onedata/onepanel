@@ -49,8 +49,7 @@ is_authorized(Req, _Method, _State) ->
 -spec exists_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
 exists_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
-    Node = utils:random_element(service_op_worker:get_nodes()),
-    {rpc:call(Node, storage, exists, [Id]), Req};
+    {service_op_worker:storage_exists(Id), Req};
 
 exists_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
     {service_oneprovider:is_space_supported(#{space_id => Id}), Req};
@@ -282,15 +281,19 @@ provide_resource(Req, #rstate{resource = cluster_ips}) ->
 -spec delete_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Deleted :: boolean(), Req :: cowboy_req:req()}.
 delete_resource(Req, #rstate{resource = provider}) ->
-    Response = {true, rest_replier:throw_on_service_error(
-        Req, service:apply_sync(?SERVICE, unregister, #{})
-    )},
-    Response;
+    {true, rest_replier:throw_on_service_error(Req,
+        service:apply_sync(?SERVICE, unregister, #{})
+    )};
+
+delete_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
+    {true, rest_replier:throw_on_service_error(Req,
+        service:apply_sync(?WORKER, remove_storage, #{id => Id})
+    )};
 
 delete_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
-    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, revoke_space_support, #{id => Id}
-    ))}.
+    {true, rest_replier:throw_on_service_error(Req,
+        service:apply_sync(?SERVICE, revoke_space_support, #{id => Id})
+    )}.
 
 
 %%%===================================================================

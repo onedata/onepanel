@@ -31,7 +31,8 @@
 %% API
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
     get_nagios_response/1, get_nagios_status/1, add_storages/1, get_storages/1,
-    update_storage/1, invalidate_luma_cache/1, reload_webcert/1]).
+    update_storage/1, storage_exists/1, remove_storage/1,
+    invalidate_luma_cache/1, reload_webcert/1]).
 -export([migrate_generated_config/1]).
 
 -define(INIT_SCRIPT, "op_worker").
@@ -90,6 +91,9 @@ get_steps(get_storages, Ctx) ->
 
 get_steps(update_storage, _Ctx) ->
     [#step{function = update_storage, selection = any}];
+
+get_steps(remove_storage, _Ctx) ->
+    [#step{function = remove_storage, selection = any}];
 
 get_steps(invalidate_luma_cache, #{hosts := Hosts}) ->
     [#step{hosts = Hosts, function = invalidate_luma_cache, selection = any}];
@@ -224,6 +228,12 @@ get_nagios_status(Ctx) ->
     }).
 
 
+-spec storage_exists(Id :: op_worker_storage:id()) -> boolean().
+storage_exists(Id) ->
+    Node = hd(get_nodes()),
+    rpc:call(Node, storage, exists, [Id]) .
+
+
 %%--------------------------------------------------------------------
 %% @doc Configures the service storages.
 %% @end
@@ -257,6 +267,16 @@ get_storages(_Ctx) ->
 update_storage(#{id := Id, storage := Params}) ->
     Node = onepanel_cluster:service_to_node(name()),
     op_worker_storage:update(Node, Id, Params).
+
+
+%%--------------------------------------------------------------------
+%% @doc Configuration details of the service storage.
+%% @end
+%%--------------------------------------------------------------------
+-spec remove_storage(Ctx :: #{id := op_worker_storage:id(), _ => _}) -> ok | no_return().
+remove_storage(#{id := Id}) ->
+    Node = onepanel_cluster:service_to_node(name()),
+    op_worker_storage:remove(Node, Id).
 
 
 %%-------------------------------------------------------------------

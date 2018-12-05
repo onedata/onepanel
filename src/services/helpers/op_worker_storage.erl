@@ -112,12 +112,17 @@ update(OpNode, Id, Params) ->
 
 %%--------------------------------------------------------------------
 %% @doc Removes given storage.
-%% Returns error if any space is supported by this storage.
+%% Fails if any space is supported by this storage.
 %% @end
 %%--------------------------------------------------------------------
--spec remove(OpNode :: node(), id()) -> ok | {error, storage_in_use | term()}.
+-spec remove(OpNode :: node(), id()) -> ok | no_return().
 remove(OpNode, Id) ->
-    rpc:call(OpNode, storage, safe_remove, [Id]).
+    case rpc:call(OpNode, storage, safe_remove, [Id]) of
+        ok ->
+            ?info("Successfully removd storage with id ~p", [Id]),
+            ok;
+        {error, storage_in_use} -> ?throw_error(?ERR_STORAGE_IN_USE)
+    end.
 
 
 %%--------------------------------------------------------------------
