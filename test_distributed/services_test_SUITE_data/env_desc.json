@@ -88,7 +88,7 @@
     },
     "oneprovider": {
       "os_config": "cfg1",
-      "image": "docker.onedata.org/oneprovider-dev:develop",
+      "image": "docker.onedata.org/oneprovider-dev:VFS-5107-edit-and-remove-op-worker-storages",
       "onepanel": {
         "node1": {
           "vm.args": {
