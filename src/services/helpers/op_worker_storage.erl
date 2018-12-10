@@ -80,8 +80,7 @@ add(Storages, IgnoreExists) ->
         end,
 
         case Result of
-            skipped ->
-                ok;
+            skipped -> ok;
             ok ->
                 ?info("Successfully added storage: \"~s\" (~s)", [StorageName, StorageType]);
             {error, Reason} ->
@@ -505,4 +504,3 @@ exists(OpNode, StorageName) ->
         {error, not_found} -> false;
         {ok, _} -> true
     end.
-
