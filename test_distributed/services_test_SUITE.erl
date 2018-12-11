@@ -255,7 +255,9 @@ service_op_worker_update_storage_test(Config) ->
         (#{id := Id, type := _Type, name := Name} = Storage) ->
             case maps:find(Name, ChangesByName) of
                 {ok, Changes} ->
-                    Expected = maps:merge(Storage, Changes#{verificationPassed => false}),
+                    ChangesBinary = onepanel_utils:convert(Changes, {values, binary}),
+                    Expected = maps:merge(Storage,
+                        ChangesBinary#{verificationPassed => false}),
 
                     onepanel_test_utils:service_action(Node, op_worker, update_storage, #{
                         hosts => [Host], storage => Changes, id => Id
