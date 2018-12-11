@@ -244,21 +244,24 @@ service_op_worker_update_storage_test(Config) ->
 
 
     % @fixme update docker and add other storage changes
-    ChangesByType = #{
-        <<"posix">> => #{
-            mountPoint => <<"newMountPoint">>, timeout => 500
+    ChangesByName = #{
+        <<"somePosix2">> => #{
+            type => <<"posix">>, mountPoint => <<"newMountPoint">>, timeout => 500
         }
     },
 
     ExistingStorages = get_storages(Config),
     lists:foreach(fun
-        (#{id := Id, type := Type}) ->
-            case maps:find(Type, ChangesByType) of
+        (#{id := Id, type := _Type, name := Name} = Storage) ->
+            case maps:find(Name, ChangesByName) of
                 {ok, Changes} ->
+                    Expected = maps:merge(Storage, Changes#{verificationPassed => false}),
+
                     onepanel_test_utils:service_action(Node, op_worker, update_storage, #{
                         hosts => [Host], storage => Changes, id => Id
                     }),
-                    assert_service_step(service:get_module(op_worker), update_storage, [Node], ok);
+                    assert_service_step(service:get_module(op_worker),
+                        update_storage, [Node], Expected);
                 error -> skip
             end
     end, ExistingStorages).
@@ -524,17 +527,17 @@ rpc_get_env(Node, Key) ->
     [op_worker_storage:storage_details()].
 get_storages(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
-    onepanel_test_utils:service_action(Node, oneprovider, get_storages, #{
+    onepanel_test_utils:service_action(Node, op_worker, get_storages, #{
         hosts => [onepanel_cluster:node_to_host(Node)]
     }),
-    Results = assert_service_step(service:get_module(oneprovider), get_storages),
+    Results = assert_service_step(service:get_module(op_worker), get_storages),
     [{_, #{ids := Ids}}] = ?assertMatch([{Node, _}], Results),
 
     lists:map(fun(Id) ->
-        onepanel_test_utils:service_action(Node, oneprovider, get_storages, #{
+        onepanel_test_utils:service_action(Node, op_worker, get_storages, #{
             hosts => [onepanel_cluster:node_to_host(Node)], id => Id
         }),
-        Results2 = assert_service_step(service:get_module(oneprovider), get_storages),
-        [{_, Details}] = ?assertMatch([{Node, _}], Results),
+        Results2 = assert_service_step(service:get_module(op_worker), get_storages),
+        [{_, Details}] = ?assertMatch([{Node, _}], Results2),
         Details
     end, Ids).
