@@ -49,7 +49,7 @@
     session_details_model/0,
     space_auto_cleaning_configuration_model/0,
     space_auto_cleaning_report_model/0,
-    space_auto_cleaning_report_collection_model/0,
+    space_auto_cleaning_reports_model/0,
     space_auto_cleaning_rule_setting_model/0,
     space_auto_cleaning_rules_model/0,
     space_auto_cleaning_status_model/0,
@@ -533,7 +533,7 @@ provider_spaces_model() ->
 -spec provider_storages_model() -> maps:map().
 provider_storages_model() ->
     #{
-        %% The list of IDs of cluster storage resources.
+        %% The list of Ids of cluster storage resources.
         ids => [string]
     }.
 
@@ -646,17 +646,22 @@ space_auto_cleaning_configuration_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Auto-cleaning report
+%% @doc Report from a auto-cleaning run.
 %% @end
 %%--------------------------------------------------------------------
 -spec space_auto_cleaning_report_model() -> maps:map().
 space_auto_cleaning_report_model() ->
     #{
-        %% Start time of auto-cleaning procedure in ISO 8601 format
+        %% Id of a auto-cleaning run report.
+        id => string,
+        %% Index of a auto-cleaning run report. It can be used to list
+        %% report's Ids starting from given report.
+        index => string,
+        %% Start time of auto-cleaning run in ISO 8601 format
         startedAt => string,
-        %% Finish time of auto-cleaning procedure in ISO 8601 format
+        %% Finish time of auto-cleaning run in ISO 8601 format
         stoppedAt => string,
-        %% Number of bytes deleted during auto-cleaning procedure.
+        %% Number of bytes deleted during auto-cleaning run.
         releasedBytes => integer,
         %% Number of bytes that should be deleted.
         bytesToRelease => integer,
@@ -665,13 +670,14 @@ space_auto_cleaning_report_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc List of auto-cleaning report entries
+%% @doc The space auto-cleaning reports.
 %% @end
 %%--------------------------------------------------------------------
--spec space_auto_cleaning_report_collection_model() -> maps:map().
-space_auto_cleaning_report_collection_model() ->
+-spec space_auto_cleaning_reports_model() -> maps:map().
+space_auto_cleaning_reports_model() ->
     #{
-        reportEntries => {[space_auto_cleaning_report_model()], optional}
+        %% The list of Ids of space auto-cleaning reports.
+        ids => [string]
     }.
 
 %%--------------------------------------------------------------------
@@ -712,10 +718,10 @@ space_auto_cleaning_rules_model() ->
         minHoursSinceLastOpen => {space_auto_cleaning_rule_setting_model(), optional},
         %% Only files which size [b] is greater than given value may be cleaned.
         %% The default value is `1`.
-        lowerFileSizeLimit => {space_auto_cleaning_rule_setting_model(), optional},
+        minFileSize => {space_auto_cleaning_rule_setting_model(), optional},
         %% Only files which size [b] is less than given value may be cleaned.
         %% The default value is `1125899906842624 (1 PiB)`.
-        upperFileSizeLimit => {space_auto_cleaning_rule_setting_model(), optional},
+        maxFileSize => {space_auto_cleaning_rule_setting_model(), optional},
         %% Files that have moving average of open operations count per hour less
         %% than given value may be cleaned. The average is calculated in 24
         %% hours window. The default value is `9007199254740991

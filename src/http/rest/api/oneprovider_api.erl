@@ -120,7 +120,7 @@ routes() ->
             }]
         }},
 
-        %% Configure space auto-cleaning mechanism.
+        %% Configure space auto-cleaning mechanism
         {<<"/api/v3/onepanel/provider/spaces/:id/auto-cleaning/configuration">>, rest_handler, #rstate{
             version = 3,
             module = rest_oneprovider,
@@ -223,22 +223,38 @@ routes() ->
             }]
         }},
 
-        %% Get reports of space auto-cleaning
-        {<<"/api/v3/onepanel/provider/spaces/:id/auto-cleaning/reports">>, rest_handler, #rstate{
+        %% Get the report of a space auto-cleaning run
+        {<<"/api/v3/onepanel/provider/spaces/:id/auto-cleaning/reports/:report_id">>, rest_handler, #rstate{
             version = 3,
             module = rest_oneprovider,
-            resource = space_auto_cleaning_reports_collection,
+            resource = space_auto_cleaning_report,
             methods = [#rmethod{
-                type = 'GET',
-                params_spec = #{
-                    %% Fetch only reports that started after this date (ISO
-                    %% 8601)
-                    started_after => string
-                }
+                type = 'GET'
             }]
         }},
 
-        %% Get status of space auto-cleaning
+        %% Get Ids of of the space auto-cleaning reports
+        {<<"/api/v3/onepanel/provider/spaces/:id/auto-cleaning/reports">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = space_auto_cleaning_reports,
+            methods = [#rmethod{
+                type = 'GET',
+            params_spec = #{
+                        %% Allows to skip N first reports' Ids.
+                        offset => {integer, {optional, 0} },
+                        %% Allows to limit the number of returned reports'
+                        %% Ids up to N last reports. By default, all
+                        %% reports' Ids will be returned.
+                        limit => {integer, optional},
+                        %% Allows to list the reports' Ids starting from the
+                        %% specific report.
+                        index => {string, optional}
+            }
+            }]
+        }},
+
+        %% Get status of space auto-cleaning mechanism
         {<<"/api/v3/onepanel/provider/spaces/:id/auto-cleaning/status">>, rest_handler, #rstate{
             version = 3,
             module = rest_oneprovider,

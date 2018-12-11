@@ -42,6 +42,7 @@
     patch_should_modify_storage_update/1,
     patch_should_update_storage/1,
     get_should_return_autocleaning_reports/1,
+    get_should_return_autocleaning_report/1,
     get_should_return_autocleaning_status/1,
     get_should_return_autocleaning_configuration/1,
     get_should_return_files_popularity_configuration/1,
@@ -148,22 +149,27 @@
     }
 }).
 
--define(AUTO_CLEANING_REPORTS, [
-    #{
-        <<"bytesToRelease">> => 125,
-        <<"filesNumber">> => 10,
-        <<"releasedBytes">> => 100,
-        <<"startedAt">> => <<"2004-02-12T15:19:21.423Z">>,
-        <<"stoppedAt">> => <<"2004-02-12T15:29:11.598Z">>
-    },
-    #{
-        <<"bytesToRelease">> => 1313125,
-        <<"filesNumber">> => 1056,
-        <<"releasedBytes">> => 1001234,
-        <<"startedAt">> => <<"2014-07-16T15:19:21.423Z">>,
-        <<"stoppedAt">> => null
-    }
-]).
+-define(AUTO_CLEANING_REPORT1, #{
+    <<"id">> => <<"id1">>,
+    <<"index">> => <<"index1">>,
+    <<"bytesToRelease">> => 125,
+    <<"filesNumber">> => 10,
+    <<"releasedBytes">> => 100,
+    <<"startedAt">> => <<"2004-02-12T15:19:21.423Z">>,
+    <<"stoppedAt">> => <<"2004-02-12T15:29:11.598Z">>
+}).
+
+-define(AUTO_CLEANING_REPORT2, #{
+    <<"id">> => <<"id2">>,
+    <<"index">> => <<"index2">>,
+    <<"bytesToRelease">> => 1313125,
+    <<"filesNumber">> => 1056,
+    <<"releasedBytes">> => 1001234,
+    <<"startedAt">> => <<"2014-07-16T15:19:21.423Z">>,
+    <<"stoppedAt">> => null
+}).
+
+-define(AUTO_CLEANING_REPORTS, [?AUTO_CLEANING_REPORT1, ?AUTO_CLEANING_REPORT2]).
 
 -define(AUTO_CLEANING_STATUS, #{
     <<"inProgress">> => false,
@@ -182,8 +188,8 @@
         <<"enabled">> => true,
         <<"maxOpenCount">> => #{<<"enabled">> => true, <<"value">> => 1},
         <<"minHoursSinceLastOpen">> => #{<<"enabled">> => true, <<"value">> => 2},
-        <<"lowerFileSizeLimit">> => #{<<"enabled">> => true, <<"value">> => 3},
-        <<"upperFileSizeLimit">> => #{<<"enabled">> => true, <<"value">> => 4},
+        <<"minFileSize">> => #{<<"enabled">> => true, <<"value">> => 3},
+        <<"maxFileSize">> => #{<<"enabled">> => true, <<"value">> => 4},
         <<"maxHourlyMovingAverage">> => #{<<"enabled">> => true, <<"value">> => 5},
         <<"maxDailyMovingAverage">> => #{<<"enabled">> => true, <<"value">> => 6},
         <<"maxMonthlyMovingAverage">> => #{<<"enabled">> => true, <<"value">> => 7}
@@ -224,6 +230,7 @@ all() ->
         patch_should_modify_storage_update,
         patch_should_update_storage,
         get_should_return_autocleaning_reports,
+        get_should_return_autocleaning_report,
         get_should_return_autocleaning_status,
         get_should_return_autocleaning_configuration,
         get_should_return_files_popularity_configuration,
@@ -522,12 +529,21 @@ get_should_return_autocleaning_reports(Config) ->
     ?run(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(Host,
-                <<"/provider/spaces/someId/auto-cleaning/reports?started_after=2004-02-12T15:19:21.423Z">>,
+                <<"/provider/spaces/someId/auto-cleaning/reports">>,
                 get, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [])
         ),
         onepanel_test_rest:assert_body(JsonBody, ?AUTO_CLEANING_REPORTS)
     end).
 
+get_should_return_autocleaning_report(Config) ->
+    ?run(Config, fun(Host) ->
+        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(Host,
+                <<"/provider/spaces/someId/auto-cleaning/reports/someReportId">>,
+                get, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [])
+        ),
+        onepanel_test_rest:assert_body(JsonBody, ?AUTO_CLEANING_REPORT1)
+    end).
 
 get_should_return_autocleaning_status(Config) ->
     ?run(Config, fun(Host) ->
@@ -802,6 +818,18 @@ init_per_testcase(get_should_return_autocleaning_reports, Config) ->
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
         {service_oneprovider, get_auto_cleaning_reports, {
             [{'node@host1', ?AUTO_CLEANING_REPORTS}], []
+        }},
+        {task_finished, {service, action, ok}}
+    ]
+    end),
+    NewConfig;
+
+init_per_testcase(get_should_return_autocleaning_report, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        {service_oneprovider, get_auto_cleaning_report, {
+            [{'node@host1', ?AUTO_CLEANING_REPORT1}], []
         }},
         {task_finished, {service, action, ok}}
     ]

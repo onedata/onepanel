@@ -217,9 +217,8 @@ get_files_popularity_configuration(Node, SpaceId) ->
 get_auto_cleaning_configuration(Node, SpaceId) ->
     DetailsMap = rpc:call(Node, autocleaning_api, get_configuration, [SpaceId]),
     DetailsMap2 = onepanel_maps:get_store_multiple([
-        % todo update lowerFileSizeLimit and upperFileSizeLimit names in VFS-5121
-        {[rules, min_file_size], [rules, lowerFileSizeLimit]},
-        {[rules, max_file_size], [rules, upperFileSizeLimit]},
+        {[rules, min_file_size], [rules, minFileSize]},
+        {[rules, max_file_size], [rules, maxFileSize]},
         {[rules, min_hours_since_last_open], [rules, minHoursSinceLastOpen]},
         {[rules, max_open_count], [rules, maxOpenCount]},
         {[rules, max_hourly_moving_average], [rules, maxHourlyMovingAverage]},

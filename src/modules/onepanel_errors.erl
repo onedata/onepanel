@@ -209,6 +209,9 @@ translate(_Type, #error{reason = {?ERR_AUTOCLEANING, {error, file_popularity_dis
 translate(_Type, #error{reason = {?ERR_AUTOCLEANING, {error, autocleaning_disabled}}}) ->
     {<<"Operation Error">>, <<"Auto-cleaning error. Auto-cleaning is disabled.">>};
 
+translate(_Type, #error{reason = {?ERR_AUTOCLEANING, Reason}}) ->
+    {<<"Operation Error">>, str_utils:format_bin("Auto-cleaning unexpected error: ~p ", [Reason])};
+
 translate(_Type, #error{reason = ?ERR_CMD_FAILURE(_, _)}) ->
     {<<"Internal Error">>, <<"Server encountered an unexpected error.">>};
 
