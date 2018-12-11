@@ -240,7 +240,7 @@ service_op_worker_add_storage_test(Config) ->
 
 service_op_worker_update_storage_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
-    [Host | _] = service_op_worker:get_hosts(),
+    [Host | _] = ?config(oneprovider_hosts, Config),
 
 
     % @fixme update docker and add other storage changes
