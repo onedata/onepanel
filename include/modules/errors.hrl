@@ -133,6 +133,7 @@
 
 -define(ERR_STORAGE_SYNC_IMPORT_STARTED, ?ERR_STORAGE_SYNC(import_already_started)).
 
--define(ERR_CONFIG_AUTOCLEANING, error_configuring_autocleaning).
+-define(ERR_CONFIG_AUTO_CLEANING, error_configuring_autocleaning).
+-define(ERR_AUTOCLEANING, error_autocleaning).
 
 -endif.

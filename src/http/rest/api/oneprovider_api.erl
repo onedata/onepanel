@@ -94,6 +94,19 @@ routes() ->
             }]
         }},
 
+        %% Configure files-popularity in the space.
+        {<<"/api/v3/onepanel/provider/spaces/:id/files-popularity/configuration">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = files_popularity_configuration,
+            methods = [#rmethod{
+                type = 'PATCH',
+                %% Value informing whether collecting files-popularity
+                %% statistics in the space should be turned on or off.
+                args_spec = rest_model:space_files_popularity_configuration_model()
+            }]
+        }},
+
         %% Configure provider deployment
         {<<"/api/v3/onepanel/provider/configuration">>, rest_handler, #rstate{
             version = 3,
@@ -104,6 +117,28 @@ routes() ->
                 %% The provider configuration description.
                 args_spec = rest_model:provider_configuration_model(),
                 noauth = true
+            }]
+        }},
+
+        %% Configure space auto-cleaning mechanism.
+        {<<"/api/v3/onepanel/provider/spaces/:id/auto-cleaning/configuration">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = space_auto_cleaning_configuration,
+            methods = [#rmethod{
+                type = 'PATCH',
+                %% New configuration of space auto-cleaning mechanism.
+                args_spec = rest_model:space_auto_cleaning_configuration_model()
+            }]
+        }},
+
+        %% Get files-popularity configuration
+        {<<"/api/v3/onepanel/provider/spaces/:id/files-popularity/configuration">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = files_popularity_configuration,
+            methods = [#rmethod{
+                type = 'GET'
             }]
         }},
 
@@ -188,11 +223,11 @@ routes() ->
             }]
         }},
 
-        %% Get reports of space auto cleaning
-        {<<"/api/v3/onepanel/provider/spaces/:id/auto_cleaning_reports">>, rest_handler, #rstate{
+        %% Get reports of space auto-cleaning
+        {<<"/api/v3/onepanel/provider/spaces/:id/auto-cleaning/reports">>, rest_handler, #rstate{
             version = 3,
             module = rest_oneprovider,
-            resource = space_auto_cleaning_report_collection,
+            resource = space_auto_cleaning_reports_collection,
             methods = [#rmethod{
                 type = 'GET',
                 params_spec = #{
@@ -203,8 +238,8 @@ routes() ->
             }]
         }},
 
-        %% Get status of space auto cleaning
-        {<<"/api/v3/onepanel/provider/spaces/:id/auto_cleaning_status">>, rest_handler, #rstate{
+        %% Get status of space auto-cleaning
+        {<<"/api/v3/onepanel/provider/spaces/:id/auto-cleaning/status">>, rest_handler, #rstate{
             version = 3,
             module = rest_oneprovider,
             resource = space_auto_cleaning_status,
@@ -256,6 +291,16 @@ routes() ->
             version = 3,
             module = rest_service,
             resource = service_op_worker,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% Get space auto-cleaning configuration
+        {<<"/api/v3/onepanel/provider/spaces/:id/auto-cleaning/configuration">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = space_auto_cleaning_configuration,
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -347,16 +392,6 @@ routes() ->
                 %% New values for storage configuration parameters which should
                 %% be changed.
                 args_spec = rest_model:storage_modify_request_model()
-            }]
-        }},
-
-        %% Start space cleaning
-        {<<"/api/v3/onepanel/provider/spaces/:id/start_cleaning">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_oneprovider,
-            resource = start_cleaning,
-            methods = [#rmethod{
-                type = 'POST'
             }]
         }},
 
@@ -486,6 +521,16 @@ routes() ->
                 %% Specification of the space support request including support
                 %% size and token.
                 args_spec = rest_model:space_support_request_model()
+            }]
+        }},
+
+        %% Triggers space auto-cleaning
+        {<<"/api/v3/onepanel/provider/spaces/:id/auto-cleaning/start">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = space_auto_cleaning_start,
+            methods = [#rmethod{
+                type = 'POST'
             }]
         }}
 
