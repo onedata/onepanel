@@ -15,7 +15,7 @@
 
 %% API
 -export([get/2, get/3, store/2, store/3, get_store/3, get_store/4, get_store/5]).
--export([get_store_multiple/2, get_store_multiple/3]).
+-export([get_store_multiple/2, get_store_multiple/3, to_list/1]).
 -export([remove_undefined/1]).
 
 -type key() :: any().
@@ -172,3 +172,18 @@ remove_undefined(Args) ->
         (_Key, undefined) -> false;
         (_Key, _Value) -> true
     end, Args).
+
+%%-------------------------------------------------------------------
+%% @doc Converts nested map to nested proplist.
+%% @end
+%%-------------------------------------------------------------------
+-spec to_list(maps:map()) -> proplists:proplist().
+to_list(Map) ->
+    maps:fold(fun(K, V, AccIn) ->
+        case is_map(V) of
+            true ->
+                [{K, to_list(V)} | AccIn];
+            false ->
+                [{K, V} | AccIn]
+        end
+    end, [], Map).

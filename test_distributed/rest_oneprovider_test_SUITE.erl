@@ -16,6 +16,7 @@
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
 
+
 %% export for ct
 -export([all/0, init_per_suite/1, end_per_suite/1,
     init_per_testcase/2, end_per_testcase/2]).
@@ -41,7 +42,14 @@
     patch_should_modify_storage_update/1,
     patch_should_update_storage/1,
     get_should_return_autocleaning_reports/1,
-    get_should_return_autocleaning_status/1]).
+    get_should_return_autocleaning_status/1,
+    get_should_return_autocleaning_configuration/1,
+    get_should_return_files_popularity_configuration/1,
+    patch_should_update_file_popularity/1,
+    patch_should_update_auto_cleaning/1,
+    patch_with_incomplete_config_should_update_auto_cleaning/1,
+    patch_with_incorrect_config_should_fail/1,
+    patch_should_invalidate_luma_cache/1]).
 
 -define(ADMIN_USER_NAME, <<"admin1">>).
 -define(ADMIN_USER_PASSWORD, <<"Admin1Password">>).
@@ -140,7 +148,7 @@
     }
 }).
 
--define(AUTOCLEANING_REPORTS, [
+-define(AUTO_CLEANING_REPORTS, [
     #{
         <<"bytesToRelease">> => 125,
         <<"filesNumber">> => 10,
@@ -157,9 +165,40 @@
     }
 ]).
 
--define(AUTOCLEANING_STATUS, #{
+-define(AUTO_CLEANING_STATUS, #{
     <<"inProgress">> => false,
     <<"usedSpace">> => 1234123
+}).
+
+-define(FILES_POPULARITY_CONFIG, #{
+   <<"enabled">> => true
+}).
+
+-define(AUTO_CLEANING_CONFIG, #{
+    <<"enabled">> => true,
+    <<"target">> => 32,
+    <<"threshold">> => 64,
+    <<"rules">> => #{
+        <<"enabled">> => true,
+        <<"maxOpenCount">> => #{<<"enabled">> => true, <<"value">> => 1},
+        <<"minHoursSinceLastOpen">> => #{<<"enabled">> => true, <<"value">> => 2},
+        <<"lowerFileSizeLimit">> => #{<<"enabled">> => true, <<"value">> => 3},
+        <<"upperFileSizeLimit">> => #{<<"enabled">> => true, <<"value">> => 4},
+        <<"maxHourlyMovingAverage">> => #{<<"enabled">> => true, <<"value">> => 5},
+        <<"maxDailyMovingAverage">> => #{<<"enabled">> => true, <<"value">> => 6},
+        <<"maxMonthlyMovingAverage">> => #{<<"enabled">> => true, <<"value">> => 7}
+    }
+}).
+
+-define(INCOMPLETE_AUTO_CLEANING_CONFIG, #{
+    <<"enabled">> => true,
+    <<"target">> => 32
+}).
+
+-define(INCORRECT_AUTO_CLEANING_CONFIG, #{
+    <<"enabled">> => true,
+    <<"target">> => <<"WRONG TYPE">>,
+    <<"threshold">> => wrong_type
 }).
 
 -define(run(Config, Function), Function(hd(?config(oneprovider_hosts, Config)))).
@@ -185,7 +224,14 @@ all() ->
         patch_should_modify_storage_update,
         patch_should_update_storage,
         get_should_return_autocleaning_reports,
-        get_should_return_autocleaning_status
+        get_should_return_autocleaning_status,
+        get_should_return_autocleaning_configuration,
+        get_should_return_files_popularity_configuration,
+        patch_should_update_file_popularity,
+        patch_should_update_auto_cleaning,
+        patch_with_incomplete_config_should_update_auto_cleaning,
+        patch_with_incorrect_config_should_fail,
+        patch_should_invalidate_luma_cache
     ]).
 
 %%%===================================================================
@@ -476,22 +522,119 @@ get_should_return_autocleaning_reports(Config) ->
     ?run(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(Host,
-                <<"/provider/spaces/someId/auto_cleaning_reports?started_after=2004-02-12T15:19:21.423Z">>,
+                <<"/provider/spaces/someId/auto-cleaning/reports?started_after=2004-02-12T15:19:21.423Z">>,
                 get, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [])
         ),
-        onepanel_test_rest:assert_body(JsonBody, ?AUTOCLEANING_REPORTS)
+        onepanel_test_rest:assert_body(JsonBody, ?AUTO_CLEANING_REPORTS)
     end).
 
 
 get_should_return_autocleaning_status(Config) ->
-    [N | _] = ?config(oneprovider_nodes, Config),
     ?run(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(Host,
-                <<"/provider/spaces/someId/auto_cleaning_status">>,
+                <<"/provider/spaces/someId/auto-cleaning/status">>,
                 get, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [])
         ),
-        onepanel_test_rest:assert_body(JsonBody, ?AUTOCLEANING_STATUS)
+        onepanel_test_rest:assert_body(JsonBody, ?AUTO_CLEANING_STATUS)
+    end).
+
+get_should_return_autocleaning_configuration(Config) ->
+    ?run(Config, fun(Host) ->
+        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(Host,
+                <<"/provider/spaces/someId/auto-cleaning/configuration">>,
+                get, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [])
+        ),
+        onepanel_test_rest:assert_body(JsonBody, ?AUTO_CLEANING_CONFIG)
+    end).
+
+get_should_return_files_popularity_configuration(Config) ->
+    ?run(Config, fun(Host) ->
+        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(Host,
+                <<"/provider/spaces/someId/files-popularity/configuration">>,
+                get, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [])
+        ),
+        onepanel_test_rest:assert_body(JsonBody, ?FILES_POPULARITY_CONFIG)
+    end).
+
+patch_should_update_file_popularity(Config) ->
+    ?run(Config, fun(Host) ->
+        ?assertMatch({ok, 204, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/spaces/someId/files-popularity/configuration">>, patch,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, ?FILES_POPULARITY_CONFIG
+            )
+        ),
+        ?assertReceivedMatch({service, oneprovider, configure_files_popularity, #{
+            space_id := <<"someId">>,
+            enabled := true
+        }}, ?TIMEOUT)
+    end).
+
+patch_should_update_auto_cleaning(Config) ->
+    ?run(Config, fun(Host) ->
+        ?assertMatch({ok, 204, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/spaces/someId/auto-cleaning/configuration">>, patch,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, ?AUTO_CLEANING_CONFIG
+            )
+        ),
+        ?assertReceivedMatch({service, oneprovider, configure_auto_cleaning, #{
+            space_id := <<"someId">>,
+            enabled := true,
+            target := 32,
+            threshold := 64,
+            rules := #{
+                enabled := true,
+                max_open_count := #{enabled := true, value := 1},
+                min_hours_since_last_open := #{enabled := true, value := 2},
+                min_file_size := #{enabled := true, value := 3},
+                max_file_size := #{enabled := true, value := 4},
+                max_hourly_moving_average := #{enabled := true, value := 5},
+                max_daily_moving_average := #{enabled := true, value := 6},
+                max_monthly_moving_average := #{enabled := true, value := 7}
+            }
+        }}, ?TIMEOUT)
+    end).
+
+patch_with_incomplete_config_should_update_auto_cleaning(Config) ->
+    ?run(Config, fun(Host) ->
+        ?assertMatch({ok, 204, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/spaces/someId/auto-cleaning/configuration">>, patch,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, ?INCOMPLETE_AUTO_CLEANING_CONFIG
+            )
+        ),
+        ?assertReceivedMatch({service, oneprovider, configure_auto_cleaning, #{
+            space_id := <<"someId">>,
+            enabled := true,
+            target := 32
+        }}, ?TIMEOUT)
+    end).
+
+patch_with_incorrect_config_should_fail(Config) ->
+    ?run(Config, fun(Host) ->
+        ?assertMatch({ok, 400, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/spaces/someId/auto-cleaning/configuration">>, patch,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, ?INCORRECT_AUTO_CLEANING_CONFIG
+            )
+        )
+    end).
+
+patch_should_invalidate_luma_cache(Config) ->
+    ?run(Config, fun(Host) ->
+        ?assertMatch({ok, 204, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/storages/someId/invalidate_luma">>, patch,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, #{}
+            )
+        ),
+        ?assertReceivedMatch({service, op_worker, invalidate_luma_cache, #{
+            id := <<"someId">>
+        }}, ?TIMEOUT)
     end).
 
 %%%===================================================================
@@ -657,8 +800,8 @@ init_per_testcase(get_should_return_autocleaning_reports, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_oneprovider, get_autocleaning_reports, {
-            [{'node@host1', ?AUTOCLEANING_REPORTS}], []
+        {service_oneprovider, get_auto_cleaning_reports, {
+            [{'node@host1', ?AUTO_CLEANING_REPORTS}], []
         }},
         {task_finished, {service, action, ok}}
     ]
@@ -669,11 +812,61 @@ init_per_testcase(get_should_return_autocleaning_status, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_oneprovider, get_autocleaning_status, {
-            [{'node@host1', ?AUTOCLEANING_STATUS}], []
+        {service_oneprovider, get_auto_cleaning_status, {
+            [{'node@host1', ?AUTO_CLEANING_STATUS}], []
         }},
         {task_finished, {service, action, ok}}
     ]
+    end),
+    NewConfig;
+
+init_per_testcase(get_should_return_autocleaning_configuration, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        {service_oneprovider, get_auto_cleaning_configuration, {
+            [{'node@host1', ?AUTO_CLEANING_CONFIG}], []
+        }},
+        {task_finished, {service, action, ok}}
+    ]
+    end),
+    NewConfig;
+
+init_per_testcase(get_should_return_files_popularity_configuration, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        {service_oneprovider, get_files_popularity_configuration, {
+            [{'node@host1', ?FILES_POPULARITY_CONFIG}], []
+        }},
+        {task_finished, {service, action, ok}}
+    ]
+    end),
+    NewConfig;
+
+init_per_testcase(patch_should_update_file_popularity, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_new(Nodes, rest_oneprovider),
+    Self = self(),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
+        Self ! {service, Service, Action, Ctx},
+        [{task_finished, {service, action, ok}}]
+    end),
+    NewConfig;
+
+init_per_testcase(Case, Config) when
+    Case =:= patch_should_update_auto_cleaning;
+    Case =:=  patch_with_incomplete_config_should_update_auto_cleaning;
+    Case =:=  patch_with_incorrect_config_should_fail
+->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_new(Nodes, rest_oneprovider),
+    Self = self(),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
+        Self ! {service, Service, Action, Ctx},
+        [{task_finished, {service, action, ok}}]
     end),
     NewConfig;
 

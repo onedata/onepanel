@@ -52,7 +52,7 @@ routes() ->
             methods = [#rmethod{
                 type = 'GET',
                 params_spec = #{
-                    %% If true the DNS check cache is overriden and check is
+                    %% If true the DNS check cache is overridden and check is
                     %% performed during handling of the request.
                     forceCheck => {boolean, {optional, false}}
                 }
