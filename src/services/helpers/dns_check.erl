@@ -300,9 +300,14 @@ check(_Service = oz_worker, dnsZone) ->
     DnsServers = get_dns_servers(),
     {_, IPs} = lists:unzip(service_oz_worker:get_ns_hosts()),
 
-    NsNames = lists:usort(lists:flatmap(fun(Server) ->
-        lookup_ns_names(Domain, Server)
-    end, DnsServers)),
+    OptsVariants = case DnsServers of
+        []  -> [[]];
+        [_|_] -> [[{nameservers, [{DnsServer, 53}]}] || DnsServer <- DnsServers]
+    end,
+
+    NsNames = lists:usort(lists:flatmap(fun(OptsVariant) ->
+        lookup_ns_names(Domain, OptsVariant)
+    end, OptsVariants)),
 
     Result = case NsNames of
         [] -> onepanel_dns:make_results_stub(unresolvable, IPs);
@@ -334,14 +339,14 @@ allow_missing_records(#dns_check{} = Check) -> Check.
 %% NS and SOA records.
 %% @end
 %%--------------------------------------------------------------------
--spec lookup_ns_names(Domain :: string() | binary(), DnsServer :: inet:ip4_address()) ->
+-spec lookup_ns_names(Domain :: string() | binary(), Opts :: list()) ->
     [string()].
-lookup_ns_names(Domain, DnsServer) when is_binary(Domain) ->
-    lookup_ns_names(binary_to_list(Domain), DnsServer);
+lookup_ns_names(Domain, Opts) when is_binary(Domain) ->
+    lookup_ns_names(binary_to_list(Domain), Opts);
 
-lookup_ns_names(Domain, DnsServer) ->
-    NsRecords = inet_res:lookup(Domain, in, ns, [{nameservers, [{DnsServer, 53}]}]),
-    case inet_res:lookup(Domain, in, soa, [{nameservers, [{DnsServer, 53}]}]) of
+lookup_ns_names(Domain, Opts) ->
+    NsRecords = inet_res:lookup(Domain, in, ns, Opts),
+    case inet_res:lookup(Domain, in, soa, Opts) of
         [] -> NsRecords;
         [{PrimaryNS, _DnsAdmin, _, _, _, _, _}] -> [PrimaryNS | NsRecords]
     end.
