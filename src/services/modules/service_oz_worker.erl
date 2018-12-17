@@ -288,8 +288,12 @@ reload_webcert(Ctx) ->
 %%--------------------------------------------------------------------
 -spec get_domain() -> binary().
 get_domain() ->
-    [Node | _] = get_nodes(),
-    list_to_binary(onepanel_env:get_remote(Node, [http_domain], name())).
+    Node = case get_nodes() of
+        [N | _] -> onepanel_cluster:service_to_node(?APP_NAME, N);
+        [] -> node()
+    end,
+    {ok, Domain} = rpc:call(Node, onepanel_env, read_effective, [[name(), http_domain], name()]),
+    list_to_binary(Domain).
 
 
 %%--------------------------------------------------------------------

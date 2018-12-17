@@ -156,6 +156,10 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
     onepanel_env:write([Name, cm_nodes], CmNodes, GeneratedConfigFile),
     onepanel_env:write([Name, db_nodes], DbNodes, GeneratedConfigFile),
 
+    maps:fold(fun(Key, Value, _) ->
+        onepanel_env:write([Name, Key], Value, GeneratedConfigFile)
+    end, #{}, AppConfig),
+
     case InitIp of
         true ->
             IP = case onepanel_maps:get([cluster_ips, Host], Ctx, undefined) of
@@ -168,10 +172,6 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
             onepanel_env:write([name(), external_ip], IP, GeneratedConfigFile);
         false -> ok
     end,
-
-    maps:fold(fun(Key, Value, _) ->
-        onepanel_env:write([Name, Key], Value, GeneratedConfigFile)
-    end, #{}, AppConfig),
 
     onepanel_vm:write("name", Node, VmArgsFile),
     onepanel_vm:write("setcookie", maps:get(cookie, Ctx, erlang:get_cookie()),
