@@ -164,8 +164,9 @@
         %% URL of service used for autodetecting external IP
         {ip_check_url, "http://ip4.icanhazip.com"},
 
-        %% IPs of DNS servers used to validate domain configuration
-        {dns_check_servers, [{8,8,8,8}, {8,8,4,4}, {1,1,1,1}]},
+        %% IPs of DNS servers used to validate domain configuration.
+        %% Empty list causes use of system defaults
+        {dns_check_servers, []},
 
         %% Interval between DNS checks in seconds. Default: 6 hours
         {dns_check_interval, 21600},
