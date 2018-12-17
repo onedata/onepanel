@@ -33,9 +33,10 @@ determine_ip() ->
         end
     end, undefined, [
         fun determine_ip_by_oz/0,
+        fun determine_ip_by_domain/0,
         fun determine_ip_by_external_service/0,
         fun determine_ip_by_shell/0,
-        fun () -> {ok, {127,0,0,1}} end
+        fun() -> {ok, {127, 0, 0, 1}} end
     ]),
     IP.
 
@@ -95,6 +96,38 @@ determine_ip_by_oz() ->
             parse_ip4(IPBin);
         _ -> {error, not_registered}
     end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Attempts to resolve cluster's domain.
+%% If the query returns single IP address, it is used as the determined IP.
+%% If more than one value is returned, attempts to match it to
+%% hostname -i in order to differentiate between nodes.
+%% If none match, the first IP returned by DNS is used.
+%% @end
+%%--------------------------------------------------------------------
+-spec determine_ip_by_domain() -> {ok, inet:ip4_address()} | {error, term()}.
+determine_ip_by_domain() ->
+    Domain = case onepanel_env:get(release_type) of
+        oneprovider -> service_op_worker:get_domain();
+        onezone -> service_oz_worker:get_domain()
+    end,
+    case inet_res:lookup(binary_to_list(Domain), in, a) of
+        [] -> {error, not_found};
+        [{_, _, _, _} = IP] -> {ok, IP};
+        [First | _] = ManyIPs ->
+            case (catch determine_ip_by_shell()) of
+                {ok, ShellIP} ->
+                    case lists:member(ShellIP, ManyIPs) of
+                        true -> {ok, ShellIP};
+                        false -> First
+                    end;
+                _ -> First
+            end
+    end.
+
 
 %%--------------------------------------------------------------------
 %% @private
