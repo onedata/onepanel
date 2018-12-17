@@ -707,9 +707,9 @@ update_provider_ips(Ctx) ->
 %%-------------------------------------------------------------------
 -spec get_auto_cleaning_reports(Ctx :: service:ctx()) -> proplists:proplist().
 get_auto_cleaning_reports(Ctx = #{space_id := SpaceId, node := Node}) ->
-    Offset = onepanel_utils:typed_get(offset, Ctx, binary, 0),
+    Offset = onepanel_utils:typed_get(offset, Ctx, integer, 0),
     Limit = onepanel_utils:typed_get(limit, Ctx, integer, all),
-    Index = onepanel_utils:typed_get(index, Ctx, integer, undefined),
+    Index = onepanel_utils:typed_get(index, Ctx, binary, undefined),
     {ok, Ids} = rpc:call(Node, autocleaning_api, list_reports, [SpaceId, Index, Offset, Limit]),
     [{ids, Ids}];
 get_auto_cleaning_reports(Ctx) ->
