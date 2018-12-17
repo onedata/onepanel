@@ -50,13 +50,14 @@
     service_status_model/0,
     service_status_host_model/0,
     session_details_model/0,
-    space_auto_cleaning_model/0,
+    space_auto_cleaning_configuration_model/0,
     space_auto_cleaning_report_model/0,
     space_auto_cleaning_report_collection_model/0,
-    space_auto_cleaning_settings_model/0,
+    space_auto_cleaning_rule_setting_model/0,
+    space_auto_cleaning_rules_model/0,
     space_auto_cleaning_status_model/0,
     space_details_model/0,
-    space_files_popularity_model/0,
+    space_files_popularity_configuration_model/0,
     space_id_model/0,
     space_modify_request_model/0,
     space_support_request_model/0,
@@ -471,7 +472,7 @@ provider_configuration_onezone_model() ->
 -spec provider_details_model() -> maps:map().
 provider_details_model() ->
     #{
-        %% The ID assigned by a zone.
+        %% The Id assigned by a zone.
         id => string,
         %% The name under which the provider has been registered in a zone.
         name => string,
@@ -657,37 +658,47 @@ service_status_host_model() ->
 -spec session_details_model() -> maps:map().
 session_details_model() ->
     #{
-        %% The session ID.
+        %% The session Id.
         sessionId => string,
         %% The name of a user associated with the session.
         username => string
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Space auto cleaning settings
+%% @doc Settings for space auto-cleaning mechanism. Setting enabled to
+%% `false` disables given parameter. It will be ignored by auto-
+%% cleaning mechanism. All presented parameters' ranges are inclusive.
 %% @end
 %%--------------------------------------------------------------------
--spec space_auto_cleaning_model() -> maps:map().
-space_auto_cleaning_model() ->
+-spec space_auto_cleaning_configuration_model() -> maps:map().
+space_auto_cleaning_configuration_model() ->
     #{
-        %% If true, auto cleaning feature for the space is enabled
+        %% If true, auto-cleaning mechanism is enabled in the space.
         enabled => {boolean, optional},
-        %% Settings when and what files auto cleaning should clean
-        settings => {space_auto_cleaning_settings_model(), optional}
+        %% Amount of data [b], which should trigger the auto-cleaning in the
+        %% space. Only replicas maintained by this storage provider will be
+        %% removed.  This parameter is required to enable auto-cleaning.
+        threshold => {integer, optional},
+        %% Amount of data [b], at which the auto-cleaning process should stop.
+        %% This parameter is required to enable auto-cleaning.
+        target => {integer, optional},
+        %% Rules used to select certain list of file replicas that can be
+        %% evicted by auto-cleaning mechanism.
+        rules => {space_auto_cleaning_rules_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Autocleaning report
+%% @doc Auto-cleaning report
 %% @end
 %%--------------------------------------------------------------------
 -spec space_auto_cleaning_report_model() -> maps:map().
 space_auto_cleaning_report_model() ->
     #{
-        %% Start time of autocleaning procedure in ISO 8601 format
+        %% Start time of auto-cleaning procedure in ISO 8601 format
         startedAt => string,
-        %% Finish time of autocleaning procedure in ISO 8601 format
+        %% Finish time of auto-cleaning procedure in ISO 8601 format
         stoppedAt => string,
-        %% Number of bytes deleted during autocleaning procedure.
+        %% Number of bytes deleted during auto-cleaning procedure.
         releasedBytes => integer,
         %% Number of bytes that should be deleted.
         bytesToRelease => integer,
@@ -696,7 +707,7 @@ space_auto_cleaning_report_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc List of auto cleaning report entries
+%% @doc List of auto-cleaning report entries
 %% @end
 %%--------------------------------------------------------------------
 -spec space_auto_cleaning_report_collection_model() -> maps:map().
@@ -706,41 +717,71 @@ space_auto_cleaning_report_collection_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Settings for auto cleaning algorithms - for what files and when it
-%% should be started. If parameter is not set in the request, previous value
-%% will be used.
+%% @doc Rule setting for a space auto-cleaning mechanism. Setting field
+%% `enabled` to `false` disables the rule.
 %% @end
 %%--------------------------------------------------------------------
--spec space_auto_cleaning_settings_model() -> maps:map().
-space_auto_cleaning_settings_model() ->
+-spec space_auto_cleaning_rule_setting_model() -> maps:map().
+space_auto_cleaning_rule_setting_model() ->
     #{
-        %% Only files which size [b] is greater than or equal to given value
-        %% should be cleaned. Set to null to disable this parameter.
-        lowerFileSizeLimit => {integer, optional},
-        %% Only files which size [b] is less than or equal to given value should
-        %% be cleaned Set to null to disable this parameter.
-        upperFileSizeLimit => {integer, optional},
-        %% Files that haven't been opened for longer than or equal to given
-        %% period [h] will be cleaned. Set to null to disable this parameter.
-        maxFileNotOpenedHours => {integer, optional},
-        %% Amount of data [b], which should trigger the auto cleaning in the
-        %% space. Only replicas maintained by this storage provider will be
-        %% removed. If not specified, the auto cleaning will not start
-        %% automatically.
-        threshold => {integer, optional},
-        %% Amount of data [b], at which the auto cleaning process should stop.
-        %% This parameter is required to enale auto cleaning.
-        target => {integer, optional}
+        %% Informs whether given setting is enabled.
+        enabled => {boolean, optional},
+        %% Integer value of a given setting.
+        value => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Status of current auto cleaning process for given space
+%% @doc Rules used to select certain list of file replicas that can be evicted
+%% by auto-cleaning mechanism. A rule is enabled by setting its
+%% `enabled` field to `true`. By default all rules are
+%% disabled (ignored). A rule can be enabled without specifying its value. In
+%% that case previous value is used. If the rule is enabled for the first time a
+%% default value will be used. All rules' values are inclusive.
+%% @end
+%%--------------------------------------------------------------------
+-spec space_auto_cleaning_rules_model() -> maps:map().
+space_auto_cleaning_rules_model() ->
+    #{
+        %% Informs whether selective rules should be used by auto-cleaning
+        %% mechanism.
+        enabled => {boolean, optional},
+        %% Files that have been opened less than `maxOpenCount` times
+        %% may be cleaned. The default value is `9007199254740991
+        %% (2^53-1)`.
+        maxOpenCount => {space_auto_cleaning_rule_setting_model(), optional},
+        %% Files that haven't been opened for longer than or equal to given
+        %% period [h] may be cleaned. The default value is `0`.
+        minHoursSinceLastOpen => {space_auto_cleaning_rule_setting_model(), optional},
+        %% Only files which size [b] is greater than given value may be cleaned.
+        %% The default value is `1`.
+        lowerFileSizeLimit => {space_auto_cleaning_rule_setting_model(), optional},
+        %% Only files which size [b] is less than given value may be cleaned.
+        %% The default value is `1125899906842624 (1 PiB)`.
+        upperFileSizeLimit => {space_auto_cleaning_rule_setting_model(), optional},
+        %% Files that have moving average of open operations count per hour less
+        %% than given value may be cleaned. The average is calculated in 24
+        %% hours window. The default value is `9007199254740991
+        %% (2^53-1)`.
+        maxHourlyMovingAverage => {space_auto_cleaning_rule_setting_model(), optional},
+        %% Files that have moving average of open operations count per day less
+        %% than given value may be cleaned. The average is calculated in 31 days
+        %% window. The default value is `9007199254740991 (2^53-1)`.
+        maxDailyMovingAverage => {space_auto_cleaning_rule_setting_model(), optional},
+        %% Files that have moving average of open operations count per month
+        %% less than given value may be cleaned. The average is calculated in 12
+        %% months window. The default value is `9007199254740991
+        %% (2^53-1)`.
+        maxMonthlyMovingAverage => {space_auto_cleaning_rule_setting_model(), optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Status of current auto-cleaning process for given space
 %% @end
 %%--------------------------------------------------------------------
 -spec space_auto_cleaning_status_model() -> maps:map().
 space_auto_cleaning_status_model() ->
     #{
-        %% Flag which indicates whether auto cleaning process is currently in
+        %% Flag which indicates whether auto-cleaning process is currently in
         %% progress
         inProgress => boolean,
         %% Amount of storage [b] used by data from given space on that storage.
@@ -754,7 +795,7 @@ space_auto_cleaning_status_model() ->
 -spec space_details_model() -> maps:map().
 space_details_model() ->
     #{
-        %% The ID of the space.
+        %% The Id of the space.
         id => string,
         %% The name of the space.
         name => string,
@@ -770,35 +811,32 @@ space_details_model() ->
         mountInRoot => {boolean, optional},
         storageImport => {storage_import_details_model(), optional},
         storageUpdate => {storage_update_details_model(), optional},
-        %% Configuration of files popularity feature for this space
-        filesPopularity => {space_files_popularity_model(), optional},
-        %% Configuration of auto cleaning feature for this space
-        autoCleaning => {space_auto_cleaning_model(), optional},
         %% Amount of storage [b] used by data from given space on that storage.
         spaceOccupancy => integer
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Settings of files popularity feature of space
+%% @doc Settings of files-popularity feature of space
 %% @end
 %%--------------------------------------------------------------------
--spec space_files_popularity_model() -> maps:map().
-space_files_popularity_model() ->
+-spec space_files_popularity_configuration_model() -> maps:map().
+space_files_popularity_configuration_model() ->
     #{
-        %% If true, files popularity feature for the space is enabled
+        %% If true, collecting files-popularity mechanism in the space is
+        %% enabled
         enabled => boolean,
-        %% REST endpoint to view file popularity statistics
+        %% REST endpoint to view files-popularity statistics
         restUrl => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Provides ID of a space.
+%% @doc Provides Id of a space.
 %% @end
 %%--------------------------------------------------------------------
 -spec space_id_model() -> maps:map().
 space_id_model() ->
     #{
-        %% The ID of the space.
+        %% The Id of the space.
         id => string
     }.
 
@@ -813,11 +851,7 @@ space_modify_request_model() ->
         %% the space.
         size => {integer, optional},
         storageImport => {storage_import_details_model(), optional},
-        storageUpdate => {storage_update_details_model(), optional},
-        %% Configuration of files popularity feature for this space
-        filesPopularity => {space_files_popularity_model(), optional},
-        %% Configuration of auto cleaning feature for this space
-        autoCleaning => {space_auto_cleaning_model(), optional}
+        storageUpdate => {storage_update_details_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -833,7 +867,7 @@ space_support_request_model() ->
         %% The storage space size in bytes that provider is willing to assign to
         %% the space.
         size => integer,
-        %% The ID of the storage resource where the space data should be stored.
+        %% The Id of the storage resource where the space data should be stored.
         storageId => string,
         %% Defines whether space will be mounted in / or /{SpaceId}/ path.
         mountInRoot => {boolean, optional},
@@ -851,9 +885,7 @@ space_sync_stats_model() ->
         %% Describes import algorithm run status.
         importStatus => string,
         %% Describes update algorithm run status.
-        updateStatus => {string, optional},
-        %% Collection of statistics for requested metrics.
-        stats => {time_stats_collection_model(), optional}
+        updateStatus => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1014,7 +1046,7 @@ user_create_request_model() ->
 -spec user_details_model() -> maps:map().
 user_details_model() ->
     #{
-        %% The user ID.
+        %% The user Id.
         userId => string,
         %% The user role, one of `admin` or `regular`.
         userRole => atom
@@ -1220,7 +1252,7 @@ zone_policies_model() ->
 -spec ceph_model() -> maps:map().
 ceph_model() ->
     #{
-        %% The ID of storage.
+        %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
         name => {string, optional},
@@ -1267,7 +1299,7 @@ ceph_model() ->
 -spec cephrados_model() -> maps:map().
 cephrados_model() ->
     #{
-        %% The ID of storage.
+        %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
         name => {string, optional},
@@ -1316,7 +1348,7 @@ cephrados_model() ->
 -spec glusterfs_model() -> maps:map().
 glusterfs_model() ->
     #{
-        %% The ID of storage.
+        %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
         name => {string, optional},
@@ -1367,7 +1399,7 @@ glusterfs_model() ->
 -spec nulldevice_model() -> maps:map().
 nulldevice_model() ->
     #{
-        %% The ID of storage.
+        %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
         name => {string, optional},
@@ -1433,7 +1465,7 @@ nulldevice_model() ->
 -spec posix_model() -> maps:map().
 posix_model() ->
     #{
-        %% The ID of storage.
+        %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
         name => {string, optional},
@@ -1473,7 +1505,7 @@ posix_model() ->
 -spec s3_model() -> maps:map().
 s3_model() ->
     #{
-        %% The ID of storage.
+        %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
         name => {string, optional},
@@ -1523,7 +1555,7 @@ s3_model() ->
 -spec swift_model() -> maps:map().
 swift_model() ->
     #{
-        %% The ID of storage.
+        %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
         name => {string, optional},
@@ -1572,7 +1604,7 @@ swift_model() ->
 -spec webdav_model() -> maps:map().
 webdav_model() ->
     #{
-        %% The ID of storage.
+        %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
         name => {string, optional},
