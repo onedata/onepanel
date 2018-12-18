@@ -134,7 +134,7 @@ check(Expected, Names, Type, Servers) ->
 
     case WithoutErrors of
         [] -> ?throw_error(?ERR_DNS_CHECK_ERROR(
-            io_lib:format("No DNS server responded to DNS check. Tried: ~p", [Servers])));
+            str_utils:format("No DNS server responded to DNS check. Tried: ~p", [Servers])));
         _ -> WithoutErrors
     end.
 

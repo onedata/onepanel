@@ -297,28 +297,24 @@ check(Service, domain) ->
 
 check(_Service = oz_worker, dnsZone) ->
     Domain = service_oz_worker:get_domain(),
-    DnsServers = get_dns_servers(),
     {_, IPs} = lists:unzip(service_oz_worker:get_ns_hosts()),
+    DnsServers = get_dns_servers(),
 
-    OptsVariants = case DnsServers of
-        []  -> [[]];
-        [_|_] -> [[{nameservers, [{DnsServer, 53}]}] || DnsServer <- DnsServers]
+    Opts = case DnsServers of
+        [] -> [];
+        [_ | _] -> [{nameservers, [{DnsServer, 53} || DnsServer <- DnsServers]}]
     end,
 
-    NsNames = lists:usort(lists:flatmap(fun(OptsVariant) ->
-        lookup_ns_names(Domain, OptsVariant)
-    end, OptsVariants)),
+    NsNames = lists:usort(lookup_ns_names(Domain, Opts)),
 
     Result = case NsNames of
         [] -> onepanel_dns:make_results_stub(unresolvable, IPs);
         _ -> onepanel_dns:check_any(IPs, NsNames, a, DnsServers)
     end,
 
-    WithRecommended = Result#dns_check{
+    allow_missing_records(Result#dns_check{
         bind_records = delegation_bind_records(Domain)
-    },
-
-    allow_missing_records(WithRecommended).
+    }).
 
 
 %%--------------------------------------------------------------------
