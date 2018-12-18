@@ -122,7 +122,8 @@
         {letsencrypt_attempts, 1},
 
         %% IPs of DNS servers used to verify that txt record for Let's Encrypt
-        %% authorization was properly set
+        %% authorization was properly set.
+        %% Empty list causes use of system defaults.
         {letsencrypt_dns_verification_servers, []},
 
         %% Regular expression used for checking if existing certificate
