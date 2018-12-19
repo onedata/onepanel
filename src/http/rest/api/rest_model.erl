@@ -780,7 +780,7 @@ space_details_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Settings of files-popularity feature of space
+%% @doc Configuration of files-popularity mechanism in the space.
 %% @end
 %%--------------------------------------------------------------------
 -spec space_files_popularity_configuration_model() -> maps:map().
@@ -789,8 +789,16 @@ space_files_popularity_configuration_model() ->
         %% If true, collecting files-popularity mechanism in the space is
         %% enabled
         enabled => boolean,
-        %% REST endpoint to view files-popularity statistics
-        restUrl => {string, optional}
+        %% Example `curl` command that can be executed to query the
+        %% files-popularity view in the space.
+        exampleQuery => {string, optional},
+        %% Weight of `lastOpenHour` parameter.
+        lastOpenHourWeight => {float, optional},
+        %% Weight of `avgOpenCountPerDayWeight` parameter.
+        avgOpenCountPerDayWeight => {float, optional},
+        %% Maximal value of average open count per day taken to calculate the
+        %% value of popularity function.
+        maxAvgOpenCountPerDay => {float, optional}
     }.
 
 %%--------------------------------------------------------------------

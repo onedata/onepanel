@@ -176,8 +176,11 @@ accept_resource(Req, 'PATCH', Args, #rstate{
 }) ->
     Ctx = #{space_id => Id},
     Ctx2 = onepanel_maps:get_store(enabled, Args, [enabled], Ctx),
+    Ctx3 = onepanel_maps:get_store(lastOpenHourWeight, Args, [last_open_hour_weight], Ctx2),
+    Ctx4 = onepanel_maps:get_store(avgOpenCountPerDayWeight, Args, [avg_open_count_per_day_weight], Ctx3),
+    Ctx5 = onepanel_maps:get_store(maxAvgOpenCountPerDay, Args, [max_avg_open_count_per_day], Ctx4),
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, configure_files_popularity, Ctx2
+        ?SERVICE, configure_files_popularity, Ctx5
     ))};
 
 
@@ -196,7 +199,7 @@ accept_resource(Req, 'POST', _Args, #rstate{
     bindings = #{id := Id}
 }) ->
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-            ?SERVICE, start_auto_cleaning, #{space_id => Id}
+        ?SERVICE, start_auto_cleaning, #{space_id => Id}
     ))}.
 
 %%--------------------------------------------------------------------

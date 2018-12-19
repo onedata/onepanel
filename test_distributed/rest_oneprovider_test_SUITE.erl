@@ -177,7 +177,10 @@
 }).
 
 -define(FILES_POPULARITY_CONFIG, #{
-   <<"enabled">> => true
+    <<"enabled">> => true,
+    <<"lastOpenHourWeight">> => 1.0,
+    <<"avgOpenCountPerDayWeight">> => 1.0,
+    <<"maxAvgOpenCountPerDay">> => 100
 }).
 
 -define(AUTO_CLEANING_CONFIG, #{
@@ -585,7 +588,10 @@ patch_should_update_file_popularity(Config) ->
         ),
         ?assertReceivedMatch({service, oneprovider, configure_files_popularity, #{
             space_id := <<"someId">>,
-            enabled := true
+            enabled := true,
+            last_open_hour_weight := 1.0,
+            avg_open_count_per_day_weight := 1.0,
+            max_avg_open_count_per_day := 100.0
         }}, ?TIMEOUT)
     end).
 

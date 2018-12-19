@@ -94,7 +94,7 @@ routes() ->
             }]
         }},
 
-        %% Configure files-popularity in the space.
+        %% Configure files-popularity mechanism in the space.
         {<<"/api/v3/onepanel/provider/spaces/:id/files-popularity/configuration">>, rest_handler, #rstate{
             version = 3,
             module = rest_oneprovider,
