@@ -117,8 +117,8 @@ build_bind_record(Domain, Type, Value) ->
 %%--------------------------------------------------------------------
 -spec check(Expected :: [dns_value()], Names :: [dns_name()], Type :: dns_type(),
     Servers :: [inet:ip4_address() | default]) -> [dns_check()].
-check(_Expected, _Names, _Type, []) ->
-    check(_Expected, _Names, _Type, [default]);
+check(Expected, Names, Type, []) ->
+    check(Expected, Names, Type, [default]);
 
 check([], [], _Type, _Servers) ->
     [#dns_check{summary = ok, expected = [], got = []}];
