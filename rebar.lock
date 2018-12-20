@@ -14,7 +14,7 @@
   2},
  {<<"ctool">>,
   {git,"ssh://git@git.plgrid.pl:7999/vfs/ctool.git",
-       {ref,"bdf62bf5403444ff2c804fcb2c03fed6b21e585a"}},
+       {ref,"f1647f7a5fc20446694d7e0fa8986358b273683c"}},
   0},
  {<<"enacl_p">>,
   {git,"https://github.com/kzemek/enacl_p.git",
