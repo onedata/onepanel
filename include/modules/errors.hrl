@@ -134,7 +134,7 @@
 -define(ERR_CONFIG_AUTO_CLEANING, error_configuring_autocleaning).
 -define(ERR_AUTOCLEANING, error_autocleaning).
 
--define(ERR_CONFIG_FILES_POPULARITY, error_config_files_popularity).
--define(ERR_FILES_POPULARITY, error_files_popularity).
+-define(ERR_CONFIG_FILE_POPULARITY, error_config_file_popularity).
+-define(ERR_FILE_POPULARITY, error_file_popularity).
 
 -endif.

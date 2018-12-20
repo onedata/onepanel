@@ -45,7 +45,7 @@
     get_should_return_autocleaning_report/1,
     get_should_return_autocleaning_status/1,
     get_should_return_autocleaning_configuration/1,
-    get_should_return_files_popularity_configuration/1,
+    get_should_return_file_popularity_configuration/1,
     patch_should_update_file_popularity/1,
     patch_should_update_auto_cleaning/1,
     patch_with_incomplete_config_should_update_auto_cleaning/1,
@@ -176,7 +176,7 @@
     <<"usedSpace">> => 1234123
 }).
 
--define(FILES_POPULARITY_CONFIG, #{
+-define(file_popularity_CONFIG, #{
     <<"enabled">> => true,
     <<"lastOpenHourWeight">> => 1.0,
     <<"avgOpenCountPerDayWeight">> => 1.0,
@@ -236,7 +236,7 @@ all() ->
         get_should_return_autocleaning_report,
         get_should_return_autocleaning_status,
         get_should_return_autocleaning_configuration,
-        get_should_return_files_popularity_configuration,
+        get_should_return_file_popularity_configuration,
         patch_should_update_file_popularity,
         patch_should_update_auto_cleaning,
         patch_with_incomplete_config_should_update_auto_cleaning,
@@ -568,25 +568,25 @@ get_should_return_autocleaning_configuration(Config) ->
         onepanel_test_rest:assert_body(JsonBody, ?AUTO_CLEANING_CONFIG)
     end).
 
-get_should_return_files_popularity_configuration(Config) ->
+get_should_return_file_popularity_configuration(Config) ->
     ?run(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(Host,
-                <<"/provider/spaces/someId/files-popularity/configuration">>,
+                <<"/provider/spaces/someId/file-popularity/configuration">>,
                 get, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [])
         ),
-        onepanel_test_rest:assert_body(JsonBody, ?FILES_POPULARITY_CONFIG)
+        onepanel_test_rest:assert_body(JsonBody, ?file_popularity_CONFIG)
     end).
 
 patch_should_update_file_popularity(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
-                Host, <<"/provider/spaces/someId/files-popularity/configuration">>, patch,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, ?FILES_POPULARITY_CONFIG
+                Host, <<"/provider/spaces/someId/file-popularity/configuration">>, patch,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, ?file_popularity_CONFIG
             )
         ),
-        ?assertReceivedMatch({service, oneprovider, configure_files_popularity, #{
+        ?assertReceivedMatch({service, oneprovider, configure_file_popularity, #{
             space_id := <<"someId">>,
             enabled := true,
             last_open_hour_weight := 1.0,
@@ -866,12 +866,12 @@ init_per_testcase(get_should_return_autocleaning_configuration, Config) ->
     end),
     NewConfig;
 
-init_per_testcase(get_should_return_files_popularity_configuration, Config) ->
+init_per_testcase(get_should_return_file_popularity_configuration, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_oneprovider, get_files_popularity_configuration, {
-            [{'node@host1', ?FILES_POPULARITY_CONFIG}], []
+        {service_oneprovider, get_file_popularity_configuration, {
+            [{'node@host1', ?file_popularity_CONFIG}], []
         }},
         {task_finished, {service, action, ok}}
     ]

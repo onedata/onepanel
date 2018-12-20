@@ -54,7 +54,7 @@
     space_auto_cleaning_rules_model/0,
     space_auto_cleaning_status_model/0,
     space_details_model/0,
-    space_files_popularity_configuration_model/0,
+    space_file_popularity_configuration_model/0,
     space_id_model/0,
     space_modify_request_model/0,
     space_support_request_model/0,
@@ -780,17 +780,16 @@ space_details_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Configuration of files-popularity mechanism in the space.
+%% @doc Configuration of file-popularity mechanism in the space.
 %% @end
 %%--------------------------------------------------------------------
--spec space_files_popularity_configuration_model() -> maps:map().
-space_files_popularity_configuration_model() ->
+-spec space_file_popularity_configuration_model() -> maps:map().
+space_file_popularity_configuration_model() ->
     #{
-        %% If true, collecting files-popularity mechanism in the space is
-        %% enabled
+        %% If true, collecting file-popularity mechanism in the space is enabled
         enabled => boolean,
         %% Example `curl` command that can be executed to query the
-        %% files-popularity view in the space.
+        %% file-popularity view in the space.
         exampleQuery => {string, optional},
         %% Weight of `lastOpenHour` parameter.
         lastOpenHourWeight => {float, optional},

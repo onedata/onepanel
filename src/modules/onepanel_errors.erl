@@ -212,14 +212,14 @@ translate(_Type, #error{reason = {?ERR_AUTOCLEANING, autocleaning_disabled}}) ->
 translate(_Type, #error{reason = {?ERR_AUTOCLEANING, Reason}}) ->
     {<<"Operation Error">>, str_utils:format_bin("Auto-cleaning unexpected error: ~p ", [Reason])};
 
-translate(_Type, #error{reason = {?ERR_CONFIG_FILES_POPULARITY, {negative_value, Parameter}}}) ->
-    {<<"Operation Error">>, str_utils:format_bin("Files-popularity configuration error. Negative value not allowed for key: ~p.", [Parameter])};
+translate(_Type, #error{reason = {?ERR_CONFIG_FILE_POPULARITY, {negative_value, Parameter}}}) ->
+    {<<"Operation Error">>, str_utils:format_bin("file-popularity configuration error. Negative value not allowed for key: ~p.", [Parameter])};
 
-translate(_Type, #error{reason = {?ERR_CONFIG_FILES_POPULARITY, {illegal_type, Parameter}}}) ->
-    {<<"Operation Error">>, str_utils:format_bin("Files-popularity configuration error. Illegal type for key: ~p.", [Parameter])};
+translate(_Type, #error{reason = {?ERR_CONFIG_FILE_POPULARITY, {illegal_type, Parameter}}}) ->
+    {<<"Operation Error">>, str_utils:format_bin("file-popularity configuration error. Illegal type for key: ~p.", [Parameter])};
 
-translate(_Type, #error{reason = {?ERR_FILES_POPULARITY, Error}}) ->
-    {<<"Operation Error">>, str_utils:format_bin("Files-popularity error: ~p.", [Error])};
+translate(_Type, #error{reason = {?ERR_FILE_POPULARITY, Error}}) ->
+    {<<"Operation Error">>, str_utils:format_bin("file-popularity error: ~p.", [Error])};
 
 translate(_Type, #error{reason = ?ERR_CMD_FAILURE(_, _)}) ->
     {<<"Internal Error">>, <<"Server encountered an unexpected error.">>};

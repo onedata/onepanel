@@ -20,7 +20,7 @@
 %% API
 -export([add/2, get/0, get/1, update/2]).
 -export([get_supporting_storage/2, get_supporting_storages/2,
-    get_files_popularity_configuration/2, get_auto_cleaning_configuration/2]).
+    get_file_popularity_configuration/2, get_auto_cleaning_configuration/2]).
 -export([is_mounted_in_root/3]).
 -export([add_storage/5, maybe_update_file_popularity/3,
     maybe_update_auto_cleaning/3, invalidate_luma_cache/1]).
@@ -169,10 +169,10 @@ exists(Node, StorageName) ->
 maybe_update_file_popularity(_Node, _SpaceId, Args) when map_size(Args) =:= 0 ->
     ok;
 maybe_update_file_popularity(Node, SpaceId, Args) ->
-    Configuration = parse_files_popularity_configuration(Args),
+    Configuration = parse_file_popularity_configuration(Args),
     case rpc:call(Node, file_popularity_api, configure, [SpaceId, Configuration]) of
         {error, Reason} ->
-            ?throw_error({?ERR_CONFIG_FILES_POPULARITY, Reason});
+            ?throw_error({?ERR_CONFIG_FILE_POPULARITY, Reason});
         Result -> Result
     end.
 
@@ -195,12 +195,12 @@ maybe_update_auto_cleaning(Node, SpaceId, Args) ->
 
 %%-------------------------------------------------------------------
 %% @doc
-%% This function is responsible for fetching files-popularity
+%% This function is responsible for fetching file-popularity
 %% configuration from provider.
 %% @end
 %%-------------------------------------------------------------------
--spec get_files_popularity_configuration(Node :: node(), SpaceId :: id()) -> proplists:proplist().
-get_files_popularity_configuration(Node, SpaceId) ->
+-spec get_file_popularity_configuration(Node :: node(), SpaceId :: id()) -> proplists:proplist().
+get_file_popularity_configuration(Node, SpaceId) ->
     case rpc:call(Node, file_popularity_api, get_configuration, [SpaceId]) of
         {ok, DetailsMap} ->
             maps:to_list(onepanel_maps:get_store_multiple([
@@ -211,7 +211,7 @@ get_files_popularity_configuration(Node, SpaceId) ->
                 {[max_avg_open_count_per_day], [maxAvgOpenCountPerDay]}
             ], DetailsMap));
         {error, Reason} ->
-            ?throw_error({?ERR_FILES_POPULARITY, Reason})
+            ?throw_error({?ERR_FILE_POPULARITY, Reason})
     end.
 
 %%-------------------------------------------------------------------
@@ -648,11 +648,11 @@ parse_auto_cleaning_rule_setting(RuleName, Args) ->
     }).
 
 %%-------------------------------------------------------------------
-%% @private @doc Parses and validates files-popularity configuration
+%% @private @doc Parses and validates file-popularity configuration
 %% @end
 %%-------------------------------------------------------------------
--spec parse_files_popularity_configuration(maps:map()) -> maps:map().
-parse_files_popularity_configuration(Args) ->
+-spec parse_file_popularity_configuration(maps:map()) -> maps:map().
+parse_file_popularity_configuration(Args) ->
     onepanel_maps:remove_undefined(#{
         enabled => onepanel_utils:typed_get(enabled, Args, boolean, undefined),
         last_open_hour_weight => onepanel_utils:typed_get(lastOpenHourWeight, Args, float, undefined),

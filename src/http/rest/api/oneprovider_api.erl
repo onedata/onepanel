@@ -94,16 +94,16 @@ routes() ->
             }]
         }},
 
-        %% Configure files-popularity mechanism in the space.
-        {<<"/api/v3/onepanel/provider/spaces/:id/files-popularity/configuration">>, rest_handler, #rstate{
+        %% Configure file-popularity mechanism in the space.
+        {<<"/api/v3/onepanel/provider/spaces/:id/file-popularity/configuration">>, rest_handler, #rstate{
             version = 3,
             module = rest_oneprovider,
-            resource = files_popularity_configuration,
+            resource = file_popularity_configuration,
             methods = [#rmethod{
                 type = 'PATCH',
-                %% Value informing whether collecting files-popularity
-                %% statistics in the space should be turned on or off.
-                args_spec = rest_model:space_files_popularity_configuration_model()
+                %% Value informing whether collecting file-popularity statistics
+                %% in the space should be turned on or off.
+                args_spec = rest_model:space_file_popularity_configuration_model()
             }]
         }},
 
@@ -132,11 +132,11 @@ routes() ->
             }]
         }},
 
-        %% Get files-popularity configuration
-        {<<"/api/v3/onepanel/provider/spaces/:id/files-popularity/configuration">>, rest_handler, #rstate{
+        %% Get file-popularity configuration
+        {<<"/api/v3/onepanel/provider/spaces/:id/file-popularity/configuration">>, rest_handler, #rstate{
             version = 3,
             module = rest_oneprovider,
-            resource = files_popularity_configuration,
+            resource = file_popularity_configuration,
             methods = [#rmethod{
                 type = 'GET'
             }]

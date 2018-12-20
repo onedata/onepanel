@@ -171,7 +171,7 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = cluster_ips}) ->
     ))};
 
 accept_resource(Req, 'PATCH', Args, #rstate{
-    resource = files_popularity_configuration,
+    resource = file_popularity_configuration,
     bindings = #{id := Id}
 }) ->
     Ctx = #{space_id => Id},
@@ -180,7 +180,7 @@ accept_resource(Req, 'PATCH', Args, #rstate{
     Ctx4 = onepanel_maps:get_store(avgOpenCountPerDayWeight, Args, [avg_open_count_per_day_weight], Ctx3),
     Ctx5 = onepanel_maps:get_store(maxAvgOpenCountPerDay, Args, [max_avg_open_count_per_day], Ctx4),
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, configure_files_popularity, Ctx5
+        ?SERVICE, configure_file_popularity, Ctx5
     ))};
 
 
@@ -295,13 +295,13 @@ provide_resource(Req, #rstate{
     ), Req};
 
 provide_resource(Req, #rstate{
-    resource = files_popularity_configuration,
+    resource = file_popularity_configuration,
     bindings = #{id := Id}
 }) ->
     Ctx = #{space_id => Id},
-    {rest_replier:format_service_step(service_oneprovider, get_files_popularity_configuration,
+    {rest_replier:format_service_step(service_oneprovider, get_file_popularity_configuration,
         service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, get_files_popularity_configuration, Ctx
+            ?SERVICE, get_file_popularity_configuration, Ctx
         ))
     ), Req};
 
