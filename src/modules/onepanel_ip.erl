@@ -117,14 +117,11 @@ determine_ip_by_domain() ->
     case inet_res:lookup(binary_to_list(Domain), in, a) of
         [] -> {error, not_found};
         [{_, _, _, _} = IP] -> {ok, IP};
-        [First | _] = ManyIPs ->
-            case (catch determine_ip_by_shell()) of
-                {ok, ShellIP} ->
-                    case lists:member(ShellIP, ManyIPs) of
-                        true -> {ok, ShellIP};
-                        false -> First
-                    end;
-                _ -> First
+        ManyIPs ->
+            HostnameIPs = hostname_ips(),
+            case onepanel_lists:intersect(HostnameIPs, ManyIPs) of
+                [] -> {ok, hd(ManyIPs)};
+                [IP | _] -> {ok, IP}
             end
     end.
 
@@ -155,6 +152,26 @@ determine_ip_by_external_service() ->
 %%--------------------------------------------------------------------
 -spec determine_ip_by_shell() -> {ok, inet:ip4_address()} | {error, term()}.
 determine_ip_by_shell() ->
-    Result = onepanel_shell:get_success_output(["hostname", "-i"]),
-    parse_ip4(Result).
+    case hostname_ips() of
+        [Head | _] -> {ok, Head};
+        [] -> {error, no_address}
+    end.
 
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Returns list of IPv4 addresses returned by shell command 'hostname i'.
+%% @end
+%%--------------------------------------------------------------------
+-spec hostname_ips() -> [inet:ip4_address()].
+hostname_ips() ->
+    {_, Result} = onepanel_shell:execute(["hostname", "-i"]),
+    Words = string:split(Result, " ", all),
+    % filter out IPv6 addresses
+    lists:filtermap(fun(Word) ->
+        case parse_ip4(Word) of
+            {ok, IP} -> {true, IP};
+            _ -> false
+        end
+    end, Words).
