@@ -44,6 +44,7 @@
     ", folly"}.
 {rpm_build_requires,
     ", automake"
+    ", boost-devel >= 1.58.0"
     ", cmake >= 3.0.0"
     ", erlang-common_test >= 18.0"
     ", erlang-edoc >= 18.0"
