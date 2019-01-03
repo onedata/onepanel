@@ -20,6 +20,7 @@
     cluster_ips_model/0,
     cluster_managers_model/0,
     cluster_workers_model/0,
+    configuration_model/0,
     cookie_model/0,
     database_hosts_model/0,
     dns_check_model/0,
@@ -162,6 +163,31 @@ cluster_workers_model() ->
     #{
         %% The list of aliases of cluster worker nodes.
         nodes => [string]
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Public configuration information.
+%% @end
+%%--------------------------------------------------------------------
+-spec configuration_model() -> maps:map().
+configuration_model() ->
+    #{
+        %% This cluster's Oneprovider Id. In oz_panel this field is omitted.
+        providerId => {string, optional},
+        %% Name of this cluster.
+        name => {string, optional},
+        %% Domain of this cluster.
+        domain => {string, optional},
+        %% In oz_panel - the domain of this Onezone cluster, equal to the
+        %% 'domain' field. In op_panel - the domain of the Onezone where
+        %% this Oneprovider is registered.
+        onezoneDomain => {string, optional},
+        %% Version of this Onepanel
+        version => string,
+        %% Build number of this Onepanel
+        build => string,
+        %% True when initial cluster deployment is finished
+        deployed => boolean
     }.
 
 %%--------------------------------------------------------------------

@@ -52,8 +52,8 @@ routes() ->
             methods = [#rmethod{
                 type = 'GET',
                 params_spec = #{
-                    %% If true the DNS check cache is overridden and check is
-                    %% performed during handling of the request.
+                    %% If true the DNS check cache is overridden and check
+                    %% is performed during handling of the request.
                     forceCheck => {boolean, {optional, false}}
                 }
             }]
@@ -108,6 +108,17 @@ routes() ->
                     %% hosts.
                     discovered => {boolean, {optional, false}}
                 }
+            }]
+        }},
+
+        %% Get public configuration
+        {<<"/api/v3/onepanel/configuration">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel,
+            resource = configuration,
+            methods = [#rmethod{
+                type = 'GET',
+                noauth = true
             }]
         }},
 

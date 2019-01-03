@@ -12,6 +12,7 @@
 -module(rest_replier).
 -author("Krzysztof Trzepla").
 
+-include("names.hrl").
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include("modules/onepanel_dns.hrl").
@@ -23,11 +24,11 @@
 -export([throw_on_service_error/2]).
 -export([handle_error/3, reply_with_error/3, handle_service_action_async/3,
     handle_service_step/4, handle_session/3]).
--export([format_error/2, format_service_status/2, format_dns_check_result/1, format_service_host_status/2,
-    format_service_task_results/1, format_service_step/3, format_configuration/1,
-    format_storage_details/1]).
+-export([format_error/2, format_service_status/2, format_dns_check_result/1,
+    format_service_host_status/2, format_service_task_results/1, format_service_step/3,
+    format_configuration/0, format_service_configuration/1, format_storage_details/1]).
 
--type response() :: maps:map() | term().
+-type response() :: map() | term().
 
 %%%===================================================================
 %%% API functions
@@ -258,12 +259,18 @@ format_service_step(Module, Function, Results) ->
     end.
 
 
+-spec format_configuration() -> map().
+format_configuration() ->
+    format_configuration(onepanel_env:get(release_type)).
+
+
 %%--------------------------------------------------------------------
 %% @doc Returns formatted cluster configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec format_configuration(SModule :: module()) -> Response :: response().
-format_configuration(SModule) ->
+-spec format_service_configuration(SModule :: service_onezone | service_oneprovider) ->
+    Response :: response().
+format_service_configuration(SModule) ->
     DbHosts = service_couchbase:get_hosts(),
     {ok, #service{hosts = CmHosts, ctx = #{main_host := MainCmHost}}} =
         service:get(service_cluster_manager:name()),
@@ -361,6 +368,50 @@ format_service_hosts_results(Results) ->
             onepanel_utils:convert(onepanel_cluster:node_to_host(Node), binary),
             Result, Acc)
     end, #{}, Results).
+
+
+%% @private
+-spec format_configuration(ReleaseType :: onezone | oneprovider | common) -> map().
+format_configuration(onezone) ->
+    Defaults = #{serviceId => null},
+    try
+        Details = service_oz_worker:get_details(#{}),
+        Configuration = onepanel_maps:get_store_multiple([
+            {domain, domain}, {domain, onezoneDomain}, {name, name}
+        ], Details, Defaults),
+
+        maps:merge(Configuration, format_configuration(common))
+    catch _:_ ->
+        maps:merge(Defaults, format_configuration(common))
+    end;
+
+format_configuration(oneprovider) ->
+    try
+        Details = service_oneprovider:get_details(#{}),
+        Configuration = onepanel_maps:get_store_multiple([
+            {domain, domain}, {id, providerId}, {name, name}
+        ], Details, #{
+            onezoneDomain => list_to_binary(service_oneprovider:get_oz_domain())
+        }),
+
+        maps:merge(Configuration, format_configuration(common))
+    catch _:_ ->
+        format_configuration(common)
+    end;
+
+format_configuration(_ReleaseType) ->
+    BuildVersion = list_to_binary(application:get_env(
+        ?APP_NAME, build_version, "unknown")),
+    {_AppId, _AppName, AppVersion} = lists:keyfind(
+        ?APP_NAME, 1, application:loaded_applications()
+    ),
+    Version = list_to_binary(AppVersion),
+
+    #{
+        <<"version">> => Version,
+        <<"build">> => BuildVersion,
+        <<"deployed">> => is_service_configured()
+    }.
 
 
 %%--------------------------------------------------------------------
