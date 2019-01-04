@@ -1439,7 +1439,7 @@ op_configuration_model() ->
         %% Indicates that this is Oneprovider's panel.
         serviceType => {equal, <<"oneprovider">>},
         %% This cluster's Oneprovider Id. Null if the Oneprovider is not
-        %% registered.
+        %% registered or Oneprovider worker is down.
         providerId => string,
         %% The domain of the Onezone where this Oneprovider is registered. Null
         %% if the Oneprovider is not registered.
@@ -1461,7 +1461,8 @@ oz_configuration_model() ->
         deployed => boolean,
         %% Indicates that this is Onezone's panel.
         serviceType => {equal, <<"onezone">>},
-        %% The domain of this Onezone cluster.
+        %% The domain of this Onezone cluster. Null before cluster is
+        %% configured.
         zoneDomain => string
     }.
 

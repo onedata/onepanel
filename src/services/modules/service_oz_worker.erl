@@ -325,8 +325,8 @@ get_details(Ctx) ->
 %%--------------------------------------------------------------------
 -spec get_details() -> #{name := binary(), domain := binary()}.
 get_details() ->
-    OzName = onepanel_env:read_effective([name(), oz_name], name()),
-    OzDomain = onepanel_env:read_effective([name(), http_domain], name()),
+    {ok, OzName} = onepanel_env:read_effective([name(), oz_name], name()),
+    {ok, OzDomain} = onepanel_env:read_effective([name(), http_domain], name()),
     #{
         name => onepanel_utils:convert(OzName, binary),
         domain => onepanel_utils:convert(OzDomain, binary)
