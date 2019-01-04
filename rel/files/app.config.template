@@ -122,8 +122,9 @@
         {letsencrypt_attempts, 1},
 
         %% IPs of DNS servers used to verify that txt record for Let's Encrypt
-        %% authorization was properly set
-        {letsencrypt_dns_verification_servers, [{8,8,8,8}, {8,8,4,4}, {1,1,1,1}]},
+        %% authorization was properly set.
+        %% Empty list causes use of system defaults.
+        {letsencrypt_dns_verification_servers, []},
 
         %% Regular expression used for checking if existing certificate
         %% was issued by Let's Encrypt.
@@ -164,8 +165,9 @@
         %% URL of service used for autodetecting external IP
         {ip_check_url, "http://ip4.icanhazip.com"},
 
-        %% IPs of DNS servers used to validate domain configuration
-        {dns_check_servers, [{8,8,8,8}, {8,8,4,4}, {1,1,1,1}]},
+        %% IPs of DNS servers used to validate domain configuration.
+        %% Empty list causes use of system defaults
+        {dns_check_servers, []},
 
         %% Interval between DNS checks in seconds. Default: 6 hours
         {dns_check_interval, 21600},

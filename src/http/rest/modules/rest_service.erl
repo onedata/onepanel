@@ -223,8 +223,11 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version =
         {[onezone, letsEncryptEnabled], letsencrypt_enabled}
     ], Args, #{hosts => AllHosts}),
 
-    OzCtx = onepanel_maps:get_store([onezone, name], Args, name),
-    OzCtx2 = onepanel_maps:get_store([onezone, domainName], Args, domain, OzCtx),
+    OzCtx = onepanel_maps:get_store_multiple([
+        {[onezone, name], name},
+        {[onezone, domainName], domain},
+        {[onezone, builtInDnsServer], [dns_check_config, built_in_dns_server]}
+    ], Args),
 
     OzwCtx = #{
         hosts => OzwHosts, db_hosts => DbHosts, cm_hosts => CmHosts,
@@ -254,7 +257,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version =
 
     {true, rest_replier:handle_service_action_async(Req, service:apply_async(
         service_onezone:name(), deploy, #{
-            cluster => ClusterCtx, service_onezone:name() => OzCtx2
+            cluster => ClusterCtx, service_onezone:name() => OzCtx
         }
     ), Version)};
 
