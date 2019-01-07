@@ -1424,7 +1424,7 @@ nulldevice_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Public configuration information.
+%% @doc Public service configuration details
 %% @end
 %%--------------------------------------------------------------------
 -spec op_configuration_model() -> maps:map().
@@ -1434,7 +1434,7 @@ op_configuration_model() ->
         version => string,
         %% Build number of this Onepanel
         build => string,
-        %% True when initial cluster deployment is finished
+        %% True when cluster deployment is finished
         deployed => boolean,
         %% Indicates that this is Oneprovider's panel.
         serviceType => {equal, <<"oneprovider">>},
@@ -1443,11 +1443,13 @@ op_configuration_model() ->
         providerId => string,
         %% The domain of the Onezone where this Oneprovider is registered. Null
         %% if the Oneprovider is not registered.
-        zoneDomain => string
+        zoneDomain => string,
+        %% True if the Oneprovider has been registered at a Onezone.
+        isRegistered => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Public configuration information.
+%% @doc Public service configuration details
 %% @end
 %%--------------------------------------------------------------------
 -spec oz_configuration_model() -> maps:map().
@@ -1457,13 +1459,15 @@ oz_configuration_model() ->
         version => string,
         %% Build number of this Onepanel
         build => string,
-        %% True when initial cluster deployment is finished
+        %% True when cluster deployment is finished
         deployed => boolean,
         %% Indicates that this is Onezone's panel.
         serviceType => {equal, <<"onezone">>},
         %% The domain of this Onezone cluster. Null before cluster is
         %% configured.
-        zoneDomain => string
+        zoneDomain => string,
+        %% The name of this Onezone cluster. Null before cluster is configured.
+        zoneName => {string, optional}
     }.
 
 %%--------------------------------------------------------------------

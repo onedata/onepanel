@@ -379,11 +379,12 @@ format_service_hosts_results(Results) ->
 -spec format_configuration(ReleaseType :: onezone | oneprovider | common) ->
     #{atom() := term()}.
 format_configuration(onezone) ->
-    Defaults = #{serviceType => onezone, zoneDomain => null},
+    Defaults = #{serviceType => onezone, zoneDomain => null, zoneName => null},
     try
         Details = service_oz_worker:get_details(#{}),
         Configuration = onepanel_maps:get_store_multiple([
-            {domain, zoneDomain}
+            {domain, zoneDomain},
+            {name, zoneName}
         ], Details, Defaults),
 
         maps:merge(Configuration, format_configuration(common))
@@ -398,7 +399,8 @@ format_configuration(oneprovider) ->
         false ->
             Common#{
                 zoneDomain => null,
-                providerId => null
+                providerId => null,
+                isRegistered => false
             };
         true ->
             try #{} = service_oneprovider:get_details(#{}) of
@@ -406,14 +408,15 @@ format_configuration(oneprovider) ->
                     onepanel_maps:get_store_multiple([
                         {id, providerId},
                         {onezoneDomainName, zoneDomain}
-                    ], Details, Common)
+                    ], Details, Common#{isRegistered => true})
             catch
                 _:_ ->
                     % If op_worker was configured, the Onezone domain can begin
                     % read even if it's down.
                     Common#{
                         zoneDomain => list_to_binary(service_oneprovider:get_oz_domain()),
-                        providerId => null
+                        providerId => null,
+                        isRegistered => true
                     }
             end
     end,
