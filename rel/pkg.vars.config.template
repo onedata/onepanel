@@ -40,9 +40,11 @@
     "OTHER DEALINGS IN THE SOFTWARE."}.
 {rpm_requires,
     ", openssl"
-    ", sed"}.
+    ", sed"
+    ", folly"}.
 {rpm_build_requires,
     ", automake"
+    ", boost-devel >= 1.58.0"
     ", cmake >= 3.0.0"
     ", erlang-common_test >= 18.0"
     ", erlang-edoc >= 18.0"
@@ -52,6 +54,8 @@
     ", erlang-parsetools >= 18.0"
     ", erlang-reltool >= 18.0"
     ", erlang-xmerl >= 18.0"
+    ", folly-devel = 2017.10.02.00"
+    ", folly-static = 2017.10.02.00"
     ", gcc-c++ >= 4.9.0"
     ", git"
     ", golang"
@@ -70,12 +74,14 @@
     "fi"}.
 {deb_depends,
     "openssl"
-    ", sed"}.
+    ", sed"
+    ", folly"}.
 {deb_build_depends,
     "automake"
     ", cmake (>= 3.0.0)"
     ", erlang (>= 18.0)"
     ", erlang-src (>= 18.0)"
+    ", folly-dev (>= 2017.10.02.00)"
     ", g++ (>= 4.9.0)"
     ", git"
     ", golang-go"

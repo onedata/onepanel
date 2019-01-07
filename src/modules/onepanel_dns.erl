@@ -116,10 +116,9 @@ build_bind_record(Domain, Type, Value) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec check(Expected :: [dns_value()], Names :: [dns_name()], Type :: dns_type(),
-    Servers :: [inet:ip4_address()]) -> [dns_check()].
-
-check(_Expected, _Names, _Type, []) ->
-    ?throw_error(?ERR_DNS_CHECK_ERROR("No DNS server configured to perform DNS check."));
+    Servers :: [inet:ip4_address() | default]) -> [dns_check()].
+check(Expected, Names, Type, []) ->
+    check(Expected, Names, Type, [default]);
 
 check([], [], _Type, _Servers) ->
     [#dns_check{summary = ok, expected = [], got = []}];
@@ -135,7 +134,7 @@ check(Expected, Names, Type, Servers) ->
 
     case WithoutErrors of
         [] -> ?throw_error(?ERR_DNS_CHECK_ERROR(
-            io_lib:format("No DNS server responded to DNS check. Tried: ~p", [Servers])));
+            str_utils:format("No DNS server responded to DNS check. Tried: ~p", [Servers])));
         _ -> WithoutErrors
     end.
 
@@ -148,7 +147,7 @@ check(Expected, Names, Type, Servers) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec check_on_server(Expected :: [dns_value()], Names :: [dns_name()], Type :: dns_type(),
-    Servers :: inet:ip4_address()) -> dns_check() | error.
+    Servers :: inet:ip4_address() | default) -> dns_check() | error.
 check_on_server(Expected, Names, Type, ServerIP) ->
     case lookup(Names, Type, ServerIP) of
         error -> error;
@@ -174,16 +173,21 @@ check_on_server(Expected, Names, Type, ServerIP) ->
 %% @private
 %% @doc
 %% Returns aggregated results of DNS queries for all Names.
-%% If any of the queries causes connection error all results
+%% If any of the queries causes connection error, all results
 %% are discarded and 'error' is returned.
 %% @end
 %%--------------------------------------------------------------------
 -spec lookup(Quries :: [dns_name()], Type :: dns_type(),
-    DnsServerIP :: inet:ip4_address()) -> [inet_res:dns_data()] | error.
+    DnsServerIP :: inet:ip4_address() | default) -> [inet_res:dns_data()] | error.
 lookup(Names, Type, DnsServerIP) ->
     Results = lists:flatten(utils:pmap(fun(Name) ->
         NameStr = onepanel_utils:convert(Name, list),
-        case inet_res:resolve(NameStr, in, Type, [{nameservers, [{DnsServerIP, 53}]}]) of
+        Opts = case DnsServerIP of
+            default -> [];
+            IP -> [{nameservers, [{IP, 53}]}]
+        end,
+        Resolved = inet_res:resolve(NameStr, in, Type, Opts),
+        case Resolved of
             {error, {_Reason, _DnsMsg}} -> [];
             {error, Reason} ->
                 ?warning("Error querying server ~p for DNS check ~p of name ~p: ~p",

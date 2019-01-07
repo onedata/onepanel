@@ -218,9 +218,10 @@ dns_check_model() ->
 -spec dns_check_configuration_model() -> maps:map().
 dns_check_configuration_model() ->
     #{
-        %% A collection of IP addresses for DNS servers used in checking DNS.
+        %% A collection of IP addresses for DNS servers used in checking DNS. If
+        %% empty, local system configuration will be used.
         dnsServers => {[string], optional},
-        %% If true, DNS check will verify that control of DNS zone of
+        %% If true, DNS check will verify that control of DNS zone for
         %% Onezone's domain was delegated to the DNS server built into
         %% Onezone service. This option is available only in Onezone service.
         builtInDnsServer => {boolean, optional},
@@ -237,7 +238,7 @@ dns_check_configuration_model() ->
 -spec dns_check_result_model() -> maps:map().
 dns_check_result_model() ->
     #{
-        %% An interpreation of results obtained from DNS check. Possible values
+        %% An interpretation of results obtained from DNS check. Possible values
         %% are: 'unresolvable' - query returned empty results;
         %% 'missing_records' - only some of the expected results were
         %% returned; 'bad_records' - none of the expected results were
@@ -1138,7 +1139,7 @@ zone_cluster_configuration_nodes_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The zone deployment configuration.
+%% @doc The Onezone deployment configuration.
 %% @end
 %%--------------------------------------------------------------------
 -spec zone_configuration_model() -> maps:map().
@@ -1177,21 +1178,25 @@ zone_configuration_details_onezone_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The zone custom configuration.
+%% @doc The Onezone custom configuration.
 %% @end
 %%--------------------------------------------------------------------
 -spec zone_configuration_onezone_model() -> maps:map().
 zone_configuration_onezone_model() ->
     #{
-        %% The name of a HTTP domain.
+        %% The domain of Onezone cluster.
         domainName => {string, optional},
-        %% The name of a zone.
+        %% The Onezone cluster name.
         name => {string, optional},
         %% If enabled the zone will use Let's Encrypt service to obtain SSL
         %% certificates. Otherwise certificates must be manually provided. By
         %% enabling this option you agree to the Let's Encrypt Subscriber
         %% Agreement.
         letsEncryptEnabled => {boolean, optional},
+        %% If true, DNS check will verify that control of DNS zone for
+        %% Onezone's domain was delegated to the DNS server built into
+        %% Onezone service.
+        builtInDnsServer => {boolean, optional},
         policies => {zone_policies_model(), optional}
     }.
 
