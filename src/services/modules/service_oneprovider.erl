@@ -705,13 +705,13 @@ update_provider_ips(Ctx) ->
 %% Returns list of auto-cleaning runs reports started since Since date.
 %% @end
 %%-------------------------------------------------------------------
--spec get_auto_cleaning_reports(Ctx :: service:ctx()) -> proplists:proplist().
+-spec get_auto_cleaning_reports(Ctx :: service:ctx()) -> maps:map().
 get_auto_cleaning_reports(Ctx = #{space_id := SpaceId, node := Node}) ->
     Offset = onepanel_utils:typed_get(offset, Ctx, integer, 0),
     Limit = onepanel_utils:typed_get(limit, Ctx, integer, all),
     Index = onepanel_utils:typed_get(index, Ctx, binary, undefined),
     {ok, Ids} = rpc:call(Node, autocleaning_api, list_reports, [SpaceId, Index, Offset, Limit]),
-    [{ids, Ids}];
+    #{ids => Ids};
 get_auto_cleaning_reports(Ctx) ->
     [Node | _] = service_op_worker:get_nodes(),
     get_auto_cleaning_reports(Ctx#{node => Node}).

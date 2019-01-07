@@ -647,22 +647,22 @@ space_auto_cleaning_configuration_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Report from a auto-cleaning run.
+%% @doc Report from an auto-cleaning run.
 %% @end
 %%--------------------------------------------------------------------
 -spec space_auto_cleaning_report_model() -> maps:map().
 space_auto_cleaning_report_model() ->
     #{
-        %% Id of a auto-cleaning run report.
+        %% Id of an auto-cleaning report.
         id => string,
-        %% Index of a auto-cleaning run report. It can be used to list
-        %% report's Ids starting from given report.
+        %% Index of an auto-cleaning report. It can be used to list report Ids
+        %% starting from given report.
         index => string,
-        %% Start time of auto-cleaning run in ISO 8601 format
+        %% Start time of an auto-cleaning run in ISO 8601 format
         startedAt => string,
-        %% Finish time of auto-cleaning run in ISO 8601 format
+        %% Finish time of an auto-cleaning run in ISO 8601 format
         stoppedAt => string,
-        %% Number of bytes deleted during auto-cleaning run.
+        %% Number of bytes deleted during an auto-cleaning run.
         releasedBytes => integer,
         %% Number of bytes that should be deleted.
         bytesToRelease => integer,
@@ -781,7 +781,7 @@ space_details_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Configuration of file-popularity mechanism in the space.
+%% @doc Configuration of the file-popularity mechanism in the space.
 %% @end
 %%--------------------------------------------------------------------
 -spec space_file_popularity_configuration_model() -> maps:map().

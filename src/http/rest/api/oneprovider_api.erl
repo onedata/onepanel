@@ -101,8 +101,7 @@ routes() ->
             resource = file_popularity_configuration,
             methods = [#rmethod{
                 type = 'PATCH',
-                %% Value informing whether collecting file-popularity statistics
-                %% in the space should be turned on or off.
+                %% Configuration of the file-popularity mechanism in the space.
                 args_spec = rest_model:space_file_popularity_configuration_model()
             }]
         }},
@@ -223,7 +222,7 @@ routes() ->
             }]
         }},
 
-        %% Get the report of a space auto-cleaning run
+        %% Get the report from a space auto-cleaning run
         {<<"/api/v3/onepanel/provider/spaces/:id/auto-cleaning/reports/:report_id">>, rest_handler, #rstate{
             version = 3,
             module = rest_oneprovider,
@@ -240,17 +239,17 @@ routes() ->
             resource = space_auto_cleaning_reports,
             methods = [#rmethod{
                 type = 'GET',
-            params_spec = #{
-                        %% Allows to skip N first reports' Ids.
-                        offset => {integer, {optional, 0} },
-                        %% Allows to limit the number of returned reports'
-                        %% Ids up to N last reports. By default, all
-                        %% reports' Ids will be returned.
-                        limit => {integer, optional},
-                        %% Allows to list the reports' Ids starting from the
-                        %% specific report.
-                        index => {string, optional}
-            }
+                params_spec = #{
+                    %% Allows to skip N first report Ids.
+                    offset => {integer, {optional, 0}},
+                    %% Allows to limit the number of returned report Ids up
+                    %% to N last reports. By default, all report Ids will be
+                    %% returned.
+                    limit => {integer, optional},
+                    %% Allows to list the report Ids starting from the
+                    %% specific report.
+                    index => {string, optional}
+                }
             }]
         }},
 
