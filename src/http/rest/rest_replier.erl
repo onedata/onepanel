@@ -26,7 +26,7 @@
     handle_service_step/4, handle_session/3]).
 -export([format_error/2, format_service_status/2, format_dns_check_result/1,
     format_service_host_status/2, format_service_task_results/1, format_service_step/3,
-    format_configuration/0, format_service_configuration/1, format_storage_details/1]).
+    format_onepanel_configuration/0, format_service_configuration/1, format_storage_details/1]).
 
 -type response() :: map() | term().
 
@@ -259,13 +259,17 @@ format_service_step(Module, Function, Results) ->
     end.
 
 
--spec format_configuration() -> map().
-format_configuration() ->
+%%--------------------------------------------------------------------
+%% @doc Formats public configuration details.
+%% @end
+%%--------------------------------------------------------------------
+-spec format_onepanel_configuration() -> map().
+format_onepanel_configuration() ->
     try
-        format_configuration(onepanel_env:get(release_type))
+        format_onepanel_configuration(onepanel_env:get(release_type))
     catch _:_  ->
         % it is preferable for this endpoint to return something
-        format_configuration(common)
+        format_onepanel_configuration(common)
     end.
 
 
@@ -376,9 +380,9 @@ format_service_hosts_results(Results) ->
 
 
 %% @private
--spec format_configuration(ReleaseType :: onezone | oneprovider | common) ->
+-spec format_onepanel_configuration(ReleaseType :: onezone | oneprovider | common) ->
     #{atom() := term()}.
-format_configuration(onezone) ->
+format_onepanel_configuration(onezone) ->
     Defaults = #{serviceType => onezone, zoneDomain => null, zoneName => null},
     try
         Details = service_oz_worker:get_details(#{}),
@@ -387,13 +391,13 @@ format_configuration(onezone) ->
             {name, zoneName}
         ], Details, Defaults),
 
-        maps:merge(Configuration, format_configuration(common))
+        maps:merge(Configuration, format_onepanel_configuration(common))
     catch _:_ ->
         % probably no oz_worker nodes
-        maps:merge(Defaults, format_configuration(common))
+        maps:merge(Defaults, format_onepanel_configuration(common))
     end;
 
-format_configuration(oneprovider) ->
+format_onepanel_configuration(oneprovider) ->
     Common = #{serviceType => oneprovider},
     OpConfiguration = case service_oneprovider:is_registered() of
         false ->
@@ -411,8 +415,8 @@ format_configuration(oneprovider) ->
                     ], Details, Common#{isRegistered => true})
             catch
                 _:_ ->
-                    % If op_worker was configured, the Onezone domain can begin
-                    % read even if it's down.
+                    % If op_worker was configured, the Onezone domain can be
+                    % read even when the worker is down.
                     Common#{
                         zoneDomain => list_to_binary(service_oneprovider:get_oz_domain()),
                         providerId => null,
@@ -420,9 +424,9 @@ format_configuration(oneprovider) ->
                     }
             end
     end,
-    maps:merge(format_configuration(common), OpConfiguration);
+    maps:merge(format_onepanel_configuration(common), OpConfiguration);
 
-format_configuration(_ReleaseType) ->
+format_onepanel_configuration(_ReleaseType) ->
     BuildVersion = list_to_binary(application:get_env(
         ?APP_NAME, build_version, "unknown")),
     {_AppId, _AppName, AppVersion} = lists:keyfind(

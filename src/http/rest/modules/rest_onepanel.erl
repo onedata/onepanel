@@ -116,7 +116,7 @@ provide_resource(Req, #rstate{resource = hosts}) ->
     {lists:sort(onepanel_utils:convert(Hosts, {seq, binary})), Req};
 
 provide_resource(Req, #rstate{resource = configuration}) ->
-    {rest_replier:format_configuration(), Req};
+    {rest_replier:format_onepanel_configuration(), Req};
 
 provide_resource(Req, #rstate{resource = web_cert}) ->
     {rest_replier:format_service_step(service_letsencrypt, get_details,

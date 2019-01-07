@@ -33,6 +33,6 @@
 handle(<<"GET">>, Req) ->
     cowboy_req:reply(200,
         #{<<"content-type">> => <<"application/json">>},
-        json_utils:encode(rest_replier:format_configuration()),
+        json_utils:encode(rest_replier:format_onepanel_configuration()),
         Req
     ).

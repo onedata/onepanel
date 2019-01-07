@@ -168,7 +168,7 @@ cluster_workers_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Public configuration information.
+%% @doc Public service configuration details
 %% @end
 %%--------------------------------------------------------------------
 -spec configuration_model() -> {oneof, Oneof :: list()}.
@@ -1424,7 +1424,7 @@ nulldevice_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Public service configuration details
+%% @doc Public Oneprovider configuration details
 %% @end
 %%--------------------------------------------------------------------
 -spec op_configuration_model() -> maps:map().
@@ -1449,7 +1449,7 @@ op_configuration_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Public service configuration details
+%% @doc Public Onezone configuration details
 %% @end
 %%--------------------------------------------------------------------
 -spec oz_configuration_model() -> maps:map().
