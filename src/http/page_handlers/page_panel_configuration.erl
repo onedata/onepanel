@@ -33,26 +33,6 @@
 handle(<<"GET">>, Req) ->
     cowboy_req:reply(200,
         #{<<"content-type">> => <<"application/json">>},
-        json_utils:encode(get_config()),
+        json_utils:encode(rest_replier:format_onepanel_configuration()),
         Req
     ).
-
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
--spec get_config() -> maps:map().
-get_config() ->
-    BuildVersion = list_to_binary(application:get_env(?APP_NAME, build_version, "unknown")),
-    {_AppId, _AppName, AppVersion} = lists:keyfind(
-        ?APP_NAME, 1, application:loaded_applications()
-    ),
-    Version = list_to_binary(AppVersion),
-    
-    #{
-        <<"version">> => Version,
-        <<"build">> => BuildVersion,
-        <<"deployed">> => onepanel_deployment:is_completed(?PROGRESS_READY)
-    }.
-

@@ -32,6 +32,7 @@
 -export([reconcile_dns/1, get_ns_hosts/0, get_ns_hosts/1]).
 -export([migrate_generated_config/1]).
 -export([get_policies/0, set_policies/1]).
+-export([get_details/1, get_details/0]).
 
 -define(INIT_SCRIPT, "oz_worker").
 
@@ -295,12 +296,41 @@ reload_webcert(Ctx) ->
 %%--------------------------------------------------------------------
 -spec get_domain() -> binary().
 get_domain() ->
-    Node = case get_nodes() of
-        [N | _] -> onepanel_cluster:service_to_node(?APP_NAME, N);
+    maps:get(domain, get_details(#{})).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns details of the oz worker. Routes request to a host
+%% with oz_worker deployed.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_details(service:ctx()) -> #{name := binary(), domain := binary()}.
+get_details(#{hosts := Hosts}) ->
+    Node = case Hosts of
+        [H|_] -> onepanel_cluster:service_to_node(?APP_NAME, H);
         [] -> node()
     end,
-    {ok, Domain} = rpc:call(Node, onepanel_env, read_effective, [[name(), http_domain], name()]),
-    list_to_binary(Domain).
+    rpc:call(Node, ?MODULE, get_details, []);
+
+get_details(Ctx) ->
+    get_details(Ctx#{hosts => get_hosts()}).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns details of the oz worker. Must be invoked on a node
+%% with oz_worker deployed.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_details() -> #{name := binary(), domain := binary()}.
+get_details() ->
+    {ok, OzName} = onepanel_env:read_effective([name(), oz_name], name()),
+    {ok, OzDomain} = onepanel_env:read_effective([name(), http_domain], name()),
+    #{
+        name => onepanel_utils:convert(OzName, binary),
+        domain => onepanel_utils:convert(OzDomain, binary)
+    }.
 
 
 %%--------------------------------------------------------------------

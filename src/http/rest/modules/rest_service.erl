@@ -337,7 +337,7 @@ provide_resource(Req, #rstate{resource = task, bindings = #{id := TaskId}}) ->
 
 provide_resource(Req, #rstate{resource = SModule}) when
     SModule =:= service_onezone; SModule =:= service_oneprovider ->
-    {rest_replier:format_configuration(SModule), Req};
+    {rest_replier:format_service_configuration(SModule), Req};
 
 provide_resource(Req, #rstate{resource = dns_check, params = Params}) ->
     Ctx = #{force_check => onepanel_maps:get(forceCheck, Params, false)},
