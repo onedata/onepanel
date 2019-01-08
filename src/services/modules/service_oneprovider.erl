@@ -439,14 +439,19 @@ unregister(Ctx) ->
 is_registered(#{node := Node}) ->
     try rpc:call(Node, oneprovider, is_registered, []) of
         true -> true;
-        _ -> false
+        falses -> false;
+        _ ->
+            case service:get(name()) of
+                {ok, #service{ctx = C}} -> maps:get(registered, C, false)
+            end
     catch _:_ ->
         false
     end;
+
 is_registered(Ctx) ->
     try
-        [Node | _] = service_op_worker:get_nodes(),
-        is_registered(Ctx#{node => Node})
+        [_ | _] = service_op_worker:get_nodes()
+    of Nodes -> is_registered(Ctx#{node => hd(Nodes)})
     catch _:_ ->
         false
     end.

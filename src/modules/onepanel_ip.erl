@@ -33,9 +33,10 @@ determine_ip() ->
         catch  _:_ -> {cont, PrevResult} end
     end, undefined, [
         fun determine_ip_by_oz/0,
+        fun determine_ip_by_domain/0,
         fun determine_ip_by_external_service/0,
         fun determine_ip_by_shell/0,
-        fun () -> {ok, {127,0,0,1}} end
+        fun() -> {ok, {127, 0, 0, 1}} end
     ]).
 
 
@@ -95,6 +96,35 @@ determine_ip_by_oz() ->
         _ -> {error, not_registered}
     end.
 
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Attempts to resolve cluster's domain.
+%% If the query returns single IP address, it is used as the determined IP.
+%% If more than one value is returned, attempts to match it to
+%% hostname -i in order to differentiate between nodes.
+%% If none match, the first IP returned by DNS is used.
+%% @end
+%%--------------------------------------------------------------------
+-spec determine_ip_by_domain() -> {ok, inet:ip4_address()} | {error, term()}.
+determine_ip_by_domain() ->
+    Domain = case onepanel_env:get(release_type) of
+        oneprovider -> service_op_worker:get_domain();
+        onezone -> service_oz_worker:get_domain()
+    end,
+    case inet_res:lookup(binary_to_list(Domain), in, a) of
+        [] -> {error, not_found};
+        [{_, _, _, _} = IP] -> {ok, IP};
+        ManyIPs ->
+            HostnameIPs = hostname_ips(),
+            case onepanel_lists:intersect(HostnameIPs, ManyIPs) of
+                [] -> {ok, hd(ManyIPs)};
+                [IP | _] -> {ok, IP}
+            end
+    end.
+
+
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
@@ -121,6 +151,26 @@ determine_ip_by_external_service() ->
 %%--------------------------------------------------------------------
 -spec determine_ip_by_shell() -> {ok, inet:ip4_address()} | {error, term()}.
 determine_ip_by_shell() ->
-    Result = onepanel_shell:get_success_output(["hostname", "-i"]),
-    parse_ip4(Result).
+    case hostname_ips() of
+        [Head | _] -> {ok, Head};
+        [] -> {error, no_address}
+    end.
 
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Returns list of IPv4 addresses returned by shell command 'hostname i'.
+%% @end
+%%--------------------------------------------------------------------
+-spec hostname_ips() -> [inet:ip4_address()].
+hostname_ips() ->
+    {_, Result} = onepanel_shell:execute(["hostname", "-i"]),
+    Words = string:split(Result, " ", all),
+    % filter out IPv6 addresses
+    lists:filtermap(fun(Word) ->
+        case parse_ip4(Word) of
+            {ok, IP} -> {true, IP};
+            _ -> false
+        end
+    end, Words).

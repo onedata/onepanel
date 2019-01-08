@@ -87,6 +87,8 @@ get_steps(deploy, Ctx) ->
     {ok, CmCtx} = onepanel_maps:get([cluster, ?SERVICE_CM], Ctx),
     {ok, OzwCtx} = onepanel_maps:get([cluster, ?SERVICE_OZW], Ctx),
 
+    DnsConfig = onepanel_maps:get([name(), dns_check_config], Ctx, #{}),
+
     OzCtx1 = onepanel_maps:get(name(), Ctx, #{}),
     OzCtx2 = OzCtx1#{
         master_host => SelfHost
@@ -101,6 +103,8 @@ get_steps(deploy, Ctx) ->
         S#step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
         Ss#steps{service = ?SERVICE_OZW, action = deploy, ctx = OzwCtx},
         S#step{service = ?SERVICE_OZW, function = status, ctx = OzwCtx},
+        Ss#steps{service = ?SERVICE_OZW, action = configure_dns_check,
+            ctx = maps:merge(OzwCtx, DnsConfig), condition = fun(_) -> DnsConfig /= #{} end},
         Ss#steps{service = ?SERVICE_LE, action = deploy, ctx = LeCtx#{
             letsencrypt_plugin => ?SERVICE_OZW
         }},
