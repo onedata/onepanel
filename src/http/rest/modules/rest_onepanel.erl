@@ -36,6 +36,9 @@
 is_authorized(Req, _Method, #rstate{client = #client{role = admin}}) ->
     {true, Req};
 
+is_authorized(Req, _Method, #rstate{resource = configuration}) ->
+    {true, Req};
+
 is_authorized(Req, _Method, #rstate{resource = hosts}) ->
     {onepanel_user:get_by_role(admin) == [], Req};
 
@@ -111,6 +114,9 @@ provide_resource(Req, #rstate{resource = hosts, params = #{discovered := true}})
 provide_resource(Req, #rstate{resource = hosts}) ->
     Hosts = service_onepanel:get_hosts(),
     {lists:sort(onepanel_utils:convert(Hosts, {seq, binary})), Req};
+
+provide_resource(Req, #rstate{resource = configuration}) ->
+    {rest_replier:format_onepanel_configuration(), Req};
 
 provide_resource(Req, #rstate{resource = web_cert}) ->
     {rest_replier:format_service_step(service_letsencrypt, get_details,

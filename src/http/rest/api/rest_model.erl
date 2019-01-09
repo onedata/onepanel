@@ -20,6 +20,7 @@
     cluster_ips_model/0,
     cluster_managers_model/0,
     cluster_workers_model/0,
+    configuration_model/0,
     cookie_model/0,
     database_hosts_model/0,
     dns_check_model/0,
@@ -85,6 +86,8 @@
     cephrados_model/0,
     glusterfs_model/0,
     nulldevice_model/0,
+    op_configuration_model/0,
+    oz_configuration_model/0,
     posix_model/0,
     s3_model/0,
     swift_model/0,
@@ -163,6 +166,14 @@ cluster_workers_model() ->
         %% The list of aliases of cluster worker nodes.
         nodes => [string]
     }.
+
+%%--------------------------------------------------------------------
+%% @doc Public service configuration details
+%% @end
+%%--------------------------------------------------------------------
+-spec configuration_model() -> {oneof, Oneof :: list()}.
+configuration_model() ->
+    {oneof, [op_configuration_model(), oz_configuration_model()]}.
 
 %%--------------------------------------------------------------------
 %% @doc The cookie is a character sequence that is common for all the cluster
@@ -1226,8 +1237,6 @@ ceph_model() ->
         insecure => {boolean, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
-        %% The type of storage.
-        type => {equal, <<"ceph">>},
         %% If true LUMA and reverse LUMA services will be enabled.
         lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
@@ -1235,6 +1244,8 @@ ceph_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% The type of storage.
+        type => {equal, <<"ceph">>},
         %% The username of the Ceph cluster administrator.
         username => string,
         %% The admin key to access the Ceph cluster.
@@ -1273,8 +1284,6 @@ cephrados_model() ->
         insecure => {boolean, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
-        %% The type of storage.
-        type => {equal, <<"cephrados">>},
         %% If true LUMA and reverse LUMA services will be enabled.
         lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
@@ -1282,6 +1291,8 @@ cephrados_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% The type of storage.
+        type => {equal, <<"cephrados">>},
         %% The username of the Ceph cluster administrator.
         username => string,
         %% The admin key to access the Ceph cluster.
@@ -1322,8 +1333,6 @@ glusterfs_model() ->
         insecure => {boolean, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
-        %% The type of storage.
-        type => {equal, <<"glusterfs">>},
         %% If true LUMA and reverse LUMA services will be enabled.
         lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
@@ -1331,6 +1340,8 @@ glusterfs_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% The type of storage.
+        type => {equal, <<"glusterfs">>},
         %% The name of the volume to use as a storage backend.
         volume => string,
         %% The hostname (IP address or FQDN) of GlusterFS volume server.
@@ -1373,8 +1384,6 @@ nulldevice_model() ->
         insecure => {boolean, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
-        %% The type of storage.
-        type => {equal, <<"nulldevice">>},
         %% If true LUMA and reverse LUMA services will be enabled.
         lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
@@ -1382,6 +1391,8 @@ nulldevice_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% The type of storage.
+        type => {equal, <<"nulldevice">>},
         %% Minimum latency in milliseconds, which should be simulated for
         %% selected operations.
         latencyMin => {integer, optional},
@@ -1423,6 +1434,53 @@ nulldevice_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc Public Oneprovider configuration details
+%% @end
+%%--------------------------------------------------------------------
+-spec op_configuration_model() -> maps:map().
+op_configuration_model() ->
+    #{
+        %% Version of this Onepanel
+        version => string,
+        %% Build number of this Onepanel
+        build => string,
+        %% True when cluster deployment is finished
+        deployed => boolean,
+        %% Indicates that this is Oneprovider's panel.
+        serviceType => {equal, <<"oneprovider">>},
+        %% This cluster's Oneprovider Id. Null if the Oneprovider is not
+        %% registered or Oneprovider worker is down.
+        providerId => string,
+        %% The domain of the Onezone where this Oneprovider is registered. Null
+        %% if the Oneprovider is not registered.
+        zoneDomain => string,
+        %% True if the Oneprovider has been registered at a Onezone.
+        isRegistered => {boolean, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Public Onezone configuration details
+%% @end
+%%--------------------------------------------------------------------
+-spec oz_configuration_model() -> maps:map().
+oz_configuration_model() ->
+    #{
+        %% Version of this Onepanel
+        version => string,
+        %% Build number of this Onepanel
+        build => string,
+        %% True when cluster deployment is finished
+        deployed => boolean,
+        %% Indicates that this is Onezone's panel.
+        serviceType => {equal, <<"onezone">>},
+        %% The domain of this Onezone cluster. Null before cluster is
+        %% configured.
+        zoneDomain => string,
+        %% The name of this Onezone cluster. Null before cluster is configured.
+        zoneName => {string, optional}
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The POSIX storage configuration.
 %% @end
 %%--------------------------------------------------------------------
@@ -1439,8 +1497,6 @@ posix_model() ->
         insecure => {boolean, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
-        %% The type of storage.
-        type => {equal, <<"posix">>},
         %% If true LUMA and reverse LUMA services will be enabled.
         lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
@@ -1448,6 +1504,8 @@ posix_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% The type of storage.
+        type => {equal, <<"posix">>},
         %% The absolute path to the directory where the POSIX storage is mounted
         %% on the cluster nodes.
         mountPoint => string,
@@ -1479,8 +1537,6 @@ s3_model() ->
         insecure => {boolean, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
-        %% The type of storage.
-        type => {equal, <<"s3">>},
         %% If true LUMA and reverse LUMA services will be enabled.
         lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
@@ -1488,6 +1544,8 @@ s3_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% The type of storage.
+        type => {equal, <<"s3">>},
         %% The hostname of a machine where S3 storage is installed.
         hostname => string,
         %% The storage bucket name.
@@ -1529,8 +1587,6 @@ swift_model() ->
         insecure => {boolean, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
-        %% The type of storage.
-        type => {equal, <<"swift">>},
         %% If true LUMA and reverse LUMA services will be enabled.
         lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
@@ -1538,6 +1594,8 @@ swift_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% The type of storage.
+        type => {equal, <<"swift">>},
         %% The URL to OpenStack Keystone identity service.
         authUrl => string,
         %% The name of the tenant to which the user belongs.
@@ -1578,8 +1636,6 @@ webdav_model() ->
         insecure => {boolean, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
-        %% The type of storage.
-        type => {equal, <<"webdav">>},
         %% If true LUMA and reverse LUMA services will be enabled.
         lumaEnabled => {boolean, optional},
         %% URL of external LUMA service
@@ -1587,6 +1643,8 @@ webdav_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% The type of storage.
+        type => {equal, <<"webdav">>},
         %% Full URL of the WebDAV server, including scheme (http or https) and
         %% path.
         endpoint => string,
