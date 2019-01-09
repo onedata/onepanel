@@ -241,8 +241,11 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version =
         {[onezone, letsEncryptEnabled], letsencrypt_enabled}
     ], Args, #{hosts => AllHosts}),
 
-    OzCtx = onepanel_maps:get_store([onezone, name], Args, name),
-    OzCtx2 = onepanel_maps:get_store([onezone, domainName], Args, domain, OzCtx),
+    OzCtx = onepanel_maps:get_store_multiple([
+        {[onezone, name], name},
+        {[onezone, domainName], domain},
+        {[onezone, builtInDnsServer], [dns_check_config, built_in_dns_server]}
+    ], Args),
 
     OzwCtx = #{
         hosts => OzwHosts, db_hosts => DbHosts, cm_hosts => CmHosts,
@@ -272,7 +275,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version =
 
     {true, rest_replier:handle_service_action_async(Req, service:apply_async(
         service_onezone:name(), deploy, #{
-            cluster => ClusterCtx, service_onezone:name() => OzCtx2
+            cluster => ClusterCtx, service_onezone:name() => OzCtx
         }
     ), Version)};
 
@@ -355,7 +358,7 @@ provide_resource(Req, #rstate{resource = task, bindings = #{id := TaskId}}) ->
 
 provide_resource(Req, #rstate{resource = SModule}) when
     SModule =:= service_onezone; SModule =:= service_oneprovider ->
-    {rest_replier:format_configuration(SModule), Req};
+    {rest_replier:format_service_configuration(SModule), Req};
 
 provide_resource(Req, #rstate{resource = dns_check, params = Params}) ->
     Ctx = #{force_check => onepanel_maps:get(forceCheck, Params, false)},
