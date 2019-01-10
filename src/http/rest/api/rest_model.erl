@@ -50,12 +50,12 @@
     session_details_model/0,
     space_auto_cleaning_configuration_model/0,
     space_auto_cleaning_report_model/0,
-    space_auto_cleaning_report_collection_model/0,
+    space_auto_cleaning_reports_model/0,
     space_auto_cleaning_rule_setting_model/0,
     space_auto_cleaning_rules_model/0,
     space_auto_cleaning_status_model/0,
     space_details_model/0,
-    space_files_popularity_configuration_model/0,
+    space_file_popularity_configuration_model/0,
     space_id_model/0,
     space_modify_request_model/0,
     space_support_request_model/0,
@@ -229,10 +229,9 @@ dns_check_model() ->
 -spec dns_check_configuration_model() -> maps:map().
 dns_check_configuration_model() ->
     #{
-        %% A collection of IP addresses for DNS servers used in checking DNS. If
-        %% empty, local system configuration will be used.
+        %% A collection of IP addresses for DNS servers used in checking DNS.
         dnsServers => {[string], optional},
-        %% If true, DNS check will verify that control of DNS zone for
+        %% If true, DNS check will verify that control of DNS zone of
         %% Onezone's domain was delegated to the DNS server built into
         %% Onezone service. This option is available only in Onezone service.
         builtInDnsServer => {boolean, optional},
@@ -249,7 +248,7 @@ dns_check_configuration_model() ->
 -spec dns_check_result_model() -> maps:map().
 dns_check_result_model() ->
     #{
-        %% An interpretation of results obtained from DNS check. Possible values
+        %% An interpreation of results obtained from DNS check. Possible values
         %% are: 'unresolvable' - query returned empty results;
         %% 'missing_records' - only some of the expected results were
         %% returned; 'bad_records' - none of the expected results were
@@ -545,7 +544,7 @@ provider_spaces_model() ->
 -spec provider_storages_model() -> maps:map().
 provider_storages_model() ->
     #{
-        %% The list of IDs of cluster storage resources.
+        %% The list of Ids of cluster storage resources.
         ids => [string]
     }.
 
@@ -658,17 +657,22 @@ space_auto_cleaning_configuration_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Auto-cleaning report
+%% @doc Report from an auto-cleaning run.
 %% @end
 %%--------------------------------------------------------------------
 -spec space_auto_cleaning_report_model() -> maps:map().
 space_auto_cleaning_report_model() ->
     #{
-        %% Start time of auto-cleaning procedure in ISO 8601 format
+        %% Id of an auto-cleaning report.
+        id => string,
+        %% Index of an auto-cleaning report. It can be used to list report Ids
+        %% starting from given report.
+        index => string,
+        %% Start time of an auto-cleaning run in ISO 8601 format
         startedAt => string,
-        %% Finish time of auto-cleaning procedure in ISO 8601 format
+        %% Finish time of an auto-cleaning run in ISO 8601 format
         stoppedAt => string,
-        %% Number of bytes deleted during auto-cleaning procedure.
+        %% Number of bytes deleted during an auto-cleaning run.
         releasedBytes => integer,
         %% Number of bytes that should be deleted.
         bytesToRelease => integer,
@@ -677,13 +681,14 @@ space_auto_cleaning_report_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc List of auto-cleaning report entries
+%% @doc The space auto-cleaning reports.
 %% @end
 %%--------------------------------------------------------------------
--spec space_auto_cleaning_report_collection_model() -> maps:map().
-space_auto_cleaning_report_collection_model() ->
+-spec space_auto_cleaning_reports_model() -> maps:map().
+space_auto_cleaning_reports_model() ->
     #{
-        reportEntries => {[space_auto_cleaning_report_model()], optional}
+        %% The list of Ids of space auto-cleaning reports.
+        ids => [string]
     }.
 
 %%--------------------------------------------------------------------
@@ -724,17 +729,17 @@ space_auto_cleaning_rules_model() ->
         minHoursSinceLastOpen => {space_auto_cleaning_rule_setting_model(), optional},
         %% Only files which size [b] is greater than given value may be cleaned.
         %% The default value is `1`.
-        lowerFileSizeLimit => {space_auto_cleaning_rule_setting_model(), optional},
+        minFileSize => {space_auto_cleaning_rule_setting_model(), optional},
         %% Only files which size [b] is less than given value may be cleaned.
         %% The default value is `1125899906842624 (1 PiB)`.
-        upperFileSizeLimit => {space_auto_cleaning_rule_setting_model(), optional},
+        maxFileSize => {space_auto_cleaning_rule_setting_model(), optional},
         %% Files that have moving average of open operations count per hour less
         %% than given value may be cleaned. The average is calculated in 24
         %% hours window. The default value is `9007199254740991
         %% (2^53-1)`.
         maxHourlyMovingAverage => {space_auto_cleaning_rule_setting_model(), optional},
         %% Files that have moving average of open operations count per day less
-        %% than given value may be cleaned. The average is calculated in 31 days
+        %% than given value may be cleaned. The average is calculated in 30 days
         %% window. The default value is `9007199254740991 (2^53-1)`.
         maxDailyMovingAverage => {space_auto_cleaning_rule_setting_model(), optional},
         %% Files that have moving average of open operations count per month
@@ -786,17 +791,24 @@ space_details_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Settings of files-popularity feature of space
+%% @doc Configuration of the file-popularity mechanism in the space.
 %% @end
 %%--------------------------------------------------------------------
--spec space_files_popularity_configuration_model() -> maps:map().
-space_files_popularity_configuration_model() ->
+-spec space_file_popularity_configuration_model() -> maps:map().
+space_file_popularity_configuration_model() ->
     #{
-        %% If true, collecting files-popularity mechanism in the space is
-        %% enabled
+        %% If true, collecting file-popularity mechanism in the space is enabled
         enabled => boolean,
-        %% REST endpoint to view files-popularity statistics
-        restUrl => {string, optional}
+        %% Example `curl` command that can be executed to query the
+        %% file-popularity view in the space.
+        exampleQuery => {string, optional},
+        %% Weight of `lastOpenHour` parameter.
+        lastOpenHourWeight => {float, optional},
+        %% Weight of `avgOpenCountPerDayWeight` parameter.
+        avgOpenCountPerDayWeight => {float, optional},
+        %% Maximal value of average open count per day taken to calculate the
+        %% value of popularity function.
+        maxAvgOpenCountPerDay => {float, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -855,7 +867,9 @@ space_sync_stats_model() ->
         %% Describes import algorithm run status.
         importStatus => string,
         %% Describes update algorithm run status.
-        updateStatus => {string, optional}
+        updateStatus => {string, optional},
+        %% Collection of statistics for requested metrics.
+        stats => {time_stats_collection_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1137,7 +1151,7 @@ zone_cluster_configuration_nodes_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The Onezone deployment configuration.
+%% @doc The zone deployment configuration.
 %% @end
 %%--------------------------------------------------------------------
 -spec zone_configuration_model() -> maps:map().
@@ -1176,25 +1190,21 @@ zone_configuration_details_onezone_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The Onezone custom configuration.
+%% @doc The zone custom configuration.
 %% @end
 %%--------------------------------------------------------------------
 -spec zone_configuration_onezone_model() -> maps:map().
 zone_configuration_onezone_model() ->
     #{
-        %% The domain of Onezone cluster.
+        %% The name of a HTTP domain.
         domainName => {string, optional},
-        %% The Onezone cluster name.
+        %% The name of a zone.
         name => {string, optional},
         %% If enabled the zone will use Let's Encrypt service to obtain SSL
         %% certificates. Otherwise certificates must be manually provided. By
         %% enabling this option you agree to the Let's Encrypt Subscriber
         %% Agreement.
         letsEncryptEnabled => {boolean, optional},
-        %% If true, DNS check will verify that control of DNS zone for
-        %% Onezone's domain was delegated to the DNS server built into
-        %% Onezone service.
-        builtInDnsServer => {boolean, optional},
         policies => {zone_policies_model(), optional}
     }.
 

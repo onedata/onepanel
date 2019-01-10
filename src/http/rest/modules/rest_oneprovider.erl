@@ -171,13 +171,16 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = cluster_ips}) ->
     ))};
 
 accept_resource(Req, 'PATCH', Args, #rstate{
-    resource = files_popularity_configuration,
+    resource = file_popularity_configuration,
     bindings = #{id := Id}
 }) ->
     Ctx = #{space_id => Id},
     Ctx2 = onepanel_maps:get_store(enabled, Args, [enabled], Ctx),
+    Ctx3 = onepanel_maps:get_store(lastOpenHourWeight, Args, [last_open_hour_weight], Ctx2),
+    Ctx4 = onepanel_maps:get_store(avgOpenCountPerDayWeight, Args, [avg_open_count_per_day_weight], Ctx3),
+    Ctx5 = onepanel_maps:get_store(maxAvgOpenCountPerDay, Args, [max_avg_open_count_per_day], Ctx4),
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, configure_files_popularity, Ctx2
+        ?SERVICE, configure_file_popularity, Ctx5
     ))};
 
 
@@ -196,7 +199,7 @@ accept_resource(Req, 'POST', _Args, #rstate{
     bindings = #{id := Id}
 }) ->
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-            ?SERVICE, start_auto_cleaning, #{space_id => Id}
+        ?SERVICE, start_auto_cleaning, #{space_id => Id}
     ))}.
 
 %%--------------------------------------------------------------------
@@ -242,16 +245,30 @@ provide_resource(Req, #rstate{
     ), Req};
 
 provide_resource(Req, #rstate{
-    resource = space_auto_cleaning_reports_collection,
+    resource = space_auto_cleaning_reports,
     bindings = #{id := Id},
     params = Params
 }) ->
-    Ctx = onepanel_maps:get_store(started_after, Params, started_after),
-    Ctx2 = Ctx#{space_id => Id},
+    Ctx = onepanel_maps:get_store(offset, Params, offset),
+    Ctx2 = onepanel_maps:get_store(limit, Params, limit, Ctx),
+    Ctx3 = onepanel_maps:get_store(index, Params, index, Ctx2),
+    Ctx4 = Ctx3#{space_id => Id},
 
     {rest_replier:format_service_step(service_oneprovider, get_auto_cleaning_reports,
         service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, get_auto_cleaning_reports, Ctx2
+            ?SERVICE, get_auto_cleaning_reports, Ctx4
+        ))
+    ), Req};
+
+provide_resource(Req, #rstate{
+    resource = space_auto_cleaning_report,
+    bindings = #{id := Id, report_id := ReportId}
+}) ->
+    Ctx = #{space_id => Id, report_id => ReportId},
+
+    {rest_replier:format_service_step(service_oneprovider, get_auto_cleaning_report,
+        service_utils:throw_on_error(service:apply_sync(
+            ?SERVICE, get_auto_cleaning_report, Ctx
         ))
     ), Req};
 
@@ -278,13 +295,13 @@ provide_resource(Req, #rstate{
     ), Req};
 
 provide_resource(Req, #rstate{
-    resource = files_popularity_configuration,
+    resource = file_popularity_configuration,
     bindings = #{id := Id}
 }) ->
     Ctx = #{space_id => Id},
-    {rest_replier:format_service_step(service_oneprovider, get_files_popularity_configuration,
+    {rest_replier:format_service_step(service_oneprovider, get_file_popularity_configuration,
         service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, get_files_popularity_configuration, Ctx
+            ?SERVICE, get_file_popularity_configuration, Ctx
         ))
     ), Req};
 
@@ -379,9 +396,8 @@ get_auto_cleaning_configuration(Args, Ctx) ->
         {[rules, enabled], [rules, enabled]},
         {[rules, maxOpenCount], [rules, max_open_count]},
         {[rules, minHoursSinceLastOpen], [rules, min_hours_since_last_open]},
-        % todo update lowerFileSizeLimit and upperFileSizeLimit names in VFS-5121
-        {[rules, lowerFileSizeLimit], [rules, min_file_size]},
-        {[rules, upperFileSizeLimit], [rules, max_file_size]},
+        {[rules, minFileSize], [rules, min_file_size]},
+        {[rules, maxFileSize], [rules, max_file_size]},
         {[rules, maxHourlyMovingAverage], [rules, max_hourly_moving_average]},
         {[rules, maxDailyMovingAverage], [rules, max_daily_moving_average]},
         {[rules, maxMonthlyMovingAverage], [rules, max_monthly_moving_average]}
