@@ -21,6 +21,6 @@
 TARGET_DIR='_build/default/lib/gui_static'
 # Image which will be used by default to get the static files. If it cannot
 # be resolved, the script will fall back to secondary.
-PRIMARY_IMAGE='docker.onedata.org/onepanel-gui:VFS-5114-dynamic-auto-cleaning-reports'
+PRIMARY_IMAGE='docker.onedata.org/onepanel-gui:VFS-5187-spaces-support-fixes'
 # Image which will be used if primary image is not resolved.
-SECONDARY_IMAGE='onedata/onepanel-gui:VFS-5114-dynamic-auto-cleaning-reports'
+SECONDARY_IMAGE='onedata/onepanel-gui:VFS-5187-spaces-support-fixes'
