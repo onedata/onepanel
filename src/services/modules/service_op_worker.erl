@@ -366,7 +366,7 @@ get_domain() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_admin_email(Ctx :: service:ctx()) -> binary().
-get_admin_email(#{node := Node}) ->
+get_admin_email(#{node := _Node}) ->
     #{adminEmail := AdminEmail} = service_oneprovider:get_details(#{}),
     AdminEmail;
 get_admin_email(Ctx) ->

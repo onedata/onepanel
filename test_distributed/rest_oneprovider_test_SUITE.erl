@@ -43,9 +43,10 @@
     patch_should_modify_storage_update/1,
     patch_should_update_storage/1,
     get_should_return_autocleaning_reports/1,
+    get_should_return_autocleaning_report/1,
     get_should_return_autocleaning_status/1,
     get_should_return_autocleaning_configuration/1,
-    get_should_return_files_popularity_configuration/1,
+    get_should_return_file_popularity_configuration/1,
     patch_should_update_file_popularity/1,
     patch_should_update_auto_cleaning/1,
     patch_with_incomplete_config_should_update_auto_cleaning/1,
@@ -151,30 +152,38 @@
     }
 }).
 
--define(AUTO_CLEANING_REPORTS, [
-    #{
-        <<"bytesToRelease">> => 125,
-        <<"filesNumber">> => 10,
-        <<"releasedBytes">> => 100,
-        <<"startedAt">> => <<"2004-02-12T15:19:21.423Z">>,
-        <<"stoppedAt">> => <<"2004-02-12T15:29:11.598Z">>
-    },
-    #{
-        <<"bytesToRelease">> => 1313125,
-        <<"filesNumber">> => 1056,
-        <<"releasedBytes">> => 1001234,
-        <<"startedAt">> => <<"2014-07-16T15:19:21.423Z">>,
-        <<"stoppedAt">> => null
-    }
-]).
+-define(AUTO_CLEANING_REPORT1, #{
+    <<"id">> => <<"id1">>,
+    <<"index">> => <<"index1">>,
+    <<"bytesToRelease">> => 125,
+    <<"filesNumber">> => 10,
+    <<"releasedBytes">> => 100,
+    <<"startedAt">> => <<"2004-02-12T15:19:21.423Z">>,
+    <<"stoppedAt">> => <<"2004-02-12T15:29:11.598Z">>
+}).
+
+-define(AUTO_CLEANING_REPORT2, #{
+    <<"id">> => <<"id2">>,
+    <<"index">> => <<"index2">>,
+    <<"bytesToRelease">> => 1313125,
+    <<"filesNumber">> => 1056,
+    <<"releasedBytes">> => 1001234,
+    <<"startedAt">> => <<"2014-07-16T15:19:21.423Z">>,
+    <<"stoppedAt">> => null
+}).
+
+-define(AUTO_CLEANING_REPORTS, [?AUTO_CLEANING_REPORT1, ?AUTO_CLEANING_REPORT2]).
 
 -define(AUTO_CLEANING_STATUS, #{
     <<"inProgress">> => false,
     <<"usedSpace">> => 1234123
 }).
 
--define(FILES_POPULARITY_CONFIG, #{
-   <<"enabled">> => true
+-define(file_popularity_CONFIG, #{
+    <<"enabled">> => true,
+    <<"lastOpenHourWeight">> => 1.0,
+    <<"avgOpenCountPerDayWeight">> => 1.0,
+    <<"maxAvgOpenCountPerDay">> => 100
 }).
 
 -define(AUTO_CLEANING_CONFIG, #{
@@ -185,8 +194,8 @@
         <<"enabled">> => true,
         <<"maxOpenCount">> => #{<<"enabled">> => true, <<"value">> => 1},
         <<"minHoursSinceLastOpen">> => #{<<"enabled">> => true, <<"value">> => 2},
-        <<"lowerFileSizeLimit">> => #{<<"enabled">> => true, <<"value">> => 3},
-        <<"upperFileSizeLimit">> => #{<<"enabled">> => true, <<"value">> => 4},
+        <<"minFileSize">> => #{<<"enabled">> => true, <<"value">> => 3},
+        <<"maxFileSize">> => #{<<"enabled">> => true, <<"value">> => 4},
         <<"maxHourlyMovingAverage">> => #{<<"enabled">> => true, <<"value">> => 5},
         <<"maxDailyMovingAverage">> => #{<<"enabled">> => true, <<"value">> => 6},
         <<"maxMonthlyMovingAverage">> => #{<<"enabled">> => true, <<"value">> => 7}
@@ -228,9 +237,10 @@ all() ->
         patch_should_modify_storage_update,
         patch_should_update_storage,
         get_should_return_autocleaning_reports,
+        get_should_return_autocleaning_report,
         get_should_return_autocleaning_status,
         get_should_return_autocleaning_configuration,
-        get_should_return_files_popularity_configuration,
+        get_should_return_file_popularity_configuration,
         patch_should_update_file_popularity,
         patch_should_update_auto_cleaning,
         patch_with_incomplete_config_should_update_auto_cleaning,
@@ -538,12 +548,21 @@ get_should_return_autocleaning_reports(Config) ->
     ?run(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(Host,
-                <<"/provider/spaces/someId/auto-cleaning/reports?started_after=2004-02-12T15:19:21.423Z">>,
+                <<"/provider/spaces/someId/auto-cleaning/reports">>,
                 get, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [])
         ),
         onepanel_test_rest:assert_body(JsonBody, ?AUTO_CLEANING_REPORTS)
     end).
 
+get_should_return_autocleaning_report(Config) ->
+    ?run(Config, fun(Host) ->
+        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(Host,
+                <<"/provider/spaces/someId/auto-cleaning/reports/someReportId">>,
+                get, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [])
+        ),
+        onepanel_test_rest:assert_body(JsonBody, ?AUTO_CLEANING_REPORT1)
+    end).
 
 get_should_return_autocleaning_status(Config) ->
     ?run(Config, fun(Host) ->
@@ -565,27 +584,30 @@ get_should_return_autocleaning_configuration(Config) ->
         onepanel_test_rest:assert_body(JsonBody, ?AUTO_CLEANING_CONFIG)
     end).
 
-get_should_return_files_popularity_configuration(Config) ->
+get_should_return_file_popularity_configuration(Config) ->
     ?run(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(Host,
-                <<"/provider/spaces/someId/files-popularity/configuration">>,
+                <<"/provider/spaces/someId/file-popularity/configuration">>,
                 get, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [])
         ),
-        onepanel_test_rest:assert_body(JsonBody, ?FILES_POPULARITY_CONFIG)
+        onepanel_test_rest:assert_body(JsonBody, ?file_popularity_CONFIG)
     end).
 
 patch_should_update_file_popularity(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
-                Host, <<"/provider/spaces/someId/files-popularity/configuration">>, patch,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, ?FILES_POPULARITY_CONFIG
+                Host, <<"/provider/spaces/someId/file-popularity/configuration">>, patch,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, ?file_popularity_CONFIG
             )
         ),
-        ?assertReceivedMatch({service, oneprovider, configure_files_popularity, #{
+        ?assertReceivedMatch({service, oneprovider, configure_file_popularity, #{
             space_id := <<"someId">>,
-            enabled := true
+            enabled := true,
+            last_open_hour_weight := 1.0,
+            avg_open_count_per_day_weight := 1.0,
+            max_avg_open_count_per_day := 100.0
         }}, ?TIMEOUT)
     end).
 
@@ -830,6 +852,18 @@ init_per_testcase(get_should_return_autocleaning_reports, Config) ->
     end),
     NewConfig;
 
+init_per_testcase(get_should_return_autocleaning_report, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        {service_oneprovider, get_auto_cleaning_report, {
+            [{'node@host1', ?AUTO_CLEANING_REPORT1}], []
+        }},
+        {task_finished, {service, action, ok}}
+    ]
+    end),
+    NewConfig;
+
 init_per_testcase(get_should_return_autocleaning_status, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
@@ -854,12 +888,12 @@ init_per_testcase(get_should_return_autocleaning_configuration, Config) ->
     end),
     NewConfig;
 
-init_per_testcase(get_should_return_files_popularity_configuration, Config) ->
+init_per_testcase(get_should_return_file_popularity_configuration, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_oneprovider, get_files_popularity_configuration, {
-            [{'node@host1', ?FILES_POPULARITY_CONFIG}], []
+        {service_oneprovider, get_file_popularity_configuration, {
+            [{'node@host1', ?file_popularity_CONFIG}], []
         }},
         {task_finished, {service, action, ok}}
     ]

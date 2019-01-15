@@ -53,12 +53,12 @@
     session_details_model/0,
     space_auto_cleaning_configuration_model/0,
     space_auto_cleaning_report_model/0,
-    space_auto_cleaning_report_collection_model/0,
+    space_auto_cleaning_reports_model/0,
     space_auto_cleaning_rule_setting_model/0,
     space_auto_cleaning_rules_model/0,
     space_auto_cleaning_status_model/0,
     space_details_model/0,
-    space_files_popularity_configuration_model/0,
+    space_file_popularity_configuration_model/0,
     space_id_model/0,
     space_modify_request_model/0,
     space_support_request_model/0,
@@ -587,7 +587,7 @@ provider_spaces_model() ->
 -spec provider_storages_model() -> maps:map().
 provider_storages_model() ->
     #{
-        %% The list of IDs of cluster storage resources.
+        %% The list of Ids of cluster storage resources.
         ids => [string]
     }.
 
@@ -700,17 +700,22 @@ space_auto_cleaning_configuration_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Auto-cleaning report
+%% @doc Report from an auto-cleaning run.
 %% @end
 %%--------------------------------------------------------------------
 -spec space_auto_cleaning_report_model() -> maps:map().
 space_auto_cleaning_report_model() ->
     #{
-        %% Start time of auto-cleaning procedure in ISO 8601 format
+        %% Id of an auto-cleaning report.
+        id => string,
+        %% Index of an auto-cleaning report. It can be used to list report Ids
+        %% starting from given report.
+        index => string,
+        %% Start time of an auto-cleaning run in ISO 8601 format
         startedAt => string,
-        %% Finish time of auto-cleaning procedure in ISO 8601 format
+        %% Finish time of an auto-cleaning run in ISO 8601 format
         stoppedAt => string,
-        %% Number of bytes deleted during auto-cleaning procedure.
+        %% Number of bytes deleted during an auto-cleaning run.
         releasedBytes => integer,
         %% Number of bytes that should be deleted.
         bytesToRelease => integer,
@@ -719,13 +724,14 @@ space_auto_cleaning_report_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc List of auto-cleaning report entries
+%% @doc The space auto-cleaning reports.
 %% @end
 %%--------------------------------------------------------------------
--spec space_auto_cleaning_report_collection_model() -> maps:map().
-space_auto_cleaning_report_collection_model() ->
+-spec space_auto_cleaning_reports_model() -> maps:map().
+space_auto_cleaning_reports_model() ->
     #{
-        reportEntries => {[space_auto_cleaning_report_model()], optional}
+        %% The list of Ids of space auto-cleaning reports.
+        ids => [string]
     }.
 
 %%--------------------------------------------------------------------
@@ -766,17 +772,17 @@ space_auto_cleaning_rules_model() ->
         minHoursSinceLastOpen => {space_auto_cleaning_rule_setting_model(), optional},
         %% Only files which size [b] is greater than given value may be cleaned.
         %% The default value is `1`.
-        lowerFileSizeLimit => {space_auto_cleaning_rule_setting_model(), optional},
+        minFileSize => {space_auto_cleaning_rule_setting_model(), optional},
         %% Only files which size [b] is less than given value may be cleaned.
         %% The default value is `1125899906842624 (1 PiB)`.
-        upperFileSizeLimit => {space_auto_cleaning_rule_setting_model(), optional},
+        maxFileSize => {space_auto_cleaning_rule_setting_model(), optional},
         %% Files that have moving average of open operations count per hour less
         %% than given value may be cleaned. The average is calculated in 24
         %% hours window. The default value is `9007199254740991
         %% (2^53-1)`.
         maxHourlyMovingAverage => {space_auto_cleaning_rule_setting_model(), optional},
         %% Files that have moving average of open operations count per day less
-        %% than given value may be cleaned. The average is calculated in 31 days
+        %% than given value may be cleaned. The average is calculated in 30 days
         %% window. The default value is `9007199254740991 (2^53-1)`.
         maxDailyMovingAverage => {space_auto_cleaning_rule_setting_model(), optional},
         %% Files that have moving average of open operations count per month
@@ -828,17 +834,24 @@ space_details_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Settings of files-popularity feature of space
+%% @doc Configuration of the file-popularity mechanism in the space.
 %% @end
 %%--------------------------------------------------------------------
--spec space_files_popularity_configuration_model() -> maps:map().
-space_files_popularity_configuration_model() ->
+-spec space_file_popularity_configuration_model() -> maps:map().
+space_file_popularity_configuration_model() ->
     #{
-        %% If true, collecting files-popularity mechanism in the space is
-        %% enabled
-        enabled => boolean,
-        %% REST endpoint to view files-popularity statistics
-        restUrl => {string, optional}
+        %% If true, collecting file-popularity mechanism in the space is enabled
+        enabled => {boolean, optional},
+        %% Example `curl` command that can be executed to query the
+        %% file-popularity view in the space.
+        exampleQuery => {string, optional},
+        %% Weight of `lastOpenHour` parameter.
+        lastOpenHourWeight => {float, optional},
+        %% Weight of `avgOpenCountPerDayWeight` parameter.
+        avgOpenCountPerDayWeight => {float, optional},
+        %% Maximal value of average open count per day taken to calculate the
+        %% value of popularity function.
+        maxAvgOpenCountPerDay => {float, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -897,7 +910,9 @@ space_sync_stats_model() ->
         %% Describes import algorithm run status.
         importStatus => string,
         %% Describes update algorithm run status.
-        updateStatus => {string, optional}
+        updateStatus => {string, optional},
+        %% Collection of statistics for requested metrics.
+        stats => {time_stats_collection_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
