@@ -94,16 +94,15 @@ routes() ->
             }]
         }},
 
-        %% Configure files-popularity in the space.
-        {<<"/api/v3/onepanel/provider/spaces/:id/files-popularity/configuration">>, rest_handler, #rstate{
+        %% Configure file-popularity mechanism in the space.
+        {<<"/api/v3/onepanel/provider/spaces/:id/file-popularity/configuration">>, rest_handler, #rstate{
             version = 3,
             module = rest_oneprovider,
-            resource = files_popularity_configuration,
+            resource = file_popularity_configuration,
             methods = [#rmethod{
                 type = 'PATCH',
-                %% Value informing whether collecting files-popularity
-                %% statistics in the space should be turned on or off.
-                args_spec = rest_model:space_files_popularity_configuration_model()
+                %% Configuration of the file-popularity mechanism in the space.
+                args_spec = rest_model:space_file_popularity_configuration_model()
             }]
         }},
 
@@ -120,7 +119,7 @@ routes() ->
             }]
         }},
 
-        %% Configure space auto-cleaning mechanism.
+        %% Configure space auto-cleaning mechanism
         {<<"/api/v3/onepanel/provider/spaces/:id/auto-cleaning/configuration">>, rest_handler, #rstate{
             version = 3,
             module = rest_oneprovider,
@@ -132,11 +131,11 @@ routes() ->
             }]
         }},
 
-        %% Get files-popularity configuration
-        {<<"/api/v3/onepanel/provider/spaces/:id/files-popularity/configuration">>, rest_handler, #rstate{
+        %% Get file-popularity configuration
+        {<<"/api/v3/onepanel/provider/spaces/:id/file-popularity/configuration">>, rest_handler, #rstate{
             version = 3,
             module = rest_oneprovider,
-            resource = files_popularity_configuration,
+            resource = file_popularity_configuration,
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -223,22 +222,38 @@ routes() ->
             }]
         }},
 
-        %% Get reports of space auto-cleaning
+        %% Get the report from a space auto-cleaning run
+        {<<"/api/v3/onepanel/provider/spaces/:id/auto-cleaning/reports/:report_id">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = space_auto_cleaning_report,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% Get Ids of of the space auto-cleaning reports
         {<<"/api/v3/onepanel/provider/spaces/:id/auto-cleaning/reports">>, rest_handler, #rstate{
             version = 3,
             module = rest_oneprovider,
-            resource = space_auto_cleaning_reports_collection,
+            resource = space_auto_cleaning_reports,
             methods = [#rmethod{
                 type = 'GET',
                 params_spec = #{
-                    %% Fetch only reports that started after this date (ISO
-                    %% 8601)
-                    started_after => string
+                    %% Allows to skip N first report Ids.
+                    offset => {integer, {optional, 0}},
+                    %% Allows to limit the number of returned report Ids up
+                    %% to N last reports. By default, all report Ids will be
+                    %% returned.
+                    limit => {integer, optional},
+                    %% Allows to list the report Ids starting from the
+                    %% specific report.
+                    index => {string, optional}
                 }
             }]
         }},
 
-        %% Get status of space auto-cleaning
+        %% Get status of space auto-cleaning mechanism
         {<<"/api/v3/onepanel/provider/spaces/:id/auto-cleaning/status">>, rest_handler, #rstate{
             version = 3,
             module = rest_oneprovider,
