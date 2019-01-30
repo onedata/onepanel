@@ -655,7 +655,7 @@ parse_auto_cleaning_rule_setting(RuleName, Args) ->
 parse_file_popularity_configuration(Args) ->
     onepanel_maps:remove_undefined(#{
         enabled => onepanel_utils:typed_get(enabled, Args, boolean, undefined),
-        last_open_hour_weight => onepanel_utils:typed_get(lastOpenHourWeight, Args, float, undefined),
-        avg_open_count_per_day_weight => onepanel_utils:typed_get(avgOpenCountPerDayWeight, Args, float, undefined),
-        max_avg_open_count_per_day => onepanel_utils:typed_get(maxAvgOpenCountPerDay, Args, float, undefined)
+        last_open_hour_weight => onepanel_utils:typed_get(last_open_hour_weight, Args, float, undefined),
+        avg_open_count_per_day_weight => onepanel_utils:typed_get(avg_open_count_per_day_weight, Args, float, undefined),
+        max_avg_open_count_per_day => onepanel_utils:typed_get(max_avg_open_count_per_day, Args, float, undefined)
     }).
