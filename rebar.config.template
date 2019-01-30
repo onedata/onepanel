@@ -37,7 +37,8 @@
     {release, "rm -f _build/*/rel/*/bin/install_upgrade.escript"},
     {release, "rm -f _build/*/rel/*/bin/nodetool"},
     {release, "rm -f _build/*/rel/*/bin/onepanel-*"},
-    {release, "rm -f _build/*/rel/*/bin/start_clean.boot"}
+    {release, "rm -f _build/*/rel/*/bin/start_clean.boot"},
+    {release, "rm -f _build/*/rel/*/bin/no_dot_erlang.boot"}
 ]}.
 
 {clean_files, [

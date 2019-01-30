@@ -129,7 +129,7 @@
         %% Configures how many days before expiration the certificate should
         %% be scheduled for renewal.
         %% Keep in mind that Let's Encrypt certificates are valid for at most 90 days
-        {web_cert_renewal_days, 7},
+        {web_cert_renewal_days, 30},
 
         %% Seconds between certificate checks
         {web_cert_renewal_check_delay, 3600},
