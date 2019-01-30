@@ -172,16 +172,17 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = cluster_ips}) ->
 
 accept_resource(Req, 'PATCH', Args, #rstate{
     resource = file_popularity_configuration,
-    bindings = #{id := Id}
+    bindings = #{id := Id},
+    version = Version
 }) ->
     Ctx = #{space_id => Id},
     Ctx2 = onepanel_maps:get_store(enabled, Args, [enabled], Ctx),
     Ctx3 = onepanel_maps:get_store(lastOpenHourWeight, Args, [last_open_hour_weight], Ctx2),
     Ctx4 = onepanel_maps:get_store(avgOpenCountPerDayWeight, Args, [avg_open_count_per_day_weight], Ctx3),
     Ctx5 = onepanel_maps:get_store(maxAvgOpenCountPerDay, Args, [max_avg_open_count_per_day], Ctx4),
-    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, configure_file_popularity, Ctx5
-    ))};
+    {true, rest_replier:handle_service_action_async(Req, service:apply_async(
+        ?SERVICE, configure_file_popularity, Ctx5), Version
+    )};
 
 
 accept_resource(Req, 'PATCH', Args, #rstate{
