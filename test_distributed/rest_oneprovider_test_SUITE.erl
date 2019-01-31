@@ -179,7 +179,7 @@
     <<"usedSpace">> => 1234123
 }).
 
--define(file_popularity_CONFIG, #{
+-define(FILE_POPULARITY_CONFIG, #{
     <<"enabled">> => true,
     <<"lastOpenHourWeight">> => 1.0,
     <<"avgOpenCountPerDayWeight">> => 1.0,
@@ -591,7 +591,7 @@ get_should_return_file_popularity_configuration(Config) ->
                 <<"/provider/spaces/someId/file-popularity/configuration">>,
                 get, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [])
         ),
-        onepanel_test_rest:assert_body(JsonBody, ?file_popularity_CONFIG)
+        onepanel_test_rest:assert_body(JsonBody, ?FILE_POPULARITY_CONFIG)
     end).
 
 patch_should_update_file_popularity(Config) ->
@@ -599,7 +599,7 @@ patch_should_update_file_popularity(Config) ->
         ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId/file-popularity/configuration">>, patch,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, ?file_popularity_CONFIG
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, ?FILE_POPULARITY_CONFIG
             )
         ),
         ?assertReceivedMatch({service, oneprovider, configure_file_popularity, #{
@@ -893,7 +893,7 @@ init_per_testcase(get_should_return_file_popularity_configuration, Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
         {service_oneprovider, get_file_popularity_configuration, {
-            [{'node@host1', ?file_popularity_CONFIG}], []
+            [{'node@host1', ?FILE_POPULARITY_CONFIG}], []
         }},
         {task_finished, {service, action, ok}}
     ]
