@@ -290,8 +290,9 @@ get_storage_user_ctx(Node, <<"nulldevice">>, _Params) ->
 
 get_storage_user_ctx(Node, <<"webdav">>, Params) ->
     rpc:call(Node, helper, new_webdav_user_ctx, [
-        <<_/binary>> = onepanel_utils:typed_get(credentialsType, Params, binary),
-        <<_/binary>> = onepanel_utils:typed_get(credentials, Params, binary, <<>>)
+        onepanel_utils:typed_get(credentialsType, Params, binary),
+        onepanel_utils:typed_get(credentials, Params, binary, <<>>),
+        onepanel_utils:typed_get(onedataAccessToken, Params, binary, <<>>)
     ]).
 
 %%--------------------------------------------------------------------
@@ -399,7 +400,8 @@ get_storage_helper(Node, <<"webdav">>, UserCtx, Params) ->
             {rangeWriteSupport, binary},
             {connectionPoolSize, binary},
             {maximumUploadSize, binary},
-            {timeout, binary}
+            {timeout, binary},
+            {oauth2IdP, binary}
         ], Params),
         UserCtx,
         onepanel_utils:typed_get(insecure, Params, boolean, false),
