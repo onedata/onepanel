@@ -257,14 +257,14 @@ invalidate_luma_cache(StorageId) ->
     Params :: storage_params_map()) -> UserCtx :: any().
 get_storage_user_ctx(Node, <<"ceph">>, Params) ->
     rpc:call(Node, helper, new_ceph_user_ctx, [
-        onepanel_utils:typed_get(username, Params, binary),
-        onepanel_utils:typed_get(key, Params, binary)
+        <<_/binary>> = onepanel_utils:typed_get(username, Params, binary),
+        <<_/binary>> = onepanel_utils:typed_get(key, Params, binary)
     ]);
 
 get_storage_user_ctx(Node, <<"cephrados">>, Params) ->
     rpc:call(Node, helper, new_cephrados_user_ctx, [
-        onepanel_utils:typed_get(username, Params, binary),
-        onepanel_utils:typed_get(key, Params, binary)
+        <<_/binary>> = onepanel_utils:typed_get(username, Params, binary),
+        <<_/binary>> = onepanel_utils:typed_get(key, Params, binary)
     ]);
 
 get_storage_user_ctx(Node, <<"posix">>, _Params) ->
@@ -272,14 +272,14 @@ get_storage_user_ctx(Node, <<"posix">>, _Params) ->
 
 get_storage_user_ctx(Node, <<"s3">>, Params) ->
     rpc:call(Node, helper, new_s3_user_ctx, [
-        onepanel_utils:typed_get(accessKey, Params, binary),
-        onepanel_utils:typed_get(secretKey, Params, binary)
+        <<_/binary>> = onepanel_utils:typed_get(accessKey, Params, binary),
+        <<_/binary>> = onepanel_utils:typed_get(secretKey, Params, binary)
     ]);
 
 get_storage_user_ctx(Node, <<"swift">>, Params) ->
     rpc:call(Node, helper, new_swift_user_ctx, [
-        onepanel_utils:typed_get(username, Params, binary),
-        onepanel_utils:typed_get(password, Params, binary)
+        <<_/binary>> = onepanel_utils:typed_get(username, Params, binary),
+        <<_/binary>> = onepanel_utils:typed_get(password, Params, binary)
     ]);
 
 get_storage_user_ctx(Node, <<"glusterfs">>, _Params) ->
@@ -290,9 +290,9 @@ get_storage_user_ctx(Node, <<"nulldevice">>, _Params) ->
 
 get_storage_user_ctx(Node, <<"webdav">>, Params) ->
     rpc:call(Node, helper, new_webdav_user_ctx, [
-        onepanel_utils:typed_get(credentialsType, Params, binary),
-        onepanel_utils:typed_get(credentials, Params, binary, <<>>),
-        onepanel_utils:typed_get(onedataAccessToken, Params, binary, <<>>)
+        <<_/binary>> = onepanel_utils:typed_get(credentialsType, Params, binary),
+        <<_/binary>> = onepanel_utils:typed_get(credentials, Params, binary, <<>>),
+        <<_/binary>> = onepanel_utils:typed_get(onedataAccessToken, Params, binary, <<>>)
     ]).
 
 %%--------------------------------------------------------------------
