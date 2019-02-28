@@ -64,7 +64,7 @@ deploy_should_create_cluster(Config) ->
 
     ?assertEqual(ok, rpc:call(Node, service, apply,
         [?SERVICE, deploy, #{cookie => ?COOKIE, hosts => Hosts,
-            auth => ?DEFAULT_AUTH, api_version => ?API_VERSION}]
+            api_version => ?API_VERSION}]
     )),
     ?assertEqual(Hosts, lists:sort(rpc:call(Node, service_onepanel, get_hosts, []))).
 
@@ -160,7 +160,7 @@ leave_should_remove_node(Config) ->
 
     ?assertEqual(ok, rpc:call(Node1, service, apply,
         [?SERVICE, deploy, #{cookie => ?COOKIE, hosts => [Host1 | Hosts],
-            auth => ?DEFAULT_AUTH, api_version => ?API_VERSION}]
+            api_version => ?API_VERSION}]
     )),
     ?assertEqual(ok, rpc:call(Node1, service, apply,
         [?SERVICE, leave_cluster, #{}]
@@ -265,8 +265,7 @@ init_per_testcase(join_should_fail_on_clustered_node, Config) ->
     ?assertEqual(Cluster1Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
 
     ?assertEqual(ok, rpc:call(Node2, service, apply,
-        [?SERVICE, deploy, #{hosts => Cluster2Hosts,
-            auth => ?DEFAULT_AUTH, api_version => ?API_VERSION}]
+        [?SERVICE, deploy, #{hosts => Cluster2Hosts, api_version => ?API_VERSION}]
     )),
     ?assertEqual(Cluster2Hosts, lists:sort(rpc:call(Node2, service_onepanel, get_hosts, []))),
 
