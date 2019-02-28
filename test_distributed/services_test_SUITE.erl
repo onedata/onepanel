@@ -451,9 +451,6 @@ assert_service_step(Module, Function, Nodes, Result) ->
     )).
 
 
-%%await_healthy_oz_worker(Node) ->
-
-
 %%--------------------------------------------------------------------
 %% @private
 %% @doc

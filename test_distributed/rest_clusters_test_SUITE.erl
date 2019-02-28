@@ -132,8 +132,26 @@ init_per_suite(Config) ->
 
 
 init_per_testcase(_Case, Config) ->
+    Nodes = ?config(all_nodes, Config),
     OpNodes = ?config(oneprovider_nodes, Config),
     OzNodes = ?config(onezone_nodes, Config),
+    OpHosts = ?config(oneprovider_hosts, Config),
+    OzHosts = ?config(onezone_hosts, Config),
+
+    true = lists:usort(Nodes) == lists:usort(OpNodes ++ OzNodes),
+
+    test_utils:mock_new(Nodes, [service, rest_auth, clusters, rpc, oz_endpoint],
+        [passthrough, no_history, unstick]),
+
+    test_utils:mock_expect(OpNodes, service, get, fun
+        (op_worker) -> {ok, #service{hosts = OpHosts}};
+        (oneprovider) -> {ok, #service{ctx = #{registered => true}}}
+    end),
+    test_utils:mock_expect(OzNodes, service, get,
+        fun(oz_worker) -> {ok, #service{hosts = OzHosts}} end),
+
+    test_utils:mock_expect(OpNodes, service_oneprovider, get_auth_token,
+        fun () -> <<"providerMacaroon">> end),
 
     test_utils:mock_expect(OzNodes, rest_auth, authenticate_by_onezone_access_token,
         fun(Req) -> {?OZ_CLIENT, Req} end),
@@ -144,11 +162,6 @@ init_per_testcase(_Case, Config) ->
         fun() -> ?ZONE_CLUSTER_ID end),
     test_utils:mock_expect(OpNodes, clusters, get_id,
         fun() -> ?PROVIDER_CLUSTER_ID end),
-
-    test_utils:mock_expect(OzNodes, clusters, list_user_clusters,
-        fun({rpc, _}) -> {ok, maps:keys(?CLUSTERS)} end),
-    test_utils:mock_expect(OpNodes, clusters, list_user_clusters,
-        fun({rest, _}) -> {ok, maps:keys(?CLUSTERS)} end),
 
     GetDetailsFun = fun(ClusterId) ->
         case maps:find(ClusterId, ?CLUSTERS) of
@@ -161,6 +174,18 @@ init_per_testcase(_Case, Config) ->
         fun({rpc, _}, ClusterId) -> GetDetailsFun(ClusterId) end),
     test_utils:mock_expect(OpNodes, clusters, get_details,
         fun({rest, _}, ClusterId) -> GetDetailsFun(ClusterId) end),
+
+    test_utils:mock_expect(OzNodes, rpc, call, fun
+        (_Node, user_logic, get_clusters, [_Client]) ->
+            {ok, maps:keys(?CLUSTERS)};
+        (Node, Module, Function, Args) ->
+            meck:passthrough([Node, Module, Function, Args])
+    end),
+
+    test_utils:mock_expect(OpNodes, oz_endpoint, request, fun
+        (_Auth, "/user/clusters/", get, _Headers, <<>>, _Opts) ->
+            {ok, 200, 0, json_utils:encode(#{clusters => maps:keys(?CLUSTERS)})}
+    end),
 
     Config.
 

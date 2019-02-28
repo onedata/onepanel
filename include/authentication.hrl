@@ -5,7 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc This header macros and records for user authentication.
+%%% @doc This header contains macros and records for user authentication.
 %%% @end
 %%%--------------------------------------------------------------------
 -ifndef(ONEPANEL_AUTHENTICATION_HRL).
