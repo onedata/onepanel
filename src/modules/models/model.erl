@@ -231,7 +231,6 @@ transaction(Transaction) ->
 -spec upgrade(ModelName :: model(), CurrentDocument :: tuple()) ->
     NewDocument :: doc().
 upgrade(Model, #document{version = CurrentVsn, value = CurrentRecord} = Document) ->
-    ?notice("Upgrading entity of type ~p", [Model]),
     TargetVsn = Model:get_record_version(),
     NewRecord = upgrade(TargetVsn, CurrentVsn, Model, CurrentRecord),
     Document#document{value = NewRecord, version = TargetVsn};
@@ -257,8 +256,6 @@ upgrade(TargetVsn, CurrentVsn, Model, _Record)
 upgrade(TargetVsn, CurrentVsn, Model, Record) ->
     {CurrentVsn2, Record2} = Model:upgrade(CurrentVsn, Record),
 
-    ?notice("Upgraded ~p from ~p to ~p.~nWas: ~p~nIs: ~p",
-        [Model, CurrentVsn, CurrentVsn2, Record, Record2]),
     upgrade(TargetVsn, CurrentVsn2, Model, Record2).
 
 
