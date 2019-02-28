@@ -11,6 +11,8 @@
 -ifndef(ONEPANEL_SERVICE_HRL).
 -define(ONEPANEL_SERVICE_HRL, 1).
 
+-define(IS_SERVICE_NAME(_Arg), is_atom(_Arg)).
+
 -record(step, {
     hosts :: undefined | [service:host()],
     selection = all :: all | any | first | rest,
@@ -18,7 +20,7 @@
     module :: module(),
     function :: atom(),
     args :: term(),
-    ctx :: service:ctx(),
+    ctx :: undefined | service:ctx(),
     condition = fun(_) -> true end :: service:condition(),
     verify_hosts :: undefined | boolean(),
     attempts = 1 :: pos_integer(),
@@ -28,7 +30,7 @@
 -record(steps, {
     service :: service:name(),
     action :: service:action(),
-    ctx :: service:ctx(),
+    ctx :: undefined | service:ctx(),
     condition = fun(_) -> true end :: service:condition(),
     verify_hosts :: undefined | boolean()
 }).

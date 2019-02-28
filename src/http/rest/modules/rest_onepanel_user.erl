@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Krzysztof Trzepla
-%%% @copyright (C): 2016 ACK CYFRONET AGH
+%%% @copyright (C) 2016 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -11,7 +11,10 @@
 -author("Krzysztof Trzepla").
 
 -include("http/rest.hrl").
+-include("authentication.hrl").
 -include("modules/models.hrl").
+-include("modules/errors.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 -behavior(rest_behaviour).
 
@@ -30,15 +33,21 @@
 -spec is_authorized(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     State :: rest_handler:state()) ->
     {Authorized :: boolean(), Req :: cowboy_req:req()}.
-is_authorized(Req, _Method, #rstate{client = #client{role = admin}}) ->
+is_authorized(Req, _Method, #rstate{client = #client{role = Role}})
+    when Role == root; Role == admin; Role == user ->
     {true, Req};
 
 is_authorized(Req, _Method, #rstate{resource = users}) ->
     {onepanel_user:get_by_role(admin) == [], Req};
 
 is_authorized(Req, _Method, #rstate{resource = user, bindings = #{username := Username},
-    client = #client{name = Username}}) ->
+    client = #client{user = #user_details{name = Username}}}) ->
     {true, Req};
+
+% resource defaulting to current user
+is_authorized(Req, Method, #rstate{resource = current_user, client = #client{role = Role}} = State)
+    when Role == user; Role == regular; Role == admin ->
+    is_authorized(Req, Method, current_user_to_user(State));
 
 is_authorized(Req, _Method, _State) ->
     {false, Req}.
@@ -52,6 +61,9 @@ is_authorized(Req, _Method, _State) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
 exists_resource(Req, #rstate{resource = user, bindings = #{username := Username}}) ->
     {onepanel_user:exists(Username), Req};
+
+exists_resource(Req, #rstate{resource = current_user} = State) ->
+    exists_resource(Req, current_user_to_user(State));
 
 exists_resource(Req, _State) ->
     {true, Req}.
@@ -86,11 +98,16 @@ accept_resource(Req, 'POST', #{username := Username, password := Password,
     {true, Req};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = user,
-    client = #client{name = ClientName}, bindings = #{username := Username}}) ->
+    client = #client{user = #user_details{name = ClientName}},
+    bindings = #{username := Username}}) ->
+
     #{currentPassword := CurrentPassword, newPassword := NewPassword} = Args,
-    {ok, _} = onepanel_user:authenticate(ClientName, CurrentPassword),
+    {ok, _} = onepanel_user:authenticate_by_basic_auth(ClientName, CurrentPassword),
     onepanel_user:change_password(Username, NewPassword),
-    {true, Req}.
+    {true, Req};
+
+accept_resource(Req, 'PATCH', Args, #rstate{resource = current_user} = State) ->
+    accept_resource(Req, 'PATCH', Args, current_user_to_user(State)).
 
 
 %%--------------------------------------------------------------------
@@ -102,12 +119,17 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = user,
 provide_resource(Req, #rstate{resource = users, params = #{role := Role}}) ->
     Users = onepanel_user:get_by_role(onepanel_utils:convert(Role, atom)),
     {format_usernames(Users), Req};
+
 provide_resource(Req, #rstate{resource = users}) ->
     Users = onepanel_user:list(),
     {format_usernames(Users), Req};
+
 provide_resource(Req, #rstate{resource = user, bindings = #{username := Username}}) ->
     {ok, #onepanel_user{uuid = UserId, role = Role}} = onepanel_user:get(Username),
-    {#{userId => UserId, userRole => Role}, Req}.
+    {#{userId => UserId, userRole => Role, username => Username}, Req};
+
+provide_resource(Req, #rstate{resource = current_user} = State) ->
+    provide_resource(Req, current_user_to_user(State)).
 
 
 %%--------------------------------------------------------------------
@@ -118,7 +140,10 @@ provide_resource(Req, #rstate{resource = user, bindings = #{username := Username
     {Deleted :: boolean(), Req :: cowboy_req:req()}.
 delete_resource(Req, #rstate{bindings = #{username := Username}}) ->
     onepanel_user:delete(Username),
-    {true, Req}.
+    {true, Req};
+
+delete_resource(Req, #rstate{resource = current_user} = State) ->
+    delete_resource(Req, current_user_to_user(State)).
 
 
 %%%===================================================================
@@ -131,9 +156,26 @@ delete_resource(Req, #rstate{bindings = #{username := Username}}) ->
 %% @doc Extracts usernames from a list of users.
 %% @end
 %%--------------------------------------------------------------------
--spec format_usernames(Users :: [#onepanel_user{}]) -> #{usernames := [binary()]}.
+-spec format_usernames(Users :: [#onepanel_user{}]) ->
+    #{usernames := [onepanel_user:name()]}.
 format_usernames(Users) ->
-    Usernames = lists:map(fun(#onepanel_user{username = Username}) -> Username end, Users),
-    #{
-        usernames => lists:sort(Usernames)
-    }.
+    Names = [Username || #onepanel_user{username = Username} <- Users],
+    #{usernames => lists:sort(Names)}.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Resolves resource "current_user" to the "user" resource
+%% adding 'username' binding with the name of the authenticated user.
+%% @end
+%%--------------------------------------------------------------------
+-spec current_user_to_user(rest_handler:state()) -> rest_handler:state().
+current_user_to_user(#rstate{resource = current_user} = State) ->
+    Username = get_username(State#rstate.client),
+    Bindings = State#rstate.bindings,
+    Bindings2 = Bindings#{username => Username},
+    State#rstate{resource = user, bindings = Bindings2}.
+
+
+-spec get_username(#client{}) -> onepanel_user:name().
+get_username(#client{user = #user_details{name = Username}}) -> Username.

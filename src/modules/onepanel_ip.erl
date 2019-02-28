@@ -11,6 +11,7 @@
 -module(onepanel_ip).
 -author("Wojciech Geisler").
 
+-include("names.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 -export([determine_ip/0, ip4_to_binary/1, parse_ip4/1, is_ip/1]).
@@ -88,7 +89,7 @@ is_ip(Value) ->
 %%--------------------------------------------------------------------
 -spec determine_ip_by_oz() -> {ok, inet:ip4_address()} | {error, term()}.
 determine_ip_by_oz() ->
-    case service:exists(service_op_worker:name())
+    case service:exists(?SERVICE_OPW)
         andalso service_oneprovider:is_registered(#{}) of
         true ->
             {ok, IPBin} = oz_providers:check_ip_address(none),

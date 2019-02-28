@@ -18,17 +18,20 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([get/1, get/2, find/1, find/2, set/2, set/3, set/4]).
+-export([get/1, get/2, get/3, find/1, find/2, set/2, set/3, set/4]).
 -export([read/2, read_effective/2, write/2, write/3, write/4]).
 -export([get_remote/3, find_remote/3, set_remote/4]).
 -export([migrate_generated_config/2, migrate_generated_config/3,
     legacy_config_exists/1, get_config_path/2]).
+-export([migrate/3, migrate/4]).
+-export([get_release_type/0]).
 
 -type key() :: atom().
 -type keys() :: key() | [key()].
 -type value() :: term().
+-type rel_type() :: onezone | oneprovider.
 
--export_type([key/0, keys/0, value/0]).
+-export_type([key/0, keys/0, value/0, rel_type/0]).
 
 -define(DO_NOT_MODIFY_HEADER,
     "% MACHINE GENERATED FILE. DO NOT MODIFY.\n"
@@ -58,6 +61,29 @@ get(Keys, AppName) ->
         {ok, Value} -> Value;
         #error{reason = ?ERR_NOT_FOUND} -> ?throw_error(?ERR_NOT_FOUND, [Keys, AppName])
     end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns value of a application variable from application's memory.
+%% Returns the Default when value has not been found.
+%% @end
+%%--------------------------------------------------------------------
+-spec get(Keys :: keys(), AppName :: atom(), Default :: value()) ->
+    Value :: value() | no_return().
+get(Keys, AppName, Default) ->
+    case find(Keys, AppName) of
+        {ok, Value} -> Value;
+        #error{reason = ?ERR_NOT_FOUND} -> Default
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns release type of this Onepanel instance.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_release_type() -> rel_type().
+get_release_type() ->
+    ?MODULE:get(release_type).
 
 
 %%--------------------------------------------------------------------
@@ -117,7 +143,8 @@ set(Keys, Value) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Sets value of a application variable in application's memory.
+%% @doc Sets in-memory value of a application env variable
+%% on the onepanel node.
 %% @end
 %%--------------------------------------------------------------------
 -spec set(Keys :: keys(), Value :: value(), AppName :: atom()) -> ok.
@@ -129,7 +156,7 @@ set(Keys, Value, AppName) ->
 
 %%--------------------------------------------------------------------
 %% @doc Sets value of a application variable in application's memory on given
-%% nodes.
+%% onepanel nodes.
 %% @end
 %%--------------------------------------------------------------------
 -spec set(Nodes :: [node()], Keys :: keys(), Value :: value(), AppName :: atom()) ->
@@ -139,8 +166,8 @@ set(Nodes, Keys, Value, AppName) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Sets value of a application variable in another application
-%% on the same host.
+%% @doc Sets value of a application variable on given node(s).
+%% The nodes can be of any service.
 %% @end
 %%--------------------------------------------------------------------
 -spec set_remote(Node :: node() | [node()], Keys :: keys(), Value :: value(),
@@ -184,12 +211,12 @@ read(Keys, Path) ->
 -spec read_effective(Keys :: keys(), ServiceName :: service:name()) ->
     {ok, Value :: value()} | #error{} | no_return().
 read_effective(Keys, ServiceName) ->
-    lists:foldl(fun(Path, Prev) ->
-        case Prev of
-            {ok, _Val} -> Prev;
-            _ ->
-                try read(Keys, Path)
-                catch _:_ -> Prev end
+    onepanel_lists:foldl_while(fun(Path, Prev) ->
+        try read(Keys, Path) of
+            {ok, Val} -> {halt, {ok, Val}};
+            _ -> {cont, Prev}
+        catch
+            _:_ -> {cont, Prev}
         end
     end, ?make_error(?ERR_NOT_FOUND), get_config_paths(ServiceName)).
 
@@ -215,10 +242,9 @@ write(Keys, Value, Path) ->
         _ -> []
     end,
 
-    NewAppConfigs = onepanel_lists:store(Keys, Value, AppConfigs),
-    case file:write_file(Path, io_lib:fwrite("~s~n~p.",
-        [?DO_NOT_MODIFY_HEADER, NewAppConfigs])
-    ) of
+    NewConfigs = onepanel_lists:store(Keys, Value, AppConfigs),
+    NewConfigsStr = io_lib:fwrite("~s~n~p.", [?DO_NOT_MODIFY_HEADER, NewConfigs]),
+    case file:write_file(Path, NewConfigsStr) of
         ok -> ok;
         {error, Reason} -> ?throw_error(Reason)
     end.
@@ -313,10 +339,44 @@ legacy_config_exists(ServiceName) ->
     Path :: string() | no_return()
     when ConfigLayer :: app | generated | overlay | legacy.
 get_config_path(ServiceName, ConfigLayer) ->
-    EnvName = lists:flatten(io_lib:format(
-        "~s_~s_config_file", [ServiceName, ConfigLayer])),
+    EnvName = str_utils:format("~s_~s_config_file", [ServiceName, ConfigLayer]),
     onepanel_env:get(list_to_atom(EnvName)).
 
+
+%%--------------------------------------------------------------------
+%% @doc Migrates (renames) variable in the autogenerated config file.
+%%
+%% If variable with the old name exists, changes its name to the new one
+%% and returns true. If OldKeys is missing, returns false.
+%% @end
+%%--------------------------------------------------------------------
+-spec migrate(ServiceName :: service:name(), OldKeys :: keys(), NewKeys :: keys()) ->
+    Found :: boolean().
+migrate(ServiceName, OldKeys, NewKeys) ->
+    % invocation with module name for meck in eunit
+    Path = ?MODULE:get_config_path(ServiceName, generated),
+    case read([], Path) of
+        {ok, OldConfigs} ->
+            case onepanel_lists:rename(OldKeys, NewKeys, OldConfigs) of
+                OldConfigs ->
+                    false;
+                NewConfigs ->
+                    write([], NewConfigs, Path),
+                    true
+            end;
+        _ -> false
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Executes {@link migrate/3} on all Onepanel nodes.
+%% @end
+%%--------------------------------------------------------------------
+-spec migrate(PanelNodes :: [node()], ServiceName :: service:name(),
+    OldKeys :: keys(), NewKeys :: keys()) ->
+    Results :: onepanel_rpc:results() | no_return().
+migrate(PanelNodes, ServiceName, OldKeys, NewKeys) ->
+    onepanel_rpc:call_all(PanelNodes, ?MODULE, migrate, [ServiceName, OldKeys, NewKeys]).
 
 %%%===================================================================
 %%% Internal functions

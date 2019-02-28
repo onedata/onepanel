@@ -58,7 +58,7 @@ get_hosts() ->
 %%--------------------------------------------------------------------
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
-    service:get_nodes(name()).
+    nodes:all(name()).
 
 
 %%--------------------------------------------------------------------
@@ -106,13 +106,13 @@ get_steps(set_cluster_ips, #{cluster_ips := HostsToIps} = Ctx) ->
     get_steps(set_cluster_ips, Ctx#{hosts => maps:keys(HostsToIps)});
 get_steps(set_cluster_ips, #{name := ServiceName} = Ctx) ->
     % execute on all service hosts, "guessing" IP if necessary
-    Hosts = (service:get_module(ServiceName)):get_hosts(),
+    Hosts = hosts:all(ServiceName),
     get_steps(set_cluster_ips, Ctx#{hosts => Hosts});
 
 get_steps(get_nagios_response, #{name := Name}) ->
     [#step{
         function = get_nagios_response,
-        hosts = (service:get_module(Name)):get_hosts(),
+        hosts = hosts:all(Name),
         selection = any
     }];
 
@@ -143,10 +143,10 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
     db_hosts := DbHosts, app_config := AppConfig, initialize_ip := InitIp,
     generated_config_file := GeneratedConfigFile, vm_args_file := VmArgsFile} = Ctx) ->
 
-    Host = onepanel_cluster:node_to_host(),
-    Node = onepanel_cluster:service_to_node(Name, Host),
-    CmNodes = onepanel_cluster:service_to_nodes(
-        service_cluster_manager:name(),
+    Host = hosts:self(),
+    Node = nodes:local(Name),
+    CmNodes = nodes:service_to_nodes(
+        ?SERVICE_CM,
         [MainCmHost | lists:delete(MainCmHost, CmHosts)]
     ),
     DbPort = service_ctx:get(couchbase_port, Ctx),
@@ -232,7 +232,7 @@ wait_for_init(#{name := Name, wait_for_init_attempts := Attempts,
 -spec get_nagios_response(Ctx :: service:ctx()) ->
     Response :: http_client:response().
 get_nagios_response(#{nagios_protocol := Protocol, nagios_port := Port}) ->
-    Host = onepanel_cluster:node_to_host(),
+    Host = hosts:self(),
     Url = onepanel_utils:join([Protocol, "://", Host, ":", Port, "/nagios"]),
     Opts = case Protocol of
         "https" ->
@@ -270,8 +270,8 @@ get_nagios_status(Ctx) ->
 %%--------------------------------------------------------------------
 -spec set_node_ip(Ctx :: service:ctx()) -> ok | no_return().
 set_node_ip(#{name := ServiceName, generated_config_file := GeneratedConfigFile} = Ctx) ->
-    Host = onepanel_cluster:node_to_host(),
-    Node = onepanel_cluster:service_to_node(ServiceName, Host),
+    Host = hosts:self(),
+    Node = nodes:local(ServiceName),
 
     {ok, IP} = case onepanel_maps:get([cluster_ips, Host], Ctx) of
         {ok, NewIP} ->
@@ -310,12 +310,12 @@ get_cluster_ips(#{name := _ServiceName} = Ctx) ->
     [{Host :: service:host(), IP :: inet:ip4_address()}].
 get_hosts_ips(#{name := ServiceName}) ->
     lists:map(fun(Host) ->
-        Node = onepanel_cluster:service_to_node(?APP_NAME, Host),
+        Node = nodes:service_to_node(?APP_NAME, Host),
         IPEnv = rpc:call(Node, onepanel_env, read_effective,
             [[name(), external_ip], ServiceName]),
         {ok, IPTuple} = IPEnv,
         {Host, IPTuple}
-    end, (service:get_module(ServiceName)):get_hosts()).
+    end, hosts:all(ServiceName)).
 
 
 %%--------------------------------------------------------------------
@@ -325,7 +325,7 @@ get_hosts_ips(#{name := ServiceName}) ->
 %% @end
 %%--------------------------------------------------------------------
 reload_webcert(#{name := ServiceName}) ->
-    Node = onepanel_cluster:service_to_node(ServiceName),
+    Node = nodes:local(ServiceName),
     ok = rpc:call(Node, ssl, clear_pem_cache, []).
 
 

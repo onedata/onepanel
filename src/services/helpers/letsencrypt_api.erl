@@ -614,7 +614,7 @@ http_post(URL, Payload, OkCodes, #flow_state{} = State, Attempts) ->
                             http_post(URL, Payload, OkCodes, push_nonce(Nonce, State2),
                                 Attempts - 1);
                         {400, #{
-                            <<"type">> := <<"urn:acme:error:connection">> = ErrorType,
+                            <<"type">> := <<"urn:acme:error:connection">>,
                             <<"detail">> := ErrorMessage}} ->
                             % Handled as a special case to provide explanation for the user
                             ?error("Let's Encrypt response status: ~B, expected ~s~n"
@@ -850,7 +850,7 @@ save_cert(#flow_state{
     cert_private_key_path = KeyPath,
     cert_path = CertPath,
     chain_path = ChainPath}, CertPem, KeyPem, ChainPem) ->
-    Nodes = service_onepanel:get_nodes(),
+    Nodes = nodes:all(?SERVICE_PANEL),
 
     ok = utils:save_file_on_hosts(Nodes, KeyPath, KeyPem),
     ok = utils:save_file_on_hosts(Nodes, CertPath, CertPem),

@@ -73,9 +73,7 @@ method_should_return_unauthorized_error(Config) ->
         {<<"/cookie">>, get},
         {<<"/hosts/someHost">>, delete},
         {<<"/hosts">>, get},
-        {<<"/hosts">>, post},
-        {<<"/session">>, get},
-        {<<"/session">>, post}
+        {<<"/hosts">>, post}
     ]).
 
 
@@ -211,7 +209,7 @@ init_per_testcase(Case, Config) when
     Self = self(),
     test_utils:mock_new(Nodes, [service, service_onepanel]),
     test_utils:mock_expect(Nodes, service_onepanel, get_hosts, fun() ->
-        [?CLUSTER_HOST_HOSTNAME | onepanel_cluster:nodes_to_hosts(Nodes)]
+        [?CLUSTER_HOST_HOSTNAME | hosts:from_nodes(Nodes)]
     end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},
@@ -254,7 +252,7 @@ init_per_testcase(_Case, Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     ?assertMatch({ok, _}, ?call(Config, onepanel_user, create,
         [?REG_USER_NAME, ?REG_USER_PASSWORD, regular])),
-    [{cluster_hosts, onepanel_cluster:nodes_to_hosts(Nodes)} | Config].
+    [{cluster_hosts, hosts:from_nodes(Nodes)} | Config].
 
 
 end_per_testcase(_Case, Config) ->

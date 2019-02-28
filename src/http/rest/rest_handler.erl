@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Krzysztof Trzepla
-%%% @copyright (C): 2016 ACK CYFRONET AGH
+%%% @copyright (C) 2016 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -12,10 +12,11 @@
 -module(rest_handler).
 -author("Krzysztof Trzepla").
 
+-include("authentication.hrl").
 -include("http/rest.hrl").
 -include("modules/errors.hrl").
--include_lib("ctool/include/logging.hrl").
 -include("modules/models.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([init/2, allowed_methods/2, content_types_accepted/2,
@@ -37,6 +38,16 @@
 -type state() :: #rstate{}.
 -type method() :: #rmethod{}.
 
+%% Objects used to authenticate request to Onezone
+-type zone_auth() :: rpc_auth() | rest_auth().
+%% Used by oz_panel
+-type rpc_auth() :: {rpc, LogicClient :: term()}.
+%% Used by op_panel
+-type rest_auth() :: {rest, oz_plugin:auth()}.
+
+-export_type([zone_auth/0, rpc_auth/0, rest_auth/0]).
+
+
 -export_type([version/0, accept_method_type/0, method_type/0, resource/0,
     data/0, bindings/0, params/0, args/0, spec/0, client/0, state/0,
     method/0]).
@@ -50,9 +61,12 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec init(Req :: cowboy_req:req(), State :: state()) ->
-    {cowboy_rest, Req :: cowboy_req:req(), State :: state()}.
+    {cowboy_rest | ok, Req :: cowboy_req:req(), State :: state()}.
 init(Req, Opts) ->
-    {cowboy_rest, Req, Opts}.
+    case cowboy_req:method(Req) of
+        <<"OPTIONS">> -> handle_options(Req, Opts);
+        _ -> {cowboy_rest, Req, Opts}
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -141,22 +155,19 @@ content_types_provided(Req, #rstate{} = State) ->
     {true | {false, binary()}, cowboy_req:req(), state()}.
 is_authorized(Req, #rstate{methods = Methods} = State) ->
     AuthMethods = [
-        fun authenticate_by_basic_auth/1,
-        fun authenticate_by_cookie/1
+        fun rest_auth:authenticate_by_basic_auth/1,
+        fun rest_auth:authenticate_by_rest_api_token/1,
+        fun rest_auth:authenticate_by_onezone_access_token/1
     ],
-    case authenticate(Req, AuthMethods) of
-        {{true, User, SessionId}, Req3} ->
-            #onepanel_user{username = Username, role = Role, uuid = Uuid} = User,
-            Client = #client{
-                name = Username, id = Uuid, role = Role, session_id = SessionId
-            },
+    case rest_auth:authenticate(Req, AuthMethods) of
+        {{true, Client}, Req3} ->
             {true, Req3, State#rstate{client = Client}};
         {false, Req3} ->
             {Method, Req4} = rest_utils:get_method(Req3),
             case lists:keyfind(Method, 2, Methods) of
                 #rmethod{noauth = true} ->
                     Req5 = cowboy_req:set_resp_body(<<>>, Req4),
-                    {true, Req5, State#rstate{client = #client{}}};
+                    {true, Req5, State#rstate{client = #client{role = ?NOAUTH_ROLE}}};
                 _ ->
                     {{false, <<"">>}, Req4, State}
             end
@@ -300,9 +311,32 @@ delete_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
             {false, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason)), State}
     end.
 
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc Sends reply for an OPTIONS request.
+%% @end
+%%--------------------------------------------------------------------
+-spec handle_options(cowboy_req:req(), State :: state()) ->
+    {ok, cowboy_req:req(), state()}.
+handle_options(Req, State) ->
+    case rest_utils:allowed_origin() of
+        undefined ->
+            % For unregistered provider or not deployed zone
+            % there is no need for OPTIONS request
+            {ok, cowboy_req:reply(405, Req), State};
+        Origin ->
+            {AllowedMethods, Req2, _} = rest_handler:allowed_methods(Req, State),
+
+            AllowedHeaders = [<<"x-auth-token">>, <<"macaroon">>, <<"authorization">>, <<"content-type">>],
+            Req3 = gui_cors:options_response(Origin, AllowedMethods, AllowedHeaders, Req2),
+
+            {ok, Req3, State}
+    end.
+
 
 %%--------------------------------------------------------------------
 %% @private @doc Cowboy callback function. Processes the request body.
@@ -326,76 +360,6 @@ accept_resource(Req, Data, #rstate{module = Module, methods = Methods} =
             {Result, Req6, State};
         {false, Req5} ->
             {stop, cowboy_req:reply(409, Req5), State}
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Authenticates user using provided authorization methods.
-%% @end
-%%--------------------------------------------------------------------
--spec authenticate(Req :: cowboy_req:req(), Methods :: [fun()]) ->
-    {{true, User :: #onepanel_user{}, SessionId ::
-    undefined | onepanel_session:id()} | false, Req :: cowboy_req:req()}.
-authenticate(Req, []) ->
-    {false, Req};
-authenticate(Req, [AuthMethod | AuthMethods]) ->
-    try AuthMethod(Req) of
-        {{ok, User}, SessionId, Req2} ->
-            {{true, User, SessionId}, Req2};
-        {#error{} = Error, _SessionId, Req2} ->
-            {false, rest_replier:handle_error(Req2, error, Error)};
-        {ignore, _SessionId, Req2} ->
-            authenticate(Req2, AuthMethods)
-    catch
-        Type:Reason ->
-            {false, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason))}
-    end.
-
-%%--------------------------------------------------------------------
-%% @private @doc Authenticates user using basic authorization method.
-%% @end
-%%--------------------------------------------------------------------
--spec authenticate_by_basic_auth(Req :: cowboy_req:req()) ->
-    {Result, SessionId :: undefined, Req :: cowboy_req:req()}
-    when Result :: {ok, User :: #onepanel_user{}} | #error{} | ignore.
-authenticate_by_basic_auth(Req) ->
-    case cowboy_req:header(<<"authorization">>, Req) of
-        <<"Basic ", Hash/binary>> ->
-            [Username, Password] = binary:split(base64:decode(Hash), <<":">>),
-            {onepanel_user:authenticate(Username, Password), undefined, Req};
-        _ ->
-            {ignore, undefined, Req}
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Authenticates user using session cookie.
-%% @end
-%%--------------------------------------------------------------------
--spec authenticate_by_cookie(Req :: cowboy_req:req()) ->
-    {{ok, User :: #onepanel_user{}}, onepanel_session:id(), Req}
-    | {#error{}, onepanel_session:id(), Req}
-    | {ignore, undefined, Req}
-    when Req :: onepanel_session:req().
-authenticate_by_cookie(Req) ->
-    Cookies = cowboy_req:parse_cookies(Req),
-    case proplists:get_all_values(<<"sessionId">>, Cookies) of
-        [] ->
-            {ignore, undefined, Req};
-        [SessionId] ->
-            {onepanel_user:authenticate(SessionId), SessionId, Req};
-        [SessionId1, SessionId2] ->
-            % Since 18.02.0-beta2 up to 18.02.0-rc11 a bug existed causing
-            % session cookie to be set with path "/api/v3/onepanel/" instead of "/".
-            % After upgrading to fixed version using the "/" path the old cookie
-            % persists and both are sent in each request.
-            % Without the code below logging in would not work in such situation
-            % without manually cleaning cookies.
-
-            case onepanel_user:authenticate(SessionId1) of
-                {ok, _} = Result -> {Result, SessionId1, Req};
-                #error{} -> {onepanel_user:authenticate(SessionId2), SessionId2, Req}
-            end
     end.
 
 

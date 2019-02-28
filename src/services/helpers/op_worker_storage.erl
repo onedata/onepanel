@@ -12,6 +12,7 @@
 -module(op_worker_storage).
 -author("Krzysztof Trzepla").
 
+-include("names.hrl").
 -include("modules/errors.hrl").
 
 -include_lib("hackney/include/hackney_lib.hrl").
@@ -43,7 +44,7 @@
 %%--------------------------------------------------------------------
 -spec add(Storages :: storage_map(), IgnoreExists :: boolean()) -> ok | no_return().
 add(Storages, IgnoreExists) ->
-    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
+    Node = nodes:local(?SERVICE_OPW),
     ?info("Adding ~b storage(s)", [maps:size(Storages)]),
     maps:fold(fun(Key, Value, _) ->
         StorageName = onepanel_utils:convert(Key, binary),
@@ -79,7 +80,7 @@ add(Storages, IgnoreExists) ->
 %%--------------------------------------------------------------------
 -spec get() -> list().
 get() ->
-    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
+    Node = nodes:local(?SERVICE_OPW),
     {ok, Storages} = rpc:call(Node, storage, list, []),
     Ids = lists:map(fun(Storage) ->
         rpc:call(Node, storage, get_id, [Storage])
@@ -93,7 +94,7 @@ get() ->
 %%--------------------------------------------------------------------
 -spec get(Id :: id()) -> storage_params_map().
 get(Id) ->
-    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
+    Node = nodes:local(?SERVICE_OPW),
     {ok, Storage} = rpc:call(Node, storage, get, [Id]),
     get_storage(Node, Storage).
 
@@ -137,7 +138,7 @@ is_mounted_in_root(Node, SpaceId, StorageId) ->
 %%--------------------------------------------------------------------
 -spec update(Name :: name(), Args :: maps:map()) -> ok.
 update(Id, Args) ->
-    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
+    Node = nodes:local(?SERVICE_OPW),
     Storage = op_worker_storage:get(Id),
     {ok, Id} = onepanel_maps:get(id, Storage),
     {ok, Type} = onepanel_maps:get(type, Storage),
@@ -232,7 +233,7 @@ get_auto_cleaning_configuration(Node, SpaceId) ->
         {[rules, max_daily_moving_average], [rules, maxDailyMovingAverage]},
         {[rules, max_monthly_moving_average], [rules, maxMonthlyMovingAverage]}
     ], DetailsMap, DetailsMap),
-    onepanel_lists:map_undefined_to_null(onepanel_maps:to_list(DetailsMap2)).
+    onepanel_lists:undefined_to_null(onepanel_maps:to_list(DetailsMap2)).
 
 %%-------------------------------------------------------------------
 %% @doc
@@ -242,7 +243,7 @@ get_auto_cleaning_configuration(Node, SpaceId) ->
 %%-------------------------------------------------------------------
 -spec invalidate_luma_cache(StorageId :: binary) -> ok.
 invalidate_luma_cache(StorageId) ->
-    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
+    Node = nodes:local(?SERVICE_OPW),
     ok = rpc:call(Node, luma_cache, invalidate, [StorageId]).
 
 %%%===================================================================

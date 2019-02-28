@@ -21,12 +21,14 @@
 %% Application callbacks
 -export([start/2, stop/1]).
 
+-export([get_build_and_version/0]).
+
 %%%===================================================================
 %%% Application callbacks
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private @doc This function is called whenever an application is started
+%% @doc This function is called whenever an application is started
 %% using application:start/[1,2], and should start the processes of the
 %% application. If the application is structured according to the OTP
 %% design principles as a supervision tree, this means starting the
@@ -63,7 +65,7 @@ start(_StartType, _StartArgs) ->
 
 
 %%--------------------------------------------------------------------
-%% @private @doc This function is called whenever an application has stopped.
+%% @doc This function is called whenever an application has stopped.
 %% It is intended to be the opposite of Module:start/2 and should do
 %% any necessary cleaning up. The return value is ignored.
 %% @end
@@ -73,6 +75,22 @@ stop(_State) ->
     https_listener:stop(),
     test_node_starter:maybe_stop_cover(),
     ok.
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns version information about the running app
+%% @end
+%%--------------------------------------------------------------------
+-spec get_build_and_version() -> {BuildVersion :: binary(), AppVersion :: binary()}.
+get_build_and_version() ->
+    BuildVersion = case application:get_env(?APP_NAME, build_version, "unknown") of
+        "" -> "unknown";
+        Build -> Build
+    end,
+    {_AppId, _AppName, AppVersion} = lists:keyfind(
+        ?APP_NAME, 1, application:loaded_applications()
+    ),
+    {list_to_binary(BuildVersion), list_to_binary(AppVersion)}.
 
 
 %%%===================================================================
@@ -94,7 +112,7 @@ resume_service() ->
 
     case ClusterExists of
         true ->
-            ReleaseType = onepanel_env:get(release_type),
+            ReleaseType = onepanel_env:get_release_type(),
             Task = service:apply_async(ReleaseType, manage_restart, #{}),
             ?info("Resuming ~s (task id ~s)", [ReleaseType, Task]);
         false -> ok % new deployment, managed by REST

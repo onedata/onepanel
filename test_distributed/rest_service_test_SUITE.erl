@@ -267,15 +267,19 @@ get_should_return_service_status(Config) ->
 
 get_should_return_service_host_status(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
-        lists:foreach(fun(Endpoint) ->
+        lists:foreach(fun({Endpoint, QueryHost}) ->
             {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
                 onepanel_test_rest:auth_request(
-                    Host, <<Prefix/binary, Endpoint/binary, "/someHost">>, get,
+                    Host, <<Prefix/binary, Endpoint/binary, QueryHost/binary>>, get,
                     {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
                 )
             ),
             onepanel_test_rest:assert_body(JsonBody, <<"healthy">>)
-        end, [<<"/databases">>, <<"/managers">>, <<"/workers">>])
+        end, [
+            {<<"/databases">>, <<"/host1">>},
+            {<<"/managers">>, <<"/host2">>},
+            {<<"/workers">>, <<"/host2">>}
+        ])
     end).
 
 
@@ -364,7 +368,7 @@ patch_should_start_stop_service(Config) ->
                     ?assertReceivedMatch({service, Service, Action, Ctx}, ?TIMEOUT)
                 end, [
                     {#{}, <<>>},
-                    {#{hosts => ["someHost"]}, <<"/someHost">>}
+                    {#{hosts => ["host2"]}, <<"/host2">>}
                 ])
             end, [
                 {start, <<"?started=true">>},
@@ -501,15 +505,13 @@ post_should_configure_oneprovider_service(Config) ->
                         ?CLUSTER_JSON),
                     <<"oneprovider">> => #{
                         <<"register">> => true,
+                        <<"token">> => <<"someToken">>,
                         <<"name">> => <<"someName">>,
                         <<"subdomainDelegation">> => false,
                         <<"domain">> => <<"someDomain">>,
                         <<"adminEmail">> => <<"admin@onedata.org">>,
                         <<"geoLongitude">> => <<"10">>,
                         <<"geoLatitude">> => <<"20.0">>
-                    },
-                    <<"onezone">> => #{
-                        <<"domainName">> => <<"someDomain">>
                     }
                 }
             )
@@ -560,7 +562,7 @@ post_should_configure_oneprovider_service(Config) ->
                 oneprovider_name := <<"someName">>,
                 oneprovider_domain := <<"someDomain">>,
                 oneprovider_register := true,
-                onezone_domain := <<"someDomain">>
+                oneprovider_token := <<"someToken">>
             }
         }}, ?TIMEOUT)
     end, [{oneprovider_hosts, <<"/provider">>}]).
@@ -676,7 +678,7 @@ init_per_testcase(get_should_return_dns_check, Config) ->
     OzNodes = ?config(onezone_nodes, Config),
 
     test_utils:mock_new(Nodes, [model, onepanel_deployment, service,
-        dns_check]),
+        service_oneprovider, dns_check]),
     test_utils:mock_expect(Nodes, model, exists,
         fun(_) -> true end),
     test_utils:mock_expect(Nodes, onepanel_deployment, is_completed,
@@ -685,6 +687,7 @@ init_per_testcase(get_should_return_dns_check, Config) ->
         (op_worker) -> OpHosts;
         (oz_worker) -> OzHosts
     end),
+    test_utils:mock_expect(OpNodes, service_oneprovider, is_registered, fun() -> true end),
     test_utils:mock_expect(OpNodes, dns_check, get, fun
         (op_worker, _) -> #{
             timestamp => ?DNS_CHECK_TIMESTAMP,
@@ -748,17 +751,26 @@ init_per_testcase(Case, Config) when
 
 init_per_testcase(_Case, Config) ->
     Nodes = ?config(all_nodes, Config),
+    OzNodes = ?config(onezone_nodes, Config),
     Self = self(),
+    OzDomain = onepanel_test_utils:get_domain(hosts:from_node(hd(OzNodes))),
 
-    test_utils:mock_new(Nodes, service),
-    test_utils:mock_expect(Nodes, service, is_member, fun(_, _) -> true end),
+    test_utils:mock_new(Nodes, [service, service_oz_worker, service_oneprovider]),
+    test_utils:mock_expect(Nodes, service_oneprovider, is_registered, fun() -> true end),
+
+    GetDetails = fun() -> #{name => <<"zoneName">>, domain => OzDomain} end,
+    test_utils:mock_expect(Nodes, service_oz_worker, get_details, GetDetails),
+    test_utils:mock_expect(Nodes, service_oz_worker, get_details,
+        fun(#{}) -> GetDetails() end),
+
     test_utils:mock_expect(Nodes, service, exists, fun(_) -> true end),
     test_utils:mock_expect(Nodes, service, get, fun
         (couchbase) -> {ok, #service{hosts = ["host1", "host2"]}};
         (cluster_manager) -> {ok, #service{
             hosts = ["host2", "host3"], ctx = #{main_host => "host3"}
         }};
-        (op_worker) -> {ok, #service{hosts = ["host1", "host2", "host3"]}}
+        (op_worker) -> {ok, #service{hosts = ["host1", "host2", "host3"]}};
+        (oz_worker) -> {ok, #service{hosts = ["host1", "host2", "host3"]}}
     end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},

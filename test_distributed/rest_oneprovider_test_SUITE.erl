@@ -28,7 +28,7 @@
     method_should_return_service_unavailable_error/1,
     get_should_return_provider_details/1,
     get_should_return_cluster_ips/1,
-    put_should_register_provider/1,
+    post_should_register_provider/1,
     patch_should_modify_provider_details/1,
     patch_should_modify_provider_ips/1,
     delete_should_unregister_provider/1,
@@ -222,7 +222,7 @@ all() ->
         method_should_return_service_unavailable_error,
         get_should_return_provider_details,
         get_should_return_cluster_ips,
-        put_should_register_provider,
+        post_should_register_provider,
         patch_should_modify_provider_details,
         patch_should_modify_provider_ips,
         delete_should_unregister_provider,
@@ -303,7 +303,7 @@ get_should_return_provider_details(Config) ->
 
 get_should_return_cluster_ips(Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
-    Hosts = lists:map(fun onepanel_cluster:node_to_host/1, Nodes),
+    Hosts = lists:map(fun hosts:from_node/1, Nodes),
     ?run(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
@@ -315,7 +315,7 @@ get_should_return_cluster_ips(Config) ->
     end).
 
 
-put_should_register_provider(Config) ->
+post_should_register_provider(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider">>, post,
@@ -326,11 +326,11 @@ put_should_register_provider(Config) ->
                 <<"adminEmail">> => <<"admin@onedata.org">>,
                 <<"geoLongitude">> => 10.0,
                 <<"geoLatitude">> => 20.0,
-                <<"onezoneDomainName">> => <<"someDomain">>
+                <<"token">> => <<"someToken">>
             }
         )),
         ?assertReceivedMatch({service, oneprovider, register, #{
-            onezone_domain := <<"someDomain">>,
+            oneprovider_token := <<"someToken">>,
             oneprovider_name := <<"someName">>,
             oneprovider_domain := <<"somedomain">>,
             oneprovider_geo_latitude := 20.0,
@@ -715,7 +715,7 @@ init_per_testcase(get_should_return_provider_details, Config) ->
 init_per_testcase(get_should_return_cluster_ips, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
-    Hosts = lists:map(fun onepanel_cluster:node_to_host/1, Nodes),
+    Hosts = lists:map(fun hosts:from_node/1, Nodes),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
         {service_oneprovider, format_cluster_ips, {
             [{'node@host1', ?CLUSTER_IPS_JSON(Hosts)}], []

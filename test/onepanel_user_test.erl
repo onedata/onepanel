@@ -79,12 +79,12 @@ authenticate_should_return_user(_) ->
     ?_assertMatch({ok, #onepanel_user{
         username = ?U, password_hash = <<_/binary>>, role = ?R,
         uuid = <<_/binary>>}
-    }, onepanel_user:authenticate(?U, ?P)).
+    }, onepanel_user:authenticate_by_basic_auth(?U, ?P)).
 
 authenticate_should_pass_errors(_) ->
     ?assertEqual({ok, ?U}, onepanel_user:create(?U, ?P, ?R)),
     ?_assertMatch(#error{reason = ?ERR_INVALID_USERNAME_OR_PASSWORD},
-        onepanel_user:authenticate(?U, <<"password">>)).
+        onepanel_user:authenticate_by_basic_auth(?U, <<"password">>)).
 
 change_password_should_validate_password(_) ->
     onepanel_user:create(?U, ?P, ?R),
@@ -97,8 +97,8 @@ change_password_should_work(_) ->
     ?assertEqual({ok, ?U}, onepanel_user:create(?U, ?P, ?R)),
     ?assertEqual(ok, onepanel_user:change_password(?U, NewPassword)),
     ?assertMatch(#error{reason = ?ERR_INVALID_USERNAME_OR_PASSWORD},
-        onepanel_user:authenticate(?U, ?P)),
-    ?_assertMatch({ok, _}, onepanel_user:authenticate(?U, NewPassword)).
+        onepanel_user:authenticate_by_basic_auth(?U, ?P)),
+    ?_assertMatch({ok, _}, onepanel_user:authenticate_by_basic_auth(?U, NewPassword)).
 
 validate_username_should_reject_empty(_) ->
     ?_assertThrow(#error{reason = ?ERR_INVALID_USERNAME},

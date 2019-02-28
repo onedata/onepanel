@@ -70,13 +70,13 @@ routes() ->
             }]
         }},
 
-        %% Create Onepanel user session
-        {<<"/api/v3/onepanel/session">>, rest_handler, #rstate{
+        %% Get details of a user's cluster
+        {<<"/api/v3/onepanel/user/clusters/:id">>, rest_handler, #rstate{
             version = 3,
-            module = rest_onepanel_session,
-            resource = session,
+            module = rest_clusters,
+            resource = cluster,
             methods = [#rmethod{
-                type = 'POST'
+                type = 'GET'
             }]
         }},
 
@@ -100,6 +100,16 @@ routes() ->
             }]
         }},
 
+        %% List user's clusters
+        {<<"/api/v3/onepanel/user/clusters">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_clusters,
+            resource = clusters,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
         %% Get public configuration
         {<<"/api/v3/onepanel/configuration">>, rest_handler, #rstate{
             version = 3,
@@ -108,6 +118,26 @@ routes() ->
             methods = [#rmethod{
                 type = 'GET',
                 noauth = true
+            }]
+        }},
+
+        %% Get details of this cluster
+        {<<"/api/v3/onepanel/cluster">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_clusters,
+            resource = current_cluster,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% Get Onepanel user details of currently logged in user.
+        {<<"/api/v3/onepanel/user">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel_user,
+            resource = current_user,
+            methods = [#rmethod{
+                type = 'GET'
             }]
         }},
 
@@ -132,11 +162,21 @@ routes() ->
             }]
         }},
 
-        %% Get Onepanel user session
-        {<<"/api/v3/onepanel/session">>, rest_handler, #rstate{
+        %% Get deployment progress
+        {<<"/api/v3/onepanel/progress">>, rest_handler, #rstate{
             version = 3,
-            module = rest_onepanel_session,
-            resource = session,
+            module = rest_onepanel,
+            resource = progress,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% Get details of a remote Oneprovider.
+        {<<"/api/v3/onepanel/providers/:id">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_clusters,
+            resource = remote_provider,
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -201,6 +241,17 @@ routes() ->
             }]
         }},
 
+        %% Modify Onepanel user details of currently logged in user.
+        {<<"/api/v3/onepanel/user">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel_user,
+            resource = current_user,
+            methods = [#rmethod{
+                type = 'PATCH',
+                args_spec = rest_model:user_modify_request_model()
+            }]
+        }},
+
         %% Configure dns check
         {<<"/api/v3/onepanel/dns_check/configuration">>, rest_handler, #rstate{
             version = 3,
@@ -210,6 +261,17 @@ routes() ->
                 type = 'PATCH',
                 %% The configuration changes.
                 args_spec = rest_model:dns_check_configuration_model()
+            }]
+        }},
+
+        %% Modify progress marks
+        {<<"/api/v3/onepanel/progress">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel,
+            resource = progress,
+            methods = [#rmethod{
+                type = 'PATCH',
+                args_spec = rest_model:progress_modify_model()
             }]
         }},
 
@@ -246,11 +308,11 @@ routes() ->
             }]
         }},
 
-        %% Remove Onepanel user session
-        {<<"/api/v3/onepanel/session">>, rest_handler, #rstate{
+        %% Remove the currently logged in Onepanel user
+        {<<"/api/v3/onepanel/user">>, rest_handler, #rstate{
             version = 3,
-            module = rest_onepanel_session,
-            resource = session,
+            module = rest_onepanel_user,
+            resource = current_user,
             methods = [#rmethod{
                 type = 'DELETE'
             }]

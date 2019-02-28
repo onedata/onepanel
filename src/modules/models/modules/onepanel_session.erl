@@ -16,18 +16,24 @@
 
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
+-include("http/rest.hrl").
+-include("authentication.hrl").
+
+-include_lib("ctool/include/logging.hrl").
 
 %% Model behaviour callbacks
--export([get_fields/0, seed/0, create/1, save/1, update/2, get/1, exists/1,
-    delete/1, list/0]).
+-export([get_fields/0, get_record_version/0, seed/0, create/1, upgrade/2,
+    save/1, update/2, get/1, exists/1, delete/1, list/0]).
 
 %% API
--export([get_id/1, get_username/1, create/2, is_active/1, mark_active/1]).
+-export([create/2, get_id/1, get_username/1, find_by_valid_token/1, is_active/1]).
+-export([remove_expired_tokens/1, maybe_update_token/1]).
 
 -type id() :: binary().
+-type rest_api_token() :: binary().
 -type record() :: #onepanel_session{}.
 
--export_type([id/0]).
+-export_type([id/0, rest_api_token/0]).
 
 %%%===================================================================
 %%% Model behaviour callbacks
@@ -40,6 +46,38 @@
 -spec get_fields() -> list(atom()).
 get_fields() ->
     record_info(fields, ?MODULE).
+
+
+%%--------------------------------------------------------------------
+%% @doc {@link model_behaviour:get_record_version/0}
+%% @end
+%%--------------------------------------------------------------------
+-spec get_record_version() -> model_behaviour:version().
+get_record_version() ->
+    2.
+
+
+%%--------------------------------------------------------------------
+%% @doc {@link model_behaviour:upgrade/2}
+%% @end
+%%--------------------------------------------------------------------
+-spec upgrade(PreviousVsn :: model_behaviour:version(), PreviousRecord :: tuple()) ->
+    {NewVsn :: model_behaviour:version(), NewRecord :: tuple()}.
+upgrade(1, Record) ->
+    {onepanel_session,
+        Id,
+        Username,
+        _Expiration} = Record,
+    % Session cannot be automatically upgraded for use with gui_session.
+    % Set its last_refresh to 0 to trigger deletion in nearest cleanup.
+    {2, {onepanel_session,
+        Id,
+        Username,
+        _LastRefresh = 0,
+        _Nonce = <<"">>,
+        _PreviousNonce = <<"">>,
+        _RestApiToken = <<"">>
+    }}.
 
 
 %%--------------------------------------------------------------------
@@ -58,10 +96,7 @@ seed() ->
 -spec create(Record :: onepanel_user:name() | record()) ->
     {ok, id()} | #error{} | no_return().
 create(#onepanel_session{} = Record) ->
-    model:create(?MODULE, Record);
-create(<<_/binary>> = Username) ->
-    Expire = get_expiration_time(),
-    create(Username, Expire).
+    model:create(?MODULE, Record).
 
 
 %%--------------------------------------------------------------------
@@ -91,16 +126,8 @@ update(Key, Diff) ->
     {ok, Record :: record()} | #error{} | no_return().
 get(Key) ->
     case model:get(?MODULE, Key) of
-        {ok, Session} ->
-            case is_active(Session) of
-                true ->
-                    {ok, Session};
-                false ->
-                    delete(Key),
-                    ?make_error(?ERR_NOT_FOUND, [Key])
-            end;
-        #error{} = Error ->
-            Error
+        {ok, Session} -> {ok, Session};
+        #error{} = Error -> Error
     end.
 
 
@@ -136,6 +163,20 @@ list() ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
+%% @doc Creates user session.
+%% @end
+%%--------------------------------------------------------------------
+-spec create(id(), record()) ->
+    ok | #error{} | no_return().
+create(Id, Record) ->
+    Record2 = Record#onepanel_session{id = Id, rest_tokens = [generate_api_token(Id)]},
+    case create(Record2) of
+        {ok, Id} -> ok;
+        #error{} = Error -> Error
+    end.
+
+
+%%--------------------------------------------------------------------
 %% @doc Returns session ID.
 %% @end
 %%--------------------------------------------------------------------
@@ -152,50 +193,108 @@ get_id(#onepanel_session{id = Id}) ->
 get_username(#onepanel_session{username = Username}) ->
     Username.
 
-
-%%--------------------------------------------------------------------
-%% @doc Creates user session.
-%% @end
-%%--------------------------------------------------------------------
--spec create(Username :: onepanel_user:name(), Expire :: non_neg_integer()) ->
-    {ok, id()} | #error{} | no_return().
-create(Username, Expire) ->
-    create(#onepanel_session{
-        id = onepanel_utils:gen_uuid(),
-        username = Username,
-        expire = Expire
-    }).
-
-
 %%--------------------------------------------------------------------
 %% @doc Checks whether user session is active, i.e. it has not expired.
 %% @end
 %%--------------------------------------------------------------------
 -spec is_active(Session :: #onepanel_session{}) -> boolean().
-is_active(#onepanel_session{expire = Expire}) ->
-    Expire > erlang:system_time(milli_seconds).
+is_active(#onepanel_session{last_refresh = LastRefresh}) ->
+    not gui_session:is_expired(LastRefresh).
 
 
 %%--------------------------------------------------------------------
-%% @doc Marks session active, i.e. updates expiration time.
+%% @doc Removes expired tokens from a session record.
 %% @end
 %%--------------------------------------------------------------------
--spec mark_active(Id :: id()) -> ok | no_return().
-mark_active(Id) ->
-        catch update(Id, #{expire => get_expiration_time()}),
-    ok.
+-spec remove_expired_tokens(Session :: record()) ->
+    record().
+remove_expired_tokens(#onepanel_session{rest_tokens = Tokens} = Session) ->
+    Valid = lists:filter(fun is_token_unexpired/1, Tokens),
+    Session#onepanel_session{rest_tokens = Valid}.
+
+
+%%--------------------------------------------------------------------
+%% @doc Find session bound to given token.
+%% Expired token is treated as unbound to any session.
+%% @end
+%%--------------------------------------------------------------------
+-spec find_by_valid_token(rest_api_token()) ->
+    {ok, record()} | #error{}.
+find_by_valid_token(RestApiToken) ->
+    SessionId = token_to_session_id(RestApiToken),
+    case onepanel_session:get(SessionId) of
+        {ok, #onepanel_session{rest_tokens = Tokens} = Session} ->
+            case lists:keyfind(RestApiToken, 1, Tokens) of
+                {RestApiToken, _} = Found ->
+                    case is_token_unexpired(Found) of
+                        true -> {ok, Session};
+                        false -> ?make_error(?ERR_NOT_FOUND)
+                    end;
+                _ -> ?make_error(?ERR_NOT_FOUND)
+            end;
+        _ ->
+            ?make_error(?ERR_NOT_FOUND)
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Checks if expiration of the newest token is less than
+%% half of token TTL away. In that case, generates a new token.
+%% @end
+%%--------------------------------------------------------------------
+-spec maybe_update_token(Session :: record()) -> record().
+maybe_update_token(Session) ->
+    Now = time_utils:system_time_seconds(),
+    TTL = onepanel_env:get(rest_token_ttl),
+
+    Id = Session#onepanel_session.id,
+    Tokens = Session#onepanel_session.rest_tokens,
+
+    ShouldUpdate = case Tokens of
+        [] -> true;
+        [{_Newest, Expires} | _] -> Expires - Now < (TTL div 2)
+    end,
+
+    case ShouldUpdate of
+        true ->
+            NewTokens = [generate_api_token(Id) | Tokens],
+            Session2 = Session#onepanel_session{rest_tokens = NewTokens},
+            ok = save(Session2),
+            Session2;
+        false -> Session
+    end.
+
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
-%%--------------------------------------------------------------------
 %% @private
-%% @doc Returns future time point that occurs 'session_ttl'
-%% milliseconds from now.
-%% @end
-%%--------------------------------------------------------------------
--spec get_expiration_time() -> TimePoint :: non_neg_integer().
-get_expiration_time() ->
-    TTL = onepanel_env:get(session_ttl),
-    erlang:system_time(milli_seconds) + TTL.
+-spec generate_api_token(SessionId :: id()) ->
+    {rest_api_token(), Expires :: non_neg_integer()}.
+generate_api_token(SessionId) ->
+    UUID = onepanel_utils:gen_uuid(),
+    Expires = time_utils:system_time_seconds() + onepanel_env:get(rest_token_ttl),
+    Token = onepanel_utils:join([?ONEPANEL_TOKEN_PREFIX, SessionId, UUID],
+        <<?ONEPANEL_TOKEN_SEPARATOR>>),
+    {Token, Expires}.
+
+
+%% @private
+-spec token_to_session_id(rest_api_token()) -> onepanel_session:id().
+token_to_session_id(Token) ->
+    [<<?ONEPANEL_TOKEN_PREFIX>>, SessionId, _] =
+        string:split(Token, ?ONEPANEL_TOKEN_SEPARATOR, all),
+    SessionId.
+
+
+%% @private
+-spec is_token_unexpired({Token :: rest_api_token(), Expires} | Expires) ->
+    boolean()
+    when Expires :: non_neg_integer().
+is_token_unexpired(Expires) when is_integer(Expires) ->
+    Now = time_utils:system_time_seconds(),
+    Now =< Expires;
+
+is_token_unexpired({_Token, Expires}) ->
+    is_token_unexpired(Expires).

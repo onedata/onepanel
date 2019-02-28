@@ -6,7 +6,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc
-%%% Unit tests for onepanel_user module.
+%%% Unit tests for onepanel_deployment module.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_deployment_test).

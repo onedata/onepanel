@@ -17,6 +17,9 @@
 
 -behaviour(oz_plugin_behaviour).
 
+-type auth() :: none | provider | {access_token, binary()}.
+-export_type([auth/0]).
+
 %% OZ behaviour callbacks
 -export([get_oz_url/0, get_oz_rest_port/0, get_oz_rest_api_prefix/0]).
 -export([get_cacerts_dir/0, get_provider_cacerts_dir/0]).
@@ -32,7 +35,11 @@
 %%--------------------------------------------------------------------
 -spec get_oz_url() -> string().
 get_oz_url() ->
-    "https://" ++ get_env(oz_domain, list).
+    Domain = case onepanel_env:get_release_type() of
+        oneprovider -> service_oneprovider:get_oz_domain();
+        onezone -> service_oz_worker:get_domain()
+    end,
+    "https://" ++ onepanel_utils:convert(Domain, list).
 
 
 %%--------------------------------------------------------------------
@@ -76,15 +83,24 @@ get_provider_cacerts_dir() ->
 %% @doc {@link oz_plugin_behaviour:auth_to_rest_client/1}
 %% @end
 %%--------------------------------------------------------------------
--spec auth_to_rest_client(Auth :: term()) -> {user, token, binary()} |
-{user, macaroon, {Macaroon :: binary(), DischargeMacaroons :: [binary()]}} |
-{user, basic, binary()} | {provider, Macaroon :: binary()} | none.
+-spec auth_to_rest_client(Auth :: auth()) ->
+    {headers, #{Header :: binary() => Value :: binary()}} |
+    {provider, Macaroon :: binary()} |
+    none.
 auth_to_rest_client(none) ->
     none;
+
+auth_to_rest_client({access_token, AccessToken}) ->
+    ProviderMacaroon = service_oneprovider:get_auth_token(),
+    {headers, #{
+        <<"subject-token">> => AccessToken,
+        <<"audience-token">> => ProviderMacaroon
+    }};
+
 auth_to_rest_client(provider) ->
-    [Node | _] = service_op_worker:get_nodes(),
-    {ok, ProviderMacaroon} = rpc:call(Node, provider_auth, get_auth_macaroon, []),
+    ProviderMacaroon = service_oneprovider:get_auth_token(),
     {provider, ProviderMacaroon}.
+
 
 %%%===================================================================
 %%% Internal function
@@ -99,18 +115,11 @@ auth_to_rest_client(provider) ->
     Value :: term().
 get_env(Key, path) ->
     Path = get_env(Key, list),
-    case filename:absname(Path) of
-        Path ->
-            Path;
-        _ ->
-            [Node | _] = service_op_worker:get_nodes(),
-            {ok, Cwd} = rpc:call(Node, file, get_cwd, []),
-            filename:join(Cwd, Path)
-    end;
+    service_utils:absolute_path(?SERVICE_OPW, Path);
+
 get_env(Key, Type) ->
-    Hosts = service_op_worker:get_hosts(),
-    Nodes = onepanel_cluster:service_to_nodes(?APP_NAME, Hosts),
-    Name = service_op_worker:name(),
+    Name = ?SERVICE_OPW,
+    Nodes = nodes:all_with(Name),
     {ok, Value} = onepanel_rpc:call_any(Nodes, onepanel_env, read_effective,
         [[Name, Key], Name]),
     onepanel_utils:convert(Value, Type).

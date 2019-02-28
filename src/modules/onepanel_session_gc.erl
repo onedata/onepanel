@@ -13,6 +13,9 @@
 
 -behaviour(gen_server).
 
+% Cookies are long-lived (a week by default), perform cleaning more often.
+-define(CLEANING_INTERVAL, gui_session:cookie_ttl() div 7).
+
 -include_lib("ctool/include/logging.hrl").
 
 %% API
@@ -90,15 +93,7 @@ handle_cast(Request, State) ->
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}.
 handle_info(delete_inactive_sessions, #state{} = State) ->
-    Sessions = onepanel_session:list(),
-    lists:foreach(fun(Session) ->
-        case onepanel_session:is_active(Session) of
-            true -> ok;
-            false ->
-                Id = onepanel_session:get_id(Session),
-                onepanel_session:delete(Id)
-        end
-    end, Sessions),
+    clean_sessions(),
     schedule_inactive_sessions_deletion(),
     {noreply, State};
 
@@ -133,11 +128,39 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
+%% @private @doc Traverses sessions removing expired ones
+%% and cleaning stale tokens in the active.
+%% @end
+%%--------------------------------------------------------------------
+-spec clean_sessions() -> ok.
+clean_sessions() ->
+    Sessions = onepanel_session:list(),
+    lists:foreach(fun(Session) ->
+        case onepanel_session:is_active(Session) of
+            true ->
+                clean_tokens(Session);
+            false ->
+                Id = onepanel_session:get_id(Session),
+                onepanel_session:delete(Id)
+        end
+    end, Sessions).
+
+
+%%--------------------------------------------------------------------
+%% @private @doc Removes stale tokens from a session.
+%% @end
+%%--------------------------------------------------------------------
+-spec clean_tokens(Session :: onepanel_session:record()) -> ok.
+clean_tokens(Session) ->
+    Cleaned = onepanel_session:remove_expired_tokens(Session),
+    onepanel_session:save(Cleaned).
+
+
+%%--------------------------------------------------------------------
 %% @private @doc Schedules deletion of inactive sessions.
 %% @end
 %%--------------------------------------------------------------------
 -spec schedule_inactive_sessions_deletion() -> ok.
 schedule_inactive_sessions_deletion() ->
-    Delay = onepanel_env:get(session_ttl),
-    erlang:send_after(Delay, self(), delete_inactive_sessions),
+    erlang:send_after(?CLEANING_INTERVAL, self(), delete_inactive_sessions),
     ok.

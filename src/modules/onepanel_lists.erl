@@ -15,7 +15,8 @@
 
 %% API
 -export([hd/1, get/2, get/3, store/2, store/3, get_store/3, get_store/4]).
--export([union/2, intersect/2, subtract/2, foldl_while/3, map_undefined_to_null/1]).
+-export([rename/3, remove/2]).
+-export([union/2, intersect/2, subtract/2, foldl_while/3, undefined_to_null/1]).
 
 -type key() :: any().
 -type keys() :: key() | [key()].
@@ -38,7 +39,7 @@ hd([]) -> undefined;
 hd([Head | _]) -> Head.
 
 %%--------------------------------------------------------------------
-%% @doc Returns a value from the nested property list.
+%% @doc Returns a value from the nested proplist.
 %% @end
 %%--------------------------------------------------------------------
 -spec get(Keys :: keys(), Terms :: terms()) -> {ok, Value :: value()} | #error{}.
@@ -56,7 +57,7 @@ get(Key, Terms) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Returns a value from the nested property list. If the value is missing
+%% @doc Returns a value from the nested proplist. If the value is missing
 %% the default one is returned.
 %% @end
 %%--------------------------------------------------------------------
@@ -78,7 +79,7 @@ store(Keys, Value) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Stores the value in the nested property list.
+%% @doc Stores the value in the nested proplist.
 %% @end
 %%--------------------------------------------------------------------
 -spec store(Keys :: keys(), Value :: value(), Terms :: terms()) ->
@@ -98,6 +99,36 @@ store(Key, Value, Terms) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc Removes value from a nested proplist.
+%% @end
+%%--------------------------------------------------------------------
+-spec remove(Keys :: keys(), Terms :: terms()) -> NewTerms :: terms().
+remove(Keys, Terms) when is_list(Keys) ->
+    [Key | RevIntermediate] = lists:reverse(Keys),
+    % all but last
+    Intermediate = lists:reverse(RevIntermediate),
+    case get(Intermediate, Terms) of
+        {ok, List} when is_list(List) ->
+            NewList = lists:keydelete(Key, 1, List),
+            store(Intermediate, NewList, Terms);
+        _ -> Terms
+    end;
+
+remove(Key, Path) ->
+    remove([Key], Path).
+
+
+%%--------------------------------------------------------------------
+%% @doc Moves value from one location in a nested proplist to another.
+%% @end
+%%--------------------------------------------------------------------
+-spec rename(OldKeys :: keys(), NewKeys :: keys(), Terms :: terms()) ->
+    NewTerms :: terms().
+rename(OldKeys, NewKeys, Terms) ->
+    get_store(OldKeys, Terms, NewKeys, remove(OldKeys, Terms)).
+
+
+%%--------------------------------------------------------------------
 %% @doc @equiv get_store(SrcKeys, SrcTerms, DstKeys, [])
 %% @end
 %%--------------------------------------------------------------------
@@ -108,8 +139,8 @@ get_store(SrcKeys, SrcTerms, DstKeys) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Gets a value from the source nested property list and stores it in
-%% the target nested property list. If the value is not found in the source list
+%% @doc Gets a value from the source nested proplist and stores it in
+%% the target nested proplist. If the value is not found in the source list
 %% returns unchanged target list.
 %% @end
 %%--------------------------------------------------------------------
@@ -165,12 +196,22 @@ subtract(List1, List2) ->
 %% {halt, Acc} to halt the fold and return Acc as the return value of this function
 %% @end
 %%--------------------------------------------------------------------
+-spec foldl_while(F, Accu, List) -> Accu1 when
+    F :: fun((Elem :: T, AccIn) -> AccOut),
+    Accu :: term(), Accu1 :: term(),
+    AccIn :: term(), AccOut :: {cont, term()} | {halt, term()},
+    List :: [T], T :: term().
 foldl_while(F, Accu, List) ->
     do_foldl(F, {cont, Accu}, List).
 
 
-do_foldl(F, {halt, Accu}, _) -> Accu;
-do_foldl(F, {cont, Accu}, []) -> Accu;
+%% @private
+-spec do_foldl(F, AccOut, List) -> AccIn when
+    F :: fun((Elem :: T, AccIn) -> AccOut),
+    AccIn :: term(), AccOut :: {cont, term()} | {halt, term()},
+    List :: [T], T :: term().
+do_foldl(_F, {halt, Accu}, _) -> Accu;
+do_foldl(_F, {cont, Accu}, []) -> Accu;
 do_foldl(F, {cont, Accu}, [Hd|Tail]) -> do_foldl(F, F(Hd, Accu), Tail).
 
 
@@ -180,14 +221,14 @@ do_foldl(F, {cont, Accu}, [Hd|Tail]) -> do_foldl(F, F(Hd, Accu), Tail).
 %% values in given proplist to null
 %% @end
 %%-------------------------------------------------------------------
--spec map_undefined_to_null(Proplist :: proplists:proplist()) ->
+-spec undefined_to_null(Proplist :: proplists:proplist()) ->
     proplists:proplist().
-map_undefined_to_null(Proplist) ->
+undefined_to_null(Proplist) ->
     lists:map(fun
         ({Key, undefined}) ->
             {Key, null};
         ({Key, SubProplist}) when is_list(SubProplist) ->
-            Map2 = map_undefined_to_null(SubProplist),
+            Map2 = undefined_to_null(SubProplist),
             {Key, Map2};
         ({Key, Value}) ->
             {Key, Value}

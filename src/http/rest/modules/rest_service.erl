@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Krzysztof Trzepla
-%%% @copyright (C): 2016 ACK CYFRONET AGH
+%%% @copyright (C) 2016 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -10,11 +10,14 @@
 -module(rest_service).
 -author("Krzysztof Trzepla").
 
+-include("authentication.hrl").
+-include("deployment_progress.hrl").
 -include("http/rest.hrl").
 -include("modules/errors.hrl").
--include_lib("ctool/include/logging.hrl").
 -include("modules/models.hrl").
--include("deployment_progress.hrl").
+-include("names.hrl").
+-include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/privileges.hrl").
 
 -behavior(rest_behaviour).
 
@@ -36,7 +39,8 @@
 -spec is_authorized(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     State :: rest_handler:state()) ->
     {Authorized :: boolean(), Req :: cowboy_req:req()}.
-is_authorized(Req, _Method, #rstate{client = #client{role = admin}}) ->
+is_authorized(Req, _Method, #rstate{client = #client{role = Role}})
+    when Role == root; Role == admin; Role == user ->
     {true, Req};
 
 is_authorized(Req, 'GET', #rstate{resource = Resource}) when
@@ -68,7 +72,7 @@ exists_resource(Req, #rstate{resource = task, bindings = #{id := TaskId}}) ->
     {service:exists_task(TaskId), Req};
 
 exists_resource(Req, #rstate{resource = SModule, bindings = #{host := Host}}) ->
-    {service:is_member(SModule:name(), Host), Req};
+    {lists:member(Host, hosts:all(SModule:name())), Req};
 
 exists_resource(Req, #rstate{resource = dns_check_configuration}) ->
     {true, Req};
@@ -130,14 +134,14 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_couchbase, version
     Ctx2 = onepanel_maps:get_store(serverQuota, Args, couchbase_server_quota, Ctx),
     Ctx3 = onepanel_maps:get_store(bucketQuota, Args, couchbase_bucket_quota, Ctx2),
     {true, rest_replier:handle_service_action_async(Req, service:apply_async(
-        service_couchbase:name(), deploy, Ctx3
+        ?SERVICE_CB, deploy, Ctx3
     ), Version)};
 
 accept_resource(Req, 'POST', Args, #rstate{resource = service_cluster_manager, version = Version}) ->
     Hosts = onepanel_utils:typed_get(hosts, Args, {seq, list}),
     MainHost = onepanel_utils:typed_get(mainHost, Args, list),
     {true, rest_replier:handle_service_action_async(Req, service:apply_async(
-        service_cluster_manager:name(), deploy, #{
+        ?SERVICE_CM, deploy, #{
             main_host => MainHost, hosts => Hosts
         }
     ), Version)};
@@ -149,7 +153,9 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_op_worker} = State
 accept_resource(Req, 'POST', Args, #rstate{resource = service_oz_worker} = State) ->
     deploy_cluster_worker(Req, Args, State);
 
-accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, version = Version}) ->
+accept_resource(Req, 'POST', Args,
+    #rstate{resource = service_oneprovider, version = Version}) ->
+
     DbHosts = rest_utils:get_hosts([cluster, databases, nodes], Args),
     CmHosts = rest_utils:get_hosts([cluster, managers, nodes], Args),
     [MainCmHost] = rest_utils:get_hosts([cluster, managers, mainNode], Args),
@@ -184,20 +190,20 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
     IPsConfigured = onepanel_maps:get([oneprovider, register], Args, false),
 
     ClusterCtx = #{
-        service_onepanel:name() => OpaCtx3,
-        service_couchbase:name() => DbCtx,
-        service_cluster_manager:name() => #{main_host => MainCmHost,
+        ?SERVICE_PANEL => OpaCtx3,
+        ?SERVICE_CB => DbCtx,
+        ?SERVICE_CM => #{main_host => MainCmHost,
             hosts => CmHosts, worker_num => length(OpwHosts)},
-        service_op_worker:name() => #{hosts => OpwHosts, db_hosts => DbHosts,
+        ?SERVICE_OPW => #{hosts => OpwHosts, db_hosts => DbHosts,
             cm_hosts => CmHosts, main_cm_host => MainCmHost,
             mark_cluster_ips_configured => IPsConfigured
         },
-        service_letsencrypt:name() => LetsencryptCtx#{hosts => OpaHosts},
+        ?SERVICE_LE => LetsencryptCtx#{hosts => OpaHosts},
         storages => StorageCtx2
     },
 
     OpwCtx = onepanel_maps:get_store_multiple([
-        {[onezone, domainName], onezone_domain},
+        {[oneprovider, token], oneprovider_token},
         {[oneprovider, register], oneprovider_register},
         {[oneprovider, name], oneprovider_name},
         {[oneprovider, subdomainDelegation], oneprovider_subdomain_delegation},
@@ -209,12 +215,14 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider, versi
     ], Args, #{hosts => OpwHosts, cluster_ips => ClusterIPs}),
 
     {true, rest_replier:handle_service_action_async(Req, service:apply_async(
-        service_oneprovider:name(), deploy, #{
-            cluster => ClusterCtx, service_oneprovider:name() => OpwCtx
+        ?SERVICE_OP, deploy, #{
+            cluster => ClusterCtx, ?SERVICE_OP => OpwCtx
         }
     ), Version)};
 
-accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version = Version}) ->
+accept_resource(Req, 'POST', Args, #rstate{
+    resource = service_onezone, version = Version}) ->
+
     DbHosts = rest_utils:get_hosts([cluster, databases, nodes], Args),
     CmHosts = rest_utils:get_hosts([cluster, managers, nodes], Args),
     [MainCmHost] = rest_utils:get_hosts([cluster, managers, mainNode], Args),
@@ -265,32 +273,24 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone, version =
     end,
 
     ClusterCtx = #{
-        service_onepanel:name() => OpaCtx3,
-        service_couchbase:name() => DbCtx,
-        service_cluster_manager:name() => #{main_host => MainCmHost,
+        ?SERVICE_PANEL => OpaCtx3,
+        ?SERVICE_CB => DbCtx,
+        ?SERVICE_CM => #{main_host => MainCmHost,
             hosts => CmHosts, worker_num => length(OzwHosts)},
-        service_oz_worker:name() => OzwCtx3,
-        service_letsencrypt:name() => LeCtx
+        ?SERVICE_OZW => OzwCtx3,
+        ?SERVICE_LE => LeCtx
     },
 
     {true, rest_replier:handle_service_action_async(Req, service:apply_async(
-        service_onezone:name(), deploy, #{
-            cluster => ClusterCtx, service_onezone:name() => OzCtx
+        ?SERVICE_OZ, deploy, #{
+            cluster => ClusterCtx, ?SERVICE_OZ => OzCtx
         }
     ), Version)};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = dns_check_configuration}) ->
-    % two resources exist because GET differs between them
-
     Ctx = case Args of
         #{dnsServers := IPs} ->
-            IPTuples = lists:map(fun(IPBinary) ->
-                case onepanel_ip:parse_ip4(IPBinary) of
-                    {ok, IP} -> IP;
-                    _ -> ?throw_error({?ERR_INVALID_VALUE, [dnsServers], ['IPv4']})
-                end
-            end, IPs),
-            #{dns_servers => IPTuples};
+            #{dns_servers => parse_ip4_list([dnsServers], IPs)};
         _ -> #{}
     end,
     Ctx2 = onepanel_maps:get_store_multiple([
@@ -429,7 +429,19 @@ deploy_cluster_worker(Req, Args, #rstate{resource = SModule, version = Version})
 %%--------------------------------------------------------------------
 -spec cluster_worker_name() -> service:name().
 cluster_worker_name() ->
-    case onepanel_env:get(release_type) of
-        oneprovider -> service_op_worker:name();
-        onezone -> service_oz_worker:name()
+    case onepanel_env:get_release_type() of
+        oneprovider -> ?SERVICE_OPW;
+        onezone -> ?SERVICE_OZW
     end.
+
+
+%% @private
+-spec parse_ip4_list(FieldName :: onepanel_parser:keys(), IpBinaries :: [binary()]) ->
+    [inet:ip4_address()] | no_return().
+parse_ip4_list(FieldName, IpBinaries) ->
+    lists:map(fun(IpBinary) ->
+        case onepanel_ip:parse_ip4(IpBinary) of
+            {ok, IP} -> IP;
+            _ -> ?throw_error({?ERR_INVALID_VALUE, FieldName, ['IPv4']})
+        end
+    end, IpBinaries).

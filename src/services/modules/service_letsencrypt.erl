@@ -254,7 +254,7 @@ obtain_cert(Ctx) ->
 
     ok = letsencrypt_api:run_certification_flow(Domain, get_plugin_module()),
 
-    service:apply_sync(service_onepanel:name(), reload_webcert, #{}),
+    service:apply_sync(?SERVICE_PANEL, reload_webcert, #{}),
     service:apply_sync(get_plugin_name(), reload_webcert, #{}),
     ok.
 
@@ -304,7 +304,7 @@ is_regenerating() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec global_cert_status(service:ctx()) -> status().
-global_cert_status(Ctx) ->
+global_cert_status(_Ctx) ->
     case is_regenerating() of
         true -> regenerating;
         _ ->

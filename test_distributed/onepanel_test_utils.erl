@@ -68,15 +68,15 @@ init(Config) ->
     create_cluster(PanelNodes),
     NewConfig = [
         {all_nodes, Nodes},
-        {all_hosts, onepanel_cluster:nodes_to_hosts(Nodes)},
+        {all_hosts, hosts:from_nodes(Nodes)},
         {oneprovider_nodes, ProviderNodes},
-        {oneprovider_hosts, onepanel_cluster:nodes_to_hosts(ProviderNodes)},
+        {oneprovider_hosts, hosts:from_nodes(ProviderNodes)},
         {onezone_nodes, ZoneNodes},
-        {onezone_hosts, onepanel_cluster:nodes_to_hosts(ZoneNodes)},
+        {onezone_hosts, hosts:from_nodes(ZoneNodes)},
         {onepanel_nodes, PanelNodes},
-        {onepanel_hosts, onepanel_cluster:nodes_to_hosts(PanelNodes)},
+        {onepanel_hosts, hosts:from_nodes(PanelNodes)},
         {letsencrypt_nodes, PanelNodes},
-        {letsencrypt_hosts, onepanel_cluster:nodes_to_hosts(PanelNodes)} |
+        {letsencrypt_hosts, hosts:from_nodes(PanelNodes)} |
         lists:keydelete(onepanel_nodes, 1, Config)
     ],
     ensure_started(NewConfig).
@@ -190,7 +190,7 @@ service_host_action(Node, Service, Action) ->
 -spec service_host_action(Node :: node(), Service :: service:name(),
     Action :: atom(), Ctx :: service:ctx()) -> ok | no_return().
 service_host_action(Node, Service, Action, Ctx) ->
-    Host = onepanel_cluster:node_to_host(Node),
+    Host = hosts:from_node(Node),
     service_action(Node, Service, Action, Ctx#{hosts => [Host]}).
 
 
@@ -239,7 +239,7 @@ get_domain(Hostname) ->
 -spec filter_nodes(Segment :: atom(), Nodes :: [node()]) -> FilteredNodes :: [node()].
 filter_nodes(Segment, Nodes) ->
     lists:filter(fun(Node) ->
-        Host = onepanel_cluster:node_to_host(Node),
+        Host = hosts:from_node(Node),
         lists:member(erlang:atom_to_list(Segment), string:tokens(Host, "."))
     end, Nodes).
 
@@ -252,7 +252,7 @@ create_cluster([]) ->
     ok;
 
 create_cluster([Node | _] = Nodes) ->
-    Hosts = onepanel_cluster:nodes_to_hosts(Nodes),
+    Hosts = hosts:from_nodes(Nodes),
     ?assertEqual(ok, rpc:call(Node, service, apply,
         [onepanel, deploy, #{
             hosts => Hosts, auth => ?DEFAULT_AUTH, api_version => ?API_VERSION

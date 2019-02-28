@@ -18,12 +18,13 @@
 -include("modules/errors.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include("modules/models.hrl").
+-include("deployment_progress.hrl").
 -include("names.hrl").
 -include("service.hrl").
 
 %% Model behaviour callbacks
--export([get_fields/0, seed/0, create/1, save/1, update/2, get/1, exists/1,
-    delete/1, list/0]).
+-export([get_fields/0, get_record_version/0, seed/0, upgrade/2, create/1,
+    save/1, update/2, get/1, exists/1, delete/1, list/0]).
 
 %% API
 -export([mark_completed/1, mark_not_completed/1, is_completed/1, get_all/0]).
@@ -49,12 +50,34 @@ get_fields() ->
 
 
 %%--------------------------------------------------------------------
+%% @doc {@link model_behaviour:get_record_version/0}
+%% @end
+%%--------------------------------------------------------------------
+-spec get_record_version() -> model_behaviour:version().
+get_record_version() ->
+    2.
+
+
+%%--------------------------------------------------------------------
 %% @doc {@link model_behaviour:seed/0}
 %% @end
 %%--------------------------------------------------------------------
 -spec seed() -> any().
 seed() ->
     create(#onepanel_deployment{id = ?ID, completed = gb_sets:new()}).
+
+
+-spec upgrade(PreviousVsn :: model_behaviour:version(), PreviousRecord :: tuple()) ->
+    {NewVsn :: model_behaviour:version(), NewRecord :: record()}.
+upgrade(1, Record) ->
+    {onepanel_deployment, Id, Completed} = Record,
+    % Introduce tracking of storage setup in the deployment marks.
+    % Assume some storage to have been created in an existing cluster.
+    {2, {onepanel_deployment, Id,
+        case onepanel_env:get_release_type() of
+            onezone -> Completed;
+            oneprovider -> gb_sets:add_element(?PROGRESS_STORAGE_SETUP, Completed)
+        end}}.
 
 
 %%--------------------------------------------------------------------
@@ -169,6 +192,7 @@ is_completed(ProgressMark) ->
             gb_sets:is_member(ProgressMark, C);
         _ -> false
     end.
+
 
 %%--------------------------------------------------------------------
 %% @doc Returns unordered list of all completed steps.

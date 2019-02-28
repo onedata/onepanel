@@ -23,20 +23,19 @@
 -define(DEFAULT_STATUS, stopped).
 
 %% Model behaviour callbacks
--export([get_fields/0, seed/0, create/1, save/1, update/2, get/1, exists/1,
-    delete/1, list/0]).
+-export([get_fields/0, get_record_version/0, seed/0, upgrade/2, create/1,
+    save/1, update/2, get/1, exists/1, delete/1, list/0]).
 
 %% API
 -export([apply/3, apply/4, apply_async/3,
     apply_sync/3, apply_sync/4, get_results/1, get_results/2, abort_task/1,
     exists_task/1]).
 -export([get_status/2, update_status/2, update_status/3, all_healthy/0]).
--export([get_module/1, get_hosts/1, get_nodes/1, is_member/2, add_host/2]).
+-export([get_module/1, get_hosts/1, add_host/2]).
 -export([get_ctx/1, update_ctx/2]).
 
 -type name() :: atom().
 -type action() :: atom().
--type ctx() :: maps:map().
 -type notify() :: pid() | undefined.
 -type host() :: string().
 -type step() :: #step{} | #steps{}.
@@ -45,6 +44,17 @@
 -type record() :: #service{}.
 
 -type status() :: healthy | unhealthy | stopped | missing.
+
+
+%% ctx/0 is used as:
+%% - data field in #service{} record, for storing persistent service information
+%% - argument for get_steps functions and, by default, each step function invoked
+%%
+%% Common keys used in the step arguments:
+%% 'hosts' - list of hosts on which step should be performed, unless specified
+%%           explicitly in #step.hosts
+-type ctx() :: map().
+
 
 -export_type([name/0, action/0, status/0, ctx/0, notify/0, host/0, step/0, condition/0,
     stage/0]).
@@ -63,12 +73,27 @@ get_fields() ->
 
 
 %%--------------------------------------------------------------------
+%% @doc {@link model_behaviour:get_record_version/0}
+%% @end
+%%--------------------------------------------------------------------
+-spec get_record_version() -> model_behaviour:version().
+get_record_version() ->
+    1.
+
+
+%%--------------------------------------------------------------------
 %% @doc {@link model_behaviour:seed/0}
 %% @end
 %%--------------------------------------------------------------------
 -spec seed() -> any().
 seed() ->
     ok.
+
+
+-spec upgrade(PreviousVsn :: model_behaviour:version(), PreviousRecord :: tuple()) ->
+    no_return().
+upgrade(_PreviousVsn, _PreviousRecord) ->
+    ?throw_error(?ERR_NOT_SUPPORTED).
 
 
 %%--------------------------------------------------------------------
@@ -142,12 +167,12 @@ list() ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc @equiv update_status(Service, onepanel_cluster:node_to_host(), Status)
+%% @doc @equiv update_status(Service, hosts:self(), Status)
 %% @end
 %%--------------------------------------------------------------------
 -spec update_status(name(), status()) -> status().
 update_status(Service, Status) ->
-    update_status(Service, onepanel_cluster:node_to_host(), Status).
+    update_status(Service, hosts:self(), Status).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -170,7 +195,7 @@ update_status(Service, Host, Status) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_status(name(), host()) -> status() | #error{}.
-get_status(Service, Host)->
+get_status(Service, Host) ->
     case get_ctx(Service) of
         Ctx when is_map(Ctx) -> onepanel_maps:get([status, Host], Ctx);
         Error -> Error
@@ -319,33 +344,10 @@ get_module(Service) ->
 %%--------------------------------------------------------------------
 -spec get_hosts(Service :: name()) -> Hosts :: [host()].
 get_hosts(Service) ->
-    {ok, #service{hosts = Hosts}} = service:get(Service),
-    Hosts.
-
-
-%%--------------------------------------------------------------------
-%% @doc Returns lists of onepanel nodes for hosts where provided service is
-%% deployed.
-%% @end
-%%--------------------------------------------------------------------
--spec get_nodes(Service :: name()) -> Nodes :: [node()].
-get_nodes(Service) ->
-    onepanel_cluster:service_to_nodes(Service, get_hosts(Service)).
-
-
-%%--------------------------------------------------------------------
-%% @doc Checks whether service is deployed on provided host.
-%% @end
-%%--------------------------------------------------------------------
--spec is_member(Service :: name(), Host :: host()) ->
-    boolean() | {error, Reason :: term()}.
-is_member(Service, Host) ->
-    model:transaction(fun() ->
-        case ?MODULE:get(Service) of
-            {ok, #service{hosts = Hosts}} -> lists:member(Host, Hosts);
-            _ -> false
-        end
-    end).
+    case service:get(Service) of
+        {ok, #service{hosts = Hosts}} -> Hosts;
+        #error{} -> []
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -411,7 +413,7 @@ apply_steps([], _Notify) ->
 apply_steps([#step{hosts = Hosts, module = Module, function = Function,
     args = Args, attempts = Attempts, retry_delay = Delay} = Step | Steps], Notify) ->
 
-    Nodes = onepanel_cluster:service_to_nodes(?APP_NAME, Hosts),
+    Nodes = nodes:service_to_nodes(?APP_NAME, Hosts),
     service_utils:notify({step_begin, {Module, Function}}, Notify),
 
     Results = onepanel_rpc:call(Nodes, Module, Function, Args),

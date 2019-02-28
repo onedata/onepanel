@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Krzysztof Trzepla
-%%% @copyright (C): 2016 ACK CYFRONET AGH
+%%% @copyright (C) 2016 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -13,6 +13,7 @@
 -author("Krzysztof Trzepla").
 
 -include("names.hrl").
+-include("http/rest.hrl").
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include("modules/onepanel_dns.hrl").
@@ -26,7 +27,8 @@
     handle_service_step/4, handle_session/3]).
 -export([format_error/2, format_service_status/2, format_dns_check_result/1,
     format_service_host_status/2, format_service_task_results/1, format_service_step/3,
-    format_onepanel_configuration/0, format_service_configuration/1, format_storage_details/1]).
+    format_onepanel_configuration/0, format_service_configuration/1,
+    format_storage_details/1, format_deployment_progress/0]).
 
 -type response() :: map() | term().
 
@@ -63,9 +65,25 @@ handle_error(Req, Type, Reason) ->
 %%--------------------------------------------------------------------
 -spec reply_with_error(Req :: cowboy_req:req(), Type :: atom(), Reason :: term()) ->
     Req :: cowboy_req:req().
+reply_with_error(Req, Type, ?ERR_NODE_DOWN) ->
+    reply_with_error(Req, Type, ?make_error(?ERR_NODE_DOWN));
+
 reply_with_error(Req, Type, Reason) ->
     Body = json_utils:encode(format_error(Type, Reason)),
-    cowboy_req:reply(500, #{}, Body, Req).
+    Code = error_code(Type, Reason),
+    cowboy_req:reply(Code, #{}, Body, Req).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Determines response HTTP code based on error reason.
+%% @end
+%%--------------------------------------------------------------------
+-spec error_code(Type :: atom(), Reason :: term()) -> cowboy:http_status().
+error_code(_Type, #error{reason = ?ERR_NOT_FOUND}) -> 404;
+error_code(_Type, #error{reason = ?ERR_NODE_DOWN}) -> 503;
+error_code(_Type, #error{}) -> 500;
+error_code(Type, Reason) -> error_code(Type, ?make_error(Reason)).
 
 
 %%--------------------------------------------------------------------
@@ -102,7 +120,7 @@ handle_service_step(Req, Module, Function, Results) ->
     Username :: onepanel_user:name()) -> Req :: cowboy_req:req().
 handle_session(Req, SessionId, Username) ->
     Req2 = cowboy_req:set_resp_cookie(<<"sessionId">>, SessionId, Req, #{
-        max_age => onepanel_env:get(session_ttl) div 1000,
+        max_age => onepanel_env:get(session_ttl),
         path => "/",
         secure => true,
         http_only => true
@@ -146,7 +164,7 @@ format_service_status(SModule, Results) ->
     {HostsResults, []} = select_service_step(SModule, status, Results),
     lists:foldl(fun
         ({Node, Result}, Acc) -> maps:put(
-            onepanel_utils:convert(onepanel_cluster:node_to_host(Node), binary),
+            onepanel_utils:convert(hosts:from_node(Node), binary),
             Result, Acc)
     end, #{}, HostsResults).
 
@@ -267,7 +285,7 @@ format_service_step(Module, Function, Results) ->
 format_onepanel_configuration() ->
     try
         format_onepanel_configuration(onepanel_env:get(release_type))
-    catch _:_  ->
+    catch _:_ ->
         % it is preferable for this endpoint to return something
         format_onepanel_configuration(common)
     end.
@@ -325,6 +343,23 @@ format_service_configuration(SModule) ->
         }
     }.
 
+
+-spec format_deployment_progress() ->
+    JsonMap :: #{atom() => boolean()}.
+format_deployment_progress() ->
+    Fields = rest_onepanel:progress_to_rest_mapping(onepanel_env:get_release_type()),
+    Fields2 = case onepanel_env:get_release_type() of
+        oneprovider ->
+            [{isRegistered, fun service_oneprovider:is_registered/0} | Fields];
+        onezone -> Fields
+    end,
+
+    lists:foldl(fun
+        ({Key, Fun}, Acc) when is_function(Fun) -> Acc#{Key => Fun()};
+        ({Key, Mark}, Acc) -> Acc#{Key => onepanel_deployment:is_completed(Mark)}
+    end, #{}, Fields2).
+
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -371,10 +406,10 @@ format_service_task_steps(Steps) ->
 format_service_hosts_results(Results) ->
     lists:foldl(fun
         ({Node, #error{} = Error}, Acc) -> maps:put(
-            onepanel_utils:convert(onepanel_cluster:node_to_host(Node), binary),
+            onepanel_utils:convert(hosts:from_node(Node), binary),
             format_error(error, Error), Acc);
         ({Node, Result}, Acc) -> maps:put(
-            onepanel_utils:convert(onepanel_cluster:node_to_host(Node), binary),
+            onepanel_utils:convert(hosts:from_node(Node), binary),
             Result, Acc)
     end, #{}, Results).
 
@@ -391,7 +426,9 @@ format_onepanel_configuration(onezone) ->
             {name, zoneName}
         ], Details, Defaults),
 
-        maps:merge(Configuration, format_onepanel_configuration(common))
+        onepanel_maps:undefined_to_null(
+            maps:merge(Configuration, format_onepanel_configuration(common))
+        )
     catch _:_ ->
         % probably no oz_worker nodes
         maps:merge(Defaults, format_onepanel_configuration(common))
@@ -427,17 +464,13 @@ format_onepanel_configuration(oneprovider) ->
     maps:merge(format_onepanel_configuration(common), OpConfiguration);
 
 format_onepanel_configuration(_ReleaseType) ->
-    BuildVersion = list_to_binary(application:get_env(
-        ?APP_NAME, build_version, "unknown")),
-    {_AppId, _AppName, AppVersion} = lists:keyfind(
-        ?APP_NAME, 1, application:loaded_applications()
-    ),
-    Version = list_to_binary(AppVersion),
-
+    ClusterId = try clusters:get_id() catch _:_ -> null end,
+    {BuildVersion, AppVersion} = onepanel_app:get_build_and_version(),
     #{
-        version => Version,
+        version => AppVersion,
         build => BuildVersion,
-        deployed => is_service_configured()
+        deployed => is_service_configured(),
+        clusterId => ClusterId
     }.
 
 

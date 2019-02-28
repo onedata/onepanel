@@ -29,10 +29,15 @@
 -spec create(Module :: module(), Function :: atom(), Arity :: arity(),
     Args :: term(), Reason :: term(), Stacktrace :: term(), Line :: non_neg_integer()) ->
     #error{}.
-create(_Module, _Function, _Arity, _Args, #error{} =
-    _Reason, NewStacktrace, _Line) ->
+create(Module, Function, Arity, Args, {ErrorKind, #error{} = Reason}, Stacktrace, Line)
+    when ErrorKind == error; ErrorKind == badmatch;
+    ErrorKind == case_clause; ErrorKind == try_clause ->
+    create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
+
+create(_Module, _Function, _Arity, _Args, #error{} = Previous,
+    NewStacktrace, _Line) ->
     #error{module = Module, function = Function, arity = Arity, args = Args,
-        reason = Reason, stacktrace = OldStacktrace, line = Line} = _Reason,
+        reason = Reason, stacktrace = OldStacktrace, line = Line} = Previous,
     Stacktrace = case OldStacktrace of
         [] -> NewStacktrace;
         _ -> OldStacktrace
@@ -87,6 +92,9 @@ translate(_Type, #error{reason = ?ERR_USERNAME_NOT_AVAILABLE}) ->
 translate(_Type, #error{reason = ?ERR_INVALID_USERNAME_OR_PASSWORD}) ->
     {<<"Authentication Error">>, <<"Invalid username or password.">>};
 
+translate(_Type, #error{reason = ?ERR_INVALID_ACCESS_TOKEN}) ->
+    {<<"Authentication Error">>, <<"Invalid rest api token.">>};
+
 translate(_Type, #error{module = model, function = get, reason = ?ERR_NOT_FOUND,
     args = [onepanel_session, _]}) ->
     {<<"Authentication Error">>, <<"Session not found or expired.">>};
@@ -97,6 +105,10 @@ translate(_Type, #error{reason = ?ERR_BAD_NODE}) ->
 translate(_Type, #error{reason = {?ERR_HOST_NOT_FOUND, Host}}) ->
     {<<"Invalid Request">>, <<"Host not found: '",
         (onepanel_utils:convert(Host, binary))/binary, "'.">>};
+
+translate(_Type, #error{reason = ?ERR_NO_SERVICE_HOSTS(Service)}) ->
+    {<<"Invalid Request">>, str_utils:format_bin(
+        "Requires service '~s' which is not deployed on any node.", [Service])};
 
 translate(_Type, #error{reason = ?ERR_NODE_NOT_EMPTY(Host)}) ->
     {<<"Invalid Request">>, str_utils:format_bin(
@@ -327,7 +339,7 @@ get_expectation(ValueSpec, Acc) when is_map(ValueSpec) ->
 -spec translate_storage_test_file_error(OperVerb :: string(), OperNoun :: binary(),
     Node :: node(), Reason :: term()) -> {Name :: binary(), Description :: binary()}.
 translate_storage_test_file_error(OperVerb, OperNoun, Node, Reason) ->
-    Host = onepanel_cluster:node_to_host(Node),
+    Host = hosts:from_node(Node),
     ?error("Cannot " ++ OperVerb ++ " storage test file on node ~p due to: ~p",
         [Node, Reason]),
     {<<"Operation Error">>, <<"Storage test file ", OperNoun/binary, " failed "

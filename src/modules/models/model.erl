@@ -6,6 +6,9 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc This module contains model management functions.
+%%% Each model module defines its schema as a record. In mnesia, those
+%%% records are wrapped in a common #document{} format to facilitate
+%%% version tracking.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(model).
@@ -13,13 +16,18 @@
 
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([get_table_name/1, get_models/0]).
--export([create/2, save/2, update/3, get/2, exists/2, delete/2, list/1]).
+-export([get_fields/0]).
+-export([create/2, save/2, upgrade/2, update/3, get/2, exists/2, delete/2, list/1]).
 -export([exists/1, select/2, size/1, clear/1, transaction/1]).
 
+-type doc() :: #document{}.
 -type model() :: atom().
+-type version() :: model_behaviour:version().
+-type key() :: model_behaviour:key().
 
 %%%===================================================================
 %%% API functions
@@ -44,21 +52,31 @@ get_models() ->
 
 
 %%--------------------------------------------------------------------
+%% @doc Returns list of fields in #document record.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_fields() -> list(atom()).
+get_fields() ->
+    record_info(fields, ?WRAPPER_RECORD).
+
+
+%%--------------------------------------------------------------------
 %% @doc {@link model_behaviour:create/1}
 %% @end
 %%--------------------------------------------------------------------
 -spec create(Model :: model(), Record :: model_behaviour:record()) ->
-    {ok, model_behaviour:key()} | #error{} | no_return().
+    {ok, key()} | #error{} | no_return().
 create(Model, Record) ->
     transaction(fun() ->
         Table = get_table_name(Model),
-        Key = erlang:element(2, Record),
+        Key = record_key(Record),
+        Doc = record_to_document(Record),
         case mnesia:read(Table, Key) of
             [] ->
-                mnesia:write(Table, Record, write),
+                mnesia:write(Table, Doc, write),
                 {ok, Key};
             [_ | _] ->
-                ?make_error(?ERR_ALREADY_EXISTS, [Model, Record])
+                ?make_error(?ERR_ALREADY_EXISTS, [Model, Doc])
         end
     end).
 
@@ -72,7 +90,7 @@ create(Model, Record) ->
 save(Model, Record) ->
     transaction(fun() ->
         Table = get_table_name(Model),
-        mnesia:write(Table, Record, write)
+        mnesia:write(Table, record_to_document(Record), write)
     end).
 
 
@@ -80,14 +98,15 @@ save(Model, Record) ->
 %% @doc {@link model_behaviour:update/2}
 %% @end
 %%--------------------------------------------------------------------
--spec update(Model :: model(), Key :: model_behaviour:key(),
+-spec update(Model :: model(), Key :: key(),
     Diff :: model_behaviour:diff()) -> ok | no_return().
 update(Model, Key, Diff) ->
+    % @TODO VFS-5272 Handle key change by the diff function
     transaction(fun() ->
         Table = get_table_name(Model),
         case mnesia:read(Table, Key) of
             [] -> mnesia:abort(?make_error(?ERR_NOT_FOUND, [Model, Key, Diff]));
-            [Record] -> mnesia:write(Table, apply_diff(Record, Diff), write)
+            [Doc] -> mnesia:write(Table, apply_diff(Doc, Diff), write)
         end
     end).
 
@@ -96,14 +115,14 @@ update(Model, Key, Diff) ->
 %% @doc {@link model_behaviour:get/1}
 %% @end
 %%--------------------------------------------------------------------
--spec get(Model :: model(), Key :: model_behaviour:key()) ->
+-spec get(Model :: model(), Key :: key()) ->
     {ok, Record :: model_behaviour:record()} | #error{} | no_return().
 get(Model, Key) ->
     transaction(fun() ->
         Table = get_table_name(Model),
         case mnesia:read(Table, Key) of
             [] -> ?make_error(?ERR_NOT_FOUND, [Model, Key]);
-            [Record] -> {ok, Record}
+            [#document{key = Key, value = Record}] -> {ok, Record}
         end
     end).
 
@@ -112,7 +131,7 @@ get(Model, Key) ->
 %% @doc {@link model_behaviour:exists/1}
 %% @end
 %%--------------------------------------------------------------------
--spec exists(Model :: model(), Key :: model_behaviour:key()) ->
+-spec exists(Model :: model(), Key :: key()) ->
     boolean() | no_return().
 exists(Model, Key) ->
     transaction(fun() ->
@@ -128,7 +147,7 @@ exists(Model, Key) ->
 %% @doc {@link model_behaviour:delete/1}
 %% @end
 %%--------------------------------------------------------------------
--spec delete(Model :: model(), Key :: model_behaviour:key()) ->
+-spec delete(Model :: model(), Key :: key()) ->
     ok | no_return().
 delete(Model, Key) ->
     transaction(fun() ->
@@ -144,7 +163,7 @@ delete(Model, Key) ->
 -spec list(Model :: model()) ->
     Records :: [model_behaviour:record()] | no_return().
 list(Model) ->
-    select(Model, [{'_', [], ['$_']}]).
+    select(Model, [{'_', []}]).
 
 
 %%--------------------------------------------------------------------
@@ -160,12 +179,15 @@ exists(Model) ->
 %% @doc Returns a list of the selected model instances.
 %% @end
 %%--------------------------------------------------------------------
--spec select(Model :: model(), MatchSpec :: any()) ->
-    Records :: [model_behaviour:record()] | no_return().
-select(Model, MatchSpec) ->
+-spec select(Model :: model(), [MatchSpec]) ->
+    Records :: [model_behaviour:record()] | no_return()
+when MatchSpec :: {MatchHead :: tuple() | '_', Guards :: [tuple()]}.
+select(Model, MatchSpecs) ->
+    DocSpecs = [{#document{value = MatchHead, _ = '_'}, Guards, ['$_']}
+        || {MatchHead, Guards} <- MatchSpecs],
     transaction(fun() ->
         Table = get_table_name(Model),
-        mnesia:select(Table, MatchSpec)
+        extract_records(mnesia:select(Table, DocSpecs))
     end).
 
 
@@ -205,16 +227,56 @@ transaction(Transaction) ->
         _:Reason -> ?throw_error(Reason, [Transaction])
     end.
 
+
+-spec upgrade(ModelName :: model(), CurrentDocument :: tuple()) ->
+    NewDocument :: doc().
+upgrade(Model, #document{version = CurrentVsn, value = CurrentRecord} = Document) ->
+    ?notice("Upgrading entity of type ~p", [Model]),
+    TargetVsn = Model:get_record_version(),
+    NewRecord = upgrade(TargetVsn, CurrentVsn, Model, CurrentRecord),
+    Document#document{value = NewRecord, version = TargetVsn};
+
+% old-style record, different for each model
+upgrade(Model, Record) ->
+    upgrade(Model, record_to_document(Record, 1)).
+
+
+%% @private
+-spec upgrade(TargetVsn :: version(), CurrentVsn :: version(),
+    ModelName :: model(), CurrentDocument :: tuple()) ->
+    NewDocument :: model_behaviour:record() | no_return().
+upgrade(Vsn, Vsn, _Model, Record) ->
+    Record;
+
+upgrade(TargetVsn, CurrentVsn, Model, _Record)
+    when CurrentVsn > TargetVsn ->
+    ?emergency("Upgrade requested for model '~p' with future version ~p "
+    "(known versions up to: ~p)", [Model, CurrentVsn, TargetVsn]),
+    ?throw_error(?ERR_UPGRADE_FROM_FUTURE_ERROR(Model, CurrentVsn, TargetVsn));
+
+upgrade(TargetVsn, CurrentVsn, Model, Record) ->
+    {CurrentVsn2, Record2} = Model:upgrade(CurrentVsn, Record),
+
+    ?notice("Upgraded ~p from ~p to ~p.~nWas: ~p~nIs: ~p",
+        [Model, CurrentVsn, CurrentVsn2, Record, Record2]),
+    upgrade(TargetVsn, CurrentVsn2, Model, Record2).
+
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
 %%--------------------------------------------------------------------
+%% @private
 %% @doc Modifies model instance according to provided update method.
 %% @end
 %%--------------------------------------------------------------------
--spec apply_diff(Record :: model_behaviour:record(), model_behaviour:diff()) ->
-    NewRecord :: model_behaviour:record().
+-spec apply_diff(Doc :: doc() | model_behaviour:record(), model_behaviour:diff()) ->
+    NewDoc :: doc() | model_behaviour:record().
+apply_diff(#document{value = Record} = Doc, Diff) ->
+    NewRecord = apply_diff(Record, Diff),
+    Doc#document{key = record_key(NewRecord), value = NewRecord};
+
 apply_diff(Record, Diff) when is_function(Diff) ->
     Diff(Record);
 
@@ -225,3 +287,43 @@ apply_diff(Record, Diff) when is_map(Diff) ->
         maps:get(Field, Diff, OldValue)
     end, lists:zip(Fields, Values)),
     erlang:list_to_tuple([Model | NewValues]).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Wraps model record in #document{}.
+%% Sets current version for the model.
+%% @end
+%%--------------------------------------------------------------------
+-spec record_to_document(model_behaviour:record()) -> doc().
+record_to_document(Record) ->
+    Model = erlang:element(1, Record),
+    Version = Model:get_record_version(),
+    record_to_document(Record, Version).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Wraps model record in #document{}. Sets given Version.
+%% @end
+%%--------------------------------------------------------------------
+-spec record_to_document(model_behaviour:record(), version()) -> doc().
+record_to_document(Record, Version) ->
+    Key = record_key(Record),
+    #document{key = Key, version = Version, value = Record}.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Extracts field used as the key from a model record.
+%% @end
+%%--------------------------------------------------------------------
+-spec record_key(model_behaviour:record()) -> key().
+record_key(Record) ->
+    erlang:element(2, Record).
+
+
+%% @private
+-spec extract_records([doc()]) -> [model_behaviour:record()].
+extract_records(Documents) ->
+    [Record || #document{value = Record} <- Documents].

@@ -19,6 +19,7 @@
 %% API
 -export([get_steps/3, format_steps/2, notify/2, partition_results/1,
     throw_on_error/1]).
+-export([absolute_path/2]).
 
 %%%===================================================================
 %%% API functions
@@ -121,6 +122,25 @@ throw_on_error(Results) ->
             lists:reverse(Steps)
     end.
 
+
+%%--------------------------------------------------------------------
+%% @doc If given Path is relative, converts it to absolute path
+%% in relation to the cwd used by nodes of given service.
+%% Requires the service nodes to be online.
+%% @end
+%%--------------------------------------------------------------------
+-spec absolute_path(Service :: service:name(), Path :: file:filename_all()) ->
+    AbsPath :: file:filename_all().
+absolute_path(Service, Path) ->
+    case filename:absname(Path) of
+        Path ->
+            Path;
+        _ ->
+            {ok, Node} = nodes:any(Service),
+            {ok, Cwd} = rpc:call(Node, file, get_cwd, []),
+            filename:join(Cwd, Path)
+    end.
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -164,12 +184,7 @@ get_step(#step{hosts = undefined, ctx = #{hosts := Hosts}} = Step) ->
     get_step(Step#step{hosts = Hosts});
 
 get_step(#step{hosts = undefined, service = Service} = Step) ->
-    Hosts = try
-        Module = service:get_module(Service),
-        Module:get_hosts()
-    catch
-        _:_ -> service_onepanel:get_hosts()
-    end,
+    Hosts = hosts:all(Service),
     get_step(Step#step{hosts = Hosts});
 
 get_step(#step{hosts = []}) ->

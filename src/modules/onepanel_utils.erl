@@ -23,11 +23,12 @@
 
 -type primitive_type() :: atom | binary | float | integer | list | boolean | path.
 -type collection_modifier() :: seq | keys | values.
--type type() :: primitive_type() | {collection_modifier(), primitive_type()}.
+-type type() :: primitive_type() | {collection_modifier(), type()}.
 -type expectation() :: {equal, Expected :: term()} | {validator,
     Validator :: fun((term()) -> term() | no_return())}.
+-type uuid() :: binary().
 
--export_type([type/0]).
+-export_type([type/0, uuid/0]).
 
 -define(UUID_LEN, 32).
 
@@ -97,7 +98,7 @@ wait_until(Module, Function, Args, Expected, Attempts, Delay) ->
 %% @doc Generates random UUID.
 %% @end
 %%--------------------------------------------------------------------
--spec gen_uuid() -> binary().
+-spec gen_uuid() -> uuid().
 gen_uuid() ->
     http_utils:base64url_encode(crypto:strong_rand_bytes(?UUID_LEN)).
 

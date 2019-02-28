@@ -11,6 +11,7 @@
 -module(rest_letsencrypt_test_SUITE).
 -author("Wojciech Geisler").
 
+-include("names.hrl").
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include("service.hrl").
@@ -297,14 +298,14 @@ init_per_suite(Config) ->
         [OzNode | _] = ?config(onezone_nodes, NewConfig2),
         onepanel_test_utils:service_action(OzNode,
             letsencrypt, deploy,
-            #{hosts => OzHosts, letsencrypt_plugin => service_oz_worker:name()}
+            #{hosts => OzHosts, letsencrypt_plugin => ?SERVICE_OZW}
         ),
 
         OpHosts = ?config(oneprovider_hosts, NewConfig2),
         [OpNode | _] = ?config(oneprovider_nodes, NewConfig2),
         onepanel_test_utils:service_action(OpNode,
             letsencrypt, deploy,
-            #{hosts => OpHosts, letsencrypt_plugin => service_op_worker:name()}
+            #{hosts => OpHosts, letsencrypt_plugin => ?SERVICE_OPW}
         ),
 
         NewConfig2
@@ -365,7 +366,7 @@ init_per_testcase(Case, Config) when
 
     ?nodePerCluster(Config, fun(Node) ->
         rpc:call(Node, service, update,
-            [service_letsencrypt:name(), fun(#service{ctx = C} = S) ->
+            [?SERVICE_LE, fun(#service{ctx = C} = S) ->
                 S#service{ctx = C#{letsencrypt_enabled => Initial}}
             end])
     end),
@@ -444,6 +445,7 @@ mock_plugin_modules(Config) ->
     test_utils:mock_new(OpNodes, [service_op_worker], [passthrough]),
     test_utils:mock_new(OzNodes, [service_oz_worker], [passthrough]),
 
+    test_utils:mock_expect(OpNodes, service_oneprovider, is_registered, fun() -> false end),
     test_utils:mock_expect(OpNodes, service_op_worker, get_domain, fun() -> OpDomain end),
     test_utils:mock_expect(OzNodes, service_oz_worker, get_domain, fun() -> OzDomain end),
     test_utils:mock_expect(OpNodes, service_op_worker, get_hosts, fun() -> OpHosts end),
