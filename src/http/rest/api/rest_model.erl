@@ -160,7 +160,7 @@ cluster_details_model() ->
         onepanelVersion => version_info_model(),
         %% Is Onepanel proxy enabled - if so, onepanel GUI is served on
         %% cluster's domain at port 443 (rather than 9443).
-        proxy => boolean
+        onepanelProxy => boolean
     }.
 
 %%--------------------------------------------------------------------

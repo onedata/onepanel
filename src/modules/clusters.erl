@@ -102,7 +102,7 @@ get_details({rpc, Auth}, ClusterId) ->
             {ok, onepanel_maps:get_store_multiple([
                 {<<"onepanelVersion">>, onepanelVersion},
                 {<<"workerVersion">>, workerVersion},
-                {<<"onepanelProxy">>, proxy},
+                {<<"onepanelProxy">>, onepanelProxy},
                 {<<"serviceId">>, serviceId},
                 {<<"type">>, type}
             ], ClusterData, #{id => ClusterId})};
