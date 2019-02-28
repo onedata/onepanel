@@ -16,10 +16,12 @@
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 
+% @formatter:off
 -type opts() :: #{
-service := service:name(),
-hosts => [service:host()]
+    service := service:name(),
+    hosts => [service:host()]
 }.
+% @formatter:on
 
 -export_type([opts/0]).
 

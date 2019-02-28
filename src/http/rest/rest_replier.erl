@@ -24,7 +24,7 @@
 %% API
 -export([throw_on_service_error/2]).
 -export([handle_error/3, reply_with_error/3, handle_service_action_async/3,
-    handle_service_step/4, handle_session/3]).
+    handle_service_step/4]).
 -export([format_error/2, format_service_status/2, format_dns_check_result/1,
     format_service_host_status/2, format_service_task_results/1, format_service_step/3,
     format_onepanel_configuration/0, format_service_configuration/1,
@@ -110,26 +110,6 @@ handle_service_action_async(Req, TaskId, ApiVersion) ->
 handle_service_step(Req, Module, Function, Results) ->
     Body = json_utils:encode(format_service_step(Module, Function, Results)),
     cowboy_req:set_resp_body(Body, Req).
-
-
-%%--------------------------------------------------------------------
-%% @doc Sets session details in the response header and body.
-%% @end
-%%--------------------------------------------------------------------
--spec handle_session(Req :: cowboy_req:req(), SessionId :: onepanel_session:id(),
-    Username :: onepanel_user:name()) -> Req :: cowboy_req:req().
-handle_session(Req, SessionId, Username) ->
-    Req2 = cowboy_req:set_resp_cookie(<<"sessionId">>, SessionId, Req, #{
-        max_age => onepanel_env:get(session_ttl),
-        path => "/",
-        secure => true,
-        http_only => true
-    }),
-    Body = json_utils:encode(
-        #{<<"sessionId">> => SessionId,
-          <<"username">> => Username}
-    ),
-    cowboy_req:set_resp_body(Body, Req2).
 
 
 %%--------------------------------------------------------------------
