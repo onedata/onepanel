@@ -26,14 +26,21 @@
 %% tests
 -export([
     get_should_return_clusters_list_test/1,
-    get_should_return_cluster_details_test/1
+    get_should_return_cluster_details_test/1,
+    get_should_return_provider_info/1
 ]).
 
 all() ->
     ?ALL([
         get_should_return_clusters_list_test,
-        get_should_return_cluster_details_test
+        get_should_return_cluster_details_test,
+        get_should_return_provider_info
     ]).
+
+
+%%%===================================================================
+%%% Test data
+%%%===================================================================
 
 -define(USER_DETAILS, #user_details{
     id = <<"someUserId">>,
@@ -63,24 +70,52 @@ all() ->
 -define(ACCESS_TOKEN, <<"accessTokenFromOnezone">>).
 
 -define(CLUSTERS, #{
-    % @fixme use new verison format
-% @fixme make the test check something
     ?ZONE_CLUSTER_ID => #{
-        version => <<"18.07">>,
-        build => <<"zonebuildno">>,
-        proxy => false,
-        serviceId => ?ZONE_ID,
-        type => <<"onezone">>,
-        id => ?ZONE_CLUSTER_ID
+        <<"workerVersion">> => #{
+            <<"release">> => <<"ozWorkerRelease">>,
+            <<"build">> => <<"ozWorkerBuild">>,
+            <<"gui">> => <<"ozWorkerGuiSha">>
+        },
+        <<"onepanelVersion">> => #{
+            <<"release">> => <<"ozPanelRelease">>,
+            <<"build">> => <<"ozPanelBuild">>,
+            <<"gui">> => <<"ozPanelGuiSha">>
+        },
+        <<"onepanelProxy">> => false,
+        <<"serviceId">> => ?ZONE_ID,
+        <<"type">> => <<"onezone">>,
+        <<"clusterId">> => ?ZONE_CLUSTER_ID
     },
     ?PROVIDER_CLUSTER_ID => #{
-        version => <<"18.07">>,
-        build => <<"providerbuildno">>,
-        proxy => false,
-        serviceId => ?PROVIDER_CLUSTER_ID,
-        type => <<"onezone">>,
-        id => ?ZONE_CLUSTER_ID
+        <<"workerVersion">> => #{
+            <<"release">> => <<"opWorkerRelease">>,
+            <<"build">> => <<"opWorkerBuild">>,
+            <<"gui">> => <<"opWorkerGuiSha">>
+        },
+        <<"onepanelVersion">> => #{
+            <<"release">> => <<"opPanelRelease">>,
+            <<"build">> => <<"opPanelBuild">>,
+            <<"gui">> => <<"opPanelGuiSha">>
+        },
+        <<"onepanelProxy">> => false,
+        <<"serviceId">> => ?PROVIDER_CLUSTER_ID,
+        <<"type">> => <<"oneprovider">>,
+        <<"clusterId">> => ?PROVIDER_CLUSTER_ID
     }
+}).
+
+-define(PROVIDER_DETAILS_REST, #{
+    <<"providerId">> => ?PROVIDER_ID,
+    <<"online">> => true,
+    <<"name">> => <<"providerName">>,
+    <<"longitude">> => 42.0,
+    <<"latitude">> => 7.0,
+    <<"domain">> => <<"providerDomain">>,
+    <<"cluster">> => ?PROVIDER_CLUSTER_ID
+}).
+
+-define(PROVIDER_DETAILS_RPC, ?PROVIDER_DETAILS_REST#{
+    <<"creationTime">> => 1551451677
 }).
 
 
@@ -97,9 +132,8 @@ get_should_return_clusters_list_test(Config) ->
                 {access_token, ?ACCESS_TOKEN}
             )
         ),
-        Expected = #{ids => maps:keys(?CLUSTERS)},
         onepanel_test_rest:assert_body_values(JsonBody,
-            maps:to_list(onepanel_utils:convert(Expected, {keys, binary})))
+            [{<<"ids">>, maps:keys(?CLUSTERS)}])
     end, Hosts).
 
 
@@ -113,12 +147,40 @@ get_should_return_cluster_details_test(Config) ->
                     {access_token, ?ACCESS_TOKEN}
                 )
             ),
-            Expected = maps:get(ClusterId, ?CLUSTERS),
+            Expected = onepanel_maps:get_store_multiple([
+                {<<"type">>, <<"type">>},
+                {<<"workerVersion">>, <<"workerVersion">>},
+                {<<"panelVersion">>, <<"panelVersion">>},
+                {<<"serviceId">>, <<"serviceId">>},
+                {<<"onepanelProxy">>, <<"onepanelProxy">>}
+            ], maps:get(ClusterId, ?CLUSTERS), #{<<"id">> => ClusterId}),
             onepanel_test_rest:assert_body_values(JsonBody,
-                maps:to_list(onepanel_utils:convert(Expected, {keys, binary})))
+                maps:to_list(Expected))
         end, maps:keys(?CLUSTERS))
     end, Hosts).
 
+
+get_should_return_provider_info(Config) ->
+    Hosts = ?config(all_hosts, Config),
+
+    lists:foreach(fun(Host) ->
+        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/providers/", ?PROVIDER_ID/binary>>, get,
+                {access_token, ?ACCESS_TOKEN}
+            )
+        ),
+        Expected = [
+            {<<"id">>, ?PROVIDER_ID},
+            {<<"name">>, <<"providerName">>},
+            {<<"online">>, true},
+            {<<"domain">>, <<"providerDomain">>},
+            {<<"geoLongitude">>, 42.0},
+            {<<"geoLatitude">>, 7.0},
+            {<<"cluster">>, ?PROVIDER_CLUSTER_ID}
+        ],
+        onepanel_test_rest:assert_body_values(JsonBody, Expected)
+    end, Hosts).
 
 %%%===================================================================
 %%% SetUp and TearDown functions
@@ -151,7 +213,7 @@ init_per_testcase(_Case, Config) ->
         fun(oz_worker) -> {ok, #service{hosts = OzHosts}} end),
 
     test_utils:mock_expect(OpNodes, service_oneprovider, get_auth_token,
-        fun () -> <<"providerMacaroon">> end),
+        fun() -> <<"providerMacaroon">> end),
 
     test_utils:mock_expect(OzNodes, rest_auth, authenticate_by_onezone_access_token,
         fun(Req) -> {?OZ_CLIENT, Req} end),
@@ -163,28 +225,27 @@ init_per_testcase(_Case, Config) ->
     test_utils:mock_expect(OpNodes, clusters, get_id,
         fun() -> ?PROVIDER_CLUSTER_ID end),
 
-    GetDetailsFun = fun(ClusterId) ->
-        case maps:find(ClusterId, ?CLUSTERS) of
-            {ok, Details} -> {ok, Details};
-            error -> ?make_error(?ERR_NOT_FOUND)
-        end
-    end,
-
-    test_utils:mock_expect(OzNodes, clusters, get_details,
-        fun({rpc, _}, ClusterId) -> GetDetailsFun(ClusterId) end),
-    test_utils:mock_expect(OpNodes, clusters, get_details,
-        fun({rest, _}, ClusterId) -> GetDetailsFun(ClusterId) end),
-
     test_utils:mock_expect(OzNodes, rpc, call, fun
         (_Node, user_logic, get_clusters, [_Client]) ->
             {ok, maps:keys(?CLUSTERS)};
+        (_Node, cluster_logic, get_protected_data, [_Client, ClusterId]) ->
+            {ok, maps:get(ClusterId, ?CLUSTERS)};
+        (_Node, provider_logic, get_protected_data, [_Client, ProviderId]) ->
+            ?assertEqual(?PROVIDER_ID, ProviderId),
+            {ok, ?PROVIDER_DETAILS_RPC};
         (Node, Module, Function, Args) ->
             meck:passthrough([Node, Module, Function, Args])
     end),
 
     test_utils:mock_expect(OpNodes, oz_endpoint, request, fun
         (_Auth, "/user/clusters/", get, _Headers, <<>>, _Opts) ->
-            {ok, 200, 0, json_utils:encode(#{clusters => maps:keys(?CLUSTERS)})}
+            {ok, 200, 0, json_utils:encode(#{clusters => maps:keys(?CLUSTERS)})};
+        (_Auth, "/clusters/" ++ ClusterId, get, _Headers, <<>>, _Opts) ->
+            Data = maps:get(list_to_binary(ClusterId), ?CLUSTERS),
+            {ok, 200, 0, json_utils:encode(Data)};
+        (_Auth, "/providers/" ++ ProviderId, get, _Headers, <<>>, _Opts) ->
+            ?assertEqual(?PROVIDER_ID, list_to_binary(ProviderId)),
+            {ok, 200, 0, json_utils:encode(?PROVIDER_DETAILS_REST)}
     end),
 
     Config.

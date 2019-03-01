@@ -65,12 +65,12 @@ fetch_provider_info({rpc, Client}, ProviderId) ->
     {ok, ProviderData} = rpc:call(
         OzNode, provider_logic, get_protected_data, [Client, ProviderId]
     ),
-    ProviderData#{<<"providerId">> => ProviderId};
+    format_provider_info(ProviderData);
 
 fetch_provider_info({rest, RestAuth}, ProviderId) ->
     URN = "/providers/" ++ binary_to_list(ProviderId),
     {ok, 200, _, BodyJson} = oz_endpoint:request(RestAuth, URN, get),
-    json_utils:decode(BodyJson).
+    format_provider_info(json_utils:decode(BodyJson)).
 
 
 %%--------------------------------------------------------------------
@@ -109,3 +109,18 @@ is_compatible(OzVersion, CompatOpVersions) ->
 configuration_url(Domain) ->
     str_utils:format_bin("https://~s~s",
         [Domain, onepanel_env:get(onezone_configuration_uri)]).
+
+
+%% @private
+-spec format_provider_info(OzResponse :: #{binary() => term()}) ->
+    #{binary() => term()}.
+format_provider_info(OzResponse) ->
+    onepanel_maps:get_store_multiple([
+        {<<"providerId">>, <<"id">>},
+        {<<"name">>, <<"name">>},
+        {<<"domain">>, <<"domain">>},
+        {<<"longitude">>, <<"geoLongitude">>},
+        {<<"latitude">>, <<"geoLatitude">>},
+        {<<"cluster">>, <<"cluster">>},
+        {<<"online">>, <<"online">>}
+    ], OzResponse).
