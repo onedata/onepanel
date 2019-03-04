@@ -180,31 +180,13 @@ response_headers() ->
 deploy_standalone_gui_files() ->
     TempDir = mochitemp:mkdtemp(),
     GuiRoot = onepanel_env:get(gui_static_root),
-    GuiDirName = get_archive_top_dir(gui_package_path()),
+    ExtractedPath = gui:extract_package(gui_package_path(), TempDir),
 
-    ok = erl_tar:extract(gui_package_path(), [compressed, {cwd, TempDir}]),
-    filelib:is_file(GuiRoot) andalso file:rename(GuiRoot, filename:join(TempDir, "old_gui_static")),
-    ok = file:rename(filename:join(TempDir, GuiDirName), GuiRoot),
+    file_utils:recursive_del(GuiRoot),
+    ok = file:rename(ExtractedPath, GuiRoot),
 
     mochitemp:rmtempdir(TempDir),
     ?info("Deployed standalone GUI files in ~s", [GuiRoot]).
-
-
-%%--------------------------------------------------------------------
-%% @private @doc
-%% Returns first path in a .tar.gz archive.
-%% When a single directory has been compressed, as is the case
-%% with gui packages, this is the top directory of the archive.
-%% @end
-%%--------------------------------------------------------------------
--spec get_archive_top_dir(TarGzPath :: file:filename()) -> string() | no_return().
-get_archive_top_dir(TarGzPath) ->
-    % @TODO Remove verbose mode after migration to OTP 21
-    % In OTP 20 the spec for erl_tar:table/2 only describes the verbose
-    % return format. Therefore it has to be used to appease dialyzer.
-    {ok, [{TopDir, _, _, _, _, _, _} | _]} =
-        erl_tar:table(TarGzPath, [compressed, verbose]),
-    TopDir.
 
 
 %%--------------------------------------------------------------------
