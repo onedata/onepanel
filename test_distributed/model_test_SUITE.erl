@@ -253,7 +253,11 @@ init_per_testcase(_Case, Config) ->
     onepanel_test_utils:ensure_started(Config),
     test_utils:mock_new(Nodes, [model, onepanel_deployment, ?MODEL],
         [passthrough, non_strict]),
+
+    % 'service' model required for detecting unregistered provider
+    % in https_listener:response_headers/0
     test_utils:mock_expect(Nodes, model, get_models, fun() -> [service, ?MODEL] end),
+
     % required for successful deployment
     test_utils:mock_expect(Nodes, onepanel_deployment, is_completed,
         fun(_) -> false end),

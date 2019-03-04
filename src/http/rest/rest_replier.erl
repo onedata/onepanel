@@ -65,7 +65,7 @@ handle_error(Req, Type, Reason) ->
 %%--------------------------------------------------------------------
 -spec reply_with_error(Req :: cowboy_req:req(), Type :: atom(), Reason :: term()) ->
     Req :: cowboy_req:req().
-reply_with_error(Req, Type, ?ERR_NODE_DOWN) ->
+reply_with_error(Req, Type, {badrpc, nodedown}) ->
     reply_with_error(Req, Type, ?make_error(?ERR_NODE_DOWN));
 
 reply_with_error(Req, Type, Reason) ->
