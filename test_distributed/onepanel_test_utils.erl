@@ -136,13 +136,13 @@ mock_start(Config) ->
 %% @doc Checks whether the tuple list contains specified fields.
 %% @end
 %%--------------------------------------------------------------------
--spec assert_fields(KeyValue :: [tuple()] | maps:map() , Fields :: [binary()]) -> ok.
-assert_fields(Map = #{}, Fields) ->
-    assert_fields(maps:to_list(Map), Fields);
-assert_fields(TupleList, Fields) ->
+-spec assert_fields(KeyValue :: [tuple()] | map() , Fields :: [binary()]) -> ok.
+assert_fields(Map = #{}, ExpectedFields) ->
+    assert_fields(maps:to_list(Map), ExpectedFields);
+assert_fields(TupleList, ExpectedFields) ->
     lists:foreach(fun(Field) ->
         ?assert(lists:keymember(Field, 1, TupleList))
-    end, Fields).
+    end, ExpectedFields).
 
 
 %%--------------------------------------------------------------------
@@ -150,14 +150,14 @@ assert_fields(TupleList, Fields) ->
 %% values match the expected ones.
 %% @end
 %%--------------------------------------------------------------------
--spec assert_values(KeyValue :: [tuple()] | maps:map(), Values :: [{binary(), any()}]) -> ok.
-assert_values(Map = #{}, Values) ->
-    assert_values(maps:to_list(Map), Values);
-assert_values(TupleList, Values) ->
+-spec assert_values(KeyValue :: [tuple()] | map(), ExpectedValues :: [{binary(), any()}]) -> ok.
+assert_values(ResponseMap = #{}, ExpectedValues) ->
+    assert_values(maps:to_list(ResponseMap), ExpectedValues);
+assert_values(ResponseProplist, ExpectedValues) ->
     lists:foreach(fun({Field, Value}) ->
-        ?assert(lists:keymember(Field, 1, TupleList)),
-        ?assertEqual({Field, Value}, lists:keyfind(Field, 1, TupleList))
-    end, Values).
+        ?assert(lists:keymember(Field, 1, ResponseProplist)),
+        ?assertEqual({Field, Value}, lists:keyfind(Field, 1, ResponseProplist))
+    end, ExpectedValues).
 
 
 %%--------------------------------------------------------------------
