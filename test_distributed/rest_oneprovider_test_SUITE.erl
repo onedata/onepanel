@@ -11,6 +11,7 @@
 -module(rest_oneprovider_test_SUITE).
 -author("Krzysztof Trzepla").
 
+-include("authentication.hrl").
 -include("modules/models.hrl").
 -include("onepanel_test_utils.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
@@ -55,6 +56,13 @@
 
 -define(ADMIN_USER_NAME, <<"admin1">>).
 -define(ADMIN_USER_PASSWORD, <<"Admin1Password">>).
+
+-define(OZ_USER_NAME, <<"joe">>).
+-define(ONEZONE_TOKEN, <<"joesOnezoneToken">>).
+
+-define(OZ_AUTH(TOKEN), {rpc, opaque_rpc_client}).
+-define(OP_AUTH(TOKEN), {rest, {access_token, TOKEN}}).
+
 -define(REG_USER_NAME, <<"user1">>).
 -define(REG_USER_PASSWORD, <<"User1Password">>).
 -define(TIMEOUT, timer:seconds(5)).
@@ -90,9 +98,9 @@
 
 -define(CLUSTER_IPS_JSON(_Hosts), #{
     <<"hosts">> =>
-        lists:foldl(fun(Host, Acc) ->
-            maps:put(list_to_binary(Host), <<"1.2.3.4">>, Acc)
-        end, #{}, _Hosts),
+    lists:foldl(fun(Host, Acc) ->
+        maps:put(list_to_binary(Host), <<"1.2.3.4">>, Acc)
+    end, #{}, _Hosts),
     <<"isConfigured">> => false
 }).
 
@@ -284,8 +292,10 @@ method_should_return_service_unavailable_error(Config) ->
             ?assertMatch({ok, 503, _, _}, onepanel_test_rest:noauth_request(
                 Host, Endpoint, Method
             ))
-        end, lists:delete({<<"/provider/cluster_ips">>, get}, % only endpoint not causing 503
-            ?COMMON_ENDPOINTS_WITH_METHODS))
+        end, lists:delete(
+            {<<"/provider/cluster_ips">>, get}, % only endpoint not causing 503
+            ?COMMON_ENDPOINTS_WITH_METHODS
+        ))
     end).
 
 
@@ -305,6 +315,12 @@ get_should_return_cluster_ips(Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
     Hosts = lists:map(fun hosts:from_node/1, Nodes),
     ?run(Config, fun(Host) ->
+        ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/cluster_ips">>, get,
+                {access_token, ?ONEZONE_TOKEN}
+            )
+        ),
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/cluster_ips">>, get,
@@ -913,9 +929,9 @@ init_per_testcase(patch_should_update_file_popularity, Config) ->
 
 init_per_testcase(Case, Config) when
     Case =:= patch_should_update_auto_cleaning;
-    Case =:=  patch_with_incomplete_config_should_update_auto_cleaning;
-    Case =:=  patch_with_incorrect_config_should_fail
-->
+    Case =:= patch_with_incomplete_config_should_update_auto_cleaning;
+    Case =:= patch_with_incorrect_config_should_fail
+    ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_new(Nodes, rest_oneprovider),
@@ -929,6 +945,8 @@ init_per_testcase(Case, Config) when
 init_per_testcase(_Case, Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
     Hosts = ?config(oneprovider_hosts, Config),
+    OzNodes = ?config(onezone_nodes, Config),
+    OpNodes = ?config(oneprovider_nodes, Config),
     Self = self(),
     test_utils:mock_new(Nodes, [service, service_oneprovider]),
     test_utils:mock_expect(Nodes, service, get, fun
@@ -939,6 +957,21 @@ init_per_testcase(_Case, Config) ->
         Self ! {service, Service, Action, Ctx},
         [{task_finished, {service, action, ok}}]
     end),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
+        Self ! {service, Service, Action, Ctx},
+        [{task_finished, {service, action, ok}}]
+    end),
+    test_utils:mock_expect(OzNodes, zone_tokens, authenticate_by_onezone_access_token, fun
+        (?ONEZONE_TOKEN) -> #client{
+            role = user, privileges = [], zone_auth = ?OZ_AUTH(?ONEZONE_TOKEN),
+            user = #user_details{name = ?OZ_USER_NAME}
+        } end),
+    test_utils:mock_expect(OpNodes, zone_tokens, authenticate_by_onezone_access_token, fun
+        (?ONEZONE_TOKEN) -> #client{
+            role = user, privileges = [], zone_auth = ?OP_AUTH(?ONEZONE_TOKEN),
+            user = #user_details{name = ?OZ_USER_NAME}
+        } end),
+
     Config.
 
 
