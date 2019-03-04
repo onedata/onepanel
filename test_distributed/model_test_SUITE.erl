@@ -253,7 +253,7 @@ init_per_testcase(_Case, Config) ->
     onepanel_test_utils:ensure_started(Config),
     test_utils:mock_new(Nodes, [model, onepanel_deployment, ?MODEL],
         [passthrough, non_strict]),
-    test_utils:mock_expect(Nodes, model, get_models, fun() -> [?MODEL] end),
+    test_utils:mock_expect(Nodes, model, get_models, fun() -> [service, ?MODEL] end),
     % required for successful deployment
     test_utils:mock_expect(Nodes, onepanel_deployment, is_completed,
         fun(_) -> false end),
@@ -268,10 +268,6 @@ init_per_testcase(_Case, Config) ->
     ok = rpc:call(hd(Nodes), service_onepanel, init_cluster, [#{}]),
     onepanel_test_utils:init(Config).
 
-
-end_per_testcase(wrapper_test, Config) ->
-    Nodes = ?config(all_nodes, Config),
-    test_utils:mock_unload(Nodes);
 
 end_per_testcase(_Case, Config) ->
     Nodes = ?config(all_nodes, Config),
