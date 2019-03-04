@@ -16,7 +16,6 @@
 -include("names.hrl").
 -include_lib("ctool/include/logging.hrl").
 
-
 %% API
 -export([fetch_zone_info/1, fetch_provider_info/2]).
 -export([root_auth/0]).

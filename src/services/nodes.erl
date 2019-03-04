@@ -35,20 +35,30 @@
 %% @doc Returns node name for given service on current host.
 %% @end
 %%--------------------------------------------------------------------
--spec local(ServiceName :: atom() | string()) -> Node :: node().
+-spec local(ServiceName :: service:name()) -> Node :: node().
 local(ServiceName) ->
     service_to_node(ServiceName, node()).
 
 
 %%--------------------------------------------------------------------
 %% @doc Returns one of given service's nodes.
-%% Node living on current host is preferred.
-%% If Opts contain 'hosts' key, nodes are selected from those hosts.
+%% If Opts contain 'hosts' key, nodes are selected from those hosts without
+%%   checking if the service has known nodes on those hosts.
+%% If Opts contain 'node' key and specified node is of given service,
+%%   this node is returned. This allows reuse of an already resolved
+%%   node by passing the "Ctx" argument in step functions.
+%% If among considered hosts is the current one, this host's node is returned.
 %% @end
 %%--------------------------------------------------------------------
 -spec any(ServiceNameOrOpts :: service:name() | opts()) -> {ok, node()} | #error{}.
 any(ServiceName) when ?IS_SERVICE_NAME(ServiceName) ->
     any(#{service => ServiceName});
+
+any(#{service := ServiceName, node := Node} = Opts) ->
+    case service_to_node(ServiceName, Node) of
+        Node -> {ok, Node};
+        _WrongService -> any(maps:without([node], Opts))
+    end;
 
 any(#{service := ServiceName} = Opts) ->
     case hosts:all(Opts) of
@@ -96,8 +106,7 @@ any_with(ServiceName) ->
 %% @doc Returns all Onepanel nodes cohabiting hosts with given Service nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec all_with(ServiceName :: service:name()) ->
-    [node()].
+-spec all_with(ServiceName :: service:name()) -> [node()].
 all_with(ServiceName) ->
     service_to_nodes(?SERVICE_PANEL, all(ServiceName)).
 
@@ -106,7 +115,7 @@ all_with(ServiceName) ->
 %% @doc Creates a node name from a service Name and a hostname.
 %% @end
 %%--------------------------------------------------------------------
--spec service_to_node(Name :: atom() | string(), HostOrNode :: service:host() | node()) ->
+-spec service_to_node(Name :: service:name() | string(), HostOrNode :: service:host() | node()) ->
     Node :: node().
 service_to_node(Name, Node) when is_atom(Node) ->
     service_to_node(Name, hosts:from_node(Node));
@@ -122,7 +131,7 @@ service_to_node(Name, Host) ->
 %% @doc Converts a list of hostnames to a list of nodes with given node name.
 %% @end
 %%--------------------------------------------------------------------
--spec service_to_nodes(Name :: atom() | string(), Hosts :: [service:host() | node()]) ->
+-spec service_to_nodes(Name :: service:name() | string(), Hosts :: [service:host() | node()]) ->
     Nodes :: [node()].
 service_to_nodes(Name, HostsOrNodes) ->
     [service_to_node(Name, HostOrNode) || HostOrNode <- HostsOrNodes].

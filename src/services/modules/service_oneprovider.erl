@@ -35,14 +35,14 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([configure/1, check_oz_availability/1, mark_configured/1,
+-export([configure/1, check_oz_availability/1, mark_configured/0,
     register/1, unregister/1, is_registered/1, is_registered/0,
     modify_details/1, get_details/0, get_details/1, get_oz_domain/0,
     support_space/1, revoke_space_support/1, get_spaces/1, is_space_supported/1,
     get_space_details/1, modify_space/1, format_cluster_ips/1,
     get_sync_stats/1, get_auto_cleaning_reports/1, get_auto_cleaning_report/1,
     get_auto_cleaning_status/1, start_auto_cleaning/1, check_oz_connection/1,
-    update_provider_ips/1, configure_file_popularity/1, configure_auto_cleaning/1,
+    update_provider_ips/0, configure_file_popularity/1, configure_auto_cleaning/1,
     get_file_popularity_configuration/1, get_auto_cleaning_configuration/1]).
 -export([set_up_service_in_onezone/0]).
 -export([pop_legacy_letsencrypt_config/0]).
@@ -150,7 +150,7 @@ get_steps(deploy, Ctx) ->
         Ss#steps{service = ?SERVICE_LE, action = update, ctx = LeCtx3},
         S#step{module = onepanel_deployment, function = mark_completed,
             args = [?PROGRESS_READY], hosts = [SelfHost]},
-        S#step{function = mark_configured, ctx = OpaCtx, selection = any,
+        S#step{function = mark_configured, ctx = OpaCtx, selection = any, args = [],
             condition = fun(FunCtx) ->
                 not maps:get(interactive_deployment, FunCtx, true)
             end}
@@ -257,7 +257,7 @@ get_steps(set_cluster_ips, #{hosts := Hosts} = Ctx) ->
     [
         #steps{action = set_cluster_ips, ctx = Ctx2, service = ?SERVICE_CW},
         #step{function = update_provider_ips, selection = any,
-            hosts = Hosts}
+            hosts = Hosts, args = []}
     ];
 get_steps(set_cluster_ips, Ctx) ->
     get_steps(set_cluster_ips, Ctx#{hosts => service_op_worker:get_hosts()});
@@ -348,14 +348,12 @@ check_oz_availability(Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec check_oz_connection(Ctx :: service:ctx()) -> ok | no_return().
-check_oz_connection(#{node := Node}) ->
+check_oz_connection(Ctx) ->
+    {ok, Node} = nodes:any(Ctx#{service => ?SERVICE_OPW}),
     case rpc:call(Node, oneprovider, is_connected_to_oz, []) of
         true -> ok;
         false -> ?throw_error(?ERR_ONEZONE_NOT_AVAILABLE)
-    end;
-check_oz_connection(Ctx) ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-    check_oz_connection(Ctx#{node => Node}).
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -447,8 +445,9 @@ is_registered() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec modify_details(Ctx :: service:ctx()) -> ok | no_return().
-modify_details(#{node := Node} = Ctx) ->
-    ok = modify_domain_details(Ctx),
+modify_details(Ctx) ->
+    {ok, Node} = nodes:any(?SERVICE_OPW),
+    ok = modify_domain_details(Node, Ctx),
 
     Params = onepanel_maps:get_store_multiple([
         {oneprovider_name, <<"name">>},
@@ -493,7 +492,9 @@ get_auth_token() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_details(Ctx :: service:ctx()) -> #{atom() := term()} | no_return().
-get_details(#{node := Node}) ->
+get_details(Ctx) ->
+    {ok, Node} = nodes:any(?SERVICE_OPW),
+
     % Graph Sync connection is needed to obtain details
     rpc:call(Node, oneprovider, force_oz_connection_start, []),
     OzDomain = get_oz_domain(),
@@ -521,11 +522,7 @@ get_details(#{node := Node}) ->
     case maps:get(subdomain_delegation, Details) of
         true -> Response2#{subdomain => maps:get(subdomain, Details)};
         _ -> Response2
-    end;
-
-get_details(Ctx) ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-    get_details(Ctx#{node => Node}).
+    end.
 
 -spec get_details() -> #{atom() := term()} | no_return().
 get_details() -> get_details(#{}).
@@ -557,7 +554,8 @@ format_cluster_ips(Ctx) ->
 %% @doc Supports space with selected storage.
 %% @end
 %%--------------------------------------------------------------------
-support_space(#{storage_id := StorageId, node := Node} = Ctx) ->
+support_space(#{storage_id := StorageId} = Ctx) ->
+    {ok, Node} = nodes:any(?SERVICE_OPW),
     assert_storage_exists(Node, StorageId),
     SupportSize = onepanel_utils:typed_get(size, Ctx, binary),
     Token = onepanel_utils:typed_get(token, Ctx, binary),
@@ -572,11 +570,7 @@ support_space(#{storage_id := StorageId, node := Node} = Ctx) ->
             ?throw_error(Reason)
     end,
 
-    configure_space(Ctx, SpaceId);
-
-support_space(#{storage_id := _} = Ctx) ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-    support_space(Ctx#{node => Node}).
+    configure_space(Node, SpaceId, Ctx).
 
 
 %%--------------------------------------------------------------------
@@ -617,7 +611,8 @@ is_space_supported(#{space_id := Id}) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_space_details(Ctx :: service:ctx()) -> list().
-get_space_details(#{id := SpaceId, node := Node}) ->
+get_space_details(#{id := SpaceId}) ->
+    {ok, Node} = nodes:any(?SERVICE_OPW),
     {ok, #space_details{id = Id, name = Name, providers_supports = Providers}} =
         oz_providers:get_space_details(provider, SpaceId),
     StorageIds = op_worker_storage:get_supporting_storages(Node, SpaceId),
@@ -640,10 +635,7 @@ get_space_details(#{id := SpaceId, node := Node}) ->
         {storageImport, ImportDetails},
         {storageUpdate, UpdateDetails},
         {spaceOccupancy, CurrentSize}
-    ];
-get_space_details(Ctx) ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-    get_space_details(Ctx#{node => Node}).
+    ].
 
 
 %%--------------------------------------------------------------------
@@ -651,24 +643,23 @@ get_space_details(Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec modify_space(Ctx :: service:ctx()) -> list().
-modify_space(#{space_id := SpaceId, node := Node} = Ctx) ->
+modify_space(#{space_id := SpaceId} = Ctx) ->
+    {ok, Node} = nodes:any(?SERVICE_OPW),
     ImportArgs = maps:get(storage_import, Ctx, #{}),
     UpdateArgs = maps:get(storage_update, Ctx, #{}),
-    ok = maybe_update_support_size(Ctx),
+    ok = maybe_update_support_size(Node, SpaceId, Ctx),
     {ok, _} = op_worker_storage_sync:maybe_modify_storage_import(Node, SpaceId, ImportArgs),
     {ok, _} = op_worker_storage_sync:maybe_modify_storage_update(Node, SpaceId, UpdateArgs),
-    [{id, SpaceId}];
-modify_space(Ctx) ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-    modify_space(Ctx#{node => Node}).
+    [{id, SpaceId}].
 
 
 %%--------------------------------------------------------------------
+%% @private
 %% @doc If new size for a space is specified, enacts the change.
 %% @end
 %%--------------------------------------------------------------------
-maybe_update_support_size(#{node := Node, space_id := SpaceId, size := SupportSize}) ->
-    case rpc:call(Node, provider_logic, update_space_support_size, [SpaceId, SupportSize]) of
+maybe_update_support_size(OpNode, SpaceId, #{size := SupportSize}) ->
+    case rpc:call(OpNode, provider_logic, update_space_support_size, [SpaceId, SupportSize]) of
         ok -> ok;
         ?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, Minimum) ->
             ?throw_error(?ERR_SPACE_SUPPORT_TOO_LOW(Minimum));
@@ -676,7 +667,7 @@ maybe_update_support_size(#{node := Node, space_id := SpaceId, size := SupportSi
             ?throw_error(Reason)
     end;
 
-maybe_update_support_size(_Ctx) -> ok.
+maybe_update_support_size(_OpNode, _SpaceId, _Ctx) -> ok.
 
 
 %%--------------------------------------------------------------------
@@ -684,14 +675,12 @@ maybe_update_support_size(_Ctx) -> ok.
 %% @end
 %%--------------------------------------------------------------------
 -spec get_sync_stats(Ctx :: service:ctx()) -> list().
-get_sync_stats(#{space_id := SpaceId, node := Node} = Ctx) ->
+get_sync_stats(#{space_id := SpaceId} = Ctx) ->
+    {ok, Node} = nodes:any(?SERVICE_OPW),
     Period = onepanel_utils:typed_get(period, Ctx, binary, undefined),
     MetricsJoined = onepanel_utils:typed_get(metrics, Ctx, binary, <<"">>),
     Metrics = binary:split(MetricsJoined, <<",">>, [global, trim]),
-    op_worker_storage_sync:get_stats(Node, SpaceId, Period, Metrics);
-get_sync_stats(Ctx) ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-    get_sync_stats(Ctx#{node => Node}).
+    op_worker_storage_sync:get_stats(Node, SpaceId, Period, Metrics).
 
 
 %%--------------------------------------------------------------------
@@ -699,19 +688,17 @@ get_sync_stats(Ctx) ->
 %% Notify onezone about IPs change.
 %% @end
 %%--------------------------------------------------------------------
--spec update_provider_ips(service:ctx()) -> ok.
-update_provider_ips(#{node := Node} = Ctx) ->
-    case is_registered(Ctx) of
+-spec update_provider_ips() -> ok.
+update_provider_ips() ->
+    {ok, Node} = nodes:any(?SERVICE_OPW),
+    case is_registered() of
         true ->
             % no check of results - if the provider is not connected to onezone
             % the IPs will be sent automatically after connection is acquired
             rpc:call(Node, provider_logic, update_subdomain_delegation_ips, []),
             ok;
         false -> ok
-    end;
-update_provider_ips(Ctx) ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-    update_provider_ips(Ctx#{node => Node}).
+    end.
 
 
 %%-------------------------------------------------------------------
@@ -721,14 +708,12 @@ update_provider_ips(Ctx) ->
 %%-------------------------------------------------------------------
 -spec get_auto_cleaning_reports(Ctx :: service:ctx()) -> maps:map().
 get_auto_cleaning_reports(Ctx = #{space_id := SpaceId, node := Node}) ->
+    {ok, Node} = nodes:any(?SERVICE_OPW),
     Offset = onepanel_utils:typed_get(offset, Ctx, integer, 0),
     Limit = onepanel_utils:typed_get(limit, Ctx, integer, all),
     Index = onepanel_utils:typed_get(index, Ctx, binary, undefined),
     {ok, Ids} = rpc:call(Node, autocleaning_api, list_reports, [SpaceId, Index, Offset, Limit]),
-    #{ids => Ids};
-get_auto_cleaning_reports(Ctx) ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-    get_auto_cleaning_reports(Ctx#{node => Node}).
+    #{ids => Ids}.
 
 
 %%-------------------------------------------------------------------
@@ -736,27 +721,24 @@ get_auto_cleaning_reports(Ctx) ->
 %% Returns auto-cleaning run report.
 %% @end
 %%-------------------------------------------------------------------
--spec get_auto_cleaning_report(Ctx :: service:ctx()) -> proplists:proplist().
-get_auto_cleaning_report(#{report_id := ReportId, node := Node}) ->
+-spec get_auto_cleaning_report(Ctx :: service:ctx()) -> #{atom() => term()}.
+get_auto_cleaning_report(#{report_id := ReportId}) ->
+    {ok, Node} = nodes:any(?SERVICE_OPW),
     case rpc:call(Node, autocleaning_api, get_run_report, [ReportId]) of
         {ok, Report} ->
-            onepanel_lists:undefined_to_null(
-                onepanel_maps:to_list(
-                    onepanel_maps:get_store_multiple([
-                        {id, id},
-                        {index, index},
-                        {started_at, startedAt},
-                        {stopped_at, stoppedAt},
-                        {released_bytes, releasedBytes},
-                        {bytes_to_release, bytesToRelease},
-                        {files_number, filesNumber}
-                    ], Report)));
+            onepanel_maps:undefined_to_null(
+                onepanel_maps:get_store_multiple([
+                    {id, id},
+                    {index, index},
+                    {started_at, startedAt},
+                    {stopped_at, stoppedAt},
+                    {released_bytes, releasedBytes},
+                    {bytes_to_release, bytesToRelease},
+                    {files_number, filesNumber}
+                ], Report));
         {error, Reason} ->
             ?throw_error({?ERR_AUTOCLEANING, Reason})
-    end;
-get_auto_cleaning_report(Ctx) ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-    get_auto_cleaning_report(Ctx#{node => Node}).
+    end.
 
 
 %%-------------------------------------------------------------------
@@ -764,16 +746,14 @@ get_auto_cleaning_report(Ctx) ->
 %% Returns status of current working auto-cleaning process for given space.
 %% @end
 %%-------------------------------------------------------------------
--spec get_auto_cleaning_status(Ctx :: service:ctx()) -> proplists:proplist().
-get_auto_cleaning_status(#{space_id := SpaceId, node := Node}) ->
+-spec get_auto_cleaning_status(Ctx :: service:ctx()) -> #{atom() => term()}.
+get_auto_cleaning_status(#{space_id := SpaceId}) ->
+    {ok, Node} = nodes:any(?SERVICE_OPW),
     Status = rpc:call(Node, autocleaning_api, status, [SpaceId]),
-    onepanel_maps:to_list(onepanel_maps:get_store_multiple([
+    onepanel_maps:get_store_multiple([
         {in_progress, inProgress},
         {space_occupancy, spaceOccupancy}
-    ], Status));
-get_auto_cleaning_status(Ctx) ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-    get_auto_cleaning_status(Ctx#{node => Node}).
+    ], Status).
 
 
 %%-------------------------------------------------------------------
@@ -781,12 +761,10 @@ get_auto_cleaning_status(Ctx) ->
 %% Returns configuration of auto-cleaning mechanism in given space.
 %% @end
 %%-------------------------------------------------------------------
--spec get_auto_cleaning_configuration(Ctx :: service:ctx()) -> proplists:proplist().
-get_auto_cleaning_configuration(#{space_id := SpaceId, node := Node}) ->
-    op_worker_storage:get_auto_cleaning_configuration(Node, SpaceId);
-get_auto_cleaning_configuration(Ctx) ->
+-spec get_auto_cleaning_configuration(Ctx :: service:ctx()) -> #{atom() => term()}.
+get_auto_cleaning_configuration(#{space_id := SpaceId}) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
-    get_auto_cleaning_configuration(Ctx#{node => Node}).
+    op_worker_storage:get_auto_cleaning_configuration(Node, SpaceId).
 
 
 %%-------------------------------------------------------------------
@@ -794,12 +772,10 @@ get_auto_cleaning_configuration(Ctx) ->
 %% Returns configuration of file-popularity mechanism in given space.
 %% @end
 %%-------------------------------------------------------------------
--spec get_file_popularity_configuration(Ctx :: service:ctx()) -> proplists:proplist().
-get_file_popularity_configuration(#{space_id := SpaceId, node := Node}) ->
-    op_worker_storage:get_file_popularity_configuration(Node, SpaceId);
-get_file_popularity_configuration(Ctx) ->
+-spec get_file_popularity_configuration(Ctx :: service:ctx()) -> #{atom() => term()}.
+get_file_popularity_configuration(#{space_id := SpaceId}) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
-    get_file_popularity_configuration(Ctx#{node => Node}).
+    op_worker_storage:get_file_popularity_configuration(Node, SpaceId).
 
 
 %%-------------------------------------------------------------------
@@ -808,17 +784,15 @@ get_file_popularity_configuration(Ctx) ->
 %% @end
 %%-------------------------------------------------------------------
 -spec start_auto_cleaning(Ctx :: service:ctx()) -> ok.
-start_auto_cleaning(#{space_id := SpaceId, node := Node}) ->
+start_auto_cleaning(#{space_id := SpaceId}) ->
+    {ok, Node} = nodes:any(?SERVICE_OPW),
     case rpc:call(Node, autocleaning_api, force_start, [SpaceId]) of
         {ok, _} -> ok;
         {error, {already_started, _}} -> ok;
         {error, nothing_to_clean} -> ok;
         {error, Reason} ->
             ?throw_error({?ERR_AUTOCLEANING, Reason})
-    end;
-start_auto_cleaning(Ctx) ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-    start_auto_cleaning(Ctx#{node => Node}).
+    end.
 
 
 %%-------------------------------------------------------------------
@@ -826,8 +800,8 @@ start_auto_cleaning(Ctx) ->
 %% Marks all configuration steps as already performed.
 %% @end
 %%-------------------------------------------------------------------
--spec mark_configured(service:ctx()) -> ok.
-mark_configured(_Ctx) ->
+-spec mark_configured() -> ok.
+mark_configured() ->
     onepanel_deployment:mark_completed([
         ?PROGRESS_LETSENCRYPT_CONFIG,
         ?PROGRESS_CLUSTER_IPS,
@@ -878,12 +852,11 @@ pop_legacy_letsencrypt_config() ->
 %% @end
 %%-------------------------------------------------------------------
 -spec configure_file_popularity(Ctx :: service:ctx()) -> list().
-configure_file_popularity(#{space_id := SpaceId, node := Node} = Ctx) ->
-    ok = op_worker_storage:maybe_update_file_popularity(Node, SpaceId, Ctx),
-    [{id, SpaceId}];
-configure_file_popularity(Ctx) ->
+configure_file_popularity(#{space_id := SpaceId} = Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
-    configure_file_popularity(Ctx#{node => Node}).
+    Config = maps:without([space_id, hosts], Ctx),
+    ok = op_worker_storage:maybe_update_file_popularity(Node, SpaceId, Config),
+    [{id, SpaceId}].
 
 
 %%-------------------------------------------------------------------
@@ -892,12 +865,11 @@ configure_file_popularity(Ctx) ->
 %% @end
 %%-------------------------------------------------------------------
 -spec configure_auto_cleaning(Ctx :: service:ctx()) -> list().
-configure_auto_cleaning(#{space_id := SpaceId, node := Node} = Ctx) ->
-    ok = op_worker_storage:maybe_update_auto_cleaning(Node, SpaceId, Ctx),
-    [{id, SpaceId}];
-configure_auto_cleaning(Ctx) ->
+configure_auto_cleaning(#{space_id := SpaceId} = Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
-    configure_auto_cleaning(Ctx#{node => Node}).
+    Config = maps:without([space_id, hosts], Ctx),
+    ok = op_worker_storage:maybe_update_auto_cleaning(Node, SpaceId, Config),
+    [{id, SpaceId}].
 
 
 %%--------------------------------------------------------------------
@@ -954,7 +926,6 @@ on_registered(OpwNode, ProviderId, Macaroon) ->
 
     % preload cache
     clusters:get_current_cluster(),
-
     ok.
 
 
@@ -976,14 +947,14 @@ save_provider_auth(OpwNode, ProviderId, Macaroon) ->
 %% @doc Modify provider details regarding its domain or subdomain.
 %% @end
 %%--------------------------------------------------------------------
--spec modify_domain_details(service:ctx()) -> ok.
-modify_domain_details(#{oneprovider_subdomain_delegation := true, node := Node} = Ctx) ->
+-spec modify_domain_details(OpNode :: node(), service:ctx()) -> ok.
+modify_domain_details(OpNode, #{oneprovider_subdomain_delegation := true} = Ctx) ->
     Subdomain = onepanel_utils:typed_get(oneprovider_subdomain, Ctx, binary),
 
-    case rpc:call(Node, provider_logic, is_subdomain_delegated, []) of
+    case rpc:call(OpNode, provider_logic, is_subdomain_delegated, []) of
         {true, Subdomain} -> ok; % no change
         _ ->
-            case rpc:call(Node, provider_logic, set_delegated_subdomain, [Subdomain]) of
+            case rpc:call(OpNode, provider_logic, set_delegated_subdomain, [Subdomain]) of
                 ok ->
                     dns_check:invalidate_cache(op_worker);
                 ?ERROR_BAD_VALUE_IDENTIFIER_OCCUPIED(<<"subdomain">>) ->
@@ -991,13 +962,12 @@ modify_domain_details(#{oneprovider_subdomain_delegation := true, node := Node} 
             end
     end;
 
-modify_domain_details(#{oneprovider_subdomain_delegation := false, node := Node} = Ctx) ->
+modify_domain_details(OpNode, #{oneprovider_subdomain_delegation := false} = Ctx) ->
     Domain = onepanel_utils:typed_get(oneprovider_domain, Ctx, binary),
-    ok = rpc:call(Node, provider_logic, set_domain, [Domain]),
+    ok = rpc:call(OpNode, provider_logic, set_domain, [Domain]),
     dns_check:invalidate_cache(op_worker);
 
-modify_domain_details(#{node := _Node}) ->
-    ok.
+modify_domain_details(_OpNode, _Ctx) -> ok.
 
 
 %%--------------------------------------------------------------------
@@ -1020,8 +990,8 @@ assert_storage_exists(Node, StorageId) ->
 %% Configures storage of a supported space.
 %% @end
 %%--------------------------------------------------------------------
--spec configure_space(Ctx :: service:ctx(), SpaceId :: binary()) -> list().
-configure_space(#{storage_id := StorageId, node := Node} = Ctx, SpaceId) ->
+-spec configure_space(OpNode :: node(), SpaceId :: binary(), Ctx :: service:ctx()) -> list().
+configure_space(Node, SpaceId, #{storage_id := StorageId} = Ctx) ->
     MountInRoot = onepanel_utils:typed_get(mount_in_root, Ctx, boolean, false),
     ImportArgs = maps:get(storage_import, Ctx, #{}),
     UpdateArgs = maps:get(storage_update, Ctx, #{}),

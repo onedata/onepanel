@@ -200,17 +200,17 @@ maybe_update_auto_cleaning(Node, SpaceId, Args) ->
 %% configuration from provider.
 %% @end
 %%-------------------------------------------------------------------
--spec get_file_popularity_configuration(Node :: node(), SpaceId :: id()) -> proplists:proplist().
+-spec get_file_popularity_configuration(Node :: node(), SpaceId :: id()) -> #{atom() => term()}.
 get_file_popularity_configuration(Node, SpaceId) ->
     case rpc:call(Node, file_popularity_api, get_configuration, [SpaceId]) of
         {ok, DetailsMap} ->
-            maps:to_list(onepanel_maps:get_store_multiple([
+            onepanel_maps:get_store_multiple([
                 {[enabled], [enabled]},
                 {[example_query], [exampleQuery]},
                 {[last_open_hour_weight], [lastOpenHourWeight]},
                 {[avg_open_count_per_day_weight], [avgOpenCountPerDayWeight]},
                 {[max_avg_open_count_per_day], [maxAvgOpenCountPerDay]}
-            ], DetailsMap));
+            ], DetailsMap);
         {error, Reason} ->
             ?throw_error({?ERR_FILE_POPULARITY, Reason})
     end.
@@ -221,7 +221,7 @@ get_file_popularity_configuration(Node, SpaceId) ->
 %% provider.
 %% @end
 %%-------------------------------------------------------------------
--spec get_auto_cleaning_configuration(Node :: node(), SpaceId :: id()) -> proplists:proplist().
+-spec get_auto_cleaning_configuration(Node :: node(), SpaceId :: id()) -> #{atom() => term()}.
 get_auto_cleaning_configuration(Node, SpaceId) ->
     DetailsMap = rpc:call(Node, autocleaning_api, get_configuration, [SpaceId]),
     DetailsMap2 = onepanel_maps:get_store_multiple([
@@ -233,7 +233,7 @@ get_auto_cleaning_configuration(Node, SpaceId) ->
         {[rules, max_daily_moving_average], [rules, maxDailyMovingAverage]},
         {[rules, max_monthly_moving_average], [rules, maxMonthlyMovingAverage]}
     ], DetailsMap, DetailsMap),
-    onepanel_lists:undefined_to_null(onepanel_maps:to_list(DetailsMap2)).
+    onepanel_maps:undefined_to_null(DetailsMap2).
 
 %%-------------------------------------------------------------------
 %% @doc
