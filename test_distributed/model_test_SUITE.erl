@@ -196,7 +196,7 @@ upgrade_test(Config) ->
     ?assertEqual({ok, OldRecord},
         rpc:call(Node, model, get, [?MODEL, Key])),
 
-    ok = rpc:call(Node, service_onepanel, init_cluster, [#{}]),
+    ?assertEqual(ok, rpc:call(Node, service_onepanel, init_cluster, [#{}])),
 
     ?assertMatch([ExpectedDoc],
         rpc:call(Node, model, transaction, [fun() ->
@@ -243,7 +243,7 @@ init_per_testcase(upgrade_test, Config) ->
     NewConfig = init_per_testcase(default, Config),
     test_utils:mock_expect(Nodes, ?MODEL, upgrade, fun(1 = _CurrentVsn, Record) ->
         {?MODEL, Key, <<"to-be-upgraded">>} = Record,
-        {?MODEL, Key, <<"upgraded">>, undefined}
+        {2, {?MODEL, Key, <<"upgraded">>, undefined}}
     end),
     test_utils:mock_expect(Nodes, ?MODEL, get_record_version, fun() ->
         2
