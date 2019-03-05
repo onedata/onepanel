@@ -303,7 +303,12 @@ init_per_suite(Config) ->
         onepanel_test_utils:service_action(OzNode, ?SERVICE_OZ, deploy, #{
             cluster => #{
                 ?SERVICE_PANEL => #{
-                    hosts => OzHosts
+                    hosts => OzHosts,
+                    users => #{
+                        ?OZ_USERNAME => #{
+                            password => ?OZ_PASSWORD, userRole => admin
+                        }
+                    }
                 },
                 ?SERVICE_CB => #{
                     hosts => OzHosts
@@ -319,17 +324,10 @@ init_per_suite(Config) ->
                     hosts => OzHosts,
                     letsencrypt_enabled => false
                 }
-            },
-            onepanel => #{
-                users => #{
-                    ?OZ_USERNAME => #{
-                        password => ?OZ_PASSWORD, userRole => admin
-                    }
-                }
             }
         }),
 
-        #onepanel_user{uuid = OnepanelUserId} = ?assertMatch(#onepanel_user{},
+        {ok, #onepanel_user{uuid = OnepanelUserId}} = ?assertMatch({ok, #onepanel_user{}},
             rpc:call(OzNode, onepanel_user, get, [?OZ_USERNAME]),
             ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS
         ),
@@ -341,7 +339,7 @@ init_per_suite(Config) ->
             ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS
         ),
         % @fixme bad code
-        Client = {client, user, OnepanelUserId},
+        Client = {client, user, OnezoneUserId},
 
         {ok, RegistrationToken} = ?assertMatch({ok, _},
             proxy_rpc(OzNode, OzwNode,
@@ -349,6 +347,7 @@ init_per_suite(Config) ->
             ),
             ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS),
 
+        {ok, SerializedToken} = onedata_macaroons:serialize(RegistrationToken),
         [OpNode | _] = OpNodes = ?config(oneprovider_nodes, NewConfig2),
         OpHosts = hosts:from_nodes(OpNodes),
         % We do not have a DNS server that would resolve OZ domain for provider,
@@ -401,7 +400,7 @@ init_per_suite(Config) ->
                 oneprovider_domain => hd(OpHosts),
                 oneprovider_register => true,
                 oneprovider_admin_email => <<"admin@onedata.org">>,
-                oneprovider_token => RegistrationToken
+                oneprovider_token => SerializedToken
             }
         }),
         NewConfig2

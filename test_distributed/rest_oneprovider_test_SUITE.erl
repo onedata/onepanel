@@ -945,8 +945,6 @@ init_per_testcase(Case, Config) when
 init_per_testcase(_Case, Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
     Hosts = ?config(oneprovider_hosts, Config),
-    OzNodes = ?config(onezone_nodes, Config),
-    OpNodes = ?config(oneprovider_nodes, Config),
     Self = self(),
     test_utils:mock_new(Nodes, [service, service_oneprovider]),
     test_utils:mock_expect(Nodes, service, get, fun
@@ -961,12 +959,7 @@ init_per_testcase(_Case, Config) ->
         Self ! {service, Service, Action, Ctx},
         [{task_finished, {service, action, ok}}]
     end),
-    test_utils:mock_expect(OzNodes, zone_tokens, authenticate_by_onezone_access_token, fun
-        (?ONEZONE_TOKEN) -> #client{
-            role = user, privileges = [], zone_auth = ?OZ_AUTH(?ONEZONE_TOKEN),
-            user = #user_details{name = ?OZ_USER_NAME}
-        } end),
-    test_utils:mock_expect(OpNodes, zone_tokens, authenticate_by_onezone_access_token, fun
+    test_utils:mock_expect(Nodes, zone_tokens, authenticate_by_onezone_access_token, fun
         (?ONEZONE_TOKEN) -> #client{
             role = user, privileges = [], zone_auth = ?OP_AUTH(?ONEZONE_TOKEN),
             user = #user_details{name = ?OZ_USER_NAME}
