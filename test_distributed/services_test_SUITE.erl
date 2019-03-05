@@ -64,14 +64,18 @@ all() ->
 %%%===================================================================
 
 service_oneprovider_unregister_register_test(Config) ->
-    [Node | _] = ?config(oneprovider_nodes, Config),
-    onepanel_test_utils:service_action(Node, oneprovider, unregister, #{}),
-    onepanel_test_utils:service_action(Node, oneprovider, register, #{
+    [OzNode | _] = ?config(onezone_nodes, Config),
+    [OpNode | _] = ?config(oneprovider_nodes, Config),
+    onepanel_test_utils:service_action(OpNode, oneprovider, unregister, #{}),
+    % graph sync connection shut down 5 seconds after unregistration
+    timer:sleep(timer:seconds(10)),
+    onepanel_test_utils:service_action(OpNode, oneprovider, register, #{
         oneprovider_geo_latitude => 20.0,
         oneprovider_geo_longitude => 20.0,
         oneprovider_name => <<"provider2">>,
-        oneprovider_domain => hosts:from_node(Node),
-        oneprovider_admin_email => <<"admin@onedata.org">>
+        oneprovider_domain => hosts:from_node(OpNode),
+        oneprovider_admin_email => <<"admin@onedata.org">>,
+        oneprovider_token => get_registration_token(OzNode)
     }).
 
 
@@ -291,7 +295,6 @@ init_per_suite(Config) ->
     Posthook = fun(NewConfig) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
         [OzNode | _] = OzNodes = ?config(onezone_nodes, NewConfig2),
-        OzwNode = nodes:service_to_node(?SERVICE_OZW, OzNode),
         OzHosts = hosts:from_nodes(OzNodes),
         OzIp = test_utils:get_docker_ip(OzNode),
         OzDomain = onepanel_test_utils:get_domain(hd(OzHosts)),
@@ -327,27 +330,6 @@ init_per_suite(Config) ->
             }
         }),
 
-        {ok, #onepanel_user{uuid = OnepanelUserId}} = ?assertMatch({ok, #onepanel_user{}},
-            rpc:call(OzNode, onepanel_user, get, [?OZ_USERNAME]),
-            ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS
-        ),
-
-        {ok, OnezoneUserId} = ?assertMatch({ok, _},
-            proxy_rpc(OzNode, OzwNode, user_logic, acquire_onepanel_user,
-                [OnepanelUserId, ?OZ_USERNAME, ?OZ_PASSWORD]
-            ),
-            ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS
-        ),
-        % @fixme bad code
-        Client = {client, user, OnezoneUserId},
-
-        {ok, RegistrationToken} = ?assertMatch({ok, _},
-            proxy_rpc(OzNode, OzwNode,
-                user_logic, create_provider_registration_token, [Client, OnezoneUserId]
-            ),
-            ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS),
-
-        {ok, SerializedToken} = onedata_macaroons:serialize(RegistrationToken),
         [OpNode | _] = OpNodes = ?config(oneprovider_nodes, NewConfig2),
         OpHosts = hosts:from_nodes(OpNodes),
         % We do not have a DNS server that would resolve OZ domain for provider,
@@ -361,6 +343,7 @@ init_per_suite(Config) ->
         end, OpNodes),
 
         {ok, Posix} = onepanel_lists:get([storages, posix, '/mnt/st1'], NewConfig2),
+        RegistrationToken = get_registration_token(OzNode),
         onepanel_test_utils:service_action(OpNode, ?SERVICE_OP, deploy, #{
             cluster => #{
                 ?SERVICE_PANEL => #{
@@ -400,7 +383,7 @@ init_per_suite(Config) ->
                 oneprovider_domain => hd(OpHosts),
                 oneprovider_register => true,
                 oneprovider_admin_email => <<"admin@onedata.org">>,
-                oneprovider_token => SerializedToken
+                oneprovider_token => RegistrationToken
             }
         }),
         NewConfig2
@@ -497,6 +480,31 @@ regenerate_web_certificate(Nodes, Domain) ->
     {_, []} = rpc:multicall(Nodes, file, copy, [CAPath, WebChainPath]),
 
     rpc:multicall(Nodes, service_op_worker, reload_webcert, [#{}]).
+
+
+get_registration_token(OzNode) ->
+    OzwNode = nodes:service_to_node(?SERVICE_OZW, OzNode),
+    {ok, #onepanel_user{uuid = OnepanelUserId}} = ?assertMatch({ok, #onepanel_user{}},
+        rpc:call(OzNode, onepanel_user, get, [?OZ_USERNAME]),
+        ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS),
+    {ok, OnezoneUserId} = ?assertMatch({ok, _},
+        proxy_rpc(OzNode, OzwNode, user_logic, acquire_onepanel_user,
+            [OnepanelUserId, ?OZ_USERNAME, ?OZ_PASSWORD]
+        ),
+        ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS),
+
+    % @fixme bad code
+    Client = {client, user, OnezoneUserId},
+
+    {ok, RegistrationToken} = ?assertMatch({ok, _},
+        proxy_rpc(OzNode, OzwNode,
+            user_logic, create_provider_registration_token, [Client, OnezoneUserId]
+        ),
+        ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS),
+
+    {ok, SerializedToken} = onedata_macaroons:serialize(RegistrationToken),
+    SerializedToken.
+
 
 %%--------------------------------------------------------------------
 %% @private
