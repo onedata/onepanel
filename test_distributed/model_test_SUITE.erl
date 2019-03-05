@@ -32,7 +32,8 @@
     select_test/1,
     size_test/1,
     clear_test/1,
-    wrapper_test/1
+    wrapper_test/1,
+    upgrade_test/1
 ]).
 
 -define(MODEL, example_model).
@@ -54,7 +55,8 @@ all() ->
         select_test,
         size_test,
         clear_test,
-        wrapper_test
+        wrapper_test,
+        upgrade_test
     ]).
 
 %%%===================================================================

@@ -36,7 +36,7 @@
     post_as_admin_should_create_account/1,
     delete_as_regular_should_remove_only_own_account/1,
     delete_as_admin_should_remove_any_account/1,
-    user_should_alias_users/1
+    current_user_is_resolved/1
 ]).
 
 -define(ADMIN_USER1_NAME, <<"admin1">>).
@@ -311,20 +311,20 @@ delete_as_admin_should_remove_any_account(Config) ->
         {?ADMIN_USER1_NAME, ?ADMIN_USER1_PASSWORD}
     )).
 
-user_should_alias_users(Config) ->
-    {_, _, _, JsonBodyExplicit} = ?assertMatch({ok, 200, _, _},
+current_user_is_resolved(Config) ->
+    {_, _, _, JsonBodyExplicitName} = ?assertMatch({ok, 200, _, _},
         onepanel_test_rest:auth_request(
             Config, <<"/users/", ?REG_USER1_NAME/binary>>,
             get, {?REG_USER1_NAME, ?REG_USER1_PASSWORD}
         )
     ),
-    {_, _, _, JsonBodyImplicit} = ?assertMatch({ok, 200, _, _},
+    {_, _, _, JsonBodyCurrentUser} = ?assertMatch({ok, 200, _, _},
         onepanel_test_rest:auth_request(
             Config, <<"/user">>,
             get, {?REG_USER1_NAME, ?REG_USER1_PASSWORD}
         )
     ),
-    ?assertEqual(JsonBodyExplicit, JsonBodyImplicit),
+    ?assertEqual(JsonBodyExplicitName, JsonBodyCurrentUser),
     ok.
 
 %%%===================================================================
