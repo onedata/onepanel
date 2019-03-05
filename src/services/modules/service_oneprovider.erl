@@ -36,7 +36,7 @@
 
 %% API
 -export([configure/1, check_oz_availability/1, mark_configured/0,
-    register/1, unregister/1, is_registered/1, is_registered/0,
+    register/1, unregister/0, is_registered/1, is_registered/0,
     modify_details/1, get_details/0, get_details/1, get_oz_domain/0,
     support_space/1, revoke_space_support/1, get_spaces/1, is_space_supported/1,
     get_space_details/1, modify_space/1, format_cluster_ips/1,
@@ -229,13 +229,8 @@ get_steps(register, #{hosts := Hosts} = Ctx) ->
 get_steps(register, Ctx) ->
     get_steps(register, Ctx#{hosts => service_op_worker:get_hosts()});
 
-get_steps(unregister, #{hosts := Hosts} = Ctx) ->
-    [
-        #step{hosts = Hosts, function = unregister, selection = any, ctx = Ctx}
-    ];
-
-get_steps(unregister, Ctx) ->
-    get_steps(unregister, Ctx#{hosts => service_op_worker:get_hosts()});
+get_steps(unregister, _Ctx) ->
+    [#step{function = unregister, selection = any, args = []}];
 
 get_steps(set_up_service_in_onezone, _Ctx) ->
     [#step{function = set_up_service_in_onezone, args = [], selection = any}];
@@ -402,16 +397,17 @@ register(Ctx) ->
 %% @doc Unregisters provider in the zone.
 %% @end
 %%--------------------------------------------------------------------
--spec unregister(Ctx :: service:ctx()) -> ok | no_return().
-unregister(#{node := Node}) ->
+-spec unregister() -> ok | no_return().
+unregister() ->
+    {ok, Node} = nodes:any(?SERVICE_OPW),
     ok = oz_providers:unregister(provider),
     rpc:call(Node, provider_auth, delete, []),
 
     onepanel_deployment:mark_not_completed(?PROGRESS_LETSENCRYPT_CONFIG),
-    service:update_ctx(name(), #{registered => false});
-unregister(Ctx) ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-    ?MODULE:unregister(Ctx#{node => Node}).
+    service:update_ctx(name(), fun(ServiceCtx) ->
+        maps:without([cluster, cluster_id],
+            ServiceCtx#{registered => false})
+    end).
 
 
 %%--------------------------------------------------------------------
@@ -492,7 +488,7 @@ get_auth_token() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_details(Ctx :: service:ctx()) -> #{atom() := term()} | no_return().
-get_details(Ctx) ->
+get_details(_Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
 
     % Graph Sync connection is needed to obtain details

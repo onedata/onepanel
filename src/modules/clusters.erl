@@ -114,7 +114,7 @@ get_details({rest, Auth}, ClusterId) ->
     URN = str_utils:format("/clusters/~s", [ClusterId]),
     case zone_rest(URN, Auth) of
         {ok, Map} ->
-            Map2 = maps:without([clusterId], Map),
+            Map2 = maps:without([cluster_id], Map),
             {ok, Map2#{id => ClusterId}};
         Error -> Error
     end.
@@ -145,17 +145,17 @@ list_user_clusters({rest, Auth}) ->
 get_id(Service = onezone) ->
     case zone_rpc(cluster_logic, get_onezone_cluster_id, []) of
         <<Id/binary>> ->
-            store(clusterId, Id, Service);
+            store(cluster_id, Id, Service);
         Error ->
-            fetch(clusterId, Service, Error)
+            fetch(cluster_id, Service, Error)
     end;
 
 get_id(Service = oneprovider) ->
     try service_oneprovider:get_details() of
         #{cluster := <<Id/binary>>} ->
-            store(clusterId, Id, Service)
+            store(cluster_id, Id, Service)
     catch _Type:Error ->
-        fetch(clusterId, Service, ?make_stacktrace(Error))
+        fetch(cluster_id, Service, ?make_stacktrace(Error))
     end.
 
 
