@@ -6,7 +6,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc
-%%% Unit tests for onepanel_deployment module.
+%%% Unit tests for onepanel_session module.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_session_test).
@@ -29,12 +29,12 @@ onepanel_session_test_() ->
     {foreach,
         fun start/0,
         fun stop/1,
-        [
-            {timeout, 30, fun expired_token_is_invalid/0},
-            {timeout, 30, fun token_is_reused/0},
-            {timeout, 30, fun token_is_renewed/0},
-            {timeout, 30, fun expired_tokens_are_cleaned/0}
-        ]
+        [{timeout, 30, Testcase} || Testcase <- [
+            fun expired_token_is_invalid/0,
+            fun token_is_reused/0,
+            fun token_is_renewed/0,
+            fun expired_tokens_are_cleaned/0
+        ]]
     }.
 
 %%%===================================================================
@@ -67,9 +67,6 @@ expired_tokens_are_cleaned() ->
     timer:sleep(timer:seconds(?TOKEN_TTL + 1)),
     ?assertMatch(#onepanel_session{rest_tokens = []},
         onepanel_session:remove_expired_tokens(Session)).
-
-
-
 
 %%%===================================================================
 %%% Test fixtures

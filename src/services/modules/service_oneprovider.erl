@@ -402,6 +402,7 @@ unregister() ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     ok = oz_providers:unregister(provider),
     rpc:call(Node, provider_auth, delete, []),
+    rpc:call(Node, gs_worker, kill_connection, []),
 
     onepanel_deployment:mark_not_completed(?PROGRESS_LETSENCRYPT_CONFIG),
     service:update_ctx(name(), fun(ServiceCtx) ->
@@ -921,7 +922,7 @@ on_registered(OpwNode, ProviderId, Macaroon) ->
     rpc:call(OpwNode, oneprovider, force_oz_connection_start, []),
 
     % preload cache
-    clusters:get_current_cluster(),
+    (catch clusters:get_current_cluster()),
     ok.
 
 

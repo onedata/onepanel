@@ -209,7 +209,7 @@ is_active(#onepanel_session{last_refresh = LastRefresh}) ->
 -spec remove_expired_tokens(Session :: record()) ->
     record().
 remove_expired_tokens(#onepanel_session{rest_tokens = Tokens} = Session) ->
-    Valid = lists:filter(fun is_token_unexpired/1, Tokens),
+    Valid = lists:filter(fun is_token_still_valid/1, Tokens),
     Session#onepanel_session{rest_tokens = Valid}.
 
 
@@ -226,7 +226,7 @@ find_by_valid_token(RestApiToken) ->
         {ok, #onepanel_session{rest_tokens = Tokens} = Session} ->
             case lists:keyfind(RestApiToken, 1, Tokens) of
                 {RestApiToken, _} = Found ->
-                    case is_token_unexpired(Found) of
+                    case is_token_still_valid(Found) of
                         true -> {ok, Session};
                         false -> ?make_error(?ERR_NOT_FOUND)
                     end;
@@ -289,12 +289,12 @@ token_to_session_id(Token) ->
 
 
 %% @private
--spec is_token_unexpired({Token :: rest_api_token(), Expires} | Expires) ->
+-spec is_token_still_valid({Token :: rest_api_token(), Expires} | Expires) ->
     boolean()
     when Expires :: non_neg_integer().
-is_token_unexpired(Expires) when is_integer(Expires) ->
+is_token_still_valid(Expires) when is_integer(Expires) ->
     Now = time_utils:system_time_seconds(),
     Now =< Expires;
 
-is_token_unexpired({_Token, Expires}) ->
-    is_token_unexpired(Expires).
+is_token_still_valid({_Token, Expires}) ->
+    is_token_still_valid(Expires).
