@@ -21,6 +21,6 @@
 TARGET_DIR='_build/default/lib/gui_static'
 # Image which will be used by default to get the static files. If it cannot
 # be resolved, the script will fall back to secondary.
-PRIMARY_IMAGE='docker.onedata.org/onepanel-gui:VFS-5187-spaces-support-fixes'
+PRIMARY_IMAGE='docker.onedata.org/onepanel-gui:VFS-5301-additional-webdav-fields-18.02.1'
 # Image which will be used if primary image is not resolved.
-SECONDARY_IMAGE='onedata/onepanel-gui:VFS-5187-spaces-support-fixes'
+SECONDARY_IMAGE='onedata/onepanel-gui:VFS-5301-additional-webdav-fields-18.02.1'
