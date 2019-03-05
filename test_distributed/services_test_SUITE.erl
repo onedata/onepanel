@@ -438,17 +438,29 @@ end_per_suite(_Config) ->
 %%% Internal functions
 %%%===================================================================
 
+%% @private
+-spec assert_service_step(Module :: module(), Function :: atom()) ->
+    onepanel_rpc:results().
 assert_service_step(Module, Function) ->
     {_, {_, _, {Results, _}}} = ?assertReceivedMatch(
         {step_end, {Module, Function, {_, []}}}, ?TIMEOUT
     ),
     Results.
 
+%% @private
+-spec assert_service_step(Module :: module(), Function :: atom(),
+    Nodes :: [node()], Result :: term()) -> ok.
 assert_service_step(Module, Function, Nodes, Result) ->
     Results = assert_service_step(Module, Function),
-    onepanel_test_utils:assert_values(Results, lists:zip(
-        Nodes, lists:duplicate(erlang:length(Nodes), Result)
-    )).
+    Expected = same_result_for_nodes(Nodes, Result),
+    onepanel_test_utils:assert_values(Results, Expected).
+
+
+%% @private
+-spec same_result_for_nodes(Nodes :: [node()], Result) -> [{node(), Result}]
+    when Result :: term().
+same_result_for_nodes(Nodes, Result) ->
+    [{Node, Result} || Node <- Nodes].
 
 
 %%--------------------------------------------------------------------
