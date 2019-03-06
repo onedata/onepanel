@@ -26,8 +26,8 @@
 -export([get_user_privileges/2]).
 -export([get_current_cluster/0, get_details/2, list_user_clusters/1]).
 
--define(PRIVILEGE_CACHE(Auth), {privileges, Auth}).
--define(PRIVILEGE_CACHE_TTL, onepanel_env:get(token_cache_ttl, ?APP_NAME, 0)).
+-define(PRIVILEGES_CACHE_KEY(Auth), {privileges, Auth}).
+-define(PRIVILEGES_CACHE_TTL, onepanel_env:get(onezone_auth_cache_ttl, ?APP_NAME, 0)).
 
 %%--------------------------------------------------------------------
 %% @doc Returns Id of this cluster.
@@ -65,7 +65,7 @@ get_current_cluster() ->
 -spec get_user_privileges(rest_handler:zone_auth(), onepanel_user:onezone_id()) ->
     {ok, [privileges:cluser_privilege()]} | #error{} | no_return().
 get_user_privileges({rest, RestAuth} = Auth, OnezoneUserId) ->
-    simple_cache:get(?PRIVILEGE_CACHE(Auth), fun() ->
+    simple_cache:get(?PRIVILEGES_CACHE_KEY(Auth), fun() ->
         URN = str_utils:format("/clusters/~s/effective_users/~s/privileges",
             [get_id(), OnezoneUserId]),
         case oz_endpoint:request(RestAuth, URN, get) of
@@ -76,7 +76,7 @@ get_user_privileges({rest, RestAuth} = Auth, OnezoneUserId) ->
             {ok, 200, _, Body} ->
                 #{<<"privileges">> := Privileges} = json_utils:decode(Body),
                 ListOfAtoms = onepanel_utils:convert(Privileges, {seq, atom}),
-                {true, ListOfAtoms, ?PRIVILEGE_CACHE_TTL};
+                {true, ListOfAtoms, ?PRIVILEGES_CACHE_TTL};
             {error, Error} -> ?throw_error(Error)
         end
     end);

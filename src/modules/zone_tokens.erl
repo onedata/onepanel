@@ -26,8 +26,8 @@
 
 -type auth() :: rest_handler:zone_auth().
 
--define(USER_DETAILS_CACHE(Token), {privileges, Token}).
--define(USER_DETAILS_CACHE_TTL, onepanel_env:get(token_cache_ttl, ?APP_NAME, 0)).
+-define(USER_DETAILS_CACHE_KEY(Token), {user_details, Token}).
+-define(USER_DETAILS_CACHE_TTL, onepanel_env:get(onezone_auth_cache_ttl, ?APP_NAME, 0)).
 
 %%%===================================================================
 %%% API functions
@@ -85,7 +85,7 @@ authenticate_by_onezone_access_token(oneprovider, AccessToken) ->
 %% @private
 -spec fetch_details(AccessToken :: binary()) -> {ok, #user_details{}} | #error{}.
 fetch_details(AccessToken) ->
-     simple_cache:get(?USER_DETAILS_CACHE(AccessToken), fun() ->
+     simple_cache:get(?USER_DETAILS_CACHE_KEY(AccessToken), fun() ->
         case oz_users:get_details({access_token, AccessToken}) of
             {ok, Details} ->
                 {true, Details, ?USER_DETAILS_CACHE_TTL};

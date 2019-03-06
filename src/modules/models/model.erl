@@ -181,7 +181,7 @@ exists(Model) ->
 %%--------------------------------------------------------------------
 -spec select(Model :: model(), [MatchSpec]) ->
     Records :: [model_behaviour:record()] | no_return()
-when MatchSpec :: {MatchHead :: tuple() | '_', Guards :: [tuple()]}.
+    when MatchSpec :: {MatchHead :: tuple() | '_', Guards :: [tuple()]}.
 select(Model, MatchSpecs) ->
     DocSpecs = [{#document{value = MatchHead, _ = '_'}, Guards, ['$_']}
         || {MatchHead, Guards} <- MatchSpecs],

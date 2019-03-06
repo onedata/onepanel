@@ -201,7 +201,7 @@
         {onezone_configuration_uri, "/api/v3/onezone/configuration"},
 
         %% Time in milliseconds during which user tokens are cached in op_panel
-        {token_cache_ttl, 60000},
+        {onezone_auth_cache_ttl, 60000},
 
         {onepanel_vm_args_file, "{{platform_etc_dir}}/vm.args"},
         {onepanel_legacy_config_file, "{{platform_etc_dir}}/app.config"},
