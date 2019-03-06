@@ -64,7 +64,7 @@ all() ->
         post_as_admin_should_create_account,
         delete_as_regular_should_remove_only_own_account,
         delete_as_admin_should_remove_any_account,
-        user_should_alias_users
+        current_user_is_resolved
     ]).
 
 %%%===================================================================
