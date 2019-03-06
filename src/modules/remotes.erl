@@ -31,7 +31,9 @@
 -spec fetch_zone_info(Domain :: binary()) -> #{atom() := atom() | binary()}.
 fetch_zone_info(Domain) ->
     Url = configuration_url(Domain),
-    case http_client:get(Url, #{}, <<>>, [{ssl_options, [{secure, false}]}]) of
+    CaCerts = cert_utils:load_ders_in_dir(oz_plugin:get_cacerts_dir()),
+    Opts = [{ssl_options, [{secure, true}, {cacerts, CaCerts}]}],
+    case http_client:get(Url, #{}, <<>>, Opts) of
         {ok, _, _, Response} ->
             Map = onepanel_utils:convert(json_utils:decode(Response), {keys, atom}),
             #{version := OzVersion, compatibleOneproviderVersions := CompatOps} = Map,

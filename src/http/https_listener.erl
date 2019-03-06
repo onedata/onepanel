@@ -246,7 +246,8 @@ maybe_trust_test_ca() ->
         true ->
             CAPath = onepanel_env:get(test_web_cert_ca_path),
             CaFile = filename:basename(CAPath),
-            file:copy(CAPath, filename:join(oz_plugin:get_cacerts_dir(), CaFile)),
+            TargetCaFile = filename:join(oz_plugin:get_cacerts_dir(), CaFile),
+            file:copy(CAPath, TargetCaFile),
             ?warning("Added '~s' to trusted certificates. Use only for test purposes.", [
                 CaFile
             ])

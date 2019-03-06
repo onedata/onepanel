@@ -66,6 +66,7 @@ get_oz_rest_api_prefix() ->
 %%--------------------------------------------------------------------
 -spec get_cacerts_dir() -> file:name_all().
 get_cacerts_dir() ->
+    % called by https_listener before op-worker is available
     onepanel_env:get(cacerts_dir).
 
 
