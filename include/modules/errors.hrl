@@ -97,6 +97,7 @@
 -define(ERR_NIF_NOT_LOADED, nif_not_loaded).
 -define(ERR_CMD_FAILURE(Code, Output), {shell_command_failure, {Code, Output}}).
 -define(ERR_FAILURE_ON_ALL_NODES, failure_on_all_nodes).
+-define(ERR_BAD_UPGRADE, bad_upgrade).
 -define(ERR_UPGRADE_FROM_FUTURE_ERROR(Model, CurrentVsn, TargetVsn),
     {future_version, Model, CurrentVsn, TargetVsn}).
 -define(ERR_SERVICE_STEP_NOT_FOUND, service_step_not_found).

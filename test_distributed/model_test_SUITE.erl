@@ -33,7 +33,8 @@
     size_test/1,
     clear_test/1,
     wrapper_test/1,
-    upgrade_test/1
+    upgrade_test/1,
+    upgrade_loop_is_detected_test/1
 ]).
 
 -define(MODEL, example_model).
@@ -56,7 +57,8 @@ all() ->
         size_test,
         clear_test,
         wrapper_test,
-        upgrade_test
+        upgrade_test,
+        upgrade_loop_is_detected_test
     ]).
 
 %%%===================================================================
@@ -179,16 +181,10 @@ upgrade_test(Config) ->
     [Node | _] = ?config(onepanel_nodes, Config),
     Key = 123,
     OldRecord = {?MODEL, Key, <<"to-be-upgraded">>},
-    OldDoc = #document{
-        key = Key,
-        version = 1,
-        value = OldRecord
-    },
+    OldDoc = #document{key = Key, version = 1, value = OldRecord},
+
     ExpectedRecord = {?MODEL, Key, <<"upgraded">>, undefined},
-    ExpectedDoc = OldDoc#document{
-        value = ExpectedRecord,
-        version = 2
-    },
+    ExpectedDoc = OldDoc#document{value = ExpectedRecord, version = 2},
 
     ?assertEqual(ok, rpc:call(Node, model, transaction, [fun() ->
         mnesia:write(?MODEL, OldDoc, write)
@@ -204,6 +200,20 @@ upgrade_test(Config) ->
         end])),
     ?assertEqual({ok, ExpectedRecord},
         rpc:call(Node, model, get, [?MODEL, Key])).
+
+
+% upgrade function returning old version numbre as new should not cause infinite loop
+upgrade_loop_is_detected_test(Config) ->
+    [Node | _] = ?config(onepanel_nodes, Config),
+    Key = 123,
+    OldRecord = {?MODEL, Key, <<"to-be-upgraded">>},
+    OldDoc = #document{key = Key, version = 1, value = OldRecord},
+
+    ?assertEqual(ok, rpc:call(Node, model, transaction, [fun() ->
+        mnesia:write(?MODEL, OldDoc, write)
+    end])),
+
+    ?assertMatch(#error{}, rpc:call(Node, service_onepanel, init_cluster, [#{}])).
 
 
 %%%===================================================================
@@ -245,9 +255,18 @@ init_per_testcase(upgrade_test, Config) ->
         {?MODEL, Key, <<"to-be-upgraded">>} = Record,
         {2, {?MODEL, Key, <<"upgraded">>, undefined}}
     end),
-    test_utils:mock_expect(Nodes, ?MODEL, get_record_version, fun() ->
-        2
+    test_utils:mock_expect(Nodes, ?MODEL, get_record_version, fun() -> 2 end),
+    NewConfig;
+
+init_per_testcase(upgrade_loop_is_detected_test, Config) ->
+    Nodes = ?config(onepanel_nodes, Config),
+    NewConfig = init_per_testcase(default, Config),
+    test_utils:mock_expect(Nodes, ?MODEL, upgrade, fun(CurrentVsn, Record) ->
+        {?MODEL, Key, <<"to-be-upgraded">>} = Record,
+        % simulate incorrect new version number
+        {CurrentVsn, {?MODEL, Key, <<"upgraded">>, undefined}}
     end),
+    test_utils:mock_expect(Nodes, ?MODEL, get_record_version, fun() -> 2 end),
     NewConfig;
 
 init_per_testcase(_Case, Config) ->

@@ -254,9 +254,13 @@ upgrade(TargetVsn, CurrentVsn, Model, _Record)
     ?throw_error(?ERR_UPGRADE_FROM_FUTURE_ERROR(Model, CurrentVsn, TargetVsn));
 
 upgrade(TargetVsn, CurrentVsn, Model, Record) ->
-    {CurrentVsn2, Record2} = Model:upgrade(CurrentVsn, Record),
-
-    upgrade(TargetVsn, CurrentVsn2, Model, Record2).
+    case Model:upgrade(CurrentVsn, Record) of
+        {CurrentVsn, _} ->
+            ?critical("Upgrade function for model ~s did not increase version number", [Model]),
+            ?throw_error(?ERR_BAD_UPGRADE);
+        {NewVersion, NewRecord} ->
+            upgrade(TargetVsn, NewVersion, Model, NewRecord)
+    end.
 
 
 %%%===================================================================
