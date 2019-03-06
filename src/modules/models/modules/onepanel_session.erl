@@ -35,6 +35,9 @@
 
 -export_type([id/0, rest_api_token/0]).
 
+-define(NOW(), time_utils:system_time_seconds()).
+-define(TOKEN_TTL, onepanel_env:get(rest_token_ttl)).
+
 %%%===================================================================
 %%% Model behaviour callbacks
 %%%===================================================================
@@ -244,15 +247,12 @@ find_by_valid_token(RestApiToken) ->
 %%--------------------------------------------------------------------
 -spec maybe_update_token(Session :: record()) -> record().
 maybe_update_token(Session) ->
-    Now = time_utils:system_time_seconds(),
-    TTL = onepanel_env:get(rest_token_ttl),
-
     Id = Session#onepanel_session.id,
     Tokens = Session#onepanel_session.rest_tokens,
 
     ShouldUpdate = case Tokens of
         [] -> true;
-        [{_Newest, Expires} | _] -> Expires - Now < (TTL div 2)
+        [{_Newest, Expires} | _] -> is_token_near_expiration(Expires)
     end,
 
     case ShouldUpdate of
@@ -274,7 +274,7 @@ maybe_update_token(Session) ->
     {rest_api_token(), Expires :: non_neg_integer()}.
 generate_api_token(SessionId) ->
     UUID = onepanel_utils:gen_uuid(),
-    Expires = time_utils:system_time_seconds() + onepanel_env:get(rest_token_ttl),
+    Expires = ?NOW() + ?TOKEN_TTL,
     Token = onepanel_utils:join([?ONEPANEL_TOKEN_PREFIX, SessionId, UUID],
         <<?ONEPANEL_TOKEN_SEPARATOR>>),
     {Token, Expires}.
@@ -293,8 +293,12 @@ token_to_session_id(Token) ->
     boolean()
     when Expires :: non_neg_integer().
 is_token_still_valid(Expires) when is_integer(Expires) ->
-    Now = time_utils:system_time_seconds(),
-    Now =< Expires;
+    ?NOW() =< Expires;
 
 is_token_still_valid({_Token, Expires}) ->
     is_token_still_valid(Expires).
+
+
+-spec is_token_near_expiration(ExpiresAt :: non_neg_integer()) -> boolean().
+is_token_near_expiration(ExpiresAt) ->
+    ExpiresAt - ?NOW() < (?TOKEN_TTL div 2).

@@ -47,7 +47,7 @@ is_authorized(Req, _Method, #rstate{resource = user, bindings = #{username := Us
 % resource defaulting to current user
 is_authorized(Req, Method, #rstate{resource = current_user, client = #client{role = Role}} = State)
     when Role == user; Role == regular; Role == admin ->
-    is_authorized(Req, Method, current_user_to_user(State));
+    is_authorized(Req, Method, expand_current_user(State));
 
 is_authorized(Req, _Method, _State) ->
     {false, Req}.
@@ -63,7 +63,7 @@ exists_resource(Req, #rstate{resource = user, bindings = #{username := Username}
     {onepanel_user:exists(Username), Req};
 
 exists_resource(Req, #rstate{resource = current_user} = State) ->
-    exists_resource(Req, current_user_to_user(State));
+    exists_resource(Req, expand_current_user(State));
 
 exists_resource(Req, _State) ->
     {true, Req}.
@@ -107,7 +107,7 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = user,
     {true, Req};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = current_user} = State) ->
-    accept_resource(Req, 'PATCH', Args, current_user_to_user(State)).
+    accept_resource(Req, 'PATCH', Args, expand_current_user(State)).
 
 
 %%--------------------------------------------------------------------
@@ -129,7 +129,7 @@ provide_resource(Req, #rstate{resource = user, bindings = #{username := Username
     {#{userId => UserId, userRole => Role, username => Username}, Req};
 
 provide_resource(Req, #rstate{resource = current_user} = State) ->
-    provide_resource(Req, current_user_to_user(State)).
+    provide_resource(Req, expand_current_user(State)).
 
 
 %%--------------------------------------------------------------------
@@ -143,7 +143,7 @@ delete_resource(Req, #rstate{bindings = #{username := Username}}) ->
     {true, Req};
 
 delete_resource(Req, #rstate{resource = current_user} = State) ->
-    delete_resource(Req, current_user_to_user(State)).
+    delete_resource(Req, expand_current_user(State)).
 
 
 %%%===================================================================
@@ -169,13 +169,14 @@ format_usernames(Users) ->
 %% adding 'username' binding with the name of the authenticated user.
 %% @end
 %%--------------------------------------------------------------------
--spec current_user_to_user(rest_handler:state()) -> rest_handler:state().
-current_user_to_user(#rstate{resource = current_user} = State) ->
+-spec expand_current_user(rest_handler:state()) -> rest_handler:state().
+expand_current_user(#rstate{resource = current_user} = State) ->
     Username = get_username(State#rstate.client),
     Bindings = State#rstate.bindings,
-    Bindings2 = Bindings#{username => Username},
-    State#rstate{resource = user, bindings = Bindings2}.
+    NewBindings = Bindings#{username => Username},
+    State#rstate{resource = user, bindings = NewBindings}.
 
 
+%% @private
 -spec get_username(#client{}) -> onepanel_user:name().
 get_username(#client{user = #user_details{name = Username}}) -> Username.
