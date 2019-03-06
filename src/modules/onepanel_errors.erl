@@ -29,20 +29,19 @@
 -spec create(Module :: module(), Function :: atom(), Arity :: arity(),
     Args :: term(), Reason :: term(), Stacktrace :: term(), Line :: non_neg_integer()) ->
     #error{}.
-create(Module, Function, Arity, Args, {ErrorKind, #error{} = Reason}, Stacktrace, Line)
-    when ErrorKind == error; ErrorKind == badmatch;
-    ErrorKind == case_clause; ErrorKind == try_clause ->
+create(Module, Function, Arity, Args, {error, #error{} = Reason}, Stacktrace, Line) ->
+    create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
+create(Module, Function, Arity, Args, {badmatch, #error{} = Reason}, Stacktrace, Line) ->
+    create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
+create(Module, Function, Arity, Args, {case_clause, #error{} = Reason}, Stacktrace, Line) ->
+    create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
+create(Module, Function, Arity, Args, {try_clause, #error{} = Reason}, Stacktrace, Line) ->
     create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
 
-create(_Module, _Function, _Arity, _Args, #error{} = Previous,
-    NewStacktrace, _Line) ->
-    #error{module = Module, function = Function, arity = Arity, args = Args,
-        reason = Reason, stacktrace = OldStacktrace, line = Line} = Previous,
-    Stacktrace = case OldStacktrace of
-        [] -> NewStacktrace;
-        _ -> OldStacktrace
-    end,
-    create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
+create(_, _, _, _, #error{stacktrace = []} = Reason, NewStacktrace, _) ->
+    Reason#error{stacktrace = NewStacktrace};
+create(_, _, _, _, #error{} = Reason, _, _) ->
+    Reason;
 
 create(Module, Function, Arity, Args, Reason, Stacktrace, Line) ->
     #error{module = Module, function = Function, arity = Arity, args = Args,
