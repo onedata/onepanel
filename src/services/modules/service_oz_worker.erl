@@ -40,7 +40,7 @@
 -export([get_logic_client/1, get_user_details/1]).
 
 -define(INIT_SCRIPT, "oz_worker").
--define(DETAILS_CACHE, details).
+-define(DETAILS_CACHE_KEY, onezone_details).
 -define(DETAILS_CACHE_TTL, timer:minutes(1)).
 
 %%%===================================================================
@@ -129,7 +129,7 @@ configure(Ctx) ->
     % TODO VFS-4140 Mark IPs configured only in batch mode
     onepanel_deployment:mark_completed(?PROGRESS_CLUSTER_IPS),
 
-    simple_cache:clear(?DETAILS_CACHE),
+    simple_cache:clear(?DETAILS_CACHE_KEY),
     service_cluster_worker:configure(Ctx#{
         name => name(),
         app_config => #{
@@ -318,7 +318,7 @@ get_domain() ->
 -spec get_details(service:ctx()) ->
     #{name := binary() | undefined, domain := binary() | undefined}.
 get_details(_Ctx) ->
-    {ok, Cached} = simple_cache:get(?DETAILS_CACHE, fun() ->
+    {ok, Cached} = simple_cache:get(?DETAILS_CACHE_KEY, fun() ->
         {_, Node} = nodes:any_with(name()),
         case rpc:call(Node, ?MODULE, get_details, []) of
             Map when is_map(Map) -> {true, Map, ?DETAILS_CACHE_TTL};

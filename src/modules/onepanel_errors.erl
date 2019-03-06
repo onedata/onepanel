@@ -16,7 +16,14 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([create/7, translate/2]).
+-export([create/7, translate/2, format_error/1]).
+
+-define(FORMAT_NONEMPTY(Variable), case Variable of
+    undefined -> "";
+    [] -> "";
+    Value -> io_lib:format("~s: ~tp~n", [??Variable, Variable])
+end).
+
 
 %%%===================================================================
 %%% API functions
@@ -252,15 +259,22 @@ translate(_Type, #error{reason = {error, {Code, Error, Description}}})
     when is_integer(Code), is_binary(Error), is_binary(Description) ->
     {<<"Operation Error">>, Error};
 
-translate(_Type, #error{module = Module, function = Function, arity = Arity,
-    args = Args, reason = Reason, stacktrace = Stacktrace, line = Line}) ->
-    ?error("Function: ~p:~p/~p~nArgs: ~p~nReason: ~p~nStacktrace: ~p~n"
-    "Line: ~p~n", [Module, Function, Arity, Args, Reason, Stacktrace, Line]),
+translate(_Type, #error{} = Error) ->
+    ?error("~s", [format_error(Error)]),
     {<<"Internal Error">>, <<"Server encountered an unexpected error.">>};
 
 translate(Type, Reason) ->
     ?error("Type: ~p~nReason: ~p~n", [Type, Reason]),
     erlang:raise(Type, Reason, []).
+
+
+-spec format_error(#error{}) -> list().
+format_error(#error{module = Module, function = Function, arity = Arity,
+    args = Args, reason = Reason, stacktrace = Stacktrace, line = Line}) ->
+    io_lib:format("Function: ~p:~p/~p~n~tsReason: ~tp~n~ts"
+    "Line: ~p~n", [Module, Function, Arity, ?FORMAT_NONEMPTY(Args),
+        Reason, ?FORMAT_NONEMPTY(Stacktrace), Line]).
+
 
 %%%===================================================================
 %%% Internal functions
