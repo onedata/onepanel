@@ -17,9 +17,9 @@
 -include_lib("ctool/include/api_errors.hrl").
 -include_lib("ctool/include/logging.hrl").
 
--type cluster_id() :: binary().
+-type id() :: binary().
 
--export_type([cluster_id/0]).
+-export_type([id/0]).
 
 %% API
 -export([get_id/0]).
@@ -33,7 +33,7 @@
 %% @doc Returns Id of this cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec get_id() -> cluster_id().
+-spec get_id() -> id().
 get_id() ->
     get_id(onepanel_env:get_release_type()).
 
@@ -93,7 +93,7 @@ get_user_privileges({rpc, LogicClient}, OnezoneUserId) ->
 %% @doc Returns protected details of a cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec get_details(Auth :: rest_handler:zone_auth(), ClusterId :: cluster_id()) ->
+-spec get_details(Auth :: rest_handler:zone_auth(), ClusterId :: id()) ->
     {ok, #{atom() := term()}} | #error{}.
 get_details({rpc, Auth}, ClusterId) ->
     {ok, OzNode} = nodes:any(?SERVICE_OZW),
@@ -125,7 +125,7 @@ get_details({rest, Auth}, ClusterId) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec list_user_clusters(rest_handler:zone_auth()) ->
-    {ok, [cluster_id()]} | #error{}.
+    {ok, [id()]} | #error{}.
 list_user_clusters({rpc, Auth}) ->
     zone_rpc(user_logic, get_clusters, [Auth]);
 
@@ -141,7 +141,7 @@ list_user_clusters({rest, Auth}) ->
 %%%===================================================================
 
 %% @private
--spec get_id(Release :: onezone | oneprovider) -> cluster_id() | no_return().
+-spec get_id(Release :: onezone | oneprovider) -> id() | no_return().
 get_id(Service = onezone) ->
     case zone_rpc(cluster_logic, get_onezone_cluster_id, []) of
         <<Id/binary>> ->
