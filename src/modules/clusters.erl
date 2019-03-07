@@ -54,7 +54,7 @@ get_current_cluster() ->
         {ok, Details} = get_details(Auth, get_id()),
         store(cluster, Details, Service)
     catch _Type:Error ->
-        fetch(cluster, Service, ?make_stacktrace(Error))
+        fetch_or_throw(cluster, Service, ?make_stacktrace(Error))
     end.
 
 
@@ -167,7 +167,7 @@ get_id(Service = onezone) ->
         <<Id/binary>> ->
             store(cluster_id, Id, Service);
         Error ->
-            fetch(cluster_id, Service, Error)
+            fetch_or_throw(cluster_id, Service, Error)
     end;
 
 get_id(Service = oneprovider) ->
@@ -175,7 +175,7 @@ get_id(Service = oneprovider) ->
         #{cluster := <<Id/binary>>} ->
             store(cluster_id, Id, Service)
     catch _Type:Error ->
-        fetch(cluster_id, Service, ?make_stacktrace(Error))
+        fetch_or_throw(cluster_id, Service, ?make_stacktrace(Error))
     end.
 
 
@@ -226,9 +226,9 @@ store(Key, Value, Service) ->
 %% Throws given Error on failure.
 %% @end
 %%--------------------------------------------------------------------
--spec fetch(Key :: term(), Service :: service:name(), ErrorResult :: term()) ->
+-spec fetch_or_throw(Key :: term(), Service :: service:name(), ErrorResult :: term()) ->
     FoundValue :: term().
-fetch(Key, Service, Error) ->
+fetch_or_throw(Key, Service, Error) ->
     case service:get_ctx(Service) of
         #{Key := Value} -> Value;
         _ -> throw(Error)
