@@ -889,8 +889,8 @@ set_up_service_in_onezone() ->
             ?info("Uploading GUI to Onezone (~s)", [GuiHash]),
             {ok, 200, _, _} = oz_endpoint:request(
                 provider,
-                str_utils:format("/gui-upload/op_panel/~s", [GuiHash]),
-                put,
+                "/gui-upload/op_panel",
+                post,
                 {multipart, [{file, list_to_binary(GuiPackagePath)}]},
                 [{endpoint, gui}]
             ),
