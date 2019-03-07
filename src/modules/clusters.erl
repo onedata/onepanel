@@ -67,18 +67,16 @@ get_current_cluster() ->
     {ok, [privileges:cluser_privilege()]} | #error{} | no_return().
 get_user_privileges({rest, RestAuth} = Auth, OnezoneUserId) ->
     simple_cache:get(?PRIVILEGES_CACHE_KEY(Auth), fun() ->
-        URN = str_utils:format("/clusters/~s/effective_users/~s/privileges",
-            [get_id(), OnezoneUserId]),
-        case oz_endpoint:request(RestAuth, URN, get) of
-            {ok, 401, _, _} ->
-                ?make_error(?ERR_UNAUTHORIZED);
-            {ok, 404, _, _} ->
-                ?make_error(?ERR_USER_NOT_IN_CLUSTER);
-            {ok, 200, _, Body} ->
-                #{<<"privileges">> := Privileges} = json_utils:decode(Body),
+        case zone_rest(Auth, "/clusters/~s/effective_users/~s/privileges",
+            [get_id(), OnezoneUserId]) of
+            {ok, #{privileges := Privileges}} ->
                 ListOfAtoms = onepanel_utils:convert(Privileges, {seq, atom}),
                 {true, ListOfAtoms, ?PRIVILEGES_CACHE_TTL};
-            {error, Error} -> ?throw_error(Error)
+            #error{reason = {{401, _, _}}} ->
+                ?make_error(?ERR_UNAUTHORIZED);
+            #error{reason = {{404, _, _}}} ->
+                ?make_error(?ERR_USER_NOT_IN_CLUSTER);
+            #error{} = Error -> throw(Error)
         end
     end);
 
@@ -97,8 +95,7 @@ get_user_privileges({rpc, LogicClient}, OnezoneUserId) ->
 -spec get_details(Auth :: rest_handler:zone_auth(), ClusterId :: id()) ->
     {ok, #{atom() := term()}} | #error{}.
 get_details({rpc, Auth}, ClusterId) ->
-    {ok, OzNode} = nodes:any(?SERVICE_OZW),
-    case rpc:call(OzNode, cluster_logic, get_protected_data, [Auth, ClusterId]) of
+    case zone_rpc(cluster_logic, get_protected_data, [Auth, ClusterId]) of
         {ok, ClusterData} ->
             {ok, onepanel_maps:get_store_multiple([
                 {<<"onepanelVersion">>, onepanelVersion},
@@ -107,8 +104,7 @@ get_details({rpc, Auth}, ClusterId) ->
                 {<<"serviceId">>, serviceId},
                 {<<"type">>, type}
             ], ClusterData, #{id => ClusterId})};
-        {error, Reason} ->
-            ?make_error(Reason)
+        Error -> Error
     end;
 
 get_details({rest, Auth}, ClusterId) ->
