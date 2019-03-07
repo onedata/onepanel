@@ -111,8 +111,7 @@ get_details({rpc, Auth}, ClusterId) ->
     end;
 
 get_details({rest, Auth}, ClusterId) ->
-    URN = str_utils:format("/clusters/~s", [ClusterId]),
-    case zone_rest(URN, Auth) of
+    case zone_rest(Auth, "/clusters/~s", [ClusterId]) of
         {ok, Map} ->
             Map2 = maps:without([cluster_id], Map),
             {ok, Map2#{id => ClusterId}};
@@ -130,7 +129,7 @@ list_user_clusters({rpc, Auth}) ->
     zone_rpc(user_logic, get_clusters, [Auth]);
 
 list_user_clusters({rest, Auth}) ->
-    case zone_rest("/user/clusters/", Auth) of
+    case zone_rest(Auth, "/user/clusters/", []) of
         {ok, #{clusters := Ids}} -> {ok, Ids};
         #error{} = Error -> Error
     end.
@@ -172,9 +171,10 @@ zone_rpc(Module, Function, Args) ->
 
 
 %% @private
--spec zone_rest(URN :: string(), Auth :: oz_plugin:auth()) ->
-    {ok, #{atom() => term()}} | #error{}.
-zone_rest(URN, Auth) ->
+-spec zone_rest(Auth :: oz_plugin:auth(), URNFormat :: string(),
+    FormatArgs :: [term()]) -> {ok, #{atom() => term()}} | #error{}.
+zone_rest(Auth, URNFormat, FormatArgs) ->
+    URN = str_utils:format(URNFormat, FormatArgs),
     case oz_endpoint:request(Auth, URN, get) of
         {ok, 200, _, BodyJson} ->
             Parsed = onepanel_utils:convert(json_utils:decode(BodyJson), {keys, atom}),
