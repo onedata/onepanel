@@ -194,7 +194,7 @@ wait_for_init(Ctx) ->
 
     % Couchbase reports healthy status before it's ready to serve requests.
     % This delay provides additional margin of error before starting workers.
-    Delay = application:get_env(onepanel, couchbase_init_delay, 0),
+    Delay = application:get_env(onepanel, couchbase_after_init_delay, 0),
     timer:sleep(Delay).
 
 
@@ -283,7 +283,7 @@ rebalance_cluster(Ctx) ->
 
     % Couchbase reports healthy status before it's ready to serve requests.
     % This delay provides additional margin of error before starting workers.
-    Delay = application:get_env(onepanel, couchbase_init_delay, 0),
+    Delay = application:get_env(onepanel, couchbase_after_init_delay, 0),
     timer:sleep(Delay).
 
 %%%===================================================================
