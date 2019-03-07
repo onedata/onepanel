@@ -110,7 +110,7 @@ get_details({rpc, Auth}, ClusterId) ->
 get_details({rest, Auth}, ClusterId) ->
     case zone_rest(Auth, "/clusters/~s", [ClusterId]) of
         {ok, Map} ->
-            Map2 = maps:without([cluster_id], Map),
+            Map2 = maps:without([clusterId], Map),
             {ok, Map2#{id => ClusterId}};
         Error -> Error
     end.

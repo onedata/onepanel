@@ -132,8 +132,8 @@ get_should_return_clusters_list_test(Config) ->
                 {access_token, ?ACCESS_TOKEN}
             )
         ),
-        onepanel_test_rest:assert_body_values(JsonBody,
-            [{<<"ids">>, maps:keys(?CLUSTERS)}])
+        onepanel_test_rest:assert_body(JsonBody,
+            #{<<"ids">> => maps:keys(?CLUSTERS)})
     end, Hosts).
 
 
@@ -150,12 +150,11 @@ get_should_return_cluster_details_test(Config) ->
             Expected = onepanel_maps:get_store_multiple([
                 {<<"type">>, <<"type">>},
                 {<<"workerVersion">>, <<"workerVersion">>},
-                {<<"panelVersion">>, <<"panelVersion">>},
+                {<<"onepanelVersion">>, <<"onepanelVersion">>},
                 {<<"serviceId">>, <<"serviceId">>},
                 {<<"onepanelProxy">>, <<"onepanelProxy">>}
             ], maps:get(ClusterId, ?CLUSTERS), #{<<"id">> => ClusterId}),
-            onepanel_test_rest:assert_body_values(JsonBody,
-                maps:to_list(Expected))
+            onepanel_test_rest:assert_body(JsonBody, Expected)
         end, maps:keys(?CLUSTERS))
     end, Hosts).
 
@@ -170,16 +169,16 @@ get_should_return_provider_info(Config) ->
                 {access_token, ?ACCESS_TOKEN}
             )
         ),
-        Expected = [
-            {<<"id">>, ?PROVIDER_ID},
-            {<<"name">>, <<"providerName">>},
-            {<<"online">>, true},
-            {<<"domain">>, <<"providerDomain">>},
-            {<<"geoLongitude">>, 42.0},
-            {<<"geoLatitude">>, 7.0},
-            {<<"cluster">>, ?PROVIDER_CLUSTER_ID}
-        ],
-        onepanel_test_rest:assert_body_values(JsonBody, Expected)
+        Expected = #{
+            <<"id">> => ?PROVIDER_ID,
+            <<"name">> => <<"providerName">>,
+            <<"online">> => true,
+            <<"domain">> => <<"providerDomain">>,
+            <<"geoLongitude">> => 42.0,
+            <<"geoLatitude">> => 7.0,
+            <<"cluster">> => ?PROVIDER_CLUSTER_ID
+        },
+        onepanel_test_rest:assert_body(JsonBody, Expected)
     end, Hosts).
 
 %%%===================================================================
