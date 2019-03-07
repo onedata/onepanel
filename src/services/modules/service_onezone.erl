@@ -232,7 +232,7 @@ set_up_service_in_onezone() ->
 
     {BuildVersion, AppVersion} = onepanel_app:get_build_and_version(),
 
-    {rpc, Client} = remotes:root_auth(),
+    {rpc, Client} = zone_client:root_auth(),
     VersionInfo = {AppVersion, BuildVersion, GuiHash},
     ok = rpc:call(OzNode, cluster_logic, update_version_info,
         [Client, clusters:get_id(), ?ONEPANEL_SERVICE, VersionInfo]),

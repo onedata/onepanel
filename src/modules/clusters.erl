@@ -25,6 +25,7 @@
 -export([get_id/0]).
 -export([get_user_privileges/2]).
 -export([get_current_cluster/0, get_details/2, list_user_clusters/1]).
+-export([fetch_provider_info/2]).
 
 -define(PRIVILEGES_CACHE_KEY(Auth), {privileges, Auth}).
 -define(PRIVILEGES_CACHE_TTL, onepanel_env:get(onezone_auth_cache_ttl, ?APP_NAME, 0)).
@@ -49,7 +50,7 @@ get_id() ->
 get_current_cluster() ->
     Service = onepanel_env:get_release_type(),
     try
-        Auth = remotes:root_auth(),
+        Auth = zone_client:root_auth(),
         {ok, Details} = get_details(Auth, get_id()),
         store(cluster, Details, Service)
     catch _Type:Error ->
@@ -135,6 +136,26 @@ list_user_clusters({rest, Auth}) ->
     end.
 
 
+%%--------------------------------------------------------------------
+%% @doc Fetches information about a remote provider.
+%% User must belong to its cluster.
+%% @end
+%%--------------------------------------------------------------------
+-spec fetch_provider_info(Auth :: rest_handler:zone_auth(), ProviderId :: binary()) ->
+    #{binary() := term()}.
+fetch_provider_info({rpc, Client}, ProviderId) ->
+    {ok, OzNode} = nodes:any(?SERVICE_OZW),
+    {ok, ProviderData} = rpc:call(
+        OzNode, provider_logic, get_protected_data, [Client, ProviderId]
+    ),
+    format_provider_info(ProviderData);
+
+fetch_provider_info({rest, RestAuth}, ProviderId) ->
+    URN = "/providers/" ++ binary_to_list(ProviderId),
+    {ok, 200, _, BodyJson} = oz_endpoint:request(RestAuth, URN, get),
+    format_provider_info(json_utils:decode(BodyJson)).
+
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -212,3 +233,18 @@ fetch(Key, Service, Error) ->
         #{Key := Value} -> Value;
         _ -> throw(Error)
     end.
+
+
+%% @private
+-spec format_provider_info(OzResponse :: #{binary() => term()}) ->
+    #{binary() => term()}.
+format_provider_info(OzResponse) ->
+    onepanel_maps:get_store_multiple([
+        {<<"providerId">>, <<"id">>},
+        {<<"name">>, <<"name">>},
+        {<<"domain">>, <<"domain">>},
+        {<<"longitude">>, <<"geoLongitude">>},
+        {<<"latitude">>, <<"geoLatitude">>},
+        {<<"cluster">>, <<"cluster">>},
+        {<<"online">>, <<"online">>}
+    ], OzResponse).

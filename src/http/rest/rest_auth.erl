@@ -166,8 +166,5 @@ user_to_client(#onepanel_user{username = Username, role = Role}) ->
 
 -spec root_client() -> #client{}.
 root_client() ->
-    try
-        #client{role = root, zone_auth = remotes:root_auth()}
-    catch
-        _:_ -> #client{role = root, zone_auth = undefined}
-    end.
+    ZoneAuth = try zone_client:root_auth() catch _:_ -> undefined end,
+    #client{role = root, zone_auth = ZoneAuth}.

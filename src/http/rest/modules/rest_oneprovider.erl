@@ -345,13 +345,13 @@ provide_resource(Req, #rstate{resource = cluster_ips}) ->
 
 provide_resource(Req, #rstate{resource = onezone_info, params = #{token := Token}}) ->
     Domain = zone_tokens:get_zone_domain(Token),
-    {remotes:fetch_zone_info(Domain), Req};
+    {zone_client:fetch_zone_info(Domain), Req};
 
 provide_resource(Req, #rstate{resource = onezone_info}) ->
     case service_oneprovider:is_registered() of
         true ->
             Domain = list_to_binary(service_oneprovider:get_oz_domain()),
-            {remotes:fetch_zone_info(Domain), Req};
+            {zone_client:fetch_zone_info(Domain), Req};
         false ->
             ?throw_error(?ERR_NOT_REGISTERED)
     end.

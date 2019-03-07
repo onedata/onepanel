@@ -5,11 +5,10 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc Functions for fetching information about remote Onezone
-%%% and Oneprovider clusters.
+%%% @doc Functions for interacting with the Onezone.
 %%% @end
 %%%--------------------------------------------------------------------
--module(remotes).
+-module(zone_client).
 -author("Wojciech Geisler").
 
 -include("modules/errors.hrl").
@@ -17,7 +16,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([fetch_zone_info/1, fetch_provider_info/2]).
+-export([fetch_zone_info/1]).
 -export([root_auth/0]).
 
 %%%===================================================================
@@ -32,7 +31,7 @@
 fetch_zone_info(Domain) ->
     Url = configuration_url(Domain),
     CaCerts = cert_utils:load_ders_in_dir(oz_plugin:get_cacerts_dir()),
-    Opts = [{ssl_options, [{secure, true}, {cacerts, CaCerts}]}],
+    Opts = [{ssl_options, [{cacerts, CaCerts}]}],
     case http_client:get(Url, #{}, <<>>, Opts) of
         {ok, _, _, Response} ->
             Map = onepanel_utils:convert(json_utils:decode(Response), {keys, atom}),
@@ -52,26 +51,6 @@ fetch_zone_info(Domain) ->
                 domain => Domain
             }
     end.
-
-
-%%--------------------------------------------------------------------
-%% @doc Fetch information about a provider. User must belong to its
-%% cluster.
-%% @end
-%%--------------------------------------------------------------------
--spec fetch_provider_info(Auth :: rest_handler:zone_auth(), ProviderId :: binary()) ->
-    #{binary() := term()}.
-fetch_provider_info({rpc, Client}, ProviderId) ->
-    {ok, OzNode} = nodes:any(?SERVICE_OZW),
-    {ok, ProviderData} = rpc:call(
-        OzNode, provider_logic, get_protected_data, [Client, ProviderId]
-    ),
-    format_provider_info(ProviderData);
-
-fetch_provider_info({rest, RestAuth}, ProviderId) ->
-    URN = "/providers/" ++ binary_to_list(ProviderId),
-    {ok, 200, _, BodyJson} = oz_endpoint:request(RestAuth, URN, get),
-    format_provider_info(json_utils:decode(BodyJson)).
 
 
 %%--------------------------------------------------------------------
@@ -110,18 +89,3 @@ is_compatible(OzVersion, CompatOpVersions) ->
 configuration_url(Domain) ->
     str_utils:format_bin("https://~s~s",
         [Domain, onepanel_env:get(onezone_configuration_uri)]).
-
-
-%% @private
--spec format_provider_info(OzResponse :: #{binary() => term()}) ->
-    #{binary() => term()}.
-format_provider_info(OzResponse) ->
-    onepanel_maps:get_store_multiple([
-        {<<"providerId">>, <<"id">>},
-        {<<"name">>, <<"name">>},
-        {<<"domain">>, <<"domain">>},
-        {<<"longitude">>, <<"geoLongitude">>},
-        {<<"latitude">>, <<"geoLatitude">>},
-        {<<"cluster">>, <<"cluster">>},
-        {<<"online">>, <<"online">>}
-    ], OzResponse).
