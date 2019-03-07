@@ -281,7 +281,7 @@ get_dns_server() ->
 %% @end
 %%--------------------------------------------------------------------
 remove_txt_record(#{txt_name := Name} = Ctx) ->
-    [Node|_] = Nodes = get_nodes(),
+    [Node | _] = Nodes = get_nodes(),
     CurrentRecords = onepanel_env:get_remote(Node,
         [dns_static_txt_records], name()),
 
@@ -303,7 +303,7 @@ reload_webcert(Ctx) ->
 %% @doc {@link letsencrypt_plugin_behaviour:get_domain/1}
 %% @end
 %%--------------------------------------------------------------------
--spec get_domain() -> binary().
+-spec get_domain() -> binary() | undefined.
 get_domain() ->
     maps:get(domain, ?MODULE:get_details(#{})).
 
@@ -319,7 +319,7 @@ get_domain() ->
     #{name := binary() | undefined, domain := binary() | undefined}.
 get_details(_Ctx) ->
     {ok, Cached} = simple_cache:get(?DETAILS_CACHE_KEY, fun() ->
-        {_, Node} = nodes:any_with(name()),
+        {_, Node} = nodes:onepanel_with(name()),
         case rpc:call(Node, ?MODULE, get_details, []) of
             Map when is_map(Map) -> {true, Map, ?DETAILS_CACHE_TTL};
             Error -> {false, Error}

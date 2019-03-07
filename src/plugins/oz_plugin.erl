@@ -120,7 +120,7 @@ get_env(Key, path) ->
 
 get_env(Key, Type) ->
     Name = ?SERVICE_OPW,
-    Nodes = nodes:all_with(Name),
+    Nodes = nodes:all(#{service => ?SERVICE_PANEL, hosts => hosts:all(Name)}),
     {ok, Value} = onepanel_rpc:call_any(Nodes, onepanel_env, read_effective,
         [[Name, Key], Name]),
     onepanel_utils:convert(Value, Type).

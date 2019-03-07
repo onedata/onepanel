@@ -27,7 +27,7 @@
 
 %% API
 -export([local/1, any/1, all/1]).
--export([any_with/1, all_with/1]).
+-export([onepanel_with/1]).
 -export([service_to_node/2, service_to_nodes/2]).
 
 
@@ -93,22 +93,13 @@ all(Opts = #{service := ServiceName}) ->
 %% Returns current node if the service has none.
 %% @end
 %%--------------------------------------------------------------------
--spec any_with(ServiceName :: service:name()) ->
+-spec onepanel_with(ServiceName :: service:name()) ->
     {ok, node()} | {fallback, node()}.
-any_with(ServiceName) ->
+onepanel_with(ServiceName) ->
     case any(ServiceName) of
         {ok, Node} -> {ok, service_to_node(?SERVICE_PANEL, Node)};
         _ -> {fallback, node()}
     end.
-
-
-%%--------------------------------------------------------------------
-%% @doc Returns all Onepanel nodes cohabiting hosts with given Service nodes.
-%% @end
-%%--------------------------------------------------------------------
--spec all_with(ServiceName :: service:name()) -> [node()].
-all_with(ServiceName) ->
-    service_to_nodes(?SERVICE_PANEL, all(ServiceName)).
 
 
 %%--------------------------------------------------------------------
