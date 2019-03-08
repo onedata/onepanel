@@ -81,6 +81,7 @@ get_user_privileges({rest, RestAuth} = Auth, OnezoneUserId) ->
     end);
 
 get_user_privileges({rpc, LogicClient}, OnezoneUserId) ->
+    % @fixme use root auth as the user may not have view privilege
     case zone_rpc(cluster_logic, get_eff_user_privileges,
         [LogicClient, get_id(), OnezoneUserId]) of
         #error{reason = ?ERR_NOT_FOUND} -> ?make_error(?ERR_USER_NOT_IN_CLUSTER);

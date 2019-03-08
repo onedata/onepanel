@@ -37,6 +37,9 @@ all() ->
         get_should_return_provider_info
     ]).
 
+% @fixme test /cluster endpoint
+% @fixme ensure /cluster is available without zone auth
+
 
 %%%===================================================================
 %%% Test data

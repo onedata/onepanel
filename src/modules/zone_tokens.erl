@@ -86,6 +86,8 @@ authenticate_by_onezone_access_token(oneprovider, AccessToken) ->
 -spec fetch_details(AccessToken :: binary()) -> {ok, #user_details{}} | #error{}.
 fetch_details(AccessToken) ->
     simple_cache:get(?USER_DETAILS_CACHE_KEY(AccessToken), fun() ->
+        % @fixme get_details uses wrapper reporting errors,
+        % which makes incorrent login not-silent
         case oz_users:get_details({access_token, AccessToken}) of
             {ok, Details} ->
                 {true, Details, ?USER_DETAILS_CACHE_TTL};
