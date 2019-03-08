@@ -704,7 +704,7 @@ update_provider_ips() ->
 %% @end
 %%-------------------------------------------------------------------
 -spec get_auto_cleaning_reports(Ctx :: service:ctx()) -> maps:map().
-get_auto_cleaning_reports(Ctx = #{space_id := SpaceId, node := Node}) ->
+get_auto_cleaning_reports(Ctx = #{space_id := SpaceId}) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     Offset = onepanel_utils:typed_get(offset, Ctx, integer, 0),
     Limit = onepanel_utils:typed_get(limit, Ctx, integer, all),
