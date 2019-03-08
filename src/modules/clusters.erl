@@ -27,7 +27,7 @@
 -export([get_current_cluster/0, get_details/2, list_user_clusters/1]).
 -export([fetch_provider_info/2]).
 
--define(PRIVILEGES_CACHE_KEY(Auth), {privileges, Auth}).
+-define(PRIVILEGES_CACHE_KEY(OnezoneUserId), {privileges, OnezoneUserId}).
 -define(PRIVILEGES_CACHE_TTL, onepanel_env:get(onezone_auth_cache_ttl, ?APP_NAME, 0)).
 
 %%--------------------------------------------------------------------
@@ -65,23 +65,24 @@ get_current_cluster() ->
 %%--------------------------------------------------------------------
 -spec get_user_privileges(rest_handler:zone_auth(), onepanel_user:onezone_id()) ->
     {ok, [privileges:cluser_privilege()]} | #error{} | no_return().
-get_user_privileges({rest, RestAuth} = Auth, OnezoneUserId) ->
-    simple_cache:get(?PRIVILEGES_CACHE_KEY(Auth), fun() ->
+get_user_privileges({rest, _}, OnezoneUserId) ->
+    simple_cache:get(?PRIVILEGES_CACHE_KEY(OnezoneUserId), fun() ->
+        {rest, RestAuth} = zone_client:root_auth(),
         case zone_rest(RestAuth, "/clusters/~s/effective_users/~s/privileges",
             [get_id(), OnezoneUserId]) of
             {ok, #{privileges := Privileges}} ->
                 ListOfAtoms = onepanel_utils:convert(Privileges, {seq, atom}),
                 {true, ListOfAtoms, ?PRIVILEGES_CACHE_TTL};
-            #error{reason = {{401, _, _}}} ->
+            #error{reason = {401, _, _}} ->
                 ?make_error(?ERR_UNAUTHORIZED);
-            #error{reason = {{404, _, _}}} ->
+            #error{reason = {404, _, _}} ->
                 ?make_error(?ERR_USER_NOT_IN_CLUSTER);
             #error{} = Error -> throw(Error)
         end
     end);
 
-get_user_privileges({rpc, LogicClient}, OnezoneUserId) ->
-    % @fixme use root auth as the user may not have view privilege
+get_user_privileges({rpc, _}, OnezoneUserId) ->
+    {ok, LogicClient} = service_oz_worker:get_logic_client(root),
     case zone_rpc(cluster_logic, get_eff_user_privileges,
         [LogicClient, get_id(), OnezoneUserId]) of
         #error{reason = ?ERR_NOT_FOUND} -> ?make_error(?ERR_USER_NOT_IN_CLUSTER);

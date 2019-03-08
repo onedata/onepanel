@@ -101,6 +101,9 @@ translate(_Type, #error{reason = ?ERR_INVALID_USERNAME_OR_PASSWORD}) ->
 translate(_Type, #error{reason = ?ERR_INVALID_ACCESS_TOKEN}) ->
     {<<"Authentication Error">>, <<"Invalid REST API token.">>};
 
+translate(_Type, #error{reason = ?ERR_USER_NOT_IN_CLUSTER}) ->
+    {<<"Authentication Error">>, <<"User is not authorized to access this cluster.">>};
+
 translate(_Type, #error{module = model, function = get, reason = ?ERR_NOT_FOUND,
     args = [onepanel_session, _]}) ->
     {<<"Authentication Error">>, <<"Session not found or expired.">>};
