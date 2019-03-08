@@ -62,6 +62,16 @@ is_authorized(Req, _Method, _State) ->
 exists_resource(Req, #rstate{resource = user, bindings = #{username := Username}}) ->
     {onepanel_user:exists(Username), Req};
 
+exists_resource(Req, #rstate{resource = current_user,
+    client = #client{role = root}}) ->
+    {false, Req};
+
+% onezone user
+exists_resource(Req, #rstate{resource = current_user,
+    client = #client{role = user}}) ->
+    % Hacky, will be removed when removing onepanel_user
+    {cowboy_req:method(Req) == <<"GET">>, Req};
+
 exists_resource(Req, #rstate{resource = current_user} = State) ->
     exists_resource(Req, expand_current_user(State));
 
@@ -127,6 +137,11 @@ provide_resource(Req, #rstate{resource = users}) ->
 provide_resource(Req, #rstate{resource = user, bindings = #{username := Username}}) ->
     {ok, #onepanel_user{uuid = UserId, role = Role}} = onepanel_user:get(Username),
     {#{userId => UserId, userRole => Role, username => Username}, Req};
+
+provide_resource(Req, #rstate{resource = current_user,
+    client = #client{role = user} = Client}) ->
+    #user_details{name = Username} = Client#client.user,
+    {#{username => Username, userId => null, userRole => admin}, Req};
 
 provide_resource(Req, #rstate{resource = current_user} = State) ->
     provide_resource(Req, expand_current_user(State)).

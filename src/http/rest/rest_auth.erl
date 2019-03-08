@@ -107,7 +107,7 @@ check_basic_credentials(<<Base64/binary>>) ->
 
 check_basic_credentials([Username, Password]) ->
     case authenticate_onepanel_user(Username, Password) of
-        #client{role = admin, user = User} -> (root_client())#client{user = User};
+        #client{} = Client -> Client;
         ClientOrError -> ClientOrError
     end.
 
@@ -134,8 +134,7 @@ check_onepanel_token(Token) ->
     #client{} | #error{}.
 authenticate_onepanel_user(Username, Password) ->
     case onepanel_user:authenticate_by_basic_auth(Username, Password) of
-        {ok, #onepanel_user{role = Role}} ->
-            #client{role = Role, user = #user_details{id = <<>>, name = Username}};
+        {ok, User} -> user_to_client(User);
         Error -> Error
     end.
 
@@ -158,7 +157,8 @@ find_token(_) ->
 
 -spec user_to_client(#onepanel_user{}) -> #client{}.
 user_to_client(#onepanel_user{username = Username, role = admin}) ->
-    (root_client())#client{user = #user_details{id = <<>>, name = Username}};
+    (root_client())#client{role = admin,
+        user = #user_details{id = <<>>, name = Username}};
 
 user_to_client(#onepanel_user{username = Username, role = Role}) ->
     #client{user = #user_details{id = <<>>, name = Username}, role = Role}.
