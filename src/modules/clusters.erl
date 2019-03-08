@@ -67,7 +67,7 @@ get_current_cluster() ->
     {ok, [privileges:cluser_privilege()]} | #error{} | no_return().
 get_user_privileges({rest, RestAuth} = Auth, OnezoneUserId) ->
     simple_cache:get(?PRIVILEGES_CACHE_KEY(Auth), fun() ->
-        case zone_rest(Auth, "/clusters/~s/effective_users/~s/privileges",
+        case zone_rest(RestAuth, "/clusters/~s/effective_users/~s/privileges",
             [get_id(), OnezoneUserId]) of
             {ok, #{privileges := Privileges}} ->
                 ListOfAtoms = onepanel_utils:convert(Privileges, {seq, atom}),
