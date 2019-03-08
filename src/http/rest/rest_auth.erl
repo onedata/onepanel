@@ -108,7 +108,7 @@ check_basic_credentials(<<Base64/binary>>) ->
 check_basic_credentials([Username, Password]) ->
     case authenticate_onepanel_user(Username, Password) of
         #client{} = Client -> Client;
-        ClientOrError -> ClientOrError
+        Error -> Error
     end.
 
 

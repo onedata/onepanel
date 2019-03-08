@@ -78,14 +78,14 @@ authenticate_by_onezone_access_token(onezone, AccessToken) ->
 authenticate_by_onezone_access_token(oneprovider, AccessToken) ->
     case fetch_details(AccessToken) of
         {ok, Details} -> user_details_to_client(Details, {rest, {access_token, AccessToken}});
-        Error -> Error
+        #error{reason = {401, _, _}} -> ?make_error(?ERR_INVALID_ACCESS_TOKEN)
     end.
 
 
 %% @private
 -spec fetch_details(AccessToken :: binary()) -> {ok, #user_details{}} | #error{}.
 fetch_details(AccessToken) ->
-     simple_cache:get(?USER_DETAILS_CACHE_KEY(AccessToken), fun() ->
+    simple_cache:get(?USER_DETAILS_CACHE_KEY(AccessToken), fun() ->
         case oz_users:get_details({access_token, AccessToken}) of
             {ok, Details} ->
                 {true, Details, ?USER_DETAILS_CACHE_TTL};

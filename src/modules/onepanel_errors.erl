@@ -99,7 +99,7 @@ translate(_Type, #error{reason = ?ERR_INVALID_USERNAME_OR_PASSWORD}) ->
     {<<"Authentication Error">>, <<"Invalid username or password.">>};
 
 translate(_Type, #error{reason = ?ERR_INVALID_ACCESS_TOKEN}) ->
-    {<<"Authentication Error">>, <<"Invalid rest api token.">>};
+    {<<"Authentication Error">>, <<"Invalid REST API token.">>};
 
 translate(_Type, #error{module = model, function = get, reason = ?ERR_NOT_FOUND,
     args = [onepanel_session, _]}) ->
