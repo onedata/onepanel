@@ -19,7 +19,8 @@
 
 %% API
 -export([get/1, get/2, get/3, find/1, find/2, set/2, set/3, set/4]).
--export([read/2, read_effective/2, write/2, write/3, write/4]).
+-export([read/2, read_effective/2, read_effective/3]).
+-export([write/2, write/3, write/4]).
 -export([get_remote/3, find_remote/3, set_remote/4]).
 -export([migrate_generated_config/2, migrate_generated_config/3,
     legacy_config_exists/1, get_config_path/2]).
@@ -209,7 +210,7 @@ read(Keys, Path) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec read_effective(Keys :: keys(), ServiceName :: service:name()) ->
-    {ok, Value :: value()} | #error{} | no_return().
+    {ok, Value :: value()} | #error{}.
 read_effective(Keys, ServiceName) ->
     onepanel_lists:foldl_while(fun(Path, Prev) ->
         try read(Keys, Path) of
@@ -219,6 +220,22 @@ read_effective(Keys, ServiceName) ->
             _:_ -> {cont, Prev}
         end
     end, ?make_error(?ERR_NOT_FOUND), get_config_paths(ServiceName)).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Reads value of an application variable from the first configuration
+%% file containing it, in order of overlays priority.
+%% If no file specifies the variable, default value is returned.
+%% @end
+%%--------------------------------------------------------------------
+-spec read_effective(Keys :: keys(), ServiceName :: service:name(),
+    Default :: value()) -> Value :: value().
+read_effective(Keys, ServiceName, Default) ->
+    case read_effective(Keys, ServiceName) of
+        {ok, Value} -> Value;
+        #error{} -> Default
+    end.
 
 
 %%--------------------------------------------------------------------

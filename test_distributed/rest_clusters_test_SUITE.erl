@@ -27,6 +27,7 @@
 -export([
     get_should_return_clusters_list_test/1,
     get_should_return_cluster_details_test/1,
+    get_should_return_current_cluster_details_test/1,
     get_should_return_provider_info/1
 ]).
 
@@ -34,6 +35,7 @@ all() ->
     ?ALL([
         get_should_return_clusters_list_test,
         get_should_return_cluster_details_test,
+        get_should_return_current_cluster_details_test,
         get_should_return_provider_info
     ]).
 
@@ -126,6 +128,7 @@ all() ->
 %%% Test functions
 %%%===================================================================
 
+
 get_should_return_clusters_list_test(Config) ->
     Hosts = ?config(all_hosts, Config),
     lists:foreach(fun(Host) ->
@@ -159,6 +162,28 @@ get_should_return_cluster_details_test(Config) ->
             ], maps:get(ClusterId, ?CLUSTERS), #{<<"id">> => ClusterId}),
             onepanel_test_rest:assert_body(JsonBody, Expected)
         end, maps:keys(?CLUSTERS))
+    end, Hosts).
+
+
+get_should_return_current_cluster_details_test(Config) ->
+    Hosts = ?config(all_hosts, Config),
+    lists:foreach(fun(Host) ->
+        ClusterId = get_cluster_id(Host, Config),
+        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/cluster">>, get,
+                {access_token, ?ACCESS_TOKEN}
+            )
+        ),
+        Body = json_utils:decode(JsonBody),
+        {_, _, _, JsonBodyById} = ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/user/clusters/", ClusterId/binary>>, get,
+                {access_token, ?ACCESS_TOKEN}
+            )
+        ),
+        BodyById = json_utils:decode(JsonBodyById),
+        ?assertEqual(BodyById, Body)
     end, Hosts).
 
 
@@ -202,17 +227,22 @@ init_per_testcase(_Case, Config) ->
     OpHosts = ?config(oneprovider_hosts, Config),
     OzHosts = ?config(onezone_hosts, Config),
 
-    true = lists:usort(Nodes) == lists:usort(OpNodes ++ OzNodes),
+    test_utils:mock_new(Nodes, [service, rest_auth, clusters, rpc, oz_endpoint,
+        onepanel_deployment], [passthrough, no_history, unstick]),
 
-    test_utils:mock_new(Nodes, [service, rest_auth, clusters, rpc, oz_endpoint],
-        [passthrough, no_history, unstick]),
+    test_utils:mock_expect(OzNodes, onepanel_deployment, is_completed,
+        fun(_) -> true end),
 
-    test_utils:mock_expect(OpNodes, service, get, fun
-        (op_worker) -> {ok, #service{hosts = OpHosts}};
-        (oneprovider) -> {ok, #service{ctx = #{registered => true}}}
-    end),
-    test_utils:mock_expect(OzNodes, service, get,
-        fun(oz_worker) -> {ok, #service{hosts = OzHosts}} end),
+
+    {_, []} = rpc:multicall(OpNodes, service, save, [#service{
+        name = op_worker, hosts = OpHosts}]),
+    {_, []} = rpc:multicall(OzNodes, service, save, [#service{
+        name = oz_worker, hosts = OzHosts}]),
+    % models required for cluster data caching to work
+    {_, []} = rpc:multicall(OpNodes, service, save, [#service{
+        name = oneprovider, ctx = #{registered => true}}]),
+    {_, []} = rpc:multicall(OzNodes, service, save, [#service{
+        name = onezone}]),
 
     test_utils:mock_expect(OpNodes, service_oneprovider, get_auth_token,
         fun() -> <<"providerMacaroon">> end),
@@ -221,6 +251,9 @@ init_per_testcase(_Case, Config) ->
         fun(Req) -> {?OZ_CLIENT, Req} end),
     test_utils:mock_expect(OpNodes, rest_auth, authenticate_by_onezone_access_token,
         fun(Req) -> {?OP_CLIENT, Req} end),
+
+    test_utils:mock_expect(OzNodes, service_oz_worker, get_details,
+        fun() -> #{name => undefined, domain => undefined} end),
 
     test_utils:mock_expect(OzNodes, clusters, get_id,
         fun() -> ?ZONE_CLUSTER_ID end),
@@ -235,6 +268,10 @@ init_per_testcase(_Case, Config) ->
         (_Node, provider_logic, get_protected_data, [_Client, ProviderId]) ->
             ?assertEqual(?PROVIDER_ID, ProviderId),
             {ok, ?PROVIDER_DETAILS_RPC};
+        (_Node, entity_logic, root_client, []) ->
+            {ok, opaque_root_client};
+        (_Node, auth_logic, authorize_by_zone_gui_macaroon, [_AccessToken, _]) ->
+            {ok, opaque_logic_client};
         (Node, Module, Function, Args) ->
             meck:passthrough([Node, Module, Function, Args])
     end),
@@ -259,3 +296,17 @@ end_per_testcase(_Case, Config) ->
 
 
 end_per_suite(_Config) -> ok.
+
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+-spec get_cluster_id(Host :: string(), Config :: proplists:proplist()) -> binary().
+get_cluster_id(Host, Config) ->
+    OpHosts = ?config(oneprovider_hosts, Config),
+    OzHosts = ?config(onezone_hosts, Config),
+    case {lists:member(Host, OpHosts), lists:member(Host, OzHosts)} of
+        {true, _} -> ?PROVIDER_CLUSTER_ID;
+        {_, true} -> ?ZONE_CLUSTER_ID
+    end.

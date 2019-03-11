@@ -339,11 +339,11 @@ get_details(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec get_details() -> #{name := binary() | undefined, domain := binary() | undefined}.
 get_details() ->
-    {ok, OzName} = onepanel_env:read_effective([name(), oz_name], name()),
-    {ok, OzDomain} = onepanel_env:read_effective([name(), http_domain], name()),
+    OzName = onepanel_env:read_effective([name(), oz_name], name(), undefined),
+    OzDomain = onepanel_env:read_effective([name(), http_domain], name(), undefined),
     #{
-        name => binary_or_undefined(OzName),
-        domain => binary_or_undefined(OzDomain)
+        name => to_binary_or_undefined(OzName),
+        domain => to_binary_or_undefined(OzDomain)
     }.
 
 %%--------------------------------------------------------------------
@@ -493,6 +493,6 @@ maybe_check_dns() ->
 
 
 %% @private
--spec binary_or_undefined(term()) -> binary() | undefined.
-binary_or_undefined(undefined) -> undefined;
-binary_or_undefined(Value) -> onepanel_utils:convert(Value, binary).
+-spec to_binary_or_undefined(term()) -> binary() | undefined.
+to_binary_or_undefined(undefined) -> undefined;
+to_binary_or_undefined(Value) -> onepanel_utils:convert(Value, binary).

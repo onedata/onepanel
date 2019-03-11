@@ -51,7 +51,7 @@ get_current_cluster() ->
     Service = onepanel_env:get_release_type(),
     try
         Auth = zone_client:root_auth(),
-        {ok, Details} = get_details(Auth, get_id()),
+        {ok, Details} = get_details(Auth, ?MODULE:get_id()),
         store(cluster, Details, Service)
     catch _Type:Error ->
         fetch_or_throw(cluster, Service, ?make_stacktrace(Error))
@@ -84,7 +84,7 @@ get_user_privileges({rest, _}, OnezoneUserId) ->
 get_user_privileges({rpc, _}, OnezoneUserId) ->
     {ok, LogicClient} = service_oz_worker:get_logic_client(root),
     case zone_rpc(cluster_logic, get_eff_user_privileges,
-        [LogicClient, get_id(), OnezoneUserId]) of
+        [LogicClient, ?MODULE:get_id(), OnezoneUserId]) of
         #error{reason = ?ERR_NOT_FOUND} -> ?make_error(?ERR_USER_NOT_IN_CLUSTER);
         {ok, Privileges} -> {ok, Privileges}
     end.
