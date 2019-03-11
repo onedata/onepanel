@@ -303,9 +303,12 @@ reload_webcert(Ctx) ->
 %% @doc {@link letsencrypt_plugin_behaviour:get_domain/1}
 %% @end
 %%--------------------------------------------------------------------
--spec get_domain() -> binary() | undefined.
+-spec get_domain() -> binary().
 get_domain() ->
-    maps:get(domain, ?MODULE:get_details(#{})).
+    case ?MODULE:get_details(#{}) of
+        #{domain := undefined} -> <<>>; % conform to letsencrypt_plugin_behaviour
+        #{domain := <<Domain/binary>>} -> Domain
+    end.
 
 
 %%--------------------------------------------------------------------
