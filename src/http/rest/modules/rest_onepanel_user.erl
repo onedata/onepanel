@@ -139,8 +139,10 @@ provide_resource(Req, #rstate{resource = user, bindings = #{username := Username
     {#{userId => UserId, userRole => Role, username => Username}, Req};
 
 provide_resource(Req, #rstate{resource = current_user,
-    client = #client{role = user} = Client}) ->
+    client = Client}) when Client#client.role == user ->
     #user_details{name = Username} = Client#client.user,
+    % user coming from Onezone has no onepanel user id
+    % and their privileges match those of a local admin
     {#{username => Username, userId => null, userRole => admin}, Req};
 
 provide_resource(Req, #rstate{resource = current_user} = State) ->

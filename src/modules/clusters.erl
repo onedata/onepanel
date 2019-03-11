@@ -61,6 +61,8 @@ get_current_cluster() ->
 %%--------------------------------------------------------------------
 %% @doc Given user credentials, returns his privileges in the current cluster.
 %% Throws if connection could not be established.
+%% Retrieves the credentials using root client authorization
+%% as the user might not have enough privileges to view his own privileges.
 %% @end
 %%--------------------------------------------------------------------
 -spec get_user_privileges(rest_handler:zone_auth(), onepanel_user:onezone_id()) ->
