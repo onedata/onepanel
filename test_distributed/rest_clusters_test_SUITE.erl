@@ -28,6 +28,7 @@
     get_should_return_clusters_list_test/1,
     get_should_return_cluster_details_test/1,
     get_should_return_current_cluster_details_test/1,
+    current_cluster_should_work_for_local_user/1,
     get_should_return_provider_info/1
 ]).
 
@@ -36,11 +37,9 @@ all() ->
         get_should_return_clusters_list_test,
         get_should_return_cluster_details_test,
         get_should_return_current_cluster_details_test,
+        current_cluster_should_work_for_local_user,
         get_should_return_provider_info
     ]).
-
-% @fixme test /cluster endpoint
-% @fixme ensure /cluster is available without zone auth
 
 
 %%%===================================================================
@@ -71,6 +70,10 @@ all() ->
 
 -define(PROVIDER_ID, <<"providerId">>).
 -define(PROVIDER_CLUSTER_ID, <<"providerClusterId">>).
+
+-define(ADMIN_USER_NAME, <<"admin1">>).
+-define(ADMIN_USER_PASSWORD, <<"Admin1Password">>).
+
 
 -define(ACCESS_TOKEN, <<"accessTokenFromOnezone">>).
 
@@ -187,6 +190,18 @@ get_should_return_current_cluster_details_test(Config) ->
     end, Hosts).
 
 
+current_cluster_should_work_for_local_user(Config) ->
+    Hosts = ?config(all_hosts, Config),
+    lists:foreach(fun(Host) ->
+        ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/cluster">>, get,
+                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+            )
+        )
+    end, Hosts).
+
+
 get_should_return_provider_info(Config) ->
     Hosts = ?config(all_hosts, Config),
 
@@ -216,7 +231,13 @@ get_should_return_provider_info(Config) ->
 init_per_suite(Config) ->
     ssl:start(),
     hackney:start(),
-    Posthook = fun(NewConfig) -> onepanel_test_utils:init(NewConfig) end,
+    Posthook = fun(NewConfig) ->
+        NewConfig2 = onepanel_test_utils:init(NewConfig),
+        ?assertAllMatch({ok, _}, ?callAll(NewConfig2, onepanel_user, create,
+            [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
+        )),
+        NewConfig2
+    end,
     [{?ENV_UP_POSTHOOK, Posthook} | Config].
 
 

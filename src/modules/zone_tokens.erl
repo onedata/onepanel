@@ -76,25 +76,41 @@ authenticate_by_onezone_access_token(onezone, AccessToken) ->
     end;
 
 authenticate_by_onezone_access_token(oneprovider, AccessToken) ->
-    case fetch_details(AccessToken) of
+    Fetched = simple_cache:get(?USER_DETAILS_CACHE_KEY(AccessToken), fun() ->
+        case fetch_details(AccessToken) of
+            {ok, Details} -> {true, Details, ?USER_DETAILS_CACHE_TTL};
+            Error -> Error
+        end
+    end),
+    case Fetched of
         {ok, Details} -> user_details_to_client(Details, {rest, {access_token, AccessToken}});
         #error{reason = {401, _, _}} -> ?make_error(?ERR_INVALID_ACCESS_TOKEN)
     end.
 
 
+%%--------------------------------------------------------------------
 %% @private
+%% @doc Retrieves user details via REST.
+%% Duplicates oz_users:get_details/1 to avoid warning in the logs
+%% on every failed login attempt.
+%% @end
+%%--------------------------------------------------------------------
 -spec fetch_details(AccessToken :: binary()) -> {ok, #user_details{}} | #error{}.
 fetch_details(AccessToken) ->
-    simple_cache:get(?USER_DETAILS_CACHE_KEY(AccessToken), fun() ->
-        % @fixme get_details uses wrapper reporting errors,
-        % which makes incorrent login not-silent
-        case oz_users:get_details({access_token, AccessToken}) of
-            {ok, Details} ->
-                {true, Details, ?USER_DETAILS_CACHE_TTL};
-            {error, Reason} ->
-                ?make_error(Reason)
-        end
-    end).
+    case oz_endpoint:request({access_token, AccessToken}, "/user", get) of
+        {ok, 200, _ResponseHeaders, ResponseBody} ->
+            Proplist = json_utils:decode_deprecated(ResponseBody),
+            UserDetails = #user_details{
+                id = lists_utils:key_get(<<"userId">>, Proplist),
+                name = lists_utils:key_get(<<"name">>, Proplist),
+                linked_accounts = lists_utils:key_get(<<"linkedAccounts">>, Proplist),
+                alias = lists_utils:key_get(<<"alias">>, Proplist),
+                email_list = lists_utils:key_get(<<"emailList">>, Proplist)
+            },
+            {ok, UserDetails};
+        {ok, Code, _ResponseBody} -> ?make_error({Code, _ResponseBody, <<>>});
+        {error, Reason} -> ?make_error(Reason)
+    end.
 
 
 %% @private
