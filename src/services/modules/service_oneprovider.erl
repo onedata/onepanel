@@ -418,11 +418,12 @@ unregister() ->
 -spec is_registered(Ctx :: service:ctx()) -> boolean().
 is_registered(#{node := Node}) ->
     try rpc:call(Node, oneprovider, is_registered, []) of
-        true -> true;
-        false -> false;
+        Registered when is_boolean(Registered) ->
+            service:update_ctx(name(), #{registered => Registered}),
+            Registered;
         _ ->
-            case service:get(name()) of
-                {ok, #service{ctx = #{registered := Registered}}} -> Registered;
+            case service:get_ctx(name()) of
+                #{registered := Registered} -> Registered;
                 _ -> false
             end
     catch _:_ ->
@@ -437,6 +438,7 @@ is_registered(Ctx) ->
 
 is_registered() ->
     is_registered(#{}).
+
 
 %%--------------------------------------------------------------------
 %% @doc Modifies configuration details of the provider.
