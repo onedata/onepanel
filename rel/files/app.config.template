@@ -184,7 +184,7 @@
         {gui_package_path, "{{platform_data_dir}}/gui_static.tar.gz"},
 
         %% Directory where static files of standalone GUI are served from.
-        {gui_static_root, "{{platform_data_dir}}/gui_static"},
+        {gui_static_root, "{{platform_etc_dir}}/gui_static"},
 
         {rpc_timeout, 1800000},
         {create_tables_timeout, 10000},
