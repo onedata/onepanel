@@ -108,7 +108,7 @@ fetch_details(AccessToken) ->
                 email_list = lists_utils:key_get(<<"emailList">>, Proplist)
             },
             {ok, UserDetails};
-        {ok, Code, _ResponseBody} -> ?make_error({Code, _ResponseBody, <<>>});
+        {ok, Code, _, _ResponseBody} -> ?make_error({Code, _ResponseBody, <<>>});
         {error, Reason} -> ?make_error(Reason)
     end.
 
