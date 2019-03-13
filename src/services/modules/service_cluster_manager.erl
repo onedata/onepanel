@@ -82,7 +82,7 @@ get_steps(deploy, #{hosts := [_ | _] = Hosts} = Ctx) ->
             }
         },
         #steps{action = restart, ctx = Ctx#{
-            hosts => onepanel_lists:union(ClusterHosts, [MainHost | Hosts])
+            hosts => onepanel_lists:union(ClusterHosts, Hosts)
         }}
     ];
 
