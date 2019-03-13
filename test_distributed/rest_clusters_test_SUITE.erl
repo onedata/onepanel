@@ -290,9 +290,9 @@ init_per_testcase(_Case, Config) ->
             ?assertEqual(?PROVIDER_ID, ProviderId),
             {ok, ?PROVIDER_DETAILS_RPC};
         (_Node, entity_logic, root_client, []) ->
-            {ok, opaque_root_client};
+            {opaque, root_client};
         (_Node, auth_logic, authorize_by_zone_gui_macaroon, [_AccessToken, _]) ->
-            {ok, opaque_logic_client};
+            {opaque, user_client};
         (Node, Module, Function, Args) ->
             meck:passthrough([Node, Module, Function, Args])
     end),

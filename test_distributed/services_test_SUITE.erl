@@ -482,6 +482,7 @@ regenerate_web_certificate(Nodes, Domain) ->
     rpc:multicall(Nodes, service_op_worker, reload_webcert, [#{}]).
 
 
+-spec get_registration_token(OzNode :: node()) -> Token :: binary().
 get_registration_token(OzNode) ->
     OzwNode = nodes:service_to_node(?SERVICE_OZW, OzNode),
     {ok, #onepanel_user{uuid = OnepanelUserId}} = ?assertMatch({ok, #onepanel_user{}},
@@ -492,9 +493,7 @@ get_registration_token(OzNode) ->
             [OnepanelUserId, ?OZ_USERNAME, ?OZ_PASSWORD]
         ),
         ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS),
-
-    % @fixme bad code
-    Client = {client, user, OnezoneUserId},
+    Client = proxy_rpc(OzNode, OzwNode, entity_logic, user_client, [OnezoneUserId]),
 
     {ok, RegistrationToken} = ?assertMatch({ok, _},
         proxy_rpc(OzNode, OzwNode,

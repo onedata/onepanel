@@ -444,8 +444,8 @@ get_logic_client(root) ->
     case nodes:any(name()) of
         {ok, OzNode} ->
             case rpc:call(OzNode, entity_logic, root_client, []) of
-                {ok, LogicClient} -> {ok, LogicClient};
-                Error -> ?make_error(Error)
+                {badrpc, _} = Error -> ?make_error(Error);
+                LogicClient -> {ok, LogicClient}
             end;
         Error -> Error
     end;
