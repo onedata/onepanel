@@ -235,7 +235,7 @@ get_nagios_status(Ctx) ->
 %%--------------------------------------------------------------------
 -spec add_storages(Ctx :: service:ctx()) -> ok | no_return().
 add_storages(#{storages := Storages, ignore_exists := IgnoreExists})
-    when map_size(Storages) > 0->
+    when map_size(Storages) > 0 ->
     op_worker_storage:add(Storages, IgnoreExists),
     onepanel_deployment:mark_completed(?PROGRESS_STORAGE_SETUP);
 

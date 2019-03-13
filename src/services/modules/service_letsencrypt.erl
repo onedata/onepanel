@@ -376,7 +376,7 @@ date_or_null(Key, Map) ->
 %% @private
 %% @doc
 %% Returns true if Let's Encrypt certificates should be obtained
-%% to replace exisitng foreign certificates.
+%% to replace existing unmanaged certificates.
 %% @end
 %%--------------------------------------------------------------------
 -spec first_run(Ctx :: service:ctx()) -> boolean().
