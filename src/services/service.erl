@@ -386,7 +386,7 @@ get_ctx(Service) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec update_ctx(Service :: service:name(), Diff) -> ok | no_return()
-    when Diff :: map() | fun((map()) -> map()).
+    when Diff :: map() | fun((service:ctx()) -> service:ctx()).
 update_ctx(Service, Diff) when is_map(Diff) ->
     update_ctx(Service, fun(Ctx) ->
         maps:merge(Ctx, Diff)

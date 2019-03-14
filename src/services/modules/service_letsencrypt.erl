@@ -171,7 +171,6 @@ check_webcert(Ctx) ->
                     regenerating => false,
                     last_failure => time_utils:system_time_seconds()
                 }),
-                % stores original stacktrace
                 ?throw_stacktrace(Error)
             end,
 
@@ -465,15 +464,12 @@ get_plugin_module() ->
 
 
 %%--------------------------------------------------------------------
+%% @private
 %% @doc
 %% Updates service ctx in the datastore.
 %% @end
 %%--------------------------------------------------------------------
 -spec update_ctx(Diff) -> ok | no_return()
-    when Diff :: fun((map()) -> map()) | map().
-update_ctx(Diff) when is_map(Diff) ->
-    update_ctx(fun(Ctx) -> maps:merge(Ctx, Diff) end);
-update_ctx(Diff) when is_function(Diff, 1) ->
-    service:update(name(), fun(#service{ctx = Ctx} = S) ->
-        S#service{ctx = Diff(Ctx)}
-    end).
+    when Diff :: map() | fun((service:ctx()) -> service:ctx()).
+update_ctx(Diff) ->
+    service:update_ctx(name(), Diff).
