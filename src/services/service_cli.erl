@@ -58,7 +58,7 @@ stop(Service) ->
 %% command, otherwise status can be used.
 %% @end
 %%--------------------------------------------------------------------
--spec status(service:name(), Comamnd :: status | ping) -> running | stopped | missing.
+-spec status(service:name(), Command :: status | ping) -> running | stopped | missing.
 status(Service, Command) ->
     Tokens = [get_script(Service), Command],
     case onepanel_shell:execute(Tokens) of
