@@ -67,8 +67,6 @@ service_oneprovider_unregister_register_test(Config) ->
     [OzNode | _] = ?config(onezone_nodes, Config),
     [OpNode | _] = ?config(oneprovider_nodes, Config),
     onepanel_test_utils:service_action(OpNode, oneprovider, unregister, #{}),
-    % graph sync connection shut down 5 seconds after unregistration
-    timer:sleep(timer:seconds(10)),
     onepanel_test_utils:service_action(OpNode, oneprovider, register, #{
         oneprovider_geo_latitude => 20.0,
         oneprovider_geo_longitude => 20.0,

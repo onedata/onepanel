@@ -65,11 +65,11 @@ prepare() ->
     end),
 
     mock_oz_request(fun
-        (provider, "/clusters" ++ _Id, patch, _Headers, _Body, _Opts) ->
+        (provider, "/clusters/" ++ _Id, patch, _Headers, _Body, _Opts) ->
             % different response before and after gui upload
             receive
                 gui_uploaded ->
-                    self() ! gui_uploaded, % persist state
+                    self() ! gui_uploaded, % preserve this state
                     {ok, 204, #{}, <<>>}
             after
                 0 -> {ok, 400, #{}, <<>>}
@@ -92,7 +92,7 @@ mock_oz_request(ResponseFun) ->
 
 
 stop(_) ->
-    remove_msgs(),
+    clear_queue(),
     ?assert(meck:validate([oz_endpoint, https_listener, gui])),
     meck:unload().
 
@@ -126,11 +126,12 @@ pop_request(Timeout) ->
 %% @doc Removes all message from process message queue.
 %% @end
 %%--------------------------------------------------------------------
--spec remove_msgs() -> ok.
-remove_msgs() ->
-    case pop_request(0) of
-        timeout -> ok;
-        _ -> pop_request(0)
+-spec clear_queue() -> ok.
+clear_queue() ->
+    receive
+        _ -> clear_queue()
+    after
+        0 -> ok
     end.
 
 -endif.
