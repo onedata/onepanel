@@ -495,7 +495,11 @@ get_details(_Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
 
     % Graph Sync connection is needed to obtain details
-    rpc:call(Node, oneprovider, force_oz_connection_start, []),
+    case rpc:call(Node, oneprovider, is_connected_to_oz, []) of
+        false -> rpc:call(Node, oneprovider, force_oz_connection_start, []);
+        true -> ok
+    end,
+
     OzDomain = get_oz_domain(),
 
     Details = case rpc:call(Node, provider_logic, get_as_map, []) of
