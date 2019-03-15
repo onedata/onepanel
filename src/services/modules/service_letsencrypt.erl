@@ -129,11 +129,11 @@ get_steps(get_details, _Ctx) ->
 -spec create(service:ctx()) -> ok.
 create(#{letsencrypt_plugin := Plugin}) ->
     LegacyEnabled = service_oneprovider:pop_legacy_letsencrypt_config(),
-    case service:create(#service{name = name(),
-        ctx = #{
-            letsencrypt_plugin => Plugin,
-            letsencrypt_enabled => LegacyEnabled
-        }}) of
+    ServiceCtx = #{
+        letsencrypt_plugin => Plugin,
+        letsencrypt_enabled => LegacyEnabled
+    },
+    case service:create(#service{name = name(), ctx = ServiceCtx}) of
         {ok, _} -> ok;
         #error{reason = ?ERR_ALREADY_EXISTS} -> ok
     end.
@@ -160,6 +160,7 @@ status(Ctx) ->
 %% Obtains certificate if current is marked as dirty.
 %% @end
 %%--------------------------------------------------------------------
+-spec check_webcert(Ctx :: service:ctx()) -> ok | no_return().
 check_webcert(Ctx) ->
     case should_obtain(Ctx) of
         true ->
@@ -182,6 +183,7 @@ check_webcert(Ctx) ->
     end.
 
 
+-spec get_details(Ctx :: service:ctx()) -> #{atom() := term()}.
 get_details(_Ctx) ->
     {ok, #service{ctx = Ctx}} = service:get(name()),
     Enabled = is_enabled(Ctx),
@@ -221,6 +223,7 @@ get_details(_Ctx) ->
 %% Determines whether Let's Encrypt certificate renewal is enabled.
 %% @end
 %%--------------------------------------------------------------------
+-spec is_enabled(service:ctx()) -> boolean().
 is_enabled(#{letsencrypt_enabled := Enabled}) -> Enabled;
 is_enabled(_Ctx) ->
     case service:get(name()) of
@@ -288,6 +291,7 @@ disable(_Ctx) ->
 %% Checks if Let's Encrypt certification is in progress.
 %% @end
 %%--------------------------------------------------------------------
+-spec is_regenerating() -> boolean().
 is_regenerating() ->
     case service:get(name()) of
         {ok, #service{ctx = #{regenerating := true}}} -> true;
@@ -437,6 +441,7 @@ is_local_cert_letsencrypt() ->
 %% Marks that user explicitely configured Let's Encrypt.
 %% @end
 %%--------------------------------------------------------------------
+-spec mark_configured(service:ctx()) -> ok.
 mark_configured(#{letsencrypt_enabled := _}) ->
     onepanel_deployment:mark_completed(?PROGRESS_LETSENCRYPT_CONFIG);
 mark_configured(_Ctx) -> ok.
@@ -449,7 +454,7 @@ mark_configured(_Ctx) -> ok.
 %%--------------------------------------------------------------------
 -spec get_plugin_name() -> service:name().
 get_plugin_name() ->
-    {ok, #service{ctx = #{letsencrypt_plugin := Plugin}}} = service:get(name()),
+    #{letsencrypt_plugin := Plugin} = service:get_ctx(name()),
     Plugin.
 
 

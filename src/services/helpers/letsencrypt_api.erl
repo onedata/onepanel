@@ -328,6 +328,7 @@ agree_to_terms(URL, TermsURL, State) ->
 %% Prove domain control to Let's Encrypt.
 %% @end
 %%--------------------------------------------------------------------
+-spec authorize(State :: #flow_state{}) -> {ok, #flow_state{}} | no_return().
 authorize(#flow_state{service = Service} = State) ->
     try
         case Service:supports_letsencrypt_challenge(http) of
@@ -351,6 +352,8 @@ authorize(#flow_state{service = Service} = State) ->
 %% Execute domain authorization flow using given challenge type.
 %% @end
 %%--------------------------------------------------------------------
+-spec authorize(ChallengeType :: challenge_type(), State ::#flow_state{}) ->
+    {ok, #flow_state{}} | no_return().
 authorize(ChallengeType, State) ->
     ?info("Let's Encrypt ~s run: authorize for the domain ~s using ~s challenge",
         [State#flow_state.current_mode, State#flow_state.domain, ChallengeType]),
