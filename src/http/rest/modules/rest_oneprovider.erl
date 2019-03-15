@@ -81,8 +81,7 @@ accept_possible(Req, _Method, _Args, _State) ->
 %% @doc {@link rest_behaviour:is_available/3}
 %% @end
 %%--------------------------------------------------------------------
-is_available(Req, 'GET', #rstate{resource = cluster_ips}) ->
-    {true, Req};
+is_available(Req, 'GET', #rstate{resource = cluster_ips}) -> {true, Req};
 
 is_available(Req, _Method, _State) ->
     {service:all_healthy(), Req}.

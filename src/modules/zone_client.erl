@@ -63,7 +63,7 @@ root_auth() ->
         onezone ->
             case service_oz_worker:get_logic_client(root) of
                 {ok, Client} -> {rpc, Client};
-                Error -> ?throw_error(Error)
+                _Error -> none
             end;
         oneprovider -> {rest, provider}
     end.

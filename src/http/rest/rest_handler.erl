@@ -39,7 +39,7 @@
 -type method() :: #rmethod{}.
 
 %% Objects used to authenticate request to Onezone
--type zone_auth() :: rpc_auth() | rest_auth().
+-type zone_auth() :: rpc_auth() | rest_auth() | none.
 %% Used by oz_panel
 -type rpc_auth() :: {rpc, LogicClient :: term()}.
 %% Used by op_panel

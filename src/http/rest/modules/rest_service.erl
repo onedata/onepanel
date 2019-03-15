@@ -116,7 +116,10 @@ is_available(Req, _Method, #rstate{resource = Resource}) when
 
 is_available(Req, Method, #rstate{resource = Resource}) when
     Method == 'GET' andalso Resource == dns_check ->
-    {service:all_healthy(), Req};
+    % @TODO When service_op_worker:get_domain will work when op-worker is offline
+    %       this request should always be allowed.
+    {onepanel_env:get_release_type() == onezone
+        orelse service:all_healthy(), Req};
 
 is_available(Req, _Method, _State) ->
     {true, Req}.
