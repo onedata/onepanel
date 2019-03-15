@@ -30,7 +30,8 @@
 -export([apply/3, apply/4, apply_async/3,
     apply_sync/3, apply_sync/4, get_results/1, get_results/2, abort_task/1,
     exists_task/1]).
--export([get_status/2, update_status/2, update_status/3, all_healthy/0]).
+-export([get_status/2, update_status/2, update_status/3, all_healthy/0,
+    healthy/1]).
 -export([get_module/1, get_hosts/1, add_host/2]).
 -export([get_ctx/1, update_ctx/2]).
 
@@ -215,6 +216,23 @@ all_healthy() ->
             healthy == Status
         end, maps:to_list(maps:get(status, Ctx, #{})))
     end, service:list()).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Checks if all nodes of given service have reported healthy status
+%% on last check.
+%% @end
+%%--------------------------------------------------------------------
+-spec healthy(name()) -> boolean().
+healthy(Service) ->
+    case ?MODULE:get(Service) of
+        {ok, #service{ctx = Ctx}} ->
+            lists:all(fun({_Host, Status}) ->
+                healthy == Status
+            end, maps:to_list(maps:get(status, Ctx, #{})));
+        _Error -> false
+    end.
 
 
 %%--------------------------------------------------------------------

@@ -300,17 +300,15 @@ reload_webcert(Ctx) ->
 -spec supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
     boolean() | unknown.
 supports_letsencrypt_challenge(http) ->
-    try
-        service_oneprovider:is_registered(#{})
-    catch
-        _:_ -> unknown
-    end;
+    service:healthy(name()) andalso
+        service_oneprovider:is_registered(); % unregistered provider does not have a domain
 supports_letsencrypt_challenge(dns) ->
     try
-        service_oneprovider:is_registered(#{}) andalso
+        service:healthy(name()) andalso
+            service_oneprovider:is_registered() andalso
             maps:get(subdomainDelegation, service_oneprovider:get_details(#{}), false)
     catch
-        _:_ -> unknown
+        _:_ -> false
     end;
 supports_letsencrypt_challenge(_) -> false.
 

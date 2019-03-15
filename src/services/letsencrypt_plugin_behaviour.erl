@@ -48,7 +48,8 @@
 -callback get_admin_email(service:ctx()) -> binary() | undefined.
 
 %%--------------------------------------------------------------------
-%% Checks if service supports Let's Encrypt challenge of given type.
+%% Checks if Let's Encrypt challenge of given type can be currently
+%% fulfilled by the plugin service.
 %%--------------------------------------------------------------------
 -callback supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
     boolean() | unknown.

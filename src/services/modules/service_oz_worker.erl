@@ -304,10 +304,7 @@ reload_webcert(Ctx) ->
 %%--------------------------------------------------------------------
 -spec get_domain() -> binary().
 get_domain() ->
-    case ?MODULE:get_details(#{}) of
-        #{domain := undefined} -> <<>>; % conform to letsencrypt_plugin_behaviour
-        #{domain := <<Domain/binary>>} -> Domain
-    end.
+    maps:get(domain, ?MODULE:get_details(#{})).
 
 
 %%--------------------------------------------------------------------
@@ -318,7 +315,7 @@ get_domain() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_details(service:ctx()) ->
-    #{name := binary() | undefined, domain := binary() | undefined}.
+    #{name := binary() | undefined, domain := binary()}.
 get_details(_Ctx) ->
     {ok, Cached} = simple_cache:get(?DETAILS_CACHE_KEY, fun() ->
         {_, Node} = nodes:onepanel_with(name()),
@@ -339,7 +336,7 @@ get_details(_Ctx) ->
 -spec get_details() -> #{name := binary() | undefined, domain := binary() | undefined}.
 get_details() ->
     OzName = onepanel_env:read_effective([name(), oz_name], name(), undefined),
-    OzDomain = onepanel_env:read_effective([name(), http_domain], name(), undefined),
+    {ok, OzDomain} = onepanel_env:read_effective([name(), http_domain], name()),
     #{
         name => to_binary_or_undefined(OzName),
         domain => to_binary_or_undefined(OzDomain)
@@ -360,14 +357,14 @@ get_admin_email(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
     boolean() | unknown.
-supports_letsencrypt_challenge(http) -> true;
+supports_letsencrypt_challenge(http) ->
+    service:healthy(name());
 supports_letsencrypt_challenge(dns) ->
-    try
-        {ok, Node} = nodes:any(name()),
-        onepanel_env:get_remote(Node,
-            [subdomain_delegation_supported], name())
-    catch _:_ ->
-        unknown
+    case nodes:any(name()) of
+        {ok, Node} ->
+            service:healthy(name()) andalso
+                onepanel_env:get_remote(Node, [subdomain_delegation_supported], name());
+        _Error -> false
     end;
 supports_letsencrypt_challenge(_) -> false.
 
@@ -453,9 +450,10 @@ get_logic_client(AccessToken) ->
     case nodes:any(name()) of
         {ok, OzNode} ->
             case rpc:call(OzNode, auth_logic,
-                authorize_by_zone_gui_macaroon, [AccessToken, undefined]) of
-
-                {true, LogicClient} -> {ok, LogicClient};  % record to be used in rpc calls to oz-worker
+                authorize_by_zone_gui_macaroon, [AccessToken, undefined]
+            ) of
+                {true, LogicClient} ->
+                    {ok, LogicClient};  % record to be used in rpc calls to oz-worker
                 {error, ApiError} -> ?make_error(ApiError)
             end;
         Error -> Error

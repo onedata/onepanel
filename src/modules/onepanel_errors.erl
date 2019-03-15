@@ -210,8 +210,7 @@ translate(_Type, #error{reason = ?ERR_LETSENCRYPT_AUTHORIZATION(Message)}) ->
 
 translate(_Type, #error{reason = ?ERR_LETSENCRYPT_NOT_SUPPORTED}) ->
     {<<"Let's Encrypt Not Supported Error">>,
-        <<"Current DNS/domain configuration does not support automatic "
-        "obtaining certificates">>};
+        <<"Automated Let's Encrypt certificates retrieval is currently unavailable.">>};
 
 translate(_Type, #error{reason = {?ERR_STORAGE_SYNC, import_already_started}}) ->
     {<<"Operation Error">>, <<"Modifying storage_import that has already been started">>};

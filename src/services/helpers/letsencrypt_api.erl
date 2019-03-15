@@ -75,7 +75,7 @@
 -type run_mode() :: dry | staging | production | full.
 -type challenge_type() :: dns | http | unknown.
 
--export_type([run_mode/0, challenge_type/0]).
+-export_type([challenge_type/0]).
 
 % Record for the endpoints directory presented by letsencrypt
 -record(directory, {
@@ -129,6 +129,7 @@
 }).
 
 -export([run_certification_flow/2, run_certification_flow/3]).
+-export([challenge_types/0]).
 -export([clean_keys/0, clean_keys/1]).
 
 %%%===================================================================
@@ -254,6 +255,16 @@ run_certification_flow(Domain, Plugin, Mode) ->
         full -> run_certification_flow(Domain, Plugin, production);
         _ -> ok
     end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns implemented authorizatio challenge types.
+%% @end
+%%--------------------------------------------------------------------
+-spec challenge_types() -> [challenge_type()].
+challenge_types() ->
+    [http, dns].
 
 
 %%%===================================================================
