@@ -237,4 +237,7 @@ set_up_service_in_onezone() ->
     ok = rpc:call(OzNode, cluster_logic, update_version_info,
         [Client, clusters:get_id(), ?ONEPANEL_SERVICE, VersionInfo]),
 
+    % pre-warm cache
+    (catch clusters:get_current_cluster()),
+
     ?info("Onezone panel service successfully set up in Onezone").
