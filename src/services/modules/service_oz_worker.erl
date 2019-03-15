@@ -260,7 +260,6 @@ set_txt_record(#{txt_name := Name, txt_value := Value, txt_ttl := _TTL} = Ctx) -
     [Node | _] = Nodes = get_nodes(),
     % oz_worker does not support custom TTL times
     CurrentRecords = onepanel_env:get_remote(Node, [dns_static_txt_records], name()),
-
     ok = onepanel_env:set_remote(Nodes, [dns_static_txt_records],
         [{Name, Value} | CurrentRecords], name()),
     reconcile_dns(Ctx).
