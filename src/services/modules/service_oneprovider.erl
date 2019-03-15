@@ -399,10 +399,10 @@ register(Ctx) ->
 %%--------------------------------------------------------------------
 -spec unregister() -> ok | no_return().
 unregister() ->
-    % Unregister via Onezone's REST. The op_worker will be notified
-    % by graph sync.
-
     oz_providers:unregister(provider),
+
+    {ok, Node} = nodes:any(?SERVICE_OPW),
+    rpc:call(Node, oneprovider, on_deregister, []),
     onepanel_deployment:mark_not_completed(?PROGRESS_LETSENCRYPT_CONFIG),
     service:update_ctx(name(), fun(ServiceCtx) ->
         maps:without([cluster, cluster_id],
