@@ -27,7 +27,7 @@
  {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},2},
  {<<"gui">>,
   {git,"ssh://git@git.plgrid.pl:7999/vfs/gui.git",
-       {ref,"c965d068ad1b405278bc5b0ce5e84edf88f9cb4e"}},
+       {ref,"89e78d6ca544b91ff2db61c2f604d3b47b3ef81c"}},
   0},
  {<<"hackney">>,
   {git,"git://github.com/benoitc/hackney.git",

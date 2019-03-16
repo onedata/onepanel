@@ -180,7 +180,7 @@ common_response_headers() ->
 deploy_standalone_gui_files() ->
     TempDir = mochitemp:mkdtemp(),
     GuiRoot = onepanel_env:get(gui_static_root),
-    ExtractedPath = gui:extract_package(gui_package_path(), TempDir),
+    {ok, ExtractedPath} = gui:extract_package(gui_package_path(), TempDir),
 
     file_utils:recursive_del(GuiRoot),
     file_utils:move(ExtractedPath, GuiRoot),

@@ -886,7 +886,7 @@ configure_auto_cleaning(#{space_id := SpaceId} = Ctx) ->
 set_up_service_in_onezone() ->
     ?info("Setting up Oneprovider panel service in Onezone"),
     GuiPackagePath = https_listener:gui_package_path(),
-    GuiHash = gui:package_hash(GuiPackagePath),
+    {ok, GuiHash} = gui:package_hash(GuiPackagePath),
     % Try to update version info in Onezone
     case update_version_info(GuiHash) of
         {ok, 204, _, _} ->
