@@ -1,12 +1,13 @@
 %%%--------------------------------------------------------------------
-%%% @author Krzysztof Trzepla
-%%% @copyright (C) 2017 ACK CYFRONET AGH
+%%% @author Wojciech Geisler
+%%% @copyright (C) 2019 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc This module is responsible for restarting registered services when
-%%% not running.
+%%% @doc This module allows periodic invocation of registered jobs.
+%%% A job may be guarded by a Condition, which must evalute to 'true'
+%%% for the job's action to be executed.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_cron).
@@ -27,7 +28,8 @@
     code_change/3]).
 
 -define(TIMEOUT, timer:minutes(5)).
--define(DEFAULT_DELAY, onepanel_env:get(services_check_delay)).
+
+%% Frequency of checks
 -define(TICK_PERIOD, timer:seconds(10)).
 
 -type condition() :: fun(() -> boolean()).
@@ -37,19 +39,21 @@
     condition :: condition(),
     action :: action(),
 
-    period = ?DEFAULT_DELAY :: non_neg_integer(),
+    %% Period in milliseconds to pass between job runs
+    period :: non_neg_integer(),
+
+    %% Millisecond timestamp of the last attempt to run the job,
+    %% including times when the 'condition' was not met.
     last_run = 0 :: non_neg_integer(),
 
-    % pid of the process executing action
+    % pid of the last invocation
     pid :: pid() | undefined
 }).
 
--type job() :: #job{}.
 -type job_name() :: atom().
+-type job() :: #job{}.
 
--type state() :: #{
-job_name() => job()
-}.
+-type state() :: #{job_name() => job()}.
 
 -export_type([condition/0, action/0, job/0, job_name/0]).
 
@@ -68,12 +72,21 @@ start_link() ->
     gen_server:start_link({local, ?ONEPANEL_CRON_NAME}, ?MODULE, [], []).
 
 
+%%--------------------------------------------------------------------
+%% @doc Adds a new job or updates an existing one.
+%% @end
+%%--------------------------------------------------------------------
 -spec register(JobName :: job_name(), Action :: action(),
     Period :: non_neg_integer()) -> ok.
 register(JobName, Action, Period) ->
     register(JobName, Action, Period, fun() -> true end).
 
 
+%%--------------------------------------------------------------------
+%% @doc Adds a new job or updates an existing one.
+%% The Action will be executed only when Condition returns 'true'.
+%% @end
+%%--------------------------------------------------------------------
 -spec register(JobName :: job_name(), Action :: action(),
     Period :: non_neg_integer(), Condition :: condition()) -> ok.
 register(JobName, Action, Period, Condition) ->
@@ -190,7 +203,7 @@ code_change(_OldVsn, State, _Extra) ->
 -spec run_jobs(State :: state()) -> NewState :: state().
 run_jobs(State) ->
     Now = time_utils:system_time_millis(),
-     maps:map(fun(_JobName, Job) ->
+    maps:map(fun(_JobName, Job) ->
         case period_passed(Job, Now) andalso job_finished(Job) of
             true ->
                 Pid = spawn(execute_job_fun(Job)),
