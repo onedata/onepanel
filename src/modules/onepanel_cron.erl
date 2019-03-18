@@ -27,10 +27,11 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
     code_change/3]).
 
--define(TIMEOUT, timer:minutes(5)).
+-define(TIMEOUT, timer:seconds(10)).
+-define(JOB_TIMEOUT, onepanel_env:get(cron_job_timeout)).
 
 %% Frequency of checks
--define(TICK_PERIOD, timer:seconds(10)).
+-define(TICK_PERIOD, onepanel_env:get(cron_period)).
 
 -type condition() :: fun(() -> boolean()).
 -type action() :: fun(() -> term()).
@@ -129,8 +130,8 @@ init([]) ->
     {stop, Reason :: term(), NewState :: state()}.
 handle_call({register, Name, #job{} = Job}, _From, State) ->
     NewState = case State of
-        #{Name := #job{last_run = LastRun}} ->
-            State#{Name => Job#job{last_run = LastRun}};
+        #{Name := #job{last_run = LastRun, pid = Pid}} ->
+            State#{Name => Job#job{last_run = LastRun, pid = Pid}};
         _ -> State#{Name => Job}
     end,
     {reply, ok, NewState};
@@ -163,6 +164,7 @@ handle_cast(Request, State) ->
     {noreply, NewState :: state(), timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: state()}.
 handle_info(tick, State) ->
+    abort_stale_jobs(State),
     {noreply, run_jobs(State)};
 
 handle_info(Info, State) ->
@@ -195,6 +197,30 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private @doc Kills job processes which have been running
+%% for more than JOB_TIMEOUT.
+%% @end
+%%--------------------------------------------------------------------
+-spec abort_stale_jobs(state()) -> ok.
+abort_stale_jobs(State) ->
+    Now = time_utils:system_time_millis(),
+    lists:foreach(fun({JobName, #job{pid = Pid, last_run = LastRun} = Job}) ->
+        case job_finished(Job) of
+            true -> ok;
+            false ->
+                Age = Now - LastRun,
+                case Age > ?JOB_TIMEOUT of
+                    true ->
+                        ?warning("Aborting cron job '~s' after running for ~b seconds",
+                            [JobName, Age div 1000]),
+                        erlang:exit(Pid, kill);
+                    false -> ok
+                end
+        end
+    end, maps:to_list(State)).
+
 
 %%--------------------------------------------------------------------
 %% @private @doc Runs all jobs which conditions are met.

@@ -392,7 +392,7 @@ register_healthcheck(Service) ->
         end
     end,
 
-    Period = onepanel_env:get(services_check_delay),
+    Period = onepanel_env:get(services_check_period),
 
     onepanel_cron:register(Service, Action, Period, Condition).
 

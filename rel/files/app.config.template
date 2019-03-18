@@ -195,9 +195,18 @@
         {extend_cluster_attempts, 20},
         {task_ttl, 86400000},
         {service_step_retry_delay, 30000},
-        {services_check_delay, 60000},
         {session_ttl, 86400000},
         {wait_for_cluster_attempts, 20},
+
+        % frequency of service healthcheck
+        {services_check_period, 60000},
+
+        % time in milliseconds after which cron jobs, such as service healthcheck
+        % or certificate renewal, are aborted
+        {cron_job_timeout, 3600000}, % 1 hour
+
+        % frequency of the cron ticks
+        {cron_period, 1000}, % 1 second
 
         {onepanel_vm_args_file, "{{platform_etc_dir}}/vm.args"},
         {onepanel_legacy_config_file, "{{platform_etc_dir}}/app.config"},
