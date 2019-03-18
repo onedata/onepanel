@@ -18,6 +18,7 @@
 -include("modules/onepanel_dns.hrl").
 -include("service.hrl").
 -include("deployment_progress.hrl").
+-include_lib("ctool/include/onedata.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/global_definitions.hrl").
 
@@ -235,7 +236,7 @@ set_up_service_in_onezone() ->
     {rpc, Client} = zone_client:root_auth(),
     VersionInfo = {AppVersion, BuildVersion, GuiHash},
     ok = rpc:call(OzNode, cluster_logic, update_version_info,
-        [Client, clusters:get_id(), ?ONEPANEL_SERVICE, VersionInfo]),
+        [Client, clusters:get_id(), ?ONEPANEL, VersionInfo]),
 
     % pre-warm cache
     (catch clusters:get_current_cluster()),

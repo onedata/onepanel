@@ -20,13 +20,13 @@
 -include("modules/models.hrl").
 -include("deployment_progress.hrl").
 -include("authentication.hrl").
+-include_lib("ctool/include/onedata.hrl").
 -include_lib("ctool/include/oz/oz_spaces.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/api_errors.hrl").
--include_lib("xmerl/include/xmerl.hrl").
 -include_lib("ctool/include/auth/onedata_macaroons.hrl").
--include_lib("ctool/include/api_errors.hrl").
+-include_lib("xmerl/include/xmerl.hrl").
 -include_lib("macaroons/src/macaroon.hrl").
 
 -include("http/rest.hrl").
@@ -887,6 +887,8 @@ set_up_service_in_onezone() ->
     ?info("Setting up Oneprovider panel service in Onezone"),
     GuiPackagePath = https_listener:gui_package_path(),
     {ok, GuiHash} = gui:package_hash(GuiPackagePath),
+    ServiceShortname = onedata:service_shortname(?OP_PANEL),
+
     % Try to update version info in Onezone
     case update_version_info(GuiHash) of
         {ok, 204, _, _} ->
@@ -895,9 +897,9 @@ set_up_service_in_onezone() ->
             ?info("Uploading GUI to Onezone (~s)", [GuiHash]),
             {ok, 200, _, _} = oz_endpoint:request(
                 provider,
-                "/gui-upload/op_panel",
+                str_utils:format("/~s/~s/gui-upload", [ServiceShortname, clusters:get_id()]),
                 post,
-                {multipart, [{file, list_to_binary(GuiPackagePath)}]},
+                {multipart, [{file, str_utils:to_binary(GuiPackagePath)}]},
                 [{endpoint, gui}]
             ),
             ?info("GUI uploaded succesfully"),
