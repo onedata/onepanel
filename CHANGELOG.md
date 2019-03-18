@@ -4,6 +4,43 @@
 CHANGELOG
 ---------
 
+### 18.02.1
+
+* VSF-5198 Renew Let's Encrypt certs 30 days before expiration
+* Updating GUI, including: VFS-5187-spaces-support-fixes * VFS-5187 Fixed some graphical issues in supported spaces view; onepanel client library update
+* VFS-5121 hotfix, enabled field should be optional in space_file_popularity_configuration
+* Updating GUI, including: VFS-5114-dynamic-auto-cleaning-reports * VFS-5114 Infinite-scroll list of auto-cleaning reports, file-popularity options and major refactor of space support views
+* VFS-5121 fix missing field in space_sync_stats_model generated from swagger
+* VFS-5161 Add isRegistered and zoneName to configuration endpoint
+* VFS-5161 Harden configuration endpoint against workers being down
+* VFS-5161 Fix detection whether oneprovider is registered
+* VFS-5161 Use polymorphism to describe configuration endpoint
+* VFS-5161 Add configuration endpoint to swagger-described path
+* Updating GUI, including: VFS-5153-dns-autodetect-option * VFS-5153 Added DNS autodetect option
+* VFS-5146 Handle 'hostname -i' returning multiple addresses
+* VFS-5146 Add builtInDnsServer switch to batch config
+* VFS-5146 Allow use of default DNS for NS records check
+* VFS-5146 Store oz domain before using it for IP detection
+* VFS-5146 Use DNS for external IP detection
+* VFS-5146 Allow empty list of DNS check servers
+* VFS-5121 change description of a selective rule
+* VFS-5159 Add boost lib to RPM dependencies
+* VFS-5159 Add missing folly lib to package deps and update ctool
+* VFS-5121 changes files-popularity name to file-popularity
+* VFS-5121 update file-popularity API
+* VFS-5121 add defaults to infinite-scroll over auto-cleaning reports request params
+* VFS-5023 implement backend for infinite scroll over auto-cleaning reports
+* VFS-5023 handle errors returned by autocleaning_api:force_start function
+* VFS-5023 update auto_cleaning rule names in communication with oneprovider
+* VFS-5023 handle cases when file-popularity and autocleaning mechanisms are disabled when forcing start of auto-cleaning
+* VFS-5023 update rpc calls to oneprovider, add end_per_suite functions
+* Updating GUI, including: VFS-5070-auto-cleaning-new-options * VFS-5070 Added new conditions and using refactored API for auto-cleaning
+* VFS-5010 Make user session longer
+* VFS-5010 Fill in default values for webdav storage params
+* VFS-5044 Convert storage details on GET
+* VFS-5044 Use valid module name for checking TXT record
+
+
 ### 18.02.0-rc13
 
 * Updating GUI, including: VFS-4919-webdav-storage, VFS-4873-unify-onedata-addons * VFS-4919 Added support for WebDAV storage * VFS-4873 Refactoring of common addons

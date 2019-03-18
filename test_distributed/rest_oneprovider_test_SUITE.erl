@@ -921,9 +921,9 @@ init_per_testcase(patch_should_update_file_popularity, Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_new(Nodes, rest_oneprovider),
     Self = self(),
-    test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
+    test_utils:mock_expect(Nodes, service, apply_async, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},
-        [{task_finished, {service, action, ok}}]
+        <<"someTaskId">>
     end),
     NewConfig;
 
