@@ -30,8 +30,9 @@
     BadResults :: onepanel_rpc:results()}.
 -type step_result() :: {Module :: module(), Function :: atom()} |
 {Module :: module(), Function :: atom(), HostsResults :: hosts_results()}.
--type action_result() :: {task_finished, Service :: service:name(),
-    Action :: service:action(), Result :: ok | #error{}}.
+-type action_result() :: {task_finished, {
+    Service :: service:name(), Action :: service:action(), Result :: ok | #error{}
+}}.
 -type result() :: action_result() | step_result().
 -type results() :: [result()].
 
