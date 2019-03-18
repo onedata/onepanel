@@ -57,11 +57,11 @@ prepare() ->
     hackney:start(),
 
     meck:new([https_listener, gui, onepanel_app, clusters], [passthrough]),
-    meck:expect(onepanel_app, get_build_and_version, fun() -> {"build", "app"} end),
+    meck:expect(onepanel_app, get_build_and_version, fun() -> {"build", "release"} end),
     meck:expect(https_listener, gui_package_path, fun() -> "/some/path" end),
     meck:expect(clusters, get_id, fun() -> "clusterId" end),
     meck:expect(gui, package_hash, fun("/some/path") ->
-        <<"d83ba80420ec99bcb143df16a00c39a56c140341e4446ae9b5e8b5a6d18116ed">>
+        {ok, <<"d83ba80420ec99bcb143df16a00c39a56c140341e4446ae9b5e8b5a6d18116ed">>}
     end),
 
     mock_oz_request(fun
