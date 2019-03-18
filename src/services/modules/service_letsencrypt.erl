@@ -27,8 +27,7 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([create/1, status/1, check_webcert/1,
-    enable/1, disable/1, get_details/1]).
+-export([create/1, check_webcert/1, enable/1, disable/1, get_details/1]).
 
 %% Private function exported for rpc
 -export([local_cert_status/1, is_local_cert_letsencrypt/0]).
@@ -137,22 +136,6 @@ create(#{letsencrypt_plugin := Plugin}) ->
         {ok, _} -> ok;
         #error{reason = ?ERR_ALREADY_EXISTS} -> ok
     end.
-
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Callback needed for service_watcher.
-%% @end
-%%--------------------------------------------------------------------
--spec status(Ctx :: service:ctx()) -> healthy.
-status(Ctx) ->
-    try
-        check_webcert(Ctx#{renewal => true})
-    catch
-        _:Reason -> ?error("Certificate renewal check failed: ~p", [?make_stacktrace(Reason)])
-    end,
-    % always returns 'healthy' as there is no meaningful way of restarting this service
-    healthy.
 
 
 %%--------------------------------------------------------------------
@@ -267,8 +250,26 @@ obtain_cert(Ctx) ->
 %%--------------------------------------------------------------------
 -spec enable(service:ctx()) -> ok.
 enable(_Ctx) ->
-    ok = service_watcher:register_service(name(), ?CHECK_DELAY),
+    schedule_check(),
     update_ctx(#{letsencrypt_enabled => true}).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Registers periodic check of cert validity.
+%% @end
+%%--------------------------------------------------------------------
+-spec schedule_check() -> ok.
+schedule_check() ->
+    Action = fun() ->
+        try
+            check_webcert(#{renewal => true})
+        catch
+            _:Reason -> ?error("Certificate renewal check failed: ~p", [?make_stacktrace(Reason)])
+        end
+    end,
+    service_watcher:register(name(), Action, ?CHECK_DELAY).
 
 
 %%--------------------------------------------------------------------
@@ -279,7 +280,7 @@ enable(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec disable(service:ctx()) -> ok.
 disable(_Ctx) ->
-    ok = service_watcher:unregister_service(name()),
+    ok = service_watcher:unregister(name()),
     update_ctx(#{letsencrypt_enabled => false}).
 
 
@@ -304,7 +305,7 @@ is_regenerating() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec global_cert_status(service:ctx()) -> status().
-global_cert_status(Ctx) ->
+global_cert_status(_Ctx) ->
     case is_regenerating() of
         true -> regenerating;
         _ ->

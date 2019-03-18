@@ -30,6 +30,7 @@
 -export([apply/3, apply/4, apply_async/3,
     apply_sync/3, apply_sync/4, get_results/1, get_results/2, abort_task/1,
     exists_task/1]).
+-export([register_healthcheck/1]).
 -export([get_status/2, update_status/2, update_status/3, all_healthy/0]).
 -export([get_module/1, get_hosts/1, get_nodes/1, is_member/2, add_host/2]).
 -export([get_ctx/1, update_ctx/2]).
@@ -170,7 +171,7 @@ update_status(Service, Host, Status) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_status(name(), host()) -> status() | #error{}.
-get_status(Service, Host)->
+get_status(Service, Host) ->
     case get_ctx(Service) of
         Ctx when is_map(Ctx) -> onepanel_maps:get([status, Host], Ctx);
         Error -> Error
@@ -365,6 +366,35 @@ add_host(Service, Host) ->
             ctx = Ctx#{status => NewStatus}
         }
     end).
+
+
+-spec register_healthcheck(Service :: name()) -> ok.
+register_healthcheck(Service) ->
+    Module = get_module(Service),
+    Condition = fun() ->
+        case (catch Module:status(#{})) of
+            healthy -> false;
+            unhealthy -> false;
+            _ -> true
+        end
+    end,
+
+    Action = fun() ->
+        ?critical("Service ~p is not running. Restarting...", [Service]),
+        Results = apply_sync(Service, resume,
+            #{hosts => [onepanel_cluster:node_to_host()]}),
+        case service_utils:results_contain_error(Results) of
+            {true, Error} ->
+                % @fixme improve error formatting
+                ?critical("Failed to restart service ~p due to:~n~p",
+                    [Service, rest_replier:format_error(error, Error)]);
+            false -> ok
+        end
+    end,
+
+    Period = onepanel_env:get(services_check_delay),
+
+    service_watcher:register(Service, Action, Period, Condition).
 
 
 %%--------------------------------------------------------------------
