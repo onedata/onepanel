@@ -193,7 +193,7 @@ start(#{name := Name} = Ctx) ->
 
 -spec stop(service:ctx()) -> ok.
 stop(#{name := Name} = Ctx) ->
-    service_watcher:unregister(Name),
+    onepanel_cron:unregister(Name),
     service_cli:stop(Name),
     % check status before updating it as service_cli:stop/1 does not throw on failure
     status(Ctx),

@@ -142,7 +142,7 @@ start(Ctx) ->
 -spec stop(Ctx :: service:ctx()) -> ok | no_return().
 stop(Ctx) ->
     % @fixme
-    service_watcher:unregister(name()),
+    onepanel_cron:unregister(name()),
     service_cli:stop(name()),
     % update status cache
     status(Ctx),

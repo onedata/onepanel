@@ -95,7 +95,7 @@ get_steps(resume, Ctx) ->
             % service_letsencrypt, requires key letsencrypt_plugin in the Ctx
             create(Ctx)
     end,
-    % ensure service is added to service_watcher if necessary
+    % ensure service is added to onepanel_cron if necessary
     [#steps{action = update}];
 
 get_steps(update, Ctx) ->
@@ -269,7 +269,7 @@ schedule_check() ->
             _:Reason -> ?error("Certificate renewal check failed: ~p", [?make_stacktrace(Reason)])
         end
     end,
-    service_watcher:register(name(), Action, ?CHECK_DELAY).
+    onepanel_cron:register(name(), Action, ?CHECK_DELAY).
 
 
 %%--------------------------------------------------------------------
@@ -280,7 +280,7 @@ schedule_check() ->
 %%--------------------------------------------------------------------
 -spec disable(service:ctx()) -> ok.
 disable(_Ctx) ->
-    ok = service_watcher:unregister(name()),
+    ok = onepanel_cron:unregister(name()),
     update_ctx(#{letsencrypt_enabled => false}).
 
 

@@ -9,7 +9,7 @@
 %%% not running.
 %%% @end
 %%%--------------------------------------------------------------------
--module(service_watcher).
+-module(onepanel_cron).
 -author("Krzysztof Trzepla").
 -author("Wojciech Geisler").
 
@@ -65,7 +65,7 @@ job_name() => job()
 -spec(start_link() ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
 start_link() ->
-    gen_server:start_link({local, ?SERVICE_WATCHER_NAME}, ?MODULE, [], []).
+    gen_server:start_link({local, ?ONEPANEL_CRON_NAME}, ?MODULE, [], []).
 
 
 -spec register(JobName :: job_name(), Action :: action(),
@@ -80,12 +80,12 @@ register(JobName, Action, Period, Condition) ->
     Job = #job{
         condition = Condition, action = Action, period = Period
     },
-    gen_server:call(?SERVICE_WATCHER_NAME, {register, JobName, Job}, ?TIMEOUT).
+    gen_server:call(?ONEPANEL_CRON_NAME, {register, JobName, Job}, ?TIMEOUT).
 
 
 -spec unregister(JobName :: job_name()) -> ok.
 unregister(JobName) ->
-    gen_server:call(?SERVICE_WATCHER_NAME, {unregister, JobName}, ?TIMEOUT).
+    gen_server:call(?ONEPANEL_CRON_NAME, {unregister, JobName}, ?TIMEOUT).
 
 %%%===================================================================
 %%% gen_server callbacks

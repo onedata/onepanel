@@ -167,7 +167,7 @@ update_status(Service, Host, Status) ->
 %% @doc
 %% Returns cached service status.
 %% This cache is updated on each start/stop operation
-%% and by service_watcher periodically invoking ServiceModule:status/1.
+%% and by onepanel_cron periodically invoking ServiceModule:status/1.
 %% @end
 %%--------------------------------------------------------------------
 -spec get_status(name(), host()) -> status() | #error{}.
@@ -394,7 +394,7 @@ register_healthcheck(Service) ->
 
     Period = onepanel_env:get(services_check_delay),
 
-    service_watcher:register(Service, Action, Period, Condition).
+    onepanel_cron:register(Service, Action, Period, Condition).
 
 
 %%--------------------------------------------------------------------
