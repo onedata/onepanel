@@ -22,6 +22,6 @@ TARGET_DIR='_build/default/lib'
 ARCHIVE_NAME='gui_static.tar.gz'
 # Image which will be used by default to get the static files. If it cannot
 # be resolved, the script will fall back to secondary.
-PRIMARY_IMAGE='docker.onedata.org/onepanel-gui:ID-2926016332' #@fixme proper commit
+PRIMARY_IMAGE='docker.onedata.org/onepanel-gui:ID-0546eeaf4a' #@fixme proper commit
 # Image which will be used if primary image is not resolved.
 SECONDARY_IMAGE='no-secondary-image'
