@@ -62,12 +62,7 @@ exists_resource(Req, #rstate{resource = onezone_info}) ->
     {true, Req};
 
 exists_resource(Req, _State) ->
-    case service:get(?SERVICE) of
-        {ok, #service{ctx = #{registered := true}}} -> {true, Req};
-        {ok, #service{}} -> {false, Req};
-        #error{reason = ?ERR_NOT_FOUND} -> {false, Req}
-    end.
-
+    {service_oneprovider:is_registered(), Req}.
 
 %%--------------------------------------------------------------------
 %% @doc {@link rest_behaviour:accept_possible/4}
@@ -82,9 +77,9 @@ accept_possible(Req, _Method, _Args, _State) ->
 %% @end
 %%--------------------------------------------------------------------
 is_available(Req, 'GET', #rstate{resource = cluster_ips}) -> {true, Req};
+is_available(Req, 'GET', #rstate{resource = provider}) -> {true, Req};
 
-is_available(Req, _Method, _State) ->
-    {service:all_healthy(), Req}.
+is_available(Req, _Method, _State) -> {service:all_healthy(), Req}.
 
 
 %%--------------------------------------------------------------------

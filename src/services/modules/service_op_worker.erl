@@ -32,7 +32,7 @@
 -export([configure/1, start/1, stop/1, status/1, health/1, wait_for_init/1,
     get_nagios_response/1, get_nagios_status/1, add_storages/1, get_storages/1,
     update_storage/1, invalidate_luma_cache/1, reload_webcert/1,
-    get_compatible_onezones/0]).
+    get_compatible_onezones/0, is_connected_to_oz/0]).
 -export([migrate_generated_config/1]).
 
 -define(INIT_SCRIPT, "op_worker").
@@ -306,7 +306,7 @@ supports_letsencrypt_challenge(dns) ->
     try
         service:healthy(name()) andalso
             service_oneprovider:is_registered() andalso
-            maps:get(subdomainDelegation, service_oneprovider:get_details(#{}), false)
+            maps:get(subdomainDelegation, service_oneprovider:get_details(), false)
     catch
         _:_ -> false
     end;
@@ -363,7 +363,7 @@ get_dns_server() ->
 %%--------------------------------------------------------------------
 -spec get_domain() -> binary().
 get_domain() ->
-    #{domain := Domain} = service_oneprovider:get_details(#{}),
+    #{domain := Domain} = service_oneprovider:get_details(),
     Domain.
 
 
@@ -373,7 +373,7 @@ get_domain() ->
 %%--------------------------------------------------------------------
 -spec get_admin_email(Ctx :: service:ctx()) -> binary().
 get_admin_email(_Ctx) ->
-    #{adminEmail := AdminEmail} = service_oneprovider:get_details(#{}),
+    #{adminEmail := AdminEmail} = service_oneprovider:get_details(),
     AdminEmail.
 
 
@@ -401,6 +401,18 @@ get_compatible_onezones() ->
         [op_worker, compatible_oz_versions], ?SERVICE_OPW),
     onepanel_utils:convert(Versions, {seq, binary}).
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Checks if the op-worker has GraphSync connection to Onezone.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_connected_to_oz() -> boolean().
+is_connected_to_oz() ->
+    case nodes:any(?SERVICE_OPW) of
+        {ok, Node} -> true == rpc:call(Node, oneprovider, is_connected_to_oz, []);
+        _ -> false
+    end.
 
 %%%===================================================================
 %%% Internal functions

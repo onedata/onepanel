@@ -424,12 +424,12 @@ format_onepanel_configuration(oneprovider) ->
                 isRegistered => false
             };
         true ->
-            try #{} = service_oneprovider:get_details(#{}) of
-                Details ->
-                    onepanel_maps:get_store_multiple([
-                        {id, providerId},
-                        {onezoneDomainName, zoneDomain}
-                    ], Details, Common#{isRegistered => true})
+            try
+                Details = service_oneprovider:get_details(),
+                onepanel_maps:get_store_multiple([
+                    {id, providerId},
+                    {onezoneDomainName, zoneDomain}
+                ], Details, Common#{isRegistered => true})
             catch
                 _:_ ->
                     % If op_worker was configured, the Onezone domain can be

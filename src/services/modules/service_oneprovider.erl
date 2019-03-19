@@ -37,11 +37,11 @@
 %% API
 -export([configure/1, check_oz_availability/1, mark_configured/0,
     register/1, unregister/0, is_registered/1, is_registered/0,
-    modify_details/1, get_details/0, get_details/1, get_oz_domain/0,
+    modify_details/1, get_details/0, get_oz_domain/0,
     support_space/1, revoke_space_support/1, get_spaces/1, is_space_supported/1,
     get_space_details/1, modify_space/1, format_cluster_ips/1,
     get_sync_stats/1, get_auto_cleaning_reports/1, get_auto_cleaning_report/1,
-    get_auto_cleaning_status/1, start_auto_cleaning/1, check_oz_connection/1,
+    get_auto_cleaning_status/1, start_auto_cleaning/1, check_oz_connection/0,
     update_provider_ips/0, configure_file_popularity/1, configure_auto_cleaning/1,
     get_file_popularity_configuration/1, get_auto_cleaning_configuration/1]).
 -export([set_up_service_in_onezone/0]).
@@ -221,7 +221,7 @@ get_steps(register, #{hosts := Hosts} = Ctx) ->
             attempts = onepanel_env:get(connect_to_onezone_attempts)},
         #step{hosts = Hosts, function = register, selection = any},
         % explicitly fail on connection problems before executing further steps
-        #step{hosts = Hosts, function = check_oz_connection,
+        #step{hosts = Hosts, function = check_oz_connection, args = [],
             attempts = onepanel_env:get(connect_to_onezone_attempts)},
         #steps{action = set_up_service_in_onezone},
         #steps{action = set_cluster_ips}
@@ -257,8 +257,11 @@ get_steps(set_cluster_ips, #{hosts := Hosts} = Ctx) ->
 get_steps(set_cluster_ips, Ctx) ->
     get_steps(set_cluster_ips, Ctx#{hosts => service_op_worker:get_hosts()});
 
+get_steps(Action, _Ctx) when
+    Action =:= get_details ->
+    [#step{function = Action, args = [], selection = any}];
+
 get_steps(Action, Ctx) when
-    Action =:= get_details;
     Action =:= support_space;
     Action =:= revoke_space_support;
     Action =:= get_spaces;
@@ -342,10 +345,9 @@ check_oz_availability(Ctx) ->
 %% @doc Checks if Oneprovider is registered and connected to onezone
 %% @end
 %%--------------------------------------------------------------------
--spec check_oz_connection(Ctx :: service:ctx()) -> ok | no_return().
-check_oz_connection(Ctx) ->
-    {ok, Node} = nodes:any(Ctx#{service => ?SERVICE_OPW}),
-    case rpc:call(Node, oneprovider, is_connected_to_oz, []) of
+-spec check_oz_connection() -> ok | no_return().
+check_oz_connection() ->
+    case service_op_worker:is_connected_to_oz() of
         true -> ok;
         false -> ?throw_error(?ERR_ONEZONE_NOT_AVAILABLE)
     end.
@@ -490,45 +492,12 @@ get_auth_token() ->
 %% @doc Returns configuration details of the provider.
 %% @end
 %%--------------------------------------------------------------------
--spec get_details(Ctx :: service:ctx()) -> #{atom() := term()} | no_return().
-get_details(_Ctx) ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-
-    % Graph Sync connection is needed to obtain details
-    case rpc:call(Node, oneprovider, is_connected_to_oz, []) of
-        false -> rpc:call(Node, oneprovider, force_oz_connection_start, []);
-        true -> ok
-    end,
-
-    OzDomain = get_oz_domain(),
-
-    Details = case rpc:call(Node, provider_logic, get_as_map, []) of
-        {ok, DetailsMap} -> DetailsMap;
-        ?ERROR_NO_CONNECTION_TO_OZ -> ?throw_error(?ERR_ONEZONE_NOT_AVAILABLE);
-        {error, Reason} -> ?throw_error(Reason)
-    end,
-
-    #{latitude := Latitude, longitude := Longitude} = Details,
-
-    Response = onepanel_maps:get_store_multiple([
-        {id, id}, {name, name}, {admin_email, adminEmail},
-        {subdomain_delegation, subdomainDelegation}, {domain, domain},
-        {cluster, cluster}
-    ], Details),
-
-    Response2 = Response#{
-        geoLatitude => onepanel_utils:convert(Latitude, float),
-        geoLongitude => onepanel_utils:convert(Longitude, float),
-        onezoneDomainName => onepanel_utils:convert(OzDomain, binary)
-    },
-
-    case maps:get(subdomain_delegation, Details) of
-        true -> Response2#{subdomain => maps:get(subdomain, Details)};
-        _ -> Response2
-    end.
-
 -spec get_details() -> #{atom() := term()} | no_return().
-get_details() -> get_details(#{}).
+get_details() ->
+    case service_op_worker:is_connected_to_oz() of
+        true -> get_details_by_graph_sync();
+        false -> get_details_by_rest()
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -945,6 +914,75 @@ save_provider_auth(OpwNode, ProviderId, Macaroon) ->
         MacaroonPath, onepanel_env:get_config_path(?SERVICE_PANEL, generated)),
     onepanel_env:set(PanelNodes, op_worker_root_macaroon_path, MacaroonPath, ?APP_NAME),
     ok.
+
+
+%% @private
+-spec get_details_by_graph_sync() -> #{atom() := term()} | no_return().
+get_details_by_graph_sync() ->
+    {ok, Node} = nodes:any(?SERVICE_OPW),
+
+    OzDomain = get_oz_domain(),
+
+    Details = case rpc:call(Node, provider_logic, get_as_map, []) of
+        {ok, DetailsMap} -> DetailsMap;
+        ?ERROR_NO_CONNECTION_TO_OZ -> ?throw_error(?ERR_ONEZONE_NOT_AVAILABLE);
+        {error, Reason} -> ?throw_error(Reason)
+    end,
+
+    #{latitude := Latitude, longitude := Longitude} = Details,
+
+    Response = onepanel_maps:get_store_multiple([
+        {id, id}, {name, name}, {admin_email, adminEmail},
+        {subdomain_delegation, subdomainDelegation}, {domain, domain},
+        {cluster, cluster}
+    ], Details),
+
+    Response2 = Response#{
+        geoLatitude => onepanel_utils:convert(Latitude, float),
+        geoLongitude => onepanel_utils:convert(Longitude, float),
+        onezoneDomainName => onepanel_utils:convert(OzDomain, binary)
+    },
+
+    case maps:get(subdomain_delegation, Details) of
+        true -> Response2#{subdomain => maps:get(subdomain, Details)};
+        _ -> Response2
+    end.
+
+
+%% @private
+-spec get_details_by_rest() -> #{atom() := term()} | no_return().
+get_details_by_rest() ->
+    {ok, 200, _, ProviderDetailsBody} = oz_endpoint:request(provider, "/provider", get),
+    {ok, 200, _, DomainConfigBody} = oz_endpoint:request(provider, "/provider/domain_config", get),
+    ProviderDetails = json_utils:decode(ProviderDetailsBody),
+    DomainConfig = json_utils:decode(DomainConfigBody),
+    OzDomain = onepanel_utils:convert(get_oz_domain(), binary),
+
+    % NOTE: the REST endpoint returns protected data, which do not contain adminEmail
+    Result1 = onepanel_maps:get_store_multiple([
+        {<<"providerId">>, id},
+        {<<"name">>, name},
+        {<<"domain">>, domain},
+        {<<"latitude">>, geoLatitude},
+        {<<"longitude">>, geoLongitude},
+        {<<"cluster">>, cluster}
+    ], ProviderDetails, #{
+        onezoneDomainName => OzDomain
+    }),
+
+    DomainConfigKeys = [
+        {<<"subdomainDelegation">>, subdomainDelegation},
+        {<<"domain">>, domain}
+    ],
+    DomainConfigKeys2 = case DomainConfig of
+        #{<<"subdomainDelegation">> := true} ->
+            [{<<"subdomain">>, subdomain} | DomainConfigKeys];
+        #{<<"subdomainDelegation">> := false} ->
+            DomainConfigKeys
+    end,
+
+    onepanel_maps:get_store_multiple(DomainConfigKeys2,
+        DomainConfig, Result1).
 
 
 %%--------------------------------------------------------------------
