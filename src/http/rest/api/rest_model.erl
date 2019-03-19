@@ -571,7 +571,7 @@ provider_configuration_details_model() ->
 -spec provider_configuration_details_oneprovider_model() -> maps:map().
 provider_configuration_details_oneprovider_model() ->
     #{
-        %% The name of a provider. Null if not registered.
+        %% The name of a provider. `null` if not registered.
         name => string,
         %% True if all steps of cluster deployment and configuration have been
         %% performed.
@@ -618,7 +618,7 @@ provider_configuration_oneprovider_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The provider configuration details.
+%% @doc The Oneprovider configuration details.
 %% @end
 %%--------------------------------------------------------------------
 -spec provider_details_model() -> maps:map().
@@ -626,24 +626,26 @@ provider_details_model() ->
     #{
         %% The Id assigned by a zone.
         id => string,
-        %% The name under which the provider has been registered in a zone.
+        %% The name under which the Oneprovider has been registered in a zone.
         name => string,
-        %% If enabled, the storage provider has a subdomain in onezone's
+        %% If enabled, the storage Oneprovider has a subdomain in onezone's
         %% domain and 'subdomain' property must be provided.
         subdomainDelegation => boolean,
-        %% Unique subdomain in onezone's domain for the provider. Required
-        %% if subdomain delegation is enabled.
+        %% Unique subdomain in onezone's domain for the Oneprovider.
+        %% Required if subdomain delegation is enabled.
         subdomain => {string, optional},
-        %% The fully qualified domain name of the provider or its IP address
+        %% The fully qualified domain name of the Oneprovider or its IP address
         %% (only for single-node deployments or clusters with a reverse proxy).
         domain => string,
-        %% Email address of the oneprovider administrator.
-        adminEmail => string,
-        %% The geographical longitude of the provider.
+        %% Email address of the Oneprovider administrator. Omitted if it could
+        %% not be retrievied.
+        adminEmail => {string, optional},
+        %% The geographical longitude of the Oneprovider.
         geoLongitude => float,
-        %% The geographical latitude of the provider.
+        %% The geographical latitude of the Oneprovider.
         geoLatitude => float,
-        %% The domain name of a zone where this storage provider is registered.
+        %% The domain name of a zone where this storage Oneprovider is
+        %% registered.
         onezoneDomainName => string
     }.
 
@@ -1661,8 +1663,8 @@ nulldevice_model() ->
 -spec op_configuration_model() -> maps:map().
 op_configuration_model() ->
     #{
-        %% The Id of cluster record for this cluster. Null if the cluster is not
-        %% registered.
+        %% The Id of cluster record for this cluster. `null` if the
+        %% cluster is not registered.
         clusterId => string,
         %% Version of this Onepanel
         version => string,
@@ -1672,11 +1674,11 @@ op_configuration_model() ->
         deployed => boolean,
         %% Indicates that this is Oneprovider's panel.
         serviceType => {equal, <<"oneprovider">>},
-        %% This cluster's Oneprovider Id. Null if the Oneprovider is not
-        %% registered or Oneprovider worker is down.
+        %% This cluster's Oneprovider Id. `null` if the
+        %% Oneprovider is not registered or Oneprovider worker is down.
         providerId => string,
-        %% The domain of the Onezone where this Oneprovider is registered. Null
-        %% if the Oneprovider is not registered.
+        %% The domain of the Onezone where this Oneprovider is registered.
+        %% `null` if the Oneprovider is not registered.
         zoneDomain => string,
         %% True if the Oneprovider has been registered at a Onezone.
         isRegistered => {boolean, optional}
@@ -1689,8 +1691,8 @@ op_configuration_model() ->
 -spec oz_configuration_model() -> maps:map().
 oz_configuration_model() ->
     #{
-        %% The Id of cluster record for this cluster. Null if the cluster is not
-        %% registered.
+        %% The Id of cluster record for this cluster. `null` if the
+        %% cluster is not registered.
         clusterId => string,
         %% Version of this Onepanel
         version => string,
@@ -1700,10 +1702,11 @@ oz_configuration_model() ->
         deployed => boolean,
         %% Indicates that this is Onezone's panel.
         serviceType => {equal, <<"onezone">>},
-        %% The domain of this Onezone cluster. Null before cluster is
-        %% configured.
+        %% The domain of this Onezone cluster. `null` before cluster
+        %% is configured.
         zoneDomain => string,
-        %% The name of this Onezone cluster. Null before cluster is configured.
+        %% The name of this Onezone cluster. `null` before cluster is
+        %% configured.
         zoneName => {string, optional}
     }.
 
