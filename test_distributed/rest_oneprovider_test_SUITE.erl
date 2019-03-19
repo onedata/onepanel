@@ -292,10 +292,12 @@ method_should_return_service_unavailable_error(Config) ->
             ?assertMatch({ok, 503, _, _}, onepanel_test_rest:noauth_request(
                 Host, Endpoint, Method
             ))
-        end, lists:delete(
-            {<<"/provider/cluster_ips">>, get}, % only endpoint not causing 503
-            ?COMMON_ENDPOINTS_WITH_METHODS
-        ))
+        end, lists:subtract(
+            ?COMMON_ENDPOINTS_WITH_METHODS, [
+                {<<"/provider/cluster_ips">>, get},
+                {<<"/provider">>, get}
+            ])
+        )
     end).
 
 
