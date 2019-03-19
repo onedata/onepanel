@@ -418,17 +418,15 @@ unregister() ->
 %%--------------------------------------------------------------------
 -spec is_registered(Ctx :: service:ctx()) -> boolean().
 is_registered(#{node := Node}) ->
-    try rpc:call(Node, oneprovider, is_registered, []) of
+    case rpc:call(Node, oneprovider, is_registered, []) of
         Registered when is_boolean(Registered) ->
             service:update_ctx(name(), #{registered => Registered}),
             Registered;
-        _ ->
+        _RpcError ->
             case service:get_ctx(name()) of
                 #{registered := Registered} -> Registered;
                 _ -> false
             end
-    catch _:_ ->
-        false
     end;
 
 is_registered(Ctx) ->
@@ -437,6 +435,7 @@ is_registered(Ctx) ->
         _Error -> false
     end.
 
+-spec is_registered() -> boolean().
 is_registered() ->
     is_registered(#{}).
 
