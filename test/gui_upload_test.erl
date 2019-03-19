@@ -17,6 +17,8 @@
 -include("modules/errors.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
+-define(CLUSTER_ID, "clusterId").
+
 %%%===================================================================
 %%% Test generators
 %%%===================================================================
@@ -38,7 +40,8 @@ missing_gui_is_uploaded() ->
     service_oneprovider:set_up_service_in_onezone(),
 
     ?assertMatch({provider, "/clusters/" ++ _Id, patch, _, _Body, _}, pop_request()),
-    ?assertMatch({provider, "/gui-upload/op_panel", post, _, _Body, _}, pop_request()).
+    ?assertMatch({provider, "/opp/" ++ ?CLUSTER_ID ++ "/gui-upload", post, _, _Body, _},
+        pop_request()).
 
 
 existing_gui_is_not_uploaded() ->
@@ -59,7 +62,7 @@ prepare() ->
     meck:new([https_listener, gui, onepanel_app, clusters], [passthrough]),
     meck:expect(onepanel_app, get_build_and_version, fun() -> {"build", "release"} end),
     meck:expect(https_listener, gui_package_path, fun() -> "/some/path" end),
-    meck:expect(clusters, get_id, fun() -> "clusterId" end),
+    meck:expect(clusters, get_id, fun() -> ?CLUSTER_ID end),
     meck:expect(gui, package_hash, fun("/some/path") ->
         {ok, <<"d83ba80420ec99bcb143df16a00c39a56c140341e4446ae9b5e8b5a6d18116ed">>}
     end),
@@ -74,7 +77,7 @@ prepare() ->
             after
                 0 -> {ok, 400, #{}, <<>>}
             end;
-        (provider, "/gui-upload/op_panel", post, _Headers, _Body, _Opts) ->
+        (provider, "/opp/" ++ ?CLUSTER_ID ++ "/gui-upload", post, _Headers, _Body, _Opts) ->
             self() ! gui_uploaded,
             {ok, 200, #{}, <<>>};
         (Auth, URN, Method, Headers, Body, Opts) ->
