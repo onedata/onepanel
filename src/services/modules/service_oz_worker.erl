@@ -453,7 +453,7 @@ get_logic_client(AccessToken) ->
                 authorize_by_zone_gui_macaroon, [AccessToken, undefined]
             ) of
                 {true, LogicClient} ->
-                    {ok, LogicClient};  % record to be used in rpc calls to oz-worker
+                    {ok, LogicClient};  % record to be used in rpc calls to oz_worker
                 {error, ApiError} -> ?make_error(ApiError)
             end;
         Error -> Error

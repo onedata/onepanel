@@ -104,7 +104,7 @@ timestamp() ->
 %%--------------------------------------------------------------------
 -spec session_cookie_key() -> binary().
 session_cookie_key() ->
-    % Must be different than op/oz-worker's cookie key
+    % Must be different than op/oz_worker's cookie key
     % as cookies are shared between applications served on different
     % ports.
     <<"PSID">>.

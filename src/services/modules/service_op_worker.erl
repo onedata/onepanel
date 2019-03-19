@@ -404,7 +404,7 @@ get_compatible_onezones() ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Checks if the op-worker has GraphSync connection to Onezone.
+%% Checks if the op_worker has GraphSync connection to Onezone.
 %% @end
 %%--------------------------------------------------------------------
 -spec is_connected_to_oz() -> boolean().

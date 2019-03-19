@@ -465,7 +465,7 @@ modify_details(Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Must be executed on an op-worker node.
+%% @doc Must be executed on an op_worker node.
 %% @end
 %%--------------------------------------------------------------------
 -spec get_id() -> binary().
@@ -1088,7 +1088,7 @@ auth_macaroon_from_file() ->
 %%--------------------------------------------------------------------
 %% @private
 %% @doc Reads provider Id and root macaroon from a file where they are stored.
-%% Must be executed on an op-worker node.
+%% Must be executed on an op_worker node.
 %% @end
 %%--------------------------------------------------------------------
 -spec read_auth_file() -> #{provider_id := binary(), root_macaroon := binary()}.
