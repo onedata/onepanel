@@ -269,7 +269,7 @@ schedule_check() ->
             _:Reason -> ?error("Certificate renewal check failed: ~p", [?make_stacktrace(Reason)])
         end
     end,
-    onepanel_cron:register(name(), Action, ?CHECK_DELAY).
+    onepanel_cron:add_job(name(), Action, ?CHECK_DELAY).
 
 
 %%--------------------------------------------------------------------
@@ -280,7 +280,7 @@ schedule_check() ->
 %%--------------------------------------------------------------------
 -spec disable(service:ctx()) -> ok.
 disable(_Ctx) ->
-    ok = onepanel_cron:unregister(name()),
+    ok = onepanel_cron:remove_job(name()),
     update_ctx(#{letsencrypt_enabled => false}).
 
 

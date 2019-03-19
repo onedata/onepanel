@@ -175,7 +175,7 @@ start(Ctx) ->
 %%--------------------------------------------------------------------
 -spec stop(Ctx :: service:ctx()) -> ok.
 stop(Ctx) ->
-    onepanel_cron:unregister(name()),
+    onepanel_cron:remove_job(name()),
     service_cli:stop(name()),
     % check status before updating it as service_cli:stop/1 does not throw on failure
     status(Ctx),

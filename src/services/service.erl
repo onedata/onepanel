@@ -394,7 +394,7 @@ register_healthcheck(Service) ->
 
     Period = onepanel_env:get(services_check_period),
 
-    onepanel_cron:register(Service, Action, Period, Condition).
+    onepanel_cron:add_job(Service, Action, Period, Condition).
 
 
 %%--------------------------------------------------------------------

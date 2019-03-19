@@ -21,7 +21,7 @@
 
 %% API
 -export([start_link/0]).
--export([register/3, register/4, unregister/1]).
+-export([add_job/3, add_job/4, remove_job/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -74,39 +74,46 @@ start_link() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Adds a new job or updates an existing one.
+%% @doc Adds a job which Condition is always met.
 %% @end
 %%--------------------------------------------------------------------
--spec register(JobName :: job_name(), Action :: action(),
+-spec add_job(JobName :: job_name(), Action :: action(),
     Period :: non_neg_integer()) -> ok.
-register(JobName, Action, Period) ->
-    register(JobName, Action, Period, fun() -> true end).
+add_job(JobName, Action, Period) ->
+    add_job(JobName, Action, Period, fun() -> true end).
 
 
 %%--------------------------------------------------------------------
-%% @doc Adds a new job or updates an existing one.
+%% @doc Adds a job. If job with given name already exists,
+%% the new one overrides it, inheriting time and pid of the last run.
 %% The Action will be executed only when Condition returns 'true'.
 %% @end
 %%--------------------------------------------------------------------
--spec register(JobName :: job_name(), Action :: action(),
+-spec add_job(JobName :: job_name(), Action :: action(),
     Period :: non_neg_integer(), Condition :: condition()) -> ok.
-register(JobName, Action, Period, Condition) ->
+add_job(JobName, Action, Period, Condition) ->
     Job = #job{
-        condition = Condition, action = Action, period = Period
+        action = Action, period = Period, condition = Condition
     },
     gen_server:call(?ONEPANEL_CRON_NAME, {register, JobName, Job}, ?TIMEOUT).
 
 
--spec unregister(JobName :: job_name()) -> ok.
-unregister(JobName) ->
+%%--------------------------------------------------------------------
+%% @doc Removes scheduled job.
+%% Currently running process will be continued but
+%% @end
+%%--------------------------------------------------------------------
+-spec remove_job(JobName :: job_name()) -> ok.
+remove_job(JobName) ->
     gen_server:call(?ONEPANEL_CRON_NAME, {unregister, JobName}, ?TIMEOUT).
+
 
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private @doc Initializes the server.
+%% @doc Initializes the server.
 %% @end
 %%--------------------------------------------------------------------
 -spec init(Args :: term()) ->
@@ -116,8 +123,9 @@ init([]) ->
     timer:send_interval(?TICK_PERIOD, tick),
     {ok, #{}}.
 
+
 %%--------------------------------------------------------------------
-%% @private @doc Handles call messages.
+%% @doc Handles call messages.
 %% @end
 %%--------------------------------------------------------------------
 -spec handle_call(Request :: term(), From :: {pid(), Tag :: term()},
@@ -143,8 +151,9 @@ handle_call(Request, _From, State) ->
     ?log_bad_request(Request),
     {reply, {error, {invalid_request, Request}}, State}.
 
+
 %%--------------------------------------------------------------------
-%% @private @doc Handles cast messages.
+%% @doc Handles cast messages.
 %% @end
 %%--------------------------------------------------------------------
 -spec handle_cast(Request :: term(), State :: state()) ->
@@ -155,8 +164,9 @@ handle_cast(Request, State) ->
     ?log_bad_request(Request),
     {noreply, State}.
 
+
 %%--------------------------------------------------------------------
-%% @private @doc Handles all non call/cast messages.
+%% @doc Handles all non call/cast messages.
 %% @end
 %%--------------------------------------------------------------------
 -spec handle_info(Info :: timeout() | term(), State :: state()) ->
@@ -165,7 +175,8 @@ handle_cast(Request, State) ->
     {stop, Reason :: term(), NewState :: state()}.
 handle_info(tick, State) ->
     abort_stale_jobs(State),
-    {noreply, run_jobs(State)};
+    NewState = run_jobs(State),
+    {noreply, NewState};
 
 handle_info(Info, State) ->
     ?log_bad_request(Info),
@@ -173,7 +184,7 @@ handle_info(Info, State) ->
 
 
 %%--------------------------------------------------------------------
-%% @private @doc This function is called by a gen_server when it is about to
+%% @doc This function is called by a gen_server when it is about to
 %% terminate. It should be the opposite of Module:init/1 and do any
 %% necessary cleaning up. When it returns, the gen_server terminates
 %% with Reason. The return value is ignored.
@@ -185,7 +196,7 @@ terminate(_Reason, _State) ->
     ok.
 
 %%--------------------------------------------------------------------
-%% @private @doc Converts process state when code is changed.
+%% @doc Converts process state when code is changed.
 %% @end
 %%--------------------------------------------------------------------
 -spec code_change(OldVsn :: term() | {down, term()}, State :: state(),
@@ -197,30 +208,6 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-%%--------------------------------------------------------------------
-%% @private @doc Kills job processes which have been running
-%% for more than JOB_TIMEOUT.
-%% @end
-%%--------------------------------------------------------------------
--spec abort_stale_jobs(state()) -> ok.
-abort_stale_jobs(State) ->
-    Now = time_utils:system_time_millis(),
-    lists:foreach(fun({JobName, #job{pid = Pid, last_run = LastRun} = Job}) ->
-        case job_finished(Job) of
-            true -> ok;
-            false ->
-                Age = Now - LastRun,
-                case Age > ?JOB_TIMEOUT of
-                    true ->
-                        ?warning("Aborting cron job '~s' after running for ~b seconds",
-                            [JobName, Age div 1000]),
-                        erlang:exit(Pid, kill);
-                    false -> ok
-                end
-        end
-    end, maps:to_list(State)).
-
 
 %%--------------------------------------------------------------------
 %% @private @doc Runs all jobs which conditions are met.
@@ -238,6 +225,36 @@ run_jobs(State) ->
                 Job
         end
     end, State).
+
+
+%%--------------------------------------------------------------------
+%% @private @doc Kills job processes which have been running
+%% for more than JOB_TIMEOUT.
+%% @end
+%%--------------------------------------------------------------------
+-spec abort_stale_jobs(state()) -> ok.
+abort_stale_jobs(State) ->
+    Now = time_utils:system_time_millis(),
+    lists:foreach(fun({JobName, Job}) ->
+        maybe_abort(JobName, Job, Now)
+    end, maps:to_list(State)).
+
+
+%% @private
+-spec maybe_abort(job_name(), job(), NowMillis :: non_neg_integer()) -> term().
+maybe_abort(JobName, #job{pid = Pid, last_run = LastRun} = Job, Now) ->
+    case job_finished(Job) of
+        true -> ok;
+        false ->
+            Age = Now - LastRun,
+            case Age > ?JOB_TIMEOUT of
+                true ->
+                    ?warning("Aborting cron job '~s' after running for ~b seconds",
+                        [JobName, Age div 1000]),
+                    erlang:exit(Pid, kill);
+                false -> ok
+            end
+    end.
 
 
 %%--------------------------------------------------------------------
