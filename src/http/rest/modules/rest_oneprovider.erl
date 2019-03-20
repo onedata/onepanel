@@ -58,11 +58,12 @@ exists_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
 exists_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
     {service_oneprovider:is_space_supported(#{space_id => Id}), Req};
 
-exists_resource(Req, #rstate{resource = onezone_info}) ->
+exists_resource(Req, #rstate{resource = onezone_info, params = #{token := _}}) ->
     {true, Req};
 
 exists_resource(Req, _State) ->
     {service_oneprovider:is_registered(), Req}.
+
 
 %%--------------------------------------------------------------------
 %% @doc {@link rest_behaviour:accept_possible/4}
@@ -81,7 +82,6 @@ accept_possible(Req, _Method, _Args, _State) ->
 %%--------------------------------------------------------------------
 is_available(Req, 'GET', #rstate{resource = cluster_ips}) -> {true, Req};
 is_available(Req, 'GET', #rstate{resource = provider}) -> {true, Req};
-
 is_available(Req, _Method, _State) -> {service:all_healthy(), Req}.
 
 
