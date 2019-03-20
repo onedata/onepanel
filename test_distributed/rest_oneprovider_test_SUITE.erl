@@ -26,6 +26,7 @@
 -export([
     method_should_return_unauthorized_error/1,
     method_should_return_forbidden_error/1,
+    method_should_return_conflict_error/1,
     method_should_return_service_unavailable_error/1,
     get_should_return_provider_details/1,
     get_should_return_cluster_ips/1,
@@ -80,6 +81,16 @@
     {<<"/provider/cluster_ips">>, get},
     {<<"/provider/cluster_ips">>, patch}
 ]).
+
+-define(REGISTER_REQUEST_JSON, #{
+    <<"name">> => <<"someName">>,
+    <<"subdomainDelegation">> => false,
+    <<"domain">> => <<"somedomain">>,
+    <<"adminEmail">> => <<"admin@onedata.org">>,
+    <<"geoLongitude">> => 10.0,
+    <<"geoLatitude">> => 20.0,
+    <<"token">> => <<"someToken">>
+}).
 
 -define(PROVIDER_DETAILS_JSON, #{
     <<"domain">> => <<"someDomain">>,
@@ -227,6 +238,7 @@ all() ->
     ?ALL([
         method_should_return_unauthorized_error,
         method_should_return_forbidden_error,
+        method_should_return_conflict_error,
         method_should_return_service_unavailable_error,
         get_should_return_provider_details,
         get_should_return_cluster_ips,
@@ -280,6 +292,16 @@ method_should_return_forbidden_error(Config) ->
                 Host, Endpoint, Method, {?REG_USER_NAME, ?REG_USER_PASSWORD}
             ))
         end, ?COMMON_ENDPOINTS_WITH_METHODS)
+    end).
+
+
+method_should_return_conflict_error(Config) ->
+    ?run(Config, fun(Host) ->
+        % provider is mocked as already registered
+        ?assertMatch({ok, 409, _, _}, onepanel_test_rest:auth_request(
+            Host, "/provider", post, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
+            ?REGISTER_REQUEST_JSON
+        ))
     end).
 
 
@@ -337,15 +359,7 @@ post_should_register_provider(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider">>, post,
-            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, #{
-                <<"name">> => <<"someName">>,
-                <<"subdomainDelegation">> => false,
-                <<"domain">> => <<"somedomain">>,
-                <<"adminEmail">> => <<"admin@onedata.org">>,
-                <<"geoLongitude">> => 10.0,
-                <<"geoLatitude">> => 20.0,
-                <<"token">> => <<"someToken">>
-            }
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, ?REGISTER_REQUEST_JSON
         )),
         ?assertReceivedMatch({service, oneprovider, register, #{
             oneprovider_token := <<"someToken">>,
@@ -741,6 +755,19 @@ init_per_testcase(get_should_return_cluster_ips, Config) ->
         {task_finished, {service, action, ok}}
     ] end),
     NewConfig;
+
+
+init_per_testcase(post_should_register_provider, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+
+    Nodes = ?config(oneprovider_nodes, Config),
+    Hosts = ?config(oneprovider_hosts, Config),
+    test_utils:mock_expect(Nodes, service, get, fun
+        (oneprovider) -> {ok, #service{ctx = #{registered => false}}};
+        (op_worker) -> {ok, #service{hosts = Hosts}}
+    end),
+    NewConfig;
+
 
 init_per_testcase(get_should_return_storage, Config) ->
     NewConfig = init_per_testcase(default, Config),

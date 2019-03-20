@@ -57,7 +57,7 @@ is_authorized(Req, _Method, _State) ->
 exists_resource(Req, #rstate{resource = current_cluster}) ->
     case onepanel_env:get_cluster_type() of
         onezone -> {onepanel_deployment:is_completed(?PROGRESS_CLUSTER), Req};
-        oneprovider -> {service_oneprovider:is_registered(#{}), Req}
+        oneprovider -> {service_oneprovider:is_registered(), Req}
     end;
 
 exists_resource(Req, #rstate{resource = cluster, client = Client,

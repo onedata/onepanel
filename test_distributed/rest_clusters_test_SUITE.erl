@@ -247,6 +247,7 @@ init_per_testcase(_Case, Config) ->
     OzNodes = ?config(onezone_nodes, Config),
     OpHosts = ?config(oneprovider_hosts, Config),
     OzHosts = ?config(onezone_hosts, Config),
+    OzDomain = onepanel_test_utils:get_domain(hd(OzHosts)),
 
     test_utils:mock_new(Nodes, [service, rest_auth, clusters, rpc, oz_endpoint,
         onepanel_deployment], [passthrough, no_history, unstick]),
@@ -274,7 +275,7 @@ init_per_testcase(_Case, Config) ->
         fun(Req) -> {?OP_CLIENT, Req} end),
 
     test_utils:mock_expect(OzNodes, service_oz_worker, get_details,
-        fun() -> #{name => undefined, domain => undefined} end),
+        fun() -> #{name => undefined, domain => OzDomain} end),
 
     test_utils:mock_expect(OzNodes, clusters, get_id,
         fun() -> ?ZONE_CLUSTER_ID end),
