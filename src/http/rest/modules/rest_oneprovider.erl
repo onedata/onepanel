@@ -68,6 +68,9 @@ exists_resource(Req, _State) ->
 %% @doc {@link rest_behaviour:accept_possible/4}
 %% @end
 %%--------------------------------------------------------------------
+accept_possible(Req, 'POST', _Args, #rstate{resource = provider}) ->
+    {not service_oneprovider:is_registered(), Req};
+
 accept_possible(Req, _Method, _Args, _State) ->
     {true, Req}.
 
