@@ -75,6 +75,9 @@ translate(_Type, #error{reason = {?ERR_INVALID_VALUE, Keys, ValueSpec}}) ->
     {<<"Invalid Request">>, <<"Invalid '", Key/binary, "' value, expected: ",
         Expectation/binary, ".">>};
 
+translate(_Type, #error{reason = ?ERR_INVALID_VALUE_TOKEN}) ->
+    {<<"Invalid Request">>, <<"Provided token is not valid.">>};
+
 translate(_Type, #error{reason = {?ERR_MISSING_PARAM, Keys}}) ->
     Key = get_key(Keys),
     {<<"Invalid Request">>, <<"Missing required parameter: '", Key/binary, "'.">>};

@@ -386,7 +386,10 @@ register(Ctx) ->
     case oz_providers:register(none, Params) of
         ?ERROR_BAD_VALUE_IDENTIFIER_OCCUPIED(<<"subdomain">>) ->
             ?throw_error(?ERR_SUBDOMAIN_NOT_AVAILABLE);
-        {error, Reason} -> ?throw_error(Reason);
+        ?ERROR_BAD_VALUE_TOKEN(<<"token">>) ->
+            ?throw_error(?ERR_INVALID_VALUE_TOKEN);
+        {error, Reason} ->
+            ?throw_error(Reason);
         {ok, #{<<"providerId">> := ProviderId,
             <<"macaroon">> := Macaroon}} ->
 

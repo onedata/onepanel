@@ -120,6 +120,7 @@
 -define(ERR_MISSING_PARAM, missing_param).
 -define(ERR_MISSING_ANY_KEY, missing_any_key).
 -define(ERR_INVALID_VALUE, invalid_value).
+-define(ERR_INVALID_VALUE_TOKEN, invalid_value_token).
 -define(ERR_HOST_NOT_FOUND_FOR_ALIAS, host_not_found_for_alias).
 
 -define(ERR_NOT_REGISTERED, not_registered).
