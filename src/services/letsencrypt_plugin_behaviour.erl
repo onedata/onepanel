@@ -19,8 +19,8 @@
 %%--------------------------------------------------------------------
 %% Sets txt record in the dns.
 %%--------------------------------------------------------------------
--callback set_txt_record(#{txt_name := binary(), txt_ttl := non_neg_integer(),
-                           txt_value:= binary(), _=>_}) -> ok.
+-callback set_txt_record(#{txt_name  := binary(), txt_ttl := non_neg_integer(),
+                           txt_value := binary(), _=>_}) -> ok.
 
 %%--------------------------------------------------------------------
 %% Removes txt record from dns.

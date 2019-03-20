@@ -342,7 +342,7 @@ set_txt_record(#{txt_name := Name, txt_value := Value, txt_ttl := TTL}) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec remove_txt_record(Ctx :: service:ctx()) -> ok.
-remove_txt_record(#{txt_name:= Name}) ->
+remove_txt_record(#{txt_name := Name}) ->
     {ok, Node} = nodes:any(name()),
     ok = rpc:call(Node, provider_logic, remove_txt_record, [Name]).
 

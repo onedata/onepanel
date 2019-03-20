@@ -789,7 +789,7 @@ mark_configured() ->
 -spec pop_legacy_letsencrypt_config() -> boolean().
 pop_legacy_letsencrypt_config() ->
     Result = case service:get(name()) of
-        {ok, #service{ctx = #{has_letsencrypt_cert:= Enabled}}} ->
+        {ok, #service{ctx = #{has_letsencrypt_cert := Enabled}}} ->
             % upgrade from versions 18.02.0-beta5 and older
             service:update(name(), fun(#service{ctx = C} = S) ->
                 S#service{ctx = maps:remove(has_letsencrypt_cert, C)}
