@@ -57,7 +57,7 @@ start() ->
     GuiStaticRoot = onepanel_env:get(gui_static_root),
 
     CommonRoutes = onepanel_api:routes(),
-    SpecificRoutes = case onepanel_env:get_release_type() of
+    SpecificRoutes = case onepanel_env:get_cluster_type() of
         oneprovider -> oneprovider_api:routes();
         onezone -> onezone_api:routes()
     end,

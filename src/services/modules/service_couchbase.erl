@@ -228,8 +228,8 @@ init_cluster(Ctx) ->
         Cmd ++ ["--cluster-init-password=" ++ Password],
         Cmd ++ ["--cluster-init-password=*****"]),
 
-    Release = onepanel_env:get(release_type),
-    {ok, Buckets} = onepanel_lists:get(Release, onepanel_env:get(couchbase_buckets)),
+    ClusterType = onepanel_env:get_cluster_type(),
+    {ok, Buckets} = onepanel_lists:get(ClusterType, onepanel_env:get(couchbase_buckets)),
     lists:foreach(fun
         ({Bucket, Quota}) ->
             create_bucket(Host, Port, User, Password, Bucket, Quota);

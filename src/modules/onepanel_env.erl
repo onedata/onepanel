@@ -25,14 +25,13 @@
 -export([migrate_generated_config/2, migrate_generated_config/3,
     legacy_config_exists/1, get_config_path/2]).
 -export([migrate/3, migrate/4]).
--export([get_release_type/0]).
+-export([get_cluster_type/0]).
 
 -type key() :: atom().
 -type keys() :: key() | [key()].
 -type value() :: term().
--type rel_type() :: onezone | oneprovider.
 
--export_type([key/0, keys/0, value/0, rel_type/0]).
+-export_type([key/0, keys/0, value/0]).
 
 -define(DO_NOT_MODIFY_HEADER,
     "% MACHINE GENERATED FILE. DO NOT MODIFY.\n"
@@ -79,12 +78,12 @@ get(Keys, AppName, Default) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Returns release type of this Onepanel instance.
+%% @doc Returns cluster type of this Onepanel instance.
 %% @end
 %%--------------------------------------------------------------------
--spec get_release_type() -> rel_type().
-get_release_type() ->
-    ?MODULE:get(release_type).
+-spec get_cluster_type() -> onedata:cluster_type().
+get_cluster_type() ->
+    ?MODULE:get(cluster_type).
 
 
 %%--------------------------------------------------------------------

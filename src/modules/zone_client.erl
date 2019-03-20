@@ -59,7 +59,7 @@ fetch_zone_info(Domain) ->
 %%--------------------------------------------------------------------
 -spec root_auth() -> rest_handler:zone_auth().
 root_auth() ->
-    case onepanel_env:get_release_type() of
+    case onepanel_env:get_cluster_type() of
         onezone ->
             case service_oz_worker:get_logic_client(root) of
                 {ok, Client} -> {rpc, Client};
@@ -77,11 +77,11 @@ root_auth() ->
 -spec is_compatible(OzVersion :: binary(), CompatOpVersions :: [binary()]) ->
     boolean().
 is_compatible(OzVersion, CompatOpVersions) ->
-    {_, OurRelease} = onepanel_app:get_build_and_version(),
+    {_, OurVersion} = onepanel_app:get_build_and_version(),
     CompatOzVersions = service_op_worker:get_compatible_onezones(),
 
     lists:member(OzVersion, CompatOzVersions)
-        orelse lists:member(OurRelease, CompatOpVersions).
+        orelse lists:member(OurVersion, CompatOpVersions).
 
 
 %% @private

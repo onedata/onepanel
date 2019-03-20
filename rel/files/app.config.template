@@ -67,7 +67,7 @@
         % e.g. 19-g0d0fd5b
         {build_version, "{{{build_version}}}"},
 
-        {release_type, {{release_type}}},
+        {cluster_type, {{release_type}}},
 
         %% ===================================================================
         %% PORTS

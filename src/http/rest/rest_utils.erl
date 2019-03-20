@@ -157,7 +157,7 @@ verify_any(Keys, Args) ->
 %%--------------------------------------------------------------------
 -spec allowed_origin() -> binary() | undefined.
 allowed_origin() ->
-    allowed_origin(onepanel_env:get_release_type()).
+    allowed_origin(onepanel_env:get_cluster_type()).
 
 
 %%%===================================================================
@@ -165,7 +165,7 @@ allowed_origin() ->
 %%%===================================================================
 
 %% @private
--spec allowed_origin(onepanel_env:rel_type()) -> binary() | undefined.
+-spec allowed_origin(onedata:cluster_type()) -> binary() | undefined.
 allowed_origin(oneprovider) ->
     case service_oneprovider:is_registered() of
         true -> list_to_binary("https://" ++ service_oneprovider:get_oz_domain());

@@ -112,9 +112,9 @@ resume_service() ->
 
     case ClusterExists of
         true ->
-            ReleaseType = onepanel_env:get_release_type(),
-            Task = service:apply_async(ReleaseType, manage_restart, #{}),
-            ?info("Resuming ~s (task id ~s)", [ReleaseType, Task]);
+            ClusterType = onepanel_env:get_cluster_type(),
+            Task = service:apply_async(ClusterType, manage_restart, #{}),
+            ?info("Resuming ~s (task id ~s)", [ClusterType, Task]);
         false -> ok % new deployment, managed by REST
     end,
     ok.

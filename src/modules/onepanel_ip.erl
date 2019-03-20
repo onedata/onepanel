@@ -110,7 +110,7 @@ determine_ip_by_oz() ->
 %%--------------------------------------------------------------------
 -spec determine_ip_by_domain() -> {ok, inet:ip4_address()} | {error, term()}.
 determine_ip_by_domain() ->
-    Domain = case onepanel_env:get(release_type) of
+    Domain = case onepanel_env:get_cluster_type() of
         oneprovider -> service_op_worker:get_domain();
         onezone -> service_oz_worker:get_domain()
     end,

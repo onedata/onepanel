@@ -153,8 +153,8 @@ provide_resource(Req, #rstate{resource = cookie}) ->
 
 provide_resource(Req, #rstate{resource = node}) ->
     Hostname = onepanel_utils:convert(hosts:self(), binary),
-    ReleaseType = onepanel_env:get(release_type),
-    {#{hostname => Hostname, componentType => ReleaseType}, Req};
+    ClusterType = onepanel_env:get_cluster_type(),
+    {#{hostname => Hostname, componentType => ClusterType}, Req};
 
 provide_resource(Req, #rstate{resource = hosts}) ->
     Hosts = service_onepanel:get_hosts(),
@@ -196,7 +196,7 @@ delete_resource(Req, #rstate{resource = host, bindings = #{host := Host}}) ->
 %% used in onepanel_progress model.
 %% @end
 %%--------------------------------------------------------------------
--spec progress_to_rest_mapping(onepanel_env:rel_type() | common) ->
+-spec progress_to_rest_mapping(onedata:cluster_type() | common) ->
     [{RestField :: atom(), ProgressMark :: onepanel_deployment:mark()}].
 progress_to_rest_mapping(onezone) ->
     progress_to_rest_mapping(common);
@@ -218,4 +218,4 @@ progress_to_rest_mapping(common) -> [
 -spec progress_to_rest_mapping() ->
     [{atom(), onepanel_deployment:mark()}].
 progress_to_rest_mapping() ->
-    progress_to_rest_mapping(onepanel_env:get_release_type()).
+    progress_to_rest_mapping(onepanel_env:get_cluster_type()).

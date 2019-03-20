@@ -74,7 +74,7 @@ upgrade(1, Record) ->
     % Introduce tracking of storage setup in the deployment marks.
     % Assume some storage to have been created in an existing cluster.
     {2, {onepanel_deployment, Id,
-        case onepanel_env:get_release_type() of
+        case onepanel_env:get_cluster_type() of
             onezone -> Completed;
             oneprovider -> gb_sets:add_element(?PROGRESS_STORAGE_SETUP, Completed)
         end}}.

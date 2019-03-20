@@ -118,7 +118,7 @@ is_available(Req, Method, #rstate{resource = Resource}) when
     Method == 'GET' andalso Resource == dns_check ->
     % @TODO When service_op_worker:get_domain will work when op_worker is offline
     %       this request should always be allowed.
-    {onepanel_env:get_release_type() == onezone
+    {onepanel_env:get_cluster_type() == onezone
         orelse service:all_healthy(), Req};
 
 is_available(Req, _Method, _State) ->
@@ -432,7 +432,7 @@ deploy_cluster_worker(Req, Args, #rstate{resource = SModule, version = Version})
 %%--------------------------------------------------------------------
 -spec cluster_worker_name() -> service:name().
 cluster_worker_name() ->
-    case onepanel_env:get_release_type() of
+    case onepanel_env:get_cluster_type() of
         oneprovider -> ?SERVICE_OPW;
         onezone -> ?SERVICE_OZW
     end.

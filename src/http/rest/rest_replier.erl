@@ -264,7 +264,7 @@ format_service_step(Module, Function, Results) ->
 -spec format_onepanel_configuration() -> map().
 format_onepanel_configuration() ->
     try
-        format_onepanel_configuration(onepanel_env:get(release_type))
+        format_onepanel_configuration(onepanel_env:get_cluster_type())
     catch _:_ ->
         % it is preferable for this endpoint to return something
         format_onepanel_configuration(common)
@@ -327,8 +327,8 @@ format_service_configuration(SModule) ->
 -spec format_deployment_progress() ->
     JsonMap :: #{atom() => boolean()}.
 format_deployment_progress() ->
-    Fields = rest_onepanel:progress_to_rest_mapping(onepanel_env:get_release_type()),
-    Fields2 = case onepanel_env:get_release_type() of
+    Fields = rest_onepanel:progress_to_rest_mapping(onepanel_env:get_cluster_type()),
+    Fields2 = case onepanel_env:get_cluster_type() of
         oneprovider ->
             [{isRegistered, fun service_oneprovider:is_registered/0} | Fields];
         onezone -> Fields
@@ -395,7 +395,7 @@ format_service_hosts_results(Results) ->
 
 
 %% @private
--spec format_onepanel_configuration(ReleaseType :: onezone | oneprovider | common) ->
+-spec format_onepanel_configuration(ClusterType :: onedata:cluster_type() | common) ->
     #{atom() := term()}.
 format_onepanel_configuration(onezone) ->
     Defaults = #{serviceType => onezone, zoneDomain => null, zoneName => null},
@@ -443,7 +443,7 @@ format_onepanel_configuration(oneprovider) ->
     end,
     maps:merge(format_onepanel_configuration(common), OpConfiguration);
 
-format_onepanel_configuration(_ReleaseType) ->
+format_onepanel_configuration(_ClusterType) ->
     ClusterId = try clusters:get_id() catch _:_ -> null end,
     {BuildVersion, AppVersion} = onepanel_app:get_build_and_version(),
     #{

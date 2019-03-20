@@ -225,7 +225,7 @@ extend_cluster(#{hostname := Hostname, api_version := ApiVersion,
 
 extend_cluster(#{address := Address, api_version := _ApiVersion,
     attempts := Attempts} = Ctx) ->
-    ClusterType = onepanel_env:get(release_type),
+    ClusterType = onepanel_env:get_cluster_type(),
     case get_remote_node_info(Ctx) of
         {ok, Hostname, ClusterType} ->
             extend_cluster(Ctx#{hostname => Hostname});
@@ -358,8 +358,8 @@ get_remote_node_info(#{address := Address, api_version := ApiVersion} = Ctx) ->
     case http_client:get(Url, Headers, <<>>, Opts) of
         {ok, 200, _, Body} ->
             #{<<"hostname">> := Hostname,
-                <<"componentType">> := ReleaseType} = json_utils:decode(Body),
-            {ok, Hostname, onepanel_utils:convert(ReleaseType, atom)};
+                <<"componentType">> := ClusterType} = json_utils:decode(Body),
+            {ok, Hostname, onepanel_utils:convert(ClusterType, atom)};
         {error, _} -> ?make_error(?ERR_BAD_NODE)
     end.
 
@@ -402,7 +402,7 @@ https_opts(Timeout) ->
 %%--------------------------------------------------------------------
 -spec is_used(service:host()) -> boolean().
 is_used(Host) ->
-    ClusterType = onepanel_env:get_release_type(),
+    ClusterType = onepanel_env:get_cluster_type(),
     SModule = service:get_module(ClusterType),
     try
         lists:member(Host, SModule:get_hosts())

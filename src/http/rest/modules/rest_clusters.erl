@@ -55,7 +55,7 @@ is_authorized(Req, _Method, _State) ->
 -spec exists_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
 exists_resource(Req, #rstate{resource = current_cluster}) ->
-    case onepanel_env:get_release_type() of
+    case onepanel_env:get_cluster_type() of
         onezone -> {onepanel_deployment:is_completed(?PROGRESS_CLUSTER), Req};
         oneprovider -> {service_oneprovider:is_registered(#{}), Req}
     end;
@@ -86,7 +86,7 @@ is_available(Req, _Method, #rstate{resource = Resource}) when
     {true, Req};
 
 is_available(Req, _Method, _State) ->
-    case onepanel_env:get_release_type() of
+    case onepanel_env:get_cluster_type() of
         oneprovider -> {true, Req};
         onezone -> {service:all_healthy(), Req}
     end.

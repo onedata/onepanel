@@ -36,7 +36,7 @@
 %%--------------------------------------------------------------------
 -spec get_id() -> id().
 get_id() ->
-    get_id(onepanel_env:get_release_type()).
+    get_id(onepanel_env:get_cluster_type()).
 
 
 %%--------------------------------------------------------------------
@@ -48,7 +48,7 @@ get_id() ->
 -spec get_current_cluster() ->
     #{atom() := term()} | #error{}.
 get_current_cluster() ->
-    Service = onepanel_env:get_release_type(),
+    Service = onepanel_env:get_cluster_type(),
     try
         Auth = zone_client:root_auth(),
         {ok, Details} = get_details(Auth, ?MODULE:get_id()),
@@ -161,7 +161,7 @@ fetch_provider_info({rest, RestAuth}, ProviderId) ->
 %%%===================================================================
 
 %% @private
--spec get_id(Release :: onezone | oneprovider) -> id() | no_return().
+-spec get_id(ClusterType :: onedata:cluster_type()) -> id() | no_return().
 get_id(Service = onezone) ->
     case zone_rpc(cluster_logic, get_onezone_cluster_id, []) of
         <<Id/binary>> ->

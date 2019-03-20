@@ -35,7 +35,7 @@
 %%--------------------------------------------------------------------
 -spec get_oz_url() -> string().
 get_oz_url() ->
-    Domain = case onepanel_env:get_release_type() of
+    Domain = case onepanel_env:get_cluster_type() of
         oneprovider -> service_oneprovider:get_oz_domain();
         onezone -> service_oz_worker:get_domain()
     end,

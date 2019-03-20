@@ -71,7 +71,7 @@
           },
           "sys.config": {
             "onepanel": {
-              "release_type": "onezone"
+              "cluster_type": "onezone"
             }
           }
         },
@@ -81,7 +81,7 @@
           },
           "sys.config": {
             "onepanel": {
-              "release_type": "onezone"
+              "cluster_type": "onezone"
             }
           }
         }

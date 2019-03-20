@@ -42,8 +42,8 @@
 -spec authenticate_by_onezone_access_token(binary()) ->
     #client{} | #error{}.
 authenticate_by_onezone_access_token(AccessToken) ->
-    ReleaseType = onepanel_env:get_release_type(),
-    case authenticate_by_onezone_access_token(ReleaseType, AccessToken) of
+    ClusterType = onepanel_env:get_cluster_type(),
+    case authenticate_by_onezone_access_token(ClusterType, AccessToken) of
         #client{} = Client -> Client;
         #error{} = Error -> Error
     end.
@@ -65,7 +65,7 @@ get_zone_domain(RegistrationToken) ->
 
 %% @private
 -spec authenticate_by_onezone_access_token(
-    ReleaseType :: onepanel_env:rel_type(), AccessToken :: binary()
+    ClusterType :: onedata:cluster_type(), AccessToken :: binary()
 ) -> #client{} | #error{}.
 authenticate_by_onezone_access_token(onezone, AccessToken) ->
     case service_oz_worker:get_logic_client(AccessToken) of
