@@ -369,10 +369,9 @@ provide_resource(Req, #rstate{resource = onezone_info}) ->
 -spec delete_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Deleted :: boolean(), Req :: cowboy_req:req()}.
 delete_resource(Req, #rstate{resource = provider}) ->
-    Response = {true, rest_replier:throw_on_service_error(
+    {true, rest_replier:throw_on_service_error(
         Req, service:apply_sync(?SERVICE, unregister, #{})
-    )},
-    Response;
+    )};
 
 delete_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
