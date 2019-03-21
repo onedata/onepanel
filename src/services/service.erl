@@ -35,7 +35,11 @@
 -export([get_module/1, get_hosts/1, add_host/2]).
 -export([get_ctx/1, update_ctx/2]).
 
--type name() :: atom().
+% @formatter:off
+-type name() :: onezone | oneprovider |
+    op_worker | oz_worker | cluster_worker |
+    cluster_manager | couchbase | onepanel |
+    letsencrypt.
 -type action() :: atom().
 -type notify() :: pid() | undefined.
 -type host() :: string().
@@ -45,6 +49,7 @@
 -type record() :: #service{}.
 
 -type status() :: healthy | unhealthy | stopped | missing.
+% @formatter:on
 
 
 %% ctx/0 is used as:

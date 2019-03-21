@@ -16,23 +16,23 @@
 -record(step, {
     hosts :: undefined | [service:host()],
     selection = all :: all | any | first | rest,
-    service :: service:name(),
+    service :: service:name() | undefined,
     module :: module(),
     function :: atom(),
     args :: term(),
-    ctx :: undefined | service:ctx(),
+    ctx :: service:ctx() | undefined,
     condition = fun(_) -> true end :: service:condition(),
-    verify_hosts :: undefined | boolean(),
+    verify_hosts :: boolean() | undefined,
     attempts = 1 :: pos_integer(),
     retry_delay = onepanel_env:get(service_step_retry_delay) :: non_neg_integer()
 }).
 
 -record(steps, {
-    service :: service:name(),
+    service :: service:name() | undefined,
     action :: service:action(),
-    ctx :: undefined | service:ctx(),
+    ctx :: service:ctx() | undefined,
     condition = fun(_) -> true end :: service:condition(),
-    verify_hosts :: undefined | boolean()
+    verify_hosts :: boolean() | undefined
 }).
 
 -endif.
