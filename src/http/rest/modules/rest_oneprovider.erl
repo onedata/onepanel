@@ -52,7 +52,7 @@ is_authorized(Req, _Method, _State) ->
 -spec exists_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
 exists_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
-    case nodes:any(?SERVICE_OP) of
+    case nodes:any(?SERVICE_OPW) of
         {ok, Node} ->
             nodes:any(?SERVICE_OPW),
             {rpc:call(Node, storage, exists, [Id]), Req};
