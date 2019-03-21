@@ -450,7 +450,7 @@ get_logic_client(AccessToken) ->
     case nodes:any(name()) of
         {ok, OzNode} ->
             case rpc:call(OzNode, auth_logic,
-                authorize_by_zone_gui_macaroon, [AccessToken, undefined]
+                authorize_by_onezone_gui_macaroon, [AccessToken, undefined]
             ) of
                 {true, LogicClient} ->
                     {ok, LogicClient};  % record to be used in rpc calls to oz_worker

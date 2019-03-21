@@ -292,7 +292,7 @@ init_per_testcase(_Case, Config) ->
             {ok, ?PROVIDER_DETAILS_RPC};
         (_Node, entity_logic, root_client, []) ->
             {opaque, root_client};
-        (_Node, auth_logic, authorize_by_zone_gui_macaroon, [_AccessToken, _]) ->
+        (_Node, auth_logic, authorize_by_onezone_gui_macaroon, [_AccessToken, _]) ->
             {opaque, user_client};
         (Node, Module, Function, Args) ->
             meck:passthrough([Node, Module, Function, Args])
