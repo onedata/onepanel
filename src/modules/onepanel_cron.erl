@@ -5,7 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc This module allows periodic invocation of registered jobs.
+%%% @doc This module handles periodic invocation of registered jobs.
 %%% A job may be guarded by a Condition, which must evalute to 'true'
 %%% for the job's action to be executed.
 %%% @end
@@ -95,7 +95,7 @@ add_job(JobName, Action, Period, Condition) ->
     Job = #job{
         action = Action, period = Period, condition = Condition
     },
-    gen_server:call(?ONEPANEL_CRON_NAME, {register, JobName, Job}, ?TIMEOUT).
+    gen_server:call(?ONEPANEL_CRON_NAME, {add_job, JobName, Job}, ?TIMEOUT).
 
 
 %%--------------------------------------------------------------------
@@ -105,7 +105,7 @@ add_job(JobName, Action, Period, Condition) ->
 %%--------------------------------------------------------------------
 -spec remove_job(JobName :: job_name()) -> ok.
 remove_job(JobName) ->
-    gen_server:call(?ONEPANEL_CRON_NAME, {unregister, JobName}, ?TIMEOUT).
+    gen_server:call(?ONEPANEL_CRON_NAME, {remove_job, JobName}, ?TIMEOUT).
 
 
 %%%===================================================================
@@ -136,7 +136,7 @@ init([]) ->
     {noreply, NewState :: state(), timeout() | hibernate} |
     {stop, Reason :: term(), Reply :: term(), NewState :: state()} |
     {stop, Reason :: term(), NewState :: state()}.
-handle_call({register, Name, #job{} = Job}, _From, State) ->
+handle_call({add_job, Name, #job{} = Job}, _From, State) ->
     NewState = case State of
         #{Name := #job{last_run = LastRun, pid = Pid}} ->
             State#{Name => Job#job{last_run = LastRun, pid = Pid}};
@@ -144,7 +144,7 @@ handle_call({register, Name, #job{} = Job}, _From, State) ->
     end,
     {reply, ok, NewState};
 
-handle_call({unregister, Job}, _From, State) ->
+handle_call({remove_job, Job}, _From, State) ->
     {reply, ok, maps:remove(Job, State)};
 
 handle_call(Request, _From, State) ->
