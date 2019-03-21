@@ -107,12 +107,7 @@ get_steps(deploy, Ctx) ->
         S#service{ctx = C#{master_host => hosts:self()}}
     end),
 
-    AlreadyRegistered =
-        case service:get(name()) of
-            {ok, #service{ctx = #{registered := true}}} -> true;
-            _ -> false
-        end,
-
+    AlreadyRegistered = ?MODULE:is_registered(),
     Register = fun
         (#{oneprovider_register := true}) -> not(AlreadyRegistered);
         (_) -> false
