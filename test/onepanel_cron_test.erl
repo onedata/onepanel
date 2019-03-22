@@ -33,6 +33,7 @@
 onepanel_cron_test_() ->
     {foreach, fun prepare/0, fun stop/1, [
         fun job_is_executed/0,
+        fun condition_prevents_execution/0,
         fun multiple_jobs_are_executed/0,
         fun job_is_repeated/0,
         fun job_is_removed/0,
@@ -48,6 +49,16 @@ job_is_executed() ->
     timer:sleep(?CRON_PERIOD),
 
     ?assertEqual(1, meck:num_calls(?CALLED_MODULE, ?CALLED_FUNCTION, '_')).
+
+
+condition_prevents_execution() ->
+    Period = timer:hours(1),
+    Condition = fun() -> false end,
+    onepanel_cron:add_job(some_job, ?SIMPLE_ACTION, Period, Condition),
+
+    timer:sleep(?CRON_PERIOD),
+
+    ?assertEqual(0, meck:num_calls(?CALLED_MODULE, ?CALLED_FUNCTION, '_')).
 
 
 job_is_repeated() ->
