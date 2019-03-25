@@ -90,7 +90,7 @@
     "oneprovider": {
       "os_config": "cfg1",
       "@TODO": "After merging alpha with develop set to newest develop image",
-      "image": "docker.onedata.org/oneprovider-dev:18.07.0-alpha-21c7918",
+      "image": "docker.onedata.org/oneprovider-dev:ID-80a4250cf1",
       "onepanel": {
         "node1": {
           "vm.args": {
