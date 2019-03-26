@@ -87,7 +87,7 @@ accept_possible(Req, _Method, _Args, _State) ->
 %% @doc {@link rest_behaviour:is_available/3}
 %% @end
 %%--------------------------------------------------------------------
-is_available(Req, <<"PATCH">>, #rstate{resource = web_cert}) ->
+is_available(Req, 'PATCH', #rstate{resource = web_cert}) ->
     {service:all_healthy(), Req};
 
 is_available(Req, _Method, _State) ->
