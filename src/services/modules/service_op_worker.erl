@@ -298,7 +298,7 @@ reload_webcert(Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
-    boolean() | unknown.
+    boolean().
 supports_letsencrypt_challenge(http) ->
     service:healthy(name()) andalso
         service_oneprovider:is_registered(); % unregistered provider does not have a domain

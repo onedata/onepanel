@@ -406,9 +406,8 @@ first_run(Ctx) ->
 -spec any_challenge_available() -> boolean().
 any_challenge_available() ->
     Plugin = get_plugin_module(),
-    lists:any(fun(Type) ->
-        true == Plugin:supports_letsencrypt_challenge(Type)
-    end, letsencrypt_api:challenge_types()).
+    lists:any(fun Plugin:supports_letsencrypt_challenge/1,
+        letsencrypt_api:challenge_types()).
 
 
 %%--------------------------------------------------------------------

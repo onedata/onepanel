@@ -52,7 +52,7 @@
 %% fulfilled by the plugin service.
 %%--------------------------------------------------------------------
 -callback supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
-    boolean() | unknown.
+    boolean().
 
 %%--------------------------------------------------------------------
 %% Clears worker ssl cache to ensure certificates changed on disk

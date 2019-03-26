@@ -356,7 +356,7 @@ get_admin_email(_Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
-    boolean() | unknown.
+    boolean().
 supports_letsencrypt_challenge(http) ->
     service:healthy(name());
 supports_letsencrypt_challenge(dns) ->
