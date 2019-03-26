@@ -327,7 +327,7 @@ format_service_configuration(SModule) ->
 -spec format_deployment_progress() ->
     JsonMap :: #{atom() => boolean()}.
 format_deployment_progress() ->
-    Fields = rest_onepanel:progress_to_rest_mapping(onepanel_env:get_cluster_type()),
+    Fields = rest_onepanel:rest_key_to_progress_mark_mapping(onepanel_env:get_cluster_type()),
     Fields2 = case onepanel_env:get_cluster_type() of
         oneprovider ->
             [{isRegistered, fun service_oneprovider:is_registered/0} | Fields];
