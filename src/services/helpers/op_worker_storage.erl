@@ -19,7 +19,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([add/2, get/0, get/1, update/2]).
+-export([add/2, get/0, get/1, exists/2, update/2]).
 -export([get_supporting_storage/2, get_supporting_storages/2,
     get_file_popularity_configuration/2, get_auto_cleaning_configuration/2]).
 -export([is_mounted_in_root/3]).
@@ -148,15 +148,19 @@ update(Id, Args) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Checks if storage with given name exists.
+%% @doc Checks if storage with given name or id exists.
 %% @end
 %%--------------------------------------------------------------------
--spec exists(Node :: node(), StorageName :: name()) -> boolean().
-exists(Node, StorageName) ->
+-spec exists(Node :: node(), Identifier) -> boolean()
+    when Identifier :: {name, name()} | {id, id()}.
+exists(Node, {name, StorageName}) ->
     case rpc:call(Node, storage, select, [StorageName]) of
         {error, not_found} -> false;
         {ok, _} -> true
-    end.
+    end;
+
+exists(Node, {id, StorageId}) ->
+    rpc:call(Node, storage, exists, [StorageId]).
 
 
 %%-------------------------------------------------------------------
@@ -532,7 +536,7 @@ remove_test_file(Node, Helper, UserCtx, FileId, Size) ->
     ReadOnly :: boolean(), LumaConfig :: luma_config()) ->
     {ok, StorageId :: binary()} | {error, Reason :: term()}.
 add_storage(Node, StorageName, Helpers, ReadOnly, LumaConfig) ->
-    case exists(Node, StorageName) of
+    case exists(Node, {name, StorageName}) of
         true ->
             {error, already_exists};
         false ->

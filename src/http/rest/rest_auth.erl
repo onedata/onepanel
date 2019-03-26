@@ -74,7 +74,8 @@ authenticate_by_rest_api_token(Req) ->
     case find_token(cowboy_req:headers(Req)) of
         <<?ONEPANEL_TOKEN_PREFIX, ?ONEPANEL_TOKEN_SEPARATOR, _/binary>> = OnepanelToken ->
             {check_onepanel_token(OnepanelToken), Req};
-        _ -> {ignore, Req}
+        _ ->
+            {ignore, Req}
     end.
 
 

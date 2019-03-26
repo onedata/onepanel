@@ -54,9 +54,9 @@ is_authorized(Req, _Method, _State) ->
 exists_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
     case nodes:any(?WORKER) of
         {ok, Node} ->
-            nodes:any(?WORKER),
-            {rpc:call(Node, storage, exists, [Id]), Req};
-        _ -> {false, Req}
+            {op_worker_storage:exists(Node, {id, Id}), Req};
+        _ ->
+            {false, Req}
     end;
 
 exists_resource(Req, #rstate{resource = storages}) ->
