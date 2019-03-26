@@ -66,12 +66,12 @@ get_current_cluster() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_user_privileges(rest_handler:zone_auth(), onepanel_user:onezone_id()) ->
-    {ok, [privileges:cluser_privilege()]} | #error{} | no_return().
+    {ok, [privileges:cluster_privilege()]} | #error{} | no_return().
 get_user_privileges({rest, _}, OnezoneUserId) ->
     simple_cache:get(?PRIVILEGES_CACHE_KEY(OnezoneUserId), fun() ->
         {rest, RestAuth} = zone_client:root_auth(),
         case zone_rest(RestAuth, "/clusters/~s/effective_users/~s/privileges",
-            [get_id(), OnezoneUserId]) of
+            [?MODULE:get_id(), OnezoneUserId]) of
             {ok, #{privileges := Privileges}} ->
                 ListOfAtoms = onepanel_utils:convert(Privileges, {seq, atom}),
                 {true, ListOfAtoms, ?PRIVILEGES_CACHE_TTL};
@@ -161,21 +161,21 @@ fetch_remote_provider_info({rest, RestAuth}, ProviderId) ->
 %%%===================================================================
 
 %% @private
--spec get_id(ClusterType :: onedata:cluster_type()) -> id() | no_return().
-get_id(Service = onezone) ->
+-spec get_id(onedata:cluster_type()) -> id() | no_return().
+get_id(onezone) ->
     case zone_rpc(cluster_logic, get_onezone_cluster_id, []) of
         <<Id/binary>> ->
-            store(cluster_id, Id, Service);
+            store(cluster_id, Id, onezone);
         Error ->
-            fetch_or_throw(cluster_id, Service, Error)
+            fetch_or_throw(cluster_id, onezone, Error)
     end;
 
-get_id(Service = oneprovider) ->
+get_id(oneprovider) ->
     try service_oneprovider:get_details() of
         #{cluster := <<Id/binary>>} ->
-            store(cluster_id, Id, Service)
+            store(cluster_id, Id, oneprovider)
     catch _Type:Error ->
-        fetch_or_throw(cluster_id, Service, ?make_stacktrace(Error))
+        fetch_or_throw(cluster_id, oneprovider, ?make_stacktrace(Error))
     end.
 
 

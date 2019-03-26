@@ -183,7 +183,7 @@ deploy_standalone_gui_files() ->
     {ok, ExtractedPath} = gui:extract_package(gui_package_path(), TempDir),
 
     file_utils:recursive_del(GuiRoot),
-    file_utils:move(ExtractedPath, GuiRoot),
+    ok = file_utils:move(ExtractedPath, GuiRoot),
 
     mochitemp:rmtempdir(TempDir),
     ?info("Deployed standalone GUI files in ~s", [GuiRoot]).

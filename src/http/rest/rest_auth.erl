@@ -107,8 +107,8 @@ check_basic_credentials(<<Base64/binary>>) ->
     check_basic_credentials(binary:split(Decoded, <<":">>));
 
 check_basic_credentials([Username, Password]) ->
-    case authenticate_onepanel_user(Username, Password) of
-        #client{} = Client -> Client;
+    case onepanel_user:authenticate_by_basic_auth(Username, Password) of
+        {ok, User} -> user_to_client(User);
         Error -> Error
     end.
 
@@ -120,21 +120,6 @@ check_basic_credentials([Username, Password]) ->
 -spec check_onepanel_token(Token :: binary()) -> #client{} | #error{}.
 check_onepanel_token(Token) ->
     case onepanel_user:authenticate_by_rest_api_token(Token) of
-        {ok, User} -> user_to_client(User);
-        Error -> Error
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Authenticates a user by his username and password.
-%% To be removed after Basic Auth users are no longer stored in onepanel.
-%% @TODO Remove in VFS-5235
-%% @end
-%%--------------------------------------------------------------------
--spec authenticate_onepanel_user(Username :: binary(), Password :: binary()) ->
-    #client{} | #error{}.
-authenticate_onepanel_user(Username, Password) ->
-    case onepanel_user:authenticate_by_basic_auth(Username, Password) of
         {ok, User} -> user_to_client(User);
         Error -> Error
     end.

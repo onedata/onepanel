@@ -52,14 +52,14 @@ expired_token_is_invalid() ->
 
 token_is_reused() ->
     {ok, #onepanel_session{rest_tokens = [_Token]} = Session} = get_new_session(),
-    ?assertEqual(Session, onepanel_session:maybe_update_token(Session)).
+    ?assertEqual(Session, onepanel_session:ensure_fresh_token(Session)).
 
 
 token_is_renewed() ->
     {ok, #onepanel_session{rest_tokens = [Token]} = Session} = get_new_session(),
     timer:sleep(timer:seconds((?TOKEN_TTL div 2) + 1)),
     ?assertMatch(#onepanel_session{rest_tokens = [_NewToken, Token]},
-        onepanel_session:maybe_update_token(Session)).
+        onepanel_session:ensure_fresh_token(Session)).
 
 
 expired_tokens_are_cleaned() ->

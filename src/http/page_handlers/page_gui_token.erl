@@ -36,7 +36,7 @@ handle(<<"POST">>, Req) ->
             {ok, Session} = onepanel_session:get(SessionId),
             #onepanel_session{
                 rest_tokens = [{Token, Expires} | _]
-            } = onepanel_session:maybe_update_token(Session),
+            } = onepanel_session:ensure_fresh_token(Session),
 
             BodyJson = json_utils:encode(#{
                 token => Token,

@@ -27,7 +27,7 @@
 
 %% API
 -export([create/2, get_id/1, get_username/1, find_by_valid_token/1, is_active/1]).
--export([remove_expired_tokens/1, maybe_update_token/1]).
+-export([remove_expired_tokens/1, ensure_fresh_token/1]).
 
 -type id() :: binary().
 -type rest_api_token() :: binary().
@@ -128,10 +128,7 @@ update(Key, Diff) ->
 -spec get(Key :: model_behaviour:key()) ->
     {ok, Record :: record()} | #error{} | no_return().
 get(Key) ->
-    case model:get(?MODULE, Key) of
-        {ok, Session} -> {ok, Session};
-        #error{} = Error -> Error
-    end.
+    model:get(?MODULE, Key).
 
 
 %%--------------------------------------------------------------------
@@ -241,12 +238,12 @@ find_by_valid_token(RestApiToken) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Checks if expiration of the newest token is less than
-%% half of token TTL away. In that case, generates a new token.
+%% @doc Checks if the newest token is expired or near expiration
+%% and generates new one.
 %% @end
 %%--------------------------------------------------------------------
--spec maybe_update_token(Session :: record()) -> record().
-maybe_update_token(Session) ->
+-spec ensure_fresh_token(Session :: record()) -> record().
+ensure_fresh_token(Session) ->
     Id = Session#onepanel_session.id,
     Tokens = Session#onepanel_session.rest_tokens,
 
@@ -299,6 +296,11 @@ is_token_still_valid({_Token, Expires}) ->
     is_token_still_valid(Expires).
 
 
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Decides if a token expires to soon to be reused.
+%% @end
+%%--------------------------------------------------------------------
 -spec is_token_near_expiration(ExpiresAt :: non_neg_integer()) -> boolean().
 is_token_near_expiration(ExpiresAt) ->
     ExpiresAt - ?NOW() < (?TOKEN_TTL div 2).
