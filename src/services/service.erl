@@ -36,10 +36,10 @@
 -export([get_ctx/1, update_ctx/2]).
 
 % @formatter:off
--type name() :: onezone | oneprovider |
-    op_worker | oz_worker | cluster_worker |
-    cluster_manager | couchbase | onepanel |
-    letsencrypt.
+-type name() :: ?SERVICE_OZ | ?SERVICE_OP |
+    ?SERVICE_OPW | ?SERVICE_OZW | ?SERVICE_CW |
+    ?SERVICE_CM | ?SERVICE_CB | ?SERVICE_PANEL |
+    ?SERVICE_LE.
 -type action() :: atom().
 -type notify() :: pid() | undefined.
 -type host() :: string().
