@@ -22,7 +22,7 @@ TARGET_DIR='_build/default/lib/gui_static'
 # Image which will be used by default to get the static files. If it cannot
 # be resolved, the script will fall back to secondary.
 # @FIXME use 18.07 version
-PRIMARY_IMAGE='docker.onedata.org/onepanel-gui:VFS-5242-async-popularity-config-18.07'
+PRIMARY_IMAGE='docker.onedata.org/onepanel-gui:VFS-5301-webdav-optional-fix-18.07'
 # Image which will be used if primary image is not resolved.
 # @FIXME use 18.07 version
-SECONDARY_IMAGE='onedata/onepanel-gui:VFS-5242-async-popularity-config-18.07'
+SECONDARY_IMAGE='onedata/onepanel-gui:VFS-5301-webdav-optional-fix-18.07'
