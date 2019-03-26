@@ -140,7 +140,7 @@ get_as_admin_should_return_cookie(Config) ->
 unathorized_get_should_return_node_details(Config) ->
     [Host] = ?config(cluster_hosts, Config),
     Expected = #{
-        <<"componentType">> => <<"oneprovider">>,
+        <<"clusterType">> => <<"oneprovider">>,
         <<"hostname">> => onepanel_utils:convert(Host, binary)
     },
     {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
@@ -151,7 +151,7 @@ unathorized_get_should_return_node_details(Config) ->
 get_as_admin_should_return_node_details(Config) ->
     [Host] = ?config(cluster_hosts, Config),
     Expected = #{
-        <<"componentType">> => <<"oneprovider">>,
+        <<"clusterType">> => <<"oneprovider">>,
         <<"hostname">> => onepanel_utils:convert(Host, binary)
     },
     {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},

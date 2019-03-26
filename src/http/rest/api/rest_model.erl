@@ -382,7 +382,7 @@ node_model() ->
         %% Hostname of the node.
         hostname => string,
         %% Type of Onedata component managed by this onepanel.
-        componentType => string
+        clusterType => string
     }.
 
 %%--------------------------------------------------------------------

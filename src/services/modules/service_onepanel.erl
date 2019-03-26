@@ -358,7 +358,7 @@ get_remote_node_info(#{address := Address, api_version := ApiVersion} = Ctx) ->
     case http_client:get(Url, Headers, <<>>, Opts) of
         {ok, 200, _, Body} ->
             #{<<"hostname">> := Hostname,
-                <<"componentType">> := ClusterType} = json_utils:decode(Body),
+                <<"clusterType">> := ClusterType} = json_utils:decode(Body),
             {ok, Hostname, onepanel_utils:convert(ClusterType, atom)};
         {error, _} -> ?make_error(?ERR_BAD_NODE)
     end.

@@ -154,7 +154,7 @@ provide_resource(Req, #rstate{resource = cookie}) ->
 provide_resource(Req, #rstate{resource = node}) ->
     Hostname = onepanel_utils:convert(hosts:self(), binary),
     ClusterType = onepanel_env:get_cluster_type(),
-    {#{hostname => Hostname, componentType => ClusterType}, Req};
+    {#{hostname => Hostname, clusterType => ClusterType}, Req};
 
 provide_resource(Req, #rstate{resource = hosts}) ->
     Hosts = service_onepanel:get_hosts(),
