@@ -529,17 +529,14 @@ support_space(#{storage_id := StorageId} = Ctx) ->
     SupportSize = onepanel_utils:typed_get(size, Ctx, binary),
     Token = onepanel_utils:typed_get(token, Ctx, binary),
 
-    {ok, SpaceId} = case rpc:call(
-        Node, provider_logic, support_space, [Token, SupportSize]
-    ) of
-        {ok, Id} -> {ok, Id};
+    case rpc:call(Node, provider_logic, support_space, [Token, SupportSize]) of
+        {ok, SpaceId} ->
+            configure_space(Node, SpaceId, Ctx);
         ?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, Minimum) ->
             ?throw_error(?ERR_SPACE_SUPPORT_TOO_LOW(Minimum));
         {error, Reason} ->
             ?throw_error(Reason)
-    end,
-
-    configure_space(Node, SpaceId, Ctx).
+    end.
 
 
 %%--------------------------------------------------------------------
