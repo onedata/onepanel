@@ -22,7 +22,7 @@
 
 %% API
 -export([authenticate_by_onezone_access_token/1]).
--export([get_zone_domain/1]).
+-export([read_domain/1]).
 
 -type auth() :: rest_handler:zone_auth().
 
@@ -53,8 +53,8 @@ authenticate_by_onezone_access_token(AccessToken) ->
 %% @doc Reads Onezone domain from a Oneprovider registration token.
 %% @end
 %%--------------------------------------------------------------------
--spec get_zone_domain(RegistrationToken :: binary()) -> Domain :: binary() | no_return().
-get_zone_domain(RegistrationToken) ->
+-spec read_domain(RegistrationToken :: binary()) -> Domain :: binary() | no_return().
+read_domain(RegistrationToken) ->
     {ok, Macaroon} = onedata_macaroons:deserialize(RegistrationToken),
     Macaroon#macaroon.location.
 

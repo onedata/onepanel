@@ -33,7 +33,7 @@ fetch_zone_info(Domain) ->
     CaCerts = cert_utils:load_ders_in_dir(oz_plugin:get_cacerts_dir()),
     Opts = [{ssl_options, [{cacerts, CaCerts}]}],
     case http_client:get(Url, #{}, <<>>, Opts) of
-        {ok, _, _, Response} ->
+        {ok, 200, _, Response} ->
             Map = onepanel_utils:convert(json_utils:decode(Response), {keys, atom}),
             #{version := OzVersion, compatibleOneproviderVersions := CompatOps} = Map,
             onepanel_maps:get_store_multiple([
@@ -88,4 +88,4 @@ is_compatible(OzVersion, CompatOpVersions) ->
 -spec configuration_url(Domain :: binary() | string()) -> binary().
 configuration_url(Domain) ->
     str_utils:format_bin("https://~s~s",
-        [Domain, onepanel_env:get(onezone_configuration_uri)]).
+        [Domain, onepanel_env:get(onezone_configuration_urn)]).

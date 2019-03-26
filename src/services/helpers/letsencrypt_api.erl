@@ -259,7 +259,7 @@ run_certification_flow(Domain, Plugin, Mode) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Returns implemented authorizatio challenge types.
+%% Returns implemented authorization challenge types.
 %% @end
 %%--------------------------------------------------------------------
 -spec challenge_types() -> [challenge_type()].

@@ -25,7 +25,7 @@
 -export([get_id/0]).
 -export([get_user_privileges/2]).
 -export([get_current_cluster/0, get_details/2, list_user_clusters/1]).
--export([fetch_provider_info/2]).
+-export([fetch_remote_provider_info/2]).
 
 -define(PRIVILEGES_CACHE_KEY(OnezoneUserId), {privileges, OnezoneUserId}).
 -define(PRIVILEGES_CACHE_TTL, onepanel_env:get(onezone_auth_cache_ttl, ?APP_NAME, 0)).
@@ -141,16 +141,16 @@ list_user_clusters({rest, Auth}) ->
 %% User must belong to its cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec fetch_provider_info(Auth :: rest_handler:zone_auth(), ProviderId :: binary()) ->
+-spec fetch_remote_provider_info(Auth :: rest_handler:zone_auth(), ProviderId :: binary()) ->
     #{binary() := term()}.
-fetch_provider_info({rpc, Client}, ProviderId) ->
+fetch_remote_provider_info({rpc, Client}, ProviderId) ->
     {ok, OzNode} = nodes:any(?SERVICE_OZW),
     {ok, ProviderData} = rpc:call(
         OzNode, provider_logic, get_protected_data, [Client, ProviderId]
     ),
     format_provider_info(ProviderData);
 
-fetch_provider_info({rest, RestAuth}, ProviderId) ->
+fetch_remote_provider_info({rest, RestAuth}, ProviderId) ->
     URN = "/providers/" ++ binary_to_list(ProviderId),
     {ok, 200, _, BodyJson} = oz_endpoint:request(RestAuth, URN, get),
     format_provider_info(json_utils:decode(BodyJson)).

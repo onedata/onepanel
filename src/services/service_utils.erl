@@ -137,8 +137,10 @@ absolute_path(Service, Path) ->
             Path;
         _ ->
             {ok, Node} = nodes:any(Service),
-            {ok, Cwd} = rpc:call(Node, file, get_cwd, []),
-            filename:join(Cwd, Path)
+            case rpc:call(Node, filename, absname, [Path]) of
+                {badrpc, _} = Error -> ?throw_error(Error);
+                AbsPath -> AbsPath
+            end
     end.
 
 %%%===================================================================

@@ -115,7 +115,7 @@ provide_resource(Req, #rstate{resource = current_cluster}) ->
 
 provide_resource(Req, #rstate{resource = remote_provider, bindings = #{id := ProviderId},
     client = #client{zone_auth = Auth}}) ->
-    {clusters:fetch_provider_info(Auth, ProviderId), Req};
+    {clusters:fetch_remote_provider_info(Auth, ProviderId), Req};
 
 provide_resource(Req, #rstate{resource = clusters, client = Client}) ->
     {ok, Ids} = clusters:list_user_clusters(Client#client.zone_auth),

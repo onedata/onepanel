@@ -198,7 +198,7 @@
         {rest_token_ttl, 86400},
         {wait_for_cluster_attempts, 20},
 
-        {onezone_configuration_uri, "/api/v3/onezone/configuration"},
+        {onezone_configuration_urn, "/api/v3/onezone/configuration"},
 
         %% Time in milliseconds during which user tokens are cached in op_panel
         {onezone_auth_cache_ttl, 60000},

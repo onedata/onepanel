@@ -291,12 +291,12 @@ get_steps(Action, Ctx) when
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(#{application := ?APP_NAME, oneprovider_token := Token}) ->
-    OzDomain = zone_tokens:get_zone_domain(Token),
+    OzDomain = zone_tokens:read_domain(Token),
     application:set_env(?APP_NAME, onezone_domain, OzDomain),
     onepanel_env:write([?APP_NAME, onezone_domain], OzDomain);
 
 configure(#{oneprovider_token := Token} = Ctx) ->
-    OzDomain = zone_tokens:get_zone_domain(Token),
+    OzDomain = zone_tokens:read_domain(Token),
     Name = ?SERVICE_OPW,
     Node = nodes:local(Name),
     GeneratedConfigFile = service_ctx:get(op_worker_generated_config_file, Ctx),

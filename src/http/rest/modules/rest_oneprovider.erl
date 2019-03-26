@@ -349,7 +349,7 @@ provide_resource(Req, #rstate{resource = cluster_ips}) ->
     ), Req};
 
 provide_resource(Req, #rstate{resource = onezone_info, params = #{token := Token}}) ->
-    Domain = zone_tokens:get_zone_domain(Token),
+    Domain = zone_tokens:read_domain(Token),
     {zone_client:fetch_zone_info(Domain), Req};
 
 provide_resource(Req, #rstate{resource = onezone_info}) ->
