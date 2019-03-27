@@ -381,7 +381,7 @@ node_model() ->
     #{
         %% Hostname of the node.
         hostname => string,
-        %% Type of Onedata component managed by this onepanel.
+        %% Type of Onedata cluster managed by this onepanel.
         clusterType => string
     }.
 
@@ -429,10 +429,10 @@ onezone_user_model() ->
 -spec op_panel_configuration_model() -> maps:map().
 op_panel_configuration_model() ->
     #{
-        %% Indicates that interactive deployment is performed. If false, users
-        %% entering GUI will not be asked to complete the configuration. In that
-        %% case default values will be used, available for change later via
-        %% appropriate onepanel GUI pages or REST.
+        %% Indicates that interactive deployment is being performed. If false,
+        %% users entering GUI will not be asked to complete the configuration.
+        %% In that case default values will be used, available for change later
+        %% via appropriate onepanel GUI pages or REST.
         interactiveDeployment => {boolean, optional},
         admin => {op_panel_configuration_admin_model(), optional}
     }.

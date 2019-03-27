@@ -149,9 +149,8 @@ routes() ->
             methods = [#rmethod{
                 type = 'GET',
                 params_spec = #{
-                    %% Provider registration token obtained be the
-                    %% Onezone's user. Required if provider is not
-                    %% registered at Onezone.
+                    %% Oneprovider registration token obtained from Onezone.
+                    %% Required if the Oneprovider is not registered.
                     token => {string, optional}
                 }
             }]
