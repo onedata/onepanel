@@ -119,15 +119,6 @@ is_available(Req, _Method, #rstate{resource = Resource}) when
     Resource == storage ->
     {service:all_healthy(), Req};
 
-is_available(Req, 'GET', #rstate{resource = dns_check}) ->
-    % @fixme maybe now
-    % @TODO When service_op_worker:get_domain will work when op_worker is offline
-    %       this request should always be allowed.
-    case onepanel_env:get_cluster_type() of
-        onezone -> {true, Req};
-        oneprovider -> {service:all_healthy(), Req}
-    end;
-
 is_available(Req, _Method, _State) ->
     {true, Req}.
 
