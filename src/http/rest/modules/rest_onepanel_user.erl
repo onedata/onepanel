@@ -45,7 +45,8 @@ is_authorized(Req, _Method, #rstate{resource = user, bindings = #{username := Us
     {true, Req};
 
 % resource defaulting to current user
-is_authorized(Req, Method, #rstate{resource = current_user, client = #client{role = Role}} = State)
+is_authorized(Req, Method, #rstate{
+    resource = current_user, client = #client{role = Role}} = State)
     when Role == user; Role == regular; Role == admin ->
     is_authorized(Req, Method, expand_current_user(State));
 

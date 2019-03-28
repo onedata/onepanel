@@ -141,6 +141,7 @@ find_token(_) ->
     undefined.
 
 
+%% @private
 -spec user_to_client(#onepanel_user{}) -> #client{}.
 user_to_client(#onepanel_user{username = Username, role = admin}) ->
     (root_client())#client{role = admin,
@@ -150,6 +151,7 @@ user_to_client(#onepanel_user{username = Username, role = Role}) ->
     #client{user = #user_details{id = <<>>, name = Username}, role = Role}.
 
 
+%% @private
 -spec root_client() -> #client{}.
 root_client() ->
     ZoneAuth = try zone_client:root_auth() catch _:_ -> undefined end,

@@ -195,8 +195,7 @@ delete_resource(Req, #rstate{resource = host, bindings = #{host := Host}}) ->
 %% used in onepanel_deployment model.
 %% @end
 %%--------------------------------------------------------------------
--spec rest_to_marker_mapping() ->
-    [{atom(), onepanel_deployment:marker()}].
+-spec rest_to_marker_mapping() -> [{atom(), onepanel_deployment:marker()}].
 rest_to_marker_mapping() ->
     rest_to_marker_mapping(onepanel_env:get_cluster_type()).
 

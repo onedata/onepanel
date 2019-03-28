@@ -38,10 +38,9 @@
 -type password_hash() :: binary().
 -type role() :: admin | regular.
 -type uuid() :: binary().
--type onezone_id() :: binary().
 -type record() :: #onepanel_user{}.
 
--export_type([name/0, password/0, password_hash/0, role/0, uuid/0, onezone_id/0, record/0]).
+-export_type([name/0, password/0, password_hash/0, role/0, uuid/0, record/0]).
 
 %%%===================================================================
 %%% Model behaviour callbacks

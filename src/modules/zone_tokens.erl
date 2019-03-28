@@ -35,7 +35,7 @@
 
 %%--------------------------------------------------------------------
 %% @doc Fetches information about a Onezone user basing on his
-%% access tokens, verifies that he belongs to the cluster and
+%% access token, verifies that he belongs to the cluster and
 %% fetches his privileges.
 %% @end
 %%--------------------------------------------------------------------

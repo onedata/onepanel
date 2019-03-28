@@ -202,7 +202,7 @@ upgrade_test(Config) ->
         rpc:call(Node, model, get, [?MODEL, Key])).
 
 
-% upgrade function returning old version numbre as new should not cause infinite loop
+% upgrade function returning old version number as new should not cause infinite loop
 upgrade_loop_is_detected_test(Config) ->
     [Node | _] = ?config(onepanel_nodes, Config),
     Key = 123,

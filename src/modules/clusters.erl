@@ -65,7 +65,7 @@ get_current_cluster() ->
 %% as the user might not have enough privileges to view his own privileges.
 %% @end
 %%--------------------------------------------------------------------
--spec get_user_privileges(rest_handler:zone_auth(), onepanel_user:onezone_id()) ->
+-spec get_user_privileges(rest_handler:zone_auth(), OnezoneUserId :: binary()) ->
     {ok, [privileges:cluster_privilege()]} | #error{} | no_return().
 get_user_privileges({rest, _}, OnezoneUserId) ->
     simple_cache:get(?PRIVILEGES_CACHE_KEY(OnezoneUserId), fun() ->

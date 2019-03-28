@@ -11,7 +11,6 @@
 -ifndef(ONEPANEL_MODELS_HRL).
 -define(ONEPANEL_MODELS_HRL, 1).
 
-% extend as needed
 -define(MATCH_SPECS, '_' | '$1').
 
 -define(MODELS, [onepanel_user, onepanel_session, onepanel_deployment, service]).
