@@ -33,8 +33,10 @@
 -spec is_authorized(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     State :: rest_handler:state()) ->
     {Authorized :: boolean(), Req :: cowboy_req:req()}.
-is_authorized(Req, _Method, #rstate{client = #client{role = Role}})
-    when Role == root; Role == admin; Role == user ->
+is_authorized(Req, _Method, #rstate{client = #client{role = Role}}) when
+    Role == root;
+    Role == admin;
+    Role == user ->
     {true, Req};
 
 is_authorized(Req, _Method, #rstate{resource = users}) ->
@@ -45,9 +47,11 @@ is_authorized(Req, _Method, #rstate{resource = user, bindings = #{username := Us
     {true, Req};
 
 % resource defaulting to current user
-is_authorized(Req, Method, #rstate{
-    resource = current_user, client = #client{role = Role}} = State)
-    when Role == user; Role == regular; Role == admin ->
+is_authorized(Req, Method, State = #rstate{
+    resource = current_user, client = #client{role = Role}}) when
+    Role == user;
+    Role == regular;
+    Role == admin ->
     is_authorized(Req, Method, expand_current_user(State));
 
 is_authorized(Req, _Method, _State) ->
@@ -140,7 +144,9 @@ provide_resource(Req, #rstate{resource = user, bindings = #{username := Username
     {#{userId => UserId, userRole => Role, username => Username}, Req};
 
 provide_resource(Req, #rstate{resource = current_user,
-    client = Client}) when Client#client.role == user ->
+    client = Client}) when
+    Client#client.role == user ->
+
     #user_details{name = Username} = Client#client.user,
     % user coming from Onezone has no onepanel user id
     % and their privileges match those of a local admin

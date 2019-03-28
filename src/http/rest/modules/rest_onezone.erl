@@ -40,8 +40,10 @@
 -spec is_authorized(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     State :: rest_handler:state()) ->
     {Authorized :: boolean(), Req :: cowboy_req:req()}.
-is_authorized(Req, _Method, #rstate{client = #client{role = Role}})
-    when Role == root; Role == admin; Role == user ->
+is_authorized(Req, _Method, #rstate{client = #client{role = Role}}) when
+    Role == root;
+    Role == admin;
+    Role == user ->
     {true, Req};
 
 is_authorized(Req, _Method, _State) ->

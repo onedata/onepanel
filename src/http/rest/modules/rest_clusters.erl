@@ -40,8 +40,10 @@ is_authorized(Req, _Method, #rstate{resource = Resource, client = Client}) when
     Resource == cluster ->
     {Client#client.role == user, Req};
 
-is_authorized(Req, _Method, #rstate{client = #client{role = Role}})
-    when Role == root; Role == admin; Role == user ->
+is_authorized(Req, _Method, #rstate{client = #client{role = Role}}) when
+    Role == root;
+    Role == admin;
+    Role == user ->
     {true, Req};
 
 is_authorized(Req, _Method, _State) ->

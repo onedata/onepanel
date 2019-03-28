@@ -39,17 +39,20 @@
 -spec is_authorized(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     State :: rest_handler:state()) ->
     {Authorized :: boolean(), Req :: cowboy_req:req()}.
-is_authorized(Req, _Method, #rstate{client = #client{role = Role}})
-    when Role == root; Role == admin; Role == user ->
+is_authorized(Req, _Method, #rstate{client = #client{role = Role}}) when
+    Role == root;
+    Role == admin;
+    Role == user ->
     {true, Req};
 
 is_authorized(Req, 'GET', #rstate{resource = Resource}) when
-    Resource =:= task orelse Resource =:= nagios ->
+    Resource == task;
+    Resource == nagios ->
     {true, Req};
 
 is_authorized(Req, Method, #rstate{resource = Resource}) when
-    (Method =:= 'POST' orelse Method =:= 'GET') andalso
-        (Resource =:= service_oneprovider orelse Resource =:= service_onezone) ->
+    (Method == 'POST' orelse Method == 'GET') andalso
+        (Resource == service_oneprovider orelse Resource == service_onezone) ->
     {onepanel_user:get_by_role(admin) == [], Req};
 
 is_authorized(Req, _Method, _State) ->
@@ -78,8 +81,9 @@ exists_resource(Req, #rstate{resource = dns_check_configuration}) ->
     {true, Req};
 
 exists_resource(Req, #rstate{resource = Resource}) when
-    Resource =:= service_onezone; Resource =:= service_oneprovider;
-    Resource =:= dns_check ->
+    Resource == service_onezone;
+    Resource == service_oneprovider;
+    Resource == dns_check ->
     % TODO VFS-4460 Short-circuit if workers are off
     {model:exists(onepanel_deployment) andalso
         onepanel_deployment:is_set(?PROGRESS_CLUSTER), Req};
@@ -96,8 +100,9 @@ exists_resource(Req, #rstate{resource = SModule}) ->
 %% @doc {@link rest_behaviour:accept_possible/4}
 %% @end
 %%--------------------------------------------------------------------
-accept_possible(Req, 'POST', _Args, #rstate{resource = SModule})
-    when SModule == service_oneprovider orelse SModule == service_onezone ->
+accept_possible(Req, 'POST', _Args, #rstate{resource = SModule}) when
+    SModule == service_oneprovider;
+    SModule == service_onezone ->
     {not onepanel_deployment:is_set(?PROGRESS_READY), Req};
 
 accept_possible(Req, _Method, _Args, _State) ->
@@ -114,12 +119,13 @@ is_available(Req, _Method, #rstate{resource = Resource}) when
     Resource == storage ->
     {service:all_healthy(), Req};
 
-is_available(Req, Method, #rstate{resource = Resource}) when
-    Method == 'GET' andalso Resource == dns_check ->
+is_available(Req, 'GET', #rstate{resource = dns_check}) ->
     % @TODO When service_op_worker:get_domain will work when op_worker is offline
     %       this request should always be allowed.
-    {onepanel_env:get_cluster_type() == onezone
-        orelse service:all_healthy(), Req};
+    case onepanel_env:get_cluster_type() of
+        onezone -> {true, Req};
+        oneprovider -> {service:all_healthy(), Req}
+    end;
 
 is_available(Req, _Method, _State) ->
     {true, Req}.
@@ -360,7 +366,8 @@ provide_resource(Req, #rstate{resource = task, bindings = #{id := TaskId}}) ->
     {rest_replier:format_service_task_results(service:get_results(TaskId)), Req};
 
 provide_resource(Req, #rstate{resource = SModule}) when
-    SModule =:= service_onezone; SModule =:= service_oneprovider ->
+    SModule == service_onezone;
+    SModule == service_oneprovider ->
     {rest_replier:format_service_configuration(SModule), Req};
 
 provide_resource(Req, #rstate{resource = dns_check, params = Params}) ->
