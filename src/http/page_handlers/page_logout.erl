@@ -28,4 +28,4 @@
 %%--------------------------------------------------------------------
 -spec handle(gui:method(), cowboy_req:req()) -> cowboy_req:req().
 handle(<<"POST">>, Req) ->
-    cowboy_req:reply(307, #{<<"location">> => <<"/">>}, gui_session:log_out(Req)).
+    cowboy_req:reply(303, #{<<"location">> => <<"/">>}, gui_session:log_out(Req)).
