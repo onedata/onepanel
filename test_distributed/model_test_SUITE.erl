@@ -280,7 +280,7 @@ init_per_testcase(_Case, Config) ->
     test_utils:mock_expect(Nodes, model, get_models, fun() -> [service, ?MODEL] end),
 
     % required for successful deployment
-    test_utils:mock_expect(Nodes, onepanel_deployment, is_completed,
+    test_utils:mock_expect(Nodes, onepanel_deployment, is_set,
         fun(_) -> false end),
     test_utils:mock_expect(Nodes, ?MODEL, get_fields, fun() ->
         record_info(fields, ?MODEL)

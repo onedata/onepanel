@@ -119,7 +119,7 @@ configure(Ctx) ->
 
     case maps:get(mark_cluster_ips_configured, Ctx, false)
         orelse pop_legacy_ips_configured() of
-        true -> onepanel_deployment:mark_completed(?PROGRESS_CLUSTER_IPS);
+        true -> onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS);
         _ -> ok
     end,
 
@@ -237,7 +237,7 @@ get_nagios_status(Ctx) ->
 add_storages(#{storages := Storages, ignore_exists := IgnoreExists})
     when map_size(Storages) > 0 ->
     op_worker_storage:add(Storages, IgnoreExists),
-    onepanel_deployment:mark_completed(?PROGRESS_STORAGE_SETUP);
+    onepanel_deployment:set_marker(?PROGRESS_STORAGE_SETUP);
 
 add_storages(#{storages := _, ignore_exists := _}) ->
     ok;

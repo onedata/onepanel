@@ -82,7 +82,7 @@ exists_resource(Req, #rstate{resource = Resource}) when
     Resource =:= dns_check ->
     % TODO VFS-4460 Short-circuit if workers are off
     {model:exists(onepanel_deployment) andalso
-        onepanel_deployment:is_completed(?PROGRESS_CLUSTER), Req};
+        onepanel_deployment:is_set(?PROGRESS_CLUSTER), Req};
 
 exists_resource(Req, #rstate{resource = SModule}) ->
     case lists:member(SModule, ?SERVICES) of
@@ -98,7 +98,7 @@ exists_resource(Req, #rstate{resource = SModule}) ->
 %%--------------------------------------------------------------------
 accept_possible(Req, 'POST', _Args, #rstate{resource = SModule})
     when SModule == service_oneprovider orelse SModule == service_onezone ->
-    {not onepanel_deployment:is_completed(?PROGRESS_READY), Req};
+    {not onepanel_deployment:is_set(?PROGRESS_READY), Req};
 
 accept_possible(Req, _Method, _Args, _State) ->
     {true, Req}.

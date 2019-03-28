@@ -108,7 +108,7 @@ resume_service() ->
     % Must be consistent with condition for blocking deployment request
     % (see rest_service:is_service_configured/0)
     ClusterExists = model:exists(onepanel_deployment)
-        andalso onepanel_deployment:is_completed(?PROGRESS_READY),
+        andalso onepanel_deployment:is_set(?PROGRESS_READY),
 
     case ClusterExists of
         true ->

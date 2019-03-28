@@ -56,7 +56,7 @@ is_authorized(Req, _Method, _State) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
 exists_resource(Req, #rstate{resource = policies}) ->
     {model:exists(onepanel_deployment) andalso
-        onepanel_deployment:is_completed(?PROGRESS_READY), Req};
+        onepanel_deployment:is_set(?PROGRESS_READY), Req};
 exists_resource(Req, _State) ->
     case service:get(?SERVICE) of
         {ok, #service{}} -> {true, Req};

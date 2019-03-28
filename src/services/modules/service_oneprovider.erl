@@ -138,12 +138,12 @@ get_steps(deploy, Ctx) ->
         Ss#steps{service = ?SERVICE_OPW, action = deploy, ctx = OpwCtx},
         S#step{service = ?SERVICE_OPW, function = status, ctx = OpwCtx},
         Ss#steps{service = ?SERVICE_LE, action = deploy, ctx = LeCtx3},
-        S#step{module = onepanel_deployment, function = mark_completed,
+        S#step{module = onepanel_deployment, function = set_marker,
             args = [?PROGRESS_CLUSTER], hosts = [SelfHost]},
         Ss#steps{service = ?SERVICE_OPW, action = add_storages, ctx = StorageCtx},
         Ss#steps{action = register, ctx = OpCtx, condition = Register},
         Ss#steps{service = ?SERVICE_LE, action = update, ctx = LeCtx3},
-        S#step{module = onepanel_deployment, function = mark_completed,
+        S#step{module = onepanel_deployment, function = set_marker,
             args = [?PROGRESS_READY], hosts = [SelfHost]},
         S#step{function = mark_configured, ctx = OpaCtx, selection = any, args = [],
             condition = fun(FunCtx) ->
@@ -403,7 +403,7 @@ unregister() ->
 
     {ok, Node} = nodes:any(?SERVICE_OPW),
     rpc:call(Node, oneprovider, on_deregister, []),
-    onepanel_deployment:mark_not_completed(?PROGRESS_LETSENCRYPT_CONFIG),
+    onepanel_deployment:unset_marker(?PROGRESS_LETSENCRYPT_CONFIG),
     service:update_ctx(name(), fun(ServiceCtx) ->
         maps:without([cluster, cluster_id],
             ServiceCtx#{registered => false})
@@ -768,7 +768,7 @@ start_auto_cleaning(#{space_id := SpaceId}) ->
 %%-------------------------------------------------------------------
 -spec mark_configured() -> ok.
 mark_configured() ->
-    onepanel_deployment:mark_completed([
+    onepanel_deployment:set_marker([
         ?PROGRESS_LETSENCRYPT_CONFIG,
         ?PROGRESS_CLUSTER_IPS,
         ?DNS_CHECK_ACKNOWLEDGED
@@ -806,7 +806,7 @@ pop_legacy_letsencrypt_config() ->
     end,
     case Result of
         true ->
-            onepanel_deployment:mark_completed(?PROGRESS_LETSENCRYPT_CONFIG),
+            onepanel_deployment:set_marker(?PROGRESS_LETSENCRYPT_CONFIG),
             Result;
         _ -> Result
     end.

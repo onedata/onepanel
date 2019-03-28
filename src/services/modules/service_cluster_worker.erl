@@ -166,7 +166,7 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
             IP = case onepanel_maps:get([cluster_ips, Host], Ctx, undefined) of
                 undefined -> get_initial_ip(Name);
                 Found ->
-                    onepanel_deployment:mark_completed(?PROGRESS_CLUSTER_IPS),
+                    onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),
                     {ok, IPTuple} = onepanel_ip:parse_ip4(Found),
                     IPTuple
             end,
@@ -275,7 +275,7 @@ set_node_ip(#{name := ServiceName, generated_config_file := GeneratedConfigFile}
 
     {ok, IP} = case onepanel_maps:get([cluster_ips, Host], Ctx) of
         {ok, NewIP} ->
-            onepanel_deployment:mark_completed(?PROGRESS_CLUSTER_IPS),
+            onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),
             onepanel_ip:parse_ip4(NewIP);
         _ -> {ok, get_initial_ip(ServiceName)}
     end,
@@ -297,7 +297,7 @@ get_cluster_ips(#{name := _ServiceName} = Ctx) ->
         {onepanel_utils:convert(Host, binary), onepanel_ip:ip4_to_binary(IP)}
     end, get_hosts_ips(Ctx)),
     #{
-        isConfigured => onepanel_deployment:is_completed(?PROGRESS_CLUSTER_IPS),
+        isConfigured => onepanel_deployment:is_set(?PROGRESS_CLUSTER_IPS),
         hosts => maps:from_list(HostsToIps)
     }.
 

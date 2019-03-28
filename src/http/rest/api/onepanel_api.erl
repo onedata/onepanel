@@ -264,7 +264,7 @@ routes() ->
             }]
         }},
 
-        %% Modify progress marks
+        %% Modify progress markers
         {<<"/api/v3/onepanel/progress">>, rest_handler, #rstate{
             version = 3,
             module = rest_onepanel,

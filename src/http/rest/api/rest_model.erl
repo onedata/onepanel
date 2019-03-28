@@ -476,7 +476,7 @@ oz_panel_configuration_users_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Progress marks indicating which steps of interactive deployment were
+%% @doc Progress markers indicating which steps of interactive deployment were
 %% reached by the admin performing cluster setup.
 %% @end
 %%--------------------------------------------------------------------
@@ -505,7 +505,7 @@ progress_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Progress marks which can be modified by the GUI.
+%% @doc Progress markers which can be set or unset by the GUI.
 %% @end
 %%--------------------------------------------------------------------
 -spec progress_modify_model() -> maps:map().

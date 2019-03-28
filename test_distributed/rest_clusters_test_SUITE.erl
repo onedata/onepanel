@@ -252,7 +252,7 @@ init_per_testcase(_Case, Config) ->
     test_utils:mock_new(Nodes, [service, rest_auth, clusters, rpc, oz_endpoint,
         onepanel_deployment], [passthrough, no_history, unstick]),
 
-    test_utils:mock_expect(OzNodes, onepanel_deployment, is_completed,
+    test_utils:mock_expect(OzNodes, onepanel_deployment, is_set,
         fun(_) -> true end),
 
 

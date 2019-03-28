@@ -465,7 +465,7 @@ is_local_cert_letsencrypt() ->
 %%--------------------------------------------------------------------
 -spec mark_configured(service:ctx()) -> ok.
 mark_configured(#{letsencrypt_enabled := _}) ->
-    onepanel_deployment:mark_completed(?PROGRESS_LETSENCRYPT_CONFIG);
+    onepanel_deployment:set_marker(?PROGRESS_LETSENCRYPT_CONFIG);
 mark_configured(_Ctx) -> ok.
 
 

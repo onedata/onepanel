@@ -327,7 +327,7 @@ format_service_configuration(SModule) ->
 -spec format_deployment_progress() ->
     JsonMap :: #{atom() => boolean()}.
 format_deployment_progress() ->
-    Fields = rest_onepanel:rest_key_to_progress_mark_mapping(onepanel_env:get_cluster_type()),
+    Fields = rest_onepanel:rest_to_marker_mapping(),
     Fields2 = case onepanel_env:get_cluster_type() of
         oneprovider ->
             [{isRegistered, fun service_oneprovider:is_registered/0} | Fields];
@@ -336,7 +336,7 @@ format_deployment_progress() ->
 
     lists:foldl(fun
         ({Key, Fun}, Acc) when is_function(Fun) -> Acc#{Key => Fun()};
-        ({Key, Mark}, Acc) -> Acc#{Key => onepanel_deployment:is_completed(Mark)}
+        ({Key, Mark}, Acc) -> Acc#{Key => onepanel_deployment:is_set(Mark)}
     end, #{}, Fields2).
 
 
@@ -461,7 +461,7 @@ format_onepanel_configuration(_ClusterType) ->
 %%--------------------------------------------------------------------
 -spec is_service_configured() -> boolean().
 is_service_configured() ->
-    onepanel_deployment:is_completed(?PROGRESS_READY).
+    onepanel_deployment:is_set(?PROGRESS_READY).
 
 
 %%--------------------------------------------------------------------

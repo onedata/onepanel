@@ -23,7 +23,7 @@
     accept_resource/4, provide_resource/2, delete_resource/2]).
 
 %% API functions
--export([rest_key_to_progress_mark_mapping/1]).
+-export([rest_to_marker_mapping/0]).
 
 -define(SERVICE, service_onepanel:name()).
 
@@ -127,7 +127,7 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = web_cert}) ->
     ))};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = progress}) ->
-    Mapping = progress_to_rest_mapping(),
+    Mapping = rest_to_marker_mapping(),
     MarksToSet = lists:filtermap(fun({Field, Bool}) ->
         case lists:keyfind(Field, 1, Mapping) of
             {Field, ProgressMark} -> {true, {ProgressMark, Bool}};
@@ -136,8 +136,8 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = progress}) ->
     end, maps:to_list(Args)),
 
     lists:foreach(fun
-        ({Mark, true}) -> onepanel_deployment:mark_completed(Mark);
-        ({Mark, false}) -> onepanel_deployment:mark_not_completed(Mark)
+        ({Marker, true}) -> onepanel_deployment:set_marker(Marker);
+        ({Marker, false}) -> onepanel_deployment:unset_marker(Marker)
     end, MarksToSet),
     {true, Req}.
 
@@ -191,31 +191,31 @@ delete_resource(Req, #rstate{resource = host, bindings = #{host := Host}}) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private
 %% @doc Maps between rest 'progress' endpoint fields and atoms
-%% used in onepanel_progress model.
+%% used in onepanel_deployment model.
 %% @end
 %%--------------------------------------------------------------------
--spec rest_key_to_progress_mark_mapping(onedata:cluster_type() | common) ->
-    [{RestField :: atom(), ProgressMark :: onepanel_deployment:mark()}].
-rest_key_to_progress_mark_mapping(onezone) ->
-    rest_key_to_progress_mark_mapping(common);
+-spec rest_to_marker_mapping() ->
+    [{atom(), onepanel_deployment:marker()}].
+rest_to_marker_mapping() ->
+    rest_to_marker_mapping(onepanel_env:get_cluster_type()).
 
-rest_key_to_progress_mark_mapping(oneprovider) ->
+
+%% @private
+-spec rest_to_marker_mapping(onedata:cluster_type() | common) ->
+    [{RestField :: atom(), ProgressMark :: onepanel_deployment:marker()}].
+rest_to_marker_mapping(onezone) ->
+    rest_to_marker_mapping(common);
+
+rest_to_marker_mapping(oneprovider) ->
     [
         {storagesSetup, ?PROGRESS_STORAGE_SETUP}
-        | rest_key_to_progress_mark_mapping(common)
+        | rest_to_marker_mapping(common)
     ];
 
-rest_key_to_progress_mark_mapping(common) -> [
+rest_to_marker_mapping(common) -> [
     {clusterNodes, ?PROGRESS_CLUSTER},
     {clusterIps, ?PROGRESS_CLUSTER_IPS},
     {webCertificate, ?PROGRESS_LETSENCRYPT_CONFIG},
     {dnsCheck, ?DNS_CHECK_ACKNOWLEDGED}
 ].
-
-%% @private
--spec progress_to_rest_mapping() ->
-    [{atom(), onepanel_deployment:mark()}].
-progress_to_rest_mapping() ->
-    rest_key_to_progress_mark_mapping(onepanel_env:get_cluster_type()).

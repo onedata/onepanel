@@ -127,7 +127,7 @@ configure(Ctx) ->
     OzDomain = service_ctx:get_domain(onezone_domain, Ctx),
 
     % TODO VFS-4140 Mark IPs configured only in batch mode
-    onepanel_deployment:mark_completed(?PROGRESS_CLUSTER_IPS),
+    onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),
 
     simple_cache:clear(?DETAILS_CACHE_KEY),
     service_cluster_worker:configure(Ctx#{

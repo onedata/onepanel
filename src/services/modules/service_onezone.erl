@@ -103,14 +103,14 @@ get_steps(deploy, Ctx) ->
         Ss#steps{service = ?SERVICE_LE, action = deploy, ctx = LeCtx#{
             letsencrypt_plugin => ?SERVICE_OZW
         }},
-        S#step{module = onepanel_deployment, function = mark_completed, ctx = OpaCtx,
+        S#step{module = onepanel_deployment, function = set_marker, ctx = OpaCtx,
             args = [?PROGRESS_CLUSTER], selection = first},
         S#step{module = service, function = save, ctx = OpaCtx,
             args = [#service{name = name(), ctx = OzCtx2}],
             selection = first
         },
         Ss#steps{service = ?SERVICE_LE, action = update, ctx = LeCtx},
-        S#step{module = onepanel_deployment, function = mark_completed, ctx = OpaCtx,
+        S#step{module = onepanel_deployment, function = set_marker, ctx = OpaCtx,
             args = [?PROGRESS_READY], selection = first},
         S#step{function = mark_configured, ctx = OpaCtx, selection = any,
             condition = fun(FunCtx) -> not maps:get(interactive_deployment, FunCtx, true) end}
@@ -207,7 +207,7 @@ format_cluster_ips(Ctx) ->
 %%-------------------------------------------------------------------
 -spec mark_configured(service:ctx()) -> ok.
 mark_configured(_Ctx) ->
-    onepanel_deployment:mark_completed([
+    onepanel_deployment:set_marker([
         ?PROGRESS_LETSENCRYPT_CONFIG,
         ?PROGRESS_CLUSTER_IPS,
         ?DNS_CHECK_ACKNOWLEDGED

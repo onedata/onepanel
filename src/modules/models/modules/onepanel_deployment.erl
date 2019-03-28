@@ -27,12 +27,12 @@
     save/1, update/2, get/1, exists/1, delete/1, list/0]).
 
 %% API
--export([mark_completed/1, mark_not_completed/1, is_completed/1, get_all/0]).
+-export([set_marker/1, unset_marker/1, is_set/1, get_all/0]).
 
 -type record() :: #onepanel_deployment{}.
--type mark() :: atom().
+-type marker() :: atom().
 
--export_type([mark/0]).
+-export_type([marker/0]).
 
 -define(ID, ?MODULE).
 
@@ -155,41 +155,41 @@ list() ->
 %% @doc Marks interactive configuration step as completed.
 %% @end
 %%--------------------------------------------------------------------
--spec mark_completed(ProgressMarks :: mark() | [mark()]) -> ok.
-mark_completed([]) -> ok;
-mark_completed([_|_] = ProgressMarks) ->
+-spec set_marker(ProgressMarks :: marker() | [marker()]) -> ok.
+set_marker([]) -> ok;
+set_marker([_|_] = ProgressMarks) ->
     ?MODULE:update(?ID, fun(#onepanel_deployment{completed = C} = Record) ->
         Record#onepanel_deployment{
             completed = lists:foldl(fun gb_sets:add_element/2, C, ProgressMarks)
         }
     end);
-mark_completed(ProgressMark) -> mark_completed([ProgressMark]).
+set_marker(ProgressMark) -> set_marker([ProgressMark]).
 
 
 %%--------------------------------------------------------------------
 %% @doc Marks configuration step(s) as uncompleted or waiting for user decision.
 %% @end
 %%--------------------------------------------------------------------
--spec mark_not_completed(ProgressMarks :: mark() | [mark()]) -> ok.
-mark_not_completed([]) -> ok;
-mark_not_completed([_|_] = ProgressMarks) ->
+-spec unset_marker(ProgressMarks :: marker() | [marker()]) -> ok.
+unset_marker([]) -> ok;
+unset_marker([_|_] = ProgressMarks) ->
     ?MODULE:update(?ID, fun(#onepanel_deployment{completed = C} = Record) ->
         Record#onepanel_deployment{
             completed = lists:foldl(fun gb_sets:del_element/2, C, ProgressMarks)
         }
     end);
-mark_not_completed(ProgressMark) -> mark_not_completed([ProgressMark]).
+unset_marker(ProgressMark) -> unset_marker([ProgressMark]).
 
 
 %%--------------------------------------------------------------------
 %% @doc Checks if given configuration step was completed by the user.
 %% @end
 %%--------------------------------------------------------------------
--spec is_completed(ProgressMark :: mark()) -> boolean().
-is_completed(ProgressMark) ->
+-spec is_set(ProgressMark :: marker()) -> boolean().
+is_set(ProgressMarker) ->
     case ?MODULE:get(?ID) of
         {ok, #onepanel_deployment{completed = C}} ->
-            gb_sets:is_member(ProgressMark, C);
+            gb_sets:is_member(ProgressMarker, C);
         _ -> false
     end.
 
@@ -198,7 +198,7 @@ is_completed(ProgressMark) ->
 %% @doc Returns unordered list of all completed steps.
 %% @end
 %%--------------------------------------------------------------------
--spec get_all() -> [mark()].
+-spec get_all() -> [marker()].
 get_all() ->
     case ?MODULE:get(?ID) of
         {ok, #onepanel_deployment{completed = C}} ->

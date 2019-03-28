@@ -681,7 +681,7 @@ init_per_testcase(get_should_return_dns_check, Config) ->
         service_oneprovider, dns_check]),
     test_utils:mock_expect(Nodes, model, exists,
         fun(_) -> true end),
-    test_utils:mock_expect(Nodes, onepanel_deployment, is_completed,
+    test_utils:mock_expect(Nodes, onepanel_deployment, is_set,
         fun(_) -> true end),
     test_utils:mock_expect(Nodes, service, get_hosts, fun
         (op_worker) -> OpHosts;
@@ -746,7 +746,7 @@ init_per_testcase(Case, Config) when
     Case == post_should_return_conflict_on_configured_oneprovider ->
     Nodes = ?config(all_nodes, Config),
     test_utils:mock_new(Nodes, onepanel_deployment),
-    test_utils:mock_expect(Nodes, onepanel_deployment, is_completed, fun(_) -> true end),
+    test_utils:mock_expect(Nodes, onepanel_deployment, is_set, fun(_) -> true end),
     init_per_testcase(default, Config);
 
 init_per_testcase(_Case, Config) ->
