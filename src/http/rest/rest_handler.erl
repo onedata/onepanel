@@ -156,8 +156,8 @@ content_types_provided(Req, #rstate{} = State) ->
 is_authorized(Req, #rstate{methods = Methods} = State) ->
     AuthMethods = [
         fun rest_auth:authenticate_by_basic_auth/1,
-        fun rest_auth:authenticate_by_rest_api_token/1,
-        fun rest_auth:authenticate_by_onezone_access_token/1
+        fun rest_auth:authenticate_by_onepanel_auth_token/1,
+        fun rest_auth:authenticate_by_onezone_auth_token/1
     ],
     case rest_auth:authenticate(Req, AuthMethods) of
         {{true, Client}, Req3} ->

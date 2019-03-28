@@ -269,9 +269,9 @@ init_per_testcase(_Case, Config) ->
     test_utils:mock_expect(OpNodes, service_oneprovider, get_auth_token,
         fun() -> <<"providerMacaroon">> end),
 
-    test_utils:mock_expect(OzNodes, rest_auth, authenticate_by_onezone_access_token,
+    test_utils:mock_expect(OzNodes, rest_auth, authenticate_by_onezone_auth_token,
         fun(Req) -> {?OZ_CLIENT, Req} end),
-    test_utils:mock_expect(OpNodes, rest_auth, authenticate_by_onezone_access_token,
+    test_utils:mock_expect(OpNodes, rest_auth, authenticate_by_onezone_auth_token,
         fun(Req) -> {?OP_CLIENT, Req} end),
 
     test_utils:mock_expect(OzNodes, service_oz_worker, get_details,

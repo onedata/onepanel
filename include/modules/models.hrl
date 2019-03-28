@@ -38,7 +38,7 @@
     nonce = <<"">> :: binary() | ?MATCH_SPECS,
     previous_nonce = <<"">> :: binary() | ?MATCH_SPECS,
     %% Tokens, from newest at head to oldest at tail
-    rest_tokens :: [{onepanel_session:rest_api_token(), Expires :: non_neg_integer()}] |
+    auth_tokens :: [{onepanel_session:auth_token(), Expires :: non_neg_integer()}] |
         undefined | ?MATCH_SPECS
 }).
 

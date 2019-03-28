@@ -42,30 +42,30 @@ onepanel_session_test_() ->
 %%%===================================================================
 
 expired_token_is_invalid() ->
-    {ok, #onepanel_session{rest_tokens = [{Token, _} | _]} = Session} = get_new_session(),
+    {ok, #onepanel_session{auth_tokens = [{Token, _} | _]} = Session} = get_new_session(),
 
-    ?assertEqual({ok, Session}, onepanel_session:find_by_valid_token(Token)),
+    ?assertEqual({ok, Session}, onepanel_session:find_by_valid_auth_token(Token)),
     timer:sleep(timer:seconds(?TOKEN_TTL + 1)),
     ?assertMatch(#error{reason = ?ERR_NOT_FOUND},
-        onepanel_session:find_by_valid_token(Token)).
+        onepanel_session:find_by_valid_auth_token(Token)).
 
 
 token_is_reused() ->
-    {ok, #onepanel_session{rest_tokens = [_Token]} = Session} = get_new_session(),
+    {ok, #onepanel_session{auth_tokens = [_Token]} = Session} = get_new_session(),
     ?assertEqual(Session, onepanel_session:ensure_fresh_token(Session)).
 
 
 token_is_renewed() ->
-    {ok, #onepanel_session{rest_tokens = [Token]} = Session} = get_new_session(),
+    {ok, #onepanel_session{auth_tokens = [Token]} = Session} = get_new_session(),
     timer:sleep(timer:seconds((?TOKEN_TTL div 2) + 1)),
-    ?assertMatch(#onepanel_session{rest_tokens = [_NewToken, Token]},
+    ?assertMatch(#onepanel_session{auth_tokens = [_NewToken, Token]},
         onepanel_session:ensure_fresh_token(Session)).
 
 
 expired_tokens_are_cleaned() ->
-    {ok, #onepanel_session{rest_tokens = [_Token]} = Session} = get_new_session(),
+    {ok, #onepanel_session{auth_tokens = [_Token]} = Session} = get_new_session(),
     timer:sleep(timer:seconds(?TOKEN_TTL + 1)),
-    ?assertMatch(#onepanel_session{rest_tokens = []},
+    ?assertMatch(#onepanel_session{auth_tokens = []},
         onepanel_session:remove_expired_tokens(Session)).
 
 %%%===================================================================
@@ -76,7 +76,7 @@ start() ->
     error_logger:tty(false),
     onepanel_env:set(rpc_timeout, 1000),
     onepanel_env:set(create_tables_timeout, 10000),
-    onepanel_env:set(rest_token_ttl, ?TOKEN_TTL),
+    onepanel_env:set(auth_token_ttl, ?TOKEN_TTL),
     ?assertEqual(ok, service_onepanel:init_cluster(#{})),
     ok.
 

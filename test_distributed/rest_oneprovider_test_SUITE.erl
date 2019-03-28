@@ -991,7 +991,7 @@ init_per_testcase(_Case, Config) ->
         Self ! {service, Service, Action, Ctx},
         [{task_finished, {service, action, ok}}]
     end),
-    test_utils:mock_expect(Nodes, zone_tokens, authenticate_by_onezone_access_token, fun
+    test_utils:mock_expect(Nodes, zone_tokens, authenticate_user, fun
         (?ONEZONE_TOKEN) -> #client{
             role = user, privileges = [], zone_auth = ?OP_AUTH(?ONEZONE_TOKEN),
             user = #user_details{name = ?OZ_USER_NAME}

@@ -137,11 +137,8 @@ clean_sessions() ->
     Sessions = onepanel_session:list(),
     lists:foreach(fun(Session) ->
         case onepanel_session:is_active(Session) of
-            true ->
-                clean_tokens(Session);
-            false ->
-                Id = onepanel_session:get_id(Session),
-                onepanel_session:delete(Id)
+            false -> onepanel_session:delete(Session);
+            true -> clean_tokens(Session)
         end
     end, Sessions).
 

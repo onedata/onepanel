@@ -101,7 +101,7 @@ translate(_Type, #error{reason = ?ERR_USERNAME_NOT_AVAILABLE}) ->
 translate(_Type, #error{reason = ?ERR_INVALID_USERNAME_OR_PASSWORD}) ->
     {<<"Authentication Error">>, <<"Invalid username or password.">>};
 
-translate(_Type, #error{reason = ?ERR_INVALID_ACCESS_TOKEN}) ->
+translate(_Type, #error{reason = ?ERR_INVALID_AUTH_TOKEN}) ->
     {<<"Authentication Error">>, <<"Invalid REST API token.">>};
 
 translate(_Type, #error{reason = ?ERR_USER_NOT_IN_CLUSTER}) ->

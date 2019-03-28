@@ -26,17 +26,17 @@
     save/1, update/2, get/1, exists/1, delete/1, list/0]).
 
 %% API
--export([create/2, get_id/1, get_username/1, find_by_valid_token/1, is_active/1]).
+-export([create/2, get_id/1, get_username/1, find_by_valid_auth_token/1, is_active/1]).
 -export([remove_expired_tokens/1, ensure_fresh_token/1]).
 
 -type id() :: binary().
--type rest_api_token() :: binary().
+-type auth_token() :: binary().
 -type record() :: #onepanel_session{}.
 
--export_type([id/0, rest_api_token/0]).
+-export_type([id/0, auth_token/0]).
 
 -define(NOW(), time_utils:system_time_seconds()).
--define(TOKEN_TTL, onepanel_env:get(rest_token_ttl)).
+-define(TOKEN_TTL, onepanel_env:get(auth_token_ttl)).
 
 %%%===================================================================
 %%% Model behaviour callbacks
@@ -145,9 +145,12 @@ exists(Key) ->
 %% @doc {@link model_behaviour:delete/1}
 %% @end
 %%--------------------------------------------------------------------
--spec delete(Key :: model_behaviour:key()) -> ok | no_return().
-delete(Key) ->
-    model:delete(?MODULE, Key).
+-spec delete(Id :: model_behaviour:key()) -> ok | no_return().
+delete(#onepanel_session{id = Id}) ->
+    delete(Id);
+
+delete(Id) ->
+    model:delete(?MODULE, Id).
 
 
 %%--------------------------------------------------------------------
@@ -169,7 +172,7 @@ list() ->
 -spec create(id(), record()) ->
     ok | #error{} | no_return().
 create(Id, Record) ->
-    Record2 = Record#onepanel_session{id = Id, rest_tokens = [generate_api_token(Id)]},
+    Record2 = Record#onepanel_session{id = Id, auth_tokens = [generate_api_token(Id)]},
     case create(Record2) of
         {ok, Id} -> ok;
         #error{} = Error -> Error
@@ -208,9 +211,9 @@ is_active(#onepanel_session{last_refresh = LastRefresh}) ->
 %%--------------------------------------------------------------------
 -spec remove_expired_tokens(Session :: record()) ->
     record().
-remove_expired_tokens(#onepanel_session{rest_tokens = Tokens} = Session) ->
+remove_expired_tokens(#onepanel_session{auth_tokens = Tokens} = Session) ->
     Valid = lists:filter(fun is_token_still_valid/1, Tokens),
-    Session#onepanel_session{rest_tokens = Valid}.
+    Session#onepanel_session{auth_tokens = Valid}.
 
 
 %%--------------------------------------------------------------------
@@ -218,19 +221,19 @@ remove_expired_tokens(#onepanel_session{rest_tokens = Tokens} = Session) ->
 %% Expired token is treated as unbound to any session.
 %% @end
 %%--------------------------------------------------------------------
--spec find_by_valid_token(rest_api_token()) ->
+-spec find_by_valid_auth_token(auth_token()) ->
     {ok, record()} | #error{}.
-find_by_valid_token(RestApiToken) ->
+find_by_valid_auth_token(RestApiToken) ->
     SessionId = token_to_session_id(RestApiToken),
     case onepanel_session:get(SessionId) of
-        {ok, #onepanel_session{rest_tokens = Tokens} = Session} ->
+        {ok, #onepanel_session{auth_tokens = Tokens} = Session} ->
             case lists:keyfind(RestApiToken, 1, Tokens) of
                 {RestApiToken, _} = Found ->
                     case is_token_still_valid(Found) of
                         true -> {ok, Session};
                         false -> ?make_error(?ERR_NOT_FOUND)
                     end;
-                _ -> ?make_error(?ERR_NOT_FOUND)
+                false -> ?make_error(?ERR_NOT_FOUND)
             end;
         _ ->
             ?make_error(?ERR_NOT_FOUND)
@@ -245,7 +248,7 @@ find_by_valid_token(RestApiToken) ->
 -spec ensure_fresh_token(Session :: record()) -> record().
 ensure_fresh_token(Session) ->
     Id = Session#onepanel_session.id,
-    Tokens = Session#onepanel_session.rest_tokens,
+    Tokens = Session#onepanel_session.auth_tokens,
 
     ShouldUpdate = case Tokens of
         [] -> true;
@@ -255,7 +258,7 @@ ensure_fresh_token(Session) ->
     case ShouldUpdate of
         true ->
             NewTokens = [generate_api_token(Id) | Tokens],
-            Session2 = Session#onepanel_session{rest_tokens = NewTokens},
+            Session2 = Session#onepanel_session{auth_tokens = NewTokens},
             ok = save(Session2),
             Session2;
         false -> Session
@@ -268,7 +271,7 @@ ensure_fresh_token(Session) ->
 
 %% @private
 -spec generate_api_token(SessionId :: id()) ->
-    {rest_api_token(), Expires :: non_neg_integer()}.
+    {auth_token(), Expires :: non_neg_integer()}.
 generate_api_token(SessionId) ->
     UUID = onepanel_utils:gen_uuid(),
     Expires = ?NOW() + ?TOKEN_TTL,
@@ -278,7 +281,7 @@ generate_api_token(SessionId) ->
 
 
 %% @private
--spec token_to_session_id(rest_api_token()) -> onepanel_session:id().
+-spec token_to_session_id(auth_token()) -> onepanel_session:id().
 token_to_session_id(Token) ->
     [<<?ONEPANEL_TOKEN_PREFIX>>, SessionId, _] =
         string:split(Token, ?ONEPANEL_TOKEN_SEPARATOR, all),
@@ -286,7 +289,7 @@ token_to_session_id(Token) ->
 
 
 %% @private
--spec is_token_still_valid({Token :: rest_api_token(), Expires} | Expires) ->
+-spec is_token_still_valid({Token :: auth_token(), Expires} | Expires) ->
     boolean()
     when Expires :: non_neg_integer().
 is_token_still_valid(Expires) when is_integer(Expires) ->

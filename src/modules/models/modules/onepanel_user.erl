@@ -27,7 +27,7 @@
 
 %% API
 -export([create/3, create_noexcept/3,
-    authenticate_by_rest_api_token/1,
+    authenticate_by_auth_token/1,
     authenticate_by_basic_auth/2,
     hash_password/1, change_password/2]).
 -export([get_by_role/1]).
@@ -186,10 +186,10 @@ create_noexcept(Username, Password, Role) ->
 %% @doc Authenticates user by REST API token.
 %% @end
 %%--------------------------------------------------------------------
--spec authenticate_by_rest_api_token(onepanel_session:rest_api_token()) ->
+-spec authenticate_by_auth_token(onepanel_session:auth_token()) ->
     {ok, User :: #onepanel_user{}} | #error{}.
-authenticate_by_rest_api_token(RestApiToken) ->
-    case onepanel_session:find_by_valid_token(RestApiToken) of
+authenticate_by_auth_token(RestApiToken) ->
+    case onepanel_session:find_by_valid_auth_token(RestApiToken) of
         {ok, Session} ->
             case onepanel_user:get(onepanel_session:get_username(Session)) of
                 {ok, User} -> {ok, User};
@@ -200,7 +200,7 @@ authenticate_by_rest_api_token(RestApiToken) ->
                     Error
             end;
         #error{} ->
-            ?make_error(?ERR_INVALID_ACCESS_TOKEN)
+            ?make_error(?ERR_INVALID_AUTH_TOKEN)
     end.
 
 

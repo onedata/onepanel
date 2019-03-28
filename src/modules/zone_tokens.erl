@@ -21,7 +21,7 @@
 -include_lib("macaroons/src/macaroon.hrl").
 
 %% API
--export([authenticate_by_onezone_access_token/1]).
+-export([authenticate_user/1]).
 -export([read_domain/1]).
 
 -type auth() :: rest_handler:zone_auth().
@@ -39,11 +39,11 @@
 %% fetches his privileges.
 %% @end
 %%--------------------------------------------------------------------
--spec authenticate_by_onezone_access_token(binary()) ->
+-spec authenticate_user(AccessToken :: binary()) ->
     #client{} | #error{}.
-authenticate_by_onezone_access_token(AccessToken) ->
+authenticate_user(AccessToken) ->
     ClusterType = onepanel_env:get_cluster_type(),
-    case authenticate_by_onezone_access_token(ClusterType, AccessToken) of
+    case authenticate_user(ClusterType, AccessToken) of
         #client{} = Client -> Client;
         #error{} = Error -> Error
     end.
@@ -64,10 +64,10 @@ read_domain(RegistrationToken) ->
 %%%===================================================================
 
 %% @private
--spec authenticate_by_onezone_access_token(
+-spec authenticate_user(
     ClusterType :: onedata:cluster_type(), AccessToken :: binary()
 ) -> #client{} | #error{}.
-authenticate_by_onezone_access_token(onezone, AccessToken) ->
+authenticate_user(onezone, AccessToken) ->
     case service_oz_worker:get_logic_client(AccessToken) of
         {ok, LogicClient} ->
             {ok, Details} = service_oz_worker:get_user_details(LogicClient),
@@ -75,7 +75,7 @@ authenticate_by_onezone_access_token(onezone, AccessToken) ->
         #error{} = Error -> Error
     end;
 
-authenticate_by_onezone_access_token(oneprovider, AccessToken) ->
+authenticate_user(oneprovider, AccessToken) ->
     Fetched = simple_cache:get(?USER_DETAILS_CACHE_KEY(AccessToken), fun() ->
         case fetch_details(AccessToken) of
             {ok, Details} -> {true, Details, ?USER_DETAILS_CACHE_TTL};
@@ -84,7 +84,7 @@ authenticate_by_onezone_access_token(oneprovider, AccessToken) ->
     end),
     case Fetched of
         {ok, Details} -> user_details_to_client(Details, {rest, {access_token, AccessToken}});
-        #error{reason = {401, _, _}} -> ?make_error(?ERR_INVALID_ACCESS_TOKEN)
+        #error{reason = {401, _, _}} -> ?make_error(?ERR_INVALID_AUTH_TOKEN)
     end.
 
 

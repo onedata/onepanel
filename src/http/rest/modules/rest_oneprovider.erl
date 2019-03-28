@@ -355,13 +355,9 @@ provide_resource(Req, #rstate{resource = onezone_info, params = #{token := Token
     {zone_client:fetch_zone_info(Domain), Req};
 
 provide_resource(Req, #rstate{resource = onezone_info}) ->
-    case service_oneprovider:is_registered() of
-        true ->
-            Domain = list_to_binary(service_oneprovider:get_oz_domain()),
-            {zone_client:fetch_zone_info(Domain), Req};
-        false ->
-            ?throw_error(?ERR_NOT_REGISTERED)
-    end.
+    % exists_resource ensures the Oneprovider is registered
+    Domain = list_to_binary(service_oneprovider:get_oz_domain()),
+    {zone_client:fetch_zone_info(Domain), Req}.
 
 
 %%--------------------------------------------------------------------
