@@ -242,7 +242,7 @@ init_per_testcase(wrapper_test, Config) ->
     % revert to older table schema to test its upgrade
     {_, []} = rpc:multicall(Nodes, mnesia, transform_table, [
         ?MODEL,
-        fun(X) -> throw(table_not_empty) end,
+        fun(_Record) -> throw(table_not_empty) end,
         record_info(fields, ?MODEL),
         ?MODEL
     ]),

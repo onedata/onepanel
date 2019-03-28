@@ -131,10 +131,11 @@ all() ->
 %%% Test functions
 %%%===================================================================
 
+-define(FOREACH_HOST(Config, Fun), lists:foreach(Fun, ?config(all_hosts, Config))).
+
 
 get_should_return_clusters_list_test(Config) ->
-    Hosts = ?config(all_hosts, Config),
-    lists:foreach(fun(Host) ->
+    ?FOREACH_HOST(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/user/clusters/">>, get,
@@ -143,12 +144,11 @@ get_should_return_clusters_list_test(Config) ->
         ),
         onepanel_test_rest:assert_body(JsonBody,
             #{<<"ids">> => maps:keys(?CLUSTERS)})
-    end, Hosts).
+    end).
 
 
 get_should_return_cluster_details_test(Config) ->
-    Hosts = ?config(all_hosts, Config),
-    lists:foreach(fun(Host) ->
+    ?FOREACH_HOST(Config, fun(Host) ->
         lists:foreach(fun(ClusterId) ->
             {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
                 onepanel_test_rest:auth_request(
@@ -165,12 +165,11 @@ get_should_return_cluster_details_test(Config) ->
             ], maps:get(ClusterId, ?CLUSTERS), #{<<"id">> => ClusterId}),
             onepanel_test_rest:assert_body(JsonBody, Expected)
         end, maps:keys(?CLUSTERS))
-    end, Hosts).
+    end).
 
 
 get_should_return_current_cluster_details_test(Config) ->
-    Hosts = ?config(all_hosts, Config),
-    lists:foreach(fun(Host) ->
+    ?FOREACH_HOST(Config, fun(Host) ->
         ClusterId = get_cluster_id(Host, Config),
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
@@ -187,25 +186,22 @@ get_should_return_current_cluster_details_test(Config) ->
         ),
         BodyById = json_utils:decode(JsonBodyById),
         ?assertEqual(BodyById, Body)
-    end, Hosts).
+    end).
 
 
 current_cluster_should_work_for_local_user(Config) ->
-    Hosts = ?config(all_hosts, Config),
-    lists:foreach(fun(Host) ->
+    ?FOREACH_HOST(Config, fun(Host) ->
         ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/cluster">>, get,
                 {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
             )
         )
-    end, Hosts).
+    end).
 
 
 get_should_return_provider_info(Config) ->
-    Hosts = ?config(all_hosts, Config),
-
-    lists:foreach(fun(Host) ->
+    ?FOREACH_HOST(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/providers/", ?PROVIDER_ID/binary>>, get,
@@ -222,7 +218,7 @@ get_should_return_provider_info(Config) ->
             <<"cluster">> => ?PROVIDER_CLUSTER_ID
         },
         onepanel_test_rest:assert_body(JsonBody, Expected)
-    end, Hosts).
+    end).
 
 %%%===================================================================
 %%% SetUp and TearDown functions
