@@ -55,6 +55,40 @@
     patch_with_incorrect_config_should_fail/1,
     patch_should_invalidate_luma_cache/1]).
 
+all() ->
+    ?ALL([
+        method_should_return_unauthorized_error,
+        method_should_return_forbidden_error,
+        method_should_return_conflict_error,
+        method_should_return_service_unavailable_error,
+        get_should_return_provider_details,
+        get_should_return_cluster_ips,
+        post_should_register_provider,
+        patch_should_modify_provider_details,
+        patch_should_modify_provider_ips,
+        delete_should_unregister_provider,
+        get_should_return_supported_spaces,
+        post_should_create_or_support_space,
+        patch_should_modify_space_support,
+        get_should_return_space_details,
+        delete_should_revoke_space_support,
+        get_should_return_storages,
+        get_should_return_storage,
+        post_should_add_storage,
+        patch_should_modify_storage_update,
+        patch_should_update_storage,
+        get_should_return_autocleaning_reports,
+        get_should_return_autocleaning_report,
+        get_should_return_autocleaning_status,
+        get_should_return_autocleaning_configuration,
+        get_should_return_file_popularity_configuration,
+        patch_should_update_file_popularity,
+        patch_should_update_auto_cleaning,
+        patch_with_incomplete_config_should_update_auto_cleaning,
+        patch_with_incorrect_config_should_fail,
+        patch_should_invalidate_luma_cache
+    ]).
+
 -define(ADMIN_USER_NAME, <<"admin1">>).
 -define(ADMIN_USER_PASSWORD, <<"Admin1Password">>).
 
@@ -233,40 +267,6 @@
 }).
 
 -define(run(Config, Function), Function(hd(?config(oneprovider_hosts, Config)))).
-
-all() ->
-    ?ALL([
-        method_should_return_unauthorized_error,
-        method_should_return_forbidden_error,
-        method_should_return_conflict_error,
-        method_should_return_service_unavailable_error,
-        get_should_return_provider_details,
-        get_should_return_cluster_ips,
-        post_should_register_provider,
-        patch_should_modify_provider_details,
-        patch_should_modify_provider_ips,
-        delete_should_unregister_provider,
-        get_should_return_supported_spaces,
-        post_should_create_or_support_space,
-        patch_should_modify_space_support,
-        get_should_return_space_details,
-        delete_should_revoke_space_support,
-        get_should_return_storages,
-        get_should_return_storage,
-        post_should_add_storage,
-        patch_should_modify_storage_update,
-        patch_should_update_storage,
-        get_should_return_autocleaning_reports,
-        get_should_return_autocleaning_report,
-        get_should_return_autocleaning_status,
-        get_should_return_autocleaning_configuration,
-        get_should_return_file_popularity_configuration,
-        patch_should_update_file_popularity,
-        patch_should_update_auto_cleaning,
-        patch_with_incomplete_config_should_update_auto_cleaning,
-        patch_with_incorrect_config_should_fail,
-        patch_should_invalidate_luma_cache
-    ]).
 
 %%%===================================================================
 %%% Test functions

@@ -48,13 +48,13 @@ get_id() ->
 -spec get_current_cluster() ->
     #{atom() := term()} | #error{}.
 get_current_cluster() ->
-    Service = onepanel_env:get_cluster_type(),
     try
         Auth = zone_client:root_auth(),
         {ok, Details} = get_details(Auth, ?MODULE:get_id()),
-        store(cluster, Details, Service)
+        store_in_cache(cluster, Details),
+        Details
     catch _Type:Error ->
-        fetch_or_throw(cluster, Service, ?make_stacktrace(Error))
+        try_cached(cluster, ?make_stacktrace(Error))
     end.
 
 
@@ -165,17 +165,19 @@ fetch_remote_provider_info({rest, RestAuth}, ProviderId) ->
 get_id(onezone) ->
     case zone_rpc(cluster_logic, get_onezone_cluster_id, []) of
         <<Id/binary>> ->
-            store(cluster_id, Id, onezone);
+            store_in_cache(cluster_id, Id),
+            Id;
         Error ->
-            fetch_or_throw(cluster_id, onezone, Error)
+            try_cached(cluster_id, Error)
     end;
 
 get_id(oneprovider) ->
     try service_oneprovider:get_details() of
         #{cluster := <<Id/binary>>} ->
-            store(cluster_id, Id, oneprovider)
+            store_in_cache(cluster_id, Id),
+            Id
     catch _Type:Error ->
-        fetch_or_throw(cluster_id, oneprovider, ?make_stacktrace(Error))
+        try_cached(cluster_id, ?make_stacktrace(Error))
     end.
 
 
@@ -213,11 +215,10 @@ zone_rest(Auth, URNFormat, FormatArgs) ->
 %% when the service nodes are offline.
 %% @end
 %%--------------------------------------------------------------------
--spec store(Key :: term(), Value :: term(), Service :: service:name()) ->
-    Value :: term().
-store(Key, Value, Service) ->
-    service:update_ctx(Service, #{Key => Value}),
-    Value.
+-spec store_in_cache(Key :: term(), Value :: term()) -> ok.
+store_in_cache(Key, Value) ->
+    Service = onepanel_env:get_cluster_type(),
+    service:update_ctx(Service, #{Key => Value}).
 
 
 %%--------------------------------------------------------------------
@@ -226,9 +227,10 @@ store(Key, Value, Service) ->
 %% Throws given Error on failure.
 %% @end
 %%--------------------------------------------------------------------
--spec fetch_or_throw(Key :: term(), Service :: service:name(), ErrorResult :: term()) ->
+-spec try_cached(Key :: term(), ErrorResult :: term()) ->
     FoundValue :: term().
-fetch_or_throw(Key, Service, Error) ->
+try_cached(Key, Error) ->
+    Service = onepanel_env:get_cluster_type(),
     case service:get_ctx(Service) of
         #{Key := Value} -> Value;
         _ -> throw(Error)
