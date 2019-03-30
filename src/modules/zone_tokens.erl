@@ -124,7 +124,7 @@ user_details_to_client(Details, Auth) ->
                 privileges = Privileges,
                 user = Details,
                 zone_auth = Auth,
-                role = user
+                role = member
             };
         Error -> Error
     end.

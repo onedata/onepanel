@@ -15,6 +15,7 @@
 -include("modules/models.hrl").
 -include("modules/errors.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/privileges.hrl").
 
 -behavior(rest_behaviour).
 
@@ -33,26 +34,24 @@
 -spec is_authorized(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     State :: rest_handler:state()) ->
     {Authorized :: boolean(), Req :: cowboy_req:req()}.
-is_authorized(Req, _Method, #rstate{client = #client{role = Role}}) when
-    Role == root;
-    Role == admin;
-    Role == user ->
-    {true, Req};
-
-is_authorized(Req, _Method, #rstate{resource = users}) ->
-    {onepanel_user:get_by_role(admin) == [], Req};
-
-is_authorized(Req, _Method, #rstate{resource = user, bindings = #{username := Username},
-    client = #client{user = #user_details{name = Username}}}) ->
-    {true, Req};
-
-% resource defaulting to current user
-is_authorized(Req, Method, State = #rstate{
-    resource = current_user, client = #client{role = Role}}) when
-    Role == user;
-    Role == regular;
-    Role == admin ->
+is_authorized(Req, Method, State = #rstate{resource = current_user}) ->
     is_authorized(Req, Method, expand_current_user(State));
+
+is_authorized(Req, _Method, #rstate{resource = user,
+    bindings = #{username := Username}, client = Client}) when
+    Username == Client#client.user#user_details.name ->
+    {true, Req};
+
+is_authorized(Req, _Method, #rstate{client = #client{role = root}}) ->
+    {true, Req};
+
+is_authorized(Req, 'GET', #rstate{client = #client{role = member}}) ->
+    {true, Req};
+is_authorized(Req, _Method, #rstate{client = #client{role = member} = Client}) ->
+    {rest_utils:has_privileges(Client, ?CLUSTER_UPDATE), Req};
+
+is_authorized(Req, _Method, #rstate{client = #client{role = guest}, resource = users}) ->
+    {onepanel_user:get_by_role(admin) == [], Req};
 
 is_authorized(Req, _Method, _State) ->
     {false, Req}.
@@ -67,13 +66,9 @@ is_authorized(Req, _Method, _State) ->
 exists_resource(Req, #rstate{resource = user, bindings = #{username := Username}}) ->
     {onepanel_user:exists(Username), Req};
 
-exists_resource(Req, #rstate{resource = current_user,
-    client = #client{role = root}}) ->
-    {false, Req};
-
 % onezone user
 exists_resource(Req, #rstate{resource = current_user,
-    client = #client{role = user}}) ->
+    client = #client{role = member}}) ->
     % Hacky, will be removed when removing onepanel_user
     {cowboy_req:method(Req) == <<"GET">>, Req};
 
@@ -143,9 +138,8 @@ provide_resource(Req, #rstate{resource = user, bindings = #{username := Username
     {ok, #onepanel_user{uuid = UserId, role = Role}} = onepanel_user:get(Username),
     {#{userId => UserId, userRole => Role, username => Username}, Req};
 
-provide_resource(Req, #rstate{resource = current_user,
-    client = Client}) when
-    Client#client.role == user ->
+provide_resource(Req, #rstate{resource = current_user, client = Client}) when
+    Client#client.role == member ->
 
     #user_details{name = Username} = Client#client.user,
     % user coming from Onezone has no onepanel user id

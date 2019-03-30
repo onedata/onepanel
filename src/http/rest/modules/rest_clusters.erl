@@ -38,12 +38,11 @@
 is_authorized(Req, _Method, #rstate{resource = Resource, client = Client}) when
     Resource == clusters;
     Resource == cluster ->
-    {Client#client.role == user, Req};
+    {Client#client.role == member, Req};
 
-is_authorized(Req, _Method, #rstate{client = #client{role = Role}}) when
+is_authorized(Req, 'GET', #rstate{client = #client{role = Role}}) when
     Role == root;
-    Role == admin;
-    Role == user ->
+    Role == member ->
     {true, Req};
 
 is_authorized(Req, _Method, _State) ->

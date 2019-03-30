@@ -10,13 +10,14 @@
 -module(rest_onezone).
 -author("Krzysztof Trzepla").
 
--include("http/rest.hrl").
 -include("authentication.hrl").
--include("names.hrl").
--include("modules/errors.hrl").
--include_lib("ctool/include/logging.hrl").
--include("modules/models.hrl").
 -include("deployment_progress.hrl").
+-include("http/rest.hrl").
+-include("modules/errors.hrl").
+-include("modules/models.hrl").
+-include("names.hrl").
+-include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/privileges.hrl").
 
 -behavior(rest_behaviour).
 
@@ -40,11 +41,13 @@
 -spec is_authorized(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     State :: rest_handler:state()) ->
     {Authorized :: boolean(), Req :: cowboy_req:req()}.
-is_authorized(Req, _Method, #rstate{client = #client{role = Role}}) when
-    Role == root;
-    Role == admin;
-    Role == user ->
+is_authorized(Req, _Method, #rstate{client = #client{role = root}}) ->
     {true, Req};
+
+is_authorized(Req, 'GET', #rstate{client = #client{role = member}}) ->
+    {true, Req};
+is_authorized(Req, _Method, #rstate{client = #client{role = member} = Client}) ->
+    {rest_utils:has_privileges(Client, ?CLUSTER_UPDATE), Req};
 
 is_authorized(Req, _Method, _State) ->
     {false, Req}.

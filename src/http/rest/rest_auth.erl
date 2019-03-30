@@ -144,11 +144,11 @@ find_auth_token(_) ->
 %% @private
 -spec user_to_client(#onepanel_user{}) -> #client{}.
 user_to_client(#onepanel_user{username = Username, role = admin}) ->
-    (root_client())#client{role = admin,
+    (root_client())#client{role = root,
         user = #user_details{id = <<>>, name = Username}};
 
-user_to_client(#onepanel_user{username = Username, role = Role}) ->
-    #client{user = #user_details{id = <<>>, name = Username}, role = Role}.
+user_to_client(#onepanel_user{username = Username, role = regular}) ->
+    #client{user = #user_details{id = <<>>, name = Username}, role = guest}.
 
 
 %% @private

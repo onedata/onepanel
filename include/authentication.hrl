@@ -16,16 +16,15 @@
 -define(ONEPANEL_TOKEN_SEPARATOR, ":").
 -define(ONEPANEL_TOKEN_PREFIX, "onepanel").
 
--define(NOAUTH_ROLE, guest).
 
 -record(client, {
     %% Roles:
-    %% user - normal Onezone user, governed by privileges
-    %% root - authenticated with the root (Onepanel) password
-    %% guest - unauthenticated client, on endpoints which allow that
-    %% admin, regular - legacy roles of the local users
-    role :: ?NOAUTH_ROLE | user | root | onepanel_user:role(),
+    %% guest - unauthenticated client, on endpoints which allow that, or user with role 'regular'
+    %% member - Onezone user belonging to the cluster, governed by privileges
+    %% root - user with role 'admin' (in the future: authenticated with root password)
+    role :: guest | member | root,
     user :: undefined | #user_details{},
+    % @fixme describe when it's undefined and when it's root
     zone_auth :: undefined | rest_handler:zone_auth(),
     privileges :: undefined | [privileges:cluster_privilege()]
 }).

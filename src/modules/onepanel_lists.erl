@@ -114,8 +114,8 @@ remove(Keys, Terms) when is_list(Keys) ->
         _ -> Terms
     end;
 
-remove(Key, Path) ->
-    remove([Key], Path).
+remove(Key, Terms) ->
+    remove([Key], Terms).
 
 
 %%--------------------------------------------------------------------
