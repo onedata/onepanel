@@ -112,6 +112,21 @@ all() ->
     {<<"/provider/spaces/someSpaceId">>, get},
     {<<"/provider/spaces/someSpaceId">>, patch},
     {<<"/provider/spaces/someSpaceId">>, delete},
+    {<<"/provider/spaces/someSpaceId/sync">>, get},
+
+    {<<"/provider/spaces/someSpaceId/auto-cleaning/configuration">>, get},
+    {<<"/provider/spaces/someSpaceId/auto-cleaning/configuration">>, patch},
+    {<<"/provider/spaces/someSpaceId/auto-cleaning/reports">>, get},
+    {<<"/provider/spaces/someSpaceId/auto-cleaning/reports/someReportId">>, get},
+    {<<"/provider/spaces/someSpaceId/auto-cleaning/start">>, post},
+    {<<"/provider/spaces/someSpaceId/auto-cleaning/status">>, get},
+
+    {<<"/provider/storages">>, get},
+    {<<"/provider/storages">>, post},
+    {<<"/provider/storages/someStorageId">>, get},
+    {<<"/provider/storages/someStorageId">>, patch},
+    {<<"/provider/storages/someStorageId/invalidate_luma">>, patch},
+
     {<<"/provider/cluster_ips">>, get},
     {<<"/provider/cluster_ips">>, patch}
 ]).
