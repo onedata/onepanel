@@ -11,6 +11,7 @@
 -module(onepanel_test_rest).
 -author("Krzysztof Trzepla").
 
+-include("authentication.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("ctool/include/logging.hrl").
@@ -19,6 +20,8 @@
 -export([auth_request/4, auth_request/5, auth_request/6, auth_request/7,
     noauth_request/3, noauth_request/4, noauth_request/5, noauth_request/6]).
 -export([assert_body_fields/2, assert_body_values/2, assert_body/2]).
+-export([mock_token_authentication/1,
+    oz_user_token/1, oz_user_token/2, oz_user_token/3]).
 
 -type config() :: string() | proplists:proplist().
 -type endpoint() :: http_client:url().
@@ -177,3 +180,57 @@ assert_body_values(JsonBody, Values) ->
 -spec assert_body(JsonBody :: binary(), Body :: any()) -> ok.
 assert_body(JsonBody, Body) ->
     ?assertEqual(Body, json_utils:decode(JsonBody)).
+
+
+-spec mock_token_authentication(ConfigOrNodes :: proplists:proplist() | [node()]) -> ok.
+mock_token_authentication([{_, _} | _] = Config) ->
+    mock_token_authentication(?config(nodes, Config));
+
+mock_token_authentication(Nodes) ->
+    test_utils:mock_new(Nodes, [zone_tokens]),
+    test_utils:mock_expect(Nodes, zone_tokens, authenticate_user, fun
+        (<<"valid-token:", ClientB64/binary>> = Token) ->
+            ClientBin = base64:decode(ClientB64),
+            Client = erlang:binary_to_term(ClientBin),
+            case onepanel_env:get_cluster_type() of
+                oneprovider -> Client#client{zone_auth = {rest, {access_token, Token}}};
+                onezone -> Client#client{zone_auth = {rpc, opaque_client}}
+            end
+    end).
+
+
+%%--------------------------------------------------------------------
+%% @doc Generates a token which can be decoded by mocked
+%% onezone tokens module to simulate obtaining user info.
+%% Authenticated user has no privileges in the cluster.
+%% @end
+%%--------------------------------------------------------------------
+-spec oz_user_token(Name :: binary()) -> Token :: binary().
+oz_user_token(Name) ->
+    oz_user_token(Name, []).
+
+%%--------------------------------------------------------------------
+%% @doc Generates a token which can be decoded by mocked
+%% onezone tokens module to obtain user info.
+%% Derives user id from Name.
+%% @end
+%%--------------------------------------------------------------------
+-spec oz_user_token(Name :: binary(),
+    Privileges :: [privileges:cluster_privilege()]) -> Token :: binary().
+oz_user_token(Name, Privileges) ->
+    oz_user_token(<<Name/binary, "Id">>, Name, Privileges).
+
+%%--------------------------------------------------------------------
+%% @doc Generates a token which can be decoded by mocked
+%% onezone tokens module to obtain user info.
+%% @end
+%%--------------------------------------------------------------------
+-spec oz_user_token(UserId :: binary(), Name :: binary(),
+    Privileges :: [privileges:cluster_privilege()]) -> Token :: binary().
+oz_user_token(UserId, Name, Privileges) ->
+    Client = erlang:term_to_binary(#client{
+        role = member, privileges = Privileges,
+        user = #user_details{id = UserId, name = Name}
+    }),
+    ClientB64 = base64:encode(Client),
+    <<"valid-token:", ClientB64/binary>>.

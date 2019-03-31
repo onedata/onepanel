@@ -93,7 +93,7 @@ all() ->
 -define(ADMIN_USER_PASSWORD, <<"Admin1Password">>).
 
 -define(OZ_USER_NAME, <<"joe">>).
--define(ONEZONE_TOKEN, <<"joesOnezoneToken">>).
+-define(ONEZONE_TOKEN, onepanel_test_rest:oz_user_token(<<"joe">>, privileges:cluster_admin())).
 
 -define(OZ_AUTH(TOKEN), {rpc, opaque_rpc_client}).
 -define(OP_AUTH(TOKEN), {rest, {access_token, TOKEN}}).
@@ -305,7 +305,17 @@ method_should_return_forbidden_error(Config) ->
         lists:foreach(fun({Endpoint, Method}) ->
             ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
                 Host, Endpoint, Method, {?REG_USER_NAME, ?REG_USER_PASSWORD}
-            ))
+            )),
+
+            case Method of
+                get -> ok;
+                _ ->
+                    Token = onepanel_test_rest:oz_user_token(<<"someName">>,
+                        _NoPrivileges = []),
+                    ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
+                        Host, Endpoint, Method, {access_token, Token}
+                    ))
+            end
         end, ?COMMON_ENDPOINTS_WITH_METHODS)
     end).
 
@@ -739,7 +749,7 @@ init_per_suite(Config) ->
         )),
         NewConfig2
     end,
-    [{?ENV_UP_POSTHOOK, Posthook} | Config].
+    [{?ENV_UP_POSTHOOK, Posthook}, {?LOAD_MODULES, [onepanel_test_rest]} | Config].
 
 
 init_per_testcase(method_should_return_service_unavailable_error, Config) ->
@@ -1006,14 +1016,9 @@ init_per_testcase(_Case, Config) ->
         Self ! {service, Service, Action, Ctx},
         [{task_finished, {service, action, ok}}]
     end),
-    test_utils:mock_expect(Nodes, zone_tokens, authenticate_user, fun
-        (?ONEZONE_TOKEN) -> #client{
-            role = user, privileges = [], zone_auth = ?OP_AUTH(?ONEZONE_TOKEN),
-            user = #user_details{name = ?OZ_USER_NAME}
-        } end),
+    ok = onepanel_test_rest:mock_token_authentication(Nodes),
 
     Config.
-
 
 end_per_testcase(_Case, Config) ->
     Nodes = ?config(all_nodes, Config),
