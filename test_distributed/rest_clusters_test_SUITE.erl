@@ -295,7 +295,7 @@ init_per_testcase(_Case, Config) ->
     end),
 
     test_utils:mock_expect(OpNodes, oz_endpoint, request, fun
-        (_Auth, "/user/clusters/", get, _Headers, <<>>, _Opts) ->
+        (_Auth, "/user/effective_clusters/", get, _Headers, <<>>, _Opts) ->
             {ok, 200, 0, json_utils:encode(#{clusters => maps:keys(?CLUSTERS)})};
         (_Auth, "/clusters/" ++ ClusterId, get, _Headers, <<>>, _Opts) ->
             Data = maps:get(list_to_binary(ClusterId), ?CLUSTERS),

@@ -130,7 +130,7 @@ list_user_clusters({rpc, Auth}) ->
     zone_rpc(user_logic, get_clusters, [Auth]);
 
 list_user_clusters({rest, Auth}) ->
-    case zone_rest(Auth, "/user/clusters/", []) of
+    case zone_rest(Auth, "/user/effective_clusters/", []) of
         {ok, #{clusters := Ids}} -> {ok, Ids};
         #error{} = Error -> Error
     end.
