@@ -26,6 +26,7 @@
 -export([
     method_should_return_unauthorized_error/1,
     method_should_return_forbidden_error/1,
+    delete_should_return_forbidden_error/1,
     method_should_return_conflict_error/1,
     method_should_return_service_unavailable_error/1,
     get_should_return_provider_details/1,
@@ -59,6 +60,7 @@ all() ->
     ?ALL([
         method_should_return_unauthorized_error,
         method_should_return_forbidden_error,
+        delete_should_return_forbidden_error,
         method_should_return_conflict_error,
         method_should_return_service_unavailable_error,
         get_should_return_provider_details,
@@ -93,7 +95,7 @@ all() ->
 -define(ADMIN_USER_PASSWORD, <<"Admin1Password">>).
 
 -define(OZ_USER_NAME, <<"joe">>).
--define(ONEZONE_TOKEN, onepanel_test_rest:oz_user_token(<<"joe">>, privileges:cluster_admin())).
+-define(ONEZONE_TOKEN, onepanel_test_rest:token_auth(<<"joe">>, privileges:cluster_admin())).
 
 -define(OZ_AUTH(TOKEN), {rpc, opaque_rpc_client}).
 -define(OP_AUTH(TOKEN), {rest, {access_token, TOKEN}}).
@@ -303,20 +305,29 @@ method_should_return_unauthorized_error(Config) ->
 method_should_return_forbidden_error(Config) ->
     ?run(Config, fun(Host) ->
         lists:foreach(fun({Endpoint, Method}) ->
-            ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
-                Host, Endpoint, Method, {?REG_USER_NAME, ?REG_USER_PASSWORD}
-            )),
-
-            case Method of
-                get -> ok;
+            LocalAuth = {?REG_USER_NAME, ?REG_USER_PASSWORD},
+            Auth = case Method of
+                get -> [LocalAuth];
                 _ ->
-                    Token = onepanel_test_rest:oz_user_token(<<"someName">>,
-                        _NoPrivileges = []),
-                    ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
-                        Host, Endpoint, Method, {access_token, Token}
-                    ))
-            end
+                    % user without update_cluster privilege should
+                    % be forbidden any method other than GET
+                    [LocalAuth, onepanel_test_rest:token_auth(<<"someName">>, [])]
+            end,
+
+            ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
+                Host, Endpoint, Method, Auth
+            ))
         end, ?COMMON_ENDPOINTS_WITH_METHODS)
+    end).
+
+
+delete_should_return_forbidden_error(Config) ->
+    ?run(Config, fun(Host) ->
+        % user without cluster_delete
+        Token = onepanel_test_rest:token_auth(?OZ_USER_NAME, [cluster_update]),
+        ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
+            Host, "/provider", delete, Token
+        ))
     end).
 
 
@@ -367,7 +378,7 @@ get_should_return_cluster_ips(Config) ->
         ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/cluster_ips">>, get,
-                {access_token, ?ONEZONE_TOKEN}
+                ?ONEZONE_TOKEN
             )
         ),
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
@@ -451,7 +462,8 @@ get_should_return_supported_spaces(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces">>, get,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+                [{?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
+                    onepanel_test_rest:token_auth(?OZ_USER_NAME)]
             )
         ),
         onepanel_test_rest:assert_body(JsonBody, ?SPACES_JSON)
