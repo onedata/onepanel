@@ -470,7 +470,7 @@ get_id() ->
     OpNode = nodes:local(?SERVICE_OPW),
     case rpc:call(OpNode, provider_auth, get_provider_id, []) of
         {ok, <<ProviderId/binary>>} -> ProviderId;
-        ?ERROR_UNREGISTERED_PROVIDER = Error -> ?make_error(Error);
+        ?ERROR_UNREGISTERED_PROVIDER = Error -> ?throw_error(Error);
         _ ->
             {ok, Id} = onepanel_maps:get(provider_id, read_auth_file()),
             Id

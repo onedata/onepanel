@@ -16,6 +16,7 @@
 -include("modules/errors.hrl").
 -include_lib("ctool/include/api_errors.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/onedata.hrl").
 
 -type id() :: binary().
 
@@ -36,7 +37,12 @@
 %%--------------------------------------------------------------------
 -spec get_id() -> id().
 get_id() ->
-    get_id(onepanel_env:get_cluster_type()).
+    case onepanel_env:get_cluster_type() of
+        onezone ->
+            ?ONEZONE_CLUSTER_ID;
+        oneprovider ->
+            <<_Id/binary>> = service_oneprovider:get_id()
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -158,21 +164,6 @@ fetch_remote_provider_info({rest, RestAuth}, ProviderId) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-%% @private
--spec get_id(onedata:cluster_type()) -> id() | no_return().
-get_id(onezone) ->
-    case zone_rpc(cluster_logic, get_onezone_cluster_id, []) of
-        <<Id/binary>> ->
-            store_in_cache(cluster_id, Id),
-            Id;
-        Error ->
-            try_cached(cluster_id, Error)
-    end;
-
-get_id(oneprovider) ->
-    service_oneprovider:get_id().
-
 
 %% @private
 -spec zone_rpc(Module :: module(), Function :: atom(), Args :: [term()]) ->
