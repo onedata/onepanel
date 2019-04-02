@@ -469,9 +469,11 @@ modify_details(Ctx) ->
 get_id() ->
     OpNode = nodes:local(?SERVICE_OPW),
     case rpc:call(OpNode, provider_auth, get_provider_id, []) of
-        <<ProviderId/binary>> -> ProviderId;
+        {ok, <<ProviderId/binary>>} -> ProviderId;
         ?ERROR_UNREGISTERED_PROVIDER = Error -> ?make_error(Error);
-        _ -> onepanel_maps:get(provider_id, read_auth_file())
+        _ ->
+            {ok, Id} = onepanel_maps:get(provider_id, read_auth_file()),
+            Id
     end.
 
 
