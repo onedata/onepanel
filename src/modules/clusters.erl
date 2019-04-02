@@ -172,13 +172,7 @@ get_id(onezone) ->
     end;
 
 get_id(oneprovider) ->
-    try service_oneprovider:get_details() of
-        #{cluster := <<Id/binary>>} ->
-            store_in_cache(cluster_id, Id),
-            Id
-    catch _Type:Error ->
-        try_cached(cluster_id, ?make_stacktrace(Error))
-    end.
+    service_oneprovider:get_id().
 
 
 %% @private
