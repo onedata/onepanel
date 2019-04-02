@@ -293,8 +293,11 @@ set_node_ip(#{name := ServiceName, generated_config_file := GeneratedConfigFile}
 -spec get_cluster_ips(service:ctx()) ->
     #{isConfigured := boolean(), hosts := #{binary() => binary()}}.
 get_cluster_ips(#{name := _ServiceName} = Ctx) ->
-    HostsToIps = lists:map(fun({Host, IP}) ->
-        {onepanel_utils:convert(Host, binary), onepanel_ip:ip4_to_binary(IP)}
+    HostsToIps = lists:map(fun
+        ({Host, undefined}) ->
+            {onepanel_utils:convert(Host, binary), null};
+        ({Host, IP}) ->
+            {onepanel_utils:convert(Host, binary), onepanel_ip:ip4_to_binary(IP)}
     end, get_hosts_ips(Ctx)),
     #{
         isConfigured => onepanel_deployment:is_set(?PROGRESS_CLUSTER_IPS),
@@ -310,10 +313,9 @@ get_cluster_ips(#{name := _ServiceName} = Ctx) ->
     [{Host :: service:host(), IP :: inet:ip4_address()}].
 get_hosts_ips(#{name := ServiceName}) ->
     lists:map(fun(Host) ->
-        Node = nodes:service_to_node(?APP_NAME, Host),
-        IPEnv = rpc:call(Node, onepanel_env, read_effective,
+        Node = nodes:service_to_node(?SERVICE_PANEL, Host),
+        {ok, IPTuple} = rpc:call(Node, onepanel_env, read_effective,
             [[name(), external_ip], ServiceName]),
-        {ok, IPTuple} = IPEnv,
         {Host, IPTuple}
     end, hosts:all(ServiceName)).
 
