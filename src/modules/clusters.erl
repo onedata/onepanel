@@ -105,9 +105,8 @@ get_details({rpc, Auth}, ClusterId) ->
                 {<<"onepanelVersion">>, onepanelVersion},
                 {<<"workerVersion">>, workerVersion},
                 {<<"onepanelProxy">>, onepanelProxy},
-                {<<"serviceId">>, serviceId},
                 {<<"type">>, type}
-            ], ClusterData, #{id => ClusterId})};
+            ], ClusterData, #{id => ClusterId, serviceId => ClusterId})};
         Error -> Error
     end;
 
@@ -115,7 +114,7 @@ get_details({rest, Auth}, ClusterId) ->
     case zone_rest(Auth, "/clusters/~s", [ClusterId]) of
         {ok, Map} ->
             Map2 = maps:without([clusterId], Map),
-            {ok, Map2#{id => ClusterId}};
+            {ok, Map2#{id => ClusterId, serviceId => ClusterId}};
         Error -> Error
     end.
 
