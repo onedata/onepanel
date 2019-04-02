@@ -21,14 +21,17 @@
     noauth_request/3, noauth_request/4, noauth_request/5, noauth_request/6]).
 -export([assert_body_fields/2, assert_body_values/2, assert_body/2]).
 -export([mock_token_authentication/1,
-    token_auth/1, token_auth/2, token_auth/3]).
+    oz_token_auth/1, oz_token_auth/2, oz_token_auth/3,
+    obtain_local_token/3]).
 
 -type config() :: string() | proplists:proplist().
--type endpoint() :: http_client:url().
+-type endpoint() :: http_client:url() | {noprefix, http_client:url()}.
 -type method() :: http_client:method().
 -type auth() :: {Username :: binary(), Password :: binary()} |
                 {cookie, Cookie :: binary()} |
-                {token, Token :: binary()}.
+                {cookie, Name :: binary(), Value :: binary()} |
+                {token, Token :: binary()} |
+                none.
 -type headers() :: http_client:headers().
 -type body() :: http_client:body().
 -type code() :: http_client:code().
@@ -81,9 +84,19 @@ auth_request(HostOrConfig, Endpoint, Method, Auth, Headers, Body) ->
 -spec auth_request(HostOrConfig :: config(), Port :: integer(), Endpoint :: endpoint(),
     Method :: method(), Auth :: auth() | [auth()], Headers :: headers(), Body :: body()) ->
     Response :: response().
+auth_request(HostOrConfig, Port, Endpoint, Method, none, Headers, Body) ->
+    noauth_request(HostOrConfig, Port, Endpoint, Method, Headers, Body);
+
 auth_request(HostOrConfig, Port, Endpoint, Method, {cookie, SessionId},
     Headers, Body) ->
+    % @fixme does it even work
     NewHeaders = [{<<"cookie">>, <<"sessionId=", SessionId/binary>>}
+        | Headers],
+    noauth_request(HostOrConfig, Port, Endpoint, Method, NewHeaders, Body);
+
+auth_request(HostOrConfig, Port, Endpoint, Method, {cookie, Name, Value},
+    Headers, Body) ->
+    NewHeaders = [{<<"cookie">>, <<Name/binary, "=", Value/binary>>}
         | Headers],
     noauth_request(HostOrConfig, Port, Endpoint, Method, NewHeaders, Body);
 
@@ -99,23 +112,24 @@ auth_request(HostOrConfig, Port, Endpoint, Method, {Username, Password},
     noauth_request(HostOrConfig, Port, Endpoint, Method, NewHeaders, Body);
 
 auth_request(HostOrConfig, Port, Endpoint, Method, [_ | _] = Auths, Headers, Body) ->
-    lists:foldl(fun
+    {Result, _LastAuth} = lists:foldl(fun
         (Auth, first) ->
-            auth_request(HostOrConfig, Port, Endpoint, Method, Auth, Headers, Body);
-        (Auth, {ok, PrevCode, _RespHeaders, PrevBody} = Previous) ->
+            {auth_request(HostOrConfig, Port, Endpoint, Method, Auth, Headers, Body), Auth};
+        (Auth, {{ok, PrevCode, _RespHeaders, PrevBody} = Previous, PrevAuth}) ->
             case auth_request(HostOrConfig, Port, Endpoint, Method, Auth, Headers, Body) of
                 {ok, PrevCode, _, PrevBody} = Result ->
-                    Result;
+                    {Result, Auth};
                 {ok, _OtherCode, _, _OtherBody} = Result ->
-                    ct:pal("Result of rest call with auth ~p differs from previous.~n" ++
-                    "Was: ~p~nIs: ~p", [Auth, Previous, Result]),
+                    ct:pal("Result of rest call with auth ~p differs from previous with auth ~p~n"
+                    ++ "Was: ~p~nIs: ~p", [Auth, PrevAuth, Previous, Result]),
                     ?assertMatch({ok, PrevCode, _, PrevBody}, Result);
                 Error ->
-                    Error
+                    {Error, PrevAuth}
             end;
-        (_Auth, Error) ->
-            Error
-    end, first, Auths).
+        (_Auth, {Error, PrevAuth}) ->
+            {Error, PrevAuth}
+    end, first, Auths),
+    Result.
 
 
 %%--------------------------------------------------------------------
@@ -156,7 +170,7 @@ noauth_request(HostOrConfig, Endpoint, Method, Headers, Body) ->
 -spec noauth_request(HostOrConfig :: config(), Port :: integer(),
     Endpoint :: endpoint(), Method :: method(), Headers :: headers(),
     Body :: body()) -> Response :: response().
-noauth_request(HostOrConfig, Port, Endpoint, Method, Headers, Body) ->
+noauth_request(HostOrConfig, Port, {noprefix, Endpoint}, Method, Headers, Body) ->
     Host = case io_lib:printable_unicode_list(HostOrConfig) of
         true -> HostOrConfig;
         false -> utils:random_element(?config(onepanel_hosts, HostOrConfig))
@@ -165,11 +179,14 @@ noauth_request(HostOrConfig, Port, Endpoint, Method, Headers, Body) ->
         {<<"content-type">>, <<"application/json">>} |
         Headers
     ],
-    Prefix = "/api/v3/onepanel",
-    Url = onepanel_utils:join(["https://", Host, ":", Port, Prefix, Endpoint]),
+    Url = onepanel_utils:join(["https://", Host, ":", Port, Endpoint]),
     JsonBody = json_utils:encode(Body),
     http_client:request(Method, Url, maps:from_list(NewHeaders), JsonBody,
-        [{ssl_options, [{secure, false}]}]).
+        [{ssl_options, [{secure, false}]}]);
+
+noauth_request(HostOrConfig, Port, Endpoint, Method, Headers, Body) ->
+    Path = str_utils:format("/api/v3/onepanel~s", [Endpoint]),
+    noauth_request(HostOrConfig, Port, {noprefix, Path}, Method, Headers, Body).
 
 
 %%--------------------------------------------------------------------
@@ -223,9 +240,9 @@ mock_token_authentication(Nodes) ->
 %% Authenticated user has no privileges in the cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec token_auth(Name :: binary()) -> auth().
-token_auth(Name) ->
-    token_auth(Name, []).
+-spec oz_token_auth(Name :: binary()) -> auth().
+oz_token_auth(Name) ->
+    oz_token_auth(Name, []).
 
 %%--------------------------------------------------------------------
 %% @doc Generates a token which can be decoded by mocked
@@ -233,22 +250,45 @@ token_auth(Name) ->
 %% Derives user id from Name.
 %% @end
 %%--------------------------------------------------------------------
--spec token_auth(Name :: binary(),
+-spec oz_token_auth(Name :: binary(),
     Privileges :: [privileges:cluster_privilege()]) -> auth().
-token_auth(Name, Privileges) ->
-    token_auth(<<Name/binary, "Id">>, Name, Privileges).
+oz_token_auth(Name, Privileges) ->
+    oz_token_auth(<<Name/binary, "Id">>, Name, Privileges).
 
 %%--------------------------------------------------------------------
 %% @doc Generates a token which can be decoded by mocked
 %% onezone tokens module to obtain user info.
 %% @end
 %%--------------------------------------------------------------------
--spec token_auth(UserId :: binary(), Name :: binary(),
+-spec oz_token_auth(UserId :: binary(), Name :: binary(),
     Privileges :: [privileges:cluster_privilege()]) -> auth().
-token_auth(UserId, Name, Privileges) ->
+oz_token_auth(UserId, Name, Privileges) ->
     Client = erlang:term_to_binary(#client{
         role = member, privileges = Privileges,
         user = #user_details{id = UserId, name = Name}
     }),
     ClientB64 = base64:encode(Client),
     {token, <<"valid-token:", ClientB64/binary>>}.
+
+
+%%--------------------------------------------------------------------
+%% @doc Obtains authentication token linked with a local user's session.
+%% @end
+%%--------------------------------------------------------------------
+-spec obtain_local_token(HostOrConfig :: config(),
+    Username :: binary(), Password :: binary()) -> auth().
+obtain_local_token(HostOrConfig, Username, Password) ->
+    {ok, _, #{<<"set-cookie">> := CookieHeader}, _} = ?assertMatch({ok, 204, _, _},
+        auth_request(HostOrConfig, {noprefix, "/login"}, post, {Username, Password})),
+
+    SessionCookieKey = gui_session_plugin:session_cookie_key(),
+    Cookies = hackney_cookie:parse_cookie(CookieHeader),
+    {SessionCookieKey, SessionCookie} = proplists:lookup(SessionCookieKey, Cookies),
+
+    SessionAuth = {cookie, SessionCookieKey, SessionCookie},
+    {ok, _, _, TokenJson} = ?assertMatch({ok, 200, _, _},
+        auth_request(HostOrConfig, {noprefix, "/gui-token"}, post, SessionAuth)),
+
+    #{<<"token">> := Token} = json_utils:decode(TokenJson),
+    {token, Token}.
+

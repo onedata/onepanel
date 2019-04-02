@@ -16,6 +16,7 @@
 -include("onepanel_test_utils.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
+-include_lib("ctool/include/privileges.hrl").
 
 
 %% export for ct
@@ -95,7 +96,6 @@ all() ->
 -define(ADMIN_USER_PASSWORD, <<"Admin1Password">>).
 
 -define(OZ_USER_NAME, <<"joe">>).
--define(ONEZONE_TOKEN, onepanel_test_rest:token_auth(<<"joe">>, privileges:cluster_admin())).
 
 -define(OZ_AUTH(TOKEN), {rpc, opaque_rpc_client}).
 -define(OP_AUTH(TOKEN), {rest, {access_token, TOKEN}}).
@@ -103,6 +103,32 @@ all() ->
 -define(REG_USER_NAME, <<"user1">>).
 -define(REG_USER_PASSWORD, <<"User1Password">>).
 -define(TIMEOUT, timer:seconds(5)).
+
+% authentication granting cluster root rights
+-define(ROOT_AUTHS(Host), [
+    {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
+    onepanel_test_rest:obtain_local_token(Host, ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD)
+]).
+
+-define(OZ_AUTHS(Host, Privileges), [
+    onepanel_test_rest:oz_token_auth(<<"privileged">>, Privileges)
+]).
+
+-define(OZ_OR_ROOT_AUTHS(Host, Privileges),
+    ?OZ_AUTHS(Host, Privileges) ++ ?ROOT_AUTHS(Host)).
+
+% authentication of a local onepanel user (role = regular)
+-define(REGULAR_AUTHS(Host), [
+    {?REG_USER_NAME, ?REG_USER_PASSWORD},
+    onepanel_test_rest:obtain_local_token(Host, ?REG_USER_NAME, ?REG_USER_PASSWORD)
+]).
+
+-define(GUEST_AUTHS, [none]).
+
+-define(ALL_AUTHS(Host),
+    ?GUEST_AUTHS ++ ?REGULAR_AUTHS(Host) ++
+    ?OZ_AUTHS(Host, []) ++ ?OZ_OR_ROOT_AUTHS(Host, privileges:cluster_admin())
+).
 
 -define(COMMON_ENDPOINTS_WITH_METHODS, [
     {<<"/provider">>, get},
@@ -160,8 +186,8 @@ all() ->
 
 -define(CLUSTER_IPS_JSON(_Hosts), #{
     <<"hosts">> =>
-    lists:foldl(fun(Host, Acc) ->
-        maps:put(list_to_binary(Host), <<"1.2.3.4">>, Acc)
+    lists:foldl(fun(_Host, _Acc) ->
+        maps:put(list_to_binary(_Host), <<"1.2.3.4">>, _Acc)
     end, #{}, _Hosts),
     <<"isConfigured">> => false
 }).
@@ -296,7 +322,7 @@ method_should_return_unauthorized_error(Config) ->
                 Host, Endpoint, Method
             )),
             ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
-                Host, Endpoint, Method, {<<"someUser">>, <<"somePassword">>}
+                Host, Endpoint, Method, {?REG_USER_NAME, <<"badPassword">>}
             ))
         end, ?COMMON_ENDPOINTS_WITH_METHODS)
     end).
@@ -305,17 +331,15 @@ method_should_return_unauthorized_error(Config) ->
 method_should_return_forbidden_error(Config) ->
     ?run(Config, fun(Host) ->
         lists:foreach(fun({Endpoint, Method}) ->
-            LocalAuth = {?REG_USER_NAME, ?REG_USER_PASSWORD},
-            Auth = case Method of
-                get -> [LocalAuth];
-                _ ->
-                    % user without update_cluster privilege should
-                    % be forbidden any method other than GET
-                    [LocalAuth, onepanel_test_rest:token_auth(<<"someName">>, [])]
+            % highest rights level which still
+            % should not grant access to these endpoints
+            Auths = case Method of
+                get -> ?REGULAR_AUTHS(Host);
+                _ -> ?OZ_AUTHS(Host, []) ++ ?REGULAR_AUTHS(Host)
             end,
 
             ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
-                Host, Endpoint, Method, Auth
+                Host, Endpoint, Method, Auths
             ))
         end, ?COMMON_ENDPOINTS_WITH_METHODS)
     end).
@@ -323,10 +347,12 @@ method_should_return_forbidden_error(Config) ->
 
 delete_should_return_forbidden_error(Config) ->
     ?run(Config, fun(Host) ->
-        % user without cluster_delete
-        Token = onepanel_test_rest:token_auth(?OZ_USER_NAME, [cluster_update]),
+        % verify that user with cluster_update but without cluster_delete
+        % cannot deregister the Oneprovider. Less privileged users
+        % are check in method_should_return_forbidden_error/1
+        Privileges = privileges:cluster_admin() -- [?CLUSTER_DELETE],
         ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
-            Host, "/provider", delete, Token
+            Host, "/provider", delete, ?OZ_AUTHS(Host, Privileges)
         ))
     end).
 
@@ -335,7 +361,7 @@ method_should_return_conflict_error(Config) ->
     ?run(Config, fun(Host) ->
         % provider is mocked as already registered
         ?assertMatch({ok, 409, _, _}, onepanel_test_rest:auth_request(
-            Host, "/provider", post, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
+            Host, "/provider", post, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
             ?REGISTER_REQUEST_JSON
         ))
     end).
@@ -345,10 +371,7 @@ method_should_return_service_unavailable_error(Config) ->
     ?run(Config, fun(Host) ->
         lists:foreach(fun({Endpoint, Method}) ->
             ?assertMatch({ok, 503, _, _}, onepanel_test_rest:auth_request(
-                Host, Endpoint, Method, {?REG_USER_NAME, ?REG_USER_PASSWORD}
-            )),
-            ?assertMatch({ok, 503, _, _}, onepanel_test_rest:noauth_request(
-                Host, Endpoint, Method
+                Host, Endpoint, Method, ?ALL_AUTHS(Host)
             ))
         end, lists:subtract(
             ?COMMON_ENDPOINTS_WITH_METHODS, [
@@ -364,7 +387,7 @@ get_should_return_provider_details(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider">>, get,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+                ?OZ_OR_ROOT_AUTHS(Host, [])
             )
         ),
         onepanel_test_rest:assert_body(JsonBody, ?PROVIDER_DETAILS_JSON)
@@ -375,16 +398,10 @@ get_should_return_cluster_ips(Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
     Hosts = lists:map(fun hosts:from_node/1, Nodes),
     ?run(Config, fun(Host) ->
-        ?assertMatch({ok, 200, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<"/provider/cluster_ips">>, get,
-                ?ONEZONE_TOKEN
-            )
-        ),
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/cluster_ips">>, get,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+                ?OZ_OR_ROOT_AUTHS(Host, [])
             )
         ),
         onepanel_test_rest:assert_body(JsonBody, ?CLUSTER_IPS_JSON(Hosts))
@@ -395,7 +412,7 @@ post_should_register_provider(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider">>, post,
-            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, ?REGISTER_REQUEST_JSON
+            ?ROOT_AUTHS(Host), ?REGISTER_REQUEST_JSON
         )),
         ?assertReceivedMatch({service, oneprovider, register, #{
             oneprovider_token := <<"someToken">>,
@@ -411,7 +428,7 @@ patch_should_modify_provider_details(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider">>, patch,
-            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, #{
+            ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{
                 <<"name">> => <<"someName">>,
                 <<"domain">> => <<"someDomain">>,
                 <<"geoLongitude">> => 10.0,
@@ -433,7 +450,7 @@ patch_should_modify_provider_ips(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/cluster_ips">>, patch,
-            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, #{
+            ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{
                 hosts => #{
                     list_to_binary(Host) => NewIP
                 }
@@ -450,8 +467,7 @@ patch_should_modify_provider_ips(Config) ->
 delete_should_unregister_provider(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider">>, delete,
-            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+            Host, <<"/provider">>, delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_DELETE])
         )),
         ?assertReceivedMatch({service, oneprovider, unregister, #{}}, ?TIMEOUT)
     end).
@@ -461,9 +477,7 @@ get_should_return_supported_spaces(Config) ->
     ?run(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
-                Host, <<"/provider/spaces">>, get,
-                [{?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
-                    onepanel_test_rest:token_auth(?OZ_USER_NAME)]
+                Host, <<"/provider/spaces">>, get, ?OZ_OR_ROOT_AUTHS(Host, [])
             )
         ),
         onepanel_test_rest:assert_body(JsonBody, ?SPACES_JSON)
@@ -475,7 +489,7 @@ post_should_create_or_support_space(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces">>, post,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, #{
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{
                     <<"token">> => <<"someToken">>,
                     <<"size">> => 1024,
                     <<"storageId">> => <<"someId">>,
@@ -494,9 +508,8 @@ patch_should_modify_space_support(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId1">>, patch,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, #{
-                    <<"size">> => NewSize
-                }
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
+                #{<<"size">> => NewSize}
             )
         ),
         onepanel_test_rest:assert_body(JsonBody, ?SPACE_JSON)
@@ -504,12 +517,11 @@ patch_should_modify_space_support(Config) ->
 
 
 get_should_return_space_details(Config) ->
-    [N | _] = ?config(oneprovider_nodes, Config),
     ?run(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId">>, get,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+                ?OZ_OR_ROOT_AUTHS(Host, [])
             )
         ),
         onepanel_test_rest:assert_body(JsonBody, ?SPACE_DETAILS_JSON)
@@ -520,7 +532,7 @@ delete_should_revoke_space_support(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/spaces/someId">>, delete,
-            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+            ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
         )),
         ?assertReceivedMatch({service, oneprovider, revoke_space_support,
             #{id := <<"someId">>}
@@ -533,7 +545,7 @@ get_should_return_storages(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/storages">>, get,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+                ?OZ_OR_ROOT_AUTHS(Host, [])
             )
         ),
         onepanel_test_rest:assert_body_fields(JsonBody, [<<"ids">>])
@@ -545,7 +557,7 @@ get_should_return_storage(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/storages/somePosixId">>, get,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+                ?OZ_OR_ROOT_AUTHS(Host, [])
             )
         ),
         onepanel_test_rest:assert_body(JsonBody, ?STORAGE_JSON)
@@ -556,7 +568,7 @@ post_should_add_storage(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/storages">>,
-            post, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
+            post, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
             ?STORAGES_JSON
         )),
         ?assertReceivedMatch({service, op_worker, add_storages, #{
@@ -588,7 +600,7 @@ patch_should_modify_storage_update(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId1">>, patch,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, #{
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{
                     <<"storageImport">> => ?STORAGE_IMPORT_DETAILS_JSON,
                     <<"storageUpdate">> => ?STORAGE_UPDATE_DETAILS_JSON
                 }
@@ -603,7 +615,7 @@ patch_should_update_storage(Config) ->
         ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/storages/somePosixId">>, patch,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, ?STORAGE_UPDATE_JSON
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), ?STORAGE_UPDATE_JSON
             )
         ),
         ?assertReceivedMatch({service, op_worker, update_storage, #{
@@ -618,7 +630,7 @@ get_should_return_autocleaning_reports(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(Host,
                 <<"/provider/spaces/someId/auto-cleaning/reports">>,
-                get, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [])
+                get, ?OZ_OR_ROOT_AUTHS(Host, []), [])
         ),
         onepanel_test_rest:assert_body(JsonBody, ?AUTO_CLEANING_REPORTS)
     end).
@@ -628,7 +640,7 @@ get_should_return_autocleaning_report(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(Host,
                 <<"/provider/spaces/someId/auto-cleaning/reports/someReportId">>,
-                get, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [])
+                get, ?OZ_OR_ROOT_AUTHS(Host, []), [])
         ),
         onepanel_test_rest:assert_body(JsonBody, ?AUTO_CLEANING_REPORT1)
     end).
@@ -638,7 +650,7 @@ get_should_return_autocleaning_status(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(Host,
                 <<"/provider/spaces/someId/auto-cleaning/status">>,
-                get, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [])
+                get, ?OZ_OR_ROOT_AUTHS(Host, []), [])
         ),
         onepanel_test_rest:assert_body(JsonBody, ?AUTO_CLEANING_STATUS)
     end).
@@ -648,7 +660,7 @@ get_should_return_autocleaning_configuration(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(Host,
                 <<"/provider/spaces/someId/auto-cleaning/configuration">>,
-                get, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [])
+                get, ?OZ_OR_ROOT_AUTHS(Host, []), [])
         ),
         onepanel_test_rest:assert_body(JsonBody, ?AUTO_CLEANING_CONFIG)
     end).
@@ -658,7 +670,7 @@ get_should_return_file_popularity_configuration(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(Host,
                 <<"/provider/spaces/someId/file-popularity/configuration">>,
-                get, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [])
+                get, ?OZ_OR_ROOT_AUTHS(Host, []), [])
         ),
         onepanel_test_rest:assert_body(JsonBody, ?FILE_POPULARITY_CONFIG)
     end).
@@ -668,7 +680,8 @@ patch_should_update_file_popularity(Config) ->
         ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId/file-popularity/configuration">>, patch,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, ?FILE_POPULARITY_CONFIG
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
+                ?FILE_POPULARITY_CONFIG
             )
         ),
         ?assertReceivedMatch({service, oneprovider, configure_file_popularity, #{
@@ -685,7 +698,7 @@ patch_should_update_auto_cleaning(Config) ->
         ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId/auto-cleaning/configuration">>, patch,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, ?AUTO_CLEANING_CONFIG
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), ?AUTO_CLEANING_CONFIG
             )
         ),
         ?assertReceivedMatch({service, oneprovider, configure_auto_cleaning, #{
@@ -711,7 +724,8 @@ patch_with_incomplete_config_should_update_auto_cleaning(Config) ->
         ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId/auto-cleaning/configuration">>, patch,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, ?INCOMPLETE_AUTO_CLEANING_CONFIG
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
+                ?INCOMPLETE_AUTO_CLEANING_CONFIG
             )
         ),
         ?assertReceivedMatch({service, oneprovider, configure_auto_cleaning, #{
@@ -726,7 +740,7 @@ patch_with_incorrect_config_should_fail(Config) ->
         ?assertMatch({ok, 400, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId/auto-cleaning/configuration">>, patch,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, ?INCORRECT_AUTO_CLEANING_CONFIG
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), ?INCORRECT_AUTO_CLEANING_CONFIG
             )
         )
     end).
@@ -736,7 +750,7 @@ patch_should_invalidate_luma_cache(Config) ->
         ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/storages/someId/invalidate_luma">>, patch,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, #{}
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{}
             )
         ),
         ?assertReceivedMatch({service, op_worker, invalidate_luma_cache, #{
