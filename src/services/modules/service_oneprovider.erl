@@ -927,8 +927,7 @@ get_details_by_graph_sync() ->
 
     Response = onepanel_maps:get_store_multiple([
         {id, id}, {name, name}, {admin_email, adminEmail},
-        {subdomain_delegation, subdomainDelegation}, {domain, domain},
-        {id, cluster}
+        {subdomain_delegation, subdomainDelegation}, {domain, domain}
     ], Details),
 
     Response2 = Response#{
@@ -958,8 +957,7 @@ get_details_by_rest() ->
         {<<"name">>, name},
         {<<"domain">>, domain},
         {<<"latitude">>, geoLatitude},
-        {<<"longitude">>, geoLongitude},
-        {<<"providerId">>, cluster}
+        {<<"longitude">>, geoLongitude}
     ], ProviderDetails, #{
         onezoneDomainName => OzDomain
     }),
