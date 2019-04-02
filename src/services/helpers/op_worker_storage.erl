@@ -52,10 +52,10 @@ add(Storages, IgnoreExists) ->
 
         ?info("Gathering storage configuration: \"~s\" (~s)", [StorageName, StorageType]),
         ReadOnly = onepanel_utils:typed_get(readonly, Value, boolean, false),
-        UserCtx = get_storage_user_ctx(Node, StorageType, Value),
-        Helper = get_storage_helper(Node, StorageType, UserCtx, Value),
+        {ok, UserCtx} = get_storage_user_ctx(Node, StorageType, Value),
+        {ok, Helper} = get_storage_helper(Node, StorageType, UserCtx, Value),
         LumaConfig = get_luma_config(Node, Value),
-        maybe_verify_storage(Helper, UserCtx, ReadOnly),
+        maybe_verify_storage(Helper, ReadOnly),
 
         ?info("Adding storage: \"~s\" (~s)", [StorageName, StorageType]),
         Result = add_storage(Node, StorageName, [Helper], ReadOnly, LumaConfig),
@@ -259,17 +259,17 @@ invalidate_luma_cache(StorageId) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_storage_user_ctx(Node :: node(), StorageType :: binary(),
-    Params :: storage_params_map()) -> UserCtx :: any().
+    Params :: storage_params_map()) -> {ok, UserCtx :: any()}.
 get_storage_user_ctx(Node, <<"ceph">>, Params) ->
     rpc:call(Node, helper, new_ceph_user_ctx, [
-        onepanel_utils:typed_get(username, Params, binary),
-        onepanel_utils:typed_get(key, Params, binary)
+        <<_/binary>> = onepanel_utils:typed_get(username, Params, binary),
+        <<_/binary>> = onepanel_utils:typed_get(key, Params, binary)
     ]);
 
 get_storage_user_ctx(Node, <<"cephrados">>, Params) ->
     rpc:call(Node, helper, new_cephrados_user_ctx, [
-        onepanel_utils:typed_get(username, Params, binary),
-        onepanel_utils:typed_get(key, Params, binary)
+        <<_/binary>> = onepanel_utils:typed_get(username, Params, binary),
+        <<_/binary>> = onepanel_utils:typed_get(key, Params, binary)
     ]);
 
 get_storage_user_ctx(Node, <<"posix">>, _Params) ->
@@ -277,14 +277,14 @@ get_storage_user_ctx(Node, <<"posix">>, _Params) ->
 
 get_storage_user_ctx(Node, <<"s3">>, Params) ->
     rpc:call(Node, helper, new_s3_user_ctx, [
-        onepanel_utils:typed_get(accessKey, Params, binary),
-        onepanel_utils:typed_get(secretKey, Params, binary)
+        <<_/binary>> = onepanel_utils:typed_get(accessKey, Params, binary),
+        <<_/binary>> = onepanel_utils:typed_get(secretKey, Params, binary)
     ]);
 
 get_storage_user_ctx(Node, <<"swift">>, Params) ->
     rpc:call(Node, helper, new_swift_user_ctx, [
-        onepanel_utils:typed_get(username, Params, binary),
-        onepanel_utils:typed_get(password, Params, binary)
+        <<_/binary>> = onepanel_utils:typed_get(username, Params, binary),
+        <<_/binary>> = onepanel_utils:typed_get(password, Params, binary)
     ]);
 
 get_storage_user_ctx(Node, <<"glusterfs">>, _Params) ->
@@ -296,7 +296,8 @@ get_storage_user_ctx(Node, <<"nulldevice">>, _Params) ->
 get_storage_user_ctx(Node, <<"webdav">>, Params) ->
     rpc:call(Node, helper, new_webdav_user_ctx, [
         <<_/binary>> = onepanel_utils:typed_get(credentialsType, Params, binary),
-        <<_/binary>> = onepanel_utils:typed_get(credentials, Params, binary, <<>>)
+        <<_/binary>> = onepanel_utils:typed_get(credentials, Params, binary, <<>>),
+        <<_/binary>> = onepanel_utils:typed_get(onedataAccessToken, Params, binary, <<>>)
     ]).
 
 %%--------------------------------------------------------------------
@@ -304,7 +305,7 @@ get_storage_user_ctx(Node, <<"webdav">>, Params) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_storage_helper(Node :: node(), StorageType :: binary(), UserCtx :: any(),
-    Params :: storage_params_map()) -> Helper :: any().
+    Params :: storage_params_map()) -> {ok, Helper :: any()}.
 get_storage_helper(Node, <<"ceph">>, UserCtx, Params) ->
     rpc:call(Node, helper, new_ceph_helper, [
         onepanel_utils:typed_get(monitorHostname, Params, binary),
@@ -404,7 +405,8 @@ get_storage_helper(Node, <<"webdav">>, UserCtx, Params) ->
             {rangeWriteSupport, binary},
             {connectionPoolSize, binary},
             {maximumUploadSize, binary},
-            {timeout, binary}
+            {timeout, binary},
+            {oauth2IdP, binary}
         ], Params),
         UserCtx,
         onepanel_utils:typed_get(insecure, Params, boolean, false),
@@ -432,100 +434,24 @@ get_helper_opt_args(KeysSpec, Params) ->
 %% op_worker service nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec maybe_verify_storage(Helper :: any(), UserCtx :: any(), Readonly :: boolean()) ->
+-spec maybe_verify_storage(Helper :: any(), Readonly :: boolean()) ->
     ok | no_return().
-maybe_verify_storage(_Helper, _UserCtx, true) ->
+maybe_verify_storage(_Helper, true) ->
     ok;
-maybe_verify_storage(Helper, UserCtx, _) ->
+maybe_verify_storage(Helper, _) ->
     ?info("Verifying write access to storage"),
-    verify_storage(Helper, UserCtx).
+    verify_storage(Helper).
 
 %%--------------------------------------------------------------------
 %% @private @doc Verifies that storage is accessible for all op_worker
 %% service nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec verify_storage(Helper :: any(), UserCtx :: any()) ->
+-spec verify_storage(Helper :: any()) ->
     ok | no_return().
-verify_storage(Helper, UserCtx) ->
-    [Node | Nodes] = service_op_worker:get_nodes(),
-    {FileId, FileContent} = create_test_file(Node, Helper, UserCtx),
-    {FileId2, FileContent2} = verify_test_file(
-        Nodes, Helper, UserCtx, FileId, FileContent
-    ),
-    read_test_file(Node, Helper, UserCtx, FileId2, FileContent2),
-    remove_test_file(Node, Helper, UserCtx, FileId2, size(FileContent2)).
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Checks whether storage is read/write accessible for all
-%% op_worker service nodes by creating, reading and removing test files.
-%% @end
-%%--------------------------------------------------------------------
--spec verify_test_file(Nodes :: [node()], Helper :: any(), UserCtx :: any(),
-    FileId :: binary(), FileContent :: binary()) ->
-    {FileId :: binary(), FileContent :: binary()} | no_return().
-verify_test_file([], _Helper, _UserCtx, FileId, FileContent) ->
-    {FileId, FileContent};
-
-verify_test_file([Node | Nodes], Helper, UserCtx, FileId, FileContent) ->
-    read_test_file(Node, Helper, UserCtx, FileId, FileContent),
-    remove_test_file(Node, Helper, UserCtx, FileId, size(FileContent)),
-    {FileId2, FileContent2} = create_test_file(Node, Helper, UserCtx),
-    verify_test_file(Nodes, Helper, UserCtx, FileId2, FileContent2).
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Creates storage test file.
-%% @end
-%%--------------------------------------------------------------------
--spec create_test_file(Node :: node(), Helper :: any(), UserCtx :: any()) ->
-    {FileId :: binary(), FileContent :: binary()} | no_return().
-create_test_file(Node, Helper, UserCtx) ->
-    FileId = rpc:call(Node, storage_detector, generate_file_id, []),
-    Args = [Helper, UserCtx, FileId],
-    case rpc:call(Node, storage_detector, create_test_file, Args) of
-        <<_/binary>> = FileContent ->
-            {FileId, FileContent};
-        {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
-            ?throw_stacktrace({?ERR_STORAGE_TEST_FILE_CREATE, Node, Reason}, undefined, Stacktrace)
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Reads storage test file.
-%% @end
-%%--------------------------------------------------------------------
--spec read_test_file(Node :: node(), Helper :: any(), UserCtx :: any(),
-    FileId :: binary(), FileContent :: binary()) -> ok | no_return().
-read_test_file(Node, Helper, UserCtx, FileId, FileContent) ->
-    Args = [Helper, UserCtx, FileId],
-    ActualFileContent = rpc:call(Node, storage_detector, read_test_file, Args),
-
-    case ActualFileContent of
-        FileContent ->
-            ok;
-        <<_/binary>> ->
-            ?throw_error({?ERR_STORAGE_TEST_FILE_READ, Node,
-                {invalid_content, FileContent, ActualFileContent}});
-        {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
-            ?throw_stacktrace({?ERR_STORAGE_TEST_FILE_READ, Node, Reason}, undefined, Stacktrace)
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Removes storage test file.
-%% @end
-%%--------------------------------------------------------------------
--spec remove_test_file(Node :: node(), Helper :: any(), UserCtx :: any(),
-    FileId :: binary(), Size :: non_neg_integer()) -> ok | no_return().
-remove_test_file(Node, Helper, UserCtx, FileId, Size) ->
-    Args = [Helper, UserCtx, FileId, Size],
-    case rpc:call(Node, storage_detector, remove_test_file, Args) of
-        {badrpc, {'EXIT', {Reason, Stacktrace}}} ->
-            ?throw_stacktrace({?ERR_STORAGE_TEST_FILE_REMOVE, Node, Reason}, undefined, Stacktrace);
-        _ -> ok
-    end.
+verify_storage(Helper) ->
+    [Node | _] = service_op_worker:get_nodes(),
+    rpc:call(Node, storage_detector, verify_storage_on_all_nodes, [Helper]).
 
 
 %%--------------------------------------------------------------------

@@ -1887,8 +1887,23 @@ webdav_model() ->
         %% The credentials to authenticate with the WebDAV server.
         %% `basic` credentials should be provided in the form
         %% `username:password`, for `token` just the token.
-        %% For `none` this field is ignored.
+        %% In case of `oauth2`, this field should contain the username
+        %% for the WebDAV, while the token will be obtained and refreshed
+        %% automatically in the background. For `none` this field is
+        %% ignored.
         credentials => {string, optional},
+        %% In case `oauth2` credential type is selected and Onezone is
+        %% configured with support for multiple external IdP's, this field
+        %% must contain the name of the IdP which authenticates requests to the
+        %% WebDAV endpoint. If Onezone has only one external IdP, it will be
+        %% selected automatically.
+        oauth2IdP => {string, optional},
+        %% When registering storage in `insecure` mode with
+        %% `oauth2` external IdP, this field must contain a valid
+        %% Onedata access token of the user on whose behalf the WebDAV storage
+        %% will be accessed by all users with access to any space supported by
+        %% this storage.
+        onedataAccessToken => {string, optional},
         %% The authorization header to be used for passing the access token.
         %% This field can contain any prefix that should be added to the header
         %% value. Default is `Authorization: Bearer {}`. The token
@@ -1909,6 +1924,14 @@ webdav_model() ->
         %% `PATCH` request. If set to 0, assumes that the WebDAV
         %% server has no upload limit.
         maximumUploadSize => {integer, {optional, 0}},
+        %% Defines the file permissions, which files imported from WebDAV
+        %% storage will have in Onedata. Values should be provided in octal
+        %% format e.g. `0644`.
+        fileMode => {string, optional},
+        %% Defines the directory mode which directories imported from WebDAV
+        %% storage will have in Onedata. Values should be provided in octal
+        %% format e.g. `0775`.
+        dirMode => {string, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Determines how the logical file paths will be mapped on the storage.
