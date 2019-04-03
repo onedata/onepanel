@@ -14,6 +14,7 @@
 -include("authentication.hrl").
 -include("modules/models.hrl").
 -include("onepanel_test_utils.hrl").
+-include("onepanel_test_rest.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
 -include_lib("ctool/include/privileges.hrl").
@@ -92,43 +93,7 @@ all() ->
         patch_should_invalidate_luma_cache
     ]).
 
--define(ADMIN_USER_NAME, <<"admin1">>).
--define(ADMIN_USER_PASSWORD, <<"Admin1Password">>).
-
--define(OZ_USER_NAME, <<"joe">>).
-
--define(OZ_AUTH(TOKEN), {rpc, opaque_rpc_client}).
--define(OP_AUTH(TOKEN), {rest, {access_token, TOKEN}}).
-
--define(REG_USER_NAME, <<"user1">>).
--define(REG_USER_PASSWORD, <<"User1Password">>).
 -define(TIMEOUT, timer:seconds(5)).
-
-% authentication granting cluster root rights
--define(ROOT_AUTHS(Host), [
-    {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
-    onepanel_test_rest:obtain_local_token(Host, ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD)
-]).
-
--define(OZ_AUTHS(Host, Privileges), [
-    onepanel_test_rest:oz_token_auth(<<"privileged">>, Privileges)
-]).
-
--define(OZ_OR_ROOT_AUTHS(Host, Privileges),
-    ?OZ_AUTHS(Host, Privileges) ++ ?ROOT_AUTHS(Host)).
-
-% authentication of a local onepanel user (role = regular)
--define(REGULAR_AUTHS(Host), [
-    {?REG_USER_NAME, ?REG_USER_PASSWORD},
-    onepanel_test_rest:obtain_local_token(Host, ?REG_USER_NAME, ?REG_USER_PASSWORD)
-]).
-
--define(GUEST_AUTHS, [none]).
-
--define(ALL_AUTHS(Host),
-    ?GUEST_AUTHS ++ ?REGULAR_AUTHS(Host) ++
-    ?OZ_AUTHS(Host, []) ++ ?OZ_OR_ROOT_AUTHS(Host, privileges:cluster_admin())
-).
 
 -define(COMMON_ENDPOINTS_WITH_METHODS, [
     {<<"/provider">>, get},
@@ -767,15 +732,10 @@ init_per_suite(Config) ->
     hackney:start(),
     Posthook = fun(NewConfig) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
-        ?assertAllMatch({ok, _}, ?callAll(NewConfig2, onepanel_user, create,
-            [?REG_USER_NAME, ?REG_USER_PASSWORD, regular]
-        )),
-        ?assertAllMatch({ok, _}, ?callAll(NewConfig2, onepanel_user, create,
-            [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
-        )),
+        onepanel_test_rest:set_up_default_users(NewConfig2),
         NewConfig2
     end,
-    [{?ENV_UP_POSTHOOK, Posthook}, {?LOAD_MODULES, [onepanel_test_rest]} | Config].
+    [{?LOAD_MODULES, [onepanel_test_rest]}, {?ENV_UP_POSTHOOK, Posthook} | Config].
 
 
 init_per_testcase(method_should_return_service_unavailable_error, Config) ->

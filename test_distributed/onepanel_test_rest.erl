@@ -12,6 +12,8 @@
 -author("Krzysztof Trzepla").
 
 -include("authentication.hrl").
+-include("onepanel_test_utils.hrl").
+-include("onepanel_test_rest.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("ctool/include/logging.hrl").
@@ -20,7 +22,7 @@
 -export([auth_request/4, auth_request/5, auth_request/6, auth_request/7,
     noauth_request/3, noauth_request/4, noauth_request/5, noauth_request/6]).
 -export([assert_body_fields/2, assert_body_values/2, assert_body/2]).
--export([mock_token_authentication/1,
+-export([set_up_default_users/1, mock_token_authentication/1,
     oz_token_auth/1, oz_token_auth/2, oz_token_auth/3,
     obtain_local_token/3]).
 
@@ -39,7 +41,7 @@
                     {error, Reason :: term()}.
 
 %%%===================================================================
-%%% API functions
+%%% REST client
 %%%===================================================================
 
 %%--------------------------------------------------------------------
@@ -210,6 +212,29 @@ assert_body(JsonBody, Body) ->
     ?assertEqual(Body, json_utils:decode(JsonBody)).
 
 
+%%%===================================================================
+%%% Mock helpers
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc Sets up users assumed to be present by ?REGULAR_AUTHS
+%% and ?ROOT_AUTHS macros on all nodes.
+%% @end
+%%--------------------------------------------------------------------
+set_up_default_users(Config) ->
+    ?assertAllMatch({ok, _}, ?callAll(Config, onepanel_user, create,
+        [?REG_USER_NAME, ?REG_USER_PASSWORD, regular]
+    )),
+    ?assertAllMatch({ok, _}, ?callAll(Config, onepanel_user, create,
+        [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
+    )).
+
+
+%%--------------------------------------------------------------------
+%% @doc Sets up mock of zone_tokens module to accept tokens with
+%% encoded client information, as created by the onepanel_test_rest utilities.
+%% @end
+%%--------------------------------------------------------------------
 -spec mock_token_authentication(ConfigOrNodes :: proplists:proplist() | [node()]) -> ok.
 mock_token_authentication([{_, _} | _] = Config) ->
     mock_token_authentication(?config(nodes, Config));
