@@ -87,13 +87,6 @@ auth_request(HostOrConfig, Endpoint, Method, Auth, Headers, Body) ->
 auth_request(HostOrConfig, Port, Endpoint, Method, none, Headers, Body) ->
     noauth_request(HostOrConfig, Port, Endpoint, Method, Headers, Body);
 
-auth_request(HostOrConfig, Port, Endpoint, Method, {cookie, SessionId},
-    Headers, Body) ->
-    % @fixme does it even work
-    NewHeaders = [{<<"cookie">>, <<"sessionId=", SessionId/binary>>}
-        | Headers],
-    noauth_request(HostOrConfig, Port, Endpoint, Method, NewHeaders, Body);
-
 auth_request(HostOrConfig, Port, Endpoint, Method, {cookie, Name, Value},
     Headers, Body) ->
     NewHeaders = [{<<"cookie">>, <<Name/binary, "=", Value/binary>>}
