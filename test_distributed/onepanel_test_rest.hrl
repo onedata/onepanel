@@ -23,11 +23,20 @@
 -define(REG_USER_PASSWORD, <<"User1Password">>).
 
 
-% authentication granting cluster root rights
--define(ROOT_AUTHS(HostOrConfig), [
-    {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
-    onepanel_test_rest:obtain_local_token(HostOrConfig, ?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD)
+-define(LOCAL_AUTHS(HostOrConfig, LoginPassword), [
+    LoginPassword,
+    onepanel_test_rest:obtain_local_token(HostOrConfig,
+        element(1, LoginPassword), element(2, LoginPassword))
 ]).
+
+
+% local authentication granting cluster root rights
+-define(ROOT_AUTHS(HostOrConfig),
+    ?LOCAL_AUTHS(HostOrConfig, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD})).
+
+% authentication of a local onepanel user (role = regular)
+-define(REGULAR_AUTHS(HostOrConfig),
+    ?LOCAL_AUTHS(HostOrConfig, {?REG_USER_NAME, ?REG_USER_PASSWORD})).
 
 -define(OZ_AUTHS(HostOrConfig, Privileges), [
     onepanel_test_rest:oz_token_auth(<<"privileged">>, Privileges)
@@ -36,11 +45,6 @@
 -define(OZ_OR_ROOT_AUTHS(HostOrConfig, Privileges),
     ?OZ_AUTHS(HostOrConfig, Privileges) ++ ?ROOT_AUTHS(HostOrConfig)).
 
-% authentication of a local onepanel user (role = regular)
--define(REGULAR_AUTHS(HostOrConfig), [
-    {?REG_USER_NAME, ?REG_USER_PASSWORD},
-    onepanel_test_rest:obtain_local_token(HostOrConfig, ?REG_USER_NAME, ?REG_USER_PASSWORD)
-]).
 
 -define(NONE_AUTHS(), [none]).
 

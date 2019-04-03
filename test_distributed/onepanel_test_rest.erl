@@ -41,6 +41,8 @@
 -type response() :: {ok, Code :: code(), Headers :: headers(), Body :: body()} |
                     {error, Reason :: term()}.
 
+-export_type([auth/0]).
+
 %%%===================================================================
 %%% REST client
 %%%===================================================================
@@ -81,7 +83,8 @@ auth_request(HostOrConfig, Endpoint, Method, Auth, Headers, Body) ->
 %%--------------------------------------------------------------------
 %% @doc Executes noauth_request/6 with authorization header.
 %% Provided authorization may be a list, in which case the request
-%% is asserted to return identical code and body for all of them.
+%% is asserted to return identical code and body for all of them
+%% (for this to work, the operation must be idempotent).
 %% @end
 %%--------------------------------------------------------------------
 -spec auth_request(HostOrConfig :: config(), Port :: integer(), Endpoint :: endpoint(),
@@ -177,6 +180,7 @@ noauth_request(HostOrConfig, Port, {noprefix, Endpoint}, Method, Headers, Body) 
     ],
     Url = onepanel_utils:join(["https://", Host, ":", Port, Endpoint]),
     JsonBody = json_utils:encode(Body),
+%%    ct:pal("Request: ~s ~s -H ~p", [Method, Url, Headers]),
     http_client:request(Method, Url, maps:from_list(NewHeaders), JsonBody,
         [{ssl_options, [{secure, false}]}]);
 
@@ -243,11 +247,12 @@ set_up_default_users(Config) ->
 %%--------------------------------------------------------------------
 %% @doc Sets up mock of zone_tokens module to accept tokens with
 %% encoded client information, as created by the onepanel_test_rest utilities.
+%% Requires hook `{?LOAD_MODULES, [onepanel_test_rest]}` to work.
 %% @end
 %%--------------------------------------------------------------------
 -spec mock_token_authentication(ConfigOrNodes :: proplists:proplist() | [node()]) -> ok.
 mock_token_authentication([{_, _} | _] = Config) ->
-    mock_token_authentication(?config(nodes, Config));
+    mock_token_authentication(?config(all_nodes, Config));
 
 mock_token_authentication(Nodes) ->
     test_utils:mock_new(Nodes, [zone_tokens]),

@@ -296,11 +296,10 @@ method_should_return_unauthorized_error(Config) ->
 method_should_return_forbidden_error(Config) ->
     ?run(Config, fun(Host) ->
         lists:foreach(fun({Endpoint, Method}) ->
-            % highest rights level which still
-            % should not grant access to these endpoints
+            % highest rights which still should not grant access to these endpoints
             Auths = case Method of
                 get -> ?REGULAR_AUTHS(Host);
-                _ -> ?OZ_AUTHS(Host, []) ++ ?REGULAR_AUTHS(Host)
+                _ -> ?REGULAR_AUTHS(Host) ++ ?OZ_AUTHS(Host, [])
             end,
 
             ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(

@@ -16,6 +16,7 @@
 -include("modules/models.hrl").
 -include("modules/onepanel_dns.hrl").
 -include("onepanel_test_utils.hrl").
+-include("onepanel_test_rest.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
 
@@ -69,11 +70,7 @@ all() ->
 -define(ZONE_CLUSTER_ID, <<"onezone">>).
 
 -define(PROVIDER_ID, <<"providerId">>).
--define(PROVIDER_CLUSTER_ID, <<"providerClusterId">>).
-
--define(ADMIN_USER_NAME, <<"admin1">>).
--define(ADMIN_USER_PASSWORD, <<"Admin1Password">>).
-
+-define(PROVIDER_CLUSTER_ID, ?PROVIDER_ID).
 
 -define(ACCESS_TOKEN, <<"accessTokenFromOnezone">>).
 
@@ -139,7 +136,7 @@ get_should_return_clusters_list_test(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/user/clusters/">>, get,
-                {access_token, ?ACCESS_TOKEN}
+                ?OZ_AUTHS(Host, [])
             )
         ),
         onepanel_test_rest:assert_body(JsonBody,
@@ -153,7 +150,7 @@ get_should_return_cluster_details_test(Config) ->
             {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
                 onepanel_test_rest:auth_request(
                     Host, <<"/user/clusters/", ClusterId/binary>>, get,
-                    {access_token, ?ACCESS_TOKEN}
+                    ?OZ_AUTHS(Host, [])
                 )
             ),
             Expected = onepanel_maps:get_store_multiple([
@@ -174,14 +171,14 @@ get_should_return_current_cluster_details_test(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/cluster">>, get,
-                {access_token, ?ACCESS_TOKEN}
+                ?OZ_AUTHS(Host, [])
             )
         ),
         Body = json_utils:decode(JsonBody),
         {_, _, _, JsonBodyById} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/user/clusters/", ClusterId/binary>>, get,
-                {access_token, ?ACCESS_TOKEN}
+                ?OZ_AUTHS(Host, [])
             )
         ),
         BodyById = json_utils:decode(JsonBodyById),
@@ -194,7 +191,7 @@ current_cluster_should_work_for_local_user(Config) ->
         ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/cluster">>, get,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+                ?ROOT_AUTHS(Host)
             )
         )
     end).
@@ -205,7 +202,7 @@ get_should_return_provider_info(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/providers/", ?PROVIDER_ID/binary>>, get,
-                {access_token, ?ACCESS_TOKEN}
+                ?OZ_OR_ROOT_AUTHS(Host, [])
             )
         ),
         Expected = #{
@@ -234,7 +231,7 @@ init_per_suite(Config) ->
         )),
         NewConfig2
     end,
-    [{?ENV_UP_POSTHOOK, Posthook} | Config].
+    [{?LOAD_MODULES, [onepanel_test_rest]}, {?ENV_UP_POSTHOOK, Posthook} | Config].
 
 
 init_per_testcase(_Case, Config) ->
@@ -265,16 +262,11 @@ init_per_testcase(_Case, Config) ->
     test_utils:mock_expect(OpNodes, service_oneprovider, get_auth_token,
         fun() -> <<"providerMacaroon">> end),
 
-    test_utils:mock_expect(OzNodes, rest_auth, authenticate_by_onezone_auth_token,
-        fun(Req) -> {?OZ_CLIENT, Req} end),
-    test_utils:mock_expect(OpNodes, rest_auth, authenticate_by_onezone_auth_token,
-        fun(Req) -> {?OP_CLIENT, Req} end),
+    onepanel_test_rest:mock_token_authentication(Config),
 
     test_utils:mock_expect(OzNodes, service_oz_worker, get_details,
         fun() -> #{name => undefined, domain => OzDomain} end),
 
-    test_utils:mock_expect(OzNodes, clusters, get_id,
-        fun() -> ?ZONE_CLUSTER_ID end),
     test_utils:mock_expect(OpNodes, clusters, get_id,
         fun() -> ?PROVIDER_CLUSTER_ID end),
 
@@ -288,8 +280,6 @@ init_per_testcase(_Case, Config) ->
             {ok, ?PROVIDER_DETAILS_RPC};
         (_Node, entity_logic, root_client, []) ->
             {opaque, root_client};
-        (_Node, auth_logic, authorize_by_onezone_gui_macaroon, [_AccessToken, _]) ->
-            {opaque, user_client};
         (Node, Module, Function, Args) ->
             meck:passthrough([Node, Module, Function, Args])
     end),
