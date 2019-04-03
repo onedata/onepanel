@@ -42,10 +42,10 @@
     onepanel_test_rest:obtain_local_token(HostOrConfig, ?REG_USER_NAME, ?REG_USER_PASSWORD)
 ]).
 
--define(GUEST_AUTHS(), [none]).
+-define(NONE_AUTHS(), [none]).
 
 -define(ALL_AUTHS(HostOrConfig),
-    ?GUEST_AUTHS() ++ ?REGULAR_AUTHS(HostOrConfig) ++
+    ?NONE_AUTHS() ++ ?REGULAR_AUTHS(HostOrConfig) ++
         ?OZ_AUTHS(HostOrConfig, []) ++ ?OZ_OR_ROOT_AUTHS(HostOrConfig, privileges:cluster_admin())
 ).
 

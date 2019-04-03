@@ -13,6 +13,7 @@
 
 -include("modules/errors.hrl").
 -include("onepanel_test_utils.hrl").
+-include("onepanel_test_rest.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
 
@@ -23,6 +24,7 @@
 %% tests
 -export([
     method_should_return_unauthorized_error/1,
+    noauth_method_should_return_forbidden_error/1,
     method_should_return_forbidden_error/1,
     method_should_return_not_found_error/1,
     get_as_admin_should_return_hosts/1,
@@ -34,18 +36,26 @@
     delete_as_admin_should_remove_node_from_cluster/1
 ]).
 
--define(ADMIN_USER_NAME, <<"admin1">>).
--define(ADMIN_USER_PASSWORD, <<"Admin1Password">>).
--define(REG_USER_NAME, <<"user1">>).
--define(REG_USER_PASSWORD, <<"User1Password">>).
 -define(COOKIE, someCookie).
 -define(CLUSTER_HOST_HOSTNAME, "known.hostname").
 -define(NEW_HOST_HOSTNAME, "someHostname").
 -define(TIMEOUT, timer:seconds(5)).
 
+-define(run(Fun, EndpointsWithMethods),
+    lists:foreach(fun({_Endpoint, _Method}) ->
+        try
+            Fun({_Endpoint, _Method})
+        catch
+            error:{assertMatch_failed, _} = _Reason->
+                ct:print("Failed on: ~s ~s", [_Method, _Endpoint]),
+                erlang:error(_Reason)
+        end
+    end, EndpointsWithMethods)).
+
 all() ->
     ?ALL([
         method_should_return_unauthorized_error,
+        noauth_method_should_return_forbidden_error,
         method_should_return_forbidden_error,
         method_should_return_not_found_error,
         get_as_admin_should_return_hosts,
@@ -62,46 +72,44 @@ all() ->
 %%%===================================================================
 
 method_should_return_unauthorized_error(Config) ->
-    lists:foreach(fun({Endpoint, Method}) ->
+    ?run(fun({Endpoint, Method}) ->
         ?assertMatch({ok, 401, _, _}, onepanel_test_rest:noauth_request(
-            Config, Endpoint, Method
-        )),
+            Config, Endpoint, Method)),
         ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
-            Config, Endpoint, Method, {<<"someUser">>, <<"somePassword">>}
-        ))
+            Config, Endpoint, Method, {<<"badUser">>, <<"somePassword">>}))
     end, [
         {<<"/cookie">>, get},
         {<<"/hosts/someHost">>, delete},
         {<<"/hosts">>, get},
-        {<<"/hosts">>, post}
+        {<<"/hosts">>, post},
+        {<<"/web_cert">>, get},
+        {<<"/web_cert">>, patch},
+        {<<"/progress">>, get},
+        {<<"/progress">>, patch}
+    ]).
+
+
+noauth_method_should_return_forbidden_error(Config) ->
+    ?run(fun({Endpoint, Method}) ->
+        ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
+            Config, Endpoint, Method,
+            [{<<"inexistent">>, <<"somePassword">>} | ?NONE_AUTHS()]
+        )),
+        ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
+            Config, Endpoint, Method, ?REGULAR_AUTHS(Config)
+        ))
+    end, [
+        % forbidden when there are users present
+        {<<"/join_cluster">>, post},
+        % forbidden without auth when there are admin users present
+        {<<"/users">>, get}
     ]).
 
 
 method_should_return_forbidden_error(Config) ->
-    lists:foreach(fun({Endpoint, Method}) ->
-        try
-        ?assertMatch({ok, 403, _, _}, onepanel_test_rest:noauth_request(
-            Config, Endpoint, Method
-        )),
+    ?run(fun({Endpoint, Method}) ->
         ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
-            Config, Endpoint, Method, {<<"someUser">>, <<"somePassword">>}
-        )),
-        ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
-            Config, Endpoint, Method, {?REG_USER_NAME, ?REG_USER_PASSWORD}
-        ))
-        catch
-            error:{assertMatch_failed, _} = Reason->
-                ct:print("Reason on failure: ~s ~s", [Method, Endpoint]),
-                erlang:error(Reason)
-        end
-    end, [
-        {<<"/join_cluster">>, post}, % forbidden when there are users present
-        {<<"/users">>, get} % forbidden without auth when there are admin users present
-    ]),
-
-    lists:foreach(fun({Endpoint, Method}) ->
-        ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
-            Config, Endpoint, Method, {?REG_USER_NAME, ?REG_USER_PASSWORD}
+            Config, Endpoint, Method, ?REGULAR_AUTHS(Config)
         ))
     end, [
         {<<"/cookie">>, get},
@@ -239,19 +247,18 @@ init_per_testcase(unauthorized_post_should_join_cluster, Config) ->
 
 init_per_testcase(Case, Config) when
     Case =:= admin_account_required;
+    Case =:= noauth_method_should_return_forbidden_error;
     Case =:= method_should_return_forbidden_error;
     Case =:= get_as_admin_should_return_hosts;
     Case =:= get_as_admin_should_return_cookie;
     Case =:= get_as_admin_should_return_node_details;
     Case =:= method_should_return_not_found_error ->
-    ?assertMatch({ok, _}, ?call(Config, onepanel_user, create,
-        [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin])),
+    onepanel_test_rest:set_up_default_users(Config),
     init_per_testcase(default, Config);
 
 init_per_testcase(_Case, Config) ->
     Nodes = ?config(onepanel_nodes, Config),
-    ?assertMatch({ok, _}, ?call(Config, onepanel_user, create,
-        [?REG_USER_NAME, ?REG_USER_PASSWORD, regular])),
+    onepanel_test_rest:set_up_default_users(Config),
     [{cluster_hosts, hosts:from_nodes(Nodes)} | Config].
 
 

@@ -14,6 +14,7 @@
 -include("authentication.hrl").
 -include("onepanel_test_utils.hrl").
 -include("onepanel_test_rest.hrl").
+-include("modules/errors.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("ctool/include/logging.hrl").
@@ -222,12 +223,21 @@ assert_body(JsonBody, Body) ->
 %% @end
 %%--------------------------------------------------------------------
 set_up_default_users(Config) ->
-    ?assertAllMatch({ok, _}, ?callAll(Config, onepanel_user, create,
+    Validator = fun
+        (#error{reason = ?ERR_USERNAME_NOT_AVAILABLE}) -> ok;
+        ({ok, _}) -> ok;
+        (Error) -> ?assertMatch({ok, _}, Error)
+    end,
+
+    Results1 = ?callAll(Config, onepanel_user, create,
         [?REG_USER_NAME, ?REG_USER_PASSWORD, regular]
-    )),
-    ?assertAllMatch({ok, _}, ?callAll(Config, onepanel_user, create,
+    ),
+    lists:foreach(Validator, Results1),
+
+    Results2 = ?callAll(Config, onepanel_user, create,
         [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
-    )).
+    ),
+    lists:foreach(Validator, Results2).
 
 
 %%--------------------------------------------------------------------
