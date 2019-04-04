@@ -37,7 +37,8 @@
     {Authorized :: boolean(), Req :: cowboy_req:req()}.
 is_authorized(Req, _Method, #rstate{resource = Resource, client = Client}) when
     Resource == clusters;
-    Resource == cluster ->
+    Resource == cluster;
+    Resource == remote_provider ->
     {Client#client.role == member, Req};
 
 is_authorized(Req, 'GET', #rstate{client = #client{role = Role}}) when
@@ -114,8 +115,8 @@ accept_resource(Req, _, _, _) ->
 provide_resource(Req, #rstate{resource = current_cluster}) ->
     {clusters:get_current_cluster(), Req};
 
-provide_resource(Req, #rstate{resource = remote_provider, bindings = #{id := ProviderId},
-    client = #client{zone_auth = Auth}}) ->
+provide_resource(Req, #rstate{resource = remote_provider,
+    bindings = #{id := ProviderId}, client = #client{zone_auth = Auth}}) ->
     {clusters:fetch_remote_provider_info(Auth, ProviderId), Req};
 
 provide_resource(Req, #rstate{resource = clusters, client = Client}) ->
