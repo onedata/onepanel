@@ -26,20 +26,22 @@
 
 %% tests
 -export([
+    local_user_should_get_forbidden_error_test/1,
     get_should_return_clusters_list_test/1,
     get_should_return_cluster_details_test/1,
     get_should_return_current_cluster_details_test/1,
-    current_cluster_should_work_for_local_user/1,
-    get_should_return_provider_info/1
+    current_cluster_should_work_for_local_user_test/1,
+    get_should_return_provider_info_test/1
 ]).
 
 all() ->
     ?ALL([
+        local_user_should_get_forbidden_error_test,
         get_should_return_clusters_list_test,
         get_should_return_cluster_details_test,
         get_should_return_current_cluster_details_test,
-        current_cluster_should_work_for_local_user,
-        get_should_return_provider_info
+        current_cluster_should_work_for_local_user_test,
+        get_should_return_provider_info_test
     ]).
 
 
@@ -69,8 +71,8 @@ all() ->
 -define(ZONE_ID, <<"onezone">>).
 -define(ZONE_CLUSTER_ID, <<"onezone">>).
 
--define(PROVIDER_ID, <<"providerId">>).
--define(PROVIDER_CLUSTER_ID, ?PROVIDER_ID).
+-define(PROVIDER_ID, "providerId").
+-define(PROVIDER_CLUSTER_ID, <<?PROVIDER_ID>>).
 
 -define(ACCESS_TOKEN, <<"accessTokenFromOnezone">>).
 
@@ -110,7 +112,7 @@ all() ->
 }).
 
 -define(PROVIDER_DETAILS_REST, #{
-    <<"providerId">> => ?PROVIDER_ID,
+    <<"providerId">> => <<?PROVIDER_ID>>,
     <<"online">> => true,
     <<"name">> => <<"providerName">>,
     <<"longitude">> => 42.0,
@@ -125,14 +127,48 @@ all() ->
 
 
 %%%===================================================================
+%%% Test macros
+%%%===================================================================
+
+-define(eachHost(Config, Fun), lists:foreach(Fun, ?config(all_hosts, Config))).
+
+-define(eachEndpoint(Config, Fun, EndpointsWithMethods),
+    lists:foreach(fun({_Host, _Endpoint, _Method}) ->
+        try
+            Fun(_Host, _Endpoint, _Method)
+        catch
+            error:{assertMatch_failed, _} = _Reason ->
+                ct:print("Failed on: ~s ~s (host ~s)", [_Method, _Endpoint, _Host]),
+                erlang:error(_Reason)
+        end
+    end, [
+        {_Host, _Endpoint, _Method} ||
+        {_Endpoint, _Method} <- EndpointsWithMethods,
+        _Host <- ?config(all_hosts, Config)
+    ])
+).
+
+
+%%%===================================================================
 %%% Test functions
 %%%===================================================================
 
--define(FOREACH_HOST(Config, Fun), lists:foreach(Fun, ?config(all_hosts, Config))).
+
+local_user_should_get_forbidden_error_test(Config) ->
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
+        ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
+            Host, <<Endpoint/binary>>, Method,
+            ?ROOT_AUTHS(Host) ++ ?REGULAR_AUTHS(Host)
+        ))
+    end, [
+        {<<"/user/clusters/">>, get},
+        {<<"/user/clusters/someCluster">>, get},
+        {<<"/providers/someProvider">>, get}
+    ]).
 
 
 get_should_return_clusters_list_test(Config) ->
-    ?FOREACH_HOST(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/user/clusters/">>, get,
@@ -145,7 +181,7 @@ get_should_return_clusters_list_test(Config) ->
 
 
 get_should_return_cluster_details_test(Config) ->
-    ?FOREACH_HOST(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         lists:foreach(fun(ClusterId) ->
             {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
                 onepanel_test_rest:auth_request(
@@ -166,7 +202,7 @@ get_should_return_cluster_details_test(Config) ->
 
 
 get_should_return_current_cluster_details_test(Config) ->
-    ?FOREACH_HOST(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ClusterId = get_cluster_id(Host, Config),
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
@@ -186,8 +222,8 @@ get_should_return_current_cluster_details_test(Config) ->
     end).
 
 
-current_cluster_should_work_for_local_user(Config) ->
-    ?FOREACH_HOST(Config, fun(Host) ->
+current_cluster_should_work_for_local_user_test(Config) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/cluster">>, get,
@@ -197,16 +233,16 @@ current_cluster_should_work_for_local_user(Config) ->
     end).
 
 
-get_should_return_provider_info(Config) ->
-    ?FOREACH_HOST(Config, fun(Host) ->
+get_should_return_provider_info_test(Config) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
-                Host, <<"/providers/", ?PROVIDER_ID/binary>>, get,
-                ?OZ_OR_ROOT_AUTHS(Host, [])
+                Host, <<"/providers/", ?PROVIDER_ID>>, get,
+                ?OZ_AUTHS(Host, [])
             )
         ),
         Expected = #{
-            <<"id">> => ?PROVIDER_ID,
+            <<"id">> => <<?PROVIDER_ID>>,
             <<"name">> => <<"providerName">>,
             <<"online">> => true,
             <<"domain">> => <<"providerDomain">>,
@@ -262,6 +298,7 @@ init_per_testcase(_Case, Config) ->
     test_utils:mock_expect(OpNodes, service_oneprovider, get_auth_token,
         fun() -> <<"providerMacaroon">> end),
 
+    onepanel_test_rest:set_up_default_users(Config),
     onepanel_test_rest:mock_token_authentication(Config),
 
     test_utils:mock_expect(OzNodes, service_oz_worker, get_details,
@@ -276,7 +313,7 @@ init_per_testcase(_Case, Config) ->
         (_Node, cluster_logic, get_protected_data, [_Client, ClusterId]) ->
             {ok, maps:get(ClusterId, ?CLUSTERS)};
         (_Node, provider_logic, get_protected_data, [_Client, ProviderId]) ->
-            ?assertEqual(?PROVIDER_ID, ProviderId),
+            ?assertEqual(<<?PROVIDER_ID>>, ProviderId),
             {ok, ?PROVIDER_DETAILS_RPC};
         (_Node, entity_logic, root_client, []) ->
             {opaque, root_client};
@@ -290,8 +327,7 @@ init_per_testcase(_Case, Config) ->
         (_Auth, "/clusters/" ++ ClusterId, get, _Headers, <<>>, _Opts) ->
             Data = maps:get(list_to_binary(ClusterId), ?CLUSTERS),
             {ok, 200, 0, json_utils:encode(Data)};
-        (_Auth, "/providers/" ++ ProviderId, get, _Headers, <<>>, _Opts) ->
-            ?assertEqual(?PROVIDER_ID, list_to_binary(ProviderId)),
+        (_Auth, "/providers/" ++ ?PROVIDER_ID, get, _Headers, <<>>, _Opts) ->
             {ok, 200, 0, json_utils:encode(?PROVIDER_DETAILS_REST)}
     end),
 
