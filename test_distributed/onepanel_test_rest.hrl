@@ -5,7 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc This module contains utility functions for REST API tests.
+%%% @doc Macros for generating user credentials in REST tests.
 %%% @end
 %%%--------------------------------------------------------------------
 -author("Wojciech Geisler").

@@ -1228,7 +1228,10 @@ user_details_model() ->
         %% The user name.
         username => string,
         %% The user role, one of `admin` or `regular`.
-        userRole => atom
+        userRole => atom,
+        %% List of cluster privileges possessed by the user. This field is
+        %% returned only to a Onezone user fetching information about himself.
+        clusterPrivileges => {[string], optional}
     }.
 
 %%--------------------------------------------------------------------

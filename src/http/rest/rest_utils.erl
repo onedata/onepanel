@@ -22,21 +22,28 @@
 -export([get_method/1, get_bindings/1, get_params/2, get_args/2,
     get_hosts/2, get_cluster_ips/1, verify_any/2, allowed_origin/0]).
 
+-type one_or_many(T) :: T | [T].
+
 %%%===================================================================
 %%% API functions
 %%%===================================================================
 
+%%--------------------------------------------------------------------
+%% @doc Checks if a client has given privilege(s).
+%% @end
+%%--------------------------------------------------------------------
 -spec has_privileges(Client :: rest_handler:client(), RequiredPrivileges) -> boolean()
-    when RequiredPrivileges :: rest_handler:privilege() | rest_handler:privileges().
+    when RequiredPrivileges :: one_or_many(rest_handler:privilege()).
 has_privileges(Client, RequiredPrivilege) when is_atom(RequiredPrivilege) ->
     has_privileges(Client, [RequiredPrivilege]);
 
 has_privileges(#client{role = member, privileges = UserPrivileges}, RequiredPrivileges) ->
     lists:all(fun(Required) ->
-        lists:member(Required, UserPrivileges) end,
-    RequiredPrivileges);
+        lists:member(Required, UserPrivileges)
+    end, RequiredPrivileges);
 
 has_privileges(#client{}, _RequiredPrivileges) -> false.
+
 
 %%--------------------------------------------------------------------
 %% @doc Converts REST method from binary to an atom representation.

@@ -141,10 +141,13 @@ provide_resource(Req, #rstate{resource = user, bindings = #{username := Username
 provide_resource(Req, #rstate{resource = current_user, client = Client}) when
     Client#client.role == member ->
 
-    #user_details{name = Username} = Client#client.user,
+    #client{privileges = Privileges, user = User} = Client,
+    #user_details{name = Username} = User,
     % user coming from Onezone has no onepanel user id
-    % and their privileges match those of a local admin
-    {#{username => Username, userId => null, userRole => admin}, Req};
+    {#{
+        username => Username, userId => null, userRole => admin,
+        clusterPrivileges => Privileges
+    }, Req};
 
 provide_resource(Req, #rstate{resource = current_user} = State) ->
     provide_resource(Req, expand_current_user(State)).

@@ -31,7 +31,6 @@
 -type endpoint() :: http_client:url() | {noprefix, http_client:url()}.
 -type method() :: http_client:method().
 -type auth() :: {Username :: binary(), Password :: binary()} |
-                {cookie, Cookie :: binary()} |
                 {cookie, Name :: binary(), Value :: binary()} |
                 {token, Token :: binary()} |
                 none.

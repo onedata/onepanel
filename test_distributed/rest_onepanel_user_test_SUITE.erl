@@ -27,6 +27,7 @@
     method_should_return_not_found_error/1,
     method_should_return_unauthorized_error/1,
     get_as_admin_should_return_any_account/1,
+    get_as_oz_user_should_return_privileges/1,
     get_as_regular_should_return_only_own_account/1,
     patch_as_admin_should_change_any_account_password/1,
     patch_as_regular_should_change_only_own_account_password/1,
@@ -55,6 +56,7 @@ all() ->
         method_should_return_not_found_error,
         method_should_return_unauthorized_error,
         get_as_admin_should_return_any_account,
+        get_as_oz_user_should_return_privileges ,
         get_as_regular_should_return_only_own_account,
         patch_as_admin_should_change_any_account_password,
         patch_as_regular_should_change_only_own_account_password,
@@ -102,11 +104,35 @@ get_as_admin_should_return_any_account(Config) ->
                 ?OZ_OR_ROOT_AUTHS(Config, [])
             )
         ),
+        Decoded = json_utils:decode(JsonBody),
         onepanel_test_rest:assert_body_fields(JsonBody,
-            [<<"userId">>, <<"userRole">>])
+            [<<"userId">>, <<"userRole">>]),
+        ?assertNot(maps:is_key(<<"clusterPrivileges">>, Decoded))
     end, [
         ?ADMIN_USER1_NAME, ?ADMIN_USER2_NAME,
         ?REG_USER1_NAME, ?REG_USER2_NAME
+    ]).
+
+
+get_as_oz_user_should_return_privileges(Config) ->
+    lists:foreach(fun(PrivilegeSet) ->
+        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(
+                Config, <<"/user/">>, get,
+                hd(?OZ_AUTHS(Config, PrivilegeSet))
+            )
+        ),
+        onepanel_test_rest:assert_body_fields(JsonBody,
+            [<<"userId">>, <<"userRole">>, <<"clusterPrivileges">>]),
+
+        Expected = lists:sort([atom_to_binary(P, utf8) || P <- PrivilegeSet]),
+        #{<<"clusterPrivileges">> := ReturnedPrivileges} = json_utils:decode(JsonBody),
+        ?assertEqual(Expected, lists:sort(ReturnedPrivileges))
+    end, [
+        [],
+        [?CLUSTER_VIEW],
+        [?CLUSTER_UPDATE, ?CLUSTER_VIEW],
+        privileges:cluster_admin()
     ]).
 
 

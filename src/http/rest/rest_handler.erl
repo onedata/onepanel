@@ -38,7 +38,6 @@
 -type state() :: #rstate{}.
 -type method() :: #rmethod{}.
 -type privilege() :: privileges:cluster_privilege().
--type privileges() :: [privilege()].
 
 %% Objects used to authenticate request to Onezone
 -type zone_auth() :: rpc_auth() | rest_auth() | none.
@@ -52,7 +51,7 @@
 
 -export_type([version/0, accept_method_type/0, method_type/0, resource/0,
     data/0, bindings/0, params/0, args/0, spec/0, client/0, state/0,
-    method/0, privilege/0, privileges/0]).
+    method/0, privilege/0]).
 
 %%%===================================================================
 %%% API functions
