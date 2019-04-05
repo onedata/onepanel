@@ -51,6 +51,7 @@ is_authorized(Req, 'GET', #rstate{resource = task}) ->
     {true, Req};
 is_authorized(Req, 'GET', #rstate{resource = nagios}) ->
     {true, Req};
+
 is_authorized(Req, 'GET', #rstate{resource = service_oneprovider}) ->
     {onepanel_user:get_by_role(admin) == [], Req};
 is_authorized(Req, 'POST', #rstate{resource = service_oneprovider}) ->

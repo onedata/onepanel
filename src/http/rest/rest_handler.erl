@@ -40,6 +40,7 @@
 -type privilege() :: privileges:cluster_privilege().
 
 %% Objects used to authenticate request to Onezone
+%% 'none' is used if proper authentication object could not be obtained
 -type zone_auth() :: rpc_auth() | rest_auth() | none.
 %% Used by oz_panel
 -type rpc_auth() :: {rpc, LogicClient :: term()}.

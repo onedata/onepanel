@@ -24,8 +24,7 @@
     %% root - user with role 'admin' (in the future: authenticated with root password)
     role :: guest | member | root,
     user :: undefined | #user_details{},
-    % @fixme describe when it's undefined and when it's root
-    zone_auth :: undefined | rest_handler:zone_auth(),
+    zone_auth = none :: rest_handler:zone_auth(),
     privileges :: undefined | [privileges:cluster_privilege()]
 }).
 

@@ -238,6 +238,6 @@ set_up_service_in_onezone() ->
         [Client, clusters:get_id(), ?ONEPANEL, VersionInfo]),
 
     % pre-warm cache
-    (catch clusters:get_current_cluster()),
+    clusters:get_current_cluster(),
 
     ?info("Onezone panel service successfully set up in Onezone").

@@ -24,7 +24,7 @@
 
 %% API
 -export([get_id/0]).
--export([get_user_privileges/2]).
+-export([get_user_privileges/1]).
 -export([get_current_cluster/0, get_details/2, list_user_clusters/1]).
 -export([fetch_remote_provider_info/2]).
 
@@ -65,17 +65,29 @@ get_current_cluster() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Given user credentials, returns his privileges in the current cluster.
-%% Throws if connection could not be established.
+%% @doc Returns user privileges in the current cluster by UserId.
+%% Throws if connection to Onezone could not be established.
 %% Retrieves the credentials using root client authorization
 %% as the user might not have enough privileges to view his own privileges.
 %% @end
 %%--------------------------------------------------------------------
+-spec get_user_privileges(OnezoneUserId :: binary()) ->
+    {ok, [privileges:cluster_privilege()]} | #error{} | no_return().
+get_user_privileges(OnezoneUserId) ->
+    RootAuth = zone_client:root_auth(),
+    get_user_privileges(RootAuth, OnezoneUserId).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Returns user privileges in the current cluster by UserId.
+%% Users specified authentication for the request.
+%% @end
+%%--------------------------------------------------------------------
 -spec get_user_privileges(rest_handler:zone_auth(), OnezoneUserId :: binary()) ->
     {ok, [privileges:cluster_privilege()]} | #error{} | no_return().
-get_user_privileges({rest, _}, OnezoneUserId) ->
+get_user_privileges({rest, RestAuth}, OnezoneUserId) ->
     simple_cache:get(?PRIVILEGES_CACHE_KEY(OnezoneUserId), fun() ->
-        {rest, RestAuth} = zone_client:root_auth(),
         case zone_rest(RestAuth, "/clusters/~s/effective_users/~s/privileges",
             [?MODULE:get_id(), OnezoneUserId]) of
             {ok, #{privileges := Privileges}} ->
@@ -89,8 +101,7 @@ get_user_privileges({rest, _}, OnezoneUserId) ->
         end
     end);
 
-get_user_privileges({rpc, _}, OnezoneUserId) ->
-    {ok, LogicClient} = service_oz_worker:get_logic_client(root),
+get_user_privileges({rpc, LogicClient}, OnezoneUserId) ->
     case zone_rpc(cluster_logic, get_eff_user_privileges,
         [LogicClient, ?MODULE:get_id(), OnezoneUserId]) of
         #error{reason = ?ERR_NOT_FOUND} -> ?make_error(?ERR_USER_NOT_IN_CLUSTER);

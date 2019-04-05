@@ -142,17 +142,11 @@ find_auth_token(_) ->
 
 
 %% @private
--spec user_to_client(#onepanel_user{}) -> #client{}.
+-spec user_to_client(onepanel_user:record()) -> #client{}.
 user_to_client(#onepanel_user{username = Username, role = admin}) ->
-    (root_client())#client{role = root,
+    #client{role = root, zone_auth = zone_client:root_auth(),
         user = #user_details{id = <<>>, name = Username}};
 
 user_to_client(#onepanel_user{username = Username, role = regular}) ->
-    #client{user = #user_details{id = <<>>, name = Username}, role = guest}.
-
-
-%% @private
--spec root_client() -> #client{}.
-root_client() ->
-    ZoneAuth = try zone_client:root_auth() catch _:_ -> undefined end,
-    #client{role = root, zone_auth = ZoneAuth}.
+    #client{role = guest, zone_auth = none,
+        user = #user_details{id = <<>>, name = Username}}.
