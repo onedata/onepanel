@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Krzysztof Trzepla
-%%% @copyright (C): 2016 ACK CYFRONET AGH
+%%% @copyright (C) 2016 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -10,7 +10,10 @@
 -module(rest_onepanel).
 -author("Krzysztof Trzepla").
 
+-include("names.hrl").
 -include("http/rest.hrl").
+-include("authentication.hrl").
+-include("deployment_progress.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 -behavior(rest_behaviour).
@@ -19,8 +22,10 @@
 -export([is_authorized/3, exists_resource/2, accept_possible/4, is_available/3,
     accept_resource/4, provide_resource/2, delete_resource/2]).
 
+%% API functions
+-export([rest_to_marker_mapping/0]).
+
 -define(SERVICE, service_onepanel:name()).
--define(LE_SERVICE, service_letsencrypt:name()).
 
 %%%===================================================================
 %%% REST behaviour callbacks
@@ -33,7 +38,11 @@
 -spec is_authorized(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     State :: rest_handler:state()) ->
     {Authorized :: boolean(), Req :: cowboy_req:req()}.
-is_authorized(Req, _Method, #rstate{client = #client{role = admin}}) ->
+is_authorized(Req, _Method, #rstate{client = #client{role = Role}}) when
+    %% @TODO VFS-5235 remove role 'user' here and check privileges
+    Role == root;
+    Role == admin;
+    Role == user ->
     {true, Req};
 
 is_authorized(Req, _Method, #rstate{resource = configuration}) ->
@@ -80,7 +89,7 @@ accept_possible(Req, _Method, _Args, _State) ->
 %% @doc {@link rest_behaviour:is_available/3}
 %% @end
 %%--------------------------------------------------------------------
-is_available(Req, _Method, #rstate{resource = web_cert}) ->
+is_available(Req, 'PATCH', #rstate{resource = web_cert}) ->
     {service:all_healthy(), Req};
 
 is_available(Req, _Method, _State) ->
@@ -116,8 +125,23 @@ accept_resource(Req, 'POST', #{address := Address},
 accept_resource(Req, 'PATCH', Args, #rstate{resource = web_cert}) ->
     Ctx = onepanel_maps:get_store(letsEncrypt, Args, letsencrypt_enabled),
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?LE_SERVICE, update, Ctx
-    ))}.
+        ?SERVICE_LE, update, Ctx
+    ))};
+
+accept_resource(Req, 'PATCH', Args, #rstate{resource = progress}) ->
+    Mapping = rest_to_marker_mapping(),
+    MarksToSet = lists:filtermap(fun({Field, Bool}) ->
+        case lists:keyfind(Field, 1, Mapping) of
+            {Field, ProgressMark} -> {true, {ProgressMark, Bool}};
+            false -> false
+        end
+    end, maps:to_list(Args)),
+
+    lists:foreach(fun
+        ({Marker, true}) -> onepanel_deployment:set_marker(Marker);
+        ({Marker, false}) -> onepanel_deployment:unset_marker(Marker)
+    end, MarksToSet),
+    {true, Req}.
 
 
 %%--------------------------------------------------------------------
@@ -130,9 +154,9 @@ provide_resource(Req, #rstate{resource = cookie}) ->
     {erlang:get_cookie(), Req};
 
 provide_resource(Req, #rstate{resource = node}) ->
-    Hostname = onepanel_utils:convert(onepanel_cluster:node_to_host(), binary),
-    ReleaseType = onepanel_env:get(release_type),
-    {#{hostname => Hostname, componentType => ReleaseType}, Req};
+    Hostname = onepanel_utils:convert(hosts:self(), binary),
+    ClusterType = onepanel_env:get_cluster_type(),
+    {#{hostname => Hostname, clusterType => ClusterType}, Req};
 
 provide_resource(Req, #rstate{resource = hosts}) ->
     Hosts = service_onepanel:get_hosts(),
@@ -144,9 +168,12 @@ provide_resource(Req, #rstate{resource = configuration}) ->
 provide_resource(Req, #rstate{resource = web_cert}) ->
     {rest_replier:format_service_step(service_letsencrypt, get_details,
         service_utils:throw_on_error(service:apply_sync(
-            ?LE_SERVICE, get_details, #{}
+            ?SERVICE_LE, get_details, #{}
         ))
-    ), Req}.
+    ), Req};
+
+provide_resource(Req, #rstate{resource = progress}) ->
+    {rest_replier:format_deployment_progress(), Req}.
 
 
 %%--------------------------------------------------------------------
@@ -159,3 +186,37 @@ delete_resource(Req, #rstate{resource = host, bindings = #{host := Host}}) ->
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?SERVICE, leave_cluster, #{hosts => [Host]}
     ))}.
+
+
+%%%===================================================================
+%%% API functions
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc Maps between rest 'progress' endpoint fields and atoms
+%% used in onepanel_deployment model.
+%% @end
+%%--------------------------------------------------------------------
+-spec rest_to_marker_mapping() -> [{atom(), onepanel_deployment:marker()}].
+rest_to_marker_mapping() ->
+    rest_to_marker_mapping(onepanel_env:get_cluster_type()).
+
+
+%% @private
+-spec rest_to_marker_mapping(onedata:cluster_type() | common) ->
+    [{RestField :: atom(), ProgressMark :: onepanel_deployment:marker()}].
+rest_to_marker_mapping(onezone) ->
+    rest_to_marker_mapping(common);
+
+rest_to_marker_mapping(oneprovider) ->
+    [
+        {storagesSetup, ?PROGRESS_STORAGE_SETUP}
+        | rest_to_marker_mapping(common)
+    ];
+
+rest_to_marker_mapping(common) -> [
+    {clusterNodes, ?PROGRESS_CLUSTER},
+    {clusterIps, ?PROGRESS_CLUSTER_IPS},
+    {webCertificate, ?PROGRESS_LETSENCRYPT_CONFIG},
+    {dnsCheck, ?DNS_CHECK_ACKNOWLEDGED}
+].

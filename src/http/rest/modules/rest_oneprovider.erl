@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Krzysztof Trzepla
-%%% @copyright (C): 2016 ACK CYFRONET AGH
+%%% @copyright (C) 2016 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -10,7 +10,9 @@
 -module(rest_oneprovider).
 -author("Krzysztof Trzepla").
 
+-include("names.hrl").
 -include("http/rest.hrl").
+-include("authentication.hrl").
 -include("modules/errors.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include("modules/models.hrl").
@@ -21,8 +23,8 @@
 -export([is_authorized/3, exists_resource/2, accept_possible/4, is_available/3,
     accept_resource/4, provide_resource/2, delete_resource/2]).
 
--define(SERVICE, service_oneprovider:name()).
--define(WORKER, service_op_worker:name()).
+-define(SERVICE, ?SERVICE_OP).
+-define(WORKER, ?SERVICE_OPW).
 
 %%%===================================================================
 %%% REST behaviour callbacks
@@ -35,7 +37,10 @@
 -spec is_authorized(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     State :: rest_handler:state()) ->
     {Authorized :: boolean(), Req :: cowboy_req:req()}.
-is_authorized(Req, _Method, #rstate{client = #client{role = admin}}) ->
+is_authorized(Req, _Method, #rstate{client = #client{role = Role}}) when
+    Role == root;
+    Role == admin;
+    Role == user ->
     {true, Req};
 
 is_authorized(Req, _Method, _State) ->
@@ -49,24 +54,33 @@ is_authorized(Req, _Method, _State) ->
 -spec exists_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
 exists_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
-    Node = utils:random_element(service_op_worker:get_nodes()),
-    {rpc:call(Node, storage, exists, [Id]), Req};
+    case nodes:any(?WORKER) of
+        {ok, Node} ->
+            {op_worker_storage:exists(Node, {id, Id}), Req};
+        _ ->
+            {false, Req}
+    end;
+
+exists_resource(Req, #rstate{resource = storages}) ->
+    {service:exists(?WORKER), Req};
 
 exists_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
     {service_oneprovider:is_space_supported(#{space_id => Id}), Req};
 
+exists_resource(Req, #rstate{resource = onezone_info, params = #{token := _}}) ->
+    {true, Req};
+
 exists_resource(Req, _State) ->
-    case service:get(?SERVICE) of
-        {ok, #service{ctx = #{registered := true}}} -> {true, Req};
-        {ok, #service{}} -> {false, Req};
-        #error{reason = ?ERR_NOT_FOUND} -> {false, Req}
-    end.
+    {service_oneprovider:is_registered(), Req}.
 
 
 %%--------------------------------------------------------------------
 %% @doc {@link rest_behaviour:accept_possible/4}
 %% @end
 %%--------------------------------------------------------------------
+accept_possible(Req, 'POST', _Args, #rstate{resource = provider}) ->
+    {not service_oneprovider:is_registered(), Req};
+
 accept_possible(Req, _Method, _Args, _State) ->
     {true, Req}.
 
@@ -75,11 +89,9 @@ accept_possible(Req, _Method, _Args, _State) ->
 %% @doc {@link rest_behaviour:is_available/3}
 %% @end
 %%--------------------------------------------------------------------
-is_available(Req, 'GET', #rstate{resource = cluster_ips}) ->
-    {true, Req};
-
-is_available(Req, _Method, _State) ->
-    {service:all_healthy(), Req}.
+is_available(Req, 'GET', #rstate{resource = cluster_ips}) -> {true, Req};
+is_available(Req, 'GET', #rstate{resource = provider}) -> {true, Req};
+is_available(Req, _Method, _State) -> {service:all_healthy(), Req}.
 
 
 %%--------------------------------------------------------------------
@@ -91,7 +103,7 @@ is_available(Req, _Method, _State) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()}.
 accept_resource(Req, 'POST', Args, #rstate{resource = provider}) ->
     Ctx = onepanel_maps:get_store_multiple([
-        {onezoneDomainName, onezone_domain},
+        {token, oneprovider_token},
         {name, oneprovider_name},
         {subdomainDelegation, oneprovider_subdomain_delegation},
         {domain, oneprovider_domain},
@@ -336,7 +348,16 @@ provide_resource(Req, #rstate{resource = cluster_ips}) ->
         service_utils:throw_on_error(service:apply_sync(
             ?SERVICE, format_cluster_ips, #{}
         ))
-    ), Req}.
+    ), Req};
+
+provide_resource(Req, #rstate{resource = onezone_info, params = #{token := Token}}) ->
+    Domain = zone_tokens:read_domain(Token),
+    {zone_client:fetch_zone_info(Domain), Req};
+
+provide_resource(Req, #rstate{resource = onezone_info}) ->
+    % exists_resource ensures the Oneprovider is registered
+    Domain = list_to_binary(service_oneprovider:get_oz_domain()),
+    {zone_client:fetch_zone_info(Domain), Req}.
 
 
 %%--------------------------------------------------------------------
@@ -346,10 +367,9 @@ provide_resource(Req, #rstate{resource = cluster_ips}) ->
 -spec delete_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Deleted :: boolean(), Req :: cowboy_req:req()}.
 delete_resource(Req, #rstate{resource = provider}) ->
-    Response = {true, rest_replier:throw_on_service_error(
+    {true, rest_replier:throw_on_service_error(
         Req, service:apply_sync(?SERVICE, unregister, #{})
-    )},
-    Response;
+    )};
 
 delete_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(

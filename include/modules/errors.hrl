@@ -29,6 +29,7 @@
     bad_results :: onepanel_rpc:results()
 }).
 
+
 -define(make_error(Reason), ?make_error(Reason, undefined)).
 
 -define(make_error(Reason, Args),
@@ -39,6 +40,7 @@
 
 -define(make_error(Reason, Module, Function, Arity, Args),
     onepanel_errors:create(Module, Function, Arity, Args, Reason, [], ?LINE)).
+
 
 -define(make_stacktrace(Reason), ?make_stacktrace(Reason, undefined)).
 
@@ -57,6 +59,7 @@
 -define(make_stacktrace(Reason, Module, Function, Arity, Args, Stacktrace),
     onepanel_errors:create(Module, Function, Arity, Args, Reason, Stacktrace, ?LINE)).
 
+
 -define(throw_error(Reason), erlang:throw(?make_error(Reason))).
 
 -define(throw_error(Reason, Args), erlang:throw(?make_error(Reason, Args))).
@@ -66,6 +69,7 @@
 
 -define(throw_error(Reason, Module, Function, Arity, Args),
     erlang:throw(?make_error(Reason, Module, Function, Arity, Args))).
+
 
 -define(throw_stacktrace(Reason), erlang:throw(?make_stacktrace(Reason))).
 
@@ -83,14 +87,21 @@
 -define(throw_stacktrace(Reason, Module, Function, Arity, Args, Stacktrace),
     erlang:throw(?make_stacktrace(Reason, Module, Function, Arity, Args, Stacktrace))).
 
+
 -define(ERR_TIMEOUT, timeout).
+-define(ERR_NODE_DOWN, {badrpc, nodedown}).
 -define(ERR_NOT_FOUND, not_found).
+-define(ERR_NOT_SUPPORTED, not_supported).
 -define(ERR_ALREADY_EXISTS, already_exists).
 -define(ERR_BAD_NODE, bad_node).
 -define(ERR_NIF_NOT_LOADED, nif_not_loaded).
 -define(ERR_CMD_FAILURE(Code, Output), {shell_command_failure, {Code, Output}}).
 -define(ERR_FAILURE_ON_ALL_NODES, failure_on_all_nodes).
+-define(ERR_BAD_UPGRADE, bad_upgrade).
+-define(ERR_UPGRADE_FROM_FUTURE_ERROR(Model, CurrentVsn, TargetVsn),
+    {future_version, Model, CurrentVsn, TargetVsn}).
 -define(ERR_SERVICE_STEP_NOT_FOUND, service_step_not_found).
+-define(ERR_NO_SERVICE_HOSTS(Service), {no_service_hosts, Service}).
 -define(ERR_HOST_NOT_FOUND, host_not_found).
 -define(ERR_NODE_NOT_EMPTY(Host), {node_not_empty, Host}).
 -define(ERR_INCOMPATIBLE_NODE(Host, ClusterType), {incompatible_node, Host, ClusterType}).
@@ -99,14 +110,20 @@
 -define(ERR_INVALID_USERNAME, invalid_username).
 -define(ERR_INVALID_PASSWORD, invalid_password).
 -define(ERR_INVALID_ROLE, invalid_role).
+-define(ERR_AUTH_METHOD_FORBIDDEN, auth_method_forbidden).
 -define(ERR_INVALID_USERNAME_OR_PASSWORD, invalid_username_or_password).
+-define(ERR_UNAUTHORIZED, unauthorized).
+-define(ERR_INVALID_AUTH_TOKEN, invalid_auth_token).
+-define(ERR_USER_NOT_IN_CLUSTER, user_not_in_cluster).
 
 -define(ERR_MISSING_KEY, missing_key).
 -define(ERR_MISSING_PARAM, missing_param).
 -define(ERR_MISSING_ANY_KEY, missing_any_key).
 -define(ERR_INVALID_VALUE, invalid_value).
+-define(ERR_INVALID_VALUE_TOKEN, invalid_value_token).
 -define(ERR_HOST_NOT_FOUND_FOR_ALIAS, host_not_found_for_alias).
 
+-define(ERR_NOT_REGISTERED, not_registered).
 -define(ERR_ONEZONE_NOT_AVAILABLE, onezone_not_available).
 -define(ERR_SUBDOMAIN_NOT_AVAILABLE, subdomain_not_available).
 

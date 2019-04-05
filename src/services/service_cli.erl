@@ -55,10 +55,10 @@ stop(Service) ->
 %%--------------------------------------------------------------------
 %% @doc Checks service status using given command.
 %% Services started with custom binary paths require the 'ping'
-%% command, otheriwse status can be used.
+%% command, otherwise status can be used.
 %% @end
 %%--------------------------------------------------------------------
--spec status(service:name(), Comamnd :: status | ping) -> running | stopped | missing.
+-spec status(service:name(), Command :: status | ping) -> running | stopped | missing.
 status(Service, Command) ->
     Tokens = [get_script(Service), Command],
     case onepanel_shell:execute(Tokens) of

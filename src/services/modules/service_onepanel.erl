@@ -22,9 +22,10 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([set_cookie/1, check_connection/1, ensure_all_hosts_available/1,
-    init_cluster/1, extend_cluster/1, join_cluster/1, reset_node/1,
-    ensure_node_ready/1, reload_webcert/1, add_users/1, available_for_clustering/0]).
+-export([set_cookie/1, check_connection/1,
+    ensure_all_hosts_available/1, init_cluster/1, extend_cluster/1,
+    join_cluster/1, reset_node/1, ensure_node_ready/1, reload_webcert/1,
+    add_users/1, available_for_clustering/0]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -45,7 +46,7 @@ name() ->
 %%--------------------------------------------------------------------
 -spec get_hosts() -> Hosts :: [service:host()].
 get_hosts() ->
-    onepanel_cluster:nodes_to_hosts(get_nodes()).
+    hosts:from_nodes(get_nodes()).
 
 
 %%--------------------------------------------------------------------
@@ -64,7 +65,7 @@ get_nodes() ->
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, #{hosts := Hosts} = Ctx) ->
-    SelfHost = onepanel_cluster:node_to_host(),
+    SelfHost = hosts:self(),
     ClusterHosts = get_hosts(),
     NewHosts = onepanel_lists:subtract(Hosts, ClusterHosts),
     Attempts = application:get_env(?APP_NAME, extend_cluster_attempts, 20),
@@ -75,12 +76,12 @@ get_steps(deploy, #{hosts := Hosts} = Ctx) ->
 
 get_steps(extend_cluster, Ctx) ->
     [
-        #step{function = extend_cluster, hosts = [onepanel_cluster:node_to_host()],
+        #step{function = extend_cluster, hosts = [hosts:self()],
             ctx = Ctx#{attempts => 1}}
     ];
 
 get_steps(init_cluster, _Ctx) ->
-    S = #step{hosts = [onepanel_cluster:node_to_host()], verify_hosts = false},
+    S = #step{hosts = [hosts:self()], verify_hosts = false},
     [
         S#step{function = set_cookie},
         S#step{function = reset_node},
@@ -88,7 +89,7 @@ get_steps(init_cluster, _Ctx) ->
     ];
 
 get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
-    SelfHost = onepanel_cluster:node_to_host(),
+    SelfHost = hosts:self(),
     case {available_for_clustering(), ClusterHost} of
         {_, SelfHost} -> [];
         {false, _} -> ?throw_error(?ERR_NODE_NOT_EMPTY(SelfHost));
@@ -116,12 +117,12 @@ get_steps(leave_cluster, #{hosts := Hosts}) ->
         #step{function = init_cluster, hosts = Hosts}
     ];
 get_steps(leave_cluster, Ctx) ->
-    get_steps(leave_cluster, Ctx#{hosts => [onepanel_cluster:node_to_host()]});
+    get_steps(leave_cluster, Ctx#{hosts => [hosts:self()]});
 
 %% Utility for managing cluster restart, waiting for all onepanel
 %% nodes in the cluster to start.
 get_steps(wait_for_cluster, _Ctx) ->
-    SelfHost = onepanel_cluster:node_to_host(),
+    SelfHost = hosts:self(),
     Attempts = application:get_env(?APP_NAME, wait_for_cluster_attempts, 20),
     [
         #step{service = name(), function = ensure_all_hosts_available,
@@ -129,6 +130,9 @@ get_steps(wait_for_cluster, _Ctx) ->
         #step{service = name(), function = ensure_node_ready,
             attempts = Attempts, hosts = get_hosts()}
     ];
+
+get_steps(add_users, #{admin := _}) ->
+    [#step{function = add_users, selection = any}];
 
 get_steps(add_users, #{users := _}) ->
     [#step{function = add_users, selection = any}];
@@ -165,7 +169,7 @@ set_cookie(Ctx) ->
 %%--------------------------------------------------------------------
 -spec check_connection(Ctx :: service:ctx()) -> ok.
 check_connection(#{cluster_host := ClusterHost}) ->
-    ClusterNode = onepanel_cluster:service_to_node(name(), ClusterHost),
+    ClusterNode = nodes:service_to_node(name(), ClusterHost),
     pong = net_adm:ping(ClusterNode),
     ok.
 
@@ -197,7 +201,7 @@ extend_cluster(#{attempts := Attempts}) when Attempts =< 0 ->
 
 extend_cluster(#{hostname := Hostname, api_version := ApiVersion,
     attempts := Attempts} = Ctx) ->
-    SelfHost = onepanel_cluster:node_to_host(),
+    SelfHost = hosts:self(),
     Body = json_utils:encode(#{
         cookie => erlang:get_cookie(),
         clusterHost => onepanel_utils:convert(SelfHost, binary)
@@ -221,11 +225,11 @@ extend_cluster(#{hostname := Hostname, api_version := ApiVersion,
 
 extend_cluster(#{address := Address, api_version := _ApiVersion,
     attempts := Attempts} = Ctx) ->
-    ClusterType = onepanel_env:get(release_type),
+    ClusterType = onepanel_env:get_cluster_type(),
     case get_remote_node_info(Ctx) of
         {ok, Hostname, ClusterType} ->
             extend_cluster(Ctx#{hostname => Hostname});
-        {ok, Hostname, OtherType} ->
+        {ok, _Hostname, OtherType} ->
             ?throw_error(?ERR_INCOMPATIBLE_NODE(Address, OtherType));
         #error{reason = ?ERR_BAD_NODE} ->
             ?warning("Failed to connect with '~s' to extend cluster", [Address]),
@@ -240,7 +244,7 @@ extend_cluster(#{address := Address, api_version := _ApiVersion,
 -spec join_cluster(Ctx :: service:ctx()) -> ok.
 join_cluster(#{cluster_host := ClusterHost}) ->
     Node = node(),
-    ClusterNode = onepanel_cluster:service_to_node(name(), ClusterHost),
+    ClusterNode = nodes:service_to_node(name(), ClusterHost),
     ok = rpc:call(ClusterNode, onepanel_db, add_node, [Node]),
     onepanel_db:copy_tables().
 
@@ -266,6 +270,14 @@ reset_node(_Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec add_users(Ctx :: service:ctx()) -> ok.
+add_users(#{admin := AdminUser}) ->
+    #{username := Username, password := Password} = AdminUser,
+    UsersSpec = #{Username => #{
+        password => Password,
+        userRole => admin
+    }},
+    add_users(#{users => UsersSpec});
+
 add_users(#{users := Users}) ->
     maps:fold(fun(Username, #{password := Password, userRole := Role}, _) ->
         case onepanel_user:create_noexcept(Username, Password, Role) of
@@ -317,8 +329,9 @@ reload_webcert(_Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 available_for_clustering() ->
-    onepanel_user:get_by_role(admin) == [] andalso length(get_hosts()) =< 1
-    andalso not onepanel_deployment:is_completed(?PROGRESS_CLUSTER).
+    onepanel_user:get_by_role(admin) == [] andalso
+        length(get_hosts()) =< 1 andalso
+        not onepanel_deployment:is_set(?PROGRESS_CLUSTER).
 
 
 %%%===================================================================
@@ -345,8 +358,8 @@ get_remote_node_info(#{address := Address, api_version := ApiVersion} = Ctx) ->
     case http_client:get(Url, Headers, <<>>, Opts) of
         {ok, 200, _, Body} ->
             #{<<"hostname">> := Hostname,
-                <<"componentType">> := ReleaseType} = json_utils:decode(Body),
-            {ok, Hostname, onepanel_utils:convert(ReleaseType, atom)};
+                <<"clusterType">> := ClusterType} = json_utils:decode(Body),
+            {ok, Hostname, onepanel_utils:convert(ClusterType, atom)};
         {error, _} -> ?make_error(?ERR_BAD_NODE)
     end.
 
@@ -389,7 +402,7 @@ https_opts(Timeout) ->
 %%--------------------------------------------------------------------
 -spec is_used(service:host()) -> boolean().
 is_used(Host) ->
-    ClusterType = onepanel_env:get(release_type),
+    ClusterType = onepanel_env:get_cluster_type(),
     SModule = service:get_module(ClusterType),
     try
         lists:member(Host, SModule:get_hosts())

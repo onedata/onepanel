@@ -13,7 +13,6 @@
 
 -include_lib("ctool/include/test/test_utils.hrl").
 
--define(DEFAULT_AUTH, <<"Basic ", (base64:encode(<<"admin:password">>))/binary>>).
 -define(API_VERSION, 3).
 
 -define(call(Config, Module, Function, Args),

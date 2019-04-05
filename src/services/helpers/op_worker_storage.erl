@@ -12,13 +12,14 @@
 -module(op_worker_storage).
 -author("Krzysztof Trzepla").
 
+-include("names.hrl").
 -include("modules/errors.hrl").
 
 -include_lib("hackney/include/hackney_lib.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([add/2, get/0, get/1, update/2]).
+-export([add/2, get/0, get/1, exists/2, update/2]).
 -export([get_supporting_storage/2, get_supporting_storages/2,
     get_file_popularity_configuration/2, get_auto_cleaning_configuration/2]).
 -export([is_mounted_in_root/3]).
@@ -43,7 +44,7 @@
 %%--------------------------------------------------------------------
 -spec add(Storages :: storage_map(), IgnoreExists :: boolean()) -> ok | no_return().
 add(Storages, IgnoreExists) ->
-    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
+    Node = nodes:local(?SERVICE_OPW),
     ?info("Adding ~b storage(s)", [maps:size(Storages)]),
     maps:fold(fun(Key, Value, _) ->
         StorageName = onepanel_utils:convert(Key, binary),
@@ -79,7 +80,7 @@ add(Storages, IgnoreExists) ->
 %%--------------------------------------------------------------------
 -spec get() -> list().
 get() ->
-    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
+    Node = nodes:local(?SERVICE_OPW),
     {ok, Storages} = rpc:call(Node, storage, list, []),
     Ids = lists:map(fun(Storage) ->
         rpc:call(Node, storage, get_id, [Storage])
@@ -93,7 +94,7 @@ get() ->
 %%--------------------------------------------------------------------
 -spec get(Id :: id()) -> storage_params_map().
 get(Id) ->
-    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
+    Node = nodes:local(?SERVICE_OPW),
     {ok, Storage} = rpc:call(Node, storage, get, [Id]),
     get_storage(Node, Storage).
 
@@ -137,7 +138,7 @@ is_mounted_in_root(Node, SpaceId, StorageId) ->
 %%--------------------------------------------------------------------
 -spec update(Name :: name(), Args :: maps:map()) -> ok.
 update(Id, Args) ->
-    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
+    Node = nodes:local(?SERVICE_OPW),
     Storage = op_worker_storage:get(Id),
     {ok, Id} = onepanel_maps:get(id, Storage),
     {ok, Type} = onepanel_maps:get(type, Storage),
@@ -147,15 +148,19 @@ update(Id, Args) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Checks if storage with given name exists.
+%% @doc Checks if storage with given name or id exists.
 %% @end
 %%--------------------------------------------------------------------
--spec exists(Node :: node(), StorageName :: name()) -> boolean().
-exists(Node, StorageName) ->
+-spec exists(Node :: node(), Identifier) -> boolean()
+    when Identifier :: {name, name()} | {id, id()}.
+exists(Node, {name, StorageName}) ->
     case rpc:call(Node, storage, select, [StorageName]) of
         {error, not_found} -> false;
         {ok, _} -> true
-    end.
+    end;
+
+exists(Node, {id, StorageId}) ->
+    rpc:call(Node, storage, exists, [StorageId]).
 
 
 %%-------------------------------------------------------------------
@@ -199,17 +204,17 @@ maybe_update_auto_cleaning(Node, SpaceId, Args) ->
 %% configuration from provider.
 %% @end
 %%-------------------------------------------------------------------
--spec get_file_popularity_configuration(Node :: node(), SpaceId :: id()) -> proplists:proplist().
+-spec get_file_popularity_configuration(Node :: node(), SpaceId :: id()) -> #{atom() => term()}.
 get_file_popularity_configuration(Node, SpaceId) ->
     case rpc:call(Node, file_popularity_api, get_configuration, [SpaceId]) of
         {ok, DetailsMap} ->
-            maps:to_list(onepanel_maps:get_store_multiple([
+            onepanel_maps:get_store_multiple([
                 {[enabled], [enabled]},
                 {[example_query], [exampleQuery]},
                 {[last_open_hour_weight], [lastOpenHourWeight]},
                 {[avg_open_count_per_day_weight], [avgOpenCountPerDayWeight]},
                 {[max_avg_open_count_per_day], [maxAvgOpenCountPerDay]}
-            ], DetailsMap));
+            ], DetailsMap);
         {error, Reason} ->
             ?throw_error({?ERR_FILE_POPULARITY, Reason})
     end.
@@ -220,7 +225,7 @@ get_file_popularity_configuration(Node, SpaceId) ->
 %% provider.
 %% @end
 %%-------------------------------------------------------------------
--spec get_auto_cleaning_configuration(Node :: node(), SpaceId :: id()) -> proplists:proplist().
+-spec get_auto_cleaning_configuration(Node :: node(), SpaceId :: id()) -> #{atom() => term()}.
 get_auto_cleaning_configuration(Node, SpaceId) ->
     DetailsMap = rpc:call(Node, autocleaning_api, get_configuration, [SpaceId]),
     DetailsMap2 = onepanel_maps:get_store_multiple([
@@ -232,7 +237,7 @@ get_auto_cleaning_configuration(Node, SpaceId) ->
         {[rules, max_daily_moving_average], [rules, maxDailyMovingAverage]},
         {[rules, max_monthly_moving_average], [rules, maxMonthlyMovingAverage]}
     ], DetailsMap, DetailsMap),
-    onepanel_lists:map_undefined_to_null(onepanel_maps:to_list(DetailsMap2)).
+    onepanel_maps:undefined_to_null(DetailsMap2).
 
 %%-------------------------------------------------------------------
 %% @doc
@@ -242,7 +247,7 @@ get_auto_cleaning_configuration(Node, SpaceId) ->
 %%-------------------------------------------------------------------
 -spec invalidate_luma_cache(StorageId :: binary) -> ok.
 invalidate_luma_cache(StorageId) ->
-    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
+    Node = nodes:local(?SERVICE_OPW),
     ok = rpc:call(Node, luma_cache, invalidate, [StorageId]).
 
 %%%===================================================================
@@ -457,7 +462,7 @@ verify_storage(Helper) ->
     ReadOnly :: boolean(), LumaConfig :: luma_config()) ->
     {ok, StorageId :: binary()} | {error, Reason :: term()}.
 add_storage(Node, StorageName, Helpers, ReadOnly, LumaConfig) ->
-    case exists(Node, StorageName) of
+    case exists(Node, {name, StorageName}) of
         true ->
             {error, already_exists};
         false ->

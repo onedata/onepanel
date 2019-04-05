@@ -15,6 +15,9 @@
 
 % Endpoint to get Onepanel configuration
 -define(CONFIGURATION_PATH, "/configuration").
+-define(ONEZONE_LOGIN_PATH, "/onezone-login").
+-define(LOGIN_PATH, "/login").
+-define(LOGOUT_PATH, "/logout").
+-define(GUI_TOKEN_PATH, "/gui-token").
 
 -endif.
-
