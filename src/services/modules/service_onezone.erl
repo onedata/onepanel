@@ -70,7 +70,6 @@ get_nodes() ->
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, Ctx) ->
-    service:create(#service{name = name()}),
     SelfHost = hosts:self(),
 
     {ok, OpaCtx} = onepanel_maps:get([cluster, ?SERVICE_PANEL], Ctx),
@@ -85,6 +84,9 @@ get_steps(deploy, Ctx) ->
     OzCtx2 = OzCtx1#{
         master_host => SelfHost
     },
+
+    service:create(#service{name = name(), ctx = OzCtx2}),
+
     S = #step{verify_hosts = false},
     Ss = #steps{verify_hosts = false},
     [
@@ -105,10 +107,6 @@ get_steps(deploy, Ctx) ->
         }},
         S#step{module = onepanel_deployment, function = set_marker, ctx = OpaCtx,
             args = [?PROGRESS_CLUSTER], selection = first},
-        S#step{module = service, function = save, ctx = OpaCtx,
-            args = [#service{name = name(), ctx = OzCtx2}],
-            selection = first
-        },
         Ss#steps{service = ?SERVICE_LE, action = update, ctx = LeCtx},
         S#step{module = onepanel_deployment, function = set_marker, ctx = OpaCtx,
             args = [?PROGRESS_READY], selection = first},
