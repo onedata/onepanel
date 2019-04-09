@@ -25,7 +25,8 @@
 %% API
 -export([get_id/0]).
 -export([get_user_privileges/1]).
--export([get_current_cluster/0, get_details/2, list_user_clusters/1]).
+-export([get_current_cluster/0, get_details/2, list_user_clusters/1,
+    get_members_summary/1]).
 -export([fetch_remote_provider_info/2]).
 -export([create_user_invite_token/0]).
 
@@ -63,6 +64,24 @@ get_current_cluster() ->
     catch _Type:Error ->
         try_cached(cluster, ?make_stacktrace(Error))
     end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns summary with counts of users and groups belonging
+%% to the current cluster.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_members_summary(rest_handler:zone_auth()) ->
+    #{atom() := non_neg_integer()} | no_return().
+get_members_summary(Auth) ->
+    Users = get_members_count(Auth, users, direct),
+    EffUsers = get_members_count(Auth, users, effective),
+    Groups = get_members_count(Auth, groups, direct),
+    EffGroups = get_members_count(Auth, groups, effective),
+    #{
+        usersCount => Users, groupsCount => Groups,
+        effectiveUsersCount => EffUsers, effectiveGroupsCount => EffGroups
+    }.
 
 
 %%--------------------------------------------------------------------
@@ -248,6 +267,42 @@ try_cached(Key, Error) ->
     case service:get_ctx(Service) of
         #{Key := Value} -> Value;
         _ -> throw(Error)
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Returns number of given entities (users or groups)
+%% belonging to the cluster - either directly or effectively.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_members_count(Auth :: rest_handler:zone_auth(),
+    UsersOrGroups :: users | groups, DirectOrEffective :: direct | effective) ->
+    non_neg_integer().
+get_members_count({rest, Auth}, UsersOrGroups, DirectOrEffective) ->
+    {Resource, ResponseKey} = case {UsersOrGroups, DirectOrEffective} of
+        {users, direct} -> {"users", users};
+        {users, effective} -> {"effective_users", users};
+        {groups, direct} -> {"groups", groups};
+        {groups, effective} -> {"effective_groups", groups}
+    end,
+
+    case zone_rest(Auth, "/clusters/~s/~s", [get_id(), Resource]) of
+        {ok, #{ResponseKey := List}} -> length(List);
+        Error -> ?throw_error(Error)
+    end;
+
+get_members_count({rpc, Auth}, UsersOrGroups, DirectOrEffective) ->
+    Function = case {UsersOrGroups, DirectOrEffective} of
+        {users, direct} -> get_users;
+        {users, effective} -> get_eff_users;
+        {groups, direct} -> get_groups;
+        {groups, effective} -> get_eff_groups
+    end,
+
+    case zone_rpc(cluster_logic, Function, [Auth, get_id()]) of
+        {ok, List} -> length(List);
+        Error -> ?throw_error(Error)
     end.
 
 

@@ -46,6 +46,9 @@ is_authorized(Req, _Method, #rstate{resource = Resource, client = Client}) when
 is_authorized(Req, _Method, #rstate{client = #client{role = root}}) ->
     {true, Req};
 
+is_authorized(Req, 'GET', #rstate{resource = current_cluster_members_summary,
+    client = #client{role = member} = Client}) ->
+    {rest_utils:has_privileges(Client, ?CLUSTER_VIEW), Req};
 is_authorized(Req, 'POST', #rstate{resource = invite_user_token,
     client = #client{role = member} = Client}) ->
     {rest_utils:has_privileges(Client, ?CLUSTER_ADD_USER), Req};
@@ -65,6 +68,7 @@ is_authorized(Req, _Method, _State) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
 exists_resource(Req, #rstate{resource = Resource}) when
     Resource == current_cluster;
+    Resource == current_cluster_members_summary;
     Resource == invite_user_token ->
     case onepanel_env:get_cluster_type() of
         onezone -> {onepanel_deployment:is_set(?PROGRESS_CLUSTER), Req};
@@ -128,6 +132,10 @@ accept_resource(Req, _, _, _) ->
     {stop, Req :: cowboy_req:req(), State :: rest_handler:state()}.
 provide_resource(Req, #rstate{resource = current_cluster}) ->
     {clusters:get_current_cluster(), Req};
+
+provide_resource(Req, #rstate{resource = current_cluster_members_summary,
+    client = #client{zone_auth = Auth}}) ->
+    {clusters:get_members_summary(Auth), Req};
 
 provide_resource(Req, #rstate{resource = remote_provider,
     bindings = #{id := ProviderId}, client = #client{zone_auth = Auth}}) ->
