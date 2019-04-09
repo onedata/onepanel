@@ -410,9 +410,8 @@ register_healthcheck(Service) ->
             #{hosts => [hosts:self()]}),
         case service_utils:results_contain_error(Results) of
             {true, Error} ->
-                % @fixme improve error formatting
                 ?critical("Failed to restart service ~p due to:~n~p",
-                    [Service, rest_replier:format_error(error, Error)]);
+                    [Service, onepanel_errors:format_error(Error)]);
             false -> ok
         end
     end,
