@@ -198,20 +198,6 @@ forbidden(Req, #rstate{module = Module} = State) ->
     end.
 
 
-%% @private
--spec parse_query_string(Req :: cowboy_req:req(), State :: state()) ->
-    {Req :: cowboy_req:req(), NewState :: state()}.
-parse_query_string(Req, #rstate{methods = Methods} = State) ->
-    {Method, Req2} = rest_utils:get_method(Req),
-    {Bindings, Req3} = rest_utils:get_bindings(Req2),
-    #rmethod{params_spec = Spec} = lists:keyfind(Method, 2, Methods),
-    {Params, Req4} = rest_utils:get_params(Req3, Spec),
-    {Req4, State#rstate{
-        bindings = Bindings,
-        params = Params
-    }}.
-
-
 %%--------------------------------------------------------------------
 %% @doc Cowboy callback function. Returns whether the resource exists.
 %% @end
@@ -347,6 +333,25 @@ handle_options(Req, State) ->
 
             {ok, Req3, State}
     end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Reads bindings and parameters from the query string
+%% and inserts into state.
+%% @end
+%%--------------------------------------------------------------------
+-spec parse_query_string(Req :: cowboy_req:req(), State :: state()) ->
+    {Req :: cowboy_req:req(), NewState :: state()}.
+parse_query_string(Req, #rstate{methods = Methods} = State) ->
+    {Method, Req2} = rest_utils:get_method(Req),
+    {Bindings, Req3} = rest_utils:get_bindings(Req2),
+    #rmethod{params_spec = Spec} = lists:keyfind(Method, 2, Methods),
+    {Params, Req4} = rest_utils:get_params(Req3, Spec),
+    {Req4, State#rstate{
+        bindings = Bindings,
+        params = Params
+    }}.
 
 
 %%--------------------------------------------------------------------

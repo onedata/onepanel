@@ -81,7 +81,7 @@ get_user_privileges(OnezoneUserId) ->
 %%--------------------------------------------------------------------
 %% @private
 %% @doc Returns user privileges in the current cluster by UserId.
-%% Users specified authentication for the request.
+%% Uses specified authentication for the request.
 %% @end
 %%--------------------------------------------------------------------
 -spec get_user_privileges(rest_handler:zone_auth(), OnezoneUserId :: binary()) ->

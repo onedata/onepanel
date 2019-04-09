@@ -43,9 +43,11 @@ is_authorized(Req, _Method, #rstate{client = #client{role = root}}) ->
 
 is_authorized(Req, 'GET', #rstate{client = #client{role = member}}) ->
     {true, Req};
-is_authorized(Req, 'DELETE', #rstate{client = #client{role = member} = Client,
-    resource = provider}) ->
+
+is_authorized(Req, 'DELETE', #rstate{resource = provider,
+    client = #client{role = member} = Client}) ->
     {rest_utils:has_privileges(Client, ?CLUSTER_DELETE), Req};
+
 is_authorized(Req, _Method, #rstate{client = #client{role = member} = Client}) ->
     {rest_utils:has_privileges(Client, ?CLUSTER_UPDATE), Req};
 

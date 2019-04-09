@@ -12,6 +12,7 @@
 -define(ONEPANEL_TEST_UTILS_HRL, 1).
 
 -include_lib("ctool/include/test/test_utils.hrl").
+-include_lib("ctool/include/test/performance.hrl").
 
 -define(API_VERSION, 3).
 

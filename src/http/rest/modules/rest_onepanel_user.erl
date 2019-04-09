@@ -143,8 +143,8 @@ provide_resource(Req, #rstate{resource = current_user, client = Client}) when
 
     #client{privileges = Privileges, user = User} = Client,
     #user_details{name = Username} = User,
-    % user coming from Onezone has no onepanel user id
     {#{
+        % user coming from Onezone has no onepanel user id
         username => Username, userId => null, userRole => admin,
         clusterPrivileges => Privileges
     }, Req};

@@ -39,22 +39,24 @@
 -spec is_authorized(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     State :: rest_handler:state()) ->
     {Authorized :: boolean(), Req :: cowboy_req:req()}.
-is_authorized(Req, _Method, #rstate{resource = configuration}) ->
-    {true, Req};
-is_authorized(Req, _Method, #rstate{resource = node}) ->
-    {true, Req};
 is_authorized(Req, _Method, #rstate{client = #client{role = root}}) ->
     {true, Req};
+
 is_authorized(Req, 'GET', #rstate{client = #client{role = member}}) ->
     {true, Req};
-
 is_authorized(Req, _Method, #rstate{client = #client{role = member} = Client}) ->
     {rest_utils:has_privileges(Client, ?CLUSTER_UPDATE), Req};
 
 is_authorized(Req, 'POST', #rstate{resource = cluster}) ->
     {service_onepanel:available_for_clustering(), Req};
 
-is_authorized(Req, _Method, #rstate{}) -> {false, Req}.
+is_authorized(Req, 'GET', #rstate{resource = configuration}) ->
+    {true, Req};
+is_authorized(Req, 'GET', #rstate{resource = node}) ->
+    {true, Req};
+
+is_authorized(Req, _Method, #rstate{}) ->
+    {false, Req}.
 
 
 %%--------------------------------------------------------------------

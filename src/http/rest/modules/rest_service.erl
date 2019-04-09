@@ -47,11 +47,6 @@ is_authorized(Req, 'GET', #rstate{client = #client{role = member}}) ->
 is_authorized(Req, _Method, #rstate{client = #client{role = member} = Client}) ->
     {rest_utils:has_privileges(Client, ?CLUSTER_UPDATE), Req};
 
-is_authorized(Req, 'GET', #rstate{resource = task}) ->
-    {true, Req};
-is_authorized(Req, 'GET', #rstate{resource = nagios}) ->
-    {true, Req};
-
 is_authorized(Req, 'GET', #rstate{resource = service_oneprovider}) ->
     {onepanel_user:get_by_role(admin) == [], Req};
 is_authorized(Req, 'POST', #rstate{resource = service_oneprovider}) ->
@@ -60,6 +55,11 @@ is_authorized(Req, 'GET', #rstate{resource = service_onezone}) ->
     {onepanel_user:get_by_role(admin) == [], Req};
 is_authorized(Req, 'POST', #rstate{resource = service_onezone}) ->
     {onepanel_user:get_by_role(admin) == [], Req};
+
+is_authorized(Req, 'GET', #rstate{resource = task}) ->
+    {true, Req};
+is_authorized(Req, 'GET', #rstate{resource = nagios}) ->
+    {true, Req};
 
 is_authorized(Req, _Method, _State) ->
     {false, Req}.

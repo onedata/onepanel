@@ -168,7 +168,7 @@ noauth_request(HostOrConfig, Endpoint, Method, Headers, Body) ->
 -spec noauth_request(HostOrConfig :: config(), Port :: integer(),
     Endpoint :: endpoint(), Method :: method(), Headers :: headers(),
     Body :: body()) -> Response :: response().
-noauth_request(HostOrConfig, Port, {noprefix, Endpoint}, Method, Headers, Body) ->
+noauth_request(HostOrConfig, Port, {noprefix, Path}, Method, Headers, Body) ->
     Host = case io_lib:printable_unicode_list(HostOrConfig) of
         true -> HostOrConfig;
         false -> utils:random_element(?config(onepanel_hosts, HostOrConfig))
@@ -177,9 +177,8 @@ noauth_request(HostOrConfig, Port, {noprefix, Endpoint}, Method, Headers, Body) 
         {<<"content-type">>, <<"application/json">>} |
         Headers
     ],
-    Url = onepanel_utils:join(["https://", Host, ":", Port, Endpoint]),
+    Url = onepanel_utils:join(["https://", Host, ":", Port, Path]),
     JsonBody = json_utils:encode(Body),
-%%    ct:pal("Request: ~s ~s -H ~p", [Method, Url, Headers]),
     http_client:request(Method, Url, maps:from_list(NewHeaders), JsonBody,
         [{ssl_options, [{secure, false}]}]);
 
@@ -221,15 +220,15 @@ assert_body(JsonBody, Body) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc Sets up users assumed to be present by ?REGULAR_AUTHS
-%% and ?ROOT_AUTHS macros on all nodes.
+%% @doc On all nodes sets up users assumed by ?REGULAR_AUTHS
+%% and ?ROOT_AUTHS macros to be present.
 %% @end
 %%--------------------------------------------------------------------
 set_up_default_users(Config) ->
     Validator = fun
         (#error{reason = ?ERR_USERNAME_NOT_AVAILABLE}) -> ok;
         ({ok, _}) -> ok;
-        (Error) -> ?assertMatch({ok, _}, Error)
+        (Error) -> ?assertMatch({ok, _}, Error) % will fail
     end,
 
     Results1 = ?callAll(Config, onepanel_user, create,
@@ -246,7 +245,7 @@ set_up_default_users(Config) ->
 %%--------------------------------------------------------------------
 %% @doc Sets up mock of zone_tokens module to accept tokens with
 %% encoded client information, as created by the onepanel_test_rest utilities.
-%% Requires hook `{?LOAD_MODULES, [onepanel_test_rest]}` to work.
+%% Requires hook `{?LOAD_MODULES, [onepanel_test_rest]}` to work correctly.
 %% @end
 %%--------------------------------------------------------------------
 -spec mock_token_authentication(ConfigOrNodes :: proplists:proplist() | [node()]) -> ok.
