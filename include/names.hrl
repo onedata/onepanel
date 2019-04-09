@@ -15,4 +15,14 @@
 -define(SERVICE_EXECUTOR_NAME, service_executor).
 -define(ONEPANEL_CRON_NAME, onepanel_cron).
 
+-define(SERVICE_PANEL, ?APP_NAME).
+-define(SERVICE_CB, couchbase).
+-define(SERVICE_CM, cluster_manager).
+-define(SERVICE_CW, cluster_worker).
+-define(SERVICE_LE, letsencrypt).
+-define(SERVICE_OP, oneprovider).
+-define(SERVICE_OPW, op_worker).
+-define(SERVICE_OZ, onezone).
+-define(SERVICE_OZW, oz_worker).
+
 -endif.

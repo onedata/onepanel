@@ -82,6 +82,12 @@ auth_request(HostOrConfig, Port, Endpoint, Method, {cookie, SessionId}, Headers,
         Headers
     ],
     noauth_request(HostOrConfig, Port, Endpoint, Method, NewHeaders, Body);
+
+auth_request(HostOrConfig, Port, Endpoint, Method, {access_token, Token}, Headers,
+    Body) ->
+    NewHeaders = [{<<"x-auth-token">>, Token} | Headers],
+    noauth_request(HostOrConfig, Port, Endpoint, Method, NewHeaders, Body);
+
 auth_request(HostOrConfig, Port, Endpoint, Method, {Username, Password}, Headers,
     Body) ->
     NewHeaders = [
@@ -141,7 +147,8 @@ noauth_request(HostOrConfig, Port, Endpoint, Method, Headers, Body) ->
     Prefix = "/api/v3/onepanel",
     Url = onepanel_utils:join(["https://", Host, ":", Port, Prefix, Endpoint]),
     JsonBody = json_utils:encode(Body),
-    http_client:request(Method, Url, maps:from_list(NewHeaders), JsonBody, [{ssl_options, [{secure, false}]}]).
+    http_client:request(Method, Url, maps:from_list(NewHeaders), JsonBody,
+        [{ssl_options, [{secure, false}]}]).
 
 
 %%--------------------------------------------------------------------

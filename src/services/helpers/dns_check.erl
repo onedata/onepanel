@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Wojciech Geisler
-%%% @copyright (C): 2018 ACK CYFRONET AGH
+%%% @copyright (C) 2018 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -152,7 +152,7 @@ invalidate_cache(Service) ->
 get_configuration() ->
     #{
         builtInDnsServer => expect_delegation(oz_worker),
-        dnsCheckAcknowledged => onepanel_deployment:is_completed(?DNS_CHECK_ACKNOWLEDGED),
+        dnsCheckAcknowledged => onepanel_deployment:is_set(?DNS_CHECK_ACKNOWLEDGED),
         dnsServers => lists:map(fun onepanel_ip:ip4_to_binary/1, get_dns_servers())
     }.
 
@@ -175,8 +175,8 @@ configure_dns_check(#{dns_servers := DnsServers} = Ctx) ->
 
 configure_dns_check(#{dns_check_acknowledged := Acknowledged} = Ctx) ->
     case Acknowledged of
-        true -> onepanel_deployment:mark_completed(?DNS_CHECK_ACKNOWLEDGED);
-        false -> onepanel_deployment:mark_not_completed(?DNS_CHECK_ACKNOWLEDGED)
+        true -> onepanel_deployment:set_marker(?DNS_CHECK_ACKNOWLEDGED);
+        false -> onepanel_deployment:unset_marker(?DNS_CHECK_ACKNOWLEDGED)
     end,
     configure_dns_check(maps:remove(dns_check_acknowledged, Ctx));
 

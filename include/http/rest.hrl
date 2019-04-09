@@ -11,13 +11,6 @@
 -ifndef(ONEPANEL_HANDLERS_REST_HRL).
 -define(ONEPANEL_HANDLERS_REST_HRL, 1).
 
--record(client, {
-    id :: undefined | onepanel_user:uuid(),
-    name :: undefined | onepanel_user:name(),
-    role :: undefined | onepanel_user:role(),
-    session_id :: undefined | onepanel_session:id()
-}).
-
 -record(rmethod, {
     type :: undefined | rest_handler:method_type(),
     args_spec = #{} :: rest_handler:spec(),

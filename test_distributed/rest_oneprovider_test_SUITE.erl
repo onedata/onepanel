@@ -11,6 +11,7 @@
 -module(rest_oneprovider_test_SUITE).
 -author("Krzysztof Trzepla").
 
+-include("authentication.hrl").
 -include("modules/models.hrl").
 -include("onepanel_test_utils.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
@@ -25,10 +26,11 @@
 -export([
     method_should_return_unauthorized_error/1,
     method_should_return_forbidden_error/1,
+    method_should_return_conflict_error/1,
     method_should_return_service_unavailable_error/1,
     get_should_return_provider_details/1,
     get_should_return_cluster_ips/1,
-    put_should_register_provider/1,
+    post_should_register_provider/1,
     patch_should_modify_provider_details/1,
     patch_should_modify_provider_ips/1,
     delete_should_unregister_provider/1,
@@ -53,8 +55,49 @@
     patch_with_incorrect_config_should_fail/1,
     patch_should_invalidate_luma_cache/1]).
 
+all() ->
+    ?ALL([
+        method_should_return_unauthorized_error,
+        method_should_return_forbidden_error,
+        method_should_return_conflict_error,
+        method_should_return_service_unavailable_error,
+        get_should_return_provider_details,
+        get_should_return_cluster_ips,
+        post_should_register_provider,
+        patch_should_modify_provider_details,
+        patch_should_modify_provider_ips,
+        delete_should_unregister_provider,
+        get_should_return_supported_spaces,
+        post_should_create_or_support_space,
+        patch_should_modify_space_support,
+        get_should_return_space_details,
+        delete_should_revoke_space_support,
+        get_should_return_storages,
+        get_should_return_storage,
+        post_should_add_storage,
+        patch_should_modify_storage_update,
+        patch_should_update_storage,
+        get_should_return_autocleaning_reports,
+        get_should_return_autocleaning_report,
+        get_should_return_autocleaning_status,
+        get_should_return_autocleaning_configuration,
+        get_should_return_file_popularity_configuration,
+        patch_should_update_file_popularity,
+        patch_should_update_auto_cleaning,
+        patch_with_incomplete_config_should_update_auto_cleaning,
+        patch_with_incorrect_config_should_fail,
+        patch_should_invalidate_luma_cache
+    ]).
+
 -define(ADMIN_USER_NAME, <<"admin1">>).
 -define(ADMIN_USER_PASSWORD, <<"Admin1Password">>).
+
+-define(OZ_USER_NAME, <<"joe">>).
+-define(ONEZONE_TOKEN, <<"joesOnezoneToken">>).
+
+-define(OZ_AUTH(TOKEN), {rpc, opaque_rpc_client}).
+-define(OP_AUTH(TOKEN), {rest, {access_token, TOKEN}}).
+
 -define(REG_USER_NAME, <<"user1">>).
 -define(REG_USER_PASSWORD, <<"User1Password">>).
 -define(TIMEOUT, timer:seconds(5)).
@@ -73,6 +116,16 @@
     {<<"/provider/cluster_ips">>, patch}
 ]).
 
+-define(REGISTER_REQUEST_JSON, #{
+    <<"name">> => <<"someName">>,
+    <<"subdomainDelegation">> => false,
+    <<"domain">> => <<"somedomain">>,
+    <<"adminEmail">> => <<"admin@onedata.org">>,
+    <<"geoLongitude">> => 10.0,
+    <<"geoLatitude">> => 20.0,
+    <<"token">> => <<"someToken">>
+}).
+
 -define(PROVIDER_DETAILS_JSON, #{
     <<"domain">> => <<"someDomain">>,
     <<"geoLatitude">> => 10.0,
@@ -90,9 +143,9 @@
 
 -define(CLUSTER_IPS_JSON(_Hosts), #{
     <<"hosts">> =>
-        lists:foldl(fun(Host, Acc) ->
-            maps:put(list_to_binary(Host), <<"1.2.3.4">>, Acc)
-        end, #{}, _Hosts),
+    lists:foldl(fun(Host, Acc) ->
+        maps:put(list_to_binary(Host), <<"1.2.3.4">>, Acc)
+    end, #{}, _Hosts),
     <<"isConfigured">> => false
 }).
 
@@ -215,39 +268,6 @@
 
 -define(run(Config, Function), Function(hd(?config(oneprovider_hosts, Config)))).
 
-all() ->
-    ?ALL([
-        method_should_return_unauthorized_error,
-        method_should_return_forbidden_error,
-        method_should_return_service_unavailable_error,
-        get_should_return_provider_details,
-        get_should_return_cluster_ips,
-        put_should_register_provider,
-        patch_should_modify_provider_details,
-        patch_should_modify_provider_ips,
-        delete_should_unregister_provider,
-        get_should_return_supported_spaces,
-        post_should_create_or_support_space,
-        patch_should_modify_space_support,
-        get_should_return_space_details,
-        delete_should_revoke_space_support,
-        get_should_return_storages,
-        get_should_return_storage,
-        post_should_add_storage,
-        patch_should_modify_storage_update,
-        patch_should_update_storage,
-        get_should_return_autocleaning_reports,
-        get_should_return_autocleaning_report,
-        get_should_return_autocleaning_status,
-        get_should_return_autocleaning_configuration,
-        get_should_return_file_popularity_configuration,
-        patch_should_update_file_popularity,
-        patch_should_update_auto_cleaning,
-        patch_with_incomplete_config_should_update_auto_cleaning,
-        patch_with_incorrect_config_should_fail,
-        patch_should_invalidate_luma_cache
-    ]).
-
 %%%===================================================================
 %%% Test functions
 %%%===================================================================
@@ -275,6 +295,16 @@ method_should_return_forbidden_error(Config) ->
     end).
 
 
+method_should_return_conflict_error(Config) ->
+    ?run(Config, fun(Host) ->
+        % provider is mocked as already registered
+        ?assertMatch({ok, 409, _, _}, onepanel_test_rest:auth_request(
+            Host, "/provider", post, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
+            ?REGISTER_REQUEST_JSON
+        ))
+    end).
+
+
 method_should_return_service_unavailable_error(Config) ->
     ?run(Config, fun(Host) ->
         lists:foreach(fun({Endpoint, Method}) ->
@@ -284,8 +314,12 @@ method_should_return_service_unavailable_error(Config) ->
             ?assertMatch({ok, 503, _, _}, onepanel_test_rest:noauth_request(
                 Host, Endpoint, Method
             ))
-        end, lists:delete({<<"/provider/cluster_ips">>, get}, % only endpoint not causing 503
-            ?COMMON_ENDPOINTS_WITH_METHODS))
+        end, lists:subtract(
+            ?COMMON_ENDPOINTS_WITH_METHODS, [
+                {<<"/provider/cluster_ips">>, get},
+                {<<"/provider">>, get}
+            ])
+        )
     end).
 
 
@@ -303,8 +337,14 @@ get_should_return_provider_details(Config) ->
 
 get_should_return_cluster_ips(Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
-    Hosts = lists:map(fun onepanel_cluster:node_to_host/1, Nodes),
+    Hosts = lists:map(fun hosts:from_node/1, Nodes),
     ?run(Config, fun(Host) ->
+        ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/cluster_ips">>, get,
+                {access_token, ?ONEZONE_TOKEN}
+            )
+        ),
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/cluster_ips">>, get,
@@ -315,22 +355,14 @@ get_should_return_cluster_ips(Config) ->
     end).
 
 
-put_should_register_provider(Config) ->
+post_should_register_provider(Config) ->
     ?run(Config, fun(Host) ->
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider">>, post,
-            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, #{
-                <<"name">> => <<"someName">>,
-                <<"subdomainDelegation">> => false,
-                <<"domain">> => <<"somedomain">>,
-                <<"adminEmail">> => <<"admin@onedata.org">>,
-                <<"geoLongitude">> => 10.0,
-                <<"geoLatitude">> => 20.0,
-                <<"onezoneDomainName">> => <<"someDomain">>
-            }
+            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, ?REGISTER_REQUEST_JSON
         )),
         ?assertReceivedMatch({service, oneprovider, register, #{
-            onezone_domain := <<"someDomain">>,
+            oneprovider_token := <<"someToken">>,
             oneprovider_name := <<"someName">>,
             oneprovider_domain := <<"somedomain">>,
             oneprovider_geo_latitude := 20.0,
@@ -715,7 +747,7 @@ init_per_testcase(get_should_return_provider_details, Config) ->
 init_per_testcase(get_should_return_cluster_ips, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
-    Hosts = lists:map(fun onepanel_cluster:node_to_host/1, Nodes),
+    Hosts = lists:map(fun hosts:from_node/1, Nodes),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
         {service_oneprovider, format_cluster_ips, {
             [{'node@host1', ?CLUSTER_IPS_JSON(Hosts)}], []
@@ -723,6 +755,19 @@ init_per_testcase(get_should_return_cluster_ips, Config) ->
         {task_finished, {service, action, ok}}
     ] end),
     NewConfig;
+
+
+init_per_testcase(post_should_register_provider, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+
+    Nodes = ?config(oneprovider_nodes, Config),
+    Hosts = ?config(oneprovider_hosts, Config),
+    test_utils:mock_expect(Nodes, service, get, fun
+        (oneprovider) -> {ok, #service{ctx = #{registered => false}}};
+        (op_worker) -> {ok, #service{hosts = Hosts}}
+    end),
+    NewConfig;
+
 
 init_per_testcase(get_should_return_storage, Config) ->
     NewConfig = init_per_testcase(default, Config),
@@ -913,9 +958,9 @@ init_per_testcase(patch_should_update_file_popularity, Config) ->
 
 init_per_testcase(Case, Config) when
     Case =:= patch_should_update_auto_cleaning;
-    Case =:=  patch_with_incomplete_config_should_update_auto_cleaning;
-    Case =:=  patch_with_incorrect_config_should_fail
-->
+    Case =:= patch_with_incomplete_config_should_update_auto_cleaning;
+    Case =:= patch_with_incorrect_config_should_fail
+    ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_new(Nodes, rest_oneprovider),
@@ -931,6 +976,9 @@ init_per_testcase(_Case, Config) ->
     Hosts = ?config(oneprovider_hosts, Config),
     Self = self(),
     test_utils:mock_new(Nodes, [service, service_oneprovider]),
+    test_utils:mock_expect(Nodes, service, exists, fun
+        (oneprovider) -> true; (op_worker) -> true
+    end),
     test_utils:mock_expect(Nodes, service, get, fun
         (oneprovider) -> {ok, #service{ctx = #{registered => true}}};
         (op_worker) -> {ok, #service{hosts = Hosts}}
@@ -939,6 +987,16 @@ init_per_testcase(_Case, Config) ->
         Self ! {service, Service, Action, Ctx},
         [{task_finished, {service, action, ok}}]
     end),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
+        Self ! {service, Service, Action, Ctx},
+        [{task_finished, {service, action, ok}}]
+    end),
+    test_utils:mock_expect(Nodes, zone_tokens, authenticate_user, fun
+        (?ONEZONE_TOKEN) -> #client{
+            role = user, privileges = [], zone_auth = ?OP_AUTH(?ONEZONE_TOKEN),
+            user = #user_details{name = ?OZ_USER_NAME}
+        } end),
+
     Config.
 
 

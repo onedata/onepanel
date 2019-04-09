@@ -13,6 +13,7 @@
 -behaviour(service_behaviour).
 -behaviour(letsencrypt_plugin_behaviour).
 
+-include("names.hrl").
 -include("service.hrl").
 -include("modules/models.hrl").
 -include("deployment_progress.hrl").
@@ -30,7 +31,8 @@
 %% API
 -export([configure/1, start/1, stop/1, status/1, health/1, wait_for_init/1,
     get_nagios_response/1, get_nagios_status/1, add_storages/1, get_storages/1,
-    update_storage/1, invalidate_luma_cache/1, reload_webcert/1]).
+    update_storage/1, invalidate_luma_cache/1, reload_webcert/1,
+    get_compatible_onezones/0, is_connected_to_oz/0]).
 -export([migrate_generated_config/1]).
 
 -define(INIT_SCRIPT, "op_worker").
@@ -63,7 +65,7 @@ get_hosts() ->
 %%--------------------------------------------------------------------
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
-    service:get_nodes(name()).
+    nodes:all(name()).
 
 
 %%--------------------------------------------------------------------
@@ -117,7 +119,7 @@ configure(Ctx) ->
 
     case maps:get(mark_cluster_ips_configured, Ctx, false)
         orelse pop_legacy_ips_configured() of
-        true -> onepanel_deployment:mark_completed(?PROGRESS_CLUSTER_IPS);
+        true -> onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS);
         _ -> ok
     end,
 
@@ -232,8 +234,13 @@ get_nagios_status(Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec add_storages(Ctx :: service:ctx()) -> ok | no_return().
-add_storages(#{storages := Storages, ignore_exists := IgnoreExists}) ->
-    op_worker_storage:add(Storages, IgnoreExists);
+add_storages(#{storages := Storages, ignore_exists := IgnoreExists})
+    when map_size(Storages) > 0 ->
+    op_worker_storage:add(Storages, IgnoreExists),
+    onepanel_deployment:set_marker(?PROGRESS_STORAGE_SETUP);
+
+add_storages(#{storages := _, ignore_exists := _}) ->
+    ok;
 
 add_storages(Ctx) ->
     add_storages(Ctx#{ignore_exists => false}).
@@ -280,7 +287,7 @@ invalidate_luma_cache(#{id := StorageId}) ->
 reload_webcert(Ctx) ->
     service_cluster_worker:reload_webcert(Ctx#{name => name()}),
 
-    Node = onepanel_cluster:service_to_node(name()),
+    Node = nodes:local(name()),
     ok = rpc:call(Node, rtransfer_config, restart_link, []).
 
 
@@ -291,19 +298,17 @@ reload_webcert(Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
-    boolean() | unknown.
+    boolean().
 supports_letsencrypt_challenge(http) ->
-    try
-        service_oneprovider:is_registered(#{})
-    catch
-        _:_ -> unknown
-    end;
+    service:healthy(name()) andalso
+        service_oneprovider:is_registered(); % unregistered provider does not have a domain
 supports_letsencrypt_challenge(dns) ->
     try
-        service_oneprovider:is_registered(#{}) andalso
-            maps:get(subdomainDelegation, service_oneprovider:get_details(#{}), false)
+        service:healthy(name()) andalso
+            service_oneprovider:is_registered() andalso
+            maps:get(subdomainDelegation, service_oneprovider:get_details(), false)
     catch
-        _:_ -> unknown
+        _:_ -> false
     end;
 supports_letsencrypt_challenge(_) -> false.
 
@@ -327,7 +332,7 @@ set_http_record(Name, Value) ->
 %%--------------------------------------------------------------------
 -spec set_txt_record(Ctx :: service:ctx()) -> ok.
 set_txt_record(#{txt_name := Name, txt_value := Value, txt_ttl := TTL}) ->
-    [Node | _] = get_nodes(),
+    {ok, Node} = nodes:any(name()),
     ok = rpc:call(Node, provider_logic, set_txt_record, [Name, Value, TTL]).
 
 
@@ -337,8 +342,8 @@ set_txt_record(#{txt_name := Name, txt_value := Value, txt_ttl := TTL}) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec remove_txt_record(Ctx :: service:ctx()) -> ok.
-remove_txt_record(#{txt_name:= Name}) ->
-    [Node | _] = get_nodes(),
+remove_txt_record(#{txt_name := Name}) ->
+    {ok, Node} = nodes:any(name()),
     ok = rpc:call(Node, provider_logic, remove_txt_record, [Name]).
 
 
@@ -347,6 +352,7 @@ remove_txt_record(#{txt_name:= Name}) ->
 %% Returns hostname of the dns server responsible for setting txt record.
 %% @end
 %%--------------------------------------------------------------------
+-spec get_dns_server() -> string().
 get_dns_server() ->
     service_oneprovider:get_oz_domain().
 
@@ -357,7 +363,7 @@ get_dns_server() ->
 %%--------------------------------------------------------------------
 -spec get_domain() -> binary().
 get_domain() ->
-    #{domain := Domain} = service_oneprovider:get_details(#{}),
+    #{domain := Domain} = service_oneprovider:get_details(),
     Domain.
 
 
@@ -366,12 +372,9 @@ get_domain() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_admin_email(Ctx :: service:ctx()) -> binary().
-get_admin_email(#{node := _Node}) ->
-    #{adminEmail := AdminEmail} = service_oneprovider:get_details(#{}),
-    AdminEmail;
-get_admin_email(Ctx) ->
-    [Node | _] = get_nodes(),
-    get_admin_email(Ctx#{node => Node}).
+get_admin_email(_Ctx) ->
+    #{adminEmail := AdminEmail} = service_oneprovider:get_details(),
+    AdminEmail.
 
 
 %%--------------------------------------------------------------------
@@ -387,6 +390,29 @@ migrate_generated_config(Ctx) ->
         ]
     }).
 
+
+%%--------------------------------------------------------------------
+%% @doc Returns list of Onezone versions compatible with this worker.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_compatible_onezones() -> [binary()].
+get_compatible_onezones() ->
+    {ok, Versions} = onepanel_env:read_effective(
+        [op_worker, compatible_oz_versions], ?SERVICE_OPW),
+    onepanel_utils:convert(Versions, {seq, binary}).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Checks if the op_worker has GraphSync connection to Onezone.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_connected_to_oz() -> boolean().
+is_connected_to_oz() ->
+    case nodes:any(?SERVICE_OPW) of
+        {ok, Node} -> true == rpc:call(Node, oneprovider, is_connected_to_oz, []);
+        _ -> false
+    end.
 
 %%%===================================================================
 %%% Internal functions
@@ -417,9 +443,7 @@ pop_legacy_ips_configured() ->
 %% @end
 %%-------------------------------------------------------------------
 maybe_check_dns() ->
-    ThisNode = node(),
-    ThisHost = onepanel_cluster:node_to_host(ThisNode),
-    case ThisHost == hd(get_hosts())
+    case hosts:self() == hd(get_hosts())
         andalso service_oneprovider:is_registered()
         andalso dns_check:should_update_cache(name()) of
 

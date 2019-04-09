@@ -17,7 +17,8 @@
 -include_lib("ctool/include/test/performance.hrl").
 
 %% export for ct
--export([all/0, init_per_suite/1, init_per_testcase/2, end_per_testcase/2, end_per_suite/1]).
+-export([all/0, init_per_suite/1, init_per_testcase/2, end_per_testcase/2,
+    end_per_suite/1]).
 
 %% tests
 -export([
@@ -34,7 +35,8 @@
     post_as_regular_should_not_create_account_when_admin_present/1,
     post_as_admin_should_create_account/1,
     delete_as_regular_should_remove_only_own_account/1,
-    delete_as_admin_should_remove_any_account/1
+    delete_as_admin_should_remove_any_account/1,
+    current_user_is_resolved/1
 ]).
 
 -define(ADMIN_USER1_NAME, <<"admin1">>).
@@ -61,7 +63,8 @@ all() ->
         post_as_regular_should_not_create_account_when_admin_present,
         post_as_admin_should_create_account,
         delete_as_regular_should_remove_only_own_account,
-        delete_as_admin_should_remove_any_account
+        delete_as_admin_should_remove_any_account,
+        current_user_is_resolved
     ]).
 
 %%%===================================================================
@@ -143,9 +146,25 @@ patch_as_admin_should_change_any_account_password(Config) ->
     end, [
         {?ADMIN_USER2_NAME, ?ADMIN_USER2_PASSWORD},
         {?REG_USER1_NAME, ?REG_USER1_PASSWORD},
-        {?REG_USER2_NAME, ?REG_USER2_PASSWORD},
+        {?REG_USER2_NAME, ?REG_USER2_PASSWORD}
+    ]),
+    NewAdmin1Password = <<(?ADMIN_USER1_PASSWORD)/binary, "New">>,
+
+    ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
+        Config, <<"/user/">>, patch, {?ADMIN_USER1_NAME,
+            ?ADMIN_USER1_PASSWORD}, #{
+            currentPassword => ?ADMIN_USER1_PASSWORD,
+            newPassword => NewAdmin1Password
+        }
+    )),
+    ?assertMatch({ok, 200, _, _}, onepanel_test_rest:auth_request(
+        Config, <<"/users/", ?ADMIN_USER1_NAME/binary>>, get,
+        {?ADMIN_USER1_NAME, NewAdmin1Password}
+    )),
+    ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
+        Config, <<"/users/", ?ADMIN_USER1_NAME/binary>>, get,
         {?ADMIN_USER1_NAME, ?ADMIN_USER1_PASSWORD}
-    ]).
+    )).
 
 
 patch_as_regular_should_change_only_own_account_password(Config) ->
@@ -291,6 +310,22 @@ delete_as_admin_should_remove_any_account(Config) ->
         Config, <<"/users/", ?ADMIN_USER1_NAME/binary>>, get,
         {?ADMIN_USER1_NAME, ?ADMIN_USER1_PASSWORD}
     )).
+
+current_user_is_resolved(Config) ->
+    {_, _, _, JsonBodyExplicitName} = ?assertMatch({ok, 200, _, _},
+        onepanel_test_rest:auth_request(
+            Config, <<"/users/", ?REG_USER1_NAME/binary>>,
+            get, {?REG_USER1_NAME, ?REG_USER1_PASSWORD}
+        )
+    ),
+    {_, _, _, JsonBodyCurrentUser} = ?assertMatch({ok, 200, _, _},
+        onepanel_test_rest:auth_request(
+            Config, <<"/user">>,
+            get, {?REG_USER1_NAME, ?REG_USER1_PASSWORD}
+        )
+    ),
+    ?assertEqual(JsonBodyExplicitName, JsonBodyCurrentUser),
+    ok.
 
 %%%===================================================================
 %%% SetUp and TearDown functions

@@ -1,16 +1,21 @@
 %%%-------------------------------------------------------------------
-%%% @author Krzysztof Trzepla
-%%% @copyright (C): 2017 ACK CYFRONET AGH
+%%% @author Wojciech Geisler
+%%% @copyright (C) 2019 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%-------------------------------------------------------------------
-%%% @doc The module handling logic behind /session REST resources.
+%%% @doc The module handling REST resources related to remote
+%%% clusters information.
 %%%-------------------------------------------------------------------
--module(rest_onepanel_session).
--author("Krzysztof Trzepla").
+-module(rest_clusters).
+-author("Wojciech Geisler").
 
+-include("names.hrl").
+-include("authentication.hrl").
+-include("deployment_progress.hrl").
 -include("http/rest.hrl").
+-include("modules/errors.hrl").
 -include("modules/models.hrl").
 
 -behavior(rest_behaviour).
@@ -30,7 +35,15 @@
 -spec is_authorized(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     State :: rest_handler:state()) ->
     {Authorized :: boolean(), Req :: cowboy_req:req()}.
-is_authorized(Req, _Method, #rstate{client = #client{role = admin}}) ->
+is_authorized(Req, _Method, #rstate{resource = Resource, client = Client}) when
+    Resource == clusters;
+    Resource == cluster ->
+    {Client#client.role == user, Req};
+
+is_authorized(Req, _Method, #rstate{client = #client{role = Role}}) when
+    Role == root;
+    Role == admin;
+    Role == user ->
     {true, Req};
 
 is_authorized(Req, _Method, _State) ->
@@ -43,9 +56,16 @@ is_authorized(Req, _Method, _State) ->
 %%--------------------------------------------------------------------
 -spec exists_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
-exists_resource(Req, #rstate{resource = session,
-    client = #client{session_id = SessionId}}) ->
-    {SessionId =/= undefined, Req};
+exists_resource(Req, #rstate{resource = current_cluster}) ->
+    case onepanel_env:get_cluster_type() of
+        onezone -> {onepanel_deployment:is_set(?PROGRESS_CLUSTER), Req};
+        oneprovider -> {service_oneprovider:is_registered(), Req}
+    end;
+
+exists_resource(Req, #rstate{resource = cluster, client = Client,
+    bindings = #{id := ClusterId}}) ->
+    {ok, Ids} = clusters:list_user_clusters(Client#client.zone_auth),
+    {lists:member(ClusterId, Ids), Req};
 
 exists_resource(Req, _State) ->
     {true, Req}.
@@ -63,8 +83,15 @@ accept_possible(Req, _Method, _Args, _State) ->
 %% @doc {@link rest_behaviour:is_available/3}
 %% @end
 %%--------------------------------------------------------------------
+is_available(Req, _Method, #rstate{resource = Resource}) when
+    Resource == current_cluster; Resource == remote_provider ->
+    {true, Req};
+
 is_available(Req, _Method, _State) ->
-    {true, Req}.
+    case onepanel_env:get_cluster_type() of
+        oneprovider -> {true, Req};
+        onezone -> {service:all_healthy(), Req}
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -74,10 +101,8 @@ is_available(Req, _Method, _State) ->
 -spec accept_resource(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()}.
-accept_resource(Req, 'POST', _Args, #rstate{resource = session, client = #client{
-    name = Username}}) ->
-    {ok, SessionId} = onepanel_session:create(Username),
-    {true, rest_replier:handle_session(Req, SessionId, Username)}.
+accept_resource(Req, _, _, _) ->
+    {false, Req}.
 
 
 %%--------------------------------------------------------------------
@@ -85,12 +110,23 @@ accept_resource(Req, 'POST', _Args, #rstate{resource = session, client = #client
 %% @end
 %%--------------------------------------------------------------------
 -spec provide_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
-    {Data :: rest_handler:data(), Req :: cowboy_req:req()}.
-provide_resource(Req, #rstate{resource = session,
-    client = #client{session_id = SessionId}}) ->
-    {ok, #onepanel_session{username = Username}} = onepanel_session:get(SessionId),
-    {#{sessionId => SessionId, username => Username}, Req}.
+    {Data :: rest_handler:data(), Req :: cowboy_req:req()} |
+    {stop, Req :: cowboy_req:req(), State :: rest_handler:state()}.
+provide_resource(Req, #rstate{resource = current_cluster}) ->
+    {clusters:get_current_cluster(), Req};
 
+provide_resource(Req, #rstate{resource = remote_provider, bindings = #{id := ProviderId},
+    client = #client{zone_auth = Auth}}) ->
+    {clusters:fetch_remote_provider_info(Auth, ProviderId), Req};
+
+provide_resource(Req, #rstate{resource = clusters, client = Client}) ->
+    {ok, Ids} = clusters:list_user_clusters(Client#client.zone_auth),
+    {#{ids => Ids}, Req};
+
+provide_resource(Req, #rstate{resource = cluster, client = Client,
+    bindings = #{id := ClusterId}}) ->
+    {ok, Result} = clusters:get_details(Client#client.zone_auth, ClusterId),
+    {Result, Req}.
 
 %%--------------------------------------------------------------------
 %% @doc {@link rest_behaviour:delete_resource/2}
@@ -98,7 +134,5 @@ provide_resource(Req, #rstate{resource = session,
 %%--------------------------------------------------------------------
 -spec delete_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Deleted :: boolean(), Req :: cowboy_req:req()}.
-delete_resource(Req, #rstate{resource = session,
-    client = #client{session_id = SessionId}}) ->
-    onepanel_session:delete(SessionId),
-    {true, Req}.
+delete_resource(Req, _) ->
+    {false, Req}.

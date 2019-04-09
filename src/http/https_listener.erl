@@ -16,17 +16,18 @@
 -include("http/rest.hrl").
 -include("names.hrl").
 -include("http/gui_paths.hrl").
--include_lib("gui/include/new_gui.hrl").
+-include_lib("gui/include/gui.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 -define(PORT, application:get_env(onepanel, rest_port, 443)).
 -define(ACCEPTORS_NUM, application:get_env(onepanel, rest_https_acceptors, 100)).
 -define(REQUEST_TIMEOUT, application:get_env(onepanel, rest_https_request_timeout, timer:minutes(5))).
 -define(INACTIVITY_TIMEOUT, application:get_env(onepanel, rest_https_inactivity_timeout, timer:minutes(10))).
-
+-define(GUI_PACKAGE_PATH, onepanel_env:get(gui_package_path)).
 
 -export([port/0, start/0, stop/0, healthcheck/0]).
 -export([get_cert_chain_pems/0, get_prefix/1]).
+-export([gui_package_path/0]).
 
 %%%===================================================================
 %%% API functions
@@ -47,23 +48,29 @@ port() ->
 %%--------------------------------------------------------------------
 -spec start() -> ok | no_return().
 start() ->
+    deploy_standalone_gui_files(),
     maybe_generate_web_cert(),
     maybe_trust_test_ca(),
     KeyFile = onepanel_env:get(web_key_file),
     CertFile = onepanel_env:get(web_cert_file),
     ChainFile = onepanel_env:get(web_cert_chain_file),
-    CustomRoot = onepanel_env:get(gui_static_root_override),
-    DefaultRoot = onepanel_env:get(gui_default_static_root),
+    GuiStaticRoot = onepanel_env:get(gui_static_root),
 
     CommonRoutes = onepanel_api:routes(),
-    SpecificRoutes = case onepanel_env:get(release_type) of
+    SpecificRoutes = case onepanel_env:get_cluster_type() of
         oneprovider -> oneprovider_api:routes();
         onezone -> onezone_api:routes()
     end,
     Routes = merge_routes(CommonRoutes ++ SpecificRoutes),
-    DynamicPages = [{?CONFIGURATION_PATH, [<<"GET">>], page_panel_configuration}],
+    DynamicPages = [
+        {?LOGIN_PATH, [<<"POST">>], page_basic_auth_login},
+        {?LOGOUT_PATH, [<<"POST">>], page_logout},
+        {?GUI_TOKEN_PATH, [<<"POST">>], page_gui_token},
+        {?CONFIGURATION_PATH, [<<"GET">>], page_panel_configuration},
+        {?ONEZONE_LOGIN_PATH, [<<"GET">>], page_consume_onezone_login}
+    ],
 
-    ok = new_gui:start(#gui_config{
+    ok = gui:start(#gui_config{
         port = port(),
         key_file = KeyFile,
         cert_file = CertFile,
@@ -73,8 +80,8 @@ start() ->
         inactivity_timeout = ?INACTIVITY_TIMEOUT,
         custom_cowboy_routes = Routes,
         dynamic_pages = DynamicPages,
-        default_static_root = DefaultRoot,
-        static_root_override = CustomRoot
+        static_root = GuiStaticRoot,
+        custom_response_headers = fun common_response_headers/0
     }),
 
     ?info("REST listener successfully started").
@@ -86,7 +93,7 @@ start() ->
 %%--------------------------------------------------------------------
 -spec stop() -> ok | {error, Reason :: term()}.
 stop() ->
-    new_gui:stop().
+    gui:stop().
 
 
 %%--------------------------------------------------------------------
@@ -95,7 +102,7 @@ stop() ->
 %%--------------------------------------------------------------------
 -spec healthcheck() -> ok | {error, server_not_responding}.
 healthcheck() ->
-    new_gui:healthcheck().
+    gui:healthcheck().
 
 
 %%--------------------------------------------------------------------
@@ -105,7 +112,7 @@ healthcheck() ->
 %%--------------------------------------------------------------------
 -spec get_cert_chain_pems() -> [public_key:der_encoded()].
 get_cert_chain_pems() ->
-    new_gui:get_cert_chain_pems().
+    gui:get_cert_chain_pems().
 
 
 %%--------------------------------------------------------------------
@@ -118,6 +125,15 @@ get_prefix(ApiVersion) ->
     re:replace(Template, "{version_number}",
         onepanel_utils:convert(ApiVersion, binary), [{return, binary}]).
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns intermediate CA chain for the web cert used in gui listener.
+%% @end
+%%--------------------------------------------------------------------
+-spec gui_package_path() -> string().
+gui_package_path() ->
+    ?GUI_PACKAGE_PATH.
 
 %%%===================================================================
 %%% Internal functions
@@ -140,6 +156,37 @@ merge_routes(Routes) ->
                 [Route | Acc]
         end
     end, [], Routes).
+
+
+%%--------------------------------------------------------------------
+%% @private @doc Returns headers which should be added to each response.
+%% @end
+%%--------------------------------------------------------------------
+-spec common_response_headers() -> cowboy:http_headers().
+common_response_headers() ->
+    case rest_utils:allowed_origin() of
+        undefined -> #{};
+        Origin -> #{<<"access-control-allow-origin">> => Origin}
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private @doc
+%% Deploys standalone GUI - the GUI served by onepanel and reachable on port 9443.
+%% Static GUI files are taken from GUI package tarball.
+%% @end
+%%--------------------------------------------------------------------
+-spec deploy_standalone_gui_files() -> ok.
+deploy_standalone_gui_files() ->
+    TempDir = mochitemp:mkdtemp(),
+    GuiRoot = onepanel_env:get(gui_static_root),
+    {ok, ExtractedPath} = gui:extract_package(gui_package_path(), TempDir),
+
+    file_utils:recursive_del(GuiRoot),
+    ok = file_utils:move(ExtractedPath, GuiRoot),
+
+    mochitemp:rmtempdir(TempDir),
+    ?info("Deployed standalone GUI files in ~s", [GuiRoot]).
 
 
 %%--------------------------------------------------------------------
@@ -199,7 +246,8 @@ maybe_trust_test_ca() ->
         true ->
             CAPath = onepanel_env:get(test_web_cert_ca_path),
             CaFile = filename:basename(CAPath),
-            file:copy(CAPath, filename:join(oz_plugin:get_cacerts_dir(), CaFile)),
+            TargetCaFile = filename:join(oz_plugin:get_cacerts_dir(), CaFile),
+            file:copy(CAPath, TargetCaFile),
             ?warning("Added '~s' to trusted certificates. Use only for test purposes.", [
                 CaFile
             ])

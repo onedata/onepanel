@@ -51,7 +51,7 @@ get_hosts() ->
 %%--------------------------------------------------------------------
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
-    service:get_nodes(name()).
+    nodes:all(name()).
 
 
 %%--------------------------------------------------------------------
@@ -123,10 +123,10 @@ configure(#{main_host := MainHost, hosts := Hosts,
     VmArgsFile = service_ctx:get(cluster_manager_vm_args_file, Ctx),
     EnvFile = service_ctx:get(cluster_manager_env_file, Ctx),
 
-    Host = onepanel_cluster:node_to_host(),
-    Node = onepanel_cluster:service_to_node(name()),
-    Nodes = onepanel_cluster:service_to_nodes(name(), Hosts),
-    MainNode = onepanel_cluster:service_to_node(name(), MainHost),
+    Host = hosts:self(),
+    Node = nodes:local(name()),
+    Nodes = nodes:service_to_nodes(name(), Hosts),
+    MainNode = nodes:service_to_node(name(), MainHost),
 
     WorkerNum = maps:get(worker_num, Ctx, undefined),
     Cookie = maps:get(cookie, Ctx, erlang:get_cookie()),
