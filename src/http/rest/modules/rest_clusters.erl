@@ -17,6 +17,7 @@
 -include("http/rest.hrl").
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
+-include_lib("ctool/include/privileges.hrl").
 
 -behavior(rest_behaviour).
 
@@ -36,14 +37,20 @@
     State :: rest_handler:state()) ->
     {Authorized :: boolean(), Req :: cowboy_req:req()}.
 is_authorized(Req, _Method, #rstate{resource = Resource, client = Client}) when
+    % resources which make sense only for a Onezone user
     Resource == clusters;
     Resource == cluster;
     Resource == remote_provider ->
     {Client#client.role == member, Req};
 
-is_authorized(Req, 'GET', #rstate{client = #client{role = Role}}) when
-    Role == root;
-    Role == member ->
+is_authorized(Req, _Method, #rstate{client = #client{role = root}}) ->
+    {true, Req};
+
+is_authorized(Req, 'POST', #rstate{resource = invite_user_token,
+    client = #client{role = member} = Client}) ->
+    {rest_utils:has_privileges(Client, ?CLUSTER_ADD_USER), Req};
+
+is_authorized(Req, 'GET', #rstate{client = #client{role = member}}) ->
     {true, Req};
 
 is_authorized(Req, _Method, _State) ->
@@ -56,7 +63,9 @@ is_authorized(Req, _Method, _State) ->
 %%--------------------------------------------------------------------
 -spec exists_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
-exists_resource(Req, #rstate{resource = current_cluster}) ->
+exists_resource(Req, #rstate{resource = Resource}) when
+    Resource == current_cluster;
+    Resource == invite_user_token ->
     case onepanel_env:get_cluster_type() of
         onezone -> {onepanel_deployment:is_set(?PROGRESS_CLUSTER), Req};
         oneprovider -> {service_oneprovider:is_registered(), Req}
@@ -83,8 +92,7 @@ accept_possible(Req, _Method, _Args, _State) ->
 %% @doc {@link rest_behaviour:is_available/3}
 %% @end
 %%--------------------------------------------------------------------
-is_available(Req, _Method, #rstate{resource = Resource}) when
-    Resource == current_cluster; Resource == remote_provider ->
+is_available(Req, _Method, #rstate{resource = current_cluster}) ->
     {true, Req};
 
 is_available(Req, _Method, _State) ->
@@ -101,6 +109,12 @@ is_available(Req, _Method, _State) ->
 -spec accept_resource(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()}.
+accept_resource(Req, 'POST', _Args, #rstate{resource = invite_user_token}) ->
+    {ok, Token} = clusters:create_user_invite_token(),
+    {true, cowboy_req:set_resp_body(json_utils:encode(#{
+        token => Token
+    }), Req)};
+
 accept_resource(Req, _, _, _) ->
     {false, Req}.
 

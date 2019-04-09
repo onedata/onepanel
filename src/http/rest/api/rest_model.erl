@@ -78,6 +78,7 @@
     task_status_model/0,
     time_stats_model/0,
     time_stats_collection_model/0,
+    token_model/0,
     user_create_request_model/0,
     user_details_model/0,
     user_modify_request_model/0,
@@ -1197,6 +1198,16 @@ time_stats_collection_model() ->
         updateCount => {time_stats_model(), optional},
         %% Statistics of storage sync deleted files.
         deleteCount => {time_stats_model(), optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc A token
+%% @end
+%%--------------------------------------------------------------------
+-spec token_model() -> maps:map().
+token_model() ->
+    #{
+        token => string
     }.
 
 %%--------------------------------------------------------------------
