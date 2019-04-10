@@ -1229,8 +1229,8 @@ user_details_model() ->
         username => string,
         %% The user role, one of `admin` or `regular`.
         userRole => atom,
-        %% List of cluster privileges possessed by the user. This field is
-        %% returned only to a Onezone user fetching information about himself.
+        %% List of cluster privileges held by the user. This field is returned
+        %% only to a Onezone user fetching information about himself.
         clusterPrivileges => {[string], optional}
     }.
 
@@ -1453,6 +1453,8 @@ zone_policies_model() ->
 -spec ceph_model() -> maps:map().
 ceph_model() ->
     #{
+        %% The type of storage.
+        type => {equal, <<"ceph">>},
         %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
@@ -1470,8 +1472,6 @@ ceph_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
-        %% The type of storage.
-        type => {equal, <<"ceph">>},
         %% The username of the Ceph cluster administrator.
         username => string,
         %% The admin key to access the Ceph cluster.
@@ -1500,6 +1500,8 @@ ceph_model() ->
 -spec cephrados_model() -> maps:map().
 cephrados_model() ->
     #{
+        %% The type of storage.
+        type => {equal, <<"cephrados">>},
         %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
@@ -1517,8 +1519,6 @@ cephrados_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
-        %% The type of storage.
-        type => {equal, <<"cephrados">>},
         %% The username of the Ceph cluster administrator.
         username => string,
         %% The admin key to access the Ceph cluster.
@@ -1549,6 +1549,8 @@ cephrados_model() ->
 -spec glusterfs_model() -> maps:map().
 glusterfs_model() ->
     #{
+        %% The type of storage.
+        type => {equal, <<"glusterfs">>},
         %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
@@ -1566,8 +1568,6 @@ glusterfs_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
-        %% The type of storage.
-        type => {equal, <<"glusterfs">>},
         %% The name of the volume to use as a storage backend.
         volume => string,
         %% The hostname (IP address or FQDN) of GlusterFS volume server.
@@ -1600,6 +1600,8 @@ glusterfs_model() ->
 -spec nulldevice_model() -> maps:map().
 nulldevice_model() ->
     #{
+        %% The type of storage.
+        type => {equal, <<"nulldevice">>},
         %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
@@ -1617,8 +1619,6 @@ nulldevice_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
-        %% The type of storage.
-        type => {equal, <<"nulldevice">>},
         %% Minimum latency in milliseconds, which should be simulated for
         %% selected operations.
         latencyMin => {integer, optional},
@@ -1720,6 +1720,8 @@ oz_configuration_model() ->
 -spec posix_model() -> maps:map().
 posix_model() ->
     #{
+        %% The type of storage.
+        type => {equal, <<"posix">>},
         %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
@@ -1737,8 +1739,6 @@ posix_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
-        %% The type of storage.
-        type => {equal, <<"posix">>},
         %% The absolute path to the directory where the POSIX storage is mounted
         %% on the cluster nodes.
         mountPoint => string,
@@ -1760,6 +1760,8 @@ posix_model() ->
 -spec s3_model() -> maps:map().
 s3_model() ->
     #{
+        %% The type of storage.
+        type => {equal, <<"s3">>},
         %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
@@ -1777,8 +1779,6 @@ s3_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
-        %% The type of storage.
-        type => {equal, <<"s3">>},
         %% The hostname of a machine where S3 storage is installed.
         hostname => string,
         %% The storage bucket name.
@@ -1810,6 +1810,8 @@ s3_model() ->
 -spec swift_model() -> maps:map().
 swift_model() ->
     #{
+        %% The type of storage.
+        type => {equal, <<"swift">>},
         %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
@@ -1827,8 +1829,6 @@ swift_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
-        %% The type of storage.
-        type => {equal, <<"swift">>},
         %% The URL to OpenStack Keystone identity service.
         authUrl => string,
         %% The name of the tenant to which the user belongs.
@@ -1859,6 +1859,8 @@ swift_model() ->
 -spec webdav_model() -> maps:map().
 webdav_model() ->
     #{
+        %% The type of storage.
+        type => {equal, <<"webdav">>},
         %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
@@ -1876,8 +1878,6 @@ webdav_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
-        %% The type of storage.
-        type => {equal, <<"webdav">>},
         %% Full URL of the WebDAV server, including scheme (http or https) and
         %% path.
         endpoint => string,
