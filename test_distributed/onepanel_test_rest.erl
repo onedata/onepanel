@@ -25,7 +25,7 @@
 -export([assert_body_fields/2, assert_body_values/2, assert_body/2]).
 -export([set_up_default_users/1, mock_token_authentication/1,
     oz_token_auth/1, oz_token_auth/2, oz_token_auth/3,
-    obtain_local_token/3]).
+    obtain_local_token/2]).
 
 -type config() :: string() | proplists:proplist().
 -type endpoint() :: http_client:url() | {noprefix, http_client:url()}.
@@ -307,8 +307,8 @@ oz_token_auth(UserId, Name, Privileges) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec obtain_local_token(HostOrConfig :: config(),
-    Username :: binary(), Password :: binary()) -> auth().
-obtain_local_token(HostOrConfig, Username, Password) ->
+    {Username :: binary(), Password :: binary()}) -> auth().
+obtain_local_token(HostOrConfig, {Username, Password}) ->
     {ok, _, #{<<"set-cookie">> := CookieHeader}, _} = ?assertMatch({ok, 204, _, _},
         auth_request(HostOrConfig, {noprefix, "/login"}, post, {Username, Password})),
 

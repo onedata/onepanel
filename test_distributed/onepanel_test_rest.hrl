@@ -26,8 +26,7 @@
 % Basic auth and auth by session token
 -define(LOCAL_AUTHS(HostOrConfig, LoginPassword), [
     LoginPassword,
-    onepanel_test_rest:obtain_local_token(HostOrConfig,
-        element(1, LoginPassword), element(2, LoginPassword))
+    onepanel_test_rest:obtain_local_token(HostOrConfig, LoginPassword)
 ]).
 
 -define(OZ_AUTHS(HostOrConfig, Privileges), [
