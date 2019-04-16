@@ -51,7 +51,7 @@ is_authorized(Req, _Method, #rstate{client = #client{role = member} = Client}) -
     {rest_utils:has_privileges(Client, ?CLUSTER_UPDATE), Req};
 
 is_authorized(Req, _Method, #rstate{client = #client{role = guest}, resource = users}) ->
-    {onepanel_user:get_by_role(admin) == [], Req};
+    {onepanel_user:no_admin_exists(), Req};
 
 is_authorized(Req, _Method, _State) ->
     {false, Req}.

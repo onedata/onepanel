@@ -329,7 +329,7 @@ reload_webcert(_Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 available_for_clustering() ->
-    onepanel_user:get_by_role(admin) == [] andalso
+    onepanel_user:no_admin_exists() andalso
         length(get_hosts()) =< 1 andalso
         not onepanel_deployment:is_set(?PROGRESS_CLUSTER).
 
