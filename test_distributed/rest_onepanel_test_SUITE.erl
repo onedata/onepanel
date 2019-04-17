@@ -47,7 +47,7 @@
             Fun({_Endpoint, _Method})
         catch
             error:{assertMatch_failed, _} = _Reason ->
-                ct:print("Failed on: ~s ~s", [_Method, _Endpoint]),
+                ct:pal("Failed on: ~s ~s", [_Method, _Endpoint]),
                 erlang:error(_Reason)
         end
     end, EndpointsWithMethods)).

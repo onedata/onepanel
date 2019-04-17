@@ -122,7 +122,7 @@ all() ->
             Fun(_Host, _Endpoint, _Method)
         catch
             error:{assertMatch_failed, _} = _Reason ->
-                ct:print("Failed on: ~s ~s (host ~s)", [_Method, _Endpoint, _Host]),
+                ct:pal("Failed on: ~s ~s (host ~s)", [_Method, _Endpoint, _Host]),
                 erlang:error(_Reason)
         end
     end, [
