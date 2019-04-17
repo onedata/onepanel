@@ -70,6 +70,16 @@ routes() ->
             }]
         }},
 
+        %% Generate cluster invitation token for a user
+        {<<"/api/v3/onepanel/cluster/invite_user_token">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_clusters,
+            resource = invite_user_token,
+            methods = [#rmethod{
+                type = 'POST'
+            }]
+        }},
+
         %% Get details of a user's cluster
         {<<"/api/v3/onepanel/user/clusters/:id">>, rest_handler, #rstate{
             version = 3,
@@ -95,6 +105,16 @@ routes() ->
             version = 3,
             module = rest_onepanel,
             resource = hosts,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% Get summary of members in this cluster
+        {<<"/api/v3/onepanel/cluster/members_summary">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_clusters,
+            resource = current_cluster_members_summary,
             methods = [#rmethod{
                 type = 'GET'
             }]

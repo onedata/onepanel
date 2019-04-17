@@ -20,6 +20,7 @@
     cluster_details_model/0,
     cluster_ips_model/0,
     cluster_managers_model/0,
+    cluster_members_summary_model/0,
     cluster_workers_model/0,
     configuration_model/0,
     database_hosts_model/0,
@@ -78,6 +79,7 @@
     task_status_model/0,
     time_stats_model/0,
     time_stats_collection_model/0,
+    token_model/0,
     user_create_request_model/0,
     user_details_model/0,
     user_modify_request_model/0,
@@ -188,6 +190,24 @@ cluster_managers_model() ->
         mainNode => string,
         %% The list of aliases of cluster manager nodes.
         nodes => [string]
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Summary of cluster members, listing number of direct and effective users
+%% and groups.
+%% @end
+%%--------------------------------------------------------------------
+-spec cluster_members_summary_model() -> maps:map().
+cluster_members_summary_model() ->
+    #{
+        %% Number of users belonging directly to the cluster.
+        usersCount => {integer, optional},
+        %% Number of users belonging directly and indirectly to the cluster.
+        effectiveUsersCount => {integer, optional},
+        %% Number of groups belonging directly to the cluster.
+        groupsCount => {integer, optional},
+        %% Number of groups belonging directly and indirectly to the cluster.
+        effectiveGroupsCount => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1197,6 +1217,16 @@ time_stats_collection_model() ->
         updateCount => {time_stats_model(), optional},
         %% Statistics of storage sync deleted files.
         deleteCount => {time_stats_model(), optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc A token
+%% @end
+%%--------------------------------------------------------------------
+-spec token_model() -> maps:map().
+token_model() ->
+    #{
+        token => string
     }.
 
 %%--------------------------------------------------------------------
