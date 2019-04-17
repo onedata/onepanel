@@ -54,32 +54,11 @@ all() ->
 %%% Test data
 %%%===================================================================
 
--define(USER_DETAILS, #user_details{
-    id = <<"someUserId">>,
-    name = <<"onezoneUser">>,
-    alias = <<"onezoneUserLogin">>}).
-
--define(OP_CLIENT, #client{
-    privileges = privileges:cluster_admin(),
-    user = ?USER_DETAILS,
-    zone_auth = {rest, {access_token, <<"someUserToken">>}},
-    role = user
-}).
-
--define(OZ_CLIENT, #client{
-    privileges = privileges:cluster_admin(),
-    user = ?USER_DETAILS,
-    zone_auth = {rpc, opaque_client_record},
-    role = user
-}).
-
 -define(ZONE_ID, <<"onezone">>).
 -define(ZONE_CLUSTER_ID, <<"onezone">>).
 
 -define(PROVIDER_ID, "providerId").
 -define(PROVIDER_CLUSTER_ID, <<?PROVIDER_ID>>).
-
--define(ACCESS_TOKEN, <<"accessTokenFromOnezone">>).
 
 -define(CLUSTERS, #{
     ?ZONE_CLUSTER_ID => #{
