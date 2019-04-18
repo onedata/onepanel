@@ -62,8 +62,7 @@
   },
   "onepanel_domains": {
     "onezone": {
-      "@TODO": "After merging alpha with develop set to newest develop image",
-      "image": "docker.onedata.org/onezone-dev:VFS-4751-federated-login-in-onepanel",
+      "image": "docker.onedata.org/onezone-dev:18.07.0-alpha-2bc7ab9",
       "onepanel": {
         "node1": {
           "vm.args": {
@@ -89,8 +88,7 @@
     },
     "oneprovider": {
       "os_config": "cfg1",
-      "@TODO": "After merging alpha with develop set to newest develop image",
-      "image": "docker.onedata.org/oneprovider-dev:VFS-4751-federated-login-in-onepanel",
+      "image": "docker.onedata.org/oneprovider-dev:18.07.0-alpha-4bc0b6c",
       "onepanel": {
         "node1": {
           "vm.args": {
