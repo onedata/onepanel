@@ -39,21 +39,27 @@
 -spec is_authorized(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     State :: rest_handler:state()) ->
     {Authorized :: boolean(), Req :: cowboy_req:req()}.
-is_authorized(Req, _Method, #rstate{client = #client{role = Role}}) when
-    Role == root;
-    Role == admin;
-    Role == user ->
+is_authorized(Req, _Method, #rstate{client = #client{role = root}}) ->
     {true, Req};
 
-is_authorized(Req, 'GET', #rstate{resource = Resource}) when
-    Resource == task;
-    Resource == nagios ->
+is_authorized(Req, 'GET', #rstate{client = #client{role = member}}) ->
     {true, Req};
+is_authorized(Req, _Method, #rstate{client = #client{role = member} = Client}) ->
+    {rest_utils:has_privileges(Client, ?CLUSTER_UPDATE), Req};
 
-is_authorized(Req, Method, #rstate{resource = Resource}) when
-    (Method == 'POST' orelse Method == 'GET') andalso
-        (Resource == service_oneprovider orelse Resource == service_onezone) ->
-    {onepanel_user:get_by_role(admin) == [], Req};
+is_authorized(Req, 'GET', #rstate{resource = service_oneprovider}) ->
+    {onepanel_user:no_admin_exists(), Req};
+is_authorized(Req, 'POST', #rstate{resource = service_oneprovider}) ->
+    {onepanel_user:no_admin_exists(), Req};
+is_authorized(Req, 'GET', #rstate{resource = service_onezone}) ->
+    {onepanel_user:no_admin_exists(), Req};
+is_authorized(Req, 'POST', #rstate{resource = service_onezone}) ->
+    {onepanel_user:no_admin_exists(), Req};
+
+is_authorized(Req, 'GET', #rstate{resource = task}) ->
+    {true, Req};
+is_authorized(Req, 'GET', #rstate{resource = nagios}) ->
+    {true, Req};
 
 is_authorized(Req, _Method, _State) ->
     {false, Req}.

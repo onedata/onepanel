@@ -209,9 +209,10 @@ get_steps(status, _Ctx) ->
 
 get_steps(register, #{hosts := Hosts} = Ctx) ->
     [
-        #step{hosts = Hosts, function = configure, ctx = Ctx#{application => name()}},
         #step{hosts = Hosts, function = configure,
-            ctx = Ctx#{application => ?APP_NAME}},
+            ctx = Ctx#{application => ?SERVICE_OPW}},
+        #step{hosts = Hosts, function = configure,
+            ctx = Ctx#{application => ?APP_NAME}, selection = first},
         #step{hosts = Hosts, function = check_oz_availability,
             attempts = onepanel_env:get(connect_to_onezone_attempts)},
         #step{hosts = Hosts, function = register, selection = any},
@@ -292,8 +293,10 @@ get_steps(Action, Ctx) when
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(#{application := ?APP_NAME, oneprovider_token := Token}) ->
     OzDomain = zone_tokens:read_domain(Token),
-    application:set_env(?APP_NAME, onezone_domain, OzDomain),
-    onepanel_env:write([?APP_NAME, onezone_domain], OzDomain);
+    Nodes = nodes:all(?SERVICE_PANEL),
+    onepanel_env:set(Nodes, onezone_domain, OzDomain, ?APP_NAME),
+    onepanel_env:write(Nodes, [?APP_NAME, onezone_domain], OzDomain,
+        onepanel_env:get_config_path(?APP_NAME, generated));
 
 configure(#{oneprovider_token := Token} = Ctx) ->
     OzDomain = zone_tokens:read_domain(Token),

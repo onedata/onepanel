@@ -30,7 +30,7 @@
     authenticate_by_auth_token/1,
     authenticate_by_basic_auth/2,
     hash_password/1, change_password/2]).
--export([get_by_role/1]).
+-export([no_admin_exists/0, get_by_role/1]).
 -export([validate_username/1, validate_password/1, validate_role/1]).
 
 -type name() :: binary().
@@ -243,6 +243,15 @@ hash_password(Password) ->
 change_password(Username, NewPassword) ->
     ?MODULE:validate_password(NewPassword),
     update(Username, #{password_hash => hash_password(NewPassword)}).
+
+
+%%--------------------------------------------------------------------
+%% @doc Checks if any user with admin privileges exists.
+%% @end
+%%--------------------------------------------------------------------
+-spec no_admin_exists() -> boolean().
+no_admin_exists() ->
+    get_by_role(admin) == [].
 
 
 %%--------------------------------------------------------------------

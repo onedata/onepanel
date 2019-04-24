@@ -24,9 +24,11 @@
 
 %% API
 -export([get_id/0]).
--export([get_user_privileges/2]).
--export([get_current_cluster/0, get_details/2, list_user_clusters/1]).
+-export([get_user_privileges/1]).
+-export([get_current_cluster/0, get_details/2, list_user_clusters/1,
+    get_members_summary/1]).
 -export([fetch_remote_provider_info/2]).
+-export([create_user_invite_token/0]).
 
 -define(PRIVILEGES_CACHE_KEY(OnezoneUserId), {privileges, OnezoneUserId}).
 -define(PRIVILEGES_CACHE_TTL, onepanel_env:get(onezone_auth_cache_ttl, ?APP_NAME, 0)).
@@ -56,7 +58,7 @@ get_id() ->
 get_current_cluster() ->
     try
         Auth = zone_client:root_auth(),
-        {ok, Details} = get_details(Auth, ?MODULE:get_id()),
+        {ok, Details} = get_details(Auth, get_id()),
         store_in_cache(cluster, Details),
         Details
     catch _Type:Error ->
@@ -65,19 +67,49 @@ get_current_cluster() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Given user credentials, returns his privileges in the current cluster.
-%% Throws if connection could not be established.
+%% @doc Returns summary with counts of users and groups belonging
+%% to the current cluster.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_members_summary(rest_handler:zone_auth()) ->
+    #{atom() := non_neg_integer()} | no_return().
+get_members_summary(Auth) ->
+    Users = get_members_count(Auth, users, direct),
+    EffUsers = get_members_count(Auth, users, effective),
+    Groups = get_members_count(Auth, groups, direct),
+    EffGroups = get_members_count(Auth, groups, effective),
+    #{
+        usersCount => Users, groupsCount => Groups,
+        effectiveUsersCount => EffUsers, effectiveGroupsCount => EffGroups
+    }.
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns user privileges in the current cluster by UserId.
+%% Throws if connection to Onezone could not be established.
 %% Retrieves the credentials using root client authorization
 %% as the user might not have enough privileges to view his own privileges.
 %% @end
 %%--------------------------------------------------------------------
+-spec get_user_privileges(OnezoneUserId :: binary()) ->
+    {ok, [privileges:cluster_privilege()]} | #error{} | no_return().
+get_user_privileges(OnezoneUserId) ->
+    RootAuth = zone_client:root_auth(),
+    get_user_privileges(RootAuth, OnezoneUserId).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Returns user privileges in the current cluster by UserId.
+%% Uses specified authentication for the request.
+%% @end
+%%--------------------------------------------------------------------
 -spec get_user_privileges(rest_handler:zone_auth(), OnezoneUserId :: binary()) ->
     {ok, [privileges:cluster_privilege()]} | #error{} | no_return().
-get_user_privileges({rest, _}, OnezoneUserId) ->
+get_user_privileges({rest, RestAuth}, OnezoneUserId) ->
     simple_cache:get(?PRIVILEGES_CACHE_KEY(OnezoneUserId), fun() ->
-        {rest, RestAuth} = zone_client:root_auth(),
         case zone_rest(RestAuth, "/clusters/~s/effective_users/~s/privileges",
-            [?MODULE:get_id(), OnezoneUserId]) of
+            [get_id(), OnezoneUserId]) of
             {ok, #{privileges := Privileges}} ->
                 ListOfAtoms = onepanel_utils:convert(Privileges, {seq, atom}),
                 {true, ListOfAtoms, ?PRIVILEGES_CACHE_TTL};
@@ -89,10 +121,9 @@ get_user_privileges({rest, _}, OnezoneUserId) ->
         end
     end);
 
-get_user_privileges({rpc, _}, OnezoneUserId) ->
-    {ok, LogicClient} = service_oz_worker:get_logic_client(root),
+get_user_privileges({rpc, LogicClient}, OnezoneUserId) ->
     case zone_rpc(cluster_logic, get_eff_user_privileges,
-        [LogicClient, ?MODULE:get_id(), OnezoneUserId]) of
+        [LogicClient, get_id(), OnezoneUserId]) of
         #error{reason = ?ERR_NOT_FOUND} -> ?make_error(?ERR_USER_NOT_IN_CLUSTER);
         {ok, Privileges} -> {ok, Privileges}
     end.
@@ -161,6 +192,16 @@ fetch_remote_provider_info({rest, RestAuth}, ProviderId) ->
     format_provider_info(json_utils:decode(BodyJson)).
 
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Obtains token which enables a Onezone user to join current cluster.
+%% @end
+%%--------------------------------------------------------------------
+-spec create_user_invite_token() -> {ok, Token :: binary()} | #error{}.
+create_user_invite_token() ->
+    create_user_invite_token(zone_client:root_auth()).
+
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -178,11 +219,19 @@ zone_rpc(Module, Function, Args) ->
 
 
 %% @private
--spec zone_rest(Auth :: oz_plugin:auth(), URNFormat :: string(),
-    FormatArgs :: [term()]) -> {ok, #{atom() => term()}} | #error{}.
+-spec zone_rest(Auth :: oz_plugin:auth(),
+    URNFormat :: string(), FormatArgs :: [term()]) ->
+    {ok, #{atom() => term()}} | #error{}.
 zone_rest(Auth, URNFormat, FormatArgs) ->
+    zone_rest(get, Auth, URNFormat, FormatArgs).
+
+%% @private
+-spec zone_rest(Method :: http_client:method(), Auth :: oz_plugin:auth(),
+    URNFormat :: string(), FormatArgs :: [term()]) ->
+    {ok, #{atom() => term()}} | #error{}.
+zone_rest(Method, Auth, URNFormat, FormatArgs) ->
     URN = str_utils:format(URNFormat, FormatArgs),
-    case oz_endpoint:request(Auth, URN, get) of
+    case oz_endpoint:request(Auth, URN, Method) of
         {ok, 200, _, BodyJson} ->
             Parsed = onepanel_utils:convert(json_utils:decode(BodyJson), {keys, atom}),
             {ok, Parsed};
@@ -218,6 +267,61 @@ try_cached(Key, Error) ->
     case service:get_ctx(Service) of
         #{Key := Value} -> Value;
         _ -> throw(Error)
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Returns number of given entities (users or groups)
+%% belonging to the cluster - either directly or effectively.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_members_count(Auth :: rest_handler:zone_auth(),
+    UsersOrGroups :: users | groups, DirectOrEffective :: direct | effective) ->
+    non_neg_integer().
+get_members_count({rest, Auth}, UsersOrGroups, DirectOrEffective) ->
+    {Resource, ResponseKey} = case {UsersOrGroups, DirectOrEffective} of
+        {users, direct} -> {"users", users};
+        {users, effective} -> {"effective_users", users};
+        {groups, direct} -> {"groups", groups};
+        {groups, effective} -> {"effective_groups", groups}
+    end,
+
+    case zone_rest(Auth, "/clusters/~s/~s", [get_id(), Resource]) of
+        {ok, #{ResponseKey := List}} -> length(List);
+        Error -> ?throw_error(Error)
+    end;
+
+get_members_count({rpc, Auth}, UsersOrGroups, DirectOrEffective) ->
+    Function = case {UsersOrGroups, DirectOrEffective} of
+        {users, direct} -> get_users;
+        {users, effective} -> get_eff_users;
+        {groups, direct} -> get_groups;
+        {groups, effective} -> get_eff_groups
+    end,
+
+    case zone_rpc(cluster_logic, Function, [Auth, get_id()]) of
+        {ok, List} -> length(List);
+        Error -> ?throw_error(Error)
+    end.
+
+
+%% @private
+-spec create_user_invite_token(rest_handler:zone_auth()) ->
+    {ok, Token :: binary()} | #error{}.
+create_user_invite_token({rpc, Auth}) ->
+    case zone_rpc(cluster_logic, create_user_invite_token,
+        [Auth, get_id()]) of
+        {ok, Macaroon} -> onedata_macaroons:serialize(Macaroon);
+        Error -> Error
+    end;
+
+create_user_invite_token({rest, Auth}) ->
+    case zone_rest(
+        post, Auth, "/clusters/~s/users/token", [get_id()]
+    ) of
+        {ok, #{token := Token}} -> {ok, Token};
+        Error -> Error
     end.
 
 

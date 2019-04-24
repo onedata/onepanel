@@ -65,7 +65,8 @@ root_auth() ->
                 {ok, Client} -> {rpc, Client};
                 _Error -> none
             end;
-        oneprovider -> {rest, provider}
+        oneprovider ->
+            {rest, provider}
     end.
 
 

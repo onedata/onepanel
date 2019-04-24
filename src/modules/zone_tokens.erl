@@ -117,14 +117,14 @@ fetch_details(AccessToken) ->
 -spec user_details_to_client(#user_details{}, auth()) ->
     #client{} | #error{} | no_return().
 user_details_to_client(Details, Auth) ->
-    #user_details{id = OnezoneId} = Details,
-    case clusters:get_user_privileges(Auth, OnezoneId) of
+    #user_details{id = OnezoneUserId} = Details,
+    case clusters:get_user_privileges(OnezoneUserId) of
         {ok, Privileges} ->
             #client{
                 privileges = Privileges,
                 user = Details,
                 zone_auth = Auth,
-                role = user
+                role = member
             };
         Error -> Error
     end.

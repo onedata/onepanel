@@ -37,8 +37,10 @@
 -type client() :: #client{}.
 -type state() :: #rstate{}.
 -type method() :: #rmethod{}.
+-type privilege() :: privileges:cluster_privilege().
 
 %% Objects used to authenticate request to Onezone
+%% 'none' is used if proper authentication object could not be obtained
 -type zone_auth() :: rpc_auth() | rest_auth() | none.
 %% Used by oz_panel
 -type rpc_auth() :: {rpc, LogicClient :: term()}.
@@ -50,7 +52,7 @@
 
 -export_type([version/0, accept_method_type/0, method_type/0, resource/0,
     data/0, bindings/0, params/0, args/0, spec/0, client/0, state/0,
-    method/0]).
+    method/0, privilege/0]).
 
 %%%===================================================================
 %%% API functions
@@ -167,7 +169,7 @@ is_authorized(Req, #rstate{methods = Methods} = State) ->
             case lists:keyfind(Method, 2, Methods) of
                 #rmethod{noauth = true} ->
                     Req5 = cowboy_req:set_resp_body(<<>>, Req4),
-                    {true, Req5, State#rstate{client = #client{role = ?NOAUTH_ROLE}}};
+                    {true, Req5, State#rstate{client = #client{role = guest}}};
                 _ ->
                     {{false, <<"">>}, Req4, State}
             end
@@ -184,17 +186,12 @@ is_authorized(Req, #rstate{methods = Methods} = State) ->
 %%--------------------------------------------------------------------
 -spec forbidden(Req :: cowboy_req:req(), State :: state()) ->
     {boolean(), cowboy_req:req(), state()}.
-forbidden(Req, #rstate{module = Module, methods = Methods} = State) ->
+forbidden(Req, #rstate{module = Module} = State) ->
     try
         {Method, Req2} = rest_utils:get_method(Req),
-        {Bindings, Req3} = rest_utils:get_bindings(Req2),
-        #rmethod{params_spec = Spec} = lists:keyfind(Method, 2, Methods),
-        {Params, Req4} = rest_utils:get_params(Req3, Spec),
-        {Authorized, Req5} = Module:is_authorized(Req4, Method, State#rstate{
-            bindings = Bindings,
-            params = Params
-        }),
-        {not Authorized, Req5, State}
+        {Req3, State2} = parse_query_string(Req2, State),
+        {Authorized, Req4} = Module:is_authorized(Req3, Method, State2),
+        {not Authorized, Req4, State2}
     catch
         Type:Reason ->
             {true, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason)), State}
@@ -336,6 +333,25 @@ handle_options(Req, State) ->
 
             {ok, Req3, State}
     end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Reads bindings and parameters from the query string
+%% and inserts into state.
+%% @end
+%%--------------------------------------------------------------------
+-spec parse_query_string(Req :: cowboy_req:req(), State :: state()) ->
+    {Req :: cowboy_req:req(), NewState :: state()}.
+parse_query_string(Req, #rstate{methods = Methods} = State) ->
+    {Method, Req2} = rest_utils:get_method(Req),
+    {Bindings, Req3} = rest_utils:get_bindings(Req2),
+    #rmethod{params_spec = Spec} = lists:keyfind(Method, 2, Methods),
+    {Params, Req4} = rest_utils:get_params(Req3, Spec),
+    {Req4, State#rstate{
+        bindings = Bindings,
+        params = Params
+    }}.
 
 
 %%--------------------------------------------------------------------
