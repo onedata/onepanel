@@ -1952,7 +1952,7 @@ webdav_model() ->
         rangeWriteSupport => {string, {optional, none}},
         %% Defines the maximum number of parallel connections for a single
         %% WebDAV storage.
-        connectionPoolSize => {integer, {optional, 10}},
+        connectionPoolSize => {integer, {optional, 25}},
         %% Defines the maximum upload size for a single `PUT` or
         %% `PATCH` request. If set to 0, assumes that the WebDAV
         %% server has no upload limit.
