@@ -226,7 +226,7 @@ set_up_service_in_onezone() ->
     {ok, OzNode} = nodes:any(?SERVICE_OZW),
     {ok, GuiHash} = gui:package_hash(GuiPackagePath),
     ok = rpc:call(OzNode, gui_static, deploy_package, [
-        ?OZ_PANEL, filename:absname(GuiPackagePath)
+        onedata:service_shortname(?OZ_PANEL), filename:absname(GuiPackagePath)
     ]),
     ?info("Deployed static GUI files (~s)", [GuiHash]),
 
