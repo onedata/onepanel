@@ -1,4 +1,6 @@
 {build_envs, "REBAR_PROFILE=package REL_TYPE={{release_type}}"}.
+{scl_prefix, "/opt/onedata"}.
+{scl_package, "{{package_name}}"}.
 {package_name, "{{package_name}}"}.
 {package_install_name, "{{release_name}}"}.
 {package_install_user, "{{release_name}}"}.
@@ -39,39 +41,45 @@
     "FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR\n"
     "OTHER DEALINGS IN THE SOFTWARE."}.
 {rpm_requires,
-    ", openssl"
-    ", sed"
-    ", folly"}.
+    "Requires: scl-utils\n"
+    "Requires: %scl_require_package %{scl} openssl\n"
+    "Requires: sed\n"
+    "Requires: %scl_require_package %{scl} folly\n"}.
 {rpm_build_requires,
-    ", automake"
-    ", boost-devel >= 1.58.0"
-    ", cmake >= 3.0.0"
-    ", erlang-common_test >= 18.0"
-    ", erlang-edoc >= 18.0"
-    ", erlang-erl_interface >= 18.0"
-    ", erlang-eunit >= 18.0"
-    ", erlang-observer >= 18.0"
-    ", erlang-parsetools >= 18.0"
-    ", erlang-reltool >= 18.0"
-    ", erlang-xmerl >= 18.0"
-    ", folly-devel = 2017.10.02.00"
-    ", folly-static = 2017.10.02.00"
-    ", gcc-c++ >= 4.9.0"
-    ", gflags-devel >= 2.1.2"
-    ", git"
-    ", glog-devel >= 0.3.4"
-    ", golang"
-    ", libsodium-devel"
-    ", libtool"
-    ", ninja-build"
-    ", openssl"
-    ", python"}.
+    "BuildRequires: %scl_require_package %{scl} boost-devel\n"
+    "BuildRequires: %scl_require_package %{scl} folly-devel\n"
+    "BuildRequires: %scl_require_package %{scl} folly-static\n"
+    "BuildRequires: %scl_require_package %{scl} gflags-devel\n"
+    "BuildRequires: %scl_require_package %{scl} glog-devel\n"
+    "BuildRequires: %scl_require_package %{scl} openssl\n"
+    "BuildRequires: %scl_require_package devtoolset-6 gcc-c++\n"
+    "BuildRequires: automake\n"
+    "BuildRequires: cmake3\n"
+    "BuildRequires: erlang-asn1 >= 20.0\n"
+    "BuildRequires: erlang-common_test >= 20.0\n"
+    "BuildRequires: erlang-edoc >= 20.0\n"
+    "BuildRequires: erlang-erl_interface >= 20.0\n"
+    "BuildRequires: erlang-erts >= 20.0\n"
+    "BuildRequires: erlang-eunit >= 20.0\n"
+    "BuildRequires: erlang-inets >= 20.0\n"
+    "BuildRequires: erlang-observer >= 20.0\n"
+    "BuildRequires: erlang-parsetools >= 20.0\n"
+    "BuildRequires: erlang-public_key >= 20.0\n"
+    "BuildRequires: erlang-reltool >= 20.0\n"
+    "BuildRequires: erlang-stdlib >= 20.0\n"
+    "BuildRequires: erlang-xmerl >= 20.0\n"
+    "BuildRequires: git\n"
+    "BuildRequires: golang\n"
+    "BuildRequires: libsodium-devel\n"
+    "BuildRequires: libtool\n"
+    "BuildRequires: ninja-build\n"
+    "BuildRequires: python\n"}.
 {post_install_rpm_script,
     "if [ \"$ONEPANEL_ADVERTISE_ADDRESS\" ]; then "
-    "   sed -i -e \"s/{advertise_address, .*}/{advertise_address, $ONEPANEL_ADVERTISE_ADDRESS}/g\" /etc/{{release_name}}/app.config; "
+    "   sed -i -e \"s/{advertise_address, .*}/{advertise_address, $ONEPANEL_ADVERTISE_ADDRESS}/g\" /opt/onedata/{{scl}}/root/etc/{{release_name}}/app.config; "
     "fi; "
     "if [ \"$ONEPANEL_AUTOSTART\" != false ]; then "
-    "   sed -i -e \"s/-name .*/-name onepanel@`hostname -f`/g\" /etc/{{release_name}}/vm.args; "
+    "   sed -i -e \"s/-name .*/-name onepanel@`hostname -f`/g\" /opt/onedata/{{scl}}/root/etc/{{release_name}}/vm.args; "
     "   service {{release_name}} start; "
     "fi"}.
 {deb_depends,
@@ -81,8 +89,8 @@
 {deb_build_depends,
     "automake"
     ", cmake (>= 3.0.0)"
-    ", erlang (>= 18.0)"
-    ", erlang-src (>= 18.0)"
+    ", erlang (>= 20.0)"
+    ", erlang-src (>= 20.0)"
     ", folly-dev (>= 2017.10.02.00)"
     ", g++ (>= 4.9.0)"
     ", git"
