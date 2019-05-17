@@ -100,13 +100,13 @@ authenticate_user(oneprovider, AccessToken) ->
 fetch_details(AccessToken) ->
     case oz_endpoint:request({access_token, AccessToken}, "/user", get) of
         {ok, 200, _ResponseHeaders, ResponseBody} ->
-            Proplist = json_utils:decode_deprecated(ResponseBody),
+            Map = json_utils:decode(ResponseBody),
             UserDetails = #user_details{
-                id = lists_utils:key_get(<<"userId">>, Proplist),
-                name = lists_utils:key_get(<<"name">>, Proplist),
-                linked_accounts = lists_utils:key_get(<<"linkedAccounts">>, Proplist),
-                alias = lists_utils:key_get(<<"alias">>, Proplist),
-                email_list = lists_utils:key_get(<<"emailList">>, Proplist)
+                id = maps:get(<<"userId">>, Map),
+                full_name = maps:get(<<"name">>, Map),
+                linked_accounts = maps:get(<<"linkedAccounts">>, Map),
+                username = maps:get(<<"username">>, Map),
+                emails = maps:get(<<"emails">>, Map)
             },
             {ok, UserDetails};
         {ok, Code, _, _ResponseBody} -> ?make_error({Code, _ResponseBody, <<>>});

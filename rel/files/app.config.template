@@ -171,7 +171,7 @@
         %% DNS zone delegation.
         {dns_expect_zone_delegation, true},
 
-        %% Login of the admin user created after Onezone deployment
+        %% Username of the admin user created after Onezone deployment
         {zone_default_admin_username, <<"admin">>},
 
         {rest_api_prefix_template, "/api/v{version_number}/onepanel"},
