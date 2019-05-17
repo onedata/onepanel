@@ -291,7 +291,7 @@ oz_token_auth(Name, Privileges) ->
 oz_token_auth(UserId, Name, Privileges) ->
     Client = erlang:term_to_binary(#client{
         role = member, privileges = Privileges,
-        user = #user_details{id = UserId, name = Name}
+        user = #user_details{id = UserId, username = Name, full_name = Name}
     }),
     ClientB64 = base64:encode(Client),
     {token, <<"valid-token:", ClientB64/binary>>}.
