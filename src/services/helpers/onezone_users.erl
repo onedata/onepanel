@@ -114,7 +114,8 @@ create_default_admin(_Ctx) ->
         true -> ok;
         false ->
             {ok, PasswordHash} = emergency_passphrase:get_hash(),
-            migrate_user(?DEFAULT_ADMIN_USERNAME, PasswordHash, admin)
+            RandomId = onepanel_utils:gen_uuid(),
+            migrate_user(RandomId, ?DEFAULT_ADMIN_USERNAME, PasswordHash, admin)
     end.
 
 
@@ -147,17 +148,18 @@ set_user_password(#{user_id := UserId, new_password := NewPassword}) ->
 -spec migrate_user(onepanel_user:record()) -> ok.
 migrate_user(OnepanelUser) ->
     #onepanel_user{
-        username = Username, password_hash = PasswordHash, role = Role
+        uuid = UUID, username = Username,
+        password_hash = PasswordHash, role = Role
     } = OnepanelUser,
-    migrate_user(Username, PasswordHash, Role).
+    migrate_user(UUID, Username, PasswordHash, Role).
 
 %% @private
--spec migrate_user(Username :: binary(), PasswordHash :: binary(),
-    Role :: onepanel_user:role()) -> ok.
-migrate_user(Username, PasswordHash, Role) ->
+-spec migrate_user(onepanel_user:uuid(), Username :: binary(),
+    PasswordHash :: binary(), Role :: onepanel_user:role()) -> ok.
+migrate_user(UserUUID, Username, PasswordHash, Role) ->
     {ok, OzNode} = nodes:any(?SERVICE_OZW),
     {ok, _} = rpc:call(OzNode, basic_auth, migrate_onepanel_user_to_onezone,
-        [Username, PasswordHash, Role]),
+        [UserUUID, Username, PasswordHash, Role]),
     ok.
 
 
