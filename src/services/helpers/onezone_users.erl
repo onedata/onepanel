@@ -98,8 +98,8 @@ list_users(_Ctx) ->
 get_user(#{user_id := UserId}) ->
     {OzNode, Client} = get_node_and_client(),
     {ok, Details} = rpc:call(OzNode, user_logic, get_as_user_details, [Client, UserId]),
-    #user_details{id = UserId, name = Name, alias = Alias} = Details,
-    #{userId => UserId, name => Name, alias => Alias}.
+    #user_details{id = UserId, username = Username, full_name = FullName} = Details,
+    #{userId => UserId, username => Username, fullName => FullName}.
 
 
 %%--------------------------------------------------------------------

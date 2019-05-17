@@ -236,7 +236,7 @@ current_user_model() ->
     #{
         %% The user Id.
         userId => string,
-        %% The user name.
+        %% User's full name (given names + surname).
         username => string,
         %% List of cluster privileges held by the user in the current cluster.
         clusterPrivileges => {[string], optional}
@@ -317,8 +317,7 @@ dns_check_result_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Emergency passphrase to set and old passphrase to authenticate the
-%% change.
+%% @doc Emergency passphrase to set and old passphrase to authorize the change.
 %% @end
 %%--------------------------------------------------------------------
 -spec emergency_passphrase_change_request_model() -> maps:map().
@@ -467,18 +466,20 @@ onezone_info_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Describes user information coming from Onezone.
+%% @doc Describes a user account.
 %% @end
 %%--------------------------------------------------------------------
 -spec onezone_user_model() -> maps:map().
 onezone_user_model() ->
     #{
-        %% Onezone user ID.
+        %% Unique user Id.
         userId => string,
-        %% User name as registered in Onezone.
-        name => string,
-        %% Onezone user login.
-        alias => {string, optional}
+        %% User's full name (given names + surname).
+        fullName => string,
+        %% User's human-readable identifier, unique across the system. Makes
+        %% it easier to identify the user and can be used for signing in with
+        %% password.
+        username => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
