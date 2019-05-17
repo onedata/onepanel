@@ -131,9 +131,9 @@ provide_resource(Req, #rstate{resource = current_user, client = Client}) when
     Client#client.role == member ->
 
     #client{privileges = Privileges, user = User} = Client,
-    #user_details{username = Username, id = Id} = User,
+    #user_details{full_name = FullName, id = Id} = User,
     {#{
-        username => Username, userId => Id,
+        username => FullName, userId => Id,
         clusterPrivileges => Privileges
     }, Req}.
 

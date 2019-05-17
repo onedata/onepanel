@@ -236,7 +236,7 @@ current_user_model() ->
     #{
         %% The user Id.
         userId => string,
-        %% The user name.
+        %% User's full name (given names + surname).
         username => string,
         %% List of cluster privileges held by the user in the current cluster.
         clusterPrivileges => {[string], optional}
@@ -317,8 +317,7 @@ dns_check_result_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Emergency passphrase to set and old passphrase to authenticate the
-%% change.
+%% @doc Emergency passphrase to set and old passphrase to authorize the change.
 %% @end
 %%--------------------------------------------------------------------
 -spec emergency_passphrase_change_request_model() -> maps:map().
