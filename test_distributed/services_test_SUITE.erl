@@ -23,6 +23,8 @@
 
 %% tests
 -export([
+    default_admin_is_created_test/1,
+    batch_config_creates_users/1,
     service_oneprovider_unregister_register_test/1,
     service_oneprovider_modify_details_test/1,
     service_oneprovider_get_details_test/1,
@@ -45,9 +47,12 @@ end).
 
 -define(OZ_USERNAME, <<"joe">>).
 -define(OZ_PASSWORD, <<"password">>).
+-define(PASSPHRASE, <<"passphrase">>).
 
 all() ->
     ?ALL([
+        default_admin_is_created_test,
+        batch_config_creates_users,
         service_oneprovider_unregister_register_test,
         service_oneprovider_modify_details_test,
         service_oneprovider_get_details_test,
@@ -62,6 +67,26 @@ all() ->
 %%%===================================================================
 %%% Test functions
 %%%===================================================================
+
+
+default_admin_is_created_test(Config) ->
+    % after deployment there should exist Onezone user <<"admin">>
+    % with password set to emergency passphrase
+    [OzNode | _] = ?config(onezone_nodes, Config),
+    OzwNode = nodes:service_to_node(?SERVICE_OZW, OzNode),
+    ?assertMatch({ok, _}, proxy_rpc(OzNode, OzwNode,
+        basic_auth, authenticate, [<<"admin">>, ?PASSPHRASE])).
+
+
+batch_config_creates_users(Config) ->
+    [OzNode | _] = ?config(onezone_nodes, Config),
+    OzwNode = nodes:service_to_node(?SERVICE_OZW, OzNode),
+    {ok, UserId} = ?assertMatch({ok, _}, proxy_rpc(OzNode, OzwNode,
+        basic_auth, authenticate, [?OZ_USERNAME, ?OZ_PASSWORD])),
+
+    ?assert(proxy_rpc(OzNode, OzwNode, group_logic, has_direct_user,
+        [<<"admins">>, UserId])).
+
 
 service_oneprovider_unregister_register_test(Config) ->
     [OzNode | _] = ?config(onezone_nodes, Config),
@@ -88,7 +113,7 @@ service_oneprovider_modify_details_test(Config) ->
         oneprovider_domain => Domain,
         oneprovider_admin_email => <<"admin@onedata.org">>
     }),
-    
+
     onepanel_test_utils:service_action(Node, oneprovider, get_details, #{
         hosts => [hosts:from_node(Node)]
     }),
@@ -301,15 +326,11 @@ init_per_suite(Config) ->
         % generate certificate with correct onezone domain
         regenerate_web_certificate(OzNodes, OzDomain),
 
+        rpc:call(OzNode, emergency_passphrase, set, [?PASSPHRASE]),
         onepanel_test_utils:service_action(OzNode, ?SERVICE_OZ, deploy, #{
             cluster => #{
                 ?SERVICE_PANEL => #{
-                    hosts => OzHosts,
-                    users => #{
-                        ?OZ_USERNAME => #{
-                            password => ?OZ_PASSWORD, userRole => admin
-                        }
-                    }
+                    hosts => OzHosts
                 },
                 ?SERVICE_CB => #{
                     hosts => OzHosts
@@ -319,7 +340,12 @@ init_per_suite(Config) ->
                 },
                 ?SERVICE_OZW => #{
                     hosts => OzHosts, main_cm_host => hd(OzHosts),
-                    cm_hosts => OzHosts, db_hosts => OzHosts
+                    cm_hosts => OzHosts, db_hosts => OzHosts,
+                    onezone_users => [#{
+                        username => ?OZ_USERNAME,
+                        password => ?OZ_PASSWORD,
+                        groups => [<<"admins">>]
+                    }]
                 },
                 ?SERVICE_LE => #{
                     hosts => OzHosts,
@@ -342,6 +368,7 @@ init_per_suite(Config) ->
 
         {ok, Posix} = onepanel_lists:get([storages, posix, '/mnt/st1'], NewConfig2),
         RegistrationToken = get_registration_token(OzNode),
+        rpc:call(OpNode, emergency_passphrase, set, [?PASSPHRASE]),
         onepanel_test_utils:service_action(OpNode, ?SERVICE_OP, deploy, #{
             cluster => #{
                 ?SERVICE_PANEL => #{
@@ -477,25 +504,21 @@ regenerate_web_certificate(Nodes, Domain) ->
         WebKeyPath, WebCertPath, Domain, CAPath, CAPath]),
     {_, []} = rpc:multicall(Nodes, file, copy, [CAPath, WebChainPath]),
 
-    rpc:multicall(Nodes, service_op_worker, reload_webcert, [#{}]).
+    {_, []} = rpc:multicall(Nodes, service_op_worker, reload_webcert, [#{}]),
+    ok.
 
 
 -spec get_registration_token(OzNode :: node()) -> Token :: binary().
 get_registration_token(OzNode) ->
     OzwNode = nodes:service_to_node(?SERVICE_OZW, OzNode),
-    {ok, #onepanel_user{uuid = OnepanelUserId}} = ?assertMatch({ok, #onepanel_user{}},
-        rpc:call(OzNode, onepanel_user, get, [?OZ_USERNAME]),
-        ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS),
-    {ok, OnezoneUserId} = ?assertMatch({ok, _},
-        proxy_rpc(OzNode, OzwNode, user_logic, acquire_onepanel_user,
-            [OnepanelUserId, ?OZ_USERNAME, ?OZ_PASSWORD]
-        ),
-        ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS),
-    Client = proxy_rpc(OzNode, OzwNode, entity_logic, user_client, [OnezoneUserId]),
+    RootClient = proxy_rpc(OzNode, OzwNode, entity_logic, root_client, []),
 
+    {ok, [OnezoneUserId | _]} =proxy_rpc(OzNode, OzwNode, user_logic, list, [RootClient]),
+    UserClient = proxy_rpc(OzNode, OzwNode, entity_logic, user_client, [OnezoneUserId]),
     {ok, RegistrationToken} = ?assertMatch({ok, _},
         proxy_rpc(OzNode, OzwNode,
-            user_logic, create_provider_registration_token, [Client, OnezoneUserId]
+            user_logic, create_provider_registration_token,
+            [UserClient, OnezoneUserId]
         ),
         ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS),
 

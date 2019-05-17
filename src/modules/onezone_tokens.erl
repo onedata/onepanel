@@ -8,7 +8,7 @@
 %%% @doc Functions for handling tokens issued by Onezone.
 %%% @end
 %%%-------------------------------------------------------------------
--module(zone_tokens).
+-module(onezone_tokens).
 -author("Wojciech Geisler").
 
 -include("names.hrl").
@@ -72,7 +72,8 @@ authenticate_user(onezone, AccessToken) ->
         {ok, LogicClient} ->
             {ok, Details} = service_oz_worker:get_user_details(LogicClient),
             user_details_to_client(Details, {rpc, LogicClient});
-        #error{} = Error -> Error
+        _ ->
+            ?make_error(?ERR_INVALID_AUTH_TOKEN)
     end;
 
 authenticate_user(oneprovider, AccessToken) ->

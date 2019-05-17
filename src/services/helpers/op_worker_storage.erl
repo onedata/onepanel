@@ -5,7 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc This module contains helper function used during op_worker service
+%%% @doc This module contains helper functions used during op_worker service
 %%% storage configuration.
 %%% @end
 %%%--------------------------------------------------------------------
@@ -136,7 +136,7 @@ is_mounted_in_root(Node, SpaceId, StorageId) ->
 %% @doc Updates details of a selected storage in op_worker service.
 %% @end
 %%--------------------------------------------------------------------
--spec update(Name :: name(), Args :: maps:map()) -> ok.
+-spec update(Name :: name(), Args :: map()) -> ok.
 update(Id, Args) ->
     Node = nodes:local(?SERVICE_OPW),
     Storage = op_worker_storage:get(Id),
@@ -170,7 +170,7 @@ exists(Node, {id, StorageId}) ->
 %% @end
 %%-------------------------------------------------------------------
 -spec maybe_update_file_popularity(Node :: node(), SpaceId :: id(),
-    maps:map()) -> ok.
+    map()) -> ok.
 maybe_update_file_popularity(_Node, _SpaceId, Args) when map_size(Args) =:= 0 ->
     ok;
 maybe_update_file_popularity(Node, SpaceId, Args) ->
@@ -187,7 +187,7 @@ maybe_update_file_popularity(Node, SpaceId, Args) ->
 %% Updates autocleaning configuration.
 %% @end
 %%-------------------------------------------------------------------
--spec maybe_update_auto_cleaning(Node :: node(), SpaceId :: id(), maps:map()) -> ok.
+-spec maybe_update_auto_cleaning(Node :: node(), SpaceId :: id(), map()) -> ok.
 maybe_update_auto_cleaning(_Node, _SpaceId, Args) when map_size(Args) =:= 0 ->
     ok;
 maybe_update_auto_cleaning(Node, SpaceId, Args) ->
@@ -450,7 +450,7 @@ maybe_verify_storage(Helper, _) ->
 -spec verify_storage(Helper :: any()) ->
     ok | no_return().
 verify_storage(Helper) ->
-    [Node | _] = service_op_worker:get_nodes(),
+    {ok, Node} = nodes:any(?SERVICE_OPW),
     rpc:call(Node, storage_detector, verify_storage_on_all_nodes, [Helper]).
 
 
@@ -534,7 +534,7 @@ get_required_luma_arg(StorageParams, Key, Type) ->
 %% arguments.
 %% @end
 %%--------------------------------------------------------------------
--spec parse_auto_cleaning_configuration(maps:maps()) -> maps:map().
+-spec parse_auto_cleaning_configuration(maps:maps()) -> map().
 parse_auto_cleaning_configuration(Args) ->
     onepanel_maps:remove_undefined(#{
         enabled => onepanel_utils:typed_get(enabled, Args, boolean, undefined),
@@ -548,7 +548,7 @@ parse_auto_cleaning_configuration(Args) ->
 %% configuration arguments.
 %% @end
 %%--------------------------------------------------------------------
--spec parse_auto_cleaning_rules(maps:maps()) -> maps:map().
+-spec parse_auto_cleaning_rules(maps:maps()) -> map().
 parse_auto_cleaning_rules(Args) ->
     ParsedRules = #{
         enabled => onepanel_utils:typed_get([rules, enabled], Args, boolean, undefined)
@@ -571,7 +571,7 @@ parse_auto_cleaning_rules(Args) ->
 %% @private @doc Parses and validates auto-cleaning rule setting.
 %% @end
 %%--------------------------------------------------------------------
--spec parse_auto_cleaning_rule_setting(atom(), maps:map()) -> maps:map().
+-spec parse_auto_cleaning_rule_setting(atom(), map()) -> map().
 parse_auto_cleaning_rule_setting(RuleName, Args) ->
     onepanel_maps:remove_undefined(#{
         enabled => onepanel_utils:typed_get([rules, RuleName, enabled], Args, boolean, undefined),
@@ -582,7 +582,7 @@ parse_auto_cleaning_rule_setting(RuleName, Args) ->
 %% @private @doc Parses and validates file-popularity configuration
 %% @end
 %%-------------------------------------------------------------------
--spec parse_file_popularity_configuration(maps:map()) -> maps:map().
+-spec parse_file_popularity_configuration(map()) -> map().
 parse_file_popularity_configuration(Args) ->
     onepanel_maps:remove_undefined(#{
         enabled => onepanel_utils:typed_get(enabled, Args, boolean, undefined),

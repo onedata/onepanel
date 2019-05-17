@@ -23,7 +23,7 @@
 -export([auth_request/4, auth_request/5, auth_request/6, auth_request/7,
     noauth_request/3, noauth_request/4, noauth_request/5, noauth_request/6]).
 -export([assert_body_fields/2, assert_body_values/2, assert_body/2]).
--export([set_up_default_users/1, mock_token_authentication/1,
+-export([set_default_passphrase/1, mock_token_authentication/1,
     oz_token_auth/1, oz_token_auth/2, oz_token_auth/3,
     obtain_local_token/2]).
 
@@ -31,6 +31,7 @@
 -type endpoint() :: http_client:url() | {noprefix, http_client:url()}.
 -type method() :: http_client:method().
 -type auth() :: {Username :: binary(), Password :: binary()} |
+                (Passphrase :: binary()) |
                 {cookie, Name :: binary(), Value :: binary()} |
                 {token, Token :: binary()} |
                 none.
@@ -103,10 +104,13 @@ auth_request(HostOrConfig, Port, Endpoint, Method, {token, Token},
     NewHeaders = [{<<"x-auth-token">>, Token} | Headers],
     noauth_request(HostOrConfig, Port, Endpoint, Method, NewHeaders, Body);
 
-auth_request(HostOrConfig, Port, Endpoint, Method, {Username, Password},
+auth_request(HostOrConfig, Port, Endpoint, Method, <<Passphrase/binary>>,
     Headers, Body) ->
-    NewHeaders = [onepanel_utils:get_basic_auth_header(Username, Password)
-        | Headers],
+    Username = hd(?ROOT_USERNAMES),
+    auth_request(HostOrConfig, Port, Endpoint, Method, {Username, Passphrase}, Headers, Body);
+
+auth_request(HostOrConfig, Port, Endpoint, Method, {Username, Password}, Headers, Body) ->
+    NewHeaders = [onepanel_utils:get_basic_auth_header(Username, Password) | Headers],
     noauth_request(HostOrConfig, Port, Endpoint, Method, NewHeaders, Body);
 
 auth_request(HostOrConfig, Port, Endpoint, Method, [_ | _] = Auths, Headers, Body) ->
@@ -171,7 +175,7 @@ noauth_request(HostOrConfig, Endpoint, Method, Headers, Body) ->
 noauth_request(HostOrConfig, Port, {noprefix, Path}, Method, Headers, Body) ->
     Host = case io_lib:printable_unicode_list(HostOrConfig) of
         true -> HostOrConfig;
-        false -> utils:random_element(?config(onepanel_hosts, HostOrConfig))
+        false -> utils:random_element(?config(all_hosts, HostOrConfig))
     end,
     NewHeaders = [
         {<<"content-type">>, <<"application/json">>} |
@@ -220,30 +224,20 @@ assert_body(JsonBody, Body) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc On all nodes sets up users assumed by ?REGULAR_AUTHS
-%% and ?ROOT_AUTHS macros to be present.
+%% @doc On all nodes sets up emergency passphrase used
+%% by the ?ROOT_AUTHS and ?OZ_OR_ROOT_AUTHS macros.
 %% @end
 %%--------------------------------------------------------------------
-set_up_default_users(Config) ->
-    Validator = fun
-        (#error{reason = ?ERR_USERNAME_NOT_AVAILABLE}) -> ok;
-        ({ok, _}) -> ok;
-        (Error) -> ?assertMatch({ok, _}, Error) % will fail
+set_default_passphrase(Config) ->
+    Validator = fun(Result) ->
+        ?assertMatch(ok, Result)
     end,
-
-    Results1 = ?callAll(Config, onepanel_user, create,
-        [?REG_USER_NAME, ?REG_USER_PASSWORD, regular]
-    ),
-    lists:foreach(Validator, Results1),
-
-    Results2 = ?callAll(Config, onepanel_user, create,
-        [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
-    ),
-    lists:foreach(Validator, Results2).
+    Results = ?callAll(Config, emergency_passphrase, set, [?EMERGENCY_PASSPHRASE]),
+    lists:foreach(Validator, Results).
 
 
 %%--------------------------------------------------------------------
-%% @doc Sets up mock of zone_tokens module to accept tokens with
+%% @doc Sets up mock of onezone_tokens module to accept tokens with
 %% encoded client information, as created by the onepanel_test_rest utilities.
 %% Requires hook `{?LOAD_MODULES, [onepanel_test_rest]}` to work correctly.
 %% @end
@@ -253,15 +247,16 @@ mock_token_authentication([{_, _} | _] = Config) ->
     mock_token_authentication(?config(all_nodes, Config));
 
 mock_token_authentication(Nodes) ->
-    test_utils:mock_new(Nodes, [zone_tokens]),
-    test_utils:mock_expect(Nodes, zone_tokens, authenticate_user, fun
+    test_utils:mock_new(Nodes, [onezone_tokens]),
+    test_utils:mock_expect(Nodes, onezone_tokens, authenticate_user, fun
         (<<"valid-token:", ClientB64/binary>> = Token) ->
             ClientBin = base64:decode(ClientB64),
             Client = erlang:binary_to_term(ClientBin),
             case onepanel_env:get_cluster_type() of
                 oneprovider -> Client#client{zone_auth = {rest, {access_token, Token}}};
                 onezone -> Client#client{zone_auth = {rpc, opaque_client}}
-            end
+            end;
+        (BadToken) -> meck:passthrough([BadToken])
     end).
 
 
@@ -307,10 +302,10 @@ oz_token_auth(UserId, Name, Privileges) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec obtain_local_token(HostOrConfig :: config(),
-    {Username :: binary(), Password :: binary()}) -> auth().
-obtain_local_token(HostOrConfig, {Username, Password}) ->
+    {Username :: binary(), Auth :: auth()}) -> auth().
+obtain_local_token(HostOrConfig, Auth) ->
     {ok, _, #{<<"set-cookie">> := CookieHeader}, _} = ?assertMatch({ok, 204, _, _},
-        auth_request(HostOrConfig, {noprefix, "/login"}, post, {Username, Password})),
+        auth_request(HostOrConfig, {noprefix, "/login"}, post, Auth)),
 
     SessionCookieKey = gui_session_plugin:session_cookie_key(),
     Cookies = hackney_cookie:parse_cookie(CookieHeader),
@@ -322,4 +317,3 @@ obtain_local_token(HostOrConfig, {Username, Password}) ->
 
     #{<<"token">> := Token} = json_utils:decode(TokenJson),
     {token, Token}.
-

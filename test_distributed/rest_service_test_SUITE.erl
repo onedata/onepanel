@@ -57,6 +57,8 @@
 ]).
 
 -define(COMMON_ENDPOINTS_WITH_METHODS, [
+    {<<"/configuration">>, get},
+    {<<"/configuration">>, post},
     {<<"/databases">>, get},
     {<<"/managers">>, get},
     {<<"/workers">>, get},
@@ -197,16 +199,11 @@ method_should_return_unauthorized_error(Config) ->
 method_should_return_forbidden_error(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
         lists:foreach(fun({Endpoint, Method}) ->
-            % highest rights which still should not grant access to these endpoints
-            Auths = case Method of
-                get -> ?REGULAR_AUTHS(Host);
-                _ -> ?REGULAR_AUTHS(Host) ++ ?OZ_AUTHS(Host, [])
-            end,
-
+            Auths = ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_UPDATE]),
             ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, Endpoint/binary>>, Method, Auths
+                Host, <<Prefix/binary, Endpoint/binary>>, Method, ?OZ_AUTHS(Host, Auths)
             ))
-        end, ?COMMON_ENDPOINTS_WITH_METHODS)
+        end, [{E, M} || {E, M} <- ?COMMON_ENDPOINTS_WITH_METHODS, M /= get])
     end).
 
 
@@ -216,7 +213,7 @@ method_should_return_service_unavailable_error(Config) ->
             lists:foreach(fun({Endpoint, Method}) ->
                 ?assertMatch({ok, 503, _, _}, onepanel_test_rest:auth_request(
                     Host, <<Prefix/binary, Endpoint/binary>>, Method,
-                    ?NONE_AUTHS() ++ ?REGULAR_AUTHS(Host) ++ ?OZ_OR_ROOT_AUTHS(Host, [])
+                    ?ALL_AUTHS(Host)
                 ))
             end, [
                 {<<"/storages">>, get},
@@ -289,7 +286,7 @@ get_should_return_service_task_results(Config) ->
             {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
                 onepanel_test_rest:auth_request(
                     Host, <<"/tasks/", TaskId/binary>>, get,
-                    ?REGULAR_AUTHS(Host) ++ ?OZ_OR_ROOT_AUTHS(Host, [])
+                    ?OZ_OR_ROOT_AUTHS(Host, [])
                 )
             ),
             onepanel_test_rest:assert_body_fields(JsonBody, Fields),
@@ -317,7 +314,7 @@ get_should_return_nagios_response(Config) ->
         ?assertMatch({ok, 200, _, ?NAGIOS_REPORT_XML},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/nagios">>, get,
-                ?REGULAR_AUTHS(Host) ++ ?OZ_OR_ROOT_AUTHS(Host, [])
+                ?OZ_OR_ROOT_AUTHS(Host, [])
             )
         )
     end, [
@@ -356,7 +353,7 @@ patch_should_start_stop_service(Config) ->
                         onepanel_test_rest:auth_request(
                             Host, <<Prefix/binary, Endpoint/binary,
                                 HostParam/binary, StartedParam/binary>>,
-                            patch, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+                            patch, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
                         )
                     ),
                     ?assertReceivedMatch({service, Service, Action, Ctx}, ?TIMEOUT)
@@ -384,7 +381,7 @@ post_should_configure_database_service(Config) ->
         {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/databases">>, post,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
                 #{hosts => [<<"host1">>, <<"host2">>, <<"host3">>]}
             )
         ),
@@ -402,7 +399,7 @@ post_should_configure_cluster_manager_service(Config) ->
         {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/managers">>, post,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
                 #{
                     mainHost => <<"host1">>,
                     hosts => [<<"host1">>, <<"host2">>, <<"host3">>]
@@ -424,7 +421,7 @@ post_should_configure_cluster_worker_service(Config) ->
         {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/workers">>, post,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
                 #{hosts => [<<"host1">>, <<"host2">>, <<"host3">>]}
             )
         ),
@@ -446,7 +443,7 @@ post_should_configure_onezone_service(Config) ->
         {_, _, Headers, _} = ?assertMatch({ok, 201, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/configuration">>, post,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
                 #{
                     <<"cluster">> => ?CLUSTER_JSON,
                     <<"onezone">> => #{
@@ -492,7 +489,7 @@ post_should_configure_oneprovider_service(Config) ->
         {_, _, Headers, _} = ?assertMatch({ok, 201, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/configuration">>, post,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
                 #{
                     <<"cluster">> => maps:merge(#{
                         <<"storages">> => ?STORAGES_JSON},
@@ -625,9 +622,7 @@ init_per_testcase(method_should_return_service_unavailable_error, Config) ->
     NewConfig;
 
 init_per_testcase(method_should_return_not_found_error, Config) ->
-    ?assertAllMatch({ok, _}, ?callAll(Config, onepanel_user, create,
-        [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
-    )),
+    onepanel_test_rest:set_default_passphrase(Config),
     onepanel_test_rest:mock_token_authentication(Config),
     Config;
 
@@ -701,7 +696,7 @@ init_per_testcase(get_should_return_dns_check, Config) ->
             }
         } end),
 
-    onepanel_test_rest:set_up_default_users(Config),
+    onepanel_test_rest:set_default_passphrase(Config),
     onepanel_test_rest:mock_token_authentication(Nodes),
     Config;
 
@@ -774,7 +769,7 @@ init_per_testcase(_Case, Config) ->
         <<"someTaskId">>
     end),
 
-    onepanel_test_rest:set_up_default_users(Config),
+    onepanel_test_rest:set_default_passphrase(Config),
     onepanel_test_rest:mock_token_authentication(Nodes),
     Config.
 

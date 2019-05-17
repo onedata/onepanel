@@ -104,6 +104,9 @@ translate(_Type, #error{reason = ?ERR_INVALID_USERNAME_OR_PASSWORD}) ->
 translate(_Type, #error{reason = ?ERR_INVALID_AUTH_TOKEN}) ->
     {<<"Authentication Error">>, <<"Invalid REST API token.">>};
 
+translate(_Type, #error{reason = ?ERR_INVALID_PASSPHRASE}) ->
+    {<<"Authentication Error">>, <<"Invalid emergency passphrase.">>};
+
 translate(_Type, #error{reason = ?ERR_USER_NOT_IN_CLUSTER}) ->
     {<<"Authentication Error">>, <<"User is not authorized to access this cluster.">>};
 

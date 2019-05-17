@@ -141,7 +141,12 @@ assert_fields(Map = #{}, ExpectedFields) ->
     assert_fields(maps:to_list(Map), ExpectedFields);
 assert_fields(TupleList, ExpectedFields) ->
     lists:foreach(fun(Field) ->
-        ?assert(lists:keymember(Field, 1, TupleList))
+        case lists:keymember(Field, 1, TupleList) of
+            true -> ok;
+            false ->
+                ct:print("Key ~p missing in body ~p", [Field, TupleList]),
+                ?assert(false)
+        end
     end, ExpectedFields).
 
 
