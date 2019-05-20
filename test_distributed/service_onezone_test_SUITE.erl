@@ -9,7 +9,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 -module(service_onezone_test_SUITE).
--author("Krzysztof Trzepla").
+-author("Wojciech Geisler").
 
 -include("names.hrl").
 -include("modules/errors.hrl").
@@ -52,10 +52,11 @@ users_should_be_migrated_and_removed(Config) ->
     )),
 
     lists:foreach(fun
-        (#onepanel_user{username = Name, password_hash = PassHash, role = Role}) ->
+        (#onepanel_user{uuid = UUID, username = Name, password_hash = PassHash, role = Role}) ->
             test_utils:mock_assert_num_calls(
                 ?config(all_nodes, Config), rpc, call,
-                ['_', basic_auth, migrate_onepanel_user_to_onezone, [Name, PassHash, Role]],
+                ['_', basic_auth, migrate_onepanel_user_to_onezone,
+                    [UUID, Name, PassHash, Role]],
                 1)
     end, Users),
     ?assertEqual([], ?call(Config, onepanel_user, list, [])).
@@ -89,7 +90,7 @@ init_per_testcase(_Case, Config) ->
     test_utils:mock_new(Nodes, [rpc], [passthrough, unstick]),
     test_utils:mock_expect(Nodes, rpc, call, fun
         (_Node, basic_auth, migrate_onepanel_user_to_onezone,
-            [_Username, _PassHash, _Role]) ->
+            [_UUID, _Username, _PassHash, _Role]) ->
             {ok, <<"userId">>};
         (Node, Module, Function, Args) ->
             meck:passthrough([Node, Module, Function, Args])
