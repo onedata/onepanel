@@ -9,7 +9,7 @@
 %%% Empty test SUITE to be implemented in version 19.02.
 %%% @end
 %%%-------------------------------------------------------------------
--module(rest_clusters_test_SUITE).
+-module(service_onezone_test_SUITE).
 -author("Wojciech Geisler").
 
 -include_lib("eunit/include/eunit.hrl").
