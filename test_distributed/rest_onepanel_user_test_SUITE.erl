@@ -126,8 +126,8 @@ get_should_list_oz_users(Config) ->
 
 get_should_describe_oz_user(Config) ->
     Expected = #{
-        <<"userId">> => ?USER_ID1, <<"alias">> => ?USERNAME1,
-        <<"name">> => ?FULL_NAME1
+        <<"userId">> => ?USER_ID1, <<"username">> => ?USERNAME1,
+        <<"fullName">> => ?FULL_NAME1
     },
     {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
         onepanel_test_rest:auth_request(
@@ -210,7 +210,7 @@ init_per_testcase(Case, Config) when
         (_, user_logic, exists, [UserId]) -> UserId == ?USER_ID1;
         (_, user_logic, set_password, [?ROOT_CLIENT, _UserId, _Password]) -> ok;
         (_, user_logic, get_as_user_details, [?ROOT_CLIENT, ?USER_ID1]) ->
-            {ok, #user_details{id = ?USER_ID1, alias = ?USERNAME1, name = ?FULL_NAME1}};
+            {ok, #user_details{id = ?USER_ID1, username = ?USERNAME1, full_name = ?FULL_NAME1}};
         (Node, M, F, A) -> meck:passthrough([Node, M, F, A])
     end),
     Config2;
@@ -221,9 +221,9 @@ init_per_testcase(post_should_create_oz_user, Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     test_utils:mock_new(Nodes, [onezone_users]),
     test_utils:mock_expect(Nodes, rpc, call, fun
-        (_, user_logic, create, [?ROOT_CLIENT, #{<<"alias">> := ?USERNAME1}]) ->
+        (_, user_logic, create, [?ROOT_CLIENT, #{<<"username">> := ?USERNAME1}]) ->
             {ok, ?USER_ID1};
-        (_, user_logic, create, [?ROOT_CLIENT, #{<<"alias">> := ?USERNAME2}]) ->
+        (_, user_logic, create, [?ROOT_CLIENT, #{<<"username">> := ?USERNAME2}]) ->
             {ok, ?USER_ID2};
         (_, group_logic, add_user, [?ROOT_CLIENT, _GroupId, _UserId]) ->
             {ok, <<"groupId">>};

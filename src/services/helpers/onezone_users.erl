@@ -46,7 +46,7 @@ user_exists(UserId) ->
 %%--------------------------------------------------------------------
 %% @doc
 %% Adds Onezone users with basic auth enabled.
-%% Silently skips users whose alias is already occupied.
+%% Silently skips users whose username is already occupied.
 %% @end
 %%--------------------------------------------------------------------
 -spec add_users(#{onezone_users := [User]}) -> ok when
@@ -55,14 +55,14 @@ add_users(#{onezone_users := Users}) ->
     {OzNode, Client} = get_node_and_client(),
     lists:foreach(fun(User) ->
         Data = onepanel_maps:get_store_multiple([
-            {username, <<"alias">>},
+            {username, <<"username">>},
             {password, <<"password">>}
         ], User),
         case rpc:call(OzNode, user_logic, create, [Client, Data]) of
             {ok, UserId} ->
                 Groups = maps:get(groups, User),
                 add_user_to_groups(OzNode, Client, UserId, Groups);
-            ?ERROR_BAD_VALUE_IDENTIFIER_OCCUPIED(<<"alias">>) -> ok;
+            ?ERROR_BAD_VALUE_IDENTIFIER_OCCUPIED(<<"username">>) -> ok;
             Error -> ?throw_error(Error)
         end
     end, Users).
