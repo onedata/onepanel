@@ -106,7 +106,7 @@ auth_request(HostOrConfig, Port, Endpoint, Method, {token, Token},
 
 auth_request(HostOrConfig, Port, Endpoint, Method, <<Passphrase/binary>>,
     Headers, Body) ->
-    Username = hd(?ROOT_USERNAMES),
+    Username = hd(?LOCAL_USERNAMES),
     auth_request(HostOrConfig, Port, Endpoint, Method, {Username, Passphrase}, Headers, Body);
 
 auth_request(HostOrConfig, Port, Endpoint, Method, {Username, Password}, Headers, Body) ->

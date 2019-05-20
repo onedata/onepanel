@@ -74,7 +74,7 @@ authenticate_by_onepanel_auth_token(Req) ->
     case find_auth_token(cowboy_req:headers(Req)) of
         <<?ONEPANEL_TOKEN_PREFIX, ?ONEPANEL_TOKEN_SEPARATOR, _/binary>> = OnepanelToken ->
             case onepanel_session:find_by_valid_auth_token(OnepanelToken) of
-                {ok, #onepanel_session{username = ?ROOT_SESSION_USERNAME}} ->
+                {ok, #onepanel_session{username = ?LOCAL_SESSION_USERNAME}} ->
                     {root_client(), Req};
                 #error{reason = ?ERR_NOT_FOUND} ->
                     {?make_error(?ERR_INVALID_AUTH_TOKEN), Req}
@@ -118,7 +118,7 @@ check_basic_credentials([Passphrase]) ->
     end;
 
 check_basic_credentials([Username, Password]) ->
-    case lists:member(Username, ?ROOT_USERNAMES) of
+    case lists:member(Username, ?LOCAL_USERNAMES) of
         true -> check_basic_credentials([Password]);
         false -> ?make_error(?ERR_INVALID_USERNAME_OR_PASSWORD)
     end.

@@ -76,7 +76,7 @@ method_should_return_unauthorized_error(Config) ->
     lists:foreach(fun({Method, Body}) ->
         lists:foreach(fun(Auth) ->
             ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
-                Config, <<"/zone/users/admin">>, Method, Auth, Body
+                Config, <<"/zone/users/someUser">>, Method, Auth, Body
             ))
         end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
     end, [{get, []}, {patch, #{newPassword => <<"SomePassword1">>}}]).

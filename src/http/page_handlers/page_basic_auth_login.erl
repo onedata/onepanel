@@ -36,7 +36,7 @@ handle(<<"POST">>, Req) ->
     try
         case rest_auth:authenticate_by_basic_auth(Req) of
             {#client{role = root}, Req2} ->
-                Req3 = gui_session:log_in(?ROOT_SESSION_USERNAME, Req2),
+                Req3 = gui_session:log_in(?LOCAL_SESSION_USERNAME, Req2),
                 cowboy_req:reply(204, Req3);
             {#error{} = Error, Req2} ->
                 BodyJson = rest_replier:format_error(undefined, Error),

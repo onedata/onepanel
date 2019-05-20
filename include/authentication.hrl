@@ -18,8 +18,8 @@
 
 %% Usernames which can be used with the emergency passphrase for convenience
 %% when using clients which always expect basic auth to have two parts.
--define(ROOT_USERNAMES, [<<"root">>, <<"admin">>]).
--define(ROOT_SESSION_USERNAME, <<"__root">>).
+-define(LOCAL_USERNAMES, [<<"onepanel">>]).
+-define(LOCAL_SESSION_USERNAME, <<"__onepanel">>).
 
 -record(client, {
     %% Roles:
