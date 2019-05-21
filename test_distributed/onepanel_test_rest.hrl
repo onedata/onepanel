@@ -16,17 +16,13 @@
 
 -define(OZ_USER_NAME, <<"joe">>).
 
--define(ADMIN_USER_NAME, <<"admin1">>).
--define(ADMIN_USER_PASSWORD, <<"Admin1Password">>).
-
--define(REG_USER_NAME, <<"user1">>).
--define(REG_USER_PASSWORD, <<"User1Password">>).
+-define(EMERGENCY_PASSPHRASE, <<"emergencyPassphrase">>).
 
 
 % Basic auth and auth by session token
--define(LOCAL_AUTHS(HostOrConfig, LoginPassword), [
-    LoginPassword,
-    onepanel_test_rest:obtain_local_token(HostOrConfig, LoginPassword)
+-define(LOCAL_AUTHS(HostOrConfig, BasicOrPassphrase), [
+    BasicOrPassphrase,
+    onepanel_test_rest:obtain_local_token(HostOrConfig, BasicOrPassphrase)
 ]).
 
 -define(OZ_AUTHS(HostOrConfig, Privileges), [
@@ -35,20 +31,21 @@
 
 
 -define(ROOT_AUTHS(HostOrConfig),
-    ?LOCAL_AUTHS(HostOrConfig, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD})).
-
-% authentication of a local onepanel user (role = regular)
--define(REGULAR_AUTHS(HostOrConfig),
-    ?LOCAL_AUTHS(HostOrConfig, {?REG_USER_NAME, ?REG_USER_PASSWORD})).
+    ?LOCAL_AUTHS(HostOrConfig, ?EMERGENCY_PASSPHRASE)).
 
 -define(OZ_OR_ROOT_AUTHS(HostOrConfig, Privileges),
     ?OZ_AUTHS(HostOrConfig, Privileges) ++ ?ROOT_AUTHS(HostOrConfig)).
+
+-define(INCORRECT_AUTHS(), [
+    <<"badPassphrase">>,
+    {<<"badUsername">>, <<"badPassphrase">>},
+    {token, <<"badToken">>}
+]).
 
 -define(NONE_AUTHS(), [none]).
 
 -define(ALL_AUTHS(HostOrConfig),
     ?NONE_AUTHS() ++
-        ?REGULAR_AUTHS(HostOrConfig) ++
         ?OZ_AUTHS(HostOrConfig, []) ++
         ?OZ_OR_ROOT_AUTHS(HostOrConfig, privileges:cluster_admin())
 ).

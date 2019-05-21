@@ -42,6 +42,9 @@
 is_authorized(Req, _Method, #rstate{client = #client{role = root}}) ->
     {true, Req};
 
+is_authorized(Req, 'PUT', #rstate{resource = emergency_passphrase}) ->
+    {not emergency_passphrase:is_set(), Req};
+
 is_authorized(Req, 'GET', #rstate{client = #client{role = member}}) ->
     {true, Req};
 is_authorized(Req, _Method, #rstate{client = #client{role = member} = Client}) ->
@@ -50,6 +53,8 @@ is_authorized(Req, _Method, #rstate{client = #client{role = member} = Client}) -
 is_authorized(Req, 'POST', #rstate{resource = cluster}) ->
     {service_onepanel:available_for_clustering(), Req};
 
+is_authorized(Req, 'GET', #rstate{resource = emergency_passphrase}) ->
+    {true, Req};
 is_authorized(Req, 'GET', #rstate{resource = configuration}) ->
     {true, Req};
 is_authorized(Req, 'GET', #rstate{resource = node}) ->
@@ -123,6 +128,12 @@ accept_resource(Req, 'POST', #{address := Address},
             )))
     ), Req)};
 
+accept_resource(Req, 'PUT', Args, #rstate{resource = emergency_passphrase}) ->
+    #{newPassphrase := NewPassphrase} = Args,
+    CurrentPassphrase = maps:get(currentPassphrase, Args, undefined),
+    ok = emergency_passphrase:change(CurrentPassphrase, NewPassphrase),
+    {true, Req};
+
 accept_resource(Req, 'PATCH', Args, #rstate{resource = web_cert}) ->
     Ctx = onepanel_maps:get_store(letsEncrypt, Args, letsencrypt_enabled),
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
@@ -153,6 +164,9 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = progress}) ->
     {Data :: rest_handler:data(), Req :: cowboy_req:req()}.
 provide_resource(Req, #rstate{resource = cookie}) ->
     {erlang:get_cookie(), Req};
+
+provide_resource(Req, #rstate{resource = emergency_passphrase}) ->
+    {#{isSet => emergency_passphrase:is_set()}, Req};
 
 provide_resource(Req, #rstate{resource = node}) ->
     Hostname = onepanel_utils:convert(hosts:self(), binary),

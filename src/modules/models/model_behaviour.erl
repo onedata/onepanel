@@ -17,7 +17,7 @@
 -type key() :: term().
 -type diff() :: fun((record()) -> record()) | #{key() => term()}.
 -type record() :: #onepanel_user{} | #onepanel_session{}
-    | #onepanel_deployment{} | #service{}.
+    | #onepanel_deployment{} | #onepanel_kv{} | #service{}.
 
 %% Implicit version of old-style model records not wrapped in #document{}: 0
 %% Version of the above wrapped in #document{}: 1

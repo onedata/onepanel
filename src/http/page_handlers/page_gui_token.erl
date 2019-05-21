@@ -16,6 +16,7 @@
 -behaviour(dynamic_page_behaviour).
 
 -include("modules/models.hrl").
+-include("authentication.hrl").
 
 -export([handle/2]).
 
@@ -34,6 +35,7 @@ handle(<<"POST">>, Req) ->
         {ok, _Username, Cookie, NewReq} ->
             SessionId = gui_session:get_session_id(Cookie),
             {ok, Session} = onepanel_session:get(SessionId),
+            #onepanel_session{username = ?LOCAL_SESSION_USERNAME} = Session,
             #onepanel_session{
                 auth_tokens = [{Token, Expires} | _]
             } = onepanel_session:ensure_fresh_token(Session),

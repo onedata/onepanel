@@ -43,7 +43,7 @@ local(ServiceName) ->
 %%--------------------------------------------------------------------
 %% @doc Returns one of given service's nodes.
 %% If Opts contain 'hosts' key, nodes are selected from those hosts without
-%%   checking if the service has known nodes on those hosts.
+%%   ensuring they belong to given service.
 %% If Opts contain 'node' key and specified node is of given service,
 %%   this node is returned. This allows reuse of an already resolved
 %%   node by passing the "Ctx" argument in step functions.
@@ -57,7 +57,7 @@ any(ServiceName) when ?IS_SERVICE_NAME(ServiceName) ->
 any(#{service := ServiceName, node := Node} = Opts) ->
     case service_to_node(ServiceName, Node) of
         Node -> {ok, Node};
-        _WrongService -> any(maps:without([node], Opts))
+        _WrongService -> any(maps:remove(node, Opts))
     end;
 
 any(#{service := ServiceName} = Opts) ->

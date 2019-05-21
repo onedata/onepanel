@@ -31,6 +31,18 @@
     [{Path :: binary(), Module :: module(), State :: rest_handler:state()}].
 routes() ->
     [
+        %% Create Onezone user
+        {<<"/api/v3/onepanel/zone/users">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_users,
+            resource = onezone_users,
+            methods = [#rmethod{
+                type = 'POST',
+                %% The user configuration details.
+                args_spec = rest_model:onezone_user_create_request_model()
+            }]
+        }},
+
         %% Add zone databases
         {<<"/api/v3/onepanel/zone/databases">>, rest_handler, #rstate{
             version = 3,
@@ -69,6 +81,17 @@ routes() ->
             }]
         }},
 
+        %% Set password for Onezone user
+        {<<"/api/v3/onepanel/zone/users/:id">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_users,
+            resource = onezone_user,
+            methods = [#rmethod{
+                type = 'PATCH',
+                args_spec = rest_model:password_change_request_model()
+            }]
+        }},
+
         %% Configure zone deployment
         {<<"/api/v3/onepanel/zone/configuration">>, rest_handler, #rstate{
             version = 3,
@@ -77,8 +100,27 @@ routes() ->
             methods = [#rmethod{
                 type = 'POST',
                 %% The zone configuration description.
-                args_spec = rest_model:zone_configuration_model(),
-                noauth = true
+                args_spec = rest_model:zone_configuration_model()
+            }]
+        }},
+
+        %% Get Onezone user details
+        {<<"/api/v3/onepanel/zone/users/:id">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_users,
+            resource = onezone_user,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% List Onezone users
+        {<<"/api/v3/onepanel/zone/users">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_users,
+            resource = onezone_users,
+            methods = [#rmethod{
+                type = 'GET'
             }]
         }},
 
@@ -98,8 +140,7 @@ routes() ->
             module = rest_service,
             resource = service_onezone,
             methods = [#rmethod{
-                type = 'GET',
-                noauth = true
+                type = 'GET'
             }]
         }},
 

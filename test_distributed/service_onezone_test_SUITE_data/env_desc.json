@@ -6,7 +6,7 @@
     }
   },
   "onepanel_domains": {
-    "p1": {
+    "onezone": {
       "onepanel": {
         "node1": {
           "vm.args": {

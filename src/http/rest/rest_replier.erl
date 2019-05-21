@@ -278,20 +278,20 @@ format_onepanel_configuration() ->
 -spec format_service_configuration(SModule :: service_onezone | service_oneprovider) ->
     Response :: response().
 format_service_configuration(SModule) ->
-    DbHosts = service_couchbase:get_hosts(),
+    DbHosts = hosts:all(?SERVICE_CB),
     {ok, #service{hosts = CmHosts, ctx = #{main_host := MainCmHost}}} =
-        service:get(service_cluster_manager:name()),
+        service:get(?SERVICE_CM),
     WrkHosts = case SModule of
-        service_onezone -> service_oz_worker:get_hosts();
-        service_oneprovider -> service_op_worker:get_hosts()
+        service_onezone -> hosts:all(?SERVICE_OZW);
+        service_oneprovider -> hosts:all(?SERVICE_OPW)
     end,
     {SName, Ctx, Details} = case SModule of
         service_onezone ->
-            {ok, #service{ctx = ServiceCtx}} = service:get(service_onezone:name()),
+            {ok, #service{ctx = ServiceCtx}} = service:get(?SERVICE_OZ),
             OzDetails = #{domainName => service_oz_worker:get_domain()},
             {maps:get(name, ServiceCtx, null), ServiceCtx, OzDetails};
         service_oneprovider ->
-            {ok, #service{ctx = ServiceCtx}} = service:get(service_oneprovider:name()),
+            {ok, #service{ctx = ServiceCtx}} = service:get(?SERVICE_OP),
             Name = case service_oneprovider:is_registered(ServiceCtx) of
                 true ->
                     case oz_providers:get_details(provider) of

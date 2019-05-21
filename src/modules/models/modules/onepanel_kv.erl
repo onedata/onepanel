@@ -1,42 +1,39 @@
 %%%--------------------------------------------------------------------
-%%% @author Krzysztof Trzepla
-%%% @copyright (C) 2016 ACK CYFRONET AGH
+%%% @author Wojciech Geisler
+%%% @copyright (C) 2018 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc This module contains user management functions.
+%%% @doc This module defines model for storing arbitrary key-value pairs,
+%%% mostly global configuration.
 %%% It implements {@link model_behaviour} behaviour.
 %%% @end
 %%%--------------------------------------------------------------------
--module(onepanel_user).
--author("Krzysztof Trzepla").
+-module(onepanel_kv).
+-author("Wojciech Geisler").
 
 -behaviour(model_behaviour).
 
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
--include("validation.hrl").
-
+-include("names.hrl").
+-include("service.hrl").
 -include_lib("ctool/include/logging.hrl").
--include_lib("ctool/include/oz/oz_users.hrl").
 
 %% Model behaviour callbacks
--export([get_fields/0, get_record_version/0, seed/0, create/1, save/1, update/2,
-    upgrade/2, get/1, exists/1, delete/1, list/0]).
+-export([get_fields/0, get_record_version/0, seed/0, upgrade/2, create/1,
+    save/1, update/2, get/1, exists/1, delete/1, list/0]).
 
 %% API
--export([get_username/1, get_password_hash/1, get_by_role/1,
-    any_user_exists/0, delete_all/0]).
+-export([find/1, find/2]).
+-export([set/2]).
 
--type name() :: binary().
--type password() :: binary().
--type password_hash() :: binary().
--type role() :: admin | regular.
--type uuid() :: binary().
--type record() :: #onepanel_user{}.
+-type record() :: #onepanel_kv{}.
+-type key() :: term().
+-type value() :: term().
 
--export_type([name/0, password/0, password_hash/0, role/0, uuid/0, record/0]).
+-export_type([key/0, value/0]).
 
 %%%===================================================================
 %%% Model behaviour callbacks
@@ -61,16 +58,6 @@ get_record_version() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link model_behaviour:upgrade/2}
-%% @end
-%%--------------------------------------------------------------------
--spec upgrade(PreviousVsn :: model_behaviour:version(), PreviousRecord :: tuple()) ->
-    no_return().
-upgrade(1, _Record) ->
-    ?throw_error(?ERR_NOT_SUPPORTED).
-
-
-%%--------------------------------------------------------------------
 %% @doc {@link model_behaviour:seed/0}
 %% @end
 %%--------------------------------------------------------------------
@@ -79,12 +66,18 @@ seed() ->
     ok.
 
 
+-spec upgrade(PreviousVsn :: model_behaviour:version(), PreviousRecord :: tuple()) ->
+    no_return().
+upgrade(1, _Record) ->
+    ?throw_error(?ERR_NOT_SUPPORTED).
+
+
 %%--------------------------------------------------------------------
 %% @doc {@link model_behaviour:create/1}
 %% @end
 %%--------------------------------------------------------------------
 -spec create(Record :: record()) ->
-    {ok, name()} | #error{} | no_return().
+    {ok, model_behaviour:key()} | #error{} | no_return().
 create(Record) ->
     model:create(?MODULE, Record).
 
@@ -125,7 +118,8 @@ get(Key) ->
 -spec exists(Key :: model_behaviour:key()) ->
     boolean() | no_return().
 exists(Key) ->
-    model:exists(?MODULE, Key).
+    % ensure table existence - relevant e.g. for clustering check in service_onepanel
+    model:exists(?MODULE) andalso model:exists(?MODULE, Key).
 
 
 %%--------------------------------------------------------------------
@@ -141,7 +135,7 @@ delete(Key) ->
 %% @doc {@link model_behaviour:list/0}
 %% @end
 %%--------------------------------------------------------------------
--spec list() -> Records :: [record()] | no_return().
+-spec list() -> Records :: [model_behaviour:record()] | no_return().
 list() ->
     model:list(?MODULE).
 
@@ -149,38 +143,22 @@ list() ->
 %%% API functions
 %%%===================================================================
 
--spec get_password_hash(record()) -> password_hash().
-get_password_hash(#onepanel_user{password_hash = PasswordHash}) ->
-    PasswordHash.
 
-
--spec get_username(record()) -> name().
-get_username(#onepanel_user{username = Username}) ->
-    Username.
-
-
--spec any_user_exists() -> boolean().
-any_user_exists() ->
-    model:size(?MODULE) > 0.
-
-
-%%--------------------------------------------------------------------
-%% @doc Removes all onepanel_user records.
-%% @end
-%%--------------------------------------------------------------------
--spec delete_all() -> ok | #error{}.
-delete_all() ->
-    model:clear(?MODULE).
-
-
-%%--------------------------------------------------------------------
-%% @doc Returns a list of users with the specified role.
-%% @end
-%%--------------------------------------------------------------------
--spec get_by_role(Role :: role()) -> Users :: [#onepanel_user{}].
-get_by_role(Role) ->
-    case model:exists(?MODULE) of
-        true -> model:select(?MODULE,
-            [{#onepanel_user{role = Role, _ = '_'}, []}]);
-        false -> []
+-spec find(Key :: key()) -> {ok, value()} | #error{}.
+find(Key) ->
+    case ?MODULE:get(Key) of
+        {ok, #onepanel_kv{value = Value}} -> {ok, Value};
+        #error{} = Error -> Error
     end.
+
+-spec find(Key :: key(), Default :: value()) -> value().
+find(Key, Default) ->
+    case ?MODULE:get(Key) of
+        {ok, #onepanel_kv{value = Value}} -> Value;
+        _ -> Default
+    end.
+
+
+-spec set(Key :: key(), Value :: value()) -> ok.
+set(Key, Value) ->
+    ok = save(#onepanel_kv{key = Key, value = Value}).

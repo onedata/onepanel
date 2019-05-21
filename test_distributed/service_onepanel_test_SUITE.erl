@@ -30,7 +30,7 @@
     sequential_join_should_create_cluster/1,
     extend_should_add_node_by_hostname/1,
     extend_should_add_node_by_ip/1,
-    extend_should_retun_hostname_of_new_node/1,
+    extend_should_return_hostname_of_new_node/1,
     leave_should_remove_node/1,
     leave_should_not_remove_used_host/1
 ]).
@@ -44,7 +44,7 @@ all() ->
         sequential_join_should_create_cluster,
         extend_should_add_node_by_hostname,
         extend_should_add_node_by_ip,
-        extend_should_retun_hostname_of_new_node,
+        extend_should_return_hostname_of_new_node,
         leave_should_remove_node,
         leave_should_not_remove_used_host
     ]).
@@ -223,7 +223,7 @@ extend_should_add_node_by_ip(Config) ->
     ?assertEqual(Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
     ?assertEqual(Hosts, lists:sort(rpc:call(Node2, service_onepanel, get_hosts, []))).
 
-extend_should_retun_hostname_of_new_node(Config) ->
+extend_should_return_hostname_of_new_node(Config) ->
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
     Nodes = [Node1, Node2],
     [Host1 | Host2] = Hosts = lists:sort(hosts:from_nodes(Nodes)),

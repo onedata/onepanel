@@ -28,7 +28,7 @@
 %% tests
 -export([
     method_should_return_forbidden_error_test/1,
-    local_user_should_get_forbidden_error_test/1,
+    local_user_should_get_not_found_error_test/1,
     get_should_return_clusters_list_test/1,
     get_should_return_cluster_details_test/1,
     get_should_return_current_cluster_details_test/1,
@@ -40,7 +40,7 @@
 all() ->
     ?ALL([
         method_should_return_forbidden_error_test,
-        local_user_should_get_forbidden_error_test,
+        local_user_should_get_not_found_error_test,
         get_should_return_clusters_list_test,
         get_should_return_cluster_details_test,
         get_should_return_current_cluster_details_test,
@@ -142,26 +142,20 @@ method_should_return_forbidden_error_test(Config) ->
     ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/cluster/invite_user_token">>, post,
-            ?REGULAR_AUTHS(Host) ++
             ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_ADD_USER])
         )),
         ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/cluster/members_summary">>, get,
-            ?REGULAR_AUTHS(Host) ++
             ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_VIEW])
-        )),
-        ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/cluster">>, get,
-            ?REGULAR_AUTHS(Host)
         ))
     end).
 
 
-local_user_should_get_forbidden_error_test(Config) ->
+local_user_should_get_not_found_error_test(Config) ->
     ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
-        ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
+        ?assertMatch({ok, 404, _, _}, onepanel_test_rest:auth_request(
             Host, <<Endpoint/binary>>, Method,
-            ?ROOT_AUTHS(Host) ++ ?REGULAR_AUTHS(Host)
+            ?ROOT_AUTHS(Host)
         ))
     end, [
         {<<"/user/clusters/">>, get},
@@ -279,13 +273,7 @@ get_should_return_provider_info_test(Config) ->
 init_per_suite(Config) ->
     ssl:start(),
     hackney:start(),
-    Posthook = fun(NewConfig) ->
-        NewConfig2 = onepanel_test_utils:init(NewConfig),
-        ?assertAllMatch({ok, _}, ?callAll(NewConfig2, onepanel_user, create,
-            [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
-        )),
-        NewConfig2
-    end,
+    Posthook = fun onepanel_test_utils:init/1,
     [{?LOAD_MODULES, [onepanel_test_rest]}, {?ENV_UP_POSTHOOK, Posthook} | Config].
 
 
@@ -319,7 +307,7 @@ init_per_testcase(_Case, Config) ->
     test_utils:mock_expect(OpNodes, service_oneprovider, get_id,
         fun() -> <<?PROVIDER_ID>> end),
 
-    onepanel_test_rest:set_up_default_users(Config),
+    onepanel_test_rest:set_default_passphrase(Config),
     onepanel_test_rest:mock_token_authentication(Config),
 
     test_utils:mock_expect(OzNodes, service_oz_worker, get_details,

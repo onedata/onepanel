@@ -359,13 +359,13 @@ provide_resource(Req, #rstate{resource = cluster_ips}) ->
     ), Req};
 
 provide_resource(Req, #rstate{resource = onezone_info, params = #{token := Token}}) ->
-    Domain = zone_tokens:read_domain(Token),
-    {zone_client:fetch_zone_info(Domain), Req};
+    Domain = onezone_tokens:read_domain(Token),
+    {onezone_client:fetch_zone_info(Domain), Req};
 
 provide_resource(Req, #rstate{resource = onezone_info}) ->
     % exists_resource ensures the Oneprovider is registered
     Domain = list_to_binary(service_oneprovider:get_oz_domain()),
-    {zone_client:fetch_zone_info(Domain), Req}.
+    {onezone_client:fetch_zone_info(Domain), Req}.
 
 
 %%--------------------------------------------------------------------

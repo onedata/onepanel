@@ -43,7 +43,7 @@
 %% 'none' is used if proper authentication object could not be obtained
 -type zone_auth() :: rpc_auth() | rest_auth() | none.
 %% Used by oz_panel
--type rpc_auth() :: {rpc, LogicClient :: term()}.
+-type rpc_auth() :: {rpc, onezone_client:logic_client()}.
 %% Used by op_panel
 -type rest_auth() :: {rest, oz_plugin:auth()}.
 
@@ -166,7 +166,7 @@ is_authorized(Req, #rstate{methods = Methods} = State) ->
             {true, Req3, State#rstate{client = Client}};
         {false, Req3} ->
             {Method, Req4} = rest_utils:get_method(Req3),
-            case lists:keyfind(Method, 2, Methods) of
+            case lists:keyfind(Method, #rmethod.type, Methods) of
                 #rmethod{noauth = true} ->
                     Req5 = cowboy_req:set_resp_body(<<>>, Req4),
                     {true, Req5, State#rstate{client = #client{role = guest}}};
@@ -208,7 +208,7 @@ resource_exists(Req, #rstate{module = Module, methods = Methods} = State) ->
     try
         {Method, Req2} = rest_utils:get_method(Req),
         {Bindings, Req3} = rest_utils:get_bindings(Req2),
-        #rmethod{params_spec = Spec} = lists:keyfind(Method, 2, Methods),
+        #rmethod{params_spec = Spec} = lists:keyfind(Method, #rmethod.type, Methods),
         {Params, Req4} = rest_utils:get_params(Req3, Spec),
         {Exists, Req5} = Module:exists_resource(Req4, State#rstate{
             bindings = Bindings,
@@ -249,8 +249,8 @@ accept_resource_json(Req, #rstate{} = State) ->
 accept_resource_yaml(Req, #rstate{} = State) ->
     try
         {ok, Body, Req2} = cowboy_req:read_body(Req),
-        [Data] = yamerl_constr:string(Body),
-        Data2 = json_utils:list_to_map(adjust_yaml_data(Data)),
+        [Data] = yamerl_constr:string(Body, [str_node_as_binary]),
+        Data2 = json_utils:list_to_map(Data),
         accept_resource(Req2, Data2, State)
     catch
         Type:Reason ->
@@ -268,7 +268,7 @@ provide_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
     try
         {Method, Req2} = rest_utils:get_method(Req),
         {Bindings, Req3} = rest_utils:get_bindings(Req2),
-        #rmethod{params_spec = Spec} = lists:keyfind(Method, 2, Methods),
+        #rmethod{params_spec = Spec} = lists:keyfind(Method, #rmethod.type, Methods),
         {Params, Req4} = rest_utils:get_params(Req3, Spec),
         case Module:provide_resource(Req4, State#rstate{
             bindings = Bindings,
@@ -296,7 +296,7 @@ delete_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
     try
         {Method, Req2} = rest_utils:get_method(Req),
         {Bindings, Req3} = rest_utils:get_bindings(Req2),
-        #rmethod{params_spec = Spec} = lists:keyfind(Method, 2, Methods),
+        #rmethod{params_spec = Spec} = lists:keyfind(Method, #rmethod.type, Methods),
         {Params, Req4} = rest_utils:get_params(Req3, Spec),
         {Deleted, Req5} = Module:delete_resource(Req4, State#rstate{
             bindings = Bindings,
@@ -346,7 +346,7 @@ handle_options(Req, State) ->
 parse_query_string(Req, #rstate{methods = Methods} = State) ->
     {Method, Req2} = rest_utils:get_method(Req),
     {Bindings, Req3} = rest_utils:get_bindings(Req2),
-    #rmethod{params_spec = Spec} = lists:keyfind(Method, 2, Methods),
+    #rmethod{params_spec = Spec} = lists:keyfind(Method, #rmethod.type, Methods),
     {Params, Req4} = rest_utils:get_params(Req3, Spec),
     {Req4, State#rstate{
         bindings = Bindings,
@@ -365,7 +365,7 @@ accept_resource(Req, Data, #rstate{module = Module, methods = Methods} =
     {Method, Req2} = rest_utils:get_method(Req),
     {Bindings, Req3} = rest_utils:get_bindings(Req2),
     #rmethod{params_spec = ParamSpec, args_spec = ArgsSpec} =
-        lists:keyfind(Method, 2, Methods),
+        lists:keyfind(Method, #rmethod.type, Methods),
     {Params, Req4} = rest_utils:get_params(Req3, ParamSpec),
     Args = rest_utils:get_args(Data, ArgsSpec),
     State2 = State#rstate{bindings = Bindings, params = Params},
@@ -376,23 +376,4 @@ accept_resource(Req, Data, #rstate{module = Module, methods = Methods} =
             {Result, Req6, State};
         {false, Req5} ->
             {stop, cowboy_req:reply(409, Req5), State}
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Adjust data, that has been returned by YAML parser, by
-%% converting each parameter into binary.
-%% @end
-%%--------------------------------------------------------------------
--spec adjust_yaml_data(Data :: proplists:proplist()) ->
-    NewData :: proplists:proplist().
-adjust_yaml_data(Data) ->
-    case {io_lib:printable_unicode_list(Data), erlang:is_list(Data)} of
-        {false, true} -> lists:map(fun
-            ({Key, Value}) ->
-                {onepanel_utils:convert(Key, binary), adjust_yaml_data(Value)};
-            (Value) ->
-                onepanel_utils:convert(Value, binary)
-        end, Data);
-        {_, _} -> onepanel_utils:convert(Data, binary)
     end.

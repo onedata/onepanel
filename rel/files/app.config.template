@@ -171,6 +171,9 @@
         %% DNS zone delegation.
         {dns_expect_zone_delegation, true},
 
+        %% Username of the admin user created after Onezone deployment
+        {zone_default_admin_username, <<"admin">>},
+
         {rest_api_prefix_template, "/api/v{version_number}/onepanel"},
         %% Number of accepting processes in HTTPS listeners
         {rest_https_acceptors, 100},

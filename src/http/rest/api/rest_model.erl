@@ -23,10 +23,13 @@
     cluster_members_summary_model/0,
     cluster_workers_model/0,
     configuration_model/0,
+    current_user_model/0,
     database_hosts_model/0,
     dns_check_model/0,
     dns_check_configuration_model/0,
     dns_check_result_model/0,
+    emergency_passphrase_change_request_model/0,
+    emergency_passphrase_status_model/0,
     error_model/0,
     host_model/0,
     host_add_request_model/0,
@@ -37,10 +40,9 @@
     node_model/0,
     onezone_info_model/0,
     onezone_user_model/0,
-    op_panel_configuration_model/0,
-    op_panel_configuration_admin_model/0,
-    oz_panel_configuration_model/0,
-    oz_panel_configuration_users_model/0,
+    onezone_user_create_request_model/0,
+    panel_configuration_model/0,
+    password_change_request_model/0,
     progress_model/0,
     progress_modify_model/0,
     provider_cluster_configuration_model/0,
@@ -80,10 +82,6 @@
     time_stats_model/0,
     time_stats_collection_model/0,
     token_model/0,
-    user_create_request_model/0,
-    user_details_model/0,
-    user_modify_request_model/0,
-    users_model/0,
     version_info_model/0,
     web_cert_model/0,
     web_cert_modify_request_model/0,
@@ -230,6 +228,21 @@ configuration_model() ->
     {oneof, [op_configuration_model(), oz_configuration_model()]}.
 
 %%--------------------------------------------------------------------
+%% @doc Information about the authenticated user.
+%% @end
+%%--------------------------------------------------------------------
+-spec current_user_model() -> maps:map().
+current_user_model() ->
+    #{
+        %% The user Id.
+        userId => string,
+        %% User's full name (given names + surname).
+        username => string,
+        %% List of cluster privileges held by the user in the current cluster.
+        clusterPrivileges => {[string], optional}
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The cluster database service hosts configuration.
 %% @end
 %%--------------------------------------------------------------------
@@ -301,6 +314,31 @@ dns_check_result_model() ->
         %% List of suggested DNS records to set at your DNS provider to fulfill
         %% this check. Each record is provided in the format of BIND server.
         recommended => [string]
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Emergency passphrase to set and old passphrase to authorize the change.
+%% @end
+%%--------------------------------------------------------------------
+-spec emergency_passphrase_change_request_model() -> maps:map().
+emergency_passphrase_change_request_model() ->
+    #{
+        %% New passphrase to be set.
+        newPassphrase => string,
+        %% Currently set passphrase. Not required when setting the passphrase
+        %% for the first time.
+        currentPassphrase => {string, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Emergency passphrase status.
+%% @end
+%%--------------------------------------------------------------------
+-spec emergency_passphrase_status_model() -> maps:map().
+emergency_passphrase_status_model() ->
+    #{
+        %% True if the passphrase is set.
+        isSet => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -428,71 +466,59 @@ onezone_info_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Describes user information coming from Onezone.
+%% @doc Describes a user account.
 %% @end
 %%--------------------------------------------------------------------
 -spec onezone_user_model() -> maps:map().
 onezone_user_model() ->
     #{
-        %% Onezone user ID.
+        %% Unique user Id.
         userId => string,
-        %% User name as registered in Onezone.
-        name => string,
-        %% Onezone user login.
-        alias => {string, optional}
+        %% User's full name (given names + surname).
+        fullName => string,
+        %% User's human-readable identifier, unique across the system. Makes
+        %% it easier to identify the user and can be used for signing in with
+        %% password.
+        username => {string, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The new Onezone user account details
+%% @end
+%%--------------------------------------------------------------------
+-spec onezone_user_create_request_model() -> maps:map().
+onezone_user_create_request_model() ->
+    #{
+        username => string,
+        password => string,
+        %% Ids of Onezone groups to which the user should be added. The groups
+        %% must already exist.
+        groups => {[string], {optional, []}}
     }.
 
 %%--------------------------------------------------------------------
 %% @doc The panel configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec op_panel_configuration_model() -> maps:map().
-op_panel_configuration_model() ->
+-spec panel_configuration_model() -> maps:map().
+panel_configuration_model() ->
     #{
         %% Indicates that interactive deployment is being performed. If false,
         %% users entering GUI will not be asked to complete the configuration.
         %% In that case default values will be used, available for change later
-        %% via appropriate onepanel GUI pages or REST.
-        interactiveDeployment => {boolean, optional},
-        admin => {op_panel_configuration_admin_model(), optional}
+        %% via appropriate Onepanel GUI pages or REST.
+        interactiveDeployment => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Credentials of the first admin user of Onepanel.
+%% @doc Request to change user's password
 %% @end
 %%--------------------------------------------------------------------
--spec op_panel_configuration_admin_model() -> maps:map().
-op_panel_configuration_admin_model() ->
+-spec password_change_request_model() -> maps:map().
+password_change_request_model() ->
     #{
-        %% The user login.
-        username => {string, optional},
-        %% The user password.
-        password => string
-    }.
-
-%%--------------------------------------------------------------------
-%% @doc The panel configuration.
-%% @end
-%%--------------------------------------------------------------------
--spec oz_panel_configuration_model() -> maps:map().
-oz_panel_configuration_model() ->
-    #{
-        %% Indicates that interactive deployment is performed. If false, users
-        %% entering GUI will not be asked to complete the configuration. In that
-        %% case default values will be used, available for change later via
-        %% appropriate onepanel GUI pages or REST.
-        interactiveDeployment => {boolean, optional},
-        %% The collection of user names associated with users properties.
-        users => {#{'_' => oz_panel_configuration_users_model()}, {optional, #{}}}
-    }.
-
--spec oz_panel_configuration_users_model() -> maps:map().
-oz_panel_configuration_users_model() ->
-    #{
-        %% The user password.
-        password => string,
-        %% The user role, one of 'admin' or 'regular'.
-        userRole => atom
+        %% The new user password.
+        newPassword => string
     }.
 
 %%--------------------------------------------------------------------
@@ -570,7 +596,7 @@ provider_configuration_model() ->
     #{
         cluster => provider_cluster_configuration_model(),
         oneprovider => {provider_configuration_oneprovider_model(), optional},
-        onepanel => {op_panel_configuration_model(), optional}
+        onepanel => {panel_configuration_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1230,66 +1256,6 @@ token_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The new user account details.
-%% @end
-%%--------------------------------------------------------------------
--spec user_create_request_model() -> maps:map().
-user_create_request_model() ->
-    #{
-        %% The user name. It must be at least 2 characters long and contain only
-        %% alphanumeric characters [a-zA-Z0-9].
-        username => string,
-        %% The user password. It must be at least 8 characters long. The
-        %% password must not contain a colon character ':'.
-        password => string,
-        %% The user role, one of 'admin' or 'regular'.
-        userRole => atom
-    }.
-
-%%--------------------------------------------------------------------
-%% @doc The user configuration details.
-%% @end
-%%--------------------------------------------------------------------
--spec user_details_model() -> maps:map().
-user_details_model() ->
-    #{
-        %% The user Id.
-        userId => string,
-        %% The user name.
-        username => string,
-        %% The user role, one of `admin` or `regular`.
-        userRole => atom,
-        %% List of cluster privileges held by the user. This field is returned
-        %% only to a Onezone user fetching information about himself.
-        clusterPrivileges => {[string], optional}
-    }.
-
-%%--------------------------------------------------------------------
-%% @doc The user configuration details that can be modified.
-%% @end
-%%--------------------------------------------------------------------
--spec user_modify_request_model() -> maps:map().
-user_modify_request_model() ->
-    #{
-        %% The current user password that should be changed or password of an
-        %% administrator that is issuing this request on behalf of a user.
-        currentPassword => string,
-        %% The new user password.
-        newPassword => string
-    }.
-
-%%--------------------------------------------------------------------
-%% @doc List of onepanel user usernames.
-%% @end
-%%--------------------------------------------------------------------
--spec users_model() -> maps:map().
-users_model() ->
-    #{
-        %% The list of usernames.
-        usernames => [string]
-    }.
-
-%%--------------------------------------------------------------------
 %% @doc Service version info.
 %% @end
 %%--------------------------------------------------------------------
@@ -1411,7 +1377,7 @@ zone_configuration_model() ->
     #{
         cluster => zone_cluster_configuration_model(),
         onezone => {zone_configuration_onezone_model(), optional},
-        onepanel => {oz_panel_configuration_model(), optional}
+        onepanel => {panel_configuration_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1461,7 +1427,9 @@ zone_configuration_onezone_model() ->
         %% Onezone's domain was delegated to the DNS server built into
         %% Onezone service.
         builtInDnsServer => {boolean, optional},
-        policies => {zone_policies_model(), optional}
+        policies => {zone_policies_model(), optional},
+        %% List of Onezone user specifications.
+        users => {[onezone_user_create_request_model()], {optional, []}}
     }.
 
 %%--------------------------------------------------------------------

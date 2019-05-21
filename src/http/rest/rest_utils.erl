@@ -38,9 +38,10 @@ has_privileges(Client, RequiredPrivilege) when is_atom(RequiredPrivilege) ->
     has_privileges(Client, [RequiredPrivilege]);
 
 has_privileges(#client{role = member, privileges = UserPrivileges}, RequiredPrivileges) ->
-    lists:all(fun(Required) ->
-        lists:member(Required, UserPrivileges)
-    end, RequiredPrivileges);
+    ordsets:is_subset(
+        ordsets:from_list(RequiredPrivileges),
+        ordsets:from_list(UserPrivileges)
+    );
 
 has_privileges(#client{}, _RequiredPrivileges) -> false.
 
