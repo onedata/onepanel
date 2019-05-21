@@ -250,8 +250,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone} = State) 
     OzCtx = onepanel_maps:get_store_multiple([
         {[onezone, name], name},
         {[onezone, domainName], domain},
-        {[onezone, builtInDnsServer], [dns_check_config, built_in_dns_server]},
-        {[onezone, users], onezone_users}
+        {[onezone, builtInDnsServer], [dns_check_config, built_in_dns_server]}
     ], Args),
 
     OzwCtx = #{
@@ -262,7 +261,8 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone} = State) 
 
     OzwCtx2 = onepanel_maps:get_store_multiple([
         {[onezone, name], onezone_name},
-        {[onezone, domainName], onezone_domain}
+        {[onezone, domainName], onezone_domain},
+        {[onezone, users], onezone_users}
     ], Args, OzwCtx),
 
     OzwCtx3 = case Args of
