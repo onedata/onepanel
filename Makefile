@@ -2,7 +2,7 @@
 
 REPO            ?= onepanel
 
-# distro for package building (oneof: wily, fedora-23-x86_64)
+# distro for package building (e.g.: xenial, centos-7-x86_64)
 DISTRIBUTION    ?= none
 export DISTRIBUTION
 
@@ -12,6 +12,7 @@ GIT_URL := $(shell if [ "${GIT_URL}" = "file:/" ]; then echo 'ssh://git@git.plgr
 ONEDATA_GIT_URL := $(shell if [ "${ONEDATA_GIT_URL}" = "" ]; then echo ${GIT_URL}; else echo ${ONEDATA_GIT_URL}; fi)
 export ONEDATA_GIT_URL
 
+RELEASE         ?= 1802
 PKG_REVISION    ?= $(shell git describe --tags --always)
 PKG_VERSION     ?= $(shell git describe --tags --always | tr - .)
 PKG_BUILD       := 1
@@ -125,7 +126,7 @@ dialyzer: config
 
 check_distribution:
 ifeq ($(DISTRIBUTION), none)
-	@echo "Please provide package distribution. Oneof: 'wily', 'fedora-23-x86_64'"
+	@echo "Please provide package distribution. Oneof: 'xenial', 'centos-7-x86_64'"
 	@exit 1
 else
 	@echo "Building package for distribution $(DISTRIBUTION)"
