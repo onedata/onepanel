@@ -1,6 +1,6 @@
 doc
 c_src/*.d
-priv
+/priv
 rel/onepanel
 rel/pkg.vars.config
 rel/files/app.config
