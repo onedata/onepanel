@@ -69,7 +69,7 @@ get_nodes() ->
     Steps :: [service:step()].
 get_steps(deploy, #{hosts := Hosts, name := Name} = Ctx) ->
     service:create(#service{name = Name}),
-    ClusterHosts = (service:get_module(Name)):get_hosts(),
+    ClusterHosts = hosts:all(Name),
     AllHosts = onepanel_lists:union(Hosts, ClusterHosts),
     [
         #step{function = migrate_generated_config,

@@ -369,7 +369,7 @@ get_config_path(ServiceName, ConfigLayer) ->
 -spec migrate(ServiceName :: service:name(), OldKeys :: keys(), NewKeys :: keys()) ->
     Found :: boolean().
 migrate(ServiceName, OldKeys, NewKeys) ->
-    % invocation with module name for meck in eunit
+    % invocation via ?MODULE for meck in eunit tests
     Path = ?MODULE:get_config_path(ServiceName, generated),
     case read([], Path) of
         {ok, OldConfigs} ->

@@ -1,21 +1,20 @@
 %%%-------------------------------------------------------------------
 %%% @author Wojciech Geisler
-%%% @copyright (C) 2018 ACK CYFRONET AGH
+%%% @copyright (C) 2019 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%-------------------------------------------------------------------
-%%% @doc The module handling logic behind /zone REST resources.
+%%% @doc The module handling logic behind /user REST resources.
 %%%-------------------------------------------------------------------
--module(rest_onezone).
--author("Krzysztof Trzepla").
+-module(rest_users).
+-author("Wojciech Geisler").
 
--include("authentication.hrl").
--include("deployment_progress.hrl").
--include("http/rest.hrl").
--include("modules/errors.hrl").
--include("modules/models.hrl").
 -include("names.hrl").
+-include("http/rest.hrl").
+-include("authentication.hrl").
+-include("modules/models.hrl").
+-include("modules/errors.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/privileges.hrl").
 
@@ -24,11 +23,6 @@
 %% REST behaviour callbacks
 -export([is_authorized/3, exists_resource/2, accept_possible/4, is_available/3,
     accept_resource/4, provide_resource/2, delete_resource/2]).
-
--export([make_policies_ctx/1]).
-
--define(SERVICE, ?SERVICE_OZ).
--define(WORKER, ?SERVICE_OZW).
 
 %%%===================================================================
 %%% REST behaviour callbacks
@@ -59,14 +53,14 @@ is_authorized(Req, _Method, _State) ->
 %%--------------------------------------------------------------------
 -spec exists_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
-exists_resource(Req, #rstate{resource = policies}) ->
-    {model:exists(onepanel_deployment) andalso
-        onepanel_deployment:is_set(?PROGRESS_READY), Req};
+exists_resource(Req, #rstate{resource = current_user, client = Client}) ->
+    {Client#client.role == member, Req};
+
+exists_resource(Req, #rstate{resource = onezone_user, bindings = #{id := Id}}) ->
+    {onezone_users:user_exists(Id), Req};
+
 exists_resource(Req, _State) ->
-    case service:get(?SERVICE) of
-        {ok, #service{}} -> {true, Req};
-        #error{reason = ?ERR_NOT_FOUND} -> {false, Req}
-    end.
+    {true, Req}.
 
 
 %%--------------------------------------------------------------------
@@ -81,11 +75,14 @@ accept_possible(Req, _Method, _Args, _State) ->
 %% @doc {@link rest_behaviour:is_available/3}
 %% @end
 %%--------------------------------------------------------------------
-is_available(Req, 'GET', #rstate{resource = cluster_ips}) ->
-    {true, Req};
+is_available(Req, _Method, #rstate{resource = onezone_user}) ->
+    {service:all_healthy(), Req};
+
+is_available(Req, _Method, #rstate{resource = onezone_users}) ->
+    {service:all_healthy(), Req};
 
 is_available(Req, _Method, _State) ->
-    {service:all_healthy(), Req}.
+    {true, Req}.
 
 
 %%--------------------------------------------------------------------
@@ -95,18 +92,18 @@ is_available(Req, _Method, _State) ->
 -spec accept_resource(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()}.
-accept_resource(Req, 'PATCH', Args, #rstate{resource = policies}) ->
-    Ctx = make_policies_ctx(Args),
+accept_resource(Req, 'POST', Args, #rstate{resource = onezone_users}) ->
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?WORKER, set_policies, Ctx
+        ?SERVICE_OZ, add_users, #{onezone_users => [Args]}
     ))};
 
-accept_resource(Req, 'PATCH', Args, #rstate{resource = cluster_ips}) ->
-    {ok, ClusterIps} = onepanel_maps:get(hosts, Args),
-    Ctx = #{cluster_ips => onepanel_utils:convert(ClusterIps, {keys, list})},
-
+accept_resource(Req, 'PATCH', Args,
+    #rstate{resource = onezone_user, bindings = #{id := Id}}) ->
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, set_cluster_ips, Ctx
+        ?SERVICE_OZ, set_user_password, #{
+            user_id => Id,
+            new_password => maps:get(newPassword, Args)
+        }
     ))}.
 
 
@@ -116,19 +113,29 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = cluster_ips}) ->
 %%--------------------------------------------------------------------
 -spec provide_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Data :: rest_handler:data(), Req :: cowboy_req:req()}.
-provide_resource(Req, #rstate{resource = policies}) ->
-    {rest_replier:format_service_step(service_oz_worker, get_policies,
+provide_resource(Req, #rstate{resource = onezone_users}) ->
+    {rest_replier:format_service_step(onezone_users, list_users,
         service_utils:throw_on_error(service:apply_sync(
-            ?WORKER, get_policies, #{}
+            ?SERVICE_OZ, list_users, #{}
         ))
     ), Req};
 
-provide_resource(Req, #rstate{resource = cluster_ips}) ->
-    {rest_replier:format_service_step(service_onezone, format_cluster_ips,
+provide_resource(Req, #rstate{resource = onezone_user, bindings = #{id := Id}}) ->
+    {rest_replier:format_service_step(onezone_users, get_user,
         service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, format_cluster_ips, #{}
+            ?SERVICE_OZ, get_user, #{user_id => Id}
         ))
-    ), Req}.
+    ), Req};
+
+provide_resource(Req, #rstate{resource = current_user, client = Client}) when
+    Client#client.role == member ->
+
+    #client{privileges = Privileges, user = User} = Client,
+    #user_details{full_name = FullName, id = Id} = User,
+    {#{
+        username => FullName, userId => Id,
+        clusterPrivileges => Privileges
+    }, Req}.
 
 
 %%--------------------------------------------------------------------
@@ -136,21 +143,6 @@ provide_resource(Req, #rstate{resource = cluster_ips}) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec delete_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
-    no_return().
-delete_resource(_Req, #rstate{}) ->
-    ?throw_error(?ERR_NOT_FOUND).
-
-
-%%%===================================================================
-%%% API functions
-%%%===================================================================
-
-%%--------------------------------------------------------------------
-%% @doc Gathers arguments related to Onezone policies.
-%% @end
-%%--------------------------------------------------------------------
--spec make_policies_ctx(Args :: rest_handler:args()) -> #{atom() => term()}.
-make_policies_ctx(Args) ->
-    onepanel_maps:get_store_multiple([
-        {subdomainDelegation, subdomain_delegation}
-    ], Args).
+    {Deleted :: boolean(), Req :: cowboy_req:req()}.
+delete_resource(Req, _State) ->
+    {false, Req}.

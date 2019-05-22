@@ -8,7 +8,7 @@
 %%% @doc Functions for interacting with the Onezone.
 %%% @end
 %%%--------------------------------------------------------------------
--module(zone_client).
+-module(onezone_client).
 -author("Wojciech Geisler").
 
 -include("modules/errors.hrl").
@@ -18,6 +18,9 @@
 %% API
 -export([fetch_zone_info/1]).
 -export([root_auth/0]).
+
+-type logic_client() :: term().
+-export_type([logic_client/0]).
 
 %%%===================================================================
 %%% Public API
@@ -65,7 +68,8 @@ root_auth() ->
                 {ok, Client} -> {rpc, Client};
                 _Error -> none
             end;
-        oneprovider -> {rest, provider}
+        oneprovider ->
+            {rest, provider}
     end.
 
 

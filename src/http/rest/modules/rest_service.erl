@@ -39,21 +39,18 @@
 -spec is_authorized(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     State :: rest_handler:state()) ->
     {Authorized :: boolean(), Req :: cowboy_req:req()}.
-is_authorized(Req, _Method, #rstate{client = #client{role = Role}}) when
-    Role == root;
-    Role == admin;
-    Role == user ->
+is_authorized(Req, _Method, #rstate{client = #client{role = root}}) ->
     {true, Req};
 
-is_authorized(Req, 'GET', #rstate{resource = Resource}) when
-    Resource == task;
-    Resource == nagios ->
+is_authorized(Req, 'GET', #rstate{client = #client{role = member}}) ->
     {true, Req};
+is_authorized(Req, _Method, #rstate{client = #client{role = member} = Client}) ->
+    {rest_utils:has_privileges(Client, ?CLUSTER_UPDATE), Req};
 
-is_authorized(Req, Method, #rstate{resource = Resource}) when
-    (Method == 'POST' orelse Method == 'GET') andalso
-        (Resource == service_oneprovider orelse Resource == service_onezone) ->
-    {onepanel_user:get_by_role(admin) == [], Req};
+is_authorized(Req, 'GET', #rstate{resource = task}) ->
+    {true, Req};
+is_authorized(Req, 'GET', #rstate{resource = nagios}) ->
+    {true, Req};
 
 is_authorized(Req, _Method, _State) ->
     {false, Req}.
@@ -150,12 +147,12 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_cluster_manager, v
 accept_resource(Req, 'POST', Args, #rstate{resource = service_op_worker} = State) ->
     deploy_cluster_worker(Req, Args, State);
 
-
 accept_resource(Req, 'POST', Args, #rstate{resource = service_oz_worker} = State) ->
     deploy_cluster_worker(Req, Args, State);
 
-accept_resource(Req, 'POST', Args,
-    #rstate{resource = service_oneprovider, version = Version}) ->
+
+accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider} = State) ->
+    Version = State#rstate.version,
 
     DbHosts = rest_utils:get_hosts([cluster, databases, nodes], Args),
     CmHosts = rest_utils:get_hosts([cluster, managers, nodes], Args),
@@ -221,8 +218,8 @@ accept_resource(Req, 'POST', Args,
         }
     ), Version)};
 
-accept_resource(Req, 'POST', Args, #rstate{
-    resource = service_onezone, version = Version}) ->
+accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone} = State) ->
+    Version = State#rstate.version,
 
     DbHosts = rest_utils:get_hosts([cluster, databases, nodes], Args),
     CmHosts = rest_utils:get_hosts([cluster, managers, nodes], Args),
@@ -264,7 +261,8 @@ accept_resource(Req, 'POST', Args, #rstate{
 
     OzwCtx2 = onepanel_maps:get_store_multiple([
         {[onezone, name], onezone_name},
-        {[onezone, domainName], onezone_domain}
+        {[onezone, domainName], onezone_domain},
+        {[onezone, users], onezone_users}
     ], Args, OzwCtx),
 
     OzwCtx3 = case Args of
@@ -287,6 +285,7 @@ accept_resource(Req, 'POST', Args, #rstate{
             cluster => ClusterCtx, ?SERVICE_OZ => OzCtx
         }
     ), Version)};
+
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = dns_check_configuration}) ->
     Ctx = case Args of
@@ -416,7 +415,7 @@ deploy_cluster_worker(Req, Args, #rstate{resource = SModule, version = Version})
     Hosts = onepanel_utils:typed_get(hosts, Args, {seq, list}),
     {ok, #service{hosts = DbHosts}} = service:get(service_couchbase:name()),
     {ok, #service{hosts = CmHosts, ctx = #{main_host := MainCmHost}}} =
-        service:get(service_cluster_manager:name()),
+        service:get(?SERVICE_CM),
     {true, rest_replier:handle_service_action_async(Req, service:apply_async(
         SModule:name(), deploy, #{
             hosts => Hosts, db_hosts => DbHosts, cm_hosts => CmHosts,

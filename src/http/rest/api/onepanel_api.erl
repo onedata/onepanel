@@ -42,19 +42,6 @@ routes() ->
             }]
         }},
 
-        %% Create Onepanel user
-        {<<"/api/v3/onepanel/users">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_onepanel_user,
-            resource = users,
-            methods = [#rmethod{
-                type = 'POST',
-                %% The user configuration details.
-                args_spec = rest_model:user_create_request_model(),
-                noauth = true
-            }]
-        }},
-
         %% Check correctness of DNS entries for the cluster's domain.
         {<<"/api/v3/onepanel/dns_check">>, rest_handler, #rstate{
             version = 3,
@@ -67,6 +54,16 @@ routes() ->
                     %% is performed during handling of the request.
                     forceCheck => {boolean, {optional, false}}
                 }
+            }]
+        }},
+
+        %% Generate cluster invitation token for a user
+        {<<"/api/v3/onepanel/cluster/invite_user_token">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_clusters,
+            resource = invite_user_token,
+            methods = [#rmethod{
+                type = 'POST'
             }]
         }},
 
@@ -95,6 +92,16 @@ routes() ->
             version = 3,
             module = rest_onepanel,
             resource = hosts,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% Get summary of members in this cluster
+        {<<"/api/v3/onepanel/cluster/members_summary">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_clusters,
+            resource = current_cluster_members_summary,
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -134,7 +141,7 @@ routes() ->
         %% Get Onepanel user details of currently logged in user.
         {<<"/api/v3/onepanel/user">>, rest_handler, #rstate{
             version = 3,
-            module = rest_onepanel_user,
+            module = rest_users,
             resource = current_user,
             methods = [#rmethod{
                 type = 'GET'
@@ -148,6 +155,17 @@ routes() ->
             resource = dns_check_configuration,
             methods = [#rmethod{
                 type = 'GET'
+            }]
+        }},
+
+        %% Get emergency passphrase status
+        {<<"/api/v3/onepanel/emergency_passphrase">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel,
+            resource = emergency_passphrase,
+            methods = [#rmethod{
+                type = 'GET',
+                noauth = true
             }]
         }},
 
@@ -193,32 +211,6 @@ routes() ->
             }]
         }},
 
-        %% Get Onepanel user details
-        {<<"/api/v3/onepanel/users/:username">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_onepanel_user,
-            resource = user,
-            methods = [#rmethod{
-                type = 'GET'
-            }]
-        }},
-
-        %% List onepanel users
-        {<<"/api/v3/onepanel/users">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_onepanel_user,
-            resource = users,
-            methods = [#rmethod{
-                type = 'GET',
-                params_spec = #{
-                    %% If present, query returns only users with specified
-                    %% role.
-                    role => {string, optional}
-                },
-                noauth = true
-            }]
-        }},
-
         %% Get information about SSL certificates configuration and status.
         {<<"/api/v3/onepanel/web_cert">>, rest_handler, #rstate{
             version = 3,
@@ -238,17 +230,6 @@ routes() ->
                 type = 'POST',
                 args_spec = rest_model:join_cluster_request_model(),
                 noauth = true
-            }]
-        }},
-
-        %% Modify Onepanel user details of currently logged in user.
-        {<<"/api/v3/onepanel/user">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_onepanel_user,
-            resource = current_user,
-            methods = [#rmethod{
-                type = 'PATCH',
-                args_spec = rest_model:user_modify_request_model()
             }]
         }},
 
@@ -275,17 +256,6 @@ routes() ->
             }]
         }},
 
-        %% Modify Onepanel user details
-        {<<"/api/v3/onepanel/users/:username">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_onepanel_user,
-            resource = user,
-            methods = [#rmethod{
-                type = 'PATCH',
-                args_spec = rest_model:user_modify_request_model()
-            }]
-        }},
-
         %% Modify SSL certificate configuration
         {<<"/api/v3/onepanel/web_cert">>, rest_handler, #rstate{
             version = 3,
@@ -308,23 +278,15 @@ routes() ->
             }]
         }},
 
-        %% Remove the currently logged in Onepanel user
-        {<<"/api/v3/onepanel/user">>, rest_handler, #rstate{
+        %% Set emergency passphrase
+        {<<"/api/v3/onepanel/emergency_passphrase">>, rest_handler, #rstate{
             version = 3,
-            module = rest_onepanel_user,
-            resource = current_user,
+            module = rest_onepanel,
+            resource = emergency_passphrase,
             methods = [#rmethod{
-                type = 'DELETE'
-            }]
-        }},
-
-        %% Remove Onepanel user
-        {<<"/api/v3/onepanel/users/:username">>, rest_handler, #rstate{
-            version = 3,
-            module = rest_onepanel_user,
-            resource = user,
-            methods = [#rmethod{
-                type = 'DELETE'
+                type = 'PUT',
+                args_spec = rest_model:emergency_passphrase_change_request_model(),
+                noauth = true
             }]
         }}
 

@@ -48,6 +48,9 @@
 -export([pop_legacy_letsencrypt_config/0]).
 -export([get_id/0, get_auth_token/0]).
 
+% Internal RPC
+-export([auth_macaroon_from_file/0]).
+
 -define(OZ_DOMAIN_CACHE, oz_domain).
 -define(OZ_DOMAIN_CACHE_TTL, timer:minutes(1)).
 
@@ -130,7 +133,7 @@ get_steps(deploy, Ctx) ->
     Ss = #steps{verify_hosts = false},
     [
         Ss#steps{service = ?SERVICE_PANEL, action = deploy, ctx = OpaCtx},
-        Ss#steps{service = ?SERVICE_PANEL, action = add_users, ctx = OpaCtx},
+        #steps{service = ?SERVICE_PANEL, action = migrate_emergency_passphrase},
         Ss#steps{service = ?SERVICE_CB, action = deploy, ctx = CbCtx},
         S#step{service = ?SERVICE_CB, function = status, ctx = CbCtx},
         Ss#steps{service = ?SERVICE_CM, action = deploy, ctx = CmCtx},
@@ -187,6 +190,8 @@ get_steps(manage_restart, Ctx) ->
     case hosts:self() == MasterHost of
         true -> [
             #steps{service = ?SERVICE_PANEL, action = wait_for_cluster},
+            #steps{service = ?SERVICE_PANEL, action = migrate_emergency_passphrase},
+            #steps{service = ?SERVICE_PANEL, action = clear_users},
             #steps{action = stop},
             #steps{service = ?SERVICE_CB, action = resume},
             #steps{service = ?SERVICE_CM, action = resume},
@@ -209,9 +214,10 @@ get_steps(status, _Ctx) ->
 
 get_steps(register, #{hosts := Hosts} = Ctx) ->
     [
-        #step{hosts = Hosts, function = configure, ctx = Ctx#{application => name()}},
         #step{hosts = Hosts, function = configure,
-            ctx = Ctx#{application => ?APP_NAME}},
+            ctx = Ctx#{application => ?SERVICE_OPW}},
+        #step{hosts = Hosts, function = configure,
+            ctx = Ctx#{application => ?APP_NAME}, selection = first},
         #step{hosts = Hosts, function = check_oz_availability,
             attempts = onepanel_env:get(connect_to_onezone_attempts)},
         #step{hosts = Hosts, function = register, selection = any},
@@ -222,7 +228,7 @@ get_steps(register, #{hosts := Hosts} = Ctx) ->
         #steps{action = set_cluster_ips}
     ];
 get_steps(register, Ctx) ->
-    get_steps(register, Ctx#{hosts => service_op_worker:get_hosts()});
+    get_steps(register, Ctx#{hosts => hosts:all(?SERVICE_OPW)});
 
 get_steps(unregister, _Ctx) ->
     [#step{function = unregister, selection = any, args = []}];
@@ -235,7 +241,7 @@ get_steps(modify_details, #{hosts := Hosts}) ->
         #step{hosts = Hosts, function = modify_details, selection = any}
     ];
 get_steps(modify_details, Ctx) ->
-    get_steps(modify_details, Ctx#{hosts => service_op_worker:get_hosts()});
+    get_steps(modify_details, Ctx#{hosts => hosts:all(?SERVICE_OPW)});
 
 
 get_steps(set_cluster_ips, #{hosts := Hosts} = Ctx) ->
@@ -250,7 +256,7 @@ get_steps(set_cluster_ips, #{hosts := Hosts} = Ctx) ->
             hosts = Hosts, args = []}
     ];
 get_steps(set_cluster_ips, Ctx) ->
-    get_steps(set_cluster_ips, Ctx#{hosts => service_op_worker:get_hosts()});
+    get_steps(set_cluster_ips, Ctx#{hosts => hosts:all(?SERVICE_OPW)});
 
 get_steps(Action, _Ctx) when
     Action =:= get_details ->
@@ -278,11 +284,81 @@ get_steps(Action, Ctx) when
             [#step{hosts = Hosts, function = Action, selection = any}];
         _ ->
             [#step{function = Action, selection = any,
-                ctx = Ctx#{hosts => service_op_worker:get_hosts()}}]
+                ctx = Ctx#{hosts => hosts:all(?SERVICE_OPW)}}]
     end.
 
+
 %%%===================================================================
-%%% API functions
+%%% Public API
+%%% Functions which can be called on any node.
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc Returns id of this Oneprovider.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_id() -> binary().
+get_id() ->
+    {ok, OpNode} = nodes:any(?SERVICE_OPW),
+    case rpc:call(OpNode, provider_auth, get_provider_id, []) of
+        {ok, <<ProviderId/binary>>} ->
+            ProviderId;
+        ?ERROR_UNREGISTERED_PROVIDER = Error ->
+            ?throw_error(Error);
+        _ ->
+            FileContents = read_auth_file(),
+            {ok, Id} = onepanel_maps:get(provider_id, FileContents),
+            Id
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns domain of Onezone to which this Oneprovider belongs.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_oz_domain() -> string().
+get_oz_domain() ->
+    % onezone_domain variable is set on all nodes
+    case onepanel_env:find([onezone_domain]) of
+        {ok, Domain} -> onepanel_utils:convert(Domain, list);
+        Error -> ?throw_error(Error)
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns whether this Oneprovider is registered in Onezone.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_registered() -> boolean().
+is_registered() ->
+    is_registered(#{}).
+
+%%--------------------------------------------------------------------
+%% @doc Returns whether this Oneprovider is registered in Onezone.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_registered(Ctx :: service:ctx()) -> boolean().
+is_registered(#{node := Node}) ->
+    case rpc:call(Node, oneprovider, is_registered, []) of
+        Registered when is_boolean(Registered) ->
+            service:update_ctx(name(), #{registered => Registered}),
+            Registered;
+        _RpcError ->
+            case service:get_ctx(name()) of
+                #{registered := Registered} -> Registered;
+                _ -> false
+            end
+    end;
+
+is_registered(Ctx) ->
+    case nodes:any(?SERVICE_OPW) of
+        {ok, Node} -> is_registered(Ctx#{node => Node});
+        _Error -> false
+    end.
+
+
+%%%===================================================================
+%%% Step functions
 %%%===================================================================
 
 %%--------------------------------------------------------------------
@@ -291,12 +367,14 @@ get_steps(Action, Ctx) when
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(#{application := ?APP_NAME, oneprovider_token := Token}) ->
-    OzDomain = zone_tokens:read_domain(Token),
-    application:set_env(?APP_NAME, onezone_domain, OzDomain),
-    onepanel_env:write([?APP_NAME, onezone_domain], OzDomain);
+    OzDomain = onezone_tokens:read_domain(Token),
+    Nodes = nodes:all(?SERVICE_PANEL),
+    onepanel_env:set(Nodes, onezone_domain, OzDomain, ?APP_NAME),
+    onepanel_env:write(Nodes, [?APP_NAME, onezone_domain], OzDomain,
+        onepanel_env:get_config_path(?APP_NAME, generated));
 
 configure(#{oneprovider_token := Token} = Ctx) ->
-    OzDomain = zone_tokens:read_domain(Token),
+    OzDomain = onezone_tokens:read_domain(Token),
     Name = ?SERVICE_OPW,
     Node = nodes:local(Name),
     GeneratedConfigFile = service_ctx:get(op_worker_generated_config_file, Ctx),
@@ -411,34 +489,6 @@ unregister() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Returns if this provider is registered in OneZone.
-%% @end
-%%--------------------------------------------------------------------
--spec is_registered(Ctx :: service:ctx()) -> boolean().
-is_registered(#{node := Node}) ->
-    case rpc:call(Node, oneprovider, is_registered, []) of
-        Registered when is_boolean(Registered) ->
-            service:update_ctx(name(), #{registered => Registered}),
-            Registered;
-        _RpcError ->
-            case service:get_ctx(name()) of
-                #{registered := Registered} -> Registered;
-                _ -> false
-            end
-    end;
-
-is_registered(Ctx) ->
-    case nodes:any(?SERVICE_OPW) of
-        {ok, Node} -> is_registered(Ctx#{node => Node});
-        _Error -> false
-    end.
-
--spec is_registered() -> boolean().
-is_registered() ->
-    is_registered(#{}).
-
-
-%%--------------------------------------------------------------------
 %% @doc Modifies configuration details of the provider.
 %% @end
 %%--------------------------------------------------------------------
@@ -454,28 +504,12 @@ modify_details(Ctx) ->
         {oneprovider_admin_email, <<"adminEmail">>}
     ], Ctx),
 
-    {ok, Node} = nodes:any(?SERVICE_OPW),
     case maps:size(Params) of
         0 -> ok;
-        _ -> ok = rpc:call(Node, provider_logic, update, [Params])
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @doc Must be executed on an op_worker node.
-%% @end
-%%--------------------------------------------------------------------
--spec get_id() -> binary().
-get_id() ->
-    OpNode = nodes:local(?SERVICE_OPW),
-    case rpc:call(OpNode, provider_auth, get_provider_id, []) of
-        {ok, <<ProviderId/binary>>} -> ProviderId;
-        ?ERROR_UNREGISTERED_PROVIDER = Error -> ?throw_error(Error);
         _ ->
-            {ok, Id} = onepanel_maps:get(provider_id, read_auth_file()),
-            Id
+            {ok, Node} = nodes:any(?SERVICE_OPW),
+            ok = rpc:call(Node, provider_logic, update, [Params])
     end.
-
 
 -spec get_auth_token() -> Macaroon :: binary().
 get_auth_token() ->
@@ -496,18 +530,6 @@ get_details() ->
     case service_op_worker:is_connected_to_oz() of
         true -> get_details_by_graph_sync();
         false -> get_details_by_rest()
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @doc Returns the onezone domain.
-%% @end
-%%--------------------------------------------------------------------
--spec get_oz_domain() -> string().
-get_oz_domain() ->
-    case onepanel_env:find([onezone_domain]) of
-        {ok, Domain} -> onepanel_utils:convert(Domain, list);
-        Error -> ?throw_error(Error)
     end.
 
 
@@ -674,7 +696,7 @@ update_provider_ips() ->
 %% Returns list of auto-cleaning runs reports started since Since date.
 %% @end
 %%-------------------------------------------------------------------
--spec get_auto_cleaning_reports(Ctx :: service:ctx()) -> maps:map().
+-spec get_auto_cleaning_reports(Ctx :: service:ctx()) -> map().
 get_auto_cleaning_reports(Ctx = #{space_id := SpaceId}) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     Offset = onepanel_utils:typed_get(offset, Ctx, integer, 0),
@@ -872,9 +894,54 @@ set_up_service_in_onezone() ->
     end,
     ?info("Oneprovider panel service successfully set up in Onezone").
 
+
+%%%===================================================================
+%%% Internal RPC functions
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Reads provider root macaroon stored in a file
+%% and returns it with an time caveat added.
+%% @end
+%%--------------------------------------------------------------------
+-spec auth_macaroon_from_file() -> Macaroon :: binary().
+auth_macaroon_from_file() ->
+    Self = node(),
+    % ensure correct node for reading op_worker configuration
+    case nodes:onepanel_with(?SERVICE_OPW) of
+        {_, Self} ->
+            {ok, RootMacaroonB64} = onepanel_maps:get(root_macaroon, read_auth_file()),
+            {ok, TTL} = onepanel_env:read_effective(
+                [?SERVICE_OPW, provider_macaroon_ttl_sec], ?SERVICE_OPW),
+
+            {ok, RootMacaroon} = onedata_macaroons:deserialize(RootMacaroonB64),
+            Caveat = ?TIME_CAVEAT(time_utils:system_time_seconds(), TTL),
+            Limited = onedata_macaroons:add_caveat(RootMacaroon, Caveat),
+            {ok, Macaroon} = onedata_macaroons:serialize(Limited),
+            Macaroon;
+        {ok, Other} ->
+            <<_/binary>> = rpc:call(Other, ?MODULE, ?FUNCTION_NAME, [])
+    end.
+
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Reads provider Id and root macaroon from a file where they are stored.
+%% @end
+%%--------------------------------------------------------------------
+-spec read_auth_file() -> #{provider_id := binary(), root_macaroon := binary()}.
+read_auth_file() ->
+    {_, Node} = nodes:onepanel_with(?SERVICE_OPW),
+    Path = onepanel_env:get(op_worker_root_macaroon_path),
+    case rpc:call(Node, file, consult, [Path]) of
+        {ok, [Map]} -> Map;
+        {error, Error} -> ?throw_error(Error)
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -1059,36 +1126,3 @@ update_version_info(GuiHash) ->
             }
         })
     ).
-
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc Reads provider root macaroon stored in a file
-%% and returns it with an time caveat added.
-%% @end
-%%--------------------------------------------------------------------
--spec auth_macaroon_from_file() -> Macaroon :: binary().
-auth_macaroon_from_file() ->
-    {ok, RootMacaroonB64} = onepanel_maps:get(root_macaroon, read_auth_file()),
-    {ok, RootMacaroon} = onedata_macaroons:deserialize(RootMacaroonB64),
-    {ok, TTL} = onepanel_env:read_effective(
-        [?SERVICE_OPW, provider_macaroon_ttl_sec], ?SERVICE_OPW),
-    Caveat = ?TIME_CAVEAT(time_utils:system_time_seconds(), TTL),
-    Limited = onedata_macaroons:add_caveat(RootMacaroon, Caveat),
-    {ok, Macaroon} = onedata_macaroons:serialize(Limited),
-    Macaroon.
-
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc Reads provider Id and root macaroon from a file where they are stored.
-%% Must be executed on an op_worker node.
-%% @end
-%%--------------------------------------------------------------------
--spec read_auth_file() -> #{provider_id := binary(), root_macaroon := binary()}.
-read_auth_file() ->
-    Path = onepanel_env:get(op_worker_root_macaroon_path),
-    case file:consult(Path) of
-        {ok, [Map]} -> Map;
-        {error, Error} -> ?throw_error(Error)
-    end.

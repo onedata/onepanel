@@ -17,6 +17,7 @@
 -export([hd/1, get/2, get/3, store/2, store/3, get_store/3, get_store/4]).
 -export([rename/3, remove/2]).
 -export([union/2, intersect/2, subtract/2, foldl_while/3, undefined_to_null/1]).
+-export([ensure_length/2]).
 
 -type key() :: any().
 -type keys() :: key() | [key()].
@@ -114,8 +115,8 @@ remove(Keys, Terms) when is_list(Keys) ->
         _ -> Terms
     end;
 
-remove(Key, Path) ->
-    remove([Key], Path).
+remove(Key, Terms) ->
+    remove([Key], Terms).
 
 
 %%--------------------------------------------------------------------
@@ -186,6 +187,22 @@ subtract(List1, List2) ->
     ordsets:to_list(ordsets:subtract(
         ordsets:from_list(List1), ordsets:from_list(List2)
     )).
+
+
+%%--------------------------------------------------------------------
+%% @doc Shortens or duplicates list to ensure exact number of elements
+%% (unless given list is empty). For example:
+%% (3, [a, b]) -> [a, b, a]
+%% (1, [a, b]) -> [a]
+%% (9, []) -> []
+%% @end
+%%--------------------------------------------------------------------
+-spec ensure_length(TargetLength :: non_neg_integer(), List :: [X]) -> [X]
+    when X :: term().
+ensure_length(_, []) -> [];
+ensure_length(TargetLength, List) ->
+    Repeats = utils:ceil(TargetLength / length(List)),
+    lists:sublist(lists:append(lists:duplicate(Repeats, List)), TargetLength).
 
 
 %%--------------------------------------------------------------------

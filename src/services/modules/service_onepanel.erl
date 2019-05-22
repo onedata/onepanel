@@ -25,7 +25,7 @@
 -export([set_cookie/1, check_connection/1,
     ensure_all_hosts_available/1, init_cluster/1, extend_cluster/1,
     join_cluster/1, reset_node/1, ensure_node_ready/1, reload_webcert/1,
-    add_users/1, available_for_clustering/0]).
+    available_for_clustering/0]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -131,14 +131,14 @@ get_steps(wait_for_cluster, _Ctx) ->
             attempts = Attempts, hosts = get_hosts()}
     ];
 
-get_steps(add_users, #{admin := _}) ->
-    [#step{function = add_users, selection = any}];
+get_steps(clear_users, _Ctx) ->
+    [#step{module = onepanel_user, function = delete_all, args = [],
+        selection = any}];
 
-get_steps(add_users, #{users := _}) ->
-    [#step{function = add_users, selection = any}];
-
-get_steps(add_users, _Ctx) ->
-    [];
+get_steps(migrate_emergency_passphrase, _Ctx) ->
+    [#step{module = emergency_passphrase, function = migrate_from_users, args = [],
+        hosts = get_hosts(), selection = any,
+        condition = fun(_) -> not emergency_passphrase:is_set() end }];
 
 get_steps(reload_webcert, _Ctx) ->
     [#step{function = reload_webcert}].
@@ -265,31 +265,6 @@ reset_node(_Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Adds users.
-%% If a user already exists its password and role are updated.
-%% @end
-%%--------------------------------------------------------------------
--spec add_users(Ctx :: service:ctx()) -> ok.
-add_users(#{admin := AdminUser}) ->
-    #{username := Username, password := Password} = AdminUser,
-    UsersSpec = #{Username => #{
-        password => Password,
-        userRole => admin
-    }},
-    add_users(#{users => UsersSpec});
-
-add_users(#{users := Users}) ->
-    maps:fold(fun(Username, #{password := Password, userRole := Role}, _) ->
-        case onepanel_user:create_noexcept(Username, Password, Role) of
-            {ok, _} -> ok;
-            #error{reason = ?ERR_ALREADY_EXISTS} ->
-                onepanel_user:change_password(Username, Password),
-                onepanel_user:update(Username, #{role => Role})
-        end
-    end, ok, Users).
-
-
-%%--------------------------------------------------------------------
 %% @doc
 %% Ensures all cluster hosts are up.
 %% @end
@@ -329,7 +304,7 @@ reload_webcert(_Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 available_for_clustering() ->
-    onepanel_user:get_by_role(admin) == [] andalso
+    not emergency_passphrase:is_set() andalso
         length(get_hosts()) =< 1 andalso
         not onepanel_deployment:is_set(?PROGRESS_CLUSTER).
 

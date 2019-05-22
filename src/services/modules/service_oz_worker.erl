@@ -27,7 +27,7 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 %% LE behaviour callbacks
 -export([set_txt_record/1, remove_txt_record/1, get_dns_server/0,
-    reload_webcert/1, get_domain/0, get_admin_email/1, set_http_record/2,
+    reload_webcert/1, get_domain/0, get_admin_email/0, set_http_record/2,
     supports_letsencrypt_challenge/1]).
 
 %% API
@@ -231,6 +231,7 @@ get_nagios_status(Ctx) ->
 %% @doc {@link letsencrypt_plugin_behaviour:set_http_record/2}
 %% @end
 %%--------------------------------------------------------------------
+-spec set_http_record(Name :: binary(), Value :: binary()) -> ok.
 set_http_record(Name, Value) ->
     Nodes = get_nodes(),
     {Results, []} = rpc:multicall(Nodes, http_listener,
@@ -346,8 +347,8 @@ get_details() ->
 %% @doc {@link letsencrypt_plugin_behaviour:get_admin_email/0}
 %% @end
 %%--------------------------------------------------------------------
--spec get_admin_email(service:ctx()) -> binary() | undefined.
-get_admin_email(_Ctx) ->
+-spec get_admin_email() -> binary() | undefined.
+get_admin_email() ->
     undefined.
 
 
@@ -434,7 +435,7 @@ set_policies(_Ctx) ->
     ok.
 
 
--spec get_logic_client(Auth :: AccessToken | root) -> {ok, rest_handler:zone_auth()} | #error{}
+-spec get_logic_client(Auth :: AccessToken | root) -> {ok, onezone_client:logic_client()} | #error{}
     when AccessToken :: binary().
 get_logic_client(root) ->
     case nodes:any(name()) of
@@ -467,7 +468,6 @@ get_user_details(LogicClient) ->
         {ok, User} -> {ok, User};
         {error, Reason} -> ?make_error(Reason)
     end.
-
 
 %%%===================================================================
 %%% Internal functions

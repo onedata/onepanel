@@ -10,12 +10,13 @@
 -module(rest_oneprovider).
 -author("Krzysztof Trzepla").
 
--include("names.hrl").
--include("http/rest.hrl").
 -include("authentication.hrl").
+-include("http/rest.hrl").
 -include("modules/errors.hrl").
--include_lib("ctool/include/logging.hrl").
 -include("modules/models.hrl").
+-include("names.hrl").
+-include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/privileges.hrl").
 
 -behavior(rest_behaviour).
 
@@ -37,11 +38,18 @@
 -spec is_authorized(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     State :: rest_handler:state()) ->
     {Authorized :: boolean(), Req :: cowboy_req:req()}.
-is_authorized(Req, _Method, #rstate{client = #client{role = Role}}) when
-    Role == root;
-    Role == admin;
-    Role == user ->
+is_authorized(Req, _Method, #rstate{client = #client{role = root}}) ->
     {true, Req};
+
+is_authorized(Req, 'GET', #rstate{client = #client{role = member}}) ->
+    {true, Req};
+
+is_authorized(Req, 'DELETE', #rstate{resource = provider,
+    client = #client{role = member} = Client}) ->
+    {rest_utils:has_privileges(Client, ?CLUSTER_DELETE), Req};
+
+is_authorized(Req, _Method, #rstate{client = #client{role = member} = Client}) ->
+    {rest_utils:has_privileges(Client, ?CLUSTER_UPDATE), Req};
 
 is_authorized(Req, _Method, _State) ->
     {false, Req}.
@@ -351,13 +359,13 @@ provide_resource(Req, #rstate{resource = cluster_ips}) ->
     ), Req};
 
 provide_resource(Req, #rstate{resource = onezone_info, params = #{token := Token}}) ->
-    Domain = zone_tokens:read_domain(Token),
-    {zone_client:fetch_zone_info(Domain), Req};
+    Domain = onezone_tokens:read_domain(Token),
+    {onezone_client:fetch_zone_info(Domain), Req};
 
 provide_resource(Req, #rstate{resource = onezone_info}) ->
     % exists_resource ensures the Oneprovider is registered
     Domain = list_to_binary(service_oneprovider:get_oz_domain()),
-    {zone_client:fetch_zone_info(Domain), Req}.
+    {onezone_client:fetch_zone_info(Domain), Req}.
 
 
 %%--------------------------------------------------------------------

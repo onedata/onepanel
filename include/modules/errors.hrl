@@ -110,10 +110,10 @@
 -define(ERR_INVALID_USERNAME, invalid_username).
 -define(ERR_INVALID_PASSWORD, invalid_password).
 -define(ERR_INVALID_ROLE, invalid_role).
--define(ERR_AUTH_METHOD_FORBIDDEN, auth_method_forbidden).
 -define(ERR_INVALID_USERNAME_OR_PASSWORD, invalid_username_or_password).
--define(ERR_UNAUTHORIZED, unauthorized).
 -define(ERR_INVALID_AUTH_TOKEN, invalid_auth_token).
+-define(ERR_INVALID_PASSPHRASE, invalid_passphrase).
+-define(ERR_UNAUTHORIZED, unauthorized).
 -define(ERR_USER_NOT_IN_CLUSTER, user_not_in_cluster).
 
 -define(ERR_MISSING_KEY, missing_key).

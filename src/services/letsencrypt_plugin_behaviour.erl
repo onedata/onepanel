@@ -45,7 +45,7 @@
 %%--------------------------------------------------------------------
 %% Returns admin email to be used in Let's Encrypt registration.
 %%--------------------------------------------------------------------
--callback get_admin_email(service:ctx()) -> binary() | undefined.
+-callback get_admin_email() -> binary() | undefined.
 
 %%--------------------------------------------------------------------
 %% Checks if Let's Encrypt challenge of given type can be currently

@@ -15,6 +15,8 @@
 -include("modules/models.hrl").
 -include("modules/onepanel_dns.hrl").
 -include("onepanel_test_utils.hrl").
+-include("onepanel_test_rest.hrl").
+-include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
 
@@ -43,10 +45,6 @@
     post_should_return_conflict_on_configured_oneprovider/1
 ]).
 
--define(ADMIN_USER_NAME, <<"admin1">>).
--define(ADMIN_USER_PASSWORD, <<"Admin1Password">>).
--define(REG_USER_NAME, <<"user1">>).
--define(REG_USER_PASSWORD, <<"User1Password">>).
 -define(TIMEOUT, timer:seconds(5)).
 
 -define(COMMON_HOST_ENDPOINTS_WITH_METHODS, [
@@ -59,6 +57,8 @@
 ]).
 
 -define(COMMON_ENDPOINTS_WITH_METHODS, [
+    {<<"/configuration">>, get},
+    {<<"/configuration">>, post},
     {<<"/databases">>, get},
     {<<"/managers">>, get},
     {<<"/workers">>, get},
@@ -199,11 +199,11 @@ method_should_return_unauthorized_error(Config) ->
 method_should_return_forbidden_error(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
         lists:foreach(fun({Endpoint, Method}) ->
+            Auths = ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_UPDATE]),
             ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, Endpoint/binary>>, Method,
-                {?REG_USER_NAME, ?REG_USER_PASSWORD}
+                Host, <<Prefix/binary, Endpoint/binary>>, Method, ?OZ_AUTHS(Host, Auths)
             ))
-        end, ?COMMON_ENDPOINTS_WITH_METHODS)
+        end, [{E, M} || {E, M} <- ?COMMON_ENDPOINTS_WITH_METHODS, M /= get])
     end).
 
 
@@ -213,10 +213,7 @@ method_should_return_service_unavailable_error(Config) ->
             lists:foreach(fun({Endpoint, Method}) ->
                 ?assertMatch({ok, 503, _, _}, onepanel_test_rest:auth_request(
                     Host, <<Prefix/binary, Endpoint/binary>>, Method,
-                    {?REG_USER_NAME, ?REG_USER_PASSWORD}
-                )),
-                ?assertMatch({ok, 503, _, _}, onepanel_test_rest:noauth_request(
-                    Host, <<Prefix/binary, Endpoint/binary>>, Method
+                    ?ALL_AUTHS(Host)
                 ))
             end, [
                 {<<"/storages">>, get},
@@ -233,7 +230,7 @@ method_should_return_not_found_error(Config) ->
     ?run(Config, fun({Host, _}) ->
         ?assertMatch({ok, 404, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/tasks/someTaskId">>, get,
-            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+            ?OZ_OR_ROOT_AUTHS(Host, [])
         ))
     end, [{oneprovider_hosts, <<>>}, {onezone_hosts, <<>>}]),
 
@@ -241,7 +238,7 @@ method_should_return_not_found_error(Config) ->
         lists:foreach(fun({Endpoint, Method}) ->
             ?assertMatch({ok, 404, _, _}, onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, Endpoint/binary>>, Method,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
             ))
         end, ?COMMON_HOST_ENDPOINTS_WITH_METHODS)
     end).
@@ -253,7 +250,7 @@ get_should_return_service_status(Config) ->
             {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
                 onepanel_test_rest:auth_request(
                     Host, <<Prefix/binary, Endpoint/binary>>, get,
-                    {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+                    ?OZ_OR_ROOT_AUTHS(Host, [])
                 )
             ),
             onepanel_test_rest:assert_body_values(JsonBody, [
@@ -271,7 +268,7 @@ get_should_return_service_host_status(Config) ->
             {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
                 onepanel_test_rest:auth_request(
                     Host, <<Prefix/binary, Endpoint/binary, QueryHost/binary>>, get,
-                    {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+                    ?OZ_OR_ROOT_AUTHS(Host, [])
                 )
             ),
             onepanel_test_rest:assert_body(JsonBody, <<"healthy">>)
@@ -289,7 +286,7 @@ get_should_return_service_task_results(Config) ->
             {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
                 onepanel_test_rest:auth_request(
                     Host, <<"/tasks/", TaskId/binary>>, get,
-                    {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+                    ?OZ_OR_ROOT_AUTHS(Host, [])
                 )
             ),
             onepanel_test_rest:assert_body_fields(JsonBody, Fields),
@@ -317,13 +314,7 @@ get_should_return_nagios_response(Config) ->
         ?assertMatch({ok, 200, _, ?NAGIOS_REPORT_XML},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/nagios">>, get,
-                {?REG_USER_NAME, ?REG_USER_PASSWORD}
-            )
-        ),
-        ?assertMatch({ok, 200, _, ?NAGIOS_REPORT_XML},
-            onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, "/nagios">>, get,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+                ?OZ_OR_ROOT_AUTHS(Host, [])
             )
         )
     end, [
@@ -339,7 +330,7 @@ get_should_return_dns_check(Config) ->
     {_, _, _, OpJsonBody} = ?assertMatch({ok, 200, _, _},
         onepanel_test_rest:auth_request(
             OpHost, <<"/dns_check">>, get,
-            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+            ?OZ_OR_ROOT_AUTHS(OpHost, [])
         )
     ),
     onepanel_test_rest:assert_body(OpJsonBody, ?DNS_CHECK_JSON_OP),
@@ -347,7 +338,7 @@ get_should_return_dns_check(Config) ->
     {_, _, _, OzJsonBody} = ?assertMatch({ok, 200, _, _},
         onepanel_test_rest:auth_request(
             OzHost, <<"/dns_check">>, get,
-            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+            ?OZ_OR_ROOT_AUTHS(OzHost, [])
         )
     ),
     onepanel_test_rest:assert_body(OzJsonBody, ?DNS_CHECK_JSON_OZ).
@@ -362,7 +353,7 @@ patch_should_start_stop_service(Config) ->
                         onepanel_test_rest:auth_request(
                             Host, <<Prefix/binary, Endpoint/binary,
                                 HostParam/binary, StartedParam/binary>>,
-                            patch, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+                            patch, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
                         )
                     ),
                     ?assertReceivedMatch({service, Service, Action, Ctx}, ?TIMEOUT)
@@ -390,7 +381,7 @@ post_should_configure_database_service(Config) ->
         {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/databases">>, post,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
                 #{hosts => [<<"host1">>, <<"host2">>, <<"host3">>]}
             )
         ),
@@ -408,7 +399,7 @@ post_should_configure_cluster_manager_service(Config) ->
         {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/managers">>, post,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
                 #{
                     mainHost => <<"host1">>,
                     hosts => [<<"host1">>, <<"host2">>, <<"host3">>]
@@ -430,7 +421,7 @@ post_should_configure_cluster_worker_service(Config) ->
         {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/workers">>, post,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
                 #{hosts => [<<"host1">>, <<"host2">>, <<"host3">>]}
             )
         ),
@@ -452,7 +443,7 @@ post_should_configure_onezone_service(Config) ->
         {_, _, Headers, _} = ?assertMatch({ok, 201, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/configuration">>, post,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
                 #{
                     <<"cluster">> => ?CLUSTER_JSON,
                     <<"onezone">> => #{
@@ -498,7 +489,7 @@ post_should_configure_oneprovider_service(Config) ->
         {_, _, Headers, _} = ?assertMatch({ok, 201, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/configuration">>, post,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
                 #{
                     <<"cluster">> => maps:merge(#{
                         <<"storages">> => ?STORAGES_JSON},
@@ -573,7 +564,7 @@ post_should_return_conflict_on_configured_onezone(Config) ->
         ?assertMatch({ok, 409, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/configuration">>, post,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
                 #{
                     <<"cluster">> => ?CLUSTER_JSON,
                     <<"onezone">> => #{
@@ -591,7 +582,7 @@ post_should_return_conflict_on_configured_oneprovider(Config) ->
         ?assertMatch({ok, 409, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/configuration">>, post,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
                 #{
                     <<"cluster">> => maps:merge(#{
                         <<"storages">> => ?STORAGES_JSON},
@@ -622,7 +613,7 @@ init_per_suite(Config) ->
     ssl:start(),
     hackney:start(),
     Posthook = fun(NewConfig) -> onepanel_test_utils:init(NewConfig) end,
-    [{?ENV_UP_POSTHOOK, Posthook} | Config].
+    [{?LOAD_MODULES, [onepanel_test_rest]}, {?ENV_UP_POSTHOOK, Posthook} | Config].
 
 init_per_testcase(method_should_return_service_unavailable_error, Config) ->
     NewConfig = init_per_testcase(default, Config),
@@ -631,9 +622,8 @@ init_per_testcase(method_should_return_service_unavailable_error, Config) ->
     NewConfig;
 
 init_per_testcase(method_should_return_not_found_error, Config) ->
-    ?assertAllMatch({ok, _}, ?callAll(Config, onepanel_user, create,
-        [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
-    )),
+    onepanel_test_rest:set_default_passphrase(Config),
+    onepanel_test_rest:mock_token_authentication(Config),
     Config;
 
 init_per_testcase(get_should_return_service_status, Config) ->
@@ -667,10 +657,6 @@ init_per_testcase(get_should_return_nagios_response, Config) ->
     NewConfig;
 
 init_per_testcase(get_should_return_dns_check, Config) ->
-    ?assertAllMatch({ok, _}, ?callAll(Config, onepanel_user, create,
-        [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
-    )),
-
     Nodes = ?config(all_nodes, Config),
     OpHosts = ?config(oneprovider_hosts, Config),
     OzHosts = ?config(onezone_hosts, Config),
@@ -710,6 +696,8 @@ init_per_testcase(get_should_return_dns_check, Config) ->
             }
         } end),
 
+    onepanel_test_rest:set_default_passphrase(Config),
+    onepanel_test_rest:mock_token_authentication(Nodes),
     Config;
 
 init_per_testcase(get_should_return_service_task_results, Config) ->
@@ -781,12 +769,8 @@ init_per_testcase(_Case, Config) ->
         <<"someTaskId">>
     end),
 
-    ?assertAllMatch({ok, _}, ?callAll(Config, onepanel_user, create,
-        [?REG_USER_NAME, ?REG_USER_PASSWORD, regular]
-    )),
-    ?assertAllMatch({ok, _}, ?callAll(Config, onepanel_user, create,
-        [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
-    )),
+    onepanel_test_rest:set_default_passphrase(Config),
+    onepanel_test_rest:mock_token_authentication(Nodes),
     Config.
 
 
