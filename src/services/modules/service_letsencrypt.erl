@@ -27,8 +27,7 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([create/1, status/1, check_webcert/1,
-    enable/1, disable/1, get_details/1]).
+-export([create/1, check_webcert/1, enable/1, disable/1, get_details/1]).
 
 %% Private function exported for rpc
 -export([local_cert_status/1, is_local_cert_letsencrypt/0]).
@@ -96,7 +95,7 @@ get_steps(resume, Ctx) ->
             % service_letsencrypt, requires key letsencrypt_plugin in the Ctx
             create(Ctx)
     end,
-    % ensure service is added to service_watcher if necessary
+    % ensure service is added to onepanel_cron if necessary
     [#steps{action = update}];
 
 get_steps(update, Ctx) ->
@@ -137,27 +136,6 @@ create(#{letsencrypt_plugin := Plugin}) ->
         {ok, _} -> ok;
         #error{reason = ?ERR_ALREADY_EXISTS} -> ok
     end.
-
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Callback needed for service_watcher.
-%% @end
-%%--------------------------------------------------------------------
--spec status(Ctx :: service:ctx()) -> healthy.
-status(Ctx) ->
-    try
-        case any_challenge_available() of
-            true ->
-                check_webcert(Ctx#{renewal => true});
-            false ->
-                ?info("Skipping Let's Encrypt check as required service is not available")
-        end
-    catch
-        _:Reason -> ?error("Certificate renewal check failed: ~p", [?make_stacktrace(Reason)])
-    end,
-    % always returns 'healthy' as there is no meaningful way of restarting this service
-    healthy.
 
 
 %%--------------------------------------------------------------------
@@ -279,8 +257,31 @@ obtain_cert(Ctx) ->
 %%--------------------------------------------------------------------
 -spec enable(service:ctx()) -> ok.
 enable(_Ctx) ->
-    ok = service_watcher:register_service(name(), ?CHECK_DELAY),
+    schedule_check(),
     update_ctx(#{letsencrypt_enabled => true}).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Registers periodic check of cert validity.
+%% @end
+%%--------------------------------------------------------------------
+-spec schedule_check() -> ok.
+schedule_check() ->
+    Action = fun() ->
+        try
+            case any_challenge_available() of
+                true ->
+                    check_webcert(#{renewal => true});
+                false ->
+                    ?info("Skipping Let's Encrypt check as required service is not available")
+            end
+        catch
+            _:Reason -> ?error("Certificate renewal check failed: ~p", [?make_stacktrace(Reason)])
+        end
+    end,
+    onepanel_cron:add_job(name(), Action, ?CHECK_DELAY).
 
 
 %%--------------------------------------------------------------------
@@ -291,7 +292,7 @@ enable(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec disable(service:ctx()) -> ok.
 disable(_Ctx) ->
-    ok = service_watcher:unregister_service(name()),
+    ok = onepanel_cron:remove_job(name()),
     update_ctx(#{letsencrypt_enabled => false}).
 
 

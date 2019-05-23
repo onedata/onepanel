@@ -30,6 +30,7 @@
 -export([apply/3, apply/4, apply_async/3,
     apply_sync/3, apply_sync/4, get_results/1, get_results/2, abort_task/1,
     exists_task/1]).
+-export([register_healthcheck/1]).
 -export([get_status/2, update_status/2, update_status/3, all_healthy/0,
     healthy/1]).
 -export([get_module/1, get_hosts/1, add_host/2]).
@@ -197,7 +198,7 @@ update_status(Service, Host, Status) ->
 %% @doc
 %% Returns cached service status.
 %% This cache is updated on each start/stop operation
-%% and by service_watcher periodically invoking ServiceModule:status/1.
+%% and by onepanel_cron periodically invoking ServiceModule:status/1.
 %% @end
 %%--------------------------------------------------------------------
 -spec get_status(name(), host()) -> status() | #error{}.
@@ -390,6 +391,34 @@ add_host(Service, Host) ->
             ctx = Ctx#{status => NewStatus}
         }
     end).
+
+
+-spec register_healthcheck(Service :: name()) -> ok.
+register_healthcheck(Service) ->
+    Module = get_module(Service),
+    Condition = fun() ->
+        case (catch Module:status(#{})) of
+            healthy -> false;
+            unhealthy -> false;
+            _ -> true
+        end
+    end,
+
+    Action = fun() ->
+        ?critical("Service ~p is not running. Restarting...", [Service]),
+        Results = apply_sync(Service, resume,
+            #{hosts => [hosts:self()]}),
+        case service_utils:results_contain_error(Results) of
+            {true, Error} ->
+                ?critical("Failed to restart service ~p due to:~n~p",
+                    [Service, onepanel_errors:format_error(Error)]);
+            false -> ok
+        end
+    end,
+
+    Period = onepanel_env:get(services_check_period),
+
+    onepanel_cron:add_job(Service, Action, Period, Condition).
 
 
 %%--------------------------------------------------------------------

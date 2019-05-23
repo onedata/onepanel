@@ -21,7 +21,7 @@
 -define(FORMAT_NONEMPTY(Variable), case Variable of
     undefined -> "";
     [] -> "";
-    Value -> io_lib:format("~s: ~tp~n", [??Variable, Variable])
+    _ -> io_lib:format("~s: ~tp~n", [??Variable, Variable])
 end).
 
 

@@ -129,7 +129,7 @@ start(Ctx) ->
         open_files => service_ctx:get(couchbase_open_files_limit, Ctx)
     },
     service_cli:start(name(), Limits),
-    service_watcher:register_service(name()),
+    service:register_healthcheck(name()),
     % update status cache
     status(Ctx),
     ok.
@@ -141,7 +141,7 @@ start(Ctx) ->
 %%--------------------------------------------------------------------
 -spec stop(Ctx :: service:ctx()) -> ok | no_return().
 stop(Ctx) ->
-    service_watcher:unregister_service(name()),
+    onepanel_cron:remove_job(name()),
     service_cli:stop(name()),
     % update status cache
     status(Ctx),

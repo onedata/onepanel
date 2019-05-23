@@ -200,7 +200,7 @@ stop(Ctx) ->
 %%--------------------------------------------------------------------
 -spec status(Ctx :: service:ctx()) -> service:status().
 status(Ctx) ->
-    % Since this function is invoked periodically by service_watcher
+    % Since this function is invoked periodically by onepanel_cron
     % use it to schedule DNS check refresh on a single node
     catch maybe_check_dns(),
     service_cluster_worker:status(Ctx#{name => name()}).

@@ -13,7 +13,7 @@
 
 -define(APP_NAME, onepanel).
 -define(SERVICE_EXECUTOR_NAME, service_executor).
--define(SERVICE_WATCHER_NAME, service_watcher).
+-define(ONEPANEL_CRON_NAME, onepanel_cron).
 
 -define(SERVICE_PANEL, ?APP_NAME).
 -define(SERVICE_CB, couchbase).
