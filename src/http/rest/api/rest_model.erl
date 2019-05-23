@@ -17,8 +17,10 @@
 -export([
     cluster_configuration_details_model/0,
     cluster_databases_model/0,
+    cluster_details_model/0,
     cluster_ips_model/0,
     cluster_managers_model/0,
+    cluster_members_summary_model/0,
     cluster_workers_model/0,
     configuration_model/0,
     database_hosts_model/0,
@@ -28,29 +30,35 @@
     error_model/0,
     host_model/0,
     host_add_request_model/0,
+    ids_model/0,
     join_cluster_request_model/0,
     manager_hosts_model/0,
     modify_cluster_ips_model/0,
     node_model/0,
-    panel_configuration_model/0,
-    panel_configuration_users_model/0,
+    onezone_info_model/0,
+    onezone_user_model/0,
+    op_panel_configuration_model/0,
+    op_panel_configuration_admin_model/0,
+    oz_panel_configuration_model/0,
+    oz_panel_configuration_users_model/0,
+    progress_model/0,
+    progress_modify_model/0,
     provider_cluster_configuration_model/0,
     provider_configuration_model/0,
     provider_configuration_details_model/0,
     provider_configuration_details_oneprovider_model/0,
     provider_configuration_oneprovider_model/0,
-    provider_configuration_onezone_model/0,
     provider_details_model/0,
     provider_modify_request_model/0,
     provider_register_request_model/0,
     provider_spaces_model/0,
     provider_storages_model/0,
+    remote_provider_details_model/0,
     service_databases_model/0,
     service_error_model/0,
     service_hosts_model/0,
     service_status_model/0,
     service_status_host_model/0,
-    session_details_model/0,
     space_auto_cleaning_configuration_model/0,
     space_auto_cleaning_report_model/0,
     space_auto_cleaning_reports_model/0,
@@ -72,10 +80,12 @@
     task_status_model/0,
     time_stats_model/0,
     time_stats_collection_model/0,
+    token_model/0,
     user_create_request_model/0,
     user_details_model/0,
     user_modify_request_model/0,
     users_model/0,
+    version_info_model/0,
     web_cert_model/0,
     web_cert_modify_request_model/0,
     web_cert_paths_model/0,
@@ -143,6 +153,28 @@ cluster_databases_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc Details of a cluster.
+%% @end
+%%--------------------------------------------------------------------
+-spec cluster_details_model() -> map().
+cluster_details_model() ->
+    #{
+        %% Id of the cluster record
+        id => string,
+        %% Type of the cluster
+        type => string,
+        %% The Id of the service hosted on this cluster - depending on the type
+        %% equal to the Oneprovider Id or \&quot;onezone\&quot; in case of
+        %% Onezone cluster
+        serviceId => string,
+        workerVersion => version_info_model(),
+        onepanelVersion => version_info_model(),
+        %% Is Onepanel proxy enabled - if so, onepanel GUI is served on
+        %% cluster's domain at port 443 (rather than 9443).
+        onepanelProxy => boolean
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc External IPs used by cluster nodes.
 %% @end
 %%--------------------------------------------------------------------
@@ -167,6 +199,24 @@ cluster_managers_model() ->
         mainNode => string,
         %% The list of aliases of cluster manager nodes.
         nodes => [string]
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Summary of cluster members, listing number of direct and effective users
+%% and groups.
+%% @end
+%%--------------------------------------------------------------------
+-spec cluster_members_summary_model() -> map().
+cluster_members_summary_model() ->
+    #{
+        %% Number of users belonging directly to the cluster.
+        usersCount => {integer, optional},
+        %% Number of users belonging directly and indirectly to the cluster.
+        effectiveUsersCount => {integer, optional},
+        %% Number of groups belonging directly to the cluster.
+        groupsCount => {integer, optional},
+        %% Number of groups belonging directly and indirectly to the cluster.
+        effectiveGroupsCount => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -297,6 +347,13 @@ host_add_request_model() ->
         address => string
     }.
 
+-spec ids_model() -> map().
+ids_model() ->
+    #{
+        %% List of ids.
+        ids => [string]
+    }.
+
 %%--------------------------------------------------------------------
 %% @doc Information allowing new host to join the cluster.
 %% @end
@@ -353,16 +410,81 @@ node_model() ->
     #{
         %% Hostname of the node.
         hostname => string,
-        %% Type of Onedata component managed by this onepanel.
-        componentType => string
+        %% Type of Onedata cluster managed by this onepanel.
+        clusterType => string
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Information which can be obtained about remote Onezone.
+%% @end
+%%--------------------------------------------------------------------
+-spec onezone_info_model() -> map().
+onezone_info_model() ->
+    #{
+        %% True if connection to the Onezone was achieved. If false, fields
+        %% other than 'domain' will not be sent.
+        online => boolean,
+        %% Onezone cluster version.
+        version => {string, optional},
+        %% Domain of the Onezone.
+        domain => string,
+        %% Name of the Onezone cluster.
+        name => {string, optional},
+        %% True if versions of this Oneprovider and the Onezone are compatible.
+        compatible => {boolean, optional},
+        %% Whether given Onezone allows subdomain delegation.
+        subdomainDelegationSupported => {boolean, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Describes user information coming from Onezone.
+%% @end
+%%--------------------------------------------------------------------
+-spec onezone_user_model() -> map().
+onezone_user_model() ->
+    #{
+        %% Onezone user ID.
+        userId => string,
+        %% User name as registered in Onezone.
+        name => string,
+        %% Onezone user login.
+        alias => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
 %% @doc The panel configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec panel_configuration_model() -> map().
-panel_configuration_model() ->
+-spec op_panel_configuration_model() -> map().
+op_panel_configuration_model() ->
+    #{
+        %% Indicates that interactive deployment is being performed. If false,
+        %% users entering GUI will not be asked to complete the configuration.
+        %% In that case default values will be used, available for change later
+        %% via appropriate onepanel GUI pages or REST.
+        interactiveDeployment => {boolean, optional},
+        admin => {op_panel_configuration_admin_model(), optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Credentials of the first admin user of Onepanel.
+%% @end
+%%--------------------------------------------------------------------
+-spec op_panel_configuration_admin_model() -> map().
+op_panel_configuration_admin_model() ->
+    #{
+        %% The user login.
+        username => {string, optional},
+        %% The user password.
+        password => string
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The panel configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec oz_panel_configuration_model() -> map().
+oz_panel_configuration_model() ->
     #{
         %% Indicates that interactive deployment is performed. If false, users
         %% entering GUI will not be asked to complete the configuration. In that
@@ -370,16 +492,63 @@ panel_configuration_model() ->
         %% appropriate onepanel GUI pages or REST.
         interactiveDeployment => {boolean, optional},
         %% The collection of user names associated with users properties.
-        users => {#{'_' => panel_configuration_users_model()}, {optional, #{}}}
+        users => {#{'_' => oz_panel_configuration_users_model()}, {optional, #{}}}
     }.
 
--spec panel_configuration_users_model() -> map().
-panel_configuration_users_model() ->
+-spec oz_panel_configuration_users_model() -> map().
+oz_panel_configuration_users_model() ->
     #{
         %% The user password.
         password => string,
         %% The user role, one of 'admin' or 'regular'.
         userRole => atom
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Progress markers indicating which steps of interactive deployment were
+%% reached by the admin performing cluster setup.
+%% @end
+%%--------------------------------------------------------------------
+-spec progress_model() -> map().
+progress_model() ->
+    #{
+        %% True after user assigned services to cluster nodes and they were
+        %% deployed.
+        clusterNodes => {boolean, optional},
+        %% True after user provided public IPs of cluster nodes or confirmed
+        %% autodetected defaults. Also true if interactiveDeployment was
+        %% disabled.
+        clusterIps => {boolean, optional},
+        %% True after user decided whether to use Let's Encrypt certificates
+        %% or if interactiveDeployment was disabled.
+        webCertificate => {boolean, optional},
+        %% True after user reviewed results of DNS check or if
+        %% interactiveDeployment was disabled.
+        dnsCheck => {boolean, optional},
+        %% True after at least one storage was added to op_worker. Omitted in
+        %% Onezone panel.
+        storageSetup => {boolean, optional},
+        %% True if the Oneprovider is registered at Onezone. Omitted in Onezone
+        %% panel.
+        isRegistered => {boolean, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Progress markers which can be set or unset by the GUI.
+%% @end
+%%--------------------------------------------------------------------
+-spec progress_modify_model() -> map().
+progress_modify_model() ->
+    #{
+        %% True after user confirmed detected external IPs or if
+        %% interactiveDeployment was disabled.
+        clusterIps => {boolean, optional},
+        %% True after user decided whether to use Let's Encrypt certificates
+        %% or if interactiveDeployment was disabled.
+        webCertificate => {boolean, optional},
+        %% True after user reviewed results of DNS check or if
+        %% interactiveDeployment was disabled.
+        dnsCheck => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -410,8 +579,7 @@ provider_configuration_model() ->
     #{
         cluster => provider_cluster_configuration_model(),
         oneprovider => {provider_configuration_oneprovider_model(), optional},
-        onezone => {provider_configuration_onezone_model(), optional},
-        onepanel => {panel_configuration_model(), optional}
+        onepanel => {op_panel_configuration_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -432,7 +600,7 @@ provider_configuration_details_model() ->
 -spec provider_configuration_details_oneprovider_model() -> map().
 provider_configuration_details_oneprovider_model() ->
     #{
-        %% The name of a provider. Null if not registered.
+        %% The name of a provider. `null` if not registered.
         name => string,
         %% True if all steps of cluster deployment and configuration have been
         %% performed.
@@ -448,6 +616,9 @@ provider_configuration_oneprovider_model() ->
     #{
         %% Defines whether the provider should be registered in a zone.
         register => boolean,
+        %% Registration token obtained from Onezone. This token identifies
+        %% Onezone to be used and authorizes the registration request.
+        token => {string, optional},
         %% The name under which the provider will be registered in a zone.
         name => string,
         %% If enabled, the storage provider will be assigned a subdomain in
@@ -476,18 +647,7 @@ provider_configuration_oneprovider_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The zone custom configuration.
-%% @end
-%%--------------------------------------------------------------------
--spec provider_configuration_onezone_model() -> map().
-provider_configuration_onezone_model() ->
-    #{
-        %% The domain name of a zone where provider will be registered.
-        domainName => string
-    }.
-
-%%--------------------------------------------------------------------
-%% @doc The provider configuration details.
+%% @doc The Oneprovider configuration details.
 %% @end
 %%--------------------------------------------------------------------
 -spec provider_details_model() -> map().
@@ -495,24 +655,26 @@ provider_details_model() ->
     #{
         %% The Id assigned by a zone.
         id => string,
-        %% The name under which the provider has been registered in a zone.
+        %% The name under which the Oneprovider has been registered in a zone.
         name => string,
-        %% If enabled, the storage provider has a subdomain in onezone's
+        %% If enabled, the storage Oneprovider has a subdomain in onezone's
         %% domain and 'subdomain' property must be provided.
         subdomainDelegation => boolean,
-        %% Unique subdomain in onezone's domain for the provider. Required
-        %% if subdomain delegation is enabled.
+        %% Unique subdomain in onezone's domain for the Oneprovider.
+        %% Required if subdomain delegation is enabled.
         subdomain => {string, optional},
-        %% The fully qualified domain name of the provider or its IP address
+        %% The fully qualified domain name of the Oneprovider or its IP address
         %% (only for single-node deployments or clusters with a reverse proxy).
         domain => string,
-        %% Email address of the oneprovider administrator.
-        adminEmail => string,
-        %% The geographical longitude of the provider.
+        %% Email address of the Oneprovider administrator. Omitted if it could
+        %% not be retrievied.
+        adminEmail => {string, optional},
+        %% The geographical longitude of the Oneprovider.
         geoLongitude => float,
-        %% The geographical latitude of the provider.
+        %% The geographical latitude of the Oneprovider.
         geoLatitude => float,
-        %% The domain name of a zone where this storage provider is registered.
+        %% The domain name of a zone where this storage Oneprovider is
+        %% registered.
         onezoneDomainName => string
     }.
 
@@ -556,6 +718,9 @@ provider_register_request_model() ->
     #{
         %% The name under which the provider should be registered in a zone.
         name => string,
+        %% Registration token obtained from Onezone. This token identifies
+        %% Onezone to be used and authorizes the registration request.
+        token => string,
         %% If enabled, the storage provider will be assigned a subdomain in
         %% onezone's domain and 'subdomain' property must be
         %% provided. If disabled, 'domain' property should be provided.
@@ -571,10 +736,7 @@ provider_register_request_model() ->
         geoLongitude => {float, optional},
         %% The geographical latitude of the storage provider.
         geoLatitude => {float, optional},
-        %% The domain name of a zone where this storage provider will be
-        %% registered.
-        onezoneDomainName => string,
-        %% Email address of the oneprovider administrator.
+        %% Email address of the Oneprovider administrator.
         adminEmail => string
     }.
 
@@ -598,6 +760,29 @@ provider_storages_model() ->
     #{
         %% The list of Ids of cluster storage resources.
         ids => [string]
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Information about another Oneprovider.
+%% @end
+%%--------------------------------------------------------------------
+-spec remote_provider_details_model() -> map().
+remote_provider_details_model() ->
+    #{
+        %% The Oneprovider Id assigned by Onezone.
+        id => string,
+        %% The name under which the Oneprovider has been registered in Onezone.
+        name => string,
+        %% The fully qualified domain name of the Oneprovider.
+        domain => string,
+        %% The geographical longitude of the provider.
+        geoLongitude => float,
+        %% The geographical latitude of the provider.
+        geoLatitude => float,
+        %% The Id of the corresponding cluster record.
+        cluster => string,
+        %% Indicates if the Oneprovider is currently online.
+        online => boolean
     }.
 
 %%--------------------------------------------------------------------
@@ -670,19 +855,6 @@ service_status_host_model() ->
     #{
         %% The service status.
         status => string
-    }.
-
-%%--------------------------------------------------------------------
-%% @doc The user session details.
-%% @end
-%%--------------------------------------------------------------------
--spec session_details_model() -> map().
-session_details_model() ->
-    #{
-        %% The session Id.
-        sessionId => string,
-        %% The name of a user associated with the session.
-        username => string
     }.
 
 %%--------------------------------------------------------------------
@@ -1066,6 +1238,16 @@ time_stats_collection_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc A token
+%% @end
+%%--------------------------------------------------------------------
+-spec token_model() -> map().
+token_model() ->
+    #{
+        token => string
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The new user account details.
 %% @end
 %%--------------------------------------------------------------------
@@ -1091,8 +1273,13 @@ user_details_model() ->
     #{
         %% The user Id.
         userId => string,
+        %% The user name.
+        username => string,
         %% The user role, one of `admin` or `regular`.
-        userRole => atom
+        userRole => atom,
+        %% List of cluster privileges held by the user. This field is returned
+        %% only to a Onezone user fetching information about himself.
+        clusterPrivileges => {[string], optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1118,6 +1305,21 @@ users_model() ->
     #{
         %% The list of usernames.
         usernames => [string]
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Service version info.
+%% @end
+%%--------------------------------------------------------------------
+-spec version_info_model() -> map().
+version_info_model() ->
+    #{
+        %% Release version.
+        release => string,
+        %% Build number.
+        build => string,
+        %% GUI version indicated by a SHA256 hash.
+        gui => string
     }.
 
 %%--------------------------------------------------------------------
@@ -1227,7 +1429,7 @@ zone_configuration_model() ->
     #{
         cluster => zone_cluster_configuration_model(),
         onezone => {zone_configuration_onezone_model(), optional},
-        onepanel => {panel_configuration_model(), optional}
+        onepanel => {oz_panel_configuration_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1299,6 +1501,8 @@ zone_policies_model() ->
 -spec ceph_model() -> map().
 ceph_model() ->
     #{
+        %% The type of storage.
+        type => {equal, <<"ceph">>},
         %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
@@ -1319,8 +1523,6 @@ ceph_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
-        %% The type of storage.
-        type => {equal, <<"ceph">>},
         %% The username of the Ceph cluster administrator.
         username => string,
         %% The admin key to access the Ceph cluster.
@@ -1388,6 +1590,8 @@ ceph_modify_model() ->
 -spec cephrados_model() -> map().
 cephrados_model() ->
     #{
+        %% The type of storage.
+        type => {equal, <<"cephrados">>},
         %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
@@ -1408,8 +1612,6 @@ cephrados_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
-        %% The type of storage.
-        type => {equal, <<"cephrados">>},
         %% The username of the Ceph cluster administrator.
         username => string,
         %% The admin key to access the Ceph cluster.
@@ -1479,6 +1681,8 @@ cephrados_modify_model() ->
 -spec glusterfs_model() -> map().
 glusterfs_model() ->
     #{
+        %% The type of storage.
+        type => {equal, <<"glusterfs">>},
         %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
@@ -1499,8 +1703,6 @@ glusterfs_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
-        %% The type of storage.
-        type => {equal, <<"glusterfs">>},
         %% The name of the volume to use as a storage backend.
         volume => string,
         %% The hostname (IP address or FQDN) of GlusterFS volume server.
@@ -1576,6 +1778,8 @@ glusterfs_modify_model() ->
 -spec nulldevice_model() -> map().
 nulldevice_model() ->
     #{
+        %% The type of storage.
+        type => {equal, <<"nulldevice">>},
         %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
@@ -1596,8 +1800,6 @@ nulldevice_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
-        %% The type of storage.
-        type => {equal, <<"nulldevice">>},
         %% Minimum latency in milliseconds, which should be simulated for
         %% selected operations.
         latencyMin => {integer, optional},
@@ -1703,6 +1905,9 @@ nulldevice_modify_model() ->
 -spec op_configuration_model() -> map().
 op_configuration_model() ->
     #{
+        %% The Id of cluster record for this cluster. `null` if the
+        %% cluster is not registered.
+        clusterId => string,
         %% Version of this Onepanel
         version => string,
         %% Build number of this Onepanel
@@ -1711,11 +1916,11 @@ op_configuration_model() ->
         deployed => boolean,
         %% Indicates that this is Oneprovider's panel.
         serviceType => {equal, <<"oneprovider">>},
-        %% This cluster's Oneprovider Id. Null if the Oneprovider is not
-        %% registered or Oneprovider worker is down.
+        %% This cluster's Oneprovider Id. `null` if the
+        %% Oneprovider is not registered or Oneprovider worker is down.
         providerId => string,
-        %% The domain of the Onezone where this Oneprovider is registered. Null
-        %% if the Oneprovider is not registered.
+        %% The domain of the Onezone where this Oneprovider is registered.
+        %% `null` if the Oneprovider is not registered.
         zoneDomain => string,
         %% True if the Oneprovider has been registered at a Onezone.
         isRegistered => {boolean, optional}
@@ -1728,6 +1933,9 @@ op_configuration_model() ->
 -spec oz_configuration_model() -> map().
 oz_configuration_model() ->
     #{
+        %% The Id of cluster record for this cluster. `null` if the
+        %% cluster is not registered.
+        clusterId => string,
         %% Version of this Onepanel
         version => string,
         %% Build number of this Onepanel
@@ -1736,10 +1944,11 @@ oz_configuration_model() ->
         deployed => boolean,
         %% Indicates that this is Onezone's panel.
         serviceType => {equal, <<"onezone">>},
-        %% The domain of this Onezone cluster. Null before cluster is
-        %% configured.
+        %% The domain of this Onezone cluster. `null` before cluster
+        %% is configured.
         zoneDomain => string,
-        %% The name of this Onezone cluster. Null before cluster is configured.
+        %% The name of this Onezone cluster. `null` before cluster is
+        %% configured.
         zoneName => {string, optional}
     }.
 
@@ -1750,6 +1959,8 @@ oz_configuration_model() ->
 -spec posix_model() -> map().
 posix_model() ->
     #{
+        %% The type of storage.
+        type => {equal, <<"posix">>},
         %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
@@ -1770,8 +1981,6 @@ posix_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
-        %% The type of storage.
-        type => {equal, <<"posix">>},
         %% The absolute path to the directory where the POSIX storage is mounted
         %% on the cluster nodes.
         mountPoint => string,
@@ -1825,6 +2034,8 @@ posix_modify_model() ->
 -spec s3_model() -> map().
 s3_model() ->
     #{
+        %% The type of storage.
+        type => {equal, <<"s3">>},
         %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
@@ -1845,8 +2056,6 @@ s3_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
-        %% The type of storage.
-        type => {equal, <<"s3">>},
         %% The hostname of a machine where S3 storage is installed.
         hostname => string,
         %% The storage bucket name.
@@ -1918,6 +2127,8 @@ s3_modify_model() ->
 -spec swift_model() -> map().
 swift_model() ->
     #{
+        %% The type of storage.
+        type => {equal, <<"swift">>},
         %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
@@ -1938,8 +2149,6 @@ swift_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
-        %% The type of storage.
-        type => {equal, <<"swift">>},
         %% The URL to OpenStack Keystone identity service.
         authUrl => string,
         %% The name of the tenant to which the user belongs.
@@ -2009,6 +2218,8 @@ swift_modify_model() ->
 -spec webdav_model() -> map().
 webdav_model() ->
     #{
+        %% The type of storage.
+        type => {equal, <<"webdav">>},
         %% The Id of storage.
         id => {string, optional},
         %% The name of storage.
@@ -2029,8 +2240,6 @@ webdav_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
-        %% The type of storage.
-        type => {equal, <<"webdav">>},
         %% Full URL of the WebDAV server, including scheme (http or https) and
         %% path.
         endpoint => string,
@@ -2043,8 +2252,23 @@ webdav_model() ->
         %% The credentials to authenticate with the WebDAV server.
         %% `basic` credentials should be provided in the form
         %% `username:password`, for `token` just the token.
-        %% For `none` this field is ignored.
+        %% In case of `oauth2`, this field should contain the username
+        %% for the WebDAV, while the token will be obtained and refreshed
+        %% automatically in the background. For `none` this field is
+        %% ignored.
         credentials => {string, optional},
+        %% In case `oauth2` credential type is selected and Onezone is
+        %% configured with support for multiple external IdP's, this field
+        %% must contain the name of the IdP which authenticates requests to the
+        %% WebDAV endpoint. If Onezone has only one external IdP, it will be
+        %% selected automatically.
+        oauth2IdP => {string, optional},
+        %% When registering storage in `insecure` mode with
+        %% `oauth2` external IdP, this field must contain a valid
+        %% Onedata access token of the user on whose behalf the WebDAV storage
+        %% will be accessed by all users with access to any space supported by
+        %% this storage.
+        onedataAccessToken => {string, optional},
         %% The authorization header to be used for passing the access token.
         %% This field can contain any prefix that should be added to the header
         %% value. Default is `Authorization: Bearer {}`. The token
@@ -2060,11 +2284,19 @@ webdav_model() ->
         rangeWriteSupport => {string, {optional, none}},
         %% Defines the maximum number of parallel connections for a single
         %% WebDAV storage.
-        connectionPoolSize => {integer, {optional, 10}},
+        connectionPoolSize => {integer, {optional, 25}},
         %% Defines the maximum upload size for a single `PUT` or
         %% `PATCH` request. If set to 0, assumes that the WebDAV
         %% server has no upload limit.
         maximumUploadSize => {integer, {optional, 0}},
+        %% Defines the file permissions, which files imported from WebDAV
+        %% storage will have in Onedata. Values should be provided in octal
+        %% format e.g. `0644`.
+        fileMode => {string, optional},
+        %% Defines the directory mode which directories imported from WebDAV
+        %% storage will have in Onedata. Values should be provided in octal
+        %% format e.g. `0775`.
+        dirMode => {string, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Determines how the logical file paths will be mapped on the storage.

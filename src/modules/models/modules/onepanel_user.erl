@@ -18,13 +18,19 @@
 -include("modules/models.hrl").
 -include("validation.hrl").
 
+-include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/oz/oz_users.hrl").
+
 %% Model behaviour callbacks
--export([get_fields/0, seed/0, create/1, save/1, update/2, get/1, exists/1,
-    delete/1, list/0]).
+-export([get_fields/0, get_record_version/0, seed/0, create/1, save/1, update/2,
+    upgrade/2, get/1, exists/1, delete/1, list/0]).
 
 %% API
--export([create/3, create_noexcept/3, authenticate/1, authenticate/2,
-    hash_password/1, change_password/2, get_by_role/1]).
+-export([create/3, create_noexcept/3,
+    authenticate_by_auth_token/1,
+    authenticate_by_basic_auth/2,
+    hash_password/1, change_password/2]).
+-export([no_admin_exists/0, get_by_role/1]).
 -export([validate_username/1, validate_password/1, validate_role/1]).
 
 -type name() :: binary().
@@ -34,7 +40,7 @@
 -type uuid() :: binary().
 -type record() :: #onepanel_user{}.
 
--export_type([name/0, password/0, password_hash/0, role/0, uuid/0]).
+-export_type([name/0, password/0, password_hash/0, role/0, uuid/0, record/0]).
 
 %%%===================================================================
 %%% Model behaviour callbacks
@@ -47,6 +53,25 @@
 -spec get_fields() -> list(atom()).
 get_fields() ->
     record_info(fields, ?MODULE).
+
+
+%%--------------------------------------------------------------------
+%% @doc {@link model_behaviour:get_record_version/0}
+%% @end
+%%--------------------------------------------------------------------
+-spec get_record_version() -> model_behaviour:version().
+get_record_version() ->
+    1.
+
+
+%%--------------------------------------------------------------------
+%% @doc {@link model_behaviour:upgrade/2}
+%% @end
+%%--------------------------------------------------------------------
+-spec upgrade(PreviousVsn :: model_behaviour:version(), PreviousRecord :: tuple()) ->
+    no_return().
+upgrade(1, _Record) ->
+    ?throw_error(?ERR_NOT_SUPPORTED).
 
 
 %%--------------------------------------------------------------------
@@ -158,35 +183,39 @@ create_noexcept(Username, Password, Role) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Authenticates user by session.
+%% @doc Authenticates user by REST API token.
 %% @end
 %%--------------------------------------------------------------------
--spec authenticate(SessionId :: onepanel_session:id()) ->
+-spec authenticate_by_auth_token(onepanel_session:auth_token()) ->
     {ok, User :: #onepanel_user{}} | #error{}.
-authenticate(SessionId) ->
-    case onepanel_session:get(SessionId) of
+authenticate_by_auth_token(RestApiToken) ->
+    case onepanel_session:find_by_valid_auth_token(RestApiToken) of
         {ok, Session} ->
-            Username = onepanel_session:get_username(Session),
-            case onepanel_user:get(Username) of
-                {ok, User} ->
-                    onepanel_session:mark_active(SessionId),
-                    {ok, User};
+            case onepanel_user:get(onepanel_session:get_username(Session)) of
+                {ok, User} -> {ok, User};
                 #error{} = Error ->
+                    ?warning("No user matching session ~s found: ~p", [
+                        onepanel_session:get_id(Session), Error
+                    ]),
                     Error
             end;
-        #error{} = Error ->
-            Error
+        #error{} ->
+            ?make_error(?ERR_INVALID_AUTH_TOKEN)
     end.
+
 
 %%--------------------------------------------------------------------
 %% @doc Authenticates user by checking provided hash against the one stored in
 %% user model instance.
+%% Only users with role 'admin' are allowed to use basic auth.
 %% @end
 %%--------------------------------------------------------------------
--spec authenticate(Username :: name(), Password :: password()) ->
+-spec authenticate_by_basic_auth(Username :: name(), Password :: password()) ->
     {ok, User :: #onepanel_user{}} | #error{}.
-authenticate(Username, Password) ->
+authenticate_by_basic_auth(Username, Password) ->
     case onepanel_user:get(Username) of
+        {ok, #onepanel_user{password_hash = undefined}} ->
+            ?make_error(?ERR_INVALID_USERNAME_OR_PASSWORD);
         {ok, #onepanel_user{password_hash = Hash} = User} ->
             case onedata_passwords:verify(Password, Hash) of
                 true -> {ok, User};
@@ -217,14 +246,23 @@ change_password(Username, NewPassword) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc Checks if any user with admin privileges exists.
+%% @end
+%%--------------------------------------------------------------------
+-spec no_admin_exists() -> boolean().
+no_admin_exists() ->
+    get_by_role(admin) == [].
+
+
+%%--------------------------------------------------------------------
 %% @doc Returns a list of users with the specified role.
 %% @end
 %%--------------------------------------------------------------------
--spec get_by_role(Role :: role()) -> Users :: [#onepanel_user{}] | no_return().
+-spec get_by_role(Role :: role()) -> Users :: [#onepanel_user{}].
 get_by_role(Role) ->
-    case model:exists(onepanel_user) of
+    case model:exists(?MODULE) of
         true -> model:select(?MODULE,
-            [{#onepanel_user{role = Role, _ = '_'}, [], ['$_']}]);
+            [{#onepanel_user{role = Role, _ = '_'}, []}]);
         false -> []
     end.
 

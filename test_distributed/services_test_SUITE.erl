@@ -11,6 +11,7 @@
 -module(services_test_SUITE).
 -author("Krzysztof Trzepla").
 
+-include("names.hrl").
 -include("modules/models.hrl").
 -include("onepanel_test_utils.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
@@ -33,14 +34,6 @@
     services_stop_start_test/1
 ]).
 
--define(SERVICE_OPA, service_onepanel:name()).
--define(SERVICE_OP, service_oneprovider:name()).
--define(SERVICE_LE, service_letsencrypt:name()).
--define(SERVICE_OZ, service_onezone:name()).
--define(SERVICE_CB, service_couchbase:name()).
--define(SERVICE_CM, service_cluster_manager:name()).
--define(SERVICE_OPW, service_op_worker:name()).
--define(SERVICE_OZW, service_oz_worker:name()).
 -define(TIMEOUT, timer:seconds(5)).
 
 -define(run(Config, Function, HostsType), begin
@@ -50,6 +43,9 @@
 end).
 
 -define(AWAIT_OZ_CONNECTIVITY_ATTEMPTS, 30).
+
+-define(OZ_USERNAME, <<"joe">>).
+-define(OZ_PASSWORD, <<"password">>).
 
 all() ->
     ?ALL([
@@ -70,20 +66,22 @@ all() ->
 %%%===================================================================
 
 service_oneprovider_unregister_register_test(Config) ->
-    [Node | _] = ?config(oneprovider_nodes, Config),
-    onepanel_test_utils:service_action(Node, oneprovider, unregister, #{}),
-    onepanel_test_utils:service_action(Node, oneprovider, register, #{
+    [OzNode | _] = ?config(onezone_nodes, Config),
+    [OpNode | _] = ?config(oneprovider_nodes, Config),
+    onepanel_test_utils:service_action(OpNode, oneprovider, unregister, #{}),
+    onepanel_test_utils:service_action(OpNode, oneprovider, register, #{
         oneprovider_geo_latitude => 20.0,
         oneprovider_geo_longitude => 20.0,
         oneprovider_name => <<"provider2">>,
-        oneprovider_domain => onepanel_cluster:node_to_host(Node),
-        oneprovider_admin_email => <<"admin@onedata.org">>
+        oneprovider_domain => hosts:from_node(OpNode),
+        oneprovider_admin_email => <<"admin@onedata.org">>,
+        oneprovider_token => get_registration_token(OzNode)
     }).
 
 
 service_oneprovider_modify_details_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
-    Domain = list_to_binary(onepanel_cluster:node_to_host(Node)),
+    Domain = list_to_binary(hosts:from_node(Node)),
     onepanel_test_utils:service_action(Node, oneprovider, modify_details, #{
         oneprovider_geo_latitude => 30.0,
         oneprovider_geo_longitude => 40.0,
@@ -93,12 +91,8 @@ service_oneprovider_modify_details_test(Config) ->
         oneprovider_admin_email => <<"admin@onedata.org">>
     }),
 
-    % wait for graph sync to converge
-    % (won't be necessary when modification is done via graph sync - VFS-4644)
-    timer:sleep(timer:seconds(20)),
-
     onepanel_test_utils:service_action(Node, oneprovider, get_details, #{
-        hosts => [onepanel_cluster:node_to_host(Node)]
+        hosts => [hosts:from_node(Node)]
     }),
     Results = assert_service_step(service:get_module(oneprovider), get_details),
     [{_, Details}] = ?assertMatch([{Node, _}], Results),
@@ -118,7 +112,7 @@ service_oneprovider_modify_details_test(Config) ->
 service_oneprovider_get_details_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
     onepanel_test_utils:service_action(Node, oneprovider, get_details, #{
-        hosts => [onepanel_cluster:node_to_host(Node)]
+        hosts => [hosts:from_node(Node)]
     }),
     Results = assert_service_step(service:get_module(oneprovider), get_details),
     [{_, Details}] = ?assertMatch([{Node, _}], Results),
@@ -130,7 +124,7 @@ service_oneprovider_get_details_test(Config) ->
 service_oneprovider_get_supported_spaces_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
     onepanel_test_utils:service_action(Node, oneprovider, get_spaces, #{
-        hosts => [onepanel_cluster:node_to_host(Node)]
+        hosts => [hosts:from_node(Node)]
     }),
     ?assertEqual([{Node, [{ids, []}]}], assert_service_step(
         service:get_module(oneprovider), get_spaces
@@ -139,7 +133,7 @@ service_oneprovider_get_supported_spaces_test(Config) ->
 
 service_op_worker_get_storages_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
-    Ctx = #{hosts => [onepanel_cluster:node_to_host(Node)]},
+    Ctx = #{hosts => [hosts:from_node(Node)]},
     onepanel_test_utils:service_action(Node, op_worker, get_storages, Ctx),
     Results = assert_service_step(service:get_module(op_worker), get_storages),
     [{Node, #{ids := [Id]}}] = ?assertMatch([{Node, #{ids := [_]}}], Results),
@@ -361,7 +355,7 @@ init_per_suite(Config) ->
     Posthook = fun(NewConfig) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
         [OzNode | _] = OzNodes = ?config(onezone_nodes, NewConfig2),
-        OzHosts = onepanel_cluster:nodes_to_hosts(OzNodes),
+        OzHosts = hosts:from_nodes(OzNodes),
         OzIp = test_utils:get_docker_ip(OzNode),
         OzDomain = onepanel_test_utils:get_domain(hd(OzHosts)),
         onepanel_test_utils:set_test_envs(OzNodes, [{test_web_cert_domain, OzDomain}]),
@@ -371,8 +365,13 @@ init_per_suite(Config) ->
 
         onepanel_test_utils:service_action(OzNode, ?SERVICE_OZ, deploy, #{
             cluster => #{
-                ?SERVICE_OPA => #{
-                    hosts => OzHosts
+                ?SERVICE_PANEL => #{
+                    hosts => OzHosts,
+                    users => #{
+                        ?OZ_USERNAME => #{
+                            password => ?OZ_PASSWORD, userRole => admin
+                        }
+                    }
                 },
                 ?SERVICE_CB => #{
                     hosts => OzHosts
@@ -390,8 +389,9 @@ init_per_suite(Config) ->
                 }
             }
         }),
+
         [OpNode | _] = OpNodes = ?config(oneprovider_nodes, NewConfig2),
-        OpHosts = onepanel_cluster:nodes_to_hosts(OpNodes),
+        OpHosts = hosts:from_nodes(OpNodes),
         % We do not have a DNS server that would resolve OZ domain for provider,
         % so we need to simulate it using /etc/hosts.
         lists:foreach(fun(Node) ->
@@ -403,9 +403,10 @@ init_per_suite(Config) ->
         end, OpNodes),
 
         {ok, Posix} = onepanel_lists:get([storages, posix, '/mnt/st1'], NewConfig2),
+        RegistrationToken = get_registration_token(OzNode),
         onepanel_test_utils:service_action(OpNode, ?SERVICE_OP, deploy, #{
             cluster => #{
-                ?SERVICE_OPA => #{
+                ?SERVICE_PANEL => #{
                     hosts => OpHosts
                 },
                 ?SERVICE_CB => #{
@@ -443,7 +444,7 @@ init_per_suite(Config) ->
                 oneprovider_domain => hd(OpHosts),
                 oneprovider_register => true,
                 oneprovider_admin_email => <<"admin@onedata.org">>,
-                onezone_domain => OzDomain
+                oneprovider_token => RegistrationToken
             }
         }),
         NewConfig2
@@ -480,17 +481,29 @@ end_per_suite(_Config) ->
 %%% Internal functions
 %%%===================================================================
 
+%% @private
+-spec assert_service_step(Module :: module(), Function :: atom()) ->
+    onepanel_rpc:results().
 assert_service_step(Module, Function) ->
     {_, {_, _, {Results, _}}} = ?assertReceivedMatch(
         {step_end, {Module, Function, {_, []}}}, ?TIMEOUT
     ),
     Results.
 
+%% @private
+-spec assert_service_step(Module :: module(), Function :: atom(),
+    Nodes :: [node()], Result :: term()) -> ok.
 assert_service_step(Module, Function, Nodes, Result) ->
     Results = assert_service_step(Module, Function),
-    onepanel_test_utils:assert_values(Results, lists:zip(
-        Nodes, lists:duplicate(erlang:length(Nodes), Result)
-    )).
+    Expected = same_result_for_nodes(Nodes, Result),
+    onepanel_test_utils:assert_values(Results, Expected).
+
+
+%% @private
+-spec same_result_for_nodes(Nodes :: [node()], Result) -> [{node(), Result}]
+    when Result :: term().
+same_result_for_nodes(Nodes, Result) ->
+    [{Node, Result} || Node <- Nodes].
 
 
 %%--------------------------------------------------------------------
@@ -501,10 +514,9 @@ assert_service_step(Module, Function, Nodes, Result) ->
 %%--------------------------------------------------------------------
 -spec await_oz_connectivity(Node :: node()) -> ok | no_return().
 await_oz_connectivity(Node) ->
-    OpNode = onepanel_cluster:service_to_node(service_op_worker:name(), Node),
+    OpNode = nodes:service_to_node(?SERVICE_OPW, Node),
     ?assertMatch({ok, _},
-        % direct rpc from testmaster apparently does not work
-        rpc:call(Node, rpc, call, [OpNode, provider_logic, get, []]),
+        proxy_rpc(Node, OpNode, provider_logic, get, []),
         ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS),
     ok.
 
@@ -530,15 +542,28 @@ regenerate_web_certificate(Nodes, Domain) ->
 
     rpc:multicall(Nodes, service_op_worker, reload_webcert, [#{}]).
 
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Reads app config from given Node
-%% @end
-%%--------------------------------------------------------------------
--spec rpc_get_env(node(), atom()) -> term().
-rpc_get_env(Node, Key) ->
-    rpc:call(Node, onepanel_env, get, [Key]).
+
+-spec get_registration_token(OzNode :: node()) -> Token :: binary().
+get_registration_token(OzNode) ->
+    OzwNode = nodes:service_to_node(?SERVICE_OZW, OzNode),
+    {ok, #onepanel_user{uuid = OnepanelUserId}} = ?assertMatch({ok, #onepanel_user{}},
+        rpc:call(OzNode, onepanel_user, get, [?OZ_USERNAME]),
+        ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS),
+    {ok, OnezoneUserId} = ?assertMatch({ok, _},
+        proxy_rpc(OzNode, OzwNode, user_logic, acquire_onepanel_user,
+            [OnepanelUserId, ?OZ_USERNAME, ?OZ_PASSWORD]
+        ),
+        ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS),
+    Client = proxy_rpc(OzNode, OzwNode, entity_logic, user_client, [OnezoneUserId]),
+
+    {ok, RegistrationToken} = ?assertMatch({ok, _},
+        proxy_rpc(OzNode, OzwNode,
+            user_logic, create_provider_registration_token, [Client, OnezoneUserId]
+        ),
+        ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS),
+
+    {ok, SerializedToken} = onedata_macaroons:serialize(RegistrationToken),
+    SerializedToken.
 
 
 %%--------------------------------------------------------------------
@@ -565,3 +590,29 @@ get_storages(Config) ->
         [{_, Details}] = ?assertMatch([{Node, _}], Results2),
         Details
     end, Ids).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Reads app config from given Node
+%% @end
+%%--------------------------------------------------------------------
+-spec rpc_get_env(node(), atom()) -> term().
+rpc_get_env(Node, Key) ->
+    rpc:call(Node, onepanel_env, get, [Key]).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% For unknown reasons sometimes direct rpc from testmaster to worker
+%% node doesn't work, but proxying through onepanel node does.
+%% @end
+%%--------------------------------------------------------------------
+-spec proxy_rpc(ProxyNode :: node(), TargetNode :: node(),
+    Module :: module(), Function :: atom(), Args :: [term()]) -> term().
+proxy_rpc(ProxyNode, TargetNode, Module, Function, Args) ->
+    rpc:call(ProxyNode, rpc, call, [
+        TargetNode, Module, Function, Args
+    ]).

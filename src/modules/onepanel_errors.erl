@@ -16,7 +16,14 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([create/7, translate/2]).
+-export([create/7, translate/2, format_error/1]).
+
+-define(FORMAT_NONEMPTY(Variable), case Variable of
+    undefined -> "";
+    [] -> "";
+    Value -> io_lib:format("~s: ~tp~n", [??Variable, Variable])
+end).
+
 
 %%%===================================================================
 %%% API functions
@@ -29,15 +36,19 @@
 -spec create(Module :: module(), Function :: atom(), Arity :: arity(),
     Args :: term(), Reason :: term(), Stacktrace :: term(), Line :: non_neg_integer()) ->
     #error{}.
-create(_Module, _Function, _Arity, _Args, #error{} =
-    _Reason, NewStacktrace, _Line) ->
-    #error{module = Module, function = Function, arity = Arity, args = Args,
-        reason = Reason, stacktrace = OldStacktrace, line = Line} = _Reason,
-    Stacktrace = case OldStacktrace of
-        [] -> NewStacktrace;
-        _ -> OldStacktrace
-    end,
+create(Module, Function, Arity, Args, {error, #error{} = Reason}, Stacktrace, Line) ->
     create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
+create(Module, Function, Arity, Args, {badmatch, #error{} = Reason}, Stacktrace, Line) ->
+    create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
+create(Module, Function, Arity, Args, {case_clause, #error{} = Reason}, Stacktrace, Line) ->
+    create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
+create(Module, Function, Arity, Args, {try_clause, #error{} = Reason}, Stacktrace, Line) ->
+    create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
+
+create(_, _, _, _, #error{stacktrace = []} = Reason, NewStacktrace, _) ->
+    Reason#error{stacktrace = NewStacktrace};
+create(_, _, _, _, #error{} = Reason, _, _) ->
+    Reason;
 
 create(Module, Function, Arity, Args, Reason, Stacktrace, Line) ->
     #error{module = Module, function = Function, arity = Arity, args = Args,
@@ -64,6 +75,9 @@ translate(_Type, #error{reason = {?ERR_INVALID_VALUE, Keys, ValueSpec}}) ->
     {<<"Invalid Request">>, <<"Invalid '", Key/binary, "' value, expected: ",
         Expectation/binary, ".">>};
 
+translate(_Type, #error{reason = ?ERR_INVALID_VALUE_TOKEN}) ->
+    {<<"Invalid Request">>, <<"Provided token is not valid.">>};
+
 translate(_Type, #error{reason = {?ERR_MISSING_PARAM, Keys}}) ->
     Key = get_key(Keys),
     {<<"Invalid Request">>, <<"Missing required parameter: '", Key/binary, "'.">>};
@@ -87,6 +101,12 @@ translate(_Type, #error{reason = ?ERR_USERNAME_NOT_AVAILABLE}) ->
 translate(_Type, #error{reason = ?ERR_INVALID_USERNAME_OR_PASSWORD}) ->
     {<<"Authentication Error">>, <<"Invalid username or password.">>};
 
+translate(_Type, #error{reason = ?ERR_INVALID_AUTH_TOKEN}) ->
+    {<<"Authentication Error">>, <<"Invalid REST API token.">>};
+
+translate(_Type, #error{reason = ?ERR_USER_NOT_IN_CLUSTER}) ->
+    {<<"Authentication Error">>, <<"User is not authorized to access this cluster.">>};
+
 translate(_Type, #error{module = model, function = get, reason = ?ERR_NOT_FOUND,
     args = [onepanel_session, _]}) ->
     {<<"Authentication Error">>, <<"Session not found or expired.">>};
@@ -98,6 +118,10 @@ translate(_Type, #error{reason = {?ERR_HOST_NOT_FOUND, Host}}) ->
     {<<"Invalid Request">>, <<"Host not found: '",
         (onepanel_utils:convert(Host, binary))/binary, "'.">>};
 
+translate(_Type, #error{reason = ?ERR_NO_SERVICE_HOSTS(Service)}) ->
+    {<<"Invalid Request">>, str_utils:format_bin(
+        "Requires service '~s' which is not deployed on any node.", [Service])};
+
 translate(_Type, #error{reason = ?ERR_NODE_NOT_EMPTY(Host)}) ->
     {<<"Invalid Request">>, str_utils:format_bin(
         "Host at '~s' is already a part of an existing cluster.", [Host])};
@@ -105,7 +129,7 @@ translate(_Type, #error{reason = ?ERR_NODE_NOT_EMPTY(Host)}) ->
 translate(_Type, #error{reason = ?ERR_INCOMPATIBLE_NODE(Host, ClusterType)}) ->
     {<<"Operation error">>, str_utils:format_bin(
         "Cannot add node ~s to the cluster. It is a ~s node, expected ~s.",
-        [Host, ClusterType, onepanel_env:get(release_type)])};
+        [Host, ClusterType, onepanel_env:get_cluster_type()])};
 
 translate(_Type, #error{reason = {?ERR_HOST_NOT_FOUND_FOR_ALIAS, Alias}}) ->
     {<<"Invalid Request">>, <<"Host not found for node: '",
@@ -195,8 +219,7 @@ translate(_Type, #error{reason = ?ERR_LETSENCRYPT_AUTHORIZATION(Message)}) ->
 
 translate(_Type, #error{reason = ?ERR_LETSENCRYPT_NOT_SUPPORTED}) ->
     {<<"Let's Encrypt Not Supported Error">>,
-        <<"Current DNS/domain configuration does not support automatic "
-        "obtaining certificates">>};
+        <<"Automated Let's Encrypt certificates retrieval is currently unavailable.">>};
 
 translate(_Type, #error{reason = {?ERR_STORAGE_SYNC, import_already_started}}) ->
     {<<"Operation Error">>, <<"Modifying storage_import that has already been started">>};
@@ -250,15 +273,22 @@ translate(_Type, #error{reason = {error, {Code, Error, Description}}})
     when is_integer(Code), is_binary(Error), is_binary(Description) ->
     {<<"Operation Error">>, Error};
 
-translate(_Type, #error{module = Module, function = Function, arity = Arity,
-    args = Args, reason = Reason, stacktrace = Stacktrace, line = Line}) ->
-    ?error("Function: ~p:~p/~p~nArgs: ~p~nReason: ~p~nStacktrace: ~p~n"
-    "Line: ~p~n", [Module, Function, Arity, Args, Reason, Stacktrace, Line]),
+translate(_Type, #error{} = Error) ->
+    ?error("~s", [format_error(Error)]),
     {<<"Internal Error">>, <<"Server encountered an unexpected error.">>};
 
 translate(Type, Reason) ->
     ?error("Type: ~p~nReason: ~p~n", [Type, Reason]),
     erlang:raise(Type, Reason, []).
+
+
+-spec format_error(#error{}) -> list().
+format_error(#error{module = Module, function = Function, arity = Arity,
+    args = Args, reason = Reason, stacktrace = Stacktrace, line = Line}) ->
+    io_lib:format("Function: ~p:~p/~p~n~tsReason: ~tp~n~ts"
+    "Line: ~p~n", [Module, Function, Arity, ?FORMAT_NONEMPTY(Args),
+        Reason, ?FORMAT_NONEMPTY(Stacktrace), Line]).
+
 
 %%%===================================================================
 %%% Internal functions
@@ -336,7 +366,7 @@ get_expectation(ValueSpec, Acc) when is_map(ValueSpec) ->
 -spec translate_storage_test_file_error(OperVerb :: string(), OperNoun :: binary(),
     Node :: node(), Reason :: term()) -> {Name :: binary(), Description :: binary()}.
 translate_storage_test_file_error(OperVerb, OperNoun, Node, Reason) ->
-    Host = onepanel_cluster:node_to_host(Node),
+    Host = hosts:from_node(Node),
     % If this log is removed, adjust op_worker_storage to report
     % reason of issues with PATCH
     ?error("Cannot " ++ OperVerb ++ " storage test file on node ~p due to: ~p",

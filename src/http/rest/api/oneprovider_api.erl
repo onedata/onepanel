@@ -141,6 +141,21 @@ routes() ->
             }]
         }},
 
+        %% Get Onezone information
+        {<<"/api/v3/onepanel/provider/onezone_info">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = onezone_info,
+            methods = [#rmethod{
+                type = 'GET',
+                params_spec = #{
+                    %% Oneprovider registration token obtained from Onezone.
+                    %% Required if the Oneprovider is not registered.
+                    token => {string, optional}
+                }
+            }]
+        }},
+
         %% Get provider details
         {<<"/api/v3/onepanel/provider">>, rest_handler, #rstate{
             version = 3,

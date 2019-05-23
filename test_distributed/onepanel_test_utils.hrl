@@ -12,8 +12,8 @@
 -define(ONEPANEL_TEST_UTILS_HRL, 1).
 
 -include_lib("ctool/include/test/test_utils.hrl").
+-include_lib("ctool/include/test/performance.hrl").
 
--define(DEFAULT_AUTH, <<"Basic ", (base64:encode(<<"admin:password">>))/binary>>).
 -define(API_VERSION, 3).
 
 -define(call(Config, Module, Function, Args),

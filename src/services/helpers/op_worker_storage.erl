@@ -12,13 +12,14 @@
 -module(op_worker_storage).
 -author("Krzysztof Trzepla").
 
+-include("names.hrl").
 -include("modules/errors.hrl").
 
 -include_lib("hackney/include/hackney_lib.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([add/2, list/0, get/1, update/3, remove/2]).
+-export([add/2, list/0, get/1, exists/2, update/3, remove/2]).
 -export([get_supporting_storage/2, get_supporting_storages/2,
     get_file_popularity_configuration/2, get_auto_cleaning_configuration/2]).
 -export([is_mounted_in_root/3, can_be_removed/1]).
@@ -64,13 +65,13 @@
 %%--------------------------------------------------------------------
 -spec add(Storages :: storages_map(), IgnoreExists :: boolean()) -> ok | no_return().
 add(Storages, IgnoreExists) ->
-    OpNode = onepanel_cluster:service_to_node(service_op_worker:name()),
+    OpNode = nodes:local(?SERVICE_OPW),
     ?info("Adding ~b storage(s)", [maps:size(Storages)]),
     maps:fold(fun(Key, Value, _) ->
         StorageName = onepanel_utils:convert(Key, binary),
         StorageType = onepanel_utils:typed_get(type, Value, binary),
 
-        Result = case {exists(OpNode, StorageName), IgnoreExists} of
+        Result = case {exists(OpNode, {name, StorageName}), IgnoreExists} of
             {true, true} -> skipped;
             {true, false} -> {error, already_exists};
             _ -> add(OpNode, StorageName, Value)
@@ -132,7 +133,7 @@ remove(OpNode, Id) ->
 %%--------------------------------------------------------------------
 -spec list() -> #{ids := [id()]}.
 list() ->
-    OpNode = onepanel_cluster:service_to_node(service_op_worker:name()),
+    OpNode = nodes:local(?SERVICE_OPW),
     {ok, Storages} = rpc:call(OpNode, storage, list, []),
     Ids = lists:map(fun(Storage) ->
         rpc:call(OpNode, storage, get_id, [Storage])
@@ -146,7 +147,7 @@ list() ->
 %%--------------------------------------------------------------------
 -spec get(Id :: id()) -> storage_details().
 get(Id) ->
-    OpNode = hd(service_op_worker:get_nodes()),
+    OpNode = nodes:local(?SERVICE_OPW),
     {ok, Storage} = rpc:call(OpNode, storage, get, [Id]),
     get_storage(OpNode, Storage).
 
@@ -225,17 +226,17 @@ maybe_update_auto_cleaning(OpNode, SpaceId, Args) ->
 %% configuration from provider.
 %% @end
 %%-------------------------------------------------------------------
--spec get_file_popularity_configuration(OpNode :: node(), SpaceId :: id()) -> proplists:proplist().
+-spec get_file_popularity_configuration(OpNode :: node(), SpaceId :: id()) -> #{atom() => term()}.
 get_file_popularity_configuration(OpNode, SpaceId) ->
     case rpc:call(OpNode, file_popularity_api, get_configuration, [SpaceId]) of
         {ok, DetailsMap} ->
-            maps:to_list(onepanel_maps:get_store_multiple([
+            onepanel_maps:get_store_multiple([
                 {[enabled], [enabled]},
                 {[example_query], [exampleQuery]},
                 {[last_open_hour_weight], [lastOpenHourWeight]},
                 {[avg_open_count_per_day_weight], [avgOpenCountPerDayWeight]},
                 {[max_avg_open_count_per_day], [maxAvgOpenCountPerDay]}
-            ], DetailsMap));
+            ], DetailsMap);
         {error, Reason} ->
             ?throw_error({?ERR_FILE_POPULARITY, Reason})
     end.
@@ -246,7 +247,7 @@ get_file_popularity_configuration(OpNode, SpaceId) ->
 %% provider.
 %% @end
 %%-------------------------------------------------------------------
--spec get_auto_cleaning_configuration(OpNode :: node(), SpaceId :: id()) -> proplists:proplist().
+-spec get_auto_cleaning_configuration(OpNode :: node(), SpaceId :: id()) -> #{atom() => term()}.
 get_auto_cleaning_configuration(OpNode, SpaceId) ->
     DetailsMap = rpc:call(OpNode, autocleaning_api, get_configuration, [SpaceId]),
     DetailsMap2 = onepanel_maps:get_store_multiple([
@@ -258,7 +259,7 @@ get_auto_cleaning_configuration(OpNode, SpaceId) ->
         {[rules, max_daily_moving_average], [rules, maxDailyMovingAverage]},
         {[rules, max_monthly_moving_average], [rules, maxMonthlyMovingAverage]}
     ], DetailsMap, DetailsMap),
-    onepanel_lists:map_undefined_to_null(onepanel_maps:to_list(DetailsMap2)).
+    onepanel_maps:undefined_to_null(DetailsMap2).
 
 
 %%-------------------------------------------------------------------
@@ -269,7 +270,7 @@ get_auto_cleaning_configuration(OpNode, SpaceId) ->
 %%-------------------------------------------------------------------
 -spec invalidate_luma_cache(StorageId :: id()) -> ok.
 invalidate_luma_cache(StorageId) ->
-    OpNode = onepanel_cluster:service_to_node(service_op_worker:name()),
+    OpNode = nodes:local(?SERVICE_OPW),
     ok = rpc:call(OpNode, luma_cache, invalidate, [StorageId]).
 
 
@@ -307,14 +308,19 @@ add(OpNode, StorageName, Params) ->
     Helper = make_helper(OpNode, StorageType, UserCtx, Params),
 
     LumaConfig = get_luma_config(OpNode, Params),
-    maybe_verify_storage(Helper, UserCtx, ReadOnly),
+    maybe_verify_storage(Helper, ReadOnly),
 
-    ?info("Adding storage: \"~s\" (~s)", [StorageName, StorageType]),
-    StorageRecord = rpc:call(OpNode, storage, new,
-        [StorageName, [Helper], ReadOnly, LumaConfig]),
-    case rpc:call(OpNode, storage, create, [StorageRecord]) of
-        {ok, _StorageId} -> ok;
-        {error, Reason} -> {error, Reason}
+    case exists(OpNode, {name, StorageName}) of
+        true ->
+            {error, already_exists};
+        false ->
+            ?info("Adding storage: \"~s\" (~s)", [StorageName, StorageType]),
+            StorageRecord = rpc:call(OpNode, storage, new,
+                [StorageName, [Helper], ReadOnly, LumaConfig]),
+            case rpc:call(OpNode, storage, create, [StorageRecord]) of
+                {ok, _StorageId} -> ok;
+                {error, Reason} -> {error, Reason}
+            end
     end.
 
 
@@ -340,14 +346,29 @@ make_helper(OpNode, StorageType, UserCtx, Params) ->
 %% op_worker service nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec maybe_verify_storage(Helper :: helper(), UserCtx :: any(), Readonly :: boolean()) ->
+-spec maybe_verify_storage(Helper :: helper(), Readonly :: boolean()) ->
     skipped | verified | no_return().
-maybe_verify_storage(_Helper, _UserCtx, true) ->
+maybe_verify_storage(_Helper, true) ->
     skipped;
-maybe_verify_storage(Helper, UserCtx, _) ->
+maybe_verify_storage(Helper, _) ->
     ?info("Verifying write access to storage"),
-    ok = storage_tester:verify_storage(Helper, UserCtx),
+    ok = verify_storage(Helper),
     verified.
+
+
+%%--------------------------------------------------------------------
+%% @private @doc Verifies that storage is accessible for all op_worker
+%% service nodes.
+%% @end
+%%--------------------------------------------------------------------
+-spec verify_storage(Helper :: any()) ->
+    ok | no_return().
+verify_storage(Helper) ->
+    [Node | _] = service_op_worker:get_nodes(),
+    case rpc:call(Node, storage_detector, verify_storage_on_all_nodes, [Helper]) of
+        ok -> ok;
+        {error, Reason} -> ?throw_error(Reason)
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -419,8 +440,7 @@ make_update_result(OpNode, StorageId) ->
     Details = #{name := Name, type := Type, readonly := Readonly} = ?MODULE:get(StorageId),
     try
         {ok, Helper} = rpc:call(OpNode, storage, select_helper, [StorageId, Type]),
-        UserCtx = rpc:call(OpNode, helper, get_admin_ctx, [Helper]),
-        maybe_verify_storage(Helper, UserCtx, Readonly)
+        maybe_verify_storage(Helper, Readonly)
     of
         skipped -> Details;
         verified -> Details#{verificationPassed => true}
@@ -512,16 +532,20 @@ maybe_update_luma_config(OpNode, Id, Params) ->
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc Checks if storage with given name exists.
+%% @doc Checks if storage with given name or id exists.
 %% @end
 %%--------------------------------------------------------------------
--spec exists(OpNode :: node(), StorageName :: name()) -> boolean().
-exists(OpNode, StorageName) ->
-    case rpc:call(OpNode, storage, select, [StorageName]) of
+-spec exists(Node :: node(), Identifier) -> boolean()
+    when Identifier :: {name, name()} | {id, id()}.
+exists(Node, {name, StorageName}) ->
+    case rpc:call(Node, storage, select, [StorageName]) of
         {error, not_found} -> false;
         {ok, _} -> true
-    end.
+    end;
+
+exists(Node, {id, StorageId}) ->
+    rpc:call(Node, storage, exists, [StorageId]).
+
 
 %%--------------------------------------------------------------------
 %% @private @doc Parses and validates auto-cleaning configuration

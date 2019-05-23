@@ -60,11 +60,11 @@ all() ->
 
 deploy_should_create_cluster(Config) ->
     [Node | _] = Nodes = ?config(onepanel_nodes, Config),
-    Hosts = lists:sort(onepanel_cluster:nodes_to_hosts(Nodes)),
+    Hosts = lists:sort(hosts:from_nodes(Nodes)),
 
     ?assertEqual(ok, rpc:call(Node, service, apply,
         [?SERVICE, deploy, #{cookie => ?COOKIE, hosts => Hosts,
-            auth => ?DEFAULT_AUTH, api_version => ?API_VERSION}]
+            api_version => ?API_VERSION}]
     )),
     ?assertEqual(Hosts, lists:sort(rpc:call(Node, service_onepanel, get_hosts, []))).
 
@@ -72,7 +72,7 @@ deploy_should_create_cluster(Config) ->
 join_should_add_node(Config) ->
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
     Nodes = [Node1, Node2],
-    [Host1 | _] = Hosts = lists:sort(onepanel_cluster:nodes_to_hosts(Nodes)),
+    [Host1 | _] = Hosts = lists:sort(hosts:from_nodes(Nodes)),
 
     Ctx = #{cookie => ?COOKIE},
     ?assertEqual(ok, rpc:call(Node1, service, apply,
@@ -89,12 +89,12 @@ join_should_add_node(Config) ->
 join_should_fail_on_clustered_node(Config) ->
     Cluster1 = ?config(cluster1, Config),
     Cluster2 = ?config(cluster2, Config),
-    [Host1 | _] = Cluster1Hosts = onepanel_cluster:nodes_to_hosts(Cluster1),
-    Cluster2Hosts = onepanel_cluster:nodes_to_hosts(Cluster2),
+    [Host1 | _] = Cluster1Hosts = hosts:from_nodes(Cluster1),
+    Cluster2Hosts = hosts:from_nodes(Cluster2),
 
     lists:foreach(fun(Node) ->
         ?assertMatch(#error{}, rpc:call(Node, service, apply,
-            [?SERVICE, join_cluster, #{hosts => [onepanel_cluster:node_to_host(Node)],
+            [?SERVICE, join_cluster, #{hosts => [hosts:from_node(Node)],
                 cluster_host => Host1}]
         ))
     end, Cluster2),
@@ -107,7 +107,7 @@ join_should_fail_on_clustered_node(Config) ->
 join_should_work_after_leave(Config) ->
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
     Nodes = [Node1, Node2],
-    [Host1 | _] = lists:sort(onepanel_cluster:nodes_to_hosts(Nodes)),
+    [Host1 | _] = lists:sort(hosts:from_nodes(Nodes)),
 
     Ctx = #{cookie => ?COOKIE},
     ?assertEqual(ok, rpc:call(Node1, service, apply,
@@ -128,7 +128,7 @@ sequential_join_should_create_cluster(Config) ->
     [Node1, Node2, Node3, Node4, Node5 | _] = Nodes =
         lists:sort(?config(onepanel_nodes, Config)),
     [Host1, Host2, Host3, Host4 | _] = Hosts =
-        lists:sort(onepanel_cluster:nodes_to_hosts(Nodes)),
+        lists:sort(hosts:from_nodes(Nodes)),
 
     Ctx = #{cookie => ?COOKIE},
     ?assertEqual(ok, rpc:call(Node1, service, apply,
@@ -155,12 +155,12 @@ sequential_join_should_create_cluster(Config) ->
 leave_should_remove_node(Config) ->
     [Node1, Node2, Node3 | _] = ?config(onepanel_nodes, Config),
     Nodes = [Node1, Node2, Node3],
-    [Host1, Host2, Host3] = lists:sort(onepanel_cluster:nodes_to_hosts(Nodes)),
+    [Host1, Host2, Host3] = lists:sort(hosts:from_nodes(Nodes)),
     Hosts = [Host2, Host3],
 
     ?assertEqual(ok, rpc:call(Node1, service, apply,
         [?SERVICE, deploy, #{cookie => ?COOKIE, hosts => [Host1 | Hosts],
-            auth => ?DEFAULT_AUTH, api_version => ?API_VERSION}]
+            api_version => ?API_VERSION}]
     )),
     ?assertEqual(ok, rpc:call(Node1, service, apply,
         [?SERVICE, leave_cluster, #{}]
@@ -174,7 +174,7 @@ leave_should_remove_node(Config) ->
 leave_should_not_remove_used_host(Config) ->
     [Node1, Node2, Node3 | _] = ?config(onepanel_nodes, Config),
     Nodes = [Node1, Node2, Node3],
-    Hosts = lists:sort(onepanel_cluster:nodes_to_hosts(Nodes)),
+    Hosts = lists:sort(hosts:from_nodes(Nodes)),
 
     ?assertEqual(ok, rpc:call(Node1, service, apply,
         [?SERVICE, deploy, #{cookie => ?COOKIE, hosts => Hosts,
@@ -192,7 +192,7 @@ leave_should_not_remove_used_host(Config) ->
 extend_should_add_node_by_hostname(Config) ->
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
     Nodes = [Node1, Node2],
-    [Host1 | Host2] = Hosts = lists:sort(onepanel_cluster:nodes_to_hosts(Nodes)),
+    [Host1 | Host2] = Hosts = lists:sort(hosts:from_nodes(Nodes)),
 
     Ctx = #{cookie => ?COOKIE},
     ?assertEqual(ok, rpc:call(Node1, service, apply,
@@ -209,7 +209,7 @@ extend_should_add_node_by_hostname(Config) ->
 extend_should_add_node_by_ip(Config) ->
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
     Nodes = [Node1, Node2],
-    [Host1 | _] = Hosts = lists:sort(onepanel_cluster:nodes_to_hosts(Nodes)),
+    [Host1 | _] = Hosts = lists:sort(hosts:from_nodes(Nodes)),
     Host2Address = test_utils:get_docker_ip(Node2),
 
     Ctx = #{cookie => ?COOKIE},
@@ -226,7 +226,7 @@ extend_should_add_node_by_ip(Config) ->
 extend_should_retun_hostname_of_new_node(Config) ->
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
     Nodes = [Node1, Node2],
-    [Host1 | Host2] = Hosts = lists:sort(onepanel_cluster:nodes_to_hosts(Nodes)),
+    [Host1 | Host2] = Hosts = lists:sort(hosts:from_nodes(Nodes)),
     Host2Binary = onepanel_utils:convert(Host2, binary),
     Host2Address = test_utils:get_docker_ip(Node2),
     Module = service:get_module(?SERVICE),
@@ -256,8 +256,8 @@ init_per_testcase(join_should_fail_on_clustered_node, Config) ->
     [Node1, Node2, Node3 | _] = ?config(onepanel_nodes, Config2),
     Cluster1 = [Node1],
     Cluster2 = lists:sort([Node2, Node3]),
-    Cluster1Hosts = onepanel_cluster:nodes_to_hosts(Cluster1),
-    Cluster2Hosts = onepanel_cluster:nodes_to_hosts(Cluster2),
+    Cluster1Hosts = hosts:from_nodes(Cluster1),
+    Cluster2Hosts = hosts:from_nodes(Cluster2),
 
     ?assertEqual(ok, rpc:call(Node1, service, apply,
         [?SERVICE, deploy, #{hosts => Cluster1Hosts}]
@@ -265,8 +265,7 @@ init_per_testcase(join_should_fail_on_clustered_node, Config) ->
     ?assertEqual(Cluster1Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
 
     ?assertEqual(ok, rpc:call(Node2, service, apply,
-        [?SERVICE, deploy, #{hosts => Cluster2Hosts,
-            auth => ?DEFAULT_AUTH, api_version => ?API_VERSION}]
+        [?SERVICE, deploy, #{hosts => Cluster2Hosts, api_version => ?API_VERSION}]
     )),
     ?assertEqual(Cluster2Hosts, lists:sort(rpc:call(Node2, service_onepanel, get_hosts, []))),
 
@@ -275,7 +274,7 @@ init_per_testcase(join_should_fail_on_clustered_node, Config) ->
 init_per_testcase(leave_should_not_remove_used_host, Config) ->
     NewConfig = init_per_testcase(default, Config),
     [Node1 | _] = Nodes = ?config(onepanel_nodes, NewConfig),
-    Hosts = onepanel_cluster:nodes_to_hosts(Nodes),
+    Hosts = hosts:from_nodes(Nodes),
 
     % simulate deployed cluster
     lists:foreach(fun(Service) ->

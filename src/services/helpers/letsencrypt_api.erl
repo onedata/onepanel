@@ -75,7 +75,7 @@
 -type run_mode() :: dry | staging | production | full.
 -type challenge_type() :: dns | http | unknown.
 
--export_type([run_mode/0, challenge_type/0]).
+-export_type([challenge_type/0]).
 
 % Record for the endpoints directory presented by letsencrypt
 -record(directory, {
@@ -129,6 +129,7 @@
 }).
 
 -export([run_certification_flow/2, run_certification_flow/3]).
+-export([challenge_types/0]).
 -export([clean_keys/0, clean_keys/1]).
 
 %%%===================================================================
@@ -256,6 +257,16 @@ run_certification_flow(Domain, Plugin, Mode) ->
     end.
 
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns implemented authorization challenge types.
+%% @end
+%%--------------------------------------------------------------------
+-spec challenge_types() -> [challenge_type()].
+challenge_types() ->
+    [http, dns].
+
+
 %%%===================================================================
 %%% Let's Encrypt API functions
 %%%===================================================================
@@ -328,6 +339,7 @@ agree_to_terms(URL, TermsURL, State) ->
 %% Prove domain control to Let's Encrypt.
 %% @end
 %%--------------------------------------------------------------------
+-spec authorize(State :: #flow_state{}) -> {ok, #flow_state{}} | no_return().
 authorize(#flow_state{service = Service} = State) ->
     try
         case Service:supports_letsencrypt_challenge(http) of
@@ -351,6 +363,8 @@ authorize(#flow_state{service = Service} = State) ->
 %% Execute domain authorization flow using given challenge type.
 %% @end
 %%--------------------------------------------------------------------
+-spec authorize(ChallengeType :: challenge_type(), State ::#flow_state{}) ->
+    {ok, #flow_state{}} | no_return().
 authorize(ChallengeType, State) ->
     ?info("Let's Encrypt ~s run: authorize for the domain ~s using ~s challenge",
         [State#flow_state.current_mode, State#flow_state.domain, ChallengeType]),
@@ -614,7 +628,7 @@ http_post(URL, Payload, OkCodes, #flow_state{} = State, Attempts) ->
                             http_post(URL, Payload, OkCodes, push_nonce(Nonce, State2),
                                 Attempts - 1);
                         {400, #{
-                            <<"type">> := <<"urn:acme:error:connection">> = ErrorType,
+                            <<"type">> := <<"urn:acme:error:connection">>,
                             <<"detail">> := ErrorMessage}} ->
                             % Handled as a special case to provide explanation for the user
                             ?error("Let's Encrypt response status: ~B, expected ~s~n"
@@ -850,7 +864,7 @@ save_cert(#flow_state{
     cert_private_key_path = KeyPath,
     cert_path = CertPath,
     chain_path = ChainPath}, CertPem, KeyPem, ChainPem) ->
-    Nodes = service_onepanel:get_nodes(),
+    Nodes = nodes:all(?SERVICE_PANEL),
 
     ok = utils:save_file_on_hosts(Nodes, KeyPath, KeyPem),
     ok = utils:save_file_on_hosts(Nodes, CertPath, CertPem),

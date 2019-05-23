@@ -24,8 +24,8 @@
 ]}.
 
 {deps, [
-    {ctool, {git, "ssh://git@git.plgrid.pl:7999/vfs/ctool.git", {ref, "704c61987e"}}},
-    {gui, {git, "ssh://git@git.plgrid.pl:7999/vfs/gui.git", {ref, "8ceb0d56f1"}}},
+    {ctool, {git, "ssh://git@git.plgrid.pl:7999/vfs/ctool.git", {ref, "f58c491e53"}}},
+    {gui, {git, "ssh://git@git.plgrid.pl:7999/vfs/gui.git", {ref, "d72b8c7bb9"}}},
     {yamerl, {git, "git://github.com/yakaz/yamerl.git", {ref, "3f46bf06b9"}}}
 ]}.
 
@@ -111,8 +111,8 @@
         {copy, "rel/files/OnedataTestWebServerCa.pem", "etc/"},
         {template, "rel/files/app.config", "./data/app.config"},
 
-        %% Copy GUI static files
-        {copy, "_build/default/lib/gui_static", "./data/"}
+        % Onepanel GUI static files
+        {copy, "_build/default/lib/gui_static.tar.gz", "./data/"}
     ]},
 
     {extended_start_script, true}

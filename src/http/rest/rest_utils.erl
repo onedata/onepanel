@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Krzysztof Trzepla
-%%% @copyright (C): 2016 ACK CYFRONET AGH
+%%% @copyright (C) 2016 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -13,15 +13,37 @@
 -author("Krzysztof Trzepla").
 
 -include("modules/errors.hrl").
+-include("names.hrl").
+-include("authentication.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
+-export([has_privileges/2]).
 -export([get_method/1, get_bindings/1, get_params/2, get_args/2,
-    get_hosts/2, get_cluster_ips/1, verify_any/2]).
+    get_hosts/2, get_cluster_ips/1, verify_any/2, allowed_origin/0]).
+
+-type one_or_many(T) :: T | [T].
 
 %%%===================================================================
 %%% API functions
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc Checks if a client has given privilege(s).
+%% @end
+%%--------------------------------------------------------------------
+-spec has_privileges(Client :: rest_handler:client(), RequiredPrivileges) -> boolean()
+    when RequiredPrivileges :: one_or_many(rest_handler:privilege()).
+has_privileges(Client, RequiredPrivilege) when is_atom(RequiredPrivilege) ->
+    has_privileges(Client, [RequiredPrivilege]);
+
+has_privileges(#client{role = member, privileges = UserPrivileges}, RequiredPrivileges) ->
+    lists:all(fun(Required) ->
+        lists:member(Required, UserPrivileges)
+    end, RequiredPrivileges);
+
+has_privileges(#client{}, _RequiredPrivileges) -> false.
+
 
 %%--------------------------------------------------------------------
 %% @doc Converts REST method from binary to an atom representation.
@@ -98,7 +120,7 @@ get_hosts(Keys, Args) ->
     {ok, Nodes} = onepanel_maps:get([cluster, nodes], Args),
     HostsMap = maps:fold(fun(Alias, Props, Acc) ->
         Host = <<(maps:get(hostname, Props))/binary, CommonSuffix/binary>>,
-        maps:put(Alias, Host, Acc)
+        Acc#{Alias => Host}
     end, #{}, Nodes),
     {ok, Aliases} = onepanel_maps:get(Keys, Args),
     AliasesList = case erlang:is_list(Aliases) of
@@ -149,9 +171,34 @@ verify_any(Keys, Args) ->
     end.
 
 
+%%--------------------------------------------------------------------
+%% @doc Returns domain hosting GUI which is allowed to perform
+%% requests to the current cluster.
+%% @end
+%%--------------------------------------------------------------------
+-spec allowed_origin() -> binary() | undefined.
+allowed_origin() ->
+    allowed_origin(onepanel_env:get_cluster_type()).
+
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+%% @private
+-spec allowed_origin(onedata:cluster_type()) -> binary() | undefined.
+allowed_origin(oneprovider) ->
+    case service_oneprovider:is_registered() of
+        true -> list_to_binary("https://" ++ service_oneprovider:get_oz_domain());
+        false -> undefined
+    end;
+
+allowed_origin(onezone) ->
+    case service:exists(?SERVICE_OZW) of
+        true -> <<"https://", (service_oz_worker:get_domain())/binary>>;
+        false -> undefined
+    end.
+
 
 %%--------------------------------------------------------------------
 %% @private

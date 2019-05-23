@@ -11,6 +11,7 @@
 -module(rest_letsencrypt_test_SUITE).
 -author("Wojciech Geisler").
 
+-include("names.hrl").
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include("service.hrl").
@@ -27,7 +28,7 @@
     method_should_return_unauthorized_error/1,
     method_should_return_forbidden_error/1,
     get_should_return_letsencrypt_setting/1,
-    get_should_return_cert_metedata/1,
+    get_should_return_cert_metadata/1,
     patch_should_enable_letsencrypt/1,
     patch_should_disable_letsencrypt/1,
     ssl_cache_is_cleared_after_certification/1,
@@ -41,7 +42,7 @@ all() ->
         method_should_return_unauthorized_error,
         method_should_return_forbidden_error,
         get_should_return_letsencrypt_setting,
-        get_should_return_cert_metedata,
+        get_should_return_cert_metadata,
         patch_should_disable_letsencrypt,
         patch_should_enable_letsencrypt,
         ssl_cache_is_cleared_after_certification,
@@ -164,7 +165,7 @@ get_should_return_letsencrypt_setting(Config) ->
     end, ?config(all_hosts, Config)).
 
 
-get_should_return_cert_metedata(Config) ->
+get_should_return_cert_metadata(Config) ->
     lists:foreach(fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
@@ -187,9 +188,9 @@ patch_should_enable_letsencrypt(Config) ->
 
     % assert there was attempt to obtain certificates
     ?assertEqual(1,
-        total_num_calls(?config(onezone_nodes, Config), letsencrypt_api, run_certification_flow, 2)),
+        total_calls_count(?config(onezone_nodes, Config), letsencrypt_api, run_certification_flow, 2)),
     ?assertEqual(1,
-        total_num_calls(?config(oneprovider_nodes, Config), letsencrypt_api, run_certification_flow, 2)).
+        total_calls_count(?config(oneprovider_nodes, Config), letsencrypt_api, run_certification_flow, 2)).
 
 
 patch_should_disable_letsencrypt(Config) ->
@@ -233,7 +234,7 @@ existing_certificates_are_reused(Config) ->
     % then
     % assert there were no attempts to obtain new certificates
     ?assertEqual(0,
-        total_num_calls(?config(all_nodes, Config), letsencrypt_api, run_certification_flow, 2)).
+        total_calls_count(?config(all_nodes, Config), letsencrypt_api, run_certification_flow, 2)).
 
 
 failed_patch_leaves_letsencrypt_disabled(Config) ->
@@ -297,14 +298,14 @@ init_per_suite(Config) ->
         [OzNode | _] = ?config(onezone_nodes, NewConfig2),
         onepanel_test_utils:service_action(OzNode,
             letsencrypt, deploy,
-            #{hosts => OzHosts, letsencrypt_plugin => service_oz_worker:name()}
+            #{hosts => OzHosts, letsencrypt_plugin => ?SERVICE_OZW}
         ),
 
         OpHosts = ?config(oneprovider_hosts, NewConfig2),
         [OpNode | _] = ?config(oneprovider_nodes, NewConfig2),
         onepanel_test_utils:service_action(OpNode,
             letsencrypt, deploy,
-            #{hosts => OpHosts, letsencrypt_plugin => service_op_worker:name()}
+            #{hosts => OpHosts, letsencrypt_plugin => ?SERVICE_OPW}
         ),
 
         NewConfig2
@@ -314,7 +315,7 @@ init_per_suite(Config) ->
 
 
 init_per_testcase(Case, Config) when
-    Case == get_should_return_cert_metedata;
+    Case == get_should_return_cert_metadata;
     Case == patch_should_disable_letsencrypt ->
     Config2 = init_per_testcase(default, Config),
     ?hostPerCluster(Config, fun(Host) ->
@@ -365,7 +366,7 @@ init_per_testcase(Case, Config) when
 
     ?nodePerCluster(Config, fun(Node) ->
         rpc:call(Node, service, update,
-            [service_letsencrypt:name(), fun(#service{ctx = C} = S) ->
+            [?SERVICE_LE, fun(#service{ctx = C} = S) ->
                 S#service{ctx = C#{letsencrypt_enabled => Initial}}
             end])
     end),
@@ -376,7 +377,9 @@ init_per_testcase(Case, Config) when
 init_per_testcase(_Case, Config) ->
     Nodes = ?config(all_nodes, Config),
     mock_plugin_modules(Config),
-    test_utils:mock_new(Nodes, [letsencrypt_api], [passthrough]),
+    test_utils:mock_new(Nodes, [letsencrypt_api, service], [passthrough]),
+    test_utils:mock_expect(Nodes, service, all_healthy, fun() -> true end),
+    test_utils:mock_expect(Nodes, service, healthy, fun(_Name) -> true end),
     test_utils:mock_expect(Nodes, letsencrypt_api, run_certification_flow,
         fun(Domain, Plugin) when is_binary(Domain) and is_atom(Plugin) -> ok end),
     test_utils:mock_expect(Nodes, letsencrypt_api, run_certification_flow,
@@ -439,11 +442,12 @@ mock_plugin_modules(Config) ->
     OpNodes = ?config(oneprovider_nodes, Config),
     OzHosts = ?config(onezone_hosts, Config),
     OpHosts = ?config(oneprovider_hosts, Config),
-    OzDomain = onepanel_test_utils:get_domain(hd(?config(onezone_hosts, Config))),
-    OpDomain = onepanel_test_utils:get_domain(hd(?config(oneprovider_hosts, Config))),
+    OzDomain = onepanel_test_utils:get_domain(hd(OzHosts)),
+    OpDomain = onepanel_test_utils:get_domain(hd(OpHosts)),
     test_utils:mock_new(OpNodes, [service_op_worker], [passthrough]),
     test_utils:mock_new(OzNodes, [service_oz_worker], [passthrough]),
 
+    test_utils:mock_expect(OpNodes, service_oneprovider, is_registered, fun() -> true end),
     test_utils:mock_expect(OpNodes, service_op_worker, get_domain, fun() -> OpDomain end),
     test_utils:mock_expect(OzNodes, service_oz_worker, get_domain, fun() -> OzDomain end),
     test_utils:mock_expect(OpNodes, service_op_worker, get_hosts, fun() -> OpHosts end),
@@ -476,9 +480,9 @@ deploy_certs(SourcePaths, Config) ->
 %% Returns total count of calls to a function on given nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec total_num_calls(Nodes :: [node()], Module :: module(), Function :: atom(),
+-spec total_calls_count(Nodes :: [node()], Module :: module(), Function :: atom(),
     Arity :: non_neg_integer()) -> non_neg_integer().
-total_num_calls(Nodes, Module, Function, Arity) ->
+total_calls_count(Nodes, Module, Function, Arity) ->
     lists:sum(
         [rpc:call(Node, meck, num_calls, [Module, Function, Arity]) || Node <- Nodes]
     ).
