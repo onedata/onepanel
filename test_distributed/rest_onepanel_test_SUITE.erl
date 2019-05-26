@@ -17,7 +17,8 @@
 -include_lib("ctool/include/test/performance.hrl").
 
 %% export for ct
--export([all/0, init_per_suite/1, init_per_testcase/2, end_per_testcase/2]).
+-export([all/0, init_per_suite/1, init_per_testcase/2,
+    end_per_testcase/2, end_per_suite/1]).
 
 %% tests
 -export([
@@ -133,7 +134,7 @@ get_as_admin_should_return_cookie(Config) ->
 put_as_admin_should_init_cluster(Config) ->
     ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
         Config, "/hosts", post, {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD},
-        [{cookie, ?COOKIE}]
+        #{cookie => ?COOKIE}
     )),
     ?assertReceivedMatch({service, onepanel, init_cluster,
         #{cookie := ?COOKIE}}, ?TIMEOUT).
@@ -142,7 +143,7 @@ put_as_admin_should_init_cluster(Config) ->
 put_as_admin_should_extend_cluster(Config) ->
     ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
         Config, "/hosts?clusterHost=someHost", post,
-        {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, [{cookie, ?COOKIE}]
+        {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, #{cookie => ?COOKIE}
     )),
     ?assertReceivedMatch({service, onepanel, join_cluster,
         #{cookie := ?COOKIE, cluster_host := "someHost"}
@@ -213,3 +214,6 @@ end_per_testcase(_Case, Config) ->
     test_utils:mock_unload(Nodes),
     ?call(Config, model, clear, [onepanel_user]).
 
+
+end_per_suite(_Config) ->
+    ok.

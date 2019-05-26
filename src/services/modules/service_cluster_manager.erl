@@ -15,12 +15,13 @@
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include("service.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([configure/1, start/1, stop/1, status/1]).
+-export([configure/1, start/1, stop/1, status/1, migrate_generated_config/1]).
 
 -define(INIT_SCRIPT, "cluster_manager").
 
@@ -63,7 +64,8 @@ get_nodes() ->
     Steps :: [service:step()].
 get_steps(deploy, #{hosts := [_ | _] = Hosts} = Ctx) ->
     service:create(#service{name = name()}),
-    {ClusterHost, MainHost} = case service:get(name()) of
+
+    {ClusterHosts, MainHost} = case service:get(name()) of
         {ok, #service{hosts = CHosts, ctx = #{main_host := Host}}} ->
             {CHosts, maps:get(main_host, Ctx, Host)};
         {ok, #service{hosts = CHosts}} ->
@@ -72,6 +74,8 @@ get_steps(deploy, #{hosts := [_ | _] = Hosts} = Ctx) ->
     [
         #step{module = service, function = save, args = [#service{name = name(),
             ctx = #{main_host => MainHost}}], selection = first},
+        #step{function = migrate_generated_config,
+            condition = fun(_) -> onepanel_env:legacy_config_exists(name()) end},
         #step{hosts = [MainHost], function = configure, ctx = Ctx#{
             main_host => MainHost, wait_for_process => "cluster_manager_sup"}},
         #step{hosts = onepanel_lists:subtract(Hosts, [MainHost]),
@@ -80,12 +84,18 @@ get_steps(deploy, #{hosts := [_ | _] = Hosts} = Ctx) ->
             }
         },
         #steps{action = restart, ctx = Ctx#{
-            hosts => onepanel_lists:union(ClusterHost, Hosts)
+            hosts => onepanel_lists:union(ClusterHosts, Hosts)
         }}
     ];
 
 get_steps(deploy, _Ctx) ->
     [];
+
+get_steps(resume, _Ctx) -> [
+    #step{function = migrate_generated_config,
+        condition = fun(_) -> onepanel_env:legacy_config_exists(name()) end},
+    #steps{action = start}
+];
 
 get_steps(start, _Ctx) ->
     [#step{function = start}];
@@ -111,29 +121,31 @@ get_steps(status, _Ctx) ->
 configure(#{main_host := MainHost, hosts := Hosts,
     wait_for_process := Process} = Ctx) ->
 
-    AppConfigFile = service_ctx:get(cluster_manager_app_config_file, Ctx),
+    GeneratedConfigFile = service_ctx:get(cluster_manager_generated_config_file, Ctx),
     VmArgsFile = service_ctx:get(cluster_manager_vm_args_file, Ctx),
     EnvFile = service_ctx:get(cluster_manager_env_file, Ctx),
+
     Host = onepanel_cluster:node_to_host(),
-    Node = onepanel_cluster:host_to_node(name(), Host),
-    Nodes = onepanel_cluster:hosts_to_nodes(name(), Hosts),
-    MainNode = onepanel_cluster:host_to_node(name(), MainHost),
+    Node = onepanel_cluster:service_to_node(name()),
+    Nodes = onepanel_cluster:service_to_nodes(name(), Hosts),
+    MainNode = onepanel_cluster:service_to_node(name(), MainHost),
+
     WorkerNum = maps:get(worker_num, Ctx, undefined),
     Cookie = maps:get(cookie, Ctx, erlang:get_cookie()),
 
-    onepanel_env:write([name(), cm_nodes], Nodes, AppConfigFile),
-    onepanel_env:write([name(), worker_num], WorkerNum, AppConfigFile),
+    onepanel_env:write([name(), cm_nodes], Nodes, GeneratedConfigFile),
+    onepanel_env:write([name(), worker_num], WorkerNum, GeneratedConfigFile),
 
     onepanel_env:write([kernel, distributed], [{
         name(),
         service_ctx:get(cluster_manager_failover_timeout, Ctx, integer),
         [MainNode, list_to_tuple(Nodes -- [MainNode])]
-    }], AppConfigFile),
+    }], GeneratedConfigFile),
     onepanel_env:write([kernel, sync_nodes_mandatory],
-        Nodes -- [Node], AppConfigFile),
+        Nodes -- [Node], GeneratedConfigFile),
     onepanel_env:write([kernel, sync_nodes_timeout],
         service_ctx:get(cluster_manager_sync_nodes_timeout, Ctx, integer),
-        AppConfigFile),
+        GeneratedConfigFile),
 
     onepanel_vm:write("name", Node, VmArgsFile),
     onepanel_vm:write("setcookie", Cookie, VmArgsFile),
@@ -152,7 +164,7 @@ configure(#{main_host := MainHost, hosts := Hosts,
 start(Ctx) ->
     service:start(?INIT_SCRIPT, #{
         open_files => service_ctx:get(cluster_manager_open_files_limit, Ctx)
-    }),
+    }, cluster_manager_start_cmd),
     service_watcher:register_service(name()).
 
 
@@ -163,7 +175,8 @@ start(Ctx) ->
 -spec stop(Ctx :: service:ctx()) -> ok | no_return().
 stop(_Ctx) ->
     service_watcher:unregister_service(name()),
-    service:stop(?INIT_SCRIPT).
+    service:stop(?INIT_SCRIPT, cluster_manager_stop_cmd),
+    ok.
 
 
 %%--------------------------------------------------------------------
@@ -172,4 +185,19 @@ stop(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec status(Ctx :: service:ctx()) -> running | stopped | not_found.
 status(_Ctx) ->
-    service:status(?INIT_SCRIPT).
+    service:status(?INIT_SCRIPT, cluster_manager_status_cmd).
+
+
+%%--------------------------------------------------------------------
+%% @doc {@link onepanel_env:migrate_generated_config/2}
+%% @end
+%%--------------------------------------------------------------------
+-spec migrate_generated_config(service:ctx()) -> ok | no_return().
+migrate_generated_config(_Ctx) ->
+    onepanel_env:migrate_generated_config(name(), [
+        [cluster_manager, cm_nodes],
+        [cluster_manager, worker_num],
+        [kernel, distributed],
+        [kernel, sync_nodes_mandatory],
+        [kernel, sync_nodes_timeout]
+    ]).

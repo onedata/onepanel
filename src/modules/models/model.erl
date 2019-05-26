@@ -58,8 +58,7 @@ create(Model, Record) ->
                 mnesia:write(Table, Record, write),
                 {ok, Key};
             [_ | _] ->
-                ?make_error(?ERR_ALREADY_EXISTS, ?MODULE, create, 1,
-                    [Model, Record])
+                ?make_error(?ERR_ALREADY_EXISTS, [Model, Record])
         end
     end).
 
@@ -87,8 +86,7 @@ update(Model, Key, Diff) ->
     transaction(fun() ->
         Table = get_table_name(Model),
         case mnesia:read(Table, Key) of
-            [] -> mnesia:abort(?make_error(?ERR_NOT_FOUND, ?MODULE, update, 2,
-                [Model, Key, Diff]));
+            [] -> mnesia:abort(?make_error(?ERR_NOT_FOUND, [Model, Key, Diff]));
             [Record] -> mnesia:write(Table, apply_diff(Record, Diff), write)
         end
     end).
@@ -104,7 +102,7 @@ get(Model, Key) ->
     transaction(fun() ->
         Table = get_table_name(Model),
         case mnesia:read(Table, Key) of
-            [] -> ?make_error(?ERR_NOT_FOUND, ?MODULE, get, 1, [Model, Key]);
+            [] -> ?make_error(?ERR_NOT_FOUND, [Model, Key]);
             [Record] -> {ok, Record}
         end
     end).
@@ -190,7 +188,7 @@ clear(Model) ->
     Table = get_table_name(Model),
     case mnesia:clear_table(Table) of
         {atomic, ok} -> ok;
-        {aborted, Reason} -> ?make_error(Reason)
+        {aborted, Reason} -> ?make_error(Reason, [Model])
     end.
 
 
@@ -203,8 +201,8 @@ transaction(Transaction) ->
     try
         mnesia:activity(transaction, Transaction)
     catch
-        _:{aborted, Reason} -> ?throw_error(Reason);
-        _:Reason -> ?throw_error(Reason)
+        _:{aborted, Reason} -> ?throw_error(Reason, [Transaction]);
+        _:Reason -> ?throw_error(Reason, [Transaction])
     end.
 
 %%%===================================================================

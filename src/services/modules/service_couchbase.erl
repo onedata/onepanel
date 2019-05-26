@@ -13,6 +13,7 @@
 -behaviour(service_behaviour).
 
 -include("modules/errors.hrl").
+-include("names.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include("modules/models.hrl").
 -include("service.hrl").
@@ -87,6 +88,12 @@ get_steps(deploy, #{hosts := Hosts} = Ctx) ->
         #step{hosts = AllHosts, function = rebalance_cluster, selection = first}
     ];
 
+get_steps(resume, _Ctx) ->
+    [
+        #step{function = start},
+        #step{function = wait_for_init}
+    ];
+
 get_steps(start, _Ctx) ->
     [#step{function = start}];
 
@@ -120,7 +127,7 @@ configure(_Ctx) ->
 start(Ctx) ->
     service:start(?INIT_SCRIPT, #{
         open_files => service_ctx:get(couchbase_open_files_limit, Ctx)
-    }),
+    }, couchbase_start_cmd),
     service_watcher:register_service(name()).
 
 
@@ -147,7 +154,12 @@ wait_for_init(Ctx) ->
     end,
 
     onepanel_utils:wait_until(gen_tcp, connect, [Host, Port, [],
-        ConnectTimeout], {validator, Validator}, ConnectAttempts).
+        ConnectTimeout], {validator, Validator}, ConnectAttempts),
+
+    % Couchbase reports healthy status before it's ready to serve requests.
+    % This delay provides additional margin of error before starting workers.
+    Delay = application:get_env(onepanel, couchbase_init_delay, 0),
+    timer:sleep(Delay).
 
 
 %%--------------------------------------------------------------------
@@ -157,7 +169,7 @@ wait_for_init(Ctx) ->
 -spec stop(Ctx :: service:ctx()) -> ok | no_return().
 stop(_Ctx) ->
     service_watcher:unregister_service(name()),
-    service:stop(?INIT_SCRIPT).
+    service:stop(?INIT_SCRIPT, couchbase_stop_cmd).
 
 
 %%--------------------------------------------------------------------
@@ -166,7 +178,7 @@ stop(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec status(Ctx :: service:ctx()) -> running | stopped | not_found.
 status(_Ctx) ->
-    service:status(?INIT_SCRIPT).
+    service:status(?INIT_SCRIPT, couchbase_status_cmd).
 
 
 %%--------------------------------------------------------------------
@@ -192,10 +204,12 @@ init_cluster(Ctx) ->
         [{connect_timeout, Timeout}, {recv_timeout, Timeout}]
     ),
 
-    onepanel_shell:check_call([?CLI, "cluster-init", "-c", Host ++ ":" ++ Port,
+    Cmd = [?CLI, "cluster-init", "-c", Host ++ ":" ++ Port,
             "--cluster-init-username=" ++ User,
-            "--cluster-init-password=" ++ Password,
-            "--cluster-init-ramsize=" ++ ServerQuota]),
+            "--cluster-init-ramsize=" ++ ServerQuota],
+    onepanel_shell:ensure_success(
+        Cmd ++ ["--cluster-init-password=" ++ Password],
+        Cmd ++ ["--cluster-init-password=*****"]),
 
     Release = onepanel_env:get(release_type),
     {ok, Buckets} = onepanel_lists:get(Release, onepanel_env:get(couchbase_buckets)),
@@ -220,11 +234,15 @@ join_cluster(#{cluster_host := ClusterHost} = Ctx) ->
     Host = onepanel_cluster:node_to_host(),
     Port = service_ctx:get(couchbase_admin_port, Ctx),
 
-    onepanel_shell:check_call([?CLI, "server-add", "-c",
+    Cmd = [?CLI, "server-add", "-c",
             ClusterHost ++ ":" ++ Port, "-u", User, "-p", Password,
             "--server-add=" ++ Host ++ ":" ++ Port,
-            "--server-add-username=" ++ User,
-            "--server-add-password=" ++ Password]),
+            "--server-add-username=" ++ User
+    ],
+    onepanel_shell:ensure_success(
+        Cmd ++ ["--server-add-password=" ++ Password],
+        Cmd ++ ["--server-add-password=*****"]
+    ),
 
     service:add_host(name(), Host).
 
@@ -240,8 +258,16 @@ rebalance_cluster(Ctx) ->
     Host = onepanel_cluster:node_to_host(),
     Port = service_ctx:get(couchbase_admin_port, Ctx),
 
-    onepanel_shell:check_call([?CLI, "rebalance", "-c", Host ++ ":" ++ Port,
-        "-u", User, "-p", Password]).
+    Cmd = [?CLI, "rebalance", "-c", Host ++ ":" ++ Port, "-u", User],
+    onepanel_shell:ensure_success(
+        Cmd ++ ["-p", Password],
+        Cmd ++ ["-p", "*****"]
+    ),
+
+    % Couchbase reports healthy status before it's ready to serve requests.
+    % This delay provides additional margin of error before starting workers.
+    Delay = application:get_env(onepanel, couchbase_init_delay, 0),
+    timer:sleep(Delay).
 
 %%%===================================================================
 %%% Internal functions
@@ -256,7 +282,10 @@ rebalance_cluster(Ctx) ->
     Password :: string(), Bucket :: string(), BucketQuota :: integer()) ->
     ok | no_return().
 create_bucket(Host, Port, User, Password, Bucket, BucketQuota) ->
-    onepanel_shell:check_call([?CLI, "bucket-create", "-c", Host ++ ":" ++ Port,
-        "-u", User, "-p", Password, "--bucket=" ++ Bucket,
+    Cmd = [?CLI, "bucket-create", "-c", Host ++ ":" ++ Port,
+        "-u", User, "--bucket=" ++ Bucket,
         "--bucket-ramsize=" ++ onepanel_utils:convert(BucketQuota, list),
-        "--bucket-eviction-policy=fullEviction", "--wait"]).
+        "--bucket-eviction-policy=fullEviction", "--wait"],
+    onepanel_shell:ensure_success(
+        Cmd ++ ["-p", Password],
+        Cmd ++ ["-p", "****"]).

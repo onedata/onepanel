@@ -15,16 +15,24 @@
 
 -include("modules/errors.hrl").
 -include("names.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([get/1, get/2, find/1, find/2, set/2, set/3, set/4]).
--export([read/2, write/2, write/3, write/4]).
+-export([read/2, read_effective/2, write/2, write/3, write/4]).
+-export([get_remote/3, find_remote/3, set_remote/4]).
+-export([migrate_generated_config/2, migrate_generated_config/3,
+    legacy_config_exists/1, get_config_path/2]).
 
 -type key() :: atom().
 -type keys() :: key() | [key()].
 -type value() :: term().
 
 -export_type([key/0, keys/0, value/0]).
+
+-define(DO_NOT_MODIFY_HEADER,
+    "% MACHINE GENERATED FILE. DO NOT MODIFY.\n"
+    "% Use overlay.config for custom configuration.\n").
 
 %%%===================================================================
 %%% API functions
@@ -34,7 +42,7 @@
 %% @doc @equiv get(Keys, ?APP_NAME)
 %% @end
 %%--------------------------------------------------------------------
--spec get(Keys :: keys()) -> Value :: value().
+-spec get(Keys :: keys()) -> Value :: value() | no_return().
 get(Keys) ->
     get(Keys, ?APP_NAME).
 
@@ -44,10 +52,27 @@ get(Keys) ->
 %% Throws an exception when value has not been found.
 %% @end
 %%--------------------------------------------------------------------
--spec get(Keys :: keys(), AppName :: atom()) -> Value :: value().
+-spec get(Keys :: keys(), AppName :: atom()) -> Value :: value() | no_return().
 get(Keys, AppName) ->
-    {ok, Value} = find(Keys, AppName),
-    Value.
+    case find(Keys, AppName) of
+        {ok, Value} -> Value;
+        #error{reason = ?ERR_NOT_FOUND} -> ?throw_error(?ERR_NOT_FOUND, [Keys, AppName])
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns value of a application variable from from memory of application
+%% on another node.
+%% Throws an exception when value has not been found.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_remote(Node :: node(), Keys :: keys(), AppName :: atom()) ->
+    Value :: value().
+get_remote(Node, Keys, AppName) ->
+    case find_remote(Node, Keys, AppName) of
+        {ok, Value} -> Value;
+        #error{reason = ?ERR_NOT_FOUND} -> ?throw_error(?ERR_NOT_FOUND, [Node, Keys, AppName])
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -68,6 +93,18 @@ find(Keys) ->
     {ok, Value :: value()} | #error{} | no_return().
 find(Keys, AppName) when is_atom(AppName) ->
     onepanel_lists:get(Keys, application:get_all_env(AppName)).
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns value of an application variable from memory
+%% of an application running on given Node.
+%% @end
+%%--------------------------------------------------------------------
+-spec find_remote(Node :: node(), Keys :: keys(), AppName :: atom()) ->
+    {ok, Value :: value()} | #error{} | no_return().
+find_remote(Node, Keys, AppName) ->
+    Env = rpc:call(Node, application, get_all_env, [AppName]),
+    onepanel_lists:get(Keys, Env).
 
 
 %%--------------------------------------------------------------------
@@ -102,7 +139,30 @@ set(Nodes, Keys, Value, AppName) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Returns value of a application variable from application's configuration
+%% @doc Sets value of a application variable in another application
+%% on the same host.
+%% @end
+%%--------------------------------------------------------------------
+-spec set_remote(Node :: node() | [node()], Keys :: keys(), Value :: value(),
+    AppName :: atom()) -> ok | no_return().
+set_remote(Node, Keys, Value, AppName) when is_atom(Node) ->
+    set_remote([Node], Keys, Value, AppName);
+set_remote(Nodes, Keys, Value, AppName) ->
+    lists:map(fun(Node) ->
+        NewEnv = case rpc:call(Node, application, get_all_env, [AppName]) of
+            {badrpc, _} = Error -> ?throw_error(Error);
+            Result -> onepanel_lists:store(Keys, Value, Result)
+        end,
+
+        lists:foreach(fun({K, V}) ->
+            ok = rpc:call(Node, application, set_env, [AppName, K, V])
+        end, NewEnv)
+    end, Nodes),
+    ok.
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns value of an application variable from application's configuration
 %% file. Returns error if value has not been found.
 %% @end
 %%--------------------------------------------------------------------
@@ -116,12 +176,31 @@ read(Keys, Path) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc @equiv write(Keys, Value, onepanel_env:get(app_config_file))
+%% @doc
+%% Reads value of an application variable from the first configuration
+%% file containing it, in order of overlays priority.
+%% @end
+%%--------------------------------------------------------------------
+-spec read_effective(Keys :: keys(), ServiceName :: service:name()) ->
+    {ok, Value :: value()} | #error{} | no_return().
+read_effective(Keys, ServiceName) ->
+    lists:foldl(fun(Path, Prev) ->
+        case Prev of
+            {ok, _Val} -> Prev;
+            _ ->
+                try read(Keys, Path)
+                catch _:_ -> Prev end
+        end
+    end, ?make_error(?ERR_NOT_FOUND), get_config_paths(ServiceName)).
+
+
+%%--------------------------------------------------------------------
+%% @doc @equiv write(Keys, Value, get_config_path(?APP_NAME, generated))
 %% @end
 %%--------------------------------------------------------------------
 -spec write(Keys :: keys(), Value :: value()) -> ok | no_return().
 write(Keys, Value) ->
-    write(Keys, Value, onepanel_env:get(app_config_file)).
+    write(Keys, Value, get_config_path(?APP_NAME, generated)).
 
 
 %%--------------------------------------------------------------------
@@ -131,15 +210,17 @@ write(Keys, Value) ->
 -spec write(Keys :: keys(), Value :: value(), Path :: file:name_all()) ->
     ok | no_return().
 write(Keys, Value, Path) ->
-    case file:consult(Path) of
-        {ok, [AppConfigs]} ->
-            NewAppConfigs = onepanel_lists:store(Keys, Value, AppConfigs),
-            case file:write_file(Path, io_lib:fwrite("~p.", [NewAppConfigs])) of
-                ok -> ok;
-                {error, Reason} -> ?throw_error(Reason)
-            end;
-        {error, Reason} ->
-            ?throw_error(Reason)
+    AppConfigs = case file:consult(Path) of
+        {ok, [Configs]} -> Configs;
+        _ -> []
+    end,
+
+    NewAppConfigs = onepanel_lists:store(Keys, Value, AppConfigs),
+    case file:write_file(Path, io_lib:fwrite("~s~n~p.",
+        [?DO_NOT_MODIFY_HEADER, NewAppConfigs])
+    ) of
+        ok -> ok;
+        {error, Reason} -> ?throw_error(Reason)
     end.
 
 
@@ -152,3 +233,101 @@ write(Keys, Value, Path) ->
     Path :: file:name_all()) -> Results :: onepanel_rpc:results() | no_return().
 write(Nodes, Keys, Value, Path) ->
     onepanel_rpc:call_all(Nodes, ?MODULE, write, [Keys, Value, Path]).
+
+
+%%--------------------------------------------------------------------
+%% @doc Copies given variables from old app.config file to the "generated"
+%% app config file. Afterwards moves the legacy file to a backup location.
+%% Variables missing from the source file are skipped.
+%% @end
+%%--------------------------------------------------------------------
+-spec migrate_generated_config(service:name(), Variables :: [keys()]) ->
+    ok | no_return().
+migrate_generated_config(ServiceName, Variables) ->
+    migrate_generated_config(ServiceName, Variables, false).
+
+%%--------------------------------------------------------------------
+%% @doc Copies given variables from old app.config file to the "generated"
+%% app config file. Afterwards moves the legacy file to a backup location.
+%% Variables missing from the source file are skipped.
+%% If SetInRuntime is enabled values being copied are also set
+%% in the live config.
+%% @end
+%%--------------------------------------------------------------------
+-spec migrate_generated_config(service:name(), Variables :: [keys()],
+    SetInRuntime :: boolean()) -> ok | no_return().
+migrate_generated_config(ServiceName, Variables, SetInRuntime) ->
+    Src = get_config_path(ServiceName, legacy),
+    Dst = get_config_path(ServiceName, generated),
+    case file:consult(Src) of
+        {ok, [LegacyConfigs]} ->
+            ?info("Migrating app config from '~s' to '~s'", [Src, Dst]),
+            Values = lists:filtermap(fun(Variable) ->
+                case onepanel_lists:get(Variable, LegacyConfigs) of
+                    {ok, Val} -> {true, {Variable, Val}};
+                    #error{} -> false
+                end
+            end, Variables),
+
+            lists:foreach(fun({Variable, Val}) ->
+                write(Variable, Val, Dst),
+                case SetInRuntime of
+                    true ->
+                        [AppName | Key] = Variable,
+                        onepanel_env:set(Key, Val, AppName);
+                    false -> ok
+                end
+            end, Values),
+
+            case file:rename(Src, [Src, ".bak"]) of
+                ok -> ok;
+                {error, Reason} -> ?throw_error(Reason, [])
+            end;
+        {error, Reason} -> ?throw_error(Reason, [])
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Checks if an old app.config which should be migrated exists.
+%% @end
+%%--------------------------------------------------------------------
+-spec legacy_config_exists(service:name()) -> boolean().
+legacy_config_exists(ServiceName) ->
+    filelib:is_regular(get_config_path(ServiceName, legacy)).
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns path to given layer of config file for given service.
+%% Available layers are:
+%% - app - the basic file bundled with a release
+%% - generated - file written by onepanel
+%% - overlay - file for custom overrides
+%% - legacy - app config file from older versions, with onepanel modifications
+%%
+%% Relies on the paths being provided in predictable variables in
+%% onepanel app config, for example op_worker_app_config_file where
+%% op_worker is the service name.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_config_path(ServiceName :: service:name(), ConfigLayer) ->
+    Path :: string() | no_return()
+    when ConfigLayer :: app | generated | overlay | legacy.
+get_config_path(ServiceName, ConfigLayer) ->
+    EnvName = lists:flatten(io_lib:format(
+        "~s_~s_config_file", [ServiceName, ConfigLayer])),
+    onepanel_env:get(list_to_atom(EnvName)).
+
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Returns paths of configuration files of given service in order
+%% of decreasing priority.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_config_paths(Service :: service:name()) -> [file:name()].
+get_config_paths(ServiceName) ->
+    [get_config_path(ServiceName, Layer) || Layer <- [overlay, generated, app]].

@@ -6,7 +6,7 @@
 {platform_log_dir,  "./log"}.
 
 %% etc/vm.args
-{node,       "onepanel@127.0.0.1"}.
+{node,       "onepanel"}.
 {cookie,     "cluster_node"}.
 {crash_dump, "{{platform_log_dir}}/erl_crash.dump"}.
 
@@ -17,7 +17,11 @@
 {runner_etc_dir,      "$RUNNER_BASE_DIR/etc"}.
 {runner_log_dir,      "$RUNNER_BASE_DIR/log"}.
 {runner_lib_dir,      "$RUNNER_BASE_DIR/lib"}.
+{runner_data_dir,     "$RUNNER_BASE_DIR/data"}.
 {runner_patch_dir,    "$RUNNER_BASE_DIR/lib/onedata-patches"}.
+{runner_run_dir,     "/var/run"}.
 {pipe_dir,            "/tmp/$RUNNER_BASE_DIR/"}.
 {runner_user,         "root"}.
 {runner_wait_process, "onepanel_sup"}.
+
+{build_version, ""}.

@@ -28,7 +28,7 @@
 
 -type name() :: binary().
 -type password() :: binary().
--type password_hash() :: string().
+-type password_hash() :: binary().
 -type role() :: admin | regular.
 -type uuid() :: binary().
 -type record() :: #onepanel_user{}.
@@ -59,7 +59,7 @@ seed() ->
             create(Username, Password, Role)
         catch
             #error{reason = ?ERR_USERNAME_NOT_AVAILABLE} -> ok;
-            #error{} = Error -> ?throw_error(Error)
+            #error{} = Error -> ?throw_stacktrace(Error, [])
         end
     end, onepanel_env:get(default_users)).
 
@@ -194,9 +194,9 @@ authenticate(SessionId) ->
 authenticate(Username, Password) ->
     case onepanel_user:get(Username) of
         {ok, #onepanel_user{password_hash = Hash} = User} ->
-            case bcrypt:hashpw(Password, Hash) of
-                {ok, Hash} -> {ok, User};
-                _ -> ?make_error(?ERR_INVALID_USERNAME_OR_PASSWORD)
+            case onedata_passwords:verify(Password, Hash) of
+                true -> {ok, User};
+                false -> ?make_error(?ERR_INVALID_USERNAME_OR_PASSWORD)
             end;
         _ -> ?make_error(?ERR_INVALID_USERNAME_OR_PASSWORD)
     end.
@@ -208,9 +208,7 @@ authenticate(Username, Password) ->
 %%--------------------------------------------------------------------
 -spec hash_password(Password :: password()) -> PasswordHash :: password_hash().
 hash_password(Password) ->
-    {ok, Salt} = bcrypt:gen_salt(),
-    {ok, PasswordHash} = bcrypt:hashpw(Password, Salt),
-    PasswordHash.
+    onedata_passwords:create_hash(Password).
 
 
 %%--------------------------------------------------------------------
@@ -244,11 +242,11 @@ get_by_role(Role) ->
 %%--------------------------------------------------------------------
 -spec validate_username(Username :: name()) -> ok | no_return().
 validate_username(<<>>) ->
-    ?throw_error(?ERR_INVALID_USERNAME);
+    ?throw_error(?ERR_INVALID_USERNAME, [<<>>]);
 validate_username(Username) ->
     case binary:match(Username, <<":">>) of
         nomatch -> ok;
-        _ -> ?throw_error(?ERR_INVALID_USERNAME)
+        _ -> ?throw_error(?ERR_INVALID_USERNAME, [Username])
     end.
 
 
@@ -257,7 +255,7 @@ validate_username(Username) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec validate_password(Password :: password()) -> ok | no_return().
-validate_password(<<>>) -> ?throw_error(?ERR_INVALID_PASSWORD);
+validate_password(<<>>) -> ?throw_error(?ERR_INVALID_PASSWORD, [<<>>]);
 validate_password(_) -> ok.
 
 
@@ -268,7 +266,7 @@ validate_password(_) -> ok.
 -spec validate_role(Role :: term()) -> ok | no_return().
 validate_role(admin) -> ok;
 validate_role(regular) -> ok;
-validate_role(_) -> ?throw_error(?ERR_INVALID_ROLE).
+validate_role(Role) -> ?throw_error(?ERR_INVALID_ROLE, [Role]).
 
 %%%===================================================================
 %%% Internal functions

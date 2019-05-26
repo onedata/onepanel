@@ -70,7 +70,11 @@ get_storage_import_details(Node, SpaceId, StorageId) ->
         no_import ->
             Details;
         simple_scan ->
-            [{maxDepth, maps:get(max_depth, Args)} | Details]
+            [
+                {maxDepth, maps:get(max_depth, Args)},
+                {syncAcl, maps:get(sync_acl, Args)}
+                | Details
+            ]
     end.
 
 
@@ -92,7 +96,8 @@ get_storage_update_details(Node, SpaceId, StorageId) ->
                 {maxDepth, maps:get(max_depth, Args)},
                 {scanInterval, maps:get(scan_interval, Args)},
                 {writeOnce, maps:get(write_once, Args)},
-                {deleteEnable, maps:get(delete_enable, Args)}
+                {deleteEnable, maps:get(delete_enable, Args)},
+                {syncAcl, maps:get(sync_acl, Args)}
                 | Details
             ]
     end.
@@ -127,8 +132,10 @@ modify_storage_import(_Node, SpaceId, _Args0, no_import) ->
     {ok, SpaceId};
 modify_storage_import(Node, SpaceId, Args0, NewStrategyName) ->
     Args = #{
-        max_depth =>onepanel_utils:typed_get(max_depth, Args0, integer,
-            get_default(max_depth))
+        max_depth => onepanel_utils:typed_get(max_depth, Args0, integer,
+            get_default(max_depth)),
+        sync_acl => onepanel_utils:typed_get(sync_acl, Args0, boolean,
+            get_default(sync_acl))
     },
     {ok, _} = rpc:call(Node, storage_sync, modify_storage_import, [
             SpaceId, NewStrategyName, Args
@@ -153,7 +160,9 @@ modify_storage_update(Node, SpaceId, Args0, NewStrategyName) ->
         write_once => onepanel_utils:typed_get(write_once, Args0, boolean,
             get_default(write_once)),
         delete_enable => onepanel_utils:typed_get(delete_enable, Args0, boolean,
-            get_default(delete_enable))
+            get_default(delete_enable)),
+        sync_acl => onepanel_utils:typed_get(sync_acl, Args0, boolean,
+            get_default(sync_acl))
     },
 
     {ok, _} = rpc:call(Node, storage_sync, modify_storage_update, [
@@ -171,7 +180,8 @@ modify_storage_update(Node, SpaceId, Args0, NewStrategyName) ->
 map_key_to_default_key(max_depth) -> oneprovider_sync_max_depth;
 map_key_to_default_key(scan_interval) -> oneprovider_sync_update_scan_interval;
 map_key_to_default_key(write_once) -> oneprovider_sync_update_delete_enable;
-map_key_to_default_key(delete_enable) -> oneprovider_sync_update_write_once.
+map_key_to_default_key(delete_enable) -> oneprovider_sync_update_write_once;
+map_key_to_default_key(sync_acl) -> oneprovider_sync_acl.
 
 
 %%-------------------------------------------------------------------
@@ -228,7 +238,7 @@ get_metric(Node, SpaceId, Period, Metric) ->
             Values = proplists:get_value(values, Results),
             [
                 {name, Metric},
-                {lastValueDate, timestamp_utils:datetime_to_datestamp(LastValueTimestamp)},
+                {lastValueDate, time_utils:epoch_to_iso8601(LastValueTimestamp)},
                 {values, Values}
             ]
     end.
@@ -267,13 +277,13 @@ get_status(Node, SpaceId) ->
 %%-------------------------------------------------------------------
 -spec get_import_status(Node :: node(), SpaceId :: id()) -> binary().
 get_import_status(Node, SpaceId) ->
-    ImportInProgress = rpc:call(Node, storage_sync_monitoring,
-        import_in_progress, [SpaceId]),
-    case ImportInProgress of
-        true ->
-            <<"inProgress">>;
+    ImportState = rpc:call(Node, storage_sync_monitoring, get_import_state, [SpaceId]),
+    case ImportState of
+        finished ->
+            <<"done">>;
         _ ->
-            <<"done">>
+            % "not_started" or "in_progress"
+            <<"inProgress">>
     end.
 
 %%-------------------------------------------------------------------
@@ -283,12 +293,13 @@ get_import_status(Node, SpaceId) ->
 %%-------------------------------------------------------------------
 -spec get_update_status(Node :: node(), SpaceId :: id()) -> binary().
 get_update_status(Node, SpaceId) ->
-    UpdateInProgress = rpc:call(Node, storage_sync_monitoring,
-        update_in_progress, [SpaceId]),
-    case UpdateInProgress of
-        true ->
+    UpdateState = rpc:call(Node, storage_sync_monitoring,
+        get_update_state, [SpaceId]),
+    case UpdateState of
+        in_progress ->
             <<"inProgress">>;
         _ ->
+            % "not_started" or "finished" (and waiting for next scan)
             <<"waiting">>
     end.
 

@@ -13,6 +13,7 @@
 
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([auth_request/4, auth_request/5, auth_request/6, auth_request/7,
@@ -140,7 +141,7 @@ noauth_request(HostOrConfig, Port, Endpoint, Method, Headers, Body) ->
     Prefix = "/api/v3/onepanel",
     Url = onepanel_utils:join(["https://", Host, ":", Port, Prefix, Endpoint]),
     JsonBody = json_utils:encode(Body),
-    http_client:request(Method, Url, maps:from_list(NewHeaders), JsonBody, [insecure]).
+    http_client:request(Method, Url, maps:from_list(NewHeaders), JsonBody, [{ssl_options, [{secure, false}]}]).
 
 
 %%--------------------------------------------------------------------

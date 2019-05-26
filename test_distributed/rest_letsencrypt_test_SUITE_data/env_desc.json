@@ -1,0 +1,54 @@
+{
+  "dirs_config": {
+    "onepanel": {
+      "input_dir": "_build/default/rel/onepanel",
+      "target_dir": "_build/default/rel/test_cluster"
+    }
+  },
+  "onepanel_domains": {
+    "oneprovider": {
+      "onepanel": {
+        "node1": {
+          "vm.args": {
+            "setcookie": "test_cookie"
+          },
+          "sys.config": {
+            "onepanel": {}
+          }
+        },
+        "node2": {
+          "vm.args": {
+            "setcookie": "test_cookie"
+          },
+          "sys.config": {
+            "onepanel": {}
+          }
+        }
+      }
+    },
+    "onezone": {
+      "onepanel": {
+        "node1": {
+          "vm.args": {
+            "setcookie": "test_cookie"
+          },
+          "sys.config": {
+            "onepanel": {
+              "release_type": "onezone"
+            }
+          }
+        },
+        "node2": {
+          "vm.args": {
+            "setcookie": "test_cookie"
+          },
+          "sys.config": {
+            "onepanel": {
+              "release_type": "onezone"
+            }
+          }
+        }
+      }
+    }
+  }
+}

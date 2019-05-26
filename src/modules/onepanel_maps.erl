@@ -14,7 +14,8 @@
 -include("modules/errors.hrl").
 
 %% API
--export([get/2, get/3, store/2, store/3, get_store/3, get_store/4]).
+-export([get/2, get/3, store/2, store/3, get_store/3, get_store/4, get_store/5]).
+-export([get_store_multiple/2, get_store_multiple/3, to_list/1]).
 -export([remove_undefined/1]).
 
 -type key() :: any().
@@ -114,12 +115,75 @@ get_store(SrcKeys, SrcTerms, DstKeys, DstTerms) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc Gets a value from the source nested property map and stores it in
+%% the target nested property map. If the value is not found in the source map
+%% default value is used.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_store(SrcKeys :: keys(), SrcTerms :: terms(), DstKeys :: keys(),
+    DstTerms :: terms(), Default :: terms()) -> NewTerms :: terms().
+get_store(SrcKeys, SrcTerms, DstKeys, DstTerms, Default) ->
+    case get(SrcKeys, SrcTerms) of
+        {ok, Value} -> store(DstKeys, Value, DstTerms);
+        #error{reason = ?ERR_NOT_FOUND} -> store(DstKeys, Default, DstTerms)
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc @equiv get_store_multiple(KeyMappings, SrcTerms,#{}).
+%% @end
+%%--------------------------------------------------------------------
+-spec get_store_multiple(KeyMappings, SrcTerms :: terms()) ->
+    NewTerms :: terms()
+    when KeyMappings :: [{SrcKeys :: keys(), DstKeys :: keys()}].
+get_store_multiple(KeyMappings, SrcTerms) ->
+    get_store_multiple(KeyMappings, SrcTerms,#{}).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Performs multiple get_store operations, copying nested properties
+%% from source map to destination.
+%% If source property is missing and no default is provided given mapping
+%% is skipped.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_store_multiple(KeyMappings, SrcTerms :: terms(), DstTerms :: terms()) ->
+    NewTerms :: terms()
+    when
+    KeyMappings :: [KeyMapping],
+    KeyMapping :: {SrcKeys :: keys(), DstKeys :: keys()} |
+                  {SrcKeys :: keys(), DstKeys :: keys(), Default :: term()}.
+get_store_multiple(KeyMappings, SrcTerms, DstTerms) ->
+    lists:foldl(fun
+        ({SrcKeys, DstKeys}, DstTerms) ->
+            get_store(SrcKeys, SrcTerms, DstKeys, DstTerms);
+        ({SrcKeys, DstKeys, Default}, DstTerms) ->
+            get_store(SrcKeys, SrcTerms, DstKeys, DstTerms, Default)
+    end, DstTerms, KeyMappings).
+
+
+%%--------------------------------------------------------------------
 %% @doc Removes undefined values from the map.
 %% @end
 %%--------------------------------------------------------------------
 -spec remove_undefined(Args :: maps:map()) -> NewArgs :: maps:map().
 remove_undefined(Args) ->
-    maps:fold(fun
-        (_Key, undefined, Acc) -> Acc;
-        (Key, Value, Acc) -> maps:put(Key, Value, Acc)
-    end, #{}, Args).
+    maps:filter(fun
+        (_Key, undefined) -> false;
+        (_Key, _Value) -> true
+    end, Args).
+
+%%-------------------------------------------------------------------
+%% @doc Converts nested map to nested proplist.
+%% @end
+%%-------------------------------------------------------------------
+-spec to_list(maps:map()) -> proplists:proplist().
+to_list(Map) ->
+    maps:fold(fun(K, V, AccIn) ->
+        case is_map(V) of
+            true ->
+                [{K, to_list(V)} | AccIn];
+            false ->
+                [{K, V} | AccIn]
+        end
+    end, [], Map).

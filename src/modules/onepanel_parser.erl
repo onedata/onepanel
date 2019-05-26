@@ -20,7 +20,7 @@
 
 -type key() :: atom().
 -type keys() :: [key()].
--type data() :: proplists:proplist().
+-type data() :: maps:map().
 -type args() :: #{Key :: key() => Value :: term()}.
 -type args_list() :: [{Key :: key(), Value :: term()}].
 -type presence() :: required | optional | {optional, Default :: term()}.
@@ -54,33 +54,33 @@ parse(Data, ArgsSpec) ->
 parse(_Data, [], _Keys, Args) ->
     Args;
 
-parse(Data, [{'_', Spec} = ValueSpec], Keys, Args) when is_list(Data) ->
-    lists:foldl(fun
-        ({Key, Value}, Acc) when is_binary(Key) ->
+parse(Data, [{'_', Spec} = ValueSpec], Keys, Args) when is_map(Data) ->
+    maps:fold(fun
+        (Key, Value, Acc) when is_binary(Key) ->
             Arg = parse_value(Value, Spec, [Key | Keys]),
             maps:put(Key, Arg, Acc);
-        (_, _) -> report_invalid_value(Keys, ValueSpec)
+        (_, _, _) -> report_invalid_value(Keys, ValueSpec)
     end, Args, Data);
 
-parse(Data, [{'_', _} = ValueSpec | ArgsSpec], Keys, Args) when is_list(Data) ->
+parse(Data, [{'_', _} = ValueSpec | ArgsSpec], Keys, Args) when is_map(Data) ->
     parse(Data, ArgsSpec ++ [ValueSpec], Keys, Args);
 
-parse(Data, [{Key, Spec} | ArgsSpec], Keys, Args) when is_list(Data) ->
+parse(Data, [{Key, Spec} | ArgsSpec], Keys, Args) when is_map(Data) ->
     BinKey = onepanel_utils:convert(Key, binary),
-    case {lists:keyfind(BinKey, 1, Data), is_optional(Spec)} of
-        {{BinKey, Value}, {_, ValueSpec}} ->
-            NewData = lists:keydelete(BinKey, 1, Data),
+    case {maps:find(BinKey, Data), is_optional(Spec)} of
+        {{ok, Value}, {_, ValueSpec}} ->
+            NewData = maps:remove(BinKey, Data),
             Arg = parse_value(Value, ValueSpec, [Key | Keys]),
             NewArgs = maps:put(Key, Arg, Args),
             parse(NewData, ArgsSpec, Keys, NewArgs);
-        {false, {true, _}} ->
+        {error, {true, _}} ->
             case has_default(Spec) of
                 {true, Arg} ->
                     parse(Data, ArgsSpec, Keys, maps:put(Key, Arg, Args));
                 false ->
                     parse(Data, ArgsSpec, Keys, Args)
             end;
-        {false, {false, _}} ->
+        {error, {false, _}} ->
             ?throw_error({?ERR_MISSING_KEY, lists:reverse([Key | Keys])})
     end;
 
@@ -138,7 +138,14 @@ parse_value(Value, integer = ValueSpec, Keys) ->
     convert(Value, ValueSpec, Keys, fun(V) -> erlang:binary_to_integer(V) end);
 
 parse_value(Value, float = ValueSpec, Keys) ->
-    convert(Value, ValueSpec, Keys, fun(V) -> erlang:binary_to_float(V) end);
+    convert(Value, ValueSpec, Keys, fun(V) ->
+        try
+            erlang:binary_to_float(V)
+        catch
+            _:_ ->
+                erlang:binary_to_integer(V) * 1.0
+        end
+    end);
 
 parse_value(Value, {oneof, ValueSpecs}, Keys) when is_list(ValueSpecs) ->
     Arg = lists:foldl(fun

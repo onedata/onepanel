@@ -17,7 +17,7 @@
 -include_lib("ctool/include/test/performance.hrl").
 
 %% export for ct
--export([all/0, init_per_suite/1, init_per_testcase/2, end_per_testcase/2]).
+-export([all/0, init_per_suite/1, init_per_testcase/2, end_per_testcase/2, end_per_suite/1]).
 
 %% tests
 -export([
@@ -74,7 +74,7 @@ method_should_return_not_found_error(Config) ->
             Config, <<"/users/someUser">>, Method, {?ADMIN_USER1_NAME,
                 ?ADMIN_USER1_PASSWORD}, Body
         ))
-    end, [{get, []}, {patch, [{password, <<"SomePassword1">>}]}, {delete, []}]).
+    end, [{get, []}, {patch, #{password => <<"SomePassword1">>}}, {delete, #{}}]).
 
 
 method_should_return_unauthorized_error(Config) ->
@@ -86,7 +86,7 @@ method_should_return_unauthorized_error(Config) ->
             Config, <<"/users/", ?REG_USER1_NAME/binary>>, Method,
             {<<"someUser">>, <<"somePassword">>}, Body
         ))
-    end, [{get, []}, {patch, [{password, <<"SomePassword1">>}]}]).
+    end, [{get, []}, {patch, #{password => <<"SomePassword1">>}}]).
 
 
 get_as_admin_should_return_any_account(Config) ->
@@ -129,10 +129,10 @@ patch_as_admin_should_change_any_account_password(Config) ->
         NewPassword = <<Password/binary, "New">>,
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
             Config, <<"/users/", Username/binary>>, patch, {?ADMIN_USER1_NAME,
-                ?ADMIN_USER1_PASSWORD}, [
-                {currentPassword, ?ADMIN_USER1_PASSWORD},
-                {newPassword, NewPassword}
-            ]
+                ?ADMIN_USER1_PASSWORD}, #{
+                currentPassword => ?ADMIN_USER1_PASSWORD,
+                newPassword => NewPassword
+            }
         )),
         ?assertMatch({ok, 200, _, _}, onepanel_test_rest:auth_request(
             Config, <<"/users/", Username/binary>>, get, {Username, NewPassword}
@@ -152,10 +152,10 @@ patch_as_regular_should_change_only_own_account_password(Config) ->
     lists:foreach(fun(Username) ->
         ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
             Config, <<"/users/", Username/binary>>, patch, {?REG_USER1_NAME,
-                ?REG_USER1_PASSWORD}, [
-                {currentPassword, ?REG_USER1_PASSWORD},
-                {newPassword, <<"SomePassword1">>}
-            ]
+                ?REG_USER1_PASSWORD}, #{
+                currentPassword => ?REG_USER1_PASSWORD,
+                newPassword => <<"SomePassword1">>
+            }
         ))
     end, [?ADMIN_USER1_NAME, ?ADMIN_USER2_NAME, ?REG_USER2_NAME]),
 
@@ -163,10 +163,10 @@ patch_as_regular_should_change_only_own_account_password(Config) ->
         NewPassword = <<Password/binary, "New">>,
         ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
             Config, <<"/users/", Username/binary>>, patch, {Username,
-                Password}, [
-                {currentPassword, Password},
-                {newPassword, NewPassword}
-            ]
+                Password}, #{
+                currentPassword => Password,
+                newPassword => NewPassword
+            }
         )),
         ?assertMatch({ok, 200, _, _}, onepanel_test_rest:auth_request(
             Config, <<"/users/", Username/binary>>, get, {Username, NewPassword}
@@ -185,10 +185,10 @@ patch_as_regular_should_check_current_password(Config) ->
         NewPassword = <<Password/binary, "New">>,
         ?assertMatch({ok, 400, _, _}, onepanel_test_rest:auth_request(
             Config, <<"/users/", Username/binary>>, patch, {Username,
-                Password}, [
-                {currentPassword, NewPassword},
-                {newPassword, NewPassword}
-            ]
+                Password}, #{
+                currentPassword => NewPassword,
+                newPassword => NewPassword
+            }
         ))
     end, [
         {?REG_USER1_NAME, ?REG_USER1_PASSWORD},
@@ -198,37 +198,37 @@ patch_as_regular_should_check_current_password(Config) ->
 
 post_noauth_should_create_account_when_admin_missing(Config) ->
     ?assertMatch({ok, 204, _, _}, onepanel_test_rest:noauth_request(
-        Config, <<"/users">>, post, [
-            {username, ?REG_USER1_NAME}, {password, ?REG_USER1_PASSWORD},
-            {userRole, regular}
-        ]
+        Config, <<"/users">>, post, #{
+            username => ?REG_USER1_NAME, password => ?REG_USER1_PASSWORD,
+            userRole => regular
+        }
     )).
 
 
 post_as_regular_should_create_account_when_admin_missing(Config) ->
     ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
-        Config, <<"/users">>, post, {?REG_USER1_NAME, ?REG_USER1_PASSWORD}, [
-            {username, ?REG_USER2_NAME}, {password, ?REG_USER2_PASSWORD},
-            {userRole, regular}
-        ]
+        Config, <<"/users">>, post, {?REG_USER1_NAME, ?REG_USER1_PASSWORD}, #{
+            username => ?REG_USER2_NAME, password => ?REG_USER2_PASSWORD,
+            userRole => regular
+        }
     )).
 
 
 post_noauth_should_not_create_account_when_admin_present(Config) ->
     ?assertMatch({ok, 403, _, _}, onepanel_test_rest:noauth_request(
-        Config, <<"/users">>, post, [
-            {username, ?REG_USER1_NAME}, {password, ?REG_USER1_PASSWORD},
-            {userRole, regular}
-        ]
+        Config, <<"/users">>, post, #{
+            username => ?REG_USER1_NAME, password => ?REG_USER1_PASSWORD,
+            userRole => regular
+        }
     )).
 
 
 post_as_regular_should_not_create_account_when_admin_present(Config) ->
     ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
-        Config, <<"/users">>, post, {?REG_USER1_NAME, ?REG_USER1_PASSWORD}, [
-            {username, ?REG_USER1_NAME}, {password, ?REG_USER1_PASSWORD},
-            {userRole, regular}
-        ]
+        Config, <<"/users">>, post, {?REG_USER1_NAME, ?REG_USER1_PASSWORD}, #{
+            username => ?REG_USER1_NAME, password => ?REG_USER1_PASSWORD,
+            userRole => regular
+        }
     )).
 
 
@@ -239,12 +239,12 @@ post_as_admin_should_create_account(Config) ->
             Body
         ))
     end, [
-        [{username, ?REG_USER1_NAME}, {password, ?REG_USER1_PASSWORD},
-            {userRole, regular}],
-        [{username, ?REG_USER2_NAME}, {password, ?REG_USER2_PASSWORD},
-            {userRole, regular}],
-        [{username, ?ADMIN_USER2_NAME}, {password, ?ADMIN_USER2_PASSWORD},
-            {userRole, admin}]
+        #{username => ?REG_USER1_NAME, password => ?REG_USER1_PASSWORD,
+            userRole => regular},
+        #{username => ?REG_USER2_NAME, password => ?REG_USER2_PASSWORD,
+            userRole => regular},
+        #{username => ?ADMIN_USER2_NAME, password => ?ADMIN_USER2_PASSWORD,
+            userRole => admin}
     ]).
 
 
@@ -341,3 +341,6 @@ init_per_testcase(_Case, Config) ->
 
 end_per_testcase(_Case, Config) ->
     ?call(Config, model, clear, [onepanel_user]).
+
+end_per_suite(_Config) ->
+    ok.

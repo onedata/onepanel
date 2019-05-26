@@ -16,7 +16,7 @@
 -include_lib("ctool/include/test/performance.hrl").
 
 %% export for ct
--export([all/0, init_per_testcase/2, end_per_testcase/2, init_per_suite/1]).
+-export([all/0, init_per_testcase/2, end_per_testcase/2, init_per_suite/1, end_per_suite/1]).
 
 %% tests
 -export([
@@ -166,3 +166,7 @@ init_per_testcase(_Case, Config) ->
 
 end_per_testcase(_Case, Config) ->
     test_node_starter:clean_environment(Config).
+
+
+end_per_suite(_Config) ->
+    ok.

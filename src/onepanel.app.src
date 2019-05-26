@@ -11,14 +11,14 @@
 
 {application, onepanel, [
     {description, "Management tool for onedata components."},
-    {vsn, "17.06.0-beta6"},
+    {vsn, "18.02.1"},
     {registered, [onepanel_sup]},
     {applications, [
         kernel,
         stdlib,
         public_key,
+        inets,
         crypto,
-        bcrypt,
         gui
     ]},
     {mod, {onepanel_app, []}},

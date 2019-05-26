@@ -20,8 +20,9 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([set_cookie/1, check_connection/1, init_cluster/1, extend_cluster/1,
-    join_cluster/1, reset_node/1, add_users/1]).
+-export([set_cookie/1, check_connection/1, ensure_all_hosts_available/1,
+    init_cluster/1, extend_cluster/1, join_cluster/1, reset_node/1,
+    ensure_node_ready/1, reload_webcert/1, add_users/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -105,14 +106,34 @@ get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
             ]
     end;
 
-get_steps(leave_cluster, _Ctx) ->
-    [#step{hosts = [onepanel_cluster:node_to_host()], function = reset_node}];
+%% Removes given nodes from the current cluster, clears database on each
+%% and initalizes separate one-node clusters.
+get_steps(leave_cluster, #{hosts := Hosts}) ->
+    [#step{function = reset_node, hosts = Hosts}];
+get_steps(leave_cluster, Ctx) ->
+    get_steps(leave_cluster, Ctx#{hosts => [onepanel_cluster:node_to_host()]});
+
+%% Utility for managing cluster restart, waiting for all onepanel
+%% nodes in the cluster to start.
+get_steps(wait_for_cluster, _Ctx) ->
+    SelfHost = onepanel_cluster:node_to_host(),
+    Attempts = application:get_env(?APP_NAME, wait_for_cluster_attempts, 20),
+    [
+        #step{service = name(), function = ensure_all_hosts_available,
+            attempts = Attempts, hosts = [SelfHost]},
+        #step{service = name(), function = ensure_node_ready,
+            attempts = Attempts, hosts = get_hosts()}
+    ];
 
 get_steps(add_users, #{users := _}) ->
     [#step{function = add_users, selection = any}];
 
 get_steps(add_users, _Ctx) ->
-    [].
+    [];
+
+get_steps(reload_webcert, _Ctx) ->
+    [#step{function = reload_webcert}].
+
 
 %%%===================================================================
 %%% API functions
@@ -124,7 +145,7 @@ get_steps(add_users, _Ctx) ->
 %%--------------------------------------------------------------------
 -spec set_cookie(Ctx :: service:ctx()) -> ok | no_return().
 set_cookie(#{cookie := Cookie} = Ctx) ->
-    VmArgsFile = service_ctx:get(vm_args_file, Ctx),
+    VmArgsFile = service_ctx:get(onepanel_vm_args_file, Ctx),
     erlang:set_cookie(node(), Cookie),
     onepanel_vm:write("setcookie", Cookie, VmArgsFile);
 
@@ -139,7 +160,7 @@ set_cookie(Ctx) ->
 %%--------------------------------------------------------------------
 -spec check_connection(Ctx :: service:ctx()) -> ok.
 check_connection(#{cluster_host := ClusterHost}) ->
-    ClusterNode = onepanel_cluster:host_to_node(ClusterHost),
+    ClusterNode = onepanel_cluster:service_to_node(name(), ClusterHost),
     pong = net_adm:ping(ClusterNode),
     ok.
 
@@ -161,11 +182,17 @@ init_cluster(_Ctx) ->
 -spec extend_cluster(Ctx :: service:ctx()) -> ok.
 extend_cluster(#{hosts := Hosts, auth := Auth, api_version := ApiVersion} = Ctx) ->
     ClusterHost = onepanel_cluster:node_to_host(),
-    Port = rest_listener:get_port(),
-    Prefix = rest_listener:get_prefix(ApiVersion),
+    Port = https_listener:port(),
+    Prefix = https_listener:get_prefix(ApiVersion),
     Suffix = onepanel_utils:join(["/hosts?clusterHost=", ClusterHost]),
-    Body = json_utils:encode([{cookie, erlang:get_cookie()}]),
+    Body = json_utils:encode(#{cookie => erlang:get_cookie()}),
     Timeout = service_ctx:get(extend_cluster_timeout, Ctx, integer),
+    CaCerts = https_listener:get_cert_chain_pems(),
+    Opts = [
+        {ssl_options, [{secure, only_verify_peercert}, {cacerts, CaCerts}]},
+        {connect_timeout, Timeout},
+        {recv_timeout, Timeout}
+    ],
     lists:foreach(fun(Host) ->
         Url = onepanel_utils:join(["https://", Host, ":", Port, Prefix, Suffix]),
         {ok, 204, _, _} = http_client:post(
@@ -173,7 +200,7 @@ extend_cluster(#{hosts := Hosts, auth := Auth, api_version := ApiVersion} = Ctx)
                 <<"authorization">> => Auth,
                 <<"Content-Type">> => <<"application/json">>
             }, Body,
-            [insecure, {connect_timeout, Timeout}, {recv_timeout, Timeout}]
+            Opts
         )
     end, Hosts).
 
@@ -185,7 +212,7 @@ extend_cluster(#{hosts := Hosts, auth := Auth, api_version := ApiVersion} = Ctx)
 -spec join_cluster(Ctx :: service:ctx()) -> ok.
 join_cluster(#{cluster_host := ClusterHost}) ->
     Node = node(),
-    ClusterNode = onepanel_cluster:host_to_node(ClusterHost),
+    ClusterNode = onepanel_cluster:service_to_node(name(), ClusterHost),
     ok = rpc:call(ClusterNode, onepanel_db, add_node, [Node]),
     onepanel_db:copy_tables().
 
@@ -219,3 +246,37 @@ add_users(#{users := Users}) ->
                 onepanel_user:update(Username, #{role => Role})
         end
     end, ok, Users).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Ensures all cluster hosts are up.
+%% @end
+%%--------------------------------------------------------------------
+-spec ensure_all_hosts_available(service:ctx()) -> ok | no_return().
+ensure_all_hosts_available(_Ctx) ->
+    Hosts = get_hosts(),
+    lists:foreach(fun(Host) ->
+        ok = check_connection(#{cluster_host => Host})
+    end, Hosts),
+    ok.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Fails if some children of the main supervisor are not running.
+%% @end
+%%--------------------------------------------------------------------
+ensure_node_ready(_Ctx) ->
+    Counts = supervisor:count_children(onepanel_sup),
+    true = (proplists:get_value(specs, Counts) == proplists:get_value(active, Counts)).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Ensures certificates changed on disk are updated in listeners.
+%% @end
+%%--------------------------------------------------------------------
+-spec reload_webcert(service:ctx()) -> ok.
+reload_webcert(_Ctx) ->
+    ssl:clear_pem_cache().

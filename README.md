@@ -29,6 +29,7 @@ In order to compile *onepanel* execute:
 ```bash
 git clone https://github.com/onedata/onepanel.git
 cd onepanel
+make submodules
 make REL_TYPE=<type> rel
 ```
 
@@ -81,7 +82,7 @@ cluster.
 
 ```yaml
 cluster:
-  domainName: "onezone.1.dev"
+  domainName: "onezone.1.test"
   autoDeploy: true
   nodes:
     n1:
@@ -105,7 +106,7 @@ cluster:
       - "n2"
 onezone:
   name: "Example"
-  domainName: "onezone.1.dev"
+  domainName: "onezone.1.test"
 onepanel:
   users:
     "admin1":
@@ -123,7 +124,7 @@ oneprovider cluster and registers it in onezone configured in previous section.
 
 ```yaml
 cluster:
-  domainName: "oneprovider.1.dev"
+  domainName: "oneprovider.1.test"
   autoDeploy: true
   nodes:
     n1:
@@ -152,11 +153,11 @@ cluster:
 oneprovider:
   register: true
   name: "Provider"
-  redirectionPoint: "https://node1.oneprovider.1.dev"
+  redirectionPoint: "https://node1.oneprovider.1.test"
   geoLatitude: 10.0
   geoLongitude: 20.0
 onezone:
-  domainName: "node1.onezone.1.dev"
+  domainName: "node1.onezone.1.test"
 onepanel:
   users:
     "admin1":

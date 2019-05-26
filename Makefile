@@ -2,7 +2,7 @@
 
 REPO            ?= onepanel
 
-# distro for package building (oneof: wily, fedora-23-x86_64)
+# distro for package building (e.g.: xenial, centos-7-x86_64)
 DISTRIBUTION    ?= none
 export DISTRIBUTION
 
@@ -12,6 +12,7 @@ GIT_URL := $(shell if [ "${GIT_URL}" = "file:/" ]; then echo 'ssh://git@git.plgr
 ONEDATA_GIT_URL := $(shell if [ "${ONEDATA_GIT_URL}" = "" ]; then echo ${GIT_URL}; else echo ${ONEDATA_GIT_URL}; fi)
 export ONEDATA_GIT_URL
 
+RELEASE         ?= 1802
 PKG_REVISION    ?= $(shell git describe --tags --always)
 PKG_VERSION     ?= $(shell git describe --tags --always | tr - .)
 PKG_BUILD       := 1
@@ -34,6 +35,8 @@ endif
 LIB_DIR          = _build/default/lib
 REL_DIRS         = _build/default/rel
 OVERLAY_VARS    ?= --overlay_vars=rel/vars.config
+
+BUILD_VERSION := $(subst $(shell git describe --tags --abbrev=0)-,,$(shell git describe --tags --long))
 
 all: rel
 
@@ -60,8 +63,8 @@ distclean: config
 .PHONY: template
 template:
 	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rel/pkg.vars.config.template
-	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rel/vars.config.template
 	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rel/files/app.config.template
+	sed "s/{build_version, \".*\"}/{build_version, \"${BUILD_VERSION}\"}/" ./rel/vars.config.template > ./rel/vars.config
 	$(TEMPLATE_SCRIPT) rel/vars.config ./rel/files/vm.args.template
 
 config:
@@ -69,6 +72,15 @@ config:
 
 gui-static:
 	$(LIB_DIR)/gui/pull-gui.sh gui-config.sh
+
+
+##
+## Submodules
+##
+
+submodules:
+	git submodule sync --recursive ${submodule}
+	git submodule update --init --recursive ${submodule}
 
 
 ##
@@ -114,7 +126,7 @@ dialyzer: config
 
 check_distribution:
 ifeq ($(DISTRIBUTION), none)
-	@echo "Please provide package distribution. Oneof: 'wily', 'fedora-23-x86_64'"
+	@echo "Please provide package distribution. Oneof: 'xenial', 'centos-7-x86_64'"
 	@exit 1
 else
 	@echo "Building package for distribution $(DISTRIBUTION)"
@@ -124,6 +136,7 @@ package/$(PKG_ID).tar.gz:
 	mkdir -p package
 	rm -rf package/$(PKG_ID)
 	git archive --format=tar --prefix=$(PKG_ID)/ $(PKG_REVISION) | (cd package && tar -xf -)
+	git submodule foreach --recursive "git archive --prefix=$(PKG_ID)/\$$path/ \$$sha1 | (cd \$$toplevel/package && tar -xf -)"
 	${MAKE} -C package/$(PKG_ID) config upgrade gui-static template
 	for dep in package/$(PKG_ID) package/$(PKG_ID)/$(LIB_DIR)/*; do \
 	     echo "Processing dependency: `basename $${dep}`"; \

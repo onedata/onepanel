@@ -97,7 +97,7 @@ get(Key) ->
                     {ok, Session};
                 false ->
                     delete(Key),
-                    ?make_error(?ERR_NOT_FOUND, ?MODULE, get, 1, [?MODULE, Key])
+                    ?make_error(?ERR_NOT_FOUND, [Key])
             end;
         #error{} = Error ->
             Error
@@ -148,7 +148,7 @@ get_id(#onepanel_session{id = Id}) ->
 %% @doc Returns name of a user associated with the session.
 %% @end
 %%--------------------------------------------------------------------
--spec get_username(Session :: #onepanel_session{}) -> id().
+-spec get_username(Session :: #onepanel_session{}) -> onepanel_user:name().
 get_username(#onepanel_session{username = Username}) ->
     Username.
 

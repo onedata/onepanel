@@ -164,11 +164,13 @@ get_step(#step{hosts = undefined, ctx = #{hosts := Hosts}} = Step) ->
     get_step(Step#step{hosts = Hosts});
 
 get_step(#step{hosts = undefined, service = Service} = Step) ->
-    Hosts2 = case service:get(Service) of
-        {ok, #service{hosts = Hosts}} -> Hosts;
-        #error{reason = ?ERR_NOT_FOUND} -> onepanel_cluster:nodes_to_hosts()
+    Hosts = try
+        Module = service:get_module(Service),
+        Module:get_hosts()
+    catch
+        _:_ -> service_onepanel:get_hosts()
     end,
-    get_step(Step#step{hosts = Hosts2});
+    get_step(Step#step{hosts = Hosts});
 
 get_step(#step{hosts = []}) ->
     [];
@@ -254,10 +256,14 @@ log({step_end, {Module, Function, {_, Errors}}}) ->
     Stacktrace :: term().
 format_errors([], Log) ->
     Log;
-format_errors([{Node, #error{reason = Reason, stacktrace = []}} | Errors], Log) ->
-    Error = io_lib:format("Node: ~p~nReason: ~p~n", [Node, Reason]),
+format_errors([{Node, #error{module = Module, function = Function, arity = Arity,
+    args = Args, reason = Reason, stacktrace = [], line = Line}} | Errors], Log) ->
+    Error = io_lib:format("Node: ~p~nFunction: ~p:~p/~p~nArgs: ~tp~nReason: ~tp~nLine: ~p~n",
+        [Node, Module, Function, Arity, Args, Reason, Line]),
     format_errors(Errors, Log ++ Error);
-format_errors([{Node, #error{reason = Reason, stacktrace = Stacktrace}} | Errors], Log) ->
-    Error = io_lib:format("Node: ~p~nReason: ~p~nStacktrace: ~p~n",
-        [Node, Reason, Stacktrace]),
+format_errors([{Node, #error{module = Module, function = Function, arity = Arity,
+    args = Args, reason = Reason, stacktrace = Stacktrace, line = Line}} | Errors], Log) ->
+    Error = io_lib:format("Node: ~p~nFunction: ~p:~p/~p~nArgs: ~tp~nReason: ~tp~n"
+    "Stacktrace: ~tp~nLine: ~p~n",
+        [Node, Module, Function, Arity, Args, Reason, Stacktrace, Line]),
     format_errors(Errors, Log ++ Error).

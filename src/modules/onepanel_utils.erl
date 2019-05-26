@@ -16,12 +16,12 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([get_basic_auth_header/2, get_ip_address/0]).
--export([wait_until/5, wait_until/6, save_file/2]).
+-export([get_basic_auth_header/2]).
+-export([wait_until/5, wait_until/6]).
 -export([gen_uuid/0, get_nif_library_file/1, join/1, join/2, trim/2]).
 -export([convert/2, get_type/1, typed_get/3, typed_get/4]).
 
--type primitive_type() :: atom | binary | float | integer | list | boolean.
+-type primitive_type() :: atom | binary | float | integer | list | boolean | path.
 -type type() :: primitive_type() | {seq, primitive_type()}.
 -type expectation() :: {equal, Expected :: term()} | {validator,
     Validator :: fun((term()) -> term() | no_return())}.
@@ -90,32 +90,6 @@ wait_until(Module, Function, Args, {validator, Validator}, Attempts, Delay) ->
 
 wait_until(Module, Function, Args, Expected, Attempts, Delay) ->
     wait_until(Module, Function, Args, {equal, Expected}, Attempts, Delay).
-
-
-%%--------------------------------------------------------------------
-%% @doc Writes content of a file indicated by path. In case of an error throws
-%% an exception.
-%% @end
-%%--------------------------------------------------------------------
--spec save_file(Path :: file:name_all(), Content :: binary()) -> ok | no_return().
-save_file(Path, Content) ->
-    case file:write_file(Path, Content) of
-        ok -> ok;
-        {error, Reason} -> ?throw_error(Reason)
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @doc Queries onezone for IP address of the host where function has been
-%% evaluated. In case of an error throws an exception.
-%% @end
-%%--------------------------------------------------------------------
--spec get_ip_address() -> IpAddress :: binary() | no_return().
-get_ip_address() ->
-    case oz_providers:check_ip_address(provider) of
-        {ok, IpAddress} -> IpAddress;
-        {error, Reason} -> ?throw_error(Reason)
-    end.
 
 
 %%--------------------------------------------------------------------
@@ -192,8 +166,11 @@ trim(Text, both) ->
 convert(Values, {seq, Type}) ->
     lists:map(fun(Value) -> convert(Value, Type) end, Values);
 
-convert(Value, boolean) when is_atom(Value) ->
-    convert(Value, atom);
+convert(Value, boolean) ->
+    case convert(Value, atom) of
+        true -> true;
+        false -> false
+    end;
 
 convert(Value, binary) when is_atom(Value) ->
     erlang:atom_to_binary(Value, utf8);

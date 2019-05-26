@@ -25,10 +25,11 @@
     delete/1, list/0]).
 
 %% API
--export([start/1, start/2, stop/1, status/1, apply/3, apply/4, apply_async/3,
+-export([start/3, stop/2, status/2, apply/3, apply/4, apply_async/3,
     apply_sync/3, apply_sync/4, get_results/1, get_results/2, abort_task/1,
     exists_task/1]).
 -export([get_module/1, get_hosts/1, get_nodes/1, is_member/2, add_host/2]).
+-export([get_ctx/1, update_ctx/2]).
 
 -type name() :: atom().
 -type action() :: atom().
@@ -136,46 +137,54 @@ list() ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc @equiv service:start(InitScript, #{})
-%% @end
-%%--------------------------------------------------------------------
--spec start(InitScript :: string()) -> ok | no_return().
-start(InitScript) ->
-    service:start(InitScript, #{}).
-
-
-%%--------------------------------------------------------------------
 %% @doc Sets the system limits and starts the service using an init script
 %% in a shell.
 %% @end
 %%--------------------------------------------------------------------
--spec start(InitScript :: string(), SystemLimits :: maps:map()) -> ok | no_return().
-start(InitScript, SystemLimits) ->
-    Tokens = maps:fold(fun
+-spec start(string(), maps:map(), atom()) -> ok | no_return().
+start(InitScript, SystemLimits, CustomCmdEnv) ->
+    Tokens = case onepanel_env:find(CustomCmdEnv) of
+        {ok, Cmd} when is_list(Cmd) -> [Cmd];
+        _ -> ["service", InitScript, "start"]
+    end,
+    Tokens2 = maps:fold(fun
         (open_files, Value, Acc) -> ["ulimit", "-n", Value, ";" | Acc];
         (_, _, Acc) -> Acc
-    end, ["service", InitScript, "start"], SystemLimits),
-    onepanel_shell:check_call(Tokens).
+    end, Tokens, SystemLimits),
+    onepanel_shell:ensure_success(Tokens2).
 
 
 %%--------------------------------------------------------------------
 %% @doc Stops the service using an init script in a shell.
 %% @end
 %%--------------------------------------------------------------------
--spec stop(InitScript :: string()) -> ok | no_return().
-stop(InitScript) ->
-    onepanel_shell:check_call(["service", InitScript, "stop"]).
+-spec stop(string(), atom()) -> ok | no_return().
+stop(InitScript, CustomCmdEnv) ->
+    Tokens = case onepanel_env:find(CustomCmdEnv) of
+        {ok, Cmd} when is_list(Cmd) -> [Cmd];
+        _ -> ["service", InitScript, "stop"]
+    end,
+    case onepanel_shell:execute(Tokens) of
+        {0, _} -> ok;
+        _ ->
+            ?warning("Failed to stop service '~s'", [InitScript]),
+            ok
+    end.
 
 
 %%--------------------------------------------------------------------
 %% @doc Returns the service status using an init script in a shell.
 %% @end
 %%--------------------------------------------------------------------
--spec status(InitScript :: string()) -> running | stopped | missing.
-status(InitScript) ->
-    case onepanel_shell:call(["service", InitScript, "status"]) of
-        0 -> running;
-        127 -> missing;
+-spec status(string(), atom()) -> running | stopped | missing.
+status(InitScript, CustomCmdEnv) ->
+    Tokens = case onepanel_env:find(CustomCmdEnv) of
+        {ok, Cmd} when is_list(Cmd) -> [Cmd];
+        _ -> ["service", InitScript, "status"]
+    end,
+    case onepanel_shell:execute(Tokens) of
+        {0, _} -> running;
+        {127, _} -> missing;
         _ -> stopped
     end.
 
@@ -210,7 +219,7 @@ apply(Service, Action, Ctx, Notify) ->
             [Service, Action, service_utils:format_steps(Steps, "")]),
         apply_steps(Steps, Notify)
     catch
-        _:Reason -> ?make_error(Reason)
+        _:Reason -> ?make_stacktrace(Reason)
     end,
     service_utils:notify({action_end, {Service, Action, Result}}, Notify),
     Result.
@@ -318,7 +327,7 @@ get_hosts(Service) ->
 %%--------------------------------------------------------------------
 -spec get_nodes(Service :: name()) -> Nodes :: [node()].
 get_nodes(Service) ->
-    onepanel_cluster:hosts_to_nodes(Service, get_hosts(Service)).
+    onepanel_cluster:service_to_nodes(Service, get_hosts(Service)).
 
 
 %%--------------------------------------------------------------------
@@ -346,6 +355,36 @@ add_host(Service, Host) ->
         S#service{hosts = [Host | lists:delete(Host, Hosts)]}
     end).
 
+
+%%--------------------------------------------------------------------
+%% @doc Returns the "ctx" field of a service model.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_ctx(name()) -> ctx() | #error{} | no_return().
+get_ctx(Service) ->
+    case ?MODULE:get(Service) of
+        {ok, #service{ctx = Ctx}} -> Ctx;
+        Error -> Error
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Updates the "ctx" field of a service model.
+%% @end
+%%--------------------------------------------------------------------
+-spec update_ctx(Service :: service:name(), Diff) -> ok | no_return()
+    when Diff :: map() | fun((map()) -> map()).
+update_ctx(Service, Diff) when is_map(Diff) ->
+    update_ctx(Service, fun(Ctx) ->
+        maps:merge(Ctx, Diff)
+    end);
+
+update_ctx(Service, Diff) when is_function(Diff, 1) ->
+    service:update(Service, fun(#service{ctx = Ctx} = S) ->
+        S#service{ctx = Diff(Ctx)}
+    end).
+
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -360,7 +399,7 @@ apply_steps([], _Notify) ->
 apply_steps([#step{hosts = Hosts, module = Module, function = Function,
     args = Args, attempts = Attempts, retry_delay = Delay} = Step | Steps], Notify) ->
 
-    Nodes = onepanel_cluster:hosts_to_nodes(Hosts),
+    Nodes = onepanel_cluster:service_to_nodes(?APP_NAME, Hosts),
     service_utils:notify({step_begin, {Module, Function}}, Notify),
 
     Results = onepanel_rpc:call(Nodes, Module, Function, Args),

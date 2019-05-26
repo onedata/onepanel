@@ -10,27 +10,38 @@
       "storages": [
         {
           "type": "posix",
-          "name": "/mnt/st1"
+          "name": "/mnt/st1",
+          "storagePathType": "canonical"
         },
         {
           "type": "posix",
-          "name": "/mnt/st2"
+          "name": "/mnt/st2",
+          "storagePathType": "canonical"
         },
         {
           "type": "ceph",
           "name": "someCeph",
-          "pool": "onedata:8"
+          "pool": "onedata:8",
+          "storagePathType": "flat"
+        },
+        {
+          "type": "cephrados",
+          "name": "someCephRados",
+          "pool": "onedata:8",
+          "storagePathType": "flat"
         },
         {
           "type": "s3",
           "name": "someS3",
           "bucket": "onedata",
+          "storagePathType": "flat",
           "disable_iam_mock": false
         },
         {
           "type": "swift",
           "name": "someSwift",
-          "container": "swift"
+          "container": "swift",
+          "storagePathType": "flat"
         },
         {
           "type": "glusterfs",
@@ -38,14 +49,20 @@
           "volume": "data",
           "transport": "tcp",
           "mountpoint": "/",
-          "xlatorOptions": ""
+          "xlatorOptions": "",
+          "storagePathType": "canonical"
+        },
+        {
+          "type": "webdav",
+          "name": "someWebDAV",
+          "storagePathType": "canonical"
         }
       ]
     }
   },
   "onepanel_domains": {
     "onezone": {
-      "image": "docker.onedata.org/onezone-dev:ID-9416608441",
+      "image": "docker.onedata.org/onezone-dev:develop",
       "onepanel": {
         "node1": {
           "vm.args": {
@@ -70,8 +87,8 @@
       }
     },
     "oneprovider": {
-      "image": "docker.onedata.org/oneprovider-dev:ID-7c783f96ed",
       "os_config": "cfg1",
+      "image": "docker.onedata.org/oneprovider-dev:ID-9b9898a24f",
       "onepanel": {
         "node1": {
           "vm.args": {

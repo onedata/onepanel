@@ -13,9 +13,11 @@
 
 -include("modules/errors.hrl").
 -include("names.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([init/0, destroy/0]).
+-export([wait_for_tables/0]).
 -export([create_tables/0, copy_tables/0, delete_tables/0]).
 -export([add_node/1, remove_node/1, get_nodes/0]).
 
@@ -34,7 +36,7 @@ init() ->
     case mnesia:create_schema([Node]) of
         ok -> ok;
         {error, {Node, {already_exists, Node}}} -> ok;
-        {error, Reason} -> ?throw_error(Reason)
+        {error, Reason} -> ?throw_error(Reason, [])
     end,
     ok = mnesia:start().
 
@@ -56,21 +58,32 @@ destroy() ->
 %%--------------------------------------------------------------------
 -spec create_tables() -> ok.
 create_tables() ->
-    Tables = lists:map(fun(Model) ->
+    lists:foreach(fun(Model) ->
         Table = model:get_table_name(Model),
         case mnesia:create_table(Table, [
             {attributes, Model:get_fields()},
             {record_name, Model},
             {disc_copies, [node()]}
         ]) of
-            {atomic, ok} -> ok;
+            {atomic, ok} ->
+                Model:seed(),
+                ok;
             {aborted, {already_exists, Model}} -> ok;
             {aborted, Reason} -> throw(Reason)
-        end,
-        Model:seed(),
-        Table
-    end, model:get_models()),
-    Timeout = onepanel_env:get(create_tables_timeout),
+        end
+    end, model:get_models()).
+
+
+%%--------------------------------------------------------------------
+%% @doc Waits for all tables to be available.
+%% In multinode setup this requires other nodes to be online
+%% unless current node was the last one to be stopped.
+%% @end
+%%--------------------------------------------------------------------
+-spec wait_for_tables() -> ok.
+wait_for_tables() ->
+    Timeout = infinity,
+    Tables = lists:map(fun model:get_table_name/1, model:get_models()),
     ok = mnesia:wait_for_tables(Tables, Timeout).
 
 
@@ -101,7 +114,7 @@ delete_tables() ->
         case mnesia:del_table_copy(Table, node()) of
             {atomic, ok} -> ok;
             {aborted, {no_exists, _}} -> ok;
-            {aborted, Reason} -> ?throw_error(Reason)
+            {aborted, Reason} -> ?throw_error(Reason, [])
         end
     end, model:get_models()).
 

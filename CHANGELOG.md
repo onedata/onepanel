@@ -4,6 +4,374 @@
 CHANGELOG
 ---------
 
+### 18.02.1
+
+* VSF-5198 Renew Let's Encrypt certs 30 days before expiration
+* Updating GUI, including: VFS-5187-spaces-support-fixes * VFS-5187 Fixed some graphical issues in supported spaces view; onepanel client library update
+* VFS-5121 hotfix, enabled field should be optional in space_file_popularity_configuration
+* Updating GUI, including: VFS-5114-dynamic-auto-cleaning-reports * VFS-5114 Infinite-scroll list of auto-cleaning reports, file-popularity options and major refactor of space support views
+* VFS-5121 fix missing field in space_sync_stats_model generated from swagger
+* VFS-5161 Add isRegistered and zoneName to configuration endpoint
+* VFS-5161 Harden configuration endpoint against workers being down
+* VFS-5161 Fix detection whether oneprovider is registered
+* VFS-5161 Use polymorphism to describe configuration endpoint
+* VFS-5161 Add configuration endpoint to swagger-described path
+* Updating GUI, including: VFS-5153-dns-autodetect-option * VFS-5153 Added DNS autodetect option
+* VFS-5146 Handle 'hostname -i' returning multiple addresses
+* VFS-5146 Add builtInDnsServer switch to batch config
+* VFS-5146 Allow use of default DNS for NS records check
+* VFS-5146 Store oz domain before using it for IP detection
+* VFS-5146 Use DNS for external IP detection
+* VFS-5146 Allow empty list of DNS check servers
+* VFS-5121 change description of a selective rule
+* VFS-5159 Add boost lib to RPM dependencies
+* VFS-5159 Add missing folly lib to package deps and update ctool
+* VFS-5121 changes files-popularity name to file-popularity
+* VFS-5121 update file-popularity API
+* VFS-5121 add defaults to infinite-scroll over auto-cleaning reports request params
+* VFS-5023 implement backend for infinite scroll over auto-cleaning reports
+* VFS-5023 handle errors returned by autocleaning_api:force_start function
+* VFS-5023 update auto_cleaning rule names in communication with oneprovider
+* VFS-5023 handle cases when file-popularity and autocleaning mechanisms are disabled when forcing start of auto-cleaning
+* VFS-5023 update rpc calls to oneprovider, add end_per_suite functions
+* Updating GUI, including: VFS-5070-auto-cleaning-new-options * VFS-5070 Added new conditions and using refactored API for auto-cleaning
+* VFS-5010 Make user session longer
+* VFS-5010 Fill in default values for webdav storage params
+* VFS-5044 Convert storage details on GET
+* VFS-5044 Use valid module name for checking TXT record
+
+
+### 18.02.0-rc13
+
+* Updating GUI, including: VFS-4919-webdav-storage, VFS-4873-unify-onedata-addons * VFS-4919 Added support for WebDAV storage * VFS-4873 Refactoring of common addons
+* VFS-4902 Added WebDAV helper storage
+* VFS-4902 Updated builder and worker images
+* VFS-4902 Updated rest model with WebDAV storage definition
+* VFS-4952 Use graph sync to modify provider data
+* Updating GUI, including: VFS-4870-representation-of-effective-groups * VFS-4870 New style for modals
+* Updating GUI, including: VFS-4798-refresh-provider-name * VFS-4798 Fixed redirect modal not shown after provider domain change and provider data refresh after cluster aspect change
+* VFS-4936 Use graph sync for adding supported spaces
+* Updating GUI, including: VFS-4865-space-resize * VFS-4865 Added space support size change feature
+* VFS-4936 Use common errors API for space support change
+* VFS-4936 Check if space exists when handling REST call
+* VFS-4936 Move storages endpoint handling to rest_oneprovider
+* VFS-4936 Add space support resizing
+* VFS-4707 remove soft quota limit
+
+
+### 18.02.0-rc12
+
+* Releasing new version 18.02.0-rc12
+
+
+### 18.02.0-rc11
+
+* VFS-4623 Adjust to change in dns config structure in oz worker
+* VFS-4029 Better certificate hostname verification
+
+
+### 18.02.0-rc10
+
+* VFS-4724 Use cephrados config when setting up storage
+* VFS-4667 Created configuration endpoint
+* Updating GUI, including: VFS-4663-onezone-web-cert * VFS-4663 Web certificate management
+* VFS-4029 Update API description from swagger
+* VFS-4029 Support http Let's Encrypt challenge in OZ and OP
+* Updating GUI, including: VFS-4677-cephrados * VFS-4677 Added Ceph RADOS storage support
+* Updating GUI, including: VFS-4463-show-storage-id, VFS-4233-use-submodules * VFS-4463 Showing storage ID on storages view * VFS-4233 Using submodules for own libs on separate repos
+* VFS-4656 Added cephrados helper
+* Updating GUI, including: VFS-4629-fix-translations * VFS-4463 Showing storage ID on storages view
+* VFS-4634 Import missing API config to make domainName optional
+* VFS-4529 Display log about correct kernel settings for rtransfer
+* VFS-4631 Introduce artificial delay in couchbase startup
+* VFS-4631 Remove password from couchbase CLI logs
+* VFS-4634 Allow empty domainName in cluster configuration
+* VFS-4203 Remove implicit space creation on support
+* VFS-4474 Print verbose logs on steps error
+* VFS-4474 Throw clear error on onepanel_env:get failure
+* VFS-4474 Do not write command output to cmd.log
+* VFS-4474 Create error type for shell failures
+* VFS-4474 Log output of failed shell commands
+* VFS-4474 Detect calling non-onepanel nodes with onepanel_rpc
+* VFS-4491 Allow custom command env variable to be missing
+* VFS-4491 Added entries for start/stop/status command in app config
+
+
+### 18.02.0-rc9
+
+* VFS-4532 Include command output in error reason on service start failure
+* VFS-4532 Use separate variable for oz_worker init delay
+* VFS-4532 Use migrated app config values in runtime
+* Updating GUI, including: VFS-4559-fix-actions-display-in-onepanel * VFS-4559 Fixed global actions display in mobile view
+* VFS-4532 Update node_package vars for all platforms
+* VFS-4532 Use separate config files for generated config
+* Updating GUI, including: VFS-4587 * VFS-4587 Fixing lack of space occupancy bar by updating onepanel client
+* VFs-4586 Updated rest model with space occupancy field from swagger
+* VFS-4560 Detect existing Let's Encrypt certificates
+* VFS-4570 Fix endpoints for leaving cluster and querying nagios
+* VFS-4367 Add rest callback accept_possible
+* VFS-4367 Refactor oneprovider rest to use batch argument copying
+* Updating GUI, including: VFS-4424 * VFS-4424 Improved sidebar content presentation and animation
+* VFS-4504 Set min and max port for distributed erlang
+
+
+### 18.02.0-rc8
+
+* Releasing new version 18.02.0-rc8
+
+
+### 18.02.0-rc7
+
+* VFS-4474 Describe recovery from the subdomain not available error
+
+
+### 18.02.0-rc6
+
+* Releasing new version 18.02.0-rc6
+
+
+### 18.02.0-rc5
+
+* VFS-3953 Add default config values for REST listener
+* VFS-3953 Integrate new GUI static backend
+
+
+### 18.02.0-rc4
+
+* VFS-4278 Rename singleton Key to ID in onepanel_deployment
+* VFS-4278 Return code 503 on nagios endpoint for stopped service
+* VFS-4278 Properly invoke service action to reload webcert
+* VFS-4278 Add "resume" steps used for getting up existing cluster
+* VFS-4278 Add wait for onepanel workers to start
+* VFS-4278 Migrate to onepanel_deployment model
+* VFS-4278 Change PUT to POST in test names to match implementaton
+* VFS-4278 Rename onepanel_milestones to deployment marks
+* VFS-4278 Change "ready" to "configured" in GET /configuration
+* VFS-4278 Create steps for managing cluster restart
+* VFS-4278 Block repeated POSTS on /configuration
+* VFS-4278 Start configured cluster services on startup
+* VFS-4278 Wait indefinitely for other mnesia nodes
+* VFS-4278 Create model for storing configuration milestones
+* VFS-4278 Add field 'master' to REST configuration details
+* VFS-4278 Introduce Master node
+* VFS-4278 Introduce field "ready" in cluster configuration GET
+* VFS-4278 Endpoint for starting oneprovider service
+* VFS-4370 Add information about finished deployment in REST
+* Added rebar profiles for oz_rel, op_rel and default_rel
+
+
+### 18.02.0-rc3
+
+* VFS-4449 Restart rtransfer on certificates change
+* VFS-3953 Update lager version and log formatter
+
+
+### 18.02.0-rc2
+
+* VFS-4446 Updated dockers config
+* VFS-4446 Updated jiffy ref
+* VFS-4443 Fixed generation of source archive with submodules
+* Updating GUI, including: VFS-4381, VFS-4380, VFS-4356 * VFS-4381 Removed signature version option from S3 storage form, because we support only V4 * VFS-4380 Added new parameters in null device form: simulated filesystem paramers and grow speed * VFS-4356 Improvements in navigation related to incorrect URLs
+* VFS-4295 Changed subtrees to submodules
+* Updating GUI, including: VFS-4241 * VFS-4241 Polling for synchronization statistics with higher frequency.
+* VFS-4241 update ctool, load iso8061 module, update fetching sync metrics from op
+
+
+### 18.02.0-rc1
+
+* VFS-4374 Increase inactivity timeout in rest listener
+* VFS-4374 Make LE dns servers configurable and improve logs
+* VFS-4374 Remove LE account on failure and txt record on success
+* VFS-4374 Check if cert file is writtable before staging LE run
+* VFS-4374 Retry checking TXT record at onezone
+* VFs-4374 Ensure LE TXT presence by querying global DNS servers
+* VFS-4374 Log verbose error on cert renewal chack failure
+* VFS-4374 Prevent too eager disabling of Let's Encrypt
+* VFS-4374 Add verification of set txt record in letsencrypt
+* VFS-4374 Delete Let's Encrypt account on error
+* VFS-4374 Increase LE retries and decrease dns TTL to improve stability
+* VFS-4374 Add option to retry the ensure_webcert step
+* VFS-2021 Added dockers.config
+* VFS-4280 Added simulated filesystem options to null device helper
+* VFS-4280 Updated null helper rest model
+* VFS-4368 Remove unused Context argument in letsencrypt service
+* VFS-4368 Fix node IPs being set on nodes without op-worker
+* VFS-4368 Fix webcert being reset only on one node
+
+
+### 18.02.0-beta6
+
+* VFS-4357 Register letsencrypt in service watcher after restart
+* VFS-4357 Add default values for letsencrypt app config
+* VFS-4357 Set onepanel hosts even on registered provider
+* Updating GUI, including: VFS-4210 * VFS-4210 New layout for main menu in desktop view mode
+
+
+### 18.02.0-beta5
+
+* VFS-4335 Return map when checking cluster IPs
+* VFS-3703 Switched from mochiweb JSON parsing to jiffy
+* VFS-4067 Fix setting cluster IPs in onezone
+* VFS-3745 Seperate Let's Encrypt client from oneprovdier
+* VFS-4267 Update images in services test suite
+* Update web-client and ctool refs
+* VFS-4267 Adjust code to erl 20, update deps
+* VFS-4273 - add rest endpoint for invalidating luma cache in provider
+
+
+### 18.02.0-beta4
+
+* Releasing new version 18.02.0-beta4
+
+
+### 18.02.0-beta3
+
+* Updating GUI, including: VFS-4259 * VFS-4259 Fixing not working create new cluster button
+* Updating GUI, including: VFS-4229 * VFS-4229 Merged recent changes of onedata-gui-common library (ia. improved mobile view, styles improvements)
+* VFS-4236 Check if storage exists before creating it
+* VFS-4222 Change op_worker function triggering oz connection
+* VFS-4222 Don't trigger Let's Encrypt on every provider modification
+* VFS-4222 Explicitly check oz connection after registration
+* VFS-3745 Generate test web cert only once
+* Updating GUI, including: VFS-4027 * VFS-4027 Added support for peta-, exa-, zetta- and yottabytes
+* Updating GUI, including: VFS-4206 * VFS-4206 Added capability to display speed in bps (ported)
+* VFS-4207 Move provider listener restarting logic to provider
+* Updating GUI, including: VFS-4194 * VFS-4197 Added "storage path type" option for storages
+* VFS-4067 Add test for GET and PATCH on cluster ips
+* Updating GUI, including: VFS-4097 * VFS-4097 Added cluster IPs configuration step and view for changing IPs after deployment
+* VFS-4067 Move common function to utils
+* VFS-4067 Set default value for Let's Encrypt in batch config
+* VFS-4067 Throw on unimplemented delete resource method
+* VFS-4067 Mark IPs as configured in batch config
+* VFS-4067 Do not set provider IP before registration in onezone
+* VFS-4067 Fixes for cluster_ips API and style improvements
+* VFS-4067 Allow setting cluster IPs with batch config
+* VFS-4067 Implement GET/PATCH of cluster_ips
+* VFS-4067 Notify workers after modifying IPs
+* VFS-4067 Add OZ endpoint as a method of determining IP
+* VFS-4067 Add step for writing external IP to node
+
+
+### 18.02.0-beta2
+
+* VFS-4178 Fixed generated rest_model
+* VFS-4178 Added default storage types when adding storage from REST
+* VFS-4036 Added support for storage path type
+* VFS-4036 Updated rest model from onepanel-swagger
+* disable http2
+* VFS-4126 Loosen cert validation during local service status checks via nagios
+* VFS-4126 Fix some default values of app.config envs
+* Updating GUI, including: VFS-4125 * VFS-4125 Fixed lack of integrity check for CSS files
+* VFS-3704 update cowboy to version 2.2.2
+* VFS-4120 Get provider configuration fail now causes HTTP 500
+
+
+### 18.02.0-beta1
+
+* VFS-3978 Do not distribute Onedata Test CA in packages   
+* VFS-3978 add untrusted web certificates for localhost as default   
+* VFS-3978 autogenerate certs option now always overwrites existing certs   
+* VFS-3978 unify paths and env names related to certs with those in op and oz
+* VFS-3765 Use provided admin email in provider registration and Let's Encrypt cert procedure
+* VFS-4015 Use PBKDF2 rather than bcrypt for user password hashing
+* VFS-3622 Allow to use custom commands for starting underlying services and to pass overlay config upon onepanel start
+* VFS-3751 Use provider macaroons rather than certificates, don't fetch provider details unless it is registered
+* VFS-3790 Automatically generate web certs on startup if not present, use secure connections where possible
+* VFS-3635 Distribute OZ CA cert during registration
+* Overwrite worker cert paths with onepanel certs
+* VFS-3609 Implement ACME protocol (Let's Encrypt) client
+* VFS-3614 Modify API to handle subdomain delegation
+* VFS-3526 Combine provider urls and redirection_point
+* VFS-3606 GUI: Subdomain delegation functionality for provider
+* VFS-3968 GUI: Update to EmberJS 2.18.0
+* VFS-3985 GUI: Added a bar chart, that shows storage usage for a space
+* VFS-4016 GUI: Added NullDevice storage support
+* VFS-3986 GUI: Added Let’s Encrypt certificate setup step in provider cluster deployment; improved error backend error descriptions
+* VFS-3955 GUI: Better truncating of too long names in sidebar; internal libs update
+* VFS-3619 GUI: Refactor of login page components
+* VFS-3205 GUI: Improvements in displaying deployment steps
+* VFS-3636 GUI: Fix for invalid date in synchronization statistics charts
+* VFS-3202 GUI: Try to detect unfinished cluster deployment on page refresh
+* VFS-3870 GUI: Show notify after space support settings change
+* VFS-3706 GUI: Do not allow to enter improper routes in panel (fixes also VFS-3895: PATCH request after provider deregistration)
+* VFS-3928 GUI: Less restrictive validation of provider/onezone domain name
+* VFS-3677 GUI: Fix for tooltip positioning in mobile view
+* VFS-3592 GUI: Added common favicon
+* VFS-3883 GUI: Porting recent improvements in common components and utils from op-gui-default
+* VFS-3741 GUI: Fix for import chart tooltip positioning and overflow handling in mobile view
+* VFS-3677 GUI: Fix for tooltip positioning in mobile view
+* VFS-3741 GUI: Fix for import chart tooltip positioning and overflow handling in mobile view
+* VFS-3882 GUI: Fixed space auto-cleaning report status tooltips; deregister provider message update
+
+
+### 17.06.2
+
+* Releasing new version 17.06.2
+
+
+### 17.06.1
+
+* Releasing new version 17.06.1
+
+
+### 17.06.0-rc9
+
+* VFS-4004 Update ctool to include safe ciphers in TLS
+* VFS-3972 Fix attach-direct consoles in releases not being run with xterm terminal
+* VFS-3911 - adapt onepanel to changes in op-worker storage_sync_monitoring module
+* fix error when geolocation is integer
+
+
+### 17.06.0-rc8
+
+* Releasing new version 17.06.0-rc8
+
+
+### 17.06.0-rc7
+
+* VFS-3815 Added erlang-observer as RPM build dependency
+* VFS-3686 allow to start space cleaning manually, update ctool
+* Updating GUI, including: VFS-3685, VFS-3661 - VFS-3685 Added space files popularity and space auto cleaning views - VFS-3661 Improvements in presenting loading state of views and errors
+* Updating GUI, including: VFS-3710 - VFS-3710 Using binary prefixes for size units (IEC format: MiB, GiB, TiB, etc.)
+* Updating GUI, including: VFS-3737, VFS-3639 - VFS-3737 Change Bower server to registry.bower.io - VFS-3639 Fix and restore loaders in new GUIs
+* Updating GUI, including: VFS-3608 - VFS-3608 Table component for showing details about support size
+* VFS-3686 configure autocleaning in onepanel
+
+
+### 17.06.0-rc6
+
+* Releasing new version 17.06.0-rc6
+
+
+### 17.06.0-rc5
+
+* fix fetching luma_config
+
+
+### 17.06.0-rc4
+
+* Releasing new version 17.06.0-rc4
+
+
+### 17.06.0-rc3
+
+* VFS-3639 Updating GUI ref
+* VFS-3449 add syncAcl flag to storage import and storage update configuration
+
+
+### 17.06.0-rc2
+
+* VFS-3506 Fix space support with missing storage ID
+
+
+### 17.06.0-rc1
+
+* VFS-3448 Use single 'onedata' bucket
+* VFS-3384 add translation of luma configuration error
+* VFS-3384 setup luma when adding storage
+* VFS-3417 Increase default RAM quota of couchbase buckets
+
+
 ### 17.06.0-beta6
 
 * VFS-3417 Change listeners restart strategy

@@ -28,13 +28,14 @@
 -spec create(Module :: module(), Function :: atom(), Arity :: non_neg_integer(),
     Args :: term(), Reason :: term(), Stacktrace :: term(), Line :: non_neg_integer()) ->
     #error{}.
-create(Module, Function, Arity, Args, {badmatch, Reason}, Stacktrace, Line) ->
-    create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
-
 create(_Module, _Function, _Arity, _Args, #error{} =
-    _Reason, _Stacktrace, _Line) ->
+    _Reason, NewStacktrace, _Line) ->
     #error{module = Module, function = Function, arity = Arity, args = Args,
-        reason = Reason, stacktrace = Stacktrace, line = Line} = _Reason,
+        reason = Reason, stacktrace = OldStacktrace, line = Line} = _Reason,
+    Stacktrace = case OldStacktrace of
+        [] -> NewStacktrace;
+        _ -> OldStacktrace
+    end,
     create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
 
 create(Module, Function, Arity, Args, Reason, Stacktrace, Line) ->
@@ -97,12 +98,26 @@ translate(_Type, #error{reason = {?ERR_HOST_NOT_FOUND_FOR_ALIAS, Alias}}) ->
     {<<"Invalid Request">>, <<"Host not found for node: '",
         (onepanel_utils:convert(Alias, binary))/binary, "'.">>};
 
+translate(_Type, #error{reason = ?ERR_ONEZONE_NOT_AVAILABLE}) ->
+    {<<"Onezone connection error">>, <<"Onezone not available">>};
+
+translate(_Type, #error{reason = ?ERR_SUBDOMAIN_NOT_AVAILABLE}) ->
+    % DO NOT modify this error name as it is used to identify the error in GUI
+    {<<"Subdomain reserved error">>, <<"Requested subdomain is currently used "
+        "by another provider. Please choose another one. The subdomain will be "
+        "available again when the conflicting provider is unregistered or "
+        "configured to use a different subdomain. Please contact your Onezone "
+        "administror if you want to reclaim the subdomain of an unused provider.">>};
+
 translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, aleady_exists}}) ->
     {<<"Operation Error">>, <<"Storage name is not available.">>};
 
 translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, Reason}}) ->
     ?error("Cannot add storage due to: ~p", [Reason]),
     {<<"Operation Error">>, <<"Storage addition error.">>};
+
+translate(_Type, #error{reason = {?ERR_STORAGE_NOT_FOUND, StorageId}}) ->
+    {<<"Operation Error">>, <<"Storage '", StorageId/binary, "' not found.">>};
 
 translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_CREATE, Node, Reason}}) ->
     translate_storage_test_file_error("create", <<"creation">>, Node, Reason);
@@ -135,11 +150,79 @@ translate(_Type, #error{module = model, function = get, reason = ?ERR_NOT_FOUND,
     args = [service, oz_worker]}) ->
     {<<"Operation Error">>, <<"Cluster Worker not configured.">>};
 
-translate(_Type, #error{reason = ?ERR_UNREGISTERED_PROVIDER}) ->
-    {<<"Operation Error">>, <<"Unregistered provider.">>};
+translate(_Type, #error{reason = ?ERR_SUBDOMAIN_DELEGATION_DISABLED}) ->
+    {<<"Operation Error">>, <<"Subdomain delegation is not enabled.">>};
+
+translate(_Type, #error{reason = ?ERR_DNS_CHECK_ERROR(Message)}) ->
+    {<<"Operation Error">>, str_utils:format_bin("Error performing DNS check: ~ts", [Message])};
+
+translate(_Type, #error{reason = ?ERR_FILE_ACCESS(Path, Reason)}) ->
+    {<<"File access error">>, str_utils:format_bin("Error opening file ~p: ~p", [Path, Reason])};
+
+% DO NOT modify this error message as it is used to identify the error in GUI
+translate(_Type, #error{reason = ?ERR_LETSENCRYPT(ErrorURN, Message)}) ->
+    {<<"Let's Encrypt Error">>, str_utils:format_bin("Let's Encrypt error: ~s: ~s",
+        [ErrorURN, Message])};
+
+% DO NOT modify this error message as it is used to identify the error in GUI
+translate(_Type, #error{reason = ?ERR_LETSENCRYPT_LIMIT(ErrorURN, Message)}) ->
+    {<<"Let's Encrypt Limit Error">>,
+    str_utils:format_bin("Let's Encrypt limit error: ~s: ~s", [ErrorURN, Message])};
+
+% DO NOT modify this error message as it is used to identify the error in GUI
+translate(_Type, #error{reason = ?ERR_LETSENCRYPT_AUTHORIZATION(Message)}) ->
+    {<<"Let's Encrypt Authorization Error">>,
+        str_utils:format_bin("Let's Encrypt authroization error: ~s", [Message])};
+
+translate(_Type, #error{reason = ?ERR_LETSENCRYPT_NOT_SUPPORTED}) ->
+    {<<"Let's Encrypt Not Supported Error">>,
+        <<"Current DNS/domain configuration does not support automatic "
+        "obtaining certificates">>};
 
 translate(_Type, #error{reason = {?ERR_STORAGE_SYNC, import_already_started}}) ->
     {<<"Operation Error">>, <<"Modifying storage_import that has already been started">>};
+
+translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, {missing_key, MissingKey}}}) ->
+    {<<"Operation Error">>, str_utils:format_bin("LUMA configuration error. "
+    "Missing key: ~p", [MissingKey])};
+
+translate(_Type, #error{reason = ?ERR_SPACE_SUPPORT_TOO_LOW(Minimum)}) ->
+    {<<"Operation Error">>, str_utils:format_bin(
+        "Space support size must exceed currently used storage space and the minimum imposed by "
+        "Onezone. Please specify size of at least ~B bytes.", [Minimum])};
+
+translate(_Type, #error{reason = {?ERR_CONFIG_AUTO_CLEANING, file_popularity_disabled}}) ->
+    {<<"Operation Error">>, <<"File popularity statistics must be turned on to enable autocleaning">>};
+
+translate(_Type, #error{reason = {?ERR_CONFIG_AUTO_CLEANING, {negative_value, Parameter}}}) ->
+    {<<"Operation Error">>, str_utils:format_bin("Auto-cleaning configuration error. Negative value not allowed for key: ~p.", [Parameter])};
+
+translate(_Type, #error{reason = {?ERR_CONFIG_AUTO_CLEANING, {illegal_type, Parameter}}}) ->
+    {<<"Operation Error">>, str_utils:format_bin("Auto-cleaning configuration error. Illegal type for key: ~p.", [Parameter])};
+
+translate(_Type, #error{reason = {?ERR_CONFIG_AUTO_CLEANING, {value_grater_than, Name1, Name2}}}) ->
+    {<<"Operation Error">>, str_utils:format_bin("Auto-cleaning configuration error. Setting value of parameter ~p greater than ~p is forbidden", [Name1, Name2])};
+
+translate(_Type, #error{reason = {?ERR_AUTOCLEANING, file_popularity_disabled}}) ->
+    {<<"Operation Error">>, <<"Auto-cleaning error. File popularity is disabled.">>};
+
+translate(_Type, #error{reason = {?ERR_AUTOCLEANING, autocleaning_disabled}}) ->
+    {<<"Operation Error">>, <<"Auto-cleaning error. Auto-cleaning is disabled.">>};
+
+translate(_Type, #error{reason = {?ERR_AUTOCLEANING, Reason}}) ->
+    {<<"Operation Error">>, str_utils:format_bin("Auto-cleaning unexpected error: ~p ", [Reason])};
+
+translate(_Type, #error{reason = {?ERR_CONFIG_FILE_POPULARITY, {negative_value, Parameter}}}) ->
+    {<<"Operation Error">>, str_utils:format_bin("file-popularity configuration error. Negative value not allowed for key: ~p.", [Parameter])};
+
+translate(_Type, #error{reason = {?ERR_CONFIG_FILE_POPULARITY, {illegal_type, Parameter}}}) ->
+    {<<"Operation Error">>, str_utils:format_bin("file-popularity configuration error. Illegal type for key: ~p.", [Parameter])};
+
+translate(_Type, #error{reason = {?ERR_FILE_POPULARITY, Error}}) ->
+    {<<"Operation Error">>, str_utils:format_bin("file-popularity error: ~p.", [Error])};
+
+translate(_Type, #error{reason = ?ERR_CMD_FAILURE(_, _)}) ->
+    {<<"Internal Error">>, <<"Server encountered an unexpected error.">>};
 
 translate(_Type, #error{reason = {error, {Code, Error, Description}}})
     when is_integer(Code), is_binary(Error), is_binary(Description) ->
