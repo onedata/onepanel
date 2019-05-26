@@ -4,6 +4,12 @@
 CHANGELOG
 ---------
 
+### 18.02.2
+
+* Fix is_registered check
+* increase webdav connectionPoolSize
+
+
 ### 18.02.1
 
 * VSF-5198 Renew Let's Encrypt certs 30 days before expiration
