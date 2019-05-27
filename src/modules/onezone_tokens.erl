@@ -82,7 +82,7 @@ authenticate_user(oneprovider, AccessToken) ->
         end
     end),
     case Fetched of
-        {ok, Details} -> user_details_to_client(Details, {rest, {access_token, AccessToken}});
+        {ok, Details} -> user_details_to_client(Details, {rest, {gui_token, AccessToken}});
         #error{reason = {401, _, _}} -> ?make_error(?ERR_INVALID_AUTH_TOKEN)
     end.
 
@@ -96,7 +96,7 @@ authenticate_user(oneprovider, AccessToken) ->
 %%--------------------------------------------------------------------
 -spec fetch_details(AccessToken :: binary()) -> {ok, #user_details{}} | #error{}.
 fetch_details(AccessToken) ->
-    case oz_endpoint:request({access_token, AccessToken}, "/user", get) of
+    case oz_endpoint:request({gui_token, AccessToken}, "/user", get) of
         {ok, 200, _ResponseHeaders, ResponseBody} ->
             Map = json_utils:decode(ResponseBody),
             UserDetails = #user_details{
