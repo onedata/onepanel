@@ -109,13 +109,17 @@ authenticate_by_onezone_auth_token(Req) ->
     #client{} | #error{}.
 check_basic_credentials(<<Base64/binary>>) ->
     Decoded = base64:decode(Base64),
-    case binary:split(Decoded, <<":">>) of
-        [Passphrase] ->
-            check_emergency_passphrase(Passphrase);
-        [?LOCAL_USERNAME, Passphrase] ->
-            check_emergency_passphrase(Passphrase);
-        [_Username, _Password] ->
-            ?make_error(?ERR_INVALID_USERNAME_OR_PASSWORD)
+    case check_emergency_passphrase(Decoded) of
+        #client{} = Client -> Client;
+        _Error ->
+            case binary:split(Decoded, <<":">>) of
+                [Decoded] ->
+                    ?make_error(?ERR_INVALID_PASSPHRASE);
+                [?LOCAL_USERNAME, Passphrase] ->
+                    check_emergency_passphrase(Passphrase);
+                [_Username, _Password] ->
+                    ?make_error(?ERR_INVALID_USERNAME)
+            end
     end.
 
 

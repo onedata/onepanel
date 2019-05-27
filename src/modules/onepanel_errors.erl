@@ -82,30 +82,21 @@ translate(_Type, #error{reason = {?ERR_MISSING_PARAM, Keys}}) ->
     Key = get_key(Keys),
     {<<"Invalid Request">>, <<"Missing required parameter: '", Key/binary, "'.">>};
 
-translate(_Type, #error{reason = ?ERR_INVALID_USERNAME}) ->
-    {<<"Invalid Request">>, <<"Username must be 2-15 characters long and composed ",
-        "of letters and digits. Dashes and underscores are allowed ",
-        "(but not at the beginning or the end).">>};
+translate(_Type, #error{reason = ?ERR_INVALID_NEW_PASSPHRASE}) ->
+    {<<"Invalid Request">>, str_utils:format_bin(
+        "Passphrase must be at least ~B characters long", [?PASSWORD_MIN_LENGTH])};
 
-translate(_Type, #error{reason = ?ERR_INVALID_PASSWORD}) ->
-    {<<"Invalid Request">>, <<"Password must be at least ",
-        (integer_to_binary(?PASSWORD_MIN_LENGTH))/binary,
-        " characters long and must not contain a colon character ':'">>};
-
-translate(_Type, #error{reason = ?ERR_INVALID_ROLE}) ->
-    {<<"Invalid Request">>, <<"User role must be one of 'admin' or 'regular'.">>};
-
-translate(_Type, #error{reason = ?ERR_USERNAME_NOT_AVAILABLE}) ->
-    {<<"Operation Error">>, <<"Username is not available.">>};
-
-translate(_Type, #error{reason = ?ERR_INVALID_USERNAME_OR_PASSWORD}) ->
-    {<<"Authentication Error">>, <<"Invalid username or password.">>};
+translate(_Type, #error{reason = ?ERR_INVALID_CURRENT_PASSPHRASE}) ->
+    {<<"Authentication Error">>, <<"Invalid password.">>};
 
 translate(_Type, #error{reason = ?ERR_INVALID_AUTH_TOKEN}) ->
     {<<"Authentication Error">>, <<"Invalid REST API token.">>};
 
 translate(_Type, #error{reason = ?ERR_INVALID_PASSPHRASE}) ->
     {<<"Authentication Error">>, <<"Invalid emergency passphrase.">>};
+
+translate(_Type, #error{reason = ?ERR_INVALID_USERNAME}) ->
+    {<<"Invalid Request">>, <<"Basic auth username must be \"onepanel\".">>};
 
 translate(_Type, #error{reason = ?ERR_USER_NOT_IN_CLUSTER}) ->
     {<<"Authentication Error">>, <<"User is not authorized to access this cluster.">>};
