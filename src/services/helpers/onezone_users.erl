@@ -168,5 +168,5 @@ migrate_user(UserUUID, Username, PasswordHash, Role) ->
     {OzwNode :: node(), Client :: onezone_client:logic_client()}.
 get_node_and_client() ->
     {ok, OzNode} = nodes:any(?SERVICE_OZW),
-    {ok, Client} = service_oz_worker:get_logic_client(root),
+    {ok, Client} = service_oz_worker:get_root_logic_client(),
     {OzNode, Client}.

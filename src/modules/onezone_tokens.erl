@@ -24,8 +24,6 @@
 -export([authenticate_user/1]).
 -export([read_domain/1]).
 
--type auth() :: rest_handler:zone_auth().
-
 -define(USER_DETAILS_CACHE_KEY(Token), {user_details, Token}).
 -define(USER_DETAILS_CACHE_TTL, onepanel_env:get(onezone_auth_cache_ttl, ?APP_NAME, 0)).
 
@@ -68,7 +66,7 @@ read_domain(RegistrationToken) ->
     ClusterType :: onedata:cluster_type(), AccessToken :: binary()
 ) -> #client{} | #error{}.
 authenticate_user(onezone, AccessToken) ->
-    case service_oz_worker:get_logic_client(AccessToken) of
+    case service_oz_worker:get_logic_client_from_token(AccessToken) of
         {ok, LogicClient} ->
             {ok, Details} = service_oz_worker:get_user_details(LogicClient),
             user_details_to_client(Details, {rpc, LogicClient});
@@ -115,7 +113,7 @@ fetch_details(AccessToken) ->
 
 
 %% @private
--spec user_details_to_client(#user_details{}, auth()) ->
+-spec user_details_to_client(#user_details{}, rest_handler:zone_auth()) ->
     #client{} | #error{} | no_return().
 user_details_to_client(Details, Auth) ->
     #user_details{id = OnezoneUserId} = Details,

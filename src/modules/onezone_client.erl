@@ -64,7 +64,7 @@ fetch_zone_info(Domain) ->
 root_auth() ->
     case onepanel_env:get_cluster_type() of
         onezone ->
-            case service_oz_worker:get_logic_client(root) of
+            case service_oz_worker:get_root_logic_client() of
                 {ok, Client} -> {rpc, Client};
                 _Error -> none
             end;

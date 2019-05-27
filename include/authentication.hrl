@@ -18,7 +18,7 @@
 
 %% Usernames which can be used with the emergency passphrase for convenience
 %% when using clients which always expect basic auth to have two parts.
--define(LOCAL_USERNAMES, [<<"onepanel">>]).
+-define(LOCAL_USERNAME, <<"onepanel">>).
 -define(LOCAL_SESSION_USERNAME, <<"__onepanel">>).
 
 -record(client, {
