@@ -31,7 +31,8 @@
     supports_letsencrypt_challenge/1]).
 
 %% API functions
--export([get_root_logic_client/0, get_logic_client_from_token/1]).
+-export([get_root_logic_client/0, get_logic_client_by_gui_token/1,
+    get_logic_client_by_access_token/1]).
 -export([get_user_details/1]).
 
 %% Step functions
@@ -131,16 +132,30 @@ get_root_logic_client() ->
     end.
 
 
--spec get_logic_client_from_token(AccessToken :: binary())  ->
+-spec get_logic_client_by_gui_token(GuiToken :: binary())  ->
     {ok, onezone_client:logic_client()} | #error{}.
-get_logic_client_from_token(AccessToken) ->
+get_logic_client_by_gui_token(GuiToken) ->
     case nodes:any(name()) of
         {ok, OzNode} ->
             case rpc:call(OzNode, auth_logic,
-                authorize_by_onezone_gui_macaroon, [AccessToken]
+                authorize_by_onezone_gui_macaroon, [GuiToken]
             ) of
-                {true, LogicClient, _SessionId} ->
-                    {ok, LogicClient};
+                {true, LogicClient, _SessionId} -> {ok, LogicClient};
+                {error, ApiError} -> ?make_error(ApiError)
+            end;
+        Error -> Error
+    end.
+
+
+-spec get_logic_client_by_access_token(AccessToken :: binary())  ->
+    {ok, onezone_client:logic_client()} | #error{}.
+get_logic_client_by_access_token(AccessToken) ->
+    case nodes:any(name()) of
+        {ok, OzNode} ->
+            case rpc:call(OzNode, auth_logic,
+                authorize_by_access_token, [AccessToken]
+            ) of
+                {true, LogicClient} -> {ok, LogicClient};
                 {error, ApiError} -> ?make_error(ApiError)
             end;
         Error -> Error

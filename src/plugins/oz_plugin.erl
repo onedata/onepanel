@@ -17,7 +17,7 @@
 
 -behaviour(oz_plugin_behaviour).
 
--type auth() :: none | provider | {gui_token, binary()}.
+-type auth() :: none | provider | {gui_token, binary()} | {access_token, binary()}.
 -export_type([auth/0]).
 
 %% OZ behaviour callbacks
@@ -88,10 +88,13 @@ get_provider_cacerts_dir() ->
 auth_to_rest_client(none) ->
     none;
 
-auth_to_rest_client({gui_token, AccessToken}) ->
+auth_to_rest_client({access_token, AccessToken}) ->
+    {headers, #{<<"x-auth-token">> => AccessToken}};
+
+auth_to_rest_client({gui_token, GuiToken}) ->
     ProviderMacaroon = service_oneprovider:get_auth_token(),
     {headers, #{
-        <<"subject-token">> => AccessToken,
+        <<"subject-token">> => GuiToken,
         <<"audience-token">> => ProviderMacaroon
     }};
 
