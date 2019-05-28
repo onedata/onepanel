@@ -106,7 +106,7 @@ auth_request(HostOrConfig, Port, Endpoint, Method, {token, Token},
 
 auth_request(HostOrConfig, Port, Endpoint, Method, <<Passphrase/binary>>,
     Headers, Body) ->
-    Username = hd(?LOCAL_USERNAMES),
+    Username = ?LOCAL_USERNAME,
     auth_request(HostOrConfig, Port, Endpoint, Method, {Username, Passphrase}, Headers, Body);
 
 auth_request(HostOrConfig, Port, Endpoint, Method, {Username, Password}, Headers, Body) ->
@@ -253,7 +253,7 @@ mock_token_authentication(Nodes) ->
             ClientBin = base64:decode(ClientB64),
             Client = erlang:binary_to_term(ClientBin),
             case onepanel_env:get_cluster_type() of
-                oneprovider -> Client#client{zone_auth = {rest, {access_token, Token}}};
+                oneprovider -> Client#client{zone_auth = {rest, {gui_token, Token}}};
                 onezone -> Client#client{zone_auth = {rpc, opaque_client}}
             end;
         (BadToken) -> meck:passthrough([BadToken])

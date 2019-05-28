@@ -73,7 +73,7 @@ change(OldPassphrase, NewPassphrase) ->
         false ->
             ?info("Attempt to change emergency passphrase failed due to" ++
             "incorrect previous passphrase given"),
-            ?make_error(?ERR_INVALID_USERNAME_OR_PASSWORD)
+            ?make_error(?ERR_INVALID_PASSPHRASE)
     end.
 
 
@@ -138,8 +138,8 @@ set_hash(PassphraseHash) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec validate(Passphrase :: binary()) -> ok | #error{}.
-validate(Passphrase) when size(Passphrase) < ?PASSWORD_MIN_LENGTH ->
-    ?make_error(?ERR_INVALID_PASSWORD);
+validate(Passphrase) when size(Passphrase) < ?PASSPHRASE_MIN_LENGTH ->
+    ?make_error(?ERR_INVALID_NEW_PASSPHRASE);
 
 validate(Passphrase) when is_binary(Passphrase) ->
     ok.

@@ -110,9 +110,9 @@ get_user(#{user_id := UserId}) ->
 %%--------------------------------------------------------------------
 -spec create_default_admin(service:ctx()) -> ok.
 create_default_admin(_Ctx) ->
-    case user_exists(?DEFAULT_ADMIN_USERNAME) of
-        true -> ok;
-        false ->
+    case get_by_username(?DEFAULT_ADMIN_USERNAME) of
+        {ok, _} -> ok;
+        {error, not_found} ->
             {ok, PasswordHash} = emergency_passphrase:get_hash(),
             RandomId = onepanel_utils:gen_uuid(),
             migrate_user(RandomId, ?DEFAULT_ADMIN_USERNAME, PasswordHash, admin)
@@ -164,9 +164,17 @@ migrate_user(UserUUID, Username, PasswordHash, Role) ->
 
 
 %% @private
+-spec get_by_username(Username :: binary()) ->
+    {ok, UserId :: binary()} | {error, not_found}.
+get_by_username(Username) ->
+    {ok, OzNode} = nodes:any(?SERVICE_OZW),
+    rpc:call(OzNode, od_user, get_by_username, [Username]).
+
+
+%% @private
 -spec get_node_and_client() ->
     {OzwNode :: node(), Client :: onezone_client:logic_client()}.
 get_node_and_client() ->
     {ok, OzNode} = nodes:any(?SERVICE_OZW),
-    {ok, Client} = service_oz_worker:get_logic_client(root),
+    {ok, Client} = service_oz_worker:get_root_logic_client(),
     {OzNode, Client}.

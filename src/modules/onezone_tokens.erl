@@ -24,8 +24,6 @@
 -export([authenticate_user/1]).
 -export([read_domain/1]).
 
--type auth() :: rest_handler:zone_auth().
-
 -define(USER_DETAILS_CACHE_KEY(Token), {user_details, Token}).
 -define(USER_DETAILS_CACHE_TTL, onepanel_env:get(onezone_auth_cache_ttl, ?APP_NAME, 0)).
 
@@ -34,16 +32,18 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc Fetches information about a Onezone user basing on his
-%% access token, verifies that he belongs to the cluster and
-%% fetches his privileges.
+%% @doc Authenticates client as a user belonging to
+%% the current cluster. Accepts either Onedata access token
+%% or gui token, both issued by Onezone.
+%% In the process obtains privileges held by the user in the current
+%% cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec authenticate_user(AccessToken :: binary()) ->
+-spec authenticate_user(Token :: binary()) ->
     #client{} | #error{}.
-authenticate_user(AccessToken) ->
+authenticate_user(Token) ->
     ClusterType = onepanel_env:get_cluster_type(),
-    case authenticate_user(ClusterType, AccessToken) of
+    case authenticate_user(ClusterType, Token) of
         #client{} = Client -> Client;
         #error{} = Error -> Error
     end.
@@ -63,12 +63,22 @@ read_domain(RegistrationToken) ->
 %%% Internal functions
 %%%===================================================================
 
+%%--------------------------------------------------------------------
 %% @private
+%% @doc Authenticate user and obtain their info.
+%% Attempts treating the Token as access token or gui token, whichever
+%% is accepted, as they cannot be easily distinguished.
+%% @end
+%%--------------------------------------------------------------------
 -spec authenticate_user(
-    ClusterType :: onedata:cluster_type(), AccessToken :: binary()
+    ClusterType :: onedata:cluster_type(), Token :: binary()
 ) -> #client{} | #error{}.
-authenticate_user(onezone, AccessToken) ->
-    case service_oz_worker:get_logic_client(AccessToken) of
+authenticate_user(onezone, Token) ->
+    ClientOrError = case service_oz_worker:get_logic_client_by_gui_token(Token) of
+        {ok, Client} -> {ok, Client};
+        _Error -> service_oz_worker:get_logic_client_by_access_token(Token)
+    end,
+    case ClientOrError of
         {ok, LogicClient} ->
             {ok, Details} = service_oz_worker:get_user_details(LogicClient),
             user_details_to_client(Details, {rpc, LogicClient});
@@ -76,15 +86,22 @@ authenticate_user(onezone, AccessToken) ->
             ?make_error(?ERR_INVALID_AUTH_TOKEN)
     end;
 
-authenticate_user(oneprovider, AccessToken) ->
-    Fetched = simple_cache:get(?USER_DETAILS_CACHE_KEY(AccessToken), fun() ->
-        case fetch_details(AccessToken) of
-            {ok, Details} -> {true, Details, ?USER_DETAILS_CACHE_TTL};
-            Error -> Error
+authenticate_user(oneprovider, Token) ->
+    FetchDetailsFun = fun() ->
+        Auth1 = {gui_token, Token},
+        Auth2 = {access_token, Token},
+        case fetch_details(Auth1) of
+            {ok, Details} -> {true, {Details, Auth1}, ?USER_DETAILS_CACHE_TTL};
+            _ ->
+                case fetch_details(Auth2) of
+                    {ok, Details} -> {true, {Details, Auth2}, ?USER_DETAILS_CACHE_TTL};
+                    Error -> Error
+                end
         end
-    end),
-    case Fetched of
-        {ok, Details} -> user_details_to_client(Details, {rest, {access_token, AccessToken}});
+    end,
+
+    case simple_cache:get(?USER_DETAILS_CACHE_KEY(Token), FetchDetailsFun) of
+        {ok, {Details, Auth}} -> user_details_to_client(Details, {rest, Auth});
         #error{reason = {401, _, _}} -> ?make_error(?ERR_INVALID_AUTH_TOKEN)
     end.
 
@@ -96,9 +113,9 @@ authenticate_user(oneprovider, AccessToken) ->
 %% on every failed login attempt.
 %% @end
 %%--------------------------------------------------------------------
--spec fetch_details(AccessToken :: binary()) -> {ok, #user_details{}} | #error{}.
-fetch_details(AccessToken) ->
-    case oz_endpoint:request({access_token, AccessToken}, "/user", get) of
+-spec fetch_details(RestAuth :: oz_plugin:auth()) -> {ok, #user_details{}} | #error{}.
+fetch_details(RestAuth) ->
+    case oz_endpoint:request(RestAuth, "/user", get) of
         {ok, 200, _ResponseHeaders, ResponseBody} ->
             Map = json_utils:decode(ResponseBody),
             UserDetails = #user_details{
@@ -115,7 +132,7 @@ fetch_details(AccessToken) ->
 
 
 %% @private
--spec user_details_to_client(#user_details{}, auth()) ->
+-spec user_details_to_client(#user_details{}, rest_handler:zone_auth()) ->
     #client{} | #error{} | no_return().
 user_details_to_client(Details, Auth) ->
     #user_details{id = OnezoneUserId} = Details,

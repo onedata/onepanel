@@ -87,7 +87,7 @@ get_current_user_as_oz_user_should_return_privileges(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Config, <<"/user">>, get,
-                hd(?OZ_AUTHS(Config, PrivilegeSet))
+                ?OZ_AUTHS(Config, PrivilegeSet)
             )
         ),
         onepanel_test_rest:assert_body_fields(JsonBody,
@@ -243,8 +243,8 @@ init_per_testcase(_Case, Config) ->
         fun() -> ?config(onepanel_hosts, Config) end),
     test_utils:mock_expect(Nodes, service_oz_worker, get_hosts,
         fun() -> ?config(onepanel_hosts, Config) end),
-    test_utils:mock_expect(Nodes, service_oz_worker, get_logic_client,
-        fun(root) -> {ok, ?ROOT_CLIENT} end),
+    test_utils:mock_expect(Nodes, service_oz_worker, get_root_logic_client,
+        fun() -> {ok, ?ROOT_CLIENT} end),
     Config.
 
 
