@@ -138,7 +138,7 @@ set_hash(PassphraseHash) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec validate(Passphrase :: binary()) -> ok | #error{}.
-validate(Passphrase) when size(Passphrase) < ?PASSWORD_MIN_LENGTH ->
+validate(Passphrase) when size(Passphrase) < ?PASSPHRASE_MIN_LENGTH ->
     ?make_error(?ERR_INVALID_NEW_PASSPHRASE);
 
 validate(Passphrase) when is_binary(Passphrase) ->

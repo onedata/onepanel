@@ -107,8 +107,8 @@
 -define(ERR_INCOMPATIBLE_NODE(Host, ClusterType), {incompatible_node, Host, ClusterType}).
 
 -define(ERR_INVALID_USERNAME, invalid_username).
--define(ERR_INVALID_NEW_PASSPHRASE, invalid_password).
--define(ERR_INVALID_CURRENT_PASSPHRASE, invalid_username_or_password).
+-define(ERR_INVALID_NEW_PASSPHRASE, invalid_new_passphrase).
+-define(ERR_INVALID_CURRENT_PASSPHRASE, invalid_current_passphrase).
 -define(ERR_INVALID_AUTH_TOKEN, invalid_auth_token).
 -define(ERR_INVALID_PASSPHRASE, invalid_passphrase).
 -define(ERR_UNAUTHORIZED, unauthorized).

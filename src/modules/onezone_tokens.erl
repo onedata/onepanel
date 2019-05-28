@@ -92,7 +92,7 @@ authenticate_user(oneprovider, Token) ->
         Auth2 = {access_token, Token},
         case fetch_details(Auth1) of
             {ok, Details} -> {true, {Details, Auth1}, ?USER_DETAILS_CACHE_TTL};
-            Error ->
+            _ ->
                 case fetch_details(Auth2) of
                     {ok, Details} -> {true, {Details, Auth2}, ?USER_DETAILS_CACHE_TTL};
                     Error -> Error

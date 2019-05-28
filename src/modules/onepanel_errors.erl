@@ -84,7 +84,7 @@ translate(_Type, #error{reason = {?ERR_MISSING_PARAM, Keys}}) ->
 
 translate(_Type, #error{reason = ?ERR_INVALID_NEW_PASSPHRASE}) ->
     {<<"Invalid Request">>, str_utils:format_bin(
-        "Passphrase must be at least ~B characters long", [?PASSWORD_MIN_LENGTH])};
+        "Passphrase must be at least ~B characters long", [?PASSPHRASE_MIN_LENGTH])};
 
 translate(_Type, #error{reason = ?ERR_INVALID_CURRENT_PASSPHRASE}) ->
     {<<"Authentication Error">>, <<"Invalid password.">>};
