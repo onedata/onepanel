@@ -310,17 +310,12 @@ add(OpNode, StorageName, Params) ->
     LumaConfig = get_luma_config(OpNode, Params),
     maybe_verify_storage(Helper, ReadOnly),
 
-    case exists(OpNode, {name, StorageName}) of
-        true ->
-            {error, already_exists};
-        false ->
-            ?info("Adding storage: \"~s\" (~s)", [StorageName, StorageType]),
-            StorageRecord = rpc:call(OpNode, storage, new,
-                [StorageName, [Helper], ReadOnly, LumaConfig]),
-            case rpc:call(OpNode, storage, create, [StorageRecord]) of
-                {ok, _StorageId} -> ok;
-                {error, Reason} -> {error, Reason}
-            end
+    ?info("Adding storage: \"~s\" (~s)", [StorageName, StorageType]),
+    StorageRecord = rpc:call(OpNode, storage, new,
+        [StorageName, [Helper], ReadOnly, LumaConfig]),
+    case rpc:call(OpNode, storage, create, [StorageRecord]) of
+        {ok, _StorageId} -> ok;
+        {error, Reason} -> {error, Reason}
     end.
 
 
@@ -332,13 +327,13 @@ add(OpNode, StorageName, Params) ->
 -spec make_helper(OpNode :: node(), StorageType :: binary(), UserCtx :: user_ctx(),
     Params :: storage_params()) ->
     helper() | {badrpc, term()}.
-make_helper(OpNode, StorageType, UserCtx, Params) ->
+make_helper(OpNode, StorageType, AdminCtx, Params) ->
     Args = storage_params:make_helper_args(OpNode, StorageType, Params),
     Insecure = onepanel_utils:typed_get(insecure, Params, boolean, false),
     PathType = onepanel_utils:typed_get(storagePathType, Params, binary),
 
     rpc:call(OpNode, helper, new_helper,
-        [StorageType, Args, UserCtx, Insecure, PathType]).
+        [StorageType, Args, AdminCtx, Insecure, PathType]).
 
 
 %%--------------------------------------------------------------------
@@ -352,7 +347,8 @@ maybe_verify_storage(_Helper, true) ->
     skipped;
 maybe_verify_storage(Helper, _) ->
     ?info("Verifying write access to storage"),
-    ok = verify_storage(Helper),
+    % @fixme improve error reporting
+    verify_storage(Helper),
     verified.
 
 
@@ -437,7 +433,8 @@ get_required_luma_arg(Key, StorageParams, Type) ->
 %%--------------------------------------------------------------------
 -spec make_update_result(OpNode :: node(), StorageId :: id()) -> storage_details().
 make_update_result(OpNode, StorageId) ->
-    Details = #{name := Name, type := Type, readonly := Readonly} = ?MODULE:get(StorageId),
+    Details = ?MODULE:get(StorageId),
+    #{name := Name, type := Type, readonly := Readonly} = Details,
     try
         {ok, Helper} = rpc:call(OpNode, storage, select_helper, [StorageId, Type]),
         maybe_verify_storage(Helper, Readonly)
@@ -464,30 +461,23 @@ maybe_update_name(_OpNode, _Id, _Params) ->
 
 %% @private
 -spec maybe_update_admin_ctx(OpNode :: node(), Id :: id(), Type :: binary(),
-    Params :: map()) -> ok | no_return().
+    Params :: storage_params()) -> ok | no_return().
 maybe_update_admin_ctx(OpNode, Id, Type, Params) ->
     Ctx = storage_params:make_user_ctx(OpNode, Type, Params),
     case maps:size(Ctx) of
         0 -> ok;
-        _ ->
-            % Note that for some storage types make_user_ctx/3 always
-            % returns a nonempty, constant result.
-            % This is not a problem as long as those values are
-            % never changed by op_worker.
-            ok = rpc:call(OpNode, storage, update_admin_ctx, [Id, Type, Ctx])
+        _ -> ok = rpc:call(OpNode, storage, update_admin_ctx, [Id, Type, Ctx])
     end.
 
 
 %% @private
 -spec maybe_update_args(OpNode :: node(), Id :: id(), Type :: binary(),
-    Params :: map()) -> ok | no_return().
+    Params :: storage_params()) -> ok | no_return().
 maybe_update_args(OpNode, Id, Type, Params) ->
     Args = storage_params:make_helper_args(OpNode, Type, Params),
     case maps:size(Args) of
         0 -> ok;
-        _ ->
-            ok = rpc:call(OpNode, storage, update_helper_args,
-                [Id, Type, Args])
+        _ -> ok = rpc:call(OpNode, storage, update_helper_args, [Id, Type, Args])
     end.
 
 

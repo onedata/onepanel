@@ -36,17 +36,10 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec make_helper_args(OpNode :: node(), StorageType :: binary(),
-    Params :: #{atom() => term()}) -> helper_args().
+    Params :: storage_params()) -> helper_args().
 make_helper_args(OpNode, StorageType, Params) ->
-    Args = prepare_args(StorageType, Params),
-    BinKeys = onepanel_utils:convert(Args, {keys, binary}),
-
-    % ensure only relevant keys
-    RelevantArgs = rpc:call(OpNode, helper, filter_args,
-        [StorageType, BinKeys]),
-
-    % ensure binary values
-    onepanel_utils:convert(RelevantArgs, {values, binary}).
+     rpc:call(OpNode, helper, prepare_helper_args,
+        [StorageType, convert_to_binaries(Params)]).
 
 
 %%--------------------------------------------------------------------
@@ -56,16 +49,26 @@ make_helper_args(OpNode, StorageType, Params) ->
 %%--------------------------------------------------------------------
 -spec make_user_ctx(OpNode :: node(), StorageType :: binary(),
     Params :: storage_params()) -> user_ctx().
-make_user_ctx(Node, StorageType, Params) ->
-    Args = prepare_user_ctx_params(StorageType, Params),
-    BinKeys = onepanel_utils:convert(Args, {keys, binary}),
+make_user_ctx(OpNode, StorageType, Params) ->
+    rpc:call(OpNode, helper, prepare_user_ctx_params,
+        [StorageType, convert_to_binaries(Params)]).
 
-    % ensure only relevant keys
-    RelevantParams = rpc:call(Node, helper, filter_user_ctx,
-        [StorageType, BinKeys]),
 
-    % ensure binary values
-    onepanel_utils:convert(RelevantParams, {values, binary}).
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Convert params map to types used by helper args and ctx,
+%% that is binary keys and binary or integer values.
+%% @end
+%%--------------------------------------------------------------------
+-spec convert_to_binaries(#{term() => term()}) -> helper_args().
+convert_to_binaries(Map) ->
+    maps:from_list([
+        {
+            onepanel_utils:convert(Key, binary),
+            onepanel_utils:convert(Value, binary)
+        } || {Key, Value} <- maps:to_list(Map)
+    ]).
 
 
 %%--------------------------------------------------------------------
@@ -81,60 +84,3 @@ make_luma_params(Params) ->
         {lumaApiKey, api_key},
         {lumaEnabled, luma_enabled}
     ], Params).
-
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Applies necessary transformations to storage params producing
-%% helper args.
-%% @end
-%%--------------------------------------------------------------------
--spec prepare_args(StorageType :: binary(), Params :: storage_params()) ->
-    storage_params().
-prepare_args(<<"s3">>, #{hostname := _} = Params) ->
-    Hostname = onepanel_utils:typed_get(hostname, Params, binary),
-    #hackney_url{scheme = S3Scheme, host = S3Host, port = S3Port} =
-        hackney_url:parse_url(Hostname),
-
-    Scheme = case S3Scheme of
-        https -> <<"https">>;
-        _ -> <<"http">>
-    end,
-
-    Params#{
-        <<"hostname">> => onepanel_utils:join([S3Host, S3Port], <<":">>),
-        <<"scheme">> => Scheme
-    };
-
-prepare_args(_HelperName, Params) ->
-    Params.
-
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Applies necessary transformations to storage params producing
-%% user Ctx params.
-%% @end
-%%--------------------------------------------------------------------
--spec prepare_user_ctx_params(StorageType :: binary(),
-    Params :: storage_params()) -> #{binary() => binary()}.
-prepare_user_ctx_params(StorageType, _Params) when
-    StorageType == <<"glusterfs">>;
-    StorageType == <<"nulldevice">>;
-    StorageType == <<"posix">> ->
-    #{<<"uid">> => <<"0">>, <<"gid">> => <<"0">>};
-
-prepare_user_ctx_params(<<"webdav">>, Params) ->
-    case Params of
-        #{<<"credentialsType">> := <<"none">>} ->
-            Params#{<<"credentials">> => <<>>};
-        _ -> Params
-    end;
-
-prepare_user_ctx_params(_StorageType, Params) ->
-    Params.
-
