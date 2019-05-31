@@ -304,8 +304,8 @@ add(OpNode, StorageName, Params) ->
     ?info("Gathering storage configuration: \"~s\" (~s)", [StorageName, StorageType]),
     ReadOnly = onepanel_utils:typed_get(readonly, Params, boolean, false),
 
-    UserCtx = storage_params:make_user_ctx(OpNode, StorageType, Params),
-    Helper = make_helper(OpNode, StorageType, UserCtx, Params),
+    UserCtx = make_user_ctx(OpNode, StorageType, Params),
+    {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, Params),
 
     LumaConfig = get_luma_config(OpNode, Params),
     maybe_verify_storage(Helper, ReadOnly),
@@ -326,9 +326,9 @@ add(OpNode, StorageName, Params) ->
 %%--------------------------------------------------------------------
 -spec make_helper(OpNode :: node(), StorageType :: binary(), UserCtx :: user_ctx(),
     Params :: storage_params()) ->
-    helper() | {badrpc, term()}.
+    {ok, helper()} | {badrpc, term()}.
 make_helper(OpNode, StorageType, AdminCtx, Params) ->
-    Args = storage_params:make_helper_args(OpNode, StorageType, Params),
+    Args = make_helper_args(OpNode, StorageType, Params),
     Insecure = onepanel_utils:typed_get(insecure, Params, boolean, false),
     PathType = onepanel_utils:typed_get(storagePathType, Params, binary),
 
@@ -363,7 +363,8 @@ verify_storage(Helper) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     case rpc:call(Node, storage_detector, verify_storage_on_all_nodes, [Helper]) of
         ok -> ok;
-        {error, Reason} -> ?throw_error(Reason)
+        {error, Reason} -> ?throw_error(Reason);
+        {badrpc, {'EXIT', Error}} -> ?throw_error(Error)
     end.
 
 
@@ -448,6 +449,44 @@ make_update_result(OpNode, StorageId) ->
         Details#{verificationPassed => false}
     end.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Creates helper arguments based on storage params from user input.
+%% @end
+%%--------------------------------------------------------------------
+-spec make_helper_args(OpNode :: node(), StorageType :: binary(),
+    Params :: storage_params()) -> helper_args().
+make_helper_args(OpNode, StorageType, Params) ->
+    rpc:call(OpNode, helper_params, prepare_helper_args,
+        [StorageType, convert_to_binaries(Params)]).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Creates storage user ctx based on storage params from user input.
+%% @end
+%%--------------------------------------------------------------------
+-spec make_user_ctx(OpNode :: node(), StorageType :: binary(),
+    Params :: storage_params()) -> user_ctx().
+make_user_ctx(OpNode, StorageType, Params) ->
+    rpc:call(OpNode, helper_params, prepare_user_ctx_params,
+        [StorageType, convert_to_binaries(Params)]).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Prepares luma params based on storage params from user input.
+%% @end
+%%--------------------------------------------------------------------
+-spec make_luma_params(Params :: storage_params()) ->
+    #{url => binary(), api_key => binary(), luma_enabled => boolean()}.
+make_luma_params(Params) ->
+    onepanel_maps:get_store_multiple([
+        {lumaUrl, url},
+        {lumaApiKey, api_key},
+        {lumaEnabled, luma_enabled}
+    ], Params).
+
 
 %% @private
 -spec maybe_update_name(OpNode :: node(), Id :: id(), Params :: map()) ->
@@ -463,7 +502,7 @@ maybe_update_name(_OpNode, _Id, _Params) ->
 -spec maybe_update_admin_ctx(OpNode :: node(), Id :: id(), Type :: binary(),
     Params :: storage_params()) -> ok | no_return().
 maybe_update_admin_ctx(OpNode, Id, Type, Params) ->
-    Ctx = storage_params:make_user_ctx(OpNode, Type, Params),
+    Ctx = make_user_ctx(OpNode, Type, Params),
     case maps:size(Ctx) of
         0 -> ok;
         _ -> ok = rpc:call(OpNode, storage, update_admin_ctx, [Id, Type, Ctx])
@@ -474,7 +513,7 @@ maybe_update_admin_ctx(OpNode, Id, Type, Params) ->
 -spec maybe_update_args(OpNode :: node(), Id :: id(), Type :: binary(),
     Params :: storage_params()) -> ok | no_return().
 maybe_update_args(OpNode, Id, Type, Params) ->
-    Args = storage_params:make_helper_args(OpNode, Type, Params),
+    Args = make_helper_args(OpNode, Type, Params),
     case maps:size(Args) of
         0 -> ok;
         _ -> ok = rpc:call(OpNode, storage, update_helper_args, [Id, Type, Args])
@@ -506,7 +545,7 @@ maybe_update_readonly(_OpNode, _Id, _Params) -> ok.
 maybe_update_luma_config(OpNode, Id, Params) ->
     IsEnabled = rpc:call(OpNode, storage, is_luma_enabled, [Id]),
 
-    case {storage_params:make_luma_params(Params), IsEnabled} of
+    case {make_luma_params(Params), IsEnabled} of
         {Empty, _} when map_size(Empty) == 0 ->
             ok;
         {#{luma_enabled := false}, false} ->
@@ -598,3 +637,12 @@ parse_file_popularity_configuration(Args) ->
         avg_open_count_per_day_weight => onepanel_utils:typed_get(avg_open_count_per_day_weight, Args, float, undefined),
         max_avg_open_count_per_day => onepanel_utils:typed_get(max_avg_open_count_per_day, Args, float, undefined)
     }).
+
+
+%% @private
+-spec convert_to_binaries(#{term() => term()}) -> #{binary() => binary()}.
+convert_to_binaries(Map) ->
+    maps:from_list([{
+        onepanel_utils:convert(Key, binary),
+        onepanel_utils:convert(Value, binary)
+    } || {Key, Value} <- maps:to_list(Map)]).

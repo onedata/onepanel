@@ -28,11 +28,11 @@
 %%--------------------------------------------------------------------
 %% Checks if current state makes request impossible to fulfill.
 %% Called on methods POST, PUT, PATCH and DELETE.
-%% Negative response triggers the 409 Conflict http code.
+%% Negative result triggers the 409 Conflict http code.
 %%--------------------------------------------------------------------
 -callback is_conflict(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
-    {Possible :: boolean(), Req :: cowboy_req:req()}
+    {IsConflict :: boolean(), Req :: cowboy_req:req()}
     | {stop, Req :: cowboy_req:req()}.
 
 
