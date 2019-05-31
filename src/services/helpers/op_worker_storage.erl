@@ -521,7 +521,7 @@ maybe_update_luma_config(OpNode, Id, Params) ->
             ok;
         {#{luma_enabled := false}, false} ->
             ok;
-        {#{luma_enabled := New}, Old} when New /= Old ->
+        {#{luma_enabled := NewEnabled}, OldEnabled} when NewEnabled /= OldEnabled ->
             LumaConfig = get_luma_config(OpNode, Params),
             ok = rpc:call(OpNode, storage, set_luma_config, [Id, LumaConfig]),
             invalidate_luma_cache(Id);

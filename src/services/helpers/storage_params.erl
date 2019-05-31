@@ -80,7 +80,7 @@ make_luma_params(Params) ->
         {lumaUrl, url},
         {lumaApiKey, api_key},
         {lumaEnabled, luma_enabled}
-    ], Params)  .
+    ], Params).
 
 
 %%%===================================================================
