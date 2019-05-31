@@ -27,17 +27,21 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 %% LE behaviour callbacks
 -export([set_txt_record/1, remove_txt_record/1, get_dns_server/0,
-    reload_webcert/1, get_domain/0, get_admin_email/1, set_http_record/2,
+    reload_webcert/1, get_domain/0, get_admin_email/0, set_http_record/2,
     supports_letsencrypt_challenge/1]).
 
-%% API
+%% API functions
+-export([get_root_logic_client/0, get_logic_client_by_gui_token/1,
+    get_logic_client_by_access_token/1]).
+-export([get_user_details/1]).
+
+%% Step functions
 -export([configure/1, start/1, stop/1, status/1, health/1, wait_for_init/1,
     get_nagios_response/1, get_nagios_status/1]).
 -export([reconcile_dns/1, get_ns_hosts/0]).
 -export([migrate_generated_config/1, rename_variables/0]).
 -export([get_policies/0, set_policies/1]).
 -export([get_details/1, get_details/0]).
--export([get_logic_client/1, get_user_details/1]).
 
 -define(INIT_SCRIPT, "oz_worker").
 -define(DETAILS_CACHE_KEY, onezone_details).
@@ -111,8 +115,64 @@ get_steps(resume, Ctx) ->
 get_steps(Action, Ctx) ->
     service_cluster_worker:get_steps(Action, Ctx#{name => name()}).
 
+
 %%%===================================================================
-%%% API functions
+%%% Public API
+%%%===================================================================
+
+-spec get_root_logic_client() -> {ok, onezone_client:logic_client()} | #error{}.
+get_root_logic_client() ->
+    case nodes:any(name()) of
+        {ok, OzNode} ->
+            case rpc:call(OzNode, entity_logic, root_client, []) of
+                {badrpc, _} = Error -> ?make_error(Error);
+                LogicClient -> {ok, LogicClient}
+            end;
+        Error -> Error
+    end.
+
+
+-spec get_logic_client_by_gui_token(GuiToken :: binary())  ->
+    {ok, onezone_client:logic_client()} | #error{}.
+get_logic_client_by_gui_token(GuiToken) ->
+    case nodes:any(name()) of
+        {ok, OzNode} ->
+            case rpc:call(OzNode, auth_logic,
+                authorize_by_onezone_gui_macaroon, [GuiToken]
+            ) of
+                {true, LogicClient, _SessionId} -> {ok, LogicClient};
+                {error, ApiError} -> ?make_error(ApiError)
+            end;
+        Error -> Error
+    end.
+
+
+-spec get_logic_client_by_access_token(AccessToken :: binary())  ->
+    {ok, onezone_client:logic_client()} | #error{}.
+get_logic_client_by_access_token(AccessToken) ->
+    case nodes:any(name()) of
+        {ok, OzNode} ->
+            case rpc:call(OzNode, auth_logic,
+                authorize_by_access_token, [AccessToken]
+            ) of
+                {true, LogicClient} -> {ok, LogicClient};
+                {error, ApiError} -> ?make_error(ApiError)
+            end;
+        Error -> Error
+    end.
+
+
+-spec get_user_details(LogicClient :: term()) -> {ok, #user_details{}} | #error{}.
+get_user_details(LogicClient) ->
+    {ok, OzNode} = nodes:any(name()),
+    case rpc:call(OzNode, user_logic, get_as_user_details, [LogicClient]) of
+        {ok, User} -> {ok, User};
+        {error, Reason} -> ?make_error(Reason)
+    end.
+
+
+%%%===================================================================
+%%% Step functions
 %%%===================================================================
 
 %%--------------------------------------------------------------------
@@ -169,7 +229,7 @@ stop(Ctx) ->
 %%--------------------------------------------------------------------
 -spec status(Ctx :: service:ctx()) -> service:status().
 status(Ctx) ->
-    % Since this function is invoked periodically by service_watcher
+    % Since this function is invoked periodically by onepanel_cron
     % use it to schedule DNS check refresh on a single node
     catch maybe_check_dns(),
     service_cluster_worker:status(Ctx#{name => name()}).
@@ -231,6 +291,7 @@ get_nagios_status(Ctx) ->
 %% @doc {@link letsencrypt_plugin_behaviour:set_http_record/2}
 %% @end
 %%--------------------------------------------------------------------
+-spec set_http_record(Name :: binary(), Value :: binary()) -> ok.
 set_http_record(Name, Value) ->
     Nodes = get_nodes(),
     {Results, []} = rpc:multicall(Nodes, http_listener,
@@ -346,8 +407,8 @@ get_details() ->
 %% @doc {@link letsencrypt_plugin_behaviour:get_admin_email/0}
 %% @end
 %%--------------------------------------------------------------------
--spec get_admin_email(service:ctx()) -> binary() | undefined.
-get_admin_email(_Ctx) ->
+-spec get_admin_email() -> binary() | undefined.
+get_admin_email() ->
     undefined.
 
 
@@ -432,41 +493,6 @@ set_policies(#{subdomain_delegation := Delegation} = Ctx) ->
     set_policies(maps:remove(subdomain_delegation, Ctx));
 set_policies(_Ctx) ->
     ok.
-
-
--spec get_logic_client(Auth :: AccessToken | root) -> {ok, rest_handler:zone_auth()} | #error{}
-    when AccessToken :: binary().
-get_logic_client(root) ->
-    case nodes:any(name()) of
-        {ok, OzNode} ->
-            case rpc:call(OzNode, entity_logic, root_client, []) of
-                {badrpc, _} = Error -> ?make_error(Error);
-                LogicClient -> {ok, LogicClient}
-            end;
-        Error -> Error
-    end;
-
-get_logic_client(AccessToken) ->
-    case nodes:any(name()) of
-        {ok, OzNode} ->
-            case rpc:call(OzNode, auth_logic,
-                authorize_by_onezone_gui_macaroon, [AccessToken]
-            ) of
-                {true, LogicClient, _SessionId} ->
-                    {ok, LogicClient};  % record to be used in rpc calls to oz_worker
-                {error, ApiError} -> ?make_error(ApiError)
-            end;
-        Error -> Error
-    end.
-
-
--spec get_user_details(LogicClient :: term()) -> {ok, #user_details{}} | #error{}.
-get_user_details(LogicClient) ->
-    {ok, OzNode} = nodes:any(name()),
-    case rpc:call(OzNode, user_logic, get_as_user_details, [LogicClient]) of
-        {ok, User} -> {ok, User};
-        {error, Reason} -> ?make_error(Reason)
-    end.
 
 
 %%%===================================================================

@@ -37,7 +37,7 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc Returns basic authorization header.
+%% @doc Constructs basic authentication header.
 %% @end
 %%--------------------------------------------------------------------
 -spec get_basic_auth_header(Username :: string() | binary(),

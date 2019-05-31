@@ -288,12 +288,11 @@ all() ->
 method_should_return_unauthorized_error(Config) ->
     ?run(Config, fun(Host) ->
         lists:foreach(fun({Endpoint, Method}) ->
-            ?assertMatch({ok, 401, _, _}, onepanel_test_rest:noauth_request(
-                Host, Endpoint, Method
-            )),
-            ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
-                Host, Endpoint, Method, {?REG_USER_NAME, <<"badPassword">>}
-            ))
+            lists:foreach(fun(Auth) ->
+                ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
+                    Host, Endpoint, Method, Auth
+                ))
+            end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
         end, ?COMMON_ENDPOINTS_WITH_METHODS)
     end).
 
@@ -302,15 +301,17 @@ method_should_return_forbidden_error(Config) ->
     ?run(Config, fun(Host) ->
         lists:foreach(fun({Endpoint, Method}) ->
             % highest rights which still should not grant access to these endpoints
-            Auths = case Method of
-                get -> ?REGULAR_AUTHS(Host);
-                _ -> ?REGULAR_AUTHS(Host) ++ ?OZ_AUTHS(Host, [])
+            Auths = case {Endpoint, Method} of
+                {<<"/provider">>, delete} ->
+                    ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_DELETE]);
+                _ ->
+                    ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_UPDATE])
             end,
 
             ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
                 Host, Endpoint, Method, Auths
             ))
-        end, ?COMMON_ENDPOINTS_WITH_METHODS)
+        end, [{E, M} || {E, M} <- ?COMMON_ENDPOINTS_WITH_METHODS, M /= get])
     end).
 
 
@@ -736,7 +737,7 @@ init_per_suite(Config) ->
     hackney:start(),
     Posthook = fun(NewConfig) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
-        onepanel_test_rest:set_up_default_users(NewConfig2),
+        onepanel_test_rest:set_default_passphrase(NewConfig2),
         NewConfig2
     end,
     [{?LOAD_MODULES, [onepanel_test_rest]}, {?ENV_UP_POSTHOOK, Posthook} | Config].

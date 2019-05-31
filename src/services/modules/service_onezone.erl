@@ -21,10 +21,13 @@
 -include_lib("ctool/include/onedata.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/global_definitions.hrl").
+-include_lib("ctool/include/api_errors.hrl").
+-include_lib("ctool/include/oz/oz_users.hrl").
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
+%% Steps
 -export([set_up_service_in_onezone/0]).
 -export([mark_configured/1, format_cluster_ips/1]).
 
@@ -91,7 +94,7 @@ get_steps(deploy, Ctx) ->
     Ss = #steps{verify_hosts = false},
     [
         Ss#steps{service = ?SERVICE_PANEL, action = deploy, ctx = OpaCtx},
-        Ss#steps{service = ?SERVICE_PANEL, action = add_users, ctx = OpaCtx},
+        #steps{service = ?SERVICE_PANEL, action = migrate_emergency_passphrase},
         Ss#steps{service = ?SERVICE_CB, action = deploy, ctx = CbCtx},
         S#step{service = ?SERVICE_CB, function = status, ctx = CbCtx},
         Ss#steps{service = ?SERVICE_CM, action = deploy, ctx = CmCtx},
@@ -99,6 +102,9 @@ get_steps(deploy, Ctx) ->
         Ss#steps{service = ?SERVICE_OZW, action = deploy, ctx = OzwCtx},
         S#step{service = ?SERVICE_OZW, function = status, ctx = OzwCtx},
         Ss#steps{action = set_up_service_in_onezone, ctx = OzwCtx},
+        Ss#steps{action = add_users, ctx = OzwCtx},
+        Ss#steps{action = migrate_users, ctx = OzwCtx},
+        Ss#steps{action = create_default_admin, ctx = OzwCtx},
         Ss#steps{service = ?SERVICE_OZW, action = configure_dns_check,
             ctx = maps:merge(OzwCtx, DnsConfig), condition = fun(_) -> DnsConfig /= #{} end},
 
@@ -150,10 +156,13 @@ get_steps(manage_restart, Ctx) ->
     case hosts:self() == MasterHost of
         true -> [
             #steps{service = ?SERVICE_PANEL, action = wait_for_cluster},
+            #steps{service = ?SERVICE_PANEL, action = migrate_emergency_passphrase},
             #steps{action = stop},
             #steps{service = ?SERVICE_CB, action = resume},
             #steps{service = ?SERVICE_CM, action = resume},
             #steps{service = ?SERVICE_OZW, action = resume},
+            #steps{action = migrate_users,
+                condition = fun(_) -> onepanel_user:any_user_exists() end},
             #steps{service = ?SERVICE_LE, action = resume,
                 ctx = Ctx#{letsencrypt_plugin => ?SERVICE_OZW}},
             #steps{action = set_up_service_in_onezone}
@@ -181,12 +190,37 @@ get_steps(set_cluster_ips, Ctx) ->
             hosts = get_hosts()}
     ];
 
-get_steps(format_cluster_ips, _Ctx) ->
-    [#step{hosts = get_hosts(), function = format_cluster_ips, selection = any}];
+
+get_steps(add_users, #{onezone_users := _}) ->
+    [#step{module = onezone_users, function = add_users, selection = any}];
+get_steps(add_users, _Ctx) ->
+    [];
+
+get_steps(migrate_users, _Ctx) ->
+    [
+        #step{module = onezone_users, function = migrate_users, selection = any,
+            condition = fun(_) -> onepanel_user:any_user_exists() end},
+        #steps{service = ?SERVICE_PANEL, action = clear_users}
+    ];
+
+get_steps(UsersFunction, _Ctx) when
+    UsersFunction == set_user_password;
+    UsersFunction == create_default_admin;
+    UsersFunction == list_users;
+    UsersFunction == get_user ->
+    [#step{module = onezone_users, function = UsersFunction, selection = any}];
+
+get_steps(Function, _Ctx) when
+    Function == format_cluster_ips ->
+    [#step{function = Function, selection = any}];
 
 get_steps(set_up_service_in_onezone, _Ctx) ->
     [#step{function = set_up_service_in_onezone, args = [], selection = any}].
 
+
+%%%===================================================================
+%%% Step functions
+%%%===================================================================
 
 %%--------------------------------------------------------------------
 %% @doc Returns IPs of hosts with oz_worker instances.
@@ -232,7 +266,7 @@ set_up_service_in_onezone() ->
 
     {BuildVersion, AppVersion} = onepanel_app:get_build_and_version(),
 
-    {rpc, Client} = zone_client:root_auth(),
+    {rpc, Client} = onezone_client:root_auth(),
     VersionInfo = {AppVersion, BuildVersion, GuiHash},
     ok = rpc:call(OzNode, cluster_logic, update_version_info,
         [Client, clusters:get_id(), ?ONEPANEL, VersionInfo]),

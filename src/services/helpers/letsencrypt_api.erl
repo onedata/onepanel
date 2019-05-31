@@ -293,7 +293,7 @@ get_directory(#flow_state{directory_url = URL} = State) ->
 register_account(#flow_state{service = Service} = State) ->
     #flow_state{directory = #directory{new_reg = NewRegURL}} = State,
 
-    Contact = case Service:get_admin_email(#{}) of
+    Contact = case Service:get_admin_email() of
         undefined -> [];
         Email -> [<<"mailto:", Email/binary>>]
     end,

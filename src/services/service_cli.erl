@@ -26,7 +26,7 @@
 %% in a shell.
 %% @end
 %%--------------------------------------------------------------------
--spec start(service:name(), maps:map()) -> ok | no_return().
+-spec start(service:name(), map()) -> ok | no_return().
 start(Service, SystemLimits) ->
     Tokens = [get_script(Service), "start"],
     Tokens2 = maps:fold(fun

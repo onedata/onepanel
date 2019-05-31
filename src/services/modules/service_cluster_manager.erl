@@ -164,7 +164,7 @@ start(Ctx) ->
         open_files => service_ctx:get(cluster_manager_open_files_limit, Ctx)
     },
     service_cli:start(name(), Limits),
-    service_watcher:register_service(name()),
+    service:register_healthcheck(name()),
     service:update_status(name(), healthy),
     ok.
 
@@ -175,7 +175,7 @@ start(Ctx) ->
 %%--------------------------------------------------------------------
 -spec stop(Ctx :: service:ctx()) -> ok.
 stop(Ctx) ->
-    service_watcher:unregister_service(name()),
+    onepanel_cron:remove_job(name()),
     service_cli:stop(name()),
     % check status before updating it as service_cli:stop/1 does not throw on failure
     status(Ctx),

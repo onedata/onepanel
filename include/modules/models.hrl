@@ -13,7 +13,9 @@
 
 -define(MATCH_SPECS, '_' | '$1').
 
--define(MODELS, [onepanel_user, onepanel_session, onepanel_deployment, service]).
+-define(MODELS, [
+    onepanel_user, onepanel_session, onepanel_deployment, onepanel_kv, service
+]).
 -define(WRAPPER_RECORD, document).
 
 %% Wrapper for all document records. Allows generic tracking of model versions.
@@ -46,6 +48,11 @@
     name :: module(),
     hosts = [] :: [service:host()],
     ctx = #{} :: maps:map()
+}).
+
+-record(onepanel_kv, {
+    key :: onepanel_kv:key() | ?MATCH_SPECS,
+    value :: onepanel_kv:value() | ?MATCH_SPECS
 }).
 
 -record(onepanel_deployment, {

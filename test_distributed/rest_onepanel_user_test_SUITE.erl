@@ -5,7 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc This module contains integration tests of 'rest_onepanel_user' module.
+%%% @doc This module contains integration tests of 'rest_users' module.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(rest_onepanel_user_test_SUITE).
@@ -17,6 +17,7 @@
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
 -include_lib("ctool/include/privileges.hrl").
+-include_lib("ctool/include/oz/oz_users.hrl").
 
 %% export for ct
 -export([all/0, init_per_suite/1, init_per_testcase/2, end_per_testcase/2,
@@ -26,50 +27,37 @@
 -export([
     method_should_return_not_found_error/1,
     method_should_return_unauthorized_error/1,
-    get_as_admin_should_return_any_account/1,
-    get_as_oz_user_should_return_privileges/1,
-    get_as_regular_should_return_only_own_account/1,
-    patch_as_admin_should_change_any_account_password/1,
-    patch_as_regular_should_change_only_own_account_password/1,
-    patch_as_regular_should_check_current_password/1,
-    post_noauth_should_create_account_when_admin_missing/1,
-    post_as_regular_should_create_account_when_admin_missing/1,
-    post_noauth_should_not_create_account_when_admin_present/1,
-    post_as_regular_should_not_create_account_when_admin_present/1,
-    post_as_admin_should_create_account/1,
-    delete_as_regular_should_remove_only_own_account/1,
-    delete_as_admin_should_remove_any_account/1,
-    current_user_is_resolved/1
+    get_current_user_as_oz_user_should_return_privileges/1,
+    get_current_user_as_root_should_fail/1,
+    get_should_list_oz_users/1,
+    get_should_describe_oz_user/1,
+    post_should_create_oz_user/1,
+    patch_should_change_user_password/1
 ]).
-
--define(ADMIN_USER1_NAME, ?ADMIN_USER_NAME).
--define(ADMIN_USER1_PASSWORD, ?ADMIN_USER_PASSWORD).
--define(ADMIN_USER2_NAME, <<"admin2">>).
--define(ADMIN_USER2_PASSWORD, <<"Admin2Password">>).
--define(REG_USER1_NAME, ?REG_USER_NAME).
--define(REG_USER1_PASSWORD, ?REG_USER_PASSWORD).
--define(REG_USER2_NAME, <<"user2">>).
--define(REG_USER2_PASSWORD, <<"User2Password">>).
 
 all() ->
     ?ALL([
         method_should_return_not_found_error,
         method_should_return_unauthorized_error,
-        get_as_admin_should_return_any_account,
-        get_as_oz_user_should_return_privileges ,
-        get_as_regular_should_return_only_own_account,
-        patch_as_admin_should_change_any_account_password,
-        patch_as_regular_should_change_only_own_account_password,
-        patch_as_regular_should_check_current_password,
-        post_noauth_should_create_account_when_admin_missing,
-        post_as_regular_should_create_account_when_admin_missing,
-        post_noauth_should_not_create_account_when_admin_present,
-        post_as_regular_should_not_create_account_when_admin_present,
-        post_as_admin_should_create_account,
-        delete_as_regular_should_remove_only_own_account,
-        delete_as_admin_should_remove_any_account,
-        current_user_is_resolved
+        get_current_user_as_oz_user_should_return_privileges,
+        get_current_user_as_root_should_fail,
+        get_should_list_oz_users,
+        get_should_describe_oz_user,
+        post_should_create_oz_user,
+        patch_should_change_user_password
     ]).
+
+-define(USER_ID1, <<"joeId">>).
+-define(USER_ID2, <<"kyleId">>).
+-define(USERNAME1, <<"joe">>).
+-define(USERNAME2, <<"kyle">>).
+-define(FULL_NAME1, <<"Joe Kowalski">>).
+-define(FULL_NAME2, <<"Kyle Katarn">>).
+
+-define(PASSWORD1, <<"onePassword">>).
+-define(PASSWORD2, <<"otherpassword">>).
+
+-define(ROOT_CLIENT, {opaque, root_client}).
 
 %%%===================================================================
 %%% Test functions
@@ -78,52 +66,32 @@ all() ->
 method_should_return_not_found_error(Config) ->
     lists:foreach(fun({Method, Body}) ->
         ?assertMatch({ok, 404, _, _}, onepanel_test_rest:auth_request(
-            Config, <<"/users/someUser">>, Method, {?ADMIN_USER1_NAME,
-                ?ADMIN_USER1_PASSWORD}, Body
-        ))
-    end, [{get, []}, {patch, #{password => <<"SomePassword1">>}}, {delete, #{}}]).
-
-
-method_should_return_unauthorized_error(Config) ->
-    lists:foreach(fun({Method, Body}) ->
-        ?assertMatch({ok, 401, _, _}, onepanel_test_rest:noauth_request(
-            Config, <<"/users/", ?REG_USER1_NAME/binary>>, Method, Body
-        )),
-        ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
-            Config, <<"/users/", ?REG_USER1_NAME/binary>>, Method,
-            {<<"someUser">>, <<"somePassword">>}, Body
+            Config, <<"/zone/users/someUser">>, Method,
+            ?OZ_OR_ROOT_AUTHS(Config, [?CLUSTER_UPDATE]), Body
         ))
     end, [{get, []}, {patch, #{password => <<"SomePassword1">>}}]).
 
 
-get_as_admin_should_return_any_account(Config) ->
-    lists:foreach(fun(Username) ->
-        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
-            onepanel_test_rest:auth_request(
-                Config, <<"/users/", Username/binary>>, get,
-                ?OZ_OR_ROOT_AUTHS(Config, [])
-            )
-        ),
-        Decoded = json_utils:decode(JsonBody),
-        onepanel_test_rest:assert_body_fields(JsonBody,
-            [<<"userId">>, <<"userRole">>]),
-        ?assertNot(maps:is_key(<<"clusterPrivileges">>, Decoded))
-    end, [
-        ?ADMIN_USER1_NAME, ?ADMIN_USER2_NAME,
-        ?REG_USER1_NAME, ?REG_USER2_NAME
-    ]).
+method_should_return_unauthorized_error(Config) ->
+    lists:foreach(fun({Method, Body}) ->
+        lists:foreach(fun(Auth) ->
+            ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
+                Config, <<"/zone/users/someUser">>, Method, Auth, Body
+            ))
+        end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
+    end, [{get, []}, {patch, #{newPassword => <<"SomePassword1">>}}]).
 
 
-get_as_oz_user_should_return_privileges(Config) ->
+get_current_user_as_oz_user_should_return_privileges(Config) ->
     lists:foreach(fun(PrivilegeSet) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
-                Config, <<"/user/">>, get,
-                hd(?OZ_AUTHS(Config, PrivilegeSet))
+                Config, <<"/user">>, get,
+                ?OZ_AUTHS(Config, PrivilegeSet)
             )
         ),
         onepanel_test_rest:assert_body_fields(JsonBody,
-            [<<"userId">>, <<"userRole">>, <<"clusterPrivileges">>]),
+            [<<"username">>, <<"userId">>, <<"clusterPrivileges">>]),
 
         Expected = lists:sort([atom_to_binary(P, utf8) || P <- PrivilegeSet]),
         #{<<"clusterPrivileges">> := ReturnedPrivileges} = json_utils:decode(JsonBody),
@@ -136,225 +104,68 @@ get_as_oz_user_should_return_privileges(Config) ->
     ]).
 
 
-get_as_regular_should_return_only_own_account(Config) ->
+get_current_user_as_root_should_fail(Config) ->
+    ?assertMatch({ok, 404, _, _}, onepanel_test_rest:auth_request(
+        Config, <<"/user">>, get, ?ROOT_AUTHS(Config)
+    )).
+
+
+get_should_list_oz_users(Config) ->
+    Expected = lists:sort(?config(oz_user_ids, Config)),
+
     {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
         onepanel_test_rest:auth_request(
-            Config, <<"/users/", ?REG_USER1_NAME/binary>>,
-            get, ?REGULAR_AUTHS(Config)
+            Config, <<"/zone/users">>, get,
+            ?OZ_OR_ROOT_AUTHS(Config, [])
         )
     ),
-    onepanel_test_rest:assert_body_fields(JsonBody,
-        [<<"userId">>, <<"userRole">>]),
+    onepanel_test_rest:assert_body_fields(JsonBody, [<<"ids">>]),
+    #{<<"ids">> := ReturnedIds} = json_utils:decode(JsonBody),
+    ?assertEqual(Expected, lists:sort(ReturnedIds)).
 
 
-    lists:foreach(fun(Username) ->
-        ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
-            Config, <<"/users/", Username/binary>>,
-            get, {?REG_USER1_NAME, ?REG_USER1_PASSWORD}
-        ))
-    end, [?ADMIN_USER1_NAME, ?ADMIN_USER2_NAME, ?REG_USER2_NAME]).
+get_should_describe_oz_user(Config) ->
+    Expected = #{
+        <<"userId">> => ?USER_ID1, <<"username">> => ?USERNAME1,
+        <<"fullName">> => ?FULL_NAME1
+    },
+    {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+        onepanel_test_rest:auth_request(
+            Config, <<"/zone/users/", (?USER_ID1)/binary>>, get,
+            ?OZ_OR_ROOT_AUTHS(Config, [])
+        )
+    ),
+    onepanel_test_rest:assert_body(JsonBody, Expected).
 
 
-patch_as_admin_should_change_any_account_password(Config) ->
-    lists:foreach(fun({Username, Password}) ->
-        NewPassword = <<Password/binary, "New">>,
-        ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
-            Config, <<"/users/", Username/binary>>, patch, {?ADMIN_USER1_NAME,
-                ?ADMIN_USER1_PASSWORD}, #{
-                currentPassword => ?ADMIN_USER1_PASSWORD,
-                newPassword => NewPassword
-            }
-        )),
-        ?assertMatch({ok, 200, _, _}, onepanel_test_rest:auth_request(
-            Config, <<"/users/", Username/binary>>, get, {Username, NewPassword}
-        )),
-        ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
-            Config, <<"/users/", Username/binary>>, get, {Username, Password}
-        ))
-    end, [
-        {?ADMIN_USER2_NAME, ?ADMIN_USER2_PASSWORD},
-        {?REG_USER1_NAME, ?REG_USER1_PASSWORD},
-        {?REG_USER2_NAME, ?REG_USER2_PASSWORD}
-    ]),
-    NewAdmin1Password = <<(?ADMIN_USER1_PASSWORD)/binary, "New">>,
+post_should_create_oz_user(Config) ->
+    Bodies = [
+        #{<<"username">> => ?USERNAME1, <<"password">> => ?PASSWORD1,
+            <<"groups">> => [<<"admins">>]},
+        #{<<"username">> => ?USERNAME2, <<"password">> => ?PASSWORD2,
+            <<"groups">> => []}
+    ],
 
-    ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
-        Config, <<"/user/">>, patch, {?ADMIN_USER1_NAME,
-            ?ADMIN_USER1_PASSWORD}, #{
-            currentPassword => ?ADMIN_USER1_PASSWORD,
-            newPassword => NewAdmin1Password
-        }
-    )),
-    ?assertMatch({ok, 200, _, _}, onepanel_test_rest:auth_request(
-        Config, <<"/users/", ?ADMIN_USER1_NAME/binary>>, get,
-        {?ADMIN_USER1_NAME, NewAdmin1Password}
-    )),
-    ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
-        Config, <<"/users/", ?ADMIN_USER1_NAME/binary>>, get,
-        {?ADMIN_USER1_NAME, ?ADMIN_USER1_PASSWORD}
-    )).
-
-
-patch_as_regular_should_change_only_own_account_password(Config) ->
-    lists:foreach(fun(Username) ->
-        ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
-            Config, <<"/users/", Username/binary>>, patch, {?REG_USER1_NAME,
-                ?REG_USER1_PASSWORD}, #{
-                currentPassword => ?REG_USER1_PASSWORD,
-                newPassword => <<"SomePassword1">>
-            }
-        ))
-    end, [?ADMIN_USER1_NAME, ?ADMIN_USER2_NAME, ?REG_USER2_NAME]),
-
-    lists:foreach(fun({Username, Password}) ->
-        NewPassword = <<Password/binary, "New">>,
-        ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
-            Config, <<"/users/", Username/binary>>, patch, {Username,
-                Password}, #{
-                currentPassword => Password,
-                newPassword => NewPassword
-            }
-        )),
-        ?assertMatch({ok, 200, _, _}, onepanel_test_rest:auth_request(
-            Config, <<"/users/", Username/binary>>, get, {Username, NewPassword}
-        )),
-        ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
-            Config, <<"/users/", Username/binary>>, get, {Username, Password}
-        ))
-    end, [
-        {?REG_USER1_NAME, ?REG_USER1_PASSWORD},
-        {?REG_USER2_NAME, ?REG_USER2_PASSWORD}
-    ]).
-
-
-patch_as_regular_should_check_current_password(Config) ->
-    lists:foreach(fun({Username, Password}) ->
-        NewPassword = <<Password/binary, "New">>,
-        ?assertMatch({ok, 400, _, _}, onepanel_test_rest:auth_request(
-            Config, <<"/users/", Username/binary>>, patch, {Username,
-                Password}, #{
-                currentPassword => NewPassword,
-                newPassword => NewPassword
-            }
-        ))
-    end, [
-        {?REG_USER1_NAME, ?REG_USER1_PASSWORD},
-        {?REG_USER2_NAME, ?REG_USER2_PASSWORD}
-    ]).
-
-
-post_noauth_should_create_account_when_admin_missing(Config) ->
-    ?assertMatch({ok, 204, _, _}, onepanel_test_rest:noauth_request(
-        Config, <<"/users">>, post, #{
-            username => ?REG_USER1_NAME, password => ?REG_USER1_PASSWORD,
-            userRole => regular
-        }
-    )).
-
-
-post_as_regular_should_create_account_when_admin_missing(Config) ->
-    ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
-        Config, <<"/users">>, post, {?REG_USER1_NAME, ?REG_USER1_PASSWORD}, #{
-            username => ?REG_USER2_NAME, password => ?REG_USER2_PASSWORD,
-            userRole => regular
-        }
-    )).
-
-
-post_noauth_should_not_create_account_when_admin_present(Config) ->
-    ?assertMatch({ok, 403, _, _}, onepanel_test_rest:noauth_request(
-        Config, <<"/users">>, post, #{
-            username => ?REG_USER1_NAME, password => ?REG_USER1_PASSWORD,
-            userRole => regular
-        }
-    )).
-
-
-post_as_regular_should_not_create_account_when_admin_present(Config) ->
-    ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
-        Config, <<"/users">>, post, {?REG_USER1_NAME, ?REG_USER1_PASSWORD}, #{
-            username => ?REG_USER1_NAME, password => ?REG_USER1_PASSWORD,
-            userRole => regular
-        }
-    )).
-
-
-post_as_admin_should_create_account(Config) ->
     lists:foreach(fun({Body, Auth}) ->
-        ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
-            Config, <<"/users">>, post,
-            Auth, Body
-        ))
-    end, zip_auths([
-        #{username => ?REG_USER1_NAME, password => ?REG_USER1_PASSWORD,
-            userRole => regular},
-        #{username => ?REG_USER2_NAME, password => ?REG_USER2_PASSWORD,
-            userRole => regular},
-        #{username => ?ADMIN_USER2_NAME, password => ?ADMIN_USER2_PASSWORD,
-            userRole => admin}
-    ], ?OZ_OR_ROOT_AUTHS(Config, [?CLUSTER_UPDATE]))).
-
-
-delete_as_regular_should_remove_only_own_account(Config) ->
-    lists:foreach(fun(Username) ->
-        ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
-            Config, <<"/users/", Username/binary>>, delete,
-            ?LOCAL_AUTHS(Config, {?REG_USER1_NAME, ?REG_USER1_PASSWORD})
-        ))
-    end, [?ADMIN_USER1_NAME, ?ADMIN_USER2_NAME, ?REG_USER2_NAME]),
-
-    lists:foreach(fun({Username, Password}) ->
-        ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
-            Config, <<"/users/", Username/binary>>, delete, {Username,
-                Password}
-        )),
-        ?assertMatch({ok, 404, _, _}, onepanel_test_rest:auth_request(
-            Config, <<"/users/", Username/binary>>, get, {?ADMIN_USER1_NAME,
-                ?ADMIN_USER1_PASSWORD}
-        ))
-    end, [
-        {?REG_USER1_NAME, ?REG_USER1_PASSWORD},
-        {?REG_USER2_NAME, ?REG_USER2_PASSWORD}
-    ]).
-
-
-delete_as_admin_should_remove_any_account(Config) ->
-    Auths = ?OZ_OR_ROOT_AUTHS(Config, [?CLUSTER_UPDATE]),
-    lists:foreach(fun({Username, Auth}) ->
-        ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
-            Config, <<"/users/", Username/binary>>, delete, Auth
-        )),
-        ?assertMatch({ok, 404, _, _}, onepanel_test_rest:auth_request(
-            Config, <<"/users/", Username/binary>>, get, Auths
-        ))
-    end, zip_auths([?ADMIN_USER2_NAME, ?REG_USER1_NAME, ?REG_USER2_NAME], Auths)),
-
-    ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
-        Config, <<"/users/", ?ADMIN_USER1_NAME/binary>>, delete,
-        {?ADMIN_USER1_NAME, ?ADMIN_USER1_PASSWORD}
-    )),
-    ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
-        Config, <<"/users/", ?ADMIN_USER1_NAME/binary>>, get,
-        {?ADMIN_USER1_NAME, ?ADMIN_USER1_PASSWORD}
-    )).
-
-
-current_user_is_resolved(Config) ->
-    lists:foreach(fun(Auth) ->
-        {_, _, _, JsonBodyExplicitName} = ?assertMatch({ok, 200, _, _},
+        ?assertMatch({ok, 204, _, _},
             onepanel_test_rest:auth_request(
-                Config, <<"/users/", ?REG_USER1_NAME/binary>>,
-                get, Auth
-            )
-        ),
-        {_, _, _, JsonBodyCurrentUser} = ?assertMatch({ok, 200, _, _},
-            onepanel_test_rest:auth_request(
-                Config, <<"/user">>,
-                get, Auth
-            )
-        ),
-        ?assertEqual(JsonBodyExplicitName, JsonBodyCurrentUser)
-    end, ?LOCAL_AUTHS(Config, {?REG_USER1_NAME, ?REG_USER1_PASSWORD})).
+                Config, <<"/zone/users">>, post,
+                Auth, Body
+            ))
+    end, zip_auths(Bodies, [
+        hd(?OZ_AUTHS(Config, [?CLUSTER_UPDATE])),
+        hd(?ROOT_AUTHS(Config))
+    ])).
+
+
+patch_should_change_user_password(Config) ->
+    ?assertMatch({ok, 204, _, _},
+        onepanel_test_rest:auth_request(
+            Config, <<"/zone/users/", (?USER_ID1)/binary>>, patch,
+            ?OZ_OR_ROOT_AUTHS(Config, [?CLUSTER_UPDATE]),
+            #{<<"newPassword">> => ?PASSWORD1}
+        )
+    ).
 
 %%%===================================================================
 %%% SetUp and TearDown functions
@@ -366,45 +177,74 @@ init_per_suite(Config) ->
     Posthook = fun(NewConfig) -> onepanel_test_utils:init(NewConfig) end,
     [{?LOAD_MODULES, [onepanel_test_rest]}, {?ENV_UP_POSTHOOK, Posthook} | Config].
 
-init_per_testcase(post_noauth_should_create_account_when_admin_missing, Config) ->
-    Config;
 
-init_per_testcase(post_as_regular_should_create_account_when_admin_missing, Config) ->
-    ?assertMatch({ok, _}, ?call(Config, onepanel_user, create,
-        [?REG_USER1_NAME, ?REG_USER1_PASSWORD, regular])),
-    onepanel_test_rest:mock_token_authentication(Config),
-    Config;
+init_per_testcase(method_should_return_not_found_error, Config) ->
+    Config2 = init_per_testcase(default, Config),
+    Nodes = ?config(onepanel_nodes, Config),
 
-init_per_testcase(post_noauth_should_not_create_account_when_admin_present, Config) ->
-    ?assertMatch({ok, _}, ?call(Config, onepanel_user, create,
-        [?ADMIN_USER1_NAME, ?ADMIN_USER1_PASSWORD, admin])),
-    onepanel_test_rest:mock_token_authentication(Config),
-    Config;
+    test_utils:mock_new(Nodes, [onezone_users]),
+    test_utils:mock_expect(Nodes, onezone_users, user_exists,
+        fun(_) -> false end),
+    Config2;
 
-init_per_testcase(post_as_regular_should_not_create_account_when_admin_present, Config) ->
-    ?assertMatch({ok, _}, ?call(Config, onepanel_user, create,
-        [?REG_USER1_NAME, ?REG_USER1_PASSWORD, regular])),
-    ?assertMatch({ok, _}, ?call(Config, onepanel_user, create,
-        [?ADMIN_USER1_NAME, ?ADMIN_USER1_PASSWORD, admin])),
-    onepanel_test_rest:mock_token_authentication(Config),
-    Config;
 
-init_per_testcase(post_as_admin_should_create_account, Config) ->
-    ?assertMatch({ok, _}, ?call(Config, onepanel_user, create,
-        [?ADMIN_USER1_NAME, ?ADMIN_USER1_PASSWORD, admin])),
-    onepanel_test_rest:mock_token_authentication(Config),
-    Config;
+init_per_testcase(get_should_list_oz_users, Config) ->
+    Config2 = init_per_testcase(default, Config),
+    Nodes = ?config(onepanel_nodes, Config),
+    UserIds = [?USER_ID1, ?USER_ID2],
+    test_utils:mock_new(Nodes, [onezone_users]),
+    test_utils:mock_expect(Nodes, rpc, call, fun
+        (_, user_logic, list, [?ROOT_CLIENT]) -> {ok, UserIds};
+        (Node, M, F, A) -> meck:passthrough([Node, M, F, A])
+    end),
+    [{oz_user_ids, UserIds} | Config2];
+
+
+init_per_testcase(Case, Config) when
+    Case == get_should_describe_oz_user;
+    Case == patch_should_change_user_password ->
+    Config2 = init_per_testcase(default, Config),
+    Nodes = ?config(onepanel_nodes, Config),
+    test_utils:mock_new(Nodes, [onezone_users]),
+    test_utils:mock_expect(Nodes, rpc, call, fun
+        (_, user_logic, exists, [UserId]) -> UserId == ?USER_ID1;
+        (_, user_logic, set_password, [?ROOT_CLIENT, _UserId, _Password]) -> ok;
+        (_, user_logic, get_as_user_details, [?ROOT_CLIENT, ?USER_ID1]) ->
+            {ok, #user_details{id = ?USER_ID1, username = ?USERNAME1, full_name = ?FULL_NAME1}};
+        (Node, M, F, A) -> meck:passthrough([Node, M, F, A])
+    end),
+    Config2;
+
+
+init_per_testcase(post_should_create_oz_user, Config) ->
+    Config2 = init_per_testcase(default, Config),
+    Nodes = ?config(onepanel_nodes, Config),
+    test_utils:mock_new(Nodes, [onezone_users]),
+    test_utils:mock_expect(Nodes, rpc, call, fun
+        (_, user_logic, create, [?ROOT_CLIENT, #{<<"username">> := ?USERNAME1}]) ->
+            {ok, ?USER_ID1};
+        (_, user_logic, create, [?ROOT_CLIENT, #{<<"username">> := ?USERNAME2}]) ->
+            {ok, ?USER_ID2};
+        (_, group_logic, add_user, [?ROOT_CLIENT, _GroupId, _UserId]) ->
+            {ok, <<"groupId">>};
+        (Node, M, F, A) ->
+            meck:passthrough([Node, M, F, A])
+    end),
+    Config2;
+
 
 init_per_testcase(_Case, Config) ->
-    ?assertMatch({ok, _}, ?call(Config, onepanel_user, create,
-        [?ADMIN_USER1_NAME, ?ADMIN_USER1_PASSWORD, admin])),
-    ?assertMatch({ok, _}, ?call(Config, onepanel_user, create,
-        [?ADMIN_USER2_NAME, ?ADMIN_USER2_PASSWORD, admin])),
-    ?assertMatch({ok, _}, ?call(Config, onepanel_user, create,
-        [?REG_USER1_NAME, ?REG_USER1_PASSWORD, regular])),
-    ?assertMatch({ok, _}, ?call(Config, onepanel_user, create,
-        [?REG_USER2_NAME, ?REG_USER2_PASSWORD, regular])),
+    Nodes = ?config(onepanel_nodes, Config),
+    onepanel_test_rest:set_default_passphrase(Config),
     onepanel_test_rest:mock_token_authentication(Config),
+    test_utils:mock_new(Nodes, [service_onezone, service_oz_worker, rpc],
+        [passthrough, unstick]),
+    test_utils:mock_expect(Nodes, service_onezone, get_hosts,
+        fun() -> ?config(onepanel_hosts, Config) end),
+    test_utils:mock_expect(Nodes, service_oz_worker, get_hosts,
+        fun() -> ?config(onepanel_hosts, Config) end),
+    test_utils:mock_expect(Nodes, service_oz_worker, get_root_logic_client,
+        fun() -> {ok, ?ROOT_CLIENT} end),
     Config.
 
 
@@ -419,12 +259,12 @@ end_per_suite(_Config) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
+%% @private
 %% @doc Assigns one of the auth objects to each request variant.
 %% @end
 %%--------------------------------------------------------------------
 -spec zip_auths([Parameter], Auths :: [onepanel_test_rest:auth(), ...]) ->
-    [{Parameter, onepanel_test_rest:auth()}]
-    when Parameter :: term().
+    [{Parameter, onepanel_test_rest:auth()}].
 zip_auths(Parameters, Auths) ->
     Auths2 = onepanel_lists:ensure_length(length(Parameters), Auths),
     lists:zip(Parameters, Auths2).

@@ -57,7 +57,7 @@ get_id() ->
     #{atom() := term()} | #error{}.
 get_current_cluster() ->
     try
-        Auth = zone_client:root_auth(),
+        Auth = onezone_client:root_auth(),
         {ok, Details} = get_details(Auth, get_id()),
         store_in_cache(cluster, Details),
         Details
@@ -94,7 +94,7 @@ get_members_summary(Auth) ->
 -spec get_user_privileges(OnezoneUserId :: binary()) ->
     {ok, [privileges:cluster_privilege()]} | #error{} | no_return().
 get_user_privileges(OnezoneUserId) ->
-    RootAuth = zone_client:root_auth(),
+    RootAuth = onezone_client:root_auth(),
     get_user_privileges(RootAuth, OnezoneUserId).
 
 
@@ -122,8 +122,10 @@ get_user_privileges({rest, RestAuth}, OnezoneUserId) ->
     end);
 
 get_user_privileges({rpc, LogicClient}, OnezoneUserId) ->
-    case zone_rpc(cluster_logic, get_eff_user_privileges,
-        [LogicClient, get_id(), OnezoneUserId]) of
+    case zone_rpc(
+        cluster_logic, get_eff_user_privileges,
+        [LogicClient, get_id(), OnezoneUserId]
+    ) of
         #error{reason = ?ERR_NOT_FOUND} -> ?make_error(?ERR_USER_NOT_IN_CLUSTER);
         {ok, Privileges} -> {ok, Privileges}
     end.
@@ -181,15 +183,21 @@ list_user_clusters({rest, Auth}) ->
     #{binary() := term()}.
 fetch_remote_provider_info({rpc, Client}, ProviderId) ->
     {ok, OzNode} = nodes:any(?SERVICE_OZW),
-    {ok, ProviderData} = rpc:call(
+    case rpc:call(
         OzNode, provider_logic, get_protected_data, [Client, ProviderId]
-    ),
-    format_provider_info(ProviderData);
+    ) of
+        {ok, ProviderData} -> format_provider_info(ProviderData);
+        {error, not_found} -> ?throw_error(?ERR_NOT_FOUND)
+    end;
 
 fetch_remote_provider_info({rest, RestAuth}, ProviderId) ->
     URN = "/providers/" ++ binary_to_list(ProviderId),
-    {ok, 200, _, BodyJson} = oz_endpoint:request(RestAuth, URN, get),
-    format_provider_info(json_utils:decode(BodyJson)).
+    case oz_endpoint:request(RestAuth, URN, get) of
+        {ok, 200, _, BodyJson} ->
+            format_provider_info(json_utils:decode(BodyJson));
+        {ok, 404, _, _} ->
+            ?throw_error(?ERROR_NOT_FOUND)
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -199,7 +207,7 @@ fetch_remote_provider_info({rest, RestAuth}, ProviderId) ->
 %%--------------------------------------------------------------------
 -spec create_user_invite_token() -> {ok, Token :: binary()} | #error{}.
 create_user_invite_token() ->
-    create_user_invite_token(zone_client:root_auth()).
+    create_user_invite_token(onezone_client:root_auth()).
 
 
 %%%===================================================================

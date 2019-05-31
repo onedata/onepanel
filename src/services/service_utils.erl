@@ -17,8 +17,8 @@
 -include("service.hrl").
 
 %% API
--export([get_steps/3, format_steps/2, notify/2, partition_results/1,
-    throw_on_error/1]).
+-export([get_steps/3, format_steps/2, notify/2, partition_results/1]).
+-export([results_contain_error/1, throw_on_error/1]).
 -export([absolute_path/2]).
 
 %%%===================================================================
@@ -101,25 +101,44 @@ partition_results(Results) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc Checks if an error occured during service action execution
+%% and returns it.
+%% @end
+%%--------------------------------------------------------------------
+-spec results_contain_error(Results :: service_executor:results() | #error{}) ->
+    {true, #error{}} | false.
+results_contain_error(#error{} = Error) ->
+    {true, Error};
+
+results_contain_error(Results) ->
+    case lists:reverse(Results) of
+        [{task_finished, {_, _, #error{} = Error}}] ->
+            {true, Error};
+
+        [{task_finished, {Service, Action, #error{}}}, Step | _Steps] ->
+            {Module, Function, {_, BadResults}} = Step,
+
+            ServiceError = #service_error{
+                service = Service, action = Action, module = Module,
+                function = Function, bad_results = BadResults
+            },
+            {true, ?make_error(ServiceError)};
+
+        _ ->
+            false
+    end.
+
+
+%%--------------------------------------------------------------------
 %% @doc Throws an exception if an error occurred during service action execution.
 %% @end
 %%--------------------------------------------------------------------
--spec throw_on_error(Results :: #error{} | list()) -> Steps :: list() | no_return().
-throw_on_error(#error{} = Error) ->
-    ?throw_error(Error);
-
+-spec throw_on_error(Results :: service_executor:results() | #error{}) ->
+    service_executor:results() | no_return().
 throw_on_error(Results) ->
-    case lists:reverse(Results) of
-        [{task_finished, {_, _, #error{} = Error}}] ->
-            ?throw_error(Error);
-        [{task_finished, {Service, Action, #error{}}}, Step | _] ->
-            {Module, Function, {_, BadResults}} = Step,
-            ?throw_error(#service_error{
-                service = Service, action = Action, module = Module,
-                function = Function, bad_results = BadResults
-            });
-        [{task_finished, {_, _, ok}} | Steps] ->
-            lists:reverse(Steps)
+    case results_contain_error(Results) of
+        {true, Error} -> ?throw_error(Error);
+        false -> Results
     end.
 
 

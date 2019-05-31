@@ -114,8 +114,7 @@ routes() ->
             methods = [#rmethod{
                 type = 'POST',
                 %% The provider configuration description.
-                args_spec = rest_model:provider_configuration_model(),
-                noauth = true
+                args_spec = rest_model:provider_configuration_model()
             }]
         }},
 
@@ -182,8 +181,7 @@ routes() ->
             module = rest_service,
             resource = service_oneprovider,
             methods = [#rmethod{
-                type = 'GET',
-                noauth = true
+                type = 'GET'
             }]
         }},
 

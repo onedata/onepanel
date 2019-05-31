@@ -65,7 +65,7 @@ init([]) ->
 
     {ok, {#{strategy => one_for_all, intensity => 3, period => 1}, [
         service_executor_spec(),
-        service_watcher_spec(),
+        onepanel_cron_spec(),
         onepanel_session_gc_spec()
     ]}}.
 
@@ -89,18 +89,18 @@ service_executor_spec() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @private @doc Returns a worker child_spec for a service_watcher gen_server.
+%% @private @doc Returns a worker child_spec for a onepanel_cron gen_server.
 %% @end
 %%--------------------------------------------------------------------
--spec service_watcher_spec() -> supervisor:child_spec().
-service_watcher_spec() ->
+-spec onepanel_cron_spec() -> supervisor:child_spec().
+onepanel_cron_spec() ->
     #{
-        id => service_watcher,
-        start => {service_watcher, start_link, []},
+        id => onepanel_cron,
+        start => {onepanel_cron, start_link, []},
         restart => transient,
         shutdown => timer:seconds(10),
         type => worker,
-        modules => [service_watcher]
+        modules => [onepanel_cron]
     }.
 
 %%--------------------------------------------------------------------

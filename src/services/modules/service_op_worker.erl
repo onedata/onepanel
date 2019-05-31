@@ -26,7 +26,7 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 %% LE behaviour callbacks
 -export([set_txt_record/1, remove_txt_record/1, get_dns_server/0,
-    get_domain/0, get_admin_email/1, set_http_record/2,
+    get_domain/0, get_admin_email/0, set_http_record/2,
     supports_letsencrypt_challenge/1]).
 
 %% API
@@ -107,7 +107,36 @@ get_steps(Action, Ctx) ->
     service_cluster_worker:get_steps(Action, Ctx#{name => name()}).
 
 %%%===================================================================
-%%% API functions
+%%% Public API
+%%% Functions which can be called on any node.
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc Returns list of Onezone versions compatible with this worker.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_compatible_onezones() -> [binary()].
+get_compatible_onezones() ->
+    {_, Node} = nodes:onepanel_with(name()),
+    {ok, Versions} = rpc:call(Node, onepanel_env, read_effective,
+        [[op_worker, compatible_oz_versions], ?SERVICE_OPW]),
+    onepanel_utils:convert(Versions, {seq, binary}).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Checks if the op_worker has GraphSync connection to Onezone.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_connected_to_oz() -> boolean().
+is_connected_to_oz() ->
+    case nodes:any(?SERVICE_OPW) of
+        {ok, Node} -> true == rpc:call(Node, oneprovider, is_connected_to_oz, []);
+        _ -> false
+    end.
+
+%%%===================================================================
+%%% Step functions
 %%%===================================================================
 
 %%--------------------------------------------------------------------
@@ -173,7 +202,7 @@ stop(Ctx) ->
 %%--------------------------------------------------------------------
 -spec status(Ctx :: service:ctx()) -> service:status().
 status(Ctx) ->
-    % Since this function is invoked periodically by service_watcher
+    % Since this function is invoked periodically by onepanel_cron
     % use it to schedule DNS check refresh on a single node
     catch maybe_check_dns(),
     service_cluster_worker:status(Ctx#{name => name()}).
@@ -333,6 +362,7 @@ supports_letsencrypt_challenge(_) -> false.
 %% @doc {@link letsencrypt_plugin_behaviour:set_http_record/2}
 %% @end
 %%--------------------------------------------------------------------
+-spec set_http_record(Name :: binary(), Value :: binary()) -> ok.
 set_http_record(Name, Value) ->
     Nodes = get_nodes(),
     {Results, []} = rpc:multicall(Nodes, http_listener,
@@ -387,10 +417,12 @@ get_domain() ->
 %% @doc Returns the email address of the provider administrator.
 %% @end
 %%--------------------------------------------------------------------
--spec get_admin_email(Ctx :: service:ctx()) -> binary().
-get_admin_email(_Ctx) ->
-    #{adminEmail := AdminEmail} = service_oneprovider:get_details(),
-    AdminEmail.
+-spec get_admin_email() -> binary().
+get_admin_email() ->
+    case service_oneprovider:get_details() of
+        #{adminEmail := AdminEmail} -> AdminEmail;
+        _ -> undefined
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -405,30 +437,6 @@ migrate_generated_config(Ctx) ->
             [name(), oz_domain]
         ]
     }).
-
-
-%%--------------------------------------------------------------------
-%% @doc Returns list of Onezone versions compatible with this worker.
-%% @end
-%%--------------------------------------------------------------------
--spec get_compatible_onezones() -> [binary()].
-get_compatible_onezones() ->
-    {ok, Versions} = onepanel_env:read_effective(
-        [op_worker, compatible_oz_versions], ?SERVICE_OPW),
-    onepanel_utils:convert(Versions, {seq, binary}).
-
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Checks if the op_worker has GraphSync connection to Onezone.
-%% @end
-%%--------------------------------------------------------------------
--spec is_connected_to_oz() -> boolean().
-is_connected_to_oz() ->
-    case nodes:any(?SERVICE_OPW) of
-        {ok, Node} -> true == rpc:call(Node, oneprovider, is_connected_to_oz, []);
-        _ -> false
-    end.
 
 %%%===================================================================
 %%% Internal functions

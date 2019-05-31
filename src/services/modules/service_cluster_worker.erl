@@ -69,7 +69,7 @@ get_nodes() ->
     Steps :: [service:step()].
 get_steps(deploy, #{hosts := Hosts, name := Name} = Ctx) ->
     service:create(#service{name = Name}),
-    ClusterHosts = (service:get_module(Name)):get_hosts(),
+    ClusterHosts = hosts:all(Name),
     AllHosts = onepanel_lists:union(Hosts, ClusterHosts),
     [
         #step{function = migrate_generated_config,
@@ -186,14 +186,14 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
 -spec start(service:ctx()) -> ok | no_return().
 start(#{name := Name} = Ctx) ->
     service_cli:start(Name, Ctx),
-    service_watcher:register_service(Name),
+    service:register_healthcheck(Name),
     service:update_status(Name, unhealthy),
     ok.
 
 
 -spec stop(service:ctx()) -> ok.
 stop(#{name := Name} = Ctx) ->
-    service_watcher:unregister_service(Name),
+    onepanel_cron:remove_job(Name),
     service_cli:stop(Name),
     % check status before updating it as service_cli:stop/1 does not throw on failure
     status(Ctx),
