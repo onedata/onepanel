@@ -259,12 +259,12 @@ set_up_service_in_onezone() ->
     GuiPackagePath = https_listener:gui_package_path(),
     {ok, OzNode} = nodes:any(?SERVICE_OZW),
     {ok, GuiHash} = gui:package_hash(GuiPackagePath),
+    {BuildVersion, AppVersion} = onepanel_app:get_build_and_version(),
+
     ok = rpc:call(OzNode, gui_static, deploy_package, [
-        onedata:service_shortname(?OZ_PANEL), filename:absname(GuiPackagePath)
+        ?ONEPANEL_GUI, AppVersion, filename:absname(GuiPackagePath)
     ]),
     ?info("Deployed static GUI files (~s)", [GuiHash]),
-
-    {BuildVersion, AppVersion} = onepanel_app:get_build_and_version(),
 
     {rpc, Client} = onezone_client:root_auth(),
     VersionInfo = {AppVersion, BuildVersion, GuiHash},

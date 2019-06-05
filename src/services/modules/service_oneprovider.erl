@@ -874,7 +874,7 @@ set_up_service_in_onezone() ->
     ?info("Setting up Oneprovider panel service in Onezone"),
     GuiPackagePath = https_listener:gui_package_path(),
     {ok, GuiHash} = gui:package_hash(GuiPackagePath),
-    ServiceShortname = onedata:service_shortname(?OP_PANEL),
+    GuiPrefix = onedata:gui_prefix(?ONEPANEL_GUI),
 
     % Try to update version info in Onezone
     case update_version_info(GuiHash) of
@@ -884,7 +884,7 @@ set_up_service_in_onezone() ->
             ?info("Uploading GUI to Onezone (~s)", [GuiHash]),
             {ok, 200, _, _} = oz_endpoint:request(
                 provider,
-                str_utils:format("/~s/~s/gui-upload", [ServiceShortname, clusters:get_id()]),
+                str_utils:format("/~s/~s/gui-upload", [GuiPrefix, clusters:get_id()]),
                 post,
                 {multipart, [{file, str_utils:to_binary(GuiPackagePath)}]},
                 [{endpoint, gui}]
