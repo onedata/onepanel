@@ -31,7 +31,7 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec handle(gui:method(), cowboy_req:req()) -> cowboy_req:req().
-handle(<<"POST">>, Req) ->
+handle(<<"GET">>, Req) ->
     Domain = case onepanel_env:get_cluster_type() of
         onezone -> service_oz_worker:get_domain();
         oneprovider -> service_op_worker:get_domain()
