@@ -1476,12 +1476,14 @@ ceph_model() ->
         %% The name of storage.
         name => {string, optional},
         %% Result of storage verification (reading and writing a file). Returned
-        %% only on PATCH requests for read/write storages.
+        %% only on PATCH requests for read-write storages.
         verificationPassed => {boolean, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
         insecure => {boolean, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
         %% If true LUMA and reverse LUMA services will be enabled.
@@ -1501,8 +1503,6 @@ ceph_model() ->
         clusterName => string,
         %% The Ceph pool name.
         poolName => string,
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -1525,6 +1525,8 @@ ceph_modify_model() ->
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
         insecure => {boolean, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
         %% If true LUMA and reverse LUMA services will be enabled.
@@ -1546,9 +1548,7 @@ ceph_modify_model() ->
         %% The Ceph cluster name.
         clusterName => {string, optional},
         %% The Ceph pool name.
-        poolName => {string, optional},
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional}
+        poolName => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1565,12 +1565,14 @@ cephrados_model() ->
         %% The name of storage.
         name => {string, optional},
         %% Result of storage verification (reading and writing a file). Returned
-        %% only on PATCH requests for read/write storages.
+        %% only on PATCH requests for read-write storages.
         verificationPassed => {boolean, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
         insecure => {boolean, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
         %% If true LUMA and reverse LUMA services will be enabled.
@@ -1590,8 +1592,6 @@ cephrados_model() ->
         clusterName => string,
         %% The Ceph pool name.
         poolName => string,
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional},
         %% Storage block size in bytes.
         blockSize => {integer, optional},
         %% Determines how the logical file paths will be mapped on the storage.
@@ -1616,6 +1616,8 @@ cephrados_modify_model() ->
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
         insecure => {boolean, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
         %% If true LUMA and reverse LUMA services will be enabled.
@@ -1637,9 +1639,7 @@ cephrados_modify_model() ->
         %% The Ceph cluster name.
         clusterName => {string, optional},
         %% The Ceph pool name.
-        poolName => {string, optional},
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional}
+        poolName => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1656,12 +1656,14 @@ glusterfs_model() ->
         %% The name of storage.
         name => {string, optional},
         %% Result of storage verification (reading and writing a file). Returned
-        %% only on PATCH requests for read/write storages.
+        %% only on PATCH requests for read-write storages.
         verificationPassed => {boolean, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
         insecure => {boolean, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
         %% If true LUMA and reverse LUMA services will be enabled.
@@ -1685,8 +1687,6 @@ glusterfs_model() ->
         %% Volume specific GlusterFS translator options, in the format:
         %% TRANSLATOR1.OPTION1=VALUE1;TRANSLATOR2.OPTION2=VALUE2;...
         xlatorOptions => {string, optional},
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -1709,6 +1709,8 @@ glusterfs_modify_model() ->
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
         insecure => {boolean, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
         %% If true LUMA and reverse LUMA services will be enabled.
@@ -1734,9 +1736,7 @@ glusterfs_modify_model() ->
         mountPoint => {string, optional},
         %% Volume specific GlusterFS translator options, in the format:
         %% TRANSLATOR1.OPTION1=VALUE1;TRANSLATOR2.OPTION2=VALUE2;...
-        xlatorOptions => {string, optional},
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional}
+        xlatorOptions => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1753,12 +1753,14 @@ nulldevice_model() ->
         %% The name of storage.
         name => {string, optional},
         %% Result of storage verification (reading and writing a file). Returned
-        %% only on PATCH requests for read/write storages.
+        %% only on PATCH requests for read-write storages.
         verificationPassed => {boolean, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
         insecure => {boolean, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
         %% If true LUMA and reverse LUMA services will be enabled.
@@ -1781,8 +1783,6 @@ nulldevice_model() ->
         %% timeout should be simulated. Empty or '*' mean all operations
         %% will be affected.
         filter => {string, optional},
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -1821,6 +1821,8 @@ nulldevice_modify_model() ->
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
         insecure => {boolean, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
         %% If true LUMA and reverse LUMA services will be enabled.
@@ -1846,8 +1848,6 @@ nulldevice_modify_model() ->
         %% timeout should be simulated. Empty or '*' mean all operations
         %% will be affected.
         filter => {string, optional},
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional},
         %% Specifies the parameters for a simulated null device filesystem. For
         %% example `2-2:2-2:0-1` will generate a filesystem tree which
         %% has 2 directories (`0` and `1`) and 2 files
@@ -1934,12 +1934,14 @@ posix_model() ->
         %% The name of storage.
         name => {string, optional},
         %% Result of storage verification (reading and writing a file). Returned
-        %% only on PATCH requests for read/write storages.
+        %% only on PATCH requests for read-write storages.
         verificationPassed => {boolean, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
         insecure => {boolean, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
         %% If true LUMA and reverse LUMA services will be enabled.
@@ -1952,8 +1954,6 @@ posix_model() ->
         %% The absolute path to the directory where the POSIX storage is mounted
         %% on the cluster nodes.
         mountPoint => string,
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -1976,6 +1976,8 @@ posix_modify_model() ->
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
         insecure => {boolean, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
         %% If true LUMA and reverse LUMA services will be enabled.
@@ -1990,9 +1992,7 @@ posix_modify_model() ->
         type => {equal, <<"posix">>},
         %% The absolute path to the directory where the POSIX storage is mounted
         %% on the cluster nodes.
-        mountPoint => {string, optional},
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional}
+        mountPoint => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -2009,12 +2009,14 @@ s3_model() ->
         %% The name of storage.
         name => {string, optional},
         %% Result of storage verification (reading and writing a file). Returned
-        %% only on PATCH requests for read/write storages.
+        %% only on PATCH requests for read-write storages.
         verificationPassed => {boolean, optional},
         %% Defines whether storage administrator credentials (accessKey and
         %% secretKey) may be used by users without storage accounts to access
         %% storage in direct IO mode.
         insecure => {boolean, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
         %% If true LUMA and reverse LUMA services will be enabled.
@@ -2035,8 +2037,6 @@ s3_model() ->
         %% The version of signature used to sign requests. One of: 2, 4.
         %% Default: 4.
         signatureVersion => {integer, optional},
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional},
         %% Storage block size in bytes.
         blockSize => {integer, optional},
         %% Determines how the logical file paths will be mapped on the storage.
@@ -2061,6 +2061,8 @@ s3_modify_model() ->
         %% secretKey) may be used by users without storage accounts to access
         %% storage in direct IO mode.
         insecure => {boolean, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
         %% If true LUMA and reverse LUMA services will be enabled.
@@ -2083,9 +2085,7 @@ s3_modify_model() ->
         secretKey => {string, optional},
         %% The version of signature used to sign requests. One of: 2, 4.
         %% Default: 4.
-        signatureVersion => {integer, optional},
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional}
+        signatureVersion => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -2102,12 +2102,14 @@ swift_model() ->
         %% The name of storage.
         name => {string, optional},
         %% Result of storage verification (reading and writing a file). Returned
-        %% only on PATCH requests for read/write storages.
+        %% only on PATCH requests for read-write storages.
         verificationPassed => {boolean, optional},
         %% Defines whether storage administrator credentials (username and
         %% password) may be used by users without storage accounts to access
         %% storage in direct IO mode.
         insecure => {boolean, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
         %% If true LUMA and reverse LUMA services will be enabled.
@@ -2127,8 +2129,6 @@ swift_model() ->
         username => string,
         %% The Keystone authentication password.
         password => string,
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional},
         %% Storage block size in bytes.
         blockSize => {integer, optional},
         %% Determines how the logical file paths will be mapped on the storage.
@@ -2153,6 +2153,8 @@ swift_modify_model() ->
         %% password) may be used by users without storage accounts to access
         %% storage in direct IO mode.
         insecure => {boolean, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
         %% If true LUMA and reverse LUMA services will be enabled.
@@ -2174,9 +2176,7 @@ swift_modify_model() ->
         %% The Keystone authentication username.
         username => {string, optional},
         %% The Keystone authentication password.
-        password => {string, optional},
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional}
+        password => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -2193,12 +2193,14 @@ webdav_model() ->
         %% The name of storage.
         name => {string, optional},
         %% Result of storage verification (reading and writing a file). Returned
-        %% only on PATCH requests for read/write storages.
+        %% only on PATCH requests for read-write storages.
         verificationPassed => {boolean, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
         insecure => {boolean, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
         %% If true LUMA and reverse LUMA services will be enabled.
@@ -2265,8 +2267,6 @@ webdav_model() ->
         %% storage will have in Onedata. Values should be provided in octal
         %% format e.g. `0775`.
         dirMode => {string, optional},
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -2289,6 +2289,8 @@ webdav_modify_model() ->
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
         insecure => {boolean, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
         %% Defines whether storage is readonly.
         readonly => {boolean, optional},
         %% If true LUMA and reverse LUMA services will be enabled.
@@ -2334,8 +2336,6 @@ webdav_modify_model() ->
         %% Defines the maximum upload size for a single `PUT` or
         %% `PATCH` request. If set to 0, assumes that the WebDAV
         %% server has no upload limit.
-        maximumUploadSize => {integer, optional},
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional}
+        maximumUploadSize => {integer, optional}
     }.
 
