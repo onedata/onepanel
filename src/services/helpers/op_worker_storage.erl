@@ -36,7 +36,7 @@
     Key :: atom() => Value :: param()
 }.
 
-%% Storage information retrieved from op worker
+%% Storage information retrieved from op_worker
 -type storage_details() :: #{
     readonly | insecure | lumaEnabled := boolean(),
     atom() := binary()
@@ -45,7 +45,9 @@
 -type helper_args() :: #{binary() => binary()}.
 -type user_ctx() :: #{binary() => binary()}.
 -type storages_map() :: #{Name :: name() => Params :: storage_params()}.
--type luma_config() :: {atom(), binary(), undefined | binary()}.
+
+%% Opaque terms from op_worker
+-type luma_config() :: term().
 -type helper() :: term().
 % @formatter:on
 
@@ -65,7 +67,7 @@
 %%--------------------------------------------------------------------
 -spec add(Storages :: storages_map(), IgnoreExists :: boolean()) -> ok | no_return().
 add(Storages, IgnoreExists) ->
-    OpNode = nodes:local(?SERVICE_OPW),
+    {ok, OpNode} = nodes:any(?SERVICE_OPW),
     ?info("Adding ~b storage(s)", [maps:size(Storages)]),
     maps:fold(fun(Key, Value, _) ->
         StorageName = onepanel_utils:convert(Key, binary),
@@ -133,7 +135,7 @@ remove(OpNode, Id) ->
 %%--------------------------------------------------------------------
 -spec list() -> #{ids := [id()]}.
 list() ->
-    OpNode = nodes:local(?SERVICE_OPW),
+    {ok, OpNode} = nodes:any(?SERVICE_OPW),
     {ok, Storages} = rpc:call(OpNode, storage, list, []),
     Ids = lists:map(fun(Storage) ->
         rpc:call(OpNode, storage, get_id, [Storage])
@@ -147,9 +149,9 @@ list() ->
 %%--------------------------------------------------------------------
 -spec get(Id :: id()) -> storage_details().
 get(Id) ->
-    OpNode = nodes:local(?SERVICE_OPW),
+    {ok, OpNode} = nodes:any(?SERVICE_OPW),
     {ok, Storage} = rpc:call(OpNode, storage, get, [Id]),
-    get_storage(OpNode, Storage).
+    storage_to_map(OpNode, Storage).
 
 
 %%--------------------------------------------------------------------
@@ -212,8 +214,7 @@ maybe_update_auto_cleaning(_OpNode, _SpaceId, Args) when map_size(Args) =:= 0 ->
     ok;
 maybe_update_auto_cleaning(OpNode, SpaceId, Args) ->
     Configuration = parse_auto_cleaning_configuration(Args),
-    case rpc:call(OpNode, autocleaning_api, configure,
-        [SpaceId, Configuration]) of
+    case rpc:call(OpNode, autocleaning_api, configure, [SpaceId, Configuration]) of
         {error, Reason} ->
             ?throw_error({?ERR_CONFIG_AUTO_CLEANING, Reason});
         Result -> Result
@@ -264,13 +265,12 @@ get_auto_cleaning_configuration(OpNode, SpaceId) ->
 
 %%-------------------------------------------------------------------
 %% @doc
-%% This function is responsible for invalidating luma cache on given
-%% provider for given storage.
+%% Invalidates luma cache for given storage.
 %% @end
 %%-------------------------------------------------------------------
 -spec invalidate_luma_cache(StorageId :: id()) -> ok.
 invalidate_luma_cache(StorageId) ->
-    OpNode = nodes:local(?SERVICE_OPW),
+    {ok, OpNode} = nodes:any(?SERVICE_OPW),
     ok = rpc:call(OpNode, luma_cache, invalidate, [StorageId]).
 
 
@@ -307,7 +307,7 @@ add(OpNode, StorageName, Params) ->
     UserCtx = make_user_ctx(OpNode, StorageType, Params),
     {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, Params),
 
-    LumaConfig = get_luma_config(OpNode, Params),
+    LumaConfig = make_luma_config(OpNode, Params),
     maybe_verify_storage(Helper, ReadOnly),
 
     ?info("Adding storage: \"~s\" (~s)", [StorageName, StorageType]),
@@ -321,7 +321,7 @@ add(OpNode, StorageName, Params) ->
 
 %%--------------------------------------------------------------------
 %% @private
-%% @doc Uses op worker to create a helper record.
+%% @doc Uses op_worker to create a helper record.
 %% @end
 %%--------------------------------------------------------------------
 -spec make_helper(OpNode :: node(), StorageType :: binary(), UserCtx :: user_ctx(),
@@ -337,6 +337,25 @@ make_helper(OpNode, StorageType, AdminCtx, Params) ->
 
 
 %%--------------------------------------------------------------------
+%% @private @doc Parses LUMA config arguments if lumaEnabled is set to
+%% true in StorageParams and returns luma config acquired from provider.
+%% Throws error if lumaEnabled is true and other arguments are missing.
+%% @end
+%%--------------------------------------------------------------------
+-spec make_luma_config(OpNode :: node(), StorageParams :: storage_params()) ->
+    undefined | luma_config().
+make_luma_config(OpNode, StorageParams) ->
+    case onepanel_utils:typed_get(lumaEnabled, StorageParams, boolean, false) of
+        true ->
+            Url = get_required_luma_arg(lumaUrl, StorageParams, binary),
+            ApiKey = onepanel_utils:typed_get(lumaApiKey, StorageParams, binary, undefined),
+            rpc:call(OpNode, luma_config, new, [Url, ApiKey]);
+        false ->
+            undefined
+    end.
+
+
+%%--------------------------------------------------------------------
 %% @private @doc For read-write storage verifies that it is accessible for all
 %% op_worker service nodes.
 %% @end
@@ -347,7 +366,6 @@ maybe_verify_storage(_Helper, true) ->
     skipped;
 maybe_verify_storage(Helper, _) ->
     ?info("Verifying write access to storage"),
-    % @fixme improve error reporting
     verify_storage(Helper),
     verified.
 
@@ -372,8 +390,8 @@ verify_storage(Helper) ->
 %% @private @doc Returns storage details from op_worker service configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec get_storage(OpNode :: node(), Storage :: any()) -> storage_details().
-get_storage(OpNode, Storage) ->
+-spec storage_to_map(OpNode :: node(), Storage :: any()) -> storage_details().
+storage_to_map(OpNode, Storage) ->
     [Helper | _] = rpc:call(OpNode, storage, get_helpers, [Storage]),
     AdminCtx = rpc:call(OpNode, helper, get_admin_ctx, [Helper]),
     AdminCtx2 = maps:with([<<"username">>, <<"accessKey">>], AdminCtx),
@@ -391,25 +409,6 @@ get_storage(OpNode, Storage) ->
         lumaEnabled => maps:get(enabled, LumaConfig, false),
         lumaUrl => maps:get(url, LumaConfig, null)
     }.
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Parses LUMA config arguments if lumaEnabled is set to
-%% true in StorageParams and returns luma config acquired from provider.
-%% Throws error if lumaEnabled is true and other arguments are missing.
-%% @end
-%%--------------------------------------------------------------------
--spec get_luma_config(OpNode :: node(), StorageParams :: storage_params()) ->
-    undefined | luma_config().
-get_luma_config(OpNode, StorageParams) ->
-    case onepanel_utils:typed_get(lumaEnabled, StorageParams, boolean, false) of
-        true ->
-            Url = get_required_luma_arg(lumaUrl, StorageParams, binary),
-            ApiKey = onepanel_utils:typed_get(lumaApiKey, StorageParams, binary, undefined),
-            rpc:call(OpNode, luma_config, new, [Url, ApiKey]);
-        false ->
-            undefined
-    end.
 
 
 %%--------------------------------------------------------------------
@@ -489,7 +488,7 @@ make_luma_params(Params) ->
 
 
 %% @private
--spec maybe_update_name(OpNode :: node(), Id :: id(), Params :: map()) ->
+-spec maybe_update_name(OpNode :: node(), Id :: id(), Params :: storage_params()) ->
     ok | no_return().
 maybe_update_name(OpNode, Id, #{name := Name}) ->
     ok = rpc:call(OpNode, storage, update_name, [Id, Name]);
@@ -522,7 +521,7 @@ maybe_update_args(OpNode, Id, Type, Params) ->
 
 %% @private
 -spec maybe_update_insecure(OpNode :: node(), Id :: id(), Type :: binary(),
-    Params :: map()) -> ok | no_return().
+    Params :: storage_params()) -> ok | no_return().
 maybe_update_insecure(OpNode, Id, Type, #{insecure := NewInsecure}) ->
     ok = rpc:call(OpNode, storage, set_insecure,
         [Id, Type, NewInsecure]);
@@ -531,7 +530,7 @@ maybe_update_insecure(_OpNode, _Id, _Type, _Params) -> ok.
 
 
 %% @private
--spec maybe_update_readonly(OpNode :: node(), Id :: id(), Params :: map()) ->
+-spec maybe_update_readonly(OpNode :: node(), Id :: id(), Params :: storage_params()) ->
     ok | no_return().
 maybe_update_readonly(OpNode, Id, #{readonly := NewReadonly}) ->
     ok = rpc:call(OpNode, storage, set_readonly, [Id, NewReadonly]);
@@ -551,7 +550,7 @@ maybe_update_luma_config(OpNode, Id, Params) ->
         {#{luma_enabled := false}, false} ->
             ok;
         {#{luma_enabled := NewEnabled}, OldEnabled} when NewEnabled /= OldEnabled ->
-            LumaConfig = get_luma_config(OpNode, Params),
+            LumaConfig = make_luma_config(OpNode, Params),
             ok = rpc:call(OpNode, storage, set_luma_config, [Id, LumaConfig]),
             invalidate_luma_cache(Id);
         {Changes, true} ->

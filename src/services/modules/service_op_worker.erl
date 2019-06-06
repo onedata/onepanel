@@ -292,23 +292,23 @@ get_storages(_Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Configuration details of the service storage.
+%% @doc Modifies storage configuration.
 %% @end
 %%--------------------------------------------------------------------
 -spec update_storage(Ctx :: service:ctx()) ->
     op_worker_storage:storage_params() | no_return().
 update_storage(#{id := Id, storage := Params}) ->
-    Node = nodes:local(name()),
+    {ok, Node} = nodes:any(name()),
     op_worker_storage:update(Node, Id, Params).
 
 
 %%--------------------------------------------------------------------
-%% @doc Configuration details of the service storage.
+%% @doc Removes op_worker storage.
 %% @end
 %%--------------------------------------------------------------------
 -spec remove_storage(Ctx :: #{id := op_worker_storage:id(), _ => _}) -> ok | no_return().
 remove_storage(#{id := Id}) ->
-    Node = nodes:local(name()),
+    {ok, Node} = nodes:any(name()),
     op_worker_storage:remove(Node, Id).
 
 
@@ -325,7 +325,8 @@ invalidate_luma_cache(#{id := StorageId}) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Ensures certificates changed on disk are updated in worker listeners.
+%% Ensures certificates changed on disk are updated in op_worker
+%% on the current node.
 %% @end
 %%--------------------------------------------------------------------
 -spec reload_webcert(service:ctx()) -> ok.
@@ -448,6 +449,7 @@ migrate_generated_config(Ctx) ->
 %% configured and returns its value.
 %% @end
 %%-------------------------------------------------------------------
+-spec pop_legacy_ips_configured() -> boolean().
 pop_legacy_ips_configured() ->
     case service:get(name()) of
         {ok, #service{ctx = #{cluster_ips_configured := Configured}}} ->
@@ -466,6 +468,7 @@ pop_legacy_ips_configured() ->
 %% and Oneprovider is registered, triggers DNS check cache refresh.
 %% @end
 %%-------------------------------------------------------------------
+-spec maybe_check_dns() -> ok.
 maybe_check_dns() ->
     case hosts:self() == hd(get_hosts())
         andalso service_oneprovider:is_registered()

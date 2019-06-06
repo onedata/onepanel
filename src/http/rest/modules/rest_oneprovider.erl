@@ -86,7 +86,6 @@ exists_resource(Req, _State) ->
 %% @doc {@link rest_behaviour:is_conflict/4}
 %% @end
 %%--------------------------------------------------------------------
-% @fixme
 is_conflict(Req, 'DELETE', _Args,
     #rstate{resource = storage, bindings = #{id:=Id}}) ->
     case op_worker_storage:can_be_removed(Id) of

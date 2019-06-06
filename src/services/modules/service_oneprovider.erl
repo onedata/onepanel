@@ -580,7 +580,7 @@ revoke_space_support(#{id := SpaceId}) ->
 %%--------------------------------------------------------------------
 -spec get_spaces(Ctx :: service:ctx()) -> list().
 get_spaces(_Ctx) ->
-    [Node | _] = service_op_worker:get_nodes(),
+    {ok, Node} = nodes:any(?SERVICE_OPW),
     {ok, SpaceIds} = rpc:call(Node, provider_logic, get_spaces, []),
     [{ids, SpaceIds}].
 
