@@ -36,7 +36,7 @@ handle(<<"GET">>, Req) ->
         onezone -> service_oz_worker:get_domain();
         oneprovider -> service_op_worker:get_domain()
     end,
-    Origin = str_utils:format_bin("https://~s:~B", [Domain, https_listener:port()]),
+    ApiOrigin = str_utils:format_bin("~s:~B", [Domain, https_listener:port()]),
     cowboy_req:reply(
         200,
         #{<<"content-type">> => <<"application/json">>},
@@ -44,7 +44,7 @@ handle(<<"GET">>, Req) ->
             <<"clusterType">> => onepanel_env:get_cluster_type(),
             <<"clusterId">> => clusters:get_id(),
             <<"serviceType">> => ?ONEPANEL,
-            <<"origin">> => Origin,
+            <<"apiOrigin">> => ApiOrigin,
             <<"guiMode">> => ?EMERGENCY
         }),
         Req
