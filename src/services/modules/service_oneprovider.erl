@@ -1111,7 +1111,7 @@ configure_space(Node, SpaceId, #{storage_id := StorageId} = Ctx) ->
 %% Sends Onepanel version info to Onezone where the provider is registered.
 %% @end
 %%--------------------------------------------------------------------
--spec update_version_info(GuiHash :: binary()) -> http_client:response().
+-spec update_version_info(GuiHash :: binary()) -> ok | {error, inexistent_gui_version}.
 update_version_info(GuiHash) ->
     {BuildVersion, AppVersion} = onepanel_app:get_build_and_version(),
     Result = oz_endpoint:request(
@@ -1133,6 +1133,13 @@ update_version_info(GuiHash) ->
     end.
 
 
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Attempts to upload Onepanel GUI package to Onezone.
+%% @end
+%%--------------------------------------------------------------------
+-spec upload_onepanel_gui() -> ok | {error, term()}.
 upload_onepanel_gui() ->
     GuiPrefix = onedata:gui_prefix(?ONEPANEL_GUI),
     Result = oz_endpoint:request(
