@@ -32,11 +32,9 @@
 %%--------------------------------------------------------------------
 -spec handle(gui:method(), cowboy_req:req()) -> cowboy_req:req().
 handle(<<"GET">>, Req) ->
-    Domain = case onepanel_env:get_cluster_type() of
-        onezone -> service_oz_worker:get_domain();
-        oneprovider -> service_op_worker:get_domain()
-    end,
-    ApiOrigin = str_utils:format_bin("~s:~B", [Domain, https_listener:port()]),
+    ApiOrigin = str_utils:format_bin("~s:~B", [
+        cowboy_req:host(Req), https_listener:port()
+    ]),
     cowboy_req:reply(
         200,
         #{<<"content-type">> => <<"application/json">>},
