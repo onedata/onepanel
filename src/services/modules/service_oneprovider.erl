@@ -877,7 +877,8 @@ set_up_service_in_onezone() ->
     % Try to update version info in Onezone
     case update_version_info(GuiHash) of
         ok ->
-            ?info("Skipping GUI upload as it is already present in Onezone");
+            ?info("Skipping GUI upload as it is already present in Onezone"),
+            ?info("Oneprovider panel service successfully set up in Onezone");
         {error, inexistent_gui_version} ->
             ?info("Uploading GUI to Onezone (~s)", [GuiHash]),
             case upload_onepanel_gui() of
