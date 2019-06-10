@@ -381,8 +381,12 @@ verify_storage(Helper) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     case rpc:call(Node, storage_detector, verify_storage_on_all_nodes, [Helper]) of
         ok -> ok;
-        {error, Reason} -> ?throw_error(Reason);
-        {badrpc, {'EXIT', Error}} -> ?throw_error(Error)
+        {error, Reason} ->
+            ?throw_error(Reason);
+        {error, Reason, Stacktrace} ->
+            ?throw_stacktrace(Reason, undefined, Stacktrace);
+        {badrpc, {'EXIT', {Error, Stacktrace}}} ->
+            ?throw_stacktrace(Error, undefined, Stacktrace)
     end.
 
 
