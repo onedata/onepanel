@@ -6,11 +6,12 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% This module implements dynamic_page_behaviour and is called
-%%% when rest credentials page is visited.
+%%% This module implements dynamic_page_behaviour and is called when
+%%% gui-preauthorize page is visited (used to acquire gui tokens for authorizing
+%%% operations).
 %%% @end
 %%%-------------------------------------------------------------------
--module(page_gui_token).
+-module(page_gui_preauthorize).
 -author("Lukasz Opiola").
 
 -behaviour(dynamic_page_behaviour).

@@ -313,7 +313,7 @@ obtain_local_token(HostOrConfig, Auth) ->
 
     SessionAuth = {cookie, SessionCookieKey, SessionCookie},
     {ok, _, _, TokenJson} = ?assertMatch({ok, 200, _, _},
-        auth_request(HostOrConfig, {noprefix, "/gui-token"}, post, SessionAuth)),
+        auth_request(HostOrConfig, {noprefix, "/gui-preauthorize"}, post, SessionAuth)),
 
     #{<<"token">> := Token} = json_utils:decode(TokenJson),
     {token, Token}.
