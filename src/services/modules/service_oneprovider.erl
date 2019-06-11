@@ -873,28 +873,28 @@ configure_auto_cleaning(#{space_id := SpaceId} = Ctx) ->
 -spec set_up_service_in_onezone() -> ok.
 set_up_service_in_onezone() ->
     ?info("Setting up Oneprovider panel service in Onezone"),
-    GuiPackagePath = https_listener:gui_package_path(),
-    {ok, GuiHash} = gui:package_hash(GuiPackagePath),
-    ServiceShortname = onedata:service_shortname(?OP_PANEL),
+    {ok, GuiHash} = gui:package_hash(https_listener:gui_package_path()),
 
     % Try to update version info in Onezone
     case update_version_info(GuiHash) of
-        {ok, 204, _, _} ->
-            ?info("Skipping GUI upload as it is already present in Onezone");
-        {ok, 400, _, _} ->
+        ok ->
+            ?info("Skipping GUI upload as it is already present in Onezone"),
+            ?info("Oneprovider panel service successfully set up in Onezone");
+        {error, inexistent_gui_version} ->
             ?info("Uploading GUI to Onezone (~s)", [GuiHash]),
-            {ok, 200, _, _} = oz_endpoint:request(
-                provider,
-                str_utils:format("/~s/~s/gui-upload", [ServiceShortname, clusters:get_id()]),
-                post,
-                {multipart, [{file, str_utils:to_binary(GuiPackagePath)}]},
-                [{endpoint, gui}]
-            ),
-            ?info("GUI uploaded succesfully"),
-            {ok, 204, _, _} = update_version_info(GuiHash)
-    end,
-    ?info("Oneprovider panel service successfully set up in Onezone").
-
+            case upload_onepanel_gui() of
+                ok ->
+                    ?info("GUI uploaded succesfully"),
+                    ok = update_version_info(GuiHash),
+                    ?info("Oneprovider panel service successfully set up in Onezone");
+                {error, _} = Error ->
+                    ?alert(
+                        "Oneprovider panel service could not be successfully set "
+                        "up in Onezone due to an error during GUI upload: ~p",
+                        [Error]
+                    )
+            end
+    end.
 
 %%%===================================================================
 %%% Internal RPC functions
@@ -1112,10 +1112,10 @@ configure_space(Node, SpaceId, #{storage_id := StorageId} = Ctx) ->
 %% Sends Onepanel version info to Onezone where the provider is registered.
 %% @end
 %%--------------------------------------------------------------------
--spec update_version_info(GuiHash :: binary()) -> http_client:response().
+-spec update_version_info(GuiHash :: binary()) -> ok | {error, inexistent_gui_version}.
 update_version_info(GuiHash) ->
     {BuildVersion, AppVersion} = onepanel_app:get_build_and_version(),
-    oz_endpoint:request(
+    Result = oz_endpoint:request(
         provider,
         str_utils:format("/clusters/~s", [clusters:get_id()]),
         patch,
@@ -1126,4 +1126,39 @@ update_version_info(GuiHash) ->
                 <<"gui">> => GuiHash
             }
         })
-    ).
+    ),
+
+    case Result of
+        {ok, 204, _, _} -> ok;
+        {ok, 400, _, _} -> {error, inexistent_gui_version}
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Attempts to upload Onepanel GUI package to Onezone.
+%% @end
+%%--------------------------------------------------------------------
+-spec upload_onepanel_gui() -> ok | {error, term()}.
+upload_onepanel_gui() ->
+    GuiPrefix = onedata:gui_prefix(?ONEPANEL_GUI),
+    Result = oz_endpoint:request(
+        provider,
+        str_utils:format("/~s/~s/gui-upload", [GuiPrefix, clusters:get_id()]),
+        post,
+        {multipart, [{file, str_utils:to_binary(https_listener:gui_package_path())}]},
+        [{endpoint, gui}]
+    ),
+
+    case Result of
+        {ok, 200, _, _} ->
+            ok;
+        Other ->
+            try
+                {ok, 400, _, Body} = Other,
+                {error, json_utils:decode(Body)}
+            catch _:_ ->
+                {error, {unexpected_gui_upload_result, Other}}
+            end
+    end.

@@ -71,7 +71,7 @@ config:
 	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rebar.config.template
 
 gui-static:
-	$(LIB_DIR)/gui/pull-gui.sh gui-config.sh
+	$(LIB_DIR)/gui/pull-gui.sh gui-image.conf
 
 
 ##

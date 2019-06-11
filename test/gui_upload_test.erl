@@ -40,7 +40,7 @@ missing_gui_is_uploaded() ->
     service_oneprovider:set_up_service_in_onezone(),
 
     ?assertMatch({provider, "/clusters/" ++ _Id, patch, _, _Body, _}, pop_request()),
-    ?assertMatch({provider, "/opp/" ++ ?CLUSTER_ID ++ "/gui-upload", post, _, _Body, _},
+    ?assertMatch({provider, "/onp/" ++ ?CLUSTER_ID ++ "/gui-upload", post, _, _Body, _},
         pop_request()).
 
 
@@ -77,7 +77,7 @@ prepare() ->
             after
                 0 -> {ok, 400, #{}, <<>>}
             end;
-        (provider, "/opp/" ++ ?CLUSTER_ID ++ "/gui-upload", post, _Headers, _Body, _Opts) ->
+        (provider, "/onp/" ++ ?CLUSTER_ID ++ "/gui-upload", post, _Headers, _Body, _Opts) ->
             self() ! gui_uploaded,
             {ok, 200, #{}, <<>>};
         (Auth, URN, Method, Headers, Body, Opts) ->

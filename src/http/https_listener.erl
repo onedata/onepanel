@@ -63,11 +63,11 @@ start() ->
     end,
     Routes = merge_routes(CommonRoutes ++ SpecificRoutes),
     DynamicPages = [
+        {?CONFIGURATION_PATH, [<<"GET">>], page_panel_configuration},
         {?LOGIN_PATH, [<<"POST">>], page_basic_auth_login},
         {?LOGOUT_PATH, [<<"POST">>], page_logout},
-        {?GUI_TOKEN_PATH, [<<"POST">>], page_gui_token},
-        {?CONFIGURATION_PATH, [<<"GET">>], page_panel_configuration},
-        {?ONEZONE_LOGIN_PATH, [<<"GET">>], page_consume_onezone_login}
+        {?GUI_CONTEXT_PATH, [<<"GET">>], page_gui_context},
+        {?GUI_PREAUTHORIZE_PATH, [<<"POST">>], page_gui_preauthorize}
     ],
 
     ok = gui:start(#gui_config{
