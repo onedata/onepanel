@@ -450,7 +450,9 @@ post_should_configure_onezone_service(Config) ->
                         <<"name">> => <<"someName">>,
                         <<"domainName">> => <<"someDomain">>,
                         <<"policies">> => #{
-                            <<"subdomainDelegation">> => false
+                            <<"subdomainDelegation">> => false,
+                            <<"guiPackageVerification">> => false,
+                            <<"harvesterGuiPackageVerification">> => false
                         }
                     }
                 }
@@ -476,7 +478,9 @@ post_should_configure_onezone_service(Config) ->
                     onezone_name := <<"someName">>,
                     onezone_domain := <<"someDomain">>,
                     policies := #{
-                        subdomain_delegation := false
+                        subdomain_delegation := false,
+                        gui_package_verification := false,
+                        harvester_gui_package_verification := false
                     }
                 }
             }

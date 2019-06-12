@@ -152,5 +152,7 @@ delete_resource(_Req, #rstate{}) ->
 -spec make_policies_ctx(Args :: rest_handler:args()) -> #{atom() => term()}.
 make_policies_ctx(Args) ->
     onepanel_maps:get_store_multiple([
-        {subdomainDelegation, subdomain_delegation}
+        {subdomainDelegation, subdomain_delegation},
+        {guiPackageVerification, gui_package_verification},
+        {harvesterGuiPackageVerification, harvester_gui_package_verification}
     ], Args).
