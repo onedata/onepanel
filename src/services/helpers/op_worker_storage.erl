@@ -282,7 +282,7 @@ invalidate_luma_cache(StorageId) ->
 %%-------------------------------------------------------------------
 -spec can_be_removed(id()) -> boolean().
 can_be_removed(StorageId) ->
-    Node = hd(service_op_worker:get_nodes()),
+    {ok, Node} = nodes:any(?SERVICE_OPW),
     not rpc:call(Node, storage, supports_any_space, [StorageId]).
 
 %%%===================================================================

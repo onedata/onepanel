@@ -1478,10 +1478,6 @@ ceph_model() ->
         %% Result of storage verification (reading and writing a file). Returned
         %% only on PATCH requests for read-write storages.
         verificationPassed => {boolean, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -1503,6 +1499,10 @@ ceph_model() ->
         clusterName => string,
         %% The Ceph pool name.
         poolName => string,
+        %% Defines whether storage administrator credentials (username and key)
+        %% may be used by users without storage accounts to access storage in
+        %% direct IO mode.
+        insecure => {boolean, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -1521,10 +1521,6 @@ ceph_modify_model() ->
     #{
         %% The name of storage.
         name => {string, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -1548,7 +1544,11 @@ ceph_modify_model() ->
         %% The Ceph cluster name.
         clusterName => {string, optional},
         %% The Ceph pool name.
-        poolName => {string, optional}
+        poolName => {string, optional},
+        %% Defines whether storage administrator credentials (username and key)
+        %% may be used by users without storage accounts to access storage in
+        %% direct IO mode.
+        insecure => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1567,10 +1567,6 @@ cephrados_model() ->
         %% Result of storage verification (reading and writing a file). Returned
         %% only on PATCH requests for read-write storages.
         verificationPassed => {boolean, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -1594,6 +1590,10 @@ cephrados_model() ->
         poolName => string,
         %% Storage block size in bytes.
         blockSize => {integer, optional},
+        %% Defines whether storage administrator credentials (username and key)
+        %% may be used by users without storage accounts to access storage in
+        %% direct IO mode.
+        insecure => {boolean, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -1612,10 +1612,6 @@ cephrados_modify_model() ->
     #{
         %% The name of storage.
         name => {string, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -1639,7 +1635,11 @@ cephrados_modify_model() ->
         %% The Ceph cluster name.
         clusterName => {string, optional},
         %% The Ceph pool name.
-        poolName => {string, optional}
+        poolName => {string, optional},
+        %% Defines whether storage administrator credentials (username and key)
+        %% may be used by users without storage accounts to access storage in
+        %% direct IO mode.
+        insecure => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1658,10 +1658,6 @@ glusterfs_model() ->
         %% Result of storage verification (reading and writing a file). Returned
         %% only on PATCH requests for read-write storages.
         verificationPassed => {boolean, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -1705,10 +1701,6 @@ glusterfs_modify_model() ->
     #{
         %% The name of storage.
         name => {string, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -1755,10 +1747,6 @@ nulldevice_model() ->
         %% Result of storage verification (reading and writing a file). Returned
         %% only on PATCH requests for read-write storages.
         verificationPassed => {boolean, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -1817,10 +1805,6 @@ nulldevice_modify_model() ->
     #{
         %% The name of storage.
         name => {string, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -1936,10 +1920,6 @@ posix_model() ->
         %% Result of storage verification (reading and writing a file). Returned
         %% only on PATCH requests for read-write storages.
         verificationPassed => {boolean, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -1972,10 +1952,6 @@ posix_modify_model() ->
     #{
         %% The name of storage.
         name => {string, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -2011,10 +1987,6 @@ s3_model() ->
         %% Result of storage verification (reading and writing a file). Returned
         %% only on PATCH requests for read-write storages.
         verificationPassed => {boolean, optional},
-        %% Defines whether storage administrator credentials (accessKey and
-        %% secretKey) may be used by users without storage accounts to access
-        %% storage in direct IO mode.
-        insecure => {boolean, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -2039,6 +2011,10 @@ s3_model() ->
         signatureVersion => {integer, optional},
         %% Storage block size in bytes.
         blockSize => {integer, optional},
+        %% Defines whether storage administrator credentials (accessKey and
+        %% secretKey) may be used by users without storage accounts to access
+        %% storage in direct IO mode.
+        insecure => {boolean, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -2057,10 +2033,6 @@ s3_modify_model() ->
     #{
         %% The name of storage.
         name => {string, optional},
-        %% Defines whether storage administrator credentials (accessKey and
-        %% secretKey) may be used by users without storage accounts to access
-        %% storage in direct IO mode.
-        insecure => {boolean, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -2085,7 +2057,11 @@ s3_modify_model() ->
         secretKey => {string, optional},
         %% The version of signature used to sign requests. One of: 2, 4.
         %% Default: 4.
-        signatureVersion => {integer, optional}
+        signatureVersion => {integer, optional},
+        %% Defines whether storage administrator credentials (accessKey and
+        %% secretKey) may be used by users without storage accounts to access
+        %% storage in direct IO mode.
+        insecure => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -2104,10 +2080,6 @@ swift_model() ->
         %% Result of storage verification (reading and writing a file). Returned
         %% only on PATCH requests for read-write storages.
         verificationPassed => {boolean, optional},
-        %% Defines whether storage administrator credentials (username and
-        %% password) may be used by users without storage accounts to access
-        %% storage in direct IO mode.
-        insecure => {boolean, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -2131,6 +2103,10 @@ swift_model() ->
         password => string,
         %% Storage block size in bytes.
         blockSize => {integer, optional},
+        %% Defines whether storage administrator credentials (username and
+        %% password) may be used by users without storage accounts to access
+        %% storage in direct IO mode.
+        insecure => {boolean, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -2149,10 +2125,6 @@ swift_modify_model() ->
     #{
         %% The name of storage.
         name => {string, optional},
-        %% Defines whether storage administrator credentials (username and
-        %% password) may be used by users without storage accounts to access
-        %% storage in direct IO mode.
-        insecure => {boolean, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -2176,7 +2148,11 @@ swift_modify_model() ->
         %% The Keystone authentication username.
         username => {string, optional},
         %% The Keystone authentication password.
-        password => {string, optional}
+        password => {string, optional},
+        %% Defines whether storage administrator credentials (username and
+        %% password) may be used by users without storage accounts to access
+        %% storage in direct IO mode.
+        insecure => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -2195,10 +2171,6 @@ webdav_model() ->
         %% Result of storage verification (reading and writing a file). Returned
         %% only on PATCH requests for read-write storages.
         verificationPassed => {boolean, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -2267,6 +2239,10 @@ webdav_model() ->
         %% storage will have in Onedata. Values should be provided in octal
         %% format e.g. `0775`.
         dirMode => {string, optional},
+        %% Defines whether storage administrator credentials (username and key)
+        %% may be used by users without storage accounts to access storage in
+        %% direct IO mode.
+        insecure => {boolean, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -2285,10 +2261,6 @@ webdav_modify_model() ->
     #{
         %% The name of storage.
         name => {string, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -2336,6 +2308,10 @@ webdav_modify_model() ->
         %% Defines the maximum upload size for a single `PUT` or
         %% `PATCH` request. If set to 0, assumes that the WebDAV
         %% server has no upload limit.
-        maximumUploadSize => {integer, optional}
+        maximumUploadSize => {integer, optional},
+        %% Defines whether storage administrator credentials (username and key)
+        %% may be used by users without storage accounts to access storage in
+        %% direct IO mode.
+        insecure => {boolean, optional}
     }.
 
