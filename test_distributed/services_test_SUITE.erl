@@ -185,6 +185,7 @@ service_op_worker_add_storage_test(Config) ->
     {ok, Swift} = onepanel_lists:get([storages, swift, someSwift], Config),
     {ok, Glusterfs} = onepanel_lists:get([storages, glusterfs, someGlusterfs], Config),
     {ok, WebDAV} = onepanel_lists:get([storages, webdav, someWebDAV], Config),
+    {ok, NullDevice} = onepanel_lists:get([storages, webdav, someNullDevice], Config),
     onepanel_test_utils:service_action(Node, op_worker, add_storages, #{
         hosts => [hd(?config(oneprovider_hosts, Config))],
         storages => #{
@@ -251,6 +252,17 @@ service_op_worker_add_storage_test(Config) ->
                 authorizationHeader => onepanel_utils:typed_get(authorization_header, WebDAV, binary),
                 connectionPoolSize => onepanel_utils:typed_get(connection_pool_size, WebDAV, binary),
                 storagePathType => <<"canonical">>
+            },
+            <<"someNullDevice">> => #{
+                type => <<"nulldevice">>,
+                name => onepanel_utils:typed_get(name, NullDevice, binary),
+                latencyMin => onepanel_utils:typed_get(latency_min, NullDevice, binary),
+                latencyMax => onepanel_utils:typed_get(latency_max, NullDevice, binary),
+                timeoutProbability => onepanel_utils:typed_get(timeout_probability, NullDevice, binary),
+                filter => onepanel_utils:typed_get(filter, NullDevice, binary),
+                simulatedFilesystemParameters => onepanel_utils:typed_get (simulated_filesystem_parameters, NullDevice, binary),
+                simulatedFilesystemGrowSpeed => onepanel_utils:typed_get (simulated_filesystem_growSpeed, NullDevice, binary),
+                storagePathType => <<"canonical">>
             }
         }
     }),
@@ -288,6 +300,11 @@ service_op_worker_update_storage_test(Config) ->
         <<"someWebDAV">> => #{
             type => <<"webdav">>,
             rangeWriteSupport => <<"moddav">>
+        },
+        <<"someNullDevice">> => #{
+            type => <<"nulldevice">>,
+            latencyMin => <<"100">>,
+            latencyMax => <<"150">>
         }
     },
 
