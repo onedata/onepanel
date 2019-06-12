@@ -35,12 +35,14 @@ handle(<<"GET">>, Req) ->
     ApiOrigin = str_utils:format_bin("~s:~B", [
         cowboy_req:host(Req), https_listener:port()
     ]),
+    % get_id/0 throws in an unregistered Oneprovider
+    ClusterId = try clusters:get_id() catch _:_ -> null end,
     cowboy_req:reply(
         200,
         #{<<"content-type">> => <<"application/json">>},
         json_utils:encode(#{
             <<"clusterType">> => onepanel_env:get_cluster_type(),
-            <<"clusterId">> => clusters:get_id(),
+            <<"clusterId">> => ClusterId,
             <<"serviceType">> => ?ONEPANEL,
             <<"apiOrigin">> => ApiOrigin,
             <<"guiMode">> => ?EMERGENCY
