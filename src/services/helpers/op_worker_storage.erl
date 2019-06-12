@@ -124,7 +124,8 @@ remove(OpNode, Id) ->
         ok ->
             ?info("Successfully removed storage with id ~p", [Id]),
             ok;
-        {error, storage_in_use} -> ?throw_error(?ERR_STORAGE_IN_USE)
+        {error, storage_in_use} ->
+            ?throw_error(?ERR_STORAGE_IN_USE)
     end.
 
 
@@ -191,8 +192,7 @@ is_mounted_in_root(OpNode, SpaceId, StorageId) ->
 %% Enables or disables file popularity.
 %% @end
 %%-------------------------------------------------------------------
--spec maybe_update_file_popularity(Node :: node(), SpaceId :: id(), map()) ->
-    ok.
+-spec maybe_update_file_popularity(Node :: node(), SpaceId :: id(), map()) -> ok.
 maybe_update_file_popularity(_Node, _SpaceId, Args) when map_size(Args) =:= 0 ->
     ok;
 maybe_update_file_popularity(Node, SpaceId, Args) ->

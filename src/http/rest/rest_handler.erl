@@ -303,7 +303,7 @@ delete_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
             params = Params
         }) of
             {false, Req5} ->
-                {Deleted, Req6} = Module:delete_resource(Req4, State#rstate{
+                {Deleted, Req6} = Module:delete_resource(Req5, State#rstate{
                     bindings = Bindings,
                     params = Params
                 }),
