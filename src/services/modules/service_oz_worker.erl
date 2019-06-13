@@ -189,13 +189,17 @@ configure(Ctx) ->
     % TODO VFS-4140 Mark IPs configured only in batch mode
     onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),
 
+    AppConfig = onepanel_maps:get_store_multiple([
+        {gui_debug_mode, gui_debug_mode}
+    ], Ctx, #{
+        oz_name => OzName,
+        http_domain => OzDomain
+    }),
+
     simple_cache:clear(?DETAILS_CACHE_KEY),
     service_cluster_worker:configure(Ctx#{
         name => name(),
-        app_config => #{
-            oz_name => OzName,
-            http_domain => OzDomain
-        },
+        app_config => AppConfig,
         generated_config_file => GeneratedConfigFile,
         vm_args_file => VmArgsFile,
         initialize_ip => true

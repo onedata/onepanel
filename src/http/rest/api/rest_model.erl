@@ -507,7 +507,10 @@ panel_configuration_model() ->
         %% users entering GUI will not be asked to complete the configuration.
         %% In that case default values will be used, available for change later
         %% via appropriate Onepanel GUI pages or REST.
-        interactiveDeployment => {boolean, optional}
+        interactiveDeployment => {boolean, optional},
+        %% When true, all GUIs hosted in this cluster will print debug logs to
+        %% browser console.
+        guiDebugMode => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
