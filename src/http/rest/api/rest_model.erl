@@ -1539,6 +1539,8 @@ ceph_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Map with key-value pairs used for describing QoS requirements.
+        qosParameters => {#{'_' => string}, {optional, #{}}},
         %% The username of the Ceph cluster administrator.
         username => string,
         %% The admin key to access the Ceph cluster.
@@ -1582,6 +1584,9 @@ ceph_modify_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Map with key-value pairs used for describing QoS requirements.
+        %% Overrides all previously set parameters.
+        qosParameters => {#{'_' => string}, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
         type => {equal, <<"ceph">>},
@@ -1628,6 +1633,8 @@ cephrados_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Map with key-value pairs used for describing QoS requirements.
+        qosParameters => {#{'_' => string}, {optional, #{}}},
         %% The username of the Ceph cluster administrator.
         username => string,
         %% The admin key to access the Ceph cluster.
@@ -1673,6 +1680,9 @@ cephrados_modify_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Map with key-value pairs used for describing QoS requirements.
+        %% Overrides all previously set parameters.
+        qosParameters => {#{'_' => string}, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
         type => {equal, <<"cephrados">>},
@@ -1719,6 +1729,8 @@ glusterfs_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Map with key-value pairs used for describing QoS requirements.
+        qosParameters => {#{'_' => string}, {optional, #{}}},
         %% The name of the volume to use as a storage backend.
         volume => string,
         %% The hostname (IP address or FQDN) of GlusterFS volume server.
@@ -1762,6 +1774,9 @@ glusterfs_modify_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Map with key-value pairs used for describing QoS requirements.
+        %% Overrides all previously set parameters.
+        qosParameters => {#{'_' => string}, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
         type => {equal, <<"glusterfs">>},
@@ -1808,6 +1823,8 @@ nulldevice_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Map with key-value pairs used for describing QoS requirements.
+        qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Minimum latency in milliseconds, which should be simulated for
         %% selected operations.
         latencyMin => {integer, optional},
@@ -1866,6 +1883,9 @@ nulldevice_modify_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Map with key-value pairs used for describing QoS requirements.
+        %% Overrides all previously set parameters.
+        qosParameters => {#{'_' => string}, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
         type => {equal, <<"nulldevice">>},
@@ -1981,6 +2001,8 @@ posix_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Map with key-value pairs used for describing QoS requirements.
+        qosParameters => {#{'_' => string}, {optional, #{}}},
         %% The absolute path to the directory where the POSIX storage is mounted
         %% on the cluster nodes.
         mountPoint => string,
@@ -2013,6 +2035,9 @@ posix_modify_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Map with key-value pairs used for describing QoS requirements.
+        %% Overrides all previously set parameters.
+        qosParameters => {#{'_' => string}, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
         type => {equal, <<"posix">>},
@@ -2048,6 +2073,8 @@ s3_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Map with key-value pairs used for describing QoS requirements.
+        qosParameters => {#{'_' => string}, {optional, #{}}},
         %% The hostname of a machine where S3 storage is installed.
         hostname => string,
         %% The storage bucket name.
@@ -2110,6 +2137,9 @@ s3_modify_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Map with key-value pairs used for describing QoS requirements.
+        %% Overrides all previously set parameters.
+        qosParameters => {#{'_' => string}, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
         type => {equal, <<"s3">>},
@@ -2170,6 +2200,8 @@ swift_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Map with key-value pairs used for describing QoS requirements.
+        qosParameters => {#{'_' => string}, {optional, #{}}},
         %% The URL to OpenStack Keystone identity service.
         authUrl => string,
         %% The name of the tenant to which the user belongs.
@@ -2215,6 +2247,9 @@ swift_modify_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Map with key-value pairs used for describing QoS requirements.
+        %% Overrides all previously set parameters.
+        qosParameters => {#{'_' => string}, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
         type => {equal, <<"swift">>},
@@ -2261,6 +2296,8 @@ webdav_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Map with key-value pairs used for describing QoS requirements.
+        qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Full URL of the WebDAV server, including scheme (http or https) and
         %% path.
         endpoint => string,
@@ -2351,6 +2388,9 @@ webdav_modify_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Map with key-value pairs used for describing QoS requirements.
+        %% Overrides all previously set parameters.
+        qosParameters => {#{'_' => string}, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
         type => {equal, <<"webdav">>},
