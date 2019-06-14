@@ -103,11 +103,13 @@ update(OpNode, Id, Params) ->
     Storage = op_worker_storage:get(Id),
     {ok, Id} = onepanel_maps:get(id, Storage),
     {ok, Type} = onepanel_maps:get(type, Storage),
+    {ok, LumaEnabled} = onepanel_maps:get(lumaEnabled, Storage),
 
+    % @TODO VFS-5513 Modify everything in a single datastore operation
     ok = maybe_update_name(OpNode, Id, Params),
     ok = maybe_update_admin_ctx(OpNode, Id, Type, Params),
     ok = maybe_update_args(OpNode, Id, Type, Params),
-    ok = maybe_update_luma_config(OpNode, Id, Params),
+    ok = maybe_update_luma_config(OpNode, Id, Params, LumaEnabled),
     ok = maybe_update_insecure(OpNode, Id, Type, Params),
     ok = maybe_update_readonly(OpNode, Id, Params),
     make_update_result(OpNode, Id).
@@ -544,16 +546,14 @@ maybe_update_readonly(_OpNode, _Id, _Params) -> ok.
 
 %% @private
 -spec maybe_update_luma_config(OpNode :: node(), Id :: id(),
-    Params :: #{atom() => term()}) -> ok | no_return().
-maybe_update_luma_config(OpNode, Id, Params) ->
-    IsEnabled = rpc:call(OpNode, storage, is_luma_enabled, [Id]),
-
-    case {make_luma_params(Params), IsEnabled} of
+    Params :: #{atom() => term()}, WasEnabled :: boolean()) -> ok | no_return().
+maybe_update_luma_config(OpNode, Id, Params, WasEnabled) ->
+    case {make_luma_params(Params), WasEnabled} of
         {Empty, _} when map_size(Empty) == 0 ->
             ok;
         {#{luma_enabled := false}, false} ->
             ok;
-        {#{luma_enabled := NewEnabled}, OldEnabled} when NewEnabled /= OldEnabled ->
+        {#{luma_enabled := NewEnabled}, _} when NewEnabled /= WasEnabled ->
             LumaConfig = make_luma_config(OpNode, Params),
             ok = rpc:call(OpNode, storage, set_luma_config, [Id, LumaConfig]),
             invalidate_luma_cache(Id);
