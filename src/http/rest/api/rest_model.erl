@@ -516,7 +516,10 @@ panel_configuration_model() ->
         %% users entering GUI will not be asked to complete the configuration.
         %% In that case default values will be used, available for change later
         %% via appropriate Onepanel GUI pages or REST.
-        interactiveDeployment => {boolean, optional}
+        interactiveDeployment => {boolean, optional},
+        %% When true, all GUIs hosted in this cluster will print debug logs to
+        %% browser console.
+        guiDebugMode => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1459,7 +1462,20 @@ zone_policies_model() ->
     #{
         %% If true, Oneproviders are allowed to request subdomains of the
         %% Onezone domain for use as their domains.
-        subdomainDelegation => {boolean, optional}
+        subdomainDelegation => {boolean, optional},
+        %% When this value is true, GUI packages uploaded by services operating
+        %% under Onezone or by harvester admins are checked against known
+        %% SHA-256 check-sums using the compatibility registry. Setting this
+        %% value to false disables the verification. WARNING: disabling GUI
+        %% package verification poses a severe security threat, allowing
+        %% Oneprovider owners to upload arbitrary GUI to Onezone (which is then
+        %% hosted in Onezone's domain).
+        guiPackageVerification => {boolean, optional},
+        %% This policy can be used to disable GUI package verification for
+        %% harvester plugins only. See \&quot;guiPackageVerification\&quot; for
+        %% detailed description. This setting has no effect if
+        %% \&quot;guiPackageVerification\&quot; is set to false.
+        harvesterGuiPackageVerification => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------

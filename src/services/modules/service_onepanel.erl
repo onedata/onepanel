@@ -22,7 +22,7 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([set_cookie/1, check_connection/1,
+-export([set_cookie/1, configure/1, check_connection/1,
     ensure_all_hosts_available/1, init_cluster/1, extend_cluster/1,
     join_cluster/1, reset_node/1, ensure_node_ready/1, reload_webcert/1,
     available_for_clustering/0]).
@@ -140,8 +140,10 @@ get_steps(migrate_emergency_passphrase, _Ctx) ->
         hosts = get_hosts(), selection = any,
         condition = fun(_) -> not emergency_passphrase:is_set() end }];
 
-get_steps(reload_webcert, _Ctx) ->
-    [#step{function = reload_webcert}].
+get_steps(Function, _Ctx) when
+    Function == reload_webcert;
+    Function == configure ->
+    [#step{function = Function}].
 
 
 %%%===================================================================
@@ -160,6 +162,20 @@ set_cookie(#{cookie := Cookie} = Ctx) ->
 
 set_cookie(Ctx) ->
     set_cookie(Ctx#{cookie => erlang:get_cookie()}).
+
+
+%%--------------------------------------------------------------------
+%% @doc Stores onepanel configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec configure(service:ctx()) -> ok.
+configure(#{gui_debug_mode := GuiDebugMode} = Ctx) ->
+    onepanel_env:set(gui_debug_mode, GuiDebugMode, ?APP_NAME),
+    onepanel_env:write([?APP_NAME, gui_debug_mode], GuiDebugMode),
+    configure(maps:remove(gui_debug_mode, Ctx));
+
+configure(_Ctx) ->
+    ok.
 
 
 %%--------------------------------------------------------------------

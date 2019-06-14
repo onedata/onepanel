@@ -94,6 +94,7 @@ get_steps(deploy, Ctx) ->
     Ss = #steps{verify_hosts = false},
     [
         Ss#steps{service = ?SERVICE_PANEL, action = deploy, ctx = OpaCtx},
+        Ss#steps{service = ?SERVICE_PANEL, action = configure, ctx = OpaCtx},
         #steps{service = ?SERVICE_PANEL, action = migrate_emergency_passphrase},
         Ss#steps{service = ?SERVICE_CB, action = deploy, ctx = CbCtx},
         S#step{service = ?SERVICE_CB, function = status, ctx = CbCtx},

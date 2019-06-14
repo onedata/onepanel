@@ -192,6 +192,9 @@
         %% Directory where static files of standalone GUI are served from.
         {gui_static_root, "{{platform_etc_dir}}/gui_static"},
 
+        %% Enable debug logs in browser console
+        {gui_debug_mode, false},
+
         {rpc_timeout, 1800000},
         {create_tables_timeout, 10000},
         {copy_tables_timeout, 10000},

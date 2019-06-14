@@ -178,8 +178,10 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider} = Sta
         auth => Auth,
         api_version => Version
     },
-    OpaCtx3 = onepanel_maps:get_store([onepanel, interactiveDeployment], Args,
-        interactive_deployment, OpaCtx2, true),
+    OpaCtx3 = onepanel_maps:get_store_multiple([
+        {[onepanel, interactiveDeployment], interactive_deployment, true},
+        {[onepanel, guiDebugMode], gui_debug_mode}
+    ], Args, OpaCtx2),
 
     ClusterIPs = rest_utils:get_cluster_ips(Args),
 
@@ -240,8 +242,10 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone} = State) 
         auth => Auth,
         api_version => Version
     },
-    OpaCtx3 = onepanel_maps:get_store([onepanel, interactiveDeployment], Args,
-        interactive_deployment, OpaCtx2, true),
+    OpaCtx3 = onepanel_maps:get_store_multiple([
+        {[onepanel, interactiveDeployment], interactive_deployment, true},
+        {[onepanel, guiDebugMode], gui_debug_mode}
+    ], Args, OpaCtx2),
 
     LeCtx = onepanel_maps:get_store_multiple([
         {[onezone, letsEncryptEnabled], letsencrypt_enabled}
@@ -262,7 +266,8 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone} = State) 
     OzwCtx2 = onepanel_maps:get_store_multiple([
         {[onezone, name], onezone_name},
         {[onezone, domainName], onezone_domain},
-        {[onezone, users], onezone_users}
+        {[onezone, users], onezone_users},
+        {[onepanel, guiDebugMode], gui_debug_mode}
     ], Args, OzwCtx),
 
     OzwCtx3 = case Args of

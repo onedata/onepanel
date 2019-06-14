@@ -450,8 +450,13 @@ post_should_configure_onezone_service(Config) ->
                         <<"name">> => <<"someName">>,
                         <<"domainName">> => <<"someDomain">>,
                         <<"policies">> => #{
-                            <<"subdomainDelegation">> => false
+                            <<"subdomainDelegation">> => false,
+                            <<"guiPackageVerification">> => false,
+                            <<"harvesterGuiPackageVerification">> => false
                         }
+                    },
+                    <<"onepanel">> => #{
+                        <<"guiDebugMode">> => true
                     }
                 }
             )
@@ -475,9 +480,15 @@ post_should_configure_onezone_service(Config) ->
                     main_cm_host := "host3.someDomain",
                     onezone_name := <<"someName">>,
                     onezone_domain := <<"someDomain">>,
+                    gui_debug_mode := true,
                     policies := #{
-                        subdomain_delegation := false
+                        subdomain_delegation := false,
+                        gui_package_verification := false,
+                        harvester_gui_package_verification := false
                     }
+                },
+                onepanel := #{
+                    gui_debug_mode := true
                 }
             }
         }}, ?TIMEOUT)
@@ -503,6 +514,9 @@ post_should_configure_oneprovider_service(Config) ->
                         <<"adminEmail">> => <<"admin@onedata.org">>,
                         <<"geoLongitude">> => <<"10">>,
                         <<"geoLatitude">> => <<"20.0">>
+                    },
+                    <<"onepanel">> => #{
+                        <<"guiDebugMode">> => true
                     }
                 }
             )
@@ -544,6 +558,9 @@ post_should_configure_oneprovider_service(Config) ->
                             secretKey := <<"someKey">>
                         }
                     }
+                },
+                onepanel := #{
+                    gui_debug_mode := true
                 }
             },
             oneprovider := #{
