@@ -17,37 +17,50 @@
 -export([
     cluster_configuration_details_model/0,
     cluster_databases_model/0,
+    cluster_details_model/0,
     cluster_ips_model/0,
     cluster_managers_model/0,
+    cluster_members_summary_model/0,
     cluster_workers_model/0,
     configuration_model/0,
-    cookie_model/0,
+    current_user_model/0,
     database_hosts_model/0,
     dns_check_model/0,
     dns_check_configuration_model/0,
     dns_check_result_model/0,
+    emergency_passphrase_change_request_model/0,
+    emergency_passphrase_status_model/0,
     error_model/0,
+    host_model/0,
+    host_add_request_model/0,
+    ids_model/0,
+    join_cluster_request_model/0,
     manager_hosts_model/0,
     modify_cluster_ips_model/0,
+    node_model/0,
+    onezone_info_model/0,
+    onezone_user_model/0,
+    onezone_user_create_request_model/0,
     panel_configuration_model/0,
-    panel_configuration_users_model/0,
+    password_change_request_model/0,
+    progress_model/0,
+    progress_modify_model/0,
     provider_cluster_configuration_model/0,
     provider_configuration_model/0,
     provider_configuration_details_model/0,
     provider_configuration_details_oneprovider_model/0,
     provider_configuration_oneprovider_model/0,
-    provider_configuration_onezone_model/0,
     provider_details_model/0,
     provider_modify_request_model/0,
     provider_register_request_model/0,
     provider_spaces_model/0,
     provider_storages_model/0,
+    remote_provider_details_model/0,
     service_databases_model/0,
     service_error_model/0,
     service_hosts_model/0,
     service_status_model/0,
     service_status_host_model/0,
-    session_details_model/0,
     space_auto_cleaning_configuration_model/0,
     space_auto_cleaning_report_model/0,
     space_auto_cleaning_reports_model/0,
@@ -68,9 +81,8 @@
     task_status_model/0,
     time_stats_model/0,
     time_stats_collection_model/0,
-    user_create_request_model/0,
-    user_details_model/0,
-    user_modify_request_model/0,
+    token_model/0,
+    version_info_model/0,
     web_cert_model/0,
     web_cert_modify_request_model/0,
     web_cert_paths_model/0,
@@ -130,6 +142,28 @@ cluster_databases_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc Details of a cluster.
+%% @end
+%%--------------------------------------------------------------------
+-spec cluster_details_model() -> maps:map().
+cluster_details_model() ->
+    #{
+        %% Id of the cluster record
+        id => string,
+        %% Type of the cluster
+        type => string,
+        %% The Id of the service hosted on this cluster - depending on the type
+        %% equal to the Oneprovider Id or \&quot;onezone\&quot; in case of
+        %% Onezone cluster
+        serviceId => string,
+        workerVersion => version_info_model(),
+        onepanelVersion => version_info_model(),
+        %% Is Onepanel proxy enabled - if so, onepanel GUI is served on
+        %% cluster's domain at port 443 (rather than 9443).
+        onepanelProxy => boolean
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc External IPs used by cluster nodes.
 %% @end
 %%--------------------------------------------------------------------
@@ -157,6 +191,24 @@ cluster_managers_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc Summary of cluster members, listing number of direct and effective users
+%% and groups.
+%% @end
+%%--------------------------------------------------------------------
+-spec cluster_members_summary_model() -> maps:map().
+cluster_members_summary_model() ->
+    #{
+        %% Number of users belonging directly to the cluster.
+        usersCount => {integer, optional},
+        %% Number of users belonging directly and indirectly to the cluster.
+        effectiveUsersCount => {integer, optional},
+        %% Number of groups belonging directly to the cluster.
+        groupsCount => {integer, optional},
+        %% Number of groups belonging directly and indirectly to the cluster.
+        effectiveGroupsCount => {integer, optional}
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The cluster worker service configuration.
 %% @end
 %%--------------------------------------------------------------------
@@ -176,19 +228,18 @@ configuration_model() ->
     {oneof, [op_configuration_model(), oz_configuration_model()]}.
 
 %%--------------------------------------------------------------------
-%% @doc The cookie is a character sequence that is common for all the cluster
-%% nodes. If this parameter is not provided, in case of a cluster initialization
-%% request, it will be generated, and in case of a cluster extension request the
-%% current cookie value will be used. However, if the cluster cookie and the
-%% cookie of the host that is about to join the cluster doesn't match there
-%% will be a connection error.
+%% @doc Information about the authenticated user.
 %% @end
 %%--------------------------------------------------------------------
--spec cookie_model() -> maps:map().
-cookie_model() ->
+-spec current_user_model() -> maps:map().
+current_user_model() ->
     #{
-        %% The cluster cookie.
-        cookie => {atom, optional}
+        %% The user Id.
+        userId => string,
+        %% User's full name (given names + surname).
+        username => string,
+        %% List of cluster privileges held by the user in the current cluster.
+        clusterPrivileges => {[string], optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -266,6 +317,31 @@ dns_check_result_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc Emergency passphrase to set and old passphrase to authorize the change.
+%% @end
+%%--------------------------------------------------------------------
+-spec emergency_passphrase_change_request_model() -> maps:map().
+emergency_passphrase_change_request_model() ->
+    #{
+        %% New passphrase to be set.
+        newPassphrase => string,
+        %% Currently set passphrase. Not required when setting the passphrase
+        %% for the first time.
+        currentPassphrase => {string, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Emergency passphrase status.
+%% @end
+%%--------------------------------------------------------------------
+-spec emergency_passphrase_status_model() -> maps:map().
+emergency_passphrase_status_model() ->
+    #{
+        %% True if the passphrase is set.
+        isSet => {boolean, optional}
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The generic error model for REST requests.
 %% @end
 %%--------------------------------------------------------------------
@@ -276,6 +352,54 @@ error_model() ->
         error => string,
         %% The detailed error description.
         description => string
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Details of a cluster host.
+%% @end
+%%--------------------------------------------------------------------
+-spec host_model() -> maps:map().
+host_model() ->
+    #{
+        %% Host's hostname.
+        hostname => string
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Details of host added to cluster
+%% @end
+%%--------------------------------------------------------------------
+-spec host_add_request_model() -> maps:map().
+host_add_request_model() ->
+    #{
+        %% Address at which the host is available, IP or hostname.
+        address => string
+    }.
+
+-spec ids_model() -> maps:map().
+ids_model() ->
+    #{
+        %% List of ids.
+        ids => [string]
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Information allowing new host to join the cluster.
+%% @end
+%%--------------------------------------------------------------------
+-spec join_cluster_request_model() -> maps:map().
+join_cluster_request_model() ->
+    #{
+        %% Hostname of an existing cluster node.
+        clusterHost => string,
+        %% The cookie is a character sequence that is common for all the cluster
+        %% nodes. If this parameter is not provided, in case of a cluster
+        %% initialization request, it will be generated, and in case of a
+        %% cluster extension request the current cookie value will be used.
+        %% However, if the cluster cookie and the cookie of the host that is
+        %% about to join the cluster doesn't match there will be a
+        %% connection error.
+        cookie => {atom, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -307,28 +431,144 @@ modify_cluster_ips_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc Details of a onepanel node.
+%% @end
+%%--------------------------------------------------------------------
+-spec node_model() -> maps:map().
+node_model() ->
+    #{
+        %% Hostname of the node.
+        hostname => string,
+        %% Type of Onedata cluster managed by this onepanel.
+        clusterType => string
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Information which can be obtained about remote Onezone.
+%% @end
+%%--------------------------------------------------------------------
+-spec onezone_info_model() -> maps:map().
+onezone_info_model() ->
+    #{
+        %% True if connection to the Onezone was achieved. If false, fields
+        %% other than 'domain' will not be sent.
+        online => boolean,
+        %% Onezone cluster version.
+        version => {string, optional},
+        %% Domain of the Onezone.
+        domain => string,
+        %% Name of the Onezone cluster.
+        name => {string, optional},
+        %% True if versions of this Oneprovider and the Onezone are compatible.
+        compatible => {boolean, optional},
+        %% Whether given Onezone allows subdomain delegation.
+        subdomainDelegationSupported => {boolean, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Describes a user account.
+%% @end
+%%--------------------------------------------------------------------
+-spec onezone_user_model() -> maps:map().
+onezone_user_model() ->
+    #{
+        %% Unique user Id.
+        userId => string,
+        %% User's full name (given names + surname).
+        fullName => string,
+        %% User's human-readable identifier, unique across the system. Makes
+        %% it easier to identify the user and can be used for signing in with
+        %% password.
+        username => {string, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The new Onezone user account details
+%% @end
+%%--------------------------------------------------------------------
+-spec onezone_user_create_request_model() -> maps:map().
+onezone_user_create_request_model() ->
+    #{
+        username => string,
+        password => string,
+        %% Ids of Onezone groups to which the user should be added. The groups
+        %% must already exist.
+        groups => {[string], {optional, []}}
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The panel configuration.
 %% @end
 %%--------------------------------------------------------------------
 -spec panel_configuration_model() -> maps:map().
 panel_configuration_model() ->
     #{
-        %% Indicates that interactive deployment is performed. If false, users
-        %% entering GUI will not be asked to complete the configuration. In that
-        %% case default values will be used, available for change later via
-        %% appropriate onepanel GUI pages or REST.
+        %% Indicates that interactive deployment is being performed. If false,
+        %% users entering GUI will not be asked to complete the configuration.
+        %% In that case default values will be used, available for change later
+        %% via appropriate Onepanel GUI pages or REST.
         interactiveDeployment => {boolean, optional},
-        %% The collection of user names associated with users properties.
-        users => {#{'_' => panel_configuration_users_model()}, {optional, #{}}}
+        %% When true, all GUIs hosted in this cluster will print debug logs to
+        %% browser console.
+        guiDebugMode => {boolean, optional}
     }.
 
--spec panel_configuration_users_model() -> maps:map().
-panel_configuration_users_model() ->
+%%--------------------------------------------------------------------
+%% @doc Request to change user's password
+%% @end
+%%--------------------------------------------------------------------
+-spec password_change_request_model() -> maps:map().
+password_change_request_model() ->
     #{
-        %% The user password.
-        password => string,
-        %% The user role, one of 'admin' or 'regular'.
-        userRole => atom
+        %% The new user password.
+        newPassword => string
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Progress markers indicating which steps of interactive deployment were
+%% reached by the admin performing cluster setup.
+%% @end
+%%--------------------------------------------------------------------
+-spec progress_model() -> maps:map().
+progress_model() ->
+    #{
+        %% True after user assigned services to cluster nodes and they were
+        %% deployed.
+        clusterNodes => {boolean, optional},
+        %% True after user provided public IPs of cluster nodes or confirmed
+        %% autodetected defaults. Also true if interactiveDeployment was
+        %% disabled.
+        clusterIps => {boolean, optional},
+        %% True after user decided whether to use Let's Encrypt certificates
+        %% or if interactiveDeployment was disabled.
+        webCertificate => {boolean, optional},
+        %% True after user reviewed results of DNS check or if
+        %% interactiveDeployment was disabled.
+        dnsCheck => {boolean, optional},
+        %% True after at least one storage was added to op_worker. Omitted in
+        %% Onezone panel.
+        storageSetup => {boolean, optional},
+        %% True if the Oneprovider is registered at Onezone. Omitted in Onezone
+        %% panel.
+        isRegistered => {boolean, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Progress markers which can be set or unset by the GUI.
+%% @end
+%%--------------------------------------------------------------------
+-spec progress_modify_model() -> maps:map().
+progress_modify_model() ->
+    #{
+        %% True after user confirmed detected external IPs or if
+        %% interactiveDeployment was disabled.
+        clusterIps => {boolean, optional},
+        %% True after user decided whether to use Let's Encrypt certificates
+        %% or if interactiveDeployment was disabled.
+        webCertificate => {boolean, optional},
+        %% True after user reviewed results of DNS check or if
+        %% interactiveDeployment was disabled.
+        dnsCheck => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -359,7 +599,6 @@ provider_configuration_model() ->
     #{
         cluster => provider_cluster_configuration_model(),
         oneprovider => {provider_configuration_oneprovider_model(), optional},
-        onezone => {provider_configuration_onezone_model(), optional},
         onepanel => {panel_configuration_model(), optional}
     }.
 
@@ -381,7 +620,7 @@ provider_configuration_details_model() ->
 -spec provider_configuration_details_oneprovider_model() -> maps:map().
 provider_configuration_details_oneprovider_model() ->
     #{
-        %% The name of a provider. Null if not registered.
+        %% The name of a provider. `null` if not registered.
         name => string,
         %% True if all steps of cluster deployment and configuration have been
         %% performed.
@@ -397,6 +636,9 @@ provider_configuration_oneprovider_model() ->
     #{
         %% Defines whether the provider should be registered in a zone.
         register => boolean,
+        %% Registration token obtained from Onezone. This token identifies
+        %% Onezone to be used and authorizes the registration request.
+        token => {string, optional},
         %% The name under which the provider will be registered in a zone.
         name => string,
         %% If enabled, the storage provider will be assigned a subdomain in
@@ -425,18 +667,7 @@ provider_configuration_oneprovider_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The zone custom configuration.
-%% @end
-%%--------------------------------------------------------------------
--spec provider_configuration_onezone_model() -> maps:map().
-provider_configuration_onezone_model() ->
-    #{
-        %% The domain name of a zone where provider will be registered.
-        domainName => string
-    }.
-
-%%--------------------------------------------------------------------
-%% @doc The provider configuration details.
+%% @doc The Oneprovider configuration details.
 %% @end
 %%--------------------------------------------------------------------
 -spec provider_details_model() -> maps:map().
@@ -444,24 +675,26 @@ provider_details_model() ->
     #{
         %% The Id assigned by a zone.
         id => string,
-        %% The name under which the provider has been registered in a zone.
+        %% The name under which the Oneprovider has been registered in a zone.
         name => string,
-        %% If enabled, the storage provider has a subdomain in onezone's
+        %% If enabled, the storage Oneprovider has a subdomain in onezone's
         %% domain and 'subdomain' property must be provided.
         subdomainDelegation => boolean,
-        %% Unique subdomain in onezone's domain for the provider. Required
-        %% if subdomain delegation is enabled.
+        %% Unique subdomain in onezone's domain for the Oneprovider.
+        %% Required if subdomain delegation is enabled.
         subdomain => {string, optional},
-        %% The fully qualified domain name of the provider or its IP address
+        %% The fully qualified domain name of the Oneprovider or its IP address
         %% (only for single-node deployments or clusters with a reverse proxy).
         domain => string,
-        %% Email address of the oneprovider administrator.
-        adminEmail => string,
-        %% The geographical longitude of the provider.
+        %% Email address of the Oneprovider administrator. Omitted if it could
+        %% not be retrievied.
+        adminEmail => {string, optional},
+        %% The geographical longitude of the Oneprovider.
         geoLongitude => float,
-        %% The geographical latitude of the provider.
+        %% The geographical latitude of the Oneprovider.
         geoLatitude => float,
-        %% The domain name of a zone where this storage provider is registered.
+        %% The domain name of a zone where this storage Oneprovider is
+        %% registered.
         onezoneDomainName => string
     }.
 
@@ -505,6 +738,9 @@ provider_register_request_model() ->
     #{
         %% The name under which the provider should be registered in a zone.
         name => string,
+        %% Registration token obtained from Onezone. This token identifies
+        %% Onezone to be used and authorizes the registration request.
+        token => string,
         %% If enabled, the storage provider will be assigned a subdomain in
         %% onezone's domain and 'subdomain' property must be
         %% provided. If disabled, 'domain' property should be provided.
@@ -520,10 +756,7 @@ provider_register_request_model() ->
         geoLongitude => {float, optional},
         %% The geographical latitude of the storage provider.
         geoLatitude => {float, optional},
-        %% The domain name of a zone where this storage provider will be
-        %% registered.
-        onezoneDomainName => string,
-        %% Email address of the oneprovider administrator.
+        %% Email address of the Oneprovider administrator.
         adminEmail => string
     }.
 
@@ -547,6 +780,29 @@ provider_storages_model() ->
     #{
         %% The list of Ids of cluster storage resources.
         ids => [string]
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Information about another Oneprovider.
+%% @end
+%%--------------------------------------------------------------------
+-spec remote_provider_details_model() -> maps:map().
+remote_provider_details_model() ->
+    #{
+        %% The Oneprovider Id assigned by Onezone.
+        id => string,
+        %% The name under which the Oneprovider has been registered in Onezone.
+        name => string,
+        %% The fully qualified domain name of the Oneprovider.
+        domain => string,
+        %% The geographical longitude of the provider.
+        geoLongitude => float,
+        %% The geographical latitude of the provider.
+        geoLatitude => float,
+        %% The Id of the corresponding cluster record.
+        cluster => string,
+        %% Indicates if the Oneprovider is currently online.
+        online => boolean
     }.
 
 %%--------------------------------------------------------------------
@@ -619,19 +875,6 @@ service_status_host_model() ->
     #{
         %% The service status.
         status => string
-    }.
-
-%%--------------------------------------------------------------------
-%% @doc The user session details.
-%% @end
-%%--------------------------------------------------------------------
--spec session_details_model() -> maps:map().
-session_details_model() ->
-    #{
-        %% The session Id.
-        sessionId => string,
-        %% The name of a user associated with the session.
-        username => string
     }.
 
 %%--------------------------------------------------------------------
@@ -887,9 +1130,7 @@ storage_create_request_model() ->
 %%--------------------------------------------------------------------
 -spec storage_details_model() -> {oneof, Oneof :: list()}.
 storage_details_model() ->
-    {oneof, [posix_model(), s3_model(), ceph_model(), cephrados_model(),
-             swift_model(), glusterfs_model(), nulldevice_model(),
-             webdav_model()]}.
+    {oneof, [posix_model(), s3_model(), ceph_model(), cephrados_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model()]}.
 
 %%--------------------------------------------------------------------
 %% @doc The storage import configuration. Storage import allows to import data
@@ -1008,49 +1249,28 @@ time_stats_collection_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The new user account details.
+%% @doc A token
 %% @end
 %%--------------------------------------------------------------------
--spec user_create_request_model() -> maps:map().
-user_create_request_model() ->
+-spec token_model() -> maps:map().
+token_model() ->
     #{
-        %% The user name. It must be at least 4 characters long and contain only
-        %% alphanumeric characters [a-zA-Z0-9].
-        username => string,
-        %% The user password. It must be at least 8 characters long and contain
-        %% a minimum of 1 lower case letter [a-z] and a minimum of 1 upper case
-        %% letter [A-Z] and a minimum of 1 numeric character [0-9]. The Password
-        %% must not contain a colon character [:].
-        password => string,
-        %% The user role, one of 'admin' or 'regular'.
-        userRole => atom
+        token => string
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The user configuration details.
+%% @doc Service version info.
 %% @end
 %%--------------------------------------------------------------------
--spec user_details_model() -> maps:map().
-user_details_model() ->
+-spec version_info_model() -> maps:map().
+version_info_model() ->
     #{
-        %% The user Id.
-        userId => string,
-        %% The user role, one of `admin` or `regular`.
-        userRole => atom
-    }.
-
-%%--------------------------------------------------------------------
-%% @doc The user configuration details that can be modified.
-%% @end
-%%--------------------------------------------------------------------
--spec user_modify_request_model() -> maps:map().
-user_modify_request_model() ->
-    #{
-        %% The current user password that should be changed or password of an
-        %% administrator that is issuing this request on behalf of a user.
-        currentPassword => string,
-        %% The new user password.
-        newPassword => string
+        %% Release version.
+        release => string,
+        %% Build number.
+        build => string,
+        %% GUI version indicated by a SHA256 hash.
+        gui => string
     }.
 
 %%--------------------------------------------------------------------
@@ -1210,7 +1430,9 @@ zone_configuration_onezone_model() ->
         %% Onezone's domain was delegated to the DNS server built into
         %% Onezone service.
         builtInDnsServer => {boolean, optional},
-        policies => {zone_policies_model(), optional}
+        policies => {zone_policies_model(), optional},
+        %% List of Onezone user specifications.
+        users => {[onezone_user_create_request_model()], {optional, []}}
     }.
 
 %%--------------------------------------------------------------------
@@ -1222,7 +1444,20 @@ zone_policies_model() ->
     #{
         %% If true, Oneproviders are allowed to request subdomains of the
         %% Onezone domain for use as their domains.
-        subdomainDelegation => {boolean, optional}
+        subdomainDelegation => {boolean, optional},
+        %% When this value is true, GUI packages uploaded by services operating
+        %% under Onezone or by harvester admins are checked against known
+        %% SHA-256 check-sums using the compatibility registry. Setting this
+        %% value to false disables the verification. WARNING: disabling GUI
+        %% package verification poses a severe security threat, allowing
+        %% Oneprovider owners to upload arbitrary GUI to Onezone (which is then
+        %% hosted in Onezone's domain).
+        guiPackageVerification => {boolean, optional},
+        %% This policy can be used to disable GUI package verification for
+        %% harvester plugins only. See \&quot;guiPackageVerification\&quot; for
+        %% detailed description. This setting has no effect if
+        %% \&quot;guiPackageVerification\&quot; is set to false.
+        harvesterGuiPackageVerification => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1445,19 +1680,22 @@ nulldevice_model() ->
 -spec op_configuration_model() -> maps:map().
 op_configuration_model() ->
     #{
-        %% Indicates that this is Oneprovider's panel.
-        serviceType => {equal, <<"oneprovider">>},
+        %% The Id of cluster record for this cluster. `null` if the
+        %% cluster is not registered.
+        clusterId => string,
         %% Version of this Onepanel
         version => string,
         %% Build number of this Onepanel
         build => string,
         %% True when cluster deployment is finished
         deployed => boolean,
-        %% This cluster's Oneprovider Id. Null if the Oneprovider is not
-        %% registered or Oneprovider worker is down.
+        %% Indicates that this is Oneprovider's panel.
+        serviceType => {equal, <<"oneprovider">>},
+        %% This cluster's Oneprovider Id. `null` if the
+        %% Oneprovider is not registered or Oneprovider worker is down.
         providerId => string,
-        %% The domain of the Onezone where this Oneprovider is registered. Null
-        %% if the Oneprovider is not registered.
+        %% The domain of the Onezone where this Oneprovider is registered.
+        %% `null` if the Oneprovider is not registered.
         zoneDomain => string,
         %% True if the Oneprovider has been registered at a Onezone.
         isRegistered => {boolean, optional}
@@ -1470,18 +1708,22 @@ op_configuration_model() ->
 -spec oz_configuration_model() -> maps:map().
 oz_configuration_model() ->
     #{
-        %% Indicates that this is Onezone's panel.
-        serviceType => {equal, <<"onezone">>},
+        %% The Id of cluster record for this cluster. `null` if the
+        %% cluster is not registered.
+        clusterId => string,
         %% Version of this Onepanel
         version => string,
         %% Build number of this Onepanel
         build => string,
         %% True when cluster deployment is finished
         deployed => boolean,
-        %% The domain of this Onezone cluster. Null before cluster is
-        %% configured.
+        %% Indicates that this is Onezone's panel.
+        serviceType => {equal, <<"onezone">>},
+        %% The domain of this Onezone cluster. `null` before cluster
+        %% is configured.
         zoneDomain => string,
-        %% The name of this Onezone cluster. Null before cluster is configured.
+        %% The name of this Onezone cluster. `null` before cluster is
+        %% configured.
         zoneName => {string, optional}
     }.
 

@@ -76,6 +76,17 @@ parse_boolean_key_test() ->
         onepanel_parser:parse(Data6, ArgsSpec)).
 
 
+parse_list_key_test() ->
+    Data1 = #{<<"key">> => [<<"some_string">>]},
+    Data2 = #{<<"key">> => []},
+    Data3 = #{<<"key">> => [1]},
+    ArgsSpec = #{key => [string]},
+    ?assertEqual(#{key => [<<"some_string">>]}, onepanel_parser:parse(Data1, ArgsSpec)),
+    ?assertEqual(#{key => []}, onepanel_parser:parse(Data2, ArgsSpec)),
+    ?assertThrow(#error{reason = {?ERR_INVALID_VALUE, [key], [string]}},
+        onepanel_parser:parse(Data3, ArgsSpec)).
+
+
 parse_string_key_test() ->
     Data1 = #{<<"key">> => <<"value">>},
     Data2 = #{<<"key">> => 1},
@@ -100,8 +111,12 @@ parse_optional_key_test() ->
 
 parse_optional_default_key_test() ->
     Data = #{},
-    ArgsSpec = #{key => {string, {optional, <<"value">>}}},
-    ?assertEqual(#{key => <<"value">>}, onepanel_parser:parse(Data, ArgsSpec)).
+    ArgsSpec1 = #{key => {string, {optional, <<"value">>}}},
+    ArgsSpec2 = #{key => {[string], {optional, [<<"value">>]}}},
+    ArgsSpec3 = #{key => {[string], {optional, []}}},
+    ?assertEqual(#{key => <<"value">>}, onepanel_parser:parse(Data, ArgsSpec1)),
+    ?assertEqual(#{key => [<<"value">>]}, onepanel_parser:parse(Data, ArgsSpec2)),
+    ?assertEqual(#{key => []}, onepanel_parser:parse(Data, ArgsSpec3)).
 
 
 parse_nested_key_test() ->

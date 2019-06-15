@@ -15,6 +15,7 @@
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include("service.hrl").
+-include("names.hrl").
 -include("deployment_progress.hrl").
 -include("modules/onepanel_dns.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
@@ -25,7 +26,7 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
+-export([configure/1, wait_for_init/1, start/1, stop/1, status/1,
     get_nagios_response/1, get_nagios_status/1, set_node_ip/1,
     get_cluster_ips/1, get_hosts_ips/1, reload_webcert/1, migrate_generated_config/1]).
 
@@ -57,7 +58,7 @@ get_hosts() ->
 %%--------------------------------------------------------------------
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
-    service:get_nodes(name()).
+    nodes:all(name()).
 
 
 %%--------------------------------------------------------------------
@@ -68,7 +69,7 @@ get_nodes() ->
     Steps :: [service:step()].
 get_steps(deploy, #{hosts := Hosts, name := Name} = Ctx) ->
     service:create(#service{name = Name}),
-    ClusterHosts = (service:get_module(Name)):get_hosts(),
+    ClusterHosts = hosts:all(Name),
     AllHosts = onepanel_lists:union(Hosts, ClusterHosts),
     [
         #step{function = migrate_generated_config,
@@ -105,13 +106,13 @@ get_steps(set_cluster_ips, #{cluster_ips := HostsToIps} = Ctx) ->
     get_steps(set_cluster_ips, Ctx#{hosts => maps:keys(HostsToIps)});
 get_steps(set_cluster_ips, #{name := ServiceName} = Ctx) ->
     % execute on all service hosts, "guessing" IP if necessary
-    Hosts = (service:get_module(ServiceName)):get_hosts(),
+    Hosts = hosts:all(ServiceName),
     get_steps(set_cluster_ips, Ctx#{hosts => Hosts});
 
 get_steps(get_nagios_response, #{name := Name}) ->
     [#step{
         function = get_nagios_response,
-        hosts = (service:get_module(Name)):get_hosts(),
+        hosts = hosts:all(Name),
         selection = any
     }];
 
@@ -142,10 +143,10 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
     db_hosts := DbHosts, app_config := AppConfig, initialize_ip := InitIp,
     generated_config_file := GeneratedConfigFile, vm_args_file := VmArgsFile} = Ctx) ->
 
-    Host = onepanel_cluster:node_to_host(),
-    Node = onepanel_cluster:service_to_node(Name, Host),
-    CmNodes = onepanel_cluster:service_to_nodes(
-        service_cluster_manager:name(),
+    Host = hosts:self(),
+    Node = nodes:local(Name),
+    CmNodes = nodes:service_to_nodes(
+        ?SERVICE_CM,
         [MainCmHost | lists:delete(MainCmHost, CmHosts)]
     ),
     DbPort = service_ctx:get(couchbase_port, Ctx),
@@ -165,7 +166,7 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
             IP = case onepanel_maps:get([cluster_ips, Host], Ctx, undefined) of
                 undefined -> get_initial_ip(Name);
                 Found ->
-                    onepanel_deployment:mark_completed(?PROGRESS_CLUSTER_IPS),
+                    onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),
                     {ok, IPTuple} = onepanel_ip:parse_ip4(Found),
                     IPTuple
             end,
@@ -181,30 +182,33 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
 
     service:add_host(Name, Host).
 
-%%--------------------------------------------------------------------
-%% @doc {@link service:start/1}
-%% @end
-%%--------------------------------------------------------------------
--spec start(Ctx :: service:ctx()) -> ok | no_return().
-start(#{init_script := InitScript, custom_cmd_env := CustomCmdEnv} = Ctx) ->
-    service:start(InitScript, Ctx, CustomCmdEnv).
 
-%%--------------------------------------------------------------------
-%% @doc {@link service:stop/1}
-%% @end
-%%--------------------------------------------------------------------
--spec stop(Ctx :: service:ctx()) -> ok | no_return().
-stop(#{init_script := InitScript, custom_cmd_env := CustomCmdEnv}) ->
-    service:stop(InitScript, CustomCmdEnv).
+-spec start(service:ctx()) -> ok | no_return().
+start(#{name := Name} = Ctx) ->
+    service_cli:start(Name, Ctx),
+    service:register_healthcheck(Name),
+    service:update_status(Name, unhealthy),
+    ok.
 
 
-%%--------------------------------------------------------------------
-%% @doc {@link service:status/1}
-%% @end
-%%--------------------------------------------------------------------
--spec status(Ctx :: service:ctx()) -> running | stopped | not_found.
-status(#{init_script := InitScript, custom_cmd_env := CustomCmdEnv}) ->
-    service:status(InitScript, CustomCmdEnv).
+-spec stop(service:ctx()) -> ok.
+stop(#{name := Name} = Ctx) ->
+    onepanel_cron:remove_job(Name),
+    service_cli:stop(Name),
+    % check status before updating it as service_cli:stop/1 does not throw on failure
+    status(Ctx),
+    ok.
+
+
+-spec status(service:ctx()) -> service:status().
+status(#{name := Name} = Ctx) ->
+    Module = service:get_module(Name),
+    service:update_status(Name,
+        case service_cli:status(Name, ping) of
+            running -> Module:health(Ctx);
+            stopped -> stopped;
+            missing -> missing
+        end).
 
 
 %%--------------------------------------------------------------------
@@ -215,8 +219,10 @@ status(#{init_script := InitScript, custom_cmd_env := CustomCmdEnv}) ->
 wait_for_init(#{name := Name, wait_for_init_attempts := Attempts,
     wait_for_init_delay := Delay} = Ctx) ->
     Module = service:get_module(Name),
-    onepanel_utils:wait_until(Module, get_nagios_status, [Ctx], {equal, ok},
-        Attempts, Delay).
+    onepanel_utils:wait_until(Module, health, [Ctx], {equal, healthy},
+        Attempts, Delay),
+    service:update_status(Name, healthy),
+    ok.
 
 
 %%--------------------------------------------------------------------
@@ -226,7 +232,7 @@ wait_for_init(#{name := Name, wait_for_init_attempts := Attempts,
 -spec get_nagios_response(Ctx :: service:ctx()) ->
     Response :: http_client:response().
 get_nagios_response(#{nagios_protocol := Protocol, nagios_port := Port}) ->
-    Host = onepanel_cluster:node_to_host(),
+    Host = hosts:self(),
     Url = onepanel_utils:join([Protocol, "://", Host, ":", Port, "/nagios"]),
     Opts = case Protocol of
         "https" ->
@@ -264,12 +270,12 @@ get_nagios_status(Ctx) ->
 %%--------------------------------------------------------------------
 -spec set_node_ip(Ctx :: service:ctx()) -> ok | no_return().
 set_node_ip(#{name := ServiceName, generated_config_file := GeneratedConfigFile} = Ctx) ->
-    Host = onepanel_cluster:node_to_host(),
-    Node = onepanel_cluster:service_to_node(ServiceName, Host),
+    Host = hosts:self(),
+    Node = nodes:local(ServiceName),
 
     {ok, IP} = case onepanel_maps:get([cluster_ips, Host], Ctx) of
         {ok, NewIP} ->
-            onepanel_deployment:mark_completed(?PROGRESS_CLUSTER_IPS),
+            onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),
             onepanel_ip:parse_ip4(NewIP);
         _ -> {ok, get_initial_ip(ServiceName)}
     end,
@@ -287,11 +293,14 @@ set_node_ip(#{name := ServiceName, generated_config_file := GeneratedConfigFile}
 -spec get_cluster_ips(service:ctx()) ->
     #{isConfigured := boolean(), hosts := #{binary() => binary()}}.
 get_cluster_ips(#{name := _ServiceName} = Ctx) ->
-    HostsToIps = lists:map(fun({Host, IP}) ->
-        {onepanel_utils:convert(Host, binary), onepanel_ip:ip4_to_binary(IP)}
+    HostsToIps = lists:map(fun
+        ({Host, undefined}) ->
+            {onepanel_utils:convert(Host, binary), null};
+        ({Host, IP}) ->
+            {onepanel_utils:convert(Host, binary), onepanel_ip:ip4_to_binary(IP)}
     end, get_hosts_ips(Ctx)),
     #{
-        isConfigured => onepanel_deployment:is_completed(?PROGRESS_CLUSTER_IPS),
+        isConfigured => onepanel_deployment:is_set(?PROGRESS_CLUSTER_IPS),
         hosts => maps:from_list(HostsToIps)
     }.
 
@@ -304,10 +313,11 @@ get_cluster_ips(#{name := _ServiceName} = Ctx) ->
     [{Host :: service:host(), IP :: inet:ip4_address()}].
 get_hosts_ips(#{name := ServiceName}) ->
     lists:map(fun(Host) ->
-        Node = onepanel_cluster:service_to_node(ServiceName, Host),
-        {_, _, _, _} = IP = rpc:call(Node, node_manager, get_ip_address, []),
-        {Host, IP}
-    end, (service:get_module(ServiceName)):get_hosts()).
+        Node = nodes:service_to_node(?SERVICE_PANEL, Host),
+        {ok, IPTuple} = rpc:call(Node, onepanel_env, read_effective,
+            [[name(), external_ip], ServiceName]),
+        {Host, IPTuple}
+    end, hosts:all(ServiceName)).
 
 
 %%--------------------------------------------------------------------
@@ -317,7 +327,7 @@ get_hosts_ips(#{name := ServiceName}) ->
 %% @end
 %%--------------------------------------------------------------------
 reload_webcert(#{name := ServiceName}) ->
-    Node = onepanel_cluster:service_to_node(ServiceName),
+    Node = nodes:local(ServiceName),
     ok = rpc:call(Node, ssl, clear_pem_cache, []).
 
 

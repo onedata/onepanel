@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Wojciech Geisler
-%%% @copyright (C): 2018 ACK CYFRONET AGH
+%%% @copyright (C) 2018 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -10,22 +10,25 @@
 -module(rest_onezone).
 -author("Krzysztof Trzepla").
 
+-include("authentication.hrl").
+-include("deployment_progress.hrl").
 -include("http/rest.hrl").
 -include("modules/errors.hrl").
--include_lib("ctool/include/logging.hrl").
 -include("modules/models.hrl").
--include("deployment_progress.hrl").
+-include("names.hrl").
+-include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/privileges.hrl").
 
 -behavior(rest_behaviour).
 
 %% REST behaviour callbacks
--export([is_authorized/3, exists_resource/2, accept_possible/4,
+-export([is_authorized/3, exists_resource/2, accept_possible/4, is_available/3,
     accept_resource/4, provide_resource/2, delete_resource/2]).
 
 -export([make_policies_ctx/1]).
 
--define(SERVICE, service_onezone:name()).
--define(WORKER, service_oz_worker:name()).
+-define(SERVICE, ?SERVICE_OZ).
+-define(WORKER, ?SERVICE_OZW).
 
 %%%===================================================================
 %%% REST behaviour callbacks
@@ -38,8 +41,13 @@
 -spec is_authorized(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     State :: rest_handler:state()) ->
     {Authorized :: boolean(), Req :: cowboy_req:req()}.
-is_authorized(Req, _Method, #rstate{client = #client{role = admin}}) ->
+is_authorized(Req, _Method, #rstate{client = #client{role = root}}) ->
     {true, Req};
+
+is_authorized(Req, 'GET', #rstate{client = #client{role = member}}) ->
+    {true, Req};
+is_authorized(Req, _Method, #rstate{client = #client{role = member} = Client}) ->
+    {rest_utils:has_privileges(Client, ?CLUSTER_UPDATE), Req};
 
 is_authorized(Req, _Method, _State) ->
     {false, Req}.
@@ -53,7 +61,7 @@ is_authorized(Req, _Method, _State) ->
     {Exists :: boolean(), Req :: cowboy_req:req()}.
 exists_resource(Req, #rstate{resource = policies}) ->
     {model:exists(onepanel_deployment) andalso
-        onepanel_deployment:is_completed(?PROGRESS_READY), Req};
+        onepanel_deployment:is_set(?PROGRESS_READY), Req};
 exists_resource(Req, _State) ->
     case service:get(?SERVICE) of
         {ok, #service{}} -> {true, Req};
@@ -70,9 +78,23 @@ accept_possible(Req, _Method, _Args, _State) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link rest_behaviour:accept_resourcec/4}
+%% @doc {@link rest_behaviour:is_available/3}
 %% @end
 %%--------------------------------------------------------------------
+is_available(Req, 'GET', #rstate{resource = cluster_ips}) ->
+    {true, Req};
+
+is_available(Req, _Method, _State) ->
+    {service:all_healthy(), Req}.
+
+
+%%--------------------------------------------------------------------
+%% @doc {@link rest_behaviour:accept_resource/4}
+%% @end
+%%--------------------------------------------------------------------
+-spec accept_resource(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
+    Args :: rest_handler:args(), State :: rest_handler:state()) ->
+    {Accepted :: boolean(), Req :: cowboy_req:req()}.
 accept_resource(Req, 'PATCH', Args, #rstate{resource = policies}) ->
     Ctx = make_policies_ctx(Args),
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
@@ -81,7 +103,7 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = policies}) ->
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = cluster_ips}) ->
     {ok, ClusterIps} = onepanel_maps:get(hosts, Args),
-    Ctx = #{cluster_ips => rest_utils:keys_binary_to_list(ClusterIps)},
+    Ctx = #{cluster_ips => onepanel_utils:convert(ClusterIps, {keys, list})},
 
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?SERVICE, set_cluster_ips, Ctx
@@ -119,7 +141,18 @@ delete_resource(_Req, #rstate{}) ->
     ?throw_error(?ERR_NOT_FOUND).
 
 
+%%%===================================================================
+%%% API functions
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc Gathers arguments related to Onezone policies.
+%% @end
+%%--------------------------------------------------------------------
+-spec make_policies_ctx(Args :: rest_handler:args()) -> #{atom() => term()}.
 make_policies_ctx(Args) ->
     onepanel_maps:get_store_multiple([
-        {subdomainDelegation, subdomain_delegation}
+        {subdomainDelegation, subdomain_delegation},
+        {guiPackageVerification, gui_package_verification},
+        {harvesterGuiPackageVerification, harvester_gui_package_verification}
     ], Args).

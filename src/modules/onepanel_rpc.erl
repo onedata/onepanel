@@ -164,7 +164,7 @@ call_any(Nodes, Module, Function, Args, Timeout) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private @doc Verifies that there is no errors.
+%% @private @doc Verifies that there are no errors.
 %%--------------------------------------------------------------------
 -spec all(Results :: results()) -> Results :: results() | no_return().
 all(Results) ->
@@ -180,19 +180,20 @@ all(Results) ->
 
 
 %%--------------------------------------------------------------------
-%% @private @doc Verifies that there is at least one successful result.
+%% @private @doc Returns first successful result,
+%% throws if all results are errors.
 %%--------------------------------------------------------------------
 -spec any(Results :: results()) -> Value :: term() | no_return().
 any([]) ->
     ok;
 
 any(Results) ->
-    GoodResults = lists:filter(fun
+    GoodResults = lists:filtermap(fun
         ({_, #error{}}) -> false;
         ({_, {error, _}}) -> false;
-        ({_, _}) -> true
+        ({_, Value}) -> {true, Value}
     end, Results),
     case GoodResults of
         [] -> ?throw_error(?ERR_FAILURE_ON_ALL_NODES);
-        [{_, Value} | _] -> Value
+        [Value | _] -> Value
     end.

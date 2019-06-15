@@ -11,12 +11,15 @@
 -module(rest_letsencrypt_test_SUITE).
 -author("Wojciech Geisler").
 
+-include("names.hrl").
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include("service.hrl").
 -include("onepanel_test_utils.hrl").
+-include("onepanel_test_rest.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
+-include_lib("ctool/include/privileges.hrl").
 
 %% export for ct
 -export([all/0, init_per_suite/1, init_per_testcase/2,
@@ -27,7 +30,7 @@
     method_should_return_unauthorized_error/1,
     method_should_return_forbidden_error/1,
     get_should_return_letsencrypt_setting/1,
-    get_should_return_cert_metedata/1,
+    get_should_return_cert_metadata/1,
     patch_should_enable_letsencrypt/1,
     patch_should_disable_letsencrypt/1,
     ssl_cache_is_cleared_after_certification/1,
@@ -41,7 +44,7 @@ all() ->
         method_should_return_unauthorized_error,
         method_should_return_forbidden_error,
         get_should_return_letsencrypt_setting,
-        get_should_return_cert_metedata,
+        get_should_return_cert_metadata,
         patch_should_disable_letsencrypt,
         patch_should_enable_letsencrypt,
         ssl_cache_is_cleared_after_certification,
@@ -52,11 +55,6 @@ all() ->
 
 -define(LE_PLUGIN_MOCK, service_le_plugin_mock).
 -define(LE_PLUGIN_MOCK_NAME, le_plugin_mock).
-
--define(ADMIN_USER_NAME, <<"admin1">>).
--define(ADMIN_USER_PASSWORD, <<"Admin1Password">>).
--define(REG_USER_NAME, <<"user1">>).
--define(REG_USER_PASSWORD, <<"User1Password">>).
 
 -define(EXPIRATION, 15000000).
 -define(OBTAINED, 14000900).
@@ -143,10 +141,9 @@ method_should_return_forbidden_error(Config) ->
         lists:foreach(fun({Endpoint, Method}) ->
             ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
                 Host, <<Endpoint/binary>>, Method,
-                {?REG_USER_NAME, ?REG_USER_PASSWORD}
+                ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_UPDATE])
             ))
         end, [
-            {<<"/web_cert">>, get},
             {<<"/web_cert">>, patch}
         ])
     end, ?config(all_hosts, Config)).
@@ -157,19 +154,19 @@ get_should_return_letsencrypt_setting(Config) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/web_cert">>, get,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+                ?OZ_OR_ROOT_AUTHS(Host, [])
             )
         ),
         ?assertMatch(#{<<"letsEncrypt">> := _}, json_utils:decode(JsonBody))
     end, ?config(all_hosts, Config)).
 
 
-get_should_return_cert_metedata(Config) ->
+get_should_return_cert_metadata(Config) ->
     lists:foreach(fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/web_cert">>, get,
-                {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+                ?OZ_OR_ROOT_AUTHS(Host, [])
             )
         ),
         ?assertMatch(?WEB_CERT_LE_JSON, json_utils:decode(JsonBody))
@@ -187,9 +184,9 @@ patch_should_enable_letsencrypt(Config) ->
 
     % assert there was attempt to obtain certificates
     ?assertEqual(1,
-        total_num_calls(?config(onezone_nodes, Config), letsencrypt_api, run_certification_flow, 2)),
+        total_calls_count(?config(onezone_nodes, Config), letsencrypt_api, run_certification_flow, 2)),
     ?assertEqual(1,
-        total_num_calls(?config(oneprovider_nodes, Config), letsencrypt_api, run_certification_flow, 2)).
+        total_calls_count(?config(oneprovider_nodes, Config), letsencrypt_api, run_certification_flow, 2)).
 
 
 patch_should_disable_letsencrypt(Config) ->
@@ -233,7 +230,7 @@ existing_certificates_are_reused(Config) ->
     % then
     % assert there were no attempts to obtain new certificates
     ?assertEqual(0,
-        total_num_calls(?config(all_nodes, Config), letsencrypt_api, run_certification_flow, 2)).
+        total_calls_count(?config(all_nodes, Config), letsencrypt_api, run_certification_flow, 2)).
 
 
 failed_patch_leaves_letsencrypt_disabled(Config) ->
@@ -279,42 +276,30 @@ init_per_suite(Config) ->
     hackney:start(),
     Posthook = fun(NewConfig) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
-        ?assertMatch({ok, _}, ?callAny(NewConfig2, oneprovider_nodes, onepanel_user, create,
-            [?REG_USER_NAME, ?REG_USER_PASSWORD, regular]
-        )),
-        ?assertMatch({ok, _}, ?callAny(NewConfig2, onezone_nodes, onepanel_user, create,
-            [?REG_USER_NAME, ?REG_USER_PASSWORD, regular]
-        )),
-        ?assertMatch({ok, _}, ?callAny(NewConfig2, oneprovider_nodes, onepanel_user, create,
-            [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
-        )),
-        ?assertMatch({ok, _}, ?callAny(NewConfig2, onezone_nodes, onepanel_user, create,
-            [?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD, admin]
-        )),
 
         % deploy letsencrypt service
         OzHosts = ?config(onezone_hosts, NewConfig2),
         [OzNode | _] = ?config(onezone_nodes, NewConfig2),
         onepanel_test_utils:service_action(OzNode,
             letsencrypt, deploy,
-            #{hosts => OzHosts, letsencrypt_plugin => service_oz_worker:name()}
+            #{hosts => OzHosts, letsencrypt_plugin => ?SERVICE_OZW}
         ),
 
         OpHosts = ?config(oneprovider_hosts, NewConfig2),
         [OpNode | _] = ?config(oneprovider_nodes, NewConfig2),
         onepanel_test_utils:service_action(OpNode,
             letsencrypt, deploy,
-            #{hosts => OpHosts, letsencrypt_plugin => service_op_worker:name()}
+            #{hosts => OpHosts, letsencrypt_plugin => ?SERVICE_OPW}
         ),
 
         NewConfig2
     end,
 
-    [{?ENV_UP_POSTHOOK, Posthook} | Config].
+    [{?LOAD_MODULES, [onepanel_test_rest]}, {?ENV_UP_POSTHOOK, Posthook} | Config].
 
 
 init_per_testcase(Case, Config) when
-    Case == get_should_return_cert_metedata;
+    Case == get_should_return_cert_metadata;
     Case == patch_should_disable_letsencrypt ->
     Config2 = init_per_testcase(default, Config),
     ?hostPerCluster(Config, fun(Host) ->
@@ -336,20 +321,23 @@ init_per_testcase(existing_certificates_are_reused, Config) ->
     test_utils:mock_new(Nodes, [service_letsencrypt]),
     test_utils:mock_expect(Nodes, service_letsencrypt, local_cert_status,
         fun(_) -> valid end),
+    Config2 = init_per_testcase(default, Config),
 
-    ?hostPerCluster(Config, fun(Host) ->
+    ?hostPerCluster(Config2, fun(Host) ->
         ?assertEqual(204, patch_web_cert(Host, #{letsEncrypt => false}))
     end),
 
-    deploy_certs(?LE_CERT_PATHS, Config),
+    deploy_certs(?LE_CERT_PATHS, Config2),
+    Config2;
 
-    init_per_testcase(default, Config);
 
 init_per_testcase(Case, Config) when
     Case == failed_patch_leaves_letsencrypt_disabled;
     Case == failed_patch_leaves_letsencrypt_enabled ->
     Nodes = ?config(all_nodes, Config),
     mock_plugin_modules(Config),
+    onepanel_test_rest:set_default_passphrase(Config),
+    onepanel_test_rest:mock_token_authentication(Config),
     test_utils:mock_new(Nodes, [letsencrypt_api], [passthrough]),
 
     % cause error on certification attempt
@@ -365,7 +353,7 @@ init_per_testcase(Case, Config) when
 
     ?nodePerCluster(Config, fun(Node) ->
         rpc:call(Node, service, update,
-            [service_letsencrypt:name(), fun(#service{ctx = C} = S) ->
+            [?SERVICE_LE, fun(#service{ctx = C} = S) ->
                 S#service{ctx = C#{letsencrypt_enabled => Initial}}
             end])
     end),
@@ -376,7 +364,11 @@ init_per_testcase(Case, Config) when
 init_per_testcase(_Case, Config) ->
     Nodes = ?config(all_nodes, Config),
     mock_plugin_modules(Config),
-    test_utils:mock_new(Nodes, [letsencrypt_api], [passthrough]),
+    onepanel_test_rest:set_default_passphrase(Config),
+    onepanel_test_rest:mock_token_authentication(Config),
+    test_utils:mock_new(Nodes, [letsencrypt_api, service], [passthrough]),
+    test_utils:mock_expect(Nodes, service, all_healthy, fun() -> true end),
+    test_utils:mock_expect(Nodes, service, healthy, fun(_Name) -> true end),
     test_utils:mock_expect(Nodes, letsencrypt_api, run_certification_flow,
         fun(Domain, Plugin) when is_binary(Domain) and is_atom(Plugin) -> ok end),
     test_utils:mock_expect(Nodes, letsencrypt_api, run_certification_flow,
@@ -406,7 +398,7 @@ get_web_cert(Host) ->
     {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
         onepanel_test_rest:auth_request(
             Host, <<"/web_cert">>, get,
-            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}
+            ?OZ_OR_ROOT_AUTHS(Host, [])
         )
     ),
     json_utils:decode(JsonBody).
@@ -422,7 +414,8 @@ patch_web_cert(Host, Data) ->
     {_, Code, _, _} = ?assertMatch({ok, _, _, _},
         onepanel_test_rest:auth_request(
             Host, <<"/web_cert">>, patch,
-            {?ADMIN_USER_NAME, ?ADMIN_USER_PASSWORD}, Data
+            hd(?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])),
+            Data
         )),
     Code.
 
@@ -439,11 +432,13 @@ mock_plugin_modules(Config) ->
     OpNodes = ?config(oneprovider_nodes, Config),
     OzHosts = ?config(onezone_hosts, Config),
     OpHosts = ?config(oneprovider_hosts, Config),
-    OzDomain = onepanel_test_utils:get_domain(hd(?config(onezone_hosts, Config))),
-    OpDomain = onepanel_test_utils:get_domain(hd(?config(oneprovider_hosts, Config))),
-    test_utils:mock_new(OpNodes, [service_op_worker], [passthrough]),
-    test_utils:mock_new(OzNodes, [service_oz_worker], [passthrough]),
+    OzDomain = onepanel_test_utils:get_domain(hd(OzHosts)),
+    OpDomain = onepanel_test_utils:get_domain(hd(OpHosts)),
+    test_utils:mock_new(OpNodes, [service_op_worker, service], [passthrough]),
+    test_utils:mock_new(OzNodes, [service_oz_worker, service], [passthrough]),
 
+    test_utils:mock_expect(OzNodes ++ OpNodes, service, healthy, fun(_) -> true end),
+    test_utils:mock_expect(OpNodes, service_oneprovider, is_registered, fun() -> true end),
     test_utils:mock_expect(OpNodes, service_op_worker, get_domain, fun() -> OpDomain end),
     test_utils:mock_expect(OzNodes, service_oz_worker, get_domain, fun() -> OzDomain end),
     test_utils:mock_expect(OpNodes, service_op_worker, get_hosts, fun() -> OpHosts end),
@@ -476,9 +471,9 @@ deploy_certs(SourcePaths, Config) ->
 %% Returns total count of calls to a function on given nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec total_num_calls(Nodes :: [node()], Module :: module(), Function :: atom(),
-    Arity :: non_neg_integer()) -> non_neg_integer().
-total_num_calls(Nodes, Module, Function, Arity) ->
+-spec total_calls_count([node()], module(), Function :: atom(), arity()) ->
+    non_neg_integer().
+total_calls_count(Nodes, Module, Function, Arity) ->
     lists:sum(
         [rpc:call(Node, meck, num_calls, [Module, Function, Arity]) || Node <- Nodes]
     ).

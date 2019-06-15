@@ -11,6 +11,7 @@
 -module(onepanel_ip).
 -author("Wojciech Geisler").
 
+-include("names.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 -export([determine_ip/0, ip4_to_binary/1, parse_ip4/1, is_ip/1]).
@@ -26,19 +27,18 @@
 -spec determine_ip() -> inet:ip4_address().
 determine_ip() ->
     % use first working method of getting IP
-    {ok, IP} = lists:foldl(fun(IpSupplier, PrevResult) ->
-        case PrevResult of
-            {ok, _IP} -> PrevResult;
-            _ -> catch IpSupplier()
-        end
+    onepanel_lists:foldl_while(fun(IpSupplier, PrevResult) ->
+        try
+            {ok, IP} = IpSupplier(),
+            {halt, IP}
+        catch  _:_ -> {cont, PrevResult} end
     end, undefined, [
         fun determine_ip_by_oz/0,
         fun determine_ip_by_domain/0,
         fun determine_ip_by_external_service/0,
         fun determine_ip_by_shell/0,
         fun() -> {ok, {127, 0, 0, 1}} end
-    ]),
-    IP.
+    ]).
 
 
 %%--------------------------------------------------------------------
@@ -89,7 +89,7 @@ is_ip(Value) ->
 %%--------------------------------------------------------------------
 -spec determine_ip_by_oz() -> {ok, inet:ip4_address()} | {error, term()}.
 determine_ip_by_oz() ->
-    case service:exists(service_op_worker:name())
+    case service:exists(?SERVICE_OPW)
         andalso service_oneprovider:is_registered(#{}) of
         true ->
             {ok, IPBin} = oz_providers:check_ip_address(none),
@@ -110,7 +110,7 @@ determine_ip_by_oz() ->
 %%--------------------------------------------------------------------
 -spec determine_ip_by_domain() -> {ok, inet:ip4_address()} | {error, term()}.
 determine_ip_by_domain() ->
-    Domain = case onepanel_env:get(release_type) of
+    Domain = case onepanel_env:get_cluster_type() of
         oneprovider -> service_op_worker:get_domain();
         onezone -> service_oz_worker:get_domain()
     end,

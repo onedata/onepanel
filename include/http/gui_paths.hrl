@@ -15,6 +15,9 @@
 
 % Endpoint to get Onepanel configuration
 -define(CONFIGURATION_PATH, "/configuration").
+-define(LOGIN_PATH, "/login").
+-define(LOGOUT_PATH, "/logout").
+-define(GUI_CONTEXT_PATH, "/gui-context").
+-define(GUI_PREAUTHORIZE_PATH, "/gui-preauthorize").
 
 -endif.
-

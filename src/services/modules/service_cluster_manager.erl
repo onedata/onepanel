@@ -23,8 +23,6 @@
 %% API
 -export([configure/1, start/1, stop/1, status/1, migrate_generated_config/1]).
 
--define(INIT_SCRIPT, "cluster_manager").
-
 %%%===================================================================
 %%% Service behaviour callbacks
 %%%===================================================================
@@ -53,7 +51,7 @@ get_hosts() ->
 %%--------------------------------------------------------------------
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
-    service:get_nodes(name()).
+    nodes:all(name()).
 
 
 %%--------------------------------------------------------------------
@@ -125,10 +123,10 @@ configure(#{main_host := MainHost, hosts := Hosts,
     VmArgsFile = service_ctx:get(cluster_manager_vm_args_file, Ctx),
     EnvFile = service_ctx:get(cluster_manager_env_file, Ctx),
 
-    Host = onepanel_cluster:node_to_host(),
-    Node = onepanel_cluster:service_to_node(name()),
-    Nodes = onepanel_cluster:service_to_nodes(name(), Hosts),
-    MainNode = onepanel_cluster:service_to_node(name(), MainHost),
+    Host = hosts:self(),
+    Node = nodes:local(name()),
+    Nodes = nodes:service_to_nodes(name(), Hosts),
+    MainNode = nodes:service_to_node(name(), MainHost),
 
     WorkerNum = maps:get(worker_num, Ctx, undefined),
     Cookie = maps:get(cookie, Ctx, erlang:get_cookie()),
@@ -157,35 +155,45 @@ configure(#{main_host := MainHost, hosts := Hosts,
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link service:start/1}
+%% @doc {@link service_cli:start/1}
 %% @end
 %%--------------------------------------------------------------------
 -spec start(Ctx :: service:ctx()) -> ok | no_return().
 start(Ctx) ->
-    service:start(?INIT_SCRIPT, #{
+    Limits = #{
         open_files => service_ctx:get(cluster_manager_open_files_limit, Ctx)
-    }, cluster_manager_start_cmd),
-    service_watcher:register_service(name()).
-
-
-%%--------------------------------------------------------------------
-%% @doc {@link service:stop/1}
-%% @end
-%%--------------------------------------------------------------------
--spec stop(Ctx :: service:ctx()) -> ok | no_return().
-stop(_Ctx) ->
-    service_watcher:unregister_service(name()),
-    service:stop(?INIT_SCRIPT, cluster_manager_stop_cmd),
+    },
+    service_cli:start(name(), Limits),
+    service:register_healthcheck(name()),
+    service:update_status(name(), healthy),
     ok.
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link service:status/1}
+%% @doc {@link service_cli:stop/1}
 %% @end
 %%--------------------------------------------------------------------
--spec status(Ctx :: service:ctx()) -> running | stopped | not_found.
+-spec stop(Ctx :: service:ctx()) -> ok.
+stop(Ctx) ->
+    onepanel_cron:remove_job(name()),
+    service_cli:stop(name()),
+    % check status before updating it as service_cli:stop/1 does not throw on failure
+    status(Ctx),
+    ok.
+
+
+%%--------------------------------------------------------------------
+%% @doc {@link service_cli:status/1}
+%% @end
+%%--------------------------------------------------------------------
+-spec status(Ctx :: service:ctx()) -> service:status().
 status(_Ctx) ->
-    service:status(?INIT_SCRIPT, cluster_manager_status_cmd).
+    service:update_status(name(),
+        case service_cli:status(name(), ping) of
+            running -> healthy;
+            stopped -> stopped;
+            missing -> missing
+        end).
 
 
 %%--------------------------------------------------------------------

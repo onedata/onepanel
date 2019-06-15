@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Krzysztof Trzepla
-%%% @copyright (C): 2016 ACK CYFRONET AGH
+%%% @copyright (C) 2016 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -12,16 +12,18 @@
 -module(rest_handler).
 -author("Krzysztof Trzepla").
 
+-include("authentication.hrl").
 -include("http/rest.hrl").
 -include("modules/errors.hrl").
--include_lib("ctool/include/logging.hrl").
 -include("modules/models.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([init/2, allowed_methods/2, content_types_accepted/2,
     content_types_provided/2, is_authorized/2, forbidden/2, resource_exists/2,
     delete_resource/2, accept_resource_json/2, accept_resource_yaml/2,
     provide_resource/2]).
+-export([service_available/2]).
 
 -type version() :: non_neg_integer().
 -type accept_method_type() :: 'POST' | 'PATCH' | 'PUT'.
@@ -35,10 +37,22 @@
 -type client() :: #client{}.
 -type state() :: #rstate{}.
 -type method() :: #rmethod{}.
+-type privilege() :: privileges:cluster_privilege().
+
+%% Objects used to authenticate request to Onezone
+%% 'none' is used if proper authentication object could not be obtained
+-type zone_auth() :: rpc_auth() | rest_auth() | none.
+%% Used by oz_panel
+-type rpc_auth() :: {rpc, onezone_client:logic_client()}.
+%% Used by op_panel
+-type rest_auth() :: {rest, oz_plugin:auth()}.
+
+-export_type([zone_auth/0, rpc_auth/0, rest_auth/0]).
+
 
 -export_type([version/0, accept_method_type/0, method_type/0, resource/0,
     data/0, bindings/0, params/0, args/0, spec/0, client/0, state/0,
-    method/0]).
+    method/0, privilege/0]).
 
 %%%===================================================================
 %%% API functions
@@ -49,10 +63,42 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec init(Req :: cowboy_req:req(), State :: state()) ->
-    {cowboy_rest, Req :: cowboy_req:req(), State :: state()}.
+    {cowboy_rest | ok, Req :: cowboy_req:req(), State :: state()}.
 init(Req, Opts) ->
-    {cowboy_rest, Req, Opts}.
+    case cowboy_req:method(Req) of
+        <<"OPTIONS">> -> handle_options(Req, Opts);
+        _ -> {cowboy_rest, Req, Opts}
+    end.
 
+
+%%--------------------------------------------------------------------
+%% @doc Cowboy callback function.
+%% Returns whether services needed to fulfill the request are available.
+%% Negative result of this function triggers 503 Service Unavailable error.
+%% @end
+%%--------------------------------------------------------------------
+-spec service_available(Req :: cowboy_req:req(), State :: state()) ->
+    {boolean(), cowboy_req:req(), state()}.
+service_available(Req, #rstate{methods = Methods, module = Module} = State) ->
+    try
+        {Method, Req2} = rest_utils:get_method(Req),
+        {Bindings, Req3} = rest_utils:get_bindings(Req2),
+        case lists:keyfind(Method, 2, Methods) of
+            #rmethod{params_spec = Spec} ->
+                {Params, Req4} = rest_utils:get_params(Req3, Spec),
+                State2 = State#rstate{bindings = Bindings, params = Params},
+
+                {Available, Req} = Module:is_available(Req4, Method, State2),
+                {Available, Req, State};
+            false ->
+                % continue processing as it will fail anyway on allowed methods check
+                % triggering more descriptive error
+                {true, Req, State}
+        end
+    catch
+        Type:Reason ->
+            {false, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason)), State}
+    end.
 
 %%--------------------------------------------------------------------
 %% @doc Cowboy callback function. Returns the list of allowed methods.
@@ -97,33 +143,33 @@ content_types_provided(Req, #rstate{} = State) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Cowboy callback function. Returns whether the user is authorized to
-%% perform the action. The name and description of this function is actually
-%% misleading; 401 Unauthorized is returned when there's been an *authentication*
-%% error, and 403 Forbidden is returned when the already-authenticated client
-%% is unauthorized to perform an operation.
+%% @doc Cowboy callback function.
+%% Handles authentication of the user.
+%% Negative result of this function triggers 401 Unauthorized which
+%% is http status used to describe authentication errors.
+%%
+%% Resource methods marked as "noauth" will never cause failure
+%% of this function even if user does provide credentials in the request,
+%% thus never triggering 401 code for such resources.
 %% @end
 %%--------------------------------------------------------------------
 -spec is_authorized(Req :: cowboy_req:req(), State :: state()) ->
     {true | {false, binary()}, cowboy_req:req(), state()}.
 is_authorized(Req, #rstate{methods = Methods} = State) ->
     AuthMethods = [
-        fun authenticate_by_basic_auth/1,
-        fun authenticate_by_cookie/1
+        fun rest_auth:authenticate_by_basic_auth/1,
+        fun rest_auth:authenticate_by_onepanel_auth_token/1,
+        fun rest_auth:authenticate_by_onezone_auth_token/1
     ],
-    case authenticate(Req, AuthMethods) of
-        {{true, User, SessionId}, Req3} ->
-            #onepanel_user{username = Username, role = Role, uuid = Uuid} = User,
-            Client = #client{
-                name = Username, id = Uuid, role = Role, session_id = SessionId
-            },
+    case rest_auth:authenticate(Req, AuthMethods) of
+        {{true, Client}, Req3} ->
             {true, Req3, State#rstate{client = Client}};
         {false, Req3} ->
             {Method, Req4} = rest_utils:get_method(Req3),
-            case lists:keyfind(Method, 2, Methods) of
+            case lists:keyfind(Method, #rmethod.type, Methods) of
                 #rmethod{noauth = true} ->
                     Req5 = cowboy_req:set_resp_body(<<>>, Req4),
-                    {true, Req5, State#rstate{client = #client{}}};
+                    {true, Req5, State#rstate{client = #client{role = guest}}};
                 _ ->
                     {{false, <<"">>}, Req4, State}
             end
@@ -131,23 +177,21 @@ is_authorized(Req, #rstate{methods = Methods} = State) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Cowboy callback function. Returns whether access to the resource is
-%% forbidden ({@link  is_authorized/2}).
+%% @doc Cowboy callback function.
+%% Returns whether the client is allowed to access given resource.
+%% The client is an already authenticated user unless given endpoint has
+%% the noauth flag permitting requests without authentication.
+%% Negative result of this function triggers 403 Unauthorized status code.
 %% @end
 %%--------------------------------------------------------------------
 -spec forbidden(Req :: cowboy_req:req(), State :: state()) ->
     {boolean(), cowboy_req:req(), state()}.
-forbidden(Req, #rstate{module = Module, methods = Methods} = State) ->
+forbidden(Req, #rstate{module = Module} = State) ->
     try
         {Method, Req2} = rest_utils:get_method(Req),
-        {Bindings, Req3} = rest_utils:get_bindings(Req2),
-        #rmethod{params_spec = Spec} = lists:keyfind(Method, 2, Methods),
-        {Params, Req4} = rest_utils:get_params(Req3, Spec),
-        {Authorized, Req5} = Module:is_authorized(Req4, Method, State#rstate{
-            bindings = Bindings,
-            params = Params
-        }),
-        {not Authorized, Req5, State}
+        {Req3, State2} = parse_query_string(Req2, State),
+        {Authorized, Req4} = Module:is_authorized(Req3, Method, State2),
+        {not Authorized, Req4, State2}
     catch
         Type:Reason ->
             {true, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason)), State}
@@ -164,7 +208,7 @@ resource_exists(Req, #rstate{module = Module, methods = Methods} = State) ->
     try
         {Method, Req2} = rest_utils:get_method(Req),
         {Bindings, Req3} = rest_utils:get_bindings(Req2),
-        #rmethod{params_spec = Spec} = lists:keyfind(Method, 2, Methods),
+        #rmethod{params_spec = Spec} = lists:keyfind(Method, #rmethod.type, Methods),
         {Params, Req4} = rest_utils:get_params(Req3, Spec),
         {Exists, Req5} = Module:exists_resource(Req4, State#rstate{
             bindings = Bindings,
@@ -205,8 +249,8 @@ accept_resource_json(Req, #rstate{} = State) ->
 accept_resource_yaml(Req, #rstate{} = State) ->
     try
         {ok, Body, Req2} = cowboy_req:read_body(Req),
-        [Data] = yamerl_constr:string(Body),
-        Data2 = json_utils:list_to_map(adjust_yaml_data(Data)),
+        [Data] = yamerl_constr:string(Body, [str_node_as_binary]),
+        Data2 = json_utils:list_to_map(Data),
         accept_resource(Req2, Data2, State)
     catch
         Type:Reason ->
@@ -224,7 +268,7 @@ provide_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
     try
         {Method, Req2} = rest_utils:get_method(Req),
         {Bindings, Req3} = rest_utils:get_bindings(Req2),
-        #rmethod{params_spec = Spec} = lists:keyfind(Method, 2, Methods),
+        #rmethod{params_spec = Spec} = lists:keyfind(Method, #rmethod.type, Methods),
         {Params, Req4} = rest_utils:get_params(Req3, Spec),
         case Module:provide_resource(Req4, State#rstate{
             bindings = Bindings,
@@ -252,7 +296,7 @@ delete_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
     try
         {Method, Req2} = rest_utils:get_method(Req),
         {Bindings, Req3} = rest_utils:get_bindings(Req2),
-        #rmethod{params_spec = Spec} = lists:keyfind(Method, 2, Methods),
+        #rmethod{params_spec = Spec} = lists:keyfind(Method, #rmethod.type, Methods),
         {Params, Req4} = rest_utils:get_params(Req3, Spec),
         {Deleted, Req5} = Module:delete_resource(Req4, State#rstate{
             bindings = Bindings,
@@ -264,9 +308,51 @@ delete_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
             {false, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason)), State}
     end.
 
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc Sends reply for an OPTIONS request.
+%% @end
+%%--------------------------------------------------------------------
+-spec handle_options(cowboy_req:req(), State :: state()) ->
+    {ok, cowboy_req:req(), state()}.
+handle_options(Req, State) ->
+    case rest_utils:allowed_origin() of
+        undefined ->
+            % For unregistered provider or not deployed zone
+            % there is no need for OPTIONS request
+            {ok, cowboy_req:reply(405, Req), State};
+        Origin ->
+            {AllowedMethods, Req2, _} = rest_handler:allowed_methods(Req, State),
+
+            AllowedHeaders = [<<"x-auth-token">>, <<"macaroon">>, <<"authorization">>, <<"content-type">>],
+            Req3 = gui_cors:options_response(Origin, AllowedMethods, AllowedHeaders, Req2),
+
+            {ok, Req3, State}
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Reads bindings and parameters from the query string
+%% and inserts into state.
+%% @end
+%%--------------------------------------------------------------------
+-spec parse_query_string(Req :: cowboy_req:req(), State :: state()) ->
+    {Req :: cowboy_req:req(), NewState :: state()}.
+parse_query_string(Req, #rstate{methods = Methods} = State) ->
+    {Method, Req2} = rest_utils:get_method(Req),
+    {Bindings, Req3} = rest_utils:get_bindings(Req2),
+    #rmethod{params_spec = Spec} = lists:keyfind(Method, #rmethod.type, Methods),
+    {Params, Req4} = rest_utils:get_params(Req3, Spec),
+    {Req4, State#rstate{
+        bindings = Bindings,
+        params = Params
+    }}.
+
 
 %%--------------------------------------------------------------------
 %% @private @doc Cowboy callback function. Processes the request body.
@@ -279,109 +365,15 @@ accept_resource(Req, Data, #rstate{module = Module, methods = Methods} =
     {Method, Req2} = rest_utils:get_method(Req),
     {Bindings, Req3} = rest_utils:get_bindings(Req2),
     #rmethod{params_spec = ParamSpec, args_spec = ArgsSpec} =
-        lists:keyfind(Method, 2, Methods),
+        lists:keyfind(Method, #rmethod.type, Methods),
     {Params, Req4} = rest_utils:get_params(Req3, ParamSpec),
     Args = rest_utils:get_args(Data, ArgsSpec),
+    State2 = State#rstate{bindings = Bindings, params = Params},
 
-    case Module:accept_possible(Req4, Method, Args, State#rstate{
-        bindings = Bindings,
-        params = Params
-    }) of
+    case Module:accept_possible(Req4, Method, Args, State2) of
         {true, Req5} ->
-            {Result, Req6} = Module:accept_resource(Req5, Method, Args, State#rstate{
-                bindings = Bindings,
-                params = Params
-            }),
+            {Result, Req6} = Module:accept_resource(Req5, Method, Args, State2),
             {Result, Req6, State};
         {false, Req5} ->
             {stop, cowboy_req:reply(409, Req5), State}
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Authenticates user using provided authorization methods.
-%% @end
-%%--------------------------------------------------------------------
--spec authenticate(Req :: cowboy_req:req(), Methods :: [fun()]) ->
-    {{true, User :: #onepanel_user{}, SessionId ::
-    undefined | onepanel_session:id()} | false, Req :: cowboy_req:req()}.
-authenticate(Req, []) ->
-    {false, Req};
-authenticate(Req, [AuthMethod | AuthMethods]) ->
-    try AuthMethod(Req) of
-        {{ok, User}, SessionId, Req2} ->
-            {{true, User, SessionId}, Req2};
-        {#error{} = Error, _SessionId, Req2} ->
-            {false, rest_replier:handle_error(Req2, error, Error)};
-        {ignore, _SessionId, Req2} ->
-            authenticate(Req2, AuthMethods)
-    catch
-        Type:Reason ->
-            {false, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason))}
-    end.
-
-%%--------------------------------------------------------------------
-%% @private @doc Authenticates user using basic authorization method.
-%% @end
-%%--------------------------------------------------------------------
--spec authenticate_by_basic_auth(Req :: cowboy_req:req()) ->
-    {Result, SessionId :: undefined, Req :: cowboy_req:req()}
-    when Result :: {ok, User :: #onepanel_user{}} | #error{} | ignore.
-authenticate_by_basic_auth(Req) ->
-    case cowboy_req:header(<<"authorization">>, Req) of
-        <<"Basic ", Hash/binary>> ->
-            [Username, Password] = binary:split(base64:decode(Hash), <<":">>),
-            {onepanel_user:authenticate(Username, Password), undefined, Req};
-        _ ->
-            {ignore, undefined, Req}
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Authenticates user using session cookie.
-%% @end
-%%--------------------------------------------------------------------
--spec authenticate_by_cookie(Req :: cowboy_req:req()) ->
-    {{ok, User :: #onepanel_user{}}, onepanel_session:id(), Req}
-    | {#error{}, onepanel_session:id(), Req}
-    | {ignore, undefined, Req}
-    when Req :: onepanel_session:req().
-authenticate_by_cookie(Req) ->
-    Cookies = cowboy_req:parse_cookies(Req),
-    case proplists:get_all_values(<<"sessionId">>, Cookies) of
-        [] ->
-            {ignore, undefined, Req};
-        [SessionId] ->
-            {onepanel_user:authenticate(SessionId), SessionId, Req};
-        [SessionId1, SessionId2] ->
-            % Since 18.02.0-beta2 up to 18.02.0-rc11 a bug existed causing
-            % session cookie to be set with path "/api/v3/onepanel/" instead of "/".
-            % After upgrading to fixed version using the "/" path the old cookie
-            % persists and both are sent in each request.
-            % Without the code below logging in would not work in such situation
-            % without manually cleaning cookies.
-
-            case onepanel_user:authenticate(SessionId1) of
-                {ok, _} = Result -> {Result, SessionId1, Req};
-                #error{} -> {onepanel_user:authenticate(SessionId2), SessionId2, Req}
-            end
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Adjust data, that has been returned by YAML parser, by
-%% converting each parameter into binary.
-%% @end
-%%--------------------------------------------------------------------
--spec adjust_yaml_data(Data :: proplists:proplist()) ->
-    NewData :: proplists:proplist().
-adjust_yaml_data(Data) ->
-    case {io_lib:printable_unicode_list(Data), erlang:is_list(Data)} of
-        {false, true} -> lists:map(fun
-            ({Key, Value}) ->
-                {onepanel_utils:convert(Key, binary), adjust_yaml_data(Value)};
-            (Value) ->
-                onepanel_utils:convert(Value, binary)
-        end, Data);
-        {_, _} -> onepanel_utils:convert(Data, binary)
     end.

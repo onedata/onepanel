@@ -11,25 +11,48 @@
 -ifndef(ONEPANEL_MODELS_HRL).
 -define(ONEPANEL_MODELS_HRL, 1).
 
--define(MODELS, [onepanel_user, onepanel_session, onepanel_deployment, service]).
+-define(MATCH_SPECS, '_' | '$1').
+
+-define(MODELS, [
+    onepanel_user, onepanel_session, onepanel_deployment, onepanel_kv, service
+]).
+-define(WRAPPER_RECORD, document).
+
+%% Wrapper for all document records. Allows generic tracking of model versions.
+-record(document, {
+    key :: model_behavior:key(),
+    version = 1 :: model_behavior:version(),
+    value :: model_behaviour:record()
+}).
+
 
 -record(onepanel_user, {
-    username :: onepanel_user:name() | '_',
-    password_hash :: onepanel_user:password_hash() | '_',
-    role :: onepanel_user:role() | '_',
-    uuid :: onepanel_user:uuid() | '_'
+    username :: onepanel_user:name() | ?MATCH_SPECS,
+    password_hash :: undefined | onepanel_user:password_hash() | ?MATCH_SPECS,
+    role :: onepanel_user:role() | ?MATCH_SPECS,
+    uuid :: onepanel_user:uuid() | ?MATCH_SPECS
 }).
 
 -record(onepanel_session, {
-    id :: onepanel_session:id(),
-    username :: onepanel_user:name(),
-    expire :: non_neg_integer()
+    id :: undefined | onepanel_session:id() | ?MATCH_SPECS,
+    username :: undefined | onepanel_user:name() | ?MATCH_SPECS,
+    last_refresh = 0 :: non_neg_integer() | ?MATCH_SPECS,
+    nonce = <<"">> :: binary() | ?MATCH_SPECS,
+    previous_nonce = <<"">> :: binary() | ?MATCH_SPECS,
+    %% Tokens, from newest at head to oldest at tail
+    auth_tokens :: [{onepanel_session:auth_token(), Expires :: non_neg_integer()}] |
+        undefined | ?MATCH_SPECS
 }).
 
 -record(service, {
     name :: module(),
     hosts = [] :: [service:host()],
     ctx = #{} :: maps:map()
+}).
+
+-record(onepanel_kv, {
+    key :: onepanel_kv:key() | ?MATCH_SPECS,
+    value :: onepanel_kv:value() | ?MATCH_SPECS
 }).
 
 -record(onepanel_deployment, {

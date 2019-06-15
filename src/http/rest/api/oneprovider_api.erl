@@ -114,8 +114,7 @@ routes() ->
             methods = [#rmethod{
                 type = 'POST',
                 %% The provider configuration description.
-                args_spec = rest_model:provider_configuration_model(),
-                noauth = true
+                args_spec = rest_model:provider_configuration_model()
             }]
         }},
 
@@ -138,6 +137,21 @@ routes() ->
             resource = file_popularity_configuration,
             methods = [#rmethod{
                 type = 'GET'
+            }]
+        }},
+
+        %% Get Onezone information
+        {<<"/api/v3/onepanel/provider/onezone_info">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = onezone_info,
+            methods = [#rmethod{
+                type = 'GET',
+                params_spec = #{
+                    %% Oneprovider registration token obtained from Onezone.
+                    %% Required if the Oneprovider is not registered.
+                    token => {string, optional}
+                }
             }]
         }},
 
@@ -167,8 +181,7 @@ routes() ->
             module = rest_service,
             resource = service_oneprovider,
             methods = [#rmethod{
-                type = 'GET',
-                noauth = true
+                type = 'GET'
             }]
         }},
 

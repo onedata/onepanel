@@ -138,7 +138,7 @@ init_per_testcase(Case, Config) when
     Case =:= service_should_execute_steps;
     Case =:= service_should_notify_caller ->
     Nodes = ?config(onepanel_nodes, Config),
-    [Host1, Host2 | _] = Hosts = onepanel_cluster:nodes_to_hosts(Nodes),
+    [Host1, Host2 | _] = Hosts = hosts:from_nodes(Nodes),
     Self = self(),
     test_utils:mock_new(Nodes, service_example, [non_strict]),
     test_utils:mock_expect(Nodes, service_example, get_steps, fun(some_action, _) ->
@@ -165,7 +165,7 @@ init_per_testcase(service_get_steps_should_pass_errors, Config) ->
 
 init_per_testcase(service_action_should_pass_errors, Config) ->
     [_, Node2 | _] = Nodes = ?config(onepanel_nodes, Config),
-    Hosts = onepanel_cluster:nodes_to_hosts(Nodes),
+    Hosts = hosts:from_nodes(Nodes),
     test_utils:mock_new(Nodes, service_example, [non_strict]),
     test_utils:mock_expect(Nodes, service_example, get_steps, fun(some_action, _) ->
         [#step{hosts = Hosts, function = some_step}]

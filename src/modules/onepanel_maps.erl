@@ -16,12 +16,12 @@
 %% API
 -export([get/2, get/3, store/2, store/3, get_store/3, get_store/4, get_store/5]).
 -export([get_store_multiple/2, get_store_multiple/3, to_list/1]).
--export([remove_undefined/1]).
+-export([remove_undefined/1, undefined_to_null/1]).
 
 -type key() :: any().
 -type keys() :: key() | [key()].
 -type value() :: term().
--type terms() :: maps:map().
+-type terms() :: map().
 
 -export_type([key/0, keys/0, value/0, terms/0]).
 
@@ -121,7 +121,7 @@ get_store(SrcKeys, SrcTerms, DstKeys, DstTerms) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_store(SrcKeys :: keys(), SrcTerms :: terms(), DstKeys :: keys(),
-    DstTerms :: terms(), Default :: terms()) -> NewTerms :: terms().
+    DstTerms :: terms(), Default :: value()) -> NewTerms :: terms().
 get_store(SrcKeys, SrcTerms, DstKeys, DstTerms, Default) ->
     case get(SrcKeys, SrcTerms) of
         {ok, Value} -> store(DstKeys, Value, DstTerms);
@@ -155,10 +155,10 @@ get_store_multiple(KeyMappings, SrcTerms) ->
                   {SrcKeys :: keys(), DstKeys :: keys(), Default :: term()}.
 get_store_multiple(KeyMappings, SrcTerms, DstTerms) ->
     lists:foldl(fun
-        ({SrcKeys, DstKeys}, DstTerms) ->
-            get_store(SrcKeys, SrcTerms, DstKeys, DstTerms);
-        ({SrcKeys, DstKeys, Default}, DstTerms) ->
-            get_store(SrcKeys, SrcTerms, DstKeys, DstTerms, Default)
+        ({SrcKeys, DstKeys}, DstTermsAcc) ->
+            get_store(SrcKeys, SrcTerms, DstKeys, DstTermsAcc);
+        ({SrcKeys, DstKeys, Default}, DstTermsAcc) ->
+            get_store(SrcKeys, SrcTerms, DstKeys, DstTermsAcc, Default)
     end, DstTerms, KeyMappings).
 
 
@@ -166,18 +166,32 @@ get_store_multiple(KeyMappings, SrcTerms, DstTerms) ->
 %% @doc Removes undefined values from the map.
 %% @end
 %%--------------------------------------------------------------------
--spec remove_undefined(Args :: maps:map()) -> NewArgs :: maps:map().
+-spec remove_undefined(Args :: map()) -> NewArgs :: map().
 remove_undefined(Args) ->
     maps:filter(fun
         (_Key, undefined) -> false;
         (_Key, _Value) -> true
     end, Args).
 
+
+%%--------------------------------------------------------------------
+%% @doc Recursively replaces 'undefined' with 'null'.
+%% @end
+%%--------------------------------------------------------------------
+-spec undefined_to_null(Terms :: map()) -> map().
+undefined_to_null(Map) ->
+    maps:map(fun
+        (_Key, undefined) -> null;
+        (_Key, SubMap) when is_map(SubMap) -> undefined_to_null(SubMap);
+        (_Key, Value) -> Value
+    end, Map).
+
+
 %%-------------------------------------------------------------------
 %% @doc Converts nested map to nested proplist.
 %% @end
 %%-------------------------------------------------------------------
--spec to_list(maps:map()) -> proplists:proplist().
+-spec to_list(map()) -> proplists:proplist().
 to_list(Map) ->
     maps:fold(fun(K, V, AccIn) ->
         case is_map(V) of

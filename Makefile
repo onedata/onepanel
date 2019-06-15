@@ -71,7 +71,7 @@ config:
 	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rebar.config.template
 
 gui-static:
-	$(LIB_DIR)/gui/pull-gui.sh gui-config.sh
+	$(LIB_DIR)/gui/pull-gui.sh gui-image.conf
 
 
 ##
@@ -89,7 +89,7 @@ submodules:
 
 .PHONY: eunit
 eunit: config
-	$(REBAR) do eunit skip_deps=true suites=${SUITES}, cover
+	$(REBAR) do eunit skip_deps=true --suite=${SUITES}, cover
 ## Rename all tests in order to remove duplicated names (add _(++i) suffix to each test)
 	@for tout in `find test -name "TEST-*.xml"`; do awk '/testcase/{gsub("_[0-9]+\"", "_" ++i "\"")}1' $$tout > $$tout.tmp; mv $$tout.tmp $$tout; done
 

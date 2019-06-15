@@ -17,8 +17,9 @@
 -include("service.hrl").
 
 %% API
--export([get_steps/3, format_steps/2, notify/2, partition_results/1,
-    throw_on_error/1]).
+-export([get_steps/3, format_steps/2, notify/2, partition_results/1]).
+-export([results_contain_error/1, throw_on_error/1]).
+-export([absolute_path/2]).
 
 %%%===================================================================
 %%% API functions
@@ -100,25 +101,65 @@ partition_results(Results) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc Checks if an error occured during service action execution
+%% and returns it.
+%% @end
+%%--------------------------------------------------------------------
+-spec results_contain_error(Results :: service_executor:results() | #error{}) ->
+    {true, #error{}} | false.
+results_contain_error(#error{} = Error) ->
+    {true, Error};
+
+results_contain_error(Results) ->
+    case lists:reverse(Results) of
+        [{task_finished, {_, _, #error{} = Error}}] ->
+            {true, Error};
+
+        [{task_finished, {Service, Action, #error{}}}, Step | _Steps] ->
+            {Module, Function, {_, BadResults}} = Step,
+
+            ServiceError = #service_error{
+                service = Service, action = Action, module = Module,
+                function = Function, bad_results = BadResults
+            },
+            {true, ?make_error(ServiceError)};
+
+        _ ->
+            false
+    end.
+
+
+%%--------------------------------------------------------------------
 %% @doc Throws an exception if an error occurred during service action execution.
 %% @end
 %%--------------------------------------------------------------------
--spec throw_on_error(Results :: #error{} | list()) -> Steps :: list() | no_return().
-throw_on_error(#error{} = Error) ->
-    ?throw_error(Error);
-
+-spec throw_on_error(Results :: service_executor:results() | #error{}) ->
+    service_executor:results() | no_return().
 throw_on_error(Results) ->
-    case lists:reverse(Results) of
-        [{task_finished, {_, _, #error{} = Error}}] ->
-            ?throw_error(Error);
-        [{task_finished, {Service, Action, #error{}}}, Step | _] ->
-            {Module, Function, {_, BadResults}} = Step,
-            ?throw_error(#service_error{
-                service = Service, action = Action, module = Module,
-                function = Function, bad_results = BadResults
-            });
-        [{task_finished, {_, _, ok}} | Steps] ->
-            lists:reverse(Steps)
+    case results_contain_error(Results) of
+        {true, Error} -> ?throw_error(Error);
+        false -> Results
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc If given Path is relative, converts it to absolute path
+%% in relation to the cwd used by nodes of given service.
+%% Requires the service nodes to be online.
+%% @end
+%%--------------------------------------------------------------------
+-spec absolute_path(Service :: service:name(), Path :: file:filename_all()) ->
+    AbsPath :: file:filename_all().
+absolute_path(Service, Path) ->
+    case filename:absname(Path) of
+        Path ->
+            Path;
+        _ ->
+            {ok, Node} = nodes:any(Service),
+            case rpc:call(Node, filename, absname, [Path]) of
+                {badrpc, _} = Error -> ?throw_error(Error);
+                AbsPath -> AbsPath
+            end
     end.
 
 %%%===================================================================
@@ -164,12 +205,7 @@ get_step(#step{hosts = undefined, ctx = #{hosts := Hosts}} = Step) ->
     get_step(Step#step{hosts = Hosts});
 
 get_step(#step{hosts = undefined, service = Service} = Step) ->
-    Hosts = try
-        Module = service:get_module(Service),
-        Module:get_hosts()
-    catch
-        _:_ -> service_onepanel:get_hosts()
-    end,
+    Hosts = hosts:all(Service),
     get_step(Step#step{hosts = Hosts});
 
 get_step(#step{hosts = []}) ->
@@ -231,17 +267,17 @@ log({action_begin, {Module, Function}}) ->
 log({action_end, {Module, Function, ok}}) ->
     ?debug("Action ~p:~p completed successfully", [Module, Function]);
 log({action_end, {Module, Function, #error{reason = Reason, stacktrace = []}}}) ->
-    ?error("Action ~p:~p failed due to: ~p", [Module, Function, Reason]);
+    ?error("Action ~p:~p failed due to: ~tp", [Module, Function, Reason]);
 log({action_end, {Module, Function, #error{reason = Reason,
     stacktrace = Stacktrace}}}) ->
-    ?error("Action ~p:~p failed due to: ~p~nStacktrace: ~p",
+    ?error("Action ~p:~p failed due to: ~tp~nStacktrace: ~tp",
         [Module, Function, Reason, Stacktrace]);
 log({step_begin, {Module, Function}}) ->
     ?debug("Executing step ~p:~p", [Module, Function]);
 log({step_end, {Module, Function, {_, []}}}) ->
     ?debug("Step ~p:~p completed successfully", [Module, Function]);
 log({step_end, {Module, Function, {_, Errors}}}) ->
-    ?error("Step ~p:~p failed~n~s", [Module, Function,
+    ?error("Step ~p:~p failed~n~ts", [Module, Function,
         format_errors(Errors, "")]).
 
 
@@ -249,21 +285,12 @@ log({step_end, {Module, Function, {_, Errors}}}) ->
 %% @private @doc Formats the service errors into a human-readable format.
 %% @end
 %%--------------------------------------------------------------------
--spec format_errors(Errors :: [{Node, {error, Reason}} |{Node, {error, Reason,
-    Stacktrace}}], Acc :: string()) -> Log :: string() when
-    Node :: node(),
-    Reason :: term(),
-    Stacktrace :: term().
+-spec format_errors(Errors :: [{node(), #error{}}], Acc :: string()) ->
+    Log :: string().
 format_errors([], Log) ->
     Log;
-format_errors([{Node, #error{module = Module, function = Function, arity = Arity,
-    args = Args, reason = Reason, stacktrace = [], line = Line}} | Errors], Log) ->
-    Error = io_lib:format("Node: ~p~nFunction: ~p:~p/~p~nArgs: ~tp~nReason: ~tp~nLine: ~p~n",
-        [Node, Module, Function, Arity, Args, Reason, Line]),
-    format_errors(Errors, Log ++ Error);
-format_errors([{Node, #error{module = Module, function = Function, arity = Arity,
-    args = Args, reason = Reason, stacktrace = Stacktrace, line = Line}} | Errors], Log) ->
-    Error = io_lib:format("Node: ~p~nFunction: ~p:~p/~p~nArgs: ~tp~nReason: ~tp~n"
-    "Stacktrace: ~tp~nLine: ~p~n",
-        [Node, Module, Function, Arity, Args, Reason, Stacktrace, Line]),
-    format_errors(Errors, Log ++ Error).
+
+format_errors([{Node, #error{} = Error} | Errors], Log) ->
+    ErrorStr = str_utils:format("Node: ~p~n~ts",
+        [Node, onepanel_errors:format_error(Error)]),
+    format_errors(Errors, Log ++ ErrorStr).

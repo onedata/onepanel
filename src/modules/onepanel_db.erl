@@ -13,6 +13,7 @@
 
 -include("modules/errors.hrl").
 -include("names.hrl").
+-include("modules/models.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
@@ -53,7 +54,7 @@ destroy() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Creates database tables and initializes them.
+%% @doc Creates database tables and initializes them or upgrades if exist.
 %% @end
 %%--------------------------------------------------------------------
 -spec create_tables() -> ok.
@@ -61,14 +62,15 @@ create_tables() ->
     lists:foreach(fun(Model) ->
         Table = model:get_table_name(Model),
         case mnesia:create_table(Table, [
-            {attributes, Model:get_fields()},
-            {record_name, Model},
+            {attributes, model:get_fields()},
+            {record_name, document},
             {disc_copies, [node()]}
         ]) of
             {atomic, ok} ->
                 Model:seed(),
                 ok;
-            {aborted, {already_exists, Model}} -> ok;
+            {aborted, {already_exists, Model}} ->
+                upgrade_table(Table, Model);
             {aborted, Reason} -> throw(Reason)
         end
     end, model:get_models()).
@@ -146,3 +148,29 @@ remove_node(Node) ->
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
     mnesia:table_info(schema, disc_copies).
+
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Invokes upgrade function on all elements in the table
+%% to ensure they have up-to-date schema.
+%% On the first run after upgrading from 18.02
+%% handles migration to records being wrapped in #document{}.
+%% @end
+%%--------------------------------------------------------------------
+-spec upgrade_table(Table :: atom(), Model :: model:model()) ->
+    ok | no_return().
+upgrade_table(Table, Model) ->
+    case mnesia:transform_table(
+        Table,
+        fun(Record) -> model:upgrade(Model, Record) end,
+        model:get_fields(),
+        ?WRAPPER_RECORD
+    ) of
+        {atomic, ok} -> ok;
+        {aborted, Reason} -> ?throw_error(Reason)
+    end.

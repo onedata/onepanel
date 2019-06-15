@@ -20,7 +20,7 @@
 
 -type key() :: atom().
 -type keys() :: [key()].
--type data() :: maps:map().
+-type data() :: map().
 -type args() :: #{Key :: key() => Value :: term()}.
 -type args_list() :: [{Key :: key(), Value :: term()}].
 -type presence() :: required | optional | {optional, Default :: term()}.

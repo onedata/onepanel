@@ -56,7 +56,7 @@ get_hosts() ->
 %%--------------------------------------------------------------------
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
-    service:get_nodes(name()).
+    nodes:all(name()).
 
 
 %%--------------------------------------------------------------------
@@ -120,15 +120,66 @@ configure(_Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link service:start/1}
+%% @doc {@link service_cli:start/1}
 %% @end
 %%--------------------------------------------------------------------
 -spec start(Ctx :: service:ctx()) -> ok | no_return().
 start(Ctx) ->
-    service:start(?INIT_SCRIPT, #{
+    Limits = #{
         open_files => service_ctx:get(couchbase_open_files_limit, Ctx)
-    }, couchbase_start_cmd),
-    service_watcher:register_service(name()).
+    },
+    service_cli:start(name(), Limits),
+    service:register_healthcheck(name()),
+    % update status cache
+    status(Ctx),
+    ok.
+
+
+%%--------------------------------------------------------------------
+%% @doc {@link service_cli:stop/1}
+%% @end
+%%--------------------------------------------------------------------
+-spec stop(Ctx :: service:ctx()) -> ok | no_return().
+stop(Ctx) ->
+    onepanel_cron:remove_job(name()),
+    service_cli:stop(name()),
+    % update status cache
+    status(Ctx),
+    ok.
+
+
+%%--------------------------------------------------------------------
+%% @doc {@link service_cli:status/1}
+%% @end
+%%--------------------------------------------------------------------
+-spec status(Ctx :: service:ctx()) -> service:status().
+status(Ctx) ->
+    service:update_status(name(),
+        case service_cli:status(name(), status) of
+            running -> health(Ctx);
+            stopped -> stopped;
+            missing -> missing
+        end).
+
+
+%%--------------------------------------------------------------------
+%% @doc Checks if a running service is in a fully functional state.
+%% @end
+%%--------------------------------------------------------------------
+health(Ctx) ->
+    ConnectTimeout = service_ctx:get(couchbase_connect_timeout, Ctx, integer),
+    Host = hosts:self(),
+    Port = service_ctx:get(couchbase_admin_port, Ctx, integer),
+
+    case gen_tcp:connect(Host, Port, [], ConnectTimeout) of
+        {ok, Socket} ->
+            gen_tcp:close(Socket),
+            healthy;
+        {error, Reason} ->
+            ?warning("Cannot connect to couchbase server (~s:~p) due to: "
+            "~p", [Host, Port, Reason]),
+            unhealthy
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -138,47 +189,13 @@ start(Ctx) ->
 -spec wait_for_init(Ctx :: service:ctx()) -> ok | no_return().
 wait_for_init(Ctx) ->
     StartAttempts = service_ctx:get(couchbase_wait_for_init_attempts, Ctx, integer),
-    onepanel_utils:wait_until(?MODULE, status, [Ctx], {equal, running},
-        StartAttempts),
-
-    ConnectAttempts = service_ctx:get(couchbase_connect_attempts, Ctx, integer),
-    ConnectTimeout = service_ctx:get(couchbase_connect_timeout, Ctx, integer),
-    Host = onepanel_cluster:node_to_host(),
-    Port = service_ctx:get(couchbase_admin_port, Ctx, integer),
-    Validator = fun
-        ({ok, Socket}) -> gen_tcp:close(Socket);
-        ({error, Reason}) ->
-            ?warning("Cannot connect to couchbase server (~s:~p) due to: "
-            "~p", [Host, Port, Reason]),
-            ?throw_error(Reason)
-    end,
-
-    onepanel_utils:wait_until(gen_tcp, connect, [Host, Port, [],
-        ConnectTimeout], {validator, Validator}, ConnectAttempts),
+    onepanel_utils:wait_until(?MODULE, status, [Ctx],
+        {equal, healthy}, StartAttempts),
 
     % Couchbase reports healthy status before it's ready to serve requests.
     % This delay provides additional margin of error before starting workers.
-    Delay = application:get_env(onepanel, couchbase_init_delay, 0),
+    Delay = application:get_env(onepanel, couchbase_after_init_delay, 0),
     timer:sleep(Delay).
-
-
-%%--------------------------------------------------------------------
-%% @doc {@link service:stop/1}
-%% @end
-%%--------------------------------------------------------------------
--spec stop(Ctx :: service:ctx()) -> ok | no_return().
-stop(_Ctx) ->
-    service_watcher:unregister_service(name()),
-    service:stop(?INIT_SCRIPT, couchbase_stop_cmd).
-
-
-%%--------------------------------------------------------------------
-%% @doc {@link service:status/1}
-%% @end
-%%--------------------------------------------------------------------
--spec status(Ctx :: service:ctx()) -> running | stopped | not_found.
-status(_Ctx) ->
-    service:status(?INIT_SCRIPT, couchbase_status_cmd).
 
 
 %%--------------------------------------------------------------------
@@ -191,7 +208,7 @@ init_cluster(Ctx) ->
     Password = service_ctx:get(couchbase_password, Ctx),
     ServerQuota = service_ctx:get(couchbase_server_quota, Ctx),
     BucketQuota = service_ctx:get(couchbase_bucket_quota, Ctx, integer),
-    Host = onepanel_cluster:node_to_host(),
+    Host = hosts:self(),
     Port = service_ctx:get(couchbase_admin_port, Ctx),
     Url = onepanel_utils:join(["http://", Host, ":", Port, "/pools/default"]),
     Timeout = service_ctx:get(couchbase_init_timeout, Ctx, integer),
@@ -211,8 +228,8 @@ init_cluster(Ctx) ->
         Cmd ++ ["--cluster-init-password=" ++ Password],
         Cmd ++ ["--cluster-init-password=*****"]),
 
-    Release = onepanel_env:get(release_type),
-    {ok, Buckets} = onepanel_lists:get(Release, onepanel_env:get(couchbase_buckets)),
+    ClusterType = onepanel_env:get_cluster_type(),
+    {ok, Buckets} = onepanel_lists:get(ClusterType, onepanel_env:get(couchbase_buckets)),
     lists:foreach(fun
         ({Bucket, Quota}) ->
             create_bucket(Host, Port, User, Password, Bucket, Quota);
@@ -231,7 +248,7 @@ init_cluster(Ctx) ->
 join_cluster(#{cluster_host := ClusterHost} = Ctx) ->
     User = service_ctx:get(couchbase_user, Ctx),
     Password = service_ctx:get(couchbase_password, Ctx),
-    Host = onepanel_cluster:node_to_host(),
+    Host = hosts:self(),
     Port = service_ctx:get(couchbase_admin_port, Ctx),
 
     Cmd = [?CLI, "server-add", "-c",
@@ -255,7 +272,7 @@ join_cluster(#{cluster_host := ClusterHost} = Ctx) ->
 rebalance_cluster(Ctx) ->
     User = service_ctx:get(couchbase_user, Ctx),
     Password = service_ctx:get(couchbase_password, Ctx),
-    Host = onepanel_cluster:node_to_host(),
+    Host = hosts:self(),
     Port = service_ctx:get(couchbase_admin_port, Ctx),
 
     Cmd = [?CLI, "rebalance", "-c", Host ++ ":" ++ Port, "-u", User],
@@ -266,7 +283,7 @@ rebalance_cluster(Ctx) ->
 
     % Couchbase reports healthy status before it's ready to serve requests.
     % This delay provides additional margin of error before starting workers.
-    Delay = application:get_env(onepanel, couchbase_init_delay, 0),
+    Delay = application:get_env(onepanel, couchbase_after_init_delay, 0),
     timer:sleep(Delay).
 
 %%%===================================================================

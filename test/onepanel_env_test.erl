@@ -56,6 +56,8 @@ onepanel_env_test_() ->
             fun read_should_pass_errors/1,
             fun write_should_append_value/1,
             fun write_should_replace_value/1,
+            fun migrate_should_rename_key/1,
+            fun migrate_should_ignore_missing/1,
             fun write_should_pass_errors/1
         ]
     }.
@@ -168,6 +170,24 @@ write_should_pass_errors(_) ->
     ?_assertThrow(#error{reason = enoent},
         onepanel_env:write([a1, k1], v9, "/nonexistent/p2")).
 
+
+migrate_should_rename_key(_) ->
+    ?assertEqual(true, onepanel_env:migrate(a1, [a1, k2], [a1, k9])),
+    Expected = {ok, ?FILE_CONTENT([
+        {a1, [{k1, v1}, {k3, v3}, {k9, v2}]},
+        {a2, ?APP_CONFIG_2}
+    ])},
+    Result = pop_msg(),
+    ?_assertEqual(Expected, Result).
+
+
+migrate_should_ignore_missing(_) ->
+    ?assertEqual(false, onepanel_env:migrate(a1, [a1, missing], [a1, k9])),
+    % no write happens when there is no change
+    Msg = pop_msg(),
+    ?_assertEqual(timeout, Msg).
+
+
 %%%===================================================================
 %%% Test fixtures
 %%%===================================================================
@@ -188,6 +208,12 @@ start() ->
             ok;
         (Path, Content) ->
             meck:passthrough([Path, Content])
+    end),
+
+    meck:expect(onepanel_env, get_config_path, fun
+        (a1, generated) -> "p1";
+        (a2, generated) -> "p1";
+        (Service, Layer) -> meck:passthrough([Service, Layer])
     end),
 
     ok.
@@ -225,7 +251,7 @@ pop_msg(Timeout) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Removes all message from porcess message queue.
+%% @doc Removes all message from process message queue.
 %% @end
 %%--------------------------------------------------------------------
 -spec remove_msgs() -> ok.

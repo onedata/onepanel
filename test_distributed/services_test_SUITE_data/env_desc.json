@@ -62,7 +62,7 @@
   },
   "onepanel_domains": {
     "onezone": {
-      "image": "docker.onedata.org/onezone-dev:develop",
+      "image": "docker.onedata.org/onezone-dev:ID-eecb024605",
       "onepanel": {
         "node1": {
           "vm.args": {
@@ -70,7 +70,7 @@
           },
           "sys.config": {
             "onepanel": {
-              "release_type": "onezone"
+              "cluster_type": "onezone"
             }
           }
         },
@@ -80,7 +80,7 @@
           },
           "sys.config": {
             "onepanel": {
-              "release_type": "onezone"
+              "cluster_type": "onezone"
             }
           }
         }
@@ -88,7 +88,7 @@
     },
     "oneprovider": {
       "os_config": "cfg1",
-      "image": "docker.onedata.org/oneprovider-dev:ID-9b9898a24f",
+      "image": "docker.onedata.org/oneprovider-dev:ID-d3ab52772e",
       "onepanel": {
         "node1": {
           "vm.args": {
@@ -96,9 +96,6 @@
           },
           "sys.config": {
             "onepanel": {
-              "advertise_address": {
-                "string": "239.255.1.1"
-              }
             }
           }
         },
@@ -108,9 +105,6 @@
           },
           "sys.config": {
             "onepanel": {
-              "advertise_address": {
-                "string": "239.255.1.1"
-              }
             }
           }
         }

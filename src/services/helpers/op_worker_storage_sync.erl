@@ -4,7 +4,7 @@
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%%--------------------------------------------------------------------
-%%% @doc This module contains helper function used during op_worker service
+%%% @doc This module contains helper functions used during op_worker service
 %%% storage sync configuration.
 %%% @end
 %%%-------------------------------------------------------------------

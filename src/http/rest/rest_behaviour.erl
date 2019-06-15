@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Krzysztof Trzepla
-%%% @copyright (C): 2016 ACK CYFRONET AGH
+%%% @copyright (C) 2016 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -28,10 +28,21 @@
 %%--------------------------------------------------------------------
 %% Checks if request submitted by a client through POST, PUT, PATCH on a REST
 %% resource is allowed in the current state.
+%% Negative response triggers the 409 Conflict http code.
 %%--------------------------------------------------------------------
 -callback accept_possible(Req :: cowboy_req:req(), Method :: rest_handler:method_type(),
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
     {Possible :: boolean(), Req :: cowboy_req:req()} |
+    {stop, Req :: cowboy_req:req()}.
+
+
+%%--------------------------------------------------------------------
+%% Checks if services needed to fulfill the request are healthy.
+%% Negative response triggers the 503 Service Unavailable http code.
+%%--------------------------------------------------------------------
+-callback is_available(Req :: cowboy_req:req(),
+    Method :: rest_handler:method_type(), State :: rest_handler:state()) ->
+    {Available :: boolean(), Req :: cowboy_req:req()} |
     {stop, Req :: cowboy_req:req()}.
 
 

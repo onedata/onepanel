@@ -13,7 +13,9 @@
             "setcookie": "test_cookie"
           },
           "sys.config": {
-            "onepanel": {}
+            "onepanel": {
+              "cluster_type": "onezone"
+            }
           }
         }
       }

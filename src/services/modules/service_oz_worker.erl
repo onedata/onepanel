@@ -13,28 +13,39 @@
 -behaviour(service_behaviour).
 -behaviour(letsencrypt_plugin_behaviour).
 
+-include("names.hrl").
 -include("deployment_progress.hrl").
 -include("modules/errors.hrl").
+-include("modules/models.hrl").
 -include("service.hrl").
--include("names.hrl").
+-include("authentication.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/api_errors.hrl").
+-include_lib("ctool/include/oz/oz_users.hrl").
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 %% LE behaviour callbacks
 -export([set_txt_record/1, remove_txt_record/1, get_dns_server/0,
-    reload_webcert/1, get_domain/0, get_admin_email/1, set_http_record/2,
+    reload_webcert/1, get_domain/0, get_admin_email/0, set_http_record/2,
     supports_letsencrypt_challenge/1]).
 
-%% API
--export([configure/1, start/1, stop/1, status/1, wait_for_init/1,
+%% API functions
+-export([get_root_logic_client/0, get_logic_client_by_gui_token/1,
+    get_logic_client_by_access_token/1]).
+-export([get_user_details/1]).
+
+%% Step functions
+-export([configure/1, start/1, stop/1, status/1, health/1, wait_for_init/1,
     get_nagios_response/1, get_nagios_status/1]).
--export([reconcile_dns/1, get_ns_hosts/0, get_ns_hosts/1]).
--export([migrate_generated_config/1]).
+-export([reconcile_dns/1, get_ns_hosts/0]).
+-export([migrate_generated_config/1, rename_variables/0]).
 -export([get_policies/0, set_policies/1]).
 -export([get_details/1, get_details/0]).
 
 -define(INIT_SCRIPT, "oz_worker").
+-define(DETAILS_CACHE_KEY, onezone_details).
+-define(DETAILS_CACHE_TTL, timer:minutes(1)).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -46,7 +57,7 @@
 %%--------------------------------------------------------------------
 -spec name() -> Name :: service:name().
 name() ->
-    oz_worker.
+    ?SERVICE_OZW.
 
 
 %%--------------------------------------------------------------------
@@ -64,7 +75,7 @@ get_hosts() ->
 %%--------------------------------------------------------------------
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
-    service:get_nodes(name()).
+    nodes:all(name()).
 
 
 %%--------------------------------------------------------------------
@@ -77,8 +88,8 @@ get_steps(deploy, Ctx) ->
     service_cluster_worker:get_steps(deploy, Ctx#{name => name()})
     ++ case Ctx of
         #{policies := Policies} ->
-            [#steps{action = set_policies,
-                ctx = Policies#{hosts => maps:get(hosts, Ctx, get_hosts())}}];
+            PoliciesCtx = onepanel_maps:get_store(hosts, Ctx, hosts, Policies),
+            [#steps{action = set_policies, ctx = PoliciesCtx}];
         _ -> []
     end;
 
@@ -95,11 +106,73 @@ get_steps(configure_dns_check, Ctx) ->
         | service_cluster_worker:get_steps(configure_dns_check, Ctx)
     ];
 
+get_steps(resume, Ctx) ->
+    [
+        #step{function = rename_variables, selection = all, args = []}
+        | service_cluster_worker:get_steps(resume, Ctx#{name => name()})
+    ];
+
 get_steps(Action, Ctx) ->
     service_cluster_worker:get_steps(Action, Ctx#{name => name()}).
 
+
 %%%===================================================================
-%%% API functions
+%%% Public API
+%%%===================================================================
+
+-spec get_root_logic_client() -> {ok, onezone_client:logic_client()} | #error{}.
+get_root_logic_client() ->
+    case nodes:any(name()) of
+        {ok, OzNode} ->
+            case rpc:call(OzNode, entity_logic, root_client, []) of
+                {badrpc, _} = Error -> ?make_error(Error);
+                LogicClient -> {ok, LogicClient}
+            end;
+        Error -> Error
+    end.
+
+
+-spec get_logic_client_by_gui_token(GuiToken :: binary())  ->
+    {ok, onezone_client:logic_client()} | #error{}.
+get_logic_client_by_gui_token(GuiToken) ->
+    case nodes:any(name()) of
+        {ok, OzNode} ->
+            case rpc:call(OzNode, auth_logic,
+                authorize_by_onezone_gui_macaroon, [GuiToken]
+            ) of
+                {true, LogicClient, _SessionId} -> {ok, LogicClient};
+                {error, ApiError} -> ?make_error(ApiError)
+            end;
+        Error -> Error
+    end.
+
+
+-spec get_logic_client_by_access_token(AccessToken :: binary())  ->
+    {ok, onezone_client:logic_client()} | #error{}.
+get_logic_client_by_access_token(AccessToken) ->
+    case nodes:any(name()) of
+        {ok, OzNode} ->
+            case rpc:call(OzNode, auth_logic,
+                authorize_by_access_token, [AccessToken]
+            ) of
+                {true, LogicClient} -> {ok, LogicClient};
+                {error, ApiError} -> ?make_error(ApiError)
+            end;
+        Error -> Error
+    end.
+
+
+-spec get_user_details(LogicClient :: term()) -> {ok, #user_details{}} | #error{}.
+get_user_details(LogicClient) ->
+    {ok, OzNode} = nodes:any(name()),
+    case rpc:call(OzNode, user_logic, get_as_user_details, [LogicClient]) of
+        {ok, User} -> {ok, User};
+        {error, Reason} -> ?make_error(Reason)
+    end.
+
+
+%%%===================================================================
+%%% Step functions
 %%%===================================================================
 
 %%--------------------------------------------------------------------
@@ -114,14 +187,19 @@ configure(Ctx) ->
     OzDomain = service_ctx:get_domain(onezone_domain, Ctx),
 
     % TODO VFS-4140 Mark IPs configured only in batch mode
-    onepanel_deployment:mark_completed(?PROGRESS_CLUSTER_IPS),
+    onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),
 
+    AppConfig = onepanel_maps:get_store_multiple([
+        {gui_debug_mode, gui_debug_mode}
+    ], Ctx, #{
+        oz_name => OzName,
+        http_domain => OzDomain
+    }),
+
+    simple_cache:clear(?DETAILS_CACHE_KEY),
     service_cluster_worker:configure(Ctx#{
         name => name(),
-        app_config => #{
-            oz_name => OzName,
-            http_domain => OzDomain
-        },
+        app_config => AppConfig,
         generated_config_file => GeneratedConfigFile,
         vm_args_file => VmArgsFile,
         initialize_ip => true
@@ -129,7 +207,7 @@ configure(Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link service:start/1}
+%% @doc {@link service_cli:start/1}
 %% @end
 %%--------------------------------------------------------------------
 -spec start(Ctx :: service:ctx()) -> ok | no_return().
@@ -137,39 +215,40 @@ start(Ctx) ->
     NewCtx = maps:merge(#{
         open_files => service_ctx:get(oz_worker_open_files_limit, Ctx)
     }, Ctx),
-    service_cluster_worker:start(NewCtx#{
-        init_script => ?INIT_SCRIPT,
-        custom_cmd_env => oz_worker_start_cmd
-    }),
-    service_watcher:register_service(name()).
+    service_cluster_worker:start(NewCtx#{name => name()}).
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link service:stop/1}
+%% @doc {@link service_cli:stop/1}
 %% @end
 %%--------------------------------------------------------------------
 -spec stop(Ctx :: service:ctx()) -> ok | no_return().
 stop(Ctx) ->
-    service_watcher:unregister_service(name()),
-    service_cluster_worker:stop(Ctx#{
-        init_script => ?INIT_SCRIPT,
-        custom_cmd_env => oz_worker_stop_cmd
-    }).
+    service_cluster_worker:stop(Ctx#{name => name()}).
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link service:status/1}
+%% @doc {@link service_cli:status/1}
 %% @end
 %%--------------------------------------------------------------------
--spec status(Ctx :: service:ctx()) -> running | stopped | not_found.
+-spec status(Ctx :: service:ctx()) -> service:status().
 status(Ctx) ->
-    % Since this function is invoked periodically by service_watcher
+    % Since this function is invoked periodically by onepanel_cron
     % use it to schedule DNS check refresh on a single node
     catch maybe_check_dns(),
-    service_cluster_worker:status(Ctx#{
-        init_script => ?INIT_SCRIPT,
-        custom_cmd_env => oz_worker_status_cmd
-    }).
+    service_cluster_worker:status(Ctx#{name => name()}).
+
+
+%%--------------------------------------------------------------------
+%% @doc Checks if a running service is in a fully functional state.
+%% @end
+%%--------------------------------------------------------------------
+-spec health(service:ctx()) -> service:status().
+health(Ctx) ->
+    case (catch get_nagios_status(Ctx)) of
+        ok -> healthy;
+        _ -> unhealthy
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -216,12 +295,12 @@ get_nagios_status(Ctx) ->
 %% @doc {@link letsencrypt_plugin_behaviour:set_http_record/2}
 %% @end
 %%--------------------------------------------------------------------
+-spec set_http_record(Name :: binary(), Value :: binary()) -> ok.
 set_http_record(Name, Value) ->
     Nodes = get_nodes(),
     {Results, []} = rpc:multicall(Nodes, http_listener,
         set_response_to_letsencrypt_challenge, [Name, Value]),
-    lists:foreach(fun(R) -> ok = R end, Results),
-    ok.
+    lists:foreach(fun(R) -> ok = R end, Results).
 
 
 %%-------------------------------------------------------------------
@@ -229,15 +308,12 @@ set_http_record(Name, Value) ->
 %% Returns nameserver hostnames and IPs as generated by Onezone's DNS server.
 %% @end
 %%-------------------------------------------------------------------
--spec get_ns_hosts(service:ctx()) -> [{Name :: binary(), IP :: inet:ip4_address()}].
-get_ns_hosts(#{node := Node}) ->
+-spec get_ns_hosts() -> [{Name :: binary(), IP :: inet:ip4_address()}].
+get_ns_hosts() ->
+    {ok, Node} = nodes:any(name()),
     case rpc:call(Node, dns_config, get_ns_hosts, []) of
         Hosts when is_list(Hosts) -> Hosts
     end.
-
--spec get_ns_hosts() -> [{Name :: binary(), IP :: inet:ip4_address()}].
-get_ns_hosts() ->
-    get_ns_hosts(#{node => hd(get_nodes())}).
 
 
 %%--------------------------------------------------------------------
@@ -245,16 +321,13 @@ get_ns_hosts() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec set_txt_record(service:ctx()) -> ok | no_return().
-set_txt_record(#{txt_name := Name, txt_value := Value, txt_ttl := _TTL,
-    nodes := [Node | _] = Nodes} = Ctx) ->
+set_txt_record(#{txt_name := Name, txt_value := Value, txt_ttl := _TTL} = Ctx) ->
+    [Node | _] = Nodes = get_nodes(),
     % oz_worker does not support custom TTL times
     CurrentRecords = onepanel_env:get_remote(Node, [dns_static_txt_records], name()),
-
     ok = onepanel_env:set_remote(Nodes, [dns_static_txt_records],
         [{Name, Value} | CurrentRecords], name()),
-    reconcile_dns(Ctx);
-set_txt_record(#{txt_name := _, txt_value := _} = Ctx) ->
-    set_txt_record(Ctx#{nodes => get_nodes()}).
+    reconcile_dns(Ctx).
 
 
 %%--------------------------------------------------------------------
@@ -271,15 +344,15 @@ get_dns_server() ->
 %% @doc {@link letsencrypt_plugin_behaviour:remove_txt_record/1}
 %% @end
 %%--------------------------------------------------------------------
-remove_txt_record(#{txt_name := Name, nodes := Nodes} = Ctx) ->
-    CurrentRecords = onepanel_env:get_remote(hd(Nodes),
+remove_txt_record(#{txt_name := Name} = Ctx) ->
+    [Node | _] = Nodes = get_nodes(),
+    CurrentRecords = onepanel_env:get_remote(Node,
         [dns_static_txt_records], name()),
 
     ok = onepanel_env:set_remote(Nodes, [dns_static_txt_records],
         proplists:delete(Name, CurrentRecords), name()),
-    reconcile_dns(Ctx);
-remove_txt_record(#{txt_name := _} = Ctx) ->
-    remove_txt_record(Ctx#{nodes => get_nodes()}).
+
+    reconcile_dns(Ctx).
 
 
 %%--------------------------------------------------------------------
@@ -291,30 +364,32 @@ reload_webcert(Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link letsencrypt_plugin_behaviour:get_domain/0}
+%% @doc {@link letsencrypt_plugin_behaviour:get_domain/1}
 %% @end
 %%--------------------------------------------------------------------
 -spec get_domain() -> binary().
 get_domain() ->
-    maps:get(domain, get_details(#{})).
+    maps:get(domain, ?MODULE:get_details(#{})).
 
 
 %%--------------------------------------------------------------------
 %% @doc
 %% Returns details of the oz worker. Routes request to a host
 %% with oz_worker deployed.
+%% Result is cached to speed up usages such as rest_utils:allowed_origin/0.
 %% @end
 %%--------------------------------------------------------------------
--spec get_details(service:ctx()) -> #{name := binary(), domain := binary()}.
-get_details(#{hosts := Hosts}) ->
-    Node = case Hosts of
-        [H|_] -> onepanel_cluster:service_to_node(?APP_NAME, H);
-        [] -> node()
-    end,
-    rpc:call(Node, ?MODULE, get_details, []);
-
-get_details(Ctx) ->
-    get_details(Ctx#{hosts => get_hosts()}).
+-spec get_details(service:ctx()) ->
+    #{name := binary() | undefined, domain := binary()}.
+get_details(_Ctx) ->
+    {ok, Cached} = simple_cache:get(?DETAILS_CACHE_KEY, fun() ->
+        {_, Node} = nodes:onepanel_with(name()),
+        case rpc:call(Node, ?MODULE, get_details, []) of
+            Map when is_map(Map) -> {true, Map, ?DETAILS_CACHE_TTL};
+            Error -> {false, Error}
+        end
+    end),
+    Cached.
 
 
 %%--------------------------------------------------------------------
@@ -323,22 +398,21 @@ get_details(Ctx) ->
 %% with oz_worker deployed.
 %% @end
 %%--------------------------------------------------------------------
--spec get_details() -> #{name := binary(), domain := binary()}.
+-spec get_details() -> #{name := binary() | undefined, domain := binary() | undefined}.
 get_details() ->
-    {ok, OzName} = onepanel_env:read_effective([name(), oz_name], name()),
+    OzName = onepanel_env:read_effective([name(), oz_name], name(), undefined),
     {ok, OzDomain} = onepanel_env:read_effective([name(), http_domain], name()),
     #{
-        name => onepanel_utils:convert(OzName, binary),
-        domain => onepanel_utils:convert(OzDomain, binary)
+        name => to_binary_or_undefined(OzName),
+        domain => to_binary_or_undefined(OzDomain)
     }.
-
 
 %%--------------------------------------------------------------------
 %% @doc {@link letsencrypt_plugin_behaviour:get_admin_email/0}
 %% @end
 %%--------------------------------------------------------------------
--spec get_admin_email(service:ctx()) -> binary() | undefined.
-get_admin_email(_Ctx) ->
+-spec get_admin_email() -> binary() | undefined.
+get_admin_email() ->
     undefined.
 
 
@@ -347,14 +421,15 @@ get_admin_email(_Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
-    boolean() | unknown.
-supports_letsencrypt_challenge(http) -> true;
+    boolean().
+supports_letsencrypt_challenge(http) ->
+    service:healthy(name());
 supports_letsencrypt_challenge(dns) ->
-    try
-        onepanel_env:get_remote(hd(get_nodes()),
-            [subdomain_delegation_enabled], name())
-    catch _:_ ->
-        unknown
+    case nodes:any(name()) of
+        {ok, Node} ->
+            service:healthy(name()) andalso
+                onepanel_env:get_remote(Node, [subdomain_delegation_supported], name());
+        _Error -> false
     end;
 supports_letsencrypt_challenge(_) -> false.
 
@@ -364,8 +439,9 @@ supports_letsencrypt_challenge(_) -> false.
 %% @end
 %%--------------------------------------------------------------------
 -spec reconcile_dns(service:ctx()) -> ok.
-reconcile_dns(_Ctx) ->
-    ok = rpc:call(hd(get_nodes()), node_manager_plugin, reconcile_dns_config, []).
+reconcile_dns(Ctx) ->
+    {ok, Node} = nodes:any(Ctx#{service => name()}),
+    ok = rpc:call(Node, node_manager_plugin, reconcile_dns_config, []).
 
 
 %%--------------------------------------------------------------------
@@ -383,26 +459,59 @@ migrate_generated_config(Ctx) ->
     }).
 
 
+%%-------------------------------------------------------------------
+%% @doc
+%% Finds outdated environment variables in 'generated' app config
+%% and migrates them.
+%% @end
+%%-------------------------------------------------------------------
+-spec rename_variables() -> ok.
+rename_variables() ->
+    Changes = [
+        {[name(), subdomain_delegation_enabled], [name(), subdomain_delegation_supported]}
+    ],
+    lists:foreach(fun({Old, New}) ->
+        onepanel_env:migrate(name(), Old, New)
+    end, Changes).
+
+
 -spec get_policies() -> #{atom() := term()}.
 get_policies() ->
-    Node = onepanel_cluster:service_to_node(name()),
-    SubdomainDelegation = onepanel_env:get_remote(
-        Node, subdomain_delegation_enabled, name()),
+    Node = nodes:local(name()),
+
+    SubdomainDelegation = onepanel_env:get_remote(Node,
+        subdomain_delegation_supported, name()),
+    GuiVerification = not onepanel_env:get_remote(Node,
+        disable_gui_package_verification, name()),
+    HarversterGuiVerification = not onepanel_env:get_remote(Node,
+        disable_harvester_gui_package_verification, name()),
     #{
-        subdomainDelegation => SubdomainDelegation
+        subdomainDelegation => SubdomainDelegation,
+        guiPackageVerification => GuiVerification,
+        harvesterGuiPackageVerification => HarversterGuiVerification
     }.
 
 
+%%-------------------------------------------------------------------
+%% @doc
+%% Applies zone policy changes. This function should be run on all
+%% nodes with oz_worker to ensure consisten app.config state.
+%% @end
+%%-------------------------------------------------------------------
 -spec set_policies(Ctx :: service:ctx()) -> ok.
-set_policies(#{subdomain_delegation := Delegation} = Ctx) ->
-    Node = onepanel_cluster:service_to_node(name()),
-    Path = onepanel_env:get_config_path(name(), generated),
+set_policies(Ctx) ->
+    maps:map(fun
+        (subdomain_delegation, Supported) ->
+            env_write_and_set(subdomain_delegation_supported, Supported);
 
-    onepanel_env:write([name(), subdomain_delegation_enabled], Delegation, Path),
-    onepanel_env:set_remote(Node, subdomain_delegation_enabled, Delegation, name()),
+        (gui_package_verification, Enabled) ->
+            env_write_and_set(disable_gui_package_verification, not Enabled);
 
-    set_policies(maps:remove(subdomain_delegation, Ctx));
-set_policies(_Ctx) ->
+        (harvester_gui_package_verification, Enabled) ->
+            env_write_and_set(disable_harvester_gui_package_verification, not Enabled);
+
+        (_, _) -> ok
+    end, Ctx),
     ok.
 
 
@@ -418,11 +527,30 @@ set_policies(_Ctx) ->
 %% @end
 %%-------------------------------------------------------------------
 maybe_check_dns() ->
-    ThisNode = node(),
-    ThisHost = onepanel_cluster:node_to_host(ThisNode),
-    case ThisHost == hd(get_hosts())
+    case hosts:self() == hd(get_hosts())
         andalso dns_check:should_update_cache(name()) of
 
         true -> dns_check:async_update_cache(name());
         false -> ok
     end.
+
+
+%% @private
+-spec to_binary_or_undefined(term()) -> binary() | undefined.
+to_binary_or_undefined(undefined) -> undefined;
+to_binary_or_undefined(Value) -> onepanel_utils:convert(Value, binary).
+
+
+%%-------------------------------------------------------------------
+%% @private
+%% @doc
+%% Writes oz_worker app variable to autogenerated app config file
+%% and sets it in the live config on local node.
+%% @end
+%%-------------------------------------------------------------------
+-spec env_write_and_set(Variable :: atom(), Value :: term()) -> ok | no_return().
+env_write_and_set(Variable, Value) ->
+    Node = nodes:local(name()),
+    Path = onepanel_env:get_config_path(name(), generated),
+    onepanel_env:write([name(), Variable], Value, Path),
+    onepanel_env:set_remote(Node, Variable, Value, name()).
