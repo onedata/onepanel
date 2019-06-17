@@ -45,6 +45,7 @@
 -type helper_args() :: op_worker_rpc:helper_args().
 -type user_ctx() :: op_worker_rpc:helper_user_ctx().
 -type storages_map() :: #{Name :: name() => Params :: storage_params()}.
+-type qos_parameters() :: #{binary() => binary()}.
 
 %% Opaque terms from op_worker
 -type luma_config() :: op_worker_rpc:luma_config().
@@ -76,7 +77,9 @@ add(Storages, IgnoreExists) ->
         Result = case {exists(OpNode, {name, StorageName}), IgnoreExists} of
             {true, true} -> skipped;
             {true, false} -> {error, already_exists};
-            _ -> add(OpNode, StorageName, Value)
+            _ ->
+                {QosParams, StorageParams} = maps:take(qosParameters, Value),
+                add(OpNode, StorageName, StorageParams, QosParams)
         end,
 
         case Result of
@@ -104,14 +107,18 @@ update(OpNode, Id, Params) ->
     {ok, Id} = onepanel_maps:get(id, Storage),
     {ok, Type} = onepanel_maps:get(type, Storage),
     {ok, LumaEnabled} = onepanel_maps:get(lumaEnabled, Storage),
+    % remove qosParameters as they are a map and will cause errors
+    % when preprocessing arg by convertion to binary
+    PlainValues = maps:remove(qosParameters, Params),
 
     % @TODO VFS-5513 Modify everything in a single datastore operation
-    ok = maybe_update_name(OpNode, Id, Params),
-    ok = maybe_update_admin_ctx(OpNode, Id, Type, Params),
-    ok = maybe_update_args(OpNode, Id, Type, Params),
-    ok = maybe_update_luma_config(OpNode, Id, Params, LumaEnabled),
-    ok = maybe_update_insecure(OpNode, Id, Type, Params),
-    ok = maybe_update_readonly(OpNode, Id, Params),
+    ok = maybe_update_name(OpNode, Id, PlainValues),
+    ok = maybe_update_admin_ctx(OpNode, Id, Type, PlainValues),
+    ok = maybe_update_args(OpNode, Id, Type, PlainValues),
+    ok = maybe_update_luma_config(OpNode, Id, PlainValues, LumaEnabled),
+    ok = maybe_update_insecure(OpNode, Id, Type, PlainValues),
+    ok = maybe_update_readonly(OpNode, Id, PlainValues),
+    ok = maybe_update_qos_parameters(OpNode, Id, Params),
     make_update_result(OpNode, Id).
 
 
@@ -288,9 +295,9 @@ can_be_removed(StorageId) ->
 %% Uses given OpNode for op_worker operations.
 %% @end
 %%--------------------------------------------------------------------
--spec add(OpNode :: node(), StorageName :: binary(), Params :: storage_params()) ->
-    ok | {error, Reason :: term()}.
-add(OpNode, StorageName, Params) ->
+-spec add(OpNode :: node(), StorageName :: binary(), Params :: storage_params(),
+    QosParameters :: qos_parameters()) -> ok | {error, Reason :: term()}.
+add(OpNode, StorageName, Params, QosParameters) ->
     StorageType = onepanel_utils:typed_get(type, Params, binary),
 
     ?info("Gathering storage configuration: \"~s\" (~s)", [StorageName, StorageType]),
@@ -305,7 +312,12 @@ add(OpNode, StorageName, Params) ->
     ?info("Adding storage: \"~s\" (~s)", [StorageName, StorageType]),
     StorageRecord = op_worker_rpc:storage_new(StorageName, [Helper],
         ReadOnly, LumaConfig),
-    op_worker_rpc:storage_create(StorageRecord).
+    case op_worker_rpc:storage_create(StorageRecord) of
+        {ok, StorageId} ->
+            update_qos_parameters(OpNode, StorageId, QosParameters),
+            ok;
+        {error, Reason} -> {error, Reason}
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -520,6 +532,20 @@ maybe_update_luma_config(OpNode, Id, Params, WasEnabled) ->
             ok = op_worker_rpc:storage_update_luma_config(OpNode, Id, Changes),
             invalidate_luma_cache(Id)
     end.
+
+
+-spec maybe_update_qos_parameters(OpNode :: node(), Id :: id(),
+    storage_params()) -> ok.
+maybe_update_qos_parameters(OpNode, Id, #{qosParameters := Parameters}) ->
+    update_qos_parameters(OpNode, Id, Parameters);
+maybe_update_qos_parameters(_OpNode, _Id, _) ->
+    ok.
+
+
+-spec update_qos_parameters(OpNode :: node(), Id :: id(),
+    qos_parameters()) -> ok.
+update_qos_parameters(OpNode, Id, Parameters) ->
+    ok = rpc:call(OpNode, storage_qos_parameters, set, [Id, Parameters]).
 
 
 %%--------------------------------------------------------------------
