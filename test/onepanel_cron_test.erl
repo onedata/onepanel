@@ -14,6 +14,7 @@
 
 -ifdef(TEST).
 
+-include("names.hrl").
 -include("modules/errors.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
@@ -43,7 +44,7 @@ onepanel_cron_test_() ->
 
 
 job_is_executed() ->
-    Period = timer:hours(1),
+    Period = 1,
     onepanel_cron:add_job(some_job, ?SIMPLE_ACTION, Period),
 
     timer:sleep(?CRON_PERIOD),
@@ -80,7 +81,7 @@ multiple_jobs_are_executed() ->
 
     timer:sleep(?CRON_PERIOD * 3 + 100),
     ?assertEqual(3, meck:num_calls(?CALLED_MODULE, ?CALLED_FUNCTION, '_')),
-    ?assertEqual(2, meck:num_calls(?CALLED_MODULE, ?CALLED_FUNCTION2, '_')).
+    ?assertEqual(1, meck:num_calls(?CALLED_MODULE, ?CALLED_FUNCTION2, '_')).
 
 
 job_is_removed() ->
@@ -106,17 +107,19 @@ running_job_is_skipped() ->
 
 
 long_job_is_aborted() ->
+    Delay = ?JOB_TIMEOUT + 1000,
     Action = fun() ->
         ?CALLED_MODULE:?CALLED_FUNCTION(),
-        timer:sleep(?JOB_TIMEOUT + 1000),
+        timer:sleep(Delay),
         ?CALLED_MODULE:?CALLED_FUNCTION2()
     end,
-    Period = timer:hours(1), % run once
+    Period = 1,
 
     onepanel_cron:add_job(some_job, Action, Period),
-    timer:sleep(?JOB_TIMEOUT + 2000),
+    timer:sleep(?CRON_PERIOD + Delay + 1000),
 
-    ?assertEqual(1, meck:num_calls(?CALLED_MODULE, ?CALLED_FUNCTION, '_')),
+    % second execution starts after abort, is aborted before call to function2
+    ?assertEqual(2, meck:num_calls(?CALLED_MODULE, ?CALLED_FUNCTION, '_')),
     ?assertEqual(0, meck:num_calls(?CALLED_MODULE, ?CALLED_FUNCTION2, '_')).
 
 
@@ -128,6 +131,11 @@ prepare() ->
     onepanel_env:set(cron_period, ?CRON_PERIOD),
     onepanel_env:set(cron_job_timeout, ?JOB_TIMEOUT),
 
+    % ensure process does not exist - caused random test failure
+    case whereis(?ONEPANEL_CRON_NAME) of
+        undefined -> ok;
+        OldPid -> exit(OldPid, kill)
+    end,
     {ok, Pid} = onepanel_cron:start_link(),
     % prevent termination of the test process
     erlang:unlink(Pid),

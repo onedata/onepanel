@@ -33,6 +33,8 @@
 %% Frequency of checks
 -define(TICK_PERIOD, onepanel_env:get(cron_period)).
 
+-define(NOW(), time_utils:system_time_millis()).
+
 -type condition() :: fun(() -> boolean()).
 -type action() :: fun(() -> term()).
 
@@ -93,7 +95,9 @@ add_job(JobName, Action, Period) ->
     Period :: non_neg_integer(), Condition :: condition()) -> ok.
 add_job(JobName, Action, Period, Condition) ->
     Job = #job{
-        action = Action, period = Period, condition = Condition
+        action = Action, period = Period, condition = Condition,
+        % start with the current timestamp to delay first run of the job
+        last_run = ?NOW()
     },
     gen_server:call(?ONEPANEL_CRON_NAME, {add_job, JobName, Job}, ?TIMEOUT).
 
@@ -215,7 +219,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%--------------------------------------------------------------------
 -spec run_jobs(State :: state()) -> NewState :: state().
 run_jobs(State) ->
-    Now = time_utils:system_time_millis(),
+    Now = ?NOW(),
     maps:map(fun(_JobName, Job) ->
         case period_passed(Job, Now) andalso job_finished(Job) of
             true ->
@@ -234,7 +238,7 @@ run_jobs(State) ->
 %%--------------------------------------------------------------------
 -spec abort_stale_jobs(state()) -> ok.
 abort_stale_jobs(State) ->
-    Now = time_utils:system_time_millis(),
+    Now = ?NOW(),
     lists:foreach(fun({JobName, Job}) ->
         maybe_abort(JobName, Job, Now)
     end, maps:to_list(State)).
