@@ -98,7 +98,7 @@
     },
     "oneprovider": {
       "os_config": "cfg1",
-      "image": "docker.onedata.org/oneprovider-dev:ID-d8777cc230",
+      "image": "docker.onedata.org/oneprovider:ID-97dd75c746",
       "onepanel": {
         "node1": {
           "vm.args": {
