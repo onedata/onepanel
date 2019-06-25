@@ -168,7 +168,7 @@
 %%--------------------------------------------------------------------
 -spec run_certification_flow(Domain :: binary(), Plugin :: module()) -> ok | no_return().
 run_certification_flow(Domain, Plugin) ->
-    run_certification_flow(Domain, Plugin, get_run_mode()).
+    run_certification_flow(Domain, Plugin, resolve_run_mode()).
 
 
 %%--------------------------------------------------------------------
@@ -216,7 +216,7 @@ run_certification_flow(Domain, Plugin, Mode) ->
         _ -> ensure_files_access(State)
     end,
 
-    ExistingAccount = case read_keys(KeysDir) of
+    AccountExists = case read_keys(KeysDir) of
         {ok, _, _} ->
             ?info("Let's Encrypt ~s run: reusing account from \"~s\"", [CurrentMode, filename:absname(KeysDir)]),
             true;
@@ -226,7 +226,7 @@ run_certification_flow(Domain, Plugin, Mode) ->
     end,
 
     try
-        ExistingAccount orelse generate_keys(KeysDir),
+        AccountExists orelse generate_keys(KeysDir),
         ?info("Let's Encrypt ~s run: get endpoints", [CurrentMode]),
         {ok, State2} = get_directory(State),
         ?info("Let's Encrypt ~s run: register account", [CurrentMode]),
@@ -234,12 +234,13 @@ run_certification_flow(Domain, Plugin, Mode) ->
         {ok, _State4} = attempt_certification(State3)
     catch
         _:Error ->
-            case ExistingAccount of
+            case AccountExists of
                 true -> ok;
                 false ->
-                    % if error occurred before any successful certification,
-                    % account it is better to delete the account in order
-                    % to prevent counting against invalid authorization rate limit
+                    % if error occurred before current account has completed
+                    % any successful certification, it can be safely
+                    % deleted. This avoids counting against invalid
+                    % authorization rate limit.
                     catch clean_keys(KeysDir)
             end,
             ?throw_stacktrace(Error, [Domain, Plugin, Mode])
@@ -471,7 +472,7 @@ handle_challenge(#flow_state{challenge = Challenge} = State)
 
     ok = Service:set_http_record(Token, AuthString),
 
-    {ok, _, _, State2} = post(URL, <<"{}">>, 200, State),
+    {ok, _, _, State2} = post(URL, #{}, 200, State),
     {ok, State2};
 
 handle_challenge(#flow_state{challenge = Challenge} = State)
@@ -596,8 +597,8 @@ request_certificate(State) ->
 %% Returns run mode, depending on application settings.
 %% @end
 %%--------------------------------------------------------------------
--spec get_run_mode() -> run_mode().
-get_run_mode() ->
+-spec resolve_run_mode() -> run_mode().
+resolve_run_mode() ->
     ModeEnv = onepanel_env:get(letsencrypt_mode, ?APP_NAME, full),
     case {ModeEnv, ?STAGING_DIRECTORY_URL} of
         {production, _} -> production;
@@ -726,8 +727,7 @@ post(URL, Payload, OkCodes, #flow_state{} = State) ->
 
 -spec post(url(), Payload :: term(), OkCodes :: one_or_many(http_client:code()),
     #flow_state{}, Attempts :: non_neg_integer()) -> request_result() | no_return().
-post(URL, Payload, OkCode, State, Attempts)
-    when is_integer(OkCode) ->
+post(URL, Payload, OkCode, State, Attempts) when is_integer(OkCode) ->
     post(URL, Payload, [OkCode], State, Attempts);
 
 post(URL, _Payload, OkCodes, _State, 0) ->
