@@ -131,11 +131,6 @@ prepare() ->
     onepanel_env:set(cron_period, ?CRON_PERIOD),
     onepanel_env:set(cron_job_timeout, ?JOB_TIMEOUT),
 
-    % ensure process does not exist - caused random test failure
-    case whereis(?ONEPANEL_CRON_NAME) of
-        undefined -> ok;
-        OldPid -> exit(OldPid, kill)
-    end,
     {ok, Pid} = onepanel_cron:start_link(),
     % prevent termination of the test process
     erlang:unlink(Pid),
@@ -148,6 +143,20 @@ prepare() ->
 
 stop(#{pid := Pid}) ->
     meck:unload(),
-    exit(Pid, kill).
+    exit(Pid, kill),
+    % ensure process dies before next test run
+    % to prevent already_started errors
+    wait_to_die(Pid).
+
+
+-spec wait_to_die(pid()) -> ok.
+wait_to_die(Pid) ->
+    case erlang:is_process_alive(Pid) of
+        false ->
+            ok;
+        true ->
+            timer:sleep(100),
+            wait_to_die(Pid)
+    end.
 
 -endif.
