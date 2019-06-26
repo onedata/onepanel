@@ -446,7 +446,7 @@ maybe_verify_storage(Helper, _) ->
     ok | no_return().
 verify_storage(Helper) ->
     [Node | _] = service_op_worker:get_nodes(),
-    rpc:call(Node, storage_detector, verify_storage_on_all_nodes, [Helper]).
+    ok = rpc:call(Node, storage_detector, verify_storage_on_all_nodes, [Helper]).
 
 
 %%--------------------------------------------------------------------
