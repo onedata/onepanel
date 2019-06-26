@@ -33,6 +33,8 @@
 %% Frequency of checks
 -define(TICK_PERIOD, onepanel_env:get(cron_period)).
 
+-define(NOW(), time_utils:system_time_millis()).
+
 -type condition() :: fun(() -> boolean()).
 -type action() :: fun(() -> term()).
 
@@ -93,7 +95,9 @@ add_job(JobName, Action, Period) ->
     Period :: non_neg_integer(), Condition :: condition()) -> ok.
 add_job(JobName, Action, Period, Condition) ->
     Job = #job{
-        action = Action, period = Period, condition = Condition
+        action = Action, period = Period, condition = Condition,
+        % start with the current timestamp to delay first run of the job
+        last_run = ?NOW()
     },
     gen_server:call(?ONEPANEL_CRON_NAME, {add_job, JobName, Job}, ?TIMEOUT).
 
@@ -174,7 +178,6 @@ handle_cast(Request, State) ->
     {noreply, NewState :: state(), timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: state()}.
 handle_info(tick, State) ->
-    abort_stale_jobs(State),
     NewState = run_jobs(State),
     {noreply, NewState};
 
@@ -215,46 +218,17 @@ code_change(_OldVsn, State, _Extra) ->
 %%--------------------------------------------------------------------
 -spec run_jobs(State :: state()) -> NewState :: state().
 run_jobs(State) ->
-    Now = time_utils:system_time_millis(),
+    Now = ?NOW(),
     maps:map(fun(_JobName, Job) ->
         case period_passed(Job, Now) andalso job_finished(Job) of
             true ->
                 Pid = spawn(execute_job_fun(Job)),
+                timer:kill_after(?JOB_TIMEOUT, Pid),
                 Job#job{pid = Pid, last_run = Now};
             false ->
                 Job
         end
     end, State).
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Kills job processes which have been running
-%% for more than JOB_TIMEOUT.
-%% @end
-%%--------------------------------------------------------------------
--spec abort_stale_jobs(state()) -> ok.
-abort_stale_jobs(State) ->
-    Now = time_utils:system_time_millis(),
-    lists:foreach(fun({JobName, Job}) ->
-        maybe_abort(JobName, Job, Now)
-    end, maps:to_list(State)).
-
-
-%% @private
--spec maybe_abort(job_name(), job(), NowMillis :: non_neg_integer()) -> term().
-maybe_abort(JobName, #job{pid = Pid, last_run = LastRun} = Job, Now) ->
-    case job_finished(Job) of
-        true -> ok;
-        false ->
-            Age = Now - LastRun,
-            case Age > ?JOB_TIMEOUT of
-                true ->
-                    ?warning("Aborting cron job '~s' after running for ~b seconds",
-                        [JobName, Age div 1000]),
-                    erlang:exit(Pid, kill);
-                false -> ok
-            end
-    end.
 
 
 %%--------------------------------------------------------------------
