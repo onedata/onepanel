@@ -67,6 +67,7 @@ load_key(Path) ->
 -spec key_to_jwk_map(#'RSAPrivateKey'{} | #'RSAPublicKey'{}) -> map().
 key_to_jwk_map(#'RSAPrivateKey'{publicExponent = E, modulus = N}) ->
     key_to_jwk_map(#'RSAPublicKey'{publicExponent = E, modulus = N});
+
 key_to_jwk_map(#'RSAPublicKey'{publicExponent = E, modulus = N}) ->
     #{<<"e">> => base64url:encode(binary:encode_unsigned(E)),
       <<"kty">> => <<"RSA">>,
@@ -89,6 +90,7 @@ key_to_jwk_map(#'RSAPublicKey'{publicExponent = E, modulus = N}) ->
     {ok, map()} | {error, unsupported_alg} | no_return().
 sign(Payload, ProtectedHeader, Key) when not(is_binary(Payload)) ->
     sign(json_utils:encode(Payload), ProtectedHeader, Key);
+
 sign(Payload, #{<<"alg">> := <<"RS256">>} = ProtectedHeader,
     #'RSAPrivateKey'{} = Key) ->
 
@@ -101,8 +103,10 @@ sign(Payload, #{<<"alg">> := <<"RS256">>} = ProtectedHeader,
     {ok, #{<<"protected">> => ProtectedB64,
            <<"payload">>   => PayloadB64,
            <<"signature">> => base64url:encode(Signature)}};
+
 sign(_Payload, #{<<"alg">> := _}, _Key) ->
     {error, unsupported_alg};
+
 sign(Payload, #{} = ProtectedHeader, #'RSAPrivateKey'{} = Key) ->
     sign(Payload, ProtectedHeader#{<<"alg">> => <<"RS256">>}, Key).
 
