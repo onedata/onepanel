@@ -185,7 +185,6 @@ service_op_worker_add_storage_test(Config) ->
     {ok, Swift} = onepanel_lists:get([storages, swift, someSwift], Config),
     {ok, Glusterfs} = onepanel_lists:get([storages, glusterfs, someGlusterfs], Config),
     {ok, WebDAV} = onepanel_lists:get([storages, webdav, someWebDAV], Config),
-    {ok, NullDevice} = onepanel_lists:get([storages, webdav, someNullDevice], Config),
     onepanel_test_utils:service_action(Node, op_worker, add_storages, #{
         hosts => [hd(?config(oneprovider_hosts, Config))],
         storages => #{
@@ -255,14 +254,15 @@ service_op_worker_add_storage_test(Config) ->
             },
             <<"someNullDevice">> => #{
                 type => <<"nulldevice">>,
-                name => onepanel_utils:typed_get(name, NullDevice, binary),
-                latencyMin => onepanel_utils:typed_get(latency_min, NullDevice, binary),
-                latencyMax => onepanel_utils:typed_get(latency_max, NullDevice, binary),
-                timeoutProbability => onepanel_utils:typed_get(timeout_probability, NullDevice, binary),
-                filter => onepanel_utils:typed_get(filter, NullDevice, binary),
-                simulatedFilesystemParameters => onepanel_utils:typed_get (simulated_filesystem_parameters, NullDevice, binary),
-                simulatedFilesystemGrowSpeed => onepanel_utils:typed_get (simulated_filesystem_growSpeed, NullDevice, binary),
-                storagePathType => <<"canonical">>
+                name => <<"someNullDevice">>,
+                latencyMin => 25,
+                latencyMax => 75,
+                timeoutProbability => 0.0,
+                filter => <<"*">>,
+                simulatedFilesystemParameters => <<>>,
+                simulatedFilesystemGrowSpeed => 0.0,
+                storagePathType => <<"canonical">>,
+                readonly => true
             }
         }
     }),
@@ -303,8 +303,8 @@ service_op_worker_update_storage_test(Config) ->
         },
         <<"someNullDevice">> => #{
             type => <<"nulldevice">>,
-            latencyMin => <<"100">>,
-            latencyMax => <<"150">>
+            latencyMin => 100,
+            latencyMax => 150
         }
     },
 
@@ -314,8 +314,12 @@ service_op_worker_update_storage_test(Config) ->
             case maps:find(Name, ChangesByName) of
                 {ok, Changes} ->
                     ChangesBinary = onepanel_utils:convert(Changes, {values, binary}),
-                    Expected = maps:merge(Storage,
-                        ChangesBinary#{verificationPassed => false}),
+                    Expected = case Name of
+                        <<"someNullDevice">> ->
+                            maps:merge(Storage, ChangesBinary);
+                        _ ->
+                            maps:merge(Storage, ChangesBinary#{verificationPassed => false})
+                    end,
 
                     onepanel_test_utils:service_action(Node, op_worker, update_storage, #{
                         hosts => [Host], storage => Changes, id => Id
@@ -617,14 +621,14 @@ get_registration_token(OzNode) ->
 get_storages(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
     onepanel_test_utils:service_action(Node, op_worker, get_storages, #{
-        hosts => [onepanel_cluster:node_to_host(Node)]
+        hosts => [hosts:from_node(Node)]
     }),
     Results = assert_service_step(service:get_module(op_worker), get_storages),
     [{_, #{ids := Ids}}] = ?assertMatch([{Node, _}], Results),
 
     lists:map(fun(Id) ->
         onepanel_test_utils:service_action(Node, op_worker, get_storages, #{
-            hosts => [onepanel_cluster:node_to_host(Node)], id => Id
+            hosts => [hosts:from_node(Node)], id => Id
         }),
         Results2 = assert_service_step(service:get_module(op_worker), get_storages),
         [{_, Details}] = ?assertMatch([{Node, _}], Results2),
