@@ -400,11 +400,13 @@ verify_storage(Helper) ->
 storage_to_map(OpNode, Storage) ->
     [Helper | _] = rpc:call(OpNode, storage, get_helpers, [Storage]),
     AdminCtx = rpc:call(OpNode, helper, get_admin_ctx, [Helper]),
-    AdminCtx2 = maps:with([<<"username">>, <<"accessKey">>], AdminCtx),
+    PublicAdminCtx = maps:with([
+        <<"username">>, <<"accessKey">>, <<"credentialsType">>
+    ], AdminCtx),
     HelperArgs = rpc:call(OpNode, helper, get_args, [Helper]),
     LumaConfig = rpc:call(OpNode, storage, get_luma_config_map, [Storage]),
 
-    Params = onepanel_utils:convert(maps:merge(AdminCtx2, HelperArgs), {keys, atom}),
+    Params = onepanel_utils:convert(maps:merge(PublicAdminCtx, HelperArgs), {keys, atom}),
     Params#{
         id => rpc:call(OpNode, storage, get_id, [Storage]),
         name => rpc:call(OpNode, storage, get_name, [Storage]),

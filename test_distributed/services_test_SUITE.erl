@@ -173,7 +173,7 @@ service_op_worker_get_storages_test(Config) ->
         {mountPoint, onepanel_utils:typed_get(
             [storages, posix, '/mnt/st1', docker_path], Config, binary
         )}
-    ]).
+    ])  .
 
 
 service_op_worker_add_storage_test(Config) ->
