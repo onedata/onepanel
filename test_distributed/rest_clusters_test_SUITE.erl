@@ -331,8 +331,6 @@ init_per_testcase(_Case, Config) ->
         (_Node, provider_logic, get_protected_data, [_Client, ProviderId]) ->
             ?assertEqual(<<?PROVIDER_ID>>, ProviderId),
             {ok, ?PROVIDER_DETAILS_RPC};
-        (_Node, entity_logic, root_client, []) ->
-            {opaque, root_client};
         (Node, Module, Function, Args) ->
             meck:passthrough([Node, Module, Function, Args])
     end),

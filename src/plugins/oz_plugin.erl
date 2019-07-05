@@ -14,6 +14,7 @@
 -author("Krzysztof Trzepla").
 
 -include("names.hrl").
+-include_lib("ctool/include/onedata.hrl").
 
 -behaviour(oz_plugin_behaviour).
 
@@ -89,14 +90,15 @@ auth_to_rest_client(none) ->
     none;
 
 auth_to_rest_client({access_token, AccessToken}) ->
-    {headers, #{<<"x-auth-token">> => AccessToken}};
+    {headers, tokens:build_access_token_header(AccessToken)};
 
 auth_to_rest_client({gui_token, GuiToken}) ->
     ProviderMacaroon = service_oneprovider:get_auth_token(),
-    {headers, #{
-        <<"subject-token">> => GuiToken,
-        <<"audience-token">> => ProviderMacaroon
-    }};
+    AudienceToken = tokens:serialize_audience_token(?OP_PANEL, ProviderMacaroon),
+    {headers, maps:merge(
+        tokens:build_access_token_header(GuiToken),
+        tokens:build_audience_token_header(AudienceToken)
+    )};
 
 auth_to_rest_client(provider) ->
     ProviderMacaroon = service_oneprovider:get_auth_token(),

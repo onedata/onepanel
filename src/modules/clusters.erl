@@ -320,7 +320,7 @@ get_members_count({rpc, Auth}, UsersOrGroups, DirectOrEffective) ->
 create_user_invite_token({rpc, Auth}) ->
     case zone_rpc(cluster_logic, create_user_invite_token,
         [Auth, get_id()]) of
-        {ok, Macaroon} -> onedata_macaroons:serialize(Macaroon);
+        {ok, Macaroon} -> macaroons:serialize(Macaroon);
         Error -> Error
     end;
 
