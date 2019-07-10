@@ -71,7 +71,7 @@ authenticate_by_basic_auth(Req) ->
     {Result, Req :: cowboy_req:req()}
     when Result :: #client{} | #error{} | ignore.
 authenticate_by_onepanel_auth_token(Req) ->
-    case find_auth_token(cowboy_req:headers(Req)) of
+    case tokens:parse_access_token_header(Req) of
         <<?ONEPANEL_TOKEN_PREFIX, ?ONEPANEL_TOKEN_SEPARATOR, _/binary>> = OnepanelToken ->
             case onepanel_session:find_by_valid_auth_token(OnepanelToken) of
                 {ok, #onepanel_session{username = ?LOCAL_SESSION_USERNAME}} ->
@@ -92,7 +92,7 @@ authenticate_by_onepanel_auth_token(Req) ->
     {Result, Req :: cowboy_req:req()}
     when Result :: #client{} | #error{} | ignore.
 authenticate_by_onezone_auth_token(Req) ->
-    case find_auth_token(cowboy_req:headers(Req)) of
+    case tokens:parse_access_token_header(Req) of
         undefined ->
             {ignore, Req};
         AccessToken ->
@@ -131,22 +131,6 @@ check_emergency_passphrase(Passphrase) ->
         true -> root_client();
         false -> ?make_error(?ERR_INVALID_PASSPHRASE)
     end.
-
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc Extracts authentication token from request headers.
-%% @end
-%%--------------------------------------------------------------------
--spec find_auth_token(cowboy:http_headers()) -> Token :: binary() | undefined.
-find_auth_token(#{<<"x-auth-token">> := Token}) ->
-    Token;
-find_auth_token(#{<<"macaroon">> := Token}) ->
-    Token;
-find_auth_token(#{<<"authorization">> := <<"Bearer ", Token/binary>>}) ->
-    Token;
-find_auth_token(_) ->
-    undefined.
 
 
 -spec root_client() -> #client{}.

@@ -25,9 +25,8 @@
 -include_lib("ctool/include/oz/oz_users.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/api_errors.hrl").
--include_lib("ctool/include/auth/onedata_macaroons.hrl").
+-include_lib("ctool/include/aai/macaroons.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
--include_lib("macaroons/src/macaroon.hrl").
 
 -include("http/rest.hrl").
 
@@ -916,10 +915,10 @@ auth_macaroon_from_file() ->
             {ok, TTL} = onepanel_env:read_effective(
                 [?SERVICE_OPW, provider_macaroon_ttl_sec], ?SERVICE_OPW),
 
-            {ok, RootMacaroon} = onedata_macaroons:deserialize(RootMacaroonB64),
+            {ok, RootMacaroon} = macaroons:deserialize(RootMacaroonB64),
             Caveat = ?TIME_CAVEAT(time_utils:system_time_seconds(), TTL),
-            Limited = onedata_macaroons:add_caveat(RootMacaroon, Caveat),
-            {ok, Macaroon} = onedata_macaroons:serialize(Limited),
+            Limited = macaroons:add_caveat(RootMacaroon, Caveat),
+            {ok, Macaroon} = macaroons:serialize(Limited),
             Macaroon;
         {ok, Other} ->
             <<_/binary>> = rpc:call(Other, ?MODULE, ?FUNCTION_NAME, [])

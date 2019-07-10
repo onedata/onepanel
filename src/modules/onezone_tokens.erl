@@ -55,7 +55,7 @@ authenticate_user(Token) ->
 %%--------------------------------------------------------------------
 -spec read_domain(RegistrationToken :: binary()) -> Domain :: binary() | no_return().
 read_domain(RegistrationToken) ->
-    {ok, Macaroon} = onedata_macaroons:deserialize(RegistrationToken),
+    {ok, Macaroon} = macaroons:deserialize(RegistrationToken),
     Macaroon#macaroon.location.
 
 

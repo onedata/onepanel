@@ -14,6 +14,7 @@
 -include("modules/errors.hrl").
 -include("onepanel_test_utils.hrl").
 -include("onepanel_test_rest.hrl").
+-include_lib("ctool/include/aai/aai.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
 -include_lib("ctool/include/privileges.hrl").
@@ -56,8 +57,6 @@ all() ->
 
 -define(PASSWORD1, <<"onePassword">>).
 -define(PASSWORD2, <<"otherpassword">>).
-
--define(ROOT_CLIENT, {opaque, root_client}).
 
 %%%===================================================================
 %%% Test functions
@@ -194,7 +193,7 @@ init_per_testcase(get_should_list_oz_users, Config) ->
     UserIds = [?USER_ID1, ?USER_ID2],
     test_utils:mock_new(Nodes, [onezone_users]),
     test_utils:mock_expect(Nodes, rpc, call, fun
-        (_, user_logic, list, [?ROOT_CLIENT]) -> {ok, UserIds};
+        (_, user_logic, list, [?ROOT]) -> {ok, UserIds};
         (Node, M, F, A) -> meck:passthrough([Node, M, F, A])
     end),
     [{oz_user_ids, UserIds} | Config2];
@@ -208,8 +207,8 @@ init_per_testcase(Case, Config) when
     test_utils:mock_new(Nodes, [onezone_users]),
     test_utils:mock_expect(Nodes, rpc, call, fun
         (_, user_logic, exists, [UserId]) -> UserId == ?USER_ID1;
-        (_, user_logic, set_password, [?ROOT_CLIENT, _UserId, _Password]) -> ok;
-        (_, user_logic, get_as_user_details, [?ROOT_CLIENT, ?USER_ID1]) ->
+        (_, user_logic, set_password, [?ROOT, _UserId, _Password]) -> ok;
+        (_, user_logic, get_as_user_details, [?ROOT, ?USER_ID1]) ->
             {ok, #user_details{id = ?USER_ID1, username = ?USERNAME1, full_name = ?FULL_NAME1}};
         (Node, M, F, A) -> meck:passthrough([Node, M, F, A])
     end),
@@ -221,11 +220,11 @@ init_per_testcase(post_should_create_oz_user, Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     test_utils:mock_new(Nodes, [onezone_users]),
     test_utils:mock_expect(Nodes, rpc, call, fun
-        (_, user_logic, create, [?ROOT_CLIENT, #{<<"username">> := ?USERNAME1}]) ->
+        (_, user_logic, create, [?ROOT, #{<<"username">> := ?USERNAME1}]) ->
             {ok, ?USER_ID1};
-        (_, user_logic, create, [?ROOT_CLIENT, #{<<"username">> := ?USERNAME2}]) ->
+        (_, user_logic, create, [?ROOT, #{<<"username">> := ?USERNAME2}]) ->
             {ok, ?USER_ID2};
-        (_, group_logic, add_user, [?ROOT_CLIENT, _GroupId, _UserId]) ->
+        (_, group_logic, add_user, [?ROOT, _GroupId, _UserId]) ->
             {ok, <<"groupId">>};
         (Node, M, F, A) ->
             meck:passthrough([Node, M, F, A])
@@ -243,8 +242,6 @@ init_per_testcase(_Case, Config) ->
         fun() -> ?config(onepanel_hosts, Config) end),
     test_utils:mock_expect(Nodes, service_oz_worker, get_hosts,
         fun() -> ?config(onepanel_hosts, Config) end),
-    test_utils:mock_expect(Nodes, service_oz_worker, get_root_logic_client,
-        fun() -> {ok, ?ROOT_CLIENT} end),
     Config.
 
 

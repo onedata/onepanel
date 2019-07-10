@@ -15,6 +15,7 @@
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include("names.hrl").
+-include_lib("ctool/include/aai/aai.hrl").
 -include_lib("ctool/include/api_errors.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
@@ -176,5 +177,4 @@ get_by_username(Username) ->
     {OzwNode :: node(), Client :: onezone_client:logic_client()}.
 get_node_and_client() ->
     {ok, OzNode} = nodes:any(?SERVICE_OZW),
-    {ok, Client} = service_oz_worker:get_root_logic_client(),
-    {OzNode, Client}.
+    {OzNode, ?ROOT}.
