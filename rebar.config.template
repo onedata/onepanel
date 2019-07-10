@@ -24,7 +24,7 @@
 ]}.
 
 {deps, [
-    {ctool, {git, "ssh://git@git.onedata.org:7999/vfs/ctool.git", {ref, "4cd60549b5"}}},
+    {ctool, {git, "ssh://git@git.onedata.org:7999/vfs/ctool.git", {ref, "d90bc72b63"}}},
     {gui, {git, "ssh://git@git.onedata.org:7999/vfs/gui.git", {ref, "16586d0caef"}}},
     {yamerl, {git, "git://github.com/yakaz/yamerl.git", {ref, "3f46bf06b9"}}}
 ]}.

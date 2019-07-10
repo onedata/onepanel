@@ -14,6 +14,7 @@
 -include("modules/errors.hrl").
 -include("names.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/aai/aai.hrl").
 
 %% API
 -export([fetch_zone_info/1]).
@@ -63,13 +64,8 @@ fetch_zone_info(Domain) ->
 -spec root_auth() -> rest_handler:zone_auth().
 root_auth() ->
     case onepanel_env:get_cluster_type() of
-        onezone ->
-            case service_oz_worker:get_root_logic_client() of
-                {ok, Client} -> {rpc, Client};
-                _Error -> none
-            end;
-        oneprovider ->
-            {rest, provider}
+        onezone -> {rpc, ?ROOT};
+        oneprovider -> {rest, provider}
     end.
 
 

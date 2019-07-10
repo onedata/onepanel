@@ -14,6 +14,7 @@
 -include("names.hrl").
 -include("modules/models.hrl").
 -include("onepanel_test_utils.hrl").
+-include_lib("ctool/include/aai/aai.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
 
@@ -595,9 +596,8 @@ regenerate_web_certificate(Nodes, Domain) ->
 -spec get_registration_token(OzNode :: node()) -> Token :: binary().
 get_registration_token(OzNode) ->
     OzwNode = nodes:service_to_node(?SERVICE_OZW, OzNode),
-    RootClient = proxy_rpc(OzNode, OzwNode, entity_logic, root_client, []),
 
-    {ok, [OnezoneUserId | _]} =proxy_rpc(OzNode, OzwNode, user_logic, list, [RootClient]),
+    {ok, [OnezoneUserId | _]} =proxy_rpc(OzNode, OzwNode, user_logic, list, [?ROOT]),
     UserClient = proxy_rpc(OzNode, OzwNode, entity_logic, user_client, [OnezoneUserId]),
     {ok, RegistrationToken} = ?assertMatch({ok, _},
         proxy_rpc(OzNode, OzwNode,
@@ -606,7 +606,7 @@ get_registration_token(OzNode) ->
         ),
         ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS),
 
-    {ok, SerializedToken} = onedata_macaroons:serialize(RegistrationToken),
+    {ok, SerializedToken} = macaroons:serialize(RegistrationToken),
     SerializedToken.
 
 

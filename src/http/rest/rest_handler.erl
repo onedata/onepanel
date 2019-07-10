@@ -336,7 +336,7 @@ handle_options(Req, State) ->
         Origin ->
             {AllowedMethods, Req2, _} = rest_handler:allowed_methods(Req, State),
 
-            AllowedHeaders = [<<"x-auth-token">>, <<"macaroon">>, <<"authorization">>, <<"content-type">>],
+            AllowedHeaders = [<<"content-type">> | tokens:supported_access_token_headers()],
             Req3 = gui_cors:options_response(Origin, AllowedMethods, AllowedHeaders, Req2),
 
             {ok, Req3, State}
