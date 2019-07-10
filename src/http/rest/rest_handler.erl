@@ -298,11 +298,19 @@ delete_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
         {Bindings, Req3} = rest_utils:get_bindings(Req2),
         #rmethod{params_spec = Spec} = lists:keyfind(Method, #rmethod.type, Methods),
         {Params, Req4} = rest_utils:get_params(Req3, Spec),
-        {Deleted, Req5} = Module:delete_resource(Req4, State#rstate{
+        case Module:is_conflict(Req4, Method, #{}, State#rstate{
             bindings = Bindings,
             params = Params
-        }),
-        {Deleted, Req5, State}
+        }) of
+            {false, Req5} ->
+                {Deleted, Req6} = Module:delete_resource(Req5, State#rstate{
+                    bindings = Bindings,
+                    params = Params
+                }),
+                {Deleted, Req6, State};
+            {true, Req5} ->
+                {stop, cowboy_req:reply(409, Req5), State}
+        end
     catch
         Type:Reason ->
             {false, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason)), State}
@@ -370,10 +378,10 @@ accept_resource(Req, Data, #rstate{module = Module, methods = Methods} =
     Args = rest_utils:get_args(Data, ArgsSpec),
     State2 = State#rstate{bindings = Bindings, params = Params},
 
-    case Module:accept_possible(Req4, Method, Args, State2) of
-        {true, Req5} ->
+    case Module:is_conflict(Req4, Method, Args, State2) of
+        {false, Req5} ->
             {Result, Req6} = Module:accept_resource(Req5, Method, Args, State2),
             {Result, Req6, State};
-        {false, Req5} ->
+        {true, Req5} ->
             {stop, cowboy_req:reply(409, Req5), State}
     end.

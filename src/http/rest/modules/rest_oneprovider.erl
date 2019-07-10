@@ -21,7 +21,7 @@
 -behavior(rest_behaviour).
 
 %% REST behaviour callbacks
--export([is_authorized/3, exists_resource/2, accept_possible/4, is_available/3,
+-export([is_authorized/3, exists_resource/2, is_conflict/4, is_available/3,
     accept_resource/4, provide_resource/2, delete_resource/2]).
 
 -define(SERVICE, ?SERVICE_OP).
@@ -83,14 +83,21 @@ exists_resource(Req, _State) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link rest_behaviour:accept_possible/4}
+%% @doc {@link rest_behaviour:is_conflict/4}
 %% @end
 %%--------------------------------------------------------------------
-accept_possible(Req, 'POST', _Args, #rstate{resource = provider}) ->
-    {not service_oneprovider:is_registered(), Req};
+is_conflict(Req, 'DELETE', _Args,
+    #rstate{resource = storage, bindings = #{id:=Id}}) ->
+    case op_worker_storage:can_be_removed(Id) of
+        false -> {true, rest_replier:handle_error(Req, throw, ?make_error(?ERR_STORAGE_IN_USE))};
+        true -> {false, Req}
+    end;
 
-accept_possible(Req, _Method, _Args, _State) ->
-    {true, Req}.
+is_conflict(Req, 'POST', _Args, #rstate{resource = provider}) ->
+    {service_oneprovider:is_registered(), Req};
+
+is_conflict(Req, _Method, _Args, _State) ->
+    {false, Req}.
 
 
 %%--------------------------------------------------------------------
@@ -178,11 +185,19 @@ accept_resource(Req, 'POST', Args, #rstate{resource = storages}) ->
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = storage,
     bindings = #{id := Id}}) ->
-    Ctx = #{id => Id},
-    Ctx2 = onepanel_maps:get_store(timeout, Args, [args, timeout], Ctx),
-    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?WORKER, update_storage, Ctx2
-    ))};
+    % only 1 storage should be modified at a time
+    [{OldName, #{type := Type} = Params}] = maps:to_list(Args),
+
+    case service_op_worker:get_storages(#{id => Id}) of
+        #{name := OldName, type := Type} -> ok;
+        _ -> ?throw_error(?ERR_STORAGE_UPDATE_MISMATCH)
+    end,
+
+    {true, rest_replier:handle_service_step(Req, service_op_worker, update_storage,
+        service_utils:throw_on_error(service:apply_sync(
+            ?WORKER, update_storage, #{id => Id, storage => Params}
+        ))
+    )};
 
 accept_resource(Req, 'PATCH', _Args, #rstate{
     resource = luma,
@@ -375,14 +390,19 @@ provide_resource(Req, #rstate{resource = onezone_info}) ->
 -spec delete_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     {Deleted :: boolean(), Req :: cowboy_req:req()}.
 delete_resource(Req, #rstate{resource = provider}) ->
-    {true, rest_replier:throw_on_service_error(
-        Req, service:apply_sync(?SERVICE, unregister, #{})
+    {true, rest_replier:throw_on_service_error(Req,
+        service:apply_sync(?SERVICE, unregister, #{})
+    )};
+
+delete_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
+    {true, rest_replier:throw_on_service_error(Req,
+        service:apply_sync(?WORKER, remove_storage, #{id => Id})
     )};
 
 delete_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
-    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?SERVICE, revoke_space_support, #{id => Id}
-    ))}.
+    {true, rest_replier:throw_on_service_error(Req,
+        service:apply_sync(?SERVICE, revoke_space_support, #{id => Id})
+    )}.
 
 
 %%%===================================================================

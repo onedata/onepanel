@@ -19,9 +19,9 @@
 -export([get_basic_auth_header/2]).
 -export([wait_until/5, wait_until/6]).
 -export([gen_uuid/0, get_nif_library_file/1, join/1, join/2, trim/2]).
--export([convert/2, get_type/1, typed_get/3, typed_get/4]).
+-export([convert/2, get_type/1, typed_get/3, typed_get/4, typed_find/3]).
 
--type primitive_type() :: atom | binary | float | integer | list | boolean | path.
+-type primitive_type() :: atom | binary | float | integer | list | boolean.
 -type collection_modifier() :: seq | keys | values.
 -type type() :: primitive_type() | {collection_modifier(), type()}.
 -type expectation() :: {equal, Expected :: term()} | {validator,
@@ -226,20 +226,16 @@ get_type(Value) ->
 %%--------------------------------------------------------------------
 %% @doc Returns a value from the nested property list or map and converts it
 %% to match the provided type.
+%% Throws on error.
 %% @end
 %%--------------------------------------------------------------------
 -spec typed_get(Keys :: onepanel_lists:keys() | onepanel_maps:keys(),
     Terms :: onepanel_lists:terms() | onepanel_maps:terms(), Type :: type()) ->
     Value :: term().
-typed_get(Keys, Terms, Type) when is_list(Terms) ->
-    case onepanel_lists:get(Keys, Terms) of
-        {ok, Value} -> convert(Value, Type);
-        #error{} = Error -> Error
-    end;
-typed_get(Keys, Terms, Type) when is_map(Terms) ->
-    case onepanel_maps:get(Keys, Terms) of
-        {ok, Value} -> convert(Value, Type);
-        #error{} = Error -> Error
+typed_get(Keys, Terms, Type) ->
+    case typed_find(Keys, Terms, Type) of
+        {ok, Value} -> Value;
+        #error{} = Error -> throw(Error)
     end.
 
 %%--------------------------------------------------------------------
@@ -251,7 +247,28 @@ typed_get(Keys, Terms, Type) when is_map(Terms) ->
     Terms :: onepanel_lists:terms() | onepanel_maps:terms(), Type :: type(),
     Default :: term()) -> Value :: term().
 typed_get(Keys, Terms, Type, Default) ->
-    case typed_get(Keys, Terms, Type) of
-        #error{} -> Default;
-        Value -> Value
+    case typed_find(Keys, Terms, Type) of
+        {ok, Value} -> Value;
+        _ -> Default
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns a value from the nested property list or map and converts it
+%% to match the provided type.
+%% @end
+%%--------------------------------------------------------------------
+-spec typed_find(Keys :: onepanel_lists:keys() | onepanel_maps:keys(),
+    Terms :: onepanel_lists:terms() | onepanel_maps:terms(), Type :: type()) ->
+    {ok, Value :: term()} | #error{}.
+typed_find(Keys, Terms, Type) when is_list(Terms) ->
+    case onepanel_lists:get(Keys, Terms) of
+        {ok, Value} -> {ok, convert(Value, Type)};
+        #error{} = Error -> Error
+    end;
+
+typed_find(Keys, Terms, Type) when is_map(Terms) ->
+    case onepanel_maps:get(Keys, Terms) of
+        {ok, Value} -> {ok, convert(Value, Type)};
+        #error{} = Error -> Error
     end.

@@ -114,7 +114,7 @@ auth_to_rest_client(provider) ->
 %% converts it according to provided type.
 %% @end
 %%--------------------------------------------------------------------
--spec get_env(Key :: onepanel_env:key(), Type :: onepanel_utils:type()) ->
+-spec get_env(Key :: onepanel_env:key(), Type :: onepanel_utils:type() | path) ->
     Value :: term().
 get_env(Key, path) ->
     Path = get_env(Key, list),

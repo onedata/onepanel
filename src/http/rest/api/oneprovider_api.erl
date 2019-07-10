@@ -410,7 +410,7 @@ routes() ->
             }]
         }},
 
-        %% Modify storage details
+        %% Modify storage config
         {<<"/api/v3/onepanel/provider/storages/:id">>, rest_handler, #rstate{
             version = 3,
             module = rest_oneprovider,
@@ -418,7 +418,7 @@ routes() ->
             methods = [#rmethod{
                 type = 'PATCH',
                 %% New values for storage configuration parameters which should
-                %% be changed.
+                %% be changed. Must contain the current type of the storage.
                 args_spec = rest_model:storage_modify_request_model()
             }]
         }},
@@ -428,6 +428,16 @@ routes() ->
             version = 3,
             module = rest_oneprovider,
             resource = provider,
+            methods = [#rmethod{
+                type = 'DELETE'
+            }]
+        }},
+
+        %% Remove storage
+        {<<"/api/v3/onepanel/provider/storages/:id">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = storage,
             methods = [#rmethod{
                 type = 'DELETE'
             }]

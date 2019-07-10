@@ -20,7 +20,7 @@
 -behavior(rest_behaviour).
 
 %% REST behaviour callbacks
--export([is_authorized/3, exists_resource/2, accept_possible/4, is_available/3,
+-export([is_authorized/3, exists_resource/2, is_conflict/4, is_available/3,
     accept_resource/4, provide_resource/2, delete_resource/2]).
 
 %% API functions
@@ -81,14 +81,14 @@ exists_resource(Req, _State) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link rest_behaviour:accept_possible/4}
+%% @doc {@link rest_behaviour:is_conflict/4}
 %% @end
 %%--------------------------------------------------------------------
-accept_possible(Req, _Method, _Args, #rstate{resource = cluster}) ->
-    {service_onepanel:available_for_clustering(), Req};
+is_conflict(Req, _Method, _Args, #rstate{resource = cluster}) ->
+    {not service_onepanel:available_for_clustering(), Req};
 
-accept_possible(Req, _Method, _Args, _State) ->
-    {true, Req}.
+is_conflict(Req, _Method, _Args, _State) ->
+    {false, Req}.
 
 
 %%--------------------------------------------------------------------

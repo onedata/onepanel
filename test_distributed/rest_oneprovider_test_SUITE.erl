@@ -166,7 +166,12 @@ all() ->
 }).
 
 -define(STORAGE_UPDATE_JSON, #{
-    <<"timeout">> => 10000
+    <<"somePosix">> =>
+    #{
+        <<"type">> => <<"posix">>,
+        <<"timeout">> => 10000,
+        <<"mountPoint">> => <<"someNewMountPoint">>
+    }
 }).
 
 -define(STORAGES_JSON, #{
@@ -577,7 +582,7 @@ patch_should_modify_storage_update(Config) ->
 
 patch_should_update_storage(Config) ->
     ?run(Config, fun(Host) ->
-        ?assertMatch({ok, 204, _, _},
+        ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/storages/somePosixId">>, patch,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), ?STORAGE_UPDATE_JSON
@@ -585,7 +590,7 @@ patch_should_update_storage(Config) ->
         ),
         ?assertReceivedMatch({service, op_worker, update_storage, #{
             id := <<"somePosixId">>,
-            args := #{timeout := 10000}
+            storage := #{timeout := 10000, mountPoint := <<"someNewMountPoint">>}
         }}, ?TIMEOUT)
     end).
 
@@ -887,12 +892,20 @@ init_per_testcase(patch_should_update_storage, Config) ->
     end),
     Self = self(),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
+        Data  = ?STORAGE_JSON#{timeout => 10000, verificationPassed => true},
+        Result = onepanel_utils:convert(Data, {keys, atom}),
         Self ! {service, Service, Action, Ctx},
-        [{task_finished, {service, action, ok}}]
+        [
+            {service_op_worker, update_storage, {[{hd(Nodes), Result}], []}},
+            {task_finished, {service, action, ok}}
+        ]
     end),
     test_utils:mock_expect(Nodes, service, apply_async, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},
         <<"someTaskId">>
+    end),
+    test_utils:mock_expect(Nodes, op_worker_storage, get, fun(<<"somePosixId">>) ->
+        onepanel_utils:convert(?STORAGE_JSON, {keys, atom})
     end),
     NewConfig;
 

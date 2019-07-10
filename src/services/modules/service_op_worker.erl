@@ -15,6 +15,7 @@
 
 -include("names.hrl").
 -include("service.hrl").
+-include("names.hrl").
 -include("modules/models.hrl").
 -include("deployment_progress.hrl").
 -include("modules/errors.hrl").
@@ -31,7 +32,8 @@
 %% API
 -export([configure/1, start/1, stop/1, status/1, health/1, wait_for_init/1,
     get_nagios_response/1, get_nagios_status/1, add_storages/1, get_storages/1,
-    update_storage/1, invalidate_luma_cache/1, reload_webcert/1,
+    update_storage/1, remove_storage/1,
+    invalidate_luma_cache/1, reload_webcert/1,
     get_compatible_onezones/0, is_connected_to_oz/0]).
 -export([migrate_generated_config/1]).
 
@@ -89,11 +91,11 @@ get_steps(get_storages, #{hosts := Hosts}) ->
 get_steps(get_storages, Ctx) ->
     get_steps(get_storages, Ctx#{hosts => get_hosts()});
 
-get_steps(update_storage, #{hosts := Hosts}) ->
-    [#step{hosts = Hosts, function = update_storage, selection = any}];
+get_steps(update_storage, _Ctx) ->
+    [#step{function = update_storage, selection = any}];
 
-get_steps(update_storage, Ctx) ->
-    get_steps(update_storage, Ctx#{hosts => get_hosts()});
+get_steps(remove_storage, _Ctx) ->
+    [#step{function = remove_storage, selection = any}];
 
 get_steps(invalidate_luma_cache, #{hosts := Hosts}) ->
     [#step{hosts = Hosts, function = invalidate_luma_cache, selection = any}];
@@ -279,21 +281,35 @@ add_storages(Ctx) ->
 %% @doc Returns a list of the configured service storages.
 %% @end
 %%--------------------------------------------------------------------
--spec get_storages(Ctx :: service:ctx()) -> map().
+-spec get_storages(#{id => op_worker_storage:id()}) ->
+    op_worker_storage:storage_details()
+    | #{ids => [op_worker_storage:id()]}.
 get_storages(#{id := Id}) ->
     op_worker_storage:get(Id);
 
 get_storages(_Ctx) ->
-    op_worker_storage:get().
+    op_worker_storage:list().
 
 
 %%--------------------------------------------------------------------
-%% @doc Configuration details of the service storage.
+%% @doc Modifies storage configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec update_storage(Ctx :: service:ctx()) -> ok | no_return().
-update_storage(#{id := Id, args := Args}) ->
-    op_worker_storage:update(Id, Args).
+-spec update_storage(Ctx :: service:ctx()) ->
+    op_worker_storage:storage_params() | no_return().
+update_storage(#{id := Id, storage := Params}) ->
+    {ok, Node} = nodes:any(name()),
+    op_worker_storage:update(Node, Id, Params).
+
+
+%%--------------------------------------------------------------------
+%% @doc Removes op_worker storage.
+%% @end
+%%--------------------------------------------------------------------
+-spec remove_storage(Ctx :: #{id := op_worker_storage:id(), _ => _}) -> ok | no_return().
+remove_storage(#{id := Id}) ->
+    {ok, Node} = nodes:any(name()),
+    op_worker_storage:remove(Node, Id).
 
 
 %%-------------------------------------------------------------------
@@ -309,7 +325,8 @@ invalidate_luma_cache(#{id := StorageId}) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Ensures certificates changed on disk are updated in worker listeners.
+%% Ensures certificates changed on disk are updated in op_worker
+%% on the current node.
 %% @end
 %%--------------------------------------------------------------------
 -spec reload_webcert(service:ctx()) -> ok.
@@ -432,6 +449,7 @@ migrate_generated_config(Ctx) ->
 %% configured and returns its value.
 %% @end
 %%-------------------------------------------------------------------
+-spec pop_legacy_ips_configured() -> boolean().
 pop_legacy_ips_configured() ->
     case service:get(name()) of
         {ok, #service{ctx = #{cluster_ips_configured := Configured}}} ->
@@ -450,6 +468,7 @@ pop_legacy_ips_configured() ->
 %% and Oneprovider is registered, triggers DNS check cache refresh.
 %% @end
 %%-------------------------------------------------------------------
+-spec maybe_check_dns() -> ok.
 maybe_check_dns() ->
     case hosts:self() == hd(get_hosts())
         andalso service_oneprovider:is_registered()
