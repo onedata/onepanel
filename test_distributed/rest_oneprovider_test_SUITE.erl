@@ -56,7 +56,9 @@
     patch_should_update_auto_cleaning/1,
     patch_with_incomplete_config_should_update_auto_cleaning/1,
     patch_with_incorrect_config_should_fail/1,
-    patch_should_invalidate_luma_cache/1]).
+    patch_should_invalidate_luma_cache/1,
+    patch_should_update_transfers_mock/1,
+    get_should_return_transfers_mock/1]).
 
 all() ->
     ?ALL([
@@ -90,7 +92,9 @@ all() ->
         patch_should_update_auto_cleaning,
         patch_with_incomplete_config_should_update_auto_cleaning,
         patch_with_incorrect_config_should_fail,
-        patch_should_invalidate_luma_cache
+        patch_should_invalidate_luma_cache,
+        patch_should_update_transfers_mock,
+        get_should_return_transfers_mock
     ]).
 
 -define(TIMEOUT, timer:seconds(5)).
@@ -121,7 +125,10 @@ all() ->
     {<<"/provider/storages/someStorageId/invalidate_luma">>, patch},
 
     {<<"/provider/cluster_ips">>, get},
-    {<<"/provider/cluster_ips">>, patch}
+    {<<"/provider/cluster_ips">>, patch},
+
+    {<<"/provider/debug/transfers_mock">>, get},
+    {<<"/provider/debug/transfers_mock">>, patch}
 ]).
 
 -define(REGISTER_REQUEST_JSON, #{
@@ -279,6 +286,10 @@ all() ->
     <<"threshold">> => wrong_type
 }).
 
+-define(TRANSFERS_MOCK_CONFIG, #{
+    <<"transfersMock">> => true
+}).
+
 -define(run(Config, Function), Function(hd(?config(oneprovider_hosts, Config)))).
 
 %%%===================================================================
@@ -346,7 +357,9 @@ method_should_return_service_unavailable_error(Config) ->
         end, lists:subtract(
             ?COMMON_ENDPOINTS_WITH_METHODS, [
                 {<<"/provider/cluster_ips">>, get},
-                {<<"/provider">>, get}
+                {<<"/provider">>, get},
+                {<<"/provider/debug/transfers_mock">>, get},
+                {<<"/provider/debug/transfers_mock">>, patch}
             ])
         )
     end).
@@ -728,6 +741,30 @@ patch_should_invalidate_luma_cache(Config) ->
         }}, ?TIMEOUT)
     end).
 
+patch_should_update_transfers_mock(Config) ->
+    ?run(Config, fun(Host) ->
+        ?assertMatch({ok, 204, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/debug/transfers_mock">>, patch,
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), ?TRANSFERS_MOCK_CONFIG
+            )
+        ),
+        ?assertReceivedMatch({service, op_worker, set_transfers_mock, #{
+            transfers_mock := true
+        }}, ?TIMEOUT)
+    end).
+
+get_should_return_transfers_mock(Config) ->
+    ?run(Config, fun(Host) ->
+        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/debug/transfers_mock">>, get,
+                ?OZ_OR_ROOT_AUTHS(Host, [])
+            )
+        ),
+        onepanel_test_rest:assert_body(JsonBody, ?TRANSFERS_MOCK_CONFIG)
+    end).
+
 %%%===================================================================
 %%% SetUp and TearDown functions
 %%%===================================================================
@@ -963,6 +1000,18 @@ init_per_testcase(get_should_return_file_popularity_configuration, Config) ->
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
         {service_oneprovider, get_file_popularity_configuration, {
             [{'node@host1', ?FILE_POPULARITY_CONFIG}], []
+        }},
+        {task_finished, {service, action, ok}}
+    ]
+    end),
+    NewConfig;
+
+init_per_testcase(get_should_return_transfers_mock, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        {service_op_worker, get_transfers_mock, {
+            [{'node@host1', ?TRANSFERS_MOCK_CONFIG}], []
         }},
         {task_finished, {service, action, ok}}
     ]

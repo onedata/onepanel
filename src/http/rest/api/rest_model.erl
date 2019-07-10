@@ -83,6 +83,7 @@
     time_stats_model/0,
     time_stats_collection_model/0,
     token_model/0,
+    transfers_mock_model/0,
     version_info_model/0,
     web_cert_model/0,
     web_cert_modify_request_model/0,
@@ -1274,6 +1275,18 @@ time_stats_collection_model() ->
 token_model() ->
     #{
         token => string
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc State of transfers mock.
+%% @end
+%%--------------------------------------------------------------------
+-spec transfers_mock_model() -> maps:map().
+transfers_mock_model() ->
+    #{
+        %% If true, transfers are marked as successful without actually
+        %% transmiting any data.
+        transfersMock => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
