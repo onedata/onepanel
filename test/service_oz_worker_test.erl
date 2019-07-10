@@ -32,6 +32,8 @@ root_passphrase_test_() ->
 % testcase generator
 zone_policies_should_change_app_config_tests() ->
     Cases = [
+        {oneprovider_registration, provider_registration_policy, <<"open">>, open},
+        {oneprovider_registration, provider_registration_policy, <<"restricted">>, restricted},
         {subdomain_delegation, subdomain_delegation_supported, true, true},
         {subdomain_delegation, subdomain_delegation_supported, false, false},
         {gui_package_verification, disable_gui_package_verification, false, true},

@@ -1473,6 +1473,13 @@ zone_configuration_onezone_model() ->
 -spec zone_policies_model() -> map().
 zone_policies_model() ->
     #{
+        %% Indicates policy enforced during provider registration. Possible
+        %% options are: open - anyone can acquire a registration token and
+        %% register a new Oneprovider restricted - requires an administrative
+        %% privilege 'oz_providers_invite'              to generate a
+        %% Oneprovider registration token. The token              can be issued
+        %% for someone else.
+        oneproviderRegistration => {string, optional},
         %% If true, Oneproviders are allowed to request subdomains of the
         %% Onezone domain for use as their domains.
         subdomainDelegation => {boolean, optional},
