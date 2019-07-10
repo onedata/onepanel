@@ -161,7 +161,7 @@ cluster_details_model() ->
         %% Id of the cluster record
         id => string,
         %% Type of the cluster
-        type => string,
+        type => {oneof, [{equal, <<"oneprovider">>}, {equal, <<"onezone">>}]},
         %% The Id of the service hosted on this cluster - depending on the type
         %% equal to the Oneprovider Id or \&quot;onezone\&quot; in case of
         %% Onezone cluster
@@ -249,7 +249,7 @@ current_user_model() ->
         %% User's full name (given names + surname).
         username => string,
         %% List of cluster privileges held by the user in the current cluster.
-        clusterPrivileges => {[string], optional}
+        clusterPrivileges => {[{oneof, [{equal, <<"cluster_view">>}, {equal, <<"cluster_update">>}, {equal, <<"cluster_delete">>}, {equal, <<"cluster_view_privileges">>}, {equal, <<"cluster_set_privileges">>}, {equal, <<"cluster_add_user">>}, {equal, <<"cluster_remove_user">>}, {equal, <<"cluster_add_group">>}, {equal, <<"cluster_remove_group">>}]}], optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -316,7 +316,7 @@ dns_check_result_model() ->
         %% returned; 'bad_records' - none of the expected results were
         %% returned; 'ok' - all of expected values were present in
         %% obtained results.
-        summary => string,
+        summary => {oneof, [{equal, <<"unresolvable">>}, {equal, <<"missing_records">>}, {equal, <<"bad_records">>}, {equal, <<"ok">>}]},
         %% List of expected query results.
         expected => [string],
         %% List of obtained query results.
@@ -450,7 +450,7 @@ node_model() ->
         %% Hostname of the node.
         hostname => string,
         %% Type of Onedata cluster managed by this onepanel.
-        clusterType => string
+        clusterType => {oneof, [{equal, <<"oneprovider">>}, {equal, <<"onezone">>}]}
     }.
 
 %%--------------------------------------------------------------------
@@ -884,7 +884,7 @@ service_status_model() ->
 service_status_host_model() ->
     #{
         %% The service status.
-        status => string
+        status => {oneof, [{equal, <<"healthy">>}, {equal, <<"unhealthy">>}, {equal, <<"stopped">>}, {equal, <<"missing">>}]}
     }.
 
 %%--------------------------------------------------------------------
@@ -1119,9 +1119,9 @@ space_support_request_model() ->
 space_sync_stats_model() ->
     #{
         %% Describes import algorithm run status.
-        importStatus => string,
+        importStatus => {oneof, [{equal, <<"inProgress">>}, {equal, <<"done">>}]},
         %% Describes update algorithm run status.
-        updateStatus => {string, optional},
+        updateStatus => {{oneof, [{equal, <<"waiting">>}, {equal, <<"inProgress">>}]}, optional},
         %% Collection of statistics for requested metrics.
         stats => {time_stats_collection_model(), optional}
     }.
@@ -1214,7 +1214,7 @@ storage_update_details_model() ->
 task_status_model() ->
     #{
         %% The operation status.
-        status => string,
+        status => {oneof, [{equal, <<"ok">>}, {equal, <<"error">>}, {equal, <<"running">>}]},
         %% The list of operation steps that have been executed successfully.
         steps => [string],
         %% The name of an error type.
@@ -1237,11 +1237,11 @@ task_status_model() ->
 time_stats_model() ->
     #{
         %% Name of metric for which this object holds statistics.
-        name => string,
+        name => {oneof, [{equal, <<"queueLength">>}, {equal, <<"insertCount">>}, {equal, <<"updateCount">>}, {equal, <<"deleteCount">>}]},
         %% Date of last measurement value in this object in ISO 8601 format
         lastValueDate => string,
         %% Predefined time period for which the statistics were fetched
-        period => {string, optional},
+        period => {{oneof, [{equal, <<"minute">>}, {equal, <<"hour">>}, {equal, <<"day">>}]}, optional},
         %% List of sample values for given metric. The used period is divided
         %% into array-length number of parts. E.g. if the used period is an
         %% hour, and if there are 12 values in this array, every value is a
@@ -1320,7 +1320,7 @@ web_cert_model() ->
         %% Installed certificate's creation time in ISO 8601 format.
         creationTime => string,
         %% Describes certificate validity status.
-        status => string,
+        status => {oneof, [{equal, <<"valid">>}, {equal, <<"near_expiration">>}, {equal, <<"expired">>}, {equal, <<"domain_mismatch">>}, {equal, <<"regenerating">>}, {equal, <<"unknown">>}]},
         paths => {web_cert_paths_model(), optional},
         %% The domain (Common Name) for which current certificate was issued.
         domain => string,
@@ -1479,7 +1479,7 @@ zone_policies_model() ->
         %% privilege 'oz_providers_invite'              to generate a
         %% Oneprovider registration token. The token              can be issued
         %% for someone else.
-        oneproviderRegistration => {string, optional},
+        oneproviderRegistration => {{oneof, [{equal, <<"open">>}, {equal, <<"restricted">>}]}, optional},
         %% If true, Oneproviders are allowed to request subdomains of the
         %% Onezone domain for use as their domains.
         subdomainDelegation => {boolean, optional},
@@ -1712,7 +1712,7 @@ glusterfs_model() ->
         %% The GlusterFS port on volume server.
         port => {integer, optional},
         %% The transport protocol to use to connect to the volume server.
-        transport => {string, optional},
+        transport => {{oneof, [{equal, <<"tcp">>}, {equal, <<"rdma">>}, {equal, <<"socket">>}]}, optional},
         %% Relative mountpoint within the volume which should be used by
         %% Oneprovider.
         mountPoint => {string, optional},
@@ -2226,7 +2226,7 @@ webdav_model() ->
         verifyServerCertificate => {boolean, {optional, true}},
         %% Determines the types of credentials provided in the credentials
         %% field.
-        credentialsType => {string, {optional, none}},
+        credentialsType => {{oneof, [{equal, <<"none">>}, {equal, <<"basic">>}, {equal, <<"token">>}, {equal, <<"oauth2">>}]}, {optional, none}},
         %% The credentials to authenticate with the WebDAV server.
         %% `basic` credentials should be provided in the form
         %% `username:password`, for `token` just the token.
@@ -2259,7 +2259,7 @@ webdav_model() ->
         %% supports partial `PUT` requests with `Content-
         %% Range` header. If `none` is selected no write support
         %% is available for this WebDAV storage.
-        rangeWriteSupport => {string, {optional, none}},
+        rangeWriteSupport => {{oneof, [{equal, <<"none">>}, {equal, <<"moddav">>}, {equal, <<"sabredav">>}]}, {optional, none}},
         %% Defines the maximum number of parallel connections for a single
         %% WebDAV storage.
         connectionPoolSize => {integer, {optional, 25}},
