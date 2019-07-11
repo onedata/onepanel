@@ -597,12 +597,11 @@ regenerate_web_certificate(Nodes, Domain) ->
 get_registration_token(OzNode) ->
     OzwNode = nodes:service_to_node(?SERVICE_OZW, OzNode),
 
-    {ok, [OnezoneUserId | _]} =proxy_rpc(OzNode, OzwNode, user_logic, list, [?ROOT]),
-    UserClient = proxy_rpc(OzNode, OzwNode, entity_logic, user_client, [OnezoneUserId]),
+    {ok, [OnezoneUserId | _]} = proxy_rpc(OzNode, OzwNode, user_logic, list, [?ROOT]),
     {ok, RegistrationToken} = ?assertMatch({ok, _},
         proxy_rpc(OzNode, OzwNode,
             user_logic, create_provider_registration_token,
-            [UserClient, OnezoneUserId]
+            [?USER(OnezoneUserId), OnezoneUserId]
         ),
         ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS),
 
