@@ -123,6 +123,7 @@ routes() ->
             version = 3,
             module = rest_oneprovider,
             resource = space_auto_cleaning_configuration,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'PATCH',
                 %% New configuration of space auto-cleaning mechanism.
@@ -135,6 +136,7 @@ routes() ->
             version = 3,
             module = rest_oneprovider,
             resource = file_popularity_configuration,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -145,6 +147,7 @@ routes() ->
             version = 3,
             module = rest_oneprovider,
             resource = onezone_info,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET',
                 params_spec = #{
@@ -160,6 +163,7 @@ routes() ->
             version = 3,
             module = rest_oneprovider,
             resource = provider,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -170,6 +174,7 @@ routes() ->
             version = 3,
             module = rest_oneprovider,
             resource = cluster_ips,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -180,6 +185,7 @@ routes() ->
             version = 3,
             module = rest_service,
             resource = service_oneprovider,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -190,6 +196,7 @@ routes() ->
             version = 3,
             module = rest_service,
             resource = service_couchbase,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -200,6 +207,7 @@ routes() ->
             version = 3,
             module = rest_service,
             resource = service_couchbase,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -210,6 +218,7 @@ routes() ->
             version = 3,
             module = rest_service,
             resource = service_cluster_manager,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -220,6 +229,7 @@ routes() ->
             version = 3,
             module = rest_service,
             resource = service_cluster_manager,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -230,6 +240,7 @@ routes() ->
             version = 3,
             module = rest_service,
             resource = nagios,
+            produces = [<<"text/xml">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -240,6 +251,7 @@ routes() ->
             version = 3,
             module = rest_oneprovider,
             resource = space_auto_cleaning_report,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -250,6 +262,7 @@ routes() ->
             version = 3,
             module = rest_oneprovider,
             resource = space_auto_cleaning_reports,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET',
                 params_spec = #{
@@ -271,6 +284,7 @@ routes() ->
             version = 3,
             module = rest_oneprovider,
             resource = space_auto_cleaning_status,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -281,6 +295,7 @@ routes() ->
             version = 3,
             module = rest_oneprovider,
             resource = space_sync_stats,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET',
                 params_spec = #{
@@ -299,6 +314,7 @@ routes() ->
             version = 3,
             module = rest_oneprovider,
             resource = spaces,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -309,6 +325,7 @@ routes() ->
             version = 3,
             module = rest_service,
             resource = service_op_worker,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -319,6 +336,7 @@ routes() ->
             version = 3,
             module = rest_service,
             resource = service_op_worker,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -329,6 +347,7 @@ routes() ->
             version = 3,
             module = rest_oneprovider,
             resource = space_auto_cleaning_configuration,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -339,6 +358,7 @@ routes() ->
             version = 3,
             module = rest_oneprovider,
             resource = space,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -349,6 +369,7 @@ routes() ->
             version = 3,
             module = rest_oneprovider,
             resource = storage,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -359,6 +380,7 @@ routes() ->
             version = 3,
             module = rest_oneprovider,
             resource = storages,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]

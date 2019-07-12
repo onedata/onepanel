@@ -109,6 +109,7 @@ routes() ->
             version = 3,
             module = rest_users,
             resource = onezone_user,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -129,6 +130,7 @@ routes() ->
             version = 3,
             module = rest_onezone,
             resource = cluster_ips,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -139,6 +141,7 @@ routes() ->
             version = 3,
             module = rest_service,
             resource = service_onezone,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -149,6 +152,7 @@ routes() ->
             version = 3,
             module = rest_service,
             resource = service_couchbase,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -159,6 +163,7 @@ routes() ->
             version = 3,
             module = rest_service,
             resource = service_couchbase,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -169,6 +174,7 @@ routes() ->
             version = 3,
             module = rest_service,
             resource = service_cluster_manager,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -179,6 +185,7 @@ routes() ->
             version = 3,
             module = rest_service,
             resource = service_cluster_manager,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -189,6 +196,7 @@ routes() ->
             version = 3,
             module = rest_service,
             resource = nagios,
+            produces = [<<"text/xml">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -199,6 +207,7 @@ routes() ->
             version = 3,
             module = rest_onezone,
             resource = policies,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -209,6 +218,7 @@ routes() ->
             version = 3,
             module = rest_service,
             resource = service_oz_worker,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -219,6 +229,7 @@ routes() ->
             version = 3,
             module = rest_service,
             resource = service_oz_worker,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
