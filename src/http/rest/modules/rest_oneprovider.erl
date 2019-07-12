@@ -78,6 +78,9 @@ exists_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
 exists_resource(Req, #rstate{resource = onezone_info, params = #{token := _}}) ->
     {true, Req};
 
+exists_resource(Req, #rstate{resource = transfers_mock}) ->
+    {hosts:all(?WORKER) /= [], Req};
+
 exists_resource(Req, _State) ->
     {service_oneprovider:is_registered(), Req}.
 
@@ -106,6 +109,7 @@ is_conflict(Req, _Method, _Args, _State) ->
 %%--------------------------------------------------------------------
 is_available(Req, 'GET', #rstate{resource = cluster_ips}) -> {true, Req};
 is_available(Req, 'GET', #rstate{resource = provider}) -> {true, Req};
+is_available(Req, _Method, #rstate{resource = transfers_mock}) -> {true, Req};
 is_available(Req, _Method, _State) -> {service:all_healthy(), Req}.
 
 
@@ -247,6 +251,11 @@ accept_resource(Req, 'POST', _Args, #rstate{
 }) ->
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?SERVICE, start_auto_cleaning, #{space_id => Id}
+    ))};
+
+accept_resource(Req, 'PATCH', #{transfersMock := Enabled}, #rstate{resource = transfers_mock}) ->
+    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
+        ?WORKER, set_transfers_mock, #{transfers_mock => Enabled}
     ))}.
 
 %%--------------------------------------------------------------------
@@ -380,7 +389,14 @@ provide_resource(Req, #rstate{resource = onezone_info, params = #{token := Token
 provide_resource(Req, #rstate{resource = onezone_info}) ->
     % exists_resource ensures the Oneprovider is registered
     Domain = list_to_binary(service_oneprovider:get_oz_domain()),
-    {onezone_client:fetch_zone_info(Domain), Req}.
+    {onezone_client:fetch_zone_info(Domain), Req};
+
+provide_resource(Req, #rstate{resource = transfers_mock}) ->
+    {rest_replier:format_service_step(service_op_worker, get_transfers_mock,
+        service_utils:throw_on_error(service:apply_sync(
+            ?WORKER, get_transfers_mock, #{}
+        ))
+    ), Req}.
 
 
 %%--------------------------------------------------------------------

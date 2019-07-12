@@ -450,6 +450,7 @@ post_should_configure_onezone_service(Config) ->
                         <<"name">> => <<"someName">>,
                         <<"domainName">> => <<"someDomain">>,
                         <<"policies">> => #{
+                            <<"oneproviderRegistration">> => <<"open">>,
                             <<"subdomainDelegation">> => false,
                             <<"guiPackageVerification">> => false,
                             <<"harvesterGuiPackageVerification">> => false
@@ -482,6 +483,7 @@ post_should_configure_onezone_service(Config) ->
                     onezone_domain := <<"someDomain">>,
                     gui_debug_mode := true,
                     policies := #{
+                        oneprovider_registration := <<"open">>,
                         subdomain_delegation := false,
                         gui_package_verification := false,
                         harvester_gui_package_verification := false

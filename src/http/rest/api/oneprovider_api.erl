@@ -364,6 +364,16 @@ routes() ->
             }]
         }},
 
+        %% Get transfers mock status
+        {<<"/api/v3/onepanel/provider/debug/transfers_mock">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = transfers_mock,
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
         %% Invalidate LUMA cache
         {<<"/api/v3/onepanel/provider/storages/:id/invalidate_luma">>, rest_handler, #rstate{
             version = 3,
@@ -420,6 +430,18 @@ routes() ->
                 %% New values for storage configuration parameters which should
                 %% be changed. Must contain the current type of the storage.
                 args_spec = rest_model:storage_modify_request_model()
+            }]
+        }},
+
+        %% Modify transfers mock
+        {<<"/api/v3/onepanel/provider/debug/transfers_mock">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = transfers_mock,
+            methods = [#rmethod{
+                type = 'PATCH',
+                %% New value for the mock setting.
+                args_spec = rest_model:transfers_mock_model()
             }]
         }},
 
