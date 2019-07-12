@@ -1281,7 +1281,7 @@ token_model() ->
 %% @doc State of transfers mock.
 %% @end
 %%--------------------------------------------------------------------
--spec transfers_mock_model() -> maps:map().
+-spec transfers_mock_model() -> map().
 transfers_mock_model() ->
     #{
         %% If true, transfers are marked as successful without actually
@@ -1758,7 +1758,7 @@ glusterfs_modify_model() ->
         %% The GlusterFS port on volume server.
         port => {integer, optional},
         %% The transport protocol to use to connect to the volume server.
-        transport => {string, optional},
+        transport => {{oneof, [{equal, <<"tcp">>}, {equal, <<"rdma">>}, {equal, <<"socket">>}]}, optional},
         %% Relative mountpoint within the volume which should be used by
         %% Oneprovider.
         mountPoint => {string, optional},
@@ -2319,7 +2319,7 @@ webdav_modify_model() ->
         verifyServerCertificate => {boolean, optional},
         %% Determines the types of credentials provided in the credentials
         %% field.
-        credentialsType => {string, optional},
+        credentialsType => {{oneof, [{equal, <<"none">>}, {equal, <<"basic">>}, {equal, <<"token">>}]}, optional},
         %% The credentials to authenticate with the WebDAV server.
         %% `basic` credentials should be provided in the form
         %% `username:password`, for `token` just the token.
@@ -2337,7 +2337,7 @@ webdav_modify_model() ->
         %% supports partial `PUT` requests with `Content-
         %% Range` header. If `none` is selected no write support
         %% is available for this WebDAV storage.
-        rangeWriteSupport => {string, optional},
+        rangeWriteSupport => {{oneof, [{equal, <<"none">>}, {equal, <<"moddav">>}, {equal, <<"sabredav">>}]}, optional},
         %% Defines the maximum number of parallel connections for a single
         %% WebDAV storage.
         connectionPoolSize => {integer, optional},
