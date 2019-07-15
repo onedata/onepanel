@@ -231,7 +231,7 @@ get_type(Value) ->
 %%--------------------------------------------------------------------
 -spec typed_get(Keys :: onepanel_lists:keys() | onepanel_maps:keys(),
     Terms :: onepanel_lists:terms() | onepanel_maps:terms(), Type :: type()) ->
-    Value :: term().
+    Value :: term() | no_return().
 typed_get(Keys, Terms, Type) ->
     case typed_find(Keys, Terms, Type) of
         {ok, Value} -> Value;

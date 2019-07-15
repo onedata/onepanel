@@ -429,7 +429,7 @@ storage_to_map(OpNode, Storage) ->
 get_required_luma_arg(Key, StorageParams, Type) ->
     case onepanel_utils:typed_find(Key, StorageParams, Type) of
         #error{} -> ?throw_error(?ERR_LUMA_CONFIG(Key));
-        Value -> Value
+        {ok, Value} -> Value
     end.
 
 
