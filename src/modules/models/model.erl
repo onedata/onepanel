@@ -29,6 +29,8 @@
 -type version() :: model_behaviour:version().
 -type key() :: model_behaviour:key().
 
+-export_type([model/0]).
+
 %%%===================================================================
 %%% API functions
 %%%===================================================================

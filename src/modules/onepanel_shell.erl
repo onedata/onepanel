@@ -20,6 +20,7 @@
 -export([sed/3, mktemp/0]).
 
 -type token() :: atom() | integer() | string() | binary().
+-export_type([token/0]).
 
 %%%===================================================================
 %%% API functions
