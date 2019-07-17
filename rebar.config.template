@@ -20,7 +20,10 @@
 
 {dialyzer, [
     {warnings, [error_handling, race_conditions]},
-    {plt_extra_apps, [ctool, ranch]}
+    {plt_extra_apps, [
+        mnesia, ssl, ctool, ranch, cowboy, yamerl, xmerl, jiffy,
+        base64url, ssl_verify_fun
+    ]}
 ]}.
 
 {deps, [
