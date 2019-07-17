@@ -2045,8 +2045,24 @@ s3_model() ->
         %% The version of signature used to sign requests. One of: 2, 4.
         %% Default: 4.
         signatureVersion => {integer, optional},
-        %% Storage block size in bytes.
+        %% Storage block size in bytes. In case the block size is `0`
+        %% and `canonical` path type is selected, each file is stored
+        %% in a single S3 object. This value must be set to `0` to
+        %% enable data import from an existing S3 bucket.
         blockSize => {integer, optional},
+        %% Defines the maximum size for objects, which can be modified on the S3
+        %% storage in `canonical` path mode. In this mode, entire file
+        %% needs to be downloaded to memory, modified and uploaded back, which
+        %% is impractical for large files (default 64 MiB).
+        maximumCanonicalObjectSize => {integer, {optional, 67108864}},
+        %% Defines the file permissions, which files imported from S3 storage
+        %% will have in Onedata. Values should be provided in octal format e.g.
+        %% `0644`.
+        fileMode => {string, optional},
+        %% Defines the directory mode which directories imported from S3 storage
+        %% will have in Onedata. Values should be provided in octal format e.g.
+        %% `0775`.
+        dirMode => {string, optional},
         %% Defines whether storage administrator credentials (accessKey and
         %% secretKey) may be used by users without storage accounts to access
         %% storage in direct IO mode.
@@ -2094,6 +2110,19 @@ s3_modify_model() ->
         %% The version of signature used to sign requests. One of: 2, 4.
         %% Default: 4.
         signatureVersion => {integer, optional},
+        %% Defines the maximum size for objects, which can be modified on the S3
+        %% storage in `canonical` path mode. In this mode, entire file
+        %% needs to be downloaded to memory, modified and uploaded back, which
+        %% is impractical for large files (default 64 MiB).
+        maximumCanonicalObjectSize => {integer, optional},
+        %% Defines the file permissions, which files imported from S3 storage
+        %% will have in Onedata. Values should be provided in octal format e.g.
+        %% `0644`.
+        fileMode => {string, optional},
+        %% Defines the directory mode which directories imported from S3 storage
+        %% will have in Onedata. Values should be provided in octal format e.g.
+        %% `0775`.
+        dirMode => {string, optional},
         %% Defines whether storage administrator credentials (accessKey and
         %% secretKey) may be used by users without storage accounts to access
         %% storage in direct IO mode.
