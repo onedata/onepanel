@@ -23,7 +23,7 @@
 % allowed query types
 -type dns_type() :: a | txt.
 % names used in queries
--type dns_name() :: inet_res:dns_name().
+-type dns_name() :: binary() | string().
 % IP tuple for A queries, binary for TXT queries
 -type dns_value() :: inet:ip4_address() | binary().
 % Result type
@@ -178,7 +178,7 @@ check_on_server(Expected, Names, Type, ServerIP) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec lookup(Quries :: [dns_name()], Type :: dns_type(),
-    DnsServerIP :: inet:ip4_address() | default) -> [inet_res:dns_data()] | error.
+    DnsServerIP :: inet:ip4_address() | default) -> [dns_value()] | error.
 lookup(Names, Type, DnsServerIP) ->
     Results = lists:flatten(utils:pmap(fun(Name) ->
         NameStr = onepanel_utils:convert(Name, list),

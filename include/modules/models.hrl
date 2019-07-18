@@ -20,8 +20,8 @@
 
 %% Wrapper for all document records. Allows generic tracking of model versions.
 -record(document, {
-    key :: model_behavior:key(),
-    version = 1 :: model_behavior:version(),
+    key :: model_behaviour:key(),
+    version = 1 :: model_behaviour:version() | ?MATCH_SPECS,
     value :: model_behaviour:record()
 }).
 

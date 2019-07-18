@@ -51,8 +51,8 @@
 -type helper() :: term().
 % @formatter:on
 
--export_type([storage_params/0, storage_details/0, storages_map/0, helper_args/0,
-    user_ctx/0]).
+-export_type([id/0, storage_params/0, storage_details/0, storages_map/0,
+    helper_args/0, user_ctx/0]).
 
 %%%===================================================================
 %%% API functions
@@ -586,7 +586,7 @@ exists(Node, {id, StorageId}) ->
 %% arguments.
 %% @end
 %%--------------------------------------------------------------------
--spec parse_auto_cleaning_configuration(maps:maps()) -> map().
+-spec parse_auto_cleaning_configuration(map()) -> map().
 parse_auto_cleaning_configuration(Args) ->
     onepanel_maps:remove_undefined(#{
         enabled => onepanel_utils:typed_get(enabled, Args, boolean, undefined),
@@ -600,7 +600,7 @@ parse_auto_cleaning_configuration(Args) ->
 %% configuration arguments.
 %% @end
 %%--------------------------------------------------------------------
--spec parse_auto_cleaning_rules(maps:maps()) -> map().
+-spec parse_auto_cleaning_rules(map()) -> map().
 parse_auto_cleaning_rules(Args) ->
     ParsedRules = #{
         enabled => onepanel_utils:typed_get([rules, enabled], Args, boolean, undefined)

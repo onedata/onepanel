@@ -33,7 +33,7 @@
 -type auth_token() :: binary().
 -type record() :: #onepanel_session{}.
 
--export_type([id/0, auth_token/0]).
+-export_type([id/0, record/0, auth_token/0]).
 
 -define(NOW(), time_utils:system_time_seconds()).
 -define(TOKEN_TTL, onepanel_env:get(auth_token_ttl)).
