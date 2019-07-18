@@ -29,7 +29,7 @@
 -type accept_method_type() :: 'POST' | 'PATCH' | 'PUT'.
 -type method_type() :: accept_method_type() | 'GET' | 'DELETE'.
 -type resource() :: atom().
--type data() :: onepanel_parser:data().
+-type data() :: onepanel_parser:data() | {binary, binary()}.
 -type bindings() :: #{Key :: atom() => Value :: term()}.
 -type params() :: #{Key :: atom() => Value :: term()}.
 -type args() :: onepanel_parser:args().
@@ -138,8 +138,8 @@ content_types_accepted(Req, #rstate{} = State) ->
 %%--------------------------------------------------------------------
 -spec content_types_provided(Req :: cowboy_req:req(), State :: state()) ->
     {[{binary(), atom()}], cowboy_req:req(), state()}.
-content_types_provided(Req, #rstate{} = State) ->
-    {[{<<"application/json">>, provide_resource}], Req, State}.
+content_types_provided(Req, #rstate{produces = Produces} = State) ->
+    {lists:map(fun(ContentType) -> {ContentType, provide_resource} end, Produces), Req, State}.
 
 
 %%--------------------------------------------------------------------
@@ -274,6 +274,8 @@ provide_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
             bindings = Bindings,
             params = Params
         }) of
+            {{binary, Data}, Req5} ->
+                {Data, Req5, State};
             {Data, Req5} ->
                 Json = json_utils:encode(Data),
                 {Json, Req5, State};

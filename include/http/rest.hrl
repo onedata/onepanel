@@ -25,7 +25,8 @@
     methods :: undefined | [rest_handler:method()],
     client :: undefined | rest_handler:client(),
     bindings = #{} :: rest_handler:bindings(),
-    params = #{} :: rest_handler:params()
+    params = #{} :: rest_handler:params(),
+    produces = [<<"application/json">>] :: [binary()]
 }).
 
 -endif.

@@ -47,6 +47,7 @@ routes() ->
             version = 3,
             module = rest_service,
             resource = dns_check,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET',
                 params_spec = #{
@@ -82,6 +83,7 @@ routes() ->
             version = 3,
             module = rest_onepanel,
             resource = cookie,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -92,6 +94,7 @@ routes() ->
             version = 3,
             module = rest_onepanel,
             resource = hosts,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -102,6 +105,7 @@ routes() ->
             version = 3,
             module = rest_clusters,
             resource = current_cluster_members_summary,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -122,6 +126,7 @@ routes() ->
             version = 3,
             module = rest_onepanel,
             resource = configuration,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET',
                 noauth = true
@@ -133,6 +138,7 @@ routes() ->
             version = 3,
             module = rest_clusters,
             resource = current_cluster,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -143,6 +149,7 @@ routes() ->
             version = 3,
             module = rest_users,
             resource = current_user,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -153,6 +160,7 @@ routes() ->
             version = 3,
             module = rest_service,
             resource = dns_check_configuration,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -174,6 +182,7 @@ routes() ->
             version = 3,
             module = rest_onepanel,
             resource = node,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET',
                 noauth = true
@@ -185,6 +194,7 @@ routes() ->
             version = 3,
             module = rest_onepanel,
             resource = progress,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -205,6 +215,7 @@ routes() ->
             version = 3,
             module = rest_service,
             resource = task,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET',
                 noauth = true
@@ -216,6 +227,7 @@ routes() ->
             version = 3,
             module = rest_onepanel,
             resource = web_cert,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -286,6 +298,18 @@ routes() ->
             methods = [#rmethod{
                 type = 'PUT',
                 args_spec = rest_model:emergency_passphrase_change_request_model(),
+                noauth = true
+            }]
+        }},
+
+        %% Get test image
+        {<<"/api/v3/onepanel/test_image">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onepanel,
+            resource = test_image,
+            produces = [<<"image/png">>],
+            methods = [#rmethod{
+                type = 'GET',
                 noauth = true
             }]
         }}
