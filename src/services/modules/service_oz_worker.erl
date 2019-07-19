@@ -538,4 +538,8 @@ env_write_and_set(Variable, Value) ->
     Node = nodes:local(name()),
     Path = onepanel_env:get_config_path(name(), generated),
     onepanel_env:write([name(), Variable], Value, Path),
-    onepanel_env:set_remote(Node, Variable, Value, name()).
+    % catch - failure of set_remote indicates that oz_worker node is down.
+    % In such case onepanel_env:write suffices since configuration will
+    % be read from file on next startup.
+    catch onepanel_env:set_remote(Node, Variable, Value, name()),
+    ok.
