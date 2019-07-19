@@ -84,13 +84,7 @@ get_nodes() ->
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, Ctx) ->
-    service_cluster_worker:get_steps(deploy, Ctx#{name => name()})
-    ++ case Ctx of
-        #{policies := Policies} ->
-            PoliciesCtx = onepanel_maps:get_store(hosts, Ctx, hosts, Policies),
-            [#steps{action = set_policies, ctx = PoliciesCtx}];
-        _ -> []
-    end;
+    service_cluster_worker:get_steps(deploy, Ctx#{name => name()});
 
 get_steps(get_policies, _Ctx) ->
     [#step{function = get_policies, selection = any, args = []}];
@@ -182,6 +176,7 @@ configure(Ctx) ->
         oz_name => OzName,
         http_domain => OzDomain
     }),
+    set_policies(maps:get(policies, Ctx, #{})),
 
     simple_cache:clear(?DETAILS_CACHE_KEY),
     service_cluster_worker:configure(Ctx#{
