@@ -46,7 +46,7 @@ handle(<<"GET">>, Req) ->
             <<"serviceType">> => ?ONEPANEL,
             <<"apiOrigin">> => ApiOrigin,
             <<"guiMode">> => ?EMERGENCY,
-            <<"debugMode">> => onepanel_env:get(gui_debug_mode)
+            <<"browserDebugLogs">> => onepanel_env:get(gui_debug_mode)
         }),
         Req
     ).
