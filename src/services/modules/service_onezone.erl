@@ -262,7 +262,7 @@ set_up_service_in_onezone() ->
     {BuildVersion, AppVersion} = onepanel_app:get_build_and_version(),
 
     {ok, GuiHash} = rpc:call(OzNode, gui_static, deploy_package, [
-        ?ONEPANEL_GUI, AppVersion, filename:absname(GuiPackagePath)
+        ?ONEPANEL_GUI, AppVersion, filename:absname(GuiPackagePath), false
     ]),
     ?info("Deployed static GUI files (~s)", [GuiHash]),
 
