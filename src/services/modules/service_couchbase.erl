@@ -129,7 +129,6 @@ start(Ctx) ->
         open_files => service_ctx:get(couchbase_open_files_limit, Ctx)
     },
     service_cli:start(name(), Limits),
-    service:register_healthcheck(name()),
     % update status cache
     status(Ctx),
     ok.
@@ -189,9 +188,25 @@ health(Ctx) ->
 -spec wait_for_init(Ctx :: service:ctx()) -> ok | no_return().
 wait_for_init(Ctx) ->
     StartAttempts = service_ctx:get(couchbase_wait_for_init_attempts, Ctx, integer),
-    onepanel_utils:wait_until(?MODULE, status, [Ctx],
-        {equal, healthy}, StartAttempts),
+    try
+        onepanel_utils:wait_until(?MODULE, status, [Ctx],
+            {equal, healthy}, StartAttempts)
+    catch throw:attempts_limit_exceeded ->
+        % Couchbase sometimes dies silently. Restart it once in such case
+        % to reduce impact of this issue.
 
+        ?warning(
+            "Wait for couchbase to come up timed out. "
+            "Attempting restart of couchbase server."),
+        service:apply_sync(name(), stop, Ctx#{hosts => [hosts:self()]}),
+        service_utils:throw_on_error(service:apply_sync(name(),
+            start, Ctx#{hosts => [hosts:self()]})),
+
+        onepanel_utils:wait_until(?MODULE, status, [Ctx],
+            {equal, healthy}, StartAttempts)
+    end,
+
+    service:register_healthcheck(name()),
     % Couchbase reports healthy status before it's ready to serve requests.
     % This delay provides additional margin of error before starting workers.
     Delay = application:get_env(onepanel, couchbase_after_init_delay, 0),
