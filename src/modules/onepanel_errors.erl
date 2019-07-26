@@ -21,7 +21,7 @@
 -define(FORMAT_NONEMPTY(Variable), case Variable of
     undefined -> "";
     [] -> "";
-    _ -> io_lib:format("~s: ~tp~n", [??Variable, Variable])
+    _ -> io_lib:format("~ts: ~tp~n", [??Variable, Variable])
 end).
 
 
@@ -114,15 +114,15 @@ translate(_Type, #error{reason = {?ERR_HOST_NOT_FOUND, Host}}) ->
 
 translate(_Type, #error{reason = ?ERR_NO_SERVICE_HOSTS(Service)}) ->
     {<<"Invalid Request">>, str_utils:format_bin(
-        "Requires service '~s' which is not deployed on any node.", [Service])};
+        "Requires service '~ts' which is not deployed on any node.", [Service])};
 
 translate(_Type, #error{reason = ?ERR_NODE_NOT_EMPTY(Host)}) ->
     {<<"Invalid Request">>, str_utils:format_bin(
-        "Host at '~s' is already a part of an existing cluster.", [Host])};
+        "Host at '~ts' is already a part of an existing cluster.", [Host])};
 
 translate(_Type, #error{reason = ?ERR_INCOMPATIBLE_NODE(Host, ClusterType)}) ->
     {<<"Operation error">>, str_utils:format_bin(
-        "Cannot add node ~s to the cluster. It is a ~s node, expected ~s.",
+        "Cannot add node ~ts to the cluster. It is a ~ts node, expected ~ts.",
         [Host, ClusterType, onepanel_env:get_cluster_type()])};
 
 translate(_Type, #error{reason = {?ERR_HOST_NOT_FOUND_FOR_ALIAS, Alias}}) ->
@@ -144,7 +144,7 @@ translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, aleady_exists}}) ->
     {<<"Operation Error">>, <<"Storage name is not available.">>};
 
 translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, Reason}}) ->
-    ?error("Cannot add storage due to: ~p", [Reason]),
+    ?error("Cannot add storage due to: ~tp", [Reason]),
     {<<"Operation Error">>, <<"Storage addition error.">>};
 
 translate(_Type, #error{reason = ?ERR_STORAGE_UPDATE_MISMATCH}) ->
@@ -194,22 +194,22 @@ translate(_Type, #error{reason = ?ERR_DNS_CHECK_ERROR(Message)}) ->
     {<<"Operation Error">>, str_utils:format_bin("Error performing DNS check: ~ts", [Message])};
 
 translate(_Type, #error{reason = ?ERR_FILE_ACCESS(Path, Reason)}) ->
-    {<<"File access error">>, str_utils:format_bin("Error opening file ~p: ~p", [Path, Reason])};
+    {<<"File access error">>, str_utils:format_bin("Error opening file ~tp: ~tp", [Path, Reason])};
 
 % DO NOT modify this error message as it is used to identify the error in GUI
 translate(_Type, #error{reason = ?ERR_LETSENCRYPT(ErrorURN, Message)}) ->
-    {<<"Let's Encrypt Error">>, str_utils:format_bin("Let's Encrypt error: ~s: ~s",
+    {<<"Let's Encrypt Error">>, str_utils:format_bin("Let's Encrypt error: ~ts: ~ts",
         [ErrorURN, Message])};
 
 % DO NOT modify this error message as it is used to identify the error in GUI
 translate(_Type, #error{reason = ?ERR_LETSENCRYPT_LIMIT(ErrorURN, Message)}) ->
     {<<"Let's Encrypt Limit Error">>,
-    str_utils:format_bin("Let's Encrypt limit error: ~s: ~s", [ErrorURN, Message])};
+    str_utils:format_bin("Let's Encrypt limit error: ~ts: ~ts", [ErrorURN, Message])};
 
 % DO NOT modify this error message as it is used to identify the error in GUI
 translate(_Type, #error{reason = ?ERR_LETSENCRYPT_AUTHORIZATION(Message)}) ->
     {<<"Let's Encrypt Authorization Error">>,
-        str_utils:format_bin("Let's Encrypt authroization error: ~s", [Message])};
+        str_utils:format_bin("Let's Encrypt authroization error: ~ts", [Message])};
 
 translate(_Type, #error{reason = ?ERR_LETSENCRYPT_NOT_SUPPORTED}) ->
     {<<"Let's Encrypt Not Supported Error">>,
@@ -220,7 +220,7 @@ translate(_Type, #error{reason = {?ERR_STORAGE_SYNC, import_already_started}}) -
 
 translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, {missing_key, MissingKey}}}) ->
     {<<"Operation Error">>, str_utils:format_bin("LUMA configuration error. "
-    "Missing key: ~p", [MissingKey])};
+    "Missing key: ~tp", [MissingKey])};
 
 translate(_Type, #error{reason = ?ERR_SPACE_SUPPORT_TOO_LOW(Minimum)}) ->
     {<<"Operation Error">>, str_utils:format_bin(
@@ -231,13 +231,13 @@ translate(_Type, #error{reason = {?ERR_CONFIG_AUTO_CLEANING, file_popularity_dis
     {<<"Operation Error">>, <<"File popularity statistics must be turned on to enable autocleaning">>};
 
 translate(_Type, #error{reason = {?ERR_CONFIG_AUTO_CLEANING, {negative_value, Parameter}}}) ->
-    {<<"Operation Error">>, str_utils:format_bin("Auto-cleaning configuration error. Negative value not allowed for key: ~p.", [Parameter])};
+    {<<"Operation Error">>, str_utils:format_bin("Auto-cleaning configuration error. Negative value not allowed for key: ~tp.", [Parameter])};
 
 translate(_Type, #error{reason = {?ERR_CONFIG_AUTO_CLEANING, {illegal_type, Parameter}}}) ->
-    {<<"Operation Error">>, str_utils:format_bin("Auto-cleaning configuration error. Illegal type for key: ~p.", [Parameter])};
+    {<<"Operation Error">>, str_utils:format_bin("Auto-cleaning configuration error. Illegal type for key: ~tp.", [Parameter])};
 
 translate(_Type, #error{reason = {?ERR_CONFIG_AUTO_CLEANING, {value_grater_than, Name1, Name2}}}) ->
-    {<<"Operation Error">>, str_utils:format_bin("Auto-cleaning configuration error. Setting value of parameter ~p greater than ~p is forbidden", [Name1, Name2])};
+    {<<"Operation Error">>, str_utils:format_bin("Auto-cleaning configuration error. Setting value of parameter ~tp greater than ~tp is forbidden", [Name1, Name2])};
 
 translate(_Type, #error{reason = {?ERR_AUTOCLEANING, file_popularity_disabled}}) ->
     {<<"Operation Error">>, <<"Auto-cleaning error. File popularity is disabled.">>};
@@ -246,16 +246,16 @@ translate(_Type, #error{reason = {?ERR_AUTOCLEANING, autocleaning_disabled}}) ->
     {<<"Operation Error">>, <<"Auto-cleaning error. Auto-cleaning is disabled.">>};
 
 translate(_Type, #error{reason = {?ERR_AUTOCLEANING, Reason}}) ->
-    {<<"Operation Error">>, str_utils:format_bin("Auto-cleaning unexpected error: ~p ", [Reason])};
+    {<<"Operation Error">>, str_utils:format_bin("Auto-cleaning unexpected error: ~tp ", [Reason])};
 
 translate(_Type, #error{reason = {?ERR_CONFIG_FILE_POPULARITY, {negative_value, Parameter}}}) ->
-    {<<"Operation Error">>, str_utils:format_bin("file-popularity configuration error. Negative value not allowed for key: ~p.", [Parameter])};
+    {<<"Operation Error">>, str_utils:format_bin("file-popularity configuration error. Negative value not allowed for key: ~tp.", [Parameter])};
 
 translate(_Type, #error{reason = {?ERR_CONFIG_FILE_POPULARITY, {illegal_type, Parameter}}}) ->
-    {<<"Operation Error">>, str_utils:format_bin("file-popularity configuration error. Illegal type for key: ~p.", [Parameter])};
+    {<<"Operation Error">>, str_utils:format_bin("file-popularity configuration error. Illegal type for key: ~tp.", [Parameter])};
 
 translate(_Type, #error{reason = {?ERR_FILE_POPULARITY, Error}}) ->
-    {<<"Operation Error">>, str_utils:format_bin("file-popularity error: ~p.", [Error])};
+    {<<"Operation Error">>, str_utils:format_bin("file-popularity error: ~tp.", [Error])};
 
 translate(_Type, #error{reason = ?ERR_CMD_FAILURE(_, _)}) ->
     {<<"Internal Error">>, <<"Server encountered an unexpected error.">>};
@@ -265,19 +265,19 @@ translate(_Type, #error{reason = {error, {Code, Error, Description}}})
     {<<"Operation Error">>, Error};
 
 translate(_Type, #error{} = Error) ->
-    ?error("~s", [format_error(Error)]),
+    ?error("~ts", [format_error(Error)]),
     {<<"Internal Error">>, <<"Server encountered an unexpected error.">>};
 
 translate(Type, Reason) ->
-    ?error("Type: ~p~nReason: ~p~n", [Type, Reason]),
+    ?error("Type: ~tp~nReason: ~tp~n", [Type, Reason]),
     erlang:raise(Type, Reason, []).
 
 
 -spec format_error(#error{}) -> list().
 format_error(#error{module = Module, function = Function, arity = Arity,
     args = Args, reason = Reason, stacktrace = Stacktrace, line = Line}) ->
-    io_lib:format("Function: ~p:~p/~p~n~tsReason: ~tp~n~ts"
-    "Line: ~p~n", [Module, Function, Arity, ?FORMAT_NONEMPTY(Args),
+    io_lib:format("Function: ~tp:~tp/~tp~n~tsReason: ~tp~n~ts"
+    "Line: ~tp~n", [Module, Function, Arity, ?FORMAT_NONEMPTY(Args),
         Reason, ?FORMAT_NONEMPTY(Stacktrace), Line]).
 
 
@@ -286,8 +286,8 @@ format_error(#error{module = Module, function = Function, arity = Arity,
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @private @doc Merge a list of keys with a "." character into human-readable
-%% format.
+%% @private @doc Merges a list of keys into human-readable format
+%% using the "." character to indicate nested keys.
 %% @end
 %%--------------------------------------------------------------------
 -spec get_key(Keys :: onepanel_parser:keys()) -> Key :: binary().
@@ -360,7 +360,7 @@ translate_storage_test_file_error(OperVerb, OperNoun, Node, Reason) ->
     Host = hosts:from_node(Node),
     % If this log is removed, adjust op_worker_storage to report
     % reason of issues with PATCH
-    ?error("Cannot " ++ OperVerb ++ " storage test file on node ~p due to: ~p",
+    ?error("Cannot " ++ OperVerb ++ " storage test file on node ~tp due to: ~tp",
         [Node, Reason]),
     {<<"Operation Error">>, <<"Storage test file ", OperNoun/binary, " failed "
     "on host: '", (onepanel_utils:convert(Host, binary))/binary, "'.">>}.

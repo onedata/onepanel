@@ -175,8 +175,8 @@ health(Ctx) ->
             gen_tcp:close(Socket),
             healthy;
         {error, Reason} ->
-            ?warning("Cannot connect to couchbase server (~s:~p) due to: "
-            "~p", [Host, Port, Reason]),
+            ?warning("Cannot connect to couchbase server (~ts:~tp) due to: "
+            "~tp", [Host, Port, Reason]),
             unhealthy
     end.
 

@@ -262,12 +262,12 @@ apply([], _Action, _Ctx, _Notify) ->
 
 apply(Service, Action, Ctx, Notify) ->
     TaskDelay = maps:get(task_delay, Ctx, 0),
-    ?debug("Delaying task ~p:~p by ~p ms", [Service, Action, TaskDelay]),
+    ?debug("Delaying task ~tp:~tp by ~tp ms", [Service, Action, TaskDelay]),
     timer:sleep(TaskDelay),
     service_utils:notify({action_begin, {Service, Action}}, Notify),
     Result = try
         Steps = service_utils:get_steps(Service, Action, Ctx),
-        ?debug("Execution of ~p:~p requires following steps:~n~s",
+        ?debug("Execution of ~tp:~tp requires following steps:~n~ts",
             [Service, Action, service_utils:format_steps(Steps, "")]),
         apply_steps(Steps, Notify)
     catch
@@ -405,12 +405,12 @@ register_healthcheck(Service) ->
     end,
 
     Action = fun() ->
-        ?critical("Service ~p is not running. Restarting...", [Service]),
+        ?critical("Service ~tp is not running. Restarting...", [Service]),
         Results = apply_sync(Service, resume,
             #{hosts => [hosts:self()]}),
         case service_utils:results_contain_error(Results) of
             {true, Error} ->
-                ?critical("Failed to restart service ~p due to:~n~s",
+                ?critical("Failed to restart service ~tp due to:~n~ts",
                     [Service, onepanel_errors:format_error(Error)]);
             false -> ok
         end
