@@ -24,6 +24,7 @@
 
 %% tests
 -export([
+    domain_is_lowercased/1,
     default_admin_is_created_test/1,
     batch_config_creates_users/1,
     service_oneprovider_unregister_register_test/1,
@@ -53,6 +54,7 @@ end).
 
 all() ->
     ?ALL([
+        domain_is_lowercased,
         default_admin_is_created_test,
         batch_config_creates_users,
         service_oneprovider_unregister_register_test,
@@ -70,6 +72,14 @@ all() ->
 %%%===================================================================
 %%% Test functions
 %%%===================================================================
+
+
+domain_is_lowercased(Config) ->
+    % deployment in init_per_suite provides domain in uppercase.
+    % it should be lowercased during registration
+    [OpNode | _] = ?config(oneprovider_nodes, Config),
+    Expected = ?config(oneprovider_domain, Config),
+    ?assertEqual(Expected, rpc:call(OpNode, service_op_worker, get_domain, [])).
 
 
 default_admin_is_created_test(Config) ->
@@ -451,6 +461,7 @@ init_per_suite(Config) ->
         end, OpNodes),
 
         {ok, Posix} = onepanel_lists:get([storages, posix, '/mnt/st1'], NewConfig2),
+        ProviderDomain = list_to_binary(hd(OpHosts)),
         RegistrationToken = get_registration_token(OzNode),
         rpc:call(OpNode, emergency_passphrase, set, [?PASSPHRASE]),
         onepanel_test_utils:service_action(OpNode, ?SERVICE_OP, deploy, #{
@@ -490,13 +501,13 @@ init_per_suite(Config) ->
                 oneprovider_geo_latitude => 10.0,
                 oneprovider_geo_longitude => 10.0,
                 oneprovider_name => <<"provider1">>,
-                oneprovider_domain => hd(OpHosts),
+                oneprovider_domain => string:uppercase(ProviderDomain),
                 oneprovider_register => true,
                 oneprovider_admin_email => <<"admin@onedata.org">>,
                 oneprovider_token => RegistrationToken
             }
         }),
-        NewConfig2
+        [{oneprovider_domain, ProviderDomain} | NewConfig2]
     end,
     [{?ENV_UP_POSTHOOK, Posthook} | Config].
 
