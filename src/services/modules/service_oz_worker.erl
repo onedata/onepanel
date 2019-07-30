@@ -165,7 +165,7 @@ configure(Ctx) ->
     GeneratedConfigFile = onepanel_env:get_config_path(name(), generated),
     VmArgsFile = service_ctx:get(oz_worker_vm_args_file, Ctx),
     OzName = service_ctx:get(onezone_name, Ctx),
-    OzDomain = service_ctx:get_domain(onezone_domain, Ctx),
+    OzDomain = string:lowercase(service_ctx:get_domain(onezone_domain, Ctx)),
 
     % TODO VFS-4140 Mark IPs configured only in batch mode
     onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),

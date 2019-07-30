@@ -24,7 +24,7 @@
 
 %% tests
 -export([
-    domain_is_lowercased/1,
+    domain_is_lowercased_test/1,
     default_admin_is_created_test/1,
     batch_config_creates_users/1,
     service_oneprovider_unregister_register_test/1,
@@ -54,7 +54,7 @@ end).
 
 all() ->
     ?ALL([
-        domain_is_lowercased,
+        domain_is_lowercased_test,
         default_admin_is_created_test,
         batch_config_creates_users,
         service_oneprovider_unregister_register_test,
@@ -74,12 +74,16 @@ all() ->
 %%%===================================================================
 
 
-domain_is_lowercased(Config) ->
+domain_is_lowercased_test(Config) ->
     % deployment in init_per_suite provides domain in uppercase.
-    % it should be lowercased during registration
+    % it should be lowercased in the deployment functions
+    [OzNode | _] = ?config(onezone_nodes, Config),
     [OpNode | _] = ?config(oneprovider_nodes, Config),
-    Expected = ?config(oneprovider_domain, Config),
-    ?assertEqual(Expected, rpc:call(OpNode, service_op_worker, get_domain, [])).
+    ExpectedOpDomain = ?config(oneprovider_domain, Config),
+    ExpectedOzDomain = ?config(onezone_domain, Config),
+
+    ?assertEqual(ExpectedOpDomain, rpc:call(OpNode, service_op_worker, get_domain, [])),
+    ?assertEqual(ExpectedOzDomain, rpc:call(OzNode, service_oz_worker, get_domain, [])).
 
 
 default_admin_is_created_test(Config) ->
@@ -104,12 +108,13 @@ batch_config_creates_users(Config) ->
 service_oneprovider_unregister_register_test(Config) ->
     [OzNode | _] = ?config(onezone_nodes, Config),
     [OpNode | _] = ?config(oneprovider_nodes, Config),
+    OpDomain = ?config(oneprovider_domain, Config),
     onepanel_test_utils:service_action(OpNode, oneprovider, unregister, #{}),
     onepanel_test_utils:service_action(OpNode, oneprovider, register, #{
         oneprovider_geo_latitude => 20.0,
         oneprovider_geo_longitude => 20.0,
         oneprovider_name => <<"provider2">>,
-        oneprovider_domain => hosts:from_node(OpNode),
+        oneprovider_domain => OpDomain,
         oneprovider_admin_email => <<"admin@onedata.org">>,
         oneprovider_token => get_registration_token(OzNode)
     }).
@@ -445,11 +450,15 @@ init_per_suite(Config) ->
                     hosts => OzHosts,
                     letsencrypt_enabled => false
                 }
+            },
+            ?SERVICE_OZ => #{
+                domain => string:uppercase(OzDomain)
             }
         }),
 
         [OpNode | _] = OpNodes = ?config(oneprovider_nodes, NewConfig2),
         OpHosts = hosts:from_nodes(OpNodes),
+        OpDomain = onepanel_test_utils:get_domain(hd(OpHosts)),
         % We do not have a DNS server that would resolve OZ domain for provider,
         % so we need to simulate it using /etc/hosts.
         lists:foreach(fun(Node) ->
@@ -461,7 +470,6 @@ init_per_suite(Config) ->
         end, OpNodes),
 
         {ok, Posix} = onepanel_lists:get([storages, posix, '/mnt/st1'], NewConfig2),
-        ProviderDomain = list_to_binary(hd(OpHosts)),
         RegistrationToken = get_registration_token(OzNode),
         rpc:call(OpNode, emergency_passphrase, set, [?PASSPHRASE]),
         onepanel_test_utils:service_action(OpNode, ?SERVICE_OP, deploy, #{
@@ -501,13 +509,13 @@ init_per_suite(Config) ->
                 oneprovider_geo_latitude => 10.0,
                 oneprovider_geo_longitude => 10.0,
                 oneprovider_name => <<"provider1">>,
-                oneprovider_domain => string:uppercase(ProviderDomain),
+                oneprovider_domain => string:uppercase(OpDomain),
                 oneprovider_register => true,
                 oneprovider_admin_email => <<"admin@onedata.org">>,
                 oneprovider_token => RegistrationToken
             }
         }),
-        [{oneprovider_domain, ProviderDomain} | NewConfig2]
+        [{oneprovider_domain, OpDomain}, {onezone_domain, OzDomain} | NewConfig2]
     end,
     [{?ENV_UP_POSTHOOK, Posthook} | Config].
 
