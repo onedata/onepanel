@@ -436,15 +436,19 @@ register(Ctx) ->
     {ok, OpwNode} = nodes:any(?SERVICE_OPW),
 
     DomainParams = case service_ctx:get(oneprovider_subdomain_delegation, Ctx, boolean, false) of
-        true -> #{
-            <<"subdomainDelegation">> => true,
-            <<"subdomain">> => service_ctx:get(oneprovider_subdomain, Ctx, binary),
-            <<"ipList">> => [] % IPs will be updated in the step set_cluster_ips
-        };
-        false -> #{
-            <<"subdomainDelegation">> => false,
-            <<"domain">> => service_ctx:get(oneprovider_domain, Ctx, binary)
-        }
+        true ->
+            Subdomain = service_ctx:get(oneprovider_subdomain, Ctx, binary),
+            #{
+                <<"subdomainDelegation">> => true,
+                <<"subdomain">> => string:lowercase(Subdomain),
+                <<"ipList">> => [] % IPs will be updated in the step set_cluster_ips
+            };
+        false ->
+            Domain = service_ctx:get(oneprovider_domain, Ctx, binary),
+            #{
+                <<"subdomainDelegation">> => false,
+                <<"domain">> => string:lowercase(Domain)
+            }
 
     end,
 
@@ -1054,7 +1058,8 @@ get_details_by_rest() ->
 %%--------------------------------------------------------------------
 -spec modify_domain_details(OpNode :: node(), service:ctx()) -> ok.
 modify_domain_details(OpNode, #{oneprovider_subdomain_delegation := true} = Ctx) ->
-    Subdomain = onepanel_utils:typed_get(oneprovider_subdomain, Ctx, binary),
+    Subdomain = string:lowercase(onepanel_utils:typed_get(
+        oneprovider_subdomain, Ctx, binary)),
 
     case rpc:call(OpNode, provider_logic, is_subdomain_delegated, []) of
         {true, Subdomain} -> ok; % no change
@@ -1068,7 +1073,8 @@ modify_domain_details(OpNode, #{oneprovider_subdomain_delegation := true} = Ctx)
     end;
 
 modify_domain_details(OpNode, #{oneprovider_subdomain_delegation := false} = Ctx) ->
-    Domain = onepanel_utils:typed_get(oneprovider_domain, Ctx, binary),
+    Domain = string:lowercase(onepanel_utils:typed_get(
+        oneprovider_domain, Ctx, binary)),
     ok = rpc:call(OpNode, provider_logic, set_domain, [Domain]),
     dns_check:invalidate_cache(op_worker);
 
