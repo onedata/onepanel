@@ -16,7 +16,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([start/2, stop/1, status/2]).
+-export([start/2, stop/1, restart/1, status/2]).
 
 %%%===================================================================
 %%% API functions
@@ -51,6 +51,16 @@ stop(Service) ->
                 [Service, Code, Output]),
             ok
     end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Restarts the service
+%% @end
+%%--------------------------------------------------------------------
+-spec restart(service:name()) -> ok | no_return().
+restart(Service) ->
+    Tokens = [get_script(Service), "restart"],
+    onepanel_shell:ensure_success(Tokens).
 
 
 %%--------------------------------------------------------------------

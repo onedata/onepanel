@@ -165,6 +165,7 @@ status(Ctx) ->
 %% @doc Checks if a running service is in a fully functional state.
 %% @end
 %%--------------------------------------------------------------------
+-spec health(service:ctx()) -> service:status().
 health(Ctx) ->
     ConnectTimeout = service_ctx:get(couchbase_connect_timeout, Ctx, integer),
     Host = hosts:self(),
@@ -194,13 +195,9 @@ wait_for_init(Ctx) ->
     catch throw:attempts_limit_exceeded ->
         % Couchbase sometimes dies silently. Restart it once in such case
         % to reduce impact of this issue.
-
-        ?warning(
-            "Wait for couchbase to come up timed out. "
+        ?warning("Wait for couchbase to come up timed out. "
             "Attempting restart of couchbase server."),
-        service:apply_sync(name(), stop, Ctx#{hosts => [hosts:self()]}),
-        service_utils:throw_on_error(service:apply_sync(name(),
-            start, Ctx#{hosts => [hosts:self()]})),
+        service_cli:restart(name()),
 
         onepanel_utils:wait_until(?MODULE, status, [Ctx],
             {equal, healthy}, StartAttempts)
