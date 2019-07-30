@@ -12,10 +12,11 @@
 -module(service_cli).
 -author("Wojciech Geisler").
 
+-include("modules/errors.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([start/2, stop/1, status/2]).
+-export([start/2, stop/1, restart/1, status/2]).
 
 %%%===================================================================
 %%% API functions
@@ -53,6 +54,16 @@ stop(Service) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc Restarts the service
+%% @end
+%%--------------------------------------------------------------------
+-spec restart(service:name()) -> ok | no_return().
+restart(Service) ->
+    Tokens = [get_script(Service), "restart"],
+    onepanel_shell:ensure_success(Tokens).
+
+
+%%--------------------------------------------------------------------
 %% @doc Checks service status using given command.
 %% Services started with custom binary paths require the 'ping'
 %% command, otherwise status can be used.
@@ -61,11 +72,17 @@ stop(Service) ->
 -spec status(service:name(), Command :: status | ping) -> running | stopped | missing.
 status(Service, Command) ->
     Tokens = [get_script(Service), Command],
-    case onepanel_shell:execute(Tokens) of
-        {0, _} -> running;
-        {127, _} -> missing;
-        _ -> stopped
+    try
+        % use ensure_success/1 instead of execute/1 to log error on failure
+        onepanel_shell:ensure_success(Tokens),
+        running
+    catch
+        throw:#error{reason = ?ERR_CMD_FAILURE(127, _)} ->
+            missing;
+        throw:#error{reason = ?ERR_CMD_FAILURE(_Code, _)} ->
+            stopped
     end.
+
 
 %%%===================================================================
 %%% Internal functions

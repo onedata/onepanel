@@ -291,6 +291,6 @@ format_errors([], Log) ->
     Log;
 
 format_errors([{Node, #error{} = Error} | Errors], Log) ->
-    ErrorStr = str_utils:format("Node: ~p~n~ts",
+    ErrorStr = str_utils:format("Node: ~tp~n~ts",
         [Node, onepanel_errors:format_error(Error)]),
     format_errors(Errors, Log ++ ErrorStr).
