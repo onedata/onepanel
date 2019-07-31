@@ -21,6 +21,7 @@
 -include("modules/errors.hrl").
 -include_lib("hackney/include/hackney_lib.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/onedata.hrl").
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
@@ -127,9 +128,10 @@ get_steps(Action, Ctx) ->
 -spec get_compatible_onezones() -> [binary()].
 get_compatible_onezones() ->
     {_, Node} = nodes:onepanel_with(name()),
-    {ok, Versions} = rpc:call(Node, onepanel_env, read_effective,
-        [[op_worker, compatible_oz_versions], ?SERVICE_OPW]),
-    onepanel_utils:convert(Versions, {seq, binary}).
+    OpVersion = rpc:call(Node, oneprovider, get_version, []),
+    {ok, Versions} = rpc:call(Node, compatibility, get_compatible_versions,
+        [?ONEPROVIDER, OpVersion, ?ONEZONE]),
+    Versions.
 
 
 %%--------------------------------------------------------------------
