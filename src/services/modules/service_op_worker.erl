@@ -127,7 +127,7 @@ get_steps(Action, Ctx) ->
 %%--------------------------------------------------------------------
 -spec get_compatible_onezones() -> [binary()].
 get_compatible_onezones() ->
-    {_, Node} = nodes:onepanel_with(name()),
+    {ok, Node} = nodes:any(?SERVICE_OPW),
     OpVersion = rpc:call(Node, oneprovider, get_version, []),
     {ok, Versions} = rpc:call(Node, compatibility, get_compatible_versions,
         [?ONEPROVIDER, OpVersion, ?ONEZONE]),
