@@ -20,6 +20,7 @@
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
 -include_lib("ctool/include/privileges.hrl").
+-include_lib("ctool/include/http/codes.hrl").
 
 %% export for ct
 -export([all/0, init_per_suite/1, init_per_testcase/2,
@@ -122,10 +123,10 @@ end).
 method_should_return_unauthorized_error(Config) ->
     lists:foreach(fun(Host) ->
         lists:foreach(fun({Endpoint, Method}) ->
-            ?assertMatch({ok, 401, _, _}, onepanel_test_rest:noauth_request(
+            ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _}, onepanel_test_rest:noauth_request(
                 Host, <<Endpoint/binary>>, Method
             )),
-            ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
+            ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _}, onepanel_test_rest:auth_request(
                 Host, <<Endpoint/binary>>, Method,
                 {<<"someUser">>, <<"somePassword">>}
             ))
@@ -139,7 +140,7 @@ method_should_return_unauthorized_error(Config) ->
 method_should_return_forbidden_error(Config) ->
     lists:foreach(fun(Host) ->
         lists:foreach(fun({Endpoint, Method}) ->
-            ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
+            ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
                 Host, <<Endpoint/binary>>, Method,
                 ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_UPDATE])
             ))
@@ -151,7 +152,7 @@ method_should_return_forbidden_error(Config) ->
 
 get_should_return_letsencrypt_setting(Config) ->
     lists:foreach(fun(Host) ->
-        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/web_cert">>, get,
                 ?OZ_OR_ROOT_AUTHS(Host, [])
@@ -163,7 +164,7 @@ get_should_return_letsencrypt_setting(Config) ->
 
 get_should_return_cert_metadata(Config) ->
     lists:foreach(fun(Host) ->
-        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/web_cert">>, get,
                 ?OZ_OR_ROOT_AUTHS(Host, [])
@@ -175,7 +176,7 @@ get_should_return_cert_metadata(Config) ->
 
 patch_should_enable_letsencrypt(Config) ->
     ?hostPerCluster(Config, fun(Host) ->
-        ?assertEqual(204, patch_web_cert(Host, #{letsEncrypt => true}))
+        ?assertEqual(?HTTP_204_NO_CONTENT, patch_web_cert(Host, #{letsEncrypt => true}))
     end),
     lists:foreach(fun(Host) ->
         Body = get_web_cert(Host),
@@ -192,7 +193,7 @@ patch_should_enable_letsencrypt(Config) ->
 patch_should_disable_letsencrypt(Config) ->
     % when
     ?hostPerCluster(Config, fun(Host) ->
-        ?assertEqual(204, patch_web_cert(Host, #{letsEncrypt => false}))
+        ?assertEqual(?HTTP_204_NO_CONTENT, patch_web_cert(Host, #{letsEncrypt => false}))
     end),
 
     % then
@@ -204,7 +205,7 @@ patch_should_disable_letsencrypt(Config) ->
 
 ssl_cache_is_cleared_after_certification(Config) ->
     ?hostPerCluster(Config, fun(Host) ->
-        ?assertEqual(204, patch_web_cert(Host, #{letsEncrypt => true}))
+        ?assertEqual(?HTTP_204_NO_CONTENT, patch_web_cert(Host, #{letsEncrypt => true}))
     end),
 
     lists:foreach(fun(Node) ->
@@ -224,7 +225,7 @@ existing_certificates_are_reused(Config) ->
 
     % when
     ?hostPerCluster(Config, fun(Host) ->
-        ?assertEqual(204, patch_web_cert(Host, #{letsEncrypt => true}))
+        ?assertEqual(?HTTP_204_NO_CONTENT, patch_web_cert(Host, #{letsEncrypt => true}))
     end),
 
     % then
@@ -241,7 +242,7 @@ failed_patch_leaves_letsencrypt_disabled(Config) ->
 
     % when
     ?hostPerCluster(Config, fun(Host) ->
-        ?assertEqual(400, patch_web_cert(Host, #{letsEncrypt => true}))
+        ?assertEqual(?HTTP_400_BAD_REQUEST, patch_web_cert(Host, #{letsEncrypt => true}))
     end),
 
     % then
@@ -258,7 +259,7 @@ failed_patch_leaves_letsencrypt_enabled(Config) ->
 
     % when
     ?hostPerCluster(Config, fun(Host) ->
-        ?assertEqual(400, patch_web_cert(Host, #{letsEncrypt => true}))
+        ?assertEqual(?HTTP_400_BAD_REQUEST, patch_web_cert(Host, #{letsEncrypt => true}))
     end),
 
     % then
@@ -303,7 +304,7 @@ init_per_testcase(Case, Config) when
     Case == patch_should_disable_letsencrypt ->
     Config2 = init_per_testcase(default, Config),
     ?hostPerCluster(Config, fun(Host) ->
-        ?assertEqual(204, patch_web_cert(Host, #{letsEncrypt => true}))
+        ?assertEqual(?HTTP_204_NO_CONTENT, patch_web_cert(Host, #{letsEncrypt => true}))
     end),
     Config2;
 
@@ -324,7 +325,7 @@ init_per_testcase(existing_certificates_are_reused, Config) ->
     Config2 = init_per_testcase(default, Config),
 
     ?hostPerCluster(Config2, fun(Host) ->
-        ?assertEqual(204, patch_web_cert(Host, #{letsEncrypt => false}))
+        ?assertEqual(?HTTP_204_NO_CONTENT, patch_web_cert(Host, #{letsEncrypt => false}))
     end),
 
     deploy_certs(?LE_CERT_PATHS, Config2),
@@ -391,7 +392,7 @@ end_per_suite(_Config) ->
 %%--------------------------------------------------------------------
 -spec get_web_cert(Host :: service:host()) -> Response :: #{binary() => _}.
 get_web_cert(Host) ->
-    {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+    {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
         onepanel_test_rest:auth_request(
             Host, <<"/web_cert">>, get,
             ?OZ_OR_ROOT_AUTHS(Host, [])

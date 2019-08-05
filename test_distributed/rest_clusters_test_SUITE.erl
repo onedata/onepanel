@@ -20,6 +20,7 @@
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
 -include_lib("ctool/include/privileges.hrl").
+-include_lib("ctool/include/http/codes.hrl").
 
 %% export for ct
 -export([all/0, init_per_suite/1, init_per_testcase/2,
@@ -140,11 +141,11 @@ all() ->
 
 method_should_return_forbidden_error_test(Config) ->
     ?eachHost(Config, fun(Host) ->
-        ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
+        ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/cluster/invite_user_token">>, post,
             ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_ADD_USER])
         )),
-        ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
+        ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/cluster/members_summary">>, get,
             ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_VIEW])
         ))
@@ -153,7 +154,7 @@ method_should_return_forbidden_error_test(Config) ->
 
 local_user_should_get_not_found_error_test(Config) ->
     ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
-        ?assertMatch({ok, 404, _, _}, onepanel_test_rest:auth_request(
+        ?assertMatch({ok, ?HTTP_404_NOT_FOUND, _, _}, onepanel_test_rest:auth_request(
             Host, <<Endpoint/binary>>, Method,
             ?ROOT_AUTHS(Host)
         ))
@@ -166,7 +167,7 @@ local_user_should_get_not_found_error_test(Config) ->
 
 get_should_return_clusters_list_test(Config) ->
     ?eachHost(Config, fun(Host) ->
-        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/user/clusters/">>, get,
                 ?OZ_AUTHS(Host, [])
@@ -180,7 +181,7 @@ get_should_return_clusters_list_test(Config) ->
 get_should_return_cluster_details_test(Config) ->
     ?eachHost(Config, fun(Host) ->
         lists:foreach(fun(ClusterId) ->
-            {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
                 onepanel_test_rest:auth_request(
                     Host, <<"/user/clusters/", ClusterId/binary>>, get,
                     ?OZ_AUTHS(Host, [])
@@ -201,14 +202,14 @@ get_should_return_cluster_details_test(Config) ->
 get_should_return_current_cluster_details_test(Config) ->
     ?eachHost(Config, fun(Host) ->
         ClusterId = get_cluster_id(Host, Config),
-        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/cluster">>, get,
                 ?OZ_AUTHS(Host, [])
             )
         ),
         Body = json_utils:decode(JsonBody),
-        {_, _, _, JsonBodyById} = ?assertMatch({ok, 200, _, _},
+        {_, _, _, JsonBodyById} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/user/clusters/", ClusterId/binary>>, get,
                 ?OZ_AUTHS(Host, [])
@@ -221,7 +222,7 @@ get_should_return_current_cluster_details_test(Config) ->
 
 current_cluster_should_work_for_local_user_test(Config) ->
     ?eachHost(Config, fun(Host) ->
-        ?assertMatch({ok, 200, _, _},
+        ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/cluster">>, get,
                 ?ROOT_AUTHS(Host)
@@ -236,7 +237,7 @@ get_should_return_current_cluster_members_count_test(Config) ->
             <<"usersCount">> => 1, <<"effectiveUsersCount">> => 2,
             <<"groupsCount">> => 3, <<"effectiveGroupsCount">> => 4
         },
-        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/cluster/members_summary">>, get,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
@@ -257,7 +258,7 @@ get_should_return_provider_info_test(Config) ->
         <<"cluster">> => ?PROVIDER_CLUSTER_ID
     },
     ?eachHost(Config, fun(Host) ->
-        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/providers/", ?PROVIDER_ID>>, get,
                 ?OZ_AUTHS(Host, [])
@@ -337,28 +338,28 @@ init_per_testcase(_Case, Config) ->
 
     test_utils:mock_expect(OpNodes, oz_endpoint, request, fun
         (_Auth, "/user/effective_clusters/", get, _Headers, <<>>, _Opts) ->
-            {ok, 200, 0, json_utils:encode(#{clusters => maps:keys(?CLUSTERS)})};
+            {ok, ?HTTP_200_OK, 0, json_utils:encode(#{clusters => maps:keys(?CLUSTERS)})};
         (_Auth, "/clusters/" ++ ?PROVIDER_ID ++ "/users", get, _Headers, <<>>, _Opts) ->
-            {ok, 200, 0, json_utils:encode(#{
+            {ok, ?HTTP_200_OK, 0, json_utils:encode(#{
                 users => [<<"userId1">>]
             })};
         (_Auth, "/clusters/" ++ ?PROVIDER_ID ++ "/effective_users", get, _Headers, <<>>, _Opts) ->
-            {ok, 200, 0, json_utils:encode(#{
+            {ok, ?HTTP_200_OK, 0, json_utils:encode(#{
                 users => [<<"userId1">>, <<"userId2">>]
             })};
         (_Auth, "/clusters/" ++ ?PROVIDER_ID ++ "/groups", get, _Headers, <<>>, _Opts) ->
-            {ok, 200, 0, json_utils:encode(#{
+            {ok, ?HTTP_200_OK, 0, json_utils:encode(#{
                 groups => [<<"groupId1">>, <<"groupId2">>, <<"groupId3">>]
             })};
         (_Auth, "/clusters/" ++ ?PROVIDER_ID ++ "/effective_groups", get, _Headers, <<>>, _Opts) ->
-            {ok, 200, 0, json_utils:encode(#{
+            {ok, ?HTTP_200_OK, 0, json_utils:encode(#{
                 groups => [<<"groupId1">>, <<"groupId2">>, <<"groupId3">>, <<"groupId4">>]
             })};
         (_Auth, "/clusters/" ++ ClusterId, get, _Headers, <<>>, _Opts) ->
             Data = maps:get(list_to_binary(ClusterId), ?CLUSTERS),
-            {ok, 200, 0, json_utils:encode(Data)};
+            {ok, ?HTTP_200_OK, 0, json_utils:encode(Data)};
         (_Auth, "/providers/" ++ ?PROVIDER_ID, get, _Headers, <<>>, _Opts) ->
-            {ok, 200, 0, json_utils:encode(?PROVIDER_DETAILS_REST)}
+            {ok, ?HTTP_200_OK, 0, json_utils:encode(?PROVIDER_DETAILS_REST)}
     end),
 
     Config.

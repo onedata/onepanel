@@ -17,6 +17,7 @@
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
 -include_lib("ctool/include/privileges.hrl").
+-include_lib("ctool/include/http/codes.hrl").
 
 %% export for ct
 -export([all/0, init_per_suite/1, init_per_testcase/2,
@@ -81,7 +82,7 @@ all() ->
 method_should_return_unauthorized_error(Config) ->
     ?run(fun({Endpoint, Method}) ->
         lists:foreach(fun(Auth) ->
-            ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
+            ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _}, onepanel_test_rest:auth_request(
                 Config, Endpoint, Method, Auth
             ))
         end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
@@ -100,7 +101,7 @@ method_should_return_unauthorized_error(Config) ->
 noauth_method_should_return_forbidden_error(Config) ->
     ?run(fun({Endpoint, Method}) ->
         lists:foreach(fun(Auth) ->
-            ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
+            ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
                 Config, Endpoint, Method, Auth
             ))
         end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
@@ -120,7 +121,7 @@ method_should_return_forbidden_error(Config) ->
             _ ->
                 ?OZ_AUTHS(Config, privileges:cluster_admin() -- [?CLUSTER_UPDATE])
         end,
-        ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
+        ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
             Config, Endpoint, Method, Auths
         ))
     end, [
@@ -133,7 +134,7 @@ method_should_return_forbidden_error(Config) ->
 
 method_should_return_not_found_error(Config) ->
     ?run(fun({Endpoint, Method}) ->
-        ?assertMatch({ok, 404, _, _}, onepanel_test_rest:auth_request(
+        ?assertMatch({ok, ?HTTP_404_NOT_FOUND, _, _}, onepanel_test_rest:auth_request(
             Config, Endpoint, Method,
             ?OZ_OR_ROOT_AUTHS(Config, [?CLUSTER_UPDATE])
         ))
@@ -141,7 +142,7 @@ method_should_return_not_found_error(Config) ->
 
 
 noauth_get_should_return_password_status(Config) ->
-    {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+    {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
         onepanel_test_rest:noauth_request(Config, <<"/emergency_passphrase">>, get)
     ),
     Expected = #{<<"isSet">> => true},
@@ -151,7 +152,7 @@ noauth_get_should_return_password_status(Config) ->
 noauth_put_should_set_emergency_passphrase(Config) ->
     NewPassphrase = <<"newPassphrase">>,
 
-    ?assertMatch({ok, 204, _, _}, onepanel_test_rest:noauth_request(
+    ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:noauth_request(
         Config, "/emergency_passphrase", put,
         #{<<"newPassphrase">> => NewPassphrase}
     )).
@@ -162,7 +163,7 @@ put_should_update_emergency_passphrase(Config) ->
     NewPassphrase = <<"newPassphrase">>,
     Auth = onepanel_test_rest:obtain_local_token(Config, OldPassphrase),
 
-    ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
+    ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
         Config, "/emergency_passphrase", put, Auth, #{
             <<"currentPassphrase">> => OldPassphrase,
             <<"newPassphrase">> => NewPassphrase
@@ -178,13 +179,13 @@ passphrase_update_requires_previous_passphrase(Config) ->
     CorrectAuths = ?ROOT_AUTHS(Config),
     IncorrectPassphrase = <<"IncorrectPassphrase">>,
 
-    ?assertMatch({ok, 400, _, _}, onepanel_test_rest:auth_request(
+    ?assertMatch({ok, HTTP_400_BAD_REQUEST, _, _}, onepanel_test_rest:auth_request(
         Config, "/emergency_passphrase", put, CorrectAuths, #{
             <<"currentPassphrase">> => IncorrectPassphrase,
             <<"newPassphrase">> => <<"willNotBeSet">>
         }
     )),
-    ?assertMatch({ok, 400, _, _}, onepanel_test_rest:auth_request(
+    ?assertMatch({ok, HTTP_400_BAD_REQUEST, _, _}, onepanel_test_rest:auth_request(
         Config, "/emergency_passphrase", put, CorrectAuths, #{
             <<"newPassphrase">> => <<"willNotBeSet">>
         }
@@ -193,7 +194,7 @@ passphrase_update_requires_previous_passphrase(Config) ->
 
 
 get_as_admin_should_return_hosts(Config) ->
-    {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+    {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
         onepanel_test_rest:auth_request(Config, <<"/hosts">>, get,
             ?OZ_OR_ROOT_AUTHS(Config, [])
         )
@@ -203,7 +204,7 @@ get_as_admin_should_return_hosts(Config) ->
 
 
 get_as_admin_should_return_cookie(Config) ->
-    {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+    {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
         onepanel_test_rest:auth_request(Config, <<"/cookie">>, get,
             ?OZ_OR_ROOT_AUTHS(Config, [])
         )
@@ -218,7 +219,7 @@ get_should_return_node_details(Config) ->
         <<"clusterType">> => <<"oneprovider">>,
         <<"hostname">> => onepanel_utils:convert(Host, binary)
     },
-    {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+    {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
         onepanel_test_rest:auth_request(Config, <<"/node">>, get,
             ?NONE_AUTHS() ++ ?OZ_OR_ROOT_AUTHS(Config, []))
     ),
@@ -227,7 +228,7 @@ get_should_return_node_details(Config) ->
 
 post_as_admin_should_extend_cluster_and_return_hostname(Config) ->
     Auths = ?OZ_OR_ROOT_AUTHS(Config, [?CLUSTER_UPDATE]),
-    {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+    {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
         onepanel_test_rest:auth_request(
             Config, "/hosts", post, Auths,
             #{address => <<"someAddress">>}
@@ -241,7 +242,7 @@ post_as_admin_should_extend_cluster_and_return_hostname(Config) ->
 
 
 unauthorized_post_should_join_cluster(Config) ->
-    ?assertMatch({ok, 204, _, _}, onepanel_test_rest:noauth_request(
+    ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:noauth_request(
         Config, "/join_cluster?clusterHost=someHost", post,
         #{clusterHost => <<"someHost">>, cookie => ?COOKIE}
     )),
@@ -251,7 +252,7 @@ unauthorized_post_should_join_cluster(Config) ->
 
 
 delete_as_admin_should_remove_node_from_cluster(Config) ->
-    ?assertMatch({ok, 204, _, _}, onepanel_test_rest:auth_request(
+    ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
         Config, "/hosts/" ++ ?CLUSTER_HOST_HOSTNAME, delete,
         ?OZ_OR_ROOT_AUTHS(Config, [?CLUSTER_UPDATE])
     )),

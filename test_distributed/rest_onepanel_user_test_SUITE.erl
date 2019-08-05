@@ -19,6 +19,7 @@
 -include_lib("ctool/include/test/performance.hrl").
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
+-include_lib("ctool/include/http/codes.hrl").
 
 %% export for ct
 -export([all/0, init_per_suite/1, init_per_testcase/2, end_per_testcase/2,
@@ -64,7 +65,7 @@ all() ->
 
 method_should_return_not_found_error(Config) ->
     lists:foreach(fun({Method, Body}) ->
-        ?assertMatch({ok, 404, _, _}, onepanel_test_rest:auth_request(
+        ?assertMatch({ok, ?HTTP_404_NOT_FOUND, _, _}, onepanel_test_rest:auth_request(
             Config, <<"/zone/users/someUser">>, Method,
             ?OZ_OR_ROOT_AUTHS(Config, [?CLUSTER_UPDATE]), Body
         ))
@@ -74,7 +75,7 @@ method_should_return_not_found_error(Config) ->
 method_should_return_unauthorized_error(Config) ->
     lists:foreach(fun({Method, Body}) ->
         lists:foreach(fun(Auth) ->
-            ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
+            ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _}, onepanel_test_rest:auth_request(
                 Config, <<"/zone/users/someUser">>, Method, Auth, Body
             ))
         end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
@@ -83,7 +84,7 @@ method_should_return_unauthorized_error(Config) ->
 
 get_current_user_as_oz_user_should_return_privileges(Config) ->
     lists:foreach(fun(PrivilegeSet) ->
-        {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Config, <<"/user">>, get,
                 ?OZ_AUTHS(Config, PrivilegeSet)
@@ -104,7 +105,7 @@ get_current_user_as_oz_user_should_return_privileges(Config) ->
 
 
 get_current_user_as_root_should_fail(Config) ->
-    ?assertMatch({ok, 404, _, _}, onepanel_test_rest:auth_request(
+    ?assertMatch({ok, ?HTTP_404_NOT_FOUND, _, _}, onepanel_test_rest:auth_request(
         Config, <<"/user">>, get, ?ROOT_AUTHS(Config)
     )).
 
@@ -112,7 +113,7 @@ get_current_user_as_root_should_fail(Config) ->
 get_should_list_oz_users(Config) ->
     Expected = lists:sort(?config(oz_user_ids, Config)),
 
-    {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+    {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
         onepanel_test_rest:auth_request(
             Config, <<"/zone/users">>, get,
             ?OZ_OR_ROOT_AUTHS(Config, [])
@@ -128,7 +129,7 @@ get_should_describe_oz_user(Config) ->
         <<"userId">> => ?USER_ID1, <<"username">> => ?USERNAME1,
         <<"fullName">> => ?FULL_NAME1
     },
-    {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+    {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
         onepanel_test_rest:auth_request(
             Config, <<"/zone/users/", (?USER_ID1)/binary>>, get,
             ?OZ_OR_ROOT_AUTHS(Config, [])
@@ -146,7 +147,7 @@ post_should_create_oz_user(Config) ->
     ],
 
     lists:foreach(fun({Body, Auth}) ->
-        ?assertMatch({ok, 204, _, _},
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
             onepanel_test_rest:auth_request(
                 Config, <<"/zone/users">>, post,
                 Auth, Body
@@ -158,7 +159,7 @@ post_should_create_oz_user(Config) ->
 
 
 patch_should_change_user_password(Config) ->
-    ?assertMatch({ok, 204, _, _},
+    ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
         onepanel_test_rest:auth_request(
             Config, <<"/zone/users/", (?USER_ID1)/binary>>, patch,
             ?OZ_OR_ROOT_AUTHS(Config, [?CLUSTER_UPDATE]),

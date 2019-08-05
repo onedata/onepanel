@@ -16,6 +16,7 @@
 
 -include("modules/errors.hrl").
 -include_lib("eunit/include/eunit.hrl").
+-include_lib("ctool/include/http/codes.hrl").
 
 -define(CLUSTER_ID, "clusterId").
 
@@ -73,13 +74,13 @@ prepare() ->
             receive
                 gui_uploaded ->
                     self() ! gui_uploaded, % preserve this state
-                    {ok, 204, #{}, <<>>}
+                    {ok, ?HTTP_204_NO_CONTENT, #{}, <<>>}
             after
-                0 -> {ok, 400, #{}, <<>>}
+                0 -> {ok, ?HTTP_400_BAD_REQUEST, #{}, <<>>}
             end;
         (provider, "/onp/" ++ ?CLUSTER_ID ++ "/gui-upload", post, _Headers, _Body, _Opts) ->
             self() ! gui_uploaded,
-            {ok, 200, #{}, <<>>};
+            {ok, ?HTTP_200_OK, #{}, <<>>};
         (Auth, URN, Method, Headers, Body, Opts) ->
             error({unexpected_request, {Auth, URN, Method, Headers, Body, Opts}})
     end),

@@ -18,6 +18,7 @@
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/http/codes.hrl").
 
 %% API
 -export([auth_request/4, auth_request/5, auth_request/6, auth_request/7,
@@ -304,7 +305,7 @@ oz_token_auth(UserId, Name, Privileges) ->
 -spec obtain_local_token(HostOrConfig :: config(),
     {Username :: binary(), Auth :: auth()}) -> auth().
 obtain_local_token(HostOrConfig, Auth) ->
-    {ok, _, #{<<"set-cookie">> := CookieHeader}, _} = ?assertMatch({ok, 204, _, _},
+    {ok, _, #{<<"set-cookie">> := CookieHeader}, _} = ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
         auth_request(HostOrConfig, {noprefix, "/login"}, post, Auth)),
 
     SessionCookieKey = gui_session_plugin:session_cookie_key(),
@@ -312,7 +313,7 @@ obtain_local_token(HostOrConfig, Auth) ->
     {SessionCookieKey, SessionCookie} = proplists:lookup(SessionCookieKey, Cookies),
 
     SessionAuth = {cookie, SessionCookieKey, SessionCookie},
-    {ok, _, _, TokenJson} = ?assertMatch({ok, 200, _, _},
+    {ok, _, _, TokenJson} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
         auth_request(HostOrConfig, {noprefix, "/gui-preauthorize"}, post, SessionAuth)),
 
     #{<<"token">> := Token} = json_utils:decode(TokenJson),
