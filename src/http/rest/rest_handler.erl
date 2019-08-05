@@ -17,6 +17,7 @@
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/http/codes.hrl").
 
 %% API
 -export([init/2, allowed_methods/2, content_types_accepted/2,
@@ -311,7 +312,7 @@ delete_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
                 }),
                 {Deleted, Req6, State};
             {true, Req5} ->
-                {stop, cowboy_req:reply(409, Req5), State}
+                {stop, cowboy_req:reply(?HTTP_409_CONFLICT, Req5), State}
         end
     catch
         Type:Reason ->
@@ -334,7 +335,7 @@ handle_options(Req, State) ->
         undefined ->
             % For unregistered provider or not deployed zone
             % there is no need for OPTIONS request
-            {ok, cowboy_req:reply(405, Req), State};
+            {ok, cowboy_req:reply(?HTTP_405_METHOD_NOT_ALLOWED, Req), State};
         Origin ->
             {AllowedMethods, Req2, _} = rest_handler:allowed_methods(Req, State),
 
@@ -385,5 +386,5 @@ accept_resource(Req, Data, #rstate{module = Module, methods = Methods} =
             {Result, Req6} = Module:accept_resource(Req5, Method, Args, State2),
             {Result, Req6, State};
         {true, Req5} ->
-            {stop, cowboy_req:reply(409, Req5), State}
+            {stop, cowboy_req:reply(?HTTP_409_CONFLICT, Req5), State}
     end.

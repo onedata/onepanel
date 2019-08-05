@@ -17,6 +17,7 @@
 
 -include("modules/models.hrl").
 -include("authentication.hrl").
+-include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/onedata.hrl").
 
 -export([handle/2]).
@@ -38,7 +39,7 @@ handle(<<"GET">>, Req) ->
     % get_id/0 throws in an unregistered Oneprovider
     ClusterId = try clusters:get_id() catch _:_ -> null end,
     cowboy_req:reply(
-        200,
+        ?HTTP_200_OK,
         #{<<"content-type">> => <<"application/json">>},
         json_utils:encode(#{
             <<"clusterType">> => onepanel_env:get_cluster_type(),

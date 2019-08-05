@@ -15,6 +15,7 @@
 -include("http/rest.hrl").
 -include("modules/errors.hrl").
 -include_lib("ctool/include/api_errors.hrl").
+-include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/onedata.hrl").
 
@@ -113,9 +114,9 @@ get_user_privileges({rest, RestAuth}, OnezoneUserId) ->
             {ok, #{privileges := Privileges}} ->
                 ListOfAtoms = onepanel_utils:convert(Privileges, {seq, atom}),
                 {true, ListOfAtoms, ?PRIVILEGES_CACHE_TTL};
-            #error{reason = {401, _, _}} ->
+            #error{reason = {?HTTP_401_UNAUTHORIZED, _, _}} ->
                 ?make_error(?ERR_UNAUTHORIZED);
-            #error{reason = {404, _, _}} ->
+            #error{reason = {?HTTP_404_NOT_FOUND, _, _}} ->
                 ?make_error(?ERR_USER_NOT_IN_CLUSTER);
             #error{} = Error -> throw(Error)
         end
@@ -193,9 +194,9 @@ fetch_remote_provider_info({rpc, Client}, ProviderId) ->
 fetch_remote_provider_info({rest, RestAuth}, ProviderId) ->
     URN = "/providers/" ++ binary_to_list(ProviderId),
     case oz_endpoint:request(RestAuth, URN, get) of
-        {ok, 200, _, BodyJson} ->
+        {ok, ?HTTP_200_OK, _, BodyJson} ->
             format_provider_info(json_utils:decode(BodyJson));
-        {ok, 404, _, _} ->
+        {ok, ?HTTP_404_NOT_FOUND, _, _} ->
             ?throw_error(?ERROR_NOT_FOUND)
     end.
 
@@ -240,7 +241,7 @@ zone_rest(Auth, URNFormat, FormatArgs) ->
 zone_rest(Method, Auth, URNFormat, FormatArgs) ->
     URN = str_utils:format(URNFormat, FormatArgs),
     case oz_endpoint:request(Auth, URN, Method) of
-        {ok, 200, _, BodyJson} ->
+        {ok, ?HTTP_200_OK, _, BodyJson} ->
             Parsed = onepanel_utils:convert(json_utils:decode(BodyJson), {keys, atom}),
             {ok, Parsed};
         {ok, Code, Error, Description} ->

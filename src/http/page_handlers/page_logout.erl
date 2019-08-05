@@ -13,6 +13,8 @@
 -module(page_logout).
 -author("Lukasz Opiola").
 
+-include_lib("ctool/include/http/codes.hrl").
+
 -behaviour(dynamic_page_behaviour).
 
 -export([handle/2]).
@@ -28,4 +30,4 @@
 %%--------------------------------------------------------------------
 -spec handle(gui:method(), cowboy_req:req()) -> cowboy_req:req().
 handle(<<"POST">>, Req) ->
-    cowboy_req:reply(303, #{<<"location">> => <<"/">>}, gui_session:log_out(Req)).
+    cowboy_req:reply(?HTTP_303_SEE_OTHER, #{<<"location">> => <<"/">>}, gui_session:log_out(Req)).

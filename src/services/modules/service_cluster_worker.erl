@@ -18,6 +18,7 @@
 -include("names.hrl").
 -include("deployment_progress.hrl").
 -include("modules/onepanel_dns.hrl").
+-include_lib("ctool/include/http/codes.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
 
 -include_lib("ctool/include/logging.hrl").
@@ -253,7 +254,7 @@ get_nagios_response(#{nagios_protocol := Protocol, nagios_port := Port}) ->
 %%--------------------------------------------------------------------
 -spec get_nagios_status(Ctx :: service:ctx()) -> Status :: atom().
 get_nagios_status(Ctx) ->
-    {ok, 200, _Headers, Body} = get_nagios_response(Ctx),
+    {ok, ?HTTP_200_OK, _Headers, Body} = get_nagios_response(Ctx),
 
     {Xml, _} = xmerl_scan:string(onepanel_utils:convert(Body, list)),
     [Status] = [X#xmlAttribute.value || X <- Xml#xmlElement.attributes,

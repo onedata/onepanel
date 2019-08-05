@@ -14,6 +14,7 @@
 -include("modules/errors.hrl").
 -include("names.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/aai/aai.hrl").
 
 %% API
@@ -37,7 +38,7 @@ fetch_zone_info(Domain) ->
     CaCerts = cert_utils:load_ders_in_dir(oz_plugin:get_cacerts_dir()),
     Opts = [{ssl_options, [{cacerts, CaCerts}]}],
     case http_client:get(Url, #{}, <<>>, Opts) of
-        {ok, 200, _, Response} ->
+        {ok, ?HTTP_200_OK, _, Response} ->
             Map = onepanel_utils:convert(json_utils:decode(Response), {keys, atom}),
             #{version := OzVersion, compatibleOneproviderVersions := CompatOps} = Map,
             onepanel_maps:get_store_multiple([

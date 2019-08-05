@@ -15,6 +15,7 @@
 -include("modules/errors.hrl").
 -include("names.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/http/codes.hrl").
 -include("modules/models.hrl").
 -include("service.hrl").
 
@@ -225,7 +226,7 @@ init_cluster(Ctx) ->
     Url = onepanel_utils:join(["http://", Host, ":", Port, "/pools/default"]),
     Timeout = service_ctx:get(couchbase_init_timeout, Ctx, integer),
 
-    {ok, 200, _, _} = http_client:post(
+    {ok, ?HTTP_200_OK, _, _} = http_client:post(
         Url, maps:from_list([
             onepanel_utils:get_basic_auth_header(User, Password),
             {"content-type", "application/x-www-form-urlencoded"}
