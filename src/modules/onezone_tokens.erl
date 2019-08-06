@@ -18,6 +18,7 @@
 -include("modules/models.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
+-include_lib("ctool/include/http/codes.hrl").
 -include_lib("macaroons/src/macaroon.hrl").
 
 %% API
@@ -102,7 +103,7 @@ authenticate_user(oneprovider, Token) ->
 
     case simple_cache:get(?USER_DETAILS_CACHE_KEY(Token), FetchDetailsFun) of
         {ok, {Details, Auth}} -> user_details_to_client(Details, {rest, Auth});
-        #error{reason = {401, _, _}} -> ?make_error(?ERR_INVALID_AUTH_TOKEN)
+        #error{reason = {?HTTP_401_UNAUTHORIZED, _, _}} -> ?make_error(?ERR_INVALID_AUTH_TOKEN)
     end.
 
 
@@ -116,7 +117,7 @@ authenticate_user(oneprovider, Token) ->
 -spec fetch_details(RestAuth :: oz_plugin:auth()) -> {ok, #user_details{}} | #error{}.
 fetch_details(RestAuth) ->
     case oz_endpoint:request(RestAuth, "/user", get) of
-        {ok, 200, _ResponseHeaders, ResponseBody} ->
+        {ok, ?HTTP_200_OK, _ResponseHeaders, ResponseBody} ->
             Map = json_utils:decode(ResponseBody),
             UserDetails = #user_details{
                 id = maps:get(<<"userId">>, Map),

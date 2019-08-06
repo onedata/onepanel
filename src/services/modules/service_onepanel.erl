@@ -17,6 +17,7 @@
 -include("service.hrl").
 -include("deployment_progress.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/http/codes.hrl").
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
@@ -229,9 +230,9 @@ extend_cluster(#{hostname := Hostname, api_version := ApiVersion,
     Url = build_url(Hostname, ApiVersion, Suffix),
 
     case http_client:post(Url, Headers, Body, Opts) of
-        {ok, 403, _, _} ->
+        {ok, ?HTTP_403_FORBIDDEN, _, _} ->
             ?throw_error(?ERR_NODE_NOT_EMPTY(Hostname));
-        {ok, 204, _, _} ->
+        {ok, ?HTTP_204_NO_CONTENT, _, _} ->
             ?info("Host '~s' added to the cluster", [Hostname]),
             #{hostname => Hostname};
         {error, _} ->
@@ -347,7 +348,7 @@ get_remote_node_info(#{address := Address, api_version := ApiVersion} = Ctx) ->
     Headers = #{<<"Content-Type">> => <<"application/json">>},
 
     case http_client:get(Url, Headers, <<>>, Opts) of
-        {ok, 200, _, Body} ->
+        {ok, ?HTTP_200_OK, _, Body} ->
             #{<<"hostname">> := Hostname,
                 <<"clusterType">> := ClusterType} = json_utils:decode(Body),
             {ok, Hostname, onepanel_utils:convert(ClusterType, atom)};

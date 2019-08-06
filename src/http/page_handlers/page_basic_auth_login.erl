@@ -18,6 +18,7 @@
 -include("authentication.hrl").
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
+-include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 -export([handle/2]).
@@ -37,12 +38,12 @@ handle(<<"POST">>, Req) ->
         case rest_auth:authenticate_by_basic_auth(Req) of
             {#client{role = root}, Req2} ->
                 Req3 = gui_session:log_in(?LOCAL_SESSION_USERNAME, Req2),
-                cowboy_req:reply(204, Req3);
+                cowboy_req:reply(?HTTP_204_NO_CONTENT, Req3);
             {#error{} = Error, Req2} ->
                 BodyJson = rest_replier:format_error(undefined, Error),
-                cowboy_req:reply(401, #{}, json_utils:encode(BodyJson), Req2)
+                cowboy_req:reply(?HTTP_401_UNAUTHORIZED, #{}, json_utils:encode(BodyJson), Req2)
         end
     catch Type:Reason ->
         ?error_stacktrace("Login by credentials failed - ~p:~p", [Type, Reason]),
-        cowboy_req:reply(500, Req)
+        cowboy_req:reply(?HTTP_500_INTERNAL_SERVER_ERROR, Req)
     end.

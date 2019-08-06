@@ -19,6 +19,7 @@
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
+-include_lib("ctool/include/http/codes.hrl").
 
 %% export for ct
 -export([all/0, init_per_suite/1, init_per_testcase/2,
@@ -185,10 +186,10 @@ all() ->
 method_should_return_unauthorized_error(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
         lists:foreach(fun({Endpoint, Method}) ->
-            ?assertMatch({ok, 401, _, _}, onepanel_test_rest:noauth_request(
+            ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _}, onepanel_test_rest:noauth_request(
                 Host, <<Prefix/binary, Endpoint/binary>>, Method
             )),
-            ?assertMatch({ok, 401, _, _}, onepanel_test_rest:auth_request(
+            ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _}, onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, Endpoint/binary>>, Method,
                 {<<"someUser">>, <<"somePassword">>}
             ))
@@ -200,7 +201,7 @@ method_should_return_forbidden_error(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
         lists:foreach(fun({Endpoint, Method}) ->
             Auths = ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_UPDATE]),
-            ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
+            ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, Endpoint/binary>>, Method, ?OZ_AUTHS(Host, Auths)
             ))
         end, [{E, M} || {E, M} <- ?COMMON_ENDPOINTS_WITH_METHODS, M /= get])
@@ -211,7 +212,7 @@ method_should_return_service_unavailable_error(Config) ->
     ?run(Config, fun
         ({Host, <<"/provider">> = Prefix}) ->
             lists:foreach(fun({Endpoint, Method}) ->
-                ?assertMatch({ok, 503, _, _}, onepanel_test_rest:auth_request(
+                ?assertMatch({ok, HTTP_503_SERVICE_UNAVAILABLE, _, _}, onepanel_test_rest:auth_request(
                     Host, <<Prefix/binary, Endpoint/binary>>, Method,
                     ?ALL_AUTHS(Host)
                 ))
@@ -228,7 +229,7 @@ method_should_return_service_unavailable_error(Config) ->
 
 method_should_return_not_found_error(Config) ->
     ?run(Config, fun({Host, _}) ->
-        ?assertMatch({ok, 404, _, _}, onepanel_test_rest:auth_request(
+        ?assertMatch({ok, ?HTTP_404_NOT_FOUND, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/tasks/someTaskId">>, get,
             ?OZ_OR_ROOT_AUTHS(Host, [])
         ))
@@ -236,7 +237,7 @@ method_should_return_not_found_error(Config) ->
 
     ?run(Config, fun({Host, Prefix}) ->
         lists:foreach(fun({Endpoint, Method}) ->
-            ?assertMatch({ok, 404, _, _}, onepanel_test_rest:auth_request(
+            ?assertMatch({ok, ?HTTP_404_NOT_FOUND, _, _}, onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, Endpoint/binary>>, Method,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
             ))
@@ -247,7 +248,7 @@ method_should_return_not_found_error(Config) ->
 get_should_return_service_status(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
         lists:foreach(fun(Endpoint) ->
-            {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
                 onepanel_test_rest:auth_request(
                     Host, <<Prefix/binary, Endpoint/binary>>, get,
                     ?OZ_OR_ROOT_AUTHS(Host, [])
@@ -265,7 +266,7 @@ get_should_return_service_status(Config) ->
 get_should_return_service_host_status(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
         lists:foreach(fun({Endpoint, QueryHost}) ->
-            {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
                 onepanel_test_rest:auth_request(
                     Host, <<Prefix/binary, Endpoint/binary, QueryHost/binary>>, get,
                     ?OZ_OR_ROOT_AUTHS(Host, [])
@@ -283,7 +284,7 @@ get_should_return_service_host_status(Config) ->
 get_should_return_service_task_results(Config) ->
     ?run(Config, fun({Host, _}) ->
         lists:foreach(fun({TaskId, Fields, Values}) ->
-            {_, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
                 onepanel_test_rest:auth_request(
                     Host, <<"/tasks/", TaskId/binary>>, get,
                     ?OZ_OR_ROOT_AUTHS(Host, [])
@@ -311,7 +312,7 @@ get_should_return_service_task_results(Config) ->
 
 get_should_return_nagios_response(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
-        ?assertMatch({ok, 200, _, ?NAGIOS_REPORT_XML},
+        ?assertMatch({ok, ?HTTP_200_OK, _, ?NAGIOS_REPORT_XML},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/nagios">>, get,
                 ?OZ_OR_ROOT_AUTHS(Host, [])
@@ -327,7 +328,7 @@ get_should_return_dns_check(Config) ->
     [OpHost | _] = ?config(oneprovider_hosts, Config),
     [OzHost | _] = ?config(onezone_hosts, Config),
 
-    {_, _, _, OpJsonBody} = ?assertMatch({ok, 200, _, _},
+    {_, _, _, OpJsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
         onepanel_test_rest:auth_request(
             OpHost, <<"/dns_check">>, get,
             ?OZ_OR_ROOT_AUTHS(OpHost, [])
@@ -335,7 +336,7 @@ get_should_return_dns_check(Config) ->
     ),
     onepanel_test_rest:assert_body(OpJsonBody, ?DNS_CHECK_JSON_OP),
 
-    {_, _, _, OzJsonBody} = ?assertMatch({ok, 200, _, _},
+    {_, _, _, OzJsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
         onepanel_test_rest:auth_request(
             OzHost, <<"/dns_check">>, get,
             ?OZ_OR_ROOT_AUTHS(OzHost, [])
@@ -349,7 +350,7 @@ patch_should_start_stop_service(Config) ->
         lists:foreach(fun({Service, Endpoint}) ->
             lists:foreach(fun({Action, StartedParam}) ->
                 lists:foreach(fun({Ctx, HostParam}) ->
-                    ?assertMatch({ok, 204, _, _},
+                    ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
                         onepanel_test_rest:auth_request(
                             Host, <<Prefix/binary, Endpoint/binary,
                                 HostParam/binary, StartedParam/binary>>,
@@ -378,7 +379,7 @@ patch_should_start_stop_service(Config) ->
 
 post_should_configure_database_service(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
-        {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
+        {_, _, Headers, _} = ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/databases">>, post,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
@@ -396,7 +397,7 @@ post_should_configure_database_service(Config) ->
 
 post_should_configure_cluster_manager_service(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
-        {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
+        {_, _, Headers, _} = ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/managers">>, post,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
@@ -418,7 +419,7 @@ post_should_configure_cluster_manager_service(Config) ->
 
 post_should_configure_cluster_worker_service(Config) ->
     ?run(Config, fun({Host, {Prefix, Service}}) ->
-        {_, _, Headers, _} = ?assertMatch({ok, 204, _, _},
+        {_, _, Headers, _} = ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/workers">>, post,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
@@ -440,7 +441,7 @@ post_should_configure_cluster_worker_service(Config) ->
 
 post_should_configure_onezone_service(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
-        {_, _, Headers, _} = ?assertMatch({ok, 201, _, _},
+        {_, _, Headers, _} = ?assertMatch({ok, ?HTTP_201_CREATED, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/configuration">>, post,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
@@ -499,7 +500,7 @@ post_should_configure_onezone_service(Config) ->
 
 post_should_configure_oneprovider_service(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
-        {_, _, Headers, _} = ?assertMatch({ok, 201, _, _},
+        {_, _, Headers, _} = ?assertMatch({ok, ?HTTP_201_CREATED, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/configuration">>, post,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
@@ -580,7 +581,7 @@ post_should_configure_oneprovider_service(Config) ->
 
 post_should_return_conflict_on_configured_onezone(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
-        ?assertMatch({ok, 409, _, _},
+        ?assertMatch({ok, HTTP_409_CONFLICT, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/configuration">>, post,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
@@ -598,7 +599,7 @@ post_should_return_conflict_on_configured_onezone(Config) ->
 
 post_should_return_conflict_on_configured_oneprovider(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
-        ?assertMatch({ok, 409, _, _},
+        ?assertMatch({ok, HTTP_409_CONFLICT, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/configuration">>, post,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
@@ -666,10 +667,10 @@ init_per_testcase(get_should_return_nagios_response, Config) ->
     end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
         {service_op_worker, get_nagios_response, {
-            [{'node@host1', {ok, 200, #{}, ?NAGIOS_REPORT_XML}}], []
+            [{'node@host1', {ok, ?HTTP_200_OK, #{}, ?NAGIOS_REPORT_XML}}], []
         }},
         {service_oz_worker, get_nagios_response, {
-            [{'node@host1', {ok, 200, #{}, ?NAGIOS_REPORT_XML}}], []
+            [{'node@host1', {ok, ?HTTP_200_OK, #{}, ?NAGIOS_REPORT_XML}}], []
         }},
         {task_finished, {service, action, ok}}
     ] end),

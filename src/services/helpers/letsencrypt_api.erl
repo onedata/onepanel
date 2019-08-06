@@ -19,6 +19,7 @@
 -include("names.hrl").
 
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/http/codes.hrl").
 -include_lib("public_key/include/OTP-PUB-KEY.hrl").
 -include_lib("kernel/include/inet.hrl").
 
@@ -262,7 +263,7 @@ run_certification_flow(Domain, Plugin, Mode) ->
 %%--------------------------------------------------------------------
 -spec get_directory(#flow_state{}) -> {ok, #flow_state{}}.
 get_directory(#flow_state{directory_url = URL} = State) ->
-    {ok, 200, _, DirectoryMap} = http_get(URL, ?GET_RETRIES),
+    {ok, ?HTTP_200_OK, _, DirectoryMap} = http_get(URL, ?GET_RETRIES),
     {ok, State#flow_state{directory = decode_directory(DirectoryMap)}}.
 
 
@@ -283,7 +284,7 @@ register_account(#flow_state{service = Service} = State) ->
     end,
 
     % 200 is expected when existing account is reused
-    {ok, _, Headers, State2} = post(NewAccountUrl, Payload2, [200, 201], State),
+    {ok, _, Headers, State2} = post(NewAccountUrl, Payload2, [?HTTP_200_OK, ?HTTP_201_CREATED], State),
     {ok, State2#flow_state{account_url = maps:get(<<"Location">>, Headers)}}.
 
 
@@ -350,7 +351,7 @@ create_order(#flow_state{domain = Domain} = State) ->
         <<"value">> => Domain
     }]},
 
-    {ok, Response, Headers, State2} = post(NewOrderURL, Payload, 201, State),
+    {ok, Response, Headers, State2} = post(NewOrderURL, Payload, ?HTTP_201_CREATED, State),
     #{
         <<"authorizations">> := AuthorizationURLs,
         <<"finalize">> := FinalizeURL
@@ -472,7 +473,7 @@ handle_challenge(#flow_state{challenge = Challenge} = State)
 
     ok = Service:set_http_record(Token, AuthString),
 
-    {ok, _, _, State2} = post(URL, #{}, 200, State),
+    {ok, _, _, State2} = post(URL, #{}, ?HTTP_200_OK, State),
     {ok, State2};
 
 handle_challenge(#flow_state{challenge = Challenge} = State)
@@ -494,7 +495,7 @@ handle_challenge(#flow_state{challenge = Challenge} = State)
     wait_for_txt_propagation(?LETSENCRYPT_TXT_NAME, State#flow_state.domain,
         TxtValue, State#flow_state.service),
 
-    {ok, _, _, State2} = post(URL, #{}, 200, State),
+    {ok, _, _, State2} = post(URL, #{}, ?HTTP_200_OK, State),
     {ok, State2}.
 
 
@@ -583,7 +584,7 @@ request_certificate(State) ->
     CSRB64 = base64url:encode(CSRDer),
 
     Payload = #{<<"csr">> => CSRB64},
-    {ok, OrderObject, _, State2} = post(FinalizeURL, Payload, 200, State),
+    {ok, OrderObject, _, State2} = post(FinalizeURL, Payload, ?HTTP_200_OK, State),
     {ok, State2, OrderObject, KeyPem}.
 
 
@@ -709,7 +710,7 @@ http_get(URL, Attempts) ->
 %%--------------------------------------------------------------------
 -spec post_as_get(url(), #flow_state{}) -> request_result() | no_return().
 post_as_get(URL, State) ->
-    post(URL, <<>>, 200, State).
+    post(URL, <<>>, ?HTTP_200_OK, State).
 
 
 %%--------------------------------------------------------------------
@@ -749,10 +750,10 @@ post(URL, Payload, OkCodes, #flow_state{} = State, Attempts) ->
                     OkCodesStr = onepanel_utils:join(OkCodes, <<" or ">>),
                     % Identify errors deserving customized handling
                     case {Status, Response} of
-                        {400, #{<<"type">> := <<"urn:ietf:params:acme:error:badNonce">>}} ->
+                        {?HTTP_400_BAD_REQUEST, #{<<"type">> := <<"urn:ietf:params:acme:error:badNonce">>}} ->
                             % badNonce - retry with newly received nonce
                             post(URL, Payload, OkCodes, push_nonce(Headers, State2), Attempts - 1);
-                        {400, #{
+                        {?HTTP_400_BAD_REQUEST, #{
                             <<"type">> := <<"urn:ietf:params:acme:error:connection">>,
                             <<"detail">> := ErrorMessage}} ->
                             % Handled as a special case to provide explanation for the user
@@ -761,7 +762,7 @@ post(URL, Payload, OkCodes, #flow_state{} = State, Attempts) ->
                                 [Status, OkCodesStr, Headers, Response]),
                             ?throw_error(?ERR_LETSENCRYPT_AUTHORIZATION(ErrorMessage),
                                 [URL, '', OkCodes, '', Attempts]);
-                        {429, #{<<"type">> := ErrorType, <<"detail">> := ErrorMessage}} ->
+                        {?HTTP_429_TOO_MANY_REQUESTS, #{<<"type">> := ErrorType, <<"detail">> := ErrorMessage}} ->
                             % Rate limits reached error
                             % Handled as a special case to provide explanation for the user
                             ?error(
@@ -846,7 +847,7 @@ get_jwk_or_kid(#flow_state{account_url = AccountUrl}) when is_binary(AccountUrl)
 pop_nonce(#flow_state{nonces = [Nonce | Rest]} = State) ->
     {Nonce, State#flow_state{nonces = Rest}};
 pop_nonce(#flow_state{nonces = [], directory = Directory} = State) ->
-    {ok, 200, Headers} = http_client:request(head, Directory#directory.new_nonce),
+    {ok, ?HTTP_200_OK, Headers} = http_client:request(head, Directory#directory.new_nonce),
     pop_nonce(push_nonce(Headers, State)).
 
 

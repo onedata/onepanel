@@ -20,12 +20,13 @@
 -include("modules/models.hrl").
 -include("deployment_progress.hrl").
 -include("authentication.hrl").
+-include_lib("ctool/include/aai/macaroons.hrl").
+-include_lib("ctool/include/api_errors.hrl").
+-include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/onedata.hrl").
 -include_lib("ctool/include/oz/oz_spaces.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
--include_lib("ctool/include/logging.hrl").
--include_lib("ctool/include/api_errors.hrl").
--include_lib("ctool/include/aai/macaroons.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
 
 -include("http/rest.hrl").
@@ -401,7 +402,7 @@ check_oz_availability(Ctx) ->
     end,
 
     case http_client:get(Url, #{}, <<>>, Opts) of
-        {ok, 200, _Headers, Body} ->
+        {ok, ?HTTP_200_OK, _Headers, Body} ->
             {Xml, _} = xmerl_scan:string(onepanel_utils:convert(Body, list)),
             [Status] = [X#xmlAttribute.value || X <- Xml#xmlElement.attributes,
                 X#xmlAttribute.name == status],
@@ -1019,8 +1020,8 @@ get_details_by_graph_sync() ->
 %% @private
 -spec get_details_by_rest() -> #{atom() := term()} | no_return().
 get_details_by_rest() ->
-    {ok, 200, _, ProviderDetailsBody} = oz_endpoint:request(provider, "/provider", get),
-    {ok, 200, _, DomainConfigBody} = oz_endpoint:request(provider, "/provider/domain_config", get),
+    {ok, ?HTTP_200_OK, _, ProviderDetailsBody} = oz_endpoint:request(provider, "/provider", get),
+    {ok, ?HTTP_200_OK, _, DomainConfigBody} = oz_endpoint:request(provider, "/provider/domain_config", get),
     ProviderDetails = json_utils:decode(ProviderDetailsBody),
     DomainConfig = json_utils:decode(DomainConfigBody),
     OzDomain = onepanel_utils:convert(get_oz_domain(), binary),
@@ -1135,8 +1136,8 @@ update_version_info(GuiHash) ->
     ),
 
     case Result of
-        {ok, 204, _, _} -> ok;
-        {ok, 400, _, _} -> {error, inexistent_gui_version}
+        {ok, ?HTTP_204_NO_CONTENT, _, _} -> ok;
+        {ok, ?HTTP_400_BAD_REQUEST, _, _} -> {error, inexistent_gui_version}
     end.
 
 
@@ -1158,11 +1159,11 @@ upload_onepanel_gui() ->
     ),
 
     case Result of
-        {ok, 200, _, _} ->
+        {ok, ?HTTP_200_OK, _, _} ->
             ok;
         Other ->
             try
-                {ok, 400, _, Body} = Other,
+                {ok, ?HTTP_400_BAD_REQUEST, _, Body} = Other,
                 {error, json_utils:decode(Body)}
             catch _:_ ->
                 {error, {unexpected_gui_upload_result, Other}}

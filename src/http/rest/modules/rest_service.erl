@@ -16,6 +16,7 @@
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include("names.hrl").
+-include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/privileges.hrl").
 
@@ -351,10 +352,10 @@ provide_resource(Req, #rstate{resource = nagios} = State) ->
             Req2 = cowboy_req:reply(Code, Headers, Body, Req),
             {stop, Req2, State};
         {error, econnrefused} ->
-            Req2 = cowboy_req:reply(503, #{}, Req),
+            Req2 = cowboy_req:reply(?HTTP_503_SERVICE_UNAVAILABLE, #{}, Req),
             {stop, Req2, State};
         {error, timeout} ->
-            Req2 = cowboy_req:reply(503, #{}, Req),
+            Req2 = cowboy_req:reply(?HTTP_503_SERVICE_UNAVAILABLE, #{}, Req),
             {stop, Req2, State}
     end;
 
