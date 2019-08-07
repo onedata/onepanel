@@ -81,10 +81,15 @@ reply_with_error(Req, Type, Reason) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec error_code(Type :: atom(), Reason :: term()) -> cowboy:http_status().
-error_code(_Type, #error{reason = ?ERR_NOT_FOUND}) -> ?HTTP_404_NOT_FOUND;
-error_code(_Type, #error{reason = ?ERR_NODE_DOWN}) -> ?HTTP_503_SERVICE_UNAVAILABLE;
-error_code(_Type, #error{}) -> ?HTTP_500_INTERNAL_SERVER_ERROR;
-error_code(Type, Reason) -> error_code(Type, ?make_error(Reason)).
+error_code(_Type, #error{reason = Reason}) ->
+    case Reason of
+        ?ERR_NOT_FOUND -> ?HTTP_404_NOT_FOUND;
+        ?ERR_NODE_DOWN -> ?HTTP_503_SERVICE_UNAVAILABLE;
+        _ -> ?HTTP_500_INTERNAL_SERVER_ERROR
+    end;
+
+error_code(Type, Reason) ->
+    error_code(Type, ?make_error(Reason)).
 
 
 %%--------------------------------------------------------------------
