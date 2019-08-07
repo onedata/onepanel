@@ -619,11 +619,11 @@ is_space_supported(#{space_id := Id}) ->
 %% @doc Returns details of the space given by ID.
 %% @end
 %%--------------------------------------------------------------------
--spec get_space_details(Ctx :: service:ctx()) -> list().
+-spec get_space_details(Ctx :: service:ctx()) -> proplists:proplist().
 get_space_details(#{id := SpaceId}) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
-    {ok, #space_details{id = Id, name = Name, providers_supports = Providers}} =
-        oz_providers:get_space_details(provider, SpaceId),
+    {ok, #{name := Name, providers := Providers}} =
+        rpc:call(Node, space_logic, get_as_map, [SpaceId]),
     StorageIds = op_worker_storage:get_supporting_storages(Node, SpaceId),
     StorageId = hd(StorageIds),
     MountInRoot = op_worker_storage:is_mounted_in_root(Node, SpaceId, StorageId),
@@ -635,7 +635,7 @@ get_space_details(#{id := SpaceId}) ->
     ),
     CurrentSize = rpc:call(Node, space_quota, current_size, [SpaceId]),
     [
-        {id, Id},
+        {id, SpaceId},
         {name, Name},
         {supportingProviders, Providers},
         {storageId, StorageId},

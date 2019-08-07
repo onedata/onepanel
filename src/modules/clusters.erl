@@ -246,6 +246,8 @@ zone_rest(Method, Auth, URNFormat, FormatArgs) ->
             {ok, Parsed};
         {ok, Code, Error, Description} ->
             ?make_error({Code, Error, Description});
+        {error, econnrefused} ->
+            ?make_error(?ERR_ONEZONE_NOT_AVAILABLE);
         {error, Reason} ->
             ?make_error(Reason)
     end.
