@@ -127,16 +127,21 @@ get_steps(Action, Ctx) ->
 %%--------------------------------------------------------------------
 -spec get_compatible_onezones() -> [binary()].
 get_compatible_onezones() ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
     % Try to retrieve oneprovider version from op worker.
     % When opw is not responding use onepanel version instead.
-    OpVersion = case rpc:call(Node, oneprovider, get_version, []) of
-        {badrpc, _} ->
-            {_, V} = onepanel_app:get_build_and_version(),
-            V;
-        V ->
-            V
+    {_, PanelVersion} = onepanel_app:get_build_and_version(),
+    OpVersion = case nodes:any(?SERVICE_OPW) of
+        {ok, Node} ->
+            case rpc:call(Node, oneprovider, get_version, []) of
+                {badrpc, _} ->
+                    PanelVersion;
+                V ->
+                    V
+            end;
+        _ ->
+            PanelVersion
     end,
+
     {ok, Versions} = compatibility:get_compatible_versions(
         ?ONEPROVIDER, OpVersion, ?ONEZONE),
     Versions.
