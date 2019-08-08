@@ -54,7 +54,11 @@
     ]},
 
     {ctool, [
-        {verify_oz_cert, true}
+        {verify_oz_cert, true},
+
+        % Path to the JSON file holding information about services
+        % compatibility and verified gui hashes.
+        {compatibility_registry_path, "{{platform_etc_dir}}/compatibility.json"}
     ]},
 
     %% onepanel config

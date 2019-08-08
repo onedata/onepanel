@@ -1,5 +1,10 @@
 %% plugins
-{plugins, [rebar3_hex, rebar3_elixir]}.
+{plugins, [rebar3_hex, rebar3_elixir,
+    {rebar_raw_resource,
+        {git, "git://github.com/tburghart/rebar_raw_resource.git", {ref, "0.5.0"}}
+    }
+]}.
+
 
 {erl_first_files, [
     "src/modules/models/model_behaviour.erl",
@@ -27,6 +32,7 @@
 ]}.
 
 {deps, [
+    {onedata_documentation, {raw, {git, "ssh://git@git.onedata.org:7999/vfs/onedata-documentation.git", {ref, "4532732f5c"}}}},
     {ctool, {git, "ssh://git@git.onedata.org:7999/vfs/ctool.git", {ref, "1cdddb2c94"}}},
     {gui, {git, "ssh://git@git.onedata.org:7999/vfs/gui.git", {ref, "c193672cd1"}}},
     {yamerl, {git, "git://github.com/yakaz/yamerl.git", {ref, "3f46bf06b9"}}}
@@ -107,6 +113,9 @@
         %% Copy cert dirs
         {copy, "rel/files/certs", "etc/"},
         {copy, "rel/files/cacerts", "etc/"},
+
+        % Copy compatibility reference
+        {copy, "_build/default/lib/onedata_documentation/doc/compatibility_reference/compatibility.json", "./etc/"},
 
         %% Copy additional data files
         {mkdir, "data"},
