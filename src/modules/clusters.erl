@@ -206,7 +206,7 @@ fetch_remote_provider_info({rest, RestAuth}, ProviderId) ->
 %% Obtains token which enables a Onezone user to join current cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec create_user_invite_token() -> {ok, Token :: binary()} | #error{}.
+-spec create_user_invite_token() -> {ok, tokens:serialized()} | #error{}.
 create_user_invite_token() ->
     create_user_invite_token(onezone_client:root_auth()).
 
@@ -317,11 +317,11 @@ get_members_count({rpc, Auth}, UsersOrGroups, DirectOrEffective) ->
 
 %% @private
 -spec create_user_invite_token(rest_handler:zone_auth()) ->
-    {ok, Token :: binary()} | #error{}.
+    {ok, tokens:serialized()} | #error{}.
 create_user_invite_token({rpc, Auth}) ->
     case zone_rpc(cluster_logic, create_user_invite_token,
         [Auth, get_id()]) of
-        {ok, Macaroon} -> macaroons:serialize(Macaroon);
+        {ok, Token} -> macaroons:serialize(Token);
         Error -> Error
     end;
 

@@ -303,8 +303,8 @@ init_per_testcase(_Case, Config) ->
     {_, []} = rpc:multicall(OzNodes, service, save, [#service{
         name = onezone}]),
 
-    test_utils:mock_expect(OpNodes, service_oneprovider, get_auth_token,
-        fun() -> <<"providerMacaroon">> end),
+    test_utils:mock_expect(OpNodes, service_oneprovider, get_access_token,
+        fun() -> <<"providerToken">> end),
     test_utils:mock_expect(OpNodes, service_oneprovider, get_id,
         fun() -> <<?PROVIDER_ID>> end),
 
