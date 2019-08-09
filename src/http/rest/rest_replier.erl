@@ -85,6 +85,7 @@ error_code(_Type, #error{reason = Reason}) ->
     case Reason of
         ?ERR_NOT_FOUND -> ?HTTP_404_NOT_FOUND;
         ?ERR_NODE_DOWN -> ?HTTP_503_SERVICE_UNAVAILABLE;
+        ?ERR_ONEZONE_NOT_AVAILABLE -> ?HTTP_503_SERVICE_UNAVAILABLE;
         _ -> ?HTTP_500_INTERNAL_SERVER_ERROR
     end;
 
