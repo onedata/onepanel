@@ -18,7 +18,7 @@
 
 -behaviour(oz_plugin_behaviour).
 
--type auth() :: none | provider | {gui_token, binary()} | {access_token, binary()}.
+-type auth() :: none | provider | {gui_token | access_token, tokens:serialized()}.
 -export_type([auth/0]).
 
 %% OZ behaviour callbacks
