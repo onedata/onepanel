@@ -20,7 +20,7 @@
 -include("modules/models.hrl").
 -include("deployment_progress.hrl").
 -include("authentication.hrl").
--include_lib("ctool/include/aai/macaroons.hrl").
+-include_lib("ctool/include/aai/aai.hrl").
 -include_lib("ctool/include/api_errors.hrl").
 -include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/logging.hrl").
@@ -46,10 +46,10 @@
     get_file_popularity_configuration/1, get_auto_cleaning_configuration/1]).
 -export([set_up_service_in_onezone/0]).
 -export([pop_legacy_letsencrypt_config/0]).
--export([get_id/0, get_auth_token/0]).
+-export([get_id/0, get_access_token/0]).
 
 % Internal RPC
--export([auth_macaroon_from_file/0]).
+-export([root_token_from_file/0]).
 
 -define(OZ_DOMAIN_CACHE, oz_domain).
 -define(OZ_DOMAIN_CACHE_TTL, timer:minutes(1)).
@@ -469,9 +469,9 @@ register(Ctx) ->
         {error, Reason} ->
             ?throw_error(Reason);
         {ok, #{<<"providerId">> := ProviderId,
-            <<"macaroon">> := Macaroon}} ->
+            <<"providerRootToken">> := RootToken}} ->
 
-            on_registered(OpwNode, ProviderId, Macaroon),
+            on_registered(OpwNode, ProviderId, RootToken),
             {ok, ProviderId}
     end.
 
@@ -516,13 +516,13 @@ modify_details(Ctx) ->
             ok = rpc:call(Node, provider_logic, update, [Params])
     end.
 
--spec get_auth_token() -> Macaroon :: binary().
-get_auth_token() ->
+-spec get_access_token() -> tokens:serialized().
+get_access_token() ->
     OpNode = nodes:local(?SERVICE_OPW),
-    case rpc:call(OpNode, provider_auth, get_auth_macaroon, []) of
-        {ok, <<Macaroon/binary>>} -> Macaroon;
+    case rpc:call(OpNode, provider_auth, get_access_token, []) of
+        {ok, <<Token/binary>>} -> Token;
         ?ERROR_UNREGISTERED_PROVIDER = Error -> ?make_error(Error);
-        _ -> auth_macaroon_from_file()
+        _ -> root_token_from_file()
     end.
 
 
@@ -907,25 +907,22 @@ set_up_service_in_onezone() ->
 
 %%--------------------------------------------------------------------
 %% @private
-%% @doc Reads provider root macaroon stored in a file
+%% @doc Reads provider root token stored in a file
 %% and returns it with an time caveat added.
 %% @end
 %%--------------------------------------------------------------------
--spec auth_macaroon_from_file() -> Macaroon :: binary().
-auth_macaroon_from_file() ->
+-spec root_token_from_file() -> tokens:serialized().
+root_token_from_file() ->
     Self = node(),
     % ensure correct node for reading op_worker configuration
     case nodes:onepanel_with(?SERVICE_OPW) of
         {_, Self} ->
-            {ok, RootMacaroonB64} = onepanel_maps:get(root_macaroon, read_auth_file()),
+            {ok, RootTokenBin} = onepanel_maps:get(
+                root_macaroon, read_auth_file()),
             {ok, TTL} = onepanel_env:read_effective(
-                [?SERVICE_OPW, provider_macaroon_ttl_sec], ?SERVICE_OPW),
-
-            {ok, RootMacaroon} = macaroons:deserialize(RootMacaroonB64),
-            Caveat = ?TIME_CAVEAT(time_utils:system_time_seconds(), TTL),
-            Limited = macaroons:add_caveat(RootMacaroon, Caveat),
-            {ok, Macaroon} = macaroons:serialize(Limited),
-            Macaroon;
+                [?SERVICE_OPW, provider_token_ttl_sec], ?SERVICE_OPW),
+            Now = time_utils:system_time_seconds(),
+            tokens:confine(RootTokenBin, #cv_time{valid_until = Now + TTL});
         {ok, Other} ->
             <<_/binary>> = rpc:call(Other, ?MODULE, ?FUNCTION_NAME, [])
     end.
@@ -937,7 +934,7 @@ auth_macaroon_from_file() ->
 
 %%--------------------------------------------------------------------
 %% @private
-%% @doc Reads provider Id and root macaroon from a file where they are stored.
+%% @doc Reads provider Id and root token from a file where they are stored.
 %% @end
 %%--------------------------------------------------------------------
 -spec read_auth_file() -> #{provider_id := binary(), root_macaroon := binary()}.
@@ -958,9 +955,9 @@ read_auth_file() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec on_registered(OpwNode :: node(), ProviderId :: binary(),
-    Macaroon :: binary()) -> ok.
-on_registered(OpwNode, ProviderId, Macaroon) ->
-    save_provider_auth(OpwNode, ProviderId, Macaroon),
+    tokens:serialized()) -> ok.
+on_registered(OpwNode, ProviderId, RootToken) ->
+    save_provider_auth(OpwNode, ProviderId, RootToken),
     service:update_ctx(name(), #{registered => true}),
 
     % Force connection healthcheck
@@ -973,15 +970,15 @@ on_registered(OpwNode, ProviderId, Macaroon) ->
 
 
 -spec save_provider_auth(OpwNode :: node(), ProviderId :: binary(),
-    Macaroon :: binary()) -> ok.
-save_provider_auth(OpwNode, ProviderId, Macaroon) ->
-    ok = rpc:call(OpwNode, provider_auth, save, [ProviderId, Macaroon]),
+    tokens:serialized()) -> ok.
+save_provider_auth(OpwNode, ProviderId, RootToken) ->
+    ok = rpc:call(OpwNode, provider_auth, save, [ProviderId, RootToken]),
 
     PanelNodes = nodes:all(?SERVICE_PANEL),
-    MacaroonPath = rpc:call(OpwNode, provider_auth, get_root_macaroon_file_path, []),
+    RootTokenPath = rpc:call(OpwNode, provider_auth, get_root_macaroon_file_path, []),
     onepanel_env:write(PanelNodes, [?SERVICE_PANEL, op_worker_root_macaroon_path],
-        MacaroonPath, onepanel_env:get_config_path(?SERVICE_PANEL, generated)),
-    onepanel_env:set(PanelNodes, op_worker_root_macaroon_path, MacaroonPath, ?APP_NAME),
+        RootTokenPath, onepanel_env:get_config_path(?SERVICE_PANEL, generated)),
+    onepanel_env:set(PanelNodes, op_worker_root_macaroon_path, RootTokenPath, ?APP_NAME),
     ok.
 
 
