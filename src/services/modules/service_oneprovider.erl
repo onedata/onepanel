@@ -34,6 +34,8 @@
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
+-export([get_details_by_graph_sync/0, get_details_by_rest/0]).
+
 %% API
 -export([configure/1, check_oz_availability/1, mark_configured/0,
     register/1, unregister/0, is_registered/1, is_registered/0,
@@ -53,6 +55,7 @@
 
 -define(OZ_DOMAIN_CACHE, oz_domain).
 -define(OZ_DOMAIN_CACHE_TTL, timer:minutes(1)).
+-define(DETAILS_PERSISTENCE, provider_details).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -488,7 +491,7 @@ unregister() ->
     rpc:call(Node, oneprovider, on_deregister, []),
     onepanel_deployment:unset_marker(?PROGRESS_LETSENCRYPT_CONFIG),
     service:update_ctx(name(), fun(ServiceCtx) ->
-        maps:without([cluster, cluster_id],
+        maps:without([cluster, cluster_id, ?DETAILS_PERSISTENCE],
             ServiceCtx#{registered => false})
     end).
 
@@ -521,7 +524,7 @@ get_access_token() ->
     OpNode = nodes:local(?SERVICE_OPW),
     case rpc:call(OpNode, provider_auth, get_access_token, []) of
         {ok, <<Token/binary>>} -> Token;
-        ?ERROR_UNREGISTERED_PROVIDER = Error -> ?make_error(Error);
+        ?ERROR_UNREGISTERED_PROVIDER = Error -> ?throw_error(Error);
         _ -> root_token_from_file()
     end.
 
@@ -532,9 +535,19 @@ get_access_token() ->
 %%--------------------------------------------------------------------
 -spec get_details() -> #{atom() := term()} | no_return().
 get_details() ->
-    case service_op_worker:is_connected_to_oz() of
-        true -> get_details_by_graph_sync();
-        false -> get_details_by_rest()
+    try
+        case service_op_worker:is_connected_to_oz() of
+            true -> get_details_by_graph_sync();
+            false -> get_details_by_rest()
+        end
+    catch
+        Type:#error{reason = unregistered_provider} = Error ->
+            erlang:Type(Error);
+        Type:Error ->
+            case service:get_ctx(name()) of
+                #{?DETAILS_PERSISTENCE := Cached} -> Cached;
+                _ -> erlang:Type(Error)
+            end
     end.
 
 
@@ -606,11 +619,11 @@ is_space_supported(#{space_id := Id}) ->
 %% @doc Returns details of the space given by ID.
 %% @end
 %%--------------------------------------------------------------------
--spec get_space_details(Ctx :: service:ctx()) -> list().
+-spec get_space_details(Ctx :: service:ctx()) -> proplists:proplist().
 get_space_details(#{id := SpaceId}) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
-    {ok, #space_details{id = Id, name = Name, providers_supports = Providers}} =
-        oz_providers:get_space_details(provider, SpaceId),
+    {ok, #{name := Name, providers := Providers}} =
+        rpc:call(Node, space_logic, get_as_map, [SpaceId]),
     StorageIds = op_worker_storage:get_supporting_storages(Node, SpaceId),
     StorageId = hd(StorageIds),
     MountInRoot = op_worker_storage:is_mounted_in_root(Node, SpaceId, StorageId),
@@ -622,7 +635,7 @@ get_space_details(#{id := SpaceId}) ->
     ),
     CurrentSize = rpc:call(Node, space_quota, current_size, [SpaceId]),
     [
-        {id, Id},
+        {id, SpaceId},
         {name, Name},
         {supportingProviders, Providers},
         {storageId, StorageId},
@@ -966,6 +979,7 @@ on_registered(OpwNode, ProviderId, RootToken) ->
 
     % preload cache
     (catch clusters:get_current_cluster()),
+    (catch get_details()),
     ok.
 
 
@@ -1008,10 +1022,12 @@ get_details_by_graph_sync() ->
         onezoneDomainName => onepanel_utils:convert(OzDomain, binary)
     },
 
-    case maps:get(subdomain_delegation, Details) of
+    Result = case maps:get(subdomain_delegation, Details) of
         true -> Response2#{subdomain => maps:get(subdomain, Details)};
         _ -> Response2
-    end.
+    end,
+    service:update_ctx(name(), #{?DETAILS_PERSISTENCE => Result}),
+    Result.
 
 
 %% @private
