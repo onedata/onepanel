@@ -197,7 +197,7 @@ fetch_remote_provider_info({rest, RestAuth}, ProviderId) ->
         {ok, ?HTTP_200_OK, _, BodyJson} ->
             format_provider_info(json_utils:decode(BodyJson));
         {ok, ?HTTP_404_NOT_FOUND, _, _} ->
-            ?throw_error(?ERROR_NOT_FOUND)
+            ?throw_error(?ERR_NOT_FOUND)
     end.
 
 

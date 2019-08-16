@@ -31,12 +31,16 @@ end).
 
 %%--------------------------------------------------------------------
 %% @doc Creates an error record.
+%% Unpacks 'error', 'badmatch', 'case_clause', 'try_clause' errors if the reason
+%% term is an #error{} record.
+%% Even reasons in the form {error, term()} (when term is not #error) are not
+%% unpacked, to allow matching them to api_errors.hrl macros.
 %% @end
 %%--------------------------------------------------------------------
 -spec create(Module :: module(), Function :: atom(), Arity :: arity(),
     Args :: term(), Reason :: term(), Stacktrace :: term(), Line :: non_neg_integer()) ->
     #error{}.
-create(Module, Function, Arity, Args, {error, Reason}, Stacktrace, Line) ->
+create(Module, Function, Arity, Args, {error, #error{} = Reason}, Stacktrace, Line) ->
     create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
 create(Module, Function, Arity, Args, {badmatch, #error{} = Reason}, Stacktrace, Line) ->
     create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
