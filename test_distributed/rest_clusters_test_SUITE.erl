@@ -315,21 +315,21 @@ init_per_testcase(_Case, Config) ->
         fun() -> #{name => undefined, domain => OzDomain} end),
 
     test_utils:mock_expect(OzNodes, rpc, call, fun
-        (_Node, user_logic, get_clusters, [_Client]) ->
+        (_Node, rpc_api, get_clusters_by_user_auth, [_Client]) ->
             {ok, maps:keys(?CLUSTERS)};
-        (_Node, cluster_logic, get_protected_data, [_Client, ClusterId]) ->
+        (_Node, rpc_api, get_protected_cluster_data, [_Client, ClusterId]) ->
             {ok, maps:get(ClusterId, ?CLUSTERS)};
 
-        (_Node, cluster_logic, get_users, [_Client, _ClusterId]) ->
+        (_Node, rpc_api, cluster_logic_get_users, [_Client, _ClusterId]) ->
             {ok, [<<"userId1">>]};
-        (_Node, cluster_logic, get_eff_users, [_Client, _ClusterId]) ->
+        (_Node, rpc_api, cluster_logic_get_eff_users, [_Client, _ClusterId]) ->
             {ok, [<<"userId1">>, <<"userId2">>]};
-        (_Node, cluster_logic, get_groups, [_Client, _ClusterId]) ->
+        (_Node, rpc_api, cluster_logic_get_groups, [_Client, _ClusterId]) ->
             {ok, [<<"groupId1">>, <<"groupId2">>, <<"groupId3">>]};
-        (_Node, cluster_logic, get_eff_groups, [_Client, _ClusterId]) ->
+        (_Node, rpc_api, cluster_logic_get_eff_groups, [_Client, _ClusterId]) ->
             {ok, [<<"groupId1">>, <<"groupId2">>, <<"groupId3">>, <<"groupId4">>]};
 
-        (_Node, provider_logic, get_protected_data, [_Client, ProviderId]) ->
+        (_Node, rpc_api, get_protected_provider_data, [_Client, ProviderId]) ->
             ?assertEqual(<<?PROVIDER_ID>>, ProviderId),
             {ok, ?PROVIDER_DETAILS_RPC};
         (Node, Module, Function, Args) ->
