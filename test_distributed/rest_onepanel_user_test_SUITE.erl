@@ -194,7 +194,7 @@ init_per_testcase(get_should_list_oz_users, Config) ->
     UserIds = [?USER_ID1, ?USER_ID2],
     test_utils:mock_new(Nodes, [onezone_users]),
     test_utils:mock_expect(Nodes, rpc, call, fun
-        (_, user_logic, list, [?ROOT]) -> {ok, UserIds};
+        (_, rpc_api, list_users, [?ROOT]) -> {ok, UserIds};
         (Node, M, F, A) -> meck:passthrough([Node, M, F, A])
     end),
     [{oz_user_ids, UserIds} | Config2];
@@ -207,9 +207,9 @@ init_per_testcase(Case, Config) when
     Nodes = ?config(onepanel_nodes, Config),
     test_utils:mock_new(Nodes, [onezone_users]),
     test_utils:mock_expect(Nodes, rpc, call, fun
-        (_, user_logic, exists, [UserId]) -> UserId == ?USER_ID1;
-        (_, user_logic, set_password, [?ROOT, _UserId, _Password]) -> ok;
-        (_, user_logic, get_as_user_details, [?ROOT, ?USER_ID1]) ->
+        (_, rpc_api, user_exists, [UserId]) -> UserId == ?USER_ID1;
+        (_, rpc_api, set_user_password, [?ROOT, _UserId, _Password]) -> ok;
+        (_, rpc_api, get_user_details, [?ROOT, ?USER_ID1]) ->
             {ok, #user_details{id = ?USER_ID1, username = ?USERNAME1, full_name = ?FULL_NAME1}};
         (Node, M, F, A) -> meck:passthrough([Node, M, F, A])
     end),
@@ -221,11 +221,11 @@ init_per_testcase(post_should_create_oz_user, Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     test_utils:mock_new(Nodes, [onezone_users]),
     test_utils:mock_expect(Nodes, rpc, call, fun
-        (_, user_logic, create, [?ROOT, #{<<"username">> := ?USERNAME1}]) ->
+        (_, rpc_api, create_user, [?ROOT, #{<<"username">> := ?USERNAME1}]) ->
             {ok, ?USER_ID1};
-        (_, user_logic, create, [?ROOT, #{<<"username">> := ?USERNAME2}]) ->
+        (_, rpc_api, create_user, [?ROOT, #{<<"username">> := ?USERNAME2}]) ->
             {ok, ?USER_ID2};
-        (_, group_logic, add_user, [?ROOT, _GroupId, _UserId]) ->
+        (_, rpc_api, add_user_to_group, [?ROOT, _GroupId, _UserId]) ->
             {ok, <<"groupId">>};
         (Node, M, F, A) ->
             meck:passthrough([Node, M, F, A])
