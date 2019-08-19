@@ -22,19 +22,14 @@
 -include_lib("ctool/include/oz/oz_users.hrl").
 
 % @formatter:off
--define(CALL(Args),
-    begin
-        {ok, __OzNode} = nodes:any(?SERVICE_OZW),
-        case rpc:call(__OzNode, rpc_api, ?FUNCTION_NAME, Args) of
-            {badrpc, _} = __Error -> ?throw_error(__Error);
-            __Result -> __Result
-        end
-    end).
-
 -define(CALL(Node, Args),
     case rpc:call(Node, rpc_api, ?FUNCTION_NAME, Args) of
         {badrpc, _} = __Error -> ?throw_error(__Error);
         __Result -> __Result
+    end).
+
+-define(CALL(Args), begin
+        ?CALL(element(2, {ok, _} = nodes:any(?SERVICE_OZW)), Args)
     end).
 % @formatter:on
 
