@@ -132,7 +132,7 @@ get_compatible_onezones() ->
     {_, PanelVersion} = onepanel_app:get_build_and_version(),
     OpVersion = case nodes:any(?SERVICE_OPW) of
         {ok, Node} ->
-            case rpc:call(Node, oneprovider, get_version, []) of
+            case op_worker_rpc:get_op_worker_version(Node) of
                 {badrpc, _} ->
                     PanelVersion;
                 V ->
@@ -155,7 +155,7 @@ get_compatible_onezones() ->
 -spec is_connected_to_oz() -> boolean().
 is_connected_to_oz() ->
     case nodes:any(?SERVICE_OPW) of
-        {ok, Node} -> true == rpc:call(Node, oneprovider, is_connected_to_oz, []);
+        {ok, Node} -> true == op_worker_rpc:is_connected_to_oz(Node);
         _ -> false
     end.
 
@@ -370,7 +370,7 @@ reload_webcert(Ctx) ->
     service_cluster_worker:reload_webcert(Ctx#{name => name()}),
 
     Node = nodes:local(name()),
-    ok = rpc:call(Node, rtransfer_config, restart_link, []).
+    ok = op_worker_rpc:restart_rtransfer_link(Node).
 
 
 %%--------------------------------------------------------------------
@@ -415,8 +415,7 @@ set_http_record(Name, Value) ->
 %%--------------------------------------------------------------------
 -spec set_txt_record(Ctx :: service:ctx()) -> ok.
 set_txt_record(#{txt_name := Name, txt_value := Value, txt_ttl := TTL}) ->
-    {ok, Node} = nodes:any(name()),
-    ok = rpc:call(Node, provider_logic, set_txt_record, [Name, Value, TTL]).
+    ok = op_worker_rpc:set_txt_record(Name, Value, TTL).
 
 
 %%--------------------------------------------------------------------
@@ -426,8 +425,7 @@ set_txt_record(#{txt_name := Name, txt_value := Value, txt_ttl := TTL}) ->
 %%--------------------------------------------------------------------
 -spec remove_txt_record(Ctx :: service:ctx()) -> ok.
 remove_txt_record(#{txt_name := Name}) ->
-    {ok, Node} = nodes:any(name()),
-    ok = rpc:call(Node, provider_logic, remove_txt_record, [Name]).
+    ok = op_worker_rpc:remove_txt_record(Name).
 
 
 %%--------------------------------------------------------------------

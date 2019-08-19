@@ -42,13 +42,13 @@
     atom() := binary()
 }.
 
--type helper_args() :: #{binary() => binary()}.
--type user_ctx() :: #{binary() => binary()}.
+-type helper_args() :: op_worker_rpc:helper_args().
+-type user_ctx() :: op_worker_rpc:helper_user_ctx().
 -type storages_map() :: #{Name :: name() => Params :: storage_params()}.
 
 %% Opaque terms from op_worker
--type luma_config() :: term().
--type helper() :: term().
+-type luma_config() :: op_worker_rpc:luma_config().
+-type helper() :: op_worker_rpc:helper().
 % @formatter:on
 
 -export_type([id/0, storage_params/0, storage_details/0, storages_map/0,
@@ -122,7 +122,7 @@ update(OpNode, Id, Params) ->
 %%--------------------------------------------------------------------
 -spec remove(OpNode :: node(), id()) -> ok | no_return().
 remove(OpNode, Id) ->
-    case rpc:call(OpNode, storage, safe_remove, [Id]) of
+    case op_worker_rpc:storage_safe_remove(OpNode, Id) of
         ok ->
             ?info("Successfully removed storage with id ~p", [Id]),
             ok;
@@ -138,11 +138,7 @@ remove(OpNode, Id) ->
 %%--------------------------------------------------------------------
 -spec list() -> #{ids := [id()]}.
 list() ->
-    {ok, OpNode} = nodes:any(?SERVICE_OPW),
-    {ok, Storages} = rpc:call(OpNode, storage, list, []),
-    Ids = lists:map(fun(Storage) ->
-        rpc:call(OpNode, storage, get_id, [Storage])
-    end, Storages),
+    {ok, Ids} = op_worker_rpc:storage_list_ids(),
     #{ids => Ids}.
 
 
@@ -152,9 +148,10 @@ list() ->
 %%--------------------------------------------------------------------
 -spec get(Id :: id()) -> storage_details().
 get(Id) ->
-    {ok, OpNode} = nodes:any(?SERVICE_OPW),
-    {ok, Storage} = rpc:call(OpNode, storage, get, [Id]),
-    storage_to_map(OpNode, Storage).
+    {ok, Map} = op_worker_rpc:storage_describe(Id),
+    onepanel_utils:convert(
+        onepanel_maps:undefined_to_null(Map),
+        {keys, atom}).
 
 
 %%--------------------------------------------------------------------
@@ -172,8 +169,7 @@ get_supporting_storage(OpNode, SpaceId) ->
 %%--------------------------------------------------------------------
 -spec get_supporting_storages(OpNode :: node(), SpaceId :: id()) -> [id()].
 get_supporting_storages(OpNode, SpaceId) ->
-    {ok, SpaceStorage} = rpc:call(OpNode, space_storage, get, [SpaceId]),
-    rpc:call(OpNode, space_storage, get_storage_ids, [SpaceStorage]).
+    op_worker_rpc:space_storage_get_storage_ids(OpNode, SpaceId).
 
 
 %%--------------------------------------------------------------------
@@ -183,10 +179,8 @@ get_supporting_storages(OpNode, SpaceId) ->
 -spec is_mounted_in_root(OpNode :: node(), SpaceId :: id(), StorageId :: id()) ->
     boolean().
 is_mounted_in_root(OpNode, SpaceId, StorageId) ->
-    {ok, SpaceStorage} = rpc:call(OpNode, space_storage, get, [SpaceId]),
-    MountedInRoot = rpc:call(OpNode, space_storage, get_mounted_in_root,
-        [SpaceStorage]
-    ),
+    MountedInRoot = op_worker_rpc:space_storage_get_mounted_in_root(
+        OpNode, SpaceId),
     lists:member(StorageId, MountedInRoot).
 
 %%-------------------------------------------------------------------
@@ -199,9 +193,8 @@ maybe_update_file_popularity(_Node, _SpaceId, Args) when map_size(Args) =:= 0 ->
     ok;
 maybe_update_file_popularity(Node, SpaceId, Args) ->
     Configuration = parse_file_popularity_configuration(Args),
-    case rpc:call(Node, file_popularity_api, configure, [SpaceId, Configuration]) of
-        {error, Reason} ->
-            ?throw_error({?ERR_CONFIG_FILE_POPULARITY, Reason});
+    case op_worker_rpc:file_popularity_api_configure(Node, SpaceId, Configuration) of
+        {error, Reason} -> ?throw_error({?ERR_CONFIG_FILE_POPULARITY, Reason});
         Result -> Result
     end.
 
@@ -216,9 +209,8 @@ maybe_update_auto_cleaning(_OpNode, _SpaceId, Args) when map_size(Args) =:= 0 ->
     ok;
 maybe_update_auto_cleaning(OpNode, SpaceId, Args) ->
     Configuration = parse_auto_cleaning_configuration(Args),
-    case rpc:call(OpNode, autocleaning_api, configure, [SpaceId, Configuration]) of
-        {error, Reason} ->
-            ?throw_error({?ERR_CONFIG_AUTO_CLEANING, Reason});
+    case op_worker_rpc:autocleaning_configure(OpNode, SpaceId, Configuration) of
+        {error, Reason} -> ?throw_error({?ERR_CONFIG_AUTO_CLEANING, Reason});
         Result -> Result
     end.
 
@@ -231,7 +223,7 @@ maybe_update_auto_cleaning(OpNode, SpaceId, Args) ->
 %%-------------------------------------------------------------------
 -spec get_file_popularity_configuration(OpNode :: node(), SpaceId :: id()) -> #{atom() => term()}.
 get_file_popularity_configuration(OpNode, SpaceId) ->
-    case rpc:call(OpNode, file_popularity_api, get_configuration, [SpaceId]) of
+    case op_worker_rpc:file_popularity_api_get_configuration(OpNode, SpaceId) of
         {ok, DetailsMap} ->
             onepanel_maps:get_store_multiple([
                 {[enabled], [enabled]},
@@ -252,7 +244,7 @@ get_file_popularity_configuration(OpNode, SpaceId) ->
 %%-------------------------------------------------------------------
 -spec get_auto_cleaning_configuration(OpNode :: node(), SpaceId :: id()) -> #{atom() => term()}.
 get_auto_cleaning_configuration(OpNode, SpaceId) ->
-    DetailsMap = rpc:call(OpNode, autocleaning_api, get_configuration, [SpaceId]),
+    DetailsMap = op_worker_rpc:autocleaning_get_configuration(OpNode, SpaceId),
     DetailsMap2 = onepanel_maps:get_store_multiple([
         {[rules, min_file_size], [rules, minFileSize]},
         {[rules, max_file_size], [rules, maxFileSize]},
@@ -272,8 +264,7 @@ get_auto_cleaning_configuration(OpNode, SpaceId) ->
 %%-------------------------------------------------------------------
 -spec invalidate_luma_cache(StorageId :: id()) -> ok.
 invalidate_luma_cache(StorageId) ->
-    {ok, OpNode} = nodes:any(?SERVICE_OPW),
-    ok = rpc:call(OpNode, luma_cache, invalidate, [StorageId]).
+    ok = op_worker_rpc:invalidate_luma_cache(StorageId).
 
 
 %%-------------------------------------------------------------------
@@ -284,8 +275,7 @@ invalidate_luma_cache(StorageId) ->
 %%-------------------------------------------------------------------
 -spec can_be_removed(id()) -> boolean().
 can_be_removed(StorageId) ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-    not rpc:call(Node, storage, supports_any_space, [StorageId]).
+    not op_worker_rpc:storage_supports_any_space(StorageId).
 
 %%%===================================================================
 %%% Internal functions
@@ -313,12 +303,9 @@ add(OpNode, StorageName, Params) ->
     maybe_verify_storage(Helper, ReadOnly),
 
     ?info("Adding storage: \"~s\" (~s)", [StorageName, StorageType]),
-    StorageRecord = rpc:call(OpNode, storage, new,
-        [StorageName, [Helper], ReadOnly, LumaConfig]),
-    case rpc:call(OpNode, storage, create, [StorageRecord]) of
-        {ok, _StorageId} -> ok;
-        {error, Reason} -> {error, Reason}
-    end.
+    StorageRecord = op_worker_rpc:storage_new(StorageName, [Helper],
+        ReadOnly, LumaConfig),
+    op_worker_rpc:storage_create(StorageRecord).
 
 
 %%--------------------------------------------------------------------
@@ -333,9 +320,8 @@ make_helper(OpNode, StorageType, AdminCtx, Params) ->
     Args = make_helper_args(OpNode, StorageType, Params),
     Insecure = onepanel_utils:typed_get(insecure, Params, boolean, false),
     PathType = onepanel_utils:typed_get(storagePathType, Params, binary),
-
-    rpc:call(OpNode, helper, new_helper,
-        [StorageType, Args, AdminCtx, Insecure, PathType]).
+    op_worker_rpc:new_helper(
+        OpNode, StorageType, Args, AdminCtx, Insecure, PathType).
 
 
 %%--------------------------------------------------------------------
@@ -351,7 +337,7 @@ make_luma_config(OpNode, StorageParams) ->
         true ->
             Url = get_required_luma_arg(lumaUrl, StorageParams, binary),
             ApiKey = onepanel_utils:typed_get(lumaApiKey, StorageParams, binary, undefined),
-            rpc:call(OpNode, luma_config, new, [Url, ApiKey]);
+            op_worker_rpc:new_luma_config(OpNode, Url, ApiKey);
         false ->
             undefined
     end.
@@ -380,8 +366,7 @@ maybe_verify_storage(Helper, _) ->
 -spec verify_storage(Helper :: any()) ->
     ok | no_return().
 verify_storage(Helper) ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-    case rpc:call(Node, storage_detector, verify_storage_on_all_nodes, [Helper]) of
+    case op_worker_rpc:verify_storage_on_all_nodes(Helper) of
         ok -> ok;
         {error, Reason} ->
             ?throw_error(Reason);
@@ -390,33 +375,6 @@ verify_storage(Helper) ->
         {badrpc, {'EXIT', {Error, Stacktrace}}} ->
             ?throw_stacktrace(Error, undefined, Stacktrace)
     end.
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Returns storage details from op_worker service configuration.
-%% @end
-%%--------------------------------------------------------------------
--spec storage_to_map(OpNode :: node(), Storage :: any()) -> storage_details().
-storage_to_map(OpNode, Storage) ->
-    [Helper | _] = rpc:call(OpNode, storage, get_helpers, [Storage]),
-    AdminCtx = rpc:call(OpNode, helper, get_admin_ctx, [Helper]),
-    PublicAdminCtx = maps:with([
-        <<"username">>, <<"accessKey">>, <<"credentialsType">>
-    ], AdminCtx),
-    HelperArgs = rpc:call(OpNode, helper, get_args, [Helper]),
-    LumaConfig = rpc:call(OpNode, storage, get_luma_config_map, [Storage]),
-
-    Params = onepanel_utils:convert(maps:merge(PublicAdminCtx, HelperArgs), {keys, atom}),
-    Params#{
-        id => rpc:call(OpNode, storage, get_id, [Storage]),
-        name => rpc:call(OpNode, storage, get_name, [Storage]),
-        type => rpc:call(OpNode, helper, get_name, [Helper]),
-        readonly => rpc:call(OpNode, storage, is_readonly, [Storage]),
-        insecure => rpc:call(OpNode, helper, is_insecure, [Helper]),
-        storagePathType => rpc:call(OpNode, helper, get_storage_path_type, [Helper]),
-        lumaEnabled => maps:get(enabled, LumaConfig, false),
-        lumaUrl => maps:get(url, LumaConfig, null)
-    }.
 
 
 %%--------------------------------------------------------------------
@@ -444,7 +402,7 @@ make_update_result(OpNode, StorageId) ->
     Details = ?MODULE:get(StorageId),
     #{name := Name, type := Type, readonly := Readonly} = Details,
     try
-        {ok, Helper} = rpc:call(OpNode, storage, select_helper, [StorageId, Type]),
+        {ok, Helper} = op_worker_rpc:storage_select_helper(OpNode, StorageId, Type),
         maybe_verify_storage(Helper, Readonly)
     of
         skipped -> Details;
@@ -464,8 +422,8 @@ make_update_result(OpNode, StorageId) ->
 -spec make_helper_args(OpNode :: node(), StorageType :: binary(),
     Params :: storage_params()) -> helper_args().
 make_helper_args(OpNode, StorageType, Params) ->
-    rpc:call(OpNode, helper_params, prepare_helper_args,
-        [StorageType, convert_to_binaries(Params)]).
+    op_worker_rpc:prepare_helper_args(OpNode,
+        StorageType, convert_to_binaries(Params)).
 
 
 %%--------------------------------------------------------------------
@@ -476,8 +434,8 @@ make_helper_args(OpNode, StorageType, Params) ->
 -spec make_user_ctx(OpNode :: node(), StorageType :: binary(),
     Params :: storage_params()) -> user_ctx().
 make_user_ctx(OpNode, StorageType, Params) ->
-    rpc:call(OpNode, helper_params, prepare_user_ctx_params,
-        [StorageType, convert_to_binaries(Params)]).
+    op_worker_rpc:prepare_user_ctx_params(OpNode,
+        StorageType, convert_to_binaries(Params)).
 
 
 %%--------------------------------------------------------------------
@@ -499,7 +457,7 @@ make_luma_params(Params) ->
 -spec maybe_update_name(OpNode :: node(), Id :: id(), Params :: storage_params()) ->
     ok | no_return().
 maybe_update_name(OpNode, Id, #{name := Name}) ->
-    ok = rpc:call(OpNode, storage, update_name, [Id, Name]);
+    ok = op_worker_rpc:storage_update_name(OpNode, Id, Name);
 
 maybe_update_name(_OpNode, _Id, _Params) ->
     ok.
@@ -512,7 +470,7 @@ maybe_update_admin_ctx(OpNode, Id, Type, Params) ->
     Ctx = make_user_ctx(OpNode, Type, Params),
     case maps:size(Ctx) of
         0 -> ok;
-        _ -> ok = rpc:call(OpNode, storage, update_admin_ctx, [Id, Type, Ctx])
+        _ -> ok = op_worker_rpc:storage_update_admin_ctx(OpNode, Id, Type, Ctx)
     end.
 
 
@@ -523,7 +481,7 @@ maybe_update_args(OpNode, Id, Type, Params) ->
     Args = make_helper_args(OpNode, Type, Params),
     case maps:size(Args) of
         0 -> ok;
-        _ -> ok = rpc:call(OpNode, storage, update_helper_args, [Id, Type, Args])
+        _ -> ok = op_worker_rpc:storage_update_helper_args(OpNode, Id, Type, Args)
     end.
 
 
@@ -531,8 +489,7 @@ maybe_update_args(OpNode, Id, Type, Params) ->
 -spec maybe_update_insecure(OpNode :: node(), Id :: id(), Type :: binary(),
     Params :: storage_params()) -> ok | no_return().
 maybe_update_insecure(OpNode, Id, Type, #{insecure := NewInsecure}) ->
-    ok = rpc:call(OpNode, storage, set_insecure,
-        [Id, Type, NewInsecure]);
+    ok = op_worker_rpc:storage_set_insecure(OpNode, Id, Type, NewInsecure);
 
 maybe_update_insecure(_OpNode, _Id, _Type, _Params) -> ok.
 
@@ -541,7 +498,7 @@ maybe_update_insecure(_OpNode, _Id, _Type, _Params) -> ok.
 -spec maybe_update_readonly(OpNode :: node(), Id :: id(), Params :: storage_params()) ->
     ok | no_return().
 maybe_update_readonly(OpNode, Id, #{readonly := NewReadonly}) ->
-    ok = rpc:call(OpNode, storage, set_readonly, [Id, NewReadonly]);
+    ok = op_worker_rpc:storage_set_readonly(OpNode, Id, NewReadonly);
 
 maybe_update_readonly(_OpNode, _Id, _Params) -> ok.
 
@@ -557,10 +514,10 @@ maybe_update_luma_config(OpNode, Id, Params, WasEnabled) ->
             ok;
         {#{luma_enabled := NewEnabled}, _} when NewEnabled /= WasEnabled ->
             LumaConfig = make_luma_config(OpNode, Params),
-            ok = rpc:call(OpNode, storage, set_luma_config, [Id, LumaConfig]),
+            ok = op_worker_rpc:storage_set_luma_config(OpNode, Id, LumaConfig),
             invalidate_luma_cache(Id);
         {Changes, true} ->
-            ok = rpc:call(OpNode, storage, update_luma_config, [Id, Changes]),
+            ok = op_worker_rpc:storage_update_luma_config(OpNode, Id, Changes),
             invalidate_luma_cache(Id)
     end.
 
@@ -572,13 +529,13 @@ maybe_update_luma_config(OpNode, Id, Params, WasEnabled) ->
 -spec exists(Node :: node(), Identifier) -> boolean()
     when Identifier :: {name, name()} | {id, id()}.
 exists(Node, {name, StorageName}) ->
-    case rpc:call(Node, storage, select, [StorageName]) of
+    case op_worker_rpc:get_storage_by_name(Node, StorageName) of
         {error, not_found} -> false;
         {ok, _} -> true
     end;
 
 exists(Node, {id, StorageId}) ->
-    rpc:call(Node, storage, exists, [StorageId]).
+    op_worker_rpc:storage_exists(Node, StorageId).
 
 
 %%--------------------------------------------------------------------

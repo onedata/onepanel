@@ -63,8 +63,8 @@ maybe_modify_storage_update(Node, SpaceId, Args) ->
 -spec get_storage_import_details(Node :: node(), SpaceId :: id(),
     StorageId :: id()) -> proplists:proplist().
 get_storage_import_details(Node, SpaceId, StorageId) ->
-    {StrategyName, Args} = rpc:call(Node, space_strategies,
-        get_storage_import_details, [SpaceId, StorageId]),
+    {StrategyName, Args} = op_worker_rpc:get_storage_import_details(
+        Node, SpaceId, StorageId),
     Details = [{strategy, StrategyName}],
     case StrategyName of
         no_import ->
@@ -85,8 +85,8 @@ get_storage_import_details(Node, SpaceId, StorageId) ->
 -spec get_storage_update_details(Node :: node(), SpaceId :: id(),
     StorageId :: id()) -> proplists:proplist().
 get_storage_update_details(Node, SpaceId, StorageId) ->
-    {StrategyName, Args} = rpc:call(Node, space_strategies,
-        get_storage_update_details, [SpaceId, StorageId]),
+    {StrategyName, Args} = op_worker_rpc:get_storage_update_details(
+        Node, SpaceId, StorageId),
     Details = [{strategy, StrategyName}],
     case StrategyName of
         no_update ->
@@ -137,9 +137,9 @@ modify_storage_import(Node, SpaceId, Args0, NewStrategyName) ->
         sync_acl => onepanel_utils:typed_get(sync_acl, Args0, boolean,
             get_default(sync_acl))
     },
-    {ok, _} = rpc:call(Node, storage_sync, modify_storage_import, [
-            SpaceId, NewStrategyName, Args
-    ]).
+    {ok, _} = op_worker_rpc:modify_storage_import(
+        Node, SpaceId, NewStrategyName, Args).
+
 
 %%-------------------------------------------------------------------
 %% @private
@@ -149,8 +149,8 @@ modify_storage_import(Node, SpaceId, Args0, NewStrategyName) ->
 -spec modify_storage_update(Node :: node(), SpaceId :: id(), Args :: args(),
     NewStrategyName :: strategy_name()) -> {ok, id()}.
 modify_storage_update(Node, SpaceId, _Args0, no_update) ->
-    {ok, _} = rpc:call(Node, storage_sync, modify_storage_update, [
-        SpaceId, no_update, #{}]);
+    {ok, _Id} = op_worker_rpc:modify_storage_update(
+        Node, SpaceId, no_update, #{});
 modify_storage_update(Node, SpaceId, Args0, NewStrategyName) ->
     Args = #{
         max_depth => onepanel_utils:typed_get(max_depth, Args0, integer,
@@ -165,9 +165,8 @@ modify_storage_update(Node, SpaceId, Args0, NewStrategyName) ->
             get_default(sync_acl))
     },
 
-    {ok, _} = rpc:call(Node, storage_sync, modify_storage_update, [
-        SpaceId, NewStrategyName, Args
-    ]).
+    {ok, _} = op_worker_rpc:modify_storage_update(
+        Node, SpaceId, NewStrategyName, Args).
 
 
 %%-------------------------------------------------------------------
@@ -228,8 +227,8 @@ get_all_metrics(Node, SpaceId, Period, Metrics) ->
     Metric :: binary()) -> proplists:proplist() | atom().
 get_metric(Node, SpaceId, Period, Metric) ->
     Type = map_metric_name_to_type(Metric),
-    Results = rpc:call(Node, storage_sync_monitoring,
-        get_metric, [SpaceId, Type, binary_to_atom(Period, latin1)]),
+    Results = op_worker_rpc:storage_sync_monitoring_get_metric(SpaceId, Type,
+        binary_to_atom(Period, utf8)),
     case Results of
         undefined ->
             null;
@@ -277,8 +276,7 @@ get_status(Node, SpaceId) ->
 %%-------------------------------------------------------------------
 -spec get_import_status(Node :: node(), SpaceId :: id()) -> binary().
 get_import_status(Node, SpaceId) ->
-    ImportState = rpc:call(Node, storage_sync_monitoring, get_import_state, [SpaceId]),
-    case ImportState of
+    case op_worker_rpc:storage_sync_monitoring_get_import_state(Node, SpaceId) of
         finished ->
             <<"done">>;
         _ ->
@@ -293,9 +291,7 @@ get_import_status(Node, SpaceId) ->
 %%-------------------------------------------------------------------
 -spec get_update_status(Node :: node(), SpaceId :: id()) -> binary().
 get_update_status(Node, SpaceId) ->
-    UpdateState = rpc:call(Node, storage_sync_monitoring,
-        get_update_state, [SpaceId]),
-    case UpdateState of
+    case op_worker_rpc:storage_sync_monitoring_get_update_state(Node, SpaceId) of
         in_progress ->
             <<"inProgress">>;
         _ ->
