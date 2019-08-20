@@ -989,11 +989,15 @@ save_provider_auth(OpwNode, ProviderId, RootToken) ->
     ok = rpc:call(OpwNode, provider_auth, save, [ProviderId, RootToken]),
 
     PanelNodes = nodes:all(?SERVICE_PANEL),
-    RootTokenPath = rpc:call(OpwNode, provider_auth, get_root_macaroon_file_path, []),
-    onepanel_env:write(PanelNodes, [?SERVICE_PANEL, op_worker_root_macaroon_path],
-        RootTokenPath, onepanel_env:get_config_path(?SERVICE_PANEL, generated)),
-    onepanel_env:set(PanelNodes, op_worker_root_macaroon_path, RootTokenPath, ?APP_NAME),
-    ok.
+    case rpc:call(OpwNode, provider_auth, get_root_token_file_path, []) of
+        RootTokenPath when is_list(RootTokenPath) orelse is_binary(RootTokenPath) ->
+            onepanel_env:write(PanelNodes, [?SERVICE_PANEL, op_worker_root_macaroon_path],
+                RootTokenPath, onepanel_env:get_config_path(?SERVICE_PANEL, generated)),
+            onepanel_env:set(PanelNodes, op_worker_root_macaroon_path, RootTokenPath, ?APP_NAME),
+            ok;
+        Error ->
+            ?throw_error(Error)
+    end.
 
 
 %% @private
