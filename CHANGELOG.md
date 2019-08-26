@@ -4,6 +4,44 @@
 CHANGELOG
 ---------
 
+### 19.02.0-rc1
+
+* VFS-5499 GUI update Fixed displaying errors, when oz/op-worker service is not working
+* VFS-5500 Use 503 code when action fails because of unavailable Onezone
+* VFS-5687 Added fallback when rpc fails during service compatibility check
+* VFS-5500 Use op_worker's graph sync to fetch space details
+* VFS-5500 Persist provider details
+* VFS-5400 Use compatibility reference json in op
+* VFS-5635 Ensure Onezone is configured with lowercase domain
+* VFS-5635 Ensure Oneprovider is configured with lowercase domain
+* VFS-5658 Use `service restart` to repeat couchbase startup
+* VFS-5658 Log when service status exits with non-zero code
+* VFS-5658 Handle unicode in error logs
+* VFS-5658 Fix logging of service restart errors
+* VFS-5658 Restart couchbase after failed wait for init
+* VFS-5657 Enabled Ubuntu distribution package tag
+* VFS-5498 Do not verify oz_panel GUI package
+* VFS-5598 Allow set_remote of policies to fail
+* VFS-5598 Configure zone policies before starting the worker
+* VFS-5508 Rename debugMode field in GUI context to browserDebugLogs
+* VFS-5629 Enable unknown type warnings in dialyzer
+* VFS-5597 Added s3 sync helper params
+* VFS-4698 Added test_image endpoint
+* VFS-5619 Fix incorrect usage of onepanel_lists:typed_find
+* VFS-5598 Enforce enum values in rest_model
+* VFS-5598 Add provider registartion policy switch
+* VFS-5598 Add endpoint for toggling rtransfer mock
+* VFS-5107 Returns credentialsType in webdav details
+* VFS-5545 Verify storage verification passed before creating storage
+* VFS-4473 Rework letsencypt_api module to use ACMEv2 protocol
+* VFS-4992 Make onepanel_cron run job for the first time after delay
+* VFS-5107 Update rest models from swagger
+* VFS-5107 Use storage test errors returned by op-worker
+* VFS-5107 Adjust to changes in op_worker RPC API
+* VFS-5107 Rely on op_worker to transform helper args
+* VFS-5107 Implement storage modification
+
+
 ### 18.02.3
 
 * Releasing new version 18.02.3
