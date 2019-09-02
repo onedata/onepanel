@@ -224,23 +224,18 @@ get_all_metrics(Node, SpaceId, Period, Metrics) ->
 %% @end
 %%-------------------------------------------------------------------
 -spec get_metric(Node :: node(), SpaceId :: id(), Period :: binary(),
-    Metric :: binary()) -> proplists:proplist() | atom().
+    Metric :: binary()) -> proplists:proplist().
 get_metric(Node, SpaceId, Period, Metric) ->
     Type = map_metric_name_to_type(Metric),
-    Results = op_worker_rpc:storage_sync_monitoring_get_metric(SpaceId, Type,
-        binary_to_atom(Period, utf8)),
-    case Results of
-        undefined ->
-            null;
-        Results ->
-            LastValueTimestamp = proplists:get_value(timestamp, Results),
-            Values = proplists:get_value(values, Results),
-            [
-                {name, Metric},
-                {lastValueDate, time_utils:epoch_to_iso8601(LastValueTimestamp)},
-                {values, Values}
-            ]
-    end.
+    Results = op_worker_rpc:storage_sync_monitoring_get_metric(
+        Node, SpaceId, Type, binary_to_atom(Period, utf8)),
+    LastValueTimestamp = proplists:get_value(timestamp, Results),
+    Values = proplists:get_value(values, Results),
+    [
+        {name, Metric},
+        {lastValueDate, time_utils:epoch_to_iso8601(LastValueTimestamp)},
+        {values, Values}
+    ].
 
 %%-------------------------------------------------------------------
 %% @private
