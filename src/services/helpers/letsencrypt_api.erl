@@ -277,7 +277,7 @@ register_account(#flow_state{service = Service} = State) ->
     #flow_state{directory = #directory{new_account = NewAccountUrl}} = State,
 
     Payload = #{termsOfServiceAgreed => true},
-    Payload2 = case Service:get_admin_email() of
+    Payload2 = case Service:get_admin_email(#{}) of
         undefined -> Payload;
         Email -> Payload#{contact => [<<"mailto:", Email/binary>>]}
     end,
@@ -599,7 +599,7 @@ request_certificate(State) ->
 %%--------------------------------------------------------------------
 -spec resolve_run_mode() -> run_mode().
 resolve_run_mode() ->
-    ModeEnv = onepanel_env:get(letsencrypt_mode, ?APP_NAME, full),
+    ModeEnv = application:get_env(?APP_NAME, letsencrypt_mode, full),
     case {ModeEnv, ?STAGING_DIRECTORY_URL} of
         {production, _} -> production;
         {full, undefined} ->
@@ -1046,7 +1046,7 @@ save_cert(CertAndChainPem, KeyPem, State) ->
         cert_path = CertPath,
         chain_path = ChainPath
     } = State,
-    Nodes = nodes:all(?SERVICE_PANEL),
+    Nodes = service_onepanel:get_nodes(),
 
     {ok, CertPem, ChainPem} = split_chain(CertAndChainPem),
     ok = utils:save_file_on_hosts(Nodes, KeyPath, KeyPem),
