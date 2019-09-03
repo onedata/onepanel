@@ -364,6 +364,15 @@ is_registered(Ctx) ->
     end.
 
 
+-spec get_access_token() -> tokens:serialized().
+get_access_token() ->
+    case op_worker_rpc:get_access_token() of
+        {ok, <<Token/binary>>} -> Token;
+        ?ERROR_UNREGISTERED_PROVIDER = Error -> ?throw_error(Error);
+        _ -> root_token_from_file()
+    end.
+
+
 %%%===================================================================
 %%% Step functions
 %%%===================================================================
@@ -518,15 +527,6 @@ modify_details(Ctx) ->
         0 -> ok;
         _ ->
             ok = op_worker_rpc:provider_logic_update(Params)
-    end.
-
--spec get_access_token() -> tokens:serialized().
-get_access_token() ->
-    OpNode = nodes:local(?SERVICE_OPW),
-    case op_worker_rpc:get_access_token() of
-        {ok, <<Token/binary>>} -> Token;
-        ?ERROR_UNREGISTERED_PROVIDER = Error -> ?throw_error(Error);
-        _ -> root_token_from_file()
     end.
 
 
@@ -991,10 +991,7 @@ save_provider_auth(OpwNode, ProviderId, RootToken) ->
 %% @private
 -spec get_details_by_graph_sync() -> #{atom() := term()} | no_return().
 get_details_by_graph_sync() ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-
     OzDomain = get_oz_domain(),
-
     Details = case op_worker_rpc:get_provider_details() of
         {ok, DetailsMap} -> DetailsMap;
         ?ERROR_NO_CONNECTION_TO_OZ -> ?throw_error(?ERR_ONEZONE_NOT_AVAILABLE);
