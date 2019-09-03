@@ -175,11 +175,11 @@ storage_safe_remove(Node, StorageId) ->
     ?CALL(Node, [StorageId]).
 
 
--spec storage_supports_any_space(StorageId :: storage_id()) -> boolean().
+-spec storage_supports_any_space(storage_id()) -> boolean().
 storage_supports_any_space(StorageId) ->
     ?CALL([StorageId]).
 
--spec storage_supports_any_space(node(), StorageId :: storage_id()) -> boolean().
+-spec storage_supports_any_space(node(), storage_id()) -> boolean().
 storage_supports_any_space(Node, StorageId) ->
     ?CALL(Node, [StorageId]).
 
@@ -257,12 +257,12 @@ storage_set_insecure(Node, StorageId, HelperName, Insecure) ->
     ?CALL(Node, [StorageId, HelperName, Insecure]).
 
 
--spec storage_set_readonly(StorageId :: storage_id(), Readonly :: boolean()) ->
+-spec storage_set_readonly(storage_id(), Readonly :: boolean()) ->
     ok | {error, term()}.
 storage_set_readonly(StorageId, Readonly) ->
     ?CALL([StorageId, Readonly]).
 
--spec storage_set_readonly(node(), StorageId :: storage_id(), Readonly :: boolean()) ->
+-spec storage_set_readonly(node(), storage_id(), Readonly :: boolean()) ->
     ok | {error, term()}.
 storage_set_readonly(Node, StorageId, Readonly) ->
     ?CALL(Node, [StorageId, Readonly]).
@@ -290,12 +290,12 @@ storage_update_luma_config(Node, StorageId, Changes) ->
     ?CALL(Node, [StorageId, Changes]).
 
 
--spec storage_update_name(StorageId :: storage_id(), NewName :: storage_name()) ->
+-spec storage_update_name(storage_id(), storage_name()) ->
     ok.
 storage_update_name(StorageId, NewName) ->
     ?CALL([StorageId, NewName]).
 
--spec storage_update_name(node(), StorageId :: storage_id(), NewName :: storage_name()) ->
+-spec storage_update_name(node(), storage_id(), storage_name()) ->
     ok.
 storage_update_name(Node, StorageId, NewName) ->
     ?CALL(Node, [StorageId, NewName]).

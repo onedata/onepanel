@@ -95,93 +95,92 @@ authorize_by_access_token(Node, Token)  ->
     ?CALL(Node, [Token]).
 
 
--spec get_protected_provider_data(Auth :: aai:auth(), ProviderId :: od_provider_id()) ->
+-spec get_protected_provider_data(aai:auth(), od_provider_id()) ->
     {ok, map()} | {error, term()}.
 get_protected_provider_data(Auth, ProviderId) ->
     ?CALL([Auth, ProviderId]).
 
--spec get_protected_provider_data(node(), Auth :: aai:auth(), ProviderId :: od_provider_id()) ->
+-spec get_protected_provider_data(node(), aai:auth(), od_provider_id()) ->
     {ok, map()} | {error, term()}.
 get_protected_provider_data(Node, Auth, ProviderId) ->
     ?CALL(Node, [Auth, ProviderId]).
 
 
--spec deploy_static_gui_package(onedata:gui(), onedata:release_version(), file:name_all(), VerifyGuiHash :: boolean()) ->
+-spec deploy_static_gui_package(onedata:gui(), onedata:release_version(),
+    file:name_all(), VerifyGuiHash :: boolean()) ->
     {ok, onedata:gui_hash()} | ?ERROR_BAD_GUI_PACKAGE |
     ?ERROR_GUI_PACKAGE_TOO_LARGE | ?ERROR_GUI_PACKAGE_UNVERIFIED.
 deploy_static_gui_package(GuiType, ReleaseVsn, PackagePath, VerifyGuiHash) ->
     ?CALL([GuiType, ReleaseVsn, PackagePath, VerifyGuiHash]).
 
--spec deploy_static_gui_package(node(), onedata:gui(), onedata:release_version(), file:name_all(), VerifyGuiHash :: boolean()) ->
+-spec deploy_static_gui_package(node(), onedata:gui(), onedata:release_version(),
+    file:name_all(), VerifyGuiHash :: boolean()) ->
     {ok, onedata:gui_hash()} | ?ERROR_BAD_GUI_PACKAGE |
     ?ERROR_GUI_PACKAGE_TOO_LARGE | ?ERROR_GUI_PACKAGE_UNVERIFIED.
 deploy_static_gui_package(Node, GuiType, ReleaseVsn, PackagePath, VerifyGuiHash) ->
     ?CALL(Node, [GuiType, ReleaseVsn, PackagePath, VerifyGuiHash]).
 
 
--spec update_cluster_version_info(Auth :: aai:auth(), ClusterId :: od_cluster_id(),
-    onedata:service_type(), VersionInfo :: od_cluster_version_info()) ->
+-spec update_cluster_version_info(aai:auth(), od_cluster_id(),
+    onedata:service_type(), od_cluster_version_info()) ->
     ok | {error, term()}.
 update_cluster_version_info(Auth, ClusterId, ServiceType, VersionInfo) ->
     ?CALL([Auth, ClusterId, ServiceType, VersionInfo]).
 
--spec update_cluster_version_info(node(), Auth :: aai:auth(), ClusterId :: od_cluster_id(),
-    onedata:service_type(), VersionInfo :: od_cluster_version_info()) ->
+-spec update_cluster_version_info(node(), Auth :: aai:auth(),
+    ClusterId :: od_cluster_id(), onedata:service_type(),
+    VersionInfo :: od_cluster_version_info()) ->
     ok | {error, term()}.
 update_cluster_version_info(Node, Auth, ClusterId, ServiceType, VersionInfo) ->
     ?CALL(Node, [Auth, ClusterId, ServiceType, VersionInfo]).
 
 
--spec set_user_password(Auth :: aai:auth(), UserId :: od_user_id(),
-    NewPassword :: basic_auth_password()) -> ok | {error, term()}.
+-spec set_user_password(aai:auth(), od_user_id(), basic_auth_password()) ->
+    ok | {error, term()}.
 set_user_password(Auth, UserId, NewPassword) ->
     ?CALL([Auth, UserId, NewPassword]).
 
--spec set_user_password(node(), Auth :: aai:auth(), UserId :: od_user_id(),
-    NewPassword :: basic_auth_password()) -> ok | {error, term()}.
+-spec set_user_password(node(), aai:auth(), od_user_id(), basic_auth_password()) ->
+    ok | {error, term()}.
 set_user_password(Node, Auth, UserId, NewPassword) ->
     ?CALL(Node, [Auth, UserId, NewPassword]).
 
--spec create_user(Auth :: aai:auth(), Data :: map()) ->
+-spec create_user(aai:auth(), Data :: map()) ->
     {ok, od_user_id()} | {error, term()}.
 create_user(Auth, Data) ->
     ?CALL([Auth, Data]).
 
--spec create_user(node(), Auth :: aai:auth(), Data :: map()) ->
+-spec create_user(node(), aai:auth(), Data :: map()) ->
     {ok, od_user_id()} | {error, term()}.
 create_user(Node, Auth, Data) ->
     ?CALL(Node, [Auth, Data]).
 
 
--spec add_user_to_group(Auth :: aai:auth(),
-    GroupId :: od_group_id(), UserId :: od_user_id()) ->
+-spec add_user_to_group(aai:auth(), od_group_id(), od_user_id()) ->
     {ok, od_user_id()} | {error, term()}.
 add_user_to_group(Auth, GroupId, UserId) ->
     ?CALL([Auth, GroupId, UserId]).
 
--spec add_user_to_group(node(), Auth :: aai:auth(),
-    GroupId :: od_group_id(), UserId :: od_user_id()) ->
+-spec add_user_to_group(node(), aai:auth(), od_group_id(), od_user_id()) ->
     {ok, od_user_id()} | {error, term()}.
 add_user_to_group(Node, Auth, GroupId, UserId) ->
     ?CALL(Node, [Auth, GroupId, UserId]).
 
 
--spec list_users(Auth :: aai:auth()) ->
-    {ok, [od_user_id()]} | {error, term()}.
+-spec list_users(aai:auth()) -> {ok, [od_user_id()]} | {error, term()}.
 list_users(Auth) ->
     ?CALL([Auth]).
 
--spec list_users(node(), Auth :: aai:auth()) ->
-    {ok, [od_user_id()]} | {error, term()}.
+-spec list_users(node(), aai:auth()) -> {ok, [od_user_id()]} | {error, term()}.
 list_users(Node, Auth) ->
     ?CALL(Node, [Auth]).
 
 
--spec user_exists(UserId :: od_user_id()) -> boolean().
+-spec user_exists(od_user_id()) -> boolean().
 user_exists(UserId) ->
     ?CALL([UserId]).
 
--spec user_exists(node(), UserId :: od_user_id()) -> boolean().
+-spec user_exists(node(), od_user_id()) -> boolean().
 user_exists(Node, UserId) ->
     ?CALL(Node, [UserId]).
 
@@ -195,12 +194,12 @@ username_exists(Node, Username) ->
     ?CALL(Node, [Username]).
 
 
--spec get_user_details(node(), Auth :: aai:auth()) ->
+-spec get_user_details(node(), aai:auth()) ->
     {ok, #user_details{}} | {error, term()}.
 get_user_details(Node, Auth) ->
     ?CALL(Node, [Auth]).
 
--spec get_user_details(node(), Auth :: aai:auth(), UserId :: od_user_id()) ->
+-spec get_user_details(node(), aai:auth(), od_user_id()) ->
     {ok, #user_details{}} | {error, term()}.
 get_user_details(Node, Auth, UserId) ->
     ?CALL(Node, [Auth, UserId]).
@@ -219,64 +218,63 @@ migrate_onepanel_user_to_onezone(Node, OnepanelUserId, OnepanelUsername, Passwor
     ?CALL(Node, [OnepanelUserId, OnepanelUsername, PasswordHash, Role]).
 
 
--spec cluster_get_eff_user_privileges(Auth :: aai:auth(), ClusterId :: od_cluster_id(),
-    UserId :: od_user_id()) -> {ok, [privileges:cluster_privilege()]} | {error, term()}.
+-spec cluster_get_eff_user_privileges(aai:auth(), od_cluster_id(),
+    od_user_id()) -> {ok, [privileges:cluster_privilege()]} | {error, term()}.
 cluster_get_eff_user_privileges(Auth, ClusterId, UserId) ->
     ?CALL([Auth, ClusterId, UserId]).
 
--spec cluster_get_eff_user_privileges(node(), Auth :: aai:auth(), ClusterId :: od_cluster_id(),
-    UserId :: od_user_id()) -> {ok, [privileges:cluster_privilege()]} | {error, term()}.
+-spec cluster_get_eff_user_privileges(node(), aai:auth(), od_cluster_id(),
+    od_user_id()) -> {ok, [privileges:cluster_privilege()]} | {error, term()}.
 cluster_get_eff_user_privileges(Node, Auth, ClusterId, UserId) ->
     ?CALL(Node, [Auth, ClusterId, UserId]).
 
 
--spec get_protected_cluster_data(Auth :: aai:auth(), ClusterId :: od_cluster_id()) ->
+-spec get_protected_cluster_data(aai:auth(), od_cluster_id()) ->
     {ok, map()} | {error, term()}.
 get_protected_cluster_data(Auth, ClusterId) ->
     ?CALL([Auth, ClusterId]).
 
--spec get_protected_cluster_data(node(), Auth :: aai:auth(), ClusterId :: od_cluster_id()) ->
+-spec get_protected_cluster_data(node(), aai:auth(), od_cluster_id()) ->
     {ok, map()} | {error, term()}.
 get_protected_cluster_data(Node, Auth, ClusterId) ->
     ?CALL(Node, [Auth, ClusterId]).
 
 
--spec get_clusters_by_user_auth(Auth :: aai:auth()) ->
-    {ok, [od_cluster_id()]} | {error, term()}.
+-spec get_clusters_by_user_auth(aai:auth()) -> {ok, [od_cluster_id()]} | {error, term()}.
 get_clusters_by_user_auth(Auth) ->
     ?CALL([Auth]).
 
--spec get_clusters_by_user_auth(node(), Auth :: aai:auth()) ->
+-spec get_clusters_by_user_auth(node(), aai:auth()) ->
     {ok, [od_cluster_id()]} | {error, term()}.
 get_clusters_by_user_auth(Node, Auth) ->
     ?CALL(Node, [Auth]).
 
 
--spec cluster_logic_get_users(Auth :: aai:auth(), ClusterId :: od_cluster_id()) ->
+-spec cluster_logic_get_users(aai:auth(), od_cluster_id()) ->
     {ok, [od_user_id()]} | {error, term()}.
 cluster_logic_get_users(Auth, ClusterId) ->
     ?CALL([Auth, ClusterId]).
 
 
--spec cluster_logic_get_eff_users(Auth :: aai:auth(), ClusterId :: od_cluster_id()) ->
+-spec cluster_logic_get_eff_users(aai:auth(), od_cluster_id()) ->
     {ok, [od_user_id()]} | {error, term()}.
 cluster_logic_get_eff_users(Auth, ClusterId) ->
     ?CALL([Auth, ClusterId]).
 
 
--spec cluster_logic_get_groups(Auth :: aai:auth(), ClusterId :: od_cluster_id()) ->
+-spec cluster_logic_get_groups(aai:auth(), od_cluster_id()) ->
     {ok, [od_group_id()]} | {error, term()}.
 cluster_logic_get_groups(Auth, ClusterId) ->
     ?CALL([Auth, ClusterId]).
 
 
--spec cluster_logic_get_eff_groups(Auth :: aai:auth(), ClusterId :: od_cluster_id()) ->
+-spec cluster_logic_get_eff_groups(aai:auth(), od_cluster_id()) ->
     {ok, [od_group_id()]} | {error, term()}.
 cluster_logic_get_eff_groups(Auth, ClusterId) ->
     ?CALL([Auth, ClusterId]).
 
 
--spec cluster_logic_create_user_invite_token(Auth :: aai:auth(), ClusterId :: od_cluster_id()) ->
+-spec cluster_logic_create_user_invite_token(aai:auth(), od_cluster_id()) ->
     {ok, macaroon:macaroon()} | {error, term()}.
 cluster_logic_create_user_invite_token(Auth, ClusterId) ->
     ?CALL([Auth, ClusterId]).
