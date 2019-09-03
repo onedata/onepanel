@@ -9,8 +9,6 @@
 %%% providing rpc access to them. Most functions come in two variants:
 %%% one defaulting to any oz_worker node and other with explicit Node argument.
 %%% Functions in this module throw an error upon receiving badrpc.
-%%% Note that 'throw' exceptions do not
-%%% cause badrpc and are returned like a normal call result.
 %%% @end
 %%%-------------------------------------------------------------------
 -module(oz_worker_rpc).
@@ -23,7 +21,7 @@
 
 % @formatter:off
 -define(CALL(Node, Args),
-    case rpc:call(Node, rpc_api, ?FUNCTION_NAME, Args) of
+    case rpc:call(Node, rpc_api, apply, [?FUNCTION_NAME, Args]) of
         {badrpc, _} = __Error -> ?throw_error(__Error);
         __Result -> __Result
     end).

@@ -10,8 +10,6 @@
 %%% one defaulting to any op_worker node and other with explicit Node argument.
 %%% Unless noted otherwise in type spec, functions in this module throw
 %%% an error upon receiving badrpc.
-%%% Note that 'throw' exceptions do not
-%%% cause badrpc and are returned like a normal call result.
 %%% @end
 %%%-------------------------------------------------------------------
 -module(op_worker_rpc).
@@ -23,10 +21,11 @@
 -include_lib("ctool/include/oz/oz_users.hrl").
 
 % @formatter:off
--define(NO_EXCEPTION_CALL(Node, Args), rpc:call(Node, rpc_api, ?FUNCTION_NAME, Args)).
+-define(NO_EXCEPTION_CALL(Node, Args),
+    rpc:call(Node, rpc_api, apply, [?FUNCTION_NAME, Args])).
 
 -define(NO_EXCEPTION_CALL(Args),
-        ?NO_EXCEPTION_CALL(element(2, {ok, _} = nodes:any(?SERVICE_OPW)), Args)).
+    ?NO_EXCEPTION_CALL(element(2, {ok, _} = nodes:any(?SERVICE_OPW)), Args)).
 
 -define(CALL(Node, Args),
     case ?NO_EXCEPTION_CALL(Node, Args) of
@@ -35,7 +34,7 @@
     end).
 
 -define(CALL(Args),
-        ?CALL(element(2, {ok, _} = nodes:any(?SERVICE_OPW)), Args)).
+    ?CALL(element(2, {ok, _} = nodes:any(?SERVICE_OPW)), Args)).
 % @formatter:on
 
 -opaque helper() :: tuple().
