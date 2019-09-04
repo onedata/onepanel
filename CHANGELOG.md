@@ -6,7 +6,7 @@ CHANGELOG
 
 ### 18.02.3
 
-* Releasing new version 18.02.3
+* VFS-5739 Support ACMEv2 API in Let's Encrypt client
 
 
 ### 18.02.2
