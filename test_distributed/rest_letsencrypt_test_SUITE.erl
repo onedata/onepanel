@@ -355,8 +355,6 @@ init_per_testcase(Case, Config) when
     % cause error on certification attempt
     test_utils:mock_expect(Nodes, letsencrypt_api, run_certification_flow,
         fun(_, _) -> ?throw_error(?ERR_LETSENCRYPT(<<"someURN">>, <<"some message">>)) end),
-    test_utils:mock_expect(Nodes, letsencrypt_api, run_certification_flow,
-        fun(_, _, _) -> ?throw_error(?ERR_LETSENCRYPT(<<"someURN">>, <<"some message">>)) end),
 
     Initial = case Case of
         failed_patch_leaves_letsencrypt_disabled -> false;
@@ -379,8 +377,6 @@ init_per_testcase(_Case, Config) ->
     test_utils:mock_new(Nodes, [letsencrypt_api], [passthrough]),
     test_utils:mock_expect(Nodes, letsencrypt_api, run_certification_flow,
         fun(Domain, Plugin) when is_binary(Domain) and is_atom(Plugin) -> ok end),
-    test_utils:mock_expect(Nodes, letsencrypt_api, run_certification_flow,
-        fun(Domain, Plugin, _Mode) when is_binary(Domain) and is_atom(Plugin) -> ok end),
     Config.
 
 

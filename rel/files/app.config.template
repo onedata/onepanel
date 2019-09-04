@@ -103,8 +103,8 @@
 
         %% The directory URL of a Certificate Authority server using the ACME protocol
         %% to be used for automated web certificate issuance
-        {letsencrypt_directory_url, "https://acme-v01.api.letsencrypt.org/directory"},
-        {letsencrypt_directory_url_staging, "https://acme-staging.api.letsencrypt.org/directory"},
+        {letsencrypt_directory_url, "https://acme-v02.api.letsencrypt.org/directory"},
+        {letsencrypt_directory_url_staging, "https://acme-staging-v02.api.letsencrypt.org/directory"},
 
         %% Mode of operation with the Let's Encrypt:
         %% - dry        - run full certification procedure against staging server but do NOT
