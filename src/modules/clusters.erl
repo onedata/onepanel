@@ -34,6 +34,11 @@
 -define(PRIVILEGES_CACHE_KEY(OnezoneUserId), {privileges, OnezoneUserId}).
 -define(PRIVILEGES_CACHE_TTL, onepanel_env:get(onezone_auth_cache_ttl, ?APP_NAME, 0)).
 
+
+%%%===================================================================
+%%% API functions
+%%%===================================================================
+
 %%--------------------------------------------------------------------
 %% @doc Returns Id of this cluster.
 %% @end
@@ -123,11 +128,10 @@ get_user_privileges({rest, RestAuth}, OnezoneUserId) ->
     end);
 
 get_user_privileges({rpc, LogicClient}, OnezoneUserId) ->
-    case zone_rpc(
-        cluster_logic, get_eff_user_privileges,
-        [LogicClient, get_id(), OnezoneUserId]
+    case oz_worker_rpc:cluster_get_eff_user_privileges(
+        LogicClient, get_id(), OnezoneUserId
     ) of
-        #error{reason = ?ERR_NOT_FOUND} -> ?make_error(?ERR_USER_NOT_IN_CLUSTER);
+        ?ERROR_NOT_FOUND -> ?make_error(?ERR_USER_NOT_IN_CLUSTER);
         {ok, Privileges} -> {ok, Privileges}
     end.
 
@@ -139,7 +143,7 @@ get_user_privileges({rpc, LogicClient}, OnezoneUserId) ->
 -spec get_details(Auth :: rest_handler:zone_auth(), ClusterId :: id()) ->
     {ok, #{atom() := term()}} | #error{}.
 get_details({rpc, Auth}, ClusterId) ->
-    case zone_rpc(cluster_logic, get_protected_data, [Auth, ClusterId]) of
+    case oz_worker_rpc:get_protected_cluster_data(Auth, ClusterId) of
         {ok, ClusterData} ->
             {ok, onepanel_maps:get_store_multiple([
                 {<<"onepanelVersion">>, onepanelVersion},
@@ -147,7 +151,7 @@ get_details({rpc, Auth}, ClusterId) ->
                 {<<"onepanelProxy">>, onepanelProxy},
                 {<<"type">>, type}
             ], ClusterData, #{id => ClusterId, serviceId => ClusterId})};
-        Error -> Error
+        Error -> ?make_error(Error)
     end;
 
 get_details({rest, Auth}, ClusterId) ->
@@ -166,7 +170,10 @@ get_details({rest, Auth}, ClusterId) ->
 -spec list_user_clusters(rest_handler:zone_auth()) ->
     {ok, [id()]} | #error{}.
 list_user_clusters({rpc, Auth}) ->
-    zone_rpc(user_logic, get_clusters, [Auth]);
+    case oz_worker_rpc:get_clusters_by_user_auth(Auth) of
+        {ok, Ids} -> {ok, Ids};
+        Error -> ?make_error(Error)
+    end;
 
 list_user_clusters({rest, Auth}) ->
     case zone_rest(Auth, "/user/effective_clusters/", []) of
@@ -183,10 +190,7 @@ list_user_clusters({rest, Auth}) ->
 -spec fetch_remote_provider_info(Auth :: rest_handler:zone_auth(), ProviderId :: binary()) ->
     #{binary() := term()}.
 fetch_remote_provider_info({rpc, Client}, ProviderId) ->
-    {ok, OzNode} = nodes:any(?SERVICE_OZW),
-    case rpc:call(
-        OzNode, provider_logic, get_protected_data, [Client, ProviderId]
-    ) of
+    case oz_worker_rpc:get_protected_provider_data(Client, ProviderId) of
         {ok, ProviderData} -> format_provider_info(ProviderData);
         {error, not_found} -> ?throw_error(?ERR_NOT_FOUND)
     end;
@@ -197,7 +201,7 @@ fetch_remote_provider_info({rest, RestAuth}, ProviderId) ->
         {ok, ?HTTP_200_OK, _, BodyJson} ->
             format_provider_info(json_utils:decode(BodyJson));
         {ok, ?HTTP_404_NOT_FOUND, _, _} ->
-            ?throw_error(?ERROR_NOT_FOUND)
+            ?throw_error(?ERR_NOT_FOUND)
     end.
 
 
@@ -214,18 +218,6 @@ create_user_invite_token() ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-%% @private
--spec zone_rpc(Module :: module(), Function :: atom(), Args :: [term()]) ->
-    term() | #error{}.
-zone_rpc(Module, Function, Args) ->
-    {ok, OzNode} = nodes:any(?SERVICE_OZW),
-    case rpc:call(OzNode, Module, Function, Args) of
-        {badrpc, _} = Error -> ?make_error(Error);
-        {error, Reason} -> ?make_error(Reason);
-        Result -> Result
-    end.
-
 
 %% @private
 -spec zone_rest(Auth :: oz_plugin:auth(),
@@ -305,13 +297,12 @@ get_members_count({rest, Auth}, UsersOrGroups, DirectOrEffective) ->
 
 get_members_count({rpc, Auth}, UsersOrGroups, DirectOrEffective) ->
     Function = case {UsersOrGroups, DirectOrEffective} of
-        {users, direct} -> get_users;
-        {users, effective} -> get_eff_users;
-        {groups, direct} -> get_groups;
-        {groups, effective} -> get_eff_groups
+        {users, direct} -> cluster_logic_get_users;
+        {users, effective} -> cluster_logic_get_eff_users;
+        {groups, direct} -> cluster_logic_get_groups;
+        {groups, effective} -> cluster_logic_get_eff_groups
     end,
-
-    case zone_rpc(cluster_logic, Function, [Auth, get_id()]) of
+    case oz_worker_rpc:Function(Auth, get_id()) of
         {ok, List} -> length(List);
         Error -> ?throw_error(Error)
     end.
@@ -319,12 +310,11 @@ get_members_count({rpc, Auth}, UsersOrGroups, DirectOrEffective) ->
 
 %% @private
 -spec create_user_invite_token(rest_handler:zone_auth()) ->
-    {ok, tokens:serialized()} | #error{}.
+    {ok, Token :: binary()} | #error{}.
 create_user_invite_token({rpc, Auth}) ->
-    case zone_rpc(cluster_logic, create_user_invite_token,
-        [Auth, get_id()]) of
+    case oz_worker_rpc:cluster_logic_create_user_invite_token(Auth, get_id()) of
         {ok, Token} -> macaroons:serialize(Token);
-        Error -> Error
+        Error -> ?make_error(Error)
     end;
 
 create_user_invite_token({rest, Auth}) ->

@@ -15,7 +15,7 @@
     module :: module(),
     function :: atom(),
     arity :: non_neg_integer(),
-    args = undefined :: term(),
+    args = undefined :: undefined | [term()],
     reason :: term(),
     stacktrace = [] :: term(),
     line :: non_neg_integer()
