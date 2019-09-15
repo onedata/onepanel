@@ -42,7 +42,7 @@
     "OTHER DEALINGS IN THE SOFTWARE."}.
 {rpm_requires,
     "Requires: scl-utils\n"
-    "Requires: %scl_require_package %{scl} openssl\n"
+    "Requires: openssl\n"
     "Requires: sed\n"
     "Requires: %scl_require_package %{scl} folly\n"}.
 {rpm_build_requires,
@@ -51,8 +51,8 @@
     "BuildRequires: %scl_require_package %{scl} folly-static\n"
     "BuildRequires: %scl_require_package %{scl} gflags-devel\n"
     "BuildRequires: %scl_require_package %{scl} glog-devel\n"
-    "BuildRequires: %scl_require_package %{scl} openssl\n"
-    "BuildRequires: %scl_require_package devtoolset-6 gcc-c++\n"
+    "BuildRequires: %scl_require_package devtoolset-7 gcc-c++\n"
+    "BuildRequires: openssl\n"
     "BuildRequires: automake\n"
     "BuildRequires: cmake3\n"
     "BuildRequires: erlang-asn1 >= 20.0\n"
