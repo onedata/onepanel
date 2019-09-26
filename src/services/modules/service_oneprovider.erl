@@ -205,6 +205,7 @@ get_steps(manage_restart, Ctx) ->
             #steps{service = ?SERVICE_CM, action = resume},
             #steps{service = ?SERVICE_OPW, action = resume},
             #steps{action = set_up_service_in_onezone},
+            #step{function = store_absolute_auth_file_path, args = [], selection = any},
             #steps{service = ?SERVICE_LE, action = resume,
                 ctx = Ctx#{letsencrypt_plugin => ?SERVICE_OPW}}
         ];
@@ -906,6 +907,26 @@ set_up_service_in_onezone() ->
             end
     end.
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Stores absolute path to oneprovider token file in Onepanel config.
+%% This operation requires op-worker to be up.
+%% This function should be executed after cluster deployment, and after
+%% upgrading to version 19.10 when the path variable name and contents
+%% have changed.
+%% @end
+%%--------------------------------------------------------------------
+-spec store_absolute_auth_file_path() -> ok.
+store_absolute_auth_file_path() ->
+    PanelNodes = nodes:all(?SERVICE_PANEL),
+    RootTokenPath = op_worker_rpc:get_root_token_file_path(),
+    onepanel_env:write(PanelNodes, [?SERVICE_PANEL, op_worker_root_token_path],
+        RootTokenPath, onepanel_env:get_config_path(?SERVICE_PANEL, generated)),
+    onepanel_env:set(PanelNodes, op_worker_root_token_path, RootTokenPath, ?APP_NAME),
+    ok.
+
+
 %%%===================================================================
 %%% Internal RPC functions
 %%%===================================================================
@@ -923,7 +944,7 @@ root_token_from_file() ->
     case nodes:onepanel_with(?SERVICE_OPW) of
         {_, Self} ->
             {ok, RootTokenBin} = onepanel_maps:get(
-                root_macaroon, read_auth_file()),
+                root_token, read_auth_file()),
             {ok, TTL} = onepanel_env:read_effective(
                 [?SERVICE_OPW, provider_token_ttl_sec], ?SERVICE_OPW),
             Now = time_utils:system_time_seconds(),
@@ -942,12 +963,16 @@ root_token_from_file() ->
 %% @doc Reads provider Id and root token from a file where they are stored.
 %% @end
 %%--------------------------------------------------------------------
--spec read_auth_file() -> #{provider_id := binary(), root_macaroon := binary()}.
+-spec read_auth_file() -> #{provider_id := id(), root_token := binary()}.
 read_auth_file() ->
     {_, Node} = nodes:onepanel_with(?SERVICE_OPW),
-    Path = onepanel_env:get(op_worker_root_macaroon_path),
-    case rpc:call(Node, file, consult, [Path]) of
-        {ok, [Map]} -> Map;
+    Path = onepanel_env:get(op_worker_root_token_path),
+    case rpc:call(Node, file, read_file, [Path]) of
+        {ok, Json} ->
+            onepanel_maps:get_store_multiple([
+                {<<"provider_id">>, provider_id},
+                {<<"root_token">>, root_token}
+            ], json_utils:decode(Json));
         {error, Error} -> ?throw_error(Error)
     end.
 
@@ -962,8 +987,9 @@ read_auth_file() ->
 -spec on_registered(OpwNode :: node(), ProviderId :: id(),
     tokens:serialized()) -> ok.
 on_registered(OpwNode, ProviderId, RootToken) ->
-    save_provider_auth(OpwNode, ProviderId, RootToken),
+    ok = op_worker_rpc:provider_auth_save(OpwNode, ProviderId, RootToken),
     service:update_ctx(name(), #{registered => true}),
+    store_absolute_auth_file_path(),
 
     % Force connection healthcheck
     % (reconnect attempt is performed automatically if there is no connection)
@@ -972,19 +998,6 @@ on_registered(OpwNode, ProviderId, RootToken) ->
     % preload cache
     (catch clusters:get_current_cluster()),
     (catch get_details()),
-    ok.
-
-
--spec save_provider_auth(OpwNode :: node(), ProviderId :: id(),
-    tokens:serialized()) -> ok.
-save_provider_auth(OpwNode, ProviderId, RootToken) ->
-    ok = op_worker_rpc:provider_auth_save(OpwNode, ProviderId, RootToken),
-
-    PanelNodes = nodes:all(?SERVICE_PANEL),
-    RootTokenPath = op_worker_rpc:get_root_token_file_path(),
-    onepanel_env:write(PanelNodes, [?SERVICE_PANEL, op_worker_root_macaroon_path],
-        RootTokenPath, onepanel_env:get_config_path(?SERVICE_PANEL, generated)),
-    onepanel_env:set(PanelNodes, op_worker_root_macaroon_path, RootTokenPath, ?APP_NAME),
     ok.
 
 
