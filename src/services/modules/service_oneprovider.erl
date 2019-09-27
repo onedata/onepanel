@@ -50,7 +50,7 @@
     get_auto_cleaning_status/1, start_auto_cleaning/1, check_oz_connection/0,
     update_provider_ips/0, configure_file_popularity/1, configure_auto_cleaning/1,
     get_file_popularity_configuration/1, get_auto_cleaning_configuration/1]).
--export([set_up_service_in_onezone/0]).
+-export([set_up_service_in_onezone/0, store_absolute_auth_file_path/0]).
 -export([pop_legacy_letsencrypt_config/0]).
 -export([get_id/0, get_access_token/0]).
 
