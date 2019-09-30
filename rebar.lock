@@ -30,7 +30,7 @@
        {ref,"c193672cd1e14bd52c3ebd65e7fa101244f63a69"}},
   0},
  {<<"hackney">>,
-  {git,"git://github.com/benoitc/hackney.git",
+  {git,"git://github.com/bwalkowi/hackney.git",
        {ref,"d80d4d919acadbddea171fab31e040773c99ad49"}},
   1},
  {<<"idna">>,{pkg,<<"idna">>,<<"1.2.0">>},2},
