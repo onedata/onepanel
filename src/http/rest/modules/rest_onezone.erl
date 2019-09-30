@@ -62,6 +62,12 @@ is_authorized(Req, _Method, _State) ->
 exists_resource(Req, #rstate{resource = policies}) ->
     {model:exists(onepanel_deployment) andalso
         onepanel_deployment:is_set(?PROGRESS_READY), Req};
+
+exists_resource(Req, #rstate{resource = gui_message, bindings = #{id := Id}}) ->
+    {service:get_hosts(?WORKER) /= []
+        andalso service_onezone:gui_message_exists(Id),
+        Req};
+
 exists_resource(Req, _State) ->
     case service:get(?SERVICE) of
         {ok, #service{}} -> {true, Req};
@@ -107,6 +113,13 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = cluster_ips}) ->
 
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?SERVICE, set_cluster_ips, Ctx
+    ))};
+
+accept_resource(Req, 'PATCH', Args,
+    #rstate{resource = gui_message, bindings = #{id := Id}}) ->
+
+    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
+        ?SERVICE, update_gui_message, Args#{message_id => Id}
     ))}.
 
 
@@ -127,6 +140,13 @@ provide_resource(Req, #rstate{resource = cluster_ips}) ->
     {rest_replier:format_service_step(service_onezone, format_cluster_ips,
         service_utils:throw_on_error(service:apply_sync(
             ?SERVICE, format_cluster_ips, #{}
+        ))
+    ), Req};
+
+provide_resource(Req, #rstate{resource = gui_message, bindings = #{id := Id}}) ->
+    {rest_replier:format_service_step(service_onezone, get_gui_message,
+        service_utils:throw_on_error(service:apply_sync(
+            ?SERVICE, get_gui_message, #{message_id => Id}
         ))
     ), Req}.
 

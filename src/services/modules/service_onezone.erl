@@ -27,9 +27,13 @@
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
+%% API
+-export([gui_message_exists/1]).
+
 %% Steps
 -export([set_up_service_in_onezone/0]).
 -export([mark_configured/1, format_cluster_ips/1]).
+-export([get_gui_message/1, update_gui_message/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -212,11 +216,25 @@ get_steps(UsersFunction, _Ctx) when
     [#step{module = onezone_users, function = UsersFunction, selection = any}];
 
 get_steps(Function, _Ctx) when
+    Function == get_gui_message;
+    Function == update_gui_message;
     Function == format_cluster_ips ->
     [#step{function = Function, selection = any}];
 
 get_steps(set_up_service_in_onezone, _Ctx) ->
     [#step{function = set_up_service_in_onezone, args = [], selection = any}].
+
+
+%%%===================================================================
+%%% API functions
+%%%===================================================================
+
+-spec gui_message_exists(#{message_id := binary()}) -> boolean().
+gui_message_exists(MessageId) ->
+    {ok, Node} = nodes:any(?SERVICE_OZW),
+    case rpc:call(Node, gui_message, exists, [MessageId]) of
+        Bool when is_boolean(Bool) -> Bool
+    end.
 
 
 %%%===================================================================
@@ -275,3 +293,20 @@ set_up_service_in_onezone() ->
     clusters:get_current_cluster(),
 
     ?info("Onezone panel service successfully set up in Onezone").
+
+
+-spec get_gui_message(#{message_id := binary()}) ->
+    #{enabled := boolean(), body := binary()}.
+get_gui_message(#{message_id := MessageId}) ->
+    {ok, Node} = nodes:any(?SERVICE_OZW),
+    {ok, Result} = rpc:call(Node, gui_message, get_as_map, [MessageId]),
+    Result.
+
+
+-spec update_gui_message(#{message_id := binary(),
+    enabled => boolean(), body => binary()}) -> ok.
+update_gui_message(#{message_id := MessageId} = Ctx) ->
+    {ok, Node} = nodes:any(?SERVICE_OZW),
+    Diff = maps:with([enabled, body], Ctx),
+    {ok, _} = rpc:call(Node, gui_message, update, [MessageId, Diff]),
+    ok.
