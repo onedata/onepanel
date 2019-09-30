@@ -391,6 +391,7 @@ routes() ->
             version = 3,
             module = rest_oneprovider,
             resource = transfers_mock,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]

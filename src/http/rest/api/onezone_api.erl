@@ -104,6 +104,17 @@ routes() ->
             }]
         }},
 
+        %% Get settings of a Onezone GUI message.
+        {<<"/api/v3/onepanel/zone/gui_messages/:id">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onezone,
+            resource = gui_message,
+            produces = [<<"application/json">>],
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
         %% Get Onezone user details
         {<<"/api/v3/onepanel/zone/users/:id">>, rest_handler, #rstate{
             version = 3,
@@ -232,6 +243,17 @@ routes() ->
             produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
+            }]
+        }},
+
+        %% Modify settings of a Onezone GUI message.
+        {<<"/api/v3/onepanel/zone/gui_messages/:id">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_onezone,
+            resource = gui_message,
+            methods = [#rmethod{
+                type = 'PATCH',
+                args_spec = rest_model:gui_message_model()
             }]
         }},
 

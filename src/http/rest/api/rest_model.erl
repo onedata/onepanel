@@ -31,6 +31,7 @@
     emergency_passphrase_change_request_model/0,
     emergency_passphrase_status_model/0,
     error_model/0,
+    gui_message_model/0,
     host_model/0,
     host_add_request_model/0,
     ids_model/0,
@@ -362,6 +363,19 @@ error_model() ->
         error => string,
         %% The detailed error description.
         description => string
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Settings of a message displayed in Onezone GUI.
+%% @end
+%%--------------------------------------------------------------------
+-spec gui_message_model() -> map().
+gui_message_model() ->
+    #{
+        %% True if the message should be displayed.
+        enabled => {boolean, optional},
+        %% HTML content of the message to display.
+        body => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
