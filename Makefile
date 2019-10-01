@@ -40,6 +40,10 @@ BUILD_VERSION := $(subst $(shell git describe --tags --abbrev=0)-,,$(shell git d
 
 all: rel
 
+.PHONY: get-deps
+get-deps: config
+	$(REBAR) get-deps
+
 .PHONY: upgrade
 upgrade: config
 	$(REBAR) upgrade
@@ -49,7 +53,7 @@ compile: config
 	$(REBAR) compile
 
 .PHONY: generate
-generate: template config gui-static
+generate: template config inject-gui
 	$(REBAR) release $(OVERLAY_VARS)
 
 .PHONY: clean
@@ -70,7 +74,7 @@ template:
 config:
 	$(TEMPLATE_SCRIPT) $(TEMPLATE_CONFIG) ./rebar.config.template
 
-gui-static:
+inject-gui:
 	$(LIB_DIR)/gui/pull-gui.sh gui-image.conf
 
 
@@ -137,7 +141,7 @@ package/$(PKG_ID).tar.gz:
 	rm -rf package/$(PKG_ID)
 	git archive --format=tar --prefix=$(PKG_ID)/ $(PKG_REVISION) | (cd package && tar -xf -)
 	git submodule foreach --recursive "git archive --prefix=$(PKG_ID)/\$$path/ \$$sha1 | (cd \$$toplevel/package && tar -xf -)"
-	${MAKE} -C package/$(PKG_ID) config upgrade gui-static template
+	${MAKE} -C package/$(PKG_ID) config get-deps inject-gui template
 	for dep in package/$(PKG_ID) package/$(PKG_ID)/$(LIB_DIR)/*; do \
 	     echo "Processing dependency: `basename $${dep}`"; \
 	     vsn=`git --git-dir=$${dep}/.git describe --tags 2>/dev/null`; \
