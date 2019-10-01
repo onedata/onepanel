@@ -31,14 +31,20 @@
 -export([
     method_should_return_unauthorized_error/1,
     method_should_return_forbidden_error/1,
-    method_should_return_service_unavailable_error/1
+    method_should_return_service_unavailable_error/1,
+    bad_gui_message_id_should_return_not_found/1,
+    get_should_return_gui_message/1,
+    patch_should_update_gui_message/1
 ]).
 
 all() ->
     ?ALL([
         method_should_return_unauthorized_error,
         method_should_return_forbidden_error,
-        method_should_return_service_unavailable_error
+        method_should_return_service_unavailable_error,
+        bad_gui_message_id_should_return_not_found,
+        get_should_return_gui_message,
+        patch_should_update_gui_message
     ]).
 
 -define(TIMEOUT, timer:seconds(5)).
@@ -55,6 +61,11 @@ all() ->
     {<<"/zone/gui_messages/privacy_policy">>, get},
     {<<"/zone/gui_messages/privacy_policy">>, patch}
 ]).
+
+-define(GOOD_GUI_MESSAGE_ID, (<<"privacy_policy">>)).
+-define(BAD_GUI_MESSAGE_ID, (<<"nonexistent_gui_message">>)).
+-define(GUI_MESSAGE_ENABLED, true).
+-define(GUI_MESSAGE_BODY, (<<"some html">>)).
 
 -define(run(Config, Function), Function(hd(?config(onezone_hosts, Config)))).
 
@@ -89,32 +100,69 @@ method_should_return_unauthorized_error(Config) ->
 
 
 method_should_return_forbidden_error(Config) ->
-    ?run(Config, fun(Host) ->
-        lists:foreach(fun({Endpoint, Method}) ->
-            % highest rights which still should not grant access to these endpoints
-            Auths = case {Endpoint, Method} of
-                _ ->
-                    ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_UPDATE])
-            end,
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
+        % highest rights which still should not grant access to these endpoints
+        Auths = case {Endpoint, Method} of
+            _ ->
+                ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_UPDATE])
+        end,
 
-            ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
-                Host, Endpoint, Method, Auths
-            ))
-        end, [{E, M} || {E, M} <- ?COMMON_ENDPOINTS_WITH_METHODS, M /= get])
-    end).
+        ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
+            Host, Endpoint, Method, Auths
+        ))
+    end, [{E, M} || {E, M} <- ?COMMON_ENDPOINTS_WITH_METHODS, M /= get]).
 
 
 method_should_return_service_unavailable_error(Config) ->
-    ?run(Config, fun(Host) ->
-        lists:foreach(fun({Endpoint, Method}) ->
-            ?assertMatch({ok, ?HTTP_503_SERVICE_UNAVAILABLE, _, _}, onepanel_test_rest:auth_request(
-                Host, Endpoint, Method, ?ALL_AUTHS(Host)
-            ))
-        end, lists:subtract(
-            ?COMMON_ENDPOINTS_WITH_METHODS, [
-                {<<"/zone/cluster_ips">>, get}
-            ])
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
+        ?assertMatch({ok, ?HTTP_503_SERVICE_UNAVAILABLE, _, _}, onepanel_test_rest:auth_request(
+            Host, Endpoint, Method, ?ALL_AUTHS(Host)
+        ))
+    end, lists:subtract(?COMMON_ENDPOINTS_WITH_METHODS, [
+        {<<"/zone/cluster_ips">>, get}
+    ])).
+
+
+bad_gui_message_id_should_return_not_found(Config) ->
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
+        ?assertMatch({ok, ?HTTP_404_NOT_FOUND, _, _},
+            onepanel_test_rest:auth_request(
+                Host, Endpoint, Method, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+            )
         )
+    end, [
+        {<<"/zone/gui_messages/", ?BAD_GUI_MESSAGE_ID/binary>>, get},
+        {<<"/zone/gui_messages/", ?BAD_GUI_MESSAGE_ID/binary>>, patch}
+    ]).
+
+
+get_should_return_gui_message(Config) ->
+    ?run(Config, fun(Host) ->
+        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/zone/gui_messages/", ?GOOD_GUI_MESSAGE_ID/binary>>, get,
+                ?OZ_OR_ROOT_AUTHS(Host, [])
+            )
+        ),
+        onepanel_test_rest:assert_body(JsonBody, #{
+            <<"body">> => ?GUI_MESSAGE_BODY, <<"enabled">> => ?GUI_MESSAGE_ENABLED
+        })
+    end).
+
+
+patch_should_update_gui_message(Config) ->
+    ?run(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/zone/gui_messages/", ?GOOD_GUI_MESSAGE_ID/binary>>, patch,
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
+                #{<<"body">> => ?GUI_MESSAGE_BODY, <<"enabled">> => true}
+            )
+        ),
+        ?assertReceivedEqual({service, onezone, update_gui_message, #{
+            message_id => ?GOOD_GUI_MESSAGE_ID, body => ?GUI_MESSAGE_BODY,
+            enabled => ?GUI_MESSAGE_ENABLED
+        }}, ?TIMEOUT)
     end).
 
 
@@ -138,6 +186,34 @@ init_per_testcase(method_should_return_service_unavailable_error, Config) ->
     Nodes = ?config(all_nodes, Config),
     test_utils:mock_expect(Nodes, service, all_healthy, fun() -> false end),
     NewConfig;
+
+
+init_per_testcase(Case, Config) when
+    Case == bad_gui_message_id_should_return_not_found;
+    Case == get_should_return_gui_message;
+    Case == patch_should_update_gui_message ->
+
+    Self = self(),
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(all_nodes, Config),
+    test_utils:mock_expect(Nodes, service_onezone, gui_message_exists,
+        fun(MessageId) -> MessageId == ?GOOD_GUI_MESSAGE_ID end),
+
+    Result = #{body => ?GUI_MESSAGE_BODY, enabled => ?GUI_MESSAGE_ENABLED},
+    test_utils:mock_expect(Nodes, service, apply_sync, fun
+        (_, get_gui_message, _) ->
+            [
+                {service_onezone, get_gui_message, {
+                    [{'node@host1', Result}], []
+                }},
+                {task_finished, {service, action, ok}}
+            ];
+        (Service, Action, Ctx) ->
+            Self ! {service, Service, Action, Ctx},
+            [{task_finished, {service, action, ok}}]
+    end),
+    NewConfig;
+
 
 
 init_per_testcase(_Case, Config) ->
