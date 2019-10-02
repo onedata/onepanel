@@ -36,10 +36,10 @@ zone_policies_should_change_app_config_tests() ->
         {oneprovider_registration, provider_registration_policy, <<"restricted">>, restricted},
         {subdomain_delegation, subdomain_delegation_supported, true, true},
         {subdomain_delegation, subdomain_delegation_supported, false, false},
-        {gui_package_verification, disable_gui_package_verification, false, true},
-        {gui_package_verification, disable_gui_package_verification, true, false},
-        {harvester_gui_package_verification, disable_harvester_gui_package_verification, true, false},
-        {harvester_gui_package_verification, disable_harvester_gui_package_verification, false, true}
+        {gui_package_verification, gui_package_verification, true, true},
+        {gui_package_verification, gui_package_verification, false, false},
+        {harvester_gui_package_verification, harvester_gui_package_verification, false, false},
+        {harvester_gui_package_verification, harvester_gui_package_verification, true, true}
     ],
     lists:map(fun({Policy, Variable, Input, VariableValue}) ->
         fun() ->

@@ -624,7 +624,7 @@ get_registration_token(OzNode) ->
         ),
         ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS),
 
-    {ok, SerializedToken} = macaroons:serialize(RegistrationToken),
+    {ok, SerializedToken} = tokens:serialize(RegistrationToken),
     SerializedToken.
 
 

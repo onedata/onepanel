@@ -14,7 +14,7 @@
 -include("names.hrl").
 -include("http/rest.hrl").
 -include("modules/errors.hrl").
--include_lib("ctool/include/api_errors.hrl").
+-include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/onedata.hrl").
@@ -310,10 +310,10 @@ get_members_count({rpc, Auth}, UsersOrGroups, DirectOrEffective) ->
 
 %% @private
 -spec create_user_invite_token(rest_handler:zone_auth()) ->
-    {ok, Token :: binary()} | #error{}.
+    {ok, tokens:serialized()} | #error{}.
 create_user_invite_token({rpc, Auth}) ->
     case oz_worker_rpc:cluster_logic_create_user_invite_token(Auth, get_id()) of
-        {ok, Token} -> macaroons:serialize(Token);
+        {ok, Token} -> tokens:serialize(Token);
         Error -> ?make_error(Error)
     end;
 
