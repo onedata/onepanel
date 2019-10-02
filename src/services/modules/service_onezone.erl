@@ -229,10 +229,10 @@ get_steps(set_up_service_in_onezone, _Ctx) ->
 %%% API functions
 %%%===================================================================
 
--spec gui_message_exists(#{message_id := binary()}) -> boolean().
+-spec gui_message_exists(MessageId :: binary()) -> boolean().
 gui_message_exists(MessageId) ->
     {ok, Node} = nodes:any(?SERVICE_OZW),
-    case rpc:call(Node, gui_message, exists, [MessageId]) of
+    case rpc:call(Node, zone_logic, gui_message_exists, [MessageId]) of
         Bool when is_boolean(Bool) -> Bool
     end.
 
@@ -299,7 +299,7 @@ set_up_service_in_onezone() ->
     #{enabled := boolean(), body := binary()}.
 get_gui_message(#{message_id := MessageId}) ->
     {ok, Node} = nodes:any(?SERVICE_OZW),
-    {ok, Result} = rpc:call(Node, gui_message, get_as_map, [MessageId]),
+    {ok, Result} = rpc:call(Node, zone_logic, get_gui_message_as_map, [MessageId]),
     Result.
 
 
@@ -307,6 +307,9 @@ get_gui_message(#{message_id := MessageId}) ->
     enabled => boolean(), body => binary()}) -> ok.
 update_gui_message(#{message_id := MessageId} = Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OZW),
-    Diff = maps:with([enabled, body], Ctx),
-    {ok, _} = rpc:call(Node, gui_message, update, [MessageId, Diff]),
-    ok.
+    Diff = onepanel_maps:get_store_multiple([
+        {body, <<"body">>}, {enabled, <<"enabled">>}
+    ], Ctx, #{}),
+    {rpc, Auth} = onezone_client:root_auth(),
+    ok = rpc:call(Node, zone_logic, update_gui_message,
+        [Auth, MessageId, Diff]).
