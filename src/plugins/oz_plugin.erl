@@ -18,7 +18,7 @@
 
 -behaviour(oz_plugin_behaviour).
 
--type auth() :: none | provider | {gui_token, binary()} | {access_token, binary()}.
+-type auth() :: none | provider | {gui_token | access_token, tokens:serialized()}.
 -export_type([auth/0]).
 
 %% OZ behaviour callbacks
@@ -84,7 +84,7 @@ get_provider_cacerts_dir() ->
 %%--------------------------------------------------------------------
 -spec auth_to_rest_client(Auth :: auth()) ->
     {headers, #{Header :: binary() => Value :: binary()}} |
-    {provider, Macaroon :: binary()} |
+    {provider, tokens:serialized()} |
     none.
 auth_to_rest_client(none) ->
     none;
@@ -93,16 +93,16 @@ auth_to_rest_client({access_token, AccessToken}) ->
     {headers, tokens:build_access_token_header(AccessToken)};
 
 auth_to_rest_client({gui_token, GuiToken}) ->
-    ProviderMacaroon = service_oneprovider:get_auth_token(),
-    AudienceToken = tokens:serialize_audience_token(?OP_PANEL, ProviderMacaroon),
+    ProviderAccessToken = service_oneprovider:get_access_token(),
+    AudienceToken = tokens:serialize_audience_token(?OP_PANEL, ProviderAccessToken),
     {headers, maps:merge(
         tokens:build_access_token_header(GuiToken),
         tokens:build_audience_token_header(AudienceToken)
     )};
 
 auth_to_rest_client(provider) ->
-    ProviderMacaroon = service_oneprovider:get_auth_token(),
-    {provider, ProviderMacaroon}.
+    ProviderAccessToken = service_oneprovider:get_access_token(),
+    {provider, ProviderAccessToken}.
 
 
 %%%===================================================================

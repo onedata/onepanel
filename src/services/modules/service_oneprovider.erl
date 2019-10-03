@@ -20,7 +20,7 @@
 -include("modules/models.hrl").
 -include("deployment_progress.hrl").
 -include("authentication.hrl").
--include_lib("ctool/include/aai/macaroons.hrl").
+-include_lib("ctool/include/aai/aai.hrl").
 -include_lib("ctool/include/api_errors.hrl").
 -include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/logging.hrl").
@@ -30,6 +30,10 @@
 -include_lib("xmerl/include/xmerl.hrl").
 
 -include("http/rest.hrl").
+
+-type id() :: binary().
+
+-export_type([id/0]).
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
@@ -48,10 +52,10 @@
     get_file_popularity_configuration/1, get_auto_cleaning_configuration/1]).
 -export([set_up_service_in_onezone/0]).
 -export([pop_legacy_letsencrypt_config/0]).
--export([get_id/0, get_auth_token/0]).
+-export([get_id/0, get_access_token/0]).
 
 % Internal RPC
--export([auth_macaroon_from_file/0]).
+-export([root_token_from_file/0]).
 
 -define(OZ_DOMAIN_CACHE, oz_domain).
 -define(OZ_DOMAIN_CACHE_TTL, timer:minutes(1)).
@@ -301,10 +305,9 @@ get_steps(Action, Ctx) when
 %% @doc Returns id of this Oneprovider.
 %% @end
 %%--------------------------------------------------------------------
--spec get_id() -> binary().
+-spec get_id() -> id().
 get_id() ->
-    {ok, OpNode} = nodes:any(?SERVICE_OPW),
-    case rpc:call(OpNode, provider_auth, get_provider_id, []) of
+    case op_worker_rpc:get_provider_id() of
         {ok, <<ProviderId/binary>>} ->
             ProviderId;
         ?ERROR_UNREGISTERED_PROVIDER = Error ->
@@ -343,7 +346,7 @@ is_registered() ->
 %%--------------------------------------------------------------------
 -spec is_registered(Ctx :: service:ctx()) -> boolean().
 is_registered(#{node := Node}) ->
-    case rpc:call(Node, oneprovider, is_registered, []) of
+    case op_worker_rpc:is_registered(Node) of
         Registered when is_boolean(Registered) ->
             service:update_ctx(name(), #{registered => Registered}),
             Registered;
@@ -358,6 +361,15 @@ is_registered(Ctx) ->
     case nodes:any(?SERVICE_OPW) of
         {ok, Node} -> is_registered(Ctx#{node => Node});
         _Error -> false
+    end.
+
+
+-spec get_access_token() -> tokens:serialized().
+get_access_token() ->
+    case op_worker_rpc:get_access_token() of
+        {ok, <<Token/binary>>} -> Token;
+        ?ERROR_UNREGISTERED_PROVIDER = Error -> ?throw_error(Error);
+        _ -> root_token_from_file()
     end.
 
 
@@ -435,7 +447,7 @@ check_oz_connection() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec register(Ctx :: service:ctx()) ->
-    {ok, ProviderId :: binary()} | no_return().
+    {ok, ProviderId :: id()} | no_return().
 register(Ctx) ->
     {ok, OpwNode} = nodes:any(?SERVICE_OPW),
 
@@ -472,9 +484,9 @@ register(Ctx) ->
         {error, Reason} ->
             ?throw_error(Reason);
         {ok, #{<<"providerId">> := ProviderId,
-            <<"macaroon">> := Macaroon}} ->
+            <<"providerRootToken">> := RootToken}} ->
 
-            on_registered(OpwNode, ProviderId, Macaroon),
+            on_registered(OpwNode, ProviderId, RootToken),
             {ok, ProviderId}
     end.
 
@@ -487,8 +499,7 @@ register(Ctx) ->
 unregister() ->
     oz_providers:unregister(provider),
 
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-    rpc:call(Node, oneprovider, on_deregister, []),
+    op_worker_rpc:on_deregister(),
     onepanel_deployment:unset_marker(?PROGRESS_LETSENCRYPT_CONFIG),
     service:update_ctx(name(), fun(ServiceCtx) ->
         maps:without([cluster, cluster_id, ?DETAILS_PERSISTENCE],
@@ -515,17 +526,7 @@ modify_details(Ctx) ->
     case maps:size(Params) of
         0 -> ok;
         _ ->
-            {ok, Node} = nodes:any(?SERVICE_OPW),
-            ok = rpc:call(Node, provider_logic, update, [Params])
-    end.
-
--spec get_auth_token() -> Macaroon :: binary().
-get_auth_token() ->
-    OpNode = nodes:local(?SERVICE_OPW),
-    case rpc:call(OpNode, provider_auth, get_auth_macaroon, []) of
-        {ok, <<Macaroon/binary>>} -> Macaroon;
-        ?ERROR_UNREGISTERED_PROVIDER = Error -> ?throw_error(Error);
-        _ -> auth_macaroon_from_file()
+            ok = op_worker_rpc:provider_logic_update(Params)
     end.
 
 
@@ -541,7 +542,7 @@ get_details() ->
             false -> get_details_by_rest()
         end
     catch
-        Type:#error{reason = unregistered_provider} = Error ->
+        Type:#error{reason = ?ERROR_UNREGISTERED_PROVIDER} = Error ->
             erlang:Type(Error);
         Type:Error ->
             case service:get_ctx(name()) of
@@ -571,7 +572,7 @@ support_space(#{storage_id := StorageId} = Ctx) ->
     SupportSize = onepanel_utils:typed_get(size, Ctx, binary),
     Token = onepanel_utils:typed_get(token, Ctx, binary),
 
-    case rpc:call(Node, provider_logic, support_space, [Token, SupportSize]) of
+    case op_worker_rpc:support_space(Token, SupportSize) of
         {ok, SpaceId} ->
             configure_space(Node, SpaceId, Ctx);
         ?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, Minimum) ->
@@ -587,9 +588,8 @@ support_space(#{storage_id := StorageId} = Ctx) ->
 %%--------------------------------------------------------------------
 -spec revoke_space_support(Ctx :: service:ctx()) -> ok.
 revoke_space_support(#{id := SpaceId}) ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
     ok = oz_providers:revoke_space_support(provider, SpaceId),
-    ok = rpc:call(Node, space_storage, delete, [SpaceId]).
+    ok = op_worker_rpc:space_storage_delete(SpaceId).
 
 
 %%--------------------------------------------------------------------
@@ -598,8 +598,7 @@ revoke_space_support(#{id := SpaceId}) ->
 %%--------------------------------------------------------------------
 -spec get_spaces(Ctx :: service:ctx()) -> list().
 get_spaces(_Ctx) ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-    {ok, SpaceIds} = rpc:call(Node, provider_logic, get_spaces, []),
+    {ok, SpaceIds} = op_worker_rpc:get_spaces(),
     [{ids, SpaceIds}].
 
 
@@ -609,10 +608,7 @@ get_spaces(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec is_space_supported(Ctx :: service:ctx()) -> boolean().
 is_space_supported(#{space_id := Id}) ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-    case rpc:call(Node, provider_logic, supports_space, [Id]) of
-        Result when is_boolean(Result) -> Result
-    end.
+    op_worker_rpc:supports_space(Id).
 
 
 %%--------------------------------------------------------------------
@@ -623,7 +619,7 @@ is_space_supported(#{space_id := Id}) ->
 get_space_details(#{id := SpaceId}) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     {ok, #{name := Name, providers := Providers}} =
-        rpc:call(Node, space_logic, get_as_map, [SpaceId]),
+        op_worker_rpc:get_space_details(Node, SpaceId),
     StorageIds = op_worker_storage:get_supporting_storages(Node, SpaceId),
     StorageId = hd(StorageIds),
     MountInRoot = op_worker_storage:is_mounted_in_root(Node, SpaceId, StorageId),
@@ -633,7 +629,7 @@ get_space_details(#{id := SpaceId}) ->
     UpdateDetails = op_worker_storage_sync:get_storage_update_details(
         Node, SpaceId, StorageId
     ),
-    CurrentSize = rpc:call(Node, space_quota, current_size, [SpaceId]),
+    CurrentSize = op_worker_rpc:space_quota_current_size(Node, SpaceId),
     [
         {id, SpaceId},
         {name, Name},
@@ -668,7 +664,7 @@ modify_space(#{space_id := SpaceId} = Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 maybe_update_support_size(OpNode, SpaceId, #{size := SupportSize}) ->
-    case rpc:call(OpNode, provider_logic, update_space_support_size, [SpaceId, SupportSize]) of
+    case op_worker_rpc:update_space_support_size(OpNode, SpaceId, SupportSize) of
         ok -> ok;
         ?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, Minimum) ->
             ?throw_error(?ERR_SPACE_SUPPORT_TOO_LOW(Minimum));
@@ -699,12 +695,11 @@ get_sync_stats(#{space_id := SpaceId} = Ctx) ->
 %%--------------------------------------------------------------------
 -spec update_provider_ips() -> ok.
 update_provider_ips() ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
     case is_registered() of
         true ->
             % no check of results - if the provider is not connected to onezone
             % the IPs will be sent automatically after connection is acquired
-            rpc:call(Node, provider_logic, update_subdomain_delegation_ips, []),
+            op_worker_rpc:update_subdomain_delegation_ips(),
             ok;
         false -> ok
     end.
@@ -717,11 +712,11 @@ update_provider_ips() ->
 %%-------------------------------------------------------------------
 -spec get_auto_cleaning_reports(Ctx :: service:ctx()) -> map().
 get_auto_cleaning_reports(Ctx = #{space_id := SpaceId}) ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
     Offset = onepanel_utils:typed_get(offset, Ctx, integer, 0),
     Limit = onepanel_utils:typed_get(limit, Ctx, integer, all),
     Index = onepanel_utils:typed_get(index, Ctx, binary, undefined),
-    {ok, Ids} = rpc:call(Node, autocleaning_api, list_reports, [SpaceId, Index, Offset, Limit]),
+    {ok, Ids} = op_worker_rpc:autocleaning_list_reports(
+        SpaceId, Index, Offset, Limit),
     #{ids => Ids}.
 
 
@@ -732,8 +727,7 @@ get_auto_cleaning_reports(Ctx = #{space_id := SpaceId}) ->
 %%-------------------------------------------------------------------
 -spec get_auto_cleaning_report(Ctx :: service:ctx()) -> #{atom() => term()}.
 get_auto_cleaning_report(#{report_id := ReportId}) ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-    case rpc:call(Node, autocleaning_api, get_run_report, [ReportId]) of
+    case op_worker_rpc:autocleaning_get_run_report(ReportId) of
         {ok, Report} ->
             onepanel_maps:undefined_to_null(
                 onepanel_maps:get_store_multiple([
@@ -757,8 +751,7 @@ get_auto_cleaning_report(#{report_id := ReportId}) ->
 %%-------------------------------------------------------------------
 -spec get_auto_cleaning_status(Ctx :: service:ctx()) -> #{atom() => term()}.
 get_auto_cleaning_status(#{space_id := SpaceId}) ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-    Status = rpc:call(Node, autocleaning_api, status, [SpaceId]),
+    Status = op_worker_rpc:autocleaning_status(SpaceId),
     onepanel_maps:get_store_multiple([
         {in_progress, inProgress},
         {space_occupancy, spaceOccupancy}
@@ -794,8 +787,7 @@ get_file_popularity_configuration(#{space_id := SpaceId}) ->
 %%-------------------------------------------------------------------
 -spec start_auto_cleaning(Ctx :: service:ctx()) -> ok.
 start_auto_cleaning(#{space_id := SpaceId}) ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-    case rpc:call(Node, autocleaning_api, force_start, [SpaceId]) of
+    case op_worker_rpc:autocleaning_force_start(SpaceId) of
         {ok, _} -> ok;
         {error, {already_started, _}} -> ok;
         {error, nothing_to_clean} -> ok;
@@ -920,25 +912,22 @@ set_up_service_in_onezone() ->
 
 %%--------------------------------------------------------------------
 %% @private
-%% @doc Reads provider root macaroon stored in a file
+%% @doc Reads provider root token stored in a file
 %% and returns it with an time caveat added.
 %% @end
 %%--------------------------------------------------------------------
--spec auth_macaroon_from_file() -> Macaroon :: binary().
-auth_macaroon_from_file() ->
+-spec root_token_from_file() -> tokens:serialized().
+root_token_from_file() ->
     Self = node(),
     % ensure correct node for reading op_worker configuration
     case nodes:onepanel_with(?SERVICE_OPW) of
         {_, Self} ->
-            {ok, RootMacaroonB64} = onepanel_maps:get(root_macaroon, read_auth_file()),
+            {ok, RootTokenBin} = onepanel_maps:get(
+                root_macaroon, read_auth_file()),
             {ok, TTL} = onepanel_env:read_effective(
-                [?SERVICE_OPW, provider_macaroon_ttl_sec], ?SERVICE_OPW),
-
-            {ok, RootMacaroon} = macaroons:deserialize(RootMacaroonB64),
-            Caveat = ?TIME_CAVEAT(time_utils:system_time_seconds(), TTL),
-            Limited = macaroons:add_caveat(RootMacaroon, Caveat),
-            {ok, Macaroon} = macaroons:serialize(Limited),
-            Macaroon;
+                [?SERVICE_OPW, provider_token_ttl_sec], ?SERVICE_OPW),
+            Now = time_utils:system_time_seconds(),
+            tokens:confine(RootTokenBin, #cv_time{valid_until = Now + TTL});
         {ok, Other} ->
             <<_/binary>> = rpc:call(Other, ?MODULE, ?FUNCTION_NAME, [])
     end.
@@ -950,7 +939,7 @@ auth_macaroon_from_file() ->
 
 %%--------------------------------------------------------------------
 %% @private
-%% @doc Reads provider Id and root macaroon from a file where they are stored.
+%% @doc Reads provider Id and root token from a file where they are stored.
 %% @end
 %%--------------------------------------------------------------------
 -spec read_auth_file() -> #{provider_id := binary(), root_macaroon := binary()}.
@@ -970,15 +959,15 @@ read_auth_file() ->
 %% identity.
 %% @end
 %%--------------------------------------------------------------------
--spec on_registered(OpwNode :: node(), ProviderId :: binary(),
-    Macaroon :: binary()) -> ok.
-on_registered(OpwNode, ProviderId, Macaroon) ->
-    save_provider_auth(OpwNode, ProviderId, Macaroon),
+-spec on_registered(OpwNode :: node(), ProviderId :: id(),
+    tokens:serialized()) -> ok.
+on_registered(OpwNode, ProviderId, RootToken) ->
+    save_provider_auth(OpwNode, ProviderId, RootToken),
     service:update_ctx(name(), #{registered => true}),
 
     % Force connection healthcheck
     % (reconnect attempt is performed automatically if there is no connection)
-    rpc:call(OpwNode, oneprovider, force_oz_connection_start, []),
+    op_worker_rpc:force_oz_connection_start(OpwNode),
 
     % preload cache
     (catch clusters:get_current_cluster()),
@@ -986,27 +975,24 @@ on_registered(OpwNode, ProviderId, Macaroon) ->
     ok.
 
 
--spec save_provider_auth(OpwNode :: node(), ProviderId :: binary(),
-    Macaroon :: binary()) -> ok.
-save_provider_auth(OpwNode, ProviderId, Macaroon) ->
-    ok = rpc:call(OpwNode, provider_auth, save, [ProviderId, Macaroon]),
+-spec save_provider_auth(OpwNode :: node(), ProviderId :: id(),
+    tokens:serialized()) -> ok.
+save_provider_auth(OpwNode, ProviderId, RootToken) ->
+    ok = op_worker_rpc:provider_auth_save(OpwNode, ProviderId, RootToken),
 
     PanelNodes = nodes:all(?SERVICE_PANEL),
-    MacaroonPath = rpc:call(OpwNode, provider_auth, get_root_macaroon_file_path, []),
+    RootTokenPath = op_worker_rpc:get_root_token_file_path(),
     onepanel_env:write(PanelNodes, [?SERVICE_PANEL, op_worker_root_macaroon_path],
-        MacaroonPath, onepanel_env:get_config_path(?SERVICE_PANEL, generated)),
-    onepanel_env:set(PanelNodes, op_worker_root_macaroon_path, MacaroonPath, ?APP_NAME),
+        RootTokenPath, onepanel_env:get_config_path(?SERVICE_PANEL, generated)),
+    onepanel_env:set(PanelNodes, op_worker_root_macaroon_path, RootTokenPath, ?APP_NAME),
     ok.
 
 
 %% @private
 -spec get_details_by_graph_sync() -> #{atom() := term()} | no_return().
 get_details_by_graph_sync() ->
-    {ok, Node} = nodes:any(?SERVICE_OPW),
-
     OzDomain = get_oz_domain(),
-
-    Details = case rpc:call(Node, provider_logic, get_as_map, []) of
+    Details = case op_worker_rpc:get_provider_details() of
         {ok, DetailsMap} -> DetailsMap;
         ?ERROR_NO_CONNECTION_TO_OZ -> ?throw_error(?ERR_ONEZONE_NOT_AVAILABLE);
         {error, Reason} -> ?throw_error(Reason)
@@ -1078,10 +1064,10 @@ modify_domain_details(OpNode, #{oneprovider_subdomain_delegation := true} = Ctx)
     Subdomain = string:lowercase(onepanel_utils:typed_get(
         oneprovider_subdomain, Ctx, binary)),
 
-    case rpc:call(OpNode, provider_logic, is_subdomain_delegated, []) of
+    case op_worker_rpc:is_subdomain_delegated(OpNode) of
         {true, Subdomain} -> ok; % no change
         _ ->
-            case rpc:call(OpNode, provider_logic, set_delegated_subdomain, [Subdomain]) of
+            case op_worker_rpc:set_delegated_subdomain(OpNode, Subdomain) of
                 ok ->
                     dns_check:invalidate_cache(op_worker);
                 ?ERROR_BAD_VALUE_IDENTIFIER_OCCUPIED(<<"subdomain">>) ->
@@ -1092,7 +1078,7 @@ modify_domain_details(OpNode, #{oneprovider_subdomain_delegation := true} = Ctx)
 modify_domain_details(OpNode, #{oneprovider_subdomain_delegation := false} = Ctx) ->
     Domain = string:lowercase(onepanel_utils:typed_get(
         oneprovider_domain, Ctx, binary)),
-    ok = rpc:call(OpNode, provider_logic, set_domain, [Domain]),
+    ok = op_worker_rpc:set_domain(OpNode, Domain),
     dns_check:invalidate_cache(op_worker);
 
 modify_domain_details(_OpNode, _Ctx) -> ok.
@@ -1107,7 +1093,7 @@ modify_domain_details(_OpNode, _Ctx) -> ok.
 -spec assert_storage_exists(Node :: node(), StorageId :: binary()) ->
     ok | no_return().
 assert_storage_exists(Node, StorageId) ->
-    case rpc:call(Node, storage, exists, [StorageId]) of
+    case op_worker_rpc:storage_exists(Node, StorageId) of
         true -> ok;
         _ -> ?throw_error({?ERR_STORAGE_NOT_FOUND, StorageId})
     end.
@@ -1123,7 +1109,7 @@ configure_space(Node, SpaceId, #{storage_id := StorageId} = Ctx) ->
     MountInRoot = onepanel_utils:typed_get(mount_in_root, Ctx, boolean, false),
     ImportArgs = maps:get(storage_import, Ctx, #{}),
     UpdateArgs = maps:get(storage_update, Ctx, #{}),
-    {ok, _} = rpc:call(Node, space_storage, add, [SpaceId, StorageId, MountInRoot]),
+    {ok, _} = op_worker_rpc:space_storage_add(Node, SpaceId, StorageId, MountInRoot),
     op_worker_storage_sync:maybe_modify_storage_import(Node, SpaceId, ImportArgs),
     op_worker_storage_sync:maybe_modify_storage_update(Node, SpaceId, UpdateArgs),
     [{id, SpaceId}].

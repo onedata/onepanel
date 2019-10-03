@@ -118,9 +118,7 @@ get_steps(Action, Ctx) ->
 get_logic_client_by_gui_token(GuiToken) ->
     case nodes:any(name()) of
         {ok, OzNode} ->
-            case rpc:call(OzNode, auth_logic,
-                authorize_by_oz_panel_gui_token, [GuiToken]
-            ) of
+            case oz_worker_rpc:authorize_by_oz_panel_gui_token(OzNode, GuiToken) of
                 {true, LogicClient} -> {ok, LogicClient};
                 {error, ApiError} -> ?make_error(ApiError)
             end;
@@ -133,8 +131,7 @@ get_logic_client_by_gui_token(GuiToken) ->
 get_logic_client_by_access_token(AccessToken) ->
     case nodes:any(name()) of
         {ok, OzNode} ->
-            case rpc:call(OzNode, auth_logic,
-                authorize_by_access_token, [AccessToken]
+            case oz_worker_rpc:authorize_by_access_token(OzNode, AccessToken
             ) of
                 {true, LogicClient} -> {ok, LogicClient};
                 {error, ApiError} -> ?make_error(ApiError)
@@ -146,7 +143,7 @@ get_logic_client_by_access_token(AccessToken) ->
 -spec get_user_details(LogicClient :: term()) -> {ok, #user_details{}} | #error{}.
 get_user_details(LogicClient) ->
     {ok, OzNode} = nodes:any(name()),
-    case rpc:call(OzNode, user_logic, get_as_user_details, [LogicClient]) of
+    case oz_worker_rpc:get_user_details(OzNode, LogicClient) of
         {ok, User} -> {ok, User};
         {error, Reason} -> ?make_error(Reason)
     end.
@@ -292,10 +289,7 @@ set_http_record(Name, Value) ->
 %%-------------------------------------------------------------------
 -spec get_ns_hosts() -> [{Name :: binary(), IP :: inet:ip4_address()}].
 get_ns_hosts() ->
-    {ok, Node} = nodes:any(name()),
-    case rpc:call(Node, dns_config, get_ns_hosts, []) of
-        Hosts when is_list(Hosts) -> Hosts
-    end.
+    oz_worker_rpc:dns_config_get_ns_hosts().
 
 
 %%--------------------------------------------------------------------
@@ -421,9 +415,8 @@ supports_letsencrypt_challenge(_) -> false.
 %% @end
 %%--------------------------------------------------------------------
 -spec reconcile_dns(service:ctx()) -> ok.
-reconcile_dns(Ctx) ->
-    {ok, Node} = nodes:any(Ctx#{service => name()}),
-    ok = rpc:call(Node, node_manager_plugin, reconcile_dns_config, []).
+reconcile_dns(_Ctx) ->
+    ok = oz_worker_rpc:reconcile_dns_config().
 
 
 %%--------------------------------------------------------------------

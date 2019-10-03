@@ -233,6 +233,8 @@ format_service_task_results(Results) ->
 %% used for creating them and convert accordingly.
 %% @end
 %%--------------------------------------------------------------------
+-spec format_storage_details(service_executor:results()) ->
+    #{atom() => term()}.
 format_storage_details(Results) ->
     {[{_Node, Result} | _], []} =
         select_service_step(service_op_worker, get_storages, Results),
@@ -241,8 +243,9 @@ format_storage_details(Results) ->
     Typemap = model_to_typemap(Model),
     maps:map(fun
         (Key, Value) when is_binary(Value) ->
-            case maps:find(onepanel_utils:convert(Key, atom), Typemap) of
-                {ok, string} -> onepanel_utils:convert(Value, binary);
+            KeyAtom = onepanel_utils:convert(Key, atom),
+            case maps:find(KeyAtom, Typemap) of
+                {ok, string} -> Value;
                 {ok, Type} -> onepanel_utils:convert(Value, Type);
                 error -> Value
             end;
