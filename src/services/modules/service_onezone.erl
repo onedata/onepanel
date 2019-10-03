@@ -27,9 +27,6 @@
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
-%% API
--export([gui_message_exists/1]).
-
 %% Steps
 -export([set_up_service_in_onezone/0]).
 -export([mark_configured/1, format_cluster_ips/1]).
@@ -226,18 +223,6 @@ get_steps(set_up_service_in_onezone, _Ctx) ->
 
 
 %%%===================================================================
-%%% API functions
-%%%===================================================================
-
--spec gui_message_exists(MessageId :: binary()) -> boolean().
-gui_message_exists(MessageId) ->
-    {ok, Node} = nodes:any(?SERVICE_OZW),
-    case rpc:call(Node, zone_logic, gui_message_exists, [MessageId]) of
-        Bool when is_boolean(Bool) -> Bool
-    end.
-
-
-%%%===================================================================
 %%% Step functions
 %%%===================================================================
 
@@ -295,21 +280,18 @@ set_up_service_in_onezone() ->
     ?info("Onezone panel service successfully set up in Onezone").
 
 
--spec get_gui_message(#{message_id := binary()}) ->
-    #{enabled := boolean(), body := binary()}.
+-spec get_gui_message(#{message_id := oz_worker_rpc:gui_message_id()}) ->
+    oz_worker_rpc:gui_message_map_repr().
 get_gui_message(#{message_id := MessageId}) ->
-    {ok, Node} = nodes:any(?SERVICE_OZW),
-    {ok, Result} = rpc:call(Node, zone_logic, get_gui_message_as_map, [MessageId]),
+    {ok, Result} = oz_worker_rpc:get_gui_message_as_map(MessageId),
     Result.
 
 
--spec update_gui_message(#{message_id := binary(),
+-spec update_gui_message(#{message_id := oz_worker_rpc:gui_message_id(),
     enabled => boolean(), body => binary()}) -> ok.
 update_gui_message(#{message_id := MessageId} = Ctx) ->
-    {ok, Node} = nodes:any(?SERVICE_OZW),
     Diff = onepanel_maps:get_store_multiple([
         {body, <<"body">>}, {enabled, <<"enabled">>}
     ], Ctx, #{}),
     {rpc, Auth} = onezone_client:root_auth(),
-    ok = rpc:call(Node, zone_logic, update_gui_message,
-        [Auth, MessageId, Diff]).
+    ok = oz_worker_rpc:update_gui_message(Auth, MessageId, Diff).

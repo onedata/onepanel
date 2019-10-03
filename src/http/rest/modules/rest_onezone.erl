@@ -65,7 +65,7 @@ exists_resource(Req, #rstate{resource = policies}) ->
 
 exists_resource(Req, #rstate{resource = gui_message, bindings = #{id := Id}}) ->
     {service:get_hosts(?WORKER) /= []
-        andalso service_onezone:gui_message_exists(Id),
+        andalso oz_worker_rpc:gui_message_exists(Id),
         Req};
 
 exists_resource(Req, _State) ->
