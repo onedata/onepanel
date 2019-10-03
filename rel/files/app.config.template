@@ -207,6 +207,8 @@
         {extend_cluster_attempts, 20},
         {task_ttl, 86400000},
         {service_step_retry_delay, 30000},
+        {node_connection_attempts, 90},
+        {node_connection_retry_delay, 1000},
         {session_ttl, 86400}, % 24h
         {auth_token_ttl, 86400},
         {wait_for_cluster_attempts, 20},

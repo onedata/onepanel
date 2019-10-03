@@ -78,6 +78,7 @@ get_steps(deploy, #{hosts := Hosts} = Ctx) ->
 get_steps(extend_cluster, Ctx) ->
     [
         #step{function = extend_cluster, hosts = [hosts:self()],
+            % when the reason of extend_cluster is an explicit request, do not retry
             ctx = Ctx#{attempts => 1}}
     ];
 
@@ -98,14 +99,16 @@ get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
             S = #step{hosts = [SelfHost], verify_hosts = false},
             [
                 S#step{function = set_cookie},
-                S#step{function = check_connection},
+                S#step{function = check_connection,
+                    attempts = onepanel_env:get(node_connection_attempts, ?APP_NAME, 90),
+                    retry_delay = onepanel_env:get(node_connection_retry_delay, ?APP_NAME, 1000)},
                 S#step{function = reset_node},
                 S#step{function = join_cluster}
             ]
     end;
 
 %% Removes given nodes from the current cluster, clears database on each
-%% and initalizes separate one-node clusters.
+%% and initializes separate one-node clusters.
 get_steps(leave_cluster, #{hosts := Hosts}) ->
     lists:foreach(fun(Host) ->
         case is_used(Host) of
@@ -230,13 +233,16 @@ extend_cluster(#{hostname := Hostname, api_version := ApiVersion,
     Url = build_url(Hostname, ApiVersion, Suffix),
 
     case http_client:post(Url, Headers, Body, Opts) of
+        {ok, ?HTTP_204_NO_CONTENT, _, _} ->
+            ?info("Host '~ts' added to the cluster", [Hostname]),
+            #{hostname => Hostname};
         {ok, ?HTTP_403_FORBIDDEN, _, _} ->
             ?throw_error(?ERR_NODE_NOT_EMPTY(Hostname));
-        {ok, ?HTTP_204_NO_CONTENT, _, _} ->
-            ?info("Host '~s' added to the cluster", [Hostname]),
-            #{hostname => Hostname};
+        {ok, Code, _, RespBody} ->
+            ?error("Unexpected response when trying to add node: ~tp ~tp", [Code, RespBody]),
+            extend_cluster(Ctx#{attempts => Attempts - 1});
         {error, _} ->
-            ?warning("Failed to connect with '~s' to extend cluster", [Hostname]),
+            ?warning("Failed to connect with '~ts' to extend cluster", [Hostname]),
             extend_cluster(Ctx#{attempts => Attempts - 1})
     end;
 
@@ -249,7 +255,7 @@ extend_cluster(#{address := Address, api_version := _ApiVersion,
         {ok, _Hostname, OtherType} ->
             ?throw_error(?ERR_INCOMPATIBLE_NODE(Address, OtherType));
         #error{reason = ?ERR_BAD_NODE} ->
-            ?warning("Failed to connect with '~s' to extend cluster", [Address]),
+            ?warning("Failed to connect with '~ts' to extend cluster", [Address]),
             extend_cluster(Ctx#{attempts => Attempts - 1})
     end.
 
