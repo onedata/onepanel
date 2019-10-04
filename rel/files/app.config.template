@@ -274,8 +274,8 @@
         {op_worker_nagios_protocol, "https"},
         {op_worker_wait_for_init_attempts, 60},
         {op_worker_wait_for_init_delay, 5000},
-        % should point at the same file as op_worker's env root_macaroon_path
-        {op_worker_root_macaroon_path, "{{platform_etc_dir}}/../op_worker/provider_root_macaroon.txt"},
+        % this variable is overridden after op-worker deployment with an absolute path.
+        {op_worker_root_token_path, "{{platform_etc_dir}}/../op_worker/provider_root_token.json"},
 
 
         {oz_worker_vm_args_file, "{{platform_etc_dir}}/../oz_worker/vm.args"},
