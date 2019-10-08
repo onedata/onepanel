@@ -76,9 +76,9 @@ read_domain(RegistrationToken) ->
 ) -> #client{} | #error{}.
 authenticate_user(onezone, Token) ->
     case service_oz_worker:get_logic_client_by_token(Token) of
-        {ok, LogicClient} ->
-            {ok, Details} = service_oz_worker:get_user_details(LogicClient),
-            user_details_to_client(Details, {rpc, LogicClient});
+        {ok, Auth} ->
+            {ok, Details} = service_oz_worker:get_user_details(Auth),
+            user_details_to_client(Details, {rpc, Auth});
         _ ->
             ?make_error(?ERR_INVALID_AUTH_TOKEN)
     end;

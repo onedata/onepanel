@@ -127,9 +127,9 @@ get_user_privileges({rest, RestAuth}, OnezoneUserId) ->
         end
     end);
 
-get_user_privileges({rpc, LogicClient}, OnezoneUserId) ->
+get_user_privileges({rpc, Auth}, OnezoneUserId) ->
     case oz_worker_rpc:cluster_get_eff_user_privileges(
-        LogicClient, get_id(), OnezoneUserId
+        Auth, get_id(), OnezoneUserId
     ) of
         ?ERROR_NOT_FOUND -> ?make_error(?ERR_USER_NOT_IN_CLUSTER);
         {ok, Privileges} -> {ok, Privileges}

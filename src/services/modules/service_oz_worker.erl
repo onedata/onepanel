@@ -115,22 +115,22 @@ get_steps(Action, Ctx) ->
 
 
 -spec get_logic_client_by_token(AccessToken :: binary()) ->
-    {ok, onezone_client:logic_client()} | #error{}.
+    {ok, aai:auth()} | #error{}.
 get_logic_client_by_token(AccessToken) ->
     case nodes:any(name()) of
         {ok, OzNode} ->
             case oz_worker_rpc:check_token_auth(OzNode, AccessToken) of
-                {true, LogicClient} -> {ok, LogicClient};
+                {true, Auth} -> {ok, Auth};
                 {error, ApiError} -> ?make_error(ApiError)
             end;
         Error -> Error
     end.
 
 
--spec get_user_details(LogicClient :: term()) -> {ok, #user_details{}} | #error{}.
-get_user_details(LogicClient) ->
+-spec get_user_details(aai:auth()) -> {ok, #user_details{}} | #error{}.
+get_user_details(Auth) ->
     {ok, OzNode} = nodes:any(name()),
-    case oz_worker_rpc:get_user_details(OzNode, LogicClient) of
+    case oz_worker_rpc:get_user_details(OzNode, Auth) of
         {ok, User} -> {ok, User};
         {error, Reason} -> ?make_error(Reason)
     end.

@@ -44,7 +44,7 @@
 %% 'none' is used if proper authentication object could not be obtained
 -type zone_auth() :: rpc_auth() | rest_auth() | none.
 %% Used by oz_panel
--type rpc_auth() :: {rpc, onezone_client:logic_client()}.
+-type rpc_auth() :: {rpc, aai:auth()}.
 %% Used by op_panel
 -type rest_auth() :: {rest, oz_plugin:auth()}.
 
