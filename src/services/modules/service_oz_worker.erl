@@ -20,7 +20,7 @@
 -include("service.hrl").
 -include("authentication.hrl").
 -include_lib("ctool/include/logging.hrl").
--include_lib("ctool/include/api_errors.hrl").
+-include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
 
 %% Service behaviour callbacks
@@ -113,12 +113,14 @@ get_steps(Action, Ctx) ->
 %%% Public API
 %%%===================================================================
 
--spec get_logic_client_by_gui_token(GuiToken :: binary())  ->
+-spec get_logic_client_by_gui_token(GuiToken :: binary()) ->
     {ok, onezone_client:logic_client()} | #error{}.
 get_logic_client_by_gui_token(GuiToken) ->
+    %% @TODO VFS-5731 GUI/access tokens are now indistinguishable on the
+    %% API level - the code can be simplified
     case nodes:any(name()) of
         {ok, OzNode} ->
-            case oz_worker_rpc:authorize_by_oz_panel_gui_token(OzNode, GuiToken) of
+            case oz_worker_rpc:check_token_auth(OzNode, GuiToken) of
                 {true, LogicClient} -> {ok, LogicClient};
                 {error, ApiError} -> ?make_error(ApiError)
             end;
@@ -126,13 +128,12 @@ get_logic_client_by_gui_token(GuiToken) ->
     end.
 
 
--spec get_logic_client_by_access_token(AccessToken :: binary())  ->
+-spec get_logic_client_by_access_token(AccessToken :: binary()) ->
     {ok, onezone_client:logic_client()} | #error{}.
 get_logic_client_by_access_token(AccessToken) ->
     case nodes:any(name()) of
         {ok, OzNode} ->
-            case oz_worker_rpc:authorize_by_access_token(OzNode, AccessToken
-            ) of
+            case oz_worker_rpc:check_token_auth(OzNode, AccessToken) of
                 {true, LogicClient} -> {ok, LogicClient};
                 {error, ApiError} -> ?make_error(ApiError)
             end;
@@ -458,10 +459,10 @@ get_policies() ->
         provider_registration_policy, name()),
     SubdomainDelegation = onepanel_env:get_remote(Node,
         subdomain_delegation_supported, name()),
-    GuiVerification = not onepanel_env:get_remote(Node,
-        disable_gui_package_verification, name()),
-    HarversterGuiVerification = not onepanel_env:get_remote(Node,
-        disable_harvester_gui_package_verification, name()),
+    GuiVerification = onepanel_env:get_remote(Node,
+        gui_package_verification, name()),
+    HarversterGuiVerification = onepanel_env:get_remote(Node,
+        harvester_gui_package_verification, name()),
     #{
         oneproviderRegistration => ProviderRegistration,
         subdomainDelegation => SubdomainDelegation,
@@ -485,9 +486,9 @@ set_policies(Ctx) ->
         (subdomain_delegation, Supported) ->
             env_write_and_set(subdomain_delegation_supported, Supported);
         (gui_package_verification, Enabled) ->
-            env_write_and_set(disable_gui_package_verification, not Enabled);
+            env_write_and_set(gui_package_verification, Enabled);
         (harvester_gui_package_verification, Enabled) ->
-            env_write_and_set(disable_harvester_gui_package_verification, not Enabled);
+            env_write_and_set(harvester_gui_package_verification, Enabled);
         (_, _) -> ok
     end, Ctx),
     ok.

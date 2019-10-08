@@ -16,7 +16,9 @@
 
 -include("modules/errors.hrl").
 -include("names.hrl").
--include_lib("ctool/include/api_errors.hrl").
+-include_lib("ctool/include/aai/aai.hrl").
+-include_lib("ctool/include/onedata.hrl").
+-include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
 
 % @formatter:off
@@ -45,8 +47,7 @@
 -type od_user_id() :: binary().
 -type od_user_username() :: binary().
 
--export([authorize_by_oz_panel_gui_token/1, authorize_by_oz_panel_gui_token/2]).
--export([authorize_by_access_token/1, authorize_by_access_token/2]).
+-export([check_token_auth/1, check_token_auth/2]).
 -export([get_protected_provider_data/2, get_protected_provider_data/3]).
 -export([deploy_static_gui_package/4, deploy_static_gui_package/5]).
 -export([update_cluster_version_info/4, update_cluster_version_info/5]).
@@ -72,27 +73,19 @@
 %%% API functions
 %%%===================================================================
 
-
--spec authorize_by_oz_panel_gui_token(tokens:token() | tokens:serialized()) ->
-    {true, aai:auth()} | {error, term()}.
-authorize_by_oz_panel_gui_token(Token) ->
-    ?CALL([Token]).
-
--spec authorize_by_oz_panel_gui_token(node(), tokens:token() | tokens:serialized()) ->
-    {true, aai:auth()} | {error, term()}.
-authorize_by_oz_panel_gui_token(Node, Token) ->
-    ?CALL(Node, [Token]).
-
-
--spec authorize_by_access_token(tokens:serialized() | tokens:token()) ->
+-spec check_token_auth(tokens:serialized() | tokens:token()) ->
     {true, aai:auth()} | false | {error, term()}.
-authorize_by_access_token(Token)  ->
-    ?CALL([Token]).
+check_token_auth(Token)  ->
+    %% @TODO VFS-5731 properly pass client's IP here
+    PeerIp = undefined,
+    ?CALL([Token, PeerIp, ?AUD(?OZ_PANEL, ?ONEZONE_CLUSTER_ID)]).
 
--spec authorize_by_access_token(node(), tokens:serialized() | tokens:token()) ->
+-spec check_token_auth(node(), tokens:serialized() | tokens:token()) ->
     {true, aai:auth()} | false | {error, term()}.
-authorize_by_access_token(Node, Token)  ->
-    ?CALL(Node, [Token]).
+check_token_auth(Node, Token)  ->
+    %% @TODO VFS-5731 properly pass client's IP here
+    PeerIp = undefined,
+    ?CALL(Node, [Token, PeerIp, ?AUD(?OZ_PANEL, ?ONEZONE_CLUSTER_ID)]).
 
 
 -spec get_protected_provider_data(aai:auth(), od_provider_id()) ->
@@ -275,7 +268,7 @@ cluster_logic_get_eff_groups(Auth, ClusterId) ->
 
 
 -spec cluster_logic_create_user_invite_token(aai:auth(), od_cluster_id()) ->
-    {ok, macaroon:macaroon()} | {error, term()}.
+    {ok, tokens:token()} | {error, term()}.
 cluster_logic_create_user_invite_token(Auth, ClusterId) ->
     ?CALL([Auth, ClusterId]).
 

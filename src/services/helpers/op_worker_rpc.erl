@@ -17,7 +17,7 @@
 
 -include("modules/errors.hrl").
 -include("names.hrl").
--include_lib("ctool/include/api_errors.hrl").
+-include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
 
 % @formatter:off

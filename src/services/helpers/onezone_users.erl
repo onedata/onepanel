@@ -16,7 +16,7 @@
 -include("modules/models.hrl").
 -include("names.hrl").
 -include_lib("ctool/include/aai/aai.hrl").
--include_lib("ctool/include/api_errors.hrl").
+-include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
 

@@ -21,7 +21,7 @@
 -include("deployment_progress.hrl").
 -include("authentication.hrl").
 -include_lib("ctool/include/aai/aai.hrl").
--include_lib("ctool/include/api_errors.hrl").
+-include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/onedata.hrl").
@@ -311,7 +311,7 @@ get_id() ->
     case op_worker_rpc:get_provider_id() of
         {ok, <<ProviderId/binary>>} ->
             ProviderId;
-        ?ERROR_UNREGISTERED_PROVIDER = Error ->
+        ?ERROR_UNREGISTERED_ONEPROVIDER = Error ->
             ?throw_error(Error);
         _ ->
             FileContents = read_auth_file(),
@@ -369,7 +369,7 @@ is_registered(Ctx) ->
 get_access_token() ->
     case op_worker_rpc:get_access_token() of
         {ok, <<Token/binary>>} -> Token;
-        ?ERROR_UNREGISTERED_PROVIDER = Error -> ?throw_error(Error);
+        ?ERROR_UNREGISTERED_ONEPROVIDER = Error -> ?throw_error(Error);
         _ -> root_token_from_file()
     end.
 
@@ -480,7 +480,7 @@ register(Ctx) ->
     case oz_providers:register(none, Params) of
         ?ERROR_BAD_VALUE_IDENTIFIER_OCCUPIED(<<"subdomain">>) ->
             ?throw_error(?ERR_SUBDOMAIN_NOT_AVAILABLE);
-        ?ERROR_BAD_VALUE_TOKEN(<<"token">>) ->
+        ?ERROR_BAD_VALUE_TOKEN(_, _) ->
             ?throw_error(?ERR_INVALID_VALUE_TOKEN);
         {error, Reason} ->
             ?throw_error(Reason);
@@ -543,7 +543,7 @@ get_details() ->
             false -> get_details_by_rest()
         end
     catch
-        Type:#error{reason = ?ERROR_UNREGISTERED_PROVIDER} = Error ->
+        Type:#error{reason = ?ERROR_UNREGISTERED_ONEPROVIDER} = Error ->
             erlang:Type(Error);
         Type:Error ->
             case service:get_ctx(name()) of
@@ -1007,7 +1007,7 @@ get_details_by_graph_sync() ->
     OzDomain = get_oz_domain(),
     Details = case op_worker_rpc:get_provider_details() of
         {ok, DetailsMap} -> DetailsMap;
-        ?ERROR_NO_CONNECTION_TO_OZ -> ?throw_error(?ERR_ONEZONE_NOT_AVAILABLE);
+        ?ERROR_NO_CONNECTION_TO_ONEZONE -> ?throw_error(?ERR_ONEZONE_NOT_AVAILABLE);
         {error, Reason} -> ?throw_error(Reason)
     end,
 

@@ -17,9 +17,9 @@
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/aai/aai.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
 -include_lib("ctool/include/http/codes.hrl").
--include_lib("macaroons/src/macaroon.hrl").
 
 %% API
 -export([authenticate_user/1]).
@@ -56,8 +56,8 @@ authenticate_user(Token) ->
 %%--------------------------------------------------------------------
 -spec read_domain(RegistrationToken :: binary()) -> Domain :: binary() | no_return().
 read_domain(RegistrationToken) ->
-    {ok, Macaroon} = macaroons:deserialize(RegistrationToken),
-    Macaroon#macaroon.location.
+    {ok, Token} = tokens:deserialize(RegistrationToken),
+    Token#token.onezone_domain.
 
 
 %%%===================================================================

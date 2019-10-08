@@ -94,7 +94,7 @@ auth_to_rest_client({access_token, AccessToken}) ->
 
 auth_to_rest_client({gui_token, GuiToken}) ->
     ProviderAccessToken = service_oneprovider:get_access_token(),
-    AudienceToken = tokens:serialize_audience_token(?OP_PANEL, ProviderAccessToken),
+    AudienceToken = tokens:build_service_access_token(?OP_PANEL, ProviderAccessToken),
     {headers, maps:merge(
         tokens:build_access_token_header(GuiToken),
         tokens:build_audience_token_header(AudienceToken)

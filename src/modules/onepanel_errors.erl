@@ -34,7 +34,7 @@ end).
 %% Unpacks 'error', 'badmatch', 'case_clause', 'try_clause' errors if the reason
 %% term is an #error{} record.
 %% Even reasons in the form {error, term()} (when term is not #error) are not
-%% unpacked, to allow matching them to api_errors.hrl macros.
+%% unpacked, to allow matching them to errors.hrl macros.
 %% @end
 %%--------------------------------------------------------------------
 -spec create(Module :: module(), Function :: atom(), Arity :: arity(),
