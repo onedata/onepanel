@@ -57,8 +57,8 @@
 -export([list_users/1, list_users/2]).
 -export([user_exists/1, user_exists/2]).
 -export([username_exists/1, username_exists/2]).
+-export([get_user_details/1]).
 -export([get_user_details/2]).
--export([get_user_details/3]).
 -export([migrate_onepanel_user_to_onezone/4, migrate_onepanel_user_to_onezone/5]).
 -export([cluster_get_eff_user_privileges/3, cluster_get_eff_user_privileges/4]).
 -export([get_protected_cluster_data/2, get_protected_cluster_data/3]).
@@ -74,14 +74,14 @@
 %%%===================================================================
 
 -spec check_token_auth(tokens:serialized() | tokens:token()) ->
-    {true, aai:auth()} | false | {error, term()}.
+    {true, aai:auth()} | {error, term()}.
 check_token_auth(Token)  ->
     %% @TODO VFS-5731 properly pass client's IP here
     PeerIp = undefined,
     ?CALL([Token, PeerIp, ?AUD(?OZ_PANEL, ?ONEZONE_CLUSTER_ID)]).
 
 -spec check_token_auth(node(), tokens:serialized() | tokens:token()) ->
-    {true, aai:auth()} | false | {error, term()}.
+    {true, aai:auth()} | {error, term()}.
 check_token_auth(Node, Token)  ->
     %% @TODO VFS-5731 properly pass client's IP here
     PeerIp = undefined,
@@ -187,15 +187,15 @@ username_exists(Node, Username) ->
     ?CALL(Node, [Username]).
 
 
--spec get_user_details(node(), aai:auth()) ->
+-spec get_user_details(aai:auth()) ->
     {ok, #user_details{}} | {error, term()}.
-get_user_details(Node, Auth) ->
-    ?CALL(Node, [Auth]).
+get_user_details(Auth) ->
+    ?CALL([Auth]).
 
--spec get_user_details(node(), aai:auth(), od_user_id()) ->
+-spec get_user_details(aai:auth(), od_user_id()) ->
     {ok, #user_details{}} | {error, term()}.
-get_user_details(Node, Auth, UserId) ->
-    ?CALL(Node, [Auth, UserId]).
+get_user_details(Auth, UserId) ->
+    ?CALL([Auth, UserId]).
 
 
 -spec migrate_onepanel_user_to_onezone(OnepanelUserId :: binary(),

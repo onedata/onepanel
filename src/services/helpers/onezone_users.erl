@@ -96,8 +96,8 @@ list_users(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec get_user(#{user_id := binary()}) -> #{atom() := binary()}.
 get_user(#{user_id := UserId}) ->
-    {OzNode, Client} = get_node_and_client(),
-    {ok, Details} = oz_worker_rpc:get_user_details(OzNode, Client, UserId),
+    {_, Client} = get_node_and_client(),
+    {ok, Details} = oz_worker_rpc:get_user_details(Client, UserId),
     #user_details{id = UserId, username = Username, full_name = FullName} = Details,
     #{userId => UserId, username => Username, fullName => FullName}.
 

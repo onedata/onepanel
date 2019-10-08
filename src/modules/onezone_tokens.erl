@@ -75,7 +75,7 @@ read_domain(RegistrationToken) ->
     ClusterType :: onedata:cluster_type(), Token :: binary()
 ) -> #client{} | #error{}.
 authenticate_user(onezone, Token) ->
-    case service_oz_worker:get_logic_client_by_token(Token) of
+    case service_oz_worker:get_auth_by_token(Token) of
         {ok, Auth} ->
             {ok, Details} = service_oz_worker:get_user_details(Auth),
             user_details_to_client(Details, {rpc, Auth});
