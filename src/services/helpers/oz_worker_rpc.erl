@@ -83,7 +83,9 @@ check_token_auth(Token)  ->
 -spec check_token_auth(node(), tokens:serialized() | tokens:token()) ->
     {true, aai:auth()} | false | {error, term()}.
 check_token_auth(Node, Token)  ->
-    ?CALL(Node, [Token]).
+    %% @TODO VFS-5731 properly pass client's IP here
+    PeerIp = undefined,
+    ?CALL(Node, [Token, PeerIp, ?AUD(?OZ_PANEL, ?ONEZONE_CLUSTER_ID)]).
 
 
 -spec get_protected_provider_data(aai:auth(), od_provider_id()) ->

@@ -116,7 +116,7 @@ get_steps(Action, Ctx) ->
 -spec get_logic_client_by_gui_token(GuiToken :: binary()) ->
     {ok, onezone_client:logic_client()} | #error{}.
 get_logic_client_by_gui_token(GuiToken) ->
-    %% @TODO VFS-5731 GUI/access tokens are now indistinguishable on the API
+    %% @TODO VFS-5731 GUI/access tokens are now indistinguishable on the
     %% API level - the code can be simplified
     case nodes:any(name()) of
         {ok, OzNode} ->
