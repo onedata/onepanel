@@ -31,7 +31,7 @@
     supports_letsencrypt_challenge/1]).
 
 %% API functions
--export([get_auth_by_token/1]).
+-export([get_auth_by_token/2]).
 -export([get_user_details/1]).
 
 %% Step functions
@@ -114,12 +114,12 @@ get_steps(Action, Ctx) ->
 %%%===================================================================
 
 
--spec get_auth_by_token(AccessToken :: binary()) ->
+-spec get_auth_by_token(AccessToken :: binary(), ip_utils:ip()) ->
     {ok, aai:auth()} | #error{}.
-get_auth_by_token(AccessToken) ->
+get_auth_by_token(AccessToken, PeerIp) ->
     case nodes:any(name()) of
         {ok, OzNode} ->
-            case oz_worker_rpc:check_token_auth(OzNode, AccessToken) of
+            case oz_worker_rpc:check_token_auth(OzNode, AccessToken, PeerIp) of
                 {true, Auth} -> {ok, Auth};
                 {error, ApiError} -> ?make_error(ApiError)
             end;

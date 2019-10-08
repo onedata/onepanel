@@ -64,7 +64,8 @@ authenticate_by_basic_auth(Req) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Authenticates user using REST API token.
+%% @doc Authenticates user using Onepanel-generated token used
+%% for sessions authenticated with the emergency passphrase.
 %% @end
 %%--------------------------------------------------------------------
 -spec authenticate_by_onepanel_auth_token(Req :: cowboy_req:req()) ->
@@ -96,7 +97,8 @@ authenticate_by_onezone_auth_token(Req) ->
         undefined ->
             {ignore, Req};
         AccessToken ->
-            {onezone_tokens:authenticate_user(AccessToken), Req}
+            {PeerIp, _Port} = cowboy_req:peer(Req),
+            {onezone_tokens:authenticate_user(AccessToken, PeerIp), Req}
     end.
 
 

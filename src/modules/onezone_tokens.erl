@@ -22,7 +22,7 @@
 -include_lib("ctool/include/http/codes.hrl").
 
 %% API
--export([authenticate_user/1]).
+-export([authenticate_user/2, authenticate_user/3]).
 -export([read_domain/1]).
 
 -define(USER_DETAILS_CACHE_KEY(Token), {user_details, Token}).
@@ -40,11 +40,11 @@
 %% cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec authenticate_user(Token :: binary()) ->
+-spec authenticate_user(Token :: binary(), PeerIp :: ip_utils:ip()) ->
     #client{} | #error{}.
-authenticate_user(Token) ->
+authenticate_user(Token, PeerIp) ->
     ClusterType = onepanel_env:get_cluster_type(),
-    case authenticate_user(ClusterType, Token) of
+    case authenticate_user(ClusterType, Token, PeerIp) of
         #client{} = Client -> Client;
         #error{} = Error -> Error
     end.
@@ -72,10 +72,10 @@ read_domain(RegistrationToken) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec authenticate_user(
-    ClusterType :: onedata:cluster_type(), Token :: binary()
+    onedata:cluster_type(), Token :: binary(), PeerIp :: ip_utils:ip()
 ) -> #client{} | #error{}.
-authenticate_user(onezone, Token) ->
-    case service_oz_worker:get_auth_by_token(Token) of
+authenticate_user(onezone, Token, PeerIp) ->
+    case service_oz_worker:get_auth_by_token(Token, PeerIp) of
         {ok, Auth} ->
             {ok, Details} = service_oz_worker:get_user_details(Auth),
             user_details_to_client(Details, {rpc, Auth});
@@ -83,7 +83,7 @@ authenticate_user(onezone, Token) ->
             ?make_error(?ERR_INVALID_AUTH_TOKEN)
     end;
 
-authenticate_user(oneprovider, Token) ->
+authenticate_user(oneprovider, Token, PeerIp) ->
     FetchDetailsFun = fun() ->
         Auth1 = {gui_token, Token},
         Auth2 = {access_token, Token},

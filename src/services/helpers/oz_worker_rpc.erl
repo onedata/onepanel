@@ -22,6 +22,7 @@
 -include_lib("ctool/include/oz/oz_users.hrl").
 
 % @formatter:off
+-define(NODE, element(2, {ok, _} = nodes:any(?SERVICE_OZW))).
 -define(CALL(Node, Args),
     case rpc:call(Node, rpc_api, apply, [?FUNCTION_NAME, Args]) of
         {badrpc, _} = __Error -> ?throw_error(__Error);
@@ -29,7 +30,7 @@
     end).
 
 -define(CALL(Args), begin
-        ?CALL(element(2, {ok, _} = nodes:any(?SERVICE_OZW)), Args)
+        ?CALL(?NODE, Args)
     end).
 % @formatter:on
 
@@ -47,7 +48,7 @@
 -type od_user_id() :: binary().
 -type od_user_username() :: binary().
 
--export([check_token_auth/1, check_token_auth/2]).
+-export([check_token_auth/2, check_token_auth/3]).
 -export([get_protected_provider_data/2, get_protected_provider_data/3]).
 -export([deploy_static_gui_package/4, deploy_static_gui_package/5]).
 -export([update_cluster_version_info/4, update_cluster_version_info/5]).
@@ -73,19 +74,18 @@
 %%% API functions
 %%%===================================================================
 
--spec check_token_auth(tokens:serialized() | tokens:token()) ->
+-spec check_token_auth(tokens:serialized() | tokens:token(),
+    undefined | ip_utils:ip()) ->
     {true, aai:auth()} | {error, term()}.
-check_token_auth(Token)  ->
-    %% @TODO VFS-5731 properly pass client's IP here
-    PeerIp = undefined,
-    ?CALL([Token, PeerIp, ?AUD(?OZ_PANEL, ?ONEZONE_CLUSTER_ID)]).
+check_token_auth(Token, PeerIp)  ->
+    check_token_auth(?NODE, Token, PeerIp).
 
--spec check_token_auth(node(), tokens:serialized() | tokens:token()) ->
+-spec check_token_auth(node(), tokens:serialized() | tokens:token(),
+    undefined | ip_utils:ip()) ->
     {true, aai:auth()} | {error, term()}.
-check_token_auth(Node, Token)  ->
-    %% @TODO VFS-5731 properly pass client's IP here
-    PeerIp = undefined,
-    ?CALL(Node, [Token, PeerIp, ?AUD(?OZ_PANEL, ?ONEZONE_CLUSTER_ID)]).
+check_token_auth(Node, Token, PeerIp)  ->
+    Audience = ?AUD(?OZ_PANEL, ?ONEZONE_CLUSTER_ID),
+    ?CALL(Node, [Token, PeerIp, Audience]).
 
 
 -spec get_protected_provider_data(aai:auth(), od_provider_id()) ->
