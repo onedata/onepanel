@@ -18,6 +18,7 @@
 -include("deployment_progress.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
@@ -226,7 +227,7 @@ extend_cluster(#{hostname := Hostname, api_version := ApiVersion,
         cookie => erlang:get_cookie(),
         clusterHost => onepanel_utils:convert(SelfHost, binary)
     }),
-    Headers = #{<<"Content-Type">> => <<"application/json">>},
+    Headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
     Suffix = "/join_cluster",
     Timeout = service_ctx:get(extend_cluster_timeout, Ctx, integer),
     Opts = https_opts(Timeout),
@@ -351,7 +352,7 @@ get_remote_node_info(#{address := Address, api_version := ApiVersion} = Ctx) ->
     Suffix = <<"/node">>,
     Url = build_url(Address, ApiVersion, Suffix),
 
-    Headers = #{<<"Content-Type">> => <<"application/json">>},
+    Headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
 
     case http_client:get(Url, Headers, <<>>, Opts) of
         {ok, ?HTTP_200_OK, _, Body} ->

@@ -56,7 +56,7 @@ authenticate(Req, [AuthMethod | AuthMethods]) ->
     {Result, Req :: cowboy_req:req()}
     when Result :: #client{} | #error{} | ignore.
 authenticate_by_basic_auth(Req) ->
-    case cowboy_req:header(<<"authorization">>, Req) of
+    case cowboy_req:header(?HDR_AUTHORIZATION, Req) of
         <<"Basic ", Base64/binary>> ->
             {check_basic_credentials(Base64), Req};
         _ ->
@@ -136,7 +136,7 @@ check_basic_credentials(<<Base64/binary>>) ->
 %%--------------------------------------------------------------------
 -spec resolve_peer_ip(cowboy_req:req()) -> inet:ip4_address().
 resolve_peer_ip(Req) ->
-    ForwarderFor = cowboy_req:header(?HTTP_X_ONEDATA_FORWARDED_FOR, Req, undefined),
+    ForwarderFor = cowboy_req:header(?HDR_X_ONEDATA_FORWARDED_FOR, Req, undefined),
     case ip_utils:to_ip4_address(ForwarderFor) of
         {ok, Addr} ->
             Addr;

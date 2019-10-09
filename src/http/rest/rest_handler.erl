@@ -18,6 +18,7 @@
 -include("modules/models.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 
 %% API
 -export([init/2, allowed_methods/2, content_types_accepted/2,
@@ -339,7 +340,7 @@ handle_options(Req, State) ->
         Origin ->
             {AllowedMethods, Req2, _} = rest_handler:allowed_methods(Req, State),
 
-            AllowedHeaders = [<<"content-type">> | tokens:supported_access_token_headers()],
+            AllowedHeaders = [?HDR_CONTENT_TYPE | tokens:supported_access_token_headers()],
             Req3 = gui_cors:options_response(Origin, AllowedMethods, AllowedHeaders, Req2),
 
             {ok, Req3, State}

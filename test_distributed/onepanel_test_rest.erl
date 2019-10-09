@@ -19,6 +19,7 @@
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 
 %% API
 -export([auth_request/4, auth_request/5, auth_request/6, auth_request/7,
@@ -102,7 +103,7 @@ auth_request(HostOrConfig, Port, Endpoint, Method, {cookie, Name, Value},
 
 auth_request(HostOrConfig, Port, Endpoint, Method, {token, Token},
     Headers, Body) ->
-    NewHeaders = [{<<"x-auth-token">>, Token} | Headers],
+    NewHeaders = [{?HDR_X_AUTH_TOKEN, Token} | Headers],
     noauth_request(HostOrConfig, Port, Endpoint, Method, NewHeaders, Body);
 
 auth_request(HostOrConfig, Port, Endpoint, Method, <<Passphrase/binary>>,
@@ -179,7 +180,7 @@ noauth_request(HostOrConfig, Port, {noprefix, Path}, Method, Headers, Body) ->
         false -> utils:random_element(?config(all_hosts, HostOrConfig))
     end,
     NewHeaders = [
-        {<<"content-type">>, <<"application/json">>} |
+        {?HDR_CONTENT_TYPE, <<"application/json">>} |
         Headers
     ],
     Url = onepanel_utils:join(["https://", Host, ":", Port, Path]),
