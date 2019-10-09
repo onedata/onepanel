@@ -16,6 +16,7 @@
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 
 %% API
 -export([authenticate/2, authenticate_by_onezone_auth_token/1,
@@ -97,7 +98,7 @@ authenticate_by_onezone_auth_token(Req) ->
         undefined ->
             {ignore, Req};
         AccessToken ->
-            {PeerIp, _Port} = cowboy_req:peer(Req),
+            PeerIp = resolve_peer_ip(Req),
             {onezone_tokens:authenticate_user(AccessToken, PeerIp), Req}
     end.
 
@@ -122,6 +123,26 @@ check_basic_credentials(<<Base64/binary>>) ->
                 [_Username, _Password] ->
                     ?make_error(?ERR_INVALID_USERNAME)
             end
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Determines peer IP. Honours x-onedata-forwarder-for header
+%% to retrieve original IP in case of Onedata proxy.
+%% Note: this gives the client connecting without the proxy ability
+%% to present arbitrary IP.
+%% @end
+%%--------------------------------------------------------------------
+-spec resolve_peer_ip(cowboy_req:req()) -> inet:ip4_address().
+resolve_peer_ip(Req) ->
+    ForwarderFor = cowboy_req:header(?HTTP_X_ONEDATA_FORWARDED_FOR, Req, undefined),
+    case ip_utils:to_ip4_address(ForwarderFor) of
+        {ok, Addr} ->
+            Addr;
+        _ ->
+            {PeerIp, _Port} = cowboy_req:peer(Req),
+            PeerIp
     end.
 
 
