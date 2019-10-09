@@ -85,15 +85,10 @@ authenticate_user(onezone, Token, PeerIp) ->
 
 authenticate_user(oneprovider, Token, PeerIp) ->
     FetchDetailsFun = fun() ->
-        Auth1 = {gui_token, Token},
-        Auth2 = {access_token, Token},
-        case fetch_details(Auth1) of
-            {ok, Details} -> {true, {Details, Auth1}, ?USER_DETAILS_CACHE_TTL};
-            _ ->
-                case fetch_details(Auth2) of
-                    {ok, Details} -> {true, {Details, Auth2}, ?USER_DETAILS_CACHE_TTL};
-                    Error -> Error
-                end
+        Auth = {token, Token},
+        case fetch_details(Auth) of
+            {ok, Details} -> {true, {Details, Auth}, ?USER_DETAILS_CACHE_TTL};
+            Error -> Error
         end
     end,
 

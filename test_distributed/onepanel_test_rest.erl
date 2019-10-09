@@ -254,7 +254,7 @@ mock_token_authentication(Nodes) ->
             ClientBin = base64:decode(ClientB64),
             Client = erlang:binary_to_term(ClientBin),
             case onepanel_env:get_cluster_type() of
-                oneprovider -> Client#client{zone_auth = {rest, {gui_token, Token}}};
+                oneprovider -> Client#client{zone_auth = {rest, {token, Token}}};
                 onezone -> Client#client{zone_auth = {rpc, opaque_client}}
             end;
         (BadToken) -> meck:passthrough([BadToken])
