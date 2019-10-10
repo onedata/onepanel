@@ -91,15 +91,16 @@ default_admin_is_created_test(Config) ->
     % with password set to emergency passphrase
     [OzNode | _] = ?config(onezone_nodes, Config),
     OzwNode = nodes:service_to_node(?SERVICE_OZW, OzNode),
-    ?assertMatch({ok, _}, proxy_rpc(OzNode, OzwNode,
-        basic_auth, authenticate, [<<"admin">>, ?PASSPHRASE])).
+    ?assertMatch({true, #auth{}}, proxy_rpc(OzNode, OzwNode,
+        basic_auth, check_basic_auth, [<<"admin">>, ?PASSPHRASE])).
 
 
 batch_config_creates_users(Config) ->
     [OzNode | _] = ?config(onezone_nodes, Config),
     OzwNode = nodes:service_to_node(?SERVICE_OZW, OzNode),
-    {ok, UserId} = ?assertMatch({ok, _}, proxy_rpc(OzNode, OzwNode,
-        basic_auth, authenticate, [?OZ_USERNAME, ?OZ_PASSWORD])),
+    {true, #auth{subject = #subject{id = UserId}}} =
+        ?assertMatch({true, #auth{}}, proxy_rpc(OzNode, OzwNode,
+        basic_auth, check_basic_auth, [?OZ_USERNAME, ?OZ_PASSWORD])),
 
     ?assert(proxy_rpc(OzNode, OzwNode, group_logic, has_direct_user,
         [<<"admins">>, UserId])).

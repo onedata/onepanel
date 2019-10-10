@@ -251,14 +251,14 @@ mock_token_authentication([{_, _} | _] = Config) ->
 mock_token_authentication(Nodes) ->
     test_utils:mock_new(Nodes, [onezone_tokens]),
     test_utils:mock_expect(Nodes, onezone_tokens, authenticate_user, fun
-        (<<"valid-token:", ClientB64/binary>> = Token) ->
+        (<<"valid-token:", ClientB64/binary>> = Token, _PeerIp) ->
             ClientBin = base64:decode(ClientB64),
             Client = erlang:binary_to_term(ClientBin),
             case onepanel_env:get_cluster_type() of
                 oneprovider -> Client#client{zone_auth = {rest, {token, Token}}};
                 onezone -> Client#client{zone_auth = {rpc, opaque_client}}
             end;
-        (BadToken) -> meck:passthrough([BadToken])
+        (BadToken, _PeerIp) -> meck:passthrough([BadToken])
     end).
 
 
