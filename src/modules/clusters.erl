@@ -236,8 +236,9 @@ zone_rest(Method, Auth, URNFormat, FormatArgs) ->
         {ok, ?HTTP_200_OK, _, BodyJson} ->
             Parsed = onepanel_utils:convert(json_utils:decode(BodyJson), {keys, atom}),
             {ok, Parsed};
-        {ok, Code, Error, Description} ->
-            ?make_error({Code, Error, Description});
+        {ok, _, _, Body} ->
+            #{<<"error">> := Error} = json_utils:decode(Body),
+            ?make_error(errors:from_json(Error));
         {error, econnrefused} ->
             ?make_error(?ERR_ONEZONE_NOT_AVAILABLE);
         {error, Reason} ->

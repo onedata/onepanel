@@ -79,11 +79,13 @@ authenticate_user(onezone, Token, PeerIp) ->
         {ok, Auth} ->
             {ok, Details} = service_oz_worker:get_user_details(Auth),
             user_details_to_client(Details, {rpc, Auth});
-        _ ->
-            ?make_error(?ERR_INVALID_AUTH_TOKEN)
+        #error{} = Error -> Error
     end;
 
-authenticate_user(oneprovider, Token, PeerIp) ->
+authenticate_user(oneprovider, Token, _PeerIp) ->
+    % Does nothing to relay peer IP to Onezone - which means
+    % token with IP or geolocation caveats will not work, unless
+    % they whitelist the Onepanel IP as seen by Onezone.
     FetchDetailsFun = fun() ->
         Auth = {token, Token},
         case fetch_details(Auth) of
@@ -94,7 +96,7 @@ authenticate_user(oneprovider, Token, PeerIp) ->
 
     case simple_cache:get(?USER_DETAILS_CACHE_KEY(Token), FetchDetailsFun) of
         {ok, {Details, Auth}} -> user_details_to_client(Details, {rest, Auth});
-        #error{reason = {?HTTP_401_UNAUTHORIZED, _, _}} -> ?make_error(?ERR_INVALID_AUTH_TOKEN)
+        #error{} = Error -> Error
     end.
 
 
@@ -118,7 +120,9 @@ fetch_details(RestAuth) ->
                 emails = maps:get(<<"emails">>, Map)
             },
             {ok, UserDetails};
-        {ok, Code, _, _ResponseBody} -> ?make_error({Code, _ResponseBody, <<>>});
+        {ok, _, _, ResponseBody} ->
+            #{<<"error">> := Error} = json_utils:decode(ResponseBody),
+            ?make_error(errors:from_json(Error));
         {error, Reason} -> ?make_error(Reason)
     end.
 

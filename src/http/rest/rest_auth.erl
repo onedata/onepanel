@@ -128,10 +128,10 @@ check_basic_credentials(<<Base64/binary>>) ->
 
 %%--------------------------------------------------------------------
 %% @private
-%% @doc Determines peer IP. Honours x-onedata-forwarder-for header
+%% @doc Determines peer IP. Honours x-onedata-forwarded-for header
 %% to retrieve original IP in case of Onedata proxy.
-%% Note: this gives the client connecting without the proxy ability
-%% to present arbitrary IP.
+%% Note: proxy is not authenticated in any way, client connecting with
+%% the proxy can present arbitrary IP by providing this header.
 %% @end
 %%--------------------------------------------------------------------
 -spec resolve_peer_ip(cowboy_req:req()) -> inet:ip4_address().

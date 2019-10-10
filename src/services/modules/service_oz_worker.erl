@@ -121,7 +121,7 @@ get_auth_by_token(AccessToken, PeerIp) ->
         {ok, OzNode} ->
             case oz_worker_rpc:check_token_auth(OzNode, AccessToken, PeerIp) of
                 {true, Auth} -> {ok, Auth};
-                {error, ApiError} -> ?make_error(ApiError)
+                {error, _} = Error -> ?make_error(Error)
             end;
         Error -> Error
     end.
