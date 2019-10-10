@@ -22,7 +22,7 @@
 -export([add/2, list/0, get/1, exists/2, update/3, remove/2]).
 -export([get_supporting_storage/2, get_supporting_storages/2,
     get_file_popularity_configuration/2, get_auto_cleaning_configuration/2]).
--export([is_mounted_in_root/3, can_be_removed/1]).
+-export([is_mounted_in_root/2, can_be_removed/1]).
 -export([maybe_update_file_popularity/3,
     maybe_update_auto_cleaning/3, invalidate_luma_cache/1]).
 
@@ -31,7 +31,7 @@
 -type name() :: binary().
 
 %% specification for updating or modifying storage
--type param() :: binary() | boolean() | integer() | float().
+-type param() :: binary() | boolean() | integer() | float() | qos_parameters().
 -type storage_params() :: #{
     Key :: atom() => Value :: param()
 }.
@@ -54,7 +54,7 @@
 % @formatter:on
 
 -export_type([id/0, storage_params/0, storage_details/0, storages_map/0,
-    helper_args/0, user_ctx/0]).
+    qos_parameters/0, helper_args/0, user_ctx/0]).
 
 %%%===================================================================
 %%% API functions
@@ -177,19 +177,17 @@ get_supporting_storage(OpNode, SpaceId) ->
 %%--------------------------------------------------------------------
 -spec get_supporting_storages(OpNode :: node(), SpaceId :: id()) -> [id()].
 get_supporting_storages(OpNode, SpaceId) ->
-    op_worker_rpc:space_storage_get_storage_ids(OpNode, SpaceId).
+    op_worker_rpc:space_logic_get_storage_ids(OpNode, SpaceId).
 
 
 %%--------------------------------------------------------------------
 %% @doc Checks whether space storage is mounted in root.
 %% @end
 %%--------------------------------------------------------------------
--spec is_mounted_in_root(OpNode :: node(), SpaceId :: id(), StorageId :: id()) ->
+-spec is_mounted_in_root(OpNode :: node(), StorageId :: id()) ->
     boolean().
-is_mounted_in_root(OpNode, SpaceId, StorageId) ->
-    MountedInRoot = op_worker_rpc:space_storage_get_mounted_in_root(
-        OpNode, SpaceId),
-    lists:member(StorageId, MountedInRoot).
+is_mounted_in_root(OpNode, StorageId) ->
+    op_worker_rpc:storage_is_mounted_in_root(OpNode, StorageId).
 
 %%-------------------------------------------------------------------
 %% @doc
@@ -546,7 +544,7 @@ maybe_update_qos_parameters(_OpNode, _Id, _) ->
 -spec update_qos_parameters(OpNode :: node(), Id :: id(),
     qos_parameters()) -> ok.
 update_qos_parameters(OpNode, Id, Parameters) ->
-    ok = rpc:call(OpNode, storage_qos_parameters, set, [Id, Parameters]).
+    ok = op_worker_rpc:storage_set_qos_parameters(OpNode, Id, Parameters).
 
 
 %%--------------------------------------------------------------------
