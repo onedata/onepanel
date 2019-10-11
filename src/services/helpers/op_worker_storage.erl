@@ -39,6 +39,7 @@
 %% Storage information retrieved from op_worker
 -type storage_details() :: #{
     readonly | insecure | lumaEnabled := boolean(),
+    qosParameters := qos_parameters(),
     atom() := binary()
 }.
 
