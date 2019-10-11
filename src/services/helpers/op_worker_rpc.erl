@@ -44,7 +44,6 @@
 -type autocleaning_run_id() :: binary().
 -type autocleaning_run_links_list_limit() :: integer() | all.
 -type autocleaning_run_links_offset() :: integer().
--type datastore_key() :: binary().
 -type file_popularity_config_id() :: od_space_id().
 -type helper_args() :: #{binary() => binary()}.
 -type helper_name() :: binary().
@@ -55,11 +54,10 @@
 -type space_quota_id() :: od_space_id().
 -type space_storage_id() :: od_space_id().
 -type space_strategy_arguments() :: map().
--type space_strategy_name() :: atom().
 -type storage_id() :: binary().
--type storage_import_state() :: atom().
+-type storage_import_status() :: atom().
 -type storage_name() :: binary().
--type storage_update_state() :: atom().
+-type storage_update_status() :: atom().
 -type sync_monitoring_plot_counter_type() :: imported_files | updated_files |
     deleted_files | queue_length.
 -type sync_monitoring_window() :: day | hour | minute.
@@ -129,14 +127,14 @@
 -export([get_root_token_file_path/0, get_root_token_file_path/1]).
 -export([get_storage_import_details/2, get_storage_import_details/3]).
 -export([get_storage_update_details/2, get_storage_update_details/3]).
--export([modify_storage_import/3, modify_storage_import/4]).
--export([modify_storage_update/3, modify_storage_update/4]).
+-export([configure_storage_import/3, configure_storage_import/4]).
+-export([configure_storage_update/3, configure_storage_update/4]).
 -export([storage_sync_monitoring_get_metric/3,
     storage_sync_monitoring_get_metric/4]).
--export([storage_sync_monitoring_get_import_state/1,
-    storage_sync_monitoring_get_import_state/2]).
--export([storage_sync_monitoring_get_update_state/1,
-    storage_sync_monitoring_get_update_state/2]).
+-export([storage_sync_monitoring_get_import_status/1,
+    storage_sync_monitoring_get_import_status/2]).
+-export([storage_sync_monitoring_get_update_status/1,
+    storage_sync_monitoring_get_update_status/2]).
 -export([restart_rtransfer_link/0, restart_rtransfer_link/1]).
 -export([set_txt_record/3, set_txt_record/4]).
 -export([remove_txt_record/1, remove_txt_record/2]).
@@ -749,49 +747,49 @@ get_root_token_file_path(Node) ->
 
 
 -spec get_storage_import_details(od_space_id(), storage_id()) ->
-    {space_strategy_name(), space_strategy_arguments()}.
+    {boolean(), space_strategy_arguments()}.
 get_storage_import_details(SpaceId, StorageId) ->
     ?CALL([SpaceId, StorageId]).
 
 -spec get_storage_import_details(node(), od_space_id(), storage_id()) ->
-    {space_strategy_name(), space_strategy_arguments()}.
+    {boolean(), space_strategy_arguments()}.
 get_storage_import_details(Node, SpaceId, StorageId) ->
     ?CALL(Node, [SpaceId, StorageId]).
 
 
 -spec get_storage_update_details(od_space_id(), storage_id()) ->
-    {space_strategy_name(), space_strategy_arguments()}.
+    {boolean(), space_strategy_arguments()}.
 get_storage_update_details(SpaceId, StorageId) ->
     ?CALL([SpaceId, StorageId]).
 
 -spec get_storage_update_details(node(), od_space_id(), storage_id()) ->
-    {space_strategy_name(), space_strategy_arguments()}.
+    {boolean(), space_strategy_arguments()}.
 get_storage_update_details(Node, SpaceId, StorageId) ->
     ?CALL(Node, [SpaceId, StorageId]).
 
 
--spec modify_storage_import(od_space_id(), space_strategy_name(),
+-spec configure_storage_import(od_space_id(), boolean(),
     space_strategy_arguments()) ->
-    {ok, datastore_key()} | {error, term()}.
-modify_storage_import(SpaceId, StrategyName, Args) ->
-    ?CALL([SpaceId, StrategyName, Args]).
+    ok | {error, term()}.
+configure_storage_import(SpaceId, Enabled, Args) ->
+    ?CALL([SpaceId, Enabled, Args]).
 
--spec modify_storage_import(node(), od_space_id(), space_strategy_name(),
+-spec configure_storage_import(node(), od_space_id(), boolean(),
     space_strategy_arguments()) ->
-    {ok, datastore_key()} | {error, term()}.
-modify_storage_import(Node, SpaceId, StrategyName, Args) ->
-    ?CALL(Node, [SpaceId, StrategyName, Args]).
+    ok | {error, term()}.
+configure_storage_import(Node, SpaceId, Enabled, Args) ->
+    ?CALL(Node, [SpaceId, Enabled, Args]).
 
 
--spec modify_storage_update(od_space_id(), space_strategy_name(),
-    space_strategy_arguments()) -> {ok, datastore_key()} | {error, term()}.
-modify_storage_update(SpaceId, StrategyName, Args) ->
-    ?CALL([SpaceId, StrategyName, Args]).
+-spec configure_storage_update(od_space_id(), boolean(),
+    space_strategy_arguments()) -> ok | {error, term()}.
+configure_storage_update(SpaceId, Enabled, Args) ->
+    ?CALL([SpaceId, Enabled, Args]).
 
--spec modify_storage_update(node(), od_space_id(), space_strategy_name(),
-    space_strategy_arguments()) -> {ok, datastore_key()} | {error, term()}.
-modify_storage_update(Node, SpaceId, StrategyName, Args) ->
-    ?CALL(Node, [SpaceId, StrategyName, Args]).
+-spec configure_storage_update(node(), od_space_id(), boolean(),
+    space_strategy_arguments()) -> ok | {error, term()}.
+configure_storage_update(Node, SpaceId, Enabled, Args) ->
+    ?CALL(Node, [SpaceId, Enabled, Args]).
 
 
 -spec storage_sync_monitoring_get_metric(od_space_id(),
@@ -807,25 +805,25 @@ storage_sync_monitoring_get_metric(Node, SpaceId, Type, Window) ->
     ?CALL(Node, [SpaceId, Type, Window]).
 
 
--spec storage_sync_monitoring_get_import_state(od_space_id()) ->
-    storage_import_state().
-storage_sync_monitoring_get_import_state(SpaceId) ->
+-spec storage_sync_monitoring_get_import_status(od_space_id()) ->
+    storage_import_status().
+storage_sync_monitoring_get_import_status(SpaceId) ->
     ?CALL([SpaceId]).
 
--spec storage_sync_monitoring_get_import_state(node(), od_space_id()) ->
-    storage_import_state().
-storage_sync_monitoring_get_import_state(Node, SpaceId) ->
+-spec storage_sync_monitoring_get_import_status(node(), od_space_id()) ->
+    storage_import_status().
+storage_sync_monitoring_get_import_status(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
 
--spec storage_sync_monitoring_get_update_state(od_space_id()) ->
-    storage_update_state().
-storage_sync_monitoring_get_update_state(SpaceId) ->
+-spec storage_sync_monitoring_get_update_status(od_space_id()) ->
+    storage_update_status().
+storage_sync_monitoring_get_update_status(SpaceId) ->
     ?CALL([SpaceId]).
 
--spec storage_sync_monitoring_get_update_state(node(), od_space_id()) ->
-    storage_update_state().
-storage_sync_monitoring_get_update_state(Node, SpaceId) ->
+-spec storage_sync_monitoring_get_update_status(node(), od_space_id()) ->
+    storage_update_status().
+storage_sync_monitoring_get_update_status(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
 

@@ -295,13 +295,7 @@
         {oneprovider_name, "example"},
         {oneprovider_geo_latitude, 0.0},
         {oneprovider_geo_longitude, 0.0},
-        {connect_to_onezone_attempts, 5},
-
-        {oneprovider_sync_max_depth, 65535},
-        {oneprovider_sync_update_scan_interval, 10}, % in seconds
-        {oneprovider_sync_update_delete_enable, false},
-        {oneprovider_sync_update_write_once, false},
-        {oneprovider_sync_acl, false}
+        {connect_to_onezone_attempts, 5}
     ]}
 ].
 

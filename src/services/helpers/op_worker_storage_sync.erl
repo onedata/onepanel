@@ -6,6 +6,7 @@
 %%%--------------------------------------------------------------------
 %%% @doc This module contains helper functions used during op_worker service
 %%% storage sync configuration.
+%%% TODO VFS-5717 get rid of space_strategies boilerplate in this module
 %%% @end
 %%%-------------------------------------------------------------------
 -module(op_worker_storage_sync).
@@ -20,24 +21,23 @@
 -type strategy_name() :: atom().
 
 %% API
--export([maybe_modify_storage_import/3, maybe_modify_storage_update/3,
+-export([maybe_configure_storage_import/3, maybe_configure_storage_update/3,
     get_storage_import_details/3, get_storage_update_details/3, get_stats/4]).
 
 %%-------------------------------------------------------------------
 %% @doc This function modifies storage_import configuration on given Node.
 %% @end
 %%-------------------------------------------------------------------
--spec maybe_modify_storage_import(Node :: node(), SpaceId :: id(), Args :: args())
-        -> {ok, id()}.
-maybe_modify_storage_import(_Node, SpaceId, Args0) when map_size(Args0) == 0 ->
-    {ok, SpaceId};
-maybe_modify_storage_import(Node, SpaceId, Args) ->
+-spec maybe_configure_storage_import(Node :: node(), SpaceId :: id(), Args :: args()) -> {ok, id()}.
+maybe_configure_storage_import(_Node, _SpaceId, Args0) when map_size(Args0) == 0 ->
+    ok;
+maybe_configure_storage_import(Node, SpaceId, Args) ->
     StrategyName = onepanel_utils:typed_get(strategy, Args, atom),
     case current_import_strategy(Node, SpaceId) of
         StrategyName ->
-            {ok, SpaceId};  % ignore if NewStrategyName is the same as current
+            ok;  % ignore if NewStrategyName is the same as current
         no_import ->
-            modify_storage_import(Node, SpaceId, Args, StrategyName);
+            configure_storage_import(Node, SpaceId, Args, StrategyName);
         _ ->
             ?throw_error(?ERR_STORAGE_SYNC_IMPORT_STARTED)
     end.
@@ -47,13 +47,14 @@ maybe_modify_storage_import(Node, SpaceId, Args) ->
 %% @doc This function modifies storage_update configuration on given Node.
 %% @end
 %%-------------------------------------------------------------------
--spec maybe_modify_storage_update(Node :: node(), SpaceId :: id(), Args :: args())
-        ->{ok, id()}.
-maybe_modify_storage_update(_Node, SpaceId, Args) when map_size(Args) == 0 ->
-    {ok, SpaceId};
-maybe_modify_storage_update(Node, SpaceId, Args) ->
+-spec maybe_configure_storage_update(Node :: node(), SpaceId :: id(), Args :: args())
+        -> ok.
+maybe_configure_storage_update(_Node, _SpaceId, Args) when map_size(Args) == 0 ->
+    ok;
+maybe_configure_storage_update(Node, SpaceId, Args) ->
+    % todo VFS-5717
     StrategyName = onepanel_utils:typed_get(strategy, Args, atom),
-    modify_storage_update(Node, SpaceId, Args, StrategyName).
+    configure_storage_update(Node, SpaceId, Args, StrategyName).
 
 
 %%-------------------------------------------------------------------
@@ -63,17 +64,16 @@ maybe_modify_storage_update(Node, SpaceId, Args) ->
 -spec get_storage_import_details(Node :: node(), SpaceId :: id(),
     StorageId :: id()) -> proplists:proplist().
 get_storage_import_details(Node, SpaceId, StorageId) ->
-    {StrategyName, Args} = op_worker_rpc:get_storage_import_details(
-        Node, SpaceId, StorageId),
-    Details = [{strategy, StrategyName}],
-    case StrategyName of
-        no_import ->
-            Details;
+    % todo VFS-5717
+    {ImportEnabled, Args} = op_worker_rpc:get_storage_import_details(Node, SpaceId, StorageId),
+    case ImportEnabled of
+        false ->
+            [{strategy, no_import}];
         simple_scan ->
             [
+                {strategy, simple_scan},
                 {maxDepth, maps:get(max_depth, Args)},
                 {syncAcl, maps:get(sync_acl, Args)}
-                | Details
             ]
     end.
 
@@ -82,23 +82,23 @@ get_storage_import_details(Node, SpaceId, StorageId) ->
 %% @doc Returns storage_update details from given node.
 %% @end
 %%-------------------------------------------------------------------
--spec get_storage_update_details(Node :: node(), SpaceId :: id(),
-    StorageId :: id()) -> proplists:proplist().
+-spec get_storage_update_details(Node :: node(), SpaceId :: id(), StorageId :: id()) -> proplists:proplist().
 get_storage_update_details(Node, SpaceId, StorageId) ->
-    {StrategyName, Args} = op_worker_rpc:get_storage_update_details(
+    % todo VFS-5717
+    %todo rename?
+    {UpdateEnabled, Args} = op_worker_rpc:get_storage_update_details(
         Node, SpaceId, StorageId),
-    Details = [{strategy, StrategyName}],
-    case StrategyName of
-        no_update ->
-            Details;
-        simple_scan ->
+    case UpdateEnabled of
+        false ->
+            [{strategy, no_update}];
+        true ->
             [
+                {strategy, simple_scan},
                 {maxDepth, maps:get(max_depth, Args)},
                 {scanInterval, maps:get(scan_interval, Args)},
                 {writeOnce, maps:get(write_once, Args)},
                 {deleteEnable, maps:get(delete_enable, Args)},
                 {syncAcl, maps:get(sync_acl, Args)}
-                | Details
             ]
     end.
 
@@ -126,72 +126,39 @@ get_stats(Node, SpaceId, Period, Metrics) ->
 %% @doc This function modifies storage_import configuration on given Node.
 %% @end
 %%-------------------------------------------------------------------
--spec modify_storage_import(Node :: node(), SpaceId :: id(), Args :: args(),
-    NewStrategyName :: strategy_name()) -> {ok, id()}.
-modify_storage_import(_Node, SpaceId, _Args0, no_import) ->
-    {ok, SpaceId};
-modify_storage_import(Node, SpaceId, Args0, NewStrategyName) ->
-    Args = #{
-        max_depth => onepanel_utils:typed_get(max_depth, Args0, integer,
-            get_default(max_depth)),
-        sync_acl => onepanel_utils:typed_get(sync_acl, Args0, boolean,
-            get_default(sync_acl))
-    },
-    {ok, _} = op_worker_rpc:modify_storage_import(
-        Node, SpaceId, NewStrategyName, Args).
-
+-spec configure_storage_import(Node :: node(), SpaceId :: id(), Args :: args(),
+    NewStrategyName :: strategy_name()) -> ok.
+configure_storage_import(Node, SpaceId, Args0, StrategyName) ->
+    Enabled = case StrategyName of
+    % todo VFS-5717 get rid of space_strategies boilerplate
+        simple_scan -> true;
+        no_import -> false
+    end,
+    Args = onepanel_maps:remove_undefined(#{
+        max_depth => onepanel_utils:typed_get(max_depth, Args0, integer, undefined),
+        sync_acl => onepanel_utils:typed_get(sync_acl, Args0, boolean, undefined)
+    }),
+    ok = op_worker_rpc:configure_storage_import(Node, SpaceId, Enabled, Args).
 
 %%-------------------------------------------------------------------
 %% @private
 %% @doc This function modifies storage_update configuration on given Node.
 %% @end
 %%-------------------------------------------------------------------
--spec modify_storage_update(Node :: node(), SpaceId :: id(), Args :: args(),
-    NewStrategyName :: strategy_name()) -> {ok, id()}.
-modify_storage_update(Node, SpaceId, _Args0, no_update) ->
-    {ok, _Id} = op_worker_rpc:modify_storage_update(
-        Node, SpaceId, no_update, #{});
-modify_storage_update(Node, SpaceId, Args0, NewStrategyName) ->
-    Args = #{
-        max_depth => onepanel_utils:typed_get(max_depth, Args0, integer,
-            get_default(max_depth)),
-        scan_interval => onepanel_utils:typed_get(scan_interval, Args0, integer,
-            get_default(scan_interval)),
-        write_once => onepanel_utils:typed_get(write_once, Args0, boolean,
-            get_default(write_once)),
-        delete_enable => onepanel_utils:typed_get(delete_enable, Args0, boolean,
-            get_default(delete_enable)),
-        sync_acl => onepanel_utils:typed_get(sync_acl, Args0, boolean,
-            get_default(sync_acl))
-    },
-
-    {ok, _} = op_worker_rpc:modify_storage_update(
-        Node, SpaceId, NewStrategyName, Args).
-
-
-%%-------------------------------------------------------------------
-%% @private
-%% @doc Util function that maps given argument name to key for its
-%% default value in app.config.
-%% @end
-%%-------------------------------------------------------------------
--spec map_key_to_default_key(atom()) -> atom().
-map_key_to_default_key(max_depth) -> oneprovider_sync_max_depth;
-map_key_to_default_key(scan_interval) -> oneprovider_sync_update_scan_interval;
-map_key_to_default_key(write_once) -> oneprovider_sync_update_delete_enable;
-map_key_to_default_key(delete_enable) -> oneprovider_sync_update_write_once;
-map_key_to_default_key(sync_acl) -> oneprovider_sync_acl.
-
-
-%%-------------------------------------------------------------------
-%% @private
-%% @doc Returns default value defined in app.config
-%% @end
-%%-------------------------------------------------------------------
--spec get_default(atom()) -> term().
-get_default(Key) ->
-    {ok, Value} = application:get_env(?APP_NAME, map_key_to_default_key(Key)),
-    Value.
+-spec configure_storage_update(Node :: node(), SpaceId :: id(), Args :: args(),
+    NewStrategyName :: strategy_name()) -> ok.
+configure_storage_update(Node, SpaceId, _Args0, no_update) ->
+    % todo VFS-5717
+    ok = op_worker_rpc:configure_storage_update(Node, SpaceId, false, #{});
+configure_storage_update(Node, SpaceId, Args0, simple_scan) ->
+    Args = onepanel_maps:remove_undefined(#{
+        max_depth => onepanel_utils:typed_get(max_depth, Args0, integer, undefined),
+        scan_interval => onepanel_utils:typed_get(scan_interval, Args0, integer, undefined),
+        write_once => onepanel_utils:typed_get(write_once, Args0, boolean, undefined),
+        delete_enable => onepanel_utils:typed_get(delete_enable, Args0, boolean, undefined),
+        sync_acl => onepanel_utils:typed_get(sync_acl, Args0, boolean, undefined)
+    }),
+    ok = op_worker_rpc:configure_storage_update(Node, SpaceId, true, Args).
 
 %%-------------------------------------------------------------------
 %% @private
@@ -271,7 +238,8 @@ get_status(Node, SpaceId) ->
 %%-------------------------------------------------------------------
 -spec get_import_status(Node :: node(), SpaceId :: id()) -> binary().
 get_import_status(Node, SpaceId) ->
-    case op_worker_rpc:storage_sync_monitoring_get_import_state(Node, SpaceId) of
+    % todo rename?
+    case op_worker_rpc:storage_sync_monitoring_get_import_status(Node, SpaceId) of
         finished ->
             <<"done">>;
         _ ->
@@ -286,7 +254,8 @@ get_import_status(Node, SpaceId) ->
 %%-------------------------------------------------------------------
 -spec get_update_status(Node :: node(), SpaceId :: id()) -> binary().
 get_update_status(Node, SpaceId) ->
-    case op_worker_rpc:storage_sync_monitoring_get_update_state(Node, SpaceId) of
+    % todo rename?
+    case op_worker_rpc:storage_sync_monitoring_get_update_status(Node, SpaceId) of
         in_progress ->
             <<"inProgress">>;
         _ ->
