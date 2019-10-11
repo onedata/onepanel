@@ -1061,10 +1061,6 @@ init_per_testcase(_Case, Config) ->
         Self ! {service, Service, Action, Ctx},
         [{task_finished, {service, action, ok}}]
     end),
-    test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
-        Self ! {service, Service, Action, Ctx},
-        [{task_finished, {service, action, ok}}]
-    end),
     ok = onepanel_test_rest:mock_token_authentication(Nodes),
 
     Config.

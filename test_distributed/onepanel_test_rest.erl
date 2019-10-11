@@ -258,7 +258,7 @@ mock_token_authentication(Nodes) ->
                 oneprovider -> Client#client{zone_auth = {rest, {token, Token}}};
                 onezone -> Client#client{zone_auth = {rpc, opaque_client}}
             end;
-        (BadToken, _PeerIp) -> meck:passthrough([BadToken])
+        (_BadToken, _PeerIp) -> ?make_error(?ERR_INVALID_AUTH_TOKEN)
     end).
 
 

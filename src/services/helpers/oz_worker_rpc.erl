@@ -44,9 +44,13 @@
     GuiHash :: onedata:gui_hash()
 }.
 -type od_group_id() :: binary().
+-type gui_message_id() :: binary().
+-type gui_message_map_repr() :: #{enabled := boolean(), body := binary()}.
 -type od_provider_id() :: binary().
 -type od_user_id() :: binary().
 -type od_user_username() :: binary().
+
+-export_type([gui_message_id/0, gui_message_map_repr/0]).
 
 -export([check_token_auth/2, check_token_auth/3]).
 -export([get_protected_provider_data/2, get_protected_provider_data/3]).
@@ -69,6 +73,9 @@
 -export([cluster_logic_create_user_invite_token/2]).
 -export([reconcile_dns_config/0, reconcile_dns_config/1]).
 -export([dns_config_get_ns_hosts/0, dns_config_get_ns_hosts/1]).
+-export([gui_message_exists/1, gui_message_exists/2]).
+-export([get_gui_message_as_map/1, get_gui_message_as_map/2]).
+-export([update_gui_message/3, update_gui_message/4]).
 
 %%%===================================================================
 %%% API functions
@@ -291,3 +298,34 @@ dns_config_get_ns_hosts() ->
     [{Name :: binary(), IP :: inet:ip4_address()}].
 dns_config_get_ns_hosts(Node) ->
     ?CALL(Node, []).
+
+
+-spec gui_message_exists(gui_message_id()) -> boolean().
+gui_message_exists(MessageId) ->
+    ?CALL([MessageId]).
+
+-spec gui_message_exists(node(), gui_message_id()) -> boolean().
+gui_message_exists(Node, MessageId) ->
+    ?CALL(Node, [MessageId]).
+
+
+-spec get_gui_message_as_map(gui_message_id()) ->
+    {ok, gui_message_map_repr()} | {error, term()}.
+get_gui_message_as_map(MessageId) ->
+    ?CALL([MessageId]).
+
+-spec get_gui_message_as_map(node(), gui_message_id()) ->
+    {ok, gui_message_map_repr()} | {error, term()}.
+get_gui_message_as_map(Node, MessageId) ->
+    ?CALL(Node, [MessageId]).
+
+
+-spec update_gui_message(aai:auth(), gui_message_id(), Data :: map()) ->
+    ok | {error, term()}.
+update_gui_message(Auth, MessageId, Data) ->
+    ?CALL([Auth, MessageId, Data]).
+
+-spec update_gui_message(node(), aai:auth(), gui_message_id(), Data :: map()) ->
+    ok | {error, term()}.
+update_gui_message(Node, Auth, MessageId, Data) ->
+    ?CALL(Node, [Auth, MessageId, Data]).
