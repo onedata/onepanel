@@ -16,10 +16,13 @@
 
 -include("modules/errors.hrl").
 -include("names.hrl").
--include_lib("ctool/include/api_errors.hrl").
+-include_lib("ctool/include/aai/aai.hrl").
+-include_lib("ctool/include/onedata.hrl").
+-include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
 
 % @formatter:off
+-define(NODE, element(2, {ok, _} = nodes:any(?SERVICE_OZW))).
 -define(CALL(Node, Args),
     case rpc:call(Node, rpc_api, apply, [?FUNCTION_NAME, Args]) of
         {badrpc, _} = __Error -> ?throw_error(__Error);
@@ -27,7 +30,7 @@
     end).
 
 -define(CALL(Args), begin
-        ?CALL(element(2, {ok, _} = nodes:any(?SERVICE_OZW)), Args)
+        ?CALL(?NODE, Args)
     end).
 % @formatter:on
 
@@ -49,8 +52,7 @@
 
 -export_type([gui_message_id/0, gui_message_map_repr/0]).
 
--export([authorize_by_oz_panel_gui_token/1, authorize_by_oz_panel_gui_token/2]).
--export([authorize_by_access_token/1, authorize_by_access_token/2]).
+-export([check_token_auth/2, check_token_auth/3]).
 -export([get_protected_provider_data/2, get_protected_provider_data/3]).
 -export([deploy_static_gui_package/4, deploy_static_gui_package/5]).
 -export([update_cluster_version_info/4, update_cluster_version_info/5]).
@@ -60,8 +62,8 @@
 -export([list_users/1, list_users/2]).
 -export([user_exists/1, user_exists/2]).
 -export([username_exists/1, username_exists/2]).
+-export([get_user_details/1]).
 -export([get_user_details/2]).
--export([get_user_details/3]).
 -export([migrate_onepanel_user_to_onezone/4, migrate_onepanel_user_to_onezone/5]).
 -export([cluster_get_eff_user_privileges/3, cluster_get_eff_user_privileges/4]).
 -export([get_protected_cluster_data/2, get_protected_cluster_data/3]).
@@ -79,27 +81,18 @@
 %%% API functions
 %%%===================================================================
 
-
--spec authorize_by_oz_panel_gui_token(tokens:token() | tokens:serialized()) ->
+-spec check_token_auth(tokens:serialized() | tokens:token(),
+    undefined | ip_utils:ip()) ->
     {true, aai:auth()} | {error, term()}.
-authorize_by_oz_panel_gui_token(Token) ->
-    ?CALL([Token]).
+check_token_auth(Token, PeerIp)  ->
+    check_token_auth(?NODE, Token, PeerIp).
 
--spec authorize_by_oz_panel_gui_token(node(), tokens:token() | tokens:serialized()) ->
+-spec check_token_auth(node(), tokens:serialized() | tokens:token(),
+    undefined | ip_utils:ip()) ->
     {true, aai:auth()} | {error, term()}.
-authorize_by_oz_panel_gui_token(Node, Token) ->
-    ?CALL(Node, [Token]).
-
-
--spec authorize_by_access_token(tokens:serialized() | tokens:token()) ->
-    {true, aai:auth()} | false | {error, term()}.
-authorize_by_access_token(Token)  ->
-    ?CALL([Token]).
-
--spec authorize_by_access_token(node(), tokens:serialized() | tokens:token()) ->
-    {true, aai:auth()} | false | {error, term()}.
-authorize_by_access_token(Node, Token)  ->
-    ?CALL(Node, [Token]).
+check_token_auth(Node, Token, PeerIp)  ->
+    Audience = ?AUD(?OZ_PANEL, ?ONEZONE_CLUSTER_ID),
+    ?CALL(Node, [Token, PeerIp, Audience]).
 
 
 -spec get_protected_provider_data(aai:auth(), od_provider_id()) ->
@@ -201,15 +194,15 @@ username_exists(Node, Username) ->
     ?CALL(Node, [Username]).
 
 
--spec get_user_details(node(), aai:auth()) ->
+-spec get_user_details(aai:auth()) ->
     {ok, #user_details{}} | {error, term()}.
-get_user_details(Node, Auth) ->
-    ?CALL(Node, [Auth]).
+get_user_details(Auth) ->
+    ?CALL([Auth]).
 
--spec get_user_details(node(), aai:auth(), od_user_id()) ->
+-spec get_user_details(aai:auth(), od_user_id()) ->
     {ok, #user_details{}} | {error, term()}.
-get_user_details(Node, Auth, UserId) ->
-    ?CALL(Node, [Auth, UserId]).
+get_user_details(Auth, UserId) ->
+    ?CALL([Auth, UserId]).
 
 
 -spec migrate_onepanel_user_to_onezone(OnepanelUserId :: binary(),
@@ -282,7 +275,7 @@ cluster_logic_get_eff_groups(Auth, ClusterId) ->
 
 
 -spec cluster_logic_create_user_invite_token(aai:auth(), od_cluster_id()) ->
-    {ok, macaroon:macaroon()} | {error, term()}.
+    {ok, tokens:token()} | {error, term()}.
 cluster_logic_create_user_invite_token(Auth, ClusterId) ->
     ?CALL([Auth, ClusterId]).
 

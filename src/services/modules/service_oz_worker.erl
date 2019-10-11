@@ -20,7 +20,7 @@
 -include("service.hrl").
 -include("authentication.hrl").
 -include_lib("ctool/include/logging.hrl").
--include_lib("ctool/include/api_errors.hrl").
+-include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
 
 %% Service behaviour callbacks
@@ -31,7 +31,7 @@
     supports_letsencrypt_challenge/1]).
 
 %% API functions
--export([get_logic_client_by_gui_token/1, get_logic_client_by_access_token/1]).
+-export([get_auth_by_token/2]).
 -export([get_user_details/1]).
 
 %% Step functions
@@ -113,37 +113,23 @@ get_steps(Action, Ctx) ->
 %%% Public API
 %%%===================================================================
 
--spec get_logic_client_by_gui_token(GuiToken :: binary())  ->
-    {ok, onezone_client:logic_client()} | #error{}.
-get_logic_client_by_gui_token(GuiToken) ->
+
+-spec get_auth_by_token(AccessToken :: binary(), ip_utils:ip()) ->
+    {ok, aai:auth()} | #error{}.
+get_auth_by_token(AccessToken, PeerIp) ->
     case nodes:any(name()) of
         {ok, OzNode} ->
-            case oz_worker_rpc:authorize_by_oz_panel_gui_token(OzNode, GuiToken) of
-                {true, LogicClient} -> {ok, LogicClient};
-                {error, ApiError} -> ?make_error(ApiError)
+            case oz_worker_rpc:check_token_auth(OzNode, AccessToken, PeerIp) of
+                {true, Auth} -> {ok, Auth};
+                {error, _} = Error -> ?make_error(Error)
             end;
         Error -> Error
     end.
 
 
--spec get_logic_client_by_access_token(AccessToken :: binary())  ->
-    {ok, onezone_client:logic_client()} | #error{}.
-get_logic_client_by_access_token(AccessToken) ->
-    case nodes:any(name()) of
-        {ok, OzNode} ->
-            case oz_worker_rpc:authorize_by_access_token(OzNode, AccessToken
-            ) of
-                {true, LogicClient} -> {ok, LogicClient};
-                {error, ApiError} -> ?make_error(ApiError)
-            end;
-        Error -> Error
-    end.
-
-
--spec get_user_details(LogicClient :: term()) -> {ok, #user_details{}} | #error{}.
-get_user_details(LogicClient) ->
-    {ok, OzNode} = nodes:any(name()),
-    case oz_worker_rpc:get_user_details(OzNode, LogicClient) of
+-spec get_user_details(aai:auth()) -> {ok, #user_details{}} | #error{}.
+get_user_details(Auth) ->
+    case oz_worker_rpc:get_user_details(Auth) of
         {ok, User} -> {ok, User};
         {error, Reason} -> ?make_error(Reason)
     end.
@@ -458,10 +444,10 @@ get_policies() ->
         provider_registration_policy, name()),
     SubdomainDelegation = onepanel_env:get_remote(Node,
         subdomain_delegation_supported, name()),
-    GuiVerification = not onepanel_env:get_remote(Node,
-        disable_gui_package_verification, name()),
-    HarversterGuiVerification = not onepanel_env:get_remote(Node,
-        disable_harvester_gui_package_verification, name()),
+    GuiVerification = onepanel_env:get_remote(Node,
+        gui_package_verification, name()),
+    HarversterGuiVerification = onepanel_env:get_remote(Node,
+        harvester_gui_package_verification, name()),
     #{
         oneproviderRegistration => ProviderRegistration,
         subdomainDelegation => SubdomainDelegation,
@@ -485,9 +471,9 @@ set_policies(Ctx) ->
         (subdomain_delegation, Supported) ->
             env_write_and_set(subdomain_delegation_supported, Supported);
         (gui_package_verification, Enabled) ->
-            env_write_and_set(disable_gui_package_verification, not Enabled);
+            env_write_and_set(gui_package_verification, Enabled);
         (harvester_gui_package_verification, Enabled) ->
-            env_write_and_set(disable_harvester_gui_package_verification, not Enabled);
+            env_write_and_set(harvester_gui_package_verification, Enabled);
         (_, _) -> ok
     end, Ctx),
     ok.

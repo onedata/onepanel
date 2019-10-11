@@ -19,6 +19,7 @@
 -include("modules/models.hrl").
 -include("authentication.hrl").
 -include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 
 -export([handle/2]).
 
@@ -46,7 +47,7 @@ handle(<<"POST">>, Req) ->
                 token => Token,
                 ttl => Expires - time_utils:system_time_seconds()
             }),
-            Headers = #{<<"content-type">> => <<"application/json">>},
+            Headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
             cowboy_req:reply(?HTTP_200_OK, Headers, BodyJson, NewReq);
         {error, no_session_cookie} ->
             cowboy_req:reply(?HTTP_401_UNAUTHORIZED, Req);

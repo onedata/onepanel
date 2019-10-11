@@ -17,12 +17,12 @@
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/aai/aai.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
 -include_lib("ctool/include/http/codes.hrl").
--include_lib("macaroons/src/macaroon.hrl").
 
 %% API
--export([authenticate_user/1]).
+-export([authenticate_user/2, authenticate_user/3]).
 -export([read_domain/1]).
 
 -define(USER_DETAILS_CACHE_KEY(Token), {user_details, Token}).
@@ -40,11 +40,11 @@
 %% cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec authenticate_user(Token :: binary()) ->
+-spec authenticate_user(Token :: binary(), PeerIp :: ip_utils:ip()) ->
     #client{} | #error{}.
-authenticate_user(Token) ->
+authenticate_user(Token, PeerIp) ->
     ClusterType = onepanel_env:get_cluster_type(),
-    case authenticate_user(ClusterType, Token) of
+    case authenticate_user(ClusterType, Token, PeerIp) of
         #client{} = Client -> Client;
         #error{} = Error -> Error
     end.
@@ -56,8 +56,8 @@ authenticate_user(Token) ->
 %%--------------------------------------------------------------------
 -spec read_domain(RegistrationToken :: binary()) -> Domain :: binary() | no_return().
 read_domain(RegistrationToken) ->
-    {ok, Macaroon} = macaroons:deserialize(RegistrationToken),
-    Macaroon#macaroon.location.
+    {ok, Token} = tokens:deserialize(RegistrationToken),
+    Token#token.onezone_domain.
 
 
 %%%===================================================================
@@ -72,38 +72,31 @@ read_domain(RegistrationToken) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec authenticate_user(
-    ClusterType :: onedata:cluster_type(), Token :: binary()
+    onedata:cluster_type(), Token :: binary(), PeerIp :: ip_utils:ip()
 ) -> #client{} | #error{}.
-authenticate_user(onezone, Token) ->
-    ClientOrError = case service_oz_worker:get_logic_client_by_gui_token(Token) of
-        {ok, Client} -> {ok, Client};
-        _Error -> service_oz_worker:get_logic_client_by_access_token(Token)
-    end,
-    case ClientOrError of
-        {ok, LogicClient} ->
-            {ok, Details} = service_oz_worker:get_user_details(LogicClient),
-            user_details_to_client(Details, {rpc, LogicClient});
-        _ ->
-            ?make_error(?ERR_INVALID_AUTH_TOKEN)
+authenticate_user(onezone, Token, PeerIp) ->
+    case service_oz_worker:get_auth_by_token(Token, PeerIp) of
+        {ok, Auth} ->
+            {ok, Details} = service_oz_worker:get_user_details(Auth),
+            user_details_to_client(Details, {rpc, Auth});
+        #error{} = Error -> Error
     end;
 
-authenticate_user(oneprovider, Token) ->
+authenticate_user(oneprovider, Token, _PeerIp) ->
+    % Does nothing to relay peer IP to Onezone - which means
+    % token with IP or geolocation caveats will not work, unless
+    % they whitelist the Onepanel IP as seen by Onezone.
     FetchDetailsFun = fun() ->
-        Auth1 = {gui_token, Token},
-        Auth2 = {access_token, Token},
-        case fetch_details(Auth1) of
-            {ok, Details} -> {true, {Details, Auth1}, ?USER_DETAILS_CACHE_TTL};
-            _ ->
-                case fetch_details(Auth2) of
-                    {ok, Details} -> {true, {Details, Auth2}, ?USER_DETAILS_CACHE_TTL};
-                    Error -> Error
-                end
+        Auth = {token, Token},
+        case fetch_details(Auth) of
+            {ok, Details} -> {true, {Details, Auth}, ?USER_DETAILS_CACHE_TTL};
+            Error -> Error
         end
     end,
 
     case simple_cache:get(?USER_DETAILS_CACHE_KEY(Token), FetchDetailsFun) of
         {ok, {Details, Auth}} -> user_details_to_client(Details, {rest, Auth});
-        #error{reason = {?HTTP_401_UNAUTHORIZED, _, _}} -> ?make_error(?ERR_INVALID_AUTH_TOKEN)
+        #error{} = Error -> Error
     end.
 
 
@@ -127,7 +120,9 @@ fetch_details(RestAuth) ->
                 emails = maps:get(<<"emails">>, Map)
             },
             {ok, UserDetails};
-        {ok, Code, _, _ResponseBody} -> ?make_error({Code, _ResponseBody, <<>>});
+        {ok, _, _, ResponseBody} ->
+            #{<<"error">> := Error} = json_utils:decode(ResponseBody),
+            ?make_error(errors:from_json(Error));
         {error, Reason} -> ?make_error(Reason)
     end.
 

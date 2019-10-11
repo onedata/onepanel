@@ -196,8 +196,10 @@ init_per_testcase(Case, Config) when
     Self = self(),
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(all_nodes, Config),
-    test_utils:mock_expect(Nodes, service_onezone, gui_message_exists,
+    test_utils:mock_expect(Nodes, oz_worker_rpc, gui_message_exists,
         fun(MessageId) -> MessageId == ?GOOD_GUI_MESSAGE_ID end),
+    test_utils:mock_expect(Nodes, oz_worker_rpc, gui_message_exists,
+        fun(_Node, MessageId) -> MessageId == ?GOOD_GUI_MESSAGE_ID end),
 
     Result = #{body => ?GUI_MESSAGE_BODY, enabled => ?GUI_MESSAGE_ENABLED},
     test_utils:mock_expect(Nodes, service, apply_sync, fun

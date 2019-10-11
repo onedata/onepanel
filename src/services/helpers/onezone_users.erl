@@ -16,7 +16,7 @@
 -include("modules/models.hrl").
 -include("names.hrl").
 -include_lib("ctool/include/aai/aai.hrl").
--include_lib("ctool/include/api_errors.hrl").
+-include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
 
@@ -68,12 +68,12 @@ add_users(#{onezone_users := Users}) ->
     end, Users).
 
 %% @private
--spec add_user_to_groups(OzNode :: node(), onezone_client:logic_client(),
+-spec add_user_to_groups(OzNode :: node(), aai:auth(),
     UserId :: binary(), Groups :: [binary()]) -> ok.
-add_user_to_groups(OzNode, LogicClient, UserId, Groups) ->
+add_user_to_groups(OzNode, Auth, UserId, Groups) ->
     lists:foreach(fun(GroupId) ->
         {ok, _} = oz_worker_rpc:add_user_to_group(
-            OzNode, LogicClient, GroupId, UserId)
+            OzNode, Auth, GroupId, UserId)
     end, Groups).
 
 
@@ -96,8 +96,8 @@ list_users(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec get_user(#{user_id := binary()}) -> #{atom() := binary()}.
 get_user(#{user_id := UserId}) ->
-    {OzNode, Client} = get_node_and_client(),
-    {ok, Details} = oz_worker_rpc:get_user_details(OzNode, Client, UserId),
+    {_, Client} = get_node_and_client(),
+    {ok, Details} = oz_worker_rpc:get_user_details(Client, UserId),
     #user_details{id = UserId, username = Username, full_name = FullName} = Details,
     #{userId => UserId, username => Username, fullName => FullName}.
 
@@ -163,7 +163,7 @@ migrate_user(UserUUID, Username, PasswordHash, Role) ->
 
 %% @private
 -spec get_node_and_client() ->
-    {OzwNode :: node(), Client :: onezone_client:logic_client()}.
+    {OzwNode :: node(), aai:auth()}.
 get_node_and_client() ->
     {ok, OzNode} = nodes:any(?SERVICE_OZW),
     {OzNode, ?ROOT}.

@@ -13,6 +13,7 @@
 
 -include("names.hrl").
 -include("modules/errors.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
@@ -47,7 +48,7 @@ get_basic_auth_header(Username, Password) ->
         (onepanel_utils:convert(Username, binary))/binary, ":",
         (onepanel_utils:convert(Password, binary))/binary>>
     ),
-    {<<"authorization">>, <<"Basic ", Hash/binary>>}.
+    {?HDR_AUTHORIZATION, <<"Basic ", Hash/binary>>}.
 
 
 %%--------------------------------------------------------------------

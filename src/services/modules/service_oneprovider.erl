@@ -21,7 +21,7 @@
 -include("deployment_progress.hrl").
 -include("authentication.hrl").
 -include_lib("ctool/include/aai/aai.hrl").
--include_lib("ctool/include/api_errors.hrl").
+-include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/onedata.hrl").
@@ -50,7 +50,7 @@
     get_auto_cleaning_status/1, start_auto_cleaning/1, check_oz_connection/0,
     update_provider_ips/0, configure_file_popularity/1, configure_auto_cleaning/1,
     get_file_popularity_configuration/1, get_auto_cleaning_configuration/1]).
--export([set_up_service_in_onezone/0]).
+-export([set_up_service_in_onezone/0, store_absolute_auth_file_path/0]).
 -export([pop_legacy_letsencrypt_config/0]).
 -export([get_id/0, get_access_token/0]).
 
@@ -205,6 +205,7 @@ get_steps(manage_restart, Ctx) ->
             #steps{service = ?SERVICE_CM, action = resume},
             #steps{service = ?SERVICE_OPW, action = resume},
             #steps{action = set_up_service_in_onezone},
+            #step{function = store_absolute_auth_file_path, args = [], selection = any},
             #steps{service = ?SERVICE_LE, action = resume,
                 ctx = Ctx#{letsencrypt_plugin => ?SERVICE_OPW}}
         ];
@@ -310,7 +311,7 @@ get_id() ->
     case op_worker_rpc:get_provider_id() of
         {ok, <<ProviderId/binary>>} ->
             ProviderId;
-        ?ERROR_UNREGISTERED_PROVIDER = Error ->
+        ?ERROR_UNREGISTERED_ONEPROVIDER = Error ->
             ?throw_error(Error);
         _ ->
             FileContents = read_auth_file(),
@@ -368,7 +369,7 @@ is_registered(Ctx) ->
 get_access_token() ->
     case op_worker_rpc:get_access_token() of
         {ok, <<Token/binary>>} -> Token;
-        ?ERROR_UNREGISTERED_PROVIDER = Error -> ?throw_error(Error);
+        ?ERROR_UNREGISTERED_ONEPROVIDER = Error -> ?throw_error(Error);
         _ -> root_token_from_file()
     end.
 
@@ -479,7 +480,7 @@ register(Ctx) ->
     case oz_providers:register(none, Params) of
         ?ERROR_BAD_VALUE_IDENTIFIER_OCCUPIED(<<"subdomain">>) ->
             ?throw_error(?ERR_SUBDOMAIN_NOT_AVAILABLE);
-        ?ERROR_BAD_VALUE_TOKEN(<<"token">>) ->
+        ?ERROR_BAD_VALUE_TOKEN(_, _) ->
             ?throw_error(?ERR_INVALID_VALUE_TOKEN);
         {error, Reason} ->
             ?throw_error(Reason);
@@ -542,7 +543,7 @@ get_details() ->
             false -> get_details_by_rest()
         end
     catch
-        Type:#error{reason = ?ERROR_UNREGISTERED_PROVIDER} = Error ->
+        Type:#error{reason = ?ERROR_UNREGISTERED_ONEPROVIDER} = Error ->
             erlang:Type(Error);
         Type:Error ->
             case service:get_ctx(name()) of
@@ -577,8 +578,8 @@ support_space(#{storage_id := StorageId} = Ctx) ->
             configure_space(Node, SpaceId, Ctx);
         ?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, Minimum) ->
             ?throw_error(?ERR_SPACE_SUPPORT_TOO_LOW(Minimum));
-        {error, Reason} ->
-            ?throw_error(Reason)
+        {error, _} = Error ->
+            ?throw_error(Error)
     end.
 
 
@@ -906,6 +907,26 @@ set_up_service_in_onezone() ->
             end
     end.
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Stores absolute path to oneprovider token file in Onepanel config.
+%% This operation requires op-worker to be up.
+%% This function should be executed after cluster deployment, and after
+%% upgrading to version 19.10 when the path variable name and contents
+%% have changed.
+%% @end
+%%--------------------------------------------------------------------
+-spec store_absolute_auth_file_path() -> ok.
+store_absolute_auth_file_path() ->
+    PanelNodes = nodes:all(?SERVICE_PANEL),
+    RootTokenPath = op_worker_rpc:get_root_token_file_path(),
+    onepanel_env:write(PanelNodes, [?SERVICE_PANEL, op_worker_root_token_path],
+        RootTokenPath, onepanel_env:get_config_path(?SERVICE_PANEL, generated)),
+    onepanel_env:set(PanelNodes, op_worker_root_token_path, RootTokenPath, ?APP_NAME),
+    ok.
+
+
 %%%===================================================================
 %%% Internal RPC functions
 %%%===================================================================
@@ -923,7 +944,7 @@ root_token_from_file() ->
     case nodes:onepanel_with(?SERVICE_OPW) of
         {_, Self} ->
             {ok, RootTokenBin} = onepanel_maps:get(
-                root_macaroon, read_auth_file()),
+                root_token, read_auth_file()),
             {ok, TTL} = onepanel_env:read_effective(
                 [?SERVICE_OPW, provider_token_ttl_sec], ?SERVICE_OPW),
             Now = time_utils:system_time_seconds(),
@@ -942,12 +963,16 @@ root_token_from_file() ->
 %% @doc Reads provider Id and root token from a file where they are stored.
 %% @end
 %%--------------------------------------------------------------------
--spec read_auth_file() -> #{provider_id := binary(), root_macaroon := binary()}.
+-spec read_auth_file() -> #{provider_id := id(), root_token := binary()}.
 read_auth_file() ->
     {_, Node} = nodes:onepanel_with(?SERVICE_OPW),
-    Path = onepanel_env:get(op_worker_root_macaroon_path),
-    case rpc:call(Node, file, consult, [Path]) of
-        {ok, [Map]} -> Map;
+    Path = onepanel_env:get(op_worker_root_token_path),
+    case rpc:call(Node, file, read_file, [Path]) of
+        {ok, Json} ->
+            onepanel_maps:get_store_multiple([
+                {<<"provider_id">>, provider_id},
+                {<<"root_token">>, root_token}
+            ], json_utils:decode(Json));
         {error, Error} -> ?throw_error(Error)
     end.
 
@@ -962,8 +987,9 @@ read_auth_file() ->
 -spec on_registered(OpwNode :: node(), ProviderId :: id(),
     tokens:serialized()) -> ok.
 on_registered(OpwNode, ProviderId, RootToken) ->
-    save_provider_auth(OpwNode, ProviderId, RootToken),
+    ok = op_worker_rpc:provider_auth_save(OpwNode, ProviderId, RootToken),
     service:update_ctx(name(), #{registered => true}),
+    store_absolute_auth_file_path(),
 
     % Force connection healthcheck
     % (reconnect attempt is performed automatically if there is no connection)
@@ -975,26 +1001,13 @@ on_registered(OpwNode, ProviderId, RootToken) ->
     ok.
 
 
--spec save_provider_auth(OpwNode :: node(), ProviderId :: id(),
-    tokens:serialized()) -> ok.
-save_provider_auth(OpwNode, ProviderId, RootToken) ->
-    ok = op_worker_rpc:provider_auth_save(OpwNode, ProviderId, RootToken),
-
-    PanelNodes = nodes:all(?SERVICE_PANEL),
-    RootTokenPath = op_worker_rpc:get_root_token_file_path(),
-    onepanel_env:write(PanelNodes, [?SERVICE_PANEL, op_worker_root_macaroon_path],
-        RootTokenPath, onepanel_env:get_config_path(?SERVICE_PANEL, generated)),
-    onepanel_env:set(PanelNodes, op_worker_root_macaroon_path, RootTokenPath, ?APP_NAME),
-    ok.
-
-
 %% @private
 -spec get_details_by_graph_sync() -> #{atom() := term()} | no_return().
 get_details_by_graph_sync() ->
     OzDomain = get_oz_domain(),
     Details = case op_worker_rpc:get_provider_details() of
         {ok, DetailsMap} -> DetailsMap;
-        ?ERROR_NO_CONNECTION_TO_OZ -> ?throw_error(?ERR_ONEZONE_NOT_AVAILABLE);
+        ?ERROR_NO_CONNECTION_TO_ONEZONE -> ?throw_error(?ERR_ONEZONE_NOT_AVAILABLE);
         {error, Reason} -> ?throw_error(Reason)
     end,
 

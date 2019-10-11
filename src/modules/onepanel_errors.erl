@@ -34,7 +34,7 @@ end).
 %% Unpacks 'error', 'badmatch', 'case_clause', 'try_clause' errors if the reason
 %% term is an #error{} record.
 %% Even reasons in the form {error, term()} (when term is not #error) are not
-%% unpacked, to allow matching them to api_errors.hrl macros.
+%% unpacked, to allow matching them to errors.hrl macros.
 %% @end
 %%--------------------------------------------------------------------
 -spec create(Module :: module(), Function :: atom(), Arity :: arity(),
@@ -264,13 +264,14 @@ translate(_Type, #error{reason = {?ERR_FILE_POPULARITY, Error}}) ->
 translate(_Type, #error{reason = ?ERR_CMD_FAILURE(_, _)}) ->
     {<<"Internal Error">>, <<"Server encountered an unexpected error.">>};
 
-translate(_Type, #error{reason = {error, {Code, Error, Description}}})
-    when is_integer(Code), is_binary(Error), is_binary(Description) ->
-    {<<"Operation Error">>, Error};
-
 translate(_Type, #error{} = Error) ->
-    ?error("~ts", [format_error(Error)]),
-    {<<"Internal Error">>, <<"Server encountered an unexpected error.">>};
+    try
+        #{<<"id">> := Id, <<"description">> := Desc} = describe_common_error(Error),
+        {<<"Operation error">>, str_utils:format_bin("~ts: ~ts", [Id, Desc])}
+    catch _:_ ->
+        ?error("~ts", [format_error(Error)]),
+        {<<"Internal Error">>, <<"Server encountered an unexpected error.">>}
+    end;
 
 translate(Type, Reason) ->
     ?error("Type: ~tp~nReason: ~tp~n", [Type, Reason]),
@@ -368,3 +369,21 @@ translate_storage_test_file_error(OperVerb, OperNoun, Node, Reason) ->
         [Node, Reason]),
     {<<"Operation Error">>, <<"Storage test file ", OperNoun/binary, " failed "
     "on host: '", (onepanel_utils:convert(Host, binary))/binary, "'.">>}.
+
+
+%%--------------------------------------------------------------------
+%% @private @doc Attempts to match the error to one of the standard
+%% errors defined in ctool and return the error description map.
+%% Raises on failure.
+%% @end
+%%--------------------------------------------------------------------
+-spec describe_common_error(#error{} | errors:error() | errors:reason()) ->
+    errors:as_json() | no_return().
+describe_common_error(#error{reason = Reason}) ->
+    describe_common_error(Reason);
+
+describe_common_error({error, _} = Error) ->
+    errors:to_json(Error);
+
+describe_common_error(Error) ->
+    errors:to_json({error, Error}).
