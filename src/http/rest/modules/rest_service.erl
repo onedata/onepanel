@@ -17,6 +17,7 @@
 -include("modules/models.hrl").
 -include("names.hrl").
 -include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/privileges.hrl").
 
@@ -171,7 +172,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider} = Sta
         {[cluster, databases, bucketQuota], couchbase_bucket_quota}
     ], Args, #{hosts => DbHosts}),
 
-    Auth = cowboy_req:header(<<"authorization">>, Req),
+    Auth = cowboy_req:header(?HDR_AUTHORIZATION, Req),
     OpaCtx = maps:get(onepanel, Args, #{}),
     OpaHosts = lists:usort(DbHosts ++ CmHosts ++ OpwHosts),
     OpaCtx2 = OpaCtx#{
@@ -236,7 +237,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone} = State) 
         {[cluster, databases, bucketQuota], couchbase_bucket_quota}
     ], Args, #{hosts => DbHosts}),
 
-    Auth = cowboy_req:header(<<"authorization">>, Req),
+    Auth = cowboy_req:header(?HDR_AUTHORIZATION, Req),
     OpaCtx = maps:get(onepanel, Args, #{}),
     OpaCtx2 = OpaCtx#{
         hosts => AllHosts,

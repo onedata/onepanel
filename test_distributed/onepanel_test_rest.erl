@@ -19,6 +19,7 @@
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 
 %% API
 -export([auth_request/4, auth_request/5, auth_request/6, auth_request/7,
@@ -102,7 +103,7 @@ auth_request(HostOrConfig, Port, Endpoint, Method, {cookie, Name, Value},
 
 auth_request(HostOrConfig, Port, Endpoint, Method, {token, Token},
     Headers, Body) ->
-    NewHeaders = [{<<"x-auth-token">>, Token} | Headers],
+    NewHeaders = [{?HDR_X_AUTH_TOKEN, Token} | Headers],
     noauth_request(HostOrConfig, Port, Endpoint, Method, NewHeaders, Body);
 
 auth_request(HostOrConfig, Port, Endpoint, Method, <<Passphrase/binary>>,
@@ -179,7 +180,7 @@ noauth_request(HostOrConfig, Port, {noprefix, Path}, Method, Headers, Body) ->
         false -> utils:random_element(?config(all_hosts, HostOrConfig))
     end,
     NewHeaders = [
-        {<<"content-type">>, <<"application/json">>} |
+        {?HDR_CONTENT_TYPE, <<"application/json">>} |
         Headers
     ],
     Url = onepanel_utils:join(["https://", Host, ":", Port, Path]),
@@ -250,14 +251,14 @@ mock_token_authentication([{_, _} | _] = Config) ->
 mock_token_authentication(Nodes) ->
     test_utils:mock_new(Nodes, [onezone_tokens]),
     test_utils:mock_expect(Nodes, onezone_tokens, authenticate_user, fun
-        (<<"valid-token:", ClientB64/binary>> = Token) ->
+        (<<"valid-token:", ClientB64/binary>> = Token, _PeerIp) ->
             ClientBin = base64:decode(ClientB64),
             Client = erlang:binary_to_term(ClientBin),
             case onepanel_env:get_cluster_type() of
-                oneprovider -> Client#client{zone_auth = {rest, {gui_token, Token}}};
+                oneprovider -> Client#client{zone_auth = {rest, {token, Token}}};
                 onezone -> Client#client{zone_auth = {rpc, opaque_client}}
             end;
-        (BadToken) -> meck:passthrough([BadToken])
+        (BadToken, _PeerIp) -> meck:passthrough([BadToken])
     end).
 
 

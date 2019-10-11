@@ -342,7 +342,7 @@ delete_should_return_forbidden_error(Config) ->
 method_should_return_conflict_error(Config) ->
     ?run(Config, fun(Host) ->
         % provider is mocked as already registered
-        ?assertMatch({ok, HTTP_409_CONFLICT, _, _}, onepanel_test_rest:auth_request(
+        ?assertMatch({ok, ?HTTP_409_CONFLICT, _, _}, onepanel_test_rest:auth_request(
             Host, "/provider", post, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
             ?REGISTER_REQUEST_JSON
         ))
@@ -352,7 +352,7 @@ method_should_return_conflict_error(Config) ->
 method_should_return_service_unavailable_error(Config) ->
     ?run(Config, fun(Host) ->
         lists:foreach(fun({Endpoint, Method}) ->
-            ?assertMatch({ok, HTTP_503_SERVICE_UNAVAILABLE, _, _}, onepanel_test_rest:auth_request(
+            ?assertMatch({ok, ?HTTP_503_SERVICE_UNAVAILABLE, _, _}, onepanel_test_rest:auth_request(
                 Host, Endpoint, Method, ?ALL_AUTHS(Host)
             ))
         end, lists:subtract(
@@ -721,7 +721,7 @@ patch_with_incomplete_config_should_update_auto_cleaning(Config) ->
 
 patch_with_incorrect_config_should_fail(Config) ->
     ?run(Config, fun(Host) ->
-        ?assertMatch({ok, HTTP_400_BAD_REQUEST, _, _},
+        ?assertMatch({ok, ?HTTP_400_BAD_REQUEST, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId/auto-cleaning/configuration">>, patch,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), ?INCORRECT_AUTO_CLEANING_CONFIG
