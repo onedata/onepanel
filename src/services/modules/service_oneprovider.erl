@@ -578,8 +578,8 @@ support_space(#{storage_id := StorageId} = Ctx) ->
             configure_space(Node, SpaceId, Ctx);
         ?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, Minimum) ->
             ?throw_error(?ERR_SPACE_SUPPORT_TOO_LOW(Minimum));
-        {error, Reason} ->
-            ?throw_error(Reason)
+        {error, _} = Error ->
+            ?throw_error(Error)
     end.
 
 

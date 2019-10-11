@@ -20,6 +20,7 @@
 
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 -include_lib("public_key/include/OTP-PUB-KEY.hrl").
 -include_lib("kernel/include/inet.hrl").
 
@@ -738,7 +739,7 @@ post(URL, _Payload, OkCodes, _State, 0) ->
 post(URL, Payload, OkCodes, #flow_state{} = State, Attempts) ->
     {ok, Body, State2} = encode(URL, Payload, State),
     ContentType = <<"application/jose+json">>,
-    ReqHeaders = #{<<"content-type">> => ContentType},
+    ReqHeaders = #{?HDR_CONTENT_TYPE => ContentType},
 
     case http_client:post(URL, ReqHeaders, Body, ?HTTP_OPTS) of
         {ok, Status, Headers, ResponseRaw} ->

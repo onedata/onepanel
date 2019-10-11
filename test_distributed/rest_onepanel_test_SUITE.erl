@@ -179,13 +179,13 @@ passphrase_update_requires_previous_passphrase(Config) ->
     CorrectAuths = ?ROOT_AUTHS(Config),
     IncorrectPassphrase = <<"IncorrectPassphrase">>,
 
-    ?assertMatch({ok, HTTP_400_BAD_REQUEST, _, _}, onepanel_test_rest:auth_request(
+    ?assertMatch({ok, ?HTTP_400_BAD_REQUEST, _, _}, onepanel_test_rest:auth_request(
         Config, "/emergency_passphrase", put, CorrectAuths, #{
             <<"currentPassphrase">> => IncorrectPassphrase,
             <<"newPassphrase">> => <<"willNotBeSet">>
         }
     )),
-    ?assertMatch({ok, HTTP_400_BAD_REQUEST, _, _}, onepanel_test_rest:auth_request(
+    ?assertMatch({ok, ?HTTP_400_BAD_REQUEST, _, _}, onepanel_test_rest:auth_request(
         Config, "/emergency_passphrase", put, CorrectAuths, #{
             <<"newPassphrase">> => <<"willNotBeSet">>
         }

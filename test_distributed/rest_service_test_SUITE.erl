@@ -212,7 +212,7 @@ method_should_return_service_unavailable_error(Config) ->
     ?run(Config, fun
         ({Host, <<"/provider">> = Prefix}) ->
             lists:foreach(fun({Endpoint, Method}) ->
-                ?assertMatch({ok, HTTP_503_SERVICE_UNAVAILABLE, _, _}, onepanel_test_rest:auth_request(
+                ?assertMatch({ok, ?HTTP_503_SERVICE_UNAVAILABLE, _, _}, onepanel_test_rest:auth_request(
                     Host, <<Prefix/binary, Endpoint/binary>>, Method,
                     ?ALL_AUTHS(Host)
                 ))
@@ -581,7 +581,7 @@ post_should_configure_oneprovider_service(Config) ->
 
 post_should_return_conflict_on_configured_onezone(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
-        ?assertMatch({ok, HTTP_409_CONFLICT, _, _},
+        ?assertMatch({ok, ?HTTP_409_CONFLICT, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/configuration">>, post,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
@@ -599,7 +599,7 @@ post_should_return_conflict_on_configured_onezone(Config) ->
 
 post_should_return_conflict_on_configured_oneprovider(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
-        ?assertMatch({ok, HTTP_409_CONFLICT, _, _},
+        ?assertMatch({ok, ?HTTP_409_CONFLICT, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/configuration">>, post,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),

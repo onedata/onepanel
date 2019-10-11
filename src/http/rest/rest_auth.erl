@@ -16,6 +16,7 @@
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 
 %% API
 -export([authenticate/2, authenticate_by_onezone_auth_token/1,
@@ -55,7 +56,7 @@ authenticate(Req, [AuthMethod | AuthMethods]) ->
     {Result, Req :: cowboy_req:req()}
     when Result :: #client{} | #error{} | ignore.
 authenticate_by_basic_auth(Req) ->
-    case cowboy_req:header(<<"authorization">>, Req) of
+    case cowboy_req:header(?HDR_AUTHORIZATION, Req) of
         <<"Basic ", Base64/binary>> ->
             {check_basic_credentials(Base64), Req};
         _ ->
@@ -64,7 +65,8 @@ authenticate_by_basic_auth(Req) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Authenticates user using REST API token.
+%% @doc Authenticates user using Onepanel-generated token used
+%% for sessions authenticated with the emergency passphrase.
 %% @end
 %%--------------------------------------------------------------------
 -spec authenticate_by_onepanel_auth_token(Req :: cowboy_req:req()) ->
@@ -96,7 +98,8 @@ authenticate_by_onezone_auth_token(Req) ->
         undefined ->
             {ignore, Req};
         AccessToken ->
-            {onezone_tokens:authenticate_user(AccessToken), Req}
+            PeerIp = resolve_peer_ip(Req),
+            {onezone_tokens:authenticate_user(AccessToken, PeerIp), Req}
     end.
 
 
@@ -120,6 +123,26 @@ check_basic_credentials(<<Base64/binary>>) ->
                 [_Username, _Password] ->
                     ?make_error(?ERR_INVALID_USERNAME)
             end
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Determines peer IP. Honours x-onedata-forwarded-for header
+%% to retrieve original IP in case of Onedata proxy.
+%% Note: proxy is not authenticated in any way, client connecting with
+%% the proxy can present arbitrary IP by providing this header.
+%% @end
+%%--------------------------------------------------------------------
+-spec resolve_peer_ip(cowboy_req:req()) -> inet:ip4_address().
+resolve_peer_ip(Req) ->
+    ForwarderFor = cowboy_req:header(?HDR_X_ONEDATA_FORWARDED_FOR, Req, undefined),
+    case ip_utils:to_ip4_address(ForwarderFor) of
+        {ok, Addr} ->
+            Addr;
+        _ ->
+            {PeerIp, _Port} = cowboy_req:peer(Req),
+            PeerIp
     end.
 
 

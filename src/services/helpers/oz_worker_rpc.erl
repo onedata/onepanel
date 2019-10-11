@@ -22,6 +22,7 @@
 -include_lib("ctool/include/oz/oz_users.hrl").
 
 % @formatter:off
+-define(NODE, element(2, {ok, _} = nodes:any(?SERVICE_OZW))).
 -define(CALL(Node, Args),
     case rpc:call(Node, rpc_api, apply, [?FUNCTION_NAME, Args]) of
         {badrpc, _} = __Error -> ?throw_error(__Error);
@@ -29,7 +30,7 @@
     end).
 
 -define(CALL(Args), begin
-        ?CALL(element(2, {ok, _} = nodes:any(?SERVICE_OZW)), Args)
+        ?CALL(?NODE, Args)
     end).
 % @formatter:on
 
@@ -43,11 +44,15 @@
     GuiHash :: onedata:gui_hash()
 }.
 -type od_group_id() :: binary().
+-type gui_message_id() :: binary().
+-type gui_message_map_repr() :: #{enabled := boolean(), body := binary()}.
 -type od_provider_id() :: binary().
 -type od_user_id() :: binary().
 -type od_user_username() :: binary().
 
--export([check_token_auth/1, check_token_auth/2]).
+-export_type([gui_message_id/0, gui_message_map_repr/0]).
+
+-export([check_token_auth/2, check_token_auth/3]).
 -export([get_protected_provider_data/2, get_protected_provider_data/3]).
 -export([deploy_static_gui_package/4, deploy_static_gui_package/5]).
 -export([update_cluster_version_info/4, update_cluster_version_info/5]).
@@ -57,8 +62,8 @@
 -export([list_users/1, list_users/2]).
 -export([user_exists/1, user_exists/2]).
 -export([username_exists/1, username_exists/2]).
+-export([get_user_details/1]).
 -export([get_user_details/2]).
--export([get_user_details/3]).
 -export([migrate_onepanel_user_to_onezone/4, migrate_onepanel_user_to_onezone/5]).
 -export([cluster_get_eff_user_privileges/3, cluster_get_eff_user_privileges/4]).
 -export([get_protected_cluster_data/2, get_protected_cluster_data/3]).
@@ -68,24 +73,26 @@
 -export([cluster_logic_create_user_invite_token/2]).
 -export([reconcile_dns_config/0, reconcile_dns_config/1]).
 -export([dns_config_get_ns_hosts/0, dns_config_get_ns_hosts/1]).
+-export([gui_message_exists/1, gui_message_exists/2]).
+-export([get_gui_message_as_map/1, get_gui_message_as_map/2]).
+-export([update_gui_message/3, update_gui_message/4]).
 
 %%%===================================================================
 %%% API functions
 %%%===================================================================
 
--spec check_token_auth(tokens:serialized() | tokens:token()) ->
-    {true, aai:auth()} | false | {error, term()}.
-check_token_auth(Token)  ->
-    %% @TODO VFS-5731 properly pass client's IP here
-    PeerIp = undefined,
-    ?CALL([Token, PeerIp, ?AUD(?OZ_PANEL, ?ONEZONE_CLUSTER_ID)]).
+-spec check_token_auth(tokens:serialized() | tokens:token(),
+    undefined | ip_utils:ip()) ->
+    {true, aai:auth()} | {error, term()}.
+check_token_auth(Token, PeerIp)  ->
+    check_token_auth(?NODE, Token, PeerIp).
 
--spec check_token_auth(node(), tokens:serialized() | tokens:token()) ->
-    {true, aai:auth()} | false | {error, term()}.
-check_token_auth(Node, Token)  ->
-    %% @TODO VFS-5731 properly pass client's IP here
-    PeerIp = undefined,
-    ?CALL(Node, [Token, PeerIp, ?AUD(?OZ_PANEL, ?ONEZONE_CLUSTER_ID)]).
+-spec check_token_auth(node(), tokens:serialized() | tokens:token(),
+    undefined | ip_utils:ip()) ->
+    {true, aai:auth()} | {error, term()}.
+check_token_auth(Node, Token, PeerIp)  ->
+    Audience = ?AUD(?OZ_PANEL, ?ONEZONE_CLUSTER_ID),
+    ?CALL(Node, [Token, PeerIp, Audience]).
 
 
 -spec get_protected_provider_data(aai:auth(), od_provider_id()) ->
@@ -187,15 +194,15 @@ username_exists(Node, Username) ->
     ?CALL(Node, [Username]).
 
 
--spec get_user_details(node(), aai:auth()) ->
+-spec get_user_details(aai:auth()) ->
     {ok, #user_details{}} | {error, term()}.
-get_user_details(Node, Auth) ->
-    ?CALL(Node, [Auth]).
+get_user_details(Auth) ->
+    ?CALL([Auth]).
 
--spec get_user_details(node(), aai:auth(), od_user_id()) ->
+-spec get_user_details(aai:auth(), od_user_id()) ->
     {ok, #user_details{}} | {error, term()}.
-get_user_details(Node, Auth, UserId) ->
-    ?CALL(Node, [Auth, UserId]).
+get_user_details(Auth, UserId) ->
+    ?CALL([Auth, UserId]).
 
 
 -spec migrate_onepanel_user_to_onezone(OnepanelUserId :: binary(),
@@ -291,3 +298,34 @@ dns_config_get_ns_hosts() ->
     [{Name :: binary(), IP :: inet:ip4_address()}].
 dns_config_get_ns_hosts(Node) ->
     ?CALL(Node, []).
+
+
+-spec gui_message_exists(gui_message_id()) -> boolean().
+gui_message_exists(MessageId) ->
+    ?CALL([MessageId]).
+
+-spec gui_message_exists(node(), gui_message_id()) -> boolean().
+gui_message_exists(Node, MessageId) ->
+    ?CALL(Node, [MessageId]).
+
+
+-spec get_gui_message_as_map(gui_message_id()) ->
+    {ok, gui_message_map_repr()} | {error, term()}.
+get_gui_message_as_map(MessageId) ->
+    ?CALL([MessageId]).
+
+-spec get_gui_message_as_map(node(), gui_message_id()) ->
+    {ok, gui_message_map_repr()} | {error, term()}.
+get_gui_message_as_map(Node, MessageId) ->
+    ?CALL(Node, [MessageId]).
+
+
+-spec update_gui_message(aai:auth(), gui_message_id(), Data :: map()) ->
+    ok | {error, term()}.
+update_gui_message(Auth, MessageId, Data) ->
+    ?CALL([Auth, MessageId, Data]).
+
+-spec update_gui_message(node(), aai:auth(), gui_message_id(), Data :: map()) ->
+    ok | {error, term()}.
+update_gui_message(Node, Auth, MessageId, Data) ->
+    ?CALL(Node, [Auth, MessageId, Data]).

@@ -31,7 +31,7 @@
     supports_letsencrypt_challenge/1]).
 
 %% API functions
--export([get_logic_client_by_gui_token/1, get_logic_client_by_access_token/1]).
+-export([get_auth_by_token/2]).
 -export([get_user_details/1]).
 
 %% Step functions
@@ -113,38 +113,23 @@ get_steps(Action, Ctx) ->
 %%% Public API
 %%%===================================================================
 
--spec get_logic_client_by_gui_token(GuiToken :: binary()) ->
-    {ok, onezone_client:logic_client()} | #error{}.
-get_logic_client_by_gui_token(GuiToken) ->
-    %% @TODO VFS-5731 GUI/access tokens are now indistinguishable on the
-    %% API level - the code can be simplified
+
+-spec get_auth_by_token(AccessToken :: binary(), ip_utils:ip()) ->
+    {ok, aai:auth()} | #error{}.
+get_auth_by_token(AccessToken, PeerIp) ->
     case nodes:any(name()) of
         {ok, OzNode} ->
-            case oz_worker_rpc:check_token_auth(OzNode, GuiToken) of
-                {true, LogicClient} -> {ok, LogicClient};
-                {error, ApiError} -> ?make_error(ApiError)
+            case oz_worker_rpc:check_token_auth(OzNode, AccessToken, PeerIp) of
+                {true, Auth} -> {ok, Auth};
+                {error, _} = Error -> ?make_error(Error)
             end;
         Error -> Error
     end.
 
 
--spec get_logic_client_by_access_token(AccessToken :: binary()) ->
-    {ok, onezone_client:logic_client()} | #error{}.
-get_logic_client_by_access_token(AccessToken) ->
-    case nodes:any(name()) of
-        {ok, OzNode} ->
-            case oz_worker_rpc:check_token_auth(OzNode, AccessToken) of
-                {true, LogicClient} -> {ok, LogicClient};
-                {error, ApiError} -> ?make_error(ApiError)
-            end;
-        Error -> Error
-    end.
-
-
--spec get_user_details(LogicClient :: term()) -> {ok, #user_details{}} | #error{}.
-get_user_details(LogicClient) ->
-    {ok, OzNode} = nodes:any(name()),
-    case oz_worker_rpc:get_user_details(OzNode, LogicClient) of
+-spec get_user_details(aai:auth()) -> {ok, #user_details{}} | #error{}.
+get_user_details(Auth) ->
+    case oz_worker_rpc:get_user_details(Auth) of
         {ok, User} -> {ok, User};
         {error, Reason} -> ?make_error(Reason)
     end.
