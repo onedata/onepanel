@@ -160,14 +160,15 @@ get(Id) ->
 %%--------------------------------------------------------------------
 -spec get_supporting_storage(OpNode :: node(), SpaceId :: id()) -> id().
 get_supporting_storage(OpNode, SpaceId) ->
-    hd(get_supporting_storages(OpNode, SpaceId)).
+    {ok, StorageIds} = get_supporting_storages(OpNode, SpaceId),
+    hd(StorageIds).
 
 
 %%--------------------------------------------------------------------
 %% @doc Returns all storages supporting given space on given OpNode.
 %% @end
 %%--------------------------------------------------------------------
--spec get_supporting_storages(OpNode :: node(), SpaceId :: id()) -> [id()].
+-spec get_supporting_storages(OpNode :: node(), SpaceId :: id()) -> {ok, [id()]}.
 get_supporting_storages(OpNode, SpaceId) ->
     op_worker_rpc:space_storage_get_storage_ids(OpNode, SpaceId).
 

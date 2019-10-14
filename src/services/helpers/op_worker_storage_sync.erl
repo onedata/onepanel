@@ -69,7 +69,7 @@ get_storage_import_details(Node, SpaceId, StorageId) ->
     case ImportEnabled of
         false ->
             [{strategy, no_import}];
-        simple_scan ->
+        true ->
             [
                 {strategy, simple_scan},
                 {maxDepth, maps:get(max_depth, Args)},

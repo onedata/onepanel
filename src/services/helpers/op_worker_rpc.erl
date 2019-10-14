@@ -354,7 +354,7 @@ get_space_storage(Node, Key) ->
 space_storage_get_storage_ids(SpaceId) ->
     ?CALL([SpaceId]).
 
--spec space_storage_get_storage_ids(node(), space_storage_id()) -> [op_worker_storage:id()].
+-spec space_storage_get_storage_ids(node(), space_storage_id()) -> {ok, [op_worker_storage:id()]}.
 space_storage_get_storage_ids(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
