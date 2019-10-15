@@ -184,7 +184,7 @@ all() ->
 
 -define(STORAGES_JSON, #{
     <<"someCeph">> => #{
-        <<"type">> => <<"ceph">>,
+        <<"type">> => <<"cephrados">>,
         <<"username">> => <<"someName">>,
         <<"key">> => <<"someKey">>,
         <<"monitorHostname">> => <<"someHostname">>,
@@ -558,7 +558,7 @@ post_should_add_storage(Config) ->
         ?assertReceivedMatch({service, op_worker, add_storages, #{
             storages := #{
                 <<"someCeph">> := #{
-                    type := <<"ceph">>,
+                    type := <<"cephrados">>,
                     clusterName := <<"someName">>,
                     key := <<"someKey">>,
                     monitorHostname := <<"someHostname">>,
@@ -1051,7 +1051,7 @@ init_per_testcase(_Case, Config) ->
     Self = self(),
     test_utils:mock_new(Nodes, [service, service_oneprovider]),
     test_utils:mock_expect(Nodes, service, exists, fun
-        (oneprovider) -> true; (op_worker) -> true
+        (oneprovider) -> true; (op_worker) -> true; (ceph) -> false
     end),
     test_utils:mock_expect(Nodes, service, get, fun
         (oneprovider) -> {ok, #service{ctx = #{registered => true}}};

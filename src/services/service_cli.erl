@@ -45,10 +45,10 @@ start(Service, SystemLimits) ->
 stop(Service) ->
     Tokens = [get_script(Service), "stop"],
     case onepanel_shell:execute(Tokens) of
-        {0, _} -> ok;
-        {Code, Output} ->
-            ?warning("Failed to stop service '~s' because of~n~p ~p",
-                [Service, Code, Output]),
+        {0, _, _} -> ok;
+        {Code, Output, StdErr} ->
+            ?warning("Failed to stop service '~ts' because of~n~tp ~ts~n~ts",
+                [Service, Code, Output, StdErr]),
             ok
     end.
 
@@ -77,9 +77,9 @@ status(Service, Command) ->
         onepanel_shell:ensure_success(Tokens),
         running
     catch
-        throw:#error{reason = ?ERR_CMD_FAILURE(127, _)} ->
+        throw:#error{reason = ?ERR_CMD_FAILURE(127, _, _)} ->
             missing;
-        throw:#error{reason = ?ERR_CMD_FAILURE(_Code, _)} ->
+        throw:#error{reason = ?ERR_CMD_FAILURE(_Code, _, _)} ->
             stopped
     end.
 
@@ -97,7 +97,8 @@ status(Service, Command) ->
 %% according to convention servicename_cmd.
 %% @end
 %%--------------------------------------------------------------------
--spec get_script(Service :: service:name()) -> onepanel_shell:token() | no_return().
+-spec get_script(Service :: service:name()) ->
+    onepanel_shell:token() | no_return().
 get_script(Service) ->
     EnvName = list_to_atom(atom_to_list(Service) ++ "_cmd"),
     onepanel_env:get(EnvName).

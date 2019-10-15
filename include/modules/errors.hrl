@@ -95,16 +95,18 @@
 -define(ERR_ALREADY_EXISTS, already_exists).
 -define(ERR_BAD_NODE, bad_node).
 -define(ERR_NIF_NOT_LOADED, nif_not_loaded).
--define(ERR_CMD_FAILURE(Code, Output), {shell_command_failure, {Code, Output}}).
+-define(ERR_CMD_FAILURE(Code, StdOut, StdOrr), {shell_command_failure, {Code, StdOut, StdErr}}).
 -define(ERR_FAILURE_ON_ALL_NODES, failure_on_all_nodes).
 -define(ERR_BAD_UPGRADE, bad_upgrade).
 -define(ERR_UPGRADE_FROM_FUTURE_ERROR(Model, CurrentVsn, TargetVsn),
     {future_version, Model, CurrentVsn, TargetVsn}).
 -define(ERR_SERVICE_STEP_NOT_FOUND, service_step_not_found).
 -define(ERR_NO_SERVICE_HOSTS(Service), {no_service_hosts, Service}).
--define(ERR_HOST_NOT_FOUND, host_not_found).
+-define(ERR_AMBIGUOUS_HOSTS, ambiguous_hosts).
+-define(ERR_HOST_NOT_FOUND(Host), {host_not_found, Host}).
 -define(ERR_NODE_NOT_EMPTY(Host), {node_not_empty, Host}).
 -define(ERR_INCOMPATIBLE_NODE(Host, ClusterType), {incompatible_node, Host, ClusterType}).
+-define(ERR_PARSING_FAILURE(OffendingLine), {parsing_failure, OffendingLine}).
 
 -define(ERR_INVALID_USERNAME, invalid_username).
 -define(ERR_INVALID_NEW_PASSPHRASE, invalid_new_passphrase).
@@ -119,6 +121,7 @@
 -define(ERR_MISSING_ANY_KEY, missing_any_key).
 -define(ERR_INVALID_VALUE, invalid_value).
 -define(ERR_INVALID_VALUE_TOKEN, invalid_value_token).
+-define(ERR_UNKNOWN_TYPE(Value), {unknown_type, Value}).
 -define(ERR_HOST_NOT_FOUND_FOR_ALIAS, host_not_found_for_alias).
 
 -define(ERR_NOT_REGISTERED, not_registered).
@@ -131,6 +134,13 @@
 -define(ERR_LETSENCRYPT_AUTHORIZATION(Message), {letsencrypt_authorization, Message}).
 -define(ERR_LETSENCRYPT_NOT_SUPPORTED, letsencrypt_not_supported).
 -define(ERR_SUBDOMAIN_DELEGATION_DISABLED, subdomain_delegation_disabled).
+
+-define(ERR_CEPH_TOO_FEW_OSDS(RequestedCopies, OSDs),
+    {ceph_too_few_osds, RequestedCopies, OSDs}).
+-define(ERR_FILE_ALLOCATION_FAILURE(ActualSize, TargetSize),
+    {error_file_allocation_failure, ActualSize, TargetSize}).
+-define(ERR_AMBIGUOUS_UUID, error_ambiguous_uuid).
+
 
 -define(ERR_DNS_CHECK_ERROR(Message), {dns_check_error, Message}).
 

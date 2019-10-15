@@ -132,6 +132,7 @@ start(Ctx) ->
     service_cli:start(name(), Limits),
     % update status cache
     status(Ctx),
+    service:register_healthcheck(name()),
     ok.
 
 

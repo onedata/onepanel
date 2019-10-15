@@ -25,4 +25,14 @@
 -define(SERVICE_OZ, onezone).
 -define(SERVICE_OZW, oz_worker).
 
+-define(SERVICE_CEPH, ceph).
+-define(SERVICE_CEPH_OSD, ceph_osd).
+-define(SERVICE_CEPH_MGR, ceph_mgr).
+-define(SERVICE_CEPH_MON, ceph_mon).
+
+% storage helper name used for storages deployed as cephrados or localceph
+-define(CEPH_STORAGE_HELPER_NAME, <<"cephrados">>).
+% storage type used in Onepanel REST API to indicate storage supported by a local Ceph pool
+-define(LOCAL_CEPH_STORAGE_TYPE, <<"localceph">>).
+
 -endif.

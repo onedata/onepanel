@@ -162,6 +162,54 @@
         %%  be used in production.
         {treat_test_ca_as_trusted, false},
 
+
+        %% ===================================================================
+        %% Ceph
+        %% ===================================================================
+
+        {ceph_default_cluster, "ceph"},
+        % 128 is the recommended number of placement groups for a cluster
+        % with less than 5 OSDs
+        {ceph_default_pg, 128},
+        {ceph_admin_username, "admin"},
+        {ceph_pool_user_username, "onedata"},
+        {ceph_pool_application_type, "onedata"},
+        % Timeout of some CLI operations in milliseconds
+        {ceph_cli_timeout, 30000},
+        {ceph_mgr_wait_for_init_attempts, 60},
+        {ceph_mon_wait_for_init_attempts, 60},
+        {ceph_osd_wait_for_init_attempts, 60},
+
+        %% Values used to initialize ceph.conf file when deploying Ceph cluster.
+        %% See ceph_conf:config/0 type for format explanation.
+        {ceph_default_config, #{
+            global => #{
+                <<"mon health preluminous compat warning">> => <<"false">>,
+                <<"mon_allow_pool_delete">> => <<"true">>,
+                <<"auth cluster required">> => <<"cephx">>,
+                <<"auth service required">> => <<"cephx">>,
+                <<"auth client required">> => <<"cephx">>,
+                <<"osd journal size">> => 1024,
+                <<"osd pool default size">> => 1,
+                <<"osd pool default min size">> => 1,
+                <<"osd pool default pg num">> => 128,
+                <<"osd pool default pgp num">> => 128,
+
+                % avoid pg creation blockage
+                <<"osd max pg per osd hard ratio">> => 100,
+                <<"mon max pg per osd">> => 1000,
+                <<"mon pg warn max per osd">> => 0, % disable warning
+                <<"mon pg warn min per osd">> => 0, % disable warning
+
+                <<"mgr initial modules">> => [],
+
+                % for ext4
+                <<"osd max object name len">> => 256,
+                <<"osd max object namespace len">> => 64
+            }
+        }},
+
+
         %% URL of service used for autodetecting external IP
         {ip_check_url, "http://ip4.icanhazip.com"},
 
