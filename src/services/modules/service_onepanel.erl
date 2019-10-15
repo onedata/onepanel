@@ -397,7 +397,7 @@ build_url(Host, ApiVersion, Suffix) ->
 https_opts(Timeout) ->
     CaCerts = https_listener:get_cert_chain_pems(),
     [
-        {ssl_options, [{secure, only_verify_peercert}, {cacerts, CaCerts}]},
+        {ssl_options, [{secure, false}, {cacerts, CaCerts}]},
         {connect_timeout, Timeout},
         {recv_timeout, Timeout}
     ].

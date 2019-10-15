@@ -150,8 +150,6 @@ extract_hosts(Ctxs) ->
     lists:usort([Host || #{host := Host} <- Ctxs]).
 
 
-
-
 %%--------------------------------------------------------------------
 %% @doc @equiv filter_out_existing_instances(Service, Ctxs, id)
 %% @end
