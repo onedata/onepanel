@@ -57,7 +57,9 @@ init([]) ->
 
     ?info("Waiting for distributed database to be ready"),
     onepanel_db:wait_for_tables(),
+    ?info("Performing database upgrades"),
     onepanel_db:upgrade_tables(),
+    ?info("Database ready"),
 
     https_listener:start(),
     onepanel_utils:wait_until(https_listener, healthcheck, [], {equal, ok},
