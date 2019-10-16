@@ -18,7 +18,7 @@
 
 %% API
 -export([init/0, destroy/0]).
--export([wait_for_tables/0]).
+-export([wait_for_tables/0, upgrade_tables/0]).
 -export([create_tables/0, copy_tables/0, delete_tables/0]).
 -export([add_node/1, remove_node/1, get_nodes/0]).
 
@@ -69,8 +69,7 @@ create_tables() ->
             {atomic, ok} ->
                 Model:seed(),
                 ok;
-            {aborted, {already_exists, Model}} ->
-                upgrade_table(Table, Model);
+            {aborted, {already_exists, Table}} -> ok;
             {aborted, Reason} -> throw(Reason)
         end
     end, model:get_models()).
@@ -87,6 +86,14 @@ wait_for_tables() ->
     Timeout = infinity,
     Tables = lists:map(fun model:get_table_name/1, model:get_models()),
     ok = mnesia:wait_for_tables(Tables, Timeout).
+
+
+-spec upgrade_tables() -> ok.
+upgrade_tables() ->
+    lists:foreach(fun(Model) ->
+        Table = model:get_table_name(Model),
+        upgrade_table(Table, Model)
+    end, model:get_models()).
 
 
 %%--------------------------------------------------------------------
