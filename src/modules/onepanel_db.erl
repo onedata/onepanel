@@ -54,7 +54,7 @@ destroy() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Creates database tables and initializes them or upgrades if exist.
+%% @doc Creates database tables
 %% @end
 %%--------------------------------------------------------------------
 -spec create_tables() -> ok.
@@ -63,14 +63,14 @@ create_tables() ->
         Table = model:get_table_name(Model),
         case mnesia:create_table(Table, [
             {attributes, model:get_fields()},
-            {record_name, document},
+            {record_name, ?WRAPPER_RECORD},
             {disc_copies, [node()]}
         ]) of
             {atomic, ok} ->
                 Model:seed(),
                 ok;
             {aborted, {already_exists, Table}} -> ok;
-            {aborted, Reason} -> throw(Reason)
+            {aborted, Reason} -> error(?make_error(Reason))
         end
     end, model:get_models()).
 

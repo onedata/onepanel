@@ -55,50 +55,55 @@ start_link() ->
     {ok, {SupFlags :: supervisor:sup_flags(),
         [ChildSpec :: supervisor:child_spec()]}} | ignore.
 init([]) ->
-    % Initialization done here rather than in onepanel_app:start
-    % because too long wait before spawning supervisor causes timeout
-    % and exit of application
+    try
+        % Initialization done here rather than in onepanel_app:start
+        % because too long wait before spawning supervisor causes timeout
+        % and exit of application
 
-    service_onepanel:init_cluster(#{}),
+        service_onepanel:init_cluster(#{}),
 
-    Self = node(),
-    [First | _ ] = Nodes = lists:sort(onepanel_db:get_nodes()),
-    ?info("Cluster nodes: ~p", [Nodes]),
+        Self = node(),
+        [First | _ ] = Nodes = lists:sort(onepanel_db:get_nodes()),
+        ?info("Cluster nodes: ~p", [Nodes]),
 
-    ?info("Waiting for all nodes to be available"),
-    ok = onepanel_db:global_wait_for_tables(),
-    ?info("All ~p nodes available", [length(Nodes)]),
+        ?info("Waiting for all nodes to be available"),
+        ok = onepanel_db:global_wait_for_tables(),
+        ?info("All ~p nodes available", [length(Nodes)]),
 
-    case Self == First of
-        true ->
-            ?info("Performing database upgrades"),
-            onepanel_db:upgrade_tables(),
-            ok = onepanel_db:global_wait_for_tables(),
-            ?info("Upgrades finished"),
-            lists:foreach(fun(Node) ->
-                {?PROCESS_NAME, Node} ! db_upgrade_finished
-            end, Nodes -- [Self]);
-        false ->
-            ?info("Waiting for node ~p to perform database upgrades (~p seconds)",
-                [First, ?UPGRADE_TIMEOUT / 1000]),
-            receive
-                db_upgrade_finished -> ok
-            after ?UPGRADE_TIMEOUT ->
-                ?error("Wait for database upgrade timed out"),
-                error(?make_error(?ERR_TIMEOUT))
-            end
-    end,
-    ?info("Database ready"),
+        case Self == First of
+            true ->
+                ?info("Performing database upgrades"),
+                onepanel_db:upgrade_tables(),
+                ok = onepanel_db:global_wait_for_tables(),
+                ?info("Upgrades finished"),
+                lists:foreach(fun(Node) ->
+                    {?PROCESS_NAME, Node} ! db_upgrade_finished
+                end, Nodes -- [Self]);
+            false ->
+                ?info("Waiting for node ~p to perform database upgrades (~p seconds)",
+                    [First, ?UPGRADE_TIMEOUT / 1000]),
+                receive
+                    db_upgrade_finished -> ok
+                after ?UPGRADE_TIMEOUT ->
+                    ?error("Wait for database upgrade timed out"),
+                    error(?make_error(?ERR_TIMEOUT))
+                end
+        end,
+        ?info("Database ready"),
 
-    https_listener:start(),
-    onepanel_utils:wait_until(https_listener, healthcheck, [], {equal, ok},
-        onepanel_env:get(rest_listener_status_check_attempts)),
+        https_listener:start(),
+        onepanel_utils:wait_until(https_listener, healthcheck, [], {equal, ok},
+            onepanel_env:get(rest_listener_status_check_attempts)),
 
-    {ok, {#{strategy => one_for_all, intensity => 3, period => 1}, [
-        service_executor_spec(),
-        onepanel_cron_spec(),
-        onepanel_session_gc_spec()
-    ]}}.
+        {ok, {#{strategy => one_for_all, intensity => 3, period => 1}, [
+            service_executor_spec(),
+            onepanel_cron_spec(),
+            onepanel_session_gc_spec()
+        ]}}
+    catch throw:Error ->
+        % throws are treated as return value in gen_server/supervisor init
+        error(?make_stacktrace(Error))
+    end.
 
 %%%===================================================================
 %%% Internal functions
