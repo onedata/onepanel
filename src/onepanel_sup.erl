@@ -60,7 +60,8 @@ init([]) ->
         % because too long wait before spawning supervisor causes timeout
         % and exit of application
 
-        ?info("Wait for distributed database on nodes ~p", [onepanel_db:get_nodes()]),
+        ?info("Waiting for distributed database on nodes ~p", [onepanel_db:get_nodes()]),
+        % in a new deployment this will complete immediately since the node list is empty
         ok = onepanel_db:global_wait_for_tables(),
 
         Self = node(),
@@ -68,7 +69,7 @@ init([]) ->
 
         case Self == First of
             true ->
-                ?info("Creating missing database tables"),
+                ?info("Creating database tables"),
                 service_onepanel:init_cluster(#{}),
                 ok = onepanel_db:global_wait_for_tables(),
 

@@ -102,18 +102,18 @@ global_wait_for_tables() ->
     Nodes = get_nodes(),
     Attempts = application:get_env(?APP_NAME, wait_for_cluster_attempts, 600),
     Delay = application:get_env(?APP_NAME, wait_for_cluster_delay, 1000),
-    onepanel_utils:wait_until(rpc, multicall,
+    onepanel_utils:wait_until(onepanel_rpc, call,
         [Nodes, onepanel_db, wait_for_tables, []],
-        {validator, fun({Responses, BadNodes}) ->
-            case BadNodes of
-                [] -> true = [ok || _ <- Nodes] == [ok || ok <- Responses];
+        {validator, fun(Results) ->
+            {_GoodResults, BadResults} = service_utils:partition_results(Results),
+            case BadResults of
+                [] -> ok;
                 _ ->
-                    ?info("Waiting for nodes: ~s", [onepanel_utils:join(BadNodes, <<" ">>)]),
+                    {BadNodes, _} = lists:unzip(BadResults),
+                    ?info("Missing/not ready nodes: ", [onepanel_utils:join(BadNodes, <<" ">>)]),
                     error(cluster_incomplete)
             end
-        end}, Attempts, Delay),
-    ok.
-
+        end}, Attempts, Delay).
 
 
 -spec upgrade_tables() -> ok.

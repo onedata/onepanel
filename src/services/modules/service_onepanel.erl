@@ -127,9 +127,11 @@ get_steps(leave_cluster, Ctx) ->
 %% nodes in the cluster to start.
 get_steps(wait_for_cluster, _Ctx) ->
     SelfHost = hosts:self(),
-    Attempts = application:get_env(?APP_NAME, wait_for_cluster_attempts, 600),
-    Delay = application:get_env(?APP_NAME, wait_for_cluster_delay, 1000),
+    Attempts = application:get_env(?APP_NAME, wait_for_cluster_attempts, 120),
+    Delay = application:get_env(?APP_NAME, wait_for_cluster_delay, 5000),
     [
+        % this step should pass quickly since presence of nodes
+        % is already ensured in onepanel_sup:init/1
         #step{service = name(), function = ensure_all_hosts_available,
             attempts = Attempts, retry_delay = Delay, hosts = [SelfHost]},
         #step{service = name(), function = ensure_node_ready,
