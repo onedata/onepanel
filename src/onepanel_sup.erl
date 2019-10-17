@@ -24,7 +24,8 @@
 -export([init/1]).
 
 -define(UPGRADE_TIMEOUT,
-    onepanel_env:get(upgrade_tables_timeout, ?APP_NAME, timer:seconds(10))).
+    onepanel_env:get(upgrade_tables_timeout, ?APP_NAME, timer:seconds(60))).
+-define(PROCESS_NAME, ?MODULE).
 
 %%%===================================================================
 %%% API functions
@@ -37,7 +38,7 @@
 %%--------------------------------------------------------------------
 -spec start_link() -> {ok, pid()} | ignore | {error, Reason :: term()}.
 start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+    supervisor:start_link({local, ?PROCESS_NAME}, ?MODULE, []).
 
 %%%===================================================================
 %%% Supervisor callbacks
@@ -64,8 +65,9 @@ init([]) ->
     [First | _ ] = Nodes = lists:sort(onepanel_db:get_nodes()),
     ?info("Cluster nodes: ~p", [Nodes]),
 
-    ?info("Waiting for distributed database to be ready"),
+    ?info("Waiting for all nodes to be available"),
     ok = onepanel_db:global_wait_for_tables(),
+    ?info("All ~p nodes available", [length(Nodes)]),
 
     case Self == First of
         true ->
@@ -74,10 +76,10 @@ init([]) ->
             ok = onepanel_db:global_wait_for_tables(),
             ?info("Upgrades finished"),
             lists:foreach(fun(Node) ->
-                {?MODULE, Node} ! db_upgrade_finished
+                {?PROCESS_NAME, Node} ! db_upgrade_finished
             end, Nodes -- [Self]);
         false ->
-            ?info("Waiting for node ~p to upgrade database (~p seconds)",
+            ?info("Waiting for node ~p to perform database upgrades (~p seconds)",
                 [First, ?UPGRADE_TIMEOUT / 1000]),
             receive
                 db_upgrade_finished -> ok

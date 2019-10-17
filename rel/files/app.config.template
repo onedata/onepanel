@@ -204,7 +204,7 @@
         {create_tables_timeout, 10000},
         {copy_tables_timeout, 10000},
         {wait_for_tables_timeout, 10000},
-        {upgrade_tables_timeout, 10000},
+        {upgrade_tables_timeout, 60000},
         {extend_cluster_timeout, 900000},
         {extend_cluster_attempts, 20},
         {task_ttl, 86400000},
