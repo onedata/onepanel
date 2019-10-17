@@ -64,7 +64,7 @@ create_tables() ->
         case mnesia:create_table(Table, [
             {attributes, model:get_fields()},
             {record_name, ?WRAPPER_RECORD},
-            {disc_copies, [node()]}
+            {disc_copies, get_nodes()}
         ]) of
             {atomic, ok} ->
                 Model:seed(),
@@ -76,7 +76,7 @@ create_tables() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Waits for all tables to be available.
+%% @doc Waits for all tables known to mnesia to be available.
 %% In multinode setup this requires other nodes to be online
 %% unless current node was the last one to be stopped.
 %% @end
@@ -84,7 +84,7 @@ create_tables() ->
 -spec wait_for_tables() -> ok.
 wait_for_tables() ->
     Timeout = infinity,
-    Tables = lists:map(fun model:get_table_name/1, model:get_models()),
+    Tables = mnesia:system_info(tables),
     ok = mnesia:wait_for_tables(Tables, Timeout).
 
 
@@ -93,6 +93,8 @@ wait_for_tables() ->
 %% on them to be ready.
 %% This is different from local wait_for_tables, which does not wait
 %% for other nodes if the current node has the newest state.
+%% Always returns ok in a new cluster (before service_onepanel:init_cluster/1)
+%% as the mnesia nodes list is empty.
 %% @end
 %%--------------------------------------------------------------------
 -spec global_wait_for_tables() -> ok | no_return().
