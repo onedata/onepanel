@@ -11,6 +11,8 @@
 -module(onepanel_sup).
 -author("Krzysztof Trzepla").
 
+-include("names.hrl").
+-include("modules/errors.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 -behaviour(supervisor).
@@ -20,6 +22,9 @@
 
 %% Supervisor callbacks
 -export([init/1]).
+
+-define(UPGRADE_TIMEOUT,
+    onepanel_env:get(upgrade_tables_timeout, ?APP_NAME, timer:seconds(10))).
 
 %%%===================================================================
 %%% API functions
@@ -55,10 +60,30 @@ init([]) ->
 
     service_onepanel:init_cluster(#{}),
 
+    Self = node(),
+    [First | _ ] = Nodes = lists:sort(onepanel_db:get_nodes()),
+
     ?info("Waiting for distributed database to be ready"),
-    onepanel_db:wait_for_tables(),
-    ?info("Performing database upgrades"),
-    onepanel_db:upgrade_tables(),
+    ok = onepanel_db:global_wait_for_tables(),
+
+    case Self == First of
+        true ->
+            ?info("Performing database upgrades"),
+            onepanel_db:upgrade_tables(),
+            ?info("Upgrades finished"),
+            lists:foreach(fun(Node) ->
+                {?MODULE, Node} ! db_upgrade_finished
+            end, Nodes -- [Self]);
+        false ->
+            ?info("Waiting for node ~p to upgrade database (~b seconds)",
+                [First, ?UPGRADE_TIMEOUT / 1000]),
+            receive
+                db_upgrade_finished -> ok
+            after ?UPGRADE_TIMEOUT ->
+                ?error("Wait for database upgrade timed out"),
+                error(?make_error(?ERR_TIMEOUT))
+            end
+    end,
     ?info("Database ready"),
 
     https_listener:start(),

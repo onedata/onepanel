@@ -127,12 +127,13 @@ get_steps(leave_cluster, Ctx) ->
 %% nodes in the cluster to start.
 get_steps(wait_for_cluster, _Ctx) ->
     SelfHost = hosts:self(),
-    Attempts = application:get_env(?APP_NAME, wait_for_cluster_attempts, 20),
+    Attempts = application:get_env(?APP_NAME, wait_for_cluster_attempts, 600),
+    Delay = application:get_env(?APP_NAME, wait_for_cluster_delay, 1000),
     [
         #step{service = name(), function = ensure_all_hosts_available,
-            attempts = Attempts, hosts = [SelfHost]},
+            attempts = Attempts, retry_delay = Delay, hosts = [SelfHost]},
         #step{service = name(), function = ensure_node_ready,
-            attempts = Attempts, hosts = get_hosts()}
+            attempts = Attempts, retry_delay = Delay, hosts = get_hosts()}
     ];
 
 get_steps(clear_users, _Ctx) ->

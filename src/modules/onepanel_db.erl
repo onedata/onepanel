@@ -18,8 +18,8 @@
 
 %% API
 -export([init/0, destroy/0]).
--export([wait_for_tables/0, upgrade_tables/0]).
--export([create_tables/0, copy_tables/0, delete_tables/0]).
+-export([wait_for_tables/0, global_wait_for_tables/0]).
+-export([create_tables/0, copy_tables/0, delete_tables/0, upgrade_tables/0]).
 -export([add_node/1, remove_node/1, get_nodes/0]).
 
 %%%===================================================================
@@ -86,6 +86,28 @@ wait_for_tables() ->
     Timeout = infinity,
     Tables = lists:map(fun model:get_table_name/1, model:get_models()),
     ok = mnesia:wait_for_tables(Tables, Timeout).
+
+
+%%--------------------------------------------------------------------
+%% @doc Waits for all known nodes to be available and for mnesia
+%% on them to be ready.
+%% This is different from local wait_for_tables, which does not wait
+%% for other nodes if the current node has the newest state.
+%% @end
+%%--------------------------------------------------------------------
+-spec global_wait_for_tables() -> ok | no_return().
+global_wait_for_tables() ->
+    Nodes = get_nodes(),
+    Attempts = application:get_env(?APP_NAME, wait_for_cluster_attempts, 600),
+    Delay = application:get_env(?APP_NAME, wait_for_cluster_delay, 1000),
+    onepanel_utils:wait_until(rpc, multicall,
+        [Nodes, onepanel_db, wait_for_tables, []],
+        {validator, fun({Responses, BadNodes}) ->
+            [] = BadNodes,
+            true = [ok || _ <- Nodes] == [ok || ok <- Responses]
+        end}, Attempts, Delay),
+    ok.
+
 
 
 -spec upgrade_tables() -> ok.
