@@ -62,6 +62,7 @@ init([]) ->
 
     Self = node(),
     [First | _ ] = Nodes = lists:sort(onepanel_db:get_nodes()),
+    ?info("Cluster nodes: ~p", [Nodes]),
 
     ?info("Waiting for distributed database to be ready"),
     ok = onepanel_db:global_wait_for_tables(),
@@ -70,12 +71,13 @@ init([]) ->
         true ->
             ?info("Performing database upgrades"),
             onepanel_db:upgrade_tables(),
+            ok = onepanel_db:global_wait_for_tables(),
             ?info("Upgrades finished"),
             lists:foreach(fun(Node) ->
                 {?MODULE, Node} ! db_upgrade_finished
             end, Nodes -- [Self]);
         false ->
-            ?info("Waiting for node ~p to upgrade database (~b seconds)",
+            ?info("Waiting for node ~p to upgrade database (~p seconds)",
                 [First, ?UPGRADE_TIMEOUT / 1000]),
             receive
                 db_upgrade_finished -> ok

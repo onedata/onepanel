@@ -103,8 +103,12 @@ global_wait_for_tables() ->
     onepanel_utils:wait_until(rpc, multicall,
         [Nodes, onepanel_db, wait_for_tables, []],
         {validator, fun({Responses, BadNodes}) ->
-            [] = BadNodes,
-            true = [ok || _ <- Nodes] == [ok || ok <- Responses]
+            case BadNodes of
+                [] -> true = [ok || _ <- Nodes] == [ok || ok <- Responses];
+                _ ->
+                    ?info("Waiting for nodes: ~s", [onepanel_utils:join(BadNodes, <<" ">>)]),
+                    error(cluster_incomplete)
+            end
         end}, Attempts, Delay),
     ok.
 
