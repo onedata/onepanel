@@ -51,7 +51,7 @@
 %% Step functions
 -export([prepare_loopdevice/1, resume_loopdevice/1]).
 -export([write_bootstrap_keyring/1, format_block_device/1,
-    mark_deployed/1, start/1]).
+    mark_deployed/1, start/1, stop/1]).
 -export([get_details/1, get_disks/1, get_usage/0, get_usage_by_id/1]).
 
 %%%===================================================================
@@ -130,11 +130,20 @@ get_steps(get_usage_by_id = Action, #{id := Id}) ->
         #step{function = Action, args = [Id], hosts = [ceph:id_to_host(name(), Id)]}
     ];
 
-get_steps(start, #{uuid := _, type := Type}) ->
+get_steps(start, #{uuid := _, type := Type, host := Host}) ->
     [
-        #step{function = resume_loopdevice, condition = Type == loopdevice},
-        #step{function = start}
+        #step{function = resume_loopdevice, condition = Type == loopdevice, hosts = [Host]},
+        #step{function = start, hosts = [Host]}
     ];
+
+get_steps(stop_all, _Ctx) ->
+    service_utils:for_each_ctx(list_instances(), [
+        #steps{action = stop}
+    ]);
+
+get_steps(stop, #{uuid := UUID}) ->
+    #{host := Host} = get_instance({uuid, UUID}),
+    [#step{function = stop, hosts = [Host]}];
 
 get_steps(Action, _Ctx) when
     Action == get_details;
@@ -291,6 +300,14 @@ start(#{uuid := UUID, id := Id}) ->
 
 start(#{uuid := UUID} = Ctx) ->
     start(Ctx#{id => uuid_to_id(UUID)}).
+
+
+-spec stop(#{id | uuid := binary()}) -> ok.
+stop(#{id := Id}) ->
+    ceph_cli:stop_with_timeout(ceph_cli:osd_start_cmd(Id));
+
+stop(#{uuid := UUID} = Ctx) ->
+    stop(Ctx#{id => uuid_to_id(UUID)}).
 
 
 -spec mark_deployed(service:ctx()) -> ok.

@@ -17,7 +17,7 @@
 %% API
 -export([execute/1, ensure_success/1, get_success_output/1]).
 -export([execute/2, ensure_success/2, get_success_output/2]).
--export([sed/3, mktemp/0]).
+-export([sed/3, mktemp/0, process_exists/1, pkill/2]).
 -export([quote/1]).
 
 -type token() :: atom() | integer() | string() | binary().
@@ -149,6 +149,44 @@ quote(Token) when is_binary(Token) ->
 
 quote(Token) ->
     quote(onepanel_utils:convert(Token, binary)).
+
+
+%%--------------------------------------------------------------------
+%% @doc Checks whether process started by given command exists.
+%% @end
+%%--------------------------------------------------------------------
+-spec process_exists(StartTokens :: [token()]) -> boolean().
+process_exists(StartTokens) ->
+    % Quote only the joining spaces as the StartTokens may already be quoted
+    Pattern = unicode:characters_to_list(onepanel_utils:join(StartTokens, quote(" "))),
+    Cmd = ["pgrep",
+        "-f", % match full command
+        "-x", % require exact match
+        Pattern],
+    case execute(Cmd) of
+        {0, _, _} -> true;
+        {1, _, _} -> false
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Finds a process by the command which started it and sends
+%% given signal to it.
+%% @end
+%%--------------------------------------------------------------------
+-spec pkill(StartTokens :: [token()], Signal :: 'TERM' | 'KILL') -> ok | no_match.
+pkill(StartTokens, Signal) ->
+    % Quote only the joining spaces as the StartTokens may already be quoted
+    Pattern = unicode:characters_to_list(onepanel_utils:join(StartTokens, quote(" "))),
+    SignalArg = onepanel_utils:join([<<"-">>, Signal]),
+    Cmd = ["pkill", SignalArg,
+        "-f", % match full command
+        "-x", % require exact match
+        Pattern],
+    case execute(Cmd) of
+        {0, _, _} -> ok;
+        {1, _, _} -> no_match
+    end.
 
 
 %%%===================================================================

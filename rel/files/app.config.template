@@ -179,6 +179,7 @@
         {ceph_mgr_wait_for_init_attempts, 60},
         {ceph_mon_wait_for_init_attempts, 60},
         {ceph_osd_wait_for_init_attempts, 60},
+        {ceph_stop_timeout, 60000},
 
         %% Values used to initialize ceph.conf file when deploying Ceph cluster.
         %% See ceph_conf:config/0 type for format explanation.

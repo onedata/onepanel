@@ -34,7 +34,7 @@
 %% Step functions
 -export([add_monitors/1, create_monmap/2, create_keyring/1, setup_initial_member/1,
     add_mon_to_config/1,
-    mkfs/1, start/1, wait_for_init/1, register_host/1]).
+    mkfs/1, start/1, wait_for_init/1, stop/1, register_host/1]).
 -export([get_details/1, list/0, list_quorum/0]).
 
 % private RPC
@@ -127,8 +127,14 @@ get_steps(NoArgsFunction, _Ctx) when
     NoArgsFunction == list ->
     [#step{function = NoArgsFunction, args = [], selection = any}];
 
+get_steps(stop_all, _Cxt) ->
+    service_utils:for_each_ctx(list_instances(), [
+        #steps{action = stop}
+    ]);
+
 get_steps(Action, #{id := _} = Ctx) when
-    Action == start ->
+    Action == start;
+    Action == stop ->
     OneHostCtx = case Ctx of
         #{id := _, hosts := [_]} -> Ctx;
         #{id := _, hosts := []} -> Ctx;
@@ -257,6 +263,14 @@ wait_for_init(#{id := Id}) ->
     onepanel_utils:wait_until(?MODULE, list_quorum, [],
         {validator, Validator}, StartAttempts),
     ok.
+
+
+-spec stop(#{id := id()}) -> ok.
+stop(#{id := Id}) ->
+    #{ip := Ip} = get_instance(Id),
+    DataDir = ceph:get_data_dir(mon, Id),
+    StartedBy = ceph_cli:mon_start_cmd(Id, DataDir, Ip),
+    ceph_cli:stop_with_timeout(StartedBy).
 
 
 %%--------------------------------------------------------------------

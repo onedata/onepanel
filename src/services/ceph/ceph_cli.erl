@@ -19,19 +19,20 @@
 -type capability() :: {Entity :: token(), Cap :: token()}.
 -type capabilities() :: [capability()].
 
+-export([stop_with_timeout/1]).
 -export([status/0, health/0, df/0]).
 -export([auth_add/3, auth_get/1, auth_get/2, auth_create_keyring/3,
     auth_import_keyring/2, auth_get_or_create/2, auth_get_or_create_key/2,
     auth_print_key/1]).
 -export([osd_create/0, osd_create/2, osd_next_id/0, osd_mkfs_mkkey/1, osd_start/1,
-    osd_mark/2, osd_purge/1, osd_is_safe_to_destroy/1, osd_df/0]).
+    osd_start_cmd/1, osd_mark/2, osd_purge/1, osd_is_safe_to_destroy/1, osd_df/0]).
 -export([pool_create/1, pool_create/2, pool_delete/1, pool_set_application/2,
     list_pools/0]).
 -export([set_pool_param/3, get_pool_param/2]).
 -export([volume_list/0, volume_prepare_bluestore/2, volume_activate/2]).
--export([mon_mkfs/3, mon_start/3]).
+-export([mon_mkfs/3, mon_start/3, mon_start_cmd/3]).
 -export([monmap_create/4, mon_export_monmap/1, mon_extract_monmap/2]).
--export([mgr_start/1]).
+-export([mgr_start/1, mgr_start_cmd/1]).
 
 -define(TIMEOUT_MS, onepanel_env:get(ceph_cli_timeout)).
 -define(TIMEOUT(Operation),
@@ -82,6 +83,28 @@ health() ->
 df() ->
     Output = onepanel_shell:get_success_output(?CEPH(["df"])),
     json_utils:decode(Output).
+
+
+%%--------------------------------------------------------------------
+%% @doc Takes command which started a process as argument
+%% and tries to stop the process by sending a TERM signal.
+%% If the process does not disappear before timeout, KILL signal is sent.
+%% @end
+%%--------------------------------------------------------------------
+-spec stop_with_timeout([token()]) -> ok | no_match.
+stop_with_timeout(StartCommand) ->
+    TimeoutSeconds = onepanel_env:get(ceph_stop_timeout) div 1000,
+    onepanel_shell:pkill(StartCommand, 'TERM'),
+    try
+        onepanel_utils:wait_until(onepanel_shell, process_exists, [StartCommand],
+            {validator, fun(Exists) -> false = Exists end},
+            TimeoutSeconds, 1000)
+    catch
+        throw:attempts_limit_exceeded ->
+            ?warning("Process ~p did not stop in ~p seconds, sending KILL signal",
+                [StartCommand, TimeoutSeconds]),
+            onepanel_shell:pkill(StartCommand, 'KILL')
+    end.
 
 
 -spec auth_add(KeyringPath :: token(), User :: token(), capabilities()) -> ok.
@@ -191,7 +214,12 @@ osd_mkfs_mkkey(Id) ->
 
 -spec osd_start(Id :: service_ceph_osd:id()) -> ok | no_return().
 osd_start(Id) ->
-    onepanel_shell:ensure_success(?OSD(["-i", Id])).
+    onepanel_shell:ensure_success(osd_start_cmd(Id)).
+
+
+-spec osd_start_cmd(Id :: service_ceph_osd:id()) -> [token()].
+osd_start_cmd(Id) ->
+    ?OSD(["-i", Id]).
 
 
 -spec osd_mark(Id :: service_ceph_osd:id(), State :: down | out) -> ok.
@@ -336,8 +364,13 @@ mon_mkfs(Name, Monmap, Keyring) ->
 
 -spec mon_start(service_ceph_mon:id(), DataDir :: token(), IP :: token()) -> ok.
 mon_start(Id, DataDir, IP) ->
-    onepanel_shell:ensure_success(
-        ?MON(["-i", Id, "--mon-data", DataDir, "--public-addr", IP])).
+    onepanel_shell:ensure_success(mon_start_cmd(Id, DataDir, IP)).
+
+
+-spec mon_start_cmd(service_ceph_mon:id(), DataDir :: token(), IP :: token()) ->
+    [token()].
+mon_start_cmd(Id, DataDir, IP) ->
+    ?MON(["-i", Id, "--mon-data", DataDir, "--public-addr", IP]).
 
 
 %%--------------------------------------------------------------------
@@ -365,4 +398,9 @@ mon_extract_monmap(MonId, OutputPath) ->
 
 -spec mgr_start(Name :: token()) -> ok.
 mgr_start(Name) ->
-    onepanel_shell:ensure_success(?MGR(["-i", Name])).
+    onepanel_shell:ensure_success(mgr_start_cmd(Name)).
+
+
+-spec mgr_start_cmd(Name :: token()) -> [token()].
+mgr_start_cmd(Name) ->
+    ?MGR(["-i", Name]).

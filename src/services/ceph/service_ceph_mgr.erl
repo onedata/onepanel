@@ -30,8 +30,8 @@
 -export([exists/1]).
 
 %% Step functions
--export([start/1, wait_for_init/1, register_host/1, list/0, list_running/0,
-    get_details/1, create_keyring/1]).
+-export([start/1, wait_for_init/1, stop/1, register_host/1, list/0,
+    list_running/0, get_details/1, create_keyring/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -93,6 +93,15 @@ get_steps(resume, #{id := _, hosts := [_]}) ->
         #step{function = wait_for_init}
     ];
 
+get_steps(stop_all, _Cxt) ->
+    service_utils:for_each_ctx(list_instances(), [
+        #steps{action = stop}
+    ]);
+
+get_steps(stop, #{id := Id}) ->
+    #{host := Host} = get_instance(Id),
+    [#step{function = stop, selection = any, hosts = [Host]}];
+
 get_steps(Action, _Ctx) when
     Action == get_details ->
     [#step{function = Action, selection = any}];
@@ -138,6 +147,12 @@ wait_for_init(#{id := Id}) ->
     onepanel_utils:wait_until(?MODULE, list_running, [],
         {validator, Validator}, StartAttempts),
     ok.
+
+
+-spec stop(#{id := id()}) -> ok.
+stop(#{id := Id}) ->
+    StartedBy = ceph_cli:mgr_start_cmd(Id),
+    ceph_cli:stop_with_timeout(StartedBy).
 
 
 -spec get_details(#{id := id()}) -> details().
@@ -188,6 +203,15 @@ list_instances() ->
     case service:get_ctx(name()) of
         #{instances := Instances} -> maps:values(Instances);
         _ -> []
+    end.
+
+
+%% @private
+-spec get_instance(id()) -> ceph:instance().
+get_instance(Id) ->
+    case service:get_ctx(name()) of
+        #{instances := #{Id := Instance}} -> Instance;
+        _ -> ?throw_error(?ERR_NOT_FOUND)
     end.
 
 
