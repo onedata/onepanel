@@ -45,7 +45,7 @@
     "Requires: openssl\n"
     "Requires: util-linux-ng\n"
     "Requires: sed\n"
-    "Requires: lvm22\n"
+    "Requires: lvm2\n"
     "Requires: %scl_require_package %{scl} folly\n"}.
 {rpm_build_requires,
     "BuildRequires: %scl_require_package %{scl} boost-devel\n"
