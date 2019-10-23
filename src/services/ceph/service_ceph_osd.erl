@@ -296,7 +296,8 @@ resume_loopdevice(#{uuid := UUID}) ->
 -spec start(#{id | uuid := binary()}) -> ok.
 start(#{uuid := UUID, id := Id}) ->
     ceph_cli:volume_activate(Id, UUID),
-    ceph_cli:osd_start(Id);
+    ceph_cli:osd_start(Id),
+    ?info("Service ceph_osd (id ~p) started", [Id]);
 
 start(#{uuid := UUID} = Ctx) ->
     start(Ctx#{id => uuid_to_id(UUID)}).

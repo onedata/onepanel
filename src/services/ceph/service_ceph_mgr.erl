@@ -137,7 +137,8 @@ register_host(#{id := Id}) ->
 
 -spec start(#{id := id()}) -> ok.
 start(#{id := Id}) ->
-    ceph_cli:mgr_start(Id).
+    ceph_cli:mgr_start(Id),
+    ?info("Service ceph_mgr (id ~p) started", [Id]).
 
 
 -spec wait_for_init(#{id := id()}) -> ok | no_return().

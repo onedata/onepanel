@@ -253,7 +253,8 @@ start(#{id := Id}) ->
     Host = hosts:self(), % sanity check
     #{ip := Ip, host := Host} = get_instance(Id),
     DataDir = ceph:get_data_dir(mon, Id),
-    ok = ceph_cli:mon_start(Id, DataDir, Ip).
+    ok = ceph_cli:mon_start(Id, DataDir, Ip),
+    ?info("Service ceph_mon (id ~p) started", [Id]).
 
 
 -spec wait_for_init(#{id := id()}) -> ok | no_return().

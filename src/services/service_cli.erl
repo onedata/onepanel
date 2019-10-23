@@ -34,7 +34,8 @@ start(Service, SystemLimits) ->
         (open_files, Value, Acc) -> ["ulimit", "-n", Value, ";" | Acc];
         (_, _, Acc) -> Acc
     end, Tokens, SystemLimits),
-    onepanel_shell:ensure_success(Tokens2).
+    onepanel_shell:ensure_success(Tokens2),
+    ?info("Service ~s started", [Service]).
 
 
 %%--------------------------------------------------------------------
