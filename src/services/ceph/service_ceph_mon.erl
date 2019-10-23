@@ -102,9 +102,10 @@ get_steps(initialize_config, _Ctx) ->
 
 get_steps(resume_all, _Ctx) ->
     service_utils:for_each_ctx(list_instances(), [
-        #step{function = start},
-        #step{function = wait_for_init}
-    ]);
+        #step{function = start}]) ++
+    % check quorum only after starting all monitors
+    service_utils:for_each_ctx(list_instances(), [
+        #step{function = wait_for_init}]);
 
 get_steps(resume, #{id := _Id}) ->
         [#step{function = start}];
