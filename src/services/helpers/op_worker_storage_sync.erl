@@ -85,7 +85,6 @@ get_storage_import_details(Node, SpaceId, StorageId) ->
 -spec get_storage_update_details(Node :: node(), SpaceId :: id(), StorageId :: id()) -> proplists:proplist().
 get_storage_update_details(Node, SpaceId, StorageId) ->
     % todo VFS-5717
-    %todo rename?
     {UpdateEnabled, Args} = op_worker_rpc:get_storage_update_details(
         Node, SpaceId, StorageId),
     case UpdateEnabled of
@@ -238,7 +237,6 @@ get_status(Node, SpaceId) ->
 %%-------------------------------------------------------------------
 -spec get_import_status(Node :: node(), SpaceId :: id()) -> binary().
 get_import_status(Node, SpaceId) ->
-    % todo rename?
     case op_worker_rpc:storage_sync_monitoring_get_import_status(Node, SpaceId) of
         finished ->
             <<"done">>;
@@ -254,7 +252,6 @@ get_import_status(Node, SpaceId) ->
 %%-------------------------------------------------------------------
 -spec get_update_status(Node :: node(), SpaceId :: id()) -> binary().
 get_update_status(Node, SpaceId) ->
-    % todo rename?
     case op_worker_rpc:storage_sync_monitoring_get_update_status(Node, SpaceId) of
         in_progress ->
             <<"inProgress">>;
