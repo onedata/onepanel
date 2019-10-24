@@ -1121,7 +1121,7 @@ configure_space(Node, SpaceId, #{storage_id := StorageId} = Ctx) ->
     MountInRoot = onepanel_utils:typed_get(mount_in_root, Ctx, boolean, false),
     ImportArgs = maps:get(storage_import, Ctx, #{}),
     UpdateArgs = maps:get(storage_update, Ctx, #{}),
-    case  MountInRoot of
+    case MountInRoot of
         true -> op_worker_rpc:storage_set_mount_in_root(StorageId);
         false -> ok
     end,

@@ -109,7 +109,7 @@ update(OpNode, Id, Params) ->
     {ok, Type} = onepanel_maps:get(type, Storage),
     {ok, LumaEnabled} = onepanel_maps:get(lumaEnabled, Storage),
     % remove qosParameters as they are a map and will cause errors
-    % when preprocessing arg by convertion to binary
+    % when preprocessing arg by conversion to binary
     PlainValues = maps:remove(qosParameters, Params),
 
     % @TODO VFS-5513 Modify everything in a single datastore operation
