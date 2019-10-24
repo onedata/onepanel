@@ -30,7 +30,7 @@
 -export([exists/1]).
 
 %% Step functions
--export([start/1, wait_for_init/1, stop/1, register_host/1, list/0,
+-export([start/1, wait_for_init/1, status/1, stop/1, register_host/1, list/0,
     list_running/0, get_details/1, create_keyring/1]).
 
 %%%===================================================================
@@ -83,9 +83,8 @@ get_steps(deploy, #{host := Host}) ->
 
 get_steps(resume_all, _Ctx) ->
     Instances = list_instances(),
-    service_utils:for_each_ctx(Instances, [
-        #steps{action = resume}
-    ]);
+    service_utils:for_each_ctx(Instances,
+        [#steps{action = resume}]);
 
 get_steps(resume, #{id := _, hosts := [_]}) ->
     [
@@ -136,8 +135,9 @@ register_host(#{id := Id}) ->
 
 
 -spec start(#{id := id()}) -> ok.
-start(#{id := Id}) ->
+start(#{id := Id} = Ctx) ->
     ceph_cli:mgr_start(Id),
+    service:register_healthcheck(name(), Ctx),
     ?info("Service ceph_mgr (id ~p) started", [Id]).
 
 
@@ -154,6 +154,19 @@ wait_for_init(#{id := Id}) ->
 stop(#{id := Id}) ->
     StartedBy = ceph_cli:mgr_start_cmd(Id),
     ceph_cli:stop_with_timeout(StartedBy).
+
+
+%%--------------------------------------------------------------------
+%% @doc Status used by service healthcheck.
+%% @end
+%%--------------------------------------------------------------------
+-spec status(#{id := id()}) -> service:status().
+status(#{id := Id}) ->
+    StartedBy = ceph_cli:mgr_start_cmd(Id),
+    case onepanel_shell:process_exists(StartedBy) of
+        true -> healthy;
+        false -> stopped
+    end.
 
 
 -spec get_details(#{id := id()}) -> details().

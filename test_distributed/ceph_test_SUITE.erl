@@ -46,9 +46,9 @@
 -define(OSD_UUID1, <<"11111111-1111-1111-1111-111111111111">>).
 -define(OSD_UUID2, <<"22222222-2222-2222-2222-222222222222">>).
 -define(OSD_UUID3, <<"33333333-3333-3333-3333-333333333333">>).
--define(CUSTOM_LOOP_PATH, <<"/var/lib/ceph/loopdevices/custompath.loop">>).
+-define(CUSTOM_LOOP_PATH, <<"/volumes/persistence/ceph-loopdevices/custompath.loop">>).
 % path of loopdevice file used to test blockdevice type deployment
--define(MOCK_BLOCKDEVICE_PATH, <<"/var/lib/ceph/loopdevices/blockdevice.loop">>).
+-define(MOCK_BLOCKDEVICE_PATH, <<"/volumes/persistence/ceph-loopdevices/blockdevice.loop">>).
 
 -define(POOL_PARAMS, #{
     type => <<"localceph">>,

@@ -32,7 +32,7 @@
 -export([apply_sync/2, apply_sync/3, apply_sync/4]).
 -export([get_results/1, get_results/2, abort_task/1,
     exists_task/1]).
--export([register_healthcheck/1]).
+-export([register_healthcheck/2]).
 -export([get_status/2, update_status/2, update_status/3, all_healthy/0,
     healthy/1]).
 -export([get_module/1, get_hosts/1, add_host/2]).
@@ -440,11 +440,17 @@ add_host(Service, Host) ->
     end).
 
 
--spec register_healthcheck(Service :: name()) -> ok.
-register_healthcheck(Service) ->
-    Module = get_module(Service),
+-spec register_healthcheck(Service :: name(), Ctx :: ctx()) -> ok.
+register_healthcheck(Service, Ctx) ->
+    Period = onepanel_env:get(services_check_period),
+    Module = service:get_module(Service),
+    Name = case Ctx of
+        #{id := Id} -> str_utils:format("~tp (id ~tp)", [Service, Id]);
+        _ -> str_utils:format("~tp", [Service])
+    end,
+
     Condition = fun() ->
-        case (catch Module:status(#{})) of
+        case (catch Module:status(Ctx)) of
             healthy -> false;
             unhealthy -> false;
             _ -> true
@@ -452,20 +458,17 @@ register_healthcheck(Service) ->
     end,
 
     Action = fun() ->
-        ?critical("Service ~tp is not running. Restarting...", [Service]),
-        Results = apply_sync(Service, resume,
-            #{hosts => [hosts:self()]}),
+        ?critical("Service ~ts is not running. Restarting...", [Name]),
+        Results = service:apply_sync(Service, resume, Ctx),
         case service_utils:results_contain_error(Results) of
             {true, Error} ->
-                ?critical("Failed to restart service ~tp due to:~n~ts",
-                    [Service, onepanel_errors:format_error(Error)]);
+                ?critical("Failed to restart service ~ts due to:~n~ts",
+                    [Name, onepanel_errors:format_error(Error)]);
             false -> ok
         end
     end,
 
-    Period = onepanel_env:get(services_check_period),
-
-    onepanel_cron:add_job(Service, Action, Period, Condition).
+    onepanel_cron:add_job(Name, Action, Period, Condition).
 
 
 %%--------------------------------------------------------------------

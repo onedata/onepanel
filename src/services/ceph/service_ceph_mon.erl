@@ -33,8 +33,8 @@
 
 %% Step functions
 -export([add_monitors/1, create_monmap/2, create_keyring/1, setup_initial_member/1,
-    add_mon_to_config/1,
-    mkfs/1, start/1, wait_for_init/1, stop/1, register_host/1]).
+    add_mon_to_config/1, mkfs/1, start/1, wait_for_init/1, stop/1,
+    register_host/1]).
 -export([get_details/1, list/0, list_quorum/0]).
 
 % private RPC
@@ -110,7 +110,6 @@ get_steps(resume_all, _Ctx) ->
 get_steps(resume, #{id := _Id}) ->
         [#step{function = start}];
 
-
 get_steps(add_node, #{reference_host := _, hosts := [_]}) ->
     [
         #step{function = mkfs},
@@ -151,9 +150,19 @@ get_steps(Action, #{id := _} = Ctx) when
 %%% API functions
 %%%===================================================================
 
--spec status(service:ctx()) -> service:status().
-status(_Ctx) ->
-    healthy.
+%%--------------------------------------------------------------------
+%% @doc Status used by service healthcheck.
+%% @end
+%%--------------------------------------------------------------------
+-spec status(#{id := id()}) -> service:status().
+status(#{id := Id}) ->
+    #{ip := Ip} = get_instance(Id),
+    DataDir = ceph:get_data_dir(mon, Id),
+    StartedBy = ceph_cli:mon_start_cmd(Id, DataDir, Ip),
+    case onepanel_shell:process_exists(StartedBy) of
+        true -> healthy;
+        false -> stopped
+    end.
 
 
 -spec exists(id()) -> boolean().
@@ -250,11 +259,12 @@ mkfs(#{id := _Id, reference_host := ReferenceHost} = Ctx) ->
 
 
 -spec start(#{id := id()}) -> ok.
-start(#{id := Id}) ->
+start(#{id := Id} = Ctx) ->
     Host = hosts:self(), % sanity check
     #{ip := Ip, host := Host} = get_instance(Id),
     DataDir = ceph:get_data_dir(mon, Id),
     ok = ceph_cli:mon_start(Id, DataDir, Ip),
+    service:register_healthcheck(name(), Ctx),
     ?info("Service ceph_mon (id ~p) started", [Id]).
 
 

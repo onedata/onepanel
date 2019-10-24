@@ -165,7 +165,7 @@ start(Ctx) ->
     },
     service_cli:start(name(), Limits),
     service:update_status(name(), healthy),
-    service:register_healthcheck(name()),
+    service:register_healthcheck(name(), #{hosts => [hosts:self()]}),
     ok.
 
 

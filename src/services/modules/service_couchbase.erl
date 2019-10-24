@@ -132,7 +132,7 @@ start(Ctx) ->
     service_cli:start(name(), Limits),
     % update status cache
     status(Ctx),
-    service:register_healthcheck(name()),
+    service:register_healthcheck(name(), #{hosts => [hosts:self()]}),
     ok.
 
 
@@ -205,7 +205,7 @@ wait_for_init(Ctx) ->
             {equal, healthy}, StartAttempts)
     end,
 
-    service:register_healthcheck(name()),
+    service:register_healthcheck(name(), #{hosts => [hosts:self()]}),
     % Couchbase reports healthy status before it's ready to serve requests.
     % This delay provides additional margin of error before starting workers.
     Delay = application:get_env(onepanel, couchbase_after_init_delay, 0),

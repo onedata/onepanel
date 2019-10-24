@@ -13,6 +13,7 @@
 -author("Wojciech Geisler").
 
 -include("names.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 % @formatter:off
 -type id() :: binary().

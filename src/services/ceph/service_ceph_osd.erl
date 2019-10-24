@@ -51,7 +51,7 @@
 %% Step functions
 -export([prepare_loopdevice/1, resume_loopdevice/1]).
 -export([write_bootstrap_keyring/1, format_block_device/1,
-    mark_deployed/1, start/1, stop/1]).
+    mark_deployed/1, start/1, stop/1, status/1]).
 -export([get_details/1, get_disks/1, get_usage/0, get_usage_by_id/1]).
 
 %%%===================================================================
@@ -117,9 +117,11 @@ get_steps(prepare_storage, #{type := blockdevice}) ->
     ];
 
 get_steps(resume_all, _Ctx) ->
-    service_utils:for_each_ctx(list_instances(), [
-        #steps{action = start}
-    ]);
+    service_utils:for_each_ctx(list_instances(),
+        [#steps{action = resume}]);
+
+get_steps(resume, _Ctx) ->
+    [#steps{action = start}];
 
 get_steps(get_disks, #{hosts := [_]} = _Ctx) ->
     % host should be provided in rest request.
@@ -294,9 +296,10 @@ resume_loopdevice(#{uuid := UUID}) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec start(#{id | uuid := binary()}) -> ok.
-start(#{uuid := UUID, id := Id}) ->
+start(#{uuid := UUID, id := Id} = Ctx) ->
     ceph_cli:volume_activate(Id, UUID),
     ceph_cli:osd_start(Id),
+    service:register_healthcheck(name(), Ctx),
     ?info("Service ceph_osd (id ~p) started", [Id]);
 
 start(#{uuid := UUID} = Ctx) ->
@@ -309,6 +312,19 @@ stop(#{id := Id}) ->
 
 stop(#{uuid := UUID} = Ctx) ->
     stop(Ctx#{id => uuid_to_id(UUID)}).
+
+
+%%--------------------------------------------------------------------
+%% @doc Status used by service healthcheck.
+%% @end
+%%--------------------------------------------------------------------
+-spec status(#{id := id()}) -> service:status().
+status(#{id := Id}) ->
+    StartedBy = ceph_cli:osd_start_cmd(Id),
+    case onepanel_shell:process_exists(StartedBy) of
+        true -> healthy;
+        false -> stopped
+    end.
 
 
 -spec mark_deployed(service:ctx()) -> ok.
