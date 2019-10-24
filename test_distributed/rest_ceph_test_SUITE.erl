@@ -37,7 +37,8 @@
     get_should_return_pool_details_test/1,
     get_should_return_mgr_list/1,
     get_should_return_mgr_details/1,
-    % @fixme add mon list and details tests
+    get_should_return_mon_list/1,
+    get_should_return_mon_details/1,
     get_should_return_cluster_data_usage/1,
     get_should_return_osd_data_usage/1,
     get_should_return_pool_data_usage/1,
@@ -56,6 +57,8 @@ all() ->
         get_should_return_pool_details_test,
         get_should_return_mgr_list,
         get_should_return_mgr_details,
+        get_should_return_mon_list,
+        get_should_return_mon_details,
         get_should_return_cluster_data_usage,
         get_should_return_osd_data_usage,
         get_should_return_pool_data_usage,
@@ -77,7 +80,9 @@ all() ->
 -define(POOL_MIN_SIZE, 1).
 
 -define(MGR_ID, (<<"1">>)).
--define(MON_ID(Config), list_to_binary(hd(?config(ceph_hosts, Config)))).
+-define(MON_ID(Config), (list_to_binary(hd(?config(ceph_hosts, Config))))).
+-define(MON_IP, (<<"1.2.3.4">>)).
+-define(OSD_UUID1, <<"11111111-1111-1111-1111-111111111111">>).
 -define(OSD1_ID, (<<"0">>)).
 -define(OSD2_ID, (<<"1">>)).
 
@@ -259,6 +264,44 @@ get_should_return_mgr_details(Config) ->
     end).
 
 
+get_should_return_mon_list(Config) ->
+    CephHost = hd(?config(ceph_hosts, Config)),
+    Expected = #{
+        <<"monitors">> => [
+            #{
+                <<"id">> => ?MON_ID(Config),
+                <<"host">> => list_to_binary(CephHost),
+                <<"ip">> => ?MON_IP
+            }
+        ]
+    },
+    ?eachHost(Config, fun(Host) ->
+        {ok, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/ceph/monitors/">>, get,
+                ?OZ_OR_ROOT_AUTHS(Config, [])
+            )),
+        onepanel_test_rest:assert_body(JsonBody, Expected)
+    end).
+
+
+get_should_return_mon_details(Config) ->
+    CephHost = hd(?config(ceph_hosts, Config)),
+    Expected = #{
+        <<"id">> => ?MON_ID(Config),
+        <<"host">> => list_to_binary(CephHost),
+        <<"ip">> => ?MON_IP
+    },
+    ?eachHost(Config, fun(Host) ->
+        {ok, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/ceph/monitors/", (?MON_ID(Config))/binary>>, get,
+                ?OZ_OR_ROOT_AUTHS(Config, [])
+            )),
+        onepanel_test_rest:assert_body(JsonBody, Expected)
+    end).
+
+
 get_should_return_cluster_data_usage(Config) ->
     Expected = #{
         <<"total">> => #{
@@ -354,16 +397,14 @@ post_should_deploy_ceph(Config) ->
             <<"type">> => <<"blockdevice">>,
             <<"device">> => <<"/dev/sdx">>,
             <<"host">> => list_to_binary(Host1),
-            <<"id">> => <<"0">>
+            <<"uuid">> => ?OSD_UUID1
         }],
         <<"monitors">> => [#{
             <<"host">> => list_to_binary(Host2),
-            <<"ip">> => <<"1.2.3.4">>,
-            <<"id">> => <<"customMonitorId">>
+            <<"ip">> => <<"1.2.3.4">>
         }],
         <<"managers">> => [#{
-            <<"host">> => list_to_binary(Host2),
-            <<"id">> => <<"customManagerId">>
+            <<"host">> => list_to_binary(Host2)
         }]
     },
 
@@ -371,16 +412,14 @@ post_should_deploy_ceph(Config) ->
         type => blockdevice,
         device => <<"/dev/sdx">>,
         host => Host1,
-        id => <<"0">>
+        uuid => ?OSD_UUID1
     }]},
     MonsCtx = #{monitors => [#{
         host => Host2,
-        ip => <<"1.2.3.4">>,
-        id => <<"customMonitorId">>
+        ip => <<"1.2.3.4">>
     }]},
     ManagersCtx = #{managers => [#{
-        host => Host2,
-        id => <<"customManagerId">>
+        host => Host2
     }]},
     FullCtx = lists:foldl(fun maps:merge/2,
         #{fsid => <<"customClusterUUID">>, cluster_name => <<"customClusterName">>},
@@ -438,16 +477,14 @@ post_should_deploy_oneprovider_with_ceph(Config) ->
                 <<"type">> => <<"blockdevice">>,
                 <<"device">> => <<"/dev/sdx">>,
                 <<"host">> => list_to_binary(Host2),
-                <<"id">> => <<"0">>
+                <<"uuid">> => ?OSD_UUID1
             }],
             <<"monitors">> => [#{
                 <<"host">> => list_to_binary(Host2),
-                <<"ip">> => <<"1.2.3.4">>,
-                <<"id">> => <<"customMonitorId">>
+                <<"ip">> => <<"1.2.3.4">>
             }],
             <<"managers">> => [#{
-                <<"host">> => list_to_binary(Host2),
-                <<"id">> => <<"customManagerId">>
+                <<"host">> => list_to_binary(Host2)
             }]
         },
         <<"oneprovider">> => #{
@@ -547,6 +584,19 @@ init_per_testcase(Case, Config) when
     ?call(Config, service, update_ctx, [?SERVICE_CEPH_MGR, #{
         instances => #{?MGR_ID => #{id => ?MGR_ID, host => hd(CephHosts)}}
     }]),
+    Config2;
+
+init_per_testcase(Case, Config) when
+    Case == get_should_return_mon_details;
+    Case == get_should_return_mon_list ->
+
+    Config2 = init_per_testcase(default, Config),
+    CephHosts = ?config(ceph_hosts, Config2),
+    MonId = ?MON_ID(Config2),
+    ok = ?call(Config2, service, save, [#service{
+        name = ?SERVICE_CEPH_MON, hosts = CephHosts, ctx = #{instances => #{
+            MonId => #{id => MonId, host => hd(CephHosts), ip => ?MON_IP}
+        }}}]),
     Config2;
 
 init_per_testcase(get_cluster_configuration_should_include_ceph, Config) ->
