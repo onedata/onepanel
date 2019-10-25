@@ -4,6 +4,13 @@
 CHANGELOG
 ---------
 
+### 19.02.0-rc2
+
+* VFS-5708 Implement gui message management
+* VFS-1891 GUI update Added setting privacy policy, cookie consent notification and sign-in notification
+* VFS-5755 Retry erlang pings when joining a cluster
+
+
 ### 19.02.0-rc1
 
 * VFS-5499 GUI update Fixed displaying errors, when oz/op-worker service is not working
