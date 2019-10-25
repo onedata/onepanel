@@ -173,7 +173,7 @@ get_steps(manage_restart, Ctx) ->
             #steps{action = set_up_service_in_onezone}
         ];
         false ->
-            ?info("Waiting for master node \"~s\" to start", [MasterHost]),
+            ?info("Waiting for master node \"~s\" to start the Onezone", [MasterHost]),
             []
     end;
 

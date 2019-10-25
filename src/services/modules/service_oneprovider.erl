@@ -205,7 +205,7 @@ get_steps(manage_restart, Ctx) ->
                 ctx = Ctx#{letsencrypt_plugin => ?SERVICE_OPW}}
         ];
         false ->
-            ?info("Waiting for master node \"~s\" to start", [MasterHost]),
+            ?info("Waiting for master node \"~s\" to start the Oneprovider", [MasterHost]),
             []
     end;
 

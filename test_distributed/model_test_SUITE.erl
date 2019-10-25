@@ -167,7 +167,7 @@ wrapper_test(Config) ->
         mnesia:write(?MODEL, Record, write)
     end])),
 
-    ok = rpc:call(Node, service_onepanel, init_cluster, [#{}]),
+    ok = rpc:call(Node, onepanel_db, upgrade_tables, []),
 
     ?assertMatch([#document{key = Key, value = Record}],
         rpc:call(Node, model, transaction, [fun() ->
@@ -192,7 +192,7 @@ upgrade_test(Config) ->
     ?assertEqual({ok, OldRecord},
         rpc:call(Node, model, get, [?MODEL, Key])),
 
-    ?assertEqual(ok, rpc:call(Node, service_onepanel, init_cluster, [#{}])),
+    ?assertEqual(ok, rpc:call(Node, onepanel_db, upgrade_tables, [])),
 
     ?assertMatch([ExpectedDoc],
         rpc:call(Node, model, transaction, [fun() ->
@@ -213,7 +213,7 @@ upgrade_loop_is_detected_test(Config) ->
         mnesia:write(?MODEL, OldDoc, write)
     end])),
 
-    ?assertMatch(#error{}, rpc:call(Node, service_onepanel, init_cluster, [#{}])).
+    ?assertMatch(#error{}, rpc:call(Node, onepanel_db, upgrade_tables, [])).
 
 
 %%%===================================================================

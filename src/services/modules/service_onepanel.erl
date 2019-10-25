@@ -127,12 +127,15 @@ get_steps(leave_cluster, Ctx) ->
 %% nodes in the cluster to start.
 get_steps(wait_for_cluster, _Ctx) ->
     SelfHost = hosts:self(),
-    Attempts = application:get_env(?APP_NAME, wait_for_cluster_attempts, 20),
+    Attempts = application:get_env(?APP_NAME, wait_for_cluster_attempts, 120),
+    Delay = application:get_env(?APP_NAME, wait_for_cluster_delay, 5000),
     [
+        % this step should pass quickly since presence of nodes
+        % is already ensured in onepanel_sup:init/1
         #step{service = name(), function = ensure_all_hosts_available,
-            attempts = Attempts, hosts = [SelfHost]},
+            attempts = Attempts, retry_delay = Delay, hosts = [SelfHost]},
         #step{service = name(), function = ensure_node_ready,
-            attempts = Attempts, hosts = get_hosts()}
+            attempts = Attempts, retry_delay = Delay, hosts = get_hosts()}
     ];
 
 get_steps(clear_users, _Ctx) ->
@@ -305,6 +308,7 @@ ensure_all_hosts_available(_Ctx) ->
 %% Fails if some children of the main supervisor are not running.
 %% @end
 %%--------------------------------------------------------------------
+-spec ensure_node_ready(service:ctx()) -> true | no_return().
 ensure_node_ready(_Ctx) ->
     Counts = supervisor:count_children(onepanel_sup),
     true = (proplists:get_value(specs, Counts) == proplists:get_value(active, Counts)).
@@ -326,6 +330,7 @@ reload_webcert(_Ctx) ->
 %% other cluster.
 %% @end
 %%--------------------------------------------------------------------
+-spec available_for_clustering() -> boolean().
 available_for_clustering() ->
     not emergency_passphrase:is_set() andalso
         length(get_hosts()) =< 1 andalso

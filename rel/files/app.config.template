@@ -203,6 +203,8 @@
         {rpc_timeout, 1800000},
         {create_tables_timeout, 10000},
         {copy_tables_timeout, 10000},
+        {wait_for_tables_timeout, 10000},
+        {upgrade_tables_timeout, 60000},
         {extend_cluster_timeout, 900000},
         {extend_cluster_attempts, 20},
         {task_ttl, 86400000},
@@ -211,7 +213,8 @@
         {node_connection_retry_delay, 1000},
         {session_ttl, 86400}, % 24h
         {auth_token_ttl, 86400},
-        {wait_for_cluster_attempts, 20},
+        {wait_for_cluster_attempts, 120},
+        {wait_for_cluster_delay, 5000},
 
         %% Time in milliseconds during which user tokens are cached in op_panel
         {onezone_auth_cache_ttl, 60000},

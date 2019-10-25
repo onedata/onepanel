@@ -53,9 +53,12 @@ start(_StartType, _StartArgs) ->
                 ], true);
             false -> ok
         end,
-        Supervisor = onepanel_sup:start_link(),
-        resume_service(),
-        Supervisor
+        case onepanel_sup:start_link() of
+            {ok, Supervisor} ->
+                resume_service(),
+                {ok, Supervisor};
+            Error -> Error
+        end
     catch
         _:Reason ->
             ?error_stacktrace("Cannot start onepanel application due to: ~p",
