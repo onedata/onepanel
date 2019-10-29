@@ -88,7 +88,7 @@ get_client_name(User) ->
 -spec get_pool_user() -> {Name :: binary(), Key :: binary()}.
 get_pool_user() ->
     Name  = get_client_name(onepanel_env:typed_get(ceph_pool_user_username, binary)),
-    Capabilities = [{mon, <<"allow r">>}, {osd, <<"allow rw">>}],
+    Capabilities = [{mon, <<"allow r">>}, {osd, <<"allow rwx">>}],
     Key = ceph_cli:auth_get_or_create_key(Name, Capabilities),
     {Name, Key}.
 
