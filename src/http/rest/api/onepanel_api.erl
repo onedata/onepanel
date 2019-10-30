@@ -73,6 +73,7 @@ routes() ->
             version = 3,
             module = rest_clusters,
             resource = cluster,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -116,6 +117,7 @@ routes() ->
             version = 3,
             module = rest_clusters,
             resource = clusters,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
@@ -171,6 +173,7 @@ routes() ->
             version = 3,
             module = rest_onepanel,
             resource = emergency_passphrase,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET',
                 noauth = true
@@ -205,6 +208,7 @@ routes() ->
             version = 3,
             module = rest_clusters,
             resource = remote_provider,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]

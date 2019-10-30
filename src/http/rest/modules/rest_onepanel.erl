@@ -5,7 +5,8 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%-------------------------------------------------------------------
-%%% @doc The module handling logic behind /hosts REST resources.
+%%% @doc The module handling logic behind REST resources common
+%%% for Onezone and Oneprovider panels.
 %%%-------------------------------------------------------------------
 -module(rest_onepanel).
 -author("Krzysztof Trzepla").

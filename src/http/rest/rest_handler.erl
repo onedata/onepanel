@@ -98,8 +98,11 @@ service_available(Req, #rstate{methods = Methods, module = Module} = State) ->
                 {true, Req, State}
         end
     catch
-        Type:Reason ->
-            {false, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason)), State}
+        _Type:_Reason ->
+            % exceptions in the is_available callbacks are usually caused
+            % by incorrect request method or params which will be
+            % handled with proper error code later on
+            {true, Req, State}
     end.
 
 %%--------------------------------------------------------------------

@@ -20,6 +20,9 @@
 -include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/http/headers.hrl").
 
+-define(WAIT_FOR_CLUSTER_DELAY,
+    onepanel_env:get(wait_for_cluster_retry_delay, ?APP_NAME, timer:seconds(5))).
+
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
@@ -146,7 +149,7 @@ get_steps(clear_users, _Ctx) ->
 get_steps(migrate_emergency_passphrase, _Ctx) ->
     [#step{module = emergency_passphrase, function = migrate_from_users, args = [],
         hosts = get_hosts(), selection = any,
-        condition = fun(_) -> not emergency_passphrase:is_set() end }];
+        condition = fun(_) -> not emergency_passphrase:is_set() end}];
 
 get_steps(Function, _Ctx) when
     Function == reload_webcert;
@@ -244,9 +247,11 @@ extend_cluster(#{hostname := Hostname, api_version := ApiVersion,
             ?throw_error(?ERR_NODE_NOT_EMPTY(Hostname));
         {ok, Code, _, RespBody} ->
             ?error("Unexpected response when trying to add node: ~tp ~tp", [Code, RespBody]),
+            timer:sleep(?WAIT_FOR_CLUSTER_DELAY),
             extend_cluster(Ctx#{attempts => Attempts - 1});
         {error, _} ->
             ?warning("Failed to connect with '~ts' to extend cluster", [Hostname]),
+            timer:sleep(?WAIT_FOR_CLUSTER_DELAY),
             extend_cluster(Ctx#{attempts => Attempts - 1})
     end;
 
@@ -392,7 +397,7 @@ build_url(Host, ApiVersion, Suffix) ->
 https_opts(Timeout) ->
     CaCerts = https_listener:get_cert_chain_pems(),
     [
-        {ssl_options, [{secure, only_verify_peercert}, {cacerts, CaCerts}]},
+        {ssl_options, [{secure, false}, {cacerts, CaCerts}]},
         {connect_timeout, Timeout},
         {recv_timeout, Timeout}
     ].

@@ -13,6 +13,7 @@
 
 -include("names.hrl").
 -include("onepanel_test_utils.hrl").
+-include("modules/errors.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 
 %% API
@@ -20,7 +21,7 @@
     mock_start/1]).
 -export([assert_fields/2, assert_values/2, clear_msg_inbox/0]).
 -export([service_host_action/3, service_host_action/4,
-    service_action/3, service_action/4]).
+    service_action/3, service_action/4, attempt_service_action/4]).
 -export([get_domain/1]).
 
 -type config() :: proplists:proplist().
@@ -210,7 +211,7 @@ service_action(Node, Service, Action) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Performs service action on given node.
+%% @doc Performs service action on given node and ensures success.
 %% @end
 %%--------------------------------------------------------------------
 -spec service_action(Node :: node(), Service :: service:name(),
@@ -220,6 +221,18 @@ service_action(Node, Service, Action, Ctx) ->
     ?assertEqual(ok, rpc:call(Node, service, apply,
         [Service, Action, Ctx, Self]
     )).
+
+
+%%--------------------------------------------------------------------
+%% @doc Performs service action on given node.
+%% @end
+%%--------------------------------------------------------------------
+-spec attempt_service_action(Node :: node(), Service :: service:name(),
+    Action :: atom(), Ctx :: service:ctx()) -> ok | #error{}.
+attempt_service_action(Node, Service, Action, Ctx) ->
+    Self = self(),
+    rpc:call(Node, service, apply, [Service, Action, Ctx, Self]).
+
 
 %%--------------------------------------------------------------------
 %% @doc Returns hostname stripped of the first segment.

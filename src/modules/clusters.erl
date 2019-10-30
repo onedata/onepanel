@@ -328,7 +328,7 @@ create_invite_token_for_admin({rpc, Auth}) ->
 
 create_invite_token_for_admin({rest, Auth}) ->
     TokenName = <<
-        "adminInvitationToCluster ",
+        "admin invite to cluster ",
         (binary:part(time_utils:epoch_to_iso8601(time_utils:system_time_seconds()), 0, 10))/binary, " ",
         (str_utils:rand_hex(3))/binary
     >>,

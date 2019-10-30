@@ -69,22 +69,6 @@ all() ->
 
 -define(run(Config, Function), Function(hd(?config(onezone_hosts, Config)))).
 
--define(eachEndpoint(Config, Fun, EndpointsWithMethods),
-    lists:foreach(fun({__Host, __Endpoint, __Method}) ->
-        try
-            Fun(__Host, __Endpoint, __Method)
-        catch
-            error:__Reason ->
-                ct:pal("Failed on: ~s ~s (host ~s)", [__Method, __Endpoint, __Host]),
-                erlang:error(__Reason)
-        end
-    end, [
-        {__Host, __Endpoint, __Method} ||
-        {__Endpoint, __Method} <- EndpointsWithMethods,
-        __Host <- ?config(all_hosts, Config)
-    ])
-).
-
 %%%===================================================================
 %%% Test functions
 %%%===================================================================

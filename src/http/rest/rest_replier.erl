@@ -16,6 +16,7 @@
 -include("http/rest.hrl").
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
+-include("service.hrl").
 -include("modules/onepanel_dns.hrl").
 -include("deployment_progress.hrl").
 -include_lib("ctool/include/http/codes.hrl").
@@ -30,6 +31,7 @@
     format_service_host_status/2, format_service_task_results/1, format_service_step/3,
     format_onepanel_configuration/0, format_service_configuration/1,
     format_storage_details/1, format_deployment_progress/0]).
+-export([format_ceph_pools/0]).
 
 -type response() :: map() | term().
 
@@ -41,9 +43,8 @@
 %% @doc {@link service_utils:throw_on_error/1}
 %% @end
 %%--------------------------------------------------------------------
--spec throw_on_service_error(Req :: cowboy_req:req(),
-    Results :: #error{} | service_executor:results()) ->
-    Req :: cowboy_req:req() | no_return().
+-spec throw_on_service_error(Req, Results) -> Req | no_return() when
+    Req :: cowboy_req:req(), Results :: #error{} | service_executor:results().
 throw_on_service_error(Req, Results) ->
     service_utils:throw_on_error(Results),
     Req.
@@ -119,7 +120,6 @@ handle_service_step(Req, Module, Function, Results) ->
     cowboy_req:set_resp_body(Body, Req).
 
 
-%%--------------------------------------------------------------------
 %% @doc Returns a formatted error description.
 %% @end
 %%--------------------------------------------------------------------
@@ -129,12 +129,12 @@ format_error(Type, #error{reason = #service_error{} = Error}) ->
 
 format_error(_Type, #service_error{service = Service, action = Action,
     module = Module, function = Function, bad_results = Results}) ->
-        #{<<"error">> => <<"Service Error">>,
-          <<"description">> => onepanel_utils:join(["Action '", Action,
+    #{<<"error">> => <<"Service Error">>,
+        <<"description">> => onepanel_utils:join(["Action '", Action,
             "' for a service '", Service, "' terminated with an error."]),
-          <<"module">> => Module,
-          <<"function">> => Function,
-          <<"hosts">> => format_service_hosts_results(Results)};
+        <<"module">> => Module,
+        <<"function">> => Function,
+        <<"hosts">> => format_service_hosts_results(Results)};
 
 format_error(Type, Reason) ->
     {Name, Description} = onepanel_errors:translate(Type, Reason),
@@ -169,12 +169,12 @@ format_dns_check_result(Results) ->
 
     maps:map(fun
         (_Key, #dns_check{summary = Summary, expected = E, got = G, bind_records = Records}) ->
-        #{
-            summary => Summary,
-            expected => lists:map(IpOrTxtToBinary, E),
-            got => lists:map(IpOrTxtToBinary, G),
-            recommended => Records
-        };
+            #{
+                summary => Summary,
+                expected => lists:map(IpOrTxtToBinary, E),
+                got => lists:map(IpOrTxtToBinary, G),
+                recommended => Records
+            };
         (timestamp, Epoch) -> time_utils:epoch_to_iso8601(Epoch);
         (_Key, LiteralValue) -> LiteralValue
     end, Result).
@@ -194,22 +194,30 @@ format_service_host_status(SModule, Results) ->
 %% @doc Returns a formatted service asynchronous task result.
 %% @end
 %%--------------------------------------------------------------------
--spec format_service_task_results(Results :: #error{} | service_executor:results()) ->
-    Response :: response().
+-spec format_service_task_results(Results :: {service_executor:results(), Total} | #error{}) ->
+    Response :: response()
+    when Total :: non_neg_integer() | #error{}.
 format_service_task_results(#error{} = Error) ->
     ?throw_error(Error);
 
-format_service_task_results(Results) ->
+format_service_task_results({#error{} = Error, _}) ->
+    ?throw_error(Error);
+
+format_service_task_results({Results, TotalSteps}) ->
+    Base = case TotalSteps of
+        #error{} -> #{};
+        _ when is_integer(TotalSteps) -> #{totalSteps => TotalSteps}
+    end,
     case lists:reverse(Results) of
         [{task_finished, {_, _, #error{} = Error}}] ->
-            maps:put(<<"status">>, <<"error">>, format_error(error, Error));
+            maps:merge(Base#{status => <<"error">>}, format_error(error, Error));
 
         [{task_finished, {Service, Action, #error{}}}, Step | Steps] ->
             {Module, Function, {_, BadResults}} = Step,
             maps:merge(
-                #{
-                    <<"status">> => <<"error">>,
-                    <<"steps">> => format_service_task_steps(lists:reverse(Steps))
+                Base#{
+                    status => <<"error">>,
+                    steps => format_service_task_steps(lists:reverse(Steps))
                 },
                 format_error(error, #service_error{
                     service = Service, action = Action, module = Module,
@@ -217,13 +225,15 @@ format_service_task_results(Results) ->
                 })
             );
 
-        [{task_finished, {_, _, ok}} | Steps] -> #{
-                <<"status">> => <<"ok">>,
-                <<"steps">> => format_service_task_steps(lists:reverse(Steps))};
+        [{task_finished, {_, _, ok}} | Steps] -> Base#{
+            status => <<"ok">>,
+            steps => format_service_task_steps(lists:reverse(Steps))
+        };
 
-        Steps -> #{
-                <<"status">> => <<"running">>,
-                <<"steps">> => format_service_task_steps(lists:reverse(Steps))}
+        Steps -> Base#{
+            status => <<"running">>,
+            steps => format_service_task_steps(lists:reverse(Steps))
+        }
     end.
 
 
@@ -265,6 +275,15 @@ format_service_step(Module, Function, Results) ->
         true -> json_utils:list_to_map(HostResult);
         false -> HostResult
     end.
+
+
+-spec format_ceph_pools() -> #{pools := [map()]}.
+format_ceph_pools() ->
+    Results = service_utils:throw_on_error(service:apply_sync(
+            ?SERVICE_CEPH, get_all_pools, #{}
+        )),
+    {[{_, HostResult}], []} = select_service_step(ceph_pool, get_all, Results),
+    #{pools => HostResult}.
 
 
 %%--------------------------------------------------------------------
@@ -316,7 +335,18 @@ format_service_configuration(SModule) ->
         null -> null;
         MasterHost -> onepanel_utils:convert(MasterHost, binary)
     end,
-    #{
+    Ceph = case service:get_hosts(?SERVICE_CEPH) /= [] of
+        true -> #{
+            <<"ceph">> => onepanel_maps:merge([
+                service_ceph_mgr:list(),
+                service_ceph_mon:list(),
+                service_ceph_osd:list()
+            ])
+        };
+        false ->
+            #{}
+    end,
+    Ceph#{
         <<"cluster">> => #{
             <<"master">> => MasterHostBin,
             <<"databases">> => #{
@@ -502,6 +532,7 @@ get_storage_model(posix) -> rest_model:posix_model();
 get_storage_model(s3) -> rest_model:s3_model();
 get_storage_model(ceph) -> rest_model:ceph_model();
 get_storage_model(cephrados) -> rest_model:cephrados_model();
+get_storage_model(localceph) -> rest_model:localceph_model();
 get_storage_model(swift) -> rest_model:swift_model();
 get_storage_model(glusterfs) -> rest_model:glusterfs_model();
 get_storage_model(nulldevice) -> rest_model:nulldevice_model();

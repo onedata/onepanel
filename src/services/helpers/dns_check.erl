@@ -138,7 +138,7 @@ should_update_cache(Service) ->
 -spec invalidate_cache(worker_service()) -> ok | no_return().
 invalidate_cache(Service) ->
     service:update(Service, fun(#service{ctx = Ctx} = S) ->
-        Ctx2 = lists:foldl(fun maps:remove/2, Ctx, [?CACHE_KEY, ?TIMESTAMP_KEY]),
+        Ctx2 = maps:without([?CACHE_KEY, ?TIMESTAMP_KEY], Ctx),
         S#service{ctx = Ctx2}
     end).
 
