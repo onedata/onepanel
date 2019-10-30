@@ -22,7 +22,7 @@
 -export([add/2, list/0, get/1, exists/2, update/3, remove/2]).
 -export([get_supporting_storage/2, get_supporting_storages/2,
     get_file_popularity_configuration/2, get_auto_cleaning_configuration/2]).
--export([is_mounted_in_root/3, can_be_removed/1]).
+-export([is_mounted_in_root/2, can_be_removed/1]).
 -export([maybe_update_file_popularity/3,
     maybe_update_auto_cleaning/3, invalidate_luma_cache/1]).
 
@@ -31,7 +31,7 @@
 -type name() :: binary().
 
 %% specification for updating or modifying storage
--type param() :: binary() | boolean() | integer() | float().
+-type param() :: binary() | boolean() | integer() | float() | qos_parameters().
 -type storage_params() :: #{
     Key :: atom() => Value :: param()
 }.
@@ -39,12 +39,14 @@
 %% Storage information retrieved from op_worker
 -type storage_details() :: #{
     readonly | insecure | lumaEnabled := boolean(),
+    qosParameters := qos_parameters(),
     atom() := binary()
 }.
 
 -type helper_args() :: op_worker_rpc:helper_args().
 -type user_ctx() :: op_worker_rpc:helper_user_ctx().
 -type storages_map() :: #{Name :: name() => Params :: storage_params()}.
+-type qos_parameters() :: #{binary() => binary()}.
 
 %% Opaque terms from op_worker
 -type luma_config() :: op_worker_rpc:luma_config().
@@ -52,7 +54,7 @@
 % @formatter:on
 
 -export_type([id/0, storage_params/0, storage_details/0, storages_map/0,
-    helper_args/0, user_ctx/0]).
+    qos_parameters/0, helper_args/0, user_ctx/0]).
 
 %%%===================================================================
 %%% API functions
@@ -76,7 +78,9 @@ add(Storages, IgnoreExists) ->
         Result = case {exists(OpNode, {name, StorageName}), IgnoreExists} of
             {true, true} -> skipped;
             {true, false} -> {error, already_exists};
-            _ -> add(OpNode, StorageName, Value)
+            _ ->
+                {QosParams, StorageParams} = maps:take(qosParameters, Value),
+                add(OpNode, StorageName, StorageParams, QosParams)
         end,
 
         case Result of
@@ -104,14 +108,18 @@ update(OpNode, Id, Params) ->
     {ok, Id} = onepanel_maps:get(id, Storage),
     {ok, Type} = onepanel_maps:get(type, Storage),
     {ok, LumaEnabled} = onepanel_maps:get(lumaEnabled, Storage),
+    % remove qosParameters as they are a map and will cause errors
+    % when preprocessing arg by conversion to binary
+    PlainValues = maps:remove(qosParameters, Params),
 
     % @TODO VFS-5513 Modify everything in a single datastore operation
-    ok = maybe_update_name(OpNode, Id, Params),
-    ok = maybe_update_admin_ctx(OpNode, Id, Type, Params),
-    ok = maybe_update_args(OpNode, Id, Type, Params),
-    ok = maybe_update_luma_config(OpNode, Id, Params, LumaEnabled),
-    ok = maybe_update_insecure(OpNode, Id, Type, Params),
-    ok = maybe_update_readonly(OpNode, Id, Params),
+    ok = maybe_update_name(OpNode, Id, PlainValues),
+    ok = maybe_update_admin_ctx(OpNode, Id, Type, PlainValues),
+    ok = maybe_update_args(OpNode, Id, Type, PlainValues),
+    ok = maybe_update_luma_config(OpNode, Id, PlainValues, LumaEnabled),
+    ok = maybe_update_insecure(OpNode, Id, Type, PlainValues),
+    ok = maybe_update_readonly(OpNode, Id, PlainValues),
+    ok = maybe_update_qos_parameters(OpNode, Id, Params),
     make_update_result(OpNode, Id).
 
 
@@ -169,19 +177,17 @@ get_supporting_storage(OpNode, SpaceId) ->
 %%--------------------------------------------------------------------
 -spec get_supporting_storages(OpNode :: node(), SpaceId :: id()) -> [id()].
 get_supporting_storages(OpNode, SpaceId) ->
-    op_worker_rpc:space_storage_get_storage_ids(OpNode, SpaceId).
+    op_worker_rpc:space_logic_get_storage_ids(OpNode, SpaceId).
 
 
 %%--------------------------------------------------------------------
 %% @doc Checks whether space storage is mounted in root.
 %% @end
 %%--------------------------------------------------------------------
--spec is_mounted_in_root(OpNode :: node(), SpaceId :: id(), StorageId :: id()) ->
+-spec is_mounted_in_root(OpNode :: node(), StorageId :: id()) ->
     boolean().
-is_mounted_in_root(OpNode, SpaceId, StorageId) ->
-    MountedInRoot = op_worker_rpc:space_storage_get_mounted_in_root(
-        OpNode, SpaceId),
-    lists:member(StorageId, MountedInRoot).
+is_mounted_in_root(OpNode, StorageId) ->
+    op_worker_rpc:storage_is_mounted_in_root(OpNode, StorageId).
 
 %%-------------------------------------------------------------------
 %% @doc
@@ -288,9 +294,9 @@ can_be_removed(StorageId) ->
 %% Uses given OpNode for op_worker operations.
 %% @end
 %%--------------------------------------------------------------------
--spec add(OpNode :: node(), StorageName :: binary(), Params :: storage_params()) ->
-    ok | {error, Reason :: term()}.
-add(OpNode, StorageName, Params) ->
+-spec add(OpNode :: node(), StorageName :: binary(), Params :: storage_params(),
+    QosParameters :: qos_parameters()) -> ok | {error, Reason :: term()}.
+add(OpNode, StorageName, Params, QosParameters) ->
     StorageType = onepanel_utils:typed_get(type, Params, binary),
 
     ?info("Gathering storage configuration: \"~s\" (~s)", [StorageName, StorageType]),
@@ -305,7 +311,12 @@ add(OpNode, StorageName, Params) ->
     ?info("Adding storage: \"~s\" (~s)", [StorageName, StorageType]),
     StorageRecord = op_worker_rpc:storage_new(StorageName, [Helper],
         ReadOnly, LumaConfig),
-    op_worker_rpc:storage_create(StorageRecord).
+    case op_worker_rpc:storage_create(StorageRecord) of
+        {ok, StorageId} ->
+            update_qos_parameters(OpNode, StorageId, QosParameters),
+            ok;
+        {error, Reason} -> {error, Reason}
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -520,6 +531,20 @@ maybe_update_luma_config(OpNode, Id, Params, WasEnabled) ->
             ok = op_worker_rpc:storage_update_luma_config(OpNode, Id, Changes),
             invalidate_luma_cache(Id)
     end.
+
+
+-spec maybe_update_qos_parameters(OpNode :: node(), Id :: id(),
+    storage_params()) -> ok.
+maybe_update_qos_parameters(OpNode, Id, #{qosParameters := Parameters}) ->
+    update_qos_parameters(OpNode, Id, Parameters);
+maybe_update_qos_parameters(_OpNode, _Id, _) ->
+    ok.
+
+
+-spec update_qos_parameters(OpNode :: node(), Id :: id(),
+    qos_parameters()) -> ok.
+update_qos_parameters(OpNode, Id, Parameters) ->
+    ok = op_worker_rpc:storage_set_qos_parameters(OpNode, Id, Parameters).
 
 
 %%--------------------------------------------------------------------

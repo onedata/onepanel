@@ -151,8 +151,8 @@ get_steps(deploy, Ctx) ->
         Ss#steps{service = ?SERVICE_LE, action = deploy, ctx = LeCtx3},
         S#step{module = onepanel_deployment, function = set_marker,
             args = [?PROGRESS_CLUSTER], hosts = [SelfHost]},
-        Ss#steps{service = ?SERVICE_OPW, action = add_storages, ctx = StorageCtx},
         Ss#steps{action = register, ctx = OpCtx, condition = Register},
+        Ss#steps{service = ?SERVICE_OPW, action = add_storages, ctx = StorageCtx},
         Ss#steps{service = ?SERVICE_LE, action = update, ctx = LeCtx3},
         S#step{module = onepanel_deployment, function = set_marker,
             args = [?PROGRESS_READY], hosts = [SelfHost]},
@@ -573,7 +573,7 @@ support_space(#{storage_id := StorageId} = Ctx) ->
     SupportSize = onepanel_utils:typed_get(size, Ctx, binary),
     Token = onepanel_utils:typed_get(token, Ctx, binary),
 
-    case op_worker_rpc:support_space(Token, SupportSize) of
+    case op_worker_rpc:support_space(StorageId, Token, SupportSize) of
         {ok, SpaceId} ->
             configure_space(Node, SpaceId, Ctx);
         ?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, Minimum) ->
@@ -589,8 +589,7 @@ support_space(#{storage_id := StorageId} = Ctx) ->
 %%--------------------------------------------------------------------
 -spec revoke_space_support(Ctx :: service:ctx()) -> ok.
 revoke_space_support(#{id := SpaceId}) ->
-    ok = oz_providers:revoke_space_support(provider, SpaceId),
-    ok = op_worker_rpc:space_storage_delete(SpaceId).
+    ok = op_worker_rpc:revoke_space_support(SpaceId).
 
 
 %%--------------------------------------------------------------------
@@ -623,7 +622,7 @@ get_space_details(#{id := SpaceId}) ->
         op_worker_rpc:get_space_details(Node, SpaceId),
     StorageIds = op_worker_storage:get_supporting_storages(Node, SpaceId),
     StorageId = hd(StorageIds),
-    MountInRoot = op_worker_storage:is_mounted_in_root(Node, SpaceId, StorageId),
+    MountInRoot = op_worker_storage:is_mounted_in_root(Node, StorageId),
     ImportDetails = op_worker_storage_sync:get_storage_import_details(
         Node, SpaceId, StorageId
     ),
@@ -1122,7 +1121,10 @@ configure_space(Node, SpaceId, #{storage_id := StorageId} = Ctx) ->
     MountInRoot = onepanel_utils:typed_get(mount_in_root, Ctx, boolean, false),
     ImportArgs = maps:get(storage_import, Ctx, #{}),
     UpdateArgs = maps:get(storage_update, Ctx, #{}),
-    {ok, _} = op_worker_rpc:space_storage_add(Node, SpaceId, StorageId, MountInRoot),
+    case MountInRoot of
+        true -> op_worker_rpc:storage_set_mount_in_root(StorageId);
+        false -> ok
+    end,
     op_worker_storage_sync:maybe_modify_storage_import(Node, SpaceId, ImportArgs),
     op_worker_storage_sync:maybe_modify_storage_update(Node, SpaceId, UpdateArgs),
     [{id, SpaceId}].

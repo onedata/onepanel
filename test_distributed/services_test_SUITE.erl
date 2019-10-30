@@ -208,7 +208,8 @@ service_op_worker_add_storage_test(Config) ->
             <<"somePosix2">> => #{
                 type => <<"posix">>,
                 mountPoint => onepanel_utils:typed_get(docker_path, Posix, binary),
-                storagePathType => <<"canonical">>
+                storagePathType => <<"canonical">>,
+                qosParameters => #{}
             },
             <<"someCeph">> => #{
                 type => <<"ceph">>,
@@ -217,7 +218,8 @@ service_op_worker_add_storage_test(Config) ->
                 monitorHostname => onepanel_utils:typed_get(host_name, Ceph, binary),
                 poolName => <<"onedata">>,
                 username => onepanel_utils:typed_get(username, Ceph, binary),
-                storagePathType => <<"flat">>
+                storagePathType => <<"flat">>,
+                qosParameters => #{}
             },
             <<"someCephRados">> => #{
                 type => <<"cephrados">>,
@@ -226,7 +228,8 @@ service_op_worker_add_storage_test(Config) ->
                 monitorHostname => onepanel_utils:typed_get(host_name, CephRados, binary),
                 poolName => <<"onedata">>,
                 username => onepanel_utils:typed_get(username, CephRados, binary),
-                storagePathType => <<"flat">>
+                storagePathType => <<"flat">>,
+                qosParameters => #{}
             },
             <<"someS3">> => #{
                 type => <<"s3">>,
@@ -235,7 +238,8 @@ service_op_worker_add_storage_test(Config) ->
                 bucketName => <<"onedata">>,
                 hostname => <<"http://", (onepanel_utils:typed_get(host_name,
                     S3, binary))/binary>>,
-                storagePathType => <<"flat">>
+                storagePathType => <<"flat">>,
+                qosParameters => #{}
             },
             <<"someSwift">> => #{
                 type => <<"swift">>,
@@ -246,7 +250,8 @@ service_op_worker_add_storage_test(Config) ->
                     onepanel_utils:typed_get(keystone_port, Swift, binary), "/v2.0/tokens"]),
                 tenantName => onepanel_utils:typed_get(tenant_name, Swift, binary),
                 containerName => <<"swift">>,
-                storagePathType => <<"flat">>
+                storagePathType => <<"flat">>,
+                qosParameters => #{}
             },
             <<"someGluster">> => #{
                 type => <<"glusterfs">>,
@@ -256,7 +261,8 @@ service_op_worker_add_storage_test(Config) ->
                 transport => onepanel_utils:typed_get(transport, Glusterfs, binary),
                 mountPoint => onepanel_utils:typed_get(mountpoint, Glusterfs, binary),
                 xlatorOptions => <<"cluster.write-freq-threshold=100;">>,
-                storagePathType => <<"canonical">>
+                storagePathType => <<"canonical">>,
+                qosParameters => #{}
             },
             <<"someWebDAV">> => #{
                 type => <<"webdav">>,
@@ -267,7 +273,8 @@ service_op_worker_add_storage_test(Config) ->
                 rangeWriteSupport => onepanel_utils:typed_get(range_write_support, WebDAV, binary),
                 authorizationHeader => onepanel_utils:typed_get(authorization_header, WebDAV, binary),
                 connectionPoolSize => onepanel_utils:typed_get(connection_pool_size, WebDAV, binary),
-                storagePathType => <<"canonical">>
+                storagePathType => <<"canonical">>,
+                qosParameters => #{}
             },
             <<"someNullDevice">> => #{
                 type => <<"nulldevice">>,
@@ -279,7 +286,8 @@ service_op_worker_add_storage_test(Config) ->
                 simulatedFilesystemParameters => <<>>,
                 simulatedFilesystemGrowSpeed => 0.0,
                 storagePathType => <<"canonical">>,
-                readonly => true
+                readonly => true,
+                qosParameters => #{}
             }
         }
     }),
@@ -496,7 +504,8 @@ init_per_suite(Config) ->
                             mountPoint => onepanel_utils:typed_get(
                                 docker_path, Posix, binary
                             ),
-                            storagePathType => <<"canonical">>
+                            storagePathType => <<"canonical">>,
+                            qosParameters => #{}
                         }
                     }
                 },
