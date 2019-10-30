@@ -373,9 +373,9 @@ end_per_suite(Config) ->
     % No assserts of success since it's more important to traverse all nodes
     % and attempt all devices than to fail early.
     lists:foreach(fun(Node) ->
-        rpc:call(Node, onepanel_shell, execute, [["pkill", "ceph-osd"]]),
+        rpc:call(Node, onepanel_shell, execute, [["pkill", "-9", "ceph-osd"]]),
         lists:foreach(fun(UUID) ->
-            LoopFile = <<"/var/lib/ceph/loopdevices/osd-", UUID/binary, ".loop">>,
+            LoopFile = <<"/volumes/persistence/ceph-loopdevices/osd-", UUID/binary, ".loop">>,
             rpc:call(Node, lvm, disable_volume_group, [<<"osd-", UUID/binary>>]),
             rpc:call(Node, lvm, remove_volume_group, [<<"osd-", UUID/binary>>]),
 
@@ -448,13 +448,6 @@ get_storage(Node, Id) ->
     Results2 = assert_service_step(service:get_module(op_worker), get_storages),
     [{Node, Storage}] = ?assertMatch([{Node, #{}}], Results2),
     Storage.
-
-
-
-%% @private
--spec gen_loopdevice_path(ceph:uuid()) -> binary().
-gen_loopdevice_path(UUID) ->
-    <<"/var/lib/ceph/loopdevices/osd-", UUID/binary, ".loop">>.
 
 
 %% @private
