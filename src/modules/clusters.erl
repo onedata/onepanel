@@ -14,6 +14,7 @@
 -include("names.hrl").
 -include("http/rest.hrl").
 -include("modules/errors.hrl").
+-include_lib("ctool/include/aai/aai.hrl").
 -include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/logging.hrl").
@@ -29,7 +30,7 @@
 -export([get_current_cluster/0, get_details/2, list_user_clusters/1,
     get_members_summary/1]).
 -export([fetch_remote_provider_info/2]).
--export([create_user_invite_token/0]).
+-export([create_invite_token_for_admin/0]).
 
 -define(PRIVILEGES_CACHE_KEY(OnezoneUserId), {privileges, OnezoneUserId}).
 -define(PRIVILEGES_CACHE_TTL, onepanel_env:get(onezone_auth_cache_ttl, ?APP_NAME, 0)).
@@ -210,9 +211,9 @@ fetch_remote_provider_info({rest, RestAuth}, ProviderId) ->
 %% Obtains token which enables a Onezone user to join current cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec create_user_invite_token() -> {ok, tokens:serialized()} | #error{}.
-create_user_invite_token() ->
-    create_user_invite_token(onezone_client:root_auth()).
+-spec create_invite_token_for_admin() -> {ok, tokens:serialized()} | #error{}.
+create_invite_token_for_admin() ->
+    create_invite_token_for_admin(onezone_client:root_auth()).
 
 
 %%%===================================================================
@@ -231,8 +232,15 @@ zone_rest(Auth, URNFormat, FormatArgs) ->
     URNFormat :: string(), FormatArgs :: [term()]) ->
     {ok, #{atom() => term()}} | #error{}.
 zone_rest(Method, Auth, URNFormat, FormatArgs) ->
+    zone_rest(Method, Auth, URNFormat, FormatArgs, <<"">>).
+
+%% @private
+-spec zone_rest(Method :: http_client:method(), Auth :: oz_plugin:auth(),
+    URNFormat :: string(), FormatArgs :: [term()], Body :: http_client:request_body()) ->
+    {ok, #{atom() => term()}} | #error{}.
+zone_rest(Method, Auth, URNFormat, FormatArgs, Body) ->
     URN = str_utils:format(URNFormat, FormatArgs),
-    case oz_endpoint:request(Auth, URN, Method) of
+    case oz_endpoint:request(Auth, URN, Method, Body) of
         {ok, ?HTTP_200_OK, _, BodyJson} ->
             Parsed = onepanel_utils:convert(json_utils:decode(BodyJson), {keys, atom}),
             {ok, Parsed};
@@ -310,18 +318,27 @@ get_members_count({rpc, Auth}, UsersOrGroups, DirectOrEffective) ->
 
 
 %% @private
--spec create_user_invite_token(rest_handler:zone_auth()) ->
+-spec create_invite_token_for_admin(rest_handler:zone_auth()) ->
     {ok, tokens:serialized()} | #error{}.
-create_user_invite_token({rpc, Auth}) ->
-    case oz_worker_rpc:cluster_logic_create_user_invite_token(Auth, get_id()) of
+create_invite_token_for_admin({rpc, Auth}) ->
+    case oz_worker_rpc:cluster_logic_create_invite_token_for_admin(Auth, get_id()) of
         {ok, Token} -> tokens:serialize(Token);
         Error -> ?make_error(Error)
     end;
 
-create_user_invite_token({rest, Auth}) ->
-    case zone_rest(
-        post, Auth, "/clusters/~s/users/token", [get_id()]
-    ) of
+create_invite_token_for_admin({rest, Auth}) ->
+    TokenName = <<
+        "adminInvitationToCluster ",
+        (binary:part(time_utils:epoch_to_iso8601(time_utils:system_time_seconds()), 0, 10))/binary, " ",
+        (str_utils:rand_hex(3))/binary
+    >>,
+    Body = json_utils:encode(#{
+        <<"name">> => TokenName,
+        <<"type">> => tokens:type_to_json(?INVITE_TOKEN(?USER_JOIN_CLUSTER, get_id())),
+        <<"usageLimit">> => 1,
+        <<"privileges">> => privileges:cluster_admin()
+    }),
+    case zone_rest(post, Auth, "/provider/tokens/named", [], Body) of
         {ok, #{token := Token}} -> {ok, Token};
         Error -> Error
     end.

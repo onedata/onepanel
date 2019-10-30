@@ -70,7 +70,7 @@
 -export([get_clusters_by_user_auth/1, get_clusters_by_user_auth/2]).
 -export([cluster_logic_get_users/2, cluster_logic_get_eff_users/2]).
 -export([cluster_logic_get_groups/2, cluster_logic_get_eff_groups/2]).
--export([cluster_logic_create_user_invite_token/2]).
+-export([cluster_logic_create_invite_token_for_admin/2]).
 -export([reconcile_dns_config/0, reconcile_dns_config/1]).
 -export([dns_config_get_ns_hosts/0, dns_config_get_ns_hosts/1]).
 -export([gui_message_exists/1, gui_message_exists/2]).
@@ -274,9 +274,9 @@ cluster_logic_get_eff_groups(Auth, ClusterId) ->
     ?CALL([Auth, ClusterId]).
 
 
--spec cluster_logic_create_user_invite_token(aai:auth(), od_cluster_id()) ->
+-spec cluster_logic_create_invite_token_for_admin(aai:auth(), od_cluster_id()) ->
     {ok, tokens:token()} | {error, term()}.
-cluster_logic_create_user_invite_token(Auth, ClusterId) ->
+cluster_logic_create_invite_token_for_admin(Auth, ClusterId) ->
     ?CALL([Auth, ClusterId]).
 
 
