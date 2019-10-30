@@ -28,7 +28,7 @@
     },
     "oneprovider": {
       "os_config": "cfg1",
-      "image": "docker.onedata.org/oneprovider-dev:VFS-5698-upgrade-ceph-to-nautilus",
+      "image": "docker.onedata.org/oneprovider-dev:develop",
       "onepanel": {
         "node1": {
           "vm.args": {
