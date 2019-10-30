@@ -40,7 +40,13 @@ apply(Module, Function, Args) ->
     try
         {node(), erlang:apply(Module, Function, Args)}
     catch
-        _:Reason -> {node(), ?make_stacktrace(Reason)}
+        throw:Reason ->
+            {node(), ?make_stacktrace(Reason)};
+        Type:Reason ->
+            Stacktrace = erlang:get_stacktrace(),
+            ?error("Unexpected error executing ~tp:~tp/~B~nError: ~tp:~tp~nStacktrace: ~tp",
+            [Module, Function, erlang:length(Args), Type, Reason, Stacktrace]),
+            {node(), ?make_stacktrace(Reason, undefined, Stacktrace)}
     end.
 
 
@@ -95,7 +101,7 @@ call(Nodes, Module, Function, Args, Timeout) when is_list(Nodes) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Evaluates {@link call/3} and verifies that there is no errors.
+%% @doc Evaluates {@link call/3} and verifies that there are no errors.
 %% In case of an error throws an exception.
 %% @end
 %%--------------------------------------------------------------------
