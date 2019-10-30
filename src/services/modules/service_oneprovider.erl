@@ -108,6 +108,7 @@ get_steps(deploy, Ctx) ->
     {ok, CmCtx} = onepanel_maps:get([cluster, ?SERVICE_CM], Ctx),
     {ok, OpwCtx} = onepanel_maps:get([cluster, ?SERVICE_OPW], Ctx),
     {ok, LeCtx} = onepanel_maps:get([cluster, ?SERVICE_LE], Ctx),
+    CephCtx = onepanel_maps:get([ceph], Ctx, #{}),
     StorageCtx = onepanel_maps:get([cluster, storages], Ctx, #{}),
     OpCtx = onepanel_maps:get(name(), Ctx, #{}),
 
@@ -135,7 +136,6 @@ get_steps(deploy, Ctx) ->
     LeCtx3 = LeCtx2#{letsencrypt_plugin => ?SERVICE_OPW},
 
     SelfHost = hosts:self(),
-
     S = #step{verify_hosts = false},
     Ss = #steps{verify_hosts = false},
     [
@@ -148,6 +148,8 @@ get_steps(deploy, Ctx) ->
         S#step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
         Ss#steps{service = ?SERVICE_OPW, action = deploy, ctx = OpwCtx},
         S#step{service = ?SERVICE_OPW, function = status, ctx = OpwCtx},
+        Ss#steps{service = ?SERVICE_CEPH, action = deploy,
+            ctx = CephCtx, condition = CephCtx /= #{}},
         Ss#steps{service = ?SERVICE_LE, action = deploy, ctx = LeCtx3},
         S#step{module = onepanel_deployment, function = set_marker,
             args = [?PROGRESS_CLUSTER], hosts = [SelfHost]},
@@ -207,7 +209,8 @@ get_steps(manage_restart, Ctx) ->
             #steps{action = set_up_service_in_onezone},
             #step{function = store_absolute_auth_file_path, args = [], selection = any},
             #steps{service = ?SERVICE_LE, action = resume,
-                ctx = Ctx#{letsencrypt_plugin => ?SERVICE_OPW}}
+                ctx = Ctx#{letsencrypt_plugin => ?SERVICE_OPW}},
+            #steps{service = ?SERVICE_CEPH, action = resume}
         ];
         false ->
             ?info("Waiting for master node \"~s\" to start the Oneprovider", [MasterHost]),

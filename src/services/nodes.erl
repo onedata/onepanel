@@ -44,7 +44,7 @@ local(ServiceName) ->
 %% @doc Returns one of given service's nodes.
 %% If Opts contain 'hosts' key, nodes are selected from those hosts without
 %%   ensuring they belong to given service.
-%% If Opts contain 'node' key and specified node is of given service,
+%% If Opts contain 'node' key and specified node matches requested service,
 %%   this node is returned. This allows reuse of an already resolved
 %%   node by passing the "Ctx" argument in step functions.
 %% If among considered hosts is the current one, this host's node is returned.

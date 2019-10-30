@@ -438,7 +438,7 @@ rename_variables() ->
 
 -spec get_policies() -> #{atom() := term()}.
 get_policies() ->
-    Node = nodes:local(name()),
+    {ok, Node} = nodes:any(name()),
 
     ProviderRegistration = onepanel_env:get_remote(Node,
         provider_registration_policy, name()),

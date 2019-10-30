@@ -178,15 +178,15 @@ common_response_headers() ->
 %%--------------------------------------------------------------------
 -spec deploy_standalone_gui_files() -> ok.
 deploy_standalone_gui_files() ->
-    TempDir = mochitemp:mkdtemp(),
-    GuiRoot = onepanel_env:get(gui_static_root),
-    {ok, ExtractedPath} = gui:extract_package(gui_package_path(), TempDir),
+    utils:run_with_tempdir(fun(TempDir) ->
+        GuiRoot = onepanel_env:get(gui_static_root),
+        {ok, ExtractedPath} = gui:extract_package(gui_package_path(), TempDir),
 
-    file_utils:recursive_del(GuiRoot),
-    ok = file_utils:move(ExtractedPath, GuiRoot),
-
-    mochitemp:rmtempdir(TempDir),
-    ?info("Deployed standalone GUI files in ~s", [GuiRoot]).
+        file_utils:recursive_del(GuiRoot),
+        ok = file_utils:move(ExtractedPath, GuiRoot),
+        ?info("Deployed standalone GUI files in ~s", [GuiRoot])
+    end),
+    ok.
 
 
 %%--------------------------------------------------------------------

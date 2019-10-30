@@ -15,7 +15,7 @@
 
 %% API
 -export([get/2, get/3, store/2, store/3, get_store/3, get_store/4, get_store/5]).
--export([get_store_multiple/2, get_store_multiple/3, to_list/1]).
+-export([get_store_multiple/2, get_store_multiple/3, to_list/1, merge/1]).
 -export([remove_undefined/1, undefined_to_null/1]).
 
 -type key() :: any().
@@ -40,7 +40,7 @@ get([], Terms) ->
 get([Key | Keys], Terms) ->
     case maps:find(Key, Terms) of
         {ok, NewTerms} -> get(Keys, NewTerms);
-        error -> ?make_error(?ERR_NOT_FOUND)
+        error -> ?make_error(?ERR_NOT_FOUND, [[Key | Keys], 'Terms'])
     end;
 
 get(Key, Terms) ->
@@ -135,7 +135,10 @@ get_store(SrcKeys, SrcTerms, DstKeys, DstTerms, Default) ->
 %%--------------------------------------------------------------------
 -spec get_store_multiple(KeyMappings, SrcTerms :: terms()) ->
     NewTerms :: terms()
-    when KeyMappings :: [{SrcKeys :: keys(), DstKeys :: keys()}].
+    when
+    KeyMappings :: [KeyMapping],
+    KeyMapping :: {SrcKeys :: keys(), DstKeys :: keys()} |
+                  {SrcKeys :: keys(), DstKeys :: keys(), Default :: term()}.
 get_store_multiple(KeyMappings, SrcTerms) ->
     get_store_multiple(KeyMappings, SrcTerms,#{}).
 
@@ -166,12 +169,12 @@ get_store_multiple(KeyMappings, SrcTerms, DstTerms) ->
 %% @doc Removes undefined values from the map.
 %% @end
 %%--------------------------------------------------------------------
--spec remove_undefined(Args :: map()) -> NewArgs :: map().
-remove_undefined(Args) ->
+-spec remove_undefined(#{K => V | undefined}) -> #{K => V}.
+remove_undefined(Map) ->
     maps:filter(fun
         (_Key, undefined) -> false;
         (_Key, _Value) -> true
-    end, Args).
+    end, Map).
 
 
 %%--------------------------------------------------------------------
@@ -201,3 +204,15 @@ to_list(Map) ->
                 [{K, V} | AccIn]
         end
     end, [], Map).
+
+
+%%-------------------------------------------------------------------
+%% @doc Merges a list of maps. Rightmost maps take precedence
+%% in case of repeated keys.
+%% @end
+%%-------------------------------------------------------------------
+-spec merge
+    ([]) -> #{};
+    ([#{Key => Value}, ...]) -> #{Key => Value}.
+merge(ListOfMaps) ->
+    lists:foldr(fun maps:merge/2, #{}, ListOfMaps).

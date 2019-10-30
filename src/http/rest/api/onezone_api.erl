@@ -131,6 +131,7 @@ routes() ->
             version = 3,
             module = rest_users,
             resource = onezone_users,
+            produces = [<<"application/json">>],
             methods = [#rmethod{
                 type = 'GET'
             }]
