@@ -49,6 +49,7 @@
 -define(CUSTOM_LOOP_PATH, <<"/volumes/persistence/ceph-loopdevices/custompath.loop">>).
 % path of loopdevice file used to test blockdevice type deployment
 -define(MOCK_BLOCKDEVICE_PATH, <<"/volumes/persistence/ceph-loopdevices/blockdevice.loop">>).
+-define(LOOPDEVICE_SIZE, 300 * 1024 * 1024).
 
 -define(POOL_PARAMS, #{
     type => <<"localceph">>,
@@ -119,7 +120,7 @@ ceph_is_deployed(Config) ->
             #{
                 type => loopdevice,
                 host => OpHost1,
-                size => 1 * 1024 * 1024 * 1024,
+                size => ?LOOPDEVICE_SIZE,
                 uuid => ?OSD_UUID1 % UUID is always sent by user or filled in rest_ceph
             }
         ]
@@ -173,7 +174,7 @@ loopdevice_osd_is_added(Config) ->
                 host => OpHost3,
                 type => loopdevice,
                 path => ?CUSTOM_LOOP_PATH,
-                size => 2 * 1024 * 1024 * 1024,
+                size => ?LOOPDEVICE_SIZE,
                 uuid => ?OSD_UUID2
             }
         ]
@@ -344,7 +345,7 @@ init_per_testcase(blockdevice_osd_is_added, Config) ->
     OpNode3 = nodes:service_to_node(?SERVICE_PANEL, OpHost3),
 
     % code based on service_ceph_osd:prepare_loopdevice/1
-    Size = 1 * 1024 * 1024 * 1024,
+    Size = ?LOOPDEVICE_SIZE,
     UUID = ?OSD_UUID3,
     Path = ?MOCK_BLOCKDEVICE_PATH,
     Loop = ?assertMatch(<<_/binary>>,
