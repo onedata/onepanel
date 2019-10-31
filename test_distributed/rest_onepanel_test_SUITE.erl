@@ -14,10 +14,13 @@
 -include("modules/errors.hrl").
 -include("onepanel_test_utils.hrl").
 -include("onepanel_test_rest.hrl").
+-include_lib("ctool/include/aai/caveats.hrl").
+-include_lib("ctool/include/errors.hrl").
+-include_lib("ctool/include/graph_sync/graph_sync.hrl").
+-include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
--include_lib("ctool/include/privileges.hrl").
--include_lib("ctool/include/http/codes.hrl").
 
 %% export for ct
 -export([all/0, init_per_suite/1, init_per_testcase/2,
@@ -26,6 +29,7 @@
 %% tests
 -export([
     method_should_return_unauthorized_error/1,
+    token_with_unknown_caveats_should_return_unauthorized_error/1,
     noauth_method_should_return_forbidden_error/1,
     method_should_return_forbidden_error/1,
     method_should_return_not_found_error/1,
@@ -60,6 +64,7 @@
 all() ->
     ?ALL([
         method_should_return_unauthorized_error,
+        token_with_unknown_caveats_should_return_unauthorized_error,
         noauth_method_should_return_forbidden_error,
         method_should_return_forbidden_error,
         method_should_return_not_found_error,
@@ -96,6 +101,37 @@ method_should_return_unauthorized_error(Config) ->
         {<<"/progress">>, get},
         {<<"/progress">>, patch}
     ]).
+
+
+token_with_unknown_caveats_should_return_unauthorized_error(Config) ->
+    BadCaveats = [
+        #cv_api{whitelist = [{all, all, #gri{type = '*', aspect = '*'}}]},
+        #cv_data_access{type = read},
+        #cv_data_objectid{whitelist = [<<"someId">>]},
+        #cv_data_path{whitelist = [<<"somePath">>]},
+        #cv_data_space{whitelist = [<<"someSpace">>]}
+    ],
+    % sample good caveats
+    GoodCaveats = [
+        #cv_time{valid_until = time_utils:system_time_seconds()},
+        #cv_ip{whitelist = [{{1,2,3,4}, 32}]}
+    ],
+    lists:foreach(fun(Caveat) ->
+        Caveats = GoodCaveats ++ [Caveat],
+        Token = onepanel_test_rest:construct_token(Caveats),
+        #{<<"id">> := Id, <<"description">> := Desc} =
+            errors:to_json(?ERROR_TOKEN_CAVEAT_UNVERIFIED(Caveat)),
+        Expected = #{
+            <<"error">> => <<"Operation error">>,
+            <<"description">> => str_utils:format_bin("~ts: ~ts", [Id, Desc])
+        },
+        {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _},
+            onepanel_test_rest:auth_request(
+                % sample endpoint - all have common authorization code
+                Config, <<"/cookie">>, get, {token, Token}
+            )),
+        onepanel_test_rest:assert_body(JsonBody, Expected)
+    end, BadCaveats).
 
 
 noauth_method_should_return_forbidden_error(Config) ->
@@ -303,7 +339,9 @@ init_per_testcase(unauthorized_post_should_join_cluster, Config) ->
     end),
     init_per_testcase(default, Config);
 
-init_per_testcase(noauth_put_should_set_emergency_passphrase, Config) ->
+init_per_testcase(Case, Config) when
+    Case == token_with_unknown_caveats_should_return_unauthorized_error;
+    Case == noauth_put_should_set_emergency_passphrase ->
     ?call(Config, model, clear, [onepanel_kv]),
     Config;
 
