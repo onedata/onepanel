@@ -164,8 +164,8 @@ start(Ctx) ->
         open_files => service_ctx:get(cluster_manager_open_files_limit, Ctx)
     },
     service_cli:start(name(), Limits),
-    service:register_healthcheck(name()),
     service:update_status(name(), healthy),
+    service:register_healthcheck(name(), #{hosts => [hosts:self()]}),
     ok.
 
 

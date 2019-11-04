@@ -291,7 +291,7 @@ service_op_worker_add_storage_test(Config) ->
             }
         }
     }),
-    assert_service_step(service:get_module(op_worker), add_storages, [Node], ok).
+    assert_service_step(service:get_module(op_worker), add_storage, [Node], ok).
 
 
 service_op_worker_update_storage_test(Config) ->

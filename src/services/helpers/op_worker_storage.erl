@@ -61,40 +61,38 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc Adds storages specified in a map.
+%% @doc Adds specified storage.
 %% Before each addition verifies that given storage is accessible for all
 %% op_worker service nodes and aborts upon error.
 %% This verification is skipped for readonly storages.
 %% @end
 %%--------------------------------------------------------------------
--spec add(Storages :: storages_map(), IgnoreExists :: boolean()) -> ok | no_return().
-add(Storages, IgnoreExists) ->
+-spec add(Ctx :: #{name := name(), params := storage_params()},
+    IgnoreExists :: boolean()) -> ok | no_return().
+add(#{name := Name, params := Params}, IgnoreExists) ->
     {ok, OpNode} = nodes:any(?SERVICE_OPW),
-    ?info("Adding ~b storage(s)", [maps:size(Storages)]),
-    maps:fold(fun(Key, Value, _) ->
-        StorageName = onepanel_utils:convert(Key, binary),
-        StorageType = onepanel_utils:typed_get(type, Value, binary),
+    StorageName = onepanel_utils:convert(Name, binary),
+    StorageType = onepanel_utils:typed_get(type, Params, binary),
 
-        Result = case {exists(OpNode, {name, StorageName}), IgnoreExists} of
-            {true, true} -> skipped;
-            {true, false} -> {error, already_exists};
-            _ ->
-                {QosParams, StorageParams} = maps:take(qosParameters, Value),
-                add(OpNode, StorageName, StorageParams, QosParams)
-        end,
+    Result = case {exists(OpNode, {name, StorageName}), IgnoreExists} of
+        {true, true} -> skipped;
+        {true, false} -> {error, already_exists};
+        _ ->
+            {QosParams, StorageParams} = maps:take(qosParameters, Params),
+            add(OpNode, StorageName, StorageParams, QosParams)
+    end,
 
-        case Result of
-            skipped ->
-                ?info("Storage already exists, skipping: \"~s\" (~s)",
-                    [StorageName, StorageType]),
-                ok;
-            ok -> ?info("Successfully added storage: \"~s\" (~s)",
+    case Result of
+        skipped ->
+            ?info("Storage already exists, skipping: \"~ts\" (~ts)",
                 [StorageName, StorageType]),
-                ok;
-            {error, Reason} ->
-                ?throw_error({?ERR_STORAGE_ADDITION, Reason})
-        end
-    end, ok, Storages).
+            ok;
+        ok -> ?info("Successfully added storage: \"~ts\" (~ts)",
+            [StorageName, StorageType]),
+            ok;
+        {error, Reason} ->
+            ?throw_error({?ERR_STORAGE_ADDITION, Reason})
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -299,7 +297,7 @@ can_be_removed(StorageId) ->
 add(OpNode, StorageName, Params, QosParameters) ->
     StorageType = onepanel_utils:typed_get(type, Params, binary),
 
-    ?info("Gathering storage configuration: \"~s\" (~s)", [StorageName, StorageType]),
+    ?info("Gathering storage configuration: \"~ts\" (~ts)", [StorageName, StorageType]),
     ReadOnly = onepanel_utils:typed_get(readonly, Params, boolean, false),
 
     UserCtx = make_user_ctx(OpNode, StorageType, Params),
@@ -308,7 +306,7 @@ add(OpNode, StorageName, Params, QosParameters) ->
     LumaConfig = make_luma_config(OpNode, Params),
     maybe_verify_storage(Helper, ReadOnly),
 
-    ?info("Adding storage: \"~s\" (~s)", [StorageName, StorageType]),
+    ?info("Adding storage: \"~ts\" (~ts)", [StorageName, StorageType]),
     StorageRecord = op_worker_rpc:storage_new(StorageName, [Helper],
         ReadOnly, LumaConfig),
     case op_worker_rpc:storage_create(StorageRecord) of

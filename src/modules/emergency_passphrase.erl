@@ -71,7 +71,7 @@ change(OldPassphrase, NewPassphrase) ->
     case not is_set() orelse verify(OldPassphrase) of
         true -> set(NewPassphrase);
         false ->
-            ?info("Attempt to change emergency passphrase failed due to" ++
+            ?info("Attempt to change emergency passphrase failed due to " ++
             "incorrect previous passphrase given"),
             ?make_error(?ERR_INVALID_PASSPHRASE)
     end.

@@ -172,9 +172,16 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider} = Sta
         {[cluster, databases, bucketQuota], couchbase_bucket_quota}
     ], Args, #{hosts => DbHosts}),
 
+    {CtxWithCeph, CephHosts} = case Args of
+        #{ceph := CephArgs} ->
+            {CephCtx, CephHosts1} = rest_ceph:read_ceph_args(CephArgs),
+            {#{ceph => CephCtx}, CephHosts1};
+        _ -> {#{}, []}
+    end,
+
     Auth = cowboy_req:header(?HDR_AUTHORIZATION, Req),
     OpaCtx = maps:get(onepanel, Args, #{}),
-    OpaHosts = lists:usort(DbHosts ++ CmHosts ++ OpwHosts),
+    OpaHosts = lists:usort(DbHosts ++ CmHosts ++ OpwHosts ++ CephHosts),
     OpaCtx2 = OpaCtx#{
         hosts => OpaHosts,
         auth => Auth,
@@ -184,7 +191,6 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider} = Sta
         {[onepanel, interactiveDeployment], interactive_deployment, true},
         {[onepanel, guiDebugMode], gui_debug_mode}
     ], Args, OpaCtx2),
-
     ClusterIPs = rest_utils:get_cluster_ips(Args),
 
     % In batch mode IPs do not need user approval
@@ -216,10 +222,12 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider} = Sta
         {[oneprovider, geoLongitude], oneprovider_geo_longitude}
     ], Args, #{hosts => OpwHosts, cluster_ips => ClusterIPs}),
 
+    CommonCtx = CtxWithCeph#{
+        cluster => ClusterCtx, ?SERVICE_OP => OpwCtx
+    },
+
     {true, rest_replier:handle_service_action_async(Req, service:apply_async(
-        ?SERVICE_OP, deploy, #{
-            cluster => ClusterCtx, ?SERVICE_OP => OpwCtx
-        }
+        ?SERVICE_OP, deploy, CommonCtx
     ), Version)};
 
 accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone} = State) ->

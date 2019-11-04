@@ -19,6 +19,7 @@
 %% API
 -export([get_steps/3, format_steps/2, notify/2, partition_results/1]).
 -export([results_contain_error/1, throw_on_error/1]).
+-export([for_each_ctx/2]).
 -export([absolute_path/2]).
 
 %%%===================================================================
@@ -69,7 +70,7 @@ format_steps([#step{hosts = Hosts, module = Module, function = Function,
 %% @doc Notifies about the service action progress.
 %% @end
 %%--------------------------------------------------------------------
--spec notify(Msg :: {Stage :: service:stage(), Details},
+-spec notify(Msg :: {Stage :: service:event(), Details},
     Notify :: service:notify()) -> ok when
     Details :: {Module, Function} | {Module, Function, Result},
     Module :: module(),
@@ -143,6 +144,28 @@ throw_on_error(Results) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc Takes a list of Ctxs, each intended for one host, and a list of steps.
+%% Duplicates the list of steps to be executed for each Ctx in sequence.
+%% Host-specific ctx (from the Ctxs list) overrides
+%% ctx values embedded in the Steps.
+%% @end
+%%--------------------------------------------------------------------
+-spec for_each_ctx([HostCtx], Steps :: [service:step()]) -> [service:step()]
+    when HostCtx :: #{host := service:host(), _ => _}.
+for_each_ctx(Ctxs, Steps) ->
+    lists:foldl(fun(#{host := Host} = HostCtx, StepsAcc) ->
+        StepsAcc ++ lists:map(fun
+            (#step{ctx = StepCtx} = S) ->
+                StepCtxMap = utils:ensure_defined(StepCtx, undefined, #{}),
+                S#step{ctx = maps:merge(StepCtxMap, HostCtx#{hosts => [Host]})};
+            (#steps{ctx = StepsCtx} = S) ->
+                StepsCtxMap = utils:ensure_defined(StepsCtx, undefined, #{}),
+                S#steps{ctx = maps:merge(StepsCtxMap, HostCtx#{hosts => [Host]})}
+        end, Steps)
+    end, [], Ctxs).
+
+
+%%--------------------------------------------------------------------
 %% @doc If given Path is relative, converts it to absolute path
 %% in relation to the cwd used by nodes of given service.
 %% Requires the service nodes to be online.
@@ -161,6 +184,7 @@ absolute_path(Service, Path) ->
                 AbsPath -> AbsPath
             end
     end.
+
 
 %%%===================================================================
 %%% Internal functions
@@ -198,47 +222,51 @@ get_steps(#steps{service = Service, action = Action, ctx = Ctx, verify_hosts = V
 get_step(#step{service = Service, module = undefined} = Step) ->
     get_step(Step#step{module = service:get_module(Service)});
 
-get_step(#step{ctx = Ctx, args = undefined} = Step) ->
-    get_step(Step#step{args = [Ctx]});
-
 get_step(#step{hosts = undefined, ctx = #{hosts := Hosts}} = Step) ->
     get_step(Step#step{hosts = Hosts});
 
 get_step(#step{hosts = undefined, service = Service} = Step) ->
-    Hosts = hosts:all(Service),
-    get_step(Step#step{hosts = Hosts});
+    case hosts:all(Service) of
+        [] ->
+            % do not silently skip steps because of empty list in service model,
+            % unless it is explicitly given in step ctx or hosts field.
+            ?throw_error(?ERR_NO_SERVICE_HOSTS(Service));
+        Hosts ->
+            get_step(Step#step{hosts = Hosts})
+    end;
 
 get_step(#step{hosts = []}) ->
     [];
 
 get_step(#step{hosts = Hosts, verify_hosts = true} = Step) ->
-    ClusterHosts = service_onepanel:get_hosts(),
-    lists:foreach(fun(Host) ->
-        case lists:member(Host, ClusterHosts) of
-            true -> ok;
-            false -> ?throw_error({?ERR_HOST_NOT_FOUND, Host})
-        end
-    end, Hosts),
+    ok = onepanel_utils:ensure_known_hosts(Hosts),
     get_step(Step#step{verify_hosts = false});
 
 get_step(#step{hosts = Hosts, ctx = Ctx, selection = any} = Step) ->
     Host = utils:random_element(Hosts),
     get_step(Step#step{hosts = [Host], selection = all,
-        ctx = Ctx#{rest => lists:delete(Host, Hosts)}});
+        ctx = Ctx#{rest => lists:delete(Host, Hosts), all => Hosts}});
 
 get_step(#step{hosts = Hosts, ctx = Ctx, selection = first} = Step) ->
     get_step(Step#step{hosts = [hd(Hosts)],
-        ctx = Ctx#{rest => tl(Hosts)}, selection = all});
+        ctx = Ctx#{rest => tl(Hosts), all => Hosts}, selection = all});
 
-get_step(#step{hosts = Hosts, ctx = StepCtx, selection = rest} = Step) ->
-    get_step(Step#step{hosts = tl(Hosts), ctx = StepCtx#{first => hd(Hosts)},
-        selection = all});
+get_step(#step{hosts = Hosts, ctx = Ctx, selection = rest} = Step) ->
+    get_step(Step#step{hosts = tl(Hosts),
+        ctx = Ctx#{first => hd(Hosts), all => Hosts}, selection = all});
 
-get_step(#step{condition = Condition, ctx = Ctx} = Step) ->
-    case Condition(Ctx) of
-        true -> Step;
-        false -> []
-    end.
+get_step(#step{ctx = Ctx, args = undefined} = Step) ->
+    get_step(Step#step{args = [Ctx]});
+
+get_step(#step{condition = Condition, ctx = Ctx} = Step) when
+    is_function(Condition, 1) ->
+    get_step(Step#step{condition = Condition(Ctx)});
+
+get_step(#step{condition = true} = Step) ->
+    Step;
+
+get_step(#step{condition = false}) ->
+    [].
 
 
 %%--------------------------------------------------------------------
@@ -246,32 +274,44 @@ get_step(#step{condition = Condition, ctx = Ctx} = Step) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_nested_steps(Steps :: #steps{}) -> Steps :: [#step{}].
-get_nested_steps(#steps{ctx = Ctx, condition = Condition} = Steps) ->
-    case Condition(Ctx) of
-        true -> get_steps(Steps);
-        false -> []
-    end.
+get_nested_steps(#steps{ctx = Ctx, condition = Condition} = Steps) when
+    is_function(Condition, 1) ->
+    get_nested_steps(Steps#steps{condition = Condition(Ctx)});
+
+get_nested_steps(#steps{condition = true} = Steps) ->
+    get_steps(Steps);
+
+get_nested_steps(#steps{condition = false}) ->
+    [].
 
 
 %%--------------------------------------------------------------------
 %% @private @doc Logs the service action progress.
 %% @end
 %%--------------------------------------------------------------------
--spec log(Msg :: {Stage :: service:stage(), Details}) -> ok when
-    Details :: {Module, Function} | {Module, Function, Result},
-    Module :: module(),
+%% @formatter:off
+-spec log(Msg :: {Event :: service:event(), Details}) -> ok when
+    Details  :: {Service, Action}  | {Service, Action, ok | #error{}}
+              | {Service, Action, StepsCount :: integer()}
+              | {Module, Function} | {Module, Function, Result},
+    Service  :: service:name(),
+    Module   :: module(),
+    Action   :: service:action(),
     Function :: atom(),
-    Result :: term().
-log({action_begin, {Module, Function}}) ->
-    ?debug("Executing action ~p:~p", [Module, Function]);
-log({action_end, {Module, Function, ok}}) ->
-    ?debug("Action ~p:~p completed successfully", [Module, Function]);
-log({action_end, {Module, Function, #error{reason = Reason, stacktrace = []}}}) ->
-    ?error("Action ~p:~p failed due to: ~tp", [Module, Function, Reason]);
-log({action_end, {Module, Function, #error{reason = Reason,
+    Result   :: term().
+%% @formatter:on
+log({action_steps_count, {Service, Action, StepsCount}}) ->
+    ?debug("Executing action ~p:~p requires ~b steps", [Service, Action, StepsCount]);
+log({action_begin, {Service, Action}}) ->
+    ?debug("Executing action ~p:~p", [Service, Action]);
+log({action_end, {Service, Action, ok}}) ->
+    ?debug("Action ~p:~p completed successfully", [Service, Action]);
+log({action_end, {Service, Action, #error{reason = Reason, stacktrace = []}}}) ->
+    ?error("Action ~p:~p failed due to: ~tp", [Service, Action, Reason]);
+log({action_end, {Service, Action, #error{reason = Reason,
     stacktrace = Stacktrace}}}) ->
     ?error("Action ~p:~p failed due to: ~tp~nStacktrace: ~tp",
-        [Module, Function, Reason, Stacktrace]);
+        [Service, Action, Reason, Stacktrace]);
 log({step_begin, {Module, Function}}) ->
     ?debug("Executing step ~p:~p", [Module, Function]);
 log({step_end, {Module, Function, {_, []}}}) ->
