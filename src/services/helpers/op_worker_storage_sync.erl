@@ -28,7 +28,7 @@
 %% @doc This function modifies storage_import configuration on given Node.
 %% @end
 %%-------------------------------------------------------------------
--spec maybe_configure_storage_import(Node :: node(), SpaceId :: id(), Args :: args()) -> {ok, id()}.
+-spec maybe_configure_storage_import(Node :: node(), SpaceId :: id(), Args :: args()) -> ok.
 maybe_configure_storage_import(_Node, _SpaceId, Args0) when map_size(Args0) == 0 ->
     ok;
 maybe_configure_storage_import(Node, SpaceId, Args) ->
@@ -47,8 +47,7 @@ maybe_configure_storage_import(Node, SpaceId, Args) ->
 %% @doc This function modifies storage_update configuration on given Node.
 %% @end
 %%-------------------------------------------------------------------
--spec maybe_configure_storage_update(Node :: node(), SpaceId :: id(), Args :: args())
-        -> ok.
+-spec maybe_configure_storage_update(Node :: node(), SpaceId :: id(), Args :: args()) -> ok.
 maybe_configure_storage_update(_Node, _SpaceId, Args) when map_size(Args) == 0 ->
     ok;
 maybe_configure_storage_update(Node, SpaceId, Args) ->
