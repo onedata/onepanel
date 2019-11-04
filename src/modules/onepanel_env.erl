@@ -19,6 +19,7 @@
 
 %% API
 -export([get/1, get/2, get/3, find/1, find/2, set/2, set/3, set/4]).
+-export([typed_get/2, typed_get/3]).
 -export([read/2, read_effective/2, read_effective/3]).
 -export([write/2, write/3, write/4]).
 -export([get_remote/3, find_remote/3, set_remote/4]).
@@ -99,6 +100,16 @@ get_remote(Node, Keys, AppName) ->
         {ok, Value} -> Value;
         #error{reason = ?ERR_NOT_FOUND} -> ?throw_error(?ERR_NOT_FOUND, [Node, Keys, AppName])
     end.
+
+
+-spec typed_get(Keys :: keys(), Type :: onepanel_utils:type()) -> value().
+typed_get(Keys, Type) ->
+    onepanel_utils:convert(?MODULE:get(Keys), Type).
+
+
+-spec typed_get(Keys :: keys(), AppName :: atom(), Type :: onepanel_utils:type()) -> value().
+typed_get(Keys, AppName, Type) ->
+    onepanel_utils:convert(?MODULE:get(Keys, AppName), Type).
 
 
 %%--------------------------------------------------------------------

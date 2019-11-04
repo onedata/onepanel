@@ -11,6 +11,8 @@
 -module(onepanel_sup).
 -author("Krzysztof Trzepla").
 
+-include("names.hrl").
+-include("modules/errors.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 -behaviour(supervisor).
@@ -21,6 +23,10 @@
 %% Supervisor callbacks
 -export([init/1]).
 
+-define(UPGRADE_TIMEOUT,
+    onepanel_env:get(upgrade_tables_timeout, ?APP_NAME, timer:seconds(60))).
+-define(PROCESS_NAME, ?MODULE).
+
 %%%===================================================================
 %%% API functions
 %%%===================================================================
@@ -30,10 +36,9 @@
 %% Starts the supervisor
 %% @end
 %%--------------------------------------------------------------------
--spec start_link() ->
-    {ok, Pid :: pid()} | ignore | {error, Reason :: term()}.
+-spec start_link() -> {ok, pid()} | ignore | {error, Reason :: term()}.
 start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+    supervisor:start_link({local, ?PROCESS_NAME}, ?MODULE, []).
 
 %%%===================================================================
 %%% Supervisor callbacks
@@ -50,24 +55,57 @@ start_link() ->
     {ok, {SupFlags :: supervisor:sup_flags(),
         [ChildSpec :: supervisor:child_spec()]}} | ignore.
 init([]) ->
-    % Initialization done here rather than in onepanel_app:start
-    % because too long wait before spawning supervisor causes timeout
-    % and exit of application
+    try
+        % Initialization done here rather than in onepanel_app:start
+        % because too long wait before spawning supervisor causes timeout
+        % and exit of application
 
-    service_onepanel:init_cluster(#{}),
+        ?info("Waiting for distributed database on nodes ~p", [onepanel_db:get_nodes()]),
+        % in a new deployment this will complete immediately since the node list is empty
+        ok = onepanel_db:global_wait_for_tables(),
 
-    ?info("Waiting for distributed database to be ready"),
-    onepanel_db:wait_for_tables(),
+        Self = node(),
+        [First | _] = Nodes = lists:usort([Self | onepanel_db:get_nodes()]),
 
-    https_listener:start(),
-    onepanel_utils:wait_until(https_listener, healthcheck, [], {equal, ok},
-        onepanel_env:get(rest_listener_status_check_attempts)),
+        case Self == First of
+            true ->
+                ?info("Creating database tables"),
+                service_onepanel:init_cluster(#{}),
+                ok = onepanel_db:global_wait_for_tables(),
 
-    {ok, {#{strategy => one_for_all, intensity => 3, period => 1}, [
-        service_executor_spec(),
-        onepanel_cron_spec(),
-        onepanel_session_gc_spec()
-    ]}}.
+                ?info("Performing database upgrades"),
+                onepanel_db:upgrade_tables(),
+                ok = onepanel_db:global_wait_for_tables(),
+
+                ?info("Upgrades finished"),
+                lists:foreach(fun(Node) ->
+                    {?PROCESS_NAME, Node} ! db_upgrade_finished
+                end, Nodes -- [Self]);
+            false ->
+                ?info("Waiting for node ~p to perform database upgrades (~p seconds)",
+                    [First, ?UPGRADE_TIMEOUT / 1000]),
+                receive
+                    db_upgrade_finished -> ok
+                after ?UPGRADE_TIMEOUT ->
+                    ?error("Wait for database upgrade timed out"),
+                    error(?make_error(?ERR_TIMEOUT))
+                end
+        end,
+        ?info("Database ready"),
+
+        https_listener:start(),
+        onepanel_utils:wait_until(https_listener, healthcheck, [], {equal, ok},
+            onepanel_env:get(rest_listener_status_check_attempts)),
+
+        {ok, {#{strategy => one_for_all, intensity => 3, period => 1}, [
+            service_executor_spec(),
+            onepanel_cron_spec(),
+            onepanel_session_gc_spec()
+        ]}}
+    catch throw:Error ->
+        % throws are treated as return value in gen_server/supervisor init
+        error(?make_stacktrace(Error))
+    end.
 
 %%%===================================================================
 %%% Internal functions

@@ -19,9 +19,9 @@
     service :: service:name() | undefined,
     module :: module(),
     function :: atom(),
-    args :: term(),
+    args :: [term()] | undefined,
     ctx :: service:ctx() | undefined,
-    condition = fun(_) -> true end :: service:condition(),
+    condition = true :: service:condition(),
     verify_hosts :: boolean() | undefined,
     attempts = 1 :: pos_integer(),
     retry_delay = onepanel_env:get(service_step_retry_delay) :: non_neg_integer()
@@ -31,7 +31,7 @@
     service :: service:name() | undefined,
     action :: service:action(),
     ctx :: service:ctx() | undefined,
-    condition = fun(_) -> true end :: service:condition(),
+    condition = true :: service:condition(),
     verify_hosts :: boolean() | undefined
 }).
 

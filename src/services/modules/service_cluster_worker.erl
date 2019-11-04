@@ -187,8 +187,8 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
 -spec start(service:ctx()) -> ok | no_return().
 start(#{name := Name} = Ctx) ->
     service_cli:start(Name, Ctx),
-    service:register_healthcheck(Name),
     service:update_status(Name, unhealthy),
+    service:register_healthcheck(Name, #{hosts => [hosts:self()]}),
     ok.
 
 

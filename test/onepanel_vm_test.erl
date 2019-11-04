@@ -152,7 +152,7 @@ pop_msg(Timeout) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Removes all message from porcess message queue.
+%% @doc Removes all message from process message queue.
 %% @end
 %%--------------------------------------------------------------------
 -spec remove_msgs() -> ok.

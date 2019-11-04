@@ -31,6 +31,42 @@
     [{Path :: binary(), Module :: module(), State :: rest_handler:state()}].
 routes() ->
     [
+        %% Add managers to ceph cluster
+        {<<"/api/v3/onepanel/provider/ceph/managers">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_ceph,
+            resource = service_ceph_managers,
+            methods = [#rmethod{
+                type = 'POST',
+                %% Object with list of Ceph manager configurations.
+                args_spec = rest_model:ceph_managers_model()
+            }]
+        }},
+
+        %% Add monitors to Ceph cluster
+        {<<"/api/v3/onepanel/provider/ceph/monitors">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_ceph,
+            resource = service_ceph_monitors,
+            methods = [#rmethod{
+                type = 'POST',
+                %% List of Ceph monitor specifications.
+                args_spec = rest_model:ceph_monitors_model()
+            }]
+        }},
+
+        %% Add OSDs to Ceph cluster
+        {<<"/api/v3/onepanel/provider/ceph/osds">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_ceph,
+            resource = service_ceph_osds,
+            methods = [#rmethod{
+                type = 'POST',
+                %% List of OSD specifications.
+                args_spec = rest_model:ceph_osds_model()
+            }]
+        }},
+
         %% Register provider
         {<<"/api/v3/onepanel/provider">>, rest_handler, #rstate{
             version = 3,
@@ -94,6 +130,18 @@ routes() ->
             }]
         }},
 
+        %% Configure Ceph cluster
+        {<<"/api/v3/onepanel/provider/ceph">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_ceph,
+            resource = service_ceph,
+            methods = [#rmethod{
+                type = 'POST',
+                %% The Ceph cluster specification.
+                args_spec = rest_model:ceph_cluster_model()
+            }]
+        }},
+
         %% Configure file-popularity mechanism in the space.
         {<<"/api/v3/onepanel/provider/spaces/:id/file-popularity/configuration">>, rest_handler, #rstate{
             version = 3,
@@ -128,6 +176,164 @@ routes() ->
                 type = 'PATCH',
                 %% New configuration of space auto-cleaning mechanism.
                 args_spec = rest_model:space_auto_cleaning_configuration_model()
+            }]
+        }},
+
+        %% Get block devices for Ceph OSD
+        {<<"/api/v3/onepanel/provider/ceph/preflight/block_devices">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_ceph,
+            resource = block_devices,
+            produces = [<<"application/json">>],
+            methods = [#rmethod{
+                type = 'GET',
+                params_spec = #{
+                    %% Host for which block devices should be returned.
+                    host => string
+                }
+            }]
+        }},
+
+        %% Get Ceph manager
+        {<<"/api/v3/onepanel/provider/ceph/managers/:id">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_ceph,
+            resource = service_ceph_manager,
+            produces = [<<"application/json">>],
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% List Ceph managers
+        {<<"/api/v3/onepanel/provider/ceph/managers">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_ceph,
+            resource = service_ceph_managers,
+            produces = [<<"application/json">>],
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% Get Ceph monitor
+        {<<"/api/v3/onepanel/provider/ceph/monitors/:id">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_ceph,
+            resource = service_ceph_monitor,
+            produces = [<<"application/json">>],
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% List Ceph monitors
+        {<<"/api/v3/onepanel/provider/ceph/monitors">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_ceph,
+            resource = service_ceph_monitors,
+            produces = [<<"application/json">>],
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% Get Ceph OSD
+        {<<"/api/v3/onepanel/provider/ceph/osds/:id">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_ceph,
+            resource = service_ceph_osd,
+            produces = [<<"application/json">>],
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% Get storage space usage details for specific OSD.
+        {<<"/api/v3/onepanel/provider/ceph/osds/:id/usage">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_ceph,
+            resource = ceph_osd_usage,
+            produces = [<<"application/json">>],
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% Get Ceph OSDs list.
+        {<<"/api/v3/onepanel/provider/ceph/osds">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_ceph,
+            resource = service_ceph_osds,
+            produces = [<<"application/json">>],
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% Get global Ceph params
+        {<<"/api/v3/onepanel/provider/ceph">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_ceph,
+            resource = service_ceph,
+            produces = [<<"application/json">>],
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% Get details of a Ceph pool.
+        {<<"/api/v3/onepanel/provider/ceph/pools/:name">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_ceph,
+            resource = ceph_pool,
+            produces = [<<"application/json">>],
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% Get storage space usage details for specific pool.
+        {<<"/api/v3/onepanel/provider/ceph/pools/:name/usage">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_ceph,
+            resource = ceph_pool_usage,
+            produces = [<<"application/json">>],
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% List Ceph pools
+        {<<"/api/v3/onepanel/provider/ceph/pools">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_ceph,
+            resource = ceph_pools,
+            produces = [<<"application/json">>],
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% Get Ceph cluster health
+        {<<"/api/v3/onepanel/provider/ceph/status">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_ceph,
+            resource = ceph_status,
+            produces = [<<"application/json">>],
+            methods = [#rmethod{
+                type = 'GET'
+            }]
+        }},
+
+        %% Get Ceph storage space usage.
+        {<<"/api/v3/onepanel/provider/ceph/usage">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_ceph,
+            resource = ceph_usage,
+            produces = [<<"application/json">>],
+            methods = [#rmethod{
+                type = 'GET'
             }]
         }},
 
@@ -300,10 +506,10 @@ routes() ->
                 type = 'GET',
                 params_spec = #{
                     %% Predefined time period for which the statistics
-                    %% should be fetched
+                    %% should be fetched.
                     period => {string, optional},
                     %% Specify which statistic metrics should be returned -
-                    %% strings delimited with comma
+                    %% strings delimited with comma.
                     metrics => {string, optional}
                 }
             }]
@@ -404,6 +610,17 @@ routes() ->
             resource = luma,
             methods = [#rmethod{
                 type = 'PATCH'
+            }]
+        }},
+
+        %% Modify pool params
+        {<<"/api/v3/onepanel/provider/ceph/pools/:name">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_ceph,
+            resource = ceph_pool,
+            methods = [#rmethod{
+                type = 'PATCH',
+                args_spec = rest_model:ceph_pool_model()
             }]
         }},
 

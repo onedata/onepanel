@@ -19,15 +19,18 @@
 %% API
 -export([get_basic_auth_header/2]).
 -export([wait_until/5, wait_until/6]).
--export([gen_uuid/0, get_nif_library_file/1, join/1, join/2, trim/2]).
+-export([gen_uuid/0, join/1, join/2, trim/2]).
 -export([convert/2, get_type/1, typed_get/3, typed_get/4, typed_find/3]).
+-export([ensure_known_hosts/1, distribute_file/2]).
 
+% @formatter:off
 -type primitive_type() :: atom | binary | float | integer | list | boolean.
 -type collection_modifier() :: seq | keys | values.
 -type type() :: primitive_type() | {collection_modifier(), type()}.
--type expectation() :: {equal, Expected :: term()} | {validator,
-    Validator :: fun((term()) -> term() | no_return())}.
+-type expectation(Result) :: {equal, Result} |
+    {validator, fun((term()) -> Result | no_return())}.
 -type uuid() :: binary().
+% @formatter:on
 
 -export_type([type/0, uuid/0]).
 
@@ -57,7 +60,8 @@ get_basic_auth_header(Username, Password) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec wait_until(Module :: module(), Function :: atom(), Args :: list(),
-    Expectation :: expectation(), Attempts :: integer()) -> term() | no_return().
+    Expectation :: expectation(Result), Attempts :: integer()) ->
+    Result | no_return().
 wait_until(Module, Function, Args, Expectation, Attempts) ->
     wait_until(Module, Function, Args, Expectation, Attempts, timer:seconds(1)).
 
@@ -68,8 +72,8 @@ wait_until(Module, Function, Args, Expectation, Attempts) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec wait_until(Module :: module(), Function :: atom(), Args :: list(),
-    Expectation :: expectation(), Attempts :: integer(), Delay :: integer()) ->
-    term() | no_return().
+    Expectation :: expectation(Result), Attempts :: integer(), Delay :: integer()) ->
+    Result | no_return().
 wait_until(_Module, _Function, _Args, _Expectation, Attempts, _Delay) when
     Attempts =< 0 ->
     throw(attempts_limit_exceeded);
@@ -102,23 +106,6 @@ wait_until(Module, Function, Args, Expected, Attempts, Delay) ->
 -spec gen_uuid() -> uuid().
 gen_uuid() ->
     http_utils:base64url_encode(crypto:strong_rand_bytes(?UUID_LEN)).
-
-
-%%--------------------------------------------------------------------
-%% @doc Returns the NIF native library path. The library is first searched
-%% in application priv dir, and then under ../priv and ./priv .
-%%--------------------------------------------------------------------
--spec get_nif_library_file(LibName :: string()) ->
-    LibFile :: file:filename_all().
-get_nif_library_file(LibName) ->
-    case code:priv_dir(?APP_NAME) of
-        {error, bad_name} ->
-            case filelib:is_dir(filename:join(["..", "priv"])) of
-                true -> filename:join(["..", "priv", LibName]);
-                _ -> filename:join(["priv", LibName])
-            end;
-        Dir -> filename:join(Dir, LibName)
-    end.
 
 
 %%--------------------------------------------------------------------
@@ -198,10 +185,12 @@ convert(Value, float) when is_integer(Value) ->
 
 convert(Value, Type) ->
     case get_type(Value) of
+        unknown -> ?throw_error(?ERR_UNKNOWN_TYPE(Value));
         Type -> Value;
         ValueType ->
-            TypeConverter = erlang:list_to_atom(erlang:atom_to_list(ValueType)
-            ++ "_to_" ++ erlang:atom_to_list(Type)),
+            TypeConverter = list_to_atom(
+                atom_to_list(ValueType) ++ "_to_" ++ atom_to_list(Type)
+            ),
             erlang:TypeConverter(Value)
     end.
 
@@ -210,17 +199,15 @@ convert(Value, Type) ->
 %% @doc Returns type of a given value.
 %% @end
 %%--------------------------------------------------------------------
--spec get_type(Value :: term()) -> Type :: type().
+-spec get_type(Value :: term()) -> Type :: type() | unknown.
 get_type(Value) ->
     SupportedTypes = ["atom", "binary", "float", "integer", "list", "boolean"],
-    lists:foldl(fun
-        (Type, unknown = ValueType) ->
-            TypeMatcher = erlang:list_to_atom("is_" ++ Type),
-            case erlang:TypeMatcher(Value) of
-                true -> erlang:list_to_atom(Type);
-                false -> ValueType
-            end;
-        (_Type, ValueType) -> ValueType
+    onepanel_lists:foldl_while(fun(Type, unknown) ->
+        TypeMatcher = erlang:list_to_atom("is_" ++ Type),
+        case erlang:TypeMatcher(Value) of
+            true -> {halt, erlang:list_to_atom(Type)};
+            false -> {cont, unknown}
+        end
     end, unknown, SupportedTypes).
 
 
@@ -273,3 +260,32 @@ typed_find(Keys, Terms, Type) when is_map(Terms) ->
         {ok, Value} -> {ok, convert(Value, Type)};
         #error{} = Error -> Error
     end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Ensures all given hosts are part of the cluster.
+%% Throws otherwise.
+%% @end
+%%--------------------------------------------------------------------
+-spec ensure_known_hosts(Hosts :: [service:host()]) -> ok | no_return().
+ensure_known_hosts(Hosts) ->
+    KnownHosts = service_onepanel:get_hosts(),
+    lists:foreach(fun(Host) ->
+        case lists:member(Host, KnownHosts) of
+            true -> ok;
+            false -> ?throw_error(?ERR_HOST_NOT_FOUND(Host))
+        end
+    end, Hosts).
+
+
+%%--------------------------------------------------------------------
+%% @doc Copies file from current node to all given hosts.
+%% @end
+%%--------------------------------------------------------------------
+-spec distribute_file(HostsOrNodes :: [service:host() | node()], Path :: file:name_all()) ->
+    ok | no_return().
+distribute_file(Hosts, Path) ->
+    Nodes = nodes:service_to_nodes(?SERVICE_PANEL, Hosts),
+    {ok, Content} = file:read_file(Path),
+    onepanel_rpc:call_all(Nodes, file, write_file, [Path, Content]),
+    ok.
