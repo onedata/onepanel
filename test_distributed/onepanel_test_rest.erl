@@ -15,6 +15,7 @@
 -include("onepanel_test_utils.hrl").
 -include("onepanel_test_rest.hrl").
 -include("modules/errors.hrl").
+-include_lib("ctool/include/aai/aai.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("ctool/include/logging.hrl").
@@ -27,7 +28,7 @@
 -export([assert_body_fields/2, assert_body_values/2, assert_body/2]).
 -export([set_default_passphrase/1, mock_token_authentication/1,
     oz_token_auth/1, oz_token_auth/2, oz_token_auth/3,
-    obtain_local_token/2]).
+    obtain_local_token/2, construct_token/1]).
 
 -type config() :: string() | proplists:proplist().
 -type endpoint() :: http_client:url() | {noprefix, http_client:url()}.
@@ -319,3 +320,13 @@ obtain_local_token(HostOrConfig, Auth) ->
 
     #{<<"token">> := Token} = json_utils:decode(TokenJson),
     {token, Token}.
+
+
+-spec construct_token([caveats:caveat()]) -> tokens:serialized().
+construct_token(Caveats) ->
+    {ok, Token} = tokens:serialize(tokens:construct(#token{
+        subject = ?SUB(user, <<"userId">>),
+        onezone_domain = <<"someonezone.test">>,
+        persistent = false,
+        nonce = str_utils:rand_hex(16)}, <<"someSecret">>, Caveats)),
+    Token.

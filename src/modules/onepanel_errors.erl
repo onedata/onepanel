@@ -110,9 +110,12 @@ translate(_Type, #error{module = model, function = get, reason = ?ERR_NOT_FOUND,
     {<<"Authentication Error">>, <<"Session not found or expired.">>};
 
 translate(_Type, #error{reason = ?ERR_BAD_NODE}) ->
-    {<<"Invalid Request">>, <<"Node connection error.">>};
+    {<<"Operation error">>, <<"Node connection error.">>};
 
-translate(_Type, #error{reason = {?ERR_HOST_NOT_FOUND, Host}}) ->
+translate(_Type, #error{reason = ?ERR_TIMEOUT}) ->
+    {<<"Operation error">>, <<"Operation timeout.">>};
+
+translate(_Type, #error{reason = ?ERR_HOST_NOT_FOUND(Host)}) ->
     {<<"Invalid Request">>, <<"Host not found: '",
         (onepanel_utils:convert(Host, binary))/binary, "'.">>};
 
@@ -128,6 +131,12 @@ translate(_Type, #error{reason = ?ERR_INCOMPATIBLE_NODE(Host, ClusterType)}) ->
     {<<"Operation error">>, str_utils:format_bin(
         "Cannot add node ~ts to the cluster. It is a ~ts node, expected ~ts.",
         [Host, ClusterType, onepanel_env:get_cluster_type()])};
+
+translate(_Type, #error{module = Module, function = Function, arity = Arity,
+    reason = ?ERR_PARSING_FAILURE(OffendingLine)}) ->
+    ?error("Function: ~p:~p/~p~n could not parse line ~p",
+        [Module, Function, Arity, OffendingLine]),
+    {<<"Operation error">>, <<"Parsing error">>};
 
 translate(_Type, #error{reason = {?ERR_HOST_NOT_FOUND_FOR_ALIAS, Alias}}) ->
     {<<"Invalid Request">>, <<"Host not found for node: '",
@@ -169,6 +178,7 @@ translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_READ, Node, Reason}}) -
 translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_REMOVE, Node, Reason}}) ->
     translate_storage_test_file_error("remove", <<"removal">>, Node, Reason);
 
+% Caused by mnesia tables not being initialized
 translate(_Type, #error{reason = {no_exists, onepanel_user}}) ->
     {<<"Invalid Request">>, <<"Onepanel cluster not configured.">>};
 
@@ -193,6 +203,11 @@ translate(_Type, #error{module = model, function = get, reason = ?ERR_NOT_FOUND,
 
 translate(_Type, #error{reason = ?ERR_SUBDOMAIN_DELEGATION_DISABLED}) ->
     {<<"Operation Error">>, <<"Subdomain delegation is not enabled.">>};
+
+translate(_Type, #error{reason = ?ERR_CEPH_TOO_FEW_OSDS(Copies, OSDs)}) ->
+    {<<"Operation Error">>, str_utils:format_bin(
+        "Requested pool copies number (~B) is greater than OSDs number (~B)",
+        [Copies, OSDs])};
 
 translate(_Type, #error{reason = ?ERR_DNS_CHECK_ERROR(Message)}) ->
     {<<"Operation Error">>, str_utils:format_bin("Error performing DNS check: ~ts", [Message])};
@@ -261,7 +276,19 @@ translate(_Type, #error{reason = {?ERR_CONFIG_FILE_POPULARITY, {illegal_type, Pa
 translate(_Type, #error{reason = {?ERR_FILE_POPULARITY, Error}}) ->
     {<<"Operation Error">>, str_utils:format_bin("file-popularity error: ~tp.", [Error])};
 
-translate(_Type, #error{reason = ?ERR_CMD_FAILURE(_, _)}) ->
+translate(_Type, #error{reason = ?ERR_FILE_ALLOCATION_FAILURE(ActualSize, TargetSize)}) ->
+    {<<"Operation Error">>, str_utils:format_bin("File allocation error. Allocated ~s out of ~s",
+        [str_utils:format_byte_size(ActualSize), str_utils:format_byte_size(TargetSize)])};
+
+translate(_Type, #error{reason = ?ERR_CMD_FAILURE(_, _, _)}) ->
+    {<<"Internal Error">>, <<"Server encountered an unexpected error.">>};
+
+translate(_Type, #error{reason = {error, {Code, Error, Description}}})
+    when is_integer(Code), is_binary(Error), is_binary(Description) ->
+    {<<"Operation Error">>, Error};
+
+translate(_Type, #error{reason = ?ERR_UNKNOWN_TYPE(Value)}) ->
+    ?error("Could not determine type of ~p", [Value]),
     {<<"Internal Error">>, <<"Server encountered an unexpected error.">>};
 
 translate(_Type, #error{} = Error) ->
@@ -352,7 +379,12 @@ get_expectation(ValueSpec, Acc) when is_map(ValueSpec) ->
         BinKey = onepanel_utils:convert(Key, binary),
         <<"'", (BinKey)/binary, "': ", (get_expectation(Value, <<>>))/binary>>
     end, maps:to_list(ValueSpec)),
-    <<Acc/binary, "{", (onepanel_utils:join(Tokens, <<", ">>))/binary, "}">>.
+    <<Acc/binary, "{", (onepanel_utils:join(Tokens, <<", ">>))/binary, "}">>;
+
+get_expectation(ValueSpec, Acc) when is_binary(ValueSpec) ->
+    % not a onepanel_parser value spec, used when manually throwing ERR_INVALID_VALUE
+    <<Acc/binary, ValueSpec/binary>>.
+
 
 
 %%--------------------------------------------------------------------

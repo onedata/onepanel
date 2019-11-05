@@ -5,7 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc This module is responsible for parsing parsing data according to
+%%% @doc This module is responsible for parsing data according to
 %%% provided specification.
 %%% @end
 %%%--------------------------------------------------------------------
@@ -139,10 +139,9 @@ parse_value(Value, integer = ValueSpec, Keys) ->
 
 parse_value(Value, float = ValueSpec, Keys) ->
     convert(Value, ValueSpec, Keys, fun(V) ->
-        try
-            erlang:binary_to_float(V)
-        catch
-            _:_ ->
+        case string:to_float(V) of
+            {Float, <<>>} -> Float;
+            {error, no_float} ->
                 erlang:binary_to_integer(V) * 1.0
         end
     end);

@@ -112,30 +112,6 @@ all() ->
 
 
 %%%===================================================================
-%%% Test macros
-%%%===================================================================
-
--define(eachHost(Config, Fun), lists:foreach(Fun, ?config(all_hosts, Config))).
-
--define(eachEndpoint(Config, Fun, EndpointsWithMethods),
-    lists:foreach(fun({_Host, _Endpoint, _Method}) ->
-        try
-            Fun(_Host, _Endpoint, _Method)
-        catch
-            error:{assertMatch_failed, _} = _Reason ->
-                ct:pal("Failed on: ~s ~s (host ~s)", [_Method, _Endpoint, _Host]),
-                erlang:error(_Reason)
-        end
-    end, [
-        {_Host, _Endpoint, _Method} ||
-        {_Endpoint, _Method} <- EndpointsWithMethods,
-        _Host <- ?config(all_hosts, Config)
-    ])
-).
-
-
-
-%%%===================================================================
 %%% Test functions
 %%%===================================================================
 

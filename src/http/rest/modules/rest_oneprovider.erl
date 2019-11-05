@@ -110,7 +110,8 @@ is_conflict(Req, _Method, _Args, _State) ->
 is_available(Req, 'GET', #rstate{resource = cluster_ips}) -> {true, Req};
 is_available(Req, 'GET', #rstate{resource = provider}) -> {true, Req};
 is_available(Req, _Method, #rstate{resource = transfers_mock}) -> {true, Req};
-is_available(Req, _Method, _State) -> {service:all_healthy(), Req}.
+is_available(Req, _Method, _State) ->
+    {service:exists(?SERVICE_OPW) andalso service:all_healthy(), Req}.
 
 
 %%--------------------------------------------------------------------

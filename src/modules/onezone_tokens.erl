@@ -16,10 +16,11 @@
 -include("authentication.hrl").
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
--include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/aai/aai.hrl").
--include_lib("ctool/include/oz/oz_users.hrl").
+-include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/oz/oz_users.hrl").
 
 %% API
 -export([authenticate_user/2, authenticate_user/3]).
@@ -27,6 +28,11 @@
 
 -define(USER_DETAILS_CACHE_KEY(Token), {user_details, Token}).
 -define(USER_DETAILS_CACHE_TTL, onepanel_env:get(onezone_auth_cache_ttl, ?APP_NAME, 0)).
+
+% Caveats which are not properly enforced by Onepanel and should be rejected
+-define(FORBIDDEN_CAVEATS, [
+    cv_api, cv_data_space, cv_data_access, cv_data_path, cv_data_objectid
+]).
 
 %%%===================================================================
 %%% API functions
@@ -43,10 +49,15 @@
 -spec authenticate_user(Token :: binary(), PeerIp :: ip_utils:ip()) ->
     #client{} | #error{}.
 authenticate_user(Token, PeerIp) ->
-    ClusterType = onepanel_env:get_cluster_type(),
-    case authenticate_user(ClusterType, Token, PeerIp) of
-        #client{} = Client -> Client;
-        #error{} = Error -> Error
+    case ensure_caveats_allowed(Token) of
+        ok ->
+            ClusterType = onepanel_env:get_cluster_type(),
+            case authenticate_user(ClusterType, Token, PeerIp) of
+                #client{} = Client -> Client;
+                #error{} = Error2 -> Error2
+            end;
+        #error{} = Error ->
+            Error
     end.
 
 
@@ -63,6 +74,28 @@ read_domain(RegistrationToken) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Checks that the token is confined only by caveats supported
+%% by Onepanel. Otherwise returns error to reject the token,
+%% as proceeding with token could grant higher privileges than
+%% the token's issuer intended.
+%% @end
+%%--------------------------------------------------------------------
+-spec ensure_caveats_allowed(tokens:serialized()) -> ok | #error{}.
+ensure_caveats_allowed(Token) ->
+    case tokens:deserialize(Token) of
+        {ok, Deserialized} ->
+            Caveats = tokens:get_caveats(Deserialized),
+            case caveats:filter(?FORBIDDEN_CAVEATS, Caveats) of
+                [Caveat | _] -> ?make_error(?ERROR_TOKEN_CAVEAT_UNVERIFIED(Caveat));
+                [] -> ok
+            end;
+        Error ->
+            ?make_error(Error)
+    end.
+
 
 %%--------------------------------------------------------------------
 %% @private

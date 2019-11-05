@@ -53,7 +53,7 @@
     pid :: pid() | undefined
 }).
 
--type job_name() :: atom().
+-type job_name() :: term().
 -type job() :: #job{}.
 
 -type state() :: #{job_name() => job()}.

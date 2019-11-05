@@ -14,7 +14,7 @@
 -include("names.hrl").
 -include_lib("ctool/include/logging.hrl").
 
--export([determine_ip/0, ip4_to_binary/1, parse_ip4/1, is_ip/1]).
+-export([determine_ip/0, ip4_to_binary/1, parse_ip4/1, is_ip/1, hostname_ips/0]).
 
 %%%===================================================================
 %%% API
@@ -75,6 +75,23 @@ is_ip(Value) ->
     catch _:_ -> false
     end.
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns list of IPv4 addresses returned by shell command 'hostname i'.
+%% @end
+%%--------------------------------------------------------------------
+-spec hostname_ips() -> [inet:ip4_address()].
+hostname_ips() ->
+    {_, Result, _} = onepanel_shell:execute(["hostname", "-i"]),
+    Words = string:split(Result, " ", all),
+    % filter out IPv6 addresses
+    lists:filtermap(fun(Word) ->
+        case parse_ip4(Word) of
+            {ok, IP} -> {true, IP};
+            _ -> false
+        end
+    end, Words).
 
 %%%===================================================================
 %%% Internal functions
@@ -156,22 +173,3 @@ determine_ip_by_shell() ->
         [Head | _] -> {ok, Head};
         [] -> {error, no_address}
     end.
-
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Returns list of IPv4 addresses returned by shell command 'hostname i'.
-%% @end
-%%--------------------------------------------------------------------
--spec hostname_ips() -> [inet:ip4_address()].
-hostname_ips() ->
-    {_, Result} = onepanel_shell:execute(["hostname", "-i"]),
-    Words = string:split(Result, " ", all),
-    % filter out IPv6 addresses
-    lists:filtermap(fun(Word) ->
-        case parse_ip4(Word) of
-            {ok, IP} -> {true, IP};
-            _ -> false
-        end
-    end, Words).

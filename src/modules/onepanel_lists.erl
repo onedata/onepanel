@@ -16,7 +16,7 @@
 %% API
 -export([hd/1, get/2, get/3, store/2, store/3, get_store/3, get_store/4]).
 -export([rename/3, remove/2]).
--export([union/2, intersect/2, subtract/2, foldl_while/3, undefined_to_null/1]).
+-export([union/1, union/2, intersect/2, subtract/2, foldl_while/3, undefined_to_null/1]).
 -export([ensure_length/2]).
 
 -type key() :: any().
@@ -155,14 +155,23 @@ get_store(SrcKeys, SrcTerms, DstKeys, DstTerms) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc @equiv union([List1, List2])
+%% @end
+%%--------------------------------------------------------------------
+-spec union(List1 :: [T], List2 :: [T]) -> [T].
+union(List1, List2) ->
+    union([List1, List2]).
+
+%%--------------------------------------------------------------------
 %% @doc Returns a union of lists without duplicates.
 %% @end
 %%--------------------------------------------------------------------
--spec union(List1 :: list(), List2 :: list()) -> List :: list().
-union(List1, List2) ->
-    ordsets:to_list(ordsets:union(
-        ordsets:from_list(List1), ordsets:from_list(List2)
-    )).
+-spec union(ListOfLists :: [list(T)]) -> list(T).
+union(ListOfLists) ->
+    Union = ordsets:union(
+        lists:map(fun ordsets:from_list/1, ListOfLists)
+    ),
+    ordsets:to_list(Union).
 
 
 %%--------------------------------------------------------------------
@@ -170,7 +179,7 @@ union(List1, List2) ->
 %% List2.
 %% @end
 %%--------------------------------------------------------------------
--spec intersect(List1 :: list(), List2 :: list()) -> List :: list().
+-spec intersect(List1 :: [T], List2 :: [T]) -> List :: [T].
 intersect(List1, List2) ->
     ordsets:to_list(ordsets:intersection(
         ordsets:from_list(List1), ordsets:from_list(List2)
@@ -182,7 +191,7 @@ intersect(List1, List2) ->
 %% List2.
 %% @end
 %%--------------------------------------------------------------------
--spec subtract(List1 :: list(), List2 :: list()) -> List :: list().
+-spec subtract(List1 :: [T], List2 :: [T]) -> List :: [T].
 subtract(List1, List2) ->
     ordsets:to_list(ordsets:subtract(
         ordsets:from_list(List1), ordsets:from_list(List2)
@@ -197,8 +206,7 @@ subtract(List1, List2) ->
 %% (9, []) -> []
 %% @end
 %%--------------------------------------------------------------------
--spec ensure_length(TargetLength :: non_neg_integer(), List :: [X]) -> [X]
-    when X :: term().
+-spec ensure_length(TargetLength :: non_neg_integer(), List :: [X]) -> [X].
 ensure_length(_, []) -> [];
 ensure_length(TargetLength, List) ->
     Repeats = utils:ceil(TargetLength / length(List)),
@@ -229,7 +237,7 @@ foldl_while(F, Accu, List) ->
     List :: [T], T :: term().
 do_foldl(_F, {halt, Accu}, _) -> Accu;
 do_foldl(_F, {cont, Accu}, []) -> Accu;
-do_foldl(F, {cont, Accu}, [Hd|Tail]) -> do_foldl(F, F(Hd, Accu), Tail).
+do_foldl(F, {cont, Accu}, [Hd | Tail]) -> do_foldl(F, F(Hd, Accu), Tail).
 
 
 %%-------------------------------------------------------------------

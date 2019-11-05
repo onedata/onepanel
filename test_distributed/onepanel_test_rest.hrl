@@ -13,11 +13,10 @@
 -ifndef(ONEPANEL_TEST_REST_HRL).
 -define(ONEPANEL_TEST_REST_HRL, 1).
 
+-include_lib("ctool/include/test/test_utils.hrl").
 
 -define(OZ_USER_NAME, <<"joe">>).
-
 -define(EMERGENCY_PASSPHRASE, <<"emergencyPassphrase">>).
-
 
 % Basic auth and auth by session token
 -define(LOCAL_AUTHS(HostOrConfig, BasicOrPassphrase), [
@@ -50,5 +49,23 @@
         ?OZ_OR_ROOT_AUTHS(HostOrConfig, privileges:cluster_admin())
 ).
 
+
+-define(eachHost(Config, Fun), lists:foreach(Fun, ?config(all_hosts, Config))).
+
+-define(eachEndpoint(Config, Fun, EndpointsWithMethods),
+    lists:foreach(fun({__Host, __Endpoint, __Method}) ->
+        try
+            Fun(__Host, __Endpoint, __Method)
+        catch
+            error:__Reason ->
+                ct:pal("Failed on: ~s ~s (host ~s)", [__Method, __Endpoint, __Host]),
+                erlang:error(__Reason)
+        end
+    end, [
+        {__Host, __Endpoint, __Method} ||
+        {__Endpoint, __Method} <- EndpointsWithMethods,
+        __Host <- ?config(all_hosts, Config)
+    ])
+).
 
 -endif.
