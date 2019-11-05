@@ -103,11 +103,11 @@ get_nodes() ->
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, Ctx) ->
-    {ok, OpaCtx} = onepanel_maps:get([cluster, ?SERVICE_PANEL], Ctx),
-    {ok, CbCtx} = onepanel_maps:get([cluster, ?SERVICE_CB], Ctx),
-    {ok, CmCtx} = onepanel_maps:get([cluster, ?SERVICE_CM], Ctx),
-    {ok, OpwCtx} = onepanel_maps:get([cluster, ?SERVICE_OPW], Ctx),
-    {ok, LeCtx} = onepanel_maps:get([cluster, ?SERVICE_LE], Ctx),
+    OpaCtx = nested:get([cluster, ?SERVICE_PANEL], Ctx),
+    CbCtx = nested:get([cluster, ?SERVICE_CB], Ctx),
+    CmCtx = nested:get([cluster, ?SERVICE_CM], Ctx),
+    OpwCtx = nested:get([cluster, ?SERVICE_OPW], Ctx),
+    LeCtx = nested:get([cluster, ?SERVICE_LE], Ctx),
     CephCtx = onepanel_maps:get([ceph], Ctx, #{}),
     StorageCtx = onepanel_maps:get([cluster, storages], Ctx, #{}),
     OpCtx = onepanel_maps:get(name(), Ctx, #{}),
@@ -318,8 +318,7 @@ get_id() ->
             ?throw_error(Error);
         _ ->
             FileContents = read_auth_file(),
-            {ok, Id} = onepanel_maps:get(provider_id, FileContents),
-            Id
+            maps:get(provider_id, FileContents)
     end.
 
 
@@ -330,10 +329,7 @@ get_id() ->
 -spec get_oz_domain() -> string().
 get_oz_domain() ->
     % onezone_domain variable is set on all nodes
-    case onepanel_env:find([onezone_domain]) of
-        {ok, Domain} -> onepanel_utils:convert(Domain, list);
-        Error -> ?throw_error(Error)
-    end.
+    onepanel_env:typed_get(onezone_domain, list).
 
 
 %%--------------------------------------------------------------------
@@ -520,12 +516,12 @@ modify_details(Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     ok = modify_domain_details(Node, Ctx),
 
-    Params = onepanel_maps:get_store_multiple([
+    Params = nested:copy_found([
         {oneprovider_name, <<"name">>},
         {oneprovider_geo_latitude, <<"latitude">>},
         {oneprovider_geo_longitude, <<"longitude">>},
         {oneprovider_admin_email, <<"adminEmail">>}
-    ], Ctx),
+    ], Ctx, #{}),
 
     case maps:size(Params) of
         0 -> ok;
@@ -573,8 +569,8 @@ format_cluster_ips(Ctx) ->
 support_space(#{storage_id := StorageId} = Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     assert_storage_exists(Node, StorageId),
-    SupportSize = onepanel_utils:typed_get(size, Ctx, binary),
-    Token = onepanel_utils:typed_get(token, Ctx, binary),
+    SupportSize = nested:get_converted(size, Ctx, binary),
+    Token = nested:get_converted(token, Ctx, binary),
 
     case op_worker_rpc:support_space(Token, SupportSize) of
         {ok, SpaceId} ->
@@ -686,8 +682,8 @@ maybe_update_support_size(_OpNode, _SpaceId, _Ctx) -> ok.
 -spec get_sync_stats(Ctx :: service:ctx()) -> list().
 get_sync_stats(#{space_id := SpaceId} = Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
-    Period = onepanel_utils:typed_get(period, Ctx, binary, undefined),
-    MetricsJoined = onepanel_utils:typed_get(metrics, Ctx, binary, <<"">>),
+    Period = nested:get_converted(period, Ctx, binary, undefined),
+    MetricsJoined = nested:get_converted(metrics, Ctx, binary, <<"">>),
     Metrics = binary:split(MetricsJoined, <<",">>, [global, trim]),
     op_worker_storage_sync:get_stats(Node, SpaceId, Period, Metrics).
 
@@ -716,9 +712,9 @@ update_provider_ips() ->
 %%-------------------------------------------------------------------
 -spec get_auto_cleaning_reports(Ctx :: service:ctx()) -> map().
 get_auto_cleaning_reports(Ctx = #{space_id := SpaceId}) ->
-    Offset = onepanel_utils:typed_get(offset, Ctx, integer, 0),
-    Limit = onepanel_utils:typed_get(limit, Ctx, integer, all),
-    Index = onepanel_utils:typed_get(index, Ctx, binary, undefined),
+    Offset = nested:get_converted(offset, Ctx, integer, 0),
+    Limit = nested:get_converted(limit, Ctx, integer, all),
+    Index = nested:get_converted(index, Ctx, binary, undefined),
     {ok, Ids} = op_worker_rpc:autocleaning_list_reports(
         SpaceId, Index, Offset, Limit),
     #{ids => Ids}.
@@ -734,7 +730,7 @@ get_auto_cleaning_report(#{report_id := ReportId}) ->
     case op_worker_rpc:autocleaning_get_run_report(ReportId) of
         {ok, Report} ->
             onepanel_maps:undefined_to_null(
-                onepanel_maps:get_store_multiple([
+                nested:copy_found([
                     {id, id},
                     {index, index},
                     {started_at, startedAt},
@@ -742,7 +738,7 @@ get_auto_cleaning_report(#{report_id := ReportId}) ->
                     {released_bytes, releasedBytes},
                     {bytes_to_release, bytesToRelease},
                     {files_number, filesNumber}
-                ], Report));
+                ], Report, #{}));
         {error, Reason} ->
             ?throw_error({?ERR_AUTOCLEANING, Reason})
     end.
@@ -756,10 +752,10 @@ get_auto_cleaning_report(#{report_id := ReportId}) ->
 -spec get_auto_cleaning_status(Ctx :: service:ctx()) -> #{atom() => term()}.
 get_auto_cleaning_status(#{space_id := SpaceId}) ->
     Status = op_worker_rpc:autocleaning_status(SpaceId),
-    onepanel_maps:get_store_multiple([
+    nested:copy_found([
         {in_progress, inProgress},
         {space_occupancy, spaceOccupancy}
-    ], Status).
+    ], Status, #{}).
 
 
 %%-------------------------------------------------------------------
@@ -972,10 +968,10 @@ read_auth_file() ->
     Path = onepanel_env:get(op_worker_root_token_path),
     case rpc:call(Node, file, read_file, [Path]) of
         {ok, Json} ->
-            onepanel_maps:get_store_multiple([
+            nested:copy([
                 {<<"provider_id">>, provider_id},
                 {<<"root_token">>, root_token}
-            ], json_utils:decode(Json));
+            ], json_utils:decode(Json), #{});
         {error, Error} -> ?throw_error(Error)
     end.
 
@@ -1016,10 +1012,10 @@ get_details_by_graph_sync() ->
 
     #{latitude := Latitude, longitude := Longitude} = Details,
 
-    Response = onepanel_maps:get_store_multiple([
+    Response = nested:copy_found([
         {id, id}, {name, name}, {admin_email, adminEmail},
         {subdomain_delegation, subdomainDelegation}, {domain, domain}
-    ], Details),
+    ], Details, #{}),
 
     Response2 = Response#{
         geoLatitude => onepanel_utils:convert(Latitude, float),
@@ -1045,7 +1041,7 @@ get_details_by_rest() ->
     OzDomain = onepanel_utils:convert(get_oz_domain(), binary),
 
     % NOTE: the REST endpoint returns protected data, which do not contain adminEmail
-    Result1 = onepanel_maps:get_store_multiple([
+    Result1 = nested:copy_found([
         {<<"providerId">>, id},
         {<<"name">>, name},
         {<<"domain">>, domain},
@@ -1066,8 +1062,7 @@ get_details_by_rest() ->
             DomainConfigKeys
     end,
 
-    onepanel_maps:get_store_multiple(DomainConfigKeys2,
-        DomainConfig, Result1).
+    nested:copy_found(DomainConfigKeys2, DomainConfig, Result1).
 
 
 %%--------------------------------------------------------------------
@@ -1077,7 +1072,7 @@ get_details_by_rest() ->
 %%--------------------------------------------------------------------
 -spec modify_domain_details(OpNode :: node(), service:ctx()) -> ok.
 modify_domain_details(OpNode, #{oneprovider_subdomain_delegation := true} = Ctx) ->
-    Subdomain = string:lowercase(onepanel_utils:typed_get(
+    Subdomain = string:lowercase(nested:get_converted(
         oneprovider_subdomain, Ctx, binary)),
 
     case op_worker_rpc:is_subdomain_delegated(OpNode) of
@@ -1092,7 +1087,7 @@ modify_domain_details(OpNode, #{oneprovider_subdomain_delegation := true} = Ctx)
     end;
 
 modify_domain_details(OpNode, #{oneprovider_subdomain_delegation := false} = Ctx) ->
-    Domain = string:lowercase(onepanel_utils:typed_get(
+    Domain = string:lowercase(nested:get_converted(
         oneprovider_domain, Ctx, binary)),
     ok = op_worker_rpc:set_domain(OpNode, Domain),
     dns_check:invalidate_cache(op_worker);
@@ -1122,7 +1117,7 @@ assert_storage_exists(Node, StorageId) ->
 %%--------------------------------------------------------------------
 -spec configure_space(OpNode :: node(), SpaceId :: binary(), Ctx :: service:ctx()) -> list().
 configure_space(Node, SpaceId, #{storage_id := StorageId} = Ctx) ->
-    MountInRoot = onepanel_utils:typed_get(mount_in_root, Ctx, boolean, false),
+    MountInRoot = nested:get_converted(mount_in_root, Ctx, boolean, false),
     ImportArgs = maps:get(storage_import, Ctx, #{}),
     UpdateArgs = maps:get(storage_update, Ctx, #{}),
     {ok, _} = op_worker_rpc:space_storage_add(Node, SpaceId, StorageId, MountInRoot),

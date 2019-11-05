@@ -20,7 +20,7 @@
 -export([get_basic_auth_header/2]).
 -export([wait_until/5, wait_until/6]).
 -export([gen_uuid/0, join/1, join/2, trim/2]).
--export([convert/2, get_type/1, typed_get/3, typed_get/4, typed_find/3]).
+-export([convert/2, get_type/1]).
 -export([ensure_known_hosts/1, distribute_file/2]).
 
 % @formatter:off
@@ -209,57 +209,6 @@ get_type(Value) ->
             false -> {cont, unknown}
         end
     end, unknown, SupportedTypes).
-
-
-%%--------------------------------------------------------------------
-%% @doc Returns a value from the nested property list or map and converts it
-%% to match the provided type.
-%% Throws on error.
-%% @end
-%%--------------------------------------------------------------------
--spec typed_get(Keys :: onepanel_lists:keys() | onepanel_maps:keys(),
-    Terms :: onepanel_lists:terms() | onepanel_maps:terms(), Type :: type()) ->
-    Value :: term() | no_return().
-typed_get(Keys, Terms, Type) ->
-    case typed_find(Keys, Terms, Type) of
-        {ok, Value} -> Value;
-        #error{} = Error -> throw(Error)
-    end.
-
-%%--------------------------------------------------------------------
-%% @doc Returns a value from the nested property list or map and converts it
-%% to match the provided type. If key is missing returns default value.
-%% @end
-%%--------------------------------------------------------------------
--spec typed_get(Keys :: onepanel_lists:keys() | onepanel_maps:keys(),
-    Terms :: onepanel_lists:terms() | onepanel_maps:terms(), Type :: type(),
-    Default :: term()) -> Value :: term().
-typed_get(Keys, Terms, Type, Default) ->
-    case typed_find(Keys, Terms, Type) of
-        {ok, Value} -> Value;
-        _ -> Default
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @doc Returns a value from the nested property list or map and converts it
-%% to match the provided type.
-%% @end
-%%--------------------------------------------------------------------
--spec typed_find(Keys :: onepanel_lists:keys() | onepanel_maps:keys(),
-    Terms :: onepanel_lists:terms() | onepanel_maps:terms(), Type :: type()) ->
-    {ok, Value :: term()} | #error{}.
-typed_find(Keys, Terms, Type) when is_list(Terms) ->
-    case onepanel_lists:get(Keys, Terms) of
-        {ok, Value} -> {ok, convert(Value, Type)};
-        #error{} = Error -> Error
-    end;
-
-typed_find(Keys, Terms, Type) when is_map(Terms) ->
-    case onepanel_maps:get(Keys, Terms) of
-        {ok, Value} -> {ok, convert(Value, Type)};
-        #error{} = Error -> Error
-    end.
 
 
 %%--------------------------------------------------------------------

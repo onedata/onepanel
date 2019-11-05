@@ -202,7 +202,7 @@ update_status(Service, Status) ->
 -spec update_status(name(), host(), status()) -> status().
 update_status(Service, Host, Status) ->
     update_ctx(Service, fun(Ctx) ->
-        onepanel_maps:store([status, Host], Status, Ctx)
+        nested:put([status, Host], Status, Ctx)
     end),
     Status.
 
@@ -504,7 +504,7 @@ update_ctx(Service, Diff) when is_function(Diff, 1) ->
     Value :: term()) -> ok | no_return().
 store_in_ctx(Service, Keys, Value) ->
     update_ctx(Service, fun(Ctx) ->
-        onepanel_maps:store(Keys, Value, Ctx)
+        nested:put(Keys, Value, Ctx)
     end).
 
 %%%===================================================================

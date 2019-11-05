@@ -54,7 +54,7 @@ onepanel_env_test_() ->
             fun read_should_return_value/1,
             fun read_should_report_missing_key/1,
             fun read_should_pass_errors/1,
-            fun write_should_append_value/1,
+            fun write_should_prepend_value/1,
             fun write_should_replace_value/1,
             fun migrate_should_rename_key/1,
             fun migrate_should_ignore_missing/1,
@@ -83,13 +83,13 @@ read_should_return_value(_) ->
 
 
 read_should_report_missing_key(_) ->
-    ?assertMatch(#error{reason = ?ERR_NOT_FOUND},
+    ?assertMatch(error,
         onepanel_env:read([a3], "p1")),
-    ?assertMatch(#error{reason = ?ERR_NOT_FOUND},
+    ?assertMatch(error,
         onepanel_env:read([a1, k4], "p1")),
-    ?assertMatch(#error{reason = ?ERR_NOT_FOUND},
+    ?assertMatch(error,
         onepanel_env:read([a2, k5, k8], "p1")),
-    ?_assertMatch(#error{reason = ?ERR_NOT_FOUND},
+    ?_assertMatch(error,
         onepanel_env:read([a2, k5, k7, k9], "p1")).
 
 
@@ -97,16 +97,16 @@ read_should_pass_errors(_) ->
     ?_assertThrow(#error{reason = enoent}, onepanel_env:read([a1], "p2")).
 
 
-write_should_append_value(_) ->
+write_should_prepend_value(_) ->
     ?assertEqual(ok, onepanel_env:write([a3], [{k9, v9}], "p1")),
     ?assertEqual({ok, ?FILE_CONTENT([
+        {a3, [{k9, v9}]},
         {a1, ?APP_CONFIG_1},
-        {a2, ?APP_CONFIG_2},
-        {a3, [{k9, v9}]}
+        {a2, ?APP_CONFIG_2}
     ])}, pop_msg()),
     ?assertEqual(ok, onepanel_env:write([a1, k9], v9, "p1")),
     ?assertEqual({ok, ?FILE_CONTENT([
-        {a1, [{k1, v1}, {k2, v2}, {k3, v3}, {k9, v9}]},
+        {a1, [{k9, v9}, {k1, v1}, {k2, v2}, {k3, v3}]},
         {a2, ?APP_CONFIG_2}
     ])}, pop_msg()),
     ?assertEqual(ok, onepanel_env:write([a2, k5, k9], v9, "p1")),
@@ -115,7 +115,7 @@ write_should_append_value(_) ->
         {a1, ?APP_CONFIG_1},
         {a2, [
             {k4, v4},
-            {k5, ?VALUE_5 ++ [{k9, v9}]}
+            {k5, [{k9, v9} | ?VALUE_5]}
         ]}
     ])}, Msg).
 
@@ -174,7 +174,7 @@ write_should_pass_errors(_) ->
 migrate_should_rename_key(_) ->
     ?assertEqual(true, onepanel_env:migrate(a1, [a1, k2], [a1, k9])),
     Expected = {ok, ?FILE_CONTENT([
-        {a1, [{k1, v1}, {k3, v3}, {k9, v2}]},
+        {a1, [{k9, v2}, {k1, v1}, {k3, v3}]},
         {a2, ?APP_CONFIG_2}
     ])},
     Result = pop_msg(),

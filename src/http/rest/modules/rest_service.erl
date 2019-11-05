@@ -130,16 +130,18 @@ is_available(Req, _Method, _State) ->
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
     {Accepted :: boolean() | stop, Req :: cowboy_req:req()}.
 accept_resource(Req, 'POST', Args, #rstate{resource = service_couchbase, version = Version}) ->
-    Ctx = #{hosts => onepanel_utils:typed_get(hosts, Args, {seq, list})},
-    Ctx2 = onepanel_maps:get_store(serverQuota, Args, couchbase_server_quota, Ctx),
-    Ctx3 = onepanel_maps:get_store(bucketQuota, Args, couchbase_bucket_quota, Ctx2),
+    Hosts = nested:get_converted(hosts, Args, {seq, list}),
+    Ctx = nested:copy_found([
+        {serverQuota, couchbase_server_quota},
+        {bucketQuota, couchbase_bucket_quota}
+    ], Args, #{hosts => Hosts}),
     {true, rest_replier:handle_service_action_async(Req, service:apply_async(
-        ?SERVICE_CB, deploy, Ctx3
+        ?SERVICE_CB, deploy, Ctx
     ), Version)};
 
 accept_resource(Req, 'POST', Args, #rstate{resource = service_cluster_manager, version = Version}) ->
-    Hosts = onepanel_utils:typed_get(hosts, Args, {seq, list}),
-    MainHost = onepanel_utils:typed_get(mainHost, Args, list),
+    Hosts = nested:get_converted(hosts, Args, {seq, list}),
+    MainHost = nested:get_converted(mainHost, Args, list),
     {true, rest_replier:handle_service_action_async(Req, service:apply_async(
         ?SERVICE_CM, deploy, #{
             main_host => MainHost, hosts => Hosts
@@ -161,13 +163,14 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider} = Sta
     [MainCmHost] = rest_utils:get_hosts([cluster, managers, mainNode], Args),
     OpwHosts = rest_utils:get_hosts([cluster, workers, nodes], Args),
 
-    StorageCtx = onepanel_maps:get_store([cluster, storages], Args, storages),
+    StorageCtx = nested:copy_found([{[cluster, storages], storages}], Args, #{}),
     StorageCtx2 = StorageCtx#{hosts => OpwHosts, ignore_exists => true},
 
-    LetsencryptCtx =
-        onepanel_maps:get_store([oneprovider, letsEncryptEnabled], Args, letsencrypt_enabled),
+    LetsencryptCtx = nested:copy_found(
+        [{[oneprovider, letsEncryptEnabled], letsencrypt_enabled}],
+        Args, #{}),
 
-    DbCtx = onepanel_maps:get_store_multiple([
+    DbCtx = nested:copy_found([
         {[cluster, databases, serverQuota], couchbase_server_quota},
         {[cluster, databases, bucketQuota], couchbase_bucket_quota}
     ], Args, #{hosts => DbHosts}),
@@ -187,7 +190,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider} = Sta
         auth => Auth,
         api_version => Version
     },
-    OpaCtx3 = onepanel_maps:get_store_multiple([
+    OpaCtx3 = nested:copy_found([
         {[onepanel, interactiveDeployment], interactive_deployment, true},
         {[onepanel, guiDebugMode], gui_debug_mode}
     ], Args, OpaCtx2),
@@ -195,7 +198,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider} = Sta
 
     % In batch mode IPs do not need user approval
     % TODO VFS-4140 Use proper batch config enabling argument
-    IPsConfigured = onepanel_maps:get([oneprovider, register], Args, false),
+    IPsConfigured = nested:get([oneprovider, register], Args, false),
 
     ClusterCtx = #{
         ?SERVICE_PANEL => OpaCtx3,
@@ -210,7 +213,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider} = Sta
         storages => StorageCtx2
     },
 
-    OpwCtx = onepanel_maps:get_store_multiple([
+    OpwCtx = nested:copy_found([
         {[oneprovider, token], oneprovider_token},
         {[oneprovider, register], oneprovider_register},
         {[oneprovider, name], oneprovider_name},
@@ -240,7 +243,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone} = State) 
     AllHosts = lists:usort(DbHosts ++ CmHosts ++ OzwHosts),
     ClusterIPs = rest_utils:get_cluster_ips(Args),
 
-    DbCtx = onepanel_maps:get_store_multiple([
+    DbCtx = nested:copy_found([
         {[cluster, databases, serverQuota], couchbase_server_quota},
         {[cluster, databases, bucketQuota], couchbase_bucket_quota}
     ], Args, #{hosts => DbHosts}),
@@ -252,20 +255,20 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone} = State) 
         auth => Auth,
         api_version => Version
     },
-    OpaCtx3 = onepanel_maps:get_store_multiple([
+    OpaCtx3 = nested:copy_found([
         {[onepanel, interactiveDeployment], interactive_deployment, true},
         {[onepanel, guiDebugMode], gui_debug_mode}
     ], Args, OpaCtx2),
 
-    LeCtx = onepanel_maps:get_store_multiple([
+    LeCtx = nested:copy_found([
         {[onezone, letsEncryptEnabled], letsencrypt_enabled}
     ], Args, #{hosts => AllHosts}),
 
-    OzCtx = onepanel_maps:get_store_multiple([
+    OzCtx = nested:copy_found([
         {[onezone, name], name},
         {[onezone, domainName], domain},
         {[onezone, builtInDnsServer], [dns_check_config, built_in_dns_server]}
-    ], Args),
+    ], Args, #{}),
 
     OzwCtx = #{
         hosts => OzwHosts, db_hosts => DbHosts, cm_hosts => CmHosts,
@@ -273,7 +276,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone} = State) 
         cluster_ips => ClusterIPs
     },
 
-    OzwCtx2 = onepanel_maps:get_store_multiple([
+    OzwCtx2 = nested:copy_found([
         {[onezone, name], onezone_name},
         {[onezone, domainName], onezone_domain},
         {[onezone, users], onezone_users},
@@ -308,7 +311,7 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = dns_check_configuration})
             #{dns_servers => parse_ip4_list([dnsServers], IPs)};
         _ -> #{}
     end,
-    Ctx2 = onepanel_maps:get_store_multiple([
+    Ctx2 = nested:copy_found([
         {builtInDnsServer, built_in_dns_server},
         {dnsCheckAcknowledged, dns_check_acknowledged}
     ], Args, Ctx),
@@ -377,7 +380,7 @@ provide_resource(Req, #rstate{resource = SModule}) when
     {rest_replier:format_service_configuration(SModule), Req};
 
 provide_resource(Req, #rstate{resource = dns_check, params = Params}) ->
-    Ctx = #{force_check => onepanel_maps:get(forceCheck, Params, false)},
+    Ctx = #{force_check => nested:get(forceCheck, Params, false)},
 
     {rest_replier:format_dns_check_result(
         service_utils:throw_on_error(service:apply_sync(
@@ -427,7 +430,7 @@ delete_resource(Req, _State) ->
 -spec deploy_cluster_worker(Req :: cowboy_req:req(), Args :: rest_handler:args(),
     State :: rest_handler:state()) -> {Accepted :: boolean(), Req :: cowboy_req:req()}.
 deploy_cluster_worker(Req, Args, #rstate{resource = SModule, version = Version}) ->
-    Hosts = onepanel_utils:typed_get(hosts, Args, {seq, list}),
+    Hosts = nested:get_converted(hosts, Args, {seq, list}),
     {ok, #service{hosts = DbHosts}} = service:get(service_couchbase:name()),
     {ok, #service{hosts = CmHosts, ctx = #{main_host := MainCmHost}}} =
         service:get(?SERVICE_CM),

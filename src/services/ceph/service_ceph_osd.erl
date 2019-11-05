@@ -236,7 +236,7 @@ prepare_loopdevice(#{uuid := UUID, size := Size} = Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec format_block_device(service:ctx()) -> ok .
-format_block_device(#{type := Type, device := Device, uuid := UUID} = Ctx) ->
+format_block_device(#{type := Type, device := Device, uuid := UUID}) ->
     ceph_cli:volume_prepare_bluestore(UUID, Device),
     {ok, Id} = obtain_id_by_uuid(UUID),
 
@@ -336,12 +336,7 @@ mark_deployed(#{uuid := UUID}) ->
 
 -spec get_details(#{id := id()}) -> #{atom() := binary()}.
 get_details(#{id := Id}) ->
-    Instances = maps:get(instances, get_ctx(), #{}),
-    Details = onepanel_maps:get_store_multiple([
-        {id, id}, {path, path}, {type, type}, {host, host},
-        {device, device}, {uuid, uuid}
-    ], maps:get(Id, Instances)),
-
+    Details = maps:with([path, type, host, device, uuid], get_instance({id, Id})),
     Details#{
         host => list_to_binary(maps:get(host, Details)),
         id => Id

@@ -215,7 +215,7 @@ setup_initial_member(#{monitors := Monitors}) ->
 %%--------------------------------------------------------------------
 -spec add_mon_to_config(#{id := id()}) -> ok | #error{}.
 add_mon_to_config(#{id := Id}) ->
-    {ok, #{ip := Ip}} = onepanel_maps:get([instances, Id], service:get_ctx(name())),
+    Ip = nested:get([instances, Id, ip], service:get_ctx(name())),
     Config = ceph_conf:read(ceph:get_conf_path()),
     NewConfig1 = ceph_conf:append(global, <<"mon host">>, Ip, Config),
     NewConfig2 = ceph_conf:put(<<"mon.", Id/binary>>, <<"mon addr">>, Ip, NewConfig1),

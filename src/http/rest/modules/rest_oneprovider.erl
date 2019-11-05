@@ -122,7 +122,7 @@ is_available(Req, _Method, _State) ->
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()}.
 accept_resource(Req, 'POST', Args, #rstate{resource = provider}) ->
-    Ctx = onepanel_maps:get_store_multiple([
+    Ctx = nested:copy_found([
         {token, oneprovider_token},
         {name, oneprovider_name},
         {subdomainDelegation, oneprovider_subdomain_delegation},
@@ -131,14 +131,14 @@ accept_resource(Req, 'POST', Args, #rstate{resource = provider}) ->
         {adminEmail, oneprovider_admin_email},
         {geoLatitude, oneprovider_geo_latitude},
         {geoLongitude, oneprovider_geo_longitude}
-    ], Args),
+    ], Args, #{}),
 
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?SERVICE, register, Ctx
     ))};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
-    Ctx = onepanel_maps:get_store_multiple([
+    Ctx = nested:copy_found([
         {name, oneprovider_name},
         {subdomainDelegation, oneprovider_subdomain_delegation},
         {domain, oneprovider_domain},
@@ -147,18 +147,18 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
         {geoLatitude, oneprovider_geo_latitude},
         {geoLongitude, oneprovider_geo_longitude},
         {letsEncryptEnabled, letsencrypt_enabled}
-    ], Args),
+    ], Args, #{}),
 
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?SERVICE, modify_details, Ctx
     ))};
 
 accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
-    Ctx = onepanel_maps:get_store_multiple([
+    Ctx = nested:copy_found([
         {token, token},
         {size, size},
         {storageId, storage_id},
-        {mountInRoot, mount_in_root}], Args),
+        {mountInRoot, mount_in_root}], Args, #{}),
     Ctx2 = get_storage_import_args(Args, Ctx),
     Ctx3 = get_storage_update_args(Args, Ctx2),
 
@@ -169,7 +169,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
     )};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = space, bindings = #{id := Id}}) ->
-    Ctx1 = onepanel_maps:get_store_multiple([
+    Ctx1 = nested:copy_found([
         {size, size}
     ], Args, #{space_id => Id}),
     Ctx2 = get_storage_update_args(Args, Ctx1),
@@ -214,7 +214,7 @@ accept_resource(Req, 'PATCH', _Args, #rstate{
     ))};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = cluster_ips}) ->
-    {ok, ClusterIps} = onepanel_maps:get(hosts, Args),
+    ClusterIps = maps:get(hosts, Args),
     Ctx = #{cluster_ips => onepanel_utils:convert(ClusterIps, {keys, list})},
 
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
@@ -226,13 +226,14 @@ accept_resource(Req, 'PATCH', Args, #rstate{
     bindings = #{id := Id},
     version = Version
 }) ->
-    Ctx = #{space_id => Id},
-    Ctx2 = onepanel_maps:get_store(enabled, Args, [enabled], Ctx),
-    Ctx3 = onepanel_maps:get_store(lastOpenHourWeight, Args, [last_open_hour_weight], Ctx2),
-    Ctx4 = onepanel_maps:get_store(avgOpenCountPerDayWeight, Args, [avg_open_count_per_day_weight], Ctx3),
-    Ctx5 = onepanel_maps:get_store(maxAvgOpenCountPerDay, Args, [max_avg_open_count_per_day], Ctx4),
+    Ctx = nested:copy_found([
+        {enabled, [enabled]},
+        {lastOpenHourWeight, [last_open_hour_weight]},
+        {avgOpenCountPerDayWeight, [avg_open_count_per_day_weight]},
+        {maxAvgOpenCountPerDay, [max_avg_open_count_per_day]}
+    ], Args, #{space_id => Id}),
     {true, rest_replier:handle_service_action_async(Req, service:apply_async(
-        ?SERVICE, configure_file_popularity, Ctx5), Version
+        ?SERVICE, configure_file_popularity, Ctx), Version
     )};
 
 
@@ -291,13 +292,10 @@ provide_resource(Req, #rstate{
     bindings = #{id := Id},
     params = Params
 }) ->
-    Ctx = onepanel_maps:get_store(period, Params, period),
-    Ctx2 = onepanel_maps:get_store(metrics, Params, metrics, Ctx),
-    Ctx3 = Ctx2#{space_id => Id},
-
+    Ctx = maps:with([space_id, period, metrics], Params#{space_id => Id}),
     {rest_replier:format_service_step(service_oneprovider, get_sync_stats,
         service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, get_sync_stats, Ctx3
+            ?SERVICE, get_sync_stats, Ctx
         ))
     ), Req};
 
@@ -306,14 +304,10 @@ provide_resource(Req, #rstate{
     bindings = #{id := Id},
     params = Params
 }) ->
-    Ctx = onepanel_maps:get_store(offset, Params, offset),
-    Ctx2 = onepanel_maps:get_store(limit, Params, limit, Ctx),
-    Ctx3 = onepanel_maps:get_store(index, Params, index, Ctx2),
-    Ctx4 = Ctx3#{space_id => Id},
-
+    Ctx = maps:with([space_id, offset, limit, index], Params#{space_id => Id}),
     {rest_replier:format_service_step(service_oneprovider, get_auto_cleaning_reports,
         service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, get_auto_cleaning_reports, Ctx4
+            ?SERVICE, get_auto_cleaning_reports, Ctx
         ))
     ), Req};
 
@@ -434,7 +428,7 @@ delete_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
 -spec get_storage_update_args(Args :: rest_handler:args(), Ctx :: service:ctx())
         -> service:ctx().
 get_storage_update_args(Args, Ctx) ->
-    onepanel_maps:get_store_multiple([
+    nested:copy_found([
         {[storageUpdate, strategy], [storage_update, strategy]},
         {[storageUpdate, maxDepth], [storage_update, max_depth]},
         {[storageUpdate, writeOnce], [storage_update, write_once]},
@@ -451,7 +445,7 @@ get_storage_update_args(Args, Ctx) ->
 -spec get_storage_import_args(Args :: rest_handler:args(), Ctx :: service:ctx())
         -> service:ctx().
 get_storage_import_args(Args, Ctx) ->
-    onepanel_maps:get_store_multiple([
+    nested:copy_found([
         {[storageImport, strategy], [storage_import, strategy]},
         {[storageImport, maxDepth], [storage_import, max_depth]},
         {[storageImport, syncAcl], [storage_import, sync_acl]}
@@ -466,7 +460,7 @@ get_storage_import_args(Args, Ctx) ->
 -spec get_auto_cleaning_configuration(Args :: rest_handler:args(), Ctx :: service:ctx())
         -> service:ctx().
 get_auto_cleaning_configuration(Args, Ctx) ->
-    onepanel_maps:get_store_multiple([
+    nested:copy_found([
         {[enabled], [enabled]},
         {[target], [target]},
         {[threshold], [threshold]},

@@ -383,11 +383,11 @@ write_config(#{config := Config} = Ctx) ->
     #{total := map(), osds := map(), pools := #{ceph_pool:name() => ceph_pool:usage()}}.
 get_usage(Ctx) ->
     #{<<"stats">> := Stats, <<"pools">> := Pools} = ceph_cli:df(),
-    Total = onepanel_maps:get_store_multiple([
+    Total = nested:copy_found([
         {<<"total_bytes">>, total},
         {<<"total_used_bytes">>, used},
         {<<"total_avail_bytes">>, available}
-    ], Stats),
+    ], Stats, #{}),
     PoolsMap = pools_df_list_to_map(Pools),
 
     case maps:find(pool, Ctx) of
@@ -452,7 +452,7 @@ ceph_status_level(<<Level/binary>>) ->
 -spec format_checks(#{binary() => binary()}) -> [binary()].
 format_checks(Map) ->
     lists:map(fun({Check, Description}) ->
-        {ok, Summary} = onepanel_maps:get([<<"summary">>, <<"message">>], Description),
+        Summary = nested:get([<<"summary">>, <<"message">>], Description),
         Details = maps:get(<<"detail">>, Description, []),
         DetailsIodata = case Details of
             [] -> "";

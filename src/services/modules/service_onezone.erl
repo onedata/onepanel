@@ -76,11 +76,11 @@ get_nodes() ->
 get_steps(deploy, Ctx) ->
     SelfHost = hosts:self(),
 
-    {ok, OpaCtx} = onepanel_maps:get([cluster, ?SERVICE_PANEL], Ctx),
-    {ok, LeCtx} = onepanel_maps:get([cluster, ?SERVICE_LE], Ctx),
-    {ok, CbCtx} = onepanel_maps:get([cluster, ?SERVICE_CB], Ctx),
-    {ok, CmCtx} = onepanel_maps:get([cluster, ?SERVICE_CM], Ctx),
-    {ok, OzwCtx} = onepanel_maps:get([cluster, ?SERVICE_OZW], Ctx),
+    OpaCtx = nested:get([cluster, ?SERVICE_PANEL], Ctx),
+    LeCtx = nested:get([cluster, ?SERVICE_LE], Ctx),
+    CbCtx = nested:get([cluster, ?SERVICE_CB], Ctx),
+    CmCtx = nested:get([cluster, ?SERVICE_CM], Ctx),
+    OzwCtx = nested:get([cluster, ?SERVICE_OZW], Ctx),
 
     DnsConfig = onepanel_maps:get([name(), dns_check_config], Ctx, #{}),
 
@@ -290,7 +290,7 @@ get_gui_message(#{message_id := MessageId}) ->
 -spec update_gui_message(#{message_id := oz_worker_rpc:gui_message_id(),
     enabled => boolean(), body => binary()}) -> ok.
 update_gui_message(#{message_id := MessageId} = Ctx) ->
-    Diff = onepanel_maps:get_store_multiple([
+    Diff = nested:copy_found([
         {body, <<"body">>}, {enabled, <<"enabled">>}
     ], Ctx, #{}),
     {rpc, Auth} = onezone_client:root_auth(),

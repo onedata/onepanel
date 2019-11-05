@@ -118,12 +118,12 @@ get_args(Data, ArgsSpec) ->
     Hosts :: [service:host()] | no_return().
 get_hosts(Keys, Args) ->
     CommonSuffix = common_hostname_suffix(Args),
-    {ok, Nodes} = onepanel_maps:get([cluster, nodes], Args),
+    Nodes = nested:get([cluster, nodes], Args),
     HostsMap = maps:fold(fun(Alias, Props, Acc) ->
         Host = <<(maps:get(hostname, Props))/binary, CommonSuffix/binary>>,
         Acc#{Alias => Host}
     end, #{}, Nodes),
-    {ok, Aliases} = onepanel_maps:get(Keys, Args),
+    Aliases = nested:get(Keys, Args),
     AliasesList = case erlang:is_list(Aliases) of
         true -> Aliases;
         false -> [Aliases]
@@ -145,7 +145,7 @@ get_hosts(Keys, Args) ->
     #{service:host() => binary()} | no_return().
 get_cluster_ips(Args) ->
     CommonSuffix = common_hostname_suffix(Args),
-    {ok, Nodes} = onepanel_maps:get([cluster, nodes], Args),
+    Nodes = nested:get([cluster, nodes], Args),
     NodesWithIPs = maps:filter(fun(_Node, Props) ->
         maps:is_key(externalIp, Props)
     end, Nodes),
@@ -210,7 +210,7 @@ allowed_origin(onezone) ->
 %%--------------------------------------------------------------------
 -spec common_hostname_suffix(Args :: rest_handler:args()) -> binary().
 common_hostname_suffix(Args) ->
-    case onepanel_maps:get([cluster, domainName], Args, <<>>) of
+    case nested:get([cluster, domainName], Args, <<>>) of
         <<>> -> <<>>;
         DomainName -> <<".", DomainName/binary>>
     end.

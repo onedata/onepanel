@@ -146,7 +146,7 @@ get_user_privileges({rpc, Auth}, OnezoneUserId) ->
 get_details({rpc, Auth}, ClusterId) ->
     case oz_worker_rpc:get_protected_cluster_data(Auth, ClusterId) of
         {ok, ClusterData} ->
-            {ok, onepanel_maps:get_store_multiple([
+            {ok, nested:copy_found([
                 {<<"onepanelVersion">>, onepanelVersion},
                 {<<"workerVersion">>, workerVersion},
                 {<<"onepanelProxy">>, onepanelProxy},
@@ -348,7 +348,7 @@ create_invite_token_for_admin({rest, Auth}) ->
 -spec format_provider_info(OzResponse :: #{binary() => term()}) ->
     #{binary() => term()}.
 format_provider_info(OzResponse) ->
-    onepanel_maps:get_store_multiple([
+    nested:copy_found([
         {<<"providerId">>, <<"id">>},
         {<<"name">>, <<"name">>},
         {<<"domain">>, <<"domain">>},
@@ -356,4 +356,4 @@ format_provider_info(OzResponse) ->
         {<<"latitude">>, <<"geoLatitude">>},
         {<<"cluster">>, <<"cluster">>},
         {<<"online">>, <<"online">>}
-    ], OzResponse).
+    ], OzResponse, #{}).

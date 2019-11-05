@@ -108,7 +108,7 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = policies}) ->
     ))};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = cluster_ips}) ->
-    {ok, ClusterIps} = onepanel_maps:get(hosts, Args),
+    ClusterIps = maps:get(hosts, Args),
     Ctx = #{cluster_ips => onepanel_utils:convert(ClusterIps, {keys, list})},
 
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
@@ -171,9 +171,9 @@ delete_resource(_Req, #rstate{}) ->
 %%--------------------------------------------------------------------
 -spec make_policies_ctx(Args :: rest_handler:args()) -> #{atom() => term()}.
 make_policies_ctx(Args) ->
-    onepanel_maps:get_store_multiple([
+    nested:copy_found([
         {oneproviderRegistration, oneprovider_registration},
         {subdomainDelegation, subdomain_delegation},
         {guiPackageVerification, gui_package_verification},
         {harvesterGuiPackageVerification, harvester_gui_package_verification}
-    ], Args).
+    ], Args, #{}).

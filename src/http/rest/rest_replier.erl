@@ -248,7 +248,7 @@ format_service_task_results({Results, TotalSteps}) ->
 format_storage_details(Results) ->
     {[{_Node, Result} | _], []} =
         select_service_step(service_op_worker, get_storages, Results),
-    StorageType = onepanel_utils:typed_get(type, Result, atom),
+    StorageType = nested:get_converted(type, Result, atom),
     Model = get_storage_model(StorageType),
     Typemap = model_to_typemap(Model),
     maps:map(fun
@@ -441,7 +441,7 @@ format_onepanel_configuration(onezone) ->
     Defaults = #{serviceType => onezone, zoneDomain => null, zoneName => null},
     try
         Details = service_oz_worker:get_details(#{}),
-        Configuration = onepanel_maps:get_store_multiple([
+        Configuration = nested:copy_found([
             {domain, zoneDomain},
             {name, zoneName}
         ], Details, Defaults),
@@ -466,7 +466,7 @@ format_onepanel_configuration(oneprovider) ->
         true ->
             try
                 Details = service_oneprovider:get_details(),
-                onepanel_maps:get_store_multiple([
+                nested:copy_found([
                     {id, providerId},
                     {onezoneDomainName, zoneDomain}
                 ], Details, Common#{isRegistered => true})
