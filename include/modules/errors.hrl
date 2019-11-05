@@ -94,7 +94,6 @@
 -define(ERR_NOT_SUPPORTED, not_supported).
 -define(ERR_ALREADY_EXISTS, already_exists).
 -define(ERR_BAD_NODE, bad_node).
--define(ERR_NIF_NOT_LOADED, nif_not_loaded).
 -define(ERR_CMD_FAILURE(Code, StdOut, StdOrr), {shell_command_failure, {Code, StdOut, StdErr}}).
 -define(ERR_FAILURE_ON_ALL_NODES, failure_on_all_nodes).
 -define(ERR_BAD_UPGRADE, bad_upgrade).
@@ -133,7 +132,6 @@
 -define(ERR_LETSENCRYPT_LIMIT(ErrorURN, Message), {letsencrypt_limit, ErrorURN, Message}).
 -define(ERR_LETSENCRYPT_AUTHORIZATION(Message), {letsencrypt_authorization, Message}).
 -define(ERR_LETSENCRYPT_NOT_SUPPORTED, letsencrypt_not_supported).
--define(ERR_SUBDOMAIN_DELEGATION_DISABLED, subdomain_delegation_disabled).
 
 -define(ERR_CEPH_TOO_FEW_OSDS(RequestedCopies, OSDs),
     {ceph_too_few_osds, RequestedCopies, OSDs}).

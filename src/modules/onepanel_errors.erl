@@ -201,9 +201,6 @@ translate(_Type, #error{module = model, function = get, reason = ?ERR_NOT_FOUND,
     args = [service, oz_worker]}) ->
     {<<"Operation Error">>, <<"Cluster Worker not configured.">>};
 
-translate(_Type, #error{reason = ?ERR_SUBDOMAIN_DELEGATION_DISABLED}) ->
-    {<<"Operation Error">>, <<"Subdomain delegation is not enabled.">>};
-
 translate(_Type, #error{reason = ?ERR_CEPH_TOO_FEW_OSDS(Copies, OSDs)}) ->
     {<<"Operation Error">>, str_utils:format_bin(
         "Requested pool copies number (~B) is greater than OSDs number (~B)",
