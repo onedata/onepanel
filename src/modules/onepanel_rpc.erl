@@ -41,7 +41,7 @@ apply(Module, Function, Args) ->
         {node(), erlang:apply(Module, Function, Args)}
     catch
         throw:Reason ->
-            {node(), ?make_stacktrace(Reason)};
+            {node(), Reason};
         Type:Reason ->
             Stacktrace = erlang:get_stacktrace(),
             ?error("Unexpected error executing ~tp:~tp/~B~nError: ~tp:~tp~nStacktrace: ~tp",
