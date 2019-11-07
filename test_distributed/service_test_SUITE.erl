@@ -93,7 +93,7 @@ service_should_notify_caller(Config) ->
 
 service_get_steps_should_pass_errors(Config) ->
     [Node | _] = ?config(onepanel_nodes, Config),
-    ?assertMatch(#error{reason = get_steps_failure},
+    ?assertMatch(#error{reason = {error, get_steps_failure}},
         rpc:call(Node, service, apply, [example, some_action, #{}])).
 
 
@@ -159,7 +159,7 @@ init_per_testcase(service_get_steps_should_pass_errors, Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     test_utils:mock_new(Nodes, service_example, [non_strict]),
     test_utils:mock_expect(Nodes, service_example, get_steps, fun(some_action, _) ->
-        meck:exception(throw, get_steps_failure)
+        meck:exception(throw, {error, get_steps_failure})
     end),
     Config;
 

@@ -97,6 +97,7 @@ notify(Msg, _Notify) ->
 partition_results(Results) ->
     lists:partition(fun
         ({_, #error{}}) -> false;
+        ({_, {error, _}}) -> false;
         (_) -> true
     end, Results).
 
@@ -107,13 +108,16 @@ partition_results(Results) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec results_contain_error(Results :: service_executor:results() | #error{}) ->
-    {true, #error{}} | false.
+    {true, #error{}} | {true, {error, term()}} | false.
 results_contain_error(#error{} = Error) ->
     {true, Error};
 
 results_contain_error(Results) ->
     case lists:reverse(Results) of
         [{task_finished, {_, _, #error{} = Error}}] ->
+            {true, Error};
+
+        [{task_finished, {_, _, {error, _} = Error}}] ->
             {true, Error};
 
         [{task_finished, {Service, Action, #error{}}}, Step | _Steps] ->
@@ -134,7 +138,7 @@ results_contain_error(Results) ->
 %% @doc Throws an exception if an error occurred during service action execution.
 %% @end
 %%--------------------------------------------------------------------
--spec throw_on_error(Results :: service_executor:results() | #error{}) ->
+-spec throw_on_error(Results :: service_executor:results() | #error{} | {error, term()}) ->
     service_executor:results() | no_return().
 throw_on_error(Results) ->
     case results_contain_error(Results) of

@@ -44,7 +44,7 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec throw_on_service_error(Req, Results) -> Req | no_return() when
-    Req :: cowboy_req:req(), Results :: #error{} | service_executor:results().
+    Req :: cowboy_req:req(), Results :: #error{} | {error, term()} | service_executor:results().
 throw_on_service_error(Req, Results) ->
     service_utils:throw_on_error(Results),
     Req.
@@ -205,14 +205,14 @@ format_service_task_results({#error{} = Error, _}) ->
 
 format_service_task_results({Results, TotalSteps}) ->
     Base = case TotalSteps of
-        #error{} -> #{};
-        _ when is_integer(TotalSteps) -> #{totalSteps => TotalSteps}
+        _ when is_integer(TotalSteps) -> #{totalSteps => TotalSteps};
+        _Error -> #{}
     end,
     case lists:reverse(Results) of
         [{task_finished, {_, _, #error{} = Error}}] ->
             maps:merge(Base#{status => <<"error">>}, format_error(error, Error));
 
-        [{task_finished, {Service, Action, #error{}}}, Step | Steps] ->
+        [{task_finished, {Service, Action, {error, _}}}, Step | Steps] ->
             {Module, Function, {_, BadResults}} = Step,
             maps:merge(
                 Base#{
@@ -426,6 +426,9 @@ format_service_task_steps(Steps) ->
 format_service_hosts_results(Results) ->
     lists:foldl(fun
         ({Node, #error{} = Error}, Acc) -> maps:put(
+            onepanel_utils:convert(hosts:from_node(Node), binary),
+            format_error(error, Error), Acc);
+        ({Node, {error, _} = Error}, Acc) -> maps:put(
             onepanel_utils:convert(hosts:from_node(Node), binary),
             format_error(error, Error), Acc);
         ({Node, Result}, Acc) -> maps:put(

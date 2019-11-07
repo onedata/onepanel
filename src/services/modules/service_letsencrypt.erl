@@ -369,8 +369,8 @@ expiration_status(Cert) ->
     Margin = ?RENEW_MARGIN_SECONDS,
     Remaining = onepanel_cert:get_seconds_till_expiration(Cert),
     if
-        Remaining < Margin -> near_expiration;
         Remaining < 0 -> expired;
+        Remaining < Margin -> near_expiration;
         true -> valid
     end.
 
