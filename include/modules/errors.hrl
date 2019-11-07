@@ -11,16 +11,6 @@
 -ifndef(ONEPANEL_ERRORS_HRL).
 -define(ONEPANEL_ERRORS_HRL, 1).
 
--record(error, {
-    module :: module(),
-    function :: atom(),
-    arity :: non_neg_integer(),
-    args = undefined :: undefined | [term()],
-    reason :: term(),
-    stacktrace = [] :: term(),
-    line :: non_neg_integer()
-}).
-
 -record(service_error, {
     service :: service:name(),
     action :: service:action(),
@@ -39,7 +29,10 @@
     ?make_error(Reason, Module, Function, Arity, undefined)).
 
 -define(make_error(Reason, Module, Function, Arity, Args),
-    onepanel_errors:create(Module, Function, Arity, Args, Reason, [], ?LINE)).
+    case Reason of
+        {error, _} -> Reason;
+        _ -> {error, Reason}
+    end).
 
 
 -define(make_stacktrace(Reason), ?make_stacktrace(Reason, undefined)).
@@ -57,7 +50,10 @@
     ?make_stacktrace(Reason, Module, Function, Arity, Args, erlang:get_stacktrace())).
 
 -define(make_stacktrace(Reason, Module, Function, Arity, Args, Stacktrace),
-    onepanel_errors:create(Module, Function, Arity, Args, Reason, Stacktrace, ?LINE)).
+    case Reason of
+        {error, _} -> Reason;  % @fixme triggers many errors about impossible clauses
+        _ -> {error, Reason}
+    end).
 
 
 -define(throw_error(Reason), erlang:throw(?make_error(Reason))).

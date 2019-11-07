@@ -44,7 +44,7 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec throw_on_service_error(Req, Results) -> Req | no_return() when
-    Req :: cowboy_req:req(), Results :: #error{} | {error, term()} | service_executor:results().
+    Req :: cowboy_req:req(), Results :: {error, _} | {error, term()} | service_executor:results().
 throw_on_service_error(Req, Results) ->
     service_utils:throw_on_error(Results),
     Req.
@@ -82,7 +82,7 @@ reply_with_error(Req, Type, Reason) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec error_code(Type :: atom(), Reason :: term()) -> cowboy:http_status().
-error_code(_Type, #error{reason = Reason}) ->
+error_code(_Type, {error, Reason}) ->
     case Reason of
         ?ERR_NOT_FOUND -> ?HTTP_404_NOT_FOUND;
         ?ERR_NODE_DOWN -> ?HTTP_503_SERVICE_UNAVAILABLE;
@@ -124,7 +124,7 @@ handle_service_step(Req, Module, Function, Results) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec format_error(Type :: atom(), Reason :: term()) -> Response :: response().
-format_error(Type, #error{reason = #service_error{} = Error}) ->
+format_error(Type, {error, #service_error{} = Error}) ->
     format_error(Type, Error);
 
 format_error(_Type, #service_error{service = Service, action = Action,
@@ -194,13 +194,13 @@ format_service_host_status(SModule, Results) ->
 %% @doc Returns a formatted service asynchronous task result.
 %% @end
 %%--------------------------------------------------------------------
--spec format_service_task_results(Results :: {service_executor:results(), Total} | #error{}) ->
+-spec format_service_task_results(Results :: {service_executor:results(), Total} | {error, _}) ->
     Response :: response()
-    when Total :: non_neg_integer() | #error{}.
-format_service_task_results(#error{} = Error) ->
+    when Total :: non_neg_integer() | {error, _}.
+format_service_task_results({error, _} = Error) ->
     ?throw_error(Error);
 
-format_service_task_results({#error{} = Error, _}) ->
+format_service_task_results({{error, _} = Error, _}) ->
     ?throw_error(Error);
 
 format_service_task_results({Results, TotalSteps}) ->
@@ -209,7 +209,7 @@ format_service_task_results({Results, TotalSteps}) ->
         _Error -> #{}
     end,
     case lists:reverse(Results) of
-        [{task_finished, {_, _, #error{} = Error}}] ->
+        [{task_finished, {_, _, {error, _} = Error}}] ->
             maps:merge(Base#{status => <<"error">>}, format_error(error, Error));
 
         [{task_finished, {Service, Action, {error, _}}}, Step | Steps] ->
@@ -425,9 +425,6 @@ format_service_task_steps(Steps) ->
     Response :: response().
 format_service_hosts_results(Results) ->
     lists:foldl(fun
-        ({Node, #error{} = Error}, Acc) -> maps:put(
-            onepanel_utils:convert(hosts:from_node(Node), binary),
-            format_error(error, Error), Acc);
         ({Node, {error, _} = Error}, Acc) -> maps:put(
             onepanel_utils:convert(hosts:from_node(Node), binary),
             format_error(error, Error), Acc);

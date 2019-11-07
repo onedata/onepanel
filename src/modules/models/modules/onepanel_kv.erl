@@ -77,7 +77,7 @@ upgrade(1, _Record) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec create(Record :: record()) ->
-    {ok, model_behaviour:key()} | #error{} | no_return().
+    {ok, model_behaviour:key()} | {error, _} | no_return().
 create(Record) ->
     model:create(?MODULE, Record).
 
@@ -106,7 +106,7 @@ update(Key, Diff) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get(Key :: model_behaviour:key()) ->
-    {ok, Record :: record()} | #error{} | no_return().
+    {ok, Record :: record()} | {error, _} | no_return().
 get(Key) ->
     model:get(?MODULE, Key).
 
@@ -144,11 +144,11 @@ list() ->
 %%%===================================================================
 
 
--spec find(Key :: key()) -> {ok, value()} | #error{}.
+-spec find(Key :: key()) -> {ok, value()} | {error, _}.
 find(Key) ->
     case ?MODULE:get(Key) of
         {ok, #onepanel_kv{value = Value}} -> {ok, Value};
-        #error{} = Error -> Error
+        {error, _} = Error -> Error
     end.
 
 -spec find(Key :: key(), Default :: value()) -> value().

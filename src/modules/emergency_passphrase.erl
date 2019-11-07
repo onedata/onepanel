@@ -34,7 +34,7 @@
 %% Ensures given passphrase is valid and sets it as the new root passphrase.
 %% @end
 %%--------------------------------------------------------------------
--spec set(Passphrase :: binary()) -> ok | #error{}.
+-spec set(Passphrase :: binary()) -> ok | {error, _}.
 set(Passphrase) ->
     case validate(Passphrase) of
         ok -> set_hash(onedata_passwords:create_hash(Passphrase));
@@ -55,7 +55,7 @@ is_set() ->
 %% @doc Returns hashed emergency passphrase.
 %% @end
 %%--------------------------------------------------------------------
--spec get_hash() -> {ok, binary()} | #error{}.
+-spec get_hash() -> {ok, binary()} | {error, _}.
 get_hash() ->
     onepanel_kv:find(?KV_EMERGENCY_PASSPHRASE).
 
@@ -66,7 +66,7 @@ get_hash() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec change(OldPassphrase :: binary() | undefined, NewPassphrase :: binary()) ->
-    ok | #error{}.
+    ok | {error, _}.
 change(OldPassphrase, NewPassphrase) ->
     case not is_set() orelse verify(OldPassphrase) of
         true -> set(NewPassphrase);
@@ -86,7 +86,7 @@ verify(PlaintextPassphrase) when is_binary(PlaintextPassphrase) ->
     case get_hash() of
         {ok, Hash} ->
             onedata_passwords:verify(PlaintextPassphrase, Hash);
-        #error{reason = ?ERR_NOT_FOUND} ->
+        {error, ?ERR_NOT_FOUND} ->
             false
     end;
 
@@ -114,7 +114,7 @@ migrate_from_users() ->
                     ?info("Set passphrase of user '~s' as the emergency passphrase",
                         [Username]),
                     ok;
-                #error{reason = ?ERR_NOT_FOUND} ->
+                {error, ?ERR_NOT_FOUND} ->
                     ok
             end
     end.
@@ -137,7 +137,7 @@ set_hash(PassphraseHash) ->
 %% constraints.
 %% @end
 %%--------------------------------------------------------------------
--spec validate(Passphrase :: binary()) -> ok | #error{}.
+-spec validate(Passphrase :: binary()) -> ok | {error, _}.
 validate(Passphrase) when size(Passphrase) < ?PASSPHRASE_MIN_LENGTH ->
     ?make_error(?ERR_INVALID_NEW_PASSPHRASE);
 
@@ -151,7 +151,7 @@ validate(Passphrase) when is_binary(Passphrase) ->
 %% Finds user whose passphrase should be set as emergency passphrase.
 %% @end
 %%--------------------------------------------------------------------
--spec find_admin_user() -> {ok, onepanel_user:record()} | #error{}.
+-spec find_admin_user() -> {ok, onepanel_user:record()} | {error, _}.
 find_admin_user() ->
     case onepanel_user:get(<<"admin">>) of
         {ok, #onepanel_user{role = admin} = Admin} ->

@@ -94,8 +94,8 @@ get_params(Req, ParamsSpec) ->
     try
         {onepanel_parser:parse(NewParams, ParamsSpec), Req}
     catch
-        throw:#error{reason = {?ERR_MISSING_KEY, Keys}} = Error ->
-            ?throw_error(Error#error{reason = {?ERR_MISSING_PARAM, Keys}})
+        throw:{error, {?ERR_MISSING_KEY, Keys}} = Error ->
+            ?throw_error({?ERR_MISSING_PARAM, Keys})
     end.
 
 

@@ -84,7 +84,7 @@ seed() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec create(Record :: record()) ->
-    {ok, name()} | #error{} | no_return().
+    {ok, name()} | {error, _} | no_return().
 create(Record) ->
     model:create(?MODULE, Record).
 
@@ -113,7 +113,7 @@ update(Key, Diff) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get(Key :: model_behaviour:key()) ->
-    {ok, Record :: record()} | #error{} | no_return().
+    {ok, Record :: record()} | {error, _} | no_return().
 get(Key) ->
     model:get(?MODULE, Key).
 
@@ -168,7 +168,7 @@ any_user_exists() ->
 %% @doc Removes all onepanel_user records.
 %% @end
 %%--------------------------------------------------------------------
--spec delete_all() -> ok | #error{}.
+-spec delete_all() -> ok | {error, _}.
 delete_all() ->
     model:clear(?MODULE).
 

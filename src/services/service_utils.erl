@@ -96,7 +96,6 @@ notify(Msg, _Notify) ->
     {GoodResults :: onepanel_rpc:results(), BadResults :: onepanel_rpc:results()}.
 partition_results(Results) ->
     lists:partition(fun
-        ({_, #error{}}) -> false;
         ({_, {error, _}}) -> false;
         (_) -> true
     end, Results).
@@ -107,20 +106,17 @@ partition_results(Results) ->
 %% and returns it.
 %% @end
 %%--------------------------------------------------------------------
--spec results_contain_error(Results :: service_executor:results() | #error{}) ->
-    {true, #error{}} | {true, {error, term()}} | false.
-results_contain_error(#error{} = Error) ->
+-spec results_contain_error(Results :: service_executor:results() | {error, _}) ->
+    {true, {error, _}} | {true, {error, term()}} | false.
+results_contain_error({error, _} = Error) ->
     {true, Error};
 
 results_contain_error(Results) ->
     case lists:reverse(Results) of
-        [{task_finished, {_, _, #error{} = Error}}] ->
-            {true, Error};
-
         [{task_finished, {_, _, {error, _} = Error}}] ->
             {true, Error};
 
-        [{task_finished, {Service, Action, #error{}}}, Step | _Steps] ->
+        [{task_finished, {Service, Action, {error, _}}}, Step | _Steps] ->
             {Module, Function, {_, BadResults}} = Step,
 
             ServiceError = #service_error{
@@ -138,7 +134,7 @@ results_contain_error(Results) ->
 %% @doc Throws an exception if an error occurred during service action execution.
 %% @end
 %%--------------------------------------------------------------------
--spec throw_on_error(Results :: service_executor:results() | #error{} | {error, term()}) ->
+-spec throw_on_error(Results :: service_executor:results() | {error, _} | {error, term()}) ->
     service_executor:results() | no_return().
 throw_on_error(Results) ->
     case results_contain_error(Results) of
@@ -295,7 +291,7 @@ get_nested_steps(#steps{condition = false}) ->
 %%--------------------------------------------------------------------
 %% @formatter:off
 -spec log(Msg :: {Event :: service:event(), Details}) -> ok when
-    Details  :: {Service, Action}  | {Service, Action, ok | #error{}}
+    Details  :: {Service, Action}  | {Service, Action, ok | {error, _}}
               | {Service, Action, StepsCount :: integer()}
               | {Module, Function} | {Module, Function, Result},
     Service  :: service:name(),
@@ -310,12 +306,8 @@ log({action_begin, {Service, Action}}) ->
     ?debug("Executing action ~p:~p", [Service, Action]);
 log({action_end, {Service, Action, ok}}) ->
     ?debug("Action ~p:~p completed successfully", [Service, Action]);
-log({action_end, {Service, Action, #error{reason = Reason, stacktrace = []}}}) ->
+log({action_end, {Service, Action, {error, Reason}}}) ->
     ?error("Action ~p:~p failed due to: ~tp", [Service, Action, Reason]);
-log({action_end, {Service, Action, #error{reason = Reason,
-    stacktrace = Stacktrace}}}) ->
-    ?error("Action ~p:~p failed due to: ~tp~nStacktrace: ~tp",
-        [Service, Action, Reason, Stacktrace]);
 log({step_begin, {Module, Function}}) ->
     ?debug("Executing step ~p:~p", [Module, Function]);
 log({step_end, {Module, Function, {_, []}}}) ->
@@ -329,12 +321,12 @@ log({step_end, {Module, Function, {_, Errors}}}) ->
 %% @private @doc Formats the service errors into a human-readable format.
 %% @end
 %%--------------------------------------------------------------------
--spec format_errors(Errors :: [{node(), #error{}}], Acc :: string()) ->
+-spec format_errors(Errors :: [{node(), {error, _}}], Acc :: string()) ->
     Log :: string().
 format_errors([], Log) ->
     Log;
 
-format_errors([{Node, #error{} = Error} | Errors], Log) ->
+format_errors([{Node, {error, _} = Error} | Errors], Log) ->
     ErrorStr = str_utils:format("Node: ~tp~n~ts",
         [Node, onepanel_errors:format_error(Error)]),
     format_errors(Errors, Log ++ ErrorStr).

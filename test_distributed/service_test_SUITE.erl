@@ -45,7 +45,7 @@ all() ->
 service_should_be_not_found(Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     lists:foreach(fun(Node) ->
-        ?assertMatch(#error{reason = undef},
+        ?assertMatch({error, undef},
             rpc:call(Node, service, apply, [example, some_action, #{}]))
     end, Nodes).
 
@@ -53,7 +53,7 @@ service_should_be_not_found(Config) ->
 service_action_should_be_not_supported(Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     lists:foreach(fun(Node) ->
-        ?assertMatch(#error{reason = action_not_supported},
+        ?assertMatch({error, action_not_supported},
             rpc:call(Node, service, apply, [example, some_action, #{}]))
     end, Nodes).
 
@@ -93,17 +93,17 @@ service_should_notify_caller(Config) ->
 
 service_get_steps_should_pass_errors(Config) ->
     [Node | _] = ?config(onepanel_nodes, Config),
-    ?assertMatch(#error{reason = {error, get_steps_failure}},
+    ?assertMatch({error, {error, get_steps_failure}},
         rpc:call(Node, service, apply, [example, some_action, #{}])).
 
 
 service_action_should_pass_errors(Config) ->
     Self = self(),
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
-    ?assertMatch(#error{}, rpc:call(Node1, service, apply,
+    ?assertMatch({error, _}, rpc:call(Node1, service, apply,
         [example, some_action, #{}, Self])),
     ?assertReceivedMatch({step_end, {service_example, some_step,
-        {[{Node1, ok}], [{Node2, #error{reason = step_failure}}]}}}, ?TIMEOUT).
+        {[{Node1, ok}], [{Node2, {error, step_failure}}]}}}, ?TIMEOUT).
 
 
 %%%===================================================================

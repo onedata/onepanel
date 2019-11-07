@@ -68,13 +68,13 @@ all() ->
 create_test(Config) ->
     Record = #?MODEL{field1 = 1, field2 = <<"field2">>, field3 = field3},
     ?assertEqual({ok, 1}, ?callAny(Config, model, create, [?MODEL, Record])),
-    ?assertMatch(#error{reason = ?ERR_ALREADY_EXISTS},
+    ?assertMatch({error, ?ERR_ALREADY_EXISTS},
         ?callAny(Config, model, create, [?MODEL, Record])).
 
 
 get_test(Config) ->
     Record = #?MODEL{field1 = 1, field2 = <<"field2">>, field3 = field3},
-    ?assertMatch(#error{reason = ?ERR_NOT_FOUND}, ?callAny(Config, model, get,
+    ?assertMatch({error, ?ERR_NOT_FOUND}, ?callAny(Config, model, get,
         [?MODEL, 1])),
     ?assertEqual({ok, 1}, ?callAny(Config, model, create, [?MODEL, Record])),
     ?assertEqual({ok, Record}, ?callAny(Config, model, get, [?MODEL, 1])).
@@ -91,7 +91,7 @@ save_test(Config) ->
 
 
 update_test(Config) ->
-    ?assertMatch(#error{reason = ?ERR_NOT_FOUND},
+    ?assertMatch({error, ?ERR_NOT_FOUND},
         ?callAny(Config, model, update, [?MODEL, 1, #{}])),
 
     Record = #?MODEL{field1 = 1, field2 = <<"field2">>, field3 = field3},
@@ -213,7 +213,7 @@ upgrade_loop_is_detected_test(Config) ->
         mnesia:write(?MODEL, OldDoc, write)
     end])),
 
-    ?assertMatch(#error{}, rpc:call(Node, onepanel_db, upgrade_tables, [])).
+    ?assertMatch({error, _}, rpc:call(Node, onepanel_db, upgrade_tables, [])).
 
 
 %%%===================================================================

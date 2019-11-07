@@ -28,7 +28,7 @@ parse_integer_key_test() ->
     ArgsSpec = #{key => integer},
     ?assertEqual(#{key => 1}, onepanel_parser:parse(Data1, ArgsSpec)),
     ?assertEqual(#{key => 1}, onepanel_parser:parse(Data2, ArgsSpec)),
-    ?assertThrow(#error{reason = {?ERR_INVALID_VALUE, [key], integer}},
+    ?assertThrow({error, {?ERR_INVALID_VALUE, [key], integer}},
         onepanel_parser:parse(Data3, ArgsSpec)).
 
 
@@ -43,7 +43,7 @@ parse_float_key_test() ->
     ?assertEqual(#{key => 1.0}, onepanel_parser:parse(Data2, ArgsSpec)),
     ?assertEqual(#{key => 1.0}, onepanel_parser:parse(Data3, ArgsSpec)),
     ?assertEqual(#{key => 1.0}, onepanel_parser:parse(Data4, ArgsSpec)),
-    ?assertThrow(#error{reason = {?ERR_INVALID_VALUE, [key], float}},
+    ?assertThrow({error, {?ERR_INVALID_VALUE, [key], float}},
         onepanel_parser:parse(Data5, ArgsSpec)).
 
 
@@ -54,7 +54,7 @@ parse_atom_key_test() ->
     ArgsSpec = #{key => atom},
     ?assertEqual(#{key => value}, onepanel_parser:parse(Data1, ArgsSpec)),
     ?assertEqual(#{key => value}, onepanel_parser:parse(Data2, ArgsSpec)),
-    ?assertThrow(#error{reason = {?ERR_INVALID_VALUE, [key], atom}},
+    ?assertThrow({error, {?ERR_INVALID_VALUE, [key], atom}},
         onepanel_parser:parse(Data3, ArgsSpec)).
 
 
@@ -70,9 +70,9 @@ parse_boolean_key_test() ->
     ?assertEqual(#{key => false}, onepanel_parser:parse(Data2, ArgsSpec)),
     ?assertEqual(#{key => true}, onepanel_parser:parse(Data3, ArgsSpec)),
     ?assertEqual(#{key => false}, onepanel_parser:parse(Data4, ArgsSpec)),
-    ?assertThrow(#error{reason = {?ERR_INVALID_VALUE, [key], boolean}},
+    ?assertThrow({error, {?ERR_INVALID_VALUE, [key], boolean}},
         onepanel_parser:parse(Data5, ArgsSpec)),
-    ?assertThrow(#error{reason = {?ERR_INVALID_VALUE, [key], boolean}},
+    ?assertThrow({error, {?ERR_INVALID_VALUE, [key], boolean}},
         onepanel_parser:parse(Data6, ArgsSpec)).
 
 
@@ -83,7 +83,7 @@ parse_list_key_test() ->
     ArgsSpec = #{key => [string]},
     ?assertEqual(#{key => [<<"some_string">>]}, onepanel_parser:parse(Data1, ArgsSpec)),
     ?assertEqual(#{key => []}, onepanel_parser:parse(Data2, ArgsSpec)),
-    ?assertThrow(#error{reason = {?ERR_INVALID_VALUE, [key], [string]}},
+    ?assertThrow({error, {?ERR_INVALID_VALUE, [key], [string]}},
         onepanel_parser:parse(Data3, ArgsSpec)).
 
 
@@ -92,14 +92,14 @@ parse_string_key_test() ->
     Data2 = #{<<"key">> => 1},
     ArgsSpec = #{key => string},
     ?assertEqual(#{key => <<"value">>}, onepanel_parser:parse(Data1, ArgsSpec)),
-    ?assertThrow(#error{reason = {?ERR_INVALID_VALUE, [key], string}},
+    ?assertThrow({error, {?ERR_INVALID_VALUE, [key], string}},
         onepanel_parser:parse(Data2, ArgsSpec)).
 
 
 parse_required_key_test() ->
     Data = #{},
     ArgsSpec = #{key => string},
-    ?assertThrow(#error{reason = {?ERR_MISSING_KEY, [key]}},
+    ?assertThrow({error, {?ERR_MISSING_KEY, [key]}},
         onepanel_parser:parse(Data, ArgsSpec)).
 
 
@@ -140,11 +140,11 @@ parse_nested_key_test() ->
             key3 => <<"value">>
         }
     }}, onepanel_parser:parse(Data1, ArgsSpec)),
-    ?assertThrow(#error{reason = {?ERR_MISSING_KEY, [key1, key2, key3]}},
+    ?assertThrow({error, {?ERR_MISSING_KEY, [key1, key2, key3]}},
         onepanel_parser:parse(Data2, ArgsSpec)),
-    ?assertThrow(#error{reason = {?ERR_MISSING_KEY, [key1, key2]}},
+    ?assertThrow({error, {?ERR_MISSING_KEY, [key1, key2]}},
         onepanel_parser:parse(Data3, ArgsSpec)),
-    ?assertThrow(#error{reason = {?ERR_MISSING_KEY, [key1]}},
+    ?assertThrow({error, {?ERR_MISSING_KEY, [key1]}},
         onepanel_parser:parse(Data4, ArgsSpec)).
 
 

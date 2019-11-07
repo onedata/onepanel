@@ -42,16 +42,16 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec authenticate_user(tokens:serialized(), PeerIp :: ip_utils:ip()) ->
-    #client{} | #error{}.
+    #client{} | {error, _}.
 authenticate_user(Token, PeerIp) ->
     case ensure_unlimited_api_authorization(Token) of
         ok ->
             ClusterType = onepanel_env:get_cluster_type(),
             case authenticate_user(ClusterType, Token, PeerIp) of
                 #client{} = Client -> Client;
-                #error{} = Error2 -> Error2
+                {error, _} = Error2 -> Error2
             end;
-        #error{} = Error ->
+        {error, _} = Error ->
             Error
     end.
 
@@ -80,7 +80,7 @@ read_domain(RegistrationToken) ->
 %% @TODO VFS-5765 use api_caveats:check_authorization
 %% @end
 %%--------------------------------------------------------------------
--spec ensure_unlimited_api_authorization(tokens:serialized()) -> ok | #error{}.
+-spec ensure_unlimited_api_authorization(tokens:serialized()) -> ok | {error, _}.
 ensure_unlimited_api_authorization(Serialized) ->
     case tokens:deserialize(Serialized) of
         {ok, Token = #token{subject = Subject}} ->
@@ -101,13 +101,13 @@ ensure_unlimited_api_authorization(Serialized) ->
 %%--------------------------------------------------------------------
 -spec authenticate_user(
     onedata:cluster_type(), tokens:serialized(), PeerIp :: ip_utils:ip()
-) -> #client{} | #error{}.
+) -> #client{} | {error, _}.
 authenticate_user(onezone, Token, PeerIp) ->
     case service_oz_worker:get_auth_by_token(Token, PeerIp) of
         {ok, Auth} ->
             {ok, Details} = service_oz_worker:get_user_details(Auth),
             user_details_to_client(Details, {rpc, Auth});
-        #error{} = Error -> Error
+        {error, _} = Error -> Error
     end;
 
 authenticate_user(oneprovider, Token, _PeerIp) ->
@@ -124,7 +124,7 @@ authenticate_user(oneprovider, Token, _PeerIp) ->
 
     case simple_cache:get(?USER_DETAILS_CACHE_KEY(Token), FetchDetailsFun) of
         {ok, {Details, Auth}} -> user_details_to_client(Details, {rest, Auth});
-        #error{} = Error -> Error
+        {error, _} = Error -> Error
     end.
 
 
@@ -135,7 +135,7 @@ authenticate_user(oneprovider, Token, _PeerIp) ->
 %% on every failed login attempt.
 %% @end
 %%--------------------------------------------------------------------
--spec fetch_details(RestAuth :: oz_plugin:auth()) -> {ok, #user_details{}} | #error{}.
+-spec fetch_details(RestAuth :: oz_plugin:auth()) -> {ok, #user_details{}} | {error, _}.
 fetch_details(RestAuth) ->
     case oz_endpoint:request(RestAuth, "/user", get) of
         {ok, ?HTTP_200_OK, _ResponseHeaders, ResponseBody} ->
@@ -157,7 +157,7 @@ fetch_details(RestAuth) ->
 
 %% @private
 -spec user_details_to_client(#user_details{}, rest_handler:zone_auth()) ->
-    #client{} | #error{} | no_return().
+    #client{} | {error, _} | no_return().
 user_details_to_client(Details, Auth) ->
     #user_details{id = OnezoneUserId} = Details,
     case clusters:get_user_privileges(OnezoneUserId) of

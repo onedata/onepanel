@@ -121,7 +121,7 @@ upgrade(_PreviousVsn, _PreviousRecord) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec create(Record :: record()) ->
-    {ok, name()} | #error{} | no_return().
+    {ok, name()} | {error, _} | no_return().
 create(Record) ->
     model:create(?MODULE, Record).
 
@@ -150,7 +150,7 @@ update(Key, Diff) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get(Key :: model_behaviour:key()) ->
-    {ok, Record :: record()} | #error{} | no_return().
+    {ok, Record :: record()} | {error, _} | no_return().
 get(Key) ->
     model:get(?MODULE, Key).
 
@@ -214,7 +214,7 @@ update_status(Service, Host, Status) ->
 %% and by onepanel_cron periodically invoking ServiceModule:status/1.
 %% @end
 %%--------------------------------------------------------------------
--spec get_status(name(), host()) -> status() | #error{}.
+-spec get_status(name(), host()) -> status() | {error, _}.
 get_status(Service, Host) ->
     case get_ctx(Service) of
         Ctx when is_map(Ctx) -> onepanel_maps:get([status, Host], Ctx);
@@ -264,7 +264,7 @@ healthy(Service) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply(Service :: name(), Action :: action(), Ctx :: ctx()) ->
-    ok | #error{}.
+    ok | {error, _}.
 apply(Service, Action, Ctx) ->
     apply(Service, Action, Ctx, undefined).
 
@@ -274,7 +274,7 @@ apply(Service, Action, Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply(Service :: name(), Action :: action(), Ctx :: ctx(), Notify :: notify()) ->
-    ok | #error{}.
+    ok | {error, _}.
 apply([], _Action, _Ctx, _Notify) ->
     ok;
 
@@ -324,7 +324,7 @@ apply_async(Service, Action, Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply_sync(Service :: service:name(), Action :: service:action()) ->
-    Results :: service_executor:results() | #error{}.
+    Results :: service_executor:results() | {error, _}.
 apply_sync(Service, Action) ->
     apply_sync(Service, Action, #{}).
 
@@ -334,7 +334,7 @@ apply_sync(Service, Action) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply_sync(Service :: service:name(), Action :: service:action(),
-    Ctx :: service:ctx()) -> Results :: service_executor:results() | #error{}.
+    Ctx :: service:ctx()) -> Results :: service_executor:results() | {error, _}.
 apply_sync(Service, Action, Ctx) ->
     apply_sync(Service, Action, Ctx, infinity).
 
@@ -346,7 +346,7 @@ apply_sync(Service, Action, Ctx) ->
 %%--------------------------------------------------------------------
 -spec apply_sync(Service :: service:name(), Action :: service:action(),
     Ctx :: service:ctx(), Timeout :: timeout()) ->
-    Results :: service_executor:results() | #error{}.
+    Results :: service_executor:results() | {error, _}.
 apply_sync(Service, Action, Ctx, Timeout) ->
     TaskId = apply_async(Service, Action, Ctx),
     Result = service_executor:receive_results(TaskId, Timeout),
@@ -359,8 +359,8 @@ apply_sync(Service, Action, Ctx, Timeout) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_results(service_executor:task_id()) -> {Results, StepsCount} when
-    Results :: service_executor:results() | #error{},
-    StepsCount :: non_neg_integer() | #error{}.
+    Results :: service_executor:results() | {error, _},
+    StepsCount :: non_neg_integer() | {error, _}.
 get_results(TaskId) ->
     get_results(TaskId, infinity).
 
@@ -370,16 +370,16 @@ get_results(TaskId) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_results(service_executor:task_id(), timeout()) -> {Results, StepsCount} when
-    Results :: service_executor:results() | #error{},
-    StepsCount :: non_neg_integer() | #error{}.
+    Results :: service_executor:results() | {error, _},
+    StepsCount :: non_neg_integer() | {error, _}.
 get_results(TaskId, Timeout) ->
     Results = case gen_server:call(?SERVICE_EXECUTOR_NAME, {get_results, TaskId}) of
         ok -> service_executor:receive_results(TaskId, Timeout);
-        #error{} = Error -> Error
+        {error, _} = Error -> Error
     end,
     StepsCount = case gen_server:call(?SERVICE_EXECUTOR_NAME, {get_count, TaskId}) of
         ok -> service_executor:receive_count(TaskId, Timeout);
-        #error{} = Error2 -> {Results, Error2}
+        {error, _} = Error2 -> {Results, Error2}
     end,
     {Results, StepsCount}.
 
@@ -388,7 +388,7 @@ get_results(TaskId, Timeout) ->
 %% @doc Aborts the asynchronous operation.
 %% @end
 %%--------------------------------------------------------------------
--spec abort_task(TaskId :: binary()) -> ok | #error{}.
+-spec abort_task(TaskId :: binary()) -> ok | {error, _}.
 abort_task(TaskId) ->
     gen_server:call(?SERVICE_EXECUTOR_NAME, {abort_task, TaskId}).
 
@@ -419,7 +419,7 @@ get_module(Service) ->
 get_hosts(Service) ->
     case service:get(Service) of
         {ok, #service{hosts = Hosts}} -> Hosts;
-        #error{} -> []
+        {error, _} -> []
     end.
 
 
@@ -475,7 +475,7 @@ register_healthcheck(Service, Ctx) ->
 %% @doc Returns the "ctx" field of a service model.
 %% @end
 %%--------------------------------------------------------------------
--spec get_ctx(name()) -> ctx() | #error{} | no_return().
+-spec get_ctx(name()) -> ctx() | {error, _} | no_return().
 get_ctx(Service) ->
     case ?MODULE:get(Service) of
         {ok, #service{ctx = Ctx}} -> Ctx;
@@ -515,7 +515,7 @@ store_in_ctx(Service, Keys, Value) ->
 %%--------------------------------------------------------------------
 %% @private @doc Applies the service steps associated with an action.
 %%--------------------------------------------------------------------
--spec apply_steps(Steps :: [step()], Notify :: notify()) -> ok | #error{}.
+-spec apply_steps(Steps :: [step()], Notify :: notify()) -> ok | {error, _}.
 apply_steps([], _Notify) ->
     ok;
 

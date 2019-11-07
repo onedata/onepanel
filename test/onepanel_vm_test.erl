@@ -46,12 +46,12 @@ read_should_return_value(_) ->
 
 
 read_should_report_missing_key(_) ->
-    ?_assertMatch(#error{reason = ?ERR_NOT_FOUND},
+    ?_assertMatch({error, ?ERR_NOT_FOUND},
         onepanel_vm:read(<<"k4">>, "p1")).
 
 
 read_should_pass_errors(_) ->
-    ?_assertThrow(#error{reason = enoent}, onepanel_vm:read(<<"k1">>, "p2")).
+    ?_assertThrow({error, enoent}, onepanel_vm:read(<<"k1">>, "p2")).
 
 
 write_should_append_value(_) ->
@@ -88,7 +88,7 @@ write_should_replace_value(_) ->
 
 
 write_should_pass_errors(_) ->
-    ?_assertThrow(#error{reason = enoent},
+    ?_assertThrow({error, enoent},
         onepanel_vm:write(<<"k1">>, <<"v1">>, "p2")).
 
 %%%===================================================================

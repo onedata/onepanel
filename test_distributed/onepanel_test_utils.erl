@@ -228,7 +228,7 @@ service_action(Node, Service, Action, Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec attempt_service_action(Node :: node(), Service :: service:name(),
-    Action :: atom(), Ctx :: service:ctx()) -> ok | #error{}.
+    Action :: atom(), Ctx :: service:ctx()) -> ok | {error, _}.
 attempt_service_action(Node, Service, Action, Ctx) ->
     Self = self(),
     rpc:call(Node, service, apply, [Service, Action, Ctx, Self]).

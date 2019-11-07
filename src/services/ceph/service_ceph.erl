@@ -242,7 +242,7 @@ get_details() ->
 %% Writes given Ceph configuration on all nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec distribute_config(ceph_conf:config()) -> ok | #error{}.
+-spec distribute_config(ceph_conf:config()) -> ok | {error, _}.
 distribute_config(Config) ->
     Results = service:apply_sync(ceph, write_config, #{config => Config}),
     case service_utils:results_contain_error(Results) of
@@ -289,7 +289,7 @@ make_storage_params(PoolName) ->
     op_worker_storage:storage_details().
 decorate_storage_details(#{type := ?CEPH_STORAGE_HELPER_NAME, name := Name} = Storage) ->
     case ceph_pool:get(Name) of
-        #error{} ->
+        {error, _} ->
             Storage;
         Pool ->
             maps:merge(Storage#{type => ?LOCAL_CEPH_STORAGE_TYPE}, Pool)
@@ -426,7 +426,7 @@ ensure_models(GlobalParams) ->
 %% @private @doc Returns this service's ctx.
 %% @end
 %%--------------------------------------------------------------------
--spec get_ctx() -> service:ctx() | #error{}.
+-spec get_ctx() -> service:ctx() | {error, _}.
 get_ctx() ->
     service:get_ctx(name()).
 

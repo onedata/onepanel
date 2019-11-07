@@ -93,7 +93,7 @@ join_should_fail_on_clustered_node(Config) ->
     Cluster2Hosts = hosts:from_nodes(Cluster2),
 
     lists:foreach(fun(Node) ->
-        ?assertMatch(#error{}, rpc:call(Node, service, apply,
+        ?assertMatch({error, _}, rpc:call(Node, service, apply,
             [?SERVICE, join_cluster, #{hosts => [hosts:from_node(Node)],
                 cluster_host => Host1}]
         ))
@@ -180,7 +180,7 @@ leave_should_not_remove_used_host(Config) ->
         [?SERVICE, deploy, #{cookie => ?COOKIE, hosts => Hosts,
             api_version => ?API_VERSION}]
     )),
-    ?assertMatch(#error{}, rpc:call(Node1, service, apply,
+    ?assertMatch({error, _}, rpc:call(Node1, service, apply,
         [?SERVICE, leave_cluster, #{}]
     )),
 

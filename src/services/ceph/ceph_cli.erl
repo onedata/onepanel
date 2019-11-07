@@ -287,7 +287,7 @@ set_pool_param(Pool, Param, Value) ->
 
 
 -spec get_pool_param(Pool :: binary(), Param :: binary()) ->
-    {ok, json_utils:json_term()} | #error{}.
+    {ok, json_utils:json_term()} | {error, _}.
 get_pool_param(Pool, Param) ->
     case onepanel_shell:execute(
         ?CEPH(["osd", "pool", "get", Pool, Param])

@@ -71,7 +71,7 @@ exists_resource(Req, #rstate{resource = gui_message, bindings = #{id := Id}}) ->
 exists_resource(Req, _State) ->
     case service:get(?SERVICE) of
         {ok, #service{}} -> {true, Req};
-        #error{reason = ?ERR_NOT_FOUND} -> {false, Req}
+        {error, ?ERR_NOT_FOUND} -> {false, Req}
     end.
 
 

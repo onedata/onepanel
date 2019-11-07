@@ -445,7 +445,7 @@ fulfill_challenge(ChallengeType, #authorization{challenges = Challenges}, State)
 %% @end
 %%--------------------------------------------------------------------
 -spec find_challenge(Type :: challenge_type(), ChallengeList :: [#challenge{}]) ->
-    {ok, #challenge{}} | #error{}.
+    {ok, #challenge{}} | {error, _}.
 find_challenge(Type, ChallengeList) ->
     case [Ch || Ch = #challenge{type = T} <- ChallengeList, T == Type] of
         [Challenge | _] -> {ok, Challenge};

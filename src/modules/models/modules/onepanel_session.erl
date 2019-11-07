@@ -97,7 +97,7 @@ seed() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec create(Record :: onepanel_user:name() | record()) ->
-    {ok, id()} | #error{} | no_return().
+    {ok, id()} | {error, _} | no_return().
 create(#onepanel_session{} = Record) ->
     model:create(?MODULE, Record).
 
@@ -126,7 +126,7 @@ update(Key, Diff) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get(Key :: model_behaviour:key()) ->
-    {ok, Record :: record()} | #error{} | no_return().
+    {ok, Record :: record()} | {error, _} | no_return().
 get(Key) ->
     model:get(?MODULE, Key).
 
@@ -170,12 +170,12 @@ list() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec create(id(), record()) ->
-    ok | #error{} | no_return().
+    ok | {error, _} | no_return().
 create(Id, Record) ->
     Record2 = Record#onepanel_session{id = Id, auth_tokens = [generate_api_token(Id)]},
     case create(Record2) of
         {ok, Id} -> ok;
-        #error{} = Error -> Error
+        {error, _} = Error -> Error
     end.
 
 
@@ -222,7 +222,7 @@ remove_expired_tokens(#onepanel_session{auth_tokens = Tokens} = Session) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec find_by_valid_auth_token(auth_token()) ->
-    {ok, record()} | #error{}.
+    {ok, record()} | {error, _}.
 find_by_valid_auth_token(RestApiToken) ->
     SessionId = token_to_session_id(RestApiToken),
     case onepanel_session:get(SessionId) of

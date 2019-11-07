@@ -213,7 +213,7 @@ setup_initial_member(#{monitors := Monitors}) ->
 %% Adds monitor host and addr to the Ceph config file.
 %% @end
 %%--------------------------------------------------------------------
--spec add_mon_to_config(#{id := id()}) -> ok | #error{}.
+-spec add_mon_to_config(#{id := id()}) -> ok | {error, _}.
 add_mon_to_config(#{id := Id}) ->
     Ip = kv_utils:get([instances, Id, ip], service:get_ctx(name())),
     Config = ceph_conf:read(ceph:get_conf_path()),

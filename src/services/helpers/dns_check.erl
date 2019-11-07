@@ -101,7 +101,7 @@ async_update_cache(Service) ->
         try
             update_cache(Service)
         catch
-            throw:#error{reason = ?ERR_DNS_CHECK_ERROR(Message)} ->
+            throw:{error, ?ERR_DNS_CHECK_ERROR(Message)} ->
                 ?error("DNS check refresh failed: ~s", [Message]);
             Type:Error ->
                 % Catch all as a process failure with exception

@@ -175,8 +175,7 @@ call_any(Nodes, Module, Function, Args, Timeout) ->
 -spec all(Results :: results()) -> Results :: results() | no_return().
 all(Results) ->
     BadResults = lists:filtermap(fun
-        ({_, #error{}}) -> true;
-        ({_, {error, Reason}}) -> {true, ?make_error(Reason)};
+        ({_, {error, _}}) -> true;
         ({_, _}) -> false
     end, Results),
     case BadResults of
@@ -195,7 +194,6 @@ any([]) ->
 
 any(Results) ->
     GoodResults = lists:filtermap(fun
-        ({_, #error{}}) -> false;
         ({_, {error, _}}) -> false;
         ({_, Value}) -> {true, Value}
     end, Results),

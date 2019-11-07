@@ -33,7 +33,7 @@
 -type step_result() :: {Module :: module(), Function :: atom()} |
     {Module :: module(), Function :: atom(), HostsResults :: hosts_results()}.
 -type action_result() :: {task_finished, {
-    Service :: service:name(), Action :: service:action(), Result :: ok | #error{}
+    Service :: service:name(), Action :: service:action(), Result :: ok | {error, _}
 }}.
 -type result() :: action_result() | step_result().
 -type results() :: [result()].
@@ -103,7 +103,7 @@ handle_results(Results, StepsCount) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec receive_results(TaskId :: task_id(), Timeout :: timeout()) ->
-    Results :: service_executor:results() | #error{}.
+    Results :: service_executor:results() | {error, _}.
 receive_results(TaskId, Timeout) ->
     receive
         {task, TaskId, Result} -> Result
@@ -116,7 +116,7 @@ receive_results(TaskId, Timeout) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec receive_count(TaskId :: task_id(), Timeout :: timeout()) ->
-    Count :: non_neg_integer() | #error{}.
+    Count :: non_neg_integer() | {error, _}.
 receive_count(TaskId, Timeout) ->
     receive
         {step_count, TaskId, Count} -> Count
@@ -243,7 +243,7 @@ handle_info({'DOWN', _, _, Pid, _}, #state{workers = Workers, handlers = Handler
         {ok, TaskId} ->
             {_, CleanState} = task_cleanup(TaskId, State),
             CleanState;
-        #error{reason = ?ERR_NOT_FOUND} -> State
+        {error, ?ERR_NOT_FOUND} -> State
     end,
     {noreply, NewState};
 

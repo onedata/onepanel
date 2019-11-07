@@ -126,7 +126,7 @@ update_file(Scope, Key, Updater, Path) ->
 %% Finds value in a parsed config.
 %% @end
 %%--------------------------------------------------------------------
--spec find(scope(), key(), config()) -> {ok, Value :: value()} | #error{}.
+-spec find(scope(), key(), config()) -> {ok, Value :: value()} | {error, _}.
 find(Scope, Key, Config) ->
     NormalizedScope = parse_scope(Scope),
     onepanel_maps:get([NormalizedScope, Key], Config).
@@ -138,7 +138,7 @@ find(Scope, Key, Config) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec read(Scope :: scope(), Key :: key(), Path :: file:name_all()) ->
-    {ok, Value :: value()} | #error{}.
+    {ok, Value :: value()} | {error, _}.
 read(Scope, Key, Path) ->
     Content = read(Path),
     find(Scope, Key, Content).

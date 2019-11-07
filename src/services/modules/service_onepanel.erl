@@ -263,7 +263,7 @@ extend_cluster(#{address := Address, api_version := _ApiVersion,
             extend_cluster(Ctx#{hostname => Hostname});
         {ok, _Hostname, OtherType} ->
             ?throw_error(?ERR_INCOMPATIBLE_NODE(Address, OtherType));
-        #error{reason = ?ERR_BAD_NODE} ->
+        {error, ?ERR_BAD_NODE} ->
             ?warning("Failed to connect with '~ts' to extend cluster", [Address]),
             extend_cluster(Ctx#{attempts => Attempts - 1})
     end.
@@ -355,7 +355,7 @@ available_for_clustering() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_remote_node_info(service:ctx()) ->
-    {ok, Hostname :: binary(), Application :: atom()} | #error{} | no_return().
+    {ok, Hostname :: binary(), Application :: atom()} | {error, _} | no_return().
 get_remote_node_info(#{address := Address, api_version := ApiVersion} = Ctx) ->
     Timeout = service_ctx:get(extend_cluster_timeout, Ctx, integer),
     Opts = https_opts(Timeout),

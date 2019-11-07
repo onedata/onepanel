@@ -16,7 +16,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([create/7, translate/2, format_error/1]).
+-export([translate/2, format_error/1]).
 
 -define(FORMAT_NONEMPTY(Variable), case Variable of
     undefined -> "";
@@ -29,35 +29,6 @@ end).
 %%% API functions
 %%%===================================================================
 
-%%--------------------------------------------------------------------
-%% @doc Creates an error record.
-%% Unpacks 'error', 'badmatch', 'case_clause', 'try_clause' errors if the reason
-%% term is an #error{} record.
-%% Even reasons in the form {error, term()} (when term is not #error) are not
-%% unpacked, to allow matching them to errors.hrl macros.
-%% @end
-%%--------------------------------------------------------------------
--spec create(Module :: module(), Function :: atom(), Arity :: arity(),
-    Args :: term(), Reason :: term(), Stacktrace :: term(), Line :: non_neg_integer()) ->
-    #error{}.
-create(Module, Function, Arity, Args, {error, #error{} = Reason}, Stacktrace, Line) ->
-    create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
-create(Module, Function, Arity, Args, {badmatch, #error{} = Reason}, Stacktrace, Line) ->
-    create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
-create(Module, Function, Arity, Args, {case_clause, #error{} = Reason}, Stacktrace, Line) ->
-    create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
-create(Module, Function, Arity, Args, {try_clause, #error{} = Reason}, Stacktrace, Line) ->
-    create(Module, Function, Arity, Args, Reason, Stacktrace, Line);
-
-create(_, _, _, _, #error{stacktrace = []} = Reason, NewStacktrace, _) ->
-    Reason#error{stacktrace = NewStacktrace};
-create(_, _, _, _, #error{} = Reason, _, _) ->
-    Reason;
-
-create(Module, Function, Arity, Args, Reason, Stacktrace, Line) ->
-    #error{module = Module, function = Function, arity = Arity, args = Args,
-        reason = Reason, stacktrace = Stacktrace, line = Line}.
-
 
 %%--------------------------------------------------------------------
 %% @doc Converts error to a human-readable description.
@@ -65,87 +36,81 @@ create(Module, Function, Arity, Args, Reason, Stacktrace, Line) ->
 %%--------------------------------------------------------------------
 -spec translate(Type :: atom(), Reason :: term()) ->
     {Name :: binary(), Description :: binary()} | no_return().
-translate(_Type, #error{reason = {?ERR_MISSING_KEY, Keys}}) ->
+translate(_Type, {error, {?ERR_MISSING_KEY, Keys}}) ->
     Key = get_key(Keys),
     {<<"Invalid Request">>, <<"Missing required key: '", Key/binary, "'.">>};
 
-translate(_Type, #error{reason = {?ERR_MISSING_ANY_KEY, Keys}}) ->
+translate(_Type, {error, {?ERR_MISSING_ANY_KEY, Keys}}) ->
     Key = get_key(Keys, <<", ">>),
     {<<"Invalid Request">>, <<"Missing one of required keys: {", Key/binary, "}.">>};
 
-translate(_Type, #error{reason = {?ERR_INVALID_VALUE, Keys, ValueSpec}}) ->
+translate(_Type, {error, {?ERR_INVALID_VALUE, Keys, ValueSpec}}) ->
     Key = get_key(Keys),
     Expectation = get_expectation(ValueSpec, <<>>),
     {<<"Invalid Request">>, <<"Invalid '", Key/binary, "' value, expected: ",
         Expectation/binary, ".">>};
 
-translate(_Type, #error{reason = ?ERR_INVALID_VALUE_TOKEN}) ->
+translate(_Type, {error, ?ERR_INVALID_VALUE_TOKEN}) ->
     {<<"Invalid Request">>, <<"Provided token is not valid.">>};
 
-translate(_Type, #error{reason = {?ERR_MISSING_PARAM, Keys}}) ->
+translate(_Type, {error, {?ERR_MISSING_PARAM, Keys}}) ->
     Key = get_key(Keys),
     {<<"Invalid Request">>, <<"Missing required parameter: '", Key/binary, "'.">>};
 
-translate(_Type, #error{reason = ?ERR_INVALID_NEW_PASSPHRASE}) ->
+translate(_Type, {error, ?ERR_INVALID_NEW_PASSPHRASE}) ->
     {<<"Invalid Request">>, str_utils:format_bin(
         "Passphrase must be at least ~B characters long", [?PASSPHRASE_MIN_LENGTH])};
 
-translate(_Type, #error{reason = ?ERR_INVALID_CURRENT_PASSPHRASE}) ->
+translate(_Type, {error, ?ERR_INVALID_CURRENT_PASSPHRASE}) ->
     {<<"Authentication Error">>, <<"Invalid password.">>};
 
-translate(_Type, #error{reason = ?ERR_INVALID_AUTH_TOKEN}) ->
+translate(_Type, {error, ?ERR_INVALID_AUTH_TOKEN}) ->
     {<<"Authentication Error">>, <<"Invalid REST API token.">>};
 
-translate(_Type, #error{reason = ?ERR_INVALID_PASSPHRASE}) ->
+translate(_Type, {error, ?ERR_INVALID_PASSPHRASE}) ->
     {<<"Authentication Error">>, <<"Invalid emergency passphrase.">>};
 
-translate(_Type, #error{reason = ?ERR_INVALID_USERNAME}) ->
+translate(_Type, {error, ?ERR_INVALID_USERNAME}) ->
     {<<"Invalid Request">>, <<"Basic auth username must be \"onepanel\".">>};
 
-translate(_Type, #error{reason = ?ERR_USER_NOT_IN_CLUSTER}) ->
+translate(_Type, {error, ?ERR_USER_NOT_IN_CLUSTER}) ->
     {<<"Authentication Error">>, <<"User is not authorized to access this cluster.">>};
 
-translate(_Type, #error{module = model, function = get, reason = ?ERR_NOT_FOUND,
-    args = [onepanel_session, _]}) ->
-    {<<"Authentication Error">>, <<"Session not found or expired.">>};
-
-translate(_Type, #error{reason = ?ERR_BAD_NODE}) ->
+translate(_Type, {error, ?ERR_BAD_NODE}) ->
     {<<"Operation error">>, <<"Node connection error.">>};
 
-translate(_Type, #error{reason = ?ERR_TIMEOUT}) ->
+translate(_Type, {error, ?ERR_TIMEOUT}) ->
     {<<"Operation error">>, <<"Operation timeout.">>};
 
-translate(_Type, #error{reason = ?ERR_HOST_NOT_FOUND(Host)}) ->
+translate(_Type, {error, ?ERR_HOST_NOT_FOUND(Host)}) ->
     {<<"Invalid Request">>, <<"Host not found: '",
         (onepanel_utils:convert(Host, binary))/binary, "'.">>};
 
-translate(_Type, #error{reason = ?ERR_NO_SERVICE_HOSTS(Service)}) ->
+translate(_Type, {error, ?ERR_NO_SERVICE_HOSTS(Service)}) ->
     {<<"Invalid Request">>, str_utils:format_bin(
         "Requires service '~ts' which is not deployed on any node.", [Service])};
 
-translate(_Type, #error{reason = ?ERR_NODE_NOT_EMPTY(Host)}) ->
+translate(_Type, {error, ?ERR_NODE_NOT_EMPTY(Host)}) ->
     {<<"Invalid Request">>, str_utils:format_bin(
         "Host at '~ts' is already a part of an existing cluster.", [Host])};
 
-translate(_Type, #error{reason = ?ERR_INCOMPATIBLE_NODE(Host, ClusterType)}) ->
+translate(_Type, {error, ?ERR_INCOMPATIBLE_NODE(Host, ClusterType)}) ->
     {<<"Operation error">>, str_utils:format_bin(
         "Cannot add node ~ts to the cluster. It is a ~ts node, expected ~ts.",
         [Host, ClusterType, onepanel_env:get_cluster_type()])};
 
-translate(_Type, #error{module = Module, function = Function, arity = Arity,
-    reason = ?ERR_PARSING_FAILURE(OffendingLine)}) ->
-    ?error("Function: ~p:~p/~p~n could not parse line ~p",
-        [Module, Function, Arity, OffendingLine]),
+translate(_Type, {error, ?ERR_PARSING_FAILURE(OffendingLine)}) ->
+    ?error("Could not parse line ~p", [OffendingLine]),
     {<<"Operation error">>, <<"Parsing error">>};
 
-translate(_Type, #error{reason = {?ERR_HOST_NOT_FOUND_FOR_ALIAS, Alias}}) ->
+translate(_Type, {error, {?ERR_HOST_NOT_FOUND_FOR_ALIAS, Alias}}) ->
     {<<"Invalid Request">>, <<"Host not found for node: '",
         (onepanel_utils:convert(Alias, binary))/binary, "'.">>};
 
-translate(_Type, #error{reason = ?ERR_ONEZONE_NOT_AVAILABLE}) ->
+translate(_Type, {error, ?ERR_ONEZONE_NOT_AVAILABLE}) ->
     {<<"Onezone connection error">>, <<"Onezone not available">>};
 
-translate(_Type, #error{reason = ?ERR_SUBDOMAIN_NOT_AVAILABLE}) ->
+translate(_Type, {error, ?ERR_SUBDOMAIN_NOT_AVAILABLE}) ->
     % DO NOT modify this error name as it is used to identify the error in GUI
     {<<"Subdomain reserved error">>, <<"Requested subdomain is currently used "
         "by another provider. Please choose another one. The subdomain will be "
@@ -153,142 +118,126 @@ translate(_Type, #error{reason = ?ERR_SUBDOMAIN_NOT_AVAILABLE}) ->
         "configured to use a different subdomain. Please contact your Onezone "
         "administror if you want to reclaim the subdomain of an unused provider.">>};
 
-translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, aleady_exists}}) ->
+translate(_Type, {error, {?ERR_STORAGE_ADDITION, aleady_exists}}) ->
     {<<"Operation Error">>, <<"Storage name is not available.">>};
 
-translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, Reason}}) ->
+translate(_Type, {error, {?ERR_STORAGE_ADDITION, Reason}}) ->
     ?error("Cannot add storage due to: ~tp", [Reason]),
     {<<"Operation Error">>, <<"Storage addition error.">>};
 
-translate(_Type, #error{reason = ?ERR_STORAGE_UPDATE_MISMATCH}) ->
+translate(_Type, {error, ?ERR_STORAGE_UPDATE_MISMATCH}) ->
     {<<"Operation Error">>, <<"Specified storage type or name do not match the id">>};
 
-translate(_Type, #error{reason = ?ERR_STORAGE_IN_USE}) ->
+translate(_Type, {error, ?ERR_STORAGE_IN_USE}) ->
     {<<"Operation Error">>, <<"Storage supporting a space cannot be removed.">>};
 
-translate(_Type, #error{reason = {?ERR_STORAGE_NOT_FOUND, StorageId}}) ->
+translate(_Type, {error, {?ERR_STORAGE_NOT_FOUND, StorageId}}) ->
     {<<"Operation Error">>, <<"Storage '", StorageId/binary, "' not found.">>};
 
-translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_CREATE, Node, Reason}}) ->
+translate(_Type, {error, {?ERR_STORAGE_TEST_FILE_CREATE, Node, Reason}}) ->
     translate_storage_test_file_error("create", <<"creation">>, Node, Reason);
 
-translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_READ, Node, Reason}}) ->
+translate(_Type, {error, {?ERR_STORAGE_TEST_FILE_READ, Node, Reason}}) ->
     translate_storage_test_file_error("read", <<"read">>, Node, Reason);
 
-translate(_Type, #error{reason = {?ERR_STORAGE_TEST_FILE_REMOVE, Node, Reason}}) ->
+translate(_Type, {error, {?ERR_STORAGE_TEST_FILE_REMOVE, Node, Reason}}) ->
     translate_storage_test_file_error("remove", <<"removal">>, Node, Reason);
 
 % Caused by mnesia tables not being initialized
-translate(_Type, #error{reason = {no_exists, onepanel_user}}) ->
+translate(_Type, {error, {no_exists, onepanel_user}}) ->
     {<<"Invalid Request">>, <<"Onepanel cluster not configured.">>};
 
-translate(_Type, #error{reason = invalid_json}) ->
+translate(_Type, {error, invalid_json}) ->
     {<<"Operation Error">>, <<"Malformed JSON data.">>};
 
-translate(_Type, #error{module = model, function = get, reason = ?ERR_NOT_FOUND,
-    args = [service, couchbase]}) ->
-    {<<"Operation Error">>, <<"Database not configured.">>};
-
-translate(_Type, #error{module = model, function = get, reason = ?ERR_NOT_FOUND,
-    args = [service, cluster_manager]}) ->
-    {<<"Operation Error">>, <<"Cluster Manager not configured.">>};
-
-translate(_Type, #error{module = model, function = get, reason = ?ERR_NOT_FOUND,
-    args = [service, op_worker]}) ->
-    {<<"Operation Error">>, <<"Cluster Worker not configured.">>};
-
-translate(_Type, #error{module = model, function = get, reason = ?ERR_NOT_FOUND,
-    args = [service, oz_worker]}) ->
-    {<<"Operation Error">>, <<"Cluster Worker not configured.">>};
-
-translate(_Type, #error{reason = ?ERR_CEPH_TOO_FEW_OSDS(Copies, OSDs)}) ->
+translate(_Type, {error, ?ERR_CEPH_TOO_FEW_OSDS(Copies, OSDs)}) ->
     {<<"Operation Error">>, str_utils:format_bin(
         "Requested pool copies number (~B) is greater than OSDs number (~B)",
         [Copies, OSDs])};
 
-translate(_Type, #error{reason = ?ERR_DNS_CHECK_ERROR(Message)}) ->
+translate(_Type, {error, ?ERR_DNS_CHECK_ERROR(Message)}) ->
     {<<"Operation Error">>, str_utils:format_bin("Error performing DNS check: ~ts", [Message])};
 
-translate(_Type, #error{reason = ?ERR_FILE_ACCESS(Path, Reason)}) ->
+translate(_Type, {error, ?ERR_FILE_ACCESS(Path, Reason)}) ->
     {<<"File access error">>, str_utils:format_bin("Error opening file ~tp: ~tp", [Path, Reason])};
 
 % DO NOT modify this error message as it is used to identify the error in GUI
-translate(_Type, #error{reason = ?ERR_LETSENCRYPT(ErrorURN, Message)}) ->
+translate(_Type, {error, ?ERR_LETSENCRYPT(ErrorURN, Message)}) ->
     {<<"Let's Encrypt Error">>, str_utils:format_bin("Let's Encrypt error: ~ts: ~ts",
         [ErrorURN, Message])};
 
 % DO NOT modify this error message as it is used to identify the error in GUI
-translate(_Type, #error{reason = ?ERR_LETSENCRYPT_LIMIT(ErrorURN, Message)}) ->
+translate(_Type, {error, ?ERR_LETSENCRYPT_LIMIT(ErrorURN, Message)}) ->
     {<<"Let's Encrypt Limit Error">>,
         str_utils:format_bin("Let's Encrypt limit error: ~ts: ~ts", [ErrorURN, Message])};
 
 % DO NOT modify this error message as it is used to identify the error in GUI
-translate(_Type, #error{reason = ?ERR_LETSENCRYPT_AUTHORIZATION(Message)}) ->
+translate(_Type, {error, ?ERR_LETSENCRYPT_AUTHORIZATION(Message)}) ->
     {<<"Let's Encrypt Authorization Error">>,
         str_utils:format_bin("Let's Encrypt authroization error: ~ts", [Message])};
 
-translate(_Type, #error{reason = ?ERR_LETSENCRYPT_NOT_SUPPORTED}) ->
+translate(_Type, {error, ?ERR_LETSENCRYPT_NOT_SUPPORTED}) ->
     {<<"Let's Encrypt Not Supported Error">>,
         <<"Automated Let's Encrypt certificates retrieval is currently unavailable.">>};
 
-translate(_Type, #error{reason = {?ERR_STORAGE_SYNC, import_already_started}}) ->
+translate(_Type, {error, {?ERR_STORAGE_SYNC, import_already_started}}) ->
     {<<"Operation Error">>, <<"Modifying storage_import that has already been started">>};
 
-translate(_Type, #error{reason = {?ERR_STORAGE_ADDITION, {missing_key, MissingKey}}}) ->
+translate(_Type, {error, {?ERR_STORAGE_ADDITION, {missing_key, MissingKey}}}) ->
     {<<"Operation Error">>, str_utils:format_bin("LUMA configuration error. "
     "Missing key: ~tp", [MissingKey])};
 
-translate(_Type, #error{reason = ?ERR_SPACE_SUPPORT_TOO_LOW(Minimum)}) ->
+translate(_Type, {error, ?ERR_SPACE_SUPPORT_TOO_LOW(Minimum)}) ->
     {<<"Operation Error">>, str_utils:format_bin(
         "Space support size must exceed currently used storage space and the minimum imposed by "
         "Onezone. Please specify size of at least ~B bytes.", [Minimum])};
 
-translate(_Type, #error{reason = {?ERR_CONFIG_AUTO_CLEANING, file_popularity_disabled}}) ->
+translate(_Type, {error, {?ERR_CONFIG_AUTO_CLEANING, file_popularity_disabled}}) ->
     {<<"Operation Error">>, <<"File popularity statistics must be turned on to enable autocleaning">>};
 
-translate(_Type, #error{reason = {?ERR_CONFIG_AUTO_CLEANING, {negative_value, Parameter}}}) ->
+translate(_Type, {error, {?ERR_CONFIG_AUTO_CLEANING, {negative_value, Parameter}}}) ->
     {<<"Operation Error">>, str_utils:format_bin("Auto-cleaning configuration error. Negative value not allowed for key: ~tp.", [Parameter])};
 
-translate(_Type, #error{reason = {?ERR_CONFIG_AUTO_CLEANING, {illegal_type, Parameter}}}) ->
+translate(_Type, {error, {?ERR_CONFIG_AUTO_CLEANING, {illegal_type, Parameter}}}) ->
     {<<"Operation Error">>, str_utils:format_bin("Auto-cleaning configuration error. Illegal type for key: ~tp.", [Parameter])};
 
-translate(_Type, #error{reason = {?ERR_CONFIG_AUTO_CLEANING, {value_grater_than, Name1, Name2}}}) ->
+translate(_Type, {error, {?ERR_CONFIG_AUTO_CLEANING, {value_grater_than, Name1, Name2}}}) ->
     {<<"Operation Error">>, str_utils:format_bin("Auto-cleaning configuration error. Setting value of parameter ~tp greater than ~tp is forbidden", [Name1, Name2])};
 
-translate(_Type, #error{reason = {?ERR_AUTOCLEANING, file_popularity_disabled}}) ->
+translate(_Type, {error, {?ERR_AUTOCLEANING, file_popularity_disabled}}) ->
     {<<"Operation Error">>, <<"Auto-cleaning error. File popularity is disabled.">>};
 
-translate(_Type, #error{reason = {?ERR_AUTOCLEANING, autocleaning_disabled}}) ->
+translate(_Type, {error, {?ERR_AUTOCLEANING, autocleaning_disabled}}) ->
     {<<"Operation Error">>, <<"Auto-cleaning error. Auto-cleaning is disabled.">>};
 
-translate(_Type, #error{reason = {?ERR_AUTOCLEANING, Reason}}) ->
+translate(_Type, {error, {?ERR_AUTOCLEANING, Reason}}) ->
     {<<"Operation Error">>, str_utils:format_bin("Auto-cleaning unexpected error: ~tp ", [Reason])};
 
-translate(_Type, #error{reason = {?ERR_CONFIG_FILE_POPULARITY, {negative_value, Parameter}}}) ->
+translate(_Type, {error, {?ERR_CONFIG_FILE_POPULARITY, {negative_value, Parameter}}}) ->
     {<<"Operation Error">>, str_utils:format_bin("file-popularity configuration error. Negative value not allowed for key: ~tp.", [Parameter])};
 
-translate(_Type, #error{reason = {?ERR_CONFIG_FILE_POPULARITY, {illegal_type, Parameter}}}) ->
+translate(_Type, {error, {?ERR_CONFIG_FILE_POPULARITY, {illegal_type, Parameter}}}) ->
     {<<"Operation Error">>, str_utils:format_bin("file-popularity configuration error. Illegal type for key: ~tp.", [Parameter])};
 
-translate(_Type, #error{reason = {?ERR_FILE_POPULARITY, Error}}) ->
+translate(_Type, {error, {?ERR_FILE_POPULARITY, Error}}) ->
     {<<"Operation Error">>, str_utils:format_bin("file-popularity error: ~tp.", [Error])};
 
-translate(_Type, #error{reason = ?ERR_FILE_ALLOCATION_FAILURE(ActualSize, TargetSize)}) ->
+translate(_Type, {error, ?ERR_FILE_ALLOCATION_FAILURE(ActualSize, TargetSize)}) ->
     {<<"Operation Error">>, str_utils:format_bin("File allocation error. Allocated ~s out of ~s",
         [str_utils:format_byte_size(ActualSize), str_utils:format_byte_size(TargetSize)])};
 
-translate(_Type, #error{reason = ?ERR_CMD_FAILURE(_, _, _)}) ->
+translate(_Type, {error, ?ERR_CMD_FAILURE(_, _, _)}) ->
     {<<"Internal Error">>, <<"Server encountered an unexpected error.">>};
 
-translate(_Type, #error{reason = {error, {Code, Error, Description}}})
+translate(_Type, {error, {error, {Code, Error, Description}}})
     when is_integer(Code), is_binary(Error), is_binary(Description) ->
     {<<"Operation Error">>, Error};
 
-translate(_Type, #error{reason = ?ERR_UNKNOWN_TYPE(Value)}) ->
+translate(_Type, {error, ?ERR_UNKNOWN_TYPE(Value)}) ->
     ?error("Could not determine type of ~p", [Value]),
     {<<"Internal Error">>, <<"Server encountered an unexpected error.">>};
 
-translate(_Type, #error{} = Error) ->
+translate(_Type, {error, _} = Error) ->
     try
         case describe_common_error(Error) of
             #{<<"id">> := <<"unexpectedError">>} ->
@@ -309,12 +258,9 @@ translate(Type, Reason) ->
     erlang:raise(Type, Reason, []).
 
 
--spec format_error(#error{}) -> list().
-format_error(#error{module = Module, function = Function, arity = Arity,
-    args = Args, reason = Reason, stacktrace = Stacktrace, line = Line}) ->
-    io_lib:format("Function: ~tp:~tp/~tp~n~tsReason: ~tp~n~ts"
-    "Line: ~tp~n", [Module, Function, Arity, ?FORMAT_NONEMPTY(Args),
-        Reason, ?FORMAT_NONEMPTY(Stacktrace), Line]).
+-spec format_error({error, _}) -> list().
+format_error({error, Reason}) ->
+    io_lib:format("~tp", [Reason]).
 
 
 %%%===================================================================
@@ -412,11 +358,8 @@ translate_storage_test_file_error(OperVerb, OperNoun, Node, Reason) ->
 %% Raises on failure.
 %% @end
 %%--------------------------------------------------------------------
--spec describe_common_error(#error{} | errors:error() | errors:reason()) ->
+-spec describe_common_error({error, _} | errors:error() | errors:reason()) ->
     errors:as_json() | no_return().
-describe_common_error(#error{reason = Reason}) ->
-    describe_common_error(Reason);
-
 describe_common_error({error, _} = Error) ->
     errors:to_json(Error);
 

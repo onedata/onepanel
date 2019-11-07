@@ -57,7 +57,7 @@
 %% Returns details of given pool.
 %% @end
 %%--------------------------------------------------------------------
--spec get(name()) -> spec() | #error{}.
+-spec get(name()) -> spec() | {error, _}.
 get(Name) ->
     case simple_cache:get(?DETAILS_CACHE_KEY(Name), fun() ->
         Params = get_params(Name, [
@@ -67,7 +67,7 @@ get(Name) ->
         case Params of
             Map when is_map(Map) ->
                 {true, Params#{name => Name}, ?CACHE_TIMEOUT};
-            #error{} = Error ->
+            {error, _} = Error ->
                 Error
         end
     end) of
@@ -251,7 +251,7 @@ parse_data_usage(#{<<"bytes_used">> := Used, <<"max_avail">> := MaxAvail}) ->
 
 %% @private
 -spec get_params(name(), [{Key, Param :: binary()}]) ->
-    #{Key => Value :: term()} | #error{} when Key :: atom().
+    #{Key => Value :: term()} | {error, _} when Key :: atom().
 get_params(PoolName, Params) ->
     {ok, Node} = nodes:onepanel_with(?SERVICE_CEPH),
     onepanel_lists:foldl_while(fun({Key, Param}, Acc) ->

@@ -67,7 +67,7 @@ get_fields() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec create(Model :: model(), Record :: model_behaviour:record()) ->
-    {ok, key()} | #error{} | no_return().
+    {ok, key()} | {error, _} | no_return().
 create(Model, Record) ->
     transaction(fun() ->
         Table = get_table_name(Model),
@@ -118,7 +118,7 @@ update(Model, Key, Diff) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get(Model :: model(), Key :: key()) ->
-    {ok, Record :: model_behaviour:record()} | #error{} | no_return().
+    {ok, Record :: model_behaviour:record()} | {error, _} | no_return().
 get(Model, Key) ->
     transaction(fun() ->
         Table = get_table_name(Model),
@@ -207,7 +207,7 @@ size(Model) ->
 %% @doc Removes all the model instances.
 %% @end
 %%--------------------------------------------------------------------
--spec clear(Model :: model()) -> ok | #error{}.
+-spec clear(Model :: model()) -> ok | {error, _}.
 clear(Model) ->
     Table = get_table_name(Model),
     case mnesia:clear_table(Table) of

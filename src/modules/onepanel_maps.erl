@@ -33,7 +33,7 @@
 %% @doc Returns a value from the nested property map.
 %% @end
 %%--------------------------------------------------------------------
--spec get(Keys :: keys(), Terms :: terms()) -> {ok, Value :: value()} | #error{}.
+-spec get(Keys :: keys(), Terms :: terms()) -> {ok, Value :: value()} | {error, _}.
 get([], Terms) ->
     {ok, Terms};
 
@@ -56,7 +56,7 @@ get(Key, Terms) ->
 get(Keys, Terms, Default) ->
     case get(Keys, Terms) of
         {ok, Value} -> Value;
-        #error{reason = ?ERR_NOT_FOUND} -> Default
+        {error, ?ERR_NOT_FOUND} -> Default
     end.
 
 

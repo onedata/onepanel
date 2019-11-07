@@ -258,7 +258,7 @@ format_block_device(#{type := Type, device := Device, uuid := UUID}) ->
 %% created with given UUID.
 %% @end
 %%--------------------------------------------------------------------
--spec obtain_id_by_uuid(binary()) -> {ok, id()} | #error{}.
+-spec obtain_id_by_uuid(binary()) -> {ok, id()} | {error, _}.
 obtain_id_by_uuid(UUID) ->
     Output = ceph_cli:volume_list(),
     OsdsList = lists:append(maps:values(Output)),
@@ -379,7 +379,7 @@ get_usage() ->
 %%%===================================================================
 
 %% @private
--spec get_ctx() -> service:ctx() | #error{}.
+-spec get_ctx() -> service:ctx() | {error, _}.
 get_ctx() ->
     service:get_ctx(name()).
 

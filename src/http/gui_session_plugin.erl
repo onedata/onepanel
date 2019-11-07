@@ -22,13 +22,11 @@
 -define(RETURN_DETAILS(__Term), case __Term of
     {ok, __Session} -> {ok, session_to_details(__Session)};
     {error, _} = __Error -> __Error
-    #error{} = __Error -> {error, __Error}
 end).
 
 -define(RETURN_OK(__Term), case __Term of
     ok -> ok;
     {error, _} = __Error -> __Error
-    #error{} = __Error -> {error, __Error}
 end).
 
 -export([

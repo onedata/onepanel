@@ -115,7 +115,7 @@ get_steps(Action, Ctx) ->
 
 
 -spec get_auth_by_token(AccessToken :: binary(), ip_utils:ip()) ->
-    {ok, aai:auth()} | #error{}.
+    {ok, aai:auth()} | {error, _}.
 get_auth_by_token(AccessToken, PeerIp) ->
     case nodes:any(name()) of
         {ok, OzNode} ->
@@ -127,7 +127,7 @@ get_auth_by_token(AccessToken, PeerIp) ->
     end.
 
 
--spec get_user_details(aai:auth()) -> {ok, #user_details{}} | #error{}.
+-spec get_user_details(aai:auth()) -> {ok, #user_details{}} | {error, _}.
 get_user_details(Auth) ->
     case oz_worker_rpc:get_user_details(Auth) of
         {ok, User} -> {ok, User};

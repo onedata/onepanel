@@ -241,7 +241,7 @@ find_test_(_) ->
             {ok, <<"v1">>}}
     ])
     ++ lists:map(fun({Name, {Scope, Key}}) ->
-        {Name, ?_assertMatch(#error{reason = ?ERR_NOT_FOUND},
+        {Name, ?_assertMatch({error, ?ERR_NOT_FOUND},
             ceph_conf:find(Scope, Key, Base))}
     end, [
         {"missing key",
