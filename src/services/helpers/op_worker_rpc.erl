@@ -65,7 +65,7 @@
 -export_type([storage_doc/0, luma_config/0, helper/0,
     helper_args/0, helper_user_ctx/0]).
 
--export([storage_new/4, storage_new/5]).
+-export([storage_new/5, storage_new/6]).
 -export([storage_create/1, storage_create/2]).
 -export([storage_safe_remove/1, storage_safe_remove/2]).
 -export([storage_supports_any_space/1, storage_supports_any_space/2]).
@@ -77,7 +77,7 @@
 -export([storage_update_helper_args/3, storage_update_helper_args/4]).
 -export([storage_set_insecure/3, storage_set_insecure/4]).
 -export([storage_set_readonly/2, storage_set_readonly/3]).
--export([storage_set_mount_in_root/1, storage_set_mount_in_root/2]).
+-export([storage_set_mount_in_root/2, storage_set_mount_in_root/3]).
 -export([storage_set_luma_config/2, storage_set_luma_config/3]).
 -export([storage_update_luma_config/2, storage_update_luma_config/3]).
 -export([storage_set_qos_parameters/2, storage_set_qos_parameters/3]).
@@ -145,14 +145,14 @@
 %%%===================================================================
 
 -spec storage_new(storage_name(), [helper()], boolean(),
-    undefined | luma_config()) -> storage_doc().
-storage_new(Name, Helpers, ReadOnly, LumaConfig) ->
-    ?CALL([Name, Helpers, ReadOnly, LumaConfig]).
+    undefined | luma_config(), boolean()) -> storage_doc().
+storage_new(Name, Helpers, ReadOnly, LumaConfig, MountInRoot) ->
+    ?CALL([Name, Helpers, ReadOnly, LumaConfig, MountInRoot]).
 
 -spec storage_new(node(), storage_name(), [helper()], boolean(),
-    undefined | luma_config()) -> storage_doc().
-storage_new(Node, Name, Helpers, ReadOnly, LumaConfig) ->
-    ?CALL(Node, [Name, Helpers, ReadOnly, LumaConfig]).
+    undefined | luma_config(), boolean()) -> storage_doc().
+storage_new(Node, Name, Helpers, ReadOnly, LumaConfig, MountInRoot) ->
+    ?CALL(Node, [Name, Helpers, ReadOnly, LumaConfig, MountInRoot]).
 
 
 
@@ -267,15 +267,15 @@ storage_set_readonly(Node, StorageId, Readonly) ->
     ?CALL(Node, [StorageId, Readonly]).
 
 
--spec storage_set_mount_in_root(storage_id()) ->
+-spec storage_set_mount_in_root(storage_id(), boolean()) ->
     ok | {error, term()}.
-storage_set_mount_in_root(StorageId) ->
-    ?CALL([StorageId]).
+storage_set_mount_in_root(StorageId, Value) ->
+    ?CALL([StorageId, Value]).
 
--spec storage_set_mount_in_root(node(), storage_id()) ->
+-spec storage_set_mount_in_root(node(), storage_id(), boolean()) ->
     ok | {error, term()}.
-storage_set_mount_in_root(Node, StorageId) ->
-    ?CALL(Node, [StorageId]).
+storage_set_mount_in_root(Node, StorageId, Value) ->
+    ?CALL(Node, [StorageId, Value]).
 
 
 -spec storage_set_luma_config(storage_id(), luma_config() | undefined) ->

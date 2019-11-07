@@ -1258,8 +1258,6 @@ space_details_model() ->
         %% The collection of provider IDs with associated supported storage
         %% space in bytes.
         supportingProviders => #{'_' => integer},
-        %% Defines whether space will be mounted in / or /{SpaceId}/ path.
-        mountInRoot => {boolean, optional},
         storageImport => {storage_import_details_model(), optional},
         storageUpdate => {storage_update_details_model(), optional},
         %% Amount of storage [b] used by data from given space on that storage.
@@ -1328,8 +1326,6 @@ space_support_request_model() ->
         size => integer,
         %% The Id of the storage resource where the space data should be stored.
         storageId => string,
-        %% Defines whether space will be mounted in / or /{SpaceId}/ path.
-        mountInRoot => {boolean, optional},
         storageImport => {storage_import_details_model(), optional},
         storageUpdate => {storage_update_details_model(), optional}
     }.
@@ -1831,6 +1827,8 @@ ceph_modify_model() ->
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
+        %% Defines whether space will be mounted in / or /{SpaceId}/ path.
+        mountInRoot => {boolean, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
         type => {equal, <<"ceph">>},
@@ -1870,6 +1868,8 @@ cephrados_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Defines whether space will be mounted in / or /{SpaceId}/ path.
+        mountInRoot => {boolean, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% The username of the Ceph cluster administrator.
@@ -1920,6 +1920,8 @@ cephrados_modify_model() ->
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
+        %% Defines whether space will be mounted in / or /{SpaceId}/ path.
+        mountInRoot => {boolean, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
         type => {equal, <<"cephrados">>},
@@ -1959,6 +1961,8 @@ glusterfs_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Defines whether space will be mounted in / or /{SpaceId}/ path.
+        mountInRoot => {boolean, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% The name of the volume to use as a storage backend.
@@ -2007,6 +2011,8 @@ glusterfs_modify_model() ->
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
+        %% Defines whether space will be mounted in / or /{SpaceId}/ path.
+        mountInRoot => {boolean, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
         type => {equal, <<"glusterfs">>},
@@ -2047,6 +2053,8 @@ localceph_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Defines whether space will be mounted in / or /{SpaceId}/ path.
+        mountInRoot => {boolean, optional},
         %% Desired number of object replicas in the pool. When below this number
         %% the pool still may be used in 'degraded' mode. Defaults to
         %% `2` if there are at least 2 OSDs, `1` otherwise.
@@ -2103,6 +2111,8 @@ localceph_modify_model() ->
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
+        %% Defines whether space will be mounted in / or /{SpaceId}/ path.
+        mountInRoot => {boolean, optional},
         %% The type of storage.
         type => {equal, <<"localceph">>}
     }.
@@ -2155,6 +2165,8 @@ nulldevice_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Defines whether space will be mounted in / or /{SpaceId}/ path.
+        mountInRoot => {boolean, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Minimum latency in milliseconds, which should be simulated for
@@ -2218,6 +2230,8 @@ nulldevice_modify_model() ->
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
+        %% Defines whether space will be mounted in / or /{SpaceId}/ path.
+        mountInRoot => {boolean, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
         type => {equal, <<"nulldevice">>},
@@ -2326,6 +2340,8 @@ posix_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Defines whether space will be mounted in / or /{SpaceId}/ path.
+        mountInRoot => {boolean, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% The absolute path to the directory where the POSIX storage is mounted
@@ -2363,6 +2379,8 @@ posix_modify_model() ->
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
+        %% Defines whether space will be mounted in / or /{SpaceId}/ path.
+        mountInRoot => {boolean, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
         type => {equal, <<"posix">>},
@@ -2391,6 +2409,8 @@ s3_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Defines whether space will be mounted in / or /{SpaceId}/ path.
+        mountInRoot => {boolean, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% The hostname of a machine where S3 storage is installed.
@@ -2458,6 +2478,8 @@ s3_modify_model() ->
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
+        %% Defines whether space will be mounted in / or /{SpaceId}/ path.
+        mountInRoot => {boolean, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
         type => {equal, <<"s3">>},
@@ -2511,6 +2533,8 @@ swift_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Defines whether space will be mounted in / or /{SpaceId}/ path.
+        mountInRoot => {boolean, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% The URL to OpenStack Keystone identity service.
@@ -2561,6 +2585,8 @@ swift_modify_model() ->
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
+        %% Defines whether space will be mounted in / or /{SpaceId}/ path.
+        mountInRoot => {boolean, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
         type => {equal, <<"swift">>},
@@ -2600,6 +2626,8 @@ webdav_model() ->
         %% LUMA API Key, must be identical with API Key in external LUMA
         %% service.
         lumaApiKey => {string, optional},
+        %% Defines whether space will be mounted in / or /{SpaceId}/ path.
+        mountInRoot => {boolean, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Full URL of the WebDAV server, including scheme (http or https) and
@@ -2695,6 +2723,8 @@ webdav_modify_model() ->
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
+        %% Defines whether space will be mounted in / or /{SpaceId}/ path.
+        mountInRoot => {boolean, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
         type => {equal, <<"webdav">>},

@@ -118,6 +118,7 @@ update(OpNode, Id, Params) ->
     ok = maybe_update_insecure(OpNode, Id, Type, PlainValues),
     ok = maybe_update_readonly(OpNode, Id, PlainValues),
     ok = maybe_update_qos_parameters(OpNode, Id, Params),
+    ok = maybe_update_mount_in_root(OpNode, Id, Params),
     make_update_result(OpNode, Id).
 
 
@@ -306,9 +307,11 @@ add(OpNode, StorageName, Params, QosParameters) ->
     LumaConfig = make_luma_config(OpNode, Params),
     maybe_verify_storage(Helper, ReadOnly),
 
+    MountInRoot = onepanel_utils:typed_get(mountInRoot, Params, boolean, false),
+
     ?info("Adding storage: \"~ts\" (~ts)", [StorageName, StorageType]),
     StorageRecord = op_worker_rpc:storage_new(StorageName, [Helper],
-        ReadOnly, LumaConfig),
+        ReadOnly, LumaConfig, MountInRoot),
     case op_worker_rpc:storage_create(StorageRecord) of
         {ok, StorageId} ->
             update_qos_parameters(OpNode, StorageId, QosParameters),
@@ -544,6 +547,19 @@ maybe_update_qos_parameters(_OpNode, _Id, _) ->
 update_qos_parameters(OpNode, Id, Parameters) ->
     ok = op_worker_rpc:storage_set_qos_parameters(OpNode, Id, Parameters).
 
+
+-spec maybe_update_mount_in_root(OpNode :: node(), Id :: id(),
+    storage_params()) -> ok.
+maybe_update_mount_in_root(OpNode, Id, #{mountInRoot := Value}) ->
+    update_mount_in_root(OpNode, Id, Value);
+maybe_update_mount_in_root(_OpNode, _Id, _) ->
+    ok.
+
+
+-spec update_mount_in_root(OpNode :: node(), Id :: id(),
+    boolean()) -> ok.
+update_mount_in_root(OpNode, Id, Value) ->
+    ok = op_worker_rpc:storage_set_mount_in_root(OpNode, Id, Value).
 
 %%--------------------------------------------------------------------
 %% @doc Checks if storage with given name or id exists.

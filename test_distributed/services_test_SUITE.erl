@@ -27,12 +27,12 @@
     domain_is_lowercased_test/1,
     default_admin_is_created_test/1,
     batch_config_creates_users/1,
-    service_oneprovider_unregister_register_test/1,
     service_oneprovider_modify_details_test/1,
     service_oneprovider_get_details_test/1,
     service_oneprovider_get_supported_spaces_test/1,
     service_op_worker_add_storage_test/1,
     service_op_worker_get_storages_test/1,
+    service_oneprovider_unregister_register_test/1,
     service_op_worker_update_storage_test/1,
     services_status_test/1,
     services_stop_start_test/1
@@ -57,11 +57,11 @@ all() ->
         domain_is_lowercased_test,
         default_admin_is_created_test,
         batch_config_creates_users,
-        service_oneprovider_unregister_register_test,
         service_oneprovider_modify_details_test,
         service_oneprovider_get_details_test,
         service_oneprovider_get_supported_spaces_test,
         service_op_worker_get_storages_test,
+        service_oneprovider_unregister_register_test,
         service_op_worker_add_storage_test,
         service_op_worker_update_storage_test,
         services_status_test
@@ -104,21 +104,6 @@ batch_config_creates_users(Config) ->
 
     ?assert(proxy_rpc(OzNode, OzwNode, group_logic, has_direct_user,
         [<<"admins">>, UserId])).
-
-
-service_oneprovider_unregister_register_test(Config) ->
-    [OzNode | _] = ?config(onezone_nodes, Config),
-    [OpNode | _] = ?config(oneprovider_nodes, Config),
-    OpDomain = ?config(oneprovider_domain, Config),
-    onepanel_test_utils:service_action(OpNode, oneprovider, unregister, #{}),
-    onepanel_test_utils:service_action(OpNode, oneprovider, register, #{
-        oneprovider_geo_latitude => 20.0,
-        oneprovider_geo_longitude => 20.0,
-        oneprovider_name => <<"provider2">>,
-        oneprovider_domain => OpDomain,
-        oneprovider_admin_email => <<"admin@onedata.org">>,
-        oneprovider_token => get_registration_token(OzNode)
-    }).
 
 
 service_oneprovider_modify_details_test(Config) ->
@@ -190,7 +175,22 @@ service_op_worker_get_storages_test(Config) ->
         {mountPoint, onepanel_utils:typed_get(
             [storages, posix, '/mnt/st1', docker_path], Config, binary
         )}
-    ])  .
+    ]).
+
+
+service_oneprovider_unregister_register_test(Config) ->
+    [OzNode | _] = ?config(onezone_nodes, Config),
+    [OpNode | _] = ?config(oneprovider_nodes, Config),
+    OpDomain = ?config(oneprovider_domain, Config),
+    onepanel_test_utils:service_action(OpNode, oneprovider, unregister, #{}),
+    onepanel_test_utils:service_action(OpNode, oneprovider, register, #{
+        oneprovider_geo_latitude => 20.0,
+        oneprovider_geo_longitude => 20.0,
+        oneprovider_name => <<"provider2">>,
+        oneprovider_domain => OpDomain,
+        oneprovider_admin_email => <<"admin@onedata.org">>,
+        oneprovider_token => get_registration_token(OzNode)
+    }).
 
 
 service_op_worker_add_storage_test(Config) ->
