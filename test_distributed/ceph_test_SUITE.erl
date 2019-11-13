@@ -292,46 +292,10 @@ storage_delete_removes_pool(Config) ->
 init_per_suite(Config) ->
     Posthook = fun(NewConfig) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
+        NewConfig3 = image_test_utils:deploy_onezone(?PASSPHRASE,
+            <<"admin">>, <<"password">>, NewConfig2),
 
-        [OpNode | _] = OpNodes = ?config(oneprovider_nodes, NewConfig2),
-        OpHosts = hosts:from_nodes(OpNodes),
-
-        rpc:call(OpNode, emergency_passphrase, set, [?PASSPHRASE]),
-        DbHosts = [hd(OpHosts)],
-        onepanel_test_utils:service_action(OpNode, ?SERVICE_PANEL, deploy, #{
-            hosts => OpHosts}),
-        onepanel_test_utils:service_action(OpNode, ?SERVICE_OP, deploy, #{
-            cluster => #{
-                ?SERVICE_PANEL => #{
-                    hosts => OpHosts
-                },
-                ?SERVICE_CB => #{
-                    hosts => DbHosts
-                },
-                ?SERVICE_CM => #{
-                    hosts => OpHosts, main_cm_host => hd(OpHosts),
-                    worker_num => length(OpHosts)
-                },
-                ?SERVICE_OPW => #{
-                    hosts => OpHosts, main_cm_host => hd(OpHosts),
-                    cm_hosts => OpHosts, db_hosts => DbHosts
-                },
-                storages => #{
-                    hosts => OpHosts,
-                    storages => #{
-                    }
-                },
-                ?SERVICE_LE => #{
-                    hosts => OpHosts,
-                    letsencrypt_enabled => false
-                }
-            },
-            ?SERVICE_OP => #{
-                hosts => OpHosts,
-                oneprovider_register => false
-            }
-        }),
-        NewConfig2
+        image_test_utils:deploy_oneprovider(?PASSPHRASE, _Storages = #{}, NewConfig3)
     end,
     [{?ENV_UP_POSTHOOK, Posthook} | Config].
 
