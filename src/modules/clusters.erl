@@ -241,7 +241,7 @@ zone_rest(Method, Auth, URNFormat, FormatArgs) ->
 zone_rest(Method, Auth, URNFormat, FormatArgs, Body) ->
     URN = str_utils:format(URNFormat, FormatArgs),
     case oz_endpoint:request(Auth, URN, Method, Body) of
-        {ok, ?HTTP_200_OK, _, BodyJson} ->
+        {ok, C, _, BodyJson} when C == ?HTTP_200_OK orelse C == ?HTTP_201_CREATED ->
             Parsed = onepanel_utils:convert(json_utils:decode(BodyJson), {keys, atom}),
             {ok, Parsed};
         {ok, _, _, Body} ->
