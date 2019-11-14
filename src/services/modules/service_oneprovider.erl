@@ -625,7 +625,7 @@ get_space_details(#{id := SpaceId}) ->
         op_worker_rpc:get_space_details(Node, SpaceId),
     StorageIds = op_worker_storage:get_supporting_storages(Node, SpaceId),
     StorageId = hd(StorageIds),
-    MountInRoot = op_worker_storage:is_mounted_in_root(Node, StorageId),
+    MountInRoot = op_worker_storage:is_imported_storage(Node, StorageId),
     ImportDetails = op_worker_storage_sync:get_storage_import_details(
         Node, SpaceId, StorageId
     ),
@@ -639,7 +639,7 @@ get_space_details(#{id := SpaceId}) ->
         {supportingProviders, Providers},
         {storageId, StorageId},
         {localStorages, StorageIds},
-        {mountInRoot, MountInRoot},
+        {importedStorage, MountInRoot},
         {storageImport, ImportDetails},
         {storageUpdate, UpdateDetails},
         {spaceOccupancy, CurrentSize}

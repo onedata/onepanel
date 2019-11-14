@@ -22,7 +22,7 @@
 -export([add/2, list/0, get/1, exists/2, update/3, remove/2]).
 -export([get_supporting_storage/2, get_supporting_storages/2,
     get_file_popularity_configuration/2, get_auto_cleaning_configuration/2]).
--export([is_mounted_in_root/2, can_be_removed/1]).
+-export([is_imported_storage/2, can_be_removed/1]).
 -export([maybe_update_file_popularity/3,
     maybe_update_auto_cleaning/3, invalidate_luma_cache/1]).
 
@@ -118,7 +118,7 @@ update(OpNode, Id, Params) ->
     ok = maybe_update_insecure(OpNode, Id, Type, PlainValues),
     ok = maybe_update_readonly(OpNode, Id, PlainValues),
     ok = maybe_update_qos_parameters(OpNode, Id, Params),
-    ok = maybe_update_mount_in_root(OpNode, Id, Params),
+    ok = maybe_update_imported_storage(OpNode, Id, Params),
     make_update_result(OpNode, Id).
 
 
@@ -183,10 +183,10 @@ get_supporting_storages(OpNode, SpaceId) ->
 %% @doc Checks whether space storage is mounted in root.
 %% @end
 %%--------------------------------------------------------------------
--spec is_mounted_in_root(OpNode :: node(), StorageId :: id()) ->
+-spec is_imported_storage(OpNode :: node(), StorageId :: id()) ->
     boolean().
-is_mounted_in_root(OpNode, StorageId) ->
-    op_worker_rpc:storage_is_mounted_in_root(OpNode, StorageId).
+is_imported_storage(OpNode, StorageId) ->
+    op_worker_rpc:storage_config_is_imported_storage(OpNode, StorageId).
 
 %%-------------------------------------------------------------------
 %% @doc
@@ -307,7 +307,7 @@ add(OpNode, StorageName, Params, QosParameters) ->
     LumaConfig = make_luma_config(OpNode, Params),
     maybe_verify_storage(Helper, ReadOnly),
 
-    MountInRoot = onepanel_utils:typed_get(mountInRoot, Params, boolean, false),
+    MountInRoot = onepanel_utils:typed_get(importedStorage, Params, boolean, false),
 
     ?info("Adding storage: \"~ts\" (~ts)", [StorageName, StorageType]),
     StorageRecord = op_worker_rpc:storage_new(StorageName, [Helper],
@@ -548,18 +548,18 @@ update_qos_parameters(OpNode, Id, Parameters) ->
     ok = op_worker_rpc:storage_set_qos_parameters(OpNode, Id, Parameters).
 
 
--spec maybe_update_mount_in_root(OpNode :: node(), Id :: id(),
+-spec maybe_update_imported_storage(OpNode :: node(), Id :: id(),
     storage_params()) -> ok.
-maybe_update_mount_in_root(OpNode, Id, #{mountInRoot := Value}) ->
-    update_mount_in_root(OpNode, Id, Value);
-maybe_update_mount_in_root(_OpNode, _Id, _) ->
+maybe_update_imported_storage(OpNode, Id, #{importedStorage := Value}) ->
+    update_imported_storage(OpNode, Id, Value);
+maybe_update_imported_storage(_OpNode, _Id, _) ->
     ok.
 
 
--spec update_mount_in_root(OpNode :: node(), Id :: id(),
+-spec update_imported_storage(OpNode :: node(), Id :: id(),
     boolean()) -> ok.
-update_mount_in_root(OpNode, Id, Value) ->
-    ok = op_worker_rpc:storage_set_mount_in_root(OpNode, Id, Value).
+update_imported_storage(OpNode, Id, Value) ->
+    ok = op_worker_rpc:storage_set_imported_storage(OpNode, Id, Value).
 
 %%--------------------------------------------------------------------
 %% @doc Checks if storage with given name or id exists.

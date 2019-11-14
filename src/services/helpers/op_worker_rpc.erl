@@ -77,7 +77,7 @@
 -export([storage_update_helper_args/3, storage_update_helper_args/4]).
 -export([storage_set_insecure/3, storage_set_insecure/4]).
 -export([storage_set_readonly/2, storage_set_readonly/3]).
--export([storage_set_mount_in_root/2, storage_set_mount_in_root/3]).
+-export([storage_set_imported_storage/2, storage_set_imported_storage/3]).
 -export([storage_set_luma_config/2, storage_set_luma_config/3]).
 -export([storage_update_luma_config/2, storage_update_luma_config/3]).
 -export([storage_set_qos_parameters/2, storage_set_qos_parameters/3]).
@@ -86,9 +86,8 @@
 -export([get_storage_by_name/1, get_storage_by_name/2]).
 -export([storage_exists/1, storage_exists/2]).
 -export([storage_describe/1, storage_describe/2]).
--export([storage_is_mounted_in_root/1, storage_is_mounted_in_root/2]).
+-export([storage_config_is_imported_storage/1, storage_config_is_imported_storage/2]).
 -export([space_logic_get_storage_ids/1, space_logic_get_storage_ids/2]).
--export([space_storage_get_mounted_in_root/1, space_storage_get_mounted_in_root/2]).
 -export([file_popularity_api_configure/2, file_popularity_api_configure/3]).
 -export([file_popularity_api_get_configuration/1,
     file_popularity_api_get_configuration/2]).
@@ -267,14 +266,14 @@ storage_set_readonly(Node, StorageId, Readonly) ->
     ?CALL(Node, [StorageId, Readonly]).
 
 
--spec storage_set_mount_in_root(storage_id(), boolean()) ->
+-spec storage_set_imported_storage(storage_id(), boolean()) ->
     ok | {error, term()}.
-storage_set_mount_in_root(StorageId, Value) ->
+storage_set_imported_storage(StorageId, Value) ->
     ?CALL([StorageId, Value]).
 
--spec storage_set_mount_in_root(node(), storage_id(), boolean()) ->
+-spec storage_set_imported_storage(node(), storage_id(), boolean()) ->
     ok | {error, term()}.
-storage_set_mount_in_root(Node, StorageId, Value) ->
+storage_set_imported_storage(Node, StorageId, Value) ->
     ?CALL(Node, [StorageId, Value]).
 
 
@@ -362,14 +361,14 @@ storage_describe(Node, StorageId) ->
     ?CALL(Node, [StorageId]).
 
 
--spec storage_is_mounted_in_root(storage_id()) ->
+-spec storage_config_is_imported_storage(storage_id()) ->
     boolean() | {error, term()}.
-storage_is_mounted_in_root(StorageId) ->
+storage_config_is_imported_storage(StorageId) ->
     ?CALL([StorageId]).
 
--spec storage_is_mounted_in_root(node(), storage_id()) ->
+-spec storage_config_is_imported_storage(node(), storage_id()) ->
     boolean() | {error, term()}.
-storage_is_mounted_in_root(Node, StorageId) ->
+storage_config_is_imported_storage(Node, StorageId) ->
     ?CALL(Node, [StorageId]).
 
 
@@ -379,16 +378,6 @@ space_logic_get_storage_ids(SpaceId) ->
 
 -spec space_logic_get_storage_ids(node(), od_space_id()) -> [op_worker_storage:id()].
 space_logic_get_storage_ids(Node, SpaceId) ->
-    ?CALL(Node, [SpaceId]).
-
-
--spec space_storage_get_mounted_in_root(storage_id()) -> [op_worker_storage:id()].
-space_storage_get_mounted_in_root(SpaceId) ->
-    ?CALL([SpaceId]).
-
--spec space_storage_get_mounted_in_root(node(), storage_id()) ->
-    [op_worker_storage:id()].
-space_storage_get_mounted_in_root(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
 
