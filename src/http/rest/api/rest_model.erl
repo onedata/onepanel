@@ -143,14 +143,14 @@
 %% @doc List of block device descriptions.
 %% @end
 %%--------------------------------------------------------------------
--spec block_devices_model() -> map().
+-spec block_devices_model() -> onepanel_parser:object_spec().
 block_devices_model() ->
     #{
         %% List of available block devices.
         blockDevices => {[block_devices_block_devices_model()], optional}
     }.
 
--spec block_devices_block_devices_model() -> map().
+-spec block_devices_block_devices_model() -> onepanel_parser:object_spec().
 block_devices_block_devices_model() ->
     #{
         %% Device type, as returned by lsblk.
@@ -169,7 +169,7 @@ block_devices_block_devices_model() ->
 %% @doc Describes global Ceph cluster configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec ceph_global_params_model() -> map().
+-spec ceph_global_params_model() -> onepanel_parser:object_spec().
 ceph_global_params_model() ->
     #{
         %% Name of the cluster.
@@ -183,7 +183,7 @@ ceph_global_params_model() ->
 %% @doc Ceph manager specification.
 %% @end
 %%--------------------------------------------------------------------
--spec ceph_manager_model() -> map().
+-spec ceph_manager_model() -> onepanel_parser:object_spec().
 ceph_manager_model() ->
     #{
         %% Host on which given manager should be deployed.
@@ -194,7 +194,7 @@ ceph_manager_model() ->
 %% @doc Object containing a list of Ceph manager daemons.
 %% @end
 %%--------------------------------------------------------------------
--spec ceph_managers_model() -> map().
+-spec ceph_managers_model() -> onepanel_parser:object_spec().
 ceph_managers_model() ->
     #{
         %% List of Ceph manager configurations.
@@ -205,7 +205,7 @@ ceph_managers_model() ->
 %% @doc Ceph monitor specification.
 %% @end
 %%--------------------------------------------------------------------
--spec ceph_monitor_model() -> map().
+-spec ceph_monitor_model() -> onepanel_parser:object_spec().
 ceph_monitor_model() ->
     #{
         %% Host on which given monitor should be deployed. There may be only one
@@ -221,7 +221,7 @@ ceph_monitor_model() ->
 %% @doc Object containing a list of Ceph monitor daemons.
 %% @end
 %%--------------------------------------------------------------------
--spec ceph_monitors_model() -> map().
+-spec ceph_monitors_model() -> onepanel_parser:object_spec().
 ceph_monitors_model() ->
     #{
         %% List of Ceph monitor specifications.
@@ -232,7 +232,7 @@ ceph_monitors_model() ->
 %% @doc The cluster storage configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec ceph_osd_model() -> {subclasses, list()}.
+-spec ceph_osd_model() -> onepanel_parser:multi_spec().
 ceph_osd_model() ->
     {subclasses, onepanel_parser:prepare_subclasses([blockdevice_model(), loopdevice_model()])}.
 
@@ -240,7 +240,7 @@ ceph_osd_model() ->
 %% @doc Object containing a list of Ceph OSD specifications.
 %% @end
 %%--------------------------------------------------------------------
--spec ceph_osds_model() -> map().
+-spec ceph_osds_model() -> onepanel_parser:object_spec().
 ceph_osds_model() ->
     #{
         %% List of Ceph OSD specifications.
@@ -251,7 +251,7 @@ ceph_osds_model() ->
 %% @doc Describes a Ceph pool.
 %% @end
 %%--------------------------------------------------------------------
--spec ceph_pool_model() -> map().
+-spec ceph_pool_model() -> onepanel_parser:object_spec().
 ceph_pool_model() ->
     #{
         %% Desired number of object replicas in the pool. When below this number
@@ -269,7 +269,7 @@ ceph_pool_model() ->
 %% @doc Space usage of a single Ceph pool.
 %% @end
 %%--------------------------------------------------------------------
--spec ceph_pool_usage_model() -> map().
+-spec ceph_pool_usage_model() -> onepanel_parser:object_spec().
 ceph_pool_usage_model() ->
     #{
         %% Total size of objects in the pool in bytes.
@@ -284,7 +284,7 @@ ceph_pool_usage_model() ->
 %% @doc Object containing a list of Ceph pools.
 %% @end
 %%--------------------------------------------------------------------
--spec ceph_pools_model() -> map().
+-spec ceph_pools_model() -> onepanel_parser:object_spec().
 ceph_pools_model() ->
     #{
         %% List of Ceph pools.
@@ -295,7 +295,7 @@ ceph_pools_model() ->
 %% @doc Status report of the Ceph cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec ceph_status_model() -> map().
+-spec ceph_status_model() -> onepanel_parser:object_spec().
 ceph_status_model() ->
     #{
         %% General health status.
@@ -308,7 +308,7 @@ ceph_status_model() ->
 %% @doc Summary of storage space usage in the ceph cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec ceph_usage_model() -> map().
+-spec ceph_usage_model() -> onepanel_parser:object_spec().
 ceph_usage_model() ->
     #{
         total => data_usage_model(),
@@ -322,7 +322,7 @@ ceph_usage_model() ->
 %% @doc The cluster configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec cluster_configuration_details_model() -> map().
+-spec cluster_configuration_details_model() -> onepanel_parser:object_spec().
 cluster_configuration_details_model() ->
     #{
         %% Host responsible for deploying cluster and coordinating cluster
@@ -337,7 +337,7 @@ cluster_configuration_details_model() ->
 %% @doc The cluster database service configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec cluster_databases_model() -> map().
+-spec cluster_databases_model() -> onepanel_parser:object_spec().
 cluster_databases_model() ->
     #{
         %% The list of aliases of cluster database nodes.
@@ -356,7 +356,7 @@ cluster_databases_model() ->
 %% @doc Details of a cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec cluster_details_model() -> map().
+-spec cluster_details_model() -> onepanel_parser:object_spec().
 cluster_details_model() ->
     #{
         %% Id of the cluster record.
@@ -378,7 +378,7 @@ cluster_details_model() ->
 %% @doc External IPs used by cluster nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec cluster_ips_model() -> map().
+-spec cluster_ips_model() -> onepanel_parser:object_spec().
 cluster_ips_model() ->
     #{
         %% If true, user has already sent a request updating IPs thus marking
@@ -392,7 +392,7 @@ cluster_ips_model() ->
 %% @doc The cluster manager service configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec cluster_managers_model() -> map().
+-spec cluster_managers_model() -> onepanel_parser:object_spec().
 cluster_managers_model() ->
     #{
         %% The alias of the main cluster manager node.
@@ -406,7 +406,7 @@ cluster_managers_model() ->
 %% and groups.
 %% @end
 %%--------------------------------------------------------------------
--spec cluster_members_summary_model() -> map().
+-spec cluster_members_summary_model() -> onepanel_parser:object_spec().
 cluster_members_summary_model() ->
     #{
         %% Number of users belonging directly to the cluster.
@@ -423,7 +423,7 @@ cluster_members_summary_model() ->
 %% @doc The cluster worker service configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec cluster_workers_model() -> map().
+-spec cluster_workers_model() -> onepanel_parser:object_spec().
 cluster_workers_model() ->
     #{
         %% The list of aliases of cluster worker nodes.
@@ -434,7 +434,7 @@ cluster_workers_model() ->
 %% @doc Public service configuration details.
 %% @end
 %%--------------------------------------------------------------------
--spec configuration_model() -> {subclasses, list()}.
+-spec configuration_model() -> onepanel_parser:multi_spec().
 configuration_model() ->
     {subclasses, onepanel_parser:prepare_subclasses(
         [op_configuration_model(), oz_configuration_model()])}.
@@ -443,7 +443,7 @@ configuration_model() ->
 %% @doc Information about the authenticated user.
 %% @end
 %%--------------------------------------------------------------------
--spec current_user_model() -> map().
+-spec current_user_model() -> onepanel_parser:object_spec().
 current_user_model() ->
     #{
         %% The user Id.
@@ -458,7 +458,7 @@ current_user_model() ->
 %% @doc Describes storage space usage level.
 %% @end
 %%--------------------------------------------------------------------
--spec data_usage_model() -> map().
+-spec data_usage_model() -> onepanel_parser:object_spec().
 data_usage_model() ->
     #{
         %% Total space (used and available) in bytes.
@@ -473,7 +473,7 @@ data_usage_model() ->
 %% @doc The cluster database service hosts configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec database_hosts_model() -> map().
+-spec database_hosts_model() -> onepanel_parser:object_spec().
 database_hosts_model() ->
     #{
         %% The list of service hosts.
@@ -490,7 +490,7 @@ database_hosts_model() ->
 %% an IP neither 'domain' nor 'dnsZone' is returned.
 %% @end
 %%--------------------------------------------------------------------
--spec dns_check_model() -> map().
+-spec dns_check_model() -> onepanel_parser:object_spec().
 dns_check_model() ->
     #{
         domain => {dns_check_result_model(), optional},
@@ -504,7 +504,7 @@ dns_check_model() ->
 %% @doc Configuration of the 'dns_check' method calls.
 %% @end
 %%--------------------------------------------------------------------
--spec dns_check_configuration_model() -> map().
+-spec dns_check_configuration_model() -> onepanel_parser:object_spec().
 dns_check_configuration_model() ->
     #{
         %% A collection of IP addresses for DNS servers used in checking DNS. If
@@ -524,7 +524,7 @@ dns_check_configuration_model() ->
 %% DNS servers to ensure publicly visible records match expected values.
 %% @end
 %%--------------------------------------------------------------------
--spec dns_check_result_model() -> map().
+-spec dns_check_result_model() -> onepanel_parser:object_spec().
 dns_check_result_model() ->
     #{
         %% An interpretation of results obtained from DNS check. Possible values
@@ -547,7 +547,7 @@ dns_check_result_model() ->
 %% @doc Emergency passphrase to set and old passphrase to authorize the change.
 %% @end
 %%--------------------------------------------------------------------
--spec emergency_passphrase_change_request_model() -> map().
+-spec emergency_passphrase_change_request_model() -> onepanel_parser:object_spec().
 emergency_passphrase_change_request_model() ->
     #{
         %% New passphrase to be set.
@@ -561,7 +561,7 @@ emergency_passphrase_change_request_model() ->
 %% @doc Emergency passphrase status.
 %% @end
 %%--------------------------------------------------------------------
--spec emergency_passphrase_status_model() -> map().
+-spec emergency_passphrase_status_model() -> onepanel_parser:object_spec().
 emergency_passphrase_status_model() ->
     #{
         %% True if the passphrase is set.
@@ -572,7 +572,7 @@ emergency_passphrase_status_model() ->
 %% @doc The generic error model for REST requests.
 %% @end
 %%--------------------------------------------------------------------
--spec error_model() -> map().
+-spec error_model() -> onepanel_parser:object_spec().
 error_model() ->
     #{
         %% The name of an error type.
@@ -585,7 +585,7 @@ error_model() ->
 %% @doc Settings of a message displayed in Onezone GUI.
 %% @end
 %%--------------------------------------------------------------------
--spec gui_message_model() -> map().
+-spec gui_message_model() -> onepanel_parser:object_spec().
 gui_message_model() ->
     #{
         %% True if the message should be displayed.
@@ -598,7 +598,7 @@ gui_message_model() ->
 %% @doc Details of a cluster host.
 %% @end
 %%--------------------------------------------------------------------
--spec host_model() -> map().
+-spec host_model() -> onepanel_parser:object_spec().
 host_model() ->
     #{
         %% Host's hostname.
@@ -609,14 +609,14 @@ host_model() ->
 %% @doc Details of host added to cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec host_add_request_model() -> map().
+-spec host_add_request_model() -> onepanel_parser:object_spec().
 host_add_request_model() ->
     #{
         %% Address at which the host is available, IP or hostname.
         address => string
     }.
 
--spec ids_model() -> map().
+-spec ids_model() -> onepanel_parser:object_spec().
 ids_model() ->
     #{
         %% List of ids.
@@ -627,7 +627,7 @@ ids_model() ->
 %% @doc Information allowing new host to join the cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec join_cluster_request_model() -> map().
+-spec join_cluster_request_model() -> onepanel_parser:object_spec().
 join_cluster_request_model() ->
     #{
         %% Hostname of an existing cluster node.
@@ -646,7 +646,7 @@ join_cluster_request_model() ->
 %% @doc The cluster manager service hosts configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec manager_hosts_model() -> map().
+-spec manager_hosts_model() -> onepanel_parser:object_spec().
 manager_hosts_model() ->
     #{
         %% The main cluster manager host. Main cluster manager node is
@@ -663,7 +663,7 @@ manager_hosts_model() ->
 %% @doc External IPs used by cluster nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec modify_cluster_ips_model() -> map().
+-spec modify_cluster_ips_model() -> onepanel_parser:object_spec().
 modify_cluster_ips_model() ->
     #{
         %% The collection of cluster nodes associated with their IPs.
@@ -674,7 +674,7 @@ modify_cluster_ips_model() ->
 %% @doc Details of a onepanel node.
 %% @end
 %%--------------------------------------------------------------------
--spec node_model() -> map().
+-spec node_model() -> onepanel_parser:object_spec().
 node_model() ->
     #{
         %% Hostname of the node.
@@ -687,7 +687,7 @@ node_model() ->
 %% @doc Information which can be obtained about remote Onezone.
 %% @end
 %%--------------------------------------------------------------------
--spec onezone_info_model() -> map().
+-spec onezone_info_model() -> onepanel_parser:object_spec().
 onezone_info_model() ->
     #{
         %% True if connection to the Onezone was achieved. If false, fields
@@ -709,7 +709,7 @@ onezone_info_model() ->
 %% @doc Describes a user account.
 %% @end
 %%--------------------------------------------------------------------
--spec onezone_user_model() -> map().
+-spec onezone_user_model() -> onepanel_parser:object_spec().
 onezone_user_model() ->
     #{
         %% Unique user Id.
@@ -726,7 +726,7 @@ onezone_user_model() ->
 %% @doc The new Onezone user account details.
 %% @end
 %%--------------------------------------------------------------------
--spec onezone_user_create_request_model() -> map().
+-spec onezone_user_create_request_model() -> onepanel_parser:object_spec().
 onezone_user_create_request_model() ->
     #{
         username => string,
@@ -740,7 +740,7 @@ onezone_user_create_request_model() ->
 %% @doc The panel configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec panel_configuration_model() -> map().
+-spec panel_configuration_model() -> onepanel_parser:object_spec().
 panel_configuration_model() ->
     #{
         %% Indicates that interactive deployment is being performed. If false,
@@ -757,7 +757,7 @@ panel_configuration_model() ->
 %% @doc Request to change user's password.
 %% @end
 %%--------------------------------------------------------------------
--spec password_change_request_model() -> map().
+-spec password_change_request_model() -> onepanel_parser:object_spec().
 password_change_request_model() ->
     #{
         %% The new user password.
@@ -769,7 +769,7 @@ password_change_request_model() ->
 %% reached by the admin performing cluster setup.
 %% @end
 %%--------------------------------------------------------------------
--spec progress_model() -> map().
+-spec progress_model() -> onepanel_parser:object_spec().
 progress_model() ->
     #{
         %% True after user provided public IPs of cluster nodes or confirmed
@@ -788,7 +788,7 @@ progress_model() ->
 %% @doc Progress markers which can be set or unset by the GUI.
 %% @end
 %%--------------------------------------------------------------------
--spec progress_modify_model() -> map().
+-spec progress_modify_model() -> onepanel_parser:object_spec().
 progress_modify_model() ->
     #{
         %% True after user confirmed detected external IPs or if
@@ -806,7 +806,7 @@ progress_modify_model() ->
 %% @doc The provider cluster configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec provider_cluster_configuration_model() -> map().
+-spec provider_cluster_configuration_model() -> onepanel_parser:object_spec().
 provider_cluster_configuration_model() ->
     #{
         %% Hostname suffix common for all services in the cluster. Together with
@@ -825,7 +825,7 @@ provider_cluster_configuration_model() ->
 %% @doc The provider deployment configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec provider_configuration_model() -> map().
+-spec provider_configuration_model() -> onepanel_parser:object_spec().
 provider_configuration_model() ->
     #{
         cluster => provider_cluster_configuration_model(),
@@ -838,7 +838,7 @@ provider_configuration_model() ->
 %% @doc The provider deployment configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec provider_configuration_details_model() -> map().
+-spec provider_configuration_details_model() -> onepanel_parser:object_spec().
 provider_configuration_details_model() ->
     #{
         cluster => cluster_configuration_details_model(),
@@ -850,7 +850,7 @@ provider_configuration_details_model() ->
 %% @doc The provider custom configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec provider_configuration_details_oneprovider_model() -> map().
+-spec provider_configuration_details_oneprovider_model() -> onepanel_parser:object_spec().
 provider_configuration_details_oneprovider_model() ->
     #{
         %% The name of a provider. `null` if not registered.
@@ -864,7 +864,7 @@ provider_configuration_details_oneprovider_model() ->
 %% @doc The provider custom configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec provider_configuration_oneprovider_model() -> map().
+-spec provider_configuration_oneprovider_model() -> onepanel_parser:object_spec().
 provider_configuration_oneprovider_model() ->
     #{
         %% Defines whether the provider should be registered in a zone.
@@ -903,7 +903,7 @@ provider_configuration_oneprovider_model() ->
 %% @doc The Oneprovider configuration details.
 %% @end
 %%--------------------------------------------------------------------
--spec provider_details_model() -> map().
+-spec provider_details_model() -> onepanel_parser:object_spec().
 provider_details_model() ->
     #{
         %% The Id assigned by a zone.
@@ -935,7 +935,7 @@ provider_details_model() ->
 %% @doc The provider configuration details that can be modified.
 %% @end
 %%--------------------------------------------------------------------
--spec provider_modify_request_model() -> map().
+-spec provider_modify_request_model() -> onepanel_parser:object_spec().
 provider_modify_request_model() ->
     #{
         %% The name under which the provider has been registered in a zone.
@@ -966,7 +966,7 @@ provider_modify_request_model() ->
 %% process.
 %% @end
 %%--------------------------------------------------------------------
--spec provider_register_request_model() -> map().
+-spec provider_register_request_model() -> onepanel_parser:object_spec().
 provider_register_request_model() ->
     #{
         %% The name under which the provider should be registered in a zone.
@@ -997,7 +997,7 @@ provider_register_request_model() ->
 %% @doc The provider spaces details.
 %% @end
 %%--------------------------------------------------------------------
--spec provider_spaces_model() -> map().
+-spec provider_spaces_model() -> onepanel_parser:object_spec().
 provider_spaces_model() ->
     #{
         %% The list of IDs of spaces supported by a provider.
@@ -1008,7 +1008,7 @@ provider_spaces_model() ->
 %% @doc The cluster storage resources.
 %% @end
 %%--------------------------------------------------------------------
--spec provider_storages_model() -> map().
+-spec provider_storages_model() -> onepanel_parser:object_spec().
 provider_storages_model() ->
     #{
         %% The list of Ids of cluster storage resources.
@@ -1019,7 +1019,7 @@ provider_storages_model() ->
 %% @doc Information about another Oneprovider.
 %% @end
 %%--------------------------------------------------------------------
--spec remote_provider_details_model() -> map().
+-spec remote_provider_details_model() -> onepanel_parser:object_spec().
 remote_provider_details_model() ->
     #{
         %% The Oneprovider Id assigned by Onezone.
@@ -1042,7 +1042,7 @@ remote_provider_details_model() ->
 %% @doc The service hosts configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec service_databases_model() -> map().
+-spec service_databases_model() -> onepanel_parser:object_spec().
 service_databases_model() ->
     #{
         %% The list of hosts where service should be deployed.
@@ -1061,7 +1061,7 @@ service_databases_model() ->
 %% @doc The service error model for REST requests.
 %% @end
 %%--------------------------------------------------------------------
--spec service_error_model() -> map().
+-spec service_error_model() -> onepanel_parser:object_spec().
 service_error_model() ->
     #{
         %% The name of an error type.
@@ -1080,7 +1080,7 @@ service_error_model() ->
 %% @doc The service hosts configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec service_hosts_model() -> map().
+-spec service_hosts_model() -> onepanel_parser:object_spec().
 service_hosts_model() ->
     #{
         %% The list of hosts where service should be deployed.
@@ -1091,7 +1091,7 @@ service_hosts_model() ->
 %% @doc The generic model for service status.
 %% @end
 %%--------------------------------------------------------------------
--spec service_status_model() -> map().
+-spec service_status_model() -> onepanel_parser:object_spec().
 service_status_model() ->
     #{
         %% The collection of hosts with associated service status, for each host
@@ -1103,7 +1103,7 @@ service_status_model() ->
 %% @doc The service status.
 %% @end
 %%--------------------------------------------------------------------
--spec service_status_host_model() -> map().
+-spec service_status_host_model() -> onepanel_parser:object_spec().
 service_status_host_model() ->
     #{
         %% The service status.
@@ -1116,7 +1116,7 @@ service_status_host_model() ->
 %% cleaning mechanism. All presented parameters' ranges are inclusive.
 %% @end
 %%--------------------------------------------------------------------
--spec space_auto_cleaning_configuration_model() -> map().
+-spec space_auto_cleaning_configuration_model() -> onepanel_parser:object_spec().
 space_auto_cleaning_configuration_model() ->
     #{
         %% If true, auto-cleaning mechanism is enabled in the space.
@@ -1137,7 +1137,7 @@ space_auto_cleaning_configuration_model() ->
 %% @doc Report from an auto-cleaning run.
 %% @end
 %%--------------------------------------------------------------------
--spec space_auto_cleaning_report_model() -> map().
+-spec space_auto_cleaning_report_model() -> onepanel_parser:object_spec().
 space_auto_cleaning_report_model() ->
     #{
         %% Id of an auto-cleaning report.
@@ -1161,7 +1161,7 @@ space_auto_cleaning_report_model() ->
 %% @doc The space auto-cleaning reports.
 %% @end
 %%--------------------------------------------------------------------
--spec space_auto_cleaning_reports_model() -> map().
+-spec space_auto_cleaning_reports_model() -> onepanel_parser:object_spec().
 space_auto_cleaning_reports_model() ->
     #{
         %% The list of Ids of space auto-cleaning reports.
@@ -1173,7 +1173,7 @@ space_auto_cleaning_reports_model() ->
 %% `enabled` to `false` disables the rule.
 %% @end
 %%--------------------------------------------------------------------
--spec space_auto_cleaning_rule_setting_model() -> map().
+-spec space_auto_cleaning_rule_setting_model() -> onepanel_parser:object_spec().
 space_auto_cleaning_rule_setting_model() ->
     #{
         %% Informs whether given setting is enabled.
@@ -1191,7 +1191,7 @@ space_auto_cleaning_rule_setting_model() ->
 %% default value will be used. All rules' values are inclusive.
 %% @end
 %%--------------------------------------------------------------------
--spec space_auto_cleaning_rules_model() -> map().
+-spec space_auto_cleaning_rules_model() -> onepanel_parser:object_spec().
 space_auto_cleaning_rules_model() ->
     #{
         %% Informs whether selective rules should be used by auto-cleaning
@@ -1230,7 +1230,7 @@ space_auto_cleaning_rules_model() ->
 %% @doc Status of current auto-cleaning process for given space.
 %% @end
 %%--------------------------------------------------------------------
--spec space_auto_cleaning_status_model() -> map().
+-spec space_auto_cleaning_status_model() -> onepanel_parser:object_spec().
 space_auto_cleaning_status_model() ->
     #{
         %% Flag which indicates whether auto-cleaning process is currently in
@@ -1244,7 +1244,7 @@ space_auto_cleaning_status_model() ->
 %% @doc The space details.
 %% @end
 %%--------------------------------------------------------------------
--spec space_details_model() -> map().
+-spec space_details_model() -> onepanel_parser:object_spec().
 space_details_model() ->
     #{
         %% The Id of the space.
@@ -1271,7 +1271,7 @@ space_details_model() ->
 %% @doc Configuration of the file-popularity mechanism in the space.
 %% @end
 %%--------------------------------------------------------------------
--spec space_file_popularity_configuration_model() -> map().
+-spec space_file_popularity_configuration_model() -> onepanel_parser:object_spec().
 space_file_popularity_configuration_model() ->
     #{
         %% If true, collecting file-popularity mechanism in the space is
@@ -1293,7 +1293,7 @@ space_file_popularity_configuration_model() ->
 %% @doc Provides Id of a space.
 %% @end
 %%--------------------------------------------------------------------
--spec space_id_model() -> map().
+-spec space_id_model() -> onepanel_parser:object_spec().
 space_id_model() ->
     #{
         %% The Id of the space.
@@ -1304,7 +1304,7 @@ space_id_model() ->
 %% @doc The space configuration details that can be modified.
 %% @end
 %%--------------------------------------------------------------------
--spec space_modify_request_model() -> map().
+-spec space_modify_request_model() -> onepanel_parser:object_spec().
 space_modify_request_model() ->
     #{
         %% The storage space size in bytes that provider is willing to assign to
@@ -1319,7 +1319,7 @@ space_modify_request_model() ->
 %% provider.
 %% @end
 %%--------------------------------------------------------------------
--spec space_support_request_model() -> map().
+-spec space_support_request_model() -> onepanel_parser:object_spec().
 space_support_request_model() ->
     #{
         %% The token for space creation or support.
@@ -1339,7 +1339,7 @@ space_support_request_model() ->
 %% @doc Status and statistics of storage/space synchronization.
 %% @end
 %%--------------------------------------------------------------------
--spec space_sync_stats_model() -> map().
+-spec space_sync_stats_model() -> onepanel_parser:object_spec().
 space_sync_stats_model() ->
     #{
         %% Describes import algorithm run status.
@@ -1354,7 +1354,7 @@ space_sync_stats_model() ->
 %% @doc The cluster storage configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec storage_create_details_model() -> {subclasses, list()}.
+-spec storage_create_details_model() -> onepanel_parser:multi_spec().
 storage_create_details_model() ->
     {subclasses, onepanel_parser:prepare_subclasses(
         [posix_model(), s3_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model()])}.
@@ -1363,7 +1363,7 @@ storage_create_details_model() ->
 %% @doc The configuration details required to add storage resources.
 %% @end
 %%--------------------------------------------------------------------
--spec storage_create_request_model() -> map().
+-spec storage_create_request_model() -> onepanel_parser:object_spec().
 storage_create_request_model() ->
     #{'_' => storage_create_details_model()}.
 
@@ -1371,7 +1371,7 @@ storage_create_request_model() ->
 %% @doc The cluster storage configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec storage_get_details_model() -> {subclasses, list()}.
+-spec storage_get_details_model() -> onepanel_parser:multi_spec().
 storage_get_details_model() ->
     {subclasses, onepanel_parser:prepare_subclasses(
         [posix_model(), s3_model(), ceph_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model()])}.
@@ -1381,7 +1381,7 @@ storage_get_details_model() ->
 %% from storage to space without need for copying the data.
 %% @end
 %%--------------------------------------------------------------------
--spec storage_import_details_model() -> map().
+-spec storage_import_details_model() -> onepanel_parser:object_spec().
 storage_import_details_model() ->
     #{
         %% The import strategy. One of no_import, simple_scan.
@@ -1398,7 +1398,7 @@ storage_import_details_model() ->
 %% creation.
 %% @end
 %%--------------------------------------------------------------------
--spec storage_modify_details_model() -> {subclasses, list()}.
+-spec storage_modify_details_model() -> onepanel_parser:multi_spec().
 storage_modify_details_model() ->
     {subclasses, onepanel_parser:prepare_subclasses(
         [posix_modify_model(), s3_modify_model(), ceph_modify_model(), cephrados_modify_model(), localceph_modify_model(), swift_modify_model(), glusterfs_modify_model(), nulldevice_modify_model(), webdav_modify_model()])}.
@@ -1410,7 +1410,7 @@ storage_modify_details_model() ->
 %% provide new name among the changed params.
 %% @end
 %%--------------------------------------------------------------------
--spec storage_modify_request_model() -> map().
+-spec storage_modify_request_model() -> onepanel_parser:object_spec().
 storage_modify_request_model() ->
     #{'_' => storage_modify_details_model()}.
 
@@ -1419,7 +1419,7 @@ storage_modify_request_model() ->
 %% changes on storage will be reflected in space.
 %% @end
 %%--------------------------------------------------------------------
--spec storage_update_details_model() -> map().
+-spec storage_update_details_model() -> onepanel_parser:object_spec().
 storage_update_details_model() ->
     #{
         %% The update strategy. One of no_update, simple_scan.
@@ -1445,7 +1445,7 @@ storage_update_details_model() ->
 %% configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec task_status_model() -> map().
+-spec task_status_model() -> onepanel_parser:object_spec().
 task_status_model() ->
     #{
         %% The operation status.
@@ -1470,7 +1470,7 @@ task_status_model() ->
 %% @doc Statistics for single metric over specified time.
 %% @end
 %%--------------------------------------------------------------------
--spec time_stats_model() -> map().
+-spec time_stats_model() -> onepanel_parser:object_spec().
 time_stats_model() ->
     #{
         %% Name of metric for which this object holds statistics.
@@ -1491,7 +1491,7 @@ time_stats_model() ->
 %% @doc Statistics for single metric over specified time.
 %% @end
 %%--------------------------------------------------------------------
--spec time_stats_collection_model() -> map().
+-spec time_stats_collection_model() -> onepanel_parser:object_spec().
 time_stats_collection_model() ->
     #{
         %% Statistics of storage sync jobs queue length.
@@ -1508,7 +1508,7 @@ time_stats_collection_model() ->
 %% @doc A token.
 %% @end
 %%--------------------------------------------------------------------
--spec token_model() -> map().
+-spec token_model() -> onepanel_parser:object_spec().
 token_model() ->
     #{
         token => string
@@ -1518,7 +1518,7 @@ token_model() ->
 %% @doc State of transfers mock.
 %% @end
 %%--------------------------------------------------------------------
--spec transfers_mock_model() -> map().
+-spec transfers_mock_model() -> onepanel_parser:object_spec().
 transfers_mock_model() ->
     #{
         %% If true, transfers are marked as successful without actually
@@ -1530,7 +1530,7 @@ transfers_mock_model() ->
 %% @doc Service version info.
 %% @end
 %%--------------------------------------------------------------------
--spec version_info_model() -> map().
+-spec version_info_model() -> onepanel_parser:object_spec().
 version_info_model() ->
     #{
         %% Release version.
@@ -1545,7 +1545,7 @@ version_info_model() ->
 %% @doc The SSL certificate details.
 %% @end
 %%--------------------------------------------------------------------
--spec web_cert_model() -> map().
+-spec web_cert_model() -> onepanel_parser:object_spec().
 web_cert_model() ->
     #{
         %% If true, the certificate is obtained from Let's Encrypt service
@@ -1577,7 +1577,7 @@ web_cert_model() ->
 %% @doc The SSL certificate configuration details that can be modified.
 %% @end
 %%--------------------------------------------------------------------
--spec web_cert_modify_request_model() -> map().
+-spec web_cert_modify_request_model() -> onepanel_parser:object_spec().
 web_cert_modify_request_model() ->
     #{
         %% If enabled Let's Encrypt service will be used to obtain SSL
@@ -1590,7 +1590,7 @@ web_cert_modify_request_model() ->
 %% @doc Paths to certificate-related files.
 %% @end
 %%--------------------------------------------------------------------
--spec web_cert_paths_model() -> map().
+-spec web_cert_paths_model() -> onepanel_parser:object_spec().
 web_cert_paths_model() ->
     #{
         %% Path to the certificate PEM file.
@@ -1605,7 +1605,7 @@ web_cert_paths_model() ->
 %% @doc The cluster worker service hosts configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec worker_hosts_model() -> map().
+-spec worker_hosts_model() -> onepanel_parser:object_spec().
 worker_hosts_model() ->
     #{
         %% The list of service hosts.
@@ -1616,7 +1616,7 @@ worker_hosts_model() ->
 %% @doc The zone cluster configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec zone_cluster_configuration_model() -> map().
+-spec zone_cluster_configuration_model() -> onepanel_parser:object_spec().
 zone_cluster_configuration_model() ->
     #{
         %% Hostname suffix common for all services in the cluster. Together with
@@ -1630,7 +1630,7 @@ zone_cluster_configuration_model() ->
         workers => cluster_workers_model()
     }.
 
--spec zone_cluster_configuration_nodes_model() -> map().
+-spec zone_cluster_configuration_nodes_model() -> onepanel_parser:object_spec().
 zone_cluster_configuration_nodes_model() ->
     #{
         %% The name of a host.
@@ -1643,7 +1643,7 @@ zone_cluster_configuration_nodes_model() ->
 %% @doc The Onezone deployment configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec zone_configuration_model() -> map().
+-spec zone_configuration_model() -> onepanel_parser:object_spec().
 zone_configuration_model() ->
     #{
         cluster => zone_cluster_configuration_model(),
@@ -1655,7 +1655,7 @@ zone_configuration_model() ->
 %% @doc The zone cluster configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec zone_configuration_details_model() -> map().
+-spec zone_configuration_details_model() -> onepanel_parser:object_spec().
 zone_configuration_details_model() ->
     #{
         cluster => cluster_configuration_details_model(),
@@ -1666,7 +1666,7 @@ zone_configuration_details_model() ->
 %% @doc The zone custom configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec zone_configuration_details_onezone_model() -> map().
+-spec zone_configuration_details_onezone_model() -> onepanel_parser:object_spec().
 zone_configuration_details_onezone_model() ->
     #{
         %% Onezone's domain.
@@ -1682,7 +1682,7 @@ zone_configuration_details_onezone_model() ->
 %% @doc The Onezone custom configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec zone_configuration_onezone_model() -> map().
+-spec zone_configuration_onezone_model() -> onepanel_parser:object_spec().
 zone_configuration_onezone_model() ->
     #{
         %% The domain of Onezone cluster.
@@ -1707,7 +1707,7 @@ zone_configuration_onezone_model() ->
 %% @doc State of Onezone operation policies.
 %% @end
 %%--------------------------------------------------------------------
--spec zone_policies_model() -> map().
+-spec zone_policies_model() -> onepanel_parser:object_spec().
 zone_policies_model() ->
     #{
         %% Indicates policy enforced during provider registration. Possible
@@ -1740,7 +1740,7 @@ zone_policies_model() ->
 %% whole block device formatted to its needs.
 %% @end
 %%--------------------------------------------------------------------
--spec blockdevice_model() -> map().
+-spec blockdevice_model() -> onepanel_parser:object_spec().
 blockdevice_model() ->
     #{
         %% Host on which given OSD should be deployed. It must be the full host
@@ -1764,7 +1764,7 @@ blockdevice_model() ->
 %% @doc The Ceph storage configuration (uses libradosstriper).
 %% @end
 %%--------------------------------------------------------------------
--spec ceph_model() -> map().
+-spec ceph_model() -> onepanel_parser:object_spec().
 ceph_model() ->
     #{
         %% The type of storage.
@@ -1796,7 +1796,7 @@ ceph_model() ->
 %% @doc Describes whole of Ceph configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec ceph_cluster_model() -> map().
+-spec ceph_cluster_model() -> onepanel_parser:object_spec().
 ceph_cluster_model() ->
     #{
         %% Name of the cluster.
@@ -1816,7 +1816,7 @@ ceph_cluster_model() ->
 %% @doc The Ceph storage configuration (uses libradosstriper).
 %% @end
 %%--------------------------------------------------------------------
--spec ceph_modify_model() -> map().
+-spec ceph_modify_model() -> onepanel_parser:object_spec().
 ceph_modify_model() ->
     #{
         %% The name of storage.
@@ -1855,7 +1855,7 @@ ceph_modify_model() ->
 %% @doc The Ceph storage configuration (uses librados).
 %% @end
 %%--------------------------------------------------------------------
--spec cephrados_model() -> map().
+-spec cephrados_model() -> onepanel_parser:object_spec().
 cephrados_model() ->
     #{
         %% The type of storage.
@@ -1900,7 +1900,7 @@ cephrados_model() ->
 %% @doc The Ceph storage configuration (uses librados).
 %% @end
 %%--------------------------------------------------------------------
--spec cephrados_modify_model() -> map().
+-spec cephrados_modify_model() -> onepanel_parser:object_spec().
 cephrados_modify_model() ->
     #{
         %% The name of storage.
@@ -1939,7 +1939,7 @@ cephrados_modify_model() ->
 %% @doc The GlusterFS storage configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec glusterfs_model() -> map().
+-spec glusterfs_model() -> onepanel_parser:object_spec().
 glusterfs_model() ->
     #{
         %% The type of storage.
@@ -1982,7 +1982,7 @@ glusterfs_model() ->
 %% @doc The GlusterFS storage configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec glusterfs_modify_model() -> map().
+-spec glusterfs_modify_model() -> onepanel_parser:object_spec().
 glusterfs_modify_model() ->
     #{
         %% The name of storage.
@@ -2022,7 +2022,7 @@ glusterfs_modify_model() ->
 %% in the local Ceph cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec localceph_model() -> map().
+-spec localceph_model() -> onepanel_parser:object_spec().
 localceph_model() ->
     #{
         %% The type of storage.
@@ -2066,7 +2066,7 @@ localceph_model() ->
 %% @doc Modifiable fields of a Ceph storage backed by a local pool.
 %% @end
 %%--------------------------------------------------------------------
--spec localceph_modify_model() -> map().
+-spec localceph_modify_model() -> onepanel_parser:object_spec().
 localceph_modify_model() ->
     #{
         %% Desired number of object replicas in the pool. When below this number
@@ -2098,7 +2098,7 @@ localceph_modify_model() ->
 %% loopdevice backed by a file in given directory.
 %% @end
 %%--------------------------------------------------------------------
--spec loopdevice_model() -> map().
+-spec loopdevice_model() -> onepanel_parser:object_spec().
 loopdevice_model() ->
     #{
         %% Host on which given OSD should be deployed. It must be the full host
@@ -2125,7 +2125,7 @@ loopdevice_model() ->
 %% @doc The Null Device storage configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec nulldevice_model() -> map().
+-spec nulldevice_model() -> onepanel_parser:object_spec().
 nulldevice_model() ->
     #{
         %% The type of storage.
@@ -2183,7 +2183,7 @@ nulldevice_model() ->
 %% @doc The Null Device storage configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec nulldevice_modify_model() -> map().
+-spec nulldevice_modify_model() -> onepanel_parser:object_spec().
 nulldevice_modify_model() ->
     #{
         %% The name of storage.
@@ -2237,7 +2237,7 @@ nulldevice_modify_model() ->
 %% @doc Public Oneprovider configuration details.
 %% @end
 %%--------------------------------------------------------------------
--spec op_configuration_model() -> map().
+-spec op_configuration_model() -> onepanel_parser:object_spec().
 op_configuration_model() ->
     #{
         %% The Id of cluster record for this cluster. `null` if the
@@ -2265,7 +2265,7 @@ op_configuration_model() ->
 %% @doc Public Onezone configuration details.
 %% @end
 %%--------------------------------------------------------------------
--spec oz_configuration_model() -> map().
+-spec oz_configuration_model() -> onepanel_parser:object_spec().
 oz_configuration_model() ->
     #{
         %% The Id of cluster record for this cluster. `null` if the
@@ -2291,7 +2291,7 @@ oz_configuration_model() ->
 %% @doc The POSIX storage configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec posix_model() -> map().
+-spec posix_model() -> onepanel_parser:object_spec().
 posix_model() ->
     #{
         %% The type of storage.
@@ -2323,7 +2323,7 @@ posix_model() ->
 %% @doc The POSIX storage configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec posix_modify_model() -> map().
+-spec posix_modify_model() -> onepanel_parser:object_spec().
 posix_modify_model() ->
     #{
         %% The name of storage.
@@ -2351,7 +2351,7 @@ posix_modify_model() ->
 %% @doc The Simple Storage Service configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec s3_model() -> map().
+-spec s3_model() -> onepanel_parser:object_spec().
 s3_model() ->
     #{
         %% The type of storage.
@@ -2413,7 +2413,7 @@ s3_model() ->
 %% @doc The Simple Storage Service configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec s3_modify_model() -> map().
+-spec s3_modify_model() -> onepanel_parser:object_spec().
 s3_modify_model() ->
     #{
         %% The name of storage.
@@ -2466,7 +2466,7 @@ s3_modify_model() ->
 %% @doc The OpenStack Swift configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec swift_model() -> map().
+-spec swift_model() -> onepanel_parser:object_spec().
 swift_model() ->
     #{
         %% The type of storage.
@@ -2511,7 +2511,7 @@ swift_model() ->
 %% @doc The OpenStack Swift configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec swift_modify_model() -> map().
+-spec swift_modify_model() -> onepanel_parser:object_spec().
 swift_modify_model() ->
     #{
         %% The name of storage.
@@ -2550,7 +2550,7 @@ swift_modify_model() ->
 %% @doc The WebDAV storage configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec webdav_model() -> map().
+-spec webdav_model() -> onepanel_parser:object_spec().
 webdav_model() ->
     #{
         %% The type of storage.
@@ -2640,7 +2640,7 @@ webdav_model() ->
 %% @doc The WebDAV storage configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec webdav_modify_model() -> map().
+-spec webdav_modify_model() -> onepanel_parser:object_spec().
 webdav_modify_model() ->
     #{
         %% The name of storage.

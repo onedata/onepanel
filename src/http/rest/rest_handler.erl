@@ -36,7 +36,7 @@
 -type bindings() :: #{Key :: atom() => Value :: term()}.
 -type params() :: #{Key :: atom() => Value :: term()}.
 -type args() :: onepanel_parser:args().
--type spec() :: onepanel_parser:spec().
+-type spec() :: onepanel_parser:object_spec().
 -type client() :: #client{}.
 -type state() :: #rstate{}.
 -type method() :: #rmethod{}.

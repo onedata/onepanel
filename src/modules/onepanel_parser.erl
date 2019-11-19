@@ -26,16 +26,19 @@
 -type args_list() :: [{Key :: key(), Value :: term()}].
 -type presence() :: required | optional | {optional, Default :: term()}.
 
--type type_spec() :: integer | float | string | binary | atom | boolean |
-    [type_spec()].
--type model_spec() :: type_spec() |
-    {enum, type_spec(), Allowed :: [term()]} |
-    {subclasses, {Discriminator :: key(), #{Value :: term() => spec()}}}.
--type field_spec() :: model_spec() | {model_spec() | presence()}.
--type spec() :: #{Key :: key() => ValueSpec :: spec () | field_spec()}.
+-type type_spec() :: integer | float | string | binary | atom | boolean | object_spec().
+
+-type multi_spec() :: type_spec() | [multi_spec()]
+| {enum, type_spec(), Allowed :: [term()]}
+| {subclasses, {Discriminator :: key(), #{binary() => object_spec()}}}.
+
+-type field_spec() :: multi_spec() | {multi_spec(), presence()}
+| {discriminator, binary()}.
+
+-type object_spec() :: #{key() => field_spec()}.
 %% @formatter:on
 
--export_type([key/0, keys/0, data/0, args/0, spec/0, field_spec/0]).
+-export_type([key/0, keys/0, data/0, args/0, object_spec/0, multi_spec/0]).
 
 %%%===================================================================
 %%% API functions
@@ -45,7 +48,7 @@
 %% @doc Parses data according to provided specification.
 %% @end
 %%--------------------------------------------------------------------
--spec parse(Data :: data(), ArgsSpec :: spec()) -> Args :: args().
+-spec parse(Data :: data(), ArgsSpec :: object_spec()) -> Args :: args().
 parse(Data, ArgsSpec) ->
     parse(Data, maps:to_list(ArgsSpec), [], #{}).
 
@@ -57,9 +60,7 @@ parse(Data, ArgsSpec) ->
 %% of subclasses.
 %% @end
 %%--------------------------------------------------------------------
--spec prepare_subclasses(Subclass) -> {Discriminator, #{binary() => spec()}} when
-    Subclass :: #{Discriminator := {discriminator, binary()}, key() => field_spec()},
-    Discriminator :: key().
+-spec prepare_subclasses([object_spec()]) -> {Discriminator :: key(), #{binary() => object_spec()}}.
 prepare_subclasses(SubclassModels) ->
     lists:foldl(fun(Model, {FieldAcc, ValueToSubclassAcc}) ->
         IsDiscriminator = fun
@@ -136,7 +137,7 @@ parse(_Data, [{Key, _Spec} | _ArgsSpec], Keys, _Args) ->
 %% @private @doc Parses value according to provided specification.
 %% @end
 %%--------------------------------------------------------------------
--spec parse_value(Value :: term(), ValueSpec :: field_spec(), Keys :: keys()) ->
+-spec parse_value(Value :: term(), ValueSpec :: multi_spec(), Keys :: keys()) ->
     Value :: term() | no_return().
 parse_value(Value, {equal, Equal}, Keys) ->
     Type = onepanel_utils:get_type(Equal),
@@ -308,12 +309,12 @@ get_expectation(ValueSpec, Acc) when is_atom(ValueSpec) ->
 get_expectation({equal, Value}, Acc) ->
     <<Acc/binary, "'", (onepanel_utils:convert(Value, binary))/binary, "'">>;
 
-get_expectation({enum, Values}, Acc) ->
+get_expectation({enum, _Type, Values}, Acc) ->
     <<Acc/binary, (onepanel_utils:join(["'",Values,"'"], <<" | ">>))/binary>>;
 
 get_expectation({subclasses, {DiscriminatorField, ValueToSpec}}, Acc) ->
     <<Acc/binary, "{", DiscriminatorField/binary, ": ",
-        (get_expectation({enum, maps:keys(ValueToSpec)}))/binary, ", ...}">>;
+        (get_expectation({enum, binary, maps:keys(ValueToSpec)}))/binary, ", ...}">>;
 
 get_expectation(ValueSpecs, Acc) when is_list(ValueSpecs) ->
     Tokens = lists:map(fun(ValueSpec) ->
