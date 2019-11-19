@@ -63,7 +63,7 @@ add_users(#{onezone_users := Users}) ->
                 Groups = maps:get(groups, User),
                 add_user_to_groups(OzNode, Client, UserId, Groups);
             ?ERROR_BAD_VALUE_IDENTIFIER_OCCUPIED(<<"username">>) -> ok;
-            Error -> ?throw_error(Error)
+            Error -> throw(Error)
         end
     end, Users).
 

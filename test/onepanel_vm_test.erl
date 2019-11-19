@@ -50,7 +50,7 @@ read_should_report_missing_key(_) ->
 
 
 read_should_pass_errors(_) ->
-    ?_assertThrow(?ERROR_FILE_ACCESS(<<"p2">>, enoent), onepanel_vm:read(<<"k1">>, "p2")).
+    ?_assertThrow(?ERROR_FILE_ACCESS("p2", enoent), onepanel_vm:read(<<"k1">>, "p2")).
 
 
 write_should_append_value(_) ->
@@ -87,7 +87,7 @@ write_should_replace_value(_) ->
 
 
 write_should_pass_errors(_) ->
-    ?_assertThrow(?ERROR_FILE_ACCESS(<<"p2">>, enoent),
+    ?_assertThrow(?ERROR_FILE_ACCESS("p2", enoent),
         onepanel_vm:write(<<"k1">>, <<"v1">>, "p2")).
 
 %%%===================================================================

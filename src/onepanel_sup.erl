@@ -103,8 +103,8 @@ init([]) ->
             onepanel_session_gc_spec()
         ]}}
     catch throw:Error ->
-        % throws are treated as return value in gen_server/supervisor init
-        error(?make_stacktrace(Error))
+        % throws would be treated as return value in gen_server/supervisor init
+        error(Error)
     end.
 
 %%%===================================================================

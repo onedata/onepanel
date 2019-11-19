@@ -241,7 +241,7 @@ get_protected_cluster_data(Node, Auth, ClusterId) ->
     ?CALL(Node, [Auth, ClusterId]).
 
 
--spec get_clusters_by_user_auth(aai:auth()) -> {ok, [od_cluster_id()]} | {error, term()}.
+-spec get_clusters_by_user_auth(aai:auth()) -> {ok, [od_cluster_id()]} | errors:error().
 get_clusters_by_user_auth(Auth) ->
     ?CALL([Auth]).
 

@@ -36,7 +36,7 @@ read(Key, Path) ->
         {ok, Content} ->
             find(Key, Content);
         {error, Reason} ->
-            throw(?ERROR_FILE_ACCESS(onepanel_utils:filename_to_binary(Path), Reason))
+            throw(?ERROR_FILE_ACCESS(Path, Reason))
 end.
 
 
@@ -54,10 +54,10 @@ write(Key, Value, Path) ->
             {ok, NewContent} = set(Key, Value, Content),
             case file:write_file(Path, NewContent) of
                 ok -> ok;
-                {error, Reason} -> ?throw_error(Reason)
+                {error, Reason} -> throw(?ERROR_FILE_ACCESS(Path, Reason))
             end;
         {error, Reason} ->
-            throw(?ERROR_FILE_ACCESS(onepanel_utils:filename_to_binary(Path), Reason))
+            throw(?ERROR_FILE_ACCESS(Path, Reason))
     end.
 
 

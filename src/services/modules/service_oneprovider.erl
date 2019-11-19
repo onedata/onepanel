@@ -315,7 +315,7 @@ get_id() ->
         {ok, <<ProviderId/binary>>} ->
             ProviderId;
         ?ERROR_UNREGISTERED_ONEPROVIDER = Error ->
-            ?throw_error(Error);
+            throw(Error);
         _ ->
             FileContents = read_auth_file(),
             maps:get(provider_id, FileContents)
@@ -368,7 +368,7 @@ is_registered(Ctx) ->
 get_access_token() ->
     case op_worker_rpc:get_access_token() of
         {ok, <<Token/binary>>} -> Token;
-        ?ERROR_UNREGISTERED_ONEPROVIDER = Error -> ?throw_error(Error);
+        ?ERROR_UNREGISTERED_ONEPROVIDER = Error -> throw(Error);
         _ -> root_token_from_file()
     end.
 
@@ -957,7 +957,7 @@ read_auth_file() ->
                 {<<"provider_id">>, provider_id},
                 {<<"root_token">>, root_token}
             ], json_utils:decode(Json), #{});
-        {error, Error} -> ?throw_error(Error)
+        {error, Error} -> throw(?ERROR_FILE_ACCESS(Path, Error))
     end.
 
 
@@ -1132,7 +1132,8 @@ update_version_info(GuiHash) ->
 
     case Result of
         {ok, ?HTTP_204_NO_CONTENT, _, _} -> ok;
-        {ok, ?HTTP_400_BAD_REQUEST, _, _} -> {error, inexistent_gui_version}
+        {ok, ?HTTP_400_BAD_REQUEST, _, _} -> {error, inexistent_gui_version};
+        {error, _} -> throw(?ERROR_NO_CONNECTION_TO_ONEZONE)
     end.
 
 

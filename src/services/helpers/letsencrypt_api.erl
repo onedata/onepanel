@@ -237,17 +237,17 @@ run_certification_flow(Domain, Plugin, Mode) ->
         {ok, State3} = register_account(State2),
         {ok, _State4} = attempt_certification(State3)
     catch
-        _:Error ->
+        Type:Error ->
             case AccountExists of
                 true -> ok;
                 false ->
                     % if error occurred before current account has completed
                     % any successful certification, it can be safely
-                    % deleted. This avoids counting against invalid
+                    % deleted. This avoids counting against per-account invalid
                     % authorization rate limit.
                     catch clean_keys(KeysDir)
             end,
-            ?throw_stacktrace(Error, [Domain, Plugin, Mode])
+            erlang:Type(Error)
     end,
     % Remove TXT record only on success to ease debugging
     catch clean_txt_record(Plugin),
@@ -622,7 +622,7 @@ resolve_run_mode() ->
         {_, undefined} ->
             ?error("No staging server URL defined for Let's Encrypt. Cannot perform ~s run",
                 [ModeEnv]),
-            ?throw_error(no_letsencrypt_staging_server);
+            error(no_letsencrypt_staging_server);
         {StagingOrDry, _} ->
             StagingOrDry
     end.
@@ -1076,7 +1076,7 @@ ensure_files_access(Paths) ->
     lists:foreach(fun(Path) ->
         case check_write_access(Path) of
             ok -> ok;
-            {error, Reason} -> throw(?ERROR_FILE_ACCESS(str_utils:unicode_list_to_binary(Path), Reason))
+            {error, Reason} -> throw(?ERROR_FILE_ACCESS(Path, Reason))
         end
     end, Paths).
 

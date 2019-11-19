@@ -151,8 +151,9 @@ fetch_details(RestAuth) ->
             {ok, UserDetails};
         {ok, _, _, ResponseBody} ->
             #{<<"error">> := Error} = json_utils:decode(ResponseBody),
-            ?make_error(errors:from_json(Error));
-        {error, Reason} -> ?make_error(Reason)
+            errors:from_json(Error);
+        {error, _} = Error ->
+            ?ERROR_NO_CONNECTION_TO_ONEZONE
     end.
 
 

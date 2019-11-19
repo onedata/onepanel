@@ -156,7 +156,7 @@ read(Path) ->
         {ok, Content} ->
             parse(Content);
         {error, Reason} ->
-            throw(?ERROR_FILE_ACCESS(onepanel_utils:filename_to_binary(Path), Reason))
+            throw(?ERROR_FILE_ACCESS(Path, Reason))
     end.
 
 

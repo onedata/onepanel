@@ -94,7 +94,7 @@ read_should_report_missing_key(_) ->
 
 
 read_should_pass_errors(_) ->
-    ?_assertThrow({error, enoent}, onepanel_env:read([a1], "p2")).
+    ?_assertThrow(?ERROR_FILE_ACCESS("p2", enoent), onepanel_env:read([a1], "p2")).
 
 
 write_should_prepend_value(_) ->
@@ -167,7 +167,7 @@ write_should_replace_value(_) ->
 
 
 write_should_pass_errors(_) ->
-    ?_assertThrow({error, enoent},
+    ?_assertThrow(?ERROR_FILE_ACCESS("/nonexistent/p2", enoent),
         onepanel_env:write([a1, k1], v9, "/nonexistent/p2")).
 
 

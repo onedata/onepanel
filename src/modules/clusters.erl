@@ -68,8 +68,8 @@ get_current_cluster() ->
         {ok, Details} = get_details(Auth, get_id()),
         store_in_cache(cluster, Details),
         Details
-    catch _Type:Error ->
-        try_cached(cluster, ?make_stacktrace(Error))
+    catch Type:Error ->
+        try_cached(cluster, Type, Error)
     end.
 
 
@@ -152,7 +152,7 @@ get_details({rpc, Auth}, ClusterId) ->
                 {<<"onepanelProxy">>, onepanelProxy},
                 {<<"type">>, type}
             ], ClusterData, #{id => ClusterId, serviceId => ClusterId})};
-        Error -> ?make_error(Error)
+        Error -> Error
     end;
 
 get_details({rest, Auth}, ClusterId) ->
@@ -169,11 +169,11 @@ get_details({rest, Auth}, ClusterId) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec list_user_clusters(rest_handler:zone_auth()) ->
-    {ok, [id()]} | {error, _}.
+    {ok, [id()]} | errors:error().
 list_user_clusters({rpc, Auth}) ->
     case oz_worker_rpc:get_clusters_by_user_auth(Auth) of
         {ok, Ids} -> {ok, Ids};
-        Error -> ?make_error(Error)
+        Error -> Error
     end;
 
 list_user_clusters({rest, Auth}) ->
@@ -202,7 +202,9 @@ fetch_remote_provider_info({rest, RestAuth}, ProviderId) ->
         {ok, ?HTTP_200_OK, _, BodyJson} ->
             format_provider_info(json_utils:decode(BodyJson));
         {ok, ?HTTP_404_NOT_FOUND, _, _} ->
-            throw(?ERROR_NOT_FOUND)
+            throw(?ERROR_NOT_FOUND);
+        {error, _} ->
+            throw(?ERROR_NO_CONNECTION_TO_ONEZONE)
     end.
 
 
@@ -271,13 +273,13 @@ store_in_cache(Key, Value) ->
 %% Throws given Error on failure.
 %% @end
 %%--------------------------------------------------------------------
--spec try_cached(Key :: term(), ErrorResult :: term()) ->
+-spec try_cached(Key :: term(), throw | error | exit, ErrorResult :: term()) ->
     FoundValue :: term().
-try_cached(Key, Error) ->
+try_cached(Key, ErrorClass, Error) ->
     Service = onepanel_env:get_cluster_type(),
     case service:get_ctx(Service) of
         #{Key := Value} -> Value;
-        _ -> throw(Error)
+        _ -> erlang:ErrorClass(Error)
     end.
 
 
@@ -300,7 +302,7 @@ get_members_count({rest, Auth}, UsersOrGroups, DirectOrEffective) ->
 
     case zone_rest(Auth, "/clusters/~s/~s", [get_id(), Resource]) of
         {ok, #{ResponseKey := List}} -> length(List);
-        Error -> ?throw_error(Error)
+        Error -> throw(Error)
     end;
 
 get_members_count({rpc, Auth}, UsersOrGroups, DirectOrEffective) ->
@@ -312,7 +314,7 @@ get_members_count({rpc, Auth}, UsersOrGroups, DirectOrEffective) ->
     end,
     case oz_worker_rpc:Function(Auth, get_id()) of
         {ok, List} -> length(List);
-        Error -> ?throw_error(Error)
+        Error -> throw(Error)
     end.
 
 

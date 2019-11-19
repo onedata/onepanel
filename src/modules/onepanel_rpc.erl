@@ -182,7 +182,7 @@ all(Results) ->
     end, Results),
     case BadResults of
         [] -> Results;
-        _ -> ?throw_error(BadResults)
+        [Error | _] -> error(Error)
     end.
 
 

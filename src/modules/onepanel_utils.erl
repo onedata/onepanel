@@ -22,7 +22,6 @@
 -export([gen_uuid/0, join/1, join/2, trim/2]).
 -export([convert/2, get_type/1]).
 -export([get_converted/3, get_converted/4, find_converted/3]).
--export([filename_to_binary/1]).
 -export([ensure_known_hosts/1, distribute_file/2]).
 
 % @formatter:off
@@ -250,11 +249,6 @@ find_converted(Path, Nested, Type) ->
         {ok, Found} -> {ok, onepanel_utils:convert(Found, Type)};
         error -> error
     end.
-
-
--spec filename_to_binary(file:name_all()) -> binary().
-filename_to_binary(Filename) ->
-    str_utils:unicode_list_to_binary(filename:flatten(Filename)).
 
 
 %%--------------------------------------------------------------------

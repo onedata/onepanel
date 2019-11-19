@@ -278,7 +278,8 @@ schedule_check() ->
                     ?info("Skipping Let's Encrypt check as required service is not available")
             end
         catch
-            _:Reason -> ?error("Certificate renewal check failed: ~p", [?make_stacktrace(Reason)])
+            Type:Error ->
+                ?error_stacktrace("Certificate renewal check failed: ~p:~p", [Type, Error])
         end
     end,
     onepanel_cron:add_job(name(), Action, ?CHECK_DELAY).

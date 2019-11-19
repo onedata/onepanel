@@ -217,7 +217,8 @@ get_health_report() ->
                 messages => format_checks(Checks)
             };
         Error ->
-            ?throw_error(Error)
+            ?warning("Could not obtain ceph health report: ~tp", [Error]),
+            throw(?ERROR_INTERNAL_SERVER_ERROR)
     end.
 
 

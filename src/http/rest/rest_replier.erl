@@ -182,10 +182,10 @@ format_service_host_status(SModule, Results) ->
     json_utils:json_map()
     when Total :: non_neg_integer() | {error, _}.
 format_service_task_results({error, _} = Error) ->
-    ?throw_error(Error);
+    throw(Error);
 
 format_service_task_results({{error, _} = Error, _}) ->
-    ?throw_error(Error);
+    throw(Error);
 
 format_service_task_results({Results, TotalSteps}) ->
     Base = case TotalSteps of

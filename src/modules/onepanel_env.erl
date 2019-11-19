@@ -179,7 +179,7 @@ set_remote(Node, Keys, Value, AppName) when is_atom(Node) ->
 set_remote(Nodes, Keys, Value, AppName) ->
     lists:map(fun(Node) ->
         NewEnv = case rpc:call(Node, application, get_all_env, [AppName]) of
-            {badrpc, _} = Error -> ?throw_error(Error);
+            {badrpc, _} = Error -> error(Error);
             Result -> kv_utils:put(Keys, Value, Result)
         end,
 
@@ -200,7 +200,7 @@ set_remote(Nodes, Keys, Value, AppName) ->
 read(Keys, Path) ->
     case file:consult(Path) of
         {ok, [AppConfigs]} -> kv_utils:find(Keys, AppConfigs);
-        {error, Reason} -> ?throw_error(Reason)
+        {error, Reason} -> throw(?ERROR_FILE_ACCESS(Path, Reason))
     end.
 
 
@@ -264,7 +264,7 @@ write(Keys, Value, Path) ->
     NewConfigsStr = io_lib:fwrite("~s~n~p.", [?DO_NOT_MODIFY_HEADER, NewConfigs]),
     case file:write_file(Path, NewConfigsStr) of
         ok -> ok;
-        {error, Reason} -> ?throw_error(Reason)
+        {error, Reason} -> throw(?ERROR_FILE_ACCESS(Path, Reason))
     end.
 
 
@@ -325,9 +325,9 @@ migrate_generated_config(ServiceName, Variables, SetInRuntime) ->
 
             case file:rename(Src, [Src, ".bak"]) of
                 ok -> ok;
-                {error, Reason} -> ?throw_error(Reason, [])
+                {error, Reason} -> throw(?ERROR_FILE_ACCESS([Src, ".bak"], Reason))
             end;
-        {error, Reason} -> ?throw_error(Reason, [])
+        {error, Reason} -> throw(?ERROR_FILE_ACCESS(Src, Reason))
     end.
 
 
