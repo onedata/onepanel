@@ -74,7 +74,7 @@ get_hosts() ->
 %%--------------------------------------------------------------------
 -spec get_nodes() -> no_return().
 get_nodes() ->
-    ?throw_error(?ERR_NOT_SUPPORTED).
+    error(?ERROR_NOT_SUPPORTED).
 
 
 %%--------------------------------------------------------------------

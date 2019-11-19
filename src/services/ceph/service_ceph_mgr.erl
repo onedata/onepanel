@@ -57,7 +57,7 @@ get_hosts() ->
 %%--------------------------------------------------------------------
 -spec get_nodes() -> no_return().
 get_nodes() ->
-    ?throw_error(?ERR_NOT_SUPPORTED).
+    error(?ERROR_NOT_SUPPORTED).
 
 
 %%--------------------------------------------------------------------
@@ -173,7 +173,7 @@ status(#{id := Id}) ->
 get_details(#{id := Id}) ->
     case service:get_ctx(name()) of
         #{instances := #{Id := Details}} -> instance_to_details(Details);
-        _ -> ?throw_error(?ERR_NOT_FOUND)
+        _ -> throw(?ERROR_NOT_FOUND)
     end.
 
 
@@ -223,10 +223,7 @@ list_instances() ->
 %% @private
 -spec get_instance(id()) -> ceph:instance().
 get_instance(Id) ->
-    case service:get_ctx(name()) of
-        #{instances := #{Id := Instance}} -> Instance;
-        _ -> ?throw_error(?ERR_NOT_FOUND)
-    end.
+    kv_utils:get([instances, Id], service:get_ctx((Id))).
 
 
 -spec instance_to_details(ceph:instance()) -> #{atom() => binary()}.

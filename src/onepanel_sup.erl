@@ -88,7 +88,7 @@ init([]) ->
                     db_upgrade_finished -> ok
                 after ?UPGRADE_TIMEOUT ->
                     ?error("Wait for database upgrade timed out"),
-                    error(?make_error(?ERR_TIMEOUT))
+                    error(upgrade_timeout)
                 end
         end,
         ?info("Database ready"),

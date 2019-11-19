@@ -230,7 +230,7 @@ get_step(#step{hosts = undefined, service = Service} = Step) ->
         [] ->
             % do not silently skip steps because of empty list in service model,
             % unless it is explicitly given in step ctx or hosts field.
-            ?throw_error(?ERR_NO_SERVICE_HOSTS(Service));
+            throw(?ERROR_NO_SERVICE_NODES(Service));
         Hosts ->
             get_step(Step#step{hosts = Hosts})
     end;

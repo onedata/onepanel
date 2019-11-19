@@ -121,10 +121,10 @@ get_user_privileges({rest, RestAuth}, OnezoneUserId) ->
                 ListOfAtoms = onepanel_utils:convert(Privileges, {seq, atom}),
                 {true, ListOfAtoms, ?PRIVILEGES_CACHE_TTL};
             {error, {?HTTP_401_UNAUTHORIZED, _, _}} ->
-                ?make_error(?ERR_UNAUTHORIZED);
+                ?ERROR_UNAUTHORIZED;
             {error, {?HTTP_404_NOT_FOUND, _, _}} ->
-                ?make_error(?ERR_USER_NOT_IN_CLUSTER);
-            {error, _} = Error -> throw(Error)
+                ?ERROR_NOT_FOUND;
+            {error, _} = Error -> error(Error)
         end
     end);
 
@@ -132,7 +132,7 @@ get_user_privileges({rpc, Auth}, OnezoneUserId) ->
     case oz_worker_rpc:cluster_get_eff_user_privileges(
         Auth, get_id(), OnezoneUserId
     ) of
-        ?ERROR_NOT_FOUND -> ?make_error(?ERR_USER_NOT_IN_CLUSTER);
+        ?ERROR_NOT_FOUND -> ?ERROR_NOT_FOUND;
         {ok, Privileges} -> {ok, Privileges}
     end.
 
@@ -193,7 +193,7 @@ list_user_clusters({rest, Auth}) ->
 fetch_remote_provider_info({rpc, Client}, ProviderId) ->
     case oz_worker_rpc:get_protected_provider_data(Client, ProviderId) of
         {ok, ProviderData} -> format_provider_info(ProviderData);
-        {error, not_found} -> ?throw_error(?ERR_NOT_FOUND)
+        Error -> throw(Error)
     end;
 
 fetch_remote_provider_info({rest, RestAuth}, ProviderId) ->
@@ -202,7 +202,7 @@ fetch_remote_provider_info({rest, RestAuth}, ProviderId) ->
         {ok, ?HTTP_200_OK, _, BodyJson} ->
             format_provider_info(json_utils:decode(BodyJson));
         {ok, ?HTTP_404_NOT_FOUND, _, _} ->
-            ?throw_error(?ERR_NOT_FOUND)
+            throw(?ERROR_NOT_FOUND)
     end.
 
 
@@ -230,7 +230,7 @@ zone_rest(Auth, URNFormat, FormatArgs) ->
 %% @private
 -spec zone_rest(Method :: http_client:method(), Auth :: oz_plugin:auth(),
     URNFormat :: string(), FormatArgs :: [term()]) ->
-    {ok, #{atom() => term()}} | {error, _}.
+    {ok, #{atom() => term()}} | errors:error().
 zone_rest(Method, Auth, URNFormat, FormatArgs) ->
     zone_rest(Method, Auth, URNFormat, FormatArgs, <<"">>).
 
@@ -246,11 +246,9 @@ zone_rest(Method, Auth, URNFormat, FormatArgs, Body) ->
             {ok, Parsed};
         {ok, _, _, Body} ->
             #{<<"error">> := Error} = json_utils:decode(Body),
-            ?make_error(errors:from_json(Error));
-        {error, econnrefused} ->
-            ?make_error(?ERR_ONEZONE_NOT_AVAILABLE);
-        {error, Reason} ->
-            ?make_error(Reason)
+            errors:from_json(Error);
+        {error, _} ->
+            ?ERROR_NO_CONNECTION_TO_ONEZONE
     end.
 
 

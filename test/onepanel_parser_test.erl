@@ -28,7 +28,7 @@ parse_integer_key_test() ->
     ArgsSpec = #{key => integer},
     ?assertEqual(#{key => 1}, onepanel_parser:parse(Data1, ArgsSpec)),
     ?assertEqual(#{key => 1}, onepanel_parser:parse(Data2, ArgsSpec)),
-    ?assertThrow({error, {?ERR_INVALID_VALUE, [key], integer}},
+    ?assertThrow(?ERROR_BAD_VALUE_INTEGER(<<"key">>),
         onepanel_parser:parse(Data3, ArgsSpec)).
 
 
@@ -43,7 +43,7 @@ parse_float_key_test() ->
     ?assertEqual(#{key => 1.0}, onepanel_parser:parse(Data2, ArgsSpec)),
     ?assertEqual(#{key => 1.0}, onepanel_parser:parse(Data3, ArgsSpec)),
     ?assertEqual(#{key => 1.0}, onepanel_parser:parse(Data4, ArgsSpec)),
-    ?assertThrow({error, {?ERR_INVALID_VALUE, [key], float}},
+    ?assertThrow(?ERROR_BAD_VALUE_FLOAT(<<"key">>),
         onepanel_parser:parse(Data5, ArgsSpec)).
 
 
@@ -54,7 +54,7 @@ parse_atom_key_test() ->
     ArgsSpec = #{key => atom},
     ?assertEqual(#{key => value}, onepanel_parser:parse(Data1, ArgsSpec)),
     ?assertEqual(#{key => value}, onepanel_parser:parse(Data2, ArgsSpec)),
-    ?assertThrow({error, {?ERR_INVALID_VALUE, [key], atom}},
+    ?assertThrow(?ERROR_BAD_VALUE_ATOM(<<"key">>),
         onepanel_parser:parse(Data3, ArgsSpec)).
 
 
@@ -70,20 +70,21 @@ parse_boolean_key_test() ->
     ?assertEqual(#{key => false}, onepanel_parser:parse(Data2, ArgsSpec)),
     ?assertEqual(#{key => true}, onepanel_parser:parse(Data3, ArgsSpec)),
     ?assertEqual(#{key => false}, onepanel_parser:parse(Data4, ArgsSpec)),
-    ?assertThrow({error, {?ERR_INVALID_VALUE, [key], boolean}},
+    ?assertThrow(?ERROR_BAD_VALUE_BOOLEAN(<<"key">>),
         onepanel_parser:parse(Data5, ArgsSpec)),
-    ?assertThrow({error, {?ERR_INVALID_VALUE, [key], boolean}},
+    ?assertThrow(?ERROR_BAD_VALUE_BOOLEAN(<<"key">>),
         onepanel_parser:parse(Data6, ArgsSpec)).
 
 
 parse_list_key_test() ->
-    Data1 = #{<<"key">> => [<<"some_string">>]},
+    Data1 = #{<<"key">> => [<<"some_string">>, <<"string2">>]},
     Data2 = #{<<"key">> => []},
     Data3 = #{<<"key">> => [1]},
     ArgsSpec = #{key => [string]},
-    ?assertEqual(#{key => [<<"some_string">>]}, onepanel_parser:parse(Data1, ArgsSpec)),
+    ?assertEqual(#{key => [<<"some_string">>, <<"string2">>]},
+        onepanel_parser:parse(Data1, ArgsSpec)),
     ?assertEqual(#{key => []}, onepanel_parser:parse(Data2, ArgsSpec)),
-    ?assertThrow({error, {?ERR_INVALID_VALUE, [key], [string]}},
+    ?assertThrow(?ERROR_BAD_VALUE_LIST_OF_BINARIES(<<"key">>),
         onepanel_parser:parse(Data3, ArgsSpec)).
 
 
@@ -92,14 +93,14 @@ parse_string_key_test() ->
     Data2 = #{<<"key">> => 1},
     ArgsSpec = #{key => string},
     ?assertEqual(#{key => <<"value">>}, onepanel_parser:parse(Data1, ArgsSpec)),
-    ?assertThrow({error, {?ERR_INVALID_VALUE, [key], string}},
+    ?assertThrow(?ERROR_BAD_VALUE_BINARY(<<"key">>),
         onepanel_parser:parse(Data2, ArgsSpec)).
 
 
 parse_required_key_test() ->
     Data = #{},
     ArgsSpec = #{key => string},
-    ?assertThrow({error, {?ERR_MISSING_KEY, [key]}},
+    ?assertThrow(?ERROR_MISSING_REQUIRED_VALUE(<<"key">>),
         onepanel_parser:parse(Data, ArgsSpec)).
 
 
@@ -140,36 +141,70 @@ parse_nested_key_test() ->
             key3 => <<"value">>
         }
     }}, onepanel_parser:parse(Data1, ArgsSpec)),
-    ?assertThrow({error, {?ERR_MISSING_KEY, [key1, key2, key3]}},
+    ?assertThrow(?ERROR_MISSING_REQUIRED_VALUE(<<"key1.key2.key3">>),
         onepanel_parser:parse(Data2, ArgsSpec)),
-    ?assertThrow({error, {?ERR_MISSING_KEY, [key1, key2]}},
+    ?assertThrow(?ERROR_MISSING_REQUIRED_VALUE(<<"key1.key2">>),
         onepanel_parser:parse(Data3, ArgsSpec)),
-    ?assertThrow({error, {?ERR_MISSING_KEY, [key1]}},
+    ?assertThrow(?ERROR_MISSING_REQUIRED_VALUE(<<"key1">>),
         onepanel_parser:parse(Data4, ArgsSpec)).
 
 
-parse_oneof_key_test() ->
-    Data1 = #{<<"oneof_key">> => #{
-        <<"key1">> => <<"value1">>}
-    },
-    Data2 = #{<<"oneof_key">> => #{
-        <<"key2">> => <<"2">>,
-        <<"key3">> => <<"value3">>
-    }},
-    ArgsSpec = #{oneof_key => {oneof, [
-        #{key1 => string},
-        #{
-            key2 => integer,
-            key3 => string
-        }
-    ]}},
-    ?assertEqual(#{oneof_key => #{
-        key1 => <<"value1">>
-    }}, onepanel_parser:parse(Data1, ArgsSpec)),
-    ?assertEqual(#{oneof_key => #{
-        key2 => 2,
-        key3 => <<"value3">>
-    }}, onepanel_parser:parse(Data2, ArgsSpec)).
+parse_enum_test_() ->
+    Data1 = #{<<"key1">> => <<"val1">>},
+    Data2 = #{<<"key1">> => <<"val2">>},
+    Data3 = #{<<"key1">> => <<"other">>},
+    Data4 = #{<<"key1">> => <<"val1">>, <<"key2">> => <<"val3">>},
+    Data5 = #{<<"key1">> => <<"val1">>, <<"key2">> => <<"badoptional">>},
+    Data6 = #{<<"key1">> => <<"val1">>, <<"key3">> => 3},
+    Data7 = #{<<"key1">> => <<"val1">>, <<"key3">> => <<"string">>},
+    ArgsSpec = #{
+        key1 => {enum, string, [<<"val1">>, <<"val2">>]},
+        key2 => {{enum, string, [<<"val3">>, <<"val4">>]}, optional},
+        key3 => {{enum, integer, [3, 4]}, optional}
+    }, [
+        ?_assertEqual(#{key1 => <<"val1">>}, onepanel_parser:parse(Data1, ArgsSpec)),
+        ?_assertEqual(#{key1 => <<"val2">>}, onepanel_parser:parse(Data2, ArgsSpec)),
+        ?_assertThrow(?ERROR_BAD_VALUE_NOT_ALLOWED(<<"key1">>, [<<"val1">>, <<"val2">>]),
+            onepanel_parser:parse(Data3, ArgsSpec)),
+        ?_assertEqual(#{key1 => <<"val1">>, key2 => <<"val3">>},
+            onepanel_parser:parse(Data4, ArgsSpec)),
+        ?_assertThrow(?ERROR_BAD_VALUE_NOT_ALLOWED(<<"key2">>, [<<"val3">>, <<"val4">>]),
+            onepanel_parser:parse(Data5, ArgsSpec)),
+        ?_assertEqual(#{key1 => <<"val1">>, key3 => 3},
+            onepanel_parser:parse(Data6, ArgsSpec)),
+        ?_assertThrow(?ERROR_BAD_VALUE_INTEGER(<<"key3">>),
+            onepanel_parser:parse(Data7, ArgsSpec))
+    ].
+
+
+parse_subclasses_test_() ->
+    Data1 = #{<<"storage">> => #{<<"type">> => <<"s3">>, <<"hostname">> => <<"hostname.com">>}},
+    Data2 = #{<<"storage">> => #{<<"type">> => <<"posix">>, <<"user">> => 3}},
+    Data3 = #{<<"storage">> => #{<<"type">> => <<"badtype">>, <<"user">> => 3}},
+    Data4 = #{<<"storage">> => #{<<"type">> => <<"s3">>, <<"hostname">> => 3}},
+    Data5 = #{<<"storage">> => #{}},
+    Subclasses = [
+        #{type => {discriminator, <<"s3">>}, hostname => string},
+        #{type => {discriminator, <<"posix">>}, user => integer}
+    ],
+    ArgsSpec = #{storage => {subclasses, onepanel_parser:prepare_subclasses(Subclasses)}},
+    [
+        {"prepare_subclasses",
+            ?_assertEqual(#{storage => {subclasses, {type, #{
+                <<"s3">> => #{type => {equal, <<"s3">>}, hostname => string},
+                <<"posix">> => #{type => {equal, <<"posix">>}, user => integer}
+            }}}}, ArgsSpec)},
+        ?_assertEqual(#{storage => #{type => <<"s3">>, hostname => <<"hostname.com">>}},
+            onepanel_parser:parse(Data1, ArgsSpec)),
+        ?_assertEqual(#{storage => #{type => <<"posix">>, user => 3}},
+            onepanel_parser:parse(Data2, ArgsSpec)),
+        ?_assertThrow(?ERROR_BAD_VALUE_NOT_ALLOWED(<<"storage.type">>, [<<"posix">>, <<"s3">>]),
+            onepanel_parser:parse(Data3, ArgsSpec)),
+        ?_assertThrow(?ERROR_BAD_VALUE_BINARY(<<"storage.hostname">>),
+            onepanel_parser:parse(Data4, ArgsSpec)),
+        ?_assertThrow(?ERROR_MISSING_REQUIRED_VALUE(<<"storage.type">>),
+            onepanel_parser:parse(Data5, ArgsSpec))
+].
 
 
 parse_wildcard_key_test() ->

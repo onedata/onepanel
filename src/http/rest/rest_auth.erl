@@ -78,8 +78,8 @@ authenticate_by_onepanel_auth_token(Req) ->
             case onepanel_session:find_by_valid_auth_token(OnepanelToken) of
                 {ok, #onepanel_session{username = ?LOCAL_SESSION_USERNAME}} ->
                     {root_client(), Req};
-                {error, ?ERR_NOT_FOUND} ->
-                    {?make_error(?ERR_INVALID_AUTH_TOKEN), Req}
+                error ->
+                    {?ERROR_TOKEN_INVALID, Req}
             end;
         _ ->
             {ignore, Req}
@@ -117,11 +117,11 @@ check_basic_credentials(<<Base64/binary>>) ->
         _Error ->
             case binary:split(Decoded, <<":">>) of
                 [Decoded] ->
-                    ?make_error(?ERR_INVALID_PASSPHRASE);
+                    ?ERROR_BAD_BASIC_CREDENTIALS;
                 [?LOCAL_USERNAME, Passphrase] ->
                     check_emergency_passphrase(Passphrase);
                 [_Username, _Password] ->
-                    ?make_error(?ERR_INVALID_USERNAME)
+                    ?ERROR_BAD_BASIC_CREDENTIALS
             end
     end.
 
@@ -152,7 +152,7 @@ resolve_peer_ip(Req) ->
 check_emergency_passphrase(Passphrase) ->
     case emergency_passphrase:verify(Passphrase) of
         true -> root_client();
-        false -> ?make_error(?ERR_INVALID_PASSPHRASE)
+        false -> ?ERROR_BAD_BASIC_CREDENTIALS
     end.
 
 

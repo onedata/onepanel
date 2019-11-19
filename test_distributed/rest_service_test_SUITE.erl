@@ -739,13 +739,13 @@ init_per_testcase(get_should_return_service_task_results, Config) ->
             {module1, function1},
             {module2, function2},
             {module3, function3, {[], [
-                {'node@host1', {error, _}}, {'node@host2', {error, _}}
+                {'node@host1', {error, reason}}, {'node@host2', {error, reason}}
             ]}},
-            {task_finished, {service, action, {error, _}}}
+            {task_finished, {service, action, {error, reason}}}
         ], 4};
         (<<"someTaskId4">>) -> {[
-            {task_finished, {service, action, {error, _}}}
-        ], {error, _}}
+            {task_finished, {service, action, {error, reason}}}
+        ], {error, reason}}
     end),
     NewConfig;
 

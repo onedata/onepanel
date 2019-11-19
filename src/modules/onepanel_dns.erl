@@ -133,8 +133,7 @@ check(Expected, Names, Type, Servers) ->
     end, Results),
 
     case WithoutErrors of
-        [] -> ?throw_error(?ERR_DNS_CHECK_ERROR(
-            str_utils:format("No DNS server responded to DNS check. Tried: ~p", [Servers])));
+        [] -> throw(?ERROR_DNS_SERVERS_UNREACHABLE(Servers));
         _ -> WithoutErrors
     end.
 

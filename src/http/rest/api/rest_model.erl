@@ -154,7 +154,7 @@ block_devices_model() ->
 block_devices_block_devices_model() ->
     #{
         %% Device type, as returned by lsblk.
-        type => {{oneof, [{equal, <<"disk">>}, {equal, <<"part">>}]}, optional},
+        type => {{enum, string, [<<"disk">>, <<"part">>]}, optional},
         %% Host on which the device is available.
         host => string,
         path => string,
@@ -232,9 +232,9 @@ ceph_monitors_model() ->
 %% @doc The cluster storage configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec ceph_osd_model() -> {oneof, Oneof :: list()}.
+-spec ceph_osd_model() -> {subclasses, list()}.
 ceph_osd_model() ->
-    {oneof, [blockdevice_model(), loopdevice_model()]}.
+    {subclasses, onepanel_parser:prepare_subclasses([blockdevice_model(), loopdevice_model()])}.
 
 %%--------------------------------------------------------------------
 %% @doc Object containing a list of Ceph OSD specifications.
@@ -299,7 +299,7 @@ ceph_pools_model() ->
 ceph_status_model() ->
     #{
         %% General health status.
-        level => {oneof, [{equal, <<"ok">>}, {equal, <<"warning">>}, {equal, <<"error">>}]},
+        level => {enum, string, [<<"ok">>, <<"warning">>, <<"error">>]},
         %% List of Ceph status messages.
         messages => [string]
     }.
@@ -362,7 +362,7 @@ cluster_details_model() ->
         %% Id of the cluster record.
         id => string,
         %% Type of the cluster.
-        type => {oneof, [{equal, <<"oneprovider">>}, {equal, <<"onezone">>}]},
+        type => {enum, string, [<<"oneprovider">>, <<"onezone">>]},
         %% The Id of the service hosted on this cluster - depending on the type
         %% equal to the Oneprovider Id or \&quot;onezone\&quot; in case of
         %% Onezone cluster
@@ -434,9 +434,10 @@ cluster_workers_model() ->
 %% @doc Public service configuration details.
 %% @end
 %%--------------------------------------------------------------------
--spec configuration_model() -> {oneof, Oneof :: list()}.
+-spec configuration_model() -> {subclasses, list()}.
 configuration_model() ->
-    {oneof, [op_configuration_model(), oz_configuration_model()]}.
+    {subclasses, onepanel_parser:prepare_subclasses(
+        [op_configuration_model(), oz_configuration_model()])}.
 
 %%--------------------------------------------------------------------
 %% @doc Information about the authenticated user.
@@ -450,7 +451,7 @@ current_user_model() ->
         %% User's full name (given names + surname).
         username => string,
         %% List of cluster privileges held by the user in the current cluster.
-        clusterPrivileges => {[{oneof, [{equal, <<"cluster_view">>}, {equal, <<"cluster_update">>}, {equal, <<"cluster_delete">>}, {equal, <<"cluster_view_privileges">>}, {equal, <<"cluster_set_privileges">>}, {equal, <<"cluster_add_user">>}, {equal, <<"cluster_remove_user">>}, {equal, <<"cluster_add_group">>}, {equal, <<"cluster_remove_group">>}]}], optional}
+        clusterPrivileges => {[{enum, [string], [<<"cluster_view">>, <<"cluster_update">>, <<"cluster_delete">>, <<"cluster_view_privileges">>, <<"cluster_set_privileges">>, <<"cluster_add_user">>, <<"cluster_remove_user">>, <<"cluster_add_group">>, <<"cluster_remove_group">>]}], optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -532,7 +533,7 @@ dns_check_result_model() ->
         %% returned; 'bad_records' - none of the expected results were
         %% returned; 'ok' - all of expected values were present in
         %% obtained results.
-        summary => {oneof, [{equal, <<"unresolvable">>}, {equal, <<"missing_records">>}, {equal, <<"bad_records">>}, {equal, <<"ok">>}]},
+        summary => {enum, string, [<<"unresolvable">>, <<"missing_records">>, <<"bad_records">>, <<"ok">>]},
         %% List of expected query results.
         expected => [string],
         %% List of obtained query results.
@@ -679,7 +680,7 @@ node_model() ->
         %% Hostname of the node.
         hostname => string,
         %% Type of Onedata cluster managed by this onepanel.
-        clusterType => {oneof, [{equal, <<"oneprovider">>}, {equal, <<"onezone">>}]}
+        clusterType => {enum, string, [<<"oneprovider">>, <<"onezone">>]}
     }.
 
 %%--------------------------------------------------------------------
@@ -1106,7 +1107,7 @@ service_status_model() ->
 service_status_host_model() ->
     #{
         %% The service status.
-        status => {oneof, [{equal, <<"healthy">>}, {equal, <<"unhealthy">>}, {equal, <<"stopped">>}, {equal, <<"missing">>}]}
+        status => {enum, string, [<<"healthy">>, <<"unhealthy">>, <<"stopped">>, <<"missing">>]}
     }.
 
 %%--------------------------------------------------------------------
@@ -1342,9 +1343,9 @@ space_support_request_model() ->
 space_sync_stats_model() ->
     #{
         %% Describes import algorithm run status.
-        importStatus => {oneof, [{equal, <<"inProgress">>}, {equal, <<"done">>}]},
+        importStatus => {enum, string, [<<"inProgress">>, <<"done">>]},
         %% Describes update algorithm run status.
-        updateStatus => {{oneof, [{equal, <<"waiting">>}, {equal, <<"inProgress">>}]}, optional},
+        updateStatus => {{enum, string, [<<"waiting">>, <<"inProgress">>]}, optional},
         %% Collection of statistics for requested metrics.
         stats => {time_stats_collection_model(), optional}
     }.
@@ -1353,9 +1354,10 @@ space_sync_stats_model() ->
 %% @doc The cluster storage configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec storage_create_details_model() -> {oneof, Oneof :: list()}.
+-spec storage_create_details_model() -> {subclasses, list()}.
 storage_create_details_model() ->
-    {oneof, [posix_model(), s3_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model()]}.
+    {subclasses, onepanel_parser:prepare_subclasses(
+        [posix_model(), s3_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model()])}.
 
 %%--------------------------------------------------------------------
 %% @doc The configuration details required to add storage resources.
@@ -1369,9 +1371,10 @@ storage_create_request_model() ->
 %% @doc The cluster storage configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec storage_get_details_model() -> {oneof, Oneof :: list()}.
+-spec storage_get_details_model() -> {subclasses, list()}.
 storage_get_details_model() ->
-    {oneof, [posix_model(), s3_model(), ceph_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model()]}.
+    {subclasses, onepanel_parser:prepare_subclasses(
+        [posix_model(), s3_model(), ceph_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model()])}.
 
 %%--------------------------------------------------------------------
 %% @doc The storage import configuration. Storage import allows to import data
@@ -1395,9 +1398,10 @@ storage_import_details_model() ->
 %% creation.
 %% @end
 %%--------------------------------------------------------------------
--spec storage_modify_details_model() -> {oneof, Oneof :: list()}.
+-spec storage_modify_details_model() -> {subclasses, list()}.
 storage_modify_details_model() ->
-    {oneof, [posix_modify_model(), s3_modify_model(), ceph_modify_model(), cephrados_modify_model(), localceph_modify_model(), swift_modify_model(), glusterfs_modify_model(), nulldevice_modify_model(), webdav_modify_model()]}.
+    {subclasses, onepanel_parser:prepare_subclasses(
+        [posix_modify_model(), s3_modify_model(), ceph_modify_model(), cephrados_modify_model(), localceph_modify_model(), swift_modify_model(), glusterfs_modify_model(), nulldevice_modify_model(), webdav_modify_model()])}.
 
 %%--------------------------------------------------------------------
 %% @doc The storage parameters to be changed. Should be a single-valued
@@ -1445,7 +1449,7 @@ storage_update_details_model() ->
 task_status_model() ->
     #{
         %% The operation status.
-        status => {oneof, [{equal, <<"ok">>}, {equal, <<"error">>}, {equal, <<"running">>}]},
+        status => {enum, string, [<<"ok">>, <<"error">>, <<"running">>]},
         %% The list of operation steps that have been executed successfully.
         steps => [string],
         %% Total number of steps to be executed.
@@ -1470,11 +1474,11 @@ task_status_model() ->
 time_stats_model() ->
     #{
         %% Name of metric for which this object holds statistics.
-        name => {oneof, [{equal, <<"queueLength">>}, {equal, <<"insertCount">>}, {equal, <<"updateCount">>}, {equal, <<"deleteCount">>}]},
+        name => {enum, string, [<<"queueLength">>, <<"insertCount">>, <<"updateCount">>, <<"deleteCount">>]},
         %% Date of last measurement value in this object in ISO 8601 format.
         lastValueDate => string,
         %% Predefined time period for which the statistics were fetched.
-        period => {{oneof, [{equal, <<"minute">>}, {equal, <<"hour">>}, {equal, <<"day">>}]}, optional},
+        period => {{enum, string, [<<"minute">>, <<"hour">>, <<"day">>]}, optional},
         %% List of sample values for given metric. The used period is divided
         %% into array-length number of parts. E.g. if the used period is an
         %% hour, and if there are 12 values in this array, every value is a
@@ -1553,7 +1557,7 @@ web_cert_model() ->
         %% Installed certificate's creation time in ISO 8601 format.
         creationTime => string,
         %% Describes certificate validity status.
-        status => {oneof, [{equal, <<"valid">>}, {equal, <<"near_expiration">>}, {equal, <<"expired">>}, {equal, <<"domain_mismatch">>}, {equal, <<"regenerating">>}, {equal, <<"unknown">>}]},
+        status => {enum, string, [<<"valid">>, <<"near_expiration">>, <<"expired">>, <<"domain_mismatch">>, <<"regenerating">>, <<"unknown">>]},
         paths => {web_cert_paths_model(), optional},
         %% The domain (Common Name) for which current certificate was issued.
         domain => string,
@@ -1712,7 +1716,7 @@ zone_policies_model() ->
         %% privilege 'oz_providers_invite'              to generate a
         %% Oneprovider registration token. The token              can be issued
         %% for someone else.
-        oneproviderRegistration => {{oneof, [{equal, <<"open">>}, {equal, <<"restricted">>}]}, optional},
+        oneproviderRegistration => {{enum, string, [<<"open">>, <<"restricted">>]}, optional},
         %% If true, Oneproviders are allowed to request subdomains of the
         %% Onezone domain for use as their domains.
         subdomainDelegation => {boolean, optional},
@@ -1750,7 +1754,7 @@ blockdevice_model() ->
         %% Type of the OSD. Available types are: - blockdevice - formats a raw
         %% block device to store the data - loopdevice - stores data in a file
         %% mounted as loop device
-        type => {equal, <<"blockdevice">>},
+        type => {discriminator, <<"blockdevice">>},
         %% Specifies block device to be ERASED and FORMATTED for use as the main
         %% data store of this OSD.
         device => string
@@ -1764,12 +1768,12 @@ blockdevice_model() ->
 ceph_model() ->
     #{
         %% The type of storage.
-        type => {equal, <<"ceph">>},
+        type => {discriminator, <<"ceph">>},
         %% The username of the Ceph cluster administrator.
         username => string,
         %% The admin key to access the Ceph cluster.
         key => string,
-        %% The monitor host name.
+        %% The monitor hostname.
         monitorHostname => string,
         %% The Ceph cluster name.
         clusterName => string,
@@ -1830,12 +1834,12 @@ ceph_modify_model() ->
         lumaApiKey => {string, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
-        type => {equal, <<"ceph">>},
+        type => {discriminator, <<"ceph">>},
         %% The username of the Ceph cluster administrator.
         username => {string, optional},
         %% The admin key to access the Ceph cluster.
         key => {string, optional},
-        %% The monitor host name.
+        %% The monitor hostname.
         monitorHostname => {string, optional},
         %% The Ceph cluster name.
         clusterName => {string, optional},
@@ -1855,7 +1859,7 @@ ceph_modify_model() ->
 cephrados_model() ->
     #{
         %% The type of storage.
-        type => {equal, <<"cephrados">>},
+        type => {discriminator, <<"cephrados">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -1871,7 +1875,7 @@ cephrados_model() ->
         username => string,
         %% The admin key to access the Ceph cluster.
         key => string,
-        %% The monitor host name.
+        %% The monitor hostname.
         monitorHostname => string,
         %% The Ceph cluster name.
         clusterName => string,
@@ -1914,12 +1918,12 @@ cephrados_modify_model() ->
         lumaApiKey => {string, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
-        type => {equal, <<"cephrados">>},
+        type => {discriminator, <<"cephrados">>},
         %% The username of the Ceph cluster administrator.
         username => {string, optional},
         %% The admin key to access the Ceph cluster.
         key => {string, optional},
-        %% The monitor host name.
+        %% The monitor hostname.
         monitorHostname => {string, optional},
         %% The Ceph cluster name.
         clusterName => {string, optional},
@@ -1939,7 +1943,7 @@ cephrados_modify_model() ->
 glusterfs_model() ->
     #{
         %% The type of storage.
-        type => {equal, <<"glusterfs">>},
+        type => {discriminator, <<"glusterfs">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -1958,7 +1962,7 @@ glusterfs_model() ->
         %% The GlusterFS port on volume server.
         port => {integer, optional},
         %% The transport protocol to use to connect to the volume server.
-        transport => {{oneof, [{equal, <<"tcp">>}, {equal, <<"rdma">>}, {equal, <<"socket">>}]}, optional},
+        transport => {{enum, string, [<<"tcp">>, <<"rdma">>, <<"socket">>]}, optional},
         %% Relative mountpoint within the volume which should be used by
         %% Oneprovider.
         mountPoint => {string, optional},
@@ -1996,7 +2000,7 @@ glusterfs_modify_model() ->
         lumaApiKey => {string, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
-        type => {equal, <<"glusterfs">>},
+        type => {discriminator, <<"glusterfs">>},
         %% The name of the volume to use as a storage backend.
         volume => {string, optional},
         %% The hostname (IP address or FQDN) of GlusterFS volume server.
@@ -2004,7 +2008,7 @@ glusterfs_modify_model() ->
         %% The GlusterFS port on volume server.
         port => {integer, optional},
         %% The transport protocol to use to connect to the volume server.
-        transport => {{oneof, [{equal, <<"tcp">>}, {equal, <<"rdma">>}, {equal, <<"socket">>}]}, optional},
+        transport => {{enum, string, [<<"tcp">>, <<"rdma">>, <<"socket">>]}, optional},
         %% Relative mountpoint within the volume which should be used by
         %% Oneprovider.
         mountPoint => {string, optional},
@@ -2022,7 +2026,7 @@ glusterfs_modify_model() ->
 localceph_model() ->
     #{
         %% The type of storage.
-        type => {equal, <<"localceph">>},
+        type => {discriminator, <<"localceph">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -2086,7 +2090,7 @@ localceph_modify_model() ->
         %% service.
         lumaApiKey => {string, optional},
         %% The type of storage.
-        type => {equal, <<"localceph">>}
+        type => {discriminator, <<"localceph">>}
     }.
 
 %%--------------------------------------------------------------------
@@ -2108,10 +2112,10 @@ loopdevice_model() ->
         %% Type of the OSD. Available types are: - blockdevice - formats a raw
         %% block device to store the data - loopdevice - stores data in a file
         %% mounted as loop device
-        type => {equal, <<"loopdevice">>},
+        type => {discriminator, <<"loopdevice">>},
         %% Path of the loopdevice file to be created. If omitted, default path
         %% will be generated according to following template:
-        %% /var/lib/ceph/loopdevices/osd-{uuid}.loop
+        %% /volumes/persistence/ceph-loopdevices/osd-{uuid}.loop
         path => {string, optional},
         %% Size in bytes of the loopdevice file.
         size => integer
@@ -2125,7 +2129,7 @@ loopdevice_model() ->
 nulldevice_model() ->
     #{
         %% The type of storage.
-        type => {equal, <<"nulldevice">>},
+        type => {discriminator, <<"nulldevice">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -2197,7 +2201,7 @@ nulldevice_modify_model() ->
         lumaApiKey => {string, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
-        type => {equal, <<"nulldevice">>},
+        type => {discriminator, <<"nulldevice">>},
         %% Minimum latency in milliseconds, which should be simulated for
         %% selected operations.
         latencyMin => {integer, optional},
@@ -2246,7 +2250,7 @@ op_configuration_model() ->
         %% True when cluster deployment is finished.
         deployed => boolean,
         %% Indicates that this is Oneprovider's panel.
-        serviceType => {equal, <<"oneprovider">>},
+        serviceType => {discriminator, <<"oneprovider">>},
         %% This cluster's Oneprovider Id. `null` if the
         %% Oneprovider is not registered or Oneprovider worker is down.
         providerId => string,
@@ -2274,7 +2278,7 @@ oz_configuration_model() ->
         %% True when cluster deployment is finished.
         deployed => boolean,
         %% Indicates that this is Onezone's panel.
-        serviceType => {equal, <<"onezone">>},
+        serviceType => {discriminator, <<"onezone">>},
         %% The domain of this Onezone cluster. `null` before cluster
         %% is configured.
         zoneDomain => string,
@@ -2291,7 +2295,7 @@ oz_configuration_model() ->
 posix_model() ->
     #{
         %% The type of storage.
-        type => {equal, <<"posix">>},
+        type => {discriminator, <<"posix">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -2337,7 +2341,7 @@ posix_modify_model() ->
         lumaApiKey => {string, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
-        type => {equal, <<"posix">>},
+        type => {discriminator, <<"posix">>},
         %% The absolute path to the directory where the POSIX storage is mounted
         %% on the cluster nodes.
         mountPoint => {string, optional}
@@ -2351,7 +2355,7 @@ posix_modify_model() ->
 s3_model() ->
     #{
         %% The type of storage.
-        type => {equal, <<"s3">>},
+        type => {discriminator, <<"s3">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -2427,7 +2431,7 @@ s3_modify_model() ->
         lumaApiKey => {string, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
-        type => {equal, <<"s3">>},
+        type => {discriminator, <<"s3">>},
         %% The hostname of a machine where S3 storage is installed.
         hostname => {string, optional},
         %% The storage bucket name.
@@ -2466,7 +2470,7 @@ s3_modify_model() ->
 swift_model() ->
     #{
         %% The type of storage.
-        type => {equal, <<"swift">>},
+        type => {discriminator, <<"swift">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -2525,7 +2529,7 @@ swift_modify_model() ->
         lumaApiKey => {string, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
-        type => {equal, <<"swift">>},
+        type => {discriminator, <<"swift">>},
         %% The URL to OpenStack Keystone identity service.
         authUrl => {string, optional},
         %% The name of the tenant to which the user belongs.
@@ -2550,7 +2554,7 @@ swift_modify_model() ->
 webdav_model() ->
     #{
         %% The type of storage.
-        type => {equal, <<"webdav">>},
+        type => {discriminator, <<"webdav">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
         %% Defines whether storage is readonly.
@@ -2570,7 +2574,7 @@ webdav_model() ->
         verifyServerCertificate => {boolean, {optional, true}},
         %% Determines the types of credentials provided in the credentials
         %% field.
-        credentialsType => {{oneof, [{equal, <<"none">>}, {equal, <<"basic">>}, {equal, <<"token">>}, {equal, <<"oauth2">>}]}, {optional, none}},
+        credentialsType => {{enum, string, [<<"none">>, <<"basic">>, <<"token">>, <<"oauth2">>]}, {optional, none}},
         %% The credentials to authenticate with the WebDAV server.
         %% `basic` credentials should be provided in the form
         %% `username:password`, for `token` just the token.
@@ -2603,7 +2607,7 @@ webdav_model() ->
         %% supports partial `PUT` requests with `Content-
         %% Range` header. If `none` is selected no write support
         %% is available for this WebDAV storage.
-        rangeWriteSupport => {{oneof, [{equal, <<"none">>}, {equal, <<"moddav">>}, {equal, <<"sabredav">>}]}, {optional, none}},
+        rangeWriteSupport => {{enum, string, [<<"none">>, <<"moddav">>, <<"sabredav">>]}, {optional, none}},
         %% Defines the maximum number of parallel connections for a single
         %% WebDAV storage.
         connectionPoolSize => {integer, {optional, 25}},
@@ -2654,7 +2658,7 @@ webdav_modify_model() ->
         lumaApiKey => {string, optional},
         %% Type of the modified storage. Must match the type of existing
         %% storage, needed only for OpenAPI polymorphism disambiguation.
-        type => {equal, <<"webdav">>},
+        type => {discriminator, <<"webdav">>},
         %% Full URL of the WebDAV server, including scheme (http or https) and
         %% path.
         endpoint => {string, optional},
@@ -2663,7 +2667,7 @@ webdav_modify_model() ->
         verifyServerCertificate => {boolean, optional},
         %% Determines the types of credentials provided in the credentials
         %% field.
-        credentialsType => {{oneof, [{equal, <<"none">>}, {equal, <<"basic">>}, {equal, <<"token">>}]}, optional},
+        credentialsType => {{enum, string, [<<"none">>, <<"basic">>, <<"token">>]}, optional},
         %% The credentials to authenticate with the WebDAV server.
         %% `basic` credentials should be provided in the form
         %% `username:password`, for `token` just the token.
@@ -2681,7 +2685,7 @@ webdav_modify_model() ->
         %% supports partial `PUT` requests with `Content-
         %% Range` header. If `none` is selected no write support
         %% is available for this WebDAV storage.
-        rangeWriteSupport => {{oneof, [{equal, <<"none">>}, {equal, <<"moddav">>}, {equal, <<"sabredav">>}]}, optional},
+        rangeWriteSupport => {{enum, string, [<<"none">>, <<"moddav">>, <<"sabredav">>]}, optional},
         %% Defines the maximum number of parallel connections for a single
         %% WebDAV storage.
         connectionPoolSize => {integer, optional},

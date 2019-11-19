@@ -92,7 +92,7 @@ exists_resource(Req, _State) ->
 is_conflict(Req, 'DELETE', _Args,
     #rstate{resource = storage, bindings = #{id:=Id}}) ->
     case op_worker_storage:can_be_removed(Id) of
-        false -> {true, rest_replier:handle_error(Req, throw, ?make_error(?ERR_STORAGE_IN_USE))};
+        false -> {true, rest_replier:handle_error(Req, throw, ?ERROR_STORAGE_IN_USE)};
         true -> {false, Req}
     end;
 
@@ -193,9 +193,16 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = storage,
     % only 1 storage should be modified at a time
     [{OldName, #{type := Type} = Params}] = maps:to_list(Args),
 
+    % Type and name must be given due to limitations of onepanel
+    % rest models specification. Ensures received values match the storage
+    % identified by id.
     case service_op_worker:get_storages(#{id => Id}) of
         #{name := OldName, type := Type} -> ok;
-        _ -> ?throw_error(?ERR_STORAGE_UPDATE_MISMATCH)
+        #{name := ActualName, type := _} ->
+            throw(?ERROR_BAD_VALUE_NOT_ALLOWED(OldName, [ActualName]));
+        #{name := OldName, type := ActualType} ->
+            Key = str_utils:join_as_binaries([OldName, type], <<".">>),
+            throw(?ERROR_BAD_VALUE_NOT_ALLOWED(Key, [ActualType]))
     end,
 
     {true, rest_replier:handle_service_step(Req, service_op_worker, update_storage,

@@ -78,7 +78,7 @@ get_hosts() ->
 %%--------------------------------------------------------------------
 -spec get_nodes() -> no_return().
 get_nodes() ->
-    ?throw_error(?ERR_NOT_SUPPORTED).
+    error(?ERROR_NOT_SUPPORTED).
 
 
 %%--------------------------------------------------------------------
@@ -258,7 +258,7 @@ format_block_device(#{type := Type, device := Device, uuid := UUID}) ->
 %% created with given UUID.
 %% @end
 %%--------------------------------------------------------------------
--spec obtain_id_by_uuid(binary()) -> {ok, id()} | {error, _}.
+-spec obtain_id_by_uuid(binary()) -> {ok, id()} | error.
 obtain_id_by_uuid(UUID) ->
     Output = ceph_cli:volume_list(),
     OsdsList = lists:append(maps:values(Output)),
@@ -272,9 +272,9 @@ obtain_id_by_uuid(UUID) ->
         end
     end, OsdsList),
     case Matching of
-        [] -> ?make_error(?ERR_NOT_FOUND);
+        [] -> error;
         [Id] -> {ok, Id};
-        _Multiple -> ?make_error(?ERR_AMBIGUOUS_UUID)
+        _Multiple -> error({error, ambiguous_uuid})
     end.
 
 
@@ -399,7 +399,7 @@ list_instances() ->
 get_instance({id, Id}) ->
     case service:get_ctx(name()) of
         #{instances := #{Id := Instance}} -> Instance;
-        _ -> ?throw_error(?ERR_NOT_FOUND)
+        _ -> throw(?ERROR_NOT_FOUND)
     end;
 
 get_instance({uuid, UUID}) ->

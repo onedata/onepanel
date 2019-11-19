@@ -20,7 +20,7 @@
 %% API
 -export([has_privileges/2]).
 -export([get_method/1, get_bindings/1, get_params/2, get_args/2,
-    get_hosts/2, get_cluster_ips/1, verify_any/2, allowed_origin/0]).
+    get_hosts/2, get_cluster_ips/1, allowed_origin/0]).
 
 -type one_or_many(T) :: T | [T].
 
@@ -91,12 +91,7 @@ get_params(Req, ParamsSpec) ->
         ({Key, true}, Acc) -> maps:put(Key, <<"true">>, Acc);
         ({Key, Value}, Acc) -> maps:put(Key, Value, Acc)
     end, #{}, Params),
-    try
-        {onepanel_parser:parse(NewParams, ParamsSpec), Req}
-    catch
-        throw:{error, {?ERR_MISSING_KEY, Keys}} = Error ->
-            ?throw_error({?ERR_MISSING_PARAM, Keys})
-    end.
+    {onepanel_parser:parse(NewParams, ParamsSpec), Req}.
 
 
 %%--------------------------------------------------------------------
@@ -131,7 +126,9 @@ get_hosts(Keys, Args) ->
     lists:map(fun(Alias) ->
         case maps:find(Alias, HostsMap) of
             {ok, Host} -> onepanel_utils:convert(Host, list);
-            error -> ?throw_error({?ERR_HOST_NOT_FOUND_FOR_ALIAS, Alias})
+            error ->
+                Location = onepanel_utils:join(Keys,<<".">>),
+                throw(?ERROR_BAD_VALUE_NOT_ALLOWED(Location, maps:keys(HostsMap)))
         end
     end, AliasesList).
 
@@ -157,19 +154,6 @@ get_cluster_ips(Args) ->
             list),
         maps:put(Host, IP, Acc)
     end, #{}, NodesWithIPs).
-
-
-%%--------------------------------------------------------------------
-%% @doc Checks whether at least one key from a provided list is found in a map.
-%% Throws an exception if none of keys is found.
-%% @end
-%%--------------------------------------------------------------------
--spec verify_any(Keys :: [atom()], Args :: rest_handler:args()) -> ok | no_return().
-verify_any(Keys, Args) ->
-    case lists:any(fun(Key) -> maps:is_key(Key, Args) end, Keys) of
-        true -> ok;
-        _ -> ?throw_error({?ERR_MISSING_ANY_KEY, Keys})
-    end.
 
 
 %%--------------------------------------------------------------------

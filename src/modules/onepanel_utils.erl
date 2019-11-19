@@ -22,6 +22,7 @@
 -export([gen_uuid/0, join/1, join/2, trim/2]).
 -export([convert/2, get_type/1]).
 -export([get_converted/3, get_converted/4, find_converted/3]).
+-export([filename_to_binary/1]).
 -export([ensure_known_hosts/1, distribute_file/2]).
 
 % @formatter:off
@@ -186,8 +187,11 @@ convert(Value, float) when is_integer(Value) ->
 
 convert(Value, Type) ->
     case get_type(Value) of
-        unknown -> ?throw_error(?ERR_UNKNOWN_TYPE(Value));
-        Type -> Value;
+        unknown ->
+            ?error("Could not determine type of ~tp", [Value]),
+            error(?ERR_UNKNOWN_TYPE(Value));
+        Type ->
+            Value;
         ValueType ->
             TypeConverter = list_to_atom(
                 atom_to_list(ValueType) ++ "_to_" ++ atom_to_list(Type)
@@ -248,6 +252,11 @@ find_converted(Path, Nested, Type) ->
     end.
 
 
+-spec filename_to_binary(file:name_all()) -> binary().
+filename_to_binary(Filename) ->
+    str_utils:unicode_list_to_binary(filename:flatten(Filename)).
+
+
 %%--------------------------------------------------------------------
 %% @doc Ensures all given hosts are part of the cluster.
 %% Throws otherwise.
@@ -259,7 +268,7 @@ ensure_known_hosts(Hosts) ->
     lists:foreach(fun(Host) ->
         case lists:member(Host, KnownHosts) of
             true -> ok;
-            false -> ?throw_error(?ERR_HOST_NOT_FOUND(Host))
+            false -> error(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(hosts, KnownHosts))
         end
     end, Hosts).
 

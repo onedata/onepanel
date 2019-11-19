@@ -426,7 +426,7 @@ init_per_suite(Config) ->
         % generate certificate with correct onezone domain
         regenerate_web_certificate(OzNodes, OzDomain),
 
-        rpc:call(OzNode, emergency_passphrase, set, [?PASSPHRASE]),
+        ?assertMatch(ok, rpc:call(OzNode, emergency_passphrase, set, [?PASSPHRASE])),
         onepanel_test_utils:service_action(OzNode, ?SERVICE_OZ, deploy, #{
             cluster => #{
                 ?SERVICE_PANEL => #{

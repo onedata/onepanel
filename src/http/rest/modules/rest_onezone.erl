@@ -71,7 +71,7 @@ exists_resource(Req, #rstate{resource = gui_message, bindings = #{id := Id}}) ->
 exists_resource(Req, _State) ->
     case service:get(?SERVICE) of
         {ok, #service{}} -> {true, Req};
-        {error, ?ERR_NOT_FOUND} -> {false, Req}
+        ?ERR_DOC_NOT_FOUND -> {false, Req}
     end.
 
 
@@ -157,8 +157,8 @@ provide_resource(Req, #rstate{resource = gui_message, bindings = #{id := Id}}) -
 %%--------------------------------------------------------------------
 -spec delete_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     no_return().
-delete_resource(_Req, #rstate{}) ->
-    ?throw_error(?ERR_NOT_FOUND).
+delete_resource(Req, #rstate{}) ->
+    {false, Req}.
 
 
 %%%===================================================================

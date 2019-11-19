@@ -164,7 +164,7 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
 
     case InitIp of
         true ->
-            IP = case onepanel_maps:get([cluster_ips, Host], Ctx, undefined) of
+            IP = case kv_utils:get([cluster_ips, Host], Ctx, undefined) of
                 undefined -> get_initial_ip(Name);
                 Found ->
                     onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),
@@ -274,7 +274,7 @@ set_node_ip(#{name := ServiceName, generated_config_file := GeneratedConfigFile}
     Host = hosts:self(),
     Node = nodes:local(ServiceName),
 
-    {ok, IP} = case onepanel_maps:get([cluster_ips, Host], Ctx) of
+    {ok, IP} = case kv_utils:find([cluster_ips, Host], Ctx) of
         {ok, NewIP} ->
             onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),
             onepanel_ip:parse_ip4(NewIP);

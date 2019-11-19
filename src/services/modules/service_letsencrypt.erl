@@ -134,7 +134,7 @@ create(#{letsencrypt_plugin := Plugin}) ->
     },
     case service:create(#service{name = name(), ctx = ServiceCtx}) of
         {ok, _} -> ok;
-        {error, ?ERR_ALREADY_EXISTS} -> ok
+        {error, already_exists} -> ok
     end.
 
 
@@ -149,18 +149,18 @@ check_webcert(Ctx) ->
         true ->
             case any_challenge_available() of
                 true -> ok;
-                false -> ?throw_error(?ERR_LETSENCRYPT_NOT_SUPPORTED)
+                false -> throw(?ERROR_LETS_ENCRYPT_NOT_SUPPORTED)
             end,
 
             update_ctx(#{regenerating => true}),
             try
                 obtain_cert(Ctx)
-            catch _:Error ->
+            catch Type:Error ->
                 update_ctx(#{
                     regenerating => false,
                     last_failure => time_utils:system_time_seconds()
                 }),
-                ?throw_stacktrace(Error)
+                erlang:Type(Error)
             end,
 
             update_ctx(#{

@@ -25,7 +25,8 @@
 -define(NODE, element(2, {ok, _} = nodes:any(?SERVICE_OZW))).
 -define(CALL(Node, Args),
     case rpc:call(Node, rpc_api, apply, [?FUNCTION_NAME, Args]) of
-        {badrpc, _} = __Error -> ?throw_error(__Error);
+        {badrpc, nodedown} = __Error -> throw(?ERROR_NO_CONNECTION_TO_CLUSTER_NODE);
+        {badrpc, _} = __Error -> error(__Error);
         __Result -> __Result
     end).
 
@@ -96,12 +97,12 @@ check_token_auth(Node, Token, PeerIp)  ->
 
 
 -spec get_protected_provider_data(aai:auth(), od_provider_id()) ->
-    {ok, map()} | {error, term()}.
+    {ok, map()} | errors:error().
 get_protected_provider_data(Auth, ProviderId) ->
     ?CALL([Auth, ProviderId]).
 
 -spec get_protected_provider_data(node(), aai:auth(), od_provider_id()) ->
-    {ok, map()} | {error, term()}.
+    {ok, map()} | errors:error().
 get_protected_provider_data(Node, Auth, ProviderId) ->
     ?CALL(Node, [Auth, ProviderId]).
 

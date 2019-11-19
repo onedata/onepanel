@@ -14,7 +14,6 @@
 
 -ifdef(TEST).
 
--include("modules/errors.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
 -define(FILE1, "p1").
@@ -241,8 +240,7 @@ find_test_(_) ->
             {ok, <<"v1">>}}
     ])
     ++ lists:map(fun({Name, {Scope, Key}}) ->
-        {Name, ?_assertMatch({error, ?ERR_NOT_FOUND},
-            ceph_conf:find(Scope, Key, Base))}
+        {Name, ?_assertMatch(error, ceph_conf:find(Scope, Key, Base))}
     end, [
         {"missing key",
             {<<"global">>, <<"nonexistent">>}},

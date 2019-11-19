@@ -343,7 +343,7 @@ init_per_testcase(Case, Config) when
 
     % cause error on certification attempt
     test_utils:mock_expect(Nodes, letsencrypt_api, run_certification_flow,
-        fun(_, _) -> ?throw_error(?ERR_LETSENCRYPT(<<"someURN">>, <<"some message">>)) end),
+        fun(_, _) -> throw(?ERROR_LETS_ENCRYPT_RESPONSE(null, <<>>)) end),
 
     Initial = case Case of
         failed_patch_leaves_letsencrypt_disabled -> false;

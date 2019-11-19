@@ -68,7 +68,7 @@ handle_error(Req, Type, Reason) ->
 -spec reply_with_error(Req :: cowboy_req:req(), Type :: atom(), Reason :: term()) ->
     Req :: cowboy_req:req().
 reply_with_error(Req, Type, {badrpc, nodedown}) ->
-    reply_with_error(Req, Type, ?make_error(?ERR_NODE_DOWN));
+    reply_with_error(Req, Type, ?ERROR_NO_CONNECTION_TO_CLUSTER_NODE);
 
 reply_with_error(Req, Type, Reason) ->
     Body = json_utils:encode(format_error(Type, Reason)),
@@ -82,13 +82,9 @@ reply_with_error(Req, Type, Reason) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec error_code(Type :: atom(), Reason :: term()) -> cowboy:http_status().
-error_code(_Type, {error, Reason}) ->
-    case Reason of
-        ?ERR_NOT_FOUND -> ?HTTP_404_NOT_FOUND;
-        ?ERR_NODE_DOWN -> ?HTTP_503_SERVICE_UNAVAILABLE;
-        ?ERR_ONEZONE_NOT_AVAILABLE -> ?HTTP_503_SERVICE_UNAVAILABLE;
-        _ -> ?HTTP_500_INTERNAL_SERVER_ERROR
-    end;
+error_code(_Type, {error, _} = Error) ->
+    try errors:to_http_code(Error)
+    catch _:_ -> ?HTTP_500_INTERNAL_SERVER_ERROR end;
 
 error_code(Type, Reason) ->
     error_code(Type, ?make_error(Reason)).
@@ -393,7 +389,8 @@ format_deployment_progress() ->
     Results :: service_executor:results()) ->
     HostsResults :: service_executor:hosts_results().
 select_service_step(Module, Function, []) ->
-    ?throw_error({?ERR_SERVICE_STEP_NOT_FOUND, Module, Function});
+    ?error("Service step ~p:~p not found", [Module, Function]),
+    error({step_not_found, {Module, Function}});
 
 select_service_step(Module, Function, [{Module, Function, Results} | _]) ->
     Results;

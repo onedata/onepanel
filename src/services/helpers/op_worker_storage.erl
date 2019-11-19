@@ -28,6 +28,7 @@
 
 % @formatter:off
 -type id() :: binary().
+-type space_id() :: op_worker_rpc:od_space_id().
 -type name() :: binary().
 
 %% specification for updating or modifying storage
@@ -70,22 +71,18 @@ add(#{name := Name, params := Params}, IgnoreExists) ->
     StorageName = onepanel_utils:convert(Name, binary),
     StorageType = onepanel_utils:get_converted(type, Params, binary),
 
-    Result = case {exists(OpNode, {name, StorageName}), IgnoreExists} of
-        {true, true} -> skipped;
-        {true, false} -> {error, already_exists};
-        _ -> add(OpNode, StorageName, Params)
-    end,
-
-    case Result of
-        skipped ->
+    case {exists(OpNode, {name, StorageName}), IgnoreExists} of
+        {true, true} ->
             ?info("Storage already exists, skipping: \"~ts\" (~ts)",
                 [StorageName, StorageType]),
             ok;
-        ok -> ?info("Successfully added storage: \"~ts\" (~ts)",
-            [StorageName, StorageType]),
-            ok;
-        {error, Reason} ->
-            ?throw_error({?ERR_STORAGE_ADDITION, Reason})
+        {true, false} ->
+            throw(?ERROR_BAD_VALUE_IDENTIFIER_OCCUPIED(<<"name">>));
+        _ ->
+            ok = add(OpNode, StorageName, Params),
+            ?info("Successfully added storage: \"~ts\" (~ts)",
+                [StorageName, StorageType]),
+            ok
     end.
 
 
@@ -123,7 +120,7 @@ remove(OpNode, Id) ->
             ?info("Successfully removed storage with id ~p", [Id]),
             ok;
         {error, storage_in_use} ->
-            ?throw_error(?ERR_STORAGE_IN_USE)
+            throw(?ERROR_STORAGE_IN_USE)
     end.
 
 
@@ -191,7 +188,7 @@ maybe_update_file_popularity(_Node, _SpaceId, Args) when map_size(Args) =:= 0 ->
 maybe_update_file_popularity(Node, SpaceId, Args) ->
     Configuration = parse_file_popularity_configuration(Args),
     case op_worker_rpc:file_popularity_api_configure(Node, SpaceId, Configuration) of
-        {error, Reason} -> ?throw_error({?ERR_CONFIG_FILE_POPULARITY, Reason});
+        {error, _} = Error -> throw(Error);
         Result -> Result
     end.
 
@@ -201,13 +198,13 @@ maybe_update_file_popularity(Node, SpaceId, Args) ->
 %% Updates autocleaning configuration.
 %% @end
 %%-------------------------------------------------------------------
--spec maybe_update_auto_cleaning(OpNode :: node(), SpaceId :: id(), map()) -> ok.
+-spec maybe_update_auto_cleaning(OpNode :: node(), space_id(), map()) -> ok.
 maybe_update_auto_cleaning(_OpNode, _SpaceId, Args) when map_size(Args) =:= 0 ->
     ok;
 maybe_update_auto_cleaning(OpNode, SpaceId, Args) ->
     Configuration = parse_auto_cleaning_configuration(Args),
     case op_worker_rpc:autocleaning_configure(OpNode, SpaceId, Configuration) of
-        {error, Reason} -> ?throw_error({?ERR_CONFIG_AUTO_CLEANING, Reason});
+        {error, _} = Error -> throw(Error);
         Result -> Result
     end.
 
@@ -218,19 +215,22 @@ maybe_update_auto_cleaning(OpNode, SpaceId, Args) ->
 %% configuration from provider.
 %% @end
 %%-------------------------------------------------------------------
--spec get_file_popularity_configuration(OpNode :: node(), SpaceId :: id()) -> #{atom() => term()}.
+-spec get_file_popularity_configuration(OpNode :: node(),
+    space_id()) -> #{atom() => term()}.
 get_file_popularity_configuration(OpNode, SpaceId) ->
     case op_worker_rpc:file_popularity_api_get_configuration(OpNode, SpaceId) of
         {ok, DetailsMap} ->
             kv_utils:find_many([
-                {[enabled], [enabled]},
-                {[example_query], [exampleQuery]},
-                {[last_open_hour_weight], [lastOpenHourWeight]},
-                {[avg_open_count_per_day_weight], [avgOpenCountPerDayWeight]},
-                {[max_avg_open_count_per_day], [maxAvgOpenCountPerDay]}
+                {enabled, enabled},
+                {example_query, exampleQuery},
+                {last_open_hour_weight, lastOpenHourWeight},
+                {avg_open_count_per_day_weight, avgOpenCountPerDayWeight},
+                {max_avg_open_count_per_day, maxAvgOpenCountPerDay}
             ], DetailsMap);
-        {error, Reason} ->
-            ?throw_error({?ERR_FILE_POPULARITY, Reason})
+        {error, _} = Error ->
+            % the only possible errors here are from op-worker datastore,
+            % cannot be handled gracefully by Onepanel
+            error(Error)
     end.
 
 %%-------------------------------------------------------------------
@@ -239,7 +239,7 @@ get_file_popularity_configuration(OpNode, SpaceId) ->
 %% provider.
 %% @end
 %%-------------------------------------------------------------------
--spec get_auto_cleaning_configuration(OpNode :: node(), SpaceId :: id()) -> #{atom() => term()}.
+-spec get_auto_cleaning_configuration(OpNode :: node(), space_id()) -> #{atom() => term()}.
 get_auto_cleaning_configuration(OpNode, SpaceId) ->
     DetailsMap = op_worker_rpc:autocleaning_get_configuration(OpNode, SpaceId),
     DetailsMap2 = kv_utils:copy_found([
@@ -365,12 +365,7 @@ maybe_verify_storage(Helper, _) ->
 verify_storage(Helper) ->
     case op_worker_rpc:verify_storage_on_all_nodes(Helper) of
         ok -> ok;
-        {error, Reason} ->
-            ?throw_error(Reason);
-        {error, Reason, Stacktrace} ->
-            ?throw_stacktrace(Reason, undefined, Stacktrace);
-        {badrpc, {'EXIT', {Error, Stacktrace}}} ->
-            ?throw_stacktrace(Error, undefined, Stacktrace)
+        {error, _} = Error -> throw(Error)
     end.
 
 
@@ -383,7 +378,7 @@ verify_storage(Helper) ->
     Type :: onepanel_utils:type()) -> term().
 get_required_luma_arg(Key, StorageParams, Type) ->
     case onepanel_utils:find_converted(Key, StorageParams, Type) of
-        error -> ?throw_error(?ERR_LUMA_CONFIG(Key));
+        error -> throw(?ERROR_MISSING_REQUIRED_VALUE(str_utils:to_binary(Key)));
         {ok, Value} -> Value
     end.
 

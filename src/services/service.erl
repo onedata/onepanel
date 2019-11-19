@@ -33,8 +33,7 @@
 -export([get_results/1, get_results/2, abort_task/1,
     exists_task/1]).
 -export([register_healthcheck/2]).
--export([get_status/2, update_status/2, update_status/3, all_healthy/0,
-    healthy/1]).
+-export([update_status/2, update_status/3, all_healthy/0, healthy/1]).
 -export([get_module/1, get_hosts/1, add_host/2]).
 -export([get_ctx/1, update_ctx/2, store_in_ctx/3]).
 
@@ -113,7 +112,7 @@ seed() ->
 -spec upgrade(PreviousVsn :: model_behaviour:version(), PreviousRecord :: tuple()) ->
     no_return().
 upgrade(_PreviousVsn, _PreviousRecord) ->
-    ?throw_error(?ERR_NOT_SUPPORTED).
+    error(?ERROR_NOT_SUPPORTED).
 
 
 %%--------------------------------------------------------------------
@@ -205,21 +204,6 @@ update_status(Service, Host, Status) ->
         kv_utils:put([status, Host], Status, Ctx)
     end),
     Status.
-
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Returns cached service status.
-%% This cache is updated on each start/stop operation
-%% and by onepanel_cron periodically invoking ServiceModule:status/1.
-%% @end
-%%--------------------------------------------------------------------
--spec get_status(name(), host()) -> status() | {error, _}.
-get_status(Service, Host) ->
-    case get_ctx(Service) of
-        Ctx when is_map(Ctx) -> onepanel_maps:get([status, Host], Ctx);
-        Error -> Error
-    end.
 
 
 %%--------------------------------------------------------------------

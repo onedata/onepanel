@@ -62,7 +62,7 @@ any(#{service := ServiceName, node := Node} = Opts) ->
 
 any(#{service := ServiceName} = Opts) ->
     case hosts:all(Opts) of
-        [] -> ?make_error(?ERR_NO_SERVICE_HOSTS(ServiceName));
+        [] -> ?ERROR_NO_SERVICE_NODES(ServiceName);
         Hosts ->
             Self = hosts:self(),
             Host = case lists:member(Self, Hosts) of

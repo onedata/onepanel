@@ -239,6 +239,8 @@ accept_resource_json(Req, #rstate{} = State) ->
         Data = json_utils:decode(Body),
         accept_resource(Req2, Data, State)
     catch
+        throw:invalid_json ->
+            {false, rest_replier:handle_error(Req, throw, ?ERROR_MALFORMED_DATA), State};
         Type:Reason ->
             {false, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason)), State}
     end.
@@ -258,6 +260,7 @@ accept_resource_yaml(Req, #rstate{} = State) ->
         Data2 = json_utils:list_to_map(Data),
         accept_resource(Req2, Data2, State)
     catch
+        % @fixme return ERROR_MALFORDMED_DATA on yaml errors
         Type:Reason ->
             {false, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason)), State}
     end.

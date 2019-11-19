@@ -103,12 +103,12 @@ handle_results(Results, StepsCount) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec receive_results(TaskId :: task_id(), Timeout :: timeout()) ->
-    Results :: service_executor:results() | {error, _}.
+    Results :: service_executor:results() | ?ERROR_TIMEOUT.
 receive_results(TaskId, Timeout) ->
     receive
         {task, TaskId, Result} -> Result
     after
-        Timeout -> ?make_error(?ERR_TIMEOUT, [TaskId, Timeout])
+        Timeout -> ?ERROR_TIMEOUT
     end.
 
 %%--------------------------------------------------------------------
@@ -116,12 +116,12 @@ receive_results(TaskId, Timeout) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec receive_count(TaskId :: task_id(), Timeout :: timeout()) ->
-    Count :: non_neg_integer() | {error, _}.
+    Count :: non_neg_integer() | ?ERROR_TIMEOUT.
 receive_count(TaskId, Timeout) ->
     receive
         {step_count, TaskId, Count} -> Count
     after
-        Timeout -> ?make_error(?ERR_TIMEOUT, [TaskId, Timeout])
+        Timeout -> ?ERROR_TIMEOUT
     end.
 
 %%%===================================================================
@@ -166,7 +166,7 @@ handle_call({apply, Service, Action, Ctx}, {Owner, _}, #state{tasks = Tasks,
 handle_call({abort_task, TaskId}, _From, State) ->
     case task_cleanup(TaskId, State) of
         {true, NewState} -> {reply, ok, NewState};
-        {false, NewState} -> {reply, ?make_error(?ERR_NOT_FOUND), NewState}
+        {false, NewState} -> {reply, {error, not_found}, NewState}
     end;
 
 handle_call({exists_task, TaskId}, _From, #state{tasks = Tasks} = State) ->
@@ -181,7 +181,7 @@ handle_call({get_count, TaskId}, {From, _}, #state{tasks = Tasks} = State) ->
             Handler ! {forward_count, TaskId, From},
             {reply, ok, State};
         error ->
-            {reply, ?make_error(?ERR_NOT_FOUND), State}
+            {reply, {error, not_found}, State}
     end;
 
 handle_call({get_results, TaskId}, {From, _}, #state{tasks = Tasks} = State) ->
@@ -190,7 +190,7 @@ handle_call({get_results, TaskId}, {From, _}, #state{tasks = Tasks} = State) ->
             Handler ! {forward_results, TaskId, From},
             {reply, ok, State};
         error ->
-            {reply, ?make_error(?ERR_NOT_FOUND), State}
+            {reply, {error, not_found}, State}
     end;
 
 handle_call(Request, _From, State) ->
@@ -237,13 +237,13 @@ handle_info({'DOWN', _, _, Pid, _}, #state{workers = Workers, handlers = Handler
     Result = case {maps:find(Pid, Workers), maps:find(Pid, Handlers)} of
         {{ok, Id}, _} -> {ok, Id};
         {_, {ok, Id}} -> {ok, Id};
-        {_, _} -> ?make_error(?ERR_NOT_FOUND)
+        {_, _} -> not_found
     end,
     NewState = case Result of
         {ok, TaskId} ->
             {_, CleanState} = task_cleanup(TaskId, State),
             CleanState;
-        {error, ?ERR_NOT_FOUND} -> State
+        not_found -> State
     end,
     {noreply, NewState};
 

@@ -313,7 +313,7 @@ get_nagios_status(Ctx) ->
 add_storage(#{params := #{type := Type} = Params, name := Name} = Ctx) when
     Type == ?LOCAL_CEPH_STORAGE_TYPE ->
     case hosts:all(?SERVICE_CEPH_OSD) of
-        [] -> ?throw_error(?ERR_NO_SERVICE_HOSTS(?SERVICE_CEPH_OSD));
+        [] -> throw(?ERROR_NO_SERVICE_NODES(?SERVICE_CEPH_OSD));
         _ -> ok
     end,
 

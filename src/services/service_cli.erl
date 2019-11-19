@@ -78,9 +78,9 @@ status(Service, Command) ->
         onepanel_shell:ensure_success(Tokens),
         running
     catch
-        throw:{error, ?ERR_CMD_FAILURE(127, _, _)} ->
+        error:?ERR_CMD_FAILURE(127, _, _) ->
             missing;
-        throw:{error, ?ERR_CMD_FAILURE(_Code, _, _)} ->
+        error:?ERR_CMD_FAILURE(_Code, _, _) ->
             stopped
     end.
 

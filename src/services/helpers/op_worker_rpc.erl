@@ -29,7 +29,8 @@
 
 -define(CALL(Node, Args),
     case ?NO_EXCEPTION_CALL(Node, Args) of
-        {badrpc, _} = __Error -> ?throw_error(__Error);
+        {badrpc, nodedown} = __Error -> throw(?ERROR_NO_CONNECTION_TO_CLUSTER_NODE);
+        {badrpc, _} = __Error -> error(__Error);
         __Result -> __Result
     end).
 
@@ -370,12 +371,12 @@ space_storage_get_mounted_in_root(Node, SpaceId) ->
 
 
 -spec file_popularity_api_configure(file_popularity_config_id(), map()) ->
-    ok | {error, term()}.
+    ok | errors:error() | {error, term()}.
 file_popularity_api_configure(SpaceId, NewConfiguration) ->
     ?CALL([SpaceId, NewConfiguration]).
 
 -spec file_popularity_api_configure(node(), file_popularity_config_id(), map()) ->
-    ok | {error, term()}.
+    ok | errors:error() | {error, term()}.
 file_popularity_api_configure(Node, SpaceId, NewConfiguration) ->
     ?CALL(Node, [SpaceId, NewConfiguration]).
 
@@ -391,11 +392,13 @@ file_popularity_api_get_configuration(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
 
--spec autocleaning_configure(od_space_id(), map()) -> ok | {error, term()}.
+-spec autocleaning_configure(od_space_id(), map()) ->
+    ok | errors:error() | {error, term()}.
 autocleaning_configure(SpaceId, Configuration) ->
     ?CALL([SpaceId, Configuration]).
 
--spec autocleaning_configure(node(), od_space_id(), map()) -> ok | {error, term()}.
+-spec autocleaning_configure(node(), od_space_id(), map()) ->
+    ok | errors:error() | {error, term()}.
 autocleaning_configure(Node, SpaceId, Configuration) ->
     ?CALL(Node, [SpaceId, Configuration]).
 
@@ -440,16 +443,14 @@ new_luma_config(Node, URL, ApiKey) ->
     ?CALL(Node, [URL, ApiKey]).
 
 
--spec verify_storage_on_all_nodes(helper()) ->
-    ok | {error, term()} | {error, term(), Stacktrace :: list()} | {badrpc, term()}.
+-spec verify_storage_on_all_nodes(helper()) -> ok | errors:error() | {badrpc, term()}.
 verify_storage_on_all_nodes(Helper) ->
-    ?NO_EXCEPTION_CALL([Helper]).
+    ?CALL([Helper]).
 
 -spec verify_storage_on_all_nodes(node(), helper()) ->
     ok | {error, term()} | {error, term(), Stacktrace :: list()} | {badrpc, term()}.
 verify_storage_on_all_nodes(Node, Helper) ->
-    ?NO_EXCEPTION_CALL(Node, [Helper]).
-
+    ?CALL(Node, [Helper]).
 
 
 -spec prepare_helper_args(helper_name(), helper_args()) -> helper_args().
@@ -537,7 +538,7 @@ provider_logic_update(Node, Data) ->
 
 
 -spec support_space(tokens:serialized(), SupportSize :: integer()) ->
-    {ok, od_space_id()} | {error, term()}.
+    {ok, od_space_id()} | errors:error().
 support_space(Token, SupportSize) ->
     ?CALL([Token, SupportSize]).
 
@@ -657,7 +658,7 @@ update_space_support_size(SpaceId, NewSupportSize) ->
     ?CALL([SpaceId, NewSupportSize]).
 
 -spec update_space_support_size(node(), od_space_id(), NewSupportSize :: integer()) ->
-    ok | {error, term()}.
+    ok | errors:error().
 update_space_support_size(Node, SpaceId, NewSupportSize) ->
     ?CALL(Node, [SpaceId, NewSupportSize]).
 

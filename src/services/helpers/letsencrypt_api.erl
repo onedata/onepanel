@@ -65,6 +65,8 @@
 -define(GET_RETRIES, 3).
 -define(POST_RETRIES, 4).
 
+-define(ERR_CHALLENGE_TYPE_MISSING, {error, challenge_type_missing}).
+
 -define(HTTP_OPTS,
     [{connect_timeout, timer:seconds(15)}, {recv_timeout, timer:seconds(15)}]).
 
@@ -301,20 +303,24 @@ attempt_certification(#flow_state{service = Service} = State) ->
     Result = lists:foldl(fun
         (_ChallengeType, {ok, _} = Prev) ->
             Prev;
-        (ChallengeType, {_Error, StateAcc} = Prev) ->
+        (ChallengeType, {PrevError, StateAcc} = Prev) ->
             try
                 case Service:supports_letsencrypt_challenge(ChallengeType) of
                     true -> obtain_certificate(ChallengeType, StateAcc);
                     false -> Prev
                 end
-            catch _:Error ->
-                {?make_stacktrace(Error), reset_nonce_pool(StateAcc)}
+            catch
+                throw:?ERR_CHALLENGE_TYPE_MISSING ->
+                    % ignore challenge type not offered by Let's Encrypt
+                    {PrevError, reset_nonce_pool(StateAcc)};
+                throw:Error ->
+                    {Error, reset_nonce_pool(StateAcc)}
             end
-    end, {?make_error(?ERR_LETSENCRYPT_NOT_SUPPORTED), State}, challenge_types()),
+    end, {?ERROR_LETS_ENCRYPT_NOT_SUPPORTED, State}, challenge_types()),
 
     case Result of
         {ok, NewState} -> {ok, NewState};
-        {Error, _} -> ?throw_error(Error)
+        {Error, _} -> throw(Error)
     end.
 
 
@@ -449,7 +455,7 @@ fulfill_challenge(ChallengeType, #authorization{challenges = Challenges}, State)
 find_challenge(Type, ChallengeList) ->
     case [Ch || Ch = #challenge{type = T} <- ChallengeList, T == Type] of
         [Challenge | _] -> {ok, Challenge};
-        [] -> ?make_error(?ERR_NOT_FOUND, [Type, ChallengeList])
+        [] -> throw(?ERR_CHALLENGE_TYPE_MISSING)
     end.
 
 
@@ -516,8 +522,7 @@ poll_status(URL, #flow_state{} = State) ->
     {ok, #flow_state{}, LastResult :: api_response()} | no_return().
 poll_status(_URL, #flow_state{} = State, 0) ->
     ?error("Let's Encrypt authorization timed out"),
-    ?throw_error(?ERR_LETSENCRYPT(
-        "authorization", "Let's Encrypt authorization timed out"), [State, 0]);
+    throw(?ERROR_TIMEOUT);
 poll_status(URL, #flow_state{} = State, Attempts) ->
     {ok, #{<<"status">> := Status} = Body, _, State2} = post_as_get(URL, State),
     case Status of
@@ -531,8 +536,11 @@ poll_status(URL, #flow_state{} = State, Attempts) ->
             poll_status(URL, State2, Attempts - 1);
         <<"invalid">> ->
             ?error("Let's Encrypt did not accept challenge response: ~p", [Body]),
-            ?throw_error(?ERR_LETSENCRYPT_AUTHORIZATION(
-                "Let's encrypt could not authorize domain."), [State, Attempts])
+            {ErrorObject, Message} = case Body of
+                #{<<"error">> := #{<<"detail">> := Description} = Error} -> {Error, Description};
+                _ -> {undefined, <<"Let's encrypt could not authorize domain.">>}
+            end,
+            throw(?ERROR_LETS_ENCRYPT_RESPONSE(ErrorObject, Message))
     end.
 
 
@@ -689,8 +697,7 @@ decode_directory(Map) ->
 -spec http_get(url(), Attempts :: non_neg_integer()) ->
     {ok, http_client:code(), http_client:headers(), api_response()} | no_return().
 http_get(URL, 0) ->
-    ?throw_error(?ERR_LETSENCRYPT(<<"connection">>, "Could not connect to Let's Encrypt."),
-        [URL, 0]);
+    throw(?ERROR_LETS_ENCRYPT_NOT_REACHABLE);
 
 http_get(URL, Attempts) ->
     case http_client:get(URL, #{}, <<>>, ?HTTP_OPTS) of
@@ -732,9 +739,8 @@ post(URL, Payload, OkCodes, #flow_state{} = State) ->
 post(URL, Payload, OkCode, State, Attempts) when is_integer(OkCode) ->
     post(URL, Payload, [OkCode], State, Attempts);
 
-post(URL, _Payload, OkCodes, _State, 0) ->
-    ?throw_error(?ERR_LETSENCRYPT(<<"connection">>, "Could not connect to Let's Encrypt."),
-        [URL, '', OkCodes, '', 0]);
+post(_URL, _Payload, _OkCodes, _State, 0) ->
+    throw(?ERROR_LETS_ENCRYPT_NOT_REACHABLE);
 
 post(URL, Payload, OkCodes, #flow_state{} = State, Attempts) ->
     {ok, Body, State2} = encode(URL, Payload, State),
@@ -749,41 +755,21 @@ post(URL, Payload, OkCodes, #flow_state{} = State, Attempts) ->
                     {ok, Response, Headers, push_nonce(Headers, State2)};
                 false ->
                     OkCodesStr = onepanel_utils:join(OkCodes, <<" or ">>),
-                    % Identify errors deserving customized handling
                     case {Status, Response} of
                         {?HTTP_400_BAD_REQUEST, #{<<"type">> := <<"urn:ietf:params:acme:error:badNonce">>}} ->
                             % badNonce - retry with newly received nonce
                             post(URL, Payload, OkCodes, push_nonce(Headers, State2), Attempts - 1);
-                        {?HTTP_400_BAD_REQUEST, #{
-                            <<"type">> := <<"urn:ietf:params:acme:error:connection">>,
-                            <<"detail">> := ErrorMessage}} ->
-                            % Handled as a special case to provide explanation for the user
+                        {_, #{<<"type">> := _, <<"detail">> := ErrorMessage} = Error} ->
                             ?error("Let's Encrypt response status: ~B, expected ~s~n"
                             "Response headers: ~p~nResponse body:~p",
                                 [Status, OkCodesStr, Headers, Response]),
-                            ?throw_error(?ERR_LETSENCRYPT_AUTHORIZATION(ErrorMessage),
-                                [URL, '', OkCodes, '', Attempts]);
-                        {?HTTP_429_TOO_MANY_REQUESTS, #{<<"type">> := ErrorType, <<"detail">> := ErrorMessage}} ->
-                            % Rate limits reached error
-                            % Handled as a special case to provide explanation for the user
-                            ?error(
-                                "Let's Encrypt limit reached. Response headers: ~p~nResponse body:~p",
-                                [Headers, Response]),
-                            ?throw_error(?ERR_LETSENCRYPT_LIMIT(ErrorType, ErrorMessage),
-                                [URL, '', OkCodes, '', Attempts]);
-                        {_, #{<<"type">> := ErrorType, <<"detail">> := ErrorMessage}} ->
+                            throw(?ERROR_LETS_ENCRYPT_RESPONSE(Error, ErrorMessage));
+                        {Code, Response} ->
                             ?error("Let's Encrypt response status: ~B, expected ~s~n"
                             "Response headers: ~p~nResponse body:~p",
                                 [Status, OkCodesStr, Headers, Response]),
-                            ?throw_error(?ERR_LETSENCRYPT(ErrorType, ErrorMessage),
-                                [URL, '', OkCodes, '', Attempts]);
-                        {_, Response} ->
-                            ?error("Let's Encrypt response status: ~B, expected ~s~n"
-                            "Response headers: ~p~nResponse body:~p",
-                                [Status, OkCodesStr, Headers, Response]),
-                            ?throw_error(
-                                ?ERR_LETSENCRYPT(<<"">>, "Unexpected Let's Encrypt response"),
-                                [URL, '', OkCodes, '', Attempts])
+                            throw(?ERROR_LETS_ENCRYPT_RESPONSE(undefined, str_utils:format_bin(
+                                "Unexpected Let's Encrypt response with HTTP code ~b", [Code])))
                     end
             end;
 
@@ -1090,7 +1076,7 @@ ensure_files_access(Paths) ->
     lists:foreach(fun(Path) ->
         case check_write_access(Path) of
             ok -> ok;
-            {error, Reason} -> ?throw_error(?ERR_FILE_ACCESS(Path, Reason), [Paths])
+            {error, Reason} -> throw(?ERROR_FILE_ACCESS(str_utils:unicode_list_to_binary(Path), Reason))
         end
     end, Paths).
 

@@ -19,6 +19,7 @@
 -author("Wojciech Geisler").
 
 -include("modules/errors.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 % having 'global' as an atom ensures it is the first scope after sorting
 % which improves readability of resulting file
@@ -126,10 +127,10 @@ update_file(Scope, Key, Updater, Path) ->
 %% Finds value in a parsed config.
 %% @end
 %%--------------------------------------------------------------------
--spec find(scope(), key(), config()) -> {ok, Value :: value()} | {error, _}.
+-spec find(scope(), key(), config()) -> {ok, Value :: value()} | error.
 find(Scope, Key, Config) ->
     NormalizedScope = parse_scope(Scope),
-    onepanel_maps:get([NormalizedScope, Key], Config).
+    kv_utils:find([NormalizedScope, Key], Config).
 
 
 %%--------------------------------------------------------------------
@@ -138,7 +139,7 @@ find(Scope, Key, Config) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec read(Scope :: scope(), Key :: key(), Path :: file:name_all()) ->
-    {ok, Value :: value()} | {error, _}.
+    {ok, Value :: value()} | error.
 read(Scope, Key, Path) ->
     Content = read(Path),
     find(Scope, Key, Content).
@@ -152,8 +153,10 @@ read(Scope, Key, Path) ->
 -spec read(Path :: path()) -> config() | no_return().
 read(Path) ->
     case file:read_file(Path) of
-        {ok, Content} -> parse(Content);
-        {error, Reason} -> ?throw_error(Reason)
+        {ok, Content} ->
+            parse(Content);
+        {error, Reason} ->
+            throw(?ERROR_FILE_ACCESS(onepanel_utils:filename_to_binary(Path), Reason))
     end.
 
 
@@ -222,7 +225,8 @@ parse_line(<<Line/binary>>) ->
         [Key, Value] ->
             {entry, string:trim(Key), string:trim(Value)};
         _ ->
-            ?throw_error(?ERR_PARSING_FAILURE(Line))
+            ?error("Ceph config parsing faild on line ~B", [Line]),
+            error(?ERR_PARSING_FAILURE(Line))
     end.
 
 

@@ -39,7 +39,7 @@ maybe_configure_storage_import(Node, SpaceId, Args) ->
         no_import ->
             configure_storage_import(Node, SpaceId, Args, StrategyName);
         _ ->
-            ?throw_error(?ERR_STORAGE_SYNC_IMPORT_STARTED)
+            throw(?ERROR_STORAGE_IMPORT_STARTED)
     end.
 
 

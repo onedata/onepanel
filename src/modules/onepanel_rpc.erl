@@ -46,7 +46,9 @@ apply(Module, Function, Args) ->
             Stacktrace = erlang:get_stacktrace(),
             ?error("Unexpected error executing ~tp:~tp/~B~nError: ~tp:~tp~nStacktrace: ~tp",
             [Module, Function, erlang:length(Args), Type, Reason, Stacktrace]),
-            {node(), ?make_stacktrace(Reason, undefined, Stacktrace)}
+            % @fixme disputable, as not very useful for internal calls.
+            % perhaps create custom exception record
+            {node(), ?ERROR_INTERNAL_SERVER_ERROR}
     end.
 
 
@@ -93,7 +95,7 @@ call(Nodes, Module, Function, Args, Timeout) when is_list(Nodes) ->
 
     BadNodes = onepanel_lists:subtract(Nodes, proplists:get_keys(Results)),
     AllResults = Results ++
-        [{BadNode, ?make_error(?ERR_BAD_NODE)} || BadNode <- BadNodes],
+        [{BadNode, ?ERROR_NO_CONNECTION_TO_ONEZONE} || BadNode <- BadNodes],
 
     ?debug("Call ~p:~p(~p) on nodes ~p with timeout ~p returned ~p",
         [Module, Function, Args, Nodes, Timeout, AllResults]),
@@ -197,7 +199,7 @@ any(Results) ->
         ({_, {error, _}}) -> false;
         ({_, Value}) -> {true, Value}
     end, Results),
-    case GoodResults of
-        [] -> ?throw_error(?ERR_FAILURE_ON_ALL_NODES);
-        [Value | _] -> Value
+    case {GoodResults, Results} of
+        {[], [FirstError | _]} -> throw(FirstError);
+        {[Value | _], _} -> Value
     end.

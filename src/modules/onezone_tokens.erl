@@ -87,10 +87,9 @@ ensure_unlimited_api_authorization(Serialized) ->
             Auth = #auth{subject = Subject, caveats = tokens:get_caveats(Token)},
             case api_auth:ensure_unlimited(Auth) of
                 ok -> ok;
-                {error, _} = Error -> ?make_error(Error)
+                {error, _} = Error -> Error
             end;
-        Error ->
-            ?make_error(Error)
+        Error -> Error
     end.
 
 

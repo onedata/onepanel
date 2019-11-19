@@ -320,8 +320,8 @@ normalize_uuid(<<A:8/binary, B:4/binary, C:4/binary, D:4/binary, E:12/binary>>) 
 normalize_uuid(<<UUIDWithHyphens/binary>>) when byte_size(UUIDWithHyphens) > 32 ->
     case binary:replace(UUIDWithHyphens, <<"-">>, <<>>, [global]) of
         <<Cleaned:32/binary>> -> normalize_uuid(Cleaned);
-        _ -> ?throw_error({?ERR_INVALID_VALUE, uuid, <<"UUID">>})
+        _ -> throw(?ERROR_BAD_VALUE_IDENTIFIER(uuid))
     end;
 
 normalize_uuid(_) ->
-    ?throw_error({?ERR_INVALID_VALUE, uuid, <<"UUID">>}).
+    throw(?ERROR_BAD_VALUE_IDENTIFIER(uuid)).

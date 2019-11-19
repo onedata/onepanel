@@ -67,7 +67,7 @@ get_fields() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec create(Model :: model(), Record :: model_behaviour:record()) ->
-    {ok, key()} | {error, _} | no_return().
+    {ok, key()} | {error, already_exists} | no_return().
 create(Model, Record) ->
     transaction(fun() ->
         Table = get_table_name(Model),
@@ -78,7 +78,7 @@ create(Model, Record) ->
                 mnesia:write(Table, Doc, write),
                 {ok, Key};
             [_ | _] ->
-                ?make_error(?ERR_ALREADY_EXISTS, [Model, Doc])
+                {error, already_exists}
         end
     end).
 
@@ -107,7 +107,7 @@ update(Model, Key, Diff) ->
     transaction(fun() ->
         Table = get_table_name(Model),
         case mnesia:read(Table, Key) of
-            [] -> mnesia:abort(?make_error(?ERR_NOT_FOUND, [Model, Key, Diff]));
+            [] -> mnesia:abort(?ERR_DOC_NOT_FOUND);
             [Doc] -> mnesia:write(Table, apply_diff(Doc, Diff), write)
         end
     end).
@@ -118,12 +118,12 @@ update(Model, Key, Diff) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get(Model :: model(), Key :: key()) ->
-    {ok, Record :: model_behaviour:record()} | {error, _} | no_return().
+    {ok, Record :: model_behaviour:record()} | ?ERR_DOC_NOT_FOUND | no_return().
 get(Model, Key) ->
     transaction(fun() ->
         Table = get_table_name(Model),
         case mnesia:read(Table, Key) of
-            [] -> ?make_error(?ERR_NOT_FOUND, [Model, Key]);
+            [] -> ?ERR_DOC_NOT_FOUND;
             [#document{key = Key, value = Record}] -> {ok, Record}
         end
     end).
@@ -212,7 +212,7 @@ clear(Model) ->
     Table = get_table_name(Model),
     case mnesia:clear_table(Table) of
         {atomic, ok} -> ok;
-        {aborted, Reason} -> ?make_error(Reason, [Model])
+        {aborted, Reason} -> {error, Reason}
     end.
 
 
@@ -222,12 +222,7 @@ clear(Model) ->
 %%--------------------------------------------------------------------
 -spec transaction(Transaction :: fun()) -> term() | no_return().
 transaction(Transaction) ->
-    try
-        mnesia:activity(transaction, Transaction)
-    catch
-        _:{aborted, Reason} -> ?throw_error(Reason, [Transaction]);
-        _:Reason -> ?throw_error(Reason, [Transaction])
-    end.
+    mnesia:activity(transaction, Transaction).
 
 
 -spec upgrade(ModelName :: model(), CurrentDocument :: tuple()) ->
@@ -253,13 +248,13 @@ upgrade(TargetVsn, CurrentVsn, Model, _Record)
     when CurrentVsn > TargetVsn ->
     ?emergency("Upgrade requested for model '~p' with future version ~p "
     "(known versions up to: ~p)", [Model, CurrentVsn, TargetVsn]),
-    ?throw_error(?ERR_UPGRADE_FROM_FUTURE_ERROR(Model, CurrentVsn, TargetVsn));
+    error({upgrade_from_future, {Model, CurrentVsn, TargetVsn}});
 
 upgrade(TargetVsn, CurrentVsn, Model, Record) ->
     case Model:upgrade(CurrentVsn, Record) of
         {CurrentVsn, _} ->
             ?critical("Upgrade function for model ~s did not increase version number", [Model]),
-            ?throw_error(?ERR_BAD_UPGRADE);
+            error(bad_upgrade);
         {NewVersion, NewRecord} ->
             upgrade(TargetVsn, NewVersion, Model, NewRecord)
     end.

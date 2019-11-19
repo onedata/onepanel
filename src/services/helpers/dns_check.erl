@@ -26,6 +26,7 @@
 -include("deployment_progress.hrl").
 -include("names.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/errors.hrl").
 
 -define(REFRESH_INTERVAL, onepanel_env:get(dns_check_interval)). % 6 hours
 
@@ -101,8 +102,8 @@ async_update_cache(Service) ->
         try
             update_cache(Service)
         catch
-            throw:{error, ?ERR_DNS_CHECK_ERROR(Message)} ->
-                ?error("DNS check refresh failed: ~s", [Message]);
+            throw:?ERROR_DNS_SERVERS_UNREACHABLE(UsedServers) ->
+                ?error("DNS check refresh failed: no connection to servers ~ps", [UsedServers]);
             Type:Error ->
                 % Catch all as a process failure with exception
                 % causes an ugly error log

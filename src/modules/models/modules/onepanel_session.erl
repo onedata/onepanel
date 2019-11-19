@@ -221,8 +221,7 @@ remove_expired_tokens(#onepanel_session{auth_tokens = Tokens} = Session) ->
 %% Expired token is treated as unbound to any session.
 %% @end
 %%--------------------------------------------------------------------
--spec find_by_valid_auth_token(auth_token()) ->
-    {ok, record()} | {error, _}.
+-spec find_by_valid_auth_token(auth_token()) -> {ok, record()} | error.
 find_by_valid_auth_token(RestApiToken) ->
     SessionId = token_to_session_id(RestApiToken),
     case onepanel_session:get(SessionId) of
@@ -231,12 +230,12 @@ find_by_valid_auth_token(RestApiToken) ->
                 {RestApiToken, _} = Found ->
                     case is_token_still_valid(Found) of
                         true -> {ok, Session};
-                        false -> ?make_error(?ERR_NOT_FOUND)
+                        false -> error
                     end;
-                false -> ?make_error(?ERR_NOT_FOUND)
+                false -> error
             end;
         _ ->
-            ?make_error(?ERR_NOT_FOUND)
+            error
     end.
 
 

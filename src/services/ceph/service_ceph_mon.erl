@@ -64,7 +64,7 @@ get_hosts() ->
 %%--------------------------------------------------------------------
 -spec get_nodes() -> no_return().
 get_nodes() ->
-    ?throw_error(?ERR_NOT_SUPPORTED).
+    error(?ERROR_NOT_SUPPORTED).
 
 
 %%--------------------------------------------------------------------
@@ -139,7 +139,7 @@ get_steps(Action, #{id := _} = Ctx) when
         #{id := _, hosts := [_]} -> Ctx;
         #{id := _, hosts := []} -> Ctx;
         #{id := _, hosts := Hosts} when is_list(Hosts) ->
-            ?throw_error(?ERR_AMBIGUOUS_HOSTS);
+            error(?ERR_AMBIGUOUS_HOSTS);
         #{id := Id} ->
             Ctx#{hosts => [maps:get(host, get_instance(Id))]}
     end,
@@ -339,7 +339,7 @@ get_mon_map(MonId) ->
 get_details(#{id := <<Id/binary>>}) ->
     case service:get_ctx(name()) of
         #{instances := #{Id := Details}} -> format_details(Details);
-        _ -> ?throw_error(?ERR_NOT_FOUND)
+        _ -> throw(?ERROR_NOT_FOUND)
     end.
 
 
@@ -384,7 +384,7 @@ list_instances() ->
 get_instance(Id) ->
     case service:get_ctx(name()) of
         #{instances := #{Id := Instance}} -> Instance;
-        _ -> ?throw_error(?ERR_NOT_FOUND)
+        _ -> throw(?ERROR_NOT_FOUND)
     end.
 
 
@@ -399,7 +399,7 @@ get_id_by_host(Host) ->
     Id = list_to_binary(Host),
     case exists(Id) of
         true -> Id;
-        false -> ?make_error(?ERR_NOT_FOUND)
+        false -> error(not_found)
     end.
 
 

@@ -461,6 +461,6 @@ parse_ip4_list(FieldName, IpBinaries) ->
     lists:map(fun(IpBinary) ->
         case onepanel_ip:parse_ip4(IpBinary) of
             {ok, IP} -> IP;
-            _ -> ?throw_error({?ERR_INVALID_VALUE, FieldName, ['IPv4']})
+            _ -> throw(?ERROR_BAD_VALUE_IPV4_ADDRESS(FieldName))
         end
     end, IpBinaries).

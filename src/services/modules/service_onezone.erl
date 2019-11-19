@@ -82,9 +82,9 @@ get_steps(deploy, Ctx) ->
     CmCtx = kv_utils:get([cluster, ?SERVICE_CM], Ctx),
     OzwCtx = kv_utils:get([cluster, ?SERVICE_OZW], Ctx),
 
-    DnsConfig = onepanel_maps:get([name(), dns_check_config], Ctx, #{}),
+    DnsConfig = kv_utils:get([name(), dns_check_config], Ctx, #{}),
 
-    OzCtx1 = onepanel_maps:get(name(), Ctx, #{}),
+    OzCtx1 = kv_utils:get(name(), Ctx, #{}),
     OzCtx2 = OzCtx1#{
         master_host => SelfHost
     },

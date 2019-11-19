@@ -16,7 +16,6 @@
 
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
--include("validation.hrl").
 
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
@@ -67,7 +66,7 @@ get_record_version() ->
 -spec upgrade(PreviousVsn :: model_behaviour:version(), PreviousRecord :: tuple()) ->
     no_return().
 upgrade(1, _Record) ->
-    ?throw_error(?ERR_NOT_SUPPORTED).
+    error(?ERROR_NOT_SUPPORTED).
 
 
 %%--------------------------------------------------------------------

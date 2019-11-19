@@ -134,8 +134,10 @@ accept_resource(Req, 'POST', #{address := Address},
 accept_resource(Req, 'PUT', Args, #rstate{resource = emergency_passphrase}) ->
     #{newPassphrase := NewPassphrase} = Args,
     CurrentPassphrase = maps:get(currentPassphrase, Args, undefined),
-    ok = emergency_passphrase:change(CurrentPassphrase, NewPassphrase),
-    {true, Req};
+    case emergency_passphrase:change(CurrentPassphrase, NewPassphrase) of
+        ok -> {true, Req};
+        Error -> throw(Error)
+    end;
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = web_cert}) ->
     Ctx = #{letsencrypt_enabled => maps:get(letsEncrypt, Args)},

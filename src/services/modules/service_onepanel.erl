@@ -98,7 +98,7 @@ get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
     SelfHost = hosts:self(),
     case {available_for_clustering(), ClusterHost} of
         {_, SelfHost} -> [];
-        {false, _} -> ?throw_error(?ERR_NODE_NOT_EMPTY(SelfHost));
+        {false, _} -> ?throw_error(?ERROR_NODE_ALREADY_IN_CLUSTER(SelfHost));
         {true, _} ->
             S = #step{hosts = [SelfHost], verify_hosts = false},
             [
@@ -116,7 +116,7 @@ get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
 get_steps(leave_cluster, #{hosts := Hosts}) ->
     lists:foreach(fun(Host) ->
         case is_used(Host) of
-            true -> ?throw_error(?ERR_NODE_NOT_EMPTY(Host));
+            true -> ?throw_error(?ERROR_NODE_ALREADY_IN_CLUSTER(Host));
             false -> ok
         end
     end, Hosts),
@@ -223,8 +223,9 @@ init_cluster(_Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec extend_cluster(service:ctx()) -> #{hostname := binary()} | no_return().
-extend_cluster(#{attempts := Attempts}) when Attempts =< 0 ->
-    ?throw_error(?ERR_BAD_NODE);
+extend_cluster(#{attempts := Attempts} = Ctx) when Attempts =< 0 ->
+    Hostname = maps:get(hostname, Ctx, maps:get(address, Ctx)),
+    ?throw_error(?ERROR_NO_CONNECTION_TO_NEW_NODE(Hostname));
 
 extend_cluster(#{hostname := Hostname, api_version := ApiVersion,
     attempts := Attempts} = Ctx) ->
@@ -244,7 +245,7 @@ extend_cluster(#{hostname := Hostname, api_version := ApiVersion,
             ?info("Host '~ts' added to the cluster", [Hostname]),
             #{hostname => Hostname};
         {ok, ?HTTP_403_FORBIDDEN, _, _} ->
-            ?throw_error(?ERR_NODE_NOT_EMPTY(Hostname));
+            ?throw_error(?ERROR_NODE_ALREADY_IN_CLUSTER(Hostname));
         {ok, Code, _, RespBody} ->
             ?error("Unexpected response when trying to add node: ~tp ~tp", [Code, RespBody]),
             timer:sleep(?WAIT_FOR_CLUSTER_DELAY),
@@ -262,8 +263,8 @@ extend_cluster(#{address := Address, api_version := _ApiVersion,
         {ok, Hostname, ClusterType} ->
             extend_cluster(Ctx#{hostname => Hostname});
         {ok, _Hostname, OtherType} ->
-            ?throw_error(?ERR_INCOMPATIBLE_NODE(Address, OtherType));
-        {error, ?ERR_BAD_NODE} ->
+            ?throw_error(?ERROR_NODE_NOT_COMPATIBLE(Address, OtherType));
+        ?ERROR_NO_CONNECTION_TO_NEW_NODE(_) ->
             ?warning("Failed to connect with '~ts' to extend cluster", [Address]),
             extend_cluster(Ctx#{attempts => Attempts - 1})
     end.
@@ -369,7 +370,7 @@ get_remote_node_info(#{address := Address, api_version := ApiVersion} = Ctx) ->
             #{<<"hostname">> := Hostname,
                 <<"clusterType">> := ClusterType} = json_utils:decode(Body),
             {ok, Hostname, onepanel_utils:convert(ClusterType, atom)};
-        {error, _} -> ?make_error(?ERR_BAD_NODE)
+        {error, _} -> ?ERROR_NO_CONNECTION_TO_NEW_NODE(Address)
     end.
 
 
