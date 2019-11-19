@@ -120,21 +120,8 @@ handle_service_step(Req, Module, Function, Results) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec format_error(Type :: atom(), Reason :: term()) -> Response :: response().
-format_error(Type, {error, #service_error{} = Error}) ->
-    format_error(Type, Error);
-
-format_error(_Type, #service_error{service = Service, action = Action,
-    module = Module, function = Function, bad_results = Results}) ->
-    #{<<"error">> => <<"Service Error">>,
-        <<"description">> => onepanel_utils:join(["Action '", Action,
-            "' for a service '", Service, "' terminated with an error."]),
-        <<"module">> => Module,
-        <<"function">> => Function,
-        <<"hosts">> => format_service_hosts_results(Results)};
-
-format_error(Type, Reason) ->
-    {Name, Description} = onepanel_errors:translate(Type, Reason),
-    #{<<"error">> => Name, <<"description">> => Description}.
+format_error(_Type, Reason) ->
+    #{<<"error">> => errors:to_json(Reason)}.
 
 
 %%--------------------------------------------------------------------
@@ -191,7 +178,7 @@ format_service_host_status(SModule, Results) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec format_service_task_results(Results :: {service_executor:results(), Total} | {error, _}) ->
-    Response :: response()
+    json_utils:json_map()
     when Total :: non_neg_integer() | {error, _}.
 format_service_task_results({error, _} = Error) ->
     ?throw_error(Error);
@@ -204,32 +191,23 @@ format_service_task_results({Results, TotalSteps}) ->
         _ when is_integer(TotalSteps) -> #{totalSteps => TotalSteps};
         _Error -> #{}
     end,
-    case lists:reverse(Results) of
-        [{task_finished, {_, _, {error, _} = Error}}] ->
-            maps:merge(Base#{status => <<"error">>}, format_error(error, Error));
 
-        [{task_finished, {Service, Action, {error, _}}}, Step | Steps] ->
-            {Module, Function, {_, BadResults}} = Step,
-            maps:merge(
-                Base#{
-                    status => <<"error">>,
-                    steps => format_service_task_steps(lists:reverse(Steps))
-                },
-                format_error(error, #service_error{
-                    service = Service, action = Action, module = Module,
-                    function = Function, bad_results = BadResults
-                })
-            );
+    case service_utils:results_contain_error(Results) of
+        {true, Error} ->
+            Base2 = Base#{
+                <<"status">> => <<"error">>,
+                <<"error">> => errors:to_json(Error)
+            },
 
-        [{task_finished, {_, _, ok}} | Steps] -> Base#{
-            status => <<"ok">>,
-            steps => format_service_task_steps(lists:reverse(Steps))
-        };
-
-        Steps -> Base#{
-            status => <<"running">>,
-            steps => format_service_task_steps(lists:reverse(Steps))
-        }
+            case format_service_task_steps(Results) of
+                [] -> Base2;
+                StepNames -> Base2#{steps => StepNames}
+            end;
+        false ->
+            Base#{
+                <<"status">> => <<"running">>,
+                <<"steps">> => format_service_task_steps(Results)
+            }
     end.
 
 
@@ -412,23 +390,6 @@ format_service_task_steps(Steps) ->
         (_) ->
             false
     end, Steps).
-
-
-%%--------------------------------------------------------------------
-%% @doc Returns a formatted service step hosts results.
-%% @end
-%%--------------------------------------------------------------------
--spec format_service_hosts_results(Results :: onepanel_rpc:results()) ->
-    Response :: response().
-format_service_hosts_results(Results) ->
-    lists:foldl(fun
-        ({Node, {error, _} = Error}, Acc) -> maps:put(
-            onepanel_utils:convert(hosts:from_node(Node), binary),
-            format_error(error, Error), Acc);
-        ({Node, Result}, Acc) -> maps:put(
-            onepanel_utils:convert(hosts:from_node(Node), binary),
-            Result, Acc)
-    end, #{}, Results).
 
 
 %% @private

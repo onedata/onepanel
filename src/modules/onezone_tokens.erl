@@ -62,8 +62,10 @@ authenticate_user(Token, PeerIp) ->
 %%--------------------------------------------------------------------
 -spec read_domain(tokens:serialized()) -> Domain :: binary() | no_return().
 read_domain(RegistrationToken) ->
-    {ok, Token} = tokens:deserialize(RegistrationToken),
-    Token#token.onezone_domain.
+    case tokens:deserialize(RegistrationToken) of
+        {ok, Token} -> Token#token.onezone_domain;
+        Error -> throw(?ERROR_BAD_VALUE_TOKEN(<<"token">>, Error))
+    end.
 
 
 %%%===================================================================

@@ -107,7 +107,7 @@ partition_results(Results) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec results_contain_error(Results :: service_executor:results() | {error, _}) ->
-    {true, {error, _}} | {true, {error, term()}} | false.
+    {true, errors:term() | {error, _}} | false.
 results_contain_error({error, _} = Error) ->
     {true, Error};
 
@@ -116,14 +116,9 @@ results_contain_error(Results) ->
         [{task_finished, {_, _, {error, _} = Error}}] ->
             {true, Error};
 
-        [{task_finished, {Service, Action, {error, _}}}, Step | _Steps] ->
-            {Module, Function, {_, BadResults}} = Step,
-
-            ServiceError = #service_error{
-                service = Service, action = Action, module = Module,
-                function = Function, bad_results = BadResults
-            },
-            {true, ?make_error(ServiceError)};
+        [{task_finished, {_Service, _Action, {error, _}}}, FailedStep | _Steps] ->
+            {_Module, _Function, {_, BadResults}} = FailedStep,
+            {true, bad_results_to_error(BadResults)};
 
         _ ->
             false
@@ -138,7 +133,7 @@ results_contain_error(Results) ->
     service_executor:results() | no_return().
 throw_on_error(Results) ->
     case results_contain_error(Results) of
-        {true, Error} -> ?throw_error(Error);
+        {true, Error} -> throw(Error);
         false -> Results
     end.
 
@@ -327,6 +322,30 @@ format_errors([], Log) ->
     Log;
 
 format_errors([{Node, {error, _} = Error} | Errors], Log) ->
-    ErrorStr = str_utils:format("Node: ~tp~n~ts",
-        [Node, onepanel_errors:format_error(Error)]),
+    ErrorStr = str_utils:format("Node: ~tp~nError: ~tp",
+        [Node, Error]),
     format_errors(Errors, Log ++ ErrorStr).
+
+
+%% @private
+-spec bad_results_to_error([onepanel_rpc:result()]) -> ?ERROR_ON_NODES(_, _).
+bad_results_to_error(BadResults) ->
+    {_, Errors} = lists:unzip(BadResults),
+    SelectedError = select_error(Errors),
+    Hostnames = [list_to_binary(hosts:from_node(Node))
+        || {Node, Err} <- BadResults, Err == SelectedError],
+    ?ERROR_ON_NODES(SelectedError, Hostnames).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Selects error most appropriate for request response in case
+%% multiple hosts returned different results.
+%% @end
+%%--------------------------------------------------------------------
+-spec select_error([Error]) -> Error when Error :: errors:error().
+select_error(Errors) ->
+    % Use http code as a heuristic favoring user-caused errors (4xx) over server errors
+    hd(lists:sort(fun(E1, E2) ->
+        errors:to_http_code(E1) < errors:to_http_code(E2)
+    end, Errors)).
