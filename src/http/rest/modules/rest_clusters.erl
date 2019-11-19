@@ -120,7 +120,7 @@ is_available(Req, _Method, _State) ->
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()}.
 accept_resource(Req, 'POST', _Args, #rstate{resource = invite_user_token}) ->
-    {ok, Token} = clusters:create_user_invite_token(),
+    {ok, Token} = clusters:create_invite_token_for_admin(),
     {true, cowboy_req:set_resp_body(json_utils:encode(#{
         token => Token
     }), Req)};

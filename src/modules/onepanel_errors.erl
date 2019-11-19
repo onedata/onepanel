@@ -223,7 +223,7 @@ translate(_Type, #error{reason = ?ERR_LETSENCRYPT(ErrorURN, Message)}) ->
 % DO NOT modify this error message as it is used to identify the error in GUI
 translate(_Type, #error{reason = ?ERR_LETSENCRYPT_LIMIT(ErrorURN, Message)}) ->
     {<<"Let's Encrypt Limit Error">>,
-    str_utils:format_bin("Let's Encrypt limit error: ~ts: ~ts", [ErrorURN, Message])};
+        str_utils:format_bin("Let's Encrypt limit error: ~ts: ~ts", [ErrorURN, Message])};
 
 % DO NOT modify this error message as it is used to identify the error in GUI
 translate(_Type, #error{reason = ?ERR_LETSENCRYPT_AUTHORIZATION(Message)}) ->
@@ -293,8 +293,15 @@ translate(_Type, #error{reason = ?ERR_UNKNOWN_TYPE(Value)}) ->
 
 translate(_Type, #error{} = Error) ->
     try
-        #{<<"id">> := Id, <<"description">> := Desc} = describe_common_error(Error),
-        {<<"Operation error">>, str_utils:format_bin("~ts: ~ts", [Id, Desc])}
+        case describe_common_error(Error) of
+            #{<<"id">> := <<"unexpectedError">>} ->
+                % The error is not defined in common errors
+                ?error("~ts", [format_error(Error)]),
+                {<<"Internal Error">>, <<"Server encountered an unexpected error.">>};
+
+            #{<<"id">> := Id, <<"description">> := Desc} ->
+                {<<"Operation error">>, str_utils:format_bin("~ts: ~ts", [Id, Desc])}
+        end
     catch _:_ ->
         ?error("~ts", [format_error(Error)]),
         {<<"Internal Error">>, <<"Server encountered an unexpected error.">>}
@@ -384,7 +391,6 @@ get_expectation(ValueSpec, Acc) when is_map(ValueSpec) ->
 get_expectation(ValueSpec, Acc) when is_binary(ValueSpec) ->
     % not a onepanel_parser value spec, used when manually throwing ERR_INVALID_VALUE
     <<Acc/binary, ValueSpec/binary>>.
-
 
 
 %%--------------------------------------------------------------------
