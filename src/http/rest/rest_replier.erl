@@ -25,9 +25,9 @@
 
 %% API
 -export([throw_on_service_error/2]).
--export([handle_error/3, reply_with_error/3, handle_service_action_async/3,
-    handle_service_step/4]).
--export([format_error/2, format_service_status/2, format_dns_check_result/1,
+-export([reply_with_error/2, reply_with_error/3]).
+-export([handle_service_action_async/3, handle_service_step/4]).
+-export([format_error/1, format_service_status/2, format_dns_check_result/1,
     format_service_host_status/2, format_service_task_results/1, format_service_step/3,
     format_onepanel_configuration/0, format_service_configuration/1,
     format_storage_details/1, format_deployment_progress/0]).
@@ -50,44 +50,37 @@ throw_on_service_error(Req, Results) ->
     Req.
 
 
+
 %%--------------------------------------------------------------------
-%% @doc Sets an error description in the response body.
+%% @doc Sends error response. Sets body and http code based on
+%% the error. The error should be of errors:error() class, but
+%% can be any term which will cause ERROR_UNEXPECTED_ERROR.
 %% @end
 %%--------------------------------------------------------------------
--spec handle_error(Req :: cowboy_req:req(), Type :: atom(), Reason :: term()) ->
+-spec reply_with_error(Req :: cowboy_req:req(), Error :: errors:error() | term()) ->
     Req :: cowboy_req:req().
-handle_error(Req, Type, Reason) ->
-    Body = json_utils:encode(format_error(Type, Reason)),
-    cowboy_req:set_resp_body(Body, Req).
+reply_with_error(Req, Error) ->
+    reply_with_error(Req, throw, Error).
 
 
 %%--------------------------------------------------------------------
-%% @doc Replies with an error and 500 HTTP code.
+%% @doc Sends error response. Uses exception class to determine
+%% whether the error details should be sent to the user.
+%% In case of exceptions other than 'throw' a generic ERROR_UNEXPECTED_ERROR
+%% is used.
 %% @end
 %%--------------------------------------------------------------------
--spec reply_with_error(Req :: cowboy_req:req(), Type :: atom(), Reason :: term()) ->
-    Req :: cowboy_req:req().
-reply_with_error(Req, Type, {badrpc, nodedown}) ->
-    reply_with_error(Req, Type, ?ERROR_NO_CONNECTION_TO_CLUSTER_NODE);
+-spec reply_with_error(Req :: cowboy_req:req(), Type :: throw | error | exit,
+    Reason :: term()) -> Req :: cowboy_req:req().
+reply_with_error(Req, throw, Error) ->
+    Body = json_utils:encode(format_error(Error)),
+    Code = errors:to_http_code(Error),
+    cowboy_req:reply(Code, #{}, Body, Req);
 
 reply_with_error(Req, Type, Reason) ->
-    Body = json_utils:encode(format_error(Type, Reason)),
-    Code = error_code(Type, Reason),
-    cowboy_req:reply(Code, #{}, Body, Req).
-
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc Determines response HTTP code based on error reason.
-%% @end
-%%--------------------------------------------------------------------
--spec error_code(Type :: atom(), Reason :: term()) -> cowboy:http_status().
-error_code(_Type, {error, _} = Error) ->
-    try errors:to_http_code(Error)
-    catch _:_ -> ?HTTP_500_INTERNAL_SERVER_ERROR end;
-
-error_code(Type, Reason) ->
-    error_code(Type, ?make_error(Reason)).
+    % make use of ERROR_UNEXPECTED json encoder which will generate
+    % unique error ref and log the error
+    reply_with_error(Req, throw, {Type, Reason}).
 
 
 %%--------------------------------------------------------------------
@@ -116,11 +109,12 @@ handle_service_step(Req, Module, Function, Results) ->
     cowboy_req:set_resp_body(Body, Req).
 
 
+%%--------------------------------------------------------------------
 %% @doc Returns a formatted error description.
 %% @end
 %%--------------------------------------------------------------------
--spec format_error(Type :: atom(), Reason :: term()) -> Response :: response().
-format_error(_Type, Reason) ->
+-spec format_error(Reason :: term()) -> Response :: response().
+format_error(Reason) ->
     #{<<"error">> => errors:to_json(Reason)}.
 
 

@@ -19,6 +19,7 @@
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/http/headers.hrl").
+-include_lib("yamerl/include/yamerl_errors.hrl").
 
 %% API
 -export([init/2, allowed_methods/2, content_types_accepted/2,
@@ -159,7 +160,7 @@ content_types_provided(Req, #rstate{produces = Produces} = State) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec is_authorized(Req :: cowboy_req:req(), State :: state()) ->
-    {true | {false, binary()}, cowboy_req:req(), state()}.
+    {true | {false, binary()} | stop, cowboy_req:req(), state()}.
 is_authorized(Req, #rstate{methods = Methods} = State) ->
     AuthMethods = [
         fun rest_auth:authenticate_by_basic_auth/1,
@@ -190,7 +191,7 @@ is_authorized(Req, #rstate{methods = Methods} = State) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec forbidden(Req :: cowboy_req:req(), State :: state()) ->
-    {boolean(), cowboy_req:req(), state()}.
+    {boolean() | stop, cowboy_req:req(), state()}.
 forbidden(Req, #rstate{module = Module} = State) ->
     try
         {Method, Req2} = rest_utils:get_method(Req),
@@ -199,7 +200,7 @@ forbidden(Req, #rstate{module = Module} = State) ->
         {not Authorized, Req4, State2}
     catch
         Type:Reason ->
-            {true, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason)), State}
+            {stop, rest_replier:reply_with_error(Req, Type, Reason), State}
     end.
 
 
@@ -208,7 +209,7 @@ forbidden(Req, #rstate{module = Module} = State) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec resource_exists(Req :: cowboy_req:req(), State :: state()) ->
-    {boolean(), cowboy_req:req(), state()}.
+    {boolean() | stop, cowboy_req:req(), state()}.
 resource_exists(Req, #rstate{module = Module, methods = Methods} = State) ->
     try
         {Method, Req2} = rest_utils:get_method(Req),
@@ -222,7 +223,7 @@ resource_exists(Req, #rstate{module = Module, methods = Methods} = State) ->
         {Exists, Req5, State}
     catch
         Type:Reason ->
-            {false, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason)), State}
+            {stop, rest_replier:reply_with_error(Req, Type, Reason), State}
     end.
 
 
@@ -240,9 +241,9 @@ accept_resource_json(Req, #rstate{} = State) ->
         accept_resource(Req2, Data, State)
     catch
         throw:invalid_json ->
-            {false, rest_replier:handle_error(Req, throw, ?ERROR_MALFORMED_DATA), State};
-        Type:Reason ->
-            {false, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason)), State}
+            {stop, rest_replier:reply_with_error(Req, ?ERROR_MALFORMED_DATA), State};
+        Type:Error ->
+            {stop, rest_replier:reply_with_error(Req, Type, Error), State}
     end.
 
 
@@ -260,9 +261,10 @@ accept_resource_yaml(Req, #rstate{} = State) ->
         Data2 = json_utils:list_to_map(Data),
         accept_resource(Req2, Data2, State)
     catch
-        % @fixme return ERROR_MALFORDMED_DATA on yaml errors
+        throw:#yamerl_exception{} ->
+            {stop, rest_replier:reply_with_error(Req, ?ERROR_MALFORMED_DATA), State};
         Type:Reason ->
-            {false, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason)), State}
+            {stop, rest_replier:reply_with_error(Req, Type, Reason), State}
     end.
 
 
@@ -292,7 +294,7 @@ provide_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
         end
     catch
         Type:Reason ->
-            {stop, rest_replier:reply_with_error(Req, Type, ?make_stacktrace(Reason)), State}
+            {stop, rest_replier:reply_with_error(Req, Type, Reason), State}
     end.
 
 
@@ -323,7 +325,7 @@ delete_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
         end
     catch
         Type:Reason ->
-            {false, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason)), State}
+            {stop, rest_replier:reply_with_error(Req, Type, Reason), State}
     end.
 
 
