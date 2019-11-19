@@ -205,10 +205,18 @@ format_service_task_results({Results, TotalSteps}) ->
                 StepNames -> Base2#{steps => StepNames}
             end;
         false ->
-            Base#{
-                <<"status">> => <<"running">>,
-                <<"steps">> => format_service_task_steps(Results)
-            }
+            case lists:reverse(Results) of
+                [{task_finished, {_, _, ok}} | _] ->
+                    Base#{
+                        <<"status">> => <<"ok">>,
+                        <<"steps">> => format_service_task_steps(Results)
+                    };
+                _ ->
+                    Base#{
+                        <<"status">> => <<"running">>,
+                        <<"steps">> => format_service_task_steps(Results)
+                    }
+            end
     end.
 
 
@@ -487,7 +495,7 @@ model_to_typemap(Model) ->
 %% @doc Finds REST model used for creating storage of given type.
 %% @end
 %%--------------------------------------------------------------------
--spec get_storage_model(StorageType :: atom()) -> onepanel_parser:spec().
+-spec get_storage_model(StorageType :: atom()) -> onepanel_parser:object_spec().
 get_storage_model(posix) -> rest_model:posix_model();
 get_storage_model(s3) -> rest_model:s3_model();
 get_storage_model(ceph) -> rest_model:ceph_model();

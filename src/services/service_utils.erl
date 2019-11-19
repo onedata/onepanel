@@ -107,7 +107,7 @@ partition_results(Results) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec results_contain_error(Results :: service_executor:results() | {error, _}) ->
-    {true, errors:term() | {error, _}} | false.
+    {true, errors:error() | {error, _}} | false.
 results_contain_error({error, _} = Error) ->
     {true, Error};
 

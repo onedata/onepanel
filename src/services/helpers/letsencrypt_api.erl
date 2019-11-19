@@ -520,7 +520,7 @@ poll_status(URL, #flow_state{} = State) ->
 
 -spec poll_status(url(), State :: #flow_state{}, Attempts :: non_neg_integer()) ->
     {ok, #flow_state{}, LastResult :: api_response()} | no_return().
-poll_status(_URL, #flow_state{} = State, 0) ->
+poll_status(_URL, #flow_state{} = _State, 0) ->
     ?error("Let's Encrypt authorization timed out"),
     throw(?ERROR_TIMEOUT);
 poll_status(URL, #flow_state{} = State, Attempts) ->
@@ -696,7 +696,7 @@ decode_directory(Map) ->
 %%--------------------------------------------------------------------
 -spec http_get(url(), Attempts :: non_neg_integer()) ->
     {ok, http_client:code(), http_client:headers(), api_response()} | no_return().
-http_get(URL, 0) ->
+http_get(_URL, 0) ->
     throw(?ERROR_LETS_ENCRYPT_NOT_REACHABLE);
 
 http_get(URL, Attempts) ->

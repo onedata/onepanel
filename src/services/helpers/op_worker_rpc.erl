@@ -64,7 +64,7 @@
 -type sync_monitoring_window() :: day | hour | minute.
 
 -export_type([storage_doc/0, space_storage_doc/0, space_storage_id/0,
-    luma_config/0, helper/0, helper_args/0, helper_user_ctx/0]).
+    luma_config/0, helper/0, helper_args/0, helper_user_ctx/0, od_space_id/0]).
 
 -export([storage_new/4, storage_new/5]).
 -export([storage_create/1, storage_create/2]).

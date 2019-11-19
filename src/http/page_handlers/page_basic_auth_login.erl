@@ -40,8 +40,7 @@ handle(<<"POST">>, Req) ->
                 Req3 = gui_session:log_in(?LOCAL_SESSION_USERNAME, Req2),
                 cowboy_req:reply(?HTTP_204_NO_CONTENT, Req3);
             {{error, _} = Error, Req2} ->
-                BodyJson = rest_replier:format_error(undefined, Error),
-                cowboy_req:reply(?HTTP_401_UNAUTHORIZED, #{}, json_utils:encode(BodyJson), Req2)
+                rest_replier:reply_with_error(Req, Error)
         end
     catch Type:Reason ->
         ?error_stacktrace("Login by credentials failed - ~p:~p", [Type, Reason]),

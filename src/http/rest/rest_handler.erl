@@ -19,7 +19,6 @@
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/http/headers.hrl").
--include_lib("yamerl/include/yamerl_errors.hrl").
 
 %% API
 -export([init/2, allowed_methods/2, content_types_accepted/2,
@@ -256,13 +255,15 @@ accept_resource_json(Req, #rstate{} = State) ->
     {boolean() | stop, cowboy_req:req(), state()}.
 accept_resource_yaml(Req, #rstate{} = State) ->
     try
-        {ok, Body, Req2} = cowboy_req:read_body(Req),
-        [Data] = yamerl_constr:string(Body, [str_node_as_binary]),
-        Data2 = json_utils:list_to_map(Data),
-        accept_resource(Req2, Data2, State)
+        {Data2, Req3} = try
+            {ok, Body, Req2} = cowboy_req:read_body(Req),
+            [Data] = yamerl_constr:string(Body, [str_node_as_binary]),
+            {json_utils:list_to_map(Data), Req2}
+        catch _:_ ->
+            throw(?ERROR_MALFORMED_DATA)
+        end,
+        accept_resource(Req3, Data2, State)
     catch
-        throw:#yamerl_exception{} ->
-            {stop, rest_replier:reply_with_error(Req, ?ERROR_MALFORMED_DATA), State};
         Type:Reason ->
             {stop, rest_replier:reply_with_error(Req, Type, Reason), State}
     end.

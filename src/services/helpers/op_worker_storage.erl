@@ -401,8 +401,6 @@ make_update_result(OpNode, StorageId) ->
         verified -> Details#{verificationPassed => true}
     catch ErrType:Error ->
         ?warning("Verfication of modified storage ~p (~p) failed", [Name, StorageId]),
-        % translator will log the error
-        onepanel_errors:translate(ErrType, Error),
         Details#{verificationPassed => false}
     end.
 

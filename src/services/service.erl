@@ -450,8 +450,8 @@ register_healthcheck(Service, Ctx) ->
         Results = service:apply_sync(Service, resume, Ctx),
         case service_utils:results_contain_error(Results) of
             {true, Error} ->
-                ?critical("Failed to restart service ~ts due to:~n~ts",
-                    [Name, onepanel_errors:format_error(Error)]);
+                ?critical("Failed to restart service ~ts due to:~n~tp",
+                    [Name, Error]);
             false -> ok
         end
     end,

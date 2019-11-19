@@ -152,7 +152,7 @@ fetch_details(RestAuth) ->
         {ok, _, _, ResponseBody} ->
             #{<<"error">> := Error} = json_utils:decode(ResponseBody),
             errors:from_json(Error);
-        {error, _} = Error ->
+        {error, _} ->
             ?ERROR_NO_CONNECTION_TO_ONEZONE
     end.
 

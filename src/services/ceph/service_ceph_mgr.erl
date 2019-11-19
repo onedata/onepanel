@@ -223,7 +223,7 @@ list_instances() ->
 %% @private
 -spec get_instance(id()) -> ceph:instance().
 get_instance(Id) ->
-    kv_utils:get([instances, Id], service:get_ctx((Id))).
+    kv_utils:get([instances, Id], service:get_ctx(name())).
 
 
 -spec instance_to_details(ceph:instance()) -> #{atom() => binary()}.
