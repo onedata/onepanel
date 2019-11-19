@@ -168,16 +168,16 @@ is_authorized(Req, #rstate{methods = Methods} = State) ->
         fun rest_auth:authenticate_by_onezone_auth_token/1
     ],
     case rest_auth:authenticate(Req, AuthMethods) of
-        {{true, Client}, Req3} ->
-            {true, Req3, State#rstate{client = Client}};
-        {false, Req3} ->
+        {{true, Client}, Req2} ->
+            {true, Req2, State#rstate{client = Client}};
+        {{false, Error}, Req3} ->
             {Method, Req4} = rest_utils:get_method(Req3),
             case lists:keyfind(Method, #rmethod.type, Methods) of
                 #rmethod{noauth = true} ->
                     Req5 = cowboy_req:set_resp_body(<<>>, Req4),
                     {true, Req5, State#rstate{client = #client{role = guest}}};
                 _ ->
-                    {{false, <<"">>}, Req4, State}
+                    {stop, rest_replier:reply_with_error(Req, Error), State}
             end
     end.
 

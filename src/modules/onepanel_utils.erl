@@ -268,7 +268,8 @@ ensure_known_hosts(Hosts) ->
     lists:foreach(fun(Host) ->
         case lists:member(Host, KnownHosts) of
             true -> ok;
-            false -> error(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(hosts, KnownHosts))
+            false -> throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(
+                <<"hosts">>, onepanel_utils:convert(KnownHosts, {seq, binary})))
         end
     end, Hosts).
 

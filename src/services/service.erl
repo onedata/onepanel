@@ -16,6 +16,7 @@
 
 -include("modules/errors.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/errors.hrl").
 -include("modules/models.hrl").
 -include("names.hrl").
 -include("service.hrl").
@@ -277,7 +278,10 @@ apply(Service, Action, Ctx, Notify) ->
             [Service, Action, service_utils:format_steps(Steps, "")]),
         apply_steps(Steps, Notify)
     catch
-        _:Reason -> ?make_stacktrace(Reason)
+        throw:{error, _} = Error -> Error;
+        Type:Error ->
+            ?error("Error executing action ~p:~p: ~p:~p", [Service, Action, Type, Error]),
+            ?ERROR_INTERNAL_SERVER_ERROR
     end,
     service_utils:notify({action_end, {Service, Action, Result}}, Notify),
     Result.

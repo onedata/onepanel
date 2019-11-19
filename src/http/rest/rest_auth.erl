@@ -31,20 +31,23 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec authenticate(Req :: cowboy_req:req(), Methods :: [fun()]) ->
-    {{true, Client :: #client{}} | false, Req :: cowboy_req:req()}.
+    {Result, cowboy_req:req()} when
+    Result :: {true, #client{}} | {false, errors:error()}.
 authenticate(Req, []) ->
-    {false, Req};
+    {{false, ?ERROR_UNAUTHORIZED}, Req};
 authenticate(Req, [AuthMethod | AuthMethods]) ->
     try AuthMethod(Req) of
         {#client{} = Client, Req2} ->
             {{true, Client}, Req2};
         {{error, _} = Error, Req2} ->
-            {false, rest_replier:handle_error(Req2, error, Error)};
+            {{false, Error}, Req2};
         {ignore, Req2} ->
             authenticate(Req2, AuthMethods)
     catch
-        Type:Reason ->
-            {false, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason))}
+        throw:Error ->
+            {{false, Error}, Req};
+        _:_ ->
+            {{false, ?ERROR_UNAUTHORIZED}, Req}
     end.
 
 

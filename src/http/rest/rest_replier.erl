@@ -25,7 +25,7 @@
 
 %% API
 -export([throw_on_service_error/2]).
--export([reply_with_error/2, reply_with_error/3]).
+-export([reply_with_error/2, reply_with_error/3, set_error_body/2]).
 -export([handle_service_action_async/3, handle_service_step/4]).
 -export([format_error/1, format_service_status/2, format_dns_check_result/1,
     format_service_host_status/2, format_service_task_results/1, format_service_step/3,
@@ -81,6 +81,13 @@ reply_with_error(Req, Type, Reason) ->
     % make use of ERROR_UNEXPECTED json encoder which will generate
     % unique error ref and log the error
     reply_with_error(Req, throw, {Type, Reason}).
+
+
+-spec set_error_body(cowboy_req:req(), Reason :: errors:error()) ->
+    cowboy_req:req().
+set_error_body(Req, Error) ->
+    Body = json_utils:encode(format_error(Error)),
+    cowboy_req:set_resp_body(Body, Req).
 
 
 %%--------------------------------------------------------------------
@@ -379,10 +386,11 @@ select_service_step(Module, Function, [_ | Results]) ->
     [StepName :: binary()].
 format_service_task_steps(Steps) ->
     lists:filtermap(fun
+        ({task_finished, _}) ->
+            false;
         ({Module, Function}) ->
             {true, onepanel_utils:join([Module, Function], <<":">>)};
-        (_) ->
-            false
+        (_) -> false
     end, Steps).
 
 

@@ -92,7 +92,7 @@ exists_resource(Req, _State) ->
 is_conflict(Req, 'DELETE', _Args,
     #rstate{resource = storage, bindings = #{id:=Id}}) ->
     case op_worker_storage:can_be_removed(Id) of
-        false -> {true, rest_replier:handle_error(Req, throw, ?ERROR_STORAGE_IN_USE)};
+        false -> {true, rest_replier:set_error_body(Req, ?ERROR_STORAGE_IN_USE)};
         true -> {false, Req}
     end;
 
