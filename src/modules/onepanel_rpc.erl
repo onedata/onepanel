@@ -43,12 +43,10 @@ apply(Module, Function, Args) ->
         throw:Reason ->
             {node(), Reason};
         Type:Reason ->
-            Stacktrace = erlang:get_stacktrace(),
-            ?error("Unexpected error executing ~tp:~tp/~B~nError: ~tp:~tp~nStacktrace: ~tp",
-            [Module, Function, erlang:length(Args), Type, Reason, Stacktrace]),
-            % @fixme disputable, as not very useful for internal calls.
-            % perhaps create custom exception record
-            {node(), ?ERROR_INTERNAL_SERVER_ERROR}
+            ?error_stacktrace("Unexpected error executing ~tp:~tp/~B~nError: ~tp:~tp~n",
+                [Module, Function, erlang:length(Args), Type, Reason]),
+            {node(), {error, #exception{
+                type = Type, value = Reason, stacktrace = erlang:get_stacktrace()}}}
     end.
 
 

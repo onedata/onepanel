@@ -114,7 +114,7 @@ results_contain_error({error, _} = Error) ->
 results_contain_error(Results) ->
     case lists:reverse(Results) of
         [{task_finished, {_, _, {error, _} = Error}}] ->
-            {true, Error};
+            {true, cast_to_serializable_error(Error)};
 
         [{task_finished, {_Service, _Action, {error, _}}}, FailedStep | _Steps] ->
             {_Module, _Function, {_, BadResults}} = FailedStep,
@@ -330,10 +330,16 @@ format_errors([{Node, {error, _} = Error} | Errors], Log) ->
 %% @private
 -spec bad_results_to_error([onepanel_rpc:result()]) -> ?ERROR_ON_NODES(_, _).
 bad_results_to_error(BadResults) ->
-    {_, Errors} = lists:unzip(BadResults),
-    SelectedError = select_error(Errors),
+    {Nodes, Errors} = lists:unzip(BadResults),
+
+    % @TODO VFS-5838 Better separation of internal results processing
+    % and external error reporting
+    SerializableErrors = lists:map(fun cast_to_serializable_error/1, Errors),
+    NodesErrors = lists:zip(Nodes, SerializableErrors),
+
+    SelectedError = select_error(SerializableErrors),
     Hostnames = [list_to_binary(hosts:from_node(Node))
-        || {Node, Err} <- BadResults, Err == SelectedError],
+        || {Node, Err} <- NodesErrors, Err == SelectedError],
     ?ERROR_ON_NODES(SelectedError, Hostnames).
 
 
@@ -349,3 +355,21 @@ select_error(Errors) ->
     hd(lists:sort(fun(E1, E2) ->
         errors:to_http_code(E1) < errors:to_http_code(E2)
     end, Errors)).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc This function works on best-effort basis since there is
+%% no way of accurate and silent errors:error() identification.
+%% Guarantees that the result will be at least in {error, term()} format
+%% and the reason will not be an #exception record.
+%% @TODO VFS-5922 Make the function fully accurate
+%% @end
+%%--------------------------------------------------------------------
+-spec cast_to_serializable_error(T | term()) -> T when T :: errors:error().
+cast_to_serializable_error({error, #exception{}} = Error) ->
+    ?ERROR_INTERNAL_SERVER_ERROR;
+cast_to_serializable_error({error, _} = Error) ->
+    Error;
+cast_to_serializable_error(_) ->
+    ?ERROR_INTERNAL_SERVER_ERROR.

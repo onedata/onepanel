@@ -121,6 +121,8 @@ handle_service_step(Req, Module, Function, Results) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec format_error(Reason :: term()) -> Response :: response().
+format_error({error, #exception{}}) ->
+    #{<<"error">> => errors:to_json(?ERROR_INTERNAL_SERVER_ERROR)};
 format_error(Reason) ->
     #{<<"error">> => errors:to_json(Reason)}.
 
@@ -195,10 +197,9 @@ format_service_task_results({Results, TotalSteps}) ->
 
     case service_utils:results_contain_error(Results) of
         {true, Error} ->
-            Base2 = Base#{
-                <<"status">> => <<"error">>,
-                <<"error">> => errors:to_json(Error)
-            },
+            Base2 = maps:merge(Base#{
+                <<"status">> => <<"error">>
+            }, format_error(Error)),
 
             case format_service_task_steps(Results) of
                 [] -> Base2;

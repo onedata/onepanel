@@ -13,6 +13,13 @@
 
 -include_lib("ctool/include/errors.hrl").
 
+-record(exception, {
+    % 'throw' is usually treated as intentional flow control
+    % and not wrapped in this record
+    type :: error | exit | throw,
+    value :: term(),
+    stacktrace = [] :: list()
+}).
 
 %% Errors for internal onepanel use. Do not have a REST translator
 -define(ERR_AMBIGUOUS_HOSTS, {error, ambiguous_hosts}).
