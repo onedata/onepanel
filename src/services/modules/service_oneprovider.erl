@@ -624,7 +624,7 @@ get_space_details(#{id := SpaceId}) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     {ok, #{name := Name, providers := Providers}} =
         op_worker_rpc:get_space_details(Node, SpaceId),
-    StorageIds = op_worker_storage:get_supporting_storages(Node, SpaceId),
+    {ok, StorageIds} = op_worker_storage:get_supporting_storages(Node, SpaceId),
     StorageId = hd(StorageIds),
     MountInRoot = op_worker_storage:is_mounted_in_root(Node, SpaceId, StorageId),
     ImportDetails = op_worker_storage_sync:get_storage_import_details(
@@ -657,8 +657,8 @@ modify_space(#{space_id := SpaceId} = Ctx) ->
     ImportArgs = maps:get(storage_import, Ctx, #{}),
     UpdateArgs = maps:get(storage_update, Ctx, #{}),
     ok = maybe_update_support_size(Node, SpaceId, Ctx),
-    {ok, _} = op_worker_storage_sync:maybe_modify_storage_import(Node, SpaceId, ImportArgs),
-    {ok, _} = op_worker_storage_sync:maybe_modify_storage_update(Node, SpaceId, UpdateArgs),
+    op_worker_storage_sync:maybe_configure_storage_import(Node, SpaceId, ImportArgs),
+    op_worker_storage_sync:maybe_configure_storage_update(Node, SpaceId, UpdateArgs),
     [{id, SpaceId}].
 
 
@@ -1126,8 +1126,8 @@ configure_space(Node, SpaceId, #{storage_id := StorageId} = Ctx) ->
     ImportArgs = maps:get(storage_import, Ctx, #{}),
     UpdateArgs = maps:get(storage_update, Ctx, #{}),
     {ok, _} = op_worker_rpc:space_storage_add(Node, SpaceId, StorageId, MountInRoot),
-    op_worker_storage_sync:maybe_modify_storage_import(Node, SpaceId, ImportArgs),
-    op_worker_storage_sync:maybe_modify_storage_update(Node, SpaceId, UpdateArgs),
+    op_worker_storage_sync:maybe_configure_storage_import(Node, SpaceId, ImportArgs),
+    op_worker_storage_sync:maybe_configure_storage_update(Node, SpaceId, UpdateArgs),
     [{id, SpaceId}].
 
 

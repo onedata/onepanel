@@ -46,7 +46,7 @@
     get_should_return_storages/1,
     get_should_return_storage/1,
     post_should_add_storage/1,
-    patch_should_modify_storage_update/1,
+    patch_should_configure_storage_update/1,
     patch_should_update_storage/1,
     get_should_return_autocleaning_reports/1,
     get_should_return_autocleaning_report/1,
@@ -82,7 +82,7 @@ all() ->
         get_should_return_storages,
         get_should_return_storage,
         post_should_add_storage,
-        patch_should_modify_storage_update,
+        patch_should_configure_storage_update,
         patch_should_update_storage,
         get_should_return_autocleaning_reports,
         get_should_return_autocleaning_report,
@@ -579,7 +579,7 @@ post_should_add_storage(Config) ->
     end).
 
 
-patch_should_modify_storage_update(Config) ->
+patch_should_configure_storage_update(Config) ->
     ?run(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
@@ -907,7 +907,7 @@ init_per_testcase(patch_should_modify_space_support, Config) ->
         fun(#{space_id := _Id}) -> true end),
     NewConfig;
 
-init_per_testcase(patch_should_modify_storage_update, Config) ->
+init_per_testcase(patch_should_configure_storage_update, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
