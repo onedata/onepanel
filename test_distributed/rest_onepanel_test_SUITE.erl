@@ -121,11 +121,8 @@ token_with_api_caveats_should_return_unauthorized_error(Config) ->
     lists:foreach(fun(Caveat) ->
         Caveats = GoodCaveats ++ [Caveat],
         Token = onepanel_test_rest:construct_token(Caveats),
-        #{<<"id">> := Id, <<"description">> := Desc} =
-            errors:to_json(?ERROR_TOKEN_CAVEAT_UNVERIFIED(Caveat)),
         Expected = #{
-            <<"error">> => <<"Operation error">>,
-            <<"description">> => str_utils:format_bin("~ts: ~ts", [Id, Desc])
+            <<"error">> => errors:to_json(?ERROR_TOKEN_CAVEAT_UNVERIFIED(Caveat))
         },
         {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _},
             onepanel_test_rest:auth_request(

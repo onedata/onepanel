@@ -207,8 +207,12 @@ assert_body_fields(JsonBody, Fields) ->
 %% values match the expected ones.
 %% @end
 %%--------------------------------------------------------------------
--spec assert_body_values(JsonBody :: binary(), Values :: [{binary(), any()}]) -> ok.
-assert_body_values(JsonBody, Values) ->
+-spec assert_body_values(JsonBody :: binary(),
+    Values :: [{binary(), any()}] | #{binary() => any()}) -> ok.
+assert_body_values(JsonBody, Values) when is_map(Values) ->
+    assert_body_values(JsonBody, maps:to_list(Values));
+
+assert_body_values(JsonBody, Values) when is_list(Values) ->
     onepanel_test_utils:assert_values(json_utils:decode(JsonBody), Values).
 
 

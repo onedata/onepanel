@@ -299,12 +299,16 @@ get_should_return_service_task_results(Config) ->
             {<<"someTaskId2">>, [], [{<<"status">>, <<"running">>}, {<<"steps">>, [
                 <<"module1:function1">>, <<"module2:function2">>
             ]}]},
-            {<<"someTaskId3">>, [<<"error">>, <<"description">>, <<"steps">>,
-                <<"module">>, <<"function">>, <<"hosts">>],
-                [{<<"status">>, <<"error">>}]
+            {<<"someTaskId3">>, [<<"error">>, <<"status">>, <<"steps">>],
+                #{<<"status">> => <<"error">>,
+                    <<"error">> => errors:to_json(
+                        ?ERROR_ON_NODES(?ERROR_MALFORMED_DATA, [<<"host1">>])),
+                    <<"steps">> => [<<"module1:function1">>, <<"module2:function2">>,
+                        <<"module3:function3">>]
+                }
             },
-            {<<"someTaskId4">>, [<<"error">>, <<"description">>],
-                [{<<"status">>, <<"error">>}]
+            {<<"someTaskId4">>, [<<"error">>, <<"status">>],
+                #{<<"status">> => <<"error">>}
             }
         ])
     end, [{oneprovider_hosts, <<>>}, {onezone_hosts, <<>>}]).
@@ -737,15 +741,18 @@ init_per_testcase(get_should_return_service_task_results, Config) ->
         ], 2};
         (<<"someTaskId3">>) -> {[
             {module1, function1},
+            {module1, function1, {[{'node@host1', ok}], []}},
             {module2, function2},
+            {module2, function2, {[{'node@host1', ok}], []}},
+            {module3, function3},
             {module3, function3, {[], [
-                {'node@host1', {error, reason}}, {'node@host2', {error, reason}}
+                {'node@host1', ?ERROR_MALFORMED_DATA}, {'node@host2', ?ERROR_INTERNAL_SERVER_ERROR}
             ]}},
             {task_finished, {service, action, {error, reason}}}
         ], 4};
         (<<"someTaskId4">>) -> {[
-            {task_finished, {service, action, {error, reason}}}
-        ], {error, reason}}
+            {task_finished, {service, action, ?ERROR_INTERNAL_SERVER_ERROR}}
+        ], _StepsCountError = {error, reason}}
     end),
     NewConfig;
 

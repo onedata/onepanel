@@ -280,9 +280,12 @@ apply(Service, Action, Ctx, Notify) ->
     catch
         throw:{error, _} = Error -> Error;
         Type:Error ->
-            ?error("Error executing action ~p:~p: ~p:~p", [Service, Action, Type, Error]),
+            ?error_stacktrace("Error executing action ~p:~p: ~p:~p",
+                [Service, Action, Type, Error]),
             ?ERROR_INTERNAL_SERVER_ERROR
     end,
+    % If one of the steps failed, the action Result is {error, {Module, Function, Status}.
+    % Result might of different format if steps resolution itself failed.
     service_utils:notify({action_end, {Service, Action, Result}}, Notify),
     Result.
 
@@ -503,7 +506,8 @@ store_in_ctx(Service, Keys, Value) ->
 %%--------------------------------------------------------------------
 %% @private @doc Applies the service steps associated with an action.
 %%--------------------------------------------------------------------
--spec apply_steps(Steps :: [step()], Notify :: notify()) -> ok | {error, _}.
+-spec apply_steps(Steps :: [step()], Notify :: notify()) ->
+    ok | {error, {module(), Function :: atom()}, service_executor:hosts_results()}.
 apply_steps([], _Notify) ->
     ok;
 
