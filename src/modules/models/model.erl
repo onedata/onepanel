@@ -101,13 +101,13 @@ save(Model, Record) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec update(Model :: model(), Key :: key(),
-    Diff :: model_behaviour:diff()) -> ok | no_return().
+    Diff :: model_behaviour:diff()) -> ok | ?ERR_DOC_NOT_FOUND.
 update(Model, Key, Diff) ->
     % @TODO VFS-5272 Handle key change by the diff function
     transaction(fun() ->
         Table = get_table_name(Model),
         case mnesia:read(Table, Key) of
-            [] -> mnesia:abort(?ERR_DOC_NOT_FOUND);
+            [] -> ?ERR_DOC_NOT_FOUND;
             [Doc] -> mnesia:write(Table, apply_diff(Doc, Diff), write)
         end
     end).
@@ -222,7 +222,12 @@ clear(Model) ->
 %%--------------------------------------------------------------------
 -spec transaction(Transaction :: fun()) -> term() | no_return().
 transaction(Transaction) ->
-    mnesia:activity(transaction, Transaction).
+    try
+        mnesia:activity(transaction, Transaction)
+    catch
+        _:{aborted, Error} -> error(Error);
+        _:Error -> error(Error)
+    end.
 
 
 -spec upgrade(ModelName :: model(), CurrentDocument :: tuple()) ->

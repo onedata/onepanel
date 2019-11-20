@@ -212,7 +212,8 @@ upgrade_loop_is_detected_test(Config) ->
         mnesia:write(?MODEL, OldDoc, write)
     end])),
 
-    ?assertMatch({error, _}, rpc:call(Node, onepanel_db, upgrade_tables, [])).
+    ?assertMatch({badrpc, {'EXIT', {_, _}}},
+        rpc:call(Node, onepanel_db, upgrade_tables, [])).
 
 
 %%%===================================================================
