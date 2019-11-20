@@ -244,12 +244,12 @@ zone_rest(Method, Auth, URNFormat, FormatArgs) ->
 zone_rest(Method, Auth, URNFormat, FormatArgs, Body) ->
     URN = str_utils:format(URNFormat, FormatArgs),
     case oz_endpoint:request(Auth, URN, Method, Body) of
-        {ok, Code, _, BodyJson} ->
-            case json_utils:decode(BodyJson) of
+        {ok, Code, _, RespBodyJson} ->
+            case json_utils:decode(RespBodyJson) of
                 #{<<"error">> := Error} when Code >= 400 ->
                     errors:from_json(Error);
-                Body ->
-                    {ok, onepanel_utils:convert(Body, {keys, atom})}
+                RespBody ->
+                    {ok, onepanel_utils:convert(RespBody, {keys, atom})}
             end;
         {error, _} ->
             ?ERROR_NO_CONNECTION_TO_ONEZONE

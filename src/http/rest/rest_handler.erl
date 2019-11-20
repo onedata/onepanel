@@ -198,8 +198,11 @@ forbidden(Req, #rstate{module = Module} = State) ->
         {Authorized, Req4} = Module:is_authorized(Req3, Method, State2),
         {not Authorized, Req4, State2}
     catch
+        throw:Reason ->
+            {stop, rest_replier:reply_with_error(Req, Reason), State};
         Type:Reason ->
-            {stop, rest_replier:reply_with_error(Req, Type, Reason), State}
+            ?error_stacktrace("Error in authorization check: ~tp:~tp", [Type, Reason]),
+            {stop, rest_replier:reply_with_error(Req, ?ERROR_INTERNAL_SERVER_ERROR), State}
     end.
 
 
@@ -221,8 +224,11 @@ resource_exists(Req, #rstate{module = Module, methods = Methods} = State) ->
         }),
         {Exists, Req5, State}
     catch
+        throw:Reason ->
+            {stop, rest_replier:reply_with_error(Req, Reason), State};
         Type:Reason ->
-            {stop, rest_replier:reply_with_error(Req, Type, Reason), State}
+            ?error_stacktrace("Error in resource existence check: ~tp:~tp", [Type, Reason]),
+            {stop, rest_replier:reply_with_error(Req, ?ERROR_INTERNAL_SERVER_ERROR), State}
     end.
 
 
@@ -241,8 +247,11 @@ accept_resource_json(Req, #rstate{} = State) ->
     catch
         throw:invalid_json ->
             {stop, rest_replier:reply_with_error(Req, ?ERROR_MALFORMED_DATA), State};
-        Type:Error ->
-            {stop, rest_replier:reply_with_error(Req, Type, Error), State}
+        throw:Reason ->
+            {stop, rest_replier:reply_with_error(Req, Reason), State};
+        Type:Reason ->
+            ?error_stacktrace("Error in accept resource: ~tp:~tp", [Type, Reason]),
+            {stop, rest_replier:reply_with_error(Req, ?ERROR_INTERNAL_SERVER_ERROR), State}
     end.
 
 
@@ -264,8 +273,12 @@ accept_resource_yaml(Req, #rstate{} = State) ->
         end,
         accept_resource(Req3, Data2, State)
     catch
+        throw:Reason ->
+            {stop, rest_replier:reply_with_error(Req, Reason), State};
         Type:Reason ->
-            {stop, rest_replier:reply_with_error(Req, Type, Reason), State}
+            ?error_stacktrace("Error handling ~s request: ~tp:~tp",
+                [cowboy_req:method(Req), Type, Reason]),
+            {stop, rest_replier:reply_with_error(Req, ?ERROR_INTERNAL_SERVER_ERROR), State}
     end.
 
 
@@ -294,8 +307,11 @@ provide_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
                 {stop, Req5, State}
         end
     catch
+        throw:Reason ->
+            {stop, rest_replier:reply_with_error(Req, Reason), State};
         Type:Reason ->
-            {stop, rest_replier:reply_with_error(Req, Type, Reason), State}
+            ?error_stacktrace("Error handling GET request: ~tp:~tp", [Type, Reason]),
+            {stop, rest_replier:reply_with_error(Req, ?ERROR_INTERNAL_SERVER_ERROR), State}
     end.
 
 
@@ -325,8 +341,11 @@ delete_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
                 {stop, cowboy_req:reply(?HTTP_409_CONFLICT, Req5), State}
         end
     catch
+        throw:Reason ->
+            {stop, rest_replier:reply_with_error(Req, Reason), State};
         Type:Reason ->
-            {stop, rest_replier:reply_with_error(Req, Type, Reason), State}
+            ?error_stacktrace("Error handling DELETE request: ~tp:~tp", [Type, Reason]),
+            {stop, rest_replier:reply_with_error(Req, ?ERROR_INTERNAL_SERVER_ERROR), State}
     end.
 
 
