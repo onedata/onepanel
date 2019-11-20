@@ -46,6 +46,7 @@
     emergency_passphrase_change_request_model/0,
     emergency_passphrase_status_model/0,
     error_model/0,
+    error_error_model/0,
     gui_message_model/0,
     host_model/0,
     host_add_request_model/0,
@@ -73,7 +74,6 @@
     provider_storages_model/0,
     remote_provider_details_model/0,
     service_databases_model/0,
-    service_error_model/0,
     service_hosts_model/0,
     service_status_model/0,
     service_status_host_model/0,
@@ -575,10 +575,25 @@ emergency_passphrase_status_model() ->
 -spec error_model() -> onepanel_parser:object_spec().
 error_model() ->
     #{
-        %% The name of an error type.
-        error => string,
-        %% The detailed error description.
-        description => string
+        error => {error_error_model(), optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Object describing an error.
+%% @end
+%%--------------------------------------------------------------------
+-spec error_error_model() -> onepanel_parser:object_spec().
+error_error_model() ->
+    #{
+        %% String identifying the error type. Does not change between error
+        %% instances.
+        id => string,
+        %% Human readable error description. May contain information specific to
+        %% given error instance.
+        description => string,
+        %% Details about the error instance. The object schema is specific to
+        %% each error type.
+        details => {#{}, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1058,25 +1073,6 @@ service_databases_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The service error model for REST requests.
-%% @end
-%%--------------------------------------------------------------------
--spec service_error_model() -> onepanel_parser:object_spec().
-service_error_model() ->
-    #{
-        %% The name of an error type.
-        error => string,
-        %% The detailed error description.
-        description => string,
-        %% The name of a module containing function that returned error.
-        module => {string, optional},
-        %% The name of a function that returned error.
-        function => {string, optional},
-        %% The collection of hosts with associated error description.
-        hosts => {#{'_' => error_model()}, optional}
-    }.
-
-%%--------------------------------------------------------------------
 %% @doc The service hosts configuration.
 %% @end
 %%--------------------------------------------------------------------
@@ -1454,16 +1450,7 @@ task_status_model() ->
         steps => [string],
         %% Total number of steps to be executed.
         totalSteps => integer,
-        %% The name of an error type.
-        error => {string, optional},
-        %% The detailed error description.
-        description => {string, optional},
-        %% The name of a module containing function that returned error.
-        module => {string, optional},
-        %% The name of a function that returned error.
-        function => {string, optional},
-        %% The collection of hosts with associated error description.
-        hosts => {#{'_' => error_model()}, optional}
+        error => {error_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
