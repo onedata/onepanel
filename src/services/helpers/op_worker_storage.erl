@@ -186,7 +186,7 @@ get_supporting_storages(OpNode, SpaceId) ->
 -spec is_imported_storage(OpNode :: node(), StorageId :: id()) ->
     boolean().
 is_imported_storage(OpNode, StorageId) ->
-    op_worker_rpc:storage_config_is_imported_storage(OpNode, StorageId).
+    op_worker_rpc:storage_is_imported_storage(OpNode, StorageId).
 
 %%-------------------------------------------------------------------
 %% @doc
@@ -307,11 +307,11 @@ add(OpNode, StorageName, Params, QosParameters) ->
     LumaConfig = make_luma_config(OpNode, Params),
     maybe_verify_storage(Helper, ReadOnly),
 
-    MountInRoot = onepanel_utils:typed_get(importedStorage, Params, boolean, false),
+    ImportedStorage = onepanel_utils:typed_get(importedStorage, Params, boolean, false),
 
     ?info("Adding storage: \"~ts\" (~ts)", [StorageName, StorageType]),
     StorageRecord = op_worker_rpc:storage_new(StorageName, [Helper],
-        ReadOnly, LumaConfig, MountInRoot),
+        ReadOnly, LumaConfig, ImportedStorage),
     case op_worker_rpc:storage_create(StorageRecord) of
         {ok, StorageId} ->
             update_qos_parameters(OpNode, StorageId, QosParameters),

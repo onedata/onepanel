@@ -86,7 +86,7 @@
 -export([get_storage_by_name/1, get_storage_by_name/2]).
 -export([storage_exists/1, storage_exists/2]).
 -export([storage_describe/1, storage_describe/2]).
--export([storage_config_is_imported_storage/1, storage_config_is_imported_storage/2]).
+-export([storage_is_imported_storage/1, storage_is_imported_storage/2]).
 -export([space_logic_get_storage_ids/1, space_logic_get_storage_ids/2]).
 -export([file_popularity_api_configure/2, file_popularity_api_configure/3]).
 -export([file_popularity_api_get_configuration/1,
@@ -145,13 +145,13 @@
 
 -spec storage_new(storage_name(), [helper()], boolean(),
     undefined | luma_config(), boolean()) -> storage_doc().
-storage_new(Name, Helpers, ReadOnly, LumaConfig, MountInRoot) ->
-    ?CALL([Name, Helpers, ReadOnly, LumaConfig, MountInRoot]).
+storage_new(Name, Helpers, ReadOnly, LumaConfig, ImportedStorage) ->
+    ?CALL([Name, Helpers, ReadOnly, LumaConfig, ImportedStorage]).
 
 -spec storage_new(node(), storage_name(), [helper()], boolean(),
     undefined | luma_config(), boolean()) -> storage_doc().
-storage_new(Node, Name, Helpers, ReadOnly, LumaConfig, MountInRoot) ->
-    ?CALL(Node, [Name, Helpers, ReadOnly, LumaConfig, MountInRoot]).
+storage_new(Node, Name, Helpers, ReadOnly, LumaConfig, ImportedStorage) ->
+    ?CALL(Node, [Name, Helpers, ReadOnly, LumaConfig, ImportedStorage]).
 
 
 
@@ -361,14 +361,14 @@ storage_describe(Node, StorageId) ->
     ?CALL(Node, [StorageId]).
 
 
--spec storage_config_is_imported_storage(storage_id()) ->
+-spec storage_is_imported_storage(storage_id()) ->
     boolean() | {error, term()}.
-storage_config_is_imported_storage(StorageId) ->
+storage_is_imported_storage(StorageId) ->
     ?CALL([StorageId]).
 
--spec storage_config_is_imported_storage(node(), storage_id()) ->
+-spec storage_is_imported_storage(node(), storage_id()) ->
     boolean() | {error, term()}.
-storage_config_is_imported_storage(Node, StorageId) ->
+storage_is_imported_storage(Node, StorageId) ->
     ?CALL(Node, [StorageId]).
 
 
