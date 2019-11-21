@@ -39,7 +39,6 @@
 
 -opaque helper() :: tuple().
 -opaque luma_config() :: tuple().
--opaque space_storage_doc() :: tuple().
 -opaque storage_doc() :: tuple().
 -type autocleaning_run_id() :: binary().
 -type autocleaning_run_links_list_limit() :: integer() | all.
@@ -52,7 +51,6 @@
 -type luma_config_url() :: binary().
 -type od_space_id() :: binary().
 -type space_quota_id() :: od_space_id().
--type space_storage_id() :: od_space_id().
 -type space_strategy_arguments() :: map().
 -type storage_id() :: binary().
 -type storage_import_status() :: atom().
@@ -62,8 +60,8 @@
     deleted_files | queue_length.
 -type sync_monitoring_window() :: day | hour | minute.
 
--export_type([storage_doc/0, space_storage_doc/0, space_storage_id/0,
-    luma_config/0, helper/0, helper_args/0, helper_user_ctx/0]).
+-export_type([storage_doc/0, luma_config/0, helper/0,
+    helper_args/0, helper_user_ctx/0]).
 
 -export([storage_new/4, storage_new/5]).
 -export([storage_create/1, storage_create/2]).
@@ -77,15 +75,17 @@
 -export([storage_update_helper_args/3, storage_update_helper_args/4]).
 -export([storage_set_insecure/3, storage_set_insecure/4]).
 -export([storage_set_readonly/2, storage_set_readonly/3]).
+-export([storage_set_mount_in_root/1, storage_set_mount_in_root/2]).
 -export([storage_set_luma_config/2, storage_set_luma_config/3]).
 -export([storage_update_luma_config/2, storage_update_luma_config/3]).
+-export([storage_set_qos_parameters/2, storage_set_qos_parameters/3]).
 -export([storage_update_name/2, storage_update_name/3]).
 -export([get_storage/1, get_storage/2]).
 -export([get_storage_by_name/1, get_storage_by_name/2]).
 -export([storage_exists/1, storage_exists/2]).
 -export([storage_describe/1, storage_describe/2]).
--export([get_space_storage/1, get_space_storage/2]).
--export([space_storage_get_storage_ids/1, space_storage_get_storage_ids/2]).
+-export([storage_is_mounted_in_root/1, storage_is_mounted_in_root/2]).
+-export([space_logic_get_storage_ids/1, space_logic_get_storage_ids/2]).
 -export([space_storage_get_mounted_in_root/1, space_storage_get_mounted_in_root/2]).
 -export([file_popularity_api_configure/2, file_popularity_api_configure/3]).
 -export([file_popularity_api_get_configuration/1,
@@ -105,9 +105,8 @@
 -export([on_deregister/0, on_deregister/1]).
 -export([get_op_worker_version/0, get_op_worker_version/1]).
 -export([provider_logic_update/1, provider_logic_update/2]).
--export([support_space/2, support_space/3]).
--export([space_storage_add/3, space_storage_add/4]).
--export([space_storage_delete/1, space_storage_delete/2]).
+-export([support_space/3, support_space/4]).
+-export([revoke_space_support/1, revoke_space_support/2]).
 -export([get_spaces/0, get_spaces/1]).
 -export([supports_space/1, supports_space/2]).
 -export([get_space_details/1, get_space_details/2]).
@@ -155,11 +154,11 @@ storage_new(Node, Name, Helpers, ReadOnly, LumaConfig) ->
 
 
 
--spec storage_create(storage_doc()) -> ok | {error, term()}.
+-spec storage_create(storage_doc()) -> {ok, storage_id()} | {error, term()}.
 storage_create(StorageDoc) ->
     ?CALL([StorageDoc]).
 
--spec storage_create(node(), storage_doc()) -> ok | {error, term()}.
+-spec storage_create(node(), storage_doc()) -> {ok, storage_id()} | {error, term()}.
 storage_create(Node, StorageDoc) ->
     ?CALL(Node, [StorageDoc]).
 
@@ -266,6 +265,17 @@ storage_set_readonly(Node, StorageId, Readonly) ->
     ?CALL(Node, [StorageId, Readonly]).
 
 
+-spec storage_set_mount_in_root(storage_id()) ->
+    ok | {error, term()}.
+storage_set_mount_in_root(StorageId) ->
+    ?CALL([StorageId]).
+
+-spec storage_set_mount_in_root(node(), storage_id()) ->
+    ok | {error, term()}.
+storage_set_mount_in_root(Node, StorageId) ->
+    ?CALL(Node, [StorageId]).
+
+
 -spec storage_set_luma_config(storage_id(), luma_config() | undefined) ->
     ok | {error, term()}.
 storage_set_luma_config(StorageId, LumaConfig) ->
@@ -286,6 +296,17 @@ storage_update_luma_config(StorageId, Changes) ->
     when Changes :: #{url => luma_config_url(), api_key => luma_config_api_key()}.
 storage_update_luma_config(Node, StorageId, Changes) ->
     ?CALL(Node, [StorageId, Changes]).
+
+
+-spec storage_set_qos_parameters(storage_id(), op_worker_storage:qos_parameters()) ->
+    ok | {error, term()}.
+storage_set_qos_parameters(StorageId, QosParameters) ->
+    ?CALL([StorageId, QosParameters]).
+
+-spec storage_set_qos_parameters(node(), storage_id(), op_worker_storage:qos_parameters()) ->
+    ok | {error, term()}.
+storage_set_qos_parameters(Node, StorageId, QosParameters) ->
+    ?CALL(Node, [StorageId, QosParameters]).
 
 
 -spec storage_update_name(storage_id(), storage_name()) ->
@@ -339,31 +360,31 @@ storage_describe(Node, StorageId) ->
     ?CALL(Node, [StorageId]).
 
 
--spec get_space_storage(space_storage_id()) ->
-    {ok, space_storage_doc()} | {error, term()}.
-get_space_storage(Key) ->
-    ?CALL([Key]).
+-spec storage_is_mounted_in_root(storage_id()) ->
+    boolean() | {error, term()}.
+storage_is_mounted_in_root(StorageId) ->
+    ?CALL([StorageId]).
 
--spec get_space_storage(node(), space_storage_id()) ->
-    {ok, space_storage_doc()} | {error, term()}.
-get_space_storage(Node, Key) ->
-    ?CALL(Node, [Key]).
+-spec storage_is_mounted_in_root(node(), storage_id()) ->
+    boolean() | {error, term()}.
+storage_is_mounted_in_root(Node, StorageId) ->
+    ?CALL(Node, [StorageId]).
 
 
--spec space_storage_get_storage_ids(space_storage_id()) -> [op_worker_storage:id()].
-space_storage_get_storage_ids(SpaceId) ->
+-spec space_logic_get_storage_ids(od_space_id()) -> [op_worker_storage:id()].
+space_logic_get_storage_ids(SpaceId) ->
     ?CALL([SpaceId]).
 
--spec space_storage_get_storage_ids(node(), space_storage_id()) -> {ok, [op_worker_storage:id()]}.
-space_storage_get_storage_ids(Node, SpaceId) ->
+-spec space_logic_get_storage_ids(node(), od_space_id()) -> {ok, [op_worker_storage:id()]}.
+space_logic_get_storage_ids(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
 
--spec space_storage_get_mounted_in_root(space_storage_id()) -> [op_worker_storage:id()].
+-spec space_storage_get_mounted_in_root(storage_id()) -> [op_worker_storage:id()].
 space_storage_get_mounted_in_root(SpaceId) ->
     ?CALL([SpaceId]).
 
--spec space_storage_get_mounted_in_root(node(), space_storage_id()) ->
+-spec space_storage_get_mounted_in_root(node(), storage_id()) ->
     [op_worker_storage:id()].
 space_storage_get_mounted_in_root(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
@@ -536,34 +557,23 @@ provider_logic_update(Node, Data) ->
     ?CALL(Node, [Data]).
 
 
--spec support_space(tokens:serialized(), SupportSize :: integer()) ->
+-spec support_space(storage_id(), tokens:serialized(), SupportSize :: integer()) ->
     {ok, od_space_id()} | {error, term()}.
-support_space(Token, SupportSize) ->
-    ?CALL([Token, SupportSize]).
+support_space(StorageId, Token, SupportSize) ->
+    ?CALL([StorageId, Token, SupportSize]).
 
--spec support_space(node(), tokens:serialized(), SupportSize :: integer()) ->
+-spec support_space(node(), storage_id(), tokens:serialized(), SupportSize :: integer()) ->
     {ok, od_space_id()} | {error, term()}.
-support_space(Node, Token, SupportSize) ->
-    ?CALL(Node, [Token, SupportSize]).
+support_space(Node, StorageId, Token, SupportSize) ->
+    ?CALL(Node, [StorageId, Token, SupportSize]).
 
 
--spec space_storage_add(od_space_id(), storage_id(), boolean()) ->
-    {ok, od_space_id()} | {error, term()}.
-space_storage_add(SpaceId, StorageId, MountInRoot) ->
-   ?CALL([SpaceId, StorageId, MountInRoot]).
-
--spec space_storage_add(node(), od_space_id(), storage_id(), boolean()) ->
-    {ok, od_space_id()} | {error, term()}.
-space_storage_add(Node, SpaceId, StorageId, MountInRoot) ->
-    ?CALL(Node, [SpaceId, StorageId, MountInRoot]).
-
-
--spec space_storage_delete(space_storage_id()) -> ok | {error, term()}.
-space_storage_delete(SpaceId) ->
+-spec revoke_space_support(od_space_id()) -> ok | {error, term()}.
+revoke_space_support(SpaceId) ->
     ?CALL([SpaceId]).
 
--spec space_storage_delete(node(), space_storage_id()) -> ok | {error, term()}.
-space_storage_delete(Node, SpaceId) ->
+-spec revoke_space_support(node(), od_space_id()) -> ok | {error, term()}.
+revoke_space_support(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
 

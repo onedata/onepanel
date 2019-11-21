@@ -62,7 +62,7 @@
   },
   "onepanel_domains": {
     "onezone": {
-      "image": "docker.onedata.org/onezone-dev:develop",
+      "image": "docker.onedata.org/onezone-dev:19.09.0-alpha1-75fa00a",
       "onepanel": {
         "node1": {
           "vm.args": {
@@ -88,7 +88,7 @@
     },
     "oneprovider": {
       "os_config": "cfg1",
-      "image": "docker.onedata.org/oneprovider-dev:develop",
+      "image": "docker.onedata.org/oneprovider-dev:19.09.0-alpha1-6c1f5b2",
       "onepanel": {
         "node1": {
           "vm.args": {

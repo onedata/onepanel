@@ -70,7 +70,7 @@ exists_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
     end;
 
 exists_resource(Req, #rstate{resource = storages}) ->
-    {service:exists(?WORKER), Req};
+    {service:exists(?WORKER) and service_oneprovider:is_registered(), Req};
 
 exists_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
     {service_oneprovider:is_space_supported(#{space_id => Id}), Req};
