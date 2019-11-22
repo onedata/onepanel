@@ -623,7 +623,7 @@ get_space_details(#{id := SpaceId}) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     {ok, #{name := Name, providers := Providers}} =
         op_worker_rpc:get_space_details(Node, SpaceId),
-    StorageIds = op_worker_storage:get_supporting_storages(Node, SpaceId),
+    {ok, StorageIds} = op_worker_storage:get_supporting_storages(Node, SpaceId),
     StorageId = hd(StorageIds),
     MountInRoot = op_worker_storage:is_mounted_in_root(Node, StorageId),
     ImportDetails = op_worker_storage_sync:get_storage_import_details(

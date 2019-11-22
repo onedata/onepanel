@@ -308,7 +308,7 @@ add(OpNode, StorageName, Params, QosParameters) ->
     maybe_verify_storage(Helper, ReadOnly),
 
     ?info("Adding storage: \"~ts\" (~ts)", [StorageName, StorageType]),
-    StorageRecord = op_worker_rpc:storage_new(StorageName, [Helper],
+    StorageRecord = op_worker_rpc:storage_config_new(StorageName, [Helper],
         ReadOnly, LumaConfig),
     case op_worker_rpc:storage_create(StorageRecord) of
         {ok, StorageId} ->
@@ -553,7 +553,7 @@ update_qos_parameters(OpNode, Id, Parameters) ->
 -spec exists(Node :: node(), Identifier) -> boolean()
     when Identifier :: {name, name()} | {id, id()}.
 exists(Node, {name, StorageName}) ->
-    case op_worker_rpc:get_storage_by_name(Node, StorageName) of
+    case op_worker_rpc:get_storage_config_by_name(Node, StorageName) of
         {error, not_found} -> false;
         {ok, _} -> true
     end;

@@ -63,7 +63,7 @@
 -export_type([storage_doc/0, luma_config/0, helper/0,
     helper_args/0, helper_user_ctx/0]).
 
--export([storage_new/4, storage_new/5]).
+-export([storage_config_new/4, storage_config_new/5]).
 -export([storage_create/1, storage_create/2]).
 -export([storage_safe_remove/1, storage_safe_remove/2]).
 -export([storage_supports_any_space/1, storage_supports_any_space/2]).
@@ -77,27 +77,30 @@
 -export([storage_set_readonly/2, storage_set_readonly/3]).
 -export([storage_set_mount_in_root/1, storage_set_mount_in_root/2]).
 -export([storage_set_luma_config/2, storage_set_luma_config/3]).
--export([storage_update_luma_config/2, storage_update_luma_config/3]).
 -export([storage_set_qos_parameters/2, storage_set_qos_parameters/3]).
+-export([storage_update_luma_config/2, storage_update_luma_config/3]).
 -export([storage_update_name/2, storage_update_name/3]).
--export([get_storage/1, get_storage/2]).
--export([get_storage_by_name/1, get_storage_by_name/2]).
+-export([get_storage_config/1, get_storage_config/2]).
+-export([get_storage_config_by_name/1, get_storage_config_by_name/2]).
 -export([storage_exists/1, storage_exists/2]).
 -export([storage_describe/1, storage_describe/2]).
 -export([storage_is_mounted_in_root/1, storage_is_mounted_in_root/2]).
--export([space_logic_get_storage_ids/1, space_logic_get_storage_ids/2]).
--export([space_storage_get_mounted_in_root/1, space_storage_get_mounted_in_root/2]).
--export([file_popularity_api_configure/2, file_popularity_api_configure/3]).
--export([file_popularity_api_get_configuration/1,
-    file_popularity_api_get_configuration/2]).
--export([autocleaning_configure/2, autocleaning_configure/3]).
--export([autocleaning_get_configuration/1, autocleaning_get_configuration/2]).
 -export([invalidate_luma_cache/1, invalidate_luma_cache/2]).
 -export([new_helper/5, new_helper/6]).
 -export([new_luma_config/2, new_luma_config/3]).
 -export([verify_storage_on_all_nodes/1, verify_storage_on_all_nodes/2]).
 -export([prepare_helper_args/2, prepare_helper_args/3]).
 -export([prepare_user_ctx_params/2, prepare_user_ctx_params/3]).
+-export([space_logic_get_storage_ids/1, space_logic_get_storage_ids/2]).
+-export([file_popularity_api_configure/2, file_popularity_api_configure/3]).
+-export([file_popularity_api_get_configuration/1,
+    file_popularity_api_get_configuration/2]).
+-export([autocleaning_configure/2, autocleaning_configure/3]).
+-export([autocleaning_get_configuration/1, autocleaning_get_configuration/2]).
+-export([autocleaning_list_reports/4, autocleaning_list_reports/5]).
+-export([autocleaning_get_run_report/1, autocleaning_get_run_report/2]).
+-export([autocleaning_status/1, autocleaning_status/2]).
+-export([autocleaning_force_start/1, autocleaning_force_start/2]).
 -export([get_provider_id/0, get_provider_id/1]).
 -export([get_access_token/0, get_access_token/1]).
 -export([is_connected_to_oz/0, is_connected_to_oz/1]).
@@ -117,10 +120,6 @@
 -export([space_quota_current_size/1, space_quota_current_size/2]).
 -export([update_space_support_size/2, update_space_support_size/3]).
 -export([update_subdomain_delegation_ips/0, update_subdomain_delegation_ips/1]).
--export([autocleaning_list_reports/4, autocleaning_list_reports/5]).
--export([autocleaning_get_run_report/1, autocleaning_get_run_report/2]).
--export([autocleaning_status/1, autocleaning_status/2]).
--export([autocleaning_force_start/1, autocleaning_force_start/2]).
 -export([force_oz_connection_start/0, force_oz_connection_start/1]).
 -export([provider_auth_save/2, provider_auth_save/3]).
 -export([get_root_token_file_path/0, get_root_token_file_path/1]).
@@ -142,14 +141,14 @@
 %%% API functions
 %%%===================================================================
 
--spec storage_new(storage_name(), [helper()], boolean(),
+-spec storage_config_new(storage_name(), [helper()], boolean(),
     undefined | luma_config()) -> storage_doc().
-storage_new(Name, Helpers, ReadOnly, LumaConfig) ->
+storage_config_new(Name, Helpers, ReadOnly, LumaConfig) ->
     ?CALL([Name, Helpers, ReadOnly, LumaConfig]).
 
--spec storage_new(node(), storage_name(), [helper()], boolean(),
+-spec storage_config_new(node(), storage_name(), [helper()], boolean(),
     undefined | luma_config()) -> storage_doc().
-storage_new(Node, Name, Helpers, ReadOnly, LumaConfig) ->
+storage_config_new(Node, Name, Helpers, ReadOnly, LumaConfig) ->
     ?CALL(Node, [Name, Helpers, ReadOnly, LumaConfig]).
 
 
@@ -320,23 +319,23 @@ storage_update_name(Node, StorageId, NewName) ->
     ?CALL(Node, [StorageId, NewName]).
 
 
--spec get_storage(op_worker_storage:id()) -> {ok, storage_doc()} | {error, term()}.
-get_storage(Key) ->
+-spec get_storage_config(op_worker_storage:id()) -> {ok, storage_doc()} | {error, term()}.
+get_storage_config(Key) ->
     ?CALL([Key]).
 
--spec get_storage(node(), op_worker_storage:id()) -> {ok, storage_doc()} | {error, term()}.
-get_storage(Node, Key) ->
+-spec get_storage_config(node(), op_worker_storage:id()) -> {ok, storage_doc()} | {error, term()}.
+get_storage_config(Node, Key) ->
     ?CALL(Node, [Key]).
 
 
--spec get_storage_by_name(storage_name()) ->
+-spec get_storage_config_by_name(storage_name()) ->
     {ok, storage_doc()} | {error, term()}.
-get_storage_by_name(Name) ->
+get_storage_config_by_name(Name) ->
     ?CALL([Name]).
 
--spec get_storage_by_name(node(), storage_name()) ->
+-spec get_storage_config_by_name(node(), storage_name()) ->
     {ok, storage_doc()} | {error, term()}.
-get_storage_by_name(Node, Name) ->
+get_storage_config_by_name(Node, Name) ->
     ?CALL(Node, [Name]).
 
 
@@ -369,65 +368,6 @@ storage_is_mounted_in_root(StorageId) ->
     boolean() | {error, term()}.
 storage_is_mounted_in_root(Node, StorageId) ->
     ?CALL(Node, [StorageId]).
-
-
--spec space_logic_get_storage_ids(od_space_id()) -> [op_worker_storage:id()].
-space_logic_get_storage_ids(SpaceId) ->
-    ?CALL([SpaceId]).
-
--spec space_logic_get_storage_ids(node(), od_space_id()) -> {ok, [op_worker_storage:id()]}.
-space_logic_get_storage_ids(Node, SpaceId) ->
-    ?CALL(Node, [SpaceId]).
-
-
--spec space_storage_get_mounted_in_root(storage_id()) -> [op_worker_storage:id()].
-space_storage_get_mounted_in_root(SpaceId) ->
-    ?CALL([SpaceId]).
-
--spec space_storage_get_mounted_in_root(node(), storage_id()) ->
-    [op_worker_storage:id()].
-space_storage_get_mounted_in_root(Node, SpaceId) ->
-    ?CALL(Node, [SpaceId]).
-
-
--spec file_popularity_api_configure(file_popularity_config_id(), map()) ->
-    ok | {error, term()}.
-file_popularity_api_configure(SpaceId, NewConfiguration) ->
-    ?CALL([SpaceId, NewConfiguration]).
-
--spec file_popularity_api_configure(node(), file_popularity_config_id(), map()) ->
-    ok | {error, term()}.
-file_popularity_api_configure(Node, SpaceId, NewConfiguration) ->
-    ?CALL(Node, [SpaceId, NewConfiguration]).
-
-
--spec file_popularity_api_get_configuration(file_popularity_config_id()) ->
-    {ok, map()} | {error, term()}.
-file_popularity_api_get_configuration(SpaceId) ->
-    ?CALL([SpaceId]).
-
--spec file_popularity_api_get_configuration(node(), file_popularity_config_id()) ->
-    {ok, map()} | {error, term()}.
-file_popularity_api_get_configuration(Node, SpaceId) ->
-    ?CALL(Node, [SpaceId]).
-
-
--spec autocleaning_configure(od_space_id(), map()) -> ok | {error, term()}.
-autocleaning_configure(SpaceId, Configuration) ->
-    ?CALL([SpaceId, Configuration]).
-
--spec autocleaning_configure(node(), od_space_id(), map()) -> ok | {error, term()}.
-autocleaning_configure(Node, SpaceId, Configuration) ->
-    ?CALL(Node, [SpaceId, Configuration]).
-
-
--spec autocleaning_get_configuration(od_space_id()) -> map().
-autocleaning_get_configuration(SpaceId) ->
-    ?CALL([SpaceId]).
-
--spec autocleaning_get_configuration(node(), od_space_id()) -> map().
-autocleaning_get_configuration(Node, SpaceId) ->
-    ?CALL(Node, [SpaceId]).
 
 
 -spec invalidate_luma_cache(storage_id()) -> ok.
@@ -472,7 +412,6 @@ verify_storage_on_all_nodes(Node, Helper) ->
     ?NO_EXCEPTION_CALL(Node, [Helper]).
 
 
-
 -spec prepare_helper_args(helper_name(), helper_args()) -> helper_args().
 prepare_helper_args(HelperName, Params) ->
     ?CALL([HelperName, Params]).
@@ -490,6 +429,53 @@ prepare_user_ctx_params(HelperName, Params) ->
 prepare_user_ctx_params(Node, HelperName, Params) ->
     ?CALL(Node, [HelperName, Params]).
 
+-spec space_logic_get_storage_ids(od_space_id()) -> {ok, [op_worker_storage:id()]}.
+space_logic_get_storage_ids(SpaceId) ->
+    ?CALL([SpaceId]).
+
+-spec space_logic_get_storage_ids(node(), od_space_id()) -> {ok, [op_worker_storage:id()]}.
+space_logic_get_storage_ids(Node, SpaceId) ->
+    ?CALL(Node, [SpaceId]).
+
+
+-spec file_popularity_api_configure(file_popularity_config_id(), map()) ->
+    ok | {error, term()}.
+file_popularity_api_configure(SpaceId, NewConfiguration) ->
+    ?CALL([SpaceId, NewConfiguration]).
+
+-spec file_popularity_api_configure(node(), file_popularity_config_id(), map()) ->
+    ok | {error, term()}.
+file_popularity_api_configure(Node, SpaceId, NewConfiguration) ->
+    ?CALL(Node, [SpaceId, NewConfiguration]).
+
+
+-spec file_popularity_api_get_configuration(file_popularity_config_id()) ->
+    {ok, map()} | {error, term()}.
+file_popularity_api_get_configuration(SpaceId) ->
+    ?CALL([SpaceId]).
+
+-spec file_popularity_api_get_configuration(node(), file_popularity_config_id()) ->
+    {ok, map()} | {error, term()}.
+file_popularity_api_get_configuration(Node, SpaceId) ->
+    ?CALL(Node, [SpaceId]).
+
+
+-spec autocleaning_configure(od_space_id(), map()) -> ok | {error, term()}.
+autocleaning_configure(SpaceId, Configuration) ->
+    ?CALL([SpaceId, Configuration]).
+
+-spec autocleaning_configure(node(), od_space_id(), map()) -> ok | {error, term()}.
+autocleaning_configure(Node, SpaceId, Configuration) ->
+    ?CALL(Node, [SpaceId, Configuration]).
+
+
+-spec autocleaning_get_configuration(od_space_id()) -> map().
+autocleaning_get_configuration(SpaceId) ->
+    ?CALL([SpaceId]).
+
+-spec autocleaning_get_configuration(node(), od_space_id()) -> map().
+autocleaning_get_configuration(Node, SpaceId) ->
+    ?CALL(Node, [SpaceId]).
 
 
 -spec get_provider_id() -> {ok, service_oneprovider:id()} | {error, term()}.
