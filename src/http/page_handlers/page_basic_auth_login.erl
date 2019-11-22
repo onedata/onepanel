@@ -40,7 +40,7 @@ handle(<<"POST">>, Req) ->
                 Req3 = gui_session:log_in(?LOCAL_SESSION_USERNAME, Req2),
                 cowboy_req:reply(?HTTP_204_NO_CONTENT, Req3);
             {{error, _} = Error, Req2} ->
-                rest_replier:reply_with_error(Req, Error)
+                rest_replier:reply_with_error(Req2, Error)
         end
     catch Type:Reason ->
         ?error_stacktrace("Login by credentials failed - ~p:~p", [Type, Reason]),

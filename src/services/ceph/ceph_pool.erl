@@ -257,7 +257,7 @@ get_params(PoolName, Params) ->
     onepanel_lists:foldl_while(fun({Key, Param}, Acc) ->
         case rpc:call(Node, ceph_cli, get_pool_param, [PoolName, Param]) of
             {ok, Value} -> {cont, Acc#{Key => Value}};
-            Error -> {halt, ?ERROR_INTERNAL_SERVER_ERROR}
+            _Error -> {halt, ?ERROR_INTERNAL_SERVER_ERROR}
         end
     end, #{}, Params).
 

@@ -135,6 +135,9 @@ parse(_Data, [{Key, _Spec} | _ArgsSpec], Keys, _Args) ->
 
 %%--------------------------------------------------------------------
 %% @private @doc Parses value according to provided specification.
+%% The Keys list is passed around for error reporting in case of
+%% incorrect values. The list is ordered from the innermost key
+%% to outermost.
 %% @end
 %%--------------------------------------------------------------------
 -spec parse_value(Value :: term(), ValueSpec :: multi_spec(), Keys :: keys()) ->
@@ -221,25 +224,28 @@ parse_value(Value, {subclasses, {DiscriminatorField, ValueToSpec}}, Keys) ->
 
 parse_value(Values, [ValueSpec], Keys) ->
     try
-        [parse_value(Value, ValueSpec, Keys) || Value <- Values]
+        [parse_value(Value, ValueSpec, [Idx | Keys])
+            || {Idx, Value} <- lists:zip(lists:seq(1, length(Values)), Values)]
     catch
-        _:_ ->
+        throw:ValueError ->
             case ValueSpec of
+                % special cases for types with list error types
                 atom ->
                     throw(?ERROR_BAD_VALUE_LIST_OF_ATOMS(join_keys(Keys)));
                 _ when ValueSpec == binary; ValueSpec == string ->
                     throw(?ERROR_BAD_VALUE_LIST_OF_BINARIES(join_keys(Keys)));
                 _ ->
-                    throw(?ERROR_BAD_VALUE(join_keys(Keys),
-                        [get_expectation([ValueSpec])]))
-            end
-        end;
+                    throw(ValueError)
+            end;
+        _:_ ->
+            throw(?ERROR_BAD_DATA(join_keys(Keys)))
+    end;
 
 parse_value(Value, ValueSpec, Keys) when is_map(ValueSpec) ->
     parse(Value, maps:to_list(ValueSpec), Keys, #{});
 
-parse_value(_Value, ValueSpec, Keys) ->
-    throw(?ERROR_BAD_VALUE(join_keys(Keys), get_expectation(ValueSpec))).
+parse_value(_Value, _ValueSpec, Keys) ->
+    throw(?ERROR_BAD_DATA(join_keys(Keys))).
 
 
 %%--------------------------------------------------------------------
@@ -272,60 +278,3 @@ has_default(_) -> false.
 -spec join_keys(Keys :: onepanel_parser:keys()) -> Key :: binary().
 join_keys(KeysBottomUp) ->
     onepanel_utils:join(lists:reverse(KeysBottomUp), <<".">>).
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Returns human-readable expectation for a value specification.
-%% @end
-%%--------------------------------------------------------------------
--spec get_expectation(ValueSpec :: field_spec()) ->
-    Expectation :: binary().
-get_expectation(ValueSpec) ->
-    get_expectation(ValueSpec, <<>>).
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Returns human-readable expectation for a value specification.
-%% @end
-%%--------------------------------------------------------------------
--spec get_expectation(ValueSpec :: field_spec(), Acc :: binary()) ->
-    Expectation :: binary().
-get_expectation({ValueSpec, optional}, Acc) ->
-    <<(get_expectation(ValueSpec, Acc))/binary, " (optional)">>;
-
-get_expectation({ValueSpec, {optional, Default}}, Acc) ->
-    <<(get_expectation(ValueSpec, Acc))/binary, " (optional, default: ",
-        (onepanel_utils:convert(Default, binary))/binary, ")">>;
-
-get_expectation({ValueSpec, required}, Acc) ->
-    get_expectation(ValueSpec, Acc);
-
-get_expectation(atom, Acc) ->
-    <<Acc/binary, "'<string>'">>;
-
-get_expectation(ValueSpec, Acc) when is_atom(ValueSpec) ->
-    <<Acc/binary, "'<", (onepanel_utils:convert(ValueSpec, binary))/binary, ">'">>;
-
-get_expectation({equal, Value}, Acc) ->
-    <<Acc/binary, "'", (onepanel_utils:convert(Value, binary))/binary, "'">>;
-
-get_expectation({enum, _Type, Values}, Acc) ->
-    <<Acc/binary, (onepanel_utils:join(["'",Values,"'"], <<" | ">>))/binary>>;
-
-get_expectation({subclasses, {DiscriminatorField, ValueToSpec}}, Acc) ->
-    <<Acc/binary, "{", DiscriminatorField/binary, ": ",
-        (get_expectation({enum, binary, maps:keys(ValueToSpec)}))/binary, ", ...}">>;
-
-get_expectation(ValueSpecs, Acc) when is_list(ValueSpecs) ->
-    Tokens = lists:map(fun(ValueSpec) ->
-        get_expectation(ValueSpec)
-    end, ValueSpecs),
-    <<Acc/binary, "[", (onepanel_utils:join(Tokens, <<", ">>))/binary, "]">>;
-
-get_expectation(ValueSpec, Acc) when is_map(ValueSpec) ->
-    Tokens = lists:map(fun({Key, Value}) ->
-        BinKey = onepanel_utils:convert(Key, binary),
-        <<"'", (BinKey)/binary, "': ", (get_expectation(Value))/binary>>
-    end, maps:to_list(ValueSpec)),
-    <<Acc/binary, "{", (onepanel_utils:join(Tokens, <<", ">>))/binary, "}">>.
-

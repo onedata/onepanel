@@ -80,12 +80,20 @@ parse_list_key_test() ->
     Data1 = #{<<"key">> => [<<"some_string">>, <<"string2">>]},
     Data2 = #{<<"key">> => []},
     Data3 = #{<<"key">> => [1]},
-    ArgsSpec = #{key => [string]},
+    Data4 = #{<<"key">> => [#{<<"subkey">> => <<"a">>}, #{<<"subkey">> => <<"b">>}]},
+    Data5 = #{<<"key">> => [3, <<"not-an-integer">>]},
+    ArgsSpec1 = #{key => [string]},
+    ArgsSpec2 = #{key => [#{subkey => string}]},
+    ArgsSpec3 = #{key => [integer]},
     ?assertEqual(#{key => [<<"some_string">>, <<"string2">>]},
-        onepanel_parser:parse(Data1, ArgsSpec)),
-    ?assertEqual(#{key => []}, onepanel_parser:parse(Data2, ArgsSpec)),
+        onepanel_parser:parse(Data1, ArgsSpec1)),
+    ?assertEqual(#{key => []}, onepanel_parser:parse(Data2, ArgsSpec1)),
     ?assertThrow(?ERROR_BAD_VALUE_LIST_OF_BINARIES(<<"key">>),
-        onepanel_parser:parse(Data3, ArgsSpec)).
+        onepanel_parser:parse(Data3, ArgsSpec1)),
+    ?assertEqual(#{key => [#{subkey => <<"a">>}, #{subkey => <<"b">>}]},
+        onepanel_parser:parse(Data4, ArgsSpec2)),
+    ?assertThrow(?ERROR_BAD_VALUE_INTEGER(<<"key.2">>),
+        onepanel_parser:parse(Data5, ArgsSpec3)).
 
 
 parse_string_key_test() ->

@@ -23,7 +23,7 @@
 
 %% Errors for internal onepanel use. Do not have a REST translator
 -define(ERR_AMBIGUOUS_HOSTS, {error, ambiguous_hosts}).
--define(ERR_CMD_FAILURE(Code, StdOut, StdOrr), {error, {shell_command_failure, Code, StdOut, StdErr}}).
+-define(ERR_CMD_FAILURE(Code, StdOut, StdErr), {error, {shell_command_failure, Code, StdOut, StdErr}}).
 -define(ERR_DOC_NOT_FOUND, {error, not_found}).
 -define(ERR_PARSING_FAILURE(OffendingLine), {parsing_failure, OffendingLine}).
 -define(ERR_UNKNOWN_TYPE(Value), {error, {unknown_type, Value}}).

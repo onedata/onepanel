@@ -400,7 +400,8 @@ make_update_result(OpNode, StorageId) ->
         skipped -> Details;
         verified -> Details#{verificationPassed => true}
     catch ErrType:Error ->
-        ?warning("Verfication of modified storage ~p (~p) failed", [Name, StorageId]),
+        ?warning("Verfication of modified storage ~p (~p) failed: ~tp:~tp",
+            [Name, StorageId, ErrType, Error]),
         Details#{verificationPassed => false}
     end.
 

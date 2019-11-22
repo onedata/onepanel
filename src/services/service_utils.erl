@@ -367,7 +367,7 @@ select_error(Errors) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec cast_to_serializable_error(T | term()) -> T when T :: errors:error().
-cast_to_serializable_error({error, #exception{}} = Error) ->
+cast_to_serializable_error({error, #exception{}}) ->
     ?ERROR_INTERNAL_SERVER_ERROR;
 cast_to_serializable_error({error, _} = Error) ->
     Error;
