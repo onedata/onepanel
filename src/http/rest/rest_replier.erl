@@ -78,9 +78,9 @@ reply_with_error(Req, throw, Error) ->
     cowboy_req:reply(Code, #{}, Body, Req);
 
 reply_with_error(Req, Type, Reason) ->
-    % make use of ERROR_UNEXPECTED json encoder which will generate
-    % unique error ref and log the error
-    reply_with_error(Req, throw, #exception{type = Type, value = Reason}).
+    ErrorRef = str_utils:rand_hex(5),
+    ?warning("Unexpected error (ref. ~s): ~tp:~tp", [ErrorRef, Type, Reason]),
+    reply_with_error(Req, throw, ?ERROR_INTERNAL_SERVER_ERROR).
 
 
 %%--------------------------------------------------------------------
