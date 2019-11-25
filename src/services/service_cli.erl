@@ -73,15 +73,10 @@ restart(Service) ->
 -spec status(service:name(), Command :: status | ping) -> running | stopped | missing.
 status(Service, Command) ->
     Tokens = [get_script(Service), Command],
-    try
-        % use ensure_success/1 instead of execute/1 to log error on failure
-        onepanel_shell:ensure_success(Tokens),
-        running
-    catch
-        error:?ERR_CMD_FAILURE(127, _, _) ->
-            missing;
-        error:?ERR_CMD_FAILURE(_Code, _, _) ->
-            stopped
+    case onepanel_shell:execute(Tokens) of
+        {0, _, _} -> running;
+        {127, _, _} -> missing;
+        {_, _, _} -> stopped
     end.
 
 
