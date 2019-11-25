@@ -170,5 +170,6 @@ user_details_to_client(Details, Auth) ->
                 zone_auth = Auth,
                 role = member
             };
-        Error -> Error
+        ?ERROR_NO_CONNECTION_TO_ONEZONE -> throw(?ERROR_NO_CONNECTION_TO_ONEZONE);
+        _Error -> throw(?ERROR_FORBIDDEN)
     end.

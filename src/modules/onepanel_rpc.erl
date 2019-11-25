@@ -94,7 +94,7 @@ call(Nodes, Module, Function, Args, Timeout) when is_list(Nodes) ->
 
     BadNodes = onepanel_lists:subtract(Nodes, proplists:get_keys(Results)),
     AllResults = Results ++
-        [{BadNode, ?ERROR_NO_CONNECTION_TO_ONEZONE} || BadNode <- BadNodes],
+        [{BadNode, ?ERROR_NO_CONNECTION_TO_CLUSTER_NODE} || BadNode <- BadNodes],
 
     ?debug("Call ~p:~p(~p) on nodes ~p with timeout ~p returned ~p",
         [Module, Function, Args, Nodes, Timeout, AllResults]),
@@ -176,12 +176,12 @@ call_any(Nodes, Module, Function, Args, Timeout) ->
 -spec all(Results :: results()) -> Results :: results() | no_return().
 all(Results) ->
     BadResults = lists:filtermap(fun
-        ({_, {error, _}}) -> true;
+        ({_, {error, _} = Error}) -> {true, Error};
         ({_, _}) -> false
     end, Results),
     case BadResults of
         [] -> Results;
-        [Error | _] -> error(Error)
+        [{error, Reason} | _] -> reraise(Reason)
     end.
 
 
@@ -199,6 +199,14 @@ any(Results) ->
         ({_, Value}) -> {true, Value}
     end, Results),
     case {GoodResults, Results} of
-        {[], [FirstError | _]} -> throw(FirstError);
-        {[Value | _], _} -> Value
+        {[Value | _], _} -> Value;
+        {[], [{_Node, {error, Reason}} | _]} -> reraise(Reason)
     end.
+
+
+-spec reraise(#exception{} | term()) -> no_return().
+reraise(#exception{type = Type, value = Value}) ->
+    erlang:Type(Value);
+
+reraise(Value) ->
+    throw(Value).

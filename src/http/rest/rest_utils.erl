@@ -127,8 +127,8 @@ get_hosts(Keys, Args) ->
         case maps:find(Alias, HostsMap) of
             {ok, Host} -> onepanel_utils:convert(Host, list);
             error ->
-                Location = onepanel_utils:join(Keys,<<".">>),
-                throw(?ERROR_BAD_VALUE_NOT_ALLOWED(Location, maps:keys(HostsMap)))
+                throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(
+                    str_utils:join_as_binaries(Keys, <<".">>), maps:keys(HostsMap)))
         end
     end, AliasesList).
 

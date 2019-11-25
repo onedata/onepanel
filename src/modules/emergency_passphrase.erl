@@ -34,7 +34,7 @@
 %% Ensures given passphrase is valid and sets it as the new root passphrase.
 %% @end
 %%--------------------------------------------------------------------
--spec set(Passphrase :: binary()) -> ok |?ERROR_BAD_VALUE_PASSWORD.
+-spec set(Passphrase :: binary()) -> ok | ?ERROR_BAD_VALUE_PASSWORD.
 set(Passphrase) ->
     case validate(Passphrase) of
         ok -> set_hash(onedata_passwords:create_hash(Passphrase));

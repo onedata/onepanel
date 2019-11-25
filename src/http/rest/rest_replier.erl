@@ -44,7 +44,7 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec throw_on_service_error(Req, Results) -> Req | no_return() when
-    Req :: cowboy_req:req(), Results :: {error, _} | {error, term()} | service_executor:results().
+    Req :: cowboy_req:req(), Results :: {error, term()} | service_executor:results().
 throw_on_service_error(Req, Results) ->
     service_utils:throw_on_error(Results),
     Req.
@@ -80,9 +80,14 @@ reply_with_error(Req, throw, Error) ->
 reply_with_error(Req, Type, Reason) ->
     % make use of ERROR_UNEXPECTED json encoder which will generate
     % unique error ref and log the error
-    reply_with_error(Req, throw, {Type, Reason}).
+    reply_with_error(Req, throw, #exception{type = Type, value = Reason}).
 
 
+%%--------------------------------------------------------------------
+%% @doc Sets response body to an error representation, without
+%% change the HTTP code nor sending the reply.
+%% @end
+%%--------------------------------------------------------------------
 -spec set_error_body(cowboy_req:req(), Reason :: errors:error()) ->
     cowboy_req:req().
 set_error_body(Req, Error) ->

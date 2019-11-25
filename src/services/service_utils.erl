@@ -93,7 +93,7 @@ notify(Msg, _Notify) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec partition_results(Results :: onepanel_rpc:results()) ->
-    {GoodResults :: onepanel_rpc:results(), BadResults :: onepanel_rpc:results()}.
+    service_executor:hosts_results().
 partition_results(Results) ->
     lists:partition(fun
         ({_, {error, _}}) -> false;
@@ -129,7 +129,7 @@ results_contain_error(Results) ->
 %% @doc Throws an exception if an error occurred during service action execution.
 %% @end
 %%--------------------------------------------------------------------
--spec throw_on_error(Results :: service_executor:results() | {error, _} | {error, term()}) ->
+-spec throw_on_error(Results :: service_executor:results() | {error, term()}) ->
     service_executor:results() | no_return().
 throw_on_error(Results) ->
     case results_contain_error(Results) of
@@ -322,8 +322,7 @@ format_errors([], Log) ->
     Log;
 
 format_errors([{Node, {error, _} = Error} | Errors], Log) ->
-    ErrorStr = str_utils:format("Node: ~tp~nError: ~tp",
-        [Node, Error]),
+    ErrorStr = str_utils:format("Node: ~tp~nError: ~tp", [Node, Error]),
     format_errors(Errors, Log ++ ErrorStr).
 
 
@@ -349,7 +348,7 @@ bad_results_to_error(BadResults) ->
 %% multiple hosts returned different results.
 %% @end
 %%--------------------------------------------------------------------
--spec select_error([Error]) -> Error when Error :: errors:error().
+-spec select_error(nonempty_list(Error)) -> Error when Error :: errors:error().
 select_error(Errors) ->
     % Use http code as a heuristic favoring user-caused errors (4xx) over server errors
     hd(lists:sort(fun(E1, E2) ->

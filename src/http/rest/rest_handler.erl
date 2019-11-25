@@ -176,6 +176,7 @@ is_authorized(Req, #rstate{methods = Methods} = State) ->
                     Req5 = cowboy_req:set_resp_body(<<>>, Req4),
                     {true, Req5, State#rstate{client = #client{role = guest}}};
                 _ ->
+                    % @fixme maybe enforce 401
                     {stop, rest_replier:reply_with_error(Req, Error), State}
             end
     end.
@@ -250,7 +251,8 @@ accept_resource_json(Req, #rstate{} = State) ->
         throw:Reason ->
             {stop, rest_replier:reply_with_error(Req, Reason), State};
         Type:Reason ->
-            ?error_stacktrace("Error in accept resource: ~tp:~tp", [Type, Reason]),
+            ?error_stacktrace("Error handling ~s request: ~tp:~tp",
+                [cowboy_req:method(Req), Type, Reason]),
             {stop, rest_replier:reply_with_error(Req, ?ERROR_INTERNAL_SERVER_ERROR), State}
     end.
 

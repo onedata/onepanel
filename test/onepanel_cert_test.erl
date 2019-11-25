@@ -18,6 +18,10 @@
 -define(LOCALHOST_CERT, filename:join(?DATA_DIR, "localhost_cert.pem")).
 -define(MULTIDOMAIN_CERT, filename:join(?DATA_DIR, "multidomain_cert.pem")).
 
+% validity dates of the localhost_cert stored in test data
+-define(SINCE, 1518104419). % Feb  8 15:40:19 2018 GMT
+-define(UNTIL, 1833464419). % Feb  6 15:40:19 2028 GMT
+
 -include("modules/errors.hrl").
 -include_lib("public_key/include/OTP-PUB-KEY.hrl").
 -include_lib("eunit/include/eunit.hrl").
@@ -45,11 +49,14 @@ read_issuer_common_name_test() ->
 
 
 read_dates_as_epoch_test() ->
-    ExpectedSince = 1518104419, % Feb  8 15:40:19 2018 GMT
-    ExpectedUntil = 1833464419, % Feb  6 15:40:19 2028 GMT
     {ok, Cert} = onepanel_cert:read(?LOCALHOST_CERT),
-    ?assertEqual({ExpectedSince, ExpectedUntil},
-        onepanel_cert:get_times(Cert)).
+    ?assertEqual({?SINCE, ?UNTIL}, onepanel_cert:get_times(Cert)).
+
+
+get_seconds_till_expiration_test() ->
+    {ok, Cert} = onepanel_cert:read(?LOCALHOST_CERT),
+    ?assertEqual(?UNTIL - time_utils:system_time_seconds(),
+        onepanel_cert:get_seconds_till_expiration(Cert)).
 
 
 verify_accepts_domain_test() ->

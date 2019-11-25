@@ -30,7 +30,7 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec read(Key :: key(), Path :: file:name_all()) ->
-    {ok, Value :: binary()} | {error, _} | no_return().
+    {ok, Value :: binary()} | error | no_return().
 read(Key, Path) ->
     case file:read_file(Path) of
         {ok, Content} ->

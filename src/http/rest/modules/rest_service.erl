@@ -308,7 +308,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone} = State) 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = dns_check_configuration}) ->
     Ctx = case Args of
         #{dnsServers := IPs} ->
-            #{dns_servers => parse_ip4_list([dnsServers], IPs)};
+            #{dns_servers => parse_ip4_list(IPs, dnsServers)};
         _ -> #{}
     end,
     Ctx2 = kv_utils:copy_found([
@@ -455,12 +455,12 @@ cluster_worker_name() ->
 
 
 %% @private
--spec parse_ip4_list(FieldName :: onepanel_parser:keys(), IpBinaries :: [binary()]) ->
+-spec parse_ip4_list(IpBinaries :: [binary()], Field :: atom()) ->
     [inet:ip4_address()] | no_return().
-parse_ip4_list(FieldName, IpBinaries) ->
+parse_ip4_list(IpBinaries, Field) ->
     lists:map(fun(IpBinary) ->
         case onepanel_ip:parse_ip4(IpBinary) of
             {ok, IP} -> IP;
-            _ -> throw(?ERROR_BAD_VALUE_IPV4_ADDRESS(FieldName))
+            _ -> throw(?ERROR_BAD_VALUE_IPV4_ADDRESS(str_utils:to_binary(Field)))
         end
     end, IpBinaries).

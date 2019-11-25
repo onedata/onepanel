@@ -116,7 +116,9 @@ authenticate_by_onezone_auth_token(Req) ->
 check_basic_credentials(<<Base64/binary>>) ->
     Decoded = base64:decode(Base64),
     case check_emergency_passphrase(Decoded) of
-        #client{} = Client -> Client;
+        #client{} = Client ->
+            % basic auth consisting solely of a valid passphrase is accepted
+            Client;
         _Error ->
             case binary:split(Decoded, <<":">>) of
                 [Decoded] ->

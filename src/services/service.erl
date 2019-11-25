@@ -507,7 +507,7 @@ store_in_ctx(Service, Keys, Value) ->
 %% @private @doc Applies the service steps associated with an action.
 %%--------------------------------------------------------------------
 -spec apply_steps(Steps :: [step()], Notify :: notify()) ->
-    ok | {error, {module(), Function :: atom()}, service_executor:hosts_results()}.
+    ok | {error, {module(), Function :: atom(), service_executor:hosts_results()}}.
 apply_steps([], _Notify) ->
     ok;
 

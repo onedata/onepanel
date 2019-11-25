@@ -50,7 +50,8 @@ local(ServiceName) ->
 %% If among considered hosts is the current one, this host's node is returned.
 %% @end
 %%--------------------------------------------------------------------
--spec any(ServiceNameOrOpts :: service:name() | opts()) -> {ok, node()} | {error, _}.
+-spec any(ServiceNameOrOpts :: service:name() | opts()) ->
+    {ok, node()} | ?ERROR_NO_SERVICE_NODES(_).
 any(ServiceName) when ?IS_SERVICE_NAME(ServiceName) ->
     any(#{service => ServiceName});
 

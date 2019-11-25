@@ -225,7 +225,7 @@ parse_line(<<Line/binary>>) ->
         [Key, Value] ->
             {entry, string:trim(Key), string:trim(Value)};
         _ ->
-            ?error("Ceph config parsing faild on line ~B", [Line]),
+            ?error("Parsing Ceph config failed on line ~B", [Line]),
             error(?ERR_PARSING_FAILURE(Line))
     end.
 

@@ -120,12 +120,7 @@ get_user_privileges({rest, RestAuth}, OnezoneUserId) ->
             {ok, #{privileges := Privileges}} ->
                 ListOfAtoms = onepanel_utils:convert(Privileges, {seq, atom}),
                 {true, ListOfAtoms, ?PRIVILEGES_CACHE_TTL};
-            ?ERROR_UNAUTHORIZED ->
-                ?ERROR_UNAUTHORIZED;
-            ?ERROR_NOT_FOUND ->
-                ?ERROR_NOT_FOUND;
-            {error, _} = Error ->
-                error(Error)
+            Error -> Error
         end
     end);
 

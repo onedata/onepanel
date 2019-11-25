@@ -24,11 +24,6 @@
     {error, _} = __Error -> __Error
 end).
 
--define(RETURN_OK(__Term), case __Term of
-    ok -> ok;
-    {error, _} = __Error -> __Error
-end).
-
 -export([
     create/2,
     get/1,
@@ -49,7 +44,7 @@ end).
 %%--------------------------------------------------------------------
 -spec create(gui_session:id(), gui_session:details()) -> ok | {error, term()}.
 create(Id, Details) ->
-    ?RETURN_OK(onepanel_session:create(Id, details_to_session(Details, #onepanel_session{}))).
+    onepanel_session:create(Id, details_to_session(Details, #onepanel_session{})).
 
 
 %%--------------------------------------------------------------------

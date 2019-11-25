@@ -213,7 +213,7 @@ parse_value(Value, {enum, ValueType, AllowedValues}, Keys) ->
 
 parse_value(Value, {subclasses, {DiscriminatorField, ValueToSpec}}, Keys) ->
     BinKey = onepanel_utils:convert(DiscriminatorField, binary),
-    DiscriminatorValue = case maps:find (BinKey, Value) of
+    DiscriminatorValue = case maps:find(BinKey, Value) of
         {ok, V} -> V;
         error -> throw(?ERROR_MISSING_REQUIRED_VALUE(join_keys([BinKey | Keys])))
     end,

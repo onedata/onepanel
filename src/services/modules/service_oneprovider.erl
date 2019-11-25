@@ -536,7 +536,7 @@ get_details() ->
             false -> get_details_by_rest()
         end
     catch
-        Type:{error, ?ERROR_UNREGISTERED_ONEPROVIDER} = Error ->
+        Type:?ERROR_UNREGISTERED_ONEPROVIDER = Error ->
             erlang:Type(Error);
         Type:Error ->
             case service:get_ctx(name()) of
