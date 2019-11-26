@@ -29,11 +29,6 @@
 -define(USER_DETAILS_CACHE_KEY(Token), {user_details, Token}).
 -define(USER_DETAILS_CACHE_TTL, onepanel_env:get(onezone_auth_cache_ttl, ?APP_NAME, 0)).
 
-% Caveats which are not properly enforced by Onepanel and should be rejected
--define(FORBIDDEN_CAVEATS, [
-    cv_api, cv_data_space, cv_data_access, cv_data_path, cv_data_objectid
-]).
-
 %%%===================================================================
 %%% API functions
 %%%===================================================================
@@ -46,10 +41,10 @@
 %% cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec authenticate_user(Token :: binary(), PeerIp :: ip_utils:ip()) ->
+-spec authenticate_user(tokens:serialized(), PeerIp :: ip_utils:ip()) ->
     #client{} | #error{}.
 authenticate_user(Token, PeerIp) ->
-    case ensure_caveats_allowed(Token) of
+    case ensure_no_api_caveats(Token) of
         ok ->
             ClusterType = onepanel_env:get_cluster_type(),
             case authenticate_user(ClusterType, Token, PeerIp) of
@@ -65,7 +60,7 @@ authenticate_user(Token, PeerIp) ->
 %% @doc Reads Onezone domain from a Oneprovider registration token.
 %% @end
 %%--------------------------------------------------------------------
--spec read_domain(RegistrationToken :: binary()) -> Domain :: binary() | no_return().
+-spec read_domain(tokens:serialized()) -> Domain :: binary() | no_return().
 read_domain(RegistrationToken) ->
     {ok, Token} = tokens:deserialize(RegistrationToken),
     Token#token.onezone_domain.
@@ -77,20 +72,22 @@ read_domain(RegistrationToken) ->
 
 %%--------------------------------------------------------------------
 %% @private
-%% @doc Checks that the token is confined only by caveats supported
-%% by Onepanel. Otherwise returns error to reject the token,
-%% as proceeding with token could grant higher privileges than
+%% @doc Checks that the token does not contain any API caveats, which are
+%% currently not supported by Onepanel. Otherwise returns error to reject
+%% the token, as proceeding with token could grant higher privileges than
 %% the token's issuer intended.
+%% @TODO VFS-5765 implement support for the API caveat after GraphSync integration
+%% @TODO VFS-5765 use api_caveats:check_authorization
 %% @end
 %%--------------------------------------------------------------------
--spec ensure_caveats_allowed(tokens:serialized()) -> ok | #error{}.
-ensure_caveats_allowed(Token) ->
+-spec ensure_no_api_caveats(tokens:serialized()) -> ok | #error{}.
+ensure_no_api_caveats(Token) ->
     case tokens:deserialize(Token) of
         {ok, Deserialized} ->
             Caveats = tokens:get_caveats(Deserialized),
-            case caveats:filter(?FORBIDDEN_CAVEATS, Caveats) of
-                [Caveat | _] -> ?make_error(?ERROR_TOKEN_CAVEAT_UNVERIFIED(Caveat));
-                [] -> ok
+            case api_caveats:find_any(Caveats) of
+                {true, Caveat} -> ?make_error(?ERROR_TOKEN_CAVEAT_UNVERIFIED(Caveat));
+                false -> ok
             end;
         Error ->
             ?make_error(Error)
@@ -99,13 +96,11 @@ ensure_caveats_allowed(Token) ->
 
 %%--------------------------------------------------------------------
 %% @private
-%% @doc Authenticate user and obtain their info.
-%% Attempts treating the Token as access token or gui token, whichever
-%% is accepted, as they cannot be easily distinguished.
+%% @doc Authenticate user and obtain their info based on an access token.
 %% @end
 %%--------------------------------------------------------------------
 -spec authenticate_user(
-    onedata:cluster_type(), Token :: binary(), PeerIp :: ip_utils:ip()
+    onedata:cluster_type(), tokens:serialized(), PeerIp :: ip_utils:ip()
 ) -> #client{} | #error{}.
 authenticate_user(onezone, Token, PeerIp) ->
     case service_oz_worker:get_auth_by_token(Token, PeerIp) of
