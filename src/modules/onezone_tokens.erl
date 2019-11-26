@@ -44,7 +44,7 @@
 -spec authenticate_user(tokens:serialized(), PeerIp :: ip_utils:ip()) ->
     #client{} | #error{}.
 authenticate_user(Token, PeerIp) ->
-    case ensure_no_api_caveats(Token) of
+    case ensure_unlimited_api_authorization(Token) of
         ok ->
             ClusterType = onepanel_env:get_cluster_type(),
             case authenticate_user(ClusterType, Token, PeerIp) of
@@ -80,14 +80,14 @@ read_domain(RegistrationToken) ->
 %% @TODO VFS-5765 use api_caveats:check_authorization
 %% @end
 %%--------------------------------------------------------------------
--spec ensure_no_api_caveats(tokens:serialized()) -> ok | #error{}.
-ensure_no_api_caveats(Token) ->
-    case tokens:deserialize(Token) of
-        {ok, Deserialized} ->
-            Caveats = tokens:get_caveats(Deserialized),
-            case api_caveats:find_any(Caveats) of
-                {true, Caveat} -> ?make_error(?ERROR_TOKEN_CAVEAT_UNVERIFIED(Caveat));
-                false -> ok
+-spec ensure_unlimited_api_authorization(tokens:serialized()) -> ok | #error{}.
+ensure_unlimited_api_authorization(Serialized) ->
+    case tokens:deserialize(Serialized) of
+        {ok, Token = #token{subject = Subject}} ->
+            Auth = #auth{subject = Subject, caveats = tokens:get_caveats(Token)},
+            case api_auth:ensure_unlimited(Auth) of
+                ok -> ok;
+                {error, _} = Error -> ?make_error(Error)
             end;
         Error ->
             ?make_error(Error)
