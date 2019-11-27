@@ -16,7 +16,7 @@
 -include("onepanel_test_rest.hrl").
 -include_lib("ctool/include/aai/caveats.hrl").
 -include_lib("ctool/include/errors.hrl").
--include_lib("ctool/include/graph_sync/graph_sync.hrl").
+-include_lib("ctool/include/graph_sync/gri.hrl").
 -include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
