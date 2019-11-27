@@ -54,10 +54,10 @@ user_exists(UserId) ->
 add_users(#{onezone_users := Users}) ->
     {OzNode, Client} = get_node_and_client(),
     lists:foreach(fun(User) ->
-        Data = kv_utils:copy_found([
+        Data = kv_utils:find_many([
             {username, <<"username">>},
             {password, <<"password">>}
-        ], User, #{}),
+        ], User),
         case oz_worker_rpc:create_user(OzNode, Client, Data) of
             {ok, UserId} ->
                 Groups = maps:get(groups, User),

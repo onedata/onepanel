@@ -730,7 +730,7 @@ get_auto_cleaning_report(#{report_id := ReportId}) ->
     case op_worker_rpc:autocleaning_get_run_report(ReportId) of
         {ok, Report} ->
             onepanel_maps:undefined_to_null(
-                kv_utils:copy_found([
+                kv_utils:find_many([
                     {id, id},
                     {index, index},
                     {started_at, startedAt},
@@ -738,7 +738,7 @@ get_auto_cleaning_report(#{report_id := ReportId}) ->
                     {released_bytes, releasedBytes},
                     {bytes_to_release, bytesToRelease},
                     {files_number, filesNumber}
-                ], Report, #{}));
+                ], Report));
         {error, Reason} ->
             ?throw_error({?ERR_AUTOCLEANING, Reason})
     end.
@@ -752,10 +752,10 @@ get_auto_cleaning_report(#{report_id := ReportId}) ->
 -spec get_auto_cleaning_status(Ctx :: service:ctx()) -> #{atom() => term()}.
 get_auto_cleaning_status(#{space_id := SpaceId}) ->
     Status = op_worker_rpc:autocleaning_status(SpaceId),
-    kv_utils:copy_found([
+    kv_utils:find_many([
         {in_progress, inProgress},
         {space_occupancy, spaceOccupancy}
-    ], Status, #{}).
+    ], Status).
 
 
 %%-------------------------------------------------------------------
@@ -1012,10 +1012,10 @@ get_details_by_graph_sync() ->
 
     #{latitude := Latitude, longitude := Longitude} = Details,
 
-    Response = kv_utils:copy_found([
+    Response = kv_utils:find_many([
         {id, id}, {name, name}, {admin_email, adminEmail},
         {subdomain_delegation, subdomainDelegation}, {domain, domain}
-    ], Details, #{}),
+    ], Details),
 
     Response2 = Response#{
         geoLatitude => onepanel_utils:convert(Latitude, float),

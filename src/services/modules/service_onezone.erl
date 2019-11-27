@@ -290,8 +290,8 @@ get_gui_message(#{message_id := MessageId}) ->
 -spec update_gui_message(#{message_id := oz_worker_rpc:gui_message_id(),
     enabled => boolean(), body => binary()}) -> ok.
 update_gui_message(#{message_id := MessageId} = Ctx) ->
-    Diff = kv_utils:copy_found([
+    Diff = kv_utils:find_many([
         {body, <<"body">>}, {enabled, <<"enabled">>}
-    ], Ctx, #{}),
+    ], Ctx),
     {rpc, Auth} = onezone_client:root_auth(),
     ok = oz_worker_rpc:update_gui_message(Auth, MessageId, Diff).

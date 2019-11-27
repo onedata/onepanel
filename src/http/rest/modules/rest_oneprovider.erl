@@ -122,7 +122,7 @@ is_available(Req, _Method, _State) ->
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()}.
 accept_resource(Req, 'POST', Args, #rstate{resource = provider}) ->
-    Ctx = kv_utils:copy_found([
+    Ctx = kv_utils:find_many([
         {token, oneprovider_token},
         {name, oneprovider_name},
         {subdomainDelegation, oneprovider_subdomain_delegation},
@@ -131,14 +131,14 @@ accept_resource(Req, 'POST', Args, #rstate{resource = provider}) ->
         {adminEmail, oneprovider_admin_email},
         {geoLatitude, oneprovider_geo_latitude},
         {geoLongitude, oneprovider_geo_longitude}
-    ], Args, #{}),
+    ], Args),
 
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?SERVICE, register, Ctx
     ))};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
-    Ctx = kv_utils:copy_found([
+    Ctx = kv_utils:find_many([
         {name, oneprovider_name},
         {subdomainDelegation, oneprovider_subdomain_delegation},
         {domain, oneprovider_domain},
@@ -147,18 +147,18 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
         {geoLatitude, oneprovider_geo_latitude},
         {geoLongitude, oneprovider_geo_longitude},
         {letsEncryptEnabled, letsencrypt_enabled}
-    ], Args, #{}),
+    ], Args),
 
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?SERVICE, modify_details, Ctx
     ))};
 
 accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
-    Ctx = kv_utils:copy_found([
+    Ctx = kv_utils:find_many([
         {token, token},
         {size, size},
         {storageId, storage_id},
-        {mountInRoot, mount_in_root}], Args, #{}),
+        {mountInRoot, mount_in_root}], Args),
     Ctx2 = get_storage_import_args(Args, Ctx),
     Ctx3 = get_storage_update_args(Args, Ctx2),
 

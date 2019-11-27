@@ -222,13 +222,13 @@ maybe_update_auto_cleaning(OpNode, SpaceId, Args) ->
 get_file_popularity_configuration(OpNode, SpaceId) ->
     case op_worker_rpc:file_popularity_api_get_configuration(OpNode, SpaceId) of
         {ok, DetailsMap} ->
-            kv_utils:copy_found([
+            kv_utils:find_many([
                 {[enabled], [enabled]},
                 {[example_query], [exampleQuery]},
                 {[last_open_hour_weight], [lastOpenHourWeight]},
                 {[avg_open_count_per_day_weight], [avgOpenCountPerDayWeight]},
                 {[max_avg_open_count_per_day], [maxAvgOpenCountPerDay]}
-            ], DetailsMap, #{});
+            ], DetailsMap);
         {error, Reason} ->
             ?throw_error({?ERR_FILE_POPULARITY, Reason})
     end.
@@ -443,11 +443,11 @@ make_user_ctx(OpNode, StorageType, Params) ->
 -spec make_luma_params(Params :: storage_params()) ->
     #{url => binary(), api_key => binary(), luma_enabled => boolean()}.
 make_luma_params(Params) ->
-    kv_utils:copy_found([
+    kv_utils:find_many([
         {lumaUrl, url},
         {lumaApiKey, api_key},
         {lumaEnabled, luma_enabled}
-    ], Params, #{}).
+    ], Params).
 
 
 %% @private
