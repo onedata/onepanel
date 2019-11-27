@@ -167,14 +167,15 @@ get(Id) ->
 %%--------------------------------------------------------------------
 -spec get_supporting_storage(OpNode :: node(), SpaceId :: id()) -> id().
 get_supporting_storage(OpNode, SpaceId) ->
-    hd(get_supporting_storages(OpNode, SpaceId)).
+    {ok, StorageIds} = get_supporting_storages(OpNode, SpaceId),
+    hd(StorageIds).
 
 
 %%--------------------------------------------------------------------
 %% @doc Returns all storages supporting given space on given OpNode.
 %% @end
 %%--------------------------------------------------------------------
--spec get_supporting_storages(OpNode :: node(), SpaceId :: id()) -> [id()].
+-spec get_supporting_storages(OpNode :: node(), SpaceId :: id()) -> {ok, [id()]}.
 get_supporting_storages(OpNode, SpaceId) ->
     op_worker_rpc:space_logic_get_storage_ids(OpNode, SpaceId).
 
@@ -310,7 +311,7 @@ add(OpNode, StorageName, Params, QosParameters) ->
     ImportedStorage = onepanel_utils:typed_get(importedStorage, Params, boolean, false),
 
     ?info("Adding storage: \"~ts\" (~ts)", [StorageName, StorageType]),
-    StorageRecord = op_worker_rpc:storage_new(StorageName, [Helper],
+    StorageRecord = op_worker_rpc:storage_config_new(StorageName, [Helper],
         ReadOnly, LumaConfig, ImportedStorage),
     case op_worker_rpc:storage_create(StorageRecord) of
         {ok, StorageId} ->
@@ -568,7 +569,7 @@ update_imported_storage(OpNode, Id, Value) ->
 -spec exists(Node :: node(), Identifier) -> boolean()
     when Identifier :: {name, name()} | {id, id()}.
 exists(Node, {name, StorageName}) ->
-    case op_worker_rpc:get_storage_by_name(Node, StorageName) of
+    case op_worker_rpc:get_storage_config_by_name(Node, StorageName) of
         {error, not_found} -> false;
         {ok, _} -> true
     end;
