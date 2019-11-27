@@ -34,7 +34,7 @@
 %% API
 -export([get/2, get/3, find/2, put/3, remove/2]).
 -export([get_converted/3, get_converted/4, find_converted/3]).
--export([copy/3, copy_found/3]).
+-export([copy/3, copy_found/3, find_many/2]).
 
 
 %%--------------------------------------------------------------------
@@ -224,6 +224,16 @@ copy_found(Mappings, Source, Target) ->
         ({From, To, Default}, TargetAcc) ->
             put(To, get(From, Source, Default), TargetAcc)
     end, Target, Mappings).
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns new map with requested keys, skipping missing entries.
+%% {@equiv copy_found(Mappings, Source, #{})}
+%% @end
+%%--------------------------------------------------------------------
+-spec find_many([mapping(K1, K2, V)], Source :: nested(K1, V)) -> nested(K2, V).
+find_many(Mappings, Source) ->
+    copy_found(Mappings, Source, #{}).
 
 
 %%%===================================================================

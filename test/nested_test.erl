@@ -251,4 +251,20 @@ copy_found_test_() -> [[
             ], Container, #{}))}
 ] || Container <- ?ALL].
 
+
+find_many_test() -> [[
+    {"skip missing",
+        ?_assertEqual(#{},
+            nested:find_many([{missing, key1}], Container))},
+    {"multiple mappings",
+        ?_assertEqual(#{{target} => value1, key3 => value3},
+            nested:find_many([
+                {key1, {target}},
+                {missing, key2},
+                {[key2, key3], key3}
+            ], Container))}
+    ] || Container <- ?ALL].
+
+
+
 -endif.
