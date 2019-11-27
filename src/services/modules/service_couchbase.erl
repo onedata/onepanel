@@ -243,7 +243,7 @@ init_cluster(Ctx) ->
         Cmd ++ ["--cluster-init-password=*****"]),
 
     ClusterType = onepanel_env:get_cluster_type(),
-    Buckets = nested:get(ClusterType, onepanel_env:get(couchbase_buckets)),
+    Buckets = kv_utils:get(ClusterType, onepanel_env:get(couchbase_buckets)),
     lists:foreach(fun
         ({Bucket, Quota}) ->
             create_bucket(Host, Port, User, Password, Bucket, Quota);

@@ -237,7 +237,7 @@ get_as_admin_should_return_hosts(Config) ->
             ?OZ_OR_ROOT_AUTHS(Config, [])
         )
     ),
-    Hosts = nested:get_converted(cluster_hosts, Config, {seq, binary}),
+    Hosts = onepanel_utils:get_converted(cluster_hosts, Config, {seq, binary}),
     onepanel_test_rest:assert_body(JsonBody, Hosts).
 
 

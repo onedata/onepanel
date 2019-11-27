@@ -138,7 +138,7 @@ accept_resource(Req, 'PUT', Args, #rstate{resource = emergency_passphrase}) ->
     {true, Req};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = web_cert}) ->
-    Ctx = nested:copy([{letsEncrypt, letsencrypt_enabled}], Args, #{}),
+    Ctx = kv_utils:copy([{letsEncrypt, letsencrypt_enabled}], Args, #{}),
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?SERVICE_LE, update, Ctx
     ))};

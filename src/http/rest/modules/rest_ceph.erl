@@ -44,7 +44,7 @@ read_ceph_args(Args) ->
     Mons = lists:map(fun get_mon_params/1, maps:get(monitors, Args, [])),
     Mgrs = lists:map(fun get_mgr_params/1, maps:get(managers, Args, [])),
 
-    Ctx = nested:copy_found([
+    Ctx = kv_utils:copy_found([
         {name, cluster_name},
         {fsid, fsid}
     ], Args, #{
@@ -133,7 +133,7 @@ is_available(Req, _Method, _State) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()} |
     {stop, Req :: cowboy_req:req()}.
 accept_resource(Req, 'PATCH', Args, #rstate{resource = ceph_pool, bindings = #{name := Name}}) ->
-    Ctx = nested:copy_found([
+    Ctx = kv_utils:copy_found([
         % camelCase is not common in locally used params, but matches
         % storage args convention
         {copiesNumber, copiesNumber},
@@ -283,7 +283,7 @@ delete_resource(Req, _State) ->
 
 -spec get_osd_params(map()) -> service:ctx().
 get_osd_params(#{host := Host, type := Type} = Spec) ->
-    Params = nested:copy_found([
+    Params = kv_utils:copy_found([
         {device, device},
         {size, size},
         {path, path},

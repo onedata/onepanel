@@ -153,7 +153,7 @@ configure(Ctx) ->
     % TODO VFS-4140 Mark IPs configured only in batch mode
     onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),
 
-    AppConfig = nested:copy_found([
+    AppConfig = kv_utils:copy_found([
         {gui_debug_mode, gui_debug_mode}
     ], Ctx, #{
         oz_name => OzName,

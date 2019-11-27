@@ -187,7 +187,7 @@ service_op_worker_get_storages_test(Config) ->
         {id, Id},
         {name, <<"somePosix1">>},
         {type, <<"posix">>},
-        {mountPoint, nested:get_converted(
+        {mountPoint, onepanel_utils:get_converted(
             [storages, posix, '/mnt/st1', docker_path], Config, binary
         )}
     ])  .
@@ -195,78 +195,78 @@ service_op_worker_get_storages_test(Config) ->
 
 service_op_worker_add_storage_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
-    Posix = nested:get([storages, posix, '/mnt/st2'], Config),
-    Ceph = nested:get([storages, ceph, someCeph], Config),
-    CephRados = nested:get([storages, cephrados, someCephRados], Config),
-    S3 = nested:get([storages, s3, someS3], Config),
-    Swift = nested:get([storages, swift, someSwift], Config),
-    Glusterfs = nested:get([storages, glusterfs, someGlusterfs], Config),
-    WebDAV = nested:get([storages, webdav, someWebDAV], Config),
+    Posix = kv_utils:get([storages, posix, '/mnt/st2'], Config),
+    Ceph = kv_utils:get([storages, ceph, someCeph], Config),
+    CephRados = kv_utils:get([storages, cephrados, someCephRados], Config),
+    S3 = kv_utils:get([storages, s3, someS3], Config),
+    Swift = kv_utils:get([storages, swift, someSwift], Config),
+    Glusterfs = kv_utils:get([storages, glusterfs, someGlusterfs], Config),
+    WebDAV = kv_utils:get([storages, webdav, someWebDAV], Config),
     onepanel_test_utils:service_action(Node, op_worker, add_storages, #{
         hosts => [hd(?config(oneprovider_hosts, Config))],
         storages => #{
             <<"somePosix2">> => #{
                 type => <<"posix">>,
-                mountPoint => nested:get_converted(docker_path, Posix, binary),
+                mountPoint => onepanel_utils:get_converted(docker_path, Posix, binary),
                 storagePathType => <<"canonical">>
             },
             <<"someCeph">> => #{
                 type => <<"ceph">>,
                 clusterName => <<"ceph">>,
-                key => nested:get_converted(key, Ceph, binary),
-                monitorHostname => nested:get_converted(host_name, Ceph, binary),
+                key => onepanel_utils:get_converted(key, Ceph, binary),
+                monitorHostname => onepanel_utils:get_converted(host_name, Ceph, binary),
                 poolName => <<"onedata">>,
-                username => nested:get_converted(username, Ceph, binary),
+                username => onepanel_utils:get_converted(username, Ceph, binary),
                 storagePathType => <<"flat">>
             },
             <<"someCephRados">> => #{
                 type => <<"cephrados">>,
                 clusterName => <<"ceph">>,
-                key => nested:get_converted(key, CephRados, binary),
-                monitorHostname => nested:get_converted(host_name, CephRados, binary),
+                key => onepanel_utils:get_converted(key, CephRados, binary),
+                monitorHostname => onepanel_utils:get_converted(host_name, CephRados, binary),
                 poolName => <<"onedata">>,
-                username => nested:get_converted(username, CephRados, binary),
+                username => onepanel_utils:get_converted(username, CephRados, binary),
                 storagePathType => <<"flat">>
             },
             <<"someS3">> => #{
                 type => <<"s3">>,
-                accessKey => nested:get_converted(access_key, S3, binary),
-                secretKey => nested:get_converted(secret_key, S3, binary),
+                accessKey => onepanel_utils:get_converted(access_key, S3, binary),
+                secretKey => onepanel_utils:get_converted(secret_key, S3, binary),
                 bucketName => <<"onedata">>,
-                hostname => <<"http://", (nested:get_converted(host_name,
+                hostname => <<"http://", (onepanel_utils:get_converted(host_name,
                     S3, binary))/binary>>,
                 storagePathType => <<"flat">>
             },
             <<"someSwift">> => #{
                 type => <<"swift">>,
-                username => nested:get_converted(user_name, Swift, binary),
-                password => nested:get_converted(password, Swift, binary),
+                username => onepanel_utils:get_converted(user_name, Swift, binary),
+                password => onepanel_utils:get_converted(password, Swift, binary),
                 authUrl => onepanel_utils:join(["http://",
-                    nested:get_converted(host_name, Swift, binary), ":",
-                    nested:get_converted(keystone_port, Swift, binary), "/v2.0/tokens"]),
-                tenantName => nested:get_converted(tenant_name, Swift, binary),
+                    onepanel_utils:get_converted(host_name, Swift, binary), ":",
+                    onepanel_utils:get_converted(keystone_port, Swift, binary), "/v2.0/tokens"]),
+                tenantName => onepanel_utils:get_converted(tenant_name, Swift, binary),
                 containerName => <<"swift">>,
                 storagePathType => <<"flat">>
             },
             <<"someGluster">> => #{
                 type => <<"glusterfs">>,
                 volume => <<"data">>,
-                hostname => nested:get_converted(host_name, Glusterfs, binary),
-                port => nested:get_converted(port, Glusterfs, binary),
-                transport => nested:get_converted(transport, Glusterfs, binary),
-                mountPoint => nested:get_converted(mountpoint, Glusterfs, binary),
+                hostname => onepanel_utils:get_converted(host_name, Glusterfs, binary),
+                port => onepanel_utils:get_converted(port, Glusterfs, binary),
+                transport => onepanel_utils:get_converted(transport, Glusterfs, binary),
+                mountPoint => onepanel_utils:get_converted(mountpoint, Glusterfs, binary),
                 xlatorOptions => <<"cluster.write-freq-threshold=100;">>,
                 storagePathType => <<"canonical">>
             },
             <<"someWebDAV">> => #{
                 type => <<"webdav">>,
-                endpoint => nested:get_converted(endpoint, WebDAV, binary),
-                credentials => nested:get_converted(credentials, WebDAV, binary),
-                credentialsType => nested:get_converted(credentials_type, WebDAV, binary),
-                verifyServerCertificate => nested:get_converted(verify_server_certificate, WebDAV, binary),
-                rangeWriteSupport => nested:get_converted(range_write_support, WebDAV, binary),
-                authorizationHeader => nested:get_converted(authorization_header, WebDAV, binary),
-                connectionPoolSize => nested:get_converted(connection_pool_size, WebDAV, binary),
+                endpoint => onepanel_utils:get_converted(endpoint, WebDAV, binary),
+                credentials => onepanel_utils:get_converted(credentials, WebDAV, binary),
+                credentialsType => onepanel_utils:get_converted(credentials_type, WebDAV, binary),
+                verifyServerCertificate => onepanel_utils:get_converted(verify_server_certificate, WebDAV, binary),
+                rangeWriteSupport => onepanel_utils:get_converted(range_write_support, WebDAV, binary),
+                authorizationHeader => onepanel_utils:get_converted(authorization_header, WebDAV, binary),
+                connectionPoolSize => onepanel_utils:get_converted(connection_pool_size, WebDAV, binary),
                 storagePathType => <<"canonical">>
             },
             <<"someNullDevice">> => #{
@@ -470,7 +470,7 @@ init_per_suite(Config) ->
             ])
         end, OpNodes),
 
-        Posix = nested:get([storages, posix, '/mnt/st1'], NewConfig2),
+        Posix = kv_utils:get([storages, posix, '/mnt/st1'], NewConfig2),
         RegistrationToken = get_registration_token(OzNode),
         rpc:call(OpNode, emergency_passphrase, set, [?PASSPHRASE]),
         onepanel_test_utils:service_action(OpNode, ?SERVICE_OP, deploy, #{
@@ -493,7 +493,7 @@ init_per_suite(Config) ->
                     storages => #{
                         <<"somePosix1">> => #{
                             type => <<"posix">>,
-                            mountPoint => nested:get_converted(
+                            mountPoint => onepanel_utils:get_converted(
                                 docker_path, Posix, binary
                             ),
                             storagePathType => <<"canonical">>

@@ -383,7 +383,7 @@ write_config(#{config := Config} = Ctx) ->
     #{total := map(), osds := map(), pools := #{ceph_pool:name() => ceph_pool:usage()}}.
 get_usage(Ctx) ->
     #{<<"stats">> := Stats, <<"pools">> := Pools} = ceph_cli:df(),
-    Total = nested:copy_found([
+    Total = kv_utils:copy_found([
         {<<"total_bytes">>, total},
         {<<"total_used_bytes">>, used},
         {<<"total_avail_bytes">>, available}
@@ -452,7 +452,7 @@ ceph_status_level(<<Level/binary>>) ->
 -spec format_checks(#{binary() => binary()}) -> [binary()].
 format_checks(Map) ->
     lists:map(fun({Check, Description}) ->
-        Summary = nested:get([<<"summary">>, <<"message">>], Description),
+        Summary = kv_utils:get([<<"summary">>, <<"message">>], Description),
         Details = maps:get(<<"detail">>, Description, []),
         DetailsIodata = case Details of
             [] -> "";

@@ -185,8 +185,8 @@ list() ->
 -spec list_running() -> [id()].
 list_running() ->
     ClusterStatus = ceph_cli:status(),
-    ActiveId = nested:get([<<"mgrmap">>, <<"active_name">>], ClusterStatus),
-    Standbys = nested:get([<<"mgrmap">>, <<"standbys">>], ClusterStatus),
+    ActiveId = kv_utils:get([<<"mgrmap">>, <<"active_name">>], ClusterStatus),
+    Standbys = kv_utils:get([<<"mgrmap">>, <<"standbys">>], ClusterStatus),
     StanbdyIds = [Id || #{<<"name">> := Id} <- Standbys],
     lists:usort([ActiveId | StanbdyIds]).
 

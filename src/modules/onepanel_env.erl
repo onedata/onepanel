@@ -120,7 +120,7 @@ typed_get(Keys, AppName, Type) ->
 -spec find(Keys :: keys(), AppName :: atom()) ->
     {ok, Value :: value()} | error | no_return().
 find(Keys, AppName) when is_atom(AppName) ->
-    nested:find(Keys, application:get_all_env(AppName)).
+    kv_utils:find(Keys, application:get_all_env(AppName)).
 
 
 %%--------------------------------------------------------------------
@@ -132,7 +132,7 @@ find(Keys, AppName) when is_atom(AppName) ->
     {ok, Value :: value()} | error | no_return().
 find_remote(Node, Keys, AppName) ->
     Env = rpc:call(Node, application, get_all_env, [AppName]),
-    nested:find(Keys, Env).
+    kv_utils:find(Keys, Env).
 
 
 %%--------------------------------------------------------------------
@@ -153,7 +153,7 @@ set(Keys, Value) ->
 set(Keys, Value, AppName) ->
     lists:foreach(fun({K, V}) ->
         application:set_env(AppName, K, V)
-    end, nested:put(Keys, Value, application:get_all_env())).
+    end, kv_utils:put(Keys, Value, application:get_all_env())).
 
 
 %%--------------------------------------------------------------------
@@ -180,7 +180,7 @@ set_remote(Nodes, Keys, Value, AppName) ->
     lists:map(fun(Node) ->
         NewEnv = case rpc:call(Node, application, get_all_env, [AppName]) of
             {badrpc, _} = Error -> ?throw_error(Error);
-            Result -> nested:put(Keys, Value, Result)
+            Result -> kv_utils:put(Keys, Value, Result)
         end,
 
         lists:foreach(fun({K, V}) ->
@@ -199,7 +199,7 @@ set_remote(Nodes, Keys, Value, AppName) ->
     {ok, Value :: value()} | error | no_return().
 read(Keys, Path) ->
     case file:consult(Path) of
-        {ok, [AppConfigs]} -> nested:find(Keys, AppConfigs);
+        {ok, [AppConfigs]} -> kv_utils:find(Keys, AppConfigs);
         {error, Reason} -> ?throw_error(Reason)
     end.
 
@@ -260,7 +260,7 @@ write(Keys, Value, Path) ->
         _ -> []
     end,
 
-    NewConfigs = nested:put(Keys, Value, AppConfigs),
+    NewConfigs = kv_utils:put(Keys, Value, AppConfigs),
     NewConfigsStr = io_lib:fwrite("~s~n~p.", [?DO_NOT_MODIFY_HEADER, NewConfigs]),
     case file:write_file(Path, NewConfigsStr) of
         ok -> ok;
@@ -307,7 +307,7 @@ migrate_generated_config(ServiceName, Variables, SetInRuntime) ->
         {ok, [LegacyConfigs]} ->
             ?info("Migrating app config from '~s' to '~s'", [Src, Dst]),
             Values = lists:filtermap(fun(Variable) ->
-                case nested:find(Variable, LegacyConfigs) of
+                case kv_utils:find(Variable, LegacyConfigs) of
                     {ok, Val} -> {true, {Variable, Val}};
                     error -> false
                 end
@@ -375,7 +375,7 @@ migrate(ServiceName, OldKeys, NewKeys) ->
     Path = ?MODULE:get_config_path(ServiceName, generated),
     case read([], Path) of
         {ok, OldConfigs} ->
-            case rename(OldKeys, NewKeys, OldConfigs) of
+            case kv_utils:rename(OldKeys, NewKeys, OldConfigs) of
                 error ->
                     false;
                 {ok, NewConfigs} ->
@@ -409,20 +409,3 @@ migrate(PanelNodes, ServiceName, OldKeys, NewKeys) ->
 -spec get_config_paths(Service :: service:name()) -> [file:name()].
 get_config_paths(ServiceName) ->
     [get_config_path(ServiceName, Layer) || Layer <- [overlay, generated, app]].
-
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc Removes value from the old location and inserts at new.
-%% Returns error if the value was not found.
-%% @end
-%%--------------------------------------------------------------------
--spec rename(OldKeys :: nested:path(key()), NewKeys :: nested:path(key()),
-    NestedList :: nested:nested(key(), V)) -> {ok, nested:nested(key(), V)} | error.
-rename(OldKeys, NewKeys, NestedList) ->
-    case nested:find(OldKeys, NestedList) of
-        {ok, Found} -> {ok, nested:put(NewKeys, Found, nested:remove(OldKeys, NestedList))};
-        error -> error
-    end.
-
-

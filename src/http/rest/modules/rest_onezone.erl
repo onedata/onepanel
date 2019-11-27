@@ -171,7 +171,7 @@ delete_resource(_Req, #rstate{}) ->
 %%--------------------------------------------------------------------
 -spec make_policies_ctx(Args :: rest_handler:args()) -> #{atom() => term()}.
 make_policies_ctx(Args) ->
-    nested:copy_found([
+    kv_utils:copy_found([
         {oneproviderRegistration, oneprovider_registration},
         {subdomainDelegation, subdomain_delegation},
         {guiPackageVerification, gui_package_verification},

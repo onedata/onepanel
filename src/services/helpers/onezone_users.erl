@@ -54,7 +54,7 @@ user_exists(UserId) ->
 add_users(#{onezone_users := Users}) ->
     {OzNode, Client} = get_node_and_client(),
     lists:foreach(fun(User) ->
-        Data = nested:copy_found([
+        Data = kv_utils:copy_found([
             {username, <<"username">>},
             {password, <<"password">>}
         ], User, #{}),

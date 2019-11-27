@@ -21,6 +21,7 @@
 -export([wait_until/5, wait_until/6]).
 -export([gen_uuid/0, join/1, join/2, trim/2]).
 -export([convert/2, get_type/1]).
+-export([get_converted/3, get_converted/4, find_converted/3]).
 -export([ensure_known_hosts/1, distribute_file/2]).
 
 % @formatter:off
@@ -209,6 +210,42 @@ get_type(Value) ->
             false -> {cont, unknown}
         end
     end, unknown, SupportedTypes).
+
+
+%%--------------------------------------------------------------------
+%% @doc Performs {@link kv_utils:get/2} and converts obtained result to given type.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_converted(kv_utils:path(K), kv_utils:nested(K, _), type()) -> term().
+get_converted(Path, Nested, Type) ->
+    onepanel_utils:convert(kv_utils:get(Path, Nested), Type).
+
+
+%%--------------------------------------------------------------------
+%% @doc Performs {@link kv_utils:get/3} and converts obtained result to given type.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_converted(kv_utils:path(K), kv_utils:nested(K, _), type(), Default) ->
+    term() | Default.
+get_converted(Path, Nested, Type, Default) ->
+    case kv_utils:find(Path, Nested) of
+        {ok, Found} -> onepanel_utils:convert(Found, Type);
+        error -> Default
+    end.
+
+
+
+%%--------------------------------------------------------------------
+%% @doc Performs {@link kv_utils:find/3} and converts obtained result to given type.
+%% @end
+%%--------------------------------------------------------------------
+-spec find_converted(kv_utils:path(K), kv_utils:nested(K, _), type()) ->
+    {ok, term()} | error.
+find_converted(Path, Nested, Type) ->
+    case kv_utils:find(Path, Nested) of
+        {ok, Found} -> {ok, onepanel_utils:convert(Found, Type)};
+        error -> error
+    end.
 
 
 %%--------------------------------------------------------------------

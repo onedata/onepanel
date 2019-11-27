@@ -122,7 +122,7 @@ is_available(Req, _Method, _State) ->
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()}.
 accept_resource(Req, 'POST', Args, #rstate{resource = provider}) ->
-    Ctx = nested:copy_found([
+    Ctx = kv_utils:copy_found([
         {token, oneprovider_token},
         {name, oneprovider_name},
         {subdomainDelegation, oneprovider_subdomain_delegation},
@@ -138,7 +138,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = provider}) ->
     ))};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
-    Ctx = nested:copy_found([
+    Ctx = kv_utils:copy_found([
         {name, oneprovider_name},
         {subdomainDelegation, oneprovider_subdomain_delegation},
         {domain, oneprovider_domain},
@@ -154,7 +154,7 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
     ))};
 
 accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
-    Ctx = nested:copy_found([
+    Ctx = kv_utils:copy_found([
         {token, token},
         {size, size},
         {storageId, storage_id},
@@ -169,7 +169,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
     )};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = space, bindings = #{id := Id}}) ->
-    Ctx1 = nested:copy_found([
+    Ctx1 = kv_utils:copy_found([
         {size, size}
     ], Args, #{space_id => Id}),
     Ctx2 = get_storage_update_args(Args, Ctx1),
@@ -226,7 +226,7 @@ accept_resource(Req, 'PATCH', Args, #rstate{
     bindings = #{id := Id},
     version = Version
 }) ->
-    Ctx = nested:copy_found([
+    Ctx = kv_utils:copy_found([
         {enabled, [enabled]},
         {lastOpenHourWeight, [last_open_hour_weight]},
         {avgOpenCountPerDayWeight, [avg_open_count_per_day_weight]},
@@ -428,7 +428,7 @@ delete_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
 -spec get_storage_update_args(Args :: rest_handler:args(), Ctx :: service:ctx())
         -> service:ctx().
 get_storage_update_args(Args, Ctx) ->
-    nested:copy_found([
+    kv_utils:copy_found([
         {[storageUpdate, strategy], [storage_update, strategy]},
         {[storageUpdate, maxDepth], [storage_update, max_depth]},
         {[storageUpdate, writeOnce], [storage_update, write_once]},
@@ -445,7 +445,7 @@ get_storage_update_args(Args, Ctx) ->
 -spec get_storage_import_args(Args :: rest_handler:args(), Ctx :: service:ctx())
         -> service:ctx().
 get_storage_import_args(Args, Ctx) ->
-    nested:copy_found([
+    kv_utils:copy_found([
         {[storageImport, strategy], [storage_import, strategy]},
         {[storageImport, maxDepth], [storage_import, max_depth]},
         {[storageImport, syncAcl], [storage_import, sync_acl]}
@@ -460,7 +460,7 @@ get_storage_import_args(Args, Ctx) ->
 -spec get_auto_cleaning_configuration(Args :: rest_handler:args(), Ctx :: service:ctx())
         -> service:ctx().
 get_auto_cleaning_configuration(Args, Ctx) ->
-    nested:copy_found([
+    kv_utils:copy_found([
         {[enabled], [enabled]},
         {[target], [target]},
         {[threshold], [threshold]},

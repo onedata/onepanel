@@ -68,7 +68,7 @@
 add(#{name := Name, params := Params}, IgnoreExists) ->
     {ok, OpNode} = nodes:any(?SERVICE_OPW),
     StorageName = onepanel_utils:convert(Name, binary),
-    StorageType = nested:get_converted(type, Params, binary),
+    StorageType = onepanel_utils:get_converted(type, Params, binary),
 
     Result = case {exists(OpNode, {name, StorageName}), IgnoreExists} of
         {true, true} -> skipped;
@@ -222,7 +222,7 @@ maybe_update_auto_cleaning(OpNode, SpaceId, Args) ->
 get_file_popularity_configuration(OpNode, SpaceId) ->
     case op_worker_rpc:file_popularity_api_get_configuration(OpNode, SpaceId) of
         {ok, DetailsMap} ->
-            nested:copy_found([
+            kv_utils:copy_found([
                 {[enabled], [enabled]},
                 {[example_query], [exampleQuery]},
                 {[last_open_hour_weight], [lastOpenHourWeight]},
@@ -242,7 +242,7 @@ get_file_popularity_configuration(OpNode, SpaceId) ->
 -spec get_auto_cleaning_configuration(OpNode :: node(), SpaceId :: id()) -> #{atom() => term()}.
 get_auto_cleaning_configuration(OpNode, SpaceId) ->
     DetailsMap = op_worker_rpc:autocleaning_get_configuration(OpNode, SpaceId),
-    DetailsMap2 = nested:copy_found([
+    DetailsMap2 = kv_utils:copy_found([
         {[rules, min_file_size], [rules, minFileSize]},
         {[rules, max_file_size], [rules, maxFileSize]},
         {[rules, min_hours_since_last_open], [rules, minHoursSinceLastOpen]},
@@ -288,10 +288,10 @@ can_be_removed(StorageId) ->
 -spec add(OpNode :: node(), StorageName :: binary(), Params :: storage_params()) ->
     ok | {error, Reason :: term()}.
 add(OpNode, StorageName, Params) ->
-    StorageType = nested:get_converted(type, Params, binary),
+    StorageType = onepanel_utils:get_converted(type, Params, binary),
 
     ?info("Gathering storage configuration: \"~ts\" (~ts)", [StorageName, StorageType]),
-    ReadOnly = nested:get_converted(readonly, Params, boolean, false),
+    ReadOnly = onepanel_utils:get_converted(readonly, Params, boolean, false),
 
     UserCtx = make_user_ctx(OpNode, StorageType, Params),
     {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, Params),
@@ -315,8 +315,8 @@ add(OpNode, StorageName, Params) ->
     {ok, helper()} | {badrpc, term()}.
 make_helper(OpNode, StorageType, AdminCtx, Params) ->
     Args = make_helper_args(OpNode, StorageType, Params),
-    Insecure = nested:get_converted(insecure, Params, boolean, false),
-    PathType = nested:get_converted(storagePathType, Params, binary),
+    Insecure = onepanel_utils:get_converted(insecure, Params, boolean, false),
+    PathType = onepanel_utils:get_converted(storagePathType, Params, binary),
     op_worker_rpc:new_helper(
         OpNode, StorageType, Args, AdminCtx, Insecure, PathType).
 
@@ -330,10 +330,10 @@ make_helper(OpNode, StorageType, AdminCtx, Params) ->
 -spec make_luma_config(OpNode :: node(), StorageParams :: storage_params()) ->
     undefined | luma_config().
 make_luma_config(OpNode, StorageParams) ->
-    case nested:get_converted(lumaEnabled, StorageParams, boolean, false) of
+    case onepanel_utils:get_converted(lumaEnabled, StorageParams, boolean, false) of
         true ->
             Url = get_required_luma_arg(lumaUrl, StorageParams, binary),
-            ApiKey = nested:get_converted(lumaApiKey, StorageParams, binary, undefined),
+            ApiKey = onepanel_utils:get_converted(lumaApiKey, StorageParams, binary, undefined),
             op_worker_rpc:new_luma_config(OpNode, Url, ApiKey);
         false ->
             undefined
@@ -382,7 +382,7 @@ verify_storage(Helper) ->
 -spec get_required_luma_arg(Key :: atom(), StorageParams :: storage_params(),
     Type :: onepanel_utils:type()) -> term().
 get_required_luma_arg(Key, StorageParams, Type) ->
-    case nested:find_converted(Key, StorageParams, Type) of
+    case onepanel_utils:find_converted(Key, StorageParams, Type) of
         error -> ?throw_error(?ERR_LUMA_CONFIG(Key));
         {ok, Value} -> Value
     end.
@@ -443,7 +443,7 @@ make_user_ctx(OpNode, StorageType, Params) ->
 -spec make_luma_params(Params :: storage_params()) ->
     #{url => binary(), api_key => binary(), luma_enabled => boolean()}.
 make_luma_params(Params) ->
-    nested:copy_found([
+    kv_utils:copy_found([
         {lumaUrl, url},
         {lumaApiKey, api_key},
         {lumaEnabled, luma_enabled}
@@ -543,9 +543,9 @@ exists(Node, {id, StorageId}) ->
 -spec parse_auto_cleaning_configuration(map()) -> map().
 parse_auto_cleaning_configuration(Args) ->
     onepanel_maps:remove_undefined(#{
-        enabled => nested:get_converted(enabled, Args, boolean, undefined),
-        target => nested:get_converted([target], Args, integer, undefined),
-        threshold => nested:get_converted([threshold], Args, integer, undefined),
+        enabled => onepanel_utils:get_converted(enabled, Args, boolean, undefined),
+        target => onepanel_utils:get_converted([target], Args, integer, undefined),
+        threshold => onepanel_utils:get_converted([threshold], Args, integer, undefined),
         rules => parse_auto_cleaning_rules(Args)
     }).
 
@@ -557,7 +557,7 @@ parse_auto_cleaning_configuration(Args) ->
 -spec parse_auto_cleaning_rules(map()) -> map().
 parse_auto_cleaning_rules(Args) ->
     ParsedRules = #{
-        enabled => nested:get_converted([rules, enabled], Args, boolean, undefined)
+        enabled => onepanel_utils:get_converted([rules, enabled], Args, boolean, undefined)
     },
     ParsedRules2 = lists:foldl(fun(RuleName, AccIn) ->
         RuleSettingConfig = parse_auto_cleaning_rule_setting(RuleName, Args),
@@ -580,8 +580,8 @@ parse_auto_cleaning_rules(Args) ->
 -spec parse_auto_cleaning_rule_setting(atom(), map()) -> map().
 parse_auto_cleaning_rule_setting(RuleName, Args) ->
     onepanel_maps:remove_undefined(#{
-        enabled => nested:get_converted([rules, RuleName, enabled], Args, boolean, undefined),
-        value => nested:get_converted([rules, RuleName, value], Args, integer, undefined)
+        enabled => onepanel_utils:get_converted([rules, RuleName, enabled], Args, boolean, undefined),
+        value => onepanel_utils:get_converted([rules, RuleName, value], Args, integer, undefined)
     }).
 
 %%-------------------------------------------------------------------
@@ -591,10 +591,10 @@ parse_auto_cleaning_rule_setting(RuleName, Args) ->
 -spec parse_file_popularity_configuration(map()) -> map().
 parse_file_popularity_configuration(Args) ->
     onepanel_maps:remove_undefined(#{
-        enabled => nested:get_converted(enabled, Args, boolean, undefined),
-        last_open_hour_weight => nested:get_converted(last_open_hour_weight, Args, float, undefined),
-        avg_open_count_per_day_weight => nested:get_converted(avg_open_count_per_day_weight, Args, float, undefined),
-        max_avg_open_count_per_day => nested:get_converted(max_avg_open_count_per_day, Args, float, undefined)
+        enabled => onepanel_utils:get_converted(enabled, Args, boolean, undefined),
+        last_open_hour_weight => onepanel_utils:get_converted(last_open_hour_weight, Args, float, undefined),
+        avg_open_count_per_day_weight => onepanel_utils:get_converted(avg_open_count_per_day_weight, Args, float, undefined),
+        max_avg_open_count_per_day => onepanel_utils:get_converted(max_avg_open_count_per_day, Args, float, undefined)
     }).
 
 

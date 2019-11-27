@@ -103,11 +103,11 @@ get_nodes() ->
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, Ctx) ->
-    OpaCtx = nested:get([cluster, ?SERVICE_PANEL], Ctx),
-    CbCtx = nested:get([cluster, ?SERVICE_CB], Ctx),
-    CmCtx = nested:get([cluster, ?SERVICE_CM], Ctx),
-    OpwCtx = nested:get([cluster, ?SERVICE_OPW], Ctx),
-    LeCtx = nested:get([cluster, ?SERVICE_LE], Ctx),
+    OpaCtx = kv_utils:get([cluster, ?SERVICE_PANEL], Ctx),
+    CbCtx = kv_utils:get([cluster, ?SERVICE_CB], Ctx),
+    CmCtx = kv_utils:get([cluster, ?SERVICE_CM], Ctx),
+    OpwCtx = kv_utils:get([cluster, ?SERVICE_OPW], Ctx),
+    LeCtx = kv_utils:get([cluster, ?SERVICE_LE], Ctx),
     CephCtx = onepanel_maps:get([ceph], Ctx, #{}),
     StorageCtx = onepanel_maps:get([cluster, storages], Ctx, #{}),
     OpCtx = onepanel_maps:get(name(), Ctx, #{}),
@@ -516,7 +516,7 @@ modify_details(Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     ok = modify_domain_details(Node, Ctx),
 
-    Params = nested:copy_found([
+    Params = kv_utils:copy_found([
         {oneprovider_name, <<"name">>},
         {oneprovider_geo_latitude, <<"latitude">>},
         {oneprovider_geo_longitude, <<"longitude">>},
@@ -569,8 +569,8 @@ format_cluster_ips(Ctx) ->
 support_space(#{storage_id := StorageId} = Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     assert_storage_exists(Node, StorageId),
-    SupportSize = nested:get_converted(size, Ctx, binary),
-    Token = nested:get_converted(token, Ctx, binary),
+    SupportSize = onepanel_utils:get_converted(size, Ctx, binary),
+    Token = onepanel_utils:get_converted(token, Ctx, binary),
 
     case op_worker_rpc:support_space(Token, SupportSize) of
         {ok, SpaceId} ->
@@ -682,8 +682,8 @@ maybe_update_support_size(_OpNode, _SpaceId, _Ctx) -> ok.
 -spec get_sync_stats(Ctx :: service:ctx()) -> list().
 get_sync_stats(#{space_id := SpaceId} = Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
-    Period = nested:get_converted(period, Ctx, binary, undefined),
-    MetricsJoined = nested:get_converted(metrics, Ctx, binary, <<"">>),
+    Period = onepanel_utils:get_converted(period, Ctx, binary, undefined),
+    MetricsJoined = onepanel_utils:get_converted(metrics, Ctx, binary, <<"">>),
     Metrics = binary:split(MetricsJoined, <<",">>, [global, trim]),
     op_worker_storage_sync:get_stats(Node, SpaceId, Period, Metrics).
 
@@ -712,9 +712,9 @@ update_provider_ips() ->
 %%-------------------------------------------------------------------
 -spec get_auto_cleaning_reports(Ctx :: service:ctx()) -> map().
 get_auto_cleaning_reports(Ctx = #{space_id := SpaceId}) ->
-    Offset = nested:get_converted(offset, Ctx, integer, 0),
-    Limit = nested:get_converted(limit, Ctx, integer, all),
-    Index = nested:get_converted(index, Ctx, binary, undefined),
+    Offset = onepanel_utils:get_converted(offset, Ctx, integer, 0),
+    Limit = onepanel_utils:get_converted(limit, Ctx, integer, all),
+    Index = onepanel_utils:get_converted(index, Ctx, binary, undefined),
     {ok, Ids} = op_worker_rpc:autocleaning_list_reports(
         SpaceId, Index, Offset, Limit),
     #{ids => Ids}.
@@ -730,7 +730,7 @@ get_auto_cleaning_report(#{report_id := ReportId}) ->
     case op_worker_rpc:autocleaning_get_run_report(ReportId) of
         {ok, Report} ->
             onepanel_maps:undefined_to_null(
-                nested:copy_found([
+                kv_utils:copy_found([
                     {id, id},
                     {index, index},
                     {started_at, startedAt},
@@ -752,7 +752,7 @@ get_auto_cleaning_report(#{report_id := ReportId}) ->
 -spec get_auto_cleaning_status(Ctx :: service:ctx()) -> #{atom() => term()}.
 get_auto_cleaning_status(#{space_id := SpaceId}) ->
     Status = op_worker_rpc:autocleaning_status(SpaceId),
-    nested:copy_found([
+    kv_utils:copy_found([
         {in_progress, inProgress},
         {space_occupancy, spaceOccupancy}
     ], Status, #{}).
@@ -968,7 +968,7 @@ read_auth_file() ->
     Path = onepanel_env:get(op_worker_root_token_path),
     case rpc:call(Node, file, read_file, [Path]) of
         {ok, Json} ->
-            nested:copy([
+            kv_utils:copy([
                 {<<"provider_id">>, provider_id},
                 {<<"root_token">>, root_token}
             ], json_utils:decode(Json), #{});
@@ -1012,7 +1012,7 @@ get_details_by_graph_sync() ->
 
     #{latitude := Latitude, longitude := Longitude} = Details,
 
-    Response = nested:copy_found([
+    Response = kv_utils:copy_found([
         {id, id}, {name, name}, {admin_email, adminEmail},
         {subdomain_delegation, subdomainDelegation}, {domain, domain}
     ], Details, #{}),
@@ -1041,7 +1041,7 @@ get_details_by_rest() ->
     OzDomain = onepanel_utils:convert(get_oz_domain(), binary),
 
     % NOTE: the REST endpoint returns protected data, which do not contain adminEmail
-    Result1 = nested:copy_found([
+    Result1 = kv_utils:copy_found([
         {<<"providerId">>, id},
         {<<"name">>, name},
         {<<"domain">>, domain},
@@ -1062,7 +1062,7 @@ get_details_by_rest() ->
             DomainConfigKeys
     end,
 
-    nested:copy_found(DomainConfigKeys2, DomainConfig, Result1).
+    kv_utils:copy_found(DomainConfigKeys2, DomainConfig, Result1).
 
 
 %%--------------------------------------------------------------------
@@ -1072,7 +1072,7 @@ get_details_by_rest() ->
 %%--------------------------------------------------------------------
 -spec modify_domain_details(OpNode :: node(), service:ctx()) -> ok.
 modify_domain_details(OpNode, #{oneprovider_subdomain_delegation := true} = Ctx) ->
-    Subdomain = string:lowercase(nested:get_converted(
+    Subdomain = string:lowercase(onepanel_utils:get_converted(
         oneprovider_subdomain, Ctx, binary)),
 
     case op_worker_rpc:is_subdomain_delegated(OpNode) of
@@ -1087,7 +1087,7 @@ modify_domain_details(OpNode, #{oneprovider_subdomain_delegation := true} = Ctx)
     end;
 
 modify_domain_details(OpNode, #{oneprovider_subdomain_delegation := false} = Ctx) ->
-    Domain = string:lowercase(nested:get_converted(
+    Domain = string:lowercase(onepanel_utils:get_converted(
         oneprovider_domain, Ctx, binary)),
     ok = op_worker_rpc:set_domain(OpNode, Domain),
     dns_check:invalidate_cache(op_worker);
@@ -1117,7 +1117,7 @@ assert_storage_exists(Node, StorageId) ->
 %%--------------------------------------------------------------------
 -spec configure_space(OpNode :: node(), SpaceId :: binary(), Ctx :: service:ctx()) -> list().
 configure_space(Node, SpaceId, #{storage_id := StorageId} = Ctx) ->
-    MountInRoot = nested:get_converted(mount_in_root, Ctx, boolean, false),
+    MountInRoot = onepanel_utils:get_converted(mount_in_root, Ctx, boolean, false),
     ImportArgs = maps:get(storage_import, Ctx, #{}),
     UpdateArgs = maps:get(storage_update, Ctx, #{}),
     {ok, _} = op_worker_rpc:space_storage_add(Node, SpaceId, StorageId, MountInRoot),
