@@ -293,7 +293,7 @@ get_osd_params(#{host := Host, type := Type} = Spec) ->
         host => onepanel_utils:convert(Host, list)
     }),
     case Params of
-        #{uuid := UUID} -> Params#{uuid => normalize_uuid(UUID)};
+        #{uuid := UUID} -> Params#{uuid => normalize_uuid(UUID, [osds])};
         _ -> Params#{uuid => ceph:gen_uuid()}
     end.
 
@@ -310,18 +310,23 @@ get_mgr_params(#{host := Host}) ->
 
 %%--------------------------------------------------------------------
 %% @private
-%% @doc Ensures UUID is hyphenated
+%% @doc Ensures UUID is hyphenated.
+%% Argument Keys is used to indicate error reason.
 %% @end
 %%--------------------------------------------------------------------
--spec normalize_uuid(binary()) -> <<_:256>>.
-normalize_uuid(<<A:8/binary, B:4/binary, C:4/binary, D:4/binary, E:12/binary>>) ->
+-spec normalize_uuid(binary(), Keys :: [atom()]) -> <<_:256>>.
+normalize_uuid(<<A:8/binary, B:4/binary, C:4/binary, D:4/binary, E:12/binary>>, Keys) ->
     onepanel_utils:join([A, B, C, D, E], <<"-">>);
 
-normalize_uuid(<<UUIDWithHyphens/binary>>) when byte_size(UUIDWithHyphens) > 32 ->
+normalize_uuid(<<UUIDWithHyphens/binary>>, Keys) when byte_size(UUIDWithHyphens) > 32 ->
     case binary:replace(UUIDWithHyphens, <<"-">>, <<>>, [global]) of
-        <<Cleaned:32/binary>> -> normalize_uuid(Cleaned);
-        _ -> throw(?ERROR_BAD_VALUE_IDENTIFIER(<<"uuid">>))
+        <<Cleaned:32/binary>> ->
+            normalize_uuid(Cleaned, Keys);
+        _ ->
+            throw(?ERROR_BAD_VALUE_IDENTIFIER(
+                str_utils:join_as_binaries(Keys ++ [uuid], <<$.>>)))
     end;
 
-normalize_uuid(_) ->
-    throw(?ERROR_BAD_VALUE_IDENTIFIER(<<"uuid">>)).
+normalize_uuid(_, Keys) ->
+    throw(?ERROR_BAD_VALUE_IDENTIFIER(
+        str_utils:join_as_binaries(Keys ++ [uuid], <<$.>>))).

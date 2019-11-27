@@ -226,6 +226,7 @@ get_instance(Id) ->
     kv_utils:get([instances, Id], service:get_ctx(name())).
 
 
+%% @private
 -spec instance_to_details(ceph:instance()) -> #{atom() => binary()}.
 instance_to_details(Instance) ->
     onepanel_utils:convert(maps:with([id, host], Instance), {values, binary}).

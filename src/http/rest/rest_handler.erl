@@ -176,8 +176,9 @@ is_authorized(Req, #rstate{methods = Methods} = State) ->
                     Req5 = cowboy_req:set_resp_body(<<>>, Req4),
                     {true, Req5, State#rstate{client = #client{role = guest}}};
                 _ ->
-                    % @fixme maybe enforce 401
-                    {stop, rest_replier:reply_with_error(Req, Error), State}
+                    Body = json_utils:encode(rest_replier:format_error(Error)),
+                    {stop, cowboy_req:reply(?HTTP_401_UNAUTHORIZED,
+                        _Headers = #{}, Body, Req4), State}
             end
     end.
 
