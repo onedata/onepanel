@@ -55,7 +55,8 @@
     type => <<"localceph">>,
     clusterName => <<"ceph">>,
     poolName => <<"onedata">>,
-    storagePathType => <<"flat">>
+    storagePathType => <<"flat">>,
+    qosParameters => #{}
 }).
 
 
