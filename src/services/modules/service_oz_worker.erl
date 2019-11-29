@@ -465,10 +465,10 @@ get_policies() ->
         provider_registration_policy, name()),
     SubdomainDelegation = onepanel_env:get_remote(Node,
         subdomain_delegation_supported, name()),
-    GuiVerification = not onepanel_env:get_remote(Node,
-        disable_gui_package_verification, name()),
-    HarversterGuiVerification = not onepanel_env:get_remote(Node,
-        disable_harvester_gui_package_verification, name()),
+    GuiVerification = onepanel_env:get_remote(Node,
+        gui_package_verification, name()),
+    HarversterGuiVerification = onepanel_env:get_remote(Node,
+        harvester_gui_package_verification, name()),
     #{
         oneproviderRegistration => ProviderRegistration,
         subdomainDelegation => SubdomainDelegation,
@@ -492,9 +492,9 @@ set_policies(Ctx) ->
         (subdomain_delegation, Supported) ->
             env_write_and_set(subdomain_delegation_supported, Supported);
         (gui_package_verification, Enabled) ->
-            env_write_and_set(disable_gui_package_verification, not Enabled);
+            env_write_and_set(gui_package_verification, Enabled);
         (harvester_gui_package_verification, Enabled) ->
-            env_write_and_set(disable_harvester_gui_package_verification, not Enabled);
+            env_write_and_set(harvester_gui_package_verification, Enabled);
         (_, _) -> ok
     end, Ctx),
     ok.
