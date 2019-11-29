@@ -72,7 +72,7 @@ get_nodes() ->
 get_steps(deploy, #{hosts := Hosts} = Ctx) ->
     SelfHost = hosts:self(),
     ClusterHosts = get_hosts(),
-    NewHosts = onepanel_lists:subtract(Hosts, ClusterHosts),
+    NewHosts = lists_utils:subtract(Hosts, ClusterHosts),
     Attempts = application:get_env(?APP_NAME, extend_cluster_attempts, 20),
     [#step{
         function = extend_cluster, hosts = [SelfHost],

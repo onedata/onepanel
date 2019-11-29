@@ -325,7 +325,7 @@ global_cert_status(_Ctx) ->
         _ ->
             Nodes = get_nodes(),
             Domain = (get_plugin_module()):get_domain(),
-            onepanel_lists:foldl_while(fun(Node, _) ->
+            lists_utils:foldl_while(fun(Node, _) ->
                 case rpc:call(Node, ?MODULE, local_cert_status, [Domain]) of
                     valid -> {cont, valid};
                     Problem -> {halt, Problem}

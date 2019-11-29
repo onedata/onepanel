@@ -71,7 +71,7 @@ get_nodes() ->
 get_steps(deploy, #{hosts := Hosts, name := Name} = Ctx) ->
     service:create(#service{name = Name}),
     ClusterHosts = hosts:all(Name),
-    AllHosts = onepanel_lists:union(Hosts, ClusterHosts),
+    AllHosts = lists_utils:union(Hosts, ClusterHosts),
     [
         #step{function = migrate_generated_config,
             condition = fun(_) -> onepanel_env:legacy_config_exists(Name) end},

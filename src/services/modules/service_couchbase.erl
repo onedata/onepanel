@@ -69,8 +69,8 @@ get_nodes() ->
 get_steps(deploy, #{hosts := Hosts} = Ctx) ->
     service:create(#service{name = name()}),
     ClusterHosts = get_hosts(),
-    NewHosts = onepanel_lists:subtract(Hosts, ClusterHosts),
-    AllHosts = onepanel_lists:union(ClusterHosts, NewHosts),
+    NewHosts = lists_utils:subtract(Hosts, ClusterHosts),
+    AllHosts = lists_utils:union(ClusterHosts, NewHosts),
     [
         #step{hosts = NewHosts, function = configure},
         #step{hosts = AllHosts, function = start},
@@ -79,11 +79,11 @@ get_steps(deploy, #{hosts := Hosts} = Ctx) ->
             condition = fun(_) -> ClusterHosts == [] end
         },
         #step{hosts = NewHosts, function = join_cluster, selection = rest,
-            ctx = Ctx#{cluster_host => onepanel_lists:hd(NewHosts)},
+            ctx = Ctx#{cluster_host => lists_utils:hd(NewHosts)},
             condition = fun(_) -> ClusterHosts == [] end
         },
         #step{hosts = NewHosts, function = join_cluster,
-            ctx = Ctx#{cluster_host => onepanel_lists:hd(ClusterHosts)},
+            ctx = Ctx#{cluster_host => lists_utils:hd(ClusterHosts)},
             condition = fun(_) -> ClusterHosts /= [] end
         },
         #step{hosts = AllHosts, function = rebalance_cluster, selection = first}

@@ -206,7 +206,7 @@ convert(Value, Type) ->
 -spec get_type(Value :: term()) -> Type :: type() | unknown.
 get_type(Value) ->
     SupportedTypes = ["atom", "binary", "float", "integer", "list", "boolean"],
-    onepanel_lists:foldl_while(fun(Type, unknown) ->
+    lists_utils:foldl_while(fun(Type, unknown) ->
         TypeMatcher = erlang:list_to_atom("is_" ++ Type),
         case erlang:TypeMatcher(Value) of
             true -> {halt, erlang:list_to_atom(Type)};

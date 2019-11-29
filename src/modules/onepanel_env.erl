@@ -213,7 +213,7 @@ read(Keys, Path) ->
 -spec read_effective(Keys :: keys(), ServiceName :: service:name()) ->
     {ok, Value :: value()} | error.
 read_effective(Keys, ServiceName) ->
-    onepanel_lists:foldl_while(fun(Path, Prev) ->
+    lists_utils:foldl_while(fun(Path, Prev) ->
         try read(Keys, Path) of
             {ok, Val} -> {halt, {ok, Val}};
             _ -> {cont, Prev}

@@ -92,7 +92,7 @@ call(Nodes, Module, Function, Args, Timeout) when is_list(Nodes) ->
         ({_Node, _Result}) -> true
     end, Values),
 
-    BadNodes = onepanel_lists:subtract(Nodes, proplists:get_keys(Results)),
+    BadNodes = lists_utils:subtract(Nodes, proplists:get_keys(Results)),
     AllResults = Results ++
         [{BadNode, ?ERROR_NO_CONNECTION_TO_CLUSTER_NODE} || BadNode <- BadNodes],
 

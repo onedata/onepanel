@@ -254,7 +254,7 @@ parse_data_usage(#{<<"bytes_used">> := Used, <<"max_avail">> := MaxAvail}) ->
     #{Key => Value :: term()} | errors:error() when Key :: atom().
 get_params(PoolName, Params) ->
     {ok, Node} = nodes:onepanel_with(?SERVICE_CEPH),
-    onepanel_lists:foldl_while(fun({Key, Param}, Acc) ->
+    lists_utils:foldl_while(fun({Key, Param}, Acc) ->
         case rpc:call(Node, ceph_cli, get_pool_param, [PoolName, Param]) of
             {ok, Value} -> {cont, Acc#{Key => Value}};
             _Error -> {halt, ?ERROR_INTERNAL_SERVER_ERROR}

@@ -97,7 +97,7 @@ get_steps(deploy, Ctx) ->
     MonHosts = ceph:extract_hosts(Mons),
     MgrHosts = ceph:extract_hosts(Mgrs),
     OsdHosts = ceph:extract_hosts(Osds),
-    Hosts = onepanel_lists:union([MonHosts, MgrHosts, OsdHosts, get_hosts()]),
+    Hosts = lists_utils:union([MonHosts, MgrHosts, OsdHosts, get_hosts()]),
     [
         #steps{action = ensure_hosts, ctx = Ctx#{hosts => Hosts}},
         #steps{action = deploy_all, service = ceph_mon, ctx = Ctx#{hosts => MonHosts},
@@ -326,7 +326,7 @@ initialize_config(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec extend_cluster(service:ctx()) -> ok.
 extend_cluster(#{hosts := Hosts}) ->
-    NewHosts = onepanel_lists:subtract(Hosts, get_hosts()),
+    NewHosts = lists_utils:subtract(Hosts, get_hosts()),
 
     ConfPath = ceph:get_conf_path(),
     KeyringPath = ceph:get_admin_keyring_path(),
