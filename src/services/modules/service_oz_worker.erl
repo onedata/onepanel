@@ -382,15 +382,22 @@ get_admin_email() ->
 %%--------------------------------------------------------------------
 -spec supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
     boolean().
-supports_letsencrypt_challenge(http) ->
-    service:healthy(name());
-supports_letsencrypt_challenge(dns) ->
-    case nodes:any(name()) of
-        {ok, Node} ->
-            service:healthy(name()) andalso
-                onepanel_env:get_remote(Node, [subdomain_delegation_supported], name());
-        _Error -> false
+supports_letsencrypt_challenge(Challenge) when
+    Challenge == http; Challenge == dns ->
+    OzNode = case nodes:any(name()) of
+        {ok, N} -> N;
+        Error -> throw(Error)
+    end,
+    service:healthy(name()) orelse throw(?ERROR_SERVICE_UNAVAILABLE),
+    case Challenge of
+        http -> true;
+        dns ->
+            case onepanel_env:get_remote(OzNode, [subdomain_delegation_supported], name()) of
+                true -> true;
+                false -> false
+            end
     end;
+
 supports_letsencrypt_challenge(_) -> false.
 
 

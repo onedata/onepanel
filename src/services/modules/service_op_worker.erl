@@ -419,23 +419,25 @@ reload_webcert(Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Checks if the provider has subdomain delegation enabled
-%% needed for Let's Encrypt to be available.
+%% Checks if given Let's Encrypt challenge can be fulfilled.
 %% @end
 %%--------------------------------------------------------------------
 -spec supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
     boolean().
-supports_letsencrypt_challenge(http) ->
-    service:healthy(name()) andalso
-        service_oneprovider:is_registered(); % unregistered provider does not have a domain
-supports_letsencrypt_challenge(dns) ->
-    try
-        service:healthy(name()) andalso
-            service_oneprovider:is_registered() andalso
-            maps:get(subdomainDelegation, service_oneprovider:get_details(), false)
-    catch
-        _:_ -> false
+supports_letsencrypt_challenge(Challenge) when
+    Challenge == http; Challenge == dns ->
+    get_hosts() /= [] orelse throw(?ERROR_NO_SERVICE_NODES(name())),
+    service:healthy(name()) orelse throw(?ERROR_SERVICE_UNAVAILABLE),
+    service_oneprovider:is_registered() orelse throw(?ERROR_UNREGISTERED_ONEPROVIDER),
+    case Challenge of
+        http -> true;
+        dns ->
+            case maps:get(subdomainDelegation, service_oneprovider:get_details(), false) of
+                true -> true;
+                false -> false
+            end
     end;
+
 supports_letsencrypt_challenge(_) -> false.
 
 

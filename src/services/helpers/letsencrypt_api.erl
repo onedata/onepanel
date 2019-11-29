@@ -939,8 +939,9 @@ parse_challenge(#{
     <<"type">> := Type,
     <<"token">> := Token,
     <<"url">> := URL}) ->
-    {true, #challenge{token = Token, url = URL,
-        type = challenge_type_to_atom(Type)}};
+    TypeAtom = challenge_type_to_atom(Type),
+    {true, #challenge{token = Token, url = URL, type = TypeAtom}};
+
 parse_challenge(_) -> false.
 
 

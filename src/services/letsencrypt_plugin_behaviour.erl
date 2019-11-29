@@ -50,6 +50,8 @@
 %%--------------------------------------------------------------------
 %% Checks if Let's Encrypt challenge of given type can be currently
 %% fulfilled by the plugin service.
+%% Throws in conditions preventing certification regardless of the
+%% challenge type.
 %%--------------------------------------------------------------------
 -callback supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
     boolean().
