@@ -625,7 +625,7 @@ get_space_details(#{id := SpaceId}) ->
         op_worker_rpc:get_space_details(Node, SpaceId),
     {ok, StorageIds} = op_worker_storage:get_supporting_storages(Node, SpaceId),
     StorageId = hd(StorageIds),
-    MountInRoot = op_worker_storage:is_mounted_in_root(Node, StorageId),
+    ImportedStorage = op_worker_storage:is_imported_storage(Node, StorageId),
     ImportDetails = op_worker_storage_sync:get_storage_import_details(
         Node, SpaceId, StorageId
     ),
@@ -639,7 +639,7 @@ get_space_details(#{id := SpaceId}) ->
         {supportingProviders, Providers},
         {storageId, StorageId},
         {localStorages, StorageIds},
-        {mountInRoot, MountInRoot},
+        {importedStorage, ImportedStorage},
         {storageImport, ImportDetails},
         {storageUpdate, UpdateDetails},
         {spaceOccupancy, CurrentSize}
@@ -1120,14 +1120,9 @@ assert_storage_exists(Node, StorageId) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec configure_space(OpNode :: node(), SpaceId :: binary(), Ctx :: service:ctx()) -> list().
-configure_space(Node, SpaceId, #{storage_id := StorageId} = Ctx) ->
-    MountInRoot = onepanel_utils:typed_get(mount_in_root, Ctx, boolean, false),
+configure_space(Node, SpaceId, Ctx) ->
     ImportArgs = maps:get(storage_import, Ctx, #{}),
     UpdateArgs = maps:get(storage_update, Ctx, #{}),
-    case MountInRoot of
-        true -> ok = op_worker_rpc:storage_set_mount_in_root(StorageId);
-        false -> ok
-    end,
     op_worker_storage_sync:maybe_configure_storage_import(Node, SpaceId, ImportArgs),
     op_worker_storage_sync:maybe_configure_storage_update(Node, SpaceId, UpdateArgs),
     [{id, SpaceId}].

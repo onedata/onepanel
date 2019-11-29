@@ -158,7 +158,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
         {token, token},
         {size, size},
         {storageId, storage_id},
-        {mountInRoot, mount_in_root}], Args),
+        {importedStorage, imported_storage}], Args),
     Ctx2 = get_storage_import_args(Args, Ctx),
     Ctx3 = get_storage_update_args(Args, Ctx2),
 
