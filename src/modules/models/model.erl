@@ -67,7 +67,7 @@ get_fields() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec create(Model :: model(), Record :: model_behaviour:record()) ->
-    {ok, key()} | {error, already_exists} | no_return().
+    {ok, key()} | ?ERR_ALREADY_EXISTS | no_return().
 create(Model, Record) ->
     transaction(fun() ->
         Table = get_table_name(Model),
@@ -78,7 +78,7 @@ create(Model, Record) ->
                 mnesia:write(Table, Doc, write),
                 {ok, Key};
             [_ | _] ->
-                {error, already_exists}
+                ?ERR_ALREADY_EXISTS
         end
     end).
 

@@ -68,7 +68,7 @@ all() ->
 create_test(Config) ->
     Record = #?MODEL{field1 = 1, field2 = <<"field2">>, field3 = field3},
     ?assertEqual({ok, 1}, ?callAny(Config, model, create, [?MODEL, Record])),
-    ?assertMatch({error, already_exists},
+    ?assertMatch(?ERR_ALREADY_EXISTS,
         ?callAny(Config, model, create, [?MODEL, Record])).
 
 

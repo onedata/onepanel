@@ -91,7 +91,11 @@ service_available(Req, #rstate{methods = Methods, module = Module} = State) ->
                 State2 = State#rstate{bindings = Bindings, params = Params},
 
                 {Available, Req} = Module:is_available(Req4, Method, State2),
-                {Available, Req, State};
+                Req5 = case Available of
+                    true -> Req4;
+                    false -> rest_replier:set_error_body(Req4, ?ERROR_SERVICE_UNAVAILABLE)
+                end,
+                {Available, Req5, State};
             false ->
                 % continue processing as it will fail anyway on allowed methods check
                 % triggering more descriptive error
