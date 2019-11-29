@@ -56,6 +56,7 @@
 -type storage_id() :: binary().
 -type storage_import_status() :: atom().
 -type storage_name() :: binary().
+-type storage_qos_parameters() :: #{binary() => binary()}.
 -type storage_update_status() :: atom().
 -type sync_monitoring_plot_counter_type() :: imported_files | updated_files |
     deleted_files | queue_length.
@@ -64,25 +65,20 @@
 -export_type([storage_doc/0, luma_config/0, helper/0,
     helper_args/0, helper_user_ctx/0, od_space_id/0]).
 
--export([storage_config_new/5, storage_config_new/6]).
--export([storage_create/1, storage_create/2]).
+-export([storage_create/6, storage_create/7]).
 -export([storage_safe_remove/1, storage_safe_remove/2]).
 -export([storage_supports_any_space/1, storage_supports_any_space/2]).
 -export([storage_list_ids/0, storage_list_ids/1]).
--export([storage_get_helpers/1, storage_get_helpers/2]).
--export([storage_get_luma_config_map/1, storage_get_luma_config_map/2]).
--export([storage_select_helper/2, storage_select_helper/3]).
--export([storage_update_admin_ctx/3, storage_update_admin_ctx/4]).
--export([storage_update_helper_args/3, storage_update_helper_args/4]).
--export([storage_set_insecure/3, storage_set_insecure/4]).
+-export([storage_get_helper/1, storage_get_helper/2]).
+-export([storage_update_admin_ctx/2, storage_update_admin_ctx/3]).
+-export([storage_update_helper_args/2, storage_update_helper_args/3]).
+-export([storage_set_insecure/2, storage_set_insecure/3]).
 -export([storage_set_readonly/2, storage_set_readonly/3]).
 -export([storage_set_imported_storage/2, storage_set_imported_storage/3]).
 -export([storage_set_luma_config/2, storage_set_luma_config/3]).
 -export([storage_set_qos_parameters/2, storage_set_qos_parameters/3]).
 -export([storage_update_luma_config/2, storage_update_luma_config/3]).
 -export([storage_update_name/2, storage_update_name/3]).
--export([get_storage_config/1, get_storage_config/2]).
--export([get_storage_config_by_name/1, get_storage_config_by_name/2]).
 -export([storage_exists/1, storage_exists/2]).
 -export([storage_describe/1, storage_describe/2]).
 -export([storage_is_imported_storage/1, storage_is_imported_storage/2]).
@@ -142,25 +138,17 @@
 %%% API functions
 %%%===================================================================
 
--spec storage_config_new(storage_name(), [helper()], boolean(),
-    undefined | luma_config(), boolean()) -> storage_doc().
-storage_config_new(Name, Helpers, ReadOnly, LumaConfig, ImportedStorage) ->
-    ?CALL([Name, Helpers, ReadOnly, LumaConfig, ImportedStorage]).
+-spec storage_create(storage_name(), helper(), boolean(),
+    undefined | luma_config(), boolean(), storage_qos_parameters()) ->
+    {ok, storage_id()} | {error, term()}.
+storage_create(Name, Helpers, ReadOnly, LumaConfig, ImportedStorage, QosParameters) ->
+    ?CALL([Name, Helpers, ReadOnly, LumaConfig, ImportedStorage, QosParameters]).
 
--spec storage_config_new(node(), storage_name(), [helper()], boolean(),
-    undefined | luma_config(), boolean()) -> storage_doc().
-storage_config_new(Node, Name, Helpers, ReadOnly, LumaConfig, ImportedStorage) ->
-    ?CALL(Node, [Name, Helpers, ReadOnly, LumaConfig, ImportedStorage]).
-
-
-
--spec storage_create(storage_doc()) -> {ok, storage_id()} | {error, term()}.
-storage_create(StorageDoc) ->
-    ?CALL([StorageDoc]).
-
--spec storage_create(node(), storage_doc()) -> {ok, storage_id()} | {error, term()}.
-storage_create(Node, StorageDoc) ->
-    ?CALL(Node, [StorageDoc]).
+-spec storage_create(node(), storage_name(), helper(), boolean(),
+    undefined | luma_config(), boolean(), storage_qos_parameters()) ->
+    {ok, storage_id()} | {error, term()}.
+storage_create(Node, Name, Helpers, ReadOnly, LumaConfig, ImportedStorage, QosParameters) ->
+    ?CALL(Node, [Name, Helpers, ReadOnly, LumaConfig, ImportedStorage, QosParameters]).
 
 
 -spec storage_safe_remove(op_worker_storage:id()) -> ok | {error, storage_in_use | term()}.
@@ -190,68 +178,47 @@ storage_list_ids(Node) ->
     ?CALL(Node, []).
 
 
--spec storage_get_helpers(storage_doc()) -> [helper()].
-storage_get_helpers(StorageDoc) ->
-    ?CALL([StorageDoc]).
+-spec storage_get_helper(storage_id()) -> {ok, helper()} | {error, Reason :: term()}.
+storage_get_helper(StorageId) ->
+    ?CALL([StorageId]).
 
--spec storage_get_helpers(node(), storage_doc()) -> [helper()].
-storage_get_helpers(Node, StorageDoc) ->
-    ?CALL(Node, [StorageDoc]).
-
-
--spec storage_get_luma_config_map(storage_doc()) -> map().
-storage_get_luma_config_map(StorageDoc) ->
-    ?CALL([StorageDoc]).
-
--spec storage_get_luma_config_map(node(), storage_doc()) -> map().
-storage_get_luma_config_map(Node, StorageDoc) ->
-    ?CALL(Node, [StorageDoc]).
+-spec storage_get_helper(node(), storage_id()) -> {ok, helper()} | {error, Reason :: term()}.
+storage_get_helper(Node, StorageId) ->
+    ?CALL(Node, [StorageId]).
 
 
 
--spec storage_select_helper(storage_id(), helper_name()) ->
-    {ok, helper()} | {error, Reason :: term()}.
-storage_select_helper(StorageId, HelperName) ->
-    ?CALL([StorageId, HelperName]).
-
--spec storage_select_helper(node(), storage_id(), helper_name()) ->
-    {ok, helper()} | {error, Reason :: term()}.
-storage_select_helper(Node, StorageId, HelperName) ->
-    ?CALL(Node, [StorageId, HelperName]).
-
-
-
--spec storage_update_admin_ctx(storage_id(), helper_name(), helper_user_ctx()) ->
+-spec storage_update_admin_ctx(storage_id(), helper_user_ctx()) ->
     ok | {error, term()}.
-storage_update_admin_ctx(StorageId, HelperName, Changes) ->
-    ?CALL([StorageId, HelperName, Changes]).
+storage_update_admin_ctx(StorageId, Changes) ->
+    ?CALL([StorageId, Changes]).
 
--spec storage_update_admin_ctx(node(), storage_id(), helper_name(), helper_user_ctx()) ->
+-spec storage_update_admin_ctx(node(), storage_id(), helper_user_ctx()) ->
     ok | {error, term()}.
-storage_update_admin_ctx(Node, StorageId, HelperName, Changes) ->
-    ?CALL(Node, [StorageId, HelperName, Changes]).
+storage_update_admin_ctx(Node, StorageId, Changes) ->
+    ?CALL(Node, [StorageId, Changes]).
 
 
--spec storage_update_helper_args(storage_id(), helper_name(), helper_args()) ->
+-spec storage_update_helper_args(storage_id(), helper_args()) ->
     ok | {error, term()}.
-storage_update_helper_args(StorageId, HelperName, Changes) ->
-    ?CALL([StorageId, HelperName, Changes]).
+storage_update_helper_args(StorageId, Changes) ->
+    ?CALL([StorageId, Changes]).
 
--spec storage_update_helper_args(node(), storage_id(), helper_name(), helper_args()) ->
+-spec storage_update_helper_args(node(), storage_id(), helper_args()) ->
     ok | {error, term()}.
-storage_update_helper_args(Node, StorageId, HelperName, Changes) ->
-    ?CALL(Node, [StorageId, HelperName, Changes]).
+storage_update_helper_args(Node, StorageId, Changes) ->
+    ?CALL(Node, [StorageId, Changes]).
 
 
--spec storage_set_insecure(storage_id(), helper_name(), Insecure :: boolean()) ->
+-spec storage_set_insecure(storage_id(), Insecure :: boolean()) ->
     ok | {error, term()}.
-storage_set_insecure(StorageId, HelperName, Insecure) ->
-    ?CALL([StorageId, HelperName, Insecure]).
+storage_set_insecure(StorageId, Insecure) ->
+    ?CALL([StorageId, Insecure]).
 
--spec storage_set_insecure(node(), storage_id(), helper_name(), Insecure :: boolean()) ->
+-spec storage_set_insecure(node(), storage_id(), Insecure :: boolean()) ->
     ok | {error, term()}.
-storage_set_insecure(Node, StorageId, HelperName, Insecure) ->
-    ?CALL(Node, [StorageId, HelperName, Insecure]).
+storage_set_insecure(Node, StorageId, Insecure) ->
+    ?CALL(Node, [StorageId, Insecure]).
 
 
 -spec storage_set_readonly(storage_id(), Readonly :: boolean()) ->
@@ -318,26 +285,6 @@ storage_update_name(StorageId, NewName) ->
     ok.
 storage_update_name(Node, StorageId, NewName) ->
     ?CALL(Node, [StorageId, NewName]).
-
-
--spec get_storage_config(op_worker_storage:id()) -> {ok, storage_doc()} | {error, term()}.
-get_storage_config(Key) ->
-    ?CALL([Key]).
-
--spec get_storage_config(node(), op_worker_storage:id()) -> {ok, storage_doc()} | {error, term()}.
-get_storage_config(Node, Key) ->
-    ?CALL(Node, [Key]).
-
-
--spec get_storage_config_by_name(storage_name()) ->
-    {ok, storage_doc()} | {error, term()}.
-get_storage_config_by_name(Name) ->
-    ?CALL([Name]).
-
--spec get_storage_config_by_name(node(), storage_name()) ->
-    {ok, storage_doc()} | {error, term()}.
-get_storage_config_by_name(Node, Name) ->
-    ?CALL(Node, [Name]).
 
 
 -spec storage_exists(storage_id()) -> boolean().

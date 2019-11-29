@@ -19,7 +19,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([add/2, list/0, get/1, exists/2, update/3, remove/2]).
+-export([add/1, list/0, get/1, exists/2, update/3, remove/2]).
 -export([get_supporting_storage/2, get_supporting_storages/2,
     get_file_popularity_configuration/2, get_auto_cleaning_configuration/2]).
 -export([is_imported_storage/2, can_be_removed/1]).
@@ -68,26 +68,21 @@
 %% This verification is skipped for readonly storages.
 %% @end
 %%--------------------------------------------------------------------
--spec add(Ctx :: #{name := name(), params := storage_params()},
-    IgnoreExists :: boolean()) -> ok | no_return().
-add(#{name := Name, params := Params}, IgnoreExists) ->
+-spec add(Ctx :: #{name := name(), params := storage_params()}) ->
+    ok | no_return().
+add(#{name := Name, params := Params}) ->
     {ok, OpNode} = nodes:any(?SERVICE_OPW),
     StorageName = onepanel_utils:convert(Name, binary),
     StorageType = onepanel_utils:get_converted(type, Params, binary),
 
-    case {exists(OpNode, {name, StorageName}), IgnoreExists} of
-        {true, true} ->
-            ?info("Storage already exists, skipping: \"~ts\" (~ts)",
-                [StorageName, StorageType]),
+    Result = add(OpNode, StorageName, Params),
+
+    case Result of
+        ok -> ?info("Successfully added storage: \"~ts\" (~ts)",
+            [StorageName, StorageType]),
             ok;
-        {true, false} ->
-            throw(?ERROR_BAD_VALUE_IDENTIFIER_OCCUPIED(<<"name">>));
-        _ ->
-            {QosParams, StorageParams} = maps:take(qosParameters, Params),
-            ok = add(OpNode, StorageName, StorageParams, QosParams),
-            ?info("Successfully added storage: \"~ts\" (~ts)",
-                [StorageName, StorageType]),
-            ok
+        {error, Reason} ->
+            throw(Reason)
     end.
 
 
@@ -111,7 +106,7 @@ update(OpNode, Id, Params) ->
     ok = maybe_update_admin_ctx(OpNode, Id, Type, PlainValues),
     ok = maybe_update_args(OpNode, Id, Type, PlainValues),
     ok = maybe_update_luma_config(OpNode, Id, PlainValues, LumaEnabled),
-    ok = maybe_update_insecure(OpNode, Id, Type, PlainValues),
+    ok = maybe_update_insecure(OpNode, Id, PlainValues),
     ok = maybe_update_readonly(OpNode, Id, PlainValues),
     ok = maybe_update_qos_parameters(OpNode, Id, Params),
     ok = maybe_update_imported_storage(OpNode, Id, Params),
@@ -293,29 +288,26 @@ can_be_removed(StorageId) ->
 %% Uses given OpNode for op_worker operations.
 %% @end
 %%--------------------------------------------------------------------
--spec add(OpNode :: node(), StorageName :: binary(), Params :: storage_params(),
-    QosParameters :: qos_parameters()) -> ok | {error, Reason :: term()}.
-add(OpNode, StorageName, Params, QosParameters) ->
+-spec add(OpNode :: node(), Name :: binary(), Params :: storage_params()) ->
+    ok | {error, Reason :: term()}.
+add(OpNode, Name, Params) ->
     StorageType = onepanel_utils:get_converted(type, Params, binary),
 
-    ?info("Gathering storage configuration: \"~ts\" (~ts)", [StorageName, StorageType]),
+    ?info("Gathering storage configuration: \"~ts\" (~ts)", [Name, StorageType]),
     ReadOnly = onepanel_utils:get_converted(readonly, Params, boolean, false),
 
-    UserCtx = make_user_ctx(OpNode, StorageType, Params),
-    {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, Params),
+    {QosParameters, StorageParams} = maps:take(qosParameters, Params),
+    UserCtx = make_user_ctx(OpNode, StorageType, StorageParams),
+    {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, StorageParams),
 
-    LumaConfig = make_luma_config(OpNode, Params),
+    LumaConfig = make_luma_config(OpNode, StorageParams),
     maybe_verify_storage(Helper, ReadOnly),
 
-    ImportedStorage = onepanel_utils:get_converted(importedStorage, Params, boolean, false),
+    ImportedStorage = onepanel_utils:get_converted(importedStorage, StorageParams, boolean, false),
 
-    ?info("Adding storage: \"~ts\" (~ts)", [StorageName, StorageType]),
-    StorageRecord = op_worker_rpc:storage_config_new(StorageName, [Helper],
-        ReadOnly, LumaConfig, ImportedStorage),
-    case op_worker_rpc:storage_create(StorageRecord) of
-        {ok, StorageId} ->
-            update_qos_parameters(OpNode, StorageId, QosParameters),
-            ok;
+    ?info("Adding storage: \"~ts\" (~ts)", [Name, StorageType]),
+    case op_worker_rpc:storage_create(Name, Helper, ReadOnly, LumaConfig, ImportedStorage, QosParameters) of
+        {ok, _StorageId} -> ok;
         {error, Reason} -> {error, Reason}
     end.
 
@@ -407,9 +399,9 @@ get_required_luma_arg(Key, StorageParams, Type) ->
 -spec make_update_result(OpNode :: node(), StorageId :: id()) -> storage_details().
 make_update_result(OpNode, StorageId) ->
     Details = ?MODULE:get(StorageId),
-    #{name := Name, type := Type, readonly := Readonly} = Details,
+    #{name := Name, readonly := Readonly} = Details,
     try
-        {ok, Helper} = op_worker_rpc:storage_select_helper(OpNode, StorageId, Type),
+        {ok, Helper} = op_worker_rpc:storage_get_helper(OpNode, StorageId),
         maybe_verify_storage(Helper, Readonly)
     of
         skipped -> Details;
@@ -476,7 +468,7 @@ maybe_update_admin_ctx(OpNode, Id, Type, Params) ->
     Ctx = make_user_ctx(OpNode, Type, Params),
     case maps:size(Ctx) of
         0 -> ok;
-        _ -> ok = op_worker_rpc:storage_update_admin_ctx(OpNode, Id, Type, Ctx)
+        _ -> ok = op_worker_rpc:storage_update_admin_ctx(OpNode, Id, Ctx)
     end.
 
 
@@ -487,17 +479,17 @@ maybe_update_args(OpNode, Id, Type, Params) ->
     Args = make_helper_args(OpNode, Type, Params),
     case maps:size(Args) of
         0 -> ok;
-        _ -> ok = op_worker_rpc:storage_update_helper_args(OpNode, Id, Type, Args)
+        _ -> ok = op_worker_rpc:storage_update_helper_args(OpNode, Id, Args)
     end.
 
 
 %% @private
--spec maybe_update_insecure(OpNode :: node(), Id :: id(), Type :: binary(),
-    Params :: storage_params()) -> ok | no_return().
-maybe_update_insecure(OpNode, Id, Type, #{insecure := NewInsecure}) ->
-    ok = op_worker_rpc:storage_set_insecure(OpNode, Id, Type, NewInsecure);
+-spec maybe_update_insecure(OpNode :: node(), Id :: id(), Params :: storage_params()) ->
+    ok | no_return().
+maybe_update_insecure(OpNode, Id, #{insecure := NewInsecure}) ->
+    ok = op_worker_rpc:storage_set_insecure(OpNode, Id, NewInsecure);
 
-maybe_update_insecure(_OpNode, _Id, _Type, _Params) -> ok.
+maybe_update_insecure(_OpNode, _Id,  _Params) -> ok.
 
 
 %% @private
@@ -559,15 +551,8 @@ update_imported_storage(OpNode, Id, Value) ->
 %% @doc Checks if storage with given name or id exists.
 %% @end
 %%--------------------------------------------------------------------
--spec exists(Node :: node(), Identifier) -> boolean()
-    when Identifier :: {name, name()} | {id, id()}.
-exists(Node, {name, StorageName}) ->
-    case op_worker_rpc:get_storage_config_by_name(Node, StorageName) of
-        {error, not_found} -> false;
-        {ok, _} -> true
-    end;
-
-exists(Node, {id, StorageId}) ->
+-spec exists(Node :: node(), id()) -> boolean().
+exists(Node, StorageId) ->
     op_worker_rpc:storage_exists(Node, StorageId).
 
 

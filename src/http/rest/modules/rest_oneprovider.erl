@@ -64,7 +64,7 @@ is_authorized(Req, _Method, _State) ->
 exists_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
     case nodes:any(?WORKER) of
         {ok, Node} ->
-            {op_worker_storage:exists(Node, {id, Id}), Req};
+            {op_worker_storage:exists(Node, Id), Req};
         _ ->
             {false, Req}
     end;
