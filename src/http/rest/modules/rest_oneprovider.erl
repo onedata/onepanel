@@ -198,7 +198,7 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = storage,
     % identified by id.
     case service_op_worker:get_storages(#{id => Id}) of
         #{name := OldName, type := Type} -> ok;
-        #{name := ActualName, type := _} ->
+        #{name := ActualName, type := _} when ActualName /= OldName ->
             throw(?ERROR_BAD_VALUE_NOT_ALLOWED(OldName, [ActualName]));
         #{name := OldName, type := ActualType} ->
             Key = str_utils:join_as_binaries([OldName, type], <<".">>),

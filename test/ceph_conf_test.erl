@@ -220,7 +220,7 @@ append_test_(_) ->
 
 find_test_(_) ->
     Base = #{
-        global => Global = #{
+        global => #{
             <<"key">> => <<"v1">>,
             <<"list">> => [<<"v1">>, <<"v2">>]
         },

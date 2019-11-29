@@ -28,6 +28,14 @@
 
 -type type_spec() :: integer | float | string | binary | atom | boolean | object_spec().
 
+% multi_spec: either a regular spec, or a list of values, or a value
+% from a closed set of literal values (enum), or a polymorphic model:
+% {subclasses, {Discriminator, SpecsMap}} defines a spec which can have
+% any of a few alternative models (for example storages of various types).
+% One field - the Discriminator - must be present in all models and is used
+% to determine model used for parsing.
+% The SpecsMap contains mapping of possible discriminator field values
+% and specific models.
 -type multi_spec() :: type_spec() | [multi_spec()]
 | {enum, type_spec(), Allowed :: [term()]}
 | {subclasses, {Discriminator :: key(), #{binary() => object_spec()}}}.
@@ -225,7 +233,7 @@ parse_value(Value, {subclasses, {DiscriminatorField, ValueToSpec}}, Keys) ->
 parse_value(Values, [ValueSpec], Keys) ->
     try
         [parse_value(Value, ValueSpec, [Idx | Keys])
-            || {Idx, Value} <- lists:zip(lists:seq(1, length(Values)), Values)]
+            || {Idx, Value} <- lists_utils:number_items(Values)]
     catch
         throw:ValueError ->
             case ValueSpec of

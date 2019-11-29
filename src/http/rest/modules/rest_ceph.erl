@@ -283,12 +283,7 @@ delete_resource(Req, _State) ->
 
 -spec get_osd_params(map()) -> service:ctx().
 get_osd_params(#{host := Host, type := Type} = Spec) ->
-    Params = kv_utils:copy_found([
-        {device, device},
-        {size, size},
-        {path, path},
-        {uuid, uuid}
-    ], Spec, #{
+    Params = maps:merge(maps:with([device, size, path, uuid], Spec), #{
         type => onepanel_utils:convert(Type, atom),
         host => onepanel_utils:convert(Host, list)
     }),

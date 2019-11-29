@@ -384,11 +384,11 @@ write_config(#{config := Config} = Ctx) ->
     #{total := map(), osds := map(), pools := #{ceph_pool:name() => ceph_pool:usage()}}.
 get_usage(Ctx) ->
     #{<<"stats">> := Stats, <<"pools">> := Pools} = ceph_cli:df(),
-    Total = kv_utils:copy_found([
+    Total = kv_utils:find_many([
         {<<"total_bytes">>, total},
         {<<"total_used_bytes">>, used},
         {<<"total_avail_bytes">>, available}
-    ], Stats, #{}),
+    ], Stats),
     PoolsMap = pools_df_list_to_map(Pools),
 
     case maps:find(pool, Ctx) of

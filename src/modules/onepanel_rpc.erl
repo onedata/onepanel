@@ -46,7 +46,7 @@ apply(Module, Function, Args) ->
             ?error_stacktrace("Unexpected error executing ~tp:~tp/~B~nError: ~tp:~tp~n",
                 [Module, Function, erlang:length(Args), Type, Reason]),
             {node(), {error, #exception{
-                % do not store tracktrace not to pollute logs since it's reported here
+                % do not store stacktrace not to pollute logs since it's logged here
                 type = Type, value = Reason, stacktrace = []}}}
     end.
 
