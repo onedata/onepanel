@@ -49,12 +49,14 @@
 -define(CUSTOM_LOOP_PATH, <<"/volumes/persistence/ceph-loopdevices/custompath.loop">>).
 % path of loopdevice file used to test blockdevice type deployment
 -define(MOCK_BLOCKDEVICE_PATH, <<"/volumes/persistence/ceph-loopdevices/blockdevice.loop">>).
+-define(LOOPDEVICE_SIZE, 300 * 1024 * 1024).
 
 -define(POOL_PARAMS, #{
     type => <<"localceph">>,
     clusterName => <<"ceph">>,
     poolName => <<"onedata">>,
-    storagePathType => <<"flat">>
+    storagePathType => <<"flat">>,
+    qosParameters => #{}
 }).
 
 
@@ -119,7 +121,7 @@ ceph_is_deployed(Config) ->
             #{
                 type => loopdevice,
                 host => OpHost1,
-                size => 1 * 1024 * 1024 * 1024,
+                size => ?LOOPDEVICE_SIZE,
                 uuid => ?OSD_UUID1 % UUID is always sent by user or filled in rest_ceph
             }
         ]
@@ -173,7 +175,7 @@ loopdevice_osd_is_added(Config) ->
                 host => OpHost3,
                 type => loopdevice,
                 path => ?CUSTOM_LOOP_PATH,
-                size => 2 * 1024 * 1024 * 1024,
+                size => ?LOOPDEVICE_SIZE,
                 uuid => ?OSD_UUID2
             }
         ]
@@ -291,46 +293,10 @@ storage_delete_removes_pool(Config) ->
 init_per_suite(Config) ->
     Posthook = fun(NewConfig) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
+        NewConfig3 = image_test_utils:deploy_onezone(?PASSPHRASE,
+            <<"admin">>, <<"password">>, NewConfig2),
 
-        [OpNode | _] = OpNodes = ?config(oneprovider_nodes, NewConfig2),
-        OpHosts = hosts:from_nodes(OpNodes),
-
-        rpc:call(OpNode, emergency_passphrase, set, [?PASSPHRASE]),
-        DbHosts = [hd(OpHosts)],
-        onepanel_test_utils:service_action(OpNode, ?SERVICE_PANEL, deploy, #{
-            hosts => OpHosts}),
-        onepanel_test_utils:service_action(OpNode, ?SERVICE_OP, deploy, #{
-            cluster => #{
-                ?SERVICE_PANEL => #{
-                    hosts => OpHosts
-                },
-                ?SERVICE_CB => #{
-                    hosts => DbHosts
-                },
-                ?SERVICE_CM => #{
-                    hosts => OpHosts, main_cm_host => hd(OpHosts),
-                    worker_num => length(OpHosts)
-                },
-                ?SERVICE_OPW => #{
-                    hosts => OpHosts, main_cm_host => hd(OpHosts),
-                    cm_hosts => OpHosts, db_hosts => DbHosts
-                },
-                storages => #{
-                    hosts => OpHosts,
-                    storages => #{
-                    }
-                },
-                ?SERVICE_LE => #{
-                    hosts => OpHosts,
-                    letsencrypt_enabled => false
-                }
-            },
-            ?SERVICE_OP => #{
-                hosts => OpHosts,
-                oneprovider_register => false
-            }
-        }),
-        NewConfig2
+        image_test_utils:deploy_oneprovider(?PASSPHRASE, _Storages = #{}, NewConfig3)
     end,
     [{?ENV_UP_POSTHOOK, Posthook} | Config].
 
@@ -344,7 +310,7 @@ init_per_testcase(blockdevice_osd_is_added, Config) ->
     OpNode3 = nodes:service_to_node(?SERVICE_PANEL, OpHost3),
 
     % code based on service_ceph_osd:prepare_loopdevice/1
-    Size = 1 * 1024 * 1024 * 1024,
+    Size = ?LOOPDEVICE_SIZE,
     UUID = ?OSD_UUID3,
     Path = ?MOCK_BLOCKDEVICE_PATH,
     Loop = ?assertMatch(<<_/binary>>,
