@@ -16,7 +16,7 @@
 -include("onepanel_test_rest.hrl").
 -include_lib("ctool/include/aai/caveats.hrl").
 -include_lib("ctool/include/errors.hrl").
--include_lib("ctool/include/graph_sync/graph_sync.hrl").
+-include_lib("ctool/include/graph_sync/gri.hrl").
 -include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
@@ -29,7 +29,7 @@
 %% tests
 -export([
     method_should_return_unauthorized_error/1,
-    token_with_unknown_caveats_should_return_unauthorized_error/1,
+    token_with_api_caveats_should_return_unauthorized_error/1,
     noauth_method_should_return_forbidden_error/1,
     method_should_return_forbidden_error/1,
     method_should_return_not_found_error/1,
@@ -64,7 +64,7 @@
 all() ->
     ?ALL([
         method_should_return_unauthorized_error,
-        token_with_unknown_caveats_should_return_unauthorized_error,
+        token_with_api_caveats_should_return_unauthorized_error,
         noauth_method_should_return_forbidden_error,
         method_should_return_forbidden_error,
         method_should_return_not_found_error,
@@ -103,13 +103,15 @@ method_should_return_unauthorized_error(Config) ->
     ]).
 
 
-token_with_unknown_caveats_should_return_unauthorized_error(Config) ->
+token_with_api_caveats_should_return_unauthorized_error(Config) ->
     BadCaveats = [
-        #cv_api{whitelist = [{all, all, #gri{type = '*', aspect = '*'}}]},
-        #cv_data_access{type = read},
-        #cv_data_objectid{whitelist = [<<"someId">>]},
-        #cv_data_path{whitelist = [<<"somePath">>]},
-        #cv_data_space{whitelist = [<<"someSpace">>]}
+        #cv_api{whitelist = [{all, all, #gri_pattern{type = '*', aspect = '*'}}]},
+        #cv_api{whitelist = [{oz_worker, delete, #gri_pattern{type = '*', aspect = '*'}}]},
+        #cv_api{whitelist = [{oz_panel, create, #gri_pattern{type = '*', aspect = '*'}}]},
+        #cv_interface{interface = oneclient},
+        #cv_data_readonly{},
+        #cv_data_path{whitelist = [<<"/260a56d159a980ca0d645dd81/dir/file.txt">>]},
+        #cv_data_objectid{whitelist = [<<"901823DEC57846DCFE">>]}
     ],
     % sample good caveats
     GoodCaveats = [
@@ -340,7 +342,7 @@ init_per_testcase(unauthorized_post_should_join_cluster, Config) ->
     init_per_testcase(default, Config);
 
 init_per_testcase(Case, Config) when
-    Case == token_with_unknown_caveats_should_return_unauthorized_error;
+    Case == token_with_api_caveats_should_return_unauthorized_error;
     Case == noauth_put_should_set_emergency_passphrase ->
     ?call(Config, model, clear, [onepanel_kv]),
     Config;
