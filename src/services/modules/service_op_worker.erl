@@ -426,7 +426,7 @@ reload_webcert(Ctx) ->
     boolean().
 supports_letsencrypt_challenge(Challenge) when
     Challenge == http; Challenge == dns ->
-    get_hosts() /= [] orelse throw(?ERROR_NO_SERVICE_NODES(name())),
+    ?MODULE:get_hosts() /= [] orelse throw(?ERROR_NO_SERVICE_NODES(name())),
     service:healthy(name()) orelse throw(?ERROR_SERVICE_UNAVAILABLE),
     service_oneprovider:is_registered() orelse throw(?ERROR_UNREGISTERED_ONEPROVIDER),
     case Challenge of

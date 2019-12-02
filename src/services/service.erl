@@ -260,9 +260,6 @@ apply(Service, Action, Ctx) ->
 %%--------------------------------------------------------------------
 -spec apply(Service :: name(), Action :: action(), Ctx :: ctx(), Notify :: notify()) ->
     ok | {error, _}.
-apply([], _Action, _Ctx, _Notify) ->
-    ok;
-
 apply(Service, Action, Ctx, Notify) ->
     TaskDelay = maps:get(task_delay, Ctx, 0),
     ?debug("Delaying task ~tp:~tp by ~tp ms", [Service, Action, TaskDelay]),
