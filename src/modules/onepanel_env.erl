@@ -217,11 +217,12 @@ read(Keys, Path) ->
 %% @doc
 %% Reads value of an application variable from the first configuration
 %% file containing it, in order of overlays priority.
+%% Attempts to read all env variables are not permitted.
 %% @end
 %%--------------------------------------------------------------------
 -spec read_effective(Keys :: keys(), ServiceName :: service:name()) ->
     {ok, Value :: value()} | #error{}.
-read_effective(Keys, ServiceName) ->
+read_effective([_AppName, _EnvName | _] = Keys, ServiceName) ->
     onepanel_lists:foldl_while(fun(Path, Prev) ->
         try read(Keys, Path) of
             {ok, Val} -> {halt, {ok, Val}};
@@ -229,7 +230,10 @@ read_effective(Keys, ServiceName) ->
         catch
             _:_ -> {cont, Prev}
         end
-    end, ?make_error(?ERR_NOT_FOUND), get_config_paths(ServiceName)).
+    end, ?make_error(?ERR_NOT_FOUND), get_config_paths(ServiceName));
+
+read_effective(_, _) ->
+    error(badarg).
 
 
 %%--------------------------------------------------------------------

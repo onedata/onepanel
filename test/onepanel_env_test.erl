@@ -24,12 +24,26 @@
 -define(APP_CONFIG_1, [
     {k1, v1},
     {k2, v2},
-    {k3, v3}
+    {k3, v3},
+    {k4, v4}
+]).
+-define(IGNORED, [
+    {a1, [{k1, i1}]}
+]).
+-define(CUSTOM_1, [
+    {a1, [{k1, c1}, {k2, c2}, {k4, c4}]}
+]).
+-define(CUSTOM_2, [
+    {a1, [{k1, c1}, {k2, c2}]}
+]).
+-define(OVERLAY, [
+    {a1, [{k1, o1}]}
 ]).
 -define(APP_CONFIG_2, [
     {k4, v4},
     {k5, ?VALUE_5}
 ]).
+
 -define(VALUE_5, [
     {k6, v6},
     {k7, ?VALUE_7}
@@ -58,7 +72,9 @@ onepanel_env_test_() ->
             fun write_should_replace_value/1,
             fun migrate_should_rename_key/1,
             fun migrate_should_ignore_missing/1,
-            fun write_should_pass_errors/1
+            fun write_should_pass_errors/1,
+            fun read_effective_does_not_read_whole_config/1,
+            fun read_effective_follow_priority/0
         ]
     }.
 
@@ -86,11 +102,11 @@ read_should_report_missing_key(_) ->
     ?assertMatch(#error{reason = ?ERR_NOT_FOUND},
         onepanel_env:read([a3], "p1")),
     ?assertMatch(#error{reason = ?ERR_NOT_FOUND},
-        onepanel_env:read([a1, k4], "p1")),
+        onepanel_env:read([a1, k5], "p1")),
     ?assertMatch(#error{reason = ?ERR_NOT_FOUND},
-        onepanel_env:read([a2, k5, k8], "p1")),
+        onepanel_env:read([a2, k6, k8], "p1")),
     ?_assertMatch(#error{reason = ?ERR_NOT_FOUND},
-        onepanel_env:read([a2, k5, k7, k9], "p1")).
+        onepanel_env:read([a2, k6, k7, k9], "p1")).
 
 
 read_should_pass_errors(_) ->
@@ -106,7 +122,7 @@ write_should_append_value(_) ->
     ])}, pop_msg()),
     ?assertEqual(ok, onepanel_env:write([a1, k9], v9, "p1")),
     ?assertEqual({ok, ?FILE_CONTENT([
-        {a1, [{k1, v1}, {k2, v2}, {k3, v3}, {k9, v9}]},
+        {a1, [{k1, v1}, {k2, v2}, {k3, v3}, {k4, v4}, {k9, v9}]},
         {a2, ?APP_CONFIG_2}
     ])}, pop_msg()),
     ?assertEqual(ok, onepanel_env:write([a2, k5, k9], v9, "p1")),
@@ -128,7 +144,7 @@ write_should_replace_value(_) ->
     ])}, pop_msg()),
     ?assertEqual(ok, onepanel_env:write([a1, k1], v9, "p1")),
     ?assertEqual({ok, ?FILE_CONTENT([
-        {a1, [{k1, v9}, {k2, v2}, {k3, v3}]},
+        {a1, [{k1, v9}, {k2, v2}, {k3, v3}, {k4, v4}]},
         {a2, ?APP_CONFIG_2}
     ])}, pop_msg()),
     ?assertEqual(ok, onepanel_env:write([a2, k5], v9, "p1")),
@@ -172,9 +188,9 @@ write_should_pass_errors(_) ->
 
 
 migrate_should_rename_key(_) ->
-    ?assertEqual(true, onepanel_env:migrate(a1, [a1, k2], [a1, k9])),
+    ?assertEqual(true, onepanel_env:migrate(service1, [a1, k2], [a1, k9])),
     Expected = {ok, ?FILE_CONTENT([
-        {a1, [{k1, v1}, {k3, v3}, {k9, v2}]},
+        {a1, [{k1, v1}, {k3, v3}, {k4, v4}, {k9, v2}]},
         {a2, ?APP_CONFIG_2}
     ])},
     Result = pop_msg(),
@@ -182,10 +198,23 @@ migrate_should_rename_key(_) ->
 
 
 migrate_should_ignore_missing(_) ->
-    ?assertEqual(false, onepanel_env:migrate(a1, [a1, missing], [a1, k9])),
+    ?assertEqual(false, onepanel_env:migrate(service1, [a1, missing], [a1, k9])),
     % no write happens when there is no change
     Msg = pop_msg(),
     ?_assertEqual(timeout, Msg).
+
+
+read_effective_does_not_read_whole_config(_) ->
+    ?assertError(badarg, onepanel_env:read_effective([], s1)),
+    ?_assertError(badarg, onepanel_env:read_effective([a1], s1)).
+
+
+read_effective_follow_priority() ->
+    % not overridden
+    ?assertEqual({ok, v3}, onepanel_env:read_effective([a1, k3], service1)),
+    ?assertEqual({ok, v4}, onepanel_env:read_effective([a2, k4], service1)),
+    % set in overlay - top priority
+    ?assertEqual({ok, o1}, onepanel_env:read_effective([a1, k1], service1)).
 
 
 %%%===================================================================
@@ -193,13 +222,16 @@ migrate_should_ignore_missing(_) ->
 %%%===================================================================
 
 start() ->
+    meck:unload(),
     meck:new([file], [unstick, passthrough]),
 
     meck:expect(file, consult, fun
-        ("p1") ->
-            {ok, [?APP_CONFIGS]};
-        (Path) ->
-            meck:passthrough([Path])
+        ("p1") -> {ok, [?APP_CONFIGS]};
+        ("config.d/01-custom.config") -> {ok, [?CUSTOM_1]};
+        ("config.d/ignored.bad-suffix") -> {ok, [?IGNORED]};
+        ("config.d/10-CUSTOM.CONFIG") -> {ok, [?CUSTOM_2]};
+        ("overlay.config") -> {ok, [?OVERLAY]};
+        (Path) -> meck:passthrough([Path])
     end),
 
     meck:expect(file, write_file, fun
@@ -210,10 +242,14 @@ start() ->
             meck:passthrough([Path, Content])
     end),
 
-    meck:expect(onepanel_env, get_config_path, fun
-        (a1, generated) -> "p1";
-        (a2, generated) -> "p1";
-        (Service, Layer) -> meck:passthrough([Service, Layer])
+
+    meck:expect(onepanel_env, get, fun
+        (service1_app_config_file) -> "p1";
+        (service1_generated_config_file) -> "p1";
+        (service1_overlay_config_file) -> "overlay.config";
+        (service1_custom_config_dir) -> "config.d";
+        (service2_generated_config_file) -> "p1";
+        (Variable) -> meck:passthrough([Variable])
     end),
 
     ok.
