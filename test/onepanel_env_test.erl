@@ -31,10 +31,10 @@
     {a1, [{k1, i1}]}
 ]).
 -define(CUSTOM_1, [
-    {a1, [{k1, c1}, {k2, c2}, {k4, c4}]}
+    {a1, [{k1, c1}, {k2, c2}, {k4, c4}, {k10, c10}]}
 ]).
 -define(CUSTOM_2, [
-    {a1, [{k1, c1}, {k2, c2}]}
+    {a1, [{k1, d1}, {k2, d2}]}
 ]).
 -define(OVERLAY, [
     {a1, [{k1, o1}]}
@@ -213,6 +213,13 @@ read_effective_follow_priority() ->
     % not overridden
     ?assertEqual({ok, v3}, onepanel_env:read_effective([a1, k3], service1)),
     ?assertEqual({ok, v4}, onepanel_env:read_effective([a2, k4], service1)),
+    % set in custom 1
+    ?assertEqual({ok, c4}, onepanel_env:read_effective([a1, k4], service1)),
+    ?assertEqual({ok, c10}, onepanel_env:read_effective([a1, k10], service1)),
+
+    % set in custom 2
+    ?assertEqual({ok, d2}, onepanel_env:read_effective([a1, k2], service1)),
+
     % set in overlay - top priority
     ?assertEqual({ok, o1}, onepanel_env:read_effective([a1, k1], service1)).
 
@@ -225,13 +232,21 @@ start() ->
     meck:unload(),
     meck:new([file], [unstick, passthrough]),
 
-    meck:expect(file, consult, fun
-        ("p1") -> {ok, [?APP_CONFIGS]};
-        ("config.d/01-custom.config") -> {ok, [?CUSTOM_1]};
-        ("config.d/ignored.bad-suffix") -> {ok, [?IGNORED]};
-        ("config.d/10-CUSTOM.CONFIG") -> {ok, [?CUSTOM_2]};
-        ("overlay.config") -> {ok, [?OVERLAY]};
-        (Path) -> meck:passthrough([Path])
+    meck:expect(file, consult, fun(Path) ->
+        case onepanel_utils:convert(filename:flatten(Path), list) of
+            "p1" -> {ok, [?APP_CONFIGS]};
+            "config.d/01-custom.config" -> {ok, [?CUSTOM_1]};
+            "config.d/ignored.bad-suffix" -> {ok, [?IGNORED]};
+            "config.d/10-graphana.config" -> {ok, [?CUSTOM_2]};
+            "overlay.config" -> {ok, [?OVERLAY]};
+            Path -> meck:passthrough([Path])
+        end
+    end),
+
+    meck:expect(file, list_dir, fun
+        ("config.d") -> {ok, ["10-graphana.config", "01-custom.config", "ignored.bad-suffix"]};
+        ("config.d/") -> {ok, ["10-graphana.config", "01-custom.config", "ignored.bad-suffix"]};
+        (Path) -> error({unexpected_dir, Path})
     end),
 
     meck:expect(file, write_file, fun

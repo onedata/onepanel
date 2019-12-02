@@ -37,6 +37,7 @@
 -define(DO_NOT_MODIFY_HEADER,
     "% MACHINE GENERATED FILE. DO NOT MODIFY.\n"
     "% Use overlay.config for custom configuration.\n").
+-define(FILE_EXT, ".config").
 
 %%%===================================================================
 %%% API functions
@@ -409,6 +410,7 @@ migrate(ServiceName, OldKeys, NewKeys) ->
 migrate(PanelNodes, ServiceName, OldKeys, NewKeys) ->
     onepanel_rpc:call_all(PanelNodes, ?MODULE, migrate, [ServiceName, OldKeys, NewKeys]).
 
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -421,4 +423,30 @@ migrate(PanelNodes, ServiceName, OldKeys, NewKeys) ->
 %%--------------------------------------------------------------------
 -spec get_config_paths(Service :: service:name()) -> [file:name()].
 get_config_paths(ServiceName) ->
-    [get_config_path(ServiceName, Layer) || Layer <- [overlay, generated, app]].
+    [Overlay, Generated, App] = [get_config_path(ServiceName, Layer)
+        || Layer <- [overlay, generated, app]],
+    % in the custom config dir, files lexicographically bigger have
+    % higher priority.
+    [Overlay | list_config_dir(ServiceName)] ++ [Generated, App].
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Returns paths of files in the config.d directory which have
+%% .config extension. The files are sorted by decreasing priority.
+%% @end
+%%--------------------------------------------------------------------
+-spec list_config_dir(service:name()) -> [file:name_all()].
+list_config_dir(ServiceName) ->
+    EnvName = str_utils:format("~s_custom_config_dir", [ServiceName]),
+    DirPath = onepanel_env:get(list_to_atom(EnvName)),
+    case file:list_dir(DirPath) of
+        {ok, Files} ->
+            Matching = lists:filter(fun(Filename) ->
+                ?FILE_EXT == filename:extension(Filename)
+            end, Files),
+            Sorted = lists:reverse(lists:sort(Matching)),
+            [filename:join(DirPath, File) || File <- Sorted];
+        {error, _} ->
+            []
+    end.
