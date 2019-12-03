@@ -218,7 +218,8 @@ read(Keys, Path) ->
 %% @doc
 %% Reads value of an application variable from the first configuration
 %% file containing it, in order of overlays priority.
-%% Attempts to read all env variables are not permitted.
+%% Contrary to read/2, reading all config variables by passing [] or [AppName]
+%% as Keys is not possible.
 %% @end
 %%--------------------------------------------------------------------
 -spec read_effective(Keys :: keys(), ServiceName :: service:name()) ->
@@ -423,10 +424,9 @@ migrate(PanelNodes, ServiceName, OldKeys, NewKeys) ->
 %%--------------------------------------------------------------------
 -spec get_config_paths(Service :: service:name()) -> [file:name()].
 get_config_paths(ServiceName) ->
-    [Overlay, Generated, App] = [get_config_path(ServiceName, Layer)
-        || Layer <- [overlay, generated, app]],
-    % in the custom config dir, files lexicographically bigger have
-    % higher priority.
+    Overlay = get_config_path(ServiceName, overlay),
+    Generated = get_config_path(ServiceName, generated),
+    App = get_config_path(ServiceName, app),
     [Overlay | list_config_dir(ServiceName)] ++ [Generated, App].
 
 
@@ -445,6 +445,7 @@ list_config_dir(ServiceName) ->
             Matching = lists:filter(fun(Filename) ->
                 ?FILE_EXT == filename:extension(Filename)
             end, Files),
+            % files lexicographically greater have higher priority.
             Sorted = lists:reverse(lists:sort(Matching)),
             [filename:join(DirPath, File) || File <- Sorted];
         {error, _} ->
