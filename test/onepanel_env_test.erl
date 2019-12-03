@@ -65,16 +65,16 @@ onepanel_env_test_() ->
         fun start/0,
         fun stop/1,
         [
-            fun read_should_return_value/1,
-            fun read_should_report_missing_key/1,
-            fun read_should_pass_errors/1,
-            fun write_should_append_value/1,
-            fun write_should_replace_value/1,
-            fun migrate_should_rename_key/1,
-            fun migrate_should_ignore_missing/1,
-            fun write_should_pass_errors/1,
-            fun read_effective_does_not_read_whole_config/1,
-            fun read_effective_follow_priority/0
+            {"read_should_return_value", fun read_should_return_value/0},
+            {"read_should_report_missing_key", fun read_should_report_missing_key/0},
+            {"read_should_pass_errors", fun read_should_pass_errors/0},
+            {"write_should_append_value", fun write_should_append_value/0},
+            {"write_should_replace_value", fun write_should_replace_value/0},
+            {"migrate_should_rename_key", fun migrate_should_rename_key/0},
+            {"migrate_should_ignore_missing", fun migrate_should_ignore_missing/0},
+            {"write_should_pass_errors", fun write_should_pass_errors/0},
+            {"read_effective_does_not_read_whole_config", fun read_effective_does_not_read_whole_config/0},
+            {"read_effective_follows_priority", fun read_effective_follows_priority/0}
         ]
     }.
 
@@ -82,7 +82,7 @@ onepanel_env_test_() ->
 %%% Test functions
 %%%===================================================================
 
-read_should_return_value(_) ->
+read_should_return_value() ->
     ?assertEqual({ok, ?APP_CONFIGS}, onepanel_env:read([], "p1")),
     ?assertEqual({ok, ?APP_CONFIG_1}, onepanel_env:read([a1], "p1")),
     ?assertEqual({ok, ?APP_CONFIG_1}, onepanel_env:read(a1, "p1")),
@@ -95,25 +95,25 @@ read_should_return_value(_) ->
     ?assertEqual({ok, ?VALUE_5}, onepanel_env:read([a2, k5], "p1")),
     ?assertEqual({ok, v6}, onepanel_env:read([a2, k5, k6], "p1")),
     ?assertEqual({ok, ?VALUE_7}, onepanel_env:read([a2, k5, k7], "p1")),
-    ?_assertEqual({ok, v8}, onepanel_env:read([a2, k5, k7, k8], "p1")).
+    ?assertEqual({ok, v8}, onepanel_env:read([a2, k5, k7, k8], "p1")).
 
 
-read_should_report_missing_key(_) ->
+read_should_report_missing_key() ->
     ?assertMatch(#error{reason = ?ERR_NOT_FOUND},
         onepanel_env:read([a3], "p1")),
     ?assertMatch(#error{reason = ?ERR_NOT_FOUND},
         onepanel_env:read([a1, k5], "p1")),
     ?assertMatch(#error{reason = ?ERR_NOT_FOUND},
         onepanel_env:read([a2, k6, k8], "p1")),
-    ?_assertMatch(#error{reason = ?ERR_NOT_FOUND},
+    ?assertMatch(#error{reason = ?ERR_NOT_FOUND},
         onepanel_env:read([a2, k6, k7, k9], "p1")).
 
 
-read_should_pass_errors(_) ->
-    ?_assertThrow(#error{reason = enoent}, onepanel_env:read([a1], "p2")).
+read_should_pass_errors() ->
+    ?assertThrow(#error{reason = enoent}, onepanel_env:read([a1], "p2")).
 
 
-write_should_append_value(_) ->
+write_should_append_value() ->
     ?assertEqual(ok, onepanel_env:write([a3], [{k9, v9}], "p1")),
     ?assertEqual({ok, ?FILE_CONTENT([
         {a1, ?APP_CONFIG_1},
@@ -127,7 +127,7 @@ write_should_append_value(_) ->
     ])}, pop_msg()),
     ?assertEqual(ok, onepanel_env:write([a2, k5, k9], v9, "p1")),
     Msg = pop_msg(),
-    ?_assertEqual({ok, ?FILE_CONTENT([
+    ?assertEqual({ok, ?FILE_CONTENT([
         {a1, ?APP_CONFIG_1},
         {a2, [
             {k4, v4},
@@ -136,7 +136,7 @@ write_should_append_value(_) ->
     ])}, Msg).
 
 
-write_should_replace_value(_) ->
+write_should_replace_value() ->
     ?assertEqual(ok, onepanel_env:write([a1], [{k9, v9}], "p1")),
     ?assertEqual({ok, ?FILE_CONTENT([
         {a1, [{k9, v9}]},
@@ -168,7 +168,7 @@ write_should_replace_value(_) ->
     ])}, pop_msg()),
     ?assertEqual(ok, onepanel_env:write([a2, k5, k7, k8], v9, "p1")),
     Msg = pop_msg(),
-    ?_assertEqual({ok, ?FILE_CONTENT([
+    ?assertEqual({ok, ?FILE_CONTENT([
         {a1, ?APP_CONFIG_1},
         {a2, [
             {k4, v4},
@@ -182,34 +182,34 @@ write_should_replace_value(_) ->
     ])}, Msg).
 
 
-write_should_pass_errors(_) ->
-    ?_assertThrow(#error{reason = enoent},
+write_should_pass_errors() ->
+    ?assertThrow(#error{reason = enoent},
         onepanel_env:write([a1, k1], v9, "/nonexistent/p2")).
 
 
-migrate_should_rename_key(_) ->
+migrate_should_rename_key() ->
     ?assertEqual(true, onepanel_env:migrate(service1, [a1, k2], [a1, k9])),
     Expected = {ok, ?FILE_CONTENT([
         {a1, [{k1, v1}, {k3, v3}, {k4, v4}, {k9, v2}]},
         {a2, ?APP_CONFIG_2}
     ])},
     Result = pop_msg(),
-    ?_assertEqual(Expected, Result).
+    ?assertEqual(Expected, Result).
 
 
-migrate_should_ignore_missing(_) ->
+migrate_should_ignore_missing() ->
     ?assertEqual(false, onepanel_env:migrate(service1, [a1, missing], [a1, k9])),
     % no write happens when there is no change
     Msg = pop_msg(),
-    ?_assertEqual(timeout, Msg).
+    ?assertEqual(timeout, Msg).
 
 
-read_effective_does_not_read_whole_config(_) ->
+read_effective_does_not_read_whole_config() ->
     ?assertError(badarg, onepanel_env:read_effective([], s1)),
-    ?_assertError(badarg, onepanel_env:read_effective([a1], s1)).
+    ?assertError(badarg, onepanel_env:read_effective([a1], s1)).
 
 
-read_effective_follow_priority() ->
+read_effective_follows_priority() ->
     % not overridden
     ?assertEqual({ok, v3}, onepanel_env:read_effective([a1, k3], service1)),
     ?assertEqual({ok, v4}, onepanel_env:read_effective([a2, k4], service1)),
@@ -285,7 +285,7 @@ stop(_) ->
 %%--------------------------------------------------------------------
 -spec pop_msg() -> Any :: term() | timeout.
 pop_msg() ->
-    pop_msg(timer:seconds(5)).
+    pop_msg(timer:seconds(1)).
 
 
 %%--------------------------------------------------------------------
