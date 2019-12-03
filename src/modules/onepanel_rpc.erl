@@ -40,7 +40,7 @@ apply(Module, Function, Args) ->
     try
         {node(), erlang:apply(Module, Function, Args)}
     catch
-        throw:Reason ->
+        throw:{error, _} = Reason ->
             {node(), Reason};
         Type:Reason ->
             ?error_stacktrace("Unexpected error executing ~tp:~tp/~B~nError: ~tp:~tp~n",
