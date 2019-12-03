@@ -70,7 +70,7 @@ exists_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
     end;
 
 exists_resource(Req, #rstate{resource = storages}) ->
-    {service:exists(?WORKER), Req};
+    {service:exists(?WORKER) and service_oneprovider:is_registered(), Req};
 
 exists_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
     {service_oneprovider:is_space_supported(#{space_id => Id}), Req};
@@ -158,7 +158,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
         {token, token},
         {size, size},
         {storageId, storage_id},
-        {mountInRoot, mount_in_root}], Args),
+        {importedStorage, imported_storage}], Args),
     Ctx2 = get_storage_import_args(Args, Ctx),
     Ctx3 = get_storage_update_args(Args, Ctx2),
 
