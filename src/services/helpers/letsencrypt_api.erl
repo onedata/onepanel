@@ -65,8 +65,6 @@
 -define(GET_RETRIES, 3).
 -define(POST_RETRIES, 4).
 
--define(ERR_CHALLENGE_TYPE_MISSING, {error, challenge_type_missing}).
-
 -define(HTTP_OPTS,
     [{connect_timeout, timer:seconds(15)}, {recv_timeout, timer:seconds(15)}]).
 
@@ -177,7 +175,8 @@ run_certification_flow(Domain, Plugin) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Returns implemented authorization challenge types.
+%% Returns implemented authorization challenge types, in order
+%% of prefence - later challenges are attempted if previous failed.
 %% @end
 %%--------------------------------------------------------------------
 -spec challenge_types() -> [challenge_type()].
@@ -301,22 +300,22 @@ register_account(#flow_state{service = Service} = State) ->
 -spec attempt_certification(#flow_state{}) -> {ok, #flow_state{}}.
 attempt_certification(#flow_state{service = Service} = State) ->
     Result = lists:foldl(fun
-        (_ChallengeType, {ok, _} = Prev) ->
+        (_ChallengeType, {ok, _StateAcc} = Prev) ->
             Prev;
-        (ChallengeType, {PrevError, StateAcc} = Prev) ->
+        (ChallengeType, {_PrevError, StateAcc} = Prev) ->
             try
                 case Service:supports_letsencrypt_challenge(ChallengeType) of
                     true -> obtain_certificate(ChallengeType, StateAcc);
                     false -> Prev
                 end
             catch
-                throw:?ERR_CHALLENGE_TYPE_MISSING ->
-                    % ignore challenge type not offered by Let's Encrypt
-                    {PrevError, reset_nonce_pool(StateAcc)};
                 throw:Error ->
                     {Error, reset_nonce_pool(StateAcc)}
             end
-    end, {?ERROR_LETS_ENCRYPT_NOT_SUPPORTED, State}, challenge_types()),
+    % internal server error: there should never be a case that no challenge
+    % is supported by the plugin module, and no better error reason is thrown
+    % from supports_letsencrypt_challenge.
+    end, {?ERROR_INTERNAL_SERVER_ERROR, State}, challenge_types()),
 
     case Result of
         {ok, NewState} -> {ok, NewState};
@@ -455,7 +454,10 @@ fulfill_challenge(ChallengeType, #authorization{challenges = Challenges}, State)
 find_challenge(Type, ChallengeList) ->
     case [Ch || Ch = #challenge{type = T} <- ChallengeList, T == Type] of
         [Challenge | _] -> {ok, Challenge};
-        [] -> throw(?ERR_CHALLENGE_TYPE_MISSING)
+        [] ->
+            ?warning("Let's Encrypt did not offer challenge type ~s", [Type]),
+            throw(?ERROR_LETS_ENCRYPT_RESPONSE(undefined, str_utils:format_bin(
+                "Let's Encrypt did not offer challenge type ~s", [Type])))
     end.
 
 

@@ -147,10 +147,7 @@ create(#{letsencrypt_plugin := Plugin}) ->
 check_webcert(Ctx) ->
     case should_obtain(Ctx) of
         true ->
-            case any_challenge_available() of
-                true -> ok;
-                false -> throw(?ERROR_LETS_ENCRYPT_NOT_SUPPORTED)
-            end,
+            true = any_challenge_available(),
 
             update_ctx(#{regenerating => true}),
             try
@@ -271,12 +268,8 @@ enable(_Ctx) ->
 schedule_check() ->
     Action = fun() ->
         try
-            case any_challenge_available() of
-                true ->
-                    check_webcert(#{renewal => true});
-                false ->
-                    ?info("Skipping Let's Encrypt check as required service is not available")
-            end
+            % plugin module will throw if there is a condition preventing certification
+            true = any_challenge_available()
         catch
             Type:Error ->
                 ?error_stacktrace("Certificate renewal check failed: ~p:~p", [Type, Error])
@@ -404,7 +397,14 @@ first_run(Ctx) ->
     Enabling andalso not are_all_certs_letsencrypt().
 
 
+%%--------------------------------------------------------------------
 %% @private
+%% @doc
+%% Checks that some Let's Encrypt challenge can be satisfied.
+%% Throws errors:error() if there is a condition preventing any
+%% certification, e.g. unregistered provider.
+%% @end
+%%--------------------------------------------------------------------
 -spec any_challenge_available() -> boolean().
 any_challenge_available() ->
     Plugin = get_plugin_module(),
