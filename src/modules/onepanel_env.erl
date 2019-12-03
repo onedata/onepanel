@@ -375,7 +375,7 @@ migrate(ServiceName, OldKeys, NewKeys) ->
     Path = ?MODULE:get_config_path(ServiceName, generated),
     case read([], Path) of
         {ok, OldConfigs} ->
-            case kv_utils:rename(OldKeys, NewKeys, OldConfigs) of
+            case kv_utils:rename_entry(OldKeys, NewKeys, OldConfigs) of
                 error ->
                     false;
                 {ok, NewConfigs} ->

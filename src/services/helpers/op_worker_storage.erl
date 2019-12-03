@@ -220,7 +220,7 @@ maybe_update_auto_cleaning(OpNode, SpaceId, Args) ->
 get_file_popularity_configuration(OpNode, SpaceId) ->
     case op_worker_rpc:file_popularity_api_get_configuration(OpNode, SpaceId) of
         {ok, DetailsMap} ->
-            kv_utils:find_many([
+            kv_utils:copy_found([
                 {enabled, enabled},
                 {example_query, exampleQuery},
                 {last_open_hour_weight, lastOpenHourWeight},
@@ -437,7 +437,7 @@ make_user_ctx(OpNode, StorageType, Params) ->
 -spec make_luma_params(Params :: storage_params()) ->
     #{url => binary(), api_key => binary(), luma_enabled => boolean()}.
 make_luma_params(Params) ->
-    kv_utils:find_many([
+    kv_utils:copy_found([
         {lumaUrl, url},
         {lumaApiKey, api_key},
         {lumaEnabled, luma_enabled}

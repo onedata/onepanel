@@ -345,7 +345,7 @@ create_invite_token_for_admin({rest, Auth}) ->
 -spec format_provider_info(OzResponse :: #{binary() => term()}) ->
     #{binary() => term()}.
 format_provider_info(OzResponse) ->
-    kv_utils:find_many([
+    kv_utils:copy_found([
         {<<"providerId">>, <<"id">>},
         {<<"name">>, <<"name">>},
         {<<"domain">>, <<"domain">>},

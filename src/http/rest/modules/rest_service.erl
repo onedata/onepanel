@@ -163,10 +163,10 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider} = Sta
     [MainCmHost] = rest_utils:get_hosts([cluster, managers, mainNode], Args),
     OpwHosts = rest_utils:get_hosts([cluster, workers, nodes], Args),
 
-    StorageCtx = kv_utils:find_many([{[cluster, storages], storages}], Args),
+    StorageCtx = kv_utils:copy_found([{[cluster, storages], storages}], Args),
     StorageCtx2 = StorageCtx#{hosts => OpwHosts, ignore_exists => true},
 
-    LetsencryptCtx = kv_utils:find_many(
+    LetsencryptCtx = kv_utils:copy_found(
         [{[oneprovider, letsEncryptEnabled], letsencrypt_enabled}],
         Args),
 
@@ -264,7 +264,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone} = State) 
         {[onezone, letsEncryptEnabled], letsencrypt_enabled}
     ], Args, #{hosts => AllHosts}),
 
-    OzCtx = kv_utils:find_many([
+    OzCtx = kv_utils:copy_found([
         {[onezone, name], name},
         {[onezone, domainName], domain},
         {[onezone, builtInDnsServer], [dns_check_config, built_in_dns_server]}

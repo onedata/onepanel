@@ -717,7 +717,7 @@ get_auto_cleaning_report(#{report_id := ReportId}) ->
     case op_worker_rpc:autocleaning_get_run_report(ReportId) of
         {ok, Report} ->
             onepanel_maps:undefined_to_null(
-                kv_utils:find_many([
+                kv_utils:copy_found([
                     {id, id},
                     {index, index},
                     {started_at, startedAt},
@@ -739,7 +739,7 @@ get_auto_cleaning_report(#{report_id := ReportId}) ->
 -spec get_auto_cleaning_status(Ctx :: service:ctx()) -> #{atom() => term()}.
 get_auto_cleaning_status(#{space_id := SpaceId}) ->
     Status = op_worker_rpc:autocleaning_status(SpaceId),
-    kv_utils:find_many([
+    kv_utils:copy_found([
         {in_progress, inProgress},
         {space_occupancy, spaceOccupancy}
     ], Status).
@@ -953,7 +953,7 @@ read_auth_file() ->
     Path = onepanel_env:get(op_worker_root_token_path),
     case rpc:call(Node, file, read_file, [Path]) of
         {ok, Json} ->
-            kv_utils:copy([
+            kv_utils:copy_all([
                 {<<"provider_id">>, provider_id},
                 {<<"root_token">>, root_token}
             ], json_utils:decode(Json), #{});
@@ -996,7 +996,7 @@ get_details_by_graph_sync() ->
 
     #{latitude := Latitude, longitude := Longitude} = Details,
 
-    Response = kv_utils:find_many([
+    Response = kv_utils:copy_found([
         {id, id}, {name, name}, {admin_email, adminEmail},
         {subdomain_delegation, subdomainDelegation}, {domain, domain}
     ], Details),

@@ -122,7 +122,7 @@ is_available(Req, _Method, _State) ->
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()}.
 accept_resource(Req, 'POST', Args, #rstate{resource = provider}) ->
-    Ctx = kv_utils:find_many([
+    Ctx = kv_utils:copy_found([
         {token, oneprovider_token},
         {name, oneprovider_name},
         {subdomainDelegation, oneprovider_subdomain_delegation},
@@ -138,7 +138,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = provider}) ->
     ))};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
-    Ctx = kv_utils:find_many([
+    Ctx = kv_utils:copy_found([
         {name, oneprovider_name},
         {subdomainDelegation, oneprovider_subdomain_delegation},
         {domain, oneprovider_domain},
@@ -154,7 +154,7 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
     ))};
 
 accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
-    Ctx = kv_utils:find_many([
+    Ctx = kv_utils:copy_found([
         {token, token},
         {size, size},
         {storageId, storage_id},
