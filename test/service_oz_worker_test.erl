@@ -38,8 +38,8 @@ zone_policies_should_change_app_config_tests() ->
         {subdomain_delegation, subdomain_delegation_supported, false, false},
         {gui_package_verification, gui_package_verification, true, true},
         {gui_package_verification, gui_package_verification, false, false},
-        {harvester_gui_package_verification, harvester_gui_package_verification, false, false},
-        {harvester_gui_package_verification, harvester_gui_package_verification, true, true}
+        {harvester_gui_package_verification, harvester_gui_package_verification, true, true},
+        {harvester_gui_package_verification, harvester_gui_package_verification, false, false}
     ],
     lists:map(fun({Policy, Variable, Input, VariableValue}) ->
         fun() ->
