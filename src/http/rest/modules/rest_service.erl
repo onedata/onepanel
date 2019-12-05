@@ -363,10 +363,7 @@ provide_resource(Req, #rstate{resource = nagios} = State) ->
         {ok, Code, Headers, Body} ->
             Req2 = cowboy_req:reply(Code, Headers, Body, Req),
             {stop, Req2, State};
-        {error, econnrefused} ->
-            Req2 = cowboy_req:reply(?HTTP_503_SERVICE_UNAVAILABLE, #{}, Req),
-            {stop, Req2, State};
-        {error, timeout} ->
+        {error, _} ->
             Req2 = cowboy_req:reply(?HTTP_503_SERVICE_UNAVAILABLE, #{}, Req),
             {stop, Req2, State}
     end;

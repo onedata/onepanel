@@ -29,7 +29,7 @@
 
 -define(CALL(Node, Args),
     case ?NO_EXCEPTION_CALL(Node, Args) of
-        {badrpc, nodedown} = __Error -> throw(?ERROR_NO_CONNECTION_TO_CLUSTER_NODE);
+        {badrpc, nodedown} -> throw(?ERROR_NO_CONNECTION_TO_CLUSTER_NODE);
         {badrpc, _} = __Error -> error(__Error);
         __Result -> __Result
     end).
@@ -40,7 +40,6 @@
 
 -opaque helper() :: tuple().
 -opaque luma_config() :: tuple().
--opaque space_storage_doc() :: tuple().
 -opaque storage_doc() :: tuple().
 -type autocleaning_run_id() :: binary().
 -type autocleaning_run_links_list_limit() :: integer() | all.
@@ -53,7 +52,6 @@
 -type luma_config_url() :: binary().
 -type od_space_id() :: binary().
 -type space_quota_id() :: od_space_id().
--type space_storage_id() :: od_space_id().
 -type space_strategy_arguments() :: map().
 -type storage_id() :: binary().
 -type storage_import_status() :: atom().
@@ -63,10 +61,10 @@
     deleted_files | queue_length.
 -type sync_monitoring_window() :: day | hour | minute.
 
--export_type([storage_doc/0, space_storage_doc/0, space_storage_id/0,
-    luma_config/0, helper/0, helper_args/0, helper_user_ctx/0, od_space_id/0]).
+-export_type([storage_doc/0, luma_config/0, helper/0,
+    helper_args/0, helper_user_ctx/0, od_space_id/0]).
 
--export([storage_new/4, storage_new/5]).
+-export([storage_config_new/5, storage_config_new/6]).
 -export([storage_create/1, storage_create/2]).
 -export([storage_safe_remove/1, storage_safe_remove/2]).
 -export([storage_supports_any_space/1, storage_supports_any_space/2]).
@@ -78,27 +76,32 @@
 -export([storage_update_helper_args/3, storage_update_helper_args/4]).
 -export([storage_set_insecure/3, storage_set_insecure/4]).
 -export([storage_set_readonly/2, storage_set_readonly/3]).
+-export([storage_set_imported_storage/2, storage_set_imported_storage/3]).
 -export([storage_set_luma_config/2, storage_set_luma_config/3]).
+-export([storage_set_qos_parameters/2, storage_set_qos_parameters/3]).
 -export([storage_update_luma_config/2, storage_update_luma_config/3]).
 -export([storage_update_name/2, storage_update_name/3]).
--export([get_storage/1, get_storage/2]).
--export([get_storage_by_name/1, get_storage_by_name/2]).
+-export([get_storage_config/1, get_storage_config/2]).
+-export([get_storage_config_by_name/1, get_storage_config_by_name/2]).
 -export([storage_exists/1, storage_exists/2]).
 -export([storage_describe/1, storage_describe/2]).
--export([get_space_storage/1, get_space_storage/2]).
--export([space_storage_get_storage_ids/1, space_storage_get_storage_ids/2]).
--export([space_storage_get_mounted_in_root/1, space_storage_get_mounted_in_root/2]).
--export([file_popularity_api_configure/2, file_popularity_api_configure/3]).
--export([file_popularity_api_get_configuration/1,
-    file_popularity_api_get_configuration/2]).
--export([autocleaning_configure/2, autocleaning_configure/3]).
--export([autocleaning_get_configuration/1, autocleaning_get_configuration/2]).
+-export([storage_is_imported_storage/1, storage_is_imported_storage/2]).
 -export([invalidate_luma_cache/1, invalidate_luma_cache/2]).
 -export([new_helper/5, new_helper/6]).
 -export([new_luma_config/2, new_luma_config/3]).
 -export([verify_storage_on_all_nodes/1, verify_storage_on_all_nodes/2]).
 -export([prepare_helper_args/2, prepare_helper_args/3]).
 -export([prepare_user_ctx_params/2, prepare_user_ctx_params/3]).
+-export([space_logic_get_storage_ids/1, space_logic_get_storage_ids/2]).
+-export([file_popularity_api_configure/2, file_popularity_api_configure/3]).
+-export([file_popularity_api_get_configuration/1,
+    file_popularity_api_get_configuration/2]).
+-export([autocleaning_configure/2, autocleaning_configure/3]).
+-export([autocleaning_get_configuration/1, autocleaning_get_configuration/2]).
+-export([autocleaning_list_reports/4, autocleaning_list_reports/5]).
+-export([autocleaning_get_run_report/1, autocleaning_get_run_report/2]).
+-export([autocleaning_status/1, autocleaning_status/2]).
+-export([autocleaning_force_start/1, autocleaning_force_start/2]).
 -export([get_provider_id/0, get_provider_id/1]).
 -export([get_access_token/0, get_access_token/1]).
 -export([is_connected_to_oz/0, is_connected_to_oz/1]).
@@ -106,9 +109,8 @@
 -export([on_deregister/0, on_deregister/1]).
 -export([get_op_worker_version/0, get_op_worker_version/1]).
 -export([provider_logic_update/1, provider_logic_update/2]).
--export([support_space/2, support_space/3]).
--export([space_storage_add/3, space_storage_add/4]).
--export([space_storage_delete/1, space_storage_delete/2]).
+-export([support_space/3, support_space/4]).
+-export([revoke_space_support/1, revoke_space_support/2]).
 -export([get_spaces/0, get_spaces/1]).
 -export([supports_space/1, supports_space/2]).
 -export([get_space_details/1, get_space_details/2]).
@@ -119,10 +121,6 @@
 -export([space_quota_current_size/1, space_quota_current_size/2]).
 -export([update_space_support_size/2, update_space_support_size/3]).
 -export([update_subdomain_delegation_ips/0, update_subdomain_delegation_ips/1]).
--export([autocleaning_list_reports/4, autocleaning_list_reports/5]).
--export([autocleaning_get_run_report/1, autocleaning_get_run_report/2]).
--export([autocleaning_status/1, autocleaning_status/2]).
--export([autocleaning_force_start/1, autocleaning_force_start/2]).
 -export([force_oz_connection_start/0, force_oz_connection_start/1]).
 -export([provider_auth_save/2, provider_auth_save/3]).
 -export([get_root_token_file_path/0, get_root_token_file_path/1]).
@@ -144,23 +142,23 @@
 %%% API functions
 %%%===================================================================
 
--spec storage_new(storage_name(), [helper()], boolean(),
-    undefined | luma_config()) -> storage_doc().
-storage_new(Name, Helpers, ReadOnly, LumaConfig) ->
-    ?CALL([Name, Helpers, ReadOnly, LumaConfig]).
+-spec storage_config_new(storage_name(), [helper()], boolean(),
+    undefined | luma_config(), boolean()) -> storage_doc().
+storage_config_new(Name, Helpers, ReadOnly, LumaConfig, ImportedStorage) ->
+    ?CALL([Name, Helpers, ReadOnly, LumaConfig, ImportedStorage]).
 
--spec storage_new(node(), storage_name(), [helper()], boolean(),
-    undefined | luma_config()) -> storage_doc().
-storage_new(Node, Name, Helpers, ReadOnly, LumaConfig) ->
-    ?CALL(Node, [Name, Helpers, ReadOnly, LumaConfig]).
+-spec storage_config_new(node(), storage_name(), [helper()], boolean(),
+    undefined | luma_config(), boolean()) -> storage_doc().
+storage_config_new(Node, Name, Helpers, ReadOnly, LumaConfig, ImportedStorage) ->
+    ?CALL(Node, [Name, Helpers, ReadOnly, LumaConfig, ImportedStorage]).
 
 
 
--spec storage_create(storage_doc()) -> ok | {error, term()}.
+-spec storage_create(storage_doc()) -> {ok, storage_id()} | {error, term()}.
 storage_create(StorageDoc) ->
     ?CALL([StorageDoc]).
 
--spec storage_create(node(), storage_doc()) -> ok | {error, term()}.
+-spec storage_create(node(), storage_doc()) -> {ok, storage_id()} | {error, term()}.
 storage_create(Node, StorageDoc) ->
     ?CALL(Node, [StorageDoc]).
 
@@ -267,6 +265,17 @@ storage_set_readonly(Node, StorageId, Readonly) ->
     ?CALL(Node, [StorageId, Readonly]).
 
 
+-spec storage_set_imported_storage(storage_id(), boolean()) ->
+    ok | {error, term()}.
+storage_set_imported_storage(StorageId, Value) ->
+    ?CALL([StorageId, Value]).
+
+-spec storage_set_imported_storage(node(), storage_id(), boolean()) ->
+    ok | {error, term()}.
+storage_set_imported_storage(Node, StorageId, Value) ->
+    ?CALL(Node, [StorageId, Value]).
+
+
 -spec storage_set_luma_config(storage_id(), luma_config() | undefined) ->
     ok | {error, term()}.
 storage_set_luma_config(StorageId, LumaConfig) ->
@@ -289,6 +298,17 @@ storage_update_luma_config(Node, StorageId, Changes) ->
     ?CALL(Node, [StorageId, Changes]).
 
 
+-spec storage_set_qos_parameters(storage_id(), op_worker_storage:qos_parameters()) ->
+    ok | {error, term()}.
+storage_set_qos_parameters(StorageId, QosParameters) ->
+    ?CALL([StorageId, QosParameters]).
+
+-spec storage_set_qos_parameters(node(), storage_id(), op_worker_storage:qos_parameters()) ->
+    ok | {error, term()}.
+storage_set_qos_parameters(Node, StorageId, QosParameters) ->
+    ?CALL(Node, [StorageId, QosParameters]).
+
+
 -spec storage_update_name(storage_id(), storage_name()) ->
     ok.
 storage_update_name(StorageId, NewName) ->
@@ -300,23 +320,23 @@ storage_update_name(Node, StorageId, NewName) ->
     ?CALL(Node, [StorageId, NewName]).
 
 
--spec get_storage(op_worker_storage:id()) -> {ok, storage_doc()} | {error, term()}.
-get_storage(Key) ->
+-spec get_storage_config(op_worker_storage:id()) -> {ok, storage_doc()} | {error, term()}.
+get_storage_config(Key) ->
     ?CALL([Key]).
 
--spec get_storage(node(), op_worker_storage:id()) -> {ok, storage_doc()} | {error, term()}.
-get_storage(Node, Key) ->
+-spec get_storage_config(node(), op_worker_storage:id()) -> {ok, storage_doc()} | {error, term()}.
+get_storage_config(Node, Key) ->
     ?CALL(Node, [Key]).
 
 
--spec get_storage_by_name(storage_name()) ->
+-spec get_storage_config_by_name(storage_name()) ->
     {ok, storage_doc()} | {error, term()}.
-get_storage_by_name(Name) ->
+get_storage_config_by_name(Name) ->
     ?CALL([Name]).
 
--spec get_storage_by_name(node(), storage_name()) ->
+-spec get_storage_config_by_name(node(), storage_name()) ->
     {ok, storage_doc()} | {error, term()}.
-get_storage_by_name(Node, Name) ->
+get_storage_config_by_name(Node, Name) ->
     ?CALL(Node, [Name]).
 
 
@@ -340,33 +360,80 @@ storage_describe(Node, StorageId) ->
     ?CALL(Node, [StorageId]).
 
 
--spec get_space_storage(space_storage_id()) ->
-    {ok, space_storage_doc()} | {error, term()}.
-get_space_storage(Key) ->
-    ?CALL([Key]).
+-spec storage_is_imported_storage(storage_id()) ->
+    boolean() | {error, term()}.
+storage_is_imported_storage(StorageId) ->
+    ?CALL([StorageId]).
 
--spec get_space_storage(node(), space_storage_id()) ->
-    {ok, space_storage_doc()} | {error, term()}.
-get_space_storage(Node, Key) ->
-    ?CALL(Node, [Key]).
+-spec storage_is_imported_storage(node(), storage_id()) ->
+    boolean() | {error, term()}.
+storage_is_imported_storage(Node, StorageId) ->
+    ?CALL(Node, [StorageId]).
 
 
--spec space_storage_get_storage_ids(space_storage_id()) -> [op_worker_storage:id()].
-space_storage_get_storage_ids(SpaceId) ->
+-spec invalidate_luma_cache(storage_id()) -> ok.
+invalidate_luma_cache(StorageId) ->
+    ?CALL([StorageId]).
+
+-spec invalidate_luma_cache(node(), storage_id()) -> ok.
+invalidate_luma_cache(Node, StorageId) ->
+    ?CALL(Node, [StorageId]).
+
+
+-spec new_helper(helper_name(), helper_args(), helper_user_ctx(),
+    Insecure :: boolean(), StoragePathType :: binary()) -> {ok, helper()}.
+new_helper(HelperName, Args, AdminCtx, Insecure, StoragePathType) ->
+    ?CALL([HelperName, Args, AdminCtx, Insecure, StoragePathType]).
+
+-spec new_helper(node(), helper_name(), helper_args(), helper_user_ctx(),
+    Insecure :: boolean(), StoragePathType :: binary()) -> {ok, helper()}.
+new_helper(Node, HelperName, Args, AdminCtx, Insecure, StoragePathType) ->
+    ?CALL(Node, [HelperName, Args, AdminCtx, Insecure, StoragePathType]).
+
+
+-spec new_luma_config(URL :: binary(), ApiKey :: binary() | undefined) ->
+    luma_config().
+new_luma_config(URL, ApiKey) ->
+    ?CALL([URL, ApiKey]).
+
+-spec new_luma_config(node(), URL :: binary(), ApiKey :: binary() | undefined) ->
+    luma_config().
+new_luma_config(Node, URL, ApiKey) ->
+    ?CALL(Node, [URL, ApiKey]).
+
+
+-spec verify_storage_on_all_nodes(helper()) -> ok | errors:error().
+verify_storage_on_all_nodes(Helper) ->
+    ?CALL([Helper]).
+
+-spec verify_storage_on_all_nodes(node(), helper()) -> ok | errors:error().
+verify_storage_on_all_nodes(Node, Helper) ->
+    ?CALL(Node, [Helper]).
+
+
+-spec prepare_helper_args(helper_name(), helper_args()) -> helper_args().
+prepare_helper_args(HelperName, Params) ->
+    ?CALL([HelperName, Params]).
+
+-spec prepare_helper_args(node(), helper_name(), helper_args()) -> helper_args().
+prepare_helper_args(Node, HelperName, Params) ->
+    ?CALL(Node, [HelperName, Params]).
+
+
+-spec prepare_user_ctx_params(helper_name(), helper_user_ctx()) -> helper_user_ctx().
+prepare_user_ctx_params(HelperName, Params) ->
+    ?CALL([HelperName, Params]).
+
+-spec prepare_user_ctx_params(node(), helper_name(), helper_user_ctx()) -> helper_user_ctx().
+prepare_user_ctx_params(Node, HelperName, Params) ->
+    ?CALL(Node, [HelperName, Params]).
+
+-spec space_logic_get_storage_ids(od_space_id()) -> {ok, [op_worker_storage:id()]}.
+space_logic_get_storage_ids(SpaceId) ->
     ?CALL([SpaceId]).
 
--spec space_storage_get_storage_ids(node(), space_storage_id()) -> {ok, [op_worker_storage:id()]}.
-space_storage_get_storage_ids(Node, SpaceId) ->
-    ?CALL(Node, [SpaceId]).
-
-
--spec space_storage_get_mounted_in_root(space_storage_id()) -> [op_worker_storage:id()].
-space_storage_get_mounted_in_root(SpaceId) ->
-    ?CALL([SpaceId]).
-
--spec space_storage_get_mounted_in_root(node(), space_storage_id()) ->
-    [op_worker_storage:id()].
-space_storage_get_mounted_in_root(Node, SpaceId) ->
+-spec space_logic_get_storage_ids(node(), od_space_id()) -> {ok, [op_worker_storage:id()]}.
+space_logic_get_storage_ids(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
 
@@ -410,66 +477,6 @@ autocleaning_get_configuration(SpaceId) ->
 -spec autocleaning_get_configuration(node(), od_space_id()) -> map().
 autocleaning_get_configuration(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
-
-
--spec invalidate_luma_cache(storage_id()) -> ok.
-invalidate_luma_cache(StorageId) ->
-    ?CALL([StorageId]).
-
--spec invalidate_luma_cache(node(), storage_id()) -> ok.
-invalidate_luma_cache(Node, StorageId) ->
-    ?CALL(Node, [StorageId]).
-
-
--spec new_helper(helper_name(), helper_args(), helper_user_ctx(),
-    Insecure :: boolean(), StoragePathType :: binary()) -> {ok, helper()}.
-new_helper(HelperName, Args, AdminCtx, Insecure, StoragePathType) ->
-    ?CALL([HelperName, Args, AdminCtx, Insecure, StoragePathType]).
-
--spec new_helper(node(), helper_name(), helper_args(), helper_user_ctx(),
-    Insecure :: boolean(), StoragePathType :: binary()) -> {ok, helper()}.
-new_helper(Node, HelperName, Args, AdminCtx, Insecure, StoragePathType) ->
-    ?CALL(Node, [HelperName, Args, AdminCtx, Insecure, StoragePathType]).
-
-
--spec new_luma_config(URL :: binary(), ApiKey :: binary() | undefined) ->
-    luma_config().
-new_luma_config(URL, ApiKey) ->
-    ?CALL([URL, ApiKey]).
-
--spec new_luma_config(node(), URL :: binary(), ApiKey :: binary() | undefined) ->
-    luma_config().
-new_luma_config(Node, URL, ApiKey) ->
-    ?CALL(Node, [URL, ApiKey]).
-
-
--spec verify_storage_on_all_nodes(helper()) -> ok | errors:error() | {badrpc, term()}.
-verify_storage_on_all_nodes(Helper) ->
-    ?CALL([Helper]).
-
--spec verify_storage_on_all_nodes(node(), helper()) ->
-    ok | {error, term()} | {error, term(), Stacktrace :: list()} | {badrpc, term()}.
-verify_storage_on_all_nodes(Node, Helper) ->
-    ?CALL(Node, [Helper]).
-
-
--spec prepare_helper_args(helper_name(), helper_args()) -> helper_args().
-prepare_helper_args(HelperName, Params) ->
-    ?CALL([HelperName, Params]).
-
--spec prepare_helper_args(node(), helper_name(), helper_args()) -> helper_args().
-prepare_helper_args(Node, HelperName, Params) ->
-    ?CALL(Node, [HelperName, Params]).
-
-
--spec prepare_user_ctx_params(helper_name(), helper_user_ctx()) -> helper_user_ctx().
-prepare_user_ctx_params(HelperName, Params) ->
-    ?CALL([HelperName, Params]).
-
--spec prepare_user_ctx_params(node(), helper_name(), helper_user_ctx()) -> helper_user_ctx().
-prepare_user_ctx_params(Node, HelperName, Params) ->
-    ?CALL(Node, [HelperName, Params]).
-
 
 
 -spec get_provider_id() -> {ok, service_oneprovider:id()} | {error, term()}.
@@ -537,34 +544,23 @@ provider_logic_update(Node, Data) ->
     ?CALL(Node, [Data]).
 
 
--spec support_space(tokens:serialized(), SupportSize :: integer()) ->
+-spec support_space(storage_id(), tokens:serialized(), SupportSize :: integer()) ->
     {ok, od_space_id()} | errors:error().
-support_space(Token, SupportSize) ->
-    ?CALL([Token, SupportSize]).
+support_space(StorageId, Token, SupportSize) ->
+    ?CALL([StorageId, Token, SupportSize]).
 
--spec support_space(node(), tokens:serialized(), SupportSize :: integer()) ->
-    {ok, od_space_id()} | {error, term()}.
-support_space(Node, Token, SupportSize) ->
-    ?CALL(Node, [Token, SupportSize]).
-
-
--spec space_storage_add(od_space_id(), storage_id(), boolean()) ->
-    {ok, od_space_id()} | {error, term()}.
-space_storage_add(SpaceId, StorageId, MountInRoot) ->
-   ?CALL([SpaceId, StorageId, MountInRoot]).
-
--spec space_storage_add(node(), od_space_id(), storage_id(), boolean()) ->
-    {ok, od_space_id()} | {error, term()}.
-space_storage_add(Node, SpaceId, StorageId, MountInRoot) ->
-    ?CALL(Node, [SpaceId, StorageId, MountInRoot]).
+-spec support_space(node(), storage_id(), tokens:serialized(), SupportSize :: integer()) ->
+    {ok, od_space_id()} | errors:error().
+support_space(Node, StorageId, Token, SupportSize) ->
+    ?CALL(Node, [StorageId, Token, SupportSize]).
 
 
--spec space_storage_delete(space_storage_id()) -> ok | {error, term()}.
-space_storage_delete(SpaceId) ->
+-spec revoke_space_support(od_space_id()) -> ok | {error, term()}.
+revoke_space_support(SpaceId) ->
     ?CALL([SpaceId]).
 
--spec space_storage_delete(node(), space_storage_id()) -> ok | {error, term()}.
-space_storage_delete(Node, SpaceId) ->
+-spec revoke_space_support(node(), od_space_id()) -> ok | {error, term()}.
+revoke_space_support(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
 
@@ -653,7 +649,7 @@ space_quota_current_size(Node, SpaceId) ->
 
 
 -spec update_space_support_size(od_space_id(), NewSupportSize :: integer()) ->
-    ok | {error, term()}.
+    ok | errors:error().
 update_space_support_size(SpaceId, NewSupportSize) ->
     ?CALL([SpaceId, NewSupportSize]).
 

@@ -8,6 +8,11 @@
 * VFS-5841 The Onepanel REST API now uses the same error classes as other
   Onedata services. Each error has a distinct id and may have well-structured
   detailed information.
+* VFS-5819 Changed `mount_in_root` to be a storage parameter and renamed 
+  it to `import_existing_data`. Storage with this option selected can support 
+  only one space and has data import enabled.
+* VFS-5901 Application config can now be customized with arbitrary number
+  of config files added to config.d directory in /etc.
 
 
 #### Bugfixes
