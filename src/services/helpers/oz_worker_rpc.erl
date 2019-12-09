@@ -25,7 +25,7 @@
 -define(NODE, element(2, {ok, _} = nodes:any(?SERVICE_OZW))).
 -define(CALL(Node, Args),
     case rpc:call(Node, rpc_api, apply, [?FUNCTION_NAME, Args]) of
-        {badrpc, nodedown} = __Error -> throw(?ERROR_NO_CONNECTION_TO_CLUSTER_NODE);
+        {badrpc, nodedown} = __Error -> throw(?ERROR_SERVICE_UNAVAILABLE);
         {badrpc, _} = __Error -> error(__Error);
         __Result -> __Result
     end).

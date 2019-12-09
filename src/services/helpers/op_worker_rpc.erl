@@ -29,7 +29,7 @@
 
 -define(CALL(Node, Args),
     case ?NO_EXCEPTION_CALL(Node, Args) of
-        {badrpc, nodedown} -> throw(?ERROR_NO_CONNECTION_TO_CLUSTER_NODE);
+        {badrpc, nodedown} -> throw(?ERROR_SERVICE_UNAVAILABLE);
         {badrpc, _} = __Error -> error(__Error);
         __Result -> __Result
     end).
