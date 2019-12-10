@@ -120,7 +120,8 @@ get_user_privileges({rest, RestAuth}, OnezoneUserId) ->
             {ok, #{privileges := Privileges}} ->
                 ListOfAtoms = onepanel_utils:convert(Privileges, {seq, atom}),
                 {true, ListOfAtoms, ?PRIVILEGES_CACHE_TTL};
-            Error -> Error
+            ?ERROR_NOT_FOUND -> ?ERROR_USER_NOT_IN_CLUSTER;
+            {error, _} = Error -> Error
         end
     end);
 
@@ -128,7 +129,8 @@ get_user_privileges({rpc, Auth}, OnezoneUserId) ->
     case oz_worker_rpc:cluster_get_eff_user_privileges(
         Auth, get_id(), OnezoneUserId
     ) of
-        ?ERROR_NOT_FOUND -> ?ERROR_NOT_FOUND;
+        ?ERROR_NOT_FOUND -> ?ERROR_USER_NOT_IN_CLUSTER;
+        {error, _} = Error -> Error;
         {ok, Privileges} -> {ok, Privileges}
     end.
 

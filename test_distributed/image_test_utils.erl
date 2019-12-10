@@ -95,7 +95,7 @@ deploy_oneprovider(Passphrase, Storages, Config) ->
     end, OpNodes),
 
     RegistrationToken = get_registration_token(OzNode),
-    rpc:call(OpNode, emergency_passphrase, set, [Passphrase]),
+    ?assertEqual(ok, rpc:call(OpNode, emergency_passphrase, set, [Passphrase])),
     onepanel_test_utils:service_action(OpNode, ?SERVICE_OP, deploy, #{
         cluster => #{
             ?SERVICE_PANEL => #{
