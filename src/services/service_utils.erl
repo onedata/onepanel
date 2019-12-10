@@ -322,7 +322,7 @@ format_errors([], Log) ->
     Log;
 
 format_errors([{Node, {error, _} = Error} | Errors], Log) ->
-    ErrorStr = str_utils:format("Node: ~tp~nError: ~tp", [Node, Error]),
+    ErrorStr = str_utils:format("Node: ~tp~nError: ~tp~n", [Node, Error]),
     format_errors(Errors, Log ++ ErrorStr).
 
 
