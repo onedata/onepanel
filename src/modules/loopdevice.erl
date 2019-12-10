@@ -74,7 +74,7 @@ list_loopdevices(Path) ->
                     Map = json_utils:decode(Output),
                     List = maps:get(<<"loopdevices">>, Map, []),
                     [P || #{<<"name">> := P} <- List,
-                        onepanel_block_device:is_blockdevice(Path)]
+                        onepanel_block_device:is_blockdevice(P)]
             end;
         false ->
             []

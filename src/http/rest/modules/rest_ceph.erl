@@ -310,7 +310,7 @@ get_mgr_params(#{host := Host}) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec normalize_uuid(binary(), Keys :: [atom()]) -> <<_:256>>.
-normalize_uuid(<<A:8/binary, B:4/binary, C:4/binary, D:4/binary, E:12/binary>>, Keys) ->
+normalize_uuid(<<A:8/binary, B:4/binary, C:4/binary, D:4/binary, E:12/binary>>, _Keys) ->
     onepanel_utils:join([A, B, C, D, E], <<"-">>);
 
 normalize_uuid(<<UUIDWithHyphens/binary>>, Keys) when byte_size(UUIDWithHyphens) > 32 ->
