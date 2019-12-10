@@ -54,7 +54,7 @@ user_exists(UserId) ->
 add_users(#{onezone_users := Users}) ->
     {OzNode, Client} = get_node_and_client(),
     lists:foreach(fun(User) ->
-        Data = onepanel_maps:get_store_multiple([
+        Data = kv_utils:copy_found([
             {username, <<"username">>},
             {password, <<"password">>}
         ], User),
@@ -63,7 +63,7 @@ add_users(#{onezone_users := Users}) ->
                 Groups = maps:get(groups, User),
                 add_user_to_groups(OzNode, Client, UserId, Groups);
             ?ERROR_BAD_VALUE_IDENTIFIER_OCCUPIED(<<"username">>) -> ok;
-            Error -> ?throw_error(Error)
+            Error -> throw(Error)
         end
     end, Users).
 

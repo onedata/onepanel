@@ -58,12 +58,12 @@ verify_rejects_when_passphrase_is_not_set() ->
 
 
 validation_rejects_empty() ->
-    ?assertMatch(#error{reason = ?ERR_INVALID_NEW_PASSPHRASE},
+    ?assertMatch(?ERROR_BAD_VALUE_PASSWORD,
         emergency_passphrase:set(<<>>)).
 
 
 validation_rejects_short() ->
-    ?assertMatch(#error{reason = ?ERR_INVALID_NEW_PASSPHRASE},
+    ?assertMatch(?ERROR_BAD_VALUE_PASSWORD,
         emergency_passphrase:set(<<"short">>)).
 
 

@@ -46,8 +46,7 @@ expired_token_is_invalid() ->
 
     ?assertEqual({ok, Session}, onepanel_session:find_by_valid_auth_token(Token)),
     timer:sleep(timer:seconds(?TOKEN_TTL + 1)),
-    ?assertMatch(#error{reason = ?ERR_NOT_FOUND},
-        onepanel_session:find_by_valid_auth_token(Token)).
+    ?assertMatch(error, onepanel_session:find_by_valid_auth_token(Token)).
 
 
 token_is_reused() ->

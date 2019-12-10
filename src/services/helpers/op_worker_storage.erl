@@ -28,6 +28,7 @@
 
 % @formatter:off
 -type id() :: binary().
+-type space_id() :: op_worker_rpc:od_space_id().
 -type name() :: binary().
 
 %% specification for updating or modifying storage
@@ -72,26 +73,21 @@
 add(#{name := Name, params := Params}, IgnoreExists) ->
     {ok, OpNode} = nodes:any(?SERVICE_OPW),
     StorageName = onepanel_utils:convert(Name, binary),
-    StorageType = onepanel_utils:typed_get(type, Params, binary),
+    StorageType = onepanel_utils:get_converted(type, Params, binary),
 
-    Result = case {exists(OpNode, {name, StorageName}), IgnoreExists} of
-        {true, true} -> skipped;
-        {true, false} -> {error, already_exists};
-        _ ->
-            {QosParams, StorageParams} = maps:take(qosParameters, Params),
-            add(OpNode, StorageName, StorageParams, QosParams)
-    end,
-
-    case Result of
-        skipped ->
+    case {exists(OpNode, {name, StorageName}), IgnoreExists} of
+        {true, true} ->
             ?info("Storage already exists, skipping: \"~ts\" (~ts)",
                 [StorageName, StorageType]),
             ok;
-        ok -> ?info("Successfully added storage: \"~ts\" (~ts)",
-            [StorageName, StorageType]),
-            ok;
-        {error, Reason} ->
-            ?throw_error({?ERR_STORAGE_ADDITION, Reason})
+        {true, false} ->
+            throw(?ERROR_BAD_VALUE_IDENTIFIER_OCCUPIED(<<"name">>));
+        _ ->
+            {QosParams, StorageParams} = maps:take(qosParameters, Params),
+            ok = add(OpNode, StorageName, StorageParams, QosParams),
+            ?info("Successfully added storage: \"~ts\" (~ts)",
+                [StorageName, StorageType]),
+            ok
     end.
 
 
@@ -103,9 +99,9 @@ add(#{name := Name, params := Params}, IgnoreExists) ->
     storage_details().
 update(OpNode, Id, Params) ->
     Storage = op_worker_storage:get(Id),
-    {ok, Id} = onepanel_maps:get(id, Storage),
-    {ok, Type} = onepanel_maps:get(type, Storage),
-    {ok, LumaEnabled} = onepanel_maps:get(lumaEnabled, Storage),
+    Id = maps:get(id, Storage),
+    Type = maps:get(type, Storage),
+    LumaEnabled = maps:get(lumaEnabled, Storage),
     % remove qosParameters as they are a map and will cause errors
     % when preprocessing arg by conversion to binary
     PlainValues = maps:remove(qosParameters, Params),
@@ -134,7 +130,7 @@ remove(OpNode, Id) ->
             ?info("Successfully removed storage with id ~p", [Id]),
             ok;
         {error, storage_in_use} ->
-            ?throw_error(?ERR_STORAGE_IN_USE)
+            throw(?ERROR_STORAGE_IN_USE)
     end.
 
 
@@ -200,7 +196,7 @@ maybe_update_file_popularity(_Node, _SpaceId, Args) when map_size(Args) =:= 0 ->
 maybe_update_file_popularity(Node, SpaceId, Args) ->
     Configuration = parse_file_popularity_configuration(Args),
     case op_worker_rpc:file_popularity_api_configure(Node, SpaceId, Configuration) of
-        {error, Reason} -> ?throw_error({?ERR_CONFIG_FILE_POPULARITY, Reason});
+        {error, _} = Error -> throw(Error);
         Result -> Result
     end.
 
@@ -210,13 +206,13 @@ maybe_update_file_popularity(Node, SpaceId, Args) ->
 %% Updates autocleaning configuration.
 %% @end
 %%-------------------------------------------------------------------
--spec maybe_update_auto_cleaning(OpNode :: node(), SpaceId :: id(), map()) -> ok.
+-spec maybe_update_auto_cleaning(OpNode :: node(), space_id(), map()) -> ok.
 maybe_update_auto_cleaning(_OpNode, _SpaceId, Args) when map_size(Args) =:= 0 ->
     ok;
 maybe_update_auto_cleaning(OpNode, SpaceId, Args) ->
     Configuration = parse_auto_cleaning_configuration(Args),
     case op_worker_rpc:autocleaning_configure(OpNode, SpaceId, Configuration) of
-        {error, Reason} -> ?throw_error({?ERR_CONFIG_AUTO_CLEANING, Reason});
+        {error, _} = Error -> throw(Error);
         Result -> Result
     end.
 
@@ -227,19 +223,22 @@ maybe_update_auto_cleaning(OpNode, SpaceId, Args) ->
 %% configuration from provider.
 %% @end
 %%-------------------------------------------------------------------
--spec get_file_popularity_configuration(OpNode :: node(), SpaceId :: id()) -> #{atom() => term()}.
+-spec get_file_popularity_configuration(OpNode :: node(),
+    space_id()) -> #{atom() => term()}.
 get_file_popularity_configuration(OpNode, SpaceId) ->
     case op_worker_rpc:file_popularity_api_get_configuration(OpNode, SpaceId) of
         {ok, DetailsMap} ->
-            onepanel_maps:get_store_multiple([
-                {[enabled], [enabled]},
-                {[example_query], [exampleQuery]},
-                {[last_open_hour_weight], [lastOpenHourWeight]},
-                {[avg_open_count_per_day_weight], [avgOpenCountPerDayWeight]},
-                {[max_avg_open_count_per_day], [maxAvgOpenCountPerDay]}
+            kv_utils:copy_found([
+                {enabled, enabled},
+                {example_query, exampleQuery},
+                {last_open_hour_weight, lastOpenHourWeight},
+                {avg_open_count_per_day_weight, avgOpenCountPerDayWeight},
+                {max_avg_open_count_per_day, maxAvgOpenCountPerDay}
             ], DetailsMap);
-        {error, Reason} ->
-            ?throw_error({?ERR_FILE_POPULARITY, Reason})
+        {error, _} = Error ->
+            % the only possible errors here are from op-worker datastore,
+            % cannot be handled gracefully by Onepanel
+            error(Error)
     end.
 
 %%-------------------------------------------------------------------
@@ -248,10 +247,10 @@ get_file_popularity_configuration(OpNode, SpaceId) ->
 %% provider.
 %% @end
 %%-------------------------------------------------------------------
--spec get_auto_cleaning_configuration(OpNode :: node(), SpaceId :: id()) -> #{atom() => term()}.
+-spec get_auto_cleaning_configuration(OpNode :: node(), space_id()) -> #{atom() => term()}.
 get_auto_cleaning_configuration(OpNode, SpaceId) ->
     DetailsMap = op_worker_rpc:autocleaning_get_configuration(OpNode, SpaceId),
-    DetailsMap2 = onepanel_maps:get_store_multiple([
+    DetailsMap2 = kv_utils:copy_found([
         {[rules, min_file_size], [rules, minFileSize]},
         {[rules, max_file_size], [rules, maxFileSize]},
         {[rules, min_hours_since_last_open], [rules, minHoursSinceLastOpen]},
@@ -297,10 +296,10 @@ can_be_removed(StorageId) ->
 -spec add(OpNode :: node(), StorageName :: binary(), Params :: storage_params(),
     QosParameters :: qos_parameters()) -> ok | {error, Reason :: term()}.
 add(OpNode, StorageName, Params, QosParameters) ->
-    StorageType = onepanel_utils:typed_get(type, Params, binary),
+    StorageType = onepanel_utils:get_converted(type, Params, binary),
 
     ?info("Gathering storage configuration: \"~ts\" (~ts)", [StorageName, StorageType]),
-    ReadOnly = onepanel_utils:typed_get(readonly, Params, boolean, false),
+    ReadOnly = onepanel_utils:get_converted(readonly, Params, boolean, false),
 
     UserCtx = make_user_ctx(OpNode, StorageType, Params),
     {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, Params),
@@ -308,7 +307,7 @@ add(OpNode, StorageName, Params, QosParameters) ->
     LumaConfig = make_luma_config(OpNode, Params),
     maybe_verify_storage(Helper, ReadOnly),
 
-    ImportedStorage = onepanel_utils:typed_get(importedStorage, Params, boolean, false),
+    ImportedStorage = onepanel_utils:get_converted(importedStorage, Params, boolean, false),
 
     ?info("Adding storage: \"~ts\" (~ts)", [StorageName, StorageType]),
     StorageRecord = op_worker_rpc:storage_config_new(StorageName, [Helper],
@@ -331,8 +330,8 @@ add(OpNode, StorageName, Params, QosParameters) ->
     {ok, helper()} | {badrpc, term()}.
 make_helper(OpNode, StorageType, AdminCtx, Params) ->
     Args = make_helper_args(OpNode, StorageType, Params),
-    Insecure = onepanel_utils:typed_get(insecure, Params, boolean, false),
-    PathType = onepanel_utils:typed_get(storagePathType, Params, binary),
+    Insecure = onepanel_utils:get_converted(insecure, Params, boolean, false),
+    PathType = onepanel_utils:get_converted(storagePathType, Params, binary),
     op_worker_rpc:new_helper(
         OpNode, StorageType, Args, AdminCtx, Insecure, PathType).
 
@@ -346,10 +345,10 @@ make_helper(OpNode, StorageType, AdminCtx, Params) ->
 -spec make_luma_config(OpNode :: node(), StorageParams :: storage_params()) ->
     undefined | luma_config().
 make_luma_config(OpNode, StorageParams) ->
-    case onepanel_utils:typed_get(lumaEnabled, StorageParams, boolean, false) of
+    case onepanel_utils:get_converted(lumaEnabled, StorageParams, boolean, false) of
         true ->
             Url = get_required_luma_arg(lumaUrl, StorageParams, binary),
-            ApiKey = onepanel_utils:typed_get(lumaApiKey, StorageParams, binary, undefined),
+            ApiKey = onepanel_utils:get_converted(lumaApiKey, StorageParams, binary, undefined),
             op_worker_rpc:new_luma_config(OpNode, Url, ApiKey);
         false ->
             undefined
@@ -381,12 +380,7 @@ maybe_verify_storage(Helper, _) ->
 verify_storage(Helper) ->
     case op_worker_rpc:verify_storage_on_all_nodes(Helper) of
         ok -> ok;
-        {error, Reason} ->
-            ?throw_error(Reason);
-        {error, Reason, Stacktrace} ->
-            ?throw_stacktrace(Reason, undefined, Stacktrace);
-        {badrpc, {'EXIT', {Error, Stacktrace}}} ->
-            ?throw_stacktrace(Error, undefined, Stacktrace)
+        {error, _} = Error -> throw(Error)
     end.
 
 
@@ -398,8 +392,8 @@ verify_storage(Helper) ->
 -spec get_required_luma_arg(Key :: atom(), StorageParams :: storage_params(),
     Type :: onepanel_utils:type()) -> term().
 get_required_luma_arg(Key, StorageParams, Type) ->
-    case onepanel_utils:typed_find(Key, StorageParams, Type) of
-        #error{} -> ?throw_error(?ERR_LUMA_CONFIG(Key));
+    case onepanel_utils:find_converted(Key, StorageParams, Type) of
+        error -> throw(?ERROR_MISSING_REQUIRED_VALUE(str_utils:to_binary(Key)));
         {ok, Value} -> Value
     end.
 
@@ -421,9 +415,8 @@ make_update_result(OpNode, StorageId) ->
         skipped -> Details;
         verified -> Details#{verificationPassed => true}
     catch ErrType:Error ->
-        ?warning("Verfication of modified storage ~p (~p) failed", [Name, StorageId]),
-        % translator will log the error
-        onepanel_errors:translate(ErrType, Error),
+        ?warning("Verfication of modified storage ~p (~p) failed: ~tp:~tp",
+            [Name, StorageId, ErrType, Error]),
         Details#{verificationPassed => false}
     end.
 
@@ -459,7 +452,7 @@ make_user_ctx(OpNode, StorageType, Params) ->
 -spec make_luma_params(Params :: storage_params()) ->
     #{url => binary(), api_key => binary(), luma_enabled => boolean()}.
 make_luma_params(Params) ->
-    onepanel_maps:get_store_multiple([
+    kv_utils:copy_found([
         {lumaUrl, url},
         {lumaApiKey, api_key},
         {lumaEnabled, luma_enabled}
@@ -586,9 +579,9 @@ exists(Node, {id, StorageId}) ->
 -spec parse_auto_cleaning_configuration(map()) -> map().
 parse_auto_cleaning_configuration(Args) ->
     onepanel_maps:remove_undefined(#{
-        enabled => onepanel_utils:typed_get(enabled, Args, boolean, undefined),
-        target => onepanel_utils:typed_get([target], Args, integer, undefined),
-        threshold => onepanel_utils:typed_get([threshold], Args, integer, undefined),
+        enabled => onepanel_utils:get_converted(enabled, Args, boolean, undefined),
+        target => onepanel_utils:get_converted([target], Args, integer, undefined),
+        threshold => onepanel_utils:get_converted([threshold], Args, integer, undefined),
         rules => parse_auto_cleaning_rules(Args)
     }).
 
@@ -600,7 +593,7 @@ parse_auto_cleaning_configuration(Args) ->
 -spec parse_auto_cleaning_rules(map()) -> map().
 parse_auto_cleaning_rules(Args) ->
     ParsedRules = #{
-        enabled => onepanel_utils:typed_get([rules, enabled], Args, boolean, undefined)
+        enabled => onepanel_utils:get_converted([rules, enabled], Args, boolean, undefined)
     },
     ParsedRules2 = lists:foldl(fun(RuleName, AccIn) ->
         RuleSettingConfig = parse_auto_cleaning_rule_setting(RuleName, Args),
@@ -623,8 +616,8 @@ parse_auto_cleaning_rules(Args) ->
 -spec parse_auto_cleaning_rule_setting(atom(), map()) -> map().
 parse_auto_cleaning_rule_setting(RuleName, Args) ->
     onepanel_maps:remove_undefined(#{
-        enabled => onepanel_utils:typed_get([rules, RuleName, enabled], Args, boolean, undefined),
-        value => onepanel_utils:typed_get([rules, RuleName, value], Args, integer, undefined)
+        enabled => onepanel_utils:get_converted([rules, RuleName, enabled], Args, boolean, undefined),
+        value => onepanel_utils:get_converted([rules, RuleName, value], Args, integer, undefined)
     }).
 
 %%-------------------------------------------------------------------
@@ -634,10 +627,10 @@ parse_auto_cleaning_rule_setting(RuleName, Args) ->
 -spec parse_file_popularity_configuration(map()) -> map().
 parse_file_popularity_configuration(Args) ->
     onepanel_maps:remove_undefined(#{
-        enabled => onepanel_utils:typed_get(enabled, Args, boolean, undefined),
-        last_open_hour_weight => onepanel_utils:typed_get(last_open_hour_weight, Args, float, undefined),
-        avg_open_count_per_day_weight => onepanel_utils:typed_get(avg_open_count_per_day_weight, Args, float, undefined),
-        max_avg_open_count_per_day => onepanel_utils:typed_get(max_avg_open_count_per_day, Args, float, undefined)
+        enabled => onepanel_utils:get_converted(enabled, Args, boolean, undefined),
+        last_open_hour_weight => onepanel_utils:get_converted(last_open_hour_weight, Args, float, undefined),
+        avg_open_count_per_day_weight => onepanel_utils:get_converted(avg_open_count_per_day_weight, Args, float, undefined),
+        max_avg_open_count_per_day => onepanel_utils:get_converted(max_avg_open_count_per_day, Args, float, undefined)
     }).
 
 

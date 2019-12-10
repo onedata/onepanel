@@ -40,7 +40,14 @@ apply(Module, Function, Args) ->
     try
         {node(), erlang:apply(Module, Function, Args)}
     catch
-        _:Reason -> {node(), ?make_stacktrace(Reason)}
+        throw:{error, _} = Reason ->
+            {node(), Reason};
+        Type:Reason ->
+            ?error_stacktrace("Unexpected error executing ~tp:~tp/~B~nError: ~tp:~tp~n",
+                [Module, Function, erlang:length(Args), Type, Reason]),
+            {node(), {error, #exception{
+                % do not store stacktrace not to pollute logs since it's logged here
+                type = Type, value = Reason, stacktrace = []}}}
     end.
 
 
@@ -85,9 +92,9 @@ call(Nodes, Module, Function, Args, Timeout) when is_list(Nodes) ->
         ({_Node, _Result}) -> true
     end, Values),
 
-    BadNodes = onepanel_lists:subtract(Nodes, proplists:get_keys(Results)),
+    BadNodes = lists_utils:subtract(Nodes, proplists:get_keys(Results)),
     AllResults = Results ++
-        [{BadNode, ?make_error(?ERR_BAD_NODE)} || BadNode <- BadNodes],
+        [{BadNode, ?ERROR_NO_CONNECTION_TO_CLUSTER_NODE} || BadNode <- BadNodes],
 
     ?debug("Call ~p:~p(~p) on nodes ~p with timeout ~p returned ~p",
         [Module, Function, Args, Nodes, Timeout, AllResults]),
@@ -95,7 +102,7 @@ call(Nodes, Module, Function, Args, Timeout) when is_list(Nodes) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Evaluates {@link call/3} and verifies that there is no errors.
+%% @doc Evaluates {@link call/3} and verifies that there are no errors.
 %% In case of an error throws an exception.
 %% @end
 %%--------------------------------------------------------------------
@@ -169,13 +176,12 @@ call_any(Nodes, Module, Function, Args, Timeout) ->
 -spec all(Results :: results()) -> Results :: results() | no_return().
 all(Results) ->
     BadResults = lists:filtermap(fun
-        ({_, #error{}}) -> true;
-        ({_, {error, Reason}}) -> {true, ?make_error(Reason)};
+        ({_, {error, _} = Error}) -> {true, Error};
         ({_, _}) -> false
     end, Results),
     case BadResults of
         [] -> Results;
-        _ -> ?throw_error(BadResults)
+        [{error, Reason} | _] -> reraise(Reason)
     end.
 
 
@@ -189,11 +195,18 @@ any([]) ->
 
 any(Results) ->
     GoodResults = lists:filtermap(fun
-        ({_, #error{}}) -> false;
         ({_, {error, _}}) -> false;
         ({_, Value}) -> {true, Value}
     end, Results),
-    case GoodResults of
-        [] -> ?throw_error(?ERR_FAILURE_ON_ALL_NODES);
-        [Value | _] -> Value
+    case {GoodResults, Results} of
+        {[Value | _], _} -> Value;
+        {[], [{_Node, {error, Reason}} | _]} -> reraise(Reason)
     end.
+
+
+-spec reraise(#exception{} | term()) -> no_return().
+reraise(#exception{type = Type, value = Value}) ->
+    erlang:Type(Value);
+
+reraise(Value) ->
+    throw(Value).

@@ -17,6 +17,7 @@
 -author("Wojciech Geisler").
 
 -include("modules/errors.hrl").
+-include_lib("ctool/include/posix/errno.hrl").
 
 -type bytes() :: integer().
 -type device_path() :: binary(). % /dev/loopX path
@@ -72,8 +73,8 @@ list_loopdevices(Path) ->
                 false ->
                     Map = json_utils:decode(Output),
                     List = maps:get(<<"loopdevices">>, Map, []),
-                    [Path || #{<<"name">> := Path} <- List,
-                        onepanel_block_device:is_blockdevice(Path)]
+                    [P || #{<<"name">> := P} <- List,
+                        onepanel_block_device:is_blockdevice(P)]
             end;
         false ->
             []
@@ -91,7 +92,7 @@ list_loopdevices(Path) ->
 -spec ensure_file(Path :: binary(), Size :: bytes()) -> ok.
 ensure_file(Path, Size) ->
     case {filelib:is_file(Path), filelib:is_regular(Path)} of
-        {true, false} -> ?throw_error(?ERR_FILE_ACCESS(Path, not_regular));
+        {true, false} -> throw(?ERROR_FILE_ACCESS(Path, ?EEXIST));
         {true, true} -> fallocate(Path, Size);
         {false, _} -> fallocate(Path, Size)
     end.
@@ -109,12 +110,15 @@ fallocate(Path, Size) ->
     onepanel_shell:ensure_success(["fallocate",
         "--posix", % never fail, fall back to writing zeros
         "-l", Size, ?QUOTE(Path)]),
+
+    % ensure desired size - `fallocate --posix` does not indicate
+    % error in cases like too small available space
     case filelib:file_size(Path) of
         Smaller when Smaller < Size ->
-            % fallocate does not indicate error for example when
-            % desired size did not fit on the filesystem
-            ?throw_error(?ERR_FILE_ALLOCATION_FAILURE(Smaller, Size));
-        _ -> ok
+            catch file:delete(Path),
+            throw(?ERROR_FILE_ALLOCATION(Smaller, Size));
+        _ ->
+            ok
     end.
 
 

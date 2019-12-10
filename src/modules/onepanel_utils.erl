@@ -20,7 +20,8 @@
 -export([get_basic_auth_header/2]).
 -export([wait_until/5, wait_until/6]).
 -export([gen_uuid/0, join/1, join/2, trim/2]).
--export([convert/2, get_type/1, typed_get/3, typed_get/4, typed_find/3]).
+-export([convert/2, get_type/1]).
+-export([get_converted/3, get_converted/4, find_converted/3]).
 -export([ensure_known_hosts/1, distribute_file/2]).
 
 % @formatter:off
@@ -185,8 +186,11 @@ convert(Value, float) when is_integer(Value) ->
 
 convert(Value, Type) ->
     case get_type(Value) of
-        unknown -> ?throw_error(?ERR_UNKNOWN_TYPE(Value));
-        Type -> Value;
+        unknown ->
+            ?error("Could not determine type of ~tp", [Value]),
+            error(?ERR_UNKNOWN_TYPE(Value));
+        Type ->
+            Value;
         ValueType ->
             TypeConverter = list_to_atom(
                 atom_to_list(ValueType) ++ "_to_" ++ atom_to_list(Type)
@@ -202,7 +206,7 @@ convert(Value, Type) ->
 -spec get_type(Value :: term()) -> Type :: type() | unknown.
 get_type(Value) ->
     SupportedTypes = ["atom", "binary", "float", "integer", "list", "boolean"],
-    onepanel_lists:foldl_while(fun(Type, unknown) ->
+    lists_utils:foldl_while(fun(Type, unknown) ->
         TypeMatcher = erlang:list_to_atom("is_" ++ Type),
         case erlang:TypeMatcher(Value) of
             true -> {halt, erlang:list_to_atom(Type)};
@@ -212,53 +216,38 @@ get_type(Value) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Returns a value from the nested property list or map and converts it
-%% to match the provided type.
-%% Throws on error.
+%% @doc Performs {@link kv_utils:get/2} and converts obtained result to given type.
 %% @end
 %%--------------------------------------------------------------------
--spec typed_get(Keys :: onepanel_lists:keys() | onepanel_maps:keys(),
-    Terms :: onepanel_lists:terms() | onepanel_maps:terms(), Type :: type()) ->
-    Value :: term() | no_return().
-typed_get(Keys, Terms, Type) ->
-    case typed_find(Keys, Terms, Type) of
-        {ok, Value} -> Value;
-        #error{} = Error -> throw(Error)
-    end.
+-spec get_converted(kv_utils:path(K), kv_utils:nested(K, _), type()) -> term().
+get_converted(Path, Nested, Type) ->
+    onepanel_utils:convert(kv_utils:get(Path, Nested), Type).
+
 
 %%--------------------------------------------------------------------
-%% @doc Returns a value from the nested property list or map and converts it
-%% to match the provided type. If key is missing returns default value.
+%% @doc Performs {@link kv_utils:get/3} and converts obtained result to given type.
 %% @end
 %%--------------------------------------------------------------------
--spec typed_get(Keys :: onepanel_lists:keys() | onepanel_maps:keys(),
-    Terms :: onepanel_lists:terms() | onepanel_maps:terms(), Type :: type(),
-    Default :: term()) -> Value :: term().
-typed_get(Keys, Terms, Type, Default) ->
-    case typed_find(Keys, Terms, Type) of
-        {ok, Value} -> Value;
-        _ -> Default
+-spec get_converted(kv_utils:path(K), kv_utils:nested(K, _), type(), Default) ->
+    term() | Default.
+get_converted(Path, Nested, Type, Default) ->
+    case kv_utils:find(Path, Nested) of
+        {ok, Found} -> onepanel_utils:convert(Found, Type);
+        error -> Default
     end.
 
 
+
 %%--------------------------------------------------------------------
-%% @doc Returns a value from the nested property list or map and converts it
-%% to match the provided type.
+%% @doc Performs {@link kv_utils:find/3} and converts obtained result to given type.
 %% @end
 %%--------------------------------------------------------------------
--spec typed_find(Keys :: onepanel_lists:keys() | onepanel_maps:keys(),
-    Terms :: onepanel_lists:terms() | onepanel_maps:terms(), Type :: type()) ->
-    {ok, Value :: term()} | #error{}.
-typed_find(Keys, Terms, Type) when is_list(Terms) ->
-    case onepanel_lists:get(Keys, Terms) of
-        {ok, Value} -> {ok, convert(Value, Type)};
-        #error{} = Error -> Error
-    end;
-
-typed_find(Keys, Terms, Type) when is_map(Terms) ->
-    case onepanel_maps:get(Keys, Terms) of
-        {ok, Value} -> {ok, convert(Value, Type)};
-        #error{} = Error -> Error
+-spec find_converted(kv_utils:path(K), kv_utils:nested(K, _), type()) ->
+    {ok, term()} | error.
+find_converted(Path, Nested, Type) ->
+    case kv_utils:find(Path, Nested) of
+        {ok, Found} -> {ok, onepanel_utils:convert(Found, Type)};
+        error -> error
     end.
 
 
@@ -273,7 +262,8 @@ ensure_known_hosts(Hosts) ->
     lists:foreach(fun(Host) ->
         case lists:member(Host, KnownHosts) of
             true -> ok;
-            false -> ?throw_error(?ERR_HOST_NOT_FOUND(Host))
+            false -> throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(
+                <<"hosts">>, onepanel_utils:convert(KnownHosts, {seq, binary})))
         end
     end, Hosts).
 

@@ -50,7 +50,8 @@ local(ServiceName) ->
 %% If among considered hosts is the current one, this host's node is returned.
 %% @end
 %%--------------------------------------------------------------------
--spec any(ServiceNameOrOpts :: service:name() | opts()) -> {ok, node()} | #error{}.
+-spec any(ServiceNameOrOpts :: service:name() | opts()) ->
+    {ok, node()} | ?ERROR_NO_SERVICE_NODES(_).
 any(ServiceName) when ?IS_SERVICE_NAME(ServiceName) ->
     any(#{service => ServiceName});
 
@@ -62,7 +63,7 @@ any(#{service := ServiceName, node := Node} = Opts) ->
 
 any(#{service := ServiceName} = Opts) ->
     case hosts:all(Opts) of
-        [] -> ?make_error(?ERR_NO_SERVICE_HOSTS(ServiceName));
+        [] -> ?ERROR_NO_SERVICE_NODES(ServiceName);
         Hosts ->
             Self = hosts:self(),
             Host = case lists:member(Self, Hosts) of

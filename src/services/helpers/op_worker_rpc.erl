@@ -29,7 +29,8 @@
 
 -define(CALL(Node, Args),
     case ?NO_EXCEPTION_CALL(Node, Args) of
-        {badrpc, _} = __Error -> ?throw_error(__Error);
+        {badrpc, nodedown} -> throw(?ERROR_SERVICE_UNAVAILABLE);
+        {badrpc, _} = __Error -> error(__Error);
         __Result -> __Result
     end).
 
@@ -61,7 +62,7 @@
 -type sync_monitoring_window() :: day | hour | minute.
 
 -export_type([storage_doc/0, luma_config/0, helper/0,
-    helper_args/0, helper_user_ctx/0]).
+    helper_args/0, helper_user_ctx/0, od_space_id/0]).
 
 -export([storage_config_new/5, storage_config_new/6]).
 -export([storage_create/1, storage_create/2]).
@@ -401,15 +402,13 @@ new_luma_config(Node, URL, ApiKey) ->
     ?CALL(Node, [URL, ApiKey]).
 
 
--spec verify_storage_on_all_nodes(helper()) ->
-    ok | {error, term()} | {error, term(), Stacktrace :: list()} | {badrpc, term()}.
+-spec verify_storage_on_all_nodes(helper()) -> ok | errors:error().
 verify_storage_on_all_nodes(Helper) ->
-    ?NO_EXCEPTION_CALL([Helper]).
+    ?CALL([Helper]).
 
--spec verify_storage_on_all_nodes(node(), helper()) ->
-    ok | {error, term()} | {error, term(), Stacktrace :: list()} | {badrpc, term()}.
+-spec verify_storage_on_all_nodes(node(), helper()) -> ok | errors:error().
 verify_storage_on_all_nodes(Node, Helper) ->
-    ?NO_EXCEPTION_CALL(Node, [Helper]).
+    ?CALL(Node, [Helper]).
 
 
 -spec prepare_helper_args(helper_name(), helper_args()) -> helper_args().
@@ -439,12 +438,12 @@ space_logic_get_storage_ids(Node, SpaceId) ->
 
 
 -spec file_popularity_api_configure(file_popularity_config_id(), map()) ->
-    ok | {error, term()}.
+    ok | errors:error() | {error, term()}.
 file_popularity_api_configure(SpaceId, NewConfiguration) ->
     ?CALL([SpaceId, NewConfiguration]).
 
 -spec file_popularity_api_configure(node(), file_popularity_config_id(), map()) ->
-    ok | {error, term()}.
+    ok | errors:error() | {error, term()}.
 file_popularity_api_configure(Node, SpaceId, NewConfiguration) ->
     ?CALL(Node, [SpaceId, NewConfiguration]).
 
@@ -460,11 +459,13 @@ file_popularity_api_get_configuration(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
 
--spec autocleaning_configure(od_space_id(), map()) -> ok | {error, term()}.
+-spec autocleaning_configure(od_space_id(), map()) ->
+    ok | errors:error() | {error, term()}.
 autocleaning_configure(SpaceId, Configuration) ->
     ?CALL([SpaceId, Configuration]).
 
--spec autocleaning_configure(node(), od_space_id(), map()) -> ok | {error, term()}.
+-spec autocleaning_configure(node(), od_space_id(), map()) ->
+    ok | errors:error() | {error, term()}.
 autocleaning_configure(Node, SpaceId, Configuration) ->
     ?CALL(Node, [SpaceId, Configuration]).
 
@@ -544,12 +545,12 @@ provider_logic_update(Node, Data) ->
 
 
 -spec support_space(storage_id(), tokens:serialized(), SupportSize :: integer()) ->
-    {ok, od_space_id()} | {error, term()}.
+    {ok, od_space_id()} | errors:error().
 support_space(StorageId, Token, SupportSize) ->
     ?CALL([StorageId, Token, SupportSize]).
 
 -spec support_space(node(), storage_id(), tokens:serialized(), SupportSize :: integer()) ->
-    {ok, od_space_id()} | {error, term()}.
+    {ok, od_space_id()} | errors:error().
 support_space(Node, StorageId, Token, SupportSize) ->
     ?CALL(Node, [StorageId, Token, SupportSize]).
 
@@ -648,12 +649,12 @@ space_quota_current_size(Node, SpaceId) ->
 
 
 -spec update_space_support_size(od_space_id(), NewSupportSize :: integer()) ->
-    ok | {error, term()}.
+    ok | errors:error().
 update_space_support_size(SpaceId, NewSupportSize) ->
     ?CALL([SpaceId, NewSupportSize]).
 
 -spec update_space_support_size(node(), od_space_id(), NewSupportSize :: integer()) ->
-    ok | {error, term()}.
+    ok | errors:error().
 update_space_support_size(Node, SpaceId, NewSupportSize) ->
     ?CALL(Node, [SpaceId, NewSupportSize]).
 

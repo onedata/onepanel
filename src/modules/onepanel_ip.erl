@@ -27,7 +27,7 @@
 -spec determine_ip() -> inet:ip4_address().
 determine_ip() ->
     % use first working method of getting IP
-    onepanel_lists:foldl_while(fun(IpSupplier, PrevResult) ->
+    lists_utils:foldl_while(fun(IpSupplier, PrevResult) ->
         try
             {ok, IP} = IpSupplier(),
             {halt, IP}
@@ -136,7 +136,7 @@ determine_ip_by_domain() ->
         [{_, _, _, _} = IP] -> {ok, IP};
         ManyIPs ->
             HostnameIPs = hostname_ips(),
-            case onepanel_lists:intersect(HostnameIPs, ManyIPs) of
+            case lists_utils:intersect(HostnameIPs, ManyIPs) of
                 [] -> {ok, hd(ManyIPs)};
                 [IP | _] -> {ok, IP}
             end

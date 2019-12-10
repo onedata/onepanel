@@ -46,7 +46,7 @@
 %% Creates the model instance. Returns an error if the instance already exists.
 %%--------------------------------------------------------------------
 -callback create(Record :: record()) ->
-    {ok, model_behaviour:key()} | #error{} | no_return().
+    {ok, model_behaviour:key()} | {error, _} | no_return().
 
 
 %%--------------------------------------------------------------------
@@ -65,7 +65,7 @@
 %% Returns a model instance.
 %%--------------------------------------------------------------------
 -callback get(Key :: key()) ->
-    {ok, Record :: record()} | #error{} | no_return().
+    {ok, Record :: record()} | {error, _} | no_return().
 
 
 %%--------------------------------------------------------------------

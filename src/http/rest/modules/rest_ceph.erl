@@ -44,7 +44,7 @@ read_ceph_args(Args) ->
     Mons = lists:map(fun get_mon_params/1, maps:get(monitors, Args, [])),
     Mgrs = lists:map(fun get_mgr_params/1, maps:get(managers, Args, [])),
 
-    Ctx = onepanel_maps:get_store_multiple([
+    Ctx = kv_utils:copy_found([
         {name, cluster_name},
         {fsid, fsid}
     ], Args, #{
@@ -133,7 +133,7 @@ is_available(Req, _Method, _State) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()} |
     {stop, Req :: cowboy_req:req()}.
 accept_resource(Req, 'PATCH', Args, #rstate{resource = ceph_pool, bindings = #{name := Name}}) ->
-    Ctx = onepanel_maps:get_store_multiple([
+    Ctx = kv_utils:copy_found([
         % camelCase is not common in locally used params, but matches
         % storage args convention
         {copiesNumber, copiesNumber},
@@ -283,26 +283,19 @@ delete_resource(Req, _State) ->
 
 -spec get_osd_params(map()) -> service:ctx().
 get_osd_params(#{host := Host, type := Type} = Spec) ->
-    Params = onepanel_maps:get_store_multiple([
-        {device, device},
-        {size, size},
-        {path, path},
-        {uuid, uuid}
-    ], Spec, #{
+    Params = maps:merge(maps:with([device, size, path, uuid], Spec), #{
         type => onepanel_utils:convert(Type, atom),
         host => onepanel_utils:convert(Host, list)
     }),
     case Params of
-        #{uuid := UUID} -> Params#{uuid => normalize_uuid(UUID)};
+        #{uuid := UUID} -> Params#{uuid => normalize_uuid(UUID, [osds])};
         _ -> Params#{uuid => ceph:gen_uuid()}
     end.
 
 
 -spec get_mon_params(map()) -> service:ctx().
 get_mon_params(#{host := Host} = Spec) ->
-    onepanel_maps:get_store_multiple([
-        {ip, ip}
-    ], Spec, #{host => onepanel_utils:convert(Host, list)}).
+    maps:with([host, ip], Spec#{host => onepanel_utils:convert(Host, list)}).
 
 
 -spec get_mgr_params(map()) -> service:ctx().
@@ -312,18 +305,23 @@ get_mgr_params(#{host := Host}) ->
 
 %%--------------------------------------------------------------------
 %% @private
-%% @doc Ensures UUID is hyphenated
+%% @doc Ensures UUID is hyphenated.
+%% Argument Keys is used to indicate error reason.
 %% @end
 %%--------------------------------------------------------------------
--spec normalize_uuid(binary()) -> <<_:256>>.
-normalize_uuid(<<A:8/binary, B:4/binary, C:4/binary, D:4/binary, E:12/binary>>) ->
+-spec normalize_uuid(binary(), Keys :: [atom()]) -> <<_:256>>.
+normalize_uuid(<<A:8/binary, B:4/binary, C:4/binary, D:4/binary, E:12/binary>>, _Keys) ->
     onepanel_utils:join([A, B, C, D, E], <<"-">>);
 
-normalize_uuid(<<UUIDWithHyphens/binary>>) when byte_size(UUIDWithHyphens) > 32 ->
+normalize_uuid(<<UUIDWithHyphens/binary>>, Keys) when byte_size(UUIDWithHyphens) > 32 ->
     case binary:replace(UUIDWithHyphens, <<"-">>, <<>>, [global]) of
-        <<Cleaned:32/binary>> -> normalize_uuid(Cleaned);
-        _ -> ?throw_error({?ERR_INVALID_VALUE, uuid, <<"UUID">>})
+        <<Cleaned:32/binary>> ->
+            normalize_uuid(Cleaned, Keys);
+        _ ->
+            throw(?ERROR_BAD_VALUE_IDENTIFIER(
+                str_utils:join_as_binaries(Keys ++ [uuid], <<$.>>)))
     end;
 
-normalize_uuid(_) ->
-    ?throw_error({?ERR_INVALID_VALUE, uuid, <<"UUID">>}).
+normalize_uuid(_, Keys) ->
+    throw(?ERROR_BAD_VALUE_IDENTIFIER(
+        str_utils:join_as_binaries(Keys ++ [uuid], <<$.>>))).

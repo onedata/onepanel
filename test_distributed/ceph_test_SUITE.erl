@@ -83,7 +83,7 @@ all() ->
 localceph_storage_fails_without_ceph(Config) ->
     [OpNode | _] = ?config(oneprovider_nodes, Config),
     PoolName = ?POOL_NAME,
-    ?assertMatch(#error{}, onepanel_test_utils:attempt_service_action(
+    ?assertMatch({error, _}, onepanel_test_utils:attempt_service_action(
         OpNode, op_worker, add_storages, #{
             hosts => [hd(?config(oneprovider_hosts, Config))],
             storages => #{PoolName => ?POOL_PARAMS}
@@ -222,14 +222,14 @@ storage_is_added_with_pool(Config) ->
 pool_creation_fails_with_too_few_osds(Config) ->
     [OpNode | _] = ?config(oneprovider_nodes, Config),
     PoolName = ?POOL_NAME2,
-    ?assertMatch(#error{}, onepanel_test_utils:attempt_service_action(
+    ?assertMatch({error, _}, onepanel_test_utils:attempt_service_action(
         OpNode, op_worker, add_storages, #{
             hosts => [hd(?config(oneprovider_hosts, Config))],
             storages => #{PoolName => ?POOL_PARAMS#{
                 copiesNumber => 3
             }}
         })),
-    ?assertMatch(#error{}, onepanel_test_utils:attempt_service_action(
+    ?assertMatch({error, _}, onepanel_test_utils:attempt_service_action(
         OpNode, op_worker, add_storages, #{
             hosts => [hd(?config(oneprovider_hosts, Config))],
             storages => #{PoolName => ?POOL_PARAMS#{

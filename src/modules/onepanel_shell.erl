@@ -89,7 +89,7 @@ ensure_success(Tokens, TokensToLog) ->
         {0, _, _} -> ok;
         {Code, StdOut, StdErr} ->
             ?error("~ts", [format_results(TokensToLog, Code, StdOut, StdErr)]),
-            ?throw_error(?ERR_CMD_FAILURE(Code, StdOut, StdErr), [TokensToLog])
+            error(?ERR_CMD_FAILURE(Code, StdOut, StdErr))
     end.
 
 
@@ -114,7 +114,7 @@ get_success_output(Tokens, TokensToLog) ->
         {0, StdOut, _} -> StdOut;
         {Code, StdOut, StdErr} ->
             ?error("~ts", [format_results(TokensToLog, Code, StdOut, StdErr)]),
-            ?throw_error(?ERR_CMD_FAILURE(Code, StdOut, StdErr), [TokensToLog])
+            error(?ERR_CMD_FAILURE(Code, StdOut, StdErr))
     end.
 
 %%--------------------------------------------------------------------

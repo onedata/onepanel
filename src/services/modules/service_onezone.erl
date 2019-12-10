@@ -76,15 +76,15 @@ get_nodes() ->
 get_steps(deploy, Ctx) ->
     SelfHost = hosts:self(),
 
-    {ok, OpaCtx} = onepanel_maps:get([cluster, ?SERVICE_PANEL], Ctx),
-    {ok, LeCtx} = onepanel_maps:get([cluster, ?SERVICE_LE], Ctx),
-    {ok, CbCtx} = onepanel_maps:get([cluster, ?SERVICE_CB], Ctx),
-    {ok, CmCtx} = onepanel_maps:get([cluster, ?SERVICE_CM], Ctx),
-    {ok, OzwCtx} = onepanel_maps:get([cluster, ?SERVICE_OZW], Ctx),
+    OpaCtx = kv_utils:get([cluster, ?SERVICE_PANEL], Ctx),
+    LeCtx = kv_utils:get([cluster, ?SERVICE_LE], Ctx),
+    CbCtx = kv_utils:get([cluster, ?SERVICE_CB], Ctx),
+    CmCtx = kv_utils:get([cluster, ?SERVICE_CM], Ctx),
+    OzwCtx = kv_utils:get([cluster, ?SERVICE_OZW], Ctx),
 
-    DnsConfig = onepanel_maps:get([name(), dns_check_config], Ctx, #{}),
+    DnsConfig = kv_utils:get([name(), dns_check_config], Ctx, #{}),
 
-    OzCtx1 = onepanel_maps:get(name(), Ctx, #{}),
+    OzCtx1 = kv_utils:get(name(), Ctx, #{}),
     OzCtx2 = OzCtx1#{
         master_host => SelfHost
     },
@@ -290,8 +290,8 @@ get_gui_message(#{message_id := MessageId}) ->
 -spec update_gui_message(#{message_id := oz_worker_rpc:gui_message_id(),
     enabled => boolean(), body => binary()}) -> ok.
 update_gui_message(#{message_id := MessageId} = Ctx) ->
-    Diff = onepanel_maps:get_store_multiple([
+    Diff = kv_utils:copy_found([
         {body, <<"body">>}, {enabled, <<"enabled">>}
-    ], Ctx, #{}),
+    ], Ctx),
     {rpc, Auth} = onezone_client:root_auth(),
     ok = oz_worker_rpc:update_gui_message(Auth, MessageId, Diff).

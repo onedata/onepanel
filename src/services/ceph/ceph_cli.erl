@@ -70,12 +70,12 @@ status() ->
     json_utils:decode(onepanel_shell:get_success_output(?CEPH(["status"]))).
 
 
--spec health() -> {ok, #{binary() => binary()}} | {error, timeout}.
+-spec health() -> {ok, #{binary() => binary()}} | ?ERROR_TIMEOUT.
 health() ->
     % timeout may occur if monitors do not have quorum
     case ?TIMEOUT(onepanel_shell, get_success_output, [?CEPH(["health"])]) of
         {done, JSON} -> {ok, json_utils:decode(JSON)};
-        {error, timeout} -> ?make_error(?ERR_TIMEOUT)
+        {error, timeout} -> ?ERROR_TIMEOUT
     end.
 
 
@@ -287,7 +287,7 @@ set_pool_param(Pool, Param, Value) ->
 
 
 -spec get_pool_param(Pool :: binary(), Param :: binary()) ->
-    {ok, json_utils:json_term()} | #error{}.
+    {ok, json_utils:json_term()} | no_return().
 get_pool_param(Pool, Param) ->
     case onepanel_shell:execute(
         ?CEPH(["osd", "pool", "get", Pool, Param])
@@ -296,7 +296,7 @@ get_pool_param(Pool, Param) ->
             #{Param := Value} = json_utils:decode(Output),
             {ok, Value};
         {Code, Output, StdErr} ->
-            ?make_error(?ERR_CMD_FAILURE(Code, Output, StdErr))
+            error(?ERR_CMD_FAILURE(Code, Output, StdErr))
     end.
 
 

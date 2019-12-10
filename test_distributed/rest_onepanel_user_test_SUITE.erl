@@ -264,5 +264,5 @@ end_per_suite(_Config) ->
 -spec zip_auths([Parameter], Auths :: [onepanel_test_rest:auth(), ...]) ->
     [{Parameter, onepanel_test_rest:auth()}].
 zip_auths(Parameters, Auths) ->
-    Auths2 = onepanel_lists:ensure_length(length(Parameters), Auths),
+    Auths2 = lists_utils:ensure_length(length(Parameters), Auths),
     lists:zip(Parameters, Auths2).

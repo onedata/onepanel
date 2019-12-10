@@ -115,23 +115,23 @@ get_steps(Action, Ctx) ->
 
 
 -spec get_auth_by_token(AccessToken :: binary(), ip_utils:ip()) ->
-    {ok, aai:auth()} | #error{}.
+    {ok, aai:auth()} | errors:error().
 get_auth_by_token(AccessToken, PeerIp) ->
     case nodes:any(name()) of
         {ok, OzNode} ->
             case oz_worker_rpc:check_token_auth(OzNode, AccessToken, PeerIp) of
                 {true, Auth} -> {ok, Auth};
-                {error, _} = Error -> ?make_error(Error)
+                {error, _} = Error -> Error
             end;
         Error -> Error
     end.
 
 
--spec get_user_details(aai:auth()) -> {ok, #user_details{}} | #error{}.
+-spec get_user_details(aai:auth()) -> {ok, #user_details{}} | errors:error().
 get_user_details(Auth) ->
     case oz_worker_rpc:get_user_details(Auth) of
         {ok, User} -> {ok, User};
-        {error, Reason} -> ?make_error(Reason)
+        {error, _} = Error -> Error
     end.
 
 
@@ -153,9 +153,7 @@ configure(Ctx) ->
     % TODO VFS-4140 Mark IPs configured only in batch mode
     onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),
 
-    AppConfig = onepanel_maps:get_store_multiple([
-        {gui_debug_mode, gui_debug_mode}
-    ], Ctx, #{
+    AppConfig = maps:with([gui_debug_mode, oz_name, http_domain], Ctx#{
         oz_name => OzName,
         http_domain => OzDomain
     }),
@@ -384,15 +382,22 @@ get_admin_email() ->
 %%--------------------------------------------------------------------
 -spec supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
     boolean().
-supports_letsencrypt_challenge(http) ->
-    service:healthy(name());
-supports_letsencrypt_challenge(dns) ->
-    case nodes:any(name()) of
-        {ok, Node} ->
-            service:healthy(name()) andalso
-                onepanel_env:get_remote(Node, [subdomain_delegation_supported], name());
-        _Error -> false
+supports_letsencrypt_challenge(Challenge) when
+    Challenge == http; Challenge == dns ->
+    OzNode = case nodes:any(name()) of
+        {ok, N} -> N;
+        Error -> throw(Error)
+    end,
+    service:healthy(name()) orelse throw(?ERROR_SERVICE_UNAVAILABLE),
+    case Challenge of
+        http -> true;
+        dns ->
+            case onepanel_env:get_remote(OzNode, [subdomain_delegation_supported], name()) of
+                true -> true;
+                false -> false
+            end
     end;
+
 supports_letsencrypt_challenge(_) -> false.
 
 

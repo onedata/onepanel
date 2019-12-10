@@ -113,7 +113,7 @@ is_available(Req, _Method, _State) ->
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()}.
 accept_resource(Req, 'POST', #{clusterHost := Host} = Args, #rstate{resource = cluster}) ->
-    Ctx = onepanel_maps:get_store(cookie, Args, cookie, #{
+    Ctx = maps:with([cluster_host, cookie], Args#{
         cluster_host => onepanel_utils:convert(Host, list)
     }),
 
@@ -134,11 +134,13 @@ accept_resource(Req, 'POST', #{address := Address},
 accept_resource(Req, 'PUT', Args, #rstate{resource = emergency_passphrase}) ->
     #{newPassphrase := NewPassphrase} = Args,
     CurrentPassphrase = maps:get(currentPassphrase, Args, undefined),
-    ok = emergency_passphrase:change(CurrentPassphrase, NewPassphrase),
-    {true, Req};
+    case emergency_passphrase:change(CurrentPassphrase, NewPassphrase) of
+        ok -> {true, Req};
+        Error -> throw(Error)
+    end;
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = web_cert}) ->
-    Ctx = onepanel_maps:get_store(letsEncrypt, Args, letsencrypt_enabled),
+    Ctx = #{letsencrypt_enabled => maps:get(letsEncrypt, Args)},
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?SERVICE_LE, update, Ctx
     ))};

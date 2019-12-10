@@ -103,14 +103,14 @@ get_nodes() ->
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, Ctx) ->
-    {ok, OpaCtx} = onepanel_maps:get([cluster, ?SERVICE_PANEL], Ctx),
-    {ok, CbCtx} = onepanel_maps:get([cluster, ?SERVICE_CB], Ctx),
-    {ok, CmCtx} = onepanel_maps:get([cluster, ?SERVICE_CM], Ctx),
-    {ok, OpwCtx} = onepanel_maps:get([cluster, ?SERVICE_OPW], Ctx),
-    {ok, LeCtx} = onepanel_maps:get([cluster, ?SERVICE_LE], Ctx),
-    CephCtx = onepanel_maps:get([ceph], Ctx, #{}),
-    StorageCtx = onepanel_maps:get([cluster, storages], Ctx, #{}),
-    OpCtx = onepanel_maps:get(name(), Ctx, #{}),
+    OpaCtx = kv_utils:get([cluster, ?SERVICE_PANEL], Ctx),
+    CbCtx = kv_utils:get([cluster, ?SERVICE_CB], Ctx),
+    CmCtx = kv_utils:get([cluster, ?SERVICE_CM], Ctx),
+    OpwCtx = kv_utils:get([cluster, ?SERVICE_OPW], Ctx),
+    LeCtx = kv_utils:get([cluster, ?SERVICE_LE], Ctx),
+    CephCtx = kv_utils:get([ceph], Ctx, #{}),
+    StorageCtx = kv_utils:get([cluster, storages], Ctx, #{}),
+    OpCtx = kv_utils:get(name(), Ctx, #{}),
 
     service:create(#service{name = name()}),
     % separate update to handle upgrade from older version
@@ -315,11 +315,10 @@ get_id() ->
         {ok, <<ProviderId/binary>>} ->
             ProviderId;
         ?ERROR_UNREGISTERED_ONEPROVIDER = Error ->
-            ?throw_error(Error);
+            throw(Error);
         _ ->
             FileContents = read_auth_file(),
-            {ok, Id} = onepanel_maps:get(provider_id, FileContents),
-            Id
+            maps:get(provider_id, FileContents)
     end.
 
 
@@ -330,10 +329,7 @@ get_id() ->
 -spec get_oz_domain() -> string().
 get_oz_domain() ->
     % onezone_domain variable is set on all nodes
-    case onepanel_env:find([onezone_domain]) of
-        {ok, Domain} -> onepanel_utils:convert(Domain, list);
-        Error -> ?throw_error(Error)
-    end.
+    onepanel_env:typed_get(onezone_domain, list).
 
 
 %%--------------------------------------------------------------------
@@ -372,7 +368,7 @@ is_registered(Ctx) ->
 get_access_token() ->
     case op_worker_rpc:get_access_token() of
         {ok, <<Token/binary>>} -> Token;
-        ?ERROR_UNREGISTERED_ONEPROVIDER = Error -> ?throw_error(Error);
+        ?ERROR_UNREGISTERED_ONEPROVIDER = Error -> throw(Error);
         _ -> root_token_from_file()
     end.
 
@@ -427,10 +423,10 @@ check_oz_availability(Ctx) ->
                 X#xmlAttribute.name == status],
             case Status of
                 "ok" -> ok;
-                _ -> ?throw_error(?ERR_ONEZONE_NOT_AVAILABLE)
+                _ -> throw(?ERROR_NO_CONNECTION_TO_ONEZONE)
             end;
         _ ->
-            ?throw_error(?ERR_ONEZONE_NOT_AVAILABLE)
+            throw(?ERROR_NO_CONNECTION_TO_ONEZONE)
     end.
 
 
@@ -442,7 +438,7 @@ check_oz_availability(Ctx) ->
 check_oz_connection() ->
     case service_op_worker:is_connected_to_oz() of
         true -> ok;
-        false -> ?throw_error(?ERR_ONEZONE_NOT_AVAILABLE)
+        false -> throw(?ERROR_NO_CONNECTION_TO_ONEZONE)
     end.
 
 
@@ -481,17 +477,11 @@ register(Ctx) ->
     },
 
     case oz_providers:register(none, Params) of
-        ?ERROR_BAD_VALUE_IDENTIFIER_OCCUPIED(<<"subdomain">>) ->
-            ?throw_error(?ERR_SUBDOMAIN_NOT_AVAILABLE);
-        ?ERROR_BAD_VALUE_TOKEN(_, _) ->
-            ?throw_error(?ERR_INVALID_VALUE_TOKEN);
-        {error, Reason} ->
-            ?throw_error(Reason);
-        {ok, #{<<"providerId">> := ProviderId,
-            <<"providerRootToken">> := RootToken}} ->
-
+        {ok, #{<<"providerId">> := ProviderId, <<"providerRootToken">> := RootToken}} ->
             on_registered(OpwNode, ProviderId, RootToken),
-            {ok, ProviderId}
+            {ok, ProviderId};
+        {error, _} = Error ->
+            throw(Error)
     end.
 
 
@@ -520,12 +510,12 @@ modify_details(Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     ok = modify_domain_details(Node, Ctx),
 
-    Params = onepanel_maps:get_store_multiple([
+    Params = kv_utils:copy_found([
         {oneprovider_name, <<"name">>},
         {oneprovider_geo_latitude, <<"latitude">>},
         {oneprovider_geo_longitude, <<"longitude">>},
         {oneprovider_admin_email, <<"adminEmail">>}
-    ], Ctx),
+    ], Ctx, #{}),
 
     case maps:size(Params) of
         0 -> ok;
@@ -546,7 +536,7 @@ get_details() ->
             false -> get_details_by_rest()
         end
     catch
-        Type:#error{reason = ?ERROR_UNREGISTERED_ONEPROVIDER} = Error ->
+        Type:?ERROR_UNREGISTERED_ONEPROVIDER = Error ->
             erlang:Type(Error);
         Type:Error ->
             case service:get_ctx(name()) of
@@ -573,16 +563,12 @@ format_cluster_ips(Ctx) ->
 support_space(#{storage_id := StorageId} = Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     assert_storage_exists(Node, StorageId),
-    SupportSize = onepanel_utils:typed_get(size, Ctx, binary),
-    Token = onepanel_utils:typed_get(token, Ctx, binary),
+    SupportSize = onepanel_utils:get_converted(size, Ctx, binary),
+    Token = onepanel_utils:get_converted(token, Ctx, binary),
 
     case op_worker_rpc:support_space(StorageId, Token, SupportSize) of
-        {ok, SpaceId} ->
-            configure_space(Node, SpaceId, Ctx);
-        ?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, Minimum) ->
-            ?throw_error(?ERR_SPACE_SUPPORT_TOO_LOW(Minimum));
-        {error, _} = Error ->
-            ?throw_error(Error)
+        {ok, SpaceId} -> configure_space(Node, SpaceId, Ctx);
+        Error -> throw(Error)
     end.
 
 
@@ -669,10 +655,7 @@ modify_space(#{space_id := SpaceId} = Ctx) ->
 maybe_update_support_size(OpNode, SpaceId, #{size := SupportSize}) ->
     case op_worker_rpc:update_space_support_size(OpNode, SpaceId, SupportSize) of
         ok -> ok;
-        ?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, Minimum) ->
-            ?throw_error(?ERR_SPACE_SUPPORT_TOO_LOW(Minimum));
-        {error, Reason} ->
-            ?throw_error(Reason)
+        Error -> throw(Error)
     end;
 
 maybe_update_support_size(_OpNode, _SpaceId, _Ctx) -> ok.
@@ -685,8 +668,8 @@ maybe_update_support_size(_OpNode, _SpaceId, _Ctx) -> ok.
 -spec get_sync_stats(Ctx :: service:ctx()) -> list().
 get_sync_stats(#{space_id := SpaceId} = Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
-    Period = onepanel_utils:typed_get(period, Ctx, binary, undefined),
-    MetricsJoined = onepanel_utils:typed_get(metrics, Ctx, binary, <<"">>),
+    Period = onepanel_utils:get_converted(period, Ctx, binary, undefined),
+    MetricsJoined = onepanel_utils:get_converted(metrics, Ctx, binary, <<"">>),
     Metrics = binary:split(MetricsJoined, <<",">>, [global, trim]),
     op_worker_storage_sync:get_stats(Node, SpaceId, Period, Metrics).
 
@@ -715,9 +698,9 @@ update_provider_ips() ->
 %%-------------------------------------------------------------------
 -spec get_auto_cleaning_reports(Ctx :: service:ctx()) -> map().
 get_auto_cleaning_reports(Ctx = #{space_id := SpaceId}) ->
-    Offset = onepanel_utils:typed_get(offset, Ctx, integer, 0),
-    Limit = onepanel_utils:typed_get(limit, Ctx, integer, all),
-    Index = onepanel_utils:typed_get(index, Ctx, binary, undefined),
+    Offset = onepanel_utils:get_converted(offset, Ctx, integer, 0),
+    Limit = onepanel_utils:get_converted(limit, Ctx, integer, all),
+    Index = onepanel_utils:get_converted(index, Ctx, binary, undefined),
     {ok, Ids} = op_worker_rpc:autocleaning_list_reports(
         SpaceId, Index, Offset, Limit),
     #{ids => Ids}.
@@ -733,7 +716,7 @@ get_auto_cleaning_report(#{report_id := ReportId}) ->
     case op_worker_rpc:autocleaning_get_run_report(ReportId) of
         {ok, Report} ->
             onepanel_maps:undefined_to_null(
-                onepanel_maps:get_store_multiple([
+                kv_utils:copy_found([
                     {id, id},
                     {index, index},
                     {started_at, startedAt},
@@ -742,8 +725,8 @@ get_auto_cleaning_report(#{report_id := ReportId}) ->
                     {bytes_to_release, bytesToRelease},
                     {files_number, filesNumber}
                 ], Report));
-        {error, Reason} ->
-            ?throw_error({?ERR_AUTOCLEANING, Reason})
+        {error, _} = Error ->
+            throw(Error)
     end.
 
 
@@ -755,7 +738,7 @@ get_auto_cleaning_report(#{report_id := ReportId}) ->
 -spec get_auto_cleaning_status(Ctx :: service:ctx()) -> #{atom() => term()}.
 get_auto_cleaning_status(#{space_id := SpaceId}) ->
     Status = op_worker_rpc:autocleaning_status(SpaceId),
-    onepanel_maps:get_store_multiple([
+    kv_utils:copy_found([
         {in_progress, inProgress},
         {space_occupancy, spaceOccupancy}
     ], Status).
@@ -794,8 +777,7 @@ start_auto_cleaning(#{space_id := SpaceId}) ->
         {ok, _} -> ok;
         {error, {already_started, _}} -> ok;
         {error, nothing_to_clean} -> ok;
-        {error, Reason} ->
-            ?throw_error({?ERR_AUTOCLEANING, Reason})
+        {error, _} = Error -> throw(Error)
     end.
 
 
@@ -945,8 +927,7 @@ root_token_from_file() ->
     % ensure correct node for reading op_worker configuration
     case nodes:onepanel_with(?SERVICE_OPW) of
         {_, Self} ->
-            {ok, RootTokenBin} = onepanel_maps:get(
-                root_token, read_auth_file()),
+            RootTokenBin = maps:get(root_token, read_auth_file()),
             {ok, TTL} = onepanel_env:read_effective(
                 [?SERVICE_OPW, provider_token_ttl_sec], ?SERVICE_OPW),
             Now = time_utils:system_time_seconds(),
@@ -971,11 +952,11 @@ read_auth_file() ->
     Path = onepanel_env:get(op_worker_root_token_path),
     case rpc:call(Node, file, read_file, [Path]) of
         {ok, Json} ->
-            onepanel_maps:get_store_multiple([
+            kv_utils:copy_all([
                 {<<"provider_id">>, provider_id},
                 {<<"root_token">>, root_token}
-            ], json_utils:decode(Json));
-        {error, Error} -> ?throw_error(Error)
+            ], json_utils:decode(Json), #{});
+        {error, Error} -> throw(?ERROR_FILE_ACCESS(Path, Error))
     end.
 
 
@@ -1009,13 +990,12 @@ get_details_by_graph_sync() ->
     OzDomain = get_oz_domain(),
     Details = case op_worker_rpc:get_provider_details() of
         {ok, DetailsMap} -> DetailsMap;
-        ?ERROR_NO_CONNECTION_TO_ONEZONE -> ?throw_error(?ERR_ONEZONE_NOT_AVAILABLE);
-        {error, Reason} -> ?throw_error(Reason)
+        {error, _} = Error -> throw(Error)
     end,
 
     #{latitude := Latitude, longitude := Longitude} = Details,
 
-    Response = onepanel_maps:get_store_multiple([
+    Response = kv_utils:copy_found([
         {id, id}, {name, name}, {admin_email, adminEmail},
         {subdomain_delegation, subdomainDelegation}, {domain, domain}
     ], Details),
@@ -1044,7 +1024,7 @@ get_details_by_rest() ->
     OzDomain = onepanel_utils:convert(get_oz_domain(), binary),
 
     % NOTE: the REST endpoint returns protected data, which do not contain adminEmail
-    Result1 = onepanel_maps:get_store_multiple([
+    Result1 = kv_utils:copy_found([
         {<<"providerId">>, id},
         {<<"name">>, name},
         {<<"domain">>, domain},
@@ -1065,8 +1045,7 @@ get_details_by_rest() ->
             DomainConfigKeys
     end,
 
-    onepanel_maps:get_store_multiple(DomainConfigKeys2,
-        DomainConfig, Result1).
+    kv_utils:copy_found(DomainConfigKeys2, DomainConfig, Result1).
 
 
 %%--------------------------------------------------------------------
@@ -1076,22 +1055,20 @@ get_details_by_rest() ->
 %%--------------------------------------------------------------------
 -spec modify_domain_details(OpNode :: node(), service:ctx()) -> ok.
 modify_domain_details(OpNode, #{oneprovider_subdomain_delegation := true} = Ctx) ->
-    Subdomain = string:lowercase(onepanel_utils:typed_get(
+    Subdomain = string:lowercase(onepanel_utils:get_converted(
         oneprovider_subdomain, Ctx, binary)),
 
     case op_worker_rpc:is_subdomain_delegated(OpNode) of
         {true, Subdomain} -> ok; % no change
         _ ->
             case op_worker_rpc:set_delegated_subdomain(OpNode, Subdomain) of
-                ok ->
-                    dns_check:invalidate_cache(op_worker);
-                ?ERROR_BAD_VALUE_IDENTIFIER_OCCUPIED(<<"subdomain">>) ->
-                    ?throw_error(?ERR_SUBDOMAIN_NOT_AVAILABLE)
+                ok -> dns_check:invalidate_cache(op_worker);
+                Error -> throw(Error)
             end
     end;
 
 modify_domain_details(OpNode, #{oneprovider_subdomain_delegation := false} = Ctx) ->
-    Domain = string:lowercase(onepanel_utils:typed_get(
+    Domain = string:lowercase(onepanel_utils:get_converted(
         oneprovider_domain, Ctx, binary)),
     ok = op_worker_rpc:set_domain(OpNode, Domain),
     dns_check:invalidate_cache(op_worker);
@@ -1110,7 +1087,7 @@ modify_domain_details(_OpNode, _Ctx) -> ok.
 assert_storage_exists(Node, StorageId) ->
     case op_worker_rpc:storage_exists(Node, StorageId) of
         true -> ok;
-        _ -> ?throw_error({?ERR_STORAGE_NOT_FOUND, StorageId})
+        _ -> throw(?ERROR_BAD_VALUE_ID_NOT_FOUND(<<"storageId">>))
     end.
 
 %%--------------------------------------------------------------------
@@ -1152,7 +1129,8 @@ update_version_info(GuiHash) ->
 
     case Result of
         {ok, ?HTTP_204_NO_CONTENT, _, _} -> ok;
-        {ok, ?HTTP_400_BAD_REQUEST, _, _} -> {error, inexistent_gui_version}
+        {ok, ?HTTP_400_BAD_REQUEST, _, _} -> {error, inexistent_gui_version};
+        {error, _} -> throw(?ERROR_NO_CONNECTION_TO_ONEZONE)
     end.
 
 

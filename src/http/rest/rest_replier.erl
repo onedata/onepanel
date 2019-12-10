@@ -25,9 +25,9 @@
 
 %% API
 -export([throw_on_service_error/2]).
--export([handle_error/3, reply_with_error/3, handle_service_action_async/3,
-    handle_service_step/4]).
--export([format_error/2, format_service_status/2, format_dns_check_result/1,
+-export([reply_with_error/2, reply_with_error/3, set_error_body/2]).
+-export([handle_service_action_async/3, handle_service_step/4]).
+-export([format_error/1, format_service_status/2, format_dns_check_result/1,
     format_service_host_status/2, format_service_task_results/1, format_service_step/3,
     format_onepanel_configuration/0, format_service_configuration/1,
     format_storage_details/1, format_deployment_progress/0]).
@@ -44,54 +44,55 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec throw_on_service_error(Req, Results) -> Req | no_return() when
-    Req :: cowboy_req:req(), Results :: #error{} | service_executor:results().
+    Req :: cowboy_req:req(), Results :: {error, term()} | service_executor:results().
 throw_on_service_error(Req, Results) ->
     service_utils:throw_on_error(Results),
     Req.
 
 
+
 %%--------------------------------------------------------------------
-%% @doc Sets an error description in the response body.
+%% @doc Sends error response. Sets body and http code based on
+%% the error. The error should be of errors:error() class, but
+%% can be any term which will cause ERROR_UNEXPECTED_ERROR.
 %% @end
 %%--------------------------------------------------------------------
--spec handle_error(Req :: cowboy_req:req(), Type :: atom(), Reason :: term()) ->
+-spec reply_with_error(Req :: cowboy_req:req(), Error :: errors:error() | term()) ->
     Req :: cowboy_req:req().
-handle_error(Req, Type, Reason) ->
-    Body = json_utils:encode(format_error(Type, Reason)),
-    cowboy_req:set_resp_body(Body, Req).
+reply_with_error(Req, Error) ->
+    reply_with_error(Req, throw, Error).
 
 
 %%--------------------------------------------------------------------
-%% @doc Replies with an error and 500 HTTP code.
+%% @doc Sends error response. Uses exception class to determine
+%% whether the error details should be sent to the user.
+%% In case of exceptions other than 'throw' a generic ERROR_UNEXPECTED_ERROR
+%% is used.
 %% @end
 %%--------------------------------------------------------------------
--spec reply_with_error(Req :: cowboy_req:req(), Type :: atom(), Reason :: term()) ->
-    Req :: cowboy_req:req().
-reply_with_error(Req, Type, {badrpc, nodedown}) ->
-    reply_with_error(Req, Type, ?make_error(?ERR_NODE_DOWN));
+-spec reply_with_error(Req :: cowboy_req:req(), Type :: throw | error | exit,
+    Reason :: term()) -> Req :: cowboy_req:req().
+reply_with_error(Req, throw, Error) ->
+    Body = json_utils:encode(format_error(Error)),
+    Code = errors:to_http_code(Error),
+    cowboy_req:reply(Code, #{}, Body, Req);
 
 reply_with_error(Req, Type, Reason) ->
-    Body = json_utils:encode(format_error(Type, Reason)),
-    Code = error_code(Type, Reason),
-    cowboy_req:reply(Code, #{}, Body, Req).
+    ErrorRef = str_utils:rand_hex(5),
+    ?warning("Unexpected error (ref. ~s): ~tp:~tp", [ErrorRef, Type, Reason]),
+    reply_with_error(Req, throw, ?ERROR_INTERNAL_SERVER_ERROR).
 
 
 %%--------------------------------------------------------------------
-%% @private
-%% @doc Determines response HTTP code based on error reason.
+%% @doc Sets response body to an error representation, without
+%% change the HTTP code nor sending the reply.
 %% @end
 %%--------------------------------------------------------------------
--spec error_code(Type :: atom(), Reason :: term()) -> cowboy:http_status().
-error_code(_Type, #error{reason = Reason}) ->
-    case Reason of
-        ?ERR_NOT_FOUND -> ?HTTP_404_NOT_FOUND;
-        ?ERR_NODE_DOWN -> ?HTTP_503_SERVICE_UNAVAILABLE;
-        ?ERR_ONEZONE_NOT_AVAILABLE -> ?HTTP_503_SERVICE_UNAVAILABLE;
-        _ -> ?HTTP_500_INTERNAL_SERVER_ERROR
-    end;
-
-error_code(Type, Reason) ->
-    error_code(Type, ?make_error(Reason)).
+-spec set_error_body(cowboy_req:req(), Reason :: errors:error()) ->
+    cowboy_req:req().
+set_error_body(Req, Error) ->
+    Body = json_utils:encode(format_error(Error)),
+    cowboy_req:set_resp_body(Body, Req).
 
 
 %%--------------------------------------------------------------------
@@ -120,25 +121,15 @@ handle_service_step(Req, Module, Function, Results) ->
     cowboy_req:set_resp_body(Body, Req).
 
 
+%%--------------------------------------------------------------------
 %% @doc Returns a formatted error description.
 %% @end
 %%--------------------------------------------------------------------
--spec format_error(Type :: atom(), Reason :: term()) -> Response :: response().
-format_error(Type, #error{reason = #service_error{} = Error}) ->
-    format_error(Type, Error);
-
-format_error(_Type, #service_error{service = Service, action = Action,
-    module = Module, function = Function, bad_results = Results}) ->
-    #{<<"error">> => <<"Service Error">>,
-        <<"description">> => onepanel_utils:join(["Action '", Action,
-            "' for a service '", Service, "' terminated with an error."]),
-        <<"module">> => Module,
-        <<"function">> => Function,
-        <<"hosts">> => format_service_hosts_results(Results)};
-
-format_error(Type, Reason) ->
-    {Name, Description} = onepanel_errors:translate(Type, Reason),
-    #{<<"error">> => Name, <<"description">> => Description}.
+-spec format_error(Reason :: term()) -> Response :: response().
+format_error({error, #exception{}}) ->
+    #{<<"error">> => errors:to_json(?ERROR_INTERNAL_SERVER_ERROR)};
+format_error(Reason) ->
+    #{<<"error">> => errors:to_json(Reason)}.
 
 
 %%--------------------------------------------------------------------
@@ -194,46 +185,44 @@ format_service_host_status(SModule, Results) ->
 %% @doc Returns a formatted service asynchronous task result.
 %% @end
 %%--------------------------------------------------------------------
--spec format_service_task_results(Results :: {service_executor:results(), Total} | #error{}) ->
-    Response :: response()
-    when Total :: non_neg_integer() | #error{}.
-format_service_task_results(#error{} = Error) ->
-    ?throw_error(Error);
+-spec format_service_task_results(Results :: {service_executor:results(), Total} | {error, _}) ->
+    json_utils:json_map()
+    when Total :: non_neg_integer() | {error, _}.
+format_service_task_results({error, _} = Error) ->
+    throw(Error);
 
-format_service_task_results({#error{} = Error, _}) ->
-    ?throw_error(Error);
+format_service_task_results({{error, _} = Error, _}) ->
+    throw(Error);
 
 format_service_task_results({Results, TotalSteps}) ->
     Base = case TotalSteps of
-        #error{} -> #{};
-        _ when is_integer(TotalSteps) -> #{totalSteps => TotalSteps}
+        _ when is_integer(TotalSteps) -> #{totalSteps => TotalSteps};
+        _Error -> #{}
     end,
-    case lists:reverse(Results) of
-        [{task_finished, {_, _, #error{} = Error}}] ->
-            maps:merge(Base#{status => <<"error">>}, format_error(error, Error));
 
-        [{task_finished, {Service, Action, #error{}}}, Step | Steps] ->
-            {Module, Function, {_, BadResults}} = Step,
-            maps:merge(
-                Base#{
-                    status => <<"error">>,
-                    steps => format_service_task_steps(lists:reverse(Steps))
-                },
-                format_error(error, #service_error{
-                    service = Service, action = Action, module = Module,
-                    function = Function, bad_results = BadResults
-                })
-            );
+    case service_utils:results_contain_error(Results) of
+        {true, Error} ->
+            Base2 = maps:merge(Base#{
+                <<"status">> => <<"error">>
+            }, format_error(Error)),
 
-        [{task_finished, {_, _, ok}} | Steps] -> Base#{
-            status => <<"ok">>,
-            steps => format_service_task_steps(lists:reverse(Steps))
-        };
-
-        Steps -> Base#{
-            status => <<"running">>,
-            steps => format_service_task_steps(lists:reverse(Steps))
-        }
+            case format_service_task_steps(Results) of
+                [] -> Base2;
+                StepNames -> Base2#{steps => StepNames}
+            end;
+        false ->
+            case lists:reverse(Results) of
+                [{task_finished, {_, _, ok}} | _] ->
+                    Base#{
+                        <<"status">> => <<"ok">>,
+                        <<"steps">> => format_service_task_steps(Results)
+                    };
+                _ ->
+                    Base#{
+                        <<"status">> => <<"running">>,
+                        <<"steps">> => format_service_task_steps(Results)
+                    }
+            end
     end.
 
 
@@ -248,7 +237,7 @@ format_service_task_results({Results, TotalSteps}) ->
 format_storage_details(Results) ->
     {[{_Node, Result} | _], []} =
         select_service_step(service_op_worker, get_storages, Results),
-    StorageType = onepanel_utils:typed_get(type, Result, atom),
+    StorageType = onepanel_utils:get_converted(type, Result, atom),
     Model = get_storage_model(StorageType),
     Typemap = model_to_typemap(Model),
     maps:map(fun
@@ -393,7 +382,8 @@ format_deployment_progress() ->
     Results :: service_executor:results()) ->
     HostsResults :: service_executor:hosts_results().
 select_service_step(Module, Function, []) ->
-    ?throw_error({?ERR_SERVICE_STEP_NOT_FOUND, Module, Function});
+    ?error("Service step ~p:~p not found", [Module, Function]),
+    error({step_not_found, {Module, Function}});
 
 select_service_step(Module, Function, [{Module, Function, Results} | _]) ->
     Results;
@@ -410,28 +400,12 @@ select_service_step(Module, Function, [_ | Results]) ->
     [StepName :: binary()].
 format_service_task_steps(Steps) ->
     lists:filtermap(fun
+        ({task_finished, _}) ->
+            false;
         ({Module, Function}) ->
             {true, onepanel_utils:join([Module, Function], <<":">>)};
-        (_) ->
-            false
+        (_) -> false
     end, Steps).
-
-
-%%--------------------------------------------------------------------
-%% @doc Returns a formatted service step hosts results.
-%% @end
-%%--------------------------------------------------------------------
--spec format_service_hosts_results(Results :: onepanel_rpc:results()) ->
-    Response :: response().
-format_service_hosts_results(Results) ->
-    lists:foldl(fun
-        ({Node, #error{} = Error}, Acc) -> maps:put(
-            onepanel_utils:convert(hosts:from_node(Node), binary),
-            format_error(error, Error), Acc);
-        ({Node, Result}, Acc) -> maps:put(
-            onepanel_utils:convert(hosts:from_node(Node), binary),
-            Result, Acc)
-    end, #{}, Results).
 
 
 %% @private
@@ -441,7 +415,7 @@ format_onepanel_configuration(onezone) ->
     Defaults = #{serviceType => onezone, zoneDomain => null, zoneName => null},
     try
         Details = service_oz_worker:get_details(#{}),
-        Configuration = onepanel_maps:get_store_multiple([
+        Configuration = kv_utils:copy_found([
             {domain, zoneDomain},
             {name, zoneName}
         ], Details, Defaults),
@@ -466,7 +440,7 @@ format_onepanel_configuration(oneprovider) ->
         true ->
             try
                 Details = service_oneprovider:get_details(),
-                onepanel_maps:get_store_multiple([
+                kv_utils:copy_found([
                     {id, providerId},
                     {onezoneDomainName, zoneDomain}
                 ], Details, Common#{isRegistered => true})
@@ -527,7 +501,7 @@ model_to_typemap(Model) ->
 %% @doc Finds REST model used for creating storage of given type.
 %% @end
 %%--------------------------------------------------------------------
--spec get_storage_model(StorageType :: atom()) -> onepanel_parser:spec().
+-spec get_storage_model(StorageType :: atom()) -> onepanel_parser:object_spec().
 get_storage_model(posix) -> rest_model:posix_model();
 get_storage_model(s3) -> rest_model:s3_model();
 get_storage_model(ceph) -> rest_model:ceph_model();

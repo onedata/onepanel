@@ -57,7 +57,7 @@
 %% Returns details of given pool.
 %% @end
 %%--------------------------------------------------------------------
--spec get(name()) -> spec() | #error{}.
+-spec get(name()) -> spec() | {error, _}.
 get(Name) ->
     case simple_cache:get(?DETAILS_CACHE_KEY(Name), fun() ->
         Params = get_params(Name, [
@@ -67,7 +67,7 @@ get(Name) ->
         case Params of
             Map when is_map(Map) ->
                 {true, Params#{name => Name}, ?CACHE_TIMEOUT};
-            #error{} = Error ->
+            {error, _} = Error ->
                 Error
         end
     end) of
@@ -128,7 +128,7 @@ insert_default_values(Ctx) ->
 -spec insert_default_values(spec(), OsdsCount :: non_neg_integer()) ->
     spec().
 insert_default_values(_Ctx, Osds) when Osds =< 0 ->
-    ?throw_error(?ERR_NO_SERVICE_HOSTS(?SERVICE_CEPH_OSD));
+    throw(?ERROR_NO_SERVICE_NODES(?SERVICE_CEPH_OSD));
 
 insert_default_values(Ctx, 1) ->
     maps:merge(#{copiesNumber => 1, minCopiesNumber => 1}, Ctx);
@@ -163,11 +163,11 @@ validate_copies_number(Ctx) ->
 -spec validate_copies_number(Variable :: atom(),
     CopiesNumber :: integer()) -> ok | no_return().
 validate_copies_number(Variable, Number) when Number =< 0 ->
-    {?ERR_INVALID_VALUE, [Variable], <<">= 1">>};
-validate_copies_number(_Variable, Number) ->
+    throw(?ERROR_BAD_VALUE_TOO_LOW(Variable, 1));
+validate_copies_number(Variable, Number) ->
     case service_ceph_osd:count() of
         OsdCount when Number =< OsdCount -> ok;
-        OsdCount -> ?throw_error(?ERR_CEPH_TOO_FEW_OSDS(Number, OsdCount))
+        OsdCount -> throw(?ERROR_BAD_VALUE_TOO_HIGH(Variable, OsdCount))
     end.
 
 
@@ -251,13 +251,13 @@ parse_data_usage(#{<<"bytes_used">> := Used, <<"max_avail">> := MaxAvail}) ->
 
 %% @private
 -spec get_params(name(), [{Key, Param :: binary()}]) ->
-    #{Key => Value :: term()} | #error{} when Key :: atom().
+    #{Key => Value :: term()} | errors:error() when Key :: atom().
 get_params(PoolName, Params) ->
     {ok, Node} = nodes:onepanel_with(?SERVICE_CEPH),
-    onepanel_lists:foldl_while(fun({Key, Param}, Acc) ->
+    lists_utils:foldl_while(fun({Key, Param}, Acc) ->
         case rpc:call(Node, ceph_cli, get_pool_param, [PoolName, Param]) of
             {ok, Value} -> {cont, Acc#{Key => Value}};
-            Error -> {halt, ?make_error(Error)}
+            _Error -> {halt, ?ERROR_INTERNAL_SERVER_ERROR}
         end
     end, #{}, Params).
 

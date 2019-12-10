@@ -68,7 +68,7 @@ onepanel_env_test_() ->
             {"read_should_return_value", fun read_should_return_value/0},
             {"read_should_report_missing_key", fun read_should_report_missing_key/0},
             {"read_should_pass_errors", fun read_should_pass_errors/0},
-            {"write_should_append_value", fun write_should_append_value/0},
+            {"write_should_append_value", fun write_should_prepend_value/0},
             {"write_should_replace_value", fun write_should_replace_value/0},
             {"migrate_should_rename_key", fun migrate_should_rename_key/0},
             {"migrate_should_ignore_missing", fun migrate_should_ignore_missing/0},
@@ -99,30 +99,30 @@ read_should_return_value() ->
 
 
 read_should_report_missing_key() ->
-    ?assertMatch(#error{reason = ?ERR_NOT_FOUND},
+    ?assertMatch(error,
         onepanel_env:read([a3], "p1")),
-    ?assertMatch(#error{reason = ?ERR_NOT_FOUND},
+    ?assertMatch(error,
         onepanel_env:read([a1, k5], "p1")),
-    ?assertMatch(#error{reason = ?ERR_NOT_FOUND},
+    ?assertMatch(error,
         onepanel_env:read([a2, k6, k8], "p1")),
-    ?assertMatch(#error{reason = ?ERR_NOT_FOUND},
+    ?assertMatch(error,
         onepanel_env:read([a2, k6, k7, k9], "p1")).
 
 
 read_should_pass_errors() ->
-    ?assertThrow(#error{reason = enoent}, onepanel_env:read([a1], "p2")).
+    ?assertThrow(?ERROR_FILE_ACCESS("p2", enoent), onepanel_env:read([a1], "p2")).
 
 
-write_should_append_value() ->
+write_should_prepend_value() ->
     ?assertEqual(ok, onepanel_env:write([a3], [{k9, v9}], "p1")),
     ?assertEqual({ok, ?FILE_CONTENT([
+        {a3, [{k9, v9}]},
         {a1, ?APP_CONFIG_1},
-        {a2, ?APP_CONFIG_2},
-        {a3, [{k9, v9}]}
+        {a2, ?APP_CONFIG_2}
     ])}, pop_msg()),
     ?assertEqual(ok, onepanel_env:write([a1, k9], v9, "p1")),
     ?assertEqual({ok, ?FILE_CONTENT([
-        {a1, [{k1, v1}, {k2, v2}, {k3, v3}, {k4, v4}, {k9, v9}]},
+        {a1, [{k9, v9}, {k1, v1}, {k2, v2}, {k3, v3}, {k4, v4}]},
         {a2, ?APP_CONFIG_2}
     ])}, pop_msg()),
     ?assertEqual(ok, onepanel_env:write([a2, k5, k9], v9, "p1")),
@@ -131,7 +131,7 @@ write_should_append_value() ->
         {a1, ?APP_CONFIG_1},
         {a2, [
             {k4, v4},
-            {k5, ?VALUE_5 ++ [{k9, v9}]}
+            {k5, [{k9, v9} | ?VALUE_5]}
         ]}
     ])}, Msg).
 
@@ -183,14 +183,14 @@ write_should_replace_value() ->
 
 
 write_should_pass_errors() ->
-    ?assertThrow(#error{reason = enoent},
+    ?assertThrow(?ERROR_FILE_ACCESS("/nonexistent/p2", enoent),
         onepanel_env:write([a1, k1], v9, "/nonexistent/p2")).
 
 
 migrate_should_rename_key() ->
     ?assertEqual(true, onepanel_env:migrate(service1, [a1, k2], [a1, k9])),
     Expected = {ok, ?FILE_CONTENT([
-        {a1, [{k1, v1}, {k3, v3}, {k4, v4}, {k9, v2}]},
+        {a1, [{k9, v2}, {k1, v1}, {k3, v3}, {k4, v4}]},
         {a2, ?APP_CONFIG_2}
     ])},
     Result = pop_msg(),

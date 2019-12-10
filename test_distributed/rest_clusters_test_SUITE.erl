@@ -163,14 +163,14 @@ get_should_return_cluster_details_test(Config) ->
                     ?OZ_AUTHS(Host, [])
                 )
             ),
-            Expected = onepanel_maps:get_store_multiple([
-                {<<"type">>, <<"type">>},
-                {<<"workerVersion">>, <<"workerVersion">>},
-                {<<"onepanelVersion">>, <<"onepanelVersion">>},
-                {<<"serviceId">>, <<"serviceId">>},
-                {<<"onepanelProxy">>, <<"onepanelProxy">>}
-            ], maps:get(ClusterId, ?CLUSTERS), #{<<"id">> => ClusterId}),
-            onepanel_test_rest:assert_body(JsonBody, Expected)
+            Expected = maps:with([
+                <<"type">>,
+                <<"workerVersion">>,
+                <<"onepanelVersion">>,
+                <<"serviceId">>,
+                <<"onepanelProxy">>
+            ], maps:get(ClusterId, ?CLUSTERS)),
+            onepanel_test_rest:assert_body(JsonBody, Expected#{<<"id">> => ClusterId})
         end, maps:keys(?CLUSTERS))
     end).
 

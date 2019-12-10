@@ -133,8 +133,7 @@ check(Expected, Names, Type, Servers) ->
     end, Results),
 
     case WithoutErrors of
-        [] -> ?throw_error(?ERR_DNS_CHECK_ERROR(
-            str_utils:format("No DNS server responded to DNS check. Tried: ~p", [Servers])));
+        [] -> throw(?ERROR_DNS_SERVERS_UNREACHABLE(Servers));
         _ -> WithoutErrors
     end.
 
@@ -152,9 +151,9 @@ check_on_server(Expected, Names, Type, ServerIP) ->
     case lookup(Names, Type, ServerIP) of
         error -> error;
         Resolved ->
-            Correct = onepanel_lists:intersect(Resolved, Expected),
-            Missing = onepanel_lists:subtract(Expected, Resolved),
-            Additional = onepanel_lists:subtract(Resolved, Expected),
+            Correct = lists_utils:intersect(Resolved, Expected),
+            Missing = lists_utils:subtract(Expected, Resolved),
+            Additional = lists_utils:subtract(Resolved, Expected),
 
             Summary = if
                 Resolved == [] -> unresolvable;

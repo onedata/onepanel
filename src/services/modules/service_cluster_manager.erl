@@ -76,13 +76,13 @@ get_steps(deploy, #{hosts := [_ | _] = Hosts} = Ctx) ->
             condition = fun(_) -> onepanel_env:legacy_config_exists(name()) end},
         #step{hosts = [MainHost], function = configure, ctx = Ctx#{
             main_host => MainHost, wait_for_process => "cluster_manager_sup"}},
-        #step{hosts = onepanel_lists:subtract(Hosts, [MainHost]),
+        #step{hosts = lists_utils:subtract(Hosts, [MainHost]),
             function = configure, ctx = Ctx#{
                 main_host => MainHost, wait_for_process => "kernel_sup"
             }
         },
         #steps{action = restart, ctx = Ctx#{
-            hosts => onepanel_lists:union(ClusterHosts, Hosts)
+            hosts => lists_utils:union(ClusterHosts, Hosts)
         }}
     ];
 

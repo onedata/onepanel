@@ -121,11 +121,8 @@ token_with_api_caveats_should_return_unauthorized_error(Config) ->
     lists:foreach(fun(Caveat) ->
         Caveats = GoodCaveats ++ [Caveat],
         Token = onepanel_test_rest:construct_token(Caveats),
-        #{<<"id">> := Id, <<"description">> := Desc} =
-            errors:to_json(?ERROR_TOKEN_CAVEAT_UNVERIFIED(Caveat)),
         Expected = #{
-            <<"error">> => <<"Operation error">>,
-            <<"description">> => str_utils:format_bin("~ts: ~ts", [Id, Desc])
+            <<"error">> => errors:to_json(?ERROR_TOKEN_CAVEAT_UNVERIFIED(Caveat))
         },
         {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _},
             onepanel_test_rest:auth_request(
@@ -217,13 +214,15 @@ passphrase_update_requires_previous_passphrase(Config) ->
     CorrectAuths = ?ROOT_AUTHS(Config),
     IncorrectPassphrase = <<"IncorrectPassphrase">>,
 
-    ?assertMatch({ok, ?HTTP_400_BAD_REQUEST, _, _}, onepanel_test_rest:auth_request(
+    {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _}, onepanel_test_rest:auth_request(
         Config, "/emergency_passphrase", put, CorrectAuths, #{
             <<"currentPassphrase">> => IncorrectPassphrase,
             <<"newPassphrase">> => <<"willNotBeSet">>
         }
     )),
-    ?assertMatch({ok, ?HTTP_400_BAD_REQUEST, _, _}, onepanel_test_rest:auth_request(
+    onepanel_test_rest:assert_body(JsonBody,
+        #{<<"error">> => errors:to_json(?ERROR_BAD_BASIC_CREDENTIALS)}),
+    ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _}, onepanel_test_rest:auth_request(
         Config, "/emergency_passphrase", put, CorrectAuths, #{
             <<"newPassphrase">> => <<"willNotBeSet">>
         }
@@ -237,7 +236,7 @@ get_as_admin_should_return_hosts(Config) ->
             ?OZ_OR_ROOT_AUTHS(Config, [])
         )
     ),
-    Hosts = onepanel_utils:typed_get(cluster_hosts, Config, {seq, binary}),
+    Hosts = onepanel_utils:get_converted(cluster_hosts, Config, {seq, binary}),
     onepanel_test_rest:assert_body(JsonBody, Hosts).
 
 

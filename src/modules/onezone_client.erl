@@ -38,7 +38,7 @@ fetch_zone_info(Domain) ->
         {ok, ?HTTP_200_OK, _, Response} ->
             Map = onepanel_utils:convert(json_utils:decode(Response), {keys, atom}),
             #{version := OzVersion, compatibleOneproviderVersions := CompatOps} = Map,
-            onepanel_maps:get_store_multiple([
+            kv_utils:copy_found([
                 {version, version},
                 {name, name},
                 {subdomainDelegationSupported, subdomainDelegationSupported}

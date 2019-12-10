@@ -16,6 +16,7 @@
 
 -include("modules/errors.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/errors.hrl").
 -include("modules/models.hrl").
 -include("names.hrl").
 -include("service.hrl").
@@ -33,8 +34,7 @@
 -export([get_results/1, get_results/2, abort_task/1,
     exists_task/1]).
 -export([register_healthcheck/2]).
--export([get_status/2, update_status/2, update_status/3, all_healthy/0,
-    healthy/1]).
+-export([update_status/2, update_status/3, all_healthy/0, healthy/1]).
 -export([get_module/1, get_hosts/1, add_host/2]).
 -export([get_ctx/1, update_ctx/2, store_in_ctx/3]).
 
@@ -113,7 +113,7 @@ seed() ->
 -spec upgrade(PreviousVsn :: model_behaviour:version(), PreviousRecord :: tuple()) ->
     no_return().
 upgrade(_PreviousVsn, _PreviousRecord) ->
-    ?throw_error(?ERR_NOT_SUPPORTED).
+    error(?ERROR_NOT_SUPPORTED).
 
 
 %%--------------------------------------------------------------------
@@ -121,7 +121,7 @@ upgrade(_PreviousVsn, _PreviousRecord) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec create(Record :: record()) ->
-    {ok, name()} | #error{} | no_return().
+    {ok, name()} | {error, _} | no_return().
 create(Record) ->
     model:create(?MODULE, Record).
 
@@ -142,7 +142,7 @@ save(Record) ->
 -spec update(Key :: model_behaviour:key(), Diff :: model_behaviour:diff()) ->
     ok | no_return().
 update(Key, Diff) ->
-    model:update(?MODULE, Key, Diff).
+    ok = model:update(?MODULE, Key, Diff).
 
 
 %%--------------------------------------------------------------------
@@ -150,7 +150,7 @@ update(Key, Diff) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get(Key :: model_behaviour:key()) ->
-    {ok, Record :: record()} | #error{} | no_return().
+    {ok, Record :: record()} | {error, _} | no_return().
 get(Key) ->
     model:get(?MODULE, Key).
 
@@ -202,24 +202,9 @@ update_status(Service, Status) ->
 -spec update_status(name(), host(), status()) -> status().
 update_status(Service, Host, Status) ->
     update_ctx(Service, fun(Ctx) ->
-        onepanel_maps:store([status, Host], Status, Ctx)
+        kv_utils:put([status, Host], Status, Ctx)
     end),
     Status.
-
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Returns cached service status.
-%% This cache is updated on each start/stop operation
-%% and by onepanel_cron periodically invoking ServiceModule:status/1.
-%% @end
-%%--------------------------------------------------------------------
--spec get_status(name(), host()) -> status() | #error{}.
-get_status(Service, Host) ->
-    case get_ctx(Service) of
-        Ctx when is_map(Ctx) -> onepanel_maps:get([status, Host], Ctx);
-        Error -> Error
-    end.
 
 
 %%--------------------------------------------------------------------
@@ -264,7 +249,7 @@ healthy(Service) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply(Service :: name(), Action :: action(), Ctx :: ctx()) ->
-    ok | #error{}.
+    ok | {error, _}.
 apply(Service, Action, Ctx) ->
     apply(Service, Action, Ctx, undefined).
 
@@ -274,10 +259,7 @@ apply(Service, Action, Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply(Service :: name(), Action :: action(), Ctx :: ctx(), Notify :: notify()) ->
-    ok | #error{}.
-apply([], _Action, _Ctx, _Notify) ->
-    ok;
-
+    ok | {error, _}.
 apply(Service, Action, Ctx, Notify) ->
     TaskDelay = maps:get(task_delay, Ctx, 0),
     ?debug("Delaying task ~tp:~tp by ~tp ms", [Service, Action, TaskDelay]),
@@ -293,8 +275,14 @@ apply(Service, Action, Ctx, Notify) ->
             [Service, Action, service_utils:format_steps(Steps, "")]),
         apply_steps(Steps, Notify)
     catch
-        _:Reason -> ?make_stacktrace(Reason)
+        throw:{error, _} = Error -> Error;
+        Type:Error ->
+            ?error_stacktrace("Error executing action ~p:~p: ~p:~p",
+                [Service, Action, Type, Error]),
+            ?ERROR_INTERNAL_SERVER_ERROR
     end,
+    % If one of the steps failed, the action Result is {error, {Module, Function, Status}.
+    % Result might of different format if steps resolution itself failed.
     service_utils:notify({action_end, {Service, Action, Result}}, Notify),
     Result.
 
@@ -324,7 +312,7 @@ apply_async(Service, Action, Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply_sync(Service :: service:name(), Action :: service:action()) ->
-    Results :: service_executor:results() | #error{}.
+    Results :: service_executor:results() | {error, _}.
 apply_sync(Service, Action) ->
     apply_sync(Service, Action, #{}).
 
@@ -334,7 +322,7 @@ apply_sync(Service, Action) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply_sync(Service :: service:name(), Action :: service:action(),
-    Ctx :: service:ctx()) -> Results :: service_executor:results() | #error{}.
+    Ctx :: service:ctx()) -> Results :: service_executor:results() | {error, _}.
 apply_sync(Service, Action, Ctx) ->
     apply_sync(Service, Action, Ctx, infinity).
 
@@ -346,7 +334,7 @@ apply_sync(Service, Action, Ctx) ->
 %%--------------------------------------------------------------------
 -spec apply_sync(Service :: service:name(), Action :: service:action(),
     Ctx :: service:ctx(), Timeout :: timeout()) ->
-    Results :: service_executor:results() | #error{}.
+    Results :: service_executor:results() | {error, _}.
 apply_sync(Service, Action, Ctx, Timeout) ->
     TaskId = apply_async(Service, Action, Ctx),
     Result = service_executor:receive_results(TaskId, Timeout),
@@ -359,8 +347,8 @@ apply_sync(Service, Action, Ctx, Timeout) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_results(service_executor:task_id()) -> {Results, StepsCount} when
-    Results :: service_executor:results() | #error{},
-    StepsCount :: non_neg_integer() | #error{}.
+    Results :: service_executor:results() | {error, _},
+    StepsCount :: non_neg_integer() | {error, _}.
 get_results(TaskId) ->
     get_results(TaskId, infinity).
 
@@ -370,16 +358,16 @@ get_results(TaskId) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_results(service_executor:task_id(), timeout()) -> {Results, StepsCount} when
-    Results :: service_executor:results() | #error{},
-    StepsCount :: non_neg_integer() | #error{}.
+    Results :: service_executor:results() | {error, _},
+    StepsCount :: non_neg_integer() | {error, _}.
 get_results(TaskId, Timeout) ->
     Results = case gen_server:call(?SERVICE_EXECUTOR_NAME, {get_results, TaskId}) of
         ok -> service_executor:receive_results(TaskId, Timeout);
-        #error{} = Error -> Error
+        {error, _} = Error -> Error
     end,
     StepsCount = case gen_server:call(?SERVICE_EXECUTOR_NAME, {get_count, TaskId}) of
         ok -> service_executor:receive_count(TaskId, Timeout);
-        #error{} = Error2 -> {Results, Error2}
+        {error, _} = Error2 -> {Results, Error2}
     end,
     {Results, StepsCount}.
 
@@ -388,7 +376,7 @@ get_results(TaskId, Timeout) ->
 %% @doc Aborts the asynchronous operation.
 %% @end
 %%--------------------------------------------------------------------
--spec abort_task(TaskId :: binary()) -> ok | #error{}.
+-spec abort_task(TaskId :: binary()) -> ok | {error, _}.
 abort_task(TaskId) ->
     gen_server:call(?SERVICE_EXECUTOR_NAME, {abort_task, TaskId}).
 
@@ -419,7 +407,7 @@ get_module(Service) ->
 get_hosts(Service) ->
     case service:get(Service) of
         {ok, #service{hosts = Hosts}} -> Hosts;
-        #error{} -> []
+        {error, _} -> []
     end.
 
 
@@ -462,8 +450,8 @@ register_healthcheck(Service, Ctx) ->
         Results = service:apply_sync(Service, resume, Ctx),
         case service_utils:results_contain_error(Results) of
             {true, Error} ->
-                ?critical("Failed to restart service ~ts due to:~n~ts",
-                    [Name, onepanel_errors:format_error(Error)]);
+                ?critical("Failed to restart service ~ts due to:~n~tp",
+                    [Name, Error]);
             false -> ok
         end
     end,
@@ -475,7 +463,7 @@ register_healthcheck(Service, Ctx) ->
 %% @doc Returns the "ctx" field of a service model.
 %% @end
 %%--------------------------------------------------------------------
--spec get_ctx(name()) -> ctx() | #error{} | no_return().
+-spec get_ctx(name()) -> ctx() | {error, _} | no_return().
 get_ctx(Service) ->
     case ?MODULE:get(Service) of
         {ok, #service{ctx = Ctx}} -> Ctx;
@@ -504,7 +492,7 @@ update_ctx(Service, Diff) when is_function(Diff, 1) ->
     Value :: term()) -> ok | no_return().
 store_in_ctx(Service, Keys, Value) ->
     update_ctx(Service, fun(Ctx) ->
-        onepanel_maps:store(Keys, Value, Ctx)
+        kv_utils:put(Keys, Value, Ctx)
     end).
 
 %%%===================================================================
@@ -515,7 +503,8 @@ store_in_ctx(Service, Keys, Value) ->
 %%--------------------------------------------------------------------
 %% @private @doc Applies the service steps associated with an action.
 %%--------------------------------------------------------------------
--spec apply_steps(Steps :: [step()], Notify :: notify()) -> ok | #error{}.
+-spec apply_steps(Steps :: [step()], Notify :: notify()) ->
+    ok | {error, {module(), Function :: atom(), service_executor:hosts_results()}}.
 apply_steps([], _Notify) ->
     ok;
 
@@ -532,7 +521,7 @@ apply_steps([#step{hosts = Hosts, module = Module, function = Function,
 
     case {Status, Attempts} of
         {{_, []}, _} -> apply_steps(Steps, Notify);
-        {{_, _}, 1} -> ?make_error({Module, Function, Status});
+        {{_, _}, 1} -> {error, {Module, Function, Status}};
         {{_, _}, _} ->
             timer:sleep(Delay),
             apply_steps([Step#step{attempts = Attempts - 1} | Steps], Notify)

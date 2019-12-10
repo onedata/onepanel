@@ -14,8 +14,8 @@
 -include("authentication.hrl").
 -include("onepanel_test_utils.hrl").
 -include("onepanel_test_rest.hrl").
--include("modules/errors.hrl").
 -include_lib("ctool/include/aai/aai.hrl").
+-include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("ctool/include/logging.hrl").
@@ -40,8 +40,7 @@
                 none.
 -type headers() :: http_client:headers().
 -type body() :: http_client:body().
--type code() :: http_client:code().
--type response() :: {ok, Code :: code(), Headers :: headers(), Body :: body()} |
+-type response() :: {ok, Code :: http_client:code(), Headers :: headers(), Body :: body()} |
                     {error, Reason :: term()}.
 
 -export_type([auth/0]).
@@ -208,8 +207,12 @@ assert_body_fields(JsonBody, Fields) ->
 %% values match the expected ones.
 %% @end
 %%--------------------------------------------------------------------
--spec assert_body_values(JsonBody :: binary(), Values :: [{binary(), any()}]) -> ok.
-assert_body_values(JsonBody, Values) ->
+-spec assert_body_values(JsonBody :: binary(),
+    Values :: [{binary(), any()}] | #{binary() => any()}) -> ok.
+assert_body_values(JsonBody, Values) when is_map(Values) ->
+    assert_body_values(JsonBody, maps:to_list(Values));
+
+assert_body_values(JsonBody, Values) when is_list(Values) ->
     onepanel_test_utils:assert_values(json_utils:decode(JsonBody), Values).
 
 
@@ -259,7 +262,7 @@ mock_token_authentication(Nodes) ->
                 oneprovider -> Client#client{zone_auth = {rest, {token, Token}}};
                 onezone -> Client#client{zone_auth = {rpc, opaque_client}}
             end;
-        (_BadToken, _PeerIp) -> ?make_error(?ERR_INVALID_AUTH_TOKEN)
+        (_BadToken, _PeerIp) -> ?ERROR_TOKEN_INVALID
     end).
 
 

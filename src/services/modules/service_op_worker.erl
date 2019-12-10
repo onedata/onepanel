@@ -313,7 +313,7 @@ get_nagios_status(Ctx) ->
 add_storage(#{params := #{type := Type} = Params, name := Name} = Ctx) when
     Type == ?LOCAL_CEPH_STORAGE_TYPE ->
     case hosts:all(?SERVICE_CEPH_OSD) of
-        [] -> ?throw_error(?ERR_NO_SERVICE_HOSTS(?SERVICE_CEPH_OSD));
+        [] -> throw(?ERROR_NO_SERVICE_NODES(?SERVICE_CEPH_OSD));
         _ -> ok
     end,
 
@@ -419,23 +419,25 @@ reload_webcert(Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Checks if the provider has subdomain delegation enabled
-%% needed for Let's Encrypt to be available.
+%% Checks if given Let's Encrypt challenge can be fulfilled.
 %% @end
 %%--------------------------------------------------------------------
 -spec supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
     boolean().
-supports_letsencrypt_challenge(http) ->
-    service:healthy(name()) andalso
-        service_oneprovider:is_registered(); % unregistered provider does not have a domain
-supports_letsencrypt_challenge(dns) ->
-    try
-        service:healthy(name()) andalso
-            service_oneprovider:is_registered() andalso
-            maps:get(subdomainDelegation, service_oneprovider:get_details(), false)
-    catch
-        _:_ -> false
+supports_letsencrypt_challenge(Challenge) when
+    Challenge == http; Challenge == dns ->
+    ?MODULE:get_hosts() /= [] orelse throw(?ERROR_NO_SERVICE_NODES(name())),
+    service:healthy(name()) orelse throw(?ERROR_SERVICE_UNAVAILABLE),
+    service_oneprovider:is_registered() orelse throw(?ERROR_UNREGISTERED_ONEPROVIDER),
+    case Challenge of
+        http -> true;
+        dns ->
+            case maps:get(subdomainDelegation, service_oneprovider:get_details(), false) of
+                true -> true;
+                false -> false
+            end
     end;
+
 supports_letsencrypt_challenge(_) -> false.
 
 

@@ -93,10 +93,10 @@ notify(Msg, _Notify) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec partition_results(Results :: onepanel_rpc:results()) ->
-    {GoodResults :: onepanel_rpc:results(), BadResults :: onepanel_rpc:results()}.
+    service_executor:hosts_results().
 partition_results(Results) ->
     lists:partition(fun
-        ({_, #error{}}) -> false;
+        ({_, {error, _}}) -> false;
         (_) -> true
     end, Results).
 
@@ -106,24 +106,19 @@ partition_results(Results) ->
 %% and returns it.
 %% @end
 %%--------------------------------------------------------------------
--spec results_contain_error(Results :: service_executor:results() | #error{}) ->
-    {true, #error{}} | false.
-results_contain_error(#error{} = Error) ->
+-spec results_contain_error(Results :: service_executor:results() | {error, _}) ->
+    {true, errors:error() | {error, _}} | false.
+results_contain_error({error, _} = Error) ->
     {true, Error};
 
 results_contain_error(Results) ->
     case lists:reverse(Results) of
-        [{task_finished, {_, _, #error{} = Error}}] ->
-            {true, Error};
+        [{task_finished, {_, _, {error, _} = Error}}] ->
+            {true, cast_to_serializable_error(Error)};
 
-        [{task_finished, {Service, Action, #error{}}}, Step | _Steps] ->
-            {Module, Function, {_, BadResults}} = Step,
-
-            ServiceError = #service_error{
-                service = Service, action = Action, module = Module,
-                function = Function, bad_results = BadResults
-            },
-            {true, ?make_error(ServiceError)};
+        [{task_finished, {_Service, _Action, {error, _}}}, FailedStep | _Steps] ->
+            {_Module, _Function, {_, BadResults}} = FailedStep,
+            {true, bad_results_to_error(BadResults)};
 
         _ ->
             false
@@ -134,11 +129,11 @@ results_contain_error(Results) ->
 %% @doc Throws an exception if an error occurred during service action execution.
 %% @end
 %%--------------------------------------------------------------------
--spec throw_on_error(Results :: service_executor:results() | #error{}) ->
+-spec throw_on_error(Results :: service_executor:results() | {error, term()}) ->
     service_executor:results() | no_return().
 throw_on_error(Results) ->
     case results_contain_error(Results) of
-        {true, Error} -> ?throw_error(Error);
+        {true, Error} -> throw(Error);
         false -> Results
     end.
 
@@ -180,7 +175,7 @@ absolute_path(Service, Path) ->
         _ ->
             {ok, Node} = nodes:any(Service),
             case rpc:call(Node, filename, absname, [Path]) of
-                {badrpc, _} = Error -> ?throw_error(Error);
+                {badrpc, _} = Error -> error(Error);
                 AbsPath -> AbsPath
             end
     end.
@@ -230,7 +225,7 @@ get_step(#step{hosts = undefined, service = Service} = Step) ->
         [] ->
             % do not silently skip steps because of empty list in service model,
             % unless it is explicitly given in step ctx or hosts field.
-            ?throw_error(?ERR_NO_SERVICE_HOSTS(Service));
+            throw(?ERROR_NO_SERVICE_NODES(Service));
         Hosts ->
             get_step(Step#step{hosts = Hosts})
     end;
@@ -291,7 +286,7 @@ get_nested_steps(#steps{condition = false}) ->
 %%--------------------------------------------------------------------
 %% @formatter:off
 -spec log(Msg :: {Event :: service:event(), Details}) -> ok when
-    Details  :: {Service, Action}  | {Service, Action, ok | #error{}}
+    Details  :: {Service, Action}  | {Service, Action, ok | {error, _}}
               | {Service, Action, StepsCount :: integer()}
               | {Module, Function} | {Module, Function, Result},
     Service  :: service:name(),
@@ -306,12 +301,8 @@ log({action_begin, {Service, Action}}) ->
     ?debug("Executing action ~p:~p", [Service, Action]);
 log({action_end, {Service, Action, ok}}) ->
     ?debug("Action ~p:~p completed successfully", [Service, Action]);
-log({action_end, {Service, Action, #error{reason = Reason, stacktrace = []}}}) ->
+log({action_end, {Service, Action, {error, Reason}}}) ->
     ?error("Action ~p:~p failed due to: ~tp", [Service, Action, Reason]);
-log({action_end, {Service, Action, #error{reason = Reason,
-    stacktrace = Stacktrace}}}) ->
-    ?error("Action ~p:~p failed due to: ~tp~nStacktrace: ~tp",
-        [Service, Action, Reason, Stacktrace]);
 log({step_begin, {Module, Function}}) ->
     ?debug("Executing step ~p:~p", [Module, Function]);
 log({step_end, {Module, Function, {_, []}}}) ->
@@ -325,12 +316,59 @@ log({step_end, {Module, Function, {_, Errors}}}) ->
 %% @private @doc Formats the service errors into a human-readable format.
 %% @end
 %%--------------------------------------------------------------------
--spec format_errors(Errors :: [{node(), #error{}}], Acc :: string()) ->
+-spec format_errors(Errors :: [{node(), {error, _}}], Acc :: string()) ->
     Log :: string().
 format_errors([], Log) ->
     Log;
 
-format_errors([{Node, #error{} = Error} | Errors], Log) ->
-    ErrorStr = str_utils:format("Node: ~tp~n~ts",
-        [Node, onepanel_errors:format_error(Error)]),
+format_errors([{Node, {error, _} = Error} | Errors], Log) ->
+    ErrorStr = str_utils:format("Node: ~tp~nError: ~tp~n", [Node, Error]),
     format_errors(Errors, Log ++ ErrorStr).
+
+
+%% @private
+-spec bad_results_to_error([onepanel_rpc:result()]) -> ?ERROR_ON_NODES(_, _).
+bad_results_to_error(BadResults) ->
+    {Nodes, Errors} = lists:unzip(BadResults),
+
+    % @TODO VFS-5838 Better separation of internal results processing
+    % and external error reporting
+    SerializableErrors = lists:map(fun cast_to_serializable_error/1, Errors),
+    NodesErrors = lists:zip(Nodes, SerializableErrors),
+
+    SelectedError = select_error(SerializableErrors),
+    Hostnames = [list_to_binary(hosts:from_node(Node))
+        || {Node, Err} <- NodesErrors, Err == SelectedError],
+    ?ERROR_ON_NODES(SelectedError, Hostnames).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Selects error most appropriate for request response in case
+%% multiple hosts returned different results.
+%% @end
+%%--------------------------------------------------------------------
+-spec select_error(nonempty_list(Error)) -> Error when Error :: errors:error().
+select_error(Errors) ->
+    % Use http code as a heuristic favoring user-caused errors (4xx) over server errors
+    hd(lists:sort(fun(E1, E2) ->
+        errors:to_http_code(E1) < errors:to_http_code(E2)
+    end, Errors)).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc This function works on best-effort basis since there is
+%% no way of accurate and silent errors:error() identification.
+%% Guarantees that the result will be at least in {error, term()} format
+%% and the reason will not be an #exception record.
+%% @TODO VFS-5922 Make the function fully accurate
+%% @end
+%%--------------------------------------------------------------------
+-spec cast_to_serializable_error(T | term()) -> T when T :: errors:error().
+cast_to_serializable_error({error, #exception{}}) ->
+    ?ERROR_INTERNAL_SERVER_ERROR;
+cast_to_serializable_error({error, _} = Error) ->
+    Error;
+cast_to_serializable_error(_) ->
+    ?ERROR_INTERNAL_SERVER_ERROR.

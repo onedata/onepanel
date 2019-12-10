@@ -74,7 +74,7 @@ get_hosts() ->
 %%--------------------------------------------------------------------
 -spec get_nodes() -> no_return().
 get_nodes() ->
-    ?throw_error(?ERR_NOT_SUPPORTED).
+    error(?ERROR_NOT_SUPPORTED).
 
 
 %%--------------------------------------------------------------------
@@ -97,7 +97,7 @@ get_steps(deploy, Ctx) ->
     MonHosts = ceph:extract_hosts(Mons),
     MgrHosts = ceph:extract_hosts(Mgrs),
     OsdHosts = ceph:extract_hosts(Osds),
-    Hosts = onepanel_lists:union([MonHosts, MgrHosts, OsdHosts, get_hosts()]),
+    Hosts = lists_utils:union([MonHosts, MgrHosts, OsdHosts, get_hosts()]),
     [
         #steps{action = ensure_hosts, ctx = Ctx#{hosts => Hosts}},
         #steps{action = deploy_all, service = ceph_mon, ctx = Ctx#{hosts => MonHosts},
@@ -217,7 +217,8 @@ get_health_report() ->
                 messages => format_checks(Checks)
             };
         Error ->
-            ?throw_error(Error)
+            ?warning("Could not obtain ceph health report: ~tp", [Error]),
+            throw(?ERROR_INTERNAL_SERVER_ERROR)
     end.
 
 
@@ -242,7 +243,7 @@ get_details() ->
 %% Writes given Ceph configuration on all nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec distribute_config(ceph_conf:config()) -> ok | #error{}.
+-spec distribute_config(ceph_conf:config()) -> ok | {error, _}.
 distribute_config(Config) ->
     Results = service:apply_sync(ceph, write_config, #{config => Config}),
     case service_utils:results_contain_error(Results) of
@@ -289,7 +290,7 @@ make_storage_params(PoolName) ->
     op_worker_storage:storage_details().
 decorate_storage_details(#{type := ?CEPH_STORAGE_HELPER_NAME, name := Name} = Storage) ->
     case ceph_pool:get(Name) of
-        #error{} ->
+        {error, _} ->
             Storage;
         Pool ->
             maps:merge(Storage#{type => ?LOCAL_CEPH_STORAGE_TYPE}, Pool)
@@ -325,7 +326,7 @@ initialize_config(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec extend_cluster(service:ctx()) -> ok.
 extend_cluster(#{hosts := Hosts}) ->
-    NewHosts = onepanel_lists:subtract(Hosts, get_hosts()),
+    NewHosts = lists_utils:subtract(Hosts, get_hosts()),
 
     ConfPath = ceph:get_conf_path(),
     KeyringPath = ceph:get_admin_keyring_path(),
@@ -383,7 +384,7 @@ write_config(#{config := Config} = Ctx) ->
     #{total := map(), osds := map(), pools := #{ceph_pool:name() => ceph_pool:usage()}}.
 get_usage(Ctx) ->
     #{<<"stats">> := Stats, <<"pools">> := Pools} = ceph_cli:df(),
-    Total = onepanel_maps:get_store_multiple([
+    Total = kv_utils:copy_found([
         {<<"total_bytes">>, total},
         {<<"total_used_bytes">>, used},
         {<<"total_avail_bytes">>, available}
@@ -426,7 +427,7 @@ ensure_models(GlobalParams) ->
 %% @private @doc Returns this service's ctx.
 %% @end
 %%--------------------------------------------------------------------
--spec get_ctx() -> service:ctx() | #error{}.
+-spec get_ctx() -> service:ctx() | {error, _}.
 get_ctx() ->
     service:get_ctx(name()).
 
@@ -452,7 +453,7 @@ ceph_status_level(<<Level/binary>>) ->
 -spec format_checks(#{binary() => binary()}) -> [binary()].
 format_checks(Map) ->
     lists:map(fun({Check, Description}) ->
-        {ok, Summary} = onepanel_maps:get([<<"summary">>, <<"message">>], Description),
+        Summary = kv_utils:get([<<"summary">>, <<"message">>], Description),
         Details = maps:get(<<"detail">>, Description, []),
         DetailsIodata = case Details of
             [] -> "";

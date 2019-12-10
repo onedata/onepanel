@@ -32,14 +32,14 @@
 maybe_configure_storage_import(_Node, _SpaceId, Args0) when map_size(Args0) == 0 ->
     ok;
 maybe_configure_storage_import(Node, SpaceId, Args) ->
-    StrategyName = onepanel_utils:typed_get(strategy, Args, atom),
+    StrategyName = onepanel_utils:get_converted(strategy, Args, atom),
     case current_import_strategy(Node, SpaceId) of
         StrategyName ->
             ok;  % ignore if NewStrategyName is the same as current
         no_import ->
             configure_storage_import(Node, SpaceId, Args, StrategyName);
         _ ->
-            ?throw_error(?ERR_STORAGE_SYNC_IMPORT_STARTED)
+            throw(?ERROR_STORAGE_IMPORT_STARTED)
     end.
 
 
@@ -52,7 +52,7 @@ maybe_configure_storage_update(_Node, _SpaceId, Args) when map_size(Args) == 0 -
     ok;
 maybe_configure_storage_update(Node, SpaceId, Args) ->
     % todo VFS-5717
-    StrategyName = onepanel_utils:typed_get(strategy, Args, atom),
+    StrategyName = onepanel_utils:get_converted(strategy, Args, atom),
     configure_storage_update(Node, SpaceId, Args, StrategyName).
 
 
@@ -133,8 +133,8 @@ configure_storage_import(Node, SpaceId, Args0, StrategyName) ->
         no_import -> false
     end,
     Args = onepanel_maps:remove_undefined(#{
-        max_depth => onepanel_utils:typed_get(max_depth, Args0, integer, undefined),
-        sync_acl => onepanel_utils:typed_get(sync_acl, Args0, boolean, undefined)
+        max_depth => onepanel_utils:get_converted(max_depth, Args0, integer, undefined),
+        sync_acl => onepanel_utils:get_converted(sync_acl, Args0, boolean, undefined)
     }),
     ok = op_worker_rpc:configure_storage_import(Node, SpaceId, Enabled, Args).
 
@@ -150,11 +150,11 @@ configure_storage_update(Node, SpaceId, _Args0, no_update) ->
     ok = op_worker_rpc:configure_storage_update(Node, SpaceId, false, #{});
 configure_storage_update(Node, SpaceId, Args0, simple_scan) ->
     Args = onepanel_maps:remove_undefined(#{
-        max_depth => onepanel_utils:typed_get(max_depth, Args0, integer, undefined),
-        scan_interval => onepanel_utils:typed_get(scan_interval, Args0, integer, undefined),
-        write_once => onepanel_utils:typed_get(write_once, Args0, boolean, undefined),
-        delete_enable => onepanel_utils:typed_get(delete_enable, Args0, boolean, undefined),
-        sync_acl => onepanel_utils:typed_get(sync_acl, Args0, boolean, undefined)
+        max_depth => onepanel_utils:get_converted(max_depth, Args0, integer, undefined),
+        scan_interval => onepanel_utils:get_converted(scan_interval, Args0, integer, undefined),
+        write_once => onepanel_utils:get_converted(write_once, Args0, boolean, undefined),
+        delete_enable => onepanel_utils:get_converted(delete_enable, Args0, boolean, undefined),
+        sync_acl => onepanel_utils:get_converted(sync_acl, Args0, boolean, undefined)
     }),
     ok = op_worker_rpc:configure_storage_update(Node, SpaceId, true, Args).
 

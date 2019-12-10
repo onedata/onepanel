@@ -1,6 +1,6 @@
 %%%--------------------------------------------------------------------
 %%% @author Wojciech Geisler
-%%% @copyright (C) 2016 ACK CYFRONET AGH
+%%% @copyright (C) 2019 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -219,7 +219,7 @@ init_per_testcase(_Case, Config) ->
     test_utils:mock_expect(Nodes, service, get, fun
         (onezone) -> {ok, #service{}};
         (oz_worker) -> {ok, #service{hosts = Hosts}};
-        (_) -> #error{reason = ?ERR_NOT_FOUND}
+        (_) -> ?ERR_DOC_NOT_FOUND
     end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},

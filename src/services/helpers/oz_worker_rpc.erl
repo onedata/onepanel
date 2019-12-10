@@ -25,7 +25,8 @@
 -define(NODE, element(2, {ok, _} = nodes:any(?SERVICE_OZW))).
 -define(CALL(Node, Args),
     case rpc:call(Node, rpc_api, apply, [?FUNCTION_NAME, Args]) of
-        {badrpc, _} = __Error -> ?throw_error(__Error);
+        {badrpc, nodedown} = __Error -> throw(?ERROR_SERVICE_UNAVAILABLE);
+        {badrpc, _} = __Error -> error(__Error);
         __Result -> __Result
     end).
 
@@ -96,12 +97,12 @@ check_token_auth(Node, Token, PeerIp)  ->
 
 
 -spec get_protected_provider_data(aai:auth(), od_provider_id()) ->
-    {ok, map()} | {error, term()}.
+    {ok, map()} | errors:error().
 get_protected_provider_data(Auth, ProviderId) ->
     ?CALL([Auth, ProviderId]).
 
 -spec get_protected_provider_data(node(), aai:auth(), od_provider_id()) ->
-    {ok, map()} | {error, term()}.
+    {ok, map()} | errors:error().
 get_protected_provider_data(Node, Auth, ProviderId) ->
     ?CALL(Node, [Auth, ProviderId]).
 
@@ -240,7 +241,7 @@ get_protected_cluster_data(Node, Auth, ClusterId) ->
     ?CALL(Node, [Auth, ClusterId]).
 
 
--spec get_clusters_by_user_auth(aai:auth()) -> {ok, [od_cluster_id()]} | {error, term()}.
+-spec get_clusters_by_user_auth(aai:auth()) -> {ok, [od_cluster_id()]} | errors:error().
 get_clusters_by_user_auth(Auth) ->
     ?CALL([Auth]).
 

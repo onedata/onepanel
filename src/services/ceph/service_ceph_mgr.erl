@@ -57,7 +57,7 @@ get_hosts() ->
 %%--------------------------------------------------------------------
 -spec get_nodes() -> no_return().
 get_nodes() ->
-    ?throw_error(?ERR_NOT_SUPPORTED).
+    error(?ERROR_NOT_SUPPORTED).
 
 
 %%--------------------------------------------------------------------
@@ -173,7 +173,7 @@ status(#{id := Id}) ->
 get_details(#{id := Id}) ->
     case service:get_ctx(name()) of
         #{instances := #{Id := Details}} -> instance_to_details(Details);
-        _ -> ?throw_error(?ERR_NOT_FOUND)
+        _ -> throw(?ERROR_NOT_FOUND)
     end.
 
 
@@ -185,8 +185,8 @@ list() ->
 -spec list_running() -> [id()].
 list_running() ->
     ClusterStatus = ceph_cli:status(),
-    {ok, ActiveId} = onepanel_maps:get([<<"mgrmap">>, <<"active_name">>], ClusterStatus),
-    {ok, Standbys} = onepanel_maps:get([<<"mgrmap">>, <<"standbys">>], ClusterStatus),
+    ActiveId = kv_utils:get([<<"mgrmap">>, <<"active_name">>], ClusterStatus),
+    Standbys = kv_utils:get([<<"mgrmap">>, <<"standbys">>], ClusterStatus),
     StanbdyIds = [Id || #{<<"name">> := Id} <- Standbys],
     lists:usort([ActiveId | StanbdyIds]).
 
@@ -223,12 +223,10 @@ list_instances() ->
 %% @private
 -spec get_instance(id()) -> ceph:instance().
 get_instance(Id) ->
-    case service:get_ctx(name()) of
-        #{instances := #{Id := Instance}} -> Instance;
-        _ -> ?throw_error(?ERR_NOT_FOUND)
-    end.
+    kv_utils:get([instances, Id], service:get_ctx(name())).
 
 
+%% @private
 -spec instance_to_details(ceph:instance()) -> #{atom() => binary()}.
 instance_to_details(Instance) ->
     onepanel_utils:convert(maps:with([id, host], Instance), {values, binary}).
