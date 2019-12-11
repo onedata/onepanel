@@ -119,7 +119,7 @@ get_steps(Action, Ctx) ->
 get_auth_by_token(AccessToken, PeerIp) ->
     case nodes:any(name()) of
         {ok, OzNode} ->
-            case oz_worker_rpc:check_token_auth(OzNode, AccessToken, PeerIp) of
+            case oz_worker_rpc:authenticate_by_token(OzNode, AccessToken, PeerIp) of
                 {true, Auth} -> {ok, Auth};
                 {error, _} = Error -> Error
             end;

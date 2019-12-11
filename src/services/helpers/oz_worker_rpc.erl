@@ -53,7 +53,7 @@
 
 -export_type([gui_message_id/0, gui_message_map_repr/0]).
 
--export([check_token_auth/2, check_token_auth/3]).
+-export([authenticate_by_token/2, authenticate_by_token/3]).
 -export([get_protected_provider_data/2, get_protected_provider_data/3]).
 -export([deploy_static_gui_package/4, deploy_static_gui_package/5]).
 -export([update_cluster_version_info/4, update_cluster_version_info/5]).
@@ -82,18 +82,20 @@
 %%% API functions
 %%%===================================================================
 
--spec check_token_auth(tokens:serialized() | tokens:token(),
+-spec authenticate_by_token(tokens:serialized() | tokens:token(),
     undefined | ip_utils:ip()) ->
     {true, aai:auth()} | {error, term()}.
-check_token_auth(Token, PeerIp)  ->
-    check_token_auth(?NODE, Token, PeerIp).
+authenticate_by_token(Token, PeerIp)  ->
+    authenticate_by_token(?NODE, Token, PeerIp).
 
--spec check_token_auth(node(), tokens:serialized() | tokens:token(),
+-spec authenticate_by_token(node(), tokens:serialized() | tokens:token(),
     undefined | ip_utils:ip()) ->
     {true, aai:auth()} | {error, term()}.
-check_token_auth(Node, Token, PeerIp)  ->
+authenticate_by_token(Node, Token, PeerIp)  ->
     Audience = ?AUD(?OZ_PANEL, ?ONEZONE_CLUSTER_ID),
-    ?CALL(Node, [Token, PeerIp, Audience]).
+    % @TODO VFS-5913 Recognize interface caveat in onepanel
+    Interface = undefined,
+    ?CALL(Node, [Token, Interface, PeerIp, Audience]).
 
 
 -spec get_protected_provider_data(aai:auth(), od_provider_id()) ->
