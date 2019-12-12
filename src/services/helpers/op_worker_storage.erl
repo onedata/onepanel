@@ -512,7 +512,7 @@ maybe_update_luma_config(OpNode, Id, Params, WasEnabled) ->
             ok;
         {#{luma_enabled := NewEnabled}, _} when NewEnabled /= WasEnabled ->
             LumaConfig = make_luma_config(OpNode, Params),
-            ok = op_worker_rpc:storage_set_luma_config(OpNode, Id, LumaConfig),
+            ok = op_worker_rpc:storage_update_luma_config(OpNode, Id, LumaConfig),
             invalidate_luma_cache(Id);
         {Changes, true} ->
             ok = op_worker_rpc:storage_update_luma_config(OpNode, Id, Changes),

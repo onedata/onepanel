@@ -75,7 +75,6 @@
 -export([storage_set_insecure/2, storage_set_insecure/3]).
 -export([storage_set_readonly/2, storage_set_readonly/3]).
 -export([storage_set_imported_storage/2, storage_set_imported_storage/3]).
--export([storage_set_luma_config/2, storage_set_luma_config/3]).
 -export([storage_set_qos_parameters/2, storage_set_qos_parameters/3]).
 -export([storage_update_luma_config/2, storage_update_luma_config/3]).
 -export([storage_update_name/2, storage_update_name/3]).
@@ -241,17 +240,6 @@ storage_set_imported_storage(StorageId, Value) ->
     ok | {error, term()}.
 storage_set_imported_storage(Node, StorageId, Value) ->
     ?CALL(Node, [StorageId, Value]).
-
-
--spec storage_set_luma_config(storage_id(), luma_config() | undefined) ->
-    ok | {error, term()}.
-storage_set_luma_config(StorageId, LumaConfig) ->
-    ?CALL([StorageId, LumaConfig]).
-
--spec storage_set_luma_config(node(), storage_id(), luma_config() | undefined) ->
-    ok | {error, term()}.
-storage_set_luma_config(Node, StorageId, LumaConfig) ->
-    ?CALL(Node, [StorageId, LumaConfig]).
 
 
 -spec storage_update_luma_config(storage_id(), Changes) -> ok | {error, term()}
