@@ -50,17 +50,6 @@
 -define(NEW_HOST_HOSTNAME, "someHostname").
 -define(TIMEOUT, timer:seconds(5)).
 
--define(run(Fun, EndpointsWithMethods),
-    lists:foreach(fun({_Endpoint, _Method}) ->
-        try
-            Fun({_Endpoint, _Method})
-        catch
-            error:{assertMatch_failed, _} = _Reason ->
-                ct:pal("Failed on: ~s ~s", [_Method, _Endpoint]),
-                erlang:error(_Reason)
-        end
-    end, EndpointsWithMethods)).
-
 all() ->
     ?ALL([
         method_should_return_unauthorized_error,
@@ -85,10 +74,10 @@ all() ->
 %%%===================================================================
 
 method_should_return_unauthorized_error(Config) ->
-    ?run(fun({Endpoint, Method}) ->
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
         lists:foreach(fun(Auth) ->
             ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _}, onepanel_test_rest:auth_request(
-                Config, Endpoint, Method, Auth
+                Host, Endpoint, Method, Auth
             ))
         end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
     end, [
@@ -134,10 +123,10 @@ token_with_api_caveats_should_return_unauthorized_error(Config) ->
 
 
 noauth_method_should_return_forbidden_error(Config) ->
-    ?run(fun({Endpoint, Method}) ->
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
         lists:foreach(fun(Auth) ->
             ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
-                Config, Endpoint, Method, Auth
+                Host, Endpoint, Method, Auth
             ))
         end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
     end, [
@@ -148,7 +137,7 @@ noauth_method_should_return_forbidden_error(Config) ->
 
 
 method_should_return_forbidden_error(Config) ->
-    ?run(fun({Endpoint, Method}) ->
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
         Auths = case {Endpoint, Method} of
             {<<"/emergency_passphrase">>, put} ->
                 % even admin coming from Onezone cannot change root password
@@ -157,7 +146,7 @@ method_should_return_forbidden_error(Config) ->
                 ?OZ_AUTHS(Config, privileges:cluster_admin() -- [?CLUSTER_UPDATE])
         end,
         ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
-            Config, Endpoint, Method, Auths
+            Host, Endpoint, Method, Auths
         ))
     end, [
         {<<"/hosts/someHost">>, delete},
@@ -168,9 +157,9 @@ method_should_return_forbidden_error(Config) ->
 
 
 method_should_return_not_found_error(Config) ->
-    ?run(fun({Endpoint, Method}) ->
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
         ?assertMatch({ok, ?HTTP_404_NOT_FOUND, _, _}, onepanel_test_rest:auth_request(
-            Config, Endpoint, Method,
+            Host, Endpoint, Method,
             ?OZ_OR_ROOT_AUTHS(Config, [?CLUSTER_UPDATE])
         ))
     end, [{<<"/hosts/someHost">>, delete}]).

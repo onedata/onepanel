@@ -67,8 +67,6 @@ all() ->
 -define(GUI_MESSAGE_ENABLED, true).
 -define(GUI_MESSAGE_BODY, (<<"some html">>)).
 
--define(run(Config, Function), Function(hd(?config(onezone_hosts, Config)))).
-
 %%%===================================================================
 %%% Test functions
 %%%===================================================================
@@ -121,7 +119,7 @@ bad_gui_message_id_should_return_not_found(Config) ->
 
 
 get_should_return_gui_message(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/zone/gui_messages/", ?GOOD_GUI_MESSAGE_ID/binary>>, get,
@@ -135,7 +133,7 @@ get_should_return_gui_message(Config) ->
 
 
 patch_should_update_gui_message(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/zone/gui_messages/", ?GOOD_GUI_MESSAGE_ID/binary>>, patch,
