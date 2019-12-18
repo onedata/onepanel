@@ -74,7 +74,7 @@
 
 -define(STORAGES_JSON, #{
     <<"someCeph">> => #{
-        <<"type">> => <<"ceph">>,
+        <<"type">> => <<"cephrados">>,
         <<"username">> => <<"someName">>,
         <<"key">> => <<"someKey">>,
         <<"monitorHostname">> => <<"someHostname">>,
@@ -212,7 +212,7 @@ method_should_return_service_unavailable_error(Config) ->
     ?run(Config, fun
         ({Host, <<"/provider">> = Prefix}) ->
             lists:foreach(fun({Endpoint, Method}) ->
-                ?assertMatch({ok, HTTP_503_SERVICE_UNAVAILABLE, _, _}, onepanel_test_rest:auth_request(
+                ?assertMatch({ok, ?HTTP_503_SERVICE_UNAVAILABLE, _, _}, onepanel_test_rest:auth_request(
                     Host, <<Prefix/binary, Endpoint/binary>>, Method,
                     ?ALL_AUTHS(Host)
                 ))
@@ -299,12 +299,16 @@ get_should_return_service_task_results(Config) ->
             {<<"someTaskId2">>, [], [{<<"status">>, <<"running">>}, {<<"steps">>, [
                 <<"module1:function1">>, <<"module2:function2">>
             ]}]},
-            {<<"someTaskId3">>, [<<"error">>, <<"description">>, <<"steps">>,
-                <<"module">>, <<"function">>, <<"hosts">>],
-                [{<<"status">>, <<"error">>}]
+            {<<"someTaskId3">>, [<<"error">>, <<"status">>, <<"steps">>],
+                #{<<"status">> => <<"error">>,
+                    <<"error">> => errors:to_json(
+                        ?ERROR_ON_NODES(?ERROR_MALFORMED_DATA, [<<"host1">>])),
+                    <<"steps">> => [<<"module1:function1">>, <<"module2:function2">>,
+                        <<"module3:function3">>]
+                }
             },
-            {<<"someTaskId4">>, [<<"error">>, <<"description">>],
-                [{<<"status">>, <<"error">>}]
+            {<<"someTaskId4">>, [<<"error">>, <<"status">>],
+                #{<<"status">> => <<"error">>}
             }
         ])
     end, [{oneprovider_hosts, <<>>}, {onezone_hosts, <<>>}]).
@@ -546,7 +550,7 @@ post_should_configure_oneprovider_service(Config) ->
                     hosts := ["host1.someDomain", "host2.someDomain", "host3.someDomain"],
                     storages := #{
                         <<"someCeph">> := #{
-                            type := <<"ceph">>,
+                            type := <<"cephrados">>,
                             clusterName := <<"someName">>,
                             key := <<"someKey">>,
                             monitorHostname := <<"someHostname">>,
@@ -581,7 +585,7 @@ post_should_configure_oneprovider_service(Config) ->
 
 post_should_return_conflict_on_configured_onezone(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
-        ?assertMatch({ok, HTTP_409_CONFLICT, _, _},
+        ?assertMatch({ok, ?HTTP_409_CONFLICT, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/configuration">>, post,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
@@ -599,7 +603,7 @@ post_should_return_conflict_on_configured_onezone(Config) ->
 
 post_should_return_conflict_on_configured_oneprovider(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
-        ?assertMatch({ok, HTTP_409_CONFLICT, _, _},
+        ?assertMatch({ok, ?HTTP_409_CONFLICT, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/configuration">>, post,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
@@ -725,27 +729,30 @@ init_per_testcase(get_should_return_service_task_results, Config) ->
     Nodes = ?config(all_nodes, NewConfig),
     test_utils:mock_expect(Nodes, service, exists_task, fun(_) -> true end),
     test_utils:mock_expect(Nodes, service, get_results, fun
-        (<<"someTaskId1">>) -> [
+        (<<"someTaskId1">>) -> {[
             {module1, function1},
             {module2, function2},
             {module3, function3},
             {task_finished, {service, action, ok}}
-        ];
-        (<<"someTaskId2">>) -> [
+        ], 3};
+        (<<"someTaskId2">>) -> {[
             {module1, function1},
             {module2, function2}
-        ];
-        (<<"someTaskId3">>) -> [
+        ], 2};
+        (<<"someTaskId3">>) -> {[
             {module1, function1},
+            {module1, function1, {[{'node@host1', ok}], []}},
             {module2, function2},
+            {module2, function2, {[{'node@host1', ok}], []}},
+            {module3, function3},
             {module3, function3, {[], [
-                {'node@host1', #error{}}, {'node@host2', #error{}}
+                {'node@host1', ?ERROR_MALFORMED_DATA}, {'node@host2', ?ERROR_INTERNAL_SERVER_ERROR}
             ]}},
-            {task_finished, {service, action, #error{}}}
-        ];
-        (<<"someTaskId4">>) -> [
-            {task_finished, {service, action, #error{}}}
-        ]
+            {task_finished, {service, action, {error, reason}}}
+        ], 4};
+        (<<"someTaskId4">>) -> {[
+            {task_finished, {service, action, ?ERROR_INTERNAL_SERVER_ERROR}}
+        ], _StepsCountError = {error, reason}}
     end),
     NewConfig;
 

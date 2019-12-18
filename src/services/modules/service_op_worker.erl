@@ -32,7 +32,7 @@
 
 %% API
 -export([configure/1, start/1, stop/1, status/1, health/1, wait_for_init/1,
-    get_nagios_response/1, get_nagios_status/1, add_storages/1, get_storages/1,
+    get_nagios_response/1, get_nagios_status/1, add_storage/1, get_storages/1,
     update_storage/1, remove_storage/1,
     invalidate_luma_cache/1, reload_webcert/1,
     set_transfers_mock/1, get_transfers_mock/1,
@@ -78,14 +78,22 @@ get_nodes() ->
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
-get_steps(add_storages, #{hosts := Hosts, storages := _} = Ctx) ->
-    [#step{hosts = Hosts, function = add_storages, selection = first, ctx = Ctx}];
-
-get_steps(add_storages, #{storages := _} = Ctx) ->
-    get_steps(add_storages, Ctx#{hosts => get_hosts()});
+get_steps(add_storages, #{storages := Storages} = Ctx) ->
+    ?info("~b storage(s) will be added", [maps:size(Storages)]),
+    StoragesList = maps:to_list(Storages),
+    [
+        #steps{action = add_storage, ctx = Ctx#{name => Name, params => Params}}
+        || {Name, Params} <- StoragesList
+    ] ++ [
+        #step{module = onepanel_deployment, function = set_marker,
+            args = [?PROGRESS_STORAGE_SETUP], hosts = [hosts:self()]}
+    ];
 
 get_steps(add_storages, _Ctx) ->
     [];
+
+get_steps(add_storage, _Ctx) ->
+    [#step{function = add_storage, selection = first}];
 
 get_steps(get_storages, #{hosts := Hosts}) ->
     [#step{hosts = Hosts, function = get_storages, selection = any}];
@@ -93,8 +101,21 @@ get_steps(get_storages, #{hosts := Hosts}) ->
 get_steps(get_storages, Ctx) ->
     get_steps(get_storages, Ctx#{hosts => get_hosts()});
 
-get_steps(update_storage, _Ctx) ->
-    [#step{function = update_storage, selection = any}];
+get_steps(update_storage, Ctx) ->
+    #{id := Id, storage := Changes} = Ctx,
+    Current = op_worker_storage:get(Id),
+    case matches_local_ceph_pool(Current) of
+        true ->
+            [
+                #steps{service = ?SERVICE_CEPH, action = modify_pool,
+                    ctx = Changes#{name => maps:get(poolName, Current)}},
+                #step{function = update_storage, selection = any}
+            ];
+        false ->
+            [
+                #step{function = update_storage, selection = any}
+            ]
+    end;
 
 get_steps(remove_storage, _Ctx) ->
     [#step{function = remove_storage, selection = any}];
@@ -132,7 +153,7 @@ get_compatible_onezones() ->
     {_, PanelVersion} = onepanel_app:get_build_and_version(),
     OpVersion = case nodes:any(?SERVICE_OPW) of
         {ok, Node} ->
-            case rpc:call(Node, oneprovider, get_version, []) of
+            case op_worker_rpc:get_op_worker_version(Node) of
                 {badrpc, _} ->
                     PanelVersion;
                 V ->
@@ -155,7 +176,7 @@ get_compatible_onezones() ->
 -spec is_connected_to_oz() -> boolean().
 is_connected_to_oz() ->
     case nodes:any(?SERVICE_OPW) of
-        {ok, Node} -> true == rpc:call(Node, oneprovider, is_connected_to_oz, []);
+        {ok, Node} -> true == op_worker_rpc:is_connected_to_oz(Node);
         _ -> false
     end.
 
@@ -288,17 +309,26 @@ get_nagios_status(Ctx) ->
 %% @doc Configures the service storages.
 %% @end
 %%--------------------------------------------------------------------
--spec add_storages(Ctx :: service:ctx()) -> ok | no_return().
-add_storages(#{storages := Storages, ignore_exists := IgnoreExists})
-    when map_size(Storages) > 0 ->
-    op_worker_storage:add(Storages, IgnoreExists),
-    onepanel_deployment:set_marker(?PROGRESS_STORAGE_SETUP);
+-spec add_storage(Ctx :: service:ctx()) -> ok | no_return().
+add_storage(#{params := #{type := Type} = Params, name := Name} = Ctx) when
+    Type == ?LOCAL_CEPH_STORAGE_TYPE ->
+    case hosts:all(?SERVICE_CEPH_OSD) of
+        [] -> throw(?ERROR_NO_SERVICE_NODES(?SERVICE_CEPH_OSD));
+        _ -> ok
+    end,
 
-add_storages(#{storages := _, ignore_exists := _}) ->
-    ok;
+    case ceph_pool:exists(Name) of
+        true -> ok;
+        false ->
+            service_utils:throw_on_error(service:apply_sync(
+                ?SERVICE_CEPH, create_pool, Params#{name => Name}
+            ))
+    end,
+    FilledParams = maps:merge(Params, service_ceph:make_storage_params(Name)),
+    add_storage(Ctx#{params => FilledParams});
 
-add_storages(Ctx) ->
-    add_storages(Ctx#{ignore_exists => false}).
+add_storage(#{params := _, name := _} = Ctx) ->
+    op_worker_storage:add(Ctx, maps:get(ignore_exists, Ctx, false)).
 
 
 %%--------------------------------------------------------------------
@@ -307,9 +337,13 @@ add_storages(Ctx) ->
 %%--------------------------------------------------------------------
 -spec get_storages(#{id => op_worker_storage:id()}) ->
     op_worker_storage:storage_details()
-    | #{ids => [op_worker_storage:id()]}.
+    | #{ids := [op_worker_storage:id()]}.
 get_storages(#{id := Id}) ->
-    op_worker_storage:get(Id);
+    Details = op_worker_storage:get(Id),
+    case matches_local_ceph_pool(Details) of
+        true -> service_ceph:decorate_storage_details(Details);
+        false -> Details
+    end;
 
 get_storages(_Ctx) ->
     op_worker_storage:list().
@@ -333,7 +367,17 @@ update_storage(#{id := Id, storage := Params}) ->
 -spec remove_storage(Ctx :: #{id := op_worker_storage:id(), _ => _}) -> ok | no_return().
 remove_storage(#{id := Id}) ->
     {ok, Node} = nodes:any(name()),
-    op_worker_storage:remove(Node, Id).
+    #{name := Name} = Details = op_worker_storage:get(Id),
+    op_worker_storage:remove(Node, Id),
+    case matches_local_ceph_pool(Details) of
+        true ->
+            service_utils:throw_on_error(service:apply_sync(
+                ?SERVICE_CEPH, delete_pool, #{name => Name}
+            )),
+            ok;
+        false ->
+            ok
+    end.
 
 
 %%-------------------------------------------------------------------
@@ -370,28 +414,30 @@ reload_webcert(Ctx) ->
     service_cluster_worker:reload_webcert(Ctx#{name => name()}),
 
     Node = nodes:local(name()),
-    ok = rpc:call(Node, rtransfer_config, restart_link, []).
+    ok = op_worker_rpc:restart_rtransfer_link(Node).
 
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Checks if the provider has subdomain delegation enabled
-%% needed for Let's Encrypt to be available.
+%% Checks if given Let's Encrypt challenge can be fulfilled.
 %% @end
 %%--------------------------------------------------------------------
 -spec supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
     boolean().
-supports_letsencrypt_challenge(http) ->
-    service:healthy(name()) andalso
-        service_oneprovider:is_registered(); % unregistered provider does not have a domain
-supports_letsencrypt_challenge(dns) ->
-    try
-        service:healthy(name()) andalso
-            service_oneprovider:is_registered() andalso
-            maps:get(subdomainDelegation, service_oneprovider:get_details(), false)
-    catch
-        _:_ -> false
+supports_letsencrypt_challenge(Challenge) when
+    Challenge == http; Challenge == dns ->
+    ?MODULE:get_hosts() /= [] orelse throw(?ERROR_NO_SERVICE_NODES(name())),
+    service:healthy(name()) orelse throw(?ERROR_SERVICE_UNAVAILABLE),
+    service_oneprovider:is_registered() orelse throw(?ERROR_UNREGISTERED_ONEPROVIDER),
+    case Challenge of
+        http -> true;
+        dns ->
+            case maps:get(subdomainDelegation, service_oneprovider:get_details(), false) of
+                true -> true;
+                false -> false
+            end
     end;
+
 supports_letsencrypt_challenge(_) -> false.
 
 
@@ -415,8 +461,7 @@ set_http_record(Name, Value) ->
 %%--------------------------------------------------------------------
 -spec set_txt_record(Ctx :: service:ctx()) -> ok.
 set_txt_record(#{txt_name := Name, txt_value := Value, txt_ttl := TTL}) ->
-    {ok, Node} = nodes:any(name()),
-    ok = rpc:call(Node, provider_logic, set_txt_record, [Name, Value, TTL]).
+    ok = op_worker_rpc:set_txt_record(Name, Value, TTL).
 
 
 %%--------------------------------------------------------------------
@@ -426,8 +471,7 @@ set_txt_record(#{txt_name := Name, txt_value := Value, txt_ttl := TTL}) ->
 %%--------------------------------------------------------------------
 -spec remove_txt_record(Ctx :: service:ctx()) -> ok.
 remove_txt_record(#{txt_name := Name}) ->
-    {ok, Node} = nodes:any(name()),
-    ok = rpc:call(Node, provider_logic, remove_txt_record, [Name]).
+    ok = op_worker_rpc:remove_txt_record(Name).
 
 
 %%--------------------------------------------------------------------
@@ -531,3 +575,24 @@ env_write_and_set(Variable, Value) ->
     % the variable will be read on next startup
     catch onepanel_env:set_remote(Node, Variable, Value, name()),
     ok.
+
+
+%%-------------------------------------------------------------------
+%% @private
+%% @doc
+%% Checks if a storage using cephrados helper has a corresponding pool
+%% in the local Ceph cluster.
+%% @end
+%%-------------------------------------------------------------------
+-spec matches_local_ceph_pool
+    (op_worker_storage:storage_details() | op_worker_storage:id()) -> boolean().
+matches_local_ceph_pool(#{type := Type, name := Name, clusterName := ClusterName}) when
+    Type == ?LOCAL_CEPH_STORAGE_TYPE; % when checking against op_worker output
+    Type == ?CEPH_STORAGE_HELPER_NAME % when checking user input
+    ->
+    service:exists(?SERVICE_CEPH)
+        andalso ceph:get_cluster_name() == ClusterName
+        andalso ceph_pool:exists(Name);
+
+matches_local_ceph_pool(#{}) ->
+    false.

@@ -1,6 +1,6 @@
 %%%--------------------------------------------------------------------
 %%% @author Wojciech Geisler
-%%% @copyright (C) 2016 ACK CYFRONET AGH
+%%% @copyright (C) 2019 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -67,24 +67,6 @@ all() ->
 -define(GUI_MESSAGE_ENABLED, true).
 -define(GUI_MESSAGE_BODY, (<<"some html">>)).
 
--define(run(Config, Function), Function(hd(?config(onezone_hosts, Config)))).
-
--define(eachEndpoint(Config, Fun, EndpointsWithMethods),
-    lists:foreach(fun({__Host, __Endpoint, __Method}) ->
-        try
-            Fun(__Host, __Endpoint, __Method)
-        catch
-            error:__Reason ->
-                ct:pal("Failed on: ~s ~s (host ~s)", [__Method, __Endpoint, __Host]),
-                erlang:error(__Reason)
-        end
-    end, [
-        {__Host, __Endpoint, __Method} ||
-        {__Endpoint, __Method} <- EndpointsWithMethods,
-        __Host <- ?config(all_hosts, Config)
-    ])
-).
-
 %%%===================================================================
 %%% Test functions
 %%%===================================================================
@@ -137,7 +119,7 @@ bad_gui_message_id_should_return_not_found(Config) ->
 
 
 get_should_return_gui_message(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/zone/gui_messages/", ?GOOD_GUI_MESSAGE_ID/binary>>, get,
@@ -151,7 +133,7 @@ get_should_return_gui_message(Config) ->
 
 
 patch_should_update_gui_message(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/zone/gui_messages/", ?GOOD_GUI_MESSAGE_ID/binary>>, patch,
@@ -196,8 +178,10 @@ init_per_testcase(Case, Config) when
     Self = self(),
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(all_nodes, Config),
-    test_utils:mock_expect(Nodes, service_onezone, gui_message_exists,
+    test_utils:mock_expect(Nodes, oz_worker_rpc, gui_message_exists,
         fun(MessageId) -> MessageId == ?GOOD_GUI_MESSAGE_ID end),
+    test_utils:mock_expect(Nodes, oz_worker_rpc, gui_message_exists,
+        fun(_Node, MessageId) -> MessageId == ?GOOD_GUI_MESSAGE_ID end),
 
     Result = #{body => ?GUI_MESSAGE_BODY, enabled => ?GUI_MESSAGE_ENABLED},
     test_utils:mock_expect(Nodes, service, apply_sync, fun
@@ -233,7 +217,7 @@ init_per_testcase(_Case, Config) ->
     test_utils:mock_expect(Nodes, service, get, fun
         (onezone) -> {ok, #service{}};
         (oz_worker) -> {ok, #service{hosts = Hosts}};
-        (_) -> #error{reason = ?ERR_NOT_FOUND}
+        (_) -> ?ERR_DOC_NOT_FOUND
     end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},

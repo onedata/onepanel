@@ -134,7 +134,7 @@ create(#{letsencrypt_plugin := Plugin}) ->
     },
     case service:create(#service{name = name(), ctx = ServiceCtx}) of
         {ok, _} -> ok;
-        #error{reason = ?ERR_ALREADY_EXISTS} -> ok
+        ?ERR_ALREADY_EXISTS -> ok
     end.
 
 
@@ -147,20 +147,17 @@ create(#{letsencrypt_plugin := Plugin}) ->
 check_webcert(Ctx) ->
     case should_obtain(Ctx) of
         true ->
-            case any_challenge_available() of
-                true -> ok;
-                false -> ?throw_error(?ERR_LETSENCRYPT_NOT_SUPPORTED)
-            end,
+            true = any_challenge_available(),
 
             update_ctx(#{regenerating => true}),
             try
                 obtain_cert(Ctx)
-            catch _:Error ->
+            catch Type:Error ->
                 update_ctx(#{
                     regenerating => false,
                     last_failure => time_utils:system_time_seconds()
                 }),
-                ?throw_stacktrace(Error)
+                erlang:Type(Error)
             end,
 
             update_ctx(#{
@@ -271,14 +268,11 @@ enable(_Ctx) ->
 schedule_check() ->
     Action = fun() ->
         try
-            case any_challenge_available() of
-                true ->
-                    check_webcert(#{renewal => true});
-                false ->
-                    ?info("Skipping Let's Encrypt check as required service is not available")
-            end
+            % plugin module will throw if there is a condition preventing certification
+            true = any_challenge_available()
         catch
-            _:Reason -> ?error("Certificate renewal check failed: ~p", [?make_stacktrace(Reason)])
+            Type:Error ->
+                ?error_stacktrace("Certificate renewal check failed: ~p:~p", [Type, Error])
         end
     end,
     onepanel_cron:add_job(name(), Action, ?CHECK_DELAY).
@@ -324,7 +318,7 @@ global_cert_status(_Ctx) ->
         _ ->
             Nodes = get_nodes(),
             Domain = (get_plugin_module()):get_domain(),
-            onepanel_lists:foldl_while(fun(Node, _) ->
+            lists_utils:foldl_while(fun(Node, _) ->
                 case rpc:call(Node, ?MODULE, local_cert_status, [Domain]) of
                     valid -> {cont, valid};
                     Problem -> {halt, Problem}
@@ -369,8 +363,8 @@ expiration_status(Cert) ->
     Margin = ?RENEW_MARGIN_SECONDS,
     Remaining = onepanel_cert:get_seconds_till_expiration(Cert),
     if
-        Remaining < Margin -> near_expiration;
         Remaining < 0 -> expired;
+        Remaining < Margin -> near_expiration;
         true -> valid
     end.
 
@@ -403,7 +397,14 @@ first_run(Ctx) ->
     Enabling andalso not are_all_certs_letsencrypt().
 
 
+%%--------------------------------------------------------------------
 %% @private
+%% @doc
+%% Checks that some Let's Encrypt challenge can be satisfied.
+%% Throws errors:error() if there is a condition preventing any
+%% certification, e.g. unregistered provider.
+%% @end
+%%--------------------------------------------------------------------
 -spec any_challenge_available() -> boolean().
 any_challenge_available() ->
     Plugin = get_plugin_module(),

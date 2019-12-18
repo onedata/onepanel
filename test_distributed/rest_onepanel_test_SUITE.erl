@@ -14,10 +14,13 @@
 -include("modules/errors.hrl").
 -include("onepanel_test_utils.hrl").
 -include("onepanel_test_rest.hrl").
+-include_lib("ctool/include/aai/caveats.hrl").
+-include_lib("ctool/include/errors.hrl").
+-include_lib("ctool/include/graph_sync/gri.hrl").
+-include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
--include_lib("ctool/include/privileges.hrl").
--include_lib("ctool/include/http/codes.hrl").
 
 %% export for ct
 -export([all/0, init_per_suite/1, init_per_testcase/2,
@@ -26,6 +29,7 @@
 %% tests
 -export([
     method_should_return_unauthorized_error/1,
+    token_with_api_caveats_should_return_unauthorized_error/1,
     noauth_method_should_return_forbidden_error/1,
     method_should_return_forbidden_error/1,
     method_should_return_not_found_error/1,
@@ -46,20 +50,10 @@
 -define(NEW_HOST_HOSTNAME, "someHostname").
 -define(TIMEOUT, timer:seconds(5)).
 
--define(run(Fun, EndpointsWithMethods),
-    lists:foreach(fun({_Endpoint, _Method}) ->
-        try
-            Fun({_Endpoint, _Method})
-        catch
-            error:{assertMatch_failed, _} = _Reason ->
-                ct:pal("Failed on: ~s ~s", [_Method, _Endpoint]),
-                erlang:error(_Reason)
-        end
-    end, EndpointsWithMethods)).
-
 all() ->
     ?ALL([
         method_should_return_unauthorized_error,
+        token_with_api_caveats_should_return_unauthorized_error,
         noauth_method_should_return_forbidden_error,
         method_should_return_forbidden_error,
         method_should_return_not_found_error,
@@ -80,10 +74,10 @@ all() ->
 %%%===================================================================
 
 method_should_return_unauthorized_error(Config) ->
-    ?run(fun({Endpoint, Method}) ->
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
         lists:foreach(fun(Auth) ->
             ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _}, onepanel_test_rest:auth_request(
-                Config, Endpoint, Method, Auth
+                Host, Endpoint, Method, Auth
             ))
         end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
     end, [
@@ -98,11 +92,41 @@ method_should_return_unauthorized_error(Config) ->
     ]).
 
 
+token_with_api_caveats_should_return_unauthorized_error(Config) ->
+    BadCaveats = [
+        #cv_api{whitelist = [{all, all, #gri_pattern{type = '*', aspect = '*'}}]},
+        #cv_api{whitelist = [{oz_worker, delete, #gri_pattern{type = '*', aspect = '*'}}]},
+        #cv_api{whitelist = [{oz_panel, create, #gri_pattern{type = '*', aspect = '*'}}]},
+        #cv_interface{interface = oneclient},
+        #cv_data_readonly{},
+        #cv_data_path{whitelist = [<<"/260a56d159a980ca0d645dd81/dir/file.txt">>]},
+        #cv_data_objectid{whitelist = [<<"901823DEC57846DCFE">>]}
+    ],
+    % sample good caveats
+    GoodCaveats = [
+        #cv_time{valid_until = time_utils:system_time_seconds()},
+        #cv_ip{whitelist = [{{1,2,3,4}, 32}]}
+    ],
+    lists:foreach(fun(Caveat) ->
+        Caveats = GoodCaveats ++ [Caveat],
+        Token = onepanel_test_rest:construct_token(Caveats),
+        Expected = #{
+            <<"error">> => errors:to_json(?ERROR_TOKEN_CAVEAT_UNVERIFIED(Caveat))
+        },
+        {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _},
+            onepanel_test_rest:auth_request(
+                % sample endpoint - all have common authorization code
+                Config, <<"/cookie">>, get, {token, Token}
+            )),
+        onepanel_test_rest:assert_body(JsonBody, Expected)
+    end, BadCaveats).
+
+
 noauth_method_should_return_forbidden_error(Config) ->
-    ?run(fun({Endpoint, Method}) ->
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
         lists:foreach(fun(Auth) ->
             ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
-                Config, Endpoint, Method, Auth
+                Host, Endpoint, Method, Auth
             ))
         end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
     end, [
@@ -113,7 +137,7 @@ noauth_method_should_return_forbidden_error(Config) ->
 
 
 method_should_return_forbidden_error(Config) ->
-    ?run(fun({Endpoint, Method}) ->
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
         Auths = case {Endpoint, Method} of
             {<<"/emergency_passphrase">>, put} ->
                 % even admin coming from Onezone cannot change root password
@@ -122,7 +146,7 @@ method_should_return_forbidden_error(Config) ->
                 ?OZ_AUTHS(Config, privileges:cluster_admin() -- [?CLUSTER_UPDATE])
         end,
         ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
-            Config, Endpoint, Method, Auths
+            Host, Endpoint, Method, Auths
         ))
     end, [
         {<<"/hosts/someHost">>, delete},
@@ -133,9 +157,9 @@ method_should_return_forbidden_error(Config) ->
 
 
 method_should_return_not_found_error(Config) ->
-    ?run(fun({Endpoint, Method}) ->
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
         ?assertMatch({ok, ?HTTP_404_NOT_FOUND, _, _}, onepanel_test_rest:auth_request(
-            Config, Endpoint, Method,
+            Host, Endpoint, Method,
             ?OZ_OR_ROOT_AUTHS(Config, [?CLUSTER_UPDATE])
         ))
     end, [{<<"/hosts/someHost">>, delete}]).
@@ -179,13 +203,15 @@ passphrase_update_requires_previous_passphrase(Config) ->
     CorrectAuths = ?ROOT_AUTHS(Config),
     IncorrectPassphrase = <<"IncorrectPassphrase">>,
 
-    ?assertMatch({ok, HTTP_400_BAD_REQUEST, _, _}, onepanel_test_rest:auth_request(
+    {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _}, onepanel_test_rest:auth_request(
         Config, "/emergency_passphrase", put, CorrectAuths, #{
             <<"currentPassphrase">> => IncorrectPassphrase,
             <<"newPassphrase">> => <<"willNotBeSet">>
         }
     )),
-    ?assertMatch({ok, HTTP_400_BAD_REQUEST, _, _}, onepanel_test_rest:auth_request(
+    onepanel_test_rest:assert_body(JsonBody,
+        #{<<"error">> => errors:to_json(?ERROR_BAD_BASIC_CREDENTIALS)}),
+    ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _}, onepanel_test_rest:auth_request(
         Config, "/emergency_passphrase", put, CorrectAuths, #{
             <<"newPassphrase">> => <<"willNotBeSet">>
         }
@@ -199,7 +225,7 @@ get_as_admin_should_return_hosts(Config) ->
             ?OZ_OR_ROOT_AUTHS(Config, [])
         )
     ),
-    Hosts = onepanel_utils:typed_get(cluster_hosts, Config, {seq, binary}),
+    Hosts = onepanel_utils:get_converted(cluster_hosts, Config, {seq, binary}),
     onepanel_test_rest:assert_body(JsonBody, Hosts).
 
 
@@ -303,7 +329,9 @@ init_per_testcase(unauthorized_post_should_join_cluster, Config) ->
     end),
     init_per_testcase(default, Config);
 
-init_per_testcase(noauth_put_should_set_emergency_passphrase, Config) ->
+init_per_testcase(Case, Config) when
+    Case == token_with_api_caveats_should_return_unauthorized_error;
+    Case == noauth_put_should_set_emergency_passphrase ->
     ?call(Config, model, clear, [onepanel_kv]),
     Config;
 

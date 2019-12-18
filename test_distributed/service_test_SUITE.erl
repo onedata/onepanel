@@ -22,18 +22,18 @@
 
 %% tests
 -export([
-    service_should_be_not_found/1, service_action_should_be_not_supported/1,
+    service_should_be_not_found/1,
     service_should_request_action_steps/1, service_should_execute_steps/1,
-    service_should_notify_caller/1, service_get_steps_should_pass_errors/1,
-    service_action_should_pass_errors/1
+    service_should_notify_caller/1, service_get_steps_error_test/1,
+    service_action_error_test/1
 ]).
 
 all() ->
     ?ALL([
-        service_should_be_not_found, service_action_should_be_not_supported,
+        service_should_be_not_found,
         service_should_request_action_steps, service_should_execute_steps,
-        service_should_notify_caller, service_get_steps_should_pass_errors,
-        service_action_should_pass_errors
+        service_should_notify_caller, service_get_steps_error_test,
+        service_action_error_test
     ]).
 
 -define(TIMEOUT, timer:seconds(10)).
@@ -45,15 +45,7 @@ all() ->
 service_should_be_not_found(Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     lists:foreach(fun(Node) ->
-        ?assertMatch(#error{reason = undef},
-            rpc:call(Node, service, apply, [example, some_action, #{}]))
-    end, Nodes).
-
-
-service_action_should_be_not_supported(Config) ->
-    Nodes = ?config(onepanel_nodes, Config),
-    lists:foreach(fun(Node) ->
-        ?assertMatch(#error{reason = action_not_supported},
+        ?assertMatch(?ERROR_INTERNAL_SERVER_ERROR,
             rpc:call(Node, service, apply, [example, some_action, #{}]))
     end, Nodes).
 
@@ -91,19 +83,19 @@ service_should_notify_caller(Config) ->
         ?TIMEOUT).
 
 
-service_get_steps_should_pass_errors(Config) ->
+service_get_steps_error_test(Config) ->
     [Node | _] = ?config(onepanel_nodes, Config),
-    ?assertMatch(#error{reason = get_steps_failure},
+    ?assertMatch(?ERROR_NOT_SUPPORTED,
         rpc:call(Node, service, apply, [example, some_action, #{}])).
 
 
-service_action_should_pass_errors(Config) ->
+service_action_error_test(Config) ->
     Self = self(),
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
-    ?assertMatch(#error{}, rpc:call(Node1, service, apply,
+    ?assertMatch({error, _}, rpc:call(Node1, service, apply,
         [example, some_action, #{}, Self])),
     ?assertReceivedMatch({step_end, {service_example, some_step,
-        {[{Node1, ok}], [{Node2, #error{reason = step_failure}}]}}}, ?TIMEOUT).
+        {[{Node1, ok}], [{Node2, {error, step_failure}}]}}}, ?TIMEOUT).
 
 
 %%%===================================================================
@@ -115,14 +107,6 @@ init_per_suite(Config) ->
     hackney:start(),
     Posthook = fun(NewConfig) -> onepanel_test_utils:init(NewConfig) end,
     [{?ENV_UP_POSTHOOK, Posthook} | Config].
-
-init_per_testcase(service_action_should_be_not_supported, Config) ->
-    Nodes = ?config(onepanel_nodes, Config),
-    test_utils:mock_new(Nodes, service_example, [non_strict]),
-    test_utils:mock_expect(Nodes, service_example, get_steps, fun(_, _) ->
-        meck:exception(throw, action_not_supported)
-    end),
-    Config;
 
 init_per_testcase(service_should_request_action_steps, Config) ->
     Self = self(),
@@ -155,15 +139,15 @@ init_per_testcase(Case, Config) when
     end, [step1, step2, step3]),
     Config;
 
-init_per_testcase(service_get_steps_should_pass_errors, Config) ->
+init_per_testcase(service_get_steps_error_test, Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     test_utils:mock_new(Nodes, service_example, [non_strict]),
     test_utils:mock_expect(Nodes, service_example, get_steps, fun(some_action, _) ->
-        meck:exception(throw, get_steps_failure)
+        meck:exception(throw, ?ERROR_NOT_SUPPORTED)
     end),
     Config;
 
-init_per_testcase(service_action_should_pass_errors, Config) ->
+init_per_testcase(service_action_error_test, Config) ->
     [_, Node2 | _] = Nodes = ?config(onepanel_nodes, Config),
     Hosts = hosts:from_nodes(Nodes),
     test_utils:mock_new(Nodes, service_example, [non_strict]),
@@ -172,7 +156,7 @@ init_per_testcase(service_action_should_pass_errors, Config) ->
     end),
     test_utils:mock_expect(Nodes, service_example, some_step, fun(_) ->
         case node() of
-            Node2 -> meck:exception(throw, step_failure);
+            Node2 -> meck:exception(throw, {error, step_failure});
             _ -> ok
         end
     end),

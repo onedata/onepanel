@@ -69,8 +69,8 @@ get_nodes() ->
 get_steps(deploy, #{hosts := Hosts} = Ctx) ->
     service:create(#service{name = name()}),
     ClusterHosts = get_hosts(),
-    NewHosts = onepanel_lists:subtract(Hosts, ClusterHosts),
-    AllHosts = onepanel_lists:union(ClusterHosts, NewHosts),
+    NewHosts = lists_utils:subtract(Hosts, ClusterHosts),
+    AllHosts = lists_utils:union(ClusterHosts, NewHosts),
     [
         #step{hosts = NewHosts, function = configure},
         #step{hosts = AllHosts, function = start},
@@ -79,11 +79,11 @@ get_steps(deploy, #{hosts := Hosts} = Ctx) ->
             condition = fun(_) -> ClusterHosts == [] end
         },
         #step{hosts = NewHosts, function = join_cluster, selection = rest,
-            ctx = Ctx#{cluster_host => onepanel_lists:hd(NewHosts)},
+            ctx = Ctx#{cluster_host => lists_utils:hd(NewHosts)},
             condition = fun(_) -> ClusterHosts == [] end
         },
         #step{hosts = NewHosts, function = join_cluster,
-            ctx = Ctx#{cluster_host => onepanel_lists:hd(ClusterHosts)},
+            ctx = Ctx#{cluster_host => lists_utils:hd(ClusterHosts)},
             condition = fun(_) -> ClusterHosts /= [] end
         },
         #step{hosts = AllHosts, function = rebalance_cluster, selection = first}
@@ -132,6 +132,7 @@ start(Ctx) ->
     service_cli:start(name(), Limits),
     % update status cache
     status(Ctx),
+    service:register_healthcheck(name(), #{hosts => [hosts:self()]}),
     ok.
 
 
@@ -204,7 +205,7 @@ wait_for_init(Ctx) ->
             {equal, healthy}, StartAttempts)
     end,
 
-    service:register_healthcheck(name()),
+    service:register_healthcheck(name(), #{hosts => [hosts:self()]}),
     % Couchbase reports healthy status before it's ready to serve requests.
     % This delay provides additional margin of error before starting workers.
     Delay = application:get_env(onepanel, couchbase_after_init_delay, 0),
@@ -242,7 +243,7 @@ init_cluster(Ctx) ->
         Cmd ++ ["--cluster-init-password=*****"]),
 
     ClusterType = onepanel_env:get_cluster_type(),
-    {ok, Buckets} = onepanel_lists:get(ClusterType, onepanel_env:get(couchbase_buckets)),
+    Buckets = kv_utils:get(ClusterType, onepanel_env:get(couchbase_buckets)),
     lists:foreach(fun
         ({Bucket, Quota}) ->
             create_bucket(Host, Port, User, Password, Bucket, Quota);

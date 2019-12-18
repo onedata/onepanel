@@ -112,30 +112,6 @@ all() ->
 
 
 %%%===================================================================
-%%% Test macros
-%%%===================================================================
-
--define(eachHost(Config, Fun), lists:foreach(Fun, ?config(all_hosts, Config))).
-
--define(eachEndpoint(Config, Fun, EndpointsWithMethods),
-    lists:foreach(fun({_Host, _Endpoint, _Method}) ->
-        try
-            Fun(_Host, _Endpoint, _Method)
-        catch
-            error:{assertMatch_failed, _} = _Reason ->
-                ct:pal("Failed on: ~s ~s (host ~s)", [_Method, _Endpoint, _Host]),
-                erlang:error(_Reason)
-        end
-    end, [
-        {_Host, _Endpoint, _Method} ||
-        {_Endpoint, _Method} <- EndpointsWithMethods,
-        _Host <- ?config(all_hosts, Config)
-    ])
-).
-
-
-
-%%%===================================================================
 %%% Test functions
 %%%===================================================================
 
@@ -187,14 +163,14 @@ get_should_return_cluster_details_test(Config) ->
                     ?OZ_AUTHS(Host, [])
                 )
             ),
-            Expected = onepanel_maps:get_store_multiple([
-                {<<"type">>, <<"type">>},
-                {<<"workerVersion">>, <<"workerVersion">>},
-                {<<"onepanelVersion">>, <<"onepanelVersion">>},
-                {<<"serviceId">>, <<"serviceId">>},
-                {<<"onepanelProxy">>, <<"onepanelProxy">>}
-            ], maps:get(ClusterId, ?CLUSTERS), #{<<"id">> => ClusterId}),
-            onepanel_test_rest:assert_body(JsonBody, Expected)
+            Expected = maps:with([
+                <<"type">>,
+                <<"workerVersion">>,
+                <<"onepanelVersion">>,
+                <<"serviceId">>,
+                <<"onepanelProxy">>
+            ], maps:get(ClusterId, ?CLUSTERS)),
+            onepanel_test_rest:assert_body(JsonBody, Expected#{<<"id">> => ClusterId})
         end, maps:keys(?CLUSTERS))
     end).
 
@@ -303,8 +279,8 @@ init_per_testcase(_Case, Config) ->
     {_, []} = rpc:multicall(OzNodes, service, save, [#service{
         name = onezone}]),
 
-    test_utils:mock_expect(OpNodes, service_oneprovider, get_auth_token,
-        fun() -> <<"providerMacaroon">> end),
+    test_utils:mock_expect(OpNodes, service_oneprovider, get_access_token,
+        fun() -> <<"providerToken">> end),
     test_utils:mock_expect(OpNodes, service_oneprovider, get_id,
         fun() -> <<?PROVIDER_ID>> end),
 
@@ -315,21 +291,21 @@ init_per_testcase(_Case, Config) ->
         fun() -> #{name => undefined, domain => OzDomain} end),
 
     test_utils:mock_expect(OzNodes, rpc, call, fun
-        (_Node, user_logic, get_clusters, [_Client]) ->
+        (_Node, rpc_api, apply, [get_clusters_by_user_auth, [_Client]]) ->
             {ok, maps:keys(?CLUSTERS)};
-        (_Node, cluster_logic, get_protected_data, [_Client, ClusterId]) ->
+        (_Node, rpc_api, apply, [get_protected_cluster_data, [_Client, ClusterId]]) ->
             {ok, maps:get(ClusterId, ?CLUSTERS)};
 
-        (_Node, cluster_logic, get_users, [_Client, _ClusterId]) ->
+        (_Node, rpc_api, apply, [cluster_logic_get_users, [_Client, _ClusterId]]) ->
             {ok, [<<"userId1">>]};
-        (_Node, cluster_logic, get_eff_users, [_Client, _ClusterId]) ->
+        (_Node, rpc_api, apply, [cluster_logic_get_eff_users, [_Client, _ClusterId]]) ->
             {ok, [<<"userId1">>, <<"userId2">>]};
-        (_Node, cluster_logic, get_groups, [_Client, _ClusterId]) ->
+        (_Node, rpc_api, apply, [cluster_logic_get_groups, [_Client, _ClusterId]]) ->
             {ok, [<<"groupId1">>, <<"groupId2">>, <<"groupId3">>]};
-        (_Node, cluster_logic, get_eff_groups, [_Client, _ClusterId]) ->
+        (_Node, rpc_api, apply, [cluster_logic_get_eff_groups, [_Client, _ClusterId]]) ->
             {ok, [<<"groupId1">>, <<"groupId2">>, <<"groupId3">>, <<"groupId4">>]};
 
-        (_Node, provider_logic, get_protected_data, [_Client, ProviderId]) ->
+        (_Node, rpc_api, apply, [get_protected_provider_data, [_Client, ProviderId]]) ->
             ?assertEqual(<<?PROVIDER_ID>>, ProviderId),
             {ok, ?PROVIDER_DETAILS_RPC};
         (Node, Module, Function, Args) ->

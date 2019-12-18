@@ -65,13 +65,13 @@ exists_resource(Req, #rstate{resource = policies}) ->
 
 exists_resource(Req, #rstate{resource = gui_message, bindings = #{id := Id}}) ->
     {service:get_hosts(?WORKER) /= []
-        andalso service_onezone:gui_message_exists(Id),
+        andalso oz_worker_rpc:gui_message_exists(Id),
         Req};
 
 exists_resource(Req, _State) ->
     case service:get(?SERVICE) of
         {ok, #service{}} -> {true, Req};
-        #error{reason = ?ERR_NOT_FOUND} -> {false, Req}
+        ?ERR_DOC_NOT_FOUND -> {false, Req}
     end.
 
 
@@ -108,7 +108,7 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = policies}) ->
     ))};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = cluster_ips}) ->
-    {ok, ClusterIps} = onepanel_maps:get(hosts, Args),
+    ClusterIps = maps:get(hosts, Args),
     Ctx = #{cluster_ips => onepanel_utils:convert(ClusterIps, {keys, list})},
 
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
@@ -157,8 +157,8 @@ provide_resource(Req, #rstate{resource = gui_message, bindings = #{id := Id}}) -
 %%--------------------------------------------------------------------
 -spec delete_resource(Req :: cowboy_req:req(), State :: rest_handler:state()) ->
     no_return().
-delete_resource(_Req, #rstate{}) ->
-    ?throw_error(?ERR_NOT_FOUND).
+delete_resource(Req, #rstate{}) ->
+    {false, Req}.
 
 
 %%%===================================================================
@@ -171,7 +171,7 @@ delete_resource(_Req, #rstate{}) ->
 %%--------------------------------------------------------------------
 -spec make_policies_ctx(Args :: rest_handler:args()) -> #{atom() => term()}.
 make_policies_ctx(Args) ->
-    onepanel_maps:get_store_multiple([
+    kv_utils:copy_found([
         {oneproviderRegistration, oneprovider_registration},
         {subdomainDelegation, subdomain_delegation},
         {guiPackageVerification, gui_package_verification},

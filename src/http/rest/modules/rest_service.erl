@@ -17,6 +17,7 @@
 -include("modules/models.hrl").
 -include("names.hrl").
 -include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/privileges.hrl").
 
@@ -129,16 +130,18 @@ is_available(Req, _Method, _State) ->
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
     {Accepted :: boolean() | stop, Req :: cowboy_req:req()}.
 accept_resource(Req, 'POST', Args, #rstate{resource = service_couchbase, version = Version}) ->
-    Ctx = #{hosts => onepanel_utils:typed_get(hosts, Args, {seq, list})},
-    Ctx2 = onepanel_maps:get_store(serverQuota, Args, couchbase_server_quota, Ctx),
-    Ctx3 = onepanel_maps:get_store(bucketQuota, Args, couchbase_bucket_quota, Ctx2),
+    Hosts = onepanel_utils:get_converted(hosts, Args, {seq, list}),
+    Ctx = kv_utils:copy_found([
+        {serverQuota, couchbase_server_quota},
+        {bucketQuota, couchbase_bucket_quota}
+    ], Args, #{hosts => Hosts}),
     {true, rest_replier:handle_service_action_async(Req, service:apply_async(
-        ?SERVICE_CB, deploy, Ctx3
+        ?SERVICE_CB, deploy, Ctx
     ), Version)};
 
 accept_resource(Req, 'POST', Args, #rstate{resource = service_cluster_manager, version = Version}) ->
-    Hosts = onepanel_utils:typed_get(hosts, Args, {seq, list}),
-    MainHost = onepanel_utils:typed_get(mainHost, Args, list),
+    Hosts = onepanel_utils:get_converted(hosts, Args, {seq, list}),
+    MainHost = onepanel_utils:get_converted(mainHost, Args, list),
     {true, rest_replier:handle_service_action_async(Req, service:apply_async(
         ?SERVICE_CM, deploy, #{
             main_host => MainHost, hosts => Hosts
@@ -160,35 +163,42 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider} = Sta
     [MainCmHost] = rest_utils:get_hosts([cluster, managers, mainNode], Args),
     OpwHosts = rest_utils:get_hosts([cluster, workers, nodes], Args),
 
-    StorageCtx = onepanel_maps:get_store([cluster, storages], Args, storages),
+    StorageCtx = kv_utils:copy_found([{[cluster, storages], storages}], Args),
     StorageCtx2 = StorageCtx#{hosts => OpwHosts, ignore_exists => true},
 
-    LetsencryptCtx =
-        onepanel_maps:get_store([oneprovider, letsEncryptEnabled], Args, letsencrypt_enabled),
+    LetsencryptCtx = kv_utils:copy_found(
+        [{[oneprovider, letsEncryptEnabled], letsencrypt_enabled}],
+        Args),
 
-    DbCtx = onepanel_maps:get_store_multiple([
+    DbCtx = kv_utils:copy_found([
         {[cluster, databases, serverQuota], couchbase_server_quota},
         {[cluster, databases, bucketQuota], couchbase_bucket_quota}
     ], Args, #{hosts => DbHosts}),
 
-    Auth = cowboy_req:header(<<"authorization">>, Req),
+    {CtxWithCeph, CephHosts} = case Args of
+        #{ceph := CephArgs} ->
+            {CephCtx, CephHosts1} = rest_ceph:read_ceph_args(CephArgs),
+            {#{ceph => CephCtx}, CephHosts1};
+        _ -> {#{}, []}
+    end,
+
+    Auth = cowboy_req:header(?HDR_AUTHORIZATION, Req),
     OpaCtx = maps:get(onepanel, Args, #{}),
-    OpaHosts = lists:usort(DbHosts ++ CmHosts ++ OpwHosts),
+    OpaHosts = lists:usort(DbHosts ++ CmHosts ++ OpwHosts ++ CephHosts),
     OpaCtx2 = OpaCtx#{
         hosts => OpaHosts,
         auth => Auth,
         api_version => Version
     },
-    OpaCtx3 = onepanel_maps:get_store_multiple([
+    OpaCtx3 = kv_utils:copy_found([
         {[onepanel, interactiveDeployment], interactive_deployment, true},
         {[onepanel, guiDebugMode], gui_debug_mode}
     ], Args, OpaCtx2),
-
     ClusterIPs = rest_utils:get_cluster_ips(Args),
 
     % In batch mode IPs do not need user approval
     % TODO VFS-4140 Use proper batch config enabling argument
-    IPsConfigured = onepanel_maps:get([oneprovider, register], Args, false),
+    IPsConfigured = kv_utils:get([oneprovider, register], Args, false),
 
     ClusterCtx = #{
         ?SERVICE_PANEL => OpaCtx3,
@@ -203,7 +213,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider} = Sta
         storages => StorageCtx2
     },
 
-    OpwCtx = onepanel_maps:get_store_multiple([
+    OpwCtx = kv_utils:copy_found([
         {[oneprovider, token], oneprovider_token},
         {[oneprovider, register], oneprovider_register},
         {[oneprovider, name], oneprovider_name},
@@ -215,10 +225,12 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider} = Sta
         {[oneprovider, geoLongitude], oneprovider_geo_longitude}
     ], Args, #{hosts => OpwHosts, cluster_ips => ClusterIPs}),
 
+    CommonCtx = CtxWithCeph#{
+        cluster => ClusterCtx, ?SERVICE_OP => OpwCtx
+    },
+
     {true, rest_replier:handle_service_action_async(Req, service:apply_async(
-        ?SERVICE_OP, deploy, #{
-            cluster => ClusterCtx, ?SERVICE_OP => OpwCtx
-        }
+        ?SERVICE_OP, deploy, CommonCtx
     ), Version)};
 
 accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone} = State) ->
@@ -231,28 +243,28 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone} = State) 
     AllHosts = lists:usort(DbHosts ++ CmHosts ++ OzwHosts),
     ClusterIPs = rest_utils:get_cluster_ips(Args),
 
-    DbCtx = onepanel_maps:get_store_multiple([
+    DbCtx = kv_utils:copy_found([
         {[cluster, databases, serverQuota], couchbase_server_quota},
         {[cluster, databases, bucketQuota], couchbase_bucket_quota}
     ], Args, #{hosts => DbHosts}),
 
-    Auth = cowboy_req:header(<<"authorization">>, Req),
+    Auth = cowboy_req:header(?HDR_AUTHORIZATION, Req),
     OpaCtx = maps:get(onepanel, Args, #{}),
     OpaCtx2 = OpaCtx#{
         hosts => AllHosts,
         auth => Auth,
         api_version => Version
     },
-    OpaCtx3 = onepanel_maps:get_store_multiple([
+    OpaCtx3 = kv_utils:copy_found([
         {[onepanel, interactiveDeployment], interactive_deployment, true},
         {[onepanel, guiDebugMode], gui_debug_mode}
     ], Args, OpaCtx2),
 
-    LeCtx = onepanel_maps:get_store_multiple([
+    LeCtx = kv_utils:copy_found([
         {[onezone, letsEncryptEnabled], letsencrypt_enabled}
     ], Args, #{hosts => AllHosts}),
 
-    OzCtx = onepanel_maps:get_store_multiple([
+    OzCtx = kv_utils:copy_found([
         {[onezone, name], name},
         {[onezone, domainName], domain},
         {[onezone, builtInDnsServer], [dns_check_config, built_in_dns_server]}
@@ -264,7 +276,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone} = State) 
         cluster_ips => ClusterIPs
     },
 
-    OzwCtx2 = onepanel_maps:get_store_multiple([
+    OzwCtx2 = kv_utils:copy_found([
         {[onezone, name], onezone_name},
         {[onezone, domainName], onezone_domain},
         {[onezone, users], onezone_users},
@@ -296,10 +308,10 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_onezone} = State) 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = dns_check_configuration}) ->
     Ctx = case Args of
         #{dnsServers := IPs} ->
-            #{dns_servers => parse_ip4_list([dnsServers], IPs)};
+            #{dns_servers => parse_ip4_list(IPs, dnsServers)};
         _ -> #{}
     end,
-    Ctx2 = onepanel_maps:get_store_multiple([
+    Ctx2 = kv_utils:copy_found([
         {builtInDnsServer, built_in_dns_server},
         {dnsCheckAcknowledged, dns_check_acknowledged}
     ], Args, Ctx),
@@ -351,10 +363,7 @@ provide_resource(Req, #rstate{resource = nagios} = State) ->
         {ok, Code, Headers, Body} ->
             Req2 = cowboy_req:reply(Code, Headers, Body, Req),
             {stop, Req2, State};
-        {error, econnrefused} ->
-            Req2 = cowboy_req:reply(?HTTP_503_SERVICE_UNAVAILABLE, #{}, Req),
-            {stop, Req2, State};
-        {error, timeout} ->
+        {error, _} ->
             Req2 = cowboy_req:reply(?HTTP_503_SERVICE_UNAVAILABLE, #{}, Req),
             {stop, Req2, State}
     end;
@@ -368,7 +377,7 @@ provide_resource(Req, #rstate{resource = SModule}) when
     {rest_replier:format_service_configuration(SModule), Req};
 
 provide_resource(Req, #rstate{resource = dns_check, params = Params}) ->
-    Ctx = #{force_check => onepanel_maps:get(forceCheck, Params, false)},
+    Ctx = #{force_check => kv_utils:get(forceCheck, Params, false)},
 
     {rest_replier:format_dns_check_result(
         service_utils:throw_on_error(service:apply_sync(
@@ -418,7 +427,7 @@ delete_resource(Req, _State) ->
 -spec deploy_cluster_worker(Req :: cowboy_req:req(), Args :: rest_handler:args(),
     State :: rest_handler:state()) -> {Accepted :: boolean(), Req :: cowboy_req:req()}.
 deploy_cluster_worker(Req, Args, #rstate{resource = SModule, version = Version}) ->
-    Hosts = onepanel_utils:typed_get(hosts, Args, {seq, list}),
+    Hosts = onepanel_utils:get_converted(hosts, Args, {seq, list}),
     {ok, #service{hosts = DbHosts}} = service:get(service_couchbase:name()),
     {ok, #service{hosts = CmHosts, ctx = #{main_host := MainCmHost}}} =
         service:get(?SERVICE_CM),
@@ -443,12 +452,12 @@ cluster_worker_name() ->
 
 
 %% @private
--spec parse_ip4_list(FieldName :: onepanel_parser:keys(), IpBinaries :: [binary()]) ->
+-spec parse_ip4_list(IpBinaries :: [binary()], Field :: atom()) ->
     [inet:ip4_address()] | no_return().
-parse_ip4_list(FieldName, IpBinaries) ->
+parse_ip4_list(IpBinaries, Field) ->
     lists:map(fun(IpBinary) ->
         case onepanel_ip:parse_ip4(IpBinary) of
             {ok, IP} -> IP;
-            _ -> ?throw_error({?ERR_INVALID_VALUE, FieldName, ['IPv4']})
+            _ -> throw(?ERROR_BAD_VALUE_IPV4_ADDRESS(str_utils:to_binary(Field)))
         end
     end, IpBinaries).

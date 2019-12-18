@@ -16,7 +16,6 @@
 
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
--include("validation.hrl").
 
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
@@ -67,7 +66,7 @@ get_record_version() ->
 -spec upgrade(PreviousVsn :: model_behaviour:version(), PreviousRecord :: tuple()) ->
     no_return().
 upgrade(1, _Record) ->
-    ?throw_error(?ERR_NOT_SUPPORTED).
+    error(?ERROR_NOT_SUPPORTED).
 
 
 %%--------------------------------------------------------------------
@@ -84,7 +83,7 @@ seed() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec create(Record :: record()) ->
-    {ok, name()} | #error{} | no_return().
+    {ok, name()} | {error, _} | no_return().
 create(Record) ->
     model:create(?MODULE, Record).
 
@@ -105,7 +104,7 @@ save(Record) ->
 -spec update(Key :: model_behaviour:key(), Diff :: model_behaviour:diff()) ->
     ok | no_return().
 update(Key, Diff) ->
-    model:update(?MODULE, Key, Diff).
+    ok = model:update(?MODULE, Key, Diff).
 
 
 %%--------------------------------------------------------------------
@@ -113,7 +112,7 @@ update(Key, Diff) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get(Key :: model_behaviour:key()) ->
-    {ok, Record :: record()} | #error{} | no_return().
+    {ok, Record :: record()} | {error, _} | no_return().
 get(Key) ->
     model:get(?MODULE, Key).
 
@@ -168,7 +167,7 @@ any_user_exists() ->
 %% @doc Removes all onepanel_user records.
 %% @end
 %%--------------------------------------------------------------------
--spec delete_all() -> ok | #error{}.
+-spec delete_all() -> ok | {error, _}.
 delete_all() ->
     model:clear(?MODULE).
 

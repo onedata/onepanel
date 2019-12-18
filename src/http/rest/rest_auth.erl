@@ -16,6 +16,7 @@
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 
 %% API
 -export([authenticate/2, authenticate_by_onezone_auth_token/1,
@@ -30,20 +31,23 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec authenticate(Req :: cowboy_req:req(), Methods :: [fun()]) ->
-    {{true, Client :: #client{}} | false, Req :: cowboy_req:req()}.
+    {Result, cowboy_req:req()} when
+    Result :: {true, #client{}} | {false, errors:error()}.
 authenticate(Req, []) ->
-    {false, Req};
+    {{false, ?ERROR_UNAUTHORIZED}, Req};
 authenticate(Req, [AuthMethod | AuthMethods]) ->
     try AuthMethod(Req) of
         {#client{} = Client, Req2} ->
             {{true, Client}, Req2};
-        {#error{} = Error, Req2} ->
-            {false, rest_replier:handle_error(Req2, error, Error)};
+        {{error, _} = Error, Req2} ->
+            {{false, Error}, Req2};
         {ignore, Req2} ->
             authenticate(Req2, AuthMethods)
     catch
-        Type:Reason ->
-            {false, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason))}
+        throw:Error ->
+            {{false, Error}, Req};
+        _:_ ->
+            {{false, ?ERROR_UNAUTHORIZED}, Req}
     end.
 
 
@@ -53,9 +57,9 @@ authenticate(Req, [AuthMethod | AuthMethods]) ->
 %%--------------------------------------------------------------------
 -spec authenticate_by_basic_auth(Req :: cowboy_req:req()) ->
     {Result, Req :: cowboy_req:req()}
-    when Result :: #client{} | #error{} | ignore.
+    when Result :: #client{} | {error, _} | ignore.
 authenticate_by_basic_auth(Req) ->
-    case cowboy_req:header(<<"authorization">>, Req) of
+    case cowboy_req:header(?HDR_AUTHORIZATION, Req) of
         <<"Basic ", Base64/binary>> ->
             {check_basic_credentials(Base64), Req};
         _ ->
@@ -64,20 +68,21 @@ authenticate_by_basic_auth(Req) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Authenticates user using REST API token.
+%% @doc Authenticates user using Onepanel-generated token used
+%% for sessions authenticated with the emergency passphrase.
 %% @end
 %%--------------------------------------------------------------------
 -spec authenticate_by_onepanel_auth_token(Req :: cowboy_req:req()) ->
     {Result, Req :: cowboy_req:req()}
-    when Result :: #client{} | #error{} | ignore.
+    when Result :: #client{} | {error, _} | ignore.
 authenticate_by_onepanel_auth_token(Req) ->
     case tokens:parse_access_token_header(Req) of
         <<?ONEPANEL_TOKEN_PREFIX, ?ONEPANEL_TOKEN_SEPARATOR, _/binary>> = OnepanelToken ->
             case onepanel_session:find_by_valid_auth_token(OnepanelToken) of
                 {ok, #onepanel_session{username = ?LOCAL_SESSION_USERNAME}} ->
                     {root_client(), Req};
-                #error{reason = ?ERR_NOT_FOUND} ->
-                    {?make_error(?ERR_INVALID_AUTH_TOKEN), Req}
+                error ->
+                    {?ERROR_TOKEN_INVALID, Req}
             end;
         _ ->
             {ignore, Req}
@@ -90,13 +95,14 @@ authenticate_by_onepanel_auth_token(Req) ->
 %%--------------------------------------------------------------------
 -spec authenticate_by_onezone_auth_token(Req :: cowboy_req:req()) ->
     {Result, Req :: cowboy_req:req()}
-    when Result :: #client{} | #error{} | ignore.
+    when Result :: #client{} | {error, _} | ignore.
 authenticate_by_onezone_auth_token(Req) ->
     case tokens:parse_access_token_header(Req) of
         undefined ->
             {ignore, Req};
         AccessToken ->
-            {onezone_tokens:authenticate_user(AccessToken), Req}
+            PeerIp = resolve_peer_ip(Req),
+            {onezone_tokens:authenticate_user(AccessToken, PeerIp), Req}
     end.
 
 
@@ -106,30 +112,52 @@ authenticate_by_onezone_auth_token(Req) ->
 
 %% @private
 -spec check_basic_credentials(Credentials :: binary() | [binary()]) ->
-    #client{} | #error{}.
+    #client{} | {error, _}.
 check_basic_credentials(<<Base64/binary>>) ->
     Decoded = base64:decode(Base64),
     case check_emergency_passphrase(Decoded) of
-        #client{} = Client -> Client;
+        #client{} = Client ->
+            % basic auth consisting solely of a valid passphrase is accepted
+            Client;
         _Error ->
             case binary:split(Decoded, <<":">>) of
                 [Decoded] ->
-                    ?make_error(?ERR_INVALID_PASSPHRASE);
+                    ?ERROR_BAD_BASIC_CREDENTIALS;
                 [?LOCAL_USERNAME, Passphrase] ->
                     check_emergency_passphrase(Passphrase);
                 [_Username, _Password] ->
-                    ?make_error(?ERR_INVALID_USERNAME)
+                    ?ERROR_BAD_BASIC_CREDENTIALS
             end
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Determines peer IP. Honours x-onedata-forwarded-for header
+%% to retrieve original IP in case of Onedata proxy.
+%% Note: proxy is not authenticated in any way, client connecting with
+%% the proxy can present arbitrary IP by providing this header.
+%% @end
+%%--------------------------------------------------------------------
+-spec resolve_peer_ip(cowboy_req:req()) -> inet:ip4_address().
+resolve_peer_ip(Req) ->
+    ForwarderFor = cowboy_req:header(?HDR_X_ONEDATA_FORWARDED_FOR, Req, undefined),
+    case ip_utils:to_ip4_address(ForwarderFor) of
+        {ok, Addr} ->
+            Addr;
+        _ ->
+            {PeerIp, _Port} = cowboy_req:peer(Req),
+            PeerIp
     end.
 
 
 %% @private
 -spec check_emergency_passphrase(Passphrase :: binary()) ->
-    #client{} | #error{}.
+    #client{} | {error, _}.
 check_emergency_passphrase(Passphrase) ->
     case emergency_passphrase:verify(Passphrase) of
         true -> root_client();
-        false -> ?make_error(?ERR_INVALID_PASSPHRASE)
+        false -> ?ERROR_BAD_BASIC_CREDENTIALS
     end.
 
 

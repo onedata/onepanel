@@ -88,7 +88,7 @@ init([]) ->
                     db_upgrade_finished -> ok
                 after ?UPGRADE_TIMEOUT ->
                     ?error("Wait for database upgrade timed out"),
-                    error(?make_error(?ERR_TIMEOUT))
+                    error(upgrade_timeout)
                 end
         end,
         ?info("Database ready"),
@@ -103,8 +103,8 @@ init([]) ->
             onepanel_session_gc_spec()
         ]}}
     catch throw:Error ->
-        % throws are treated as return value in gen_server/supervisor init
-        error(?make_stacktrace(Error))
+        % throws would be treated as return value in gen_server/supervisor init
+        error(Error)
     end.
 
 %%%===================================================================

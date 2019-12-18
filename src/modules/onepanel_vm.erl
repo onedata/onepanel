@@ -15,7 +15,7 @@
 -include("modules/errors.hrl").
 
 %% API
--export([read/2, write/3, get/2, set/3]).
+-export([read/2, write/3, find/2, set/3]).
 
 -type key() :: string() | binary().
 -type value() :: term().
@@ -30,12 +30,14 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec read(Key :: key(), Path :: file:name_all()) ->
-    {ok, Value :: binary()} | #error{} | no_return().
+    {ok, Value :: binary()} | error | no_return().
 read(Key, Path) ->
     case file:read_file(Path) of
-        {ok, Content} -> get(Key, Content);
-        {error, Reason} -> ?throw_error(Reason)
-    end.
+        {ok, Content} ->
+            find(Key, Content);
+        {error, Reason} ->
+            throw(?ERROR_FILE_ACCESS(Path, Reason))
+end.
 
 
 %%--------------------------------------------------------------------
@@ -52,10 +54,10 @@ write(Key, Value, Path) ->
             {ok, NewContent} = set(Key, Value, Content),
             case file:write_file(Path, NewContent) of
                 ok -> ok;
-                {error, Reason} -> ?throw_error(Reason)
+                {error, Reason} -> throw(?ERROR_FILE_ACCESS(Path, Reason))
             end;
         {error, Reason} ->
-            ?throw_error(Reason)
+            throw(?ERROR_FILE_ACCESS(Path, Reason))
     end.
 
 
@@ -64,9 +66,9 @@ write(Key, Value, Path) ->
 %% Throws an exception if value has not been found.
 %% @end
 %%--------------------------------------------------------------------
--spec get(Key :: key(), Content :: binary()) ->
-    {ok, Value :: binary()} | #error{} | no_return().
-get(Key, Content) ->
+-spec find(Key :: key(), Content :: binary()) ->
+    {ok, Value :: binary()} | error.
+find(Key, Content) ->
     Pattern = <<"^\\-", Key/binary, ".*">>,
     Options = [{capture, first, binary}, multiline],
     BinKey = onepanel_utils:convert(Key, binary),
@@ -75,9 +77,7 @@ get(Key, Content) ->
         {match, [<<"-", BinKey:KeySize/binary, Value/binary>>]} ->
             {ok, onepanel_utils:trim(Value, both)};
         nomatch ->
-            ?make_error(?ERR_NOT_FOUND);
-        {error, Reason} ->
-            ?throw_error(Reason)
+            error
     end.
 
 
@@ -90,12 +90,12 @@ get(Key, Content) ->
 set(Key, Value, Content) ->
     BinKey = onepanel_utils:convert(Key, binary),
     BinValue = onepanel_utils:convert(Value, binary),
-    case get(BinKey, Content) of
+    case find(BinKey, Content) of
         {ok, _} ->
             Pattern = <<"^\\-", BinKey/binary, ".*">>,
             Options = [{return, binary}, multiline],
             {ok, re:replace(Content, Pattern,
                 <<"-", BinKey/binary, " ", BinValue/binary>>, Options)};
-        #error{reason = ?ERR_NOT_FOUND} ->
+        error ->
             {ok, <<Content/binary, "\n-", BinKey/binary, " ", BinValue/binary>>}
     end.

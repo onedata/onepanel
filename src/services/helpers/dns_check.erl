@@ -26,6 +26,7 @@
 -include("deployment_progress.hrl").
 -include("names.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/errors.hrl").
 
 -define(REFRESH_INTERVAL, onepanel_env:get(dns_check_interval)). % 6 hours
 
@@ -101,8 +102,8 @@ async_update_cache(Service) ->
         try
             update_cache(Service)
         catch
-            throw:#error{reason = ?ERR_DNS_CHECK_ERROR(Message)} ->
-                ?error("DNS check refresh failed: ~s", [Message]);
+            throw:?ERROR_DNS_SERVERS_UNREACHABLE(UsedServers) ->
+                ?error("DNS check refresh failed: no connection to servers ~ps", [UsedServers]);
             Type:Error ->
                 % Catch all as a process failure with exception
                 % causes an ugly error log
@@ -138,7 +139,7 @@ should_update_cache(Service) ->
 -spec invalidate_cache(worker_service()) -> ok | no_return().
 invalidate_cache(Service) ->
     service:update(Service, fun(#service{ctx = Ctx} = S) ->
-        Ctx2 = lists:foldl(fun maps:remove/2, Ctx, [?CACHE_KEY, ?TIMESTAMP_KEY]),
+        Ctx2 = maps:without([?CACHE_KEY, ?TIMESTAMP_KEY], Ctx),
         S#service{ctx = Ctx2}
     end).
 

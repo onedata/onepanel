@@ -70,7 +70,7 @@ exists_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
     end;
 
 exists_resource(Req, #rstate{resource = storages}) ->
-    {service:exists(?WORKER), Req};
+    {service:exists(?WORKER) and service_oneprovider:is_registered(), Req};
 
 exists_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
     {service_oneprovider:is_space_supported(#{space_id => Id}), Req};
@@ -92,7 +92,7 @@ exists_resource(Req, _State) ->
 is_conflict(Req, 'DELETE', _Args,
     #rstate{resource = storage, bindings = #{id:=Id}}) ->
     case op_worker_storage:can_be_removed(Id) of
-        false -> {true, rest_replier:handle_error(Req, throw, ?make_error(?ERR_STORAGE_IN_USE))};
+        false -> {true, rest_replier:set_error_body(Req, ?ERROR_STORAGE_IN_USE)};
         true -> {false, Req}
     end;
 
@@ -110,7 +110,8 @@ is_conflict(Req, _Method, _Args, _State) ->
 is_available(Req, 'GET', #rstate{resource = cluster_ips}) -> {true, Req};
 is_available(Req, 'GET', #rstate{resource = provider}) -> {true, Req};
 is_available(Req, _Method, #rstate{resource = transfers_mock}) -> {true, Req};
-is_available(Req, _Method, _State) -> {service:all_healthy(), Req}.
+is_available(Req, _Method, _State) ->
+    {service:exists(?SERVICE_OPW) andalso service:all_healthy(), Req}.
 
 
 %%--------------------------------------------------------------------
@@ -121,7 +122,7 @@ is_available(Req, _Method, _State) -> {service:all_healthy(), Req}.
     Args :: rest_handler:args(), State :: rest_handler:state()) ->
     {Accepted :: boolean(), Req :: cowboy_req:req()}.
 accept_resource(Req, 'POST', Args, #rstate{resource = provider}) ->
-    Ctx = onepanel_maps:get_store_multiple([
+    Ctx = kv_utils:copy_found([
         {token, oneprovider_token},
         {name, oneprovider_name},
         {subdomainDelegation, oneprovider_subdomain_delegation},
@@ -137,7 +138,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = provider}) ->
     ))};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
-    Ctx = onepanel_maps:get_store_multiple([
+    Ctx = kv_utils:copy_found([
         {name, oneprovider_name},
         {subdomainDelegation, oneprovider_subdomain_delegation},
         {domain, oneprovider_domain},
@@ -153,11 +154,11 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = provider}) ->
     ))};
 
 accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
-    Ctx = onepanel_maps:get_store_multiple([
+    Ctx = kv_utils:copy_found([
         {token, token},
         {size, size},
         {storageId, storage_id},
-        {mountInRoot, mount_in_root}], Args),
+        {importedStorage, imported_storage}], Args),
     Ctx2 = get_storage_import_args(Args, Ctx),
     Ctx3 = get_storage_update_args(Args, Ctx2),
 
@@ -168,7 +169,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = spaces}) ->
     )};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = space, bindings = #{id := Id}}) ->
-    Ctx1 = onepanel_maps:get_store_multiple([
+    Ctx1 = kv_utils:copy_found([
         {size, size}
     ], Args, #{space_id => Id}),
     Ctx2 = get_storage_update_args(Args, Ctx1),
@@ -192,9 +193,16 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = storage,
     % only 1 storage should be modified at a time
     [{OldName, #{type := Type} = Params}] = maps:to_list(Args),
 
+    % Type and name must be given due to limitations of onepanel
+    % rest models specification. Ensures received values match the storage
+    % identified by id.
     case service_op_worker:get_storages(#{id => Id}) of
         #{name := OldName, type := Type} -> ok;
-        _ -> ?throw_error(?ERR_STORAGE_UPDATE_MISMATCH)
+        #{name := ActualName, type := _} when ActualName /= OldName ->
+            throw(?ERROR_BAD_VALUE_NOT_ALLOWED(OldName, [ActualName]));
+        #{name := OldName, type := ActualType} ->
+            Key = str_utils:join_as_binaries([OldName, type], <<".">>),
+            throw(?ERROR_BAD_VALUE_NOT_ALLOWED(Key, [ActualType]))
     end,
 
     {true, rest_replier:handle_service_step(Req, service_op_worker, update_storage,
@@ -213,7 +221,7 @@ accept_resource(Req, 'PATCH', _Args, #rstate{
     ))};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = cluster_ips}) ->
-    {ok, ClusterIps} = onepanel_maps:get(hosts, Args),
+    ClusterIps = maps:get(hosts, Args),
     Ctx = #{cluster_ips => onepanel_utils:convert(ClusterIps, {keys, list})},
 
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
@@ -225,13 +233,14 @@ accept_resource(Req, 'PATCH', Args, #rstate{
     bindings = #{id := Id},
     version = Version
 }) ->
-    Ctx = #{space_id => Id},
-    Ctx2 = onepanel_maps:get_store(enabled, Args, [enabled], Ctx),
-    Ctx3 = onepanel_maps:get_store(lastOpenHourWeight, Args, [last_open_hour_weight], Ctx2),
-    Ctx4 = onepanel_maps:get_store(avgOpenCountPerDayWeight, Args, [avg_open_count_per_day_weight], Ctx3),
-    Ctx5 = onepanel_maps:get_store(maxAvgOpenCountPerDay, Args, [max_avg_open_count_per_day], Ctx4),
+    Ctx = kv_utils:copy_found([
+        {enabled, [enabled]},
+        {lastOpenHourWeight, [last_open_hour_weight]},
+        {avgOpenCountPerDayWeight, [avg_open_count_per_day_weight]},
+        {maxAvgOpenCountPerDay, [max_avg_open_count_per_day]}
+    ], Args, #{space_id => Id}),
     {true, rest_replier:handle_service_action_async(Req, service:apply_async(
-        ?SERVICE, configure_file_popularity, Ctx5), Version
+        ?SERVICE, configure_file_popularity, Ctx), Version
     )};
 
 
@@ -290,13 +299,10 @@ provide_resource(Req, #rstate{
     bindings = #{id := Id},
     params = Params
 }) ->
-    Ctx = onepanel_maps:get_store(period, Params, period),
-    Ctx2 = onepanel_maps:get_store(metrics, Params, metrics, Ctx),
-    Ctx3 = Ctx2#{space_id => Id},
-
+    Ctx = maps:with([space_id, period, metrics], Params#{space_id => Id}),
     {rest_replier:format_service_step(service_oneprovider, get_sync_stats,
         service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, get_sync_stats, Ctx3
+            ?SERVICE, get_sync_stats, Ctx
         ))
     ), Req};
 
@@ -305,14 +311,10 @@ provide_resource(Req, #rstate{
     bindings = #{id := Id},
     params = Params
 }) ->
-    Ctx = onepanel_maps:get_store(offset, Params, offset),
-    Ctx2 = onepanel_maps:get_store(limit, Params, limit, Ctx),
-    Ctx3 = onepanel_maps:get_store(index, Params, index, Ctx2),
-    Ctx4 = Ctx3#{space_id => Id},
-
+    Ctx = maps:with([space_id, offset, limit, index], Params#{space_id => Id}),
     {rest_replier:format_service_step(service_oneprovider, get_auto_cleaning_reports,
         service_utils:throw_on_error(service:apply_sync(
-            ?SERVICE, get_auto_cleaning_reports, Ctx4
+            ?SERVICE, get_auto_cleaning_reports, Ctx
         ))
     ), Req};
 
@@ -433,7 +435,7 @@ delete_resource(Req, #rstate{resource = space, bindings = #{id := Id}}) ->
 -spec get_storage_update_args(Args :: rest_handler:args(), Ctx :: service:ctx())
         -> service:ctx().
 get_storage_update_args(Args, Ctx) ->
-    onepanel_maps:get_store_multiple([
+    kv_utils:copy_found([
         {[storageUpdate, strategy], [storage_update, strategy]},
         {[storageUpdate, maxDepth], [storage_update, max_depth]},
         {[storageUpdate, writeOnce], [storage_update, write_once]},
@@ -450,7 +452,7 @@ get_storage_update_args(Args, Ctx) ->
 -spec get_storage_import_args(Args :: rest_handler:args(), Ctx :: service:ctx())
         -> service:ctx().
 get_storage_import_args(Args, Ctx) ->
-    onepanel_maps:get_store_multiple([
+    kv_utils:copy_found([
         {[storageImport, strategy], [storage_import, strategy]},
         {[storageImport, maxDepth], [storage_import, max_depth]},
         {[storageImport, syncAcl], [storage_import, sync_acl]}
@@ -465,7 +467,7 @@ get_storage_import_args(Args, Ctx) ->
 -spec get_auto_cleaning_configuration(Args :: rest_handler:args(), Ctx :: service:ctx())
         -> service:ctx().
 get_auto_cleaning_configuration(Args, Ctx) ->
-    onepanel_maps:get_store_multiple([
+    kv_utils:copy_found([
         {[enabled], [enabled]},
         {[target], [target]},
         {[threshold], [threshold]},

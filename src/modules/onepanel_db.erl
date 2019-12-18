@@ -37,7 +37,9 @@ init() ->
     case mnesia:create_schema([Node]) of
         ok -> ok;
         {error, {Node, {already_exists, Node}}} -> ok;
-        {error, Reason} -> ?throw_error(Reason, [])
+        {error, _} = Error ->
+            ?critical("Error creating mnesia database schema: ~tp", [Error]),
+            error(Error)
     end,
     ok = mnesia:start().
 
@@ -70,7 +72,7 @@ create_tables() ->
                 Model:seed(),
                 ok;
             {aborted, {already_exists, Table}} -> ok;
-            {aborted, Reason} -> error(?make_error(Reason))
+            {aborted, Reason} -> error(Reason)
         end
     end, model:get_models()).
 
@@ -153,7 +155,7 @@ delete_tables() ->
         case mnesia:del_table_copy(Table, node()) of
             {atomic, ok} -> ok;
             {aborted, {no_exists, _}} -> ok;
-            {aborted, Reason} -> ?throw_error(Reason, [])
+            {aborted, Reason} -> error(Reason)
         end
     end, model:get_models()).
 
@@ -209,5 +211,5 @@ upgrade_table(Table, Model) ->
         ?WRAPPER_RECORD
     ) of
         {atomic, ok} -> ok;
-        {aborted, Reason} -> ?throw_error(Reason)
+        {aborted, Reason} -> error(Reason)
     end.

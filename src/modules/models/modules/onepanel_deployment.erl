@@ -85,7 +85,7 @@ upgrade(1, Record) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec create(Record :: record()) ->
-    {ok, model_behaviour:key()} | #error{} | no_return().
+    {ok, model_behaviour:key()} | {error, _} | no_return().
 create(Record) ->
     model:create(?MODULE, Record).
 
@@ -106,7 +106,7 @@ save(Record) ->
 -spec update(Key :: model_behaviour:key(), Diff :: model_behaviour:diff()) ->
     ok | no_return().
 update(Key, Diff) ->
-    model:update(?MODULE, Key, Diff).
+    ok = model:update(?MODULE, Key, Diff).
 
 
 %%--------------------------------------------------------------------
@@ -114,7 +114,7 @@ update(Key, Diff) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get(Key :: model_behaviour:key()) ->
-    {ok, Record :: record()} | #error{} | no_return().
+    {ok, Record :: record()} | {error, _} | no_return().
 get(Key) ->
     model:get(?MODULE, Key).
 

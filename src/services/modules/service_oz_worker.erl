@@ -20,7 +20,7 @@
 -include("service.hrl").
 -include("authentication.hrl").
 -include_lib("ctool/include/logging.hrl").
--include_lib("ctool/include/api_errors.hrl").
+-include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
 
 %% Service behaviour callbacks
@@ -31,7 +31,7 @@
     supports_letsencrypt_challenge/1]).
 
 %% API functions
--export([get_logic_client_by_gui_token/1, get_logic_client_by_access_token/1]).
+-export([get_auth_by_token/2]).
 -export([get_user_details/1]).
 
 %% Step functions
@@ -113,42 +113,25 @@ get_steps(Action, Ctx) ->
 %%% Public API
 %%%===================================================================
 
--spec get_logic_client_by_gui_token(GuiToken :: binary())  ->
-    {ok, onezone_client:logic_client()} | #error{}.
-get_logic_client_by_gui_token(GuiToken) ->
+
+-spec get_auth_by_token(AccessToken :: binary(), ip_utils:ip()) ->
+    {ok, aai:auth()} | errors:error().
+get_auth_by_token(AccessToken, PeerIp) ->
     case nodes:any(name()) of
         {ok, OzNode} ->
-            case rpc:call(OzNode, auth_logic,
-                authorize_by_oz_panel_gui_token, [GuiToken]
-            ) of
-                {true, LogicClient} -> {ok, LogicClient};
-                {error, ApiError} -> ?make_error(ApiError)
+            case oz_worker_rpc:authenticate_by_token(OzNode, AccessToken, PeerIp) of
+                {true, Auth} -> {ok, Auth};
+                {error, _} = Error -> Error
             end;
         Error -> Error
     end.
 
 
--spec get_logic_client_by_access_token(AccessToken :: binary())  ->
-    {ok, onezone_client:logic_client()} | #error{}.
-get_logic_client_by_access_token(AccessToken) ->
-    case nodes:any(name()) of
-        {ok, OzNode} ->
-            case rpc:call(OzNode, auth_logic,
-                authorize_by_access_token, [AccessToken]
-            ) of
-                {true, LogicClient} -> {ok, LogicClient};
-                {error, ApiError} -> ?make_error(ApiError)
-            end;
-        Error -> Error
-    end.
-
-
--spec get_user_details(LogicClient :: term()) -> {ok, #user_details{}} | #error{}.
-get_user_details(LogicClient) ->
-    {ok, OzNode} = nodes:any(name()),
-    case rpc:call(OzNode, user_logic, get_as_user_details, [LogicClient]) of
+-spec get_user_details(aai:auth()) -> {ok, #user_details{}} | errors:error().
+get_user_details(Auth) ->
+    case oz_worker_rpc:get_user_details(Auth) of
         {ok, User} -> {ok, User};
-        {error, Reason} -> ?make_error(Reason)
+        {error, _} = Error -> Error
     end.
 
 
@@ -170,9 +153,7 @@ configure(Ctx) ->
     % TODO VFS-4140 Mark IPs configured only in batch mode
     onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),
 
-    AppConfig = onepanel_maps:get_store_multiple([
-        {gui_debug_mode, gui_debug_mode}
-    ], Ctx, #{
+    AppConfig = maps:with([gui_debug_mode, oz_name, http_domain], Ctx#{
         oz_name => OzName,
         http_domain => OzDomain
     }),
@@ -292,10 +273,7 @@ set_http_record(Name, Value) ->
 %%-------------------------------------------------------------------
 -spec get_ns_hosts() -> [{Name :: binary(), IP :: inet:ip4_address()}].
 get_ns_hosts() ->
-    {ok, Node} = nodes:any(name()),
-    case rpc:call(Node, dns_config, get_ns_hosts, []) of
-        Hosts when is_list(Hosts) -> Hosts
-    end.
+    oz_worker_rpc:dns_config_get_ns_hosts().
 
 
 %%--------------------------------------------------------------------
@@ -404,15 +382,22 @@ get_admin_email() ->
 %%--------------------------------------------------------------------
 -spec supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
     boolean().
-supports_letsencrypt_challenge(http) ->
-    service:healthy(name());
-supports_letsencrypt_challenge(dns) ->
-    case nodes:any(name()) of
-        {ok, Node} ->
-            service:healthy(name()) andalso
-                onepanel_env:get_remote(Node, [subdomain_delegation_supported], name());
-        _Error -> false
+supports_letsencrypt_challenge(Challenge) when
+    Challenge == http; Challenge == dns ->
+    OzNode = case nodes:any(name()) of
+        {ok, N} -> N;
+        Error -> throw(Error)
+    end,
+    service:healthy(name()) orelse throw(?ERROR_SERVICE_UNAVAILABLE),
+    case Challenge of
+        http -> true;
+        dns ->
+            case onepanel_env:get_remote(OzNode, [subdomain_delegation_supported], name()) of
+                true -> true;
+                false -> false
+            end
     end;
+
 supports_letsencrypt_challenge(_) -> false.
 
 
@@ -421,9 +406,8 @@ supports_letsencrypt_challenge(_) -> false.
 %% @end
 %%--------------------------------------------------------------------
 -spec reconcile_dns(service:ctx()) -> ok.
-reconcile_dns(Ctx) ->
-    {ok, Node} = nodes:any(Ctx#{service => name()}),
-    ok = rpc:call(Node, node_manager_plugin, reconcile_dns_config, []).
+reconcile_dns(_Ctx) ->
+    ok = oz_worker_rpc:reconcile_dns_config().
 
 
 %%--------------------------------------------------------------------
@@ -459,7 +443,7 @@ rename_variables() ->
 
 -spec get_policies() -> #{atom() := term()}.
 get_policies() ->
-    Node = nodes:local(name()),
+    {ok, Node} = nodes:any(name()),
 
     ProviderRegistration = onepanel_env:get_remote(Node,
         provider_registration_policy, name()),

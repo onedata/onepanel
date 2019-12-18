@@ -16,13 +16,14 @@
 -include("authentication.hrl").
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
+-include_lib("ctool/include/aai/aai.hrl").
+-include_lib("ctool/include/errors.hrl").
+-include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
--include_lib("ctool/include/http/codes.hrl").
--include_lib("macaroons/src/macaroon.hrl").
 
 %% API
--export([authenticate_user/1]).
+-export([authenticate_user/2, authenticate_user/3]).
 -export([read_domain/1]).
 
 -define(USER_DETAILS_CACHE_KEY(Token), {user_details, Token}).
@@ -40,13 +41,18 @@
 %% cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec authenticate_user(Token :: binary()) ->
-    #client{} | #error{}.
-authenticate_user(Token) ->
-    ClusterType = onepanel_env:get_cluster_type(),
-    case authenticate_user(ClusterType, Token) of
-        #client{} = Client -> Client;
-        #error{} = Error -> Error
+-spec authenticate_user(tokens:serialized(), PeerIp :: ip_utils:ip()) ->
+    #client{} | {error, _}.
+authenticate_user(Token, PeerIp) ->
+    case ensure_unlimited_api_authorization(Token) of
+        ok ->
+            ClusterType = onepanel_env:get_cluster_type(),
+            case authenticate_user(ClusterType, Token, PeerIp) of
+                #client{} = Client -> Client;
+                {error, _} = Error2 -> Error2
+            end;
+        {error, _} = Error ->
+            Error
     end.
 
 
@@ -54,10 +60,12 @@ authenticate_user(Token) ->
 %% @doc Reads Onezone domain from a Oneprovider registration token.
 %% @end
 %%--------------------------------------------------------------------
--spec read_domain(RegistrationToken :: binary()) -> Domain :: binary() | no_return().
+-spec read_domain(tokens:serialized()) -> Domain :: binary() | no_return().
 read_domain(RegistrationToken) ->
-    {ok, Macaroon} = macaroons:deserialize(RegistrationToken),
-    Macaroon#macaroon.location.
+    case tokens:deserialize(RegistrationToken) of
+        {ok, Token} -> Token#token.onezone_domain;
+        Error -> throw(?ERROR_BAD_VALUE_TOKEN(<<"token">>, Error))
+    end.
 
 
 %%%===================================================================
@@ -66,44 +74,58 @@ read_domain(RegistrationToken) ->
 
 %%--------------------------------------------------------------------
 %% @private
-%% @doc Authenticate user and obtain their info.
-%% Attempts treating the Token as access token or gui token, whichever
-%% is accepted, as they cannot be easily distinguished.
+%% @doc Checks that the token does not contain any API caveats, which are
+%% currently not supported by Onepanel. Otherwise returns error to reject
+%% the token, as proceeding with token could grant higher privileges than
+%% the token's issuer intended.
+%% @TODO VFS-5765 implement support for the API caveat after GraphSync integration
+%% @TODO VFS-5765 use api_caveats:check_authorization
+%% @end
+%%--------------------------------------------------------------------
+-spec ensure_unlimited_api_authorization(tokens:serialized()) -> ok | {error, _}.
+ensure_unlimited_api_authorization(Serialized) ->
+    case tokens:deserialize(Serialized) of
+        {ok, Token = #token{subject = Subject}} ->
+            Auth = #auth{subject = Subject, caveats = tokens:get_caveats(Token)},
+            case api_auth:ensure_unlimited(Auth) of
+                ok -> ok;
+                {error, _} = Error -> Error
+            end;
+        Error -> Error
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Authenticate user and obtain their info based on an access token.
 %% @end
 %%--------------------------------------------------------------------
 -spec authenticate_user(
-    ClusterType :: onedata:cluster_type(), Token :: binary()
-) -> #client{} | #error{}.
-authenticate_user(onezone, Token) ->
-    ClientOrError = case service_oz_worker:get_logic_client_by_gui_token(Token) of
-        {ok, Client} -> {ok, Client};
-        _Error -> service_oz_worker:get_logic_client_by_access_token(Token)
-    end,
-    case ClientOrError of
-        {ok, LogicClient} ->
-            {ok, Details} = service_oz_worker:get_user_details(LogicClient),
-            user_details_to_client(Details, {rpc, LogicClient});
-        _ ->
-            ?make_error(?ERR_INVALID_AUTH_TOKEN)
+    onedata:cluster_type(), tokens:serialized(), PeerIp :: ip_utils:ip()
+) -> #client{} | {error, _}.
+authenticate_user(onezone, Token, PeerIp) ->
+    case service_oz_worker:get_auth_by_token(Token, PeerIp) of
+        {ok, Auth} ->
+            {ok, Details} = service_oz_worker:get_user_details(Auth),
+            user_details_to_client(Details, {rpc, Auth});
+        {error, _} = Error -> Error
     end;
 
-authenticate_user(oneprovider, Token) ->
+authenticate_user(oneprovider, Token, _PeerIp) ->
+    % Does nothing to relay peer IP to Onezone - which means
+    % token with IP or geolocation caveats will not work, unless
+    % they whitelist the Onepanel IP as seen by Onezone.
     FetchDetailsFun = fun() ->
-        Auth1 = {gui_token, Token},
-        Auth2 = {access_token, Token},
-        case fetch_details(Auth1) of
-            {ok, Details} -> {true, {Details, Auth1}, ?USER_DETAILS_CACHE_TTL};
-            _ ->
-                case fetch_details(Auth2) of
-                    {ok, Details} -> {true, {Details, Auth2}, ?USER_DETAILS_CACHE_TTL};
-                    Error -> Error
-                end
+        Auth = {token, Token},
+        case fetch_details(Auth) of
+            {ok, Details} -> {true, {Details, Auth}, ?USER_DETAILS_CACHE_TTL};
+            Error -> Error
         end
     end,
 
     case simple_cache:get(?USER_DETAILS_CACHE_KEY(Token), FetchDetailsFun) of
         {ok, {Details, Auth}} -> user_details_to_client(Details, {rest, Auth});
-        #error{reason = {?HTTP_401_UNAUTHORIZED, _, _}} -> ?make_error(?ERR_INVALID_AUTH_TOKEN)
+        {error, _} = Error -> Error
     end.
 
 
@@ -114,7 +136,7 @@ authenticate_user(oneprovider, Token) ->
 %% on every failed login attempt.
 %% @end
 %%--------------------------------------------------------------------
--spec fetch_details(RestAuth :: oz_plugin:auth()) -> {ok, #user_details{}} | #error{}.
+-spec fetch_details(RestAuth :: oz_plugin:auth()) -> {ok, #user_details{}} | {error, _}.
 fetch_details(RestAuth) ->
     case oz_endpoint:request(RestAuth, "/user", get) of
         {ok, ?HTTP_200_OK, _ResponseHeaders, ResponseBody} ->
@@ -127,14 +149,17 @@ fetch_details(RestAuth) ->
                 emails = maps:get(<<"emails">>, Map)
             },
             {ok, UserDetails};
-        {ok, Code, _, _ResponseBody} -> ?make_error({Code, _ResponseBody, <<>>});
-        {error, Reason} -> ?make_error(Reason)
+        {ok, _, _, ResponseBody} ->
+            #{<<"error">> := Error} = json_utils:decode(ResponseBody),
+            errors:from_json(Error);
+        {error, _} ->
+            ?ERROR_NO_CONNECTION_TO_ONEZONE
     end.
 
 
 %% @private
 -spec user_details_to_client(#user_details{}, rest_handler:zone_auth()) ->
-    #client{} | #error{} | no_return().
+    #client{} | {error, _} | no_return().
 user_details_to_client(Details, Auth) ->
     #user_details{id = OnezoneUserId} = Details,
     case clusters:get_user_privileges(OnezoneUserId) of
@@ -145,5 +170,6 @@ user_details_to_client(Details, Auth) ->
                 zone_auth = Auth,
                 role = member
             };
-        Error -> Error
+        ?ERROR_NO_CONNECTION_TO_ONEZONE -> throw(?ERROR_NO_CONNECTION_TO_ONEZONE);
+        _Error -> throw(?ERROR_FORBIDDEN)
     end.

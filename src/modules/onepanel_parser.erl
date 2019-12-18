@@ -5,7 +5,7 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc This module is responsible for parsing parsing data according to
+%%% @doc This module is responsible for parsing data according to
 %%% provided specification.
 %%% @end
 %%%--------------------------------------------------------------------
@@ -16,18 +16,37 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([parse/2]).
+-export([parse/2, prepare_subclasses/1]).
 
+%% @formatter:off
 -type key() :: atom().
 -type keys() :: [key()].
 -type data() :: map().
 -type args() :: #{Key :: key() => Value :: term()}.
 -type args_list() :: [{Key :: key(), Value :: term()}].
 -type presence() :: required | optional | {optional, Default :: term()}.
--type spec() :: #{Key :: key() => ValueSpec :: value_spec()}.
--type value_spec() :: term() | {term(), presence()}.
 
--export_type([key/0, keys/0, data/0, args/0, spec/0, value_spec/0]).
+-type type_spec() :: integer | float | string | binary | atom | boolean | object_spec().
+
+% multi_spec: either a regular spec, or a list of values, or a value
+% from a closed set of literal values (enum), or a polymorphic model:
+% {subclasses, {Discriminator, SpecsMap}} defines a spec which can have
+% any of a few alternative models (for example storages of various types).
+% One field - the Discriminator - must be present in all models and is used
+% to determine model used for parsing.
+% The SpecsMap contains mapping of possible discriminator field values
+% and specific models.
+-type multi_spec() :: type_spec() | [multi_spec()]
+| {enum, type_spec(), Allowed :: [term()]}
+| {subclasses, {Discriminator :: key(), #{binary() => object_spec()}}}.
+
+-type field_spec() :: multi_spec() | {multi_spec(), presence()}
+| {discriminator, binary()}.
+
+-type object_spec() :: #{key() => field_spec()}.
+%% @formatter:on
+
+-export_type([key/0, keys/0, data/0, args/0, object_spec/0, multi_spec/0]).
 
 %%%===================================================================
 %%% API functions
@@ -37,9 +56,43 @@
 %% @doc Parses data according to provided specification.
 %% @end
 %%--------------------------------------------------------------------
--spec parse(Data :: data(), ArgsSpec :: spec()) -> Args :: args().
+-spec parse(Data :: data(), ArgsSpec :: object_spec()) -> Args :: args().
 parse(Data, ArgsSpec) ->
     parse(Data, maps:to_list(ArgsSpec), [], #{}).
+
+
+%%--------------------------------------------------------------------
+%% @doc Takes a list of possible specification for a polymorphic
+%% rest data model. Returns the discriminator field (key used to distinguish
+%% the types) and a map from discriminator values to specifications
+%% of subclasses.
+%% @end
+%%--------------------------------------------------------------------
+-spec prepare_subclasses([object_spec()]) -> {Discriminator :: key(), #{binary() => object_spec()}}.
+prepare_subclasses(SubclassModels) ->
+    lists:foldl(fun(Model, {FieldAcc, ValueToSubclassAcc}) ->
+        IsDiscriminator = fun
+            ({Field, {discriminator, Value}}) -> {true, {Field, Value}};
+            (_) -> false
+        end,
+        case lists:filtermap(IsDiscriminator, maps:to_list(Model)) of
+            [] ->
+                ?critical("Bad parser spec: missing discriminator"),
+                error({bad_model_subclasses, SubclassModels});
+            [{Field, Value}] ->
+                case FieldAcc of
+                    undefined -> {Field, #{Value => Model#{Field => {equal, Value}}}};
+                    Field ->
+                        {Field, ValueToSubclassAcc#{Value => Model#{Field => {equal, Value}}}};
+                    _OtherField ->
+                        ?critical("Bad parser spec: different discriminator fields"),
+                        error({bad_model_subclasses, SubclassModels})
+                end;
+            _MultipleDiscriminators ->
+                ?critical("Bad parser spec: multiple discriminator fields"),
+                error({bad_model_subclasses, SubclassModels})
+        end
+    end, {undefined, #{}}, SubclassModels).
 
 %%%===================================================================
 %%% Internal functions
@@ -54,12 +107,12 @@ parse(Data, ArgsSpec) ->
 parse(_Data, [], _Keys, Args) ->
     Args;
 
-parse(Data, [{'_', Spec} = ValueSpec], Keys, Args) when is_map(Data) ->
+parse(Data, [{'_', Spec} = _ValueSpec], Keys, Args) when is_map(Data) ->
     maps:fold(fun
         (Key, Value, Acc) when is_binary(Key) ->
             Arg = parse_value(Value, Spec, [Key | Keys]),
             maps:put(Key, Arg, Acc);
-        (_, _, _) -> report_invalid_value(Keys, ValueSpec)
+        (_, _, _) -> throw(?ERROR_BAD_DATA(join_keys(Keys)))
     end, Args, Data);
 
 parse(Data, [{'_', _} = ValueSpec | ArgsSpec], Keys, Args) when is_map(Data) ->
@@ -81,24 +134,27 @@ parse(Data, [{Key, Spec} | ArgsSpec], Keys, Args) when is_map(Data) ->
                     parse(Data, ArgsSpec, Keys, Args)
             end;
         {error, {false, _}} ->
-            ?throw_error({?ERR_MISSING_KEY, lists:reverse([Key | Keys])})
+            throw(?ERROR_MISSING_REQUIRED_VALUE(join_keys([Key | Keys])))
     end;
 
-parse(_Data, [{Key, Spec} | _ArgsSpec], Keys, _Args) ->
-    report_invalid_value([Key | Keys], Spec).
+parse(_Data, [{Key, _Spec} | _ArgsSpec], Keys, _Args) ->
+    throw(?ERROR_BAD_DATA(join_keys([Key | Keys]))).
 
 
 %%--------------------------------------------------------------------
 %% @private @doc Parses value according to provided specification.
+%% The Keys list is passed around for error reporting in case of
+%% incorrect values. The list is ordered from the innermost key
+%% to outermost.
 %% @end
 %%--------------------------------------------------------------------
--spec parse_value(Value :: term(), ValueSpec :: value_spec(), Keys :: keys()) ->
+-spec parse_value(Value :: term(), ValueSpec :: multi_spec(), Keys :: keys()) ->
     Value :: term() | no_return().
-parse_value(Value, {equal, Equal} = ValueSpec, Keys) ->
+parse_value(Value, {equal, Equal}, Keys) ->
     Type = onepanel_utils:get_type(Equal),
     case parse_value(Value, Type, Keys) of
         Equal -> Equal;
-        _ -> report_invalid_value(Keys, ValueSpec)
+        _ -> throw(?ERROR_BAD_VALUE_NOT_ALLOWED(join_keys(Keys), [Equal]))
     end;
 
 parse_value(Value, integer, _Keys) when is_integer(Value) ->
@@ -116,69 +172,88 @@ parse_value(Value, string, Keys) ->
 parse_value(Value, binary, _Keys) when is_binary(Value) ->
     Value;
 
+parse_value(_Value, binary, Keys) ->
+    throw(?ERROR_BAD_VALUE_BINARY(join_keys(Keys)));
+
 parse_value(Value, atom, _Keys) when is_atom(Value) ->
     Value;
 
-parse_value(Value, boolean = ValueSpec, Keys) when is_atom(Value) ->
+parse_value(Value, boolean, Keys) when is_atom(Value) ->
     case Value of
         true -> true;
         false -> false;
-        _ -> report_invalid_value(Keys, ValueSpec)
+        _ -> throw(?ERROR_BAD_VALUE_BOOLEAN(join_keys(Keys)))
     end;
 
 parse_value(Value, boolean, Keys) ->
     parse_value(parse_value(Value, atom, Keys), boolean, Keys);
 
-parse_value(Value, atom = ValueSpec, Keys) ->
-    convert(Value, ValueSpec, Keys, fun(V) ->
-        erlang:binary_to_atom(V, utf8)
-    end);
-
-parse_value(Value, integer = ValueSpec, Keys) ->
-    convert(Value, ValueSpec, Keys, fun(V) -> erlang:binary_to_integer(V) end);
-
-parse_value(Value, float = ValueSpec, Keys) ->
-    convert(Value, ValueSpec, Keys, fun(V) ->
-        try
-            erlang:binary_to_float(V)
-        catch
-            _:_ ->
-                erlang:binary_to_integer(V) * 1.0
-        end
-    end);
-
-parse_value(Value, {oneof, ValueSpecs}, Keys) when is_list(ValueSpecs) ->
-    Arg = lists:foldl(fun
-        (ValueSpec, undefined) ->
-            try
-                parse_value(Value, ValueSpec, Keys)
-            catch
-                _:_ -> undefined
-            end;
-        (_, _Arg) -> _Arg
-    end, undefined, ValueSpecs),
-    case Arg of
-        undefined -> report_invalid_value(Keys, {oneof, ValueSpecs});
-        _ -> Arg
+parse_value(Value, atom, Keys) ->
+    try
+        erlang:binary_to_atom(Value, utf8)
+    catch
+        _:_ -> throw(?ERROR_BAD_VALUE_ATOM(join_keys(Keys)))
     end;
 
-parse_value(Values, ValueSpec, Keys) when is_list(ValueSpec) ->
+parse_value(Value, integer, Keys) ->
     try
-        lists:map(fun(Value) ->
-            parse_value(Value, hd(ValueSpec), Keys)
-        end, Values)
+        erlang:binary_to_integer(Value)
     catch
-        _:_ -> report_invalid_value(Keys, ValueSpec)
+        _:_ -> throw(?ERROR_BAD_VALUE_INTEGER(join_keys(Keys)))
+    end;
+
+parse_value(Value, float, Keys) ->
+    try
+        case string:to_float(Value) of
+            {Float, <<>>} -> Float;
+            {error, no_float} -> erlang:binary_to_integer(Value) * 1.0
+        end
+    catch
+        _:_ -> throw(?ERROR_BAD_VALUE_FLOAT(join_keys(Keys)))
+    end;
+
+parse_value(Value, {enum, ValueType, AllowedValues}, Keys) ->
+    TypedValue = parse_value(Value, ValueType, Keys),
+    case lists:member(TypedValue, AllowedValues) of
+        true -> TypedValue;
+        false -> throw(?ERROR_BAD_VALUE_NOT_ALLOWED(join_keys(Keys), AllowedValues))
+    end;
+
+parse_value(Value, {subclasses, {DiscriminatorField, ValueToSpec}}, Keys) ->
+    BinKey = onepanel_utils:convert(DiscriminatorField, binary),
+    DiscriminatorValue = case maps:find(BinKey, Value) of
+        {ok, V} -> V;
+        error -> throw(?ERROR_MISSING_REQUIRED_VALUE(join_keys([BinKey | Keys])))
+    end,
+    case maps:find(DiscriminatorValue, ValueToSpec) of
+        {ok, Model} -> parse_value(Value, Model, Keys);
+        error -> throw(?ERROR_BAD_VALUE_NOT_ALLOWED(join_keys([BinKey | Keys]), maps:keys(ValueToSpec)))
+    end;
+
+parse_value(Values, [ValueSpec], Keys) ->
+    try
+        [parse_value(Value, ValueSpec, [Idx | Keys])
+            || {Idx, Value} <- lists_utils:number_items(Values)]
+    catch
+        throw:ValueError ->
+            case ValueSpec of
+                % special cases for types with list error types
+                atom ->
+                    throw(?ERROR_BAD_VALUE_LIST_OF_ATOMS(join_keys(Keys)));
+                _ when ValueSpec == binary; ValueSpec == string ->
+                    throw(?ERROR_BAD_VALUE_LIST_OF_BINARIES(join_keys(Keys)));
+                _ ->
+                    throw(ValueError)
+            end;
+        _:_ ->
+            throw(?ERROR_BAD_DATA(join_keys(Keys)))
     end;
 
 parse_value(Value, ValueSpec, Keys) when is_map(ValueSpec) ->
     parse(Value, maps:to_list(ValueSpec), Keys, #{});
 
-parse_value(_Value, binary, Keys) ->
-    report_invalid_value(Keys, string);
-
-parse_value(_Value, ValueSpec, Keys) ->
-    report_invalid_value(Keys, ValueSpec).
+parse_value(_Value, _ValueSpec, Keys) ->
+    throw(?ERROR_BAD_DATA(join_keys(Keys))).
 
 
 %%--------------------------------------------------------------------
@@ -186,7 +261,7 @@ parse_value(_Value, ValueSpec, Keys) ->
 %% is optional, otherwise 'false'.
 %% @end
 %%--------------------------------------------------------------------
--spec is_optional(Spec :: value_spec()) -> {Optional :: boolean(), Spec :: term()}.
+-spec is_optional(Spec :: field_spec()) -> {Optional :: boolean(), Spec :: term()}.
 is_optional({Spec, optional}) -> {true, Spec};
 is_optional({Spec, {optional, _Value}}) -> {true, Spec};
 is_optional({Spec, required}) -> {false, Spec};
@@ -197,29 +272,17 @@ is_optional(Spec) -> {false, Spec}.
 %% @private @doc Checks whether provided specification has default value.
 %% @end
 %%--------------------------------------------------------------------
--spec has_default(Spec :: value_spec()) -> {true, Spec :: term()} | false.
+-spec has_default(Spec :: field_spec()) -> {true, Spec :: term()} | false.
 has_default({_Spec, {optional, Value}}) -> {true, Value};
 has_default(_) -> false.
 
 
 %%--------------------------------------------------------------------
-%% @private @doc Converts value according to provided specification.
-%% Throws an exception on conversion error.
+%% @private @doc Merges a list of keys into human-readable format
+%% using the "." character to indicate nested keys.
+%% Nested keys should be given from the most nested to the outermost.
 %% @end
 %%--------------------------------------------------------------------
--spec convert(Value :: term(), ValueSpec :: value_spec(), Keys :: keys(),
-    Fun :: fun()) -> Term :: term() | no_return().
-convert(Value, ValueSpec, Keys, Fun) ->
-    try
-        Fun(Value)
-    catch
-        _:_ -> report_invalid_value(Keys, ValueSpec)
-    end.
-
-%%--------------------------------------------------------------------
-%% @private @doc Throws invalid value error.
-%% @end
-%%--------------------------------------------------------------------
--spec report_invalid_value(Keys :: keys(), ValueSpec :: value_spec()) -> no_return().
-report_invalid_value(Keys, ValueSpec) ->
-    ?throw_error({?ERR_INVALID_VALUE, lists:reverse(Keys), ValueSpec}).
+-spec join_keys(Keys :: onepanel_parser:keys()) -> Key :: binary().
+join_keys(KeysBottomUp) ->
+    onepanel_utils:join(lists:reverse(KeysBottomUp), <<".">>).

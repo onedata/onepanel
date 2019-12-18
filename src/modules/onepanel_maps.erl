@@ -14,8 +14,7 @@
 -include("modules/errors.hrl").
 
 %% API
--export([get/2, get/3, store/2, store/3, get_store/3, get_store/4, get_store/5]).
--export([get_store_multiple/2, get_store_multiple/3, to_list/1]).
+-export([merge/1]).
 -export([remove_undefined/1, undefined_to_null/1]).
 
 -type key() :: any().
@@ -30,148 +29,15 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc Returns a value from the nested property map.
-%% @end
-%%--------------------------------------------------------------------
--spec get(Keys :: keys(), Terms :: terms()) -> {ok, Value :: value()} | #error{}.
-get([], Terms) ->
-    {ok, Terms};
-
-get([Key | Keys], Terms) ->
-    case maps:find(Key, Terms) of
-        {ok, NewTerms} -> get(Keys, NewTerms);
-        error -> ?make_error(?ERR_NOT_FOUND)
-    end;
-
-get(Key, Terms) ->
-    get([Key], Terms).
-
-
-%%--------------------------------------------------------------------
-%% @doc Returns a value from the nested property map. If the value is missing
-%% the default one is returned.
-%% @end
-%%--------------------------------------------------------------------
--spec get(Keys :: keys(), Terms :: terms(), Default :: value()) -> Value :: value().
-get(Keys, Terms, Default) ->
-    case get(Keys, Terms) of
-        {ok, Value} -> Value;
-        #error{reason = ?ERR_NOT_FOUND} -> Default
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @doc @equiv store(Keys, Value, #{})
-%% @end
-%%--------------------------------------------------------------------
--spec store(Keys :: keys(), Value :: value()) -> NewTerms :: terms().
-store(Keys, Value) ->
-    store(Keys, Value, #{}).
-
-
-%%--------------------------------------------------------------------
-%% @doc Stores the value in the nested property map.
-%% @end
-%%--------------------------------------------------------------------
--spec store(Keys :: keys(), Value :: value(), Terms :: terms()) ->
-    NewTerms :: terms().
-store([], Value, _Terms) ->
-    Value;
-
-store([Key | Keys], Value, Terms) ->
-    NewValue = case get(Key, Terms) of
-        {ok, NewTerms} -> store(Keys, Value, NewTerms);
-        #error{reason = ?ERR_NOT_FOUND} -> store(Keys, Value, #{})
-    end,
-    maps:put(Key, NewValue, Terms);
-
-store(Key, Value, Terms) ->
-    store([Key], Value, Terms).
-
-
-%%--------------------------------------------------------------------
-%% @doc @equiv get_store(SrcKeys, SrcTerms, DstKeys, #{})
-%% @end
-%%--------------------------------------------------------------------
--spec get_store(SrcKeys :: keys(), SrcTerms :: terms(), DstKeys :: keys()) ->
-    NewTerms :: terms().
-get_store(SrcKeys, SrcTerms, DstKeys) ->
-    get_store(SrcKeys, SrcTerms, DstKeys, #{}).
-
-
-%%--------------------------------------------------------------------
-%% @doc Gets a value from the source nested property map and stores it in
-%% the target nested property map. If the value is not found in the source map
-%% returns unchanged target map.
-%% @end
-%%--------------------------------------------------------------------
--spec get_store(SrcKeys :: keys(), SrcTerms :: terms(), DstKeys :: keys(),
-    DstTerms :: terms()) -> NewTerms :: terms().
-get_store(SrcKeys, SrcTerms, DstKeys, DstTerms) ->
-    case get(SrcKeys, SrcTerms) of
-        {ok, Value} -> store(DstKeys, Value, DstTerms);
-        #error{reason = ?ERR_NOT_FOUND} -> DstTerms
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @doc Gets a value from the source nested property map and stores it in
-%% the target nested property map. If the value is not found in the source map
-%% default value is used.
-%% @end
-%%--------------------------------------------------------------------
--spec get_store(SrcKeys :: keys(), SrcTerms :: terms(), DstKeys :: keys(),
-    DstTerms :: terms(), Default :: value()) -> NewTerms :: terms().
-get_store(SrcKeys, SrcTerms, DstKeys, DstTerms, Default) ->
-    case get(SrcKeys, SrcTerms) of
-        {ok, Value} -> store(DstKeys, Value, DstTerms);
-        #error{reason = ?ERR_NOT_FOUND} -> store(DstKeys, Default, DstTerms)
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @doc @equiv get_store_multiple(KeyMappings, SrcTerms,#{}).
-%% @end
-%%--------------------------------------------------------------------
--spec get_store_multiple(KeyMappings, SrcTerms :: terms()) ->
-    NewTerms :: terms()
-    when KeyMappings :: [{SrcKeys :: keys(), DstKeys :: keys()}].
-get_store_multiple(KeyMappings, SrcTerms) ->
-    get_store_multiple(KeyMappings, SrcTerms,#{}).
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Performs multiple get_store operations, copying nested properties
-%% from source map to destination.
-%% If source property is missing and no default is provided given mapping
-%% is skipped.
-%% @end
-%%--------------------------------------------------------------------
--spec get_store_multiple(KeyMappings, SrcTerms :: terms(), DstTerms :: terms()) ->
-    NewTerms :: terms()
-    when
-    KeyMappings :: [KeyMapping],
-    KeyMapping :: {SrcKeys :: keys(), DstKeys :: keys()} |
-                  {SrcKeys :: keys(), DstKeys :: keys(), Default :: term()}.
-get_store_multiple(KeyMappings, SrcTerms, DstTerms) ->
-    lists:foldl(fun
-        ({SrcKeys, DstKeys}, DstTermsAcc) ->
-            get_store(SrcKeys, SrcTerms, DstKeys, DstTermsAcc);
-        ({SrcKeys, DstKeys, Default}, DstTermsAcc) ->
-            get_store(SrcKeys, SrcTerms, DstKeys, DstTermsAcc, Default)
-    end, DstTerms, KeyMappings).
-
-
-%%--------------------------------------------------------------------
 %% @doc Removes undefined values from the map.
 %% @end
 %%--------------------------------------------------------------------
--spec remove_undefined(Args :: map()) -> NewArgs :: map().
-remove_undefined(Args) ->
+-spec remove_undefined(#{K => V | undefined}) -> #{K => V}.
+remove_undefined(Map) ->
     maps:filter(fun
         (_Key, undefined) -> false;
         (_Key, _Value) -> true
-    end, Args).
+    end, Map).
 
 
 %%--------------------------------------------------------------------
@@ -188,16 +54,12 @@ undefined_to_null(Map) ->
 
 
 %%-------------------------------------------------------------------
-%% @doc Converts nested map to nested proplist.
+%% @doc Merges a list of maps. Rightmost maps take precedence
+%% in case of repeated keys.
 %% @end
 %%-------------------------------------------------------------------
--spec to_list(map()) -> proplists:proplist().
-to_list(Map) ->
-    maps:fold(fun(K, V, AccIn) ->
-        case is_map(V) of
-            true ->
-                [{K, to_list(V)} | AccIn];
-            false ->
-                [{K, V} | AccIn]
-        end
-    end, [], Map).
+-spec merge
+    ([]) -> #{};
+    ([#{Key => Value}, ...]) -> #{Key => Value}.
+merge(ListOfMaps) ->
+    lists:foldr(fun maps:merge/2, #{}, ListOfMaps).

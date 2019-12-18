@@ -19,22 +19,25 @@
 -include("names.hrl").
 
 %% API
--export([start_link/0, handle_results/1, receive_results/2]).
+-export([start_link/0, handle_results/0, handle_results/2,
+    receive_results/2, receive_count/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
     code_change/3]).
 
+% @formatter:off
 -type task_id() :: binary().
 -type hosts_results() :: {GoodResults :: onepanel_rpc:results(),
     BadResults :: onepanel_rpc:results()}.
 -type step_result() :: {Module :: module(), Function :: atom()} |
-{Module :: module(), Function :: atom(), HostsResults :: hosts_results()}.
+    {Module :: module(), Function :: atom(), HostsResults :: hosts_results()}.
 -type action_result() :: {task_finished, {
-    Service :: service:name(), Action :: service:action(), Result :: ok | #error{}
+    Service :: service:name(), Action :: service:action(), Result :: ok | {error, _}
 }}.
 -type result() :: action_result() | step_result().
 -type results() :: [result()].
+% @formatter:on
 
 -export_type([task_id/0, hosts_results/0, step_result/0, action_result/0,
     result/0, results/0]).
@@ -69,20 +72,30 @@ start_link() ->
 %% @doc Loop that stores the asynchronous operation results.
 %% @end
 %%--------------------------------------------------------------------
--spec handle_results(Results :: service_executor:results()) -> no_return().
-handle_results(Results) ->
+-spec handle_results() -> no_return().
+handle_results() ->
+    handle_results([], 0).
+
+-spec handle_results(service_executor:results(), StepsCount :: non_neg_integer()) ->
+    no_return().
+handle_results(Results, StepsCount) ->
     receive
+        {action_steps_count, {_, _, NewStepsCount}} ->
+            ?MODULE:handle_results(Results, NewStepsCount);
         {step_begin, Result} ->
-            ?MODULE:handle_results([Result | Results]);
+            ?MODULE:handle_results([Result | Results], StepsCount);
         {step_end, Result} ->
-            ?MODULE:handle_results([Result | Results]);
+            ?MODULE:handle_results([Result | Results], StepsCount);
         {action_end, Result} ->
-            ?MODULE:handle_results([{task_finished, Result} | Results]);
+            ?MODULE:handle_results([{task_finished, Result} | Results], StepsCount);
+        {forward_count, TaskId, Pid} ->
+            Pid ! {step_count, TaskId, StepsCount},
+            ?MODULE:handle_results(Results, StepsCount);
         {forward_results, TaskId, Pid} ->
             Pid ! {task, TaskId, lists:reverse(Results)},
-            ?MODULE:handle_results(Results);
+            ?MODULE:handle_results(Results, StepsCount);
         _ ->
-            ?MODULE:handle_results(Results)
+            ?MODULE:handle_results(Results, StepsCount)
     end.
 
 %%--------------------------------------------------------------------
@@ -90,12 +103,25 @@ handle_results(Results) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec receive_results(TaskId :: task_id(), Timeout :: timeout()) ->
-    Results :: service_executor:results() | #error{}.
+    Results :: service_executor:results() | ?ERROR_TIMEOUT.
 receive_results(TaskId, Timeout) ->
     receive
         {task, TaskId, Result} -> Result
     after
-        Timeout -> ?make_error(?ERR_TIMEOUT, [TaskId, Timeout])
+        Timeout -> ?ERROR_TIMEOUT
+    end.
+
+%%--------------------------------------------------------------------
+%% @doc Returns total number of steps resolved for given task.
+%% @end
+%%--------------------------------------------------------------------
+-spec receive_count(TaskId :: task_id(), Timeout :: timeout()) ->
+    Count :: non_neg_integer() | ?ERROR_TIMEOUT.
+receive_count(TaskId, Timeout) ->
+    receive
+        {step_count, TaskId, Count} -> Count
+    after
+        Timeout -> ?ERROR_TIMEOUT
     end.
 
 %%%===================================================================
@@ -127,7 +153,7 @@ init([]) ->
 handle_call({apply, Service, Action, Ctx}, {Owner, _}, #state{tasks = Tasks,
     workers = Workers, handlers = Handlers} = State) ->
     TaskId = onepanel_utils:gen_uuid(),
-    {Handler, _} = erlang:spawn_monitor(?MODULE, handle_results, [[]]),
+    {Handler, _} = erlang:spawn_monitor(?MODULE, handle_results, []),
     {Worker, _} = erlang:spawn_monitor(service, apply,
         [Service, Action, Ctx, Handler]),
     Task = #task{owner = Owner, worker = Worker, handler = Handler},
@@ -140,7 +166,7 @@ handle_call({apply, Service, Action, Ctx}, {Owner, _}, #state{tasks = Tasks,
 handle_call({abort_task, TaskId}, _From, State) ->
     case task_cleanup(TaskId, State) of
         {true, NewState} -> {reply, ok, NewState};
-        {false, NewState} -> {reply, ?make_error(?ERR_NOT_FOUND), NewState}
+        {false, NewState} -> {reply, {error, not_found}, NewState}
     end;
 
 handle_call({exists_task, TaskId}, _From, #state{tasks = Tasks} = State) ->
@@ -149,13 +175,22 @@ handle_call({exists_task, TaskId}, _From, #state{tasks = Tasks} = State) ->
         error -> {reply, false, State}
     end;
 
+handle_call({get_count, TaskId}, {From, _}, #state{tasks = Tasks} = State) ->
+    case maps:find(TaskId, Tasks) of
+        {ok, #task{handler = Handler}} ->
+            Handler ! {forward_count, TaskId, From},
+            {reply, ok, State};
+        error ->
+            {reply, {error, not_found}, State}
+    end;
+
 handle_call({get_results, TaskId}, {From, _}, #state{tasks = Tasks} = State) ->
     case maps:find(TaskId, Tasks) of
         {ok, #task{handler = Handler}} ->
             Handler ! {forward_results, TaskId, From},
             {reply, ok, State};
         error ->
-            {reply, ?make_error(?ERR_NOT_FOUND), State}
+            {reply, {error, not_found}, State}
     end;
 
 handle_call(Request, _From, State) ->
@@ -202,13 +237,13 @@ handle_info({'DOWN', _, _, Pid, _}, #state{workers = Workers, handlers = Handler
     Result = case {maps:find(Pid, Workers), maps:find(Pid, Handlers)} of
         {{ok, Id}, _} -> {ok, Id};
         {_, {ok, Id}} -> {ok, Id};
-        {_, _} -> ?make_error(?ERR_NOT_FOUND)
+        {_, _} -> not_found
     end,
     NewState = case Result of
         {ok, TaskId} ->
             {_, CleanState} = task_cleanup(TaskId, State),
             CleanState;
-        #error{reason = ?ERR_NOT_FOUND} -> State
+        not_found -> State
     end,
     {noreply, NewState};
 

@@ -21,9 +21,6 @@
 -export([fetch_zone_info/1]).
 -export([root_auth/0]).
 
--type logic_client() :: term().
--export_type([logic_client/0]).
-
 %%%===================================================================
 %%% Public API
 %%%===================================================================
@@ -41,7 +38,7 @@ fetch_zone_info(Domain) ->
         {ok, ?HTTP_200_OK, _, Response} ->
             Map = onepanel_utils:convert(json_utils:decode(Response), {keys, atom}),
             #{version := OzVersion, compatibleOneproviderVersions := CompatOps} = Map,
-            onepanel_maps:get_store_multiple([
+            kv_utils:copy_found([
                 {version, version},
                 {name, name},
                 {subdomainDelegationSupported, subdomainDelegationSupported}

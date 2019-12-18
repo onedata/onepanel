@@ -20,7 +20,7 @@
 %% API
 -export([has_privileges/2]).
 -export([get_method/1, get_bindings/1, get_params/2, get_args/2,
-    get_hosts/2, get_cluster_ips/1, verify_any/2, allowed_origin/0]).
+    get_hosts/2, get_cluster_ips/1, allowed_origin/0]).
 
 -type one_or_many(T) :: T | [T].
 
@@ -91,12 +91,7 @@ get_params(Req, ParamsSpec) ->
         ({Key, true}, Acc) -> maps:put(Key, <<"true">>, Acc);
         ({Key, Value}, Acc) -> maps:put(Key, Value, Acc)
     end, #{}, Params),
-    try
-        {onepanel_parser:parse(NewParams, ParamsSpec), Req}
-    catch
-        throw:#error{reason = {?ERR_MISSING_KEY, Keys}} = Error ->
-            ?throw_error(Error#error{reason = {?ERR_MISSING_PARAM, Keys}})
-    end.
+    {onepanel_parser:parse(NewParams, ParamsSpec), Req}.
 
 
 %%--------------------------------------------------------------------
@@ -118,12 +113,12 @@ get_args(Data, ArgsSpec) ->
     Hosts :: [service:host()] | no_return().
 get_hosts(Keys, Args) ->
     CommonSuffix = common_hostname_suffix(Args),
-    {ok, Nodes} = onepanel_maps:get([cluster, nodes], Args),
+    Nodes = kv_utils:get([cluster, nodes], Args),
     HostsMap = maps:fold(fun(Alias, Props, Acc) ->
         Host = <<(maps:get(hostname, Props))/binary, CommonSuffix/binary>>,
         Acc#{Alias => Host}
     end, #{}, Nodes),
-    {ok, Aliases} = onepanel_maps:get(Keys, Args),
+    Aliases = kv_utils:get(Keys, Args),
     AliasesList = case erlang:is_list(Aliases) of
         true -> Aliases;
         false -> [Aliases]
@@ -131,7 +126,9 @@ get_hosts(Keys, Args) ->
     lists:map(fun(Alias) ->
         case maps:find(Alias, HostsMap) of
             {ok, Host} -> onepanel_utils:convert(Host, list);
-            error -> ?throw_error({?ERR_HOST_NOT_FOUND_FOR_ALIAS, Alias})
+            error ->
+                throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(
+                    str_utils:join_as_binaries(Keys, <<".">>), maps:keys(HostsMap)))
         end
     end, AliasesList).
 
@@ -145,7 +142,7 @@ get_hosts(Keys, Args) ->
     #{service:host() => binary()} | no_return().
 get_cluster_ips(Args) ->
     CommonSuffix = common_hostname_suffix(Args),
-    {ok, Nodes} = onepanel_maps:get([cluster, nodes], Args),
+    Nodes = kv_utils:get([cluster, nodes], Args),
     NodesWithIPs = maps:filter(fun(_Node, Props) ->
         maps:is_key(externalIp, Props)
     end, Nodes),
@@ -157,19 +154,6 @@ get_cluster_ips(Args) ->
             list),
         maps:put(Host, IP, Acc)
     end, #{}, NodesWithIPs).
-
-
-%%--------------------------------------------------------------------
-%% @doc Checks whether at least one key from a provided list is found in a map.
-%% Throws an exception if none of keys is found.
-%% @end
-%%--------------------------------------------------------------------
--spec verify_any(Keys :: [atom()], Args :: rest_handler:args()) -> ok | no_return().
-verify_any(Keys, Args) ->
-    case lists:any(fun(Key) -> maps:is_key(Key, Args) end, Keys) of
-        true -> ok;
-        _ -> ?throw_error({?ERR_MISSING_ANY_KEY, Keys})
-    end.
 
 
 %%--------------------------------------------------------------------
@@ -210,7 +194,7 @@ allowed_origin(onezone) ->
 %%--------------------------------------------------------------------
 -spec common_hostname_suffix(Args :: rest_handler:args()) -> binary().
 common_hostname_suffix(Args) ->
-    case onepanel_maps:get([cluster, domainName], Args, <<>>) of
+    case kv_utils:get([cluster, domainName], Args, <<>>) of
         <<>> -> <<>>;
         DomainName -> <<".", DomainName/binary>>
     end.

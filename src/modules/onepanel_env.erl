@@ -18,7 +18,8 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([get/1, get/2, get/3, find/1, find/2, set/2, set/3, set/4]).
+-export([get/1, get/2, get/3, find/2, set/2, set/3, set/4]).
+-export([typed_get/2, typed_get/3]).
 -export([read/2, read_effective/2, read_effective/3]).
 -export([write/2, write/3, write/4]).
 -export([get_remote/3, find_remote/3, set_remote/4]).
@@ -36,6 +37,7 @@
 -define(DO_NOT_MODIFY_HEADER,
     "% MACHINE GENERATED FILE. DO NOT MODIFY.\n"
     "% Use overlay.config for custom configuration.\n").
+-define(FILE_EXT, ".config").
 
 %%%===================================================================
 %%% API functions
@@ -59,7 +61,7 @@ get(Keys) ->
 get(Keys, AppName) ->
     case find(Keys, AppName) of
         {ok, Value} -> Value;
-        #error{reason = ?ERR_NOT_FOUND} -> ?throw_error(?ERR_NOT_FOUND, [Keys, AppName])
+        error -> error({missing_env_variable, {AppName, Keys}})
     end.
 
 
@@ -73,7 +75,7 @@ get(Keys, AppName) ->
 get(Keys, AppName, Default) ->
     case find(Keys, AppName) of
         {ok, Value} -> Value;
-        #error{reason = ?ERR_NOT_FOUND} -> Default
+        error -> Default
     end.
 
 
@@ -97,17 +99,18 @@ get_cluster_type() ->
 get_remote(Node, Keys, AppName) ->
     case find_remote(Node, Keys, AppName) of
         {ok, Value} -> Value;
-        #error{reason = ?ERR_NOT_FOUND} -> ?throw_error(?ERR_NOT_FOUND, [Node, Keys, AppName])
+        error -> error({missing_env_variable, {AppName, Keys}})
     end.
 
 
-%%--------------------------------------------------------------------
-%% @doc @equiv find(Keys, ?APP_NAME)
-%% @end
-%%--------------------------------------------------------------------
--spec find(Keys :: keys()) -> {ok, Value :: value()} | #error{} | no_return().
-find(Keys) ->
-    find(Keys, ?APP_NAME).
+-spec typed_get(Keys :: keys(), Type :: onepanel_utils:type()) -> value().
+typed_get(Keys, Type) ->
+    onepanel_utils:convert(?MODULE:get(Keys), Type).
+
+
+-spec typed_get(Keys :: keys(), AppName :: atom(), Type :: onepanel_utils:type()) -> value().
+typed_get(Keys, AppName, Type) ->
+    onepanel_utils:convert(?MODULE:get(Keys, AppName), Type).
 
 
 %%--------------------------------------------------------------------
@@ -116,9 +119,9 @@ find(Keys) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec find(Keys :: keys(), AppName :: atom()) ->
-    {ok, Value :: value()} | #error{} | no_return().
+    {ok, Value :: value()} | error | no_return().
 find(Keys, AppName) when is_atom(AppName) ->
-    onepanel_lists:get(Keys, application:get_all_env(AppName)).
+    kv_utils:find(Keys, application:get_all_env(AppName)).
 
 
 %%--------------------------------------------------------------------
@@ -127,10 +130,10 @@ find(Keys, AppName) when is_atom(AppName) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec find_remote(Node :: node(), Keys :: keys(), AppName :: atom()) ->
-    {ok, Value :: value()} | #error{} | no_return().
+    {ok, Value :: value()} | error | no_return().
 find_remote(Node, Keys, AppName) ->
     Env = rpc:call(Node, application, get_all_env, [AppName]),
-    onepanel_lists:get(Keys, Env).
+    kv_utils:find(Keys, Env).
 
 
 %%--------------------------------------------------------------------
@@ -151,7 +154,7 @@ set(Keys, Value) ->
 set(Keys, Value, AppName) ->
     lists:foreach(fun({K, V}) ->
         application:set_env(AppName, K, V)
-    end, onepanel_lists:store(Keys, Value, application:get_all_env())).
+    end, kv_utils:put(Keys, Value, application:get_all_env())).
 
 
 %%--------------------------------------------------------------------
@@ -177,8 +180,8 @@ set_remote(Node, Keys, Value, AppName) when is_atom(Node) ->
 set_remote(Nodes, Keys, Value, AppName) ->
     lists:map(fun(Node) ->
         NewEnv = case rpc:call(Node, application, get_all_env, [AppName]) of
-            {badrpc, _} = Error -> ?throw_error(Error);
-            Result -> onepanel_lists:store(Keys, Value, Result)
+            {badrpc, _} = Error -> error(Error);
+            Result -> kv_utils:put(Keys, Value, Result)
         end,
 
         lists:foreach(fun({K, V}) ->
@@ -194,11 +197,11 @@ set_remote(Nodes, Keys, Value, AppName) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec read(Keys :: keys(), Path :: file:name()) ->
-    {ok, Value :: value()} | #error{} | no_return().
+    {ok, Value :: value()} | error | no_return().
 read(Keys, Path) ->
     case file:consult(Path) of
-        {ok, [AppConfigs]} -> onepanel_lists:get(Keys, AppConfigs);
-        {error, Reason} -> ?throw_error(Reason)
+        {ok, [AppConfigs]} -> kv_utils:find(Keys, AppConfigs);
+        {error, Reason} -> throw(?ERROR_FILE_ACCESS(Path, Reason))
     end.
 
 
@@ -206,19 +209,24 @@ read(Keys, Path) ->
 %% @doc
 %% Reads value of an application variable from the first configuration
 %% file containing it, in order of overlays priority.
+%% Contrary to read/2, reading all config variables by passing [] or [AppName]
+%% as Keys is not possible.
 %% @end
 %%--------------------------------------------------------------------
 -spec read_effective(Keys :: keys(), ServiceName :: service:name()) ->
-    {ok, Value :: value()} | #error{}.
-read_effective(Keys, ServiceName) ->
-    onepanel_lists:foldl_while(fun(Path, Prev) ->
+    {ok, Value :: value()} | error.
+read_effective([_AppName, _EnvName | _] = Keys, ServiceName) ->
+    lists_utils:foldl_while(fun(Path, Prev) ->
         try read(Keys, Path) of
             {ok, Val} -> {halt, {ok, Val}};
             _ -> {cont, Prev}
         catch
             _:_ -> {cont, Prev}
         end
-    end, ?make_error(?ERR_NOT_FOUND), get_config_paths(ServiceName)).
+    end, error, get_config_paths(ServiceName));
+
+read_effective(_, _) ->
+    error(badarg).
 
 
 %%--------------------------------------------------------------------
@@ -233,7 +241,7 @@ read_effective(Keys, ServiceName) ->
 read_effective(Keys, ServiceName, Default) ->
     case read_effective(Keys, ServiceName) of
         {ok, Value} -> Value;
-        #error{} -> Default
+        error -> Default
     end.
 
 
@@ -258,11 +266,11 @@ write(Keys, Value, Path) ->
         _ -> []
     end,
 
-    NewConfigs = onepanel_lists:store(Keys, Value, AppConfigs),
+    NewConfigs = kv_utils:put(Keys, Value, AppConfigs),
     NewConfigsStr = io_lib:fwrite("~s~n~p.", [?DO_NOT_MODIFY_HEADER, NewConfigs]),
     case file:write_file(Path, NewConfigsStr) of
         ok -> ok;
-        {error, Reason} -> ?throw_error(Reason)
+        {error, Reason} -> throw(?ERROR_FILE_ACCESS(Path, Reason))
     end.
 
 
@@ -305,9 +313,9 @@ migrate_generated_config(ServiceName, Variables, SetInRuntime) ->
         {ok, [LegacyConfigs]} ->
             ?info("Migrating app config from '~s' to '~s'", [Src, Dst]),
             Values = lists:filtermap(fun(Variable) ->
-                case onepanel_lists:get(Variable, LegacyConfigs) of
+                case kv_utils:find(Variable, LegacyConfigs) of
                     {ok, Val} -> {true, {Variable, Val}};
-                    #error{} -> false
+                    error -> false
                 end
             end, Variables),
 
@@ -323,9 +331,9 @@ migrate_generated_config(ServiceName, Variables, SetInRuntime) ->
 
             case file:rename(Src, [Src, ".bak"]) of
                 ok -> ok;
-                {error, Reason} -> ?throw_error(Reason, [])
+                {error, Reason} -> throw(?ERROR_FILE_ACCESS([Src, ".bak"], Reason))
             end;
-        {error, Reason} -> ?throw_error(Reason, [])
+        {error, Reason} -> throw(?ERROR_FILE_ACCESS(Src, Reason))
     end.
 
 
@@ -373,10 +381,10 @@ migrate(ServiceName, OldKeys, NewKeys) ->
     Path = ?MODULE:get_config_path(ServiceName, generated),
     case read([], Path) of
         {ok, OldConfigs} ->
-            case onepanel_lists:rename(OldKeys, NewKeys, OldConfigs) of
-                OldConfigs ->
+            case kv_utils:rename_entry(OldKeys, NewKeys, OldConfigs) of
+                error ->
                     false;
-                NewConfigs ->
+                {ok, NewConfigs} ->
                     write([], NewConfigs, Path),
                     true
             end;
@@ -394,6 +402,7 @@ migrate(ServiceName, OldKeys, NewKeys) ->
 migrate(PanelNodes, ServiceName, OldKeys, NewKeys) ->
     onepanel_rpc:call_all(PanelNodes, ?MODULE, migrate, [ServiceName, OldKeys, NewKeys]).
 
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -406,4 +415,30 @@ migrate(PanelNodes, ServiceName, OldKeys, NewKeys) ->
 %%--------------------------------------------------------------------
 -spec get_config_paths(Service :: service:name()) -> [file:name()].
 get_config_paths(ServiceName) ->
-    [get_config_path(ServiceName, Layer) || Layer <- [overlay, generated, app]].
+    Overlay = get_config_path(ServiceName, overlay),
+    Generated = get_config_path(ServiceName, generated),
+    App = get_config_path(ServiceName, app),
+    [Overlay | list_config_dir(ServiceName)] ++ [Generated, App].
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Returns paths of files in the config.d directory which have
+%% .config extension. The files are sorted by decreasing priority.
+%% @end
+%%--------------------------------------------------------------------
+-spec list_config_dir(service:name()) -> [file:name_all()].
+list_config_dir(ServiceName) ->
+    EnvName = str_utils:format("~s_custom_config_dir", [ServiceName]),
+    DirPath = onepanel_env:get(list_to_atom(EnvName)),
+    case file:list_dir(DirPath) of
+        {ok, Files} ->
+            Matching = lists:filter(fun(Filename) ->
+                ?FILE_EXT == filename:extension(Filename)
+            end, Files),
+            % files lexicographically greater have higher priority.
+            Sorted = lists:reverse(lists:sort(Matching)),
+            [filename:join(DirPath, File) || File <- Sorted];
+        {error, _} ->
+            []
+    end.

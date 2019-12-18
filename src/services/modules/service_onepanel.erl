@@ -18,6 +18,10 @@
 -include("deployment_progress.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/http/headers.hrl").
+
+-define(WAIT_FOR_CLUSTER_DELAY,
+    onepanel_env:get(wait_for_cluster_retry_delay, ?APP_NAME, timer:seconds(5))).
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
@@ -68,7 +72,7 @@ get_nodes() ->
 get_steps(deploy, #{hosts := Hosts} = Ctx) ->
     SelfHost = hosts:self(),
     ClusterHosts = get_hosts(),
-    NewHosts = onepanel_lists:subtract(Hosts, ClusterHosts),
+    NewHosts = lists_utils:subtract(Hosts, ClusterHosts),
     Attempts = application:get_env(?APP_NAME, extend_cluster_attempts, 20),
     [#step{
         function = extend_cluster, hosts = [SelfHost],
@@ -94,7 +98,7 @@ get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
     SelfHost = hosts:self(),
     case {available_for_clustering(), ClusterHost} of
         {_, SelfHost} -> [];
-        {false, _} -> ?throw_error(?ERR_NODE_NOT_EMPTY(SelfHost));
+        {false, _} -> throw(?ERROR_NODE_ALREADY_IN_CLUSTER(SelfHost));
         {true, _} ->
             S = #step{hosts = [SelfHost], verify_hosts = false},
             [
@@ -112,7 +116,7 @@ get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
 get_steps(leave_cluster, #{hosts := Hosts}) ->
     lists:foreach(fun(Host) ->
         case is_used(Host) of
-            true -> ?throw_error(?ERR_NODE_NOT_EMPTY(Host));
+            true -> throw(?ERROR_NODE_ALREADY_IN_CLUSTER(Host));
             false -> ok
         end
     end, Hosts),
@@ -145,7 +149,7 @@ get_steps(clear_users, _Ctx) ->
 get_steps(migrate_emergency_passphrase, _Ctx) ->
     [#step{module = emergency_passphrase, function = migrate_from_users, args = [],
         hosts = get_hosts(), selection = any,
-        condition = fun(_) -> not emergency_passphrase:is_set() end }];
+        condition = fun(_) -> not emergency_passphrase:is_set() end}];
 
 get_steps(Function, _Ctx) when
     Function == reload_webcert;
@@ -219,8 +223,9 @@ init_cluster(_Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec extend_cluster(service:ctx()) -> #{hostname := binary()} | no_return().
-extend_cluster(#{attempts := Attempts}) when Attempts =< 0 ->
-    ?throw_error(?ERR_BAD_NODE);
+extend_cluster(#{attempts := Attempts} = Ctx) when Attempts =< 0 ->
+    Hostname = maps:get(hostname, Ctx, maps:get(address, Ctx)),
+    throw(?ERROR_NO_CONNECTION_TO_NEW_NODE(Hostname));
 
 extend_cluster(#{hostname := Hostname, api_version := ApiVersion,
     attempts := Attempts} = Ctx) ->
@@ -229,7 +234,7 @@ extend_cluster(#{hostname := Hostname, api_version := ApiVersion,
         cookie => erlang:get_cookie(),
         clusterHost => onepanel_utils:convert(SelfHost, binary)
     }),
-    Headers = #{<<"Content-Type">> => <<"application/json">>},
+    Headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
     Suffix = "/join_cluster",
     Timeout = service_ctx:get(extend_cluster_timeout, Ctx, integer),
     Opts = https_opts(Timeout),
@@ -240,12 +245,14 @@ extend_cluster(#{hostname := Hostname, api_version := ApiVersion,
             ?info("Host '~ts' added to the cluster", [Hostname]),
             #{hostname => Hostname};
         {ok, ?HTTP_403_FORBIDDEN, _, _} ->
-            ?throw_error(?ERR_NODE_NOT_EMPTY(Hostname));
+            throw(?ERROR_NODE_ALREADY_IN_CLUSTER(Hostname));
         {ok, Code, _, RespBody} ->
             ?error("Unexpected response when trying to add node: ~tp ~tp", [Code, RespBody]),
+            timer:sleep(?WAIT_FOR_CLUSTER_DELAY),
             extend_cluster(Ctx#{attempts => Attempts - 1});
         {error, _} ->
             ?warning("Failed to connect with '~ts' to extend cluster", [Hostname]),
+            timer:sleep(?WAIT_FOR_CLUSTER_DELAY),
             extend_cluster(Ctx#{attempts => Attempts - 1})
     end;
 
@@ -256,8 +263,8 @@ extend_cluster(#{address := Address, api_version := _ApiVersion,
         {ok, Hostname, ClusterType} ->
             extend_cluster(Ctx#{hostname => Hostname});
         {ok, _Hostname, OtherType} ->
-            ?throw_error(?ERR_INCOMPATIBLE_NODE(Address, OtherType));
-        #error{reason = ?ERR_BAD_NODE} ->
+            throw(?ERROR_NODE_NOT_COMPATIBLE(Address, OtherType));
+        ?ERROR_NO_CONNECTION_TO_NEW_NODE(_) ->
             ?warning("Failed to connect with '~ts' to extend cluster", [Address]),
             extend_cluster(Ctx#{attempts => Attempts - 1})
     end.
@@ -349,21 +356,21 @@ available_for_clustering() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_remote_node_info(service:ctx()) ->
-    {ok, Hostname :: binary(), Application :: atom()} | #error{} | no_return().
+    {ok, Hostname :: binary(), Application :: atom()} | {error, _} | no_return().
 get_remote_node_info(#{address := Address, api_version := ApiVersion} = Ctx) ->
     Timeout = service_ctx:get(extend_cluster_timeout, Ctx, integer),
     Opts = https_opts(Timeout),
     Suffix = <<"/node">>,
     Url = build_url(Address, ApiVersion, Suffix),
 
-    Headers = #{<<"Content-Type">> => <<"application/json">>},
+    Headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
 
     case http_client:get(Url, Headers, <<>>, Opts) of
         {ok, ?HTTP_200_OK, _, Body} ->
             #{<<"hostname">> := Hostname,
                 <<"clusterType">> := ClusterType} = json_utils:decode(Body),
             {ok, Hostname, onepanel_utils:convert(ClusterType, atom)};
-        {error, _} -> ?make_error(?ERR_BAD_NODE)
+        {error, _} -> ?ERROR_NO_CONNECTION_TO_NEW_NODE(Address)
     end.
 
 
@@ -391,7 +398,7 @@ build_url(Host, ApiVersion, Suffix) ->
 https_opts(Timeout) ->
     CaCerts = https_listener:get_cert_chain_pems(),
     [
-        {ssl_options, [{secure, only_verify_peercert}, {cacerts, CaCerts}]},
+        {ssl_options, [{secure, false}, {cacerts, CaCerts}]},
         {connect_timeout, Timeout},
         {recv_timeout, Timeout}
     ].

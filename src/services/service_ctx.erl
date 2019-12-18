@@ -73,8 +73,9 @@ get_domain(Key, Ctx) ->
         {ok, Domain} -> onepanel_utils:convert(Domain, list);
         error ->
             Hostname = onepanel_shell:get_success_output(["hostname", "-f"]),
-            case string:tokens(Hostname, ".") of
-                [_] -> ?throw_error({short_hostname, Hostname});
-                [_ | Domain] -> string:join(Domain, ".")
+            case string:split(Hostname, ".", all) of
+                [_] -> error({short_hostname, Hostname});
+                [_ | DomainTokens] ->
+                    unicode:characters_to_list(lists:join(".", DomainTokens))
             end
     end.

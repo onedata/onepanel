@@ -18,6 +18,7 @@
 -include("modules/models.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 
 %% API
 -export([init/2, allowed_methods/2, content_types_accepted/2,
@@ -34,7 +35,7 @@
 -type bindings() :: #{Key :: atom() => Value :: term()}.
 -type params() :: #{Key :: atom() => Value :: term()}.
 -type args() :: onepanel_parser:args().
--type spec() :: onepanel_parser:spec().
+-type spec() :: onepanel_parser:object_spec().
 -type client() :: #client{}.
 -type state() :: #rstate{}.
 -type method() :: #rmethod{}.
@@ -44,7 +45,7 @@
 %% 'none' is used if proper authentication object could not be obtained
 -type zone_auth() :: rpc_auth() | rest_auth() | none.
 %% Used by oz_panel
--type rpc_auth() :: {rpc, onezone_client:logic_client()}.
+-type rpc_auth() :: {rpc, aai:auth()}.
 %% Used by op_panel
 -type rest_auth() :: {rest, oz_plugin:auth()}.
 
@@ -90,15 +91,22 @@ service_available(Req, #rstate{methods = Methods, module = Module} = State) ->
                 State2 = State#rstate{bindings = Bindings, params = Params},
 
                 {Available, Req} = Module:is_available(Req4, Method, State2),
-                {Available, Req, State};
+                Req5 = case Available of
+                    true -> Req4;
+                    false -> rest_replier:set_error_body(Req4, ?ERROR_SERVICE_UNAVAILABLE)
+                end,
+                {Available, Req5, State};
             false ->
                 % continue processing as it will fail anyway on allowed methods check
                 % triggering more descriptive error
                 {true, Req, State}
         end
     catch
-        Type:Reason ->
-            {false, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason)), State}
+        _Type:_Reason ->
+            % exceptions in the is_available callbacks are usually caused
+            % by incorrect request method or params which will be
+            % handled with proper error code later on
+            {true, Req, State}
     end.
 
 %%--------------------------------------------------------------------
@@ -155,7 +163,7 @@ content_types_provided(Req, #rstate{produces = Produces} = State) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec is_authorized(Req :: cowboy_req:req(), State :: state()) ->
-    {true | {false, binary()}, cowboy_req:req(), state()}.
+    {true | {false, binary()} | stop, cowboy_req:req(), state()}.
 is_authorized(Req, #rstate{methods = Methods} = State) ->
     AuthMethods = [
         fun rest_auth:authenticate_by_basic_auth/1,
@@ -163,16 +171,18 @@ is_authorized(Req, #rstate{methods = Methods} = State) ->
         fun rest_auth:authenticate_by_onezone_auth_token/1
     ],
     case rest_auth:authenticate(Req, AuthMethods) of
-        {{true, Client}, Req3} ->
-            {true, Req3, State#rstate{client = Client}};
-        {false, Req3} ->
+        {{true, Client}, Req2} ->
+            {true, Req2, State#rstate{client = Client}};
+        {{false, Error}, Req3} ->
             {Method, Req4} = rest_utils:get_method(Req3),
             case lists:keyfind(Method, #rmethod.type, Methods) of
                 #rmethod{noauth = true} ->
                     Req5 = cowboy_req:set_resp_body(<<>>, Req4),
                     {true, Req5, State#rstate{client = #client{role = guest}}};
                 _ ->
-                    {{false, <<"">>}, Req4, State}
+                    Body = json_utils:encode(rest_replier:format_error(Error)),
+                    {stop, cowboy_req:reply(?HTTP_401_UNAUTHORIZED,
+                        _Headers = #{}, Body, Req4), State}
             end
     end.
 
@@ -186,7 +196,7 @@ is_authorized(Req, #rstate{methods = Methods} = State) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec forbidden(Req :: cowboy_req:req(), State :: state()) ->
-    {boolean(), cowboy_req:req(), state()}.
+    {boolean() | stop, cowboy_req:req(), state()}.
 forbidden(Req, #rstate{module = Module} = State) ->
     try
         {Method, Req2} = rest_utils:get_method(Req),
@@ -194,8 +204,11 @@ forbidden(Req, #rstate{module = Module} = State) ->
         {Authorized, Req4} = Module:is_authorized(Req3, Method, State2),
         {not Authorized, Req4, State2}
     catch
+        throw:Reason ->
+            {stop, rest_replier:reply_with_error(Req, Reason), State};
         Type:Reason ->
-            {true, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason)), State}
+            ?error_stacktrace("Error in authorization check: ~tp:~tp", [Type, Reason]),
+            {stop, rest_replier:reply_with_error(Req, ?ERROR_INTERNAL_SERVER_ERROR), State}
     end.
 
 
@@ -204,7 +217,7 @@ forbidden(Req, #rstate{module = Module} = State) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec resource_exists(Req :: cowboy_req:req(), State :: state()) ->
-    {boolean(), cowboy_req:req(), state()}.
+    {boolean() | stop, cowboy_req:req(), state()}.
 resource_exists(Req, #rstate{module = Module, methods = Methods} = State) ->
     try
         {Method, Req2} = rest_utils:get_method(Req),
@@ -217,8 +230,11 @@ resource_exists(Req, #rstate{module = Module, methods = Methods} = State) ->
         }),
         {Exists, Req5, State}
     catch
+        throw:Reason ->
+            {stop, rest_replier:reply_with_error(Req, Reason), State};
         Type:Reason ->
-            {false, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason)), State}
+            ?error_stacktrace("Error in resource existence check: ~tp:~tp", [Type, Reason]),
+            {stop, rest_replier:reply_with_error(Req, ?ERROR_INTERNAL_SERVER_ERROR), State}
     end.
 
 
@@ -235,8 +251,14 @@ accept_resource_json(Req, #rstate{} = State) ->
         Data = json_utils:decode(Body),
         accept_resource(Req2, Data, State)
     catch
+        throw:invalid_json ->
+            {stop, rest_replier:reply_with_error(Req, ?ERROR_MALFORMED_DATA), State};
+        throw:Reason ->
+            {stop, rest_replier:reply_with_error(Req, Reason), State};
         Type:Reason ->
-            {false, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason)), State}
+            ?error_stacktrace("Error handling ~s request: ~tp:~tp",
+                [cowboy_req:method(Req), Type, Reason]),
+            {stop, rest_replier:reply_with_error(Req, ?ERROR_INTERNAL_SERVER_ERROR), State}
     end.
 
 
@@ -249,13 +271,21 @@ accept_resource_json(Req, #rstate{} = State) ->
     {boolean() | stop, cowboy_req:req(), state()}.
 accept_resource_yaml(Req, #rstate{} = State) ->
     try
-        {ok, Body, Req2} = cowboy_req:read_body(Req),
-        [Data] = yamerl_constr:string(Body, [str_node_as_binary]),
-        Data2 = json_utils:list_to_map(Data),
-        accept_resource(Req2, Data2, State)
+        {Data2, Req3} = try
+            {ok, Body, Req2} = cowboy_req:read_body(Req),
+            [Data] = yamerl_constr:string(Body, [str_node_as_binary]),
+            {json_utils:list_to_map(Data), Req2}
+        catch _:_ ->
+            throw(?ERROR_MALFORMED_DATA)
+        end,
+        accept_resource(Req3, Data2, State)
     catch
+        throw:Reason ->
+            {stop, rest_replier:reply_with_error(Req, Reason), State};
         Type:Reason ->
-            {false, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason)), State}
+            ?error_stacktrace("Error handling ~s request: ~tp:~tp",
+                [cowboy_req:method(Req), Type, Reason]),
+            {stop, rest_replier:reply_with_error(Req, ?ERROR_INTERNAL_SERVER_ERROR), State}
     end.
 
 
@@ -284,8 +314,11 @@ provide_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
                 {stop, Req5, State}
         end
     catch
+        throw:Reason ->
+            {stop, rest_replier:reply_with_error(Req, Reason), State};
         Type:Reason ->
-            {stop, rest_replier:reply_with_error(Req, Type, ?make_stacktrace(Reason)), State}
+            ?error_stacktrace("Error handling GET request: ~tp:~tp", [Type, Reason]),
+            {stop, rest_replier:reply_with_error(Req, ?ERROR_INTERNAL_SERVER_ERROR), State}
     end.
 
 
@@ -315,8 +348,11 @@ delete_resource(Req, #rstate{module = Module, methods = Methods} = State) ->
                 {stop, cowboy_req:reply(?HTTP_409_CONFLICT, Req5), State}
         end
     catch
+        throw:Reason ->
+            {stop, rest_replier:reply_with_error(Req, Reason), State};
         Type:Reason ->
-            {false, rest_replier:handle_error(Req, Type, ?make_stacktrace(Reason)), State}
+            ?error_stacktrace("Error handling DELETE request: ~tp:~tp", [Type, Reason]),
+            {stop, rest_replier:reply_with_error(Req, ?ERROR_INTERNAL_SERVER_ERROR), State}
     end.
 
 
@@ -339,7 +375,7 @@ handle_options(Req, State) ->
         Origin ->
             {AllowedMethods, Req2, _} = rest_handler:allowed_methods(Req, State),
 
-            AllowedHeaders = [<<"content-type">> | tokens:supported_access_token_headers()],
+            AllowedHeaders = [?HDR_CONTENT_TYPE | tokens:supported_access_token_headers()],
             Req3 = gui_cors:options_response(Origin, AllowedMethods, AllowedHeaders, Req2),
 
             {ok, Req3, State}

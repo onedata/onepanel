@@ -97,7 +97,7 @@ seed() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec create(Record :: onepanel_user:name() | record()) ->
-    {ok, id()} | #error{} | no_return().
+    {ok, id()} | {error, _} | no_return().
 create(#onepanel_session{} = Record) ->
     model:create(?MODULE, Record).
 
@@ -118,7 +118,7 @@ save(Record) ->
 -spec update(Key :: model_behaviour:key(), Diff :: model_behaviour:diff()) ->
     ok | no_return().
 update(Key, Diff) ->
-    model:update(?MODULE, Key, Diff).
+    ok = model:update(?MODULE, Key, Diff).
 
 
 %%--------------------------------------------------------------------
@@ -126,7 +126,7 @@ update(Key, Diff) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get(Key :: model_behaviour:key()) ->
-    {ok, Record :: record()} | #error{} | no_return().
+    {ok, Record :: record()} | {error, _} | no_return().
 get(Key) ->
     model:get(?MODULE, Key).
 
@@ -170,12 +170,12 @@ list() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec create(id(), record()) ->
-    ok | #error{} | no_return().
+    ok | {error, _} | no_return().
 create(Id, Record) ->
     Record2 = Record#onepanel_session{id = Id, auth_tokens = [generate_api_token(Id)]},
     case create(Record2) of
         {ok, Id} -> ok;
-        #error{} = Error -> Error
+        {error, _} = Error -> Error
     end.
 
 
@@ -221,8 +221,7 @@ remove_expired_tokens(#onepanel_session{auth_tokens = Tokens} = Session) ->
 %% Expired token is treated as unbound to any session.
 %% @end
 %%--------------------------------------------------------------------
--spec find_by_valid_auth_token(auth_token()) ->
-    {ok, record()} | #error{}.
+-spec find_by_valid_auth_token(auth_token()) -> {ok, record()} | error.
 find_by_valid_auth_token(RestApiToken) ->
     SessionId = token_to_session_id(RestApiToken),
     case onepanel_session:get(SessionId) of
@@ -231,12 +230,12 @@ find_by_valid_auth_token(RestApiToken) ->
                 {RestApiToken, _} = Found ->
                     case is_token_still_valid(Found) of
                         true -> {ok, Session};
-                        false -> ?make_error(?ERR_NOT_FOUND)
+                        false -> error
                     end;
-                false -> ?make_error(?ERR_NOT_FOUND)
+                false -> error
             end;
         _ ->
-            ?make_error(?ERR_NOT_FOUND)
+            error
     end.
 
 

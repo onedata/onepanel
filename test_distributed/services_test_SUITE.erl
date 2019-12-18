@@ -27,12 +27,12 @@
     domain_is_lowercased_test/1,
     default_admin_is_created_test/1,
     batch_config_creates_users/1,
-    service_oneprovider_unregister_register_test/1,
     service_oneprovider_modify_details_test/1,
     service_oneprovider_get_details_test/1,
     service_oneprovider_get_supported_spaces_test/1,
     service_op_worker_add_storage_test/1,
     service_op_worker_get_storages_test/1,
+    service_oneprovider_unregister_register_test/1,
     service_op_worker_update_storage_test/1,
     services_status_test/1,
     services_stop_start_test/1
@@ -57,11 +57,11 @@ all() ->
         domain_is_lowercased_test,
         default_admin_is_created_test,
         batch_config_creates_users,
-        service_oneprovider_unregister_register_test,
         service_oneprovider_modify_details_test,
         service_oneprovider_get_details_test,
         service_oneprovider_get_supported_spaces_test,
         service_op_worker_get_storages_test,
+        service_oneprovider_unregister_register_test,
         service_op_worker_add_storage_test,
         service_op_worker_update_storage_test,
         services_status_test
@@ -91,33 +91,19 @@ default_admin_is_created_test(Config) ->
     % with password set to emergency passphrase
     [OzNode | _] = ?config(onezone_nodes, Config),
     OzwNode = nodes:service_to_node(?SERVICE_OZW, OzNode),
-    ?assertMatch({ok, _}, proxy_rpc(OzNode, OzwNode,
+    ?assertMatch({true, #auth{}}, image_test_utils:proxy_rpc(OzNode, OzwNode,
         basic_auth, authenticate, [<<"admin">>, ?PASSPHRASE])).
 
 
 batch_config_creates_users(Config) ->
     [OzNode | _] = ?config(onezone_nodes, Config),
     OzwNode = nodes:service_to_node(?SERVICE_OZW, OzNode),
-    {ok, UserId} = ?assertMatch({ok, _}, proxy_rpc(OzNode, OzwNode,
+    {true, #auth{subject = #subject{id = UserId}}} =
+        ?assertMatch({true, #auth{}}, image_test_utils:proxy_rpc(OzNode, OzwNode,
         basic_auth, authenticate, [?OZ_USERNAME, ?OZ_PASSWORD])),
 
-    ?assert(proxy_rpc(OzNode, OzwNode, group_logic, has_direct_user,
+    ?assert(image_test_utils:proxy_rpc(OzNode, OzwNode, group_logic, has_direct_user,
         [<<"admins">>, UserId])).
-
-
-service_oneprovider_unregister_register_test(Config) ->
-    [OzNode | _] = ?config(onezone_nodes, Config),
-    [OpNode | _] = ?config(oneprovider_nodes, Config),
-    OpDomain = ?config(oneprovider_domain, Config),
-    onepanel_test_utils:service_action(OpNode, oneprovider, unregister, #{}),
-    onepanel_test_utils:service_action(OpNode, oneprovider, register, #{
-        oneprovider_geo_latitude => 20.0,
-        oneprovider_geo_longitude => 20.0,
-        oneprovider_name => <<"provider2">>,
-        oneprovider_domain => OpDomain,
-        oneprovider_admin_email => <<"admin@onedata.org">>,
-        oneprovider_token => get_registration_token(OzNode)
-    }).
 
 
 service_oneprovider_modify_details_test(Config) ->
@@ -186,87 +172,109 @@ service_op_worker_get_storages_test(Config) ->
         {id, Id},
         {name, <<"somePosix1">>},
         {type, <<"posix">>},
-        {mountPoint, onepanel_utils:typed_get(
+        {mountPoint, onepanel_utils:get_converted(
             [storages, posix, '/mnt/st1', docker_path], Config, binary
         )}
-    ])  .
+    ]).
+
+
+service_oneprovider_unregister_register_test(Config) ->
+    [OzNode | _] = ?config(onezone_nodes, Config),
+    [OpNode | _] = ?config(oneprovider_nodes, Config),
+    OpDomain = ?config(oneprovider_domain, Config),
+    onepanel_test_utils:service_action(OpNode, oneprovider, unregister, #{}),
+    onepanel_test_utils:service_action(OpNode, oneprovider, register, #{
+        oneprovider_geo_latitude => 20.0,
+        oneprovider_geo_longitude => 20.0,
+        oneprovider_name => <<"provider2">>,
+        oneprovider_domain => OpDomain,
+        oneprovider_admin_email => <<"admin@onedata.org">>,
+        oneprovider_token => image_test_utils:get_registration_token(OzNode)
+    }).
 
 
 service_op_worker_add_storage_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
-    {ok, Posix} = onepanel_lists:get([storages, posix, '/mnt/st2'], Config),
-    {ok, Ceph} = onepanel_lists:get([storages, ceph, someCeph], Config),
-    {ok, CephRados} = onepanel_lists:get([storages, cephrados, someCephRados], Config),
-    {ok, S3} = onepanel_lists:get([storages, s3, someS3], Config),
-    {ok, Swift} = onepanel_lists:get([storages, swift, someSwift], Config),
-    {ok, Glusterfs} = onepanel_lists:get([storages, glusterfs, someGlusterfs], Config),
-    {ok, WebDAV} = onepanel_lists:get([storages, webdav, someWebDAV], Config),
+    Posix = kv_utils:get([storages, posix, '/mnt/st2'], Config),
+    Ceph = kv_utils:get([storages, ceph, someCeph], Config),
+    CephRados = kv_utils:get([storages, cephrados, someCephRados], Config),
+    S3 = kv_utils:get([storages, s3, someS3], Config),
+    Swift = kv_utils:get([storages, swift, someSwift], Config),
+    Glusterfs = kv_utils:get([storages, glusterfs, someGlusterfs], Config),
+    WebDAV = kv_utils:get([storages, webdav, someWebDAV], Config),
     onepanel_test_utils:service_action(Node, op_worker, add_storages, #{
         hosts => [hd(?config(oneprovider_hosts, Config))],
         storages => #{
             <<"somePosix2">> => #{
                 type => <<"posix">>,
-                mountPoint => onepanel_utils:typed_get(docker_path, Posix, binary),
-                storagePathType => <<"canonical">>
+                mountPoint => onepanel_utils:get_converted(docker_path, Posix, binary),
+                storagePathType => <<"canonical">>,
+                qosParameters => #{}
             },
             <<"someCeph">> => #{
                 type => <<"ceph">>,
                 clusterName => <<"ceph">>,
-                key => onepanel_utils:typed_get(key, Ceph, binary),
-                monitorHostname => onepanel_utils:typed_get(host_name, Ceph, binary),
+                key => onepanel_utils:get_converted(key, Ceph, binary),
+                monitorHostname => onepanel_utils:get_converted(host_name, Ceph, binary),
                 poolName => <<"onedata">>,
-                username => onepanel_utils:typed_get(username, Ceph, binary),
-                storagePathType => <<"flat">>
+                username => onepanel_utils:get_converted(username, Ceph, binary),
+                storagePathType => <<"flat">>,
+                qosParameters => #{}
             },
             <<"someCephRados">> => #{
                 type => <<"cephrados">>,
                 clusterName => <<"ceph">>,
-                key => onepanel_utils:typed_get(key, CephRados, binary),
-                monitorHostname => onepanel_utils:typed_get(host_name, CephRados, binary),
+                key => onepanel_utils:get_converted(key, CephRados, binary),
+                monitorHostname => onepanel_utils:get_converted(host_name, CephRados, binary),
                 poolName => <<"onedata">>,
-                username => onepanel_utils:typed_get(username, CephRados, binary),
-                storagePathType => <<"flat">>
+                username => onepanel_utils:get_converted(username, CephRados, binary),
+                storagePathType => <<"flat">>,
+                qosParameters => #{}
             },
             <<"someS3">> => #{
                 type => <<"s3">>,
-                accessKey => onepanel_utils:typed_get(access_key, S3, binary),
-                secretKey => onepanel_utils:typed_get(secret_key, S3, binary),
+                accessKey => onepanel_utils:get_converted(access_key, S3, binary),
+                secretKey => onepanel_utils:get_converted(secret_key, S3, binary),
                 bucketName => <<"onedata">>,
-                hostname => <<"http://", (onepanel_utils:typed_get(host_name,
+                hostname => <<"http://", (onepanel_utils:get_converted(host_name,
                     S3, binary))/binary>>,
-                storagePathType => <<"flat">>
+                storagePathType => <<"flat">>,
+                qosParameters => #{}
             },
             <<"someSwift">> => #{
                 type => <<"swift">>,
-                username => onepanel_utils:typed_get(user_name, Swift, binary),
-                password => onepanel_utils:typed_get(password, Swift, binary),
+                username => onepanel_utils:get_converted(user_name, Swift, binary),
+                password => onepanel_utils:get_converted(password, Swift, binary),
                 authUrl => onepanel_utils:join(["http://",
-                    onepanel_utils:typed_get(host_name, Swift, binary), ":",
-                    onepanel_utils:typed_get(keystone_port, Swift, binary), "/v2.0/tokens"]),
-                tenantName => onepanel_utils:typed_get(tenant_name, Swift, binary),
+                    onepanel_utils:get_converted(host_name, Swift, binary), ":",
+                    onepanel_utils:get_converted(keystone_port, Swift, binary), "/v2.0/tokens"]),
+                tenantName => onepanel_utils:get_converted(tenant_name, Swift, binary),
                 containerName => <<"swift">>,
-                storagePathType => <<"flat">>
+                storagePathType => <<"flat">>,
+                qosParameters => #{}
             },
             <<"someGluster">> => #{
                 type => <<"glusterfs">>,
                 volume => <<"data">>,
-                hostname => onepanel_utils:typed_get(host_name, Glusterfs, binary),
-                port => onepanel_utils:typed_get(port, Glusterfs, binary),
-                transport => onepanel_utils:typed_get(transport, Glusterfs, binary),
-                mountPoint => onepanel_utils:typed_get(mountpoint, Glusterfs, binary),
+                hostname => onepanel_utils:get_converted(host_name, Glusterfs, binary),
+                port => onepanel_utils:get_converted(port, Glusterfs, binary),
+                transport => onepanel_utils:get_converted(transport, Glusterfs, binary),
+                mountPoint => onepanel_utils:get_converted(mountpoint, Glusterfs, binary),
                 xlatorOptions => <<"cluster.write-freq-threshold=100;">>,
-                storagePathType => <<"canonical">>
+                storagePathType => <<"canonical">>,
+                qosParameters => #{}
             },
             <<"someWebDAV">> => #{
                 type => <<"webdav">>,
-                endpoint => onepanel_utils:typed_get(endpoint, WebDAV, binary),
-                credentials => onepanel_utils:typed_get(credentials, WebDAV, binary),
-                credentialsType => onepanel_utils:typed_get(credentials_type, WebDAV, binary),
-                verifyServerCertificate => onepanel_utils:typed_get(verify_server_certificate, WebDAV, binary),
-                rangeWriteSupport => onepanel_utils:typed_get(range_write_support, WebDAV, binary),
-                authorizationHeader => onepanel_utils:typed_get(authorization_header, WebDAV, binary),
-                connectionPoolSize => onepanel_utils:typed_get(connection_pool_size, WebDAV, binary),
-                storagePathType => <<"canonical">>
+                endpoint => onepanel_utils:get_converted(endpoint, WebDAV, binary),
+                credentials => onepanel_utils:get_converted(credentials, WebDAV, binary),
+                credentialsType => onepanel_utils:get_converted(credentials_type, WebDAV, binary),
+                verifyServerCertificate => onepanel_utils:get_converted(verify_server_certificate, WebDAV, binary),
+                rangeWriteSupport => onepanel_utils:get_converted(range_write_support, WebDAV, binary),
+                authorizationHeader => onepanel_utils:get_converted(authorization_header, WebDAV, binary),
+                connectionPoolSize => onepanel_utils:get_converted(connection_pool_size, WebDAV, binary),
+                storagePathType => <<"canonical">>,
+                qosParameters => #{}
             },
             <<"someNullDevice">> => #{
                 type => <<"nulldevice">>,
@@ -278,11 +286,12 @@ service_op_worker_add_storage_test(Config) ->
                 simulatedFilesystemParameters => <<>>,
                 simulatedFilesystemGrowSpeed => 0.0,
                 storagePathType => <<"canonical">>,
-                readonly => true
+                readonly => true,
+                qosParameters => #{}
             }
         }
     }),
-    assert_service_step(service:get_module(op_worker), add_storages, [Node], ok).
+    assert_service_step(service:get_module(op_worker), add_storage, [Node], ok).
 
 
 service_op_worker_update_storage_test(Config) ->
@@ -416,106 +425,22 @@ services_stop_start_test(Config) ->
 init_per_suite(Config) ->
     Posthook = fun(NewConfig) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
-        [OzNode | _] = OzNodes = ?config(onezone_nodes, NewConfig2),
-        OzHosts = hosts:from_nodes(OzNodes),
-        OzIp = test_utils:get_docker_ip(OzNode),
-        OzDomain = onepanel_test_utils:get_domain(hd(OzHosts)),
-        onepanel_test_utils:set_test_envs(OzNodes, [{test_web_cert_domain, OzDomain}]),
 
-        % generate certificate with correct onezone domain
-        regenerate_web_certificate(OzNodes, OzDomain),
+        NewConfig3 = image_test_utils:deploy_onezone(?PASSPHRASE,
+            ?OZ_USERNAME, ?OZ_PASSWORD, NewConfig2),
 
-        rpc:call(OzNode, emergency_passphrase, set, [?PASSPHRASE]),
-        onepanel_test_utils:service_action(OzNode, ?SERVICE_OZ, deploy, #{
-            cluster => #{
-                ?SERVICE_PANEL => #{
-                    hosts => OzHosts
-                },
-                ?SERVICE_CB => #{
-                    hosts => OzHosts
-                },
-                ?SERVICE_CM => #{
-                    hosts => OzHosts, main_cm_host => hd(OzHosts), worker_num => 2
-                },
-                ?SERVICE_OZW => #{
-                    hosts => OzHosts, main_cm_host => hd(OzHosts),
-                    cm_hosts => OzHosts, db_hosts => OzHosts,
-                    onezone_users => [#{
-                        username => ?OZ_USERNAME,
-                        password => ?OZ_PASSWORD,
-                        groups => [<<"admins">>]
-                    }]
-                },
-                ?SERVICE_LE => #{
-                    hosts => OzHosts,
-                    letsencrypt_enabled => false
-                }
-            },
-            ?SERVICE_OZ => #{
-                domain => string:uppercase(OzDomain)
+        Posix = kv_utils:get([storages, posix, '/mnt/st1'], NewConfig2),
+        Storages = #{
+            <<"somePosix1">> => #{
+                type => <<"posix">>,
+                mountPoint => onepanel_utils:get_converted(
+                    docker_path, Posix, binary
+                ),
+                storagePathType => <<"canonical">>,
+                qosParameters => #{}
             }
-        }),
-
-        [OpNode | _] = OpNodes = ?config(oneprovider_nodes, NewConfig2),
-        OpHosts = hosts:from_nodes(OpNodes),
-        OpDomain = onepanel_test_utils:get_domain(hd(OpHosts)),
-        % We do not have a DNS server that would resolve OZ domain for provider,
-        % so we need to simulate it using /etc/hosts.
-        lists:foreach(fun(Node) ->
-            rpc:call(Node, file, write_file, [
-                "/etc/hosts",
-                <<"\n", OzIp/binary, "\t", OzDomain/binary>>,
-                [append]
-            ])
-        end, OpNodes),
-
-        {ok, Posix} = onepanel_lists:get([storages, posix, '/mnt/st1'], NewConfig2),
-        RegistrationToken = get_registration_token(OzNode),
-        rpc:call(OpNode, emergency_passphrase, set, [?PASSPHRASE]),
-        onepanel_test_utils:service_action(OpNode, ?SERVICE_OP, deploy, #{
-            cluster => #{
-                ?SERVICE_PANEL => #{
-                    hosts => OpHosts
-                },
-                ?SERVICE_CB => #{
-                    hosts => OpHosts
-                },
-                ?SERVICE_CM => #{
-                    hosts => OpHosts, main_cm_host => hd(OpHosts), worker_num => 2
-                },
-                ?SERVICE_OPW => #{
-                    hosts => OpHosts, main_cm_host => hd(OpHosts),
-                    cm_hosts => OpHosts, db_hosts => OpHosts
-                },
-                storages => #{
-                    hosts => OpHosts,
-                    storages => #{
-                        <<"somePosix1">> => #{
-                            type => <<"posix">>,
-                            mountPoint => onepanel_utils:typed_get(
-                                docker_path, Posix, binary
-                            ),
-                            storagePathType => <<"canonical">>
-                        }
-                    }
-                },
-                ?SERVICE_LE => #{
-                    hosts => OpHosts,
-                    letsencrypt_enabled => false
-                }
-            },
-            ?SERVICE_OP => #{
-                hosts => OpHosts,
-                oneprovider_geo_latitude => 10.0,
-                oneprovider_geo_longitude => 10.0,
-                oneprovider_name => <<"provider1">>,
-                oneprovider_domain => string:uppercase(OpDomain),
-                oneprovider_register => true,
-                oneprovider_admin_email => <<"admin@onedata.org">>,
-                oneprovider_token => RegistrationToken
-            }
-        }),
-        [{oneprovider_domain, OpDomain}, {onezone_domain, OzDomain} | NewConfig2]
+        },
+        image_test_utils:deploy_oneprovider(?PASSPHRASE, Storages, NewConfig3)
     end,
     [{?ENV_UP_POSTHOOK, Posthook} | Config].
 
@@ -584,48 +509,9 @@ same_result_for_nodes(Nodes, Result) ->
 await_oz_connectivity(Node) ->
     OpNode = nodes:service_to_node(?SERVICE_OPW, Node),
     ?assertMatch({ok, _},
-        proxy_rpc(Node, OpNode, provider_logic, get, []),
+        image_test_utils:proxy_rpc(Node, OpNode, provider_logic, get, []),
         ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS),
     ok.
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Generates certificate using test CA for given domain.
-%% @end
-%%--------------------------------------------------------------------
--spec regenerate_web_certificate([node()], Domain :: string()) -> ok | no_return().
-regenerate_web_certificate(Nodes, Domain) ->
-    [Node | _] = Nodes,
-    WebKeyPath = rpc_get_env(Node, web_key_file),
-    WebCertPath = rpc_get_env(Node, web_cert_file),
-    WebChainPath = rpc_get_env(Node, web_cert_chain_file),
-
-    % Both key and cert are expected in the same file
-    CAPath = rpc_get_env(Node, test_web_cert_ca_path),
-
-    {_, []} = rpc:multicall(Nodes, cert_utils, create_signed_webcert, [
-        WebKeyPath, WebCertPath, Domain, CAPath, CAPath]),
-    {_, []} = rpc:multicall(Nodes, file, copy, [CAPath, WebChainPath]),
-
-    {_, []} = rpc:multicall(Nodes, service_op_worker, reload_webcert, [#{}]),
-    ok.
-
-
--spec get_registration_token(OzNode :: node()) -> Token :: binary().
-get_registration_token(OzNode) ->
-    OzwNode = nodes:service_to_node(?SERVICE_OZW, OzNode),
-
-    {ok, [OnezoneUserId | _]} = proxy_rpc(OzNode, OzwNode, user_logic, list, [?ROOT]),
-    {ok, RegistrationToken} = ?assertMatch({ok, _},
-        proxy_rpc(OzNode, OzwNode,
-            user_logic, create_provider_registration_token,
-            [?USER(OnezoneUserId), OnezoneUserId]
-        ),
-        ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS),
-
-    {ok, SerializedToken} = macaroons:serialize(RegistrationToken),
-    SerializedToken.
 
 
 %%--------------------------------------------------------------------
@@ -652,29 +538,3 @@ get_storages(Config) ->
         [{_, Details}] = ?assertMatch([{Node, _}], Results2),
         Details
     end, Ids).
-
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Reads app config from given Node
-%% @end
-%%--------------------------------------------------------------------
--spec rpc_get_env(node(), atom()) -> term().
-rpc_get_env(Node, Key) ->
-    rpc:call(Node, onepanel_env, get, [Key]).
-
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% For unknown reasons sometimes direct rpc from testmaster to worker
-%% node doesn't work, but proxying through onepanel node does.
-%% @end
-%%--------------------------------------------------------------------
--spec proxy_rpc(ProxyNode :: node(), TargetNode :: node(),
-    Module :: module(), Function :: atom(), Args :: [term()]) -> term().
-proxy_rpc(ProxyNode, TargetNode, Module, Function, Args) ->
-    rpc:call(ProxyNode, rpc, call, [
-        TargetNode, Module, Function, Args
-    ]).

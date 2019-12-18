@@ -46,7 +46,7 @@
     get_should_return_storages/1,
     get_should_return_storage/1,
     post_should_add_storage/1,
-    patch_should_modify_storage_update/1,
+    patch_should_configure_storage_update/1,
     patch_should_update_storage/1,
     get_should_return_autocleaning_reports/1,
     get_should_return_autocleaning_report/1,
@@ -82,7 +82,7 @@ all() ->
         get_should_return_storages,
         get_should_return_storage,
         post_should_add_storage,
-        patch_should_modify_storage_update,
+        patch_should_configure_storage_update,
         patch_should_update_storage,
         get_should_return_autocleaning_reports,
         get_should_return_autocleaning_report,
@@ -184,7 +184,7 @@ all() ->
 
 -define(STORAGES_JSON, #{
     <<"someCeph">> => #{
-        <<"type">> => <<"ceph">>,
+        <<"type">> => <<"cephrados">>,
         <<"username">> => <<"someName">>,
         <<"key">> => <<"someKey">>,
         <<"monitorHostname">> => <<"someHostname">>,
@@ -291,44 +291,38 @@ all() ->
     <<"transfersMock">> => true
 }).
 
--define(run(Config, Function), Function(hd(?config(oneprovider_hosts, Config)))).
-
 %%%===================================================================
 %%% Test functions
 %%%===================================================================
 
 method_should_return_unauthorized_error(Config) ->
-    ?run(Config, fun(Host) ->
-        lists:foreach(fun({Endpoint, Method}) ->
-            lists:foreach(fun(Auth) ->
-                ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _}, onepanel_test_rest:auth_request(
-                    Host, Endpoint, Method, Auth
-                ))
-            end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
-        end, ?COMMON_ENDPOINTS_WITH_METHODS)
-    end).
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
+        lists:foreach(fun(Auth) ->
+            ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _}, onepanel_test_rest:auth_request(
+                Host, Endpoint, Method, Auth
+            ))
+        end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
+    end, ?COMMON_ENDPOINTS_WITH_METHODS).
 
 
 method_should_return_forbidden_error(Config) ->
-    ?run(Config, fun(Host) ->
-        lists:foreach(fun({Endpoint, Method}) ->
-            % highest rights which still should not grant access to these endpoints
-            Auths = case {Endpoint, Method} of
-                {<<"/provider">>, delete} ->
-                    ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_DELETE]);
-                _ ->
-                    ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_UPDATE])
-            end,
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
+        % highest rights which still should not grant access to these endpoints
+        Auths = case {Endpoint, Method} of
+            {<<"/provider">>, delete} ->
+                ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_DELETE]);
+            _ ->
+                ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_UPDATE])
+        end,
 
-            ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
-                Host, Endpoint, Method, Auths
-            ))
-        end, [{E, M} || {E, M} <- ?COMMON_ENDPOINTS_WITH_METHODS, M /= get])
-    end).
+        ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
+            Host, Endpoint, Method, Auths
+        ))
+    end, [{E, M} || {E, M} <- ?COMMON_ENDPOINTS_WITH_METHODS, M /= get]).
 
 
 delete_should_return_forbidden_error(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         % verify that user with cluster_update but without cluster_delete
         % cannot deregister the Oneprovider. Less privileged users
         % are check in method_should_return_forbidden_error/1
@@ -340,7 +334,7 @@ delete_should_return_forbidden_error(Config) ->
 
 
 method_should_return_conflict_error(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         % provider is mocked as already registered
         ?assertMatch({ok, ?HTTP_409_CONFLICT, _, _}, onepanel_test_rest:auth_request(
             Host, "/provider", post, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
@@ -350,24 +344,22 @@ method_should_return_conflict_error(Config) ->
 
 
 method_should_return_service_unavailable_error(Config) ->
-    ?run(Config, fun(Host) ->
-        lists:foreach(fun({Endpoint, Method}) ->
-            ?assertMatch({ok, ?HTTP_503_SERVICE_UNAVAILABLE, _, _}, onepanel_test_rest:auth_request(
-                Host, Endpoint, Method, ?ALL_AUTHS(Host)
-            ))
-        end, lists:subtract(
-            ?COMMON_ENDPOINTS_WITH_METHODS, [
-                {<<"/provider/cluster_ips">>, get},
-                {<<"/provider">>, get},
-                {<<"/provider/debug/transfers_mock">>, get},
-                {<<"/provider/debug/transfers_mock">>, patch}
-            ])
-        )
-    end).
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
+        ?assertMatch({ok, ?HTTP_503_SERVICE_UNAVAILABLE, _, _}, onepanel_test_rest:auth_request(
+            Host, Endpoint, Method, ?ALL_AUTHS(Host)
+        ))
+    end, lists:subtract(
+        ?COMMON_ENDPOINTS_WITH_METHODS, [
+            {<<"/provider/cluster_ips">>, get},
+            {<<"/provider">>, get},
+            {<<"/provider/debug/transfers_mock">>, get},
+            {<<"/provider/debug/transfers_mock">>, patch}
+        ])
+    ).
 
 
 get_should_return_provider_details(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider">>, get,
@@ -381,7 +373,7 @@ get_should_return_provider_details(Config) ->
 get_should_return_cluster_ips(Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
     Hosts = lists:map(fun hosts:from_node/1, Nodes),
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/cluster_ips">>, get,
@@ -393,7 +385,7 @@ get_should_return_cluster_ips(Config) ->
 
 
 post_should_register_provider(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider">>, post,
             ?ROOT_AUTHS(Host), ?REGISTER_REQUEST_JSON
@@ -409,7 +401,7 @@ post_should_register_provider(Config) ->
 
 
 patch_should_modify_provider_details(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider">>, patch,
             ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{
@@ -431,7 +423,7 @@ patch_should_modify_provider_details(Config) ->
 patch_should_modify_provider_ips(Config) ->
     % There is one node in test environment
     NewIP = <<"1.2.3.4">>,
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/cluster_ips">>, patch,
             ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{
@@ -449,7 +441,7 @@ patch_should_modify_provider_ips(Config) ->
 
 
 delete_should_unregister_provider(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider">>, delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_DELETE])
         )),
@@ -458,7 +450,7 @@ delete_should_unregister_provider(Config) ->
 
 
 get_should_return_supported_spaces(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces">>, get, ?OZ_OR_ROOT_AUTHS(Host, [])
@@ -469,7 +461,7 @@ get_should_return_supported_spaces(Config) ->
 
 
 post_should_create_or_support_space(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces">>, post,
@@ -488,7 +480,7 @@ post_should_create_or_support_space(Config) ->
 
 patch_should_modify_space_support(Config) ->
     NewSize = 99000000,
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId1">>, patch,
@@ -501,7 +493,7 @@ patch_should_modify_space_support(Config) ->
 
 
 get_should_return_space_details(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId">>, get,
@@ -513,7 +505,7 @@ get_should_return_space_details(Config) ->
 
 
 delete_should_revoke_space_support(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/spaces/someId">>, delete,
             ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
@@ -525,7 +517,7 @@ delete_should_revoke_space_support(Config) ->
 
 
 get_should_return_storages(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/storages">>, get,
@@ -537,7 +529,7 @@ get_should_return_storages(Config) ->
 
 
 get_should_return_storage(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/storages/somePosixId">>, get,
@@ -549,7 +541,7 @@ get_should_return_storage(Config) ->
 
 
 post_should_add_storage(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/storages">>,
             post, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
@@ -558,7 +550,7 @@ post_should_add_storage(Config) ->
         ?assertReceivedMatch({service, op_worker, add_storages, #{
             storages := #{
                 <<"someCeph">> := #{
-                    type := <<"ceph">>,
+                    type := <<"cephrados">>,
                     clusterName := <<"someName">>,
                     key := <<"someKey">>,
                     monitorHostname := <<"someHostname">>,
@@ -579,8 +571,8 @@ post_should_add_storage(Config) ->
     end).
 
 
-patch_should_modify_storage_update(Config) ->
-    ?run(Config, fun(Host) ->
+patch_should_configure_storage_update(Config) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId1">>, patch,
@@ -595,7 +587,7 @@ patch_should_modify_storage_update(Config) ->
 
 
 patch_should_update_storage(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/storages/somePosixId">>, patch,
@@ -610,7 +602,7 @@ patch_should_update_storage(Config) ->
 
 
 get_should_return_autocleaning_reports(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(Host,
                 <<"/provider/spaces/someId/auto-cleaning/reports">>,
@@ -620,7 +612,7 @@ get_should_return_autocleaning_reports(Config) ->
     end).
 
 get_should_return_autocleaning_report(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(Host,
                 <<"/provider/spaces/someId/auto-cleaning/reports/someReportId">>,
@@ -630,7 +622,7 @@ get_should_return_autocleaning_report(Config) ->
     end).
 
 get_should_return_autocleaning_status(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(Host,
                 <<"/provider/spaces/someId/auto-cleaning/status">>,
@@ -640,7 +632,7 @@ get_should_return_autocleaning_status(Config) ->
     end).
 
 get_should_return_autocleaning_configuration(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(Host,
                 <<"/provider/spaces/someId/auto-cleaning/configuration">>,
@@ -650,7 +642,7 @@ get_should_return_autocleaning_configuration(Config) ->
     end).
 
 get_should_return_file_popularity_configuration(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(Host,
                 <<"/provider/spaces/someId/file-popularity/configuration">>,
@@ -660,7 +652,7 @@ get_should_return_file_popularity_configuration(Config) ->
     end).
 
 patch_should_update_file_popularity(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId/file-popularity/configuration">>, patch,
@@ -678,7 +670,7 @@ patch_should_update_file_popularity(Config) ->
     end).
 
 patch_should_update_auto_cleaning(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId/auto-cleaning/configuration">>, patch,
@@ -704,7 +696,7 @@ patch_should_update_auto_cleaning(Config) ->
     end).
 
 patch_with_incomplete_config_should_update_auto_cleaning(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId/auto-cleaning/configuration">>, patch,
@@ -720,7 +712,7 @@ patch_with_incomplete_config_should_update_auto_cleaning(Config) ->
     end).
 
 patch_with_incorrect_config_should_fail(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_400_BAD_REQUEST, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId/auto-cleaning/configuration">>, patch,
@@ -730,7 +722,7 @@ patch_with_incorrect_config_should_fail(Config) ->
     end).
 
 patch_should_invalidate_luma_cache(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/storages/someId/invalidate_luma">>, patch,
@@ -743,7 +735,7 @@ patch_should_invalidate_luma_cache(Config) ->
     end).
 
 patch_should_update_transfers_mock(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/debug/transfers_mock">>, patch,
@@ -756,7 +748,7 @@ patch_should_update_transfers_mock(Config) ->
     end).
 
 get_should_return_transfers_mock(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/debug/transfers_mock">>, get,
@@ -907,7 +899,7 @@ init_per_testcase(patch_should_modify_space_support, Config) ->
         fun(#{space_id := _Id}) -> true end),
     NewConfig;
 
-init_per_testcase(patch_should_modify_storage_update, Config) ->
+init_per_testcase(patch_should_configure_storage_update, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
@@ -1051,7 +1043,7 @@ init_per_testcase(_Case, Config) ->
     Self = self(),
     test_utils:mock_new(Nodes, [service, service_oneprovider]),
     test_utils:mock_expect(Nodes, service, exists, fun
-        (oneprovider) -> true; (op_worker) -> true
+        (oneprovider) -> true; (op_worker) -> true; (ceph) -> false
     end),
     test_utils:mock_expect(Nodes, service, get, fun
         (oneprovider) -> {ok, #service{ctx = #{registered => true}}};
