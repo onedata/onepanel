@@ -4,6 +4,12 @@
 CHANGELOG
 ---------
 
+### 19.02.1
+
+* VFS-5994 Make 'production' Let's Encrypt mode the default
+* VFS-5940 Rename oz-worker's GUI package verification envs to more intuitive
+
+
 ### 19.02.0-rc2
 
 * VFS-5708 Implement gui message management

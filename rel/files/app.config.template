@@ -113,7 +113,7 @@
         %% - production - obtain certificate from the main Let's Encrypt server
         %% - full       - check certification success as with dry and then obtain certificate
         %%                from the production server
-        {letsencrypt_mode, full},
+        {letsencrypt_mode, production},
 
         %% Directory for saving Let's Encrypt account keys (needed for renewal)
         {letsencrypt_keys_dir, "{{platform_etc_dir}}/certs/letsencrypt/"},
