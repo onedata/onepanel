@@ -242,13 +242,13 @@ storage_set_imported_storage(Node, StorageId, Value) ->
     ?CALL(Node, [StorageId, Value]).
 
 
--spec storage_update_luma_config(storage_id(), Changes) -> ok | {error, term()}
-    when Changes :: #{url => luma_config_url(), api_key => luma_config_api_key()}.
+-spec storage_update_luma_config(storage_id(), DiffOrNewConfig) -> ok | {error, term()}
+    when DiffOrNewConfig :: #{url => luma_config_url(), api_key => luma_config_api_key()} | luma_config().
 storage_update_luma_config(StorageId, Changes) ->
     ?CALL([StorageId, Changes]).
 
--spec storage_update_luma_config(node(), storage_id(), Changes) -> ok | {error, term()}
-    when Changes :: #{url => luma_config_url(), api_key => luma_config_api_key()}.
+-spec storage_update_luma_config(node(), storage_id(), DiffOrNewConfig) -> ok | {error, term()}
+    when DiffOrNewConfig :: #{url => luma_config_url(), api_key => luma_config_api_key()} | luma_config().
 storage_update_luma_config(Node, StorageId, Changes) ->
     ?CALL(Node, [StorageId, Changes]).
 
