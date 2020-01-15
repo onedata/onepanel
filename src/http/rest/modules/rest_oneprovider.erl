@@ -64,7 +64,7 @@ is_authorized(Req, _Method, _State) ->
 exists_resource(Req, #rstate{resource = storage, bindings = #{id := Id}}) ->
     case nodes:any(?WORKER) of
         {ok, Node} ->
-            {op_worker_storage:exists(Node, {id, Id}), Req};
+            {op_worker_storage:exists(Node, Id), Req};
         _ ->
             {false, Req}
     end;
@@ -183,9 +183,7 @@ accept_resource(Req, 'PATCH', Args, #rstate{resource = space, bindings = #{id :=
 
 accept_resource(Req, 'POST', Args, #rstate{resource = storages}) ->
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
-        ?WORKER, add_storages, #{
-            storages => Args, ignore_exists => false
-        }
+        ?WORKER, add_storages, #{storages => Args}
     ))};
 
 accept_resource(Req, 'PATCH', Args, #rstate{resource = storage,

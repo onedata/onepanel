@@ -328,7 +328,7 @@ add_storage(#{params := #{type := Type} = Params, name := Name} = Ctx) when
     add_storage(Ctx#{params => FilledParams});
 
 add_storage(#{params := _, name := _} = Ctx) ->
-    op_worker_storage:add(Ctx, maps:get(ignore_exists, Ctx, false)).
+    op_worker_storage:add(Ctx).
 
 
 %%--------------------------------------------------------------------

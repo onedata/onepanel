@@ -164,7 +164,7 @@ accept_resource(Req, 'POST', Args, #rstate{resource = service_oneprovider} = Sta
     OpwHosts = rest_utils:get_hosts([cluster, workers, nodes], Args),
 
     StorageCtx = kv_utils:copy_found([{[cluster, storages], storages}], Args),
-    StorageCtx2 = StorageCtx#{hosts => OpwHosts, ignore_exists => true},
+    StorageCtx2 = StorageCtx#{hosts => OpwHosts},
 
     LetsencryptCtx = kv_utils:copy_found(
         [{[oneprovider, letsEncryptEnabled], letsencrypt_enabled}],
