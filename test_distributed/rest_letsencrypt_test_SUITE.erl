@@ -106,14 +106,14 @@ all() ->
 
 % Calls Function with one host from each cluster
 -define(hostPerCluster(Config, Function), begin
-    Function(utils:random_element(?config(oneprovider_hosts, Config))),
-    Function(utils:random_element(?config(onezone_hosts, Config)))
+    Function(lists_utils:random_element(?config(oneprovider_hosts, Config))),
+    Function(lists_utils:random_element(?config(onezone_hosts, Config)))
 end).
 
 % Calls Function with one node from each cluster
 -define(nodePerCluster(Config, Function), begin
-    Function(utils:random_element(?config(oneprovider_nodes, Config))),
-    Function(utils:random_element(?config(onezone_nodes, Config)))
+    Function(lists_utils:random_element(?config(oneprovider_nodes, Config))),
+    Function(lists_utils:random_element(?config(onezone_nodes, Config)))
 end).
 
 %%%===================================================================

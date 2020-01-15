@@ -68,7 +68,7 @@ any(#{service := ServiceName} = Opts) ->
             Self = hosts:self(),
             Host = case lists:member(Self, Hosts) of
                 true -> Self;
-                false -> utils:random_element(Hosts)
+                false -> lists_utils:random_element(Hosts)
             end,
             {ok, service_to_node(ServiceName, Host)}
     end.

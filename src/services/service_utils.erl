@@ -238,7 +238,7 @@ get_step(#step{hosts = Hosts, verify_hosts = true} = Step) ->
     get_step(Step#step{verify_hosts = false});
 
 get_step(#step{hosts = Hosts, ctx = Ctx, selection = any} = Step) ->
-    Host = utils:random_element(Hosts),
+    Host = lists_utils:random_element(Hosts),
     get_step(Step#step{hosts = [Host], selection = all,
         ctx = Ctx#{rest => lists:delete(Host, Hosts), all => Hosts}});
 
