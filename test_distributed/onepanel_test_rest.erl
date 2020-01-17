@@ -177,7 +177,7 @@ noauth_request(HostOrConfig, Endpoint, Method, Headers, Body) ->
 noauth_request(HostOrConfig, Port, {noprefix, Path}, Method, Headers, Body) ->
     Host = case io_lib:printable_unicode_list(HostOrConfig) of
         true -> HostOrConfig;
-        false -> utils:random_element(?config(all_hosts, HostOrConfig))
+        false -> lists_utils:random_element(?config(all_hosts, HostOrConfig))
     end,
     NewHeaders = [
         {?HDR_CONTENT_TYPE, <<"application/json">>} |
