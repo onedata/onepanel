@@ -117,6 +117,7 @@ all() ->
     {<<"/provider/spaces/someSpaceId/auto-cleaning/reports">>, get},
     {<<"/provider/spaces/someSpaceId/auto-cleaning/reports/someReportId">>, get},
     {<<"/provider/spaces/someSpaceId/auto-cleaning/start">>, post},
+    {<<"/provider/spaces/someSpaceId/auto-cleaning/cancel">>, post},
     {<<"/provider/spaces/someSpaceId/auto-cleaning/status">>, get},
 
     {<<"/provider/storages">>, get},

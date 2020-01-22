@@ -260,6 +260,14 @@ accept_resource(Req, 'POST', _Args, #rstate{
         ?SERVICE, start_auto_cleaning, #{space_id => Id}
     ))};
 
+accept_resource(Req, 'POST', _Args, #rstate{
+    resource = space_auto_cleaning_cancel,
+    bindings = #{id := Id}
+}) ->
+    {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
+        ?SERVICE, cancel_auto_cleaning, #{space_id => Id}
+    ))};
+
 accept_resource(Req, 'PATCH', #{transfersMock := Enabled}, #rstate{resource = transfers_mock}) ->
     {true, rest_replier:throw_on_service_error(Req, service:apply_sync(
         ?WORKER, set_transfers_mock, #{transfers_mock => Enabled}

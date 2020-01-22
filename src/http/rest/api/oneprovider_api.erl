@@ -130,6 +130,16 @@ routes() ->
             }]
         }},
 
+        %% Cancels space auto-cleaning
+        {<<"/api/v3/onepanel/provider/spaces/:id/auto-cleaning/cancel">>, rest_handler, #rstate{
+            version = 3,
+            module = rest_oneprovider,
+            resource = space_auto_cleaning_cancel,
+            methods = [#rmethod{
+                type = 'POST'
+            }]
+        }},
+
         %% Configure Ceph cluster
         {<<"/api/v3/onepanel/provider/ceph">>, rest_handler, #rstate{
             version = 3,
