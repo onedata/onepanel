@@ -650,13 +650,11 @@ autocleaning_force_run(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
 
--spec autocleaning_cancel_run(od_space_id()) ->
-    {ok, autocleaning_run_id()} | {error, term()}.
+-spec autocleaning_cancel_run(od_space_id()) -> ok | {error, term()}.
 autocleaning_cancel_run(SpaceId) ->
     ?CALL([SpaceId]).
 
--spec autocleaning_cancel_run(node(), od_space_id()) ->
-    {ok, autocleaning_run_id()} | {error, term()}.
+-spec autocleaning_cancel_run(node(), od_space_id()) -> ok | {error, term()}.
 autocleaning_cancel_run(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 

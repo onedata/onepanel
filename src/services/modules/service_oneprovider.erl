@@ -781,6 +781,7 @@ start_auto_cleaning(#{space_id := SpaceId}) ->
         {error, _} = Error -> throw(Error)
     end.
 
+
 %%-------------------------------------------------------------------
 %% @doc
 %% Manually cancels auto-cleaning of given space.
@@ -789,6 +790,7 @@ start_auto_cleaning(#{space_id := SpaceId}) ->
 -spec cancel_auto_cleaning(Ctx :: service:ctx()) -> ok.
 cancel_auto_cleaning(#{space_id := SpaceId}) ->
     ok = op_worker_rpc:autocleaning_cancel_run(SpaceId).
+
 
 %%-------------------------------------------------------------------
 %% @doc

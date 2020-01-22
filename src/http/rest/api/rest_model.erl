@@ -1130,28 +1130,28 @@ space_auto_cleaning_configuration_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Report from a auto-cleaning run.
+%% @doc Report from an auto-cleaning run.
 %% @end
 %%--------------------------------------------------------------------
 -spec space_auto_cleaning_report_model() -> onepanel_parser:object_spec().
 space_auto_cleaning_report_model() ->
     #{
-        %% Id of a auto-cleaning report.
+        %% Id of an auto-cleaning report.
         id => string,
-        %% Index of a auto-cleaning report. It can be used to list report Ids
+        %% Index of an auto-cleaning report. It can be used to list report Ids
         %% starting from given report.
         index => string,
-        %% Start time of a auto-cleaning run in ISO 8601 format.
+        %% Start time of an auto-cleaning run in ISO 8601 format.
         startedAt => string,
-        %% Finish time of a auto-cleaning run in ISO 8601 format.
+        %% Finish time of an auto-cleaning run in ISO 8601 format.
         stoppedAt => string,
-        %% Number of bytes deleted during a auto-cleaning run.
+        %% Number of bytes deleted during an auto-cleaning run.
         releasedBytes => integer,
         %% Number of bytes that should be deleted.
         bytesToRelease => integer,
         %% Number of deleted files.
         filesNumber => integer,
-        %% Status of a auto-cleaning run.
+        %% Status of an auto-cleaning run.
         status => {enum, string, [<<"active">>, <<"cancelling">>, <<"completed">>, <<"failed">>, <<"cancelled">>]}
     }.
 
