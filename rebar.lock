@@ -59,7 +59,7 @@
  {<<"mimerl">>,{pkg,<<"mimerl">>,<<"1.0.2">>},2},
  {<<"onedata_documentation">>,
   {raw,{git,"ssh://git@git.onedata.org:7999/vfs/onedata-documentation.git",
-            {ref,"f70c057ce1e4b6caffe6ad4909eaeee4289c0926"}}},
+            {ref,"51858fd503e66754fd9ab734383d085f17418716"}}},
   0},
  {<<"ranch">>,
   {git,"https://github.com/ninenines/ranch",
