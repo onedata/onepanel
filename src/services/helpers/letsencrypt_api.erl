@@ -154,7 +154,6 @@
 
 -export([run_certification_flow/2]).
 -export([challenge_types/0]).
--export([clean_keys/0, clean_keys/1]).
 
 %%%===================================================================
 %%% Public API
