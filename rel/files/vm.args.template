@@ -12,3 +12,7 @@
 
 ## Enable SMP
 -smp enable
+
+# Make sure the node cannot be killed by Ctrl + C.
+# To terminate the node, use 'q().' or 'init:stop().'
++Bc
