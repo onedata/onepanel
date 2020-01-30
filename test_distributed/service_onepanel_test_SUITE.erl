@@ -32,6 +32,7 @@
     extend_should_add_node_by_hostname/1,
     extend_should_add_node_by_ip/1,
     extend_should_return_hostname_of_new_node/1,
+    extend_should_work_in_deployed_cluster/1,
     leave_should_remove_node/1
 ]).
 
@@ -149,6 +150,21 @@ sequential_join_should_create_cluster(Config) ->
     end, Nodes).
 
 
+% ensure presence of deployed services does not prevent adding more nodes
+extend_should_work_in_deployed_cluster(Config) ->
+    Cluster1 = ?config(cluster1, Config),
+    Cluster1Hosts = hosts:from_nodes(Cluster1),
+    [Node1 | _] = Nodes = lists:sort(?config(onepanel_nodes, Config)),
+    [_Host1, _Host2, Host3 | _] = Hosts =
+        lists:sort(hosts:from_nodes(Nodes)),
+
+    onepanel_test_utils:service_action(Node1, ?SERVICE_PANEL, extend_cluster,
+        #{address => Host3}),
+
+    ?assertEqual(lists:sort([Host3 | Cluster1Hosts]),
+        lists:sort(rpc:call(hd(Cluster1), service_onepanel, get_hosts, []))).
+
+
 leave_should_remove_node(Config) ->
     [Node1, Node2, Node3 | _] = ?config(onepanel_nodes, Config),
     Nodes = [Node1, Node2, Node3],
@@ -236,17 +252,34 @@ init_per_testcase(join_should_fail_on_clustered_node, Config) ->
     Cluster1Hosts = hosts:from_nodes(Cluster1),
     Cluster2Hosts = hosts:from_nodes(Cluster2),
 
-    ?assertEqual(ok, rpc:call(Node1, service, apply,
-        [?SERVICE_PANEL, deploy, #{hosts => Cluster1Hosts}]
+    onepanel_test_utils:service_action(Node1,
+        ?SERVICE_PANEL, deploy, #{hosts => Cluster1Hosts}),
+    ?assertEqual(Cluster1Hosts, lists:sort(rpc:call(
+        Node1, service_onepanel, get_hosts, [])
     )),
-    ?assertEqual(Cluster1Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
 
-    ?assertEqual(ok, rpc:call(Node2, service, apply,
-        [?SERVICE_PANEL, deploy, #{hosts => Cluster2Hosts}]
+    onepanel_test_utils:service_action(Node2,
+        ?SERVICE_PANEL, deploy, #{hosts => Cluster2Hosts}),
+    ?assertEqual(Cluster2Hosts, lists:sort(rpc:call(
+        Node2, service_onepanel, get_hosts, [])
     )),
-    ?assertEqual(Cluster2Hosts, lists:sort(rpc:call(Node2, service_onepanel, get_hosts, []))),
 
     [{cluster1, Cluster1}, {cluster2, Cluster2} | Config2];
+
+init_per_testcase(extend_should_work_in_deployed_cluster, Config) ->
+    Config2 = init_per_testcase(default, Config),
+
+    Nodes = ?config(onepanel_nodes, Config2),
+    [Node1, Node2 | _] = ?config(onepanel_nodes, Config2),
+    Cluster1 = [Node1, Node2],
+    Cluster1Hosts = hosts:from_nodes(Cluster1),
+    onepanel_test_utils:service_action(Node1,
+        ?SERVICE_PANEL, deploy, #{hosts => Cluster1Hosts}),
+    test_utils:mock_new(Cluster1, [service_oneprovider]),
+    test_utils:mock_expect(Cluster1, service_oneprovider, get_hosts,
+        fun() -> Cluster1Hosts end),
+
+    [{cluster1, Cluster1} | Config2];
 
 init_per_testcase(leave_should_not_remove_used_host, Config) ->
     NewConfig = init_per_testcase(default, Config),
