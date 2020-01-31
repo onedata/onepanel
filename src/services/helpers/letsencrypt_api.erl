@@ -245,7 +245,7 @@ run_certification_flow(Domain, Plugin, Mode) ->
                     % authorization rate limit.
                     catch clean_keys(KeysDir)
             end,
-            erlang:Type(Error)
+            erlang:raise(Type, Error, erlang:get_stacktrace())
     end,
     % Remove TXT record only on success to ease debugging
     catch clean_txt_record(Plugin),

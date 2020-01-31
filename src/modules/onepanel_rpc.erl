@@ -205,8 +205,11 @@ any(Results) ->
 
 
 -spec reraise(#exception{} | term()) -> no_return().
-reraise(#exception{type = Type, value = Value}) ->
+reraise(#exception{type = Type, value = Value, stacktrace = []}) ->
     erlang:Type(Value);
+
+reraise(#exception{type = Type, value = Value, stacktrace = Stacktrace}) ->
+    erlang:raise(Type, Value, Stacktrace);
 
 reraise(Value) ->
     throw(Value).
