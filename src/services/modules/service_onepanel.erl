@@ -30,7 +30,7 @@
 -export([set_cookie/1, configure/1, check_connection/1,
     ensure_all_hosts_available/1, init_cluster/1, extend_cluster/1,
     join_cluster/1, reset_node/1, ensure_node_ready/1, reload_webcert/1,
-    available_for_clustering/0, is_host_used/1]).
+    available_for_clustering/0, is_host_used/1, import_configuration/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -82,7 +82,9 @@ get_steps(deploy, #{hosts := Hosts} = Ctx) ->
 get_steps(extend_cluster, Ctx) ->
     [
         #step{function = extend_cluster, hosts = [hosts:self()],
-            % when the reason of extend_cluster is an explicit request, do not retry
+            % when the reason of extend_cluster is an explicit request
+            % (as opposed to "batch config" action 'deploy'), do not retry
+            % - the requesting client should ensure the node is already online.
             ctx = Ctx#{attempts => 1}}
     ];
 
@@ -94,7 +96,7 @@ get_steps(init_cluster, _Ctx) ->
         S#step{function = init_cluster}
     ];
 
-get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
+get_steps(join_cluster, #{cluster_host := ClusterHost} = Ctx) ->
     SelfHost = hosts:self(),
     case {available_for_clustering(), ClusterHost} of
         {_, SelfHost} -> [];
@@ -107,7 +109,10 @@ get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
                     attempts = onepanel_env:get(node_connection_attempts, ?APP_NAME, 90),
                     retry_delay = onepanel_env:get(node_connection_retry_delay, ?APP_NAME, 1000)},
                 S#step{function = reset_node},
-                S#step{function = join_cluster}
+                S#step{function = join_cluster},
+                #steps{action = import_configuration, ctx = #{
+                    reference_host => ClusterHost, hosts => [SelfHost]
+                }, verify_hosts = false}
             ]
     end;
 
@@ -144,6 +149,9 @@ get_steps(migrate_emergency_passphrase, _Ctx) ->
     [#step{module = emergency_passphrase, function = migrate_from_users, args = [],
         hosts = get_hosts(), selection = any,
         condition = fun(_) -> not emergency_passphrase:is_set() end}];
+
+get_steps(import_configuration, #{reference_host := _} = Ctx) ->
+    [#step{function = import_configuration}];
 
 get_steps(Function, _Ctx) when
     Function == reload_webcert;
@@ -219,8 +227,11 @@ init_cluster(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec extend_cluster(service:ctx()) -> #{hostname := binary()} | no_return().
 extend_cluster(#{attempts := Attempts} = Ctx) when Attempts =< 0 ->
-    Hostname = maps:get(hostname, Ctx, maps:get(address, Ctx)),
-    throw(?ERROR_NO_CONNECTION_TO_NEW_NODE(Hostname));
+    NewNode = case Ctx of
+        #{hostname := Hostname} -> Hostname;
+        #{address := Address} -> Address
+    end,
+    throw(?ERROR_NO_CONNECTION_TO_NEW_NODE(NewNode));
 
 extend_cluster(#{hostname := Hostname, attempts := Attempts} = Ctx) ->
     SelfHost = hosts:self(),
@@ -357,6 +368,25 @@ is_host_used(Host) ->
             % already deployed but other are not
             false
     end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Copies configuration and certificate files from existing cluster nodes
+%% to the current node.
+%% @end
+%%--------------------------------------------------------------------
+-spec import_configuration(#{reference_host := service:host()}) -> ok.
+import_configuration(#{reference_host := Host}) ->
+    SelfHost = hosts:self(),
+    Node = nodes:service_to_node(name(), Host),
+    onepanel_cert:backup_exisiting_certs(),
+    FilesToCopy = rpc:call(Node, onepanel_cert, list_certificate_files, []),
+    lists:foreach(fun(Path) ->
+        ok = rpc:call(Node, onepanel_utils, distribute_file,
+            [[SelfHost], Path])
+    end, FilesToCopy).
 
 
 %%%===================================================================

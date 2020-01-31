@@ -281,5 +281,6 @@ ensure_known_hosts(Hosts) ->
 distribute_file(Hosts, Path) ->
     Nodes = nodes:service_to_nodes(?SERVICE_PANEL, Hosts),
     {ok, Content} = file:read_file(Path),
+    onepanel_rpc:call_all(Nodes, filelib, ensure_dir, [Path]),
     onepanel_rpc:call_all(Nodes, file, write_file, [Path, Content]),
     ok.

@@ -157,7 +157,7 @@ check_webcert(Ctx) ->
                     regenerating => false,
                     last_failure => time_utils:system_time_seconds()
                 }),
-                erlang:Type(Error)
+                erlang:raise(Type, Error, erlang:get_stacktrace())
             end,
 
             update_ctx(#{
@@ -233,7 +233,8 @@ obtain_cert(Ctx) ->
     <<Domain/binary>> = Plugin:get_domain(),
 
     case maps:get(renewal, Ctx, false) of
-        false -> onepanel_cert:backup_exisiting_certs();
+        false ->
+            onepanel_cert:backup_exisiting_certs();
         true ->
             ?info("Renewing Let's Encrypt certificate"),
             ok

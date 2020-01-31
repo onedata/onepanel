@@ -257,14 +257,14 @@ extend_should_copy_certificates_to_new_node(Config) ->
         % mock will produce cert and key files
         ?SERVICE_LE, update, #{letsencrypt_enabled => true}),
     % sanity check
-    verify_letsencrypt_files(Node1),
+    verify_certificate_files(Node1),
 
     % add node
     onepanel_test_utils:service_action(Node1,
         ?SERVICE_PANEL, extend_cluster, #{hostname => Host2Bin}
     ),
 
-    verify_letsencrypt_files(Node2).
+    verify_certificate_files(Node2).
 
 
 %%%===================================================================
@@ -333,9 +333,6 @@ init_per_testcase(extend_should_copy_certificates_to_new_node, Config) ->
 
     [Node1, Node2 | _] = ?config(onepanel_nodes, NewConfig),
     Cluster1 = [Node1, Node2],
-%%    test_utils:mock_new(Cluster1, [service_op_worker]),
-%%    ct:pal("Sleeping", []),
-%%    timer:sleep(timer:seconds(5)),
     ct:pal("Mocking on nodes ~p", [Cluster1]),
     ?assertEqual(ok, test_utils:mock_new(Nodes,
         [service_op_worker, letsencrypt_api], [passthrough])),
@@ -387,8 +384,8 @@ end_per_suite(_Config) ->
 
 
 %% @private
--spec verify_letsencrypt_files(node()) -> ok.
-verify_letsencrypt_files(Node) ->
+-spec verify_certificate_files(node()) -> ok.
+verify_certificate_files(Node) ->
     {ok, WebCertFile} = test_utils:get_env(Node, ?APP_NAME, web_cert_file),
     {ok, WebKeyFile}  = test_utils:get_env(Node, ?APP_NAME, web_key_file),
     {ok, WebCertChainFile}   = test_utils:get_env(Node, ?APP_NAME, web_cert_chain_file),
