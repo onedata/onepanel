@@ -217,14 +217,26 @@ service_action(Node, Service, Action) ->
 -spec service_action(Node :: node(), Service :: service:name(),
     Action :: atom(), Ctx :: service:ctx()) -> ok | no_return().
 service_action(Node, Service, Action, Ctx) ->
-    Self = self(),
-    ?assertEqual(ok, rpc:call(Node, service, apply,
-        [Service, Action, Ctx, Self]
-    )).
+    case rpc:call(Node, service, apply_sync, [Service, Action, Ctx]) of
+        Results when is_list(Results) ->
+            case service_utils:results_contain_error(Results) of
+                {true, Error} ->
+                    ct:pal("Service action ~tp:~tp on node ~tp failed.~nCtx: ~tp~nError: ~tp",
+                        [Service, Action, Node, Ctx, Error]),
+                    ?assert(false);
+                false ->
+                    ok
+            end;
+        Error ->
+            ct:pal("Service action ~tp:~tp on node ~tp failed to start.~nCtx: ~tp~nError: ~tp",
+                [Service, Action, Node, Ctx, Error]),
+            ?assert(false)
+    end.
 
 
 %%--------------------------------------------------------------------
-%% @doc Performs service action on given node.
+%% @doc Performs service action on given node without checking
+%% its result.
 %% @end
 %%--------------------------------------------------------------------
 -spec attempt_service_action(Node :: node(), Service :: service:name(),
@@ -271,6 +283,6 @@ create_cluster([]) ->
 
 create_cluster([Node | _] = Nodes) ->
     Hosts = hosts:from_nodes(Nodes),
-    ?assertEqual(ok, rpc:call(Node, service, apply,
-        [onepanel, deploy, #{hosts => Hosts}]
-    )).
+    onepanel_test_utils:service_action(Node,
+        onepanel, deploy, #{hosts => Hosts}
+    ).

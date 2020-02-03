@@ -52,16 +52,14 @@ service_should_be_not_found(Config) ->
 
 service_should_request_action_steps(Config) ->
     [Node | _] = ?config(onepanel_nodes, Config),
-    ?assertEqual(ok,
-        rpc:call(Node, service, apply, [example, some_action, #{}])),
+    onepanel_test_utils:service_action(Node, example, some_action, #{}),
     ?assertReceivedEqual(get_steps, ?TIMEOUT).
 
 
 service_should_execute_steps(Config) ->
-    Self = self(),
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
-    ?assertEqual(ok, rpc:call(Node1, service, apply,
-        [example, some_action, #{}, Self])),
+    onepanel_test_utils:service_action(Node1,
+        example, some_action, #{}),
     ?assertReceivedEqual({Node1, step1}, ?TIMEOUT),
     ?assertReceivedEqual({Node2, step2}, ?TIMEOUT),
     ?assertReceivedEqual({Node1, step3}, ?TIMEOUT),

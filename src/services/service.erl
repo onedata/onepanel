@@ -367,7 +367,7 @@ get_results(TaskId, Timeout) ->
     end,
     StepsCount = case gen_server:call(?SERVICE_EXECUTOR_NAME, {get_count, TaskId}) of
         ok -> service_executor:receive_count(TaskId, Timeout);
-        {error, _} = Error2 -> {Results, Error2}
+        {error, _} = Error2 -> Error2
     end,
     {Results, StepsCount}.
 
