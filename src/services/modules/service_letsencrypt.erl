@@ -8,6 +8,20 @@
 %%% @doc
 %%% This module handles management of Let's Encrypt https certificates
 %%% including obtaining certificates and periodic renewal.
+%%%
+%%% The periodic check is implemented using onepanel_cron, where a task
+%%% is added upon successfully enabling Let's Encrypt and removed
+%%% upon disabling. Since onepanl_cron is per-node, all steps in
+%%% service_letsencrypt are configured to run on one node at a time.
+%%% Only the node performing certification stores the Let's Encrypt account
+%%% credentials.
+%%%
+%%% Node used for Let's Encrypt certification might change if a new node
+%%% is added to the cluster. In such case migration procedure might miss
+%%% LE credentials if they are on a different node. This is not a significant
+%%% issue as new LE registration is possible, at the cost of counting
+%%% as a new rather than renewed certificate.
+%%% @TODO VFS-6097 Store the credentials in mnesia.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(service_letsencrypt).

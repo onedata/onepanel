@@ -274,7 +274,8 @@ get_step(#step{ctx = Ctx, args = undefined} = Step) ->
     get_step(Step#step{args = [Ctx]});
 
 get_step(#step{condition = Condition, ctx = Ctx} = Step) when
-    is_function(Condition, 1) ->
+    is_function(Condition, 1)
+->
     get_step(Step#step{condition = Condition(Ctx)});
 
 get_step(#step{condition = true} = Step) ->
@@ -290,7 +291,8 @@ get_step(#step{condition = false}) ->
 %%--------------------------------------------------------------------
 -spec get_nested_steps(Steps :: #steps{}) -> Steps :: [#step{}].
 get_nested_steps(#steps{ctx = Ctx, condition = Condition} = Steps) when
-    is_function(Condition, 1) ->
+    is_function(Condition, 1)
+->
     get_nested_steps(Steps#steps{condition = Condition(Ctx)});
 
 get_nested_steps(#steps{condition = true} = Steps) ->
