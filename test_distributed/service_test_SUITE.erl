@@ -120,7 +120,8 @@ init_per_testcase(service_should_request_action_steps, Config) ->
 
 init_per_testcase(Case, Config) when
     Case =:= service_should_execute_steps;
-    Case =:= service_should_notify_caller ->
+    Case =:= service_should_notify_caller
+->
     Nodes = ?config(onepanel_nodes, Config),
     [Host1, Host2 | _] = Hosts = hosts:from_nodes(Nodes),
     Self = self(),

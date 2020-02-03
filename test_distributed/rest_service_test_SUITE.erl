@@ -11,6 +11,7 @@
 -module(rest_service_test_SUITE).
 -author("Krzysztof Trzepla").
 
+
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
 -include("modules/onepanel_dns.hrl").
@@ -29,7 +30,6 @@
 -export([
     method_should_return_unauthorized_error/1,
     method_should_return_forbidden_error/1,
-    method_should_return_service_unavailable_error/1,
     method_should_return_not_found_error/1,
     get_should_return_service_status/1,
     get_should_return_service_host_status/1,
@@ -37,6 +37,7 @@
     get_should_return_nagios_response/1,
     get_should_return_dns_check/1,
     patch_should_start_stop_service/1,
+    patch_should_configure_dns_check/1,
     post_should_configure_database_service/1,
     post_should_configure_cluster_manager_service/1,
     post_should_configure_cluster_worker_service/1,
@@ -147,6 +148,8 @@
 "</healthdata>">>
 ).
 
+-define(TASK_ID, "someTaskId").
+
 -define(run(Config, Function), ?run(Config, Function, [
     {oneprovider_hosts, <<"/provider">>},
     {onezone_hosts, <<"/zone">>}
@@ -162,7 +165,6 @@ all() ->
     ?ALL([
         method_should_return_unauthorized_error,
         method_should_return_forbidden_error,
-        method_should_return_service_unavailable_error,
         method_should_return_not_found_error,
         get_should_return_service_status,
         get_should_return_service_host_status,
@@ -170,6 +172,7 @@ all() ->
         get_should_return_nagios_response,
         get_should_return_dns_check,
         patch_should_start_stop_service,
+        patch_should_configure_dns_check,
         post_should_configure_database_service,
         post_should_configure_cluster_manager_service,
         post_should_configure_cluster_worker_service,
@@ -205,25 +208,6 @@ method_should_return_forbidden_error(Config) ->
                 Host, <<Prefix/binary, Endpoint/binary>>, Method, ?OZ_AUTHS(Host, Auths)
             ))
         end, [{E, M} || {E, M} <- ?COMMON_ENDPOINTS_WITH_METHODS, M /= get])
-    end).
-
-
-method_should_return_service_unavailable_error(Config) ->
-    ?run(Config, fun
-        ({Host, <<"/provider">> = Prefix}) ->
-            lists:foreach(fun({Endpoint, Method}) ->
-                ?assertMatch({ok, ?HTTP_503_SERVICE_UNAVAILABLE, _, _}, onepanel_test_rest:auth_request(
-                    Host, <<Prefix/binary, Endpoint/binary>>, Method,
-                    ?ALL_AUTHS(Host)
-                ))
-            end, [
-                {<<"/storages">>, get},
-                {<<"/storages">>, post},
-                {<<"/storages/somePosixId">>, get},
-                {<<"/storages/somePosixId">>, patch},
-                {<<"/storages/somePosixId/invalidate_luma">>, patch}
-            ]);
-        ({_, <<"/zone">>}) -> ok
     end).
 
 
@@ -381,28 +365,43 @@ patch_should_start_stop_service(Config) ->
     ]).
 
 
+patch_should_configure_dns_check(Config) ->
+    ?run(Config, fun({Host, _}) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, <<>>},
+            onepanel_test_rest:auth_request(
+                Host, <<"/dns_check/configuration">>, patch,
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
+                #{
+                    <<"dnsServers">> => [<<"127.0.0.1">>],
+                    <<"builtInDnsServer">> => true,
+                    <<"dnsCheckAcknowledged">> => true
+                }
+            )
+        ),
+        ?assertReceivedMatch({service, _, configure_dns_check, #{
+            dns_servers := [{127, 0, 0, 1}],
+            dns_check_acknowledged := true,
+            built_in_dns_server := true
+        }}, ?TIMEOUT)
+    end).
+
+
 post_should_configure_database_service(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
-        {_, _, Headers, _} = ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
-            onepanel_test_rest:auth_request(
+        ?assertAsyncTask(?TASK_ID, onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/databases">>, post,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
                 #{hosts => [<<"host1">>, <<"host2">>, <<"host3">>]}
             )
         ),
-        onepanel_test_utils:assert_values(Headers, [
-            {<<"location">>, <<"/api/v3/onepanel/tasks/someTaskId">>}
-        ]),
         ?assertReceivedMatch({service, couchbase, deploy, #{
             hosts := ["host1", "host2", "host3"]
         }}, ?TIMEOUT)
     end).
 
-
 post_should_configure_cluster_manager_service(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
-        {_, _, Headers, _} = ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
-            onepanel_test_rest:auth_request(
+        ?assertAsyncTask(?TASK_ID, onepanel_test_rest:auth_request(
                 Host, <<Prefix/binary, "/managers">>, post,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
                 #{
@@ -411,9 +410,6 @@ post_should_configure_cluster_manager_service(Config) ->
                 }
             )
         ),
-        onepanel_test_utils:assert_values(Headers, [
-            {<<"location">>, <<"/api/v3/onepanel/tasks/someTaskId">>}
-        ]),
         ?assertReceivedMatch({service, cluster_manager, deploy, #{
             main_host := "host1",
             hosts := ["host1", "host2", "host3"]
@@ -423,16 +419,11 @@ post_should_configure_cluster_manager_service(Config) ->
 
 post_should_configure_cluster_worker_service(Config) ->
     ?run(Config, fun({Host, {Prefix, Service}}) ->
-        {_, _, Headers, _} = ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, "/workers">>, post,
-                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
-                #{hosts => [<<"host1">>, <<"host2">>, <<"host3">>]}
-            )
-        ),
-        onepanel_test_utils:assert_values(Headers, [
-            {<<"location">>, <<"/api/v3/onepanel/tasks/someTaskId">>}
-        ]),
+        ?assertAsyncTask(?TASK_ID, onepanel_test_rest:auth_request(
+            Host, <<Prefix/binary, "/workers">>, post,
+            ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
+            #{hosts => [<<"host1">>, <<"host2">>, <<"host3">>]}
+        )),
         ?assertReceivedMatch({service, Service, deploy, #{
             hosts := ["host1", "host2", "host3"], db_hosts := ["host1", "host2"],
             cm_hosts := ["host2", "host3"], main_cm_host := "host3"
@@ -445,31 +436,26 @@ post_should_configure_cluster_worker_service(Config) ->
 
 post_should_configure_onezone_service(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
-        {_, _, Headers, _} = ?assertMatch({ok, ?HTTP_201_CREATED, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, "/configuration">>, post,
-                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
-                #{
-                    <<"cluster">> => ?CLUSTER_JSON,
-                    <<"onezone">> => #{
-                        <<"name">> => <<"someName">>,
-                        <<"domainName">> => <<"someDomain">>,
-                        <<"policies">> => #{
-                            <<"oneproviderRegistration">> => <<"open">>,
-                            <<"subdomainDelegation">> => false,
-                            <<"guiPackageVerification">> => false,
-                            <<"harvesterGuiPackageVerification">> => false
-                        }
-                    },
-                    <<"onepanel">> => #{
-                        <<"guiDebugMode">> => true
+        ?assertAsyncTask(?TASK_ID, onepanel_test_rest:auth_request(
+            Host, <<Prefix/binary, "/configuration">>, post,
+            ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
+            #{
+                <<"cluster">> => ?CLUSTER_JSON,
+                <<"onezone">> => #{
+                    <<"name">> => <<"someName">>,
+                    <<"domainName">> => <<"someDomain">>,
+                    <<"policies">> => #{
+                        <<"oneproviderRegistration">> => <<"open">>,
+                        <<"subdomainDelegation">> => false,
+                        <<"guiPackageVerification">> => false,
+                        <<"harvesterGuiPackageVerification">> => false
                     }
+                },
+                <<"onepanel">> => #{
+                    <<"guiDebugMode">> => true
                 }
-            )
-        ),
-        onepanel_test_utils:assert_values(Headers, [
-            {<<"location">>, <<"/api/v3/onepanel/tasks/someTaskId">>}
-        ]),
+            }
+        )),
         ?assertReceivedMatch({service, onezone, deploy, #{
             cluster := #{
                 couchbase := #{
@@ -504,33 +490,28 @@ post_should_configure_onezone_service(Config) ->
 
 post_should_configure_oneprovider_service(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
-        {_, _, Headers, _} = ?assertMatch({ok, ?HTTP_201_CREATED, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, "/configuration">>, post,
-                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
-                #{
-                    <<"cluster">> => maps:merge(#{
-                        <<"storages">> => ?STORAGES_JSON},
-                        ?CLUSTER_JSON),
-                    <<"oneprovider">> => #{
-                        <<"register">> => true,
-                        <<"token">> => <<"someToken">>,
-                        <<"name">> => <<"someName">>,
-                        <<"subdomainDelegation">> => false,
-                        <<"domain">> => <<"someDomain">>,
-                        <<"adminEmail">> => <<"admin@onedata.org">>,
-                        <<"geoLongitude">> => <<"10">>,
-                        <<"geoLatitude">> => <<"20.0">>
-                    },
-                    <<"onepanel">> => #{
-                        <<"guiDebugMode">> => true
-                    }
+        ?assertAsyncTask(?TASK_ID, onepanel_test_rest:auth_request(
+            Host, <<Prefix/binary, "/configuration">>, post,
+            ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
+            #{
+                <<"cluster">> => maps:merge(#{
+                    <<"storages">> => ?STORAGES_JSON},
+                    ?CLUSTER_JSON),
+                <<"oneprovider">> => #{
+                    <<"register">> => true,
+                    <<"token">> => <<"someToken">>,
+                    <<"name">> => <<"someName">>,
+                    <<"subdomainDelegation">> => false,
+                    <<"domain">> => <<"someDomain">>,
+                    <<"adminEmail">> => <<"admin@onedata.org">>,
+                    <<"geoLongitude">> => <<"10">>,
+                    <<"geoLatitude">> => <<"20.0">>
+                },
+                <<"onepanel">> => #{
+                    <<"guiDebugMode">> => true
                 }
-            )
-        ),
-        onepanel_test_utils:assert_values(Headers, [
-            {<<"location">>, <<"/api/v3/onepanel/tasks/someTaskId">>}
-        ]),
+            }
+        )),
         ?assertReceivedMatch({service, oneprovider, deploy, #{
             cluster := #{
                 couchbase := #{
@@ -639,6 +620,17 @@ init_per_suite(Config) ->
     Posthook = fun(NewConfig) -> onepanel_test_utils:init(NewConfig) end,
     [{?LOAD_MODULES, [onepanel_test_rest]}, {?ENV_UP_POSTHOOK, Posthook} | Config].
 
+init_per_testcase(Case, Config) when
+    Case == method_should_return_forbidden_error;
+    Case == method_should_return_unauthorized_error
+->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(all_nodes, Config),
+    % do not require valid payload in requests
+    test_utils:mock_new(Nodes, [onepanel_parser]),
+    test_utils:mock_expect(Nodes, onepanel_parser, parse, fun(_, _) -> #{} end),
+    NewConfig;
+
 init_per_testcase(method_should_return_service_unavailable_error, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(all_nodes, Config),
@@ -665,10 +657,6 @@ init_per_testcase(get_should_return_service_host_status, Config) ->
 init_per_testcase(get_should_return_nagios_response, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(all_nodes, NewConfig),
-    test_utils:mock_new(Nodes, rest_service),
-    test_utils:mock_expect(Nodes, rest_service, exists_resource, fun(Req, _) ->
-        {true, Req}
-    end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
         {service_op_worker, get_nagios_response, {
             [{'node@host1', {ok, ?HTTP_200_OK, #{}, ?NAGIOS_REPORT_XML}}], []

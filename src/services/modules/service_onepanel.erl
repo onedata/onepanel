@@ -30,7 +30,7 @@
 -export([set_cookie/1, configure/1, check_connection/1,
     ensure_all_hosts_available/1, init_cluster/1, extend_cluster/1,
     join_cluster/1, reset_node/1, ensure_node_ready/1, reload_webcert/1,
-    available_for_clustering/0]).
+    available_for_clustering/0, is_host_used/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -114,12 +114,6 @@ get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
 %% Removes given nodes from the current cluster, clears database on each
 %% and initializes separate one-node clusters.
 get_steps(leave_cluster, #{hosts := Hosts}) ->
-    lists:foreach(fun(Host) ->
-        case is_used(Host) of
-            true -> throw(?ERROR_NODE_ALREADY_IN_CLUSTER(Host));
-            false -> ok
-        end
-    end, Hosts),
     [
         #step{function = reset_node, hosts = Hosts},
         #step{function = init_cluster, hosts = Hosts}
@@ -153,7 +147,8 @@ get_steps(migrate_emergency_passphrase, _Ctx) ->
 
 get_steps(Function, _Ctx) when
     Function == reload_webcert;
-    Function == configure ->
+    Function == configure
+->
     [#step{function = Function}].
 
 
@@ -227,8 +222,7 @@ extend_cluster(#{attempts := Attempts} = Ctx) when Attempts =< 0 ->
     Hostname = maps:get(hostname, Ctx, maps:get(address, Ctx)),
     throw(?ERROR_NO_CONNECTION_TO_NEW_NODE(Hostname));
 
-extend_cluster(#{hostname := Hostname, api_version := ApiVersion,
-    attempts := Attempts} = Ctx) ->
+extend_cluster(#{hostname := Hostname, attempts := Attempts} = Ctx) ->
     SelfHost = hosts:self(),
     Body = json_utils:encode(#{
         cookie => erlang:get_cookie(),
@@ -238,12 +232,14 @@ extend_cluster(#{hostname := Hostname, api_version := ApiVersion,
     Suffix = "/join_cluster",
     Timeout = service_ctx:get(extend_cluster_timeout, Ctx, integer),
     Opts = https_opts(Timeout),
-    Url = build_url(Hostname, ApiVersion, Suffix),
+    Url = build_url(Hostname, Suffix),
 
     case http_client:post(Url, Headers, Body, Opts) of
         {ok, ?HTTP_204_NO_CONTENT, _, _} ->
             ?info("Host '~ts' added to the cluster", [Hostname]),
             #{hostname => Hostname};
+        {ok, ?HTTP_401_UNAUTHORIZED, _, _} ->
+            throw(?ERROR_NODE_ALREADY_IN_CLUSTER(Hostname));
         {ok, ?HTTP_403_FORBIDDEN, _, _} ->
             throw(?ERROR_NODE_ALREADY_IN_CLUSTER(Hostname));
         {ok, Code, _, RespBody} ->
@@ -256,8 +252,7 @@ extend_cluster(#{hostname := Hostname, api_version := ApiVersion,
             extend_cluster(Ctx#{attempts => Attempts - 1})
     end;
 
-extend_cluster(#{address := Address, api_version := _ApiVersion,
-    attempts := Attempts} = Ctx) ->
+extend_cluster(#{address := Address, attempts := Attempts} = Ctx) ->
     ClusterType = onepanel_env:get_cluster_type(),
     case get_remote_node_info(Ctx) of
         {ok, Hostname, ClusterType} ->
@@ -344,6 +339,26 @@ available_for_clustering() ->
         not onepanel_deployment:is_set(?PROGRESS_CLUSTER).
 
 
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Checks if given host is used to run oneprovider or onezone.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_host_used(service:host()) -> boolean().
+is_host_used(Host) ->
+    ClusterType = onepanel_env:get_cluster_type(),
+    SModule = service:get_module(ClusterType),
+    try
+        lists:member(Host, SModule:get_hosts())
+    catch
+        _:_ ->
+            % incorrect during deployment when some services are
+            % already deployed but other are not
+            false
+    end.
+
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -357,11 +372,11 @@ available_for_clustering() ->
 %%--------------------------------------------------------------------
 -spec get_remote_node_info(service:ctx()) ->
     {ok, Hostname :: binary(), Application :: atom()} | {error, _} | no_return().
-get_remote_node_info(#{address := Address, api_version := ApiVersion} = Ctx) ->
+get_remote_node_info(#{address := Address} = Ctx) ->
     Timeout = service_ctx:get(extend_cluster_timeout, Ctx, integer),
     Opts = https_opts(Timeout),
     Suffix = <<"/node">>,
-    Url = build_url(Address, ApiVersion, Suffix),
+    Url = build_url(Address, Suffix),
 
     Headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
 
@@ -380,11 +395,11 @@ get_remote_node_info(#{address := Address, api_version := ApiVersion} = Ctx) ->
 %% Builds url for given onepanel REST endpoint
 %% @end
 %%--------------------------------------------------------------------
--spec build_url(Host :: binary() | string(), ApiVersion :: rest_handler:version(),
+-spec build_url(Host :: binary() | string(),
     Suffix :: binary() | string()) -> binary().
-build_url(Host, ApiVersion, Suffix) ->
+build_url(Host, Suffix) ->
     Port = https_listener:port(),
-    Prefix = https_listener:get_prefix(ApiVersion),
+    Prefix = https_listener:get_prefix(),
     onepanel_utils:join(["https://", Host, ":", Port, Prefix, Suffix]).
 
 
@@ -402,23 +417,3 @@ https_opts(Timeout) ->
         {connect_timeout, Timeout},
         {recv_timeout, Timeout}
     ].
-
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Checks if given host is used to run oneprovider or onezone.
-%% @end
-%%--------------------------------------------------------------------
--spec is_used(service:host()) -> boolean().
-is_used(Host) ->
-    ClusterType = onepanel_env:get_cluster_type(),
-    SModule = service:get_module(ClusterType),
-    try
-        lists:member(Host, SModule:get_hosts())
-    catch
-        _:_ ->
-            % incorrect during deployment when some services are
-            % already deployed but other are not
-            false
-    end.

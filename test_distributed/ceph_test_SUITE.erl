@@ -49,7 +49,7 @@
 -define(CUSTOM_LOOP_PATH, <<"/volumes/persistence/ceph-loopdevices/custompath.loop">>).
 % path of loopdevice file used to test blockdevice type deployment
 -define(MOCK_BLOCKDEVICE_PATH, <<"/volumes/persistence/ceph-loopdevices/blockdevice.loop">>).
--define(LOOPDEVICE_SIZE, 300 * 1024 * 1024).
+-define(LOOPDEVICE_SIZE, 500 * 1024 * 1024).
 
 -define(POOL_PARAMS, #{
     type => <<"localceph">>,
@@ -122,7 +122,7 @@ ceph_is_deployed(Config) ->
                 type => loopdevice,
                 host => OpHost1,
                 size => ?LOOPDEVICE_SIZE,
-                uuid => ?OSD_UUID1 % UUID is always sent by user or filled in rest_ceph
+                uuid => ?OSD_UUID1 % UUID is always sent by user or filled in ceph_middleware
             }
         ]
     }),
@@ -216,7 +216,7 @@ storage_is_added_with_pool(Config) ->
     }),
     ?assertEqual([PoolName], rpc:call(OpNode, ceph_pool, list, [])),
     ?assertEqual(1,
-        length(maps:get(ids, rpc:call(OpNode, service_op_worker, get_storages, [#{}])))).
+        length(rpc:call(OpNode, service_op_worker, get_storages, [#{}]))).
 
 
 pool_creation_fails_with_too_few_osds(Config) ->
@@ -403,7 +403,7 @@ list_storage_ids(Node) ->
     Ctx = #{hosts => [hosts:from_node(Node)]},
     onepanel_test_utils:service_action(Node, op_worker, get_storages, Ctx),
     Results = assert_service_step(service:get_module(op_worker), get_storages),
-    [{_, #{ids := Ids}}] = ?assertMatch([{Node, #{ids := _}}], Results),
+    [{_, Ids}] = ?assertMatch([{Node, List}] when is_list(List), Results),
     Ids.
 
 

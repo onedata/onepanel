@@ -469,8 +469,8 @@ find_challenge(Type, ChallengeList) ->
 %%--------------------------------------------------------------------
 -spec handle_challenge(State :: #flow_state{}) -> {ok, #flow_state{}}.
 handle_challenge(#flow_state{challenge = Challenge} = State)
-    when Challenge#challenge.type == http ->
-
+    when Challenge#challenge.type == http
+->
     #flow_state{
         challenge = #challenge{
             token = Token,

@@ -82,9 +82,11 @@ parse_list_key_test() ->
     Data3 = #{<<"key">> => [1]},
     Data4 = #{<<"key">> => [#{<<"subkey">> => <<"a">>}, #{<<"subkey">> => <<"b">>}]},
     Data5 = #{<<"key">> => [3, <<"not-an-integer">>]},
+    Data6 = #{<<"key">> => <<"not-a-list">>},
     ArgsSpec1 = #{key => [string]},
     ArgsSpec2 = #{key => [#{subkey => string}]},
     ArgsSpec3 = #{key => [integer]},
+    ArgsSpec4 = #{key => [atom]},
     ?assertEqual(#{key => [<<"some_string">>, <<"string2">>]},
         onepanel_parser:parse(Data1, ArgsSpec1)),
     ?assertEqual(#{key => []}, onepanel_parser:parse(Data2, ArgsSpec1)),
@@ -93,7 +95,13 @@ parse_list_key_test() ->
     ?assertEqual(#{key => [#{subkey => <<"a">>}, #{subkey => <<"b">>}]},
         onepanel_parser:parse(Data4, ArgsSpec2)),
     ?assertThrow(?ERROR_BAD_VALUE_INTEGER(<<"key.2">>),
-        onepanel_parser:parse(Data5, ArgsSpec3)).
+        onepanel_parser:parse(Data5, ArgsSpec3)),
+    ?assertThrow(?ERROR_BAD_VALUE_LIST_OF_BINARIES(<<"key">>),
+        onepanel_parser:parse(Data6, ArgsSpec1)),
+    ?assertThrow(?ERROR_BAD_VALUE_LIST_OF_ATOMS(<<"key">>),
+        onepanel_parser:parse(Data6, ArgsSpec4)),
+    ?assertThrow(?ERROR_BAD_DATA(<<"key">>),
+        onepanel_parser:parse(Data6, ArgsSpec3)).
 
 
 parse_string_key_test() ->
@@ -103,6 +111,31 @@ parse_string_key_test() ->
     ?assertEqual(#{key => <<"value">>}, onepanel_parser:parse(Data1, ArgsSpec)),
     ?assertThrow(?ERROR_BAD_VALUE_BINARY(<<"key">>),
         onepanel_parser:parse(Data2, ArgsSpec)).
+
+
+parse_ip_key_test() ->
+    Data1 = #{<<"key">> => <<"1.1.1.1">>},
+    Data2 = #{<<"key">> => <<"1.1.1.256">>},
+    Data3 = #{<<"key">> => <<"abc">>},
+    ArgsSpec = #{key => ip4},
+    ?assertEqual(#{key => {1, 1, 1, 1}}, onepanel_parser:parse(Data1, ArgsSpec)),
+    ?assertThrow(?ERROR_BAD_VALUE_IPV4_ADDRESS(<<"key">>),
+        onepanel_parser:parse(Data2, ArgsSpec)),
+    ?assertThrow(?ERROR_BAD_VALUE_IPV4_ADDRESS(<<"key">>),
+        onepanel_parser:parse(Data3, ArgsSpec)).
+
+
+parse_ip_list_key_test() ->
+    Data1 = #{<<"key">> => [<<"1.1.1.1">>, <<"1.2.3.4">>]},
+    Data2 = #{<<"key">> => [<<"abc">>]},
+    Data3 = #{<<"key">> => <<"abc">>},
+    ArgsSpec = #{key => [ip4]},
+    ?assertEqual(#{key => [{1,1,1,1}, {1,2,3,4}]},
+        onepanel_parser:parse(Data1, ArgsSpec)),
+    ?assertThrow(?ERROR_BAD_VALUE_LIST_OF_IPV4_ADDRESSES(<<"key">>),
+        onepanel_parser:parse(Data2, ArgsSpec)),
+    ?assertThrow(?ERROR_BAD_VALUE_LIST_OF_IPV4_ADDRESSES(<<"key">>),
+        onepanel_parser:parse(Data3, ArgsSpec)).
 
 
 parse_required_key_test() ->

@@ -13,6 +13,8 @@
 -ifndef(ONEPANEL_TEST_REST_HRL).
 -define(ONEPANEL_TEST_REST_HRL, 1).
 
+-include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 
 -define(OZ_USER_NAME, <<"joe">>).
@@ -66,6 +68,16 @@
         {__Endpoint, __Method} <- EndpointsWithMethods,
         __Host <- ?config(all_hosts, Config)
     ])
+).
+
+
+% TaskId should be "a double-quote string literal"
+-define(assertAsyncTask(TaskId, Response),
+    ?assertMatch({
+        ok, ?HTTP_202_ACCEPTED,
+        #{?HDR_LOCATION := <<"/api/v3/onepanel/tasks/", TaskId>>},
+        <<"{\"taskId\":\"", TaskId, "\"}">>
+    }, Response)
 ).
 
 -endif.

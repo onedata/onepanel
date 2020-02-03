@@ -336,7 +336,7 @@ get_domain() ->
 %% @doc
 %% Returns details of the oz worker. Routes request to a host
 %% with oz_worker deployed.
-%% Result is cached to speed up usages such as rest_utils:allowed_origin/0.
+%% Result is cached to speed up usages such as rest_handler:allowed_origin/0.
 %% @end
 %%--------------------------------------------------------------------
 -spec get_details(service:ctx()) ->
@@ -383,12 +383,14 @@ get_admin_email() ->
 -spec supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
     boolean().
 supports_letsencrypt_challenge(Challenge) when
-    Challenge == http; Challenge == dns ->
+    Challenge == http;
+    Challenge == dns
+->
     OzNode = case nodes:any(name()) of
         {ok, N} -> N;
         Error -> throw(Error)
     end,
-    service:healthy(name()) orelse throw(?ERROR_SERVICE_UNAVAILABLE),
+    service:is_healthy(name()) orelse throw(?ERROR_SERVICE_UNAVAILABLE),
     case Challenge of
         http -> true;
         dns ->

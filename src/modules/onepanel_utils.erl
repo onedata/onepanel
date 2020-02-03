@@ -184,11 +184,11 @@ convert(Value, atom) when is_binary(Value) ->
 convert(Value, float) when is_integer(Value) ->
     Value * 1.0;
 
+convert(Value, binary) when is_list(Value) ->
+    unicode:characters_to_binary(Value);
+
 convert(Value, Type) ->
     case get_type(Value) of
-        unknown ->
-            ?error("Could not determine type of ~tp", [Value]),
-            error(?ERR_UNKNOWN_TYPE(Value));
         Type ->
             Value;
         ValueType ->
@@ -203,16 +203,20 @@ convert(Value, Type) ->
 %% @doc Returns type of a given value.
 %% @end
 %%--------------------------------------------------------------------
--spec get_type(Value :: term()) -> Type :: type() | unknown.
+-spec get_type
+    (Value :: atom()) -> atom;
+    (Value :: binary()) -> binary;
+    (Value :: float()) -> float;
+    (Value :: integer()) -> integer;
+    (Value :: list()) -> list.
+get_type(Atom) when is_atom(Atom) -> atom;
+get_type(Binary) when is_binary(Binary) -> binary;
+get_type(Float) when is_float(Float) -> float;
+get_type(Integer) when is_integer(Integer) -> integer;
+get_type(List) when is_list(List) -> list;
 get_type(Value) ->
-    SupportedTypes = ["atom", "binary", "float", "integer", "list", "boolean"],
-    lists_utils:foldl_while(fun(Type, unknown) ->
-        TypeMatcher = erlang:list_to_atom("is_" ++ Type),
-        case erlang:TypeMatcher(Value) of
-            true -> {halt, erlang:list_to_atom(Type)};
-            false -> {cont, unknown}
-        end
-    end, unknown, SupportedTypes).
+    ?error("Could not determine type of ~tp", [Value]),
+    error(?ERR_UNKNOWN_TYPE(Value)).
 
 
 %%--------------------------------------------------------------------

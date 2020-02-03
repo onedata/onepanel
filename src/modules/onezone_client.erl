@@ -29,28 +29,29 @@
 %% @doc Returns publicly available information about a Onezone.
 %% @end
 %%--------------------------------------------------------------------
--spec fetch_zone_info(Domain :: binary()) -> #{atom() := atom() | binary()}.
+-spec fetch_zone_info(Domain :: binary()) -> #{binary() := atom() | binary()}.
 fetch_zone_info(Domain) ->
     Url = configuration_url(Domain),
     CaCerts = cert_utils:load_ders_in_dir(oz_plugin:get_cacerts_dir()),
     Opts = [{ssl_options, [{cacerts, CaCerts}]}],
     case http_client:get(Url, #{}, <<>>, Opts) of
         {ok, ?HTTP_200_OK, _, Response} ->
-            Map = onepanel_utils:convert(json_utils:decode(Response), {keys, atom}),
-            #{version := OzVersion, compatibleOneproviderVersions := CompatOps} = Map,
-            kv_utils:copy_found([
-                {version, version},
-                {name, name},
-                {subdomainDelegationSupported, subdomainDelegationSupported}
-            ], Map, #{
-                online => true,
-                domain => Domain,
-                compatible => is_compatible(OzVersion, CompatOps)
-            });
+            #{
+                <<"version">> := OzVersion,
+                <<"compatibleOneproviderVersions">> := CompatOps
+            } = ResponseMap = json_utils:decode(Response),
+            SelectedFields = maps:with([
+                <<"version">>, <<"name">>, <<"subdomainDelegationSupported">>
+            ], ResponseMap),
+            SelectedFields#{
+                <<"online">> => true,
+                <<"domain">> => Domain,
+                <<"compatible">> => is_compatible(OzVersion, CompatOps)
+            };
         {error, _Reason} ->
             #{
-                online => false,
-                domain => Domain
+                <<"online">> => false,
+                <<"domain">> => Domain
             }
     end.
 
@@ -59,7 +60,7 @@ fetch_zone_info(Domain) ->
 %% @doc Auth term describing the root user.
 %% @end
 %%--------------------------------------------------------------------
--spec root_auth() -> rest_handler:zone_auth().
+-spec root_auth() -> rest_handler:zone_credentials().
 root_auth() ->
     case onepanel_env:get_cluster_type() of
         onezone -> {rpc, ?ROOT};
@@ -75,7 +76,7 @@ root_auth() ->
 -spec is_compatible(OzVersion :: binary(), CompatOpVersions :: [binary()]) ->
     boolean().
 is_compatible(OzVersion, CompatOpVersions) ->
-    {_, OurVersion} = onepanel_app:get_build_and_version(),
+    {_, OurVersion} = onepanel:get_build_and_version(),
     CompatOzVersions = service_op_worker:get_compatible_onezones(),
 
     lists:member(OzVersion, CompatOzVersions)

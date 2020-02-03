@@ -272,7 +272,5 @@ create_cluster([]) ->
 create_cluster([Node | _] = Nodes) ->
     Hosts = hosts:from_nodes(Nodes),
     ?assertEqual(ok, rpc:call(Node, service, apply,
-        [onepanel, deploy, #{
-            hosts => Hosts, api_version => ?API_VERSION
-        }]
+        [onepanel, deploy, #{hosts => Hosts}]
     )).

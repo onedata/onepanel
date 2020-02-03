@@ -58,7 +58,9 @@ init([]) ->
     try
         % Initialization done here rather than in onepanel_app:start
         % because too long wait before spawning supervisor causes timeout
-        % and exit of application
+        % and exit of the application.
+        % This is because of node_package/.../runner configuration, which
+        % uses onepanel_sup presence as a healthcheck for the Onepanel.
 
         ?info("Waiting for distributed database on nodes ~p", [onepanel_db:get_nodes()]),
         % in a new deployment this will complete immediately since the node list is empty

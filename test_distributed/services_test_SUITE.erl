@@ -75,8 +75,8 @@ all() ->
 
 
 domain_is_lowercased_test(Config) ->
-    % deployment in init_per_suite provides domain in uppercase.
-    % it should be lowercased in the deployment functions
+    % Deployment in init_per_suite provides domain in uppercase.
+    % Verify the domain to be lowercased by the deployment functions.
     [OzNode | _] = ?config(onezone_nodes, Config),
     [OpNode | _] = ?config(oneprovider_nodes, Config),
     ExpectedOpDomain = ?config(oneprovider_domain, Config),
@@ -87,8 +87,8 @@ domain_is_lowercased_test(Config) ->
 
 
 default_admin_is_created_test(Config) ->
-    % after deployment there should exist Onezone user <<"admin">>
-    % with password set to emergency passphrase
+    % After deployment, there should exist Onezone user <<"admin">>
+    % with password set to the emergency passphrase.
     [OzNode | _] = ?config(onezone_nodes, Config),
     OzwNode = nodes:service_to_node(?SERVICE_OZW, OzNode),
     ?assertMatch({true, #auth{}}, image_test_utils:proxy_rpc(OzNode, OzwNode,
@@ -153,7 +153,7 @@ service_oneprovider_get_supported_spaces_test(Config) ->
     onepanel_test_utils:service_action(Node, oneprovider, get_spaces, #{
         hosts => [hosts:from_node(Node)]
     }),
-    ?assertEqual([{Node, [{ids, []}]}], assert_service_step(
+    ?assertEqual([{Node, _Ids = []}], assert_service_step(
         service:get_module(oneprovider), get_spaces
     )).
 
@@ -163,7 +163,7 @@ service_op_worker_get_storages_test(Config) ->
     Ctx = #{hosts => [hosts:from_node(Node)]},
     onepanel_test_utils:service_action(Node, op_worker, get_storages, Ctx),
     Results = assert_service_step(service:get_module(op_worker), get_storages),
-    [{Node, #{ids := [Id]}}] = ?assertMatch([{Node, #{ids := [_]}}], Results),
+    [{Node, [Id]}] = ?assertMatch([{Node, [_]}], Results),
 
     onepanel_test_utils:service_action(Node, op_worker, get_storages, Ctx#{id => Id}),
     Results2 = assert_service_step(service:get_module(op_worker), get_storages),
@@ -528,7 +528,7 @@ get_storages(Config) ->
         hosts => [hosts:from_node(Node)]
     }),
     Results = assert_service_step(service:get_module(op_worker), get_storages),
-    [{_, #{ids := Ids}}] = ?assertMatch([{Node, _}], Results),
+    [{_, Ids}] = ?assertMatch([{Node, List}] when is_list(List), Results),
 
     lists:map(fun(Id) ->
         onepanel_test_utils:service_action(Node, op_worker, get_storages, #{

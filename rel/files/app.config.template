@@ -230,7 +230,7 @@
         %% Username of the admin user created after Onezone deployment
         {zone_default_admin_username, <<"admin">>},
 
-        {rest_api_prefix_template, "/api/v{version_number}/onepanel"},
+        {rest_api_prefix, "/api/v3/onepanel"},
         %% Number of accepting processes in HTTPS listeners
         {rest_https_acceptors, 100},
         %% Request timeout in milliseconds, meaning how long the server should

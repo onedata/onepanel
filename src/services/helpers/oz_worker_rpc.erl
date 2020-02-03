@@ -149,12 +149,12 @@ set_user_password(Node, Auth, UserId, NewPassword) ->
     ?CALL(Node, [Auth, UserId, NewPassword]).
 
 -spec create_user(aai:auth(), Data :: map()) ->
-    {ok, od_user_id()} | {error, term()}.
+    {ok, od_user_id()} | errors:error().
 create_user(Auth, Data) ->
     ?CALL([Auth, Data]).
 
 -spec create_user(node(), aai:auth(), Data :: map()) ->
-    {ok, od_user_id()} | {error, term()}.
+    {ok, od_user_id()} | errors:error().
 create_user(Node, Auth, Data) ->
     ?CALL(Node, [Auth, Data]).
 

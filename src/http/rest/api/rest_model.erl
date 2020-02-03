@@ -3,7 +3,8 @@
 %%% specification - DO NOT EDIT!
 %%%
 %%% @author Krzysztof Trzepla
-%%% @copyright (C) 2016 ACK CYFRONET AGH
+%%% @author Wojciech Geisler
+%%% @copyright (C) 2020 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -50,7 +51,9 @@
     gui_message_model/0,
     host_model/0,
     host_add_request_model/0,
+    id_model/0,
     ids_model/0,
+    inline_response_202_model/0,
     join_cluster_request_model/0,
     manager_hosts_model/0,
     modify_cluster_ips_model/0,
@@ -85,7 +88,6 @@
     space_auto_cleaning_status_model/0,
     space_details_model/0,
     space_file_popularity_configuration_model/0,
-    space_id_model/0,
     space_modify_request_model/0,
     space_support_request_model/0,
     space_sync_stats_model/0,
@@ -96,6 +98,7 @@
     storage_modify_details_model/0,
     storage_modify_request_model/0,
     storage_update_details_model/0,
+    task_id_model/0,
     task_status_model/0,
     time_stats_model/0,
     time_stats_collection_model/0,
@@ -436,8 +439,7 @@ cluster_workers_model() ->
 %%--------------------------------------------------------------------
 -spec configuration_model() -> onepanel_parser:multi_spec().
 configuration_model() ->
-    {subclasses, onepanel_parser:prepare_subclasses(
-        [op_configuration_model(), oz_configuration_model()])}.
+    {subclasses, onepanel_parser:prepare_subclasses([op_configuration_model(), oz_configuration_model()])}.
 
 %%--------------------------------------------------------------------
 %% @doc Information about the authenticated user.
@@ -509,7 +511,7 @@ dns_check_configuration_model() ->
     #{
         %% A collection of IP addresses for DNS servers used in checking DNS. If
         %% empty, local system configuration will be used.
-        dnsServers => {[string], optional},
+        dnsServers => {[ip4], optional},
         %% If true, DNS check will verify that control of DNS zone for
         %% Onezone's domain was delegated to the DNS server built into
         %% Onezone service. This option is available only in Onezone service.
@@ -631,11 +633,24 @@ host_add_request_model() ->
         address => string
     }.
 
+-spec id_model() -> onepanel_parser:object_spec().
+id_model() ->
+    #{
+        %% Resource Id.
+        id => string
+    }.
+
 -spec ids_model() -> onepanel_parser:object_spec().
 ids_model() ->
     #{
         %% List of ids.
         ids => [string]
+    }.
+
+-spec inline_response_202_model() -> onepanel_parser:object_spec().
+inline_response_202_model() ->
+    #{
+        reportId => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1084,16 +1099,13 @@ service_hosts_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The generic model for service status.
+%% @doc The collection of hosts with associated service status, for each host
+%% where given service has been deployed.
 %% @end
 %%--------------------------------------------------------------------
 -spec service_status_model() -> onepanel_parser:object_spec().
 service_status_model() ->
-    #{
-        %% The collection of hosts with associated service status, for each host
-        %% where given service has been deployed.
-        hosts => #{'_' => service_status_host_model()}
-    }.
+    #{'_' => service_status_host_model()}.
 
 %%--------------------------------------------------------------------
 %% @doc The service status.
@@ -1102,8 +1114,6 @@ service_status_model() ->
 -spec service_status_host_model() -> onepanel_parser:object_spec().
 service_status_host_model() ->
     #{
-        %% The service status.
-        status => {enum, string, [<<"healthy">>, <<"unhealthy">>, <<"stopped">>, <<"missing">>]}
     }.
 
 %%--------------------------------------------------------------------
@@ -1284,17 +1294,6 @@ space_file_popularity_configuration_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Provides Id of a space.
-%% @end
-%%--------------------------------------------------------------------
--spec space_id_model() -> onepanel_parser:object_spec().
-space_id_model() ->
-    #{
-        %% The Id of the space.
-        id => string
-    }.
-
-%%--------------------------------------------------------------------
 %% @doc The space configuration details that can be modified.
 %% @end
 %%--------------------------------------------------------------------
@@ -1348,8 +1347,7 @@ space_sync_stats_model() ->
 %%--------------------------------------------------------------------
 -spec storage_create_details_model() -> onepanel_parser:multi_spec().
 storage_create_details_model() ->
-    {subclasses, onepanel_parser:prepare_subclasses(
-        [posix_model(), s3_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model()])}.
+    {subclasses, onepanel_parser:prepare_subclasses([posix_model(), s3_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model()])}.
 
 %%--------------------------------------------------------------------
 %% @doc The configuration details required to add storage resources.
@@ -1365,8 +1363,7 @@ storage_create_request_model() ->
 %%--------------------------------------------------------------------
 -spec storage_get_details_model() -> onepanel_parser:multi_spec().
 storage_get_details_model() ->
-    {subclasses, onepanel_parser:prepare_subclasses(
-        [posix_model(), s3_model(), ceph_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model()])}.
+    {subclasses, onepanel_parser:prepare_subclasses([posix_model(), s3_model(), ceph_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model()])}.
 
 %%--------------------------------------------------------------------
 %% @doc The storage import configuration. Storage import allows to import data
@@ -1392,8 +1389,7 @@ storage_import_details_model() ->
 %%--------------------------------------------------------------------
 -spec storage_modify_details_model() -> onepanel_parser:multi_spec().
 storage_modify_details_model() ->
-    {subclasses, onepanel_parser:prepare_subclasses(
-        [posix_modify_model(), s3_modify_model(), ceph_modify_model(), cephrados_modify_model(), localceph_modify_model(), swift_modify_model(), glusterfs_modify_model(), nulldevice_modify_model(), webdav_modify_model()])}.
+    {subclasses, onepanel_parser:prepare_subclasses([posix_modify_model(), s3_modify_model(), ceph_modify_model(), cephrados_modify_model(), localceph_modify_model(), swift_modify_model(), glusterfs_modify_model(), nulldevice_modify_model(), webdav_modify_model()])}.
 
 %%--------------------------------------------------------------------
 %% @doc The storage parameters to be changed. Should be a single-valued
@@ -1430,6 +1426,16 @@ storage_update_details_model() ->
         deleteEnable => {boolean, optional},
         %% Flag that enables synchronization of NFSv4 ACLs.
         syncAcl => {boolean, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Object providing task Id of the started task.
+%% @end
+%%--------------------------------------------------------------------
+-spec task_id_model() -> onepanel_parser:object_spec().
+task_id_model() ->
+    #{
+        taskId => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1705,7 +1711,7 @@ zone_policies_model() ->
         subdomainDelegation => {boolean, optional},
         %% When this value is true, GUI packages uploaded by services operating
         %% under Onezone or by harvester admins are checked against known
-        %% SHA-256 check-sums using the compatibility registry. Setting this
+        %% SHA-256 checksums using the compatibility registry. Setting this
         %% value to false disables the verification. WARNING: disabling GUI
         %% package verification poses a severe security threat, allowing
         %% Oneprovider owners to upload arbitrary GUI to Onezone (which is then

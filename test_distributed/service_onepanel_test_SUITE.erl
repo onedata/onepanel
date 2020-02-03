@@ -13,6 +13,7 @@
 
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
+-include("names.hrl").
 -include("onepanel_test_utils.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
@@ -31,8 +32,7 @@
     extend_should_add_node_by_hostname/1,
     extend_should_add_node_by_ip/1,
     extend_should_return_hostname_of_new_node/1,
-    leave_should_remove_node/1,
-    leave_should_not_remove_used_host/1
+    leave_should_remove_node/1
 ]).
 
 all() ->
@@ -45,11 +45,9 @@ all() ->
         extend_should_add_node_by_hostname,
         extend_should_add_node_by_ip,
         extend_should_return_hostname_of_new_node,
-        leave_should_remove_node,
-        leave_should_not_remove_used_host
+        leave_should_remove_node
     ]).
 
--define(SERVICE, service_onepanel:name()).
 -define(COOKIE, test_cookie).
 -define(COOKIE2, other_cookie).
 
@@ -63,8 +61,7 @@ deploy_should_create_cluster(Config) ->
     Hosts = lists:sort(hosts:from_nodes(Nodes)),
 
     ?assertEqual(ok, rpc:call(Node, service, apply,
-        [?SERVICE, deploy, #{cookie => ?COOKIE, hosts => Hosts,
-            api_version => ?API_VERSION}]
+        [?SERVICE_PANEL, deploy, #{cookie => ?COOKIE, hosts => Hosts}]
     )),
     ?assertEqual(Hosts, lists:sort(rpc:call(Node, service_onepanel, get_hosts, []))).
 
@@ -76,10 +73,10 @@ join_should_add_node(Config) ->
 
     Ctx = #{cookie => ?COOKIE},
     ?assertEqual(ok, rpc:call(Node1, service, apply,
-        [?SERVICE, deploy, Ctx#{hosts => [Host1]}]
+        [?SERVICE_PANEL, deploy, Ctx#{hosts => [Host1]}]
     )),
     ?assertEqual(ok, rpc:call(Node2, service, apply,
-        [?SERVICE, join_cluster, Ctx#{cluster_host => Host1}]
+        [?SERVICE_PANEL, join_cluster, Ctx#{cluster_host => Host1}]
     )),
 
     ?assertEqual(Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
@@ -94,7 +91,7 @@ join_should_fail_on_clustered_node(Config) ->
 
     lists:foreach(fun(Node) ->
         ?assertMatch({error, _}, rpc:call(Node, service, apply,
-            [?SERVICE, join_cluster, #{hosts => [hosts:from_node(Node)],
+            [?SERVICE_PANEL, join_cluster, #{hosts => [hosts:from_node(Node)],
                 cluster_host => Host1}]
         ))
     end, Cluster2),
@@ -111,16 +108,16 @@ join_should_work_after_leave(Config) ->
 
     Ctx = #{cookie => ?COOKIE},
     ?assertEqual(ok, rpc:call(Node1, service, apply,
-        [?SERVICE, deploy, Ctx#{hosts => [Host1]}]
+        [?SERVICE_PANEL, deploy, Ctx#{hosts => [Host1]}]
     )),
     ?assertEqual(ok, rpc:call(Node2, service, apply,
-        [?SERVICE, join_cluster, Ctx#{cluster_host => Host1}]
+        [?SERVICE_PANEL, join_cluster, Ctx#{cluster_host => Host1}]
     )),
     ?assertEqual(ok, rpc:call(Node2, service, apply,
-        [?SERVICE, leave_cluster, #{}]
+        [?SERVICE_PANEL, leave_cluster, #{}]
     )),
     ?assertEqual(ok, rpc:call(Node2, service, apply,
-        [?SERVICE, join_cluster, Ctx#{cluster_host => Host1}]
+        [?SERVICE_PANEL, join_cluster, Ctx#{cluster_host => Host1}]
     )).
 
 
@@ -132,18 +129,18 @@ sequential_join_should_create_cluster(Config) ->
 
     Ctx = #{cookie => ?COOKIE},
     ?assertEqual(ok, rpc:call(Node1, service, apply,
-        [?SERVICE, deploy, Ctx#{hosts => [Host1]}])),
+        [?SERVICE_PANEL, deploy, Ctx#{hosts => [Host1]}])),
     ?assertEqual(ok, rpc:call(Node2, service, apply,
-        [?SERVICE, join_cluster, Ctx#{cluster_host => Host1}]
+        [?SERVICE_PANEL, join_cluster, Ctx#{cluster_host => Host1}]
     )),
     ?assertEqual(ok, rpc:call(Node3, service, apply,
-        [?SERVICE, join_cluster, Ctx#{cluster_host => Host2}]
+        [?SERVICE_PANEL, join_cluster, Ctx#{cluster_host => Host2}]
     )),
     ?assertEqual(ok, rpc:call(Node4, service, apply,
-        [?SERVICE, join_cluster, Ctx#{cluster_host => Host3}]
+        [?SERVICE_PANEL, join_cluster, Ctx#{cluster_host => Host3}]
     )),
     ?assertEqual(ok, rpc:call(Node5, service, apply,
-        [?SERVICE, join_cluster, Ctx#{cluster_host => Host4}]
+        [?SERVICE_PANEL, join_cluster, Ctx#{cluster_host => Host4}]
     )),
 
     lists:foreach(fun(Node) ->
@@ -159,32 +156,13 @@ leave_should_remove_node(Config) ->
     Hosts = [Host2, Host3],
 
     ?assertEqual(ok, rpc:call(Node1, service, apply,
-        [?SERVICE, deploy, #{cookie => ?COOKIE, hosts => [Host1 | Hosts],
-            api_version => ?API_VERSION}]
+        [?SERVICE_PANEL, deploy, #{cookie => ?COOKIE, hosts => [Host1 | Hosts]}]
     )),
     ?assertEqual(ok, rpc:call(Node1, service, apply,
-        [?SERVICE, leave_cluster, #{}]
+        [?SERVICE_PANEL, leave_cluster, #{}]
     )),
 
     ?assertEqual([Host1], lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
-    ?assertEqual(Hosts, lists:sort(rpc:call(Node2, service_onepanel, get_hosts, []))),
-    ?assertEqual(Hosts, lists:sort(rpc:call(Node3, service_onepanel, get_hosts, []))).
-
-
-leave_should_not_remove_used_host(Config) ->
-    [Node1, Node2, Node3 | _] = ?config(onepanel_nodes, Config),
-    Nodes = [Node1, Node2, Node3],
-    Hosts = lists:sort(hosts:from_nodes(Nodes)),
-
-    ?assertEqual(ok, rpc:call(Node1, service, apply,
-        [?SERVICE, deploy, #{cookie => ?COOKIE, hosts => Hosts,
-            api_version => ?API_VERSION}]
-    )),
-    ?assertMatch({error, _}, rpc:call(Node1, service, apply,
-        [?SERVICE, leave_cluster, #{}]
-    )),
-
-    ?assertEqual(Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
     ?assertEqual(Hosts, lists:sort(rpc:call(Node2, service_onepanel, get_hosts, []))),
     ?assertEqual(Hosts, lists:sort(rpc:call(Node3, service_onepanel, get_hosts, []))).
 
@@ -196,10 +174,10 @@ extend_should_add_node_by_hostname(Config) ->
 
     Ctx = #{cookie => ?COOKIE},
     ?assertEqual(ok, rpc:call(Node1, service, apply,
-        [?SERVICE, deploy, Ctx#{hosts => [Host1]}]
+        [?SERVICE_PANEL, deploy, Ctx#{hosts => [Host1]}]
     )),
     ?assertEqual(ok, rpc:call(Node1, service, apply,
-        [?SERVICE, extend_cluster, Ctx#{hostname => Host2, api_version => ?API_VERSION}]
+        [?SERVICE_PANEL, extend_cluster, Ctx#{hostname => Host2}]
     )),
 
     ?assertEqual(Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
@@ -214,10 +192,10 @@ extend_should_add_node_by_ip(Config) ->
 
     Ctx = #{cookie => ?COOKIE},
     ?assertEqual(ok, rpc:call(Node1, service, apply,
-        [?SERVICE, deploy, Ctx#{hosts => [Host1]}]
+        [?SERVICE_PANEL, deploy, Ctx#{hosts => [Host1]}]
     )),
     ?assertEqual(ok, rpc:call(Node1, service, apply,
-        [?SERVICE, extend_cluster, Ctx#{address => Host2Address, api_version => ?API_VERSION}]
+        [?SERVICE_PANEL, extend_cluster, Ctx#{address => Host2Address}]
     )),
 
     ?assertEqual(Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
@@ -229,16 +207,15 @@ extend_should_return_hostname_of_new_node(Config) ->
     [Host1 | Host2] = Hosts = lists:sort(hosts:from_nodes(Nodes)),
     Host2Binary = onepanel_utils:convert(Host2, binary),
     Host2Address = test_utils:get_docker_ip(Node2),
-    Module = service:get_module(?SERVICE),
 
     ?assertEqual(ok, rpc:call(Node1, service, apply,
-        [?SERVICE, deploy, #{hosts => [Host1]}]
+        [?SERVICE_PANEL, deploy, #{hosts => [Host1]}]
     )),
     Results = ?assertMatch([_|_], rpc:call(Node1, service, apply_sync,
-        [?SERVICE, extend_cluster, #{address => Host2Address, api_version => ?API_VERSION}]
+        [?SERVICE_PANEL, extend_cluster, #{address => Host2Address}]
     )),
     ?assertMatch([{[{_Node, #{hostname := Host2Binary}}], []}],
-        [FunctionResults || {Module, extend_cluster, FunctionResults} <- Results]),
+        [FunctionResults || {service_onepanel, extend_cluster, FunctionResults} <- Results]),
 
     ?assertEqual(Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
     ?assertEqual(Hosts, lists:sort(rpc:call(Node2, service_onepanel, get_hosts, []))).
@@ -260,12 +237,12 @@ init_per_testcase(join_should_fail_on_clustered_node, Config) ->
     Cluster2Hosts = hosts:from_nodes(Cluster2),
 
     ?assertEqual(ok, rpc:call(Node1, service, apply,
-        [?SERVICE, deploy, #{hosts => Cluster1Hosts}]
+        [?SERVICE_PANEL, deploy, #{hosts => Cluster1Hosts}]
     )),
     ?assertEqual(Cluster1Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
 
     ?assertEqual(ok, rpc:call(Node2, service, apply,
-        [?SERVICE, deploy, #{hosts => Cluster2Hosts, api_version => ?API_VERSION}]
+        [?SERVICE_PANEL, deploy, #{hosts => Cluster2Hosts}]
     )),
     ?assertEqual(Cluster2Hosts, lists:sort(rpc:call(Node2, service_onepanel, get_hosts, []))),
 
