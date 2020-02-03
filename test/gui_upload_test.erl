@@ -117,7 +117,7 @@ pop_request() ->
 %% @doc Returns first message from process message queue.
 %% @end
 %%--------------------------------------------------------------------
--spec pop_request(Timeout :: timeout()) -> Any :: term() | timeout.
+-spec pop_request(timeout()) -> Any :: term() | timeout.
 pop_request(Timeout) ->
     receive
         {request, Any} -> Any

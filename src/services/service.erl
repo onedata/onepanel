@@ -333,7 +333,7 @@ apply_sync(Service, Action, Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply_sync(Service :: service:name(), Action :: service:action(),
-    Ctx :: service:ctx(), Timeout :: timeout()) ->
+    Ctx :: service:ctx(), timeout()) ->
     Results :: service_executor:results() | {error, _}.
 apply_sync(Service, Action, Ctx, Timeout) ->
     TaskId = apply_async(Service, Action, Ctx),

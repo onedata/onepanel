@@ -60,7 +60,7 @@ get_basic_auth_header(Username, Password) ->
 %% timer:seconds(1))
 %% @end
 %%--------------------------------------------------------------------
--spec wait_until(Module :: module(), Function :: atom(), Args :: list(),
+-spec wait_until(module(), Function :: atom(), Args :: list(),
     Expectation :: expectation(Result), Attempts :: integer()) ->
     Result | no_return().
 wait_until(Module, Function, Args, Expectation, Attempts) ->
@@ -72,7 +72,7 @@ wait_until(Module, Function, Args, Expectation, Attempts) ->
 %% expected result, defined by validation function or exact value.
 %% @end
 %%--------------------------------------------------------------------
--spec wait_until(Module :: module(), Function :: atom(), Args :: list(),
+-spec wait_until(module(), Function :: atom(), Args :: list(),
     Expectation :: expectation(Result), Attempts :: integer(), Delay :: integer()) ->
     Result | no_return().
 wait_until(_Module, _Function, _Args, _Expectation, Attempts, _Delay) when
