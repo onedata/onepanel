@@ -188,11 +188,9 @@ backup_exisiting_certs() ->
 %% credentials directory.
 %% @end
 %%--------------------------------------------------------------------
--spec list_certificate_files() -> ok.
+-spec list_certificate_files() -> [file:filename()].
 list_certificate_files() ->
-    lists:filter(fun(Path) ->
-        filelib:is_regular(Path)
-    end, [
+    lists:filter(fun filelib:is_regular/1, [
         onepanel_env:get(web_key_file),
         onepanel_env:get(web_cert_file),
         onepanel_env:get(web_cert_chain_file)
