@@ -27,7 +27,8 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([create/1, check_webcert/1, enable/1, disable/1, get_details/1]).
+-export([create/1, check_webcert/1, enable/1, disable/1, get_details/1,
+    import_files/1]).
 
 %% Private function exported for rpc
 -export([local_cert_status/1, is_local_cert_letsencrypt/0]).
@@ -112,7 +113,10 @@ get_steps(update, Ctx) ->
     ];
 
 get_steps(get_details, _Ctx) ->
-    [#step{function = get_details, selection = first}].
+    [#step{function = get_details, selection = first}];
+
+get_steps(import_files, #{reference_host := _}) ->
+    [#step{function = import_files}].
 
 
 %%%===================================================================
@@ -205,21 +209,58 @@ get_details(_Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc
+%% Copies certificate files from existing cluster nodes to the current node.
+%% Used when extending cluster.
+%% Certificates are copied regardless if they are 'managed' (Let's Encrypt)
+%% or user-issued.
+%%
+%% If the selected node has Let's Encrypt credential files, they are copied
+%% as well. If a node without the Let's Encrypt credentials is selected,
+%% new credentials will be generated during next Let's Encrypt run.
+%%
+%% Does not raise error (aparat from a warning log) when saving a file
+%% to respect deployments with read-only certificate mounts.
+%% @end
+%%--------------------------------------------------------------------
+-spec import_files(#{reference_host := service:host()}) -> ok.
+import_files(#{reference_host := Host}) ->
+    SelfHost = hosts:self(),
+    Node = nodes:service_to_node(?APP_NAME, Host),
+    onepanel_cert:backup_exisiting_certs(),
+    FilesToCopy = case rpc:call(Node, onepanel_cert, list_certificate_files, []) of
+        List when is_list(List) -> List
+    end,
+    lists:foreach(fun(Path) ->
+        case rpc:call(
+            Node, onepanel_utils, distribute_file, [[SelfHost], Path]
+        ) of
+            ok ->
+                ?info("Copied file ~ts from node ~ts", [Path, Node]);
+            Error ->
+                ?warning("Could not save file ~ts on the current node: ~tp", [Path, Error])
+        end
+    end, FilesToCopy).
+
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
 %% Determines whether Let's Encrypt certificate renewal is enabled.
 %% @end
 %%--------------------------------------------------------------------
 -spec is_enabled(service:ctx()) -> boolean().
-is_enabled(#{letsencrypt_enabled := Enabled}) -> Enabled;
+is_enabled(#{letsencrypt_enabled := Enabled}) ->
+    Enabled;
 is_enabled(_Ctx) ->
     case service:get(name()) of
         {ok, #service{ctx = #{letsencrypt_enabled := true}}} -> true;
         _ -> false
     end.
 
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
 
 %%--------------------------------------------------------------------
 %% @private

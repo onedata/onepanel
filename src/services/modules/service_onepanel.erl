@@ -30,7 +30,7 @@
 -export([set_cookie/1, configure/1, check_connection/1,
     ensure_all_hosts_available/1, init_cluster/1, extend_cluster/1,
     join_cluster/1, reset_node/1, ensure_node_ready/1, reload_webcert/1,
-    available_for_clustering/0, is_host_used/1, import_configuration/1]).
+    available_for_clustering/0, is_host_used/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -151,7 +151,7 @@ get_steps(migrate_emergency_passphrase, _Ctx) ->
         condition = fun(_) -> not emergency_passphrase:is_set() end}];
 
 get_steps(import_configuration, #{reference_host := _} = Ctx) ->
-    [#step{function = import_configuration}];
+    [#steps{service = ?SERVICE_LE, action = import_files, ctx = Ctx}];
 
 get_steps(Function, _Ctx) when
     Function == reload_webcert;
@@ -368,25 +368,6 @@ is_host_used(Host) ->
             % already deployed but other are not
             false
     end.
-
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Copies configuration and certificate files from existing cluster nodes
-%% to the current node.
-%% @end
-%%--------------------------------------------------------------------
--spec import_configuration(#{reference_host := service:host()}) -> ok.
-import_configuration(#{reference_host := Host}) ->
-    SelfHost = hosts:self(),
-    Node = nodes:service_to_node(name(), Host),
-    onepanel_cert:backup_exisiting_certs(),
-    FilesToCopy = rpc:call(Node, onepanel_cert, list_certificate_files, []),
-    lists:foreach(fun(Path) ->
-        ok = rpc:call(Node, onepanel_utils, distribute_file,
-            [[SelfHost], Path])
-    end, FilesToCopy).
 
 
 %%%===================================================================

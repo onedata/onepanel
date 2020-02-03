@@ -64,18 +64,19 @@ all() ->
 
 deploy_should_create_cluster(Config) ->
     [Node | _] = Nodes = ?config(onepanel_nodes, Config),
-    Hosts = lists:sort(hosts:from_nodes(Nodes)),
+    Hosts = hosts:from_nodes(Nodes),
 
-    ?assertEqual(ok, rpc:call(Node, service, apply,
-        [?SERVICE_PANEL, deploy, #{cookie => ?COOKIE, hosts => Hosts}]
-    )),
-    ?assertEqual(Hosts, lists:sort(rpc:call(Node, service_onepanel, get_hosts, []))).
+    onepanel_test_utils:service_action(Node,
+        ?SERVICE_PANEL, deploy, #{cookie => ?COOKIE, hosts => Hosts}
+    ),
+    ?assertEqual(Hosts,
+        lists:sort(rpc:call(Node, service_onepanel, get_hosts, []))).
 
 
 join_should_add_node(Config) ->
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
     Nodes = [Node1, Node2],
-    [Host1 | _] = Hosts = lists:sort(hosts:from_nodes(Nodes)),
+    [Host1 | _] = Hosts = hosts:from_nodes(Nodes),
 
     Ctx = #{cookie => ?COOKIE},
     onepanel_test_utils:service_action(Node1,
@@ -110,7 +111,7 @@ join_should_fail_on_clustered_node(Config) ->
 join_should_work_after_leave(Config) ->
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
     Nodes = [Node1, Node2],
-    [Host1 | _] = lists:sort(hosts:from_nodes(Nodes)),
+    [Host1 | _] = hosts:from_nodes(Nodes),
 
     Ctx = #{cookie => ?COOKIE},
     onepanel_test_utils:service_action(Node1,
@@ -129,9 +130,9 @@ join_should_work_after_leave(Config) ->
 
 sequential_join_should_create_cluster(Config) ->
     [Node1, Node2, Node3, Node4, Node5 | _] = Nodes =
-        lists:sort(?config(onepanel_nodes, Config)),
+        ?config(onepanel_nodes, Config),
     [Host1, Host2, Host3, Host4 | _] = Hosts =
-        lists:sort(hosts:from_nodes(Nodes)),
+        hosts:from_nodes(Nodes),
 
     Ctx = #{cookie => ?COOKIE},
     onepanel_test_utils:service_action(Node1,
@@ -150,8 +151,8 @@ sequential_join_should_create_cluster(Config) ->
     ),
 
     lists:foreach(fun(Node) ->
-        ?assertEqual(Hosts, lists:sort(rpc:call(Node, service_onepanel,
-            get_hosts, [])))
+        ?assertEqual(Hosts,
+            lists:sort(rpc:call(Node, service_onepanel, get_hosts, [])))
     end, Nodes).
 
 
@@ -159,9 +160,8 @@ sequential_join_should_create_cluster(Config) ->
 extend_should_work_in_deployed_cluster(Config) ->
     Cluster1 = ?config(cluster1, Config),
     Cluster1Hosts = hosts:from_nodes(Cluster1),
-    [Node1 | _] = Nodes = lists:sort(?config(onepanel_nodes, Config)),
-    [_Host1, _Host2, Host3 | _] = Hosts =
-        lists:sort(hosts:from_nodes(Nodes)),
+    [Node1 | _] = Nodes = ?config(onepanel_nodes, Config),
+    [_Host1, _Host2, Host3 | _] = Hosts = hosts:from_nodes(Nodes),
 
     onepanel_test_utils:service_action(Node1, ?SERVICE_PANEL, extend_cluster,
         #{address => Host3}),
@@ -173,7 +173,7 @@ extend_should_work_in_deployed_cluster(Config) ->
 leave_should_remove_node(Config) ->
     [Node1, Node2, Node3 | _] = ?config(onepanel_nodes, Config),
     Nodes = [Node1, Node2, Node3],
-    [Host1, Host2, Host3] = lists:sort(hosts:from_nodes(Nodes)),
+    [Host1, Host2, Host3] = hosts:from_nodes(Nodes),
     Hosts = [Host2, Host3],
 
     onepanel_test_utils:service_action(Node1,
@@ -183,7 +183,7 @@ leave_should_remove_node(Config) ->
         ?SERVICE_PANEL, leave_cluster, #{}
     ),
 
-    ?assertEqual([Host1], lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
+    ?assertEqual([Host1], rpc:call(Node1, service_onepanel, get_hosts, [])),
     ?assertEqual(Hosts, lists:sort(rpc:call(Node2, service_onepanel, get_hosts, []))),
     ?assertEqual(Hosts, lists:sort(rpc:call(Node3, service_onepanel, get_hosts, []))).
 
@@ -191,7 +191,7 @@ leave_should_remove_node(Config) ->
 extend_should_add_node_by_hostname(Config) ->
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
     Nodes = [Node1, Node2],
-    [Host1, Host2] = Hosts = lists:sort(hosts:from_nodes(Nodes)),
+    [Host1, Host2] = Hosts = hosts:from_nodes(Nodes),
 
     Ctx = #{cookie => ?COOKIE},
     onepanel_test_utils:service_action(Node1,
@@ -208,7 +208,7 @@ extend_should_add_node_by_hostname(Config) ->
 extend_should_add_node_by_ip(Config) ->
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
     Nodes = [Node1, Node2],
-    [Host1 | _] = Hosts = lists:sort(hosts:from_nodes(Nodes)),
+    [Host1 | _] = Hosts = hosts:from_nodes(Nodes),
     Host2Address = test_utils:get_docker_ip(Node2),
 
     Ctx = #{cookie => ?COOKIE},
@@ -225,7 +225,7 @@ extend_should_add_node_by_ip(Config) ->
 extend_should_return_hostname_of_new_node(Config) ->
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
     Nodes = [Node1, Node2],
-    [Host1 | Host2] = Hosts = lists:sort(hosts:from_nodes(Nodes)),
+    [Host1 | Host2] = Hosts = hosts:from_nodes(Nodes),
     Host2Binary = onepanel_utils:convert(Host2, binary),
     Host2Address = test_utils:get_docker_ip(Node2),
 
@@ -245,7 +245,7 @@ extend_should_return_hostname_of_new_node(Config) ->
 extend_should_copy_certificates_to_new_node(Config) ->
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
     Nodes = [Node1, Node2],
-    [Host1, Host2] = Hosts = lists:sort(hosts:from_nodes(Nodes)),
+    [Host1, Host2] = hosts:from_nodes(Nodes),
     Host2Bin = list_to_binary(Host2),
 
     % prepare
@@ -291,7 +291,7 @@ init_per_testcase(join_should_fail_on_clustered_node, Config) ->
 
     onepanel_test_utils:service_action(Node2,
         ?SERVICE_PANEL, deploy, #{hosts => Cluster2Hosts}),
-    ?assertEqual(Cluster2Hosts, lists:sort(rpc:call(
+    ?assertEqual(lists:sort(Cluster2Hosts), lists:sort(rpc:call(
         Node2, service_onepanel, get_hosts, [])
     )),
 
@@ -332,8 +332,6 @@ init_per_testcase(extend_should_copy_certificates_to_new_node, Config) ->
     [Host1 | _] = Hosts = hosts:from_nodes(Nodes),
 
     [Node1, Node2 | _] = ?config(onepanel_nodes, NewConfig),
-    Cluster1 = [Node1, Node2],
-    ct:pal("Mocking on nodes ~p", [Cluster1]),
     ?assertEqual(ok, test_utils:mock_new(Nodes,
         [service_op_worker, letsencrypt_api], [passthrough])),
     test_utils:mock_expect(Nodes, service_op_worker, supports_letsencrypt_challenge,
@@ -371,8 +369,7 @@ init_per_testcase(_Case, Config) ->
     lists:foreach(fun(Node) ->
         ?assertMatch({ok, _}, rpc:call(Node, mock_manager, start, []))
     end, Nodes),
-    [{onepanel_nodes, lists:sort(Nodes)}
-        | proplists:delete(onepanel_nodes, Config2)].
+    kv_utils:put(onepanel_nodes, lists:sort(Nodes), Config2).
 
 
 end_per_testcase(_Case, Config) ->
@@ -383,7 +380,12 @@ end_per_suite(_Config) ->
     ok.
 
 
+%%--------------------------------------------------------------------
 %% @private
+%% @doc
+%% Verifies certificate files have the expected content in
+%% extend_should_copy_certificates_to_new_node test case.
+%%--------------------------------------------------------------------
 -spec verify_certificate_files(node()) -> ok.
 verify_certificate_files(Node) ->
     {ok, WebCertFile} = test_utils:get_env(Node, ?APP_NAME, web_cert_file),
