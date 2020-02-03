@@ -905,13 +905,6 @@ generate_keys(KeysDir) ->
 %% Deletes keys temporary directory.
 %% @end
 %%--------------------------------------------------------------------
--spec clean_keys() -> ok.
-clean_keys() ->
-    lists:foreach(fun(Mode) ->
-        Dir = filename:join(?LETSENCRYPT_KEYS_DIR, Mode),
-        clean_keys(Dir)
-    end, [dry, staging, production]).
-
 -spec clean_keys(KeysDir :: string()) -> ok.
 clean_keys(KeysDir) ->
     lists:foreach(fun(File) ->
