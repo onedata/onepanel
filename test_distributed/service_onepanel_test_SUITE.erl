@@ -36,6 +36,7 @@
     extend_should_add_node_by_ip/1,
     extend_should_return_hostname_of_new_node/1,
     extend_should_work_in_deployed_cluster/1,
+    extend_should_copy_generated_config_to_new_node/1,
     extend_should_copy_certificates_to_new_node/1,
     leave_should_remove_node/1
 ]).
@@ -50,6 +51,7 @@ all() ->
         extend_should_add_node_by_hostname,
         extend_should_add_node_by_ip,
         extend_should_return_hostname_of_new_node,
+        extend_should_copy_generated_config_to_new_node,
         extend_should_copy_certificates_to_new_node,
         leave_should_remove_node
     ]).
@@ -242,6 +244,40 @@ extend_should_return_hostname_of_new_node(Config) ->
     ?assertEqual(Hosts, lists:sort(rpc:call(Node2, service_onepanel, get_hosts, []))).
 
 
+extend_should_copy_generated_config_to_new_node(Config) ->
+    [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
+    Nodes = [Node1, Node2],
+    [Host1, Host2] = hosts:from_nodes(Nodes),
+    Host2Bin = list_to_binary(Host2),
+    V1 = some_value,
+    V2 = {complex, value},
+
+    % prepare
+    onepanel_test_utils:service_action(Node1,
+        ?SERVICE_PANEL, deploy, #{hosts => [Host1]}),
+    ?assertMatch(ok, rpc:call(Node1,
+        onepanel_env, write, [[?APP_NAME, some_variable], V1])),
+    ?assertMatch(ok, rpc:call(Node1,
+        onepanel_env, write, [[ctool, some_variable2], V2])),
+
+    onepanel_test_utils:service_action(Node1,
+        ?SERVICE_PANEL, extend_cluster, #{hostname => Host2Bin}
+    ),
+
+    ?assertEqual({ok, V1}, rpc:call(Node2,
+        onepanel_env, read_effective, [[?APP_NAME, some_variable], ?SERVICE_PANEL]
+    )),
+    ?assertEqual({ok, V1}, rpc:call(Node2,
+        onepanel_env, find, [some_variable, ?APP_NAME]
+    )),
+    ?assertEqual({ok, V2}, rpc:call(Node2,
+        onepanel_env, read_effective, [[ctool, some_variable2], ?SERVICE_PANEL]
+    )),
+    ?assertEqual({ok, V2}, rpc:call(Node2,
+        onepanel_env, find, [some_variable2, ctool]
+    )).
+
+
 extend_should_copy_certificates_to_new_node(Config) ->
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
     Nodes = [Node1, Node2],
@@ -326,7 +362,10 @@ init_per_testcase(leave_should_not_remove_used_host, Config) ->
     end, [couchbase, cluster_manager, op_worker]),
     NewConfig;
 
-init_per_testcase(extend_should_copy_certificates_to_new_node, Config) ->
+init_per_testcase(Case, Config) when
+    Case == extend_should_copy_certificates_to_new_node;
+    Case == extend_should_copy_generated_config_to_new_node
+->
     NewConfig = init_per_testcase(default, Config),
     [Node1 | _] = Nodes = ?config(onepanel_nodes, NewConfig),
     [Host1 | _] = Hosts = hosts:from_nodes(Nodes),
