@@ -206,6 +206,7 @@ configure(Ctx) ->
         app_config => #{},
         generated_config_file => GeneratedConfigFile,
         vm_args_file => VmArgsFile,
+        % @FIXME when adding to registered cluster - DO set ip
         initialize_ip => false % do not set IP until onezone is connected
     }),
 

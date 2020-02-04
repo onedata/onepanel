@@ -403,6 +403,8 @@ get_identity_token() ->
 configure(#{application := ?APP_NAME, oneprovider_token := Token}) ->
     OzDomain = onezone_tokens:read_domain(Token),
     Nodes = nodes:all(?SERVICE_PANEL),
+
+    % @FIXME used in check_oz_availability
     onepanel_env:set(Nodes, onezone_domain, OzDomain, ?APP_NAME),
     onepanel_env:write(Nodes, [?APP_NAME, onezone_domain], OzDomain,
         onepanel_env:get_config_path(?APP_NAME, generated));
