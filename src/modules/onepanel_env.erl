@@ -20,13 +20,12 @@
 %% API
 -export([get/1, get/2, get/3, find/2, set/2, set/3, set/4]).
 -export([typed_get/2, typed_get/3]).
--export([read/2, read_effective/2, read_effective/3]).
+-export([read/2, read_effective/2, read_effective/3, get_config_path/2]).
 -export([write/2, write/3, write/4]).
+-export([rename/3]).
 -export([get_remote/3, find_remote/3, set_remote/4]).
--export([migrate_generated_config/2, migrate_generated_config/3,
-    legacy_config_exists/1, get_config_path/2]).
--export([import_generated_config/3]).
--export([migrate/3, migrate/4]).
+-export([upgrade_app_config/2, upgrade_app_config/3, legacy_config_exists/1]).
+-export([import_generated_from_node/3]).
 -export([get_cluster_type/0]).
 
 -type key() :: atom().
@@ -292,10 +291,10 @@ write(Nodes, Keys, Value, Path) ->
 %% Variables missing from the source file are skipped.
 %% @end
 %%--------------------------------------------------------------------
--spec migrate_generated_config(service:name(), Variables :: [keys()]) ->
+-spec upgrade_app_config(service:name(), Variables :: [keys()]) ->
     ok | no_return().
-migrate_generated_config(ServiceName, Variables) ->
-    migrate_generated_config(ServiceName, Variables, false).
+upgrade_app_config(ServiceName, Variables) ->
+    upgrade_app_config(ServiceName, Variables, false).
 
 %%--------------------------------------------------------------------
 %% @doc Copies given variables from old app.config file to the "generated"
@@ -305,9 +304,9 @@ migrate_generated_config(ServiceName, Variables) ->
 %% in the live config.
 %% @end
 %%--------------------------------------------------------------------
--spec migrate_generated_config(service:name(), Variables :: [keys()],
+-spec upgrade_app_config(service:name(), Variables :: [keys()],
     SetInRuntime :: boolean()) -> ok | no_return().
-migrate_generated_config(ServiceName, Variables, SetInRuntime) ->
+upgrade_app_config(ServiceName, Variables, SetInRuntime) ->
     Src = get_config_path(ServiceName, legacy),
     Dst = get_config_path(ServiceName, generated),
     case file:consult(Src) of
@@ -315,17 +314,17 @@ migrate_generated_config(ServiceName, Variables, SetInRuntime) ->
             ?info("Migrating app config from '~s' to '~s'", [Src, Dst]),
             Values = lists:filtermap(fun(Variable) ->
                 case kv_utils:find(Variable, LegacyConfigs) of
-                    {ok, Val} -> {true, {Variable, Val}};
+                    {ok, Value} -> {true, {Variable, Value}};
                     error -> false
                 end
             end, Variables),
 
-            lists:foreach(fun({Variable, Val}) ->
-                write(Variable, Val, Dst),
+            lists:foreach(fun({Variable, Value}) ->
+                write(Variable, Value, Dst),
                 case SetInRuntime of
                     true ->
                         [AppName | Key] = Variable,
-                        onepanel_env:set(Key, Val, AppName);
+                        onepanel_env:set(Key, Value, AppName);
                     false -> ok
                 end
             end, Values),
@@ -343,9 +342,9 @@ migrate_generated_config(ServiceName, Variables, SetInRuntime) ->
 %% node to the current node and sets them in runtime.
 %% @end
 %%--------------------------------------------------------------------
--spec import_generated_config(service:name(), SourceNode :: node(),
+-spec import_generated_from_node(service:name(), SourceNode :: node(),
     SetInRuntime :: boolean()) -> ok.
-import_generated_config(Service, SourceNode, SetInRuntime) ->
+import_generated_from_node(Service, SourceNode, SetInRuntime) ->
     Path = onepanel_rpc:call_any(SourceNode,
         ?MODULE, get_config_path, [Service, generated]),
     {ok, Applications} = onepanel_rpc:call_any(SourceNode,
@@ -395,9 +394,9 @@ get_config_path(ServiceName, ConfigLayer) ->
 %% and returns true. If OldKeys is missing, returns false.
 %% @end
 %%--------------------------------------------------------------------
--spec migrate(ServiceName :: service:name(), OldKeys :: keys(), NewKeys :: keys()) ->
+-spec rename(ServiceName :: service:name(), OldKeys :: keys(), NewKeys :: keys()) ->
     Found :: boolean().
-migrate(ServiceName, OldKeys, NewKeys) ->
+rename(ServiceName, OldKeys, NewKeys) ->
     % invocation via ?MODULE for meck in eunit tests
     Path = ?MODULE:get_config_path(ServiceName, generated),
     case read([], Path) of
@@ -411,17 +410,6 @@ migrate(ServiceName, OldKeys, NewKeys) ->
             end;
         _ -> false
     end.
-
-
-%%--------------------------------------------------------------------
-%% @doc Executes {@link migrate/3} on all Onepanel nodes.
-%% @end
-%%--------------------------------------------------------------------
--spec migrate(PanelNodes :: [node()], ServiceName :: service:name(),
-    OldKeys :: keys(), NewKeys :: keys()) ->
-    Results :: onepanel_rpc:results() | no_return().
-migrate(PanelNodes, ServiceName, OldKeys, NewKeys) ->
-    onepanel_rpc:call_all(PanelNodes, ?MODULE, migrate, [ServiceName, OldKeys, NewKeys]).
 
 
 %%%===================================================================

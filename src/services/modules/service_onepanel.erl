@@ -153,7 +153,7 @@ get_steps(migrate_emergency_passphrase, _Ctx) ->
 get_steps(import_configuration, #{reference_host := Host} = Ctx) ->
     ReferenceNode = nodes:service_to_node(?SERVICE_PANEL, Host),
     [
-        #step{module = onepanel_env, function = import_generated_config,
+        #step{module = onepanel_env, function = import_generated_from_node,
             args = [?SERVICE_PANEL, ReferenceNode, _SetInRuntime = true]},
         #steps{service = ?SERVICE_LE, action = import_files, ctx = Ctx}
     ];
