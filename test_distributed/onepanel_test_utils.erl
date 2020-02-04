@@ -184,7 +184,8 @@ clear_msg_inbox() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec service_host_action(Node :: node(), Service :: service:name(),
-    Action :: atom()) -> ok | no_return().
+    Action :: atom()) ->
+    service_executor:results() | no_return().
 service_host_action(Node, Service, Action) ->
     service_host_action(Node, Service, Action, #{}).
 
@@ -194,7 +195,8 @@ service_host_action(Node, Service, Action) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec service_host_action(Node :: node(), Service :: service:name(),
-    Action :: atom(), Ctx :: service:ctx()) -> ok | no_return().
+    Action :: atom(), Ctx :: service:ctx()) ->
+    service_executor:results() | no_return().
 service_host_action(Node, Service, Action, Ctx) ->
     Host = hosts:from_node(Node),
     service_action(Node, Service, Action, Ctx#{hosts => [Host]}).
@@ -215,7 +217,8 @@ service_action(Node, Service, Action) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec service_action(Node :: node(), Service :: service:name(),
-    Action :: atom(), Ctx :: service:ctx()) -> ok | no_return().
+    Action :: atom(), Ctx :: service:ctx()) ->
+    service_executor:results() | no_return().
 service_action(Node, Service, Action, Ctx) ->
     case rpc:call(Node, service, apply_sync, [Service, Action, Ctx]) of
         Results when is_list(Results) ->
@@ -225,7 +228,7 @@ service_action(Node, Service, Action, Ctx) ->
                         [Service, Action, Node, Ctx, Error]),
                     ?assert(false);
                 false ->
-                    ok
+                    Results
             end;
         Error ->
             ct:pal("Service action ~tp:~tp on node ~tp failed to start.~nCtx: ~tp~nError: ~tp",

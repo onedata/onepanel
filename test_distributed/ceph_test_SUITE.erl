@@ -363,15 +363,6 @@ end_per_suite(Config) ->
 %%% Internal functions
 %%%===================================================================
 
-%% @private
--spec assert_service_step(Module :: module(), Function :: atom()) ->
-    onepanel_rpc:results().
-assert_service_step(Module, Function) ->
-    {_, {_, _, {Results, _}}} = ?assertReceivedMatch(
-        {step_end, {Module, Function, {_, []}}}, ?TIMEOUT
-    ),
-    Results.
-
 
 -spec list_monitors(Node :: node()) -> [binary()].
 list_monitors(Node) ->
@@ -402,18 +393,18 @@ get_instances(Node, Service) ->
 list_storage_ids(Node) ->
     Ctx = #{hosts => [hosts:from_node(Node)]},
     onepanel_test_utils:service_action(Node, op_worker, get_storages, Ctx),
-    Results = assert_service_step(service:get_module(op_worker), get_storages),
-    [{_, Ids}] = ?assertMatch([{Node, List}] when is_list(List), Results),
-    Ids.
+    ?assertMatch(List when is_list(List), rpc:call(Node,
+        middleware_utils, result_from_service_action,
+        [?SERVICE_OPW, get_storages]
+    )).
 
 
 -spec get_storage(node(), op_worker_storage:id()) -> map().
 get_storage(Node, Id) ->
     Ctx = #{id => Id, hosts => [hosts:from_node(Node)]},
     onepanel_test_utils:service_action(Node, op_worker, get_storages, Ctx),
-    Results2 = assert_service_step(service:get_module(op_worker), get_storages),
-    [{Node, Storage}] = ?assertMatch([{Node, #{}}], Results2),
-    Storage.
+    rpc:call(Node, middleware_utils, result_from_service_action,
+        [?SERVICE_OPW, get_storages, Ctx]).
 
 
 %% @private
