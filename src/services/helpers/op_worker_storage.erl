@@ -19,7 +19,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([add/1, list/0, get/1, exists/2, update/3, remove/2]).
+-export([add/1, list/0, get/1, exists/1, exists/2, update/3, remove/2]).
 -export([get_supporting_storage/2, get_supporting_storages/2,
     get_file_popularity_configuration/2, get_auto_cleaning_configuration/2]).
 -export([is_imported_storage/2, can_be_removed/1]).
@@ -134,10 +134,10 @@ remove(OpNode, Id) ->
 %% service.
 %% @end
 %%--------------------------------------------------------------------
--spec list() -> #{ids := [id()]}.
+-spec list() -> [id()].
 list() ->
     {ok, Ids} = op_worker_rpc:storage_list_ids(),
-    #{ids => Ids}.
+    Ids.
 
 
 %%--------------------------------------------------------------------
@@ -547,8 +547,20 @@ maybe_update_imported_storage(_OpNode, _Id, _) ->
 update_imported_storage(OpNode, Id, Value) ->
     ok = op_worker_rpc:storage_set_imported_storage(OpNode, Id, Value).
 
+
 %%--------------------------------------------------------------------
-%% @doc Checks if storage with given name or id exists.
+%% @doc Checks if storage with given id exists.
+%% @end
+%%--------------------------------------------------------------------
+-spec exists(id()) -> boolean().
+exists(StorageId) ->
+    {ok, Node} = nodes:any(?SERVICE_OPW),
+    op_worker_rpc:storage_exists(Node, StorageId).
+
+
+%%--------------------------------------------------------------------
+%% @doc Checks if storage with given id exists,
+%% using provided op_worker node for rpc.
 %% @end
 %%--------------------------------------------------------------------
 -spec exists(Node :: node(), id()) -> boolean().

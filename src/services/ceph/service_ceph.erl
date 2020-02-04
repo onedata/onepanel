@@ -166,15 +166,18 @@ get_steps(resume, _Ctx) ->
 
 get_steps(NoArgsAction, _Ctx) when
     NoArgsAction == get_health_report;
-    NoArgsAction == get_details ->
+    NoArgsAction == get_details
+->
     [#step{function = NoArgsAction, args = [], selection = any}];
 
 get_steps(SingleHostAction, _Ctx) when
-    SingleHostAction == get_usage ->
+    SingleHostAction == get_usage
+->
     [#step{function = SingleHostAction, selection = any}];
 
 get_steps(AllHostAction, _Ctx) when
-    AllHostAction == write_config ->
+    AllHostAction == write_config
+->
     [#step{function = AllHostAction, selection = all}].
 
 

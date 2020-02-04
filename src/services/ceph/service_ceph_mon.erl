@@ -120,11 +120,13 @@ get_steps(add_node, #{reference_host := _, hosts := [_]}) ->
     ];
 
 get_steps(Action, _Ctx) when
-    Action == get_details ->
+    Action == get_details
+->
     [#step{function = Action, selection = any}];
 
 get_steps(NoArgsFunction, _Ctx) when
-    NoArgsFunction == list ->
+    NoArgsFunction == list
+->
     [#step{function = NoArgsFunction, args = [], selection = any}];
 
 get_steps(stop_all, _Cxt) ->
@@ -134,7 +136,8 @@ get_steps(stop_all, _Cxt) ->
 
 get_steps(Action, #{id := _} = Ctx) when
     Action == start;
-    Action == stop ->
+    Action == stop
+->
     OneHostCtx = case Ctx of
         #{id := _, hosts := [_]} -> Ctx;
         #{id := _, hosts := []} -> Ctx;

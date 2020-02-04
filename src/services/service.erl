@@ -34,8 +34,8 @@
 -export([get_results/1, get_results/2, abort_task/1,
     exists_task/1]).
 -export([register_healthcheck/2]).
--export([update_status/2, update_status/3, all_healthy/0, healthy/1]).
--export([get_module/1, get_hosts/1, add_host/2]).
+-export([update_status/2, update_status/3, all_healthy/0, is_healthy/1]).
+-export([get_module/1, get_hosts/1, has_host/2, add_host/2]).
 -export([get_ctx/1, update_ctx/2, store_in_ctx/3]).
 
 % @formatter:off
@@ -233,8 +233,8 @@ all_healthy() ->
 %% on last check.
 %% @end
 %%--------------------------------------------------------------------
--spec healthy(name()) -> boolean().
-healthy(Service) ->
+-spec is_healthy(name()) -> boolean().
+is_healthy(Service) ->
     case ?MODULE:get(Service) of
         {ok, #service{ctx = Ctx}} ->
             lists:all(fun({_Host, Status}) ->
@@ -409,6 +409,15 @@ get_hosts(Service) ->
         {ok, #service{hosts = Hosts}} -> Hosts;
         {error, _} -> []
     end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns whether a service is deployed on given host.
+%% @end
+%%--------------------------------------------------------------------
+-spec has_host(name(), host()) -> boolean().
+has_host(Service, Host) ->
+    lists:member(Host, get_hosts(Service)).
 
 
 %%--------------------------------------------------------------------

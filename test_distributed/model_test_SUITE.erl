@@ -224,7 +224,8 @@ init_per_testcase(Case, Config) when
     Case =:= list_test;
     Case =:= select_test;
     Case =:= size_test;
-    Case =:= clear_test ->
+    Case =:= clear_test
+->
     NewConfig = init_per_testcase(default, Config),
     Records = lists:sort([
         #?MODEL{field1 = 1, field2 = <<"field1">>, field3 = field1},

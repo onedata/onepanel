@@ -35,6 +35,6 @@
 handle(<<"GET">>, Req) ->
     cowboy_req:reply(?HTTP_200_OK,
         #{?HDR_CONTENT_TYPE => <<"application/json">>},
-        json_utils:encode(rest_replier:format_onepanel_configuration()),
+        json_utils:encode(middleware_utils:format_onepanel_configuration()),
         Req
     ).

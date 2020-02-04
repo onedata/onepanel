@@ -43,7 +43,7 @@ apply(Module, Function, Args) ->
         throw:{error, _} = Reason ->
             {node(), Reason};
         Type:Reason ->
-            ?error_stacktrace("Unexpected error executing ~tp:~tp/~B~nError: ~tp:~tp~n",
+            ?error_stacktrace("Unexpected error executing ~tp:~tp/~B~nError: ~tp:~tp",
                 [Module, Function, erlang:length(Args), Type, Reason]),
             {node(), {error, #exception{
                 % do not store stacktrace not to pollute logs since it's logged here

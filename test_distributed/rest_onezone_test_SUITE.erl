@@ -97,11 +97,14 @@ method_should_return_forbidden_error(Config) ->
 
 method_should_return_service_unavailable_error(Config) ->
     ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
-        ?assertMatch({ok, ?HTTP_503_SERVICE_UNAVAILABLE, _, _}, onepanel_test_rest:auth_request(
-            Host, Endpoint, Method, ?ALL_AUTHS(Host)
-        ))
+        ?assertMatch({ok, ?HTTP_503_SERVICE_UNAVAILABLE, _, _},
+            onepanel_test_rest:auth_request(
+                Host, Endpoint, Method,
+                ?OZ_OR_ROOT_AUTHS(Host, privileges:cluster_admin())
+            ))
     end, lists:subtract(?COMMON_ENDPOINTS_WITH_METHODS, [
         {<<"/zone/cluster_ips">>, get}
+
     ])).
 
 
@@ -141,7 +144,7 @@ patch_should_update_gui_message(Config) ->
                 #{<<"body">> => ?GUI_MESSAGE_BODY, <<"enabled">> => true}
             )
         ),
-        ?assertReceivedEqual({service, onezone, update_gui_message, #{
+        ?assertReceivedNextEqual({service, onezone, update_gui_message, #{
             message_id => ?GOOD_GUI_MESSAGE_ID, body => ?GUI_MESSAGE_BODY,
             enabled => ?GUI_MESSAGE_ENABLED
         }}, ?TIMEOUT)
@@ -163,18 +166,33 @@ init_per_suite(Config) ->
     [{?LOAD_MODULES, [onepanel_test_rest]}, {?ENV_UP_POSTHOOK, Posthook} | Config].
 
 
+init_per_testcase(Case, Config) when
+    Case == method_should_return_forbidden_error;
+    Case == method_should_return_unauthorized_error
+->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(all_nodes, Config),
+    % do not require valid payload in requests
+    test_utils:mock_new(Nodes, [onepanel_parser]),
+    test_utils:mock_expect(Nodes, onepanel_parser, parse, fun(_, _) -> #{} end),
+    NewConfig;
+
+
 init_per_testcase(method_should_return_service_unavailable_error, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(all_nodes, Config),
     test_utils:mock_expect(Nodes, service, all_healthy, fun() -> false end),
+    % do not require valid payload in requests
+    test_utils:mock_new(Nodes, [onepanel_parser]),
+    test_utils:mock_expect(Nodes, onepanel_parser, parse, fun(_, _) -> #{} end),
     NewConfig;
 
 
 init_per_testcase(Case, Config) when
     Case == bad_gui_message_id_should_return_not_found;
     Case == get_should_return_gui_message;
-    Case == patch_should_update_gui_message ->
-
+    Case == patch_should_update_gui_message
+->
     Self = self(),
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(all_nodes, Config),
@@ -205,9 +223,11 @@ init_per_testcase(_Case, Config) ->
     Hosts = ?config(onezone_hosts, Config),
     Domain = onepanel_test_utils:get_domain(hd(Hosts)),
     Self = self(),
-    ?call(Config, onepanel_deployment, set_marker, [?PROGRESS_READY]),
+    ?call(Config, onepanel_deployment, set_marker,
+        [[?PROGRESS_READY, ?PROGRESS_CLUSTER]]),
 
-    test_utils:mock_new(Nodes, [service, service_oz_worker, service_onezone]),
+    test_utils:mock_new(Nodes, [service, service_oz_worker, service_onezone,
+        oz_worker_rpc]),
     test_utils:mock_expect(Nodes, service, exists, fun
         (onezone) -> true; (oz_worker) -> true
     end),
@@ -221,7 +241,13 @@ init_per_testcase(_Case, Config) ->
     end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},
-        [{task_finished, {service, action, ok}}]
+        [
+            % satisfy fetch_entity
+            {onezone_users, get_user, {
+                [{'node@host1', #{}}], []
+            }},
+            {task_finished, {service, action, ok}}
+        ]
     end),
     test_utils:mock_expect(Nodes, service_oz_worker, get_domain, fun
         () -> Domain

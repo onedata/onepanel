@@ -19,6 +19,7 @@
 %% API
 -export([get_steps/3, format_steps/2, notify/2, partition_results/1]).
 -export([results_contain_error/1, throw_on_error/1]).
+-export([select_service_step/3]).
 -export([for_each_ctx/2]).
 -export([absolute_path/2]).
 
@@ -136,6 +137,25 @@ throw_on_error(Results) ->
         {true, Error} -> throw(Error);
         false -> Results
     end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns hosts results of the selected service step.
+%% Throws an exception if the step is not found.
+%% @end
+%%--------------------------------------------------------------------
+-spec select_service_step(Module :: module(), Function :: atom(),
+    Results :: service_executor:results()) ->
+    HostsResults :: service_executor:hosts_results().
+select_service_step(Module, Function, []) ->
+    ?error("Service step ~p:~p not found", [Module, Function]),
+    error({step_not_found, {Module, Function}});
+
+select_service_step(Module, Function, [{Module, Function, Results} | _]) ->
+    Results;
+
+select_service_step(Module, Function, [_ | Results]) ->
+    select_service_step(Module, Function, Results).
 
 
 %%--------------------------------------------------------------------

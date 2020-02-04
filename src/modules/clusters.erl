@@ -78,7 +78,7 @@ get_current_cluster() ->
 %% to the current cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec get_members_summary(rest_handler:zone_auth()) ->
+-spec get_members_summary(rest_handler:zone_credentials()) ->
     #{atom() := non_neg_integer()} | no_return().
 get_members_summary(Auth) ->
     Users = get_members_count(Auth, users, direct),
@@ -86,8 +86,8 @@ get_members_summary(Auth) ->
     Groups = get_members_count(Auth, groups, direct),
     EffGroups = get_members_count(Auth, groups, effective),
     #{
-        usersCount => Users, groupsCount => Groups,
-        effectiveUsersCount => EffUsers, effectiveGroupsCount => EffGroups
+        users_count => Users, groups_count => Groups,
+        effective_users_count => EffUsers, effective_groups_count => EffGroups
     }.
 
 
@@ -111,7 +111,7 @@ get_user_privileges(OnezoneUserId) ->
 %% Uses specified authentication for the request.
 %% @end
 %%--------------------------------------------------------------------
--spec get_user_privileges(rest_handler:zone_auth(), OnezoneUserId :: binary()) ->
+-spec get_user_privileges(rest_handler:zone_credentials(), OnezoneUserId :: binary()) ->
     {ok, [privileges:cluster_privilege()]} | {error, _} | no_return().
 get_user_privileges({rest, RestAuth}, OnezoneUserId) ->
     simple_cache:get(?PRIVILEGES_CACHE_KEY(OnezoneUserId), fun() ->
@@ -139,7 +139,7 @@ get_user_privileges({rpc, Auth}, OnezoneUserId) ->
 %% @doc Returns protected details of a cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec get_details(Auth :: rest_handler:zone_auth(), ClusterId :: id()) ->
+-spec get_details(Auth :: rest_handler:zone_credentials(), ClusterId :: id()) ->
     {ok, #{atom() := term()}} | {error, _}.
 get_details({rpc, Auth}, ClusterId) ->
     case oz_worker_rpc:get_protected_cluster_data(Auth, ClusterId) of
@@ -166,7 +166,7 @@ get_details({rest, Auth}, ClusterId) ->
 %% @doc Returns ids of clusters belonging to the authenticated user.
 %% @end
 %%--------------------------------------------------------------------
--spec list_user_clusters(rest_handler:zone_auth()) ->
+-spec list_user_clusters(rest_handler:zone_credentials()) ->
     {ok, [id()]} | errors:error().
 list_user_clusters({rpc, Auth}) ->
     case oz_worker_rpc:get_clusters_by_user_auth(Auth) of
@@ -186,7 +186,7 @@ list_user_clusters({rest, Auth}) ->
 %% User must belong to its cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec fetch_remote_provider_info(Auth :: rest_handler:zone_auth(), ProviderId :: binary()) ->
+-spec fetch_remote_provider_info(Auth :: rest_handler:zone_credentials(), ProviderId :: binary()) ->
     #{binary() := term()}.
 fetch_remote_provider_info({rpc, Client}, ProviderId) ->
     case oz_worker_rpc:get_protected_provider_data(Client, ProviderId) of
@@ -287,7 +287,7 @@ try_cached(Key, ErrorClass, Error) ->
 %% belonging to the cluster - either directly or effectively.
 %% @end
 %%--------------------------------------------------------------------
--spec get_members_count(Auth :: rest_handler:zone_auth(),
+-spec get_members_count(Auth :: rest_handler:zone_credentials(),
     UsersOrGroups :: users | groups, DirectOrEffective :: direct | effective) ->
     non_neg_integer().
 get_members_count({rest, Auth}, UsersOrGroups, DirectOrEffective) ->
@@ -317,7 +317,7 @@ get_members_count({rpc, Auth}, UsersOrGroups, DirectOrEffective) ->
 
 
 %% @private
--spec create_invite_token_for_admin(rest_handler:zone_auth()) ->
+-spec create_invite_token_for_admin(rest_handler:zone_credentials()) ->
     {ok, tokens:serialized()} | {error, _}.
 create_invite_token_for_admin({rpc, Auth}) ->
     case oz_worker_rpc:cluster_logic_create_invite_token_for_admin(Auth, get_id()) of

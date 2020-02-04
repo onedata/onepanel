@@ -74,6 +74,7 @@ all() ->
 %%%===================================================================
 
 -define(TIMEOUT, timer:seconds(5)).
+-define(TASK_ID, "someTaskId").
 
 -define(POOL_NAME, (<<"onedataPool">>)).
 -define(POOL_SIZE, 2).
@@ -426,21 +427,18 @@ post_should_deploy_ceph(Config) ->
         [OsdsCtx, MonsCtx, ManagersCtx]),
 
     EndpointToCtx = #{
-        <<"ceph">> => FullCtx,
-        <<"ceph/osds">> => OsdsCtx,
-        <<"ceph/monitors">> => MonsCtx,
-        <<"ceph/managers">> => ManagersCtx
+        <<"/provider/ceph">> => FullCtx,
+        <<"/provider/ceph/osds">> => OsdsCtx,
+        <<"/provider/ceph/monitors">> => MonsCtx,
+        <<"/provider/ceph/managers">> => ManagersCtx
     },
 
     ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
         Expected = maps:get(Endpoint, EndpointToCtx),
         Auths = ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
-        {_, _, Headers, _} = ?assertMatch({ok, ?HTTP_201_CREATED, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<"/provider/", Endpoint/binary>>, Method, Auths, ReqBody
-            )
-        ),
-        assert_async_task(Headers),
+        ?assertAsyncTask(?TASK_ID, onepanel_test_rest:auth_request(
+            Host, Endpoint, Method, Auths, ReqBody
+        )),
         % request is repeated for each Auth, do same number of receives
         lists:foreach(fun(_) ->
             {_, _, _, Ctx} = ?assertReceivedMatch({service, ceph, deploy, _}, ?TIMEOUT),
@@ -497,12 +495,10 @@ post_should_deploy_oneprovider_with_ceph(Config) ->
     },
 
     Auths = ?OZ_OR_ROOT_AUTHS(Host1, [?CLUSTER_UPDATE]),
-    {_, _, Headers, _} = ?assertMatch({ok, ?HTTP_201_CREATED, _, _},
-        onepanel_test_rest:auth_request(
-            Host1, <<"/provider/configuration">>, post, Auths, ReqBody
-        )
+    ?assertAsyncTask(?TASK_ID, onepanel_test_rest:auth_request(
+        Host1, <<"/provider/configuration">>, post, Auths, ReqBody
+    )
     ),
-    assert_async_task(Headers),
     SortedHosts = lists:usort([Host1, Host2]),
     lists:foreach(fun(_) ->
         {_, _, _, Ctx} = ?assertReceivedMatch({service, oneprovider, deploy, _}, ?TIMEOUT),
@@ -564,10 +560,10 @@ init_per_testcase(without_ceph_method_should_return_not_found_error_test, Config
 
 init_per_testcase(Case, Config) when
     Case == get_should_return_pool_details_test;
-    Case == get_should_return_pools_list_test ->
+    Case == get_should_return_pools_list_test
+->
     Config2 = init_per_testcase(default, Config),
     CephNodes = ?config(ceph_nodes, Config2),
-    CephHosts = ?config(ceph_hosts, Config2),
 
     test_utils:mock_expect(CephNodes, ceph_cli, get_pool_param, fun
         (?POOL_NAME, <<"size">>) -> {ok, ?POOL_SIZE};
@@ -577,8 +573,8 @@ init_per_testcase(Case, Config) when
 
 init_per_testcase(Case, Config) when
     Case == get_should_return_mgr_details;
-    Case == get_should_return_mgr_list ->
-
+    Case == get_should_return_mgr_list
+->
     Config2 = init_per_testcase(default, Config),
     CephHosts = ?config(ceph_hosts, Config),
     ?call(Config, service, update_ctx, [?SERVICE_CEPH_MGR, #{
@@ -588,8 +584,8 @@ init_per_testcase(Case, Config) when
 
 init_per_testcase(Case, Config) when
     Case == get_should_return_mon_details;
-    Case == get_should_return_mon_list ->
-
+    Case == get_should_return_mon_list
+->
     Config2 = init_per_testcase(default, Config),
     CephHosts = ?config(ceph_hosts, Config2),
     MonId = ?MON_ID(Config2),
@@ -612,7 +608,7 @@ init_per_testcase(get_cluster_configuration_should_include_ceph, Config) ->
         instances => #{}
     }]),
 
-    % make rest_replier:format_service_configuration work
+    % make rest_translator_common:format_service_configuration work
     ?call(Config2, onepanel_deployment, set_marker, [?PROGRESS_CLUSTER]),
     lists:foreach(fun(Service) ->
         ?call(Config, service, create, [#service{name = Service,
@@ -624,8 +620,8 @@ init_per_testcase(get_cluster_configuration_should_include_ceph, Config) ->
 init_per_testcase(Case, Config) when
     Case == get_should_return_cluster_data_usage;
     Case == get_should_return_pool_data_usage;
-    Case == get_should_return_osd_data_usage ->
-
+    Case == get_should_return_osd_data_usage
+->
     Config2 = init_per_testcase(default, Config),
     CephHosts = ?config(ceph_hosts, Config),
     CephNodes = ?config(ceph_nodes, Config2),
@@ -644,7 +640,8 @@ init_per_testcase(Case, Config) when
 init_per_testcase(Case, Config) when
     Case == post_should_deploy_ceph;
     Case == patch_should_modify_pool;
-    Case == post_should_deploy_oneprovider_with_ceph ->
+    Case == post_should_deploy_oneprovider_with_ceph
+->
     Self = self(),
     Nodes = ?config(all_nodes, Config),
     Config2 = init_per_testcase(default, Config),
@@ -662,7 +659,7 @@ init_per_testcase(Case, Config) when
     end),
     test_utils:mock_expect(Nodes, service, apply_async, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},
-        <<"someTaskId">>
+        <<?TASK_ID>>
     end),
     Config2;
 
@@ -700,14 +697,4 @@ end_per_testcase(_Case, Config) ->
 end_per_suite(_Config) ->
     ok.
 
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
--spec assert_async_task(http_client:headers()) -> ok.
-assert_async_task(Headers) ->
-    onepanel_test_utils:assert_values(Headers, [
-        {<<"location">>, <<"/api/v3/onepanel/tasks/someTaskId">>}
-    ]).
 

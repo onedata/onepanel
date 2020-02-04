@@ -26,9 +26,10 @@
     %% guest - unauthenticated client, on endpoints with noauth enabled
     %% member - Onezone user belonging to the cluster, governed by privileges
     %% root - client authenticated with the emergency passphrase
-    role :: guest | member | root,
+    role = guest :: guest | member | root,
     user :: undefined | #user_details{},
-    zone_auth = none :: rest_handler:zone_auth(),
+    zone_credentials = none :: rest_handler:zone_credentials(),
+    auth = aai:nobody_auth() :: aai:auth(),
     privileges :: undefined | [privileges:cluster_privilege()]
 }).
 

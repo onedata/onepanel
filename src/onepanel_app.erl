@@ -21,8 +21,6 @@
 %% Application callbacks
 -export([start/2, stop/1]).
 
--export([get_build_and_version/0]).
-
 %%%===================================================================
 %%% Application callbacks
 %%%===================================================================
@@ -78,22 +76,6 @@ stop(_State) ->
     https_listener:stop(),
     test_node_starter:maybe_stop_cover(),
     ok.
-
-
-%%--------------------------------------------------------------------
-%% @doc Returns version information about the running app
-%% @end
-%%--------------------------------------------------------------------
--spec get_build_and_version() -> {BuildVersion :: binary(), AppVersion :: binary()}.
-get_build_and_version() ->
-    BuildVersion = case application:get_env(?APP_NAME, build_version, "unknown") of
-        "" -> "unknown";
-        Build -> Build
-    end,
-    {_AppId, _AppName, AppVersion} = lists:keyfind(
-        ?APP_NAME, 1, application:loaded_applications()
-    ),
-    {list_to_binary(BuildVersion), list_to_binary(AppVersion)}.
 
 
 %%%===================================================================

@@ -269,7 +269,8 @@ schedule_check() ->
     Action = fun() ->
         try
             % plugin module will throw if there is a condition preventing certification
-            true = any_challenge_available()
+            any_challenge_available(),
+            check_webcert(#{renewal => true})
         catch
             Type:Error ->
                 ?error_stacktrace("Certificate renewal check failed: ~p:~p", [Type, Error])

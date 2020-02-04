@@ -26,17 +26,19 @@
 -type args_list() :: [{Key :: key(), Value :: term()}].
 -type presence() :: required | optional | {optional, Default :: term()}.
 
--type type_spec() :: integer | float | string | binary | atom | boolean | object_spec().
+-type type_spec() :: integer | float | string | binary | atom | boolean
+| ip4 | object_spec().
 
 % multi_spec: either a regular spec, or a list of values, or a value
-% from a closed set of literal values (enum), or a polymorphic model:
+% from a closed set of literal values (enum - many, equal - one),
+% or a polymorphic model:
 % {subclasses, {Discriminator, SpecsMap}} defines a spec which can have
 % any of a few alternative models (for example storages of various types).
 % One field - the Discriminator - must be present in all models and is used
 % to determine model used for parsing.
 % The SpecsMap contains mapping of possible discriminator field values
 % and specific models.
--type multi_spec() :: type_spec() | [multi_spec()]
+-type multi_spec() :: type_spec() | [multi_spec()] | {equal, term()}
 | {enum, type_spec(), Allowed :: [term()]}
 | {subclasses, {Discriminator :: key(), #{binary() => object_spec()}}}.
 
@@ -81,9 +83,12 @@ prepare_subclasses(SubclassModels) ->
                 error({bad_model_subclasses, SubclassModels});
             [{Field, Value}] ->
                 case FieldAcc of
-                    undefined -> {Field, #{Value => Model#{Field => {equal, Value}}}};
+                    undefined ->
+                        {Field, #{Value => Model#{Field => {equal, Value}}}};
                     Field ->
-                        {Field, ValueToSubclassAcc#{Value => Model#{Field => {equal, Value}}}};
+                        {Field, ValueToSubclassAcc#{
+                            Value => Model#{Field => {equal, Value}}
+                        }};
                     _OtherField ->
                         ?critical("Bad parser spec: different discriminator fields"),
                         error({bad_model_subclasses, SubclassModels})
@@ -137,8 +142,9 @@ parse(Data, [{Key, Spec} | ArgsSpec], Keys, Args) when is_map(Data) ->
             throw(?ERROR_MISSING_REQUIRED_VALUE(join_keys([Key | Keys])))
     end;
 
-parse(_Data, [{Key, _Spec} | _ArgsSpec], Keys, _Args) ->
-    throw(?ERROR_BAD_DATA(join_keys([Key | Keys]))).
+parse(Data, [{Key, _Spec} | _ArgsSpec], Keys, _Args) when not is_map(Data) ->
+    % not-a-map cannot be descended into to find Key
+    throw(?ERROR_MISSING_REQUIRED_VALUE(join_keys([Key | Keys]))).
 
 
 %%--------------------------------------------------------------------
@@ -212,6 +218,14 @@ parse_value(Value, float, Keys) ->
         _:_ -> throw(?ERROR_BAD_VALUE_FLOAT(join_keys(Keys)))
     end;
 
+parse_value(Value, ip4, Keys) ->
+    try
+        {ok, IP} = ip_utils:to_ip4_address(Value),
+        IP
+    catch _:_ ->
+        throw(?ERROR_BAD_VALUE_IPV4_ADDRESS(join_keys(Keys)))
+    end;
+
 parse_value(Value, {enum, ValueType, AllowedValues}, Keys) ->
     TypedValue = parse_value(Value, ValueType, Keys),
     case lists:member(TypedValue, AllowedValues) of
@@ -235,18 +249,23 @@ parse_value(Values, [ValueSpec], Keys) ->
         [parse_value(Value, ValueSpec, [Idx | Keys])
             || {Idx, Value} <- lists_utils:number_items(Values)]
     catch
-        throw:ValueError ->
+        ErrorClass:Error ->
             case ValueSpec of
                 % special cases for types with list error types
                 atom ->
                     throw(?ERROR_BAD_VALUE_LIST_OF_ATOMS(join_keys(Keys)));
-                _ when ValueSpec == binary; ValueSpec == string ->
+                ip4 ->
+                    throw(?ERROR_BAD_VALUE_LIST_OF_IPV4_ADDRESSES(join_keys(Keys)));
+                string ->
+                    throw(?ERROR_BAD_VALUE_LIST_OF_BINARIES(join_keys(Keys)));
+                binary ->
                     throw(?ERROR_BAD_VALUE_LIST_OF_BINARIES(join_keys(Keys)));
                 _ ->
-                    throw(ValueError)
-            end;
-        _:_ ->
-            throw(?ERROR_BAD_DATA(join_keys(Keys)))
+                    case {ErrorClass, Error} of
+                        {throw, {error, _}} -> throw(Error);
+                        _ -> throw(?ERROR_BAD_DATA(join_keys(Keys)))
+                    end
+            end
     end;
 
 parse_value(Value, ValueSpec, Keys) when is_map(ValueSpec) ->

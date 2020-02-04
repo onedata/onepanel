@@ -18,7 +18,7 @@
 
 -behaviour(oz_plugin_behaviour).
 
--type auth() :: none | provider | {token, tokens:serialized()}.
+-type auth() :: none | op_panel | provider | {token, tokens:serialized()}.
 -export_type([auth/0]).
 
 %% OZ behaviour callbacks
@@ -96,6 +96,11 @@ auth_to_rest_client({token, Token}) ->
         tokens:build_access_token_header(Token),
         tokens:build_audience_token_header(AudienceToken)
     )};
+
+auth_to_rest_client(op_panel) ->
+    ProviderAccessToken = service_oneprovider:get_access_token(),
+    Token = tokens:build_service_access_token(?OP_PANEL, ProviderAccessToken),
+    {headers, tokens:build_access_token_header(Token)};
 
 auth_to_rest_client(provider) ->
     ProviderAccessToken = service_oneprovider:get_access_token(),

@@ -66,7 +66,7 @@ get_hash() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec change(OldPassphrase :: binary() | undefined, NewPassphrase :: binary()) ->
-    ok | {error, _}.
+    ok | errors:error().
 change(OldPassphrase, NewPassphrase) ->
     case not is_set() orelse verify(OldPassphrase) of
         true -> set(NewPassphrase);
