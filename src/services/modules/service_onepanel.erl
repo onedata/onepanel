@@ -117,7 +117,7 @@ get_steps(init_cluster, _Ctx) ->
         S#step{function = init_cluster}
     ];
 
-get_steps(join_cluster, #{cluster_host := ClusterHost} = Ctx) ->
+get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
     SelfHost = hosts:self(),
     case {available_for_clustering(), ClusterHost} of
         {_, SelfHost} -> [];
@@ -195,8 +195,8 @@ get_steps(Function, _Ctx) when
 %% @end
 %%--------------------------------------------------------------------
 -spec set_cookie(Ctx :: service:ctx()) -> ok | no_return().
-set_cookie(#{cookie := Cookie} = Ctx) ->
-    VmArgsFile = service_ctx:get(onepanel_vm_args_file, Ctx),
+set_cookie(#{cookie := Cookie}) ->
+    VmArgsFile = onepanel_env:get(onepanel_vm_args_file),
     erlang:set_cookie(node(), Cookie),
     onepanel_vm:write("setcookie", Cookie, VmArgsFile);
 
@@ -267,7 +267,7 @@ extend_cluster(#{hostname := Hostname, attempts := Attempts} = Ctx) ->
     }),
     Headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
     Suffix = "/join_cluster",
-    Timeout = service_ctx:get(extend_cluster_timeout, Ctx, integer),
+    Timeout = onepanel_env:get(extend_cluster_timeout),
     Opts = https_opts(Timeout),
     Url = build_url(Hostname, Suffix),
 
@@ -409,8 +409,8 @@ is_host_used(Host) ->
 %%--------------------------------------------------------------------
 -spec get_remote_node_info(service:ctx()) ->
     {ok, Hostname :: binary(), Application :: atom()} | {error, _} | no_return().
-get_remote_node_info(#{address := Address} = Ctx) ->
-    Timeout = service_ctx:get(extend_cluster_timeout, Ctx, integer),
+get_remote_node_info(#{address := Address}) ->
+    Timeout = onepanel_env:get(extend_cluster_timeout),
     Opts = https_opts(Timeout),
     Suffix = <<"/node">>,
     Url = build_url(Address, Suffix),

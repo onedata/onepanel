@@ -119,9 +119,9 @@ get_steps(status, _Ctx) ->
 configure(#{main_host := MainHost, hosts := Hosts,
     wait_for_process := Process} = Ctx) ->
 
-    GeneratedConfigFile = service_ctx:get(cluster_manager_generated_config_file, Ctx),
-    VmArgsFile = service_ctx:get(cluster_manager_vm_args_file, Ctx),
-    EnvFile = service_ctx:get(cluster_manager_env_file, Ctx),
+    GeneratedConfigFile = onepanel_env:get(cluster_manager_generated_config_file),
+    VmArgsFile = onepanel_env:get(cluster_manager_vm_args_file),
+    EnvFile = onepanel_env:get(cluster_manager_env_file),
 
     Host = hosts:self(),
     Node = nodes:local(name()),
@@ -137,13 +137,13 @@ configure(#{main_host := MainHost, hosts := Hosts,
 
     onepanel_env:write([kernel, distributed], [{
         name(),
-        service_ctx:get(cluster_manager_failover_timeout, Ctx, integer),
+        onepanel_env:get(cluster_manager_failover_timeout),
         [MainNode, list_to_tuple(Nodes -- [MainNode])]
     }], GeneratedConfigFile),
     onepanel_env:write([kernel, sync_nodes_mandatory],
         Nodes -- [Node], GeneratedConfigFile),
     onepanel_env:write([kernel, sync_nodes_timeout],
-        service_ctx:get(cluster_manager_sync_nodes_timeout, Ctx, integer),
+        onepanel_env:get(cluster_manager_sync_nodes_timeout),
         GeneratedConfigFile),
 
     onepanel_vm:write("name", Node, VmArgsFile),
@@ -160,9 +160,9 @@ configure(#{main_host := MainHost, hosts := Hosts,
 %% @end
 %%--------------------------------------------------------------------
 -spec start(Ctx :: service:ctx()) -> ok | no_return().
-start(Ctx) ->
+start(_Ctx) ->
     Limits = #{
-        open_files => service_ctx:get(cluster_manager_open_files_limit, Ctx)
+        open_files => onepanel_env:get(cluster_manager_open_files_limit)
     },
     service_cli:start(name(), Limits),
     service:update_status(name(), healthy),

@@ -258,7 +258,7 @@ get_steps(modify_details, Ctx) ->
 
 
 get_steps(set_cluster_ips, #{hosts := Hosts} = Ctx) ->
-    GeneratedConfigFile = service_ctx:get(op_worker_generated_config_file, Ctx),
+    GeneratedConfigFile = onepanel_env:get(op_worker_generated_config_file),
     Ctx2 = Ctx#{
         generated_config_file => GeneratedConfigFile,
         name => ?SERVICE_OPW
@@ -409,11 +409,11 @@ configure(#{application := ?APP_NAME, oneprovider_token := Token}) ->
     onepanel_env:write(Nodes, [?APP_NAME, onezone_domain], OzDomain,
         onepanel_env:get_config_path(?APP_NAME, generated));
 
-configure(#{oneprovider_token := Token} = Ctx) ->
+configure(#{oneprovider_token := Token}) ->
     OzDomain = onezone_tokens:read_domain(Token),
     Name = ?SERVICE_OPW,
     Node = nodes:local(Name),
-    GeneratedConfigFile = service_ctx:get(op_worker_generated_config_file, Ctx),
+    GeneratedConfigFile = onepanel_env:get(op_worker_generated_config_file),
     rpc:call(Node, application, set_env, [Name, oz_domain, OzDomain]),
     onepanel_env:write([Name, oz_domain], OzDomain, GeneratedConfigFile).
 
@@ -423,10 +423,10 @@ configure(#{oneprovider_token := Token} = Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec check_oz_availability(Ctx :: service:ctx()) -> ok | no_return().
-check_oz_availability(Ctx) ->
-    Protocol = service_ctx:get(oz_worker_nagios_protocol, Ctx),
-    Port = service_ctx:get(oz_worker_nagios_port, Ctx, integer),
-    OzDomain = onepanel_env:get(onezone_domain),
+check_oz_availability(_Ctx) ->
+    Protocol = onepanel_env:get(oz_worker_nagios_protocol),
+    Port = onepanel_env:get(oz_worker_nagios_port),
+    OzDomain = onepanel_env:typed_get(onezone_domain, ?APP_NAME, list),
     Url = onepanel_utils:join([Protocol, "://", OzDomain, ":", Port, "/nagios"]),
     Opts = case Protocol of
         "https" ->
@@ -471,16 +471,16 @@ check_oz_connection() ->
 register(Ctx) ->
     {ok, OpwNode} = nodes:any(?SERVICE_OPW),
 
-    DomainParams = case service_ctx:get(oneprovider_subdomain_delegation, Ctx, boolean, false) of
+    DomainParams = case onepanel_utils:get_converted(oneprovider_subdomain_delegation, Ctx, boolean, false) of
         true ->
-            Subdomain = service_ctx:get(oneprovider_subdomain, Ctx, binary),
+            Subdomain = onepanel_utils:get_converted(oneprovider_subdomain, Ctx, binary),
             #{
                 <<"subdomainDelegation">> => true,
                 <<"subdomain">> => string:lowercase(Subdomain),
                 <<"ipList">> => [] % IPs will be updated in the step set_cluster_ips
             };
         false ->
-            Domain = service_ctx:get(oneprovider_domain, Ctx, binary),
+            Domain = onepanel_utils:get_converted(oneprovider_domain, Ctx, binary),
             #{
                 <<"subdomainDelegation">> => false,
                 <<"domain">> => string:lowercase(Domain)
@@ -489,11 +489,11 @@ register(Ctx) ->
     end,
 
     Params = DomainParams#{
-        <<"token">> => service_ctx:get(oneprovider_token, Ctx, binary),
-        <<"name">> => service_ctx:get(oneprovider_name, Ctx, binary),
-        <<"adminEmail">> => service_ctx:get(oneprovider_admin_email, Ctx, binary),
-        <<"latitude">> => service_ctx:get(oneprovider_geo_latitude, Ctx, float, 0.0),
-        <<"longitude">> => service_ctx:get(oneprovider_geo_longitude, Ctx, float, 0.0)
+        <<"token">> => onepanel_utils:get_converted(oneprovider_token, Ctx, binary),
+        <<"name">> => onepanel_utils:get_converted(oneprovider_name, Ctx, binary),
+        <<"adminEmail">> => onepanel_utils:get_converted(oneprovider_admin_email, Ctx, binary),
+        <<"latitude">> => onepanel_utils:get_converted(oneprovider_geo_latitude, Ctx, float, 0.0),
+        <<"longitude">> => onepanel_utils:get_converted(oneprovider_geo_longitude, Ctx, float, 0.0)
     },
 
     case oz_providers:register(none, Params) of

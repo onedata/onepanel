@@ -146,9 +146,11 @@ get_user_details(Auth) ->
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(Ctx) ->
     GeneratedConfigFile = onepanel_env:get_config_path(name(), generated),
-    VmArgsFile = service_ctx:get(oz_worker_vm_args_file, Ctx),
-    OzName = service_ctx:get(onezone_name, Ctx),
-    OzDomain = string:lowercase(service_ctx:get_domain(onezone_domain, Ctx)),
+    VmArgsFile = onepanel_env:get(oz_worker_vm_args_file),
+    OzName = onepanel_utils:get_converted(onezone_name, Ctx, list),
+    OzDomain = string:lowercase(
+        onepanel_utils:get_converted(onezone_domain, Ctx, list)
+    ),
 
     % TODO VFS-4140 Mark IPs configured only in batch mode
     onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),
@@ -176,7 +178,7 @@ configure(Ctx) ->
 -spec start(Ctx :: service:ctx()) -> ok | no_return().
 start(Ctx) ->
     NewCtx = maps:merge(#{
-        open_files => service_ctx:get(oz_worker_open_files_limit, Ctx)
+        open_files => onepanel_env:get(oz_worker_open_files_limit)
     }, Ctx),
     service_cluster_worker:start(NewCtx#{name => name()}).
 
@@ -222,10 +224,8 @@ health(Ctx) ->
 wait_for_init(Ctx) ->
     service_cluster_worker:wait_for_init(Ctx#{
         name => name(),
-        wait_for_init_attempts => service_ctx:get(
-            oz_worker_wait_for_init_attempts, Ctx, integer),
-        wait_for_init_delay => service_ctx:get(
-            oz_worker_wait_for_init_delay, Ctx, integer)
+        wait_for_init_attempts => onepanel_env:get(oz_worker_wait_for_init_attempts),
+        wait_for_init_delay => onepanel_env:get(oz_worker_wait_for_init_delay)
     }).
 
 
@@ -237,8 +237,8 @@ wait_for_init(Ctx) ->
     Response :: http_client:response().
 get_nagios_response(Ctx) ->
     service_cluster_worker:get_nagios_response(Ctx#{
-        nagios_protocol => service_ctx:get(oz_worker_nagios_protocol, Ctx),
-        nagios_port => service_ctx:get(oz_worker_nagios_port, Ctx, integer)
+        nagios_protocol => onepanel_env:get(oz_worker_nagios_protocol),
+        nagios_port => onepanel_env:get(oz_worker_nagios_port)
     }).
 
 
@@ -249,8 +249,8 @@ get_nagios_response(Ctx) ->
 -spec get_nagios_status(Ctx :: service:ctx()) -> Status :: atom().
 get_nagios_status(Ctx) ->
     service_cluster_worker:get_nagios_status(Ctx#{
-        nagios_protocol => service_ctx:get(oz_worker_nagios_protocol, Ctx),
-        nagios_port => service_ctx:get(oz_worker_nagios_port, Ctx, integer)
+        nagios_protocol => onepanel_env:get(oz_worker_nagios_protocol),
+        nagios_port => onepanel_env:get(oz_worker_nagios_port)
     }).
 
 

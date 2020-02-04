@@ -154,7 +154,7 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
         ?SERVICE_CM,
         [MainCmHost | lists:delete(MainCmHost, CmHosts)]
     ),
-    DbPort = service_ctx:get(couchbase_port, Ctx),
+    DbPort = onepanel_env:typed_get(couchbase_port, list),
     DbNodes = lists:map(fun(DbHost) ->
         onepanel_utils:convert(string:join([DbHost, DbPort], ":"), atom)
     end, DbHosts),

@@ -127,7 +127,7 @@ configure(_Ctx) ->
 -spec start(Ctx :: service:ctx()) -> ok | no_return().
 start(Ctx) ->
     Limits = #{
-        open_files => service_ctx:get(couchbase_open_files_limit, Ctx)
+        open_files => onepanel_env:get(couchbase_open_files_limit)
     },
     service_cli:start(name(), Limits),
     % update status cache
@@ -168,10 +168,10 @@ status(Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec health(service:ctx()) -> service:status().
-health(Ctx) ->
-    ConnectTimeout = service_ctx:get(couchbase_connect_timeout, Ctx, integer),
+health(_Ctx) ->
+    ConnectTimeout = onepanel_env:get(couchbase_connect_timeout),
     Host = hosts:self(),
-    Port = service_ctx:get(couchbase_admin_port, Ctx, integer),
+    Port = onepanel_env:get(couchbase_admin_port),
 
     case gen_tcp:connect(Host, Port, [], ConnectTimeout) of
         {ok, Socket} ->
@@ -190,7 +190,7 @@ health(Ctx) ->
 %%--------------------------------------------------------------------
 -spec wait_for_init(Ctx :: service:ctx()) -> ok | no_return().
 wait_for_init(Ctx) ->
-    StartAttempts = service_ctx:get(couchbase_wait_for_init_attempts, Ctx, integer),
+    StartAttempts = onepanel_env:get(couchbase_wait_for_init_attempts),
     try
         onepanel_utils:wait_until(?MODULE, status, [Ctx],
             {equal, healthy}, StartAttempts)
@@ -218,14 +218,20 @@ wait_for_init(Ctx) ->
 %%--------------------------------------------------------------------
 -spec init_cluster(Ctx :: service:ctx()) -> ok | no_return().
 init_cluster(Ctx) ->
-    User = service_ctx:get(couchbase_user, Ctx),
-    Password = service_ctx:get(couchbase_password, Ctx),
-    ServerQuota = service_ctx:get(couchbase_server_quota, Ctx),
-    BucketQuota = service_ctx:get(couchbase_bucket_quota, Ctx, integer),
+    User = onepanel_env:typed_get(couchbase_user, list),
+    Password = onepanel_env:typed_get(couchbase_password, list),
+    DefaultServerQuota = onepanel_env:typed_get(couchbase_server_quota, integer),
+    ServerQuota = onepanel_utils:get_converted(
+        couchbase_server_quota, Ctx, integer, DefaultServerQuota
+    ),
+    DefaultBucketQuota = onepanel_env:typed_get(couchbase_bucket_quota, integer),
+    BucketQuota = onepanel_utils:get_converted(
+        couchbase_bucket_quota, Ctx, integer, DefaultBucketQuota
+    ),
     Host = hosts:self(),
-    Port = service_ctx:get(couchbase_admin_port, Ctx),
+    Port = onepanel_env:typed_get(couchbase_admin_port, list),
     Url = onepanel_utils:join(["http://", Host, ":", Port, "/pools/default"]),
-    Timeout = service_ctx:get(couchbase_init_timeout, Ctx, integer),
+    Timeout = onepanel_env:get(couchbase_init_timeout),
 
     {ok, ?HTTP_200_OK, _, _} = http_client:post(
         Url, maps:from_list([
@@ -236,8 +242,9 @@ init_cluster(Ctx) ->
     ),
 
     Cmd = [?CLI, "cluster-init", "-c", Host ++ ":" ++ Port,
-            "--cluster-init-username=" ++ User,
-            "--cluster-init-ramsize=" ++ ServerQuota],
+        str_utils:format("--cluster-init-username=~ts", [User]),
+        str_utils:format("--cluster-init-ramsize=~B", [ServerQuota])
+    ],
     onepanel_shell:ensure_success(
         Cmd ++ ["--cluster-init-password=" ++ Password],
         Cmd ++ ["--cluster-init-password=*****"]),
@@ -259,11 +266,11 @@ init_cluster(Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec join_cluster(Ctx :: service:ctx()) -> ok | no_return().
-join_cluster(#{cluster_host := ClusterHost} = Ctx) ->
-    User = service_ctx:get(couchbase_user, Ctx),
-    Password = service_ctx:get(couchbase_password, Ctx),
+join_cluster(#{cluster_host := ClusterHost}) ->
+    User = onepanel_env:get(couchbase_user),
+    Password = onepanel_env:get(couchbase_password),
     Host = hosts:self(),
-    Port = service_ctx:get(couchbase_admin_port, Ctx),
+    Port = onepanel_env:typed_get(couchbase_admin_port, list),
 
     Cmd = [?CLI, "server-add", "-c",
             ClusterHost ++ ":" ++ Port, "-u", User, "-p", Password,
@@ -283,11 +290,11 @@ join_cluster(#{cluster_host := ClusterHost} = Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec rebalance_cluster(Ctx :: service:ctx()) -> ok | no_return().
-rebalance_cluster(Ctx) ->
-    User = service_ctx:get(couchbase_user, Ctx),
-    Password = service_ctx:get(couchbase_password, Ctx),
+rebalance_cluster(_Ctx) ->
+    User = onepanel_env:get(couchbase_user),
+    Password = onepanel_env:get(couchbase_password),
     Host = hosts:self(),
-    Port = service_ctx:get(couchbase_admin_port, Ctx),
+    Port = onepanel_env:typed_get(couchbase_admin_port, list),
 
     Cmd = [?CLI, "rebalance", "-c", Host ++ ":" ++ Port, "-u", User],
     onepanel_shell:ensure_success(
@@ -315,8 +322,9 @@ rebalance_cluster(Ctx) ->
 create_bucket(Host, Port, User, Password, Bucket, BucketQuota) ->
     Cmd = [?CLI, "bucket-create", "-c", Host ++ ":" ++ Port,
         "-u", User, "--bucket=" ++ Bucket,
-        "--bucket-ramsize=" ++ onepanel_utils:convert(BucketQuota, list),
+        str_utils:format("--bucket-ramsize=~B", [BucketQuota]),
         "--bucket-eviction-policy=fullEviction", "--wait"],
     onepanel_shell:ensure_success(
         Cmd ++ ["-p", Password],
-        Cmd ++ ["-p", "****"]).
+        Cmd ++ ["-p", "****"]
+    ).
