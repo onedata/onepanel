@@ -6,7 +6,10 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc This module provides an extension of rpc module functionality.
-%%% Used mainly in the service actions flow.
+%%% ?MODULE:call_any/4 may be used in lieu of rpc:call/4 in order
+%%% to rethrow any exceptions which occurred remotely.
+%%% The multicall (?MODULE:call) functionality is used primarily by
+%%% the service action execution mechanism.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_rpc).

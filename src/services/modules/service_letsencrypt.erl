@@ -11,15 +11,15 @@
 %%%
 %%% The periodic check is implemented using onepanel_cron, where a task
 %%% is added upon successfully enabling Let's Encrypt and removed
-%%% upon disabling. Since onepanl_cron is per-node, all steps in
-%%% service_letsencrypt are configured to run on one node at a time.
+%%% upon disabling. Since onepanel_cron is per-node, all steps in
+%%% service_letsencrypt are configured to run on one node only.
 %%% Only the node performing certification stores the Let's Encrypt account
 %%% credentials.
 %%%
 %%% Node used for Let's Encrypt certification might change if a new node
 %%% is added to the cluster. In such case migration procedure might miss
-%%% LE credentials if they are on a different node. This is not a significant
-%%% issue as new LE registration is possible, at the cost of counting
+%%% LE credentials if they are on a different node. This is not a critical
+%%% problem as new LE registration is possible, at the cost of counting
 %%% as a new rather than renewed certificate.
 %%% @TODO VFS-6097 Store the credentials in mnesia.
 %%% @end
@@ -41,7 +41,7 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([create/1, check_webcert/1, enable/1, disable/1, get_details/1,
+-export([create/1, check_webcert/1, enable/1, disable/1, get_details/0,
     import_files/1]).
 
 %% Private function exported for rpc
@@ -127,7 +127,7 @@ get_steps(update, Ctx) ->
     ];
 
 get_steps(get_details, _Ctx) ->
-    [#step{function = get_details, selection = first}];
+    [#step{function = get_details, selection = first, args = []}];
 
 get_steps(import_files, #{reference_host := _}) ->
     [#step{function = import_files}].
@@ -143,7 +143,7 @@ get_steps(import_files, #{reference_host := _}) ->
 %% from older oneprovider versions.
 %% @end
 %%--------------------------------------------------------------------
--spec create(service:ctx()) -> ok.
+-spec create(#{letsencrypt_plugin := service:name(), _ => _}) -> ok.
 create(#{letsencrypt_plugin := Plugin}) ->
     LegacyEnabled = service_oneprovider:pop_legacy_letsencrypt_config(),
     ServiceCtx = #{
@@ -158,10 +158,12 @@ create(#{letsencrypt_plugin := Plugin}) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Obtains certificate if current is marked as dirty.
+%% Obtains new certificate if renewal is needed or there are
+%% non-Let's Encrypt certificates on any node.
 %% @end
 %%--------------------------------------------------------------------
--spec check_webcert(Ctx :: service:ctx()) -> ok | no_return().
+-spec check_webcert(Ctx) -> ok when
+    Ctx :: #{letsencrypt_enabled => boolean(), renewal => boolean(), _ => _}.
 check_webcert(Ctx) ->
     case should_obtain(Ctx) of
         true ->
@@ -186,11 +188,11 @@ check_webcert(Ctx) ->
     end.
 
 
--spec get_details(Ctx :: service:ctx()) -> #{atom() := term()}.
-get_details(_Ctx) ->
+-spec get_details() -> #{atom() := term()}.
+get_details() ->
     {ok, #service{ctx = Ctx}} = service:get(name()),
     Enabled = is_enabled(Ctx),
-    Status = try global_cert_status(Ctx) catch _:_ -> unknown end,
+    Status = try global_cert_status() catch _:_ -> unknown end,
 
     {ok, Cert} = onepanel_cert:read(?CERT_PATH),
     {Since, Until} = onepanel_cert:get_times(Cert),
@@ -224,7 +226,7 @@ get_details(_Ctx) ->
 %%--------------------------------------------------------------------
 %% @doc
 %% Copies certificate files from existing cluster nodes to the current node.
-%% Used when extending cluster.
+%% Used when extending the cluster.
 %% Certificates are copied regardless if they are 'managed' (Let's Encrypt)
 %% or user-issued.
 %%
@@ -232,7 +234,7 @@ get_details(_Ctx) ->
 %% as well. If a node without the Let's Encrypt credentials is selected,
 %% new credentials will be generated during next Let's Encrypt run.
 %%
-%% Does not raise error (aparat from a warning log) when saving a file
+%% Does not raise an error (apart from a warning log) when saving a file fails,
 %% to respect deployments with read-only certificate mounts.
 %% @end
 %%--------------------------------------------------------------------
@@ -241,9 +243,7 @@ import_files(#{reference_host := Host}) ->
     SelfHost = hosts:self(),
     Node = nodes:service_to_node(?APP_NAME, Host),
     onepanel_cert:backup_exisiting_certs(),
-    FilesToCopy = case rpc:call(Node, onepanel_cert, list_certificate_files, []) of
-        List when is_list(List) -> List
-    end,
+    FilesToCopy = onepanel_rpc:call_any(Node, onepanel_cert, list_certificate_files, []),
     lists:foreach(fun(Path) ->
         case rpc:call(
             Node, onepanel_utils, distribute_file, [[SelfHost], Path]
@@ -266,7 +266,7 @@ import_files(#{reference_host := Host}) ->
 %% Determines whether Let's Encrypt certificate renewal is enabled.
 %% @end
 %%--------------------------------------------------------------------
--spec is_enabled(service:ctx()) -> boolean().
+-spec is_enabled(service:ctx()) -> Enabled :: boolean().
 is_enabled(#{letsencrypt_enabled := Enabled}) ->
     Enabled;
 is_enabled(_Ctx) ->
@@ -282,7 +282,7 @@ is_enabled(_Ctx) ->
 %% Obtains certificate from Let's Encrypt
 %% @end
 %%--------------------------------------------------------------------
--spec obtain_cert(service:ctx()) -> ok | no_return().
+-spec obtain_cert(#{renewal => boolean(), _ => _}) -> ok | no_return().
 obtain_cert(Ctx) ->
     Plugin = get_plugin_module(),
     <<Domain/binary>> = Plugin:get_domain(),
@@ -332,6 +332,8 @@ schedule_check() ->
                 ?error_stacktrace("Certificate renewal check failed: ~p:~p", [Type, Error])
         end
     end,
+    % clean existing jobs to ensure no duplication
+    onepanel_rpc:call_all(get_nodes(), onepanel_cron, remove_job, name()),
     onepanel_cron:add_job(name(), Action, ?CHECK_DELAY).
 
 
@@ -368,8 +370,8 @@ is_regenerating() ->
 %% or validity of all certs is ensured.
 %% @end
 %%--------------------------------------------------------------------
--spec global_cert_status(service:ctx()) -> status().
-global_cert_status(_Ctx) ->
+-spec global_cert_status() -> status().
+global_cert_status() ->
     case is_regenerating() of
         true -> regenerating;
         _ ->
@@ -448,7 +450,7 @@ date_or_null(Key, Map) ->
 %% to replace existing unmanaged certificates.
 %% @end
 %%--------------------------------------------------------------------
--spec first_run(Ctx :: service:ctx()) -> boolean().
+-spec first_run(Ctx :: #{letsencrypt_enabled => boolean(), _ => _}) -> boolean().
 first_run(Ctx) ->
     Enabling = (is_enabled(Ctx) and not is_enabled(#{})),
     Enabling andalso not are_all_certs_letsencrypt().
@@ -475,9 +477,10 @@ any_challenge_available() ->
 %% Checks if cert should be obtained.
 %% @end
 %%--------------------------------------------------------------------
--spec should_obtain(Ctx :: service:ctx()) -> boolean().
+-spec should_obtain(Ctx :: #{letsencrypt_enabled => boolean(), _ => _}) ->
+    boolean().
 should_obtain(Ctx) ->
-    first_run(Ctx) orelse case global_cert_status(Ctx) of
+    first_run(Ctx) orelse case global_cert_status() of
         valid -> false;
         regenerating -> false;
         _ -> true
