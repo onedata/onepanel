@@ -6,6 +6,24 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc This module contains onepanel service management functions.
+%%%
+%%% In particular, this module handles changes in the cluster's hosts set.
+%%% Host (onepanel node) belongs to the cluster if it shares mnesia tables.
+%%%
+%%% Cluster extension flow is as follows
+%%% (assuming oldNode is already configured and newNode is to be added):
+%%% 1. admin --> oldNode: POST /hosts {"address": "newNode"}
+%%% 2. oldNode --> newNode: GET /node # determine full erlang hostname
+%%%    newNode --> oldNode: 200 OK {"hostname": "newNode.tld", "clusterType": onezone"}
+%%% 3. oldNode --> newNode: POST /join_cluster {"cookie": "secret", "clusterHost": "oldNode.tld"}
+%%%
+%%% Request (3) triggers service_onepanel:join_cluster action at newNode.
+%%% newNode changes its cookie to the received one and discards its mnesia
+%%% tables in favor of synchronizing from oldNode.
+%%%
+%%% In case of batch config (service_onepanel:deploy) the flow is similar,
+%%% but the configuration request contains full erlang hostnames
+%%% causing the discovery request (2) to be skipped.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(service_onepanel).
