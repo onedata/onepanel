@@ -145,7 +145,6 @@ get_user_details(Auth) ->
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(Ctx) ->
-    GeneratedConfigFile = onepanel_env:get_config_path(name(), generated),
     VmArgsFile = onepanel_env:get(oz_worker_vm_args_file),
     OzName = onepanel_utils:get_converted(onezone_name, Ctx, list),
     OzDomain = string:lowercase(
@@ -165,7 +164,6 @@ configure(Ctx) ->
     service_cluster_worker:configure(Ctx#{
         name => name(),
         app_config => AppConfig,
-        generated_config_file => GeneratedConfigFile,
         vm_args_file => VmArgsFile,
         initialize_ip => true
     }).
@@ -413,7 +411,8 @@ reconcile_dns(_Ctx) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link onepanel_env:migrate_generated_config/2}
+%% @doc Copies given variables from old app.config file to the "generated"
+%% app config file. Afterwards moves the legacy file to a backup location.
 %% @end
 %%--------------------------------------------------------------------
 -spec migrate_generated_config(service:ctx()) -> ok | no_return().
@@ -522,8 +521,7 @@ to_binary_or_undefined(Value) -> onepanel_utils:convert(Value, binary).
 -spec env_write_and_set(Variable :: atom(), Value :: term()) -> ok | no_return().
 env_write_and_set(Variable, Value) ->
     Node = nodes:local(name()),
-    Path = onepanel_env:get_config_path(name(), generated),
-    onepanel_env:write([name(), Variable], Value, Path),
+    onepanel_env:write([name(), Variable], Value, ?SERVICE_OZW),
     % catch - failure of set_remote indicates that oz_worker node is down.
     % In such case onepanel_env:write suffices since configuration will
     % be read from file on next startup.

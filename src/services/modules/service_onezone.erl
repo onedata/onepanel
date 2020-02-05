@@ -182,9 +182,7 @@ get_steps(status, _Ctx) ->
     ];
 
 get_steps(set_cluster_ips, Ctx) ->
-    GeneratedConfigFile = onepanel_env:get(oz_worker_generated_config_file),
     Ctx2 = Ctx#{
-        generated_config_file => GeneratedConfigFile,
         name => ?SERVICE_OZW
     }, [
         #steps{action = set_cluster_ips, ctx = Ctx2, service = ?SERVICE_CW},

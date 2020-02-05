@@ -146,7 +146,7 @@ get_steps(dns_check, #{name := ServiceName, force_check := ForceCheck}) ->
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
     db_hosts := DbHosts, app_config := AppConfig, initialize_ip := InitIp,
-    generated_config_file := GeneratedConfigFile, vm_args_file := VmArgsFile} = Ctx) ->
+    vm_args_file := VmArgsFile} = Ctx) ->
 
     Host = hosts:self(),
     Node = nodes:local(Name),
@@ -159,11 +159,11 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
         onepanel_utils:convert(string:join([DbHost, DbPort], ":"), atom)
     end, DbHosts),
 
-    onepanel_env:write([Name, cm_nodes], CmNodes, GeneratedConfigFile),
-    onepanel_env:write([Name, db_nodes], DbNodes, GeneratedConfigFile),
+    onepanel_env:write([Name, cm_nodes], CmNodes, Name),
+    onepanel_env:write([Name, db_nodes], DbNodes, Name),
 
     maps:fold(fun(Key, Value, _) ->
-        onepanel_env:write([Name, Key], Value, GeneratedConfigFile)
+        onepanel_env:write([Name, Key], Value, Name)
     end, #{}, AppConfig),
 
     case InitIp of
@@ -175,7 +175,7 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
                     {ok, IPTuple} = ip_utils:to_ip4_address(Found),
                     IPTuple
             end,
-            onepanel_env:write([name(), external_ip], IP, GeneratedConfigFile);
+            onepanel_env:write([name(), external_ip], IP, Name);
         false -> ok
     end,
 
@@ -274,7 +274,7 @@ get_nagios_status(Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec set_node_ip(Ctx :: service:ctx()) -> ok | no_return().
-set_node_ip(#{name := ServiceName, generated_config_file := GeneratedConfigFile} = Ctx) ->
+set_node_ip(#{name := ServiceName} = Ctx) ->
     Host = hosts:self(),
     Node = nodes:local(ServiceName),
 
@@ -285,7 +285,7 @@ set_node_ip(#{name := ServiceName, generated_config_file := GeneratedConfigFile}
         _ -> {ok, get_initial_ip(ServiceName)}
     end,
 
-    onepanel_env:write([name(), external_ip], IP, GeneratedConfigFile),
+    onepanel_env:write([name(), external_ip], IP, ServiceName),
     onepanel_env:set_remote(Node, [external_ip], IP, name()),
     dns_check:invalidate_cache(ServiceName).
 
@@ -337,7 +337,8 @@ reload_webcert(#{name := ServiceName}) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link onepanel_env:migrate_generated_config/2}
+%% @doc Copies given variables from old app.config file to the "generated"
+%% app config file. Afterwards moves the legacy file to a backup location.
 %% @end
 %%--------------------------------------------------------------------
 -spec migrate_generated_config(service:ctx()) -> ok | no_return().
@@ -367,10 +368,10 @@ migrate_generated_config(#{name := _ServiceName} = Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec setup_cert_paths(service:ctx()) -> ok | no_return().
-setup_cert_paths(#{name := AppName, generated_config_file := GeneratedConfigFile}) ->
+setup_cert_paths(#{name := AppName}) ->
     lists:foreach(fun({SrcEnv, DstEnv}) ->
         Path = filename:absname(onepanel_env:get(SrcEnv)),
-        ok = onepanel_env:write([AppName, DstEnv], Path, GeneratedConfigFile)
+        ok = onepanel_env:write([AppName, DstEnv], Path, AppName)
     end, [
         {web_key_file, web_key_file},
         {web_cert_file, web_cert_file},

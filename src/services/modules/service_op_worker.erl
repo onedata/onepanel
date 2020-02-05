@@ -192,7 +192,6 @@ is_connected_to_oz() ->
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
 configure(Ctx) ->
-    GeneratedConfigFile = onepanel_env:get_config_path(name(), generated),
     VmArgsFile = onepanel_env:get(op_worker_vm_args_file),
 
     case maps:get(mark_cluster_ips_configured, Ctx, false)
@@ -204,7 +203,6 @@ configure(Ctx) ->
     ok = service_cluster_worker:configure(Ctx#{
         name => name(),
         app_config => #{},
-        generated_config_file => GeneratedConfigFile,
         vm_args_file => VmArgsFile,
         % @FIXME when adding to registered cluster - DO set ip
         initialize_ip => false % do not set IP until onezone is connected
@@ -510,7 +508,8 @@ get_admin_email() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link onepanel_env:migrate_generated_config/2}
+%% @doc Copies given variables from old app.config file to the "generated"
+%% app config file. Afterwards moves the legacy file to a backup location.
 %% @end
 %%--------------------------------------------------------------------
 -spec migrate_generated_config(service:ctx()) -> ok | no_return().
@@ -572,8 +571,7 @@ maybe_check_dns() ->
 -spec env_write_and_set(Variable :: atom(), Value :: term()) -> ok | no_return().
 env_write_and_set(Variable, Value) ->
     Node = nodes:local(name()),
-    Path = onepanel_env:get_config_path(name(), generated),
-    onepanel_env:write([name(), Variable], Value, Path),
+    onepanel_env:write([name(), Variable], Value, ?SERVICE_OPW),
     % if op-worker is offline failure can be ignored,
     % the variable will be read on next startup
     catch onepanel_env:set_remote(Node, Variable, Value, name()),

@@ -14,6 +14,7 @@
 
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
+-include("names.hrl").
 -include("service.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -119,7 +120,6 @@ get_steps(status, _Ctx) ->
 configure(#{main_host := MainHost, hosts := Hosts,
     wait_for_process := Process} = Ctx) ->
 
-    GeneratedConfigFile = onepanel_env:get(cluster_manager_generated_config_file),
     VmArgsFile = onepanel_env:get(cluster_manager_vm_args_file),
     EnvFile = onepanel_env:get(cluster_manager_env_file),
 
@@ -131,20 +131,20 @@ configure(#{main_host := MainHost, hosts := Hosts,
     WorkerNum = maps:get(worker_num, Ctx, undefined),
     Cookie = maps:get(cookie, Ctx, erlang:get_cookie()),
 
-    onepanel_env:write([name(), cm_nodes], Nodes, GeneratedConfigFile),
+    onepanel_env:write([name(), cm_nodes], Nodes, ?SERVICE_CM),
     % @FIXME adjust when adding worker node
-    onepanel_env:write([name(), worker_num], WorkerNum, GeneratedConfigFile),
+    onepanel_env:write([name(), worker_num], WorkerNum, ?SERVICE_CM),
 
     onepanel_env:write([kernel, distributed], [{
         name(),
         onepanel_env:get(cluster_manager_failover_timeout),
         [MainNode, list_to_tuple(Nodes -- [MainNode])]
-    }], GeneratedConfigFile),
+    }], ?SERVICE_CM),
     onepanel_env:write([kernel, sync_nodes_mandatory],
-        Nodes -- [Node], GeneratedConfigFile),
+        Nodes -- [Node], ?SERVICE_CM),
     onepanel_env:write([kernel, sync_nodes_timeout],
         onepanel_env:get(cluster_manager_sync_nodes_timeout),
-        GeneratedConfigFile),
+        ?SERVICE_CM),
 
     onepanel_vm:write("name", Node, VmArgsFile),
     onepanel_vm:write("setcookie", Cookie, VmArgsFile),

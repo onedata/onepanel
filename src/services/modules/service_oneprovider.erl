@@ -258,11 +258,7 @@ get_steps(modify_details, Ctx) ->
 
 
 get_steps(set_cluster_ips, #{hosts := Hosts} = Ctx) ->
-    GeneratedConfigFile = onepanel_env:get(op_worker_generated_config_file),
-    Ctx2 = Ctx#{
-        generated_config_file => GeneratedConfigFile,
-        name => ?SERVICE_OPW
-    },
+    Ctx2 = Ctx#{name => ?SERVICE_OPW},
     [
         #steps{action = set_cluster_ips, ctx = Ctx2, service = ?SERVICE_CW},
         #step{function = update_provider_ips, selection = any,
@@ -406,16 +402,15 @@ configure(#{application := ?APP_NAME, oneprovider_token := Token}) ->
 
     % @FIXME used in check_oz_availability
     onepanel_env:set(Nodes, onezone_domain, OzDomain, ?APP_NAME),
-    onepanel_env:write(Nodes, [?APP_NAME, onezone_domain], OzDomain,
-        onepanel_env:get_config_path(?APP_NAME, generated));
+    onepanel_env:write(Nodes,
+        [?APP_NAME, onezone_domain], OzDomain, ?SERVICE_PANEL);
 
 configure(#{oneprovider_token := Token}) ->
     OzDomain = onezone_tokens:read_domain(Token),
     Name = ?SERVICE_OPW,
     Node = nodes:local(Name),
-    GeneratedConfigFile = onepanel_env:get(op_worker_generated_config_file),
     rpc:call(Node, application, set_env, [Name, oz_domain, OzDomain]),
-    onepanel_env:write([Name, oz_domain], OzDomain, GeneratedConfigFile).
+    onepanel_env:write([Name, oz_domain], OzDomain, ?SERVICE_OPW).
 
 
 %%--------------------------------------------------------------------
@@ -928,9 +923,10 @@ set_up_service_in_onezone() ->
 store_absolute_auth_file_path() ->
     PanelNodes = nodes:all(?SERVICE_PANEL),
     RootTokenPath = op_worker_rpc:get_root_token_file_path(),
-    onepanel_env:write(PanelNodes, [?SERVICE_PANEL, op_worker_root_token_path],
-        RootTokenPath, onepanel_env:get_config_path(?SERVICE_PANEL, generated)),
-    onepanel_env:set(PanelNodes, op_worker_root_token_path, RootTokenPath, ?APP_NAME),
+    onepanel_env:write(PanelNodes,
+        [?SERVICE_PANEL, op_worker_root_token_path], RootTokenPath, ?SERVICE_PANEL),
+    onepanel_env:set(PanelNodes,
+        op_worker_root_token_path, RootTokenPath, ?APP_NAME),
     ok.
 
 
