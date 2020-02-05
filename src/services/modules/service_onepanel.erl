@@ -17,6 +17,9 @@
 %%%    newNode --> oldNode: 200 OK {"hostname": "newNode.tld", "clusterType": onezone"}
 %%% 3. oldNode --> newNode: POST /join_cluster {"cookie": "secret", "clusterHost": "oldNode.tld"}
 %%%
+%%% Only a node without emergency passphrase set and services deployed
+%%% can join another cluster (see {@link available_for_clustering/0}),
+%%% otherwise request (3) will be rejected with code 401.
 %%% Request (3) triggers service_onepanel:join_cluster action at newNode.
 %%% newNode changes its cookie to the received one and discards its mnesia
 %%% tables in favor of synchronizing from oldNode.
