@@ -153,7 +153,16 @@ trim(Text, both) ->
 %% @doc Converts value to a provided type.
 %% @end
 %%--------------------------------------------------------------------
--spec convert(Value :: term(), Type :: type()) -> Value :: term().
+-spec convert
+    ([Old :: term()], {seq, type()}) -> [Converted :: term()];
+    (#{Old :: term() => V}, {keys, type()}) -> #{Converted :: term() => V};
+    (#{K => Old :: term()}, {values, type()}) -> #{K => Converted :: term()};
+    (Old :: term(), atom) -> Converted :: atom();
+    (Old :: term(), boolean) -> Converted :: boolean();
+    (Old :: term(), float) -> Converted :: float();
+    (Old :: term(), integer) -> Converted :: integer();
+    (Old :: term(), list) -> Converted :: string();
+    (Old :: term(), binary) -> Converted :: binary().
 convert(Values, {seq, Type}) ->
     lists:map(fun(Value) -> convert(Value, Type) end, Values);
 
