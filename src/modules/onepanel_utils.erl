@@ -46,13 +46,13 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec get_basic_auth_header(Username :: string() | binary(),
-    Password :: string() | binary()) -> {Key :: binary(), Value :: binary()}.
+    Password :: string() | binary()) -> http_client:headers().
 get_basic_auth_header(Username, Password) ->
     Hash = base64:encode(<<
         (onepanel_utils:convert(Username, binary))/binary, ":",
         (onepanel_utils:convert(Password, binary))/binary>>
     ),
-    {?HDR_AUTHORIZATION, <<"Basic ", Hash/binary>>}.
+    #{?HDR_AUTHORIZATION => <<"Basic ", Hash/binary>>}.
 
 
 %%--------------------------------------------------------------------

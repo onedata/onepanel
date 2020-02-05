@@ -16,6 +16,7 @@
 -include("names.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 -include("modules/models.hrl").
 -include("service.hrl").
 
@@ -232,12 +233,14 @@ init_cluster(Ctx) ->
     Port = onepanel_env:typed_get(couchbase_admin_port, list),
     Url = onepanel_utils:join(["http://", Host, ":", Port, "/pools/default"]),
     Timeout = onepanel_env:get(couchbase_init_timeout),
+    Headers = maps:merge(
+        onepanel_utils:get_basic_auth_header(User, Password),
+        #{?HDR_CONTENT_TYPE => "application/x-www-form-urlencoded"}
+    ),
+    Body = str_utils:format("memoryQuota=~B", [ServerQuota]),
 
     {ok, ?HTTP_200_OK, _, _} = http_client:post(
-        Url, maps:from_list([
-            onepanel_utils:get_basic_auth_header(User, Password),
-            {"content-type", "application/x-www-form-urlencoded"}
-        ]), "memoryQuota=" ++ ServerQuota,
+        Url, Headers, Body,
         [{connect_timeout, Timeout}, {recv_timeout, Timeout}]
     ),
 
