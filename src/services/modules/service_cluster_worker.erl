@@ -68,13 +68,13 @@ get_nodes() ->
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
     Steps :: [service:step()].
-get_steps(deploy, #{hosts := Hosts, name := Name} = Ctx) ->
-    service:create(#service{name = Name}),
-    ClusterHosts = hosts:all(Name),
+get_steps(deploy, #{hosts := Hosts, name := ServiceName} = Ctx) ->
+    service:create(#service{name = ServiceName}),
+    ClusterHosts = hosts:all(ServiceName),
     AllHosts = lists_utils:union(Hosts, ClusterHosts),
     [
         #step{function = migrate_generated_config,
-            condition = fun(_) -> onepanel_env:legacy_config_exists(Name) end},
+            condition = fun(_) -> onepanel_env:legacy_config_exists(ServiceName) end},
         #step{hosts = AllHosts, function = configure},
         #steps{action = restart, ctx = Ctx#{hosts => AllHosts}},
         #step{hosts = [hd(AllHosts)], function = wait_for_init},
@@ -82,10 +82,10 @@ get_steps(deploy, #{hosts := Hosts, name := Name} = Ctx) ->
         #steps{action = status, ctx = #{hosts => AllHosts}}
     ];
 
-get_steps(resume, #{name := Name}) ->
+get_steps(resume, #{name := ServiceName}) ->
     [
         #step{function = migrate_generated_config,
-            condition = fun(_) -> onepanel_env:legacy_config_exists(Name) end},
+            condition = fun(_) -> onepanel_env:legacy_config_exists(ServiceName) end},
         #steps{action = start},
         #step{function = wait_for_init, selection = first},
         % refresh status cache
@@ -114,10 +114,10 @@ get_steps(set_cluster_ips, #{name := ServiceName} = Ctx) ->
     Hosts = hosts:all(ServiceName),
     get_steps(set_cluster_ips, Ctx#{hosts => Hosts});
 
-get_steps(get_nagios_response, #{name := Name}) ->
+get_steps(get_nagios_response, #{name := ServiceName}) ->
     [#step{
         function = get_nagios_response,
-        hosts = hosts:all(Name),
+        hosts = hosts:all(ServiceName),
         selection = any
     }];
 
@@ -144,12 +144,12 @@ get_steps(dns_check, #{name := ServiceName, force_check := ForceCheck}) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
-configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
+configure(#{name := ServiceName, main_cm_host := MainCmHost, cm_hosts := CmHosts,
     db_hosts := DbHosts, app_config := AppConfig, initialize_ip := InitIp,
     vm_args_file := VmArgsFile} = Ctx) ->
 
     Host = hosts:self(),
-    Node = nodes:local(Name),
+    Node = nodes:local(ServiceName),
     CmNodes = nodes:service_to_nodes(
         ?SERVICE_CM,
         [MainCmHost | lists:delete(MainCmHost, CmHosts)]
@@ -159,23 +159,23 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
         onepanel_utils:convert(string:join([DbHost, DbPort], ":"), atom)
     end, DbHosts),
 
-    onepanel_env:write([Name, cm_nodes], CmNodes, Name),
-    onepanel_env:write([Name, db_nodes], DbNodes, Name),
+    onepanel_env:write([ServiceName, cm_nodes], CmNodes, ServiceName),
+    onepanel_env:write([ServiceName, db_nodes], DbNodes, ServiceName),
 
     maps:fold(fun(Key, Value, _) ->
-        onepanel_env:write([Name, Key], Value, Name)
+        onepanel_env:write([ServiceName, Key], Value, ServiceName)
     end, #{}, AppConfig),
 
     case InitIp of
         true ->
             IP = case kv_utils:get([cluster_ips, Host], Ctx, undefined) of
-                undefined -> get_initial_ip(Name);
+                undefined -> get_initial_ip(ServiceName);
                 Found ->
                     onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),
                     {ok, IPTuple} = ip_utils:to_ip4_address(Found),
                     IPTuple
             end,
-            onepanel_env:write([name(), external_ip], IP, Name);
+            onepanel_env:write([name(), external_ip], IP, ServiceName);
         false -> ok
     end,
 
@@ -183,33 +183,33 @@ configure(#{name := Name, main_cm_host := MainCmHost, cm_hosts := CmHosts,
     onepanel_vm:write("setcookie", maps:get(cookie, Ctx, erlang:get_cookie()),
         VmArgsFile),
 
-    setup_cert_paths(Ctx),
+    setup_cert_paths(ServiceName, ServiceName),
 
-    service:add_host(Name, Host).
+    service:add_host(ServiceName, Host).
 
 
 -spec start(service:ctx()) -> ok | no_return().
-start(#{name := Name} = Ctx) ->
-    service_cli:start(Name, Ctx),
-    service:update_status(Name, unhealthy),
-    service:register_healthcheck(Name, #{hosts => [hosts:self()]}),
+start(#{name := ServiceName} = Ctx) ->
+    service_cli:start(ServiceName, Ctx),
+    service:update_status(ServiceName, unhealthy),
+    service:register_healthcheck(ServiceName, #{hosts => [hosts:self()]}),
     ok.
 
 
 -spec stop(service:ctx()) -> ok.
-stop(#{name := Name} = Ctx) ->
-    onepanel_cron:remove_job(Name),
-    service_cli:stop(Name),
+stop(#{name := ServiceName} = Ctx) ->
+    onepanel_cron:remove_job(ServiceName),
+    service_cli:stop(ServiceName),
     % check status before updating it as service_cli:stop/1 does not throw on failure
     status(Ctx),
     ok.
 
 
 -spec status(service:ctx()) -> service:status().
-status(#{name := Name} = Ctx) ->
-    Module = service:get_module(Name),
-    service:update_status(Name,
-        case service_cli:status(Name, ping) of
+status(#{name := ServiceName} = Ctx) ->
+    Module = service:get_module(ServiceName),
+    service:update_status(ServiceName,
+        case service_cli:status(ServiceName, ping) of
             running -> Module:health(Ctx);
             stopped -> stopped;
             missing -> missing
@@ -221,12 +221,12 @@ status(#{name := Name} = Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec wait_for_init(Ctx :: service:ctx()) -> ok | no_return().
-wait_for_init(#{name := Name, wait_for_init_attempts := Attempts,
+wait_for_init(#{name := ServiceName, wait_for_init_attempts := Attempts,
     wait_for_init_delay := Delay} = Ctx) ->
-    Module = service:get_module(Name),
+    Module = service:get_module(ServiceName),
     onepanel_utils:wait_until(Module, health, [Ctx], {equal, healthy},
         Attempts, Delay),
-    service:update_status(Name, healthy),
+    service:update_status(ServiceName, healthy),
     ok.
 
 
@@ -367,11 +367,12 @@ migrate_generated_config(#{name := _ServiceName} = Ctx) ->
 %% @doc Writes certificate paths to the app config file of the service.
 %% @end
 %%--------------------------------------------------------------------
--spec setup_cert_paths(service:ctx()) -> ok | no_return().
-setup_cert_paths(#{name := AppName}) ->
+-spec setup_cert_paths(ServiceName :: ?SERVICE_OPW | ?SERVICE_OZW,
+    AppName :: op_worker | oz_worker) -> ok | no_return().
+setup_cert_paths(ServiceName, AppName) ->
     lists:foreach(fun({SrcEnv, DstEnv}) ->
         Path = filename:absname(onepanel_env:get(SrcEnv)),
-        ok = onepanel_env:write([AppName, DstEnv], Path, AppName)
+        ok = onepanel_env:write([AppName, DstEnv], Path, ServiceName)
     end, [
         {web_key_file, web_key_file},
         {web_cert_file, web_cert_file},
