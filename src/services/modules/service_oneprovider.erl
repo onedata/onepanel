@@ -23,6 +23,7 @@
 -include_lib("ctool/include/aai/aai.hrl").
 -include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/onedata.hrl").
 -include_lib("ctool/include/oz/oz_spaces.hrl").
@@ -325,7 +326,8 @@ get_id() ->
 %%--------------------------------------------------------------------
 -spec get_oz_domain() -> string().
 get_oz_domain() ->
-    is_registered() orelse throw(?ERROR_UNREGISTERED_ONEPROVIDER),
+    is_registered()
+        orelse throw(?ERROR_UNREGISTERED_ONEPROVIDER),
     case service:get_ctx(name()) of
         #{onezone_domain := OnezoneDomain} ->
             unicode:characters_to_list(OnezoneDomain);
@@ -489,11 +491,9 @@ register(Ctx) ->
         <<"longitude">> => onepanel_utils:get_converted(oneprovider_geo_longitude, Ctx, float, 0.0)
     },
 
-
-    service:update_ctx(name(), #{onezone_domain => OnezoneDomain}),
-    case oz_providers:register(none, Params) of
-        {ok, #{<<"providerId">> := ProviderId, <<"providerRootToken">> := RootToken}} ->
-            on_registered(OpwNode, ProviderId, RootToken),
+    case onezone_client:register_provider(OnezoneDomain, Params) of
+        {ok, #{provider_id := ProviderId, root_token := RootToken}} ->
+            on_registered(OpwNode, ProviderId, RootToken, OnezoneDomain),
             {ok, ProviderId};
         {error, _} = Error ->
             throw(Error)
@@ -511,7 +511,7 @@ unregister() ->
     op_worker_rpc:on_deregister(),
     onepanel_deployment:unset_marker(?PROGRESS_LETSENCRYPT_CONFIG),
     service:update_ctx(name(), fun(ServiceCtx) ->
-        maps:without([cluster, cluster_id, ?DETAILS_PERSISTENCE],
+        maps:without([cluster, onezone_domain, ?DETAILS_PERSISTENCE],
             ServiceCtx#{registered => false})
     end).
 
@@ -987,11 +987,13 @@ read_auth_file() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec on_registered(OpwNode :: node(), ProviderId :: id(),
-    tokens:serialized()) -> ok.
-on_registered(OpwNode, ProviderId, RootToken) ->
+    tokens:serialized(), OnezoneDomain :: binary()) -> ok.
+on_registered(OpwNode, ProviderId, RootToken, OnezoneDomain) ->
     ok = op_worker_rpc:provider_auth_save(OpwNode, ProviderId, RootToken),
+    ?info("Oneprovider registered in Onezone ~ts", [OnezoneDomain]),
     service:update_ctx(name(), #{
-        registered => true
+        registered => true,
+        onezone_domain => OnezoneDomain
     }),
     store_absolute_auth_file_path(),
 
