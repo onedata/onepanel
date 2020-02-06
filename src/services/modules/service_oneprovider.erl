@@ -720,7 +720,7 @@ get_auto_cleaning_reports(Ctx = #{space_id := SpaceId}) ->
 get_auto_cleaning_report(#{report_id := ReportId}) ->
     case op_worker_rpc:autocleaning_get_run_report(ReportId) of
         {ok, Report} ->
-            onepanel_maps:undefined_to_null(
+            maps_utils:undefined_to_null(
                 kv_utils:copy_found([
                     {id, id},
                     {index, index},

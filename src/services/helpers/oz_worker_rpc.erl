@@ -92,10 +92,13 @@ authenticate_by_token(Token, PeerIp)  ->
     undefined | ip_utils:ip()) ->
     {true, aai:auth()} | {error, term()}.
 authenticate_by_token(Node, Token, PeerIp)  ->
-    Audience = ?AUD(?OZ_PANEL, ?ONEZONE_CLUSTER_ID),
-    % @TODO VFS-5913 Recognize interface caveat in onepanel
-    Interface = undefined,
-    ?CALL(Node, [Token, Interface, PeerIp, Audience]).
+    AuthCtx = #auth_ctx{
+        % @TODO VFS-5913 Fully recognize peerIp, interface and consumerToken
+        % auth ctx in onepanel
+        ip = PeerIp,
+        service = ?SERVICE(?OZ_PANEL, ?ONEZONE_CLUSTER_ID)
+    },
+    ?CALL(Node, [Token, AuthCtx]).
 
 
 -spec get_protected_provider_data(aai:auth(), od_provider_id()) ->

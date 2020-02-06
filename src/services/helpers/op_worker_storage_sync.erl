@@ -133,7 +133,7 @@ configure_storage_import(Node, SpaceId, Args0, StrategyName) ->
         simple_scan -> true;
         no_import -> false
     end,
-    Args = onepanel_maps:remove_undefined(#{
+    Args = maps_utils:remove_undefined(#{
         max_depth => onepanel_utils:get_converted(max_depth, Args0, integer, undefined),
         sync_acl => onepanel_utils:get_converted(sync_acl, Args0, boolean, undefined)
     }),
@@ -150,7 +150,7 @@ configure_storage_update(Node, SpaceId, _Args0, no_update) ->
     % todo VFS-5717
     ok = op_worker_rpc:configure_storage_update(Node, SpaceId, false, #{});
 configure_storage_update(Node, SpaceId, Args0, simple_scan) ->
-    Args = onepanel_maps:remove_undefined(#{
+    Args = maps_utils:remove_undefined(#{
         max_depth => onepanel_utils:get_converted(max_depth, Args0, integer, undefined),
         scan_interval => onepanel_utils:get_converted(scan_interval, Args0, integer, undefined),
         write_once => onepanel_utils:get_converted(write_once, Args0, boolean, undefined),

@@ -154,7 +154,7 @@ format_service_configuration(SModule) ->
     end,
     Ceph = case service:get_hosts(?SERVICE_CEPH) /= [] of
         true -> #{
-            <<"ceph">> => onepanel_maps:merge([
+            <<"ceph">> => maps_utils:merge([
                 service_ceph_mgr:list(),
                 service_ceph_mon:list(),
                 service_ceph_osd:list()
@@ -253,7 +253,7 @@ format_onepanel_configuration(onezone) ->
             {name, zoneName}
         ], Details, Defaults),
 
-        onepanel_maps:undefined_to_null(
+        maps_utils:undefined_to_null(
             maps:merge(Configuration, format_onepanel_configuration(common))
         )
     catch _:_ ->

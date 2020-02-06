@@ -148,7 +148,7 @@ list() ->
 get(Id) ->
     {ok, Map} = op_worker_rpc:storage_describe(Id),
     onepanel_utils:convert(
-        onepanel_maps:undefined_to_null(Map),
+        maps_utils:undefined_to_null(Map),
         {keys, atom}).
 
 
@@ -254,7 +254,7 @@ get_auto_cleaning_configuration(OpNode, SpaceId) ->
         {[rules, max_daily_moving_average], [rules, maxDailyMovingAverage]},
         {[rules, max_monthly_moving_average], [rules, maxMonthlyMovingAverage]}
     ], DetailsMap, DetailsMap),
-    onepanel_maps:undefined_to_null(DetailsMap2).
+    maps_utils:undefined_to_null(DetailsMap2).
 
 
 %%-------------------------------------------------------------------
@@ -575,7 +575,7 @@ exists(Node, StorageId) ->
 %%--------------------------------------------------------------------
 -spec parse_auto_cleaning_configuration(map()) -> map().
 parse_auto_cleaning_configuration(Args) ->
-    onepanel_maps:remove_undefined(#{
+    maps_utils:remove_undefined(#{
         enabled => onepanel_utils:get_converted(enabled, Args, boolean, undefined),
         target => onepanel_utils:get_converted([target], Args, integer, undefined),
         threshold => onepanel_utils:get_converted([threshold], Args, integer, undefined),
@@ -604,7 +604,7 @@ parse_auto_cleaning_rules(Args) ->
         min_file_size, max_file_size, min_hours_since_last_open, max_open_count,
         max_hourly_moving_average, max_daily_moving_average, max_monthly_moving_average
     ]),
-    onepanel_maps:remove_undefined(ParsedRules2).
+    maps_utils:remove_undefined(ParsedRules2).
 
 %%--------------------------------------------------------------------
 %% @private @doc Parses and validates auto-cleaning rule setting.
@@ -612,7 +612,7 @@ parse_auto_cleaning_rules(Args) ->
 %%--------------------------------------------------------------------
 -spec parse_auto_cleaning_rule_setting(atom(), map()) -> map().
 parse_auto_cleaning_rule_setting(RuleName, Args) ->
-    onepanel_maps:remove_undefined(#{
+    maps_utils:remove_undefined(#{
         enabled => onepanel_utils:get_converted([rules, RuleName, enabled], Args, boolean, undefined),
         value => onepanel_utils:get_converted([rules, RuleName, value], Args, integer, undefined)
     }).
@@ -623,7 +623,7 @@ parse_auto_cleaning_rule_setting(RuleName, Args) ->
 %%-------------------------------------------------------------------
 -spec parse_file_popularity_configuration(map()) -> map().
 parse_file_popularity_configuration(Args) ->
-    onepanel_maps:remove_undefined(#{
+    maps_utils:remove_undefined(#{
         enabled => onepanel_utils:get_converted(enabled, Args, boolean, undefined),
         last_open_hour_weight => onepanel_utils:get_converted(last_open_hour_weight, Args, float, undefined),
         avg_open_count_per_day_weight => onepanel_utils:get_converted(avg_open_count_per_day_weight, Args, float, undefined),

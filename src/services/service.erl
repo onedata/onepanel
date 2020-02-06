@@ -497,8 +497,8 @@ update_ctx(Service, Diff) when is_function(Diff, 1) ->
     end).
 
 
--spec store_in_ctx(Service :: name(), Keys :: onepanel_maps:keys(),
-    Value :: term()) -> ok | no_return().
+-spec store_in_ctx(Service :: name(), Keys :: kv_utils:path(), Value :: term()) ->
+    ok | no_return().
 store_in_ctx(Service, Keys, Value) ->
     update_ctx(Service, fun(Ctx) ->
         kv_utils:put(Keys, Value, Ctx)
