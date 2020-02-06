@@ -339,6 +339,7 @@ construct_token(Caveats) ->
     {ok, Token} = tokens:serialize(tokens:construct(#token{
         subject = ?SUB(user, <<"userId">>),
         onezone_domain = <<"someonezone.test">>,
-        persistent = false,
-        id = str_utils:rand_hex(16)}, <<"someSecret">>, Caveats)),
+        persistence = {temporary, 1},
+        id = str_utils:rand_hex(16)
+    }, <<"someSecret">>, Caveats)),
     Token.
