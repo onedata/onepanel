@@ -224,8 +224,9 @@ service_action(Node, Service, Action, Ctx) ->
         Results when is_list(Results) ->
             case service_utils:results_contain_error(Results) of
                 {true, Error} ->
-                    ct:pal("Service action ~tp:~tp on node ~tp failed.~nCtx: ~tp~nError: ~tp",
-                        [Service, Action, Node, Ctx, Error]),
+                    ct:pal("Service action ~tp:~tp on node ~tp failed.~n"
+                        "Error: ~tp~nCtx: ~tp~nSteps history: ~tp",
+                        [Service, Action, Node, Error, Ctx, Results]),
                     ?assert(false);
                 false ->
                     Results
