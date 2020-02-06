@@ -42,7 +42,7 @@
 -export([get_details_by_graph_sync/0, get_details_by_rest/0]).
 
 %% API
--export([configure/1, check_oz_availability/1, mark_configured/0,
+-export([check_oz_availability/1, mark_configured/0,
     register/1, unregister/0, is_registered/1, is_registered/0,
     modify_details/1, get_details/0, get_oz_domain/0,
     support_space/1, revoke_space_support/1, get_spaces/0, is_space_supported/1,
@@ -226,10 +226,8 @@ get_steps(status, _Ctx) ->
         #steps{service = ?SERVICE_OPW, action = status}
     ];
 
-get_steps(register, #{hosts := Hosts} = Ctx) ->
+get_steps(register, #{hosts := Hosts}) ->
     [
-        #step{hosts = Hosts, function = configure,
-            ctx = Ctx#{application => ?SERVICE_OPW}},
         #step{hosts = Hosts, function = check_oz_availability,
             attempts = onepanel_env:get(connect_to_onezone_attempts)},
         #step{hosts = Hosts, function = register, selection = any},
@@ -398,19 +396,6 @@ get_identity_token() ->
 %%%===================================================================
 %%% Step functions
 %%%===================================================================
-
-%%--------------------------------------------------------------------
-%% @doc Configures the service.
-%% @end
-%%--------------------------------------------------------------------
--spec configure(Ctx :: service:step_ctx()) -> ok | no_return().
-configure(#{oneprovider_token := Token}) ->
-    OzDomain = onezone_tokens:read_domain(Token),
-    Name = ?SERVICE_OPW,
-    Node = nodes:local(Name),
-    rpc:call(Node, application, set_env, [Name, oz_domain, OzDomain]),
-    onepanel_env:write([Name, oz_domain], OzDomain, ?SERVICE_OPW).
-
 
 %%--------------------------------------------------------------------
 %% @doc Checks if onezone is available at given address
@@ -989,8 +974,15 @@ read_auth_file() ->
 -spec on_registered(OpwNode :: node(), ProviderId :: id(),
     tokens:serialized(), OnezoneDomain :: binary()) -> ok.
 on_registered(OpwNode, ProviderId, RootToken, OnezoneDomain) ->
+    OpwNodes = nodes:all(?SERVICE_OPW),
+    OnezoneDomainStr = unicode:characters_to_list(OnezoneDomain),
+    ok = onepanel_env:set_remote(OpwNodes, oz_domain,
+        OnezoneDomainStr, ?SERVICE_OPW),
+    ok = onepanel_env:write([?SERVICE_OPW, oz_domain],
+        OnezoneDomainStr, ?SERVICE_OPW),
     ok = op_worker_rpc:provider_auth_save(OpwNode, ProviderId, RootToken),
     ?info("Oneprovider registered in Onezone ~ts", [OnezoneDomain]),
+
     service:update_ctx(name(), #{
         registered => true,
         onezone_domain => OnezoneDomain
