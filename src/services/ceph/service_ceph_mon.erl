@@ -71,7 +71,7 @@ get_nodes() ->
 %% @doc {@link service_behaviour:get_steps/2}
 %% @end
 %%--------------------------------------------------------------------
--spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
+-spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy_all, #{monitors := []}) ->
     [];
@@ -203,7 +203,7 @@ add_monitors(#{monitors := Mons}) ->
 %% in Ceph conf file.
 %% @end
 %%--------------------------------------------------------------------
--spec setup_initial_member(service:ctx()) -> ok.
+-spec setup_initial_member(service:step_ctx()) -> ok.
 setup_initial_member(#{monitors := Monitors}) ->
     [Id | _] = [Id || #{id := Id} <- Monitors],
     Config = ceph_conf:read(ceph:get_conf_path()),
@@ -292,7 +292,7 @@ stop(#{id := Id}) ->
 %% @doc Adds current host to the list of service hosts.
 %% @end
 %%--------------------------------------------------------------------
--spec register_host(service:ctx()) -> ok.
+-spec register_host(service:step_ctx()) -> ok.
 register_host(#{id := Id}) ->
     service:store_in_ctx(name(), [instances, Id, deployment_finished], true),
     service:add_host(name(), hosts:self()).
@@ -420,7 +420,7 @@ get_local_ip(HostOrNode) ->
 %% Generates monmap file to be imported by mon mkfs.
 %% @end
 %%--------------------------------------------------------------------
--spec create_monmap(file:filename_all(), Monitors :: [service:ctx()]) -> ok.
+-spec create_monmap(file:filename_all(), Monitors :: [service:step_ctx()]) -> ok.
 create_monmap(Path, Monitors) ->
     FSID = ceph:get_cluster_uuid(),
     IdToIp = [{<<"mon.", Id/binary>>, Ip}

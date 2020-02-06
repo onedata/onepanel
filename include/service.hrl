@@ -20,7 +20,7 @@
     module :: module(),
     function :: atom(),
     args :: [term()] | undefined,
-    ctx :: service:ctx() | undefined,
+    ctx :: service:step_ctx() | undefined,
     condition = true :: service:condition(),
     verify_hosts :: boolean() | undefined,
     attempts = 1 :: pos_integer(),
@@ -30,7 +30,7 @@
 -record(steps, {
     service :: service:name() | undefined,
     action :: service:action(),
-    ctx :: service:ctx() | undefined,
+    ctx :: service:step_ctx() | undefined,
     condition = true :: service:condition(),
     verify_hosts :: boolean() | undefined
 }).

@@ -195,7 +195,7 @@ service_host_action(Node, Service, Action) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec service_host_action(Node :: node(), Service :: service:name(),
-    Action :: atom(), Ctx :: service:ctx()) ->
+    Action :: atom(), Ctx :: service:step_ctx()) ->
     service_executor:results() | no_return().
 service_host_action(Node, Service, Action, Ctx) ->
     Host = hosts:from_node(Node),
@@ -217,7 +217,7 @@ service_action(Node, Service, Action) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec service_action(Node :: node(), Service :: service:name(),
-    Action :: atom(), Ctx :: service:ctx()) ->
+    Action :: atom(), Ctx :: service:step_ctx()) ->
     service_executor:results() | no_return().
 service_action(Node, Service, Action, Ctx) ->
     case rpc:call(Node, service, apply_sync, [Service, Action, Ctx]) of
@@ -244,7 +244,7 @@ service_action(Node, Service, Action, Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec attempt_service_action(Node :: node(), Service :: service:name(),
-    Action :: atom(), Ctx :: service:ctx()) -> ok | {error, _}.
+    Action :: atom(), Ctx :: service:step_ctx()) -> ok | {error, _}.
 attempt_service_action(Node, Service, Action, Ctx) ->
     Self = self(),
     rpc:call(Node, service, apply, [Service, Action, Ctx, Self]).

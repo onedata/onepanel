@@ -71,7 +71,7 @@ get_nodes() ->
 %% @doc {@link service_behaviour:get_steps/2}
 %% @end
 %%--------------------------------------------------------------------
--spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
+-spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, Ctx) ->
     SelfHost = hosts:self(),
@@ -233,7 +233,7 @@ get_steps(set_up_service_in_onezone, _Ctx) ->
 %% @doc Returns IPs of hosts with oz_worker instances.
 %% @end
 %%--------------------------------------------------------------------
--spec format_cluster_ips(service:ctx()) ->
+-spec format_cluster_ips(service:step_ctx()) ->
     #{isConfigured := boolean(), hosts := #{binary() => binary()}}.
 format_cluster_ips(Ctx) ->
     service_cluster_worker:get_cluster_ips(Ctx#{name => ?SERVICE_OZW}).
@@ -244,7 +244,7 @@ format_cluster_ips(Ctx) ->
 %% Marks all configuration steps as already performed.
 %% @end
 %%-------------------------------------------------------------------
--spec mark_configured(service:ctx()) -> ok.
+-spec mark_configured(service:step_ctx()) -> ok.
 mark_configured(_Ctx) ->
     onepanel_deployment:set_marker([
         ?PROGRESS_LETSENCRYPT_CONFIG,

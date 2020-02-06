@@ -76,7 +76,7 @@ get_nodes() ->
 %% @doc {@link service_behaviour:get_steps/2}
 %% @end
 %%--------------------------------------------------------------------
--spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
+-spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
 get_steps(add_storages, #{storages := Storages} = Ctx) ->
     ?info("~b storage(s) will be added", [maps:size(Storages)]),
@@ -190,7 +190,7 @@ is_connected_to_oz() ->
 %% @doc Configures the service.
 %% @end
 %%--------------------------------------------------------------------
--spec configure(Ctx :: service:ctx()) -> ok | no_return().
+-spec configure(Ctx :: service:step_ctx()) -> ok | no_return().
 configure(Ctx) ->
     VmArgsFile = onepanel_env:get(op_worker_vm_args_file),
 
@@ -225,7 +225,7 @@ configure(Ctx) ->
 %% @doc {@link service_cli:start/1}
 %% @end
 %%--------------------------------------------------------------------
--spec start(Ctx :: service:ctx()) -> ok | no_return().
+-spec start(Ctx :: service:step_ctx()) -> ok | no_return().
 start(Ctx) ->
     NewCtx = maps:merge(#{
         open_files => onepanel_env:get(op_worker_open_files_limit)
@@ -237,7 +237,7 @@ start(Ctx) ->
 %% @doc {@link service_cli:stop/1}
 %% @end
 %%--------------------------------------------------------------------
--spec stop(Ctx :: service:ctx()) -> ok | no_return().
+-spec stop(Ctx :: service:step_ctx()) -> ok | no_return().
 stop(Ctx) ->
     service_cluster_worker:stop(Ctx#{name => name()}).
 
@@ -246,7 +246,7 @@ stop(Ctx) ->
 %% @doc {@link service_cli:status/1}
 %% @end
 %%--------------------------------------------------------------------
--spec status(Ctx :: service:ctx()) -> service:status().
+-spec status(Ctx :: service:step_ctx()) -> service:status().
 status(Ctx) ->
     % Since this function is invoked periodically by onepanel_cron
     % use it to schedule DNS check refresh on a single node
@@ -258,7 +258,7 @@ status(Ctx) ->
 %% @doc Checks if a running service is in a fully functional state.
 %% @end
 %%--------------------------------------------------------------------
--spec health(service:ctx()) -> service:status().
+-spec health(service:step_ctx()) -> service:status().
 health(Ctx) ->
     case (catch get_nagios_status(Ctx)) of
         ok -> healthy;
@@ -270,7 +270,7 @@ health(Ctx) ->
 %% @doc {@link service_cluster_worker:wait_for_init/1}
 %% @end
 %%--------------------------------------------------------------------
--spec wait_for_init(Ctx :: service:ctx()) -> ok | no_return().
+-spec wait_for_init(Ctx :: service:step_ctx()) -> ok | no_return().
 wait_for_init(Ctx) ->
     service_cluster_worker:wait_for_init(Ctx#{
         name => name(),
@@ -283,7 +283,7 @@ wait_for_init(Ctx) ->
 %% @doc {@link service_cluster_worker:get_nagios_response/1}
 %% @end
 %%--------------------------------------------------------------------
--spec get_nagios_response(Ctx :: service:ctx()) ->
+-spec get_nagios_response(Ctx :: service:step_ctx()) ->
     Response :: http_client:response().
 get_nagios_response(Ctx) ->
     service_cluster_worker:get_nagios_response(Ctx#{
@@ -296,7 +296,7 @@ get_nagios_response(Ctx) ->
 %% @doc {@link service_cluster_worker:get_nagios_status/1}
 %% @end
 %%--------------------------------------------------------------------
--spec get_nagios_status(Ctx :: service:ctx()) -> Status :: atom().
+-spec get_nagios_status(Ctx :: service:step_ctx()) -> Status :: atom().
 get_nagios_status(Ctx) ->
     service_cluster_worker:get_nagios_status(Ctx#{
         nagios_protocol => onepanel_env:get(op_worker_nagios_protocol),
@@ -308,7 +308,7 @@ get_nagios_status(Ctx) ->
 %% @doc Configures the service storages.
 %% @end
 %%--------------------------------------------------------------------
--spec add_storage(Ctx :: service:ctx()) -> ok | no_return().
+-spec add_storage(Ctx :: service:step_ctx()) -> ok | no_return().
 add_storage(#{params := #{type := Type} = Params, name := Name} = Ctx) when
     Type == ?LOCAL_CEPH_STORAGE_TYPE ->
     case hosts:all(?SERVICE_CEPH_OSD) of
@@ -352,7 +352,7 @@ get_storages(_Ctx) ->
 %% @doc Modifies storage configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec update_storage(Ctx :: service:ctx()) ->
+-spec update_storage(Ctx :: service:step_ctx()) ->
     op_worker_storage:storage_params() | no_return().
 update_storage(#{id := Id, storage := Params}) ->
     {ok, Node} = nodes:any(name()),
@@ -385,7 +385,7 @@ remove_storage(#{id := Id}) ->
 %% provider for given storage.
 %% @end
 %%-------------------------------------------------------------------
--spec invalidate_luma_cache(Ctx :: service:ctx()) -> ok.
+-spec invalidate_luma_cache(Ctx :: service:step_ctx()) -> ok.
 invalidate_luma_cache(#{id := StorageId}) ->
     op_worker_storage:invalidate_luma_cache(StorageId).
 
@@ -395,7 +395,7 @@ set_transfers_mock(#{transfers_mock := Enabled}) ->
     env_write_and_set(rtransfer_mock, Enabled).
 
 
--spec get_transfers_mock(service:ctx()) -> #{transfersMock := boolean()}.
+-spec get_transfers_mock(service:step_ctx()) -> #{transfersMock := boolean()}.
 get_transfers_mock(_Ctx) ->
     {ok, Node} = nodes:any(name()),
     Enabled = onepanel_env:get_remote(Node, rtransfer_mock, name()),
@@ -408,7 +408,7 @@ get_transfers_mock(_Ctx) ->
 %% on the current node.
 %% @end
 %%--------------------------------------------------------------------
--spec reload_webcert(service:ctx()) -> ok.
+-spec reload_webcert(service:step_ctx()) -> ok.
 reload_webcert(Ctx) ->
     service_cluster_worker:reload_webcert(Ctx#{name => name()}),
 
@@ -460,7 +460,7 @@ set_http_record(Name, Value) ->
 %% Sets txt record in onezone dns via oneprovider.
 %% @end
 %%--------------------------------------------------------------------
--spec set_txt_record(Ctx :: service:ctx()) -> ok.
+-spec set_txt_record(Ctx :: service:step_ctx()) -> ok.
 set_txt_record(#{txt_name := Name, txt_value := Value, txt_ttl := TTL}) ->
     ok = op_worker_rpc:set_txt_record(Name, Value, TTL).
 
@@ -470,7 +470,7 @@ set_txt_record(#{txt_name := Name, txt_value := Value, txt_ttl := TTL}) ->
 %% Removes txt record from onezone dns via oneprovider.
 %% @end
 %%--------------------------------------------------------------------
--spec remove_txt_record(Ctx :: service:ctx()) -> ok.
+-spec remove_txt_record(Ctx :: service:step_ctx()) -> ok.
 remove_txt_record(#{txt_name := Name}) ->
     ok = op_worker_rpc:remove_txt_record(Name).
 
@@ -512,7 +512,7 @@ get_admin_email() ->
 %% app config file. Afterwards moves the legacy file to a backup location.
 %% @end
 %%--------------------------------------------------------------------
--spec migrate_generated_config(service:ctx()) -> ok | no_return().
+-spec migrate_generated_config(service:step_ctx()) -> ok | no_return().
 migrate_generated_config(Ctx) ->
     service_cluster_worker:migrate_generated_config(Ctx#{
         name => name(),

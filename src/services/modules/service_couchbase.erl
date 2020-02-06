@@ -65,7 +65,7 @@ get_nodes() ->
 %% @doc {@link service_behaviour:get_steps/2}
 %% @end
 %%--------------------------------------------------------------------
--spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
+-spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, #{hosts := Hosts} = Ctx) ->
     service:create(#service{name = name()}),
@@ -116,7 +116,7 @@ get_steps(status, _Ctx) ->
 %% @doc Configures the service.
 %% @end
 %%--------------------------------------------------------------------
--spec configure(Ctx :: service:ctx()) -> ok | no_return().
+-spec configure(Ctx :: service:step_ctx()) -> ok | no_return().
 configure(_Ctx) ->
     onepanel_shell:sed("-community", "", "/etc/init.d/" ++ ?INIT_SCRIPT).
 
@@ -125,7 +125,7 @@ configure(_Ctx) ->
 %% @doc {@link service_cli:start/1}
 %% @end
 %%--------------------------------------------------------------------
--spec start(Ctx :: service:ctx()) -> ok | no_return().
+-spec start(Ctx :: service:step_ctx()) -> ok | no_return().
 start(Ctx) ->
     Limits = #{
         open_files => onepanel_env:get(couchbase_open_files_limit)
@@ -141,7 +141,7 @@ start(Ctx) ->
 %% @doc {@link service_cli:stop/1}
 %% @end
 %%--------------------------------------------------------------------
--spec stop(Ctx :: service:ctx()) -> ok | no_return().
+-spec stop(Ctx :: service:step_ctx()) -> ok | no_return().
 stop(Ctx) ->
     onepanel_cron:remove_job(name()),
     service_cli:stop(name()),
@@ -154,7 +154,7 @@ stop(Ctx) ->
 %% @doc {@link service_cli:status/1}
 %% @end
 %%--------------------------------------------------------------------
--spec status(Ctx :: service:ctx()) -> service:status().
+-spec status(Ctx :: service:step_ctx()) -> service:status().
 status(Ctx) ->
     service:update_status(name(),
         case service_cli:status(name(), status) of
@@ -168,7 +168,7 @@ status(Ctx) ->
 %% @doc Checks if a running service is in a fully functional state.
 %% @end
 %%--------------------------------------------------------------------
--spec health(service:ctx()) -> service:status().
+-spec health(service:step_ctx()) -> service:status().
 health(_Ctx) ->
     ConnectTimeout = onepanel_env:get(couchbase_connect_timeout),
     Host = hosts:self(),
@@ -189,7 +189,7 @@ health(_Ctx) ->
 %% @doc Waits for the service initialization.
 %% @end
 %%--------------------------------------------------------------------
--spec wait_for_init(Ctx :: service:ctx()) -> ok | no_return().
+-spec wait_for_init(Ctx :: service:step_ctx()) -> ok | no_return().
 wait_for_init(Ctx) ->
     StartAttempts = onepanel_env:get(couchbase_wait_for_init_attempts),
     try
@@ -217,7 +217,7 @@ wait_for_init(Ctx) ->
 %% @doc Initializes the service cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec init_cluster(Ctx :: service:ctx()) -> ok | no_return().
+-spec init_cluster(Ctx :: service:step_ctx()) -> ok | no_return().
 init_cluster(Ctx) ->
     User = onepanel_env:typed_get(couchbase_user, list),
     Password = onepanel_env:typed_get(couchbase_password, list),
@@ -268,7 +268,7 @@ init_cluster(Ctx) ->
 %% @doc Adds this host to the service cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec join_cluster(Ctx :: service:ctx()) -> ok | no_return().
+-spec join_cluster(Ctx :: service:step_ctx()) -> ok | no_return().
 join_cluster(#{cluster_host := ClusterHost}) ->
     User = onepanel_env:get(couchbase_user),
     Password = onepanel_env:get(couchbase_password),
@@ -292,7 +292,7 @@ join_cluster(#{cluster_host := ClusterHost}) ->
 %% @doc Rebalances the service cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec rebalance_cluster(Ctx :: service:ctx()) -> ok | no_return().
+-spec rebalance_cluster(Ctx :: service:step_ctx()) -> ok | no_return().
 rebalance_cluster(_Ctx) ->
     User = onepanel_env:get(couchbase_user),
     Password = onepanel_env:get(couchbase_password),

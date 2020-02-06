@@ -96,7 +96,7 @@ get_nodes() ->
 %% @doc {@link service_behaviour:get_steps/2}
 %% @end
 %%--------------------------------------------------------------------
--spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
+-spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, #{letsencrypt_plugin := _} = _Ctx) ->
     [#step{function = create, selection = first}];
@@ -266,7 +266,7 @@ import_files(#{reference_host := Host}) ->
 %% Determines whether Let's Encrypt certificate renewal is enabled.
 %% @end
 %%--------------------------------------------------------------------
--spec is_enabled(service:ctx()) -> Enabled :: boolean().
+-spec is_enabled(service:step_ctx()) -> Enabled :: boolean().
 is_enabled(#{letsencrypt_enabled := Enabled}) ->
     Enabled;
 is_enabled(_Ctx) ->
@@ -308,7 +308,7 @@ obtain_cert(Ctx) ->
 %% Changes client state from disabled to enabled.
 %% @end
 %%--------------------------------------------------------------------
--spec enable(service:ctx()) -> ok.
+-spec enable(service:step_ctx()) -> ok.
 enable(_Ctx) ->
     schedule_check(),
     update_ctx(#{letsencrypt_enabled => true}).
@@ -343,7 +343,7 @@ schedule_check() ->
 %% Ensures certificate renewal is disabled.
 %% @end
 %%--------------------------------------------------------------------
--spec disable(service:ctx()) -> ok.
+-spec disable(service:step_ctx()) -> ok.
 disable(_Ctx) ->
     ok = onepanel_cron:remove_job(name()),
     update_ctx(#{letsencrypt_enabled => false}).
@@ -525,7 +525,7 @@ is_local_cert_letsencrypt() ->
 %% Marks that user explicitely configured Let's Encrypt.
 %% @end
 %%--------------------------------------------------------------------
--spec mark_configured(service:ctx()) -> ok.
+-spec mark_configured(service:step_ctx()) -> ok.
 mark_configured(#{letsencrypt_enabled := _}) ->
     onepanel_deployment:set_marker(?PROGRESS_LETSENCRYPT_CONFIG);
 mark_configured(_Ctx) -> ok.
@@ -559,6 +559,6 @@ get_plugin_module() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec update_ctx(Diff) -> ok | no_return()
-    when Diff :: map() | fun((service:ctx()) -> service:ctx()).
+    when Diff :: map() | fun((service:step_ctx()) -> service:step_ctx()).
 update_ctx(Diff) ->
     service:update_ctx(name(), Diff).

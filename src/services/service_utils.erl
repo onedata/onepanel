@@ -32,7 +32,7 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec get_steps(Service :: service:name(), Action :: service:action(),
-    Ctx :: service:ctx()) -> Steps :: [#step{}].
+    Ctx :: service:step_ctx()) -> Steps :: [#step{}].
 get_steps(Service, Action, Ctx) ->
     get_steps(#steps{service = Service, action = Action, ctx = Ctx,
         verify_hosts = true}).

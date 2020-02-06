@@ -81,7 +81,7 @@ get_nodes() ->
 %% @doc {@link service_behaviour:get_steps/2}
 %% @end
 %%--------------------------------------------------------------------
--spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
+-spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, Ctx) ->
     service_cluster_worker:get_steps(deploy, Ctx#{name => name()});
@@ -143,7 +143,7 @@ get_user_details(Auth) ->
 %% @doc Configures the service.
 %% @end
 %%--------------------------------------------------------------------
--spec configure(Ctx :: service:ctx()) -> ok | no_return().
+-spec configure(Ctx :: service:step_ctx()) -> ok | no_return().
 configure(Ctx) ->
     VmArgsFile = onepanel_env:get(oz_worker_vm_args_file),
     OzName = onepanel_utils:get_converted(onezone_name, Ctx, list),
@@ -173,7 +173,7 @@ configure(Ctx) ->
 %% @doc {@link service_cli:start/1}
 %% @end
 %%--------------------------------------------------------------------
--spec start(Ctx :: service:ctx()) -> ok | no_return().
+-spec start(Ctx :: service:step_ctx()) -> ok | no_return().
 start(Ctx) ->
     NewCtx = maps:merge(#{
         open_files => onepanel_env:get(oz_worker_open_files_limit)
@@ -185,7 +185,7 @@ start(Ctx) ->
 %% @doc {@link service_cli:stop/1}
 %% @end
 %%--------------------------------------------------------------------
--spec stop(Ctx :: service:ctx()) -> ok | no_return().
+-spec stop(Ctx :: service:step_ctx()) -> ok | no_return().
 stop(Ctx) ->
     service_cluster_worker:stop(Ctx#{name => name()}).
 
@@ -194,7 +194,7 @@ stop(Ctx) ->
 %% @doc {@link service_cli:status/1}
 %% @end
 %%--------------------------------------------------------------------
--spec status(Ctx :: service:ctx()) -> service:status().
+-spec status(Ctx :: service:step_ctx()) -> service:status().
 status(Ctx) ->
     % Since this function is invoked periodically by onepanel_cron
     % use it to schedule DNS check refresh on a single node
@@ -206,7 +206,7 @@ status(Ctx) ->
 %% @doc Checks if a running service is in a fully functional state.
 %% @end
 %%--------------------------------------------------------------------
--spec health(service:ctx()) -> service:status().
+-spec health(service:step_ctx()) -> service:status().
 health(Ctx) ->
     case (catch get_nagios_status(Ctx)) of
         ok -> healthy;
@@ -218,7 +218,7 @@ health(Ctx) ->
 %% @doc {@link service_cluster_worker:wait_for_init/1}
 %% @end
 %%--------------------------------------------------------------------
--spec wait_for_init(Ctx :: service:ctx()) -> ok | no_return().
+-spec wait_for_init(Ctx :: service:step_ctx()) -> ok | no_return().
 wait_for_init(Ctx) ->
     service_cluster_worker:wait_for_init(Ctx#{
         name => name(),
@@ -231,7 +231,7 @@ wait_for_init(Ctx) ->
 %% @doc {@link service_cluster_worker:nagios_report/1}
 %% @end
 %%--------------------------------------------------------------------
--spec get_nagios_response(Ctx :: service:ctx()) ->
+-spec get_nagios_response(Ctx :: service:step_ctx()) ->
     Response :: http_client:response().
 get_nagios_response(Ctx) ->
     service_cluster_worker:get_nagios_response(Ctx#{
@@ -244,7 +244,7 @@ get_nagios_response(Ctx) ->
 %% @doc {@link service_cluster_worker:get_nagios_status/1}
 %% @end
 %%--------------------------------------------------------------------
--spec get_nagios_status(Ctx :: service:ctx()) -> Status :: atom().
+-spec get_nagios_status(Ctx :: service:step_ctx()) -> Status :: atom().
 get_nagios_status(Ctx) ->
     service_cluster_worker:get_nagios_status(Ctx#{
         nagios_protocol => onepanel_env:get(oz_worker_nagios_protocol),
@@ -278,7 +278,7 @@ get_ns_hosts() ->
 %% @doc {@link letsencrypt_plugin_behaviour:set_txt_record/1}
 %% @end
 %%--------------------------------------------------------------------
--spec set_txt_record(service:ctx()) -> ok | no_return().
+-spec set_txt_record(service:step_ctx()) -> ok | no_return().
 set_txt_record(#{txt_name := Name, txt_value := Value, txt_ttl := _TTL} = Ctx) ->
     [Node | _] = Nodes = get_nodes(),
     % oz_worker does not support custom TTL times
@@ -337,7 +337,7 @@ get_domain() ->
 %% Result is cached to speed up usages such as rest_handler:allowed_origin/0.
 %% @end
 %%--------------------------------------------------------------------
--spec get_details(service:ctx()) ->
+-spec get_details(service:step_ctx()) ->
     #{name := binary() | undefined, domain := binary()}.
 get_details(_Ctx) ->
     {ok, Cached} = simple_cache:get(?DETAILS_CACHE_KEY, fun() ->
@@ -405,7 +405,7 @@ supports_letsencrypt_challenge(_) -> false.
 %% @doc Triggers update of dns server config in oz_worker.
 %% @end
 %%--------------------------------------------------------------------
--spec reconcile_dns(service:ctx()) -> ok.
+-spec reconcile_dns(service:step_ctx()) -> ok.
 reconcile_dns(_Ctx) ->
     ok = oz_worker_rpc:reconcile_dns_config().
 
@@ -415,7 +415,7 @@ reconcile_dns(_Ctx) ->
 %% app config file. Afterwards moves the legacy file to a backup location.
 %% @end
 %%--------------------------------------------------------------------
--spec migrate_generated_config(service:ctx()) -> ok | no_return().
+-spec migrate_generated_config(service:step_ctx()) -> ok | no_return().
 migrate_generated_config(Ctx) ->
     service_cluster_worker:migrate_generated_config(Ctx#{
         name => name(),
@@ -468,7 +468,7 @@ get_policies() ->
 %% nodes with oz_worker to ensure consisten app.config state.
 %% @end
 %%-------------------------------------------------------------------
--spec set_policies(Ctx :: service:ctx()) -> ok.
+-spec set_policies(Ctx :: service:step_ctx()) -> ok.
 set_policies(Ctx) ->
     maps:map(fun
         (oneprovider_registration, OpenOrRestricted) ->

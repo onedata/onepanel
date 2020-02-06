@@ -85,7 +85,7 @@ get_nodes() ->
 %% @doc {@link service_behaviour:get_steps/2}
 %% @end
 %%--------------------------------------------------------------------
--spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
+-spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy_all, #{osds := Ctxs}) ->
     AssignedPaths = assign_paths(Ctxs),
@@ -237,7 +237,7 @@ prepare_loopdevice(#{uuid := UUID, size := Size} = Ctx) ->
 %% options will work.
 %% @end
 %%--------------------------------------------------------------------
--spec format_block_device(service:ctx()) -> ok .
+-spec format_block_device(service:step_ctx()) -> ok .
 format_block_device(#{type := Type, device := Device, uuid := UUID}) ->
     ceph_cli:volume_prepare_bluestore(UUID, Device),
     {ok, Id} = obtain_id_by_uuid(UUID),
@@ -285,7 +285,7 @@ obtain_id_by_uuid(UUID) ->
 %% and triggers LVM rescan to restore lvolume configured on it.
 %% @end
 %%--------------------------------------------------------------------
--spec resume_loopdevice(service:ctx()) -> ok.
+-spec resume_loopdevice(service:step_ctx()) -> ok.
 resume_loopdevice(#{uuid := UUID}) ->
     #{path := Path, size := Size, device := VgLv} = get_instance({uuid, UUID}),
     loopdevice:ensure_loopdevice(Path, Size),
@@ -329,7 +329,7 @@ status(#{id := Id}) ->
     end.
 
 
--spec mark_deployed(service:ctx()) -> ok.
+-spec mark_deployed(service:step_ctx()) -> ok.
 mark_deployed(#{uuid := UUID}) ->
     Id = uuid_to_id(UUID),
     service:store_in_ctx(name(), [instances, Id, deployment_finished], true),
@@ -345,7 +345,7 @@ get_details(#{id := Id}) ->
     }.
 
 
--spec get_disks(service:ctx()) -> #{blockDevices := [#{atom() := term()}]}.
+-spec get_disks(service:step_ctx()) -> #{blockDevices := [#{atom() := term()}]}.
 get_disks(_Ctx) ->
     Disks = onepanel_block_device:get_devices(),
     Host = hosts:self(),
@@ -381,7 +381,7 @@ get_usage() ->
 %%%===================================================================
 
 %% @private
--spec get_ctx() -> service:ctx() | {error, _}.
+-spec get_ctx() -> service:step_ctx() | {error, _}.
 get_ctx() ->
     service:get_ctx(name()).
 

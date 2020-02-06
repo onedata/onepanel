@@ -59,7 +59,7 @@ get_nodes() ->
 %% @doc {@link service_behaviour:get_steps/2}
 %% @end
 %%--------------------------------------------------------------------
--spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
+-spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, #{hosts := [_ | _] = Hosts} = Ctx) ->
     service:create(#service{name = name()}),
@@ -116,7 +116,7 @@ get_steps(status, _Ctx) ->
 %% @doc Configures the service.
 %% @end
 %%--------------------------------------------------------------------
--spec configure(Ctx :: service:ctx()) -> ok | no_return().
+-spec configure(Ctx :: service:step_ctx()) -> ok | no_return().
 configure(#{main_host := MainHost, hosts := Hosts,
     wait_for_process := Process} = Ctx) ->
 
@@ -159,7 +159,7 @@ configure(#{main_host := MainHost, hosts := Hosts,
 %% @doc {@link service_cli:start/1}
 %% @end
 %%--------------------------------------------------------------------
--spec start(Ctx :: service:ctx()) -> ok | no_return().
+-spec start(Ctx :: service:step_ctx()) -> ok | no_return().
 start(_Ctx) ->
     Limits = #{
         open_files => onepanel_env:get(cluster_manager_open_files_limit)
@@ -174,7 +174,7 @@ start(_Ctx) ->
 %% @doc {@link service_cli:stop/1}
 %% @end
 %%--------------------------------------------------------------------
--spec stop(Ctx :: service:ctx()) -> ok.
+-spec stop(Ctx :: service:step_ctx()) -> ok.
 stop(Ctx) ->
     onepanel_cron:remove_job(name()),
     service_cli:stop(name()),
@@ -187,7 +187,7 @@ stop(Ctx) ->
 %% @doc {@link service_cli:status/1}
 %% @end
 %%--------------------------------------------------------------------
--spec status(Ctx :: service:ctx()) -> service:status().
+-spec status(Ctx :: service:step_ctx()) -> service:status().
 status(_Ctx) ->
     service:update_status(name(),
         case service_cli:status(name(), ping) of
@@ -201,7 +201,7 @@ status(_Ctx) ->
 %% @doc {@link onepanel_env:migrate_generated_config/2}
 %% @end
 %%--------------------------------------------------------------------
--spec migrate_generated_config(service:ctx()) -> ok | no_return().
+-spec migrate_generated_config(service:step_ctx()) -> ok | no_return().
 migrate_generated_config(_Ctx) ->
     onepanel_env:upgrade_app_config(name(), [
         [cluster_manager, cm_nodes],

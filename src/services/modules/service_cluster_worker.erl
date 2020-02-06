@@ -66,7 +66,7 @@ get_nodes() ->
 %% @doc {@link service_behaviour:get_steps/2}
 %% @end
 %%--------------------------------------------------------------------
--spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
+-spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, #{hosts := Hosts, name := ServiceName} = Ctx) ->
     service:create(#service{name = ServiceName}),
@@ -143,7 +143,7 @@ get_steps(dns_check, #{name := ServiceName, force_check := ForceCheck}) ->
 %% @doc Configures the service.
 %% @end
 %%--------------------------------------------------------------------
--spec configure(Ctx :: service:ctx()) -> ok | no_return().
+-spec configure(Ctx :: service:step_ctx()) -> ok | no_return().
 configure(#{name := ServiceName, main_cm_host := MainCmHost, cm_hosts := CmHosts,
     db_hosts := DbHosts, app_config := AppConfig, initialize_ip := InitIp,
     vm_args_file := VmArgsFile} = Ctx) ->
@@ -187,7 +187,7 @@ configure(#{name := ServiceName, main_cm_host := MainCmHost, cm_hosts := CmHosts
     service:add_host(ServiceName, Host).
 
 
--spec start(service:ctx()) -> ok | no_return().
+-spec start(service:step_ctx()) -> ok | no_return().
 start(#{name := ServiceName} = Ctx) ->
     service_cli:start(ServiceName, Ctx),
     service:update_status(ServiceName, unhealthy),
@@ -195,7 +195,7 @@ start(#{name := ServiceName} = Ctx) ->
     ok.
 
 
--spec stop(service:ctx()) -> ok.
+-spec stop(service:step_ctx()) -> ok.
 stop(#{name := ServiceName} = Ctx) ->
     onepanel_cron:remove_job(ServiceName),
     service_cli:stop(ServiceName),
@@ -204,7 +204,7 @@ stop(#{name := ServiceName} = Ctx) ->
     ok.
 
 
--spec status(service:ctx()) -> service:status().
+-spec status(service:step_ctx()) -> service:status().
 status(#{name := ServiceName} = Ctx) ->
     Module = service:get_module(ServiceName),
     service:update_status(ServiceName,
@@ -219,7 +219,7 @@ status(#{name := ServiceName} = Ctx) ->
 %% @doc Waits for initialization of the service.
 %% @end
 %%--------------------------------------------------------------------
--spec wait_for_init(Ctx :: service:ctx()) -> ok | no_return().
+-spec wait_for_init(Ctx :: service:step_ctx()) -> ok | no_return().
 wait_for_init(#{name := ServiceName, wait_for_init_attempts := Attempts,
     wait_for_init_delay := Delay} = Ctx) ->
     Module = service:get_module(ServiceName),
@@ -233,7 +233,7 @@ wait_for_init(#{name := ServiceName, wait_for_init_attempts := Attempts,
 %% @doc Returns nagios report for the service.
 %% @end
 %%--------------------------------------------------------------------
--spec get_nagios_response(Ctx :: service:ctx()) ->
+-spec get_nagios_response(Ctx :: service:step_ctx()) ->
     Response :: http_client:response().
 get_nagios_response(#{nagios_protocol := Protocol, nagios_port := Port}) ->
     Host = hosts:self(),
@@ -255,7 +255,7 @@ get_nagios_response(#{nagios_protocol := Protocol, nagios_port := Port}) ->
 %% @doc Returns the service status from the nagios report.
 %% @end
 %%--------------------------------------------------------------------
--spec get_nagios_status(Ctx :: service:ctx()) -> Status :: atom().
+-spec get_nagios_status(Ctx :: service:step_ctx()) -> Status :: atom().
 get_nagios_status(Ctx) ->
     {ok, ?HTTP_200_OK, _Headers, Body} = get_nagios_response(Ctx),
 
@@ -272,7 +272,7 @@ get_nagios_status(Ctx) ->
 %% and worker has none in its app config onepanel tries to determine it.
 %% @end
 %%--------------------------------------------------------------------
--spec set_node_ip(Ctx :: service:ctx()) -> ok | no_return().
+-spec set_node_ip(Ctx :: service:step_ctx()) -> ok | no_return().
 set_node_ip(#{name := ServiceName} = Ctx) ->
     Host = hosts:self(),
     Node = nodes:local(ServiceName),
@@ -294,7 +294,7 @@ set_node_ip(#{name := ServiceName} = Ctx) ->
 %% hosts and their IPs.
 %% @end
 %%--------------------------------------------------------------------
--spec get_cluster_ips(service:ctx()) ->
+-spec get_cluster_ips(service:step_ctx()) ->
     #{isConfigured := boolean(), hosts := #{binary() => binary()}}.
 get_cluster_ips(#{name := _ServiceName} = Ctx) ->
     HostsToIps = lists:map(fun
@@ -313,7 +313,7 @@ get_cluster_ips(#{name := _ServiceName} = Ctx) ->
 %% @doc Gathers external IPs of each worker node.
 %% @end
 %%--------------------------------------------------------------------
--spec get_hosts_ips(service:ctx()) ->
+-spec get_hosts_ips(service:step_ctx()) ->
     [{Host :: service:host(), IP :: inet:ip4_address()}].
 get_hosts_ips(#{name := ServiceName}) ->
     lists:map(fun(Host) ->
@@ -340,7 +340,7 @@ reload_webcert(#{name := ServiceName}) ->
 %% app config file. Afterwards moves the legacy file to a backup location.
 %% @end
 %%--------------------------------------------------------------------
--spec migrate_generated_config(service:ctx()) -> ok | no_return().
+-spec migrate_generated_config(service:step_ctx()) -> ok | no_return().
 migrate_generated_config(#{name := ServiceName, variables := Variables}) ->
     onepanel_env:upgrade_app_config(ServiceName, [
         [ServiceName, cm_nodes],

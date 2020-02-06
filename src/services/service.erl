@@ -48,33 +48,44 @@
 -type notify() :: pid() | undefined.
 -type host() :: string().
 -type step() :: #step{} | #steps{}.
--type condition() :: boolean() | fun((ctx()) -> boolean()).
+-type condition() :: boolean() | fun((step_ctx()) -> boolean()).
 -type event() :: action_begin | action_steps_count | action_end |
                  step_begin | step_end.
+
+%% record field used for arbitrary information about the service
+-type model_ctx() :: map().
 -type record() :: #service{}.
 
 -type status() :: healthy | unhealthy | stopped | missing.
+
+
+
+%% A map stored in #step and #steps records and by default provided
+%% as argument of the invoked functions.
+%% This type spec lists common values used in the step ctx.
+%% Note the keys are optional (=>).
+-type step_ctx() :: #{
+    %% 'hosts' - list of hosts on which step should be performed, used when
+    %%           #step.hosts is not set explicitly
+    hosts => [service:host()],
+    %% 'rest' - filled by service_utils:get_step/1 when executing on 'first' host,
+    %%          contains remainder of the hosts list
+    rest => [service:host()],
+    %% 'first' - filled by service_utils:get_step/1 when executing on 'rest' hosts,
+    %%           contains the first host (excluded from step execution)
+    first => service:host(),
+    %% 'all' - filled by service_utils:get_step/1 when selecting
+    %%         'first' or 'rest' hosts, contains the original hosts list
+    all => [service:host()],
+
+    %% function-specific arguments
+    term() => term()
+}.
 % @formatter:on
 
 
-%% ctx/0 is used as:
-%% - data field in #service{} record, for storing persistent service information
-%% - argument for get_steps functions and, by default, each step function invoked
-%%
-%% Common keys used in the step ctx:
-%% 'hosts' - list of hosts on which step should be performed, used when
-%%           #step.hosts is not set explicitely
-%% 'rest' - filled by service_utils:get_step/1 when executing on 'first' host,
-%%          contains remainder of the hosts list
-%% 'first' - filled by service_utils:get_step/1 when executing on 'rest' hosts,
-%%           contains the first host (excluded from step execution)
-%% 'all' - filled by service_utils:get_step/1 when selecting
-%%         'first' or 'rest' hosts, contains the original hosts list
--type ctx() :: map().
-
-
--export_type([name/0, action/0, status/0, ctx/0, notify/0, host/0, step/0, condition/0,
-    event/0]).
+-export_type([name/0, action/0, status/0, model_ctx/0, step_ctx/0, notify/0, host/0,
+    step/0, condition/0, event/0]).
 
 %%%===================================================================
 %%% Model behaviour callbacks
@@ -245,7 +256,7 @@ is_healthy(Service) ->
 %% @doc @equiv apply(Service, Action, Ctx, undefined)
 %% @end
 %%--------------------------------------------------------------------
--spec apply(Service :: name(), Action :: action(), Ctx :: ctx()) ->
+-spec apply(Service :: name(), Action :: action(), Ctx :: step_ctx()) ->
     ok | {error, _}.
 apply(Service, Action, Ctx) ->
     apply(Service, Action, Ctx, undefined).
@@ -255,7 +266,7 @@ apply(Service, Action, Ctx) ->
 %% @doc Executes the service action and notifies about the process.
 %% @end
 %%--------------------------------------------------------------------
--spec apply(Service :: name(), Action :: action(), Ctx :: ctx(), Notify :: notify()) ->
+-spec apply(Service :: name(), Action :: action(), Ctx :: step_ctx(), Notify :: notify()) ->
     ok | {error, _}.
 apply(Service, Action, Ctx, Notify) ->
     service_utils:notify(#action_begin{service = Service, action = Action}, Notify),
@@ -299,7 +310,7 @@ apply_async(Service, Action) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply_async(Service :: service:name(), Action :: service:action(),
-    Ctx :: service:ctx()) -> TaskId :: service_executor:task_id().
+    Ctx :: service:step_ctx()) -> TaskId :: service_executor:task_id().
 apply_async(Service, Action, Ctx) ->
     gen_server:call(?SERVICE_EXECUTOR_NAME, {apply, Service, Action, Ctx}).
 
@@ -319,7 +330,7 @@ apply_sync(Service, Action) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply_sync(Service :: service:name(), Action :: service:action(),
-    Ctx :: service:ctx()) -> Results :: service_executor:results() | {error, _}.
+    Ctx :: service:step_ctx()) -> Results :: service_executor:results() | {error, _}.
 apply_sync(Service, Action, Ctx) ->
     apply_sync(Service, Action, Ctx, infinity).
 
@@ -330,7 +341,7 @@ apply_sync(Service, Action, Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply_sync(Service :: service:name(), Action :: service:action(),
-    Ctx :: service:ctx(), timeout()) ->
+    Ctx :: service:step_ctx(), timeout()) ->
     Results :: service_executor:results() | {error, _}.
 apply_sync(Service, Action, Ctx, Timeout) ->
     TaskId = apply_async(Service, Action, Ctx),
@@ -434,7 +445,7 @@ add_host(Service, Host) ->
     end).
 
 
--spec register_healthcheck(Service :: name(), Ctx :: ctx()) -> ok.
+-spec register_healthcheck(Service :: name(), Ctx :: step_ctx()) -> ok.
 register_healthcheck(Service, Ctx) ->
     Period = onepanel_env:get(services_check_period),
     Module = service:get_module(Service),
@@ -482,7 +493,7 @@ get_ctx(Service) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec update_ctx(Service :: service:name(), Diff) -> ok | no_return()
-    when Diff :: map() | fun((service:ctx()) -> service:ctx()).
+    when Diff :: map() | fun((service:model_ctx()) -> service:model_ctx()).
 update_ctx(Service, Diff) when is_map(Diff) ->
     update_ctx(Service, fun(Ctx) ->
         maps:merge(Ctx, Diff)
