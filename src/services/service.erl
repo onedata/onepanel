@@ -70,9 +70,6 @@
 %%           contains the first host (excluded from step execution)
 %% 'all' - filled by service_utils:get_step/1 when selecting
 %%         'first' or 'rest' hosts, contains the original hosts list
-%%
-%% 'task_delay' - when present in ctx passed to service:apply, causes delay
-%%                before the start of task execution
 -type ctx() :: map().
 
 
@@ -261,9 +258,6 @@ apply(Service, Action, Ctx) ->
 -spec apply(Service :: name(), Action :: action(), Ctx :: ctx(), Notify :: notify()) ->
     ok | {error, _}.
 apply(Service, Action, Ctx, Notify) ->
-    TaskDelay = maps:get(task_delay, Ctx, 0),
-    ?debug("Delaying task ~tp:~tp by ~tp ms", [Service, Action, TaskDelay]),
-    timer:sleep(TaskDelay),
     service_utils:notify(#action_begin{service = Service, action = Action}, Notify),
     Result = try
         Steps = service_utils:get_steps(Service, Action, Ctx),
