@@ -129,7 +129,7 @@ configure(#{main_host := MainHost, hosts := Hosts,
     MainNode = nodes:service_to_node(name(), MainHost),
 
     WorkerNum = maps:get(worker_num, Ctx, undefined),
-    Cookie = maps:get(cookie, Ctx, erlang:get_cookie()),
+    Cookie = erlang:get_cookie(),
 
     onepanel_env:write([name(), cm_nodes], Nodes, ?SERVICE_CM),
     % @FIXME adjust when adding worker node

@@ -937,7 +937,7 @@ store_absolute_auth_file_path() ->
 %%--------------------------------------------------------------------
 %% @private
 %% @doc Reads provider root token stored in a file
-%% and returns it with an time caveat added.
+%% and returns it with a time caveat added.
 %% @end
 %%--------------------------------------------------------------------
 -spec root_token_from_file() -> tokens:serialized().

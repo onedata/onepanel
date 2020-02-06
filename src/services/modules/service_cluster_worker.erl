@@ -180,8 +180,7 @@ configure(#{name := ServiceName, main_cm_host := MainCmHost, cm_hosts := CmHosts
     end,
 
     onepanel_vm:write("name", Node, VmArgsFile),
-    onepanel_vm:write("setcookie", maps:get(cookie, Ctx, erlang:get_cookie()),
-        VmArgsFile),
+    onepanel_vm:write("setcookie", erlang:get_cookie(), VmArgsFile),
 
     setup_cert_paths(ServiceName, ServiceName),
 
