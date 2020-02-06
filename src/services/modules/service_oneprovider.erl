@@ -229,8 +229,6 @@ get_steps(register, #{hosts := Hosts} = Ctx) ->
     [
         #step{hosts = Hosts, function = configure,
             ctx = Ctx#{application => ?SERVICE_OPW}},
-        #step{hosts = Hosts, function = configure,
-            ctx = Ctx#{application => ?APP_NAME}, selection = first},
         #step{hosts = Hosts, function = check_oz_availability,
             attempts = onepanel_env:get(connect_to_onezone_attempts)},
         #step{hosts = Hosts, function = register, selection = any},
@@ -327,8 +325,16 @@ get_id() ->
 %%--------------------------------------------------------------------
 -spec get_oz_domain() -> string().
 get_oz_domain() ->
-    % onezone_domain variable is set on all nodes
-    onepanel_env:typed_get(onezone_domain, list).
+    is_registered() orelse throw(?ERROR_UNREGISTERED_ONEPROVIDER),
+    case service:get_ctx(name()) of
+        #{onezone_domain := OnezoneDomain} ->
+            unicode:characters_to_list(OnezoneDomain);
+        #{} ->
+            % versions before 20.02 stored the onezone_domain in app config
+            OnezoneDomain = onepanel_env:typed_get(onezone_domain, binary),
+            service:update_ctx(name(), #{onezone_domain => OnezoneDomain}),
+            get_oz_domain()
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -396,15 +402,6 @@ get_identity_token() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:ctx()) -> ok | no_return().
-configure(#{application := ?APP_NAME, oneprovider_token := Token}) ->
-    OzDomain = onezone_tokens:read_domain(Token),
-    Nodes = nodes:all(?SERVICE_PANEL),
-
-    % @FIXME used in check_oz_availability
-    onepanel_env:set(Nodes, onezone_domain, OzDomain, ?APP_NAME),
-    onepanel_env:write(Nodes,
-        [?APP_NAME, onezone_domain], OzDomain, ?SERVICE_PANEL);
-
 configure(#{oneprovider_token := Token}) ->
     OzDomain = onezone_tokens:read_domain(Token),
     Name = ?SERVICE_OPW,
@@ -418,10 +415,10 @@ configure(#{oneprovider_token := Token}) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec check_oz_availability(Ctx :: service:ctx()) -> ok | no_return().
-check_oz_availability(_Ctx) ->
+check_oz_availability(Ctx) ->
     Protocol = onepanel_env:get(oz_worker_nagios_protocol),
     Port = onepanel_env:get(oz_worker_nagios_port),
-    OzDomain = onepanel_env:typed_get(onezone_domain, ?APP_NAME, list),
+    OzDomain = maps:get(onezone_domain, Ctx),
     Url = onepanel_utils:join([Protocol, "://", OzDomain, ":", Port, "/nagios"]),
     Opts = case Protocol of
         "https" ->
@@ -466,6 +463,7 @@ check_oz_connection() ->
 register(Ctx) ->
     {ok, OpwNode} = nodes:any(?SERVICE_OPW),
 
+    OnezoneDomain = maps:get(onezone_domain, Ctx),
     DomainParams = case onepanel_utils:get_converted(oneprovider_subdomain_delegation, Ctx, boolean, false) of
         true ->
             Subdomain = onepanel_utils:get_converted(oneprovider_subdomain, Ctx, binary),
@@ -491,6 +489,8 @@ register(Ctx) ->
         <<"longitude">> => onepanel_utils:get_converted(oneprovider_geo_longitude, Ctx, float, 0.0)
     },
 
+
+    service:update_ctx(name(), #{onezone_domain => OnezoneDomain}),
     case oz_providers:register(none, Params) of
         {ok, #{<<"providerId">> := ProviderId, <<"providerRootToken">> := RootToken}} ->
             on_registered(OpwNode, ProviderId, RootToken),
@@ -990,7 +990,9 @@ read_auth_file() ->
     tokens:serialized()) -> ok.
 on_registered(OpwNode, ProviderId, RootToken) ->
     ok = op_worker_rpc:provider_auth_save(OpwNode, ProviderId, RootToken),
-    service:update_ctx(name(), #{registered => true}),
+    service:update_ctx(name(), #{
+        registered => true
+    }),
     store_absolute_auth_file_path(),
 
     % Force connection healthcheck
