@@ -51,13 +51,32 @@
 -type condition() :: boolean() | fun((step_ctx()) -> boolean()).
 -type event() :: action_begin | action_steps_count | action_end |
                  step_begin | step_end.
-
-%% record field used for arbitrary information about the service
--type model_ctx() :: map().
--type record() :: #service{}.
-
 -type status() :: healthy | unhealthy | stopped | missing.
 
+
+%% Type specs for #service.ctx
+
+-type oneprovider_ctx() :: #{
+    %% set before registration
+    onezone_domain => binary(),
+
+    %% Caches: (i.e. not the primary source of truth)
+
+    %% is_registered cache (op_worker's datastore is the primary source of truth)
+    registered => boolean(),
+    %% service status
+    status => #{service:host() => status()},
+    %% 'dns_check' module cache
+    dns_check => dns_check:result(),
+    %% 'clusters' module cache
+    cluster => #{atom() := term()},
+    %% provider details cache
+    provider_details => #{atom() := term()}
+}.
+
+%% record field used for arbitrary information about the service
+-type model_ctx() :: oneprovider_ctx() | map().
+-type record() :: #service{}.
 
 
 %% A map stored in #step and #steps records and by default provided
