@@ -338,7 +338,7 @@ reload_webcert(#{name := ServiceName}) ->
 %%--------------------------------------------------------------------
 -spec migrate_generated_config(service:ctx()) -> ok | no_return().
 migrate_generated_config(#{name := ServiceName, variables := Variables}) ->
-    onepanel_env:migrate_generated_config(ServiceName, [
+    onepanel_env:upgrade_app_config(ServiceName, [
         [ServiceName, cm_nodes],
         [ServiceName, db_nodes],
         [ServiceName, web_key_file],

@@ -6,6 +6,27 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc This module contains onepanel service management functions.
+%%%
+%%% In particular, this module handles changes in the cluster's hosts set.
+%%% Host (onepanel node) belongs to the cluster if it shares mnesia tables.
+%%%
+%%% Cluster extension flow is as follows
+%%% (assuming oldNode is already configured and newNode is to be added):
+%%% 1. admin --> oldNode: POST /hosts {"address": "newNode"}
+%%% 2. oldNode --> newNode: GET /node # determine full erlang hostname
+%%%    newNode --> oldNode: 200 OK {"hostname": "newNode.tld", "clusterType": onezone"}
+%%% 3. oldNode --> newNode: POST /join_cluster {"cookie": "secret", "clusterHost": "oldNode.tld"}
+%%%
+%%% Only a node without emergency passphrase set and services deployed
+%%% can join another cluster (see {@link available_for_clustering/0}),
+%%% otherwise request (3) will be rejected with code 401.
+%%% Request (3) triggers service_onepanel:join_cluster action at newNode.
+%%% newNode changes its cookie to the received one and discards its mnesia
+%%% tables in favor of synchronizing from oldNode.
+%%%
+%%% In case of batch config (service_onepanel:deploy) the flow is similar,
+%%% but the configuration request contains full erlang hostnames
+%%% causing the discovery request (2) to be skipped.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(service_onepanel).
@@ -82,7 +103,9 @@ get_steps(deploy, #{hosts := Hosts} = Ctx) ->
 get_steps(extend_cluster, Ctx) ->
     [
         #step{function = extend_cluster, hosts = [hosts:self()],
-            % when the reason of extend_cluster is an explicit request, do not retry
+            % when the reason of extend_cluster is an explicit request
+            % (as opposed to "batch config" action 'deploy'), do not retry
+            % - the requesting client should ensure the node is already online.
             ctx = Ctx#{attempts => 1}}
     ];
 
@@ -94,7 +117,7 @@ get_steps(init_cluster, _Ctx) ->
         S#step{function = init_cluster}
     ];
 
-get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
+get_steps(join_cluster, #{cluster_host := ClusterHost} = Ctx) ->
     SelfHost = hosts:self(),
     case {available_for_clustering(), ClusterHost} of
         {_, SelfHost} -> [];
@@ -107,7 +130,10 @@ get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
                     attempts = onepanel_env:get(node_connection_attempts, ?APP_NAME, 90),
                     retry_delay = onepanel_env:get(node_connection_retry_delay, ?APP_NAME, 1000)},
                 S#step{function = reset_node},
-                S#step{function = join_cluster}
+                S#step{function = join_cluster},
+                #steps{action = import_configuration, ctx = #{
+                    reference_host => ClusterHost, hosts => [SelfHost]
+                }, verify_hosts = false}
             ]
     end;
 
@@ -144,6 +170,14 @@ get_steps(migrate_emergency_passphrase, _Ctx) ->
     [#step{module = emergency_passphrase, function = migrate_from_users, args = [],
         hosts = get_hosts(), selection = any,
         condition = fun(_) -> not emergency_passphrase:is_set() end}];
+
+get_steps(import_configuration, #{reference_host := Host} = Ctx) ->
+    ReferenceNode = nodes:service_to_node(?SERVICE_PANEL, Host),
+    [
+        #step{module = onepanel_env, function = import_generated_from_node,
+            args = [?SERVICE_PANEL, ReferenceNode, _SetInRuntime = true]},
+        #steps{service = ?SERVICE_LE, action = import_files, ctx = Ctx}
+    ];
 
 get_steps(Function, _Ctx) when
     Function == reload_webcert;
@@ -219,8 +253,11 @@ init_cluster(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec extend_cluster(service:ctx()) -> #{hostname := binary()} | no_return().
 extend_cluster(#{attempts := Attempts} = Ctx) when Attempts =< 0 ->
-    Hostname = maps:get(hostname, Ctx, maps:get(address, Ctx)),
-    throw(?ERROR_NO_CONNECTION_TO_NEW_NODE(Hostname));
+    NewNode = case Ctx of
+        #{hostname := Hostname} -> Hostname;
+        #{address := Address} -> Address
+    end,
+    throw(?ERROR_NO_CONNECTION_TO_NEW_NODE(NewNode));
 
 extend_cluster(#{hostname := Hostname, attempts := Attempts} = Ctx) ->
     SelfHost = hosts:self(),

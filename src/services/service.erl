@@ -333,7 +333,7 @@ apply_sync(Service, Action, Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply_sync(Service :: service:name(), Action :: service:action(),
-    Ctx :: service:ctx(), Timeout :: timeout()) ->
+    Ctx :: service:ctx(), timeout()) ->
     Results :: service_executor:results() | {error, _}.
 apply_sync(Service, Action, Ctx, Timeout) ->
     TaskId = apply_async(Service, Action, Ctx),
@@ -367,7 +367,7 @@ get_results(TaskId, Timeout) ->
     end,
     StepsCount = case gen_server:call(?SERVICE_EXECUTOR_NAME, {get_count, TaskId}) of
         ok -> service_executor:receive_count(TaskId, Timeout);
-        {error, _} = Error2 -> {Results, Error2}
+        {error, _} = Error2 -> Error2
     end,
     {Results, StepsCount}.
 
