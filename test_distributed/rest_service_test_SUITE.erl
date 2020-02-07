@@ -789,7 +789,10 @@ init_per_testcase(_Case, Config) ->
             hosts = ["host2", "host3"], ctx = #{main_host => "host3"}
         }};
         (op_worker) -> {ok, #service{hosts = ["host1", "host2", "host3"]}};
-        (oz_worker) -> {ok, #service{hosts = ["host1", "host2", "host3"]}}
+        (oz_worker) -> {ok, #service{hosts = ["host1", "host2", "host3"]}};
+        (oneprovider) -> {ok, #service{
+            ctx = #{registered => true, onezone_domain => OzDomain}
+        }}
     end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},
