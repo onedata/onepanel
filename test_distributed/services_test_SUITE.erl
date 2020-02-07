@@ -183,6 +183,7 @@ service_oneprovider_unregister_register_test(Config) ->
     [OzNode | _] = ?config(onezone_nodes, Config),
     [OpNode | _] = ?config(oneprovider_nodes, Config),
     OpDomain = ?config(oneprovider_domain, Config),
+    OzDomain = ?config(onezone_domain, Config),
     onepanel_test_utils:service_action(OpNode, oneprovider, unregister, #{}),
     onepanel_test_utils:service_action(OpNode, oneprovider, register, #{
         oneprovider_geo_latitude => 20.0,
@@ -190,7 +191,8 @@ service_oneprovider_unregister_register_test(Config) ->
         oneprovider_name => <<"provider2">>,
         oneprovider_domain => OpDomain,
         oneprovider_admin_email => <<"admin@onedata.org">>,
-        oneprovider_token => image_test_utils:get_registration_token(OzNode)
+        oneprovider_token => image_test_utils:get_registration_token(OzNode),
+        onezone_domain => str_utils:to_binary(OzDomain)
     }).
 
 
