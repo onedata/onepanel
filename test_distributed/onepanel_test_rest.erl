@@ -340,5 +340,6 @@ construct_token(Caveats) ->
         subject = ?SUB(user, <<"userId">>),
         onezone_domain = <<"someonezone.test">>,
         persistence = {temporary, 1},
-        id = str_utils:rand_hex(16)}, <<"someSecret">>, Caveats)),
+        id = str_utils:rand_hex(16)
+    }, <<"someSecret">>, Caveats)),
     Token.
