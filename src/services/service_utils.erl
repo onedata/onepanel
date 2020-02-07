@@ -317,21 +317,20 @@ get_nested_steps(#steps{condition = false}) ->
     Function :: atom(),
     Result   :: term().
 %% @formatter:on
-log({action_steps_count, {Service, Action, StepsCount}}) ->
+log(#action_steps_count{service = Service, action = Action, count = StepsCount}) ->
     ?debug("Executing action ~p:~p requires ~b steps", [Service, Action, StepsCount]);
-log({action_begin, {Service, Action}}) ->
+log(#action_begin{service = Service, action = Action}) ->
     ?debug("Executing action ~p:~p", [Service, Action]);
-log({action_end, {Service, Action, ok}}) ->
+log(#action_end{service = Service, action = Action, result = ok}) ->
     ?debug("Action ~p:~p completed successfully", [Service, Action]);
-log({action_end, {Service, Action, {error, Reason}}}) ->
+log(#action_end{service = Service, action = Action, result = {error, Reason}}) ->
     ?error("Action ~p:~p failed due to: ~tp", [Service, Action, Reason]);
-log({step_begin, {Module, Function}}) ->
+log(#step_begin{module = Module, function = Function}) ->
     ?debug("Executing step ~p:~p", [Module, Function]);
-log({step_end, {Module, Function, {_, []}}}) ->
+log(#step_end{module = Module, function = Function, good_bad_results = {_, []}}) ->
     ?debug("Step ~p:~p completed successfully", [Module, Function]);
-log({step_end, {Module, Function, {_, Errors}}}) ->
-    ?error("Step ~p:~p failed~n~ts", [Module, Function,
-        format_errors(Errors, "")]).
+log(#step_end{module = Module, function = Function, good_bad_results = {_, Errors}}) ->
+    ?error("Step ~p:~p failed~n~ts", [Module, Function, format_errors(Errors, "")]).
 
 
 %%--------------------------------------------------------------------

@@ -15,6 +15,7 @@
 -behaviour(gen_server).
 
 -include("modules/errors.hrl").
+-include("service.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include("names.hrl").
 
@@ -78,24 +79,27 @@ handle_results() ->
 
 -spec handle_results(service_executor:results(), StepsCount :: non_neg_integer()) ->
     no_return().
-handle_results(Results, StepsCount) ->
+handle_results(History, StepsCount) ->
     receive
-        {action_steps_count, {_, _, NewStepsCount}} ->
-            ?MODULE:handle_results(Results, NewStepsCount);
-        {step_begin, Result} ->
-            ?MODULE:handle_results([Result | Results], StepsCount);
-        {step_end, Result} ->
-            ?MODULE:handle_results([Result | Results], StepsCount);
-        {action_end, Result} ->
-            ?MODULE:handle_results([{task_finished, Result} | Results], StepsCount);
+        #action_steps_count{count = NewStepsCount} ->
+            ?MODULE:handle_results(History, NewStepsCount);
+        #step_begin{module = Module, function = Function} ->
+            ?MODULE:handle_results([{Module, Function} | History], StepsCount);
+        #step_end{module = Module, function = Function, good_bad_results = Result} ->
+            ?MODULE:handle_results([{Module, Function, Result} | History], StepsCount);
+        #action_end{service = Service, action = Action, result = Result} ->
+            ?MODULE:handle_results(
+                [{task_finished, {Service, Action, Result}} | History],
+                StepsCount
+            );
         {forward_count, TaskId, Pid} ->
             Pid ! {step_count, TaskId, StepsCount},
-            ?MODULE:handle_results(Results, StepsCount);
+            ?MODULE:handle_results(History, StepsCount);
         {forward_results, TaskId, Pid} ->
-            Pid ! {task, TaskId, lists:reverse(Results)},
-            ?MODULE:handle_results(Results, StepsCount);
+            Pid ! {task, TaskId, lists:reverse(History)},
+            ?MODULE:handle_results(History, StepsCount);
         _ ->
-            ?MODULE:handle_results(Results, StepsCount)
+            ?MODULE:handle_results(History, StepsCount)
     end.
 
 %%--------------------------------------------------------------------
