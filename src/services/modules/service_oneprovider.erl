@@ -34,7 +34,33 @@
 
 -type id() :: binary().
 
--export_type([id/0]).
+
+%% Type specs for #service.ctx
+
+% @formatter:off
+-type model_ctx() :: #{
+    %% set after registration
+    onezone_domain => binary(),
+
+    % dedicated host for initiating cluster startup process after restart
+    master_host => service:host(),
+
+    %% Caches (i.e. not the primary source of truth):
+    % is_registered cache (op_worker's datastore is the primary source of truth)
+    registered => boolean(),
+    % service status
+    status => #{service:host() => service:status()},
+    % 'dns_check' module cache
+    dns_check => dns_check:result(),
+    % 'clusters' module cache
+    cluster => #{atom() := term()},
+    % provider details cache (for when op_worker is down)
+    provider_details => #{atom() := term()}
+}.
+% @formatter:on
+
+-export_type([id/0, model_ctx/0]).
+
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).

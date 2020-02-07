@@ -37,6 +37,21 @@
 -include_lib("xmerl/include/xmerl.hrl").
 -include_lib("ctool/include/logging.hrl").
 
+-type model_ctx() :: #{
+    letsencrypt_enabled := boolean(),
+    letsencrypt_plugin := ?SERVICE_OPW | ?SERVICE_OZW,
+
+    % Semaphore used to prevent starting another certification process while
+    % one is running.
+    % Contrary to the name, this flag is also set during initial Let's Encrypt run.
+    % This key does not exist before the first certification attempt.
+    regenerating => boolean()
+}.
+% @formatter:on
+
+-export_type([model_ctx/0]).
+
+
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
@@ -559,6 +574,6 @@ get_plugin_module() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec update_ctx(Diff) -> ok | no_return()
-    when Diff :: map() | fun((service:step_ctx()) -> service:step_ctx()).
+    when Diff :: map() | fun((model_ctx()) -> model_ctx()).
 update_ctx(Diff) ->
     service:update_ctx(name(), Diff).

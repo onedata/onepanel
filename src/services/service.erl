@@ -54,28 +54,11 @@
 -type status() :: healthy | unhealthy | stopped | missing.
 
 
-%% Type specs for #service.ctx
-
--type oneprovider_ctx() :: #{
-    %% set before registration
-    onezone_domain => binary(),
-
-    %% Caches: (i.e. not the primary source of truth)
-
-    %% is_registered cache (op_worker's datastore is the primary source of truth)
-    registered => boolean(),
-    %% service status
-    status => #{service:host() => status()},
-    %% 'dns_check' module cache
-    dns_check => dns_check:result(),
-    %% 'clusters' module cache
-    cluster => #{atom() := term()},
-    %% provider details cache
-    provider_details => #{atom() := term()}
-}.
-
 %% record field used for arbitrary information about the service
--type model_ctx() :: oneprovider_ctx() | map().
+-type model_ctx() :: service_oneprovider:model_ctx() | service_onezone:model_ctx()
+| service_op_worker:model_ctx() | service_oz_worker:model_ctx()
+| service_cluster_manager:model_ctx()
+| map().
 -type record() :: #service{}.
 
 
@@ -499,7 +482,18 @@ register_healthcheck(Service, Ctx) ->
 %% @doc Returns the "ctx" field of a service model.
 %% @end
 %%--------------------------------------------------------------------
--spec get_ctx(name()) -> ctx() | {error, _} | no_return().
+-spec get_ctx
+    (?SERVICE_OPW) -> service_op_worker:model_ctx() | {error, _};
+    (?SERVICE_OZW) -> service_oz_worker:model_ctx() | {error, _};
+    (?SERVICE_OP) -> service_oneprovider:model_ctx() | {error, _};
+    (?SERVICE_OZ) -> service_onezone:model_ctx() | {error, _};
+    (?SERVICE_CM) -> service_cluster_manager:model_ctx() | {error, _};
+    (?SERVICE_LE) -> service_letsencrypt:model_ctx() | {error, _};
+    (?SERVICE_CB) -> service_couchbase:model_ctx() | {error, _};
+    % @FIXME
+    (?SERVICE_PANEL) -> ?ERR_DOC_NOT_FOUND;
+    (?SERVICE_CEPH | ?SERVICE_CEPH_OSD | ?SERVICE_CEPH_MON | ?SERVICE_CEPH_MGR)
+        -> map() | {error, _}.
 get_ctx(Service) ->
     case ?MODULE:get(Service) of
         {ok, #service{ctx = Ctx}} -> Ctx;

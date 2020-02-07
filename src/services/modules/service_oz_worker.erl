@@ -23,6 +23,16 @@
 -include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
 
+% @formatter:off
+-type model_ctx() :: #{
+    %% Caches (i.e. not the primary source of truth):
+    % service status cache
+    status => #{service:host() => service:status()}
+}.
+% @formatter:on
+
+-export_type([model_ctx/0]).
+
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 %% LE behaviour callbacks

@@ -24,6 +24,25 @@
 -include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
 
+
+
+% @formatter:off
+-type model_ctx() :: #{
+    % dedicated host for initiating cluster startup process after restart
+    master_host => service:host(),
+
+    %% Caches (i.e. not the primary source of truth):
+    % service status cache
+    status => #{service:host() => service:status()},
+    % 'dns_check' module cache
+    dns_check => dns_check:result(),
+    % 'clusters' module cache
+    cluster => #{atom() := term()}
+}.
+% @formatter:on
+
+-export_type([model_ctx/0]).
+
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 

@@ -23,6 +23,22 @@
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/onedata.hrl").
 
+
+% @formatter:off
+-type model_ctx() :: #{
+    %% Caches (i.e. not the primary source of truth):
+    % service status cache
+    status => #{service:host() => service:status()},
+
+    %% Deprecated (removed from ctx after upgrading past 18.02.0-rc1)
+    %% {@link pop_legacy_ips_configured/0}
+    cluster_ips_configured => boolean()
+}.
+% @formatter:on
+
+-export_type([model_ctx/0]).
+
+
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 %% LE behaviour callbacks
