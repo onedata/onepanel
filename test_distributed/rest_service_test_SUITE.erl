@@ -17,6 +17,7 @@
 -include("modules/onepanel_dns.hrl").
 -include("onepanel_test_utils.hrl").
 -include("onepanel_test_rest.hrl").
+-include("service.hrl").
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
@@ -664,7 +665,7 @@ init_per_testcase(get_should_return_nagios_response, Config) ->
         {service_oz_worker, get_nagios_response, {
             [{'node@host1', {ok, ?HTTP_200_OK, #{}, ?NAGIOS_REPORT_XML}}], []
         }},
-        {task_finished, {service, action, ok}}
+        #action_end{service = service, action = action, result = ok}
     ] end),
     NewConfig;
 
@@ -721,7 +722,7 @@ init_per_testcase(get_should_return_service_task_results, Config) ->
             {module1, function1},
             {module2, function2},
             {module3, function3},
-            {task_finished, {service, action, ok}}
+            #action_end{service = service, action = action, result = ok}
         ], 3};
         (<<"someTaskId2">>) -> {[
             {module1, function1},
@@ -736,10 +737,10 @@ init_per_testcase(get_should_return_service_task_results, Config) ->
             {module3, function3, {[], [
                 {'node@host1', ?ERROR_MALFORMED_DATA}, {'node@host2', ?ERROR_INTERNAL_SERVER_ERROR}
             ]}},
-            {task_finished, {service, action, {error, reason}}}
+            #action_end{service = service, action = action, result = {error, reason}}
         ], 4};
         (<<"someTaskId4">>) -> {[
-            {task_finished, {service, action, ?ERROR_INTERNAL_SERVER_ERROR}}
+            #action_end{service = service, action = action, result = ?ERROR_INTERNAL_SERVER_ERROR}
         ], _StepsCountError = {error, reason}}
     end),
     NewConfig;
@@ -777,7 +778,7 @@ init_per_testcase(_Case, Config) ->
     end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},
-        [{task_finished, {service, action, ok}}]
+        [#action_end{service = service, action = action, result = ok}]
     end),
     test_utils:mock_expect(Nodes, service, apply_async, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},
@@ -806,7 +807,7 @@ mock_service_status(Config, HostsStatuses) ->
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, status, _) ->
         [
             {service:get_module(Service), status, {HostsStatuses, []}},
-            {task_finished, {service, action, ok}}
+            #action_end{service = service, action = action, result = ok}
         ]
     end),
     Config.

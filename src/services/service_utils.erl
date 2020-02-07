@@ -71,12 +71,8 @@ format_steps([#step{hosts = Hosts, module = Module, function = Function,
 %% @doc Notifies about the service action progress.
 %% @end
 %%--------------------------------------------------------------------
--spec notify(Msg :: {Stage :: service:event(), Details},
-    Notify :: service:notify()) -> ok when
-    Details :: {Module, Function} | {Module, Function, Result},
-    Module :: module(),
-    Function :: atom(),
-    Result :: term().
+-spec notify(Msg, service:notify()) -> ok when
+    Msg :: service_executor:result() | #action_steps_count{} | #action_begin{}.
 notify(Msg, Notify) when is_pid(Notify) ->
     log(Msg),
     Notify ! Msg,
@@ -114,13 +110,12 @@ results_contain_error({error, _} = Error) ->
 
 results_contain_error(Results) ->
     case lists:reverse(Results) of
-        [{task_finished, {_, _, {error, _} = Error}}] ->
+        [#action_end{result = {error, _} = Error}] ->
             {true, cast_to_serializable_error(Error)};
 
-        [{task_finished, {_Service, _Action, {error, _}}}, FailedStep | _Steps] ->
-            {_Module, _Function, {_, BadResults}} = FailedStep,
+        [#action_end{result = {error, _}}, FailedStep | _Steps] ->
+            #step_end{good_bad_results = {_, BadResults}} = FailedStep,
             {true, bad_results_to_error(BadResults)};
-
         _ ->
             false
     end.
@@ -151,7 +146,8 @@ select_service_step(Module, Function, []) ->
     ?error("Service step ~p:~p not found", [Module, Function]),
     error({step_not_found, {Module, Function}});
 
-select_service_step(Module, Function, [{Module, Function, Results} | _]) ->
+select_service_step(Module, Function,
+    [#step_end{module = Module, function = Function, good_bad_results = Results} | _]) ->
     Results;
 
 select_service_step(Module, Function, [_ | Results]) ->
@@ -307,15 +303,8 @@ get_nested_steps(#steps{condition = false}) ->
 %% @end
 %%--------------------------------------------------------------------
 %% @formatter:off
--spec log(Msg :: {Event :: service:event(), Details}) -> ok when
-    Details  :: {Service, Action}  | {Service, Action, ok | {error, _}}
-              | {Service, Action, StepsCount :: integer()}
-              | {Module, Function} | {Module, Function, Result},
-    Service  :: service:name(),
-    Module   :: module(),
-    Action   :: service:action(),
-    Function :: atom(),
-    Result   :: term().
+-spec log(Msg) -> ok when
+    Msg :: service_executor:result() | #action_steps_count{} | #action_begin{}.
 %% @formatter:on
 log(#action_steps_count{service = Service, action = Action, count = StepsCount}) ->
     ?debug("Executing action ~p:~p requires ~b steps", [Service, Action, StepsCount]);

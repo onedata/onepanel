@@ -29,13 +29,12 @@
 
 % @formatter:off
 -type task_id() :: binary().
--type hosts_results() :: {GoodResults :: onepanel_rpc:results(),
-    BadResults :: onepanel_rpc:results()}.
--type step_result() :: {Module :: module(), Function :: atom()} |
-    {Module :: module(), Function :: atom(), HostsResults :: hosts_results()}.
--type action_result() :: {task_finished, {
-    Service :: service:name(), Action :: service:action(), Result :: ok | {error, _}
-}}.
+-type hosts_results() :: {
+    GoodResults :: onepanel_rpc:results(),
+    BadResults :: onepanel_rpc:results()
+}.
+-type step_result() :: #step_begin{} | #step_end{}.
+-type action_result() :: #action_end{}.
 -type result() :: action_result() | step_result().
 -type results() :: [result()].
 % @formatter:on
@@ -83,15 +82,12 @@ handle_results(History, StepsCount) ->
     receive
         #action_steps_count{count = NewStepsCount} ->
             ?MODULE:handle_results(History, NewStepsCount);
-        #step_begin{module = Module, function = Function} ->
-            ?MODULE:handle_results([{Module, Function} | History], StepsCount);
-        #step_end{module = Module, function = Function, good_bad_results = Result} ->
-            ?MODULE:handle_results([{Module, Function, Result} | History], StepsCount);
-        #action_end{service = Service, action = Action, result = Result} ->
-            ?MODULE:handle_results(
-                [{task_finished, {Service, Action, Result}} | History],
-                StepsCount
-            );
+        #step_begin{} = Result ->
+            ?MODULE:handle_results([Result | History], StepsCount);
+        #step_end{} = Result ->
+            ?MODULE:handle_results([Result | History], StepsCount);
+        #action_end{} = Result ->
+            ?MODULE:handle_results([Result | History], StepsCount);
         {forward_count, TaskId, Pid} ->
             Pid ! {step_count, TaskId, StepsCount},
             ?MODULE:handle_results(History, StepsCount);

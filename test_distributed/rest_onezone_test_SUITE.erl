@@ -17,6 +17,7 @@
 -include("modules/models.hrl").
 -include("onepanel_test_rest.hrl").
 -include("onepanel_test_utils.hrl").
+-include("service.hrl").
 -include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
@@ -208,11 +209,11 @@ init_per_testcase(Case, Config) when
                 {service_onezone, get_gui_message, {
                     [{'node@host1', Result}], []
                 }},
-                {task_finished, {service, action, ok}}
+                #action_end{service = service, action = action, result = ok}
             ];
         (Service, Action, Ctx) ->
             Self ! {service, Service, Action, Ctx},
-            [{task_finished, {service, action, ok}}]
+            [#action_end{service = service, action = action, result = ok}]
     end),
     NewConfig;
 
@@ -246,7 +247,7 @@ init_per_testcase(_Case, Config) ->
             {onezone_users, get_user, {
                 [{'node@host1', #{}}], []
             }},
-            {task_finished, {service, action, ok}}
+            #action_end{service = service, action = action, result = ok}
         ]
     end),
     test_utils:mock_expect(Nodes, service_oz_worker, get_domain, fun

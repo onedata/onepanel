@@ -14,8 +14,9 @@
 -include("authentication.hrl").
 -include("modules/models.hrl").
 -include("names.hrl").
--include("onepanel_test_utils.hrl").
 -include("onepanel_test_rest.hrl").
+-include("onepanel_test_utils.hrl").
+-include("service.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
 -include_lib("ctool/include/privileges.hrl").
@@ -802,7 +803,7 @@ init_per_testcase(get_should_return_provider_details, Config) ->
         {service_oneprovider, get_details, {
             [{'node@host1', ?PROVIDER_DETAILS_JSON}], []
         }},
-        {task_finished, {service, action, ok}}
+        #action_end{service = service, action = action, result = ok}
     ] end),
     NewConfig;
 
@@ -814,7 +815,7 @@ init_per_testcase(get_should_return_cluster_ips, Config) ->
         {service_oneprovider, format_cluster_ips, {
             [{'node@host1', ?CLUSTER_IPS_JSON(Hosts)}], []
         }},
-        {task_finished, {service, action, ok}}
+        #action_end{service = service, action = action, result = ok}
     ] end),
     NewConfig;
 
@@ -839,7 +840,7 @@ init_per_testcase(get_should_return_storage, Config) ->
             [{'node@host1', keys_to_atoms(?STORAGE_JSON)}],
             []
         }},
-        {task_finished, {service, action, ok}}
+        #action_end{service = service, action = action, result = ok}
     ] end),
     NewConfig;
 
@@ -852,7 +853,7 @@ init_per_testcase(get_should_return_storages, Config) ->
             [{'node@host1', [<<"id1">>, <<"id2">>, <<"id3">>]}],
             []
         }},
-        {task_finished, {service, action, ok}}
+        #action_end{service = service, action = action, result = ok}
     ] end),
     NewConfig;
 
@@ -863,7 +864,7 @@ init_per_testcase(get_should_return_supported_spaces, Config) ->
         {service_oneprovider, get_spaces, {
             [{'node@host1', ?SPACE_IDS}], []
         }},
-        {task_finished, {service, action, ok}}
+        #action_end{service = service, action = action, result = ok}
     ] end),
     test_utils:mock_expect(Nodes, service_oneprovider, is_space_supported,
         fun(#{space_id := _Id}) -> true end),
@@ -879,7 +880,7 @@ init_per_testcase(get_should_return_space_details, Config) ->
                 onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
             []
         }},
-        {task_finished, {service, action, ok}}
+        #action_end{service = service, action = action, result = ok}
     ] end),
     test_utils:mock_expect(Nodes, service_oneprovider, is_space_supported,
         fun(#{space_id := _Id}) -> true end),
@@ -892,7 +893,7 @@ init_per_testcase(post_should_support_space, Config) ->
         {service_oneprovider, support_space, {
             [{'node@host1', <<"someId1">>}], []
         }},
-        {task_finished, {service, action, ok}}
+        #action_end{service = service, action = action, result = ok}
     ]
     end),
     NewConfig;
@@ -926,7 +927,7 @@ init_per_testcase(Case, Config) when
                 {service_oneprovider, modify_space, {
                     [{'node@host1', ?SPACE_JSON}], []
                 }},
-                {task_finished, {service, action, ok}}
+                #action_end{service = service, action = action, result = ok}
             ];
         (?SERVICE_OP = Service, start_auto_cleaning = Action, Ctx) ->
             Self ! {service, Service, Action, Ctx},
@@ -934,23 +935,23 @@ init_per_testcase(Case, Config) when
                 {service_oneprovider, start_auto_cleaning, {
                     [{'node@host1', {ok, <<"someReportId">>}}], []
                 }},
-                {task_finished, {service, action, ok}}
+                #action_end{service = service, action = action, result = ok}
             ];
         (?SERVICE_OP, get_auto_cleaning_reports, _Ctx) -> [
             {service_oneprovider, get_auto_cleaning_reports, {
                 [{'node@host1', ?AUTO_CLEANING_REPORT_IDS}], []
             }},
-            {task_finished, {service, action, ok}}
+            #action_end{service = service, action = action, result = ok}
         ];
         (?SERVICE_OP, get_auto_cleaning_status, _Ctx) -> [
             {service_oneprovider, get_auto_cleaning_status, {
                 [{'node@host1', ?AUTO_CLEANING_STATUS}], []
             }},
-            {task_finished, {service, action, ok}}
+            #action_end{service = service, action = action, result = ok}
         ];
         (Service, Action, Ctx) ->
             Self ! {service, Service, Action, Ctx},
-            [{task_finished, {service, action, ok}}]
+            [#action_end{service = service, action = action, result = ok}]
     end),
     test_utils:mock_expect(Nodes, service_oneprovider, is_space_supported,
         fun(#{space_id := _Id}) -> true end),
@@ -967,7 +968,7 @@ init_per_testcase(patch_should_update_storage, Config) ->
             Self ! {service, Service, Action, Ctx},
             [
                 {service_op_worker, update_storage, {[{hd(Nodes), Result}], []}},
-                {task_finished, {service, action, ok}}
+                #action_end{service = service, action = action, result = ok}
             ];
         (?SERVICE_OPW, get_storages, _) -> [
             {service_op_worker, get_storages, {
@@ -991,7 +992,7 @@ init_per_testcase(get_should_return_autocleaning_report, Config) ->
         {service_oneprovider, get_auto_cleaning_report, {
             [{'node@host1', ?AUTO_CLEANING_REPORT1}], []
         }},
-        {task_finished, {service, action, ok}}
+        #action_end{service = service, action = action, result = ok}
     ]
     end),
     NewConfig;
@@ -1011,7 +1012,7 @@ init_per_testcase(get_should_return_autocleaning_configuration, Config) ->
             {service_oneprovider, get_auto_cleaning_configuration, {
                 [{'node@host1', ?AUTO_CLEANING_CONFIG}], []
             }},
-            {task_finished, {service, action, ok}}
+            #action_end{service = service, action = action, result = ok}
         ]
     end),
     NewConfig;
@@ -1029,7 +1030,7 @@ init_per_testcase(get_should_return_file_popularity_configuration, Config) ->
         {service_oneprovider, get_file_popularity_configuration, {
             [{'node@host1', ?FILE_POPULARITY_CONFIG}], []
         }},
-        {task_finished, {service, action, ok}}
+        #action_end{service = service, action = action, result = ok}
     ]
     end),
     NewConfig;
@@ -1041,7 +1042,7 @@ init_per_testcase(get_should_return_transfers_mock, Config) ->
         {service_op_worker, get_transfers_mock, {
             [{'node@host1', ?TRANSFERS_MOCK_CONFIG}], []
         }},
-        {task_finished, {service, action, ok}}
+        #action_end{service = service, action = action, result = ok}
     ]
     end),
     NewConfig;
@@ -1086,7 +1087,7 @@ init_per_testcase(_Case, Config) ->
             {service_op_worker, get_storages, {
                 [{'node@host1', keys_to_atoms(?STORAGE_JSON)}], []
             }},
-            {task_finished, {service, action, ok}}
+            #action_end{service = service, action = action, result = ok}
         ]
     end),
     test_utils:mock_expect(Nodes, service, apply_async, fun(Service, Action, Ctx) ->
