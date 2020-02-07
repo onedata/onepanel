@@ -379,17 +379,14 @@ get_should_return_cluster_ips(Config) ->
 post_should_register_provider(Config) ->
     ?eachHost(Config, fun(Host) ->
         % a proper token must be generated to allow extracting onezone domain
-        {ok, Token} = tokens:serialize(tokens:construct(#token{
-            onezone_domain = <<"oz.example.local">>, id = <<"id">>,
-            type = {invite_token, ?REGISTER_ONEPROVIDER, <<"adminId">>},
-            subject = ?SUB(user, <<"adminId">>), persistence = {temporary, 1}
-        }, tokens:generate_secret(), [])),
+        Token = onepanel_test_utils:create_registration_token(<<"some.domain">>),
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider">>, post,
             ?ROOT_AUTHS(Host), ?REGISTER_REQUEST_JSON(Token)
         )),
         ?assertReceivedMatch({service, oneprovider, register, #{
             oneprovider_token := Token,
+            onezone_domain := <<"some.domain">>,
             oneprovider_name := <<"someName">>,
             oneprovider_domain := <<"somedomain">>,
             oneprovider_geo_latitude := 20.0,
