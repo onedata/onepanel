@@ -932,6 +932,9 @@ set_up_service_in_onezone() ->
 %% This function should be executed after cluster deployment, and after
 %% upgrading to version 19.10 when the path variable name and contents
 %% have changed.
+%%
+%% The absolute path is mostly relevant to one-env source deployments,
+%% since in production the default in app.config is already absolute.
 %% @end
 %%--------------------------------------------------------------------
 -spec store_absolute_auth_file_path() -> ok.

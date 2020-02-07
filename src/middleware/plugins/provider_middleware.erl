@@ -74,7 +74,7 @@ required_availability(get, cluster, private) -> [];
 required_availability(get, transfers_mock, private) -> [];
 
 required_availability(update, instance, private) -> [?SERVICE_OPW, all_healthy];
-required_availability(update, transfers_mock, private) -> [];
+required_availability(update, transfers_mock, private) -> [?SERVICE_OPW, all_healthy];
 
 required_availability(delete, instance, private) -> [?SERVICE_OPW, all_healthy].
 
@@ -289,9 +289,7 @@ get(#onp_req{gri = #gri{aspect = cluster}}, _) ->
     {ok, value, middleware_utils:format_service_configuration(service_oneprovider)};
 
 get(#onp_req{gri = #gri{aspect = transfers_mock}}, _) ->
-    {ok, value, middleware_utils:result_from_service_action(
-        ?SERVICE_OPW, get_transfers_mock
-    )}.
+    {ok, value, service_op_worker:is_transfers_mock_enabled()}.
 
 
 -spec update(middleware:req()) -> middleware:update_result().

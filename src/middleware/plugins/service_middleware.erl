@@ -121,6 +121,7 @@ validate(#onp_req{
     As == op_worker_instances;
     As == oz_worker_instances
 ->
+    % @FIXME prevent deploymnt on already used nodes
     ok;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = {all_hosts_status, _}}}, _) ->
@@ -174,12 +175,19 @@ create(#onp_req{gri = #gri{aspect = cluster_manager_instances}, data = Data}) ->
     {ok, value, _TaskId = service:apply_async(?SERVICE_CM, deploy, Ctx)};
 
 create(#onp_req{gri = #gri{aspect = Aspect}, data = Data}) when
-    Aspect == oz_worker_instances;
     Aspect == op_worker_instances
+    ->
+    Service = ?SERVICE_OPW,
+    NewHosts = onepanel_utils:get_converted(hosts, Data, {seq, list}),
+    {ok, value, _TaskId = service:apply_async(Service, add_nodes, #{
+        new_hosts => NewHosts
+    })};
+
+create(#onp_req{gri = #gri{aspect = Aspect}, data = Data}) when
+    Aspect == oz_worker_instances
 ->
     Service = case Aspect of
-        oz_worker_instances -> ?SERVICE_OZW;
-        op_worker_instances -> ?SERVICE_OPW
+        oz_worker_instances -> ?SERVICE_OZW
     end,
     Hosts = onepanel_utils:get_converted(hosts, Data, {seq, list}),
     {ok, #service{hosts = DbHosts}} = service:get(service_couchbase:name()),

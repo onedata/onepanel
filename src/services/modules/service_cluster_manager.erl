@@ -17,6 +17,7 @@
 -include("names.hrl").
 -include("service.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/onedata.hrl").
 
 % @formatter:off
 -type model_ctx() :: #{
@@ -34,8 +35,12 @@
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
-%% API
--export([configure/1, start/1, stop/1, status/1, migrate_generated_config/1]).
+%% Public API
+-export([get_main_host/0]).
+
+%% Step functions
+-export([configure/1, start/1, stop/1, status/1, migrate_generated_config/1,
+    update_workers_number/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -119,10 +124,32 @@ get_steps(restart, _Ctx) ->
     [#step{function = stop}, #step{function = start}];
 
 get_steps(status, _Ctx) ->
-    [#step{function = status}].
+    [#step{function = status}];
+
+get_steps(update_workers_number, _Ctx) ->
+    [#step{function = update_workers_number}].
+
+
 
 %%%===================================================================
-%%% API functions
+%%% Public API
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc Returns the primary Cluster Manager host
+%% (as opposed to backup instances).
+%% @end
+%%--------------------------------------------------------------------
+-spec get_main_host() -> {ok, service:host()} | {error, term()}.
+get_main_host() ->
+    case service:get_ctx(name()) of
+        #{main_host := MainHost} -> {ok, MainHost};
+        {error, _} = Error -> Error
+    end.
+
+
+%%%===================================================================
+%%% Step functions
 %%%===================================================================
 
 %%--------------------------------------------------------------------
@@ -165,6 +192,20 @@ configure(#{main_host := MainHost, hosts := Hosts,
         "WAIT_FOR_PROCESS=" ++ Process, EnvFile),
 
     service:add_host(name(), Host).
+
+
+-spec update_workers_number(#{worker_num => non_neg_integer(), _ => _}) -> ok.
+update_workers_number(#{worker_num := WorkerNum}) ->
+    % @FIXME document why its only offline
+    ?notice("Updating worker_num to be ~p", [WorkerNum]),
+    onepanel_env:write([name(), worker_num], WorkerNum, ?SERVICE_CM);
+
+update_workers_number(_) ->
+    WorkerNum = case onepanel_env:get_cluster_type() of
+        ?ONEPROVIDER -> length(service_op_worker:get_hosts());
+        ?ONEZONE -> length(service_oz_worker:get_hosts())
+    end,
+    update_workers_number(#{worker_num => WorkerNum}).
 
 
 %%--------------------------------------------------------------------
