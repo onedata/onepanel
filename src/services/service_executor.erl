@@ -102,7 +102,7 @@ handle_results(Results, StepsCount) ->
 %% @doc Returns the asynchronous operation results.
 %% @end
 %%--------------------------------------------------------------------
--spec receive_results(TaskId :: task_id(), Timeout :: timeout()) ->
+-spec receive_results(TaskId :: task_id(), timeout()) ->
     Results :: service_executor:results() | ?ERROR_TIMEOUT.
 receive_results(TaskId, Timeout) ->
     receive
@@ -115,7 +115,7 @@ receive_results(TaskId, Timeout) ->
 %% @doc Returns total number of steps resolved for given task.
 %% @end
 %%--------------------------------------------------------------------
--spec receive_count(TaskId :: task_id(), Timeout :: timeout()) ->
+-spec receive_count(TaskId :: task_id(), timeout()) ->
     Count :: non_neg_integer() | ?ERROR_TIMEOUT.
 receive_count(TaskId, Timeout) ->
     receive

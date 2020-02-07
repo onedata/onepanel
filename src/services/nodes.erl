@@ -47,7 +47,7 @@ local(ServiceName) ->
 %% If Opts contain 'node' key and specified node matches requested service,
 %%   this node is returned. This allows reuse of an already resolved
 %%   node by passing the "Ctx" argument in step functions.
-%% If among considered hosts is the current one, this host's node is returned.
+%% If among considered hosts is the local one, this host's node is returned.
 %% @end
 %%--------------------------------------------------------------------
 -spec any(ServiceNameOrOpts :: service:name() | opts()) ->

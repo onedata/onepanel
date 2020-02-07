@@ -439,7 +439,7 @@ rename_variables() ->
         {[name(), subdomain_delegation_enabled], [name(), subdomain_delegation_supported]}
     ],
     lists:foreach(fun({Old, New}) ->
-        onepanel_env:migrate(name(), Old, New)
+        onepanel_env:rename(name(), Old, New)
     end, Changes).
 
 

@@ -539,11 +539,11 @@ get_details() ->
         end
     catch
         Type:?ERROR_UNREGISTERED_ONEPROVIDER = Error ->
-            erlang:Type(Error);
+            erlang:raise(Type, Error, erlang:get_stacktrace());
         Type:Error ->
             case service:get_ctx(name()) of
                 #{?DETAILS_PERSISTENCE := Cached} -> Cached;
-                _ -> erlang:Type(Error)
+                _ -> erlang:raise(Type, Error, erlang:get_stacktrace())
             end
     end.
 

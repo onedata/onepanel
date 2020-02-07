@@ -336,10 +336,16 @@ init_per_testcase(delete_as_admin_should_fail_if_node_is_used , Config) ->
 
 init_per_testcase(post_as_admin_should_extend_cluster_and_return_hostname, Config) ->
     Nodes = ?config(onepanel_nodes, Config),
-    test_utils:mock_new(Nodes, [service, service_onepanel], [passthrough]),
+    test_utils:mock_new(Nodes, [service, service_onepanel, service_oneprovider],
+        [passthrough]),
     test_utils:mock_expect(Nodes, service_onepanel, extend_cluster, fun
         (#{hostname := Hostname}) -> #{hostname => Hostname};
         (_Ctx) -> #{hostname => <<?NEW_HOST_HOSTNAME>>} end),
+    % it should work even in presence of some deployed services
+    test_utils:mock_new(Nodes, [service_oneprovider]),
+    test_utils:mock_expect(Nodes, service_oneprovider, get_hosts,
+        fun() -> [hosts:self()] end),
+
     init_per_testcase(default, Config);
 
 init_per_testcase(unauthorized_post_should_join_cluster, Config) ->

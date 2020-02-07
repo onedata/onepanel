@@ -202,7 +202,7 @@ status(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec migrate_generated_config(service:ctx()) -> ok | no_return().
 migrate_generated_config(_Ctx) ->
-    onepanel_env:migrate_generated_config(name(), [
+    onepanel_env:upgrade_app_config(name(), [
         [cluster_manager, cm_nodes],
         [cluster_manager, worker_num],
         [kernel, distributed],
