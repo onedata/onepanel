@@ -21,9 +21,22 @@
 
 -define(TMP_KEYRING_PATH, <<"/tmp/mon.keyring">>).
 
+% @formatter:off
+-type model_ctx() :: #{
+    instances := #{id() => ceph:instance()},
+
+    %% Caches (i.e. not the primary source of truth):
+    % Service status cache. Created as a side effect of service:add_host/2.
+    % WARNING! Ceph services do not have recurring healthcheck via onepanel_cron,
+    % therefore the status is not updated.
+    status => #{service:host() => healthy}
+}.
+
 %% monitor Id, always equal to `list_to_binary(monitor's hostname)`
 -type id() :: binary().
--export_type([id/0]).
+
+-export_type([id/0, model_ctx/0]).
+% @formatter:on
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).

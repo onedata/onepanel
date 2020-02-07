@@ -38,9 +38,23 @@
 -type type() :: loopdevice | blockdevice.
 -type bytes() :: integer().
 -type usage() :: #{total := bytes(), used := bytes(), available := bytes()}.
+
+-type model_ctx() :: #{
+    instances := #{id() => loopdevice_instance() | blockdevice_instance()},
+
+    % mapping from long-forrm UUIDs to the contiguous integer IDs.
+    uuid_to_id => #{ceph:uuid() => id()},
+
+    %% Caches (i.e. not the primary source of truth):
+    % Service status cache. Created as a side effect of service:add_host/2.
+    % WARNING! Ceph services do not have recurring healthcheck via onepanel_cron,
+    % therefore the status is not updated.
+    status => #{service:host() => healthy}
+}.
+
 % @formatter:on
 
--export_type([id/0, type/0, usage/0]).
+-export_type([id/0, type/0, usage/0, model_ctx/0]).
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
@@ -381,7 +395,7 @@ get_usage() ->
 %%%===================================================================
 
 %% @private
--spec get_ctx() -> service:step_ctx() | {error, _}.
+-spec get_ctx() -> model_ctx() | {error, _}.
 get_ctx() ->
     service:get_ctx(name()).
 
@@ -389,7 +403,7 @@ get_ctx() ->
 %% @private
 -spec list_instances() -> [ceph:instance()].
 list_instances() ->
-    case service:get_ctx(name()) of
+    case get_ctx() of
         #{instances := Instances} -> maps:values(Instances);
         _ -> []
     end.
@@ -399,7 +413,7 @@ list_instances() ->
 -spec get_instance({id, id()} | {uuid, ceph:uuid()}) ->
     blockdevice_instance() | loopdevice_instance().
 get_instance({id, Id}) ->
-    case service:get_ctx(name()) of
+    case get_ctx() of
         #{instances := #{Id := Instance}} -> Instance;
         _ -> throw(?ERROR_NOT_FOUND)
     end;

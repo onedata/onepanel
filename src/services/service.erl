@@ -39,11 +39,11 @@
 -export([get_ctx/1, update_ctx/2, store_in_ctx/3]).
 
 % @formatter:off
--type name() :: ?SERVICE_OZ | ?SERVICE_OP |
-    ?SERVICE_OPW | ?SERVICE_OZW | ?SERVICE_CW |
-    ?SERVICE_CM | ?SERVICE_CB | ?SERVICE_PANEL |
-    ?SERVICE_LE | ?SERVICE_CEPH |
-    ?SERVICE_CEPH_OSD | ?SERVICE_CEPH_MON | ?SERVICE_CEPH_MGR.
+-type name() :: ?SERVICE_OZ | ?SERVICE_OP
+    | ?SERVICE_OPW | ?SERVICE_OZW | ?SERVICE_CW
+    | ?SERVICE_CM | ?SERVICE_CB | ?SERVICE_PANEL
+    | ?SERVICE_LE | ?SERVICE_CEPH
+    | ?SERVICE_CEPH_OSD | ?SERVICE_CEPH_MON | ?SERVICE_CEPH_MGR.
 -type action() :: atom().
 -type notify() :: pid() | undefined.
 -type host() :: string().
@@ -55,10 +55,13 @@
 
 
 %% record field used for arbitrary information about the service
--type model_ctx() :: service_oneprovider:model_ctx() | service_onezone:model_ctx()
-| service_op_worker:model_ctx() | service_oz_worker:model_ctx()
-| service_cluster_manager:model_ctx()
-| map().
+-type model_ctx() :: service_op_worker:model_ctx() | service_oz_worker:model_ctx()
+| service_oneprovider:model_ctx() | service_onezone:model_ctx()
+| service_cluster_manager:model_ctx() | service_letsencrypt:model_ctx()
+| service_couchbase:model_ctx() | service_ceph:model_ctx()
+| service_ceph_mon:model_ctx() | service_ceph_mgr:model_ctx()
+| service_ceph_osd:model_ctx().
+
 -type record() :: #service{}.
 
 
@@ -480,6 +483,8 @@ register_healthcheck(Service, Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc Returns the "ctx" field of a service model.
+%% Verbose typespec to make up for the lack of different models/records
+%% in the service model.
 %% @end
 %%--------------------------------------------------------------------
 -spec get_ctx
@@ -490,10 +495,12 @@ register_healthcheck(Service, Ctx) ->
     (?SERVICE_CM) -> service_cluster_manager:model_ctx() | {error, _};
     (?SERVICE_LE) -> service_letsencrypt:model_ctx() | {error, _};
     (?SERVICE_CB) -> service_couchbase:model_ctx() | {error, _};
-    % @FIXME
-    (?SERVICE_PANEL) -> ?ERR_DOC_NOT_FOUND;
-    (?SERVICE_CEPH | ?SERVICE_CEPH_OSD | ?SERVICE_CEPH_MON | ?SERVICE_CEPH_MGR)
-        -> map() | {error, _}.
+    (?SERVICE_CEPH) -> service_ceph:model_ctx() | {error, _};
+    (?SERVICE_CEPH_MON) -> service_ceph_mon:model_ctx() | {error, _};
+    (?SERVICE_CEPH_MGR) -> service_ceph_mgr:model_ctx() | {error, _};
+    (?SERVICE_CEPH_OSD) -> service_ceph_osd:model_ctx() | {error, _};
+    % #service model is not created for service_onepanel module
+    (?SERVICE_PANEL) -> ?ERR_DOC_NOT_FOUND | {error, _}.
 get_ctx(Service) ->
     case ?MODULE:get(Service) of
         {ok, #service{ctx = Ctx}} -> Ctx;

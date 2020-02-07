@@ -32,12 +32,11 @@
 
 -include("http/rest.hrl").
 
--type id() :: binary().
-
-
-%% Type specs for #service.ctx
+-define(DETAILS_PERSISTENCE, provider_details).
 
 % @formatter:off
+-type id() :: binary().
+
 -type model_ctx() :: #{
     %% set after registration
     onezone_domain => binary(),
@@ -46,16 +45,25 @@
     master_host => service:host(),
 
     %% Caches (i.e. not the primary source of truth):
-    % is_registered cache (op_worker's datastore is the primary source of truth)
+    % is_registered cache (op_worker's datastore is the source of truth)
     registered => boolean(),
     % service status
     status => #{service:host() => service:status()},
     % 'dns_check' module cache
-    dns_check => dns_check:result(),
+    ?DNS_CHECK_TIMESTAMP_KEY => time_utils:seconds(),
+    ?DNS_CHECK_CACHE_KEY => dns_check:result(),
     % 'clusters' module cache
     cluster => #{atom() := term()},
     % provider details cache (for when op_worker is down)
-    provider_details => #{atom() := term()}
+    ?DETAILS_PERSISTENCE => #{atom() := term()},
+
+    %% Deprecated
+    % removed after upgrading past 18.02.0-beta5
+    % see {@link pop_legacy_letsencrypt_config/0}
+    has_letsencrypt_cert => boolean(),
+    % emptied (not removed) after upgrading past 18.02.0-rc1
+    % see {@link pop_legacy_letsencrypt_config/0}
+    configured => gb_sets:set(atom())
 }.
 % @formatter:on
 
@@ -83,10 +91,6 @@
 
 % Internal RPC
 -export([root_token_from_file/0]).
-
--define(OZ_DOMAIN_CACHE, oz_domain).
--define(OZ_DOMAIN_CACHE_TTL, timer:minutes(1)).
--define(DETAILS_PERSISTENCE, provider_details).
 
 %%%===================================================================
 %%% Service behaviour callbacks

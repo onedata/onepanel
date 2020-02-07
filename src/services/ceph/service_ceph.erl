@@ -33,6 +33,20 @@
 -include("service.hrl").
 -include_lib("ctool/include/logging.hrl").
 
+
+% @formatter:off
+-type cluster_name() :: binary().
+
+-type model_ctx() :: #{
+    cluster_name := cluster_name(),
+    fsid := ceph:uuid()
+}.
+% @formatter:on
+
+-export_type([model_ctx/0]).
+
+
+
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
@@ -430,7 +444,7 @@ ensure_models(GlobalParams) ->
 %% @private @doc Returns this service's ctx.
 %% @end
 %%--------------------------------------------------------------------
--spec get_ctx() -> service:step_ctx() | {error, _}.
+-spec get_ctx() -> model_ctx() | {error, _}.
 get_ctx() ->
     service:get_ctx(name()).
 
