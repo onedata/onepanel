@@ -128,10 +128,16 @@ validate(#onp_req{operation = get, gri = #gri{aspect = instance}, data = Data}, 
         {false, _} -> throw(?ERROR_MISSING_REQUIRED_VALUE(<<"token">>))
     end;
 
-validate(#onp_req{operation = get, gri = #gri{aspect = cluster}}, _) ->
+validate(#onp_req{operation = get, gri = #gri{aspect = cluster}, data = Data}, _) ->
     case onepanel_deployment:is_set(?PROGRESS_CLUSTER) of
         true -> ok;
         false -> throw(?ERROR_NOT_FOUND)
+    end,
+    % This check should be done by the data spec, but swagger's cowboy
+    % generator is buggy and does not enforce presence of the "onezone" key.
+    case maps:find(onezone, Data) of
+        {ok, Map} when is_map(Map) -> ok;
+        _ -> throw(?ERROR_MISSING_REQUIRED_VALUE(<<"onezone">>))
     end;
 
 validate(#onp_req{operation = Op, gri = #gri{aspect = policies}}, _) when
