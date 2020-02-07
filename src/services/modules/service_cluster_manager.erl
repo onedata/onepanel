@@ -145,7 +145,6 @@ configure(#{main_host := MainHost, hosts := Hosts,
     Cookie = erlang:get_cookie(),
 
     onepanel_env:write([name(), cm_nodes], Nodes, ?SERVICE_CM),
-    % @FIXME adjust when adding worker node
     onepanel_env:write([name(), worker_num], WorkerNum, ?SERVICE_CM),
 
     onepanel_env:write([kernel, distributed], [{

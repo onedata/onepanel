@@ -38,11 +38,11 @@
 -type id() :: binary().
 
 -type model_ctx() :: #{
-    %% set after registration
-    onezone_domain => binary(),
-
     % dedicated host for initiating cluster startup process after restart
     master_host => service:host(),
+
+    % set after registration
+    onezone_domain => binary(),
 
     %% Caches (i.e. not the primary source of truth):
     % is_registered cache (op_worker's datastore is the source of truth)

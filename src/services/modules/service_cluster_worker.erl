@@ -107,7 +107,7 @@ get_steps(status, _Ctx) ->
 get_steps(set_cluster_ips, #{hosts := Hosts} = _Ctx) ->
     [#step{function = set_node_ip, hosts = Hosts}];
 get_steps(set_cluster_ips, #{cluster_ips := HostsToIps} = Ctx) ->
-    % execute only on nodes where ip is explicitely provided
+    % execute only on nodes where ip is explicitly provided
     get_steps(set_cluster_ips, Ctx#{hosts => maps:keys(HostsToIps)});
 get_steps(set_cluster_ips, #{name := ServiceName} = Ctx) ->
     % execute on all service hosts, "guessing" IP if necessary

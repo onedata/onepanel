@@ -46,7 +46,6 @@
 -export_type([model_ctx/0]).
 
 
-
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
