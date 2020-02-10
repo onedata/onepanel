@@ -100,7 +100,7 @@ auth_to_rest_client({token, Token}) ->
 auth_to_rest_client(op_panel) ->
     OneproviderAccessToken = service_oneprovider:get_access_token(),
     OpPanelAccessToken = tokens:build_oneprovider_access_token(?OP_PANEL, OneproviderAccessToken),
-    {headers, tokens:service_token_header(OpPanelAccessToken)};
+    {headers, tokens:access_token_header(OpPanelAccessToken)};
 
 auth_to_rest_client(provider) ->
     ProviderAccessToken = service_oneprovider:get_access_token(),
