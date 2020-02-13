@@ -125,7 +125,9 @@ verify_access_token(SerializedToken, PeerIp) ->
     {ok, Token} = tokens:deserialize(SerializedToken),
     {ok, BinaryIp} = ip_utils:to_binary(PeerIp),
     ReqBody = json_utils:encode(#{
-        <<"token">> => SerializedToken, <<"peerIp">> => BinaryIp
+        <<"token">> => SerializedToken,
+        <<"peerIp">> => BinaryIp,
+        <<"service">> => aai:serialize_service(?SERVICE(?OP_PANEL, clusters:get_id()))
     }),
     case oz_endpoint:request(
         op_panel, "/tokens/verify_access_token", post, ReqBody
