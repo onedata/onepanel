@@ -95,10 +95,14 @@ auth_to_rest_client({access_token, AccessToken}) ->
 auth_to_rest_client({gui_token, GuiToken}) ->
     ProviderMacaroon = service_oneprovider:get_auth_token(),
     AudienceToken = tokens:serialize_audience_token(?OP_PANEL, ProviderMacaroon),
-    {headers, maps:merge(
+    Headers = maps:merge(
         tokens:build_access_token_header(GuiToken),
         tokens:build_audience_token_header(AudienceToken)
-    )};
+    ),
+    {headers, Headers#{
+        % Added for future compatibility with Onezone v. 20.02.*
+        <<"x-onedata-service-token">> => AudienceToken
+    }};
 
 auth_to_rest_client(provider) ->
     ProviderMacaroon = service_oneprovider:get_auth_token(),
