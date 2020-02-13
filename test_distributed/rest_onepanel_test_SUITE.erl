@@ -12,6 +12,7 @@
 -author("Krzysztof Trzepla").
 
 -include("modules/errors.hrl").
+-include("authentication.hrl").
 -include("onepanel_test_utils.hrl").
 -include("onepanel_test_rest.hrl").
 -include_lib("ctool/include/aai/caveats.hrl").
@@ -21,6 +22,9 @@
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
+-include_lib("ctool/include/onedata.hrl").
+-include_lib("ctool/include/aai/aai.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% export for ct
 -export([all/0, init_per_suite/1, init_per_testcase/2,
@@ -29,8 +33,8 @@
 %% tests
 -export([
     method_should_return_unauthorized_error/1,
-    token_with_api_caveats_should_return_unauthorized_error/1,
-    noauth_method_should_return_forbidden_error/1,
+    api_caveats_should_restrict_available_endpoints/1,
+    noauth_method_should_return_unauthorized_error/1,
     method_should_return_forbidden_error/1,
     method_should_return_not_found_error/1,
     noauth_get_should_return_password_status/1,
@@ -42,7 +46,8 @@
     get_should_return_node_details/1,
     post_as_admin_should_extend_cluster_and_return_hostname/1,
     unauthorized_post_should_join_cluster/1,
-    delete_as_admin_should_remove_node_from_cluster/1
+    delete_as_admin_should_remove_node_from_cluster/1,
+    delete_as_admin_should_fail_if_node_is_used/1
 ]).
 
 -define(COOKIE, someCookie).
@@ -53,8 +58,8 @@
 all() ->
     ?ALL([
         method_should_return_unauthorized_error,
-        token_with_api_caveats_should_return_unauthorized_error,
-        noauth_method_should_return_forbidden_error,
+        api_caveats_should_restrict_available_endpoints,
+        noauth_method_should_return_unauthorized_error,
         method_should_return_forbidden_error,
         method_should_return_not_found_error,
         noauth_get_should_return_password_status,
@@ -66,7 +71,8 @@ all() ->
         get_should_return_node_details,
         post_as_admin_should_extend_cluster_and_return_hostname,
         unauthorized_post_should_join_cluster,
-        delete_as_admin_should_remove_node_from_cluster
+        delete_as_admin_should_remove_node_from_cluster,
+        delete_as_admin_should_fail_if_node_is_used
     ]).
 
 %%%===================================================================
@@ -92,40 +98,26 @@ method_should_return_unauthorized_error(Config) ->
     ]).
 
 
-token_with_api_caveats_should_return_unauthorized_error(Config) ->
-    BadCaveats = [
-        #cv_api{whitelist = [{all, all, #gri_pattern{type = '*', aspect = '*'}}]},
-        #cv_api{whitelist = [{oz_worker, delete, #gri_pattern{type = '*', aspect = '*'}}]},
-        #cv_api{whitelist = [{oz_panel, create, #gri_pattern{type = '*', aspect = '*'}}]},
-        #cv_interface{interface = oneclient},
-        #cv_data_readonly{},
-        #cv_data_path{whitelist = [<<"/260a56d159a980ca0d645dd81/dir/file.txt">>]},
-        #cv_data_objectid{whitelist = [<<"901823DEC57846DCFE">>]}
-    ],
-    % sample good caveats
-    GoodCaveats = [
-        #cv_time{valid_until = time_utils:system_time_seconds()},
-        #cv_ip{whitelist = [{{1,2,3,4}, 32}]}
-    ],
-    lists:foreach(fun(Caveat) ->
-        Caveats = GoodCaveats ++ [Caveat],
-        Token = onepanel_test_rest:construct_token(Caveats),
-        Expected = #{
-            <<"error">> => errors:to_json(?ERROR_TOKEN_CAVEAT_UNVERIFIED(Caveat))
-        },
-        {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _},
-            onepanel_test_rest:auth_request(
-                % sample endpoint - all have common authorization code
-                Config, <<"/cookie">>, get, {token, Token}
-            )),
-        onepanel_test_rest:assert_body(JsonBody, Expected)
-    end, BadCaveats).
+api_caveats_should_restrict_available_endpoints(Config) ->
+    Caveat = #cv_api{whitelist = [
+        {?OP_PANEL, get, #gri_pattern{type = 'onp_panel', id='*', aspect = 'cookie'}}
+    ]},
+    Token = onepanel_test_rest:construct_token([Caveat]),
+    ?assertMatch({ok, ?HTTP_200_OK, _, _},
+        onepanel_test_rest:auth_request(
+            Config, <<"/cookie">>, get, {token, Token}
+        )),
+    ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _},
+        onepanel_test_rest:auth_request(
+            % sample endpoint - all have common authorization code
+            Config, <<"/progress">>, get, {token, Token}
+        )).
 
 
-noauth_method_should_return_forbidden_error(Config) ->
+noauth_method_should_return_unauthorized_error(Config) ->
     ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
         lists:foreach(fun(Auth) ->
-            ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
+            ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _}, onepanel_test_rest:auth_request(
                 Host, Endpoint, Method, Auth
             ))
         end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
@@ -285,6 +277,16 @@ delete_as_admin_should_remove_node_from_cluster(Config) ->
     ?assertReceivedMatch({service, onepanel, leave_cluster,
         #{hosts := [?CLUSTER_HOST_HOSTNAME]}}, ?TIMEOUT).
 
+
+delete_as_admin_should_fail_if_node_is_used(Config) ->
+    {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_400_BAD_REQUEST, _, _},
+        onepanel_test_rest:auth_request(
+        Config, "/hosts/" ++ ?CLUSTER_HOST_HOSTNAME, delete,
+        ?OZ_OR_ROOT_AUTHS(Config, [?CLUSTER_UPDATE])
+    )),
+    onepanel_test_rest:assert_body(JsonBody,
+        #{<<"error">> => errors:to_json(?ERROR_NOT_SUPPORTED)}).
+
 %%%===================================================================
 %%% SetUp and TearDown functions
 %%%===================================================================
@@ -295,8 +297,20 @@ init_per_suite(Config) ->
     Posthook = fun(NewConfig) -> onepanel_test_utils:init(NewConfig) end,
     [{?LOAD_MODULES, [onepanel_test_rest]}, {?ENV_UP_POSTHOOK, Posthook} | Config].
 
-init_per_testcase(Case, Config) when
-    Case =:= delete_as_admin_should_remove_node_from_cluster ->
+
+init_per_testcase(method_should_return_unauthorized_error, Config) ->
+    Nodes = ?config(all_nodes, Config),
+    test_utils:mock_new(Nodes, [service, host_middleware, onepanel_parser]),
+    test_utils:mock_expect(Nodes, service, is_healthy, fun(_) -> true end),
+    test_utils:mock_expect(Nodes, service, all_healthy, fun() -> true end),
+    test_utils:mock_expect(Nodes, host_middleware, fetch_entity, fun
+        (_) -> {ok, {undefined, 1}}
+    end),
+    % do not require valid payload in requests
+    test_utils:mock_expect(Nodes, onepanel_parser, parse, fun(_, _) -> #{} end),
+    init_per_testcase(default, Config);
+
+init_per_testcase(delete_as_admin_should_remove_node_from_cluster, Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     Self = self(),
     test_utils:mock_new(Nodes, [service, service_onepanel]),
@@ -309,12 +323,29 @@ init_per_testcase(Case, Config) when
     end),
     init_per_testcase(default, Config);
 
+
+init_per_testcase(delete_as_admin_should_fail_if_node_is_used , Config) ->
+    Nodes = ?config(onepanel_nodes, Config),
+    test_utils:mock_new(Nodes, [service_onepanel]),
+    test_utils:mock_expect(Nodes, service_onepanel, get_hosts, fun() ->
+        [?CLUSTER_HOST_HOSTNAME | hosts:from_nodes(Nodes)]
+    end),
+    test_utils:mock_expect(Nodes, service_onepanel, is_host_used,
+        fun(_) -> true end),
+    init_per_testcase(default, Config);
+
 init_per_testcase(post_as_admin_should_extend_cluster_and_return_hostname, Config) ->
     Nodes = ?config(onepanel_nodes, Config),
-    test_utils:mock_new(Nodes, [service, service_onepanel], [passthrough]),
+    test_utils:mock_new(Nodes, [service, service_onepanel, service_oneprovider],
+        [passthrough]),
     test_utils:mock_expect(Nodes, service_onepanel, extend_cluster, fun
         (#{hostname := Hostname}) -> #{hostname => Hostname};
         (_Ctx) -> #{hostname => <<?NEW_HOST_HOSTNAME>>} end),
+    % it should work even in presence of some deployed services
+    test_utils:mock_new(Nodes, [service_oneprovider]),
+    test_utils:mock_expect(Nodes, service_oneprovider, get_hosts,
+        fun() -> [hosts:self()] end),
+
     init_per_testcase(default, Config);
 
 init_per_testcase(unauthorized_post_should_join_cluster, Config) ->
@@ -330,9 +361,51 @@ init_per_testcase(unauthorized_post_should_join_cluster, Config) ->
     init_per_testcase(default, Config);
 
 init_per_testcase(Case, Config) when
-    Case == token_with_api_caveats_should_return_unauthorized_error;
-    Case == noauth_put_should_set_emergency_passphrase ->
+    Case == method_should_return_forbidden_error;
+    Case == noauth_method_should_return_unauthorized_error
+->
+    Nodes = ?config(onepanel_nodes, Config),
+    Hosts = hosts:from_nodes(Nodes),
+    test_utils:mock_new(Nodes, [service_onepanel, onepanel_parser]),
+    test_utils:mock_expect(Nodes, service_onepanel, get_hosts,
+        fun() -> ["someHost" | Hosts] end),
+    % do not require valid payload in requests
+    test_utils:mock_expect(Nodes, onepanel_parser, parse, fun(_, _) -> #{} end),
+    init_per_testcase(default, Config);
+
+init_per_testcase(noauth_put_should_set_emergency_passphrase , Config) ->
     ?call(Config, model, clear, [onepanel_kv]),
+    Config;
+
+init_per_testcase(api_caveats_should_restrict_available_endpoints, Config) ->
+    Nodes = ?config(onepanel_nodes, Config),
+    % mocks for onezone_tokens:authenticate_user/3 to succeed
+    test_utils:mock_new(Nodes, [oz_endpoint, service_oneprovider]),
+    test_utils:mock_expect(Nodes, service_oneprovider, get_id,
+        fun() -> <<"some-id">> end),
+    test_utils:mock_expect(Nodes, oz_endpoint, request, fun
+        (_Auth, "/tokens/verify_access_token", post, _) ->
+            ?info("verifying access token using auth ~p", [_Auth]),
+            {ok, 200, #{}, json_utils:encode(#{
+                subject => aai:subject_to_json(?SUB(user, <<"userId">>)),
+                ttl => 3600
+            })};
+        (_Auth, "/clusters/" ++ _, get, _) ->
+            % assume privileges check
+            {ok, 200, #{}, json_utils:encode(#{
+                <<"privileges">> => privileges:cluster_admin()
+            })}
+    end),
+    test_utils:mock_expect(Nodes, oz_endpoint, request, fun
+        (_, "/user", get) ->
+            ?info("fetching user details"),
+            {ok, 200, #{}, json_utils:encode(#{
+                <<"userId">> => <<"userId">>,
+                <<"name">> => <<"someUserName">>,
+                <<"username">> => <<"someUserName">>,
+                <<"linkedAccounts">> => [], <<"emails">> => []
+            })}
+    end),
     Config;
 
 init_per_testcase(_Case, Config) ->

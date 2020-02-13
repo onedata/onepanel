@@ -19,6 +19,7 @@
 %% API
 -export([get_steps/3, format_steps/2, notify/2, partition_results/1]).
 -export([results_contain_error/1, throw_on_error/1]).
+-export([select_service_step/3]).
 -export([for_each_ctx/2]).
 -export([absolute_path/2]).
 
@@ -139,6 +140,25 @@ throw_on_error(Results) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc Returns hosts results of the selected service step.
+%% Throws an exception if the step is not found.
+%% @end
+%%--------------------------------------------------------------------
+-spec select_service_step(Module :: module(), Function :: atom(),
+    Results :: service_executor:results()) ->
+    HostsResults :: service_executor:hosts_results().
+select_service_step(Module, Function, []) ->
+    ?error("Service step ~p:~p not found", [Module, Function]),
+    error({step_not_found, {Module, Function}});
+
+select_service_step(Module, Function, [{Module, Function, Results} | _]) ->
+    Results;
+
+select_service_step(Module, Function, [_ | Results]) ->
+    select_service_step(Module, Function, Results).
+
+
+%%--------------------------------------------------------------------
 %% @doc Takes a list of Ctxs, each intended for one host, and a list of steps.
 %% Duplicates the list of steps to be executed for each Ctx in sequence.
 %% Host-specific ctx (from the Ctxs list) overrides
@@ -254,7 +274,8 @@ get_step(#step{ctx = Ctx, args = undefined} = Step) ->
     get_step(Step#step{args = [Ctx]});
 
 get_step(#step{condition = Condition, ctx = Ctx} = Step) when
-    is_function(Condition, 1) ->
+    is_function(Condition, 1)
+->
     get_step(Step#step{condition = Condition(Ctx)});
 
 get_step(#step{condition = true} = Step) ->
@@ -270,7 +291,8 @@ get_step(#step{condition = false}) ->
 %%--------------------------------------------------------------------
 -spec get_nested_steps(Steps :: #steps{}) -> Steps :: [#step{}].
 get_nested_steps(#steps{ctx = Ctx, condition = Condition} = Steps) when
-    is_function(Condition, 1) ->
+    is_function(Condition, 1)
+->
     get_nested_steps(Steps#steps{condition = Condition(Ctx)});
 
 get_nested_steps(#steps{condition = true} = Steps) ->

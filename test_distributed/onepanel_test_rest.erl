@@ -184,7 +184,10 @@ noauth_request(HostOrConfig, Port, {noprefix, Path}, Method, Headers, Body) ->
         Headers
     ],
     Url = onepanel_utils:join(["https://", Host, ":", Port, Path]),
-    JsonBody = json_utils:encode(Body),
+    JsonBody = case string:is_empty(Body) of
+        true -> <<>>;
+        false -> json_utils:encode(Body)
+    end,
     http_client:request(Method, Url, maps:from_list(NewHeaders), JsonBody,
         [{ssl_options, [{secure, false}]}]);
 
@@ -259,8 +262,14 @@ mock_token_authentication(Nodes) ->
             ClientBin = base64:decode(ClientB64),
             Client = erlang:binary_to_term(ClientBin),
             case onepanel_env:get_cluster_type() of
-                oneprovider -> Client#client{zone_auth = {rest, {token, Token}}};
-                onezone -> Client#client{zone_auth = {rpc, opaque_client}}
+                oneprovider -> Client#client{
+                    zone_credentials = {rest, {token, Token}},
+                    auth = aai:user_auth(<<"user-id">>)
+                };
+                onezone -> Client#client{
+                    zone_credentials = {rpc, opaque_client},
+                    auth = aai:user_auth(<<"user-id">>)
+                }
             end;
         (_BadToken, _PeerIp) -> ?ERROR_TOKEN_INVALID
     end).
@@ -330,6 +339,7 @@ construct_token(Caveats) ->
     {ok, Token} = tokens:serialize(tokens:construct(#token{
         subject = ?SUB(user, <<"userId">>),
         onezone_domain = <<"someonezone.test">>,
-        persistent = false,
-        id = str_utils:rand_hex(16)}, <<"someSecret">>, Caveats)),
+        persistence = {temporary, 1},
+        id = str_utils:rand_hex(16)
+    }, <<"someSecret">>, Caveats)),
     Token.

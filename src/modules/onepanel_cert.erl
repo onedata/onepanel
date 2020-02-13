@@ -22,7 +22,8 @@
 -export_type([pem/0, cert/0]).
 
 %% API
--export([generate_csr_and_key/1, backup_exisiting_certs/0]).
+-export([generate_csr_and_key/1, backup_exisiting_certs/0,
+    list_certificate_files/0]).
 -export([read/1, verify_hostname/2, get_subject_cn/1, get_issuer_cn/1,
     get_seconds_till_expiration/1]).
 -export([get_times/1]).
@@ -180,6 +181,23 @@ backup_exisiting_certs() ->
     end, [WebKeyPath, WebCertPath, WebChainPath]).
 
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Lists certificate-related files present on the current node.
+%% That is: web cert, key, chain file; any content of Let's Encrypt
+%% credentials directory.
+%% @end
+%%--------------------------------------------------------------------
+-spec list_certificate_files() -> [file:filename()].
+list_certificate_files() ->
+    lists:filter(fun filelib:is_regular/1, [
+        onepanel_env:get(web_key_file),
+        onepanel_env:get(web_cert_file),
+        onepanel_env:get(web_cert_chain_file)
+        | filelib:wildcard([onepanel_env:get(letsencrypt_keys_dir), "/**"])
+    ]).
+
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -187,7 +205,7 @@ backup_exisiting_certs() ->
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
-%% Converts plain 'Certificate' record to 'OTPCertificate.
+%% Converts plain 'Certificate' record to 'OTPCertificate'.
 %% @end
 %%--------------------------------------------------------------------
 -spec to_otp(cert()) -> #'OTPCertificate'{}.

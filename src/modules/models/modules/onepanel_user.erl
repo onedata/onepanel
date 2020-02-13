@@ -5,8 +5,12 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc This module contains user management functions.
-%%% It implements {@link model_behaviour} behaviour.
+%%% @doc Legacy module preserved to handle upgrades to version 19.02.
+%%%
+%%% Currently, Onepanel does not store user credentials except the emergency
+%%% passphrase for the root login.
+%%% This module remains to support basic auth users migration to oz-worker
+%%% and setup of emergency passphrase based on the admin user password.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_user).

@@ -44,7 +44,7 @@
 -export([configure/1, check_oz_availability/1, mark_configured/0,
     register/1, unregister/0, is_registered/1, is_registered/0,
     modify_details/1, get_details/0, get_oz_domain/0,
-    support_space/1, revoke_space_support/1, get_spaces/1, is_space_supported/1,
+    support_space/1, revoke_space_support/1, get_spaces/0, is_space_supported/1,
     get_space_details/1, modify_space/1, format_cluster_ips/1,
     get_sync_stats/1, get_auto_cleaning_reports/1, get_auto_cleaning_report/1,
     get_auto_cleaning_status/1, start_auto_cleaning/1, check_oz_connection/0,
@@ -83,7 +83,8 @@ get_hosts() ->
     lists:usort(lists:append([
         service:get_hosts(?SERVICE_CB),
         service:get_hosts(?SERVICE_CM),
-        service:get_hosts(?SERVICE_OPW)
+        service:get_hosts(?SERVICE_OPW),
+        service:get_hosts(?SERVICE_CEPH)
     ])).
 
 
@@ -271,13 +272,13 @@ get_steps(set_cluster_ips, Ctx) ->
     get_steps(set_cluster_ips, Ctx#{hosts => hosts:all(?SERVICE_OPW)});
 
 get_steps(Action, _Ctx) when
+    Action =:= get_spaces;
     Action =:= get_details ->
     [#step{function = Action, args = [], selection = any}];
 
 get_steps(Action, Ctx) when
     Action =:= support_space;
     Action =:= revoke_space_support;
-    Action =:= get_spaces;
     Action =:= get_space_details;
     Action =:= modify_space;
     Action =:= get_auto_cleaning_reports;
@@ -311,6 +312,8 @@ get_steps(Action, Ctx) when
 %%--------------------------------------------------------------------
 -spec get_id() -> id().
 get_id() ->
+    service_oneprovider:is_registered()
+        orelse throw(?ERROR_UNREGISTERED_ONEPROVIDER),
     case op_worker_rpc:get_provider_id() of
         {ok, <<ProviderId/binary>>} ->
             ProviderId;
@@ -519,8 +522,7 @@ modify_details(Ctx) ->
 
     case maps:size(Params) of
         0 -> ok;
-        _ ->
-            ok = op_worker_rpc:provider_logic_update(Params)
+        _ -> ok = op_worker_rpc:provider_logic_update(Params)
     end.
 
 
@@ -537,11 +539,11 @@ get_details() ->
         end
     catch
         Type:?ERROR_UNREGISTERED_ONEPROVIDER = Error ->
-            erlang:Type(Error);
+            erlang:raise(Type, Error, erlang:get_stacktrace());
         Type:Error ->
             case service:get_ctx(name()) of
                 #{?DETAILS_PERSISTENCE := Cached} -> Cached;
-                _ -> erlang:Type(Error)
+                _ -> erlang:raise(Type, Error, erlang:get_stacktrace())
             end
     end.
 
@@ -560,6 +562,7 @@ format_cluster_ips(Ctx) ->
 %% @doc Supports space with selected storage.
 %% @end
 %%--------------------------------------------------------------------
+-spec support_space(service:ctx()) -> SpaceId :: binary().
 support_space(#{storage_id := StorageId} = Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     assert_storage_exists(Node, StorageId),
@@ -585,10 +588,10 @@ revoke_space_support(#{id := SpaceId}) ->
 %% @doc Returns list of spaces supported by the provider.
 %% @end
 %%--------------------------------------------------------------------
--spec get_spaces(Ctx :: service:ctx()) -> list().
-get_spaces(_Ctx) ->
+-spec get_spaces() -> [binary()].
+get_spaces() ->
     {ok, SpaceIds} = op_worker_rpc:get_spaces(),
-    [{ids, SpaceIds}].
+    SpaceIds.
 
 
 %%--------------------------------------------------------------------
@@ -604,11 +607,13 @@ is_space_supported(#{space_id := Id}) ->
 %% @doc Returns details of the space given by ID.
 %% @end
 %%--------------------------------------------------------------------
--spec get_space_details(Ctx :: service:ctx()) -> proplists:proplist().
+-spec get_space_details(Ctx :: service:ctx()) -> json_utils:json_term().
 get_space_details(#{id := SpaceId}) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
-    {ok, #{name := Name, providers := Providers}} =
-        op_worker_rpc:get_space_details(Node, SpaceId),
+    {Name, Providers} = case op_worker_rpc:get_space_details(Node, SpaceId) of
+        {ok, #{name := Name0, providers := Providers0}} -> {Name0, Providers0};
+        {error, _} = Error -> throw(Error)
+    end,
     {ok, StorageIds} = op_worker_storage:get_supporting_storages(Node, SpaceId),
     StorageId = hd(StorageIds),
     ImportedStorage = op_worker_storage:is_imported_storage(Node, StorageId),
@@ -619,24 +624,24 @@ get_space_details(#{id := SpaceId}) ->
         Node, SpaceId, StorageId
     ),
     CurrentSize = op_worker_rpc:space_quota_current_size(Node, SpaceId),
-    [
-        {id, SpaceId},
-        {name, Name},
-        {supportingProviders, Providers},
-        {storageId, StorageId},
-        {localStorages, StorageIds},
-        {importedStorage, ImportedStorage},
-        {storageImport, ImportDetails},
-        {storageUpdate, UpdateDetails},
-        {spaceOccupancy, CurrentSize}
-    ].
+    #{
+        id => SpaceId,
+        importedStorage => ImportedStorage,
+        localStorages => StorageIds,
+        name => Name,
+        spaceOccupancy => CurrentSize,
+        storageId => StorageId,
+        storageImport => ImportDetails,
+        storageUpdate => UpdateDetails,
+        supportingProviders => Providers
+    }.
 
 
 %%--------------------------------------------------------------------
 %% @doc Modifies space details.
 %% @end
 %%--------------------------------------------------------------------
--spec modify_space(Ctx :: service:ctx()) -> list().
+-spec modify_space(Ctx :: service:ctx()) -> #{id => op_worker_rpc:od_space_id()}.
 modify_space(#{space_id := SpaceId} = Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     ImportArgs = maps:get(storage_import, Ctx, #{}),
@@ -644,7 +649,7 @@ modify_space(#{space_id := SpaceId} = Ctx) ->
     ok = maybe_update_support_size(Node, SpaceId, Ctx),
     op_worker_storage_sync:maybe_configure_storage_import(Node, SpaceId, ImportArgs),
     op_worker_storage_sync:maybe_configure_storage_update(Node, SpaceId, UpdateArgs),
-    [{id, SpaceId}].
+    #{id => SpaceId}.
 
 
 %%--------------------------------------------------------------------
@@ -665,7 +670,7 @@ maybe_update_support_size(_OpNode, _SpaceId, _Ctx) -> ok.
 %% @doc Get storage_sync stats
 %% @end
 %%--------------------------------------------------------------------
--spec get_sync_stats(Ctx :: service:ctx()) -> list().
+-spec get_sync_stats(Ctx :: service:ctx()) -> #{atom() => json_utils:json_term()}.
 get_sync_stats(#{space_id := SpaceId} = Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     Period = onepanel_utils:get_converted(period, Ctx, binary, undefined),
@@ -696,14 +701,14 @@ update_provider_ips() ->
 %% Returns list of auto-cleaning runs reports started since Since date.
 %% @end
 %%-------------------------------------------------------------------
--spec get_auto_cleaning_reports(Ctx :: service:ctx()) -> map().
+-spec get_auto_cleaning_reports(Ctx :: service:ctx()) -> [ReportId :: binary()].
 get_auto_cleaning_reports(Ctx = #{space_id := SpaceId}) ->
     Offset = onepanel_utils:get_converted(offset, Ctx, integer, 0),
     Limit = onepanel_utils:get_converted(limit, Ctx, integer, all),
     Index = onepanel_utils:get_converted(index, Ctx, binary, undefined),
     {ok, Ids} = op_worker_rpc:autocleaning_list_reports(
         SpaceId, Index, Offset, Limit),
-    #{ids => Ids}.
+    Ids.
 
 
 %%-------------------------------------------------------------------
@@ -715,7 +720,7 @@ get_auto_cleaning_reports(Ctx = #{space_id := SpaceId}) ->
 get_auto_cleaning_report(#{report_id := ReportId}) ->
     case op_worker_rpc:autocleaning_get_run_report(ReportId) of
         {ok, Report} ->
-            onepanel_maps:undefined_to_null(
+            maps_utils:undefined_to_null(
                 kv_utils:copy_found([
                     {id, id},
                     {index, index},
@@ -771,12 +776,13 @@ get_file_popularity_configuration(#{space_id := SpaceId}) ->
 %% Manually starts auto-cleaning of given space.
 %% @end
 %%-------------------------------------------------------------------
--spec start_auto_cleaning(Ctx :: service:ctx()) -> ok.
+-spec start_auto_cleaning(Ctx :: service:ctx()) ->
+    {ok, ReportId :: binary()} | no_need.
 start_auto_cleaning(#{space_id := SpaceId}) ->
     case op_worker_rpc:autocleaning_force_start(SpaceId) of
-        {ok, _} -> ok;
-        {error, {already_started, _}} -> ok;
-        {error, nothing_to_clean} -> ok;
+        {ok, ReportId} -> {ok, ReportId};
+        {error, {already_started, _}} -> no_need;
+        {error, nothing_to_clean} -> no_need;
         {error, _} = Error -> throw(Error)
     end.
 
@@ -1096,13 +1102,13 @@ assert_storage_exists(Node, StorageId) ->
 %% Configures storage of a supported space.
 %% @end
 %%--------------------------------------------------------------------
--spec configure_space(OpNode :: node(), SpaceId :: binary(), Ctx :: service:ctx()) -> list().
+-spec configure_space(OpNode :: node(), SpaceId :: binary(), Ctx :: service:ctx()) -> Id :: binary().
 configure_space(Node, SpaceId, Ctx) ->
     ImportArgs = maps:get(storage_import, Ctx, #{}),
     UpdateArgs = maps:get(storage_update, Ctx, #{}),
     op_worker_storage_sync:maybe_configure_storage_import(Node, SpaceId, ImportArgs),
     op_worker_storage_sync:maybe_configure_storage_update(Node, SpaceId, UpdateArgs),
-    [{id, SpaceId}].
+    SpaceId.
 
 
 %%--------------------------------------------------------------------
@@ -1113,7 +1119,7 @@ configure_space(Node, SpaceId, Ctx) ->
 %%--------------------------------------------------------------------
 -spec update_version_info(GuiHash :: binary()) -> ok | {error, inexistent_gui_version}.
 update_version_info(GuiHash) ->
-    {BuildVersion, AppVersion} = onepanel_app:get_build_and_version(),
+    {BuildVersion, AppVersion} = onepanel:get_build_and_version(),
     Result = oz_endpoint:request(
         provider,
         str_utils:format("/clusters/~s", [clusters:get_id()]),

@@ -149,11 +149,13 @@ get_steps(stop, #{uuid := UUID}) ->
 
 get_steps(Action, _Ctx) when
     Action == get_details;
-    Action == get_usage ->
+    Action == get_usage
+->
     [#step{function = Action, selection = any}];
 
 get_steps(NoArgsAction, _Ctx) when
-    NoArgsAction == list ->
+    NoArgsAction == list
+->
     [#step{function = NoArgsAction, selection = any, args = []}].
 
 

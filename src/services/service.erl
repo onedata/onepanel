@@ -34,8 +34,8 @@
 -export([get_results/1, get_results/2, abort_task/1,
     exists_task/1]).
 -export([register_healthcheck/2]).
--export([update_status/2, update_status/3, all_healthy/0, healthy/1]).
--export([get_module/1, get_hosts/1, add_host/2]).
+-export([update_status/2, update_status/3, all_healthy/0, is_healthy/1]).
+-export([get_module/1, get_hosts/1, has_host/2, add_host/2]).
 -export([get_ctx/1, update_ctx/2, store_in_ctx/3]).
 
 % @formatter:off
@@ -233,8 +233,8 @@ all_healthy() ->
 %% on last check.
 %% @end
 %%--------------------------------------------------------------------
--spec healthy(name()) -> boolean().
-healthy(Service) ->
+-spec is_healthy(name()) -> boolean().
+is_healthy(Service) ->
     case ?MODULE:get(Service) of
         {ok, #service{ctx = Ctx}} ->
             lists:all(fun({_Host, Status}) ->
@@ -333,7 +333,7 @@ apply_sync(Service, Action, Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply_sync(Service :: service:name(), Action :: service:action(),
-    Ctx :: service:ctx(), Timeout :: timeout()) ->
+    Ctx :: service:ctx(), timeout()) ->
     Results :: service_executor:results() | {error, _}.
 apply_sync(Service, Action, Ctx, Timeout) ->
     TaskId = apply_async(Service, Action, Ctx),
@@ -367,7 +367,7 @@ get_results(TaskId, Timeout) ->
     end,
     StepsCount = case gen_server:call(?SERVICE_EXECUTOR_NAME, {get_count, TaskId}) of
         ok -> service_executor:receive_count(TaskId, Timeout);
-        {error, _} = Error2 -> {Results, Error2}
+        {error, _} = Error2 -> Error2
     end,
     {Results, StepsCount}.
 
@@ -409,6 +409,15 @@ get_hosts(Service) ->
         {ok, #service{hosts = Hosts}} -> Hosts;
         {error, _} -> []
     end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns whether a service is deployed on given host.
+%% @end
+%%--------------------------------------------------------------------
+-spec has_host(name(), host()) -> boolean().
+has_host(Service, Host) ->
+    lists:member(Host, get_hosts(Service)).
 
 
 %%--------------------------------------------------------------------
@@ -488,8 +497,8 @@ update_ctx(Service, Diff) when is_function(Diff, 1) ->
     end).
 
 
--spec store_in_ctx(Service :: name(), Keys :: onepanel_maps:keys(),
-    Value :: term()) -> ok | no_return().
+-spec store_in_ctx(Service :: name(), Keys :: kv_utils:path(), Value :: term()) ->
+    ok | no_return().
 store_in_ctx(Service, Keys, Value) ->
     update_ctx(Service, fun(Ctx) ->
         kv_utils:put(Keys, Value, Ctx)

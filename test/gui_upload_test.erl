@@ -61,7 +61,7 @@ prepare() ->
     hackney:start(),
 
     meck:new([https_listener, gui, onepanel_app, clusters], [passthrough]),
-    meck:expect(onepanel_app, get_build_and_version, fun() -> {"build", "release"} end),
+    meck:expect(onepanel, get_build_and_version, fun() -> {"build", "release"} end),
     meck:expect(https_listener, gui_package_path, fun() -> "/some/path" end),
     meck:expect(clusters, get_id, fun() -> ?CLUSTER_ID end),
     meck:expect(gui, package_hash, fun("/some/path") ->
@@ -117,7 +117,7 @@ pop_request() ->
 %% @doc Returns first message from process message queue.
 %% @end
 %%--------------------------------------------------------------------
--spec pop_request(Timeout :: timeout()) -> Any :: term() | timeout.
+-spec pop_request(timeout()) -> Any :: term() | timeout.
 pop_request(Timeout) ->
     receive
         {request, Any} -> Any

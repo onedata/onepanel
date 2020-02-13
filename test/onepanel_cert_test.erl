@@ -77,4 +77,26 @@ verify_rejects_domain_test() ->
     ?assertEqual(invalid, onepanel_cert:verify_hostname(Cert1, <<"not_in_cert.com">>)),
     ?assertEqual(invalid, onepanel_cert:verify_hostname(Cert2, <<"not_in_cert.com">>)).
 
+
+list_certificate_files_test() ->
+    utils:run_with_tempdir(fun(TmpDir) ->
+        LEDir = filename:join([TmpDir, letsencrypt]),
+        LECredentials = filename:join([LEDir, staging, private_key]),
+        ok = onepanel_env:set(letsencrypt_keys_dir, LEDir),
+        ok = filelib:ensure_dir(LECredentials),
+        ok = file:write_file(LECredentials, <<>>),
+
+        Files = lists:map(fun(Var) ->
+            Path = filename:join(TmpDir, Var),
+            ok = file:write_file(Path, <<>>),
+            ok = onepanel_env:set(Var, Path),
+            Path
+        end, [web_key_file, web_cert_file, web_cert_chain_file]),
+        Files2 = lists:sort([LECredentials | Files]),
+
+        ?assertEqual(Files2, lists:sort(onepanel_cert:list_certificate_files()))
+    end).
+
+
+
 -endif.

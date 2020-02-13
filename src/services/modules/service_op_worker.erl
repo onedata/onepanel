@@ -127,11 +127,13 @@ get_steps(invalidate_luma_cache, Ctx) ->
     get_steps(invalidate_luma_cache, Ctx#{hosts => get_hosts()});
 
 get_steps(Function, _Ctx) when
-    Function == get_transfers_mock ->
+    Function == get_transfers_mock
+->
     [#step{function = Function, selection = any}];
 
 get_steps(Function, _Ctx) when
-    Function == set_transfers_mock ->
+    Function == set_transfers_mock
+->
     [#step{function = Function, selection = all}];
 
 get_steps(Action, Ctx) ->
@@ -150,7 +152,7 @@ get_steps(Action, Ctx) ->
 get_compatible_onezones() ->
     % Try to retrieve oneprovider version from op worker.
     % When opw is not responding use onepanel version instead.
-    {_, PanelVersion} = onepanel_app:get_build_and_version(),
+    {_, PanelVersion} = onepanel:get_build_and_version(),
     OpVersion = case nodes:any(?SERVICE_OPW) of
         {ok, Node} ->
             case op_worker_rpc:get_op_worker_version(Node) of
@@ -337,7 +339,7 @@ add_storage(#{params := _, name := _} = Ctx) ->
 %%--------------------------------------------------------------------
 -spec get_storages(#{id => op_worker_storage:id()}) ->
     op_worker_storage:storage_details()
-    | #{ids := [op_worker_storage:id()]}.
+    | [op_worker_storage:id()].
 get_storages(#{id := Id}) ->
     Details = op_worker_storage:get(Id),
     case matches_local_ceph_pool(Details) of
@@ -425,9 +427,11 @@ reload_webcert(Ctx) ->
 -spec supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
     boolean().
 supports_letsencrypt_challenge(Challenge) when
-    Challenge == http; Challenge == dns ->
+    Challenge == http;
+    Challenge == dns
+->
     ?MODULE:get_hosts() /= [] orelse throw(?ERROR_NO_SERVICE_NODES(name())),
-    service:healthy(name()) orelse throw(?ERROR_SERVICE_UNAVAILABLE),
+    service:is_healthy(name()) orelse throw(?ERROR_SERVICE_UNAVAILABLE),
     service_oneprovider:is_registered() orelse throw(?ERROR_UNREGISTERED_ONEPROVIDER),
     case Challenge of
         http -> true;
@@ -589,7 +593,7 @@ env_write_and_set(Variable, Value) ->
 matches_local_ceph_pool(#{type := Type, name := Name, clusterName := ClusterName}) when
     Type == ?LOCAL_CEPH_STORAGE_TYPE; % when checking against op_worker output
     Type == ?CEPH_STORAGE_HELPER_NAME % when checking user input
-    ->
+->
     service:exists(?SERVICE_CEPH)
         andalso ceph:get_cluster_name() == ClusterName
         andalso ceph_pool:exists(Name);

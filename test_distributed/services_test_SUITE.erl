@@ -75,8 +75,8 @@ all() ->
 
 
 domain_is_lowercased_test(Config) ->
-    % deployment in init_per_suite provides domain in uppercase.
-    % it should be lowercased in the deployment functions
+    % Deployment in init_per_suite provides domain in uppercase.
+    % Verify the domain to be lowercased by the deployment functions.
     [OzNode | _] = ?config(onezone_nodes, Config),
     [OpNode | _] = ?config(oneprovider_nodes, Config),
     ExpectedOpDomain = ?config(oneprovider_domain, Config),
@@ -87,8 +87,8 @@ domain_is_lowercased_test(Config) ->
 
 
 default_admin_is_created_test(Config) ->
-    % after deployment there should exist Onezone user <<"admin">>
-    % with password set to emergency passphrase
+    % After deployment, there should exist Onezone user <<"admin">>
+    % with password set to the emergency passphrase.
     [OzNode | _] = ?config(onezone_nodes, Config),
     OzwNode = nodes:service_to_node(?SERVICE_OZW, OzNode),
     ?assertMatch({true, #auth{}}, image_test_utils:proxy_rpc(OzNode, OzwNode,
@@ -118,11 +118,11 @@ service_oneprovider_modify_details_test(Config) ->
         oneprovider_admin_email => <<"admin@onedata.org">>
     }),
 
-    onepanel_test_utils:service_action(Node, oneprovider, get_details, #{
+    Results = onepanel_test_utils:service_action(Node, oneprovider, get_details, #{
         hosts => [hosts:from_node(Node)]
     }),
-    Results = assert_service_step(service:get_module(oneprovider), get_details),
-    [{_, Details}] = ?assertMatch([{Node, _}], Results),
+    NodeToResult = assert_step_present(service:get_module(oneprovider), get_details, Results),
+    [{_, Details}] = ?assertMatch([{Node, _}], NodeToResult),
     onepanel_test_utils:assert_fields(Details,
         [id, name, subdomainDelegation, domain, adminEmail, geoLatitude, geoLongitude]
     ),
@@ -138,11 +138,11 @@ service_oneprovider_modify_details_test(Config) ->
 
 service_oneprovider_get_details_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
-    onepanel_test_utils:service_action(Node, oneprovider, get_details, #{
+    Results = onepanel_test_utils:service_action(Node, oneprovider, get_details, #{
         hosts => [hosts:from_node(Node)]
     }),
-    Results = assert_service_step(service:get_module(oneprovider), get_details),
-    [{_, Details}] = ?assertMatch([{Node, _}], Results),
+    ResultToNode = assert_step_present(service:get_module(oneprovider), get_details, Results),
+    [{_, Details}] = ?assertMatch([{Node, _}], ResultToNode),
     onepanel_test_utils:assert_fields(Details,
         [id, name, domain, adminEmail, geoLatitude, geoLongitude]
     ).
@@ -150,24 +150,24 @@ service_oneprovider_get_details_test(Config) ->
 
 service_oneprovider_get_supported_spaces_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
-    onepanel_test_utils:service_action(Node, oneprovider, get_spaces, #{
+    Results = onepanel_test_utils:service_action(Node, oneprovider, get_spaces, #{
         hosts => [hosts:from_node(Node)]
     }),
-    ?assertEqual([{Node, [{ids, []}]}], assert_service_step(
-        service:get_module(oneprovider), get_spaces
-    )).
+    assert_expected_result(
+        service:get_module(oneprovider), get_spaces, [Node], [], Results
+    ).
 
 
 service_op_worker_get_storages_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
     Ctx = #{hosts => [hosts:from_node(Node)]},
-    onepanel_test_utils:service_action(Node, op_worker, get_storages, Ctx),
-    Results = assert_service_step(service:get_module(op_worker), get_storages),
-    [{Node, #{ids := [Id]}}] = ?assertMatch([{Node, #{ids := [_]}}], Results),
+    Results = onepanel_test_utils:service_action(Node, op_worker, get_storages, Ctx),
+    ResultToNode = assert_step_present(service:get_module(op_worker), get_storages, Results),
+    [{Node, [Id]}] = ?assertMatch([{Node, [_]}], ResultToNode),
 
-    onepanel_test_utils:service_action(Node, op_worker, get_storages, Ctx#{id => Id}),
-    Results2 = assert_service_step(service:get_module(op_worker), get_storages),
-    [{Node, Storage}] = ?assertMatch([{Node, _}], Results2),
+    Results2 = onepanel_test_utils:service_action(Node, op_worker, get_storages, Ctx#{id => Id}),
+    ResultToNode2 = assert_step_present(service:get_module(op_worker), get_storages, Results2),
+    [{Node, Storage}] = ?assertMatch([{Node, _}], ResultToNode2),
     onepanel_test_utils:assert_values(Storage, [
         {id, Id},
         {name, <<"somePosix1">>},
@@ -202,7 +202,7 @@ service_op_worker_add_storage_test(Config) ->
     Swift = kv_utils:get([storages, swift, someSwift], Config),
     Glusterfs = kv_utils:get([storages, glusterfs, someGlusterfs], Config),
     WebDAV = kv_utils:get([storages, webdav, someWebDAV], Config),
-    onepanel_test_utils:service_action(Node, op_worker, add_storages, #{
+    Results = onepanel_test_utils:service_action(Node, op_worker, add_storages, #{
         hosts => [hd(?config(oneprovider_hosts, Config))],
         storages => #{
             <<"somePosix2">> => #{
@@ -291,7 +291,7 @@ service_op_worker_add_storage_test(Config) ->
             }
         }
     }),
-    assert_service_step(service:get_module(op_worker), add_storage, [Node], ok).
+    assert_expected_result(service:get_module(op_worker), add_storage, [Node], ok, Results).
 
 
 service_op_worker_update_storage_test(Config) ->
@@ -346,11 +346,11 @@ service_op_worker_update_storage_test(Config) ->
                             maps:merge(Storage, ChangesBinary#{verificationPassed => false})
                     end,
 
-                    onepanel_test_utils:service_action(Node, op_worker, update_storage, #{
+                    Results = onepanel_test_utils:service_action(Node, op_worker, update_storage, #{
                         hosts => [Host], storage => Changes, id => Id
                     }),
-                    assert_service_step(service:get_module(op_worker),
-                        update_storage, [Node], Expected);
+                    assert_expected_result(service:get_module(op_worker),
+                        update_storage, [Node], Expected, Results);
                 error -> skip
             end
     end, ExistingStorages).
@@ -361,18 +361,18 @@ services_status_test(Config) ->
         lists:foreach(fun(Service) ->
             SModule = service:get_module(Service),
             lists:foreach(fun(Node) ->
-                onepanel_test_utils:service_host_action(Node, Service, status),
-                assert_service_step(SModule, status, [Node], healthy)
+                Results = onepanel_test_utils:service_host_action(Node, Service, status),
+                assert_expected_result(SModule, status, [Node], healthy, Results)
             end, Nodes),
 
-            onepanel_test_utils:service_action(hd(Nodes), Service, status),
-            assert_service_step(SModule, status, Nodes, healthy)
+            Results = onepanel_test_utils:service_action(hd(Nodes), Service, status),
+            assert_expected_result(SModule, status, Nodes, healthy, Results)
         end, Services),
 
-        onepanel_test_utils:service_action(hd(Nodes), MainService, status),
+        Results = onepanel_test_utils:service_action(hd(Nodes), MainService, status),
         lists:foreach(fun(Service) ->
             SModule = service:get_module(Service),
-            assert_service_step(SModule, status, Nodes, healthy)
+            assert_expected_result(SModule, status, Nodes, healthy, Results)
         end, Services)
     end, [
         {?config(onezone_nodes, Config), ?SERVICE_OZ,
@@ -393,22 +393,22 @@ services_stop_start_test(Config) ->
 
             lists:foreach(fun(Node) ->
                 lists:foreach(fun({Action, Result}) ->
-                    onepanel_test_utils:service_host_action(Node, Service, Action),
-                    assert_service_step(SModule, Action, [Node], Result)
+                    Results = onepanel_test_utils:service_host_action(Node, Service, Action),
+                    assert_expected_result(SModule, Action, [Node], Result, Results)
                 end, ActionsWithResults)
             end, Nodes),
 
             lists:foreach(fun({Action, Result}) ->
-                onepanel_test_utils:service_action(hd(Nodes), Service, Action),
-                assert_service_step(SModule, Action, Nodes, Result)
+                Results = onepanel_test_utils:service_action(hd(Nodes), Service, Action),
+                assert_expected_result(SModule, Action, Nodes, Result, Results)
             end, ActionsWithResults)
         end, Services),
 
         lists:foreach(fun({Action, Result}) ->
-            onepanel_test_utils:service_action(hd(Nodes), MainService, Action),
+            Results = onepanel_test_utils:service_action(hd(Nodes), MainService, Action),
             lists:foreach(fun(Service) ->
                 SModule = service:get_module(Service),
-                assert_service_step(SModule, Action, Nodes, Result)
+                assert_expected_result(SModule, Action, Nodes, Result, Results)
             end, Services)
         end, ActionsWithResults)
     end, [
@@ -475,21 +475,29 @@ end_per_suite(_Config) ->
 %%%===================================================================
 
 %% @private
--spec assert_service_step(Module :: module(), Function :: atom()) ->
-    onepanel_rpc:results().
-assert_service_step(Module, Function) ->
-    {_, {_, _, {Results, _}}} = ?assertReceivedMatch(
-        {step_end, {Module, Function, {_, []}}}, ?TIMEOUT
-    ),
-    Results.
+-spec assert_step_present(module(), Function :: atom(),
+    service_executor:results()) -> onepanel_rpc:results().
+assert_step_present(Module, Function, Results) ->
+    case lists:filtermap(fun
+        ({M, F, {GoodResults, []}}) when M == Module, F == Function ->
+            {true, GoodResults};
+        (_) ->
+            false
+    end, Results) of
+        [NodesToResult | _] -> NodesToResult;
+        [] -> ct:fail("Step ~ts:~ts not found among results:~n~p", [Module, Function, Results])
+    end.
+
 
 %% @private
--spec assert_service_step(Module :: module(), Function :: atom(),
-    Nodes :: [node()], Result :: term()) -> ok.
-assert_service_step(Module, Function, Nodes, Result) ->
-    Results = assert_service_step(Module, Function),
-    Expected = same_result_for_nodes(Nodes, Result),
-    onepanel_test_utils:assert_values(Results, Expected).
+-spec assert_expected_result(Module :: module(), Function :: atom(),
+    Nodes :: [node()], Expected :: term(),
+    Results :: service_executor:results()) -> ok.
+assert_expected_result(Module, Function, Nodes, ExpectedValue, Results) ->
+    NodesToResult = assert_step_present(Module, Function, Results),
+    Expected = same_result_for_nodes(Nodes, ExpectedValue),
+    onepanel_test_utils:assert_values(NodesToResult, Expected),
+    NodesToResult.
 
 
 %% @private
@@ -524,17 +532,18 @@ await_oz_connectivity(Node) ->
     [op_worker_storage:storage_details()].
 get_storages(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
-    onepanel_test_utils:service_action(Node, op_worker, get_storages, #{
+    Results = onepanel_test_utils:service_action(Node, op_worker, get_storages, #{
         hosts => [hosts:from_node(Node)]
     }),
-    Results = assert_service_step(service:get_module(op_worker), get_storages),
-    [{_, #{ids := Ids}}] = ?assertMatch([{Node, _}], Results),
+    NodeToResult = assert_step_present(service:get_module(op_worker), get_storages, Results),
+    [{_, Ids}] = ?assertMatch([{Node, List}] when is_list(List), NodeToResult),
 
     lists:map(fun(Id) ->
-        onepanel_test_utils:service_action(Node, op_worker, get_storages, #{
+        Results2 = onepanel_test_utils:service_action(Node, op_worker, get_storages, #{
             hosts => [hosts:from_node(Node)], id => Id
         }),
-        Results2 = assert_service_step(service:get_module(op_worker), get_storages),
-        [{_, Details}] = ?assertMatch([{Node, _}], Results2),
+        NodeToResult2 = assert_step_present(service:get_module(op_worker),
+            get_storages, Results2),
+        [{_, Details}] = ?assertMatch([{Node, _}], NodeToResult2),
         Details
     end, Ids).

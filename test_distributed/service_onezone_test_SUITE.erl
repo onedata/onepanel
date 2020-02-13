@@ -47,9 +47,9 @@ all() ->
 users_should_be_migrated_and_removed(Config) ->
     Users = ?config(users, Config),
     [Node | _] = ?config(all_nodes, Config),
-    ?assertEqual(ok, rpc:call(Node, service, apply,
-        [?SERVICE_OZ, migrate_users, #{}]
-    )),
+    onepanel_test_utils:service_action(Node,
+        ?SERVICE_OZ, migrate_users, #{}
+    ),
 
     lists:foreach(fun
         (#onepanel_user{uuid = UUID, username = Name, password_hash = PassHash, role = Role}) ->

@@ -198,6 +198,9 @@ get_steps(add_users, #{onezone_users := _}) ->
 get_steps(add_users, _Ctx) ->
     [];
 
+get_steps(add_user, _UserData) ->
+    [#step{module = onezone_users, function = add_user, selection = any}];
+
 get_steps(migrate_users, _Ctx) ->
     [
         #step{module = onezone_users, function = migrate_users, selection = any,
@@ -209,13 +212,15 @@ get_steps(UsersFunction, _Ctx) when
     UsersFunction == set_user_password;
     UsersFunction == create_default_admin;
     UsersFunction == list_users;
-    UsersFunction == get_user ->
+    UsersFunction == get_user
+->
     [#step{module = onezone_users, function = UsersFunction, selection = any}];
 
 get_steps(Function, _Ctx) when
     Function == get_gui_message;
     Function == update_gui_message;
-    Function == format_cluster_ips ->
+    Function == format_cluster_ips
+->
     [#step{function = Function, selection = any}];
 
 get_steps(set_up_service_in_onezone, _Ctx) ->
@@ -261,7 +266,7 @@ set_up_service_in_onezone() ->
     ?info("Setting up Onezone panel service in Onezone"),
 
     GuiPackagePath = https_listener:gui_package_path(),
-    {BuildVersion, AppVersion} = onepanel_app:get_build_and_version(),
+    {BuildVersion, AppVersion} = onepanel:get_build_and_version(),
 
     {ok, GuiHash} = oz_worker_rpc:deploy_static_gui_package(
         ?ONEPANEL_GUI, AppVersion, filename:absname(GuiPackagePath), false

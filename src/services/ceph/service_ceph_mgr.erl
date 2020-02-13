@@ -101,12 +101,12 @@ get_steps(stop, #{id := Id}) ->
     #{host := Host} = get_instance(Id),
     [#step{function = stop, selection = any, hosts = [Host]}];
 
-get_steps(Action, _Ctx) when
-    Action == get_details ->
-    [#step{function = Action, selection = any}];
+get_steps(get_details, _Ctx) ->
+    [#step{function = get_details, selection = any}];
 
 get_steps(NoArgsAction, _Ctx) when
-    NoArgsAction == list ->
+    NoArgsAction == list
+->
     [#step{function = NoArgsAction, args = [], selection = any}].
 
 

@@ -188,7 +188,7 @@ write_should_pass_errors() ->
 
 
 migrate_should_rename_key() ->
-    ?assertEqual(true, onepanel_env:migrate(service1, [a1, k2], [a1, k9])),
+    ?assertEqual(true, onepanel_env:rename(service1, [a1, k2], [a1, k9])),
     Expected = {ok, ?FILE_CONTENT([
         {a1, [{k9, v2}, {k1, v1}, {k3, v3}, {k4, v4}]},
         {a2, ?APP_CONFIG_2}
@@ -198,7 +198,7 @@ migrate_should_rename_key() ->
 
 
 migrate_should_ignore_missing() ->
-    ?assertEqual(false, onepanel_env:migrate(service1, [a1, missing], [a1, k9])),
+    ?assertEqual(false, onepanel_env:rename(service1, [a1, missing], [a1, k9])),
     % no write happens when there is no change
     Msg = pop_msg(),
     ?assertEqual(timeout, Msg).
@@ -292,7 +292,7 @@ pop_msg() ->
 %% @doc Returns first message from process message queue.
 %% @end
 %%--------------------------------------------------------------------
--spec pop_msg(Timeout :: timeout()) -> Any :: term() | timeout.
+-spec pop_msg(timeout()) -> Any :: term() | timeout.
 pop_msg(Timeout) ->
     receive
         Any -> Any

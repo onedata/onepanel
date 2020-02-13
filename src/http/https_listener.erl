@@ -26,7 +26,7 @@
 -define(GUI_PACKAGE_PATH, onepanel_env:get(gui_package_path)).
 
 -export([port/0, start/0, stop/0, healthcheck/0]).
--export([get_cert_chain_pems/0, get_prefix/1]).
+-export([get_cert_chain_pems/0, get_prefix/0]).
 -export([gui_package_path/0]).
 
 %%%===================================================================
@@ -56,10 +56,10 @@ start() ->
     ChainFile = onepanel_env:get(web_cert_chain_file),
     GuiStaticRoot = onepanel_env:get(gui_static_root),
 
-    CommonRoutes = onepanel_api:routes(),
+    CommonRoutes = onepanel_rest_routes:routes(),
     SpecificRoutes = case onepanel_env:get_cluster_type() of
-        oneprovider -> oneprovider_api:routes();
-        onezone -> onezone_api:routes()
+        oneprovider -> oneprovider_rest_routes:routes();
+        onezone -> onezone_rest_routes:routes()
     end,
     Routes = merge_routes(CommonRoutes ++ SpecificRoutes),
     DynamicPages = [
@@ -119,11 +119,9 @@ get_cert_chain_pems() ->
 %% @doc Returns REST listener prefix.
 %% @end
 %%--------------------------------------------------------------------
--spec get_prefix(ApiVersion :: rest_handler:version()) -> Prefix :: binary().
-get_prefix(ApiVersion) ->
-    Template = onepanel_env:get(rest_api_prefix_template),
-    re:replace(Template, "{version_number}",
-        onepanel_utils:convert(ApiVersion, binary), [{return, binary}]).
+-spec get_prefix() -> Prefix :: binary().
+get_prefix() ->
+    onepanel_utils:convert(onepanel_env:get(rest_api_prefix), binary).
 
 
 %%--------------------------------------------------------------------
@@ -144,18 +142,27 @@ gui_package_path() ->
 %% by cowboy router.
 %% @end
 %%--------------------------------------------------------------------
--spec merge_routes(Routes) -> Routes when
-    Routes :: [{Path :: binary(), Module :: module(), State :: rest_handler:state()}].
-merge_routes(Routes) ->
-    lists:foldl(fun({Path, Handler, #rstate{methods = [Method]}} = Route, Acc) ->
-        case lists:keyfind(Path, 1, Acc) of
-            {Path, Handler, #rstate{methods = Methods} = State} ->
-                lists:keyreplace(Path, 1, Acc, {Path, Handler,
-                    State#rstate{methods = [Method | Methods]}});
-            false ->
-                [Route | Acc]
-        end
-    end, [], Routes).
+-spec merge_routes([{Path, #rest_req{}}]) -> Routes when
+    Routes :: [{Path, module(), #{rest_handler:method() => #rest_req{}}}],
+    Path :: binary().
+merge_routes(AllRoutes) ->
+    % Aggregate routes that share the same path
+    AggregatedRoutes = lists:foldl(
+        fun({Path, #rest_req{method = Method} = RestReq}, RoutesAcc) ->
+            RoutesForPath = proplists:get_value(Path, RoutesAcc, #{}),
+            lists:keystore(
+                Path, 1, RoutesAcc,
+                {Path, RoutesForPath#{Method => RestReq}}
+            )
+        end, [], AllRoutes),
+    % Convert all routes to cowboy-compliant routes
+    % - prepend REST prefix to every route
+    % - rest handler module must be added as second element to the tuples
+    % - the result will serve as an argument to rest_handler:init.
+    Prefix = str_utils:to_binary(onepanel_env:get(rest_api_prefix)),
+    lists:map(fun({Path, RoutesForPath}) ->
+        {<<Prefix/binary, Path/binary>>, ?REST_HANDLER_MODULE, RoutesForPath}
+    end, AggregatedRoutes).
 
 
 %%--------------------------------------------------------------------
@@ -164,7 +171,7 @@ merge_routes(Routes) ->
 %%--------------------------------------------------------------------
 -spec common_response_headers() -> cowboy:http_headers().
 common_response_headers() ->
-    case rest_utils:allowed_origin() of
+    case rest_handler:allowed_origin() of
         undefined -> #{};
         Origin -> #{<<"access-control-allow-origin">> => Origin}
     end.

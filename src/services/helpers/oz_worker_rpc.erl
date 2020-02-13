@@ -92,10 +92,13 @@ authenticate_by_token(Token, PeerIp)  ->
     undefined | ip_utils:ip()) ->
     {true, aai:auth()} | {error, term()}.
 authenticate_by_token(Node, Token, PeerIp)  ->
-    Audience = ?AUD(?OZ_PANEL, ?ONEZONE_CLUSTER_ID),
-    % @TODO VFS-5913 Recognize interface caveat in onepanel
-    Interface = undefined,
-    ?CALL(Node, [Token, Interface, PeerIp, Audience]).
+    AuthCtx = #auth_ctx{
+        % @TODO VFS-5913 Fully recognize peerIp, interface and consumerToken
+        % auth ctx in onepanel
+        ip = PeerIp,
+        service = ?SERVICE(?OZ_PANEL, ?ONEZONE_CLUSTER_ID)
+    },
+    ?CALL(Node, [Token, AuthCtx]).
 
 
 -spec get_protected_provider_data(aai:auth(), od_provider_id()) ->
@@ -112,14 +115,14 @@ get_protected_provider_data(Node, Auth, ProviderId) ->
 -spec deploy_static_gui_package(onedata:gui(), onedata:release_version(),
     file:name_all(), VerifyGuiHash :: boolean()) ->
     {ok, onedata:gui_hash()} | ?ERROR_BAD_GUI_PACKAGE |
-    ?ERROR_GUI_PACKAGE_TOO_LARGE | ?ERROR_GUI_PACKAGE_UNVERIFIED.
+    ?ERROR_GUI_PACKAGE_TOO_LARGE | ?ERROR_GUI_PACKAGE_UNVERIFIED(onedata:gui_hash()).
 deploy_static_gui_package(GuiType, ReleaseVsn, PackagePath, VerifyGuiHash) ->
     ?CALL([GuiType, ReleaseVsn, PackagePath, VerifyGuiHash]).
 
 -spec deploy_static_gui_package(node(), onedata:gui(), onedata:release_version(),
     file:name_all(), VerifyGuiHash :: boolean()) ->
     {ok, onedata:gui_hash()} | ?ERROR_BAD_GUI_PACKAGE |
-    ?ERROR_GUI_PACKAGE_TOO_LARGE | ?ERROR_GUI_PACKAGE_UNVERIFIED.
+    ?ERROR_GUI_PACKAGE_TOO_LARGE | ?ERROR_GUI_PACKAGE_UNVERIFIED(onedata:gui_hash()).
 deploy_static_gui_package(Node, GuiType, ReleaseVsn, PackagePath, VerifyGuiHash) ->
     ?CALL(Node, [GuiType, ReleaseVsn, PackagePath, VerifyGuiHash]).
 
@@ -149,12 +152,12 @@ set_user_password(Node, Auth, UserId, NewPassword) ->
     ?CALL(Node, [Auth, UserId, NewPassword]).
 
 -spec create_user(aai:auth(), Data :: map()) ->
-    {ok, od_user_id()} | {error, term()}.
+    {ok, od_user_id()} | errors:error().
 create_user(Auth, Data) ->
     ?CALL([Auth, Data]).
 
 -spec create_user(node(), aai:auth(), Data :: map()) ->
-    {ok, od_user_id()} | {error, term()}.
+    {ok, od_user_id()} | errors:error().
 create_user(Node, Auth, Data) ->
     ?CALL(Node, [Auth, Data]).
 
