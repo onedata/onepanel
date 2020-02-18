@@ -91,15 +91,19 @@ auth_to_rest_client(none) ->
 
 auth_to_rest_client({token, Token}) ->
     OneproviderIdentityToken = service_oneprovider:get_identity_token(),
-    OpPanelAccessToken = tokens:add_oneprovider_service_indication(?OP_PANEL, OneproviderIdentityToken),
+    OpPanelIdentityToken = tokens:add_oneprovider_service_indication(
+        ?OP_PANEL, OneproviderIdentityToken
+    ),
     {headers, maps:merge(
         tokens:access_token_header(Token),
-        tokens:service_token_header(OpPanelAccessToken)
+        tokens:service_token_header(OpPanelIdentityToken)
     )};
 
 auth_to_rest_client(op_panel) ->
     OneproviderAccessToken = service_oneprovider:get_access_token(),
-    OpPanelAccessToken = tokens:add_oneprovider_service_indication(?OP_PANEL, OneproviderAccessToken),
+    OpPanelAccessToken = tokens:add_oneprovider_service_indication(
+        ?OP_PANEL, OneproviderAccessToken
+    ),
     {headers, tokens:access_token_header(OpPanelAccessToken)};
 
 auth_to_rest_client(provider) ->
