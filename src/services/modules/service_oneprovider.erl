@@ -52,7 +52,7 @@
     get_file_popularity_configuration/1, get_auto_cleaning_configuration/1]).
 -export([set_up_service_in_onezone/0, store_absolute_auth_file_path/0]).
 -export([pop_legacy_letsencrypt_config/0]).
--export([get_id/0, get_access_token/0]).
+-export([get_id/0, get_access_token/0, get_identity_token/0]).
 
 % Internal RPC
 -export([root_token_from_file/0]).
@@ -373,6 +373,21 @@ get_access_token() ->
         {ok, <<Token/binary>>} -> Token;
         ?ERROR_UNREGISTERED_ONEPROVIDER = Error -> throw(Error);
         _ -> root_token_from_file()
+    end.
+
+
+-spec get_identity_token() -> tokens:serialized().
+get_identity_token() ->
+    case op_worker_rpc:get_identity_token() of
+        {ok, <<Token/binary>>} ->
+            Token;
+        ?ERROR_UNREGISTERED_ONEPROVIDER = Err1 ->
+            throw(Err1);
+        _ ->
+            case clusters:acquire_provider_identity_token() of
+                {ok, T} -> T;
+                {error, _} = Err2 -> throw(Err2)
+            end
     end.
 
 
