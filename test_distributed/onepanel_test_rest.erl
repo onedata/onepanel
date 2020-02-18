@@ -337,6 +337,7 @@ obtain_local_token(HostOrConfig, Auth) ->
 -spec construct_token([caveats:caveat()]) -> tokens:serialized().
 construct_token(Caveats) ->
     {ok, Token} = tokens:serialize(tokens:construct(#token{
+        type = ?ACCESS_TOKEN,
         subject = ?SUB(user, <<"userId">>),
         onezone_domain = <<"someonezone.test">>,
         persistence = {temporary, 1},

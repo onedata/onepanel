@@ -124,10 +124,14 @@ authenticate_user(oneprovider, SerializedToken, PeerIp) ->
 verify_access_token(SerializedToken, PeerIp) ->
     {ok, Token} = tokens:deserialize(SerializedToken),
     {ok, BinaryIp} = ip_utils:to_binary(PeerIp),
+    OneproviderIdentityToken = service_oneprovider:get_identity_token(),
+    OpPanelIdentityToken = tokens:add_oneprovider_service_indication(
+        ?OP_PANEL, OneproviderIdentityToken
+    ),
     ReqBody = json_utils:encode(#{
         <<"token">> => SerializedToken,
         <<"peerIp">> => BinaryIp,
-        <<"service">> => aai:serialize_service(?SERVICE(?OP_PANEL, clusters:get_id()))
+        <<"serviceToken">> => OpPanelIdentityToken
     }),
     case oz_endpoint:request(
         op_panel, "/tokens/verify_access_token", post, ReqBody
