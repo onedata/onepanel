@@ -48,7 +48,7 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([set_cookie/1, configure/1, check_connection/1,
+-export([set_cookie/1, fetch_and_set_cookie/1, configure/1, check_connection/1,
     ensure_all_hosts_available/1, init_cluster/1, extend_cluster/1,
     join_cluster/1, reset_node/1, ensure_node_ready/1, reload_webcert/1,
     available_for_clustering/0, is_host_used/1]).
@@ -125,7 +125,7 @@ get_steps(join_cluster, #{cluster_host := ClusterHost} = Ctx) ->
         {true, _} ->
             S = #step{hosts = [SelfHost], verify_hosts = false},
             [
-                S#step{function = set_cookie},
+                S#step{function = fetch_and_set_cookie},
                 S#step{function = check_connection,
                     attempts = onepanel_env:get(node_connection_attempts, ?APP_NAME, 90),
                     retry_delay = onepanel_env:get(node_connection_retry_delay, ?APP_NAME, 1000)},
@@ -202,6 +202,32 @@ set_cookie(#{cookie := Cookie} = Ctx) ->
 
 set_cookie(Ctx) ->
     set_cookie(Ctx#{cookie => erlang:get_cookie()}).
+
+
+%%--------------------------------------------------------------------
+%% @doc Fetches and sets the node cookie.
+%% @end
+%%--------------------------------------------------------------------
+-spec fetch_and_set_cookie(Ctx :: service:ctx()) -> ok | no_return().
+fetch_and_set_cookie(#{invite_token := InviteToken} = Ctx) ->
+    Hostname = invite_tokens:get_hostname(InviteToken),
+    Headers = #{?HDR_X_AUTH_TOKEN => InviteToken},
+    Suffix = "/cookie",
+    Timeout = service_ctx:get(extend_cluster_timeout, Ctx, integer),
+    Opts = https_opts(Timeout),
+    Url = build_url(Hostname, Suffix),
+
+    case http_client:get(Url, Headers, <<>>, Opts) of
+        {ok, ?HTTP_200_OK, _, Cookie} ->
+            set_cookie(#{cookie => Cookie});
+        {ok, ?HTTP_401_UNAUTHORIZED, _, _} ->
+            throw(?ERROR_UNAUTHORIZED);
+        {ok, ?HTTP_403_FORBIDDEN, _, _} ->
+            throw(?ERROR_FORBIDDEN);
+        {error, _} ->
+            ?warning("Failed to connect with '~ts' to fetch cookie", [Hostname]),
+            throw(?ERROR_NO_CONNECTION_TO_NEW_NODE(Hostname))
+    end.
 
 
 %%--------------------------------------------------------------------
