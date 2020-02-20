@@ -286,11 +286,7 @@ extend_cluster(#{attempts := Attempts} = Ctx) when Attempts =< 0 ->
     throw(?ERROR_NO_CONNECTION_TO_NEW_NODE(NewNode));
 
 extend_cluster(#{hostname := Hostname, attempts := Attempts} = Ctx) ->
-    SelfHost = hosts:self(),
-    Body = json_utils:encode(#{
-        cookie => erlang:get_cookie(),
-        clusterHost => onepanel_utils:convert(SelfHost, binary)
-    }),
+    Body = json_utils:encode(#{inviteToken => invite_tokens:create()}),
     Headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
     Suffix = "/join_cluster",
     Timeout = service_ctx:get(extend_cluster_timeout, Ctx, integer),
